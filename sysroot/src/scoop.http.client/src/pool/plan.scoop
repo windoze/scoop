@@ -80,7 +80,7 @@ private fun maintainClientPool(state: ClientState, now: TimeMark, actions: Array
         val connection = entry.connection!!
         when (connection) {
             case Http1(value) -> if (entry.active == 0L && !value.isReusable) entry.draining = true
-            case Http2(value) -> if (value.isClosed || value.isDraining) entry.draining = true
+            case Http2(value) -> if (value.isClosing || value.isDraining) entry.draining = true
         }
         if (!clientPresent(entry.initial)) {
             when (state.config.pool.maxLifetime) {
@@ -117,7 +117,7 @@ private fun assignClientLease(state: ClientState, call: ClientCall, now: TimeMar
         val connection = entry.connection!!
         val available = when (connection) {
             case Http1(value) -> entry.active == 0L && value.isReusable
-            case Http2(value) -> !value.isClosed && !value.isDraining &&
+            case Http2(value) -> !value.isClosing && !value.isDraining &&
                 entry.active < entry.peerStreams && entry.active < state.config.pool.maxStreamsPerHttp2
         }
         if (!available) continue

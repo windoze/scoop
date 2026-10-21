@@ -22,13 +22,14 @@ use crate::{
 
 mod core;
 mod observation_locks;
+mod parallel;
 mod testing;
 
 struct FailureRunner;
 
 impl SingleConeCompilerRunner for FailureRunner {
     fn invoke(
-        &mut self,
+        &self,
         _tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
         _io: &ChildIoPlan,
@@ -47,17 +48,20 @@ impl SingleConeCompilerRunner for FailureRunner {
 
 #[derive(Default)]
 struct RecordingFailureRunner {
-    current: Vec<CurrentConeRequestV1>,
+    current: std::sync::Mutex<Vec<CurrentConeRequestV1>>,
 }
 
 impl SingleConeCompilerRunner for RecordingFailureRunner {
     fn invoke(
-        &mut self,
+        &self,
         _tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
         io: &ChildIoPlan,
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
-        self.current.push(request.build().current().clone());
+        self.current
+            .lock()
+            .unwrap()
+            .push(request.build().current().clone());
         FailureRunner.invoke(_tool, request, io)
     }
 }

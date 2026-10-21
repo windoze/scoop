@@ -75,7 +75,8 @@ with http.server.ThreadingHTTPServer(("127.0.0.1", 0), Peer) as server:
         worker.join(TIMEOUT)
 tls = contexts(sys.argv[2], sys.argv[3], Path(sys.argv[4]))
 for mode in ("tls-eof", "h2-eof", "pool-eof", "tls-h2-eof", "h2-protocol", "refused"):
-    for _ in range(8 if mode in ("h2-eof", "pool-eof") else 1):
+    repeats = 16 if mode == "h2-eof" else 8 if mode == "pool-eof" else 1
+    for _ in range(repeats):
         exercise_transport(
             sys.argv[1], mode, tls["http/1.1" if mode == "tls-eof" else "h2"], TIMEOUT
         )

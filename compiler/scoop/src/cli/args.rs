@@ -61,6 +61,9 @@ pub(super) struct BuildOptions {
     pub scoopc: Option<PathBuf>,
     #[arg(long)]
     pub cache_dir: Option<PathBuf>,
+    /// Maximum concurrent compiler processes; defaults to available CPUs.
+    #[arg(short = 'j', long)]
+    pub jobs: Option<std::num::NonZeroUsize>,
     #[arg(long)]
     pub cone_path: Vec<PathBuf>,
     #[arg(long, conflicts_with = "runtime_objects")]

@@ -67,7 +67,11 @@ fn actual_generic_library_emits_shared_odr_objects() {
         let hir = parsed
             .lower_hir(RequestedConeKind::Library, request.protocols(), &world)
             .unwrap();
-        let closure = request.dependencies().semantic();
+        let machine_dependencies = request
+            .dependencies()
+            .read_machine_dependencies(hir.machine_dependency_providers())
+            .unwrap();
+        let closure = machine_dependencies.semantic();
         let selected = closure
             .project_dependency_callables_to_mir(&hir.hir)
             .unwrap();
@@ -227,7 +231,10 @@ fn actual_generic_library_emits_shared_odr_objects() {
             &generated,
             &lir_public,
             selected_layout.physical_imports(),
-            request.dependencies(),
+            (
+                &machine_dependencies,
+                request.dependencies().direct_dependencies(),
+            ),
             source_count,
             expected_bodies,
         );
@@ -261,7 +268,10 @@ fn actual_generic_library_emits_shared_odr_objects() {
                     &generated,
                     &lir_public,
                     selected_layout.physical_imports(),
-                    request.dependencies(),
+                    (
+                        &machine_dependencies,
+                        request.dependencies().direct_dependencies(),
+                    ),
                     source_count,
                     expected_bodies,
                 );

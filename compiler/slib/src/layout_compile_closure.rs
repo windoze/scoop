@@ -328,6 +328,32 @@ impl_layout_closure_accessors!(
 );
 
 impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
+    pub(crate) fn from_hir_dependencies(
+        current: ConeIdentity,
+        target: ValidatedLirTargetSelection,
+        direct: Vec<ConeIdentity>,
+        dependency_first: Vec<HirProductionValidatedCrossConeLayoutSections<'input>>,
+        dependency_positions: Vec<Vec<usize>>,
+        aliases: Vec<std::rc::Rc<scoop_hir::CanonicalTypeAliasExpansionsV1>>,
+    ) -> HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
+        let positions = dependency_first
+            .iter()
+            .enumerate()
+            .map(|(position, artifact)| (artifact.identity(), position))
+            .collect();
+        HirDeclarationsValidatedCrossConeLayoutClosure {
+            declarations: Self {
+                current,
+                target,
+                direct,
+                dependency_first,
+                positions,
+                dependency_positions,
+            },
+            aliases,
+        }
+    }
+
     pub(crate) fn hir_semantic_validation_parts(
         &mut self,
     ) -> (

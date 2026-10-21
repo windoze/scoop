@@ -47,6 +47,18 @@ pub(crate) fn decode_compile_metadata_envelopes<'input>(
     graph: &mut ValidatedGraphArtifact<'input>,
     profile: ArtifactCapabilityProfile,
 ) -> Result<DecodedCompileMetadataEnvelopes<'input>, CompileSectionDecodeError> {
+    validate_compile_profile(graph, profile)?;
+    Ok(DecodedCompileMetadataEnvelopes {
+        hir: decode_compile_stage(graph, profile, MetadataLocation::Hir)?,
+        mir: decode_compile_stage(graph, profile, MetadataLocation::Mir)?,
+        lir: decode_compile_stage(graph, profile, MetadataLocation::Lir)?,
+    })
+}
+
+pub(crate) fn validate_compile_profile(
+    graph: &ValidatedGraphArtifact<'_>,
+    profile: ArtifactCapabilityProfile,
+) -> Result<(), CompileSectionDecodeError> {
     let expected = profile.id();
     let actual = graph.envelope.manifest().compatibility().artifact_profile();
     if actual != &expected {
@@ -59,28 +71,42 @@ pub(crate) fn decode_compile_metadata_envelopes<'input>(
         .validate_compile_manifest_inventory(graph.envelope.manifest().sections())
         .map_err(CompileSectionDecodeError::Inventory)?;
 
-    let hir_member = metadata_member_id(graph, MetadataLocation::Hir)?;
-    let mir_member = metadata_member_id(graph, MetadataLocation::Mir)?;
-    let lir_member = metadata_member_id(graph, MetadataLocation::Lir)?;
-    let hir_payload = member_payload(graph, MetadataLocation::Hir, hir_member)?;
-    let mir_payload = member_payload(graph, MetadataLocation::Mir, mir_member)?;
-    let lir_payload = member_payload(graph, MetadataLocation::Lir, lir_member)?;
+    Ok(())
+}
 
-    let hir = decode_metadata_envelope(MetadataLocation::Hir, hir_payload)?;
-    let mir = decode_metadata_envelope(MetadataLocation::Mir, mir_payload)?;
-    let lir = decode_metadata_envelope(MetadataLocation::Lir, lir_payload)?;
+pub(crate) fn decode_compile_stage<'input>(
+    graph: &ValidatedGraphArtifact<'input>,
+    profile: ArtifactCapabilityProfile,
+    location: MetadataLocation,
+) -> Result<DecodedMetadataEnvelope<'input>, CompileSectionDecodeError> {
+    let member = metadata_member_id(graph, location)?;
+    let payload = member_payload(graph, location, member)?;
+    let envelope = decode_metadata_envelope(location, payload)?;
+    profile
+        .validate_compile_metadata_inventory(location, envelope.sections())
+        .map_err(CompileSectionDecodeError::Inventory)?;
+    Ok(envelope)
+}
 
-    profile
-        .validate_compile_metadata_inventory(MetadataLocation::Hir, hir.sections())
-        .map_err(CompileSectionDecodeError::Inventory)?;
-    profile
-        .validate_compile_metadata_inventory(MetadataLocation::Mir, mir.sections())
-        .map_err(CompileSectionDecodeError::Inventory)?;
-    profile
-        .validate_compile_metadata_inventory(MetadataLocation::Lir, lir.sections())
-        .map_err(CompileSectionDecodeError::Inventory)?;
-
-    Ok(DecodedCompileMetadataEnvelopes { hir, mir, lir })
+pub(crate) fn decode_stage_section<T: WireDecode>(
+    envelope: &DecodedMetadataEnvelope<'_>,
+    location: MetadataLocation,
+    capability: CapabilityId,
+) -> Result<T, CompileSectionDecodeError> {
+    let payload = envelope
+        .sections()
+        .iter()
+        .find(|section| section.capability() == &capability)
+        .map(DecodedMetadataSection::payload)
+        .ok_or_else(|| CompileSectionDecodeError::MissingSection {
+            location,
+            capability: capability.clone(),
+        })?;
+    decode_canonical(payload).map_err(|source| CompileSectionDecodeError::InnerSection {
+        location,
+        capability,
+        source,
+    })
 }
 
 pub(crate) fn decode_compile_section<T: WireDecode>(

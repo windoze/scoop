@@ -128,31 +128,61 @@ impl Lowerer {
                 lowered[index] = Some(self.lower_expr(element, &mut element_sinks[index], None)?);
             }
         } else {
+            let mut failures = (0..elements.len()).map(|_| None).collect::<Vec<_>>();
             for (index, element) in elements.iter().enumerate() {
-                if !self.expr_requires_expected_type(element) {
-                    lowered[index] =
-                        Some(self.lower_expr(element, &mut element_sinks[index], None)?);
+                let requirement = self.expr_context_requirement(element);
+                if let Some((value, setup)) = self.probe_contextual_value(
+                    requirement,
+                    None,
+                    &mut failures[index],
+                    |this, expected| {
+                        let mut setup = Vec::new();
+                        this.lower_expr(element, &mut setup, expected)
+                            .map(|value| (value, setup))
+                    },
+                )? {
+                    lowered[index] = Some(value);
+                    element_sinks[index] = setup;
                 }
             }
-            if lowered.iter().all(Option::is_none)
-                && let Some(seed) = elements
+            if lowered.iter().all(Option::is_none) {
+                let mut seeds = elements
                     .iter()
                     .enumerate()
+                    .filter(|(index, _)| failures[*index].is_none())
                     .filter_map(|(index, element)| {
                         self.expr_default_seed_rank(element)
                             .map(|rank| (rank, index))
                     })
-                    .max_by_key(|(rank, _)| *rank)
-                    .map(|(_, index)| index)
-            {
-                lowered[seed] =
-                    Some(self.lower_expr(&elements[seed], &mut element_sinks[seed], None)?);
+                    .collect::<Vec<_>>();
+                seeds.sort_by_key(|seed| std::cmp::Reverse(*seed));
+                for (_, seed) in seeds {
+                    if let Some((value, setup)) = self.probe_contextual_value(
+                        ExpressionContextRequirement::Unresolved,
+                        None,
+                        &mut failures[seed],
+                        |this, expected| {
+                            let mut setup = Vec::new();
+                            this.lower_expr(&elements[seed], &mut setup, expected)
+                                .map(|value| (value, setup))
+                        },
+                    )? {
+                        lowered[seed] = Some(value);
+                        element_sinks[seed] = setup;
+                        break;
+                    }
+                }
             }
             let hint = self.array_element_hint(&lowered);
             for (index, element) in elements.iter().enumerate() {
                 if lowered[index].is_none() {
-                    lowered[index] =
-                        Some(self.lower_expr(element, &mut element_sinks[index], hint)?);
+                    lowered[index] = Some(self.finish_contextual_value(
+                        hint,
+                        &mut failures[index],
+                        |this, expected| {
+                            this.lower_expr(element, &mut element_sinks[index], expected)
+                        },
+                    )?);
                 }
             }
         }

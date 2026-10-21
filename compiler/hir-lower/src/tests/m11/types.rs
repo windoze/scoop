@@ -41,6 +41,59 @@ fn function_types_are_canonical_and_keep_suspend_identity() {
 }
 
 #[test]
+fn canonical_function_signatures_keep_every_receiver_and_parameter_component() {
+    let receiver = |is_suspend, receiver: &str, parameter: &str, result: &str| ast::TypeRef {
+        annotations: Vec::new(),
+        kind: ast::TypeRefKind::Function(ast::FunctionTypeRef {
+            receiver: Some(Box::new(ty_named(receiver))),
+            is_suspend,
+            parameters: vec![ty_named(parameter)],
+            return_type: Box::new(ty_named(result)),
+        }),
+        span: sp(),
+    };
+    let same = receiver(false, "Int", "Int", "String");
+    let module = lower_user(file(vec![
+        fun_sig(
+            "signatures",
+            vec![],
+            vec![
+                ("first", same.clone()),
+                ("same", same),
+                (
+                    "flat",
+                    ty_function(
+                        false,
+                        vec![ty_named("Int"), ty_named("Int")],
+                        ty_named("String"),
+                    ),
+                ),
+                ("receiver", receiver(false, "Boolean", "Int", "String")),
+                ("suspended", receiver(true, "Int", "Int", "String")),
+                ("parameter", receiver(false, "Int", "String", "String")),
+                ("result", receiver(false, "Int", "Int", "Boolean")),
+            ],
+            None,
+            vec![],
+        ),
+        fun("main", vec![]),
+    ]))
+    .expect("complete function signatures should lower");
+    let function = module
+        .top_level
+        .iter()
+        .map(|id| &module.functions[*id])
+        .find(|function| function.name == "signatures")
+        .unwrap();
+    assert_eq!(function.params[0].ty, function.params[1].ty);
+    let distinct = function.params[1..]
+        .iter()
+        .map(|parameter| parameter.ty)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(distinct.len(), 6);
+}
+
+#[test]
 fn function_types_substitute_type_parameters_recursively() {
     let generic = ty_function(false, vec![ty_named("T")], ty_named("T"));
     let module = lower_user(file(vec![

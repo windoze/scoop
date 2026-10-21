@@ -37,7 +37,7 @@ pub(super) fn graph(
         .prepare_documentation()
         .map_err(BuildFailure::preparation)?;
     let mut completed = BTreeMap::<ConeIdentity, CompletedNode>::new();
-    let mut runner = ProductionSingleConeCompilerRunner;
+    let runner = ProductionSingleConeCompilerRunner;
     for (position, identity) in prepared.dependency_first().to_vec().into_iter().enumerate() {
         if !needed.contains(&identity) && !artifacts.contains(&identity) {
             continue;
@@ -68,7 +68,7 @@ pub(super) fn graph(
                     .execute_source_output(
                         identity,
                         &inputs,
-                        &mut runner,
+                        &runner,
                         request_id,
                         documentation.as_deref(),
                     )

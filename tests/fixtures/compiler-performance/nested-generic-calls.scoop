@@ -1,0 +1,7 @@
+fun <T> same(value: T): T = value
+
+fun main() {
+    val seed: Int = 42
+    val result = same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(seed))))))))))))))))))))))))))))))))
+    println(result)
+}

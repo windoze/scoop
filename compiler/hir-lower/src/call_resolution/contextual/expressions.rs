@@ -2,7 +2,7 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 
 use crate::Lowerer;
-use crate::expr::ExpressionExpectation;
+use crate::expr::{ExpressionContextRequirement, ExpressionExpectation};
 
 #[derive(Clone, Copy)]
 pub(crate) enum ArgumentExpression<'a> {
@@ -29,9 +29,9 @@ pub(super) struct ArgumentAttempt {
 }
 
 impl ArgumentExpression<'_> {
-    /// Keep the complete candidate copy outside recursive contextual typing
-    /// frames; only a default-seed attempt needs to own a rollback state.
-    pub(super) fn try_default(self, state: &Lowerer, source_index: usize) -> ArgumentAttempt {
+    /// Keep the rollback state outside recursive contextual typing frames.
+    /// Both independent synthesis and default seeds commit successful work.
+    pub(super) fn try_synthesize(self, state: &Lowerer, source_index: usize) -> ArgumentAttempt {
         let mut attempt = Box::new(state.clone());
         let result = self.lower(&mut attempt, source_index, None, false);
         ArgumentAttempt {
@@ -40,10 +40,12 @@ impl ArgumentExpression<'_> {
         }
     }
 
-    pub(super) fn requires_context(self, state: &Lowerer) -> bool {
+    pub(super) fn context_requirement(self, state: &Lowerer) -> ExpressionContextRequirement {
         match self {
-            Self::Source(expression) => state.expr_requires_expected_type(expression),
-            Self::Lowered(_) | Self::Addressable { .. } => false,
+            Self::Source(expression) => state.expr_context_requirement(expression),
+            Self::Lowered(_) | Self::Addressable { .. } => {
+                ExpressionContextRequirement::Independent
+            }
         }
     }
 

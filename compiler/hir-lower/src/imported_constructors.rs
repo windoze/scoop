@@ -3,11 +3,12 @@
 mod companions;
 mod prepare;
 
-use std::collections::BTreeMap;
 use std::ops::Index;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use hir::ImportedCallableSource;
+use imbl::{OrdMap, Vector};
 use la_arena::{Arena, Idx, RawIdx};
 use scoop_hir as hir;
 use scoop_identity::{CallableTemplateOrigin, PersistentConstructorId};
@@ -17,8 +18,8 @@ use crate::imported_core::ImportedTypeBindings;
 
 #[derive(Clone, Default)]
 pub(crate) struct ImportedConstructorTemplates {
-    pub(crate) templates: Vec<PreparedImportedConstructor>,
-    by_declaration: BTreeMap<PersistentConstructorId, hir::ImportedConstructorTemplateId>,
+    pub(crate) templates: Vector<Rc<PreparedImportedConstructor>>,
+    by_declaration: OrdMap<PersistentConstructorId, hir::ImportedConstructorTemplateId>,
 }
 
 #[derive(Clone)]
@@ -56,11 +57,14 @@ impl ImportedConstructorTemplates {
     pub(crate) fn into_completed(self) -> Arena<hir::ImportedConstructorTemplate> {
         self.templates
             .into_iter()
-            .map(|template| hir::ImportedConstructorTemplate {
-                signature: template.signature,
-                kind: template
-                    .kind
-                    .expect("successful lowering completed every requested constructor"),
+            .map(|template| {
+                let template = Rc::unwrap_or_clone(template);
+                hir::ImportedConstructorTemplate {
+                    signature: template.signature,
+                    kind: template
+                        .kind
+                        .expect("successful lowering completed every requested constructor"),
+                }
             })
             .collect()
     }
@@ -126,7 +130,9 @@ impl Lowerer {
             u32::try_from(self.imported_constructor_templates.templates.len())
                 .expect("constructor template arena fits u32"),
         ));
-        self.imported_constructor_templates.templates.push(prepared);
+        self.imported_constructor_templates
+            .templates
+            .push_back(Rc::new(prepared));
         self.imported_constructor_templates
             .by_declaration
             .insert(declaration, id);
@@ -150,7 +156,11 @@ impl Lowerer {
                 Ok(kind)
             });
         match result {
-            Ok(kind) => self.imported_constructor_templates.templates[index].kind = Some(kind),
+            Ok(kind) => {
+                drop(template);
+                Rc::make_mut(&mut self.imported_constructor_templates.templates[index]).kind =
+                    Some(kind);
+            }
             Err(error) => {
                 self.current_file = template.signature.origin.file as usize;
                 self.error(

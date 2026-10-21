@@ -91,6 +91,11 @@ pub(super) fn with_pair(
         Default::default(),
     )
     .unwrap();
+    let machine_dependencies = request
+        .dependencies()
+        .read_machine_dependencies(hir.machine_dependency_providers())
+        .unwrap();
+    let closure = machine_dependencies.semantic();
     let selected = closure
         .project_dependency_callables_to_mir(&hir.hir)
         .unwrap();
@@ -259,9 +264,7 @@ pub(super) fn with_pair(
             dependency_layouts.physical_imports().records(),
         );
     }
-    let owners = request
-        .dependencies()
-        .closure
+    let owners = machine_dependencies
         .dependency_symbol_owners()
         .cloned()
         .collect::<Vec<_>>();

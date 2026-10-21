@@ -102,20 +102,23 @@ impl FunctionIdentityBuilder<'_> {
         hir::HirFunctionIdentities::checked(
             hir::HirFunctionIdentityInputs {
                 functions: self.lowerer.functions.as_arena(),
-                lambdas: &self.lowerer.lambdas,
-                anonymous_functions: &self.lowerer.anonymous_functions,
-                local_functions: &self.lowerer.local_functions,
-                property_getters: &self.lowerer.property_getters,
-                property_setters: &self.lowerer.property_setters,
+                lambdas: self.lowerer.lambdas.as_arena(),
+                anonymous_functions: self.lowerer.anonymous_functions.as_arena(),
+                local_functions: self.lowerer.local_functions.as_arena(),
+                property_getters: self.lowerer.property_getters.as_arena(),
+                property_setters: self.lowerer.property_setters.as_arena(),
                 property_accessor_identities: self.accessors,
                 initialization_units: &self.lowerer.initialization_units,
                 initialization_unit_identities: self.initialization_units,
-                derived_equality_applications: &self.lowerer.derived_equality_applications,
+                derived_equality_applications: self
+                    .lowerer
+                    .derived_equality_applications
+                    .as_arena(),
                 structs: &self.lowerer.structs,
                 enums: &self.lowerer.enums,
                 type_identities: self.types,
-                struct_constructors: &self.lowerer.struct_constructors,
-                class_constructors: &self.lowerer.class_constructors,
+                struct_constructors: self.lowerer.struct_constructors.as_arena(),
+                class_constructors: self.lowerer.class_constructors.as_arena(),
                 constructor_identities: self.constructors,
                 enum_member_identities: self.enum_members,
             },

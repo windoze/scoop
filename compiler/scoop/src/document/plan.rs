@@ -45,6 +45,7 @@ impl Plan {
                 diagnostics: DiagnosticsPolicy::Structured,
                 optimization: Default::default(),
                 purpose: scoop_protocol::CompilationPurpose::Production,
+                jobs: std::num::NonZeroUsize::MIN,
             };
             let graph = LoadedBuildRoot::from_input(root.clone(), context)
                 .map_err(BuildFailure::root)?

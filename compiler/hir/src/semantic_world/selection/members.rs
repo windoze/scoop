@@ -1,16 +1,15 @@
 //! Source member candidates share the ordinary callable catalog and defaults.
 
 mod context;
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use scoop_identity::CanonicalIdentifier;
 
+use super::catalog::CallableCatalogEntry;
 use super::intrinsics::CallableCatalogName;
 use super::{
     ImportedDependencyCallableCandidate, ImportedDependencyCandidateError,
-    ImportedDependencyDefinitionSource, ImportedDependencyDefinitionSources,
-    ImportedDependencySelectionPlan,
+    ImportedDependencyDefinitionSource, ImportedDependencySelectionPlan,
 };
 use crate::{
     CallableDeclarationRecordV1, CallableOperatorRoleV1, CallableSourceInterfaceV1,
@@ -42,7 +41,9 @@ impl ImportedCallableSource for ImportedDependencyCallableCandidate {
         source: &scoop_identity::SourceIdentity,
         context: scoop_identity::PersistentSourceContextId,
     ) -> Option<ImportedDependencyDefinitionSource<'_>> {
-        self.definition_sources.resolve_location(source, context)
+        self.entry
+            .definition_sources
+            .resolve_location(source, context)
     }
     fn callable_body(&self) -> Option<&crate::ExportGenericCallableBodyV1> {
         self.callable_body()
@@ -79,13 +80,7 @@ pub enum ImportedMemberLookup<'a> {
 #[derive(Clone, Debug)]
 pub struct ImportedCallableDeclaration {
     name: CanonicalIdentifier,
-    interface: CallableDeclarationRecordV1,
-    capability: Option<ParamFreeNominalCallableV1>,
-    source: Option<CallableSourceInterfaceV1>,
-    defaults: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
-    definition_sources: Arc<ImportedDependencyDefinitionSources>,
-    definition_origin: ExportDefinitionSourceV1,
-    callable_body: Option<Arc<crate::ExportGenericCallableBodyV1>>,
+    entry: Arc<CallableCatalogEntry>,
 }
 
 impl ImportedCallableDeclaration {
@@ -94,7 +89,8 @@ impl ImportedCallableDeclaration {
         key: &scoop_identity::SourceContextKey,
     ) -> Option<&scoop_identity::SourceContextKey> {
         let id = scoop_identity::PersistentSourceContextId::from_key(key).ok()?;
-        self.definition_sources
+        self.entry
+            .definition_sources
             .contexts
             .get(&id)
             .map(|(key, _)| key)
@@ -104,12 +100,12 @@ impl ImportedCallableDeclaration {
         self.name.as_str()
     }
 
-    pub const fn capability(&self) -> Option<&ParamFreeNominalCallableV1> {
-        self.capability.as_ref()
+    pub fn capability(&self) -> Option<&ParamFreeNominalCallableV1> {
+        self.entry.capability.as_ref()
     }
 
-    pub const fn definition_origin(&self) -> &ExportDefinitionSourceV1 {
-        &self.definition_origin
+    pub fn definition_origin(&self) -> &ExportDefinitionSourceV1 {
+        &self.entry.definition_origin
     }
 }
 
@@ -119,28 +115,30 @@ impl ImportedCallableSource for ImportedCallableDeclaration {
         source: &scoop_identity::SourceIdentity,
         context: scoop_identity::PersistentSourceContextId,
     ) -> Option<ImportedDependencyDefinitionSource<'_>> {
-        self.definition_sources.resolve_location(source, context)
+        self.entry
+            .definition_sources
+            .resolve_location(source, context)
     }
     fn callable_body(&self) -> Option<&crate::ExportGenericCallableBodyV1> {
-        self.callable_body.as_deref()
+        self.entry.callable_body.as_deref()
     }
     fn interface(&self) -> &CallableDeclarationRecordV1 {
-        &self.interface
+        &self.entry.interface
     }
     fn source_interface(&self) -> Option<&CallableSourceInterfaceV1> {
-        self.source.as_ref()
+        self.entry.source.as_ref()
     }
     fn default_template(
         &self,
         key: ExportDefaultTemplateKeyV1,
     ) -> Option<&ExportDefaultTemplateV1> {
-        self.defaults.get(&key)
+        self.entry.default_templates.get(&key)
     }
     fn definition_source(
         &self,
         source: &ExportDefinitionSourceV1,
     ) -> Option<ImportedDependencyDefinitionSource<'_>> {
-        self.definition_sources.resolve(source)
+        self.entry.definition_sources.resolve(source)
     }
 }
 
@@ -177,13 +175,11 @@ impl ImportedDependencySelectionPlan {
         slot: scoop_identity::PersistentDispatchSlotId,
     ) -> Result<Option<ImportedCallableDeclaration>, ImportedDependencyCandidateError> {
         self.catalog
-            .callables
-            .values()
-            .find(|entry| {
-                entry.interface.owner() == PublicDeclarationOwnerV1::Nominal(owner)
-                    && entry.interface.slot_relations().values().contains(&slot)
-            })
-            .map(|entry| self.callable_declaration(entry.interface.declaration()))
+            .indexes
+            .nominals
+            .get(&owner)
+            .and_then(|members| members.slots.get(&slot))
+            .map(|&declaration| self.callable_declaration(declaration))
             .transpose()
     }
 
@@ -199,23 +195,13 @@ impl ImportedDependencySelectionPlan {
                 name
             }
             CallableCatalogName::Accessor => {
-                &self
-                    .catalog
-                    .properties
-                    .values()
-                    .find(|property| {
-                        let accessor = property.interface.accessors();
-                        declaration
-                            == scoop_identity::CallableTemplateOrigin::Accessor(accessor.getter())
-                            || accessor.setter().is_some_and(|setter| {
-                                declaration
-                                    == scoop_identity::CallableTemplateOrigin::Accessor(setter)
-                            })
-                    })
-                    .ok_or(ImportedDependencyCandidateError::MissingCallableSource(
-                        declaration,
-                    ))?
-                    .name
+                let scoop_identity::CallableTemplateOrigin::Accessor(accessor) = declaration else {
+                    unreachable!("the catalog retains the callable declaration kind");
+                };
+                let property = self.catalog.indexes.accessors.get(&accessor).ok_or(
+                    ImportedDependencyCandidateError::MissingCallableSource(declaration),
+                )?;
+                &self.catalog.properties[property].name
             }
             CallableCatalogName::Constructor => {
                 let PublicDeclarationOwnerV1::Nominal(owner) = entry.interface.owner() else {
@@ -238,13 +224,7 @@ impl ImportedDependencySelectionPlan {
         };
         Ok(ImportedCallableDeclaration {
             name: name.clone(),
-            interface: entry.interface.clone(),
-            capability: entry.capability.clone(),
-            source: entry.source.clone(),
-            defaults: entry.default_templates.clone(),
-            definition_sources: Arc::clone(&entry.definition_sources),
-            definition_origin: entry.definition_origin.clone(),
-            callable_body: entry.callable_body.clone(),
+            entry: Arc::clone(entry),
         })
     }
 
@@ -253,13 +233,12 @@ impl ImportedDependencySelectionPlan {
         owner: SourceNominalId,
     ) -> Result<Vec<ImportedCallableDeclaration>, ImportedDependencyCandidateError> {
         self.catalog
-            .callables
-            .values()
-            .filter(|entry| {
-                entry.interface.owner() == PublicDeclarationOwnerV1::Nominal(owner)
-                    && matches!(entry.name, CallableCatalogName::Constructor)
-            })
-            .map(|entry| self.callable_declaration(entry.interface.declaration()))
+            .indexes
+            .nominals
+            .get(&owner)
+            .into_iter()
+            .flat_map(|members| &members.constructors)
+            .map(|&declaration| self.callable_declaration(declaration))
             .collect()
     }
 
@@ -268,73 +247,53 @@ impl ImportedDependencySelectionPlan {
         owner: SourceNominalId,
         lookup: ImportedMemberLookup<'_>,
     ) -> Result<Vec<ImportedCallableDeclaration>, ImportedDependencyCandidateError> {
-        let mut candidates = Vec::new();
-        let property = match lookup {
+        let Some(members) = self.catalog.indexes.nominals.get(&owner) else {
+            return Ok(Vec::new());
+        };
+        let accessor;
+        let declarations = match lookup {
+            ImportedMemberLookup::Name(name) => members
+                .functions
+                .get(name)
+                .map(Vec::as_slice)
+                .unwrap_or_default(),
+            ImportedMemberLookup::Operator(role) => members
+                .operators
+                .get(&role)
+                .map(Vec::as_slice)
+                .unwrap_or_default(),
             ImportedMemberLookup::PropertyGetter(name)
             | ImportedMemberLookup::PropertySetter(name) => {
-                self.catalog.properties.values().find(|property| {
-                    property.interface.owner() == PublicDeclarationOwnerV1::Nominal(owner)
-                        && property.name.as_str() == name
-                })
+                accessor = members
+                    .property_by_name
+                    .get(name)
+                    .and_then(|property| {
+                        let property = &self.catalog.properties[property];
+                        let accessors = property.interface.accessors();
+                        match lookup {
+                            ImportedMemberLookup::PropertyGetter(_) => Some(accessors.getter()),
+                            ImportedMemberLookup::PropertySetter(_) => accessors.setter(),
+                            _ => unreachable!("an accessor lookup has a property role"),
+                        }
+                    })
+                    .map(scoop_identity::CallableTemplateOrigin::Accessor);
+                accessor.as_slice()
             }
-            _ => None,
         };
-        for entry in self.catalog.callables.values() {
+        let mut candidates = Vec::with_capacity(declarations.len());
+        for &declaration in declarations {
+            let Some(entry) = self.catalog.callables.get(&declaration) else {
+                continue;
+            };
             if entry.interface.owner() != PublicDeclarationOwnerV1::Nominal(owner) {
                 continue;
             }
-            let name = match (&entry.name, lookup) {
-                (CallableCatalogName::Function(name), ImportedMemberLookup::Name(expected))
-                    if name.as_str() == expected =>
-                {
-                    name
-                }
-                (CallableCatalogName::Function(name), ImportedMemberLookup::Operator(expected))
-                    if entry.interface.effects().operator_role() == expected =>
-                {
-                    name
-                }
-                (
-                    CallableCatalogName::Accessor,
-                    ImportedMemberLookup::PropertyGetter(_)
-                    | ImportedMemberLookup::PropertySetter(_),
-                ) => {
-                    let Some(property) = property else {
-                        continue;
-                    };
-                    let accessor = match lookup {
-                        ImportedMemberLookup::PropertyGetter(_) => {
-                            Some(property.interface.accessors().getter())
-                        }
-                        ImportedMemberLookup::PropertySetter(_) => {
-                            property.interface.accessors().setter()
-                        }
-                        _ => unreachable!("an accessor lookup has a property role"),
-                    };
-                    if Some(entry.interface.declaration())
-                        != accessor.map(scoop_identity::CallableTemplateOrigin::Accessor)
-                    {
-                        continue;
-                    }
-                    &property.name
-                }
-                _ => continue,
-            };
             if matches!(entry.name, CallableCatalogName::Function(_)) && entry.source.is_none() {
                 return Err(ImportedDependencyCandidateError::MissingCallableSource(
-                    entry.interface.declaration(),
+                    declaration,
                 ));
             }
-            candidates.push(ImportedCallableDeclaration {
-                name: name.clone(),
-                interface: entry.interface.clone(),
-                capability: entry.capability.clone(),
-                source: entry.source.clone(),
-                defaults: entry.default_templates.clone(),
-                definition_sources: Arc::clone(&entry.definition_sources),
-                definition_origin: entry.definition_origin.clone(),
-                callable_body: entry.callable_body.clone(),
-            });
+            candidates.push(self.callable_declaration(declaration)?);
         }
         Ok(candidates)
     }

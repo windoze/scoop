@@ -166,11 +166,11 @@ impl PropertyAccessorIdentityBuilder<'_> {
             .collect::<Result<Vec<_>, _>>()?;
 
         hir::HirPropertyAccessorIdentities::checked(
-            &self.lowerer.properties,
+            self.lowerer.properties.as_arena(),
             self.properties,
-            &self.lowerer.property_getters,
+            self.lowerer.property_getters.as_arena(),
             getter_identities,
-            &self.lowerer.property_setters,
+            self.lowerer.property_setters.as_arena(),
             setter_identities,
         )
         .map_err(|error| PersistentPropertyAccessorIdentityError {

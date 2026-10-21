@@ -52,7 +52,10 @@ fn shared_protocol_and_lir_projection_uses_actual_providers() {
     );
     let loaded = request.load_preflight().unwrap();
     let validated = loaded.validate().unwrap();
-    let closure = &validated.dependencies().closure;
+    let closure = validated
+        .dependencies()
+        .read_machine_dependencies([ConeIdentity::CORE, provider_coordinate.identity().unwrap()])
+        .unwrap();
     let core = closure
         .semantic()
         .direct_provider(ConeIdentity::CORE)

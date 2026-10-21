@@ -75,6 +75,7 @@ impl IdentityNode {
     }
 }
 
+#[derive(Clone)]
 struct Candidate {
     trusted_id: Arc<dyn Any>,
     layer: Option<IdentityLayer>,
@@ -1067,6 +1068,7 @@ where
 /// Constructing this type proves that every declared record was rehashed,
 /// every reference resolved to the same or an earlier layer, and the complete
 /// dependency graph is acyclic.
+#[derive(Clone)]
 pub struct ValidatedIdentityGraph {
     candidates: HashMap<IdentityNode, Candidate>,
     canonical_keys: HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,

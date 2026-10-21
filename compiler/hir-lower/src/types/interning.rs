@@ -9,10 +9,12 @@ impl Lowerer {
         if let Type::Function(function) = &candidate {
             return self.function_types[*function].canonical_type;
         }
-        if let Some((existing, _)) = self.types.iter().find(|(_, value)| *value == &candidate) {
+        if let Some(&existing) = self.type_by_kind.get(&candidate) {
             return existing;
         }
-        self.types.alloc(candidate)
+        let id = self.types.alloc(candidate.clone());
+        self.type_by_kind.insert(candidate, id);
+        id
     }
 
     /// Intern one complete function signature and retain its dedicated id.
@@ -34,14 +36,8 @@ impl Lowerer {
         parameter_types: Vec<TypeId>,
         return_type: TypeId,
     ) -> hir::FunctionTypeId {
-        let existing = self.function_types.iter().find_map(|(id, candidate)| {
-            (candidate.is_suspend == is_suspend
-                && candidate.receiver == receiver
-                && candidate.parameter_types == parameter_types
-                && candidate.return_type == return_type)
-                .then_some(id)
-        });
-        if let Some(function) = existing {
+        let key = (is_suspend, receiver, parameter_types.clone(), return_type);
+        if let Some(&function) = self.function_type_by_signature.get(&key) {
             return function;
         }
 
@@ -51,6 +47,8 @@ impl Lowerer {
                 .into(),
         );
         let canonical_type = self.types.alloc(Type::Function(expected_function));
+        self.type_by_kind
+            .insert(Type::Function(expected_function), canonical_type);
         let function = self.function_types.alloc(hir::FunctionType {
             receiver,
             canonical_type,
@@ -59,6 +57,7 @@ impl Lowerer {
             return_type,
         });
         assert_eq!(function, expected_function);
+        self.function_type_by_signature.insert(key, function);
         function
     }
 
@@ -165,7 +164,7 @@ impl Lowerer {
                     )
             )
         {
-            let allocated_type = self.types.alloc(Type::Struct(application));
+            let allocated_type = self.intern_type(Type::Struct(application));
             assert_eq!(allocated_type, canonical_type);
         }
         self.struct_application_by_key.insert(key, application);
@@ -206,7 +205,7 @@ impl Lowerer {
             arguments,
             canonical_type,
         });
-        let allocated_type = self.types.alloc(Type::Enum(application));
+        let allocated_type = self.intern_type(Type::Enum(application));
         assert_eq!(allocated_type, canonical_type);
         self.enum_application_by_key.insert(key, application);
         application
@@ -279,7 +278,7 @@ impl Lowerer {
             )
         );
         if allocate_type {
-            let allocated_type = self.types.alloc(Type::Class(application));
+            let allocated_type = self.intern_type(Type::Class(application));
             assert_eq!(allocated_type, canonical_type);
         }
         self.class_application_by_key.insert(key, application);
@@ -371,7 +370,7 @@ impl Lowerer {
                 arguments,
                 canonical_type,
             });
-        let allocated_type = self.types.alloc(Type::Interface(application));
+        let allocated_type = self.intern_type(Type::Interface(application));
         assert_eq!(allocated_type, canonical_type);
         self.interface_application_by_key.insert(key, application);
         application

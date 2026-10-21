@@ -18,8 +18,10 @@ fn callable_plans_share_effect_table_and_own_their_sites() {
         },
     );
 
-    let mut first = expected.for_function("f").unwrap();
-    let second = expected.for_function("g").unwrap();
+    let mut selected = expected.clone().into_functions();
+    let mut first = selected.remove("f").unwrap();
+    let second = selected.remove("g").unwrap();
+    assert_eq!(selected["leaf"].site_count(), 0);
     let empty = first.without_body_sites();
     assert_eq!(first.sites.keys().copied().collect::<Vec<_>>(), [7]);
     assert_eq!(first.root_count(7), Some(1));
@@ -38,5 +40,5 @@ fn callable_plans_share_effect_table_and_own_their_sites() {
     first.sites.clear();
     assert_eq!(expected.site_count(), 2);
     assert_eq!(second.site_count(), 1);
-    assert!(expected.for_function("missing").is_err());
+    assert!(!selected.contains_key("missing"));
 }

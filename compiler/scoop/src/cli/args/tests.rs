@@ -55,3 +55,12 @@ fn documentation_defaults_to_current_cone_and_has_no_final_link_options() {
         assert!(Cli::try_parse_from(["scoop", "doc", flag]).is_err());
     }
 }
+
+#[test]
+fn compiler_jobs_apply_to_build_run_and_test_and_must_be_positive() {
+    for command in ["build", "run", "test"] {
+        assert!(Cli::try_parse_from(["scoop", command, "-j", "2"]).is_ok());
+        assert!(Cli::try_parse_from(["scoop", command, "--jobs", "1"]).is_ok());
+        assert!(Cli::try_parse_from(["scoop", command, "--jobs", "0"]).is_err());
+    }
+}

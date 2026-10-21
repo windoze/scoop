@@ -8,6 +8,7 @@ use crate::graph::ResolvedGraphParts;
 use crate::locator::{PrebuiltArtifactCandidate, PrebuiltArtifactProjection};
 use crate::{ResolvedBuildGraph, ResolvedPairedScoopc};
 
+mod documented_execution;
 mod error;
 mod model;
 mod observation;
@@ -16,6 +17,7 @@ mod ordinary_execution;
 pub use error::PrepareBuildGraphError;
 pub use observation::{BuildDumpRequest, DumpScope};
 pub use ordinary_execution::OrdinarySourceExecutionError;
+pub(crate) use ordinary_execution::{PendingSourceExecution, PreparedSourceExecution};
 
 pub use model::{
     ChildRequestPlanError, CompileCacheKeyError, ManifestSourceInput, PreparedArtifactCandidate,

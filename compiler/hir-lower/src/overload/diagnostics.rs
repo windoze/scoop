@@ -64,11 +64,11 @@ impl Lowerer {
                 })
         {
             let baseline = self.diagnostics.len();
-            let diagnostics = failures[0].state.diagnostics[baseline..].to_vec();
+            let diagnostics = failures[0].state(self).diagnostics[baseline..].to_vec();
             let same_diagnostics = !diagnostics.is_empty()
                 && failures[1..]
                     .iter()
-                    .all(|failure| failure.state.diagnostics[baseline..] == diagnostics);
+                    .all(|failure| failure.state(self).diagnostics[baseline..] == diagnostics);
             let independent_of_context = failures.iter().all(|failure| {
                 matches!(
                     failure.kind,
@@ -100,7 +100,7 @@ impl Lowerer {
             let candidate = &prepared[failure.candidate];
             let signature = callable_source_signature(self, name, &candidate.view);
             let reason =
-                render_candidate_failure(candidate, failure, explicit_type_args, arguments);
+                render_candidate_failure(self, candidate, failure, explicit_type_args, arguments);
             traces.push(format!("  - {signature} — {reason}"));
         }
         self.error(
@@ -167,11 +167,13 @@ impl Lowerer {
 }
 
 fn render_candidate_failure(
+    original: &Lowerer,
     candidate: &Candidate,
     failure: &CandidateProbeFailure,
     explicit_type_args: &[ResolvedCallTypeArgument],
     arguments: &OverloadArguments<'_>,
 ) -> String {
+    let state = failure.state(original);
     let mut reason = match &failure.kind {
         CandidateProbeFailureKind::Shape(CandidateShapeFailure::TypeArgumentArity {
             expected,
@@ -202,21 +204,22 @@ fn render_candidate_failure(
             match expected {
                 Some(expected) => format!(
                     "{parameter} (expected {}): {reason}",
-                    failure.state.type_name(*expected)
+                    state.type_name(*expected)
                 ),
                 None => format!("{parameter}: {reason}"),
             }
         }
         CandidateProbeFailureKind::Declaration { reason, .. } => reason.clone(),
         CandidateProbeFailureKind::Constraint(constraint) => render_callable_constraint_failure(
-            &failure.state,
+            state,
             &candidate.view,
             candidate.argument_map.as_ref().ok(),
             &failure.arguments,
             constraint,
         ),
     };
-    if let Some(suggestion) = primitive_integer_conversion_suggestion(candidate, failure, arguments)
+    if let Some(suggestion) =
+        primitive_integer_conversion_suggestion(state, candidate, failure, arguments)
     {
         reason.push_str(&suggestion);
     }
@@ -243,11 +246,7 @@ fn render_candidate_failure(
             let ResolvedCallTypeArgument::Explicit { ty, .. } = argument else {
                 return None;
             };
-            Some(format!(
-                "{} = {}",
-                parameter.name,
-                failure.state.type_name(*ty)
-            ))
+            Some(format!("{} = {}", parameter.name, state.type_name(*ty)))
         })
         .collect::<Vec<_>>();
     if fixed.is_empty() {

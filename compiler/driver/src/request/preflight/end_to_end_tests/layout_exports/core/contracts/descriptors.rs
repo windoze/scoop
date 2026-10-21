@@ -14,6 +14,16 @@ pub(super) fn check(
     let mut names = Vec::new();
     let mut local_only = Vec::new();
     let mut exported = 0;
+    let public_boxes = input
+        .mir
+        .materialization()
+        .shape_support()
+        .iter()
+        .filter_map(|root| match root.boxed() {
+            mir::StrongBoxedShapeSupportRoot::Available(boxed) => Some(boxed.exact()),
+            mir::StrongBoxedShapeSupportRoot::ReferenceNominalRequiresNoBox => None,
+        })
+        .collect::<std::collections::BTreeSet<_>>();
     for (_, descriptor) in input.lir.module().meta.type_descriptors.iter() {
         let exact = descriptor.identity.exact_type();
         let local = input
@@ -50,10 +60,10 @@ pub(super) fn check(
                         Some(mir::type_name(input.mir.module(), &mir::Type::Class(id)))
                     }
                     mir::GeneratedExactTypeLocation::Enum(id)
-                        if matches!(
-                            identity.nominal_record().key(),
-                            GeneratedNominalKey::CoroutineSlot { .. }
-                        ) && input.bridge.types().get(exact).is_none() =>
+                        if identity.owner().odr_member_record().is_some()
+                            && matches!(identity.nominal_record().key(),
+                                GeneratedNominalKey::CoroutineSlot { value }
+                                    if !public_boxes.contains(value)) =>
                     {
                         Some(mir::type_name(
                             input.mir.module(),

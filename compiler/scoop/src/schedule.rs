@@ -1,4 +1,4 @@
-//! Canonical dependency-first serial execution for one prepared build graph.
+//! Canonical observations and ready-node execution for a prepared build graph.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -159,81 +159,8 @@ impl BuildGraphOutcome {
     }
 }
 
-impl PreparedBuildGraph {
-    pub fn execute(self) -> Result<ExecutedBuildGraph, BuildGraphExecutionFailure> {
-        self.execute_with_runner(&mut ProductionSingleConeCompilerRunner)
-    }
-
-    pub(crate) fn execute_with_runner(
-        mut self,
-        runner: &mut impl SingleConeCompilerRunner,
-    ) -> Result<ExecutedBuildGraph, BuildGraphExecutionFailure> {
-        let order = self.dependency_first().to_vec();
-        let mut completed = BTreeMap::new();
-        let mut observations = Vec::with_capacity(order.len());
-        let mut child_invocations = Vec::new();
-
-        for (position, identity) in order.iter().copied().enumerate() {
-            let completed_refs = order[..position]
-                .iter()
-                .map(|completed_identity| &completed[completed_identity])
-                .collect::<Vec<_>>();
-            let result = (|| {
-                let representation = self
-                    .node_representation(identity)
-                    .ok_or(BuildGraphExecutionError::MissingPreparedNode(identity))?;
-                let cache_key = match representation {
-                    PreparedNodeRepresentation::ManifestSource
-                    | PreparedNodeRepresentation::SingleFile => {
-                        Some(self.compile_cache_key(identity, &completed_refs).map_err(
-                            |source| BuildGraphExecutionError::CacheKey(identity, Box::new(source)),
-                        )?)
-                    }
-                    PreparedNodeRepresentation::PrebuiltArtifact => None,
-                };
-                let request_id = request_id(position)?;
-                let (node, invoked_child) = match representation {
-                    PreparedNodeRepresentation::PrebuiltArtifact => self
-                        .complete_prebuilt_node(identity, &completed_refs)
-                        .map(|node| (node, false))
-                        .map_err(|source| {
-                            BuildGraphExecutionError::Prebuilt(identity, Box::new(source))
-                        })?,
-                    PreparedNodeRepresentation::ManifestSource
-                    | PreparedNodeRepresentation::SingleFile => self
-                        .execute_ordinary_source(identity, &completed_refs, runner, request_id)
-                        .map_err(|source| {
-                            BuildGraphExecutionError::Ordinary(identity, Box::new(source))
-                        })?,
-                };
-                Ok((cache_key, node, invoked_child))
-            })();
-            let (cache_key, node, invoked_child) =
-                result.map_err(|cause| BuildGraphExecutionFailure::new(cause, &completed_refs))?;
-            if invoked_child {
-                child_invocations.push(identity);
-            }
-            observations.push(BuildNodeObservation {
-                identity,
-                origin: node.origin(),
-                cache_key,
-            });
-            completed.insert(identity, node);
-        }
-
-        let root = self.root_identity();
-        Ok(ExecutedBuildGraph {
-            _prepared: self,
-            root,
-            dependency_first: order,
-            completed,
-            observations: BuildObservations {
-                nodes: observations,
-                child_invocations,
-            },
-        })
-    }
-}
+mod execution;
+mod ready;
 
 fn request_id(position: usize) -> Result<RequestCorrelationId, BuildGraphExecutionError> {
     let ordinal = u128::try_from(position)

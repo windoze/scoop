@@ -89,6 +89,10 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
      */
     public val ioTimeouts: HttpIoTimeoutOptions get() = state.ioTimeouts
     /**
+     * Whether connection shutdown has begun, before cleanup completes.
+     */
+    public val isClosing: Boolean get() = state.lock.withLock { state.closing }
+    /**
      * Whether connection cleanup has completed.
      */
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }

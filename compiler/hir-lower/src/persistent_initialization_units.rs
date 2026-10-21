@@ -19,7 +19,7 @@ pub(crate) fn build(
         &lowerer.companion_relations,
         &lowerer.singleton_values,
         &lowerer.singleton_published_roots,
-        &lowerer.properties,
+        lowerer.properties.as_arena(),
         &lowerer.delegate_storages,
         &lowerer.generic_delegate_templates,
         nominal_identities,

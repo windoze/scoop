@@ -171,10 +171,8 @@ pub(crate) fn common_integer_literal_kind(expressions: &[&ast::Expr]) -> Option<
 
 impl Lowerer {
     /// Stable strength of the numeric defaults nested in a contextual seed.
-    /// Callers use this only after `expr_can_provide_default_seed` has proved
-    /// the whole expression can synthesize a complete type. Choosing the
-    /// strongest seed removes source-order dependence without committing any
-    /// probe state.
+    /// Syntax identifies possible seeds without type-checking their calls.
+    /// Consumers try them transactionally and reuse successful synthesis.
     pub(crate) fn expr_default_seed_rank(
         &self,
         expr: &ast::Expr,
@@ -199,7 +197,7 @@ impl Lowerer {
             children.into_iter().filter_map(nested_rank).max()
         }
 
-        self.expr_can_provide_default_seed(expr)
+        self.expr_may_provide_default_seed(expr)
             .then(|| nested_rank(expr))
             .flatten()
     }

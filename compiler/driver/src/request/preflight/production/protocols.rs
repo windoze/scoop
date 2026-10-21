@@ -20,18 +20,16 @@ pub(super) fn lower_machine(
     ControlFlow<(), scoop_slib::AssembledCrossConeLayoutArtifactV1>,
     CurrentConeProductionFailure,
 > {
-    let selected = request
+    let dependencies = request
         .dependencies()
-        .semantic()
-        .project_dependency_callables_to_mir(&hir.hir)
-        .map_err(CurrentConeMirStageError::DependencyProjection)
-        .map_err(CurrentConeProductionFailure::Mir)?;
+        .read_machine_dependencies(hir.machine_dependency_providers())
+        .map_err(CurrentConeProductionFailure::Dependencies)?;
     layout::assemble(
         hir,
         request,
         cone,
         temporary_parent,
-        selected,
+        dependencies,
         dump,
         stop_after,
     )
@@ -41,6 +39,7 @@ pub(super) fn type_identities(
     hir: &current_hir::CurrentConeHirArtifacts,
     mir: &machine::CurrentConeMirArtifacts,
     dependencies: &scoop_slib::ValidatedCrossConeSemanticClosure,
+    declarations: &scoop_slib::CompileDependencyClosure<'_>,
     coordinate: &ConeCoordinate,
 ) -> Result<
     (scoop_identity::ValidatedIdentityGraph, Vec<ConeCoordinate>),
@@ -51,9 +50,12 @@ pub(super) fn type_identities(
     hir.foundation.register_identities(&mut pending)?;
     mir.strong.foundation().register_identities(&mut pending)?;
     let mut coordinates = vec![coordinate.clone()];
-    for (coordinate, identities) in dependencies.identity_inputs() {
+    for (coordinate, identities) in declarations.identity_inputs() {
         pending.register_external_graph_authorities(identities)?;
         coordinates.push(coordinate.clone());
+    }
+    for (_, identities) in dependencies.identity_inputs() {
+        pending.register_external_graph_authorities(identities)?;
     }
     Ok((pending.finish()?, coordinates))
 }

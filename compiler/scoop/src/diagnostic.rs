@@ -434,7 +434,9 @@ impl ClassifyBuildFailure for ChildTransportError {
             | Self::WriteRequest(_)
             | Self::Wait(_)
             | Self::ReadStream { .. }
-            | Self::ReaderPanicked(_) => classified(
+            | Self::ReaderPanicked(_)
+            | Self::WorkerSpawn(_)
+            | Self::WorkerPanicked => classified(
                 BuildFailurePhase::ChildTransport,
                 BuildDiagnosticCode::CHILD_TRANSPORT,
             ),

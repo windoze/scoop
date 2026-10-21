@@ -5,7 +5,7 @@ use super::*;
 pub(super) fn initialization_unit_globals<'ctx>(
     module: &Module,
     emitted: &EmittedStrongInitializationUnitRegistrationSetV1<'ctx>,
-) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
+) -> Result<BTreeMap<scoop_lir::InitializationUnitId, GlobalValue<'ctx>>, CodegenError> {
     initialization_unit_globals_from_pairs(
         module,
         emitted
@@ -15,32 +15,58 @@ pub(super) fn initialization_unit_globals<'ctx>(
     )
 }
 
-pub(super) fn declare_initialization_unit_globals<'ctx, D, C, I>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
+pub(super) fn initialization_unit_requests<D, C, I>(
     module: &Module,
     production: &scoop_lir::ConeProductionSection<D, C, I>,
-) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
+) -> Result<
+    BTreeMap<scoop_lir::InitializationUnitId, scoop_lir::PersistentSymbolRequest>,
+    CodegenError,
+> {
     let plans = production
         .registration_production()
         .initialization_units()
         .registrations()
         .iter()
-        .map(|plan| (plan.semantic().unit(), plan))
-        .collect::<std::collections::BTreeMap<_, _>>();
-    let ty =
-        runtime_metadata_v1::RuntimeMetadataV1Types::new(context).initialization_unit_descriptor();
-    let globals = module
+        .map(|plan| (plan.semantic().unit(), plan.registration_symbol()))
+        .collect::<BTreeMap<_, _>>();
+    let requests = module
         .initialization_units
         .iter()
-        .map(|(_, unit)| {
-            let id = unit.identity.id();
-            let plan = plans.get(&id).ok_or_else(|| {
-                CodegenError(format!(
-                    "initialization unit {id} has no strong production plan"
-                ))
-            })?;
-            let request = plan.registration_symbol();
+        .map(|(id, unit)| {
+            plans
+                .get(&unit.identity.id())
+                .copied()
+                .map(|request| (id, request))
+                .ok_or_else(|| {
+                    CodegenError(format!(
+                        "initialization unit {} has no strong production plan",
+                        unit.identity.id()
+                    ))
+                })
+        })
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    if requests.len() != plans.len() {
+        return Err(CodegenError(format!(
+            "strong initialization declaration coverage mismatch: LIR {}, planned {}",
+            requests.len(),
+            plans.len(),
+        )));
+    }
+    Ok(requests)
+}
+
+pub(super) fn declare_initialization_unit_globals<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    requests: &BTreeMap<scoop_lir::InitializationUnitId, scoop_lir::PersistentSymbolRequest>,
+    selected: &std::collections::BTreeSet<scoop_lir::InitializationUnitId>,
+) -> Result<BTreeMap<scoop_lir::InitializationUnitId, GlobalValue<'ctx>>, CodegenError> {
+    let ty =
+        runtime_metadata_v1::RuntimeMetadataV1Types::new(context).initialization_unit_descriptor();
+    selected
+        .iter()
+        .map(|&id| {
+            let request = requests[&id];
             let symbol = request.symbol();
             if llvm.get_global(symbol.as_str()).is_some()
                 || llvm.get_function(symbol.as_str()).is_some()
@@ -52,23 +78,15 @@ pub(super) fn declare_initialization_unit_globals<'ctx, D, C, I>(
             let global = llvm.add_global(ty, None, symbol.as_str());
             global.set_constant(true);
             apply_persistent_linkage(&global, request, false)?;
-            Ok(global)
+            Ok((id, global))
         })
-        .collect::<Result<Vec<_>, _>>()?;
-    if globals.len() != plans.len() {
-        return Err(CodegenError(format!(
-            "strong initialization declaration coverage mismatch: LIR {}, planned {}",
-            globals.len(),
-            plans.len()
-        )));
-    }
-    Ok(globals)
+        .collect()
 }
 
 pub(crate) fn initialization_unit_globals_from_pairs<'ctx>(
     module: &Module,
     emitted: impl IntoIterator<Item = (scoop_lir::PersistentInitializationUnitId, GlobalValue<'ctx>)>,
-) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
+) -> Result<BTreeMap<scoop_lir::InitializationUnitId, GlobalValue<'ctx>>, CodegenError> {
     let mut by_unit = std::collections::BTreeMap::new();
     for (unit, descriptor) in emitted {
         if by_unit.insert(unit, descriptor).is_some() {
@@ -80,15 +98,19 @@ pub(crate) fn initialization_unit_globals_from_pairs<'ctx>(
     let globals = module
         .initialization_units
         .iter()
-        .map(|(_, unit)| {
-            by_unit.get(&unit.identity.id()).copied().ok_or_else(|| {
-                CodegenError(format!(
-                    "initialization unit {} has no emitted initialization registration",
-                    unit.identity.id()
-                ))
-            })
+        .map(|(id, unit)| {
+            by_unit
+                .get(&unit.identity.id())
+                .copied()
+                .map(|global| (id, global))
+                .ok_or_else(|| {
+                    CodegenError(format!(
+                        "initialization unit {} has no emitted initialization registration",
+                        unit.identity.id()
+                    ))
+                })
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
     if globals.len() != by_unit.len() {
         return Err(CodegenError(format!(
             "strong initialization coverage mismatch: LIR {}, emitted {}",

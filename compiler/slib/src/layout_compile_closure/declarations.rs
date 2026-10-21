@@ -16,7 +16,7 @@ pub use errors::{CrossConeHirDeclarationValidationError, CrossConeLayoutHirDecla
 /// ordinary HIR checks. Type semantics and machine relations remain pending.
 pub struct HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
     pub(super) declarations: HirProductionValidatedCrossConeLayoutClosure<'input>,
-    pub(super) aliases: Vec<scoop_hir::CanonicalTypeAliasExpansionsV1>,
+    pub(super) aliases: Vec<std::rc::Rc<scoop_hir::CanonicalTypeAliasExpansionsV1>>,
 }
 
 impl HirDeclarationsValidatedCrossConeLayoutClosure<'_> {
@@ -55,7 +55,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
         CrossConeLayoutHirDeclarationError,
     > {
         let (artifacts, dependencies) = self.hir_semantic_validation_parts();
-        let mut aliases = Vec::new();
+        let mut aliases: Vec<std::rc::Rc<scoop_hir::CanonicalTypeAliasExpansionsV1>> = Vec::new();
         for (position, artifact) in artifacts.iter_mut().enumerate() {
             let provider = artifact.identity();
             let mut expand = || -> Result<_, Error> {
@@ -66,7 +66,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
                     transitive_positions(position, dependencies).map_err(Error::Resource)?;
                 let dependencies = reachable
                     .iter()
-                    .map(|position| &aliases[*position])
+                    .map(|position| aliases[*position].as_ref())
                     .collect::<Vec<_>>();
                 interface
                     .type_aliases()
@@ -77,7 +77,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
                 provider,
                 source: Box::new(source),
             })?;
-            aliases.push(expanded);
+            aliases.push(std::rc::Rc::new(expanded));
         }
         Ok(HirDeclarationsValidatedCrossConeLayoutClosure {
             declarations: self,

@@ -557,9 +557,12 @@ pub(crate) struct Lowerer {
     pub(crate) property_identity_records: HashMap<hir::PropertyId, hir::HirPropertyIdentity>,
     pub(crate) field_identity_builder: hir::HirFieldIdentityBuilder,
     pub(crate) types: Shared<Arena<Type>>,
+    type_by_kind: imbl::HashMap<Type, TypeId>,
     pub(crate) function_types: Shared<Arena<hir::FunctionType>>,
-    pub(crate) lambdas: Arena<hir::Lambda>,
-    pub(crate) anonymous_functions: Arena<hir::AnonymousFunction>,
+    function_type_by_signature:
+        imbl::HashMap<(bool, Option<TypeId>, Vec<TypeId>, TypeId), hir::FunctionTypeId>,
+    pub(crate) lambdas: SnapshotArena<hir::Lambda>,
+    pub(crate) anonymous_functions: SnapshotArena<hir::AnonymousFunction>,
     /// Generated callable body names are reserved before lowering their
     /// bodies so nested literals with the same signature cannot collide.
     pub(crate) next_lambda_function: u32,
@@ -577,7 +580,7 @@ pub(crate) struct Lowerer {
     /// active target stack below is callable-local, but identities remain
     /// unique when declaration-bound templates are materialized repeatedly.
     pub(crate) next_loop_identity: u32,
-    pub(crate) local_functions: Arena<hir::LocalFunction>,
+    pub(crate) local_functions: SnapshotArena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
     pub(crate) imported_derived_equalities: Arena<hir::ImportedDerivedEquality>,
@@ -586,7 +589,8 @@ pub(crate) struct Lowerer {
     pub(crate) imported_generic_templates: imported_generics::ImportedGenericTemplates,
     pub(crate) imported_generic_delegate_templates: Arena<hir::ImportedGenericDelegateTemplate>,
     pub(crate) imported_companion_templates: Arena<hir::ImportedCompanionTemplate>,
-    pub(crate) imported_generic_applications: Arena<hir::ImportedGenericCallableApplication>,
+    pub(crate) imported_generic_applications:
+        SnapshotArena<hir::ImportedGenericCallableApplication>,
     pub(crate) retained_binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
     pub(crate) member_requirement_owners:
         HashMap<hir::MemberRequirementId, hir::MemberRequirementOwner>,
@@ -619,7 +623,7 @@ pub(crate) struct Lowerer {
     /// resolution may reject individual AST entries, so raw source ordinals
     /// are not a valid substitute for this typed relation.
     pub(crate) struct_field_spans: HashMap<hir::StructFieldRef, Span>,
-    pub(crate) struct_constructors: Arena<hir::StructConstructor>,
+    pub(crate) struct_constructors: SnapshotArena<hir::StructConstructor>,
     pub(crate) struct_constructor_applications: Arena<hir::StructConstructorApplication>,
     pub(crate) struct_constructor_application_by_key: HashMap<
         (hir::StructConstructorDefinition, hir::StructApplicationId),
@@ -629,22 +633,24 @@ pub(crate) struct Lowerer {
     pub(crate) struct_application_by_key:
         HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::StructApplicationId>,
     pub(crate) enums: Shared<Arena<EnumDecl>>,
-    pub(crate) loaded_enum_definitions: HashMap<hir::SourceNominalId, hir::LoadedEnumDefinition>,
+    pub(crate) loaded_enum_definitions:
+        Shared<HashMap<hir::SourceNominalId, hir::LoadedEnumDefinition>>,
     pub(crate) loaded_struct_definitions:
-        HashMap<hir::SourceNominalId, hir::LoadedStructDefinition>,
+        Shared<HashMap<hir::SourceNominalId, hir::LoadedStructDefinition>>,
 
-    pub(crate) loaded_class_definitions: HashMap<hir::SourceNominalId, hir::LoadedClassDefinition>,
+    pub(crate) loaded_class_definitions:
+        Shared<HashMap<hir::SourceNominalId, hir::LoadedClassDefinition>>,
     pub(crate) loaded_interface_definitions:
-        HashMap<hir::SourceNominalId, hir::LoadedInterfaceDefinition>,
+        Shared<HashMap<hir::SourceNominalId, hir::LoadedInterfaceDefinition>>,
     pub(crate) enum_variant_spans: HashMap<hir::EnumVariantRef, Span>,
     pub(crate) enum_variant_field_spans: HashMap<hir::EnumVariantFieldRef, Span>,
     pub(crate) enum_applications: Arena<hir::EnumApplication>,
     pub(crate) enum_application_by_key:
         HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::EnumApplicationId>,
     pub(crate) classes: Shared<Arena<ClassDecl>>,
-    pub(crate) release_hooks: Arena<hir::ExportReleaseHook>,
+    pub(crate) release_hooks: SnapshotArena<hir::ExportReleaseHook>,
     pub(crate) class_fields: Arena<hir::ClassField>,
-    pub(crate) class_constructors: Arena<hir::ClassConstructor>,
+    pub(crate) class_constructors: SnapshotArena<hir::ClassConstructor>,
     pub(crate) class_constructor_applications: Arena<hir::ClassConstructorApplication>,
     pub(crate) class_constructor_application_by_key: HashMap<
         (hir::ClassConstructorDefinition, hir::ClassApplicationId),
@@ -681,10 +687,10 @@ pub(crate) struct Lowerer {
     pub(crate) companion_by_host: HashMap<Owner, hir::CompanionRelationId>,
     pub(crate) singleton_values: Arena<hir::SingletonValue>,
     pub(crate) singleton_published_roots: Arena<hir::SingletonPublishedRoot>,
-    pub(crate) properties: Arena<hir::Property>,
+    pub(crate) properties: SnapshotArena<hir::Property>,
     pub(crate) extension_properties: Arena<hir::ExtensionProperty>,
-    pub(crate) property_getters: Arena<hir::PropertyGetter>,
-    pub(crate) property_setters: Arena<hir::PropertySetter>,
+    pub(crate) property_getters: SnapshotArena<hir::PropertyGetter>,
+    pub(crate) property_setters: SnapshotArena<hir::PropertySetter>,
     pub(crate) delegate_storages: Arena<hir::DelegateStorage>,
     pub(crate) generic_delegate_templates: Arena<hir::GenericDelegateTemplate>,
     /// Resolver-only alias declarations. Their ids and resolution state never
@@ -725,7 +731,7 @@ pub(crate) struct Lowerer {
         ),
         hir::GenericMethodApplicationId,
     >,
-    pub(crate) derived_equality_applications: Arena<hir::DerivedEqualityApplication>,
+    pub(crate) derived_equality_applications: SnapshotArena<hir::DerivedEqualityApplication>,
     pub(crate) derived_equality_application_by_type:
         HashMap<TypeId, hir::DerivedEqualityApplicationId>,
     /// Ordinary encode members awaiting their complete bodies, paired with
@@ -757,7 +763,7 @@ pub(crate) struct Lowerer {
     /// function names are never parsed to recover a logical property.
     pub(crate) extension_property_by_getter: HashMap<FunctionId, hir::PropertyId>,
     pub(crate) property_files: HashMap<hir::PropertyId, usize>,
-    pub(crate) property_accessor_sources: Vec<properties::PropertyAccessorSource>,
+    pub(crate) property_accessor_sources: Shared<Vec<properties::PropertyAccessorSource>>,
     pub(crate) runtime_accessor_units: HashMap<FunctionId, hir::InitializationUnitId>,
     pub(crate) pending_runtime_initializers: Vec<globals::PendingRuntimeInitializer>,
     pub(crate) current_initialization_unit: Option<hir::InitializationUnitId>,
@@ -801,7 +807,8 @@ pub(crate) struct Lowerer {
     /// The owner of every member function.
     pub(crate) function_owner: HashMap<FunctionId, Owner>,
     /// Actual overridden declarations and their default-parameter applications.
-    pub(crate) override_default_sources: HashMap<FunctionId, Vec<defaults::DefaultOverrideSource>>,
+    pub(crate) override_default_sources:
+        Shared<HashMap<FunctionId, Vec<defaults::DefaultOverrideSource>>>,
     /// Enums named `Option` declared in core files:
     /// (declaration, file index, span, type parameter count). Validated
     /// after pass 1 (`validate_option_enum`).
@@ -889,7 +896,7 @@ pub(crate) struct Lowerer {
     pub(crate) smart_casts: expr::SmartCastFacts,
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
-    intrinsic_sources: Vec<SourceProvider>,
+    intrinsic_sources: Shared<Vec<SourceProvider>>,
     test_dependencies: std::collections::BTreeSet<scoop_identity::ConeIdentity>,
     source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
     /// Dependency sources referenced by instantiated defaults and bodies.
@@ -915,7 +922,7 @@ pub(crate) struct Lowerer {
     /// Monotonic Cone-wide lexical binding identity allocator.
     pub(crate) next_binding_id: u32,
     /// Deduplicated monomorphization requests, in first-use order.
-    pub(crate) instantiations: Arena<hir::ResolvedGenericFunction>,
+    pub(crate) instantiations: SnapshotArena<hir::ResolvedGenericFunction>,
     /// Counter for hidden `$opt.N` / `$res.N` desugaring temporaries.
     pub(crate) hidden_count: u32,
     pub(crate) place_index_inputs: Option<argument_materialization::PlaceIndexInputs>,

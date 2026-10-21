@@ -199,12 +199,13 @@ fn collect_integer_literal_kinds(
 }
 
 pub(super) fn primitive_integer_conversion_suggestion(
+    state: &Lowerer,
     candidate: &Candidate,
     failure: &CandidateProbeFailure,
     arguments: &OverloadArguments<'_>,
 ) -> Option<String> {
     if !matches!(
-        failure.state.functions[candidate.function].kind,
+        state.functions[candidate.function].kind,
         hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
             kind: hir::IntrinsicFunctionKind::Integer(_),
             ..
@@ -235,18 +236,18 @@ pub(super) fn primitive_integer_conversion_suggestion(
         } => *expected,
         _ => *candidate.params.get(receiver_offset + source_index)?,
     };
-    let hir::Type::Integer(expected_kind) = failure.state.types[expected] else {
+    let hir::Type::Integer(expected_kind) = state.types[expected] else {
         return None;
     };
     let found_kind = failure
         .arguments
         .get(receiver_offset + source_index)
         .and_then(Option::as_ref)
-        .and_then(|argument| match failure.state.types[argument.ty] {
+        .and_then(|argument| match state.types[argument.ty] {
             hir::Type::Integer(kind) => Some(kind),
             _ => None,
         })
-        .or_else(|| argument_integer_kind(failure, arguments, source_index))?;
+        .or_else(|| argument_integer_kind(state, arguments, source_index))?;
     Lowerer::primitive_integer_conversion_hint(expected_kind, found_kind)
 }
 
@@ -263,13 +264,13 @@ impl Lowerer {
 }
 
 fn argument_integer_kind(
-    failure: &CandidateProbeFailure,
+    state: &Lowerer,
     arguments: &OverloadArguments<'_>,
     source_index: usize,
 ) -> Option<hir::IntegerKind> {
     match arguments {
         OverloadArguments::Lowered(arguments) => {
-            match failure.state.types[arguments.get(source_index)?.ty] {
+            match state.types[arguments.get(source_index)?.ty] {
                 hir::Type::Integer(kind) => Some(kind),
                 _ => None,
             }

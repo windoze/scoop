@@ -1,0 +1,5 @@
+import performance.dependency.answer
+
+fun main() {
+    println(answer())
+}

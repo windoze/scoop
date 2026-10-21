@@ -19,6 +19,9 @@ pub(super) fn emit_object_set_with_production<
 ) -> Result<EmittedConeObjectSet<scoop_lir::ConeProductionSection<D, C, I>>, CodegenError> {
     let module = input.module();
     let expected_safepoints = statepoint::expectations(module)?;
+    let metadata_safepoints = expected_safepoints.without_body_sites();
+    let mut callable_safepoints = expected_safepoints.into_functions();
+    let declarations = ConeDeclarations::new(module, &production)?;
     let machine = profile.create_target_machine()?;
     std::fs::create_dir_all(temporary_parent).map_err(|error| {
         CodegenError(format!(
@@ -50,10 +53,12 @@ pub(super) fn emit_object_set_with_production<
             (body, plan)
         })
         .collect::<BTreeMap<_, _>>();
+    let context = Context::create();
     for function in module.callable_bodies() {
-        let context = Context::create();
         let body = function.callable_body.id();
-        let selected_safepoints = expected_safepoints.for_function(function.symbol())?;
+        let selected_safepoints = callable_safepoints
+            .remove(function.symbol())
+            .expect("the manifest collects every callable body");
         let prepared = prepare_callable_strong_llvm_module(
             &context,
             module,
@@ -63,6 +68,7 @@ pub(super) fn emit_object_set_with_production<
             profile,
             &selected_safepoints,
             function,
+            &declarations,
         )?;
         let path = backing.path().join(format!("{body}.o"));
         write_object(&machine, &prepared.llvm, &path)?;
@@ -80,6 +86,7 @@ pub(super) fn emit_object_set_with_production<
             },
         );
     }
+    drop(context);
     let foundation = finalization::finalize_production(
         input,
         &mut production,
@@ -100,7 +107,7 @@ pub(super) fn emit_object_set_with_production<
         &production,
         &machine,
         profile,
-        &expected_safepoints.without_body_sites(),
+        &metadata_safepoints,
     )?;
     let metadata =
         metadata_partition::MetadataModule::new(metadata_llvm, production.canonical_definitions())?;

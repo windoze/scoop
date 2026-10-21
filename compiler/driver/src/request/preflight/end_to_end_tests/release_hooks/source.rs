@@ -40,7 +40,11 @@ pub(super) fn lower(
             &world,
         )
         .unwrap();
-    let closure = request.dependencies().semantic();
+    let machine_dependencies = request
+        .dependencies()
+        .read_machine_dependencies(hir.machine_dependency_providers())
+        .unwrap();
+    let closure = machine_dependencies.semantic();
     let selected = closure
         .project_dependency_callables_to_mir(&hir.hir)
         .unwrap();

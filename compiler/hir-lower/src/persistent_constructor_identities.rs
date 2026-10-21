@@ -132,8 +132,8 @@ impl ConstructorIdentityBuilder<'_> {
         hir::HirConstructorIdentities::checked(
             hir::HirConstructorIdentityInputs {
                 type_inputs: self.type_inputs,
-                struct_constructors: &self.lowerer.struct_constructors,
-                class_constructors: &self.lowerer.class_constructors,
+                struct_constructors: self.lowerer.struct_constructors.as_arena(),
+                class_constructors: self.lowerer.class_constructors.as_arena(),
                 class_constructor_applications: &self.lowerer.class_constructor_applications,
             },
             structs,

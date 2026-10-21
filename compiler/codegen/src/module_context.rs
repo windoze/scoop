@@ -15,12 +15,14 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) foreign_callback_families: &'a Arena<scoop_lir::ForeignCallbackFamily>,
     pub(crate) foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     pub(crate) globals_arena: &'a Arena<Global>,
-    pub(crate) globals: &'a [Option<GlobalValue<'ctx>>],
-    pub(crate) initialization_units: &'a [GlobalValue<'ctx>],
+    pub(crate) globals: &'a BTreeMap<scoop_lir::GlobalId, GlobalValue<'ctx>>,
+    pub(crate) initialization_units:
+        &'a BTreeMap<scoop_lir::InitializationUnitId, GlobalValue<'ctx>>,
     pub(crate) arrays: &'a Arena<ArrayType>,
-    pub(crate) array_tds: &'a [GlobalValue<'ctx>],
-    pub(crate) type_tds: &'a [GlobalValue<'ctx>],
-    pub(crate) external_type_tds: &'a [GlobalValue<'ctx>],
+    pub(crate) array_tds: &'a BTreeMap<ArrayTypeId, GlobalValue<'ctx>>,
+    pub(crate) type_tds: &'a BTreeMap<scoop_lir::TypeDescriptorId, GlobalValue<'ctx>>,
+    pub(crate) external_type_tds:
+        &'a BTreeMap<scoop_lir::ExternalTypeDescriptorId, GlobalValue<'ctx>>,
     pub(crate) target_data: &'a inkwell::targets::TargetData,
 }
 

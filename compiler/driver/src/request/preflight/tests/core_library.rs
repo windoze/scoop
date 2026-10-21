@@ -128,7 +128,10 @@ fn assert_core_views_share_the_dependency_closure(
     let ValidatedCompilerProtocols::Imported(inputs) = validated.protocols() else {
         panic!("single-file input imports its protocols from the shared dependency closure")
     };
-    let closure = &validated.dependencies().closure;
+    let closure = validated
+        .dependencies()
+        .read_machine_dependencies([scoop_identity::ConeIdentity::CORE])
+        .unwrap();
     let member = closure
         .semantic()
         .direct_provider(scoop_identity::ConeIdentity::CORE)

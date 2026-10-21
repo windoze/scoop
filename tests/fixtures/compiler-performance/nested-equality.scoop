@@ -1,0 +1,7 @@
+fun <T> same(value: T): T = value
+
+fun main() {
+    val seed: Boolean = true
+    val result = same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(same(seed == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true) == true)
+    println(result)
+}

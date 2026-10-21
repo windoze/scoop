@@ -12,6 +12,15 @@ pub(super) fn materializations(
         .iter()
         .map(|root| root.shape().exact())
         .collect::<BTreeSet<_>>();
+    let boxed_receivers = input
+        .materialization()
+        .shape_support()
+        .iter()
+        .filter_map(|root| match root.boxed() {
+            scoop_mir::StrongBoxedShapeSupportRoot::Available(boxed) => Some(boxed.exact()),
+            scoop_mir::StrongBoxedShapeSupportRoot::ReferenceNominalRequiresNoBox => None,
+        })
+        .collect::<BTreeSet<_>>();
     for root in input.materialization().generated_nominal_shapes() {
         let identity = module
             .meta
@@ -28,23 +37,17 @@ pub(super) fn materializations(
             }
         };
         let found = records.get(root.exact());
-        let additional = if matches!(
-            identity.nominal_record().key(),
-            GeneratedNominalKey::CoroutineSlot { .. }
-        ) {
-            // Only a published box's receiver slot extends the nominal finite
-            // support. ODR saved slots remain private to coroutine frames.
-            input.materialization().shape_support().iter().any(|source| {
-                matches!(source.boxed(), scoop_mir::StrongBoxedShapeSupportRoot::Available(boxed) if boxed.exact() == subject)
-            })
-        } else {
-            matches!(root, scoop_mir::GeneratedNominalShapeRoot::Odr { .. })
-        };
         assert_eq!(
             found.is_some(),
-            required.contains(&subject) || additional,
-            "{:?}",
-            identity.nominal_record().key(),
+            required.contains(&subject)
+                || boxed_receivers.contains(&subject)
+                || (matches!(root, scoop_mir::GeneratedNominalShapeRoot::Odr { .. })
+                    && !matches!(
+                        identity.nominal_record().key(),
+                        GeneratedNominalKey::CoroutineSlot { .. }
+                    )),
+            "finite support export for {:?}",
+            identity.nominal_record().key()
         );
         let Some(found) = found else {
             continue;

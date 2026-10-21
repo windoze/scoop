@@ -10,7 +10,7 @@ pub(super) struct StorageEmitter<'a, 'ctx> {
     pub(super) module: &'a Module,
     pub(super) target_data: &'a inkwell::targets::TargetData,
     pub(super) managed_address_space: ManagedAddressSpace,
-    pub(super) globals: &'a [Option<GlobalValue<'ctx>>],
+    pub(super) globals: &'a BTreeMap<scoop_lir::GlobalId, GlobalValue<'ctx>>,
     pub(super) surface: &'a scoop_lir::ObjectSymbolSurfaceV1,
     pub(super) profile: ValidatedBackendProfile,
     pub(super) define: bool,

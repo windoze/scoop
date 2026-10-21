@@ -22,7 +22,7 @@ struct ArmHead<C = hir::WhenCondition> {
     scope: Scopes,
     facts: SmartCastFacts,
     coverage: Vec<hir::Pattern>,
-    requires_expected: bool,
+    context_requirement: ExpressionContextRequirement,
     body_reachable: bool,
 }
 

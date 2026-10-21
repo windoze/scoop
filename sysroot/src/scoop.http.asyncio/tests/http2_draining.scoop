@@ -1,5 +1,6 @@
 package scoop.http.asyncio
 
+import scoop.asyncio.*
 import scoop.http.*
 import scoop.test.*
 
@@ -20,6 +21,7 @@ private class Http2DrainingTests {
                     pair.clientEvents.goAway.await()
                 }
                 assertTrue(pair.client.isDraining && pair.server.isDraining)
+                assertFalse(pair.client.isClosing || pair.server.isClosing)
                 try { pair.client.openRequest(request2()); fail(Some("draining connection submitted a request")) }
                 catch (_: Http2ConnectionDrainingException) { assertFalse(pair.client.isClosed) }
                 incoming.stream.sendResponse(response2(), false)
@@ -50,6 +52,29 @@ private class Http2DrainingTests {
             incoming.stream.sendResponse(response2(204U))
             assertEquals(204U, accepted.receiveResponse().status)
             assertFalse(scope.job.isCancelled || pair.client.isClosed || pair.server.isClosed)
+        }
+    }
+
+    @Test
+    fun `connection EOF stops new requests before transport cleanup completes`() {
+        withHttp2 suspend { scope, pair ->
+            val stream = pair.client.openRequest(request2())
+            val incoming = pair.server.acceptRequest()!!
+            incoming.stream.sendResponse(response2(), false)
+            assertEquals(200U, stream.receiveResponse().status)
+            assertFalse(pair.client.isClosing)
+            val releaseClose = AsyncGate()
+            pair.clientRaw.closeGate = Some(releaseClose)
+            val closing = scope.launch suspend { pair.server.close() }
+            try {
+                pair.clientRaw.closeStarted.await()
+                assertTrue(pair.client.isClosing)
+                assertFalse(pair.client.isClosed || pair.client.isDraining)
+                try { pair.client.openRequest(request2()); fail(Some("closing connection submitted a request")) }
+                catch (error: HttpException) { assertTrue(error.isUnexpectedEof) }
+            } finally { releaseClose.signal(); closing.join(); pair.client.close() }
+            assertTrue(pair.client.isClosing && pair.client.isClosed)
+            assertEquals(1, pair.clientRaw.closes)
         }
     }
 }

@@ -3,7 +3,7 @@
 use super::*;
 
 impl LoadedSingleConeBuildRequest {
-    /// Validates the complete dependency closure before current-source loading.
+    /// Resolves source declarations for the manifest-checked dependency graph.
     pub fn validate(
         &self,
     ) -> Result<ValidatedSingleConeBuildRequest<'_>, SingleConeDependencyValidationError> {
@@ -51,7 +51,7 @@ pub enum ValidatedCompilerProtocols {
 pub struct ValidatedSingleConeBuildRequest<'input> {
     pub(super) request: &'input LoadedSingleConeBuildRequest,
     pub(super) current: ValidatedCurrentConeInput<'input>,
-    pub(super) dependencies: ValidatedExplicitDependencyInputSet,
+    pub(super) dependencies: ValidatedExplicitDependencyInputSet<'input>,
     pub(super) protocols: ValidatedCompilerProtocols,
 }
 
@@ -64,7 +64,7 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         &self.protocols
     }
 
-    pub const fn dependencies(&self) -> &ValidatedExplicitDependencyInputSet {
+    pub const fn dependencies(&self) -> &ValidatedExplicitDependencyInputSet<'input> {
         &self.dependencies
     }
 
@@ -99,14 +99,7 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
     pub fn parse_current_sources<'request>(
         &'request self,
     ) -> Result<ParsedSingleConeBuildRequest<'request, 'input>, CurrentConeSourceStageError> {
-        let sources = match &self.current {
-            ValidatedCurrentConeInput::Manifest { manifest } => parse_manifest_current(
-                manifest,
-                self.target_selection().target().id(),
-                self.purpose(),
-            )?,
-            ValidatedCurrentConeInput::SingleFile { source } => parse_single_file_current(source)?,
-        };
+        let sources = self.request.parse_sources()?;
         Ok(ParsedSingleConeBuildRequest {
             request: self,
             sources,
@@ -115,6 +108,19 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
 }
 
 impl LoadedSingleConeBuildRequest {
+    pub(super) fn parse_sources(
+        &self,
+    ) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
+        match &self.current {
+            LoadedCurrentConeInput::Manifest { manifest } => parse_manifest_current(
+                manifest,
+                self.target.selection().target().id(),
+                self.purpose,
+            ),
+            LoadedCurrentConeInput::SingleFile { source } => parse_single_file_current(source),
+        }
+    }
+
     pub(super) fn validate_inner(
         &self,
     ) -> Result<ValidatedSingleConeBuildRequest<'_>, SingleConeDependencyValidationError> {

@@ -1,0 +1,7 @@
+fun <T> take(values: Array<T>): T = values[0L]
+
+fun main() {
+    val seed: Int = 42
+    val result = take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([take([seed])])])])])])])])])])])])])])])])])])])])])])])])])])])])])])])])
+    println(result)
+}

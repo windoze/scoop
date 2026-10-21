@@ -250,13 +250,13 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             .len(),
         real_mir.strong.module().meta.generated_exact_types.len()
     );
-    let private_coroutines = real_mir
+    let private_helpers = real_mir
         .strong
         .module()
         .meta
         .generated_callables
         .iter()
-        .map(|entry| entry.identity_record())
+        .map(scoop_mir::MirGeneratedCallableIdentity::identity_record)
         .filter(|record| {
             matches!(
                 record.key(),
@@ -264,8 +264,19 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
                     | scoop_identity::GeneratedCallableKey::CoroutineAdapter { .. }
             )
         })
-        .map(|record| record.id())
+        .map(|record| scoop_identity::CallableOwner::Generated(record.id()))
         .collect::<std::collections::BTreeSet<_>>();
+    assert!(!private_helpers.is_empty());
+    for helper in &private_helpers {
+        assert!(
+            real_mir
+                .strong
+                .production()
+                .strong_callable_bridges()
+                .get(*helper)
+                .is_none()
+        );
+    }
     assert_eq!(
         real_mir
             .strong
@@ -279,13 +290,11 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             .meta
             .callable_signatures
             .iter()
-            .filter(|record| match record.subject() {
-                scoop_mir::CallableSignatureSubject::Strong(
-                    scoop_identity::CallableOwner::Generated(id),
-                ) => !private_coroutines.contains(&id),
-                scoop_mir::CallableSignatureSubject::Strong(_) => true,
-                _ => false,
-            })
+            .filter(|record| matches!(
+                record.subject(),
+                scoop_mir::CallableSignatureSubject::Strong(implementation)
+                    if !private_helpers.contains(&implementation)
+            ))
             .count()
     );
     let expected_lir_shape_roots = shape_plan.roots().to_vec();
