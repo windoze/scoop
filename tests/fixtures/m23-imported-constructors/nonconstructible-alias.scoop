@@ -1,2 +1,0 @@
-import dependency.constructors.Scalar
-@NoGC fun invalid(): Scalar = Scalar()

@@ -1,9 +1,9 @@
-package tls.asyncconsumer
+package scoop.tests.tls.asyncconsumer
 
 import scoop.asyncio.*
 import scoop.crypto.*
 import scoop.crypto.x509.*
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.*
 import scoop.platform.system.OsString

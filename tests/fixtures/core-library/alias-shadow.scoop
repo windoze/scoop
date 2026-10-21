@@ -1,2 +1,0 @@
-typealias UserCoreNumber = Boolean
-fun localIdentity(value: UserCoreNumber): Boolean = value

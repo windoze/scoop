@@ -1,0 +1,12 @@
+package scoop.json.tests.consumer.baseline_responses
+
+import scoop.test.*
+import scoop.json.*
+import scoop.collections.*
+
+class Strings(val values: LinkedHashMap<String, String>) {
+    companion object : ValueEncoder<Strings>, ValueDecoder<Strings> {
+        public override fun encode(value: Strings, encoder: Encoder) { writeObject(value.values, encoder, String.Companion) }
+        public override fun decode(decoder: Decoder): Strings = Strings(readObject(decoder, String.Companion))
+    }
+}

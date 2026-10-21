@@ -1,0 +1,60 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.text.toHexString
+import scoop.url.Url
+
+internal fun extensionWebSocket(trust: TrustStore, url: Url) {
+    val state = ExtensionState()
+    val interceptor = HttpInterceptor(suspend { chain ->
+        state.calls += 1L
+        assertEquals(Some("http"), chain.request.url.scheme)
+        assertEquals("GET", chain.request.method)
+        chain.proceed(url = url.resolve("/ws"), fields = [extensionField("X-Application", "ws")])
+    })
+    val callback: suspend (HttpAttempt) -> List<HttpField> = suspend { attempt ->
+        state.attempts += 1L
+        assertEquals(state.attempts, attempt.number)
+        assertEquals(if (attempt.number == 1L) HttpAttemptReason.Initial else HttpAttemptReason.Redirect, attempt.reason)
+        val key = extensionValue(attempt.fields, "Sec-WebSocket-Key")
+        [extensionField("X-Signature", digest(DigestAlgorithm.Sha256, key.toByteArray()).toHexString())]
+    }
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(extensionConfig(trust, [interceptor], Some(callback))) suspend { client ->
+            val target = url.toBuilder().setScheme(Some("ws")).build()
+            client.withWebSocket(HttpWebSocketRequest(target)) suspend { result ->
+                when (result) {
+                    case Opened(session) -> {
+                        assertEquals("intercepted", session.receive()!!.readText())
+                        session.shutdownGracefully()
+                    }
+                    case Rejected(_, error) -> throw error
+                }
+            }
+        }
+    }
+    assertEquals(1L, state.calls); assertEquals(2L, state.attempts)
+}
+
+internal fun extensionWebSocketValidation(trust: TrustStore, url: Url) {
+    LibuvEventLoop().run suspend { _ ->
+        for (mode in 0..<5) {
+            val interceptor = HttpInterceptor(suspend { chain ->
+                chain.proceed(method = if (mode == 0) "POST" else "GET",
+                    body = if (mode == 1) RequestBody.fromText("body") else if (mode == 2)
+                        RequestBody.fromProducer(Some(0L)) suspend { _ -> } else RequestBody.Empty,
+                    fields = if (mode == 3) [extensionField("Sec-WebSocket-Key", "manual")] else chain.suppliedFields)
+            })
+            val callback: suspend (HttpAttempt) -> List<HttpField> = suspend { _ -> [extensionField("Sec-WebSocket-Protocol", "manual")] }
+            withHttpClient(extensionConfig(trust, [interceptor], if (mode == 4) Some(callback) else None)) suspend { client ->
+                val target = url.toBuilder().setScheme(Some("ws")).build()
+                assertTrue(extensionFailure suspend { client.openWebSocket(HttpWebSocketRequest(target)); Unit } is IllegalArgumentException)
+            }
+        }
+        withHttpClient(extensionConfig(trust)) suspend { client -> extensionGet(client, url.resolve("/probe"), "probe") }
+    }
+}

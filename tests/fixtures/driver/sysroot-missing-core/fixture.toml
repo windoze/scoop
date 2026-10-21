@@ -1,0 +1,19 @@
+schema = 1
+name = "sysroot-missing-core"
+inputs = ["main.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["sysroot", "negative", "driver"]
+
+[[steps]]
+name = "sources_present"
+files = [{copy = {from = "${sysroot}/lib/${target}/scoop.std.slib", to = "${work}/sysroot/lib/${target}/scoop.std.slib"}}, {symlink = {from = "${sysroot}/src/scoop.core", to = "${work}/sysroot/src/scoop.core"}}]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/main.scoop", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}

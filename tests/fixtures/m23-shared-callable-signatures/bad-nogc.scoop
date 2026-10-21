@@ -1,3 +1,0 @@
-import upstream.signatures.identity
-
-@NoGC public fun invalid(value: Int): Int = identity<Int>(value)

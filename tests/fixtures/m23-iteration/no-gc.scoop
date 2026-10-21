@@ -1,5 +1,0 @@
-import upstream.iteration.*
-
-@NoGC public fun invalid(values: Array<Int>) {
-    for (value in values) {}
-}

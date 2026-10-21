@@ -17,7 +17,7 @@ impl Provider {
         let coordinate = ConeCoordinate::new("test", provider, "1.0.0").unwrap();
         let origin = coordinate.identity().unwrap();
         let package = PackagePath::from_segments(
-            ["dependency", "api"]
+            ["test", "dependency", "api"]
                 .into_iter()
                 .map(|name| CanonicalIdentifier::new(name).unwrap())
                 .collect(),

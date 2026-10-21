@@ -1,0 +1,9 @@
+package dev.example.sibling.right
+
+import dev.example.dependency.odr.Payload
+import dev.example.dependency.odr.checked
+import dev.example.dependency.odr.defaulted
+import dev.example.dependency.odr.recover
+
+public fun right(value: Payload): Payload = checked(defaulted(value), 1)
+public fun rightNumber(error: Throwable): Int = recover(error, 22)

@@ -1,4 +1,0 @@
-import dependency.classes.Counter
-import dependency.classes.SharedHolder
-
-public fun primary(holder: SharedHolder = SharedHolder): Counter = holder.value

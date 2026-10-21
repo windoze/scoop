@@ -1,0 +1,5 @@
+package test
+import test.consumer.run
+fun main() {
+    println(run())
+}

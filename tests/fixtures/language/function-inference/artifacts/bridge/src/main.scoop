@@ -1,0 +1,3 @@
+package dev.m37.bridge
+public import dev.m37.inferredresults.*
+public fun <T> forwarded(value: T) = choose(value)

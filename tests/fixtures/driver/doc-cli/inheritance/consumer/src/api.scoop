@@ -1,0 +1,15 @@
+package dev.m60
+public import dev.m60.api.Base as VisibleBase
+public import dev.m60.api.HiddenOuter.Inner as HiddenAlias
+public import dev.m60.api.HiddenObject as HiddenValue
+public import dev.m60.api.hidden as hiddenFunction
+import dev.m60.api.Readable
+
+/** Specializes [VisibleBase.copy] for integers. */
+public class Child : VisibleBase<Int>(42) {
+    public override fun number(): Int = 2
+}
+
+public interface Left : Readable<Int> {}
+public interface Right : Readable<Int> {}
+public interface Diamond : Left, Right {}

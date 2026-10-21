@@ -1,9 +1,10 @@
 use super::*;
 
 const CORE: &str =
-    include_str!("../../../../../tests/fixtures/core-library/dependencies/core/Cone.toml");
-const HELPER: &str =
-    include_str!("../../../../../tests/fixtures/core-library/dependencies/helper/Cone.toml");
+    include_str!("../../../../../tests/fixtures/language/core-library/dependencies/core/Cone.toml");
+const HELPER: &str = include_str!(
+    "../../../../../tests/fixtures/language/core-library/dependencies/helper/Cone.toml"
+);
 
 #[test]
 fn core_dependency_cycle_uses_the_common_graph_and_preserves_edge_origins() {

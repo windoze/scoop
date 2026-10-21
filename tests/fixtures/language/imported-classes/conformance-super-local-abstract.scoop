@@ -1,0 +1,9 @@
+package dev.example
+import dev.example.dependency.classes.FirstChoice
+
+public interface LocalAbstract: FirstChoice {
+    public override fun choose(): Long
+}
+public class LocalChoice public constructor(): LocalAbstract {
+    public override fun choose(): Long = super<LocalAbstract>.choose()
+}

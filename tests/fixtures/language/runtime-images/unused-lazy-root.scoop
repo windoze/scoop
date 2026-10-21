@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.startup.lazy.*
+@Extern(lib = "m23_runtime_images", name = "m23_trace") private fun trace(value: Long)
+fun main() {
+    if (count() != 0) { throw IllegalStateException() }
+    @Unsafe { trace(42L) }
+}

@@ -1,8 +1,8 @@
-package crypto.consumer
+package scoop.tests.crypto.consumer
 
 import scoop.Result
 import scoop.crypto.x509.*
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.test.*
 import scoop.time.Instant
 

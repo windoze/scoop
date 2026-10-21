@@ -1,5 +1,0 @@
-public struct Item(val value: Int)
-public interface Extended : ValueDecoder<Item> { public fun extra(): Int }
-public object Reader : Extended
-
-fun main() {}

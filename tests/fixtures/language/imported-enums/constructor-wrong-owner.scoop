@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.enums.Choice
+import dev.example.dependency.enums.Other
+import dev.example.dependency.enums.Token
+fun invalid(): Other = Choice.Pair(left = 1, marker = Token(), right = 2)

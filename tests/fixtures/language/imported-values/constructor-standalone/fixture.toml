@@ -1,0 +1,122 @@
+schema = 1
+name = "imported-constructor-standalone"
+inputs = ["../../imported-classes/support/stage3_test.scoop", "../../imported-constructors/provider.scoop", "constructor-provider", "../../imported-constructors/standalone.scoop", "constructors-standalone", "../../imported-constructors/downstream.scoop", "downstream-standalone", "../../imported-constructors/runtime.ll", "../support/constructor-main.scoop", "value-runtime-constructor-standalone"]
+tools = ["scoop", "scoopc", "llc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["imported-values", "constructor", "language"]
+
+[vars]
+symbol_primary = "scoop$1$cb$3599538b29af0305ef451b06ff3a7e9a2c3309fcfd0532908b413735332dda42"
+symbol_check = "scoop$1$cb$741b3e2f7482f20479ff96c97f147cbb263c2c8a9a44a734769919d98a7e359d"
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_constructor-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/constructor-provider", "to" = "${work}/sources/constructor-provider"}},
+  {"copy" = {"from" = "${fixture}/../../imported-constructors/provider.scoop", "to" = "${work}/sources/constructor-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/constructor-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructor-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_constructors-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/constructors-standalone", "to" = "${work}/sources/constructors-standalone"}},
+  {"copy" = {"from" = "${fixture}/../../imported-constructors/standalone.scoop", "to" = "${work}/sources/constructors-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/constructors-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructors-standalone/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_downstream-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/downstream-standalone", "to" = "${work}/sources/downstream-standalone"}},
+  {"copy" = {"from" = "${fixture}/../../imported-constructors/downstream.scoop", "to" = "${work}/sources/downstream-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/downstream-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-standalone/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../../imported-constructors/runtime.ll", "to" = "${work}/native/abi.ll"}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @primary(", "new" = "declare void @\"${symbol_primary}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @primary(", "new" = "call void @\"${symbol_primary}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @check(", "new" = "declare i64 @\"${symbol_check}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @check(", "new" = "call i64 @\"${symbol_check}\"("}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${llc}", "-mtriple=${llvm_target}", "-filetype=obj", "-relocation-model=pic", "${work}/native/abi.ll", "-o", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_constructor_abi.a", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "prepare_value-runtime-constructor-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/value-runtime-constructor-standalone", "to" = "${work}/sources/value-runtime-constructor-standalone"}},
+  {"copy" = {"from" = "${fixture}/../support/constructor-main.scoop", "to" = "${work}/sources/value-runtime-constructor-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/value-runtime-constructor-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${program.result.dependencies.length}", equals = 4},
+]
+
+[[steps]]
+name = "run"
+argv = ["${program.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""

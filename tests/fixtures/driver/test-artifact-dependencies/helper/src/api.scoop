@@ -1,0 +1,2 @@
+package dev.m43.helpers
+public fun adjust(value: Int): Int = value + 2

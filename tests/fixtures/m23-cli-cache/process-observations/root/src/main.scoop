@@ -1,5 +1,0 @@
-package consumer
-
-import dependency.api.value
-
-public fun run(): Int = value()

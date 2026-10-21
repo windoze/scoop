@@ -1,0 +1,39 @@
+package scoop.json.tests.consumer.list_encoding_artifacts.p0
+
+import scoop.test.*
+import scoop.json.Json
+import scoop.json.tests.consumer.list_encoding_artifacts.p1.sequence
+import scoop.json.tests.consumer.list_encoding_artifacts.p1.capture
+
+private fun check(value: Boolean, code: Int, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+private class Captured(private val body: (List<String>, ValueEncoder<String>, Encoder) -> Unit)
+    : ValueEncoder<List<String>> {
+    public override fun encode(value: List<String>, encoder: Encoder) {
+        body(value, String.Companion, encoder)
+    }
+}
+
+private fun exerciseConsumer() {
+    val integers = Array<Int>(3L) { index -> index.toInt() + 1 }
+    val integerCodec = sequence<Int>(Int.Companion)
+    check(Json.encodeToString<List<Int>>(integers, integerCodec) == "[1,2,3]", 1)
+    val mutable = ArrayList<Unit>()
+    mutable.add(Unit)
+    check(Json.encodeToString<List<Unit>>(mutable, sequence<Unit>(UnitEncoder)) == "[null]", 2)
+    val nested = Array<List<Int>>(2L) { _ -> integers }
+    check(Json.encodeToString<List<List<Int>>>(nested, sequence<List<Int>>(integerCodec)) == "[[1,2,3],[1,2,3]]", 3)
+    val strings = Array<String>(2L) { _ -> "界" }
+    check(Json.encodeToString<List<String>>(strings, Captured(capture<String>())) == "[\"界\",\"界\"]", 4)
+    val restored = Json.decodeFromString(Json.encodeToString<List<Int>>(integers, integerCodec), Array<Int>.decoder(Int.Companion))
+    check(restored.size == 3L && restored[2L] == 3, 5)
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

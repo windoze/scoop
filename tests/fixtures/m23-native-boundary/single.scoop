@@ -1,2 +1,0 @@
-@Extern(name = "native_narrow", abi = "scoop")
-fun nativeNarrow(value: Int8): Int8

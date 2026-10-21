@@ -1,0 +1,45 @@
+schema = 1
+name = "single-file-dependency-graph-errors"
+inputs = []
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "single-file", "dependencies", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [{"write" = {"path" = "${work}/std/Cone.toml", "data" = "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.std\"\nversion = \"0.2.0\"\nkind = \"library\"\n"}}, {"write" = {"path" = "${work}/std/src/main.scoop", "data" = "package scoop\npublic fun otherStandard(): Int = 2\n"}}, {"write" = {"path" = "${work}/version.scoop", "data" = "//! dep: scoop:scoop.std:0.2.0\nfun main() {}\n"}}, {"write" = {"path" = "${work}/executable.scoop", "data" = "fun main() {}\n"}}, {"write" = {"path" = "${work}/consumer/Cone.toml", "data" = "schema = 1\n[cone]\ngroup = \"dev.consumer\"\nname = \"consumer\"\nversion = \"1.0.0\"\nkind = \"library\"\n[dependencies]\n\"scoop:single-file\" = \"0.0.0\"\n"}}, {"write" = {"path" = "${work}/consumer/src/main.scoop", "data" = "package dev.consumer\npublic fun value(): Int = 1\n"}}]
+
+[[steps]]
+name = "alternative"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "${work}/std", "-o", "${work}/cones/scoop/scoop.std/0.2.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "version_conflict"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "${work}/version.scoop", "--cone-path", "${work}/cones"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{"code" = "SCOOP_GRAPH_MULTIPLE_VERSIONS", "message" = "resolved graph contains multiple exact versions; scoop:scoop.std = 0.1.0 0.2.0", "notes" = [], "origin" = {"kind" = "none"}, "phase" = "GraphVersionKind", "severity" = "error"}]
+
+[[steps]]
+name = "executable"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "${work}/executable.scoop"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "reject_local_dependency"
+argv = ["${scoopc}", "build", "${work}/consumer", {"each" = "${compile_args}"}, "--profile", "release", "--sysroot", "${sysroot}", "--direct-slib", "${executable.result.root.path}", "--support-slib", "${sysroot}/lib/${target}/scoop.std.slib", "--out-slib", "${work}/failed.slib"]
+exit = 1
+stdout = ""
+stderr = "error: dependency direct artifact 0 ${executable.result.root.path} must be a manifest library, found Executable/SingleFile\n"
+checks = [{"file" = "${work}/failed.slib", "exists" = false}]

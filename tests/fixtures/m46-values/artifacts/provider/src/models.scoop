@@ -1,8 +1,0 @@
-package models
-public import scoop.json.JsonValue
-
-public struct Document(val id: Long, val payload: JsonValue, val extension: JsonValue? = None) {
-    public companion object : ValueEncoder<Document>, ValueDecoder<Document> {}
-}
-public fun wrap(value: JsonValue): Document = Document(7L, value)
-public fun capture(decoder: Decoder): JsonValue = JsonValue.Companion.decode(decoder)

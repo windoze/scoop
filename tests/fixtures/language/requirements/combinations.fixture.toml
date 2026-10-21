@@ -1,0 +1,17 @@
+schema = 1
+name = "requirements-combinations"
+root = "combinations.scoop"
+inputs = ["combinations.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["requirements", "combinations", "language"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 0
+stdout = "11\n11\n0\n11\n11\n11\n7\n11\n19\n2\n0\n23\n1\n29\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

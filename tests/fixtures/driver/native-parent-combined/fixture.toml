@@ -1,0 +1,26 @@
+schema = 1
+name = "native-parent-combined"
+inputs = ["project", "vendor"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+tags = ["native", "cxx", "generic", "driver"]
+variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/project", to = "${work}/project"}}, {copy = {from = "${fixture}/vendor", to = "${work}/vendor"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/project/consumer", {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""

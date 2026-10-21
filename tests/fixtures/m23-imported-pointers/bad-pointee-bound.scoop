@@ -1,4 +1,0 @@
-import dependency.pointers.copy
-private struct Managed(val value: String)
-@Unsafe
-public fun bad(): String = copy<Managed>(Managed("text")).value

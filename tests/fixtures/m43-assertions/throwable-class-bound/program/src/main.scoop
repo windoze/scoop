@@ -1,7 +1,0 @@
-import scoop.test.assertFailsWith
-
-class Ordinary
-
-fun main() {
-    assertFailsWith<Ordinary> { }
-}

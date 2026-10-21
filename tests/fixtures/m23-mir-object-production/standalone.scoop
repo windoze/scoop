@@ -1,1 +1,0 @@
-public object Registry { public val number: Int = 1 }

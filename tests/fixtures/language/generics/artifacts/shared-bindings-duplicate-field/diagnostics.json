@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "duplicate field `left` in pattern",
+    "notes": [],
+    "origin": {
+      "cone": "f0a3de6fdef3685b73e13ff961d52b957c5906ff75da88f98382f7e74eb19689",
+      "end": 120,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 116
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `first`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "f0a3de6fdef3685b73e13ff961d52b957c5906ff75da88f98382f7e74eb19689",
+      "end": 166,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 161
+    },
+    "severity": "error"
+  }
+]

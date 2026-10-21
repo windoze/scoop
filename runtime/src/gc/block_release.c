@@ -34,6 +34,7 @@ void scoop_heap_release_block(ScoopGcBlockMeta *block) {
     }
 }
 
+#if SCOOP_ENABLE_GC_STRESS
 void scoop_heap_quarantine_block(ScoopGcBlockMeta *block) {
     const ScoopThreadVmOps *vm = scoop_platform_bundle()->thread_vm;
     size_t page_size = vm->page_size();
@@ -48,3 +49,4 @@ void scoop_heap_quarantine_block(ScoopGcBlockMeta *block) {
     }
     retire_metadata(block, SCOOP_BLOCK_QUARANTINED);
 }
+#endif

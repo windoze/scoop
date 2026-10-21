@@ -1,4 +1,0 @@
-package bridge
-public import provider.*
-public typealias Outcome<T> = Result<T>
-public fun <T> forwarded(value: Outcome<T>): Int = classify(value)

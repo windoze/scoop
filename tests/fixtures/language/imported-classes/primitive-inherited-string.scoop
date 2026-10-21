@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+
+public fun primary(): Counter {
+    val value: String = "downstream"
+    return Counter(rebuiltStringDefault() + value.score() - 21)
+}

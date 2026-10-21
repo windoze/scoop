@@ -1,0 +1,16 @@
+package dev.m29.shape.use
+import dev.m29.shape.Row
+import dev.m29.shape.Store
+import dev.m29.shape.Empty
+import dev.m29.shape.Secondary
+
+fun main() {
+    val row = Row<String>(7, "text")
+    val second = Row<String>("next")
+    val store = Store<String>(row)
+    val secondary = Secondary(1)
+    val empty = Empty()
+    if (row.value != "text" || row.count != 7 || row.inherited != 7 || row.size != 12L) { throw Throwable() }
+    if (second.count != 3 || store.row !== row) { throw Throwable() }
+    println("class-shapes-ok")
+}

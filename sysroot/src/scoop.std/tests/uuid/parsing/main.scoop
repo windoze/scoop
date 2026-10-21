@@ -1,0 +1,57 @@
+package scoop.std.tests.uuid.parsing
+
+import scoop.test.*
+import scoop.uuid.Uuid
+
+fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(ok, location = location)
+}
+fun invalid(text: String) {
+    check(Uuid.parseOrNone(text) == None)
+    var failed = false
+    try { Uuid.parse(text) } catch (error: IllegalArgumentException) { failed = true }
+    check(failed)
+}
+class BadBytes : List<Byte> {
+    public var reads: Long = 0L
+    public override val size: Long get() = 16L
+    public override operator fun get(index: Long): Byte {
+        reads += 1L
+        if (index == 5L) throw IllegalStateException()
+        return index.toByte()
+    }
+    public override operator fun iterator(): Iterator<Byte> { throw IllegalStateException() }
+}
+private fun exercise() {
+    val value = Uuid(0x0011223344556677uL, 0x8899aabbccddeeffuL)
+    check(Uuid.parse("00112233-4455-6677-8899-AABBCCDDEEFF") == value)
+    check(Uuid.parseOrNone("00112233445566778899AaBbCcDdEeFf") == Some(value))
+    check(Uuid.parse(Uuid.NIL.toString()) == Uuid.NIL && Uuid.parse(Uuid.MAX.toString()) == Uuid.MAX)
+    invalid(""); invalid("00112233445566778899aabbccddeef")
+    invalid("00112233445566778899aabbccddeeff0"); invalid("00112233445566778899aabbccddeefg")
+    invalid("00112233_4455-6677-8899-aabbccddeeff")
+    invalid("001122334-455-6677-8899-aabbccddeeff")
+    invalid("00112233-4455-6677-8899-aabbccddeef-")
+    invalid(" 00112233445566778899aabbccddeeff ")
+    invalid("{00112233-4455-6677-8899-aabbccddeeff}")
+    invalid("urn:uuid:00112233-4455-6677-8899-aabbccddeeff")
+    invalid("00112233445566778899aabbccddeeé")
+    invalid("00112233445566778899aabbccddeef\u0000")
+    for (size in Array<Long>(3L) { index -> if (index == 0L) 0L else index * 2L + 13L }) {
+        var failed = false
+        try { Uuid.fromByteArray(Array<Byte>(size) { _ -> 0 }) }
+        catch (error: IllegalArgumentException) { failed = true }
+        check(failed)
+    }
+    val bad = BadBytes()
+    var propagated = false
+    try { Uuid.fromByteArray(bad) } catch (error: IllegalStateException) { propagated = true }
+    check(propagated && bad.reads == 6L)
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

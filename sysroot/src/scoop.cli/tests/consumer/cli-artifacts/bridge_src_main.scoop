@@ -1,0 +1,10 @@
+package scoop.cli.tests.consumer.cli_artifacts.p1
+
+import scoop.test.*
+import scoop.cli.tests.consumer.cli_artifacts.p2.*
+import scoop.cli.CliFlag as Toggle
+import scoop.cli.CliParser
+
+public fun <T> forwarded(element: ValueDecoder<T>): () -> CliParser<GenericArguments<T>> = {
+    genericParser(element)
+}

@@ -1,0 +1,38 @@
+package test.core.tests.string_builder.reentry
+
+import scoop.test.*
+class Reentrant(val builder: StringBuilder) : ToString {
+    var calls: Int = 0
+    public override fun toString(): String {
+        calls = calls + 1
+        for (index in 0L until 12L) { builder.append("i") }
+        gcCollect()
+        return "outer"
+    }
+}
+class Failing(val builder: StringBuilder) : ToString {
+    public override fun toString(): String {
+        builder.append("kept")
+        gcCollect()
+        throw IllegalStateException()
+    }
+}
+private fun exercise() {
+    val builder = StringBuilder()
+    for (index in 0L until 7L) { builder.append("p") }
+    val value = Reentrant(builder)
+    builder.append(value)
+    val before = builder.toString()
+    if (value.calls != 1 || before != "pppppppiiiiiiiiiiiiouter") { fail(Some("reentry")) }
+    var failed = false
+    try { builder.append(Failing(builder)) } catch (e: IllegalStateException) { failed = true }
+    if (!failed || builder.toString() != before + "kept") { fail(Some("throw")) }
+    builder.append("tail")
+    if (builder.toString() != before + "kepttail") { fail(Some("continue")) }
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

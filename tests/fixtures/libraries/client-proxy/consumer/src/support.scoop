@@ -1,0 +1,64 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
+import scoop.tls.*
+import scoop.url.Url
+
+internal fun proxyCheck(value: Boolean, detail: String = "HTTP proxy integration check failed") {
+    if (!value) throw IllegalStateException(Some(detail))
+}
+
+internal fun <T> proxyPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+
+internal suspend fun <E : Throwable> proxyFailure(block: suspend () -> Unit): E {
+    try { block() }
+    catch (error: Throwable) { if (error is E) return error; throw error }
+    throw IllegalStateException(Some("expected proxy failure"))
+}
+
+internal fun proxyH2(mode: String): Boolean =
+    mode == "h2" || mode == "h2-proxy" || mode == "h2-clear" || mode == "h2-upgrade" || mode == "socks-h2"
+
+internal fun proxyTls(trust: TrustStore, untrusted: Boolean = false): HttpClientTlsConfig =
+    HttpClientTlsConfig(if (untrusted) TlsTrustSource.System else TlsTrustSource.Store(trust))
+
+internal fun proxyConfig(trust: TrustStore, selector: HttpProxySelector, mode: String,
+    authentication: HttpAuthenticationOptions = HttpAuthenticationOptions(),
+    retries: HttpRetryOptions = HttpRetryOptions(maxRetries = 0L)): HttpClientConfig =
+    HttpClientConfig(tls = proxyTls(trust, mode == "target-untrusted"),
+        versionPolicy = if (proxyH2(mode)) HttpVersionPolicy.Http2Only else HttpVersionPolicy.Auto,
+        cleartext = if (mode == "h2-clear" || mode == "socks-h2") HttpCleartextProtocol.Http2PriorKnowledge
+            else if (mode == "h2-upgrade") HttpCleartextProtocol.H2cUpgrade else HttpCleartextProtocol.Http1,
+        http1RequestVersion = if (mode == "http10") HttpVersion.Http10 else HttpVersion.Http11,
+        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxConnections = 1L),
+        retries = retries, authentication = authentication, proxy = selector,
+        timeouts = HttpTimeoutOptions(resolve = None, connect = None, tlsHandshake = None,
+            proxyHandshake = if (mode == "proxy-zero" || mode == "socks-zero") Some(Duration.ZERO)
+                else if (mode == "proxy-deadline" || mode == "socks-deadline") Some(Duration.seconds(15L)) else None))
+
+internal fun proxyCredentials(value: String = "cHJveHk6c2VjcmV0"): HttpCredentials = HttpCredentials.withToken68("Basic", value)
+
+internal fun proxyFields(): Array<HttpField> = [
+    HttpField("Authorization".toByteArray(), "Bearer origin".toByteArray(), true),
+    HttpField("Cookie".toByteArray(), "origin=cookie".toByteArray())
+]
+
+internal suspend fun proxyDone(client: HttpClient, url: Url, expected: String = "ok",
+    options: HttpCallOptions = HttpCallOptions(onInformational = suspend { _ ->
+        throw IllegalStateException(Some("proxy informational response reached the target callback"))
+    }), version: HttpVersion = HttpVersion.Http11) {
+    client.withResponse(HttpRequest.get(url, proxyFields(), options)) suspend { response ->
+        proxyCheck(response.status == 200U && response.version == version)
+        proxyCheck(response.body.text(16L) == expected)
+    }
+}
+
+internal suspend fun proxyWrite(output: AsyncByteSink, text: String) {
+    NativeByteBuffer.allocate(text.toByteArray().size).use suspend { buffer ->
+        buffer.writeBytes(text.toByteArray()); output.writeFully(buffer)
+    }
+}

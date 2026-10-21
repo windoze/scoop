@@ -1,0 +1,47 @@
+package scoop.json.tests.serialize.fields
+
+import scoop.test.*
+import scoop.json.Json
+
+struct Plain(val id: Long, val name: String?) {
+    companion object : ValueEncoder<Plain>, ValueDecoder<Plain> {}
+}
+
+struct Flags(
+    @Serialize(rename = "user_id") val id: Long,
+    @Serialize(required = true) val email: String? = None,
+    @Serialize(emitNull = true) val note: String? = None,
+    @Serialize(ignore = true) val cache: Long = 9L,
+    @Serialize(ignore = true) val ignored: String?,
+    @Serialize() val name: String? = None
+) {
+    companion object : ValueEncoder<Flags>, ValueDecoder<Flags> {}
+}
+
+struct EncodeOnly(@Serialize(ignore = true) val action: () -> Unit, val id: Long) {
+    companion object : ValueEncoder<EncodeOnly> {}
+}
+
+private fun exercise() {
+    check(Json.decodeFromString("{\"id\":7}", Plain.Companion) == Plain(7L, None))
+    check(Json.decodeFromString("{\"id\":7,\"name\":null}", Plain.Companion) == Plain(7L, None))
+    check(Json.encodeToString(Plain(7L, None), Plain.Companion) == "{\"id\":7}")
+    check(Json.encodeToString(Plain(7L, Some("Ada")), Plain.Companion) == "{\"id\":7,\"name\":\"Ada\"}")
+    reject("/id") { Json.decodeFromString("{}", Plain.Companion) }
+    reject("/id") { Json.decodeFromString("{\"id\":null}", Plain.Companion) }
+    reject("/name") { Json.decodeFromString("{\"id\":7,\"name\":1}", Plain.Companion) }
+    val flags = Flags(1L, ignored = Some("local"))
+    check(Json.encodeToString(flags, Flags.Companion) == "{\"user_id\":1,\"email\":null,\"note\":null}")
+    val decoded = Json.decodeFromString("{\"user_id\":1,\"email\":null}", Flags.Companion)
+    check(decoded.cache == 9L && decoded.ignored == None && decoded.note == None)
+    reject("/email") { Json.decodeFromString("{\"user_id\":1}", Flags.Companion) }
+    reject("/user_id") { Json.decodeFromString("{\"id\":1,\"email\":null}", Flags.Companion) }
+    check(Json.encodeToString(EncodeOnly({ Unit }, 3L), EncodeOnly.Companion) == "{\"id\":3}")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

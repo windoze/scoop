@@ -1,5 +1,0 @@
-import annotated.bridge.*
-import annotated.bridge.Once as Alias
-@OnlyField fun fieldError() {}
-@Once @Alias fun repeatedError() {}
-fun main() {}

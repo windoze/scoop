@@ -1,0 +1,65 @@
+schema = 1
+name = "layout-dependencies-ordinary-initialization-inactive"
+inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "../../../language/core-layout-exports/property-initialization-provider.scoop", "provider", "../../../language/property-initialization/inactive.scoop", "consumer", "downstream"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["layout-dependencies", "ordinary", "compiler-correctness"]
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_provider"
+files = [
+  {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
+  {"copy" = {"from" = "${fixture}/../../../language/core-layout-exports/property-initialization-provider.scoop", "to" = "${work}/sources/provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/property-provider/1.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
+  {"copy" = {"from" = "${fixture}/../../../language/property-initialization/inactive.scoop", "to" = "${work}/sources/consumer/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/scoop-hir-lower/0.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_downstream"
+files = [
+  {"copy" = {"from" = "${fixture}/downstream", "to" = "${work}/sources/downstream"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/downstream", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/layout-reader/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []

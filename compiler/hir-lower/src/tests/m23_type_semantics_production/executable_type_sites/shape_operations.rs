@@ -9,7 +9,7 @@ fn shared_shape_sites_match_actual_boxes_unboxes_and_checked_targets() {
     for case in ["shape-standalone", "shape-combined"] {
         let source =
             std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
-                format!("../../tests/fixtures/m23-executable-type-sites/{case}.scoop"),
+                format!("../../tests/fixtures/language/executable-type-sites/{case}.scoop"),
             ))
             .unwrap();
         let mut core_source = crate::tests::complete_core_file();

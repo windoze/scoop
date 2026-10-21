@@ -1,0 +1,4 @@
+package test
+import test.releasegeneric.Owner
+
+public fun <U> onlyType(value: Owner<String>) {}

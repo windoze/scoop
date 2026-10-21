@@ -12,6 +12,7 @@ kind = "library"
 "scoop:scoop.platform" = "0.1.0"
 
 [test-dependencies]
+"scoop:scoop.crypto" = "0.1.0"
 "scoop:scoop.test" = "0.1.0"
 "scoop.tests:asyncio-native" = { version = "0.1.0", path = "test-native" }
 

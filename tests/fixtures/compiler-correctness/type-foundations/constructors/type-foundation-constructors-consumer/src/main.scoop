@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.constructors.*
+
+public fun create(): Pair = Pair("factory")

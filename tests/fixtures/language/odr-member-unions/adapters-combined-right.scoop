@@ -1,0 +1,14 @@
+package dev.example.sibling.right
+
+import dev.example.dependency.union.*
+
+public fun action(): (Payload) -> Any {
+    val payload = guarded(Payload(22), false)
+    return second(Other(payload.number))
+}
+public fun dynamic(): Any {
+    val payload = guarded(Payload(22), true)
+    return second(Other(payload.number))
+}
+public fun sameType(): Any = Marker<Int>(22)
+public fun otherType(): Any = Marker<Long>(22L)

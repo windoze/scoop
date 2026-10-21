@@ -1,4 +1,0 @@
-fun bad(value: Int8): Int = when (value) {
-    case 128 -> 1
-    else -> 0
-}

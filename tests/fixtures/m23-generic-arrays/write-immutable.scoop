@@ -1,2 +1,0 @@
-import upstream.arrays.mutate
-public fun result(values: Array<Int>): Int = mutate(values, 0L, 42)

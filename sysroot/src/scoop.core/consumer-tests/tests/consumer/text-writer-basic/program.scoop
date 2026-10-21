@@ -1,0 +1,44 @@
+package test.core.tests.consumer.text_writer_basic
+
+import scoop.test.*
+fun check(condition: Boolean): Unit {
+    if (!condition) { throw IllegalStateException() }
+}
+
+private fun exerciseConsumer() {
+    val writer = StringWriter()
+    check(writer.toString() == "")
+    val output: TextWriter = writer
+    output.write("A")
+    output.write("")
+    output.write("雪\u0000🚀")
+    val first = writer.toString()
+    check(first == "A雪\u0000🚀")
+    check(first.length == 4L)
+    check(writer.toString() == first)
+    output.write("\n")
+    gcCollect()
+    check(first == "A雪\u0000🚀")
+    check(writer.toString() == first + "\n")
+
+    val many = StringWriter()
+    var expected = ""
+    for (index in 0L until 130L) {
+        val part = index.toString()
+        many.write(part)
+        expected = expected + part
+    }
+    val snapshot = many.toString()
+    gcCollect()
+    many.write("tail")
+    check(snapshot == expected)
+    check(many.toString() == expected + "tail")
+    check(writer.toString() == first + "\n")
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

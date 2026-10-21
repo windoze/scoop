@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.templates.bounds.*
+
+public fun result(): Int = genericInterfaceGet<HolderImpl<String>, Int>(HolderImpl<String>("42"))

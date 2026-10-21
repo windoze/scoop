@@ -1,5 +1,0 @@
-package nativelink.mixedleft
-
-import nativelink.mixed.*
-
-public fun left(): Int = shared(1) + eager + readLazy()

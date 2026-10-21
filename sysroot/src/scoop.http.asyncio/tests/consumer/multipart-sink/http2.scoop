@@ -1,0 +1,76 @@
+package scoop.http.asyncio.tests.consumer.multipart_sink
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+
+private fun request(path: String): HttpRequestHead = HttpRequestHead(HttpVersion.Http2, "POST".toByteArray(),
+    HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), path.toByteArray()), [boundary().toMediaType().toHttpField()])
+
+private suspend fun serve(connection: AsyncHttp2Connection, ready: Gate) {
+    val cancelled = connection.acceptRequest()!!
+    MultipartSource(cancelled.stream, boundary(), bufferSize = 7L).useAsync suspend { partial ->
+        check(when (partial.nextPart()) { case Some(_) -> true; case None -> false })
+        ready.signal()
+        val normal = connection.acceptRequest()!!
+        readSingle(normal.stream)
+        normal.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+        val ordinary = connection.acceptRequest()!!
+        checkEmpty(ordinary.stream)
+        ordinary.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+    }
+}
+
+private suspend fun cancelUpload(stream: AsyncHttp2Stream, scope: CoroutineScope, ready: Gate) {
+    val sink = MultipartSink.takeOwnership(stream, boundary(), 7L)
+    val part = sink.beginPart(MultipartPartHead())
+    ready.await()
+    val started = Gate()
+    val cancelled = AtomicBoolean(false)
+    val writing = scope.launch suspend {
+        try {
+            NativeByteBuffer.allocate(32L).use suspend { buffer ->
+                buffer.writeBytes("abcdefghijklmnopqrstuvwxyz012345".toByteArray())
+                check(part.writeFrom(buffer, 7L) == 7L)
+                started.signal()
+                part.writeFully(buffer)
+                throw IllegalStateException(Some("blocked multipart upload unexpectedly completed"))
+            }
+        } catch (_: CancellationException) { cancelled.store(true) }
+        finally { part.close() }
+    }
+    started.await()
+    check(!writing.isCompleted)
+    writing.cancel(); writing.join(); sink.close()
+    check(cancelled.load() && sink.isClosed && part.isClosed && !part.isComplete)
+    ensureActive()
+}
+
+suspend fun runHttp2(loop: EventLoop, scope: CoroutineScope) {
+    val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+    val ready = Gate()
+    try {
+        val serving = scope.launch suspend {
+            val server = AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope,
+                settings = Http2Settings(initialWindowSize = 7U))
+            try { serve(server, ready) } finally { server.close() }
+        }
+        val client = AsyncHttp2Connection.takeOwnershipAsClient(loop.connectTcp(listener.localAddress), scope,
+            limits = Http2Limits(maxPendingBodyBytes = 8L))
+        try {
+            val cancelled = client.openRequest(request("/cancel"), false)
+            val normal = client.openRequest(request("/normal"), false)
+            cancelUpload(cancelled, scope, ready)
+            writeSingle(normal)
+            check(normal.receiveResponse().status == 204U)
+            checkEmpty(normal); normal.close()
+            val ordinary = client.openRequest(request("/ordinary"))
+            check(ordinary.receiveResponse().status == 204U)
+            checkEmpty(ordinary); ordinary.close()
+            serving.join()
+        } finally { client.close() }
+    } finally { listener.close() }
+}

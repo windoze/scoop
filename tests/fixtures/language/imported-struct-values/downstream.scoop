@@ -1,0 +1,9 @@
+package dev.example.downstream.values
+
+import dev.example.dependency.values.Token
+import dev.example.dependency.values.Wide
+import dev.example.consumer.values.keepToken
+import dev.example.consumer.values.keepWide
+
+@NoGC public fun token(value: Token): Token = keepToken(value)
+@NoGC public fun wide(value: Wide): Wide = keepWide(value)

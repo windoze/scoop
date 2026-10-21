@@ -1,0 +1,14 @@
+package dev.example.consumer.paths
+
+private class Reader(public val number: Int): dev.example.dependency.paths.Read {
+    public override fun read(): Int = number
+}
+
+private fun <R: dev.example.dependency.paths.Read> read(value: R): Int = value.read()
+
+public fun <T> exercise(value: T): Int {
+    val reader: dev.example.dependency.paths.Read = Reader(42)
+    return read<dev.example.dependency.paths.Read>(reader)
+}
+
+public fun result(): Int = exercise<Int>(0)

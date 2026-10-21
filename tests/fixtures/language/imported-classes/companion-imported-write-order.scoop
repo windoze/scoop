@@ -1,0 +1,10 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.WriteHost.count as count
+import dev.example.dependency.classes.CompanionTrace
+import dev.example.dependency.classes.companionWriteArgument
+
+public fun primary(): Counter {
+    count = if (CompanionTrace.events == 1) { companionWriteArgument() } else { 0 }
+    return Counter(if (CompanionTrace.events == 123) { count } else { 0 })
+}

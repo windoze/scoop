@@ -1,0 +1,7 @@
+package dev.m50
+@Extern(lib = "m50_archive", name = "native_answer")
+fun answer(value: Int): Int
+
+fun main() {
+    @Unsafe { println(answer(21)) }
+}

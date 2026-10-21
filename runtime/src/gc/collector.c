@@ -155,9 +155,11 @@ static bool collect(bool minor) {
         scan_roots(&verify);
         scoop_gc_visit_current_objects_locked(verify_heap_object, &verify);
     }
+#if SCOOP_ENABLE_GC_STRESS
     if (scoop_gc_stress_move_enabled()) {
         scoop_gc_heap_verify_stress_moved_locked();
     }
+#endif
     scoop_gc_mark_dispose();
     uint64_t phase = scoop_gc_monotonic_ns();
     uint64_t returned = metrics->vm_return_ns;

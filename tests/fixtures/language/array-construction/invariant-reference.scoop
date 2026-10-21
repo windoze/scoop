@@ -1,0 +1,9 @@
+package dev.example
+private open class Base(public val number: Int)
+private class Child(number: Int) : Base(number)
+
+public fun result(): Int {
+    val source: MutableArray<Child> = [Child(42)]
+    val copied = Array<Base>(source)
+    return 42
+}

@@ -1,0 +1,56 @@
+package scoop.tests
+import scoop.http.*
+import scoop.http.client.*
+import scoop.time.Duration
+import scoop.url.Url
+
+private class RetryContext(val text: String)
+
+context(binding: RetryContext)
+private fun retryContextText(): String = binding.text
+
+internal suspend fun retryReplay(client: HttpClient, url: Url) {
+    client.withResponse(HttpRequest.get(url.resolve("/warm"))) suspend { response ->
+        retryCheck(response.retryCount == 0L && response.body.text(2L) == "ok")
+    }
+    val attempts = AtomicLong(0L); val informational = AtomicLong(0L)
+    val body = RequestBody.fromProducerWithTrailersFactory(["X-Attempt"], Some(7L)) suspend {
+        retryCheck(retryContextText() == "request context")
+        val attempt = attempts.fetchAdd(1L) + 1L;
+        suspend { output ->
+            retryCheck(retryContextText() == "request context")
+            retryWrite(output, "payload")
+            [HttpField("X-Attempt".toByteArray(), attempt.toString().toByteArray())]
+        }
+    }.compressed()
+    val options = HttpCallOptions(expectContinue = true, continueWait = Duration.seconds(3600L),
+        onInformational = suspend { head ->
+            retryCheck(head.status == 100U && retryContextText() == "request context")
+            informational.fetchAdd(1L)
+            Unit
+        })
+    context(RetryContext("request context")) {
+        client.withResponse(HttpRequest(url, "PUT", body = body, options = options)) suspend { response ->
+            retryCheck(response.retryCount == 1L && response.redirectHistory.size == 0L)
+            retryCheck(response.status == 200U && response.body.text(4L) == "done")
+            val trailers = response.trailers!!
+            retryCheck(trailers.size == 1L && trailers[0L].hasName("X-Final".toByteArray()))
+            retryCheck(String.fromUtf8(trailers[0L].value) == "gzip")
+            gcCollect()
+        }
+    }
+    retryCheck(attempts.load() == 2L && informational.load() == 2L)
+}
+
+internal suspend fun retryRefused(client: HttpClient, url: Url) {
+    val produced = AtomicLong(0L)
+    val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+        produced.fetchAdd(1L)
+        retryWrite(output, "once")
+    }
+    client.withResponse(HttpRequest.post(url, body,
+        options = HttpCallOptions(expectContinue = true, continueWait = Duration.seconds(3600L)))) suspend { response ->
+        retryCheck(response.version == HttpVersion.Http2 && response.retryCount == 1L)
+        retryCheck(response.body.text(4L) == "done" && produced.load() == 1L)
+    }
+}

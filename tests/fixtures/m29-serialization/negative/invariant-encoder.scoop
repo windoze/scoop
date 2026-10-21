@@ -1,2 +1,0 @@
-fun accept(codec: ValueEncoder<Any>) { println("unreachable") }
-fun main() { accept(Long.Companion) }

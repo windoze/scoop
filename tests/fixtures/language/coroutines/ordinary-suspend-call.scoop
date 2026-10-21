@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.templates.coroutines.immediate
+
+public fun result(): Long = immediate(42L)

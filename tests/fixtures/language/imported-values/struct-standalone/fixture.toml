@@ -1,0 +1,134 @@
+schema = 1
+name = "imported-struct-standalone"
+inputs = ["../../imported-classes/support/stage3_test.scoop", "../../imported-struct-values/provider.scoop", "struct-provider", "../../imported-struct-values/standalone.scoop", "struct-standalone", "../../imported-struct-values/downstream.scoop", "downstream-standalone", "../../imported-struct-values/runtime.ll", "../support/struct-main.scoop", "value-runtime-struct-standalone"]
+tools = ["scoop", "scoopc", "llc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["imported-values", "struct", "language"]
+
+[vars]
+symbol0 = "scoop$1$cb$c858b86046720de4d916d90f93c699546665bda85cd6d6504ce92ce1aa4e0f49"
+symbol1 = "scoop$1$cb$cc8e1c84390f9accde28e20e5a0f697e548e0955da92c8e48a730eacacb27478"
+symbol2 = "scoop$1$cb$3591ab8d9dea1855f7085aef88e8e1a5c45379e1972c8a63d8b0e0be3834d070"
+symbol3 = "scoop$1$cb$44855dc48337cf60a380d38514a9cd2fc1ab46fd219e3cd2ff3f79d8cc659448"
+symbol4 = "scoop$1$cb$24c5c6f9d11d0cf4d924cfa82c67509dde26b134378548354bb0611278ce1a4f"
+symbol5 = "scoop$1$cb$22c442d70b743b66b48d1514ff91366cd691865a989c621b7feb988a733050e3"
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_struct-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/struct-provider", "to" = "${work}/sources/struct-provider"}},
+  {"copy" = {"from" = "${fixture}/../../imported-struct-values/provider.scoop", "to" = "${work}/sources/struct-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/struct-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/struct-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_struct-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/struct-standalone", "to" = "${work}/sources/struct-standalone"}},
+  {"copy" = {"from" = "${fixture}/../../imported-struct-values/standalone.scoop", "to" = "${work}/sources/struct-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/struct-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/struct-standalone/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_downstream-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/downstream-standalone", "to" = "${work}/sources/downstream-standalone"}},
+  {"copy" = {"from" = "${fixture}/../../imported-struct-values/downstream.scoop", "to" = "${work}/sources/downstream-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/downstream-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-standalone/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../../imported-struct-values/runtime.ll", "to" = "${work}/native/abi.ll"}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f0(", "new" = "declare void @\"${symbol0}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f0(", "new" = "call void @\"${symbol0}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f1(", "new" = "declare void @\"${symbol1}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f1(", "new" = "call void @\"${symbol1}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f2(", "new" = "declare void @\"${symbol2}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f2(", "new" = "call void @\"${symbol2}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f3(", "new" = "declare void @\"${symbol3}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f3(", "new" = "call void @\"${symbol3}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f4(", "new" = "declare void @\"${symbol4}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f4(", "new" = "call void @\"${symbol4}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f5(", "new" = "declare void @\"${symbol5}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f5(", "new" = "call void @\"${symbol5}\"("}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${llc}", "-mtriple=${llvm_target}", "-filetype=obj", "-relocation-model=pic", "${work}/native/abi.ll", "-o", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_struct_abi.a", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "prepare_value-runtime-struct-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/value-runtime-struct-standalone", "to" = "${work}/sources/value-runtime-struct-standalone"}},
+  {"copy" = {"from" = "${fixture}/../support/struct-main.scoop", "to" = "${work}/sources/value-runtime-struct-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/value-runtime-struct-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${program.result.dependencies.length}", equals = 4},
+]
+
+[[steps]]
+name = "run"
+argv = ["${program.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""

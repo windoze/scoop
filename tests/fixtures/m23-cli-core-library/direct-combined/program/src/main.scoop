@@ -1,7 +1,0 @@
-import answer
-
-fun main() {
-    if (answer() != 41) {
-        throw IllegalStateException()
-    }
-}

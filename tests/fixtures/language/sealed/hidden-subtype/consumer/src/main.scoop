@@ -1,0 +1,4 @@
+package dev.m37
+import dev.m37.bridge.*
+fun bad(value: State): Int = when(value) { is Ready -> 1 }
+fun main() {}

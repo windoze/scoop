@@ -2,7 +2,7 @@ use super::*;
 
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-type-source-defaults/nested-local-calls.scoop"
+    "/../../tests/fixtures/language/type-source-defaults/nested-local-calls.scoop"
 ));
 
 #[test]

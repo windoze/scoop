@@ -1,0 +1,151 @@
+schema = 1
+name = "native-addresses-aliases"
+inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../language/native-addresses/provider.scoop", "generic-member-aliases", "../../../language/native-addresses/aliases.scoop", "generic-member-downstream-aliases", "../../../language/native-addresses/downstream.scoop", "runtime-fixture", "../../../language/imported-classes/support/gc.c", "../../../language/native-addresses/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["generics", "imported_native_addresses_use_definition_owned_storage_bridges", "compiler-correctness"]
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-member-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-member-provider", "to" = "${work}/sources/generic-member-provider"}},
+  {"copy" = {"from" = "${fixture}/../../../language/native-addresses/provider.scoop", "to" = "${work}/sources/generic-member-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/generic-member-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-member-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-member-aliases"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-member-aliases", "to" = "${work}/sources/generic-member-aliases"}},
+  {"copy" = {"from" = "${fixture}/../../../language/native-addresses/aliases.scoop", "to" = "${work}/sources/generic-member-aliases/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/generic-member-aliases", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-member-aliases/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-member-downstream-aliases"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-member-downstream-aliases", "to" = "${work}/sources/generic-member-downstream-aliases"}},
+  {"copy" = {"from" = "${fixture}/../../../language/native-addresses/downstream.scoop", "to" = "${work}/sources/generic-member-downstream-aliases/src/main.scoop"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/generic-member-downstream-aliases", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-member-downstream-aliases/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../../../language/native-addresses/native.c", "to" = "${work}/native/callbacks.c"}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/native/callbacks.c", "-o", "${work}/native/callbacks.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_native_calls.a", "${work}/native/callbacks.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "prepare_runtime"
+files = [
+  {"copy" = {"from" = "${fixture}/runtime-fixture", "to" = "${work}/sources/runtime-fixture"}},
+  {"copy" = {"from" = "${fixture}/../../../language/imported-classes/support/gc.c", "to" = "${work}/native/gc.c"}},
+]
+
+[[steps]]
+name = "compile_gc"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/native/gc.c", "-o", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_gc"
+argv = ["${ar}", "qcS", "${work}/native/libm23_class_gc.a", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/runtime-fixture", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [{"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}}]
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${sysroot}", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.dependencies.length}", "equals" = 4},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
+  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-member-provider:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-member-aliases:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-member-downstream-aliases:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:runtime-fixture:0.1.0 kind=Executable objects="},
+  {actual = "${link.result.link_plan}", contains = "images=5 root=${symbol_prefix}scoop$$1$$re$$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7"},
+  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""

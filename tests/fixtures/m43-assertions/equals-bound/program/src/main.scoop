@@ -1,7 +1,0 @@
-import scoop.test.assertEquals
-
-class Point(val x: Int)
-
-fun main() {
-    assertEquals(Point(1), Point(1))
-}

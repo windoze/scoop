@@ -1,0 +1,71 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.text.toHexString
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun extensionChain(trust: TrustStore, url: Url) {
+    val state = ExtensionState()
+    val outer = HttpInterceptor(suspend { chain ->
+        state.order.add("outer-in")
+        assertEquals("context", extensionMarker())
+        currentEventLoop().sleep(Duration.milliseconds(1L))
+        val result = chain.proceed(url = url.resolve("/start?x=%2f"), method = "POST",
+            body = RequestBody.fromText("payload 雪").compressed())
+        state.order.add("outer-out")
+        result
+    })
+    val inner = HttpInterceptor(suspend { chain ->
+        state.order.add("inner-in")
+        assertEquals("POST", chain.request.method)
+        assertEquals(0L, chain.suppliedFields.findAll("Content-Encoding".toByteArray()).size)
+        assertEquals("gzip", extensionValue(chain.request.fields, "Content-Encoding"))
+        val result = chain.proceed(fields = extensionFields(chain.suppliedFields, extensionField("X-Inner", "yes")))
+        state.order.add("inner-out")
+        result
+    })
+    val callback: suspend (HttpAttempt) -> List<HttpField> = suspend { attempt ->
+        state.attempts += 1L
+        assertEquals(state.attempts, attempt.number)
+        val reasons = [HttpAttemptReason.Initial, HttpAttemptReason.Redirect, HttpAttemptReason.Retry, HttpAttemptReason.Authentication]
+        assertEquals(reasons[attempt.number - 1L], attempt.reason)
+        assertEquals("context", extensionMarker())
+        assertEquals(0L, attempt.fields.findAll("X-Attempt".toByteArray()).size)
+        assertEquals(1L, attempt.fields.findAll("Host".toByteArray()).size)
+        assertEquals(1L, attempt.fields.findAll("Accept-Encoding".toByteArray()).size)
+        currentEventLoop().sleep(Duration.milliseconds(1L))
+        val text = attempt.request.method + " " + String.fromUtf8(attempt.requestTarget) + " " + attempt.number.toString()
+        [extensionField("X-Attempt", attempt.number.toString()),
+            extensionField("X-Signature", digest(DigestAlgorithm.Sha256, text.toByteArray()).toHexString())]
+    }
+    val provider = HttpAuthenticator.basic(url.httpOrigin()) suspend { _ ->
+        state.credentials += 1L
+        HttpPasswordCredentials("user", "password")
+    }
+    LibuvEventLoop().run suspend { _ ->
+        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+            interceptors = [outer, inner], onAttempt = Some(callback), authentication = HttpAuthenticationOptions([provider]),
+            retries = HttpRetryOptions(maxRetries = 1L, statuses = [503U], initialDelay = Duration.ZERO, maxDelay = Duration.ZERO))
+        withHttpClient(config) suspend { client ->
+            context(ExtensionMarker("context")) {
+                client.withResponse(HttpRequest.get(url)) suspend { response ->
+                    assertEquals("done", response.body.text(4L))
+                    assertEquals(1L, response.redirectHistory.size)
+                    assertEquals(1L, response.retryCount)
+                    assertEquals(1L, response.authenticationCount)
+                }
+            }
+        }
+    }
+    assertEquals(4L, state.attempts)
+    assertEquals(1L, state.credentials)
+    assertEquals(4L, state.order.size)
+    assertEquals("outer-in", state.order[0L]); assertEquals("inner-in", state.order[1L])
+    assertEquals("inner-out", state.order[2L]); assertEquals("outer-out", state.order[3L])
+}

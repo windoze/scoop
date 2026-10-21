@@ -1,8 +1,0 @@
-import scoop.datetime.*
-
-fun main() {
-    val date = LocalDate(2024, 2, 29)
-    date.year = 2023
-    val month = YearMonth(2024, 2)
-    month.monthNumber = 13
-}

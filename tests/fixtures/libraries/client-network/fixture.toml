@@ -1,0 +1,35 @@
+schema = 1
+name = "client-network"
+inputs = ["consumer", "peer.py"]
+support = [
+    "../../../../sysroot/src/scoop.crypto/test-certificates/src/root.scoop",
+    "../../../../sysroot/src/scoop.crypto/test-certificates/src/server.scoop",
+    "../../../../sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop",
+]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["http", "client", "timeout", "tls", "asyncio", "prebuilt", "libraries"]
+variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
+[[steps]]
+name = "source"
+files = [
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/root.scoop", to = "${work}/consumer/src/root.scoop"}},
+]
+
+[[steps]]
+name = "build"
+timeout = 900
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${python}", "${fixture}/peer.py", "${build.result.output}", "${repo}/sysroot/src/scoop.crypto/test-certificates/src/server.scoop", "${repo}/sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop", "${work}/certificates"]
+exit = 0
+stdout = "independent DNS TCP and TLS deadlines passed\n"
+stderr = ""

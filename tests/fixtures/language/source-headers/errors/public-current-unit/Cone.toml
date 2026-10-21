@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "demo.app"
+name = "m23-source-headers-errors-public-current-unit"
+version = "0.1.0"
+kind = "executable"
+
+[[sources]]
+path = "main.scoop"

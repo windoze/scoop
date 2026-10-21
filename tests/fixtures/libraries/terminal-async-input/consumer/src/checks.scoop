@@ -1,0 +1,16 @@
+package test
+import scoop.terminal.asyncio.*
+import scoop.terminal.event.*
+import scoop.terminal.screen.SetTitle
+
+fun check(value: Boolean, message: String) {
+    if (!value) { eprintln(message); throw IllegalStateException(Some(message)) }
+}
+fun key(character: Char): Event = Event.Key(KeyEvent(KeyCode.Char(character)))
+suspend fun stage(session: AsyncTerminalSession, name: String) {
+    session.execute(SetTitle(name))
+    gcCollect()
+}
+suspend fun expect(session: AsyncTerminalSession, event: Event) {
+    check(session.read() == event, "unexpected asynchronous terminal event")
+}

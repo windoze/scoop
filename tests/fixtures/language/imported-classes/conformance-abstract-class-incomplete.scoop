@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.dependency.classes.FirstChoice
+
+public abstract class LocalBase public constructor(): FirstChoice {
+    public abstract override fun choose(): Long
+}
+public class LocalReader public constructor(): LocalBase() {}

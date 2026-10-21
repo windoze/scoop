@@ -1,0 +1,73 @@
+schema = 1
+name = "native-link-archive-toc"
+inputs = ["cone", "../../../language/native-link/direct/root.scoop", "../../../language/native-link/direct/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+# Exercise long BSD member names and the normal table of contents.
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "compiler-correctness"]
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/toc"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/direct/root.scoop", "to" = "${work}/sources/toc/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_a_long_native_member_name"
+files = [{"copy" = {"from" = "${fixture}/../../../language/native-link/direct/native.c", "to" = "${work}/sources/native/a_long_native_member_name.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_a_long_native_member_name"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/a_long_native_member_name.c", "-o", "${work}/objects/a_long_native_member_name.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "archive_m23_math"
+argv = ["${ar}", "qcS", "${work}/native/libm23_math.a", "${work}/objects/a_long_native_member_name.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "ranlib"
+argv = ["/usr/bin/ranlib", "${work}/native/libm23_math.a"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/toc", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""

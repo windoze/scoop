@@ -1,3 +1,0 @@
-import callbacks.callback
-
-fun main() { callback() }

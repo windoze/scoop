@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.templates.members.Reader
+
+fun bad(value: Reader<Int>): Reader<String> = value

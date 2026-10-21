@@ -1,3 +1,0 @@
-import dependency.classes.Counter
-
-public fun invalid() { throw Counter(21) }

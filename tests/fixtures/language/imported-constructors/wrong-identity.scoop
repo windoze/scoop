@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.constructors.Other
+import dev.example.dependency.constructors.Wide
+@NoGC public fun rejected(): Wide = Wide(1, 2, 3, Other())

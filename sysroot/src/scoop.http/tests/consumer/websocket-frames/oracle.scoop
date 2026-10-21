@@ -1,0 +1,28 @@
+package scoop.http.tests.consumer.websocket_frames
+
+import scoop.test.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.io.encoding.Base64
+import scoop.platform.fs.*
+import scoop.text.*
+
+fun runOracle(path: Path) {
+    for (line in path.readText().split('\n')) {
+        if (line.length == 0L) continue
+        val fields = line.split('|')
+        val role = if (fields[0L] == "S") HttpRole.Server else HttpRole.Client
+        val sending = if (role == HttpRole.Server) HttpRole.Client else HttpRole.Server
+        try {
+            val result = WebSocketFrameDecoder(role, limits = WebSocketFrameLimits(70000L, 140000L, 127L)).use { decoder ->
+                val frames = records(readEvents(decoder, Base64.Default.decode(fields[2L]), fields[1L].toLong(), true))
+                WebSocketFrameEncoder(sending).use { encoder ->
+                    val wire = ByteArrayBuilder()
+                    for (frame in frames) wire.append(encodeFrame(encoder, frame.head, frame.data))
+                    wire.toByteArray()
+                }
+            }
+            println("OK|" + Base64.Default.encode(result))
+        } catch (error: WebSocketFrameException) { println("ERR|" + error.closeCode.toString()) }
+    }
+}

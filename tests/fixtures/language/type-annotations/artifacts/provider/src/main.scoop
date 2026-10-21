@@ -1,0 +1,11 @@
+package dev.m37.annotated.provider
+@Repeatable @Target([AnnotationTarget.Type]) public annotation class Mark(val text: String)
+public annotation class Once
+public typealias Single = @Once Int
+public typealias Flipped<A, B> = @Mark("alias root") (@Mark("B") B, @Mark("A") A)
+public struct Holder<T>(val value: @Mark("field") T)
+public fun <T> keep(value: @Mark("parameter") T): @Mark("result") T {
+    typealias Local = @Mark("local alias") T
+    val result: @Mark("local use") Local = value
+    return result
+}

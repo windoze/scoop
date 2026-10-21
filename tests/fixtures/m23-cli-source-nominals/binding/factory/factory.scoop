@@ -1,3 +1,0 @@
-public fun host(): Host = Host()
-public fun other(): Other = Other()
-public fun <T> child(): Host.Child<T> = Host.Child<T>()

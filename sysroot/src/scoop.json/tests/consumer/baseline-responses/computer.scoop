@@ -1,0 +1,74 @@
+package scoop.json.tests.consumer.baseline_responses
+
+import scoop.test.*
+struct ComputerItem(
+    val id: String,
+    val call_id: String,
+    val status: String,
+    val pending_safety_checks: Array<SafetyCheck>,
+    val action: ComputerAction? = None,
+    val actions: Array<ComputerAction>? = None
+) {
+    companion object : ValueEncoder<ComputerItem>, ValueDecoder<ComputerItem> {}
+}
+struct SafetyCheck(val id: String, val code: String? = None, val message: String? = None) {
+    companion object : ValueEncoder<SafetyCheck>, ValueDecoder<SafetyCheck> {}
+}
+struct ComputerResult(val call_id: String, val output: Screenshot) {
+    companion object : ValueEncoder<ComputerResult>, ValueDecoder<ComputerResult> {}
+}
+struct Screenshot(val type: String, val image_url: String? = None, val file_id: String? = None) {
+    companion object : ValueEncoder<Screenshot>, ValueDecoder<Screenshot> {}
+}
+struct ClickAction(val button: String, val x: Double, val y: Double) {
+    companion object : ValueEncoder<ClickAction>, ValueDecoder<ClickAction> {}
+}
+struct DragAction(val path: Array<Point>) {
+    companion object : ValueEncoder<DragAction>, ValueDecoder<DragAction> {}
+}
+struct Point(val x: Double, val y: Double) {
+    companion object : ValueEncoder<Point>, ValueDecoder<Point> {}
+}
+struct TypeAction(val text: String) {
+    companion object : ValueEncoder<TypeAction>, ValueDecoder<TypeAction> {}
+}
+enum ComputerAction {
+    Click(ClickAction), Drag(DragAction), Type(TypeAction), Screenshot, Wait
+    companion object : ValueEncoder<ComputerAction>, ValueDecoder<ComputerAction> {
+        public override fun encode(value: ComputerAction, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case ComputerAction.Click(payload) -> {
+                    String.encode("click", fields.field("type"))
+                    ClickAction.Companion.encode(payload, encoder)
+                }
+                case ComputerAction.Drag(payload) -> {
+                    String.encode("drag", fields.field("type"))
+                    DragAction.Companion.encode(payload, encoder)
+                }
+                case ComputerAction.Type(payload) -> {
+                    String.encode("type", fields.field("type"))
+                    TypeAction.Companion.encode(payload, encoder)
+                }
+                case ComputerAction.Screenshot -> {
+                    String.encode("screenshot", fields.field("type"))
+                }
+                case ComputerAction.Wait -> {
+                    String.encode("wait", fields.field("type"))
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): ComputerAction {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "click" -> ComputerAction.Click(ClickAction.Companion.decode(decoder))
+                case "drag" -> ComputerAction.Drag(DragAction.Companion.decode(decoder))
+                case "type" -> ComputerAction.Type(TypeAction.Companion.decode(decoder))
+                case "screenshot" -> ComputerAction.Screenshot
+                case "wait" -> ComputerAction.Wait
+                else -> throw DecodingException(fields.required("type").path, "unknown ComputerAction branch")
+            }
+        }
+    }
+}

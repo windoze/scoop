@@ -7,7 +7,7 @@ mod assertions;
 fn actual_mir_shape_families_replay_and_match_bound_materializations() {
     for name in ["value", "combined"] {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-mir-shape-support");
+            .join("../../tests/fixtures/language/mir-shape-support");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         let bytes = with_production(&source, |output, input, hir, graph, _| {
             let types = scoop_mir_lower::lower_type_exports(
@@ -41,7 +41,7 @@ fn actual_mir_shape_families_replay_and_match_bound_materializations() {
             encode(&families).unwrap()
         });
         with_production(
-            &format!("private struct Unrelated() {{}}\n{source}"),
+            &prepend_declarations(&source, "private struct Unrelated() {}\n"),
             |output, input, hir, graph, _| {
                 let types = scoop_mir_lower::lower_type_exports(
                     output.output().local.module(),

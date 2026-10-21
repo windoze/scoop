@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "typealias constructor `Named`: String is not a subtype of Int",
+    "notes": [],
+    "origin": {
+      "cone": "804328589d1c8be6144765e0321123ef59a8ebead986391d318cd28546aa60b6",
+      "end": 191,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 157
+    },
+    "severity": "error"
+  }
+]

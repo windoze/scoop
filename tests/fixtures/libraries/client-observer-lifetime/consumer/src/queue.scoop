@@ -1,0 +1,62 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.client.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+
+private class ObserverMetrics { var value: HttpAttemptMetrics? = None }
+
+internal fun observerQueue(trust: TrustStore) {
+    withObserverRuntime suspend { loop, scope, listener, url ->
+        val releaseFirst = ObserverGate()
+        val done = ObserverGate()
+        val queued = ObserverGate()
+        val granted = ObserverMetrics()
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                connection.receiveRequest()!!.body.readAllBytes(0L)
+                connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(4L)).useAsync suspend { _ ->
+                    releaseFirst.await()
+                }
+            }
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                connection.receiveRequest()!!.body.readAllBytes(0L)
+                connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(4L)).useAsync suspend { output ->
+                    observerWrite(output, "body"); output.finish()
+                }
+                done.await()
+            }
+        }
+        val observer = HttpObserver(suspend { event ->
+            if (observerMarker() == "queued") {
+                if (event.kind == HttpCallEventKind.AttemptStarted) queued.signal()
+                if (event.kind == HttpCallEventKind.ConnectionAcquired) granted.value = Some(event.metrics)
+            }
+        })
+        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), observer = Some(observer),
+            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+        val client = HttpClient.open(scope, config)
+        try {
+            val first = context(ObserverMarker("first")) { client.execute(HttpRequest.get(url)) }
+            val failed = ObserverFailure()
+            val second = scope.launch suspend {
+                try { context(ObserverMarker("queued")) { observerResponse(client, url.resolve("/queued")) } }
+                catch (error: Throwable) { failed.value = Some(error) }
+            }
+            queued.await(); loop.sleep(Duration.milliseconds(10L))
+            assertFalse(observerPresent(granted.value) || second.isCompleted)
+            val released = MonotonicTimeSource.markNow()
+            releaseFirst.signal(); first.close()
+            second.join()
+            assertFalse(observerPresent(failed.value))
+            val timing = granted.value!!.queue!!
+            assertTrue(timing.startedAt <= released && timing.finishedAt!! >= released)
+            assertTrue(timing.finishedAt!! <= granted.value!!.connect!!.startedAt)
+        } finally { releaseFirst.signal(); done.signal(); client.close(); serving.join() }
+    }
+}

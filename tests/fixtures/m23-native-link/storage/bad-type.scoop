@@ -1,3 +1,0 @@
-import nativelink.storage.*
-
-fun main() { @Unsafe { counter = "wrong" } }

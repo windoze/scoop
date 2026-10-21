@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.ReadableAlias
+import dev.example.dependency.classes.readable
+
+public fun identityView(value: ReadableAlias): ReadableAlias = value
+public fun primary(): Counter = Counter(identityView(readable(21)).read())

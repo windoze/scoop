@@ -1,0 +1,59 @@
+package scoop.url.tests.consumer.url_network_host
+
+import scoop.test.*
+import scoop.test.*
+import scoop.url.*
+
+private fun exerciseConsumer() {
+    val proxy = Url.parse("socks5://user:pass@BÜCHER.example.:1080/base?q#f")
+    val serialized = proxy.toString()
+    assertEquals("socks5", proxy.scheme!!)
+    assertEquals("xn--bcher-kva.example", proxy.authority!!.networkHost().toString())
+    assertEquals(1080, proxy.authority!!.port!!)
+    val schemeError = assertFailsWith<UrlParseException> { proxy.httpOrigin() }
+    assertEquals(UrlComponent.Scheme, schemeError.component)
+    gcCollect()
+    assertEquals(serialized, proxy.toString())
+    val next = proxy.resolve("next").toBuilder().setPort(Some(2080)).build()
+    assertEquals(proxy.authority!!.networkHost(), next.authority!!.networkHost())
+    assertEquals("/next", next.encodedPath)
+    assertEquals(2080, next.authority!!.port!!)
+    assertEquals(serialized, proxy.toString())
+
+    for (reference in ["//EXAMPLE.", "custom://EXAMPLE.:0", "socks5h://EXAMPLE.:65535"]) {
+        val value = Url.parse(reference)
+        assertEquals(UrlHost.Dns("example"), value.authority!!.networkHost())
+    }
+    val address = Url.parse("socks5://%31%32%37.0.0.1:1080").authority!!.networkHost()
+    assertEquals(Url.parse("http://127.0.0.1").httpOrigin().host, address)
+    when (address) {
+        case Ipv4(bytes) -> { assertEquals(4L, bytes.size); assertEquals(127.toByte(), bytes[0L]) }
+        else -> throw IllegalStateException()
+    }
+    val ipv6 = Url.parse("custom://[::1]:1080").authority!!.networkHost()
+    assertEquals(Url.parse("https://[0:0:0:0:0:0:0:1]").httpOrigin().host, ipv6)
+    when (ipv6) {
+        case Ipv6(bytes) -> { assertEquals(16L, bytes.size); assertEquals(1.toByte(), bytes[15L]) }
+        else -> throw IllegalStateException()
+    }
+
+    for (host in ["a_b", "%FF", ".", "", "127.1", "0177.0.0.1", "0x7f000001", "2130706433", "1.2.3.999", "[v1.a]"]) {
+        val value = Url.parse("custom://" + host)
+        val original = value.toString()
+        val failure = assertFailsWith<UrlParseException> { value.authority!!.networkHost() }
+        assertEquals(UrlComponent.Host, failure.component)
+        assertEquals(original, value.toString())
+    }
+    val invalid = Url.parse("custom://a_b")
+    val first = assertFailsWith<UrlParseException> { invalid.authority!!.networkHost() }
+    val second = assertFailsWith<UrlParseException> { invalid.authority!!.networkHost() }
+    val originalCause = when (first.cause) { case Some(value) -> value; case None -> throw IllegalStateException() }
+    assertTrue(originalCause === second.cause!!)
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

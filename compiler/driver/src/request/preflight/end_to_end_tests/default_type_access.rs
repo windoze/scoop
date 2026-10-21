@@ -26,7 +26,7 @@ fn ordinary_reader_consumes_default_type_references_from_published_bytes() {
             .records(),
     );
     assert!(core_kinds[4] && core_kinds[5]);
-    let directory = crate::workspace_root().join("tests/fixtures/m23-default-type-access");
+    let directory = crate::workspace_root().join("tests/fixtures/language/default-type-access");
     for (case, expected_templates) in [("standalone", 1), ("combined", 4)] {
         let source = std::fs::read_to_string(directory.join(format!("{case}.scoop"))).unwrap();
         let root = sysroot.path().join(case);
@@ -100,7 +100,7 @@ fn bootstrap_pointer_core(
         crate::trusted_core::resolve_trusted_core_slot_at(sysroot, target.lir_target_selection())
             .unwrap();
     std::fs::copy(
-        crate::workspace_root().join("tests/fixtures/m23-default-type-access/pointers.scoop"),
+        crate::workspace_root().join("tests/fixtures/language/default-type-access/pointers.scoop"),
         slot.source_root().join("src/default-pointers.scoop"),
     )
     .unwrap();

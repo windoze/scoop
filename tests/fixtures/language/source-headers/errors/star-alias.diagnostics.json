@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "star imports cannot have an alias",
+    "notes": [],
+    "origin": {
+      "cone": "a89a4b897cc1ab71785180680b35cbc1fae4a0dcaf359badc802a476a13e7612",
+      "end": 61,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 59
+    },
+    "severity": "error"
+  }
+]

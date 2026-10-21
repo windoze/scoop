@@ -1,2 +1,0 @@
-fun <T> render(value: T): String = StringBuilder().append(value).toString()
-fun main() {}

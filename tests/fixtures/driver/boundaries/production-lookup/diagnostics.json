@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function `hidden` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "d38e27e9bb4301d4de78751afcd30c610e845dca4a63d64244bcdc85c997e36b",
+      "end": 42,
+      "kind": "source",
+      "path": "src/api.scoop",
+      "start": 36
+    },
+    "severity": "error"
+  }
+]

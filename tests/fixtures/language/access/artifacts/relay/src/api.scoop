@@ -1,0 +1,5 @@
+package dev.m41.relayed
+import dev.m41.cells.*
+public import dev.m41.cells.Cell
+public fun <T, C> update(cell: C, value: T): T where C : IndexGet<Long, T>, C : IndexSet<Long, T> = replace(cell, value)
+public fun <T, C : Invoke0<T>> read(cell: C): T = current(cell)

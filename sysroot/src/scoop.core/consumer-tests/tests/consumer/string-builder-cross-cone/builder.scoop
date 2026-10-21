@@ -1,0 +1,8 @@
+package test.core.tests.consumer.string_builder_cross_cone.p1
+
+import scoop.test.*
+
+public fun <T : ToString> surround(value: T, suffix: Char = '>'): String =
+    StringBuilder().append("<").append(value).append(suffix).toString()
+public fun create(seed: String): StringBuilder = StringBuilder().append(seed)
+public fun character(): String = StringBuilder().append('雪').toString()

@@ -1,0 +1,27 @@
+package test.core.tests.consumer.strings_cross_cone.p0
+
+import scoop.test.*
+import test.core.tests.consumer.strings_cross_cone.p1.*
+
+private fun exerciseConsumer() {
+    val values = ArrayList<Char>()
+    values.add('A')
+    values.add('雪')
+    values.add('🚀')
+    val text = encode(values)
+    gcCollect()
+    if (text != "A雪🚀" || text.length != 3L || text.byteLength != 8L ||
+        middle(text) != "雪🚀" || walk(text) != 167339L || text.toCharArray()[2L] != '🚀') {
+        fail(Some("cross-cone"))
+    }
+    @Unsafe { if (roundTrip(text) != text) { fail(Some("utf8")) } }
+    values.clear()
+    if (encode(values) != "empty" || encode(values, "custom") != "custom") { fail(Some("default")) }
+    assertEquals("42", (42).toString())
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

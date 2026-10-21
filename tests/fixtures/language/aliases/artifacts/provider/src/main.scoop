@@ -1,0 +1,25 @@
+package dev.m37.provider
+public class Pair<A, B> public constructor(public val first: A, public val second: B)
+public typealias Row<T> = Pair<String, T>
+public typealias Transform<T> = T.(Int) -> T
+public class Catalog {
+    public typealias Entry<T> = Row<T>
+}
+public fun <T> make(value: T): Row<T> = Row("provider", value)
+public fun action(): Transform<Int> = { this + it }
+
+public enum Result<A, B> {
+    Empty
+    Value(val first: A, val second: B, val count: Int = 2)
+    Many(val first: A, vararg val values: B)
+}
+public typealias Pick<T> = Result<String, T>
+public typealias Build<T> = Pair<String, T>
+public fun Build(first: String, second: Int): Int = second + 1
+public typealias Fixed = Pair<String, Int>
+public fun <T> Fixed(first: String, second: T): Int = 0
+public class Owner<T> {
+    public companion object {
+        public typealias Row<U> = Pair<T, U>
+    }
+}

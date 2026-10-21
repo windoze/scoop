@@ -1,0 +1,6 @@
+package dev.programlink.sibling.left
+
+import dev.programlink.dependency.union.*
+
+public fun action(): (Payload) -> Any = first(Payload(20))
+public fun sameType(): Any = Marker<Int>(20)

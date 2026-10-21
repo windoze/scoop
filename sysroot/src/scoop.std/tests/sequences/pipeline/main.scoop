@@ -1,0 +1,49 @@
+package scoop.std.tests.sequences.pipeline
+
+import scoop.test.*
+import scoop.sequences.*
+import scoop.collections.joinToString
+
+class State { var produced: Int = 0; var mapped: Int = 0; var observed: Int = 0 }
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val state = State()
+    val input = generateSequence<Int> { state.produced += 1; Some(state.produced) }
+    val output = input.map<Int, Int> { value -> state.mapped += 1; value * 2 }
+        .filter { value -> value % 4 == 0 }.drop(1L).take(3L).onEach { _ -> state.observed += 1 }
+    val iterator = output.iterator()
+    check(state.produced == 0, "constructing pipeline and iterator is lazy")
+    check(iterator.next() == Some(8) && state.produced == 4 && state.observed == 1, "first output")
+    check(iterator.next() == Some(12) && iterator.next() == Some(16), "next outputs")
+    check(iterator.next() == None && iterator.next() == None && state.produced == 8 && state.mapped == 8 && state.observed == 3, "no lookahead past take")
+    val zeroSource = generateSequence<Int> { throw Exception(Some("take zero read source")) }
+    check(zeroSource.map<Int, Int> { _ -> throw Exception(Some("take zero callback")) }.take(0L).toList().size == 0L, "take zero")
+    val unused = zeroSource.iterator()
+    check(sequenceOf<Int>(1, 2, 3).mapIndexed<Int, Long> { index, value -> index + value.toLong() }.joinToString() == "1, 3, 5", "indexed")
+    val nested = sequenceOf<Int>(0, 1, 2).mapNotNone<Int, Int?> { value -> if (value == 0) Some(None) else if (value == 1) Some(Some(9)) else None }.toList()
+    check(nested.size == 2L && nested[0L] == None && nested[1L] == Some(9), "nested nullable mapping")
+    check(sequenceOf<Int?>(Some(1), None, Some(2)).filterNotNone().filterNot { value -> value == 1 }.joinToString() == "2", "nullable filtering")
+    check(sequenceOf<Int>(1, 2, 3).flatMap<Int, Int> { value -> if (value == 2) emptySequence<Int>() else sequenceOf<Int>(value, -value) }.joinToString() == "1, -1, 3, -3", "flatMap empty inner")
+    val inners = sequenceOf<Sequence<Int>>(sequenceOf<Int>(1), emptySequence<Int>(), sequenceOf<Int>(2, 3))
+    check(inners.flatten<Int>().joinToString() == "1, 2, 3", "flatten")
+    val indexed = sequenceOf<String>("a", "b").withIndex().toList()
+    check(indexed[1L].index == 1L && indexed[1L].value == "b", "withIndex")
+    val values = sequenceOf<Int>(1, 1, 2, 3, 2, 4)
+    check(values.distinct().joinToString() == "1, 2, 3, 4", "first distinct")
+    check(values.distinctBy<Int, Int> { value -> value % 2 }.joinToString() == "1, 2", "distinctBy")
+    state.observed = 0
+    check(values.dropWhile { value -> state.observed += 1; value == 1 }.takeWhile { value -> value != 4 }.joinToString() == "2, 3, 2" && state.observed == 3, "while boundaries")
+    state.produced = 0
+    val left = generateSequence<Int> { state.produced += 1; Some(state.produced) }
+    check(left.zip<Int, String>(sequenceOf<String>("a")).toList()[0L] == (1, "a") && state.produced == 2, "zip reads left first")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

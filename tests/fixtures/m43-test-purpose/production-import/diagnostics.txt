@@ -1,2 +1,0 @@
-error: current Cone HIR lowering failed with 1 diagnostic(s)
-source 0:7..22: import target is not available in the current compilation unit

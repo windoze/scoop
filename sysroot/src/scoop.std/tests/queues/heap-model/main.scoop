@@ -1,0 +1,50 @@
+package scoop.std.tests.queues.heap_model
+
+import scoop.test.*
+import scoop.collections.*
+import scoop.comparisons.*
+
+class Count { var value: Long = 0L }
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+private fun exercise() {
+    val comparisons = Count()
+    val values = PriorityQueue<Int>(comparatorOf<Int> { a, b -> comparisons.value += 1L; a.compareTo(b) })
+    val model = MutableArray<Long>(97L) { _ -> 0L }
+    var size = 0L
+    var step = 0L
+    while (step < 2400L) {
+        if (step % 3L != 2L || size == 0L) {
+            val value = (step * 37L) % 97L
+            values.add(value.toInt())
+            model[value] += 1L
+            size += 1L
+        } else {
+            var minimum = 0L
+            while (model[minimum] == 0L) minimum += 1L
+            check(values.removeFirst() == minimum.toInt())
+            model[minimum] -= 1L
+            size -= 1L
+        }
+        check(values.size == size)
+        step += 1L
+    }
+    var expected = 0L
+    while (expected < 97L) {
+        while (model[expected] > 0L) {
+            check(values.removeFirst() == expected.toInt())
+            model[expected] -= 1L
+        }
+        expected += 1L
+    }
+    check(values.isEmpty() && comparisons.value < 3200L * 32L)
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

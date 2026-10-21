@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.templates.delegateCombinations.Receiver
+import dev.example.templates.delegateCombinations.ZeroSlot
+
+suspend fun <T> make(): ZeroSlot<T> = ZeroSlot<T>()
+val <T> Receiver<T>.wrong: Int by make<T>()

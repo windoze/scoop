@@ -1,2 +1,0 @@
-public fun derived(): Derived = Derived()
-public fun derivedMarker(): Marker = Derived()

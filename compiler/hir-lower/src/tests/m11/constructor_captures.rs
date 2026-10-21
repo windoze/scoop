@@ -42,7 +42,7 @@ fn constructor_captures_compose_with_anonymous_local_and_generic_functions() {
     let source = concat!(
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m54-constructor-captures/provider/src/callback.scoop"
+            "/../../tests/fixtures/regressions/constructor-captures/provider/src/callback.scoop"
         )),
         "\nfun main() { Callback<Int>(42).local() }"
     );

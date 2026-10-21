@@ -1,0 +1,85 @@
+schema = 1
+name = "cli-edited-core-root-artifact-consumer"
+inputs = ["../../../language/core-library/extension.scoop", "../../../language/core-library/metadata.scoop", "../../../language/core-library/call-consumer.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["cli", "cache", "core", "driver"]
+
+[[steps]]
+name = "runtime_vendor"
+files = [{symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}}]
+
+[[steps]]
+name = "prepare"
+files = [
+  {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+  {symlink = {from = "${sysroot}/lib/${target}/runtime", to = "${work}/sysroot/lib/${target}/runtime"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/sysroot/src/scoop.core"}},
+  {"copy" = {"from" = "${fixture}/../../../language/core-library/extension.scoop", "to" = "${work}/sysroot/src/scoop.core/src/extension.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../../language/core-library/metadata.scoop", "to" = "${work}/sysroot/src/scoop.core/src/metadata.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sysroot/src/scoop.core", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${runtime}", "-o", "${work}/core.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${cold.result.kind}", "equals" = "library"}, {"actual" = "${cold.result.dependencies}", "equals" = []}, {"actual" = "${cold.result.root.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}}, {"actual" = "${cold.result.observations.nodes.0.origin}", "equals" = "compiled"}, {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.root.identity}"]}, {"file" = "${work}/core.slib", "same_as" = "${cold.result.root.path}"}]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sysroot/src/scoop.core", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${runtime}", "-o", "${work}/core.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${warm.result.kind}", "equals" = "library"}, {"actual" = "${warm.result.dependencies}", "equals" = []}, {"actual" = "${warm.result.root.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}}, {"actual" = "${warm.result.observations.nodes.0.origin}", "equals" = "cache"}, {"actual" = "${warm.result.observations.child_invocations}", "equals" = []}, {"file" = "${work}/core.slib", "same_as" = "${warm.result.root.path}"}, {"actual" = "${warm.result.root.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"}, {"actual" = "${warm.result.observations.nodes.0.cache_key}", "equals" = "${cold.result.observations.nodes.0.cache_key}"}, {"file" = "${warm.result.root.path}", "same_as" = "${cold.result.root.path}"}]
+
+[[steps]]
+name = "prepare_consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/../../../language/core-library/call-consumer.scoop", "to" = "${work}/consumer.scoop"}},
+  {"copy" = {"from" = "${cold.result.root.path}", "to" = "${work}/sysroot/lib/${target}/scoop.core.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "standard_library"
+argv = ["${scoop}", "build", "${sysroot}/src/scoop.std", {each = "${compile_args}"}, "--release", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-std", "--message-format", "json", "-o", "${work}/sysroot/lib/${target}/scoop.std.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "manual"
+argv = ["${scoopc}", "build", "--profile", "release", {"each" = "${compile_args}"}, "${work}/consumer.scoop", "--sysroot", "${work}/sysroot", "--direct-slib", "${work}/sysroot/lib/${target}/scoop.std.slib", "--out-slib", "${work}/manual-consumer.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []
+env = {"SCOOP_CACHE_DIR" = "${work}/cache"}
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/consumer.scoop", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${consumer.result.kind}", "equals" = "executable"}, {"actual" = "${consumer.result.dependencies.length}", "equals" = 2}, {"actual" = "${consumer.result.dependencies.0.identity}", "equals" = "${cold.result.root.identity}"}, {"actual" = "${consumer.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"}, {"actual" = "${consumer.result.observations.nodes.0.origin}", "equals" = "prebuilt"}, {"actual" = "${consumer.result.observations.child_invocations}", "equals" = ["${consumer.result.root.identity}"]}, {"file" = "${consumer.result.root.path}", "same_as" = "${work}/manual-consumer.slib"}]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []

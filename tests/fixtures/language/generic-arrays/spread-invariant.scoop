@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.upstream.arrays.pack
+public class Reference()
+public fun result(values: Array<Reference>): Array<Any> = pack<Any>(*values)

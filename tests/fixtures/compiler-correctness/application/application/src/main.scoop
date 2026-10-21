@@ -1,0 +1,45 @@
+package dev.m42
+import dev.m42.sample.model.*
+import dev.m42.sample.service.*
+import scoop.*
+import scoop.collections.*
+import scoop.comparisons.*
+import scoop.datetime.*
+import scoop.json.Json
+import scoop.random.Random
+import scoop.sequences.*
+import scoop.time.*
+import scoop.uuid.Uuid
+
+class Visits { var count: Int = 0 }
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun main() {
+    val rows = listOf("2024-01-31T23:30:00-01:00|9|甲", "2024-02-01T02:00:00+01:00|2|beta",
+        "2024-02-01T01:15:00Z|2|gamma", "bad|x|bad", "2024-02-02T00:00:00Z|5|delta")
+    val random = Random.seeded(42L)
+    val results = rows.map<String, Result<Event, String>> { row -> parseRow(row, random) }
+    check(results.count<Result<Event, String>> { result -> result.isSuccess } == 4L)
+    check(results[3L].errorOrNone<Event, String>() == Some("score"))
+    val events = results.mapNotNone<Result<Event, String>, Event> { result -> result.getOrNone<Event, String>() }
+    val copied = frameRoundTrip<Event>(events, Event.Companion, Event.Companion)
+    check(copied.size == events.size && !(copied is MutableList<Event>))
+    var position = 0L
+    while (position < copied.size) { check(copied[position] == events[position]); position += 1L }
+    val ordered = copied.sortedBy<Event, Int> { event -> event.score }
+    check(ordered.map<Event, String> { event -> event.label }.joinToString() == "beta, gamma, delta, 甲")
+    val grouped = copied.groupBy<Event, LocalDate> { event -> event.moment.toLocalDateTime(UtcOffset.ZERO).date }
+    check(grouped.size == 2L && grouped[LocalDate(2024, 2, 1)]!!.size == 3L)
+    val totals = TreeMap<LocalDate, Int>(naturalOrder<LocalDate>())
+    for (entry in grouped) totals.put(entry.key, entry.value.fold<Event, Int>(0) { sum, event -> sum + event.score })
+    val restored = Json.decodeFromString(Json.encodeToString(totals, TreeMap<LocalDate, Int>.encoder(LocalDate.Companion, Int.Companion)),
+        TreeMap<LocalDate, Int>.decoder(LocalDate.Companion, Int.Companion, naturalOrder<LocalDate>()))
+    check(restored[LocalDate(2024, 2, 1)] == Some(13) && restored[LocalDate(2024, 2, 2)] == Some(5))
+    val seen = Visits()
+    val ids = copied.asSequence().map<Event, Uuid> { event -> seen.count += 1; event.id }.take(2L).toList()
+    check(seen.count == 2 && ids.size == 2L && ids[0L] != ids[1L])
+    val january = LocalDateTime(2024, 1, 31, 12, 0)
+    check((january + DatePeriod(months = 1)).date == LocalDate(2024, 2, 29))
+    check((january + 30.days()).date == LocalDate(2024, 3, 1))
+    check((january + DatePeriod(months = 1)).toInstant(UtcOffset.ZERO) - january.toInstant(UtcOffset.ZERO) == 29.days())
+    println("std application passed")
+}

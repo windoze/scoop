@@ -11,6 +11,9 @@ use scoop_linker::ArtifactLinkRequest;
     about = "Link Scoop artifacts into a native executable"
 )]
 struct Cli {
+    /// Link a runtime that allows GC stress to be controlled by environment variables.
+    #[arg(long)]
+    enable_gc_stress: bool,
     #[arg(long)]
     cache_dir: Option<PathBuf>,
     #[arg(long)]
@@ -67,6 +70,7 @@ fn main() -> ExitCode {
         root_slib: cli.root_slib,
         dependency_slibs: cli.dependencies,
         runtime_index: cli.runtime_index,
+        enable_gc_stress: cli.enable_gc_stress,
         target: cli.target,
         c_toolchain: scoop_toolchain::CToolchainOptions {
             compiler: cli.cc,

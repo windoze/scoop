@@ -1,0 +1,43 @@
+package scoop.json.tests.values.numbers
+
+import scoop.test.*
+import scoop.json.*
+
+object Capture : ValueDecoder<Array<JsonValue>> {
+    public override fun decode(decoder: Decoder): Array<JsonValue> {
+        val sequence = decoder.keyed().required("a/~").unkeyed()
+        val large = sequence.element()
+        rejectDecode("/a~1~0/0") { ULong.decode(large) }
+        val first = JsonValue.Companion.decode(large)
+        val exponent = sequence.element()
+        rejectDecode("/a~1~0/1") { Double.decode(exponent) }
+        val second = JsonValue.Companion.decode(exponent)
+        sequence.end()
+        gcCollect()
+        check(Json.encodeToString(JsonValue.Companion.decode(large), JsonValue.Companion) == "18446744073709551616")
+        return [first, second]
+    }
+}
+
+private fun exercise() {
+    for (text in ["18446744073709551616", "0.12345678901234567890123456789", "1e400", "-0", "-12.3400E+007"]) {
+        val saved = Json.decodeFromString(text, JsonValue.Companion)
+        gcCollect()
+        check(Json.encodeToString(saved, JsonValue.Companion) == text)
+        check(Json.encodeToString(Json.encodeToValue(saved, JsonValue.Companion), JsonValue.Companion) == text)
+    }
+    val values = Json.decodeFromString("{\"a/~\":[18446744073709551616,1e400]}", Capture)
+    rejectDecode("") { Json.decodeFromValue(values[0L], Long.Companion) }
+    rejectDecode("") { Json.decodeFromValue(values[1L], Double.Companion) }
+    check(Json.encodeToString(values, Array<JsonValue>.encoder(JsonValue.Companion)) == "[18446744073709551616,1e400]")
+    val decimal = Json.decodeFromString("0.12345678901234567890123456789", JsonValue.Companion)
+    check(Json.decodeFromValue(decimal, Double.Companion) == 0.12345678901234568)
+    check(Json.decodeFromValue(Json.decodeFromString("-0", JsonValue.Companion), Double.Companion).toBits() == (-0.0).toBits())
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

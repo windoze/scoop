@@ -1,0 +1,56 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.text.toHexString
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun extensionProxy(trust: TrustStore, peerUrl: Url) {
+    val endpoint = peerUrl.resolve("/")
+    val url = Url.parse("http://origin.invalid/private?x=%2f")
+    val state = ExtensionState()
+    val provider = HttpAuthenticator.basic(endpoint.httpOrigin()) suspend { request ->
+        assertEquals(Some(endpoint), request.proxyUrl)
+        state.credentials += 1L
+        HttpPasswordCredentials("proxy", "password")
+    }
+    val callback: suspend (HttpAttempt) -> List<HttpField> = suspend { attempt ->
+        state.attempts += 1L
+        assertEquals(Some(endpoint), attempt.proxyUrl)
+        assertEquals(state.attempts, attempt.number)
+        assertEquals(if (attempt.number == 1L) HttpAttemptReason.Initial else HttpAttemptReason.ProxyAuthentication, attempt.reason)
+        assertEquals(attempt.number - 1L, attempt.fields.findAll("Proxy-Authorization".toByteArray()).size)
+        val target = String.fromUtf8(attempt.requestTarget)
+        assertEquals("http://origin.invalid/private?x=%2F", target)
+        [extensionField("X-Signature", digest(DigestAlgorithm.Sha256, target.toByteArray()).toHexString())]
+    }
+    LibuvEventLoop().run suspend { _ ->
+        val proxy = HttpProxy.Http(HttpProxyEndpoint(endpoint, authentication = HttpAuthenticationOptions([provider])))
+        withHttpClient(HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+            proxy = HttpProxySelector.fixed(proxy), onAttempt = Some(callback))) suspend { client -> extensionGet(client, url, "proxy") }
+    }
+    assertEquals(2L, state.attempts); assertEquals(1L, state.credentials)
+}
+
+internal fun extensionCacheRefresh(trust: TrustStore, url: Url) {
+    val state = ExtensionState()
+    val storage = MemoryHttpCache()
+    val callback: suspend (HttpAttempt) -> List<HttpField> = suspend { attempt ->
+        state.attempts += 1L
+        assertEquals(if (state.attempts == 3L) 2L else 1L, attempt.number)
+        assertEquals(if (state.attempts == 3L) HttpAttemptReason.CacheRefresh else HttpAttemptReason.Initial, attempt.reason)
+        [extensionField("X-Attempt", attempt.number.toString())]
+    }
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), onAttempt = Some(callback),
+            cache = Some(HttpCacheOptions(storage)))) suspend { client ->
+            extensionGet(client, url, "old")
+            extensionGet(client, url, "new")
+        }
+    }
+    assertEquals(3L, state.attempts)
+}

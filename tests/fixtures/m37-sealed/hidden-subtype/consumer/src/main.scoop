@@ -1,3 +1,0 @@
-import bridge.*
-fun bad(value: State): Int = when(value) { is Ready -> 1 }
-fun main() {}

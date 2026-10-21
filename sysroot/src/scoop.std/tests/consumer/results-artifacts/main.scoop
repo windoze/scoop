@@ -1,0 +1,26 @@
+package scoop.std.tests.consumer.results_artifacts
+
+import scoop.test.*
+import scoop.*
+import scoop.collections.*
+
+struct Payload(val label: String, val value: Int?)
+class Failure(val code: Long)
+
+fun <T, E> describe(result: Result<T, E>, render: (T) -> String): String =
+    result.map<T, E, String>(render).getOrElse { _ -> "failed" }
+
+private fun exerciseConsumer() {
+    val value = Payload("ok", Some(7))
+    val result = Some(value).toResult<Payload, Failure> { Failure(1L) }
+    assertEquals("ok:7", (describe<Payload, Failure>(result) { payload -> f"${payload.label}:${payload.value!!}" }).toString())
+    val values = listOf<Result<Payload, Failure>>(result, Result.Failure<Payload, Failure>(Failure(2L)))
+    val selected = values.mapNotNone<Result<Payload, Failure>, Payload> { entry -> entry.toOption() }
+    assertTrue(selected.size == 1L && runCatching<Int> { selected[0L].value!! }.getOrThrow() == 7)
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

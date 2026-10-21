@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.upstream.arrays.pack
+public fun result(): Array<Int> = pack<Int>(*42)

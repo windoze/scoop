@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.templates.adapters.*
+
+public fun broken(source: (Any) -> Any): (Ptr<Int>) -> Ptr<Int> = source

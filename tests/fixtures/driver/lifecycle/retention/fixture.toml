@@ -1,0 +1,23 @@
+schema = 1
+name = "lifecycle-retention"
+inputs = ["program"]
+tools = ["scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["lifecycle", "driver"]
+variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "lifecycle retention passed\n"
+stderr = ""

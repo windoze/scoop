@@ -1,0 +1,8 @@
+package dev.example
+import test.answer
+
+fun main() {
+    if (answer() != 42) {
+        throw IllegalStateException()
+    }
+}

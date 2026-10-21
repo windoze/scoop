@@ -1,0 +1,25 @@
+schema = 1
+name = "generics-combined"
+root = "../combined.scoop"
+inputs = ["../combined.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["single-file", "run", "language"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "default-\n0\nlabel-\n2\n1\nvalue-name\npayload-\nboxed-name\nsuspended\nsuccess\npayload-named-captured-named-default-0\nfailure\ncaught\n"
+stderr = ""

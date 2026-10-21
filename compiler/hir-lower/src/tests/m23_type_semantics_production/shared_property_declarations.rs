@@ -8,11 +8,11 @@ use source_dispatch::with_hir_source;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-shared-property-declarations/standalone.scoop"
+    "/../../tests/fixtures/language/shared-property-declarations/standalone.scoop"
 ));
 const COMBINED: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-shared-property-declarations/combined.scoop"
+    "/../../tests/fixtures/language/shared-property-declarations/combined.scoop"
 ));
 
 #[test]
@@ -140,7 +140,7 @@ fn property_projection_ignores_unrelated_private_top_level_declarations() {
     let prefix = "private val unrelated: Int = 19\n";
     let padding = format!("//{}\n", " ".repeat(prefix.len() - 3));
     assert_eq!(
-        project(&format!("{padding}{STANDALONE}")),
-        project(&format!("{prefix}{STANDALONE}"))
+        project(&prepend_declarations(STANDALONE, &padding)),
+        project(&prepend_declarations(STANDALONE, prefix))
     );
 }

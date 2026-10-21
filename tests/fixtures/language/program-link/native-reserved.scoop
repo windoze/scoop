@@ -1,0 +1,4 @@
+package dev.programlink
+@Extern(name = "main")
+private fun reserved(): Int
+fun main() {}

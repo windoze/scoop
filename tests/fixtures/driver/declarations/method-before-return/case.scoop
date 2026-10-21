@@ -1,0 +1,6 @@
+package dev.m43
+import scoop.test.*
+
+@Test class Cases {
+    @BeforeTest fun prepare(): Int = 1
+}

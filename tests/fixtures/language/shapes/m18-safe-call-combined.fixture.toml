@@ -1,0 +1,24 @@
+schema = 1
+name = "shared-shapes-m18-safe-call-combined"
+inputs = ["../safe-call/combined.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["shared-shapes", "language"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/../safe-call/combined.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "safe-transform-created\nsafe-combined-default\nsafe-transform-created\nsafe-combined-default\nsafe-absent\nsafe-none\nsafe-suspended\nsafe-success\ncaptured-payload-success!\nsafe-failure\nsafe-caught\n"
+stderr = ""

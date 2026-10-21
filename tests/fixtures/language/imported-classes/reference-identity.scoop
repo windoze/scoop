@@ -1,0 +1,14 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.VirtualBase
+import dev.example.dependency.classes.VirtualCounter
+import dev.example.dependency.classes.virtualCounter
+
+public fun primary(): Counter {
+    val value: VirtualBase = virtualCounter(20)
+    val alias: Any = value
+    if (alias === value && value is VirtualCounter) {
+        return Counter(value.read())
+    }
+    return Counter(0)
+}

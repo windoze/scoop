@@ -1,6 +1,6 @@
 package scoop.tls
 
-import scoop.crypto.testdata.expiredPem
+import scoop.tests.scoop.crypto.testdata.expiredPem
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.IpAddress
 import scoop.test.*

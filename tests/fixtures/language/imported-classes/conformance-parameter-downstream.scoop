@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.LocalDefaults
+
+public fun check(): Long = LocalDefaults().answer() + primary().twice() - 21

@@ -1,2 +1,0 @@
-fun <T> coding(value: MutableArray<T>): ValueEncoder<MutableArray<T>> = value
-fun main() {}

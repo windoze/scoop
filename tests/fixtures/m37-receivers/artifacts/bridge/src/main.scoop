@@ -1,6 +1,0 @@
-package bridge
-public import provider.*
-public fun <T> identity(value: T): T = apply(value)
-public fun <T> reader(): Box<T>.() -> T = sourceReader<T>()
-public fun add(): Add = sourceAdd()
-public fun <T> flatten(action: T.() -> T): (T) -> T = sourceFlatten(action)

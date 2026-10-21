@@ -1,0 +1,38 @@
+schema = 1
+name = "atomics-concurrency"
+inputs = ["Cone.toml", "src", "../../callback/native.c"]
+tools = ["scoop", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["atomics", "threads", "language"]
+variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
+[[steps]]
+name = "threads"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-c", "${fixture}/../../callback/native.c", "-o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libm33_atomic_threads.a", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+timeout = 180
+exit = 0
+stdout = "atomic concurrency\n"
+stderr = ""

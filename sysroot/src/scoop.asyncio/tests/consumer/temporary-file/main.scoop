@@ -1,0 +1,74 @@
+package scoop.asyncio.tests.consumer.temporary_file
+
+import scoop.test.*
+import scoop.platform.fs.*
+import scoop.asyncio.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.OsString
+
+private fun check(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("asynchronous temporary file check failed"))
+}
+
+private fun exercise(parent: Path) {
+    val directory = createTempDirectory(Some(parent), "scoop-temporary-")
+    try {
+        val published = directory.resolve(Path.fromString("published"))
+        published.writeText("old")
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val creating = scope.async<TemporaryFile> suspend { loop.createTempFile(Some(directory), "暂存 ") }
+            val other = scope.async<TemporaryFile> suspend { loop.createTempFile(Some(directory), "暂存 ") }
+            creating.await().useAsync suspend { first ->
+                other.await().useAsync suspend { second ->
+                    check(first.path != second.path)
+                    loop.moveFile(first.path, published, replaceExisting = true)
+                    loop.openFile(first.path, OpenOptions(write = true, createNew = true)).useAsync suspend { replacement ->
+                        replacement.truncate(1L)
+                    }
+                    gcCollect()
+                    NativeByteBuffer.allocate(7L).use suspend { bytes ->
+                        bytes.writeBytes("content".toByteArray())
+                        first.file.writeFully(bytes)
+                        first.file.syncAll()
+                    }
+                    first.file.seek(0L)
+                    check(first.file.copyTo(second.file, 2L) == 7L)
+                    second.file.seek(0L)
+                    check(OsString.fromByteArray(second.file.readAllBytes()).decodeUtf8() == "content")
+                    check(loop.metadata(published).size == 7L)
+                    check(loop.metadata(first.path).size == 1L)
+                    second.close()
+                    check(loop.metadata(second.path).size == 7L)
+                    loop.deleteFile(second.path)
+                    loop.deleteFile(first.path)
+                }
+            }
+            check(loop.metadata(published).size == 7L)
+        }
+        check(published.readText() == "content")
+    } finally { directory.deleteRecursively() }
+}
+
+private fun exerciseConsumer(args: Array<String>) {
+    check(args.size == 2L)
+    val directory = Path.fromString(args[1L])
+    Thread.start { exercise(directory) }.use { first ->
+        Thread.start { exercise(directory) }.use { second ->
+            first.join()
+            second.join()
+        }
+    }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun run() {
+        val directory = createTempDirectory(prefix = "scoop-consumer-")
+        try { exerciseConsumer(["consumer", directory.decodeUtf8()]) }
+        finally { directory.deleteRecursively() }
+    }
+}

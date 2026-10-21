@@ -1,3 +1,0 @@
-import metadata.Detail
-@Detail public struct Value()
-fun main() {}

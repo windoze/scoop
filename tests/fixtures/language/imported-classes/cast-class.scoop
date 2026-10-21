@@ -1,0 +1,8 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.CounterAlias
+
+public fun primary(): Counter {
+    val value: Any = Counter(21)
+    return value as CounterAlias
+}

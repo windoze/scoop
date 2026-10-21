@@ -1,0 +1,88 @@
+schema = 1
+name = "manifest-record"
+inputs = ["cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["manifest", "cache", "driver"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "--release", "${work}/cone", {"each" = "${link_args}"}, {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_first"
+argv = ["${cold.result.output}"]
+exit = 48
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "--release", "${work}/cone", {"each" = "${link_args}"}, {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "change_tests"
+files = [{replace = {path = "${work}/cone/Cone.toml", old = "checks", new = "other-checks"}}]
+
+[[steps]]
+name = "same_production"
+argv = ["${scoop}", "build", "--release", "${work}/cone", {"each" = "${link_args}"}, {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${same_production.result.observations.child_invocations.length}", equals = 0},
+  {actual = "${same_production.result.root.artifact_fingerprint}", equals = "${cold.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "change_selection"
+files = [{replace = {path = "${work}/cone/Cone.toml", old = "first", new = "second"}}]
+
+[[steps]]
+name = "selected"
+argv = ["${scoop}", "build", "--release", "${work}/cone", {"each" = "${link_args}"}, {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${selected.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "selected_warm"
+argv = ["${scoop}", "build", "--release", "${work}/cone", {"each" = "${link_args}"}, {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${selected_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "run_second"
+argv = ["${selected_warm.result.output}"]
+exit = 49
+stdout = ""
+stderr = ""

@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.sourceDefaults.*
+
+public class Child: Defaults() { public fun readAll(): Int = invoke() }

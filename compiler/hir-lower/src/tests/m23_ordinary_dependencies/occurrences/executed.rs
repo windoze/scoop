@@ -3,10 +3,11 @@ use super::*;
 fn source(case: &str) -> String {
     std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-executable-dependency-callables")
+            .join("../../tests/fixtures/language/executable-dependency-callables")
             .join(format!("{case}.scoop")),
     )
     .unwrap()
+    .replace("import dev.example.", "import test.")
 }
 
 #[test]

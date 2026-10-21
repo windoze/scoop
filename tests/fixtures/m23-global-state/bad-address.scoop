@@ -1,3 +1,0 @@
-private var answer: Int = 42
-@Unsafe
-public fun <T> bad(): Ptr<Int> = addressOf(answer)

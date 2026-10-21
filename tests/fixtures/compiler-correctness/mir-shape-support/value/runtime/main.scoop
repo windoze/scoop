@@ -1,0 +1,8 @@
+package test
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(Empty() == Empty())
+    val erased: Any = Empty()
+    verifyType((erased as Empty) == Empty())
+}

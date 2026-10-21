@@ -1,3 +1,0 @@
-import consumer.nesting.Hidden
-
-public fun check(): Int = 42

@@ -1,0 +1,8 @@
+package scoop.json.tests.consumer.tuple_encoding_artifacts.p1
+
+import scoop.test.*
+import scoop.json.tests.consumer.tuple_encoding_artifacts.p2.pair
+
+public fun sameType(): (Int, String) = (42, "peer")
+public fun combine(): ((Int, String), (Int, String)) = (pair(), sameType())
+public fun erased(): Any = (43, "erased")

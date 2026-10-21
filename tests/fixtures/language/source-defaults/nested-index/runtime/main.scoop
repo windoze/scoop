@@ -1,0 +1,9 @@
+package test
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val host = NestedIndexHost()
+    verifyDefault(host.bound("bound")() == "bound")
+    verifyDefault(host.local("local")() == "local")
+}

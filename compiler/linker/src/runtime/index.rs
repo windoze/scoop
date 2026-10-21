@@ -38,7 +38,7 @@ impl RuntimeObjectSet {
             ))
         })?;
         let index: Index = decode_canonical(&bytes).map_err(error)?;
-        if index.schema != 4
+        if index.schema != 5
             || index.target != encode(&target.wire_id()).map_err(error)?
             || index.abi.as_array() != RuntimeAbiContract.fingerprint().map_err(error)?.as_array()
             || toolchain.contract().target() != &target.wire_id()
@@ -112,7 +112,7 @@ impl RuntimeObjectSet {
             })
             .collect::<Result<_, LinkError>>()?;
         let index = Index {
-            schema: 4,
+            schema: 5,
             target: encode(&self.target.wire_id()).map_err(error)?,
             toolchain: self.toolchain.clone(),
             configuration: self.configuration.clone(),

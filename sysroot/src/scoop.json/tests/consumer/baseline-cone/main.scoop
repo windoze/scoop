@@ -1,0 +1,56 @@
+package scoop.json.tests.consumer.baseline_cone
+
+import scoop.test.*
+import scoop.json.Json
+
+private fun exerciseConsumer(args: Array<String>) {
+    val minimal = Json.decodeFromString(minimalText(), Manifest.Companion)
+    check(minimal.schema == 1L && minimal.cone.kind == "library")
+    check(when (minimal.sources) { case None -> true; else -> false })
+    check(when (minimal.test.sources) { case None -> true; else -> false })
+    check(minimal.dependencies.values.size == 0L && !minimal.native.cxx)
+    check(minimal.native.sources.size == 0L && minimal.native.libraries.size == 0L)
+    val full = Json.decodeFromString(fullText(), Manifest.Companion)
+    check(full.dependencies.values.size == 3L && full.testDependencies.values.size == 1L)
+    check(when (full.dependencies.values["org.foo:bar"]!!) {
+        case Dependency.Detailed(value) -> value.path == Some("../bar") && value.artifact == None
+        else -> false
+    })
+    check(when (full.dependencies.values["org.other:log"]!!) { case Dependency.Short(value) -> value == "3.1.0"; else -> false })
+    check(full.sources!!.size == 2L && full.test.sources!!.size == 1L)
+    check(full.native.cxx && full.native.cFlags[1L] == "-I" && full.native.cxxFlags[0L] == "-std=c++20")
+    check(full.native.libraries[1L].name == "Security" && full.native.include[0L] == "native/include")
+    val predicate = full.sources!![1L].predicate!!
+    check(predicate.matches("linux", "x86_64", "gnu") && predicate.matches("linux", "aarch64", "musl"))
+    check(!predicate.matches("darwin", "aarch64", "none"))
+    val encoded = Json.encodeToString(full, Manifest.Companion)
+    gcCollect()
+    check(Json.encodeToString(Json.decodeFromString(encoded, Manifest.Companion), Manifest.Companion) == encoded)
+    val empty = Json.decodeFromString("""{"schema":1,"cone":{"group":"dev.example","name":"empty","version":"1.2.3-beta.1+build.007","kind":"executable"},"sources":[],"test":{"sources":[]},"native":{}}""", Manifest.Companion)
+    check(empty.sources!!.size == 0L && empty.test.sources!!.size == 0L)
+    check(Json.decodeFromString(Json.encodeToString(empty, Manifest.Companion), Manifest.Companion).sources!!.size == 0L)
+    val never = Json.decodeFromString("""{"arch":[]}""", Predicate.Companion)
+    check(!never.matches("linux", "x86_64", "gnu"))
+    check(Json.encodeToString(never, Predicate.Companion) == """{"arch":[]}""")
+    check(Json.encodeToString(Json.decodeFromString("""{"os":"linux"}""", Predicate.Companion), Predicate.Companion) == """{"os":"linux"}""")
+    for (kind in ["default", "dynamic", "static", "framework"]) {
+        val value = Library("z", kind)
+        check(Json.decodeFromString(Json.encodeToString(value, Library.Companion), Library.Companion).kind == kind)
+    }
+    val errors = manifestErrors()
+    var index = 0L
+    for ((text, path) in errors) {
+        if (args.size == 0L || index == 0L || index == errors.size - 1L) {
+            reject(path) { Json.decodeFromString(text, Manifest.Companion) }
+        }
+        index += 1L
+    }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun run() {
+        exerciseConsumer(["consumer"])
+    }
+}

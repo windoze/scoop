@@ -1,0 +1,54 @@
+package scoop.http.tests.consumer.http_cookies
+
+import scoop.test.*
+import scoop.errorOrNone
+import scoop.getOrNone
+import scoop.http.*
+import scoop.time.Instant
+import scoop.url.Url
+
+private fun exerciseConsumer() {
+    val now = Instant.parse("2026-10-18T00:00:00Z")
+    val origin = Url.parse("https://WWW.EXAMPLE.COM./a%2Fb/start")
+    val target = Url.parse("https://www.example.com/a%2Fb/next")
+    val suffixes = PublicSuffixList.parse("com\nio\n// ===BEGIN PRIVATE DOMAINS===\ngithub.io\n")
+    val fields = decodeFields(responseBytes(), HttpRole.Client).findAll("set-cookie".toByteArray())
+    if (fields.size != 8L) throw IllegalStateException()
+    val selected = ArrayList<HttpCookiePair>()
+    var rejected = 0L
+    var expired = 0L
+    for (field in fields) {
+        val raw = HttpSetCookie.parse(field.value)
+        val result = raw.resolve(origin, now, suffixes)
+        if (result.isFailure) {
+            if (result.errorOrNone() != Some(HttpCookieRejection.PublicSuffix)) throw IllegalStateException()
+            rejected += 1L
+            continue
+        }
+        val cookie = result.getOrNone()!!
+        if (cookie.isExpired(now)) expired += 1L
+        if (String.fromUtf8(cookie.pair.name) == "theme") {
+            if (cookie.hostOnly || cookie.expiresAt != Some(Instant.parse("2026-10-19T00:00:00Z")) ||
+                cookie.matches(Url.parse("https://www.example.com/a/b/next"), now)) throw IllegalStateException()
+        }
+        if (cookie.matches(target, now) && cookie.allowsSameSite(false, true, true)) selected.add(cookie.pair)
+    }
+    if (rejected != 1L || expired != 1L || selected.size != 5L) throw IllegalStateException()
+    val privateDomain = HttpSetCookie.parse("sid=x; Domain=github.io").resolve(Url.parse("https://a.github.io/"), now, suffixes)
+    if (privateDomain.errorOrNone() != Some(HttpCookieRejection.PublicSuffix)) throw IllegalStateException()
+    val header = HttpCookieHeader(selected)
+    if (!header.toHttpField().neverIndex) throw IllegalStateException()
+    selected.clear(); gcCollect()
+    val received = HttpCookieHeader.parseFields(decodeFields(requestBytes(header), HttpRole.Server))
+    if (received.pairs.size != 5L || String.fromUtf8(received.pairs[0L].value) != "abc%2F" ||
+        String.fromUtf8(received.pairs[1L].name) != "theme" || String.fromUtf8(received.pairs[2L].value) != "first" ||
+        String.fromUtf8(received.pairs[3L].value) != "second" || received.pairs[4L].value[0L] != 255.toByte())
+        throw IllegalStateException()
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

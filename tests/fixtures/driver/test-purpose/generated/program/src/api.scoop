@@ -1,0 +1,7 @@
+package dev.m43
+internal fun answer(): Int = 42
+
+fun main(): Int {
+    println("production main must not run")
+    return 77
+}

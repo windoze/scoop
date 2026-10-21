@@ -1,3 +1,0 @@
-package example
-
-public fun answer(): Int = 42

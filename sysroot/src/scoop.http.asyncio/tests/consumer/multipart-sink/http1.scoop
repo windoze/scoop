@@ -1,0 +1,63 @@
+package scoop.http.asyncio.tests.consumer.multipart_sink
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.compression.*
+import scoop.compression.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.fs.Path
+import scoop.platform.net.*
+
+private fun request(method: String, fields: List<HttpField> = emptyList<HttpField>()): HttpRequestHead {
+    val headers = ArrayList<HttpField>()
+    headers.add(HttpField("Host".toByteArray(), "localhost".toByteArray()))
+    for (field in fields) headers.add(field)
+    return HttpRequestHead(HttpVersion.Http11, method.toByteArray(), HttpRequestTarget.Http1("/upload".toByteArray()), headers)
+}
+
+private suspend fun serve(connection: AsyncHttp1Connection) {
+    val request = connection.receiveRequest()!!
+    check(String.fromUtf8(request.head.method) == "POST")
+    val media = HttpMediaType.parse(request.head.fields.findAll("content-type".toByteArray())[0L].value)
+    val decompressed = AsyncDecompressionSource.takeOwnership(request.body, DecompressionOptions(CompressionFormat.Gzip), 11L)
+    MultipartSource.takeOwnership(decompressed, MultipartBoundary.fromMediaType(media),
+        MultipartLimits(dataChunkBytes = 5L), 7L).useAsync suspend { source ->
+        readFileParts(source)
+        check(request.body.isComplete && String.fromUtf8(request.body.trailers!![0L].value) == "h1")
+    }
+    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 204U)).finish()
+    val next = connection.receiveRequest()!!
+    check(String.fromUtf8(next.head.method) == "GET")
+    checkEmpty(next.body)
+    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 204U)).finish()
+}
+
+suspend fun runHttp1(loop: EventLoop, scope: CoroutineScope, path: Path) {
+    val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+    try {
+        val serving = scope.launch suspend {
+            val server = AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope)
+            try { serve(server) } finally { server.close() }
+        }
+        val client = AsyncHttp1Connection.takeOwnershipAsClient(loop.connectTcp(listener.localAddress), scope)
+        try {
+            val body = client.sendRequest(request("POST", [boundary().toMediaType().toHttpField(),
+                HttpField("Content-Encoding".toByteArray(), "gzip".toByteArray())]), Http1BodyFraming.Chunked)
+            AsyncCompressionSink(body, CompressionOptions.Gzip(GzipOptions()), 11L).useAsync suspend { compressed ->
+                MultipartSink(compressed, boundary(), 7L).useAsync suspend { sink -> writeFileParts(loop, sink, path) }
+                compressed.finish()
+            }
+            body.finish([HttpField("x-upload".toByteArray(), "h1".toByteArray())])
+            val first = client.receiveResponse()
+            check(first.head.status == 204U)
+            checkEmpty(first.body); first.body.close()
+            client.sendRequest(request("GET")).finish()
+            val next = client.receiveResponse()
+            check(next.head.status == 204U)
+            checkEmpty(next.body); next.body.close()
+            serving.join()
+        } finally { client.close() }
+    } finally { listener.close() }
+}

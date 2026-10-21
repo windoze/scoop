@@ -1,0 +1,75 @@
+package scoop.std.tests.linked.callbacks
+
+import scoop.test.*
+import scoop.collections.*
+
+class Hooks {
+    var hashes: Int = 0
+    var onHash: () -> Unit = {}
+    var onEquals: () -> Unit = {}
+}
+
+class Key(val number: Int, val hooks: Hooks) : Equals<Key>, Hash {
+    public override fun hash(): Long {
+        hooks.hashes += 1
+        hooks.onHash()
+        return 0L
+    }
+    public override operator fun equals(other: Key): Boolean {
+        hooks.onEquals()
+        return number == other.number
+    }
+}
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val hooks = Hooks()
+    val map = LinkedHashMap<Key, String>()
+    var index = 0
+    while (index < 40) {
+        map[Key(index, hooks)] = "value"
+        index += 1
+    }
+    check(hooks.hashes == 40, "rehash reuses cached hash")
+    hooks.onHash = { throw Exception(Some("hash")) }
+    var caught = false
+    try { map.put(Key(99, hooks), "bad") } catch (error: Exception) { caught = true }
+    check(caught && map.size == 40L, "hash exception")
+    hooks.onHash = {}
+    hooks.onEquals = { throw Exception(Some("equals")) }
+    caught = false
+    try { map.remove(Key(1, hooks)) } catch (error: Exception) { caught = true }
+    check(caught && map.size == 40L, "equals exception")
+    hooks.onEquals = { hooks.onEquals = {}; map.clear() }
+    caught = false
+    try { map.put(Key(100, hooks), "outer") }
+    catch (error: ConcurrentModificationException) { caught = true }
+    check(caught && map.size == 0L, "reentrant structural mutation")
+    val other = Hooks()
+    map[Key(1, other)] = "one"
+    other.onHash = { other.onHash = {}; map.put(Key(1, other), "inner") }
+    caught = false
+    try { map.put(Key(2, other), "outer") }
+    catch (error: ConcurrentModificationException) { caught = true }
+    check(caught && map.size == 1L && map[Key(1, other)] == Some("inner"), "reentrant value update")
+    val optional = LinkedHashMap<String, Int?>()
+    optional["none"] = None
+    check(optional.getOrPut("none") { throw Exception(Some("unexpected producer")) } == None, "nested None")
+    check(optional.getOrDefault("absent", Some(3)) == Some(3), "default")
+    check(optional.getOrElse("absent") { Some(4) } == Some(4), "producer")
+    check(optional.getOrPut("absent") { optional["absent"] = Some(5); Some(6) } == Some(6), "producer reentry")
+    check(optional["absent"] == Some(Some(6)), "final put")
+    caught = false
+    try { optional.getValue("missing") } catch (error: NoSuchElementException) { caught = true }
+    check(caught, "getValue missing")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

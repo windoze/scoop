@@ -44,6 +44,7 @@ pub struct RuntimeBuildConfiguration {
     pub input_key: Digest256,
     pub compiler_inputs: Digest256,
     pub flags: Vec<String>,
+    pub enable_gc_stress: bool,
 }
 
 #[derive(Debug)]
@@ -204,6 +205,16 @@ impl RuntimeObjectSet {
     }
     pub fn configuration(&self) -> &RuntimeBuildConfiguration {
         &self.configuration
+    }
+
+    pub fn require_gc_stress(&self, enabled: bool) -> Result<(), LinkError> {
+        if self.configuration.enable_gc_stress != enabled {
+            return Err(error(format!(
+                "runtime GC stress support is {}, but --enable-gc-stress is {}",
+                self.configuration.enable_gc_stress, enabled
+            )));
+        }
+        Ok(())
     }
     pub fn objects(&self) -> &[RuntimeObject] {
         &self.objects

@@ -1,7 +1,0 @@
-package provider
-public class Box<T> public constructor(public val value: T)
-public typealias Add = Int.(Int) -> Int
-public fun <T> apply(value: T, action: T.() -> T = { this }): T = value.action()
-public fun <T> sourceReader(): Box<T>.() -> T = { value }
-public fun sourceAdd(): Add = { this + it }
-public fun <T> sourceFlatten(action: T.() -> T): (T) -> T = action

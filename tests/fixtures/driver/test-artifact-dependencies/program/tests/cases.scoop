@@ -1,0 +1,17 @@
+package dev.m43
+import dev.m43.helpers.adjust
+import scoop.test.*
+
+@Test
+class Cases {
+    @Test
+    fun dependencies() {
+        assertEquals(0, mainCalls())
+        assertEquals(42, adjust(answer()))
+    }
+    @Test
+    fun explicitMain() {
+        main()
+        assertEquals(1, mainCalls())
+    }
+}

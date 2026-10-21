@@ -1,0 +1,111 @@
+package scoop.http.client.tests.consumer.client_scope_failure
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.http.client.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+private fun exercise(trust: TrustStore, producer: Boolean) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val url = Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/")
+            val failure = ScopeFailure()
+            val proceed = ScopeGate()
+            val done = ScopeGate()
+            val serving = scope.launch suspend {
+                AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val first = connection.acceptRequest()!!
+                    scopeCheck(first.stream.id == 1, "unexpected first stream")
+                    first.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                    scopeWrite(first.stream, "left"); first.stream.flush()
+                    val failed = connection.acceptRequest()!!
+                    scopeCheck(failed.stream.id == 3, "failed call used a different stream")
+                    if (!producer) failed.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 103U), false)
+                    proceed.await()
+                    scopeWrite(first.stream, "right"); first.stream.finish()
+                    val next = connection.acceptRequest()!!
+                    scopeCheck(next.stream.id == 5, "client did not preserve its shared connection")
+                    next.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                    scopeWrite(next.stream, "next"); next.stream.finish()
+                    done.await()
+                }
+            }
+            val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
+                pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+            try {
+                withHttpClient(config) suspend { client ->
+                    client.withResponse(HttpRequest.get(url)) suspend { first ->
+                        NativeByteBuffer.allocate(4L).use suspend { buffer ->
+                            first.body.readFully(buffer)
+                            scopeCheck(String.fromUtf8(buffer.readBytes(4L)) == "left", "first response prefix differs")
+                        }
+                        val executing = context(ScopeContext("request")) {
+                            scope.launch suspend {
+                                try {
+                                    val body = if (producer) RequestBody.fromProducer(Some(4L)) suspend { _ -> failInScope(failure) }
+                                        else RequestBody.Empty
+                                    val options = HttpCallOptions(onInformational = suspend { _ -> failInScope(failure) })
+                                    client.execute(HttpRequest.post(url, body, options = options)).close()
+                                } catch (error: Throwable) { failure.caught = Some(error) }
+                            }
+                        }
+                        failure.cleaning.await()
+                        scopeCheck(!executing.isCompleted && !failure.cleaned, "execute skipped nested scope cleanup")
+                        scopeCheck(!scope.job.isCancelled && !client.isClosed, "nested failure cancelled unrelated work")
+                        failure.release.signal()
+                        executing.join()
+                        scopeCheck(failure.cleaned && failure.caught!! === failure.error, "nested failure identity changed")
+                        scopeCheck(!failure.pending!!.tryResume(Unit), "failed scope left its child active")
+                        proceed.signal()
+                        scopeCheck(first.body.text(5L) == "right", "unrelated response did not finish")
+                    }
+                    client.withResponse(HttpRequest.get(url)) suspend { next ->
+                        scopeCheck(next.body.text(4L) == "next", "client could not execute another request")
+                    }
+                }
+            } finally { failure.release.signal(); proceed.signal(); done.signal() }
+            serving.join()
+            scopeCheck(!scope.job.isCancelled, "call failure cancelled the event loop")
+        }
+    }
+}
+
+private fun runMain(args: Array<String>) {
+    scopeCheck(args.size == 2L, "missing fixture mode")
+    val producer = args[1L] == "producer"
+    TrustStore.fromPem(rootPem()).use { trust ->
+        Thread.start { exercise(trust, producer) }.use { thread -> exercise(trust, producer); thread.join() }
+    }
+}
+
+private fun reportFailure(error: Throwable) {
+    if (error is Exception) println(error.message ?: "no exception message")
+    if (error is ResourceUseException) { reportFailure(error.primaryFailure); reportFailure(error.cleanupFailure) }
+}
+
+private fun exerciseConsumer(args: Array<String>) {
+    try { runMain(args) } catch (error: Throwable) { reportFailure(error); throw error }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun producer() {
+        exerciseConsumer(["consumer", "producer"])
+    }
+
+    @Test
+    fun informational() {
+        exerciseConsumer(["consumer", "informational"])
+    }
+}

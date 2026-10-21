@@ -1,0 +1,54 @@
+schema = 1
+name = "program-link-eager-failure"
+inputs = ["eager-failure", "../../../language/program-link/eager-failure.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["program-link", "multi-cone", "driver"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/eager-failure", "to" = "${work}/sources/eager-failure"}}, {"copy" = {"from" = "${fixture}/../../../language/program-link/eager-failure.scoop", "to" = "${work}/sources/eager-failure/src/main.scoop"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/eager-failure", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${build.result.dependencies.length}", "equals" = 1},
+]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+stdout = "11\n"
+stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException) during initialization of top-level:first\n"
+exit = 1
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+stdout = "11\n"
+stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException) during initialization of top-level:first\n"
+exit = 1

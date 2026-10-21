@@ -1,0 +1,4 @@
+package dev.example
+private struct Managed(val value: String)
+@Unsafe
+public fun bad(): ULong { val value = Managed("text"); return addressOf(value).toULong() }

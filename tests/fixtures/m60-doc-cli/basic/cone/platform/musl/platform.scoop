@@ -1,4 +1,0 @@
-package example
-
-/// API selected for x86_64-unknown-linux-musl.
-public fun selectedPlatform(): Int = 3

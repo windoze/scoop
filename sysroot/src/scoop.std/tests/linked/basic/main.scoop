@@ -1,0 +1,62 @@
+package scoop.std.tests.linked.basic
+
+import scoop.test.*
+import scoop.collections.*
+
+class Key(val number: Int) : Equals<Key>, Hash {
+    public override operator fun equals(other: Key): Boolean = number == other.number
+    public override fun hash(): Long = 0L
+}
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val map = LinkedHashMap<Key, Int?>()
+    val first = Key(0)
+    map[first] = None
+    var index = 1
+    while (index < 100) { map[Key(index)] = Some(index); index += 1 }
+    val keys = map.keys
+    index = 0
+    for (key in keys) { check(key.number == index, "insertion order after growth"); index += 1 }
+    check(index == 100, "size")
+    check(map.put(Key(0), Some(99)) == Some(None), "nested Option")
+    check(keys.iterator().next()!! === first, "original key and position")
+    map.remove(Key(50))
+    map.remove(Key(0))
+    map.remove(Key(99))
+    map[Key(0)] = None
+    map[Key(50)] = Some(500)
+    map[Key(99)] = Some(990)
+    val order = keys.toList()
+    check(order.size == 100L && order[0L].number == 1 && order[96L].number == 98, "unlink ends and middle")
+    check(order[97L].number == 0 && order[98L].number == 50 && order[99L].number == 99, "reinsert at tail")
+    val values = map.values
+    val iterator = values.iterator()
+    map[Key(1)] = Some(123)
+    check(iterator.next() == Some(Some(123)), "live value replacement")
+    map.clear()
+    var caught = false
+    try { iterator.next() } catch (error: ConcurrentModificationException) { caught = true }
+    check(caught && keys.isEmpty() && values.isEmpty(), "clear")
+    map[Key(7)] = None
+    check(keys.iterator().next()!!.number == 7, "reuse after clear")
+    val set = linkedSetOf<Int>(3, 1, 3, 2)
+    val seen = set.toList()
+    check(seen[0L] == 3 && seen[1L] == 1 && seen[2L] == 2, "set order")
+    val pending = set.iterator()
+    check(!set.add(1) && !set.remove(9), "set no-ops")
+    check(pending.next() == Some(3), "set iterator survives no-ops")
+    set.remove(1)
+    set.add(1)
+    check(set.toList()[2L] == 1, "set reinsert")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

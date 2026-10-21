@@ -1,4 +1,4 @@
-//! Dependency TD/dispatch references traverse the actual ten-field wire.
+//! Production with dependency type references uses the compact persisted section.
 
 use super::*;
 use crate::{ConeProductionSectionV2, DecodedConeProductionSectionV2, EntryProductionSourceV1};
@@ -30,10 +30,10 @@ fn section(fixture: &Fixture) -> ConeProductionSectionV2 {
 }
 
 #[test]
-fn ten_field_section_preserves_foreign_type_references_on_wire() {
+fn compact_section_round_trips_production_with_foreign_type_references() {
     let fixture = complete_fixture();
     let bytes = encode(&section(&fixture)).unwrap();
-    assert_eq!(bytes[0], 0xaa);
+    assert_eq!(bytes[0], 0xa4);
     let decoded: DecodedConeProductionSectionV2 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }

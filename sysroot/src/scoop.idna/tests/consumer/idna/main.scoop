@@ -1,0 +1,36 @@
+package scoop.idna.tests.consumer.idna
+
+import scoop.test.*
+import scoop.idna.*
+import scoop.platform.concurrent.Thread
+
+private fun checkDomain() {
+    var count = 0
+    while (count < 12) {
+        val name = Idna.parse("BÜCHER。example.")
+        gcCollect()
+        if (name.ascii != "xn--bcher-kva.example." || name.unicode != "bücher.example.") throw IllegalStateException()
+        if (Idna.toAscii("BÜCHER。example.") != "xn--bcher-kva.example.") throw IllegalStateException()
+        if (Idna.toUnicode("XN--BCHER-KVA.example.") != "bücher.example.") throw IllegalStateException()
+        if (Idna.toAsciiOrNone("a_b.example") != None) throw IllegalStateException()
+        if (Idna.toUnicodeOrNone("xn--ab-0ea.example") != None) throw IllegalStateException()
+        gcCollect()
+        if (Punycode.decode(Punycode.encode("他们为什么不说中文")) != "他们为什么不说中文") throw IllegalStateException()
+        count += 1
+    }
+}
+
+private fun exerciseConsumer() {
+    val first = Thread.start { checkDomain() }
+    val second = Thread.start { checkDomain() }
+    first.join()
+    second.join()
+    checkDomain()
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

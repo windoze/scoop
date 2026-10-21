@@ -143,7 +143,7 @@ fn request_constructor_closes_single_file_protocol_combinations() {
         ProtocolValidationError::InvalidCurrentCoreCombination
     );
 
-    let error = ScoopcBuildRequestV1::new(
+    let request = ScoopcBuildRequestV1::new(
         CurrentConeRequestV1::SingleFile {
             source: path("main.scoop"),
         },
@@ -157,8 +157,8 @@ fn request_constructor_closes_single_file_protocol_combinations() {
         DiagnosticOutputPolicyV1::Human,
         StageDumpPolicyV1::None,
     )
-    .unwrap_err();
-    assert_eq!(error, ProtocolValidationError::SingleFileHasDependencies);
+    .unwrap();
+    assert_eq!(request.direct_slibs(), &[path("dependency.slib")]);
 }
 
 struct RawCurrentCone {

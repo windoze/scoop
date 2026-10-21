@@ -1,0 +1,27 @@
+package dev.m43
+import scoop.test.*
+
+@Test
+private class Cases {
+    var state: Int = 0
+    init { println("init") }
+    @BeforeTest
+    private fun before() { assertEquals(0, state); state = 1; println("before") }
+    @AfterTest
+    private fun after() { assertEquals(2, state); println("after") }
+    @Test
+    private fun `first 雪`() { assertEquals(42, answer()); state = 2; println("first") }
+    @Test
+    private fun second() { state = 2; println("second") }
+    @Ignore("explicit selection")
+    @Test
+    private fun skipped() { state = 2; println("ignored") }
+}
+
+@Test
+private class Failing {
+    init { fail(Some("unselected constructor must not run")) }
+    @Ignore("constructor failure")
+    @Test
+    fun fails() {}
+}

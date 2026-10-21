@@ -1,0 +1,45 @@
+schema = 1
+name = "external-test-sources"
+inputs = ["cone", "shared.scoop", "external-tests"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["sources", "test-command", "cache", "driver"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
+  {copy = {from = "${fixture}/shared.scoop", to = "${work}/shared.scoop"}},
+  {copy = {from = "${fixture}/external-tests", to = "${work}/external-tests"}},
+  {symlink = {from = "${work}/shared.scoop", to = "${work}/cone/src/shared.scoop"}},
+  {symlink = {from = "${work}/external-tests", to = "${work}/cone/tests"}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "test", "--release", "${work}/cone", {"each" = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+  {actual = "${cold.test_result.status}", equals = "passed"},
+  {actual = "${cold.test_result.complete}", equals = true},
+  {actual = "${cold.test_result.counts.passed}", equals = 1},
+]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "test", "--release", "${work}/cone", {"each" = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+  {actual = "${warm.test_result.status}", equals = "passed"},
+  {actual = "${warm.test_result.complete}", equals = true},
+  {actual = "${warm.test_result.counts.passed}", equals = 1},
+  {actual = "${warm.result.observations.child_invocations.length}", equals = 0},
+]

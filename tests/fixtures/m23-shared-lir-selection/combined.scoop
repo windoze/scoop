@@ -1,8 +1,0 @@
-import projection.provider.text
-
-public object Holder {
-    public val value: String = text()
-}
-public val message: String = text()
-public fun read(): String = Holder.value
-public fun readTop(): String = message

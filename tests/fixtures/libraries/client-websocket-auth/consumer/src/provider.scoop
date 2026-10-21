@@ -1,0 +1,53 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.text.endsWith
+import scoop.time.Duration
+import scoop.url.Url
+
+internal class WsAuthContext(val value: String)
+context(marker: WsAuthContext)
+internal fun wsAuthContext(): String = marker.value
+
+internal class WsAuthProbe(val loop: EventLoop, val mode: String, val target: Url, val proxy: Url?) {
+    val loads: AtomicLong = AtomicLong(0L)
+    val refreshes: AtomicLong = AtomicLong(0L)
+    val information: AtomicLong = AtomicLong(0L)
+    val callbackFailure: IoClosedException = IoClosedException()
+
+    fun provider(origin: Url): HttpAuthenticator {
+        if (mode == "bearer" || mode == "refresh" || mode == "proxy-bearer")
+            return HttpAuthenticator.bearer(origin.httpOrigin(), sendWithoutChallenge = mode == "refresh",
+                refreshTokens = suspend { request ->
+                    assertEquals("application", wsAuthContext())
+                    assertEquals("old", request.tokens.accessToken)
+                    loop.sleep(Duration.milliseconds(2L))
+                    refreshes.fetchAdd(1L); Some(HttpBearerTokens("new"))
+                }) suspend { request ->
+                checkRequest(request); loads.fetchAdd(1L)
+                HttpBearerTokens(if (mode == "refresh") "old" else "token", Some("refresh"))
+            }
+        if (mode == "digest" || mode == "integrity" || mode == "bad-proof" || mode.endsWith("-digest"))
+            return HttpAuthenticator.digest(origin.httpOrigin(), algorithms = [HttpDigestAlgorithm.Sha256Sess],
+                preferIntegrity = mode != "digest") suspend { request ->
+                checkRequest(request); loads.fetchAdd(1L)
+                HttpPasswordCredentials("Mufasa", "Circle of Life")
+            }
+        return HttpAuthenticator.basic(origin.httpOrigin()) suspend { request ->
+            checkRequest(request); loads.fetchAdd(1L)
+            if (mode == "callback") throw callbackFailure
+            HttpPasswordCredentials("user", "secret")
+        }
+    }
+
+    private suspend fun checkRequest(request: HttpAuthenticationRequest) {
+        assertEquals("application", wsAuthContext())
+        assertEquals(target, request.request.url)
+        assertEquals("GET", request.request.method)
+        assertEquals(proxy, request.proxyUrl)
+        assertEquals(if (mode == "refresh") 0L else 1L, request.attempt)
+        loop.sleep(Duration.milliseconds(2L))
+        assertEquals("application", wsAuthContext())
+    }
+}

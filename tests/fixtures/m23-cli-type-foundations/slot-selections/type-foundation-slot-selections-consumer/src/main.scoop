@@ -1,3 +1,0 @@
-import dependency.slotSelections.*
-
-public fun read(value: Leaf): Int = value.count() + value.value()

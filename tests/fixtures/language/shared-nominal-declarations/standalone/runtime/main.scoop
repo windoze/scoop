@@ -1,0 +1,9 @@
+package test
+import dev.example.*
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = envelope()
+    verifyType(value.storageValue() !is String)
+    verifyType(value === value)
+}

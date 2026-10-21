@@ -5,7 +5,7 @@ use hir::concrete::ExprKind;
 fn optional_and_instantiated_default_casts_keep_the_explicit_checked_type() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-executable-type-sites/casts.scoop"
+        "/../../tests/fixtures/language/executable-type-sites/casts.scoop"
     ));
     let output = lower_source(source).unwrap();
     let module = output.local.module();

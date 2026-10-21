@@ -1,0 +1,4 @@
+package dev.example.consumer.structdefinitions
+import dev.example.upstream.structdefinitions.*
+
+public fun change(value: Cell<Int>): Cell<Int> = value.{ value: 1, value: 2 }

@@ -1,0 +1,5 @@
+package test
+public abstract class Middle<T> : Base<T>() {
+    public abstract override fun value(): T
+    public abstract override val property: T
+}

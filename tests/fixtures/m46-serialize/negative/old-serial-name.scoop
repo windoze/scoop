@@ -1,3 +1,0 @@
-@SerialName("old")
-struct Item()
-fun main() {}

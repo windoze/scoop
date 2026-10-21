@@ -1,3 +1,0 @@
-fun main() {
-    if (!testInteger(boxInteger(42))) { throw IllegalStateException() }
-}

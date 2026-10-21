@@ -1,0 +1,2 @@
+package dev.example.dependency.paths.Point
+public fun consume(value: dev.example.dependency.paths.Point): Int = 42

@@ -17,7 +17,7 @@ impl DiscoveryBuilder {
         let LoadedBuildRoot { root, context } = loaded;
         let root_identity = match &root {
             LoadedRootInput::Manifest(manifest) => manifest.identity(),
-            LoadedRootInput::SingleFile(_) => ConeIdentity::SINGLE_FILE,
+            LoadedRootInput::SingleFile { .. } => ConeIdentity::SINGLE_FILE,
         };
         let mut builder = Self {
             root: root_identity,
@@ -32,15 +32,32 @@ impl DiscoveryBuilder {
                 builder.insert_node(root_identity, GraphNode::ManifestSource(manifest))?;
                 builder.expand_source(root_identity)?;
             }
-            LoadedRootInput::SingleFile(source) => {
+            LoadedRootInput::SingleFile {
+                source,
+                dependencies,
+            } => {
+                for dependency in dependencies {
+                    let coordinate = dependency.coordinate().clone();
+                    let identity = coordinate
+                        .identity()
+                        .map_err(BuildGraphDiscoveryError::Identity)?;
+                    builder.insert_edge(DiscoveredDependencyEdge::new(
+                        root_identity,
+                        identity,
+                        coordinate.clone(),
+                        EdgeOrigin::SingleFile {
+                            source: source.display_path().to_owned(),
+                            span: dependency.span(),
+                        },
+                        None,
+                    ))?;
+                    if identity != ConeIdentity::CORE {
+                        builder
+                            .unlocated
+                            .push(PendingUnlocatedDependency { coordinate });
+                    }
+                }
                 builder.insert_node(root_identity, GraphNode::SingleFile(source))?;
-                builder.insert_edge(DiscoveredDependencyEdge::new(
-                    root_identity,
-                    ConeIdentity::CORE,
-                    ConeCoordinate::reserved_core(),
-                    EdgeOrigin::SyntheticSingleFileCore,
-                    None,
-                ))?;
             }
         }
         Ok(builder)

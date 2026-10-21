@@ -1,0 +1,7 @@
+package dev.programlink
+@Extern(lib = "m23_math", name = "m23_add")
+fun nativeAdd(left: Int, right: Int): Int
+
+fun main() {
+    @Unsafe { println(nativeAdd(20, 22)) }
+}

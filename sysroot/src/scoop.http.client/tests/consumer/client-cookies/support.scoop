@@ -1,0 +1,32 @@
+package scoop.http.client.tests.consumer.client_cookies
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.client.*
+import scoop.time.*
+import scoop.url.Url
+
+internal class CookieClock(var value: Instant = Instant.parse("2026-10-20T00:00:00Z")) : Clock {
+    public override fun now(): Instant = value
+    fun advance(seconds: Long = 1L) { value += Duration.seconds(seconds) }
+}
+
+internal fun cookieRequest(url: String = "https://example.com/dir/page", context: HttpCookieContext? = None,
+    method: String = "GET"): HttpRequest =
+    HttpRequest(Url.parse(url), method, options = HttpCallOptions(cookieContext = context))
+
+internal fun cookieHead(values: List<String>): HttpResponseHead {
+    val fields = ArrayList<HttpField>()
+    for (value in values) fields.add(HttpField("Set-Cookie".toByteArray(), value.toByteArray()))
+    return HttpResponseHead(HttpVersion.Http11, 200U, fields = fields)
+}
+
+internal suspend fun cookieSave(jar: CookieJar, values: List<String>,
+    url: String = "https://example.com/dir/page", context: HttpCookieContext? = None) {
+    jar.save(cookieRequest(url, context), cookieHead(values))
+}
+
+internal suspend fun cookieLoad(jar: CookieJar, url: String = "https://example.com/dir/page",
+    context: HttpCookieContext? = None, method: String = "GET"): String =
+    String.fromUtf8(jar.load(cookieRequest(url, context, method)).toByteArray())

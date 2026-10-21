@@ -1,5 +1,0 @@
-import dependency.classes.AccessParent
-
-public fun write(value: AccessParent) {
-    value.guarded = 21
-}

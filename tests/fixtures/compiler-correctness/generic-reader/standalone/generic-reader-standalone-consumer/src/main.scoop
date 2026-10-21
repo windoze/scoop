@@ -1,0 +1,5 @@
+package dev.example
+public fun check(): Int {
+    if (identity<Int>(42) != 42) { return 1 }
+    return composed<Int>(42)
+}

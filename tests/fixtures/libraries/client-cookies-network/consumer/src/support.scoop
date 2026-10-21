@@ -1,0 +1,64 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal class CookieGate {
+    private var ready: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() { ready = true; val saved = waiter; waiter = None; saved?.resume(Unit) }
+    suspend fun await() { suspendCoroutine<Unit> { continuation -> if (ready) continuation.resume(Unit) else waiter = Some(continuation) } }
+}
+internal class CookieFailure { var value: Throwable? = None }
+internal class CookieMarker(val text: String)
+context(value: CookieMarker)
+internal fun cookieMarker(): String = value.text
+
+internal class CookieCallbacks(
+    val storage: MemoryCookieJar = MemoryCookieJar(suffixes = PublicSuffixList.parse("com\n")),
+    private val loading: suspend (HttpRequest) -> Unit = suspend { _ -> },
+    private val saving: suspend (HttpRequest, HttpResponseHead) -> Unit = suspend { _, _ -> }
+) : CookieJar {
+    public override suspend fun load(request: HttpRequest): HttpCookieHeader { loading(request); return storage.load(request) }
+    public override suspend fun save(request: HttpRequest, response: HttpResponseHead) { saving(request, response); storage.save(request, response) }
+}
+
+internal fun cookieNetworkConfig(trust: TrustStore, jar: CookieJar?, h2: Boolean = false): HttpClientConfig =
+    HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), cookieJar = jar,
+        cleartext = if (h2) HttpCleartextProtocol.Http2PriorKnowledge else HttpCleartextProtocol.Http1,
+        retries = HttpRetryOptions(maxRetries = 0L), pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+
+internal fun withCookieRuntime(block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, Url) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            block(loop, scope, listener, Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/start"))
+        }
+    }
+}
+
+internal fun cookieField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+internal suspend fun cookieWrite(sink: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); sink.writeFully(buffer) }
+}
+internal suspend fun cookieRespond(connection: AsyncHttp1Connection, status: UInt = 200U, text: String = "done",
+    fields: List<HttpField> = emptyList<HttpField>()) {
+    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, fields = fields),
+        Http1BodyFraming.Length(text.toByteArray().size)).useAsync suspend { output ->
+        if (text.length > 0L) cookieWrite(output, text)
+        output.finish()
+    }
+}
+internal suspend fun cookieSeed(jar: CookieJar, url: Url, text: String) {
+    jar.save(HttpRequest.get(url), HttpResponseHead(HttpVersion.Http11, 200U, fields = [cookieField("Set-Cookie", text)]))
+}
+
+internal fun <T> cookieNetworkPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }

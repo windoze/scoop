@@ -1,0 +1,12 @@
+schema = 1
+[cone]
+group = "test.core"
+name = "core-consumer-tests"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

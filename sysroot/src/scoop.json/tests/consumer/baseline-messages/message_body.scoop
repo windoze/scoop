@@ -1,0 +1,35 @@
+package scoop.json.tests.consumer.baseline_messages
+
+import scoop.test.*
+struct MessageBody(
+    val id: String,
+    val type: String,
+    val role: String,
+    val model: String,
+    val content: Array<Block>,
+    @Serialize(required = true) val stop_reason: String?,
+    @Serialize(required = true) val stop_sequence: String?,
+    val usage: Usage,
+    val container: ResponseContainer? = None,
+    val diagnostics: Diagnostics? = None
+) {
+    companion object : ValueEncoder<MessageBody>, ValueDecoder<MessageBody> {}
+}
+struct Usage(
+    val input_tokens: Long,
+    val output_tokens: Long,
+    val cache_creation_input_tokens: Long? = None,
+    val cache_read_input_tokens: Long? = None,
+    val server_tool_use: ServerUsage? = None
+) {
+    companion object : ValueEncoder<Usage>, ValueDecoder<Usage> {}
+}
+struct ServerUsage(val web_search_requests: Long, val web_fetch_requests: Long) {
+    companion object : ValueEncoder<ServerUsage>, ValueDecoder<ServerUsage> {}
+}
+struct ResponseContainer(val id: String, val expires_at: String) {
+    companion object : ValueEncoder<ResponseContainer>, ValueDecoder<ResponseContainer> {}
+}
+struct Diagnostics(@Serialize(required = true) val cache_miss_reason: CacheMiss?) {
+    companion object : ValueEncoder<Diagnostics>, ValueDecoder<Diagnostics> {}
+}

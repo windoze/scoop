@@ -1,0 +1,43 @@
+schema = 1
+name = "client-sse"
+inputs = ["consumer", "peer.py", "peer_server.py", "transport_peer.py"]
+support = [
+    "../../../../sysroot/src/scoop.crypto/test-certificates/src/root.scoop",
+    "../../../../sysroot/src/scoop.crypto/test-certificates/src/server.scoop",
+    "../../../../sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop",
+    "../client-network/peer.py", "../client-proxy/tls_peer.py", "../client-idle/wire.py",
+]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["http", "sse", "client", "asyncio", "prebuilt", "libraries"]
+variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
+[[steps]]
+name = "source"
+files = [
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+    {copy = {from = "${fixture}/peer.py", to = "${work}/peer.py"}},
+    {copy = {from = "${fixture}/peer_server.py", to = "${work}/peer_server.py"}},
+    {copy = {from = "${fixture}/transport_peer.py", to = "${work}/transport_peer.py"}},
+    {copy = {from = "${repo}/tests/fixtures/libraries/client-network/peer.py", to = "${work}/network_support.py"}},
+    {copy = {from = "${repo}/tests/fixtures/libraries/client-proxy/tls_peer.py", to = "${work}/tls_peer.py"}},
+    {copy = {from = "${repo}/tests/fixtures/libraries/client-idle/wire.py", to = "${work}/wire.py"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/root.scoop", to = "${work}/consumer/src/root.scoop"}},
+]
+
+[[steps]]
+name = "build"
+timeout = 900
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+timeout = 3600
+argv = ["${python}", "${work}/peer.py", "${build.result.output}", "${repo}/sysroot/src/scoop.crypto/test-certificates/src/server.scoop", "${repo}/sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop", "${work}/certificates"]
+exit = 0
+stdout = "client SSE independent framing replay cursors reconnection and failures passed\n"
+stderr = ""

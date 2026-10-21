@@ -1,0 +1,130 @@
+package scoop.cli.tests.cli.basic
+
+import scoop.test.*
+import scoop.cli.*
+
+enum Mode { @Serialize(rename = "fast-wire") Fast, Slow
+    companion object : ValueDecoder<Mode>, ValueInspector<Mode>
+}
+struct Options(
+    @CliArgument(position = 0L, help = "Input file", valueName = "FILE") val input: String,
+    @CliOption(names = ["--port", "-p"], defaultText = "8080") @Serialize(rename = "wire-port") val port: Int = 8080,
+    @CliFlag(names = ["--verbose", "-v"], negativeNames = ["--quiet"]) val verbose: Boolean = false,
+    @CliFlag(names = ["--quick", "-q"]) val quick: Boolean = false,
+    @CliOption(names = ["--output", "-o"]) val output: String?,
+    @CliOption(names = ["--include", "-I"]) val include: Array<String> = [],
+    val mode: Mode? = None,
+    @CliOption val enabled: Boolean = false,
+    @Serialize(ignore = true) val ignored: Int = 19
+) { companion object : ValueDecoder<Options>, ValueInspector<Options> }
+
+struct Wrapped(
+    val optional: Array<Int>?, val elements: Array<Int?> = [],
+    val nested: String??, val mutable: MutableArray<String> = MutableArray<String>(0L) { _ -> "" },
+    val list: ArrayList<Int> = ArrayList<Int>()
+) { companion object : ValueDecoder<Wrapped> }
+
+class PrivateOptions(private val code: Int = 4) {
+    val ignored: Int get() { throw IllegalStateException() }
+    fun result(): Int = code
+    companion object : ValueDecoder<PrivateOptions>
+}
+
+struct Positionals(
+    @CliArgument(position = 0L) val first: Int,
+    @CliArgument(position = 1L) val optional: String?,
+    @CliArgument(position = 2L) val rest: Array<String> = []
+) { companion object : ValueDecoder<Positionals> }
+
+object Counts { var defaults: Int = 0; var constructors: Int = 0 }
+fun nextDefault(): Int { Counts.defaults = Counts.defaults + 1; return 7 }
+class Defaults(val first: Int = nextDefault(), val second: Int = first + 1) {
+    init { Counts.constructors = Counts.constructors + 1 }
+    companion object : ValueDecoder<Defaults>
+}
+class FailingHelp : TextWriter {
+    val text: StringWriter = StringWriter()
+    public override fun write(value: String) {
+        if (text.toString() != "") { throw IllegalStateException(Some("help writer")) }
+        text.write(value)
+        gcCollect()
+    }
+}
+
+private fun exercise() {
+    val schema = Cli.schema(typeInfo<Options>(), CliConfig("serve", "Serve input"))
+    val parser = CliParser(schema, Options.Companion)
+    val options = parsed(parser.parseCommandLine(["/tmp/serve", "input.txt", "--port", "9000", "-vq", "-Iinc1", "-I", "inc2", "--output=", "--mode=Fast"]))
+    equal(options.input, "input.txt")
+    check(options.port == 9000 && options.verbose && options.quick && options.ignored == 19)
+    check(options.output == Some("") && options.include.size == 2L && options.include[0L] == "inc1" && options.include[1L] == "inc2" && options.mode == Some(Mode.Fast))
+    check(contains(DebugPrinter.format(Options.inspect(options)), "output=Option<String>.Some(\"\")"))
+    val defaults = parsed(parser.parse(["-", "--quiet", "--enabled=true"]))
+    check(defaults.port == 8080 && !defaults.verbose && defaults.enabled && defaults.output == None && defaults.include.size == 0L)
+    equal(defaults.input, "-")
+    check(parsed(parser.parse(["x", "-vp9001"])).port == 9001)
+    check(parsed(parser.parse(["x", "-p=+0007"])).port == 7)
+    check(parsed(parser.parse(["x", "--port", "-3"])).port == -3)
+    check(parsed(parser.parse(["x", "--output", "null"])).output == Some("null"))
+    check(parsed(parser.parse(["x", "-o--help"])).output == Some("--help"))
+    check(parsed(parser.parse(["x", "-o="])).output == Some(""))
+    check(parsed(parser.parse(["--", "--help"])).input == "--help")
+    check(parsed(parser.parse(["雪😀"])).input == "雪😀")
+    check(when (parser.parse(["-vh", "--bad"])) { case CliResult.HelpRequested -> true; else -> false })
+    fails("", { parser.parseCommandLine([]) })
+    fails("/input", { parser.parse([]) })
+    fails("/wire-port", { parser.parse(["x", "--port"]) })
+    fails("/wire-port", { parser.parse(["x", "--port", "--help"]) })
+    fails("/wire-port", { parser.parse(["x", "--port", "--"]) })
+    fails("/wire-port", { parser.parse(["x", "--port", "-v"]) })
+    fails("/wire-port", { parser.parse(["x", "--port=1", "-p2"]) })
+    fails("/verbose", { parser.parse(["x", "-v", "--quiet"]) })
+    fails("/verbose", { parser.parse(["x", "--verbose=false"]) })
+    fails("/verbose", { parser.parse(["x", "-v=false"]) })
+    fails("", { parser.parse(["x", "-z"]) })
+    fails("", { parser.parse(["x", "--unknown", "--help"]) })
+    fails("", { parser.parse(["x", "extra"]) })
+    fails("/wire-port", { parser.parse(["x", "--port="]) })
+    fails("/mode", { parser.parse(["x", "--mode=fast-wire"]) })
+    fails("/enabled", { parser.parse(["x", "--enabled=True"]) })
+
+    val wrapped = CliParser(Cli.schema(typeInfo<Wrapped>(), CliConfig("wrapped")), Wrapped.Companion)
+    val empty = parsed(wrapped.parse([]))
+    check((when (empty.optional) { case None -> true; case Some(_) -> false }) && empty.elements.size == 0L && empty.nested == None)
+    val values = parsed(wrapped.parse(["--optional=1", "--optional", "2", "--elements=3", "--nested=", "--mutable=x", "--list=9"]))
+    check(values.optional!!.size == 2L && values.optional!![0L] == 1 && values.optional!![1L] == 2 && values.elements.size == 1L && values.elements[0L] == Some(3) && values.nested == Some(Some("")))
+    check(values.mutable[0L] == "x" && values.list[0L] == 9)
+    val classes = CliParser(Cli.schema(typeInfo<PrivateOptions>(), CliConfig("private")), PrivateOptions.Companion)
+    check(parsed(classes.parse([])).result() == 4 && parsed(classes.parse(["--code=8"])).result() == 8)
+    val positionals = CliParser(Cli.schema(typeInfo<Positionals>(), CliConfig("positions")), Positionals.Companion)
+    check(parsed(positionals.parse(["-3"])).optional == None)
+    val positional = parsed(positionals.parse(["1", "", "--", "-x", "tail"]))
+    check(positional.optional == Some("") && positional.rest.size == 2L && positional.rest[0L] == "-x" && positional.rest[1L] == "tail")
+
+    val defaultSchema = Cli.schema(typeInfo<Defaults>(), CliConfig("defaults"))
+    check(Counts.defaults == 0 && Counts.constructors == 0)
+    val defaultParser = CliParser(defaultSchema, Defaults.Companion)
+    check(when (defaultParser.parse(["--help"])) { case CliResult.HelpRequested -> true; else -> false })
+    check(Counts.defaults == 0 && Counts.constructors == 0)
+    fails("/first", { defaultParser.parse(["--first=bad"]) })
+    check(Counts.defaults == 0 && Counts.constructors == 0)
+    val constructed = parsed(defaultParser.parse([]))
+    check(constructed.first == 7 && constructed.second == 8 && Counts.defaults == 1 && Counts.constructors == 1)
+    val help = schema.help()
+    val writer = StringWriter()
+    schema.writeHelp(writer)
+    equal(writer.toString(), help)
+    check(contains(help, "Usage: serve") && contains(help, "--port, -p <Int>") && contains(help, "<Fast|Slow>"))
+    check(contains(help, "[default: 8080]") && contains(help, "<FILE> (required)  Input file") && help[help.length - 1L] == '\n')
+    check(!contains(help, "wire-port") && !contains(help, "ignored") && !contains(help, "fast-wire"))
+    val failing = FailingHelp()
+    try { schema.writeHelp(failing); throw IllegalArgumentException() }
+    catch (error: IllegalStateException) { check(contains(failing.text.toString(), "Usage: serve")); equal(error.message!!, "help writer") }
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

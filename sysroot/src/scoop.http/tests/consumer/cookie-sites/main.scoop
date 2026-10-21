@@ -1,0 +1,52 @@
+package scoop.http.tests.consumer.cookie_sites
+
+import scoop.test.*
+import scoop.http.*
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+import scoop.url.Url
+
+private fun checkSites(suffixes: PublicSuffixList) {
+    val cases = [
+        ("https://a.example.com/", "https://b.example.com:8443/", true),
+        ("https://a.example.com/", "http://a.example.com/", false),
+        ("http://a.example.com/", "ws://b.example.com/", true),
+        ("https://a.example.com/", "wss://b.example.com/", true),
+        ("http://a.example.com/", "wss://b.example.com/", false),
+        ("https://example.com/", "https://badexample.com/", false),
+        ("https://one.github.io/", "https://two.github.io/", false),
+        ("https://a.one.github.io/", "https://b.one.github.io/", true),
+        ("https://a.kawasaki.jp/", "https://b.kawasaki.jp/", false),
+        ("https://a.city.kawasaki.jp/", "https://city.kawasaki.jp/", true),
+        ("https://BÜCHER.example./", "https://sub.xn--bcher-kva.example/", true),
+        ("http://localhost/", "http://LOCALHOST.:8080/", true),
+        ("http://localhost/", "http://sub.localhost/", false),
+        ("https://com/", "https://example.com/", false),
+        ("https://com/", "https://com:8443/", true),
+        ("http://127.0.0.1/", "http://127.0.0.1:8080/", true),
+        ("http://127.0.0.1/", "http://127.0.0.2/", false),
+        ("http://127.0.0.1/", "http://[::ffff:127.0.0.1]/", false),
+        ("http://[::1]/", "ws://[0:0:0:0:0:0:0:1]:8080/", true),
+        ("http://[::1]/", "http://[::2]/", false),
+        ("http://127.0.0.1/", "http://localhost/", false),
+        ("http://[::1]/", "https://[::1]/", false)
+    ]
+    for ((first, second, expected) in cases) {
+        val left = Url.parse(first).httpOrigin()
+        val right = Url.parse(second).httpOrigin()
+        assertEquals(expected, HttpCookieRules.sameSite(left, right, suffixes), Some(first + " " + second))
+        assertEquals(expected, HttpCookieRules.sameSite(right, left, suffixes))
+    }
+}
+
+private fun exerciseConsumer() {
+    val suffixes = PublicSuffixList.bundled()
+    Thread.start { checkSites(suffixes) }.use { thread -> checkSites(suffixes); thread.join() }
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

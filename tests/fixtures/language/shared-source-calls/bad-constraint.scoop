@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.upstream.sourcecalls.scalar
+public fun broken(value: String): String = scalar<String>(value)

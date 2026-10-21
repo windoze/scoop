@@ -1,0 +1,6 @@
+package dev.example
+import test.*
+fun main() {
+    val boxed: Any = boxInteger(42)
+    if (castInteger(boxed) != 42 || !testInteger(boxed)) { throw IllegalStateException() }
+}

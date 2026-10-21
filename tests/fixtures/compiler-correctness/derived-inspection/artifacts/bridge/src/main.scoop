@@ -1,0 +1,5 @@
+package test.observed.bridge
+public import test.observed.*
+public fun <T> forwarded(value: Pack<T>, element: ValueInspector<T>): () -> ValueView = {
+    observe(value, element)
+}

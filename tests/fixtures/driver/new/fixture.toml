@@ -1,0 +1,182 @@
+schema = 1
+name = "new-cone-templates"
+inputs = []
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "new", "templates", "package", "testing"]
+
+[[steps]]
+name = "executable"
+argv = ["${scoop}", "new", "${work}/hello", "--group", "dev.example"]
+exit = 0
+stdout = ""
+stderr = "created ${work}/hello\n"
+checks = [{"file" = "${work}/hello/Cone.toml", "contains" = "name = \"hello\""}, {"file" = "${work}/hello/src/main.scoop", "contains" = "package dev.example\n"}, {"file" = "${work}/hello/tests/basic.scoop", "exists" = true}]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", "${work}/hello", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = "Hello, Scoop!\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${run.result.dependencies.length}", "equals" = 1}]
+
+[[steps]]
+name = "test"
+argv = ["${scoop}", "test", "${work}/hello", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [{"actual" = "${test.test_result.counts.passed}", "equals" = 1}]
+
+[[steps]]
+name = "library"
+argv = ["${scoop}", "new", "${work}/nested/tools", "--group", "dev.example", "--kind", "library", "--name", "utilities", "--version", "1.2.3", "--package", "dev.example.tools"]
+exit = 0
+stdout = ""
+stderr = "created ${work}/nested/tools\n"
+checks = [{"file" = "${work}/nested/tools/src/lib.scoop", "contains" = "package dev.example.tools\n"}, {"file" = "${work}/nested/tools/src/main.scoop", "exists" = false}, {"file" = "${work}/nested/tools/Cone.toml", "contains" = "version = \"1.2.3\""}]
+
+[[steps]]
+name = "library_build"
+argv = ["${scoop}", "build", "${work}/nested/tools", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${library_build.result.kind}", "equals" = "library"}, {"actual" = "${library_build.result.dependencies.length}", "equals" = 1}]
+
+[[steps]]
+name = "library_test"
+argv = ["${scoop}", "test", "${work}/nested/tools", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [{"actual" = "${library_test.test_result.counts.passed}", "equals" = 1}]
+
+[[steps]]
+name = "escaped"
+argv = ["${scoop}", "new", "${work}/escaped", "--group", "dev.my-team.if"]
+exit = 0
+stdout = ""
+stderr = "created ${work}/escaped\n"
+checks = [{"file" = "${work}/escaped/src/main.scoop", "contains" = "package dev.`my-team`.`if`\n"}]
+
+[[steps]]
+name = "escaped_run"
+argv = ["${scoop}", "run", "${work}/escaped", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = "Hello, Scoop!\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "escaped_test"
+argv = ["${scoop}", "test", "${work}/escaped", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [{"actual" = "${escaped_test.test_result.counts.passed}", "equals" = 1}]
+
+[[steps]]
+name = "no_tests"
+argv = ["${scoop}", "new", "${work}/plain", "--group", "dev.example", "--no-tests"]
+exit = 0
+stdout = ""
+stderr = "created ${work}/plain\n"
+checks = [{"file" = "${work}/plain/tests", "exists" = false}, {"file" = "${work}/plain/Cone.toml", "not_contains" = "test-dependencies"}]
+
+[[steps]]
+name = "plain_run"
+argv = ["${scoop}", "run", "${work}/plain", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = "Hello, Scoop!\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "bad_group"
+argv = ["${scoop}", "new", "${work}/invalid/bad-group", "--group", "Dev.example"]
+exit = 1
+stdout = ""
+stderr = "error[SCOOP_NEW_INPUT]: invalid Cone coordinate group: segment must start with a lowercase ASCII letter\n"
+checks = [{"file" = "${work}/invalid", "exists" = false}]
+
+[[steps]]
+name = "bad_version"
+argv = ["${scoop}", "new", "${work}/invalid/bad-version", "--group", "dev.example", "--version", "01.2.3"]
+exit = 1
+stdout = ""
+stderr = "error[SCOOP_NEW_INPUT]: invalid Cone coordinate semantic version\n"
+checks = [{"file" = "${work}/invalid", "exists" = false}]
+
+[[steps]]
+name = "bad_package"
+argv = ["${scoop}", "new", "${work}/invalid/bad-package", "--group", "dev.example", "--package", "dev.examples"]
+exit = 1
+stdout = ""
+stderr = "error[SCOOP_NEW_INPUT]: package must equal Cone group `dev.example` or one of its subpackages\n"
+checks = [{"file" = "${work}/invalid", "exists" = false}]
+
+[[steps]]
+name = "quoted_package"
+argv = ["${scoop}", "new", "${work}/invalid/quoted-package", "--group", "dev.example", "--package", "`dev.example`"]
+exit = 1
+stdout = ""
+stderr = "error[SCOOP_NEW_INPUT]: package must equal Cone group `dev.example` or one of its subpackages\n"
+checks = [{"file" = "${work}/invalid", "exists" = false}]
+
+[[steps]]
+name = "bad_name"
+argv = ["${scoop}", "new", "${work}/invalid/bad-name", "--group", "dev.example", "--name", "BadName"]
+exit = 1
+stdout = ""
+stderr = "error[SCOOP_NEW_INPUT]: invalid Cone coordinate name: segment must start with a lowercase ASCII letter\n"
+checks = [{"file" = "${work}/invalid", "exists" = false}]
+
+[[steps]]
+name = "prepare_conflicts"
+files = [{"mkdir" = {"path" = "${work}/empty"}}, {"write" = {"path" = "${work}/file", "data" = "keep"}}]
+
+[[steps]]
+name = "existing"
+argv = ["${scoop}", "new", "${work}/hello", "--group", "dev.example"]
+exit = 1
+stdout = ""
+stderr = "${work}/hello: error[SCOOP_NEW_IO]: File exists (os error 17)\n"
+checks = [{"file" = "${work}/hello/src/main.scoop", "contains" = "Hello, Scoop!"}]
+
+[[steps]]
+name = "empty"
+argv = ["${scoop}", "new", "${work}/empty", "--group", "dev.example"]
+exit = 1
+stdout = ""
+stderr = "${work}/empty: error[SCOOP_NEW_IO]: File exists (os error 17)\n"
+checks = [{"glob" = "${work}/empty/*", "equals" = []}]
+
+[[steps]]
+name = "file"
+argv = ["${scoop}", "new", "${work}/file", "--group", "dev.example"]
+exit = 1
+stdout = ""
+stderr = "${work}/file: error[SCOOP_NEW_IO]: File exists (os error 17)\n"
+checks = [{"file" = "${work}/file", "equals" = "keep"}]
+
+[[steps]]
+name = "parent_file"
+argv = ["${scoop}", "new", "${work}/file/child", "--group", "dev.example"]
+exit = 1
+stdout = ""
+stderr = "${work}/file: error[SCOOP_NEW_IO]: File exists (os error 17)\n"
+checks = [{"file" = "${work}/file", "equals" = "keep"}]

@@ -93,6 +93,12 @@ while、for、do/while 分别合并条件入口、body、正常回边、对应�
 
 声明、package/import、alias、成员、命名参数、注解及跨 Cone 导出使用同一名称规则。FFI 外部符号和 Cone coordinate 仍采用各自的独立规则（12.2、13.4）。
 
+### 2.5 首行解释器注释
+
+源码的首两个字节为 `#!` 时，从该位置到行尾或 EOF 按普通无内容行注释处理。此规则适用于单文件和 manifest Cone 的所有源码，不要求内容是有效的解释器路径，也不执行该文本。前导空白、BOM 或换行之后的 `#!` 不享有此规则。
+
+该行不产生语言 token 或文档片段。保留原始源码、换行与 UTF-8 byte span，后续诊断位置不因解释器注释改变。
+
 ---
 
 ## 3. 类型系统总览
@@ -2682,7 +2688,9 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 
 - **Cone是module、分发、依赖、编译与静态链接的基本单位；package只是源码namespace。** Cone不等于package，二者不能由名称或目录互相推导。一个Cone可以包含多个package，同一package也可以由多个Cone贡献声明；后一情形称为split package，不会把不同origin的实体合并为同一identity；
 - manifest source Cone是包含`Cone.toml`及按12.2.2选择的Scoop源码的独立目录；未配置源码清单时使用`src/`。`scoop build/run <file.scoop>`则把指定的唯一文件构造为12.2的synthetic executable source Cone。binary Cone是该语义单元编译得到的`.slib` artifact。面向构建的`scoop`可以将manifest Cone的上游依赖定位到source Cone或已经验证的binary Cone，二者必须声明同一Cone identity；低层single-Cone compiler `scoopc`只消费已生成并显式传入的上游`.slib`，不跟随source locator或递归构建其他Cone；
-- 文件路径不决定package。source file至多声明一个`package` header，省略时属于root package；跨package引用必须按12.4导入或使用合法qualified path；
+- 文件路径不决定 package。普通 manifest Cone 的每个生产/测试 source file 必须显式声明一个 `package` header，名称按实际 identifier 段等于 Cone group，或以该 group 的全部段为前缀；例如 group `dev.example` 允许 `dev.example` 和 `dev.example.http`，不允许 `dev.examples`、`dev` 或单个转义段 `` `dev.example` ``。连字符 group 段用反引号表示，例如 group `dev.my-team` 对应 ``package dev.`my-team` ``；跨 package 引用仍按 12.4 导入或使用合法 qualified path；
+- `scoop:scoop.core` 与 `scoop:scoop.std` 两个库豁免 package/group 前缀和必须声明 header 的要求，允许根 package 及其实际声明的其他 package。其他内置库、不同 group 的同名 Cone 或消费者不享有此例外；例外仅是名称规则，不增加来源授权机制；
+- 单文件模式使用内置默认 RootPackage，不声明 package。若文件包含语法合法的 package header，发出定位到该声明的 warning，随后忽略它的 namespace 效果；原文、byte span、文档边界及后续诊断位置保留。非法 package 语法仍是 parser error，不吞掉或按注释跳过；
 - package/FQN只参与名称组织与诊断，不是type、callable、property或其他实体的全局identity。相同package/name来自不同Cone时保持不同typed origin，并在同一lookup层相遇时按12.4诊断，而不是按依赖或链接顺序任选一个。
 
 ### 12.2 Cone identity与`Cone.toml`
@@ -2714,8 +2722,9 @@ kind = "library" # 或 "executable"
 - locator只用于当前构建查找，相对路径以当前manifest为基准；它不进入Cone identity、实体identity、`.slib` metadata、初始化顺序或源码诊断identity。locator解析到的source/artifact coordinate必须与dependency key/version canonical相等；
 - dependency声明没有version range、`latest`、optional/build dependency、feature、platform条件或dependency alias；测试专用依赖见 12.2.4。`scoop`只把exact locator解析为12.3的resolved graph，不执行版本选择或冲突调停；`scoopc`仅验证当前manifest的semantic projection与命令行显式提供的binary dependency closure，不解析任何locator。native C++模式见12.2.1；
 - `scoop build [root-input]` 与 `scoop run [root-input]` 允许省略 root：此时明确使用调用者当前目录的 `Cone.toml`，与显式传入该文件相同；缺失或无效时报告输入错误，不向父目录搜索，也不猜测某个 `.scoop` 文件。显式 root 继续按目录、`Cone.toml` 或单文件规则分类；低层 `scoopc build` 仍要求明确输入；
-- `scoop:single-file:0.0.0`是另一reserved coordinate，用户manifest不得声明它。`scoop build/run`收到basename扩展名精确为`.scoop`、跟随symlink后目标为已存在regular file的operand时，构造`kind = executable`、source set恰好为该文件、logical source path恒为`main.scoop`、direct Cone dependency恰好为core的typed synthetic projection；symlink cycle、dangling link或最终目标非regular file是输入错误，resolved host path不进入identity。显式文件operand即使位于某Cone目录中也不读取相邻`Cone.toml`、其他`.scoop`、C/C++ source或blob；它不接受其他Cone dependency。该`.slib`可缓存，并可作为产生它的build/run或显式`scoop link --root-slib`的唯一executable root；但不能作为可分发artifact发布、作为dependency或被manifest artifact locator引用；
-- manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file source使用相同pair形态，但第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file构建记录另外区分实际source及其修改时间／大小、core结果、compiler/schema/target/toolchain；需要编译时源码内容参与正常语义计算，不因共用reserved identity而冒用另一输入的缓存；
+- `scoop:single-file:0.0.0`是另一reserved coordinate，用户manifest不得声明它。`scoop build/run`收到basename扩展名精确为`.scoop`、跟随symlink后目标为已存在regular file的operand时，构造`kind = executable`、source set恰好为该文件、logical source path恒为`main.scoop`、direct Cone dependency为core、std及头部显式dep并集的typed synthetic projection；symlink cycle、dangling link或最终目标非regular file是输入错误，resolved host path不进入identity。显式文件operand即使位于某Cone目录中也不读取相邻`Cone.toml`、其他`.scoop`、C/C++ source或blob；额外依赖仅由头部 `//! dep: group:name:version` 声明，沿显式 cone-path 与 sysroot 的精确产物查找，不隐式构建相邻源码。该`.slib`可缓存，并可作为产生它的build/run或显式`scoop link --root-slib`的唯一executable root；但不能作为可分发artifact发布、作为dependency或被manifest artifact locator引用；
+- 单文件依赖头部仅到首个语言 token（包括被忽略的 package）之前；允许首行 shebang、空白和普通注释穿插。只有真实行注释 `//! dep: group:name:version` 指定精确坐标；不读取块注释、文档正文或字符串中的相似文本。dep 缺少冒号/坐标、非法 coordinate/SemVer、重复显式坐标均定位到原始注释行报错；其他 `//!` 与 token 后的所有注释按普通注释处理。默认依赖始终为 `scoop:scoop.core:0.1.0` 和 `scoop:scoop.std:0.1.0`，显式相同坐标只合并边，重复源码声明仍报错；不同版本沿现有版本冲突规则处理。普通 manifest build/test/doc 不解释这些注释。依赖不隐式导入名称，core prelude 保持；
+- manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file source使用相同pair形态，但第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file构建记录另外区分实际source及其修改时间／大小、实际依赖结果、compiler/schema/target/toolchain；需要编译时源码内容参与正常语义计算，不因共用reserved identity而冒用另一输入的缓存；
 
 #### 12.2.1 Native C/C++ 源码
 
@@ -2815,7 +2824,7 @@ when = { os = "linux" }
 - 依赖边必须无环；同一图中同一 `group:name` 只能出现一个 version，同一 ConeIdentity 只能对应一致的产物与语义指纹。环、多个版本、同 identity 的内容冲突或 dependency coordinate 不匹配均为构建错误。
 - executable 不能作为另一个 Cone 的依赖。一次程序构建恰有一个 executable root，其余节点均为 library；library 单独构建不需要 executable root。
 - 除 core 自身外，每个未显式声明 core 的 Cone 都具有 12.6 的 core direct dependency；除此之外没有隐式依赖。core 可从普通 manifest 目录作为构建根，使用普通 library 规则，不加载另一份 core 或产生 self edge。sysroot 只提供默认定位位置。
-- single-file 的图只含 core 与唯一 synthetic executable root，不发现其他 manifest 依赖；源码对其他 Cone 的 import 按不可达名称报错。`@Extern` 的逻辑 native library 需求不属于 Cone dependency。
+- single-file 的图包含唯一 synthetic executable root、始终直接可见的 core/std、头部显式依赖与它们的传递闭包；传递支持产物不自动获得 direct import 可见性。`@Extern` 的逻辑 native library 需求不属于 Cone dependency。
 - dependency path、manifest 枚举与输入顺序不影响初始化顺序。按 dependency-first 拓扑顺序处理 Cone；每一步从全部依赖已完成的 Cone 中，按 `(group UTF-8 bytes, name UTF-8 bytes, canonical version bytes)` 取最小者。
 - eager top-level initialization 按上述 Cone 顺序执行，同一 Cone 内按 9.1.3 的 PersistentInitializationUnitId bytes 排序。object、companion 与 generic delegated extension 等 lazy unit 不提前执行。初始化期间读取另一 unit 时，先完成目标 unit 的初始化，因此目标可以早于其通常排序位置执行。
 - 间接依赖的存在不使其声明自动成为源码候选。名称可到达性只由 12.4 的当前 Cone、direct dependency surface、re-export 与 core prelude 决定。

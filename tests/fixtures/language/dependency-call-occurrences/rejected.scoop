@@ -1,0 +1,5 @@
+package test
+import test.dependency.api.run
+
+private fun run(value: Boolean): Boolean = value
+public fun rejected(): Boolean = run(true)

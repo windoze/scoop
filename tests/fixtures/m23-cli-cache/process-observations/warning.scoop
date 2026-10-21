@@ -1,5 +1,0 @@
-enum Signal { Ready, Failed }
-fun describe(value: Signal): Int = when (value) {
-case Ready -> 1
-case Raedy -> 2
-}

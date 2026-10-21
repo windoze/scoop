@@ -1,0 +1,10 @@
+package test.m52
+import scoop.test.*
+
+@Test
+private class InstalledHeaderTests {
+    @Test
+    fun `uses the selected public header`() {
+        @Unsafe { assertEquals(42, installedValue()) }
+    }
+}

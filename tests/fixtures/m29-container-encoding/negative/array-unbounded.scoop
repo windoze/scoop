@@ -1,2 +1,0 @@
-fun <T> send(value: Array<T>, encoder: Encoder) { value.encode(encoder) }
-fun main() {}

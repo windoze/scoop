@@ -170,7 +170,7 @@ impl ClassifyBuildFailure for BuildGraphRequestError {
 impl ClassifyBuildFailure for LoadBuildRootError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
-            Self::RootManifest(_) => phase_only(BuildFailurePhase::Root),
+            Self::RootManifest(_) | Self::SingleFile(_) => phase_only(BuildFailurePhase::Root),
         }
     }
 }
@@ -270,10 +270,6 @@ impl ClassifyBuildFailure for ResolveBuildGraphError {
             Self::MissingTrustedCore | Self::MissingDirectCore { .. } => classified(
                 BuildFailurePhase::GraphVersionKind,
                 BuildDiagnosticCode::GRAPH_MISSING_CORE,
-            ),
-            Self::InvalidSingleFileGraph => classified(
-                BuildFailurePhase::GraphVersionKind,
-                BuildDiagnosticCode::GRAPH_SINGLE_FILE_DEPENDENCY,
             ),
             Self::UnreachableNodes(_) => classified(
                 BuildFailurePhase::GraphCycleOrder,

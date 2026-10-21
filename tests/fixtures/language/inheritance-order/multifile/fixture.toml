@@ -1,0 +1,48 @@
+schema = 1
+name = "inheritance-order-multifile"
+inputs = ["provider", "runtime"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["inheritance-order", "generic-dispatch", "properties", "language"]
+[[steps]]
+name = "prepare_provider"
+files = [
+  {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
+]
+checks = []
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/inheritance-order-provider/1.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"copy" = {"from" = "${fixture}/runtime", "to" = "${work}/sources/program"}},
+  {"copy" = {"from" = "${fixture}/runtime/main.scoop", "to" = "${work}/sources/program/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/program", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${program.result.dependencies.length}", "equals" = 2}]
+
+[[steps]]
+name = "run"
+argv = ["${program.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []

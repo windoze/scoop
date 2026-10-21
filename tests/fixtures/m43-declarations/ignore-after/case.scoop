@@ -1,3 +1,0 @@
-import scoop.test.*
-
-@Test class Cases { @AfterTest @Ignore("later") fun cleanup() {} }

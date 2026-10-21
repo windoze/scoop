@@ -1,0 +1,42 @@
+package scoop.std.tests.consumer.api_style_duration
+
+import scoop.test.*
+import scoop.time.*
+import scoop.datetime.*
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+
+private fun roundTrip(value: Duration) {
+    val (seconds, nanos) = value.toComponents()
+    check(seconds == value.inWholeSeconds)
+    check(nanos > -1000000000 && nanos < 1000000000)
+    check(seconds == 0L || nanos == 0 || (seconds < 0L) == (nanos < 0))
+    check(Duration.seconds(seconds, nanos.toLong()) == value)
+    check(Duration.seconds(value.floorSeconds, value.nanosecondsOfSecond.toLong()) == value)
+}
+
+private fun exerciseConsumer() {
+    check(Duration.nanoseconds(-1L).toComponents() == (0L, -1))
+    check(Duration.nanoseconds(1L).toComponents() == (0L, 1))
+    check(Duration.seconds(-2L, 750000000L).toComponents() == (-1L, -250000000))
+    for (seconds in [Long.MIN_VALUE, Long.MIN_VALUE + 1L, -2L, -1L, 0L, 1L, 2L, Long.MAX_VALUE]) {
+        for (nanos in [0L, 1L, 250000000L, 999999999L]) {
+            roundTrip(Duration.seconds(seconds, nanos))
+        }
+    }
+    val negative = Duration.nanoseconds(-1L)
+    check(negative.floorSeconds == -1L && negative.nanosecondsOfSecond == 999999999)
+    val epoch = Instant.fromEpochSeconds(0L)
+    check((epoch + negative).toString() == "1969-12-31T23:59:59.999999999Z")
+    check(epoch + negative - negative == epoch)
+    val midnight = LocalDateTime.parse("2024-03-01T00:00:00")
+    check((midnight + negative).toString() == "2024-02-29T23:59:59.999999999")
+    check(midnight + negative - negative == midnight)
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

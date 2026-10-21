@@ -1,0 +1,11 @@
+package scoop.json.tests.consumer.unit_encoding_artifacts.p1
+
+import scoop.test.*
+
+import scoop.json.tests.consumer.unit_encoding_artifacts.p2.erase
+import scoop.json.tests.consumer.unit_encoding_artifacts.p2.expose
+import scoop.json.tests.consumer.unit_encoding_artifacts.p2.makeBox
+
+public fun peerUnit(): Any = erase(Unit)
+public fun peerEncoding(): ValueEncoder<Unit> = expose<Unit>(UnitEncoder)
+public fun peerBox(): Any = makeBox(Unit)

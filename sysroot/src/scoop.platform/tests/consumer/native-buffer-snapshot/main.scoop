@@ -1,0 +1,92 @@
+package scoop.platform.tests.consumer.native_buffer_snapshot
+
+import scoop.test.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+
+private fun check(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("native buffer snapshot check failed"))
+}
+
+private fun <E : Throwable> expect(block: () -> Unit) {
+    try { block() }
+    catch (error: Throwable) { if (error is E) return; throw error }
+    throw IllegalStateException(Some("expected snapshot error"))
+}
+
+private fun boundaries() {
+    val buffer = NativeByteBuffer.allocate()
+    check(buffer.getBytes(0L, 0L).size == 0L)
+    expect<IndexOutOfBoundsException> { buffer.getBytes(0L, 1L) }
+    expect<IllegalArgumentException> { buffer.getBytes(0L, -1L) }
+    buffer.ensureWritable(8L)
+    expect<IndexOutOfBoundsException> { buffer.getBytes(0L, 1L) }
+    buffer.writeBytes(Array<Byte>(4L) { (it + 1L).toByte() })
+    buffer.skip(2L)
+    val all = buffer.getBytes(0L, 4L)
+    val middle = buffer.getBytes(1L, 2L)
+    check(all.size == 4L && all[0L] == 1.toByte() && all[3L] == 4.toByte())
+    check(middle.size == 2L && middle[0L] == 2.toByte() && middle[1L] == 3.toByte())
+    check(buffer.getBytes(4L, 0L).size == 0L)
+    expect<IndexOutOfBoundsException> { buffer.getBytes(-1L, 0L) }
+    expect<IndexOutOfBoundsException> { buffer.getBytes(5L, 0L) }
+    expect<IndexOutOfBoundsException> { buffer.getBytes(3L, 2L) }
+    expect<IndexOutOfBoundsException> { buffer.getBytes(Long.MAX_VALUE, 1L) }
+    expect<IndexOutOfBoundsException> { buffer.getBytes(1L, Long.MAX_VALUE) }
+    expect<IllegalArgumentException> { buffer.getBytes(2L, Long.MIN_VALUE) }
+    check(buffer.readPosition == 2L && buffer.writePosition == 4L)
+    buffer.setByte(1L, 9.toByte())
+    buffer.ensureWritable(32L)
+    gcCollect()
+    check(middle[0L] == 2.toByte() && buffer.getBytes(1L, 1L)[0L] == 9.toByte())
+    buffer.compact()
+    check(buffer.getBytes(0L, 2L)[0L] == 3.toByte())
+    expect<IndexOutOfBoundsException> { buffer.getBytes(2L, 1L) }
+    buffer.clear()
+    expect<IndexOutOfBoundsException> { buffer.getBytes(0L, 1L) }
+    buffer.close()
+    gcCollect()
+    check(all[0L] == 1.toByte() && middle[1L] == 3.toByte())
+    expect<IllegalStateException> { buffer.getBytes(0L, 0L) }
+    buffer.close()
+}
+
+private fun borrowed() {
+    NativeByteBuffer.allocate(8L).use { buffer ->
+        buffer.writeBytes(Array<Byte>(3L) { (it + 4L).toByte() })
+        buffer.skip(1L)
+        @Unsafe {
+            buffer.withReadableBytes { _, _ ->
+                check(buffer.getBytes(0L, 3L)[0L] == 4.toByte())
+            }
+            buffer.withWritableBytes { _, _ ->
+                check(buffer.getBytes(2L, 1L)[0L] == 6.toByte())
+                expect<IndexOutOfBoundsException> { buffer.getBytes(3L, 1L) }
+                0L
+            }
+            val borrow = buffer.borrowReadable(2L)
+            try {
+                Thread.start {
+                    val copy = buffer.getBytes(0L, 3L)
+                    gcCollect()
+                    check(copy[1L] == 5.toByte() && copy[2L] == 6.toByte())
+                    check(buffer.readPosition == 1L && buffer.writePosition == 3L)
+                    expect<IllegalStateException> { buffer.setByte(0L, 9.toByte()) }
+                }.use { thread -> thread.join() }
+            } finally { borrow.complete(1L) }
+        }
+        check(buffer.readPosition == 2L && buffer.readByte() == 6.toByte())
+    }
+}
+
+private fun exerciseConsumer() {
+    boundaries()
+    borrowed()
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

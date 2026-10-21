@@ -7,7 +7,7 @@ mod rejections;
 
 fn fixture(name: &str) -> (std::path::PathBuf, String) {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-mir-equality-production");
+        .join("../../tests/fixtures/language/mir-equality-production");
     let source = std::fs::read_to_string(path.join(format!("{name}.scoop"))).unwrap();
     (path, source)
 }
@@ -45,7 +45,7 @@ fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overlo
             encode(&bindings).unwrap()
         });
         with_production(
-            &format!("private struct Unrelated() {{}}\n{source}"),
+            &prepend_declarations(&source, "private struct Unrelated() {}\n"),
             |output, input, _, graph, types| {
                 let boolean = dependencies::boolean(input, graph);
                 let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &boolean]).unwrap();

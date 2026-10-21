@@ -1,0 +1,5 @@
+//! dep missing-colon
+package dev.ignored
+import scoop.test.*
+@Test
+private class MetadataTests { @Test fun works() { assertEquals(42, answer()) } }

@@ -1,0 +1,4 @@
+package test
+public fun domainBase(): SourceBase<Int> = SourceBase<Int>()
+public fun domainChild(): Derived = Derived()
+public fun domainCases(): Cases = Cases()

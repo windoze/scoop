@@ -1,0 +1,143 @@
+schema = 1
+name = "test-selection"
+inputs = ["program", "../executable-record/state.py"]
+tools = ["scoop", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["test-selection", "lifecycle", "cache", "driver"]
+variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
+[[steps]]
+name = "build"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--no-run", "--filter", "no match"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "save_executable"
+argv = ["${python}", "${fixture}/../executable-record/state.py", "save", "${work}/cache", "${build.result.output}", "${work}/executable-state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "default"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${default.test_result.status}", equals = "passed"},
+    {actual = "${default.test_result.complete}", equals = true},
+    {actual = "${default.test_result.counts.passed}", equals = 2},
+    {actual = "${default.test_result.counts.ignored}", equals = 2},
+
+    {actual = "${default.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${default.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "first"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "Cases::first 雪"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${first.test_result.status}", equals = "passed"},
+    {actual = "${first.test_result.complete}", equals = true},
+    {actual = "${first.test_result.counts.passed}", equals = 1},
+    {actual = "${first.test_result.counts.ignored}", equals = 0},
+
+    {actual = "${first.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${first.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "ignored"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--ignored", "--filter", "Cases::skipped"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${ignored.test_result.status}", equals = "passed"},
+    {actual = "${ignored.test_result.complete}", equals = true},
+    {actual = "${ignored.test_result.counts.passed}", equals = 1},
+    {actual = "${ignored.test_result.counts.ignored}", equals = 0},
+
+    {actual = "${ignored.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${ignored.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+[[steps]]
+name = "none"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "NOT FOUND"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${none.test_result.status}", equals = "passed"},
+    {actual = "${none.test_result.complete}", equals = true},
+    {actual = "${none.test_result.counts.passed}", equals = 0},
+    {actual = "${none.test_result.counts.ignored}", equals = 0},
+
+    {actual = "${none.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${none.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "ignored-excluded"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "Cases::skipped"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${ignored-excluded.test_result.status}", equals = "passed"},
+    {actual = "${ignored-excluded.test_result.complete}", equals = true},
+    {actual = "${ignored-excluded.test_result.counts.passed}", equals = 0},
+    {actual = "${ignored-excluded.test_result.counts.ignored}", equals = 1},
+
+    {actual = "${ignored-excluded.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${ignored-excluded.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "constructor-fails"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--ignored", "--filter", "Failing::"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${constructor-fails.test_result.status}", equals = "failed"},
+    {actual = "${constructor-fails.test_result.complete}", equals = true},
+    {actual = "${constructor-fails.test_result.counts.passed}", equals = 0},
+    {actual = "${constructor-fails.test_result.counts.ignored}", equals = 0},
+
+    {actual = "${constructor-fails.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${constructor-fails.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "direct-default"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "init\nbefore\nfirst\nafter\ninit\nbefore\nsecond\nafter\n"
+stderr = ""
+
+[[steps]]
+name = "same_executable"
+argv = ["${python}", "${fixture}/../executable-record/state.py", "same", "${work}/cache", "${build.result.output}", "${work}/executable-state.json"]
+exit = 0
+stdout = ""
+stderr = ""

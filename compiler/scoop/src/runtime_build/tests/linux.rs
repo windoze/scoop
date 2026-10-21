@@ -15,6 +15,7 @@ fn musl_runtime_captures_selected_unwind_headers_without_needing_the_archive() {
     let cache = directory.path().join("cache");
     let build = || {
         build_runtime(RuntimeBuildRequest {
+            enable_gc_stress: false,
             target: &target,
             runtime_root: &runtime_root(),
             vendor_root: &vendor_root(),

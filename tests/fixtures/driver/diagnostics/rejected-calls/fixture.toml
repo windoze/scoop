@@ -1,0 +1,62 @@
+schema = 1
+name = "cli-invalid-declarations-retain-language-diagnostics"
+inputs = ["../../../language/overload/errors/duplicate-signature.scoop", "../../../language/overload/errors/duplicate-return-only.scoop", "../../../language/callback/errors/direct-construction.scoop", "callback-alias.scoop", "shadow.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["cli", "diagnostics", "negative", "callback", "driver"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "duplicate"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/../../../language/overload/errors/duplicate-signature.scoop", {"each" = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "duplicate.json"}
+
+[[steps]]
+name = "duplicate_return"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/../../../language/overload/errors/duplicate-return-only.scoop", {"each" = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "duplicate_return.json"}
+
+[[steps]]
+name = "callback"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/../../../language/callback/errors/direct-construction.scoop", {"each" = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "callback.json"}
+
+[[steps]]
+name = "alias"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/callback-alias.scoop", {"each" = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "alias.json"}
+
+[[steps]]
+name = "shadow"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/shadow.scoop", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${shadow.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""

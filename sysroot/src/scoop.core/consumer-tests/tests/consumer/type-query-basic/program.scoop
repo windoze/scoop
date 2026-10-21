@@ -1,0 +1,101 @@
+package test.core.tests.consumer.type_query_basic
+
+import scoop.test.*
+fun check(condition: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(condition, location = location)
+}
+
+annotation class Label(val text: String, val enabled: Boolean = true)
+
+@Label("node")
+struct Node<T>(@Label("data") val value: T, val next: Option<Array<Node<T>>> = None)
+struct Optional<T>(val direct: T, val wrapped: Option<T>)
+typealias LongNode = Node<Long>
+
+enum Choice<T> {
+    Empty,
+    Named(@Label("payload") val item: T, val count: Int = 4),
+    Pair(T, Int)
+}
+
+open class Base public constructor(public val base: Int)
+class Row<T> public constructor(seed: Int, public val value: T, public var count: Int = seed) : Base(seed) {
+    public val computed: Long get() { throw IllegalStateException() }
+    public constructor(value: T) : this(1, value) {}
+}
+interface View<T> { public val item: T }
+object Singleton { val value: Int = 5 }
+
+fun <T> genericInfo(): TypeInfo<T> = typeInfo<T>()
+
+fun asStruct(reference: TypeRef): StructInfo = when (reference.describe().shape) {
+    case TypeShape.Struct(shape) -> shape
+   ; else -> throw IllegalStateException()
+}
+
+private fun exerciseConsumer() {
+    val reference = genericInfo<LongNode>().type
+    check(reference == typeInfo<Node<Long>>().type)
+    check(reference != typeInfo<Node<Int>>().type)
+    check(reference.nominal!! == typeInfo<Node<Int>>().type.nominal!!)
+    check(reference.arguments[0L] == typeInfo<Long>().type)
+    val description = reference.describe()
+    check(description.type == reference)
+    val label = description.annotations[0L]
+    check(label.key.displayName == "Label")
+    check(label.arguments.size == 2L)
+    check(when (label.arguments[0L].value) { case AnnotationValue.String(text) -> text == "node"; else -> false })
+    check(when (label.key.describe().parameters[1L].defaultValue) { case Some(_) -> true; else -> false })
+    val shape = asStruct(reference)
+    check(shape.fields.size == 2L)
+    check(shape.fields[0L].type == typeInfo<Long>().type)
+    check(shape.fields[0L].annotations.size == 1L)
+    check(shape.fields[1L].isOptionAtDeclaration)
+    check(shape.fields[1L].typeUse.children[0L].value.children[0L].value.type == reference)
+    check(shape.fields[1L].constructorParameter!! == shape.constructors[0L].parameters[1L].id)
+    check(shape.constructors[0L].parameters[1L].hasDefault)
+    var recursive = reference
+    for (index in 0L until 10L) {
+        recursive = asStruct(recursive).fields[1L].type.arguments[0L].arguments[0L]
+        gcCollect()
+        check(recursive == reference)
+    }
+    val optional = asStruct(typeInfo<Optional<Option<Long>>>().type)
+    check(!optional.fields[0L].isOptionAtDeclaration)
+    check(optional.fields[1L].isOptionAtDeclaration)
+
+    val choice = when (typeInfo<Choice<String>>().describe().shape) {
+        case TypeShape.Enum(shape) -> shape
+       ; else -> throw IllegalStateException()
+    }
+    check(choice.variants.size == 3L)
+    check(when (choice.variants[0L].payload) { case VariantPayload.Unit -> true; else -> false })
+    val payload = when (choice.variants[1L].payload) { case VariantPayload.Named(fields) -> fields; else -> throw IllegalStateException() }
+    check(payload[0L].type == typeInfo<String>().type)
+    check(payload[0L].id != when (choice.variants[2L].payload) { case VariantPayload.Positional(fields) -> fields[0L].id; else -> throw IllegalStateException() })
+    check(choice.variants[1L].constructor.parameters[1L].hasDefault)
+
+    val row = when (typeInfo<Row<String>>().describe().shape) { case TypeShape.Class(shape) -> shape; else -> throw IllegalStateException() }
+    check(row.base!!.type == typeInfo<Base>().type)
+    check(row.properties.size == 3L && row.storage.size == 2L)
+    check(row.isFinal && row.properties[0L].getter.kind == AccessorKind.Storage)
+    check(row.constructors.size == 2L)
+    check(row.properties[0L].constructorParameter!! == row.constructors[0L].parameters[1L].id)
+    check(row.constructors[1L].parameters[0L].member == ParameterMember.None)
+    check(row.properties[2L].getter.kind == AccessorKind.Body)
+    check(when (typeInfo<View<Long>>().describe().shape) { case TypeShape.Interface(shape) -> shape.properties[0L].type == typeInfo<Long>().type; else -> false })
+    check(when (typeInfo<Singleton>().describe().shape) { case TypeShape.Object(shape) -> shape.properties.size == 1L; else -> false })
+    check(when (typeInfo<(Long, String)>().describe().shape) { case TypeShape.Tuple(shape) -> shape.elements[1L].name == "_2"; else -> false })
+    check(when (typeInfo<(Long) -> String>().describe().shape) { case TypeShape.Function(shape) -> shape.result.type == typeInfo<String>().type; else -> false })
+    check(when (typeInfo<Ptr<Long>>().describe().shape) { case TypeShape.Pointer(PointerTypeInfo.Ptr(pointee)) -> pointee.type == typeInfo<Long>().type; else -> false })
+    check(when (typeInfo<Unit>().describe().shape) { case TypeShape.Unit -> true; else -> false })
+    check(when (typeInfo<Long>().describe().shape) { case TypeShape.Intrinsic(IntrinsicInfo(IntrinsicKind.Integer(signed, bits))) -> signed && bits == 64L; else -> false })
+    check(when (typeInfo<Array<Long>>().describe().shape) { case TypeShape.Intrinsic(shape) -> shape.kind == IntrinsicKind.Array; else -> false })
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

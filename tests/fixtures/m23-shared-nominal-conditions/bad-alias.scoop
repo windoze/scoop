@@ -1,4 +1,0 @@
-package consumer.nominalConditions
-import upstream.nominalConditions.*
-
-public typealias Invalid = Scalar<String>

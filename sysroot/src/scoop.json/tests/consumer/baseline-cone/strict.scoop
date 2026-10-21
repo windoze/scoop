@@ -1,0 +1,32 @@
+package scoop.json.tests.consumer.baseline_cone
+
+import scoop.test.*
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("Cone JSON baseline assertion failed")) }
+}
+fun reject(path: String, body: () -> Unit) {
+    try { body() }
+    catch (error: DecodingException) {
+        if (error.path != path) { println("expected " + path + ", received " + error.path) }
+        check(error.path == path)
+        return
+    }
+    println("expected failure at " + path)
+    throw IllegalStateException(Some("expected a manifest decoding error"))
+}
+fun member(values: Iterable<String>, value: String): Boolean {
+    for (candidate in values) { if (candidate == value) { return true } }
+    return false
+}
+fun strict(decoder: Decoder, names: Array<String>): KeyedDecodingContainer {
+    val fields = decoder.keyed()
+    for (name in fields.keys) {
+        val child = fields.required(name)
+        if (!member(names, name)) { throw DecodingException(child.path, "unknown manifest field") }
+        if (child.singleValue().isNull()) { throw DecodingException(child.path, "manifest fields cannot be null") }
+    }
+    return fields
+}
+fun requireValid(value: Boolean, decoder: Decoder, message: String) {
+    if (!value) { throw DecodingException(decoder.path, message) }
+}

@@ -1,0 +1,37 @@
+schema = 1
+name = "integral-enums-c-abi"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["integral-enums", "c-layout", "callback", "language"]
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libm37_integral.a", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "-128\n-32768\n-2147483648\n-9223372036854775808\n255\n65535\n4294967295\n18446744073709551615\n-128\n65535\n1\n8\n16\n-128\n0\n0\n"
+stderr = ""

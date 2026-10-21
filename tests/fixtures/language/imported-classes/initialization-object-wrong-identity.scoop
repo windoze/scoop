@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.classes.SharedHolder
+import dev.example.dependency.classes.OtherHolder
+
+public fun invalid(): OtherHolder = SharedHolder

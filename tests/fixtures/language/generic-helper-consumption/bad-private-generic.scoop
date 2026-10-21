@@ -1,0 +1,5 @@
+package dev.example.consumer.helpers
+
+import dev.example.dependency.helpers.copy
+
+public fun retained(): Int = copy(42)

@@ -1,0 +1,99 @@
+package scoop.http.asyncio.tests.consumer.websocket_lifetime
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+private class WsProbeSource(val child: Boolean, val failCleanup: Boolean) : AsyncByteSource, AsyncCloseable {
+    val started: WsGate = WsGate()
+    val cleaning: WsGate = WsGate()
+    val release: WsGate = WsGate()
+    val cleanup: Throwable = ResourceUseException(Throwable(), Throwable())
+    var finished: Boolean = false
+    var closes: Int = 0
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (child) coroutineScope<Unit> suspend { scope -> scope.launch suspend { waitForStop() }; Unit }
+        else waitForStop()
+        return 0L
+    }
+    private suspend fun waitForStop() {
+        wsCheck(wsMarker() == "source", "source Context")
+        try { started.signal(); suspendCancellableCoroutine<Unit> { _ -> } }
+        finally {
+            cleaning.signal(); release.await(); finished = true
+            if (failCleanup) throw ResourceUseException(CancellationException(), cleanup)
+        }
+    }
+    public override suspend fun close() { closes += 1 }
+}
+private class WsSessionSlot { var value: AsyncWebSocketSession? = None }
+
+internal fun wsSourceStop(mode: String, child: Boolean, cleanup: Boolean) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val transport = WsTestTransport()
+        val slot = WsSessionSlot()
+        val ready = WsGate()
+        val owner = scope.launch suspend {
+            coroutineScope<Unit> suspend { owned ->
+                slot.value = Some(AsyncWebSocketSession.takeOwnership(transport, owned, HttpRole.Client))
+                ready.signal()
+            }
+        }
+        ready.await()
+        val session = slot.value!!
+        val source = WsProbeSource(child, cleanup)
+        val sent = WsFailure()
+        val closed = WsFailure()
+        val observed = WsFailure()
+        val observer = scope.launch suspend {
+            try { session.awaitClosed() } catch (error: Throwable) { observed.value = Some(error) }
+            wsCheck(session.isClosed && source.finished, "observer returned before cleanup")
+        }
+        val sending = scope.launch suspend {
+            try { context(WsMarker("source")) { session.send(WebSocketMessageType.Binary, source) } }
+            catch (error: Throwable) { sent.value = Some(error) }
+            if (mode != "caller") ensureActive()
+        }
+        source.started.await()
+        val closing = if (mode == "close") Some(scope.launch suspend {
+            try { session.close() } catch (error: Throwable) { closed.value = Some(error) }
+        }) else None
+        if (mode == "caller") sending.cancel()
+        if (mode == "owner") owner.cancel()
+        try {
+            source.cleaning.await()
+            wsCheck(!session.isClosed && !sending.isCompleted && !observer.isCompleted, "pending source subtree")
+            wsCheck(transport.closes == 0 && !source.finished, "cleanup before transport close")
+            source.release.signal()
+            sending.join(); closing?.join(); observer.join(); owner.join()
+            wsCheck(session.isClosed && transport.closes == 1 && source.closes == 0, "source ownership")
+            wsCheck(source.finished && wsPresent(sent.value), "interrupted source result")
+            if (cleanup) {
+                wsCheck(observed.value!! === source.cleanup, "observer cleanup identity")
+                if (mode == "close") {
+                    wsCheck(closed.value!! === source.cleanup && session.failure!! === source.cleanup,
+                        "local close cleanup identity")
+                    wsCheck(sent.value!! === source.cleanup, "source cleanup not duplicated")
+                } else {
+                    val failure = sent.value!!
+                    wsCheck(failure is ResourceUseException, "cancellation plus cleanup")
+                    wsCheck((failure as ResourceUseException).primaryFailure is CancellationException, "cancel cause")
+                    wsCheck((failure as ResourceUseException).cleanupFailure === source.cleanup, "nested cleanup identity")
+                }
+            } else {
+                wsCheck(!wsPresent(observed.value) && !wsPresent(closed.value), "unexpected cleanup failure")
+                if (mode == "close") {
+                    wsCheck(!wsPresent(session.failure), "local close manufactured failure")
+                    wsCheck(sent.value!! is WebSocketSessionException, "local interrupted send")
+                } else wsCheck(sent.value!! is CancellationException, "original cancellation")
+            }
+        } finally {
+            source.release.signal(); sending.cancel()
+            wsIgnoreClose suspend { session.close() }
+            sending.join(); closing?.join(); observer.join(); owner.join()
+        }
+    }
+}

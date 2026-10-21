@@ -1,0 +1,5 @@
+package dev.m29
+import dev.m29.accessors.Getter
+import dev.m29.accessors.Setter
+object GetterCodec : ValueEncoder<Getter>
+object SetterCodec : ValueEncoder<Setter>

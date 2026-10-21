@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.dependency.constructors.Scalar
+@NoGC fun invalid(): Scalar = Scalar()

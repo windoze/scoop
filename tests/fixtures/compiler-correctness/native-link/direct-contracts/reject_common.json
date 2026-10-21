@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native definition _m23_add has incompatible function/data/TLS/mutability: NativeSymbolDefinition { kind: Data, read_only: false, binding: Common }; origins: dev.programlink:direct:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([49, 198, 70, 86, 121, 25, 156, 162, 93, 94, 135, 184, 197, 150, 221, 216, 28, 162, 40, 91, 120, 69, 116, 92, 133, 171, 38, 195, 76, 49, 38, 50])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

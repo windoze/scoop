@@ -1,4 +1,0 @@
-import dependency.generics.identity
-
-@NoGC
-public fun invalid(): Int = identity(1)

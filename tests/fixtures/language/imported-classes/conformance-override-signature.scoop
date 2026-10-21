@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.classes.Readable
+public class Wrong public constructor(): Readable {
+    public override fun read(): Int = 21
+}

@@ -1,0 +1,16 @@
+schema = 1
+name = "runtime-unbox-clone"
+root = "unbox-clone.scoop"
+inputs = ["unbox-clone.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["boxing", "array", "exception", "compiler-correctness"]
+variants = [{"name" = "debug", "vars" = {"profile" = "debug"}}, {"name" = "release", "vars" = {"profile" = "release"}}]
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "unbox identity and large clone preserved\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

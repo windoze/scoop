@@ -1,0 +1,47 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.http.client.*
+import scoop.platform.fs.Path
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.url.Url
+
+internal fun downloadHttp2(trust: TrustStore, directory: Path) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val url = Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/h2")
+            val finish = DownloadGate()
+            val server = scope.launch suspend {
+                AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val first = connection.acceptRequest()!!
+                    val second = connection.acceptRequest()!!
+                    for (request in [first, second]) {
+                        request.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                        downloadWrite(request.stream, "parallel download")
+                        request.stream.finish([downloadField("Checksum", "complete")])
+                    }
+                    finish.await()
+                }
+            }
+            try {
+                withHttpClient(downloadConfig(trust, true)) suspend { client ->
+                    coroutineScope<Unit> suspend { downloads ->
+                        val first = downloads.async suspend { client.download(HttpRequest.get(url), directory.resolve(Path.fromString("first"))) }
+                        val second = downloads.async suspend { client.download(HttpRequest.get(url), directory.resolve(Path.fromString("second"))) }
+                        for (result in [first.await(), second.await()]) {
+                            assertEquals(HttpVersion.Http2, result.head.version)
+                            assertEquals(17L, result.byteCount)
+                            assertEquals(1L, result.trailers.size)
+                            assertEquals("parallel download", String.fromUtf8(downloadRead(result.path)))
+                        }
+                    }
+                }
+            } finally { finish.signal() }
+            server.join()
+        }
+    }
+}

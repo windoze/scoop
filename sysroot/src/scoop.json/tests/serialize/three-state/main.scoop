@@ -1,0 +1,60 @@
+package scoop.json.tests.serialize.three_state
+
+import scoop.test.*
+import scoop.json.Json
+
+enum FieldState<T> { Missing, Null, Value(T) }
+struct Name(val text: String) {
+    companion object : ValueEncoder<Name>, ValueDecoder<Name> {}
+}
+
+fun <T> writeField(value: FieldState<T>, fields: KeyedEncodingContainer, name: String, codec: ValueEncoder<T>) {
+    when (value) {
+        case FieldState.Missing -> { return }
+        case FieldState.Null -> fields.field(name).singleValue().writeNull()
+        case FieldState.Value(item) -> codec.encode(item, fields.field(name))
+    }
+}
+
+fun <T> readField(fields: KeyedDecodingContainer, name: String, codec: ValueDecoder<T>): FieldState<T> {
+    return when (fields.optional(name)) {
+        case None -> FieldState.Missing
+        case Some(child) -> if (child.singleValue().isNull()) FieldState.Null else FieldState.Value(codec.decode(child))
+    }
+}
+
+struct Patch(val name: FieldState<Name>) {
+    companion object : ValueEncoder<Patch>, ValueDecoder<Patch> {
+        public override fun encode(value: Patch, encoder: Encoder) {
+            val fields = encoder.keyed()
+            writeField(value.name, fields, "name", Name.Companion)
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): Patch {
+            val fields = decoder.keyed()
+            val name = readField(fields, "name", Name.Companion)
+            fields.end()
+            return Patch(name)
+        }
+    }
+}
+
+private fun exercise() {
+    val missing = Patch(FieldState.Missing)
+    val nullValue = Patch(FieldState.Null)
+    val value = Patch(FieldState.Value(Name("Ada")))
+    check(Json.encodeToString(missing, Patch.Companion) == "{}")
+    check(Json.encodeToString(nullValue, Patch.Companion) == "{\"name\":null}")
+    check(Json.encodeToString(value, Patch.Companion) == "{\"name\":{\"text\":\"Ada\"}}")
+    check(Json.decodeFromString("{}", Patch.Companion) == missing)
+    check(Json.decodeFromString("{\"name\":null}", Patch.Companion) == nullValue)
+    check(Json.decodeFromString("{\"name\":{\"text\":\"Ada\"}}", Patch.Companion) == value)
+    reject("/name/text") { Json.decodeFromString("{\"name\":{\"text\":7}}", Patch.Companion) }
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

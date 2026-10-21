@@ -1,0 +1,6 @@
+package test.core.tests.consumer.annotation_query_artifacts.p1
+
+import scoop.test.*
+import test.core.tests.consumer.annotation_query_artifacts.p2.*
+public fun <T> forwarded(): AnnotationKey = genericKey<T>()
+public fun label(): AnnotationKey = annotationKey<Label>()

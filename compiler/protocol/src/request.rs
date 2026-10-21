@@ -129,7 +129,7 @@ impl ScoopcBuildRequestV1 {
         diagnostics: DiagnosticOutputPolicyV1,
         emit: StageDumpPolicyV1,
     ) -> Result<Self, ProtocolValidationError> {
-        validate_build_shape(&current, &direct_slibs, &support_slibs, &trusted_core)?;
+        validate_build_shape(&current, &trusted_core)?;
         let output = output.into();
         validate_documentation(
             &current,
@@ -317,18 +317,12 @@ pub(crate) use decode::DecodedScoopcRequestEnvelopeV1;
 
 fn validate_build_shape(
     current: &CurrentConeRequestV1,
-    direct_slibs: &[HostPathCarrier],
-    support_slibs: &[HostPathCarrier],
     trusted_core: &TrustedCoreRequestV1,
 ) -> Result<(), ProtocolValidationError> {
     match (current, trusted_core) {
         (CurrentConeRequestV1::ManifestRoot { .. }, _) => Ok(()),
         (CurrentConeRequestV1::SingleFile { .. }, TrustedCoreRequestV1::ArtifactSlot { .. }) => {
-            if direct_slibs.is_empty() && support_slibs.is_empty() {
-                Ok(())
-            } else {
-                Err(ProtocolValidationError::SingleFileHasDependencies)
-            }
+            Ok(())
         }
         _ => Err(ProtocolValidationError::InvalidCurrentCoreCombination),
     }

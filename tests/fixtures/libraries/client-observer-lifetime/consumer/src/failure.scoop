@@ -1,0 +1,74 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.client.*
+import scoop.platform.io.UnexpectedEofException
+import scoop.test.*
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+
+internal fun observerThrows(trust: TrustStore, where: HttpCallEventKind, timeout: Boolean) {
+    withObserverRuntime suspend { _, scope, listener, url ->
+        val failure: Throwable = if (timeout) HttpIoTimeoutException(HttpIoDirection.Read, HttpProtocol.Http1, 0, Duration.ZERO, Duration.ZERO)
+            else UnexpectedEofException()
+        val failures = AtomicLong(0L)
+        val endings = AtomicLong(0L)
+        val done = ObserverGate()
+        val serving: Job? = if (where == HttpCallEventKind.AttemptStarted) None
+            else Some(scope.launch suspend { observerServe(scope, listener, where, done) })
+        val observer = HttpObserver(suspend { event ->
+            if (event.kind == HttpCallEventKind.Completed) endings.fetchAdd(1L)
+            if (event.kind == where) { failures.fetchAdd(1L); throw failure }
+        })
+        val client = HttpClient.open(scope, HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+            observer = Some(observer), retries = HttpRetryOptions(maxRetries = 2L)))
+        try {
+            val request = if (where == HttpCallEventKind.RequestProgress) HttpRequest(url, "POST", body = RequestBody.fromText("x")) else HttpRequest.get(url)
+            val selected = observerFailure suspend {
+                client.withResponse(request) suspend { response -> response.body.bytes(4L); Unit }
+            }
+            assertSame(failure, selected)
+            assertEquals(1L, failures.load())
+            assertEquals(if (where == HttpCallEventKind.Completed) 1L else 0L, endings.load())
+            ensureActive()
+        } finally { done.signal(); observerIgnoreClose(client); serving?.join() }
+    }
+}
+
+internal fun observerRethrowsNetworkFailure(trust: TrustStore) {
+    withObserverRuntime suspend { _, scope, listener, url ->
+        val connections = AtomicLong(0L)
+        val completed = AtomicLong(0L)
+        val observed = ObserverFailure()
+        val serving = scope.launch suspend {
+            try {
+                while (true) {
+                    val socket = listener.accept()
+                    val index = connections.fetchAdd(1L)
+                    AsyncHttp1Connection.takeOwnershipAsServer(socket, scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(0L)
+                        if (index != 0L) connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U)).useAsync suspend { output -> output.finish() }
+                        Unit
+                    }
+                }
+            } catch (_: IoClosedException) {}
+        }
+        val observer = HttpObserver(suspend { event ->
+            if (event.kind == HttpCallEventKind.Completed) {
+                completed.fetchAdd(1L)
+                val failure = event.failure
+                if (observerPresent(failure)) { observed.value = failure; throw failure!! }
+            }
+        })
+        val client = HttpClient.open(scope, HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+            observer = Some(observer), retries = HttpRetryOptions(maxRetries = 2L)))
+        try {
+            val selected = observerFailure suspend { client.execute(HttpRequest.get(url)); Unit }
+            assertTrue(selected is UnexpectedEofException)
+            assertSame(observed.value!!, selected)
+            assertEquals(1L, connections.load()); assertEquals(1L, completed.load())
+        } finally { observerIgnoreClose(client); listener.close(); serving.join() }
+    }
+}

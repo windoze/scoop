@@ -1,0 +1,12 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.Other
+import dev.example.dependency.classes.castDefault
+
+public fun primary(): Counter {
+    try {
+        return castDefault(Other(0))
+    } catch (error: ClassCastException) {
+        return Counter(21)
+    }
+}

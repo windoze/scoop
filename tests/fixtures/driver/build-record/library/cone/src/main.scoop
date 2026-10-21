@@ -1,0 +1,2 @@
+package test.m48
+fun value(): Int = 48

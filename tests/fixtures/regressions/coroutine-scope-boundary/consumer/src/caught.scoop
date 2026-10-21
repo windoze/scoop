@@ -1,0 +1,70 @@
+package scoop.tests
+internal fun caughtBodyFailure() {
+    val failure = Throwable()
+    val result = BoundaryResult()
+    startCoroutine<Unit>(suspend {
+        coroutineScope suspend { outer ->
+            try { coroutineScope<Unit> suspend { _ -> throw failure } }
+            catch (error: Throwable) { boundaryCheck(error === failure, "scope replaced its body failure") }
+            boundaryCheck(!outer.job.isCancelled, "caught body failure cancelled the caller")
+            ensureActive()
+            boundaryCheck(outer.async suspend { 42 }.await() == 42, "caller could not start another task")
+        }
+    }, result)
+    result.finish()
+}
+
+internal fun caughtChildFailureWaitsForCleanup() {
+    val failure = Throwable()
+    val state = BoundaryState()
+    val localPause = BoundaryPause()
+    val siblingPause = BoundaryPause()
+    val cleanup = BoundaryGate()
+    val result = BoundaryResult()
+    context(BoundaryContext("request")) {
+        startCoroutine<Unit>(suspend {
+            coroutineScope suspend { outer ->
+                state.root = Some(outer.job)
+                val sibling = outer.launch suspend {
+                    try { siblingPause.await() }
+                    catch (_: CancellationException) { state.siblingCancelled = true }
+                }
+                state.sibling = Some(sibling)
+                val pending = outer.async suspend {
+                    try {
+                        coroutineScope suspend { inner ->
+                            inner.launch suspend {
+                                try { localPause.await() }
+                                finally {
+                                    state.cleaning = true
+                                    cleanup.await()
+                                    gcCollect()
+                                    boundaryCheck(boundaryContext() == "request", "cleanup lost its Context")
+                                    state.cleaned = true
+                                }
+                            }
+                            inner.async<Unit> suspend { throw failure }
+                        }
+                    } catch (error: Throwable) {
+                        boundaryCheck(error === failure && state.cleaned, "failure escaped before cleanup")
+                        state.caught = true
+                    }
+                    ensureActive()
+                }
+                state.pending = Some(pending)
+                pending.await()
+                boundaryCheck(!outer.job.isCancelled && !sibling.isCancelled, "caught child failure escaped its scope")
+                siblingPause.signal(); sibling.join()
+            }
+        }, result)
+    }
+    boundaryCheck(state.cleaning && !state.cleaned && !result.done, "scope skipped suspended cleanup")
+    boundaryCheck(!state.root!!.isCancelled && !state.sibling!!.isCancelled, "pending scope failure cancelled unrelated work")
+    boundaryCheck(!state.pending!!.isCompleted && !state.caught, "caller resumed before cleanup")
+    context(BoundaryContext("resumer")) {
+        cleanup.signal()
+        boundaryCheck(boundaryContext() == "resumer", "resume changed caller Context")
+    }
+    result.finish()
+    boundaryCheck(state.caught && state.cleaned && !state.siblingCancelled, "scope failure isolation differs")
+}

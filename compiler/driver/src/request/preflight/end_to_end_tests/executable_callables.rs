@@ -7,7 +7,7 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
     let target = resolved_target().expect("machine callable artifacts require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     let fixtures =
-        crate::workspace_root().join("tests/fixtures/m23-executable-dependency-callables");
+        crate::workspace_root().join("tests/fixtures/language/executable-dependency-callables");
     let source =
         |case: &str| std::fs::read_to_string(fixtures.join(format!("{case}.scoop"))).unwrap();
     let core = bootstrap_core(sysroot.path(), &target);

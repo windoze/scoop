@@ -1,0 +1,4 @@
+package dev.performance
+import dev.performance.performance.parallel.left.left
+import dev.performance.performance.parallel.right.right
+fun main() { println(left() + right()) }

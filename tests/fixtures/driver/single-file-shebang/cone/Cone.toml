@@ -1,0 +1,7 @@
+schema = 1
+
+[cone]
+group = "dev.example"
+name = "shebang"
+version = "0.1.0"
+kind = "executable"

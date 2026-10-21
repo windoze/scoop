@@ -1,0 +1,51 @@
+package scoop.std.tests.foundation.comparisons
+
+import scoop.test.*
+import scoop.collections.*
+import scoop.comparisons.*
+
+struct Entry(val rank: Int, val name: String)
+
+class Calls {
+    var value: Int = 0
+}
+
+fun verify(value: Boolean, message: String) {
+    if (!value) throw Exception(Some(message))
+}
+
+private fun exercise() {
+    val natural = naturalOrder<Int>()
+    verify(natural.compare(1, 2) < 0L && natural.compare(2, 2) == 0L, "natural")
+    verify(reverseOrder<String>().compare("a", "b") > 0L, "reverse")
+    val extreme = comparatorOf<Int> { left, right ->
+        if (left < right) -9223372036854775807L - 1L else if (left == right) 0L else 1L
+    }
+    verify(extreme.reversed().compare(1, 2) == 1L, "reverse operands")
+    val calls = Calls()
+    val primary = compareBy<Entry, Int> { entry -> entry.rank }
+    val order = primary.thenBy<Entry, String> { entry ->
+        calls.value += 1
+        entry.name
+    }
+    val values = listOf<Entry>(Entry(1, "b"), Entry(2, "a"), Entry(1, "a"))
+    verify(order.compare(values[0L], values[1L]) < 0L, "primary")
+    verify(calls.value == 0, "secondary short circuit")
+    verify(order.compare(values[0L], values[2L]) > 0L, "secondary")
+    verify(calls.value == 2, "selector once per operand")
+    val descending = compareBy<Entry, String>(reverseOrder<String>()) { entry -> entry.name }
+    verify(descending.compare(values[0L], values[2L]) < 0L, "custom key comparator")
+    val chained = primary.thenBy<Entry, String>(reverseOrder<String>()) { entry -> entry.name }
+    verify(chained.compare(values[0L], values[2L]) < 0L, "custom secondary")
+    val throwing = comparatorOf<Int> { _, _ -> throw Exception(Some("callback")) }
+    var caught = false
+    try { throwing.reversed().compare(1, 2) } catch (error: Exception) { caught = true }
+    verify(caught, "callback exception")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

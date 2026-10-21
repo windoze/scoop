@@ -1,0 +1,80 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+internal fun cacheCancellation(trust: TrustStore, stage: String, mode: String, cleanupError: Boolean) {
+    withCacheRuntime suspend { _, scope, listener, url ->
+        val probe = CacheProbe(stage, cleanupError)
+        val storage = ProbedCache(probe)
+        val failed = CacheFailure()
+        val closed = CacheFailure()
+        val serving = if (stage != "lookup") Some(scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                request.body.close()
+                connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U,
+                    fields = [cacheField("Cache-Control", "max-age=60")]), Http1BodyFraming.Length(4L)).useAsync suspend { writer ->
+                    cacheWrite(writer, "body"); writer.finish()
+                }
+            }
+        }) else None
+        val client = HttpClient.open(scope, cacheConfig(trust, storage, CacheClock()))
+        val executing = scope.launch suspend {
+            try {
+                context(CacheMarker("cache-context")) {
+                    val options = HttpCallOptions(timeouts = if (mode == "total") Some(HttpTimeoutOptions(total = Some(Duration.seconds(10L)))) else None)
+                    client.withResponse(HttpRequest.get(url, options = options)) suspend { response -> response.body.bytes(16L) }
+                }
+            } catch (error: Throwable) { failed.value = Some(error) }
+            finally { probe.entered.signal() }
+        }
+        probe.entered.await()
+        val closing = if (mode == "client") Some(scope.launch suspend {
+            try { client.close() } catch (error: Throwable) { closed.value = Some(error) }
+        }) else None
+        if (mode == "caller") executing.cancel()
+        try {
+            assertTrue(probe.active.load(), Some("request finished before the selected cache callback"))
+            probe.cancelled.await()
+            assertFalse(executing.isCompleted || probe.cleaned.load())
+            probe.release.signal(); probe.cleaning.await()
+            assertFalse(executing.isCompleted || probe.cleaned.load())
+            if (cachePresent(closing)) assertFalse(closing!!.isCompleted)
+            probe.finish.signal(); executing.join(); closing?.join()
+            assertTrue(probe.cleaned.load())
+            assertEquals(0L, storage.storage.entryCount)
+            val failure = failed.value!!
+            if (cleanupError) {
+                assertTrue(failure is ResourceUseException, Some(stage))
+                if (failure is ResourceUseException) assertSame(probe.cleanup, failure.cleanupFailure)
+            }
+            val primary = if (failure is ResourceUseException) failure.primaryFailure else failure
+            if (mode == "client" && !(primary is HttpClientClosedException))
+                println("cache " + stage + " cleanup=" + cleanupError.toString() + " " + describeCacheFailure(failure, probe.cleanup))
+            when (mode) {
+                case "caller" -> assertTrue(primary is CancellationException)
+                case "client" -> assertTrue(primary is HttpClientClosedException)
+                else -> assertTrue(primary is HttpTimeoutException)
+            }
+            if (mode == "client" && cleanupError) assertSame(probe.cleanup, closed.value!!)
+            else assertFalse(cachePresent(closed.value))
+        } finally { probe.release.signal(); probe.finish.signal(); client.close() }
+        serving?.join()
+    }
+}
+
+private fun describeCacheFailure(error: Throwable, cleanup: Throwable): String {
+    if (error === cleanup) return "cleanup"
+    if (error is ResourceUseException)
+        return "resource(" + describeCacheFailure(error.primaryFailure, cleanup) + "," + describeCacheFailure(error.cleanupFailure, cleanup) + ")"
+    if (error is HttpClientClosedException) return "client-close"
+    if (error is CancellationException) return "cancel"
+    if (error is IoClosedException) return "io-close"
+    if (error is HttpTimeoutException) return "timeout"
+    return "other"
+}

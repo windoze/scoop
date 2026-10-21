@@ -1,0 +1,71 @@
+package scoop.std.tests.hash.basic
+
+import scoop.test.*
+import scoop.collections.*
+
+class Key(val number: Int) : Equals<Key>, Hash {
+    public override operator fun equals(other: Key): Boolean = number == other.number
+    public override fun hash(): Long = -1L
+}
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val map = HashMap<Key, Int?>()
+    val keys = map.keys
+    val values = map.values
+    val entries = map.entries
+    check(map.isEmpty() && keys.isEmpty(), "empty")
+    val first = Key(0)
+    check(map.put(first, None) == None, "new None value")
+    check(map[first] == Some(None) && map.containsKey(Key(0)), "present None")
+    var index = 1
+    while (index < 100) {
+        map[Key(index)] = Some(index)
+        index += 1
+    }
+    check(keys.size == 100L && values.size == 100L && entries.size == 100L, "live views")
+    check(map.put(Key(0), Some(999)) == Some(None), "replacement result")
+    var original = false
+    for (key in keys) {
+        if (key.number == 0) original = key === first
+    }
+    check(original, "original key identity")
+    index = 1
+    while (index < 100) {
+        check(map.remove(Key(index)) == Some(Some(index)), "collision removal")
+        index += 2
+    }
+    index = 2
+    while (index < 100) {
+        check(map[Key(index)] == Some(Some(index)), "probe past deletion")
+        index += 2
+    }
+    index = 100
+    while (index < 200) {
+        map[Key(index)] = Some(index)
+        index += 1
+    }
+    check(map.size == 150L && keys.size == 150L, "tombstones and growth")
+    check(!(keys is MutableSet<Key>), "readonly keys")
+    map.clear()
+    check(map.isEmpty() && values.isEmpty() && entries.isEmpty(), "clear live views")
+    check(map.remove(Key(42)) == None, "missing remove")
+    val set = hashSetOf<Int>(1, 1, 2)
+    check(set.size == 2L && !set.add(1) && set.add(3), "set insertion")
+    check(set.remove(2) && !set.remove(2) && 3 in set && 2 !in set, "set removal")
+    val factory = hashMapOf<String, Int>(("a", 1), ("a", 2), ("b", 3))
+    check(factory.size == 2L && factory["a"] == Some(2), "map factory")
+    factory.set(key = "c", value = 4)
+    check(factory["c"] == Some(4), "named set")
+    check(factory.containsValue(3) && !factory.containsValue(5), "contains value")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

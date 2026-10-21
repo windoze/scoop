@@ -1,0 +1,26 @@
+package scoop.std.tests.consumer.linked_artifacts
+
+import scoop.test.*
+import scoop.collections.*
+
+private fun exerciseConsumer() {
+    val map = linkedMapOf<String, Int?>(("b", None), ("a", Some(1)))
+    val snapshot = map.toMap()
+    map.clear()
+    val keys = snapshot.keys.toList()
+    assertEquals("b", keys[0L])
+    assertEquals("a", keys[1L])
+    assertTrue(snapshot["b"] == Some(None))
+    val set: MutableSet<Int> = mutableSetOf<Int>(3, 1, 2)
+    set.retainAll(listOf<Int>(2, 3))
+    val values = set.toList()
+    assertEquals(2L, values.size)
+    assertEquals(3, values[0L])
+    assertEquals(2, values[1L])
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

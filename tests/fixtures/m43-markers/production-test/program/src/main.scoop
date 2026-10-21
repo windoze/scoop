@@ -1,4 +1,0 @@
-import scoop.test.Test as Check
-
-@Check
-class Cases

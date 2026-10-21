@@ -1,0 +1,35 @@
+schema = 1
+name = "pointer-free-large-remembered"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c"]
+tools = ["scoop", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["gc", "nursery", "barrier", "pin", "gc-correctness"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+  {name = "minor", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MINOR = "1"}},
+]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libm58_large_probe.a", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "--enable-gc-stress", "run", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--library-path", "${work}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "large value arrays and remembered reference arrays survive nursery collections\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

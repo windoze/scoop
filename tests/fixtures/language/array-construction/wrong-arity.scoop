@@ -1,0 +1,5 @@
+package dev.example
+public fun result(): Int {
+    val copied = Array<Int, Int>([])
+    return 42
+}

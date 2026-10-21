@@ -1,3 +1,0 @@
-import facade.nesting.Outer.*
-
-public fun invalid(value: Hidden): Int = 42

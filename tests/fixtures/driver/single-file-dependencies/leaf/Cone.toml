@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.leaf"
+name = "leaf"
+version = "1.0.0"
+kind = "library"
+[[native.sources]]
+path = "native/value.c"

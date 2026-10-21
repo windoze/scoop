@@ -1,0 +1,28 @@
+package dev.example.consumer.options
+
+import dev.example.dependency.options.wrap
+import dev.example.dependency.options.absent
+import dev.example.dependency.options.restore
+import dev.example.dependency.options.nest
+
+public fun <T> exercise(value: T): Int {
+    val present: T? = Some(value)
+    val missing: T? = None
+    val deep: T?? = Some(missing)
+    val nested = nest(value)
+    val intValue: Int? = Some(20)
+    val text: String? = None
+    val checked = restore(wrap(value), value)
+    return when (present) {
+        case Some(item) -> when (deep) {
+            case Some(None) -> when (nested) {
+                case Some(Some(inner)) -> restore(intValue, 0) + restore(absent<Int>(), 22)
+                else -> 1
+            }
+            else -> 2
+        }
+        case None -> 3
+    }
+}
+
+public fun result(): Int = exercise<Int>(1)

@@ -1,0 +1,2 @@
+package test
+public const val broken: Int = 7 plus 3

@@ -3,14 +3,14 @@ use super::*;
 fn fixture(name: &str) -> String {
     let mut source = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-generic-constructor-consumption")
+            .join("../../tests/fixtures/language/generic-constructor-consumption")
             .join(format!("{name}.scoop")),
     )
     .unwrap();
     if name == "provider" {
         source.push_str(
             fixture("provider-base")
-                .strip_prefix("package templates.constructors\n")
+                .strip_prefix("package dev.example.templates.constructors\n")
                 .unwrap(),
         );
     }

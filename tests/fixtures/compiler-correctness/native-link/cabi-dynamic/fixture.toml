@@ -1,0 +1,73 @@
+schema = 1
+name = "native-link-cabi-dynamic"
+inputs = ["cabi-provider", "../../../language/native-link/cabi/provider.scoop", "cabi-facade", "../../../language/native-link/cabi/facade.scoop", "cabi-root", "../../../language/native-link/cabi/root.scoop", "../../../language/native-link/cabi/native.c"]
+tools = ["scoop", "scoopc", "cc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "compiler-correctness"]
+variants = [{"name" = "normal"}]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cabi-provider", "to" = "${work}/sources/cabi-provider"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/cabi/provider.scoop", "to" = "${work}/sources/cabi-provider/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/cabi-facade", "to" = "${work}/sources/cabi-facade"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/cabi/facade.scoop", "to" = "${work}/sources/cabi-facade/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/cabi-root", "to" = "${work}/sources/cabi-root"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/cabi/root.scoop", "to" = "${work}/sources/cabi-root/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/cabi/native.c", "to" = "${work}/sources/native/cabi/native.c"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+
+[[steps]]
+name = "compile_0"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/cabi/native.c", "-o", "${work}/objects/payload.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "dylib_0"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/payload.o", "-install_name", "@rpath/libm23_cabi.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_cabi.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "build"
+timeout = 300
+argv = ["${scoop}", "build", "${work}/sources/cabi-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${build.result.dependencies.length}", "equals" = 3},
+  {"actual" = "${build.result.dependencies.0.coordinate.name}", "equals" = "scoop.core"},
+  {"actual" = "${build.result.dependencies.1.coordinate.name}", "equals" = "cabi-provider"},
+  {"actual" = "${build.result.dependencies.2.coordinate.name}", "equals" = "cabi-facade"},
+  {"actual" = "${build.result.root.coordinate.name}", "equals" = "cabi-root"},
+]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "-128\n-32768\n-2147483648\n-9223372036854775808\n255\n65535\n4294967295\n18446744073709551615\n-2\n-4\n-6\n-8\n2\n4\n6\n8\n4\nfalse\n17\n103\n42\n85\n84\ncabi-alive\n"
+stderr = ""
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/2.slib"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "-128\n-32768\n-2147483648\n-9223372036854775808\n255\n65535\n4294967295\n18446744073709551615\n-2\n-4\n-6\n-8\n2\n4\n6\n8\n4\nfalse\n17\n103\n42\n85\n84\ncabi-alive\n"
+stderr = ""

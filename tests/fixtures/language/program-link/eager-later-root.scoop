@@ -1,0 +1,3 @@
+package dev.programlink
+private fun trace(value: Long) { println(value) }
+fun main() { @Unsafe { trace(100L) } }

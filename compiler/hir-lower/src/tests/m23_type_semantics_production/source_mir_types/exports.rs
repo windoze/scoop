@@ -10,7 +10,7 @@ mod rejections;
 
 fn fixture(name: &str) -> (std::path::PathBuf, String) {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-mir-export-assembly");
+        .join("../../tests/fixtures/language/mir-export-assembly");
     let source = std::fs::read_to_string(path.join(format!("{name}.scoop"))).unwrap();
     (path, source)
 }
@@ -92,7 +92,7 @@ fn actual_mir_export_assembly_completes_all_tables_and_keeps_ordinary_partition(
             assertions::bytes(exports)
         });
         with_exports(
-            &format!("private struct Unrelated() {{}}\n{source}"),
+            &prepend_declarations(&source, "private struct Unrelated() {}\n"),
             |_, _, exports| assert_eq!(assertions::bytes(exports), bytes),
         );
     }

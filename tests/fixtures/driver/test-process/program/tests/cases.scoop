@@ -1,0 +1,30 @@
+package dev.m43
+import scoop.test.*
+
+@Extern(name = "process_mode", abi = "c")
+private fun mode(): Int
+@Extern(name = "process_body", abi = "c")
+private fun nativeBody()
+
+@Test
+class Cases {
+    @BeforeTest
+    fun prepare() { println("before") }
+    @AfterTest
+    fun cleanup() { println("after") }
+    @Test
+    fun first() {
+        println("body")
+        @Unsafe {
+            if (mode() == 0) { exit(0) }
+            if (mode() == 3) {
+                assertFailsWith<Throwable> { @Unsafe { nativeBody() } }
+                println("caught panic")
+            }
+            nativeBody()
+        }
+        assertEquals(42, answer())
+    }
+    @Test
+    fun second() { println("second") }
+}

@@ -1,0 +1,83 @@
+package scoop.std.tests.algorithms.sorting
+
+import scoop.test.*
+import scoop.collections.*
+import scoop.comparisons.*
+
+class Item(val key: Int, val label: String)
+class Count { var value: Long = 0L }
+class ScanOnly(private val values: List<Int>) : List<Int> {
+    public override val size: Long get() = values.size
+    public override operator fun get(index: Long): Int = throw Exception(Some("source indexed"))
+    public override operator fun iterator(): Iterator<Int> = values.iterator()
+}
+class FailingList(private val values: MutableList<Int>) : MutableList<Int> by values {
+    public override operator fun set(index: Long, value: Int) {
+        if (index == 1L) throw Exception(Some("setter"))
+        values[index] = value
+    }
+}
+class VirtualLongs : List<Long> {
+    public override val size: Long get() = 9223372036854775807L
+    public override operator fun get(index: Long): Long = index
+    public override operator fun iterator(): Iterator<Long> = throw Exception(Some("binary search traversed"))
+}
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val rows = listOf<Item>(Item(2, "a"), Item(1, "b"), Item(2, "c"), Item(1, "d"))
+    val order = comparatorOf<Item> { a, b -> a.key.compareTo(b.key) }
+    val sorted = rows.sortedWith(order)
+    check(sorted.map<Item, String> { value -> value.label }.joinToString() == "b, d, a, c", "stable sort")
+    check(!(sorted is MutableList<Item>) && rows[0L].label == "a", "sorted snapshot")
+    val count = Count()
+    check(rows.sortedBy<Item, Int> { value -> count.value += 1L; value.key }[0L] === rows[1L] && count.value == 4L, "single key evaluation")
+    check(ScanOnly(listOf<Int>(3, 1, 2)).sorted().joinToString() == "1, 2, 3", "iterate source once")
+    check(listOf<Int>(3, 1, 2).sortedDescending().joinToString() == "3, 2, 1", "descending")
+    val values = mutableListOf<Int>(3, 2, 1)
+    var caught = false
+    try { values.sortWith(comparatorOf<Int> { _, _ -> throw Exception(Some("compare")) }) }
+    catch (error: Exception) { caught = true }
+    check(caught && values.joinToString() == "3, 2, 1", "comparison failure atomicity")
+    caught = false
+    try { FailingList(values).sort() } catch (error: Exception) { caught = true }
+    check(caught && values.joinToString() == "1, 2, 1", "setter prefix")
+    values.sort()
+    check(values.joinToString() == "1, 1, 2", "in-place natural sort")
+    check(rows.minWithOrNone(order)!! === rows[1L] && rows.maxWithOrNone(order)!! === rows[0L], "first tied extrema")
+    check(values.minOrNone() == Some(1) && values.maxOrNone() == Some(2) && emptyList<Int>().minOrNone() == None, "natural extrema")
+    check(when (emptyList<Item>().maxWithOrNone(order)) { case None -> true; case Some(_) -> false }, "empty custom extrema")
+    val floats = listOf<Double>(Double.NaN, 0.0, -0.0, Double.POSITIVE_INFINITY, -1.0).sorted()
+    check(floats[0L] == -1.0 && floats[3L] == Double.POSITIVE_INFINITY && floats[4L].isNaN(), "floating order")
+    check(1.0 / floats[1L] == Double.POSITIVE_INFINITY && 1.0 / floats[2L] == Double.NEGATIVE_INFINITY, "stable signed zero")
+
+    val large = VirtualLongs()
+    check(large.binarySearch(9223372036854775807L) == -9223372036854775807L - 1L, "maximum insertion point")
+    check(large.binarySearch(9223372036854775806L) == 9223372036854775806L, "maximum valid element")
+    check(large.binarySearch(0L, fromIndex = 9223372036854775807L) == -9223372036854775807L - 1L, "maximum empty range")
+    val search = listOf<Int>(1, 3, 3, 7)
+    check(search.binarySearch(3) >= 1L && search.binarySearch(3) <= 2L, "equal hit")
+    check(search.binarySearch(2) == -2L && search.binarySearch(8) == -5L, "insertion encoding")
+    check(search.binarySearch(3, fromIndex = 3L, toIndex = 3L) == -4L, "empty subrange")
+    check(listOf<Int>(7, 3, 1).binarySearch(3, reverseOrder<Int>()) == 1L, "explicit order")
+    var rejected = 0
+    try { search.binarySearch(2, fromIndex = 3L, toIndex = 1L) } catch (error: IllegalArgumentException) { rejected += 1 }
+    try { search.binarySearch(2, fromIndex = -1L) } catch (error: IndexOutOfBoundsException) { rejected += 1 }
+    try { search.binarySearch(2, toIndex = 5L) } catch (error: IndexOutOfBoundsException) { rejected += 1 }
+    check(rejected == 3, "range errors")
+    val input = Array<Int>(511L) { index -> ((index * 137L) % 511L).toInt() }
+    count.value = 0L
+    val output = input.sortedWith(comparatorOf<Int> { a, b -> count.value += 1L; a.compareTo(b) })
+    var index = 0L
+    while (index < 511L) { check(output[index] == index.toInt(), "sort model"); index += 1L }
+    check(count.value < 511L * 10L, "merge complexity")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

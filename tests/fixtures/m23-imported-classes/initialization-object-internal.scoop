@@ -1,3 +1,0 @@
-import dependency.classes.HiddenHolder
-
-public fun invalid() { HiddenHolder }

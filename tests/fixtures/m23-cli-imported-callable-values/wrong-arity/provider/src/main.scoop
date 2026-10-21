@@ -1,3 +1,0 @@
-package callbacks
-
-public val callback: (Int) -> Int = { value -> value + 2 }

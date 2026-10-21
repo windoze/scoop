@@ -1,0 +1,7 @@
+package test.m52
+@Extern(name = "m52_default_value", lib = "m52_default")
+fun defaultValue(): Int
+
+fun main(): Int {
+    @Unsafe { return defaultValue() }
+}

@@ -1,0 +1,16 @@
+schema = 1
+name = "integers-errors-literal-overload-ambiguity"
+root = "literal-overload-ambiguity.scoop"
+inputs = ["literal-overload-ambiguity.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["single-file", "negative", "language"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "literal-overload-ambiguity.diagnostics.json"}

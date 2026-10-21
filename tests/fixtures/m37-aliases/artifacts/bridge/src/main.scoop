@@ -1,5 +1,0 @@
-package bridge
-public import provider.*
-public typealias Wrapped<T> = Row<T>
-public fun <T> copy(value: T): Wrapped<T> = make(value)
-public fun add(): Transform<Int> = action()

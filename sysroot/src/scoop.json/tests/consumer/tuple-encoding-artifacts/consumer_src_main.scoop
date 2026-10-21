@@ -1,0 +1,47 @@
+package scoop.json.tests.consumer.tuple_encoding_artifacts.p0
+
+import scoop.test.*
+import scoop.json.Json
+import scoop.json.tests.consumer.tuple_encoding_artifacts.p2.Envelope
+import scoop.json.tests.consumer.tuple_encoding_artifacts.p2.PairCodec
+import scoop.json.tests.consumer.tuple_encoding_artifacts.p2.PairEncoder
+import scoop.json.tests.consumer.tuple_encoding_artifacts.p2.pair
+import scoop.json.tests.consumer.tuple_encoding_artifacts.p2.array
+import scoop.json.tests.consumer.tuple_encoding_artifacts.p2.erasePair
+import scoop.json.tests.consumer.tuple_encoding_artifacts.p2.encoding
+import scoop.json.tests.consumer.tuple_encoding_artifacts.p1.combine
+import scoop.json.tests.consumer.tuple_encoding_artifacts.p1.erased
+
+private struct Opaque()
+private class Captured<T>(private val write: (T, Encoder) -> Unit) : ValueEncoder<T> {
+    public override fun encode(value: T, encoder: Encoder) { write(value, encoder) }
+}
+private fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+private fun exerciseConsumer() {
+    check(Json.encodeToString(pair(), PairCodec) == "[41,\"provider\"]")
+    check(Json.encodeToString((44, "local"), PairCodec) == "[44,\"local\"]")
+    check(Json.encodeToString(combine(), PairEncoder(PairCodec, PairCodec)) == "[[41,\"provider\"],[42,\"peer\"]]")
+    check(Json.encodeToString(array(), Array<(Int, String)>.encoder(PairCodec)) == "[[41,\"provider\"]]")
+    check(Json.encodeToString((45, "reference"), Captured(encoding(Int.Companion))) == "[45,\"reference\"]")
+    val good = erasePair((46, "generic"))
+    check(!(good is ValueEncoder<((Int, String), Unit)>))
+    check(Json.encodeToString(good as ((Int, String), Unit), PairEncoder(PairCodec, UnitEncoder))
+        == "[[46,\"generic\"],null]")
+    check(!(erasePair(Opaque()) is ValueEncoder<(Opaque, Unit)>))
+    val other = erased()
+    check(!(other is ValueEncoder<(Int, String)>))
+    check(Json.encodeToString(other as (Int, String), PairCodec) == "[43,\"erased\"]")
+    check(Json.encodeToString(Json.decodeFromString("[47,\"decode\"]", PairCodec), PairCodec) == "[47,\"decode\"]")
+    check(Json.encodeToString(Json.decodeFromString("{\"pair\":[48,\"field\"]}", Envelope.Companion), Envelope.Companion)
+        == "{\"pair\":[48,\"field\"]}")
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

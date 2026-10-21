@@ -32,7 +32,7 @@ fn nominal_constructor_arguments_retain_the_complete_expected_application() {
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-imported-options")
+            .join("../../tests/fixtures/language/imported-options")
             .join(format!("{name}.scoop")),
     )
     .unwrap()

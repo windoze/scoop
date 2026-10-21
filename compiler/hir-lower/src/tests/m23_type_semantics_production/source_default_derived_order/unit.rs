@@ -5,7 +5,7 @@ use scoop_identity::{ConeIdentity, CoreBuiltinNominal, PersistentExactTypeId};
 fn builtin_unit_equality_uses_its_declared_core_member() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-cli-unit-equality/cross-cone/provider/src/main.scoop"
+        "/../../tests/fixtures/language/unit-equality/cross-cone/provider/src/main.scoop"
     ));
     with_source(source, |output, mir| {
         let unit = PersistentExactTypeId::from_key(&scoop_identity::ExactTypeKey::Nominal(

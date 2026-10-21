@@ -163,7 +163,6 @@ pub enum ResolveBuildGraphError {
     MissingDirectCore {
         coordinate: ConeCoordinate,
     },
-    InvalidSingleFileGraph,
     UnreachableNodes(Vec<ConeCoordinate>),
     Cycles(Vec<ResolvedCycle>),
     Allocation {
@@ -265,9 +264,6 @@ impl fmt::Display for ResolveBuildGraphError {
                     "Cone {coordinate} has no direct trusted-core edge"
                 )
             }
-            Self::InvalidSingleFileGraph => formatter.write_str(
-                "single-file graph must contain exactly one synthetic edge to trusted core",
-            ),
             Self::UnreachableNodes(coordinates) => {
                 formatter.write_str("resolved graph contains unreachable nodes")?;
                 for coordinate in coordinates {

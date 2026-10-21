@@ -1,3 +1,0 @@
-import dependency.conflict.text
-
-public fun result(): String = text<Int>()

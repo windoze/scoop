@@ -1,0 +1,4 @@
+package dev.example.consumer.references
+
+private fun secret(): Int = 42
+public fun result(read: () -> Int = ::secret): Int = read()

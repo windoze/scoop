@@ -1,0 +1,42 @@
+package scoop.std.tests.text.parse_errors
+
+import scoop.test.*
+import scoop.text.*
+import scoop.collections.listOf
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+private fun exercise() {
+    for (input in listOf<String>("", "+", "-", " 1", "1 ", "1\n", "1_0", "0x10", "0b11", "1L", "1u", "1.0", "1e2", "１２", "١", "1\u0000", "++1", "--1", "+-1")) {
+        check(input.toLongOrNone() == None && input.toULongOrNone() == None, "strict integer grammar")
+        var caught = false
+        try { input.toLong() } catch (error: NumberFormatException) { caught = true }
+        check(caught, "integer parse error class")
+    }
+    check("true".toBooleanStrict() && !"false".toBooleanStrict() && "true".toBooleanStrictOrNone() == Some(true), "strict boolean")
+    for (input in listOf<String>("True", "FALSE", " true", "false ", "1", "0", "")) {
+        check(input.toBooleanStrictOrNone() == None, "invalid boolean")
+        var caught = false
+        try { input.toBooleanStrict() } catch (error: NumberFormatException) { caught = true }
+        check(caught, "boolean parse error class")
+    }
+    var errors = 0
+    for (radix in listOf<Int>(-1, 0, 1, 37, 100)) {
+        try { "".toLongOrNone(radix) } catch (error: IllegalArgumentException) { errors += 1 }
+        try { "0".toUIntOrNone(radix) } catch (error: IllegalArgumentException) { errors += 1 }
+        try { 0L.toString(radix) } catch (error: IllegalArgumentException) { errors += 1 }
+        try { ULong.MAX_VALUE.toString(radix) } catch (error: IllegalArgumentException) { errors += 1 }
+    }
+    check(errors == 20, "invalid radix is not missing value")
+    var caught = false
+    try { "128".toByte() } catch (error: NumberFormatException) { caught = true }
+    check(caught && "-0".toUByteOrNone() == None, "alias failure behavior")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

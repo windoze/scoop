@@ -7,5 +7,5 @@ mod shared;
 
 const SELECTIONS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-type-source-dispatch/selections.scoop"
+    "/../../tests/fixtures/language/type-source-dispatch/selections.scoop"
 ));

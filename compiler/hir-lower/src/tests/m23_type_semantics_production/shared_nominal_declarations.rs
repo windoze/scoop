@@ -5,11 +5,11 @@ use source_dispatch::with_hir_source;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-shared-nominal-declarations/standalone.scoop"
+    "/../../tests/fixtures/language/shared-nominal-declarations/standalone.scoop"
 ));
 const COMBINED: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-shared-nominal-declarations/combined.scoop"
+    "/../../tests/fixtures/language/shared-nominal-declarations/combined.scoop"
 ));
 
 #[test]
@@ -152,8 +152,8 @@ fn shared_nominal_projection_ignores_unrelated_arena_entries() {
     let prefix = "private class Unrelated {}\n";
     let padding = format!("//{}\n", " ".repeat(prefix.len() - 3));
     assert_eq!(
-        project(&format!("{padding}{STANDALONE}")),
-        project(&format!("{prefix}{STANDALONE}"))
+        project(&prepend_declarations(STANDALONE, &padding)),
+        project(&prepend_declarations(STANDALONE, prefix))
     );
 }
 

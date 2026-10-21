@@ -1,3 +1,0 @@
-import upstream.signatures.unchecked
-
-public fun invalid(value: Int): Int = unchecked<Int>(value)

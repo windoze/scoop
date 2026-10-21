@@ -1,0 +1,27 @@
+package scoop.tests
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.platform.concurrent.Thread
+
+private fun exercise(args: Array<String>, trust: TrustStore) {
+    when (args[1L]) {
+        case "suspend" -> selectorSuspension(trust)
+        case "failure" -> selectorCallbackFailure(trust, args[2L] == "nested")
+        case "cancel" -> selectorCancellation(trust, args[2L], args[3L])
+        else -> throw IllegalArgumentException()
+    }
+}
+
+private fun report(error: Throwable) {
+    if (error is Exception) println(error.message ?: "no exception message")
+    if (error is ResourceUseException) { report(error.primaryFailure); report(error.cleanupFailure) }
+}
+
+fun main(args: Array<String>) {
+    try {
+        TrustStore.fromPem(rootPem()).use { trust ->
+            Thread.start { exercise(args, trust) }.use { thread -> exercise(args, trust); thread.join() }
+        }
+        println("client proxy selector " + args[1L])
+    } catch (error: Throwable) { report(error); throw error }
+}

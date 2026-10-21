@@ -1,0 +1,7 @@
+package dev.m60
+import dev.m60.shared.answer
+
+/// Uses [answer] from another executable root.
+private fun secondHelper(): Int = answer()
+
+fun main() { secondHelper() }

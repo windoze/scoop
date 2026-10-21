@@ -1,0 +1,16 @@
+schema = 1
+name = "negative-error-exclude-ref-kind"
+root = "exclude-ref-kind.scoop"
+inputs = ["exclude-ref-kind.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["generics", "negative", "language"]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "exclude-ref-kind.diagnostics.json"}

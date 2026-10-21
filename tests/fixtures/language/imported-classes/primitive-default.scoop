@@ -1,0 +1,8 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.defaultPrimitiveHash
+
+public fun primary(): Counter {
+    val value: Long = 21
+    return Counter(if (defaultPrimitiveHash().hash() == value.hash()) { 21 } else { 0 })
+}

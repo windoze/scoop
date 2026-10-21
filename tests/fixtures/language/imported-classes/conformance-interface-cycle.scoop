@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.classes.Readable
+public interface LocalLeft: Readable, LocalRight {}
+public interface LocalRight: LocalLeft {}

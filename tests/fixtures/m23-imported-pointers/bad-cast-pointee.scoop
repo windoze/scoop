@@ -1,3 +1,0 @@
-private struct Managed(val value: String)
-@Unsafe
-public fun bad(pointer: Ptr<Int>): ULong = pointer.cast<Managed>().toULong()

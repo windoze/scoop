@@ -1,3 +1,0 @@
-import upstream.sharedbounds.*
-
-public fun result(): Int = same(Holder<Int>(42), Holder<String>("wrong"))

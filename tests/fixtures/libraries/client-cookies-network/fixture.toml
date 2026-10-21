@@ -1,0 +1,34 @@
+schema = 1
+name = "client-cookies-network"
+inputs = ["consumer", "peer.py"]
+support = ["../../../../sysroot/src/scoop.crypto/test-certificates/src/root.scoop", "../client-trailers/wire.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["http", "cookie", "client", "asyncio", "prebuilt", "libraries"]
+variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
+[[steps]]
+name = "source"
+files = [
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+    {copy = {from = "${fixture}/peer.py", to = "${work}/peer.py"}},
+    {copy = {from = "${repo}/tests/fixtures/libraries/client-trailers/wire.py", to = "${work}/wire.py"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/root.scoop", to = "${work}/consumer/src/root.scoop"}},
+]
+
+[[steps]]
+name = "build"
+timeout = 900
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+timeout = 3600
+argv = ["${python}", "${work}/peer.py", "${build.result.output}"]
+exit = 0
+stdout = "client cookies network authentication redirects retries H2 and callback lifetime passed\n"
+stderr = ""

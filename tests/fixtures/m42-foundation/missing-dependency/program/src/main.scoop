@@ -1,3 +1,0 @@
-import scoop.collections.listOf
-
-fun main() { listOf<Int>(1) }

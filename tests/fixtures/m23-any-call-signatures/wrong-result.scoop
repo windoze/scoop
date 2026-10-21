@@ -1,3 +1,0 @@
-import dependency.api.relayAny
-
-public fun rejected(): String = relayAny("value")

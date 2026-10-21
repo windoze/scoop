@@ -11,14 +11,22 @@ use scoop_manifest::{CurrentConeInput, classify_current_cone_operand};
 use super::args::*;
 use super::presentation::Reporter;
 
-pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Option<ExitStatus>> {
+pub(super) fn execute(
+    command: Command,
+    enable_gc_stress: bool,
+    reporter: &Reporter,
+) -> BuildResult<Option<ExitStatus>> {
     match command {
+        Command::New(args) => {
+            super::new::execute(args)?;
+            Ok(None)
+        }
         Command::Doc(args) => {
             super::doc::execute(args, reporter)?;
             Ok(None)
         }
         Command::Build(args) => {
-            let mut request = build_request(args.options, args.output, false)?;
+            let mut request = build_request(args.options, args.output, false, enable_gc_stress)?;
             if let (Some(emit), Some(directory)) = (args.emit, args.dump_dir) {
                 request.dumps = Some(BuildDumpRequest {
                     stages: emit.stages(),
@@ -33,7 +41,7 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
             Ok(None)
         }
         Command::Run(args) => {
-            let request = build_request(args.options, None, true)?;
+            let request = build_request(args.options, None, true, enable_gc_stress)?;
             let cwd = request.cwd.clone();
             let result = scoop::build(request)?;
             reporter.built(&result).map_err(config)?;
@@ -46,7 +54,12 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
             }
         }
         Command::Test(args) => {
-            let mut request = build_request(args.options, None, !args.no_run && !args.list)?;
+            let mut request = build_request(
+                args.options,
+                None,
+                !args.no_run && !args.list,
+                enable_gc_stress,
+            )?;
             request.graph = request
                 .graph
                 .with_purpose(scoop_protocol::CompilationPurpose::Test)
@@ -112,6 +125,7 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
                     .runtime_objects
                     .map(|path| absolute(&cwd, path))
                     .transpose()?,
+                enable_gc_stress,
                 library_paths: paths(&cwd, args.library_path)?,
                 output: absolute(&cwd, args.output)?,
             };
@@ -127,6 +141,7 @@ fn build_request(
     args: BuildOptions,
     output: Option<PathBuf>,
     require_executable: bool,
+    enable_gc_stress: bool,
 ) -> BuildResult<BuildRequest> {
     let cwd = std::env::current_dir().map_err(config)?;
     let input = absolute(
@@ -140,11 +155,6 @@ fn build_request(
         CurrentConeInput::Manifest { root } => BuildRootInput::manifest(root).map_err(config)?,
         CurrentConeInput::SingleFile { source } => BuildRootInput::single_file(source),
     };
-    if root.single_file_source().is_some() && !args.cone_path.is_empty() {
-        return Err(config(
-            "--cone-path is not accepted for a single-file input",
-        ));
-    }
     let compiler = match args.scoopc {
         Some(path) => path,
         None => scoop_toolchain::installed_executable()
@@ -182,6 +192,7 @@ fn build_request(
         (None, None) => RuntimeInput::ObjectIndex(scoop_toolchain::default_runtime_index(
             graph.sysroot().as_path(),
             graph.target().lir_target(),
+            enable_gc_stress,
         )),
     };
     Ok(BuildRequest {
@@ -197,6 +208,7 @@ fn build_request(
             .map(|path| absolute(&cwd, path))
             .transpose()?,
         runtime,
+        enable_gc_stress,
         final_link,
         library_paths: paths(&cwd, args.library_path)?,
         cwd,

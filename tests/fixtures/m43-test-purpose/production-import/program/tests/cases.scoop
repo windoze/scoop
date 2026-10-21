@@ -1,2 +1,0 @@
-import scoop.test.Test
-@Test class Cases { @Test fun check() {} }

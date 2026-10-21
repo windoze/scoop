@@ -1,2 +1,0 @@
-public fun readerSeed(): Int = 7
-public fun readerValue(value: Int = readerSeed()): Int = value

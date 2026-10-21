@@ -1,3 +1,0 @@
-package image.provider
-
-public fun answer(): Int = 42

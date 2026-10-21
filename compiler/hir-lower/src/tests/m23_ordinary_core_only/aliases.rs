@@ -3,11 +3,11 @@ use scoop_hir as hir;
 
 const ALIASES: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/core-library/type-aliases.scoop"
+    "/../../tests/fixtures/language/core-library/type-aliases.scoop"
 ));
 const CONSUMER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/core-library/alias-consumer.scoop"
+    "/../../tests/fixtures/language/core-library/alias-consumer.scoop"
 ));
 
 fn with_aliases<R>(source: &str, run: impl FnOnce(&CurrentConeSources<'_, '_>) -> R) -> R {
@@ -37,7 +37,7 @@ fn imported_core_aliases_use_shared_type_selection_and_separate_value_names() {
 fn current_type_alias_shadows_the_imported_core_type_namespace() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/core-library/alias-shadow.scoop"
+        "/../../tests/fixtures/language/core-library/alias-shadow.scoop"
     ));
     with_aliases(source, |input| {
         let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, input).unwrap();

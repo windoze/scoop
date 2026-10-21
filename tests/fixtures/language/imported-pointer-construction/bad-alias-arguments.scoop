@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.dependency.construction.IntPointer
+public fun result(): Int { @Unsafe { val pointer = IntPointer<Int>(1uL) }; return 42 }

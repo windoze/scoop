@@ -1,0 +1,209 @@
+schema = 1
+name = "generic-siblings-adapters-combined"
+inputs = ["../../imported-classes/support/stage3_test.scoop", "generic-odr-provider", "../../odr-member-unions/provider.scoop", "generic-odr-adapters-combined-left", "../../odr-member-unions/adapters-combined-left.scoop", "generic-odr-adapters-combined-right", "../../odr-member-unions/adapters-combined-right.scoop", "generic-odr-adapters-combined-consumer", "../../odr-member-unions/adapters-combined-consumer.scoop", "../../odr-member-unions/addresses.c", "runtime-fixture", "../../imported-classes/support/gc.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["generic-siblings", "adapters", "language"]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-odr-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-odr-provider", "to" = "${work}/sources/generic-odr-provider"}},
+  {"copy" = {"from" = "${fixture}/../../odr-member-unions/provider.scoop", "to" = "${work}/sources/generic-odr-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/generic-odr-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-odr-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-odr-adapters-combined-left"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-odr-adapters-combined-left", "to" = "${work}/sources/generic-odr-adapters-combined-left"}},
+  {"copy" = {"from" = "${fixture}/../../odr-member-unions/adapters-combined-left.scoop", "to" = "${work}/sources/generic-odr-adapters-combined-left/src/main.scoop"}},
+]
+
+[[steps]]
+name = "left"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/generic-odr-adapters-combined-left", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-left", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-odr-adapters-combined-left/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-odr-adapters-combined-right"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-odr-adapters-combined-right", "to" = "${work}/sources/generic-odr-adapters-combined-right"}},
+  {"copy" = {"from" = "${fixture}/../../odr-member-unions/adapters-combined-right.scoop", "to" = "${work}/sources/generic-odr-adapters-combined-right/src/main.scoop"}},
+]
+
+[[steps]]
+name = "right"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/generic-odr-adapters-combined-right", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-right", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-odr-adapters-combined-right/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-odr-adapters-combined-consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-odr-adapters-combined-consumer", "to" = "${work}/sources/generic-odr-adapters-combined-consumer"}},
+  {"copy" = {"from" = "${fixture}/../../odr-member-unions/adapters-combined-consumer.scoop", "to" = "${work}/sources/generic-odr-adapters-combined-consumer/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/generic-odr-adapters-combined-consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-odr-adapters-combined-consumer/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../../odr-member-unions/addresses.c", "to" = "${work}/native/addresses.c"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "UNION_LEFT_TD", "new" = "${symbol_prefix}scoop$1$td$0ee67f183558fd8e869a718846e42a8e1f30679b60c3eed1c6f3fd3ee1c0eeea"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "UNION_RIGHT_TD", "new" = "${symbol_prefix}scoop$1$td$0ee67f183558fd8e869a718846e42a8e1f30679b60c3eed1c6f3fd3ee1c0eeea"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "UNION_OTHER_TD", "new" = "${symbol_prefix}scoop$1$td$1cb9165a2f297eacd7ddb44e5aead683fb809c66e919669413dfaf237d404b6a"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "UNION_INTERFACE_TD", "new" = "${symbol_prefix}scoop$1$td$d229de54169029566e2979938288a12b56bc0094e81a9a9b580610106e112d95"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "left_slots[UNION_READ_SLOT] != NULL", "new" = "left_slots[0] != NULL"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "left_slots[UNION_READ_SLOT] == right_slots[UNION_READ_SLOT]", "new" = "left_slots[0] == right_slots[0]"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "#include \"scoop_rt.h\"", "new" = "#include \"scoop_rt.h\"\n#include <stdio.h>\n#include <stdlib.h>"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "#define SCOOP_FIXTURE_METADATA_CHECK() union_metadata_check()", "new" = "static void check_after_shutdown(void) {\n    if (!union_metadata_check()) {\n        fputs(\"shared type or interface slot address differs\\n\", stderr);\n        abort();\n    }\n}\n\nvoid m23_register_union_check(void) {\n    if (atexit(check_after_shutdown) != 0) { abort(); }\n}"}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-I", "${runtime}/src", "-c", "${work}/native/addresses.c", "-o", "${work}/native/addresses.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_union.a", "${work}/native/addresses.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "prepare_runtime"
+files = [
+  {"copy" = {"from" = "${fixture}/runtime-fixture", "to" = "${work}/sources/runtime-fixture"}},
+]
+
+[[steps]]
+name = "prepare_gc"
+files = [
+  {"copy" = {"from" = "${fixture}/../../imported-classes/support/gc.c", "to" = "${work}/native/gc.c"}},
+]
+
+[[steps]]
+name = "compile_gc"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/native/gc.c", "-o", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_gc"
+argv = ["${ar}", "qcS", "${work}/native/libm23_class_gc.a", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/runtime-fixture", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [{"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/root.slib"}}]
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${work}/root.slib", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${sysroot}", "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--dependency-slib", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-provider/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-combined-left/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-combined-right/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-combined-consumer/0.1.0/cone.slib", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 5},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
+  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-odr-provider:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-odr-adapters-combined-left:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-odr-adapters-combined-right:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-odr-adapters-combined-consumer:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:runtime-fixture:0.1.0 kind=Executable objects="},
+  {actual = "${link.result.link_plan}", contains = "images=6 root=${symbol_prefix}scoop$$1$$re$$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7"},
+  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
+]
+[[steps]]
+name = "reverse_link"
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${work}/root.slib", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${sysroot}", "--message-format", "json", "--dump-plan", "-o", "${work}/reverse-program", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-combined-consumer/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-combined-right/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-combined-left/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-provider/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${reverse_link.result.dependencies.length}", "equals" = 5},
+  {"actual" = "${reverse_link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {actual = "${reverse_link.result.link_plan}", contains = "program-link v3\n"},
+  {actual = "${reverse_link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
+  {actual = "${reverse_link.result.link_plan}", contains = "cone dev.example:generic-odr-provider:0.1.0 kind=Library objects="},
+  {actual = "${reverse_link.result.link_plan}", contains = "cone dev.example:generic-odr-adapters-combined-left:0.1.0 kind=Library objects="},
+  {actual = "${reverse_link.result.link_plan}", contains = "cone dev.example:generic-odr-adapters-combined-right:0.1.0 kind=Library objects="},
+  {actual = "${reverse_link.result.link_plan}", contains = "cone dev.example:generic-odr-adapters-combined-consumer:0.1.0 kind=Library objects="},
+  {actual = "${reverse_link.result.link_plan}", contains = "cone dev.example:runtime-fixture:0.1.0 kind=Executable objects="},
+  {actual = "${reverse_link.result.link_plan}", contains = "images=6 root=${symbol_prefix}scoop$$1$$re$$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7"},
+  {actual = "${reverse_link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
+]
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "reverse_run"
+argv = ["${work}/reverse-program"]
+exit = 0
+stdout = ""
+stderr = ""

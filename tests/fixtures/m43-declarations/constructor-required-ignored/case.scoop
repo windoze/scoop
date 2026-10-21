@@ -1,6 +1,0 @@
-import scoop.test.*
-
-@Test class Cases {
-    constructor(value: Int) {}
-    @Test @Ignore("later") fun check() {}
-}

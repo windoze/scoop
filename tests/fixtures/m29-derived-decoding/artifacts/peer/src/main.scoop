@@ -1,6 +1,0 @@
-package decoded
-
-public struct Collision(@Serialize(rename = "local") val value: Int) {
-    public companion object : ValueDecoder<Collision>
-}
-public typealias LocalCollision = Collision

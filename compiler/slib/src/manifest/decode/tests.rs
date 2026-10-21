@@ -84,17 +84,19 @@ fn manifest_round_trips_through_untrusted_validation() {
 }
 
 #[test]
-fn manifest_and_compatibility_schema_stay_at_the_initial_value() {
+fn manifest_rejects_other_schemas_and_checks_identity_compatibility() {
     let encoded = encode(&manifest(Vec::new())).unwrap();
-    let mut decoded = decode_canonical::<DecodedBootstrapManifest>(&encoded).unwrap();
-    decoded.manifest_schema = 2;
-    assert_eq!(
-        validate(decoded),
-        Err(BootstrapManifestValidationError::UnsupportedSchema {
-            kind: SchemaKind::Manifest,
-            actual: 2,
-        })
-    );
+    for manifest_schema in [1, 3] {
+        let mut decoded = decode_canonical::<DecodedBootstrapManifest>(&encoded).unwrap();
+        decoded.manifest_schema = manifest_schema;
+        assert_eq!(
+            validate(decoded),
+            Err(BootstrapManifestValidationError::UnsupportedSchema {
+                kind: SchemaKind::Manifest,
+                actual: manifest_schema,
+            })
+        );
+    }
 
     let mut decoded = decode_canonical::<DecodedBootstrapManifest>(&encoded).unwrap();
     decoded.compatibility.set_identity_schema(1);

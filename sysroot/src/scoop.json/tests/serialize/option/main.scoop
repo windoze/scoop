@@ -1,0 +1,36 @@
+package scoop.json.tests.serialize.option
+
+import scoop.test.*
+import scoop.json.Json
+
+object Pair : ValueEncoder<(Long?, String?)>, ValueDecoder<(Long?, String?)> {}
+struct Nested(val value: Long) {
+    companion object : ValueEncoder<Nested>, ValueDecoder<Nested> {}
+}
+
+private fun exercise() {
+    val encoder = Option<Long>.encoder(Long.Companion)
+    val decoder = Option<Long>.decoder(Long.Companion)
+    check(Json.encodeToString(None, encoder) == "null")
+    check(Json.encodeToString(Some(7L), encoder) == "7")
+    check(Json.decodeFromString("null", decoder) == None)
+    check(Json.decodeFromString("7", decoder) == Some(7L))
+    reject("") { Json.decodeFromString("\"wrong\"", decoder) }
+    reject("") { Json.decodeFromString("{\"Some\":[7]}", decoder) }
+    val array = Array<Long?>.encoder(encoder)
+    check(Json.encodeToString([None, Some(7L)], array) == "[null,7]")
+    check(Json.encodeToString((None, Some("text")), Pair) == "[null,\"text\"]")
+    check(Json.decodeFromString("[null,\"text\"]", Pair) == (None, Some("text")))
+    val nested = Option<Long?>.encoder(encoder)
+    check(Json.encodeToString(Some(None), nested) == "null")
+    check(Json.decodeFromString("null", Option<Long?>.decoder(decoder)) == None)
+    check(Json.decodeFromString("{\"value\":9}", Option<Nested>.decoder(Nested.Companion))!! == Nested(9L))
+    check(Json.encodeToString(Some(Nested(9L)), Option<Nested>.encoder(Nested.Companion)) == "{\"value\":9}")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

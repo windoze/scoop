@@ -1,4 +1,4 @@
-package crypto.consumer
+package scoop.tests.crypto.consumer
 
 import scoop.crypto.*
 import scoop.crypto.jws.*

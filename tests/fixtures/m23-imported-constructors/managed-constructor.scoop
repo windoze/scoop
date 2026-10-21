@@ -1,2 +1,0 @@
-import dependency.constructors.Wide
-@NoGC public fun rejected(): Wide = Wide(true)

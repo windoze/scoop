@@ -1,0 +1,53 @@
+package scoop.std.tests.encoding.base64_errors
+
+import scoop.test.*
+import scoop.io.encoding.Base64
+import scoop.io.encoding.Base64.PaddingOption
+
+fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(ok, location = location)
+}
+fun accepted(codec: Base64, text: String): Boolean = when (codec.decodeOrNone(text)) {
+    case None -> false
+    case Some(_) -> true
+}
+fun rejected(codec: Base64, text: String) {
+    check(!accepted(codec, text))
+    var failed = false
+    try { codec.decode(text) } catch (error: IllegalArgumentException) { failed = true }
+    check(failed)
+}
+private fun exercise() {
+    val required = Base64.Default
+    val absent = required.withPadding(PaddingOption.Absent)
+    val optional = required.withPadding(PaddingOption.Optional)
+    for (text in Array<String>(17L) { index -> when (index) {
+        case 0L -> "A"; case 1L -> "="; case 2L -> "=="; case 3L -> "==="
+        case 4L -> "A==="; case 5L -> "Zg="; case 6L -> "Zg==="; case 7L -> "Z=g="
+        case 8L -> "Zg==AA"; case 9L -> "Zm9v="; case 10L -> "Zm9v===="; case 11L -> "Zg==\n"
+        case 12L -> " Zg=="; case 13L -> "Z\tg=="; case 14L -> "Zg==\u{0}"; case 15L -> "Ｚg=="; case _ -> "Zg雪="
+    } }) { rejected(required, text); rejected(optional, text) }
+    rejected(required, "Zg"); rejected(required, "Zm8")
+    rejected(absent, "Zg=="); rejected(absent, "Zm8=")
+    check(accepted(optional, "Zg") && accepted(optional, "Zg==") && accepted(absent, "Zm9v"))
+    rejected(Base64.Default, "_wD-AA=="); rejected(Base64.UrlSafe, "/wD+AA==")
+    rejected(Base64.UrlSafe, "_wD+AA=="); rejected(Base64.Default, "/wD-AA==")
+    val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    var index = 0L
+    while (index < 64L) {
+        val second = "Z" + alphabet[index].toString()
+        val third = "Zm" + alphabet[index].toString()
+        check(accepted(required, second + "==") == (index % 16L == 0L))
+        check(accepted(optional, second) == (index % 16L == 0L))
+        check(accepted(absent, third) == (index % 4L == 0L))
+        check(accepted(required, third + "=") == (index % 4L == 0L))
+        index += 1L
+    }
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

@@ -1,6 +1,0 @@
-import scoop.test.*
-
-@Test class Cases {
-    constructor(first: Int = 1) {}
-    constructor(second: String = "a") {}
-}

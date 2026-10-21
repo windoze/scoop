@@ -1,0 +1,108 @@
+schema = 1
+name = "context-artifacts"
+inputs = ["a", "b", "c", "bad", "../../callback/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["context", "generics", "language"]
+
+[[steps]]
+name = "prepare_native"
+files = [{mkdir = {path = "${work}/native"}}]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O0", "-I", "${runtime}/include", "-c", "${fixture}/../../callback/native.c", "-o", "${work}/native/fixture.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/native/libfixture_native.a", "${work}/native/fixture.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "prepare_a"
+files = [
+  {copy = {from = "${fixture}/a", to = "${work}/sources/a"}},
+]
+
+[[steps]]
+name = "a"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/a", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-a", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-a/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_b"
+files = [
+  {copy = {from = "${fixture}/b", to = "${work}/sources/b"}},
+]
+
+[[steps]]
+name = "b"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/b", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-b", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-b/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_c"
+files = [
+  {copy = {from = "${fixture}/c", to = "${work}/sources/c"}},
+]
+
+[[steps]]
+name = "c"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/c", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-c", "--library-path", "${work}/native", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program-build"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [{"copy" = {"from" = "${c.result.root.path}", "to" = "${work}/artifacts/root.slib"}}]
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--library-path", "${work}/native", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${c.result.runtime_index}", "--sysroot", "${sysroot}", "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${c.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "artifacts-ok\n"
+stderr = ""
+
+[[steps]]
+name = "prepare_bad"
+files = [
+  {copy = {from = "${fixture}/bad", to = "${work}/sources/bad"}},
+]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/bad", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-reject", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "bad.diagnostics.json"}

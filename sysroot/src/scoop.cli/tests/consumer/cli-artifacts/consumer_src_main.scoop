@@ -1,0 +1,58 @@
+package scoop.cli.tests.consumer.cli_artifacts.p0
+
+import scoop.test.*
+import scoop.cli.tests.consumer.cli_artifacts.p2.*
+import scoop.cli.CliFlag as Toggle
+import scoop.cli.tests.consumer.cli_artifacts.p1.*
+import scoop.cli.*
+import scoop.json.Json
+
+object Concrete : ValueDecoder<GenericArguments<Option<String>>>
+struct Flags(@Toggle(names = ["-v"]) val enabled: Boolean = false) {
+    companion object : ValueDecoder<Flags>
+}
+
+fun scenario() {
+    val schema = Cli.schema(typeInfo<Arguments>(), CliConfig("artifact", "CLI from libraries"))
+    check(schema.entries.size == 4L)
+    equal(schema.entries[0L].wireKey, "wire-source")
+    check(schema.entries[1L].required && schema.entries[1L].hasDefault)
+    check(!schema.entries[2L].required && !schema.entries[2L].hasDefault)
+    check(!contains(schema.help(), "not optional") && !contains(schema.help(), "cache"))
+    val parser = CliParser(schema, Arguments.Companion)
+    fails("/output", { parser.parse(["input"]) })
+    val value = parsed(parser.parse(["input", "-o="]))
+    check(value.cache == 42 && value.output == Some("") && value.extra == None)
+    equal(Json.encodeToString(value, Arguments.Companion), "{\"wire-source\":\"input\",\"output\":\"\",\"extra\":null,\"secret\":\"private\"}")
+    equal(DebugPrinter.format(Arguments.inspect(value)), "Arguments(source=\"input\", cache=42, output=Option<String>.Some(\"\"), extra=Option<String>.None, secret=\"<redacted>\")")
+    val classes = Cli.schema(typeInfo<ClassArguments>(), CliConfig("class"))
+    check(parsed(CliParser(classes, ClassArguments.Companion).parse([])).code == 3)
+    check(parsed(CliParser(classes, ClassArguments.Companion).parse(["--code=9"])).code == 9)
+    val callback = forwarded<Option<String>>(Option<String>.decoder(String.Companion))
+    gcCollect()
+    val generic = callback()
+    fails("/value", { generic.parse([]) })
+    check(parsed(generic.parse(["-iabc"])).value == Some("abc"))
+    val genericInfo = genericSchema<Option<String>>()
+    check(genericInfo.entries[0L].required && !genericInfo.entries[0L].hasDefault)
+    fails("/value", { CliParser(genericInfo, Concrete).parse([]) })
+    val maybeSchema = Cli.schema(typeInfo<MaybeArguments<Option<String>>>(), CliConfig("maybe"))
+    check(!maybeSchema.entries[0L].required && !maybeSchema.entries[0L].hasDefault)
+    val maybe = CliParser(maybeSchema, MaybeCodec<Option<String>>(Option<String>.decoder(String.Companion)))
+    check(parsed(maybe.parse([])).value == None)
+    check(parsed(maybe.parse(["--value=null"])).value == Some(Some("null")))
+    val flags = CliParser(Cli.schema(typeInfo<Flags>(), CliConfig("flags")), Flags.Companion)
+    check(parsed(flags.parse(["-v"])).enabled)
+
+}
+
+private fun exerciseConsumer() {
+    try { scenario() }
+    catch (error: Exception) { println(error.message ?: "no message"); throw error }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

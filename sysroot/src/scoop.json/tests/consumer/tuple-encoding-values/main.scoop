@@ -1,0 +1,47 @@
+package scoop.json.tests.consumer.tuple_encoding_values
+
+import scoop.test.*
+import scoop.json.Json
+
+fun check(value: Boolean, code: Int, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+public struct Record(@Serialize(rename = "point") val value: (Int, String)) {
+    public companion object : ValueEncoder<Record>, ValueDecoder<Record>
+}
+class PairEncoder<A, B>(private val first: ValueEncoder<A>, private val second: ValueEncoder<B>)
+    : ValueEncoder<(A, B)>
+private object Single : ValueEncoder<(Int,)>
+private object PairCodec : ValueEncoder<(Int, String)>, ValueDecoder<(Int, String)>
+private object NestedCodec : ValueEncoder<((Int, String), Unit)>, ValueDecoder<((Int, String), Unit)>
+private object Twelve : ValueEncoder<(Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)>
+
+private fun exerciseConsumer() {
+    check(Json.encodeToString((5,), Single) == "[5]", 0)
+    check(Json.encodeToString((7, "tuple"), PairCodec) == "[7,\"tuple\"]", 1)
+    check(Json.encodeToString((Unit, Unit), PairEncoder(UnitEncoder, UnitEncoder)) == "[null,null]", 2)
+    val nestedCodec = PairEncoder(PairCodec, PairEncoder(Boolean.Companion, Char.Companion))
+    check(Json.encodeToString(((1, "nested"), (true, '中')), nestedCodec) == "[[1,\"nested\"],[true,\"中\"]]", 3)
+    check(Json.encodeToString((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), Twelve)
+        == "[1,2,3,4,5,6,7,8,9,10,11,12]", 4)
+    val pair = Json.decodeFromString("[9,\"decode\"]", PairCodec)
+    check(pair._1 == 9 && pair._2 == "decode", 5)
+    check(Json.encodeToString(Json.decodeFromString("[[8,\"nested\"],null]", NestedCodec), NestedCodec) == "[[8,\"nested\"],null]", 6)
+    check(Json.encodeToString(Json.decodeFromString("{\"point\":[3,\"field\"]}", Record.Companion), Record.Companion)
+        == "{\"point\":[3,\"field\"]}", 7)
+    val data = Array<(Int, String)>(2L) { index -> (index.toInt(), "array") }
+    val arrayCodec = Array<(Int, String)>.encoder(PairCodec)
+    check(Json.encodeToString(data, arrayCodec) == "[[0,\"array\"],[1,\"array\"]]", 8)
+    val optionCodec = Option<(Int, Unit)>.encoder(PairEncoder(Int.Companion, UnitEncoder))
+    check(Json.encodeToString((Some((4, Unit)), data), PairEncoder(optionCodec, arrayCodec))
+        == "[[4,null],[[0,\"array\"],[1,\"array\"]]]", 9)
+    dynamicCases()
+    combinedCases()
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

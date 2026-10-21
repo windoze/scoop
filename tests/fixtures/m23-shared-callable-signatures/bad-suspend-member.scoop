@@ -1,3 +1,0 @@
-import upstream.signatures.Box
-
-public fun invalid(value: Box<Int>): Int = value.suspendedGet()

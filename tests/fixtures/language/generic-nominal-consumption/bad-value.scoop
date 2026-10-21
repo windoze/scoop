@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.nominals.ValueParcel
+
+class Number(val value: Int)
+public fun invalid(value: ValueParcel<Number>): Int = 0

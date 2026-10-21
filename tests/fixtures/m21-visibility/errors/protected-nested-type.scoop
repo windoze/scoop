@@ -1,5 +1,0 @@
-public open class Outer {
-    protected class Hidden {}
-}
-fun outside(target: Outer.Hidden): Int = 1
-fun main() {}

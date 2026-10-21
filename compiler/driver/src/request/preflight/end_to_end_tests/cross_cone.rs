@@ -12,7 +12,7 @@ fn chained_reexport_resolves_every_machine_use_to_the_terminal_provider() {
         "dev.example",
         "m23-terminal-provider",
         "library",
-        r#"package dependency.api
+        r#"package dev.example.dependency.api
 
 public typealias Number = Int
 public const val OFFSET: Int = 2
@@ -42,14 +42,14 @@ public fun Int.bump(): Int = this
         "dev.example",
         "m23-facade",
         "library",
-        r#"package facade.api
+        r#"package dev.example.facade.api
 
-public import dependency.api.Number
-public import dependency.api.OFFSET
-public import dependency.api.add
-public import dependency.api.answer
-public import dependency.api.bump
-public import dependency.api.helper
+public import dev.example.dependency.api.Number
+public import dev.example.dependency.api.OFFSET
+public import dev.example.dependency.api.add
+public import dev.example.dependency.api.answer
+public import dev.example.dependency.api.bump
+public import dev.example.dependency.api.helper
 "#,
     );
     write_dependency_manifest(&facade_root, "m23-facade", &[&provider_coordinate]);
@@ -72,9 +72,9 @@ public import dependency.api.helper
         "dev.example",
         "m23-reexport-consumer",
         "library",
-        r#"package consumer
+        r#"package dev.example.consumer
 
-import facade.api.*
+import dev.example.facade.api.*
 
 public fun invoke(value: Number): Int {
     val fromDefault = add(value)

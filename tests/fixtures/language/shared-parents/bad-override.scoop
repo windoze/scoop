@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.dependency.parents.Base
+
+public class Bad public constructor(): Base<Int>(42) {
+    public override fun read(): String = "wrong"
+}

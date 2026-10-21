@@ -9,7 +9,7 @@ mod rejections;
 
 fn fixture(name: &str) -> (std::path::PathBuf, String) {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-mir-boxing-production");
+        .join("../../tests/fixtures/language/mir-boxing-production");
     let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
     (directory, source)
 }
@@ -72,7 +72,7 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
             encode(&bindings).unwrap()
         });
         with_production(
-            &format!("private struct Unrelated() {{}}\n{source}"),
+            &prepend_declarations(&source, "private struct Unrelated() {}\n"),
             |output, input, hir, graph, types| {
                 let unit = dependencies::unit(input, graph);
                 let boolean = dependencies::boolean(input, graph);

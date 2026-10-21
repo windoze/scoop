@@ -1,0 +1,72 @@
+package scoop.json.tests.consumer.baseline_cone
+
+import scoop.test.*
+enum Values {
+    Text(String), Many(Array<String>)
+    companion object : ValueEncoder<Values>, ValueDecoder<Values> {
+        public override fun encode(value: Values, encoder: Encoder) {
+            when (value) {
+                case Values.Text(text) -> String.encode(text, encoder)
+                case Values.Many(values) -> Array<String>.encoder(String.Companion).encode(values, encoder)
+            }
+        }
+        public override fun decode(decoder: Decoder): Values {
+            var text: String? = None
+            try { text = Some(String.decode(decoder)) }
+            catch (error: DecodingException) { text = None }
+            if (text != None) { return Values.Text(text!!) }
+            return Values.Many(Array<String>.decoder(String.Companion).decode(decoder))
+        }
+    }
+    fun matches(value: String): Boolean = when (this) {
+        case Values.Text(text) -> text == value
+        case Values.Many(values) -> member(values, value)
+    }
+}
+struct Predicate(val os: Values? = None, val arch: Values? = None, val env: Values? = None) {
+    companion object : ValueEncoder<Predicate>, ValueDecoder<Predicate> {
+        public override fun decode(decoder: Decoder): Predicate {
+            val fields = strict(decoder, ["os", "arch", "env"])
+            val value = PredicateFields.decode(decoder)
+                validateValues(fields.optional("os"), value.os, ["darwin", "linux"])
+                validateValues(fields.optional("arch"), value.arch, ["aarch64", "x86_64"])
+                validateValues(fields.optional("env"), value.env, ["gnu", "musl", "none"])
+            fields.end()
+            return value
+        }
+    }
+    fun matches(os: String, arch: String, env: String): Boolean =
+        matchesValue(this.os, os) && matchesValue(this.arch, arch) && matchesValue(this.env, env)
+}
+object PredicateFields : ValueDecoder<Predicate> {}
+fun matchesValue(values: Values?, value: String): Boolean = when (values) {
+    case None -> true
+    case Some(_) -> values!!.matches(value)
+}
+fun validateValues(child: Decoder?, value: Values?, allowed: Array<String>) {
+    when (value) {
+        case None -> { return }
+        case Some(_) -> {
+            when (value!!) {
+                case Values.Text(text) -> requireValid(member(allowed, text), child!!, "unknown target value")
+                case Values.Many(values) -> {
+                    val sequence = child!!.unkeyed()
+                    for (text in values) { requireValid(member(allowed, text), sequence.element(), "unknown target value") }
+                }
+            }
+        }
+    }
+}
+
+struct Selection(val path: String, @Serialize(rename = "when") val predicate: Predicate? = None) {
+    companion object : ValueEncoder<Selection>, ValueDecoder<Selection> {
+        public override fun decode(decoder: Decoder): Selection {
+            val fields = strict(decoder, ["path", "when"])
+            val value = SelectionFields.decode(decoder)
+            requireValid(relativePath(value.path), fields.required("path"), "invalid relative path")
+            fields.end()
+            return value
+        }
+    }
+}
+object SelectionFields : ValueDecoder<Selection> {}

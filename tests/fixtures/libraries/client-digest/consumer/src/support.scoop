@@ -1,0 +1,49 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.tls.TlsTrustSource
+
+internal fun digestCheck(value: Boolean, detail: String = "Digest integration check failed") {
+    if (!value) throw IllegalStateException(Some(detail))
+}
+
+internal suspend fun <E : Throwable> digestFailure(block: suspend () -> Unit): E {
+    try { block() }
+    catch (error: Throwable) { if (error is E) return error; throw error }
+    throw IllegalStateException(Some("expected Digest failure"))
+}
+
+internal fun digestConfig(trust: TrustStore, provider: HttpAuthenticator, attempts: Long = 3L): HttpClientConfig =
+    HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+        authentication = HttpAuthenticationOptions([provider], maxAttempts = attempts),
+        retries = HttpRetryOptions(maxRetries = 0L))
+
+internal suspend fun digestWrite(output: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes)
+        output.writeFully(buffer)
+    }
+}
+
+internal class DigestContext(val value: String)
+context(context: DigestContext)
+internal fun digestContext(): String = context.value
+
+internal fun digestAlgorithm(name: String): HttpDigestAlgorithm = when (name) {
+    case "MD5" -> HttpDigestAlgorithm.Md5
+    case "MD5-sess" -> HttpDigestAlgorithm.Md5Sess
+    case "SHA-256" -> HttpDigestAlgorithm.Sha256
+    case "SHA-256-sess" -> HttpDigestAlgorithm.Sha256Sess
+    case "SHA-512-256" -> HttpDigestAlgorithm.Sha512_256
+    case "SHA-512-256-sess" -> HttpDigestAlgorithm.Sha512_256Sess
+    else -> HttpDigestAlgorithm.Sha256
+}
+
+internal fun digestReport(error: Throwable) {
+    if (error is Exception) println(error.message ?: "no exception message")
+    if (error is ResourceUseException) { digestReport(error.primaryFailure); digestReport(error.cleanupFailure) }
+}

@@ -1,0 +1,3 @@
+package test.m48
+import test.m48.m48.objects.value
+fun main(): Int = value()

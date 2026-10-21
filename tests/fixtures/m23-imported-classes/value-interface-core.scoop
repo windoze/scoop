@@ -1,6 +1,0 @@
-import dependency.classes.Counter
-
-public fun primary(): Counter {
-    val value: RebuiltReadable = RebuiltValueReader(21)
-    return Counter(value.read())
-}

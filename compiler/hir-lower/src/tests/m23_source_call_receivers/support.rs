@@ -10,7 +10,7 @@ use crate::{CurrentConeSources, lower_current_cone};
 
 pub(super) fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-source-call-receivers")
+        .join("../../tests/fixtures/language/source-call-receivers")
         .join(name)
 }
 

@@ -1,3 +1,0 @@
-public fun defaultStructuralChild(): Child = Child()
-public fun defaultStructuralHolder(): Holder = Holder()
-public fun readStructuralHolder(value: Holder): Boolean = value.equal

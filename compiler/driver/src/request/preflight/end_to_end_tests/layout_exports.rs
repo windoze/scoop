@@ -31,7 +31,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
     let core = bootstrap_core(sysroot.path(), &target);
     let bytes = std::fs::read(core.artifact().path()).unwrap();
     for name in ["standalone", "combined", "private-support"] {
-        let path = crate::workspace_root().join("tests/fixtures/m23-lir-export-assembly");
+        let path = crate::workspace_root().join("tests/fixtures/language/lir-export-assembly");
         let source = std::fs::read_to_string(path.join(format!("{name}.scoop"))).unwrap();
         let mut expected = None;
         support::with_production(
@@ -84,8 +84,9 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
             &target,
             &bytes,
             &format!(
-                "{}\nprivate fun unrelated(): Boolean = true\n{source}",
-                std::fs::read_to_string(path.join("private-local.scoop")).unwrap()
+                "{}\nprivate fun unrelated(): Boolean = true\n{}",
+                std::fs::read_to_string(path.join("private-local.scoop")).unwrap(),
+                source.strip_prefix("package dev.example\n").unwrap()
             ),
             |input, dependencies| {
                 let result =

@@ -17,7 +17,8 @@ fn actual_generic_library_emits_shared_odr_objects() {
     let target = resolved_target().expect("generic machine lowering requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     bootstrap_core(sysroot.path(), &target);
-    let directory = crate::workspace_root().join("tests/fixtures/m23-generic-body-consumption");
+    let directory =
+        crate::workspace_root().join("tests/fixtures/language/generic-body-consumption");
     let fixture =
         |name| std::fs::read_to_string(directory.join(format!("machine-{name}.scoop"))).unwrap();
     let provider_coordinate =

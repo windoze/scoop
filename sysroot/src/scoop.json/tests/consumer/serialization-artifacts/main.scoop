@@ -1,0 +1,28 @@
+package scoop.json.tests.consumer.serialization_artifacts.p0
+
+import scoop.test.*
+import scoop.json.Json
+import scoop.json.tests.consumer.serialization_artifacts.p1.Identifier
+import scoop.json.tests.consumer.serialization_artifacts.p1.reader
+
+typealias Id = Identifier
+
+private fun exerciseConsumer() {
+    val text = Json.encodeToString(Identifier(7L), Id.Companion)
+    if (text != "{\"id\":7}") { throw IllegalStateException() }
+    val codec: ValueDecoder<Identifier> = Id.Companion
+    val first = Json.decodeFromString(text, codec)
+    val second = Json.decodeFromString(text, reader<Identifier>({ source -> Id.decode(source) }))
+    if (first != second || first.value != 7L) { throw IllegalStateException() }
+    if (Identifier.Factory.calls != 2L || Id.Companion !== Identifier.Factory) {
+        throw IllegalStateException()
+    }
+    assertEquals("{\"id\":7}", (text).toString())
+    assertEquals("artifacts-ok", ("artifacts-ok").toString())
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

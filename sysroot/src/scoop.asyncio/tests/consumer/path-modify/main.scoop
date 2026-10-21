@@ -1,0 +1,78 @@
+package scoop.asyncio.tests.consumer.path_modify
+
+import scoop.test.*
+import scoop.platform.fs.*
+import scoop.asyncio.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+
+private fun check(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("asynchronous path modification check failed"))
+}
+
+private fun publish(parent: Path) {
+    val directory = createTempDirectory(Some(parent), "scoop-paths-")
+    try {
+        val nested = directory.resolve(Path.fromString("缓存 空格/body"))
+        val output = nested.resolve(Path.fromString("data"))
+        val staging = directory.resolve(Path.fromString("data.part"))
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val first = scope.launch suspend { loop.createDirectories(nested) }
+            val second = scope.launch suspend { loop.createDirectories(nested) }
+            first.join()
+            second.join()
+            val options = OpenOptions(write = true, createNew = true)
+            loop.openFile(output, options).useAsync suspend { file ->
+                NativeByteBuffer.allocate(3L).use suspend { bytes ->
+                    bytes.writeBytes("old".toByteArray())
+                    file.writeFully(bytes)
+                }
+            }
+            loop.openFile(output).useAsync suspend { previous ->
+                loop.openFile(staging, options).useAsync suspend { file ->
+                    NativeByteBuffer.allocate(11L).use suspend { bytes ->
+                        bytes.writeBytes("new content".toByteArray())
+                        file.writeFully(bytes)
+                        gcCollect()
+                        check(file.position() == 11L)
+                        file.syncAll()
+                    }
+                }
+                try { loop.moveFile(staging, output); throw IllegalStateException(Some("exclusive move succeeded")) }
+                catch (error: PlatformException) { check(error.kind == PlatformErrorKind.AlreadyExists) }
+                loop.moveFile(staging, output, replaceExisting = true)
+                check(previous.size() == 3L)
+                check(loop.metadata(output).size == 11L)
+            }
+            val content = loop.openFile(output).useAsync suspend { file -> file.readAllBytes() }
+            check(OsString.fromByteArray(content).decodeUtf8() == "new content")
+            loop.deleteFile(output)
+            loop.deleteFile(nested)
+            loop.deleteFile(nested.parent!!)
+        }
+    } finally { directory.deleteRecursively() }
+}
+
+private fun exerciseConsumer(args: Array<String>) {
+    check(args.size == 2L)
+    val directory = Path.fromString(args[1L])
+    Thread.start { publish(directory) }.use { first ->
+        Thread.start { publish(directory) }.use { second ->
+            first.join()
+            second.join()
+        }
+    }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun run() {
+        val directory = createTempDirectory(prefix = "scoop-consumer-")
+        try { exerciseConsumer(["consumer", directory.decodeUtf8()]) }
+        finally { directory.deleteRecursively() }
+    }
+}

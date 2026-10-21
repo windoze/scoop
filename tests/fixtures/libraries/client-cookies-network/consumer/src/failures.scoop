@@ -1,0 +1,36 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.platform.io.UnexpectedEofException
+import scoop.test.*
+
+internal fun cookieCallbackFailure(trust: TrustStore, saving: Boolean) {
+    withCookieRuntime suspend { _, scope, listener, url ->
+        val failure = UnexpectedEofException()
+        val calls = AtomicLong(0L)
+        val jar = CookieCallbacks(loading = suspend { _ -> if (!saving && calls.fetchAdd(1L) == 0L) throw failure },
+            saving = suspend { _, _ -> if (saving && calls.fetchAdd(1L) == 0L) throw failure })
+        val serving = scope.launch suspend {
+            for (_ in 0L..<(if (saving) 2L else 1L)) {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    request.body.close()
+                    cookieRespond(connection)
+                }
+            }
+        }
+        withHttpClient(HttpClientConfig(tls = cookieNetworkConfig(trust, Some(jar)).tls, cookieJar = Some(jar),
+            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))) suspend { client ->
+            val result = CookieFailure()
+            try { client.execute(HttpRequest.get(url)).close() }
+            catch (error: Throwable) { result.value = Some(error) }
+            assertSame(failure, result.value!!)
+            assertEquals(1L, calls.load())
+            client.withResponse(HttpRequest.get(url)) suspend { response -> assertEquals("done", response.body.text(16L)) }
+            assertEquals(2L, calls.load())
+        }
+        serving.join()
+    }
+}

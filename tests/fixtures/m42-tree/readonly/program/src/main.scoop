@@ -1,6 +1,0 @@
-import scoop.collections.*
-
-fun main() {
-    val values = listOf<Int>(1).toSortedSet()
-    values.add(2)
-}

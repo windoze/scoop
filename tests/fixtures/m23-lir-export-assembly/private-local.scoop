@@ -1,2 +1,0 @@
-private struct LocalOnly(val flag: Boolean) {}
-private fun makeLocal(): LocalOnly = LocalOnly(true)

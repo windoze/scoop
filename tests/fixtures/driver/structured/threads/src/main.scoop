@@ -1,0 +1,127 @@
+package test
+import scoop.platform.concurrent.*
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("threaded task assertion")) }
+
+class Label(val value: Int)
+context(label: Label)
+fun labelValue(): Int = label.value
+
+class State : Continuation<Unit> {
+    var job: Job? = None
+    var scope: CoroutineScope? = None
+    var exitScope: Continuation<Unit>? = None
+    var pending: CancellableContinuation<Int>? = None
+    var failure: Throwable? = None
+    val ready: AtomicInt = AtomicInt(0)
+    val done: AtomicBoolean = AtomicBoolean(false)
+    val success: AtomicInt = AtomicInt(0)
+    val cancelled: AtomicInt = AtomicInt(0)
+    val cleaned: AtomicInt = AtomicInt(0)
+
+    public override fun resume(value: Unit) { check(!done.exchange(true)) }
+    public override fun resumeWithException(error: Throwable) {
+        failure = Some(error)
+        check(!done.exchange(true))
+    }
+
+    fun rendezvous() {
+        ready.fetchAdd(1)
+        while (ready.load() != 2) yield()
+    }
+}
+
+fun scopeClosingRace() {
+    val state = State()
+    startCoroutine<Unit>(suspend {
+        coroutineScope<Unit> suspend { scope ->
+            state.scope = Some(scope)
+            state.job = Some(scope.job)
+            suspendCoroutine<Unit> { continuation -> state.exitScope = Some(continuation) }
+        }
+    }, state)
+    val launch = Thread.start {
+        state.rendezvous()
+        var index = 0
+        while (index < 24) {
+            try {
+                state.scope!!.launch suspend { state.success.fetchAdd(1) }
+                state.cleaned.fetchAdd(1)
+            } catch (_: IllegalStateException) { state.cancelled.fetchAdd(1) }
+            index += 1
+        }
+    }
+    val close = Thread.start { state.rendezvous(); state.exitScope!!.resume(Unit) }
+    launch.use { worker -> worker.join() }
+    close.use { worker -> worker.join() }
+    check(state.done.load() && state.job!!.isCompleted)
+    check(state.success.load() == state.cleaned.load())
+    check(state.cleaned.load() + state.cancelled.load() == 24)
+    when (state.failure) { case Some(error) -> throw error; case None -> {} }
+}
+
+fun begin(): State {
+    val state = State()
+    context(Label(7)) {
+        startCoroutine<Unit>(suspend {
+            coroutineScope<Unit> suspend { scope ->
+                state.job = Some(scope.job)
+                try {
+                    val value = suspendCancellableCoroutine<Int> { next -> state.pending = Some(next) }
+                    check(value == 31)
+                    state.success.fetchAdd(1)
+                } catch (_: CancellationException) {
+                    state.cancelled.fetchAdd(1)
+                } finally {
+                    gcCollect()
+                    check(labelValue() == 7)
+                    check(currentJobOrNone()!! === scope.job)
+                    state.cleaned.fetchAdd(1)
+                }
+            }
+        }, state)
+    }
+    check(!state.done.load())
+    return state
+}
+
+fun checkFinished(state: State) {
+    check(state.done.load() && state.job!!.isCompleted)
+    check(state.success.load() + state.cancelled.load() == 1)
+    check(state.cleaned.load() == 1)
+    check(!state.pending!!.tryResume(31))
+    when (state.failure) {
+        case Some(error) -> check(error is CancellationException)
+        case None -> {}
+    }
+}
+
+fun main() {
+    val successful = begin()
+    Thread.start {
+        context(Label(99)) {
+            check(successful.pending!!.tryResume(31))
+            check(labelValue() == 99)
+        }
+    }.use { worker -> worker.join() }
+    checkFinished(successful)
+    check(successful.success.load() == 1 && !successful.job!!.isCancelled)
+
+    val cancelled = begin()
+    Thread.start { cancelled.job!!.cancel() }.use { worker -> worker.join() }
+    checkFinished(cancelled)
+    check(cancelled.cancelled.load() == 1)
+
+    var round = 0
+    while (round < 24) {
+        val state = begin()
+        val complete = Thread.start { state.rendezvous(); state.pending!!.tryResume(31) }
+        val cancel = Thread.start { state.rendezvous(); state.job!!.cancel() }
+        complete.use { worker -> worker.join() }
+        cancel.use { worker -> worker.join() }
+        checkFinished(state)
+        round += 1
+    }
+    scopeClosingRace()
+    println("threads ok")
+}

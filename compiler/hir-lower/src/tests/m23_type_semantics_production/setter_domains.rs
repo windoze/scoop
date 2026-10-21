@@ -4,7 +4,7 @@ use super::*;
 fn restricted_setters_keep_complete_source_metadata_for_every_owner_kind() {
     let source = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-setter-domains/combined.scoop"),
+            .join("../../tests/fixtures/language/setter-domains/combined.scoop"),
     )
     .unwrap();
     source_dispatch::with_hir_source(&source, |output, _| {

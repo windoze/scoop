@@ -1,0 +1,12 @@
+package dev.example
+import dev.example.dependency.odr.Payload
+import dev.example.sibling.left.left
+import dev.example.sibling.left.leftNumber
+import dev.example.sibling.right.right
+import dev.example.sibling.right.rightNumber
+
+public fun check(): Int {
+    val first = left(Payload(leftNumber(Throwable())))
+    val second = right(Payload(rightNumber(Throwable())))
+    return first.number + second.number
+}

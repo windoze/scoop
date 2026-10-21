@@ -1,0 +1,52 @@
+schema = 1
+name = "generic-bounds-bad-source-mixed-classes"
+inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../generic-bounds/provider.scoop", "bad-source-mixed-classes", "../../../generic-bounds/bad-source-mixed-classes.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["generics", "generic_bound_constraints_reject_invalid_calls_and_declarations", "negative", "language"]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-member-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-member-provider", "to" = "${work}/sources/generic-member-provider"}},
+  {"copy" = {"from" = "${fixture}/../../../generic-bounds/provider.scoop", "to" = "${work}/sources/generic-member-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/generic-member-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-member-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_bad-source-mixed-classes"
+files = [
+  {"copy" = {"from" = "${fixture}/bad-source-mixed-classes", "to" = "${work}/sources/bad-source-mixed-classes"}},
+  {"copy" = {"from" = "${fixture}/../../../generic-bounds/bad-source-mixed-classes.scoop", "to" = "${work}/sources/bad-source-mixed-classes/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/bad-source-mixed-classes", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/bad-source-mixed-classes/0.1.0/cone.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/artifacts/dev.example/bad-source-mixed-classes/0.1.0/cone.slib", "exists" = false},
+]

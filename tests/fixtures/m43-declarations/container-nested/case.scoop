@@ -1,3 +1,0 @@
-import scoop.test.*
-
-class Outer { @Test class Cases }

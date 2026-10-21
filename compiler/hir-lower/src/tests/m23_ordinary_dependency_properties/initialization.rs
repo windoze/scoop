@@ -7,7 +7,7 @@ mod resources;
 
 fn fixture_path() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-property-initialization")
+        .join("../../tests/fixtures/language/property-initialization")
 }
 
 fn with_shared(
@@ -19,7 +19,7 @@ fn with_shared(
     ),
 ) {
     let provider = std::fs::read_to_string(
-        fixture_path().join("../m23-core-layout-exports/property-initialization-provider.scoop"),
+        fixture_path().join("../core-layout-exports/property-initialization-provider.scoop"),
     )
     .unwrap();
     let mut core = trusted_core();

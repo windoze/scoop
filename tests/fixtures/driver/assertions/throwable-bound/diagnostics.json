@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `assertFailsWith`: type argument `Int` for `E` must satisfy `ref`",
+    "notes": [],
+    "origin": {
+      "cone": "567506f2a44f5823cb7f86e3d52e464e8527c9329e4d4e264262412406eb9211",
+      "end": 92,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 68
+    },
+    "severity": "error"
+  }
+]

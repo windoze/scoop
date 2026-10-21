@@ -3,7 +3,7 @@ use super::*;
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-generic-delegate-consumption")
+            .join("../../tests/fixtures/language/generic-delegate-consumption")
             .join(format!("{name}.scoop")),
     )
     .unwrap()
@@ -17,7 +17,7 @@ fn imported_initializer_references_keep_provider_invokes_and_capture_values() {
     };
 
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-generic-delegate-references");
+        .join("../../tests/fixtures/language/generic-delegate-references");
     let source = |name: &str| std::fs::read_to_string(root.join(format!("{name}.scoop"))).unwrap();
     for case in [
         "reference-named",
@@ -211,7 +211,7 @@ fn imported_generic_delegates_share_storage_by_complete_receiver_arguments() {
 #[test]
 fn imported_initializer_locals_keep_the_initialization_application_owner() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-generic-delegate-generated");
+        .join("../../tests/fixtures/language/generic-delegate-generated");
     let source = |name: &str| std::fs::read_to_string(root.join(format!("{name}.scoop"))).unwrap();
     for (case, expected) in [("initializer-basic", 1), ("initializer-local", 2)] {
         with_provider_consumer(&source("provider"), &source(case), |output, _, _, _, _| {
@@ -268,7 +268,7 @@ fn imported_initializer_locals_keep_the_initialization_application_owner() {
 #[test]
 fn imported_initializer_closures_keep_the_initialization_materialization() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-generic-delegate-closures");
+        .join("../../tests/fixtures/language/generic-delegate-closures");
     let source = |name: &str| std::fs::read_to_string(root.join(format!("{name}.scoop"))).unwrap();
     for (case, expected, anonymous_count) in [
         ("initializer-closure", 2, 0),

@@ -1,5 +1,0 @@
-package facade.paths
-
-public import dependency.paths.Point
-public import dependency.paths.IntBox
-public import dependency.paths.Outer

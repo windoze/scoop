@@ -1,4 +1,0 @@
-package facade.nesting
-
-public import origin.nesting.Outer
-public import origin.nesting.Choice

@@ -52,7 +52,12 @@ typedef enum RefillResult {
 
 static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
     lock_heap();
-    size_t capacity = scoop_gc_heap_state.stress_minor ? GC_BLOCK_SIZE : GC_NURSERY_CAPACITY;
+    size_t capacity = GC_NURSERY_CAPACITY;
+#if SCOOP_ENABLE_GC_STRESS
+    if (scoop_gc_heap_state.stress_minor) {
+        capacity = GC_BLOCK_SIZE;
+    }
+#endif
     if (!after_full && committed_bytes + GC_BLOCK_SIZE > collection_threshold) {
         unlock_heap();
         return REFILL_FULL;
@@ -132,6 +137,7 @@ static void *allocate_old(size_t size, size_t alignment) {
     }
 }
 
+#if SCOOP_ENABLE_GC_STRESS
 static void *allocate_small_stress(size_t size, bool pretenured) {
     lock_heap();
     ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
@@ -149,6 +155,7 @@ static void *allocate_small_stress(size_t size, bool pretenured) {
     }
     return object;
 }
+#endif
 
 static void *allocate_large(size_t size, ScoopGcBlockMeta **allocated_block) {
     bool collected = false;
@@ -173,6 +180,7 @@ static void *allocate_large(size_t size, ScoopGcBlockMeta **allocated_block) {
     }
 }
 
+#if SCOOP_ENABLE_GC_STRESS
 static void *allocate_large_stress(size_t size, ScoopGcBlockMeta **allocated_block) {
     lock_heap();
     ScoopGcBlockMeta *block = activate_large_block(size, SCOOP_BLOCK_MUTATOR);
@@ -183,6 +191,7 @@ static void *allocate_large_stress(size_t size, ScoopGcBlockMeta **allocated_blo
     *allocated_block = block;
     return (char *)block_base(block) + GC_LINE_SIZE;
 }
+#endif
 
 static void record_allocation(ScoopGcMutator *mutator, size_t size, bool nursery) {
     ScoopGcAllocationCounters *counters = &mutator->counters;
@@ -233,6 +242,7 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     }
     ScoopGcMutator *mutator = scoop_gc_current_mutator();
     size = scoop_gc_allocation_size(td, size);
+#if SCOOP_ENABLE_GC_STRESS
     bool stress = scoop_gc_stress_move_enabled();
     if (stress) {
         scoop_gc_reset_allocation(mutator);
@@ -241,16 +251,24 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
             heap_fatal("stress collection published a mutator TLAB");
         }
     }
+#endif
     if (size <= GC_REGULAR_MAX) {
-        void *object = stress ? allocate_small_stress(size, scoop_gc_type_has_release(td))
-                       : scoop_gc_type_has_release(td)
+        void *object =
+#if SCOOP_ENABLE_GC_STRESS
+            stress ? allocate_small_stress(size, scoop_gc_type_has_release(td)) :
+#endif
+                         scoop_gc_type_has_release(td)
                            ? allocate_old(size, scoop_gc_type_alignment(td))
                            : allocate_small(mutator, size, scoop_gc_type_alignment(td));
         finish_small_allocation(mutator, object, td, size);
         return object;
     }
     ScoopGcBlockMeta *block;
-    void *object = stress ? allocate_large_stress(size, &block) : allocate_large(size, &block);
+    void *object =
+#if SCOOP_ENABLE_GC_STRESS
+        stress ? allocate_large_stress(size, &block) :
+#endif
+                 allocate_large(size, &block);
     memset(object, 0, size);
     ScoopObjectHeader *header = object;
     scoop_gc_set_object_type(object, td);

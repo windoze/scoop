@@ -1,7 +1,0 @@
-package nativelink.facade
-
-public import nativelink.api.add
-
-public fun <T> through(value: T): Int {
-    @Unsafe { return add(40) }
-}

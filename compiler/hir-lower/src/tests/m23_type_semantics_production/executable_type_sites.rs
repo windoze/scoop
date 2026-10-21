@@ -8,7 +8,7 @@ mod shape_operations;
 fn fixture() -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-executable-type-sites/type-test.scoop"),
+            .join("../../tests/fixtures/language/executable-type-sites/type-test.scoop"),
     )
     .unwrap()
 }
@@ -69,7 +69,7 @@ fn shared_type_sites_preserve_type_test_operands_without_unexpanded_defaults() {
 fn shared_constructor_type_sites_keep_their_actual_source_context() {
     let source = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-executable-type-sites/constructors.scoop"),
+            .join("../../tests/fixtures/language/executable-type-sites/constructors.scoop"),
     )
     .unwrap();
     with_hir_source(&source, |output, _| {

@@ -10,12 +10,15 @@ impl SingleConeBuildRequest {
                 self.target.selection().target().id(),
                 self.purpose,
             ),
-            LoadedCurrentConeInput::SingleFile { source } => parse_single_file_current(&source),
+            LoadedCurrentConeInput::SingleFile { input, .. } => {
+                parse_single_discovered_source(&input)
+            }
         }
         .map_err(SingleConeProductionError::Sources)?;
         let dumps = ast_dumps(&sources, self.emit);
         let warnings =
-            CurrentConeDiagnosticSet::try_new(Vec::new(), &sources).map_err(|error| {
+            CurrentConeDiagnosticSet::try_new(packages::single_file_warnings(&sources), &sources)
+                .map_err(|error| {
                 SingleConeProductionError::Production(Box::new(
                     CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Warnings(
                         error,

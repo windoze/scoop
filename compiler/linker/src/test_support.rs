@@ -16,7 +16,7 @@ pub(crate) struct Fixture {
 }
 
 pub(crate) fn native_fixture() -> Fixture {
-    build_fixture("../m23-native-link/final/root.scoop", true)
+    build_fixture("../native-link/final/root.scoop", true)
 }
 
 fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
@@ -75,6 +75,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
     };
     let target = ResolvedTargetProfile::resolve(triple).unwrap();
     let runtime_build = build_runtime(RuntimeBuildRequest {
+        enable_gc_stress: false,
         target: &target,
         runtime_root: &workspace.join("runtime"),
         vendor_root: &workspace.join("sysroot/vendor"),
@@ -93,7 +94,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
     let library_paths = if native {
         let source = path.join("native.c");
         std::fs::copy(
-            workspace.join("tests/fixtures/m23-native-link/final/native.c"),
+            workspace.join("tests/fixtures/language/native-link/final/native.c"),
             &source,
         )
         .unwrap();
@@ -148,7 +149,7 @@ fn compile(
     std::fs::write(source.join("Cone.toml"), manifest).unwrap();
     std::fs::copy(
         Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-program-link")
+            .join("../../tests/fixtures/language/program-link")
             .join(fixture),
         source.join("src/main.scoop"),
     )

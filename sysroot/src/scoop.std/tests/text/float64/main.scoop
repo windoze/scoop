@@ -1,0 +1,30 @@
+package scoop.std.tests.text.float64
+
+import scoop.test.*
+import scoop.text.*
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+fun expect(text: String, expected: Double) {
+    val value = text.toDouble()
+    check(value == expected, text)
+    if (value == 0.0) check(1.0 / value == 1.0 / expected, "zero sign: " + text)
+}
+fun reject(text: String) { check(text.toDoubleOrNone() == None, "overflow: " + text) }
+private fun exercise() {
+    vectors0()
+    vectors1()
+    vectors2()
+    vectors3()
+    vectors4()
+    vectors5()
+    vectors6()
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

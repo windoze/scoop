@@ -1,7 +1,7 @@
 use super::*;
 
 const CORE: &str =
-    include_str!("../../../../../tests/fixtures/core-library/dependencies/core/Cone.toml");
+    include_str!("../../../../../tests/fixtures/language/core-library/dependencies/core/Cone.toml");
 const SOURCE_LOCATOR: &str = r#"{ version = "1.0.0", path = "../helper" }"#;
 
 #[test]

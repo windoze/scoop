@@ -1,3 +1,0 @@
-struct Hidden(val value: Int)
-public object Published : ValueEncoder<Hidden>
-fun main() {}

@@ -1,8 +1,0 @@
-package consumer.declarationviews
-
-import upstream.declarationviews.*
-
-public fun invalid(): Int {
-    val reference = ::identity
-    return 0
-}

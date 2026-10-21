@@ -1,0 +1,5 @@
+package dev.example.consumer.constructors
+import dev.example.dependency.constructors.Token
+import dev.example.dependency.constructors.Other
+import dev.example.dependency.constructors.Wide
+@NoGC public fun wrong(): Wide = Wide((Token(), (5, 8, 11), Other()))

@@ -3,24 +3,24 @@
 import shutil
 
 
-def prepare_test_core(repo, work):
+def prepare_test_core(repo, work, sysroot):
     destination = work / "test-core"
     if not destination.exists():
-        shutil.copytree(work / "sysroot/src/scoop.core", destination, symlinks=True)
+        shutil.copytree(sysroot / "src/scoop.core", destination, symlinks=True)
         shutil.copy2(
-            repo / "tests/fixtures/m23-cli-imported-classes/support/stage3_test.scoop",
+            repo / "tests/fixtures/language/imported-classes/support/stage3_test.scoop",
             destination / "src/stage3_test.scoop",
         )
 
 
-def prepare_class_core(repo, work):
+def prepare_class_core(repo, work, sysroot):
     destination = work / "class-core"
     if destination.exists():
         return
-    prepare_test_core(repo, work)
+    prepare_test_core(repo, work, sysroot)
     shutil.copytree(work / "test-core", destination, symlinks=True)
     sources = destination / "src"
-    companions = repo / "tests/fixtures/m23-imported-classes"
+    companions = repo / "tests/fixtures/language/imported-classes"
     shutil.copy2(companions / "core-provider.scoop", sources / "user_class.scoop")
     replacements = [
         (

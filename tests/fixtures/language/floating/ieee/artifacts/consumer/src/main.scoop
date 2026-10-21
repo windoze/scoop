@@ -1,0 +1,14 @@
+package dev.m41
+import dev.m41.relayed.*
+class Reader : Sample {}
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    check(constants() && compare(Float.NaN, -Float.NaN) && compare(Double.NaN, Double.POSITIVE_INFINITY))
+    check(ieee(Float.NaN, 0f) == IeeeComparison.Unordered)
+    val reader: Sample = Reader()
+    check(reader.equal(Double.NaN, -Double.NaN))
+    check(Pair(Float.NaN, -0.0) == Pair(-Float.NaN, 0.0))
+    val bits = bitPatterns(bitValues(0x7f800123, 0x7ff0000000000123L))
+    check(bits._1 == 0x7f800123 && bits._2 == 0x7ff0000000000123L)
+    println("floating artifacts")
+}

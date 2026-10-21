@@ -6,7 +6,7 @@ fn ordinary_reader_preserves_inherited_default_contracts_from_published_bytes() 
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
-    let directory = crate::workspace_root().join("tests/fixtures/m23-default-call-domains");
+    let directory = crate::workspace_root().join("tests/fixtures/language/default-call-domains");
     for (case, expected_templates, expected_inherited) in
         [("standalone", 1, 0), ("combined", 11, 6)]
     {

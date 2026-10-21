@@ -1,0 +1,20 @@
+package dev.example.consumer
+
+import dev.example.dependency.api.run as directRun
+import dev.example.dependency.api.combineUnits
+import dev.example.dependency.api.choose
+import dev.example.facade.api.run as exportedRun
+
+private val initialized: Boolean = directRun()
+
+private fun empty(): Unit {}
+public fun withDefault(value: Boolean = exportedRun()): Boolean = value
+
+public fun invoke(): Boolean {
+    fun nested(): Boolean = directRun()
+    val callback = { exportedRun() }
+    combineUnits(empty(), empty())
+    val defaulted = withDefault()
+    val fromProvider = choose()
+    return nested() && callback() && defaulted && initialized && fromProvider
+}

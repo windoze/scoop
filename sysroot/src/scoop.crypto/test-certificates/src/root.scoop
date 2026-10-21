@@ -1,4 +1,4 @@
-package scoop.crypto.testdata
+package scoop.tests.scoop.crypto.testdata
 
 // Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
 

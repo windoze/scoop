@@ -1,0 +1,45 @@
+package scoop.compression.tests.consumer.compression_async
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.compression.asyncio.*
+import scoop.platform.fs.*
+
+internal class CompressionFixtureFiles(val original: Path, val uploaded: Path, val downloaded: Path)
+
+internal fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+
+private fun writing(): OpenOptions = OpenOptions(read = false, write = true, create = true, truncate = true)
+
+internal suspend fun uploadAndDownload(loop: EventLoop, connection: AsyncTcpStream,
+    files: CompressionFixtureFiles, options: CompressionOptions) {
+    connection.useAsync suspend { client ->
+        loop.openFile(files.original).useAsync suspend { input ->
+            AsyncCompressionSink(client, options, 251L).useAsync suspend { sink ->
+                check(input.copyTo(sink, 521L) == 12345L)
+                sink.finish()
+                check(sink.totals.inputBytes == 12345L)
+            }
+        }
+        client.shutdownOutput()
+        loop.openFile(files.downloaded, writing()).useAsync suspend { output ->
+            check(client.decompressTo(output, DecompressionOptions(options.format), 257L).outputBytes == 12345L)
+        }
+    }
+}
+
+internal suspend fun receiveAndRespond(loop: EventLoop, connection: AsyncTcpStream,
+    files: CompressionFixtureFiles, options: CompressionOptions) {
+    connection.useAsync suspend { server ->
+        loop.openFile(files.uploaded, writing()).useAsync suspend { output ->
+            AsyncDecompressionSource(server, DecompressionOptions(options.format), 257L).useAsync suspend { source ->
+                check(source.copyTo(output, 521L) == 12345L)
+            }
+        }
+        loop.openFile(files.original).useAsync suspend { input ->
+            check(input.compressTo(server, options, 251L).inputBytes == 12345L)
+        }
+        server.shutdownOutput()
+    }
+}

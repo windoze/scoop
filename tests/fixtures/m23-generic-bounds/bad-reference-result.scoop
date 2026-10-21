@@ -1,3 +1,0 @@
-import templates.bounds.*
-
-public fun result(): () -> String = readReference(Value(42))

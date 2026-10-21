@@ -1,0 +1,12 @@
+package dev.example
+import dev.example.dependency.classes.Outer
+import dev.example.dependency.classes.Counter
+
+public class Derived public constructor(): Outer() {
+    public fun read(): Long {
+        val value: Outer.View = Outer.Value(19)
+        val cache = Outer.Cache
+        return value.read() + Outer.Flag.Ready.read() + cache.read()
+    }
+}
+public fun primary(): Counter = Counter(Derived().read())

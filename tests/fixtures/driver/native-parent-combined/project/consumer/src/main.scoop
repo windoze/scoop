@@ -1,0 +1,4 @@
+package test.m52
+import test.m52.m52.vendor.value
+import test.m52.m52.vendor.identity
+fun main() { println(identity(value())) }

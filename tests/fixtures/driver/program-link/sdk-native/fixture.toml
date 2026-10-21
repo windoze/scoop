@@ -1,0 +1,63 @@
+schema = 1
+name = "program-link-sdk-native"
+inputs = ["cone", "../../../language/program-link/native-root.scoop", "native-library", "../../../language/program-link/native-library.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["program-link", "native-link", "sdk", "multi-cone", "driver"]
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/native-root"}}, {"copy" = {"from" = "${fixture}/../../../language/program-link/native-root.scoop", "to" = "${work}/sources/native-root/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_native-library"
+files = [{"copy" = {"from" = "${fixture}/native-library", "to" = "${work}/sources/native-library"}}, {"copy" = {"from" = "${fixture}/../../../language/program-link/native-library.scoop", "to" = "${work}/sources/native-library/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "declare_dependencies"
+files = [{"copy" = {"from" = "${fixture}/cone/Cone.toml", "to" = "${work}/sources/native-root/Cone.toml"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/native-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\nlibrary\nroot\n"
+stderr = ""
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "contains" = "cone dev.programlink:native-library:0.1.0 kind=Library"}, {"actual" = "${link.result.link_plan}", "contains" = "cone dev.programlink:native-root:0.1.0 kind=Executable"}, {"actual" = "${link.result.link_plan}", "contains" = "images=3 "}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\nlibrary\nroot\n"
+stderr = ""

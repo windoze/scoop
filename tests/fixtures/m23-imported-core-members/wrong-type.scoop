@@ -1,1 +1,0 @@
-fun bad(value: Int): Long = value.compareTo("text")

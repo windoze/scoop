@@ -1,0 +1,81 @@
+schema = 1
+name = "sysroot-priority"
+inputs = ["cone", "platform", "helper"]
+tools = ["scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["sysroot", "resolver", "driver"]
+variants = [
+ {name = "source", vars = {dependency = "{version = \"0.1.0\", path = \"../sysroot/src/selected\"}", expected = "45"}},
+ {name = "artifact", vars = {dependency = "\"0.1.0\"", expected = "42"}},
+]
+[vars]
+options = ["--sysroot", "${work}/sysroot", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+ {mkdir = {path = "${work}/sysroot/lib"}},
+ {copy = {from = "${sysroot}/lib/${target}/scoop.core.slib", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}},
+ {symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}},
+ {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+ {symlink = {from = "${sysroot}/lib/${target}/runtime", to = "${work}/sysroot/lib/${target}/runtime"}},
+ {symlink = {from = "${sysroot}/src/scoop.core", to = "${work}/sysroot/src/scoop.core"}},
+ {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
+ {copy = {from = "${fixture}/platform", to = "${work}/sysroot/src/scoop.platform"}},
+ {copy = {from = "${fixture}/helper", to = "${work}/sysroot/src/scoop.helper"}},
+]
+
+[[steps]]
+name = "helper"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sysroot/src/scoop.helper", {"each" = "${options}"}, "-o", "${work}/sysroot/lib/${target}/scoop.helper.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "platform"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sysroot/src/scoop.platform", {"each" = "${options}"}, "-o", "${work}/artifacts/scoop/scoop.platform/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+
+[[steps]]
+name = "select"
+files = [
+ {copy = {from = "${work}/sysroot/src/scoop.platform", to = "${work}/sysroot/src/selected"}},
+ {replace = {path = "${work}/sysroot/src/selected/native/value.h", old = "M33_DELTA 2", new = "M33_DELTA 5"}},
+ {replace = {path = "${work}/cone/Cone.toml", old = "\"scoop:scoop.platform\" = \"0.1.0\"", new = "\"scoop:scoop.platform\" = ${dependency}"}},
+ {replace = {path = "${work}/sysroot/src/scoop.platform/native/value.h", old = "M33_DELTA 2", new = "M33_DELTA 9"}},
+]
+
+[[steps]]
+name = "default_artifact"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sysroot/src/selected", {"each" = "${options}"}, "-o", "${work}/sysroot/lib/${target}/scoop.platform.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/cone", {"each" = "${options}"}, "--cone-path", "${work}/artifacts"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+
+exit = 0
+stdout = "sysroot library ${expected}\n"
+stderr = ""

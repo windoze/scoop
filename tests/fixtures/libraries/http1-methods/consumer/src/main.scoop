@@ -1,0 +1,56 @@
+package fixture
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+
+@Extern(name = "method_peer_start") private fun peerStart(): Int
+@Extern(name = "method_peer_reply") private fun peerReply(index: Int): Int
+@Extern(name = "method_peer_close") private fun peerClose()
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+private fun startPeer(): Int { @Unsafe { return peerStart() } }
+
+fun main() {
+    val port = startPeer()
+    check(port > 0)
+    try {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val transport = loop.connectTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port))
+            val connection = AsyncHttp1Connection.takeOwnershipAsClient(transport, scope)
+            try {
+                var index = 0
+                for (method in ["CUSTOM", "HEAD", "head", "connect"]) {
+                    check(connection.isReusable)
+                    val request = HttpRequestHead(HttpVersion.Http11, method.toByteArray(),
+                        HttpRequestTarget.Http1("/resource".toByteArray()),
+                        [HttpField("Host".toByteArray(), "example.test".toByteArray())])
+                    connection.sendRequest(request).finish()
+                    check(!connection.isReusable)
+                    @Unsafe { check(peerReply(index) == 0) }
+                    val informational = connection.receiveResponse()
+                    check(informational.head.status == 100U)
+                    check(!connection.isReusable)
+                    NativeByteBuffer.allocate(3L).use suspend { buffer ->
+                        check(informational.body.readInto(buffer, 3L) == 0L)
+                        val response = connection.receiveResponse()
+                        gcCollect()
+                        check(response.head.status == 200U)
+                        if (method != "HEAD") {
+                            response.body.readFully(buffer, 3L)
+                            check(String.fromUtf8(buffer.readBytes(3L)) == "yes")
+                        }
+                        buffer.clear()
+                        check(response.body.readInto(buffer, 3L) == 0L)
+                        check(response.body.isComplete)
+                        check(connection.isReusable)
+                    }
+                    index += 1
+                }
+            } finally { connection.close() }
+        }
+    } finally { @Unsafe { peerClose() } }
+    println("HTTP/1 extension methods")
+}

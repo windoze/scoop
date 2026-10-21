@@ -3,7 +3,7 @@ package scoop.tls.asyncio
 import scoop.asyncio.*
 import scoop.crypto.*
 import scoop.crypto.x509.*
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.platform.net.*
 import scoop.tls.*
 

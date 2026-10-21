@@ -1,0 +1,96 @@
+schema = 1
+name = "single-file-transitive-native-deps"
+inputs = ["leaf", "facade", "native.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "single-file", "dependencies", "cache", "link"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--release"]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${fixture}/facade", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/cones/dev.facade/facade/1.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "install_leaf"
+files = [{"copy" = {"from" = "${provider.result.dependencies.1.path}", "to" = "${work}/cones/dev.leaf/leaf/1.0.0/cone.slib"}}]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", "${fixture}/native.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "--cone-path", "${work}/cones"]
+exit = 0
+stdout = "7\n00000000-0000-0000-0000-000000000000\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${run.result.dependencies.length}", "equals" = 4}]
+
+[[steps]]
+name = "direct"
+argv = ["${scoopc}", "build", "${fixture}/native.scoop", {"each" = "${compile_args}"}, "--profile", "release", "--sysroot", "${sysroot}", "--direct-slib", "${work}/cones/dev.facade/facade/1.0.0/cone.slib", "--direct-slib", "${sysroot}/lib/${target}/scoop.std.slib", "--support-slib", "${work}/cones/dev.leaf/leaf/1.0.0/cone.slib", "--out-slib", "${work}/direct.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${work}/direct.slib", {"each" = "${run.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${run.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--message-format", "json", "-o", "${work}/linked"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "linked"
+argv = ["${work}/linked"]
+exit = 0
+stdout = "7\n00000000-0000-0000-0000-000000000000\n"
+stderr = ""
+
+[[steps]]
+name = "private_source"
+files = [{"write" = {"path" = "${work}/private.scoop", "data" = "//! dep: dev.facade:facade:1.0.0\nimport dev.leaf.answer\nfun main() {}\n"}}]
+
+[[steps]]
+name = "transitive_not_direct"
+argv = ["${scoop}", "build", "${work}/private.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "--cone-path", "${work}/cones"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{"code" = "SCOOPC_HIR_ERROR", "message" = "import target is not available in the current compilation unit", "notes" = [], "origin" = {"cone" = "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6", "end" = 55, "kind" = "source", "path" = "main.scoop", "start" = 40}, "severity" = "error"}]
+
+[[steps]]
+name = "change_dependency"
+files = [{"copy" = {"from" = "${fixture}/leaf", "to" = "${work}/sources/leaf"}}, {"copy" = {"from" = "${fixture}/facade", "to" = "${work}/sources/facade"}}, {"write" = {"path" = "${work}/sources/leaf/native/value.c", "data" = "#include <stdint.h>\nint32_t single_dep_value(void) { return 8; }\n"}}]
+
+[[steps]]
+name = "updated_provider"
+argv = ["${scoop}", "build", "${work}/sources/facade", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/cones/dev.facade/facade/1.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${updated_provider.result.dependencies.1.artifact_fingerprint}", "not_equals" = "${provider.result.dependencies.1.artifact_fingerprint}"}]
+
+[[steps]]
+name = "install_update"
+files = [{"copy" = {"from" = "${updated_provider.result.dependencies.1.path}", "to" = "${work}/cones/dev.leaf/leaf/1.0.0/cone.slib"}}]
+
+[[steps]]
+name = "updated_run"
+argv = ["${scoop}", "run", "${fixture}/native.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "--cone-path", "${work}/cones"]
+exit = 0
+stdout = "8\n00000000-0000-0000-0000-000000000000\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${updated_run.result.link_plan_fingerprint}", "not_equals" = "${run.result.link_plan_fingerprint}"}]

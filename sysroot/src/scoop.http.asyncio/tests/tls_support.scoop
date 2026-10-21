@@ -3,7 +3,7 @@ package scoop.http.asyncio
 import scoop.asyncio.*
 import scoop.crypto.*
 import scoop.crypto.x509.*
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.http.*
 import scoop.test.*
 import scoop.tls.*

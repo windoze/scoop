@@ -1,1 +1,0 @@
-fun bad(left: Int, right: Long): Boolean = left == right

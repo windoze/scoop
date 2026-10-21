@@ -1,0 +1,79 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+internal class SseNetworkProbe {
+    var source: HttpEventSource? = None
+    var calls: Long = 0L
+    val error: HttpException = HttpException("callback", HttpProtocol.Http1, HttpFailureScope.Operation, 0, "test", 123, "callback EOF", true)
+}
+
+internal fun sseNetwork(trust: TrustStore, mode: String, url: Url) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        val cache = MemoryHttpCache()
+        withHttpClient(sseConfig(trust, cache = Some(HttpCacheOptions(cache)), jar = Some<CookieJar>(MemoryCookieJar(suffixes = PublicSuffixList.parse("com\n"))))) suspend { client ->
+            if (mode == "cache") {
+                client.withResponse(HttpRequest.get(url)) suspend { response -> assertEquals("cached", response.body.text(1024L)) }
+                assertEquals(1L, cache.entryCount)
+            }
+            val probe = SseNetworkProbe()
+            val fields: Array<HttpField> = if (mode == "header")
+                [sseField("Last-Event-ID", "header"), sseField("Accept", "custom/type"), sseField("Cache-Control", "max-age=1")]
+                else []
+            val post = mode == "post" || mode == "post-reconnect" || mode == "post-once"
+            val body = if (mode == "post-once") RequestBody.fromProducer(Some(6L)) suspend { sink -> sseWrite(sink, "posted") }
+                else if (post) RequestBody.fromText("posted") else RequestBody.Empty
+            val request = HttpRequest(url, if (post) "POST" else "GET", fields,
+                body,
+                HttpCallOptions(decoding = Some(HttpDecodingOptions(HttpContentDecoding.Raw)),
+                    expectContinue = post, onInformational = suspend { _ -> if (mode == "informational-error") throw probe.error }))
+            val reconnect = HttpSseReconnectOptions(Duration.ZERO, Duration.milliseconds(10L),
+                Some(if (mode == "limit") 1L else 4L), suspend { event -> sseReconnecting(mode, client, probe, event) })
+            val options = HttpSseOptions(limits = if (mode == "line-limit") SseLimits(8L, 1024L) else SseLimits(),
+                bufferSize = 3L, initialLastEventId = if (mode == "header") None else Some("seed"),
+                reconnect = if (mode == "plain" || mode == "gzip" || mode == "post" || mode == "post-once" || mode == "header" || mode == "cache") None else Some(reconnect))
+            context(SseMarker("network")) {
+                if (sseInitialFailure(mode)) { checkSseInitialFailure(client, request, options, mode); assertEquals(0L, probe.calls) }
+                else {
+                    val source = client.openSse(request, options)
+                    probe.source = Some(source)
+                    source.useAsync suspend { stream -> consumeSseNetwork(stream, probe, mode) }
+                }
+            }
+            client.withResponse(HttpRequest.get(Url.parse(url.toString() + "/probe"))) suspend { response ->
+                assertEquals("ok", response.body.text(16L))
+            }
+            Unit
+        }
+    }
+}
+
+private suspend fun sseReconnecting(mode: String, client: HttpClient, probe: SseNetworkProbe, event: HttpSseReconnect) {
+    assertEquals("network", sseMarker())
+    probe.calls += 1L
+    assertEquals(probe.calls, event.number)
+    assertEquals(probe.calls, probe.source!!.reconnectCount)
+    assertFalse(probe.source!!.isClosed)
+    if (mode == "callback-error") throw probe.error
+    if (mode == "callback-close") {
+        assertTrue(sseFailure suspend { probe.source!!.close() } is IllegalStateException)
+        coroutineScope suspend { scope ->
+            scope.async suspend { assertTrue(sseFailure suspend { client.close() } is IllegalStateException) }.await()
+        }
+    }
+    if (mode == "truncated") {
+        assertTrue(ssePresent(event.cause))
+        assertTrue(event.cause!! is HttpException)
+        assertTrue((event.cause!! as HttpException).isUnexpectedEof)
+    } else assertFalse(ssePresent(event.cause))
+    if (mode == "reconnect" || mode == "post-reconnect" || mode == "cookie") {
+        assertEquals(if (event.number == 1L) "first" else "", event.lastEventId)
+        assertEquals(if (event.number == 1L) Duration.milliseconds(10L) else Duration.ZERO, event.delay)
+    }
+}

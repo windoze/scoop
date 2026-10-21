@@ -1,3 +1,0 @@
-package facade.paths
-
-public struct Point(val number: Int)

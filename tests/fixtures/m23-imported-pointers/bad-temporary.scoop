@@ -1,2 +1,0 @@
-@Unsafe
-public fun bad(): Ptr<Int> = addressOf(1 + 2)

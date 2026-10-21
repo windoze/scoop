@@ -1,0 +1,2 @@
+package test
+public fun defaultDerivedHost(): DerivedHost = DerivedHost()

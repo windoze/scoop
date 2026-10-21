@@ -1,0 +1,29 @@
+package scoop.json.tests.consumer.container_decoding_artifacts.p0
+
+import scoop.test.*
+import scoop.json.Json
+import scoop.json.tests.consumer.container_decoding_artifacts.p1.arrayDecoder
+import scoop.json.tests.consumer.container_decoding_artifacts.p1.integers
+import scoop.json.tests.consumer.container_decoding_artifacts.p1.nested
+
+private fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+private fun exerciseConsumer() {
+    val first = Json.decodeFromString("[1,2]", integers())
+    val second = Json.decodeFromString("[3]", arrayDecoder(Int.Companion))
+    val third = Json.decodeFromString("[\"four\"]", arrayDecoder(String.Companion))
+    check(first[1L] == 2 && second[0L] == 3 && third[0L] == "four")
+    val values = Json.decodeFromString("[[5,6],[]]", nested(Int.Companion))!!
+    check(values.size == 2L && values[0L][1L] == 6 && values[1L].size == 0L)
+    val text = Json.decodeFromString("[[\"七\"]]", nested(String.Companion))!!
+    check(text[0L][0L] == "七")
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

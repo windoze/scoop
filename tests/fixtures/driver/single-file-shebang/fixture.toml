@@ -1,0 +1,60 @@
+schema = 1
+name = "single-file-shebang"
+root = "script.scoop"
+inputs = ["script.scoop", "invalid.scoop", "cone/Cone.toml", "cone/src/main.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "single-file", "shebang"]
+
+[[steps]]
+name = "prepare"
+files = [
+    {copy = {from = "${root}", to = "${work}/script.scoop"}},
+    {replace = {path = "${work}/script.scoop", old = "/path/to/scoop", new = "${scoop}"}},
+    {chmod = {path = "${work}/script.scoop", mode = "0755"}},
+]
+
+[[steps]]
+name = "execute-script"
+argv = ["${work}/script.scoop", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--", "hello world", "--help"]
+exit = 0
+stdout = "hello world\n--help\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "implicit-arguments"
+argv = ["${work}/script.scoop", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "hello world", "--release"]
+exit = 0
+stdout = "hello world\n--release\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "literal-separator"
+argv = ["${scoop}", "run", "${work}/script.scoop", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "Alice", "--", "Bob"]
+exit = 0
+stdout = "Alice\n--\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "manifest"
+argv = ["${scoop}", "run", "${fixture}/cone/Cone.toml", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = "manifest shebang\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "diagnostic-position"
+argv = ["${scoop}", "build", "${fixture}/invalid.scoop", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}

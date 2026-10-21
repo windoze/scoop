@@ -1,5 +1,0 @@
-import upstream.iteration.*
-
-public fun <I: Iterator<Int>> invalid(iterator: I) where I: Iterator<String> {
-    for (value in Direct<I>(iterator)) {}
-}

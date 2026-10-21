@@ -1,0 +1,8 @@
+package dev.programlink
+fun register(mode: ForeignCallbackMode) {
+    @Unsafe {
+        foreignCallback<(Int, Ptr<Unit>) -> Int>({ value: Int -> value }, 1L, mode)
+    }
+}
+
+fun main() {}

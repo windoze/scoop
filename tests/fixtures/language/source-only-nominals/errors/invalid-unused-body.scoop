@@ -1,0 +1,6 @@
+package test
+public interface DeferredGeneric<T> {}
+public class DeferredInvalid : DeferredGeneric<Int> {
+    public fun invalid(): Int = "invalid"
+}
+fun main() {}

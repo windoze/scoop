@@ -1,0 +1,4 @@
+package dev.example.consumer.hostproperties
+import dev.example.upstream.hostproperties.*
+
+public fun <T> Hidden<T>.readHidden(): T = item.read()

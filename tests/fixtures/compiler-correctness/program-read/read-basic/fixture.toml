@@ -1,0 +1,68 @@
+schema = 1
+name = "program-read-read-basic"
+inputs = ["../../../language/program-link/read-basic.scoop", "../../../language/imported-classes/support/stage3_test.scoop", "program"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["program-read", "manifest", "compiler-correctness"]
+[[steps]]
+name = "runtime_vendor"
+files = [
+  {symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}},
+  {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
+  {"symlink" = {"from" = "${work}/core-source", "to" = "${work}/sysroot/src/scoop.core"}},
+  {"copy" = {"from" = "${fixture}/../../../language/imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "publish_core"
+files = [{copy = {from = "${core.result.root.path}", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}}]
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"copy" = {"from" = "${fixture}/program", "to" = "${work}/sources/program"}},
+  {"copy" = {"from" = "${fixture}/../../../language/program-link/read-basic.scoop", "to" = "${work}/sources/program/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_assertions"
+files = [
+  {"replace" = {"path" = "${work}/sources/program/src/main.scoop", "old" = "    val answer = stage3CoreAnswer()", "new" = "    val answer = stage3CoreAnswer()\n    if (answer != 42) { throw IllegalStateException() }"}},
+]
+checks = []
+
+[[steps]]
+name = "verified"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/program", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/verified-program", "--runtime-root", "${runtime}", "--cone-path", "${work}/artifacts"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${verified.result.dependencies.length}", "equals" = 1}]
+
+[[steps]]
+name = "run"
+argv = ["${verified.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []

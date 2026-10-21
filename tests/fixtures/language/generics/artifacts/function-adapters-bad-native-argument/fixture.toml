@@ -1,0 +1,52 @@
+schema = 1
+name = "function-adapters-bad-native-argument"
+inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../function-adapters/provider.scoop", "bad-native-argument", "../../../function-adapters/bad-native-argument.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["generics", "pointer_function_adapters_republish_and_execute", "negative", "language"]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-member-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-member-provider", "to" = "${work}/sources/generic-member-provider"}},
+  {"copy" = {"from" = "${fixture}/../../../function-adapters/provider.scoop", "to" = "${work}/sources/generic-member-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/generic-member-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-member-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_bad-native-argument"
+files = [
+  {"copy" = {"from" = "${fixture}/bad-native-argument", "to" = "${work}/sources/bad-native-argument"}},
+  {"copy" = {"from" = "${fixture}/../../../function-adapters/bad-native-argument.scoop", "to" = "${work}/sources/bad-native-argument/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/bad-native-argument", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/bad-native-argument/0.1.0/cone.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/artifacts/dev.example/bad-native-argument/0.1.0/cone.slib", "exists" = false},
+]

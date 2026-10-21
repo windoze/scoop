@@ -1,0 +1,11 @@
+#!/path/to/scoop run
+/* //! dep: ignored:lib:1.0.0 */
+/// //! dep: ignored:doc:1.0.0
+//! ordinary comment
+import scoop.uuid.Uuid
+
+fun main(args: Array<String>) {
+    println(Uuid(0uL, 0uL))
+    var index = 1L
+    while (index < args.size) { println(args[index]); index += 1L }
+}

@@ -1,0 +1,16 @@
+schema = 1
+name = "boundaries-test-root-file"
+inputs = ["program"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["test-boundaries", "negative", "driver"]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "test", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--no-run", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+checks = [{glob = "${work}/outputs/${target}/release/tests/*", equals = []}]

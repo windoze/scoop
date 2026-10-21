@@ -7,10 +7,10 @@ use scoop_wire::{decode_canonical, encode};
 #[test]
 fn exported_graphs_have_identical_direct_and_wire_consumers() {
     for (fixture, case) in [
-        ("m23-generic-body-consumption", "consumer"),
-        ("m23-shared-constructor-requests", "both-imported"),
-        ("m23-imported-options", "construct"),
-        ("m23-imported-pointers", "defaults"),
+        ("language/generic-body-consumption", "consumer"),
+        ("language/shared-constructor-requests", "both-imported"),
+        ("language/imported-options", "construct"),
+        ("language/imported-pointers", "defaults"),
     ] {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures")

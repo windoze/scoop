@@ -1,3 +1,0 @@
-import dependency.construction.IntPointer as Make
-import dependency.construction.shifted as Make
-public fun result(): Int { val pointer: Ptr<Int> = Make(1uL); return 42 }

@@ -1,0 +1,6 @@
+package dev.m43
+import scoop.test.assertFailsWith
+
+fun main() {
+    assertFailsWith<Int> { }
+}

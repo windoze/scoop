@@ -1,4 +1,0 @@
-fun main(args: Array<String>) {
-    chatBaseline(args.size != 0L)
-    println("chat-ok")
-}

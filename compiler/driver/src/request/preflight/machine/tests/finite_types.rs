@@ -87,7 +87,7 @@ fn with_production<R>(
 #[test]
 fn finite_mir_types_are_produced_from_real_materializations_and_survive_bytes() {
     for (name, count) in [("values", 9), ("combined", 10)] {
-        let directory = crate::workspace_root().join("tests/fixtures/m23-finite-mir-types");
+        let directory = crate::workspace_root().join("tests/fixtures/language/finite-mir-types");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         let bytes = with_production(&source, |input, graph, records, _| {
             assertions::materializations(input, records);

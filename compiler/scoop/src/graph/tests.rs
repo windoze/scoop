@@ -49,6 +49,12 @@ fn write_core(sysroot: &Path) {
         Vec::new(),
     );
     std::fs::write(directory.join("scoop.core.slib"), artifact.as_bytes()).unwrap();
+    let std = ConeCoordinate::new("scoop", "scoop.std", "0.1.0").unwrap();
+    std::fs::write(
+        directory.join("scoop.std.slib"),
+        manifest_artifact_with_core(std),
+    )
+    .unwrap();
 }
 
 fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {
@@ -348,14 +354,17 @@ fn executable_root_and_single_file_are_valid_roots_only() {
     .unwrap()
     .resolve()
     .unwrap();
-    assert_eq!(single_file.node_count(), 2);
-    assert_eq!(single_file.edge_count(), 1);
+    assert_eq!(single_file.node_count(), 3);
+    assert_eq!(single_file.edge_count(), 3);
     assert_eq!(single_file.root_identity(), ConeIdentity::SINGLE_FILE);
     assert_eq!(single_file.root_kind(), RequestedConeKind::Executable);
     let inputs = single_file
         .source_dependencies(ConeIdentity::SINGLE_FILE)
         .unwrap();
-    assert!(inputs.direct().is_empty());
+    assert_eq!(
+        identities_as_coordinates(&single_file, inputs.direct()),
+        ["scoop:scoop.std:0.1.0"]
+    );
     assert!(inputs.support().is_empty());
 }
 

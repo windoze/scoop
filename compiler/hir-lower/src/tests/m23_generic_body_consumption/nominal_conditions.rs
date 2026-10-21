@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn dependency_nominal_conditions_reject_invalid_signature_applications() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-shared-nominal-conditions");
+        .join("../../tests/fixtures/language/shared-nominal-conditions");
     let provider = std::fs::read_to_string(root.join("provider.scoop")).unwrap();
     let mut accepted = Vec::new();
     for case in [
@@ -50,7 +50,7 @@ fn dependency_nominal_conditions_reject_invalid_signature_applications() {
 #[test]
 fn dependency_nominal_conditions_accept_gc_free_fields_and_phantom_arguments() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-shared-nominal-conditions");
+        .join("../../tests/fixtures/language/shared-nominal-conditions");
     let provider = std::fs::read_to_string(root.join("provider.scoop")).unwrap();
     for case in ["standalone", "combined"] {
         let source = std::fs::read_to_string(root.join(format!("{case}.scoop"))).unwrap();

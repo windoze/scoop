@@ -1,0 +1,17 @@
+package scoop.json.tests.encoding.committed
+
+import scoop.test.*
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+fun reject(path: String, message: String, action: () -> Unit) {
+    var rejected = false
+    try { action() }
+    catch (error: EncodingException) {
+        check(error.path == path)
+        check(error.message == Some(message))
+        rejected = true
+    }
+    check(rejected)
+}

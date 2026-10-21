@@ -1,0 +1,66 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.tls.TlsTrustSource
+
+internal fun observerHttp2(trust: TrustStore, where: HttpCallEventKind) {
+    withObserverRuntime suspend { _, scope, listener, url ->
+        val entered = ObserverGate()
+        val release = ObserverGate()
+        val done = ObserverGate()
+        val complete = AtomicLong(0L)
+        val serving = scope.launch suspend {
+            AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                for (id in [1, 3]) {
+                    val request = connection.acceptRequest()!!
+                    assertEquals(id, request.stream.id)
+                    request.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                    observerWrite(request.stream, "body"); request.stream.finish()
+                }
+                done.await()
+            }
+        }
+        val observer = HttpObserver(suspend { event ->
+            if (event.kind == HttpCallEventKind.Completed) {
+                assertEquals(Some(HttpVersion.Http2), event.metrics.version)
+                assertEquals(4L, event.metrics.responseBodyBytes)
+                assertTrue(observerPresent(event.metrics.firstResponseByteAt))
+                complete.fetchAdd(1L)
+            }
+            if (event.call.method == "POST" && event.kind == where) {
+                assertEquals("held", observerMarker()); entered.signal(); release.await()
+            }
+            if (event.call.method == "GET") {
+                assertEquals("other", observerMarker())
+                if (event.kind == HttpCallEventKind.ConnectionAcquired) assertEquals(Some(true), event.metrics.connectionReused)
+            }
+        })
+        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), observer = Some(observer),
+            cleartext = HttpCleartextProtocol.Http2PriorKnowledge, pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+        try {
+            withHttpClient(config) suspend { client ->
+                val failed = ObserverFailure()
+                val held = scope.launch suspend {
+                    try {
+                        context(ObserverMarker("held")) {
+                            val response = client.execute(HttpRequest(url, "POST", body = RequestBody.fromText("x"), options = HttpCallOptions(duplex = true)))
+                            try { assertEquals("body", response.body.text(4L)); release.await() }
+                            finally { response.close() }
+                        }
+                    } catch (error: Throwable) { failed.value = Some(error) }
+                }
+                entered.await()
+                context(ObserverMarker("other")) { observerResponse(client, url.resolve("/other")) }
+                assertFalse(held.isCompleted)
+                release.signal(); held.join()
+                assertFalse(observerPresent(failed.value))
+                assertEquals(2L, complete.load())
+            }
+        } finally { release.signal(); done.signal() }
+        serving.join()
+    }
+}

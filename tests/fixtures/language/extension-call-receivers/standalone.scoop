@@ -1,0 +1,9 @@
+package dev.example
+import test.dependency.api.runtimeValue
+import test.dependency.api.receiverAnswer
+
+public val localValue: Int = runtimeValue
+public fun outside(): Int {
+    val initial = runtimeValue
+    return "standalone".receiverAnswer()
+}

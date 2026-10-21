@@ -1,0 +1,63 @@
+package test.core.tests.strings.snapshots
+
+import scoop.test.*
+private fun exercise() {
+    val values: MutableArray<Char> = ['A', '雪', '🚀', '\u0000']
+    val text = String.fromChars(values)
+    values[0L] = 'Z'
+    val chars = text.toMutableCharArray()
+    chars[1L] = '好'
+    val list = ArrayList<Char>()
+    for (character in chars) { list.add(character) }
+    val copied = String.fromChars(list)
+    list.clear()
+    if (text != "A雪🚀\u0000" || copied != "A好🚀\u0000" || chars.size != 4L) {
+        fail(Some("characters"))
+    }
+    val bytes = text.toMutableByteArray()
+    val second = text.toByteArray()
+    if (bytes.size != 9L || bytes[1L] != (-23).toByte() || bytes[8L] != 0.toByte()) {
+        fail(Some("byte-encoding"))
+    }
+    @Unsafe {
+        val decoded = String.fromUtf8Unchecked(bytes)
+        bytes[0L] = 90.toByte()
+        gcCollect()
+        if (decoded != text || second[0L] != 65.toByte() ||
+            String.fromUtf8Unchecked(bytes) != "Z雪🚀\u0000") { fail(Some("byte-snapshot")) }
+    }
+    val many = MutableArray<Char>(120L) { index ->
+        when (index % 4L) { case 0L -> 'A'; case 1L -> '雪'; case 2L -> '🚀'; else -> '\u0000' }
+    }
+    val large = String.fromChars(many)
+    val roundTrip = large.toCharArray()
+    gcCollect()
+    if (large.length != 120L || large.byteLength != 270L || roundTrip.size != many.size) {
+        fail(Some("many-size"))
+    }
+    for (index in 0L until many.size) {
+        if (roundTrip[index] != many[index]) { fail(Some("many-values")) }
+    }
+    val boundaries: Array<Int> = [0, 127, 128, 2047, 2048, 55295, 57344, 65535, 65536, 1114111]
+    for (code in boundaries) {
+        val character = code.toChar()
+        val one: Array<Char> = [character]
+        val encoded = String.fromChars(one)
+        if (encoded.length != 1L || encoded[0L] != character ||
+            encoded != character.toString() || encoded.toCharArray()[0L] != character) {
+            fail(Some("unicode-boundary"))
+        }
+    }
+    val none = ArrayList<Char>()
+    val noBytes = ArrayList<Byte>()
+    @Unsafe {
+        if (String.fromChars(none) != "" || String.fromUtf8Unchecked(noBytes) != "" ||
+            "".toCharArray().size != 0L || "".toByteArray().size != 0L) { fail(Some("empty")) }
+    }
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

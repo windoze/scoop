@@ -27,10 +27,11 @@ pub(super) fn with_test_dependencies<T>(
     let hir::ImportedTarget::Type(boolean) = core.type_binding("Boolean").target() else {
         panic!("Boolean is nominal")
     };
-    let provider = DependencyFunctionFixture::new(
+    let provider = DependencyFunctionFixture::in_package(
         "occurrence-provider",
         "run",
         SignatureTypeKey::Nominal(boolean.persistent()),
+        &["test", "dependency", "api"],
     );
     let provider_foundation =
         core.import_dependency_foundation(&provider.coordinate, &provider.foundation, 91);
@@ -91,7 +92,7 @@ fn facade(
     let source_key = SourceDeclarationKey::function(
         SourceDeclarationSite::new(
             terminal,
-            package(&["dependency", "api"]),
+            package(&["test", "dependency", "api"]),
             DefinitionOwnerChain::top_level(),
             DeclarationScope::ConeWide,
         )
@@ -104,7 +105,7 @@ fn facade(
     let binding: CborIdentityRecord<PersistentExportBindingId, ExportBindingKey> =
         CborIdentityRecord::from_key(ExportBindingKey::new(
             coordinate.identity().unwrap(),
-            package(&["facade", "api"]),
+            package(&["test", "facade", "api"]),
             CanonicalIdentifier::new("run").unwrap(),
             scoop_identity::BindingTarget::function(&source_key).unwrap(),
         ))

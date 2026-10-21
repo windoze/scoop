@@ -1,3 +1,0 @@
-import Serialize as Wire
-struct Item(@Serialize() @Wire() val value: Int?)
-fun main() {}

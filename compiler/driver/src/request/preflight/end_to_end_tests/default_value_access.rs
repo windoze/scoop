@@ -7,7 +7,7 @@ fn ordinary_reader_consumes_default_value_references_from_published_bytes() {
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
-    let directory = crate::workspace_root().join("tests/fixtures/m23-default-value-access");
+    let directory = crate::workspace_root().join("tests/fixtures/language/default-value-access");
     for (case, expected_templates) in [("standalone", 1), ("combined", 9)] {
         let source = std::fs::read_to_string(directory.join(format!("{case}.scoop"))).unwrap();
         let root = sysroot.path().join(case);

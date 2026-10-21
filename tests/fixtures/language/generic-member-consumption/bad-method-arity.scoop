@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.templates.members.*
+
+public fun fail() {
+    Box<Int>(1).choose<Int, String>(42)
+}

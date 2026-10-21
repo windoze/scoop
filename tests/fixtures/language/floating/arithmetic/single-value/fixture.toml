@@ -1,0 +1,41 @@
+schema = 1
+name = "floating-single-value"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["floating", "language"]
+[[steps]]
+name = "prepare_native"
+files = [{"mkdir" = {"path" = "${work}/native/objects"}}, {"mkdir" = {"path" = "${work}/native/lib"}}]
+
+[[steps]]
+name = "compile_native_0"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O0", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native/objects/fixture_native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native_0"
+argv = ["${ar}", "rcs", "${work}/native/lib/libfixture_native.a", "${work}/native/objects/fixture_native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "single-value-ok\n"
+stderr = ""

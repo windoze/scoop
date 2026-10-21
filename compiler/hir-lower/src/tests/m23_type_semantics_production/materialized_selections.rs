@@ -11,11 +11,11 @@ mod validation;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-hir-materialized-selections/standalone.scoop"
+    "/../../tests/fixtures/language/hir-materialized-selections/standalone.scoop"
 ));
 const COMBINED: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-hir-materialized-selections/combined.scoop"
+    "/../../tests/fixtures/language/hir-materialized-selections/combined.scoop"
 ));
 
 fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {

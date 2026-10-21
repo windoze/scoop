@@ -1,3 +1,0 @@
-import templates.members.Reader
-
-class Missing: Reader<Int>

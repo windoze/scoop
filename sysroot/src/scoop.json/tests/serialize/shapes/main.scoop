@@ -1,0 +1,35 @@
+package scoop.json.tests.serialize.shapes
+
+import scoop.test.*
+import scoop.json.Json
+
+enum Choice {
+    @Serialize(rename = "empty") Empty,
+    Named(val text: String?, @Serialize(required = true) val must: Long?, @Serialize(ignore = true) val local: String?),
+    Position(String?)
+    companion object : ValueEncoder<Choice>, ValueDecoder<Choice> {}
+}
+
+class Record(val id: Long, val text: String?, @Serialize(ignore = true) val cache: String?) {
+    companion object : ValueEncoder<Record>, ValueDecoder<Record> {}
+}
+
+private fun exercise() {
+    check(Json.encodeToString(Choice.Empty, Choice.Companion) == "{\"empty\":{}}")
+    check(Json.encodeToString(Choice.Named(None, None, Some("ignored")), Choice.Companion) == "{\"Named\":{\"must\":null}}")
+    val decoded = Json.decodeFromString("{\"Named\":{\"must\":null}}", Choice.Companion)
+    check(decoded == Choice.Named(None, None, None))
+    reject("/Named/must") { Json.decodeFromString("{\"Named\":{}}", Choice.Companion) }
+    check(Json.encodeToString(Choice.Position(None), Choice.Companion) == "{\"Position\":[null]}")
+    reject("/Position/0") { Json.decodeFromString("{\"Position\":[]}", Choice.Companion) }
+    check(Json.encodeToString(Record(1L, None, Some("cache")), Record.Companion) == "{\"id\":1}")
+    val record = Json.decodeFromString("{\"id\":1}", Record.Companion)
+    check(record.id == 1L && record.text == None && record.cache == None)
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

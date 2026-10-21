@@ -1,0 +1,6 @@
+package dev.m43
+import scoop.test.*
+
+@Test class Cases {
+    context(value: String) @Test fun check() {}
+}

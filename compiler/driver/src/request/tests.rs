@@ -68,25 +68,26 @@ fn explicit_dependency_roles_are_preserved() {
 }
 
 #[test]
-fn single_file_dependencies_fail_before_toolchain_resolution() {
+fn single_file_dependencies_are_preserved_in_the_request() {
     let directory = TempDirectory::new();
     let source = directory.0.join("main.scoop");
     std::fs::write(&source, "fun main() {}\n").unwrap();
-
-    assert!(matches!(
-        normalize_direct_build_request(
-            &source,
-            vec![PathBuf::from("dependency.slib")],
-            Vec::new(),
-            directory.0.join("main.slib"),
-            DiagnosticOutputPolicy::Human,
-            StageDumpPolicy::None,
-            Default::default(),
-        ),
-        Err(BuildRequestNormalizationError::Request(
-            SingleConeBuildRequestError::SingleFileHasDependencies
-        ))
-    ));
+    let std = directory.0.join("std.slib");
+    let support = directory.0.join("support.slib");
+    std::fs::write(&std, []).unwrap();
+    std::fs::write(&support, []).unwrap();
+    let request = normalize_direct_build_request(
+        &source,
+        vec![std],
+        vec![support],
+        directory.0.join("main.slib"),
+        DiagnosticOutputPolicy::Human,
+        StageDumpPolicy::None,
+        Default::default(),
+    )
+    .unwrap();
+    assert_eq!(request.dependencies.direct().len(), 1);
+    assert_eq!(request.dependencies.support().len(), 1);
 }
 
 #[test]

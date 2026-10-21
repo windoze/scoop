@@ -1,0 +1,31 @@
+package test
+import scoop.platform.time.*
+import scoop.terminal.*
+import scoop.terminal.event.TerminalInputException
+import scoop.time.Duration
+
+fun failures(session: TerminalSession) {
+    var negative = false
+    try { session.cursorPosition(Duration.seconds(-1L)) }
+    catch (error: IllegalArgumentException) { negative = true }
+    check(negative, "negative query duration")
+    restored(session)
+    stage(session, "query-timeout")
+    val start = MonotonicTimeSource.markNow()
+    timeout { session.cursorPosition(Duration.milliseconds(40L)); Unit }
+    check(start.elapsedNow() >= Duration.milliseconds(40L), "query deadline returned early")
+    restored(session)
+    stage(session, "query-zero")
+    timeout { session.cursorPosition(Duration.ZERO); Unit }
+    restored(session)
+    stage(session, "query-kitty-incomplete")
+    timeout { session.keyboardEnhancementFlags(Duration.milliseconds(40L)); Unit }
+    restored(session)
+    stage(session, "query-invalid")
+    var invalid = false
+    try { session.cursorPosition() } catch (error: TerminalInputException) { invalid = true }
+    check(invalid, "malformed reply")
+    restored(session)
+    expect(session, key('q'))
+    expect(session, key('r'))
+}

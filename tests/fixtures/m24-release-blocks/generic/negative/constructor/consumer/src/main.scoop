@@ -1,3 +1,0 @@
-import releasegeneric.Owner
-
-public fun make(): Owner<String> = Owner("bad", 1)

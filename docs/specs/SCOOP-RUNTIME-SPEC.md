@@ -309,6 +309,10 @@ stackmap 范围可以包含多个完整 v3 blob，必须解析到范围末尾。
 
 ## 3. GC 契约
 
+GC stress 支持是显式的构建能力。默认 runtime 在 C 编译时排除 stress 专用实现和环境读取；`SCOOP_GC_STRESS_MOVE` 与 `SCOOP_GC_STRESS_MINOR` 对这种程序无效。`scoop --enable-gc-stress` 选择编入该能力的 runtime；运行时变量值为 `1` 时启用对应模式，为 `0` 或未设置时关闭。构建开关本身不自动开启 stress。
+
+该开关只控制 stress 分配调度、强制搬迁、poison/quarantine 及其专用验证，不关闭普通 GC 的移动、根更新、safepoint 或屏障，也不改变公开 runtime ABI。构建配置、预编译资源选择和最终链接缓存见实现规范 2.7～2.8。GC 正确性专测显式选择所需能力，普通功能测试不编入 stress 支持。
+
 GC 合同由实际代码生成与 runtime 操作实现；不要求在生产编译中重复验证 LLVM 工具链的成功输出，也不在 runtime 补做产物来源或生产过程证明。专门回归测试继续覆盖根、relocation、屏障与运行结果。
 
 GC 支持多个 mutator，collection 在 stop-the-world 协调下执行，使用精确根与对象 scan，不保守猜测整数或 C 栈中的地址。minor 与 full collection 均可移动对象，pin 之外的裸地址不跨 safepoint 稳定。

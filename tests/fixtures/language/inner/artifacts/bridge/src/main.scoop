@@ -1,0 +1,6 @@
+package dev.m37.bridge
+public import dev.m37.provider.*
+public typealias Result<T> = Outer<T>.Inner<Int>
+public fun <T> factory(outer: Outer<T>): (Int) -> Result<T> = outer::Inner
+public fun defaultValue(outer: Plain): Plain.Inner = outer.Inner()
+public fun reference(outer: Plain): (Int) -> Plain.Inner = outer::Inner

@@ -1,3 +1,0 @@
-package fixture.platform
-
-fun extraValue(): Int = 1

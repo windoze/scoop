@@ -1,1 +1,0 @@
-fun main() { val values: MutableList<Int> = MutableArray<Int>(1L) { _ -> 1 } }

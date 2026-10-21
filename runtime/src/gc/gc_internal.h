@@ -7,13 +7,18 @@
 #include "../gc.h"
 #include "../gc_binding.h"
 #include "../generated_entries.h"
+#include "stress.h"
 
 typedef void (*ScoopGcHeapObjectVisitor)(void *object, void *context);
 
 /* Arena-external side metadata and moving-heap operations. Every `_locked`
  * operation requires the heap lock acquired through this API. */
 void scoop_gc_heap_init(void);
+#if SCOOP_ENABLE_GC_STRESS
 bool scoop_gc_stress_move_enabled(void);
+#else
+#define scoop_gc_stress_move_enabled() false
+#endif
 void scoop_gc_heap_lock(void);
 void scoop_gc_heap_unlock(void);
 bool scoop_gc_is_object_start_locked(const void *object);
@@ -22,7 +27,9 @@ bool scoop_gc_update_pin_locked(const void *object, bool pinned);
 bool scoop_gc_is_young_object_locked(const void *object);
 size_t scoop_gc_heap_begin_collection_locked(bool minor);
 bool scoop_gc_heap_plan_moving_locked(bool minor);
+#if SCOOP_ENABLE_GC_STRESS
 void scoop_gc_heap_verify_stress_moved_locked(void);
+#endif
 void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, void *context);
 void scoop_gc_heap_finish_collection_locked(uint64_t live_objects, bool minor);
 

@@ -1,2 +1,0 @@
-public fun base(): Base = Base()
-public fun derived(): Derived = Derived()

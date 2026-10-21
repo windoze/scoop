@@ -1,3 +1,0 @@
-fun main() {
-    foreignCallback<(Int, Ptr<Unit>) -> Int>({ value: Int -> value }, 1L, ForeignCallbackMode.Reusable)
-}

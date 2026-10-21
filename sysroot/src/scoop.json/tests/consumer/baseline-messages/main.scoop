@@ -1,0 +1,19 @@
+package scoop.json.tests.consumer.baseline_messages
+
+import scoop.test.*
+private fun exerciseConsumer(args: Array<String>) {
+    messagesBaseline(args.size != 0L)
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun run() {
+        exerciseConsumer(["consumer"])
+    }
+
+    @Test
+    fun additional_data() {
+        exerciseConsumer(["consumer", "additional-data"])
+    }
+}

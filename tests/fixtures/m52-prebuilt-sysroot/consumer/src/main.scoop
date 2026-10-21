@@ -1,3 +1,0 @@
-import prepared.*
-
-fun main(): Int = identity(answer())

@@ -1,0 +1,31 @@
+schema = 1
+name = "runtime-gc-update"
+root = "gc-update.scoop"
+inputs = ["gc-update.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["gc", "parallel", "gc-correctness"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}, env = {SCOOP_GC_WORKERS = "4"}},
+  {name = "serial", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "1"}},
+  {name = "two", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "2"}},
+  {name = "four", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "4"}},
+  {name = "eight", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "8"}},
+  {name = "moving-serial", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "1", SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "moving-two", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "2", SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "moving-four", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "4", SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "moving-eight", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "8", SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "minor-serial", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "1", SCOOP_GC_STRESS_MINOR = "1"}},
+  {name = "minor-two", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "2", SCOOP_GC_STRESS_MINOR = "1"}},
+  {name = "minor-four", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "4", SCOOP_GC_STRESS_MINOR = "1"}},
+  {name = "minor-eight", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "8", SCOOP_GC_STRESS_MINOR = "1"}},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "--enable-gc-stress", "run", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "parallel update preserves arrays, pins, roots and atomic references\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

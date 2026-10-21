@@ -1,0 +1,17 @@
+package test
+import scoop.platform.io.*
+import scoop.terminal.*
+import scoop.terminal.style.*
+
+fun main() {
+    forceColorOutput(true)
+    val style = ContentStyle(
+        foregroundColor = Some(Color.Rgb(16, 32, 48)),
+        underlineColor = Some(Color.DarkBlue)
+    ).withAttribute(Attribute.Bold).withAttribute(Attribute.DoubleUnderlined)
+    BufferedSink(standardOutput, 5L).use { sink ->
+        sink.queue(style.apply("中😀"))
+        gcCollect()
+        sink.execute("x".styled(ContentStyle(underlineColor = Some(Color.Red))), Print("\n"))
+    }
+}

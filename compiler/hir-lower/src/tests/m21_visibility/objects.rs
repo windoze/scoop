@@ -3,7 +3,7 @@ use super::*;
 
 const POSITIVE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m21-visibility/object-protected.scoop"
+    "/../../tests/fixtures/language/visibility/object-protected.scoop"
 ));
 
 #[test]

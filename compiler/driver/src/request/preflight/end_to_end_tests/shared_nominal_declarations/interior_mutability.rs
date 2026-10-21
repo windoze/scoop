@@ -6,9 +6,12 @@ fn published_shared_structs_preserve_interior_mutability_in_both_artifact_views(
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-shared-interior-mutability");
+    let fixtures =
+        crate::workspace_root().join("tests/fixtures/language/shared-interior-mutability");
     for (case, structs, marked) in [("standalone", 2, 1), ("combined", 5, 4)] {
-        let source = std::fs::read_to_string(fixtures.join(format!("{case}.scoop"))).unwrap();
+        let source = std::fs::read_to_string(fixtures.join(format!("{case}.scoop")))
+            .unwrap()
+            .replacen("package test\n", "package dev.example\n", 1);
         let root = sysroot.path().join(case);
         write_manifest_cone(&root, "dev.example", case, "library", &source);
         let artifact = build_manifest(

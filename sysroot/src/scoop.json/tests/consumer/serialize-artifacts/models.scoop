@@ -1,0 +1,22 @@
+package scoop.json.tests.consumer.serialize_artifacts.p2
+
+import scoop.test.*
+
+public struct Box<T>(
+    @Serialize(rename = "required") val raw: T,
+    val maybe: T?,
+    val label: String? = Some("guest"),
+    val empty: String? = None,
+    @Serialize(ignore = true) val ignored: T?
+)
+public class BoxEncoder<T> public constructor(private val codec: ValueEncoder<T>) : ValueEncoder<Box<T>>
+public class BoxDecoder<T> public constructor(private val codec: ValueDecoder<T>) : ValueDecoder<Box<T>>
+
+public class Row public constructor(public val id: Long, public val text: String? = None) {
+    public companion object : ValueEncoder<Row>, ValueDecoder<Row> {}
+}
+
+public enum Choice {
+    @Serialize(rename = "item") Named(val text: String? = None)
+    public companion object : ValueEncoder<Choice>, ValueDecoder<Choice> {}
+}

@@ -1,0 +1,4 @@
+package dev.example
+public var number: Int = 42
+@Unsafe
+public fun bad(): Ptr<Int> = addressOf(number)

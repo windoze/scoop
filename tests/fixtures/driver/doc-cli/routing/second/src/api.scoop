@@ -1,0 +1,6 @@
+package dev.m60
+import dev.m60.api.Versioned
+
+/** Uses the selected [Versioned]. */
+fun secondHelper(value: Versioned): Versioned = value
+fun main() {}

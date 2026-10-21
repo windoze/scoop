@@ -1,3 +1,0 @@
-import consumer.nominals.result
-
-public fun check(): Int = result()

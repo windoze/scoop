@@ -28,11 +28,7 @@ fn distribution_rejects_a_single_file_that_is_not_the_exact_local_root_shape() {
     .unwrap();
     assert_eq!(
         distribution(&cone, &[], 1),
-        Err(ProductionCodeProjectionError::InvalidSingleFileRoot {
-            kind: ConeKind::Executable,
-            source_count: 1,
-            dependencies: Vec::new(),
-        })
+        Ok(ArtifactDistributionClassV1::LocalExecutableRoot)
     );
     assert_eq!(
         distribution(&cone, &[scoop_identity::ConeIdentity::CORE], 2),
@@ -44,6 +40,14 @@ fn distribution_rejects_a_single_file_that_is_not_the_exact_local_root_shape() {
     );
     assert_eq!(
         distribution(&cone, &[scoop_identity::ConeIdentity::CORE], 1),
+        Ok(ArtifactDistributionClassV1::LocalExecutableRoot)
+    );
+    let std = scoop_identity::ConeCoordinate::new("scoop", "scoop.std", "0.1.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    assert_eq!(
+        distribution(&cone, &[scoop_identity::ConeIdentity::CORE, std], 1),
         Ok(ArtifactDistributionClassV1::LocalExecutableRoot)
     );
 }

@@ -1,0 +1,15 @@
+package dev.m37.provider
+public fun <T> length(value: T): Long {
+    val input: Any = value
+    if (input !is String) return 0L
+    return input.length
+}
+public fun <T> loop(value: T): Long {
+    val input: Any = value
+    while (input !is String) return 0L
+    return input.length
+}
+public fun withDefault(value: Any, read: () -> Long = result@{
+    if (value !is String) return@result 0L
+    value.length
+}): Long = read()

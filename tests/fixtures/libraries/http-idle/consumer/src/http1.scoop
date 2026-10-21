@@ -1,0 +1,27 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.net.SocketAddress
+import scoop.platform.time.MonotonicTimeSource
+import scoop.platform.time.elapsedNow
+
+suspend fun exerciseH1(loop: EventLoop, scope: CoroutineScope, address: SocketAddress, mode: String) {
+    val client = AsyncHttp1Connection.takeOwnershipAsClient(loop.connectTcp(address), scope,
+        ioTimeouts = HttpIoTimeoutOptions(readIdle = Some(idleLimit())))
+    try {
+        check(client.ioTimeouts.readIdle == Some(idleLimit()))
+        client.sendRequest(HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(),
+            HttpRequestTarget.Http1("/".toByteArray()), [HttpField("Host".toByteArray(), "localhost".toByteArray())])).finish()
+        val began = MonotonicTimeSource.markNow()
+        if (mode == "h1-stall") {
+            try { client.receiveResponse(); check(false) }
+            catch (error: HttpIoTimeoutException) { checkTimeout(error, HttpProtocol.Http1, HttpIoDirection.Read, 0) }
+            check(client.isClosed)
+        } else {
+            val response = client.receiveResponse()
+            check(response.head.status == 200U && began.elapsedNow() > idleLimit())
+            check(String.fromUtf8(response.body.readAllBytes(3L)) == "abc")
+        }
+    } finally { client.close() }
+}

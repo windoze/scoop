@@ -1,5 +1,0 @@
-import dependency.generics.pointerIdentity
-
-struct ManagedValue(val text: String)
-
-public fun invalid(pointer: Ptr<ManagedValue>): Ptr<ManagedValue> = pointerIdentity(pointer)

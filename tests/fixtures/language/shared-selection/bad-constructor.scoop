@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.dependency.selection.Ambiguous
+
+public fun result(): Unit {
+    Ambiguous(42, 42)
+}

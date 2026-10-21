@@ -1,0 +1,46 @@
+schema = 1
+name = "gc-leaf"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c", "../../../callback/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["ffi", "gc-leaf", "language"]
+variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "threads"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-c", "${fixture}/../../../callback/native.c", "-o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libfixture_native.a", "${work}/native.o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "gc-leaf-ok\n"
+stderr = ""

@@ -1,0 +1,155 @@
+schema = 1
+name = "imported-member-standalone"
+inputs = ["../../imported-classes/support/stage3_test.scoop", "../../imported-members/provider.scoop", "member-provider", "../../imported-members/standalone.scoop", "members-standalone", "../../imported-members/downstream.scoop", "downstream-standalone", "../../imported-members/runtime.ll", "../support/member-main.scoop", "value-runtime-member-standalone"]
+tools = ["scoop", "scoopc", "llc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["imported-values", "member", "language"]
+
+[vars]
+symbol_f7 = "scoop$1$cb$a9edd35ad7c4267c0d993b269eee9121a93e24cd1640333c117d90451176cdda"
+symbol_f8 = "scoop$1$cb$99c52b6fbf87cfa6b54c27b9aeafcce5f1a5bc7e923749d33493c0bca47e78a4"
+symbol_f9 = "scoop$1$cb$cbb62a71c75d405eac61aa00f672c00bec45bc418adfa06e267b60e199cb309f"
+symbol_f10 = "scoop$1$cb$408ba99e0b58910f526b2e0e8fa1a7a8bc85f1004e7f3f1cee38d01f2c18f097"
+symbol_f11 = "scoop$1$cb$544577fd6100d91c9ee8e1dce068a653df08854703b7673ffb7cd8ed142f99eb"
+symbol_f12 = "scoop$1$cb$31619dd9b400f94e6e3ab2733ccafab05ed081c293cdab45716d71b0014e166b"
+symbol_f13 = "scoop$1$cb$a8ff59f177fec456d03741ad8fdde86f0b82e798f958e88622b346468c90ef31"
+symbol_f14 = "scoop$1$cb$7364629eb8228aadf3d1bbf43e59642d52acca52d5d50cdcabc4c0b88af8d9c5"
+symbol_f15 = "scoop$1$cb$d351708e39832434b3db3aedec7cc5aa5281774e36158deff6516f1aa8976727"
+symbol_f16 = "scoop$1$cb$1fb0013408a643e54de026de0329c0f746535cc3050dbc97040822ab4f27978e"
+symbol_f17 = "scoop$1$cb$e76593076943348b30259108f65c83a83e2e1d49abd866dc3ea3a0ce4ef1e9f1"
+symbol_f18 = "scoop$1$cb$2c8fd17bf388357facdffc69a664c523338fad4497b46adabb0c43d8184351e9"
+symbol_f19 = "scoop$1$cb$68323745abcdc02ecd86a260a3c74b6aff9c40c9d835e753f187acf563bbcf49"
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_member-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/member-provider", "to" = "${work}/sources/member-provider"}},
+  {"copy" = {"from" = "${fixture}/../../imported-members/provider.scoop", "to" = "${work}/sources/member-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/member-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/member-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_members-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/members-standalone", "to" = "${work}/sources/members-standalone"}},
+  {"copy" = {"from" = "${fixture}/../../imported-members/standalone.scoop", "to" = "${work}/sources/members-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/members-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/members-standalone/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_downstream-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/downstream-standalone", "to" = "${work}/sources/downstream-standalone"}},
+  {"copy" = {"from" = "${fixture}/../../imported-members/downstream.scoop", "to" = "${work}/sources/downstream-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/downstream-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-standalone/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../../imported-members/runtime.ll", "to" = "${work}/native/abi.ll"}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f7(", "new" = "declare void @\"${symbol_f7}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f7(", "new" = "call void @\"${symbol_f7}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f8(", "new" = "declare void @\"${symbol_f8}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f8(", "new" = "call void @\"${symbol_f8}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f9(", "new" = "declare i64 @\"${symbol_f9}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f9(", "new" = "call i64 @\"${symbol_f9}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f10(", "new" = "declare i64 @\"${symbol_f10}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f10(", "new" = "call i64 @\"${symbol_f10}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f11(", "new" = "declare void @\"${symbol_f11}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f11(", "new" = "call void @\"${symbol_f11}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f12(", "new" = "declare i64 @\"${symbol_f12}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f12(", "new" = "call i64 @\"${symbol_f12}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f13(", "new" = "declare i64 @\"${symbol_f13}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f13(", "new" = "call i64 @\"${symbol_f13}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f14(", "new" = "declare i64 @\"${symbol_f14}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f14(", "new" = "call i64 @\"${symbol_f14}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f15(", "new" = "declare i64 @\"${symbol_f15}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f15(", "new" = "call i64 @\"${symbol_f15}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f16(", "new" = "declare i64 @\"${symbol_f16}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f16(", "new" = "call i64 @\"${symbol_f16}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f17(", "new" = "declare i64 @\"${symbol_f17}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f17(", "new" = "call i64 @\"${symbol_f17}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f18(", "new" = "declare void @\"${symbol_f18}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f18(", "new" = "call void @\"${symbol_f18}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f19(", "new" = "declare i64 @\"${symbol_f19}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f19(", "new" = "call i64 @\"${symbol_f19}\"("}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${llc}", "-mtriple=${llvm_target}", "-filetype=obj", "-relocation-model=pic", "${work}/native/abi.ll", "-o", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_member_abi.a", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "prepare_value-runtime-member-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/value-runtime-member-standalone", "to" = "${work}/sources/value-runtime-member-standalone"}},
+  {"copy" = {"from" = "${fixture}/../support/member-main.scoop", "to" = "${work}/sources/value-runtime-member-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/value-runtime-member-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${program.result.dependencies.length}", equals = 4},
+]
+
+[[steps]]
+name = "run"
+argv = ["${program.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""

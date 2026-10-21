@@ -1,0 +1,119 @@
+package scoop.cli.tests.cli.configuration
+
+import scoop.test.*
+import scoop.cli.*
+import scoop.cli.tests.cli.configuration.shadow.Option as OtherOption
+import scoop.cli.tests.cli.configuration.shadow.Serialize as OtherSerialize
+
+open class Open(val value: Int)
+class Child(value: Int) : Open(value)
+class Extra(val value: Int) { val additional: Int = 1 }
+class Custom { val value: Int = 1
+    get() = field }
+class Delegate { operator fun getValue(thisRef: Delegated): Int = 1 }
+class Delegated { val value: Int by Delegate() }
+object Singleton
+interface View {}
+enum Payload { Data(Int) }
+enum Integral : Int { First = 1 }
+struct HasPayload(val value: Payload)
+struct HasIntegral(val value: Integral)
+struct Nested(val value: Array<Array<Int>>)
+struct FlagOptional(@CliFlag val value: Boolean?)
+struct Conflict(@CliFlag @CliOption val value: Boolean)
+struct FakeOption(val value: OtherOption<Int>)
+struct FakeSerialize(@OtherSerialize val value: Int)
+struct Duplicate(@CliOption(names = ["-x"]) val first: Int, @CliOption(names = ["-x"]) val second: Int)
+
+struct Forced(@Serialize(required = true) @CliOption(defaultText = "hidden-default") val value: String? = None) {
+    companion object : ValueDecoder<Forced>
+}
+struct Optional(@Serialize(emitNull = true) val value: String?) { companion object : ValueDecoder<Optional> }
+struct Ignored(@Serialize(ignore = true) val value: String?) { companion object : ValueDecoder<Ignored> }
+struct Template<T>(val value: T)
+object Concrete : ValueDecoder<Template<Option<String>>>
+class Generic<T>(private val value: ValueDecoder<T>) : ValueDecoder<Template<T>>
+struct MaybeTemplate<T>(val value: T?)
+class MaybeGeneric<T>(private val value: ValueDecoder<T>) : ValueDecoder<MaybeTemplate<T>>
+
+fun bad(action: () -> Unit) {
+    try { action(); throw IllegalStateException() }
+    catch (error: IllegalArgumentException) { check(error.message != None) }
+}
+fun explicit(entries: Array<CliEntry>): CliSchema<Unit> = CliSchema(typeInfo<Unit>(), CliConfig("explicit"), entries)
+fun option(name: String, wire: String = "value"): CliEntry = CliEntry(wire, wire, CliRole.Option, CliValueShape.Text, [name])
+
+private fun exercise() {
+    check(!when (typeInfo<Open>().describe().shape) { case TypeShape.Class(info) -> info.isFinal; else -> throw IllegalStateException() })
+    check(when (typeInfo<Extra>().describe().shape) { case TypeShape.Class(info) -> info.isFinal; else -> throw IllegalStateException() })
+    bad({ Cli.schema(typeInfo<Open>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<Child>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<Extra>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<Custom>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<Delegated>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<Singleton>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<View>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<Int>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<HasPayload>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<HasIntegral>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<Nested>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<FlagOptional>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<Conflict>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<FakeOption>(), CliConfig("bad")) })
+    bad({ Cli.schema(typeInfo<Duplicate>(), CliConfig("bad")) })
+    check(Cli.schema(typeInfo<FakeSerialize>(), CliConfig("fake")).entries.size == 1L)
+    for (name in ["", "port", "-", "--", "-1", "-xy", "--a=b", "--a b", "--a\n", "--a\u{a0}", "--help", "-h"]) {
+        bad({ explicit([option(name)]) })
+    }
+    bad({ explicit([option("-x"), option("--x")]) })
+    bad({ explicit([option("-x", "first"), option("-x", "second")]) })
+    bad({ explicit([CliEntry("x", "x", CliRole.Option, CliValueShape.Text)]) })
+    bad({ explicit([CliEntry("x", "x", CliRole.Flag, CliValueShape.Text, ["-x"])]) })
+    bad({ explicit([CliEntry("x", "x", CliRole.Option, CliValueShape.Flag, ["-x"])]) })
+    bad({ explicit([CliEntry("x", "x", CliRole.Option, CliValueShape.Text, ["-x"], ["--no-x"])]) })
+    bad({ explicit([CliEntry("x", "x", CliRole.Flag, CliValueShape.Flag, ["-x"], ["-x"])]) })
+    bad({ explicit([CliEntry("x", "x", CliRole.Argument(0L), CliValueShape.Text, ["-x"])]) })
+    bad({ explicit([CliEntry("x", "x", CliRole.Argument(-1L), CliValueShape.Text)]) })
+    bad({ explicit([CliEntry("x", "x", CliRole.Argument(1L), CliValueShape.Text)]) })
+    bad({ explicit([
+        CliEntry("x", "x", CliRole.Argument(0L), CliValueShape.Text),
+        CliEntry("y", "y", CliRole.Argument(0L), CliValueShape.Text)
+    ]) })
+    bad({ explicit([
+        CliEntry("x", "x", CliRole.Argument(0L), CliValueShape.Text, required = false),
+        CliEntry("y", "y", CliRole.Argument(1L), CliValueShape.Text)
+    ]) })
+    bad({ explicit([
+        CliEntry("x", "x", CliRole.Argument(0L), CliValueShape.Repeated(CliElementShape.Text)),
+        CliEntry("y", "y", CliRole.Argument(1L), CliValueShape.Text)
+    ]) })
+    bad({ explicit([CliEntry("x", "x", CliRole.Option, CliValueShape.Choice([]), ["-x"])]) })
+    bad({ explicit([CliEntry("x", "x", CliRole.Option, CliValueShape.Choice([CliChoice("a", "one"), CliChoice("a", "two")]), ["-x"])]) })
+    val forced = Cli.schema(typeInfo<Forced>(), CliConfig("forced"))
+    check(forced.entries[0L].required && forced.entries[0L].hasDefault)
+    check(!contains(forced.help(), "hidden-default"))
+    fails("/value", { CliParser(forced, Forced.Companion).parse([]) })
+    check(parsed(CliParser(forced, Forced.Companion).parse(["--value="])).value == Some(""))
+    val optional = Cli.schema(typeInfo<Optional>(), CliConfig("optional"))
+    check(!optional.entries[0L].required && !optional.entries[0L].hasDefault)
+    check(!contains(optional.help(), "默认") && parsed(CliParser(optional, Optional.Companion).parse([])).value == None)
+    val ignored = Cli.schema(typeInfo<Ignored>(), CliConfig("ignored"))
+    check(ignored.entries.size == 0L && parsed(CliParser(ignored, Ignored.Companion).parse([])).value == None)
+    val template = Cli.schema(typeInfo<Template<Option<String>>>(), CliConfig("template"))
+    check(template.entries[0L].required)
+    fails("/value", { CliParser(template, Concrete).parse([]) })
+    fails("/value", { CliParser(template, Generic<Option<String>>(Option<String>.decoder(String.Companion))).parse([]) })
+    check(parsed(CliParser(template, Concrete).parse(["--value=x"])).value == Some("x"))
+    val maybe = Cli.schema(typeInfo<MaybeTemplate<Option<String>>>(), CliConfig("maybe"))
+    check(!maybe.entries[0L].required && !maybe.entries[0L].hasDefault)
+    val maybeParser = CliParser(maybe, MaybeGeneric<Option<String>>(Option<String>.decoder(String.Companion)))
+    check(parsed(maybeParser.parse([])).value == None)
+    check(parsed(maybeParser.parse(["--value=x"])).value == Some(Some("x")))
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

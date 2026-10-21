@@ -1,0 +1,59 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("HTTP pool integration check failed")) }
+
+private suspend fun readReply(client: HttpClient, url: Url, expected: String) {
+    client.withResponse(HttpRequest.get(url)) suspend { response ->
+        check(response.status == 200U)
+        check(String.fromUtf8(response.body.readAllBytes(100L)) == expected)
+    }
+}
+
+private suspend fun exerciseHttp1(client: HttpClient, base: Url) {
+    var index = 0L
+    while (index < 3L) {
+        readReply(client, base.resolve("reuse/" + index.toString()), index.toString())
+        index += 1L
+    }
+    client.execute(HttpRequest.get(base.resolve("abandon"))).close()
+    readReply(client, base.resolve("new"), "new")
+}
+
+private suspend fun exerciseHttp2(client: HttpClient, scope: CoroutineScope, base: Url) {
+    val first = client.execute(HttpRequest.get(base.resolve("first")))
+    val second = client.execute(HttpRequest.get(base.resolve("second")))
+    val queued = scope.launch suspend { readReply(client, base.resolve("third"), "third") }
+    check(!queued.isCompleted)
+    first.close()
+    check(!queued.isCompleted)
+    second.close()
+    queued.join()
+    readReply(client, base.resolve("after-goaway"), "next")
+}
+
+fun main(args: Array<String>) {
+    check(args.size == 3L)
+    val h2 = args[1L] == "h2"
+    val base = Url.parse(args[2L])
+    TrustStore.fromPem(rootPem()).use { trust ->
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val config = HttpClientConfig(
+                cleartext = if (h2) HttpCleartextProtocol.Http2PriorKnowledge else HttpCleartextProtocol.Http1,
+                tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L,
+                    maxConnections = 2L, maxStreamsPerHttp2 = 8L))
+            withHttpClient(config) suspend { client ->
+                if (h2) exerciseHttp2(client, scope, base) else exerciseHttp1(client, base)
+            }
+            check(!scope.job.isCancelled)
+        }
+    }
+    println("pooled " + args[1L])
+}

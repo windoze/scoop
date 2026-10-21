@@ -1,3 +1,0 @@
-public fun complete(): Complete = Complete()
-public fun winner(): Winner = Winner()
-public fun finalValue(): Final = Final()

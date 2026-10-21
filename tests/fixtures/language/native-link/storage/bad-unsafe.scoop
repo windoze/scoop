@@ -1,0 +1,4 @@
+package dev.programlink
+import dev.programlink.nativelink.storage.*
+
+fun main() { println(counter) }

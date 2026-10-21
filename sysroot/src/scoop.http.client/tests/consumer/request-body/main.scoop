@@ -1,0 +1,86 @@
+package scoop.http.client.tests.consumer.request_body
+
+import scoop.test.*
+import scoop.platform.fs.*
+import scoop.asyncio.*
+import scoop.http.client.RequestBody
+import scoop.platform.concurrent.Thread
+import scoop.platform.fs.Path
+import scoop.platform.memory.NativeByteBuffer
+
+fun check(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("request body integration check failed"))
+}
+
+class BodyCallContext(val name: String)
+context(call: BodyCallContext)
+fun currentCallName(): String = call.name
+
+class BodyGate {
+    private var ready: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() {
+        ready = true
+        val waiting = waiter
+        waiter = None
+        waiting?.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation ->
+            if (ready) continuation.resume(Unit) else waiter = Some(continuation)
+        }
+    }
+}
+
+suspend fun writeText(destination: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes)
+        destination.writeFully(buffer)
+    }
+}
+
+suspend fun checkEnd(source: AsyncByteSource) {
+    NativeByteBuffer.allocate(1L).use suspend { buffer -> check(source.readInto(buffer, 1L) == 0L) }
+}
+
+fun payload(): String = "文件正文：Scoop preserves ordered bytes.\n"
+
+private fun exercise(name: String, path: Path, body: RequestBody, factory: RequestBody) {
+    val loop: EventLoop = LibuvEventLoop()
+    context(BodyCallContext(name)) {
+        loop.run suspend { scope ->
+            runBodyHttp1(loop, scope, path, body)
+            runBodyHttp2(loop, scope, factory, name)
+        }
+    }
+}
+
+private fun exerciseConsumer(args: Array<String>) {
+    check(args.size == 2L)
+    val path = Path.fromString(args[1L])
+    val snapshot = RequestBody.fromText("共享字节快照")
+    val factory = RequestBody.fromProducerFactory suspend {
+        val name = currentCallName();
+        suspend { destination -> writeText(destination, name) }
+    }
+    Thread.start { exercise("first", path, snapshot, factory) }.use { first ->
+        Thread.start { exercise("second", path, snapshot, factory) }.use { second ->
+            first.join()
+            second.join()
+        }
+    }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun run() {
+        val directory = createTempDirectory(prefix = "scoop-consumer-")
+        try {
+            val payload = directory.resolve(Path.fromString("payload.txt"))
+            payload.writeText("文件正文：Scoop preserves ordered bytes.\n")
+            exerciseConsumer(["consumer", payload.decodeUtf8()])
+        } finally { directory.deleteRecursively() }
+    }
+}

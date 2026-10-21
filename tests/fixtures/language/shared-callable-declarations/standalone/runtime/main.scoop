@@ -1,0 +1,7 @@
+package test
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = Holder.create()
+    verifyType(value.answer() == 42 && value.observe(17) == 17)
+}

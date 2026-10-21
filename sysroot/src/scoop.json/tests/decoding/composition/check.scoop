@@ -1,0 +1,16 @@
+package scoop.json.tests.decoding.composition
+
+import scoop.test.*
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+fun reject(path: String, action: () -> Unit) {
+    var rejected = false
+    try { action() }
+    catch (error: DecodingException) {
+        check(error.path == path)
+        rejected = true
+    }
+    check(rejected)
+}

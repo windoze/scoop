@@ -1,0 +1,57 @@
+package scoop.std.tests.text.integers
+
+import scoop.test.*
+import scoop.text.*
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+fun bounds() {
+    check("-128".toByte() == Int8.MIN_VALUE && "127".toByte() == Int8.MAX_VALUE, "Int8 bounds")
+    check("-129".toByteOrNone() == None && "128".toByteOrNone() == None, "Int8 overflow")
+    check(Int8.MIN_VALUE.toString(10) == "-128" && Int8.MAX_VALUE.toString(10) == "127", "Int8 decimal format")
+    check("-32768".toShort() == Int16.MIN_VALUE && "32767".toShort() == Int16.MAX_VALUE, "Int16 bounds")
+    check("-32769".toShortOrNone() == None && "32768".toShortOrNone() == None, "Int16 overflow")
+    check(Int16.MIN_VALUE.toString(10) == "-32768" && Int16.MAX_VALUE.toString(10) == "32767", "Int16 decimal format")
+    check("-2147483648".toInt() == Int.MIN_VALUE && "2147483647".toInt() == Int.MAX_VALUE, "Int bounds")
+    check("-2147483649".toIntOrNone() == None && "2147483648".toIntOrNone() == None, "Int overflow")
+    check(Int.MIN_VALUE.toString(10) == "-2147483648" && Int.MAX_VALUE.toString(10) == "2147483647", "Int decimal format")
+    check("-9223372036854775808".toLong() == Long.MIN_VALUE && "9223372036854775807".toLong() == Long.MAX_VALUE, "Long bounds")
+    check("-9223372036854775809".toLongOrNone() == None && "9223372036854775808".toLongOrNone() == None, "Long overflow")
+    check(Long.MIN_VALUE.toString(10) == "-9223372036854775808" && Long.MAX_VALUE.toString(10) == "9223372036854775807", "Long decimal format")
+    check("0".toUByte() == UInt8.MIN_VALUE && "255".toUByte() == UInt8.MAX_VALUE, "UInt8 bounds")
+    check("-1".toUByteOrNone() == None && "256".toUByteOrNone() == None, "UInt8 overflow")
+    check(UInt8.MIN_VALUE.toString(10) == "0" && UInt8.MAX_VALUE.toString(10) == "255", "UInt8 decimal format")
+    check("0".toUShort() == UInt16.MIN_VALUE && "65535".toUShort() == UInt16.MAX_VALUE, "UInt16 bounds")
+    check("-1".toUShortOrNone() == None && "65536".toUShortOrNone() == None, "UInt16 overflow")
+    check(UInt16.MIN_VALUE.toString(10) == "0" && UInt16.MAX_VALUE.toString(10) == "65535", "UInt16 decimal format")
+    check("0".toUInt() == UInt.MIN_VALUE && "4294967295".toUInt() == UInt.MAX_VALUE, "UInt bounds")
+    check("-1".toUIntOrNone() == None && "4294967296".toUIntOrNone() == None, "UInt overflow")
+    check(UInt.MIN_VALUE.toString(10) == "0" && UInt.MAX_VALUE.toString(10) == "4294967295", "UInt decimal format")
+    check("0".toULong() == ULong.MIN_VALUE && "18446744073709551615".toULong() == ULong.MAX_VALUE, "ULong bounds")
+    check("-1".toULongOrNone() == None && "18446744073709551616".toULongOrNone() == None, "ULong overflow")
+    check(ULong.MIN_VALUE.toString(10) == "0" && ULong.MAX_VALUE.toString(10) == "18446744073709551615", "ULong decimal format")
+}
+
+private fun exercise() {
+    bounds()
+    check("12".toByte() == "12".toByte() && "12".toByteOrNone() == Some("12".toByte()), "Byte aliases")
+    check("12".toShort() == "12".toShort() && "12".toShortOrNone() == Some("12".toShort()), "Short aliases")
+    check("12".toInt() == "12".toInt() && "12".toIntOrNone() == Some("12".toInt()), "Int32 aliases")
+    check("12".toLong() == "12".toLong() && "12".toLongOrNone() == Some("12".toLong()), "Int64 aliases")
+    check("12".toUByte() == "12".toUByte() && "12".toUByteOrNone() == Some("12".toUByte()), "UByte aliases")
+    check("12".toUShort() == "12".toUShort() && "12".toUShortOrNone() == Some("12".toUShort()), "UShort aliases")
+    check("12".toUInt() == "12".toUInt() && "12".toUIntOrNone() == Some("12".toUInt()), "UInt32 aliases")
+    check("12".toULong() == "12".toULong() && "12".toULongOrNone() == Some("12".toULong()), "UInt64 aliases")
+    check("+00042".toInt() == 42 && "-0".toInt() == 0 && "-00042".toInt() == -42, "signed prefixes")
+    check("+42".toULong() == 42uL && "-0".toULongOrNone() == None, "unsigned sign")
+    check(("0".repeat(2048L) + "1").toInt() == 1, "arbitrarily many leading zeros")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

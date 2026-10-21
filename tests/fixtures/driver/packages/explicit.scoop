@@ -1,0 +1,5 @@
+#!/path/to/scoop run
+package ignored.api
+import Box as OwnBox
+class Box(val value: Int)
+fun main() { println(OwnBox(7).value) }

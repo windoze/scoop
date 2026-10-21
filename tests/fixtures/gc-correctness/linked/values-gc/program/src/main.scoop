@@ -1,0 +1,59 @@
+package dev.m42
+import scoop.collections.*
+
+class Cell(val value: Long)
+struct Item(val value: Long, val cell: Cell)
+
+fun check(value: Boolean, label: String) {
+    if (!value) throw Exception(Some(label))
+}
+
+fun fill(values: MutableMap<Long, Item>) {
+    var index = 0L
+    while (index < 80L) {
+        values[index] = Item(index, Cell(index + 1L))
+        index += 1L
+    }
+}
+
+fun clearReleases(): Boolean {
+    val values = LinkedHashMap<Long, Item>()
+    fill(values)
+    val iterator = values.iterator()
+    gcCollect()
+    val before = gcStats()
+    values.clear()
+    gcCollect()
+    val released = before >= gcStats() + 80uL
+    var invalidated = false
+    try { iterator.next() } catch (error: ConcurrentModificationException) { invalidated = true }
+    return values.size == 0L && released && invalidated
+}
+
+fun removeLast(values: MutableMap<Long, Item>) { values.remove(79L) }
+
+fun removeReleases(): Boolean {
+    val values = LinkedHashMap<Long, Item>()
+    fill(values)
+    gcCollect()
+    val before = gcStats()
+    removeLast(values)
+    gcCollect()
+    return values.size == 79L && before > gcStats()
+}
+
+fun main() {
+    val values = LinkedHashMap<Long, Item>()
+    fill(values)
+    gcCollect()
+    var sum = 0L
+    for ((key, value) in values) {
+        check(key == value.value, "entry fields")
+        sum += value.cell.value - key
+    }
+    check(sum == 80L && clearReleases() && removeReleases(), "managed slots")
+    val any = LinkedHashMap<Int, Any>()
+    any[1] = 42
+    check(any[1]!! as Int == 42, "boxed value")
+    println("linked values-gc passed")
+}

@@ -1,0 +1,5 @@
+package dev.example.consumer.leaf
+import dev.example.upstream.leaf.number
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int = read(value)
+public fun result(): Int = number()

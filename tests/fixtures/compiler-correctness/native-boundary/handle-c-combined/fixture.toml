@@ -1,0 +1,128 @@
+schema = 1
+name = "native-boundary-handle-c-combined"
+inputs = ["provider", "runtime", "../../../language/native-boundary/handle-c-combined.scoop", "native.c", "factory"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["native-boundary", "cross-cone", "compiler-correctness"]
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/src/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_provider"
+files = [
+  {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
+  {"copy" = {"from" = "${fixture}/../../../language/native-boundary/handle-c-combined.scoop", "to" = "${work}/sources/provider/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/scoop-hir-lower/0.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_exposed"
+files = [
+  {"copy" = {"from" = "${provider.result.root.path}", "to" = "${work}/artifacts/original-provider.slib"}},
+  {"copy" = {"from" = "${fixture}/factory/factory.scoop", "to" = "${work}/sources/provider/src/factory.scoop"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "@Extern(name = \"exchange_handles\")", "new" = "@Extern(name = \"exchange_handles\", lib = \"m23_native_boundary\")"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "@Extern(name = \"native_handle\")", "new" = "@Extern(name = \"native_handle\", lib = \"m23_native_boundary\")"}},
+]
+checks = []
+
+[[steps]]
+name = "exposed"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/scoop-hir-lower/0.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"copy" = {"from" = "${fixture}/runtime", "to" = "${work}/sources/program"}},
+  {"copy" = {"from" = "${fixture}/runtime/main.scoop", "to" = "${work}/sources/program/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/native.c", "to" = "${work}/sources/native.c"}},
+  {"mkdir" = {"path" = "${work}/native"}},
+]
+checks = []
+
+[[steps]]
+name = "compile_native"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native.c", "-o", "${work}/native/boundary.o"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_native_boundary.a", "${work}/native/boundary.o"]
+env = {"ZERO_AR_DATE" = "1"}
+exit = 0
+stdout = ""
+stderr = ""
+checks = []
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/program", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [{"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}}]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${sysroot}", "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
+  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone test:scoop-hir-lower:0.0.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone test:native-boundary-runtime-handle-c-combined:1.0.0 kind=Executable objects="},
+  {actual = "${link.result.link_plan}", contains = "images=3 root=${symbol_prefix}scoop$$1$$re$$a99a061d8ee68c77681ebb731bd283949a811946774655a4d67073cb4d7c8a94"},
+  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []

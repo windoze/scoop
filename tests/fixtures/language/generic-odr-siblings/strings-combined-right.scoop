@@ -1,0 +1,9 @@
+package dev.example.sibling.right
+
+import dev.example.dependency.odr.*
+
+public fun right(): String = Named<Int>(22).label
+public fun rightMethod(): String = Named<Int>(22).text()
+public fun rightExtension(): String = 22.constantText
+public fun rightNested(): String = nestedConstant<Int>(22)
+public fun distinct(): String = Named<Long>(22L).label

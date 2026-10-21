@@ -1,0 +1,2 @@
+package scoop.platformlib
+public fun answer(): Int = 42

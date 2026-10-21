@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.slotCombinations.*
+
+public fun read(value: Root): Int = value.evaluate() + value.value

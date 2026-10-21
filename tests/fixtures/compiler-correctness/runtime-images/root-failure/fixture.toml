@@ -1,0 +1,56 @@
+schema = 1
+name = "runtime-images-root-failure"
+inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "empty-provider", "../../../language/runtime-images/empty-provider.scoop", "root-failure", "../../../language/runtime-images/root-failure.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["runtime-images", "failures", "compiler-correctness"]
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_empty-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/empty-provider", "to" = "${work}/sources/empty-provider"}},
+  {"copy" = {"from" = "${fixture}/../../../language/runtime-images/empty-provider.scoop", "to" = "${work}/sources/empty-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "empty-provider"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/empty-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-empty-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/empty-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_root-failure"
+files = [
+  {"copy" = {"from" = "${fixture}/root-failure", "to" = "${work}/sources/root-failure"}},
+  {"copy" = {"from" = "${fixture}/../../../language/runtime-images/root-failure.scoop", "to" = "${work}/sources/root-failure/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root-failure", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${program.result.dependencies.length}", "equals" = 2}]
+
+[[steps]]
+name = "run"
+argv = ["${program.result.output}"]
+stdout = ""
+stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)\n"
+exit = 1

@@ -1,0 +1,11 @@
+#!/path/to/scoop run
+@GCLeaf @Extern(lib = "gc_stress_probe", name = "full_collections")
+fun fullCollections(): Long
+
+class Box(val value: Long)
+
+fun main() {
+    val values = Array<Box>(4L) { index -> Box(index) }
+    println(values[3L].value)
+    @Unsafe { println(fullCollections() > 0L) }
+}

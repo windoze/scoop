@@ -1,0 +1,5 @@
+package dev.example.facade.paths
+
+public import dev.example.dependency.paths.Point
+public import dev.example.dependency.paths.IntBox
+public import dev.example.dependency.paths.Outer

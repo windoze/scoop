@@ -5,7 +5,7 @@ use scoop_mir as mir;
 fn ordinary_float_members_fit_literal_receivers_in_source_core() {
     core::lower_with_sysroot(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m41-floating/ieee/program.scoop"
+        "/../../tests/fixtures/language/floating/ieee/ieee/program.scoop"
     )))
     .unwrap();
 }
@@ -87,7 +87,7 @@ fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
 fn concrete_bound_call_keeps_direct_integer_operation() {
     let output = core::bootstrap_sysroot(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m41-add/basic/program.scoop"
+        "/../../tests/fixtures/language/add/basic/program.scoop"
     )))
     .unwrap();
     let module = scoop_mir_lower::lower(&output.local).unwrap();

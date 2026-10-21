@@ -1,0 +1,12 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.Readable
+
+public enum LocalReader: Readable {
+    Ready, Empty
+    public override fun read(): Long = 20
+}
+public fun primary(): Counter {
+    val reader: Readable = LocalReader.Ready
+    return Counter(reader.answer())
+}

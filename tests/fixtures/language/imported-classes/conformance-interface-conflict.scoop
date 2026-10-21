@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.classes.FirstChoice
+import dev.example.dependency.classes.SecondChoice
+public interface LocalReader: FirstChoice, SecondChoice {}
+public struct LocalValue(): LocalReader

@@ -1,0 +1,41 @@
+package scoop.json.tests.consumer.derived_decoding_artifacts
+
+import scoop.test.*
+
+public var defaults: Int = 0
+public fun next(value: Int): Int { defaults += 1; return value }
+
+public struct Packet<T>(
+    @Serialize(rename = "item") val value: T,
+    val count: Int = next(7),
+    @Serialize(ignore = true) val ignored: Int = count + 1
+)
+public class PacketDecoder<T> public constructor(private val element: ValueDecoder<T>)
+    : ValueDecoder<Packet<T>>
+
+public class Row<T> public constructor(private val id: Int, public val value: T, plain: Int = next(3)) {
+    @Serialize(ignore = true) private val cached: Int = id + plain
+    public val computed: Int get() = cached
+}
+
+public enum Event<T> {
+    @Serialize(rename = "empty") Empty,
+    Pair(T, Int),
+    Named(@Serialize(rename = "item") val value: T, val count: Int = next(9), @Serialize(ignore = true) val ignored: Int = count + 1),
+    Record { value: T, count: Int }
+}
+
+public struct Nest<T>(val values: (T, Option<Array<T>>))
+public class NestDecoder<T> public constructor(private val element: ValueDecoder<T>)
+    : ValueDecoder<Nest<T>>
+
+public struct RemoteRecord(@Serialize(rename = "remote") val value: Int) {
+    public companion object : ValueDecoder<RemoteRecord>
+}
+public typealias ForeignCollision = RemoteRecord
+
+public struct Phantom<T>(val value: Int) {
+    public companion object : ValueDecoder<Phantom<T>>
+}
+
+public struct Batch<T>(val seed: T, vararg val values: T = [seed])

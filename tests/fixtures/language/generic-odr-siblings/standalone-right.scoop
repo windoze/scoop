@@ -1,0 +1,7 @@
+package dev.example.sibling.right
+
+import dev.example.dependency.odr.Payload
+import dev.example.dependency.odr.identity
+
+public fun right(value: Payload): Payload = identity(value)
+public fun rightNumber(value: Int): Int = identity(value)

@@ -9,14 +9,14 @@ fn constructor_materialization_closes_selected_bodies_and_keeps_source_contracts
             "selection",
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m19-constructor-materialization/selection.scoop"
+                "/../../tests/fixtures/language/constructor-materialization/selection.scoop"
             )),
         ),
         (
             "closure",
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m19-constructor-materialization/closure.scoop"
+                "/../../tests/fixtures/language/constructor-materialization/closure.scoop"
             )),
         ),
     ] {

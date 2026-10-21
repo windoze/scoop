@@ -1,0 +1,4 @@
+package dev.m43
+import scoop.test.*
+
+@Test class Cases { @Test @AfterTest fun check() {} }

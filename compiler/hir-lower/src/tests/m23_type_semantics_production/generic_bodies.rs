@@ -5,11 +5,11 @@ use source_dispatch::with_hir_source;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-generic-body-production/standalone.scoop"
+    "/../../tests/fixtures/language/generic-body-production/standalone.scoop"
 ));
 const COMBINED: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-generic-body-production/combined.scoop"
+    "/../../tests/fixtures/language/generic-body-production/combined.scoop"
 ));
 
 #[test]
@@ -157,7 +157,7 @@ pub(super) fn roundtrip(
 fn generic_bodies_retain_private_type_and_property_support_without_public_bindings() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-generic-body-production/support.scoop"
+        "/../../tests/fixtures/language/generic-body-production/support.scoop"
     ));
     with_hir_source(source, |output, core| {
         let section = public_projection::public_interface_with_core(output, core);
@@ -192,7 +192,7 @@ fn generic_bodies_retain_private_type_and_property_support_without_public_bindin
 fn generic_body_support_types_enter_shape_demands_before_concretization() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-generic-body-production/concrete-support.scoop"
+        "/../../tests/fixtures/language/generic-body-production/concrete-support.scoop"
     ));
     with_hir_source(source, |output, core| {
         let section = public_projection::public_interface_with_core(output, core);

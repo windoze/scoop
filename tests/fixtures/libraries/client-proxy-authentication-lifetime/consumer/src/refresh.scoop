@@ -1,0 +1,89 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+
+internal fun lifeSharedRefresh(trust: TrustStore, clearSame: Boolean) {
+    withLifeRuntime suspend { _, scope, listener ->
+        val url = lifeUrl(listener)
+        val firstSeen = LifeGate()
+        val secondSeen = LifeGate()
+        val releaseOld = LifeGate()
+        val refreshing = LifeGate()
+        val allowRefresh = LifeGate()
+        val loads = AtomicLong(0L)
+        val refreshes = AtomicLong(0L)
+        val provider = HttpAuthenticator.bearer(url.httpOrigin(), refreshTokens = suspend { request ->
+            lifeCheck(request.proxyUrl == Some(url))
+            lifeCheck(request.tokens.accessToken == "old" && request.tokens.refreshToken == Some("local") && request.attempt == 1L)
+            lifeCheck(request.challenge.scheme == "bearer")
+            refreshes.fetchAdd(1L); refreshing.signal(); allowRefresh.await()
+            Some(HttpBearerTokens("new", Some("next")))
+        }) suspend { request ->
+            lifeCheck(request.proxyUrl == Some(url))
+            loads.fetchAdd(1L); HttpBearerTokens("old", Some("local"))
+        }
+        val serving = scope.launch suspend {
+            val delayed = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    lifeCheck(lifeToken(request.head) == Some("old"))
+                    request.body.readAllBytes(0L); firstSeen.signal()
+                    releaseOld.await()
+                    lifeRespond(connection, 407U, extra = [lifeField("Proxy-Authenticate", "Bearer error=\"invalid_token\"")])
+                }
+            }
+            firstSeen.await()
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                lifeCheck(lifeToken(request.head) == Some("old"))
+                request.body.readAllBytes(0L); secondSeen.signal()
+                if (clearSame) lifeRespond(connection, 200U, "done")
+                else lifeRespond(connection, 407U, extra = [lifeField("Proxy-Authenticate", "Bearer")])
+            }
+            val count = if (clearSame) 1L else 3L
+            var index = 0L
+            while (index < count) {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    lifeCheck(lifeToken(request.head) == Some("new"))
+                    request.body.readAllBytes(0L)
+                    lifeRespond(connection, 200U, "done")
+                }
+                index += 1L
+            }
+            delayed.join()
+        }
+        try {
+            withHttpClient(lifeConfig(trust, lifeSelector(HttpProxyEndpoint(url, authentication = HttpAuthenticationOptions([provider]))), connections = 4L)) suspend { client ->
+                val first = scope.async<Unit> suspend {
+                    client.withResponse(HttpRequest.get(url)) suspend { response ->
+                        lifeCheck(response.proxyAuthenticationCount == 1L && response.authenticationCount == 0L && response.body.text(4L) == "done")
+                    }
+                }
+                firstSeen.await()
+                if (clearSame) {
+                    client.clearAuthenticationCache(provider)
+                    lifeDone(client, HttpRequest.get(url.resolve("/reload")))
+                    lifeCheck(loads.load() == 2L)
+                    releaseOld.signal(); refreshing.await(); allowRefresh.signal(); first.await()
+                } else {
+                    val second = scope.async<Unit> suspend {
+                        client.withResponse(HttpRequest.get(url.resolve("/refresh"))) suspend { response ->
+                            lifeCheck(response.proxyAuthenticationCount == 1L && response.authenticationCount == 0L && response.body.text(4L) == "done")
+                        }
+                    }
+                    refreshing.await()
+                    val third = scope.async<Unit> suspend { lifeDone(client, HttpRequest.get(url.resolve("/joining"))) }
+                    lifeCheck(!third.isCompleted && loads.load() == 1L && refreshes.load() == 1L)
+                    allowRefresh.signal(); second.await()
+                    releaseOld.signal(); first.await(); third.await()
+                }
+                lifeCheck(refreshes.load() == 1L)
+            }
+        } finally { releaseOld.signal(); allowRefresh.signal() }
+        serving.join()
+    }
+}

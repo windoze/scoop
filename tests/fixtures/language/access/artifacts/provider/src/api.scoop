@@ -1,0 +1,13 @@
+package dev.m41.cells
+public class Cell<T> public constructor(public var value: T) : IndexGet<Long, T>, IndexSet<Long, T>, Invoke0<T>, Component1<T> {
+    public override operator fun get(index: Long): T = value
+    public override operator fun set(index: Long, value: T) { this.value = value }
+    public override operator fun invoke(): T = value
+    public override operator fun component1(): T = value
+}
+public fun <T, C> replace(cell: C, value: T): T where C : IndexGet<Long, T>, C : IndexSet<Long, T> {
+    val old = cell[0L]
+    cell[0L] = value
+    return old
+}
+public fun <T, C : Invoke0<T>> current(cell: C): T = cell()

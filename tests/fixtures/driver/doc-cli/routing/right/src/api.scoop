@@ -1,0 +1,2 @@
+package dev.m60.bridge.right
+public import dev.m60.api.Versioned as RightVersion

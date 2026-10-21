@@ -8,7 +8,7 @@ fn real_elf_dso_versions_tls_and_malformed_version_tables() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path();
     let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m28-linux/native-dso");
+        .join("../../tests/fixtures/driver/linux/native-dso");
     let library = path.join("libversions.so");
     let result = target
         .c_bridge_toolchain()

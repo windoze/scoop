@@ -1,1 +1,0 @@
-fun bad(value: Int): Int = value.shl(count = 2L)

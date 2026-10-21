@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "roots.shadow"
+name = "m32-roots-shadow"
+version = "0.1.0"
+kind = "executable"
+
+[[sources]]
+path = "main.scoop"

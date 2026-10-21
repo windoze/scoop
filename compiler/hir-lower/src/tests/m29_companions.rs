@@ -57,12 +57,12 @@ fn imported_enum_variants_infer_arguments_without_accessing_the_generic_companio
 #[test]
 fn dependency_companions_keep_the_original_declaration_and_materialize_both_applications() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m29-companions/artifacts");
+        .join("../../tests/fixtures/language/companions/reflection/artifacts");
     super::m23_generic_body_consumption::with_provider_consumer(
         &std::fs::read_to_string(root.join("provider/src/box.scoop")).unwrap(),
         r#"
-            import shared.Box
-            import shared.integerCompanion
+            import dev.m29.shared.Box
+            import dev.m29.shared.integerCompanion
             fun main() {
                 val first = Box<Int>.Factory
                 val same = integerCompanion()
@@ -158,7 +158,7 @@ fn companion_host_arguments_select_distinct_types_and_initialization_units() {
 fn companion_host_constraints_apply_to_fields_interfaces_methods_and_initialization() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m29-companions/bounds/program/src/main.scoop"
+        "/../../tests/fixtures/language/companions/reflection/bounds/program/src/main.scoop"
     ));
     let output = lower(&[complete_core_file(), scoop_parser::parse(source).unwrap()])
         .expect("companion declarations inherit complete host constraints");

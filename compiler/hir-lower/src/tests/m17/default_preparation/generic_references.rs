@@ -4,7 +4,7 @@ use super::*;
 fn generic_default_reference_uses_its_creation_scope() {
     let output = lower_source(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-type-source-defaults/generic-reference-owner.scoop"
+        "/../../tests/fixtures/language/type-source-defaults/generic-reference-owner.scoop"
     )))
     .unwrap();
     assert_eq!(output.local.callable_references.len(), 4);
@@ -45,7 +45,7 @@ fn generic_default_reference_uses_its_creation_scope() {
 fn generic_default_closures_compose_reordered_binders_through_multiple_expansions() {
     let output = lower_source(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-type-source-defaults/generic-closure-expansion.scoop"
+        "/../../tests/fixtures/language/type-source-defaults/generic-closure-expansion.scoop"
     )))
     .unwrap();
     let module = &output.local;

@@ -1,1 +1,0 @@
-public fun defaultSamples(): Samples = Samples()

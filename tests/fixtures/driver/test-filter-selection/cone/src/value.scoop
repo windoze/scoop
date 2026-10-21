@@ -1,0 +1,3 @@
+package dev.selection
+
+public fun value(): Int = 42

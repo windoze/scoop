@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.facade"
+name = "facade"
+version = "1.0.0"
+kind = "library"
+[dependencies]
+"dev.leaf:leaf" = {version = "1.0.0", path = "../leaf"}

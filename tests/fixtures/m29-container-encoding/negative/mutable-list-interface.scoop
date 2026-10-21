@@ -1,2 +1,0 @@
-fun send(value: MutableList<Int>, encoder: Encoder) { value.encode(encoder) }
-fun main() {}

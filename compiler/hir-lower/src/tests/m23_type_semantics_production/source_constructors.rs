@@ -4,7 +4,7 @@ use scoop_identity::{CallableTemplateOrigin, DuplicateSignatureKey, SignatureTyp
 
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-type-source-dispatch/constructors.scoop"
+    "/../../tests/fixtures/language/type-source-dispatch/constructors.scoop"
 ));
 
 #[test]
@@ -122,7 +122,7 @@ fn verify_parameter_types(export: &hir::ExportHir, table: &[&hir::CallableDeclar
 fn protected_constructors_use_complete_shared_declarations() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-type-source-dispatch/protected-construction.scoop"
+        "/../../tests/fixtures/language/type-source-dispatch/protected-construction.scoop"
     ));
     with_source(source, |output, _| {
         let public = public_interface(output);

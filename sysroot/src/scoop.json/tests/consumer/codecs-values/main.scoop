@@ -1,0 +1,46 @@
+package scoop.json.tests.consumer.codecs_values
+
+import scoop.test.*
+import scoop.datetime.*
+import scoop.time.*
+import scoop.uuid.Uuid
+import scoop.json.Json
+
+fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(ok, location = location)
+}
+fun <T : Equals<T>> roundtrip(value: T, encoder: ValueEncoder<T>, decoder: ValueDecoder<T>, text: String) {
+    check(Json.encodeToString(value, encoder) == text)
+    check(Json.decodeFromString(text, decoder) == value)
+}
+private fun exerciseConsumer() {
+    roundtrip(Uuid.NIL, Uuid.Companion, Uuid.Companion, "\"00000000-0000-0000-0000-000000000000\"")
+    roundtrip(Uuid.MAX, Uuid.Companion, Uuid.Companion, "\"ffffffff-ffff-ffff-ffff-ffffffffffff\"")
+    roundtrip((-1).nanoseconds(), Duration.Companion, Duration.Companion, "\"-PT0.000000001S\"")
+    roundtrip(Duration.seconds(Long.MIN_VALUE), Duration.Companion, Duration.Companion, "\"-PT9223372036854775808S\"")
+    roundtrip(Instant.fromEpochSeconds(-1L, 999999999L), Instant.Companion, Instant.Companion, "\"1969-12-31T23:59:59.999999999Z\"")
+    roundtrip(LocalDate(-1, 2, 3), LocalDate.Companion, LocalDate.Companion, "\"-0001-02-03\"")
+    roundtrip(LocalDate(2024, 2, 29), LocalDate.Companion, LocalDate.Companion, "\"2024-02-29\"")
+    roundtrip(YearMonth(10000, 2), YearMonth.Companion, YearMonth.Companion, "\"+10000-02\"")
+    roundtrip(LocalTime(1, 2, 3, 120000000), LocalTime.Companion, LocalTime.Companion, "\"01:02:03.12\"")
+    roundtrip(LocalDateTime(2024, 2, 29, 1, 2), LocalDateTime.Companion, LocalDateTime.Companion, "\"2024-02-29T01:02:00\"")
+    roundtrip(UtcOffset.ZERO, UtcOffset.Companion, UtcOffset.Companion, "\"Z\"")
+    roundtrip(UtcOffset.fromHoursMinutesSeconds(-1, -2, -3), UtcOffset.Companion, UtcOffset.Companion, "\"-01:02:03\"")
+    roundtrip(OffsetDateTime(LocalDateTime(2024, 2, 29, 1, 2), UtcOffset.fromHoursMinutesSeconds(5, 30)),
+        OffsetDateTime.Companion, OffsetDateTime.Companion, "\"2024-02-29T01:02:00+05:30\"")
+    val period = DatePeriod(-2, 15, Long.MIN_VALUE)
+    roundtrip(period, DatePeriod.Companion, DatePeriod.Companion, "{\"years\":-2,\"months\":15,\"days\":-9223372036854775808}")
+    roundtrip(DateTimePeriod(period, (-1).nanoseconds()), DateTimePeriod.Companion, DateTimePeriod.Companion,
+        "{\"date\":{\"years\":-2,\"months\":15,\"days\":-9223372036854775808},\"time\":\"-PT0.000000001S\"}")
+    check(Json.decodeFromString("{\"days\":3,\"years\":1,\"months\":2}", DatePeriod.Companion) == DatePeriod(1, 2, 3L))
+    check(Json.encodeToString(Json.decodeFromString("\"+00:00\"", UtcOffset.Companion), UtcOffset.Companion) == "\"Z\"")
+    check(Json.encodeToString(Json.decodeFromString("\"PT1H\"", Duration.Companion), Duration.Companion) == "\"PT3600S\"")
+    check(Json.encodeToString(Json.decodeFromString("\"1970-01-01T01:00:00+01:00\"", Instant.Companion), Instant.Companion) == "\"1970-01-01T00:00:00Z\"")
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

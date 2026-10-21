@@ -1,2 +1,0 @@
-public fun holder(value: Combined): Holder = Holder(value)
-public fun held(value: Holder): Combined = value.value

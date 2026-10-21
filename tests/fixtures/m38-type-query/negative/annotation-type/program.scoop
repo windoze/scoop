@@ -1,2 +1,0 @@
-annotation class Label(val text: String)
-fun main() { typeInfo<Label>() }

@@ -43,11 +43,7 @@ pub(crate) fn distribution(
 ) -> Result<ArtifactDistributionClassV1, ProductionCodeProjectionError> {
     match cone.source_form() {
         ConeSourceForm::Manifest => Ok(ArtifactDistributionClassV1::DistributableCone),
-        ConeSourceForm::SingleFile
-            if cone.kind() == ConeKind::Executable
-                && source_count == 1
-                && dependencies == [scoop_identity::ConeIdentity::CORE] =>
-        {
+        ConeSourceForm::SingleFile if cone.kind() == ConeKind::Executable && source_count == 1 => {
             Ok(ArtifactDistributionClassV1::LocalExecutableRoot)
         }
         ConeSourceForm::SingleFile => Err(ProductionCodeProjectionError::InvalidSingleFileRoot {
@@ -60,14 +56,11 @@ pub(crate) fn distribution(
 
 fn link_distribution(
     cone: &ConeRecord,
-    dependencies: &[scoop_identity::ConeIdentity],
+    _dependencies: &[scoop_identity::ConeIdentity],
 ) -> Result<ArtifactDistributionClassV1, ProductionCodeProjectionError> {
     match cone.source_form() {
         ConeSourceForm::Manifest => Ok(ArtifactDistributionClassV1::DistributableCone),
-        ConeSourceForm::SingleFile
-            if cone.kind() == ConeKind::Executable
-                && dependencies == [scoop_identity::ConeIdentity::CORE] =>
-        {
+        ConeSourceForm::SingleFile if cone.kind() == ConeKind::Executable => {
             Ok(ArtifactDistributionClassV1::LocalExecutableRoot)
         }
         ConeSourceForm::SingleFile => Err(ProductionCodeProjectionError::InvalidSingleFileLinkRoot),

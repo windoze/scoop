@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "annotation `@Other` must not be repeated on the same target",
+    "notes": [],
+    "origin": {
+      "cone": "d325e358d8137924c378c93023c37e65d36b060130c20babc12c3b68a49e5a08",
+      "end": 76,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 70
+    },
+    "severity": "error"
+  }
+]

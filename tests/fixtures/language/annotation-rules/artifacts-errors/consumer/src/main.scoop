@@ -1,0 +1,6 @@
+package dev.m37
+import dev.m37.annotated.bridge.*
+import dev.m37.annotated.bridge.Once as Alias
+@OnlyField fun fieldError() {}
+@Once @Alias fun repeatedError() {}
+fun main() {}

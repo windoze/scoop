@@ -1,4 +1,0 @@
-class Wrong : ValueDecoder<Long> {
-    public override fun decode(decoder: Decoder): String = "wrong"
-}
-fun main() { println("unreachable") }

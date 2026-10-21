@@ -1,6 +1,0 @@
-import shared.answer
-
-/// Uses [answer] from the shared library.
-private fun firstHelper(): Int = answer()
-
-fun main() { firstHelper() }

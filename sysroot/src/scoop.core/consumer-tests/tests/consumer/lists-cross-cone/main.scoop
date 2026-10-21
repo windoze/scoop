@@ -1,0 +1,23 @@
+package test.core.tests.consumer.lists_cross_cone.p0
+
+import scoop.test.*
+import test.core.tests.consumer.lists_cross_cone.p1.*
+
+class Cell(val value: Long)
+private fun exerciseConsumer() {
+    val values = collect<Cell>(20L) { index -> Cell(index) }
+    val copy = snapshot(values)
+    values.removeAt(0L)
+    values.add(0L, Cell(42L))
+    gcCollect()
+    if (values[0L].value != 42L || copy[0L].value != 0L || copy[19L].value != 19L) { fail(Some("copy")) }
+    val numbers = collect<Int>(6L) { index -> index.toInt() }
+    numbers[5L] = 32
+    assertEquals("42", (sum(numbers)).toString())
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

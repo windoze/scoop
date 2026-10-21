@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.dependency.classes.FirstChoice
+
+public interface LocalChoice: FirstChoice {
+    public override fun choose(): Long
+}
+public class LocalReader public constructor(): LocalChoice {}

@@ -1,0 +1,15 @@
+schema = 1
+name = "integer-diagnostics-mixed-width"
+inputs = ["../integers/errors/mixed-width.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["integer-diagnostics", "negative", "language"]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/../integers/errors/mixed-width.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "mixed-width.diagnostics.json"}

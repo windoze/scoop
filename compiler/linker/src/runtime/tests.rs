@@ -97,6 +97,7 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
             target,
             invocation.profile(),
             RuntimeBuildConfiguration {
+                enable_gc_stress: false,
                 input_key: sha256(b"runtime index integration"),
                 compiler_inputs: sha256(b"selected runtime test compiler"),
                 flags: profile

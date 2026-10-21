@@ -1,5 +1,0 @@
-fun retain(value: EmptyStorage): Any = value
-
-fun main() {
-    
-}

@@ -1,0 +1,54 @@
+package scoop.http.tests.consumer.multipart
+
+import scoop.test.*
+import scoop.compression.*
+import scoop.http.*
+import scoop.platform.fs.Path
+
+private fun exerciseConsumer(args: Array<String>) {
+    if (args.size == 2L) { compareExternal(Path.fromString(args[1L])); return }
+    check(args.size == 1L)
+    val boundary = MultipartBoundary("outer:42 x")
+    val text = "正文\r\n--outer:42 Y\u0000end".toByteArray()
+    val inner = "--inner\r\nContent-Type: text/plain\r\n\r\nnested\r\n--inner--".toByteArray()
+    val first = MultipartPartHead.formData("字段", Some("文.txt"), Some(HttpMediaType("text", "plain")), Some(text.size))
+    val second = MultipartPartHead([MultipartBoundary("inner").toMediaType("mixed").toHttpField(),
+        HttpField("X-Raw".toByteArray(), [255.toByte()])], Some(inner.size))
+    val encoded = writeMultipart(boundary, [(first, text), (second, inner)])
+    check(MultipartEncoder.contentLength(boundary, [first, second]) == Some(encoded.size))
+    val compressed = compress(encoded, CompressionOptions.Gzip(GzipOptions()))
+    val response = HttpResponseHead(HttpVersion.Http11, 200U, fields = [boundary.toMediaType("mixed").toHttpField(),
+        HttpField("Content-Encoding".toByteArray(), "gzip".toByteArray())])
+    val (receivedHead, receivedBody) = readHttp(writeHttp(response, compressed))
+    val actualBoundary = MultipartBoundary.fromMediaType(HttpMediaType.parse(receivedHead.fields.findAll("content-type".toByteArray())[0L].value))
+    val parts = readMultipart(actualBoundary, decompress(receivedBody, DecompressionOptions(CompressionFormat.Gzip)), 3L, 2L)
+    check(parts.size == 2L)
+    val (firstHead, firstBody) = parts[0L]
+    val (secondHead, secondBody) = parts[1L]
+    checkBytes(text, firstBody)
+    checkBytes(inner, secondBody)
+    val disposition = HttpContentDisposition.parse(firstHead.fields[0L].value)
+    check(String.fromUtf8(disposition.parameter("name")!!.value) == "字段")
+    check(String.fromUtf8(disposition.parameter("filename")!!.value) == "文.txt")
+    check(secondHead.fields[1L].value[0L] == 255.toByte())
+    gcCollect()
+    val nestedBoundary = MultipartBoundary.fromMediaType(HttpMediaType.parse(secondHead.fields[0L].value))
+    val nested = readMultipart(nestedBoundary, secondBody, 1L, 1L)
+    check(nested.size == 1L)
+    val (_, nestedBody) = nested[0L]
+    check(String.fromUtf8(nestedBody) == "nested")
+}
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+fun checkBytes(expected: List<Byte>, actual: List<Byte>) {
+    check(expected.size == actual.size)
+    for (index in 0L..<expected.size) check(expected[index] == actual[index])
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun run() {
+        exerciseConsumer(["consumer"])
+    }
+}

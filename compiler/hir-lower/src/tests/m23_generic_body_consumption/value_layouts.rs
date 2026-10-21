@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn dependency_value_wrappers_reject_inline_cycles() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-shared-value-layouts");
+        .join("../../tests/fixtures/language/shared-value-layouts");
     let provider = std::fs::read_to_string(root.join("provider.scoop")).unwrap();
     for (case, path) in [
         ("struct-cycle", "Recursive -> Recursive"),

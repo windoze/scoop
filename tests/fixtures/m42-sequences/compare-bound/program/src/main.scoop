@@ -1,4 +1,0 @@
-import scoop.sequences.*
-
-class Key
-fun main() { sequenceOf<Key>(Key()).sorted() }

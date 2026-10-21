@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.templates.delegateCombinations.*
+
+fun wrong(): Unit { Receiver<Int>(1).ordered = true }

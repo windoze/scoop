@@ -16,7 +16,7 @@ fn empty_worklist_extracts_nothing_and_later_work_selects_each_member_once() {
     let member = path.join("member.o");
     std::fs::rename(path.join("m23_final.o"), &member).unwrap();
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-native-link/resolution/unused.c");
+        .join("../../tests/fixtures/language/native-link/resolution/unused.c");
     let unused = path.join("unused.o");
     test_support::compile_native(&fixture.profile, &source, &unused);
     let status = Command::new("/usr/bin/ar")

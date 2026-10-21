@@ -1,2 +1,0 @@
-package numbers
-public fun forty(): Int = 40

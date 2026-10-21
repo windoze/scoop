@@ -1,0 +1,25 @@
+package dev.example
+import test.answer
+import test.narrow
+import test.unsigned
+import test.unsignedNegated
+import test.nested
+import test.quotient
+import test.remainder
+import test.negated
+import test.positive
+import test.order
+import test.equal
+import test.staticValue
+
+fun main() {
+    if (answer != 42 || narrow != -126 || unsigned != 4U || unsignedNegated != 252U) {
+        throw IllegalStateException()
+    }
+    if (nested != 11 || quotient != -5 || remainder != -2 || negated != 126 || positive != 126) {
+        throw IllegalStateException()
+    }
+    if (!order || !equal || staticValue != 11) {
+        throw IllegalStateException()
+    }
+}

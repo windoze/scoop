@@ -1,4 +1,0 @@
-import accessors.Getter
-import accessors.Setter
-object GetterCodec : ValueEncoder<Getter>
-object SetterCodec : ValueEncoder<Setter>

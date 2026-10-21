@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.dispatch.*
+
+public fun read(value: Joined): Int = value.root() + value.left() + value.right() + value.size

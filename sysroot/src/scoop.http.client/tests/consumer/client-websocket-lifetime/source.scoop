@@ -1,0 +1,118 @@
+package scoop.http.client.tests.consumer.client_websocket_lifetime
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+private class ClientWsSource(val child: Boolean, val failCleanup: Boolean) : AsyncByteSource, AsyncCloseable {
+    val started: ClientWsGate = ClientWsGate()
+    val cleaning: ClientWsGate = ClientWsGate()
+    val release: ClientWsGate = ClientWsGate()
+    val cleanup: Throwable = ResourceUseException(Throwable(), Throwable())
+    var finished: Boolean = false
+    var closes: Int = 0
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (child) coroutineScope<Unit> suspend { scope -> scope.launch suspend { waitForStop() }; Unit }
+        else waitForStop()
+        return 0L
+    }
+    private suspend fun waitForStop() {
+        assertEquals("source", clientWsMarker())
+        try { started.signal(); suspendCancellableCoroutine<Unit> { _ -> } }
+        finally {
+            cleaning.signal(); release.await(); finished = true
+            if (failCleanup) throw ResourceUseException(CancellationException(), cleanup)
+        }
+    }
+    public override suspend fun close() { closes += 1 }
+}
+
+internal fun clientWsSourceStop(trust: TrustStore, mode: String, child: Boolean, cleanup: Boolean) {
+    withClientWsPeer("session") suspend { _, scope, url, peer ->
+        val client = HttpClient.open(scope, clientWsConfig(trust))
+        val session = clientWsOpen(client, url)
+        val source = ClientWsSource(child, cleanup)
+        val sent = ClientWsFailure()
+        val closed = ClientWsFailure()
+        val observed = ClientWsFailure()
+        val observer = scope.launch suspend {
+            try { session.awaitClosed() } catch (error: Throwable) { observed.value = Some(error) }
+            assertTrue(source.finished && session.isClosed)
+        }
+        val sending = scope.launch suspend {
+            try { context(ClientWsMarker("source")) { session.send(WebSocketMessageType.Binary, source) } }
+            catch (error: Throwable) { sent.value = Some(error) }
+            if (mode != "caller") ensureActive()
+        }
+        source.started.await()
+        val closing: Job? = if (mode == "caller") None else Some(scope.launch suspend {
+            try {
+                if (mode == "client") client.close()
+                else if (mode == "peer") peer.session!!.shutdownGracefully()
+                else session.close()
+            } catch (error: Throwable) { closed.value = Some(error) }
+        })
+        if (mode == "caller") sending.cancel()
+        try {
+            source.cleaning.await()
+            assertFalse(session.isClosed || client.isClosed || source.finished || sending.isCompleted || observer.isCompleted)
+            if (mode == "client" || mode == "session") assertFalse(closing!!.isCompleted)
+            source.release.signal()
+            sending.join(); closing?.join(); observer.join()
+            assertTrue(session.isClosed && source.finished)
+            assertEquals(0, source.closes)
+            if (cleanup) {
+                assertSame(source.cleanup, observed.value!!)
+                if (mode == "caller") {
+                    assertTrue(sent.value!! is ResourceUseException)
+                    assertSame(source.cleanup, (sent.value!! as ResourceUseException).cleanupFailure)
+                    assertTrue((sent.value!! as ResourceUseException).primaryFailure is CancellationException)
+                } else assertSame(source.cleanup, sent.value!!)
+                if (mode == "client" || mode == "session") assertSame(source.cleanup, closed.value!!)
+            } else {
+                assertFalse(clientWsPresent(observed.value) || clientWsPresent(closed.value) || clientWsPresent(session.failure))
+                assertTrue(sent.value!! is WebSocketSessionException)
+            }
+            if (mode == "client") assertTrue(client.isClosed)
+        } finally {
+            source.release.signal()
+            clientWsIgnoreClose suspend { client.close() }
+            sending.join(); closing?.join(); observer.join()
+        }
+    }
+}
+
+private class ClientWsSelfWait(val client: HttpClient, val session: HttpWebSocketSession, val child: Boolean) : AsyncByteSource {
+    var checked: Boolean = false
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (child) coroutineScope<Unit> suspend { scope -> scope.launch suspend { checkWaits() }; Unit }
+        else checkWaits()
+        return 0L
+    }
+    private suspend fun checkWaits() {
+        assertTrue(clientWsFailure suspend { client.close() } is IllegalStateException)
+        assertTrue(clientWsFailure suspend { session.close() } is IllegalStateException)
+        assertTrue(clientWsFailure suspend { session.awaitClosed() } is IllegalStateException)
+        assertTrue(clientWsFailure suspend { session.shutdownGracefully(); Unit } is IllegalStateException)
+        checked = true
+    }
+}
+
+internal fun clientWsSelfWait(trust: TrustStore, child: Boolean) {
+    withClientWsPeer("session") suspend { _, scope, url, peer ->
+        val client = HttpClient.open(scope, clientWsConfig(trust))
+        try {
+            val session = clientWsOpen(client, url)
+            val source = ClientWsSelfWait(client, session, child)
+            session.send(WebSocketMessageType.Binary, source)
+            assertTrue(source.checked)
+            assertFalse(client.isClosed || session.isClosed || clientWsPresent(session.failure))
+            assertEquals(0L, peer.session!!.receive()!!.readBytes().size)
+        } finally { client.close() }
+    }
+}

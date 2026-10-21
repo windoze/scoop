@@ -3,7 +3,7 @@ use super::*;
 fn assert_lowers(name: &str) {
     let source = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-implicit-array-capability")
+            .join("../../tests/fixtures/language/implicit-array-capability")
             .join(name),
     )
     .unwrap();

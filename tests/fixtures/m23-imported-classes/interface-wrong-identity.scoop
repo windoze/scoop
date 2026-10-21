@@ -1,4 +1,0 @@
-import dependency.classes.Readable
-import dependency.classes.OtherReadable
-
-public fun invalid(value: OtherReadable): Readable = value

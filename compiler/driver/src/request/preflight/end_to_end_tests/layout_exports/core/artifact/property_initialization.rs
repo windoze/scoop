@@ -48,16 +48,16 @@ pub(super) fn check(
     let core = bootstrap_core(directory, target);
     let bytes = std::fs::read(core.artifact().path()).unwrap();
     for (family, name, count) in [
-        ("m23-property-initialization", "standalone", 1),
-        ("m23-property-initialization", "combined", 4),
-        ("m23-extension-call-receivers", "standalone", 1),
-        ("m23-extension-call-receivers", "combined", 4),
-        ("m23-any-call-signatures", "standalone", 1),
-        ("m23-any-call-signatures", "combined", 4),
-        ("m23-link-object-contents", "standalone", 1),
-        ("m23-link-object-contents", "combined", 4),
-        ("m23-link-symbol-uses", "standalone", 1),
-        ("m23-link-symbol-uses", "combined", 4),
+        ("language/property-initialization", "standalone", 1),
+        ("language/property-initialization", "combined", 4),
+        ("language/extension-call-receivers", "standalone", 1),
+        ("language/extension-call-receivers", "combined", 4),
+        ("language/any-call-signatures", "standalone", 1),
+        ("language/any-call-signatures", "combined", 4),
+        ("language/link-object-contents", "standalone", 1),
+        ("language/link-object-contents", "combined", 4),
+        ("language/link-symbol-uses", "standalone", 1),
+        ("language/link-symbol-uses", "combined", 4),
     ] {
         let fixtures = crate::workspace_root().join("tests/fixtures").join(family);
         let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
@@ -151,14 +151,14 @@ pub(super) fn check(
                     production,
                 );
                 super::source_calls::check(input, core_input);
-                if family != "m23-property-initialization" {
-                    if family == "m23-any-call-signatures" {
+                if family != "language/property-initialization" {
+                    if family == "language/any-call-signatures" {
                         super::publication::check(name, core_artifact, &artifact);
-                    } else if family == "m23-link-symbol-uses" {
+                    } else if family == "language/link-symbol-uses" {
                         super::link_symbol_uses::check(core_artifact, &artifact);
                     }
                 }
-                if family == "m23-any-call-signatures" {
+                if family == "language/any-call-signatures" {
                     super::source_calls::check_any_link(core_artifact, &artifact);
                 }
                 for (view, closure) in [

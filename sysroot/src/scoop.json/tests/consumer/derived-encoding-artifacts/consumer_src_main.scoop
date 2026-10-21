@@ -1,0 +1,38 @@
+package scoop.json.tests.consumer.derived_encoding_artifacts.p0
+
+import scoop.test.*
+import scoop.json.Json
+import scoop.json.tests.consumer.derived_encoding_artifacts.p1.Packet
+import scoop.json.tests.consumer.derived_encoding_artifacts.p1.Event
+import scoop.json.tests.consumer.derived_encoding_artifacts.p1.Row
+import scoop.json.tests.consumer.derived_encoding_artifacts.p1.PublicRow
+import scoop.json.tests.consumer.derived_encoding_artifacts.p1.make
+
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+class LocalPacketEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Packet<T>>
+class LocalEventEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Event<T>>
+object LocalRowEncoder : ValueEncoder<PublicRow>
+
+fun <T> encode(value: T, codec: ValueEncoder<T>): String = Json.encodeToString(value, codec)
+
+private fun exerciseConsumer() {
+    val packet = Packet<Int>.Companion.encoder(Int.Companion)
+    check(encode(make(), packet) == "{\"payload\":7}")
+    check(encode(Packet<Int>(8, "consumer"), LocalPacketEncoder<Int>(Int.Companion)) == "{\"payload\":8}")
+    check(encode(Packet<String>("text", 9), Packet<String>.Companion.encoder(String.Companion)) == "{\"payload\":\"text\"}")
+    val event = Event<Packet<Int>>.Named(make())
+    check(encode(event, Event<Packet<Int>>.Companion.encoder(packet)) == "{\"Named\":{\"item\":{\"payload\":7}}}")
+    check(encode(event, LocalEventEncoder<Packet<Int>>(packet)) == "{\"Named\":{\"item\":{\"payload\":7}}}")
+    check(encode(Row(10, "ten"), Row.Companion) == "{\"id\":10,\"name\":\"ten\"}")
+    check(encode(PublicRow(11, "eleven"), LocalRowEncoder) == "{\"id\":11,\"label\":\"eleven\"}")
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

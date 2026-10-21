@@ -1,2 +1,0 @@
-public fun user(): User = User()
-public fun derived(): Derived = Derived()

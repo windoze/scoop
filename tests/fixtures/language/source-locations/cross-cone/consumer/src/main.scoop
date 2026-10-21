@@ -1,0 +1,32 @@
+package dev.locations
+import dev.locations.locations.facade.body
+import dev.locations.locations.facade.defaultBody
+import dev.locations.locations.facade.Reporter
+import dev.locations.locations.facade.relay
+import dev.locations.locations.facade.ordinary
+import dev.locations.locations.facade.GenericReporter
+import dev.locations.locations.facade.closureBody
+
+fun show(label: String, location: SourceLocation) {
+    println(label)
+    println(location.file)
+    println(location.line)
+    println(location.column)
+    println(location.functionName)
+    println(location.typeName)
+}
+
+fun main() {
+    show("直接", currentSourceLocation())
+    show("default", defaultBody(1))
+    show("forwarded", relay(1))
+    show("generic-body", body("value"))
+    val reporter = Reporter()
+    show("member-body", reporter.body())
+    show("member-default", reporter.trace())
+    show("facade-body", ordinary())
+    show("closure-body", closureBody(1))
+    val generic = GenericReporter("value")
+    show("generic-member", generic.body())
+    show("member-closure", generic.closure()())
+}

@@ -6,7 +6,7 @@
 ```sh
 cargo build --manifest-path tests/terminal_host/Cargo.toml --release --target-dir target
 cargo test --manifest-path tests/terminal_host/Cargo.toml --target-dir target
-python3 tests/run_fixtures.py --filter m59-terminal-pty-output \
+python3 tests/run_fixtures.py --filter terminal-pty-output \
   --terminal-host "$PWD/target/release/terminal-host"
 ```
 

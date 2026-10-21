@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.classes.HiddenHolder
+
+public fun invalid() { HiddenHolder }

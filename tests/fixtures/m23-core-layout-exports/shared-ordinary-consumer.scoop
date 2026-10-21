@@ -1,2 +1,0 @@
-public fun sharedOrdinaryUse(value: String): String = sharedOrdinaryText(value)
-public fun sharedOrdinaryAvailable(): Boolean = sharedOrdinaryReady

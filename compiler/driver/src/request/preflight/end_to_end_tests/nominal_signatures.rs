@@ -7,7 +7,7 @@ fn formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope() 
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-nominal-signature-scope");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/nominal-signature-scope");
     for case in ["standalone", "combined"] {
         let source = std::fs::read_to_string(fixtures.join(format!("{case}.scoop"))).unwrap();
         let root = sysroot.path().join(case);

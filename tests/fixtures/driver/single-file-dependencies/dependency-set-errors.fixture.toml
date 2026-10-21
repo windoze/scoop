@@ -1,0 +1,59 @@
+schema = 1
+name = "single-file-dependency-set-errors"
+inputs = []
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "single-file", "dependencies", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${sysroot}/lib/${target}/scoop.core.slib", "to" = "${work}/core-only/lib/${target}/scoop.core.slib"}}, {"write" = {"path" = "${work}/default.scoop", "data" = "//! dep: scoop:scoop.core:0.1.0\n//! dep: scoop:scoop.std:0.1.0\nfun main() {}\n"}}, {"write" = {"path" = "${work}/missing.scoop", "data" = "//! dep: dev.missing:absent:1.0.0\nfun main() {}\n"}}, {"write" = {"path" = "${work}/previous.slib", "data" = "previous artifact"}}]
+
+[[steps]]
+name = "missing_std"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "--release", "--message-format", "json", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "${work}/default.scoop", "--sysroot", "${work}/core-only"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "missing_std.diagnostics.json"}
+
+[[steps]]
+name = "missing_explicit"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "--release", "--message-format", "json", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "${work}/missing.scoop", "--sysroot", "${sysroot}"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "missing_explicit.diagnostics.json"}
+
+[[steps]]
+name = "missing_direct"
+argv = ["${scoopc}", "build", "${work}/default.scoop", {"each" = "${compile_args}"}, "--profile", "release", "--sysroot", "${sysroot}", "--out-slib", "${work}/previous.slib"]
+exit = 1
+stdout = ""
+stderr = "error: manifest dependency set does not equal the direct artifact set: declared [ConeCoordinate { group: \"scoop\", name: \"scoop.std\", version: \"0.1.0\" }, ConeCoordinate { group: \"scoop\", name: \"scoop.core\", version: \"0.1.0\" }], actual [ConeCoordinate { group: \"scoop\", name: \"scoop.core\", version: \"0.1.0\" }]\n"
+checks = [{"file" = "${work}/previous.slib", "equals" = "previous artifact"}]
+
+[[steps]]
+name = "wrong_role"
+argv = ["${scoopc}", "build", "${work}/default.scoop", {"each" = "${compile_args}"}, "--profile", "release", "--sysroot", "${sysroot}", "--out-slib", "${work}/previous.slib", "--support-slib", "${sysroot}/lib/${target}/scoop.std.slib"]
+exit = 1
+stdout = ""
+stderr = "error: manifest dependency set does not equal the direct artifact set: declared [ConeCoordinate { group: \"scoop\", name: \"scoop.std\", version: \"0.1.0\" }, ConeCoordinate { group: \"scoop\", name: \"scoop.core\", version: \"0.1.0\" }], actual [ConeCoordinate { group: \"scoop\", name: \"scoop.core\", version: \"0.1.0\" }]\n"
+checks = [{"file" = "${work}/previous.slib", "equals" = "previous artifact"}]
+
+[[steps]]
+name = "extra_direct"
+argv = ["${scoopc}", "build", "${work}/default.scoop", {"each" = "${compile_args}"}, "--profile", "release", "--sysroot", "${sysroot}", "--out-slib", "${work}/previous.slib", "--direct-slib", "${sysroot}/lib/${target}/scoop.std.slib", "--direct-slib", "${sysroot}/lib/${target}/scoop.json.slib"]
+exit = 1
+stdout = ""
+stderr = "error: manifest dependency set does not equal the direct artifact set: declared [ConeCoordinate { group: \"scoop\", name: \"scoop.std\", version: \"0.1.0\" }, ConeCoordinate { group: \"scoop\", name: \"scoop.core\", version: \"0.1.0\" }], actual [ConeCoordinate { group: \"scoop\", name: \"scoop.std\", version: \"0.1.0\" }, ConeCoordinate { group: \"scoop\", name: \"scoop.json\", version: \"0.1.0\" }, ConeCoordinate { group: \"scoop\", name: \"scoop.core\", version: \"0.1.0\" }]\n"
+checks = [{"file" = "${work}/previous.slib", "equals" = "previous artifact"}]
+
+[[steps]]
+name = "explicit_defaults_merge"
+argv = ["${scoopc}", "build", "${work}/default.scoop", {"each" = "${compile_args}"}, "--profile", "release", "--sysroot", "${sysroot}", "--out-slib", "${work}/previous.slib", "--direct-slib", "${sysroot}/lib/${target}/scoop.std.slib"]
+exit = 0
+stdout = ""
+stderr = ""

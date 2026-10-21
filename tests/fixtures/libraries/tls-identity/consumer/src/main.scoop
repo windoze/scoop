@@ -1,0 +1,31 @@
+package scoop.tests
+import scoop.tests.scoop.crypto.testdata.*
+import scoop.crypto.x509.TrustStore
+import scoop.platform.concurrent.Thread
+import scoop.text.toHexString
+import scoop.tls.*
+
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    if (!value) throw IllegalStateException(Some("TLS identity assertion at " + location.file + ":" + location.line.toString()))
+}
+
+fun identityContext(version: TlsVersion): TlsClientContext =
+    TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem()).use { identity ->
+        check(identity.leafCertificateSha256.toHexString() == "bae194b040dd8ccbe7f4a406ba93c14b020bec8739d32b8a77058de4a028e1a7")
+        TrustStore.fromPem(rootPem()).use { store ->
+            TlsClientContext(store, TlsOptions(version, version), Some(identity))
+        }
+    }
+
+fun main() {
+    val worker = Thread.start {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13])
+            withPeer(version) { port -> synchronousIdentity(port, version) }
+    }
+    try {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13])
+            withPeer(version) { port -> asynchronousIdentity(port, version) }
+        cancelIdentityHandshake()
+    } finally { worker.join() }
+    println("Retained TLS identities authenticate synchronous and suspend clients and drain cancellation")
+}

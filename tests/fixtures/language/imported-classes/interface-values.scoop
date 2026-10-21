@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.Token
+import dev.example.dependency.classes.valueReader
+
+public fun primary(): Counter = Counter(valueReader().value(Token(), Counter(21)).first)

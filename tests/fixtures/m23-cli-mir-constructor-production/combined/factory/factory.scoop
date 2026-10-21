@@ -1,1 +1,0 @@
-public fun tokenOf(value: Base): Token = value.token

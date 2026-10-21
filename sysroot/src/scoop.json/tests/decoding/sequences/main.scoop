@@ -1,0 +1,61 @@
+package scoop.json.tests.decoding.sequences
+
+import scoop.test.*
+import scoop.json.Json
+
+object SequenceReader : ValueDecoder<Long> {
+    public override fun decode(decoder: Decoder): Long {
+        check(!decoder.singleValue().isNull())
+        val first = decoder.unkeyed()
+        val second = decoder.unkeyed()
+        check(first.hasNext && first.hasNext)
+        val child = first.element()
+        reject("/0") { Long.decode(child) }
+        reject("") { first.end() }
+        check(first.hasNext)
+        val next = first.element()
+        first.end()
+        first.end()
+        check(!first.hasNext)
+        reject("/2") { first.element() }
+        check(!first.hasNext)
+        gcCollect()
+        check(String.decode(child) == "first")
+        check(String.decode(child) == String.decode(second.element()))
+        check(Long.decode(next) == Long.decode(second.element()))
+        second.end()
+        val fresh = decoder.unkeyed()
+        check(String.decode(fresh.element()) == "first")
+        check(Long.decode(fresh.element()) == 7L)
+        fresh.end()
+        return Long.decode(next)
+    }
+}
+
+private fun exercise() {
+    check(Json.decodeFromString("[\"first\",7]", SequenceReader) == 7L)
+    val ignoreElements = ValueDecoderFunction<Long>({ decoder ->
+        val elements = decoder.unkeyed()
+        val first = elements.element()
+        val second = elements.element()
+        elements.end()
+        2L
+    })
+    check(Json.decodeFromString("[{\"unread\":true},[null]]", ignoreElements) == 2L)
+    val empty = ValueDecoderFunction<Boolean>({ decoder ->
+        val elements = decoder.unkeyed()
+        check(!elements.hasNext)
+        elements.end()
+        elements.end()
+        reject("/0") { elements.element() }
+        !elements.hasNext
+    })
+    check(Json.decodeFromString("[]", empty))
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

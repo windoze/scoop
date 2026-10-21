@@ -1,0 +1,6 @@
+package test
+fun main() {
+    if (!localIdentity(true) || localIdentity(false)) {
+        throw IllegalStateException()
+    }
+}

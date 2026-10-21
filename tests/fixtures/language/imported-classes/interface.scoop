@@ -1,0 +1,8 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.Readable
+import dev.example.dependency.classes.readable
+import dev.example.dependency.classes.retainReadable
+
+public fun accept(value: Readable): Readable = retainReadable(value)
+public fun primary(): Counter = Counter(accept(readable(20)).answer())

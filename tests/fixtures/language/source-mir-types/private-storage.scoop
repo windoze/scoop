@@ -1,0 +1,13 @@
+package test
+private class Number(val value: Int)
+private class Unused(val value: Int)
+
+public enum Parcel<T> { Empty, Item(T) }
+
+public fun result(): Int {
+    val parcel = Parcel.Item(Number(42))
+    return when (parcel) {
+        case Empty -> 0
+        case Item(number) -> number.value
+    }
+}

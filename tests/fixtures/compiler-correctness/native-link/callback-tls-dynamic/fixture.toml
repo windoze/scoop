@@ -1,0 +1,73 @@
+schema = 1
+name = "native-link-callback-tls-dynamic"
+inputs = ["storage-provider", "../../../language/native-link/storage/provider.scoop", "storage-facade", "../../../language/native-link/storage/facade.scoop", "storage-root", "../../../language/native-link/callbacks/tls.scoop", "../../../language/native-link/storage/native.c"]
+tools = ["scoop", "scoopc", "cc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "compiler-correctness"]
+variants = [{"name" = "normal"}]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/storage-provider", "to" = "${work}/sources/storage-provider"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/storage/provider.scoop", "to" = "${work}/sources/storage-provider/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/storage-facade", "to" = "${work}/sources/storage-facade"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/storage/facade.scoop", "to" = "${work}/sources/storage-facade/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/storage-root", "to" = "${work}/sources/storage-root"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/callbacks/tls.scoop", "to" = "${work}/sources/storage-root/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/storage/native.c", "to" = "${work}/sources/native/storage/native.c"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+
+[[steps]]
+name = "compile_0"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/storage/native.c", "-o", "${work}/objects/storage-payload.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "dylib_0"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/storage-payload.o", "-install_name", "@rpath/libm23_storage.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_storage.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "build"
+timeout = 300
+argv = ["${scoop}", "build", "${work}/sources/storage-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${build.result.dependencies.length}", "equals" = 3},
+  {"actual" = "${build.result.dependencies.0.coordinate.name}", "equals" = "scoop.core"},
+  {"actual" = "${build.result.dependencies.1.coordinate.name}", "equals" = "storage-provider"},
+  {"actual" = "${build.result.dependencies.2.coordinate.name}", "equals" = "storage-facade"},
+  {"actual" = "${build.result.root.coordinate.name}", "equals" = "storage-root"},
+]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "32\n32\n41\n32\n105\n81\ntrue\ntrue\n1\ncaller-alive\n"
+stderr = ""
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/2.slib"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "32\n32\n41\n32\n105\n81\ntrue\ntrue\n1\ncaller-alive\n"
+stderr = ""

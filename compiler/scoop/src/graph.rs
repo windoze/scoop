@@ -405,7 +405,6 @@ fn validate_edges(
     nodes: &BTreeMap<ConeIdentity, GraphNode>,
     edges: &BTreeMap<(ConeIdentity, ConeIdentity), DiscoveredDependencyEdge>,
 ) -> Result<(), ResolveBuildGraphError> {
-    let mut outgoing_counts: BTreeMap<ConeIdentity, usize> = BTreeMap::new();
     let mut core_edges: BTreeSet<ConeIdentity> = BTreeSet::new();
     for ((key_dependent, key_dependency), edge) in edges {
         if *key_dependent != edge.dependent() || *key_dependency != edge.dependency() {
@@ -455,7 +454,6 @@ fn validate_edges(
                 dependency: edge.dependency(),
             });
         }
-        *outgoing_counts.entry(edge.dependent()).or_default() += 1;
         if edge.dependency() == ConeIdentity::CORE {
             core_edges.insert(edge.dependent());
         }
@@ -469,11 +467,6 @@ fn validate_edges(
             return Err(ResolveBuildGraphError::MissingDirectCore {
                 coordinate: node.coordinate().clone(),
             });
-        }
-        if matches!(node, GraphNode::SingleFile(_))
-            && outgoing_counts.get(identity).copied().unwrap_or_default() != 1
-        {
-            return Err(ResolveBuildGraphError::InvalidSingleFileGraph);
         }
     }
     Ok(())
@@ -503,12 +496,11 @@ fn validate_edge_representation(
                     .all(|origin| matches!(origin, EdgeOrigin::ArtifactDependencyRecord { .. }))
         }
         GraphNode::SingleFile(_) => {
-            to_core
-                && edge.expected_semantic().is_none()
+            edge.expected_semantic().is_none()
                 && edge
                     .origins()
                     .iter()
-                    .all(|origin| matches!(origin, EdgeOrigin::SyntheticSingleFileCore))
+                    .all(|origin| matches!(origin, EdgeOrigin::SingleFile { .. }))
         }
     };
     if valid && !edge.origins().is_empty() {

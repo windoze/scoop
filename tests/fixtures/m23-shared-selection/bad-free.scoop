@@ -1,3 +1,0 @@
-import dependency.selection.ambiguous
-
-public fun result(): Int = ambiguous(42, 42)

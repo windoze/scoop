@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.upstream.bindings.HiddenComponent
+public fun check(): Int {
+    val (value,) = HiddenComponent<Int>(42)
+    return value
+}

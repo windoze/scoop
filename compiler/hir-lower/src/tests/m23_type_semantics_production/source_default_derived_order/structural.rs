@@ -2,11 +2,11 @@ use super::*;
 use source_dispatch::with_hir_sources;
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-type-source-defaults/structural-defaults.scoop"
+    "/../../tests/fixtures/language/type-source-defaults/structural-defaults.scoop"
 ));
 const COMBINATIONS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-type-source-defaults/structural-default-combinations.scoop"
+    "/../../tests/fixtures/language/type-source-defaults/structural-default-combinations.scoop"
 ));
 
 #[test]
@@ -39,7 +39,7 @@ fn structural_defaults_follow_operand_visibility_through_hir_and_mir() {
 fn structural_default_access_is_independent_of_the_helpers_first_source_file() {
     let warmup = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-type-source-defaults/structural-default-warmup.scoop"
+        "/../../tests/fixtures/language/type-source-defaults/structural-default-warmup.scoop"
     ));
     for files in [
         [("src/first.scoop", warmup), ("src/second.scoop", SOURCE)],

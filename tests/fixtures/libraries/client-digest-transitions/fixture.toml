@@ -1,0 +1,37 @@
+schema = 1
+name = "client-digest-transitions"
+inputs = ["consumer", "peer.py"]
+support = ["../client-digest/consumer/src/support.scoop", "../client-digest/http1_peer.py", "../client-digest/oracle.py", "../client-trailers/wire.py", "../../../../sysroot/src/scoop.crypto/test-certificates/src/root.scoop"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["http", "client", "authentication", "asyncio", "prebuilt", "libraries"]
+variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
+[[steps]]
+name = "source"
+files = [
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+    {copy = {from = "${fixture}/peer.py", to = "${work}/peer.py"}},
+    {copy = {from = "${repo}/tests/fixtures/libraries/client-digest/consumer/src/support.scoop", to = "${work}/consumer/src/common.scoop"}},
+    {copy = {from = "${repo}/tests/fixtures/libraries/client-digest/http1_peer.py", to = "${work}/http1_peer.py"}},
+    {copy = {from = "${repo}/tests/fixtures/libraries/client-digest/oracle.py", to = "${work}/oracle.py"}},
+    {copy = {from = "${repo}/tests/fixtures/libraries/client-trailers/wire.py", to = "${work}/wire.py"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/root.scoop", to = "${work}/consumer/src/root.scoop"}},
+]
+
+[[steps]]
+name = "build"
+timeout = 900
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+timeout = 900
+argv = ["${python}", "${work}/peer.py", "${build.result.output}"]
+exit = 0
+stdout = "Digest challenge changes preserve nonce counts and select current parameters\n"
+stderr = ""

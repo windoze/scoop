@@ -1,0 +1,8 @@
+package dev.example
+import dev.example.dependency.nativecalls.pack
+
+public fun result(): Int {
+    val values: Array<String> = ["wrong"]
+    pack(*values)
+    return 42
+}

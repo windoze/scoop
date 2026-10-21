@@ -87,6 +87,7 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
             &cache,
             &request.final_link,
             &vendor_root,
+            request.enable_gc_stress,
         )?;
         let linked = executable::get(executable::Request {
             graph: &graph,
@@ -127,6 +128,7 @@ fn runtime_input(
     cache: &Path,
     final_link: &scoop_toolchain::FinalLinkOptions,
     vendor_root: &Path,
+    enable_gc_stress: bool,
 ) -> BuildResult<(RuntimeObjectSet, PathBuf)> {
     let failure = |error| {
         BuildFailure::tool(
@@ -143,6 +145,9 @@ fn runtime_input(
                 target.c_bridge_toolchain().profile(),
             )
             .map_err(|error| failure(error.to_string()).at_host(index))?;
+            objects
+                .require_gc_stress(enable_gc_stress)
+                .map_err(|error| failure(error.to_string()))?;
             Ok((objects, index.clone()))
         }
         RuntimeInput::SourceRoot(root) => {
@@ -164,6 +169,7 @@ fn runtime_input(
                 vendor_root,
                 cache_root: cache,
                 optimization: Default::default(),
+                enable_gc_stress,
                 unwind_prefix: unwind.as_deref(),
             })
             .map_err(|error| failure(error.to_string()))?;

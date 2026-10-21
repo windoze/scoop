@@ -1,0 +1,44 @@
+schema = 1
+name = "program-link-publication-directory"
+inputs = ["cone", "../../../language/program-link/empty.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["program-link", "publication", "negative", "driver"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../../language/program-link/empty.scoop", "to" = "${work}/sources/root/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "existing_directory"
+files = [{"mkdir" = {"path" = "${work}/existing"}}, {"write" = {"path" = "${work}/existing/keep", "data" = "old contents"}}]
+checks = []
+
+[[steps]]
+name = "reject_directory"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/existing", "--cache-dir", "${cache}"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_directory.json"}
+checks = [{"file" = "${work}/existing/keep", "equals" = "old contents"}, {"glob" = "${work}/.scoop-link-*", "equals" = []}]

@@ -1,0 +1,57 @@
+package scoop.http.tests.consumer.public_suffix
+
+import scoop.test.*
+import scoop.http.PublicSuffixList
+import scoop.idna.Idna
+import scoop.platform.concurrent.Thread
+import scoop.url.Url
+
+fun checkDomains(list: PublicSuffixList) {
+    for (iteration in 0..<6) {
+        val origin = Url.parse("https://www.食狮.公司.cn:8443/path").httpOrigin()
+        val match = list.lookup(origin)!!
+        gcCollect()
+        if (match.publicSuffix != "xn--55qx5d.cn" || match.registrableDomain!! != "xn--85x722f.xn--55qx5d.cn")
+            throw IllegalStateException()
+        if (list.lookup(Idna.parse("www.食狮.公司.cn.")).domain != match.domain) throw IllegalStateException()
+        val wildcard = list.lookup("a.b.ck")
+        if (wildcard.publicSuffix != "b.ck" || wildcard.rule!! != "*.ck") throw IllegalStateException()
+        val exception = list.lookup("a.www.ck")
+        if (exception.publicSuffix != "ck" || exception.registrableDomain!! != "www.ck") throw IllegalStateException()
+        val privateMatch = list.lookup("project.github.io")
+        if (!privateMatch.isPrivate || privateMatch.publicSuffix != "github.io" ||
+            list.lookup("project.github.io", includePrivate = false).publicSuffix != "io") throw IllegalStateException()
+        if (list.lookup("host.example").rule != None || list.lookup("com").registrableDomain != None) throw IllegalStateException()
+        when (list.lookup(Url.parse("http://[::1]/").httpOrigin())) {
+            case None -> {}
+            case Some(_) -> throw IllegalStateException()
+        }
+    }
+}
+
+private fun exerciseConsumer(args: Array<String>) {
+    val full = args[1L] == "bundled"
+    val list = if (full) PublicSuffixList.bundled() else PublicSuffixList.parse(
+        "com\n公司.cn\n*.ck\n!www.ck\nio\n// ===BEGIN PRIVATE DOMAINS===\ngithub.io\n")
+    if (full && (list.ruleCount != 10398L || list.revision!! != "52b71b3c4576ff77450cc7ebcfc7f34a916af3f9"))
+        throw IllegalStateException()
+    val first = Thread.start { checkDomains(list) }
+    val second = Thread.start { checkDomains(list) }
+    first.join(); second.join()
+    checkDomains(list)
+    val custom = PublicSuffixList.parse("com\n*.private.test\n!www.private.test\n")
+    if (custom.lookup("a.www.private.test").registrableDomain!! != "www.private.test") throw IllegalStateException()
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun bundled() {
+        exerciseConsumer(["consumer", "bundled"])
+    }
+
+    @Test
+    fun custom() {
+        exerciseConsumer(["consumer", "custom"])
+    }
+}

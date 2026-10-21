@@ -230,5 +230,9 @@ fn dependency_preflight_reports_artifact_and_graph_errors_with_available_source(
 fn write_consumer_manifest(root: &Path, name: &str, dependencies: &[&ConeCoordinate]) {
     write_dependency_manifest(root, name, dependencies);
     std::fs::create_dir_all(root.join("src")).unwrap();
-    std::fs::write(root.join("src/main.scoop"), "fun answer(): Int = 42\n").unwrap();
+    std::fs::write(
+        root.join("src/main.scoop"),
+        "package dev.example\nfun answer(): Int = 42\n",
+    )
+    .unwrap();
 }

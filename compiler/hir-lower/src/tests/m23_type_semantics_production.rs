@@ -44,6 +44,27 @@ mod materialized_selections;
 mod production;
 use production::produce_cross_cone_type_semantics;
 
+fn prepend_declarations(source: &str, declarations: &str) -> String {
+    let parsed = scoop_parser::parse(source).unwrap();
+    let package_end = match parsed.package {
+        ast::PackageSyntax::RootPackage => 0,
+        ast::PackageSyntax::QualifiedPackage { span, .. } => span.end,
+    };
+    let header_end = parsed
+        .imports
+        .last()
+        .map_or(package_end, |import| match import {
+            ast::ImportSyntax::Exact { span, .. } | ast::ImportSyntax::Star { span, .. } => {
+                span.end
+            }
+        }) as usize;
+    format!(
+        "{}\n{declarations}{}",
+        &source[..header_end],
+        &source[header_end..]
+    )
+}
+
 fn object_decl(name: &str) -> Decl {
     Decl::Object(ast::ObjectDecl {
         annotations: Vec::new(),

@@ -10,7 +10,7 @@ pub(super) fn lower(
     let root = sysroot.join(&name);
     let source = std::fs::read_to_string(
         crate::workspace_root()
-            .join("tests/fixtures/m24-release-blocks")
+            .join("tests/fixtures/language/release-blocks")
             .join(case)
             .join("program.scoop"),
     )

@@ -1,0 +1,158 @@
+schema = 1
+name = "executable-tools"
+inputs = ["main.scoop", "tools.py", "../executable-record/state.py"]
+tools = ["scoop", "scoopc", "cc", "python"]
+targets = ["x86_64-unknown-linux-gnu"]
+tags = ["executable", "cache", "tool-inputs", "driver"]
+[vars]
+options = ["--target", "${target}", "--cc", "${work}/tools/gcc", "--unwind-prefix", "${repo}/sysroot/lib/${target}/unwind", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/program"]
+
+[[steps]]
+name = "prepare"
+argv = ["${python}", "${fixture}/tools.py", "setup", "${work}/tools", "${cc}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "--release", "${fixture}/main.scoop", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_cold"
+argv = ["${work}/program"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "count_cold"
+argv = ["${python}", "${fixture}/../executable-record/state.py", "count", "${work}/cache", "${work}/program", "1"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save_cold_calls"
+files = [{copy = {from = "${work}/tools/calls", to = "${work}/saved-calls"}}]
+checks = [{file = "${work}/tools/calls", contains = "first"}]
+
+[[steps]]
+name = "save_cold"
+argv = ["${python}", "${fixture}/../executable-record/state.py", "save", "${work}/cache", "${work}/program", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "--release", "${fixture}/main.scoop", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "run_warm"
+argv = ["${work}/program"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "count_warm"
+argv = ["${python}", "${fixture}/../executable-record/state.py", "count", "${work}/cache", "${work}/program", "1"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "unchanged_warm"
+argv = ["${python}", "${fixture}/../executable-record/state.py", "same", "${work}/cache", "${work}/program", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [{file = "${work}/tools/calls", same_as = "${work}/saved-calls"}]
+
+[[steps]]
+name = "retarget"
+argv = ["${python}", "${fixture}/tools.py", "retarget", "${work}/tools", "${cc}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "retargeted"
+argv = ["${scoop}", "build", "--release", "${fixture}/main.scoop", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${retargeted.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "run_retargeted"
+argv = ["${work}/program"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "count_retargeted"
+argv = ["${python}", "${fixture}/../executable-record/state.py", "count", "${work}/cache", "${work}/program", "2"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save_retargeted_calls"
+files = [{copy = {from = "${work}/tools/calls", to = "${work}/saved-calls"}}]
+checks = [{file = "${work}/tools/calls", contains = "second"}]
+
+[[steps]]
+name = "save_retargeted"
+argv = ["${python}", "${fixture}/../executable-record/state.py", "save", "${work}/cache", "${work}/program", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "final_warm"
+argv = ["${scoop}", "build", "--release", "${fixture}/main.scoop", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${final_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "run_final_warm"
+argv = ["${work}/program"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "count_final_warm"
+argv = ["${python}", "${fixture}/../executable-record/state.py", "count", "${work}/cache", "${work}/program", "2"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "unchanged_final_warm"
+argv = ["${python}", "${fixture}/../executable-record/state.py", "same", "${work}/cache", "${work}/program", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [{file = "${work}/tools/calls", same_as = "${work}/saved-calls"}]

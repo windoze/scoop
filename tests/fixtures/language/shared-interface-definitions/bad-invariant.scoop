@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.upstream.interfaceDefinitions.*
+public fun wrong(value: Swap<Int, Unit>): View<Unit, Any> = value

@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.classes.Readable
+public class Hidden public constructor(): Readable {
+    internal override fun read(): Long = 21
+}

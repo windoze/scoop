@@ -44,14 +44,14 @@ pub(super) fn check(
     std::fs::write(
         root.join("Cone.toml"),
         include_str!(
-            "../../../../../../../tests/fixtures/core-library/direct-build/standalone.toml"
+            "../../../../../../../tests/fixtures/language/core-library/direct-build/standalone.toml"
         ),
     )
     .unwrap();
     std::fs::write(
         root.join("src/main.scoop"),
         include_str!(
-            "../../../../../../../tests/fixtures/core-library/direct-build/standalone.scoop"
+            "../../../../../../../tests/fixtures/language/core-library/direct-build/standalone.scoop"
         ),
     )
     .unwrap();

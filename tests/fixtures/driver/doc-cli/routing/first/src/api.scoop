@@ -1,0 +1,7 @@
+package dev.m60
+public import dev.m60.bridge.left.LeftVersion as ThroughLeft
+public import dev.m60.bridge.right.RightVersion as ThroughRight
+
+/** Uses [ThroughLeft] and [ThroughRight] from the same declaration. */
+fun firstHelper(value: ThroughLeft): ThroughRight = value
+fun main() {}

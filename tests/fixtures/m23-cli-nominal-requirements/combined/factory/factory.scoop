@@ -1,1 +1,0 @@
-public fun deferred(): DeferredStorage = DeferredStorage(DeferredRoot())

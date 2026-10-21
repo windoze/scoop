@@ -1,3 +1,0 @@
-import m52.vendor.value
-import m52.vendor.identity
-fun main() { println(identity(value())) }

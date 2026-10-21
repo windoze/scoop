@@ -5,11 +5,11 @@ use source_dispatch::with_hir_source;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-source-only-nominals/standalone.scoop"
+    "/../../tests/fixtures/language/source-only-nominals/standalone.scoop"
 ));
 const COMBINED: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-source-only-nominals/combined.scoop"
+    "/../../tests/fixtures/language/source-only-nominals/combined.scoop"
 ));
 
 #[test]
@@ -85,7 +85,7 @@ fn source_only_machine_exports_ignore_unrelated_arena_allocation() {
     // Keep source spans fixed while inserting an unrelated arena entry.
     let padding = format!("//{}\n", " ".repeat(prefix.len() - 3));
     assert_eq!(
-        project(&format!("{padding}{STANDALONE}")),
-        project(&format!("{prefix}{STANDALONE}"))
+        project(&prepend_declarations(STANDALONE, &padding)),
+        project(&prepend_declarations(STANDALONE, prefix))
     );
 }

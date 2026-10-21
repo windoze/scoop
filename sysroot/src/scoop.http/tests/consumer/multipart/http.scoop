@@ -1,0 +1,59 @@
+package scoop.http.tests.consumer.multipart
+
+import scoop.test.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+fun writeHttp(head: HttpResponseHead, bytes: Array<Byte>): Array<Byte> {
+    val output = ByteArrayBuilder()
+    Http1Encoder(HttpRole.Server).use { encoder ->
+        output.append(encoder.beginResponse(head, "GET".toByteArray(), Http1BodyFraming.Chunked))
+        NativeByteBuffer.allocate(7L).use { buffer ->
+            var offset = 0L
+            while (offset < bytes.size) {
+                buffer.clear()
+                val count = if (bytes.size - offset > 7L) 7L else bytes.size - offset
+                buffer.writeBytes(bytes, offset, count)
+                output.append(encoder.writeBody(buffer))
+                offset += count
+            }
+        }
+        output.append(encoder.finish([HttpField("X-Multipart".toByteArray(), "complete".toByteArray())]))
+    }
+    return output.toByteArray()
+}
+
+fun readHttp(bytes: Array<Byte>): (HttpResponseHead, Array<Byte>) {
+    val heads = ArrayList<HttpResponseHead>()
+    val body = ByteArrayBuilder()
+    val ends = AtomicLong(0L)
+    val trailers = AtomicLong(0L)
+    Http1Decoder.client().use { decoder ->
+        decoder.expectResponse("GET".toByteArray())
+        NativeByteBuffer.allocate(3L).use { buffer ->
+            var offset = 0L
+            while (offset < bytes.size) {
+                buffer.clear()
+                val count = if (bytes.size - offset > 3L) 3L else bytes.size - offset
+                buffer.writeBytes(bytes, offset, count)
+                check(decoder.receive(buffer) == count)
+                offset += count
+                while (true) when (decoder.nextEvent()) {
+                    case None -> break
+                    case Some(Http1Event.Response(head)) -> heads.add(head)
+                    case Some(Http1Event.Data(data)) -> body.append(data)
+                    case Some(Http1Event.End(_)) -> ends.fetchAdd(1L)
+                    case Some(Http1Event.Trailers(fields)) -> {
+                        check(fields.size == 1L && String.fromUtf8(fields[0L].value) == "complete")
+                        trailers.fetchAdd(1L)
+                    }
+                    else -> throw IllegalStateException()
+                }
+            }
+            decoder.endInput()
+        }
+    }
+    check(heads.size == 1L && heads[0L].status == 200U && ends.load() == 1L && trailers.load() == 1L)
+    return (heads[0L], body.toByteArray())
+}

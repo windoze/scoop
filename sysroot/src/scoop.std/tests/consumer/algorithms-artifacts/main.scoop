@@ -1,0 +1,26 @@
+package scoop.std.tests.consumer.algorithms_artifacts
+
+import scoop.test.*
+import scoop.collections.*
+
+struct Row(val key: Int, val label: String)
+
+private fun exerciseConsumer() {
+    val rows = listOf<Row>(Row(2, "a"), Row(1, "b"), Row(2, "c"), Row(1, "d"))
+    val ordered = rows.sortedBy<Row, Int> { row -> row.key }
+    assertEquals("b,d,a,c", (ordered.joinToString(separator = ",") { row -> row.label }).toString())
+    val groups = rows.groupBy<Row, Int, String>({ row -> row.key }) { row -> row.label }
+    assertEquals("2", (groups[2]!!.size).toString())
+    val windows = ordered.windowed(2L)
+    val firsts = windows.map<List<Row>, String> { window -> window.first().label }
+    val keys = ordered.map<Row, Int> { row -> row.key }
+    val found = keys.binarySearch(2)
+    val passed = firsts.joinToString() == "b, d, a" && found >= 2L && found < 4L
+    assertTrue(passed && groups[1]!!.joinToString() == "b, d" && !(ordered is MutableList<Row>))
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

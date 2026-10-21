@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.consumer.nominals.result
+
+public fun check(): Int = result()

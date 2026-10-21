@@ -1,5 +1,0 @@
-import dependency.classes.FirstChoice
-
-public class LocalChoice public constructor(): FirstChoice {
-    public val answer: Long = super<FirstChoice>.choose()
-}

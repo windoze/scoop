@@ -1,0 +1,3 @@
+package dev.facade
+import dev.leaf.answer as leafAnswer
+public fun answer(): Int = leafAnswer()

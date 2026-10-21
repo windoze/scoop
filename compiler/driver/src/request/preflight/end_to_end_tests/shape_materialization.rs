@@ -8,7 +8,7 @@ fn ordinary_public_nominals_materialize_and_publish_the_shared_shape_plan() {
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
     for (fixture, expected_roots, expected_boxes) in [("value", 1, 1), ("combined", 4, 2)] {
         let source = std::fs::read_to_string(crate::workspace_root().join(format!(
-            "tests/fixtures/m23-shape-materialization/{fixture}.scoop"
+            "tests/fixtures/language/shape-materialization/{fixture}.scoop"
         )))
         .unwrap();
         let root = sysroot.path().join(fixture);

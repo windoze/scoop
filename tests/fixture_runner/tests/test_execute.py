@@ -14,7 +14,7 @@ from fixture_runner.schema import validate
 
 
 class ExecutionTests(unittest.TestCase):
-    def test_runtime_environment_is_inherited_and_can_be_overridden(self):
+    def test_stress_requires_an_explicit_variant_or_step_environment(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             data = {
@@ -22,11 +22,11 @@ class ExecutionTests(unittest.TestCase):
                 "name": "runtime-environment",
                 "inputs": [],
                 "variants": [
-                    {"name": "inherited", "vars": {"expected": "1\n"}},
+                    {"name": "ordinary", "vars": {"expected": "unset unset kept\n"}},
                     {
-                        "name": "normal",
-                        "vars": {"expected": "0\n"},
-                        "env": {"SCOOP_GC_STRESS_MOVE": "0"},
+                        "name": "moving",
+                        "vars": {"expected": "1 unset kept\n"},
+                        "env": {"SCOOP_GC_STRESS_MOVE": "1"},
                     },
                 ],
                 "steps": [
@@ -35,22 +35,39 @@ class ExecutionTests(unittest.TestCase):
                         "argv": [
                             "${python}",
                             "-c",
-                            "import os; print(os.environ['SCOOP_GC_STRESS_MOVE'])",
+                            "import os; print(os.getenv('SCOOP_GC_STRESS_MOVE', 'unset'), "
+                            "os.getenv('SCOOP_GC_STRESS_MINOR', 'unset'), os.environ['PAYLOAD'])",
                         ],
                         "exit": 0,
                         "stdout": "${expected}",
                         "stderr": "",
-                    }
+                    },
+                    {
+                        "name": "override",
+                        "argv": [
+                            "${python}",
+                            "-c",
+                            "import os; print(os.environ['SCOOP_GC_STRESS_MOVE'], "
+                            "os.environ['SCOOP_GC_STRESS_MINOR'])",
+                        ],
+                        "env": {"SCOOP_GC_STRESS_MOVE": "0", "SCOOP_GC_STRESS_MINOR": "1"},
+                        "exit": 0,
+                        "stdout": "0 1\n",
+                        "stderr": "",
+                    },
                 ],
             }
             validate(data)
             fixture = Fixture(
                 base / "fixture.toml", base, data["name"], data, frozenset(), frozenset()
             )
-            with patch.dict("os.environ", {"SCOOP_GC_STRESS_MOVE": "1"}):
+            with patch.dict(
+                "os.environ",
+                {"SCOOP_GC_STRESS_MOVE": "1", "SCOOP_GC_STRESS_MINOR": "1", "PAYLOAD": "kept"},
+            ):
                 result = execute(fixture, {"python": sys.executable}, base / "work")
             self.assertEqual(result.status, "passed", result.message)
-            self.assertEqual((result.variants, result.processes), (2, 2))
+            self.assertEqual((result.variants, result.processes), (2, 4))
 
     def test_background_signal_files_and_readonly_goldens(self):
         with tempfile.TemporaryDirectory() as directory:

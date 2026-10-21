@@ -1,0 +1,4 @@
+package dev.m37.provider
+import dev.m37.bridge.*
+class Foreign : State()
+fun main() {}

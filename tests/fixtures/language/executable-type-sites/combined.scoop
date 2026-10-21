@@ -1,0 +1,12 @@
+package dev.example
+import dev.example.typeSites.withDefault
+
+private fun annotate(value: String): String = value
+
+public fun inspect(): String {
+    val message = withDefault()
+    val copy = annotate(message)
+    return copy
+}
+
+public fun dormant(value: String = withDefault()): Boolean = false

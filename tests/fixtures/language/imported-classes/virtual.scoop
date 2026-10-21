@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.virtualCounter
+
+public fun primary(): Counter = Counter(virtualCounter(20).read())

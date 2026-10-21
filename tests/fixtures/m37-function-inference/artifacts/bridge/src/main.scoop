@@ -1,3 +1,0 @@
-package bridge
-public import inferredresults.*
-public fun <T> forwarded(value: T) = choose(value)

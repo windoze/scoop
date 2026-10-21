@@ -1,5 +1,0 @@
-package documentation
-public import DocHidden as Omit
-public import DocAlias as Keyword
-@Keyword("record") public struct Item(@Omit val value: Int)
-@Omit public fun increment(value: Int): Int = value + 1

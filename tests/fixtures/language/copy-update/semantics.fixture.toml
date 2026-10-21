@@ -1,0 +1,24 @@
+schema = 1
+name = "copy-update-semantics"
+root = "semantics.scoop"
+inputs = ["semantics.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["single-file", "run", "language"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "base\nrhs-y\nrhs-x\n1\n2\n10\n20\ndefault-marker\nmarker\nmarker\nnamed-rhs\n5\nold\n5\nnew\nconstructor-rhs\n6\nbefore\n6\nafter\nmanaged-before\nmanaged-after\n"
+stderr = ""

@@ -1,0 +1,4 @@
+package test
+public fun collect(): Unit {
+    val values = [1, 2, 3]
+}

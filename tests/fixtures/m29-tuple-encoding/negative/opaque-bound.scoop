@@ -1,4 +1,0 @@
-struct Opaque()
-fun <T : ValueEncoder<(Int, Opaque)>> accept(value: T) {}
-fun use() { accept((1, Opaque())) }
-fun main() {}

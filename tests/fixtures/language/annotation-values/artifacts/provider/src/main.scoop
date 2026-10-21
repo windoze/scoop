@@ -1,0 +1,15 @@
+package dev.m37.annotated.provider
+public enum Level: Int16 { Low = -3, High = 9 }
+public enum Token<T>: UInt8 { First = 0u, Last = 7u }
+public annotation class Name(val text: String, val levels: Array<Level> = [Level.Low])
+public annotation class Mark(val level: Level = Level.High,
+                            val detail: Name = Name("provider"),
+                            val tokens: Array<Token<Int>> = [Token<Int>.Last],
+                            val names: Array<Name> = [Name("first"), Name("last", [])])
+@Mark
+public struct Item(@Mark(detail = Name("field")) val value: Int)
+public fun <T> keep(value: T): T {
+    @Mark(detail = Name("local"))
+    struct Local(val value: T)
+    return Local(value).value
+}

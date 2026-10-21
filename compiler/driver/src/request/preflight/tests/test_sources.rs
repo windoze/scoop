@@ -14,8 +14,12 @@ fn test_source_parsing_preserves_roles_and_reports_the_original_source() {
         [[test.sources]]\npath = 'cases'\n",
     )
     .unwrap();
-    std::fs::write(root.join("src/api.scoop"), "fun api() {}\n").unwrap();
-    std::fs::write(root.join("cases/test.scoop"), "fun check() { api() }\n").unwrap();
+    std::fs::write(root.join("src/api.scoop"), "package test\nfun api() {}\n").unwrap();
+    std::fs::write(
+        root.join("cases/test.scoop"),
+        "package test\nfun check() { api() }\n",
+    )
+    .unwrap();
     let manifest = load_cone_manifest(&ManifestRootLocator::cone_directory(root)).unwrap();
     let target = scoop_target_data::DARWIN_AARCH64_ID;
     let production =

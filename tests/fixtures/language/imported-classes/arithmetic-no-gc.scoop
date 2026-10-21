@@ -1,0 +1,2 @@
+package dev.example
+@NoGC public fun rejected(value: Long): Long = value / 2

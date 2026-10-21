@@ -1,0 +1,25 @@
+schema = 1
+name = "companions-companions"
+root = "../companions.scoop"
+inputs = ["../companions.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["single-file", "run", "language"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n21\n42\nbefore-box\nbox-companion\n42\n3\n4\ntrue\ntrue\n42\n5\n7\n7\n8\n8\n9\n9\n10\n10\n11\n12\n11\n12\n12\nafter-independent-construction\nindependent-companion\n13\n14\n15\n"
+stderr = ""

@@ -1,0 +1,51 @@
+package scoop.std.tests.sequences.destinations
+
+import scoop.test.*
+import scoop.sequences.*
+import scoop.collections.*
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+private fun exercise() {
+    val values = sequenceOf<Int>(1, 2, 1)
+    check(values.toSet().size == 2L && values.toMutableSet().add(3), "set materialization")
+    val list = values.toMutableList()
+    check(values.toCollection(list) === list && list.size == 6L, "list target")
+    val set = linkedSetOf<Int>()
+    check(values.toCollection(set) === set && set.size == 2L, "set target")
+    values.mapTo<Int, Int>(list) { value -> -value }
+    values.mapTo<Int, Int>(set) { value -> -value }
+    values.filterTo(list) { value -> value == 2 }
+    values.filterTo(set) { value -> value == 2 }
+    values.flatMapTo<Int, Int>(list) { value -> sequenceOf<Int>(value + 5) }
+    values.flatMapTo<Int, Int>(set) { value -> sequenceOf<Int>(value + 5) }
+    check(list.size == 13L && set.size == 6L, "destination operations")
+    val alias = mutableListOf<Int>(1, 2)
+    sequenceOf<Int>(0).flatMapTo<Int, Int>(alias) { _ -> alias.asSequence() }
+    check(alias.joinToString() == "1, 2, 1, 2", "inner destination alias")
+    val groups = values.groupBy<Int, Int> { value -> value % 2 }
+    check(groups.keys.joinToString() == "1, 0" && groups[1]!!.joinToString() == "1, 1", "group order")
+    check(values.groupBy<Int, Int, String>({ value -> value % 2 }) { value -> value.toString() }[0]!!.single() == "2", "group transform")
+    val destination = linkedMapOf<Int, MutableList<Int>>()
+    check(values.groupByTo<Int, Int>(destination) { value -> value } === destination && destination[1]!!.size == 2L, "groupByTo")
+    val transformed = linkedMapOf<Int, MutableList<String>>()
+    values.groupByTo<Int, Int, String>(transformed, { value -> value }) { value -> value.toString() }
+    check(transformed[2]!!.single() == "2", "groupByTo transform")
+    check(values.associate<Int, Int, String> { value -> (value, value.toString()) }[2] == Some("2"), "associate")
+    check(values.associateBy<Int, Int> { value -> value % 2 }[1] == Some(1), "associateBy")
+    check(values.associateBy<Int, Int, String>({ value -> value % 2 }) { value -> value.toString() }[0] == Some("2"), "associateBy transform")
+    check(values.associateWith<Int, String> { value -> value.toString() }[1] == Some("1"), "associateWith")
+    val pairs = sequenceOf<(Int, String)>((2, "a"), (1, "b"), (2, "c"))
+    check(pairs.toMap().keys.joinToString() == "2, 1" && pairs.toMap()[2] == Some("c"), "map snapshot order")
+    val mutable = pairs.toMutableMap()
+    mutable[3] = "d"
+    check(mutable.size == 3L, "mutable map")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

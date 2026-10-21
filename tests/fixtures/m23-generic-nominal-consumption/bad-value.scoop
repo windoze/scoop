@@ -1,4 +1,0 @@
-import dependency.nominals.ValueParcel
-
-class Number(val value: Int)
-public fun invalid(value: ValueParcel<Number>): Int = 0

@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.upstream.iteration.Cursor
+
+class Source { public fun iterator(): Cursor<Int> = Cursor<Int>([]) }
+public fun invalid() { for (value in Source()) {} }

@@ -9,7 +9,10 @@ pub struct LoadedBuildRoot {
 #[derive(Debug)]
 pub(super) enum LoadedRootInput {
     Manifest(Box<LoadedConeManifest>),
-    SingleFile(SingleFileLocator),
+    SingleFile {
+        source: SingleFileLocator,
+        dependencies: Vec<scoop_manifest::SingleFileDependency>,
+    },
 }
 
 impl BuildGraphRequest {
@@ -58,7 +61,16 @@ impl LoadedBuildRoot {
                     .load_manifest(&locator)
                     .map_err(LoadBuildRootError::RootManifest)?,
             )),
-            BuildRootInputKind::SingleFile(locator) => LoadedRootInput::SingleFile(locator),
+            BuildRootInputKind::SingleFile(source) => {
+                let dependencies = context
+                    .cache_root
+                    .load_single_file_header(&source)
+                    .map_err(LoadBuildRootError::SingleFile)?;
+                LoadedRootInput::SingleFile {
+                    source,
+                    dependencies,
+                }
+            }
         };
         Ok(Self { root, context })
     }
@@ -66,7 +78,7 @@ impl LoadedBuildRoot {
     pub fn root_identity(&self) -> ConeIdentity {
         match &self.root {
             LoadedRootInput::Manifest(manifest) => manifest.identity(),
-            LoadedRootInput::SingleFile(_) => ConeIdentity::SINGLE_FILE,
+            LoadedRootInput::SingleFile { .. } => ConeIdentity::SINGLE_FILE,
         }
     }
 

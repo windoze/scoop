@@ -135,7 +135,7 @@ fn c_projection_composes_with_c_layout_fields_pointers_and_function_pointer_sign
         dump,
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-native-boundary/handle-c-lir.snap"
+            "/../../tests/fixtures/language/native-boundary/handle-c-lir.snap"
         ))
     );
 }

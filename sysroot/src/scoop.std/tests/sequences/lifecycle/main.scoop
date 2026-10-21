@@ -1,0 +1,57 @@
+package scoop.std.tests.sequences.lifecycle
+
+import scoop.test.*
+import scoop.sequences.*
+
+class State { var calls: Int = 0 }
+class Broken(private val state: State) : Iterable<Int> {
+    public override operator fun iterator(): Iterator<Int> { state.calls += 1; throw Exception(Some("factory")) }
+}
+class Resurrecting(private val state: State) : Iterator<Int> {
+    public override fun next(): Int? { state.calls += 1; return if (state.calls == 1) None else Some(8) }
+}
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+fun expectStopped(iterator: Iterator<Int>) {
+    var caught = false
+    try { iterator.next() } catch (error: IllegalStateException) { caught = true }
+    check(caught, "failed iterator must not retry")
+}
+
+private fun exercise() {
+    val factoryState = State()
+    val broken = Broken(factoryState).asSequence().iterator()
+    check(factoryState.calls == 0, "factory not called while constructing")
+    var caught = false
+    try { broken.next() } catch (error: Exception) { caught = error.message == Some("factory") }
+    check(caught && factoryState.calls == 1, "first factory failure")
+    expectStopped(broken)
+    check(factoryState.calls == 1, "factory not retried")
+    val pollState = State()
+    val polling = generateSequence<Int> { pollState.calls += 1; throw Exception(Some("poll")) }.iterator()
+    caught = false
+    try { polling.next() } catch (error: Exception) { caught = error.message == Some("poll") }
+    check(caught, "poll failure propagates")
+    expectStopped(polling)
+    check(pollState.calls == 1, "poll not retried")
+    val seedState = State()
+    val seeded = generateSequence<Int>(5) { _ -> seedState.calls += 1; throw Exception(Some("advance")) }.iterator()
+    check(seeded.next() == Some(5), "seed before failure")
+    caught = false
+    try { seeded.next() } catch (error: Exception) { caught = error.message == Some("advance") }
+    check(caught, "advance failure propagates")
+    expectStopped(seeded)
+    check(seedState.calls == 1, "advance not retried")
+    val exhaustedState = State()
+    val exhausted: Iterator<Int> = Resurrecting(exhaustedState)
+    val guarded = exhausted.asSequence().iterator()
+    check(guarded.next() == None && guarded.next() == None && exhaustedState.calls == 1, "exhausted source not revisited")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

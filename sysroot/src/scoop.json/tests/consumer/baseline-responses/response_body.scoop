@@ -1,0 +1,36 @@
+package scoop.json.tests.consumer.baseline_responses
+
+import scoop.test.*
+struct ResponseBody(
+    val id: String,
+    val created_at: Long,
+    val status: String,
+    val model: String,
+    val output: Array<ResponseItem>,
+    @Serialize(required = true) val error: ResponseError?,
+    @Serialize(required = true) val incomplete_details: Incomplete?,
+    @Serialize(required = true) val usage: ResponseUsage?
+) {
+    companion object : ValueEncoder<ResponseBody>, ValueDecoder<ResponseBody> {}
+}
+struct ResponseError(val code: String, val message: String) {
+    companion object : ValueEncoder<ResponseError>, ValueDecoder<ResponseError> {}
+}
+struct Incomplete(val reason: String) {
+    companion object : ValueEncoder<Incomplete>, ValueDecoder<Incomplete> {}
+}
+struct ResponseUsage(
+    val input_tokens: Long,
+    val output_tokens: Long,
+    val total_tokens: Long,
+    val input_tokens_details: InputTokens,
+    val output_tokens_details: OutputTokens
+) {
+    companion object : ValueEncoder<ResponseUsage>, ValueDecoder<ResponseUsage> {}
+}
+struct InputTokens(val cached_tokens: Long) {
+    companion object : ValueEncoder<InputTokens>, ValueDecoder<InputTokens> {}
+}
+struct OutputTokens(val reasoning_tokens: Long) {
+    companion object : ValueEncoder<OutputTokens>, ValueDecoder<OutputTokens> {}
+}

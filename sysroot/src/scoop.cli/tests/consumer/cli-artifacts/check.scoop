@@ -1,0 +1,25 @@
+package scoop.cli.tests.consumer.cli_artifacts.p0
+
+import scoop.test.*
+import scoop.cli.*
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+fun equal(actual: String, expected: String) {
+    if (actual != expected) { println("actual: " + actual + " expected: " + expected); throw IllegalStateException() }
+}
+fun contains(text: String, part: String): Boolean {
+    if (part.length > text.length) { return false }
+    for (index in 0L until text.length - part.length + 1L) {
+        if (text.slice(index, index + part.length) == part) { return true }
+    }
+    return false
+}
+fun <T> parsed(value: CliResult<T>): T = when (value) {
+    case CliResult.Parsed(result) -> result
+    case CliResult.HelpRequested -> throw IllegalStateException()
+}
+fun fails(path: String, action: () -> Unit) {
+    try { action(); throw IllegalStateException() }
+    catch (error: DecodingException) { equal(error.path, path) }
+}

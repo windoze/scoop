@@ -1,0 +1,5 @@
+package test
+public typealias LocalCoreNumber = UserCoreNumber
+public fun identity(value: UserCoreNumber): LocalCoreNumber = value
+public fun pair(value: UserCorePair): UserCorePair = value
+public fun namedResult(): UserCoreNumber = UserCoreNumber()

@@ -1,0 +1,7 @@
+package dev.example
+fun main() {
+    val reader: SharedInitReader = SharedInitCombined
+    if (reader.read() != "ready" || sharedInitCombine(SharedInitToken()) != "ready") throw IllegalStateException()
+    SharedInitCombined.message = "changed"
+    if (reader.read() != "changed" || SharedInitOwner.snapshot != "ready") throw IllegalStateException()
+}

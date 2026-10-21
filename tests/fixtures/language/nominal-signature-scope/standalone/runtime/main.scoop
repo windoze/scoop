@@ -1,0 +1,9 @@
+package test
+import dev.example.*
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(pass(empty()) == Marker())
+    val erased: Any = empty()
+    verifyType((erased as Marker) == Marker())
+}

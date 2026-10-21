@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.Other
+
+public fun primary(): Counter = Other(0) as Counter

@@ -1,3 +1,0 @@
-import dependency.enums.Other
-import dependency.enums.Token
-fun invalid(): Other = Other.Pair(left = 1, marker = Token(), right = 2)

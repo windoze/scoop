@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.upstream.classDefinitions.*
+
+public fun invalid(): Link<Int> = Link<Int>("wrong")

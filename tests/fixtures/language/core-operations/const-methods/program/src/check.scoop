@@ -1,0 +1,18 @@
+package dev.example
+import test.compared
+import test.quotient
+import test.remainder
+import test.converted
+import test.inverted
+import test.shifted
+import test.staticValue
+
+fun main() {
+    if (compared != 1L || quotient != 5 || remainder != 2 || converted != 5U || inverted != -1 || shifted != 12U || staticValue != 1L) {
+        throw IllegalStateException()
+    }
+    staticValue = 9L
+    if (staticValue != 9L) {
+        throw IllegalStateException()
+    }
+}

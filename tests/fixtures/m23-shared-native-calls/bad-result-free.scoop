@@ -1,3 +1,0 @@
-import dependency.nativecalls.choose
-
-public fun result(): String = choose(42)

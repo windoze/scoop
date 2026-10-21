@@ -1,2 +1,0 @@
-public class PublishedSurface public constructor() : Surface() {}
-public fun surface(): Surface = PublishedSurface()

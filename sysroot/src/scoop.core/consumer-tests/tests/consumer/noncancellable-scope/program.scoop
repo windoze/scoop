@@ -1,0 +1,113 @@
+package test.core.tests.consumer.noncancellable_scope
+
+import scoop.test.*
+class CleanupCompletion<T> : Continuation<T> {
+    var done: Boolean = false
+    var error: Throwable? = None
+    public override fun resume(value: T) { cleanupCheck(!done); done = true }
+    public override fun resumeWithException(value: Throwable) { cleanupCheck(!done); error = Some(value); done = true }
+}
+
+class CleanupState {
+    var worker: Job? = None
+    var cleaning: Job? = None
+    var body: Continuation<Unit>? = None
+    var child: Continuation<Unit>? = None
+    var restored: Boolean = false
+    var childEnded: Boolean = false
+}
+
+class CleanupMarker(val value: Int)
+context(marker: CleanupMarker)
+fun cleanupMarker(): Int = marker.value
+
+fun cleanupCheck(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    if (!value) {
+        println("cleanup assertion at " + location.file + ":" + location.line.toString())
+        throw IllegalStateException()
+    }
+}
+
+fun <T> cleanupPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+
+fun cancellationWaitsForCleanup(cancelBefore: Boolean) {
+    val state = CleanupState()
+    val done = CleanupCompletion<Unit>()
+    startCoroutine<Unit>(suspend {
+        coroutineScope suspend { outer ->
+            state.worker = Some(outer.launch suspend {
+                val original = currentJobOrNone()!!
+                try {
+                    if (cancelBefore) suspendCancellableCoroutine<Unit> { _ -> }
+                } finally {
+                    context(CleanupMarker(37)) {
+                        val result = nonCancellableScope<Int> suspend { cleaning ->
+                            state.cleaning = Some(cleaning.job)
+                            cleanupCheck(currentJobOrNone()!! === cleaning.job)
+                            cleanupCheck(cleanupMarker() == 37)
+                            cleaning.launch suspend {
+                                suspendCoroutine<Unit> { next -> state.child = Some(next) }
+                                ensureActive()
+                                cleanupCheck(cleanupMarker() == 37)
+                                state.childEnded = true
+                            }
+                            suspendCoroutine<Unit> { next -> state.body = Some(next) }
+                            ensureActive()
+                            42
+                        }
+                        cleanupCheck(result == 42 && state.childEnded)
+                    }
+                    cleanupCheck(currentJobOrNone()!! === original && original.isCancelled)
+                    state.restored = true
+                }
+            })
+        }
+    }, done)
+    state.worker!!.cancel()
+    cleanupCheck(!done.done && !state.worker!!.isCompleted && !state.cleaning!!.isCancelled)
+    state.body!!.resume(Unit)
+    cleanupCheck(!done.done && !state.restored && !state.cleaning!!.isCompleted)
+    state.child!!.resume(Unit)
+    cleanupCheck(done.done && !cleanupPresent(done.error) && state.restored && state.childEnded)
+    cleanupCheck(state.cleaning!!.isCompleted && state.worker!!.isCompleted)
+    cleanupCheck(!cleanupPresent(currentJobOrNone()))
+}
+
+fun cleanupFailureKeepsCallerActive() {
+    val failure = Throwable()
+    val done = CleanupCompletion<Unit>()
+    val ended = AtomicBoolean(false)
+    startCoroutine<Unit>(suspend {
+        coroutineScope suspend { parent ->
+            var caught = false
+            try {
+                nonCancellableScope suspend { cleaning ->
+                    cleaning.launch suspend {
+                        try { suspendCancellableCoroutine<Unit> { _ -> } }
+                        finally { ended.store(true) }
+                    }
+                    cleaning.launch suspend { throw failure }
+                }
+            } catch (error: Throwable) { cleanupCheck(error === failure); caught = true }
+            cleanupCheck(caught && ended.load() && !parent.job.isCancelled)
+            ensureActive()
+        }
+    }, done)
+    cleanupCheck(done.done && !cleanupPresent(done.error))
+}
+
+private fun exerciseConsumer() {
+    cancellationWaitsForCleanup(true)
+    cancellationWaitsForCleanup(false)
+    cleanupFailureKeepsCallerActive()
+    val done = CleanupCompletion<Int>()
+    startCoroutine<Int>(suspend { nonCancellableScope<Int> suspend { _ -> 19 } }, done)
+    cleanupCheck(done.done && !cleanupPresent(done.error))
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

@@ -1,0 +1,33 @@
+package scoop.json.tests.consumer.values_artifacts.p0
+
+import scoop.test.*
+import scoop.json.tests.consumer.values_artifacts.p2.*
+import scoop.json.Json as WireJson
+import scoop.json.JsonValue
+import scoop.json.tests.consumer.values_artifacts.p1.*
+
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+object Local : ValueEncoder<Document>, ValueDecoder<Document>
+
+private fun exerciseConsumer() {
+    val text = "{\"id\":7,\"payload\":{\"n\":1e400,\"a\":[null,18446744073709551616]}}"
+    val record = WireJson.decodeFromString(text, Local)
+    gcCollect()
+    check(WireJson.encodeToString(record, Local) == text)
+    check(WireJson.encodeToString(wrap(record.payload), Document.Companion) == text)
+    check(WireJson.encodeToString(tree(record, Local), JsonValue.Companion) == text)
+    val decoder = ValueDecoderFunction<JsonValue>({ decoder -> capture(decoder.keyed().required("payload")) })
+    val payload = WireJson.decodeFromString(text, decoder)
+    check(WireJson.encodeToString(payload, JsonValue.Companion) == "{\"n\":1e400,\"a\":[null,18446744073709551616]}")
+    check(interpret(tree(9L, Long.Companion), Long.Companion) == 9L)
+    check(when (interpret(tree(record, Local), Local).extension) { case None -> true; else -> false })
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

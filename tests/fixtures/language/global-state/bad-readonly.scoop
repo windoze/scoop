@@ -1,0 +1,3 @@
+package dev.example
+private val answer: Int = 42
+public fun <T> bad(value: T): Unit { answer = 0 }

@@ -1,4 +1,4 @@
-package tls.consumer
+package scoop.tests.tls.consumer
 
 import scoop.platform.concurrent.Thread
 import scoop.platform.io.*

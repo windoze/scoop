@@ -1,5 +1,0 @@
-import dependency.classes.Counter
-import dependency.classes.Token
-import dependency.classes.SharedMethods
-
-public fun primary(): Counter = SharedMethods.read(Token())

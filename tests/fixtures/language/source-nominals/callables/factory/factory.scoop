@@ -1,0 +1,3 @@
+package test
+public object Argument : Bound {}
+public fun envelope(): Envelope = Envelope()

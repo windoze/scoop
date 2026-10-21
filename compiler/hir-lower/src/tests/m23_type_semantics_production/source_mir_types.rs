@@ -114,7 +114,7 @@ fn complete_type_exports(
 fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
     for name in ["values", "combined"] {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-source-mir-types");
+            .join("../../tests/fixtures/language/source-mir-types");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         let bytes = with_production(&source, |output, strong, hir_types, graph, table| {
             identities::source_members(output, table);
@@ -138,7 +138,7 @@ fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
             encode(table).unwrap()
         });
         with_production(
-            &format!("private struct Unrelated() {{}}\n{source}"),
+            &prepend_declarations(&source, "private struct Unrelated() {}\n"),
             |_, _, _, _, table| {
                 assert_eq!(encode(table).unwrap(), bytes);
             },

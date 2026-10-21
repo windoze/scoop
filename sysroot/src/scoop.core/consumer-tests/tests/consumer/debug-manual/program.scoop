@@ -1,0 +1,206 @@
+package test.core.tests.consumer.debug_manual
+
+import scoop.test.*
+fun equal(actual: String, expected: String) {
+    if (actual != expected) {
+        println("actual: " + actual + " expected: " + expected)
+        throw IllegalStateException()
+    }
+}
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+class Counts { var shapes: Long = 0L; var reads: Long = 0L }
+class Node(val name: String) { var next: Node? = None }
+
+fun observe(value: Node, counts: Counts): ValueView {
+    val type = typeInfo<Node>().type
+    return ValueObservation(type, Some(value), {
+        counts.shapes = counts.shapes + 1L
+        val info = when (type.describe().shape) {
+            case TypeShape.Class(info) -> info
+            else -> { throw IllegalStateException() }
+        }
+        ValueShape.Record(RecordView([
+            MemberView(ObservedMember.Property(info.properties[0L]), {
+                counts.reads = counts.reads + 1L
+                gcCollect()
+                String.inspect(value.name)
+            }),
+            MemberView(ObservedMember.Property(info.properties[1L]), {
+                counts.reads = counts.reads + 1L
+                Option<Node>.inspector(ValueInspectorFunction<Node>({ child -> observe(child, counts) })).inspect(value.next)
+            })
+        ]))
+    })
+}
+
+class Secrets(
+    @property:DebugIgnore val hidden: Int,
+    @property:DebugRedact("masked\n") val password: String,
+    @property:DebugIgnore @property:DebugRedact val both: String,
+    val visible: Int
+)
+fun secrets(value: Secrets, counts: Counts): ValueView {
+    val type = typeInfo<Secrets>().type
+    return ValueObservation(type, Some(value), {
+        val info = when (type.describe().shape) {
+            case TypeShape.Class(info) -> info
+            else -> { throw IllegalStateException() }
+        }
+        ValueShape.Record(RecordView(Array<MemberView>(4L) { index ->
+            MemberView(ObservedMember.Property(info.properties[index]), {
+                if (index != 3L) { throw IllegalStateException() }
+                counts.reads = counts.reads + 1L
+                Int.inspect(value.visible)
+            })
+        }))
+    })
+}
+
+class FailingWriter : TextWriter {
+    val output: StringWriter = StringWriter()
+    public override fun write(text: String) {
+        if (output.toString() != "") { throw IllegalStateException() }
+        output.write(text)
+        gcCollect()
+    }
+}
+
+private fun exerciseConsumer() {
+    equal(DebugPrinter.format(Boolean.inspect(true)), "true")
+    equal(DebugPrinter.format(Int8.inspect(-128)), "-128")
+    equal(DebugPrinter.format(Int16.inspect(-32768)), "-32768")
+    equal(DebugPrinter.format(Int.inspect(-2147483648)), "-2147483648")
+    equal(DebugPrinter.format(Long.inspect(-9223372036854775808L)), "-9223372036854775808")
+    equal(DebugPrinter.format(UInt8.inspect(255u)), "255")
+    equal(DebugPrinter.format(UInt16.inspect(65535u)), "65535")
+    equal(DebugPrinter.format(UInt.inspect(4294967295u)), "4294967295")
+    equal(DebugPrinter.format(ULong.inspect(18446744073709551615uL)), "18446744073709551615")
+    equal(DebugPrinter.format(Float.inspect(-0.0f)), (-0.0f).toString())
+    equal(DebugPrinter.format(Double.inspect(-0.0)), (-0.0).toString())
+    equal(DebugPrinter.format(Char.inspect('\'')), "'\\''")
+    equal(DebugPrinter.format(String.inspect("雪\n\u{0}\"\\")), "\"雪\\n\\u0000\\\"\\\\\"")
+    equal(DebugPrinter.format(String.inspect("a😀雪z"), DebugOptions(maxStringLength = 2L)), "\"a😀…\"")
+    equal(DebugPrinter.format(UnitInspector.inspect(Unit)), "Unit")
+    val nested = Option<Option<Int>>.inspector(Option<Int>.inspector(Int.Companion))
+    equal(DebugPrinter.format(nested.inspect(None)), "Option<Option<Int>>.None")
+    equal(DebugPrinter.format(nested.inspect(Some(None))), "Option<Option<Int>>.Some(Option<Int>.None)")
+    val values = ArrayList<Int>(32L)
+    values.add(1); values.add(2); values.add(3)
+    val sequence = ArrayList<Int>.inspector(Int.Companion).inspect(values)
+    values.removeAt(1L)
+    equal(DebugPrinter.format(sequence), "[1, 3]")
+    equal(DebugPrinter.format(sequence, DebugOptions(maxItems = 1L)), "[1, …]")
+    equal(DebugPrinter.format(sequence, DebugOptions(layout = DebugLayout.Pretty, indent = ".")), "[\n.1,\n.3\n]")
+    equal(DebugPrinter.format(ListInspector<Int>(Int.Companion).inspect(values)), "[1, 3]")
+    equal(DebugPrinter.format(MutableListInspector<Int>(Int.Companion).inspect(values)), "[1, 3]")
+    equal(DebugPrinter.format(Array<Int>.inspector(Int.Companion).inspect([4, 5])), "[4, 5]")
+    equal(DebugPrinter.format(MutableArray<Int>.inspector(Int.Companion).inspect(MutableArray<Int>(1L) { _ -> 6 })), "[6]")
+    val tuple = ValueObservation(typeInfo<(Int,)>().type, None, {
+        ValueShape.Tuple(TupleView(1L, { _ -> Int.inspect(7) }))
+    })
+    equal(DebugPrinter.format(tuple), "(7,)")
+    equal(DebugPrinter.format(OpaqueInspector<Any>("static Any").inspect(Node("opaque"))), "<opaque static Any>")
+
+    val counts = Counts()
+    val node = Node("root")
+    node.next = Some(node)
+    val view = observe(node, counts)
+    check(counts.shapes == 0L && counts.reads == 0L)
+    equal(DebugPrinter.format(view, DebugOptions(maxDepth = 0L)), "<Node …>")
+    check(counts.shapes == 0L && counts.reads == 0L)
+    equal(DebugPrinter.format(view, DebugOptions(maxItems = 1L)), "Node(name=\"root\", …)")
+    check(counts.shapes == 1L && counts.reads == 1L)
+    equal(DebugPrinter.format(view), "Node(name=\"root\", next=Option<Node>.Some(<cycle Node>))")
+    check(counts.shapes == 2L && counts.reads == 3L)
+    val sharing = Array<Node>.inspector(ValueInspectorFunction<Node>({ item -> observe(item, counts) })).inspect([node, node])
+    equal(DebugPrinter.format(sharing), "[Node(name=\"root\", next=Option<Node>.Some(<cycle Node>)), Node(name=\"root\", next=Option<Node>.Some(<cycle Node>))]")
+    val secretCounts = Counts()
+    val secret = secrets(Secrets(1, "password", "both", 7), secretCounts)
+    equal(DebugPrinter.format(secret), "Secrets(password=\"masked\\n\", visible=7)")
+    check(secretCounts.reads == 1L)
+    equal(DebugPrinter.format(secret, DebugOptions(maxItems = 1L)), "Secrets(password=\"masked\\n\", …)")
+    check(secretCounts.reads == 1L)
+    val writer = StringWriter()
+    try { DebugPrinter.write(view, writer, DebugOptions(maxItems = -1L)); throw IllegalStateException() }
+    catch (error: IllegalArgumentException) { equal(writer.toString(), "") }
+    val failure = FailingWriter()
+    try { DebugPrinter.write(view, failure); throw IllegalArgumentException() }
+    catch (error: IllegalStateException) { equal(failure.output.toString(), "Node(") }
+    equal(DebugPrinter.format(view), "Node(name=\"root\", next=Option<Node>.Some(<cycle Node>))")
+    inheritanceAndFailures()
+
+}
+
+open class Ancestor(protected val code: Int) {
+    var link: Ancestor? = None
+    companion object : ValueInspector<Ancestor> {
+        public override fun inspect(value: Ancestor): ValueView {
+            val type = typeInfo<Ancestor>().type
+            return ValueObservation(type, Some(value), {
+                val info = when (type.describe().shape) {
+                    case TypeShape.Class(info) -> info
+                    else -> throw IllegalStateException()
+                }
+                ValueShape.Record(RecordView([
+                    MemberView(ObservedMember.Property(info.properties[0L]), { Int.inspect(value.code) }),
+                    MemberView(ObservedMember.Property(info.properties[1L]), {
+                        Option<Ancestor>.inspector(Ancestor.Companion).inspect(value.link)
+                    })
+                ]))
+            })
+        }
+    }
+}
+
+class Descendant(number: Int, val label: String) : Ancestor(number), ValueInspector<Descendant> {
+    public override fun inspect(value: Descendant): ValueView {
+        val type = typeInfo<Descendant>().type
+        return ValueObservation(type, Some(value), {
+            val info = when (type.describe().shape) {
+                case TypeShape.Class(info) -> info
+                else -> throw IllegalStateException()
+            }
+            check(value.code == 7)
+            ValueShape.Record(RecordView([
+                MemberView(ObservedMember.Property(info.properties[0L]), { String.inspect(value.label) })
+            ], Some(Ancestor.inspect(value))))
+        })
+    }
+}
+
+fun inheritanceAndFailures() {
+    val child = Descendant(7, "child")
+    child.link = Some(child)
+    equal(DebugPrinter.format(child.inspect(child)), "Descendant(base=Ancestor(code=7, link=Option<Ancestor>.Some(<cycle Ancestor>)), label=\"child\")")
+    equal(DebugPrinter.format(Ancestor.inspect(child)), "Ancestor(code=7, link=Option<Ancestor>.Some(<cycle Ancestor>))")
+    equal(DebugPrinter.format(child.inspect(child), DebugOptions(maxItems = 0L)), "Descendant(…)")
+
+    val left = Node("left")
+    val right = Node("right")
+    left.next = Some(right)
+    right.next = Some(left)
+    equal(DebugPrinter.format(observe(left, Counts())), "Node(name=\"left\", next=Option<Node>.Some(Node(name=\"right\", next=Option<Node>.Some(<cycle Node>))))")
+
+    val view = ValueObservation(typeInfo<(Int,)>().type, None, {
+        ValueShape.Tuple(TupleView(1L, { _ -> throw IllegalArgumentException(Some("read failed")) }))
+    })
+    val writer = StringWriter()
+    try { DebugPrinter.write(view, writer); throw IllegalStateException() }
+    catch (error: IllegalArgumentException) { equal(error.message!!, "read failed"); equal(writer.toString(), "(") }
+    for (options in [DebugOptions(maxDepth = -1L), DebugOptions(maxStringLength = -1L)]) {
+        val empty = StringWriter()
+        try { DebugPrinter.write(view, empty, options); throw IllegalStateException() }
+        catch (error: IllegalArgumentException) { equal(empty.toString(), "") }
+    }
+    equal(DebugPrinter.format(Array<Int>.inspector(Int.Companion).inspect([])), "[]")
+    equal(DebugPrinter.format(String.inspect("abc"), DebugOptions(maxStringLength = 0L)), "\"…\"")
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

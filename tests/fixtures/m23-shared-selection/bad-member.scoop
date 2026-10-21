@@ -1,3 +1,0 @@
-import dependency.selection.Host
-
-public fun result(): Int = Host().ambiguous(42, 42)

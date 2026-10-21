@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.parents.Reader
+
+public interface Bad: Reader<Int, String> {}

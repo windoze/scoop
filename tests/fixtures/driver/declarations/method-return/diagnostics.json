@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "invalid test or lifecycle method: return type must be Unit; expected a safe synchronous instance method with no parameters or type parameters returning Unit",
+    "notes": [],
+    "origin": {
+      "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+      "end": 66,
+      "kind": "source",
+      "path": "tests/case.scoop",
+      "start": 61
+    },
+    "severity": "error"
+  }
+]

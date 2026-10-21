@@ -11,7 +11,7 @@ mod rejections;
 
 fn fixture(name: &str) -> (std::path::PathBuf, String) {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-mir-dispatch-production");
+        .join("../../tests/fixtures/language/mir-dispatch-production");
     let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
     (directory, source)
 }
@@ -124,7 +124,7 @@ fn actual_dispatch_schemas_cover_inheritance_defaults_boxes_and_abstract_slots()
             encode(schemas).unwrap()
         });
         with_dispatch(
-            &format!("private struct Unrelated() {{}}\n{source}"),
+            &prepend_declarations(&source, "private struct Unrelated() {}\n"),
             |_, _, _, _, _, schemas| {
                 assert_eq!(encode(schemas).unwrap(), bytes);
             },

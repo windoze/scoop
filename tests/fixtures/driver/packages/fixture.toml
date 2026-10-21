@@ -1,0 +1,118 @@
+schema = 1
+name = "source-package-rules"
+root = "cone/Cone.toml"
+inputs = ["cone", "escaped", "explicit.scoop", "default.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "package", "single-file", "testing", "documentation"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "valid"
+argv = ["${scoop}", "run", "${work}/cone", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = "7\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "escaped"
+argv = ["${scoop}", "run", "${fixture}/escaped", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = "7\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "single_default"
+argv = ["${scoop}", "run", "${fixture}/default.scoop", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = "7\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "single_explicit"
+argv = ["${scoop}", "run", "${fixture}/explicit.scoop", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = "7\n"
+stderr = ""
+json = "stderr"
+diagnostics = {file = "warning.json"}
+
+[[steps]]
+name = "single_cached"
+argv = ["${scoop}", "run", "${fixture}/explicit.scoop", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = "7\n"
+stderr = ""
+json = "stderr"
+diagnostics = {file = "warning.json"}
+checks = [{actual = "${single_cached.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "prepare_prefix"
+files = [{write = {path = "${work}/cone/src/main.scoop", data = "package dev.examples\nfun main() {}\n"}}]
+
+[[steps]]
+name = "prefix"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "prefix.json"}
+
+[[steps]]
+name = "prepare_quoted"
+files = [{write = {path = "${work}/cone/src/main.scoop", data = "package `dev.example`\nfun main() {}\n"}}]
+
+[[steps]]
+name = "quoted"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "quoted.json"}
+
+[[steps]]
+name = "prepare_missing"
+files = [{write = {path = "${work}/cone/src/main.scoop", data = "fun main() {}\n"}}]
+
+[[steps]]
+name = "missing"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "missing.json"}
+
+[[steps]]
+name = "doc_missing"
+argv = ["${scoop}", "doc", "${work}/cone", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--no-deps", "--output-dir", "${work}/site"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "missing.json"}
+
+[[steps]]
+name = "prepare_test"
+files = [{copy = {from = "${fixture}/cone/src/main.scoop", to = "${work}/cone/src/main.scoop"}}, {write = {path = "${work}/cone/tests/main.scoop", data = "package unrelated\n"}}]
+
+[[steps]]
+name = "test_missing"
+argv = ["${scoop}", "test", "${work}/cone", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--no-run"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "test.json"}

@@ -1,0 +1,47 @@
+schema = 1
+name = "http-client"
+inputs = ["consumer", "payload.txt", "peer.py"]
+support = [
+    "../../../../sysroot/src/scoop.crypto/test-certificates/src/root.scoop",
+    "../../../../sysroot/src/scoop.crypto/test-certificates/src/server.scoop",
+    "../../../../sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop",
+]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["http", "client", "tls", "asyncio", "prebuilt", "libraries"]
+variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
+[[steps]]
+name = "source"
+files = [
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/root.scoop", to = "${work}/consumer/src/root.scoop"}},
+    {"replace" = {"path" = "${work}/consumer/src/root.scoop", "old" = "package scoop.tests.scoop.crypto.testdata\n", "new" = "package fixture.scoop.crypto.testdata\n"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/server.scoop", to = "${work}/consumer/src/server.scoop"}},
+    {"replace" = {"path" = "${work}/consumer/src/server.scoop", "old" = "package scoop.tests.scoop.crypto.testdata\n", "new" = "package fixture.scoop.crypto.testdata\n"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop", to = "${work}/consumer/src/intermediate.scoop"}},
+    {"replace" = {"path" = "${work}/consumer/src/intermediate.scoop", "old" = "package scoop.tests.scoop.crypto.testdata\n", "new" = "package fixture.scoop.crypto.testdata\n"}},
+]
+
+[[steps]]
+name = "build"
+timeout = 900
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}", "${fixture}/payload.txt"]
+exit = 0
+stdout = "HTTP client streams files and responses through HTTP1 and ALPN HTTP2 with structured cleanup\n"
+stderr = ""
+
+[[steps]]
+name = "external"
+argv = ["${python}", "${fixture}/peer.py", "${build.result.output}", "${repo}/sysroot/src/scoop.crypto/test-certificates/src/server.scoop", "${repo}/sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop", "${work}/external"]
+exit = 0
+stdout = "Python HTTP1 verifies plain TLS ALPN and permitted fallback clients\n"
+stderr = ""

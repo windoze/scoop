@@ -1,0 +1,10 @@
+package dev.example
+import dev.example.dependency.classes.Parent
+
+public class Leaf public constructor(): Derived() {
+    public override fun read(): Long = super.read()
+}
+public fun check(): Long {
+    val value: Parent = Leaf()
+    return primary().twice() + value.read() - 21
+}

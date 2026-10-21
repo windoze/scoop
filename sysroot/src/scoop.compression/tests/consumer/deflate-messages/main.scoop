@@ -1,0 +1,82 @@
+package scoop.compression.tests.consumer.deflate_messages
+
+import scoop.test.*
+import scoop.compression.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.concurrent.Thread
+import scoop.bytes.ByteArrayBuilder
+import scoop.text.*
+
+private fun encode(encoder: DeflateMessageEncoder, text: String): Array<Byte> {
+    val bytes = text.toByteArray()
+    return NativeByteBuffer.allocate(bytes.size).use { input ->
+        input.writeBytes(bytes)
+        NativeByteBuffer.allocate(1L).use { output ->
+            val result = ByteArrayBuilder()
+            while (true) {
+                output.clear()
+                val step = if (input.readableBytes > 0L) encoder.process(input, output) else encoder.finishMessage(output)
+                result.append(output.readBytes(step.produced))
+                if (step.state == CompressionState.Finished) break
+            }
+            if (encoder.totals.inputBytes != bytes.size || encoder.totals.outputBytes != result.size) throw IllegalStateException()
+            result.toByteArray()
+        }
+    }
+}
+
+private fun decode(decoder: DeflateMessageDecoder, bytes: List<Byte>): String {
+    return NativeByteBuffer.allocate(bytes.size).use { input ->
+        input.writeBytes(bytes)
+        NativeByteBuffer.allocate(7L).use { output ->
+            val result = ByteArrayBuilder()
+            while (true) {
+                output.clear()
+                val step = if (input.readableBytes > 0L) decoder.process(input, output) else decoder.finishMessage(output)
+                result.append(output.readBytes(step.produced))
+                if (step.state == CompressionState.Finished) break
+            }
+            if (decoder.totals.inputBytes != bytes.size || decoder.totals.outputBytes != result.size) throw IllegalStateException()
+            String.fromUtf8(result.toByteArray())
+        }
+    }
+}
+
+private fun exercise() {
+    for (takeover in [true, false]) {
+        exerciseFlush(takeover)
+        DeflateMessageEncoder(contextTakeover = takeover).use { encoder ->
+            DeflateMessageDecoder(contextTakeover = takeover).use { decoder ->
+                for (text in ["Scoop 的压缩消息", "Scoop 的压缩消息", "", "", "finished"]) {
+                    val payload = encode(encoder, text)
+                    gcCollect()
+                    if (decode(decoder, payload) != text) throw IllegalStateException()
+                    encoder.nextMessage(); decoder.nextMessage()
+                }
+            }
+        }
+    }
+    DeflateMessageDecoder().use { decoder ->
+        val first = "ca48cdc9c95728ce482c4a4d51c84d2d2e4e4c4f5548c94c2ec9cccf4b2caa5428c8284a2c4e55c81808650000".hexToByteArray()
+        val text = decode(decoder, first)
+        decoder.nextMessage(); gcCollect()
+        if (decode(decoder, "1accca0000".hexToByteArray()) != text) throw IllegalStateException()
+        decoder.nextMessage()
+        if (decode(decoder, "f348cdc9c9070000".hexToByteArray()) != "Hello") throw IllegalStateException()
+        Unit
+    }
+}
+
+private fun exerciseConsumer() {
+    val first = Thread.start { exercise() }
+    val second = Thread.start { exercise() }
+    try { first.join() } finally { second.join() }
+    exercise()
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

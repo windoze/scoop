@@ -6,11 +6,11 @@ fn imported_default_adapts_an_inherited_member_receiver() {
         scoop_identity::ConeCoordinate::new("test", "default-receiver-provider", "1.0.0").unwrap();
     let provider_source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-cli-default-receivers/inherited/provider/src/main.scoop"
+        "/../../tests/fixtures/language/default-receivers/inherited/provider/src/main.scoop"
     ));
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-cli-default-receivers/inherited/runtime/src/probe.scoop"
+        "/../../tests/fixtures/language/default-receivers/inherited/runtime/src/probe.scoop"
     ));
     with_sources(&provider, provider_source, source, |output, _| {
         let local = output.output().local.module();

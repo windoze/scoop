@@ -1,0 +1,2 @@
+package test
+private fun hidden(value: String = "isolated"): String = value

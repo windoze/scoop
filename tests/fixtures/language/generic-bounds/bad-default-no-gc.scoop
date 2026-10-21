@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.templates.bounds.*
+
+@NoGC
+public fun result(): Int = defaultRead(Value(42))

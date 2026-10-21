@@ -1,7 +1,0 @@
-package consumer.enums
-
-import dependency.enums.Choice
-import dependency.enums.Other
-import dependency.enums.sum
-
-@NoGC public fun rejected(value: Other): Long = sum(value)

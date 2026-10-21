@@ -1,3 +1,0 @@
-import scoop.test.*
-
-@Test class Cases { @BeforeTest @Ignore("later") fun prepare() {} }

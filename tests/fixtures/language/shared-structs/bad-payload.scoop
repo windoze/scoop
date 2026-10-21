@@ -1,0 +1,4 @@
+package dev.example.consumer.structs
+import dev.example.upstream.structs.RemoteCell
+
+public fun result(): RemoteCell<Int> = RemoteCell("wrong", None)

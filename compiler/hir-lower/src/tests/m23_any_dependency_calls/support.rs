@@ -10,7 +10,7 @@ use crate::{CurrentConeSources, lower_current_cone};
 
 pub(super) fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-any-call-signatures")
+        .join("../../tests/fixtures/language/any-call-signatures")
         .join(name)
 }
 
@@ -21,7 +21,7 @@ pub(super) fn with_output<T>(
     let mut core = trusted_core();
     let provider = scoop_identity::ConeCoordinate::new("test", "any-calls", "1.0.0").unwrap();
     let source = std::fs::read_to_string(fixture(
-        "../m23-core-layout-exports/property-initialization-provider.scoop",
+        "../core-layout-exports/property-initialization-provider.scoop",
     ))
     .unwrap();
     let (foundation, interface) =

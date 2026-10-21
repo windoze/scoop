@@ -6,10 +6,11 @@ use scoop_identity::{ConeIdentity, CoreBuiltinNominal, RequestedConeKind};
 #[test]
 fn core_declarations_retain_shared_dependency_selections_through_hir_and_mir() {
     let mut core = trusted_core();
-    let provider = DependencyFunctionFixture::new(
+    let provider = DependencyFunctionFixture::in_package(
         "core-helper",
         "run",
         SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+        &["test", "dependency", "api"],
     );
     let foundation =
         core.import_dependency_foundation(&provider.coordinate, &provider.foundation, 61);
@@ -106,7 +107,7 @@ fn protocol_origin_and_semantic_world_must_match_current_sources() {
 
 fn core_sources() -> scoop_ast::CurrentConeParsedSources {
     core_sources_with_calls(include_str!(
-        "../../../../../tests/fixtures/core-library/dependency-calls.scoop"
+        "../../../../../tests/fixtures/language/core-library/dependency-calls.scoop"
     ))
 }
 
@@ -115,7 +116,8 @@ fn core_sources_with_calls(text: &str) -> scoop_ast::CurrentConeParsedSources {
         AllParsedSources, CurrentConeParsedSources, CurrentSourceDiagnosticContext,
         CurrentSourceText, IdentifiedParsedSource, NonEmptyVec,
     };
-    let locals = include_str!("../../../../../tests/fixtures/core-library/dependency-locals.scoop");
+    let locals =
+        include_str!("../../../../../tests/fixtures/language/core-library/dependency-locals.scoop");
     let sources = [
         ("src/core.scoop", "", crate::tests::complete_core_file()),
         (

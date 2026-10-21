@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.consumer.helpers.retained
+
+public fun check(): Int = retained()

@@ -4,7 +4,7 @@ use source_dispatch::with_hir_source;
 
 const FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-source-only-nominals/shape-demand.scoop"
+    "/../../tests/fixtures/language/source-only-nominals/shape-demand.scoop"
 ));
 
 #[test]
@@ -32,11 +32,11 @@ fn closed_parent_shape_demands_agree_before_and_after_concretization() {
     for source in [
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-source-only-nominals/standalone.scoop"
+            "/../../tests/fixtures/language/source-only-nominals/standalone.scoop"
         )),
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-source-only-nominals/combined.scoop"
+            "/../../tests/fixtures/language/source-only-nominals/combined.scoop"
         )),
         FIXTURE,
     ] {

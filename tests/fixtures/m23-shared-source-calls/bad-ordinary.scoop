@@ -1,2 +1,0 @@
-import upstream.sourcecalls.step
-@NoGC public fun broken(value: Int): Int = step(value)

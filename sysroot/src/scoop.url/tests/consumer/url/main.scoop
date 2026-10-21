@@ -1,0 +1,36 @@
+package scoop.url.tests.consumer.url
+
+import scoop.test.*
+import scoop.url.*
+import scoop.platform.concurrent.Thread
+
+private fun exercise(base: Url) {
+    for (_ in 0..<6) {
+        val url = base.resolve("../路径?x=1&x=&flag#尾")
+        gcCollect()
+        if (url.httpOrigin().host.toString() != "xn--bcher-kva.example") throw IllegalStateException()
+        if (url.httpRequestTarget() != "/%E8%B7%AF%E5%BE%84?x=1&x=&flag") throw IllegalStateException()
+        val values = url.queryParameters().getAll("x")
+        if (values.size != 2L || values[0L]!! != "1" || values[1L]!! != "") throw IllegalStateException()
+        val copy = url.toBuilder().setEncodedUserInfo(None).setEncodedFragment(None).build()
+        if (copy.toString() != "https://xn--bcher-kva.example:443/%E8%B7%AF%E5%BE%84?x=1&x=&flag") throw IllegalStateException()
+        if (Url.parse(copy.toIriString()) != copy) throw IllegalStateException()
+        if (FormUrlEncoded.parse("q=a+b").getAll("q")[0L]!! != "a b") throw IllegalStateException()
+    }
+}
+
+private fun exerciseConsumer() {
+    val base = Url.parse("https://user:pass@BÜCHER.example:443/a/b?before#fragment")
+    val first = Thread.start { exercise(base) }
+    val second = Thread.start { exercise(base) }
+    try { first.join() } finally { second.join() }
+    exercise(base)
+    if (base.toString() != "https://user:pass@xn--bcher-kva.example:443/a/b?before#fragment") throw IllegalStateException()
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

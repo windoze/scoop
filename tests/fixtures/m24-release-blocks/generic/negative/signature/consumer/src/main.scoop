@@ -1,3 +1,0 @@
-import releasegeneric.Owner
-
-public fun <U> onlyType(value: Owner<String>) {}

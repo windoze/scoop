@@ -1,3 +1,0 @@
-private class Derived : Envelope()
-public fun defaultEnvelope(): Envelope = Derived()
-public fun internalEnvelope(): Envelope = Envelope(1L)

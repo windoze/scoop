@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.types.*
+
+public fun read(value: Cell): Int = value.count

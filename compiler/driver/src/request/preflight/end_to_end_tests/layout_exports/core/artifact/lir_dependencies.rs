@@ -15,7 +15,7 @@ pub(super) fn check(
     let sysroot = tempfile::tempdir().unwrap();
     let installed = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(installed.artifact().path()).unwrap();
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-lir-dependency-graph");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/lir-dependency-graph");
     for name in ["standalone", "combined"] {
         let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
         support::with_pair(

@@ -5,15 +5,15 @@ fn expanded_default_local_descriptors_keep_callee_signatures_and_caller_values()
     let source = [
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-type-source-defaults/local-dependency-binders.scoop"
+            "/../../tests/fixtures/language/type-source-defaults/local-dependency-binders.scoop"
         )),
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-type-source-defaults/local-dependency-combinations.scoop"
+            "/../../tests/fixtures/language/type-source-defaults/local-dependency-combinations.scoop"
         )),
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-type-source-defaults/local-dependency-binder-calls.scoop"
+            "/../../tests/fixtures/language/type-source-defaults/local-dependency-binder-calls.scoop"
         )),
     ]
     .join("\n");

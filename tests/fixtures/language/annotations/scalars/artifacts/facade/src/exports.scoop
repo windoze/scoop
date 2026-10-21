@@ -1,0 +1,5 @@
+package dev.m29.bridge
+public import dev.m29.metadata.Label as Note
+public import dev.m29.metadata.Names.Range as Range
+public import dev.m29.metadata.Value as Value
+public import dev.m29.metadata.DEFAULT_LABEL as DEFAULT_LABEL

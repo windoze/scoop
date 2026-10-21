@@ -100,7 +100,7 @@ fn imported_atomic_calls_retain_binders_and_default_expressions() {
 fn atomic_class_applications_keep_reference_arguments_and_initial_values() {
     let output = super::core::bootstrap_sysroot(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m33-atomics/construction/program.scoop"
+        "/../../tests/fixtures/language/atomics/construction/program.scoop"
     )))
     .unwrap();
     let module = scoop_mir_lower::lower(&output.local).unwrap();

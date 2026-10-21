@@ -1,0 +1,16 @@
+schema = 1
+name = "codegen-string-reads"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["codegen", "optimization", "string", "compiler-correctness"]
+variants = [{"name" = "debug", "vars" = {"profile" = "debug"}}, {"name" = "release", "vars" = {"profile" = "release"}}]
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "String IR reads preserve UTF-8 bytes, copies and moving roots\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

@@ -1,0 +1,5 @@
+package repro
+import repro.repeated.verify
+import repro.repeated.verifyValues
+
+fun main() { println(verify() && verifyValues<String>("same")) }

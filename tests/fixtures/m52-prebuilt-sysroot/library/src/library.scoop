@@ -1,4 +1,0 @@
-package prepared
-
-public fun <T> identity(value: T): T = value
-public fun answer(): Int = 42

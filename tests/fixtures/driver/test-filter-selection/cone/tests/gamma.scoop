@@ -1,0 +1,17 @@
+package dev.selection.gamma
+
+import dev.selection.value
+import scoop.test.*
+
+@Test
+private class ResultTests {
+    @Test
+    fun `first result`() { assertEquals(42, value()) }
+
+    @Test
+    fun `second result`() { assertEquals(42, value()) }
+
+    @Test
+    fun `third result`() { assertEquals(42, value()) }
+
+}

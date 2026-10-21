@@ -1,3 +1,0 @@
-import dependency.nativeAddresses.hidden
-
-public fun rejected(): FunPtr<(Long) -> Long> = ::hidden

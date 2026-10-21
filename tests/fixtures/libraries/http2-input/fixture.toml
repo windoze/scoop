@@ -1,0 +1,22 @@
+schema = 1
+name = "http2-input"
+inputs = ["consumer", "check.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["http", "http2", "input", "prebuilt", "libraries"]
+variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${python}", "${fixture}/check.py", "${build.result.output}"]
+exit = 0
+stdout = "HTTP2 input progress matches independent wire framing\n"
+stderr = ""

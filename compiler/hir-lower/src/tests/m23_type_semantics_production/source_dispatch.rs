@@ -8,11 +8,11 @@ pub(super) use support::{owners, with_hir_source, with_hir_sources, with_source}
 
 pub(super) const VIRTUAL: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-type-source-dispatch/virtual.scoop"
+    "/../../tests/fixtures/language/type-source-dispatch/virtual.scoop"
 ));
 pub(super) const INTERFACES: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-type-source-dispatch/interfaces.scoop"
+    "/../../tests/fixtures/language/type-source-dispatch/interfaces.scoop"
 ));
 
 #[test]
@@ -110,10 +110,10 @@ fn source_dispatch_bytes_ignore_unrelated_arena_allocation() {
     let prefix = "fun unrelated(): Int = 7\n";
     // Keep declaration spans fixed while inserting an unrelated arena entry.
     let padding = format!("//{}\n", " ".repeat(prefix.len() - 3));
-    let first = with_source(&format!("{padding}{INTERFACES}"), |output, _| {
+    let first = with_source(&prepend_declarations(INTERFACES, &padding), |output, _| {
         encode(&project(output)).unwrap()
     });
-    let second = with_source(&format!("{prefix}{INTERFACES}"), |output, _| {
+    let second = with_source(&prepend_declarations(INTERFACES, prefix), |output, _| {
         encode(&project(output)).unwrap()
     });
     assert_eq!(first, second);

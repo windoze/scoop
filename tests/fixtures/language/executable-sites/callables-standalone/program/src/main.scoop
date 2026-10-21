@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.consumer.*
+
+fun main() {
+    if (!dormant()) { throw IllegalStateException() }
+}

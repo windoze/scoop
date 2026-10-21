@@ -1,0 +1,5 @@
+package dev.m37.bridge
+public import dev.m37.provider.*
+public typealias Wrapped<T> = Row<T>
+public fun <T> copy(value: T): Wrapped<T> = make(value)
+public fun add(): Transform<Int> = action()

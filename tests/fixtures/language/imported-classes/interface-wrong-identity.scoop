@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.classes.Readable
+import dev.example.dependency.classes.OtherReadable
+
+public fun invalid(value: OtherReadable): Readable = value

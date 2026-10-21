@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.consumer.nesting.Hidden
+
+public fun check(): Int = 42

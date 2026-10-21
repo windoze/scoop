@@ -1,0 +1,54 @@
+package scoop.std.tests.text.float_grammar
+
+import scoop.test.*
+import scoop.text.*
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+fun invalid(text: String) {
+    check(text.toFloatOrNone() == None && text.toDoubleOrNone() == None, "accepted: " + text)
+    var floatThrown = false
+    var doubleThrown = false
+    try { text.toFloat() } catch (error: NumberFormatException) { floatThrown = true }
+    try { text.toDouble() } catch (error: NumberFormatException) { doubleThrown = true }
+    check(floatThrown && doubleThrown, "throwing conversion: " + text)
+}
+
+private fun exercise() {
+    val invalidInputs = Array<String>(42L) { index -> when (index) {
+        case 0L -> ""; case 1L -> "+"; case 2L -> "-"; case 3L -> "."
+        case 4L -> "+."; case 5L -> "-."; case 6L -> "e1"; case 7L -> "1e"
+        case 8L -> "1e+"; case 9L -> "1e-"; case 10L -> ".e1"; case 11L -> "1.e"
+        case 12L -> "1..0"; case 13L -> "1e1.0"; case 14L -> "1e2e3"; case 15L -> "--1"
+        case 16L -> "+-1"; case 17L -> "1_0"; case 18L -> "0x1p0"; case 19L -> "1f"
+        case 20L -> "1D"; case 21L -> " 1"; case 22L -> "1 "; case 23L -> "\t1"
+        case 24L -> "1\n"; case 25L -> "1\u{0}"; case 26L -> "１"; case 27L -> "١"
+        case 28L -> "1,5"; case 29L -> "nan"; case 30L -> "inf"; case 31L -> "infinity"
+        case 32L -> "+NaN"; case 33L -> "-NaN"; case 34L -> "NaNx"; case 35L -> "Infinity0"
+        case 36L -> "0e999999x"; case 37L -> "1e999999x"; case 38L -> "1e-999999x"
+        case 39L -> "1e＋1"; case 40L -> "0e1_0"; case _ -> "1\u{a0}"
+    } }
+    for (text in invalidInputs) invalid(text)
+    check("1".toFloat() == 1f && "+1.".toDouble() == 1.0, "integer and trailing dot")
+    check(".5".toFloat() == 0.5f && "-.5".toDouble() == -0.5, "leading dot")
+    check("+01.2500E+0002".toFloat() == 125f && "125.e-2".toDouble() == 1.25, "exponent")
+    check("NaN".toFloat().isNaN() && "NaN".toDouble().isNaN(), "NaN")
+    check("Infinity".toFloat() == Float.POSITIVE_INFINITY && "+Infinity".toDouble() == Double.POSITIVE_INFINITY, "positive infinity")
+    check("-Infinity".toFloat() == Float.NEGATIVE_INFINITY && "-Infinity".toDouble() == Double.NEGATIVE_INFINITY, "negative infinity")
+    check(1f / "-0.0e123".toFloat() == Float.NEGATIVE_INFINITY, "Float negative zero")
+    check(1.0 / "-0e-123".toDouble() == Double.NEGATIVE_INFINITY, "Double negative zero")
+    check(1.0 / "+0".toDouble() == Double.POSITIVE_INFINITY, "positive zero")
+    check("3.4028235e38".toFloat() == Float.MAX_VALUE, "round down to Float maximum")
+    check("1.7976931348623158e308".toDouble() == Double.MAX_VALUE, "round down to Double maximum")
+    invalid("1e999")
+    invalid("-1e999")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

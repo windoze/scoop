@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.dependency.classes.Readable
+
+public class LocalReader public constructor(): Readable {
+    public override fun read(): Long = super<Readable>.read()
+}

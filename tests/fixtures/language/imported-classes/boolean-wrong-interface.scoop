@@ -1,0 +1,2 @@
+package dev.example
+public fun rejected(value: Boolean): RebuiltReadable = value

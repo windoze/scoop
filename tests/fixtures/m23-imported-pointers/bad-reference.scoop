@@ -1,2 +1,0 @@
-@Unsafe
-public fun bad(value: String): Ptr<String> = addressOf(value)

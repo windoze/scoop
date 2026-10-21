@@ -1,0 +1,63 @@
+package scoop.std.tests.tree.basic
+
+import scoop.test.*
+import scoop.collections.*
+import scoop.comparisons.*
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val map = sortedMapOf<Int, String>((5, "five"), (1, "one"), (3, "three"))
+    check(map.firstEntryOrNone()!!.key == 1 && map.lastEntryOrNone()!!.key == 5, "ends")
+    check(map.lowerEntry(3)!!.key == 1 && map.floorEntry(3)!!.key == 3, "lower bounds")
+    check(map.ceilingEntry(3)!!.key == 3 && map.higherEntry(3)!!.key == 5, "upper bounds")
+    check(map.lowerEntry(1) == None && map.higherEntry(5) == None, "absent bounds")
+    check(map.ceilingEntry(2)!!.key == 3 && map.floorEntry(4)!!.key == 3, "between keys")
+    val order = map.keys.toList()
+    check(order[0L] == 1 && order[1L] == 3 && order[2L] == 5, "ascending")
+    val iterator = map.values.iterator()
+    map[1] = "changed"
+    check(iterator.next() == Some("changed"), "live values")
+    map.remove(3)
+    var invalid = false
+    try { iterator.next() } catch (error: ConcurrentModificationException) { invalid = true }
+    check(invalid, "iterator invalidation")
+    val empty = sortedMapOf<Int, String>()
+    check(empty.firstEntryOrNone() == None && empty.ceilingEntry(1) == None, "empty")
+    val exhausted = empty.iterator()
+    check(exhausted.next() == None, "exhaust")
+    empty[1] = "new"
+    check(exhausted.next() == None, "permanent exhaustion")
+    val set = sortedSetOf<Int>(5, 1, 3, 1)
+    check(set.size == 3L && set.firstOrNone() == Some(1) && set.lastOrNone() == Some(5), "set")
+    check(set.lower(3) == Some(1) && set.floor(3) == Some(3), "set lower")
+    check(set.ceiling(3) == Some(3) && set.higher(3) == Some(5), "set upper")
+    val range = set.copyOfRange(1, 5)
+    check(range.size == 2L && range.lastOrNone() == Some(3) && !(range is MutableSet<Int>), "range snapshot")
+    set.clear()
+    check(range.size == 2L, "independent range")
+    val reverse = sortedMapOf<Int, String>(reverseOrder<Int>(), (1, "a"), (2, "b"), (3, "c"))
+    check(reverse.firstEntryOrNone()!!.key == 3 && reverse.lowerEntry(2)!!.key == 3, "reverse order")
+    val slice = reverse.copyOfRange(3, 1, toInclusive = true)
+    check(slice.size == 3L && slice.comparator === reverse.comparator, "reverse range")
+    check(reverse.copyOfRange(2, 2).isEmpty() && reverse.copyOfRange(2, 2, toInclusive = true).size == 1L, "equal bounds")
+    invalid = false
+    try { reverse.copyOfRange(1, 3) } catch (error: IllegalArgumentException) { invalid = true }
+    check(invalid, "invalid bounds")
+    val snapshot = reverse.toSortedMap()
+    reverse.clear()
+    check(snapshot.firstEntryOrNone()!!.key == 1 && !(snapshot is MutableMap<Int, String>), "sorted conversion")
+    val fromEntries = listOf<(Int, String)>((2, "a"), (1, "b"), (2, "c")).toSortedMap(reverseOrder<Int>())
+    check(fromEntries.firstEntryOrNone()!!.key == 2 && fromEntries[2] == Some("c"), "tuple conversion")
+    val fromList = listOf<Int>(2, 1, 2).toSortedSet()
+    check(fromList.firstOrNone() == Some(1) && !(fromList is MutableSet<Int>), "sorted set snapshot")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

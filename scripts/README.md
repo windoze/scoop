@@ -49,6 +49,8 @@ python3 scripts/prepare_sysroot.py \
 
 ## 手工生成工具包
 
+开发与发行 sysroot 均准备 `runtime/index.cbor` 和 `runtime-stress/index.cbor` 两组目标 runtime。默认构建使用前者，不包含 GC stress 支持；`scoop --enable-gc-stress build/run/test/link` 使用后者，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。普通 fixtures 不传该开关，GC 专测显式选择。旧 schema 4 runtime 索引需要重新准备。
+
 `package_toolchain.py` 构建三个 release 宿主命令、准备该宿主支持的目标资源，为全部内置库生成 API 文档，再生成工具包与 LLVM 源码包。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
 
 ```sh

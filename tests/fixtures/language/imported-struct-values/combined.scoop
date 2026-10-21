@@ -1,0 +1,18 @@
+package dev.example.consumer.values
+
+import dev.example.dependency.values.Token
+import dev.example.dependency.values.Wide
+import dev.example.dependency.values.Nested
+import dev.example.dependency.values.Managed
+import dev.example.dependency.values.passToken
+import dev.example.dependency.values.passWide
+import dev.example.dependency.values.passManaged
+
+public typealias Payload = Wide
+public struct Container(val marker: Token, val payload: Payload)
+
+@NoGC public fun keepToken(value: Token): Token = passToken(value)
+@NoGC public fun keepWide(value: Payload): Wide = passWide(value)
+public fun keepNested(value: Nested): Nested = value
+public fun keepManaged(value: Managed): Managed = passManaged(value)
+public fun localStorage(value: Container): Container = value

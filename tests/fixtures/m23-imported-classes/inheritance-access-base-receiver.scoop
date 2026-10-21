@@ -1,5 +1,0 @@
-import dependency.classes.AccessParent
-
-public class Derived public constructor(): AccessParent() {
-    public fun read(value: AccessParent): Long = value.secret()
-}

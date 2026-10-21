@@ -6,7 +6,7 @@ fn own_generic_arguments_keep_captures_from_a_non_generic_parent() {
 
     let output = lower_source(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-cli-default-preparation/non-generic-parent/program.scoop"
+        "/../../tests/fixtures/language/default-preparation/non-generic-parent/program.scoop"
     )))
     .unwrap();
     let module = &output.local;
@@ -50,15 +50,15 @@ fn unused_local_owner_arguments_keep_distinct_body_materializations() {
     let source = [
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-type-source-defaults/local-owner-arguments.scoop"
+            "/../../tests/fixtures/language/type-source-defaults/local-owner-arguments.scoop"
         )),
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-type-source-defaults/local-owner-argument-combinations.scoop"
+            "/../../tests/fixtures/language/type-source-defaults/local-owner-argument-combinations.scoop"
         )),
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-type-source-defaults/local-owner-argument-calls.scoop"
+            "/../../tests/fixtures/language/type-source-defaults/local-owner-argument-calls.scoop"
         )),
     ]
     .join("\n");

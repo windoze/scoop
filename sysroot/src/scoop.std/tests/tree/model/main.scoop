@@ -1,0 +1,63 @@
+package scoop.std.tests.tree.model
+
+import scoop.test.*
+import scoop.collections.*
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+fun key(entry: Map.Entry<Int, Int?>?): Int? = when (entry) {
+    case Some(value) -> Some(value.key)
+    case None -> None
+}
+
+private fun exercise() {
+    val map = sortedMapOf<Int, Int?>()
+    val model = MutableArray<Int??>(37L) { _ -> None }
+    var step = 0
+    while (step < 600) {
+        val selected = (step * 17) % 37
+        val slot = selected.toLong()
+        if (step % 5 == 0) {
+            check(map.remove(selected) == model[slot], "model remove")
+            model[slot] = None
+        } else {
+            val value: Int? = if (step % 7 == 0) None else Some(step)
+            check(map.put(selected, value) == model[slot], "model put")
+            model[slot] = Some(value)
+        }
+        val iterator = map.iterator()
+        var index = 0L
+        var count = 0L
+        val query = (step * 7) % 43 - 3
+        var lower: Int? = None
+        var floor: Int? = None
+        var ceiling: Int? = None
+        var higher: Int? = None
+        while (index < 37L) {
+            if (model[index] != None) {
+                val item = iterator.next()!!
+                val k = index.toInt()
+                check(item.key == k && Some(item.value) == model[index], "sorted model entry")
+                if (k < query) lower = Some(k)
+                if (k <= query) floor = Some(k)
+                if (k >= query && ceiling == None) ceiling = Some(k)
+                if (k > query && higher == None) higher = Some(k)
+                count += 1L
+            }
+            index += 1L
+        }
+        check(iterator.next() == None && map.size == count, "model size")
+        check(key(map.lowerEntry(query)) == lower && key(map.floorEntry(query)) == floor, "lower model")
+        check(key(map.ceilingEntry(query)) == ceiling && key(map.higherEntry(query)) == higher, "upper model")
+        step += 1
+    }
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

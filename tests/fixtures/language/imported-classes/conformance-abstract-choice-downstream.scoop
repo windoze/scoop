@@ -1,0 +1,5 @@
+package dev.example
+public fun check(): Long {
+    val reader: LocalBase = localReader()
+    return reader.choose() + primary().twice() - 21
+}

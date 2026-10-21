@@ -10,9 +10,11 @@ fn program_link_reads_machine_data_from_actual_executable_artifacts() {
         ArtifactFile::open(core.artifact().path(), target.lir_target_selection()).unwrap();
     for case in ["read-basic", "read-combined", "read-println"] {
         let source = std::fs::read_to_string(
-            crate::workspace_root().join(format!("tests/fixtures/m23-program-link/{case}.scoop")),
+            crate::workspace_root()
+                .join(format!("tests/fixtures/language/program-link/{case}.scoop")),
         )
-        .unwrap();
+        .unwrap()
+        .replacen("package dev.programlink\n", "package dev.example\n", 1);
         let root = workspace.path().join(case);
         write_manifest_cone(&root, "dev.example", case, "executable", &source);
         let executable = build_manifest(

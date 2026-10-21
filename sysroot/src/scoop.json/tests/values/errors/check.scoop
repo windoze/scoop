@@ -1,0 +1,16 @@
+package scoop.json.tests.values.errors
+
+import scoop.test.*
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+fun rejectDecode(path: String, body: () -> Unit) {
+    try { body() }
+    catch (error: DecodingException) { check(error.path == path); return }
+    throw IllegalStateException(Some("expected a decoding failure"))
+}
+fun rejectEncode(path: String, body: () -> Unit) {
+    try { body() }
+    catch (error: EncodingException) { check(error.path == path); return }
+    throw IllegalStateException(Some("expected an encoding failure"))
+}

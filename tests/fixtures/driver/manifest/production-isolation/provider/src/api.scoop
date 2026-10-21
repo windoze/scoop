@@ -1,0 +1,3 @@
+package dev.m43.provider
+
+public fun answer(): Int = 42

@@ -1,0 +1,67 @@
+package scoop.json.tests.consumer.derived_encoding_precedence
+
+import scoop.test.*
+import scoop.json.Json
+
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+public struct Explicit(val value: Any) {
+    public companion object : ValueEncoder<Explicit> {
+        public override fun encode(value: Explicit, encoder: Encoder) { encoder.singleValue().writeLong(11L) }
+    }
+}
+public interface Default : ValueEncoder<UsesDefault> {
+    public override fun encode(value: UsesDefault, encoder: Encoder) { encoder.singleValue().writeLong(12L) }
+}
+public struct UsesDefault(val value: Any) { public companion object : Default }
+
+public open class Base public constructor() {
+    public companion object : ValueEncoder<Base> {
+        public override fun encode(value: Base, encoder: Encoder) { encoder.singleValue().writeLong(13L) }
+    }
+}
+public class Child public constructor(public val value: Int) : Base() {
+    public companion object : ValueEncoder<Child> {
+        public override fun encode(value: Child, encoder: Encoder) { Int.encode(value.value, encoder) }
+    }
+}
+public open class BaseCodec public constructor() : ValueEncoder<Child> {
+    public override fun encode(value: Child, encoder: Encoder) { encoder.singleValue().writeLong(15L) }
+}
+public class InheritedCodec public constructor() : BaseCodec()
+
+public interface Extended<T> : ValueEncoder<T> { public fun label(): String }
+public struct Item(val value: Int) {
+    public companion object : Extended<Item> {
+        public fun encode(number: Int): Int = number + 1
+        public fun another(encoder: Encoder) {}
+        public override fun label(): String = "item"
+    }
+}
+public struct Envelope<T>(val value: T)
+public class EnvelopeEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Envelope<T>>
+
+private fun exerciseConsumer() {
+    check(Json.encodeToString(Explicit(1), Explicit.Companion) == "11")
+    check(Json.encodeToString(UsesDefault(1), UsesDefault.Companion) == "12")
+    val child = Child(14)
+    check(Json.encodeToString<Base>(child, Base.Companion) == "13")
+    check(Json.encodeToString(child, Child.Companion) == "14")
+    check(Json.encodeToString(child, InheritedCodec()) == "15")
+    val value = Item(7)
+    check(Item.encode(1) == 2)
+    check(Item.label() == "item")
+    check(Json.encodeToString(value, Item.Companion) == "{\"value\":7}")
+    val extended: Extended<Item> = Item.Companion
+    check(Json.encodeToString(value, extended) == "{\"value\":7}")
+    check(Json.encodeToString(Envelope<Item>(value), EnvelopeEncoder<Item>(extended)) == "{\"value\":{\"value\":7}}")
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

@@ -1,0 +1,6 @@
+package dev.example.consumer.helpers
+
+import dev.example.dependency.helpers.Payload
+import dev.example.dependency.helpers.native
+
+public fun retained(): Int = native(Payload(42)).number

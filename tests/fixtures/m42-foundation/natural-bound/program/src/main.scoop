@@ -1,5 +1,0 @@
-import scoop.comparisons.naturalOrder
-
-class Key
-
-fun main() { naturalOrder<Key>() }

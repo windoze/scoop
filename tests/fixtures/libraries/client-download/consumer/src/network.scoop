@@ -1,0 +1,88 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.fs.Path
+import scoop.platform.system.PlatformErrorKind
+import scoop.platform.system.PlatformException
+import scoop.test.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+private class DownloadProgressState { var calls: Long = 0L; var written: Long = 0L; var total: Long? = None }
+
+internal fun downloadNetwork(trust: TrustStore, mode: String, url: Url, directory: Path) {
+    LibuvEventLoop().run suspend { _ ->
+        val destination = directory.resolve(Path.fromString("result"))
+        val preserving = mode == "replace" || mode == "exists" || mode == "status" || mode == "bad-gzip" || mode == "truncated"
+        if (preserving) downloadStore(destination, "original")
+        val authentication = if (mode == "auth") HttpAuthenticationOptions([
+            HttpAuthenticator.basic(url.httpOrigin(), credentials = suspend { _ -> HttpPasswordCredentials("user", "password") })
+        ]) else HttpAuthenticationOptions()
+        val cache: HttpCache? = if (mode == "cache") Some<HttpCache>(MemoryHttpCache()) else None
+        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), authentication = authentication,
+            cookieJar = Some<CookieJar>(MemoryCookieJar(suffixes = PublicSuffixList.parse("com\n"))), cache = when (cache) {
+                case Some(storage) -> Some(HttpCacheOptions(storage)); case None -> None
+            })
+        val callOptions = HttpCallOptions(decoding = if (mode == "raw") Some(HttpDecodingOptions(HttpContentDecoding.Raw)) else None)
+        val fields = ArrayList<HttpField>()
+        if (mode == "raw") fields.add(downloadField("Accept-Encoding", "gzip"))
+        if (mode == "range") fields.add(downloadField("Range", "bytes=2-4"))
+        val request = HttpRequest.get(url, fields, callOptions)
+        withHttpClient(config) suspend { client ->
+            val progress = DownloadProgressState()
+            val failed = DownloadFailure()
+            val expectedFailure = mode == "exists" || mode == "status" || mode == "bad-gzip" || mode == "truncated"
+            try {
+                val result = context(DownloadMarker("original-context")) {
+                    client.download(request, destination, HttpDownloadOptions(replaceExisting = mode != "exists", syncOnCommit = true,
+                        bufferSize = 257L, onProgress = suspend { value ->
+                            assertEquals("original-context", downloadMarker())
+                            assertTrue(value.bytesWritten >= progress.written)
+                            if (progress.calls == 0L) {
+                                assertEquals(0L, value.bytesWritten)
+                                assertEquals(preserving, downloadExists(destination))
+                            }
+                            progress.calls += 1L; progress.written = value.bytesWritten; progress.total = value.totalBytes
+                        }))
+                }
+                assertFalse(expectedFailure)
+                assertEquals(destination, result.path)
+                val bytes = downloadRead(destination)
+                assertEquals(bytes.size, result.byteCount)
+                assertEquals(bytes.size, progress.written)
+                assertTrue(progress.calls > 0L)
+                if (mode == "gzip") {
+                    assertEquals(None, progress.total)
+                    assertEquals("gzip", String.fromUtf8(result.head.fields.findAll("Content-Encoding".toByteArray())[0L].value))
+                } else if (mode != "chunked" && mode != "empty") assertEquals(Some(bytes.size), progress.total)
+                if (mode == "empty") assertEquals(None, progress.total)
+                if (mode == "chunked") {
+                    assertEquals(1L, result.trailers.size)
+                    assertEquals("complete", String.fromUtf8(result.trailers[0L].value))
+                }
+                if (mode == "cache") {
+                    client.download(request, directory.resolve(Path.fromString("cached")))
+                    assertEquals(String.fromUtf8(bytes), String.fromUtf8(downloadRead(directory.resolve(Path.fromString("cached")))))
+                }
+            } catch (error: Throwable) { failed.value = Some(error) }
+            if (expectedFailure) {
+                assertTrue(downloadPresent(failed.value))
+                assertEquals("original", String.fromUtf8(downloadRead(destination)))
+                if (mode == "status") {
+                    assertTrue(failed.value!! is HttpStatusException)
+                    if (failed.value!! is HttpStatusException) assertEquals(404U, (failed.value!! as HttpStatusException).head.status)
+                    assertEquals(0L, progress.calls)
+                }
+                if (mode == "exists") {
+                    assertTrue(failed.value!! is PlatformException)
+                    if (failed.value!! is PlatformException)
+                        assertEquals(PlatformErrorKind.AlreadyExists, (failed.value!! as PlatformException).kind)
+                }
+            } else if (downloadPresent(failed.value)) throw failed.value!!
+            Unit
+        }
+        assertEquals(if (mode == "cache") 2L else 1L, downloadFiles(directory))
+    }
+}

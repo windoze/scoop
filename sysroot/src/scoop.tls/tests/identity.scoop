@@ -2,7 +2,7 @@ package scoop.tls
 
 import scoop.collections.emptyList
 import scoop.crypto.*
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.crypto.x509.*
 import scoop.test.*
 import scoop.tls.native.*

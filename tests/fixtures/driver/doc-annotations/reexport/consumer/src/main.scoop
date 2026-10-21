@@ -1,0 +1,8 @@
+package dev.m60
+import dev.m60.documentation.Omit
+import dev.m60.documentation.Keyword
+import dev.m60.documentation.Item
+import dev.m60.documentation.increment
+@Keyword("client") @Keyword("consumer") struct Client(val item: Item)
+@Omit fun hidden(): Int = 41
+fun main() { println(increment(Client(Item(hidden())).item.value)) }

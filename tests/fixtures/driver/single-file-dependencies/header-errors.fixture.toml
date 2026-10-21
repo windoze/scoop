@@ -1,0 +1,29 @@
+schema = 1
+name = "single-file-dependency-header-errors"
+inputs = []
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "single-file", "dependencies", "negative"]
+variants = [{"name" = "colon", "vars" = {"source" = "#!scoop run\n//! dep dev:lib:1.0.0\nfun main() {}\n", "message" = "single-file dep directive requires `dep: group:name:version`", "start" = 12, "end" = 33}}, {"name" = "empty", "vars" = {"source" = "#!scoop run\n//! dep:\nfun main() {}\n", "message" = "single-file dependency must be an exact `group:name:version` coordinate", "start" = 12, "end" = 20}}, {"name" = "parts", "vars" = {"source" = "#!scoop run\n//! dep: scoop:scoop.http:client:0.1.0\nfun main() {}\n", "message" = "single-file dependency must be an exact `group:name:version` coordinate", "start" = 12, "end" = 50}}, {"name" = "version", "vars" = {"source" = "#!scoop run\n//! dep: dev:lib:01.0.0\nfun main() {}\n", "message" = "invalid Cone coordinate semantic version", "start" = 12, "end" = 35}}, {"name" = "duplicate", "vars" = {"source" = "#!scoop run\n//! dep: scoop:scoop.std:0.1.0\n//! dep: scoop:scoop.std:0.1.0\nfun main() {}\n", "message" = "duplicate single-file dependency `scoop:scoop.std:0.1.0`", "start" = 43, "end" = 73}}]
+
+[[steps]]
+name = "prepare"
+files = [{"write" = {"path" = "${work}/main.scoop", "data" = "${source}"}}, {"write" = {"path" = "${work}/previous", "data" = "previous executable"}}, {"write" = {"path" = "${work}/previous.slib", "data" = "previous artifact"}}]
+
+[[steps]]
+name = "parent"
+argv = ["${scoop}", "build", "${work}/main.scoop", {"each" = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json", "-o", "${work}/previous"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{"code" = "SCOOP_BUILD_FAILED", "message" = "invalid single-file input ${work}/main.scoop: ${start}..${end}: ${message}", "notes" = [], "origin" = {"kind" = "host", "path" = "${work}/main.scoop", "start" = "${start}", "end" = "${end}"}, "phase" = "Root", "severity" = "error"}]
+checks = [{"file" = "${work}/previous", "equals" = "previous executable"}]
+
+[[steps]]
+name = "direct"
+argv = ["${scoopc}", "build", "${work}/main.scoop", {"each" = "${compile_args}"}, "--profile", "release", "--sysroot", "${sysroot}", "--direct-slib", "${sysroot}/lib/${target}/scoop.std.slib", "--out-slib", "${work}/previous.slib"]
+exit = 1
+stdout = ""
+stderr = "error: invalid single-file input ${work}/main.scoop: ${start}..${end}: ${message}\n"
+checks = [{"file" = "${work}/previous.slib", "equals" = "previous artifact"}]

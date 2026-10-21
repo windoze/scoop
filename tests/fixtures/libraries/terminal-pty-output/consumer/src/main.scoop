@@ -1,0 +1,33 @@
+package fixture
+import scoop.platform.io.*
+import scoop.terminal.*
+import scoop.terminal.cursor.*
+import scoop.terminal.screen.*
+import scoop.terminal.style.*
+
+fun pauseAt(stage: String) {
+    standardOutput.execute(MoveTo(0L, 6L), Print(stage))
+    if (standardInput.readLine() == None) throw IllegalStateException()
+    gcCollect()
+}
+
+fun main() {
+    forceColorOutput(true)
+    val style = ContentStyle(
+        foregroundColor = Some(Color.Rgb(12, 34, 56)),
+        backgroundColor = Some(Color.DarkBlue)
+    ).withAttribute(Attribute.Bold)
+    standardOutput.execute(Clear(ClearType.All), MoveTo(2L, 1L), Print("A"),
+        style.apply("B"), Print("C"), MoveTo(2L, 2L), Print("界é"),
+        MoveTo(5L, 3L), SavePosition, MoveTo(12L, 3L), RestorePosition,
+        Print("R"), Hide, SetTitle("Scoop PTY"))
+    pauseAt("stage-one")
+    standardOutput.execute(EnterAlternateScreen, Clear(ClearType.All),
+        MoveTo(0L, 1L), Print("Scroll"), ScrollUp(1L),
+        MoveTo(2L, 2L), Print("界"), MoveTo(3L, 2L), Print("X"),
+        DisableLineWrap, MoveTo(19L, 3L), Print("YZ"),
+        MoveTo(0L, 5L), Print("erase   "), MoveTo(4L, 5L), Clear(ClearType.UntilNewLine))
+    pauseAt("stage-two")
+    standardOutput.execute(EnableLineWrap, LeaveAlternateScreen, Show)
+    pauseAt("stage-three")
+}

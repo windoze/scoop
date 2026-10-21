@@ -1,6 +1,6 @@
 package scoop.tls
 
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.platform.fs.*
 import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer

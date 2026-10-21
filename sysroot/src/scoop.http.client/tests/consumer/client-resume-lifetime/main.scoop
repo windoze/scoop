@@ -1,0 +1,50 @@
+package scoop.http.client.tests.consumer.client_resume_lifetime
+
+import scoop.test.*
+import scoop.platform.fs.*
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.platform.fs.Path
+import scoop.test.AssertionFailure
+
+private fun exerciseConsumer(args: Array<String>) {
+    val root = Path.fromString(args[1L])
+    TrustStore.fromPem(rootPem()).use { trust ->
+        for (mode in ["no-etag", "weak", "duplicate", "missing", "invalid", "invalid-restart", "limit", "length", "url",
+            "restart-missing", "restart-weak", "zero"]) {
+            try { resumeMetadata(trust, root.resolve(Path.fromString(mode)), mode) }
+            catch (error: AssertionFailure) { resumeReport(mode, error); throw error }
+        }
+        for (mode in ["write-limit", "file-error", "unsolicited", "empty"]) {
+            try { resumeInitialFailure(trust, root.resolve(Path.fromString(mode)), mode) }
+            catch (error: AssertionFailure) { resumeReport(mode, error); throw error }
+        }
+        resumeValidation(trust, root.resolve(Path.fromString("validation")))
+        resumeEmptyProducer(trust, root.resolve(Path.fromString("producer")))
+        for (last in [false, true]) for (mode in ["caller", "client"]) for (nested in [false, true]) {
+            val name = last.toString() + "-" + mode + "-" + nested.toString()
+            try { resumeCancellation(trust, root.resolve(Path.fromString(name)), last, mode, nested) }
+            catch (error: AssertionFailure) { resumeReport(name, error); throw error }
+        }
+        resumeCancellation(trust, root.resolve(Path.fromString("total")), true, "total", true)
+        for (total in [false, true]) {
+            val name = "http2-" + total.toString()
+            try { resumeHttp2(trust, root.resolve(Path.fromString(name)), total) }
+            catch (error: AssertionFailure) { resumeReport(name, error); throw error }
+        }
+    }
+}
+
+private fun resumeReport(name: String, error: AssertionFailure) {
+    println(name + " " + error.kind + " " + (error.message ?: "failure") + " at " + error.location.line.toString())
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun run() {
+        val directory = createTempDirectory(prefix = "scoop-consumer-")
+        try { exerciseConsumer(["consumer", directory.decodeUtf8()]) }
+        finally { directory.deleteRecursively() }
+    }
+}

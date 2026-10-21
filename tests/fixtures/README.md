@@ -1,40 +1,39 @@
 # Scoop 文件测试
 
-每个特性保留独立、组合与 negative 用例，源码通常位于 `m<N>-<topic>/`，
-编译错误位于各组的 `errors/`。执行条件统一遵守
-[fixture schema 1](../fixture_runner/README.md)，入口为 `python3 tests/run_fixtures.py`。
+用例按职责和功能组织，不按实现里程碑排列。普通 API 和 consumer 使用 Cone 测试；fixture 只覆盖 scoop.test 无法完成的编译器、命令行或外部进程边界；具体执行条件遵守 [fixture schema 1](../fixture_runner/README.md)。
 
-每项用例选择源码开头的 TOML 注释、相邻 `name.fixture.toml` 或目录中的
-`fixture.toml`，明确列出输入、步骤、完整诊断／输出、exit 或 signal。
-源码必须属于某项用例的 inputs 或 support；支持文件不单独计作通过。
-程序中的历史 `EXPECT-*` 注释不再由 runner 解释，实际条件只来自 TOML。
+| 目录 | 当前用例数 | 职责 |
+| --- | ---: | --- |
+| `language/` | 3,415 | 语言规则、诊断、求值和跨 Cone 语义 |
+| `libraries/` | 71 | 测试命令入口、独立外部协议、native 和进程边界 |
+| `driver/` | 297 | CLI、输入、缓存、模板、脚本、测试命令和文档 |
+| `compiler-correctness/` | 345 | IR、优化、产物、ODR、ABI 及默认 profile 合同 |
+| `gc-correctness/` | 59 | 根、屏障、搬迁、回收、safepoint 和 stress 构建开关 |
+| `regressions/` | 13 | 按具体故障形态保留的回归 |
 
-历史端到端声明位于 `legacy-acceptance/`，通过相对路径使用原源码。
-[迁移记录](../../docs/milestone23/stage11/MIGRATION.md)保存原快照到当前条件的对应与修订原因。
-普通正向用例编译并运行生成的程序，不请求或保存全阶段 dump／完整符号表；
-编译错误与 warning 使用完整 canonical JSON 期望。native companion 的构建步骤显式声明，
-普通运行和 moving-GC 作为同一用例的有序变体。
+普通 fixture 与内置 Cone 测试只运行 release；编译器和 GC 专测保留实际需要的模式组合。GC 专测先显式编入 `--enable-gc-stress`，再由环境变量选择运行行为；普通测试不继承调用者的 stress 环境。`scoop doc` 没有 profile 参数，按原文档/HIR 合同覆盖。详见 [测试模式](../../docs/minor-fixes/TEST-MODES.md)。
+
+默认复用准备好的 sysroot 和共享 Cone cache，不逐项复制系统库或重复构建；`--cache-dir` 可独立于 `--work-dir` 指定，共享目录默认取 `SCOOP_CACHE_DIR` 或仓库 `target/fixture-cache`。只有被测事实要求冷构建、修改输入或隔离发布时才使用局部缓存。
+
+每项用例用相邻 `name.fixture.toml` 或目录中的 `fixture.toml` 声明输入、步骤、完整诊断/输出和退出状态。共享源码跟随相应功能，跨组使用明确的相对引用；所有 `.scoop` 必须属于某个 inputs 或 support，支持文件不单独计作通过。程序中的历史 `EXPECT-*` 注释不参与判断。schema 仍支持内联载体，现有集合使用外置声明。
 
 ```sh
-# 完整发现与验收；存在未归属源码会报配置错误。
+# 完整验收；未归属源码和无效引用会报配置错误。
 python3 tests/run_fixtures.py --all
 
-# Linux amd64 的两个 libc 目标分别验收；先按 M28 构建说明准备 unwind。
+# 两个 Linux libc 目标分别验收。
 python3 tests/run_fixtures.py --all --target x86_64-unknown-linux-gnu
 python3 tests/run_fixtures.py --all --target x86_64-unknown-linux-musl
 
-# 开发时选择已迁移的历史端到端用例。
-python3 tests/run_fixtures.py --suite tests/fixtures/legacy-acceptance
+# 开发时按功能目录或名称选择。
+python3 tests/run_fixtures.py --suite tests/fixtures/driver/new
+python3 tests/run_fixtures.py --filter 'single-file-*'
 
-# 显式更新选中的 stage golden，随后审阅 diff 并执行只读验证。
-python3 tests/run_fixtures.py --suite tests/fixtures/m31-optimization/local-values \
+# 显式更新选中的结构期望，审阅差异后再执行只读验证。
+python3 tests/run_fixtures.py --suite tests/fixtures/compiler-correctness/optimization/calls/local-values \
   --update-snapshots
 ```
 
-`--all` 禁止过滤和更新期望。`cargo test` 只验证保留的 Rust 单元测试，
-不能代替文件测试的正式 CLI 验收。并行度用 `--jobs` 控制；步骤和变体内部保持有序。
-target 不适用项单列，不计为通过。平台专属的 Mach-O/dyld 测试保留 Darwin 条件；
-共有语言、ABI、GC 和 CLI 用例在三个目标运行。结构／ABI／链接专测中确有目标差异的期望按目标保存，其余共用。
-普通用例不冻结产物摘要、core 或无关 native 符号；结构职责见
-[M40 迁移说明](../../docs/milestone40/MIGRATION.md)。工具配置见 runner README，Linux
-环境准备见 [M28 构建说明](../../docs/milestone28/BUILDING.md)。
+`--all` 禁止过滤和更新期望。`cargo test` 不能替代正式 CLI fixture；`--jobs` 控制并行度，单用例内部步骤和变体仍有序。平台不适用项单列，不计为通过；真实 ABI/链接差异按 target 保存，其余期望共用。
+
+原始路径与名称可从迁移前 Git 版本追溯；[分类记录](../../docs/minor-fixes/FIXTURES.md)和[库测试迁移](../../docs/minor-fixes/LIBRARY-TESTS.md)记录保留的职责。里程碑文档保留当时路径作为历史记录。工具及 sysroot 准备见 [脚本说明](../../scripts/README.md)。

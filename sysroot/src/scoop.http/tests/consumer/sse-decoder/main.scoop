@@ -1,0 +1,59 @@
+package scoop.http.tests.consumer.sse_decoder
+
+import scoop.test.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+private fun exerciseConsumer() {
+    val events = ArrayList<SseEvent>()
+    val heads = ArrayList<HttpResponseHead>()
+    SseDecoder().use { sse -> Http1Decoder.client().use { http ->
+        http.expectResponse("GET".toByteArray())
+        NativeByteBuffer.allocate(1L).use { input ->
+            for (byte in responseBytes()) {
+                input.clear(); input.writeByte(byte)
+                if (http.receive(input) != 1L) throw IllegalStateException()
+                while (true) {
+                    val next = http.nextEvent()
+                    when (next) { case None -> break; case Some(_) -> {} }
+                    when (next!!) {
+                        case Response(head) -> heads.add(head)
+                        case Data(bytes) -> feedEvents(sse, bytes, events)
+                        case End(_) -> sse.endInput()
+                        else -> {}
+                    }
+                }
+            }
+            http.endInput()
+        }
+        if (!sse.isFinished || sse.lastEventId != "" || sse.retryMilliseconds != Some(25L)) throw IllegalStateException()
+        Unit
+    } }
+    gcCollect()
+    if (heads.size != 1L || heads[0L].status != 200U) throw IllegalStateException()
+    val media = HttpMediaType.parse(heads[0L].fields.findAll("content-type".toByteArray())[0L].value)
+    if (media.type != "text" || media.subtype != "event-stream" || events.size != 3L) throw IllegalStateException()
+    if (events[0L].event != "message" || events[0L].data != "雪\nhello" || events[0L].id != Some("one") ||
+        events[0L].lastEventId != "one" || events[1L].data != "after" || events[1L].id != None ||
+        events[1L].lastEventId != "" || events[2L].event != "update" || events[2L].data != "�") throw IllegalStateException()
+
+}
+
+fun feedEvents(decoder: SseDecoder, bytes: Array<Byte>, output: ArrayList<SseEvent>) {
+    NativeByteBuffer.allocate(bytes.size).use { input ->
+        input.writeBytes(bytes)
+        while (input.readableBytes > 0L) {
+            val count = decoder.receive(input)
+            when (decoder.nextEvent()) {
+                case Some(event) -> output.add(event)
+                case None -> if (count == 0L) throw IllegalStateException()
+            }
+        }
+    }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

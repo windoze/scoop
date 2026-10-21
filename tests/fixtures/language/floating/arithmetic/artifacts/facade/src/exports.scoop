@@ -1,0 +1,20 @@
+package dev.m30.bridge
+
+public import dev.m30.numeric.Small as Scalar
+public import dev.m30.numeric.Wide as Wide
+public import dev.m30.numeric.Scale as Measure
+public import dev.m30.numeric.Record as Record
+public import dev.m30.numeric.Cell as Cell
+public import dev.m30.numeric.identity as identity
+public import dev.m30.numeric.cell as cell
+public import dev.m30.numeric.NEGATIVE_ZERO as ZERO
+public import dev.m30.numeric.NEGATIVE_NAN as NAN
+public import dev.m30.numeric.fromProvider as fromProvider
+public import dev.m30.numeric.patternDefault as patternDefault
+public import dev.m30.numeric.arithmeticDefault as arithmeticDefault
+public import dev.m30.numeric.classify as classify
+public import dev.m30.numeric.remainder as remainder
+public import dev.m30.numeric.wideRemainder as wideRemainder
+
+public fun fromFacade(): Scalar = identity(ZERO)
+public fun facadeCell(value: Scalar): Cell<Scalar> = cell(value)

@@ -1,0 +1,20 @@
+package dev.m37.doloops
+public class Box public constructor(public val value: Int)
+public fun <T> choose(value: T, count: Int = if (true) {
+    var n = 0
+    chosen@ do {
+        n += 1
+        val ready = n < 3
+        if (n < 2) continue@chosen
+    } while (ready)
+    n
+} else { 0 }): T {
+    var n = 0
+    outer@ do {
+        n += 1
+        val ready = n < count
+        while (true) continue@outer
+    } while (ready)
+    println(n)
+    return value
+}

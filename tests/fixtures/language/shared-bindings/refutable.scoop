@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.upstream.bindings.Pair
+public fun check(): Int {
+    val Pair(value, 0) = Pair<Int>(42, 0)
+    return value
+}

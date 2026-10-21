@@ -1,0 +1,11 @@
+package dev.m31.odr
+import dev.m31.odr.selected.templates.*
+import dev.m31.odr.selected.left.*
+import dev.m31.odr.selected.right.*
+
+fun main() {
+    val value = Item(42)
+    println(fromTemplate(value) + fromLeft(value) + fromRight(value) + keep<Item>(value).number)
+    gcCollect()
+    println(value.number)
+}

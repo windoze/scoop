@@ -1,5 +1,0 @@
-import callbacks.callback
-
-fun main() {
-    if (callback(40) != 42) { throw IllegalStateException() }
-}

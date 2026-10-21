@@ -1,3 +1,0 @@
-import helper.helperAnswer
-
-public fun answer(): Int = userCoreOffset(helperAnswer())

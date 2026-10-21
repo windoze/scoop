@@ -1,0 +1,3 @@
+package dev.m37.bridge
+public import dev.m37.provider.*
+public fun <T> forwarded(value: Any, seed: T): Int = inspect(value, seed)

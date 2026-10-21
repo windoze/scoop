@@ -1,0 +1,2 @@
+package scoop
+fun main(): Int = 0

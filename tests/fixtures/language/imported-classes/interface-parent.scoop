@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.ChildReader
+import dev.example.dependency.classes.childReader
+
+public fun retainChild(value: ChildReader): ChildReader = value
+public fun primary(): Counter = Counter(retainChild(childReader()).parent() + 1)

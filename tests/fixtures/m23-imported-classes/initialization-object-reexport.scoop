@@ -1,4 +1,0 @@
-import dependency.classes.Counter
-public import dependency.classes.SharedHolder as RetainedHolder
-
-public fun primary(): Counter = RetainedHolder.value

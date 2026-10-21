@@ -1,5 +1,0 @@
-import scoop.test.assertFailsWith
-
-fun main() {
-    assertFailsWith<Int> { }
-}

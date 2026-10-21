@@ -1,0 +1,52 @@
+schema = 1
+name = "generic-shape-errors-nominals-bad-value"
+inputs = ["../../imported-classes/support/stage3_test.scoop", "generic-nominal-provider", "../../generic-nominal-consumption/provider.scoop", "generic-nominal-bad-value", "../../generic-nominal-consumption/bad-value.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["generic-shape-errors", "nominals", "negative", "language"]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-nominal-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-nominal-provider", "to" = "${work}/sources/generic-nominal-provider"}},
+  {"copy" = {"from" = "${fixture}/../../generic-nominal-consumption/provider.scoop", "to" = "${work}/sources/generic-nominal-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/generic-nominal-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-nominal-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_generic-nominal-bad-value"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-nominal-bad-value", "to" = "${work}/sources/generic-nominal-bad-value"}},
+  {"copy" = {"from" = "${fixture}/../../generic-nominal-consumption/bad-value.scoop", "to" = "${work}/sources/generic-nominal-bad-value/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/generic-nominal-bad-value", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-nominal-bad-value/0.1.0/cone.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/artifacts/dev.example/generic-nominal-bad-value/0.1.0/cone.slib", "exists" = false},
+]

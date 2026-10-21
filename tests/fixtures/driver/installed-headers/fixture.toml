@@ -1,0 +1,103 @@
+schema = 1
+name = "installed-headers"
+inputs = ["../installed-tools/cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["sysroot", "native", "cache", "driver"]
+
+[vars]
+options = ["--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--release", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+ {copy = {from = "${fixture}/../installed-tools/cone", to = "${work}/cone"}},
+ {symlink = {from = "${sysroot}/lib", to = "${work}/primary/lib"}},
+ {symlink = {from = "${sysroot}/src", to = "${work}/primary/src"}},
+ {copy = {from = "${sysroot}/include", to = "${work}/primary/include"}},
+ {concat = {path = "${work}/primary/include/scoop_rt.h", parts = [{file = "${work}/primary/include/scoop_rt.h"}, "\n#define SCOOP_M52_INSTALLED_VALUE 42\n"]}},
+ {symlink = {from = "${sysroot}/lib", to = "${work}/override resources/lib"}},
+ {symlink = {from = "${sysroot}/src", to = "${work}/override resources/src"}},
+ {copy = {from = "${sysroot}/include", to = "${work}/override resources/include"}},
+ {concat = {path = "${work}/override resources/include/scoop_rt.h", parts = [{file = "${work}/override resources/include/scoop_rt.h"}, "\n#define SCOOP_M52_INSTALLED_VALUE 43\n"]}},
+]
+
+[[steps]]
+name = "environment"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+env = {SCOOP_SYSROOT = "${work}/primary"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run_environment"
+argv = ["${environment.result.output}"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "change_header"
+files = [{replace = {path = "${work}/primary/include/scoop_rt.h", old = "SCOOP_M52_INSTALLED_VALUE 42", new = "SCOOP_M52_INSTALLED_VALUE 44"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+env = {SCOOP_SYSROOT = "${work}/primary"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed.result.observations.child_invocations}", equals = ["${changed.result.root.identity}"]}]
+
+[[steps]]
+name = "run_changed"
+argv = ["${changed.result.output}"]
+exit = 44
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "override"
+argv = ["${scoop}", "build", "${work}/cone", "--sysroot", "override resources", {each = "${compile_args}"}, {each = "${options}"}]
+env = {SCOOP_SYSROOT = "${work}/primary"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run_override"
+argv = ["${override.result.output}"]
+exit = 43
+stdout = ""
+stderr = ""
+[[steps]]
+name = "direct"
+argv = ["${scoopc}", "build", "--profile", "release", "${work}/cone", "--sysroot", "override resources", {"each" = "${compile_args}"}, "--out-slib", "${work}/direct.slib"]
+env = {SCOOP_SYSROOT = "${work}/primary", SCOOP_CACHE_DIR = "${work}/cache"}
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "direct_link"
+argv = ["${scoop}", "link", "--sysroot", "override resources", {each = "${compile_args}"}, "--root-slib", "${work}/direct.slib", "--cache-dir", "${work}/cache", "--message-format", "json", "-o", "${work}/direct-program"]
+env = {SCOOP_SYSROOT = "${work}/primary"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "direct_run"
+argv = ["${direct_link.result.output}"]
+exit = 43
+stdout = ""
+stderr = ""

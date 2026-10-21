@@ -1,0 +1,25 @@
+schema = 1
+name = "call-targets-order"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["calls", "generics", "compiler-correctness"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "argument\n107\nreceiver\nargument\n307\nargument\n507\nargument\n607\n707\n808\nreceiver\nargument\n907\nargument\n1000\nreceiver\nstop\ncaught\ncleanup\n"
+stderr = ""

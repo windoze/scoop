@@ -1,0 +1,28 @@
+package dev.selection.alpha
+
+import dev.selection.value
+import scoop.test.*
+
+@Test
+private class LifecycleTests {
+    private var calls: Int = 0
+
+    @BeforeTest
+    private fun before() { assertEquals(0, calls); calls = 1 }
+
+    @AfterTest
+    private fun after() { assertEquals(1, calls) }
+
+    @Test
+    fun `fresh state`() { assertEquals(42, value()) }
+
+    @Test
+    fun `value is visible`() { assertEquals(42, value()) }
+
+    @Test
+    fun `successful cleanup`() { assertEquals(42, value()) }
+
+    @Test
+    fun `another fresh instance`() { assertEquals(42, value()) }
+
+}

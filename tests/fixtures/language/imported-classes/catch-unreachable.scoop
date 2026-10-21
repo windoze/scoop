@@ -1,0 +1,8 @@
+package dev.example
+public fun invalid() {
+    try {
+        throw RebuiltFailure(21)
+    } catch (error: Throwable) {
+    } catch (error: RebuiltFailure) {
+    }
+}

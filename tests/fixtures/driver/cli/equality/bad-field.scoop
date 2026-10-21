@@ -1,0 +1,5 @@
+package dev.equality
+import dev.equality.equality.origin.Broken
+
+fun same(left: Broken, right: Broken): Boolean = left == right
+fun main() {}

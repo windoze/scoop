@@ -1,8 +1,0 @@
-import dependency.api.run as direct
-import facade.api.run as forwarded
-
-public fun routes(): Boolean {
-    direct()
-    forwarded()
-    return direct()
-}

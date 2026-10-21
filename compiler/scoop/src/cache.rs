@@ -4,6 +4,7 @@ mod artifact;
 mod key;
 mod manifest;
 mod record;
+mod single_file;
 mod store;
 
 pub use key::*;

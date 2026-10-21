@@ -1,3 +1,0 @@
-import dependency.generics.select
-
-public fun selected(): Int = select((1, true))
