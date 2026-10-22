@@ -801,6 +801,7 @@ pub(crate) struct Lowerer {
     /// function names are never parsed to recover a logical property.
     pub(crate) extension_property_by_getter: HashMap<FunctionId, hir::PropertyId>,
     pub(crate) property_files: HashMap<hir::PropertyId, usize>,
+    pub(crate) property_name_spans: HashMap<hir::PropertyId, ast::Span>,
     pub(crate) property_accessor_sources: Shared<Vec<properties::PropertyAccessorSource>>,
     pub(crate) runtime_accessor_units: HashMap<FunctionId, hir::InitializationUnitId>,
     pub(crate) pending_runtime_initializers: Vec<globals::PendingRuntimeInitializer>,

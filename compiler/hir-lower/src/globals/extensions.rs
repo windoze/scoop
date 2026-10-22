@@ -127,6 +127,8 @@ impl Lowerer {
             true,
         );
         self.property_files.insert(property, file_index);
+        self.property_name_spans
+            .insert(property, declaration.name.span);
         self.imports.bind_property(import_source, property);
         let getter = match self.property_getters[capability.getter()].implementation {
             hir::PropertyAccessorImplementation::Body(function) => function,

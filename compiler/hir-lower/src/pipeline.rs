@@ -384,6 +384,7 @@ impl Lowerer {
             function_files: Shared::default(),
             extension_property_by_getter: HashMap::new(),
             property_files: HashMap::new(),
+            property_name_spans: HashMap::new(),
             property_accessor_sources: Shared::default(),
             runtime_accessor_units: HashMap::new(),
             pending_runtime_initializers: Vec::new(),

@@ -174,6 +174,8 @@ impl Lowerer {
             span: declaration.span,
         });
         assert_eq!(property, expected);
+        self.property_name_spans
+            .insert(property, declaration.name.span);
         match owner {
             Owner::Struct(owner) => self.structs[owner].properties.push(property),
             Owner::Enum(owner) => self.enums[owner].properties.push(property),

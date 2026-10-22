@@ -3,6 +3,7 @@ use hir::{EditingUnavailable as U, EditingValue as V};
 
 mod calls;
 mod observations;
+mod properties;
 mod record;
 mod selectors;
 pub(crate) use observations::{BodyObservation, ObservedBody};

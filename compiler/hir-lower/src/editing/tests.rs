@@ -12,6 +12,8 @@ mod imported_signatures;
 mod members;
 mod members_imported;
 mod operands;
+mod properties;
+mod properties_imported;
 mod receivers;
 mod selectors;
 

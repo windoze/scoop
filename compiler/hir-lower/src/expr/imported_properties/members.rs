@@ -6,6 +6,7 @@ mod write;
 
 #[derive(Clone)]
 pub(crate) struct ResolvedImportedMemberProperty {
+    declaration: hir::PropertyDeclarationId,
     getter: hir::ImportedCallableDeclaration,
     accessors: hir::PropertyAccessorsV1,
     storage: Option<hir::FieldRef>,
@@ -113,6 +114,7 @@ impl Lowerer {
                 _ => None,
             };
         Ok(Some(ResolvedImportedMemberProperty {
+            declaration: property.declaration(),
             getter,
             accessors,
             storage,
@@ -171,6 +173,12 @@ impl Lowerer {
         span: ast::Span,
         kind: MemberCallKind,
     ) -> Option<hir::Expr> {
+        self.observe_property_reference(
+            span,
+            hir::SemanticProperty::Imported(property.declaration),
+            property.value_type,
+            hir::EditingPropertyAccess::Read,
+        );
         if let Some(field) = property.storage
             && property.accessors.getter_source().implementation()
                 == hir::PropertyAccessorImplementationV1::Storage

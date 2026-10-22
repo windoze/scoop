@@ -15,6 +15,8 @@ pub(crate) struct BodyObservation {
     pub(super) expressions: imbl::HashMap<ast::Span, hir::EditingExpression>,
     pub(super) callable_names: imbl::HashMap<ast::Span, ast::Span>,
     pub(super) callables: imbl::HashMap<ast::Span, hir::EditingCallableReference>,
+    pub(super) property_names: imbl::HashMap<ast::Span, ast::Span>,
+    pub(super) properties: imbl::HashMap<ast::Span, hir::EditingPropertyReference>,
     pub(super) call_inputs: imbl::HashMap<ast::Span, calls::CallInput>,
     pub(super) argument_maps: imbl::HashMap<ast::Span, calls::CheckedArguments>,
     pub(super) calls: imbl::HashMap<ast::Span, hir::EditingAppliedCall>,
@@ -54,6 +56,8 @@ impl BodyObservation {
             expressions: Default::default(),
             callable_names: Default::default(),
             callables: Default::default(),
+            property_names: Default::default(),
+            properties: Default::default(),
             call_inputs: Default::default(),
             argument_maps: Default::default(),
             calls: Default::default(),
@@ -118,6 +122,12 @@ impl BodyObservation {
             .map(|(_, reference)| reference)
             .collect::<Vec<_>>();
         callables.sort_by_key(|reference| (reference.span.start, reference.span.end));
+        let mut properties = self
+            .properties
+            .into_iter()
+            .map(|(_, reference)| reference)
+            .collect::<Vec<_>>();
+        properties.sort_by_key(|reference| (reference.span.start, reference.span.end));
         let mut selectors = self
             .selectors
             .into_iter()
@@ -136,6 +146,7 @@ impl BodyObservation {
                     locals,
                     expressions,
                     callables,
+                    properties,
                 })
             } else {
                 V::Unavailable(U::BodyFailure)

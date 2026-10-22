@@ -16,6 +16,7 @@ impl Lowerer {
         assign: &ast::Assign,
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
+        self.observe_property_place(&assign.target, assign.span);
         if let ast::AssignTarget::Name(name) = &assign.target
             && self.reject_release_field_write(name)
         {

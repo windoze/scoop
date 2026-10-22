@@ -28,6 +28,7 @@ pub(crate) struct ImportedDependencyPropertyRead {
 }
 
 struct PreparedImportedPropertySetter {
+    declaration: hir::PropertyDeclarationId,
     target: ImportedPropertyWriteTarget,
     receiver: Option<PropertyCallReceiver>,
     value_type: hir::TypeId,

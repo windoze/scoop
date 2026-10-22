@@ -4,6 +4,8 @@ use crate::{FunctionId, SemanticSourceLocation, Span, TypeId};
 
 mod candidates;
 pub use candidates::*;
+mod properties;
+pub use properties::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditingUnavailable {
@@ -127,6 +129,7 @@ pub struct EditingBodyFacts {
     pub locals: Vec<EditingLocalOccurrence>,
     pub expressions: Vec<EditingExpression>,
     pub callables: Vec<EditingCallableReference>,
+    pub properties: Vec<EditingPropertyReference>,
 }
 
 #[derive(Clone, Debug)]

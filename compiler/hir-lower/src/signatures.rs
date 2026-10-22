@@ -27,6 +27,7 @@ impl Lowerer {
         let mut seen = HashSet::new();
         let mut fields = Vec::new();
         let mut field_spans = Vec::new();
+        let mut field_name_spans = Vec::new();
         let mut parameter_calling = Vec::new();
         if decl.fields.is_omitted() {
             self.error(
@@ -54,6 +55,7 @@ impl Lowerer {
                 ty,
             });
             field_spans.push(field.span);
+            field_name_spans.push(field.name.span);
             parameter_calling.push(calling);
         }
         self.structs[id].representation = hir::StructRepresentation::Declared(fields);
@@ -97,6 +99,8 @@ impl Lowerer {
                 span: field_span,
             });
             self.structs[id].properties.push(property);
+            self.property_name_spans
+                .insert(property, field_name_spans[index]);
         }
         self.resolve_struct_properties(id, decl, &mut seen);
         let fields = self.structs[id]

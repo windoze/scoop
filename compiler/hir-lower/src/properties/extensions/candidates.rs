@@ -218,6 +218,12 @@ impl Lowerer {
         self.check_call_effects(callee, name.span);
         let declaration = self.properties[*property].clone();
         self.record_property_initialization_dependency(&declaration, name.span);
+        self.observe_property_reference(
+            name.span,
+            hir::SemanticProperty::Current(*property),
+            read.ty,
+            hir::EditingPropertyAccess::Read,
+        );
         read
     }
 

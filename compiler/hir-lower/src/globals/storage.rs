@@ -98,6 +98,8 @@ impl Lowerer {
             span: declaration.declaration.span,
         });
         assert_eq!(property, expected_property);
+        self.property_name_spans
+            .insert(property, declaration.declaration.name.span);
         self.top_level_namespaces.register_property(
             declaration.file,
             declaration.declaration.name.text.clone(),
@@ -186,6 +188,8 @@ impl Lowerer {
             span: declaration.declaration.span,
         });
         assert_eq!(property, expected_property);
+        self.property_name_spans
+            .insert(property, declaration.declaration.name.span);
         self.top_level_namespaces.register_property(
             declaration.file,
             declaration.declaration.name.text.clone(),

@@ -132,6 +132,8 @@ if 条件与分支恢复已接入同一正文查询：grammar 只为损坏分支
 
 callable value 与 native 地址的来源关联已接入普通重载选择：`::function`、绑定／未绑定成员和扩展引用在选择及提交成功后记录实际名称 token 与原声明，失败试探不发布结果；闭包 adapter 与具体化实例不成为导航目标。当前与导入 native 引用共用原声明身份读取。格式化、全 workspace Clippy、Ruff、68 项编辑态测试、16 项普通 callable reference 回归、导入 native 专项及 LSP 进程测试通过；完整 stdio fixture 通过，耗时约 20.8 秒，覆盖泛型、重载、源定义导航及无源码 core 引用。
 
+property 引用已保留独立的 logical property 目标、实际名称、应用类型及读写角色，并接入 LSP hover／定义导航。原声明分配记录名称位置；常量、存储、普通／扩展访问器、接口默认访问器及导入属性继续走原绑定与访问检查，构造参数属性指向原参数名称。复合赋值按真实 operator 分支区分读取和写回，失败正文不发布成功引用。格式化、全 workspace Clippy、Ruff、75 项编辑态测试、77 项属性相关回归及 LSP 进程测试通过；完整 stdio fixture 通过，耗时约 24.8 秒，覆盖中文属性名、局部遮蔽、泛型 setter、别名导入与跨 Cone 源码导航。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

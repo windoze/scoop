@@ -103,6 +103,7 @@ impl Lowerer {
             None => ImportedPropertyWriteTarget::Accessor(Box::new(candidate)),
         };
         Some(PreparedImportedPropertySetter {
+            declaration: property.interface().declaration(),
             target,
             receiver,
             value_type,
@@ -115,6 +116,12 @@ impl Lowerer {
         value: hir::Expr,
         span: ast::Span,
     ) -> Option<hir::StatementKind> {
+        self.observe_property_reference(
+            span,
+            hir::SemanticProperty::Imported(prepared.declaration),
+            prepared.value_type,
+            hir::EditingPropertyAccess::Write,
+        );
         let candidate = match prepared.target {
             ImportedPropertyWriteTarget::Native(place) => {
                 self.require_unsafe_operation(span, "writing an extern global");

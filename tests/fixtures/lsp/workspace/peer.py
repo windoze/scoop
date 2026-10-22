@@ -11,6 +11,7 @@ from callable_values import check as check_callable_values
 from cancellation import check as check_cancellation
 from diagnostics import check as check_diagnostics
 from incomplete_signatures import check as check_incomplete_signatures
+from property_references import check as check_property_references
 from signatures import check as check_signatures
 from source_dependencies import check as check_source_dependencies
 
@@ -310,6 +311,7 @@ def main():
         check_signatures(peer, root)
         check_incomplete_signatures(peer, root)
         check_callable_values(peer, root)
+        check_property_references(peer, root)
         check_source_dependencies(peer, root)
         peer.finish()
     finally:

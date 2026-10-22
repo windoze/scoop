@@ -218,6 +218,7 @@ impl Lowerer {
                     span: decl.span,
                 });
                 assert_eq!(property, expected_property);
+                self.property_name_spans.insert(property, decl.name.span);
                 self.top_level_namespaces.register_property(
                     file_index,
                     decl.name.text.clone(),

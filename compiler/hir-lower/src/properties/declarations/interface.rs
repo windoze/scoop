@@ -99,6 +99,8 @@ impl Lowerer {
             span: declaration.span,
         });
         assert_eq!(property, expected);
+        self.property_name_spans
+            .insert(property, declaration.name.span);
         self.interfaces[owner].properties.push(property);
     }
 }

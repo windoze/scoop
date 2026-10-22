@@ -98,6 +98,8 @@ impl Lowerer {
                 span: declaration.declaration.span,
             });
             assert_eq!(property, expected);
+            self.property_name_spans
+                .insert(property, declaration.declaration.name.span);
             match declaration.owner {
                 hir::PropertyOwner::TopLevel => self.top_level_namespaces.register_property(
                     declaration.file,

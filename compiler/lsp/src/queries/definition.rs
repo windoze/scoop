@@ -45,6 +45,16 @@ pub(crate) fn definition(
             .and_then(|local| local.reference.map(|reference| reference.definition))
         };
         if origin.is_none() {
+            origin = semantic::property_at(
+                analysis,
+                function.function,
+                cursor.span,
+                snapshot,
+                cancellation,
+            )?
+            .and_then(|reference| reference.definition);
+        }
+        if origin.is_none() {
             origin = semantic::callable_at(
                 analysis,
                 function.function,

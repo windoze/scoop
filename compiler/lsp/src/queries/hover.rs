@@ -47,6 +47,22 @@ pub(crate) fn hover(
                 );
             }
         }
+        if let Some(property) =
+            semantic::property_at(analysis, function.function, target, snapshot, cancellation)?
+        {
+            let ty = analysis
+                .describe_body_type(function.function, property.context, property.value_type)
+                .map_err(|error| convert::error(ErrorCode::RequestFailed, error.message))?;
+            if let EditingValue::Known(ty) = ty {
+                let kind = if property.mutable { "var" } else { "val" };
+                return response(
+                    &source.text,
+                    target,
+                    format!("{kind} {}: {}", property.name, ty.name),
+                    settings,
+                );
+            }
+        }
         if let Some(local) =
             semantic::local_at(analysis, function.function, target, snapshot, cancellation)?
         {

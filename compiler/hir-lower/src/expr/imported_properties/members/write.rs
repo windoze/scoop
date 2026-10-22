@@ -70,6 +70,12 @@ impl Lowerer {
             return None;
         }
         let value = self.adapt_to(value, property.value_type);
+        self.observe_property_reference(
+            span,
+            hir::SemanticProperty::Imported(property.declaration),
+            property.value_type,
+            hir::EditingPropertyAccess::Write,
+        );
         if let Some(field) = property.storage
             && property.accessors.setter_source().is_some_and(|source| {
                 source.implementation() == hir::PropertyAccessorImplementationV1::Storage

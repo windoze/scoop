@@ -1,5 +1,7 @@
 """Source libraries join the same semantic world as precompiled dependencies."""
 
+from property_references import SOURCE_DECLARATIONS, check_imported
+
 
 def check(peer, root):
     dependency = root / "dependency"
@@ -15,7 +17,7 @@ def check(peer, root):
         "public fun <Item> pass(value: Item): Item = value\n"
         "public fun choose(value: Flag = true): Boolean = pass(value)\n"
         "public fun answer(): Boolean = choose()\n"
-    )
+    ) + SOURCE_DECLARATIONS
     path.write_text(original)
     manifest = (root / "Cone.toml").as_uri()
     text = (
@@ -123,3 +125,4 @@ def check(peer, root):
     peer.notify("textDocument/didClose", {"textDocument": {"uri": dependency_uri}})
     value_type("Boolean")
     assert not (dependency / "target").exists()
+    check_imported(peer, root, path)
