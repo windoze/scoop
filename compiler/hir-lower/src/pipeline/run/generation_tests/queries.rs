@@ -5,6 +5,7 @@ mod constructors;
 mod exports;
 mod fields;
 mod methods;
+mod projected_bodies;
 mod properties;
 mod types;
 
@@ -36,6 +37,13 @@ fn queries_preserve_empty_bodies_abstract_slots_and_pending_generation() {
                         panic!("an empty ordinary body is available")
                     };
                     assert!(body.statements.is_empty());
+                    let Some(Availability::Available(projected)) = queries
+                        .projected_body(SemanticCallable::Current(function))
+                        .unwrap()
+                    else {
+                        panic!("empty body remains available in projection")
+                    };
+                    assert!(projected.statements().is_empty());
                 }
                 "result" => {
                     let Availability::Available(Body::Current(body)) = body else {
@@ -53,6 +61,12 @@ fn queries_preserve_empty_bodies_abstract_slots_and_pending_generation() {
         let method = queries.pending_methods()[0].function;
         assert!(matches!(
             queries.body(SemanticCallable::Current(method)),
+            Some(Availability::PendingGeneration)
+        ));
+        assert!(matches!(
+            queries
+                .projected_body(SemanticCallable::Current(method))
+                .unwrap(),
             Some(Availability::PendingGeneration)
         ));
         Ok(vec![generated(queries, method, "{ return 1 }")])
@@ -97,6 +111,21 @@ fn default_query_keeps_definition_binders_and_previous_parameter_binding() {
         let location = queries.source_location(template.origin);
         assert_eq!(location.source, signature.origin.source);
         assert_eq!(location.span, template.origin.span);
+        let projected = queries
+            .projected_default(hir::SemanticDefaultReference::Current(source))
+            .unwrap()
+            .unwrap();
+        let repeated = queries
+            .projected_default(hir::SemanticDefaultReference::Current(source))
+            .unwrap()
+            .unwrap();
+        assert!(std::sync::Arc::ptr_eq(&projected, &repeated));
+        assert_eq!(projected.key().parameter_position(), 1);
+        assert_eq!(
+            projected.result(),
+            &scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 0 }
+        );
+        assert_eq!(projected.value_parameters().parameters().len(), 1);
         Ok(Vec::new())
     });
     compile(

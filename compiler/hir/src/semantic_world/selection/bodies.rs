@@ -23,6 +23,10 @@ impl ImportedCallableBody {
         &self.body
     }
 
+    pub fn shared_body(&self) -> Arc<crate::ExportGenericCallableBodyV1> {
+        Arc::clone(&self.body)
+    }
+
     /// Named source functions have names; compiler-generated bodies do not.
     pub fn source_name(&self) -> Option<&scoop_identity::CanonicalIdentifier> {
         match self.source_declaration.as_ref()?.name() {

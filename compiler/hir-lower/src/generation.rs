@@ -37,10 +37,9 @@ impl Lowerer {
         // compiled program, including after a rejected type query.
         let mut view = self.clone();
         view.in_semantic_query = true;
-        let bodies = generator.generate(&mut FrontendQueries {
-            lowerer: &mut view,
-            world,
-        });
+        let mut queries = FrontendQueries::new(&mut view, self, world);
+        let bodies = generator.generate(&mut queries);
+        queries.retain_identities();
         self.query_source_function_identities = view.query_source_function_identities;
         self.query_alias_identities = view.query_alias_identities;
         self.property_identity_records = view.property_identity_records;
@@ -138,6 +137,20 @@ impl Lowerer {
         } else {
             &self.imported_source_files[file - self.intrinsic_sources.len()].identity
         }
+    }
+
+    pub(crate) fn source_file_metadata(&self) -> Vec<hir::SourceFileMetadata> {
+        self.intrinsic_sources
+            .iter()
+            .map(|source| hir::SourceFileMetadata {
+                provider: source.provider,
+                identity: source.identity.clone(),
+                name: source.name.clone(),
+                source: source.source.clone(),
+                canonical_record: None,
+            })
+            .chain(self.imported_source_files.iter().cloned())
+            .collect()
     }
 
     pub(crate) fn lexical_source_file(&self, file: usize) -> usize {

@@ -93,11 +93,22 @@ pub trait SemanticQueries {
         &self,
         callable: SemanticCallable,
     ) -> Option<SemanticBodyAvailability<SemanticBody<'_>>>;
+    fn projected_body(
+        &mut self,
+        callable: SemanticCallable,
+    ) -> Result<
+        Option<SemanticBodyAvailability<std::sync::Arc<ExportGenericCallableBodyV1>>>,
+        Diagnostic,
+    >;
     fn default_source(&self, source: ExportDefaultSourceId) -> SemanticDefaultSource<'_>;
     fn default_definition(
         &self,
         source: SemanticDefaultReference,
     ) -> Option<SemanticDefaultDefinition<'_>>;
+    fn projected_default(
+        &mut self,
+        source: SemanticDefaultReference,
+    ) -> Result<Option<std::sync::Arc<ExportDefaultTemplateV1>>, Diagnostic>;
     fn source_location(&self, origin: DefinitionOrigin) -> SemanticSourceLocation;
     fn signature(&self, function: FunctionId) -> SemanticFunctionSignature;
     fn method_identity(

@@ -5,6 +5,7 @@ use scoop_ast::{Diagnostic, Span};
 use scoop_hir as hir;
 use scoop_identity::SignatureTypeKey;
 
+mod body_projection;
 mod context;
 use context::imported_location;
 mod constructors;
@@ -19,6 +20,25 @@ mod types;
 pub(crate) struct FrontendQueries<'a, 'input> {
     pub(crate) lowerer: &'a mut Lowerer,
     pub(crate) world: Option<&'a hir::ImportedSemanticWorld<'input>>,
+    body_queries: body_projection::BodyQueries<'a>,
+}
+
+impl<'a, 'input> FrontendQueries<'a, 'input> {
+    pub(crate) fn new(
+        lowerer: &'a mut Lowerer,
+        original: &'a Lowerer,
+        world: Option<&'a hir::ImportedSemanticWorld<'input>>,
+    ) -> Self {
+        Self {
+            lowerer,
+            world,
+            body_queries: body_projection::BodyQueries::new(original),
+        }
+    }
+
+    pub(crate) fn retain_identities(self) {
+        self.body_queries.retain_identities(self.lowerer);
+    }
 }
 
 impl hir::SemanticQueries for FrontendQueries<'_, '_> {
@@ -71,6 +91,23 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         callable: hir::SemanticCallable,
     ) -> Option<hir::SemanticBodyAvailability<hir::SemanticBody<'_>>> {
         self.query_body(callable)
+    }
+
+    fn projected_body(
+        &mut self,
+        callable: hir::SemanticCallable,
+    ) -> Result<
+        Option<hir::SemanticBodyAvailability<std::sync::Arc<hir::ExportGenericCallableBodyV1>>>,
+        Diagnostic,
+    > {
+        self.query_projected_body(callable)
+    }
+
+    fn projected_default(
+        &mut self,
+        source: hir::SemanticDefaultReference,
+    ) -> Result<Option<std::sync::Arc<hir::ExportDefaultTemplateV1>>, Diagnostic> {
+        self.body_queries.default(source)
     }
 
     fn default_source(&self, source: hir::ExportDefaultSourceId) -> hir::SemanticDefaultSource<'_> {

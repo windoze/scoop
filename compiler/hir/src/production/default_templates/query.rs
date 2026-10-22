@@ -14,14 +14,28 @@ impl<'a> HirBodyProjectionInputs<'a> {
         generic::projection::project_with_origin(&entities, function, origin)
     }
 
-    pub fn project_default_template(
+    pub fn project_parameter_default(
         self,
+        owner: ExportParameterOwner,
+        position: u32,
         source: ExportDefaultSourceId,
-        key: ExportDefaultTemplateKeyV1,
-        binders: &[HirSignatureBinder],
         imported: Option<&'a SelectedImportedDependencySet>,
     ) -> Result<ExportDefaultTemplateV1, DefaultTemplateEnvelopeProjectionError> {
+        let root = match owner {
+            ExportParameterOwner::Function(id) => LexicalDefinitionRoot::Function(id),
+            ExportParameterOwner::StructConstructor(id) => {
+                LexicalDefinitionRoot::StructConstructor(id)
+            }
+            ExportParameterOwner::ClassConstructor(id) => {
+                LexicalDefinitionRoot::ClassConstructor(id)
+            }
+            ExportParameterOwner::VariantConstructor(id) => {
+                LexicalDefinitionRoot::VariantConstructor(id)
+            }
+        };
         let entities = DefaultEntityProjector::from_inputs(self, imported);
-        envelope::project_template(&entities, binders, key, source)
+        let scope = envelope::scope::provider_scope(&entities, root)?;
+        let key = ExportDefaultTemplateKeyV1::new(scope.root.declaration(), position);
+        envelope::project_template(&entities, &scope.binders, key, source)
     }
 }

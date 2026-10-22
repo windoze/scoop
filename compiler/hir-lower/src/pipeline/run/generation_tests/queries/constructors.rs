@@ -69,6 +69,19 @@ fn constructor_queries_preserve_primary_targets_default_providers_and_source_ide
         assert!(
             matches!(template.value.kind, hir::ExprKind::Local(local) if local == template.value_parameters[0].local)
         );
+        let projected = queries
+            .projected_default(default.definition)
+            .unwrap()
+            .unwrap();
+        assert_eq!(projected.key().owner(), constructors[0].identity);
+        assert_eq!(
+            projected.result(),
+            &scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 0 }
+        );
+        assert!(matches!(
+            projected.body().value().kind(),
+            hir::DefaultExpressionKindV1::Local(_)
+        ));
         let row = resolve(queries, context, "Row<String>");
         let constructors = queries.nominal_constructors(context, row).unwrap().unwrap();
         assert_eq!(constructors.len(), 1);

@@ -73,6 +73,12 @@ fn method_queries_preserve_definition_binders_defaults_effects_and_access() {
                 queries.body(method.callable),
                 Some(Availability::Available(_))
             ));
+            let Some(Availability::Available(projected)) =
+                queries.projected_body(method.callable).unwrap()
+            else {
+                panic!("projected method with original binders")
+            };
+            assert_eq!(projected.parameters().len(), method.parameters.len() + 1);
             let SemanticCallable::Current(function) = method.callable else {
                 panic!("current")
             };

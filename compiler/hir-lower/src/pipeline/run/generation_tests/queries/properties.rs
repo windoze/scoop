@@ -44,6 +44,15 @@ fn property_queries_keep_logical_capabilities_bodies_annotations_and_cached_iden
                 queries.body(accessor.callable),
                 Some(Availability::Available(Body::Current(_)))
             ));
+            let Some(Availability::Available(projected)) =
+                queries.projected_body(accessor.callable).unwrap()
+            else {
+                panic!("projected source accessor")
+            };
+            assert_eq!(
+                projected.owner(),
+                hir::DefaultCallableDeclarationV1::PropertyAccessor(accessor.identity)
+            );
             assert!(
                 matches!(queries.describe_annotations(accessor.annotations), hir::SemanticAnnotations::Current(annotations) if annotations.len() == 1)
             );

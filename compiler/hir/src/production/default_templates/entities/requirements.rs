@@ -28,7 +28,7 @@ impl DefaultEntityProjector<'_> {
                 )
             }
             Owner::Imported(template) => {
-                let template = &self.inputs.imported_generic_templates[template];
+                let template = self.inputs.imported_signatures.callable_signature(template);
                 let parameters = template.type_parameters.declarations().to_vec();
                 let binders = parameters
                     .iter()

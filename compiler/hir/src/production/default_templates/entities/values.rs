@@ -33,7 +33,10 @@ impl DefaultEntityProjector<'_> {
                     self.struct_constructor_id(constructor)?
                 }
                 crate::StructConstructorDefinition::Template(template) => {
-                    self.inputs.imported_constructor_templates[template].declaration
+                    self.inputs
+                        .imported_signatures
+                        .constructor_signature(template)
+                        .declaration
                 }
             },
             owner_type: self.type_key(owner.canonical_type, binders)?,
@@ -63,7 +66,10 @@ impl DefaultEntityProjector<'_> {
                 }
                 crate::ClassConstructorDefinition::Template(template) => {
                     DefaultClassConstructorIdV1::Source(
-                        self.inputs.imported_constructor_templates[template].declaration,
+                        self.inputs
+                            .imported_signatures
+                            .constructor_signature(template)
+                            .declaration,
                     )
                 }
             },

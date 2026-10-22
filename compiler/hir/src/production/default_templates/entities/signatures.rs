@@ -47,11 +47,12 @@ impl DefaultEntityProjector<'_> {
                     .map(|parameter| parameter.id)
                     .collect::<Vec<_>>()
             }
-            crate::LexicalFunctionDefinition::Template(template) => {
-                self.inputs.imported_generic_templates[template]
-                    .type_parameters
-                    .ids()
-            }
+            crate::LexicalFunctionDefinition::Template(template) => self
+                .inputs
+                .imported_signatures
+                .callable_signature(template)
+                .type_parameters
+                .ids(),
         };
         let own = parameters
             .get(local.owner_type_param_count..)

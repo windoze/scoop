@@ -12,6 +12,7 @@ mod constructors;
 mod exports;
 mod fields;
 mod methods;
+mod projected_bodies;
 mod properties;
 mod support;
 mod types;
@@ -56,10 +57,8 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
     let selection = world.dependency_selection_plan().unwrap();
     let mut checked = 0;
     let mut lowerer = crate::Lowerer::new().with_imported_dependencies(selection.clone());
-    let queries = FrontendQueries {
-        lowerer: &mut lowerer,
-        world: Some(&world),
-    };
+    let original = lowerer.clone();
+    let mut queries = FrontendQueries::new(&mut lowerer, &original, Some(&world));
     for interface in interface.callable_interfaces().all_declarations() {
         let reference = interface.declaration();
         let declaration = selection.callable_declaration(reference).unwrap();
@@ -71,6 +70,12 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
                     panic!("the generic function publishes its typed body")
                 };
                 assert_eq!(body.source_name().unwrap().as_str(), "identity");
+                let Some(Availability::Available(projected)) =
+                    queries.projected_body(body_reference(reference)).unwrap()
+                else {
+                    panic!("shared dependency body")
+                };
+                assert!(std::sync::Arc::ptr_eq(&projected, &body.shared_body()));
                 checked += 1;
             }
             "opaque" => {
@@ -111,10 +116,8 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
         hir::ImportedDependencySelectionPlan::empty(scoop_identity::ConeIdentity::SINGLE_FILE),
     );
     let mut no_dependencies = no_dependencies;
-    let missing = FrontendQueries {
-        lowerer: &mut no_dependencies,
-        world: None,
-    };
+    let original = no_dependencies.clone();
+    let missing = FrontendQueries::new(&mut no_dependencies, &original, None);
     let reference = interface
         .callable_interfaces()
         .all_declarations()
@@ -159,6 +162,15 @@ fn inherited_default_query_preserves_the_dependency_definition_scope() {
                 queries.current_cone()
             );
             assert_eq!(template.value_parameters().parameters().len(), 1);
+            let definition = template.definition_origin().clone();
+            let root = template.definition_root();
+            let projected = queries
+                .projected_default(hir::SemanticDefaultReference::Current(source))
+                .unwrap()
+                .unwrap();
+            assert_eq!(projected.definition_origin(), &definition);
+            assert_eq!(projected.definition_root(), root);
+            assert_ne!(projected.key().owner(), root.declaration());
             self.0 = true;
             Ok(Vec::new())
         }

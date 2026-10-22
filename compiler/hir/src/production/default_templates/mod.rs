@@ -12,7 +12,7 @@ mod body;
 mod entities;
 mod inputs;
 mod query;
-pub use inputs::HirBodyProjectionInputs;
+pub use inputs::{HirBodyProjectionInputs, ImportedTemplateSignatures};
 mod envelope;
 mod errors;
 mod generic;

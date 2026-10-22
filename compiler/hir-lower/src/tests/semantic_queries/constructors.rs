@@ -72,6 +72,16 @@ fn dependency_constructor_queries_keep_source_parameters_and_default_binder_argu
                 template.definition_origin().origin().source().cone(),
                 queries.current_cone()
             );
+            let projected = queries
+                .projected_default(default.definition)
+                .unwrap()
+                .unwrap();
+            assert_eq!(projected.key().owner(), constructor.identity);
+            let repeated = queries
+                .projected_default(default.definition)
+                .unwrap()
+                .unwrap();
+            assert!(std::sync::Arc::ptr_eq(&projected, &repeated));
             let row = parameter_type(1);
             let constructors = queries.nominal_constructors(context, row).unwrap().unwrap();
             assert_eq!(

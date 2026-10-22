@@ -14,8 +14,11 @@ impl DefaultEntityProjector<'_> {
                 self.generated_function_id(function)
             }
             crate::LexicalFunctionDefinition::Template(template) => {
-                let crate::ImportedCallableTemplateOrigin::Closure { body, .. } =
-                    self.inputs().imported_generic_templates[template].declaration
+                let crate::ImportedCallableTemplateOrigin::Closure { body, .. } = self
+                    .inputs()
+                    .imported_signatures
+                    .callable_signature(template)
+                    .declaration
                 else {
                     unreachable!("a closure definition retains its generated body")
                 };
@@ -39,11 +42,12 @@ impl DefaultEntityProjector<'_> {
             crate::LexicalFunctionDefinition::Source { function, .. } => {
                 self.source_callable_declaration(function)
             }
-            crate::LexicalFunctionDefinition::Template(template) => {
-                Ok(self.inputs().imported_generic_templates[template]
-                    .declaration
-                    .declaration())
-            }
+            crate::LexicalFunctionDefinition::Template(template) => Ok(self
+                .inputs()
+                .imported_signatures
+                .callable_signature(template)
+                .declaration
+                .declaration()),
         }
     }
 
@@ -159,7 +163,9 @@ impl DefaultEntityProjector<'_> {
     ) -> Result<crate::DefaultCallableRefV1, super::super::DefaultEntityProjectionError> {
         let export = self.inputs();
         let application = &export.imported_generic_applications[application];
-        let declaration = export.imported_generic_templates[application.template]
+        let declaration = export
+            .imported_signatures
+            .callable_signature(application.template)
             .declaration
             .body_owner();
         let (owner, arguments) = match &application.arguments {

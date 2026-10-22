@@ -62,7 +62,9 @@ impl BodyProjection<'_, '_> {
             .imported_generic_callable(application, self.binders)?;
         let export = self.entities.inputs();
         let application = &export.imported_generic_applications[application];
-        let template = &export.imported_generic_templates[application.template];
+        let template = export
+            .imported_signatures
+            .callable_signature(application.template);
         if matches!(
             application.arguments,
             crate::ImportedCallableArguments::Method { .. }

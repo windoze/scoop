@@ -3,6 +3,9 @@
 use crate::*;
 use la_arena::Arena;
 
+mod imported;
+pub use imported::ImportedTemplateSignatures;
+
 /// Completed frontend facts, independent of successful module publication.
 #[derive(Clone, Copy)]
 pub struct HirBodyProjectionInputs<'a> {
@@ -33,11 +36,10 @@ pub struct HirBodyProjectionInputs<'a> {
     pub generic_method_applications: &'a Arena<GenericMethodApplication>,
     pub generic_methods: &'a Arena<GenericMethod>,
     pub globals: &'a Arena<Global>,
-    pub imported_constructor_templates: &'a Arena<ImportedConstructorTemplate>,
+    pub imported_signatures: &'a dyn ImportedTemplateSignatures,
     pub imported_dependency_callables: &'a Arena<ImportedDependencyCallableUse>,
     pub imported_generic_applications: &'a Arena<ImportedGenericCallableApplication>,
     pub imported_generic_delegate_templates: &'a Arena<ImportedGenericDelegateTemplate>,
-    pub imported_generic_templates: &'a Arena<ImportedGenericCallableTemplate>,
     pub initialization_unit_identities: &'a HirInitializationUnitIdentities,
     pub initialization_units: &'a Arena<InitializationUnit>,
     pub instantiations: &'a Arena<ResolvedGenericFunction>,
@@ -89,11 +91,10 @@ impl<'a> HirBodyProjectionInputs<'a> {
             generic_method_applications: &export.generic_method_applications,
             generic_methods: &export.generic_methods,
             globals: &export.globals,
-            imported_constructor_templates: &export.imported_constructor_templates,
+            imported_signatures: export,
             imported_dependency_callables: &export.imported_dependency_callables,
             imported_generic_applications: &export.imported_generic_applications,
             imported_generic_delegate_templates: &export.imported_generic_delegate_templates,
-            imported_generic_templates: &export.imported_generic_templates,
             initialization_unit_identities: &export.initialization_unit_identities,
             initialization_units: &export.initialization_units,
             instantiations: &export.instantiations,
