@@ -218,6 +218,7 @@ impl Server {
             kind: WorkKind::Request {
                 id: id.clone(),
                 query: pending.query.clone(),
+                version: document.version,
                 cancellation: pending.cancellation.clone(),
             },
         })

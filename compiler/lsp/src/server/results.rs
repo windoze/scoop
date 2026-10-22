@@ -11,11 +11,21 @@ impl Server {
         output: &mut impl Write,
     ) -> io::Result<()> {
         match completion.value {
-            Completed::Request { id, result } => {
-                if !self.pending.contains_key(&id) {
+            Completed::Request {
+                id,
+                version,
+                result,
+            } => {
+                let Some(pending) = self.pending.get(&id) else {
                     return Ok(());
-                }
-                if completion.revision != self.documents.host.revision() {
+                };
+                if completion.revision != self.documents.host.revision()
+                    || self
+                        .documents
+                        .get(&pending.query.uri)
+                        .and_then(|document| document.version)
+                        != version
+                {
                     return self.schedule_request(&id, output);
                 }
                 self.pending.remove(&id);

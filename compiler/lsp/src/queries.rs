@@ -9,6 +9,7 @@ use serde_json::Value;
 
 use crate::{convert, initialize::Settings};
 
+pub(crate) mod code_actions;
 mod completion;
 mod definition;
 mod hover;
@@ -27,6 +28,8 @@ pub(crate) enum QueryKind {
     Definition(Position),
     Completion(Position),
     SignatureHelp(Position),
+    CodeAction(code_actions::ActionQuery),
+    ResolveCodeAction(code_actions::ResolveData),
 }
 
 #[derive(Clone)]
@@ -53,6 +56,26 @@ pub(crate) fn json(value: impl Serialize) -> Result<Value, ResponseError> {
 impl Query {
     pub fn from_request(request: &Request) -> Result<Self, ResponseError> {
         match request.method.as_str() {
+            "textDocument/codeAction" => {
+                let params: lsp_types::CodeActionParams = params(request.params.clone())?;
+                Ok(Self {
+                    uri: params.text_document.uri,
+                    kind: QueryKind::CodeAction(code_actions::ActionQuery {
+                        range: params.range,
+                        context: params.context,
+                    }),
+                })
+            }
+            "codeAction/resolve" => {
+                let action: lsp_types::CodeAction = params(request.params.clone())?;
+                let data: code_actions::ResolveData = params(action.data.ok_or_else(|| {
+                    convert::error(ErrorCode::InvalidParams, "code action data is required")
+                })?)?;
+                Ok(Self {
+                    uri: data.uri.clone(),
+                    kind: QueryKind::ResolveCodeAction(data),
+                })
+            }
             "textDocument/signatureHelp" => {
                 let params: lsp_types::SignatureHelpParams = params(request.params.clone())?;
                 Ok(Self {

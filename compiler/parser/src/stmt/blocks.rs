@@ -38,7 +38,7 @@ impl Parser {
                     let close = self.bump();
                     break Ok(Span::new(open.span.start, close.span.end));
                 }
-                TokenKind::Eof => break self.unexpected("`}`"),
+                TokenKind::Eof => break self.missing_token(TokenKind::RBrace, "`}`"),
                 _ => {
                     let start = self.pos;
                     let statement_checkpoint = self.checkpoint();

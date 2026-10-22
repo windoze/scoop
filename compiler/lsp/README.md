@@ -43,7 +43,9 @@ target 默认使用宿主的现有目标选择；purpose 可为 production 或 t
 
 每个配置还可覆盖 target、sysroot 和 artifactSearchRoots。配置名称须非空且唯一；未指定 activeConfiguration 时按配置顺序选择当前文件所属的第一个项目。同一文件共享文本和语法，项目归属与依赖保持分开。
 
-hover／定义／补全／签名帮助及工作区编辑继续按[完整设计](../../docs/language-service/DESIGN.md)实施，实际进度见[实施记录](../../docs/language-service/PROGRESS.md)。这些尚未交付的能力不出现在初始化能力表中。
+已有语义服务包括函数／参数／局部变量及实际调用的 hover 和定义导航、receiver 成员补全、完整与半成品调用的签名帮助，以及普通声明／正文诊断。当前 Cone 和完整源码依赖复用原前端，预编译依赖读取已有 HIR；缺少源码时仍可显示已有签名，导航不猜测文件位置。错误源码中的已知事实与不可用状态按[完整设计](../../docs/language-service/DESIGN.md)区分，实际覆盖与剩余工作见[实施记录](../../docs/language-service/PROGRESS.md)。
+
+客户端支持 code action literal 和 `workspace.workspaceEdit.documentChanges` 时，提供缺失右括号、逗号等固定标点的 quickfix；返回的 TextDocumentEdit 带实际文档 version。名称、类型与表达式缺失不生成猜测内容。支持 resolve 的客户端还可重新取得同版修复；原文变化后旧动作返回 ContentModified，原文未变而客户端 version 更新时返回最新 version。工作区引用、实现与重命名继续按设计实施，未实现的能力不在初始化中声明。
 
 开发验证使用 `cargo test -p scoop-analysis -p scoop-lsp`；LSP 集成测试启动真实 `scoop-lsp` 进程，检查传输、状态变化和查询结果。运行时将 `TMPDIR` 指向仓库外工作目录，测试工作文件遵守同一设置。
 

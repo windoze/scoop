@@ -387,6 +387,17 @@ impl Parser {
         self.missing(scoop_syntax::ExpectedSyntax::Name, what)
     }
 
+    pub(crate) fn missing_token<T>(
+        &mut self,
+        kind: TokenKind,
+        what: &str,
+    ) -> Result<T, Diagnostic> {
+        self.missing(
+            scoop_syntax::ExpectedSyntax::Token(kind.syntax_kind()),
+            what,
+        )
+    }
+
     pub(crate) fn expect(
         &mut self,
         what: &str,

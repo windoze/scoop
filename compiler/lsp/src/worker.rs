@@ -16,6 +16,7 @@ pub(crate) enum WorkKind {
     Request {
         id: RequestId,
         query: Query,
+        version: Option<i32>,
         cancellation: Cancellation,
     },
     Diagnostics {
@@ -34,6 +35,7 @@ pub(crate) struct Work {
 pub(crate) enum Completed {
     Request {
         id: RequestId,
+        version: Option<i32>,
         result: Result<Value, ResponseError>,
     },
     Diagnostics {
@@ -88,6 +90,7 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
         WorkKind::Request {
             id,
             query,
+            version,
             cancellation,
         } => {
             let result = input.and_then(|source| {
@@ -95,6 +98,17 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                     .check()
                     .map_err(|_| convert::error(ErrorCode::RequestCanceled, "request cancelled"))?;
                 let result = match query.kind {
+                    QueryKind::CodeAction(query_kind) => queries::code_actions::actions(
+                        &query.uri,
+                        source,
+                        version,
+                        &query_kind,
+                        work.settings,
+                        &cancellation,
+                    ),
+                    QueryKind::ResolveCodeAction(data) => {
+                        queries::code_actions::resolve(data, source, version, work.settings)
+                    }
                     QueryKind::Syntax(query_kind) => {
                         query_kind.run(&query.uri, source, work.settings, &cancellation)
                     }
@@ -137,7 +151,11 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                     .map_err(|_| convert::error(ErrorCode::RequestCanceled, "request cancelled"))?;
                 Ok(result)
             });
-            Completed::Request { id, result }
+            Completed::Request {
+                id,
+                version,
+                result,
+            }
         }
         WorkKind::Diagnostics { uri, version } => {
             let result = input.and_then(|source| {

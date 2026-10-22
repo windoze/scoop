@@ -2,6 +2,7 @@
 
 mod cancellation;
 mod declarations;
+mod fixes;
 mod host;
 mod semantic;
 mod syntax;
@@ -9,6 +10,7 @@ mod workspace;
 
 pub use cancellation::{Cancellation, Cancelled};
 pub use declarations::DeclarationAnalysisError;
+pub use fixes::SyntaxFix;
 pub use host::{AnalysisHost, AnalysisSnapshot, SourceInput};
 pub use scoop_parser::identifier_spelling;
 pub use scoop_source::{Revision, SourceId, SourceVersion};

@@ -1403,6 +1403,8 @@ driver 使用既有宿主进程管理和 Content-Length JSON-RPC 分帧，逐组
 
 LSP 负责协议生命周期、文档版本与取消请求的映射；共享分析负责一致的读取视图、计算中的合作式取消和结果所用 revision。发布诊断、编辑或解析延迟结果前核对相应输入版本，不能将旧范围应用于新文本；取消的请求仍按 LSP 返回响应。M47 使用本次编译的固定视图与串行同步查询，不引入文档通知或编辑器调度。声明与签名查询不启动 generator，读取待生成正文返回 PendingGeneration。
 
+公共源码编辑表示指定 SourceVersion 上的 byte range 替换，不执行文件写入。语法快速修复直接消费原 grammar 的缺失项，只对已确定的分隔符等固定标点提供插入；缺少名称、类型、表达式或模式时不编造内容，也不匹配诊断文案重新判断语法。LSP 在客户端支持 code action literal 与 documentChanges 时提供相应 quickfix，打开文档使用实际客户端 version。延迟 resolve 保存来源版本及缺失项定位，从同版语法结果取得编辑；文本已变化则返回 ContentModified。仅客户端 version 变化而文本未变时可以复用语法，并返回最新文档 version。
+
 `scoop-analysis` 是与编译 driver 同层的分析宿主，保存本地 SourceId、文本 revision 与共享不可变输入；语法结果按文件按需建立并复用。输入更新使旧分析快照失效，读取时检查取消；快照保留原版本的文本，不混用新输入。工作区加载沿普通 manifest 取得 Cone 与 SourceIdentity，不从本地句柄派生语言身份，也不处理 LSP URI、客户端版本或进程传输。`scoop-lsp` 是独立 stdio 命令，传输线程、文档输入与分析 worker 分离；初版通过 LSP 3.17 的基础协议能力提供同步、诊断与结构查询，只声明实际实现的能力。
 
 工作区配置明确选取根 Cone、target、Production／Test、sysroot 与产物搜索目录；同一物理源码可属于多份配置，共享文本但分别保存项目语义输入。根 Cone 的 Test 配置使用既有 production／test 源码与依赖选择，源码依赖仍使用 Production。目录、显式源码依赖、显式产物、版本依赖和默认 core 的选择沿普通构建规则；配置错误保留为 manifest 位置诊断，不移除已经加载的源码语法输入，也不隐式执行编译、sysroot 准备或生成器。未归属已选 Cone 的文档仅提供语法服务。

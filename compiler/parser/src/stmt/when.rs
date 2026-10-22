@@ -41,7 +41,7 @@ impl Parser {
         let close = loop {
             match self.peek().kind {
                 TokenKind::RBrace => break self.bump(),
-                TokenKind::Eof => return self.unexpected("`}`"),
+                TokenKind::Eof => return self.missing_token(TokenKind::RBrace, "`}`"),
                 _ => {
                     let start = self.pos;
                     if else_body.is_some() && !reported_after_else {

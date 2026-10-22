@@ -91,6 +91,8 @@ LSP 将同版语法诊断与普通声明、签名及完整正文检查的诊断�
 
 公共 edit 只表示范围替换，不写文件。LSP 对打开文档返回版本化 TextDocumentEdit；对已变化的延迟 completion／code action 数据重新计算或返回失效结果，不能把旧范围套到新版本。
 
+首批具体 code action 使用 grammar 已记录的缺失固定标点，按请求范围提供插入编辑；名称、类型、表达式与模式需要用户输入，不生成猜测内容。动作及 resolve 复用同一语法版本的缺失项，源码变化后旧动作失效；客户端只改变协议 version 时，编辑随最新 version 返回。能力按客户端的 literal／documentChanges 与 resolve 支持协商。
+
 ## 4. 可恢复语法结果
 
 ### 4.1 一套 grammar，两个消费边界

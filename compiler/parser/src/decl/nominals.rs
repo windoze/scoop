@@ -221,7 +221,7 @@ impl Parser {
                 break self.bump();
             }
             if matches!(self.peek().kind, TokenKind::Eof) {
-                return self.unexpected("`}`");
+                return self.missing_token(TokenKind::RBrace, "`}`");
             }
             let start = self.pos;
             let parsed = self.parse_member_prefix().and_then(|prefix| match &self.peek().kind {

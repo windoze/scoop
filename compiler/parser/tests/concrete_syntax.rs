@@ -17,6 +17,30 @@ fn assert_original<T, D>(parsed: &Parse<T, D>, source: &str) {
 }
 
 #[test]
+fn unclosed_blocks_record_the_known_closer_at_eof() {
+    for source in [
+        "fun f() {\r\n",
+        "class C {",
+        "interface I {",
+        "struct S() {",
+        "enum E {",
+        "fun f() { when { else -> 1",
+    ] {
+        let parsed = parse_recovering(source).unwrap();
+        assert_original(&parsed, source);
+        assert!(parsed.ast().is_none());
+        assert!(
+            parsed.missing().iter().any(|missing| {
+                missing.offset as usize == source.len()
+                    && missing.expected == ExpectedSyntax::Token(SyntaxKind::RBrace)
+            }),
+            "{source}: {:?}",
+            parsed.missing()
+        );
+    }
+}
+
+#[test]
 fn preserves_all_trivia_literals_and_erroneous_text() {
     for source in [
         "",
