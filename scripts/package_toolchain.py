@@ -56,6 +56,7 @@ def prepare_targets(args, targets, binaries, environment):
             ("build_text_backends.py", "text"),
             ("build_uriparser.py", "uriparser"),
             ("build_compression.py", "compression"),
+            ("build_pcre2.py", "pcre2"),
         ):
             run_script(
                 script,
@@ -144,6 +145,7 @@ def assemble(root, targets, binaries, args, release):
         for header in (
             RUST_TEXT_HEADER,
             "uriparser",
+            "pcre2.h",
             "zstd.h",
             "zstd_errors.h",
             "zdict.h",
@@ -160,6 +162,7 @@ def assemble(root, targets, binaries, args, release):
                 shutil.copy2(origin, output)
         shutil.copy2(source / RUST_TEXT_LIBRARY, destination / RUST_TEXT_LIBRARY)
         shutil.copy2(source / "liburiparser.a", destination / "liburiparser.a")
+        shutil.copy2(source / "libpcre2-8.a", destination / "libpcre2-8.a")
         for package in COMPRESSION_PACKAGES:
             for library in package["libraries"]:
                 shutil.copy2(source / library, destination / library)
@@ -196,6 +199,7 @@ def assemble(root, targets, binaries, args, release):
         f"llhttp = {json.dumps(release['llhttp'])}",
         f"nghttp2 = {json.dumps(release['nghttp2'])}",
         f"uriparser = {json.dumps(release['uriparser'])}",
+        f"pcre2 = {json.dumps(release['pcre2'])}",
         f"host_libraries = {json.dumps(sorted(path.name for path in native))}",
     ]
     manifest += [
