@@ -1,8 +1,6 @@
 use super::*;
 use crate::imports::ResolvedImportExposure;
 
-mod targets;
-
 struct ResolvedReferenceImport {
     targets: Vec<Target>,
     alias: Option<hir::EditingImportAliasId>,
@@ -39,7 +37,7 @@ impl ReferenceBuilder {
                 if check() {
                     return Err(EditingCancelled);
                 }
-                if let Some(target) = self.import_target(lowerer, binding) {
+                if let Some(target) = self.identities.import_target(lowerer, binding) {
                     if !targets.contains(&target) {
                         targets.push(target);
                         self.record(target, name_origin.clone(), false);

@@ -21,31 +21,41 @@ pub(crate) fn implementation(
     };
     let requested = cancellation.clone();
     let result = semantics
-        .type_implementations(snapshot, source_id, cursor.span, move || {
+        .member_implementations(snapshot, source_id, cursor.span, move || {
             requested.check().is_err()
         })
-        .map_err(|error| match error {
-            ProjectAnalysisError::Cancelled => semantic::cancelled(),
-            _ => convert::error(
-                ErrorCode::RequestFailed,
-                "implementation analysis is unavailable for this project",
-            ),
-        })?;
-    let Some(result) = result else {
-        return Ok(Value::Null);
+        .map_err(analysis_error)?;
+    let origins = if let Some(result) = result {
+        result
+            .implementations
+            .into_iter()
+            .map(|implementation| implementation.origin)
+            .collect::<Vec<_>>()
+    } else {
+        let requested = cancellation.clone();
+        let result = semantics
+            .type_implementations(snapshot, source_id, cursor.span, move || {
+                requested.check().is_err()
+            })
+            .map_err(analysis_error)?;
+        let Some(result) = result else {
+            return Ok(Value::Null);
+        };
+        result
+            .implementations
+            .into_iter()
+            .map(|implementation| implementation.origin)
+            .collect()
     };
     let mut locations = Vec::new();
-    for implementation in result.implementations {
+    for origin in origins {
         cancellation.check().map_err(|_| semantic::cancelled())?;
         snapshot
             .check_cancelled()
             .map_err(|_| semantic::cancelled())?;
-        if let Some(location) = convert::definition_location(
-            snapshot,
-            cursor.project,
-            &implementation.origin,
-            settings,
-        )? {
+        if let Some(location) =
+            convert::definition_location(snapshot, cursor.project, &origin, settings)?
+        {
             locations.push(location);
         }
     }
@@ -63,4 +73,14 @@ pub(crate) fn implementation(
     });
     locations.dedup();
     super::json(locations)
+}
+
+fn analysis_error(error: ProjectAnalysisError) -> ResponseError {
+    match error {
+        ProjectAnalysisError::Cancelled => semantic::cancelled(),
+        _ => convert::error(
+            ErrorCode::RequestFailed,
+            "implementation analysis is unavailable for this project",
+        ),
+    }
 }

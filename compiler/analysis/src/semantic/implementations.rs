@@ -2,6 +2,9 @@ use super::*;
 use scoop_hir::{EditingTypeImplementation, EditingValue as V};
 use scoop_source::Span;
 
+mod members;
+pub use members::MemberImplementationSearch;
+
 #[derive(Debug)]
 pub struct TypeImplementationSearch {
     pub implementations: Vec<EditingTypeImplementation>,

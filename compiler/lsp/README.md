@@ -59,9 +59,11 @@ target 默认使用宿主的现有目标选择；purpose 可为 production 或 t
 
 `textDocument/typeDefinition` 读取变量、参数与 property 的实际类型，以及调用的完整结果类型。类型语法中的泛型实参和透明 typealias 先沿原类型解析应用，再导航到名义声明；仍未具体化的类型参数指向原参数声明。普通函数类型、元组等没有独立声明的结构类型返回空结果；错误正文只使用已取得的事实，缺少源码时不猜测位置。名义类型的身份与来源和 M47 类型查询共用。
 
-`textDocument/implementation` 目前查询声明阶段已知的名义类型关系：接口返回子接口和实现类型，class 返回子类，包含间接继承、抽象类型与 object。精确 import alias 沿原绑定选中目标，透明别名沿完整应用展开；泛型实例合并到原声明。当前项目各源码 Cone 的结果一起返回，修改继承或关闭 buffer 后同步更新，声明上的查询不检查无关正文。方法和 logical property 的实现导航继续实施。
+`textDocument/implementation` 查询声明阶段已知的名义类型关系：接口返回子接口和实现类型，class 返回子类，包含间接继承、抽象类型与 object。精确 import alias 沿原绑定选中目标，透明别名沿完整应用展开；泛型实例合并到原声明。当前项目各源码 Cone 的结果一起返回，修改继承或关闭 buffer 后同步更新，声明上的查询不检查无关正文。
 
-客户端支持 code action literal 和 `workspace.workspaceEdit.documentChanges` 时，提供缺失右括号、逗号等固定标点的 quickfix；返回的 TextDocumentEdit 带实际文档 version。名称、类型与表达式缺失不生成猜测内容。支持 resolve 的客户端还可重新取得同版修复；原文变化后旧动作返回 ContentModified，原文未变而客户端 version 更新时返回最新 version。其他引用区域、实现与重命名继续按设计实施，未实现的能力不在初始化中声明。
+方法与 logical property 的实现导航复用实际重写和接口选择，抽象中间声明保持连接，返回具体声明自身、默认实现和继承提供方的源码位置。getter／setter 合并到原 property，构造参数属性仍指向原参数名称；只有部分 accessor 提供默认实现时保留该来源。调用与绑定方法引用沿普通绑定选中目标，重载和泛型声明保持原身份；预编译中间层沿已有 slot 与 property 引用读取。待生成方法和内部 adapter 不产生导航结果。
+
+客户端支持 code action literal 和 `workspace.workspaceEdit.documentChanges` 时，提供缺失右括号、逗号等固定标点的 quickfix；返回的 TextDocumentEdit 带实际文档 version。名称、类型与表达式缺失不生成猜测内容。支持 resolve 的客户端还可重新取得同版修复；原文变化后旧动作返回 ContentModified，原文未变而客户端 version 更新时返回最新 version。其他引用区域与重命名继续按设计实施，未实现的能力不在初始化中声明。
 
 开发验证使用 `cargo test -p scoop-analysis -p scoop-lsp`；LSP 集成测试启动真实 `scoop-lsp` 进程，检查传输、状态变化和查询结果。运行时将 `TMPDIR` 指向仓库外工作目录，测试工作文件遵守同一设置。
 

@@ -11,7 +11,7 @@ mod dependencies;
 mod diagnostics;
 mod documentation;
 mod implementations;
-pub use implementations::TypeImplementationSearch;
+pub use implementations::{MemberImplementationSearch, TypeImplementationSearch};
 mod project;
 mod references;
 pub use references::ReferenceSearch;

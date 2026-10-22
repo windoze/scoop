@@ -1,8 +1,9 @@
 use super::*;
 use crate::imports::ImportedTargetBinding;
+use hir::EditingReferenceTarget as Target;
 
-impl ReferenceBuilder {
-    pub(super) fn import_target(
+impl DeclarationIdentities {
+    pub(in crate::editing) fn import_target(
         &mut self,
         lowerer: &mut Lowerer,
         binding: &ImportedTargetBinding,

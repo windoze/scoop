@@ -10,6 +10,7 @@ mod bodies;
 mod callables;
 pub(crate) mod candidates;
 mod definitions;
+mod identities;
 mod implementations;
 mod imports;
 mod members;
@@ -42,6 +43,7 @@ pub struct DeclarationAnalysis {
     pub(crate) type_implementations: Option<
         std::collections::HashMap<hir::SourceNominalId, Vec<hir::EditingTypeImplementation>>,
     >,
+    pub(crate) member_implementations: Option<hir::EditingMemberImplementationIndex>,
     pub(crate) documentation: Option<std::sync::Arc<hir::SemanticDocumentation>>,
 }
 

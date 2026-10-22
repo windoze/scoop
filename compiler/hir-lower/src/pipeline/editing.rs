@@ -43,6 +43,7 @@ impl Lowerer {
                     type_references: Vec::new(),
                     type_applications: Vec::new(),
                     type_implementations: None,
+                    member_implementations: None,
                     documentation: None,
                 });
             }
@@ -127,6 +128,7 @@ impl Lowerer {
             type_references,
             type_applications,
             type_implementations: None,
+            member_implementations: None,
             documentation,
         })
     }

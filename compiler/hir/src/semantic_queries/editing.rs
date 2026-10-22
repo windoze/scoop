@@ -4,6 +4,8 @@ use crate::{FunctionId, SemanticSourceLocation, Span, TypeId};
 
 mod candidates;
 pub use candidates::*;
+mod implementations;
+pub use implementations::*;
 mod properties;
 pub use properties::*;
 mod references;

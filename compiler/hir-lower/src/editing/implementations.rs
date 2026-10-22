@@ -6,6 +6,7 @@ use super::*;
 use crate::Owner;
 use hir::{EditingTypeIdentity as Identity, EditingUnavailable as U, EditingValue as V};
 
+mod members;
 mod targets;
 
 impl DeclarationAnalysis {

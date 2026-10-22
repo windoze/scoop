@@ -1,6 +1,16 @@
-use super::*;
+use crate::Lowerer;
+use scoop_hir::{self as hir, EditingCallableIdentity as Callable};
+use std::collections::HashMap;
 
-impl ReferenceBuilder {
+mod imports;
+
+#[derive(Default)]
+pub(super) struct DeclarationIdentities {
+    callables: HashMap<hir::FunctionId, Option<Callable>>,
+    properties: HashMap<hir::PropertyId, Option<hir::PropertyDeclarationId>>,
+}
+
+impl DeclarationIdentities {
     pub(super) fn callable(
         &mut self,
         lowerer: &mut Lowerer,

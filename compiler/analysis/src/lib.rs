@@ -16,7 +16,8 @@ pub use host::{AnalysisHost, AnalysisSnapshot, SourceInput};
 pub use scoop_parser::identifier_spelling;
 pub use scoop_source::{Revision, SourceId, SourceVersion};
 pub use semantic::{
-    ProjectAnalysisError, ReferenceSearch, SemanticSession, TypeImplementationSearch,
+    MemberImplementationSearch, ProjectAnalysisError, ReferenceSearch, SemanticSession,
+    TypeImplementationSearch,
 };
 pub use symbols::{SourceSymbol, SymbolQueryError, WorkspaceSymbol};
 pub use syntax::{Fold, FoldKind, SyntaxPtr, folding_ranges, selection_ranges};

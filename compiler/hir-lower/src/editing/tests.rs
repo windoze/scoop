@@ -12,6 +12,7 @@ mod definitions;
 mod documentation;
 mod imported_signatures;
 mod imports;
+mod member_implementations;
 mod members;
 mod members_imported;
 mod operands;

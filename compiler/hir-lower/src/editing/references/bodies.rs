@@ -39,7 +39,7 @@ impl ReferenceBuilder {
             let V::Known(signature) = analysis.signature(declaration.function) else {
                 continue;
             };
-            let Some(callable) = self.callable(
+            let Some(callable) = self.identities.callable(
                 &mut analysis.lowerer,
                 hir::SemanticCallable::Current(declaration.function),
             ) else {
@@ -81,7 +81,10 @@ impl ReferenceBuilder {
                 source: source.clone(),
                 span: reference.span,
             };
-            match self.callable(&mut analysis.lowerer, reference.target) {
+            match self
+                .identities
+                .callable(&mut analysis.lowerer, reference.target)
+            {
                 Some(target) => self.record(Target::Callable(target), origin, false),
                 None => self.unavailable.push(origin),
             }
@@ -94,7 +97,10 @@ impl ReferenceBuilder {
                 source: source.clone(),
                 span: reference.span,
             };
-            match self.property(&mut analysis.lowerer, reference.target) {
+            match self
+                .identities
+                .property(&mut analysis.lowerer, reference.target)
+            {
                 Some(target) => self.record(Target::Property(target), origin, false),
                 None => self.unavailable.push(origin),
             }
@@ -110,7 +116,7 @@ impl ReferenceBuilder {
             }
             let Some(callee) = call
                 .callee
-                .and_then(|callee| self.callable(&mut analysis.lowerer, callee))
+                .and_then(|callee| self.identities.callable(&mut analysis.lowerer, callee))
             else {
                 continue;
             };

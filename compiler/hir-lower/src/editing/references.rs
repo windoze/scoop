@@ -3,20 +3,16 @@
 use std::{collections::HashMap, rc::Rc};
 
 use super::*;
-use hir::{
-    EditingCallableIdentity as Callable, EditingReferenceTarget as Target, EditingValue as V,
-};
+use hir::{EditingReferenceTarget as Target, EditingValue as V};
 
 mod bodies;
-mod identities;
 mod imports;
 
 #[derive(Default)]
 struct ReferenceBuilder {
     occurrences: Vec<hir::EditingReference>,
     unavailable: Vec<hir::SemanticSourceLocation>,
-    callables: HashMap<hir::FunctionId, Option<Callable>>,
-    properties: HashMap<hir::PropertyId, Option<hir::PropertyDeclarationId>>,
+    identities: super::identities::DeclarationIdentities,
     import_uses: Vec<(
         hir::SemanticSourceLocation,
         Vec<hir::SemanticSourceLocation>,
@@ -62,6 +58,7 @@ impl DeclarationAnalysis {
                         span,
                     };
                     match builder
+                        .identities
                         .property(&mut self.lowerer, hir::SemanticProperty::Current(property))
                     {
                         Some(target) => builder.record(Target::Property(target), origin, true),
@@ -121,7 +118,7 @@ impl ReferenceBuilder {
             self.unavailable.push(function.name_origin.clone());
             return;
         };
-        let Some(callable) = self.callable(
+        let Some(callable) = self.identities.callable(
             &mut analysis.lowerer,
             hir::SemanticCallable::Current(function.function),
         ) else {

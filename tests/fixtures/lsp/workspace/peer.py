@@ -13,6 +13,7 @@ from diagnostics import check as check_diagnostics
 from documentation import check as check_documentation
 from import_references import check as check_import_references
 from incomplete_signatures import check as check_incomplete_signatures
+from member_implementations import check as check_member_implementations
 from property_references import check as check_property_references
 from references import check as check_references
 from signatures import check as check_signatures
@@ -326,6 +327,7 @@ def main():
         check_type_references(peer, root)
         check_type_definitions(peer, root)
         check_type_implementations(peer, root)
+        check_member_implementations(peer, root)
         peer.finish()
     finally:
         if peer.process.poll() is None:
