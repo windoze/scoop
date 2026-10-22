@@ -1717,7 +1717,7 @@ struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/proper
 
 文档采用前置附着：在声明语法位置中，属于紧随其后的完整声明及其 annotations、modifiers。空白、空行和普通注释可位于文档片段之间或文档与声明之间。不得越过 package、import、另一完整声明、语句或当前列表／块结束边界；表达式和类型内部的片段不得漂移到后续声明。
 
-文档可附着于类型、函数、property、typealias、annotation class、enum variant、字段、完整源码参数、构造器及 accessor。主构造 val／var 参数前的文档属于实际字段／property，其构造参数关联仍按原语言规则保留；getter／setter 的文档属于实际 accessor。局部具名声明可以保留文档，但文档工具不因此扩大其名称可见性或把它导出为非局部 API。init／release 块、局部变量和普通表达式不作为声明文档目标。
+文档可附着于类型、函数、property、typealias、annotation class、enum variant、字段、完整源码参数、构造器及 accessor。主构造 val／var 参数前的文档属于实际字段／property，其构造参数关联仍按原语言规则保留；struct／variant 的表示字段与构造参数说明也分别保存，字段前的注释属于字段，`@param` 属于构造参数。getter／setter 的文档属于实际 accessor。局部具名声明可以保留文档，但文档工具不因此扩大其名称可见性或把它导出为非局部 API。init／release 块、局部变量和普通表达式不作为声明文档目标。
 
 同一目标的片段按源码顺序保存；相邻 `///` 行可组成同一段，分开的片段以空段落连接。保留原始文本及 UTF-8 byte span，去前缀、块注释装饰性 `*`、公共缩进与 CRLF 归一化不得丢失诊断到原文本的位置映射。没有附着目标的片段保留为文档专有诊断输入；普通编译仍将其视为注释，不因此失败或产生文档 warning。
 

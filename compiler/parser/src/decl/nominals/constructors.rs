@@ -5,7 +5,12 @@ mod parameters;
 impl Parser {
     pub(super) fn parse_primary_constructor(&mut self) -> Result<ClassConstructorDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::PrimaryConstructor, |parser| {
-            parser.parse_primary_constructor_inner()
+            let checkpoint = parser.checkpoint();
+            let declaration = parser.parse_primary_constructor_inner()?;
+            if let ClassConstructorDecl::Declared(constructor) = &declaration {
+                parser.record_declaration_source_span(constructor.span, checkpoint);
+            }
+            Ok(declaration)
         })
     }
 
@@ -33,7 +38,9 @@ impl Parser {
         }
         let explicit_constructor = if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "constructor")
         {
-            Some(self.bump())
+            let keyword = self.bump();
+            self.record_syntax_name("constructor", keyword.span);
+            Some(keyword)
         } else {
             None
         };
@@ -122,7 +129,10 @@ impl Parser {
         visibility: VisibilitySyntax,
     ) -> Result<SecondaryConstructorDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::SecondaryConstructor, |parser| {
-            parser.parse_secondary_constructor_inner(annotations, visibility)
+            let checkpoint = parser.checkpoint();
+            let declaration = parser.parse_secondary_constructor_inner(annotations, visibility)?;
+            parser.record_declaration_source_span(declaration.span, checkpoint);
+            Ok(declaration)
         })
     }
 

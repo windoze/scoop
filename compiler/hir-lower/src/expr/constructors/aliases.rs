@@ -53,9 +53,11 @@ impl Lowerer {
         let Type::Enum(application) = self.types[ty] else {
             unreachable!("alias substitution preserves the enum target");
         };
+        let variant = self.enum_variant_at(application, index);
+        self.observe_variant_reference(name.span, variant);
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                variant: self.enum_variant_at(application, index),
+                variant,
                 args: Vec::new(),
             },
             ty,

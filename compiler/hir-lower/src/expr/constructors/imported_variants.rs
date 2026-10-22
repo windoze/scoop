@@ -135,9 +135,11 @@ impl Lowerer {
             );
             return None;
         }
+        let variant = self.enum_variant_at(application, index as u32);
+        self.observe_variant_reference(name.span, variant);
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                variant: self.enum_variant_at(application, index as u32),
+                variant,
                 args: Vec::new(),
             },
             ty: owner,

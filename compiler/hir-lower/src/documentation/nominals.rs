@@ -210,12 +210,26 @@ impl Lowerer {
                 self.document_declaration(
                     Source::VariantField(field).into(),
                     Some(Source::Variant(id).into()),
-                    Kind::Parameter,
+                    Kind::Field,
                     name.unwrap_or("_"),
                     span,
                     hir::DeclaredVisibility::Public,
                     vec![Part::Source(span)],
                     true,
+                );
+                self.document_declaration(
+                    Source::Parameter {
+                        callable: hir::SourceAnnotationCallable::VariantConstructor(id),
+                        index: index as u32,
+                    }
+                    .into(),
+                    Some(Source::Variant(id).into()),
+                    Kind::Parameter,
+                    name.unwrap_or("_"),
+                    span,
+                    hir::DeclaredVisibility::Public,
+                    vec![Part::Source(span)],
+                    false,
                 );
             }
         }

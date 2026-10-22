@@ -112,7 +112,7 @@ impl DeclarationAnalysis {
                             .callables
                             .iter()
                             .filter(|reference| reference.span == span)
-                            .map(|reference| reference.target)
+                            .filter_map(|reference| reference.target.callable())
                             .collect::<Vec<_>>(),
                         facts
                             .properties

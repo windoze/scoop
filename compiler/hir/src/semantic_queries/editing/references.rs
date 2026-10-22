@@ -9,6 +9,8 @@ use crate::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EditingCallableIdentity {
     Declaration(DefaultCallableDeclarationV1),
+    Constructor(scoop_identity::PersistentConstructorId),
+    Variant(scoop_identity::PersistentEnumVariantId),
     Local(LocalFunctionId),
 }
 

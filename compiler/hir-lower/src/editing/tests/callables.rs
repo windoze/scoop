@@ -20,7 +20,7 @@ fn overload_navigation_uses_the_selected_function_declaration() {
         reference.definition.as_ref().unwrap().span.start as usize,
         text.find("choose").unwrap()
     );
-    let hir::SemanticCallable::Current(target) = reference.target else {
+    let Some(hir::SemanticCallable::Current(target)) = reference.target.callable() else {
         panic!("source function")
     };
     let V::Known(signature) = analysis.signature(target) else {

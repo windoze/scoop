@@ -124,7 +124,9 @@ impl MemberIndex {
             hir::EditingCallableIdentity::Declaration(declaration) => {
                 Some(Member::Callable(declaration))
             }
-            hir::EditingCallableIdentity::Local(_) => None,
+            hir::EditingCallableIdentity::Local(_)
+            | hir::EditingCallableIdentity::Constructor(_)
+            | hir::EditingCallableIdentity::Variant(_) => None,
         }
     }
 

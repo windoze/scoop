@@ -78,7 +78,7 @@ fn recovered_generic_override_and_its_application_share_the_original_signatures(
     assert_eq!(facts.callables.len(), 1);
     assert_eq!(
         facts.callables[0].target,
-        hir::SemanticCallable::Current(method)
+        hir::SemanticCallable::Current(method).into()
     );
 }
 

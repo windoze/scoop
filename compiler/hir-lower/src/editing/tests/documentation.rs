@@ -69,6 +69,44 @@ fn property_declarations_keep_their_own_comment_beside_constructor_parameters() 
 }
 
 #[test]
+fn variant_arguments_read_parameter_tags_without_borrowing_payload_comments() {
+    let text = "enum Event {\n/// @param value The constructor argument.\nData(/** The stored payload. */ val value: Boolean)\n}\nfun editing() { val event = Event.Data(value = true) }";
+    let mut analysis = documented(text, || false).unwrap();
+    let function = function(&analysis, "editing");
+    let start = text.find("value = true").unwrap() as u32;
+    let V::Known(Some(argument)) = analysis
+        .named_argument(function, ast::Span::new(start, start + 5), || false)
+        .unwrap()
+    else {
+        panic!("complete variant argument")
+    };
+    let Some(hir::EditingCallee::CurrentVariant(variant)) = argument.callee else {
+        panic!("the actual source variant")
+    };
+    let field = hir::EnumVariantFieldRef::checked(&analysis.lowerer.enums, variant, 0).unwrap();
+    let docs = analysis.documentation().unwrap();
+    assert!(docs.warnings.is_empty(), "{:?}", docs.warnings);
+    for (target, expected) in [
+        (
+            hir::SourceAnnotationTarget::Parameter {
+                callable: hir::SourceAnnotationCallable::VariantConstructor(variant),
+                index: 0,
+            },
+            "The constructor argument.",
+        ),
+        (
+            hir::SourceAnnotationTarget::VariantField(field),
+            "The stored payload.",
+        ),
+    ] {
+        assert_eq!(
+            scoop_doc::hover_markdown(docs.get(Symbol::Current(target.into())).unwrap(), |_| None),
+            expected
+        );
+    }
+}
+
+#[test]
 fn comments_bind_in_the_declaration_scope_without_checking_bodies() {
     let text = "/// Returns [value]; see [later].\n/// @param value The input.\nfun pass(value: Boolean): Boolean = value\nfun later(): Boolean = missing\nfun broken(value: ) {}";
     let analysis = documented(text, || false).unwrap();

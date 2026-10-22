@@ -93,11 +93,23 @@ fn property_indexes_use_logical_declarations_for_reads_and_writes() {
         Target::Property(hir::PropertyDeclarationId::ExtensionProperty(_))
     ));
     assert_eq!(index.references_to(property).count(), 3);
-    let item = index.targets_at(&origin(text.find("item").unwrap(), 4))[0];
-    assert!(matches!(
-        item,
-        Target::Property(hir::PropertyDeclarationId::Property(_))
-    ));
+    let item_targets = index.targets_at(&origin(text.find("item").unwrap(), 4));
+    let item = *item_targets
+        .iter()
+        .find(|target| {
+            matches!(
+                target,
+                Target::Property(hir::PropertyDeclarationId::Property(_))
+            )
+        })
+        .expect("the stored property keeps its own identity");
+    assert!(item_targets.iter().any(|target| matches!(
+        target,
+        Target::Parameter {
+            callable: Callable::Constructor(_),
+            index: 0
+        }
+    )));
     assert_eq!(index.references_to(item).count(), 2);
 }
 

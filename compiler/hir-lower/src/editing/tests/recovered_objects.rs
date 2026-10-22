@@ -22,7 +22,7 @@ fn recovered_object_methods_keep_members_conformance_and_sibling_bodies() {
         panic!("complete object consumer")
     };
     assert_eq!(facts.callables.len(), 1);
-    let hir::SemanticCallable::Current(healthy) = facts.callables[0].target else {
+    let Some(hir::SemanticCallable::Current(healthy)) = facts.callables[0].target.callable() else {
         panic!("source method")
     };
     assert!(matches!(

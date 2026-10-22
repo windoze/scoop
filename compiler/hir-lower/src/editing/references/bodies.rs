@@ -83,7 +83,7 @@ impl ReferenceBuilder {
             };
             match self
                 .identities
-                .callable(&mut analysis.lowerer, reference.target)
+                .callee(&mut analysis.lowerer, reference.target)
             {
                 Some(target) => self.record(Target::Callable(target), origin, false),
                 None => self.unavailable.push(origin),
@@ -116,7 +116,7 @@ impl ReferenceBuilder {
             }
             let Some(callee) = call
                 .callee
-                .and_then(|callee| self.identities.callable(&mut analysis.lowerer, callee))
+                .and_then(|callee| self.identities.callee(&mut analysis.lowerer, callee))
             else {
                 continue;
             };

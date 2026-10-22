@@ -69,13 +69,13 @@ pub(super) struct ReferenceFailure {
 }
 
 impl ReferenceDeclaration {
-    fn semantic_target(&self) -> Option<hir::SemanticCallable> {
+    fn semantic_target(&self) -> Option<hir::EditingCallee> {
         match self {
-            Self::Local(declaration) => Some(hir::SemanticCallable::Current(
-                declaration.candidate.function,
-            )),
-            Self::Imported(declaration) => declaration.semantic_target(),
-            Self::Constructor(_) => None,
+            Self::Local(declaration) => {
+                Some(hir::SemanticCallable::Current(declaration.candidate.function).into())
+            }
+            Self::Imported(declaration) => declaration.semantic_target().map(Into::into),
+            Self::Constructor(declaration) => declaration.editing_target(),
         }
     }
 
@@ -305,7 +305,7 @@ impl Lowerer {
         ) {
             Ok(target) => {
                 if let Some(semantic_target) = semantic_target {
-                    self.observe_callable_reference(context.span, semantic_target);
+                    self.observe_callee_reference(context.span, semantic_target);
                 }
                 ReferenceResolutionOutcome::Resolved(ResolvedReference {
                     target,

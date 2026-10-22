@@ -6,6 +6,7 @@ use super::*;
 use hir::{EditingReferenceTarget as Target, EditingValue as V};
 
 mod bodies;
+mod constructors;
 mod imports;
 
 #[derive(Default)]
@@ -43,6 +44,7 @@ impl DeclarationAnalysis {
             }
             if self.declarations_ready {
                 builder.types(&self.type_references);
+                builder.constructors(self, &check)?;
                 let properties = self
                     .lowerer
                     .property_name_spans
@@ -60,6 +62,9 @@ impl DeclarationAnalysis {
                         source: self.lowerer.source_identity(file).clone(),
                         span,
                     };
+                    if !self.declaration_scope_available(&origin) {
+                        continue;
+                    }
                     match builder
                         .identities
                         .property(&mut self.lowerer, hir::SemanticProperty::Current(property))

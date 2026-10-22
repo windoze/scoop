@@ -152,9 +152,10 @@ fn description(
         }
         if let Some(reference) =
             semantic::callable_at(analysis, function.function, target, snapshot, cancellation)?
+            && let Some(callable) = reference.target.callable()
         {
             let mut origin = reference.definition;
-            let label = match reference.target {
+            let label = match callable {
                 hir::SemanticCallable::Current(function) => match analysis.signature(function) {
                     EditingValue::Known(signature) => {
                         let label = signature_label(analysis, &signature)?;
@@ -173,7 +174,7 @@ fn description(
                 return Ok(Some(Description {
                     label,
                     documentation: origin.map(|origin| documentation::Query {
-                        symbol: documentation::callable(reference.target),
+                        symbol: documentation::callable(callable),
                         origin,
                     }),
                 }));

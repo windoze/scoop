@@ -238,7 +238,10 @@ impl Parser {
     /// optional constant defaults).
     fn parse_variant(&mut self, annotations: Vec<Annotation>) -> Result<VariantDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::Variant, |parser| {
-            parser.parse_variant_inner(annotations)
+            let checkpoint = parser.checkpoint();
+            let declaration = parser.parse_variant_inner(annotations)?;
+            parser.record_declaration_source_span(declaration.span, checkpoint);
+            Ok(declaration)
         })
     }
 

@@ -66,7 +66,7 @@ fn recovered_interface_defaults_preserve_slot_order_private_scope_and_sibling_bo
     };
     assert_eq!(
         facts.callables[0].target,
-        hir::SemanticCallable::Current(secret)
+        hir::SemanticCallable::Current(secret).into()
     );
     let receiver = analysis.receivers(editing, || false).unwrap()[0].clone();
     assert_eq!(receivers::known_type(&mut analysis, &receiver), "T");

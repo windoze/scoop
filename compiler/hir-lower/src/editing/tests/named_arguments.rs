@@ -50,7 +50,7 @@ fn named_arguments_keep_the_applied_inner_binder_and_original_parameter_owner() 
     );
     assert_eq!(
         inner.callee,
-        Some(hir::SemanticCallable::Current(function(&analysis, "echo")))
+        Some(hir::SemanticCallable::Current(function(&analysis, "echo")).into())
     );
     let outer = argument(&mut analysis, text, "item = input", "item");
     assert_eq!(

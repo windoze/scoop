@@ -27,9 +27,34 @@ pub(in crate::queries::hover) fn parameter(function: hir::FunctionId, index: usi
 }
 
 pub(in crate::queries::hover) fn applied_parameter(
-    callable: hir::SemanticCallable,
+    callee: hir::EditingCallee,
     index: usize,
 ) -> Symbol {
+    use hir::{EditingCallee as C, SemanticConstructor as Constructor};
+    let callable = match callee {
+        C::Callable(callable) => callable,
+        C::Constructor(Constructor::CurrentClass(constructor)) => {
+            return current_parameter(SourceCallable::ClassConstructor(constructor), index);
+        }
+        C::Constructor(Constructor::CurrentStruct(constructor)) => {
+            return current_parameter(SourceCallable::StructConstructor(constructor), index);
+        }
+        C::CurrentVariant(variant) => {
+            return current_parameter(SourceCallable::VariantConstructor(variant), index);
+        }
+        C::Constructor(Constructor::Imported(constructor)) => {
+            return imported_parameter(
+                scoop_identity::CallableTemplateOrigin::Constructor(constructor),
+                index,
+            );
+        }
+        C::ImportedVariant(variant) => {
+            return imported_parameter(
+                scoop_identity::CallableTemplateOrigin::VariantConstructor(variant),
+                index,
+            );
+        }
+    };
     match callable {
         hir::SemanticCallable::Current(function) => {
             current_parameter(SourceCallable::Function(function), index)
@@ -47,6 +72,13 @@ pub(in crate::queries::hover) fn applied_parameter(
             })
         }
     }
+}
+
+fn imported_parameter(callable: scoop_identity::CallableTemplateOrigin, index: usize) -> Symbol {
+    Symbol::Imported(hir::AnnotationTargetV1::Parameter {
+        callable: hir::AnnotationCallableV1::Declaration(callable),
+        index: index as u32,
+    })
 }
 
 fn current_parameter(callable: SourceCallable, index: usize) -> Symbol {

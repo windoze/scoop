@@ -34,6 +34,13 @@ impl SemanticSession {
             source: file.identity.clone(),
             span,
         };
+        let declaration_span = snapshot
+            .source(source)?
+            .ok_or(ProjectAnalysisError::MissingSource(source))?
+            .declaration_source_span(span)
+            .map_err(|error| {
+                ProjectAnalysisError::Declarations(DeclarationAnalysisError::SourceLength(*error))
+            })?;
         let revision = snapshot.clone();
         let check: Rc<dyn Fn() -> bool> =
             Rc::new(move || is_cancelled() || revision.check_cancelled().is_err());
@@ -45,11 +52,19 @@ impl SemanticSession {
                 .project_declarations(snapshot, project, current, check.clone())
                 .map_err(Clone::clone)?;
             let cancellation = check.clone();
-            analysis
+            let index = analysis
                 .reference_index(move || cancellation())
-                .map_err(|_| ProjectAnalysisError::Cancelled)?
-                .targets_at(&origin)
-                .to_vec()
+                .map_err(|_| ProjectAnalysisError::Cancelled)?;
+            let mut targets = index.targets_at(&origin).to_vec();
+            if let Some(span) = declaration_span.filter(|span| *span != origin.span) {
+                let declaration = SemanticSourceLocation { span, ..origin };
+                for target in index.targets_at(&declaration) {
+                    if !targets.contains(target) {
+                        targets.push(*target);
+                    }
+                }
+            }
+            targets
         };
         if targets.is_empty() {
             return Ok(None);

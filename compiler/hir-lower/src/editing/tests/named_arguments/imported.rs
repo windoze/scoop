@@ -44,7 +44,9 @@ fn imported_named_arguments_keep_the_original_parameter_after_alias_and_reorderi
         assert_eq!(argument.index, index);
         assert!(matches!(
             argument.callee,
-            Some(hir::SemanticCallable::Imported(_))
+            Some(hir::EditingCallee::Callable(
+                hir::SemanticCallable::Imported(_)
+            ))
         ));
         assert_eq!(
             type_name(&mut analysis, &argument, argument.parameter.value_type),

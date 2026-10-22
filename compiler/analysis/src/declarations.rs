@@ -56,6 +56,24 @@ impl SourceInput {
             .map(|name| name.span))
     }
 
+    /// Read the original declaration range attached to this exact name token.
+    pub fn declaration_source_span(
+        &self,
+        name: scoop_source::Span,
+    ) -> Result<Option<scoop_source::Span>, &scoop_source::SourceLengthError> {
+        Ok(self
+            .parse()?
+            .declarations()
+            .iter()
+            .find(|declaration| {
+                declaration
+                    .name
+                    .as_ref()
+                    .is_some_and(|item| item.span == name)
+            })
+            .and_then(|declaration| declaration.source_span))
+    }
+
     pub fn declaration_source<'a>(
         &'a self,
         identity: &'a SourceIdentity,

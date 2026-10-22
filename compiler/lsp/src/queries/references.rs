@@ -41,10 +41,15 @@ pub(crate) fn references(
         snapshot
             .check_cancelled()
             .map_err(|_| semantic::cancelled())?;
-        if (include_declaration || !reference.is_declaration)
-            && let Some(location) =
-                semantic::location(snapshot, cursor.project, &reference.origin, settings)?
-        {
+        if reference.is_declaration && !include_declaration {
+            continue;
+        }
+        let location = if reference.is_declaration {
+            convert::definition_location(snapshot, cursor.project, &reference.origin, settings)?
+        } else {
+            semantic::location(snapshot, cursor.project, &reference.origin, settings)?
+        };
+        if let Some(location) = location {
             locations.push(location);
         }
     }

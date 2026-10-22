@@ -193,6 +193,7 @@ impl SyntaxKind {
                 | Self::Parameter
                 | Self::TypeParameter
                 | Self::Variant
+                | Self::PrimaryConstructor
                 | Self::SecondaryConstructor
                 | Self::StructDecl
                 | Self::ClassDecl

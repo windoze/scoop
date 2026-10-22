@@ -9,6 +9,7 @@ use crate::{CoreProtocolInput, Lowerer, SourceKind, SourceProvider};
 mod bodies;
 mod callables;
 pub(crate) mod candidates;
+mod constructors;
 mod definitions;
 mod identities;
 mod implementations;

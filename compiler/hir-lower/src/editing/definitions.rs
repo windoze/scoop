@@ -1,5 +1,5 @@
 use super::*;
-use hir::{EditingValue as V, ImportedCallableSource};
+use hir::EditingValue as V;
 
 impl DeclarationAnalysis {
     pub fn argument_definition(
@@ -39,7 +39,7 @@ impl DeclarationAnalysis {
         if let Some(argument) = &mut selected {
             argument.definition = argument.callee.and_then(|callee| {
                 self.lowerer
-                    .editing_parameter_origin(callee, argument.index)
+                    .editing_callee_parameter_origin(callee, argument.index)
             });
         }
         Ok(V::Known(selected))
@@ -68,7 +68,7 @@ impl Lowerer {
         }
     }
 
-    fn editing_parameter_origin(
+    pub(super) fn editing_parameter_origin(
         &self,
         callable: hir::SemanticCallable,
         parameter: usize,
@@ -91,18 +91,7 @@ impl Lowerer {
                     D::GenericFunction(id) => Origin::GenericFunction(id),
                     _ => return None,
                 };
-                let declaration = self
-                    .dependencies
-                    .as_ref()?
-                    .callable_declaration(identity)
-                    .ok()?;
-                let parameter = declaration
-                    .source_interface()?
-                    .parameters()
-                    .parameters()
-                    .get(parameter)?;
-                crate::semantic_queries::imported_location(parameter.definition_origin().origin())
-                    .ok()
+                self.editing_imported_parameter_origin(identity, parameter)
             }
             C::CurrentGetter(_) | C::CurrentSetter(_) => None,
         }

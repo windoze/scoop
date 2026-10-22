@@ -73,13 +73,17 @@ fn imported_hovers_preserve_declaration_binders_and_default_origins() {
         &provider[origin.span.start as usize..origin.span.end as usize],
         "value"
     );
+    let references = references
+        .into_iter()
+        .filter(|reference| reference.target.callable().is_some())
+        .collect::<Vec<_>>();
     assert_eq!(references.len(), 8);
     for reference in references {
-        let hir::SemanticCallable::Imported(callable) = reference.target else {
+        let Some(hir::SemanticCallable::Imported(callable)) = reference.target.callable() else {
             panic!("imported call");
         };
         let signature = analysis.imported_signature(callable).unwrap().unwrap();
-        assert_eq!(signature.function, reference.target);
+        assert_eq!(Some(signature.function), reference.target.callable());
         assert_eq!(
             signature.origin.source.cone(),
             if signature.name == "equals" {

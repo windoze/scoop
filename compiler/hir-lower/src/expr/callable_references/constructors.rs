@@ -49,6 +49,17 @@ pub(super) struct ConstructorReferenceDeclaration {
 }
 
 impl ConstructorReferenceDeclaration {
+    pub(in crate::expr::callable_references) fn editing_target(
+        &self,
+    ) -> Option<hir::EditingCallee> {
+        match &self.candidate.source {
+            ConstructorReferenceSource::Local(source) => Lowerer::editing_nominal_callee(*source),
+            ConstructorReferenceSource::Imported(declaration) => {
+                Lowerer::editing_imported_construction_callee(declaration.interface().declaration())
+            }
+        }
+    }
+
     pub(super) fn signature(&self, state: &Lowerer, name: &str) -> String {
         let binders = &self.signature.callable_parameters;
         let parameters = self

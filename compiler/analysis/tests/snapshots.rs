@@ -131,6 +131,50 @@ fn definition_names_require_exact_grammar_declaration_ranges() {
 }
 
 #[test]
+fn constructor_and_variant_names_share_exact_bidirectional_source_ranges() {
+    use scoop_source::Span;
+    let mut host = AnalysisHost::default();
+    let input = "struct 数据(@Tag val 元素: Boolean)\nclass 对象 @Tag constructor(@Tag val 参数: Boolean) {\n@Tag constructor(另一个: String): this(true) {}\n}\nenum 选项 { @Tag 内容(@Tag val 负载: Boolean), 名称 { 名: Boolean } }\nfun broken(value: ) {}";
+    let id = host.add_source(text(input));
+    let source = host.source(id).unwrap();
+    for (declaration, name) in [
+        ("val 元素: Boolean", "元素"),
+        ("@Tag constructor(@Tag val 参数: Boolean)", "constructor"),
+        ("val 参数: Boolean", "参数"),
+        (
+            "@Tag constructor(另一个: String): this(true) {}",
+            "constructor",
+        ),
+        ("另一个: String", "另一个"),
+        ("内容(@Tag val 负载: Boolean)", "内容"),
+        ("val 负载: Boolean", "负载"),
+        ("名称 { 名: Boolean }", "名称"),
+        ("名: Boolean", "名"),
+    ] {
+        let start = input.find(declaration).unwrap() as u32;
+        let range = Span::new(start, start + declaration.len() as u32);
+        let name_start = start + declaration.find(name).unwrap() as u32;
+        let token = Span::new(name_start, name_start + name.len() as u32);
+        assert_eq!(
+            source.declaration_name_span(range).unwrap(),
+            Some(token),
+            "{declaration}"
+        );
+        assert_eq!(
+            source.declaration_source_span(token).unwrap(),
+            Some(range),
+            "{declaration}"
+        );
+        assert_eq!(
+            source
+                .declaration_source_span(Span::new(token.start, token.end - 1))
+                .unwrap(),
+            None
+        );
+    }
+}
+
+#[test]
 fn recovered_nominal_names_use_the_original_nested_declaration_ranges() {
     use scoop_source::Span;
     let mut host = AnalysisHost::default();

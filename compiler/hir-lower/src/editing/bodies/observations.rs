@@ -41,6 +41,12 @@ pub(crate) struct ObservedBody {
     pub(super) contexts: imbl::HashMap<hir::SourceContextId, ObservedContext>,
 }
 
+impl ObservedBody {
+    pub(in crate::editing) fn available(&self) -> bool {
+        matches!(self.facts, V::Known(_))
+    }
+}
+
 impl BodyObservation {
     pub(super) fn new(
         function: hir::FunctionId,

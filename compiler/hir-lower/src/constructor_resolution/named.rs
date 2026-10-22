@@ -259,6 +259,9 @@ impl Lowerer {
             },
             sink,
         )?;
+        if let Some(target) = Self::editing_nominal_callee(winner.source) {
+            self.observe_callee_reference(span, target);
+        }
         Some(ResolvedNominalConstructor {
             source: winner.source,
             type_args,

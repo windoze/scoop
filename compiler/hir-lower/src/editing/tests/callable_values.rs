@@ -53,8 +53,8 @@ fn callable_values_keep_selected_source_declarations_and_name_ranges() {
             text.find(name).unwrap()
         );
         assert!(matches!(
-            reference.target,
-            hir::SemanticCallable::Current(_)
+            reference.target.callable(),
+            Some(hir::SemanticCallable::Current(_))
         ));
     }
 }

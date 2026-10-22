@@ -2,6 +2,8 @@
 
 use crate::{FunctionId, SemanticSourceLocation, Span, TypeId};
 
+mod callees;
+pub use callees::*;
 mod candidates;
 pub use candidates::*;
 mod implementations;
@@ -151,7 +153,7 @@ pub struct EditingBodyFacts {
 #[derive(Clone, Debug)]
 pub struct EditingCallableReference {
     pub span: Span,
-    pub target: crate::SemanticCallable,
+    pub target: EditingCallee,
     pub definition: Option<SemanticSourceLocation>,
 }
 
@@ -162,7 +164,7 @@ pub struct EditingAppliedCall {
     pub callee_span: Option<Span>,
     pub callee_end: u32,
     pub name: Option<String>,
-    pub callee: Option<crate::SemanticCallable>,
+    pub callee: Option<EditingCallee>,
     pub context: crate::SourceContextId,
     pub parameters: Vec<EditingAppliedParameter>,
     pub arguments: Vec<EditingCallArgument>,
@@ -189,7 +191,7 @@ pub struct EditingCallArgument {
 pub struct EditingNamedArgument {
     pub parameter: EditingAppliedParameter,
     pub index: usize,
-    pub callee: Option<crate::SemanticCallable>,
+    pub callee: Option<EditingCallee>,
     pub context: crate::SourceContextId,
     pub definition: Option<SemanticSourceLocation>,
 }

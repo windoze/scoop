@@ -90,20 +90,26 @@ impl Lowerer {
         span: ast::Span,
         target: hir::SemanticCallable,
     ) {
+        self.observe_callee_reference(span, target.into());
+    }
+
+    pub(crate) fn observe_callee_reference(&mut self, span: ast::Span, target: hir::EditingCallee) {
         if !self.observes_current_body() {
             return;
         }
-        let Some(span) = self
-            .editing_body
-            .as_ref()
-            .expect("active query")
-            .callable_names
-            .get(&span)
-            .copied()
-        else {
+        let body = self.editing_body.as_ref().expect("active query");
+        let Some(span) = body.callable_names.get(&span).copied().or_else(|| {
+            if matches!(target, hir::EditingCallee::Callable(_)) {
+                return None;
+            }
+            body.call_inputs
+                .get(&span)
+                .and_then(|input| input.callee)
+                .or_else(|| body.property_names.get(&span).copied())
+        }) else {
             return;
         };
-        let definition = self.editing_callable_origin(target);
+        let definition = self.editing_callee_origin(target);
         self.editing_body
             .as_mut()
             .expect("active query")

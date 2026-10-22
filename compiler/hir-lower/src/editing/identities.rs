@@ -11,6 +11,36 @@ pub(super) struct DeclarationIdentities {
 }
 
 impl DeclarationIdentities {
+    pub(super) fn callee(
+        &mut self,
+        lowerer: &mut Lowerer,
+        callee: hir::EditingCallee,
+    ) -> Option<Callable> {
+        use hir::{EditingCallee as C, SemanticConstructor as Constructor};
+        Some(match callee {
+            C::Callable(callable) => return self.callable(lowerer, callable),
+            C::Constructor(Constructor::CurrentClass(constructor)) => Callable::Constructor(
+                lowerer
+                    .query_class_constructor_identity(constructor)
+                    .ok()?
+                    .id(),
+            ),
+            C::Constructor(Constructor::CurrentStruct(constructor)) => Callable::Constructor(
+                lowerer
+                    .query_struct_constructor_identity(constructor)
+                    .ok()?
+                    .id(),
+            ),
+            C::Constructor(Constructor::Imported(constructor)) => {
+                Callable::Constructor(constructor)
+            }
+            C::CurrentVariant(variant) => {
+                Callable::Variant(lowerer.enum_member_identities.as_ref()?[variant].id())
+            }
+            C::ImportedVariant(variant) => Callable::Variant(variant),
+        })
+    }
+
     pub(super) fn callable(
         &mut self,
         lowerer: &mut Lowerer,

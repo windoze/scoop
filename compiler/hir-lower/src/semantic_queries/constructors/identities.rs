@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn query_struct_constructor_identity(
+    pub(crate) fn query_struct_constructor_identity(
         &mut self,
         constructor: hir::StructConstructorId,
     ) -> Result<hir::HirSourceConstructorIdentity, Diagnostic> {
@@ -27,7 +27,7 @@ impl Lowerer {
         Ok(record)
     }
 
-    pub(super) fn query_class_constructor_identity(
+    pub(crate) fn query_class_constructor_identity(
         &mut self,
         constructor: hir::ClassConstructorId,
     ) -> Result<hir::HirSourceConstructorIdentity, Diagnostic> {

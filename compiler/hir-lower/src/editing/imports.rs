@@ -49,7 +49,12 @@ impl DeclarationAnalysis {
                 None => self
                     .lowerer
                     .editing_import_type_target(binding)
-                    .and_then(|target| self.lowerer.editing_type_origin(target)),
+                    .and_then(|target| self.lowerer.editing_type_origin(target))
+                    .or_else(|| {
+                        self.lowerer
+                            .editing_import_variant(binding)
+                            .and_then(|target| self.lowerer.editing_callee_origin(target))
+                    }),
             };
             if let Some(origin) = origin
                 && !definitions.contains(&origin)
@@ -65,6 +70,34 @@ impl DeclarationAnalysis {
 }
 
 impl Lowerer {
+    pub(super) fn editing_import_variant(
+        &self,
+        binding: &ImportedTargetBinding,
+    ) -> Option<hir::EditingCallee> {
+        match binding {
+            ImportedTargetBinding::CurrentCone { binding, .. } => {
+                if !matches!(
+                    self.imports.binding(*binding).target,
+                    CurrentUnitTarget::EnumVariant(_) | CurrentUnitTarget::SourceVariant(_)
+                ) {
+                    return None;
+                }
+                let ValueTarget::Variant(variant) =
+                    self.materialized_value_target(&ValueOrigin::CurrentUnit(*binding))?
+                else {
+                    return None;
+                };
+                Some(hir::EditingCallee::CurrentVariant(variant))
+            }
+            ImportedTargetBinding::DirectDependency(binding) => {
+                let hir::ImportedTarget::EnumVariant(variant) = binding.target() else {
+                    return None;
+                };
+                Some(hir::EditingCallee::ImportedVariant(variant.persistent()))
+            }
+        }
+    }
+
     pub(super) fn editing_import_member(&self, binding: &ImportedTargetBinding) -> Option<Member> {
         Some(match binding {
             ImportedTargetBinding::CurrentCone { binding, .. } => {

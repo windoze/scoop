@@ -66,6 +66,7 @@ impl Parser {
         doc_start: usize,
         vararg_span: &mut Option<Span>,
     ) -> Result<VariantFieldDecl, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let modifier_span = self.parse_vararg_modifier(vararg_span)?;
         if matches!(self.peek().kind, TokenKind::Var) {
             return Err(Diagnostic::at(
@@ -81,6 +82,7 @@ impl Parser {
         let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
         let span = Span::new(modifier_span.map_or(val.span.start, |span| span.start), end);
         self.attach_documentation(doc_start, span);
+        self.record_declaration_source_span(span, checkpoint);
         Ok(VariantFieldDecl {
             annotations,
             name,
@@ -108,6 +110,7 @@ impl Parser {
     }
 
     fn parse_named_variant_field(&mut self) -> Result<VariantFieldDecl, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let doc_start = self.pos;
         let annotations = self.parse_annotations()?;
         let name = self.expect_ident("field name")?;
@@ -122,6 +125,7 @@ impl Parser {
         }
         let span = Span::new(name.span.start, ty.span.end);
         self.attach_documentation(doc_start, span);
+        self.record_declaration_source_span(span, checkpoint);
         Ok(VariantFieldDecl {
             annotations,
             name,

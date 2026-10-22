@@ -135,12 +135,26 @@ fn m60_documentation_has_variants_payloads_annotations_and_nested_owners() {
     )
     .unwrap();
     let docs = output.output().documentation.as_ref().unwrap();
-    assert_eq!(docs.warnings.len(), 1, "{:?}", docs.warnings);
+    assert!(docs.warnings.is_empty(), "{:?}", docs.warnings);
     let value = comment(&output, Kind::Variant, "Value");
     assert!(matches!(
         current(&value.body.references[0].resolution),
-        Target::Declaration(Source::VariantField(_))
+        Target::Declaration(Source::Parameter {
+            callable: Callable::VariantConstructor(_),
+            index: 0,
+        })
     ));
+    assert!(matches!(
+        value.tags[0].kind,
+        Tag::Param(Target::Declaration(Source::Parameter {
+            callable: Callable::VariantConstructor(_),
+            index: 0,
+        }))
+    ));
+    assert_eq!(
+        comment(&output, Kind::Field, "value").body.text.text,
+        "Payload text."
+    );
     assert!(matches!(
         comment(&output, Kind::Annotation, "Note").tags[0].kind,
         Tag::Param(Target::AnnotationParameter { .. })
