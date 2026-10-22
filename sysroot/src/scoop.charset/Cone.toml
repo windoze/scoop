@@ -27,6 +27,8 @@ kind = "static"
 [[native.sources]]
 path = "native/normalize.c"
 [[native.sources]]
+path = "native/unicode.c"
+[[native.sources]]
 path = "native/names.c"
 [[native.sources]]
 path = "native/create.c"

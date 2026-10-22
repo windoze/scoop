@@ -149,6 +149,13 @@ TTY 与通知 fd 属于同一个 opaque owner；同步 poll 和 libuv poll 分�
 
 File.size()／position() 和同步 socket 的地址／选项查询访问当前 OS 状态，可能失败，因此采用函数。isClosed 只读取对象自身状态，保持属性；FileMetadata.size 等已取得的值也保持属性。
 
+文件协调提供 `File.lock(shared = false)`、`tryLock(shared = false)`、`unlock()`
+与作用域 `withLock(shared = false) { ... }`。Unix 使用 flock advisory 整文件锁：
+排他锁互斥，共享锁允许并行读取；tryLock 仅竞争失败返回 false，其他 OS 错误传播，
+阻塞操作重试 EINTR。锁与打开的文件描述关联，复制 descriptor 共享锁，最后关闭释放。
+withLock 在正文所有出口解锁，正文与解锁同时失败沿 ResourceUseException；
+调用者不得嵌套或并发操作同一 owner 的锁作用域。它不阻止不遵循锁协议的其他写入者。
+
 ### 6.2 文件系统操作
 
 `scoop.platform.fs` 提供 Path 扩展 readAllBytes/readText/readTextLossy、writeAllBytes/writeText、copyTo(destination, replaceExisting = false)、moveTo(destination, replaceExisting = false)、delete/deleteRecursively、metadata/exists、createDirectory/createDirectories、readSymbolicLink/createSymbolicLink(target)、canonicalize、entries。接收者是被读取、修改或作为源的 Path；File.open(path, options) 仍负责创建文件句柄。createTempFile/createTempDirectory 是同 package 的顶层工厂。普通 import 即可使用这些入口，不保留 Files 工具 object。
@@ -226,6 +233,10 @@ ConditionVariable(mutex: Mutex) 保活并绑定一个 Mutex，提供 await()、a
 依据：[POSIX mutex 销毁前提](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_mutex_destroy.html)、[条件等待](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_cond_clockwait.html)、[Darwin 相对条件等待](https://github.com/apple-oss-distributions/libpthread/blob/main/src/pthread_cond.c)。这些 API 复用既有 callback、Context、原子与 GC 合同，不新增线程 runtime 协议或强制停止机制。
 
 ## 11. 匿名管道与子进程
+
+`scoop.platform.process.suspendCurrentProcess()` 在 Unix 向本进程发送 SIGTSTP，
+按操作系统 job-control 规则暂停，收到 SIGCONT 后返回。调用者先恢复终端模式；
+被忽略/屏蔽的信号及 orphan process group 沿 OS 行为，不改写进程信号处理策略。
 
 ### 11.1 管道与命令快照
 

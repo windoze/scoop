@@ -1,0 +1,62 @@
+package scoop.readline.history
+
+import scoop.readline.Config
+import scoop.text.*
+
+/** Bounded, in-memory history with configurable consecutive-duplicate and space filtering. */
+public class MemoryHistory public constructor(config: Config = Config()) : History {
+    private val entries: ArrayList<String> = ArrayList<String>()
+    internal var maxLength: Long = config.maxHistorySize
+    internal var ignoreDuplicates: Boolean = config.historyIgnoreDuplicates
+    internal var ignoreSpace: Boolean = config.historyIgnoreSpace
+    private val caseSensitive: Boolean = config.historyCaseSensitive
+
+    public override val size: Long get() = entries.size
+
+    public override fun get(index: Long, direction: SearchDirection): SearchResult? =
+        if (index < 0L || index >= size) None else Some(SearchResult(entries[index], index, 0L))
+
+    public override fun add(line: String): Boolean {
+        if (maxLength == 0L || line.byteLength == 0L) return false
+        if (ignoreSpace && line[0L].toString().isBlank()) return false
+        if (ignoreDuplicates && size > 0L && entries[size - 1L] == line) return false
+        if (size == maxLength) entries.removeAt(0L)
+        entries.add(line)
+        return true
+    }
+
+    public override fun clear() { entries.clear() }
+    public override fun setMaxLength(length: Long) {
+        if (length < 0L) throw IllegalArgumentException(Some("negative history length"))
+        maxLength = length
+        while (size > length) entries.removeAt(0L)
+    }
+    public override fun setIgnoreDuplicates(ignore: Boolean) { ignoreDuplicates = ignore }
+    public override fun setIgnoreSpace(ignore: Boolean) { ignoreSpace = ignore }
+    public override fun search(term: String, start: Long, direction: SearchDirection): SearchResult? =
+        findMatch(term, start, direction, false)
+    public override fun startsWith(term: String, start: Long, direction: SearchDirection): SearchResult? =
+        findMatch(term, start, direction, true)
+
+    private fun findMatch(term: String, start: Long, direction: SearchDirection, prefix: Boolean): SearchResult? {
+        if (term.byteLength == 0L || start < 0L || start >= size) return None
+        var index = start
+        while (index >= 0L && index < size) {
+            val entry = entries[index]
+            val position = if (!caseSensitive) foldedMatch(entry, term, prefix) else if (prefix) {
+                if (entry.startsWith(term)) term.length else -1L
+            } else entry.indexOf(term)
+            if (position >= 0L) return Some(SearchResult(entry, index, position))
+            index += if (direction == SearchDirection.Forward) 1L else -1L
+        }
+        return None
+    }
+
+    /** Returns an independent snapshot, from oldest to newest. */
+    public fun toArray(): Array<String> = entries.toArray()
+
+    internal fun emptyCopy(): MemoryHistory = MemoryHistory(Config(
+        maxHistorySize = maxLength, historyIgnoreDuplicates = ignoreDuplicates,
+        historyIgnoreSpace = ignoreSpace, historyCaseSensitive = caseSensitive
+    ))
+}

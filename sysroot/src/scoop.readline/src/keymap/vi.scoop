@@ -1,0 +1,111 @@
+package scoop.readline
+
+import scoop.terminal.event.*
+
+internal fun viMotion(character: Char, count: Long): Movement? = when (character) {
+    'h' -> Some(Movement.BackwardChar(count))
+    'l', ' ' -> Some(Movement.ForwardChar(count))
+    '0' -> Some(Movement.BeginningOfLine)
+    '^' -> Some(Movement.FirstNonBlank)
+    '$' -> Some(Movement.EndOfLine)
+    'b' -> Some(Movement.BackwardWord(count, Word.Vi))
+    'B' -> Some(Movement.BackwardWord(count, Word.Big))
+    'w' -> Some(Movement.ForwardWord(count, Word.Vi, WordEnd.Start))
+    'W' -> Some(Movement.ForwardWord(count, Word.Big, WordEnd.Start))
+    'e' -> Some(Movement.ForwardWord(count, Word.Vi, WordEnd.BeforeEnd))
+    'E' -> Some(Movement.ForwardWord(count, Word.Big, WordEnd.BeforeEnd))
+    'j', '+' -> Some(Movement.LineDown(count))
+    'k', '-' -> Some(Movement.LineUp(count))
+    else -> None
+}
+
+internal fun viOperator(operation: Char, movement: Movement): Command = when (operation) {
+    'd' -> Command.Kill(movement)
+    'c' -> Command.Change(movement)
+    'y' -> Command.Copy(movement)
+    '>' -> Command.Indent(movement)
+    '<' -> Command.Dedent(movement)
+    else -> Command.Unknown
+}
+
+internal fun viCommand(state: KeyMap, key: KeyEvent, count: Long, explicitCount: Boolean): Command {
+    val control = controlCharacter(key)
+    if (control == Some('r')) return Command.Redo(count)
+    if (control != None) return emacsCommand(key, count, false)
+    val keyChar = keyCharacter(key)
+    if (keyChar == None) return emacsCommand(key, count, false)
+    val character = keyChar!!
+    val find = state.findOperation
+    if (find != None) {
+        state.findOperation = None
+        val movement = Movement.Find(character, state.operatorCount, find == Some('f') || find == Some('t'), find == Some('t') || find == Some('T'))
+        state.lastFind = Some(movement)
+        val operation = state.pending
+        state.pending = None
+        return if (operation == None) Command.Move(movement) else viOperator(operation!!, movement)
+    }
+    if (state.pending == Some('r')) {
+        state.pending = None
+        return Command.ReplaceChar(character, state.operatorCount)
+    }
+    if (state.pending != None) {
+        val operation = state.pending!!
+        if (count > Long.MAX_VALUE / state.operatorCount) throw ArithmeticException()
+        val repeated = count * state.operatorCount
+        if (character == 'f' || character == 'F' || character == 't' || character == 'T') {
+            state.findOperation = Some(character)
+            state.operatorCount = repeated
+            return Command.Noop
+        }
+        state.pending = None
+        if (character == operation) return viOperator(operation, Movement.WholeLine(repeated))
+        var motion = viMotion(character, repeated)
+        if (operation == 'c' && (character == 'w' || character == 'W')) {
+            motion = Some(Movement.ForwardWord(repeated, if (character == 'w') Word.Vi else Word.Big))
+        }
+        return if (motion == None) Command.Unknown else viOperator(operation, motion!!)
+    }
+    if (character == 'j' || character == '+' || character == 'k' || character == '-') {
+        return Command.NavigateHistory(character == 'k' || character == '-', count)
+    }
+    val motion = viMotion(character, count)
+    if (motion != None) return Command.Move(motion!!)
+    return when (character) {
+        'i' -> Command.SetViMode(ViMode.Insert)
+        'I' -> Command.Sequence([Command.Move(Movement.FirstNonBlank), Command.SetViMode(ViMode.Insert)])
+        'a' -> Command.Sequence([Command.SetViMode(ViMode.Insert), Command.Move(Movement.ForwardChar())])
+        'A' -> Command.Sequence([Command.SetViMode(ViMode.Insert), Command.Move(Movement.EndOfLine)])
+        'R' -> Command.SetViMode(ViMode.Replace)
+        'r', 'd', 'c', 'y', '>', '<' -> { state.pending = Some(character); state.operatorCount = count; Command.Noop }
+        'f', 'F', 't', 'T' -> { state.findOperation = Some(character); state.operatorCount = count; Command.Noop }
+        ';' -> when (val find = state.lastFind) {
+            case Some(Movement.Find(c, _, forward, till)) -> Command.Move(Movement.Find(c, count, forward, till))
+            else -> Command.Unknown
+        }
+        ',' -> when (val find = state.lastFind) {
+            case Some(Movement.Find(c, _, forward, till)) -> Command.Move(Movement.Find(c, count, !forward, till))
+            else -> Command.Unknown
+        }
+        'x' -> Command.Kill(Movement.ForwardChar(count))
+        'X' -> Command.Kill(Movement.BackwardChar(count))
+        'D' -> Command.Kill(Movement.EndOfLine)
+        'C' -> Command.Change(Movement.EndOfLine)
+        's' -> Command.Change(Movement.ForwardChar(count))
+        'S' -> Command.Change(Movement.WholeLine(count))
+        'Y' -> Command.Copy(Movement.WholeLine(count))
+        'p' -> Command.Yank(count, Anchor.After)
+        'P' -> Command.Yank(count, Anchor.Before)
+        'u' -> Command.Undo(count)
+        'U' -> Command.Undo(Long.MAX_VALUE)
+        '.' -> Command.RepeatLastChange(if (explicitCount) Some(count) else None)
+        '/' -> Command.ForwardSearchHistory
+        '?' -> Command.ReverseSearchHistory
+        'n' -> Command.HistorySearchForward
+        'N' -> Command.HistorySearchBackward
+        'G' -> Command.EndOfHistory
+        'g' -> Command.BeginningOfHistory
+        'o' -> Command.OpenLine(false)
+        'O' -> Command.OpenLine(true)
+        else -> Command.Unknown
+    }
+}

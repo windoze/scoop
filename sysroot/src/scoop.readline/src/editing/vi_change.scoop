@@ -1,0 +1,64 @@
+package scoop.readline
+
+internal class ViChange(val before: BufferState) {
+    val commands: ArrayList<Command> = ArrayList<Command>()
+    fun add(command: Command) {
+        val normalized = when (command) {
+            case Overwrite(character) -> Command.Replace(Movement.ForwardChar(), character.toString())
+            else -> command
+        }
+        if (commands.size > 0L) {
+            val previous = commands[commands.size - 1L]
+            val combined = combineInput(previous, normalized)
+            when (combined) {
+                case Some(value) -> { commands[commands.size - 1L] = value; return }
+                case None -> commands.add(normalized)
+            }
+        } else commands.add(normalized)
+    }
+}
+
+internal fun EditingSession.recordViChange(command: Command, before: BufferState, previousMode: ViMode, result: EditResult) {
+    var current = viChange
+    val changed = before.text != line
+    if ((when (current) { case None -> true; case Some(_) -> false }) &&
+        keys.mode != ViMode.Command && (previousMode == ViMode.Command || changed)) {
+        val group = ViChange(before)
+        if (previousMode != ViMode.Command) group.commands.add(Command.SetViMode(previousMode))
+        current = Some(group)
+        viChange = current
+    }
+    when (current) {
+        case Some(group) -> {
+            group.add(command)
+            if (keys.mode == ViMode.Command || (result != EditResult.Continue && result != EditResult.Suspended)) finishViChange()
+        }
+        case None -> {
+            undo.record(before, buffer.state(), false)
+            if (changed) lastChange = Some(command)
+        }
+    }
+}
+
+internal fun EditingSession.finishViChange() {
+    when (viChange) {
+        case Some(group) -> {
+            viChange = None
+            undo.record(group.before, buffer.state(), false)
+            if (group.before.text != line) lastChange = Some(Command.Sequence(group.commands.toArray()))
+        }
+        case None -> return
+    }
+}
+
+private fun combineInput(previous: Command, current: Command): Command? = when (previous) {
+    case Insert(text, 1L) -> when (current) {
+        case Insert(next, 1L) -> Some(Command.Insert(text + next))
+        else -> None
+    }
+    case Replace(Movement.ForwardChar(count), text) -> when (current) {
+        case Replace(Movement.ForwardChar(nextCount), next) -> Some(Command.Replace(Movement.ForwardChar(count + nextCount), text + next))
+        else -> None
+    }
+    else -> None
+}

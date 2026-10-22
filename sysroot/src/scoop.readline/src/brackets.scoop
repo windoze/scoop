@@ -1,0 +1,54 @@
+package scoop.readline
+
+internal fun closingBracket(character: Char): Char? = when (character) {
+    '(' -> Some(')'); '[' -> Some(']'); '{' -> Some('}'); else -> None
+}
+
+internal fun openingBracket(character: Char): Char? = when (character) {
+    ')' -> Some('('); ']' -> Some('['); '}' -> Some('{'); else -> None
+}
+
+/** Validates balanced (), [] and {}, without imposing a programming-language lexer. */
+public class MatchingBracketValidator public constructor() : Validator {
+    public override fun validate(input: String): ValidationResult {
+        val stack = ArrayList<Char>()
+        for (character in input) {
+            if (closingBracket(character) != None) stack.add(character)
+            else if (openingBracket(character) != None) {
+                if (stack.size == 0L || stack[stack.size - 1L] != openingBracket(character)!!) {
+                    return ValidationResult.Invalid(Some("mismatched closing bracket: " + character.toString()))
+                }
+                stack.removeAt(stack.size - 1L)
+            }
+        }
+        return if (stack.size == 0L) ValidationResult.Valid() else ValidationResult.Incomplete
+    }
+}
+
+/** Highlights the matching bracket adjacent to the cursor in bold blue. */
+public class MatchingBracketHighlighter public constructor() : Highlighter {
+    public override fun highlight(line: String, cursor: Long): String {
+        if (line.byteLength == 0L) return line
+        var index = if (cursor == line.length) cursor - 1L else cursor
+        if (closingBracket(line[index]) == None && openingBracket(line[index]) == None) {
+            if (index == 0L) return line
+            index -= 1L
+        }
+        val source = line[index]
+        val forward = closingBracket(source) != None
+        val target = if (forward) closingBracket(source) else openingBracket(source)
+        if (target == None) return line
+        var depth = 1L
+        index += if (forward) 1L else -1L
+        while (index >= 0L && index < line.length) {
+            if (line[index] == source) depth += 1L
+            else if (line[index] == target!!) depth -= 1L
+            if (depth == 0L) {
+                return line.slice(0L, index) + "\u001b[1;34m" + line[index].toString() +
+                    "\u001b[0m" + line.slice(index + 1L, line.length)
+            }
+            index += if (forward) 1L else -1L
+        }
+        return line
+    }
+}

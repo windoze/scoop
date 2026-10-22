@@ -1,0 +1,31 @@
+package scoop.platform.fs
+
+import scoop.test.*
+
+@Test
+private class FileLockTest {
+    @Test fun independentOwnersAndCleanup() {
+        val path = createTempFile(prefix = "scoop-lock-")
+        try {
+            File.open(path, OpenOptions(write = true)).use { first ->
+                File.open(path, OpenOptions(write = true)).use { second ->
+                    first.withLock {
+                        assertFalse(second.tryLock())
+                        assertFalse(second.tryLock(shared = true))
+                    }
+                    assertTrue(second.tryLock())
+                    second.unlock()
+                    first.lock(shared = true)
+                    assertTrue(second.tryLock(shared = true))
+                    second.unlock()
+                    first.unlock()
+                    assertFailsWith<IllegalArgumentException> {
+                        first.withLock { throw IllegalArgumentException() }
+                    }
+                    assertTrue(second.tryLock())
+                    second.unlock()
+                }
+            }
+        } finally { path.delete() }
+    }
+}

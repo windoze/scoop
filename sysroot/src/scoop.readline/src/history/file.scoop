@@ -1,0 +1,77 @@
+package scoop.readline.history
+
+import scoop.readline.Config
+import scoop.platform.fs.*
+import scoop.platform.io.*
+
+/** File history compatible with rustyline V1/V2 and coordinated by advisory file locks. */
+public class FileHistory public constructor(config: Config = Config()) : PersistentHistory {
+    private val memory: MemoryHistory = MemoryHistory(config)
+    private var pending: Long = 0L
+
+    public override val size: Long get() = memory.size
+    public override fun get(index: Long, direction: SearchDirection): SearchResult? =
+        memory.get(index, direction)
+    public override fun add(line: String): Boolean {
+        if (!memory.add(line)) return false
+        if (pending < size) pending += 1L
+        return true
+    }
+    public override fun clear() { memory.clear(); pending = 0L }
+    public override fun setMaxLength(length: Long) {
+        memory.setMaxLength(length)
+        if (pending > size) pending = size
+    }
+    public override fun setIgnoreDuplicates(ignore: Boolean) { memory.setIgnoreDuplicates(ignore) }
+    public override fun setIgnoreSpace(ignore: Boolean) { memory.setIgnoreSpace(ignore) }
+    public override fun search(term: String, start: Long, direction: SearchDirection): SearchResult? =
+        memory.search(term, start, direction)
+    public override fun startsWith(term: String, start: Long, direction: SearchDirection): SearchResult? =
+        memory.startsWith(term, start, direction)
+
+    /** Appends loaded entries to memory; malformed UTF-8 leaves the previous history intact. */
+    public override fun load(path: Path) {
+        val entries = File.open(path).use { file ->
+            file.withLock(shared = true) { decodeHistory(file.readText()) }
+        }
+        for (entry in entries) memory.add(entry)
+        pending = 0L
+    }
+
+    /** Replaces the file with all current entries, including an empty history. */
+    public override fun save(path: Path) {
+        val text = encodeHistory(memory)
+        File.open(path, OpenOptions(write = true, create = true, mode = 0x180)).use { file ->
+            file.withLock { replaceHistoryFile(file, text) }
+        }
+        pending = 0L
+    }
+
+    /** Merges only unsaved entries with the current file under an exclusive lock. */
+    public override fun append(path: Path) {
+        if (pending == 0L) return
+        File.open(path, OpenOptions(write = true, create = true, mode = 0x180)).use { file ->
+            file.withLock {
+                val merged = memory.emptyCopy()
+                for (entry in decodeHistory(file.readText())) merged.add(entry)
+                var index = size - pending
+                while (index < size) {
+                    merged.add(memory.get(index)!!.entry)
+                    index += 1L
+                }
+                replaceHistoryFile(file, encodeHistory(merged))
+            }
+        }
+        pending = 0L
+    }
+
+    /** Returns an independent oldest-to-newest snapshot. */
+    public fun toArray(): Array<String> = memory.toArray()
+}
+
+private fun replaceHistoryFile(file: File, text: String) {
+    file.seek(0L)
+    file.writeText(text)
+    file.truncate(text.byteLength)
+    file.flush()
+}

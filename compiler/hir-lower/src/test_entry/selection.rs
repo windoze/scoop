@@ -16,8 +16,21 @@ impl Lowerer {
             span,
             origin: self.expression_origin(span),
         };
-        let selected =
-            self.test_api_call("isTestSelected", vec![arguments, key, ignored], span, sink)?;
+        let name = hir::Expr {
+            kind: hir::ExprKind::StringLiteral {
+                value: case.display_name.clone(),
+                owner: hir::StringConstantOwner::CurrentDefinition,
+            },
+            ty: self.string,
+            span,
+            origin: self.expression_origin(span),
+        };
+        let selected = self.test_api_call(
+            "isTestSelected",
+            vec![arguments, key, ignored, name],
+            span,
+            sink,
+        )?;
         if !self.types_equal(selected.ty, self.boolean) {
             self.error(
                 span,

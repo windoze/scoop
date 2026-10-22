@@ -1,0 +1,142 @@
+package scoop.readline.history
+
+import scoop.readline.Config
+import scoop.platform.fs.*
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+
+private fun checkHistory(history: History) {
+    assertTrue(history.isEmpty)
+    assertFalse(history.add(""))
+    assertTrue(history.add("one"))
+    assertFalse(history.add("one"))
+    assertTrue(history.add(" two"))
+    history.setIgnoreSpace(true)
+    assertFalse(history.add("\u2003skip"))
+    history.setIgnoreDuplicates(false)
+    history.setIgnoreSpace(false)
+    assertTrue(history.add(" two"))
+    history.setMaxLength(2L)
+    assertEquals(2L, history.size)
+    assertEquals(" two", history.get(0L)!!.entry)
+    assertTrue(history.get(-1L) == None)
+    assertTrue(history.get(2L) == None)
+    assertFailsWith<IllegalArgumentException> { history.setMaxLength(-1L) }
+    history.setMaxLength(0L)
+    assertTrue(history.isEmpty)
+    assertFalse(history.add("ignored"))
+    history.setMaxLength(3L)
+    history.add("αβ one")
+    history.add("αβ two")
+    history.add("last one")
+    assertEquals(2L, history.search("one", 2L, SearchDirection.Reverse)!!.index)
+    assertEquals(3L, history.search("one", 0L, SearchDirection.Forward)!!.position)
+    assertEquals(2L, history.startsWith("αβ", 1L, SearchDirection.Reverse)!!.position)
+    assertTrue(history.search("", 0L, SearchDirection.Forward) == None)
+    assertTrue(history.search("one", 3L, SearchDirection.Reverse) == None)
+    val snapshot = history.get(0L)!!.entry
+    history.clear()
+    assertEquals("αβ one", snapshot)
+    assertTrue(history.isEmpty)
+}
+
+@Test private class HistoryTest {
+    @Test fun caseInsensitiveSearchKeepsOriginalIndices() {
+        val history = MemoryHistory(Config(historyCaseSensitive = false))
+        history.add("中 Straße Σς")
+        assertEquals(2L, history.search("STRASSE", 0L, SearchDirection.Forward)!!.position)
+        assertEquals(8L, history.startsWith("中 STRASSE", 0L, SearchDirection.Forward)!!.position)
+        assertEquals(9L, history.search("σσ", 0L, SearchDirection.Forward)!!.position)
+        assertEquals(None, MemoryHistory().search("strasse", 0L, SearchDirection.Forward))
+    }
+    @Test fun memoryContract() { checkHistory(MemoryHistory()) }
+    @Test fun fileContract() { checkHistory(FileHistory()) }
+    @Test fun defaultCapacity() {
+        val history = MemoryHistory()
+        for (index in 0L..109L) history.add(index.toString())
+        assertEquals(100L, history.size)
+        assertEquals("10", history.get(0L)!!.entry)
+    }
+    @Test fun fileFormatsAndPendingEntries() {
+        val path = createTempFile(prefix = "scoop-history-")
+        try {
+            path.writeText("old\r\nlast")
+            val history = FileHistory()
+            history.load(path)
+            assertItems(["old", "last"], history.toArray())
+            history.add("a\nb\\c")
+            history.append(path)
+            assertEquals("#V2\nold\nlast\na\\nb\\\\c\n", path.readText())
+            val other = FileHistory()
+            other.load(path)
+            assertItems(["old", "last", "a\nb\\c"], other.toArray())
+            other.append(path)
+            assertEquals(3L, history.size)
+            path.writeText("#V2\nkeep\\q\ntrail\\\nline\\nnext\n")
+            other.clear()
+            other.load(path)
+            assertItems(["keep\\q", "trail\\", "line\nnext"], other.toArray())
+            other.clear()
+            other.save(path)
+            assertEquals("#V2\n", path.readText())
+        } finally { path.delete() }
+    }
+    @Test fun appendMergesSessionsAndTrims() {
+        val path = createTempFile(prefix = "scoop-history-")
+        try {
+            val first = FileHistory(Config(maxHistorySize = 3L))
+            val second = FileHistory(Config(maxHistorySize = 3L))
+            first.add("a")
+            first.save(path)
+            second.load(path)
+            first.add("b")
+            second.add("c")
+            first.append(path)
+            second.append(path)
+            first.add("d")
+            first.append(path)
+            val read = FileHistory()
+            read.load(path)
+            assertItems(["b", "c", "d"], read.toArray())
+        } finally { path.delete() }
+    }
+    @Test fun failedIoPreservesPendingAndLoadedState() {
+        val directory = createTempDirectory(prefix = "scoop-history-")
+        val path = directory.resolve(Path.fromString("history"))
+        try {
+            val history = FileHistory()
+            history.add("pending")
+            assertFailsWith<scoop.platform.system.PlatformException> { history.append(directory) }
+            history.append(path)
+            assertEquals("#V2\npending\n", path.readText())
+            path.writeAllBytes([0xff.toByte()])
+            assertFailsWith<CharacterCodingException> { history.load(path) }
+            assertItems(["pending"], history.toArray())
+        } finally { directory.deleteRecursively() }
+    }
+    @Test fun concurrentAppend() {
+        val path = createTempFile(prefix = "scoop-history-")
+        try {
+            val threads = ArrayList<Thread>()
+            for (index in 0L..7L) {
+                val entry = index.toString()
+                threads.add(Thread.start {
+                    val history = FileHistory()
+                    history.add(entry)
+                    history.append(path)
+                })
+            }
+            for (thread in threads) thread.join()
+            val read = FileHistory()
+            read.load(path)
+            assertEquals(8L, read.size)
+            for (index in 0L..7L) assertTrue(read.search(index.toString(), 0L, SearchDirection.Forward) != None)
+        } finally { path.delete() }
+    }
+}
+
+private fun <T : Equals<T>> assertItems(expected: List<T>, actual: List<T>) {
+    assertEquals(expected.size, actual.size)
+    var index = 0L
+    while (index < expected.size) { assertEquals(expected[index], actual[index]); index += 1L }
+}

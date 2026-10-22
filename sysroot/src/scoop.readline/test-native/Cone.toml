@@ -1,0 +1,14 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "readline-native"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+[native]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "native/pty.c"

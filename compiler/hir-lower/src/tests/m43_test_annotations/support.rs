@@ -9,6 +9,9 @@ use crate::{CurrentConeSources, lower_current_cone};
 
 pub(super) const MARKERS: &str =
     include_str!("../../../../../sysroot/src/scoop.test/src/markers.scoop");
+pub(super) const SELECTION_DECL: &str = "package scoop.test.execution\n\
+    @Extern(name = \"test_selected\", abi = \"scoop\")\n\
+    public fun isTestSelected(arguments: Array<String>, caseIndex: String, ignored: Boolean, caseName: String): Boolean";
 
 pub(super) fn marker_core() -> TrustedCoreFixture {
     let mut source = crate::tests::complete_core_file();
@@ -73,7 +76,7 @@ pub(super) fn parsed_sources(
     if tests {
         files.extend([
             // This HIR fixture models the reporting ABI; native I/O and the actual
-            // library bodies are exercised by the CLI fixtures with the real core.
+            // library bodies are exercised by scoop.test with the real core.
             (
                 "src/execution/report.scoop",
                 "package scoop.test.execution\n\
@@ -85,7 +88,7 @@ pub(super) fn parsed_sources(
             ),
             (
                 "src/execution/selection.scoop",
-                include_str!("../../../../../sysroot/src/scoop.test/src/execution/selection.scoop"),
+                SELECTION_DECL,
                 SourceRole::Production,
             ),
             (

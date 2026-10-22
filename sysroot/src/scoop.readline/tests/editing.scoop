@@ -1,0 +1,173 @@
+package scoop.readline
+
+import scoop.readline.history.*
+import scoop.terminal.event.*
+import scoop.test.*
+
+internal fun press(session: EditingSession, code: KeyCode): EditResult = session.handle(Event.Key(KeyEvent(code)))
+internal fun control(session: EditingSession, character: Char): EditResult =
+    session.handle(Event.Key(KeyEvent(KeyCode.Char(character), KeyModifiers().with(KeyModifier.Control))))
+internal fun typeText(session: EditingSession, text: String) {
+    for (character in text) press(session, KeyCode.Char(character))
+}
+
+@Test private class EditingTest {
+    @Test fun sharedBindingPrefixesAndTimeout() {
+        val session = EditingSession()
+        val x = KeyEvent(KeyCode.Char('x'))
+        val y = KeyEvent(KeyCode.Char('y'))
+        session.bind(x, Command.Insert("short"))
+        session.bindSequence([x, y]) { _, _ -> Command.Insert("long") }
+        typeText(session, "xy")
+        assertEquals("long", session.line)
+        typeText(session, "x")
+        assertTrue(session.hasPendingSequence)
+        session.flushPendingSequence()
+        assertEquals("longshort", session.line)
+        typeText(session, "xz")
+        assertEquals("longshortshortz", session.line)
+        assertTrue(session.unbindSequence([x]))
+        typeText(session, "xz")
+        assertEquals("longshortshortzxz", session.line)
+    }
+    @Test fun numericArgumentsAndWordTranspose() {
+        val session = EditingSession(initial = "one two three")
+        session.execute(Command.TransposeWords)
+        assertEquals("one three two", session.line)
+        session.handle(Event.Key(KeyEvent(KeyCode.Char('0'), KeyModifiers().with(KeyModifier.Alt))))
+        typeText(session, "x")
+        assertEquals("one three two", session.line)
+        session.handle(Event.Key(KeyEvent(KeyCode.Left, KeyModifiers().with(KeyModifier.Control))))
+        assertEquals(10L, session.cursor)
+    }
+    @Test fun unicodeMotionAndDeletion() {
+        val session = EditingSession()
+        typeText(session, "e\u0301中👩\u200d💻🇨🇳")
+        assertEquals(8L, session.cursor)
+        press(session, KeyCode.Backspace)
+        assertEquals("e\u0301中👩\u200d💻", session.line)
+        press(session, KeyCode.Left)
+        assertEquals(3L, session.cursor)
+        press(session, KeyCode.Delete)
+        assertEquals("e\u0301中", session.line)
+        control(session, 'a')
+        press(session, KeyCode.Right)
+        assertEquals(2L, session.cursor)
+        press(session, KeyCode.Backspace)
+        assertEquals("中", session.line)
+    }
+    @Test fun emacsUndoRedoAndPaste() {
+        val session = EditingSession()
+        typeText(session, "hello")
+        session.execute(Command.Undo())
+        assertEquals("", session.line)
+        session.execute(Command.Redo())
+        assertEquals("hello", session.line)
+        session.handle(Event.Paste(" world\r\nnext"))
+        assertEquals("hello world\nnext", session.line)
+        session.execute(Command.Undo())
+        assertEquals("hello", session.line)
+        control(session, 'a')
+        typeText(session, "> ")
+        assertEquals("> hello", session.line)
+    }
+    @Test fun killRingYankAndRotation() {
+        val session = EditingSession(initial = "one two three")
+        control(session, 'w')
+        control(session, 'w')
+        assertEquals("one ", session.line)
+        control(session, 'y')
+        assertEquals("one two three", session.line)
+        control(session, 'a')
+        session.execute(Command.Kill(Movement.ForwardWord()))
+        control(session, 'y')
+        session.execute(Command.YankPop)
+        assertEquals("two three two three", session.line)
+    }
+    @Test fun viOperatorsCountsReplaceAndUndo() {
+        val session = EditingSession(Config(editMode = EditMode.Vi))
+        typeText(session, "one two three")
+        press(session, KeyCode.Esc)
+        typeText(session, "0dw")
+        assertEquals("two three", session.line)
+        typeText(session, "u")
+        assertEquals("one two three", session.line)
+        typeText(session, "02dw")
+        assertEquals("three", session.line)
+        typeText(session, "rT")
+        assertEquals("Three", session.line)
+        typeText(session, "A!")
+        press(session, KeyCode.Esc)
+        assertEquals("Three!", session.line)
+        assertTrue(session.viMode == ViMode.Command)
+    }
+    @Test fun viFindAndChange() {
+        val session = EditingSession(Config(editMode = EditMode.Vi), initial = "alpha: beta: gamma")
+        press(session, KeyCode.Esc)
+        typeText(session, "0f:cl")
+        typeText(session, "=")
+        press(session, KeyCode.Esc)
+        assertEquals("alpha= beta: gamma", session.line)
+        typeText(session, "0cw")
+        typeText(session, "new")
+        assertEquals("new= beta: gamma", session.line)
+    }
+    @Test fun historyRestoresDraftAndNavigatesMultiline() {
+        val history = MemoryHistory()
+        history.add("old")
+        history.add("new")
+        val session = EditingSession(history = history, initial = "draft")
+        press(session, KeyCode.Up)
+        assertEquals("new", session.line)
+        press(session, KeyCode.Up)
+        assertEquals("old", session.line)
+        press(session, KeyCode.Down)
+        press(session, KeyCode.Down)
+        assertEquals("draft", session.line)
+        session.handle(Event.Paste("\nsecond"))
+        press(session, KeyCode.Up)
+        assertEquals("draft\nsecond", session.line)
+        assertEquals(5L, session.cursor)
+    }
+    @Test fun incrementalSearchAndAbort() {
+        val history = MemoryHistory()
+        history.add("first target")
+        history.add("second target")
+        val session = EditingSession(history = history, initial = "draft")
+        control(session, 'r')
+        typeText(session, "target")
+        assertEquals("second target", session.line)
+        control(session, 'r')
+        assertEquals("first target", session.line)
+        control(session, 'g')
+        assertEquals("draft", session.line)
+    }
+    @Test fun eofInterruptAndRelease() {
+        val session = EditingSession()
+        session.handle(Event.Key(KeyEvent(KeyCode.Char('a'), kind = KeyEventKind.Release)))
+        assertEquals("", session.line)
+        assertTrue(control(session, 'd') == EditResult.Eof)
+        assertFailsWith<IllegalStateException> { typeText(session, "x") }
+        assertTrue(control(EditingSession(), 'c') == EditResult.Interrupted)
+    }
+    @Test fun customSequenceAndQuotedControl() {
+        val session = EditingSession()
+        session.bindSequence([KeyEvent(KeyCode.Char('x')), KeyEvent(KeyCode.Char('y'))]) { _, _ -> Command.Insert("bound") }
+        typeText(session, "xy")
+        assertEquals("bound", session.line)
+        typeText(session, "xz")
+        assertEquals("boundxz", session.line)
+        control(session, 'v')
+        control(session, 'c')
+        assertEquals("boundxz\u0003", session.line)
+    }
+    @Test fun unicodeWordCaseAndTranspose() {
+        val session = EditingSession(initial = "straße ω", cursor = 0L)
+        session.execute(Command.UpcaseWord)
+        assertEquals("STRASSE ω", session.line)
+        session.execute(Command.Move(Movement.EndOfBuffer))
+        session.execute(Command.TransposeChars)
+        assertEquals("STRASSEω ", session.line)
+        assertFailsWith<IllegalArgumentException> { session.execute(Command.Move(Movement.ForwardChar(-1L))) }
+    }
+}

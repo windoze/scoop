@@ -1,0 +1,14 @@
+package test.core.tests.string_builder
+
+import scoop.test.*
+
+@Test private class BuilderClearTest {
+    @Test fun reusePreservesSnapshots() {
+        val builder = StringBuilder().append("before")
+        val snapshot = builder.toString()
+        assertTrue(builder === builder.clear())
+        assertEquals("", builder.toString())
+        assertEquals("after", builder.append("after").toString())
+        assertEquals("before", snapshot)
+    }
+}

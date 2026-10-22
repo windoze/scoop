@@ -1,0 +1,40 @@
+package scoop.readline
+
+import scoop.platform.concurrent.Mutex
+import scoop.platform.io.*
+
+/** Thread-safe output that preserves the active editor's prompt and input. */
+public class ExternalPrinter internal constructor() {
+    private val mutex: Mutex = Mutex()
+    private val messages: ArrayList<String> = ArrayList<String>()
+    private var editing: Boolean = false
+
+    /** Prints a complete message, adding a newline when needed. */
+    public fun print(message: String) {
+        mutex.withLock {
+            if (editing) messages.add(message)
+            else {
+                standardOutput.writeText(message)
+                if (message.byteLength == 0L || message[message.length - 1L] != '\n') standardOutput.writeText("\n")
+                standardOutput.flush()
+            }
+        }
+    }
+    internal fun begin() { mutex.withLock { editing = true } }
+    internal fun drain(): Array<String> = mutex.withLock {
+        val result = messages.toArray()
+        messages.clear()
+        result
+    }
+    internal fun end() {
+        mutex.withLock {
+            editing = false
+            for (message in messages) {
+                standardOutput.writeText(message)
+                if (message.byteLength == 0L || message[message.length - 1L] != '\n') standardOutput.writeText("\n")
+            }
+            messages.clear()
+            standardOutput.flush()
+        }
+    }
+}

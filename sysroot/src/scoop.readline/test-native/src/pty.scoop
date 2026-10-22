@@ -1,0 +1,157 @@
+package scoop.tests.readline
+
+import scoop.platform.fs.withNativeString
+import scoop.platform.system.*
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.bytes.ByteArrayBuilder
+import scoop.text.*
+
+/** A real Unix PTY and subprocess used only by the readline Cone tests. */
+public class Pty private constructor() : ByteSource, ByteSink, Closeable {
+    private var handle: Ptr<Unit>? = None
+    private val received: ByteArrayBuilder = ByteArrayBuilder()
+    private var consumed: Long = 0L
+
+    public companion object {
+        /** Converts caught SIGTSTP into SIGSTOP in this test's orphan process group. */
+        public fun enableSuspendProbe() {
+            @Unsafe {
+                val (status, error) = nativeSuspendProbe()
+                checkNativeStatus(status, error, "install test suspend probe")
+            }
+        }
+        public fun open(executable: OsString, selector: String): Pty {
+            val owner = Pty()
+            @Unsafe {
+                val (handle, error) = executable.withNativeString { file ->
+                    @Unsafe {
+                        return@withNativeString OsString.fromString(selector).withNativeString { name ->
+                            @Unsafe { return@withNativeString nativeOpen(file, name) }
+                        }
+                    }
+                }
+                if (handle == None) failNative("open test PTY", error)
+                owner.handle = handle
+            }
+            return owner
+        }
+    }
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (count == 0L) return 0L
+        @Unsafe {
+            val borrow = buffer.borrowWritable(count)
+            val result = try {
+                val (result, error) = nativeRead(handle!!, borrow.pointer()!!, count)
+                checkNative(result, error, "read test PTY")
+            } catch (error: Throwable) { borrow.complete(0L); throw error }
+            borrow.complete(result)
+            return result
+        }
+    }
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        if (count == 0L) return 0L
+        @Unsafe {
+            val borrow = buffer.borrowReadable(count)
+            val result = try {
+                val (result, error) = nativeWrite(handle!!, borrow.pointer()!!, count)
+                checkNative(result, error, "write test PTY")
+            } catch (error: Throwable) { borrow.complete(0L); throw error }
+            borrow.complete(result)
+            return result
+        }
+    }
+    public override fun flush() {}
+    /** Waits for a literal output fragment with a bounded test timeout. */
+    public fun expect(text: String) {
+        NativeByteBuffer.allocate(4096L).use { buffer ->
+            var attempts = 0L
+            while (attempts < 200L) {
+                val found = String.fromUtf8Lossy(received.toByteArray()).indexOf(text, consumed)
+                if (found >= 0L) { consumed = found + text.length; return@use }
+                buffer.clear()
+                val count = readInto(buffer, buffer.writableBytes)
+                received.append(buffer.readBytes(count))
+                attempts += 1L
+            }
+            throw IllegalStateException(Some("PTY output did not contain: " + text + "\n" + String.fromUtf8Lossy(received.toByteArray())))
+        }
+    }
+    public fun waitForExit(): Int {
+        @Unsafe {
+            val (status, error) = nativeWait(handle!!)
+            checkNativeStatus(status, error, "wait test PTY")
+            return status
+        }
+    }
+    public fun isRestored(): Boolean { @Unsafe { return nativeRestored(handle!!) } }
+    public fun waitForStop() {
+        @Unsafe {
+            val (status, error) = nativeStopped(handle!!)
+            checkNativeStatus(status, error, "wait for test suspension")
+        }
+    }
+    /** Drains output while the child is stopped, before observing its resumed prompt. */
+    public fun discardOutput() {
+        NativeByteBuffer.allocate(4096L).use { buffer ->
+            while (true) {
+                buffer.clear()
+                val count = readInto(buffer, buffer.writableBytes)
+                if (count == 0L) break
+                received.append(buffer.readBytes(count))
+            }
+        }
+        consumed = String.fromUtf8Lossy(received.toByteArray()).length
+    }
+    public fun resume() {
+        @Unsafe {
+            val (status, error) = nativeResume(handle!!)
+            checkNativeStatus(status, error, "resume test child")
+        }
+    }
+    public fun resize(rows: Int, columns: Int) {
+        @Unsafe {
+            val (status, error) = nativeResize(handle!!, rows, columns)
+            checkNativeStatus(status, error, "resize test PTY")
+        }
+    }
+    public override fun close() {
+        when (handle) {
+            case Some(pointer) -> { handle = None; @Unsafe { nativeClose(pointer) } }
+            case None -> return
+        }
+    }
+}
+
+private fun failNative(operation: String, code: Int): Nothing {
+    val error = NativeError(NativeErrorDomain.PosixErrno, code)
+    throw PlatformException(operation, error.kind, Some(error))
+}
+private fun checkNative(value: Long, code: Int, operation: String): Long {
+    if (value < 0L) failNative(operation, code)
+    return value
+}
+private fun checkNativeStatus(value: Int, code: Int, operation: String) {
+    if (value < 0) failNative(operation, code)
+}
+
+@Extern(name = "scoop_readline_test_pty_open", captureErrno = true)
+private fun nativeOpen(executable: Ptr<Byte>, selector: Ptr<Byte>): (Ptr<Unit>?, Int)
+@Extern(name = "scoop_readline_test_pty_read", captureErrno = true)
+private fun nativeRead(handle: Ptr<Unit>, bytes: Ptr<Byte>, count: Long): (Long, Int)
+@Extern(name = "scoop_readline_test_pty_write", captureErrno = true)
+private fun nativeWrite(handle: Ptr<Unit>, bytes: Ptr<Byte>, count: Long): (Long, Int)
+@Extern(name = "scoop_readline_test_pty_wait", captureErrno = true)
+private fun nativeWait(handle: Ptr<Unit>): (Int, Int)
+@Extern(name = "scoop_readline_test_pty_restored")
+private fun nativeRestored(handle: Ptr<Unit>): Boolean
+@Extern(name = "scoop_readline_test_pty_resize", captureErrno = true)
+private fun nativeResize(handle: Ptr<Unit>, rows: Int, columns: Int): (Int, Int)
+@Extern(name = "scoop_readline_test_pty_close")
+private fun nativeClose(handle: Ptr<Unit>)
+@Extern(name = "scoop_readline_test_suspend_probe", captureErrno = true)
+private fun nativeSuspendProbe(): (Int, Int)
+@Extern(name = "scoop_readline_test_pty_stopped", captureErrno = true)
+private fun nativeStopped(handle: Ptr<Unit>): (Int, Int)
+@Extern(name = "scoop_readline_test_pty_resume", captureErrno = true)
+private fun nativeResume(handle: Ptr<Unit>): (Int, Int)

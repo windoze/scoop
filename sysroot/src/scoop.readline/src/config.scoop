@@ -1,0 +1,41 @@
+package scoop.readline
+
+/** Selects the built-in key map. */
+public enum EditMode { Emacs, Vi }
+/** Selects cycling, common-prefix/list completion, or interactive fuzzy selection. */
+public enum CompletionType { Circular, List, Fuzzy }
+/** Selects the feedback used for an unavailable editing operation. */
+public enum BellStyle { Audible, Visible, None }
+/** Controls ANSI decoration produced by highlighters. */
+public enum ColorMode { Enabled, Disabled, Forced }
+
+/** Immutable editor options. Indices, counts, and dimensions use Long. */
+public class Config public constructor(
+    public val editMode: EditMode = EditMode.Emacs,
+    public val maxHistorySize: Long = 100L,
+    public val historyIgnoreDuplicates: Boolean = true,
+    public val historyIgnoreSpace: Boolean = false,
+    public val historyCaseSensitive: Boolean = true,
+    public val autoAddHistory: Boolean = false,
+    public val completionType: CompletionType = CompletionType.Circular,
+    public val completionPromptLimit: Long = 100L,
+    public val completionShowAllIfAmbiguous: Boolean = false,
+    public val bellStyle: BellStyle = BellStyle.Audible,
+    public val colorMode: ColorMode = ColorMode.Enabled,
+    public val tabStop: Long = 8L,
+    public val indentSize: Long = 2L,
+    public val bracketedPaste: Boolean = true,
+    public val keySequenceTimeoutMilliseconds: Long = 500L
+) {
+    init {
+        if (maxHistorySize < 0L || completionPromptLimit < 0L || tabStop <= 0L ||
+            indentSize < 0L || keySequenceTimeoutMilliseconds < 0L) {
+            throw IllegalArgumentException(Some("invalid readline configuration"))
+        }
+    }
+}
+
+/** Signals end of input, including Ctrl-D on an empty buffer. */
+public class ReadlineEofException public constructor() : Exception(Some("end of input"))
+/** Signals Ctrl-C without treating it as an accepted line. */
+public class ReadlineInterruptedException public constructor() : Exception(Some("input interrupted"))

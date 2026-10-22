@@ -1,0 +1,82 @@
+package scoop.readline
+
+import scoop.terminal.event.*
+
+internal fun keyCharacter(key: KeyEvent): Char? = when (key.code) {
+    case Char(character) -> Some(character)
+    else -> None
+}
+
+internal fun controlCharacter(key: KeyEvent): Char? {
+    val character = keyCharacter(key)
+    if (character == None || !key.modifiers.has(KeyModifier.Control)) return None
+    val code = character!!.code
+    return Some(if (code >= 65 && code <= 90) (code + 32).toChar() else character!!)
+}
+
+internal fun emacsCommand(key: KeyEvent, count: Long, negative: Boolean): Command {
+    val control = controlCharacter(key)
+    val backward = if (negative) Movement.ForwardChar(count) else Movement.BackwardChar(count)
+    val forward = if (negative) Movement.BackwardChar(count) else Movement.ForwardChar(count)
+    if (control != None) return when (control!!) {
+        'a' -> Command.Move(Movement.BeginningOfLine)
+        'b' -> Command.Move(backward)
+        'c' -> Command.Interrupt
+        'd' -> Command.EndOfFile
+        'e' -> Command.Move(Movement.EndOfLine)
+        'f' -> Command.Move(forward)
+        'g' -> Command.Abort
+        'h' -> Command.Kill(backward)
+        'i' -> Command.Complete
+        'j', 'm' -> Command.AcceptLine
+        'k' -> Command.Kill(if (negative) Movement.BeginningOfLine else Movement.EndOfLine)
+        'l' -> Command.ClearScreen
+        'n' -> Command.NextHistory
+        'p' -> Command.PreviousHistory
+        'q', 'v' -> Command.QuotedInsert
+        'r' -> Command.ReverseSearchHistory
+        's' -> Command.ForwardSearchHistory
+        't' -> Command.TransposeChars
+        'u' -> Command.Kill(Movement.BeginningOfLine)
+        'w' -> Command.Kill(Movement.BackwardWord(count, Word.Big))
+        'y' -> Command.Yank(count)
+        'z' -> Command.Suspend
+        '_', '7' -> Command.Undo(count)
+        else -> Command.Unknown
+    }
+    val character = keyCharacter(key)
+    if (key.modifiers.has(KeyModifier.Alt) && character != None) return when (character!!) {
+        'b' -> Command.Move(if (negative) Movement.ForwardWord(count) else Movement.BackwardWord(count))
+        'f' -> Command.Move(if (negative) Movement.BackwardWord(count) else Movement.ForwardWord(count))
+        'd' -> Command.Kill(if (negative) Movement.BackwardWord(count) else Movement.ForwardWord(count))
+        'u' -> Command.UpcaseWord
+        'l' -> Command.DowncaseWord
+        'c' -> Command.CapitalizeWord
+        't' -> Command.TransposeWords
+        'y' -> Command.YankPop
+        'p' -> Command.HistorySearchBackward
+        'n' -> Command.HistorySearchForward
+        '<' -> Command.BeginningOfHistory
+        '>' -> Command.EndOfHistory
+        '\u007f', '\b' -> Command.Kill(Movement.BackwardWord(count))
+        else -> Command.Unknown
+    }
+    return when (key.code) {
+        case Char(character) -> Command.Insert(character.toString(), count)
+        case Backspace -> Command.Kill(if (key.modifiers.has(KeyModifier.Alt)) Movement.BackwardWord(count) else backward)
+        case Delete -> Command.Kill(forward)
+        case Left -> Command.Move(if (key.modifiers.has(KeyModifier.Control) || key.modifiers.has(KeyModifier.Alt)) Movement.BackwardWord(count) else backward)
+        case Right -> Command.Move(if (key.modifiers.has(KeyModifier.Control) || key.modifiers.has(KeyModifier.Alt)) Movement.ForwardWord(count) else forward)
+        case Home -> Command.Move(Movement.BeginningOfLine)
+        case End -> Command.Move(Movement.EndOfLine)
+        case Up -> Command.PreviousHistory
+        case Down -> Command.NextHistory
+        case PageUp -> Command.BeginningOfHistory
+        case PageDown -> Command.EndOfHistory
+        case Enter -> if (key.modifiers.has(KeyModifier.Alt)) Command.Newline else Command.AcceptLine
+        case Tab -> Command.Complete
+        case BackTab -> Command.CompleteBackward
+        case Esc -> Command.Abort
+        else -> Command.Unknown
+    }
+}

@@ -4,6 +4,11 @@
 #include <string.h>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include <signal.h>
+
+int scoop_platform_process_suspend(void) {
+    return kill(getpid(), SIGTSTP);
+}
 
 int scoop_platform_operating_system(void) {
 #ifdef __APPLE__

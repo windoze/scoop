@@ -1,0 +1,114 @@
+package scoop.readline
+
+import scoop.readline.history.*
+import scoop.platform.fs.Path
+import scoop.platform.io.*
+import scoop.platform.env.environmentVariable
+import scoop.terminal.TerminalSession
+import scoop.terminal.StandardStream
+import scoop.terminal.isTerminal
+import scoop.terminal.event.KeyEvent
+import scoop.time.Duration
+
+/** A reusable Unix line editor with pluggable history and independent extension callbacks. */
+public class Editor public constructor(
+    public val config: Config = Config(),
+    public val history: History = FileHistory(config)
+) {
+    public var completer: Completer = NoCompleter
+    public var hinter: Hinter = NoHinter
+    public var highlighter: Highlighter = PlainHighlighter
+    public var validator: Validator = AcceptAll
+    private val bindings: ArrayList<KeyBinding> = ArrayList<KeyBinding>()
+    private val killRing: KillRing = KillRing()
+    private var active: Boolean = false
+    private var printer: ExternalPrinter? = None
+
+    /** Creates a printer that can be shared with worker threads before reading begins. */
+    public fun createExternalPrinter(): ExternalPrinter {
+        when (printer) {
+            case Some(value) -> return value
+            case None -> {
+                val value = ExternalPrinter()
+                printer = Some(value)
+                return value
+            }
+        }
+    }
+
+    /** Creates the event-driven editor used by the terminal adapter. */
+    public fun start(initial: String = "", cursor: Long = initial.length): EditingSession {
+        val session = EditingSession(config, history, initial, cursor, completer, hinter, highlighter, validator)
+        session.kills = killRing
+        session.printer = printer
+        for (binding in bindings) session.bindSequence(binding.keys, binding.handler)
+        return session
+    }
+
+    /** Binds one logical key. */
+    public fun bind(key: KeyEvent, command: Command) { bindSequence([key]) { _, _ -> command } }
+    /** Binds a literal key sequence to a context-dependent command. */
+    public fun bindSequence(keys: Array<KeyEvent>, handler: (LineBuffer, Context) -> Command) {
+        if (keys.size == 0L) throw IllegalArgumentException(Some("empty key sequence"))
+        removeBinding(bindings, keys)
+        bindings.add(KeyBinding(keys.toArray(), handler))
+    }
+
+    /** Removes an exact custom key sequence from subsequent editing sessions. */
+    public fun unbindSequence(keys: Array<KeyEvent>): Boolean = removeBinding(bindings, keys)
+
+    /** Reads a line, selecting terminal editing or redirected-stream input automatically. */
+    public fun readLine(prompt: String = "", initial: String = "", cursor: Long = initial.length): String {
+        if (active) throw IllegalStateException(Some("editor is already reading"))
+        active = true
+        try {
+            val term = environmentVariable("TERM")
+            val dumb = term != None && term!!.display() == "dumb"
+            if (!isTerminal(StandardStream.Input) || dumb) {
+                return readLineFrom(standardInput, standardOutput, if (dumb) prompt else "")
+            }
+            return TerminalSession.open(Duration.milliseconds(config.keySequenceTimeoutMilliseconds)).use { terminal ->
+                readTerminal(terminal, prompt, start(initial, cursor))
+            }
+        } finally { active = false }
+    }
+
+    /** Reads UTF-8 lines from borrowed streams, applying validation and optional automatic history. */
+    public fun readLineFrom(source: ByteSource, output: ByteSink, prompt: String = ""): String {
+        if (prompt.byteLength > 0L) { output.writeText(prompt); output.flush() }
+        val buffer = LineBuffer()
+        while (true) {
+            val input = source.readLine()
+            if (input == None) throw ReadlineEofException()
+            for (character in input!!) {
+                if (character == '\b' || character == '\u007f') {
+                    buffer.replace(buffer.previous(buffer.cursor), buffer.cursor, "")
+                } else buffer.insert(character.toString())
+            }
+            when (val result = validator.validate(buffer.text)) {
+                case Valid(message) -> {
+                    if (message != None) { output.writeText(message!!); output.flush() }
+                    if (config.autoAddHistory) history.add(buffer.text)
+                    return buffer.text
+                }
+                case Invalid(message) -> {
+                    if (message != None) { output.writeText(message!!); output.flush() }
+                }
+                case Incomplete -> buffer.insert("\n")
+            }
+        }
+    }
+
+    /** Loads history when the selected backend exposes persistence. */
+    public fun loadHistory(path: Path) { persistentHistory().load(path) }
+    /** Saves history when the selected backend exposes persistence. */
+    public fun saveHistory(path: Path) { persistentHistory().save(path) }
+    /** Appends unsaved history when the selected backend exposes persistence. */
+    public fun appendHistory(path: Path) { persistentHistory().append(path) }
+
+    private fun persistentHistory(): PersistentHistory {
+        val backend = history
+        if (backend is PersistentHistory) return backend
+        throw IllegalStateException(Some("history backend has no persistence capability"))
+    }
+}

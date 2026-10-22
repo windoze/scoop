@@ -1,0 +1,198 @@
+package scoop.readline
+
+import scoop.charset.*
+import scoop.text.*
+
+internal fun EditingSession.applyCommand(command: Command): EditResult {
+    when (command) {
+        case Noop -> return EditResult.Continue
+        case Unknown -> { bellValue = true }
+        case Abort -> { keys.reset(); messageValue = None; undo.boundary() }
+        case AcceptLine -> return acceptLine(false)
+        case AcceptOrInsertLine -> return acceptLine(cursor < buffer.length)
+        case EndOfFile -> {
+            if (buffer.length == 0L) return EditResult.Eof
+            kill(Movement.ForwardChar())
+        }
+        case Interrupt -> return EditResult.Interrupted
+        case Suspend -> return EditResult.Suspended
+        case Sequence(commands) -> {
+            for (item in commands) {
+                val result = applyCommand(item)
+                if (result != EditResult.Continue) return result
+            }
+        }
+        case Move(movement) -> {
+            buffer.moveTo(buffer.destination(movement))
+            if (config.editMode == EditMode.Vi && keys.mode == ViMode.Command && cursor == buffer.lineEnd(cursor) && cursor > buffer.lineStart(cursor)) {
+                buffer.moveTo(buffer.previous(cursor))
+            }
+            undo.boundary()
+        }
+        case Insert(text, count) -> { requireRepeat(count); buffer.insert(text.repeat(count)) }
+        case Newline -> buffer.insert("\n")
+        case Kill(movement) -> {
+            kill(movement)
+            if (config.editMode == EditMode.Vi && keys.mode == ViMode.Command && cursor > buffer.lineStart(cursor) && cursor == buffer.lineEnd(cursor)) buffer.moveTo(buffer.previous(cursor))
+        }
+        case Change(movement) -> { kill(movement); keys.mode = ViMode.Insert }
+        case Copy(movement) -> {
+            val (start, end) = buffer.range(movement)
+            kills.boundary()
+            kills.kill(line.slice(start, end), false)
+        }
+        case Replace(movement, text) -> { val (start, end) = buffer.range(movement); buffer.replace(start, end, text) }
+        case ReplaceChar(character, count) -> {
+            requireRepeat(count)
+            val end = buffer.destination(Movement.ForwardChar(count))
+            if (end > cursor) {
+                val actual = graphemeBoundaries(line.slice(cursor, end)).size - 1L
+                buffer.replace(cursor, end, character.toString().repeat(actual))
+            }
+            if (keys.mode == ViMode.Command && cursor > 0L) buffer.moveTo(buffer.previous(cursor))
+        }
+        case Overwrite(character) -> buffer.replace(cursor, buffer.next(cursor), character.toString())
+        case Yank(count, anchor) -> yank(count, anchor)
+        case YankPop -> yankPop()
+        case Undo(count) -> undo.undo(buffer, count)
+        case Redo(count) -> undo.redo(buffer, count)
+        case TransposeChars -> transposeChars()
+        case TransposeWords -> transposeWords()
+        case UpcaseWord -> changeCase(1)
+        case DowncaseWord -> changeCase(-1)
+        case CapitalizeWord -> changeCase(0)
+        case Indent(movement) -> indentLines(movement, false)
+        case Dedent(movement) -> indentLines(movement, true)
+        case OpenLine(above) -> {
+            val position = if (above) buffer.lineStart(cursor) else buffer.lineEnd(cursor)
+            buffer.moveTo(position)
+            buffer.insert("\n")
+            if (above) buffer.moveTo(position)
+            keys.mode = ViMode.Insert
+        }
+        case PreviousHistory -> navigateHistory(true)
+        case NextHistory -> navigateHistory(false)
+        case NavigateHistory(backward, count) -> {
+            requireRepeat(count)
+            var left = count
+            while (left > 0L) {
+                val previousIndex = historyPosition
+                val previousCursor = cursor
+                navigateHistory(backward)
+                if (previousIndex == historyPosition && previousCursor == cursor) break
+                left -= 1L
+            }
+        }
+        case BeginningOfHistory -> selectHistory(0L)
+        case EndOfHistory -> selectHistory(history.size)
+        case HistorySearchBackward -> prefixHistory(true)
+        case HistorySearchForward -> prefixHistory(false)
+        case ReverseSearchHistory -> startSearch(true)
+        case ForwardSearchHistory -> startSearch(false)
+        case Complete -> complete(false)
+        case CompleteBackward -> complete(true)
+        case CompleteHint -> {
+            val suggestion = hint
+            if (suggestion != None && suggestion!!.completion != None) buffer.insert(suggestion!!.completion!!)
+        }
+        case QuotedInsert -> { quoted = true }
+        case ClearScreen -> { clearValue = true }
+        case Repaint -> return EditResult.Continue
+        case SetViMode(mode) -> {
+            if (mode == ViMode.Command && keys.mode != ViMode.Command && cursor > buffer.lineStart(cursor)) {
+                buffer.moveTo(buffer.previous(cursor))
+            }
+            keys.mode = mode
+            undo.boundary()
+        }
+        case RepeatLastChange(count) -> {
+            val change = lastChange
+            if ((when (change) { case Some(_) -> true; case None -> false }) && !replaying) {
+                replaying = true
+                try { return execute(if (count == None) change!! else repeatChange(change!!, count!!)) }
+                finally { replaying = false }
+            }
+        }
+    }
+    return EditResult.Continue
+}
+
+private fun EditingSession.acceptLine(insert: Boolean): EditResult {
+    if (insert) { buffer.insert("\n"); return EditResult.Continue }
+    when (val result = validator.validate(line)) {
+        case Valid(message) -> {
+            messageValue = message
+            if (config.autoAddHistory) history.add(line)
+            return EditResult.Accepted(line)
+        }
+        case Invalid(message) -> { messageValue = message; bellValue = true }
+        case Incomplete -> buffer.insert("\n")
+    }
+    return EditResult.Continue
+}
+
+private fun EditingSession.kill(movement: Movement) {
+    var (start, end) = buffer.range(movement)
+    // Emacs kill-line includes the newline when invoked at the end of a line.
+    if (movement == Movement.EndOfLine && start == end && end < buffer.length) end = buffer.next(end)
+    if (start == end) { bellValue = true; return }
+    kills.kill(line.slice(start, end), start < cursor)
+    buffer.replace(start, end, "")
+}
+
+private fun EditingSession.yank(count: Long, anchor: Anchor) {
+    requireRepeat(count)
+    val text = kills.current()
+    if (text == None) { bellValue = true; return }
+    if (anchor == Anchor.After && cursor < buffer.length) buffer.moveTo(buffer.next(cursor))
+    val start = cursor
+    buffer.insert(text!!.repeat(count))
+    lastYank = Some((start, cursor))
+}
+
+private fun EditingSession.yankPop() {
+    val range = lastYank
+    val text = if (range == None) None else kills.rotate()
+    if (range == None || text == None) { bellValue = true; return }
+    val (start, end) = range!!
+    buffer.replace(start, end, text!!)
+    lastYank = Some((start, cursor))
+}
+
+private fun EditingSession.transposeChars() {
+    if (cursor == 0L || buffer.length == 0L) return
+    val middle = if (cursor == buffer.length) buffer.previous(cursor) else cursor
+    if (middle == 0L) return
+    val start = buffer.previous(middle)
+    val end = buffer.next(middle)
+    buffer.replace(start, end, line.slice(middle, end) + line.slice(start, middle))
+}
+
+private fun EditingSession.transposeWords() {
+    var leftStart = buffer.backwardWord(cursor, Word.Emacs)
+    var leftEnd = buffer.forwardWord(leftStart, Word.Emacs, WordEnd.AfterEnd)
+    var rightStart = leftEnd
+    while (rightStart < buffer.length && buffer.wordClass(rightStart, Word.Emacs) == 0) rightStart = buffer.next(rightStart)
+    var rightEnd = buffer.forwardWord(rightStart, Word.Emacs, WordEnd.AfterEnd)
+    if (rightStart == buffer.length) {
+        rightStart = leftStart
+        rightEnd = leftEnd
+        leftStart = buffer.backwardWord(rightStart, Word.Emacs)
+        leftEnd = buffer.forwardWord(leftStart, Word.Emacs, WordEnd.AfterEnd)
+    }
+    if (leftEnd > rightStart) return
+    if (leftStart == leftEnd || rightStart == rightEnd) return
+    buffer.replace(leftStart, rightEnd, line.slice(rightStart, rightEnd) +
+        line.slice(leftEnd, rightStart) + line.slice(leftStart, leftEnd))
+}
+
+private fun EditingSession.changeCase(kind: Int) {
+    var start = cursor
+    while (start < buffer.length && buffer.wordClass(start, Word.Emacs) == 0) start = buffer.next(start)
+    val end = buffer.forwardWord(start, Word.Emacs, WordEnd.AfterEnd)
+    if (start == end) return
+    val text = line.slice(start, end)
+    val replacement = if (kind > 0) unicodeUppercase(text) else if (kind < 0) unicodeLowercase(text)
+        else unicodeUppercase(text.slice(0L, 1L)) + unicodeLowercase(text.slice(1L, text.length))
+    buffer.replace(start, end, replacement)
+}

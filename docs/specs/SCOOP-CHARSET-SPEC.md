@@ -38,6 +38,17 @@ native 引擎使用同一 libiconv 后端解码到一个 Unicode 标量，再交
 
 `normalizeNfc(text: String): String` 对完整 String 执行 Unicode NFC，返回拥有独立生命周期的 String。规范分解、组合顺序、组合排除和 Hangul 组合均使用 libunistring；不做兼容性折叠、大小写映射、空白删除或 BOM 消费。空字符串、内嵌 NUL 与 U+FEFF 都是普通文本。该入口不修改原字符串，各次调用没有共享可变转换状态；后端失败以 CharsetException 的 Backend 类别保留实际错误码。它不对任意流分块分别规范化，因为组合字符可以跨块关联；调用者明确提供完整文本。
 
+### 2.1 Unicode 分段、宽度与大小写
+
+Readline 所需的 Unicode 基础能力沿本库的固定 libunistring 后端提供：
+`graphemeBoundaries(text)` 返回扩展字素簇边界的 Unicode 标量索引（含 0 和末尾，
+空串返回 [0]），`graphemes(text)` 返回各簇的独立 String 数组；不使用缺少上下文的
+逐字符 break 判断。`unicodeScalarWidth(character)` 返回 UTF-8 终端单标量列宽，
+控制字符返回 -1，组合字符为 0，东亚宽字符为 2；不读取进程 locale。
+`isUnicodeAlphanumeric` 和 `unicodeLowercase/unicodeUppercase/unicodeCasefold` 使用同一 Unicode
+数据，大小写转换允许一个标量展开为多个标量。终端序列与字素簇显示策略属于 readline，
+不改变 core String 的标量索引语义。
+
 ## 3. HTTP 使用与验收
 
 Content-Type 参数解析属于 HTTP；HTTP client 根据显式 charset、调用方选择和协议规定选择 Charset。本库不猜测媒体类型。JSON 的网络表示采用 UTF-8，SSE 采用其规定的 UTF-8；HTTP 历史字段的原始字节不被整体当成 UTF-8 解码。

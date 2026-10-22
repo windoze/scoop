@@ -1,0 +1,109 @@
+package scoop.readline
+
+import scoop.charset.*
+import scoop.text.*
+
+/** A viewport of ANSI-decorated rows with a zero-based cursor position. */
+public struct RenderedLine(val lines: Array<String>, val cursorRow: Long, val cursorColumn: Long)
+
+/** Computes a terminal viewport without performing I/O. */
+public fun renderLine(
+    prompt: String, session: EditingSession, columns: Long, rows: Long,
+    final: Boolean = false
+): RenderedLine {
+    if (columns <= 0L || rows <= 0L) throw IllegalArgumentException(Some("invalid terminal size"))
+    val layout = LineLayout(columns, session.config.tabStop)
+    val colors = session.config.colorMode != ColorMode.Disabled
+    val highlighter = if (colors) session.highlighter else PlainHighlighter
+    val promptText = stripDecoration(prompt)
+    layout.append(promptText, if (colors) highlighter.highlightPrompt(prompt) else promptText, -1L)
+    val styled = if (final) session.line else highlighter.highlight(session.line, session.cursor)
+    layout.append(session.line, styled, if (final) session.line.length else session.cursor)
+    val hint = if (final) None else session.hint
+    if (hint != None) layout.append(hint!!.display, highlighter.highlightHint(hint!!.display), -1L)
+    val message = session.message
+    if (message != None && message!!.byteLength > 0L) {
+        layout.append("\n" + message!!, "\n" + message!!, -1L)
+    }
+    return layout.finish(rows)
+}
+
+internal fun clusterWidth(text: String): Long {
+    var width = 0L
+    var emoji = false
+    var regional = 0L
+    for (character in text) {
+        val code = character.code
+        if (code < 32 || code == 127) { width += 2L; continue }
+        val scalarWidth = unicodeScalarWidth(character).toLong()
+        if (scalarWidth > width) width = scalarWidth
+        if (code == 0xfe0f || code == 0x20e3) emoji = true
+        if (code >= 0x1f1e6 && code <= 0x1f1ff) regional += 1L
+        if (scalarWidth < 0L) width += 1L
+    }
+    return if (emoji || regional == 2L) 2L else width
+}
+
+private class LineLayout(private val columns: Long, private val tabStop: Long) {
+    private val lines: ArrayList<String> = ArrayList<String>()
+    private val row: StringBuilder = StringBuilder()
+    private var column: Long = 0L
+    private var cursorRow: Long = 0L
+    private var cursorColumn: Long = 0L
+    private var decoration: String = ""
+
+    fun append(plain: String, styled: String, cursor: Long) {
+        val pieces = styledGraphemes(plain, styled)
+        var offset = 0L
+        for (piece in pieces) {
+            val text = piece.plain
+            if (offset == cursor) { cursorRow = lines.size; cursorColumn = column }
+            if (text == "\n" || text == "\r\n") {
+                row.append(piece.decoration)
+                decoration += piece.decoration
+                newRow()
+            } else if (text == "\t") {
+                val count = tabStop - column % tabStop
+                row.append(piece.decoration)
+                decoration += piece.decoration
+                var left = count
+                while (left > 0L) {
+                    if (column == columns) newRow()
+                    row.append(' ')
+                    column += 1L
+                    left -= 1L
+                }
+            } else {
+                val width = clusterWidth(text)
+                if (column > 0L && width > columns - column) newRow()
+                if (offset == cursor) { cursorRow = lines.size; cursorColumn = column }
+                row.append(piece.decoration)
+                decoration += piece.decoration
+                val visible = if (width > columns) "�" else text
+                for (character in visible) {
+                    if (character.code < 32 || character.code == 127) {
+                        row.append('^')
+                        row.append((if (character.code == 127) 63 else character.code + 64).toChar())
+                    } else if (unicodeScalarWidth(character) < 0) row.append('�')
+                    else row.append(character)
+                }
+                column += if (width > columns) 1L else width
+            }
+            offset += text.length
+            if (column == columns) newRow()
+        }
+        if (offset == cursor) { cursorRow = lines.size; cursorColumn = column }
+    }
+
+    private fun newRow() {
+        lines.add(row.toString() + "\u001b[0m")
+        row.clear().append(decoration)
+        column = 0L
+    }
+    fun finish(height: Long): RenderedLine {
+        lines.add(row.toString() + "\u001b[0m")
+        val start = if (cursorRow >= height) cursorRow - height + 1L else 0L
+        val count = if (lines.size - start < height) lines.size - start else height
+        return RenderedLine(Array<String>(count) { index -> lines[start + index] }, cursorRow - start, cursorColumn)
+    }
+}

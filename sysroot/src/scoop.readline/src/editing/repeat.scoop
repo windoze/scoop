@@ -1,0 +1,41 @@
+package scoop.readline
+
+internal fun repeatChange(command: Command, count: Long): Command {
+    requireRepeat(count)
+    val (result, _) = overrideRepeat(command, count)
+    return result
+}
+
+private fun overrideRepeat(command: Command, count: Long): (Command, Boolean) = when (command) {
+    case Insert(text, _) -> (Command.Insert(text, count), true)
+    case Kill(movement) -> (Command.Kill(repeatMovement(movement, count)), true)
+    case Change(movement) -> (Command.Change(repeatMovement(movement, count)), true)
+    case Replace(movement, text) -> (Command.Replace(repeatMovement(movement, count), text), true)
+    case ReplaceChar(character, _) -> (Command.ReplaceChar(character, count), true)
+    case Yank(_, anchor) -> (Command.Yank(count, anchor), true)
+    case Indent(movement) -> (Command.Indent(repeatMovement(movement, count)), true)
+    case Dedent(movement) -> (Command.Dedent(repeatMovement(movement, count)), true)
+    case Sequence(commands) -> {
+        val result = ArrayList<Command>()
+        var applied = false
+        for (item in commands) {
+            val (next, changed) = if (applied) (item, false) else overrideRepeat(item, count)
+            result.add(next)
+            if (changed) applied = true
+        }
+        (Command.Sequence(result.toArray()), applied)
+    }
+    else -> (command, false)
+}
+
+private fun repeatMovement(movement: Movement, count: Long): Movement = when (movement) {
+    case BackwardChar(_) -> Movement.BackwardChar(count)
+    case ForwardChar(_) -> Movement.ForwardChar(count)
+    case BackwardWord(_, word) -> Movement.BackwardWord(count, word)
+    case ForwardWord(_, word, end) -> Movement.ForwardWord(count, word, end)
+    case LineUp(_) -> Movement.LineUp(count)
+    case LineDown(_) -> Movement.LineDown(count)
+    case WholeLine(_) -> Movement.WholeLine(count)
+    case Find(character, _, forward, till) -> Movement.Find(character, count, forward, till)
+    else -> movement
+}

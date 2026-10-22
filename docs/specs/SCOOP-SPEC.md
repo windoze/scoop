@@ -25,6 +25,8 @@ Scoop 的泛型采用**单态化（monomorphization）**，不进行类型擦除
 
 除 11.10 为字符串构建及公共容器访问提供的最小集合协议和 11.14 的原子类型外，标准库的其他部分不在本文件展开。M42 的平台无关标准基础库见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)；它是显式依赖的普通 Scoop Cone，不扩展语言语法、编译器角色或 runtime ABI。同步 IO、系统取时及系统熵见[平台库规范](SCOOP-PLATFORM-SPEC.md)，事件循环与异步 IO 见[异步 I/O 库规范](SCOOP-ASYNCIO-SPEC.md)；结构化任务树见 11.9.1～11.9.2。HTTP 协议与普通异步流适配见 [HTTP 库规范](SCOOP-HTTP-SPEC.md)。
 
+交互行编辑由普通库提供，见 [Readline 库规范](SCOOP-READLINE-SPEC.md)。
+
 ### 1.2 并发安全与数据竞争
 
 Scoop 不提供类似 Swift / Rust 的并发安全保障，不通过类型系统保证跨线程共享没有数据竞争，也不保证在编译期诊断此类竞争。需要并发安全时，程序必须显式使用 11.14 的原子操作或同步原语（如以后由库提供的 mutex / lock），并遵守其同步契约。
@@ -2021,6 +2023,7 @@ enum Option<T> {
 public class StringBuilder : ToString {
     public fun append(value: String): StringBuilder
     public fun <T : ToString> append(value: T): StringBuilder
+    public fun clear(): StringBuilder
     public override fun toString(): String
 }
 ```
@@ -2030,6 +2033,8 @@ public class StringBuilder : ToString {
 toString 返回当前所有 parts 按顺序连接的 String 内容快照，空 builder 返回空串；它不清空、关闭或冻结 builder。重复 toString 的内容相同，后续 append 不影响既有结果，不承诺结果引用身份不同。parts 不以固定槽数限制追加次数；增长、总 UTF-8 字节数与最终分配大小只受 10.6 的真实表示/分配边界限制。
 
 `toString` 的时间复杂度为 O(partCount + totalByteLength)。builder 不要求显式 close，不提供 off-heap 存储或 release hook 接口。
+
+clear 丢弃全部已追加片段并返回同一 builder，允许重新使用；已取得的 String 快照不变。
 
 实现复用普通 `ArrayList<String>` 保存 parts 和扩容；拼接后备仅消费 backing 中由列表保证已初始化的前缀，不另建容量管理或复制临时 String 数组。
 
@@ -3586,7 +3591,7 @@ public enum TestResult { Passed, Failed(TestFailure, TestFailure?) }
 public fun runTestCase(location: SourceLocation = currentSourceLocation(),
     initialize: () -> TestActions): TestResult
 public fun isTestSelected(arguments: Array<String>, caseIndex: String,
-    ignored: Boolean): Boolean
+    ignored: Boolean, caseName: String = ""): Boolean
 public fun runReportedTestCase(caseIndex: String, location: SourceLocation,
     initialize: () -> TestActions): TestResult
 public fun completeTestRun(): Unit
@@ -3599,3 +3604,5 @@ TestFailure 保留捕获后的 managed Throwable，遵守 16.2 与运行时规�
 合成入口通过 runReportedTestCase 包围上述执行：先记录开始，再调用 runTestCase，在完整生命周期结束后记录单调耗时、结果及首次／清理失败；全部选中用例结束后调用 completeTestRun。没有父命令设置的结果通道时，这两个适配不捕获输出或渲染结果，直接运行仍保持普通 stdout/stderr。事件 I/O、计时和串行 stdio 重定向由 scoop.test 自身的普通 native 源码提供，不增加公共 runtime ABI。诊断保留断言 kind/message、expected/actual 的可用／渲染失败状态和 cause；普通 Exception 使用 message，其他 Throwable 可通过 ToString 提供说明，说明转换抛出时保留固定的渲染失败说明，不覆盖原测试失败。
 
 测试入口接受普通 `Array<String>` 参数并返回 Int，数组按 12.4.4 包含 `argv[0]` 的启动路径。`scoop` 按已编译目录的顺序选择用例，以 `--scoop-test-cases` 后跟扁平目录下零基序号的十进制字符串传给入口；该序号仅在当前测试程序内定位目录项，不代替 callable 的实体身份。`isTestSelected` 在没有用户参数时选择未忽略用例，在上述显式清单中跳过启动路径与标记，再按 caseIndex 是否出现选择；只有选中后才进入完整生命周期。过滤与忽略选择由 `scoop` 使用目录中的完整显示名及 Ignore 信息完成，列表复用同一选择结果。
+
+独立运行生成的测试程序时，也支持 `--scoop-test-filter` 后跟完整显示名的子串，默认排除 Ignore；显式 `--scoop-test-filter-ignored` 选择匹配的忽略用例。合成入口将目录中已有的 caseName 传给普通选择函数，无新目录或反射查询。此入口用于调试及 scoop.test 中的子进程测试，不修改 scoop 命令的现有筛选合同。未知标记与缺失过滤词不选择任何用例。

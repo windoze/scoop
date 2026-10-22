@@ -1,0 +1,170 @@
+package scoop.readline
+
+import scoop.platform.io.*
+import scoop.platform.process.suspendCurrentProcess
+import scoop.terminal.TerminalSession
+import scoop.terminal.TerminalDisconnectedException
+import scoop.terminal.withRawMode
+import scoop.terminal.event.*
+import scoop.time.Duration
+import scoop.text.replace
+
+private class PasteMode(private val terminal: TerminalSession, private val enabled: Boolean) : Closeable {
+    fun enter() { if (enabled) terminal.writeText("\u001b[?2004h") }
+    public override fun close() { if (enabled) terminal.writeText("\u001b[?2004l") }
+}
+
+internal fun readTerminal(terminal: TerminalSession, prompt: String, session: EditingSession): String {
+    return PrinterScope(session.printer).use {
+        session.printer?.begin()
+        readTerminalActive(terminal, prompt, session)
+    }
+}
+
+private class PrinterScope(private val printer: ExternalPrinter?) : Closeable {
+    public override fun close() { printer?.end() }
+}
+
+private fun readTerminalActive(terminal: TerminalSession, prompt: String, session: EditingSession): String {
+    while (true) {
+        val result = terminal.withRawMode {
+            PasteMode(terminal, session.config.bracketedPaste).use { paste ->
+                paste.enter()
+                terminalLoop(terminal, prompt, session)
+            }
+        }
+        when (result) {
+            case Accepted(line) -> return line
+            case Eof -> throw ReadlineEofException()
+            case Interrupted -> throw ReadlineInterruptedException()
+            case Suspended -> suspendCurrentProcess()
+            case Continue -> throw IllegalStateException(Some("terminal loop returned without an outcome"))
+        }
+    }
+}
+
+private fun terminalLoop(terminal: TerminalSession, prompt: String, session: EditingSession): EditResult {
+    val renderer = TerminalRenderer(terminal)
+    var size = terminal.size()
+    renderer.draw(renderLine(prompt, session, size.columns, size.rows))
+    while (true) {
+        when (val printer = session.printer) {
+            case Some(value) -> {
+                val messages = value.drain()
+                if (messages.size > 0L) {
+                    renderer.erase()
+                    for (message in messages) {
+                        terminal.writeText(message.replace("\n", "\r\n"))
+                        if (message.byteLength == 0L || message[message.length - 1L] != '\n') terminal.writeText("\r\n")
+                    }
+                    renderer.reset()
+                    renderer.draw(renderLine(prompt, session, size.columns, size.rows))
+                }
+                if (!terminal.poll(Duration.milliseconds(50L)) && !session.hasPendingSequence) continue
+            }
+            case None -> { if (session.hasPendingSequence) terminal.flush() }
+        }
+        val result = try {
+            if (session.hasPendingSequence && !terminal.poll(Duration.milliseconds(session.config.keySequenceTimeoutMilliseconds))) {
+                session.flushPendingSequence()
+            } else {
+                val event = terminal.read()
+                when (event) {
+                    case Resize(_, _) -> { size = terminal.size(); EditResult.Continue }
+                    else -> session.handle(event)
+                }
+            }
+        } catch (error: TerminalDisconnectedException) { EditResult.Eof }
+        if (result != EditResult.Continue) {
+            renderer.draw(renderLine(prompt, session, size.columns, size.rows, final = true))
+            terminal.writeText("\r\n")
+            terminal.flush()
+            return result
+        }
+        if (session.takeClearScreen()) renderer.clear()
+        if (session.takeBell()) {
+            when (session.config.bellStyle) {
+                case Audible -> terminal.writeText("\u0007")
+                case Visible -> terminal.writeText("\u001b[?5h\u001b[?5l")
+                case None -> terminal.flush()
+            }
+        }
+        if (session.candidates.size > 0L) {
+            renderer.finish()
+            showCandidates(terminal, session, size.rows)
+            renderer.reset()
+        }
+        renderer.draw(renderLine(prompt, session, size.columns, size.rows))
+    }
+}
+
+private class TerminalRenderer(private val output: ByteSink) {
+    private var cursorRow: Long = 0L
+    private var lineCount: Long = 1L
+    fun draw(frame: RenderedLine) {
+        val text = StringBuilder().append("\r")
+        if (cursorRow > 0L) text.append("\u001b[" + cursorRow.toString() + "A")
+        text.append("\u001b[J")
+        var index = 0L
+        for (line in frame.lines) {
+            if (index > 0L) text.append("\r\n")
+            text.append(line)
+            index += 1L
+        }
+        val up = frame.lines.size - 1L - frame.cursorRow
+        if (up > 0L) text.append("\u001b[" + up.toString() + "A")
+        text.append("\r")
+        if (frame.cursorColumn > 0L) text.append("\u001b[" + frame.cursorColumn.toString() + "C")
+        output.writeText(text.toString())
+        output.flush()
+        cursorRow = frame.cursorRow
+        lineCount = frame.lines.size
+    }
+    fun finish() {
+        val down = lineCount - 1L - cursorRow
+        if (down > 0L) output.writeText("\u001b[" + down.toString() + "B")
+        output.writeText("\r\n")
+        reset()
+    }
+    fun erase() {
+        output.writeText("\r")
+        if (cursorRow > 0L) output.writeText("\u001b[" + cursorRow.toString() + "A")
+        output.writeText("\u001b[J")
+        reset()
+    }
+    fun reset() { cursorRow = 0L; lineCount = 1L }
+    fun clear() { output.writeText("\u001b[2J\u001b[H"); reset() }
+}
+
+private fun showCandidates(terminal: TerminalSession, session: EditingSession, rows: Long) {
+    if (session.candidates.size > session.config.completionPromptLimit) {
+        terminal.writeText("Display all " + session.candidates.size.toString() + " possibilities? (y or n) ")
+        terminal.flush()
+        val event = terminal.read()
+        val accept = when (event) {
+            case Key(key) -> key.code == KeyCode.Char('y') || key.code == KeyCode.Char('Y') || key.code == KeyCode.Tab
+            else -> false
+        }
+        terminal.writeText("\r\n")
+        if (!accept) return
+    }
+    var count = 0L
+    var total = 0L
+    for (candidate in session.candidates) {
+        terminal.writeText(session.highlighter.highlightCandidate(candidate.display) + "\r\n")
+        count += 1L
+        total += 1L
+        if (count >= rows - 1L && total < session.candidates.size) {
+            terminal.writeText("--More--")
+            terminal.flush()
+            val event = terminal.read()
+            val quit = when (event) {
+                case Key(key) -> key.code == KeyCode.Char('q') || key.code == KeyCode.Esc || controlCharacter(key) == Some('c')
+                else -> false
+            }
+            terminal.writeText("\r\u001b[K")
+            if (quit) return
+            count = 0L
+        }
+    }
+}
