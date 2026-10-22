@@ -4,69 +4,8 @@ use crate::NativeSymbolBinding;
 #[cfg(test)]
 mod tests;
 
-pub(super) enum Candidate {
-    Definition,
-    Object(NativeObjectId),
-    Dynamic(crate::namespace::NativeBinding),
-}
-
-pub(super) fn candidate(
-    symbol: &str,
-    binding: NativeLibraryBinding,
-    inputs: &ProgramInputs<'_>,
-) -> Result<Candidate, LinkError> {
-    let explicit = match binding {
-        NativeLibraryBinding::DefaultNativeNamespace => None,
-        NativeLibraryBinding::Requirement(id) => {
-            Some(inputs.native.libraries[&id].inputs.as_slice())
-        }
-    };
-    let system_alias = match binding {
-        NativeLibraryBinding::DefaultNativeNamespace => false,
-        NativeLibraryBinding::Requirement(id) => inputs.native.libraries[&id].system_alias,
-    };
-    if let Some(owner) = inputs.definitions.get(symbol) {
-        return match owner {
-            DefinitionOwner::Native(id)
-                if explicit.is_none_or(|input| input.contains(&id.input())) =>
-            {
-                Ok(Candidate::Object(*id))
-            }
-            _ if explicit.is_none() => Ok(Candidate::Definition),
-            _ => Err(error(format!(
-                "native library {explicit:?} cannot bind {symbol}, already defined by {owner:?}"
-            ))),
-        };
-    }
-    let mut candidates = Vec::new();
-    for file in inputs
-        .native
-        .files
-        .values()
-        .filter(|file| explicit.is_none_or(|ids| ids.contains(&file.id)))
-    {
-        if let Some((id, _)) = file.candidate(symbol) {
-            candidates.push(Candidate::Object(id));
-        }
-    }
-    candidates.extend(
-        inputs
-            .namespace
-            .candidates(&inputs.native, symbol, explicit, system_alias)?
-            .into_iter()
-            .map(Candidate::Dynamic),
-    );
-    if candidates.len() > 1 {
-        return Err(error(format!(
-            "ambiguous native providers for {symbol}: {} candidates",
-            candidates.len()
-        )));
-    }
-    candidates.pop().ok_or_else(|| error(match explicit {
-        Some(ids) => format!("native library {} does not provide {symbol}", ids.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")),
-        None => format!("unresolved native symbol {symbol} in default namespace (unresolved symbol {symbol})"),
-    }))
-}
+mod candidates;
+pub(super) use candidates::{Candidate, candidate};
 
 pub(super) fn include(
     inputs: &mut ProgramInputs<'_>,
