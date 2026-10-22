@@ -82,6 +82,22 @@ fn constructor_queries_preserve_primary_targets_default_providers_and_source_ide
             projected.body().value().kind(),
             hir::DefaultExpressionKindV1::Local(_)
         ));
+        let application = queries
+            .default_application(context.into(), default)
+            .unwrap()
+            .unwrap();
+        assert!(std::sync::Arc::ptr_eq(application.definition(), &projected));
+        let expected = queries.type_signature(context.into(), string).unwrap();
+        assert_eq!(
+            application.applied_type(projected.result()).unwrap(),
+            expected
+        );
+        assert_eq!(
+            application
+                .applied_type(projected.body().value().result_type())
+                .unwrap(),
+            expected
+        );
         let row = resolve(queries, context, "Row<String>");
         let constructors = queries.nominal_constructors(context, row).unwrap().unwrap();
         assert_eq!(constructors.len(), 1);

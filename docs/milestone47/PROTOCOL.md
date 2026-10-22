@@ -195,6 +195,8 @@ logical property 与 backing field 保留各自的实际 target，不能丢失 u
 
 按指定 callable application 读取 default 时，类型和外部 callable／member 引用沿编译器已有替换规则提供应用后的视图，同时保留定义处 binder 关系。查询不求值 default、不选择缺失字段分支，也不把 default 复制到待生成方法中。正文如何用现有源码表达由 generator 决定；M46 默认值迁移中的真实缺口按主设计 5.2 核对，不预设 HIR 转源码的语义保持能力。
 
+适配器复用共享的默认值应用视图：映射以 definition root 的宿主／callable binder 为准，继承后的参数接口只提供实际类型实参。局部泛型函数的签名保留新引入的 binder 层，应用实参中的开放参数相应提升层级；不能将局部参数替换为默认值提供方的参数。原声明引用及定义投影继续可读。
+
 `describeBodies` 是 HIR 的只读逻辑投影，包含节点类别、每个表达式的完整类型、局部绑定、控制流和实际 callable／member 引用。它不暴露 Rust 地址、缓存内部状态、LLVM 数据或物理布局。正文按显式的查询 schema 编码，不能通过把 `Debug` 文本塞进 JSON 宣称支持 HIR。
 
 正文可用性是封闭分支：

@@ -10,6 +10,7 @@ mod context;
 use context::imported_location;
 mod constructors;
 mod declarations;
+mod defaults;
 mod exports;
 mod fields;
 mod methods;
@@ -108,6 +109,14 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         source: hir::SemanticDefaultReference,
     ) -> Result<Option<std::sync::Arc<hir::ExportDefaultTemplateV1>>, Diagnostic> {
         self.body_queries.default(source)
+    }
+
+    fn default_application(
+        &mut self,
+        context: hir::SemanticTypeContext<'_>,
+        application: &hir::SemanticDefaultUse,
+    ) -> Result<Option<hir::SemanticDefaultApplication>, Diagnostic> {
+        self.query_default_application(context, application)
     }
 
     fn default_source(&self, source: hir::ExportDefaultSourceId) -> hir::SemanticDefaultSource<'_> {

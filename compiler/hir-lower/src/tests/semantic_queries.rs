@@ -171,6 +171,25 @@ fn inherited_default_query_preserves_the_dependency_definition_scope() {
             assert_eq!(projected.definition_origin(), &definition);
             assert_eq!(projected.definition_root(), root);
             assert_ne!(projected.key().owner(), root.declaration());
+            let binders = signature.declaration_binders();
+            let application = queries
+                .default_application(
+                    (&binders).into(),
+                    &hir::SemanticDefaultUse {
+                        definition: hir::SemanticDefaultReference::Current(source),
+                        arguments: vec![value_type],
+                    },
+                )
+                .unwrap()
+                .unwrap();
+            assert_eq!(application.provider().nominal_owner_binder_arity(), 1);
+            assert_eq!(application.provider().callable_own_binder_arity(), 0);
+            assert_eq!(
+                application.applied_type(projected.result()).unwrap(),
+                queries
+                    .type_signature((&binders).into(), value_type)
+                    .unwrap(),
+            );
             self.0 = true;
             Ok(Vec::new())
         }

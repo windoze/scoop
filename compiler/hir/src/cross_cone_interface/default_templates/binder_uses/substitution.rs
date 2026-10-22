@@ -29,6 +29,7 @@ enum Transform<'a> {
     Substitute {
         mapping: &'a CanonicalBinderUseListV1,
         provider: DefaultTemplateProviderShapeV1,
+        introduced_binders: u32,
     },
 }
 
@@ -55,6 +56,17 @@ impl CanonicalBinderUseListV1 {
         provider: DefaultTemplateProviderShapeV1,
         signature: &SignatureTypeKey,
     ) -> Result<SignatureTypeKey, DefaultTemplateTypeSubstitutionError> {
+        self.substitute_provider_type_in_scope(provider, signature, 0)
+    }
+
+    /// Keeps newly introduced lexical binders and lifts the inserted arguments
+    /// through them. Mapping arguments are already in the application scope.
+    pub fn substitute_provider_type_in_scope(
+        &self,
+        provider: DefaultTemplateProviderShapeV1,
+        signature: &SignatureTypeKey,
+        introduced_binders: u32,
+    ) -> Result<SignatureTypeKey, DefaultTemplateTypeSubstitutionError> {
         let path = &WirePath::root();
         if self.len_u32() != provider.binder_arity() {
             return Err(DefaultTemplateTypeSubstitutionError::MappingArity {
@@ -66,6 +78,7 @@ impl CanonicalBinderUseListV1 {
             transform: Transform::Substitute {
                 mapping: self,
                 provider,
+                introduced_binders,
             },
             tasks: Vec::new(),
             values: Vec::new(),

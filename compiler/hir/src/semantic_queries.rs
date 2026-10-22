@@ -13,6 +13,8 @@ mod annotations;
 pub use annotations::*;
 mod bodies;
 pub use bodies::*;
+mod defaults;
+pub use defaults::*;
 mod types;
 pub use types::*;
 mod fields;
@@ -109,6 +111,11 @@ pub trait SemanticQueries {
         &mut self,
         source: SemanticDefaultReference,
     ) -> Result<Option<std::sync::Arc<ExportDefaultTemplateV1>>, Diagnostic>;
+    fn default_application(
+        &mut self,
+        context: SemanticTypeContext<'_>,
+        application: &SemanticDefaultUse,
+    ) -> Result<Option<SemanticDefaultApplication>, Diagnostic>;
     fn source_location(&self, origin: DefinitionOrigin) -> SemanticSourceLocation;
     fn signature(&self, function: FunctionId) -> SemanticFunctionSignature;
     fn method_identity(

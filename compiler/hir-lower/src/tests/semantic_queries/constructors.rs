@@ -82,6 +82,24 @@ fn dependency_constructor_queries_keep_source_parameters_and_default_binder_argu
                 .unwrap()
                 .unwrap();
             assert!(std::sync::Arc::ptr_eq(&projected, &repeated));
+            let application = queries
+                .default_application(context.into(), default)
+                .unwrap()
+                .unwrap();
+            assert!(std::sync::Arc::ptr_eq(application.definition(), &projected));
+            let expected = queries
+                .type_signature(context.into(), fields[0].value_type.applied)
+                .unwrap();
+            assert_eq!(
+                application.applied_type(projected.result()).unwrap(),
+                expected
+            );
+            assert_eq!(
+                application
+                    .applied_type(projected.body().value().result_type())
+                    .unwrap(),
+                expected
+            );
             let row = parameter_type(1);
             let constructors = queries.nominal_constructors(context, row).unwrap().unwrap();
             assert_eq!(
