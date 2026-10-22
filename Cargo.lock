@@ -1148,6 +1148,7 @@ dependencies = [
  "scoop-ast",
  "scoop-codegen",
  "scoop-doc",
+ "scoop-generator-protocol",
  "scoop-hir",
  "scoop-hir-lower",
  "scoop-identity",
@@ -1164,6 +1165,7 @@ dependencies = [
  "scoop-target-data",
  "scoop-toolchain",
  "scoop-wire",
+ "serde_json",
  "tempfile",
 ]
 

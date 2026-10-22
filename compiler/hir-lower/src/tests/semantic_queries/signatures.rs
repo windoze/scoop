@@ -11,6 +11,16 @@ fn pending_dependency_method_keeps_inherited_defaults_and_applied_owner_binders(
             let pending = queries.pending_methods();
             assert_eq!(pending.len(), 1);
             let pending = &pending[0];
+            for requirement in &pending.requirements {
+                let hir::InterfaceMethodReference::Imported { slot, .. } = requirement.declaration
+                else {
+                    panic!("the requirement comes from the dependency interface")
+                };
+                assert_eq!(
+                    queries.requirement_slot(requirement.declaration).unwrap(),
+                    slot
+                );
+            }
             let signature =
                 scoop_generator_protocol::pending_method_signature(queries, pending).unwrap();
             assert_eq!(signature["parameters"][1]["calling"]["kind"], "default");

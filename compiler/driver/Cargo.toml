@@ -14,6 +14,8 @@ path = "src/lib.rs"
 [dependencies]
 scoop-target-data.workspace = true
 scoop-process.workspace = true
+scoop-generator-protocol.workspace = true
+serde_json.workspace = true
 clap.workspace = true
 scoop-ast.workspace = true
 scoop-codegen.workspace = true

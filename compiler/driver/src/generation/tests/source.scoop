@@ -1,0 +1,53 @@
+import GenerateWith as UseGenerator
+
+interface GPlanI { fun shared(): Int }
+interface GPlanJ { fun shared(): Int }
+interface GPlanK { fun distinct(): Int }
+interface GPlanChild : GPlanI {}
+interface GPlanGeneric<T> { fun generic(): Int }
+interface GPlanDefault { fun ready(): Int = 1 }
+typealias GPlanAlias = GPlanI
+object GPlanConfig { const val Name: String = "merge" }
+
+@UseGenerator(GPlanConfig.Name, ["GPlanI", "GPlanJ"])
+class GPlanMerge : GPlanI, GPlanJ
+
+@GenerateWith("multi", ["GPlanI"])
+@GenerateWith("multi", ["GPlanK"])
+struct GPlanMulti() : GPlanI, GPlanK
+
+@GenerateWith("partial", ["GPlanI", "GPlanK"])
+class GPlanPartial : GPlanI, GPlanK { override fun shared(): Int = 2 }
+
+@GenerateWith("handA", ["GPlanI"])
+@GenerateWith("handB", ["GPlanJ"])
+class GPlanHand : GPlanI, GPlanJ { override fun shared(): Int = 3 }
+
+@GenerateWith("empty", []) class GPlanEmpty
+@GenerateWith("default", ["GPlanDefault"]) class GPlanReady : GPlanDefault
+
+@GenerateWith("inherited", ["GPlanChild"])
+open class GPlanParent : GPlanChild
+class GPlanDerived : GPlanParent(), GPlanK
+
+@GenerateWith("generic", ["GPlanGeneric<T>"])
+class GPlanGenericOwner<T> : GPlanGeneric<T>
+
+@GenerateWith("duplicate", ["GPlanI", "GPlanAlias"])
+class GPlanDuplicate : GPlanI
+
+@GenerateWith("dupComplete", ["GPlanI", "GPlanAlias"])
+class GPlanDupComplete : GPlanI { override fun shared(): Int = 1 }
+
+@GenerateWith("conflictA", ["GPlanI"])
+@GenerateWith("conflictB", ["GPlanJ"])
+class GPlanConflict : GPlanI, GPlanJ
+
+@GenerateWith("syntax", ["GPlanI<"]) class GPlanSyntax : GPlanI
+@GenerateWith("notInherited", ["GPlanK"]) class GPlanMissing : GPlanI
+@GenerateWith("nonInterface", ["Int"]) class GPlanNonInterface
+@GenerateWith("bareGeneric", ["GPlanGeneric"]) class GPlanBare : GPlanGeneric<Int>
+@GenerateWith("wrongArguments", ["GPlanGeneric<Int, Int>"]) class GPlanWrong : GPlanGeneric<Int>
+@GenerateWith("unknown", ["GPlanNotDeclared"]) class GPlanUnknown
+@GenerateWith(" ", []) class GPlanEmptyName
+@GenerateWith("onInterface", []) interface GPlanMisplaced {}

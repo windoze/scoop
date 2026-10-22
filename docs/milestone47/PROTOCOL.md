@@ -119,6 +119,8 @@ owner 是实际实现类型，如 `User.Companion` 或带开放 binder 的 `BoxC
 
 `CompleteMethodSignature` 保存实际 receiver、各参数的独立引用与源码名称、完整参数／结果类型、泛型 binder／bound、上下文参数和已有 effect 信息。generator 使用这些普通参数名与类型参数名编写正文，不返回或重新声明这份签名；结果的 MethodId 只指定要填充的方法。
 
+任务中的 owner 和 binding.interface 沿完整 Type 编码；requirement 为 `{interface: Type, slot: DispatchSlotId}`，完整接口应用已经包含实际名义声明。slot 使用原 typed dispatch identity，不以方法名称、声明序号或实现方法的 MethodId 代替。方法 origin 指向选择它的配置位置，signature.origin 保留原方法定义位置。
+
 `currentCone` 和 `coreCone` 用于定位既有语义命名空间；两者在编译 core 时可以相同。源码展示位置采用已有 SourceIdentity 与范围，宿主绝对路径由 driver 的 source locator 负责，不借路径重新构造实体身份。
 
 wire 上的 bodies 用有序数组表示 typed 映射，不能将 MethodId 转成无类型的 JSON object key。空数组是合法返回；缺失的必要实现由普通完整性检查报告。重复 MethodId、非本批方法或已有实现的覆盖均拒绝。

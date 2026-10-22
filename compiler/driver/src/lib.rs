@@ -2,6 +2,10 @@
 
 mod artifact_production;
 mod generated_c;
+mod generation;
+pub use generation::{
+    GeneratorBatch, GeneratorBinding, GeneratorMethod, GeneratorTask, plan_generators,
+};
 mod object_production;
 mod request;
 mod trusted_core;

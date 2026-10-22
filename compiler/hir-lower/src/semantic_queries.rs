@@ -361,6 +361,25 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         self.lowerer.query_interface_requirements(interface)
     }
 
+    fn requirement_slot(
+        &mut self,
+        declaration: hir::InterfaceMethodReference,
+    ) -> Result<scoop_identity::PersistentDispatchSlotId, Diagnostic> {
+        let method = match declaration {
+            hir::InterfaceMethodReference::Local(method) => method,
+            hir::InterfaceMethodReference::Imported { slot, .. } => return Ok(slot),
+        };
+        let data = self.body_queries.data()?;
+        crate::persistent_dispatch::interface_slot(
+            self.lowerer,
+            &data.functions,
+            &data.accessors,
+            method,
+        )
+        .map(|record| record.id())
+        .map_err(|error| Diagnostic::at_file(error.file(), error.span(), error.to_string()))
+    }
+
     fn resolve_type(
         &mut self,
         context: hir::SemanticContext,

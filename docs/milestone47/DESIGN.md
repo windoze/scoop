@@ -30,7 +30,7 @@ encoder／decoder 是这两个能力的落地试点：把 M46 更新后的合成
 GenerateWith 是 `scoop.core` 中的普通 annotation class，标在实际实现类型上。一条注解为同一个 generator 指定一组接口，一轮生成它们的缺失实现；同一个类型可以重复标注，为其他接口选择不同程序。interface 声明本身不绑定生成策略。
 
 ```scoop
-@Target([AnnotationTarget.CLASS])
+@Target([AnnotationTarget.Class])
 @Repeatable
 public annotation class GenerateWith(
     val generator: String,
@@ -50,7 +50,7 @@ public class UserCodec : Encodable<User>, Decodable<User> {}
 
 源码 parser 不识别 GenerateWith 的名字或参数含义，只产生普通 annotation AST；HIR 使用普通参数／target／Repeatable 规则绑定它。之后 driver 通过普通 core 命名空间查到 GenerateWith 的实际声明，读取正常 metadata 中对它的应用，解释 generator 名称与 interface 数组中的各个字符串，选择要填充的既有接口实现。导入别名、generator 的常量字符串及数组中的字符串常量元素都沿普通注解规则工作；不在 parser／HIR 中增加 GenerateWith 专属的 core role、schema 校验或注解节点。
 
-CLASS 沿用覆盖名义声明的规则；driver 只对实际承载实现的 class／struct／enum／object（包括 companion）建立任务。interface 本体不能用此入口替实现者指定策略，配置在没有相应实现对象时报告不适用。重复应用沿现有 Repeatable 行为保留各自来源，具体接口重复规则见 2.2。
+Class 沿用覆盖名义声明的规则；driver 只对实际承载实现的 class／struct／enum／object（包括 companion）建立任务。interface 本体不能用此入口替实现者指定策略，配置在没有相应实现对象时报告不适用。重复应用沿现有 Repeatable 行为保留各自来源，具体接口重复规则见 2.2。
 
 codec 试点在一条注解中列出两个接口，由工具链注册的同一个程序在一次请求中处理两个方向：
 

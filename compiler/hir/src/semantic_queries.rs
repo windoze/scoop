@@ -189,6 +189,10 @@ pub trait SemanticQueries {
     ) -> bool;
     fn interfaces(&mut self, owner: NominalOwner) -> Vec<TypeId>;
     fn requirements(&mut self, interface: TypeId) -> Vec<AppliedRequirement>;
+    fn requirement_slot(
+        &mut self,
+        declaration: InterfaceMethodReference,
+    ) -> Result<scoop_identity::PersistentDispatchSlotId, Diagnostic>;
     fn resolve_type(
         &mut self,
         context: SemanticContext,
