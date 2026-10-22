@@ -1,0 +1,99 @@
+use super::*;
+
+#[test]
+fn empty_input_is_diagnosed_before_selecting_a_current_cone() {
+    let Err(diagnostics) = Lowerer::new().run(&[], None, None) else {
+        panic!("an empty source set cannot compile");
+    };
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].message, "no source files to compile");
+}
+
+fn input(source: &str) -> (Lowerer, Vec<ast::SourceFile>) {
+    let files = vec![
+        crate::tests::core_file(),
+        scoop_parser::parse(source).unwrap(),
+    ];
+    let sources = vec![
+        SourceProvider {
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            kind: SourceKind::Core,
+            role: scoop_identity::SourceRole::Production,
+            identity: crate::tests::core_source_identity("src/core.scoop"),
+            name: "core.scoop".into(),
+            source: String::new(),
+        },
+        SourceProvider {
+            provider: hir::IntrinsicProviderId::from_raw(1),
+            kind: SourceKind::CurrentUnit,
+            role: scoop_identity::SourceRole::Production,
+            identity: crate::tests::test_source_identity("src/user.scoop"),
+            name: "user.scoop".into(),
+            source: source.into(),
+        },
+    ];
+    let lowerer =
+        Lowerer::new().with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly);
+    let dependencies = hir::ImportedDependencySelectionPlan::empty(lowerer.current_cone());
+    (lowerer.with_imported_dependencies(dependencies), files)
+}
+
+#[test]
+fn explicit_signatures_are_available_before_erroneous_bodies_are_checked() {
+    let (mut lowerer, files) = input(
+        "fun caller(): Boolean = known(true)\nfun known(value: Boolean): Boolean { missingBodyName }",
+    );
+    let declarations = lowerer.collect_source_declarations(&files, None).unwrap();
+    lowerer
+        .resolve_source_signatures(&files, &declarations)
+        .unwrap();
+    assert!(lowerer.diagnostics.is_empty(), "{:?}", lowerer.diagnostics);
+    let known = declarations
+        .pending_functions
+        .iter()
+        .find(|(_, declaration, _)| declaration.name.text == "known")
+        .unwrap()
+        .0;
+    let signature = &lowerer.signatures[&known];
+    assert_eq!(signature.return_ty, lowerer.boolean);
+    assert_eq!(signature.params[0].ty, lowerer.boolean);
+    assert!(!signature.result_pending);
+    let core = lowerer
+        .complete_declaration_bodies(&files, &declarations)
+        .unwrap();
+    assert!(lowerer.diagnostics.is_empty(), "{:?}", lowerer.diagnostics);
+    lowerer.lower_source_bodies(&declarations, core.type_reference);
+    assert!(
+        lowerer
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("missingBodyName"))
+    );
+}
+
+#[test]
+fn inferred_result_is_pending_until_its_actual_body_completes() {
+    let (mut lowerer, files) =
+        input("fun inferred() = missingReturnValue\nfun other(): Boolean = true");
+    let declarations = lowerer.collect_source_declarations(&files, None).unwrap();
+    lowerer
+        .resolve_source_signatures(&files, &declarations)
+        .unwrap();
+    assert!(lowerer.diagnostics.is_empty(), "{:?}", lowerer.diagnostics);
+    let inferred = declarations
+        .pending_functions
+        .iter()
+        .find(|(_, declaration, _)| declaration.name.text == "inferred")
+        .unwrap()
+        .0;
+    assert!(lowerer.signatures[&inferred].result_pending);
+    let Err(diagnostics) = lowerer.complete_declaration_bodies(&files, &declarations) else {
+        panic!("an unresolved inferred result must keep declaration completion from succeeding");
+    };
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("missingReturnValue"))
+    );
+    assert!(lowerer.signatures[&inferred].result_pending);
+}

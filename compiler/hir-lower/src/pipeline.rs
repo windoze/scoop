@@ -1,4 +1,11 @@
 use super::*;
+mod declaration_bodies;
+mod declarations;
+mod signatures;
+mod source_bodies;
+
+use declarations::{DeclarationBodyCore, SignatureCore, SourceDeclarations};
+
 mod finish;
 mod run;
 mod type_parameters;
