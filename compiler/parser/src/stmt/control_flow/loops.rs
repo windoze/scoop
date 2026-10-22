@@ -56,12 +56,37 @@ impl Parser {
         let start = label
             .as_ref()
             .map_or(keyword.span.start, |label| label.span.start);
-        let body = self.parse_control_body()?;
+        let (result, recovered) = self.parse_recoverable_control_body();
+        if let Some(body) = recovered {
+            self.record_recovered_do_while(ast::RecoveredDoWhile {
+                block: None,
+                start,
+                label: label.clone(),
+                part: ast::RecoveredDoWhilePart::Body(body),
+            });
+        }
+        let body = result?;
         self.expect("`while` after do body", |kind| {
             matches!(kind, TokenKind::While)
         })?;
         self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
-        let cond = self.parse_expr()?;
+        let expression_start = self.peek().span.start;
+        let condition_checkpoint = self.checkpoint();
+        let result = self.parse_expr();
+        if recovered.is_none()
+            && (result.is_err() || !self.fragment_is_complete(condition_checkpoint))
+        {
+            self.record_recovered_do_while(ast::RecoveredDoWhile {
+                block: None,
+                start,
+                label: label.clone(),
+                part: ast::RecoveredDoWhilePart::Condition {
+                    body: Box::new(body.clone()),
+                    expression_start,
+                },
+            });
+        }
+        let cond = result?;
         let end = self
             .expect("`)`", |kind| matches!(kind, TokenKind::RParen))?
             .span

@@ -116,6 +116,23 @@ pub struct RecoveredFor {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum RecoveredDoWhilePart {
+    Body(RecoveredControlBody),
+    Condition {
+        body: Box<crate::Block>,
+        expression_start: u32,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecoveredDoWhile {
+    pub block: Option<BodyBlockId>,
+    pub start: u32,
+    pub label: Option<crate::Ident>,
+    pub part: RecoveredDoWhilePart,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct RecoveredFunctionBody {
     pub root: RecoveredBodyRoot,
     pub blocks: Vec<RecoveredBlock>,
@@ -125,4 +142,5 @@ pub struct RecoveredFunctionBody {
     pub conditionals: Vec<RecoveredIf>,
     pub while_loops: Vec<RecoveredWhile>,
     pub for_loops: Vec<RecoveredFor>,
+    pub do_while_loops: Vec<RecoveredDoWhile>,
 }

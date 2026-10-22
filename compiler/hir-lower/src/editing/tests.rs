@@ -9,6 +9,7 @@ mod candidates;
 mod candidates_imported;
 mod conditionals;
 mod definitions;
+mod do_while;
 mod documentation;
 mod imported_signatures;
 mod imports;

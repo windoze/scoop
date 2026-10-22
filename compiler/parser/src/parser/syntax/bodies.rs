@@ -28,6 +28,7 @@ pub(super) enum BodyEvent {
     If(Box<ast::RecoveredIf>),
     While(Box<ast::RecoveredWhile>),
     For(Box<ast::RecoveredFor>),
+    DoWhile(Box<ast::RecoveredDoWhile>),
     TrailingArgument {
         call: Span,
         argument: Box<ast::RecoveredCallArgument>,
@@ -54,11 +55,22 @@ struct BodyParts {
     conditionals: Vec<ast::RecoveredIf>,
     while_loops: Vec<ast::RecoveredWhile>,
     for_loops: Vec<ast::RecoveredFor>,
+    do_while_loops: Vec<ast::RecoveredDoWhile>,
 }
 
 impl BodyRecorder {
     pub(super) fn record(&mut self, event: BodyEvent, function: Option<DeclarationIndex>) {
         match event {
+            BodyEvent::DoWhile(mut do_while) => {
+                if let Some(function) = function {
+                    do_while.block = self.block_for(function);
+                    self.functions
+                        .entry(function.0)
+                        .or_default()
+                        .do_while_loops
+                        .push(*do_while);
+                }
+            }
             BodyEvent::For(mut for_loop) => {
                 if let Some(function) = function {
                     for_loop.block = self.block_for(function);
@@ -200,6 +212,7 @@ impl BodyRecorder {
                         conditionals: value.conditionals,
                         while_loops: value.while_loops,
                         for_loops: value.for_loops,
+                        do_while_loops: value.do_while_loops,
                     },
                 })
             })
@@ -208,6 +221,12 @@ impl BodyRecorder {
 }
 
 impl Parser {
+    pub(crate) fn record_recovered_do_while(&mut self, do_while: ast::RecoveredDoWhile) {
+        self.syntax
+            .events
+            .push(Event::Body(BodyEvent::DoWhile(Box::new(do_while))));
+    }
+
     pub(crate) fn record_recovered_for(&mut self, for_loop: ast::RecoveredFor) {
         self.syntax
             .events

@@ -10,6 +10,9 @@ mod loops;
 #[path = "recovered_bodies/iteration.rs"]
 mod iteration;
 
+#[path = "recovered_bodies/do_while.rs"]
+mod do_while;
+
 fn body<'a>(parsed: &'a ParsedFile, name: &str) -> &'a ast::RecoveredFunctionBody {
     parsed
         .declaration_data()

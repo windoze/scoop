@@ -1,6 +1,7 @@
 use super::*;
 
 mod conditionals;
+mod do_while;
 mod iteration;
 mod loops;
 
@@ -167,6 +168,14 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
             .find(|for_loop| for_loop.block == block && for_loop.span.start == start)
         {
             return self.for_loop(lowerer, for_loop, available);
+        }
+        if let Some(do_while) = self
+            .body
+            .do_while_loops
+            .iter()
+            .find(|do_while| do_while.block == block && do_while.start == start)
+        {
+            return self.do_while(lowerer, do_while, available);
         }
         Ok(())
     }
