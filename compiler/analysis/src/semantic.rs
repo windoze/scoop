@@ -44,7 +44,11 @@ impl SemanticSession {
         &mut self,
         snapshot: &AnalysisSnapshot,
         source: SourceId,
+        is_cancelled: impl Fn() -> bool,
     ) -> Result<Option<&mut DeclarationAnalysis>, &ProjectAnalysisError> {
+        if is_cancelled() {
+            return Err(&ProjectAnalysisError::Cancelled);
+        }
         let Some(project) = snapshot.workspace.project_for_source(source) else {
             self.declarations = None;
             return Ok(None);
@@ -67,26 +71,25 @@ impl SemanticSession {
             .collect::<Result<Vec<_>, _>>();
         let unchanged = versions.as_ref().ok().is_some_and(|versions| {
             self.declarations.as_ref().is_some_and(|cached| {
-                cached.project == *project
-                    && cached.cone == cone
-                    && cached.versions == *versions
-                    && !matches!(
-                        cached.result,
-                        Err(ProjectAnalysisError::Cancelled
-                            | ProjectAnalysisError::Declarations(
-                                DeclarationAnalysisError::Cancelled
-                            ))
-                    )
+                cached.project == *project && cached.cone == cone && cached.versions == *versions
             })
         });
         if !unchanged {
             let (versions, result) = match versions {
                 Ok(versions) => {
-                    let result = snapshot.analyze_artifact_declarations(project, source);
+                    let result =
+                        snapshot.analyze_artifact_declarations(project, source, &is_cancelled);
                     (versions, result)
                 }
                 Err(error) => (Vec::new(), Err(error)),
             };
+            if matches!(
+                result,
+                Err(ProjectAnalysisError::Cancelled
+                    | ProjectAnalysisError::Declarations(DeclarationAnalysisError::Cancelled))
+            ) {
+                return Err(&ProjectAnalysisError::Cancelled);
+            }
             self.declarations = Some(CachedDeclarations {
                 project: project.clone(),
                 cone,
@@ -112,8 +115,17 @@ impl AnalysisSnapshot {
         &self,
         project: &ProjectInput,
         source: SourceId,
+        is_cancelled: impl Fn() -> bool,
     ) -> Result<DeclarationAnalysis, ProjectAnalysisError> {
-        self.check_cancelled()?;
+        let check = || {
+            self.check_cancelled()?;
+            if is_cancelled() {
+                Err(ProjectAnalysisError::Cancelled)
+            } else {
+                Ok(())
+            }
+        };
+        check()?;
         if !project.complete {
             return Err(ProjectAnalysisError::ConfigurationUnavailable);
         }
@@ -124,6 +136,7 @@ impl AnalysisSnapshot {
         let mut reachable = std::collections::BTreeSet::new();
         let mut pending = direct.clone();
         while let Some(cone) = pending.pop() {
+            check()?;
             if reachable.insert(cone) {
                 pending.extend(&project.dependencies[&cone]);
             }
@@ -134,7 +147,7 @@ impl AnalysisSnapshot {
             .iter()
             .filter(|cone| reachable.contains(cone))
         {
-            self.check_cancelled()?;
+            check()?;
             match &project.cones[cone] {
                 ConeInput::Artifact(artifact) => artifacts.push(&artifact.file),
                 ConeInput::Source(_) => {
@@ -149,7 +162,7 @@ impl AnalysisSnapshot {
             artifacts,
         )
         .map_err(|error| ProjectAnalysisError::Artifact(error.to_string()))?;
-        self.check_cancelled()?;
+        check()?;
         let world = dependencies
             .imported_semantic_world()
             .map_err(|error| ProjectAnalysisError::Artifact(error.to_string()))?;
@@ -161,7 +174,7 @@ impl AnalysisSnapshot {
                 .map_err(|error| ProjectAnalysisError::Artifact(error.to_string()))?
                 .into()
         };
-        self.analyze_declarations(input, &core, &world)
+        self.analyze_declarations(input, &core, &world, is_cancelled)
             .map_err(ProjectAnalysisError::Declarations)
     }
 }

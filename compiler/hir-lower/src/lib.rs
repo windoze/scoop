@@ -172,7 +172,10 @@ pub use current_lowering::{
     lower_current_cone, lower_current_cone_with_generator, lower_current_tests,
     lower_current_tests_with_generator,
 };
-pub use editing::{DeclarationAnalysis, EditingCancelled, EditingSignature, analyze_declarations};
+pub use editing::{
+    DeclarationAnalysis, EditingAnalysisError, EditingCancelled, EditingSignature,
+    analyze_declarations,
+};
 pub use output_kind::select_cone_output_kind;
 
 use std::collections::{HashMap, HashSet};

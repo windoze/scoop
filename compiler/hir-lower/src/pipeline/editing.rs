@@ -1,7 +1,7 @@
 //! The editor reuses declaration collection and signature resolution in place.
 
 use super::*;
-use crate::editing::DeclarationAnalysis;
+use crate::editing::{DeclarationAnalysis, EditingCancelled};
 
 impl Lowerer {
     pub(crate) fn analyze_declaration_inputs<'a>(
@@ -9,8 +9,9 @@ impl Lowerer {
         sources: &[ast::DeclarationSource<'a, '_>],
         headers: Vec<ast::SourceHeaderRef<'a>>,
         world: &hir::ImportedSemanticWorld<'_>,
-    ) -> DeclarationAnalysis {
-        let declarations = self.collect_declaration_inputs(
+        check: &impl Fn() -> Result<(), EditingCancelled>,
+    ) -> Result<DeclarationAnalysis, EditingCancelled> {
+        let declarations = self.collect_declaration_inputs_with_cancellation(
             headers,
             sources.iter().enumerate().flat_map(|(file, source)| {
                 source
@@ -20,12 +21,14 @@ impl Lowerer {
                     .map(move |declaration| (file, declaration))
             }),
             Some(world),
+            check,
         );
         let declarations = match declarations {
             Ok(declarations) => declarations,
-            Err(diagnostics) => {
+            Err(PhaseFailure::Cancelled(cancelled)) => return Err(cancelled),
+            Err(PhaseFailure::Diagnostics(diagnostics)) => {
                 self.diagnostics.extend(diagnostics);
-                return DeclarationAnalysis {
+                return Ok(DeclarationAnalysis {
                     lowerer: self,
                     functions: Vec::new(),
                     declarations_ready: false,
@@ -33,7 +36,7 @@ impl Lowerer {
                     receiver_facts: Default::default(),
                     body_inputs: Default::default(),
                     body_facts: Default::default(),
-                };
+                });
             }
         };
         let functions = declarations
@@ -56,18 +59,24 @@ impl Lowerer {
                 span: header.span,
             })
             .collect();
-        let declarations_ready = match self.resolve_source_signatures(&declarations) {
-            Ok(_) => true,
-            Err(diagnostics) => {
-                self.diagnostics.extend(diagnostics);
-                false
-            }
-        };
+        let declarations_ready =
+            match self.resolve_source_signatures_with_cancellation(&declarations, check) {
+                Ok(_) => true,
+                Err(PhaseFailure::Cancelled(cancelled)) => return Err(cancelled),
+                Err(PhaseFailure::Diagnostics(diagnostics)) => {
+                    self.diagnostics.extend(diagnostics);
+                    false
+                }
+            };
+        check()?;
         let recovered_bodies = declarations
             .recovered_functions
             .iter()
-            .map(|(function, body)| (*function, (*body).clone()))
-            .collect();
+            .map(|(function, body)| {
+                check()?;
+                Ok((*function, (*body).clone()))
+            })
+            .collect::<Result<_, EditingCancelled>>()?;
         self.declaration_inference.ready = declarations_ready;
         let body_inputs = declarations
             .pending_functions
@@ -79,9 +88,13 @@ impl Lowerer {
                     .iter()
                     .map(|&(function, declaration, file, _)| (function, declaration, file)),
             )
-            .map(|(function, declaration, _)| (function, declaration.clone()))
-            .collect();
-        DeclarationAnalysis {
+            .map(|(function, declaration, _)| {
+                check()?;
+                Ok((function, declaration.clone()))
+            })
+            .collect::<Result<_, EditingCancelled>>()?;
+        check()?;
+        Ok(DeclarationAnalysis {
             lowerer: self,
             functions,
             declarations_ready,
@@ -89,6 +102,6 @@ impl Lowerer {
             receiver_facts: Default::default(),
             body_inputs,
             body_facts: Default::default(),
-        }
+        })
     }
 }

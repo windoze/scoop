@@ -35,7 +35,8 @@ fn imported_members_and_generic_extensions_use_their_declared_scopes() {
         scoop_identity::SourceRole::Production,
         text,
     );
-    let mut analysis = analyze_declarations(&[source], &core_inputs, &world, &[]).unwrap();
+    let mut analysis =
+        analyze_declarations(&[source], &core_inputs, &world, &[], || false).unwrap();
     let members = members::members(&mut analysis);
     for name in ["item", "read", "extension", "renamed", "property"] {
         assert!(

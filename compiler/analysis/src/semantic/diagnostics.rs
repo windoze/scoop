@@ -21,7 +21,7 @@ impl SemanticSession {
             .find(|file| file.source == source)
             .expect("the selected Cone contains the source")
             .identity;
-        let diagnostics = match self.declarations(snapshot, source) {
+        let diagnostics = match self.declarations(snapshot, source, || false) {
             Ok(Some(analysis)) => {
                 let functions = analysis
                     .functions()

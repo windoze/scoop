@@ -9,11 +9,32 @@ impl Lowerer {
         pending_interfaces: &[(InterfaceId, &ast::InterfaceDecl, usize)],
         pending_objects: &[(ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
+        self.resolve_nominal_parameter_constraints_with_cancellation(
+            pending_structs,
+            pending_enums,
+            pending_classes,
+            pending_interfaces,
+            pending_objects,
+            &cancellation::uninterrupted,
+        )
+        .unwrap_or_else(|never| match never {});
+    }
+
+    pub(crate) fn resolve_nominal_parameter_constraints_with_cancellation<C>(
+        &mut self,
+        pending_structs: &[(StructId, &ast::StructDecl, usize)],
+        pending_enums: &[(EnumId, &ast::EnumDecl, usize)],
+        pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
+        pending_interfaces: &[(InterfaceId, &ast::InterfaceDecl, usize)],
+        pending_objects: &[(ObjectId, crate::declarations::ObjectSource<'_>, usize)],
+        check: &impl Fn() -> Result<(), C>,
+    ) -> Result<(), C> {
         // Type-parameter names and arities are declared in pass 1. Resolve
         // their ordered constraints only after every nominal name is visible,
         // then validate bound applications after all constraint sets are
         // complete (F-bounds may form legal dependency cycles).
         for &(id, decl, file_index) in pending_structs {
+            check()?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Struct(id));
             let declared = self.structs[id].type_params.clone();
@@ -28,6 +49,7 @@ impl Lowerer {
             self.structs[id].type_params = params;
         }
         for &(id, decl, file_index) in pending_enums {
+            check()?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Enum(id));
             let declared = self.enums[id].type_params.clone();
@@ -42,6 +64,7 @@ impl Lowerer {
             self.enums[id].type_params = params;
         }
         for &(id, decl, file_index) in pending_classes {
+            check()?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Class(id));
             let mut declared = self.classes[id].type_params.clone();
@@ -64,6 +87,7 @@ impl Lowerer {
             self.classes[id].type_params = params;
         }
         for &(id, decl, file_index) in pending_interfaces {
+            check()?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Interface(id));
             let declared = self.interfaces[id].type_params.clone();
@@ -78,9 +102,11 @@ impl Lowerer {
             self.interfaces[id].type_params = params;
         }
         for &(object, _, _) in pending_objects {
+            check()?;
             self.complete_companion_parameters(object);
         }
         self.current_owner = None;
+        Ok(())
     }
 
     fn complete_companion_parameters(&mut self, object: ObjectId) {

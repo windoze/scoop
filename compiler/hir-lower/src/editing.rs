@@ -35,31 +35,54 @@ pub struct DeclarationAnalysis {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EditingCancelled;
 
+#[derive(Clone, Debug)]
+pub enum EditingAnalysisError {
+    Cancelled,
+    Input(Vec<ast::Diagnostic>),
+}
+
+impl From<Vec<ast::Diagnostic>> for EditingAnalysisError {
+    fn from(diagnostics: Vec<ast::Diagnostic>) -> Self {
+        Self::Input(diagnostics)
+    }
+}
+
 /// The selected inputs and dependency world belong to one current Cone.
 pub fn analyze_declarations(
     sources: &[ast::DeclarationSource<'_, '_>],
     core: &CoreProtocolInput,
     world: &hir::ImportedSemanticWorld<'_>,
     test_dependencies: &[ConeIdentity],
-) -> Result<DeclarationAnalysis, Vec<ast::Diagnostic>> {
+    is_cancelled: impl Fn() -> bool,
+) -> Result<DeclarationAnalysis, EditingAnalysisError> {
+    let check = || {
+        if is_cancelled() {
+            Err(EditingCancelled)
+        } else {
+            Ok(())
+        }
+    };
+    check().map_err(|_| EditingAnalysisError::Cancelled)?;
     let Some(first) = sources.first() else {
-        return Err(vec![input_error(0, "no source files to analyze")]);
+        return Err(vec![input_error(0, "no source files to analyze")].into());
     };
     let current = first.identity.cone();
     crate::current_input::validate_protocol_context(current, core, world)
         .map_err(|error| vec![input_error(0, error.to_string())])?;
     let mut headers = Vec::with_capacity(sources.len());
     for (file, source) in sources.iter().enumerate() {
+        check().map_err(|_| EditingAnalysisError::Cancelled)?;
         if source.identity.cone() != current {
             return Err(vec![input_error(
                 file,
                 "declaration inputs belong to different Cones",
-            )]);
+            )]
+            .into());
         }
         let Some(header) = source.header else {
             let mut diagnostic = input_error(file, "the source package or imports are incomplete");
             diagnostic.source = Some(Box::new(source.identity.clone()));
-            return Err(vec![diagnostic]);
+            return Err(vec![diagnostic].into());
         };
         headers.push(header);
     }
@@ -89,7 +112,9 @@ pub fn analyze_declarations(
         CoreProtocolInput::CurrentDeclarations => lowerer,
         CoreProtocolInput::Imported(core) => lowerer.with_imported_core(core),
     };
-    Ok(lowerer.analyze_declaration_inputs(sources, headers, world))
+    lowerer
+        .analyze_declaration_inputs(sources, headers, world, &check)
+        .map_err(|_| EditingAnalysisError::Cancelled)
 }
 
 impl DeclarationAnalysis {

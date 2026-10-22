@@ -20,7 +20,8 @@ pub(crate) fn hover(
     let Some(cursor) = semantic::cursor(snapshot, source_id, position, settings)? else {
         return Ok(Value::Null);
     };
-    let Some(analysis) = semantic::declarations(semantics, snapshot, source_id)? else {
+    let Some(analysis) = semantic::declarations(semantics, snapshot, source_id, cancellation)?
+    else {
         return Ok(Value::Null);
     };
     let source = cursor.source;

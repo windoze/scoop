@@ -20,7 +20,7 @@ pub(crate) fn completion(
     let Some(cursor) = semantic::position_cursor(snapshot, source, position, settings)? else {
         return json(None::<CompletionList>);
     };
-    let Some(analysis) = semantic::declarations(semantics, snapshot, source)? else {
+    let Some(analysis) = semantic::declarations(semantics, snapshot, source, cancellation)? else {
         return json(None::<CompletionList>);
     };
     for function in semantic::functions(analysis, &cursor) {

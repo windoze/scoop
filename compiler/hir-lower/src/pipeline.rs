@@ -1,10 +1,12 @@
 use super::*;
+pub(crate) mod cancellation;
 mod declaration_bodies;
 mod declarations;
 mod editing;
 mod signatures;
 mod source_bodies;
 
+use cancellation::PhaseFailure;
 use declarations::{DeclarationBodyCore, SignatureCore, SourceDeclarations};
 
 mod finish;

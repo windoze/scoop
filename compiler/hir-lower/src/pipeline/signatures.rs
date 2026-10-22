@@ -5,6 +5,16 @@ impl Lowerer {
         &mut self,
         declarations: &SourceDeclarations<'_>,
     ) -> Result<SignatureCore, Vec<Diagnostic>> {
+        self.resolve_source_signatures_with_cancellation(declarations, &cancellation::uninterrupted)
+            .map_err(PhaseFailure::into_diagnostics)
+    }
+
+    pub(super) fn resolve_source_signatures_with_cancellation<C>(
+        &mut self,
+        declarations: &SourceDeclarations<'_>,
+        check: &impl Fn() -> Result<(), C>,
+    ) -> Result<SignatureCore, PhaseFailure<C>> {
+        PhaseFailure::check(check)?;
         let files = &declarations.source_headers;
         let SourceDeclarations {
             pending_structs,
@@ -36,15 +46,20 @@ impl Lowerer {
             self.validate_option_enum(files);
         }
         self.deferred_type_bounds = Some(Vec::new());
+        PhaseFailure::check(check)?;
         self.resolve_all_type_aliases();
+        PhaseFailure::check(check)?;
 
-        self.resolve_nominal_parameter_constraints(
+        self.resolve_nominal_parameter_constraints_with_cancellation(
             pending_structs,
             pending_enums,
             pending_classes,
             pending_interfaces,
             pending_objects,
-        );
+            check,
+        )
+        .map_err(PhaseFailure::Cancelled)?;
+        PhaseFailure::check(check)?;
         self.validate_nominal_type_parameter_constraints();
         let intrinsic_type_core = if defines_core {
             self.validate_intrinsic_type_core(files)
@@ -70,6 +85,7 @@ impl Lowerer {
             }
         }
         for &(id, decl, file_index) in pending_interfaces {
+            PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Interface(id));
             self.type_params_in_scope = self.interfaces[id].type_params.clone();
@@ -79,7 +95,7 @@ impl Lowerer {
         }
         self.current_owner = None;
         if !self.check_interface_inheritance_cycles(pending_interfaces) {
-            return Err(self.take_source_diagnostics());
+            return Err(self.take_source_diagnostics().into());
         }
 
         // The core library's `Option<T>` must be validated before any
@@ -94,6 +110,7 @@ impl Lowerer {
         }
 
         for &(id, decl, file_index) in pending_interfaces {
+            PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Interface(id));
             self.resolve_interface_properties(id, decl);
@@ -105,6 +122,7 @@ impl Lowerer {
         // names are known now, so fields may reference later-declared
         // types).
         for &(id, decl, file_index) in pending_structs {
+            PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Struct(id));
             self.allow_deferred_fun_ptr = Some(id) == self.ffi_foreign_callback;
@@ -116,6 +134,7 @@ impl Lowerer {
             self.structs[id].interfaces = interfaces;
         }
         for &(id, decl, file_index) in pending_enums {
+            PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Enum(id));
             self.resolve_enum_supertypes(id, decl);
@@ -124,17 +143,19 @@ impl Lowerer {
         if let Err(error) = self.establish_enum_member_identities() {
             self.current_file = error.file();
             self.error(error.span(), error.to_string());
-            return Err(self.take_source_diagnostics());
+            return Err(self.take_source_diagnostics().into());
         }
         if defines_core {
             self.validate_option_variants();
         }
         for (id, decl, file_index) in pending_classes {
+            PhaseFailure::check(check)?;
             self.current_file = *file_index;
             self.current_owner = Some(Owner::Class(*id));
             self.resolve_class(*id, decl);
         }
         for &(id, decl, file_index) in pending_objects {
+            PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Object(id));
             self.resolve_object(id, decl);
@@ -142,7 +163,7 @@ impl Lowerer {
         self.current_owner = None;
 
         if !self.check_class_inheritance_cycles(pending_classes, pending_objects) {
-            return Err(self.take_source_diagnostics());
+            return Err(self.take_source_diagnostics().into());
         }
         self.validate_deferred_type_bounds();
 
@@ -154,14 +175,16 @@ impl Lowerer {
             // No later pass may try to materialize an application whose
             // inline layout grows forever. The validator has collected one
             // stable definition-site diagnostic for every cyclic SCC.
-            return Err(self.take_source_diagnostics());
+            return Err(self.take_source_diagnostics().into());
         }
 
         // Every nominal constraint and inheritance edge is now complete, so
         // fixed alias applications can prove both kind and nominal bounds.
         // Intrinsic owner lookup is also total, which lets exposure witnesses
         // retain the real core declaration domain for primitive targets.
+        PhaseFailure::check(check)?;
         self.validate_type_alias_targets();
+        PhaseFailure::check(check)?;
 
         // Pass 2.5: resolve function and method signatures, so calls
         // in any body see parameter and return types regardless of
@@ -169,19 +192,23 @@ impl Lowerer {
         // `hir::MethodSig`s; bodyless declarations (interface and
         // abstract methods) get their parameter-only body here.
         for &(id, decl, file_index) in function_headers {
+            PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = None;
             self.resolve_function_header(id, decl);
         }
         for &(id, decl, file_index, owner) in method_headers {
+            PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(owner);
             self.resolve_method_header(id, decl, owner);
         }
         for &(id, declaration, _) in pending_functions {
+            PhaseFailure::check(check)?;
             self.register_inferred_function(id, declaration);
         }
         for &(id, declaration, _, _) in pending_methods {
+            PhaseFailure::check(check)?;
             self.register_inferred_function(id, declaration);
         }
         self.current_owner = None;
@@ -227,7 +254,9 @@ impl Lowerer {
             None
         };
         self.foreign_callback_core = foreign_callback_core;
+        PhaseFailure::check(check)?;
         self.resolve_globals(pending_globals, pending_objects, pending_enums);
+        PhaseFailure::check(check)?;
         self.finalize_import_targets();
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
@@ -235,19 +264,26 @@ impl Lowerer {
         // Publish the complete duplicate-signature rejection set after all
         // related signatures are final and before body-capable passes may
         // perform semantic callable lookup.
-        self.validate_and_freeze_duplicate_signatures(function_headers, method_headers);
+        self.validate_and_freeze_duplicate_signatures_with_cancellation(
+            function_headers,
+            method_headers,
+            check,
+        )
+        .map_err(PhaseFailure::Cancelled)?;
         assert!(
             self.declaration_surface.is_frozen(),
             "body-capable passes require a frozen declaration surface"
         );
 
         if !self.resolve_errno_annotations(function_headers, pending_globals) {
-            return Err(self.take_source_diagnostics());
+            return Err(self.take_source_diagnostics().into());
         }
         self.validate_extern_functions();
         self.validate_extern_global_symbols();
 
+        PhaseFailure::check(check)?;
         self.resolve_annotation_declarations();
+        PhaseFailure::check(check)?;
 
         // Pass 2.75: inheritance checks (milestone6 DESIGN.md 2.2) —
         // cycles, property shadowing, override rules and interface
@@ -278,7 +314,9 @@ impl Lowerer {
                 .collect::<Vec<_>>(),
         );
 
+        PhaseFailure::check(check)?;
         self.register_derived_parameter_interfaces();
+        PhaseFailure::check(check)?;
         Ok(SignatureCore {
             intrinsic_type_core,
             source_location_core,

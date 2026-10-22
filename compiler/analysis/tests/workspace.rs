@@ -233,21 +233,38 @@ fn semantic_inputs_keep_unavailable_source_dependencies_in_the_selected_graph() 
         .unwrap();
     let mut session = scoop_analysis::SemanticSession::default();
     assert!(matches!(
-        session.declarations(&host.snapshot(), source),
+        session.declarations(&host.snapshot(), source, || false),
         Err(
             scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable(
                 scoop_identity::ConeIdentity::CORE
             )
         )
     ));
+    assert!(matches!(
+        session.declarations(&host.snapshot(), source, || true),
+        Err(scoop_analysis::ProjectAnalysisError::Cancelled)
+    ));
+    let checks = std::cell::Cell::new(0);
+    assert!(matches!(
+        session.declarations(&host.snapshot(), source, || {
+            checks.set(checks.get() + 1);
+            checks.get() > 1
+        }),
+        Err(scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable(_))
+    ));
+    assert_eq!(
+        checks.get(),
+        1,
+        "cancelled requests retain the cached input result"
+    );
     let old = host.snapshot();
     host.set_text(source, SourceText::new("fun changed(): Int = 1".to_owned()));
     assert!(matches!(
-        session.declarations(&old, source),
+        session.declarations(&old, source, || false),
         Err(scoop_analysis::ProjectAnalysisError::Cancelled)
     ));
     assert!(matches!(
-        session.declarations(&host.snapshot(), source),
+        session.declarations(&host.snapshot(), source, || false),
         Err(
             scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable(
                 scoop_identity::ConeIdentity::CORE

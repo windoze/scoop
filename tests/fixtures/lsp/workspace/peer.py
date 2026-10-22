@@ -7,6 +7,7 @@ import sys
 import threading
 from pathlib import Path
 
+from cancellation import check as check_cancellation
 from diagnostics import check as check_diagnostics
 
 
@@ -20,6 +21,7 @@ class Peer:
         )
         self.messages = queue.Queue()
         self.diagnostics = {}
+        self.diagnostic_versions = {}
         self.next_id = 1
         self.registered = False
         threading.Thread(target=self.read, daemon=True).start()
@@ -58,9 +60,15 @@ class Peer:
         self.send({"method": method, "params": params})
 
     def request(self, method, params):
+        return self.response(self.send_request(method, params))
+
+    def send_request(self, method, params):
         request_id = self.next_id
         self.next_id += 1
         self.send({"id": request_id, "method": method, "params": params})
+        return request_id
+
+    def response(self, request_id, error_code=None):
         while True:
             message = self.messages.get(timeout=20)
             if isinstance(message, BaseException):
@@ -71,8 +79,13 @@ class Peer:
                 self.registered = True
                 self.send({"id": message["id"], "result": None})
             elif message.get("method") == "textDocument/publishDiagnostics":
-                self.diagnostics[message["params"]["uri"]] = message["params"]
+                params = message["params"]
+                self.diagnostics[params["uri"]] = params
+                self.diagnostic_versions.setdefault(params["uri"], []).append(params.get("version"))
             elif message.get("id") == request_id:
+                if error_code is not None:
+                    assert message["error"]["code"] == error_code, message
+                    return message["error"]
                 assert "error" not in message, message
                 return message["result"]
             else:
@@ -283,6 +296,7 @@ def main():
         assert peer.diagnostics[manifest]["version"] == 2
         assert peer.diagnostics[manifest]["diagnostics"] == []
         check_diagnostics(peer, root)
+        check_cancellation(peer, root)
         peer.finish()
     finally:
         if peer.process.poll() is None:

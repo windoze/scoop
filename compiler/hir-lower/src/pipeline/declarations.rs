@@ -56,12 +56,30 @@ impl Lowerer {
         inputs: impl IntoIterator<Item = (usize, ast::DeclarationInput<'a>)>,
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) -> Result<SourceDeclarations<'a>, Vec<Diagnostic>> {
+        self.collect_declaration_inputs_with_cancellation(
+            source_headers,
+            inputs,
+            world,
+            &cancellation::uninterrupted,
+        )
+        .map_err(PhaseFailure::into_diagnostics)
+    }
+
+    pub(super) fn collect_declaration_inputs_with_cancellation<'a, C>(
+        &mut self,
+        source_headers: Vec<ast::SourceHeaderRef<'a>>,
+        inputs: impl IntoIterator<Item = (usize, ast::DeclarationInput<'a>)>,
+        world: Option<&hir::ImportedSemanticWorld<'_>>,
+        check: &impl Fn() -> Result<(), C>,
+    ) -> Result<SourceDeclarations<'a>, PhaseFailure<C>> {
+        PhaseFailure::check(check)?;
         if source_headers.is_empty() {
             return Err(vec![Diagnostic::without_span(
                 ast::DiagnosticSeverity::Error,
                 0,
                 "no source files to compile",
-            )]);
+            )]
+            .into());
         }
         assert_eq!(
             source_headers.len(),
@@ -96,6 +114,7 @@ impl Lowerer {
         let mut pending_globals = Vec::new();
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
         for (file_index, input) in inputs {
+            PhaseFailure::check(check)?;
             self.current_file = file_index;
             let is_core = self.source_is_core(file_index);
             let decl = match input {
@@ -196,15 +215,19 @@ impl Lowerer {
             methods: &mut pending_methods,
         };
         for (id, declaration, file) in root_structs {
+            PhaseFailure::check(check)?;
             self.declare_struct_nested(Owner::Struct(id), declaration, &mut nested_queues, file);
         }
         for (id, declaration, file) in root_enums {
+            PhaseFailure::check(check)?;
             self.declare_enum_nested(Owner::Enum(id), declaration, &mut nested_queues, file);
         }
         for (id, declaration, file) in root_classes {
+            PhaseFailure::check(check)?;
             self.declare_class_nested(Owner::Class(id), declaration, &mut nested_queues, file);
         }
         for (id, declaration, file) in root_interfaces {
+            PhaseFailure::check(check)?;
             self.declare_interface_nested(
                 Owner::Interface(id),
                 declaration,
@@ -213,16 +236,19 @@ impl Lowerer {
             );
         }
         for (id, declaration, file) in root_objects {
+            PhaseFailure::check(check)?;
             self.declare_object_nested(Owner::Object(id), declaration, &mut nested_queues, file);
         }
 
+        PhaseFailure::check(check)?;
         if let Err(error) = self.establish_nominal_identities() {
             let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
             diagnostic.file = error.file();
-            return Err(vec![diagnostic]);
+            return Err(vec![diagnostic].into());
         }
 
         for (declaration, file, owner) in pending_annotations {
+            PhaseFailure::check(check)?;
             self.current_file = file;
             self.declare_annotation_class(declaration, file, owner);
         }
@@ -237,6 +263,7 @@ impl Lowerer {
             .map(|&(id, declaration, file, owner)| (id, declaration.header(), file, owner))
             .collect::<Vec<_>>();
 
+        PhaseFailure::check(check)?;
         let errors_before_imports = self.diagnostics.len();
         self.collect_and_resolve_imports(
             &source_headers,
@@ -250,8 +277,9 @@ impl Lowerer {
             },
             world,
         );
+        PhaseFailure::check(check)?;
         if self.diagnostics.len() != errors_before_imports {
-            return Err(self.take_source_diagnostics());
+            return Err(self.take_source_diagnostics().into());
         }
 
         Ok(SourceDeclarations {

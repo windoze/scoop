@@ -1,5 +1,6 @@
 use super::*;
 
+mod cancellation;
 mod recovered;
 mod unavailable_signatures;
 

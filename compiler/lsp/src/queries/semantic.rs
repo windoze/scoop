@@ -88,8 +88,9 @@ pub(super) fn declarations<'a>(
     semantics: &'a mut SemanticSession,
     snapshot: &AnalysisSnapshot,
     source: SourceId,
+    cancellation: &Cancellation,
 ) -> Result<Option<&'a mut DeclarationAnalysis>, ResponseError> {
-    match semantics.declarations(snapshot, source) {
+    match semantics.declarations(snapshot, source, || cancellation.check().is_err()) {
         Ok(analysis) => Ok(analysis),
         Err(
             ProjectAnalysisError::Cancelled

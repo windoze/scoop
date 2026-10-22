@@ -9,6 +9,13 @@ mod receivers;
 mod selectors;
 
 fn analyze(text: &str) -> DeclarationAnalysis {
+    analyze_cancellable(text, || false).unwrap()
+}
+
+fn analyze_cancellable(
+    text: &str,
+    is_cancelled: impl Fn() -> bool,
+) -> Result<DeclarationAnalysis, EditingAnalysisError> {
     let core = crate::tests::complete_core_file();
     let core_identity = crate::tests::core_source_identity("src/core.scoop");
     let identity = crate::tests::core_source_identity("src/editing.scoop");
@@ -40,8 +47,8 @@ fn analyze(text: &str) -> DeclarationAnalysis {
         &CoreProtocolInput::CurrentDeclarations,
         &world,
         &[],
+        is_cancelled,
     )
-    .unwrap()
 }
 
 fn function(analysis: &DeclarationAnalysis, name: &str) -> hir::FunctionId {
@@ -51,6 +58,29 @@ fn function(analysis: &DeclarationAnalysis, name: &str) -> hir::FunctionId {
         .find(|function| function.name == name)
         .unwrap_or_else(|| panic!("missing function `{name}`"))
         .function
+}
+
+#[test]
+fn cancelled_declarations_are_distinct_from_source_errors_and_can_be_retried() {
+    let text = "fun healthy(value: Boolean): Boolean = value\nfun damaged(value: Missing) {}";
+    let checks = std::cell::Cell::new(0);
+    let result = analyze_cancellable(text, || {
+        checks.set(checks.get() + 1);
+        checks.get() == 8
+    });
+    assert!(matches!(result, Err(EditingAnalysisError::Cancelled)));
+    assert_eq!(checks.get(), 8);
+    let analysis = analyze(text);
+    assert!(matches!(
+        analysis.signature(function(&analysis, "healthy")),
+        V::Known(_)
+    ));
+    assert!(
+        analysis
+            .diagnostics()
+            .iter()
+            .any(|error| error.message.contains("Missing"))
+    );
 }
 
 #[test]
@@ -146,11 +176,12 @@ fn incomplete_file_context_is_not_replaced_with_a_root_package() {
     let world =
         hir::ImportedSemanticWorld::from_dependencies(ConeIdentity::CORE, Vec::new(), Vec::new())
             .unwrap();
-    let Err(diagnostics) = analyze_declarations(
+    let Err(EditingAnalysisError::Input(diagnostics)) = analyze_declarations(
         &[source],
         &CoreProtocolInput::CurrentDeclarations,
         &world,
         &[],
+        || false,
     ) else {
         panic!("incomplete file context");
     };

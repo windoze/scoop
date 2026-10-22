@@ -18,7 +18,8 @@ pub(crate) fn definition(
     let Some(cursor) = semantic::cursor(snapshot, source_id, position, settings)? else {
         return Ok(Value::Null);
     };
-    let Some(analysis) = semantic::declarations(semantics, snapshot, source_id)? else {
+    let Some(analysis) = semantic::declarations(semantics, snapshot, source_id, cancellation)?
+    else {
         return Ok(Value::Null);
     };
     for function in semantic::functions(analysis, &cursor) {
