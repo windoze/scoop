@@ -73,6 +73,6 @@ Ignored child cases are selected explicitly by their parent tests.
 Validation on 2026-10-22: release tests pass on aarch64-apple-darwin and
 x86_64-unknown-linux-gnu: 39 top-level cases and all six PTY child cases. The child
 cases are marked ignored in the ordinary test list and launched by their parents.
-The Unicode, file-lock, StringBuilder and test-selection regressions, 21 HIR test
-entry checks, cargo fmt/clippy, and API documentation checks also pass. Raw logs
+Unicode behavior and API documentation checks also pass. No dedicated tests are
+added for compiler, linker or supporting-library gaps. Raw logs
 are kept outside the repository. Linux musl was not separately exercised here.
