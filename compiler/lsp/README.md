@@ -57,6 +57,8 @@ target 默认使用宿主的现有目标选择；purpose 可为 production 或 t
 
 类型名称的定义与引用区分原名义声明、透明 typealias 和类型参数。限定路径分别指向实际声明，精确 import 的显式 alias 保留自己的使用范围；泛型应用不产生新定义，局部类型的字段签名来源随原声明结果复用。源码依赖使用原类型／别名身份和对应文件的准确名称位置。
 
+`textDocument/typeDefinition` 读取变量、参数与 property 的实际类型，以及调用的完整结果类型。类型语法中的泛型实参和透明 typealias 先沿原类型解析应用，再导航到名义声明；仍未具体化的类型参数指向原参数声明。普通函数类型、元组等没有独立声明的结构类型返回空结果；错误正文只使用已取得的事实，缺少源码时不猜测位置。名义类型的身份与来源和 M47 类型查询共用。
+
 客户端支持 code action literal 和 `workspace.workspaceEdit.documentChanges` 时，提供缺失右括号、逗号等固定标点的 quickfix；返回的 TextDocumentEdit 带实际文档 version。名称、类型与表达式缺失不生成猜测内容。支持 resolve 的客户端还可重新取得同版修复；原文变化后旧动作返回 ContentModified，原文未变而客户端 version 更新时返回最新 version。其他引用区域、实现与重命名继续按设计实施，未实现的能力不在初始化中声明。
 
 开发验证使用 `cargo test -p scoop-analysis -p scoop-lsp`；LSP 集成测试启动真实 `scoop-lsp` 进程，检查传输、状态变化和查询结果。运行时将 `TMPDIR` 指向仓库外工作目录，测试工作文件遵守同一设置。

@@ -1,0 +1,97 @@
+use super::*;
+use hir::{EditingUnavailable as U, EditingValue as V};
+
+impl Lowerer {
+    pub(crate) fn observe_type_application(&mut self, syntax: &ast::TypeRef, ty: hir::TypeId) {
+        let span = match &syntax.kind {
+            ast::TypeRefKind::Named(name) | ast::TypeRefKind::Generic(name, _) => name.span,
+            ast::TypeRefKind::Qualified { path, .. } => {
+                path.last().expect("a type path is non-empty").span
+            }
+            ast::TypeRefKind::AppliedMember { name, .. } => name.span,
+            ast::TypeRefKind::Unit => syntax.span,
+            ast::TypeRefKind::Tuple(_)
+            | ast::TypeRefKind::Function(_)
+            | ast::TypeRefKind::Nullable(_) => return,
+        };
+        self.observe_type_application_name(span, ty);
+    }
+
+    pub(crate) fn observe_type_application_name(&mut self, span: ast::Span, ty: hir::TypeId) {
+        if !self.observes_types() {
+            return;
+        }
+        let observation = self.editing_types.as_mut().unwrap_or_else(|| {
+            &mut self
+                .editing_body
+                .as_mut()
+                .expect("body type observation")
+                .types
+        });
+        observation
+            .applications
+            .insert((self.current_file, span), ty);
+    }
+}
+
+impl DeclarationAnalysis {
+    pub fn type_definition(
+        &mut self,
+        ty: hir::TypeId,
+    ) -> Result<Option<hir::SemanticSourceLocation>, ast::Diagnostic> {
+        match self.lowerer.types[ty] {
+            hir::Type::Param(parameter) | hir::Type::Companion(parameter) => Ok(self
+                .lowerer
+                .editing_type_origin(TypeTarget::Parameter(parameter))),
+            _ => self
+                .lowerer
+                .semantic_nominal_identity(ty)
+                .map(|declaration| self.lowerer.semantic_nominal_origin(declaration))
+                .transpose(),
+        }
+    }
+
+    pub fn source_type_application(
+        &mut self,
+        source: &scoop_identity::SourceIdentity,
+        span: ast::Span,
+        is_cancelled: impl Fn() -> bool + 'static,
+    ) -> Result<V<Option<hir::TypeId>>, EditingCancelled> {
+        if is_cancelled() {
+            return Err(EditingCancelled);
+        }
+        if !self.declarations_ready {
+            return Ok(V::Unavailable(U::DeclarationFailure));
+        }
+        if let Some(application) = self.type_applications.iter().find(|application| {
+            &application.origin.source == source && application.origin.span == span
+        }) {
+            return Ok(V::Known(Some(application.ty)));
+        }
+        let check = std::rc::Rc::new(is_cancelled);
+        let functions = self
+            .functions
+            .iter()
+            .filter(|function| {
+                &function.name_origin.source == source
+                    && function.span.start <= span.start
+                    && span.end <= function.span.end
+            })
+            .map(|function| function.function)
+            .collect::<Vec<_>>();
+        for function in functions {
+            let check = check.clone();
+            match self.function_facts(function, move || check())? {
+                V::Known(facts) => {
+                    if let Some(application) = facts.type_applications.iter().find(|application| {
+                        &application.origin.source == source && application.origin.span == span
+                    }) {
+                        return Ok(V::Known(Some(application.ty)));
+                    }
+                }
+                V::Unavailable(reason) => return Ok(V::Unavailable(reason)),
+            }
+        }
+        Ok(V::Known(None))
+    }
+}

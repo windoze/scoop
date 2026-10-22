@@ -83,10 +83,10 @@ impl BodyObservation {
     }
 
     pub(super) fn finish(self, lowerer: &mut Lowerer, complete: bool) -> ObservedBody {
-        let types = if complete {
+        let (types, type_applications) = if complete {
             self.types.finish(lowerer)
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
         let local_type = |binding, ty| {
             lowerer
@@ -167,6 +167,7 @@ impl BodyObservation {
             facts: if complete {
                 V::Known(hir::EditingBodyFacts {
                     types,
+                    type_applications,
                     locals,
                     expressions,
                     callables,

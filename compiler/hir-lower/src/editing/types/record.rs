@@ -2,7 +2,7 @@ use super::*;
 use crate::imports::ImportLookupLayer;
 
 impl Lowerer {
-    fn observes_types(&self) -> bool {
+    pub(super) fn observes_types(&self) -> bool {
         !self.in_semantic_query && (self.editing_types.is_some() || self.observes_current_body())
     }
 

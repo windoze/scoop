@@ -37,6 +37,7 @@ pub struct DeclarationAnalysis {
         std::collections::HashMap<hir::FunctionId, hir::EditingValue<ObservedBody>>,
     pub(crate) reference_index: Option<hir::EditingReferenceIndex>,
     pub(crate) type_references: Vec<hir::EditingTypeReference>,
+    pub(crate) type_applications: Vec<hir::EditingTypeApplication>,
     pub(crate) documentation: Option<std::sync::Arc<hir::SemanticDocumentation>>,
 }
 

@@ -24,6 +24,7 @@ fn lifecycle_advertises_only_working_capabilities_and_answers_every_request() {
     assert_eq!(capabilities["selectionRangeProvider"], true);
     assert_eq!(capabilities["hoverProvider"], true);
     assert_eq!(capabilities["referencesProvider"], true);
+    assert_eq!(capabilities["typeDefinitionProvider"], true);
     assert_eq!(
         capabilities["completionProvider"]["triggerCharacters"],
         json!(["."])

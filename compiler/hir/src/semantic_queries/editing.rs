@@ -131,6 +131,7 @@ pub struct EditingLocalOccurrence {
 #[derive(Clone, Debug, Default)]
 pub struct EditingBodyFacts {
     pub types: Vec<EditingTypeReference>,
+    pub type_applications: Vec<EditingTypeApplication>,
     pub locals: Vec<EditingLocalOccurrence>,
     pub expressions: Vec<EditingExpression>,
     pub callables: Vec<EditingCallableReference>,
@@ -150,6 +151,7 @@ pub struct EditingCallableReference {
 #[derive(Clone, Debug)]
 pub struct EditingAppliedCall {
     pub span: Span,
+    pub callee_span: Option<Span>,
     pub callee_end: u32,
     pub name: Option<String>,
     pub callee: Option<crate::SemanticCallable>,

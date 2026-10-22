@@ -41,6 +41,7 @@ impl Lowerer {
                     body_facts: Default::default(),
                     reference_index: None,
                     type_references: Vec::new(),
+                    type_applications: Vec::new(),
                     documentation: None,
                 });
             }
@@ -100,7 +101,7 @@ impl Lowerer {
             })
             .collect::<Result<_, EditingCancelled>>()?;
         check()?;
-        let type_references = self
+        let (type_references, type_applications) = self
             .editing_types
             .take()
             .expect("declaration type observation")
@@ -123,6 +124,7 @@ impl Lowerer {
             body_facts: Default::default(),
             reference_index: None,
             type_references,
+            type_applications,
             documentation,
         })
     }

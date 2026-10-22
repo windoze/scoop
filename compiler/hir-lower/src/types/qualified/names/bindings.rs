@@ -135,6 +135,7 @@ impl Lowerer {
         } else {
             self.apply_alias_template(&alias, &alias.name, arguments, host)?
         };
+        self.observe_type_application_name(alias.name.span, ty);
         Some(ResolvedTypeName::Applied(ty))
     }
 }

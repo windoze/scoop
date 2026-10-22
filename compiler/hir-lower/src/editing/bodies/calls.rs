@@ -140,6 +140,7 @@ impl Lowerer {
             span,
             hir::EditingAppliedCall {
                 span,
+                callee_span: input.callee,
                 callee_end: input.callee_end,
                 name: input.name.clone(),
                 callee,

@@ -17,6 +17,7 @@ from property_references import check as check_property_references
 from references import check as check_references
 from signatures import check as check_signatures
 from source_dependencies import check as check_source_dependencies
+from type_definitions import check as check_type_definitions
 from type_references import check as check_type_references
 
 
@@ -322,6 +323,7 @@ def main():
         check_source_dependencies(peer, root)
         check_documentation(peer, root)
         check_type_references(peer, root)
+        check_type_definitions(peer, root)
         peer.finish()
     finally:
         if peer.process.poll() is None:

@@ -16,6 +16,7 @@ impl Lowerer {
         if self.in_semantic_query {
             return Some(ty);
         }
+        self.observe_type_application(ty_ref, ty);
         self.document_type_use(ty_ref, ty);
         if matches!(
             self.types[ty],

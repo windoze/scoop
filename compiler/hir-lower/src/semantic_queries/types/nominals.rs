@@ -1,37 +1,17 @@
 use super::*;
 
+mod origins;
+
 impl Lowerer {
     pub(in crate::semantic_queries) fn describe_semantic_nominal(
         &mut self,
         ty: hir::TypeId,
     ) -> Result<Option<hir::SemanticNominalDescription>, Diagnostic> {
-        let target = self.nominal_target_for_type(ty).or_else(|| {
-            if self.types[ty] != hir::Type::Any {
-                return None;
-            }
-            self.intrinsic_type_owners
-                .get(&hir::IntrinsicTypeKind::Any)
-                .map(|(owner, _)| match owner {
-                    crate::IntrinsicTypeOwner::Struct(id) => crate::NominalTarget::Struct(*id),
-                    crate::IntrinsicTypeOwner::Class(id) => crate::NominalTarget::Class(*id),
-                })
-        });
-        let application = self.nominal_application(ty);
-        let declaration = target
-            .map(|target| self.nominal_identity(target.owner()).declaration_id())
-            .or_else(|| application.as_ref().map(|application| application.template))
-            .or_else(|| self.imported_nominal_owner(ty))
-            .or_else(|| match (&self.types[ty], &self.core) {
-                (hir::Type::FunPtr(_), CoreLoweringAuthority::Imported(core)) => {
-                    Some(hir::SourceNominalId::GenericTemplate(
-                        core.fundamental_types().fun_ptr().persistent(),
-                    ))
-                }
-                _ => None,
-            });
-        let Some(declaration) = declaration else {
+        let Some(declaration) = self.semantic_nominal_identity(ty) else {
             return Ok(None);
         };
+        let target = self.nominal_owners.get(&declaration).copied();
+        let application = self.nominal_application(ty);
         let arguments = application.map_or_else(
             || match self.types[ty] {
                 hir::Type::FunPtr(function) => vec![self.function_types[function].canonical_type],
@@ -61,20 +41,12 @@ impl Lowerer {
             .dependencies
             .as_ref()
             .and_then(|dependencies| dependencies.nominal_declaration(declaration));
-        let (annotations, origin, is_object) = if let Some(target) = target {
-            let owner = target.owner();
-            let span = match owner {
-                Owner::Struct(id) => self.structs[id].span,
-                Owner::Enum(id) => self.enums[id].span,
-                Owner::Class(id) => self.classes[id].span,
-                Owner::Interface(id) => self.interfaces[id].span,
-                Owner::Object(id) => self.objects[id].span,
-            };
+        let origin = self.semantic_nominal_origin(declaration)?;
+        let (annotations, is_object) = if let Some(owner) = target {
             (
                 hir::SemanticAnnotationTarget::Current(hir::SourceAnnotationTarget::Nominal(
                     owner.as_nominal_owner(),
                 )),
-                self.query_member_location(owner, span),
                 matches!(owner, Owner::Object(_)),
             )
         } else {
@@ -83,7 +55,6 @@ impl Lowerer {
                 hir::SemanticAnnotationTarget::Imported(hir::AnnotationTargetV1::Nominal(
                     declaration,
                 )),
-                imported_location(dependency.origin.origin())?,
                 dependency.interface.kind() == hir::PublicNominalKindV1::Object,
             )
         };

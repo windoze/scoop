@@ -142,6 +142,14 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                         semantics,
                         &cancellation,
                     ),
+                    QueryKind::TypeDefinition(position) => queries::type_definition(
+                        &work.snapshot,
+                        source_id,
+                        position,
+                        work.settings,
+                        semantics,
+                        &cancellation,
+                    ),
                     QueryKind::Completion(position) => queries::completion(
                         &work.snapshot,
                         source_id,

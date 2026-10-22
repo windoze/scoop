@@ -22,19 +22,24 @@ impl Lowerer {
         observed.uses.retain(|(source, origin), _| {
             *source == file && span.start <= origin.start && origin.end <= span.end
         });
-        if !observed.uses.is_empty() {
+        observed.applications.retain(|(source, origin), _| {
+            *source == file && span.start <= origin.start && origin.end <= span.end
+        });
+        if !observed.uses.is_empty() || !observed.applications.is_empty() {
             self.editing_local_types.insert(owner, observed);
         }
         if let Some(observed) = self.editing_local_types.get(&owner).cloned() {
             if let Some(outer) = &mut self.editing_types {
                 outer.uses.extend(observed.uses);
+                outer.applications.extend(observed.applications);
             } else if self.observes_current_body() {
-                self.editing_body
+                let outer = &mut self
+                    .editing_body
                     .as_mut()
                     .expect("active body observation")
-                    .types
-                    .uses
-                    .extend(observed.uses);
+                    .types;
+                outer.uses.extend(observed.uses);
+                outer.applications.extend(observed.applications);
             }
         }
         Some(owner)
