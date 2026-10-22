@@ -1,6 +1,6 @@
 # Scoop Regex 设计与实施路线
 
-初次调研：2026-10-18。更新：2026-10-22。状态：已确定采用 PCRE2-8，实施中。公开合同见 [regex 规范](../specs/SCOOP-REGEX-SPEC.md)，实际完成与验证范围见[实施记录](PROGRESS.md)。本文记录选型、API 设计和实施顺序，不修改现有语言、runtime 或 pipeline 职责。
+初次调研：2026-10-18。更新：2026-10-22。状态：PCRE2-8 方案已实现，三目标相关验证通过。公开合同见 [regex 规范](../specs/SCOOP-REGEX-SPEC.md)，实际完成与验证范围见[实施记录](PROGRESS.md)。本文记录选型、API 设计和实施顺序，不修改现有语言、runtime 或 pipeline 职责。
 
 ## 1. 已确定的方案
 
@@ -299,9 +299,11 @@ NativeSafe 使匹配期间 GC 可以继续协调，但不会让同步 C 匹配�
 
 PCRE2 保持独立 C archive，不添加 Rust wrapper，不修改 `scoop_text_backend` 的依赖图或要求 Scoop final-link 读取 Rust bitcode。现有 FFI、借用、Closeable/release 与 native library 通道是本设计的基础，不预设新的编译器或 runtime 能力为前置工作。
 
-## 8. 后续实施顺序与必要验证
+## 8. 实施顺序与必要验证
 
 ### 8.1 实施顺序
+
+以下五个阶段已完成，具体产物与验证结果见[实施记录](PROGRESS.md)。
 
 1. **公开合同。** 将本文 API、UTF/UCP 默认值、Long 标量位置、生命周期和错误写入独立 regex spec，按需同步索引和引用。优先使用现有语言、runtime 和 pipeline 合同，不以新增基础机制扩展范围。
 2. **最小可用闭环。** 准备 PCRE2-8，建立普通 `scoop.regex` Cone 和 C 适配；先在 Darwin/AArch64 接通源码编译、预编译库消费、链接与运行。完成 Regex 编译与 close/use、Boolean 查询、find/matchAt/matchEntire、编号／命名捕获和错误映射；同时落实输入借用、结果快照、组名元数据与标量索引转换。

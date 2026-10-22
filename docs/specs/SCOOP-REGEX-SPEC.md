@@ -1,6 +1,6 @@
 # Scoop 正则表达式库规范
 
-版本：0.1，实施中。提供普通 Cone `scoop:scoop.regex:0.1.0`，依赖 core 和 std。设计与实施路线见 [regex 设计](../regex/INVESTIGATION.md)，完成情况见[实施记录](../regex/PROGRESS.md)。
+版本：0.1，已实现（2026-10-22）。提供普通 Cone `scoop:scoop.regex:0.1.0`，依赖 core 和 std。设计与实施路线见 [regex 设计](../regex/INVESTIGATION.md)，完成情况见[实施记录](../regex/PROGRESS.md)。
 
 本库通过普通 C ABI 使用 PCRE2-8 10.49，不修改语言、runtime 或编译 pipeline。适用既有[语言规范](SCOOP-SPEC.md) §11.4、§11.18、§13.4、§13.11、[运行时规范](SCOOP-RUNTIME-SPEC.md) §3.4、§3.5、§3.8、[实现规范](SCOOP-IMPL-SPEC.md)的 native library 与 sysroot 合同。
 

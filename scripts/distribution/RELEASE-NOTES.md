@@ -1,4 +1,8 @@
-# M60 API 文档与内置库文档交付
+# PCRE2 正则表达式库
+
+新增普通 Cone `scoop.regex`，基于 PCRE2-8 10.49 提供编译模式、编号／命名捕获、惰性搜索、字面／模板／回调替换及分割。公开位置使用 Long Unicode 标量索引，结果为独立快照，Regex 使用 close/use 管理 native 生命周期。PCRE2 采用独立 C 静态库和可选 JIT，不增加 Rust staticlib；Darwin、GNU、musl 目标资源、头文件及 PCRE2/SLJIT 许可随包交付。用法见 `src/scoop.regex/README.md`。
+
+## M60 API 文档与内置库文档交付
 
 新增 `scoop doc`，支持多 Cone、完整类型检查、声明与类型链接、继承／扩展导航、静态搜索及按输入变化复用。源代码直接嵌入 HTML；`.slib` 不增加完整源码或注释正文。渲染输入缺少源码文本时省略对应的源码展示和链接。
 
