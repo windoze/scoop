@@ -79,7 +79,8 @@ impl Parser {
         } else {
             None
         };
-        let body = self.parse_block()?;
+        let body =
+            self.parse_block_with_scope(scoop_ast::RecoveredBlockScope::AnonymousFunction)?;
         Ok(Expr::AnonymousFunction {
             label: None,
             receiver: receiver.map(Box::new),
@@ -129,7 +130,8 @@ impl Parser {
                 }
             }
         };
-        let body = self.parse_block_after_open(open.clone())?;
+        let body =
+            self.parse_block_after_open(open.clone(), scoop_ast::RecoveredBlockScope::Lambda)?;
         let span = Span::new(expression_start.unwrap_or(open.span.start), body.span.end);
         Ok(Expr::Lambda {
             label: None,

@@ -86,6 +86,8 @@
 
 - 声明 hover：分析 worker 按实际项目图读取预编译 HIR 和 core 协议，并按选中配置、Cone 及源码版本复用声明视图。函数与参数 hover 从当前语法 token 定位到实际声明记录，使用共享类型描述，待推断结果明确显示；无项目、失效配置或所需源码依赖尚无语义输出时不猜测名称／类型。Rust 格式化、全 workspace Clippy、固定版本 Ruff、20 项宿主／LSP 测试及真实 sysroot 的 stdio fixture 通过，覆盖坏正文、失败签名、泛型参数、编辑后更新及目标／测试用途切换。当前仍未提供正文引用 hover、导航／补全／签名帮助；源码依赖语义输出继续实施。
 
+- 正文恢复片段：原 block／postfix grammar 保存错误函数中的完整语句、未知范围、真实块及父块、闭合状态和缺失 selector 的 receiver；局部函数独立归属，lambda／匿名函数保留作用域边界。完整块不另复制 AST，失败 receiver 不成为完整表达式，EOF 前缀与 Unicode 位置保持。格式化、全 workspace Clippy、593 项 parser 测试、22 项 HIR 阶段测试、20 项宿主／LSP 测试和真实 sysroot 的 stdio fixture 通过；路线图同步实际交付状态，target 仍约 18 GiB。当前这些正文片段尚未进入局部语义计算，receiver 类型／补全及半成品调用继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

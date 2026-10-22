@@ -17,6 +17,8 @@ mod integer;
 mod parsed_sources;
 mod patterns;
 mod recovered;
+mod recovered_body;
+pub use recovered_body::*;
 mod statements;
 mod types;
 

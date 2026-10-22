@@ -32,6 +32,7 @@ impl RecoveredFileHeader {
 pub enum DeclarationFragment {
     Complete(Box<Decl>),
     FunctionHeader(Box<FunctionHeader>),
+    FunctionBody(Box<crate::RecoveredFunctionBody>),
     Unavailable(DeclarationHeader),
 }
 

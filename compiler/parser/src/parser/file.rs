@@ -194,7 +194,7 @@ fn finish(
                 DeclarationFragment::FunctionHeader(_) => {
                     known_signature[projection.declaration.0] = true
                 }
-                DeclarationFragment::Unavailable(_) => {
+                DeclarationFragment::Unavailable(_) | DeclarationFragment::FunctionBody(_) => {
                     unreachable!("unavailable headers are added below")
                 }
             }
@@ -209,6 +209,14 @@ fn finish(
                 projections.push(DeclarationData {
                     declaration: header.declaration,
                     value: DeclarationFragment::Unavailable(header.value),
+                });
+            }
+        }
+        for body in syntax.bodies {
+            if !complete[body.declaration.0] && known_signature[body.declaration.0] {
+                projections.push(DeclarationData {
+                    declaration: body.declaration,
+                    value: DeclarationFragment::FunctionBody(Box::new(body.value)),
                 });
             }
         }

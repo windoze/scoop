@@ -54,7 +54,8 @@ pub fn declaration_source<'syntax, 'input>(
                     },
                 ))
             }
-            ast::DeclarationFragment::FunctionHeader(_) => None,
+            ast::DeclarationFragment::FunctionHeader(_)
+            | ast::DeclarationFragment::FunctionBody(_) => None,
             ast::DeclarationFragment::Unavailable(header) => {
                 Some(ast::DeclarationInput::Unavailable(header))
             }

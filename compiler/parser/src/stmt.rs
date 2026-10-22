@@ -1,66 +1,18 @@
 use scoop_ast::{
-    Assign, AssignmentOp, Block, CompoundAssignOp, Diagnostic, LocalDelegatedPropertyDecl, Pattern,
+    Assign, AssignmentOp, CompoundAssignOp, Diagnostic, LocalDelegatedPropertyDecl, Pattern,
     SafetyMode, Span, Statement, StatementKind, ValDecl, VisibilitySyntax,
 };
 
 use crate::lexer::{Token, TokenKind};
 use crate::parser::Parser;
 
+mod blocks;
 mod control_flow;
 mod declarations;
 mod jumps;
 mod when;
 
 impl Parser {
-    pub(crate) fn parse_block(&mut self) -> Result<Block, Diagnostic> {
-        self.with_node(scoop_syntax::SyntaxKind::Block, |parser| {
-            parser.parse_block_inner()
-        })
-    }
-
-    fn parse_block_inner(&mut self) -> Result<Block, Diagnostic> {
-        let open = self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
-        self.parse_block_after_open(open)
-    }
-
-    /// Parse block items after the opening brace has already been consumed.
-    /// Lambda parsing uses this after its optional parameter header.
-    pub(crate) fn parse_block_after_open(&mut self, open: Token) -> Result<Block, Diagnostic> {
-        let body_depth = self.brace_depth();
-        let mut statements = Vec::new();
-        loop {
-            match self.peek().kind {
-                TokenKind::RBrace => {
-                    let close = self.bump();
-                    return Ok(Block {
-                        statements,
-                        span: Span::new(open.span.start, close.span.end),
-                    });
-                }
-                TokenKind::Eof => return self.unexpected("`}`"),
-                _ => {
-                    let start = self.pos;
-                    match self.parse_statement() {
-                        Ok(statement) => {
-                            statements.push(statement);
-                            if let Err(diagnostic) = self.expect_statement_end() {
-                                self.diagnostics.push(diagnostic);
-                                self.synchronize_body_item(body_depth, start);
-                            }
-                        }
-                        Err(diagnostic) => {
-                            if self.at_eof() {
-                                return Err(diagnostic);
-                            }
-                            self.diagnostics.push(diagnostic);
-                            self.synchronize_body_item(body_depth, start);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     /// A statement ends at a newline, at `}`, or at an explicit `;`.
     pub(crate) fn expect_statement_end(&mut self) -> Result<(), Diagnostic> {
         if matches!(self.peek().kind, TokenKind::Semicolon) {
