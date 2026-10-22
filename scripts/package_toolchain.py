@@ -181,7 +181,7 @@ def assemble(root, targets, binaries, args, release):
     native = (package_native.darwin if args.host.endswith("darwin") else package_native.linux)(
         root, binaries, args.llvm_prefix / "lib"
     )
-    package_licenses.collect(root, ROOT, args.llvm_source, args.host, native)
+    package_licenses.collect(root, ROOT, args.llvm_source, args.host, native, targets)
     share = root / "share/scoop"
     share.mkdir(parents=True)
     for name in ("README.md", "RELEASE-NOTES.md"):

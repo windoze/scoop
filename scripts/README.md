@@ -37,7 +37,7 @@ python3 scripts/prepare_sysroot.py \
 
 `build_nghttp2.py` 从 vendor 的固定 1.70.0 tag 归档构建纯静态协议库，保留完整上游核心，不构建应用、工具、测试或文档。使用同一目标部署／CPU 配置；工作目录默认为 `tmp/nghttp2/<triple>`，支持 `--build-dir`、`--prefix`、`--cc`。更新判断先于解包和 CMake，命中不读取或复验 archive。llhttp 9.4.3 的发布 C 源码由普通 HTTP Cone 编译，不另加工具或命令。
 
-`build_text_backends.py` 准备独立 Rust `scoop_text_backend`（字符集转换／IDNA／Punycode／NFC／Unicode 编辑基础操作）。Rust 依赖从固定 vendor 归档离线构建，需要支持所选目标的 Rust 工具链；普通应用不执行 Cargo。字符集按用户决定缩减为 43 个名称；原 GNU 文本构建链与发行资源已移除。必须显式给出仓库外 `--build-dir`；支持目标 `--cc`、资源目录 `--prefix` 与 `--jobs`。静态库放在 `sysroot/lib/<triple>`，头文件放在其 `include` 子目录，直接使用现有 native 搜索路径。只把库和头文件复制到目标资源，不携带构建出的命令行程序；完整源码、许可和补丁由 vendor 随工具链分发。
+`build_text_backends.py` 准备独立 Rust `scoop_text_backend`（字符集转换／IDNA／Punycode／NFC／Unicode 编辑基础操作）。Rust 依赖从固定 vendor 归档离线构建，需要支持所选目标的 Rust 工具链；普通应用不执行 Cargo。字符集按用户决定缩减为 43 个名称；原 GNU 文本构建链与发行资源已移除。必须显式给出仓库外 `--build-dir`；支持目标 `--cc`、资源目录 `--prefix` 与 `--jobs`。静态库放在 `sysroot/lib/<triple>`，头文件放在其 `include` 子目录，直接使用现有 native 搜索路径。实际 Rust 工具链的 `COPYRIGHT-library.html`、Apache-2.0／MIT 许可保存在目标目录的 `rust-std` 中，发行时收集到 `share/licenses`。这些文档必须随维护构建工具链提供；缓存命中不探测工具链或读取许可内容。固定依赖的源码与许可由 vendor 随工具链分发，不携带构建出的命令行程序。
 
 `build_uriparser.py` 以相同布局准备 uriparser 1.0.2，仅启用窄字符静态库，关闭工具、文档、测试及宽字符 API 的构建。需要 CMake 和所选目标 C 编译器；使用仓库外 `--build-dir`，其余目标、编译器与并行选项同上。输入未变化时直接复用，实际更新后在维护工作区重建，再发布库与头文件。
 
@@ -63,7 +63,7 @@ musl 的 C 开发环境也需要 Linux UAPI 头。Debian／Ubuntu 的 `musl-gcc`
 
 LLVM 源码与归档默认取 vendor 的固定版本位置，也可传入 `--llvm-source` 和 `--llvm-archive`。已经用 `build_llvm.py` 准备的宿主 LLVM 可通过 `--llvm-prefix` 复用；省略时脚本在自己的工作目录构建。`--version` 和 `--revision` 可显式设置发行标识，默认采用配置版本与当前 Git revision，存在未提交修改时标注 `+modified`。
 
-脚本读取宿主命令的实际动态依赖，将所需非系统库复制到 `libexec/llvm/lib`，设置相对加载路径。目标资源和许可说明按实际组件收集；归档在完整写入后才替换同名文件。安装方法、系统开发环境要求及升级说明随包放在 `share/scoop`。
+脚本读取宿主命令的实际动态依赖，将所需非系统库复制到 `libexec/llvm/lib`，为实际引用这些私有库的 Darwin 文件设置相对加载路径。目标资源和许可说明按实际组件收集；归档在完整写入后才替换同名文件。安装方法、系统开发环境要求及升级说明随包放在 `share/scoop`。
 
 文档使用本次配套 `scoop`／`scoopc`，显式选择 `sysroot/src/*/Cone.toml` 的全部生产库，以 `--no-deps --deny-doc-warnings` 为每个发行目标生成共同站点。嵌套测试／辅助 Cone 不进入发行清单。工作目录下的 `documentation/<target>`、`doc-target` 和普通 `cache` 保留更新结果；重复打包复用未变化的文档，随后复制到组装目录。站点更新记录只保留在工作目录，不放入发行包。所有目标的文档成功后才开始归档，文档失败保留上一次完整归档。
 

@@ -13,6 +13,8 @@ from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, source_metad
 
 LIBRARY = "libscoop_text_backend.a"
 HEADER = "scoop_text_backend.h"
+NOTICE_FILES = ("COPYRIGHT-library.html", "licenses/Apache-2.0.txt", "licenses/MIT.txt")
+NOTICE_DIRECTORY = "rust-std"
 
 
 def prepare(args):
@@ -55,6 +57,7 @@ def prepare_locked(args, source, archive, build):
     }
     record = build / "inputs.json"
     outputs = [args.prefix / LIBRARY, args.prefix / "include" / HEADER]
+    outputs += [args.prefix / NOTICE_DIRECTORY / Path(name).name for name in NOTICE_FILES]
     if reusable(record, inputs, outputs):
         print(f"Reusing {args.target} Rust text backend", flush=True)
         return
@@ -63,7 +66,13 @@ def prepare_locked(args, source, archive, build):
     rustc = shutil.which("rustc")
     if not cargo or not rustc:
         raise ValueError("preparing the Rust text backend requires Cargo and rustc")
+    rust_sysroot = Path(subprocess.check_output([rustc, "--print=sysroot"], text=True).strip())
+    notices = [rust_sysroot / "share/doc/rust" / name for name in NOTICE_FILES]
+    for notice in notices:
+        if not notice.is_file():
+            raise ValueError(f"Rust standard library license document is missing: {notice}")
     tools = [Path(cargo), Path(rustc)]
+    tools += notices
     # rustup's selected compiler can change without replacing its proxy binaries.
     rustup = shutil.which("rustup")
     if rustup:
@@ -121,7 +130,11 @@ def prepare_locked(args, source, archive, build):
     stage.mkdir(exist_ok=True)
     shutil.copy2(build / "target" / args.target / "release" / LIBRARY, stage / LIBRARY)
     shutil.copy2(source / "include" / HEADER, stage / HEADER)
-    for staged, output in zip((stage / LIBRARY, stage / HEADER), outputs, strict=True):
+    staged_files = [stage / LIBRARY, stage / HEADER]
+    for notice in notices:
+        shutil.copy2(notice, stage / notice.name)
+        staged_files.append(stage / notice.name)
+    for staged, output in zip(staged_files, outputs, strict=True):
         output.parent.mkdir(parents=True, exist_ok=True)
         temporary = output.with_suffix(output.suffix + ".new")
         shutil.copy2(staged, temporary)
