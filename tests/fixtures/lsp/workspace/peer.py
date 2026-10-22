@@ -105,6 +105,7 @@ def main():
         )
         assert initialized["capabilities"]["hoverProvider"]
         assert initialized["capabilities"]["definitionProvider"]
+        assert initialized["capabilities"]["completionProvider"]["triggerCharacters"] == ["."]
         peer.notify("initialized", {})
         peer.notify(
             "textDocument/didOpen",
@@ -144,6 +145,15 @@ def main():
                 },
             )
 
+        def completion(line, character):
+            return peer.request(
+                "textDocument/completion",
+                {
+                    "textDocument": {"uri": source},
+                    "position": {"line": line, "character": character},
+                },
+            )
+
         assert hover(0, 5)["contents"]["value"] == "fun greeting(): String"
         edited = (
             'fun greeting(): String = "中文😀"\n'
@@ -169,6 +179,14 @@ def main():
         assert receiver["contents"]["value"] == "value: T", receiver
         assert receiver["range"]["start"] == {"line": 2, "character": 31}
         assert hover(4, 2)["contents"]["value"] == "value: String"
+        candidates = completion(4, len("value."))
+        names = {item["label"] for item in candidates["items"]}
+        assert "toString" in names, candidates
+        selected = next(item for item in candidates["items"] if item["label"] == "toString")
+        assert selected["textEdit"] == {
+            "range": {"start": {"line": 4, "character": 6}, "end": {"line": 4, "character": 6}},
+            "newText": "toString",
+        }
         destination = definition(2, 32)
         assert destination["uri"] == source
         assert destination["range"]["start"] == {"line": 2, "character": 16}

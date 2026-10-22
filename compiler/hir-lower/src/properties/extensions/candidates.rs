@@ -221,7 +221,7 @@ impl Lowerer {
         read
     }
 
-    fn extension_property_getter(&self, property: hir::PropertyId) -> hir::FunctionId {
+    pub(crate) fn extension_property_getter(&self, property: hir::PropertyId) -> hir::FunctionId {
         match self.property_getters[self.properties[property].capability.getter()].implementation {
             hir::PropertyAccessorImplementation::Body(function) => function,
             hir::PropertyAccessorImplementation::Storage

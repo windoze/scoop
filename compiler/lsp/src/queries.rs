@@ -9,10 +9,12 @@ use serde_json::Value;
 
 use crate::{convert, initialize::Settings};
 
+mod completion;
 mod definition;
 mod hover;
 mod semantic;
 mod symbols;
+pub(crate) use completion::completion;
 pub(crate) use definition::definition;
 pub(crate) use hover::hover;
 
@@ -21,6 +23,7 @@ pub(crate) enum QueryKind {
     Syntax(SyntaxQuery),
     Hover(Position),
     Definition(Position),
+    Completion(Position),
 }
 
 #[derive(Clone)]
@@ -47,6 +50,13 @@ pub(crate) fn json(value: impl Serialize) -> Result<Value, ResponseError> {
 impl Query {
     pub fn from_request(request: &Request) -> Result<Self, ResponseError> {
         match request.method.as_str() {
+            "textDocument/completion" => {
+                let params: lsp_types::CompletionParams = params(request.params.clone())?;
+                Ok(Self {
+                    uri: params.text_document_position.text_document.uri,
+                    kind: QueryKind::Completion(params.text_document_position.position),
+                })
+            }
             "textDocument/documentSymbol" => {
                 let params: DocumentSymbolParams = params(request.params.clone())?;
                 Ok(Self {

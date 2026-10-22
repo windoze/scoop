@@ -8,6 +8,7 @@ use crate::{CoreProtocolInput, Lowerer, SourceKind, SourceProvider};
 
 mod bodies;
 mod callables;
+mod members;
 mod parameters;
 pub(crate) use bodies::{BodyObservation, CheckedBody};
 mod receivers;

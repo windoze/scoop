@@ -3,6 +3,8 @@ use hir::{EditingUnavailable as U, EditingValue as V};
 
 mod bodies;
 mod callables;
+mod members;
+mod members_imported;
 mod receivers;
 
 fn analyze(text: &str) -> DeclarationAnalysis {

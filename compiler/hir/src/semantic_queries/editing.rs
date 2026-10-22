@@ -53,6 +53,33 @@ pub struct EditingReceiver {
     pub safe_navigation: bool,
     pub value_type: EditingValue<TypeId>,
     pub local: Option<EditingLocalReference>,
+    pub members: EditingValue<EditingMembers>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct EditingMembers {
+    pub candidates: Vec<EditingMember>,
+    pub unavailable: Vec<EditingUnavailableMember>,
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingMember {
+    pub name: String,
+    pub target: EditingMemberTarget,
+    pub is_extension: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditingMemberTarget {
+    Callable(crate::SemanticCallable),
+    Property(crate::PropertyId),
+    ImportedProperty(crate::PropertyDeclarationId),
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingUnavailableMember {
+    pub name: String,
+    pub reason: EditingUnavailable,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -70,6 +70,8 @@ impl ImportedCallableSource for ImportedDependencyCallableCandidate {
 
 #[derive(Clone, Copy)]
 pub enum ImportedMemberLookup<'a> {
+    Methods,
+    PropertyGetters,
     Name(&'a str),
     Operator(CallableOperatorRoleV1),
     PropertyGetter(&'a str),
@@ -262,7 +264,32 @@ impl ImportedDependencySelectionPlan {
             return Ok(Vec::new());
         };
         let accessor;
+        let inventory;
         let declarations = match lookup {
+            ImportedMemberLookup::Methods => {
+                inventory = members
+                    .functions
+                    .values()
+                    .flatten()
+                    .copied()
+                    .collect::<Vec<_>>();
+                inventory.as_slice()
+            }
+            ImportedMemberLookup::PropertyGetters => {
+                inventory = members
+                    .property_by_name
+                    .values()
+                    .map(|property| {
+                        scoop_identity::CallableTemplateOrigin::Accessor(
+                            self.catalog.properties[property]
+                                .interface
+                                .accessors()
+                                .getter(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                inventory.as_slice()
+            }
             ImportedMemberLookup::Name(name) => members
                 .functions
                 .get(name)

@@ -136,6 +136,22 @@ impl Default for TopLevelNamespaces {
 }
 
 impl TopLevelNamespaces {
+    pub(crate) fn lookup_names(&self, file: usize) -> std::collections::BTreeSet<String> {
+        self.lookup_namespaces(file)
+            .into_iter()
+            .flat_map(|(_, namespace)| {
+                namespace
+                    .functions
+                    .keys()
+                    .chain(namespace.extensions.keys())
+                    .chain(namespace.properties.keys())
+                    .chain(namespace.extension_properties.keys())
+                    .chain(namespace.types.keys())
+                    .cloned()
+            })
+            .collect()
+    }
+
     pub(crate) fn current_type_bindings(
         &self,
     ) -> Vec<(PackageId, String, TopLevelTypeTarget, usize)> {

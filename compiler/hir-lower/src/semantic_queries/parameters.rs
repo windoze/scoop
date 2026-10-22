@@ -7,7 +7,7 @@ use scoop_identity::CallableTemplateOrigin;
 mod imported;
 
 impl Lowerer {
-    pub(super) fn query_signature_bindings(
+    pub(crate) fn query_signature_bindings(
         &mut self,
         owner_count: usize,
         parameters: &[hir::TypeParamDecl],

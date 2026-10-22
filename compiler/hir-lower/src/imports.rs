@@ -9,6 +9,7 @@ mod bindings;
 mod collect;
 mod exports;
 pub(crate) mod lookup;
+mod names;
 mod packages;
 pub(crate) use exports::ExportLookupTarget;
 mod reexports;

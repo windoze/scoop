@@ -39,7 +39,7 @@ impl DeclarationAnalysis {
     }
 }
 
-fn check_cancelled(is_cancelled: &impl Fn() -> bool) -> Result<(), EditingCancelled> {
+pub(super) fn check_cancelled(is_cancelled: &impl Fn() -> bool) -> Result<(), EditingCancelled> {
     if is_cancelled() {
         Err(EditingCancelled)
     } else {
@@ -63,6 +63,7 @@ fn unavailable_receivers(
             safe_navigation: selector.navigation == ast::Navigation::Safe,
             value_type: V::Unavailable(reason),
             local: None,
+            members: V::Unavailable(reason),
         })
         .collect()
 }
@@ -93,7 +94,12 @@ impl Lowerer {
             .local = Some(reference);
     }
 
-    fn check_receiver(&mut self, expression: &ast::Expr, facts: &mut hir::EditingReceiver) {
+    fn check_receiver(
+        &mut self,
+        expression: &ast::Expr,
+        facts: &mut hir::EditingReceiver,
+        is_cancelled: &impl Fn() -> bool,
+    ) -> Result<(), EditingCancelled> {
         let before = self.diagnostics.len();
         self.editing_receiver = Some(ReceiverObservation {
             file: self.current_file,
@@ -105,8 +111,12 @@ impl Lowerer {
         if let Some(value) = value.filter(|_| self.diagnostics.len() == before) {
             facts.value_type = V::Known(value.ty);
             facts.local = observation.local;
+            facts.members =
+                self.editing_receiver_members(&value, facts.safe_navigation, is_cancelled)?;
         } else {
             facts.value_type = V::Unavailable(U::BodyFailure);
+            facts.members = V::Unavailable(U::BodyFailure);
         }
+        Ok(())
     }
 }

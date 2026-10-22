@@ -51,9 +51,10 @@ impl Lowerer {
                 for (index, receiver) in eligible {
                     check_cancelled(is_cancelled)?;
                     if lowerer.diagnostics.len() == before {
-                        lowerer.check_receiver(receiver, &mut facts[index]);
+                        lowerer.check_receiver(receiver, &mut facts[index], is_cancelled)?;
                     } else {
                         facts[index].value_type = V::Unavailable(U::BodyFailure);
+                        facts[index].members = V::Unavailable(U::BodyFailure);
                     }
                 }
                 Ok(facts)

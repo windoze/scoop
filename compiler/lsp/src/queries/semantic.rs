@@ -23,17 +23,16 @@ pub(super) fn cursor(
     position: Position,
     settings: Settings,
 ) -> Result<Option<Cursor<'_>>, ResponseError> {
-    let source = snapshot
-        .source(source_id)
-        .map_err(|_| cancelled())?
-        .ok_or_else(|| convert::error(ErrorCode::RequestFailed, "source is unavailable"))?;
-    let offset = convert::offset(&source.text, position, settings.encoding)?;
-    let parsed = source
+    let Some(mut cursor) = position_cursor(snapshot, source_id, position, settings)? else {
+        return Ok(None);
+    };
+    let parsed = cursor
+        .source
         .parse()
         .map_err(|error| convert::error(ErrorCode::RequestFailed, error))?;
     let candidates = match parsed
         .syntax()
-        .token_at_offset(scoop_syntax::TextSize::from(offset))
+        .token_at_offset(scoop_syntax::TextSize::from(cursor.span.start))
     {
         scoop_syntax::TokenAtOffset::None => Vec::new(),
         scoop_syntax::TokenAtOffset::Single(token) => vec![token],
@@ -47,10 +46,25 @@ pub(super) fn cursor(
     }) else {
         return Ok(None);
     };
-    let span = Span::new(
+    cursor.span = Span::new(
         token.text_range().start().into(),
         token.text_range().end().into(),
     );
+    Ok(Some(cursor))
+}
+
+pub(super) fn position_cursor(
+    snapshot: &AnalysisSnapshot,
+    source_id: SourceId,
+    position: Position,
+    settings: Settings,
+) -> Result<Option<Cursor<'_>>, ResponseError> {
+    let source = snapshot
+        .source(source_id)
+        .map_err(|_| cancelled())?
+        .ok_or_else(|| convert::error(ErrorCode::RequestFailed, "source is unavailable"))?;
+    let offset = convert::offset(&source.text, position, settings.encoding)?;
+    let span = Span::new(offset, offset);
     let Some(project) = snapshot.workspace.project_for_source(source_id) else {
         return Ok(None);
     };
@@ -218,7 +232,7 @@ pub(super) fn location(
     }))
 }
 
-fn cancelled() -> ResponseError {
+pub(super) fn cancelled() -> ResponseError {
     convert::error(ErrorCode::RequestCanceled, "request cancelled")
 }
 

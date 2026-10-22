@@ -1,17 +1,32 @@
 use super::*;
 
 impl Lowerer {
-    pub(in crate::semantic_queries) fn query_imported_method_binders(
+    pub(crate) fn query_imported_method_binders(
         &mut self,
         declaration: &hir::ImportedCallableDeclaration,
         owner_parameters: &[hir::TypeParamDecl],
         span: Span,
     ) -> Result<Vec<hir::TypeParamDecl>, Diagnostic> {
-        let identity = declaration.interface().declaration();
+        let mut identity = declaration.interface().declaration();
+        let property = match identity {
+            CallableTemplateOrigin::Accessor(accessor) => self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.property_for_accessor(accessor))
+                .filter(|property| property.owner() == hir::PublicDeclarationOwnerV1::Extension)
+                .cloned(),
+            _ => None,
+        };
+        if let Some(property) = &property {
+            identity = CallableTemplateOrigin::Accessor(property.accessors().getter());
+        }
         if let Some(parameters) = self.query_imported_method_parameters.get(&identity) {
             return Ok(parameters.clone());
         }
-        let binders = declaration.interface().type_parameters().binders();
+        let binders = property.as_ref().map_or_else(
+            || declaration.interface().type_parameters().binders(),
+            |property| property.type_parameters().binders(),
+        );
         let shape = hir::DefaultTemplateProviderShapeV1::try_new(
             owner_parameters.len() as u32,
             binders.len() as u32,
