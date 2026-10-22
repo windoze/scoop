@@ -6,7 +6,7 @@ pub(super) struct Declarations<'a> {
     annotations: Vec<(&'a ast::AnnotationClassDecl, usize, Option<Owner>)>,
     pub(super) structs: Vec<(StructId, &'a ast::StructDecl, usize)>,
     pub(super) enums: Vec<(EnumId, &'a ast::EnumDecl, usize)>,
-    pub(super) classes: Vec<(ClassId, &'a ast::ClassDecl, usize)>,
+    pub(super) classes: Vec<(ClassId, ast::ClassSource<'a>, usize)>,
     pub(super) interfaces: Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
     pub(super) objects: Vec<(ObjectId, crate::declarations::ObjectSource<'a>, usize)>,
     pub(super) methods: Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
@@ -80,7 +80,7 @@ impl Lowerer {
         let target = match declaration {
             ast::LocalTypeDecl::Class(decl) => self
                 .declare_class(
-                    decl,
+                    decl.source(),
                     false,
                     &mut pending.classes,
                     &mut pending.methods,
@@ -145,7 +145,7 @@ impl Lowerer {
         };
         match declaration {
             ast::LocalTypeDecl::Class(decl) => {
-                self.declare_class_nested(owner, decl, &mut queues, file)
+                self.declare_class_nested(owner, decl.source(), &mut queues, file)
             }
             ast::LocalTypeDecl::Struct(decl) => {
                 self.declare_struct_nested(owner, decl, &mut queues, file)

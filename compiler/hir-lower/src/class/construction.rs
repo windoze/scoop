@@ -27,7 +27,7 @@ impl Lowerer {
 
     pub(crate) fn resolve_constructor_graphs(
         &mut self,
-        classes: &[(ClassId, &ast::ClassDecl, usize)],
+        classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         structs: &[(hir::StructId, &ast::StructDecl, usize)],
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
@@ -98,7 +98,7 @@ impl Lowerer {
         self.set_primary_base(constructor, base);
     }
 
-    fn resolve_class_constructor_edges(&mut self, id: ClassId, decl: &ast::ClassDecl) {
+    fn resolve_class_constructor_edges(&mut self, id: ClassId, decl: ast::ClassSource<'_>) {
         if !self.classes[id].is_declared() {
             return;
         }
@@ -139,7 +139,7 @@ impl Lowerer {
         &mut self,
         owner: ClassId,
         primary: hir::ClassConstructorId,
-        decl: &ast::ClassDecl,
+        decl: ast::ClassSource<'_>,
     ) {
         let Some(base_ty) = self.classes[owner].base_class else {
             self.set_primary_base(primary, hir::BaseInitialization::Root);
@@ -512,14 +512,14 @@ impl Lowerer {
     fn source_base_spec<'a>(
         &mut self,
         owner: ClassId,
-        declaration: &'a ast::ClassDecl,
+        declaration: ast::ClassSource<'a>,
     ) -> Option<&'a ast::SupertypeSpec> {
         let base = self.classes[owner].base_class?;
         let outer = std::mem::replace(
             &mut self.type_params_in_scope,
             self.classes[owner].type_params.clone(),
         );
-        let result = declaration.supertypes.iter().find(|spec| {
+        let result = declaration.header.supertypes.iter().find(|spec| {
             self.resolve_type_ref(&spec.ty)
                 .is_some_and(|ty| self.types_equal(ty, base))
         });

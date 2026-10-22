@@ -22,7 +22,7 @@ impl Lowerer {
     /// for value types implementing interfaces (spec 4.4.3).
     pub(crate) fn check_inheritance(
         &mut self,
-        pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
+        pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         pending_structs: &[(hir::StructId, &ast::StructDecl, usize)],
         pending_enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
         pending_interfaces: &[(hir::InterfaceId, &ast::InterfaceDecl, usize)],
@@ -130,7 +130,7 @@ impl Lowerer {
 
     pub(crate) fn check_class_inheritance_cycles(
         &mut self,
-        pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
+        pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) -> bool {
         let errors = self.diagnostics.len();

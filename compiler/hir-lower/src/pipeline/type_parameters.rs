@@ -5,7 +5,7 @@ impl Lowerer {
         &mut self,
         pending_structs: &[(StructId, &ast::StructDecl, usize)],
         pending_enums: &[(EnumId, &ast::EnumDecl, usize)],
-        pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
+        pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         pending_interfaces: &[(InterfaceId, &ast::InterfaceDecl, usize)],
         pending_objects: &[(ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
@@ -24,7 +24,7 @@ impl Lowerer {
         &mut self,
         pending_structs: &[(StructId, &ast::StructDecl, usize)],
         pending_enums: &[(EnumId, &ast::EnumDecl, usize)],
-        pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
+        pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         pending_interfaces: &[(InterfaceId, &ast::InterfaceDecl, usize)],
         pending_objects: &[(ObjectId, crate::declarations::ObjectSource<'_>, usize)],
         check: &impl Fn() -> Result<(), C>,

@@ -34,7 +34,11 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn document_class_primary(&mut self, id: hir::ClassId, source: &ast::ClassDecl) {
+    pub(super) fn document_class_primary(
+        &mut self,
+        id: hir::ClassId,
+        source: ast::ClassSource<'_>,
+    ) {
         let constructor = self.classes[id].constructors.iter().copied().find(|id| {
             matches!(
                 self.class_constructors[*id].kind,

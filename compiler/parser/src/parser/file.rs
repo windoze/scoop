@@ -194,7 +194,9 @@ fn finish(
                 DeclarationFragment::FunctionHeader(_) => {
                     known_signature[projection.declaration.0] = true
                 }
-                DeclarationFragment::Unavailable(_) | DeclarationFragment::FunctionBody(_) => {
+                DeclarationFragment::Unavailable(_)
+                | DeclarationFragment::FunctionBody(_)
+                | DeclarationFragment::Class(_) => {
                     unreachable!("unavailable headers are added below")
                 }
             }
@@ -202,6 +204,15 @@ fn finish(
         for (index, declaration) in syntax.declarations.iter().enumerate() {
             if let Some(parent) = declaration.parent {
                 complete[index] |= complete[parent.0];
+            }
+        }
+        for class in syntax.classes {
+            if !complete[class.declaration.0] {
+                known_signature[class.declaration.0] = true;
+                projections.push(DeclarationData {
+                    declaration: class.declaration,
+                    value: DeclarationFragment::Class(Box::new(class.value)),
+                });
             }
         }
         for header in syntax.declaration_headers {

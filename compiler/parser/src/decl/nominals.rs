@@ -117,6 +117,7 @@ impl Parser {
         inner_span: Option<Span>,
         modifier_span: Option<Span>,
     ) -> Result<ClassDecl, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let keyword = self.expect("`class`", |k| matches!(k, TokenKind::Class))?;
         let name = self.expect_ident("class name")?;
         self.record_declaration_name(&name);
@@ -131,13 +132,6 @@ impl Parser {
         if let Some(clause) = &where_clause {
             end = clause.span.end;
         }
-        let members = if matches!(self.peek().kind, TokenKind::LBrace) {
-            let (members, body_end) = self.parse_class_body()?;
-            end = body_end;
-            members
-        } else {
-            Vec::new()
-        };
         let start = modifier_span
             .map(|span| span.start)
             .into_iter()
@@ -148,7 +142,7 @@ impl Parser {
             })
             .min()
             .unwrap_or(keyword.span.start);
-        Ok(ClassDecl {
+        let header = scoop_ast::ClassHeader {
             annotations,
             visibility,
             modifier,
@@ -158,6 +152,18 @@ impl Parser {
             constructor,
             supertypes,
             where_clause,
+            span: Span::new(start, self.tokens[self.pos - 1].span.end),
+        };
+        self.record_class_header(&header, checkpoint);
+        let members = if matches!(self.peek().kind, TokenKind::LBrace) {
+            let (members, body_end) = self.parse_class_body()?;
+            end = body_end;
+            members
+        } else {
+            Vec::new()
+        };
+        Ok(ClassDecl {
+            header,
             members,
             span: Span::new(start, end),
         })

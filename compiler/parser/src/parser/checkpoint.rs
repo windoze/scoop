@@ -89,6 +89,24 @@ mod tests {
     use scoop_syntax::SyntaxKind;
 
     #[test]
+    fn rollback_discards_recovered_class_headers_and_member_ownership() {
+        let source = "class Outer { class Inner { fun editing(value: Boolean) { value. } } }";
+        let (mut parser, _) = Parser::from_source(source).unwrap();
+        let checkpoint = parser.checkpoint();
+        let first = parser.parse_decl().unwrap();
+        parser.restore(checkpoint);
+        assert_eq!(parser.parse_decl().unwrap(), first);
+        let (syntax, diagnostics) = parser.finish_syntax(source, SyntaxKind::SourceFile);
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(syntax.classes.len(), 1);
+        let outer = &syntax.classes[0].value;
+        assert_eq!(outer.classes.len(), 1);
+        let inner = &outer.classes[0];
+        assert_eq!(inner.methods.len(), 1);
+        assert_eq!(inner.methods[0].body.as_ref().unwrap().selectors.len(), 1);
+    }
+
+    #[test]
     fn rollback_discards_recovered_call_slots_and_ownership() {
         let source = "fun editing() { call(true,) }";
         let (mut parser, _) = Parser::from_source(source).unwrap();

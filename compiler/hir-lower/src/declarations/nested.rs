@@ -5,7 +5,7 @@ pub(crate) struct NestedDeclarationQueues<'queues, 'source> {
         &'queues mut Vec<(&'source ast::AnnotationClassDecl, usize, Option<Owner>)>,
     pub(crate) structs: &'queues mut Vec<(StructId, &'source ast::StructDecl, usize)>,
     pub(crate) enums: &'queues mut Vec<(EnumId, &'source ast::EnumDecl, usize)>,
-    pub(crate) classes: &'queues mut Vec<(ClassId, &'source ast::ClassDecl, usize)>,
+    pub(crate) classes: &'queues mut Vec<(ClassId, ast::ClassSource<'source>, usize)>,
     pub(crate) interfaces: &'queues mut Vec<(InterfaceId, &'source ast::InterfaceDecl, usize)>,
     pub(crate) objects: &'queues mut Vec<(ObjectId, super::objects::ObjectSource<'source>, usize)>,
     pub(crate) methods: &'queues mut Vec<(FunctionId, &'source ast::FunctionDecl, usize, Owner)>,
@@ -15,11 +15,11 @@ impl Lowerer {
     pub(crate) fn declare_class_nested<'a>(
         &mut self,
         owner: Owner,
-        declaration: &'a ast::ClassDecl,
+        declaration: ast::ClassSource<'a>,
         queues: &mut NestedDeclarationQueues<'_, 'a>,
         file: usize,
     ) {
-        for member in &declaration.members {
+        for member in declaration.members {
             match member {
                 ast::ClassMember::Nested(nested) => {
                     self.declare_nested_nominal(owner, nested, queues, file)
@@ -45,6 +45,19 @@ impl Lowerer {
                 | ast::ClassMember::ReleaseBlock(_)
                 | ast::ClassMember::SecondaryConstructor(_)
                 | ast::ClassMember::Function(_) => {}
+            }
+        }
+        for nested in declaration.recovered_classes {
+            let source = nested.source();
+            if let Some(id) = self.declare_class(
+                source,
+                self.source_is_core(file),
+                queues.classes,
+                queues.methods,
+                file,
+                Some(owner),
+            ) {
+                self.declare_class_nested(Owner::Class(id), source, queues, file);
             }
         }
     }
@@ -205,14 +218,14 @@ impl Lowerer {
             }
             ast::NestedTypeDecl::Class(source) => {
                 if let Some(id) = self.declare_class(
-                    source,
+                    source.source(),
                     is_core,
                     queues.classes,
                     queues.methods,
                     file,
                     Some(owner),
                 ) {
-                    self.declare_class_nested(Owner::Class(id), source, queues, file);
+                    self.declare_class_nested(Owner::Class(id), source.source(), queues, file);
                 }
             }
             ast::NestedTypeDecl::Interface(source) => {

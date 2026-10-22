@@ -39,7 +39,7 @@ impl Lowerer {
                 hir::SemanticContext::Nominal(hir::NominalOwner::Class(id)),
                 |lowerer| {
                     lowerer.document_class(id, source);
-                    lowerer.document_editing_class_members(&source.members);
+                    lowerer.document_editing_class_members(source.members);
                 },
             );
         }

@@ -14,7 +14,7 @@ pub(crate) struct InitializingField {
 impl Lowerer {
     pub(crate) fn lower_constructor_initialization(
         &mut self,
-        classes: &[(ClassId, &ast::ClassDecl, usize)],
+        classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         structs: &[(hir::StructId, &ast::StructDecl, usize)],
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
@@ -32,7 +32,7 @@ impl Lowerer {
         }
     }
 
-    fn lower_class_initialization(&mut self, owner: ClassId, declaration: &ast::ClassDecl) {
+    fn lower_class_initialization(&mut self, owner: ClassId, declaration: ast::ClassSource<'_>) {
         if !self.classes[owner].is_declared() {
             return;
         }
@@ -183,14 +183,14 @@ impl Lowerer {
     fn lower_class_common_initialization(
         &mut self,
         owner: ClassId,
-        declaration: &ast::ClassDecl,
+        declaration: ast::ClassSource<'_>,
         constructor: hir::ClassConstructorId,
         primary: bool,
     ) -> Vec<hir::ClassInitializationStep> {
         let mut common = self.lower_interface_delegate_initialization(owner, constructor, primary);
         common.extend(self.lower_common_initialization(
             owner,
-            &declaration.members,
+            declaration.members,
             constructor,
             primary,
             &format!("class `{}`", self.classes[owner].name),

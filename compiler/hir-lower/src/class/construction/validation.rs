@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 impl Lowerer {
     pub(super) fn check_duplicate_constructor_signatures(
         &mut self,
-        classes: &[(ClassId, &ast::ClassDecl, usize)],
+        classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         structs: &[(hir::StructId, &ast::StructDecl, usize)],
     ) {
         for &(class, _, file) in classes {

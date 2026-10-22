@@ -19,6 +19,7 @@ mod operands;
 mod properties;
 mod properties_imported;
 mod receivers;
+mod recovered_classes;
 mod references;
 mod selectors;
 mod type_definitions;

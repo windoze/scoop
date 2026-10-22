@@ -3,9 +3,9 @@ use super::*;
 impl Lowerer {
     pub(crate) fn declare_class<'a>(
         &mut self,
-        decl: &'a ast::ClassDecl,
+        decl: ast::ClassSource<'a>,
         is_core: bool,
-        pending: &mut Vec<(ClassId, &'a ast::ClassDecl, usize)>,
+        pending: &mut Vec<(ClassId, ast::ClassSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
         owner: Option<Owner>,
@@ -110,9 +110,15 @@ impl Lowerer {
                             "a root intrinsic type cannot declare supertypes".to_string(),
                         );
                     }
-                    for member in &decl.members {
+                    let member_spans = decl
+                        .members
+                        .iter()
+                        .map(ast::ClassMember::span)
+                        .chain(decl.recovered_methods.iter().map(|method| method.span))
+                        .chain(decl.recovered_classes.iter().map(|class| class.span));
+                    for span in member_spans {
                         self.error(
-                            member.span(),
+                            span,
                             "a root intrinsic type cannot declare members".to_string(),
                         );
                     }

@@ -70,7 +70,7 @@ impl Lowerer {
     pub(super) fn annotate_class_constructors(
         &mut self,
         owner: hir::ClassId,
-        source: &ast::ClassDecl,
+        source: ast::ClassSource<'_>,
     ) {
         if let ast::ClassConstructorDecl::Declared(primary) = &source.constructor {
             let id = self.classes[owner].constructors.iter().copied().find(|id| {

@@ -12,7 +12,7 @@ mod restrictions;
 impl Lowerer {
     pub(crate) fn lower_release_blocks(
         &mut self,
-        classes: &[(ClassId, &ast::ClassDecl, usize)],
+        classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         for &(class, declaration, file) in classes {

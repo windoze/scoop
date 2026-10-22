@@ -79,6 +79,7 @@ fn a_header_only_result_query_does_not_publish_the_pending_storage_type() {
             .find_map(|item| match &item.value {
                 ast::DeclarationFragment::FunctionHeader(header) => Some(header.as_ref()),
                 ast::DeclarationFragment::Complete(_)
+                | ast::DeclarationFragment::Class(_)
                 | ast::DeclarationFragment::FunctionBody(_)
                 | ast::DeclarationFragment::Unavailable(_) => None,
             })

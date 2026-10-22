@@ -6,7 +6,7 @@ pub(crate) struct SourceDeclarations<'a> {
     pub(super) source_headers: Vec<ast::SourceHeaderRef<'a>>,
     pub(super) pending_structs: Vec<(StructId, &'a ast::StructDecl, usize)>,
     pub(super) pending_enums: Vec<(EnumId, &'a ast::EnumDecl, usize)>,
-    pub(super) pending_classes: Vec<(ClassId, &'a ast::ClassDecl, usize)>,
+    pub(super) pending_classes: Vec<(ClassId, ast::ClassSource<'a>, usize)>,
     pub(super) pending_interfaces: Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
     pub(super) pending_objects: Vec<(hir::ObjectId, crate::declarations::ObjectSource<'a>, usize)>,
     pub(super) function_headers: Vec<crate::declarations::FunctionHeaderInput<'a>>,
@@ -121,6 +121,17 @@ impl Lowerer {
             let is_core = self.source_is_core(file_index);
             let decl = match input {
                 ast::DeclarationInput::Complete(declaration) => declaration,
+                ast::DeclarationInput::RecoveredClass(declaration) => {
+                    self.declare_class(
+                        declaration.source(),
+                        is_core,
+                        &mut pending_classes,
+                        &mut pending_methods,
+                        file_index,
+                        None,
+                    );
+                    continue;
+                }
                 ast::DeclarationInput::Unavailable(header) => {
                     unavailable.push((header, file_index));
                     continue;
@@ -163,7 +174,7 @@ impl Lowerer {
                 }
                 ast::Decl::Class(decl) => {
                     let _ = self.declare_class(
-                        decl,
+                        decl.source(),
                         is_core,
                         &mut pending_classes,
                         &mut pending_methods,
@@ -260,10 +271,28 @@ impl Lowerer {
                 .iter()
                 .map(|&(id, declaration, file)| (id, declaration.header(), file)),
         );
-        let method_headers = pending_methods
+        let mut method_headers = pending_methods
             .iter()
             .map(|&(id, declaration, file, owner)| (id, declaration.header(), file, owner))
             .collect::<Vec<_>>();
+        for &(class, declaration, file) in &pending_classes {
+            for method in declaration.recovered_methods {
+                PhaseFailure::check(check)?;
+                self.current_file = file;
+                let owner = Owner::Class(class);
+                let header = method.header();
+                let function = self.declare_method_header(header, owner, file);
+                method_headers.push((function, header, file, owner));
+                if let Some(body) = &method.body {
+                    recovered_functions.push((function, body));
+                }
+            }
+            if !declaration.recovered_methods.is_empty() {
+                self.classes[class]
+                    .methods
+                    .sort_by_key(|function| self.functions[*function].span.start);
+            }
+        }
 
         PhaseFailure::check(check)?;
         let errors_before_imports = self.diagnostics.len();

@@ -140,18 +140,21 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let source = ast::LocalTypeDecl::Class(Box::new(ast::ClassDecl {
-            annotations: Vec::new(),
-            visibility: ast::VisibilitySyntax::Omitted,
-            modifier: ast::ClassModifier::Final,
-            inner_span: None,
-            name: ast::Ident {
-                text: "object".into(),
+            header: ast::ClassHeader {
+                annotations: Vec::new(),
+                visibility: ast::VisibilitySyntax::Omitted,
+                modifier: ast::ClassModifier::Final,
+                inner_span: None,
+                name: ast::Ident {
+                    text: "object".into(),
+                    span: declaration.span,
+                },
+                type_params: Vec::new(),
+                constructor: ast::ClassConstructorDecl::Omitted,
+                supertypes: declaration.supertypes.clone(),
+                where_clause: None,
                 span: declaration.span,
             },
-            type_params: Vec::new(),
-            constructor: ast::ClassConstructorDecl::Omitted,
-            supertypes: declaration.supertypes.clone(),
-            where_clause: None,
             members: declaration.members.clone(),
             span: declaration.span,
         }));

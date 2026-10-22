@@ -53,6 +53,9 @@ pub fn declaration_source<'syntax, 'input>(
             ast::DeclarationFragment::Complete(declaration) => {
                 Some(ast::DeclarationInput::Complete(declaration))
             }
+            ast::DeclarationFragment::Class(class) => {
+                Some(ast::DeclarationInput::RecoveredClass(class))
+            }
             ast::DeclarationFragment::FunctionHeader(header)
                 if !complete.contains(&item.declaration) =>
             {

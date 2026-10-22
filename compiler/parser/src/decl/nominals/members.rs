@@ -35,6 +35,7 @@ impl Parser {
                             .iter()
                             .any(|existing| matches!(existing, ClassMember::Companion(_)))
                     {
+                        self.invalidate_class_projection();
                         self.diagnostics.push(Diagnostic::at(
                             member.span(),
                             "a nominal declaration may contain at most one companion object",
@@ -62,12 +63,21 @@ impl Parser {
 
     fn parse_class_member(&mut self) -> Result<ClassMember, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::Member, |parser| {
-            parser.parse_class_member_inner()
+            let checkpoint = parser.checkpoint();
+            parser.begin_class_member();
+            let result = parser.parse_class_member_inner();
+            parser.end_class_member(&result, checkpoint);
+            result
         })
     }
 
     fn parse_class_member_inner(&mut self) -> Result<ClassMember, Diagnostic> {
         let prefix = self.parse_member_prefix()?;
+        match self.peek().kind {
+            TokenKind::Fun => self.class_member_kind(scoop_syntax::SyntaxKind::FunctionDecl),
+            TokenKind::Class => self.class_member_kind(scoop_syntax::SyntaxKind::ClassDecl),
+            _ => {}
+        }
         match &self.peek().kind {
             TokenKind::Val | TokenKind::Var => self
                 .parse_property(prefix, PropertyContext::ClassOrObject)

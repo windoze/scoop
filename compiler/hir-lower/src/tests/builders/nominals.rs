@@ -24,43 +24,46 @@ pub(crate) fn class_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Class(ast::ClassDecl {
-        inner_span: None,
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        modifier,
-        name: ident(name),
-        type_params: Vec::new(),
-        constructor: ctor
-            .into_iter()
-            .map(|(mutable, name, ty)| ast::PrimaryClassParameter {
-                annotations: Vec::new(),
-                property: if mutable {
-                    ast::PrimaryParameterProperty::Var
-                } else {
-                    ast::PrimaryParameterProperty::Val
-                },
-                member_visibility: Some(ast::VisibilitySyntax::Omitted),
-                is_override: false,
-                name: ident(name),
-                ty,
-                syntax: ast::ParameterSyntax::Required,
-                span: sp(),
-            })
-            .collect(),
-        supertypes: base
-            .into_iter()
-            .map(|(name, args)| ast::SupertypeSpec {
-                ty: ty_named(name),
-                initialization: ast::SupertypeInitialization::Constructor(call_arguments(args)),
-                span: sp(),
-            })
-            .chain(interfaces.into_iter().map(|name| ast::SupertypeSpec {
-                ty: ty_named(name),
-                initialization: ast::SupertypeInitialization::None,
-                span: sp(),
-            }))
-            .collect(),
-        where_clause: None,
+        header: ast::ClassHeader {
+            inner_span: None,
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            modifier,
+            name: ident(name),
+            type_params: Vec::new(),
+            constructor: ctor
+                .into_iter()
+                .map(|(mutable, name, ty)| ast::PrimaryClassParameter {
+                    annotations: Vec::new(),
+                    property: if mutable {
+                        ast::PrimaryParameterProperty::Var
+                    } else {
+                        ast::PrimaryParameterProperty::Val
+                    },
+                    member_visibility: Some(ast::VisibilitySyntax::Omitted),
+                    is_override: false,
+                    name: ident(name),
+                    ty,
+                    syntax: ast::ParameterSyntax::Required,
+                    span: sp(),
+                })
+                .collect(),
+            supertypes: base
+                .into_iter()
+                .map(|(name, args)| ast::SupertypeSpec {
+                    ty: ty_named(name),
+                    initialization: ast::SupertypeInitialization::Constructor(call_arguments(args)),
+                    span: sp(),
+                })
+                .chain(interfaces.into_iter().map(|name| ast::SupertypeSpec {
+                    ty: ty_named(name),
+                    initialization: ast::SupertypeInitialization::None,
+                    span: sp(),
+                }))
+                .collect(),
+            where_clause: None,
+            span: sp(),
+        },
         members: methods
             .into_iter()
             .map(ast::ClassMember::Function)

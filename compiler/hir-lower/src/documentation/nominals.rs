@@ -52,7 +52,7 @@ impl Lowerer {
         self.document_struct_primary(id, source);
     }
 
-    pub(crate) fn document_class(&mut self, id: hir::ClassId, source: &ast::ClassDecl) {
+    pub(crate) fn document_class(&mut self, id: hir::ClassId, source: ast::ClassSource<'_>) {
         if self.documentation.is_none() {
             return;
         }

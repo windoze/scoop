@@ -126,7 +126,7 @@ impl Lowerer {
     pub(crate) fn annotate_class(
         &mut self,
         id: hir::ClassId,
-        source: &ast::ClassDecl,
+        source: ast::ClassSource<'_>,
         file: usize,
     ) {
         let owner = Owner::Class(id);
@@ -163,7 +163,7 @@ impl Lowerer {
             }
         }
         self.annotate_class_constructors(id, source);
-        self.annotate_class_members(owner, &source.members);
+        self.annotate_class_members(owner, source.members);
     }
 
     pub(crate) fn annotate_interface(

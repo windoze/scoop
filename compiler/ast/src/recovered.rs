@@ -5,6 +5,9 @@ use crate::{
     SourceHeaderRef, Span, VisibilitySyntax,
 };
 
+mod classes;
+pub use classes::*;
+
 /// File context for recovered declarations, never a successful SourceFile.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RecoveredFileHeader {
@@ -33,6 +36,7 @@ pub enum DeclarationFragment {
     Complete(Box<Decl>),
     FunctionHeader(Box<FunctionHeader>),
     FunctionBody(Box<crate::RecoveredFunctionBody>),
+    Class(Box<RecoveredClass>),
     Unavailable(DeclarationHeader),
 }
 
@@ -40,6 +44,7 @@ pub enum DeclarationFragment {
 #[derive(Debug, Clone, Copy)]
 pub enum DeclarationInput<'a> {
     Complete(&'a Decl),
+    RecoveredClass(&'a RecoveredClass),
     FunctionHeader(FunctionHeaderRef<'a>),
     RecoveredFunction {
         header: FunctionHeaderRef<'a>,

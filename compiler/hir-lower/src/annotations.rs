@@ -215,7 +215,7 @@ impl Lowerer {
 
     pub(crate) fn check_class_annotations(
         &mut self,
-        decl: &ast::ClassDecl,
+        decl: ast::ClassSource<'_>,
     ) -> CheckedClassAnnotations {
         let mut intrinsic = None;
         let mut seen = HashSet::new();

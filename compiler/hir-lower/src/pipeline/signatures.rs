@@ -153,7 +153,7 @@ impl Lowerer {
             PhaseFailure::check(check)?;
             self.current_file = *file_index;
             self.current_owner = Some(Owner::Class(*id));
-            self.resolve_class(*id, decl);
+            self.resolve_class(*id, *decl);
         }
         for &(id, decl, file_index) in pending_objects {
             PhaseFailure::check(check)?;

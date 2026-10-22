@@ -58,7 +58,7 @@ impl Lowerer {
         functions: &[crate::declarations::FunctionHeaderInput<'_>],
         methods: &[crate::declarations::MethodHeaderInput<'_>],
         structs: &[(hir::StructId, &ast::StructDecl, usize)],
-        classes: &[(hir::ClassId, &ast::ClassDecl, usize)],
+        classes: &[(hir::ClassId, ast::ClassSource<'_>, usize)],
         enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
     ) {
         for &(function, _, file) in functions {

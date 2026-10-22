@@ -12,7 +12,8 @@ fn compiler_exception_constructors_cannot_be_unsafe() {
                 _ => None,
             })
             .unwrap();
-        let ast::ClassConstructorDecl::Declared(constructor) = &mut declaration.constructor else {
+        let ast::ClassConstructorDecl::Declared(constructor) = &mut declaration.header.constructor
+        else {
             panic!("explicit core constructor");
         };
         constructor.annotations.push(ast::Annotation {
