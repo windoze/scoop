@@ -22,12 +22,8 @@ impl Lowerer {
                 navigation,
             } => {
                 if *navigation == ast::Navigation::Direct
-                    && let Some(candidates) = state.editing_current_qualified_candidates(
-                        call,
-                        receiver,
-                        name,
-                        is_cancelled,
-                    )?
+                    && let Some(candidates) =
+                        state.editing_qualified_candidates(call, receiver, name, is_cancelled)?
                 {
                     return Ok(candidates);
                 }

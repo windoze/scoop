@@ -155,11 +155,27 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let candidate = self.imported_variant_constructor(owner, index as u32, name.span)?;
+        match self.probe_imported_value_constructor(candidate, name, call, expected) {
+            Ok(probe) => self.commit_imported_dependency_callable(probe, sink),
+            Err(failure) => {
+                self.commit_layer_diagnostics(*failure);
+                None
+            }
+        }
+    }
+
+    pub(in crate::expr) fn imported_variant_constructor(
+        &mut self,
+        owner: TypeId,
+        index: u32,
+        span: Span,
+    ) -> Option<hir::ImportedCallableDeclaration> {
         let Type::Enum(application) = self.types[owner] else {
             unreachable!("the selected variant has a dependency enum owner")
         };
         let declaration = CallableTemplateOrigin::VariantConstructor(
-            self.enum_variant_at(application, index as u32).variant,
+            self.enum_variant_at(application, index).variant,
         );
         let candidate = match self
             .dependencies
@@ -169,16 +185,10 @@ impl Lowerer {
         {
             Ok(candidate) => candidate,
             Err(error) => {
-                self.error(name.span, format!("invalid dependency variant: {error}"));
+                self.error(span, format!("invalid dependency variant: {error}"));
                 return None;
             }
         };
-        match self.probe_imported_value_constructor(candidate, name, call, expected) {
-            Ok(probe) => self.commit_imported_dependency_callable(probe, sink),
-            Err(failure) => {
-                self.commit_layer_diagnostics(*failure);
-                None
-            }
-        }
+        Some(candidate)
     }
 }

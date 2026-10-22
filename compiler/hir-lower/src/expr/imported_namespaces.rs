@@ -9,6 +9,7 @@ use crate::imports::lookup::calls::{
 use scoop_identity::BindingNamespace;
 
 mod calls;
+pub(in crate::expr) use calls::ImportedQualifiedCall;
 mod companions;
 mod fields;
 mod types;

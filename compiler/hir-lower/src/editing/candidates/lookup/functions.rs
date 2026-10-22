@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn editing_named_function_candidates(
+    pub(crate) fn editing_named_function_candidates(
         &mut self,
         call: &ast::RecoveredCall,
         bindings: &[NamedCallBinding],

@@ -23,6 +23,17 @@ fn supplied_arguments_filter_overloads_without_finishing_the_call() {
 }
 
 #[test]
+fn fixed_type_conflicts_filter_candidates_without_finishing_other_parameters() {
+    let declaration = "fun <First, Second> choose(first: First, second: Second) {}";
+    for (argument, count) in [("true", 1), ("\"wrong\"", 0)] {
+        let candidates = call_candidates(&format!(
+            "{declaration}\nfun editing() {{ choose<Boolean, _>({argument},"
+        ));
+        assert_eq!(candidates.len(), count, "{argument}: {candidates:?}");
+    }
+}
+
+#[test]
 fn an_empty_unclosed_call_keeps_all_possible_declarations() {
     let candidates = call_candidates(
         "fun choose(value: Boolean): Boolean = value\nfun choose(value: String): String = value\nfun editing() { choose(",

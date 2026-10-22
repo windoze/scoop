@@ -160,6 +160,8 @@ enum 的方法正文恢复已接入共用名义输入：全部 variant、字段�
 
 object／companion 的方法正文恢复已接入普通单例声明流程。完整头部、成员与恢复方法分别借用原输入，companion 保留实际宿主、名称和宿主泛型绑定；嵌套对象与类型沿真实 owner 登记，字段初始化和初始化块仍须完整。EOF 也不绕过禁止构造器和唯一 companion 的规则，坏签名继续阻塞相关重载。各类宿主共用 companion 与恢复嵌套成员登记，parser 按实际职责拆出单例 grammar 与恢复输入组装。格式化、全 workspace Clippy、Ruff、132 项编辑态测试、663 项 parser／宿主／LSP 测试及 20 项 companion／object 相关回归通过；真实 stdio fixture 通过，耗时约 53.3 秒。泛型 struct 测试已补全原语言要求的表示字段；真实查询发现的 `this` token 定位过滤已修复，复用既有 receiver 事实，并通过 LSP 全部 17 项测试和独立进程复验。限定预编译调用与别名的候选查询、其他正文引用区域及重命名等 D／E 范围继续实施。
 
+预编译依赖与透明别名的限定半成品调用已接入普通目标选择：原静态绑定、嵌套构造器、variant 声明与单例 receiver 共用同一路径，泛型 companion 保留实际宿主应用，variant 构造不要求访问 companion。别名保留自身模板参数和固定目标，调用方参数按真实身份显示，局部遮蔽及访问失败不回退。固定点计算补齐已固定刚性类型与已给实参之间的冲突检查，其他推断保持未定。格式化、全 workspace Clippy、Ruff、137 项编辑态测试、59 项普通调用／限定名／别名回归及 31 项宿主／LSP 测试通过；独立进程专项及完整 stdio fixture 通过，后者耗时约 52.9 秒，覆盖真实预编译 core、源码依赖修改与关闭恢复。首轮发现的调用方参数显示、显式类型冲突和 struct 测试字段语法问题已修正并复验；target 约 15 GiB。循环等恢复上下文、其他引用区域与重命名继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

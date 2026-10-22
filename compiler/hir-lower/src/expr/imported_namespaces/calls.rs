@@ -1,5 +1,12 @@
 use super::*;
 
+pub(in crate::expr) enum ImportedQualifiedCall {
+    Variant { owner: TypeId, index: usize },
+    Constructor(scoop_identity::PersistentTypeId),
+    Singleton(hir::Expr),
+    Bindings(Vec<NamedCallBinding>),
+}
+
 impl Lowerer {
     pub(in crate::expr) fn lower_imported_qualified_call(
         &mut self,
@@ -9,10 +16,48 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        match self.resolve_imported_qualified_call(owner, name).ok()? {
+            ImportedQualifiedCall::Variant { owner, index } => {
+                self.lower_imported_variant_construct(owner, index, name, call, sink, Some(owner))
+            }
+            ImportedQualifiedCall::Constructor(owner) => {
+                self.lower_imported_nominal_construct(owner, name, call, sink, expected)
+            }
+            ImportedQualifiedCall::Singleton(receiver) => self.lower_explicit_named_call(
+                receiver,
+                name,
+                call,
+                sink,
+                expected,
+                RequiredCallableModifiers::default(),
+            ),
+            ImportedQualifiedCall::Bindings(targets) => self
+                .lower_named_function_partition(
+                    &targets,
+                    ImportLookupLayer::Exact,
+                    &ast::CallExpr {
+                        callee: name.clone(),
+                        type_args: call.type_args.to_vec(),
+                        args: call.args.to_vec(),
+                        span: call.span,
+                    },
+                    sink,
+                    expected,
+                )
+                .ok()
+                .flatten(),
+        }
+    }
+
+    pub(in crate::expr) fn resolve_imported_qualified_call(
+        &mut self,
+        owner: ImportedNominalQualifier,
+        name: &ast::Ident,
+    ) -> Result<ImportedQualifiedCall, ()> {
         if let Some(ty) = owner.applied()
             && let Some(index) = self.find_imported_variant(ty, &name.text)
         {
-            return self.lower_imported_variant_construct(ty, index, name, call, sink, Some(ty));
+            return Ok(ImportedQualifiedCall::Variant { owner: ty, index });
         }
         let mut bindings = self.imported_static_bindings(
             self.imported_qualifier_owner(owner),
@@ -20,14 +65,13 @@ impl Lowerer {
             &name.text,
         );
         if bindings.is_empty()
-            && let Some(nested) = self
-                .resolve_imported_nested_type(self.imported_qualifier_owner(owner), name, &[])
-                .ok()?
+            && let Some(nested) =
+                self.resolve_imported_nested_type(self.imported_qualifier_owner(owner), name, &[])?
         {
             let declaration = self
                 .imported_nominal_declaration(nested)
                 .expect("a dependency nested type retains its declaration");
-            return self.lower_imported_nominal_construct(declaration, name, call, sink, expected);
+            return Ok(ImportedQualifiedCall::Constructor(declaration));
         }
         let values = self.imported_static_bindings(
             self.imported_qualifier_owner(owner),
@@ -39,19 +83,12 @@ impl Lowerer {
             .any(|binding| matches!(binding.target(), hir::ImportedTarget::EnumVariant(_)));
         if bindings.is_empty()
             && !is_variant
-            && let Some(ty) = self
-                .imported_generic_companion_type(owner, name.span)
-                .ok()?
+            && let Some(ty) = self.imported_generic_companion_type(owner, name.span)?
         {
-            let receiver = self.lower_imported_singleton_type(ty, name.span)?;
-            return self.lower_explicit_named_call(
-                receiver,
-                name,
-                call,
-                sink,
-                expected,
-                RequiredCallableModifiers::default(),
-            );
+            return self
+                .lower_imported_singleton_type(ty, name.span)
+                .map(ImportedQualifiedCall::Singleton)
+                .ok_or(());
         }
         if bindings.is_empty()
             && let Some(value) = owner
@@ -59,42 +96,25 @@ impl Lowerer {
                 .and_then(|ty| self.imported_nominal_declaration(ty))
                 .and_then(|owner| self.imported_object_value(owner))
         {
-            let receiver = self.lower_imported_singleton(value, name.span)?;
-            return self.lower_explicit_named_call(
-                receiver,
-                name,
-                call,
-                sink,
-                expected,
-                RequiredCallableModifiers::default(),
-            );
+            return self
+                .lower_imported_singleton(value, name.span)
+                .map(ImportedQualifiedCall::Singleton)
+                .ok_or(());
         }
         bindings.extend(values);
         if bindings.is_empty() {
             self.imported_static_member_error(owner, name);
-            return None;
+            return Err(());
         }
-        let targets = bindings
-            .into_iter()
-            .map(|binding| NamedCallBinding {
-                target: NamedCallTarget::ImportedDependency(binding.target()),
-                origin: NamedCallOrigin::Dependency(binding),
-            })
-            .collect::<Vec<_>>();
-        self.lower_named_function_partition(
-            &targets,
-            ImportLookupLayer::Exact,
-            &ast::CallExpr {
-                callee: name.clone(),
-                type_args: call.type_args.to_vec(),
-                args: call.args.to_vec(),
-                span: call.span,
-            },
-            sink,
-            expected,
-        )
-        .ok()
-        .flatten()
+        Ok(ImportedQualifiedCall::Bindings(
+            bindings
+                .into_iter()
+                .map(|binding| NamedCallBinding {
+                    target: NamedCallTarget::ImportedDependency(binding.target()),
+                    origin: NamedCallOrigin::Dependency(binding),
+                })
+                .collect(),
+        ))
     }
 
     pub(super) fn imported_static_member_error(

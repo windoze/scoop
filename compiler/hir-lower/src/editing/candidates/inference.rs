@@ -151,7 +151,16 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let mut display = signature.clone();
         display.substitute_types(&mut state, &substitutions);
-        let format_type = |ty| state.type_name_with_params(ty, &parameters);
+        let mut display_parameters = parameters;
+        for parameter in &state.type_params_in_scope {
+            if !display_parameters
+                .iter()
+                .any(|item| item.id == parameter.id)
+            {
+                display_parameters.push(parameter.clone());
+            }
+        }
+        let format_type = |ty| state.type_name_with_params(ty, &display_parameters);
         Ok(Some(hir::EditingCallCandidate {
             parameters: display
                 .value_parameters

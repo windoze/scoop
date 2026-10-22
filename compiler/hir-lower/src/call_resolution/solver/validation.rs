@@ -11,6 +11,37 @@ use crate::call_resolution::constraints::{
 use crate::{Lowerer, Type};
 
 impl Lowerer {
+    pub(super) fn validate_fixed_variable_relations(
+        &mut self,
+        session: &InferenceSession,
+        state: &VariableState,
+    ) -> Result<(), ConstraintFailure> {
+        let Some(fixed) = state
+            .exact
+            .iter()
+            .find_map(|bound| rigid_type(self, session, bound.term))
+        else {
+            return Ok(());
+        };
+        for (bounds, lower) in [(&state.lower, true), (&state.upper, false)] {
+            for bound in bounds {
+                let Some(ty) = rigid_type(self, session, bound.term) else {
+                    continue;
+                };
+                let (left, right) = if lower { (ty, fixed) } else { (fixed, ty) };
+                if !self.is_subtype(left, right) {
+                    return Err(relation_failure(
+                        bound.origin,
+                        RelationKind::Subtype,
+                        left.into(),
+                        right.into(),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn validate_variable(
         &mut self,
         session: &InferenceSession,
@@ -264,6 +295,20 @@ impl Lowerer {
             }
         }
         Ok(())
+    }
+}
+
+fn rigid_type(
+    lowerer: &Lowerer,
+    session: &InferenceSession,
+    term: TypeTerm,
+) -> Option<hir::TypeId> {
+    match term {
+        TypeTerm::Rigid(ty) => Some(ty),
+        TypeTerm::Type(ty) if !super::type_contains_session_parameter(lowerer, session, ty) => {
+            Some(ty)
+        }
+        TypeTerm::Type(_) | TypeTerm::Variable(_) => None,
     }
 }
 

@@ -15,6 +15,7 @@ from import_references import check as check_import_references
 from incomplete_signatures import check as check_incomplete_signatures
 from member_implementations import check as check_member_implementations
 from property_references import check as check_property_references
+from qualified_signatures import check as check_qualified_signatures
 from recovered_classes import check as check_recovered_classes
 from recovered_enums import check as check_recovered_enums
 from recovered_interfaces import check as check_recovered_interfaces
@@ -336,6 +337,7 @@ def main():
         check_recovered_classes(peer, root)
         check_recovered_enums(peer, root)
         check_recovered_objects(peer, root)
+        check_qualified_signatures(peer, root)
         check_recovered_interfaces(peer, root)
         check_recovered_structs(peer, root)
         peer.finish()

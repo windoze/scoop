@@ -1,7 +1,12 @@
 use super::*;
 use crate::aliases::AliasTemplate;
-use crate::call_resolution::candidates::NominalConstructorSource;
+use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 use crate::constructor_resolution::NominalConstructorCall;
+
+pub(in crate::expr) enum AliasVariantConstructor {
+    Source(NominalConstructorView),
+    Imported(hir::ImportedCallableDeclaration),
+}
 
 impl Lowerer {
     pub(in crate::expr) fn resolve_alias_variant(
@@ -69,13 +74,67 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        match self.alias_variant_constructor(alias, index, name, call.span)? {
+            AliasVariantConstructor::Source(view) => {
+                let explicit = self.resolve_call_type_args(call.type_args)?;
+                let probe = match self.probe_named_alias_constructor(
+                    view,
+                    alias,
+                    NominalConstructorCall {
+                        enclosing: None,
+                        explicit_type_args: &explicit,
+                        expected_type_args: None,
+                        arguments: call.args,
+                        span: call.span,
+                    },
+                    expected,
+                ) {
+                    Ok(probe) => probe,
+                    Err(failure) => {
+                        self.commit_layer_diagnostics(*failure);
+                        return None;
+                    }
+                };
+                let resolved = self.commit_named_nominal(probe, call.span, sink)?;
+                self.finish_named_nominal(resolved, call.span)
+            }
+            AliasVariantConstructor::Imported(candidate) => {
+                let source_call = ast::CallExpr {
+                    callee: name.clone(),
+                    type_args: call.type_args.to_vec(),
+                    args: call.args.to_vec(),
+                    span: call.span,
+                };
+                match self.probe_imported_constructor(
+                    candidate,
+                    &source_call,
+                    expected,
+                    Some(alias),
+                ) {
+                    Ok(probe) => self.commit_imported_dependency_callable(probe, sink),
+                    Err(failure) => {
+                        self.commit_layer_diagnostics(*failure);
+                        None
+                    }
+                }
+            }
+        }
+    }
+
+    pub(in crate::expr) fn alias_variant_constructor(
+        &mut self,
+        alias: &AliasTemplate,
+        index: u32,
+        name: &ast::Ident,
+        span: Span,
+    ) -> Option<AliasVariantConstructor> {
         let Type::Enum(application) = self.types[alias.target] else {
             unreachable!("an alias variant has an enum target");
         };
         let template = self.enum_applications[application].template;
         if self.enum_definition(template).variants[index as usize].style == VariantStyle::Unit {
             self.error(
-                call.span,
+                span,
                 format!(
                     "unit variant `{}` does not take arguments; use `{}` without parentheses",
                     name.text, name.text
@@ -87,57 +146,11 @@ impl Lowerer {
             let target = self
                 .find_variant_ref(id, &name.text)
                 .expect("the selected alias variant exists");
-            let view =
-                self.nominal_constructor_view(NominalConstructorSource::Variant(target), call.span);
-            let explicit = self.resolve_call_type_args(call.type_args)?;
-            let probe = match self.probe_named_alias_constructor(
-                view,
-                alias,
-                NominalConstructorCall {
-                    enclosing: None,
-                    explicit_type_args: &explicit,
-                    expected_type_args: None,
-                    arguments: call.args,
-                    span: call.span,
-                },
-                expected,
-            ) {
-                Ok(probe) => probe,
-                Err(failure) => {
-                    self.commit_layer_diagnostics(*failure);
-                    return None;
-                }
-            };
-            let resolved = self.commit_named_nominal(probe, call.span, sink)?;
-            return self.finish_named_nominal(resolved, call.span);
+            return Some(AliasVariantConstructor::Source(
+                self.nominal_constructor_view(NominalConstructorSource::Variant(target), span),
+            ));
         }
-        let origin = scoop_identity::CallableTemplateOrigin::VariantConstructor(
-            self.enum_variant_at(application, index).variant,
-        );
-        let candidate = match self
-            .dependencies
-            .as_ref()
-            .expect("an imported enum retains its dependency")
-            .callable_declaration(origin)
-        {
-            Ok(candidate) => candidate,
-            Err(error) => {
-                self.error(name.span, format!("invalid dependency variant: {error}"));
-                return None;
-            }
-        };
-        let source_call = ast::CallExpr {
-            callee: name.clone(),
-            type_args: call.type_args.to_vec(),
-            args: call.args.to_vec(),
-            span: call.span,
-        };
-        match self.probe_imported_constructor(candidate, &source_call, expected, Some(alias)) {
-            Ok(probe) => self.commit_imported_dependency_callable(probe, sink),
-            Err(failure) => {
-                self.commit_layer_diagnostics(*failure);
-                None
-            }
-        }
+        self.imported_variant_constructor(alias.target, index, name.span)
+            .map(AliasVariantConstructor::Imported)
     }
 }
