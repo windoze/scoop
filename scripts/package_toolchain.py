@@ -187,7 +187,7 @@ def assemble(root, targets, binaries, args, release):
     manifest += [f"{name} = {json.dumps(release[name])}" for name, *_ in TEXT_PACKAGES]
     manifest += [
         f"{name} = {json.dumps(release[name])}"
-        for name in ("text_backend", "idna", "icu4x", "unicode")
+        for name in ("text_backend", "encoding_rs", "idna", "icu4x", "unicode")
     ]
     manifest += [
         f"{package['name']} = {json.dumps(release[package['name']])}"

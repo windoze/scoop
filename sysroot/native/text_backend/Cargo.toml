@@ -12,6 +12,7 @@ name = "scoop_text_backend"
 crate-type = ["staticlib"]
 
 [dependencies]
+encoding_rs = "=0.8.42"
 idna = "=1.1.0"
 icu_normalizer = { version = "=2.3.0", default-features = false, features = ["compiled_data"] }
 

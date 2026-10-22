@@ -26,16 +26,6 @@ name = "unistring"
 kind = "static"
 [[native.sources]]
 path = "native/unicode.c"
-[[native.sources]]
-path = "native/names.c"
-[[native.sources]]
-path = "native/create.c"
-[[native.sources]]
-path = "native/bom.c"
-[[native.sources]]
-path = "native/codec.c"
-[[native.sources]]
-path = "native/process.c"
 [[native.libraries]]
 name = "scoop_text_backend"
 kind = "static"

@@ -14,7 +14,7 @@
 
 纯 Scoop 的 `scoop.http.client` 在既有 HTTP、TLS 和 asyncio 库之上统一 HTTP/1.x／HTTP/2 与 ALPN，提供连接池、流式上传下载、完整生命周期超时、取消和 suspend 回调。请求策略包括重定向、重试、Basic／Bearer／Digest、mTLS、HTTP／HTTPS／SOCKS5 代理、Cookie 和私有内存／磁盘缓存；同时提供 multipart、断点续传、SSE、HTTP/1.1 WebSocket／WSS、permessage-deflate 与可观察性接口。URL、协议、压缩、TLS 和系统 I/O 能力由各自所属库提供。
 
-`scoop.idna` 使用 Rust idna／ICU4X，IDNA 数据基线为 Unicode 17.0.0，采用 UTS #46 + STD3 + CheckHyphens，接受其符号与 ContextO 行为。NFC 共用同一 ICU4X normalizer。字符集转换与 readline Unicode 的 GNU 后端替换仍在进行，当前发行资源仍包含它们所需的 libiconv／libunistring。`scoop.url` 使用 uriparser，提供 RFC 3986 URL／IRI 解析、拼装、相对引用和网络 origin，不包含浏览器全部 WHATWG 容错。`scoop.charset` 提供固定编码集合的内存及增量转换；`scoop.compression` 在同一 Cone 中提供 zstd、gzip、zlib／raw DEFLATE 和 Brotli 的内存、同步流与异步流。
+`scoop.idna` 使用 Rust idna／ICU4X，IDNA 数据基线为 Unicode 17.0.0，采用 UTS #46 + STD3 + CheckHyphens，接受其符号与 ContextO 行为。NFC 共用同一 ICU4X normalizer。字符集转换已改为 encoding_rs 0.8.42，提供 43 个名称，退役名称及映射差异见 ENCODINGS.md；readline Unicode 的 GNU 后端替换仍在进行，当前发行资源仍包含它们所需的 libiconv／libunistring。`scoop.url` 使用 uriparser，提供 RFC 3986 URL／IRI 解析、拼装、相对引用和网络 origin，不包含浏览器全部 WHATWG 容错。`scoop.charset` 提供固定编码集合的内存及增量转换；`scoop.compression` 在同一 Cone 中提供 zstd、gzip、zlib／raw DEFLATE 和 Brotli 的内存、同步流与异步流。
 
 HTTP/1 固定使用 llhttp 9.4.3。发送与客户端响应关联支持任意合法方法 token，服务端请求解析仍限于 llhttp 的已知方法集合。HTTP/2 固定使用 nghttp2 1.70.0 的完整静态核心；协议库保留独立使用已有传输的接口，client 负责连接选择、池与请求策略。
 

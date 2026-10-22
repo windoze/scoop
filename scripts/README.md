@@ -37,7 +37,7 @@ python3 scripts/prepare_sysroot.py \
 
 `build_nghttp2.py` 从 vendor 的固定 1.70.0 tag 归档构建纯静态协议库，保留完整上游核心，不构建应用、工具、测试或文档。使用同一目标部署／CPU 配置；工作目录默认为 `tmp/nghttp2/<triple>`，支持 `--build-dir`、`--prefix`、`--cc`。更新判断先于解包和 CMake，命中不读取或复验 archive。llhttp 9.4.3 的发布 C 源码由普通 HTTP Cone 编译，不另加工具或命令。
 
-`build_text_backends.py` 准备独立 Rust `scoop_text_backend`（IDNA／Punycode／NFC），以及尚待迁移的 libiconv 1.19 和 libunistring 1.4.2。Rust 依赖从固定 vendor 归档离线构建，需要支持所选目标的 Rust 工具链；普通应用不执行 Cargo。完整 108 种字符集替代与 readline Unicode 迁移尚未完成，不能将此步骤理解为 GNU 文本链已经全部退出。必须显式给出仓库外 `--build-dir`；支持目标 `--cc`、资源目录 `--prefix` 与 `--jobs`。静态库放在 `sysroot/lib/<triple>`，头文件放在其 `include` 子目录，直接使用现有 native 搜索路径。只把库和头文件复制到目标资源，不携带构建出的命令行程序；完整源码、许可和补丁由 vendor 随工具链分发。
+`build_text_backends.py` 准备独立 Rust `scoop_text_backend`（字符集转换／IDNA／Punycode／NFC），以及尚待迁移的 libiconv 1.19 和 libunistring 1.4.2。Rust 依赖从固定 vendor 归档离线构建，需要支持所选目标的 Rust 工具链；普通应用不执行 Cargo。字符集已按用户决定缩减为 43 个名称；readline Unicode 迁移尚未完成，不能将此步骤理解为 GNU 文本链已经全部退出。必须显式给出仓库外 `--build-dir`；支持目标 `--cc`、资源目录 `--prefix` 与 `--jobs`。静态库放在 `sysroot/lib/<triple>`，头文件放在其 `include` 子目录，直接使用现有 native 搜索路径。只把库和头文件复制到目标资源，不携带构建出的命令行程序；完整源码、许可和补丁由 vendor 随工具链分发。
 
 `build_uriparser.py` 以相同布局准备 uriparser 1.0.2，仅启用窄字符静态库，关闭工具、文档、测试及宽字符 API 的构建。需要 CMake 和所选目标 C 编译器；使用仓库外 `--build-dir`，其余目标、编译器与并行选项同上。输入未变化时直接复用，实际更新后在维护工作区重建，再发布库与头文件。
 

@@ -169,9 +169,9 @@ OrNone 仅转换正常输入无效结果，参数和后端运行故障保持既�
 
 不能将 `Encoding::for_label` 的 WHATWG 别名规则原样作为 `Charset.forName`：它会把 ASCII／ISO-8859-1 等名称解释为 Windows-1252，并具有与当前名称合同不同的空白处理。名称解析继续大小写无关，使用明确的 canonical name 与别名；未知名称失败，不回退 locale，不接受 `//TRANSLIT`／`//IGNORE` 等选项后缀。
 
-当前 [ENCODINGS.md](../../sysroot/src/scoop.charset/ENCODINGS.md) 列出 108 个 canonical name。`encoding_rs` 并非 GNU libiconv 全集的等价实现。[覆盖核对](CHARSET-COVERAGE.md) 已逐项列出原集合。2026-10-22 用户明确选择“保留纯 Rust，仅支持成熟 Rust 库能覆盖的编码”；不再要求保留全部 108 种。实施时在 charset spec 与 ENCODINGS.md 明确新的集合、移除的名称、保留别名及实际映射版本，不让未实现名称继续查找成功。
+M54 的 ENCODINGS.md 列出 108 个 canonical name；M61 的 [新集合](../../sysroot/src/scoop.charset/ENCODINGS.md) 保留 43 个。`encoding_rs` 并非 GNU libiconv 全集的等价实现。[覆盖核对](CHARSET-COVERAGE.md) 已逐项列出原集合。2026-10-22 用户明确选择“保留纯 Rust，仅支持成熟 Rust 库能覆盖的编码”；不再要求保留全部 108 种。实施时在 charset spec 与 ENCODINGS.md 明确新的集合、移除的名称、保留别名及实际映射版本，不让未实现名称继续查找成功。
 
-GB18030 尤其需要版本对照：当前 `GB18030` 名称对应 2005 版，另列 2022 版；新后端的映射版本不能被名称掩盖。GBK、Big5、Shift_JIS、EUC-JP、ISO-2022-JP 的标准／厂商扩展与错误恢复也须以现有向量和独立标准数据核对。
+GB18030 的版本对照已在编码列表明确：旧名称对应 2005，另列 2022；新名称采用 WHATWG 2022 变体并移除年份别名，记录 19 个 PUA 的非往返行为。GBK、Big5、Shift_JIS、EUC-JP、ISO-2022-JP 的标准／厂商扩展与错误恢复也须以现有向量和独立标准数据核对。
 
 实际映射差异先写入 charset spec，再迁移到成熟 Rust 后端。不存在的历史编码明确返回 UnsupportedCharsetException；不保留隐藏 GNU fallback、不自行补写 CJK／ISO-2022 算法、不搭建后端插件框架。新的编码集合仍须逐项验证真实双向转换。
 
@@ -243,7 +243,7 @@ Rust `staticlib` 仍可能需要目标系统库。准备与链接验证使用 `r
 
 链接专测检查实际使用的目标归档和必要本机依赖，确认原 GNU 文本链已经退出；这些检查只用于定向验收，不进入消费者 reader 或缓存命中的内容复核。复用测试保持源码、工具与原产物存在，以真实调用和输出验证结果。
 
-实现阶段按修改范围先格式化、lint，再运行 Rust 包检查、Scoop 库测试、正式 CLI fixture 与组合测试。只有真实代码变更才执行对应构建测试；本次新增设计文档不算功能实施或功能验收。
+实现阶段按修改范围先格式化、lint，再运行 Rust 包检查、Scoop 库测试、正式 CLI 消费与组合测试。只有真实代码变更才执行对应构建测试；原设计试验不能替代正式验收。
 
 ## 9. 实施顺序与后续文档同步
 

@@ -1,0 +1,90 @@
+package scoop.charset
+
+import scoop.bytes.ByteOrder
+import scoop.collections.*
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class CharsetCoverageTests {
+    @Test
+    fun `every advertised alias resolves to one of the 43 implemented encodings`() {
+        val canonical = ArrayList<String>()
+        for (name in Charset.availableNames) {
+            val charset = Charset.forName(name)
+            assertEquals(charset, Charset.forName(unicodeLowercase(name)))
+            if (!canonical.contains(charset.name)) canonical.add(charset.name)
+            val generic = charset == Charset.Utf16 || charset == Charset.Utf32
+            val encode = if (generic) CharsetEncodeOptions(byteOrder = Some(ByteOrder.BigEndian)) else CharsetEncodeOptions()
+            val decode = if (generic) CharsetDecodeOptions(defaultByteOrder = Some(ByteOrder.BigEndian)) else CharsetDecodeOptions()
+            assertEquals("A\u{0000}z", charset.decode(charset.encode("A\u{0000}z", encode), decode))
+        }
+        assertEquals(43L, canonical.size)
+        for (name in ["GB18030:2005", "GB18030:2022", "CP932", "CP936", "CP949", "CP950", "BIG5-HKSCS",
+            "UTF-7", "UCS-2", "UCS-4", "ISO-2022-CN", "ISO-2022-JP-2", "HZ", "JOHAB", "EUC-TW",
+            "ISO-8859-9", "ISO-8859-11", "TIS-620", "CP850", "VISCII", "replacement", "x-user-defined",
+            " UTF-8", "UTF-8 "]) assertTrue(Charset.forNameOrNone(name) == None)
+    }
+
+    @Test
+    fun `single byte tables provide real non ASCII conversion`() {
+        checkSingleByte("CP1250", "\u{160}", "8a")
+        checkSingleByte("CP1251", "\u{402}", "80")
+        checkSingleByte("CP1252", "\u{192}", "83")
+        checkSingleByte("CP1253", "\u{192}", "83")
+        checkSingleByte("CP1254", "\u{192}", "83")
+        checkSingleByte("CP1255", "\u{192}", "83")
+        checkSingleByte("CP1256", "\u{67E}", "81")
+        checkSingleByte("CP1257", "\u{2C7}", "8e")
+        checkSingleByte("CP1258", "\u{192}", "83")
+        checkSingleByte("CP866", "\u{410}", "80")
+        checkSingleByte("CP874", "\u{E01}", "a1")
+        checkSingleByte("ISO-8859-10", "\u{104}", "a1")
+        checkSingleByte("ISO-8859-13", "\u{D8}", "a8")
+        checkSingleByte("ISO-8859-14", "\u{1E02}", "a1")
+        checkSingleByte("ISO-8859-15", "\u{160}", "a6")
+        checkSingleByte("ISO-8859-16", "\u{104}", "a1")
+        checkSingleByte("ISO-8859-2", "\u{104}", "a1")
+        checkSingleByte("ISO-8859-3", "\u{126}", "a1")
+        checkSingleByte("ISO-8859-4", "\u{104}", "a1")
+        checkSingleByte("ISO-8859-5", "\u{401}", "a1")
+        checkSingleByte("ISO-8859-6", "\u{621}", "c1")
+        checkSingleByte("ISO-8859-7", "\u{37A}", "aa")
+        checkSingleByte("ISO-8859-8", "\u{B5}", "b5")
+        checkSingleByte("KOI8-R", "\u{451}", "a3")
+        checkSingleByte("KOI8-U", "\u{451}", "a3")
+        checkSingleByte("MACCYRILLIC", "\u{410}", "80")
+        checkSingleByte("MACROMAN", "\u{C4}", "80")
+    }
+
+    @Test
+    fun `WHATWG mapping differences are explicit and have no implicit normalization`() {
+        assertEquals("\u{3000}", Charset.Gb18030.decode("a3a0".hexToByteArray()))
+        assertEquals("\u{FE10}", Charset.Gb18030.decode("a6d9".hexToByteArray()))
+        assertEquals("\u{FE10}", Charset.Gb18030.decode("84318236".hexToByteArray()))
+        assertEquals("a6d9", Charset.Gb18030.encode("\u{FE10}").toHexString())
+        assertEquals("a6d9", Charset.Gb18030.encode("\u{E78D}").toHexString())
+        assertFailsWith<CharsetException> { Charset.Gb18030.encode("\u{E5E5}") }
+        assertEquals("😀", Charset.Gbk.decode("9439fc36".hexToByteArray()))
+        assertFailsWith<CharsetException> { Charset.Gbk.encode("😀") }
+        assertEquals("Ê\u{0304}", Charset.Big5.decode("8862".hexToByteArray()))
+        assertEquals("～", Charset.ShiftJis.decode("8160".hexToByteArray()))
+        assertEquals("～", Charset.EucJp.decode("a1c1".hexToByteArray()))
+        assertEquals("\u{02D8}", Charset.EucJp.decode("8fa2af".hexToByteArray()))
+        assertFailsWith<CharsetException> { Charset.EucJp.encode("\u{02D8}") }
+        assertEquals("\u{0081}", Charset.Windows1252.decode("81".hexToByteArray()))
+        assertEquals("81", Charset.Windows1252.encode("\u{0081}").toHexString())
+        assertEquals("\u{0081}", Charset.Iso8859_1.decode("81".hexToByteArray()))
+        assertFailsWith<CharsetException> { Charset.Ascii.decode("81".hexToByteArray()) }
+        val vietnamese = Charset.forName("CP1258")
+        assertEquals("ă\u{0301}", vietnamese.decode("e3ec".hexToByteArray()))
+        assertEquals("e3ec", vietnamese.encode("ă\u{0301}").toHexString())
+        assertFailsWith<CharsetException> { vietnamese.encode("ắ") }
+    }
+}
+
+private fun checkSingleByte(name: String, text: String, hex: String) {
+    val charset = Charset.forName(name)
+    assertEquals(text, charset.decode(hex.hexToByteArray()))
+    assertEquals(hex, charset.encode(text).toHexString())
+}

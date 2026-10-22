@@ -31,3 +31,5 @@ scoop_charset_text scoop_charset_case(const uint8_t *text, int64_t size, int32_t
   }
   return (scoop_charset_text){(char *)result, (int64_t)count, 0, 0};
 }
+
+void scoop_charset_unicode_free(char *data) { free(data); }

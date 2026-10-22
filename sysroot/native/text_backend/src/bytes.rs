@@ -36,6 +36,36 @@ pub struct IdnaResult {
     pub label: i64,
 }
 
+#[repr(C)]
+pub struct TextResult {
+    pub data: *mut u8,
+    pub size: i64,
+    pub code: i32,
+    pub backend: i32,
+}
+
+impl TextResult {
+    pub fn from_text(result: Result<String, i32>) -> Self {
+        match result {
+            Ok(text) => {
+                let (data, size) = owned(text);
+                Self {
+                    data,
+                    size,
+                    code: 0,
+                    backend: 0,
+                }
+            }
+            Err(code) => Self {
+                data: ptr::null_mut(),
+                size: 0,
+                code,
+                backend: 0,
+            },
+        }
+    }
+}
+
 impl IdnaResult {
     pub fn from_text(result: Result<String, Failure>) -> Self {
         match result {

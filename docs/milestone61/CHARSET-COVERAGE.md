@@ -1,6 +1,6 @@
 # M61 字符集覆盖核对
 
-状态：候选实现对照，尚非转换等价性验收。以下逐项覆盖原 ENCODINGS.md 的 108 个 canonical name；2026-10-22 用户确认只保留成熟 Rust 库能覆盖的编码；本表作为旧集合的迁移对照，不再要求补齐缺失的历史编码。
+状态：保留旧候选调查供迁移对照，现行 43 个名称及行为以 [ENCODINGS.md](../../sysroot/src/scoop.charset/ENCODINGS.md) 为准；不声称转换等价。以下逐项覆盖原 ENCODINGS.md 的 108 个 canonical name；2026-10-22 用户确认只保留成熟 Rust 库能覆盖的编码；本表作为旧集合的迁移对照，不再要求补齐缺失的历史编码。
 
 encoding_rs 0.8.42 的文档和源码已核对：网页名称会折叠标准／厂商编码，GB18030 采用带网页兼容差异的 2022 映射。单字节有同名表也不表示未定义位置及反向映射已验证。
 
@@ -115,11 +115,11 @@ encoding_rs 0.8.42 的文档和源码已核对：网页名称会折叠标准／�
 | UTF-8 | 标准库／基础标量适配 | UTF BOM 与端序、UCS 限制；ASCII 7-bit、Latin-1 C1 本义 |
 | VISCII | encoding_rs 无该实现 | 需要成熟宽松许可实现；不得仅注册名称或隐藏 GNU fallback |
 
-## 候选补充与尚未解决的问题
+## 未采用的候选补充
 
 - `encoding` 0.2 的集合也主要面向 WHATWG，增加 HZ 等有限编码，仍不覆盖完整集合。
 - `charcode` 0.1.5 声明额外的 ISO-2022-CN／KR／JP-2 和部分 Mac／DOS 表，但发布历史短，且仍未覆盖 EUC-TW、ISO-2022-CN-EXT、JOHAB 及旧 HKSCS 全集；不能作为完整替代结论。
 - ICU 的 UCM 数据可用于核对映射；数据本身不提供纯 Rust 的复杂状态编码实现。
-- 已选 Rust 组合不覆盖全部 108 种。后续 ENCODINGS.md 将列出实际支持集合和明确移除项，不让名字掩盖缺失能力。
+- 已选 Rust 组合不覆盖全部 108 种。ENCODINGS.md 已列出实际支持集合和明确移除项，不让名字掩盖缺失能力。
 
 依据：[encoding_rs 0.8.42](https://docs.rs/encoding_rs/0.8.42/encoding_rs/)、[encoding](https://docs.rs/encoding/latest/encoding/)、[charcode 0.1.5](https://docs.rs/charcode/0.1.5/charcode/)、[ICU 映射数据](https://icu.unicode.org/charts/charset)。

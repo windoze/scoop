@@ -1,6 +1,6 @@
 # Scoop text backend
 
-内部 Rust 静态库，通过普通 C ABI 承接 IDNA、Punycode 和 NFC。公开 API 仍属于
+内部 Rust 静态库，通过普通 C ABI 承接字符集转换、IDNA、Punycode 和 NFC。公开 API 仍属于
 `scoop.idna` 和 `scoop.charset`，此目录不是公开 Cone 或编译器 stage。
 
 维护者通过 `scripts/build_text_backends.py` 准备同目标资源。固定依赖及其源码、许可见

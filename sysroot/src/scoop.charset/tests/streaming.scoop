@@ -8,6 +8,35 @@ import scoop.text.*
 @Test
 private class CharsetStreamingTests {
     @Test
+    fun `recovery multi scalar mappings and byte order signatures survive every short split`() {
+        checkChunks("61886262", Charset.Big5, "aÊ\u{0304}b")
+        checkChunks("611b245841", Charset.Iso2022Jp, "a�$XA")
+        checkChunks("611b24", Charset.Iso2022Jp, "a�$")
+        checkChunks("610000d86200", Charset.Utf16LE, "a�b")
+        checkChunks("000000610011000000000062", Charset.Utf32BE, "a�b")
+        checkChunks("efbbbf61efbbbf62", Charset.Utf8, "a\u{FEFF}b")
+        checkChunks("fffe000061000000fffe000062000000", Charset.Utf32, "a\u{FEFF}b")
+        checkChunks("0000feff000000610000feff00000062", Charset.Utf32, "a\u{FEFF}b")
+        for (chunk in [1L, 2L, 3L, 7L]) {
+            val bad = assertFailsWith<CharsetException> {
+                chunkedCharset("611b245841".hexToByteArray(), Charset.Iso2022Jp, Charset.Utf8, chunk, 1L)
+            }
+            assertTrue(bad.kind == CharsetFailureKind.MalformedInput)
+            assertEquals(1L, bad.offset!!)
+            val tail = assertFailsWith<CharsetException> {
+                chunkedCharset("611b24".hexToByteArray(), Charset.Iso2022Jp, Charset.Utf8, chunk, 1L)
+            }
+            assertTrue(tail.kind == CharsetFailureKind.IncompleteInput)
+            assertEquals(1L, tail.offset!!)
+            val unmappable = assertFailsWith<CharsetException> {
+                chunkedCharset("618862".hexToByteArray(), Charset.Big5, Charset.Ascii, chunk, 1L)
+            }
+            assertTrue(unmappable.kind == CharsetFailureKind.UnmappableCharacter)
+            assertEquals(1L, unmappable.offset!!)
+        }
+    }
+
+    @Test
     fun `one byte input and output retain multibyte and shift state`() {
         for (charset in [Charset.Utf8, Charset.Utf16LE, Charset.Utf16BE, Charset.Utf32LE, Charset.Utf32BE,
             Charset.Gb18030, Charset.Gbk, Charset.Big5, Charset.ShiftJis, Charset.EucJp, Charset.Iso2022Jp]) {
@@ -71,6 +100,17 @@ private class CharsetStreamingTests {
                 assertFailsWith<IllegalStateException> { engine.process(input, output) }
                 input.writeByte(65.toByte()); output.writeByte(66.toByte())
             }
+        }
+    }
+}
+
+private fun checkChunks(hex: String, charset: Charset, expected: String) {
+    val data = hex.hexToByteArray()
+    val options = CharsetTranscodeOptions(malformedInput = CharsetErrorAction.Replace)
+    assertEquals(expected, charset.decodeLossy(data))
+    for (inputSize in [1L, 2L, 3L, 4L, 7L]) {
+        for (outputSize in [1L, 2L, 3L]) {
+            assertEquals(expected, String.fromUtf8(chunkedCharset(data, charset, Charset.Utf8, inputSize, outputSize, options)))
         }
     }
 }

@@ -1,3 +1,5 @@
 package scoop.tests.textbackend
 
 @Extern(name = "scoop_test_text_abi") internal fun checkAbi(): Int
+
+@Extern(name = "scoop_test_charset_abi") internal fun checkCharsetAbi(): Int
