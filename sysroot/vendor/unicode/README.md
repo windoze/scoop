@@ -5,6 +5,8 @@
 
 - [IdnaTestV2.txt](https://www.unicode.org/Public/17.0.0/idna/IdnaTestV2.txt)：non-transitional、STD3、CheckHyphens、Bidi、ContextJ。Scoop 允许末尾根点；只有符合该长度规则的尾部空标签调整 A4_2。独立根点按公开合同处理。无法表示成 Scoop String 的 surrogate 输入按上游说明跳过，非法 UTF-8 另由 C ABI 用例覆盖。
 - [NormalizationTest.txt](https://www.unicode.org/Public/17.0.0/ucd/NormalizationTest.txt)：每行检查全部五个 NFC 不变量。
+- [GraphemeBreakTest.txt](https://www.unicode.org/Public/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt)：所有扩展字素边界，包括标量与 UTF-8 byte offset 的适配。
+- [CaseFolding.txt](https://www.unicode.org/Public/17.0.0/ucd/CaseFolding.txt)：全部 C／F 默认完整折叠及幂等性。
 - 原版权与许可保留在文件头及本目录 `LICENSE` 中。
 
 执行时设置 `SCOOP_SYSROOT` 指向已经准备的 sysroot；测试通过公开 Scoop API 消费这些文件。

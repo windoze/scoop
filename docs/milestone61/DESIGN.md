@@ -45,9 +45,11 @@ Rust 是后端维护与预编译时使用的实现语言。普通应用消费 `.
 | `idna` | 1.1.0 | UTS #46 与原始 Punycode | `MIT OR Apache-2.0` |
 | `icu_normalizer` | 2.3.0 | NFC，与 IDNA 共用规范化实现和数据 | `Unicode-3.0` |
 | `idna_adapter` | 试验锁定 1.2.2 | `idna` 到 ICU4X 的上游适配 | `Apache-2.0 OR MIT` |
-| `icu_properties` | 试验锁定 2.3.0 | IDNA 所需字符属性，由上游依赖引入 | `Unicode-3.0` |
+| `icu_properties` | 2.3.0 | IDNA 字符属性及 readline Alnum | `Unicode-3.0` |
+| `icu_segmenter`、`icu_casemap` | 2.3.0 | 后续 readline 扩展字素与完整大小写 | `Unicode-3.0` |
+| `unicode-width` | 0.2.2 | 后续 readline 单标量列宽 | `MIT OR Apache-2.0` |
 
-前三项为包装 crate 的直接依赖，其余依赖由同一份 `Cargo.lock` 锁定。`idna_adapter` 已使用 ICU4X normalizer 和 properties，普通 NFC 直接复用 `icu_normalizer`；不另外加入 `unicode-normalization` 或 utf8proc 形成第二套规范化数据。ICU4X 为 Rust 实现，与需要 C++ 配套的 ICU4C 区分。
+上表组件及必要的 locale 类型使用同一份 `Cargo.lock` 锁定。`idna_adapter` 已使用 ICU4X normalizer 和 properties，普通 NFC 直接复用 `icu_normalizer`；不另外加入 `unicode-normalization` 或 utf8proc 形成第二套规范化数据。ICU4X 为 Rust 实现，与需要 C++ 配套的 ICU4C 区分。
 
 `encoding_rs` 0.8.42 和本期使用的 ICU4X 2.3 组件声明的最低 Rust 版本均为 1.88；正式准备工具链的版本还须满足锁定的完整依赖。试验使用 Rust 1.99.0，不能据此把 1.99.0 宣称为最低版本。发行准备记录实际工具链版本，普通应用不探测该版本。
 
@@ -235,7 +237,7 @@ Rust `staticlib` 仍可能需要目标系统库。准备与链接验证使用 `r
 | 字符集 | 基础 14 种双向转换及新的完整名称集合覆盖；ASCII／Latin-1 本义、CJK 差异、GB18030 版本、不可表示字符、BOM 与字节序、状态编码 |
 | 增量 | 任意合法分块、极短输入／输出、跨块错误与绝对偏移、明确 EOF、输出背压、严格／替换策略、finish／close 与失败清理 |
 | NFC | 官方规范化向量、重排、组合排除、Hangul、非兼容折叠、NUL／BOM；与字符集和认证凭据组合 |
-| Scoop 消费者 | 跨 Cone charset／idna，URL host 与 origin、Cookie 域、TLS ASCII 名、HTTP 响应文本、字段参数、Basic／Digest 凭据 |
+| Scoop 消费者 | 跨 Cone charset／idna 与直接受影响的 URL／文本协议入口；复用既有通过结果，不为后端替换重复编译整个 HTTP client 测试 Cone |
 | 资源与运行时 | 普通并发、取消后的 native 清理、定向 moving GC；不把 GC stress 设为全量功能模式 |
 | 分发与复用 | 三目标预编译资源、两个正式链接入口、真实应用链接运行、更新命中、输入变化、缺失输入、失败不发布与普通并发准备 |
 
@@ -250,7 +252,7 @@ Rust `staticlib` 仍可能需要目标系统库。准备与链接验证使用 `r
 1. 完成字符集覆盖对照、精确 Unicode 数据版本、上游分配失败行为和 Linux 本机链接需求的核对，形成可执行的迁移边界。
 2. 按已确认的范围先修订 IDNA／charset spec；涉及实际 FFI 故障或目标链接合同的变更，同步对应运行时／实现 spec 及其引用。把允许的 IDNA 差异和未放宽的字符集要求分别写清。
 3. 实现内部 Rust package、固定依赖与 C ABI，先完成三个目标的原生消费者；复用既有目标资源准备入口，不增加普通应用构建时的 Cargo 步骤。
-4. 迁移两个 Scoop Cone、native 依赖与错误映射，完成独立测试及 URL／HTTP／TLS 组合，移除对应 GNU 使用与补丁需求。
+4. 迁移两个 Scoop Cone、native 依赖与错误映射，完成独立测试及直接受影响的消费者回归，移除对应 GNU 使用与补丁需求。
 5. 更新预编译资源准备、发行许可和使用文档，运行三目标正式消费者、链接及缓存复用验收，最后记录完成状态。
 
 实施中需要同步的文档列在下表；实际完成范围见进度：

@@ -2,9 +2,10 @@
 
 Unix line editing ported from [rustyline 19.0.0](https://github.com/kkawakam/rustyline/tree/v19.0.0).
 The MIT license is retained in [LICENSE-rustyline](LICENSE-rustyline).
-The implementation uses Scoop, the existing terminal library, libunistring-backed
-Unicode operations, and platform file locks. There is no Rust runtime dependency,
-SQLite history, or Windows implementation.
+The implementation uses Scoop, the existing terminal library, ICU4X and unicode-width
+Unicode operations through scoop.charset, and platform file locks. The fixed Rust
+text archive is prepared with the sysroot; applications consume precompiled
+resources. SQLite history and Windows are outside this port.
 
 The public contract is in [the readline specification](../../../docs/specs/SCOOP-READLINE-SPEC.md).
 

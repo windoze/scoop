@@ -36,6 +36,14 @@ scoop_idna_result scoop_idna_domain(const uint8_t *, int64_t, int32_t mode);
 scoop_idna_name scoop_idna_parse(const uint8_t *, int64_t);
 scoop_idna_result scoop_idna_punycode(const uint8_t *, int64_t, bool decode);
 scoop_text_result scoop_charset_normalize_nfc(const uint8_t *, int64_t);
+/* Grapheme output is a disjoint writable span of input-size bytes. A value of
+ * one marks the first byte of a cluster; the end boundary is implicit. Empty
+ * spans permit null. Return zero on success or Charset.Backend (9) on error. */
+int32_t scoop_charset_grapheme_breaks(const uint8_t *, int64_t, uint8_t *);
+int32_t scoop_charset_scalar_width(uint32_t);
+bool scoop_charset_alphanumeric(uint32_t);
+/* Modes: 0 = root lowercase, 1 = root uppercase, 2 = default full case fold. */
+scoop_text_result scoop_charset_case(const uint8_t *, int64_t, int32_t);
 
 typedef struct {
   int32_t input_bom, source_order, destination_order, emit_bom, replace_input, replace_output;

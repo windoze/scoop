@@ -18,9 +18,9 @@ import package_documentation
 import package_licenses
 import package_native
 from build_llvm import HOSTS, VERSION
+from build_rust_text import HEADER as RUST_TEXT_HEADER
 from build_rust_text import LIBRARY as RUST_TEXT_LIBRARY
 from build_support import RELEASE_CONFIG, ROOT
-from build_text_backends import PACKAGES as TEXT_PACKAGES
 from compression_backends import PACKAGES as COMPRESSION_PACKAGES
 
 TOOLS = ("scoop", "scoopc", "scoop-link")
@@ -116,7 +116,7 @@ def assemble(root, targets, binaries, args, release):
     for binary in binaries:
         shutil.copy2(binary, root / "bin" / binary.name)
     for name in ("src", "include"):
-        shutil.copytree(sysroot / name, root / name)
+        shutil.copytree(sysroot / name, root / name, ignore=shutil.ignore_patterns("target"))
     shutil.copytree(
         sysroot / "native/text_backend",
         root / "native/text_backend",
@@ -140,11 +140,25 @@ def assemble(root, targets, binaries, args, release):
         destination.mkdir(parents=True)
         for cone in cones:
             shutil.copy2(source / f"{cone['name']}.slib", destination)
-        shutil.copytree(source / "include", destination / "include")
+        (destination / "include").mkdir()
+        for header in (
+            RUST_TEXT_HEADER,
+            "uriparser",
+            "zstd.h",
+            "zstd_errors.h",
+            "zdict.h",
+            "zlib-ng.h",
+            "zconf-ng.h",
+            "zlib_name_mangling-ng.h",
+            "brotli",
+        ):
+            origin = source / "include" / header
+            output = destination / "include" / header
+            if origin.is_dir():
+                shutil.copytree(origin, output)
+            else:
+                shutil.copy2(origin, output)
         shutil.copy2(source / RUST_TEXT_LIBRARY, destination / RUST_TEXT_LIBRARY)
-        for _, _, _, libraries, _ in TEXT_PACKAGES:
-            for library in libraries:
-                shutil.copy2(source / library, destination / library)
         shutil.copy2(source / "liburiparser.a", destination / "liburiparser.a")
         for package in COMPRESSION_PACKAGES:
             for library in package["libraries"]:
@@ -184,10 +198,9 @@ def assemble(root, targets, binaries, args, release):
         f"uriparser = {json.dumps(release['uriparser'])}",
         f"host_libraries = {json.dumps(sorted(path.name for path in native))}",
     ]
-    manifest += [f"{name} = {json.dumps(release[name])}" for name, *_ in TEXT_PACKAGES]
     manifest += [
         f"{name} = {json.dumps(release[name])}"
-        for name in ("text_backend", "encoding_rs", "idna", "icu4x", "unicode")
+        for name in ("text_backend", "encoding_rs", "idna", "icu4x", "unicode", "unicode-width")
     ]
     manifest += [
         f"{package['name']} = {json.dumps(release[package['name']])}"

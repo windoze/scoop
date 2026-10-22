@@ -1,6 +1,6 @@
 # Scoop text backend
 
-内部 Rust 静态库，通过普通 C ABI 承接字符集转换、IDNA、Punycode 和 NFC。公开 API 仍属于
+内部 Rust 静态库，通过普通 C ABI 承接字符集转换、IDNA、Punycode、NFC、字素分段、属性与大小写。公开 API 仍属于
 `scoop.idna` 和 `scoop.charset`，此目录不是公开 Cone 或编译器 stage。
 
 维护者通过 `scripts/build_text_backends.py` 准备同目标资源。固定依赖及其源码、许可见
@@ -15,6 +15,6 @@ cargo clippy --manifest-path sysroot/native/text_backend/Cargo.toml --locked --a
 SCOOP_SYSROOT="$PWD/sysroot" target/release/scoop test sysroot/native/text_backend/tests --release
 ```
 
-测试包括实际 C 消费者的布局／生命周期、Unicode 17 IDNA 和 NFC 官方向量；库各自的
+测试包括实际 C 消费者的布局／生命周期、Unicode 17 IDNA、NFC、字素边界和完整 case folding 官方向量；库各自的
 行为与组合回归仍在所属 Cone 的 tests 中。普通应用不执行 Cargo。数据错误返回状态，
 Rust 内部 panic／不可恢复 OOM 终止进程，不跨 C ABI 展开。

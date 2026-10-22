@@ -8,5 +8,6 @@ mod bytes;
 mod domain;
 mod normalize;
 mod punycode;
+mod unicode;
 
 mod charset;

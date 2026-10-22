@@ -168,6 +168,12 @@ internal fun typeText(session: EditingSession, text: String) {
         session.execute(Command.Move(Movement.EndOfBuffer))
         session.execute(Command.TransposeChars)
         assertEquals("STRASSEω ", session.line)
+        val sigma = EditingSession(initial = "ΟΣ ΟΣΑ", cursor = 0L)
+        sigma.execute(Command.DowncaseWord)
+        assertEquals("ος ΟΣΑ", sigma.line)
+        val indic = EditingSession(initial = "का!", cursor = 0L)
+        indic.execute(Command.Move(Movement.ForwardWord()))
+        assertEquals(2L, indic.cursor)
         assertFailsWith<IllegalArgumentException> { session.execute(Command.Move(Movement.ForwardChar(-1L))) }
     }
 }

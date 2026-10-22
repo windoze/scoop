@@ -8,7 +8,10 @@ public fun graphemeBoundaries(text: String): Array<Long> {
         input.withDataPointer { data, size ->
             @Unsafe {
                 breaks.withDataPointer { output, _ ->
-                    @Unsafe { nativeGraphemeBreaks(data, size, output) }
+                    @Unsafe {
+                        checkCharset(nativeGraphemeBreaks(data, size, output), 0,
+                            "segment graphemes", "UTF-8", "UTF-8")
+                    }
                 }
             }
         }
@@ -31,19 +34,19 @@ public fun graphemes(text: String): Array<String> {
     return Array<String>(boundaries.size - 1L) { index -> text.slice(boundaries[index], boundaries[index + 1L]) }
 }
 
-/** Returns UTF-8 terminal scalar width, or -1 for a control character. */
+/** Returns non-CJK terminal scalar width, or -1 for a control character including NUL. */
 public fun unicodeScalarWidth(character: Char): Int {
     @Unsafe { return nativeScalarWidth(character.code) }
 }
 
-/** Tests the Unicode letter/number property without using the process locale. */
+/** Tests Unicode Alphabetic or Decimal_Number without using the process locale. */
 public fun isUnicodeAlphanumeric(character: Char): Boolean {
     @Unsafe { return nativeAlphanumeric(character.code) }
 }
 
-/** Applies Unicode lowercase conversion, including multi-scalar mappings. */
+/** Applies root-locale lowercase with full string context and multi-scalar mappings. */
 public fun unicodeLowercase(text: String): String = convertCase(text, 0)
-/** Applies Unicode uppercase conversion, including multi-scalar mappings. */
+/** Applies root-locale uppercase with full string context and multi-scalar mappings. */
 public fun unicodeUppercase(text: String): String = convertCase(text, 1)
 /** Applies locale-independent Unicode full case folding for caseless matching. */
 public fun unicodeCasefold(text: String): String = convertCase(text, 2)
@@ -56,18 +59,15 @@ private fun convertCase(text: String, mode: Int): String {
             checkCharset(result.code, result.backend, "convert Unicode case", "UTF-8", "UTF-8")
             val output = Array<Byte>(result.size) { index -> @Unsafe { return@Array result.data!!.load(index) } }
             return String.fromUtf8(output)
-        } finally { nativeUnicodeFree(result.data) }
+        } finally { charsetTextFree(result.data, result.size) }
     }
 }
 
 @Extern(name = "scoop_charset_grapheme_breaks")
-private fun nativeGraphemeBreaks(data: Ptr<Byte>, size: Long, breaks: Ptr<Byte>)
+private fun nativeGraphemeBreaks(data: Ptr<Byte>, size: Long, breaks: Ptr<Byte>): Int
 @Extern(name = "scoop_charset_scalar_width")
 private fun nativeScalarWidth(scalar: Int): Int
 @Extern(name = "scoop_charset_alphanumeric")
 private fun nativeAlphanumeric(scalar: Int): Boolean
 @Extern(name = "scoop_charset_case")
 private fun nativeCase(data: Ptr<Byte>, size: Long, mode: Int): NativeCharsetText
-
-@Extern(name = "scoop_charset_unicode_free")
-private fun nativeUnicodeFree(data: Ptr<Byte>?)

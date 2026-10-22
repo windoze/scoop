@@ -88,6 +88,8 @@ private class BrokenHighlighter : Highlighter {
         val narrow = renderLine("", EditingSession(initial = "中"), 1L, 3L)
         assertEquals("�\u001b[0m", narrow.lines[0L])
         assertEquals(1L, narrow.cursorRow)
+        val wideSymbol = renderLine("", EditingSession(initial = "\u17d8"), 20L, 3L)
+        assertEquals(3L, wideSymbol.cursorColumn)
         val tab = renderLine("", EditingSession(initial = "x\t"), 20L, 3L)
         assertEquals(8L, tab.cursorColumn)
         val clipped = renderLine("", EditingSession(initial = "1\n2\n3\n4"), 20L, 2L)

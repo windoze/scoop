@@ -50,3 +50,31 @@ int32_t scoop_test_text_abi(void) {
   scoop_text_free(normalized.data, normalized.size);
   return 0;
 }
+
+int32_t scoop_test_unicode_abi(void) {
+  CHECK(scoop_charset_grapheme_breaks(NULL, 0, NULL) == 0);
+  CHECK(scoop_charset_grapheme_breaks(NULL, 1, NULL) == 9);
+  CHECK(scoop_charset_grapheme_breaks(NULL, -1, NULL) == 9);
+  const uint8_t cluster[] = {'e', 0xcc, 0x81};
+  CHECK(scoop_charset_grapheme_breaks(cluster, sizeof(cluster), NULL) == 9);
+  uint8_t breaks[] = {7, 7, 7, 7, 7};
+  CHECK(!scoop_charset_grapheme_breaks(cluster, sizeof(cluster), breaks + 1));
+  CHECK(breaks[0] == 7 && breaks[1] == 1 && !breaks[2] && !breaks[3] && breaks[4] == 7);
+  const uint8_t malformed[] = {0xff};
+  CHECK(scoop_charset_grapheme_breaks(malformed, 1, breaks) == 9);
+  CHECK(scoop_charset_case(malformed, 1, 0).code == 9);
+  CHECK(scoop_charset_case(NULL, 1, 0).code == 9);
+  CHECK(scoop_charset_case(NULL, 0, 3).code == 9);
+  CHECK(scoop_charset_scalar_width(0x110000) == -1);
+  CHECK(!scoop_charset_alphanumeric(0xd800));
+  for (int32_t mode = 0; mode < 3; mode++) {
+    scoop_text_result empty = scoop_charset_case(NULL, 0, mode);
+    CHECK(!empty.code && !empty.data && !empty.size);
+    scoop_text_free(empty.data, empty.size);
+  }
+  const uint8_t mixed[] = {0, 0xc3, 0x9f};
+  scoop_text_result upper = scoop_charset_case(mixed, sizeof(mixed), 1);
+  CHECK(!upper.code && upper.size == 3 && !memcmp(upper.data, "\0SS", 3));
+  scoop_text_free(upper.data, upper.size);
+  return 0;
+}
