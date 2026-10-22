@@ -75,7 +75,7 @@ fn flatten(
     }
 }
 
-fn symbol_kind(kind: SyntaxKind, parent: Option<SyntaxKind>) -> Option<SymbolKind> {
+pub(super) fn symbol_kind(kind: SyntaxKind, parent: Option<SyntaxKind>) -> Option<SymbolKind> {
     Some(match kind {
         SyntaxKind::FunctionDecl
             if matches!(

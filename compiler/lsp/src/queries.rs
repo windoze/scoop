@@ -16,10 +16,13 @@ mod hover;
 mod semantic;
 mod signature_help;
 mod symbols;
+mod workspace_symbols;
 pub(crate) use completion::completion;
 pub(crate) use definition::definition;
 pub(crate) use hover::hover;
+pub(crate) use semantic::cancelled;
 pub(crate) use signature_help::signature_help;
+pub(crate) use workspace_symbols::workspace_symbols;
 
 #[derive(Clone)]
 pub(crate) enum QueryKind {
@@ -40,7 +43,13 @@ pub(crate) enum SyntaxQuery {
 }
 
 #[derive(Clone)]
-pub(crate) struct Query {
+pub(crate) enum Query {
+    Document(DocumentQuery),
+    WorkspaceSymbols(String),
+}
+
+#[derive(Clone)]
+pub(crate) struct DocumentQuery {
     pub uri: Uri,
     pub kind: QueryKind,
 }
@@ -55,6 +64,23 @@ pub(crate) fn json(value: impl Serialize) -> Result<Value, ResponseError> {
 
 impl Query {
     pub fn from_request(request: &Request) -> Result<Self, ResponseError> {
+        if request.method == "workspace/symbol" {
+            let params: lsp_types::WorkspaceSymbolParams = params(request.params.clone())?;
+            return Ok(Self::WorkspaceSymbols(params.query));
+        }
+        DocumentQuery::from_request(request).map(Self::Document)
+    }
+
+    pub fn document_uri(&self) -> Option<&Uri> {
+        match self {
+            Self::Document(query) => Some(&query.uri),
+            Self::WorkspaceSymbols(_) => None,
+        }
+    }
+}
+
+impl DocumentQuery {
+    fn from_request(request: &Request) -> Result<Self, ResponseError> {
         match request.method.as_str() {
             "textDocument/codeAction" => {
                 let params: lsp_types::CodeActionParams = params(request.params.clone())?;

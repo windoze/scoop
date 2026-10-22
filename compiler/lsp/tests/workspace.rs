@@ -198,3 +198,124 @@ fn workspace_folders_are_independent_and_removal_clears_old_errors() {
     );
     client.finish();
 }
+
+fn workspace_symbols(client: &mut Client, query: &str) -> Value {
+    client
+        .request("workspace/symbol", json!({"query": query}))
+        .response_result
+        .unwrap()
+}
+
+#[test]
+fn workspace_symbols_follow_buffers_disk_and_project_membership() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    setup(root);
+    let source = root.join("app/src/value.scoop");
+    let source_uri = uri(&source);
+    let test = write(root, "app/tests/check.scoop", "fun testOnly() {}\n");
+    let mut client = Client::start();
+    initialize(&mut client, &[root.join("app")], json!({}));
+    let initial = workspace_symbols(&mut client, "VALUE");
+    assert_eq!(initial.as_array().unwrap().len(), 1);
+    assert_eq!(initial[0]["location"]["uri"], source_uri);
+    assert_eq!(
+        initial[0]["location"]["range"]["start"],
+        json!({"line": 1, "character": 4})
+    );
+    assert!(
+        workspace_symbols(&mut client, "testOnly")
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    client.open(
+        &source_uri,
+        "class `😀名` { fun member() { fun hidden() {} } }\nfun broken(value: ) {}\n",
+    );
+    assert!(
+        workspace_symbols(&mut client, "value")
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        workspace_symbols(&mut client, "hidden")
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let names = workspace_symbols(&mut client, "😀");
+    assert_eq!(names[0]["name"], "😀名");
+    assert_eq!(
+        names[0]["location"]["range"],
+        json!({"start": {"line": 0, "character": 6}, "end": {"line": 0, "character": 11}})
+    );
+    let members = workspace_symbols(&mut client, "member");
+    assert_eq!(members[0]["containerName"], "😀名");
+    assert_eq!(members[0]["kind"], 6);
+    assert_eq!(
+        workspace_symbols(&mut client, "broken")[0]["location"]["range"]["start"],
+        json!({"line": 1, "character": 4})
+    );
+    std::fs::write(&source, "fun changedOnDisk() {}\n").unwrap();
+    client.notify(
+        "workspace/didChangeWatchedFiles",
+        json!({"changes": [{"uri": source_uri, "type": 2}]}),
+    );
+    assert_eq!(
+        workspace_symbols(&mut client, "broken")
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    client.notify(
+        "textDocument/didClose",
+        json!({"textDocument": {"uri": source_uri}}),
+    );
+    assert!(
+        workspace_symbols(&mut client, "broken")
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        workspace_symbols(&mut client, "changedOnDisk")
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    client.notify(
+        "workspace/didChangeConfiguration",
+        json!({"settings": {"scoop": {"purpose": "test"}}}),
+    );
+    assert_eq!(
+        workspace_symbols(&mut client, "testOnly")[0]["location"]["uri"],
+        uri(&test)
+    );
+    client.notify(
+        "workspace/didChangeConfiguration",
+        json!({"settings": {"scoop": {"purpose": "production"}}}),
+    );
+    assert!(
+        workspace_symbols(&mut client, "testOnly")
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    client.notify(
+        "workspace/didChangeWorkspaceFolders",
+        json!({"event": {
+            "added": [], "removed": [{"uri": uri(&root.join("app")), "name": "app"}]
+        }}),
+    );
+    assert!(
+        workspace_symbols(&mut client, "")
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    client.finish();
+}

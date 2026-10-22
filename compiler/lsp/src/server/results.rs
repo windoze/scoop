@@ -20,11 +20,12 @@ impl Server {
                     return Ok(());
                 };
                 if completion.revision != self.documents.host.revision()
-                    || self
-                        .documents
-                        .get(&pending.query.uri)
-                        .and_then(|document| document.version)
-                        != version
+                    || pending.query.document_uri().is_some_and(|uri| {
+                        self.documents
+                            .get(uri)
+                            .and_then(|document| document.version)
+                            != version
+                    })
                 {
                     return self.schedule_request(&id, output);
                 }

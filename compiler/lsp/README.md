@@ -11,6 +11,8 @@ target/release/scoop-lsp --stdio
 
 当前已实现 initialize／shutdown／exit、完整或增量文档同步、UTF-8／UTF-16／UTF-32 位置协商（默认 UTF-16）、语法诊断、documentSymbol、foldingRange 和 selectionRange。大纲按客户端能力返回分层或平面结构。URI 为未保存文档时同样提供语法服务；本地文件关闭后恢复普通磁盘输入，文件变更通知不会覆盖打开的 buffer。
 
+workspace/symbol 搜索已加载项目的顶层声明与名义类型成员，支持不区分大小写的名称子串；空查询返回当前范围内的全部声明。输入版本各自保存声明索引，已知名称在签名或正文错误时仍可搜索和导航。局部声明保留在文档大纲中；不同配置中的同一文件按当前选择去重，移出项目或切换源码用途后相应结果同步更新。
+
 每个请求读取固定分析版本，未变化文件复用语法树；输入更新使旧计算失效并重新安排尚需响应的请求。传输循环在解析期间继续处理修改和取消，取消请求仍收到响应。诊断携带当前客户端版本，修复后发布空列表清除原诊断。
 
 工作区复用普通 Cone.toml、源码条件与依赖选择。workspaceFolders 或 rootUri 可指向 Cone 根；较大的仓库目录在打开文件时选择其最近的 Cone 根，同时加载声明的源码依赖。未归属项目的文件继续提供语法服务。打开的 Cone.toml 也覆盖磁盘；错误 manifest、缺失依赖与无效目标以 `SCOOP_PROJECT` 诊断发布。服务器响应 workspace/didChangeConfiguration、workspace/didChangeWorkspaceFolders 和文件变更通知；客户端支持动态文件监听注册时，服务器请求监听 manifest、Scoop 源码与 slib。

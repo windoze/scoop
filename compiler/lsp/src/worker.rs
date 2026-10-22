@@ -2,31 +2,39 @@ use std::sync::mpsc::{self, Sender};
 
 use lsp_server::{ErrorCode, RequestId, ResponseError};
 use lsp_types::{Diagnostic, Uri};
-use scoop_analysis::{AnalysisSnapshot, Cancellation, Revision, SemanticSession, SourceId};
+use scoop_analysis::{
+    AnalysisSnapshot, Cancellation, Revision, SemanticSession, SourceId, SourceInput,
+};
 use serde_json::Value;
 
 use crate::{
     convert,
     initialize::Settings,
-    queries::{self, Query, QueryKind},
+    queries::{self, DocumentQuery, QueryKind},
     server::Event,
 };
 
 pub(crate) enum WorkKind {
     Request {
         id: RequestId,
-        query: Query,
+        source: SourceId,
+        query: DocumentQuery,
         version: Option<i32>,
         cancellation: Cancellation,
     },
     Diagnostics {
+        source: SourceId,
         uri: Uri,
         version: i32,
+    },
+    WorkspaceSymbols {
+        id: RequestId,
+        query: String,
+        cancellation: Cancellation,
     },
 }
 
 pub(crate) struct Work {
-    pub source: SourceId,
     pub snapshot: AnalysisSnapshot,
     pub settings: Settings,
     pub kind: WorkKind,
@@ -74,13 +82,6 @@ pub(crate) fn start(events: Sender<Event>) -> std::io::Result<Sender<Work>> {
 }
 
 fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
-    let input = work
-        .snapshot
-        .source(work.source)
-        .map_err(|_| convert::error(ErrorCode::RequestCanceled, "analysis revision changed"))
-        .and_then(|source| {
-            source.ok_or_else(|| convert::error(ErrorCode::RequestFailed, "source is unavailable"))
-        });
     let check_revision = || {
         work.snapshot
             .check_cancelled()
@@ -89,11 +90,12 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
     match work.kind {
         WorkKind::Request {
             id,
+            source: source_id,
             query,
             version,
             cancellation,
         } => {
-            let result = input.and_then(|source| {
+            let result = source_input(&work.snapshot, source_id).and_then(|source| {
                 cancellation
                     .check()
                     .map_err(|_| convert::error(ErrorCode::RequestCanceled, "request cancelled"))?;
@@ -114,7 +116,7 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                     }
                     QueryKind::Hover(position) => queries::hover(
                         &work.snapshot,
-                        work.source,
+                        source_id,
                         position,
                         work.settings,
                         semantics,
@@ -122,7 +124,7 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                     ),
                     QueryKind::Definition(position) => queries::definition(
                         &work.snapshot,
-                        work.source,
+                        source_id,
                         position,
                         work.settings,
                         semantics,
@@ -130,7 +132,7 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                     ),
                     QueryKind::Completion(position) => queries::completion(
                         &work.snapshot,
-                        work.source,
+                        source_id,
                         position,
                         work.settings,
                         semantics,
@@ -138,7 +140,7 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                     ),
                     QueryKind::SignatureHelp(position) => queries::signature_help(
                         &work.snapshot,
-                        work.source,
+                        source_id,
                         position,
                         work.settings,
                         semantics,
@@ -157,11 +159,15 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                 result,
             }
         }
-        WorkKind::Diagnostics { uri, version } => {
-            let result = input.and_then(|source| {
+        WorkKind::Diagnostics {
+            source: source_id,
+            uri,
+            version,
+        } => {
+            let result = source_input(&work.snapshot, source_id).and_then(|source| {
                 let diagnostics = crate::diagnostics::collect(
                     &work.snapshot,
-                    work.source,
+                    source_id,
                     source,
                     &uri,
                     work.settings,
@@ -176,5 +182,39 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                 result,
             }
         }
+        WorkKind::WorkspaceSymbols {
+            id,
+            query,
+            cancellation,
+        } => {
+            let result = (|| {
+                cancellation.check().map_err(|_| queries::cancelled())?;
+                let result = queries::workspace_symbols(
+                    &work.snapshot,
+                    &query,
+                    work.settings,
+                    &cancellation,
+                )?;
+                check_revision()?;
+                cancellation.check().map_err(|_| queries::cancelled())?;
+                Ok(result)
+            })();
+            Completed::Request {
+                id,
+                version: None,
+                result,
+            }
+        }
     }
+}
+
+fn source_input(
+    snapshot: &AnalysisSnapshot,
+    source: SourceId,
+) -> Result<&SourceInput, ResponseError> {
+    snapshot
+        .source(source)
+        .map_err(|_| convert::error(ErrorCode::RequestCanceled, "analysis revision changed"))?
+        .map(|source| source.as_ref())
+        .ok_or_else(|| convert::error(ErrorCode::RequestFailed, "source is unavailable"))
 }

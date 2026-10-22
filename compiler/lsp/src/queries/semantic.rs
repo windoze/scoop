@@ -217,7 +217,7 @@ pub(super) fn local_type(
 
 pub(super) use crate::convert::location;
 
-pub(super) fn cancelled() -> ResponseError {
+pub(crate) fn cancelled() -> ResponseError {
     convert::error(ErrorCode::RequestCanceled, "request cancelled")
 }
 

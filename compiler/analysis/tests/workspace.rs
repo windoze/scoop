@@ -282,3 +282,64 @@ fn semantic_inputs_keep_unavailable_source_dependencies_in_the_selected_graph() 
         )
     ));
 }
+
+#[test]
+fn workspace_symbol_indexes_follow_selected_sources_updates_and_cancellation() {
+    let directory = tempfile::tempdir().unwrap();
+    let first = setup(directory.path());
+    let mut second = first.clone();
+    second.name = "alternate".into();
+    second.target = scoop_toolchain::select_target("x86_64-unknown-linux-gnu").unwrap();
+    let mut host = AnalysisHost::default();
+    let mut loader = WorkspaceLoader::default();
+    let inputs = loader.load(
+        &mut host,
+        &[first, second],
+        &BTreeSet::new(),
+        Some("alternate".into()),
+    );
+    host.set_workspace(inputs);
+    let before = host.snapshot();
+    let results = before.workspace_symbols("VALUE", || false).unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].symbol.name, "value");
+    let id = results[0].file.source;
+    let original = before.source(id).unwrap().unwrap().clone();
+    let index = original.symbols().unwrap();
+    before.workspace_symbols("Marker", || false).unwrap();
+    assert!(std::ptr::eq(
+        index,
+        host.source(id).unwrap().symbols().unwrap()
+    ));
+    assert!(matches!(
+        before.workspace_symbols("", || true),
+        Err(scoop_analysis::SymbolQueryError::Cancelled)
+    ));
+
+    host.set_text(id, SourceText::from("fun changed(value: ) {}".to_owned()));
+    assert!(matches!(
+        before.workspace_symbols("", || false),
+        Err(scoop_analysis::SymbolQueryError::Cancelled)
+    ));
+    let current = host.snapshot();
+    assert!(
+        current
+            .workspace_symbols("value", || false)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        current
+            .workspace_symbols("changed", || false)
+            .unwrap()
+            .len(),
+        1
+    );
+    host.set_workspace(Default::default());
+    assert!(
+        host.snapshot()
+            .workspace_symbols("", || false)
+            .unwrap()
+            .is_empty()
+    );
+}

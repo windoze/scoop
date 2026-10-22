@@ -172,27 +172,27 @@ impl Server {
             Ok(query) => query,
             Err(error) => return self.respond_error(request.id, error, output),
         };
-        match self.documents.load(&query.uri) {
-            Err(error) => self.respond_error(request.id, error, output),
-            Ok(_) => {
-                let id = request.id;
-                if self.pending.contains_key(&id) {
-                    return self.respond_error(
-                        id,
-                        convert::error(ErrorCode::InvalidRequest, "request id is already active"),
-                        output,
-                    );
-                }
-                self.pending.insert(
-                    id.clone(),
-                    Pending {
-                        query,
-                        cancellation: Cancellation::default(),
-                    },
-                );
-                self.schedule_request(&id, output)
-            }
+        if let Some(uri) = query.document_uri()
+            && let Err(error) = self.documents.load(uri)
+        {
+            return self.respond_error(request.id, error, output);
         }
+        let id = request.id;
+        if self.pending.contains_key(&id) {
+            return self.respond_error(
+                id,
+                convert::error(ErrorCode::InvalidRequest, "request id is already active"),
+                output,
+            );
+        }
+        self.pending.insert(
+            id.clone(),
+            Pending {
+                query,
+                cancellation: Cancellation::default(),
+            },
+        );
+        self.schedule_request(&id, output)
     }
 
     fn send_work(&self, work: Work) -> io::Result<()> {
@@ -203,24 +203,34 @@ impl Server {
 
     fn schedule_request(&mut self, id: &RequestId, output: &mut impl Write) -> io::Result<()> {
         let pending = &self.pending[id];
-        let Some(document) = self.documents.get(&pending.query.uri) else {
-            self.pending.remove(id);
-            return self.respond_error(
-                id.clone(),
-                convert::error(ErrorCode::RequestFailed, "document is unavailable"),
-                output,
-            );
-        };
-        self.send_work(Work {
-            source: document.source,
-            snapshot: self.documents.host.snapshot(),
-            settings: self.settings,
-            kind: WorkKind::Request {
+        let kind = match &pending.query {
+            Query::WorkspaceSymbols(query) => WorkKind::WorkspaceSymbols {
                 id: id.clone(),
-                query: pending.query.clone(),
-                version: document.version,
+                query: query.clone(),
                 cancellation: pending.cancellation.clone(),
             },
+            Query::Document(query) => {
+                let Some(document) = self.documents.get(&query.uri) else {
+                    self.pending.remove(id);
+                    return self.respond_error(
+                        id.clone(),
+                        convert::error(ErrorCode::RequestFailed, "document is unavailable"),
+                        output,
+                    );
+                };
+                WorkKind::Request {
+                    id: id.clone(),
+                    source: document.source,
+                    query: query.clone(),
+                    version: document.version,
+                    cancellation: pending.cancellation.clone(),
+                }
+            }
+        };
+        self.send_work(Work {
+            snapshot: self.documents.host.snapshot(),
+            settings: self.settings,
+            kind,
         })
     }
 
@@ -247,10 +257,10 @@ impl Server {
         }
         self.diagnostics.insert(uri.clone(), key);
         self.send_work(Work {
-            source: document.source,
             snapshot: self.documents.host.snapshot(),
             settings: self.settings,
             kind: WorkKind::Diagnostics {
+                source: document.source,
                 uri: uri.clone(),
                 version,
             },

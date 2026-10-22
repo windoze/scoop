@@ -88,3 +88,34 @@ fn declaration_inputs_borrow_the_current_grammar_projection() {
         scoop_ast::DeclarationInput::Complete(_)
     ));
 }
+
+#[test]
+fn declaration_symbol_indexes_keep_error_names_and_exclude_callable_locals() {
+    let mut host = AnalysisHost::default();
+    let id = host.add_source(text(
+        "class Outer { fun method() { fun local() {} }; class Inner { fun run() {} } }\nfun broken(value: ) {}",
+    ));
+    let source = host.source(id).unwrap().clone();
+    let symbols = source.symbols().unwrap();
+    assert!(std::ptr::eq(symbols, source.symbols().unwrap()));
+    assert_eq!(
+        symbols
+            .iter()
+            .map(|symbol| symbol.name.as_str())
+            .collect::<Vec<_>>(),
+        ["Outer", "method", "Inner", "run", "broken"]
+    );
+    assert_eq!(symbols[3].container.as_deref(), Some("Outer.Inner"));
+    for symbol in symbols {
+        assert_eq!(symbol.declaration.source, source.version);
+        assert_eq!(
+            &source.text.as_str()[symbol.name_span.start as usize..symbol.name_span.end as usize],
+            symbol.name
+        );
+    }
+    host.set_text(id, text("fun replacement() {}"));
+    let updated = host.source(id).unwrap().symbols().unwrap();
+    assert_eq!(updated.len(), 1);
+    assert_eq!(updated[0].name, "replacement");
+    assert_ne!(updated[0].declaration.source, symbols[0].declaration.source);
+}
