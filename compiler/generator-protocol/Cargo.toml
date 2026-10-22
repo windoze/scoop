@@ -1,0 +1,12 @@
+[package]
+name = "scoop-generator-protocol"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-hir.workspace = true
+scoop-identity.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

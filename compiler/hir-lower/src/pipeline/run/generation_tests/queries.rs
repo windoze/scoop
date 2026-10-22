@@ -175,6 +175,19 @@ fn annotation_queries_keep_actual_identity_and_each_array_elements_source() {
                 text
             );
         }
+        let json = serde_json::to_value(scoop_generator_protocol::Annotations {
+            queries,
+            target: hir::SemanticAnnotationTarget::Current(target),
+        })
+        .unwrap();
+        assert_eq!(json[0]["annotation"], application.annotation.to_string());
+        let values = &json[0]["arguments"][0]["elements"];
+        assert_eq!(values[0]["value"]["value"]["value"], "读");
+        assert_eq!(values[1]["value"]["value"]["value"], "write");
+        assert_eq!(
+            values[0]["origin"]["span"]["startByte"],
+            elements[0].span.start_byte()
+        );
         Ok(Vec::new())
     });
     compile(source, &mut driver).unwrap();

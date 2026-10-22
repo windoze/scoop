@@ -10,6 +10,7 @@ members = [
     "compiler/lsp",
     "compiler/manifest",
     "compiler/protocol",
+    "compiler/generator-protocol",
     "compiler/toolchain",
     "compiler/linker",
     "compiler/scoop",
@@ -75,6 +76,7 @@ scoop-syntax = { path = "compiler/syntax" }
 scoop-analysis = { path = "compiler/analysis" }
 scoop-manifest = { path = "compiler/manifest" }
 scoop-protocol = { path = "compiler/protocol" }
+scoop-generator-protocol = { path = "compiler/generator-protocol" }
 scoop-toolchain = { path = "compiler/toolchain" }
 scoop-linker = { path = "compiler/linker" }
 scoop = { path = "compiler/scoop" }

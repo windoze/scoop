@@ -894,6 +894,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop-generator-protocol"
+version = "0.0.0"
+dependencies = [
+ "scoop-hir",
+ "scoop-identity",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "scoop-hir"
 version = "0.0.0"
 dependencies = [
@@ -914,12 +924,14 @@ dependencies = [
  "rustc_apfloat",
  "scoop-ast",
  "scoop-doc",
+ "scoop-generator-protocol",
  "scoop-hir",
  "scoop-identity",
  "scoop-mir",
  "scoop-mir-lower",
  "scoop-parser",
  "scoop-wire",
+ "serde_json",
 ]
 
 [[package]]

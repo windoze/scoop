@@ -108,6 +108,20 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
         panic!("dependency annotations")
     };
     assert_eq!(applications.len(), 1);
+    let json = serde_json::to_value(scoop_generator_protocol::Annotations {
+        queries: &queries,
+        target: hir::SemanticAnnotationTarget::Imported(target.target),
+    })
+    .unwrap();
+    assert_eq!(
+        json[0]["annotation"],
+        applications[0].annotation.to_string()
+    );
+    assert_eq!(json[0]["arguments"][0]["value"]["value"], "provider");
+    assert_eq!(
+        json[0]["origin"]["source"]["cone"],
+        coordinate.identity().unwrap().to_string()
+    );
     assert!(matches!(
         queries.annotation_declaration(applications[0].annotation),
         Some(hir::SemanticAnnotationDeclaration::Imported(_))

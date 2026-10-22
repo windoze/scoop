@@ -143,6 +143,8 @@ wire 上的 bodies 用有序数组表示 typed 映射，不能将 MethodId 转�
 
 二进制 identity 在 JSON 中使用 schema 指定的固定长度十六进制字符串和明确的字段／variant 种类。可能超出通用 JSON 精确整数范围的查询常量使用十进制字符串；Float／Double 查询常量保留规定宽度的位模式，避免客户端 JSON 数值转换改变精度。生成源码中的字面量使用普通 Scoop 拼写和转义，沿现有 parser 处理。
 
+类型、声明引用、来源及注解常量的具体字段见 [JSON 数据编码](JSON.md)。编码实现位于 `scoop-generator-protocol`；它读取共享查询返回的真实数据，不给 HIR 增加 JSON 字段或重新解释语言规则。具有开放 binder 的签名必须随所属声明／默认值／正文上下文传递，depth／index 仅引用该上下文中的真实参数，不是请求内 arena 下标。
+
 名称可用于展示、生成 wire 名和在正常命名空间中首次查询声明。`lookupExport(provider, path, kind)` 返回后，后续查询、annotation 比较和类型关联使用实际 typed 引用；查找失败不能转而以同名声明代替。输出正文则使用普通名称或限定名，hir-lower 按源码上下文重新进行正常绑定；协议不提供从源码名称到实体 ID 的绑定旁表。
 
 ## 4. 共享语义查询
