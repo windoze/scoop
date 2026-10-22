@@ -6,6 +6,10 @@
 
 普通 callable 正文保存 `owner`、`locals`、`parameters`、`statements`、`result`、`effects`、`typeParameters`、`predicates`、`origin`、`captureTypes` 和 `contextParameters`。参数是本正文实际 local selector，context 参数独立保留名称与类型；局部表每项保存 selector、valueType、mutable 和 definition。definition 区分 source（带 origin）与 synthetic。
 
+构造器正文保存 `declaration`（原 constructor 引用及 ownerType）、`inputs`（带类型和来源的 selector 表）、`effects`、`predicates`、`origin`、`initialization` 与 `commonInitialization`。initialization 按 kind 区分 structPrimary、structSecondary（delegation、body）、classPrimary（base、primaryStores）、classSecondaryThis（delegation、body）和 classSecondaryTerminal（base、body）。delegation 是 `{target, arguments}`，arguments／body 使用完整 `{locals, statements, results}` 片段；primaryStores 每项保留 field 与 parameter selector。base 为 null 表示根 class。
+
+共同初始化依次保存 field（field、value 片段）或 body（body 片段）。classPrimary 在 base 和 primaryStores 后执行共同初始化，classSecondaryTerminal 在 base 后执行共同初始化，再执行自己的正文；classSecondaryThis 先完成 delegation，再执行自己的正文，不重复执行共同初始化。structSecondary 同样先 delegation 后正文。原生表示的隐式构造和 variant 返回 NoBody；依赖未发布初始化模板时返回 NotPublished。
+
 默认值保存 `key: {owner, parameter}`、`definitionRoot`、`definitionPath`、`locals`、`body: {statements, value}`、`result`、`allowsSuspend`、`typeArguments`、`receiver`、`previousParameters` 和 `origin`。key 是当前参数接口，definitionRoot 是原提供方，两者在继承时可以不同。receiver 保存 local 与 valueType；此前参数保存 position 与 local。
 
 local selector 是带 kind 的闭合结构：this、enclosingInstance、capturedEnvironment 无附加字段；parameter 带 index；localDeclaration、boundReceiver 带 path；suspensionResult 带 site；synthetic 带 path 与 role。path 是 `{role, ordinal}` 数组，保留原结构位置，不能解释为源码 offset 或 arena 下标。绑定的 owner 与 scope 随原 capture 关系保留。

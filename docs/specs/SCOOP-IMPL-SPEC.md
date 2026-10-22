@@ -1303,6 +1303,8 @@ logical property 描述独立保留 getter／setter 身份、实现形式、访�
 
 构造器描述沿实际声明读取 primary／secondary／variant 关系，编译器的零参适配器不成为额外源码构造器。完整源码参数按原位置区分 required、default、vararg 空数组省略与 vararg default；主构造参数和字段／property 的关系沿已有 typed 关联读取，不从名字建立关系。参数及 default 描述保留定义身份和原 binder，同时给出所查询应用下的类型与 default 实参映射；查询不执行 default 或将其迁移到另一作用域。
 
+构造器正文使用原初始化投影，保留输入 selector、delegation、基类初始化、primary field store、共同字段／init block 和 secondary 正文的实际结构及执行次序。它不伪装成普通函数，也不省去实际 secondary 正文。当前源码可在成功 HIR 封装前按需读取普通 class／struct 的完整构造计划；原生表示的隐式构造和 variant 没有普通构造正文，返回 NoBody。依赖仅返回已发布的构造初始化模板，未发布时返回 NotPublished。查询与原泛型初始化产物复用投影代码，单个构造器及所属 class 的共同初始化分别缓存；不为读取投影整个成功模块，也不重放构造器语义检查。
+
 当前源码 callable 的完整参数查询复用同一参数接口，包括不经名义成员查找的待填方法。签名查询同时保留已有 release callability；协议适配取得这些真实参数、声明 binder 和效果后，形成完整待填方法签名。参数、context 参数与类型参数使用各自所属声明及位置；不能发送 vararg arena 引用或用另一次名称查找补齐参数类型。
 
 待填方法与普通接口转发方法没有独立的参数源码声明，其合成签名项使用实现类型的触发位置；本地接口与依赖接口沿同一规则处理 context 参数。原 requirement 的来源仍通过实际接口引用取得，不把原接口文件的 span 与当前实现文件组合成一个位置。

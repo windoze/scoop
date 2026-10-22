@@ -9,6 +9,7 @@ use crate::semantic_queries::FrontendQueries;
 use hir::{SemanticBodyAvailability as Availability, SemanticQueries};
 
 mod annotations;
+mod constructor_bodies;
 mod constructors;
 mod declaration_references;
 mod exports;

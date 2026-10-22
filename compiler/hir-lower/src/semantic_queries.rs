@@ -125,6 +125,16 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         self.body_queries.default(source)
     }
 
+    fn constructor_body(
+        &mut self,
+        constructor: hir::SemanticConstructor,
+    ) -> Result<
+        Option<hir::SemanticBodyAvailability<std::sync::Arc<hir::SemanticConstructorBody>>>,
+        Diagnostic,
+    > {
+        self.body_queries.constructor(constructor)
+    }
+
     fn default_application(
         &mut self,
         context: hir::SemanticTypeContext<'_>,

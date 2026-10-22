@@ -107,6 +107,10 @@ pub trait SemanticQueries {
         Option<SemanticBodyAvailability<std::sync::Arc<ExportGenericCallableBodyV1>>>,
         Diagnostic,
     >;
+    fn constructor_body(
+        &mut self,
+        constructor: SemanticConstructor,
+    ) -> Result<Option<SemanticBodyAvailability<std::sync::Arc<SemanticConstructorBody>>>, Diagnostic>;
     fn default_source(&self, source: ExportDefaultSourceId) -> SemanticDefaultSource<'_>;
     fn default_definition(
         &self,

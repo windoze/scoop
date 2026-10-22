@@ -14,7 +14,11 @@ mod classes;
 mod fragment;
 mod release;
 mod structures;
+pub(super) use classes::{
+    project_common as class_common, project_constructor as class_constructor,
+};
 use fragment::ConstructorProjection;
+pub(super) use structures::project_constructor as struct_constructor;
 
 #[derive(Clone, Copy)]
 enum Owner {

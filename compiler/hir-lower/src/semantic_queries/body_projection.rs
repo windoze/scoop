@@ -3,6 +3,7 @@
 use super::*;
 use std::{cell::OnceCell, collections::HashMap, sync::Arc};
 
+mod constructors;
 mod data;
 mod defaults;
 mod inputs;
@@ -15,6 +16,15 @@ pub(super) struct BodyQueries<'a> {
     bodies: HashMap<hir::FunctionId, Arc<hir::ExportGenericCallableBodyV1>>,
     defaults: HashMap<hir::ExportDefaultSourceId, Arc<hir::ExportDefaultTemplateV1>>,
     imported_defaults: HashMap<hir::ExportDefaultTemplateKeyV1, Arc<hir::ExportDefaultTemplateV1>>,
+    constructors: HashMap<
+        hir::SemanticConstructor,
+        hir::SemanticBodyAvailability<Arc<hir::SemanticConstructorBody>>,
+    >,
+    class_common: HashMap<hir::ClassId, Arc<[hir::ExportCommonInitializationStepV1]>>,
+    imported_common: HashMap<
+        scoop_identity::PersistentGenericTypeId,
+        Arc<[hir::ExportCommonInitializationStepV1]>,
+    >,
 }
 
 impl<'a> BodyQueries<'a> {
@@ -25,6 +35,9 @@ impl<'a> BodyQueries<'a> {
             bodies: HashMap::new(),
             defaults: HashMap::new(),
             imported_defaults: HashMap::new(),
+            constructors: HashMap::new(),
+            class_common: HashMap::new(),
+            imported_common: HashMap::new(),
         }
     }
 

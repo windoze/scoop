@@ -1,9 +1,39 @@
 //! Logical body projection for a frontend view before module publication.
 
-use super::{entities::DefaultEntityProjector, envelope, generic};
+use super::{entities::DefaultEntityProjector, envelope, generic, initialization};
 use crate::*;
 
 impl<'a> HirBodyProjectionInputs<'a> {
+    pub fn project_struct_constructor(
+        self,
+        constructor: StructConstructorId,
+        imported: Option<&'a SelectedImportedDependencySet>,
+    ) -> Result<ExportConstructorInitializationV1, GenericTemplateProductionError> {
+        initialization::struct_constructor(
+            &DefaultEntityProjector::from_inputs(self, imported),
+            constructor,
+        )
+    }
+
+    pub fn project_class_constructor(
+        self,
+        constructor: ClassConstructorId,
+        imported: Option<&'a SelectedImportedDependencySet>,
+    ) -> Result<ExportConstructorInitializationV1, GenericTemplateProductionError> {
+        initialization::class_constructor(
+            &DefaultEntityProjector::from_inputs(self, imported),
+            constructor,
+        )
+    }
+
+    pub fn project_class_common_initialization(
+        self,
+        class: ClassId,
+        imported: Option<&'a SelectedImportedDependencySet>,
+    ) -> Result<Vec<ExportCommonInitializationStepV1>, GenericTemplateProductionError> {
+        initialization::class_common(&DefaultEntityProjector::from_inputs(self, imported), class)
+    }
+
     pub fn project_callable_body(
         self,
         function: FunctionId,

@@ -55,7 +55,10 @@
 
 - 声明引用解析：typed target 输入按实际声明及组成部分一次建索引，覆盖当前源码和已选依赖中的字段／variant、property／accessor、构造器、普通及局部 callable、参数、receiver、annotation 和 alias；合法空注解目标与未知引用区分。源码复用已有身份及局部参数 selector，依赖读取已发布目录和正文，不把闭包环境／capture ABI 当成值参数，也不从 RuntimeAccessor 推断隐藏存储。格式化、全 workspace Clippy 和 67 项协议／生成／依赖查询测试通过，覆盖来源、身份复用、错误类别、缺失组成部分与参数边界。首次测试中的局部参数读取和原生类型测试假设已闭合。target 实查仍约 14 GiB。默认值／正文请求映射、八族查询分发与真实 generator 进程继续实施。
 
+- 构造器正文查询：提取原泛型初始化生产器的借用投影，源码 class／struct 在最终封装前读取完整构造计划；保留五类构造路径、delegation、base、primary stores、共同初始化、局部 selector、效果与来源。单个构造计划与 class 共同部分分别复用，依赖仅读取已发布模板，原生隐式构造与未发布正文使用明确可用性。JSON 保留原逻辑片段和执行次序。格式化、全 workspace Clippy 及 91 项协议／查询／初始化回归通过，包含原产物往返、共享来源和泛型构造消费。默认值请求映射、八族查询分发与真实 generator 进程继续实施。
+
 ## 环境与验证策略
+
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。
 
