@@ -124,6 +124,8 @@ def assemble(root, targets, binaries, args, release):
         ignore=shutil.ignore_patterns("target"),
     )
     for vendor in (sysroot / "vendor").iterdir():
+        if not vendor.is_dir():
+            continue
         destination = root / "vendor" / vendor.name
         if vendor.name == "llvm-project":
             version = vendor / VERSION
