@@ -115,7 +115,7 @@ int scoop_readline_test_pty_wait(test_pty *pty) {
 }
 
 bool scoop_readline_test_pty_restored(test_pty *pty) {
-    struct termios actual;
+    struct termios actual = {0};
     if (tcgetattr(pty->slave, &actual) < 0) {
         fprintf(stderr, "PTY tcgetattr: %s\n", strerror(errno));
         return false;
