@@ -102,6 +102,9 @@ pub(crate) fn initialize(params: InitializeParams) -> (Settings, InitializeResul
             type_definition_provider: Some(lsp_types::TypeDefinitionProviderCapability::Simple(
                 true,
             )),
+            implementation_provider: Some(lsp_types::ImplementationProviderCapability::Simple(
+                true,
+            )),
             references_provider: Some(OneOf::Left(true)),
             code_action_provider: code_actions.then(|| {
                 lsp_types::CodeActionProviderCapability::Options(lsp_types::CodeActionOptions {

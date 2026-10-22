@@ -13,6 +13,7 @@ pub(crate) mod code_actions;
 mod completion;
 mod definition;
 mod hover;
+mod implementation;
 mod references;
 mod semantic;
 mod signature_help;
@@ -22,6 +23,7 @@ mod workspace_symbols;
 pub(crate) use completion::completion;
 pub(crate) use definition::definition;
 pub(crate) use hover::hover;
+pub(crate) use implementation::implementation;
 pub(crate) use references::references;
 pub(crate) use semantic::cancelled;
 pub(crate) use signature_help::signature_help;
@@ -34,6 +36,7 @@ pub(crate) enum QueryKind {
     Hover(Position),
     Definition(Position),
     TypeDefinition(Position),
+    Implementation(Position),
     References {
         position: Position,
         include_declaration: bool,
@@ -175,6 +178,13 @@ impl DocumentQuery {
                 Ok(Self {
                     uri: params.text_document_position_params.text_document.uri,
                     kind: QueryKind::TypeDefinition(params.text_document_position_params.position),
+                })
+            }
+            "textDocument/implementation" => {
+                let params: GotoDefinitionParams = params(request.params.clone())?;
+                Ok(Self {
+                    uri: params.text_document_position_params.text_document.uri,
+                    kind: QueryKind::Implementation(params.text_document_position_params.position),
                 })
             }
             _ => Err(convert::error(

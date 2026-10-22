@@ -31,7 +31,7 @@ impl Lowerer {
         self.check_nominal_interface_implementation(owner, span, &owner.describe(self));
     }
 
-    pub(in crate::class) fn owner_interfaces(&mut self, owner: Owner) -> Vec<TypeId> {
+    pub(crate) fn owner_interfaces(&mut self, owner: Owner) -> Vec<TypeId> {
         let mut roots = match owner {
             Owner::Class(id) => return self.class_interfaces_all(id),
             Owner::Object(id) => return self.class_interfaces_all(self.objects[id].backing_class),

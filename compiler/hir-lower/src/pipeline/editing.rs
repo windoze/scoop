@@ -42,6 +42,7 @@ impl Lowerer {
                     reference_index: None,
                     type_references: Vec::new(),
                     type_applications: Vec::new(),
+                    type_implementations: None,
                     documentation: None,
                 });
             }
@@ -125,6 +126,7 @@ impl Lowerer {
             reference_index: None,
             type_references,
             type_applications,
+            type_implementations: None,
             documentation,
         })
     }

@@ -10,6 +10,7 @@ mod bodies;
 mod callables;
 pub(crate) mod candidates;
 mod definitions;
+mod implementations;
 mod imports;
 mod members;
 mod parameters;
@@ -38,6 +39,9 @@ pub struct DeclarationAnalysis {
     pub(crate) reference_index: Option<hir::EditingReferenceIndex>,
     pub(crate) type_references: Vec<hir::EditingTypeReference>,
     pub(crate) type_applications: Vec<hir::EditingTypeApplication>,
+    pub(crate) type_implementations: Option<
+        std::collections::HashMap<hir::SourceNominalId, Vec<hir::EditingTypeImplementation>>,
+    >,
     pub(crate) documentation: Option<std::sync::Arc<hir::SemanticDocumentation>>,
 }
 

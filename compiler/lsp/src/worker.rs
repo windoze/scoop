@@ -150,6 +150,14 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                         semantics,
                         &cancellation,
                     ),
+                    QueryKind::Implementation(position) => queries::implementation(
+                        &work.snapshot,
+                        source_id,
+                        position,
+                        work.settings,
+                        semantics,
+                        &cancellation,
+                    ),
                     QueryKind::Completion(position) => queries::completion(
                         &work.snapshot,
                         source_id,

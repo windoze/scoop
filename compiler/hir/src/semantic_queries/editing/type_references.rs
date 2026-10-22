@@ -8,6 +8,13 @@ pub struct EditingTypeApplication {
     pub ty: crate::TypeId,
 }
 
+/// One source declaration with a checked nominal inheritance relationship.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct EditingTypeImplementation {
+    pub declaration: SourceNominalId,
+    pub origin: SemanticSourceLocation,
+}
+
 /// Declaration identity survives transparent expansion and nominal application.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EditingTypeIdentity {

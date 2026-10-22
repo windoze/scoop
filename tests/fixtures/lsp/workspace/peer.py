@@ -18,6 +18,7 @@ from references import check as check_references
 from signatures import check as check_signatures
 from source_dependencies import check as check_source_dependencies
 from type_definitions import check as check_type_definitions
+from type_implementations import check as check_type_implementations
 from type_references import check as check_type_references
 
 
@@ -324,6 +325,7 @@ def main():
         check_documentation(peer, root)
         check_type_references(peer, root)
         check_type_definitions(peer, root)
+        check_type_implementations(peer, root)
         peer.finish()
     finally:
         if peer.process.poll() is None:
