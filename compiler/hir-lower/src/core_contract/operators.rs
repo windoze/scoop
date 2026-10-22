@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn validate_core_operator_intrinsics(&mut self, files: &[ast::SourceFile]) {
+    pub(crate) fn validate_core_operator_intrinsics(&mut self, files: &[ast::SourceHeaderRef<'_>]) {
         self.validate_char_intrinsics(files);
         self.validate_float_intrinsics(files);
         for kind in hir::PrimitiveUnaryKind::ALL {

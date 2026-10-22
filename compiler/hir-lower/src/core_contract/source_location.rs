@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn validate_source_location_core(
         &mut self,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
     ) -> Option<hir::SourceLocationCore> {
         let location = self.require_core_struct("SourceLocation", files);
         let current =

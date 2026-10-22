@@ -6,7 +6,10 @@ use crate::{
 };
 
 impl Lowerer {
-    fn initialization_cycle_thrower(&mut self, files: &[ast::SourceFile]) -> Option<FunctionId> {
+    fn initialization_cycle_thrower(
+        &mut self,
+        files: &[ast::SourceHeaderRef<'_>],
+    ) -> Option<FunctionId> {
         const NAME: &str = "__scoopThrowInitializationCycle";
 
         let candidates = self
@@ -173,7 +176,7 @@ impl Lowerer {
     pub(crate) fn compiler_exception(
         &mut self,
         name: &str,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
         throwable: ClassId,
     ) -> Option<hir::CompilerException> {
         let candidate = self
@@ -224,7 +227,7 @@ impl Lowerer {
 
     pub(crate) fn validate_exception_core(
         &mut self,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
     ) -> Option<hir::CompilerExceptionCore> {
         let throwable = self.throwable.map(|(id, _)| id)?;
         self.current_file = self.class_files[&throwable];
@@ -289,7 +292,7 @@ impl Lowerer {
         })
     }
 
-    pub(crate) fn validate_throwable(&mut self, files: &[ast::SourceFile]) {
+    pub(crate) fn validate_throwable(&mut self, files: &[ast::SourceHeaderRef<'_>]) {
         let Some(&candidate) = self.throwable_candidates.first() else {
             let core_diagnostic_file = self.core_diagnostic_file();
             self.current_file = core_diagnostic_file;

@@ -3,9 +3,9 @@ use super::*;
 impl Lowerer {
     pub(super) fn resolve_source_signatures(
         &mut self,
-        files: &[ast::SourceFile],
         declarations: &SourceDeclarations<'_>,
     ) -> Result<SignatureCore, Vec<Diagnostic>> {
+        let files = &declarations.source_headers;
         let SourceDeclarations {
             pending_structs,
             pending_enums,

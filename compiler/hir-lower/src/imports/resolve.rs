@@ -13,7 +13,7 @@ impl CurrentUnitImports {
         lowerer: &mut Lowerer,
         source: &ast::SourceFile,
     ) -> FrozenFileImports {
-        self.resolve_file_with_world(lowerer, source, None)
+        self.resolve_file_with_world(lowerer, &source.header(), None)
     }
 
     fn resolve_exposure<'a>(
@@ -47,7 +47,7 @@ impl CurrentUnitImports {
     pub(super) fn resolve_file_with_world(
         &self,
         lowerer: &mut Lowerer,
-        source: &ast::SourceFile,
+        source: &ast::SourceHeaderRef<'_>,
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) -> FrozenFileImports {
         let diagnostics_before = lowerer.diagnostics.len();
@@ -58,7 +58,7 @@ impl CurrentUnitImports {
         let mut exact_dependency_slots = BTreeMap::new();
         debug_assert!(lowerer.source_is_current_cone(lowerer.current_file));
         let source_identity = lowerer.visibility_file(lowerer.current_file);
-        for import in &source.imports {
+        for import in source.imports {
             match import {
                 ast::ImportSyntax::Exact {
                     exposure,

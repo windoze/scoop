@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn validate_iteration_core(
         &mut self,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
     ) -> Option<hir::IterationCore> {
         let iterator = self.require_core_interface("Iterator", files);
         let iterable = self.require_core_interface("Iterable", files);

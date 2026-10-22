@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(super) fn missing_context_constructor(
         &mut self,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
         throwable: ClassId,
     ) -> Option<hir::ClassConstructorId> {
         let Some(crate::NominalTarget::Class(class)) =

@@ -43,12 +43,12 @@ impl Lowerer {
             coroutine_core,
             ffi_core,
             foreign_callback_core,
-        } = self.resolve_source_signatures(files, &declarations)?;
+        } = self.resolve_source_signatures(&declarations)?;
         let DeclarationBodyCore {
             program_arguments,
             type_reference,
             exception_core,
-        } = self.complete_declaration_bodies(files, &declarations)?;
+        } = self.complete_declaration_bodies(&declarations)?;
         self.lower_source_bodies(&declarations, type_reference);
         if let Some(generator) = generator {
             self.generate_method_bodies(generator, world);

@@ -3,6 +3,7 @@ use super::*;
 /// Original declarations and their allocated identities, shared by later passes.
 pub(super) struct SourceDeclarations<'a> {
     pub(super) current_cone: scoop_identity::ConeIdentity,
+    pub(super) source_headers: Vec<ast::SourceHeaderRef<'a>>,
     pub(super) pending_structs: Vec<(StructId, &'a ast::StructDecl, usize)>,
     pub(super) pending_enums: Vec<(EnumId, &'a ast::EnumDecl, usize)>,
     pub(super) pending_classes: Vec<(ClassId, &'a ast::ClassDecl, usize)>,
@@ -47,12 +48,16 @@ impl Lowerer {
             "every parsed source has exactly one lowering source descriptor"
         );
         let current_cone = self.current_cone();
+        let source_headers = files
+            .iter()
+            .map(ast::SourceFile::header)
+            .collect::<Vec<_>>();
         self.top_level_namespaces.initialize_sources(
             self.intrinsic_sources
                 .iter()
                 .map(|source| (source.identity.cone(), source.role)),
             current_cone,
-            files,
+            &source_headers,
         );
 
         // Pass 1: declare aliases, nominals and functions across all files
@@ -188,7 +193,7 @@ impl Lowerer {
 
         let errors_before_imports = self.diagnostics.len();
         self.collect_and_resolve_imports(
-            files,
+            &source_headers,
             crate::imports::ImportDeclarationInputs {
                 functions: &pending_functions,
                 methods: &pending_methods,
@@ -204,6 +209,7 @@ impl Lowerer {
 
         Ok(SourceDeclarations {
             current_cone,
+            source_headers,
             pending_structs,
             pending_enums,
             pending_classes,

@@ -1,7 +1,10 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn validate_ffi_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::FfiCore> {
+    pub(crate) fn validate_ffi_core(
+        &mut self,
+        files: &[ast::SourceHeaderRef<'_>],
+    ) -> Option<hir::FfiCore> {
         let ptr = self.ffi_ptr;
         let fun_ptr = self.ffi_fun_ptr;
         let pinned_ptr = self.ffi_pinned_ptr;

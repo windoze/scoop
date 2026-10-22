@@ -9,7 +9,7 @@ impl TopLevelNamespaces {
             Item = (scoop_identity::ConeIdentity, scoop_identity::SourceRole),
         >,
         current_cone: scoop_identity::ConeIdentity,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
     ) {
         assert!(
             self.source_namespaces.is_empty(),
@@ -22,7 +22,7 @@ impl TopLevelNamespaces {
                 let package = if cone == scoop_identity::ConeIdentity::SINGLE_FILE {
                     Self::root_package()
                 } else {
-                    self.intern_package(&file.package)
+                    self.intern_package(file.package)
                 };
                 self.current.entry(package).or_default();
                 if role == scoop_identity::SourceRole::Production {

@@ -4,7 +4,7 @@ impl Lowerer {
     pub(crate) fn require_intrinsic(
         &mut self,
         kind: hir::IntrinsicFunctionKind,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
     ) -> Option<FunctionId> {
         if let Some(&(function, _provider)) = self.intrinsic_functions.get(&kind) {
             return Some(function);

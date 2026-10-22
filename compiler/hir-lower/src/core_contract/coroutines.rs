@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn validate_coroutine_core(
         &mut self,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
     ) -> Option<hir::CoroutineCore> {
         let continuation = self.require_core_interface("Continuation", files);
         let suspend_task = self.require_core_interface("SuspendTask", files);
@@ -75,7 +75,7 @@ impl Lowerer {
     pub(crate) fn require_core_interface(
         &mut self,
         name: &str,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
     ) -> Option<InterfaceId> {
         let candidate = self
             .core_nominal_target(name)

@@ -4,7 +4,7 @@ impl Lowerer {
     pub(crate) fn require_core_enum(
         &mut self,
         name: &str,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
     ) -> Option<EnumId> {
         let candidate = self
             .core_nominal_target(name)

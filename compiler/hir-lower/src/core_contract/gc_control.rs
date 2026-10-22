@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn validate_gc_control_intrinsics(&mut self, files: &[ast::SourceFile]) {
+    pub(crate) fn validate_gc_control_intrinsics(&mut self, files: &[ast::SourceHeaderRef<'_>]) {
         for (kind, result) in [
             (hir::IntrinsicFunctionKind::GcCollect, self.unit),
             (

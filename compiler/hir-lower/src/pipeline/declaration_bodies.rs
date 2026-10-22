@@ -3,9 +3,9 @@ use super::*;
 impl Lowerer {
     pub(super) fn complete_declaration_bodies(
         &mut self,
-        files: &[ast::SourceFile],
         declarations: &SourceDeclarations<'_>,
     ) -> Result<DeclarationBodyCore, Vec<Diagnostic>> {
+        let files = &declarations.source_headers;
         let SourceDeclarations {
             pending_structs,
             pending_enums,

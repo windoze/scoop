@@ -4,7 +4,7 @@ use super::*;
 use scoop_identity::FloatConversion;
 
 impl Lowerer {
-    pub(super) fn validate_float_intrinsics(&mut self, files: &[ast::SourceFile]) {
+    pub(super) fn validate_float_intrinsics(&mut self, files: &[ast::SourceHeaderRef<'_>]) {
         for intrinsic in hir::float_intrinsic_kinds() {
             let Some(function) =
                 self.require_intrinsic(hir::IntrinsicFunctionKind::Float(intrinsic), files)

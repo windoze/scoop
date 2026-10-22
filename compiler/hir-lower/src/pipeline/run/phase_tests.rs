@@ -81,9 +81,7 @@ fn explicit_signatures_are_available_before_erroneous_bodies_are_checked() {
         "fun caller(): Boolean = known(true)\nfun known(value: Boolean): Boolean { missingBodyName }",
     );
     let declarations = lowerer.collect_source_declarations(&files, None).unwrap();
-    lowerer
-        .resolve_source_signatures(&files, &declarations)
-        .unwrap();
+    lowerer.resolve_source_signatures(&declarations).unwrap();
     assert!(lowerer.diagnostics.is_empty(), "{:?}", lowerer.diagnostics);
     let known = declarations
         .pending_functions
@@ -95,9 +93,7 @@ fn explicit_signatures_are_available_before_erroneous_bodies_are_checked() {
     assert_eq!(signature.return_ty, lowerer.boolean);
     assert_eq!(signature.params[0].ty, lowerer.boolean);
     assert!(!signature.result_pending);
-    let core = lowerer
-        .complete_declaration_bodies(&files, &declarations)
-        .unwrap();
+    let core = lowerer.complete_declaration_bodies(&declarations).unwrap();
     assert!(lowerer.diagnostics.is_empty(), "{:?}", lowerer.diagnostics);
     lowerer.lower_source_bodies(&declarations, core.type_reference);
     assert!(
@@ -113,9 +109,7 @@ fn inferred_result_is_pending_until_its_actual_body_completes() {
     let (mut lowerer, files) =
         input("fun inferred() = missingReturnValue\nfun other(): Boolean = true");
     let declarations = lowerer.collect_source_declarations(&files, None).unwrap();
-    lowerer
-        .resolve_source_signatures(&files, &declarations)
-        .unwrap();
+    lowerer.resolve_source_signatures(&declarations).unwrap();
     assert!(lowerer.diagnostics.is_empty(), "{:?}", lowerer.diagnostics);
     let inferred = declarations
         .pending_functions
@@ -124,7 +118,7 @@ fn inferred_result_is_pending_until_its_actual_body_completes() {
         .unwrap()
         .0;
     assert!(lowerer.signatures[&inferred].result_pending);
-    let Err(diagnostics) = lowerer.complete_declaration_bodies(&files, &declarations) else {
+    let Err(diagnostics) = lowerer.complete_declaration_bodies(&declarations) else {
         panic!("an unresolved inferred result must keep declaration completion from succeeding");
     };
     assert!(

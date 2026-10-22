@@ -169,7 +169,7 @@ impl Lowerer {
 
     pub(crate) fn collect_and_resolve_imports(
         &mut self,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
         declarations: ImportDeclarationInputs<'_>,
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) {

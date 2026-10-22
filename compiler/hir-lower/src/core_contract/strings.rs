@@ -2,7 +2,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn validate_string_intrinsics(&mut self, files: &[ast::SourceFile]) {
+    pub(crate) fn validate_string_intrinsics(&mut self, files: &[ast::SourceHeaderRef<'_>]) {
         let Ok(character) = self.core_character_type() else {
             return;
         };

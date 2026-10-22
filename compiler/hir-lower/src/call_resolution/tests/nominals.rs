@@ -22,7 +22,10 @@ pub(super) fn lowerer() -> Lowerer {
     lowerer.top_level_namespaces.initialize_sources(
         [(cone, scoop_identity::SourceRole::Production)],
         cone,
-        &files,
+        &files
+            .iter()
+            .map(scoop_ast::SourceFile::header)
+            .collect::<Vec<_>>(),
     );
     lowerer
 }

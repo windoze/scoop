@@ -16,7 +16,7 @@ impl Lowerer {
     pub(super) fn require_core_struct(
         &mut self,
         name: &str,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderRef<'_>],
     ) -> Option<StructId> {
         let candidate = self
             .core_nominal_target(name)
