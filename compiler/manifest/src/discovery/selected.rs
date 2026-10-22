@@ -63,10 +63,24 @@ impl SelectedSource {
 pub struct SelectedManifestSources {
     pub(super) first: SelectedSource,
     pub(super) rest: Vec<SelectedSource>,
-    pub(super) directories: Vec<crate::ConeRelativePath>,
+    pub(super) directories: Vec<(crate::ConeRelativePath, SourceRole)>,
 }
 
 impl SelectedManifestSources {
+    /// Classify an editor buffer within this already selected source set.
+    pub fn role_for_path(&self, path: &scoop_identity::NormalizedSourcePath) -> Option<SourceRole> {
+        self.iter()
+            .find(|source| source.identity().logical_path() == path)
+            .map(SelectedSource::role)
+            .or_else(|| {
+                self.directories.iter().find_map(|(directory, role)| {
+                    std::path::Path::new(path.as_str())
+                        .starts_with(directory.as_path())
+                        .then_some(*role)
+                })
+            })
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &SelectedSource> {
         std::iter::once(&self.first).chain(&self.rest)
     }
@@ -79,7 +93,7 @@ impl SelectedManifestSources {
                 .into_iter()
                 .map(super::read::read_discovered_source)
                 .collect::<Result<_, _>>()?,
-            directories: self.directories,
+            directories: self.directories.into_iter().map(|(path, _)| path).collect(),
         })
     }
 }

@@ -8,3 +8,12 @@ scoop-source.workspace = true
 scoop-syntax.workspace = true
 scoop-ast.workspace = true
 scoop-parser.workspace = true
+scoop-identity.workspace = true
+scoop-manifest.workspace = true
+scoop-toolchain.workspace = true
+scoop-lir.workspace = true
+scoop-protocol.workspace = true
+scoop-slib.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,8 +1,8 @@
 use lsp_server::{Message, Notification, RequestId};
 use lsp_types::{
-    DidChangeTextDocumentParams, DidChangeWatchedFilesParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, LogMessageParams, MessageType,
-    PublishDiagnosticsParams,
+    DidChangeConfigurationParams, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
+    DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, LogMessageParams, MessageType, PublishDiagnosticsParams,
 };
 use serde::Deserialize;
 
@@ -22,6 +22,9 @@ impl Server {
         if !self.initialized || self.shutdown {
             return Ok(());
         }
+        if notification.method == "initialized" {
+            return self.register_input_notifications(output);
+        }
         if notification.method == "$/cancelRequest" {
             if let Ok(params) = queries::params::<CancelParams>(notification.params)
                 && let Some(pending) = self.pending.remove(&params.id)
@@ -37,7 +40,12 @@ impl Server {
         }
         let changed = self.apply_notification(notification);
         match changed {
-            Ok(Change::Updated(uri)) => self.schedule_diagnostics(&uri),
+            Ok(Change::Updated(uri, workspace)) => {
+                if workspace {
+                    self.refresh_workspace(output)?;
+                }
+                self.schedule_diagnostics(&uri)
+            }
             Ok(Change::Closed(uri, error)) => {
                 self.diagnostics.remove(&uri);
                 Message::Notification(Notification::new(
@@ -52,7 +60,13 @@ impl Server {
                 if let Some(error) = error {
                     Self::log(error, output)?;
                 }
-                Ok(())
+                self.refresh_workspace(output)
+            }
+            Ok(Change::Workspace(errors)) => {
+                for error in errors {
+                    Self::log(error, output)?;
+                }
+                self.refresh_workspace(output)
             }
             Ok(Change::None) => Ok(()),
             Err(error) => Self::log(error.message, output),
@@ -68,18 +82,20 @@ impl Server {
                 let params: DidOpenTextDocumentParams = queries::params(notification.params)?;
                 let uri = params.text_document.uri.clone();
                 self.documents.open(params.text_document)?;
-                Ok(Change::Updated(uri))
+                Ok(Change::Updated(uri, true))
             }
             "textDocument/didChange" => {
                 let params: DidChangeTextDocumentParams = queries::params(notification.params)?;
                 let uri = params.text_document.uri.clone();
                 self.documents.change(params, self.settings.encoding)?;
-                Ok(Change::Updated(uri))
+                let workspace = self.is_manifest(&uri);
+                Ok(Change::Updated(uri, workspace))
             }
             "textDocument/didSave" => {
                 let params: DidSaveTextDocumentParams = queries::params(notification.params)?;
                 self.documents.save(&params.text_document.uri, params.text);
-                Ok(Change::Updated(params.text_document.uri))
+                let workspace = self.is_manifest(&params.text_document.uri);
+                Ok(Change::Updated(params.text_document.uri, workspace))
             }
             "textDocument/didClose" => {
                 let params: DidCloseTextDocumentParams = queries::params(notification.params)?;
@@ -92,13 +108,35 @@ impl Server {
             }
             "workspace/didChangeWatchedFiles" => {
                 let params: DidChangeWatchedFilesParams = queries::params(notification.params)?;
+                let mut errors = Vec::new();
                 for change in params.changes {
-                    self.documents.reload(&change.uri)?;
+                    if self.documents.get(&change.uri).is_some()
+                        && let Err(error) = self.documents.reload(&change.uri)
+                    {
+                        errors.push(error.message);
+                    }
                 }
-                Ok(Change::None)
+                Ok(Change::Workspace(errors))
+            }
+            "workspace/didChangeConfiguration" => {
+                let params: DidChangeConfigurationParams = queries::params(notification.params)?;
+                self.workspace_settings.change(params.settings);
+                Ok(Change::Workspace(Vec::new()))
+            }
+            "workspace/didChangeWorkspaceFolders" => {
+                let params: DidChangeWorkspaceFoldersParams = queries::params(notification.params)?;
+                self.workspace_settings.change_folders(params.event);
+                Ok(Change::Workspace(Vec::new()))
             }
             _ => Ok(Change::None),
         }
+    }
+
+    fn is_manifest(&self, uri: &Uri) -> bool {
+        self.documents
+            .get(uri)
+            .and_then(|document| document.path)
+            .is_some_and(|path| path.file_name().is_some_and(|name| name == "Cone.toml"))
     }
 
     pub(super) fn log(message: String, output: &mut impl Write) -> io::Result<()> {
@@ -114,7 +152,8 @@ impl Server {
 }
 
 enum Change {
-    Updated(Uri),
+    Updated(Uri, bool),
     Closed(Uri, Option<String>),
+    Workspace(Vec<String>),
     None,
 }

@@ -76,6 +76,13 @@ pub(crate) fn initialize(params: InitializeParams) -> (Settings, InitializeResul
             selection_range_provider: Some(lsp_types::SelectionRangeProviderCapability::Simple(
                 true,
             )),
+            workspace: Some(lsp_types::WorkspaceServerCapabilities {
+                workspace_folders: Some(lsp_types::WorkspaceFoldersServerCapabilities {
+                    supported: Some(true),
+                    change_notifications: Some(OneOf::Left(true)),
+                }),
+                ..Default::default()
+            }),
             ..ServerCapabilities::default()
         },
         server_info: Some(ServerInfo {

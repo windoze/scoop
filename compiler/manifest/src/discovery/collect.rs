@@ -17,7 +17,7 @@ pub(super) fn select(
                 &mut BTreeSet::new(),
                 &mut selected,
             )?;
-            directories.push(root.path);
+            directories.push((root.path, root.role));
         } else {
             let logical_path = NormalizedSourcePath::new(root.path.as_str()).map_err(|error| {
                 SourceDiscoveryError::new(

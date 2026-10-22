@@ -18,6 +18,7 @@ use crate::{
 
 mod notifications;
 mod results;
+mod workspace;
 
 pub(crate) enum Event {
     Incoming(Message),
@@ -32,6 +33,9 @@ struct Pending {
 
 struct Server {
     documents: Documents,
+    workspace_settings: crate::workspace::WorkspaceSettings,
+    workspace_loader: scoop_analysis::WorkspaceLoader,
+    project_diagnostics: HashMap<Uri, (Option<i32>, Vec<lsp_types::Diagnostic>)>,
     settings: Settings,
     initialized: bool,
     shutdown: bool,
@@ -68,6 +72,9 @@ pub fn run_stdio() -> io::Result<i32> {
     let worker = worker::start(events)?;
     let mut server = Server {
         documents: Documents::default(),
+        workspace_settings: Default::default(),
+        workspace_loader: Default::default(),
+        project_diagnostics: HashMap::new(),
         settings: Settings::default(),
         initialized: false,
         shutdown: false,
@@ -89,7 +96,19 @@ pub fn run_stdio() -> io::Result<i32> {
             Event::Incoming(Message::Notification(notification)) => {
                 server.notification(notification, &mut output)?
             }
-            Event::Incoming(Message::Response(_)) => {}
+            Event::Incoming(Message::Response(response)) => {
+                if response.id == RequestId::from("scoop-watch-inputs".to_owned())
+                    && let Err(error) = response.response_result
+                {
+                    Server::log(
+                        format!(
+                            "cannot register input file notifications: {}",
+                            error.message
+                        ),
+                        &mut output,
+                    )?;
+                }
+            }
             Event::Completed(result) => server.completed(result, &mut output)?,
             Event::Closed(error) => {
                 if let Some(error) = error {
@@ -106,16 +125,21 @@ impl Server {
     fn request(&mut self, request: Request, output: &mut impl Write) -> io::Result<()> {
         if request.method == "initialize" && !self.initialized && !self.shutdown {
             let result = queries::params(request.params).and_then(|params| {
+                self.workspace_settings.initialize(&params);
                 let (settings, result) = crate::initialize::initialize(params);
                 self.settings = settings;
                 self.initialized = true;
                 queries::json(result)
             });
-            return Message::Response(Response {
+            Message::Response(Response {
                 id: request.id,
                 response_result: result,
             })
-            .write(output);
+            .write(output)?;
+            if self.initialized {
+                self.refresh_workspace(output)?;
+            }
+            return Ok(());
         }
         let error = if !self.initialized {
             Some(convert::error(
@@ -206,6 +230,13 @@ impl Server {
         let Some(document) = self.documents.get(uri) else {
             return Ok(());
         };
+        if document
+            .path
+            .as_ref()
+            .is_some_and(|path| path.file_name().is_some_and(|name| name == "Cone.toml"))
+        {
+            return Ok(());
+        }
         let Some(version) = document.version else {
             return Ok(());
         };

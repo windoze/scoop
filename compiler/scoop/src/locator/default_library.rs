@@ -24,8 +24,7 @@ pub(super) fn locate_sysroot_dependency(
     target: scoop_lir::ValidatedLirTargetSelection,
     cache: &ArtifactCacheRoot,
 ) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
-    let path = scoop_toolchain::target_library_root(sysroot, target.target())
-        .join(format!("{}.slib", coordinate.name()));
+    let path = scoop_toolchain::sysroot_library_path(sysroot, target.target(), coordinate);
     locate_artifact_dependency(path.clone(), coordinate, target, cache).map_err(|error| {
         if matches!(&error, DependencyLocatorError::Io { source, .. } if source.kind() == std::io::ErrorKind::NotFound)
         {

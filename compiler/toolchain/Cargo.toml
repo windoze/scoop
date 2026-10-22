@@ -4,6 +4,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+scoop-identity.workspace = true
 scoop-target-data.workspace = true
 scoop-process.workspace = true
 scoop-manifest.workspace = true
@@ -20,6 +21,3 @@ serde_yaml_ng.workspace = true
 
 [build-dependencies]
 toml.workspace = true
-
-[dev-dependencies]
-scoop-identity.workspace = true

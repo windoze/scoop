@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fs};
+use std::{
+    collections::{BTreeSet, HashMap},
+    fs,
+    path::PathBuf,
+};
 
 use lsp_server::{ErrorCode, ResponseError};
 use lsp_types::{DidChangeTextDocumentParams, TextDocumentItem, Uri};
@@ -7,10 +11,11 @@ use scoop_source::{PositionEncoding, SourceText};
 
 use crate::convert;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) struct Document {
     pub source: SourceId,
     pub version: Option<i32>,
+    pub path: Option<PathBuf>,
 }
 
 #[derive(Default)]
@@ -21,18 +26,53 @@ pub(crate) struct Documents {
 
 impl Documents {
     pub fn get(&self, uri: &Uri) -> Option<Document> {
-        self.files.get(uri).copied()
+        self.files.get(uri).cloned()
+    }
+
+    pub fn open_paths(&self) -> BTreeSet<PathBuf> {
+        self.files
+            .values()
+            .filter(|document| document.version.is_some())
+            .filter_map(|document| document.path.clone())
+            .collect()
+    }
+
+    pub fn open_uris(&self) -> Vec<Uri> {
+        self.files
+            .iter()
+            .filter(|(_, document)| document.version.is_some())
+            .map(|(uri, _)| uri.clone())
+            .collect()
+    }
+
+    pub fn uri_for_path(&self, path: &std::path::Path) -> Option<&Uri> {
+        self.files
+            .iter()
+            .find(|(_, document)| {
+                document.version.is_some() && document.path.as_deref() == Some(path)
+            })
+            .or_else(|| {
+                self.files
+                    .iter()
+                    .find(|(_, document)| document.path.as_deref() == Some(path))
+            })
+            .map(|(uri, _)| uri)
     }
 
     pub fn open(&mut self, document: TextDocumentItem) -> Result<(), ResponseError> {
         let text = SourceText::from(document.text);
-        let source = if let Some(previous) = self.files.get(&document.uri) {
-            if previous.version.is_some() {
-                return Err(convert::error(
-                    ErrorCode::InvalidRequest,
-                    "document is already open",
-                ));
-            }
+        let path = file_path(&document.uri)?;
+        if let Some(previous) = self.files.get(&document.uri)
+            && previous.version.is_some()
+        {
+            return Err(convert::error(
+                ErrorCode::InvalidRequest,
+                "document is already open",
+            ));
+        }
+        let source = if let Some(path) = &path {
+            self.host.set_file_text(path.clone(), text)
+        } else if let Some(previous) = self.files.get(&document.uri) {
             self.host.set_text(previous.source, text);
             previous.source
         } else {
@@ -43,6 +83,7 @@ impl Documents {
             Document {
                 source,
                 version: Some(document.version),
+                path,
             },
         );
         Ok(())
@@ -57,7 +98,7 @@ impl Documents {
         let document = self
             .files
             .get(uri)
-            .copied()
+            .cloned()
             .ok_or_else(|| convert::error(ErrorCode::InvalidRequest, "document is not open"))?;
         let version = document
             .version
@@ -97,6 +138,7 @@ impl Documents {
             Document {
                 source: document.source,
                 version: Some(change.text_document.version),
+                path: document.path,
             },
         );
         Ok(())
@@ -122,6 +164,17 @@ impl Documents {
         if let Some(document) = self.get(uri) {
             return Ok(document);
         }
+        if let Some(path) = file_path(uri)?
+            && let Some(source) = self.host.file_source(&path)
+        {
+            let document = Document {
+                source,
+                version: None,
+                path: Some(path),
+            };
+            self.files.insert(uri.clone(), document.clone());
+            return Ok(document);
+        }
         self.reload(uri)?;
         self.get(uri)
             .ok_or_else(|| convert::error(ErrorCode::RequestFailed, "source file is unavailable"))
@@ -134,23 +187,20 @@ impl Documents {
         {
             return Ok(());
         }
-        let loaded = url::Url::parse(uri.as_str())
-            .ok()
-            .and_then(|url| url.to_file_path().ok())
-            .map(fs::read_to_string);
+        let path = file_path(uri)?;
+        let loaded = path.as_ref().map(fs::read_to_string);
         match loaded {
             Some(Ok(text)) => {
-                let source = if let Some(document) = self.get(uri) {
-                    self.host.set_text(document.source, SourceText::from(text));
-                    document.source
-                } else {
-                    self.host.add_source(SourceText::from(text))
-                };
+                let source = self.host.set_file_text(
+                    path.clone().expect("loaded a file path"),
+                    SourceText::from(text),
+                );
                 self.files.insert(
                     uri.clone(),
                     Document {
                         source,
                         version: None,
+                        path,
                     },
                 );
                 Ok(())
@@ -168,4 +218,18 @@ impl Documents {
             }
         }
     }
+}
+
+pub(crate) fn file_path(uri: &Uri) -> Result<Option<PathBuf>, ResponseError> {
+    let parsed = url::Url::parse(uri.as_str())
+        .map_err(|error| convert::error(ErrorCode::InvalidParams, error))?;
+    if parsed.scheme() != "file" {
+        return Ok(None);
+    }
+    let path = parsed
+        .to_file_path()
+        .map_err(|()| convert::error(ErrorCode::InvalidParams, "invalid file URI"))?;
+    scoop_analysis::normalize_path(&path)
+        .map(Some)
+        .map_err(|error| convert::error(ErrorCode::RequestFailed, error))
 }

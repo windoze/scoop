@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    path::{Path, PathBuf},
     sync::{Arc, OnceLock},
 };
 
@@ -27,6 +28,8 @@ impl SourceInput {
 #[derive(Debug)]
 pub struct AnalysisHost {
     sources: Arc<HashMap<SourceId, Arc<SourceInput>>>,
+    files: Arc<HashMap<PathBuf, SourceId>>,
+    workspace: Arc<crate::WorkspaceInputs>,
     revision: Revision,
     next_source: u64,
     cancellation: Cancellation,
@@ -36,6 +39,8 @@ impl Default for AnalysisHost {
     fn default() -> Self {
         Self {
             sources: Arc::default(),
+            files: Arc::default(),
+            workspace: Arc::default(),
             revision: Revision(0),
             next_source: 0,
             cancellation: Cancellation::default(),
@@ -44,6 +49,31 @@ impl Default for AnalysisHost {
 }
 
 impl AnalysisHost {
+    pub fn file_source(&self, path: &Path) -> Option<SourceId> {
+        self.files.get(path).copied()
+    }
+
+    pub fn set_file_text(&mut self, path: PathBuf, text: SourceText) -> SourceId {
+        if let Some(id) = self.file_source(&path) {
+            self.set_text(id, text);
+            return id;
+        }
+        let id = self.add_source(text);
+        Arc::make_mut(&mut self.files).insert(path, id);
+        id
+    }
+
+    pub fn set_workspace(&mut self, workspace: crate::WorkspaceInputs) {
+        if *self.workspace != workspace {
+            self.advance();
+            self.workspace = Arc::new(workspace);
+        }
+    }
+
+    pub fn workspace(&self) -> &crate::WorkspaceInputs {
+        &self.workspace
+    }
+
     pub fn revision(&self) -> Revision {
         self.revision
     }
@@ -73,6 +103,7 @@ impl AnalysisHost {
         if self.sources.contains_key(&id) {
             self.advance();
             Arc::make_mut(&mut self.sources).remove(&id);
+            Arc::make_mut(&mut self.files).retain(|_, source| *source != id);
         }
     }
 
@@ -83,6 +114,8 @@ impl AnalysisHost {
     pub fn snapshot(&self) -> AnalysisSnapshot {
         AnalysisSnapshot {
             sources: self.sources.clone(),
+            files: self.files.clone(),
+            workspace: self.workspace.clone(),
             revision: self.revision,
             cancellation: self.cancellation.clone(),
         }
@@ -118,11 +151,18 @@ impl AnalysisHost {
 #[derive(Debug, Clone)]
 pub struct AnalysisSnapshot {
     sources: Arc<HashMap<SourceId, Arc<SourceInput>>>,
+    files: Arc<HashMap<PathBuf, SourceId>>,
+    pub workspace: Arc<crate::WorkspaceInputs>,
     pub revision: Revision,
     cancellation: Cancellation,
 }
 
 impl AnalysisSnapshot {
+    pub fn file_source(&self, path: &Path) -> Result<Option<SourceId>, Cancelled> {
+        self.check_cancelled()?;
+        Ok(self.files.get(path).copied())
+    }
+
     pub fn check_cancelled(&self) -> Result<(), Cancelled> {
         self.cancellation.check()
     }

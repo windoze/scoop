@@ -68,6 +68,24 @@ pub fn target_library_root(sysroot: &Path, target: scoop_lir::LirTargetProfile) 
         .join(target.contract().canonical_triple())
 }
 
+pub fn artifact_candidate_path(
+    root: &Path,
+    coordinate: &scoop_identity::ConeCoordinate,
+) -> PathBuf {
+    root.join(coordinate.group())
+        .join(coordinate.name())
+        .join(coordinate.version())
+        .join("cone.slib")
+}
+
+pub fn sysroot_library_path(
+    sysroot: &Path,
+    target: scoop_lir::LirTargetProfile,
+    coordinate: &scoop_identity::ConeCoordinate,
+) -> PathBuf {
+    target_library_root(sysroot, target).join(format!("{}.slib", coordinate.name()))
+}
+
 pub fn default_runtime_index(
     sysroot: &Path,
     target: scoop_lir::LirTargetProfile,

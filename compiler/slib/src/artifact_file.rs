@@ -1,10 +1,9 @@
 //! File-backed artifact input with one manifest and lazily retained members.
 
-use std::cell::{OnceCell, RefCell};
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::Path;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use scoop_lir::ValidatedLirTargetSelection;
 
@@ -14,28 +13,28 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct ArtifactFile(Rc<ArtifactFileInner>);
+pub struct ArtifactFile(Arc<ArtifactFileInner>);
 
 #[derive(Debug)]
 struct ArtifactFileInner {
-    file: RefCell<File>,
+    file: Mutex<File>,
     target: ValidatedLirTargetSelection,
-    directory: OnceCell<ArtifactFileDirectory>,
+    directory: OnceLock<ArtifactFileDirectory>,
 }
 
 #[derive(Debug)]
 pub(crate) struct ArtifactFileDirectory {
     pub(crate) manifest: BootstrapManifest,
     summary: ArtifactManifestSummaryV1,
-    members: Vec<(SlibMemberId, MemberPosition, OnceCell<Vec<u8>>)>,
+    members: Vec<(SlibMemberId, MemberPosition, OnceLock<Vec<u8>>)>,
 }
 
 impl ArtifactFile {
     pub fn open(path: &Path, target: ValidatedLirTargetSelection) -> io::Result<Self> {
-        Ok(Self(Rc::new(ArtifactFileInner {
-            file: RefCell::new(File::open(path)?),
+        Ok(Self(Arc::new(ArtifactFileInner {
+            file: Mutex::new(File::open(path)?),
             target,
-            directory: OnceCell::new(),
+            directory: OnceLock::new(),
         })))
     }
 
@@ -51,7 +50,10 @@ impl ArtifactFile {
         if let Some(directory) = self.0.directory.get() {
             return Ok(directory);
         }
-        let mut file = self.0.file.borrow_mut();
+        let mut file = self.lock_file()?;
+        if let Some(directory) = self.0.directory.get() {
+            return Ok(directory);
+        }
         file.seek(SeekFrom::Start(0)).map_err(SlibReadError::Io)?;
         let (manifest, next) = crate::manifest_summary::read_manifest(&mut *file, self.0.target)?;
         let summary = ArtifactManifestSummaryV1::from_manifest(&manifest, self.0.target)
@@ -59,7 +61,7 @@ impl ArtifactFile {
         let members = member_positions(manifest.members(), next)
             .map_err(SlibReadError::Directory)?
             .into_iter()
-            .map(|(id, position)| (id, position, OnceCell::new()))
+            .map(|(id, position)| (id, position, OnceLock::new()))
             .collect();
         Ok(self.0.directory.get_or_init(|| ArtifactFileDirectory {
             manifest,
@@ -83,7 +85,10 @@ impl ArtifactFile {
         if let Some(bytes) = cached.get() {
             return Ok(Some(bytes));
         }
-        let mut file = self.0.file.borrow_mut();
+        let mut file = self.lock_file()?;
+        if let Some(bytes) = cached.get() {
+            return Ok(Some(bytes));
+        }
         file.seek(SeekFrom::Start(position.header))
             .map_err(SlibReadError::Io)?;
         let mut header = [0; HEADER_LENGTH as usize];
@@ -121,6 +126,13 @@ impl ArtifactFile {
             bytes
         };
         Ok(Some(cached.get_or_init(|| bytes)))
+    }
+
+    fn lock_file(&self) -> Result<std::sync::MutexGuard<'_, File>, SlibReadError> {
+        self.0
+            .file
+            .lock()
+            .map_err(|_| SlibReadError::Io(io::Error::other("artifact file lock was poisoned")))
     }
 }
 

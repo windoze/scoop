@@ -78,7 +78,7 @@ fn complete_file_reads_only_requested_members_and_reuses_their_buffers() {
             | SlibMemberRole::LirMetadata => {
                 let payload = envelope.member(record.id()).unwrap().unwrap();
                 assert_eq!(payload, memory.member(record.id()).unwrap().unwrap());
-                let position = file.0.file.borrow_mut().stream_position().unwrap();
+                let position = file.0.file.lock().unwrap().stream_position().unwrap();
                 assert!(std::ptr::eq(
                     payload,
                     DecodedSlibEnvelope::from_file(&shared)
@@ -88,7 +88,7 @@ fn complete_file_reads_only_requested_members_and_reuses_their_buffers() {
                         .unwrap()
                 ));
                 assert_eq!(
-                    file.0.file.borrow_mut().stream_position().unwrap(),
+                    file.0.file.lock().unwrap().stream_position().unwrap(),
                     position
                 );
                 metadata += 1;
@@ -122,4 +122,38 @@ fn directory_input_reports_the_actual_read_error() {
     .unwrap();
     assert!(matches!(file.summary(), Err(SlibReadError::Io(error))
         if error.kind() == io::ErrorKind::IsADirectory));
+}
+
+#[test]
+fn analysis_threads_share_directory_and_member_buffers() {
+    let bytes = crate::link_decode::complete_strong_artifact_for_test();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("shared.slib");
+    std::fs::write(&path, bytes).unwrap();
+    let file = ArtifactFile::open(&path, scoop_target_data::DARWIN_AARCH64_LLVM_22_1).unwrap();
+    std::thread::scope(|scope| {
+        let jobs = (0..4)
+            .map(|_| {
+                scope.spawn(|| {
+                    let saved = file.directory().unwrap();
+                    let record = saved
+                        .manifest
+                        .members()
+                        .iter()
+                        .find(|record| *record.role() == SlibMemberRole::HirMetadata)
+                        .unwrap();
+                    file.member(saved, record.id()).unwrap().unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        let buffers = jobs
+            .into_iter()
+            .map(|job| job.join().unwrap())
+            .collect::<Vec<_>>();
+        assert!(
+            buffers
+                .windows(2)
+                .all(|pair| std::ptr::eq(pair[0], pair[1]))
+        );
+    });
 }
