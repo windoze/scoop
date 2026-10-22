@@ -44,8 +44,15 @@ pub struct RecoveredSelector {
     pub selector: Span,
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecoveredBodyRoot {
+    Block(BodyBlockId),
+    Expression(u32),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct RecoveredFunctionBody {
+    pub root: RecoveredBodyRoot,
     pub blocks: Vec<RecoveredBlock>,
     pub selectors: Vec<RecoveredSelector>,
 }

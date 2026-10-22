@@ -9,7 +9,7 @@ impl Lowerer {
     /// Expression positions create a fresh desugaring sink (see
     /// `lower_expr` in expr.rs); the sink is drained into `out` right
     /// before the owning statement.
-    pub(super) fn lower_statement(
+    pub(crate) fn lower_statement(
         &mut self,
         statement: &ast::Statement,
         out: &mut Vec<hir::Statement>,

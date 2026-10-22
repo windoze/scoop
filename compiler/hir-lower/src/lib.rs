@@ -172,7 +172,7 @@ pub use current_lowering::{
     lower_current_cone, lower_current_cone_with_generator, lower_current_tests,
     lower_current_tests_with_generator,
 };
-pub use editing::{DeclarationAnalysis, EditingSignature, analyze_declarations};
+pub use editing::{DeclarationAnalysis, EditingCancelled, EditingSignature, analyze_declarations};
 pub use output_kind::select_cone_output_kind;
 
 use std::collections::{HashMap, HashSet};
@@ -528,6 +528,7 @@ pub fn concretize_output(
 
 #[derive(Clone)]
 pub(crate) struct Lowerer {
+    pub(crate) editing_receiver: Option<editing::ReceiverObservation>,
     documentation: Option<Shared<documentation::DocumentationContext>>,
     core: CoreLoweringAuthority,
     dependencies: Option<hir::ImportedDependencySelectionPlan>,

@@ -104,6 +104,7 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                         position,
                         work.settings,
                         semantics,
+                        &cancellation,
                     ),
                 }?;
                 check_revision()?;

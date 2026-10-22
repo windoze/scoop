@@ -241,12 +241,18 @@ impl Parser {
                 ));
             }
             TokenKind::LBrace => {
+                self.record_function_body_root(scoop_ast::RecoveredBodyRoot::Block(
+                    scoop_ast::BodyBlockId(self.peek().span.start),
+                ));
                 let block = self.parse_block()?;
                 let end = block.span.end;
                 (FunctionBody::Block(block), end)
             }
             TokenKind::Equal => {
                 self.bump();
+                self.record_function_body_root(scoop_ast::RecoveredBodyRoot::Expression(
+                    self.peek().span.start,
+                ));
                 let expr = self.parse_expr()?;
                 let end = expr.span().end;
                 (FunctionBody::Expr(Box::new(expr)), end)

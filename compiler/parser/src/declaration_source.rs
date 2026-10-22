@@ -23,6 +23,16 @@ pub fn declaration_source<'syntax, 'input>(
         };
     }
     let projections = parsed.declaration_data();
+    let bodies = projections
+        .declarations
+        .iter()
+        .filter_map(|item| {
+            let ast::DeclarationFragment::FunctionBody(body) = &item.value else {
+                return None;
+            };
+            Some((item.declaration, body.as_ref()))
+        })
+        .collect::<std::collections::HashMap<_, _>>();
     let complete = projections
         .declarations
         .iter()
@@ -46,13 +56,15 @@ pub fn declaration_source<'syntax, 'input>(
                 if !complete.contains(&item.declaration) =>
             {
                 let syntax = &parsed.declarations()[item.declaration.0];
-                Some(ast::DeclarationInput::FunctionHeader(
-                    ast::FunctionHeaderRef {
-                        signature: &header.signature,
-                        body_form: header.body_form,
-                        span: ast::Span::new(header.signature.span.start, syntax.span.end),
-                    },
-                ))
+                let header = ast::FunctionHeaderRef {
+                    signature: &header.signature,
+                    body_form: header.body_form,
+                    span: ast::Span::new(header.signature.span.start, syntax.span.end),
+                };
+                Some(match bodies.get(&item.declaration) {
+                    Some(body) => ast::DeclarationInput::RecoveredFunction { header, body },
+                    None => ast::DeclarationInput::FunctionHeader(header),
+                })
             }
             ast::DeclarationFragment::FunctionHeader(_)
             | ast::DeclarationFragment::FunctionBody(_) => None,

@@ -30,6 +30,12 @@ pub(crate) struct ValueBlock {
     pub(crate) value: Option<hir::Expr>,
 }
 
+pub(crate) struct FunctionScopeResult<T> {
+    pub(crate) locals: la_arena::Arena<hir::Local>,
+    pub(crate) entry: Vec<hir::Statement>,
+    pub(crate) value: T,
+}
+
 impl ValueBlock {
     /// Preserve evaluation when this block does not contribute a structured
     /// expression result. Unit literals have no observable effect.

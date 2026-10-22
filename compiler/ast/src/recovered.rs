@@ -41,6 +41,10 @@ pub enum DeclarationFragment {
 pub enum DeclarationInput<'a> {
     Complete(&'a Decl),
     FunctionHeader(FunctionHeaderRef<'a>),
+    RecoveredFunction {
+        header: FunctionHeaderRef<'a>,
+        body: &'a crate::RecoveredFunctionBody,
+    },
     Unavailable(&'a DeclarationHeader),
 }
 

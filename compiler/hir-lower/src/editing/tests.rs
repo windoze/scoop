@@ -1,6 +1,8 @@
 use super::*;
 use hir::{EditingUnavailable as U, EditingValue as V};
 
+mod receivers;
+
 fn analyze(text: &str) -> DeclarationAnalysis {
     let core = crate::tests::complete_core_file();
     let core_identity = crate::tests::core_source_identity("src/core.scoop");
@@ -42,7 +44,7 @@ fn function(analysis: &DeclarationAnalysis, name: &str) -> hir::FunctionId {
         .functions()
         .iter()
         .find(|function| function.name == name)
-        .unwrap_or_else(|| panic!("missing {name} in {:?}", analysis.functions()))
+        .unwrap_or_else(|| panic!("missing function `{name}`"))
         .function
 }
 

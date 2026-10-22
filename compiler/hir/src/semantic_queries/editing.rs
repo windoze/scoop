@@ -8,6 +8,7 @@ pub enum EditingUnavailable {
     DeclarationFailure,
     SignatureFailure,
     PendingInference,
+    BodyFailure,
 }
 
 #[derive(Clone, Debug)]
@@ -33,4 +34,23 @@ pub struct EditingParameter {
     pub vararg_element_type: Option<TypeId>,
     pub declared_default: Option<Span>,
     pub origin: SemanticSourceLocation,
+}
+
+/// A local reference observed by the ordinary name resolver.
+#[derive(Clone, Debug)]
+pub struct EditingLocalReference {
+    pub binding: crate::BindingId,
+    pub name: String,
+    pub definition: SemanticSourceLocation,
+}
+
+/// Facts about an existing receiver before its missing selector.
+#[derive(Clone, Debug)]
+pub struct EditingReceiver {
+    pub span: Span,
+    pub dot: Span,
+    pub selector: Span,
+    pub safe_navigation: bool,
+    pub value_type: EditingValue<TypeId>,
+    pub local: Option<EditingLocalReference>,
 }

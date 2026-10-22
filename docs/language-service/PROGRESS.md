@@ -88,6 +88,8 @@
 
 - 正文恢复片段：原 block／postfix grammar 保存错误函数中的完整语句、未知范围、真实块及父块、闭合状态和缺失 selector 的 receiver；局部函数独立归属，lambda／匿名函数保留作用域边界。完整块不另复制 AST，失败 receiver 不成为完整表达式，EOF 前缀与 Unicode 位置保持。格式化、全 workspace Clippy、593 项 parser 测试、22 项 HIR 阶段测试、20 项宿主／LSP 测试和真实 sysroot 的 stdio fixture 通过；路线图同步实际交付状态，target 仍约 18 GiB。当前这些正文片段尚未进入局部语义计算，receiver 类型／补全及半成品调用继续实施。
 
+receiver 的局部语义已接入：grammar 明确函数正文入口，编辑态复用普通参数作用域、语句与表达式检查器；完整前缀中的局部遮蔽、泛型类型和实际定义位置可查询，未知控制结构及未知语句之后保持不可用。依赖的完整函数结果和属性初始化式沿原推断查询计算，缺失正文报告不可用，取消的计算不提交状态。LSP hover 已用于这些 receiver。格式化、全 workspace Clippy、固定版本 Ruff、20 项编辑态／结果推断测试、90 项作用域相关回归、9 项 parser 恢复测试、20 项宿主／LSP 测试和真实 sysroot 的 stdio fixture 通过；待推断调用的静默失败断言已修复。日志仍在仓库外，target 约 18 GiB。成员补全、完整正文关联与导航继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

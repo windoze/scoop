@@ -64,9 +64,11 @@ fn declaration_inputs_borrow_the_current_grammar_projection() {
     assert_eq!(input.role, scoop_identity::SourceRole::Test);
     assert_eq!(input.text, source.text.as_str());
     assert_eq!(input.declarations.len(), 2);
-    let scoop_ast::DeclarationInput::FunctionHeader(header) = input.declarations[0] else {
+    let scoop_ast::DeclarationInput::RecoveredFunction { header, body } = input.declarations[0]
+    else {
         panic!("the first source declaration has a complete header");
     };
+    assert_eq!(body.selectors.len(), 1);
     let original = parsed
         .declaration_data()
         .declarations

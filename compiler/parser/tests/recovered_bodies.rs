@@ -28,6 +28,7 @@ fn independent_statements_surround_a_real_unknown_operation() {
     let body = body(&parsed, "editing");
     assert_eq!(body.blocks.len(), 1);
     let block = &body.blocks[0];
+    assert_eq!(body.root, ast::RecoveredBodyRoot::Block(block.id));
     assert!(block.closed);
     assert!(block.parent.is_none());
     assert!(matches!(
@@ -166,6 +167,12 @@ fn unicode_safe_navigation_and_expression_bodies_keep_exact_positions() {
         };
         assert_eq!(source(text, receiver.span()), "值");
         assert_eq!(selector.block.is_none(), text.contains(" = "));
+        if text.contains(" = ") {
+            assert_eq!(
+                body.root,
+                ast::RecoveredBodyRoot::Expression(receiver.span().start)
+            );
+        }
         assert_eq!(parsed.syntax().text().to_string(), text);
     }
 }

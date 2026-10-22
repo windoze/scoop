@@ -7,6 +7,7 @@ use super::{Event, Parser};
 
 #[derive(Debug)]
 pub(super) enum BodyEvent {
+    FunctionRoot(ast::RecoveredBodyRoot),
     Start(ast::BodyBlockId, ast::RecoveredBlockScope),
     Finish {
         span: Span,
@@ -28,12 +29,24 @@ pub(super) struct BodyRecorder {
         ast::BodyBlockId,
         ast::RecoveredBlockScope,
     )>,
-    functions: BTreeMap<usize, ast::RecoveredFunctionBody>,
+    roots: BTreeMap<usize, ast::RecoveredBodyRoot>,
+    functions: BTreeMap<usize, BodyParts>,
+}
+
+#[derive(Default)]
+struct BodyParts {
+    blocks: Vec<ast::RecoveredBlock>,
+    selectors: Vec<ast::RecoveredSelector>,
 }
 
 impl BodyRecorder {
     pub(super) fn record(&mut self, event: BodyEvent, function: Option<DeclarationIndex>) {
         match event {
+            BodyEvent::FunctionRoot(root) => {
+                if let Some(function) = function {
+                    self.roots.insert(function.0, root);
+                }
+            }
             BodyEvent::Start(id, scope) => self.blocks.push((function, id, scope)),
             BodyEvent::Finish {
                 span,
@@ -94,15 +107,27 @@ impl BodyRecorder {
         assert!(self.blocks.is_empty(), "all body grammar events are closed");
         self.functions
             .into_iter()
-            .map(|(declaration, value)| DeclarationData {
-                declaration: DeclarationIndex(declaration),
-                value,
+            .filter_map(|(declaration, value)| {
+                let root = self.roots.get(&declaration).copied()?;
+                Some(DeclarationData {
+                    declaration: DeclarationIndex(declaration),
+                    value: ast::RecoveredFunctionBody {
+                        root,
+                        blocks: value.blocks,
+                        selectors: value.selectors,
+                    },
+                })
             })
             .collect()
     }
 }
 
 impl Parser {
+    pub(crate) fn record_function_body_root(&mut self, root: ast::RecoveredBodyRoot) {
+        self.syntax
+            .events
+            .push(Event::Body(BodyEvent::FunctionRoot(root)));
+    }
     pub(crate) fn start_body_block(&mut self, offset: u32, scope: ast::RecoveredBlockScope) {
         self.syntax.events.push(Event::Body(BodyEvent::Start(
             ast::BodyBlockId(offset),

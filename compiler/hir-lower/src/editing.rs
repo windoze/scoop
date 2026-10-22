@@ -7,6 +7,8 @@ use scoop_identity::ConeIdentity;
 use crate::{CoreProtocolInput, Lowerer, SourceKind, SourceProvider};
 
 mod parameters;
+mod receivers;
+pub(crate) use receivers::ReceiverObservation;
 #[cfg(test)]
 mod tests;
 
@@ -17,7 +19,14 @@ pub struct DeclarationAnalysis {
     pub(crate) lowerer: Lowerer,
     pub(crate) functions: Vec<hir::EditingFunction>,
     pub(crate) declarations_ready: bool,
+    pub(crate) recovered_bodies:
+        std::collections::HashMap<hir::FunctionId, ast::RecoveredFunctionBody>,
+    pub(crate) receiver_facts:
+        std::collections::HashMap<hir::FunctionId, Vec<hir::EditingReceiver>>,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EditingCancelled;
 
 /// The selected inputs and dependency world belong to one current Cone.
 pub fn analyze_declarations(

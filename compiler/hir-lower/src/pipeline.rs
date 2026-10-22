@@ -219,6 +219,7 @@ impl Lowerer {
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
         Lowerer {
+            editing_receiver: None,
             core: CoreLoweringAuthority::Defined,
             dependencies: None,
             imports: Shared::default(),

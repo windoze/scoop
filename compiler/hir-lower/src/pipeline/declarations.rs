@@ -11,6 +11,7 @@ pub(crate) struct SourceDeclarations<'a> {
     pub(super) pending_objects: Vec<(hir::ObjectId, crate::declarations::ObjectSource<'a>, usize)>,
     pub(super) function_headers: Vec<crate::declarations::FunctionHeaderInput<'a>>,
     pub(super) pending_functions: Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
+    pub(super) recovered_functions: Vec<(FunctionId, &'a ast::RecoveredFunctionBody)>,
     pub(super) pending_globals: Vec<(&'a ast::GlobalDecl, usize)>,
     pub(super) method_headers: Vec<crate::declarations::MethodHeaderInput<'a>>,
     pub(super) pending_methods: Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
@@ -90,6 +91,7 @@ impl Lowerer {
         let mut pending_objects = Vec::new();
         let mut pending_functions = Vec::new();
         let mut function_headers = Vec::new();
+        let mut recovered_functions = Vec::new();
         let mut unavailable = Vec::new();
         let mut pending_globals = Vec::new();
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
@@ -105,6 +107,12 @@ impl Lowerer {
                 ast::DeclarationInput::FunctionHeader(header) => {
                     let id = self.declare_function_header(header, file_index);
                     function_headers.push((id, header, file_index));
+                    continue;
+                }
+                ast::DeclarationInput::RecoveredFunction { header, body } => {
+                    let id = self.declare_function_header(header, file_index);
+                    function_headers.push((id, header, file_index));
+                    recovered_functions.push((id, body));
                     continue;
                 }
             };
@@ -255,6 +263,7 @@ impl Lowerer {
             pending_interfaces,
             pending_objects,
             function_headers,
+            recovered_functions,
             pending_functions,
             pending_globals,
             method_headers,

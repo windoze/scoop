@@ -1,6 +1,8 @@
 use lsp_server::{ErrorCode, ResponseError};
 use lsp_types::{Hover, HoverContents, MarkedString, Position};
-use scoop_analysis::{AnalysisSnapshot, ProjectAnalysisError, SemanticSession, SourceId};
+use scoop_analysis::{
+    AnalysisSnapshot, Cancellation, ProjectAnalysisError, SemanticSession, SourceId,
+};
 use scoop_hir::{self as hir, EditingValue};
 use scoop_hir_lower::DeclarationAnalysis;
 use scoop_source::Span;
@@ -14,6 +16,7 @@ pub(crate) fn hover(
     position: Position,
     settings: Settings,
     semantics: &mut SemanticSession,
+    cancellation: &Cancellation,
 ) -> Result<Value, ResponseError> {
     let source = snapshot
         .source(source_id)
@@ -93,6 +96,23 @@ pub(crate) fn hover(
                     settings,
                 );
             }
+        }
+        let receiver = analysis
+            .receivers(function.function, || {
+                cancellation.check().is_err() || snapshot.check_cancelled().is_err()
+            })
+            .map_err(|_| convert::error(ErrorCode::RequestCanceled, "request cancelled"))?
+            .iter()
+            .find(|receiver| receiver.span == target)
+            .cloned();
+        if let Some(receiver) = receiver
+            && let EditingValue::Known(ty) = receiver.value_type
+        {
+            let ty = type_label(analysis, function.function, ty)?;
+            let label = receiver
+                .local
+                .map_or_else(|| ty.clone(), |local| format!("{}: {ty}", local.name));
+            return response(&source.text, target, label, settings);
         }
     }
     super::json(None::<Hover>)

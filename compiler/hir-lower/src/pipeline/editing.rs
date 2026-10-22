@@ -29,6 +29,8 @@ impl Lowerer {
                     lowerer: self,
                     functions: Vec::new(),
                     declarations_ready: false,
+                    recovered_bodies: Default::default(),
+                    receiver_facts: Default::default(),
                 };
             }
         };
@@ -59,10 +61,18 @@ impl Lowerer {
                 false
             }
         };
+        let recovered_bodies = declarations
+            .recovered_functions
+            .iter()
+            .map(|(function, body)| (*function, (*body).clone()))
+            .collect();
+        self.declaration_inference.ready = declarations_ready;
         DeclarationAnalysis {
             lowerer: self,
             functions,
             declarations_ready,
+            recovered_bodies,
+            receiver_facts: Default::default(),
         }
     }
 }

@@ -190,7 +190,22 @@ impl Lowerer {
         }
         let Some(inference) = self.declaration_inference.functions.get(&id).cloned() else {
             let signature = &self.signatures[&id];
-            return (!signature.result_pending).then_some(signature.return_ty);
+            if !signature.result_pending {
+                return Some(signature.return_ty);
+            }
+            let file = self
+                .function_definition_file(id)
+                .unwrap_or(self.current_file);
+            let previous = std::mem::replace(&mut self.current_file, file);
+            self.error(
+                self.functions[id].span,
+                format!(
+                    "return type of `{}` is unavailable because its expression body is incomplete",
+                    self.source_function_name(id)
+                ),
+            );
+            self.current_file = previous;
+            return None;
         };
         match inference.state {
             InferenceState::Complete => return Some(self.signatures[&id].return_ty),

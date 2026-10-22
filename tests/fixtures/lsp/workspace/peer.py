@@ -139,6 +139,7 @@ def main():
             'fun greeting(): String = "中文😀"\n'
             "fun damaged(value: Missing): Boolean = true\n"
             "fun <T> editing(value: T): T { value. }\n"
+            'fun prefix(value: Boolean) { val value = "local"\nvalue. }\n'
             "fun inferred(value: Boolean) ="
         )
         peer.notify(
@@ -154,8 +155,12 @@ def main():
         parameter = hover(2, 18)
         assert parameter["contents"]["value"] == "value: T", parameter
         assert parameter["range"]["start"] == {"line": 2, "character": 16}
+        receiver = hover(2, 32)
+        assert receiver["contents"]["value"] == "value: T", receiver
+        assert receiver["range"]["start"] == {"line": 2, "character": 31}
+        assert hover(4, 2)["contents"]["value"] == "value: String"
         assert (
-            hover(3, 5)["contents"]["value"] == "fun inferred(value: Boolean): <pending inference>"
+            hover(5, 5)["contents"]["value"] == "fun inferred(value: Boolean): <pending inference>"
         )
         peer.notify(
             "textDocument/didChange",
