@@ -31,6 +31,9 @@ impl Lowerer {
         }
         let mut first_failure = None;
         for layer in self.named_callable_reference_layers(&name.text) {
+            if self.report_unavailable_lookup(name, &layer.unavailable) {
+                return None;
+            }
             let mut matching = Vec::new();
             let mut failures = Vec::new();
             let mut suppressed = !layer.suppressed_callables.is_empty();

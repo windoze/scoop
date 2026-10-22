@@ -17,6 +17,7 @@ pub(crate) struct SourceVariantId(pub(super) usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CurrentUnitTarget {
+    Unavailable(ast::DeclarationHeaderKind),
     Class(hir::ClassId),
     Interface(hir::InterfaceId),
     Struct(hir::StructId),
@@ -33,6 +34,9 @@ pub(crate) enum CurrentUnitTarget {
 
 impl CurrentUnitTarget {
     pub(crate) const fn occupies_namespace(self, namespace: BindingNamespace) -> bool {
+        if let Self::Unavailable(kind) = self {
+            return kind.namespaces().contains(namespace);
+        }
         match namespace {
             BindingNamespace::Type => matches!(
                 self,

@@ -109,6 +109,12 @@ impl Parser {
             None => self.expect_ident("property name")?,
         };
         self.record_declaration_name(&name);
+        self.record_declaration_prefix(
+            visibility,
+            scoop_ast::DeclarationHeaderKind::Property {
+                is_extension: receiver_ty.is_some(),
+            },
+        );
         let ty = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
             Some(self.parse_type_ref()?)

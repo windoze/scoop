@@ -238,6 +238,7 @@ impl Lowerer {
                 }
                 crate::imports::lookup::LookupResult::Missing
                 | crate::imports::lookup::LookupResult::Ambiguous { .. }
+                | crate::imports::lookup::LookupResult::Unavailable(_)
                 | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
             },
             ast::TypeRefKind::Qualified { path, arguments } if arguments.is_empty() => {
@@ -251,6 +252,7 @@ impl Lowerer {
                         }
                         crate::imports::lookup::LookupResult::Missing
                         | crate::imports::lookup::LookupResult::Ambiguous { .. }
+                        | crate::imports::lookup::LookupResult::Unavailable(_)
                         | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
                     }
                 } else {

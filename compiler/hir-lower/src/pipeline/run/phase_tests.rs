@@ -20,24 +20,31 @@ fn input(source: &str) -> (Lowerer, Vec<ast::SourceFile>) {
 }
 
 fn source_lowerer(source: &str) -> Lowerer {
-    let sources = vec![
-        SourceProvider {
-            provider: hir::IntrinsicProviderId::from_raw(0),
-            kind: SourceKind::Core,
-            role: scoop_identity::SourceRole::Production,
-            identity: crate::tests::core_source_identity("src/core.scoop"),
-            name: "core.scoop".into(),
-            source: String::new(),
-        },
-        SourceProvider {
-            provider: hir::IntrinsicProviderId::from_raw(1),
-            kind: SourceKind::CurrentUnit,
-            role: scoop_identity::SourceRole::Production,
-            identity: crate::tests::test_source_identity("src/user.scoop"),
-            name: "user.scoop".into(),
-            source: source.into(),
-        },
-    ];
+    source_lowerer_files(&[(source, scoop_identity::SourceRole::Production)])
+}
+
+fn source_lowerer_files(user_sources: &[(&str, scoop_identity::SourceRole)]) -> Lowerer {
+    let mut sources = vec![SourceProvider {
+        provider: hir::IntrinsicProviderId::from_raw(0),
+        kind: SourceKind::Core,
+        role: scoop_identity::SourceRole::Production,
+        identity: crate::tests::core_source_identity("src/core.scoop"),
+        name: "core.scoop".into(),
+        source: String::new(),
+    }];
+    sources.extend(
+        user_sources
+            .iter()
+            .enumerate()
+            .map(|(index, &(source, role))| SourceProvider {
+                provider: hir::IntrinsicProviderId::from_raw(1),
+                kind: SourceKind::CurrentUnit,
+                role,
+                identity: crate::tests::test_source_identity(&format!("src/user{index}.scoop")),
+                name: format!("user{index}.scoop"),
+                source: source.into(),
+            }),
+    );
     let lowerer =
         Lowerer::new().with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly);
     let dependencies = hir::ImportedDependencySelectionPlan::empty(lowerer.current_cone());
@@ -61,7 +68,8 @@ fn a_header_only_result_query_does_not_publish_the_pending_storage_type() {
             .iter()
             .find_map(|item| match &item.value {
                 ast::DeclarationFragment::FunctionHeader(header) => Some(header.as_ref()),
-                ast::DeclarationFragment::Complete(_) => None,
+                ast::DeclarationFragment::Complete(_)
+                | ast::DeclarationFragment::Unavailable(_) => None,
             })
             .unwrap();
         lowerer.current_file = file;

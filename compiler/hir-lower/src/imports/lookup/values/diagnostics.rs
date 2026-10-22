@@ -99,6 +99,10 @@ impl Lowerer {
         lookup: LookupResult<ValueOrigin>,
     ) -> Result<Option<ValueOrigin>, ()> {
         let (message, candidates) = match lookup {
+            LookupResult::Unavailable(bindings) => {
+                self.report_unavailable_lookup(name, bindings.as_slice());
+                return Err(());
+            }
             LookupResult::Missing => return Ok(None),
             LookupResult::Unique(ValueOrigin::RejectedFunction(_)) => return Err(()),
             LookupResult::Unique(origin) => match Self::non_value_origin(&origin) {

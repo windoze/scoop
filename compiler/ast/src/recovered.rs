@@ -2,7 +2,7 @@
 
 use crate::{
     Decl, DocComment, FunctionHeader, FunctionHeaderRef, ImportSyntax, PackageSyntax,
-    SourceHeaderRef, Span,
+    SourceHeaderRef, Span, VisibilitySyntax,
 };
 
 /// File context for recovered declarations, never a successful SourceFile.
@@ -32,6 +32,7 @@ impl RecoveredFileHeader {
 pub enum DeclarationFragment {
     Complete(Box<Decl>),
     FunctionHeader(Box<FunctionHeader>),
+    Unavailable(DeclarationHeader),
 }
 
 /// Independently complete input to declaration collection, never a full file.
@@ -39,4 +40,66 @@ pub enum DeclarationFragment {
 pub enum DeclarationInput<'a> {
     Complete(&'a Decl),
     FunctionHeader(FunctionHeaderRef<'a>),
+    Unavailable(&'a DeclarationHeader),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeclarationNamespaces {
+    Type,
+    Value,
+    TypeAndValue,
+}
+
+impl DeclarationNamespaces {
+    pub const fn contains(self, namespace: scoop_identity::BindingNamespace) -> bool {
+        matches!(
+            (self, namespace),
+            (Self::TypeAndValue, _)
+                | (Self::Type, scoop_identity::BindingNamespace::Type)
+                | (Self::Value, scoop_identity::BindingNamespace::Value)
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeclarationHeaderKind {
+    Type,
+    Singleton,
+    Property {
+        is_extension: bool,
+    },
+    Function {
+        is_extension: bool,
+        is_operator: bool,
+        is_infix: bool,
+    },
+}
+
+impl DeclarationHeaderKind {
+    pub const fn namespaces(self) -> DeclarationNamespaces {
+        match self {
+            Self::Type => DeclarationNamespaces::Type,
+            Self::Singleton => DeclarationNamespaces::TypeAndValue,
+            Self::Property { .. } | Self::Function { .. } => DeclarationNamespaces::Value,
+        }
+    }
+
+    pub const fn is_value(self) -> bool {
+        matches!(
+            self,
+            Self::Singleton
+                | Self::Property {
+                    is_extension: false
+                }
+        )
+    }
+}
+
+/// Known name and scope facts for a declaration whose semantic input failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeclarationHeader {
+    pub name: crate::Ident,
+    pub visibility: VisibilitySyntax,
+    pub kind: DeclarationHeaderKind,
+    pub span: Span,
 }

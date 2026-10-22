@@ -186,6 +186,32 @@ fn finish(
                 });
             }
         }
+        let mut complete = vec![false; syntax.declarations.len()];
+        let mut known_signature = vec![false; syntax.declarations.len()];
+        for projection in &projections {
+            match &projection.value {
+                DeclarationFragment::Complete(_) => complete[projection.declaration.0] = true,
+                DeclarationFragment::FunctionHeader(_) => {
+                    known_signature[projection.declaration.0] = true
+                }
+                DeclarationFragment::Unavailable(_) => {
+                    unreachable!("unavailable headers are added below")
+                }
+            }
+        }
+        for (index, declaration) in syntax.declarations.iter().enumerate() {
+            if let Some(parent) = declaration.parent {
+                complete[index] |= complete[parent.0];
+            }
+        }
+        for header in syntax.declaration_headers {
+            if !complete[header.declaration.0] && !known_signature[header.declaration.0] {
+                projections.push(DeclarationData {
+                    declaration: header.declaration,
+                    value: DeclarationFragment::Unavailable(header.value),
+                });
+            }
+        }
         (
             None,
             Some(RecoveredFileHeader {

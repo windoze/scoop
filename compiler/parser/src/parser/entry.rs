@@ -113,6 +113,12 @@ impl Parser {
         diagnostics.dedup_by(|next, previous| {
             next == previous || next.span == Some(eof) && previous.span == Some(eof)
         });
-        (self.syntax.build(source, &self.lexemes, root), diagnostics)
+        let recovering = diagnostics
+            .iter()
+            .any(|item| item.severity == scoop_ast::DiagnosticSeverity::Error);
+        (
+            self.syntax.build(source, &self.lexemes, root, recovering),
+            diagnostics,
+        )
     }
 }

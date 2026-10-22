@@ -197,6 +197,7 @@ impl Lowerer {
         let core = || {
             let (_, suppressed_callables) = self.core_named_callable_partition(&name.text);
             LookupLayer {
+                unavailable: Vec::new(),
                 kind: ImportLookupLayer::CorePrelude,
                 suppressed_callables,
                 candidates: self.core_expression_qualifier_candidates(&name.text),
@@ -214,9 +215,16 @@ impl Lowerer {
                     if layer.kind == ImportLookupLayer::CorePrelude {
                         core()
                     } else {
+                        let unavailable = self.unavailable_import_bindings(&layer.bindings, None);
                         let mut candidates = layer
                             .bindings
                             .into_iter()
+                            .filter(|&binding| {
+                                !matches!(
+                                    self.imports.binding(binding).target,
+                                    CurrentUnitTarget::Unavailable(_)
+                                )
+                            })
                             .map(|binding| self.current_expression_qualifier_candidate(binding))
                             .collect::<Vec<_>>();
                         candidates.extend(layer.dependency_bindings.into_iter().map(|binding| {
@@ -232,6 +240,7 @@ impl Lowerer {
                             }
                         }));
                         LookupLayer {
+                            unavailable,
                             kind: layer.kind,
                             suppressed_callables: layer.suppressed_callables,
                             candidates,
@@ -293,6 +302,14 @@ impl Lowerer {
             }
             let extension_blocks =
                 self.expression_qualifier_extension_layer_blocks(name, &extensions);
+            let unavailable = if !values.is_empty() || extension_blocks {
+                self.unavailable_implicit_values(&layer.unavailable)
+            } else {
+                layer.unavailable
+            };
+            if !unavailable.is_empty() {
+                return ExpressionQualifierLookup::Unavailable;
+            }
             if !layer.suppressed_callables.is_empty() {
                 return ExpressionQualifierLookup::Value;
             }

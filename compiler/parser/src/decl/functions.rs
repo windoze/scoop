@@ -156,6 +156,14 @@ impl Parser {
             None => self.expect_ident("function name")?,
         };
         self.record_declaration_name(&name);
+        self.record_declaration_prefix(
+            visibility,
+            scoop_ast::DeclarationHeaderKind::Function {
+                is_extension: receiver_ty.is_some(),
+                is_operator: modifiers.operator.is_some(),
+                is_infix: modifiers.infix.is_some(),
+            },
+        );
         let (params, params_end) = self.parse_function_parameters()?;
         let return_ty = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();

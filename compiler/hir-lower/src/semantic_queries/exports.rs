@@ -94,6 +94,13 @@ impl Lowerer {
             });
         }
         Ok(match target {
+            CurrentUnitTarget::Unavailable(_) => {
+                return Err(Diagnostic::without_span(
+                    scoop_ast::DiagnosticSeverity::Error,
+                    self.current_file,
+                    "declaration has no complete semantic input",
+                ));
+            }
             CurrentUnitTarget::Function(id) => match self.query_function_identity(id)? {
                 hir::HirSourceFunctionIdentity::Plain(record) => {
                     BindableEntity::Function(record.id())

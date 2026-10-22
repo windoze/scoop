@@ -13,12 +13,14 @@ use scoop_hir as hir;
 
 pub(crate) mod calls;
 mod diagnostics;
+mod unavailable;
 pub(crate) mod values;
 
 #[derive(Debug, Clone)]
 pub(crate) struct LookupLayer<T> {
     pub(crate) kind: ImportLookupLayer,
     pub(crate) candidates: Vec<T>,
+    pub(crate) unavailable: Vec<CurrentUnitBindingId>,
     /// Invalid duplicate declarations that own this layer's spelling without
     /// participating in semantic candidate selection.
     pub(crate) suppressed_callables: Vec<scoop_hir::FunctionId>,
@@ -27,6 +29,7 @@ pub(crate) struct LookupLayer<T> {
 #[derive(Debug, Clone)]
 pub(crate) enum LookupResult<T> {
     Missing,
+    Unavailable(ast::NonEmptyVec<CurrentUnitBindingId>),
     Unique(T),
     Ambiguous {
         layer: ImportLookupLayer,
@@ -84,7 +87,8 @@ impl CurrentUnitTarget {
             Self::Object(id) => TopLevelTypeTarget::Nominal(NominalTarget::Object(id)),
             Self::TypeAlias(id) => TopLevelTypeTarget::Alias(id),
             Self::Annotation(id) => TopLevelTypeTarget::Annotation(id),
-            Self::Function(_)
+            Self::Unavailable(_)
+            | Self::Function(_)
             | Self::Property(_)
             | Self::EnumVariant(_)
             | Self::SourceProperty(_)
@@ -189,9 +193,14 @@ impl Lowerer {
     }
 
     fn type_candidates(&self, layer: ImportCandidateLayer) -> LookupLayer<TypeLookupCandidate> {
+        let unavailable = self.unavailable_import_bindings(
+            &layer.bindings,
+            Some(scoop_identity::BindingNamespace::Type),
+        );
         let mut candidates = self.imported_type_candidates(layer.bindings);
         candidates.extend(self.dependency_type_candidates(layer.dependency_bindings));
         LookupLayer {
+            unavailable,
             kind: layer.kind,
             candidates,
             suppressed_callables: Vec::new(),
@@ -200,6 +209,7 @@ impl Lowerer {
 
     pub(crate) fn type_lookup_layers(&self, name: &str) -> Vec<LookupLayer<TypeLookupCandidate>> {
         let core = || LookupLayer {
+            unavailable: Vec::new(),
             kind: ImportLookupLayer::CorePrelude,
             suppressed_callables: Vec::new(),
             candidates: self
@@ -247,6 +257,9 @@ impl Lowerer {
     ) -> LookupResult<TypeLookupCandidate> {
         let mut inaccessible = Vec::new();
         for layer in layers {
+            if let Some((&first, rest)) = layer.unavailable.split_first() {
+                return LookupResult::Unavailable(ast::NonEmptyVec::new(first, rest.to_vec()));
+            }
             let mut accessible = Vec::new();
             for candidate in layer.candidates {
                 let is_accessible = match &candidate.target {
@@ -315,7 +328,10 @@ impl Lowerer {
             .into_iter()
             .flatten()
             .copied();
-        let mut candidates = self.imported_type_candidates(self.imports.canonicalize(bindings));
+        let bindings = self.imports.canonicalize(bindings);
+        let unavailable = self
+            .unavailable_import_bindings(&bindings, Some(scoop_identity::BindingNamespace::Type));
+        let mut candidates = self.imported_type_candidates(bindings);
         candidates.extend(
             self.dependency_type_candidates(
                 self.imports.canonicalize_dependencies(
@@ -334,6 +350,7 @@ impl Lowerer {
             ),
         );
         self.select_type_layer(vec![LookupLayer {
+            unavailable,
             kind: ImportLookupLayer::QualifiedPackage,
             suppressed_callables: Vec::new(),
             candidates,
@@ -356,6 +373,10 @@ impl Lowerer {
         result: LookupResult<TypeLookupCandidate>,
     ) -> Result<Option<TypeLookupTarget>, ()> {
         let (message, candidates) = match result {
+            LookupResult::Unavailable(bindings) => {
+                self.report_unavailable_lookup(name, bindings.as_slice());
+                return Err(());
+            }
             LookupResult::Unique(candidate) => return Ok(Some(candidate.target)),
             LookupResult::Missing => return Ok(None),
             LookupResult::Inaccessible(candidates) if candidates.len() == 1 => {

@@ -7,6 +7,10 @@ impl Parser {
         prefix: MemberPrefix,
     ) -> Result<AnnotationClassDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::AnnotationClassDecl, |parser| {
+            parser.record_declaration_prefix(
+                prefix.visibility,
+                scoop_ast::DeclarationHeaderKind::Type,
+            );
             parser.parse_annotation_class_inner(prefix)
         })
     }

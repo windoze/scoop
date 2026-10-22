@@ -27,6 +27,7 @@ impl Parser {
         visibility: VisibilitySyntax,
     ) -> Result<StructDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::StructDecl, |parser| {
+            parser.record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Type);
             parser.parse_struct_inner(annotations, visibility)
         })
     }
@@ -91,6 +92,7 @@ impl Parser {
         modifier_span: Option<Span>,
     ) -> Result<ClassDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::ClassDecl, |parser| {
+            parser.record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Type);
             parser.parse_class_inner(annotations, visibility, modifier, inner_span, modifier_span)
         })
     }
@@ -158,6 +160,7 @@ impl Parser {
         sealed_span: Option<Span>,
     ) -> Result<InterfaceDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::InterfaceDecl, |parser| {
+            parser.record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Type);
             parser.parse_interface_inner(annotations, visibility, sealed_span)
         })
     }
@@ -295,6 +298,8 @@ impl Parser {
         visibility: VisibilitySyntax,
     ) -> Result<ObjectDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::ObjectDecl, |parser| {
+            parser
+                .record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Singleton);
             parser.parse_object_inner(annotations, visibility)
         })
     }
@@ -355,6 +360,8 @@ impl Parser {
         visibility: VisibilitySyntax,
     ) -> Result<CompanionObjectDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::CompanionDecl, |parser| {
+            parser
+                .record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Singleton);
             parser.parse_companion_object_inner(annotations, visibility)
         })
     }

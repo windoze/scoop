@@ -174,6 +174,7 @@ impl Lowerer {
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) {
         let ImportDeclarationInputs {
+            unavailable,
             functions,
             methods,
             properties,
@@ -228,6 +229,22 @@ impl Lowerer {
                         .extend(targets);
                 }
             }
+        }
+        for &(header, file) in unavailable {
+            self.current_file = file;
+            let access =
+                self.top_level_access(header.visibility, header.name.span, "declaration", file);
+            surface.insert(
+                ResolvedNamespace::Package(self.import_package(file)),
+                CurrentUnitBinding {
+                    target: CurrentUnitTarget::Unavailable(header.kind),
+                    source: self.import_source(file),
+                    file,
+                    span: header.name.span,
+                    access: access.lookup,
+                    name: header.name.text.clone(),
+                },
+            );
         }
         for (package, name, target, file) in self.top_level_namespaces.current_type_bindings() {
             let namespace = ResolvedNamespace::Package(package);

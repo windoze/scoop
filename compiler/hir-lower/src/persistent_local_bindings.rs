@@ -259,6 +259,9 @@ fn binding_targets(
     target: CurrentUnitTarget,
 ) -> Result<Vec<BindingTarget>, PersistentLocalBindingIdentityErrorDetail> {
     let targets = match target {
+        CurrentUnitTarget::Unavailable(_) => {
+            return Err(PersistentLocalBindingIdentityErrorDetail::UnresolvedDeclaration);
+        }
         CurrentUnitTarget::Class(id) => vec![type_name(tables.nominals[id].source())?],
         CurrentUnitTarget::Interface(id) => vec![type_name(tables.nominals[id].source())?],
         CurrentUnitTarget::Struct(id) => vec![type_name(tables.nominals[id].source())?],
@@ -374,6 +377,7 @@ enum PersistentLocalBindingIdentityErrorDetail {
     GeneratedNominal,
     GeneratedFunction,
     UnpublishedTypeAlias,
+    UnresolvedDeclaration,
     UnresolvedProperty,
     UnresolvedVariant,
     InvalidName(CanonicalIdentifierError),
@@ -398,6 +402,9 @@ impl fmt::Display for PersistentLocalBindingIdentityErrorDetail {
             }
             Self::UnpublishedTypeAlias => {
                 formatter.write_str("a source binding refers to an unpublished type alias")
+            }
+            Self::UnresolvedDeclaration => {
+                formatter.write_str("a source binding refers to an incomplete declaration")
             }
             Self::UnresolvedProperty => {
                 formatter.write_str("a source binding refers to an unresolved property")

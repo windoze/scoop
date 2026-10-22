@@ -87,6 +87,7 @@ fn production_import_collection_receives_the_dependency_world() {
             .map(ast::SourceFile::header)
             .collect::<Vec<_>>(),
         ImportDeclarationInputs {
+            unavailable: &[],
             functions: &[],
             methods: &[],
             properties: &[],
@@ -133,6 +134,7 @@ fn current_package_layer_freezes_direct_split_package_contributions() {
             .map(ast::SourceFile::header)
             .collect::<Vec<_>>(),
         ImportDeclarationInputs {
+            unavailable: &[],
             functions: &[],
             methods: &[],
             properties: &[],

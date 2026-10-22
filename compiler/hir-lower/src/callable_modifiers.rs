@@ -1,8 +1,10 @@
 //! Declaration-time validation of the closed operator and infix contracts.
 
-use std::num::NonZeroU32;
-
 mod results;
+mod roles;
+
+pub(crate) use roles::{CallableOperatorKind, callable_operator_kind};
+use roles::{OperatorNameError, property_delegate_operator_kind};
 
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -116,55 +118,29 @@ impl Lowerer {
         name: &ast::Ident,
         modifier_span: ast::Span,
     ) -> Option<CallableOperatorKind> {
-        if let Some(kind) = property_delegate_operator_kind(&name.text) {
-            return Some(CallableOperatorKind::PropertyDelegate(kind));
-        }
-        let kind = match name.text.as_str() {
-            "unaryPlus" => CallableOperatorKind::Ordinary(hir::OperatorKind::UnaryPlus),
-            "unaryMinus" => CallableOperatorKind::Ordinary(hir::OperatorKind::UnaryMinus),
-            "not" => CallableOperatorKind::Ordinary(hir::OperatorKind::Not),
-            "inc" => CallableOperatorKind::Ordinary(hir::OperatorKind::Inc),
-            "dec" => CallableOperatorKind::Ordinary(hir::OperatorKind::Dec),
-            "plus" => CallableOperatorKind::Ordinary(hir::OperatorKind::Plus),
-            "minus" => CallableOperatorKind::Ordinary(hir::OperatorKind::Minus),
-            "times" => CallableOperatorKind::Ordinary(hir::OperatorKind::Times),
-            "div" => CallableOperatorKind::Ordinary(hir::OperatorKind::Div),
-            "rem" => CallableOperatorKind::Ordinary(hir::OperatorKind::Rem),
-            "rangeTo" => CallableOperatorKind::Ordinary(hir::OperatorKind::RangeTo),
-            "rangeUntil" => CallableOperatorKind::Ordinary(hir::OperatorKind::RangeUntil),
-            "contains" => CallableOperatorKind::Ordinary(hir::OperatorKind::Contains),
-            "get" => CallableOperatorKind::Ordinary(hir::OperatorKind::Get),
-            "set" => CallableOperatorKind::Ordinary(hir::OperatorKind::Set),
-            "invoke" => CallableOperatorKind::Ordinary(hir::OperatorKind::Invoke),
-            "plusAssign" => CallableOperatorKind::Ordinary(hir::OperatorKind::PlusAssign),
-            "minusAssign" => CallableOperatorKind::Ordinary(hir::OperatorKind::MinusAssign),
-            "timesAssign" => CallableOperatorKind::Ordinary(hir::OperatorKind::TimesAssign),
-            "divAssign" => CallableOperatorKind::Ordinary(hir::OperatorKind::DivAssign),
-            "remAssign" => CallableOperatorKind::Ordinary(hir::OperatorKind::RemAssign),
-            "compareTo" => CallableOperatorKind::Ordinary(hir::OperatorKind::CompareTo),
-            "equals" => CallableOperatorKind::Ordinary(hir::OperatorKind::Equals),
-            "iterator" => CallableOperatorKind::Ordinary(hir::OperatorKind::Iterator),
-            text if text.starts_with("component") => {
-                let suffix = &text["component".len()..];
-                let Ok(index) = suffix.parse::<u32>() else {
-                    self.error(
+        match callable_operator_kind(&name.text) {
+            Ok(kind) => Some(kind),
+            Err(error) => {
+                let (span, message) = match error {
+                    OperatorNameError::InvalidComponent => (
                         name.span,
-                        format!("operator `{text}` must use a positive decimal component index"),
-                    );
-                    return None;
+                        format!(
+                            "operator `{}` must use a positive decimal component index",
+                            name.text
+                        ),
+                    ),
+                    OperatorNameError::ZeroComponent => {
+                        (name.span, "operator `component0` is not valid".to_owned())
+                    }
+                    OperatorNameError::Unknown => (
+                        modifier_span,
+                        format!("unknown operator role `{}`", name.text),
+                    ),
                 };
-                let Some(index) = NonZeroU32::new(index) else {
-                    self.error(name.span, "operator `component0` is not valid".to_string());
-                    return None;
-                };
-                CallableOperatorKind::Ordinary(hir::OperatorKind::Component { index })
+                self.error(span, message);
+                None
             }
-            text => {
-                self.error(modifier_span, format!("unknown operator role `{text}`"));
-                return None;
-            }
-        };
-        Some(kind)
+        }
     }
 
     fn validate_property_delegate_operator_shape(
@@ -355,20 +331,5 @@ impl Lowerer {
                 ),
             );
         }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum CallableOperatorKind {
-    Ordinary(hir::OperatorKind),
-    PropertyDelegate(hir::PropertyDelegateOperatorKind),
-}
-
-fn property_delegate_operator_kind(name: &str) -> Option<hir::PropertyDelegateOperatorKind> {
-    match name {
-        "provideDelegate" => Some(hir::PropertyDelegateOperatorKind::ProvideDelegate),
-        "getValue" => Some(hir::PropertyDelegateOperatorKind::GetValue),
-        "setValue" => Some(hir::PropertyDelegateOperatorKind::SetValue),
-        _ => None,
     }
 }

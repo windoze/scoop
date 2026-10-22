@@ -90,6 +90,7 @@ impl Lowerer {
         let mut pending_objects = Vec::new();
         let mut pending_functions = Vec::new();
         let mut function_headers = Vec::new();
+        let mut unavailable = Vec::new();
         let mut pending_globals = Vec::new();
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
         for (file_index, input) in inputs {
@@ -97,6 +98,10 @@ impl Lowerer {
             let is_core = self.source_is_core(file_index);
             let decl = match input {
                 ast::DeclarationInput::Complete(declaration) => declaration,
+                ast::DeclarationInput::Unavailable(header) => {
+                    unavailable.push((header, file_index));
+                    continue;
+                }
                 ast::DeclarationInput::FunctionHeader(header) => {
                     let id = self.declare_function_header(header, file_index);
                     function_headers.push((id, header, file_index));
@@ -229,6 +234,7 @@ impl Lowerer {
             &source_headers,
             crate::imports::ImportDeclarationInputs {
                 functions: &function_headers,
+                unavailable: &unavailable,
                 methods: &method_headers,
                 properties: &pending_globals,
                 enumerations: &pending_enums,

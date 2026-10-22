@@ -156,7 +156,11 @@ impl Lowerer {
         let candidate_layers = self
             .named_callable_reference_layers(&name.text)
             .into_iter()
-            .filter(|layer| !layer.candidates.is_empty() || !layer.suppressed_callables.is_empty())
+            .filter(|layer| {
+                !layer.candidates.is_empty()
+                    || !layer.suppressed_callables.is_empty()
+                    || !layer.unavailable.is_empty()
+            })
             .collect::<Vec<_>>();
         if candidate_layers.is_empty() && first_failure.is_none() {
             if self.type_params_in_scope.iter().any(|parameter| {
@@ -177,6 +181,9 @@ impl Lowerer {
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("callable reference `::{}`", name.text);
         for layer in candidate_layers {
+            if self.report_unavailable_lookup(name, &layer.unavailable) {
+                return None;
+            }
             if layer.candidates.is_empty() && !layer.suppressed_callables.is_empty() {
                 if let Some(failure) = first_failure {
                     self.commit_layer_diagnostics(*failure);

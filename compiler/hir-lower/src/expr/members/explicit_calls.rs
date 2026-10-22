@@ -154,12 +154,41 @@ impl Lowerer {
             Some(operator) => self.named_executable_extension_operator_layers(operator),
             None => self.named_executable_extension_call_layers(&name.text),
         };
-        let mut invoke_layers = self.named_executable_extension_call_layers("invoke");
+        let mut invoke_layers =
+            self.named_executable_extension_operator_layers(hir::OperatorKind::Invoke);
+        for layer in &mut extension_layers {
+            layer.unavailable =
+                self.unavailable_extension_candidates(&layer.unavailable, direct_required);
+        }
+        for layer in &mut invoke_layers {
+            layer.unavailable = self.unavailable_extension_candidates(
+                &layer.unavailable,
+                RequiredCallableModifiers {
+                    operator: Some(hir::OperatorKind::Invoke),
+                    infix: direct_required.infix,
+                    ..Default::default()
+                },
+            );
+        }
         let mut extension_property_layers = self.named_extension_property_layers(&name.text);
         Self::retain_highest_rank_origins(&mut extension_layers);
         Self::retain_highest_rank_origins(&mut invoke_layers);
         Self::retain_highest_rank_origins(&mut extension_property_layers);
         for rank in 0..=3 {
+            let unavailable = extension_layers
+                .iter()
+                .filter(|layer| layer.kind.call_rank() == rank)
+                .flat_map(|layer| layer.unavailable.iter().copied())
+                .chain(
+                    extension_property_layers
+                        .iter()
+                        .filter(|layer| layer.kind.call_rank() == rank)
+                        .flat_map(|layer| layer.unavailable.iter().copied()),
+                )
+                .collect::<Vec<_>>();
+            if self.report_unavailable_lookup(name, &unavailable) {
+                return None;
+            }
             let suppressed_extensions =
                 Self::suppressed_extensions_at_rank(&extension_layers, rank, |function| {
                     Self::matches_required_modifiers(
@@ -218,6 +247,22 @@ impl Lowerer {
                     },
                 )
             });
+            if property.is_some() {
+                let unavailable = invoke_layers
+                    .iter()
+                    .filter(|layer| layer.kind.call_rank() == rank)
+                    .flat_map(|layer| layer.unavailable.iter().copied())
+                    .collect::<Vec<_>>();
+                if self.report_unavailable_lookup(
+                    &ast::Ident {
+                        text: "invoke".to_owned(),
+                        span: call.span,
+                    },
+                    &unavailable,
+                ) {
+                    return None;
+                }
+            }
             if let Some(property) = &property
                 && !invokes.is_empty()
             {
@@ -323,7 +368,9 @@ impl Lowerer {
                         })
                         .cloned()
                         .collect::<Vec<_>>();
-                    if property_layer.candidates.is_empty() || invokes.is_empty() {
+                    if property_layer.candidates.is_empty()
+                        || (invokes.is_empty() && invoke_layer.unavailable.is_empty())
+                    {
                         continue;
                     }
                     let mut property_state = self.clone();
@@ -337,6 +384,15 @@ impl Lowerer {
                         crate::properties::ExtensionPropertyCandidateOutcome::Resolved(
                             property,
                         ) => {
+                            if self.report_unavailable_lookup(
+                                &ast::Ident {
+                                    text: "invoke".to_owned(),
+                                    span: call.span,
+                                },
+                                &invoke_layer.unavailable,
+                            ) {
+                                return None;
+                            }
                             property_extension_inputs.push(PropertyExtensionInvokeInput::new(
                                 PropertyExtensionInvokeOrigin::Extension(property.identity()),
                                 SuccessfulExprLayer {

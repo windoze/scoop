@@ -139,6 +139,15 @@ impl Lowerer {
                 }
             }
 
+            let unavailable = if !values.is_empty() || !properties.is_empty() {
+                self.unavailable_implicit_values(&layer.unavailable)
+            } else {
+                layer.unavailable.clone()
+            };
+            if self.report_unavailable_lookup(name, &unavailable) {
+                return ImplicitValueSelection::Failed;
+            }
+
             let extension = if properties.is_empty() {
                 ExtensionPropertySelection::NoCandidate
             } else {
@@ -234,6 +243,9 @@ impl Lowerer {
                 ExtensionPropertySelection::Failed | ExtensionPropertySelection::Resolved(_) => {
                     unreachable!("terminal extension outcomes return from their layer")
                 }
+            }
+            if self.report_unavailable_lookup(name, &layer.unavailable) {
+                return ImplicitValueSelection::Failed;
             }
             if !blockers.is_empty() {
                 self.diagnose_value_layer(name, layer.kind, &blockers);

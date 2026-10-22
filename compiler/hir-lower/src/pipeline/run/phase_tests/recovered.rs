@@ -1,60 +1,87 @@
 use super::*;
 
+mod unavailable;
+
 fn collect<'a>(
     lowerer: &mut Lowerer,
     core: &'a ast::SourceFile,
     source: &str,
     parsed: &'a scoop_parser::ParsedFile,
 ) -> SourceDeclarations<'a> {
-    assert!(parsed.ast().is_none());
-    let projections = parsed.declaration_data();
-    let header = projections
-        .source
-        .as_ref()
-        .unwrap()
-        .header(Span::new(0, source.len() as u32))
-        .unwrap();
-    let complete = projections
+    collect_files(lowerer, core, &[(source, parsed)])
+}
+
+fn collect_files<'a>(
+    lowerer: &mut Lowerer,
+    core: &'a ast::SourceFile,
+    source_files: &[(&str, &'a scoop_parser::ParsedFile)],
+) -> SourceDeclarations<'a> {
+    let mut headers = vec![core.header()];
+    let mut inputs = core
         .declarations
         .iter()
-        .filter_map(|item| {
-            matches!(item.value, ast::DeclarationFragment::Complete(_)).then_some(item.declaration)
-        })
-        .collect::<std::collections::HashSet<_>>();
-    let recovered = projections.declarations.iter().filter_map(|item| {
-        let syntax = &parsed.declarations()[item.declaration.0];
-        if syntax.parent.is_some() {
-            return None;
+        .map(|declaration| (0, ast::DeclarationInput::Complete(declaration)))
+        .collect::<Vec<_>>();
+    for (index, &(source, parsed)) in source_files.iter().enumerate() {
+        let file = index + 1;
+        if let Some(source) = parsed.ast() {
+            headers.push(source.header());
+            inputs.extend(
+                source
+                    .declarations
+                    .iter()
+                    .map(|declaration| (file, ast::DeclarationInput::Complete(declaration))),
+            );
+            continue;
         }
-        match &item.value {
-            ast::DeclarationFragment::Complete(declaration) => {
-                Some((1, ast::DeclarationInput::Complete(declaration)))
+        let projections = parsed.declaration_data();
+        headers.push(
+            projections
+                .source
+                .as_ref()
+                .unwrap()
+                .header(Span::new(0, source.len() as u32))
+                .unwrap(),
+        );
+        let complete = projections
+            .declarations
+            .iter()
+            .filter_map(|item| {
+                matches!(item.value, ast::DeclarationFragment::Complete(_))
+                    .then_some(item.declaration)
+            })
+            .collect::<std::collections::HashSet<_>>();
+        let recovered = projections.declarations.iter().filter_map(|item| {
+            let syntax = &parsed.declarations()[item.declaration.0];
+            if syntax.parent.is_some() {
+                return None;
             }
-            ast::DeclarationFragment::FunctionHeader(header)
-                if !complete.contains(&item.declaration) =>
-            {
-                Some((
-                    1,
-                    ast::DeclarationInput::FunctionHeader(ast::FunctionHeaderRef {
-                        signature: &header.signature,
-                        body_form: header.body_form,
-                        span: Span::new(header.signature.span.start, syntax.span.end),
-                    }),
-                ))
+            match &item.value {
+                ast::DeclarationFragment::Complete(declaration) => {
+                    Some((file, ast::DeclarationInput::Complete(declaration)))
+                }
+                ast::DeclarationFragment::FunctionHeader(header)
+                    if !complete.contains(&item.declaration) =>
+                {
+                    Some((
+                        file,
+                        ast::DeclarationInput::FunctionHeader(ast::FunctionHeaderRef {
+                            signature: &header.signature,
+                            body_form: header.body_form,
+                            span: Span::new(header.signature.span.start, syntax.span.end),
+                        }),
+                    ))
+                }
+                ast::DeclarationFragment::FunctionHeader(_) => None,
+                ast::DeclarationFragment::Unavailable(header) => {
+                    Some((file, ast::DeclarationInput::Unavailable(header)))
+                }
             }
-            ast::DeclarationFragment::FunctionHeader(_) => None,
-        }
-    });
-    let core_inputs = core
-        .declarations
-        .iter()
-        .map(|declaration| (0, ast::DeclarationInput::Complete(declaration)));
+        });
+        inputs.extend(recovered);
+    }
     lowerer
-        .collect_declaration_inputs(
-            vec![core.header(), header],
-            core_inputs.chain(recovered),
-            None,
-        )
+        .collect_declaration_inputs(headers, inputs, None)
         .unwrap()
 }
 

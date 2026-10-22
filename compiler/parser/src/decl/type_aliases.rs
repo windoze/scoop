@@ -7,6 +7,10 @@ impl Parser {
         prefix: MemberPrefix,
     ) -> Result<TypeAliasDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::TypeAliasDecl, |parser| {
+            parser.record_declaration_prefix(
+                prefix.visibility,
+                scoop_ast::DeclarationHeaderKind::Type,
+            );
             parser.parse_type_alias_inner(prefix)
         })
     }

@@ -34,10 +34,19 @@ pub(super) fn expected_token(predicate: &impl Fn(&TokenKind) -> bool) -> Option<
 
 #[derive(Debug)]
 enum Event {
-    Start { offset: u32, kind: SyntaxKind },
-    Finish { offset: u32 },
+    Start {
+        offset: u32,
+        kind: SyntaxKind,
+    },
+    Finish {
+        offset: u32,
+    },
     Missing(MissingSyntax),
     DeclarationName(DeclarationName),
+    DeclarationPrefix(
+        scoop_ast::VisibilitySyntax,
+        scoop_ast::DeclarationHeaderKind,
+    ),
     FunctionHeader(Box<scoop_ast::FunctionHeader>),
     TopLevelDeclaration,
 }
@@ -47,6 +56,7 @@ pub(super) struct SyntaxBuild {
     pub(super) missing: Vec<MissingSyntax>,
     pub(super) declarations: Vec<DeclarationSyntax>,
     pub(super) function_headers: crate::FunctionHeaders,
+    pub(super) declaration_headers: Vec<DeclarationData<scoop_ast::DeclarationHeader>>,
     pub(super) top_level_declarations: Vec<DeclarationIndex>,
 }
 
@@ -64,13 +74,20 @@ impl SyntaxEvents {
         self.events.truncate(length);
     }
 
-    pub(super) fn build(self, source: &str, lexemes: &[Lexeme], root: SyntaxKind) -> SyntaxBuild {
+    pub(super) fn build(
+        self,
+        source: &str,
+        lexemes: &[Lexeme],
+        root: SyntaxKind,
+        recovering: bool,
+    ) -> SyntaxBuild {
         let mut builder = GreenNodeBuilder::new();
         let mut cursor = 0;
         let mut missing = Vec::new();
         let mut declarations: Vec<DeclarationSyntax> = Vec::new();
         let mut owners: Vec<Option<DeclarationIndex>> = Vec::new();
         let mut headers = Vec::new();
+        let mut prefixes = Vec::new();
         let mut last_root = None;
         let mut top_level_declarations = Vec::new();
         builder.start_node(root.into());
@@ -86,6 +103,18 @@ impl SyntaxEvents {
             if let Event::DeclarationName(name) = event {
                 if let Some(index) = owners.iter().rev().flatten().next() {
                     declarations[index.0].name = Some(name);
+                }
+                continue;
+            }
+            if let Event::DeclarationPrefix(visibility, kind) = event {
+                if recovering {
+                    let declaration = *owners
+                        .iter()
+                        .rev()
+                        .flatten()
+                        .next()
+                        .expect("declaration prefixes have a grammar owner");
+                    prefixes.push((declaration, visibility, kind));
                 }
                 continue;
             }
@@ -106,6 +135,7 @@ impl SyntaxEvents {
                 Event::Start { offset, .. } | Event::Finish { offset } => *offset,
                 Event::Missing(item) => item.offset,
                 Event::DeclarationName(_)
+                | Event::DeclarationPrefix(_, _)
                 | Event::FunctionHeader(_)
                 | Event::TopLevelDeclaration => {
                     unreachable!("handled above")
@@ -143,6 +173,7 @@ impl SyntaxEvents {
                     missing.push(item);
                 }
                 Event::DeclarationName(_)
+                | Event::DeclarationPrefix(_, _)
                 | Event::FunctionHeader(_)
                 | Event::TopLevelDeclaration => {
                     unreachable!("handled above")
@@ -151,7 +182,27 @@ impl SyntaxEvents {
         }
         emit_before(&mut builder, source, lexemes, &mut cursor, u32::MAX);
         builder.finish_node();
+        let declaration_headers = prefixes
+            .into_iter()
+            .filter_map(|(index, visibility, kind)| {
+                let declaration = &declarations[index.0];
+                let name = declaration.name.as_ref()?;
+                Some(DeclarationData {
+                    declaration: index,
+                    value: scoop_ast::DeclarationHeader {
+                        name: scoop_ast::Ident {
+                            text: name.text.clone(),
+                            span: name.span,
+                        },
+                        visibility,
+                        kind,
+                        span: declaration.span,
+                    },
+                })
+            })
+            .collect();
         SyntaxBuild {
+            declaration_headers,
             green: builder.finish(),
             missing,
             declarations,
@@ -188,6 +239,16 @@ fn emit_before(
 }
 
 impl Parser {
+    pub(crate) fn record_declaration_prefix(
+        &mut self,
+        visibility: scoop_ast::VisibilitySyntax,
+        kind: scoop_ast::DeclarationHeaderKind,
+    ) {
+        self.syntax
+            .events
+            .push(Event::DeclarationPrefix(visibility, kind));
+    }
+
     pub(crate) fn record_top_level_declaration(&mut self) {
         self.syntax.events.push(Event::TopLevelDeclaration);
     }

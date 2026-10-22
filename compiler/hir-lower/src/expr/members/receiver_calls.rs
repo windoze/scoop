@@ -104,6 +104,10 @@ impl Lowerer {
             None => self.named_executable_extension_call_layers(&name.text),
         };
         for layer in extension_layers {
+            let unavailable = self.unavailable_extension_candidates(&layer.unavailable, required);
+            if self.report_unavailable_lookup(name, &unavailable) {
+                return None;
+            }
             let suppressed = layer.suppressed_callables.iter().copied().any(|function| {
                 Self::matches_required_modifiers(self.signatures[&function].modifiers, required)
             });

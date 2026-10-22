@@ -109,8 +109,15 @@ impl Lowerer {
         }
         self.named_executable_extension_operator_layers(hir::OperatorKind::Invoke)
             .into_iter()
-            .flat_map(|layer| layer.candidates)
-            .any(|target| self.extension_call_target_matches_required(&target, required))
+            .any(|layer| {
+                !self
+                    .unavailable_extension_candidates(&layer.unavailable, required)
+                    .is_empty()
+                    || layer
+                        .candidates
+                        .iter()
+                        .any(|target| self.extension_call_target_matches_required(target, required))
+            })
     }
 
     /// `Name(args...)` in call position: a variant or struct

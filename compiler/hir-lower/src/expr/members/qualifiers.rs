@@ -82,6 +82,7 @@ impl Lowerer {
                                 crate::namespace::TopLevelTypeTarget::Annotation(_),
                             ),
                         )
+                        | ExpressionQualifierLookup::Unavailable
                         | ExpressionQualifierLookup::Missing
                         | ExpressionQualifierLookup::Value
                         | ExpressionQualifierLookup::Ambiguous

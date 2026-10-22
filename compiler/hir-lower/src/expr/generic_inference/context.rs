@@ -106,6 +106,7 @@ impl Lowerer {
             }
             crate::imports::lookup::LookupResult::Missing => true,
             crate::imports::lookup::LookupResult::Ambiguous { .. }
+            | crate::imports::lookup::LookupResult::Unavailable(_)
             | crate::imports::lookup::LookupResult::Inaccessible(_) => false,
         }
     }

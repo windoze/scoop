@@ -204,6 +204,10 @@ impl Lowerer {
         let layers = self.named_call_layers(name);
         let mut found = false;
         for layer in layers {
+            let unavailable = self.unavailable_named_call_candidates(&layer.unavailable);
+            if self.report_unavailable_lookup(&call.callee, &unavailable) {
+                return None;
+            }
             let rank = layer.kind.call_rank();
             found |= !layer.candidates.is_empty();
             let mut state = self.clone();

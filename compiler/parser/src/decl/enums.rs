@@ -14,6 +14,7 @@ impl Parser {
         visibility: VisibilitySyntax,
     ) -> Result<EnumDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::EnumDecl, |parser| {
+            parser.record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Type);
             parser.parse_enum_inner(annotations, visibility)
         })
     }

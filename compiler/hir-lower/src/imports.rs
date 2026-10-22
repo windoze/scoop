@@ -46,6 +46,7 @@ pub(crate) struct ImportCandidateLayer {
 }
 
 pub(crate) struct ImportDeclarationInputs<'a> {
+    pub(crate) unavailable: &'a [(&'a ast::DeclarationHeader, usize)],
     pub(crate) functions: &'a [crate::declarations::FunctionHeaderInput<'a>],
     pub(crate) methods: &'a [crate::declarations::MethodHeaderInput<'a>],
     pub(crate) properties: &'a [(&'a ast::GlobalDecl, usize)],
