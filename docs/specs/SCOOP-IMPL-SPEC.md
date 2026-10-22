@@ -58,6 +58,8 @@ driver 在完整解析后、HIR 前统一检查语言规范 12.1 的 manifest pa
 
 AST 不包含依赖 locator 解析、构建顺序、已推断类型或实体身份猜测。词法与语法恢复收集 Error 级诊断；任何解析失败阻止成功 HIR 输出。面向编辑态的可恢复语法结果与成功编译 AST 分开，公共基础的目标合同见 2.20；保留错误语法不表示该程序可以进入后续编译阶段。
 
+语言9.1.8的条件接口实现使用独立的宿主体内AST节点，保存目标interface type、where、实现成员与准确span。它不声明新的nominal或binder，不伪装为嵌套interface；不支持的位置和块内非法存储／初始化形态产生正常源码诊断。
+
 共享 lexer 按语言规范 2.5 消费仅位于 byte offset 0 的 `#!` 行，将其视为普通 trivia；不创建删除该行的临时源码，也不将其附着为文档片段。LF、CRLF 和行尾 EOF 沿用原有源码位置规则。
 
 语言规范 9.7 的文档片段由同一 lexer 保留，包含原始文本、种类和准确 byte span，不另扫源码。parser 在实际声明语法入口建立附着关系；SourceFile 的文档表以对应 AST 节点的完整精确 span 记录关联，无目标的片段显式保存为未附着。此键只服务本文件 AST 语法关联，不能作为语言实体身份；HIR 将实际 AST 节点关联到其 typed 声明，不按名称、最近距离或 span 包含关系猜测目标。文档保留不改变 token 换行事实、语句边界或普通编译诊断。
@@ -977,6 +979,12 @@ LIR 的 MaybeUninit 操作写入完整类型的独立 local place；零大小结
 共有 CallableSourceEffects 的 implementation 为 Scoop=1、Intrinsic=2、SourceExternScoop=3 或 SourceExternC=4；仅 Intrinsic 带完整 kind payload。ordinary/suspend、GC effect、release callability 与 implementation 的组合必须一致，不能用缺失字段或另一个表补出。
 
 ### 2.11 输出完备性与 typed identity
+
+语言9.1.8的条件接口声明属于原nominal owner，保存原Cone、typed owner、完整目标interface、规范化正向条件及真实成员／slot引用。companion使用原host binder和singleton，条件声明、函数、slot及concrete实现使用相应不同typed identity；不以字符串或未决application代替具体实体。HIR在定义处收集完整关系集合，检查重叠、条件作用域、继承覆盖及全部实现正文。条件成员的签名和正文保留本地条件环境；条件查询不能使用实现正文的局部this事实证明guard。
+
+Export HIR保留完整条件关系、成员适用性、投影绑定、继承及必要support body，不按某个consumer的import或已用实参裁剪接口集合。消费方、再次发布方和linker不能为外来owner追加实现。查询结果只有在相同参数事实下复用；完全具体的同一application保持唯一接口集合。实际编码改变时升级对应格式，IR/meta只承载数据与正常格式／引用检查，不重建语义查询器。
+
+具体化根据完整实参落实条件并填充普通itable／vtable输入；保留定义处选择的重载、default表达式和字段codec，仅替换已绑定投影与slot目标。进入LocalConcreteHir前必须消除待定条件，类型、调用与实现关系完整；后续stage不重放条件推导。宿主布局、构造、GC scan、companion初始化及ABI维持普通规则，不引入类型定义分支、赢家集合、dictionary或运行期条件选择。
 
 target/backend/C toolchain 的 typed identity 保留既有 canonical 编码及实体派生关系，支持集合在实际消费者处判断；仅移动实现和改变进程内表示不提升 wire/schema/runtime ABI，只有实际编码或可消费合同变化才升级相关格式。artifact-only 消费使用已保存的布局与 ABI，不加载 codegen、创建 TargetMachine 或重新分类。具体 target/backend 布局与合同常量可由 codegen 所属的静态数据模块供 artifact-only 消费者共享；该模块不含 LLVM、ABI 分类器或工具执行，公共 identity/LIR 只定义数据类型和规范化编码。
 

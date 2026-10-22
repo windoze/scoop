@@ -1,14 +1,14 @@
 # 序列化与 JSON 库改进调研：M55 现状与 M57 的作用
 
-日期：2026-10-21。状态：调研与设计建议，尚未实施。M55 已实现；[M57](../milestone57/DESIGN.md)仍是设计稿，本文对它的判断均以该设计落地为前提，不将其作为当前可编译语法。
+调研日期：2026-10-21。设计同步：2026-10-23。状态：调研与设计建议。M55 已实现；[M57](../milestone57/DESIGN.md)已按普通类型与 companion 的条件 interface 实现方案进入实施，完成范围以其进度记录为准。本文对未来能力的判断均以相应实现通过验收为前提。
 
 本次重点是 M57 对默认 codec、泛型容器和 DTO 的帮助，同时检查现有 JSON 库的可用性与实现。与 [LLM client 调研](../llm-client/INVESTIGATION.md)衔接，但这些改进服务普通序列化和 JSON 使用，不新增 LLM 专用编译器行为。
 
 ## 1. 主要结论
 
 1. **M55 解决调用处如何取得默认 codec，M57 可以解决泛型类型何时拥有默认 codec。** 两者组合后，现有 Json 泛型入口就能消费按元素能力提供 codec 的容器，无需在 Json 中逐个识别商业 API 或容器名称。
-2. **M57 的收益需要标准库和普通用户类型主动采用。** 类型族选择本身不会改写现有 HashMap、Option、ArrayList 或 DTO 的 companion；当前显式工厂也不能直接删除。
-3. **应保留编码与解码的独立性。** 对有两种方向的容器，推荐编码、解码、两者都有、无默认 codec 四个分支。M57 的两分支示例适合作为最初语言闭环，但不宜作为整个序列化库的最终能力门槛。
+2. **M57 的收益需要标准库和普通用户类型主动采用。** 新增语言能力本身不会改写现有 HashMap、Option、ArrayList 或 DTO 的 companion；当前显式工厂也不能直接删除。
+3. **编码与解码由两个条件实现块独立提供。** 两块可以同时生效，覆盖编码、解码、两者都有、无默认 codec 四种能力组合；无需复制容器定义或增加交叉特化分支。
 4. **自动 codec 不等于 JSON 格式适配。** Map 的键值对序列、enum 的外层单 key、Option 的 null 规则都不会因 M57 自动变成某个 API 所需的对象、discriminator 或三态字段。
 5. **JSON 的直接缺口仍是公开 DOM、便利入口、对象字段查找和 UTF-8／流式衔接。** 这些不依赖 M57，可以先做。M57 主要改善静态组合与易用性，不会自动加快 parser 或降低大文档内存占用。
 
@@ -27,7 +27,7 @@
 - `Serialize` 的 rename、required、emitNull、ignore，以及缺失字段、显式 null 和默认值的既有区分。
 - Option、数组、列表、Map、Set、Result 等显式 codec 组合。
 
-因此应扩展现有协议和 JsonValue，不另建一个反射序列化系统或第二棵 `Any` JSON 树。[现有组合 fixture](../../tests/fixtures/m46-values/composition/program/src/main.scoop)已经展示“读取两个 DTO＋收集未知字段＋重新编码”，缺的是更直接的公共操作。
+因此应扩展现有协议和 JsonValue，不另建一个反射序列化系统或第二棵 `Any` JSON 树。[现有组合 Cone 测试](../../sysroot/src/scoop.json/tests/consumer/values-composition/main.scoop)已经展示“读取两个 DTO＋收集未知字段＋重新编码”，缺的是更直接的公共操作。
 
 ### 2.2 M55 已实现，尚未用到所有入口
 
@@ -72,14 +72,14 @@ val codec = HashMap<String, HashMap<Int, String>>.encoder(
 val text = Json.encodeToString(value, codec)
 ```
 
-若 HashMap 按 M57 实现条件 companion，便可写：
+若 HashMap 按 M57 为已有 companion 声明条件接口实现，便可写：
 
 ```scoop
 val text = Json.encodeToString(value)
 val copy = Json.decodeFromString<HashMap<String, HashMap<Int, String>>>(text)
 ```
 
-内层 HashMap 先根据 Int／String 的 companion 得到自己的 codec 接口，外层再使用这个接口。最后 Json 只检查整个参数类型的 companion。类型关系的选择在编译期完成，实际 codec 仍是普通 singleton／对象和普通调用。
+内层 HashMap 先根据 Int／String 的 companion 得到自己的 codec 接口，外层再使用这个接口。最后 Json 只检查整个参数类型的 companion。条件关系在编译期证明，实际 codec 仍是普通 singleton／对象和普通调用。
 
 这比仅给 Json 增加 Map 重载更有价值：HTTP、文件格式、其他序列化消费者也能复用相同的 `ValueEncoder<T>`／`ValueDecoder<T>`，无需分别递归发现容器类型。
 
@@ -87,18 +87,18 @@ val copy = Json.decodeFromString<HashMap<String, HashMap<Int, String>>>(text)
 
 令 E 表示“本容器编码所需的全部元素 companion 实现对应 ValueEncoder”，D 表示解码所需的对应事实；HashMap 还始终保留原有 Hash／Equals 基础条件。
 
-| 额外条件 | companion 的默认能力 |
+| 已确定的能力组合 | companion 的默认能力 |
 | --- | --- |
-| E 且 D | 编码与解码 |
-| E | 仅编码 |
-| D | 仅解码 |
-| 无 | 无默认 codec，保留原容器和显式工厂 |
+| E、D 都成立 | 编码与解码 |
+| E 成立、D 不成立 | 仅编码 |
+| D 成立、E 不成立 | 仅解码 |
+| E、D 都不成立 | 无默认 codec，保留原容器和显式工厂 |
 
-这是 M57 设计已允许的四分支规则，不需要新的条件语法。E＋D 分支使两个方向同时成立时有唯一赢家。兜底使用普通基础分支，覆盖没有 public companion 的元素；不能仅用 companion 的负向条件替代。
+这是两个条件实现块的四种结果组合，不是四份类型定义。E、D 同时成立时两块同时提供接口，没有唯一赢家或兜底分支。元素没有 public companion 时不满足对应条件，容器及其已有 companion 仍存在；未知条件则保持未知。
 
 方向独立有实际用途：请求 DTO 可能只能编码，响应 DTO 可能只能解码。不能因为响应没有 encoder 而拒绝 `List<Response>` 的解码，也不能要求只发送请求的应用补一个无用 decoder。
 
-采用四分支后，以下未来泛型转发只需编码条件：
+采用独立实现块后，以下未来泛型转发只需编码条件：
 
 ```scoop
 fun <K, V> encodeMapDefault(value: HashMap<K, V>): String
@@ -108,57 +108,41 @@ fun <K, V> encodeMapDefault(value: HashMap<K, V>): String
     Json.encodeToString(value)
 ```
 
-这是 M57 落地并完成 HashMap 四分支适配后的例子。若只采用设计稿最初的两分支示例，它还必须证明两个 decoder 条件；不应在文档中混用这两种能力范围。
+这是 M57 落地并完成 HashMap 两个条件接口适配后的例子。编码块的 guard 不包含 decoder 条件，不能因解码方向缺失而拒绝该调用。
 
 ### 3.3 泛型 DTO 和派生 codec 可以减少依赖传递
 
-对 `Envelope<T>`、`Page<T>`、`Result<T, E>`，M57 允许按字段所需能力提供默认 codec，普通存储用途仍走没有默认 codec 的定义。调用者也可继续传入显式元素策略，不需要把策略写进数据对象。
+对 `Envelope<T>`、`Page<T>`、`Result<T, E>`，M57 允许按字段所需能力提供默认 codec，普通存储用途始终使用同一份数据定义。调用者也可继续传入显式元素策略，不需要把策略写进数据对象。
 
 但这里有一项必须同步实现的连接：当前[字段 codec 选择器](../../compiler/hir-lower/src/class/inheritance/coding/codecs.rs)优先选择 primary val 依赖、递归 this、可命名 nominal 的 companion，再组合 core 容器和 tuple。它的 `coding_companion` 目前不把裸类型参数 T 的已知 `T.Companion` bound 当作默认来源。
 
-因此，在 M57 分支中声明 `T.Companion : ValueEncoder<T>` 后，**手写方法可以使用它；自动派生也想使用它，就必须补上对应的字段选择合同与 typed 投影引用**。否则会出现“手写 encode 合法，空的 ValueEncoder 实现却仍报缺少字段 codec”的断层。
+因此，在 M57 实现块中声明 `T.Companion : ValueEncoder<T>` 后，**手写方法可以使用它；自动派生也想使用它，就必须补上对应的字段选择合同与 typed 投影引用**。否则会出现“手写 encode 合法，空的 ValueEncoder 实现却仍报缺少字段 codec”的断层。
 
 建议在语言规范 11.13.4 明确：字段为类型参数时，定义环境已有相应 companion bound，才可选择这个投影；未知 T 仍不能猜测。显式完整字段 codec 继续优先，原有合法 private／internal companion 访问不改成 public-only。实例化只替换已选投影，不重新搜索 codec。
 
-这个连接属于既有派生规则的实际扩展，不是要求另建自动注册表，也不应成为 HashMap 手写 helper 首个闭环的前置条件。[M57 8.2、8.3、12](../milestone57/DESIGN.md)已有相关方向，实施时需要落实到这个具体入口。
+这个连接属于既有派生规则的实际扩展，不是要求另建自动注册表，也不应成为 HashMap 手写 helper 首个闭环的前置条件。[M57 第 8.2、12 节](../milestone57/DESIGN.md)已将它列入整体交付，实施时需要落实到这个具体入口。
 
-### 3.4 不应为默认序列化随意改变容器的数据形状
+### 3.4 单一数据定义与 companion
 
-M57 是完整定义替换，各分支不继承其他分支的字段、构造器、方法、注解或 companion。标准库只增加默认 codec 时，应主动保持容器的普通 API、状态含义和 wire 形状一致。避免某个元素后来增加 encoder，整个容器就换成不同的存储结构或丢掉原有方法。
+M57 已改为在原 companion 的 body 中分别声明 `override interface ValueEncoder<Container<T>> where ...` 和对应解码块。数据类型、字段、构造器、普通 API、Serialize 配置和 companion 初始化始终只有原来一份，新增 codec 条件不会选择另一种数据表示。
 
-可以采用两种组织方式：
+两个方向可以调用普通共享 helper，不要求复制容器定义、抽出 HashMapImpl 或引入专门的条件 codec 基类。已有普通 codec class 的继承能力保持，但不是获取条件接口的必经路径；本期不再采用整份类型特化。
 
-1. **直接特化容器定义**：按 M57 的 HashMap 例子实现，复用普通存储／算法 helper，所有分支保留显式 codec 工厂。这是设计稿已指定的首个闭环。
-2. **固定数据定义，特化普通 codec 基类**：让直接声明的 public companion 继承一个普通、开放的条件 codec 类型族。各分支提供相同的可调用构造契约，再按方向实现目标容器的 codec。
-
-第二种方式的关系是：
-
-```text
-固定的 Container<T> 数据定义
-  → 直接声明的 public companion
-  → 普通 ContainerDefaultCodec<T> 的已选分支
-  → ValueEncoder<Container<T>> / ValueDecoder<Container<T>>
-```
-
-它使用现行 object 继承 class 的规则，以及 M57 8.1 的未决基类共同契约。它与“子类自动继承数据基类的 companion”不同：这里 companion 自己就是子类。
-
-这条组合路径值得用一个实际容器验证，可以减少复制数据字段、构造器和 Serialize 配置的工作。但它不是当前已验证能力：所有基类分支须允许继承，构造、可见性和效果必须兼容；public companion 不能偷偷暴露不可见的基类。若增加公共 codec 类型，应使其成为有明确用途的普通 API，不仅为隐藏实现技巧暴露一个公共 Impl。
-
-选择条件只能依赖元素 T 的 codec 能力，不能反过来以 `Container<T>.Companion` 已实现 codec 为条件证明这个 companion 自己，否则形成 M57 明确拒绝的选择环。
+实现条件应依赖元素已有的 codec 能力，不能反过来以 `Container<T>.Companion` 已实现 codec 为依据证明该实现块自己的 guard，否则形成 M57 第 9 节拒绝的关系查询循环。
 
 ### 3.5 哪些类型能受益，哪些仍需单独处理
 
 | 类型 | M57 与库适配后的前景 | 必须保留的边界 |
 | --- | --- | --- |
 | HashMap／LinkedHashMap、普通 Set／Deque | 普通 class，可按方向提供默认 codec；嵌套后继续组合 | 原 Hash／Equals bound、显式工厂、迭代顺序和重复 key 规则 |
-| ArrayList | 普通 class，可采用条件定义或条件 codec 基类 | 不让 codec 条件限制普通元素存储 |
+| ArrayList | 普通 class，可在已有 companion 内提供条件接口 | 不让 codec 条件限制普通元素存储 |
 | Option、Result | 当前是普通 enum，可按方向适配 | Option 的 Some／None、null 和字段省略语义；Result 的两支 wire 名保持 |
-| 普通泛型 DTO | 条件定义或独立 codec 类型族可减少显式依赖 | 派生所需的字段来源在定义处成立；访问域、默认值顺序保持 |
-| Array／MutableArray | 自身有 `core_array`／`core_mutable_array` intrinsic 登记，不能直接宣称适用条件类型分支 | M57 排除了 intrinsic 类型登记的偏特化；可以优先验证普通条件 codec 基类与其固定 companion 的组合，或暂留显式工厂 |
-| List／Map 等接口静态类型 | 不因运行期对象是某个可编码容器而自动取得默认 codec | interface 不提供条件定义分支；已有 listEncoder/listDecoder 等仍有用，默认解码结果与依赖归属需明确 |
+| 普通泛型 DTO | companion 的条件接口及既有 codec 合成可减少显式依赖 | 派生所需的字段来源在定义处成立；访问域、默认值顺序保持 |
+| Array／MutableArray | 已有普通 companion 可按条件接口规则适配，无需改变 intrinsic 表示 | 逐类型完成库适配和验收后才记为支持；显式工厂继续可用 |
+| List／Map 等接口静态类型 | 不因运行期对象是某个可编码容器而自动取得默认 codec | 数据实例的接口关系不提供 companion；即使接口声明自己的 companion，也须由其所属 Cone 明确默认 codec 与解码结果 |
 | TreeMap／TreeSet／PriorityQueue | 可简化可确定的编码；解码仍可能需要显式配置 | Comparator 是运行期策略，元素有 decoder 不能替应用选择比较器 |
 | tuple、Unit | 继续使用现有组合 helper 和 UnitEncoder／UnitDecoder | tuple 没有 companion，M57 不新增 tuple companion 或变长类型参数机制 |
-| Any、外部类型、无 public companion 的类型 | 显式 codec、包装或用户自己定义的类型仍可编码 | 不增加动态 registry，不允许消费 Cone 给外部类型追加分支 |
+| Any、外部类型、无 public companion 的类型 | 显式 codec、包装或用户自己定义的类型仍可编码 | 不增加动态 registry，不允许消费 Cone 给外部类型或 companion 追加实现 |
 
 “嵌套容器自动工作”必须逐层成立。例如仅完成 HashMap 后，`HashMap<String, Array<User>>` 仍可能在 Array 的默认 companion 能力处中断；不能把嵌套 HashMap 的成功扩大成所有容器组合均已支持。
 
@@ -170,7 +154,7 @@ M57 是完整定义替换，各分支不继承其他分支的字段、构造器�
 
 JSON API 客户端经常需要 `{"name": value}`。建议在 JSON 所属层提供显式的 String-key object codec 或 JsonValue 对象构造入口；默认 generic Map 继续保存任意 key 的类型语义。
 
-M57 不支持 `K == String` 条件或类型参数模式拆解，不能凭直觉写一个 String 特化就宣布问题解决。也不应将任意 key.toString() 作为对象 key：可能碰撞，且不可逆。
+M57 不提供整份类型特化或接口实现特化，也不支持 `K == String` 条件；不能再增加一个 String-key 的重叠实现来覆盖默认格式。也不应将任意 key.toString() 作为对象 key：可能碰撞，且不可逆。
 
 ### 4.2 多态消息、字段策略和 JSON Schema
 
@@ -178,7 +162,7 @@ M57 不支持 `K == String` 条件或类型参数模式拆解，不能凭直觉�
 
 同样，M57 不改变 missing／null／value 三态，不使 Byte 数组自动变成 base64，也不从 custom codec 推出完整 JSON Schema。Schema 可以先用 JsonValue 表达；若后续需要自动生成，须单独定义 wire 策略与覆盖方式。
 
-M57 对已选类型形状的描述有帮助，但不替代 M47 的生成器／默认值迁移。它不能枚举任意字段来生成正文，也不能把构造 default 的源码复制到另一作用域后保证绑定不变。
+M57 只衔接已有 codec 合成与条件环境，不替代 M47 的生成器／默认值迁移。它不新增枚举任意字段生成正文的机制，也不能把构造 default 的源码复制到另一作用域后保证绑定不变。
 
 ### 4.3 流式与性能
 
@@ -247,12 +231,12 @@ M57 设计已列明 HashMap、本地／跨 Cone、嵌套查询、方向独立和
 
 1. **四种能力组合**：encode-only DTO、decode-only DTO、两方向、无 companion；不仅验证 Int／String 两方向齐全的简单情况。
 2. **嵌套的真实边界**：嵌套 HashMap、Option／ArrayList 与普通 DTO；单独记录 Array／MutableArray 的支持路径，不把它们混入已完成声明。
-3. **条件 codec 基类试点**：固定宿主 companion 继承普通条件族，检查共同构造、接口闭包、初始化及跨 Cone；验证能否减少数据定义复制。
+3. **固定 companion 的状态**：接口条件与普通字段、构造和初始化独立；同一完整宿主跨 Cone 使用同一 singleton，关系查询不执行初始化。
 4. **有 companion bound 的泛型字段派生**：手写调用与自动派生一致；显式完整字段 codec 仍胜过默认来源。
 5. **运行期策略保持显式**：Comparator、自定义时间格式、field codec 覆盖、无默认 companion 的外部类型仍可使用旧路径。
 6. **wire 行为保持**：Map entry 序列、Option 的 missing／null/default、Result／enum 形状、字段顺序和未知 JSON 回传均有真实结果断言。
 
-四分支增加的是两种独立方向的组合，不建议立即把 inspector、schema、hash 等全部能力一起做成更大的分支矩阵。每项扩展应有当前消费者；共享 helper 只复用实际相同的算法。
+两个实现块即可覆盖两种方向的组合。其他接口也可以独立增加，但不因语法已经可用就立即扩展 inspector、schema、hash 等全部能力；每项扩展应有当前消费者，共享 helper 只复用实际相同的算法。
 
 ## 7. 推荐实施顺序
 
@@ -261,8 +245,8 @@ M57 设计已列明 HashMap、本地／跨 Cone、嵌套查询、方向独立和
 | 1 | JsonValue 公开 DOM、parse／stringify、值树默认 codec 重载、可运行 quickstart | 当前语言即可；先修订 JSON 的公共合同 |
 | 2 | String-key object codec、HTTP JSON 默认重载、有界 UTF-8 入口 | 当前 M55；分别修改所属库规范 |
 | 3 | 复用有序字段索引，消除 JsonValue 的普通输出重建 | 独立性能工作，以实际对象尺寸和调用结果验证 |
-| 4 | 随 M57 完成 HashMap 默认 codec、四分支和嵌套闭环 | M57 实现及标准库适配 |
-| 5 | 条件 codec 基类、其他容器及泛型 DTO 派生衔接 | M57 组合验收；逐类型声明已支持范围 |
+| 4 | 随 M57 完成 HashMap 两个条件 codec 接口、四种能力组合和嵌套闭环 | M57 实现及标准库适配 |
+| 5 | 其他容器适配及泛型 DTO 条件 codec 派生衔接 | M57 组合验收；逐类型声明已支持范围 |
 | 按需求 | 增量 parser、流式字节读写、额外格式策略／schema 生成 | 独立的实际消费者与合同，不作为前几步的前置 |
 
 公共行为变更先落到语言规范 11.13、相关 std／HTTP 规范；M57 的类型语义按其第 12 节同步三份权威规范。JSON 细节可以随后迁到独立规范以便维护，但本次调研不改写当前正式语义。
@@ -273,11 +257,11 @@ M57 设计已列明 HashMap、本地／跨 Cone、嵌套查询、方向独立和
 
 代表性现有证据：
 
-- [M55 companion JSON 消费者](../../tests/fixtures/m55-companion/json/program/src/main.scoop)：两个方向独立、泛型转发、命名 companion、显式替换。
-- [M46 JsonValue](../../tests/fixtures/m46-values/values/program/src/main.scoop)及[组合消费者](../../tests/fixtures/m46-values/composition/program/src/main.scoop)：保存、复读、未知字段、字段冲突。
-- [容器组合](../../tests/fixtures/m29-serialization/containers/program/src/main.scoop)：显式容器策略、路径、完整容器检查。
+- [M55 companion JSON 消费者](../../tests/fixtures/language/companion/json/program/src/main.scoop)：两个方向独立、泛型转发、命名 companion、显式替换。
+- [M46 JsonValue](../../sysroot/src/scoop.json/tests/values/values/main.scoop)及[组合消费者](../../sysroot/src/scoop.json/tests/consumer/values-composition/main.scoop)：保存、复读、未知字段、字段冲突。
+- [容器组合](../../sysroot/src/scoop.json/tests/consumer/serialization-containers/main.scoop)：显式容器策略、路径、完整容器检查。
 - [M46 字段与默认值语义](../milestone46/SERIALIZE.md)：编码省略与解码 presence 的既有规则。
-- [M57 类型与编解码设计](../milestone57/DESIGN.md)：本报告所有未来能力推论的前提。
+- [M57 条件 interface 实现设计](../milestone57/DESIGN.md)：本报告所有未来能力推论的前提。
 
 另在本机 `aarch64-apple-darwin` 用现有 `scoop build`／`scoopc` 和已准备的 sysroot，构建并运行了一个仓库外的独立消费者。四组断言全部通过：
 
@@ -286,6 +270,6 @@ M57 设计已列明 HashMap、本地／跨 Cone、嵌套查询、方向独立和
 - 嵌套 HashMap 的显式 codec 往返，确认 String key 仍使用 entry 数组 wire 形状。
 - JsonValue 保留超出 ULong 的数字，按已有容器 API 区分缺失 key 与显式 null。
 
-实验源码和构建日志保留在仓库外。这是当前能力的抽样运行，不是新 API 的正式 fixture 或性能基准。M57 尚未实现，其条件类型和条件 codec 基类仅作设计推论，未声称通过编译或运行。
+实验源码和构建日志保留在仓库外。这是当前能力的抽样运行，不是新 API 的正式 fixture 或性能基准。M57 尚未实现，其普通类型及 companion 的条件接口仅作设计推论，未声称通过编译或运行。
 
 本轮未修改编译器、core、std、JSON 或 HTTP 的实现，也未重跑这些库的全量或三平台验收。
