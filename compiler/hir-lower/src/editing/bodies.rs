@@ -7,6 +7,7 @@ mod observations;
 mod properties;
 mod record;
 mod selectors;
+pub(in crate::editing) use observations::ObservedContext;
 pub(crate) use observations::{BodyObservation, ObservedBody};
 
 impl DeclarationAnalysis {
@@ -77,10 +78,16 @@ impl DeclarationAnalysis {
         context: hir::SourceContextId,
         ty: hir::TypeId,
     ) -> Result<V<hir::SemanticTypeDescription>, ast::Diagnostic> {
-        let Some(V::Known(body)) = self.body_facts.get(&function) else {
-            return Ok(V::Unavailable(U::BodyFailure));
-        };
-        let Some(context_data) = body.contexts.get(&context).cloned() else {
+        let context_data = self
+            .body_facts
+            .get(&function)
+            .and_then(|body| {
+                let V::Known(body) = body else { return None };
+                body.contexts.get(&context)
+            })
+            .or_else(|| self.recovered_facts.get(&function)?.contexts.get(&context))
+            .cloned();
+        let Some(context_data) = context_data else {
             return Ok(V::Unavailable(U::BodyFailure));
         };
         self.lowerer

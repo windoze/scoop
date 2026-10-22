@@ -29,9 +29,9 @@ pub(crate) struct BodyObservation {
 }
 
 #[derive(Clone)]
-pub(super) struct ObservedContext {
-    pub(super) owner: Option<crate::Owner>,
-    pub(super) parameters: Vec<hir::TypeParamDecl>,
+pub(in crate::editing) struct ObservedContext {
+    pub(in crate::editing) owner: Option<crate::Owner>,
+    pub(in crate::editing) parameters: Vec<hir::TypeParamDecl>,
 }
 
 pub(crate) struct ObservedBody {

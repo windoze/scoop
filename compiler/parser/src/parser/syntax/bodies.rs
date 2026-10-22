@@ -7,6 +7,7 @@ use super::{Event, Parser};
 
 mod callables;
 mod calls;
+mod local_functions;
 mod operands;
 
 #[derive(Debug)]
@@ -48,6 +49,7 @@ pub(super) struct BodyRecorder {
     )>,
     roots: BTreeMap<usize, ast::RecoveredBodyRoot>,
     functions: BTreeMap<usize, BodyParts>,
+    local_functions: Vec<local_functions::LocalFunctionOwner>,
 }
 
 #[derive(Default)]
@@ -230,15 +232,20 @@ impl BodyRecorder {
             .map(|(_, id, _)| *id)
     }
 
-    pub(super) fn finish(self) -> Vec<DeclarationData<ast::RecoveredFunctionBody>> {
+    pub(super) fn finish(
+        self,
+        declarations: &[scoop_syntax::DeclarationSyntax],
+        headers: &[DeclarationData<ast::FunctionHeader>],
+    ) -> Vec<DeclarationData<ast::RecoveredFunctionBody>> {
         assert!(self.blocks.is_empty(), "all body grammar events are closed");
-        self.functions
+        let mut bodies = self
+            .functions
             .into_iter()
             .filter_map(|(declaration, value)| {
                 let root = self.roots.get(&declaration).copied()?;
-                Some(DeclarationData {
-                    declaration: DeclarationIndex(declaration),
-                    value: ast::RecoveredFunctionBody {
+                Some((
+                    declaration,
+                    ast::RecoveredFunctionBody {
                         root,
                         blocks: value.blocks,
                         selectors: value.selectors,
@@ -251,8 +258,17 @@ impl BodyRecorder {
                         whens: value.whens,
                         tries: value.tries,
                         callable_literals: value.callable_literals,
+                        local_functions: Vec::new(),
                     },
-                })
+                ))
+            })
+            .collect::<BTreeMap<_, _>>();
+        local_functions::attach(&mut bodies, self.local_functions, declarations, headers);
+        bodies
+            .into_iter()
+            .map(|(declaration, value)| DeclarationData {
+                declaration: DeclarationIndex(declaration),
+                value,
             })
             .collect()
     }

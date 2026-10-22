@@ -6,6 +6,7 @@ mod conditionals;
 mod do_while;
 mod exceptions;
 mod iteration;
+mod local_functions;
 mod loops;
 mod operands;
 mod when;
@@ -18,7 +19,7 @@ impl Lowerer {
         is_cancelled: &impl Fn() -> bool,
     ) -> Result<RecoveredFacts, EditingCancelled> {
         let mut facts = unavailable_facts(body, U::IncompleteSyntax);
-        if body.selectors.is_empty() && body.calls.is_empty() {
+        if facts.receivers.is_empty() && facts.calls.is_empty() {
             return Ok(facts);
         }
         self.current_file = self
@@ -35,13 +36,9 @@ impl Lowerer {
                 is_cancelled,
                 expression_body_return: matches!(body.root, ast::RecoveredBodyRoot::Expression(_)),
                 capture_definitions: Default::default(),
+                positions: FactStart::default(),
             };
-            match body.root {
-                ast::RecoveredBodyRoot::Block(id) => query.block(lowerer, id, true),
-                ast::RecoveredBodyRoot::Expression(start) => {
-                    query.expression_with_expected(lowerer, None, start, true, known_result)
-                }
-            }
+            query.function_body(lowerer, body, true, known_result)
         });
         self.functions[function].params = previous_params;
         result.value?;
@@ -55,6 +52,7 @@ struct PrefixQuery<'a, F> {
     is_cancelled: &'a F,
     expression_body_return: bool,
     capture_definitions: std::collections::HashMap<hir::BindingId, hir::EditingLocalReference>,
+    positions: FactStart,
 }
 
 impl<F: Fn() -> bool> PrefixQuery<'_, F> {
@@ -143,6 +141,7 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
     ) -> Result<(), EditingCancelled> {
         check_cancelled(self.is_cancelled)?;
         for (index, selector) in self.body.selectors.iter().enumerate() {
+            let index = self.positions.receivers + index;
             let ast::RecoveredReceiver::Complete(receiver) = &selector.receiver else {
                 continue;
             };
@@ -154,6 +153,7 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
                 lowerer.check_receiver(
                     receiver,
                     &mut self.facts.receivers[index],
+                    &mut self.facts.contexts,
                     &self.capture_definitions,
                     self.is_cancelled,
                 )?;
@@ -167,7 +167,15 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
             if call.block != block || call.span.start != start {
                 continue;
             }
-            self.call(lowerer, index, call, available)?;
+            self.call(lowerer, self.positions.calls + index, call, available)?;
+        }
+        if let Some(function) = self
+            .body
+            .local_functions
+            .iter()
+            .find(|function| function.block == block && function.span.start == start)
+        {
+            return self.local_function(lowerer, function, available);
         }
         if let Some(operand) = self
             .body

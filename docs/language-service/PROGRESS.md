@@ -178,6 +178,8 @@ lambda／匿名函数的初始化式与返回位置恢复已接入：原 grammar
 
 尾随 lambda 的恢复上下文已接入：括号参数表在 AST／编辑查询中显式可省略，原尾随 production 结束后统一记录损坏调用，完整调用不发布重复恢复项。`call { ... }`、具名前序实参、显式泛型、safe receiver、构造器与函数结果的分组调用复用已有候选映射；嵌套参数、捕获定义、标签和 suspend 保持原作用域，签名帮助识别实际尾随实参。格式化、全 workspace Clippy、Ruff、213 项编辑态与 44 项普通 callable／推断覆盖、703 项 parser／宿主／LSP 测试通过；独立进程和完整 stdio fixture 通过，后者耗时约 69.2 秒。原分组、换行、when 条件和单个尾随 lambda 的语法回归通过；其他恢复／引用区域与重命名继续实施。
 
+局部具名函数的恢复上下文已接入：原 grammar 保留完整局部头部、实际声明块与独立正文，嵌套局部函数逐层保留 owner，不复制完整局部声明的恢复项。普通 lowering 与恢复共用签名、泛型约束、默认参数接口、参数绑定和内部作用域；自递归调用读取原签名，未定结果不作为 Unit 使用。接收者事实同时保留 TypeId 与 SourceContextId，完整及恢复正文复用同一类型上下文读取，局部泛型、context 名称与捕获的 hover／导航在退出作用域后仍正确。格式化、全 workspace Clippy、Ruff、224 项编辑态与 60 项普通局部函数／context／默认值／实体身份测试、707 项 parser／宿主／LSP 测试通过；独立进程和完整 stdio fixture 通过，后者耗时约 72.1 秒。查询覆盖嵌套 lambda、标签、suspend、未知头部、取消与编辑／关闭更新；验证后清理约 2.1 GiB 增量缓存。文件头失败隔离、其他引用区域和重命名继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

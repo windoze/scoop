@@ -20,6 +20,8 @@ mod exceptions;
 mod imported_signatures;
 mod imports;
 mod iteration;
+mod local_function_contexts;
+mod local_functions;
 mod loops;
 mod member_implementations;
 mod members;

@@ -18,6 +18,7 @@ from exception_recovery import check as check_exception_recovery
 from for_recovery import check as check_for_recovery
 from import_references import check as check_import_references
 from incomplete_signatures import check as check_incomplete_signatures
+from local_function_recovery import check as check_local_function_recovery
 from member_implementations import check as check_member_implementations
 from property_references import check as check_property_references
 from qualified_signatures import check as check_qualified_signatures
@@ -352,6 +353,7 @@ def main():
         check_exception_recovery(peer, root)
         check_callable_literals(peer, root)
         check_callable_arguments(peer, root)
+        check_local_function_recovery(peer, root)
         check_recovered_interfaces(peer, root)
         check_recovered_structs(peer, root)
         peer.finish()

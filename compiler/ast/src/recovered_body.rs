@@ -44,7 +44,7 @@ pub struct RecoveredSelector {
     pub selector: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RecoveredBodyRoot {
     Block(BodyBlockId),
     Expression(u32),
@@ -147,4 +147,23 @@ pub struct RecoveredFunctionBody {
     pub whens: Vec<crate::RecoveredWhen>,
     pub tries: Vec<crate::RecoveredTry>,
     pub callable_literals: Vec<crate::RecoveredCallableLiteral>,
+    pub local_functions: Vec<RecoveredLocalFunction>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecoveredLocalFunction {
+    pub block: Option<BodyBlockId>,
+    pub header: crate::FunctionHeader,
+    pub body: Box<RecoveredFunctionBody>,
+    pub span: Span,
+}
+
+impl RecoveredLocalFunction {
+    pub fn header(&self) -> crate::FunctionHeaderRef<'_> {
+        crate::FunctionHeaderRef {
+            signature: &self.header.signature,
+            body_form: self.header.body_form,
+            span: self.span,
+        }
+    }
 }

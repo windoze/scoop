@@ -166,6 +166,7 @@ impl SyntaxEvents {
                     .flatten()
                     .next()
                     .expect("function grammar records a header within its declaration");
+                bodies.local_function_header(declaration, &declarations);
                 headers.push(DeclarationData {
                     declaration,
                     value: *header,
@@ -250,7 +251,7 @@ impl SyntaxEvents {
             })
             .collect();
         let bodies = if recovering {
-            bodies.finish()
+            bodies.finish(&declarations, &headers)
         } else {
             Vec::new()
         };

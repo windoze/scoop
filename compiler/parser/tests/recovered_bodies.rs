@@ -22,6 +22,9 @@ mod exceptions;
 #[path = "recovered_bodies/callables.rs"]
 mod callables;
 
+#[path = "recovered_bodies/local_functions.rs"]
+mod local_functions;
+
 fn body<'a>(parsed: &'a ParsedFile, name: &str) -> &'a ast::RecoveredFunctionBody {
     parsed
         .declaration_data()

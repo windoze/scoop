@@ -18,7 +18,7 @@ pub(super) fn known_type(
         );
     };
     let id = function(analysis, "editing");
-    let V::Known(description) = analysis.describe_type(id, ty).unwrap() else {
+    let V::Known(description) = analysis.describe_body_type(id, ty.context, ty.ty).unwrap() else {
         panic!("receiver type is describable in the function context");
     };
     description.name

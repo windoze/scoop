@@ -7,6 +7,15 @@ mod prefix;
 pub(crate) struct RecoveredFacts {
     pub(super) receivers: Vec<hir::EditingReceiver>,
     pub(super) calls: Vec<hir::EditingIncompleteCall>,
+    pub(super) contexts:
+        std::collections::HashMap<hir::SourceContextId, super::bodies::ObservedContext>,
+    body_starts: std::collections::HashMap<ast::RecoveredBodyRoot, FactStart>,
+}
+
+#[derive(Clone, Copy, Default)]
+struct FactStart {
+    receivers: usize,
+    calls: usize,
 }
 
 #[derive(Clone)]
@@ -69,29 +78,41 @@ pub(super) fn check_cancelled(is_cancelled: &impl Fn() -> bool) -> Result<(), Ed
 }
 
 fn unavailable_facts(body: &ast::RecoveredFunctionBody, reason: U) -> RecoveredFacts {
-    let receivers = body
-        .selectors
-        .iter()
-        .map(|selector| hir::EditingReceiver {
-            span: match &selector.receiver {
-                ast::RecoveredReceiver::Complete(receiver) => receiver.span(),
-                ast::RecoveredReceiver::Unavailable(span) => *span,
+    let mut facts = RecoveredFacts::default();
+    facts.add_body(body, reason);
+    facts
+}
+
+impl RecoveredFacts {
+    fn add_body(&mut self, body: &ast::RecoveredFunctionBody, reason: U) {
+        self.body_starts.insert(
+            body.root,
+            FactStart {
+                receivers: self.receivers.len(),
+                calls: self.calls.len(),
             },
-            dot: selector.dot,
-            selector: selector.selector,
-            safe_navigation: selector.navigation == ast::Navigation::Safe,
-            value_type: V::Unavailable(reason),
-            local: None,
-            members: V::Unavailable(reason),
-        })
-        .collect();
-    RecoveredFacts {
-        receivers,
-        calls: body
-            .calls
-            .iter()
-            .map(|call| super::candidates::unavailable_call(call, reason))
-            .collect(),
+        );
+        self.receivers
+            .extend(body.selectors.iter().map(|selector| hir::EditingReceiver {
+                span: match &selector.receiver {
+                    ast::RecoveredReceiver::Complete(receiver) => receiver.span(),
+                    ast::RecoveredReceiver::Unavailable(span) => *span,
+                },
+                dot: selector.dot,
+                selector: selector.selector,
+                safe_navigation: selector.navigation == ast::Navigation::Safe,
+                value_type: V::Unavailable(reason),
+                local: None,
+                members: V::Unavailable(reason),
+            }));
+        self.calls.extend(
+            body.calls
+                .iter()
+                .map(|call| super::candidates::unavailable_call(call, reason)),
+        );
+        for function in &body.local_functions {
+            self.add_body(&function.body, reason);
+        }
     }
 }
 
@@ -142,6 +163,10 @@ impl Lowerer {
         &mut self,
         expression: &ast::Expr,
         facts: &mut hir::EditingReceiver,
+        contexts: &mut std::collections::HashMap<
+            hir::SourceContextId,
+            super::bodies::ObservedContext,
+        >,
         captures: &std::collections::HashMap<hir::BindingId, hir::EditingLocalReference>,
         is_cancelled: &impl Fn() -> bool,
     ) -> Result<(), EditingCancelled> {
@@ -154,7 +179,19 @@ impl Lowerer {
         let value = self.lower_expr(expression, &mut Vec::new(), None);
         let observation = self.editing_receiver.take().expect("active observation");
         if let Some(value) = value.filter(|_| self.diagnostics.len() == before) {
-            facts.value_type = V::Known(value.ty);
+            let context = self
+                .current_source_context
+                .expect("receiver query has a body source context");
+            contexts
+                .entry(context)
+                .or_insert_with(|| super::bodies::ObservedContext {
+                    owner: self.current_owner,
+                    parameters: self.type_params_in_scope.clone(),
+                });
+            facts.value_type = V::Known(hir::EditingReceiverType {
+                ty: value.ty,
+                context,
+            });
             facts.local = match observation.local {
                 Some(ObservedReceiverLocal::Local(reference)) => Some(reference),
                 Some(ObservedReceiverLocal::Capture(binding)) => captures.get(&binding).cloned(),

@@ -122,7 +122,7 @@ fn structural_types_have_no_declaration_and_failed_applications_stay_unavailable
     let V::Known(ty) = receivers[0].value_type else {
         panic!("known receiver type")
     };
-    assert_origin(&mut analysis, ty, text, "class Item {}");
+    assert_origin(&mut analysis, ty.ty, text, "class Item {}");
     assert!(matches!(
         analysis.source_type_application(&bad.source, bad.span, || true),
         Err(EditingCancelled)

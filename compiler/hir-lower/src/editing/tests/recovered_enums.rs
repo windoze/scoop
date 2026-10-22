@@ -32,7 +32,10 @@ fn recovered_generic_enum_variants_defaults_and_conformance_share_the_original_t
     let V::Known(ty) = receiver.value_type else {
         panic!("known enum receiver")
     };
-    let V::Known(description) = analysis.describe_type(editing, ty).unwrap() else {
+    let V::Known(description) = analysis
+        .describe_body_type(editing, ty.context, ty.ty)
+        .unwrap()
+    else {
         panic!("enum parameter context");
     };
     assert_eq!(description.name, "T");

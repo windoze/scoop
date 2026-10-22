@@ -5,7 +5,7 @@ impl Lowerer {
     pub(crate) fn observe_local_function(
         &mut self,
         function: hir::FunctionId,
-        declaration: &ast::FunctionDecl,
+        declaration: ast::FunctionHeaderRef<'_>,
     ) {
         if !self.observes_current_body() {
             return;

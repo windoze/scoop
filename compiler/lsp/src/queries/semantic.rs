@@ -150,8 +150,8 @@ pub(super) fn local_at(
     {
         return Ok(Some(Local {
             reference: receiver.local.clone(),
-            ty,
-            context: None,
+            ty: ty.ty,
+            context: Some(ty.context),
         }));
     }
     let snapshot = snapshot.clone();

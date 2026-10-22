@@ -70,7 +70,7 @@ fn recovered_generic_override_and_its_application_share_the_original_signatures(
     };
     assert_eq!(description.name, "T");
     let receivers = analysis.receivers(method, || false).unwrap();
-    assert!(matches!(receivers[0].value_type, V::Known(receiver) if receiver == ty));
+    assert!(matches!(receivers[0].value_type, V::Known(receiver) if receiver.ty == ty));
     let consumer = function(&analysis, "consumer");
     let V::Known(facts) = analysis.function_facts(consumer, || false).unwrap() else {
         panic!("known method application")
