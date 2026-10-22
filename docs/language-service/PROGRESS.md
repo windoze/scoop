@@ -130,6 +130,8 @@ if 条件与分支恢复已接入同一正文查询：grammar 只为损坏分支
 
 工作区声明符号查询已接入：每份不可变源码按需保存 grammar 名称与容器索引，搜索所选项目的顶层／名义成员并按实际配置去重，局部声明仍留在文档大纲。错误签名保留已知名称，不赋予尚未绑定声明语义身份；修改、关闭、用途切换和项目移除后当前查询只读取相应输入。LSP 工作区请求拥有独立输入分支，沿原 worker、取消及 revision 发布路径执行。格式化、全 workspace Clippy、28 项宿主／真实 LSP 进程测试及完整 LSP fixture 通过，覆盖 Unicode、缓冲区优先、同版索引复用、同文件多配置、测试用途与旧结果清除。取消辅助函数的可见性问题已在 lint 阶段修正；fixture 耗时约 18.9 秒。target 增量目录在无构建时已清理，保留普通工具与预编译输入。
 
+callable value 与 native 地址的来源关联已接入普通重载选择：`::function`、绑定／未绑定成员和扩展引用在选择及提交成功后记录实际名称 token 与原声明，失败试探不发布结果；闭包 adapter 与具体化实例不成为导航目标。当前与导入 native 引用共用原声明身份读取。格式化、全 workspace Clippy、Ruff、68 项编辑态测试、16 项普通 callable reference 回归、导入 native 专项及 LSP 进程测试通过；完整 stdio fixture 通过，耗时约 20.8 秒，覆盖泛型、重载、源定义导航及无源码 core 引用。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

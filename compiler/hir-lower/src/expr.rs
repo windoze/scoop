@@ -281,7 +281,7 @@ impl Lowerer {
             None => (None, None),
         };
         let partial_expectation = lambda_expectation.is_some();
-        self.observe_call_syntax(expr);
+        self.observe_callable_syntax(expr);
         self.observe_selector_syntax(expr);
         if self.reject_release_expression(expr) {
             return None;

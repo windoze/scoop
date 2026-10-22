@@ -2,6 +2,7 @@ use super::*;
 use hir::{EditingUnavailable as U, EditingValue as V};
 
 mod bodies;
+mod callable_values;
 mod callables;
 mod calls;
 mod candidates;

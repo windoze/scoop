@@ -13,7 +13,7 @@ pub(crate) struct BodyObservation {
     pub(super) uses:
         imbl::HashMap<ast::Span, (hir::BindingId, hir::SourceContextId, hir::EditingLocalRole)>,
     pub(super) expressions: imbl::HashMap<ast::Span, hir::EditingExpression>,
-    pub(super) call_names: imbl::HashSet<ast::Span>,
+    pub(super) callable_names: imbl::HashMap<ast::Span, ast::Span>,
     pub(super) callables: imbl::HashMap<ast::Span, hir::EditingCallableReference>,
     pub(super) call_inputs: imbl::HashMap<ast::Span, calls::CallInput>,
     pub(super) argument_maps: imbl::HashMap<ast::Span, calls::CheckedArguments>,
@@ -52,7 +52,7 @@ impl BodyObservation {
             bindings: Default::default(),
             uses: Default::default(),
             expressions: Default::default(),
-            call_names: Default::default(),
+            callable_names: Default::default(),
             callables: Default::default(),
             call_inputs: Default::default(),
             argument_maps: Default::default(),

@@ -30,8 +30,16 @@ impl DeclarationAnalysis {
 }
 
 impl Lowerer {
-    pub(crate) fn observe_call_syntax(&mut self, expression: &ast::Expr) {
+    pub(crate) fn observe_callable_syntax(&mut self, expression: &ast::Expr) {
         if !self.observes_current_body() {
+            return;
+        }
+        if let ast::Expr::CallableReference { name, span, .. } = expression {
+            self.editing_body
+                .as_mut()
+                .expect("active query")
+                .callable_names
+                .insert(*span, name.span);
             return;
         }
         let (name, callee_end, args) = match expression {
@@ -46,7 +54,7 @@ impl Lowerer {
         };
         let body = self.editing_body.as_mut().expect("active query");
         if let Some(name) = name {
-            body.call_names.insert(name.span);
+            body.callable_names.insert(name.span, name.span);
         }
         if body.failed || self.diagnostics.len() != body.diagnostics_start {
             return;
@@ -74,16 +82,19 @@ impl Lowerer {
         span: ast::Span,
         target: hir::SemanticCallable,
     ) {
-        if !self.observes_current_body()
-            || !self
-                .editing_body
-                .as_ref()
-                .expect("active query")
-                .call_names
-                .contains(&span)
-        {
+        if !self.observes_current_body() {
             return;
         }
+        let Some(span) = self
+            .editing_body
+            .as_ref()
+            .expect("active query")
+            .callable_names
+            .get(&span)
+            .copied()
+        else {
+            return;
+        };
         let definition = self.editing_callable_origin(target);
         self.editing_body
             .as_mut()

@@ -7,7 +7,7 @@ use scoop_identity::ConeCoordinate;
 fn imported_hovers_preserve_declaration_binders_and_default_origins() {
     let mut core = trusted_core();
     let coordinate = ConeCoordinate::new("test", "imported-hover", "1.0.0").unwrap();
-    let provider = "public class Box<Element> public constructor(public val item: Element) { public fun read(): Element = item }\npublic fun <Item> pass(value: Item): Item = value\npublic fun choose(value: Boolean = true): Boolean = value\npublic fun <Item> Box<Item>.extension(value: Item): Item = value";
+    let provider = "public class Box<Element> public constructor(public val item: Element) { public fun read(): Element = item }\npublic fun <Item> pass(value: Item): Item = value\npublic fun choose(value: Boolean = true): Boolean = value\npublic fun <Item> Box<Item>.extension(value: Item): Item = value\n@NoGC public fun native(value: Int): Int = value";
     let (foundation, interface) = project_dependency_text(&core, &coordinate, provider, &[]);
     let aliases = alias_expansions(interface.type_aliases());
     let imported = core.import_dependency_foundation(&coordinate, &foundation, 187);
@@ -27,7 +27,7 @@ fn imported_hovers_preserve_declaration_binders_and_default_origins() {
     .unwrap();
     let core_inputs =
         CoreProtocolInput::from(core.foundation.import_core_inputs(&core.interface).unwrap());
-    let text = "import pass as renamed\nimport extension\nfun editing(box: Box<Boolean>): Boolean { val first = box.read(); val second = renamed(choose()); return box.extension(first.equals(second)) }";
+    let text = "import pass as renamed\nimport extension\nfun editing(box: Box<Boolean>): Boolean { val first = box.read(); val second = renamed(choose()); val callback: (Boolean) -> Boolean = ::renamed; val method: () -> Boolean = box::read; val equality: (Boolean) -> Boolean = first::equals; val address: FunPtr<(Int) -> Int> = ::native; return box.extension(equality(callback(method()))) }";
     let parsed = scoop_parser::parse_recovering(text).unwrap();
     let source = scoop_parser::declaration_source(
         &parsed,
@@ -42,7 +42,7 @@ fn imported_hovers_preserve_declaration_binders_and_default_origins() {
         panic!("consumer body failed: {:?}", analysis.diagnostics());
     };
     let references = facts.callables.clone();
-    assert_eq!(references.len(), 5);
+    assert_eq!(references.len(), 8);
     for reference in references {
         let hir::SemanticCallable::Imported(callable) = reference.target else {
             panic!("imported call");
@@ -90,6 +90,10 @@ fn imported_hovers_preserve_declaration_binders_and_default_origins() {
                     &provider[origin.span.start as usize..origin.span.end as usize],
                     "true"
                 );
+            }
+            "native" => {
+                assert_eq!(result.name, "Int");
+                assert_eq!(signature.attributes.gc_effect, hir::GcEffect::NoGc);
             }
             other => panic!("unexpected call: {other}"),
         }
