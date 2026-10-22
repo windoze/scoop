@@ -215,6 +215,7 @@ impl Lowerer {
         let binding = self.locals[local].binding;
         self.require_initialized_condition_binding(binding, &name.text, name.span)?;
         self.observe_receiver_local(local, name.span);
+        self.observe_local_use(binding, name.span, hir::EditingLocalRole::Read);
         if self.local_delegate_plans.contains_key(&binding) {
             let storage = hir::Expr {
                 kind: ExprKind::Local(local),

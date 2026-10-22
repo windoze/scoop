@@ -54,3 +54,35 @@ pub struct EditingReceiver {
     pub value_type: EditingValue<TypeId>,
     pub local: Option<EditingLocalReference>,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditingLocalRole {
+    Declaration,
+    Read,
+    Write,
+    ReadWrite,
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingExpression {
+    pub span: Span,
+    pub context: crate::SourceContextId,
+    pub value_type: TypeId,
+    pub expected_type: EditingValue<Option<TypeId>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingLocalOccurrence {
+    pub span: Span,
+    pub context: crate::SourceContextId,
+    pub reference: EditingLocalReference,
+    pub value_type: TypeId,
+    pub role: EditingLocalRole,
+}
+
+/// Source observations from a checked body, without claiming a successful Module.
+#[derive(Clone, Debug, Default)]
+pub struct EditingBodyFacts {
+    pub locals: Vec<EditingLocalOccurrence>,
+    pub expressions: Vec<EditingExpression>,
+}

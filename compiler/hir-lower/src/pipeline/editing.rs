@@ -31,6 +31,8 @@ impl Lowerer {
                     declarations_ready: false,
                     recovered_bodies: Default::default(),
                     receiver_facts: Default::default(),
+                    body_inputs: Default::default(),
+                    body_facts: Default::default(),
                 };
             }
         };
@@ -67,12 +69,26 @@ impl Lowerer {
             .map(|(function, body)| (*function, (*body).clone()))
             .collect();
         self.declaration_inference.ready = declarations_ready;
+        let body_inputs = declarations
+            .pending_functions
+            .iter()
+            .copied()
+            .chain(
+                declarations
+                    .pending_methods
+                    .iter()
+                    .map(|&(function, declaration, file, _)| (function, declaration, file)),
+            )
+            .map(|(function, declaration, _)| (function, declaration.clone()))
+            .collect();
         DeclarationAnalysis {
             lowerer: self,
             functions,
             declarations_ready,
             recovered_bodies,
             receiver_facts: Default::default(),
+            body_inputs,
+            body_facts: Default::default(),
         }
     }
 }

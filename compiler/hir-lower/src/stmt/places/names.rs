@@ -22,6 +22,7 @@ impl Lowerer {
         }
         if let Some(local) = self.scopes.lookup(&name.text) {
             let binding = self.locals[local].binding;
+            self.observe_local_use(binding, name.span, hir::EditingLocalRole::ReadWrite);
             if let Some(plan) = self.local_delegate_plans.get(&binding).cloned() {
                 let storage = hir::Expr {
                     kind: hir::ExprKind::Local(local),

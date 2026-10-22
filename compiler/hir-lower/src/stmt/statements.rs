@@ -14,6 +14,9 @@ impl Lowerer {
         statement: &ast::Statement,
         out: &mut Vec<hir::Statement>,
     ) {
+        if self.editing_body_cancelled() {
+            return;
+        }
         let incoming = self.smart_casts.clone();
         let start = out.len();
         self.lower_statement_inner(statement, out);

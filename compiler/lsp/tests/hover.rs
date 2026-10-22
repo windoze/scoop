@@ -16,6 +16,11 @@ fn a_document_without_a_semantic_project_does_not_guess_types() {
         }),
     );
     assert!(response.response_result.unwrap().is_null());
+    let definition = client.request(
+        "textDocument/definition",
+        json!({"textDocument": {"uri": uri}, "position": {"line": 0, "character": 5}}),
+    );
+    assert!(definition.response_result.unwrap().is_null());
     assert_eq!(client.symbols(uri)[0]["name"], "name");
     client.finish();
 }

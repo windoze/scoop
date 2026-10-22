@@ -529,6 +529,7 @@ pub fn concretize_output(
 #[derive(Clone)]
 pub(crate) struct Lowerer {
     pub(crate) editing_receiver: Option<editing::ReceiverObservation>,
+    pub(crate) editing_body: Option<editing::BodyObservation>,
     documentation: Option<Shared<documentation::DocumentationContext>>,
     core: CoreLoweringAuthority,
     dependencies: Option<hir::ImportedDependencySelectionPlan>,

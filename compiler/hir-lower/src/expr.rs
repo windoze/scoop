@@ -230,6 +230,7 @@ impl Lowerer {
         let baseline = self.diagnostics.len();
         debug_assert!(
             failed.diagnostics.len() > baseline
+                || failed.editing_body_cancelled()
                 || self
                     .diagnostics
                     .iter()
@@ -258,15 +259,33 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expectation: Option<ExpressionExpectation>,
     ) -> Option<hir::Expr> {
+        let result = self.lower_expr_with_expectation_inner(expr, sink, expectation);
+        if result.is_none() {
+            self.observe_expression_failure();
+        }
+        result
+    }
+
+    fn lower_expr_with_expectation_inner(
+        &mut self,
+        expr: &ast::Expr,
+        sink: &mut Vec<hir::Statement>,
+        expectation: Option<ExpressionExpectation>,
+    ) -> Option<hir::Expr> {
+        if self.editing_body_cancelled() {
+            return None;
+        }
         let (expected, lambda_expectation) = match expectation {
             Some(ExpressionExpectation::Type(ty)) => (Some(ty), None),
             Some(ExpressionExpectation::Lambda(signature)) => (None, Some(signature)),
             None => (None, None),
         };
+        let partial_expectation = lambda_expectation.is_some();
         if self.reject_release_expression(expr) {
             return None;
         }
         let incoming = self.smart_casts.clone();
+        let diagnostics_before = self.diagnostics.len();
         let start = sink.len();
         let lowered = match expr {
             ast::Expr::AnonymousObject(declaration) => {
@@ -589,6 +608,14 @@ impl Lowerer {
         if let Some(value) = &lowered {
             self.materialize_callable_captures(value, sink);
             self.advance_smart_casts(incoming, &sink[start..], Some(value));
+            if self.diagnostics.len() == diagnostics_before {
+                let expected = if partial_expectation {
+                    hir::EditingValue::Unavailable(hir::EditingUnavailable::PendingInference)
+                } else {
+                    hir::EditingValue::Known(expected)
+                };
+                self.observe_expression(expr.span(), value.ty, expected);
+            }
         }
         lowered
     }

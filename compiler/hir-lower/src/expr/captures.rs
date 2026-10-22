@@ -156,6 +156,7 @@ impl Lowerer {
             return None;
         }
         self.register_capture_at(context_index, &name.text, available.clone(), name.span)?;
+        self.observe_local_use(available.binding, name.span, hir::EditingLocalRole::Read);
         Some(hir::Expr {
             kind: ExprKind::Capture(available.binding),
             ty: available.ty,

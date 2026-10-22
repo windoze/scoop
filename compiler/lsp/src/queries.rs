@@ -1,7 +1,7 @@
 use lsp_server::{ErrorCode, Request, ResponseError};
 use lsp_types::{
-    DocumentSymbolParams, FoldingRange, FoldingRangeKind, FoldingRangeParams, HoverParams,
-    Position, SelectionRange, SelectionRangeParams, Uri,
+    DocumentSymbolParams, FoldingRange, FoldingRangeKind, FoldingRangeParams, GotoDefinitionParams,
+    HoverParams, Position, SelectionRange, SelectionRangeParams, Uri,
 };
 use scoop_analysis::{Cancellation, FoldKind, SourceInput};
 use serde::{Serialize, de::DeserializeOwned};
@@ -9,14 +9,18 @@ use serde_json::Value;
 
 use crate::{convert, initialize::Settings};
 
+mod definition;
 mod hover;
+mod semantic;
 mod symbols;
+pub(crate) use definition::definition;
 pub(crate) use hover::hover;
 
 #[derive(Clone)]
 pub(crate) enum QueryKind {
     Syntax(SyntaxQuery),
     Hover(Position),
+    Definition(Position),
 }
 
 #[derive(Clone)]
@@ -69,6 +73,13 @@ impl Query {
                 Ok(Self {
                     uri: params.text_document_position_params.text_document.uri,
                     kind: QueryKind::Hover(params.text_document_position_params.position),
+                })
+            }
+            "textDocument/definition" => {
+                let params: GotoDefinitionParams = params(request.params.clone())?;
+                Ok(Self {
+                    uri: params.text_document_position_params.text_document.uri,
+                    kind: QueryKind::Definition(params.text_document_position_params.position),
                 })
             }
             _ => Err(convert::error(

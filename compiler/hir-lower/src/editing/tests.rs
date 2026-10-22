@@ -1,6 +1,7 @@
 use super::*;
 use hir::{EditingUnavailable as U, EditingValue as V};
 
+mod bodies;
 mod receivers;
 
 fn analyze(text: &str) -> DeclarationAnalysis {

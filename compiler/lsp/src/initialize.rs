@@ -73,6 +73,7 @@ pub(crate) fn initialize(params: InitializeParams) -> (Settings, InitializeResul
             )),
             document_symbol_provider: Some(OneOf::Left(true)),
             hover_provider: Some(lsp_types::HoverProviderCapability::Simple(true)),
+            definition_provider: Some(OneOf::Left(true)),
             folding_range_provider: Some(lsp_types::FoldingRangeProviderCapability::Simple(true)),
             selection_range_provider: Some(lsp_types::SelectionRangeProviderCapability::Simple(
                 true,

@@ -114,14 +114,16 @@ impl Lowerer {
         definition: hir::LocalValueDefinitionSite,
     ) -> hir::LocalId {
         let binding = self.fresh_binding();
-        self.locals.alloc(hir::Local {
+        let local = self.locals.alloc(hir::Local {
             binding,
             selector,
             definition,
             name,
             ty,
             mutable,
-        })
+        });
+        self.observe_local_definition(local);
+        local
     }
 
     pub(crate) fn alloc_this_local(&mut self, ty: TypeId, span: Span) -> hir::LocalId {
@@ -220,6 +222,7 @@ impl Lowerer {
         let any = types.alloc(Type::Any);
         Lowerer {
             editing_receiver: None,
+            editing_body: None,
             core: CoreLoweringAuthority::Defined,
             dependencies: None,
             imports: Shared::default(),

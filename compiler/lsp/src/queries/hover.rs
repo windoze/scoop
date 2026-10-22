@@ -1,13 +1,12 @@
 use lsp_server::{ErrorCode, ResponseError};
 use lsp_types::{Hover, HoverContents, MarkedString, Position};
-use scoop_analysis::{
-    AnalysisSnapshot, Cancellation, ProjectAnalysisError, SemanticSession, SourceId,
-};
+use scoop_analysis::{AnalysisSnapshot, Cancellation, SemanticSession, SourceId};
 use scoop_hir::{self as hir, EditingValue};
 use scoop_hir_lower::DeclarationAnalysis;
 use scoop_source::Span;
 use serde_json::Value;
 
+use super::semantic;
 use crate::{convert, initialize::Settings};
 
 pub(crate) fn hover(
@@ -18,67 +17,15 @@ pub(crate) fn hover(
     semantics: &mut SemanticSession,
     cancellation: &Cancellation,
 ) -> Result<Value, ResponseError> {
-    let source = snapshot
-        .source(source_id)
-        .map_err(|_| convert::error(ErrorCode::RequestCanceled, "analysis revision changed"))?
-        .ok_or_else(|| convert::error(ErrorCode::RequestFailed, "source is unavailable"))?;
-    let offset = convert::offset(&source.text, position, settings.encoding)?;
-    let parsed = source
-        .parse()
-        .map_err(|error| convert::error(ErrorCode::RequestFailed, error))?;
-    let syntax = parsed.syntax();
-    let candidates = match syntax.token_at_offset(scoop_syntax::TextSize::from(offset)) {
-        scoop_syntax::TokenAtOffset::None => Vec::new(),
-        scoop_syntax::TokenAtOffset::Single(token) => vec![token],
-        scoop_syntax::TokenAtOffset::Between(left, right) => vec![right, left],
+    let Some(cursor) = semantic::cursor(snapshot, source_id, position, settings)? else {
+        return Ok(Value::Null);
     };
-    let Some(token) = candidates.into_iter().find(|token| {
-        matches!(
-            token.kind(),
-            scoop_syntax::SyntaxKind::Ident | scoop_syntax::SyntaxKind::EscapedIdent
-        )
-    }) else {
-        return super::json(None::<Hover>);
+    let Some(analysis) = semantic::declarations(semantics, snapshot, source_id)? else {
+        return Ok(Value::Null);
     };
-    let target = Span::new(
-        token.text_range().start().into(),
-        token.text_range().end().into(),
-    );
-    let Some(project) = snapshot.workspace.project_for_source(source_id) else {
-        return super::json(None::<Hover>);
-    };
-    let (_, cone) = project
-        .source_cone(source_id)
-        .expect("selected source belongs to the project");
-    let identity = &cone
-        .sources
-        .iter()
-        .find(|file| file.source == source_id)
-        .expect("selected Cone contains the source")
-        .identity;
-    let analysis = match semantics.declarations(snapshot, source_id) {
-        Ok(Some(analysis)) => analysis,
-        Err(
-            ProjectAnalysisError::Cancelled
-            | ProjectAnalysisError::Declarations(scoop_analysis::DeclarationAnalysisError::Cancelled),
-        ) => {
-            return Err(convert::error(
-                ErrorCode::RequestCanceled,
-                "analysis revision changed",
-            ));
-        }
-        Err(ProjectAnalysisError::Artifact(message)) => {
-            return Err(convert::error(ErrorCode::RequestFailed, message));
-        }
-        Ok(None) | Err(_) => return super::json(None::<Hover>),
-    };
-    let functions = analysis
-        .functions()
-        .iter()
-        .filter(|function| &function.name_origin.source == identity)
-        .cloned()
-        .collect::<Vec<_>>();
-    for function in functions {
+    let source = cursor.source;
+    let target = cursor.span;
+    for function in semantic::functions(analysis, &cursor) {
         let EditingValue::Known(signature) = analysis.signature(function.function) else {
             continue;
         };
@@ -97,20 +44,12 @@ pub(crate) fn hover(
                 );
             }
         }
-        let receiver = analysis
-            .receivers(function.function, || {
-                cancellation.check().is_err() || snapshot.check_cancelled().is_err()
-            })
-            .map_err(|_| convert::error(ErrorCode::RequestCanceled, "request cancelled"))?
-            .iter()
-            .find(|receiver| receiver.span == target)
-            .cloned();
-        if let Some(receiver) = receiver
-            && let EditingValue::Known(ty) = receiver.value_type
+        if let Some(local) =
+            semantic::local_at(analysis, function.function, target, snapshot, cancellation)?
         {
-            let ty = type_label(analysis, function.function, ty)?;
-            let label = receiver
-                .local
+            let ty = semantic::local_type(analysis, function.function, &local)?;
+            let label = local
+                .reference
                 .map_or_else(|| ty.clone(), |local| format!("{}: {ty}", local.name));
             return response(&source.text, target, label, settings);
         }

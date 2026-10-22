@@ -106,6 +106,14 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                         semantics,
                         &cancellation,
                     ),
+                    QueryKind::Definition(position) => queries::definition(
+                        &work.snapshot,
+                        work.source,
+                        position,
+                        work.settings,
+                        semantics,
+                        &cancellation,
+                    ),
                 }?;
                 check_revision()?;
                 cancellation

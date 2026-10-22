@@ -104,6 +104,7 @@ def main():
             },
         )
         assert initialized["capabilities"]["hoverProvider"]
+        assert initialized["capabilities"]["definitionProvider"]
         peer.notify("initialized", {})
         peer.notify(
             "textDocument/didOpen",
@@ -128,6 +129,15 @@ def main():
         def hover(line, character):
             return peer.request(
                 "textDocument/hover",
+                {
+                    "textDocument": {"uri": source},
+                    "position": {"line": line, "character": character},
+                },
+            )
+
+        def definition(line, character):
+            return peer.request(
+                "textDocument/definition",
                 {
                     "textDocument": {"uri": source},
                     "position": {"line": line, "character": character},
@@ -159,6 +169,14 @@ def main():
         assert receiver["contents"]["value"] == "value: T", receiver
         assert receiver["range"]["start"] == {"line": 2, "character": 31}
         assert hover(4, 2)["contents"]["value"] == "value: String"
+        destination = definition(2, 32)
+        assert destination["uri"] == source
+        assert destination["range"]["start"] == {"line": 2, "character": 16}
+        destination = definition(4, 2)
+        assert destination["range"]["start"] == {
+            "line": 3,
+            "character": edited.splitlines()[3].index("value ="),
+        }
         assert (
             hover(5, 5)["contents"]["value"] == "fun inferred(value: Boolean): <pending inference>"
         )
@@ -170,6 +188,11 @@ def main():
             },
         )
         assert hover(0, 5)["contents"]["value"] == "fun greeting(value: Boolean): Boolean"
+        body_value = "fun greeting(value: Boolean): Boolean = value".rindex("value")
+        assert hover(0, body_value)["contents"]["value"] == "value: Boolean"
+        destination = definition(0, body_value)
+        assert destination["uri"] == source
+        assert destination["range"]["start"] == {"line": 0, "character": 13}
         other = (
             "x86_64-unknown-linux-gnu"
             if target == "aarch64-apple-darwin"

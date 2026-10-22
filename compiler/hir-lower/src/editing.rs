@@ -6,7 +6,9 @@ use scoop_identity::ConeIdentity;
 
 use crate::{CoreProtocolInput, Lowerer, SourceKind, SourceProvider};
 
+mod bodies;
 mod parameters;
+pub(crate) use bodies::{BodyObservation, CheckedBody};
 mod receivers;
 pub(crate) use receivers::ReceiverObservation;
 #[cfg(test)]
@@ -23,6 +25,9 @@ pub struct DeclarationAnalysis {
         std::collections::HashMap<hir::FunctionId, ast::RecoveredFunctionBody>,
     pub(crate) receiver_facts:
         std::collections::HashMap<hir::FunctionId, Vec<hir::EditingReceiver>>,
+    pub(crate) body_inputs: std::collections::HashMap<hir::FunctionId, ast::FunctionDecl>,
+    pub(crate) body_facts:
+        std::collections::HashMap<hir::FunctionId, hir::EditingValue<CheckedBody>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
