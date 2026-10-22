@@ -6,6 +6,7 @@ use crate::defaults::DefaultArgumentSource;
 
 mod mapping;
 mod source;
+mod supplied;
 #[cfg(test)]
 mod tests;
 
@@ -93,6 +94,16 @@ pub(crate) struct CandidateArgumentMap<D = DefaultArgumentSource> {
     pub(crate) receiver: ReceiverInput,
     pub(crate) parameters: Vec<ParameterInput<D>>,
     pub(crate) source_order: Vec<SourceInputId>,
+}
+
+/// Only inputs actually supplied in the source. Unfilled parameters remain
+/// unfilled until the ordinary complete-call boundary applies omission rules.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SuppliedArgumentMap<D = DefaultArgumentSource> {
+    pub(crate) receiver: ReceiverInput,
+    pub(crate) parameters: Vec<Option<ResolvedParameterInput<D>>>,
+    pub(crate) source_order: Vec<SourceInputId>,
+    positional_required_call: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
