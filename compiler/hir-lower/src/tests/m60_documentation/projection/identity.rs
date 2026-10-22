@@ -1,6 +1,47 @@
 use super::*;
 
 #[test]
+fn m60_source_documents_keep_distinct_entities_with_the_same_source_range() {
+    let output = lower_documented(
+        "/// The value.\n/// @constructor Create it.\npublic struct Token(val flag: Boolean)",
+    )
+    .unwrap();
+    let output = output.output();
+    let docs = output.documentation.as_ref().unwrap();
+    let nominal = docs
+        .declarations
+        .iter()
+        .find(|entry| entry.kind == Kind::Struct)
+        .unwrap()
+        .target;
+    let constructor = docs
+        .declarations
+        .iter()
+        .find(|entry| entry.kind == Kind::Constructor)
+        .unwrap()
+        .target;
+    assert_eq!(
+        docs.source_locations[&Symbol::Current(nominal)],
+        docs.source_locations[&Symbol::Current(constructor)]
+    );
+    let view = hir::SemanticDocumentation::from_complete(docs.clone(), &output.export).unwrap();
+    for (target, expected) in [(nominal, "The value."), (constructor, "Create it.")] {
+        let Target::Declaration(source) = target else {
+            panic!("a source declaration is required")
+        };
+        let imported = hir::AnnotationTargetV1::from_source(&output.export, source).unwrap();
+        for symbol in [Symbol::Current(target), Symbol::Imported(imported)] {
+            let content = view.get(symbol).unwrap();
+            let text = match content {
+                hir::DocumentationContent::Comment(comment) => &comment.body.text.text,
+                hir::DocumentationContent::Markdown(markdown) => &markdown.text.text,
+            };
+            assert_eq!(text, expected);
+        }
+    }
+}
+
+#[test]
 fn m60_documentation_projection_routes_survive_arena_and_source_order_changes() {
     let first = project(
         &lower_documented(

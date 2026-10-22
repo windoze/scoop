@@ -151,7 +151,9 @@ impl Lowerer {
             CoreLoweringAuthority::Imported(authority) => hir::CoreProtocols::Imported(authority),
         };
         let sources = self.diagnostic_source_identities();
-        let documentation = self.finish_documentation(world);
+        let documentation = self
+            .finish_documentation(world, check)
+            .map_err(PhaseFailure::Cancelled)?;
         PhaseFailure::check(check)?;
         self.finish(current_cone, warnings, core_protocols, documentation)
             .map_err(|mut diagnostics| {

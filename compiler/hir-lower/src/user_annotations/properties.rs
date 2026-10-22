@@ -11,10 +11,7 @@ impl Lowerer {
         declaration: &ast::PropertyDecl,
         file: usize,
     ) {
-        let Some(property) = self.properties.iter().find_map(|(id, p)| {
-            (p.span == declaration.span && self.property_source_file(id) == Some(file))
-                .then_some(id)
-        }) else {
+        let Some(property) = self.property_declaration_id(declaration, file) else {
             return;
         };
         let saved_parameters = self.type_params_in_scope.clone();
@@ -23,6 +20,17 @@ impl Lowerer {
         }
         self.annotate_property_targets(property, declaration);
         self.type_params_in_scope = saved_parameters;
+    }
+
+    pub(crate) fn property_declaration_id(
+        &self,
+        declaration: &ast::PropertyDecl,
+        file: usize,
+    ) -> Option<hir::PropertyId> {
+        self.properties.iter().find_map(|(id, property)| {
+            (property.span == declaration.span && self.property_source_file(id) == Some(file))
+                .then_some(id)
+        })
     }
 
     fn annotate_property_targets(

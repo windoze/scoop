@@ -9,6 +9,7 @@ use crate::{AnalysisSnapshot, Cancelled, DeclarationAnalysisError, SourceId};
 
 mod dependencies;
 mod diagnostics;
+mod documentation;
 mod project;
 mod references;
 pub use references::ReferenceSearch;

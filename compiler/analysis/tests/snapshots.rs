@@ -131,6 +131,37 @@ fn definition_names_require_exact_grammar_declaration_ranges() {
 }
 
 #[test]
+fn prepared_documentation_belongs_to_the_original_source_version() {
+    let mut host = AnalysisHost::default();
+    let input = "/// Original **text**.\nfun healthy(): Boolean = true\nfun broken(value: ) {}";
+    let id = host.add_source(text(input));
+    let before = host.source(id).unwrap().clone();
+    let documentation = before.documentation().unwrap();
+    assert_eq!(
+        documentation.documents[0].body.text.text,
+        "Original **text**."
+    );
+    assert!(std::ptr::eq(documentation, before.documentation().unwrap()));
+    host.set_text(id, text(input));
+    assert!(std::ptr::eq(
+        documentation,
+        host.source(id).unwrap().documentation().unwrap()
+    ));
+    host.set_text(id, text(&input.replace("Original", "Updated")));
+    assert_eq!(
+        host.source(id).unwrap().documentation().unwrap().documents[0]
+            .body
+            .text
+            .text,
+        "Updated **text**."
+    );
+    assert_eq!(
+        documentation.documents[0].body.text.text,
+        "Original **text**."
+    );
+}
+
+#[test]
 fn declaration_symbol_indexes_keep_error_names_and_exclude_callable_locals() {
     let mut host = AnalysisHost::default();
     let id = host.add_source(text(

@@ -1,4 +1,8 @@
-use std::{collections::BTreeSet, rc::Rc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+    sync::Arc,
+};
 
 use scoop_hir::{self as hir, OwnedImportedProvider};
 use scoop_hir_lower::CoreProtocolInput;
@@ -10,6 +14,11 @@ use crate::{AnalysisSnapshot, ConeInput, ProjectInput};
 pub(super) struct ArtifactInputs {
     providers: Vec<OwnedImportedProvider>,
     identities: SemanticIdentitySession,
+}
+
+pub(super) struct DependencyInputs {
+    pub providers: Vec<OwnedImportedProvider>,
+    pub documentation: BTreeMap<ConeIdentity, Arc<hir::SemanticDocumentation>>,
 }
 
 impl ArtifactInputs {
@@ -51,13 +60,14 @@ impl ArtifactInputs {
         project: &ProjectInput,
         reachable: &BTreeSet<ConeIdentity>,
         check: &Rc<dyn Fn() -> bool>,
-    ) -> Result<Vec<OwnedImportedProvider>, Error> {
+    ) -> Result<DependencyInputs, Error> {
         let mut providers = self
             .providers
             .iter()
             .filter(|provider| reachable.contains(&provider.foundation.origin()))
             .cloned()
             .collect::<Vec<_>>();
+        let mut documentation = BTreeMap::new();
         let mut sources = project
             .dependency_order
             .iter()
@@ -65,7 +75,10 @@ impl ArtifactInputs {
             .filter_map(|cone| project.cones[cone].source().map(|input| (*cone, input)))
             .peekable();
         if sources.peek().is_none() {
-            return Ok(providers);
+            return Ok(DependencyInputs {
+                providers,
+                documentation,
+            });
         }
         let mut identities = self
             .identities
@@ -76,9 +89,10 @@ impl ArtifactInputs {
                 return Err(Error::Cancelled);
             }
             let world = world(project, current, &providers)?;
-            let parsed = sources::complete(snapshot, input, check)?;
+            let (parsed, comments) = sources::complete(snapshot, input, check)?;
             let core = core(current, &providers)?;
             let sources = scoop_hir_lower::CurrentConeSources::try_new(&parsed, core, &world)
+                .and_then(|sources| sources.with_documentation(comments))
                 .map_err(|error| Error::Dependency(error.to_string()))?;
             let cancellation = check.clone();
             let output = scoop_hir_lower::lower_current_export_with_cancellation(
@@ -101,9 +115,21 @@ impl ArtifactInputs {
             if check() {
                 return Err(Error::Cancelled);
             }
+            if let Some(comments) = output.documentation {
+                documentation.insert(
+                    current,
+                    Arc::new(
+                        hir::SemanticDocumentation::from_complete(comments, &output.export)
+                            .map_err(|error| Error::Dependency(error.to_string()))?,
+                    ),
+                );
+            }
             providers.push(provider);
         }
-        Ok(providers)
+        Ok(DependencyInputs {
+            providers,
+            documentation,
+        })
     }
 }
 

@@ -7,6 +7,9 @@ use crate::{
 use scoop_ast::{Diagnostic, DocText, NonEmptyVec, Span};
 use scoop_identity::PersistentAnnotationId;
 
+mod source;
+pub use source::*;
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum DocumentationTarget {
     Declaration(SourceAnnotationTarget),
@@ -38,6 +41,8 @@ pub struct ConeDocumentation {
     pub hidden_annotation: Option<PersistentAnnotationId>,
     pub alias_annotation: Option<PersistentAnnotationId>,
     pub hidden_dependency_bindings: Vec<scoop_identity::BindableEntity>,
+    pub source_locations:
+        std::collections::HashMap<DocumentationSymbol, crate::SemanticSourceLocation>,
 }
 
 #[derive(Clone, Debug)]

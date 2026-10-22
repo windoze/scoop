@@ -3,6 +3,8 @@
 use super::*;
 use crate::editing::{DeclarationAnalysis, EditingCancelled};
 
+mod documentation;
+
 impl Lowerer {
     pub(crate) fn analyze_declaration_inputs<'a>(
         mut self,
@@ -37,6 +39,7 @@ impl Lowerer {
                     body_inputs: Default::default(),
                     body_facts: Default::default(),
                     reference_index: None,
+                    documentation: None,
                 });
             }
         };
@@ -95,6 +98,13 @@ impl Lowerer {
             })
             .collect::<Result<_, EditingCancelled>>()?;
         check()?;
+        let documentation = if declarations_ready {
+            self.capture_editing_documentation(&declarations, check)?;
+            self.finish_editing_documentation(world, check)?
+                .map(std::sync::Arc::new)
+        } else {
+            None
+        };
         Ok(DeclarationAnalysis {
             lowerer: self,
             functions,
@@ -104,6 +114,7 @@ impl Lowerer {
             body_inputs,
             body_facts: Default::default(),
             reference_index: None,
+            documentation,
         })
     }
 }

@@ -10,6 +10,7 @@ from pathlib import Path
 from callable_values import check as check_callable_values
 from cancellation import check as check_cancellation
 from diagnostics import check as check_diagnostics
+from documentation import check as check_documentation
 from import_references import check as check_import_references
 from incomplete_signatures import check as check_incomplete_signatures
 from property_references import check as check_property_references
@@ -318,6 +319,7 @@ def main():
         check_references(peer, root)
         check_import_references(peer, root)
         check_source_dependencies(peer, root)
+        check_documentation(peer, root)
         peer.finish()
     finally:
         if peer.process.poll() is None:

@@ -22,6 +22,26 @@ impl From<Cancelled> for DeclarationAnalysisError {
 }
 
 impl SourceInput {
+    pub fn documentation(
+        &self,
+    ) -> Result<&ast::SourceDocumentation, &scoop_source::SourceLengthError> {
+        let parsed = self.parse()?;
+        Ok(self.documentation.get_or_init(|| {
+            let comments = parsed.ast().map_or_else(
+                || {
+                    parsed
+                        .declaration_data()
+                        .source
+                        .as_ref()
+                        .map(|source| source.documentation.as_slice())
+                        .unwrap_or_default()
+                },
+                |source| source.documentation.as_slice(),
+            );
+            scoop_doc::prepare_comments(comments, self.text.as_str())
+        }))
+    }
+
     /// Project an exact AST source range to the name recorded by its grammar.
     pub fn declaration_name_span(
         &self,
@@ -41,12 +61,10 @@ impl SourceInput {
         identity: &'a SourceIdentity,
         role: SourceRole,
     ) -> Result<ast::DeclarationSource<'a, 'a>, &'a scoop_source::SourceLengthError> {
-        Ok(scoop_parser::declaration_source(
-            self.parse()?,
-            identity,
-            role,
-            self.text.as_str(),
-        ))
+        let mut source =
+            scoop_parser::declaration_source(self.parse()?, identity, role, self.text.as_str());
+        source.documentation = Some(self.documentation()?);
+        Ok(source)
     }
 }
 

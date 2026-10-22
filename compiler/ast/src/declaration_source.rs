@@ -11,4 +11,5 @@ pub struct DeclarationSource<'syntax, 'input> {
     pub text: &'input str,
     pub header: Option<SourceHeaderRef<'syntax>>,
     pub declarations: Vec<DeclarationInput<'syntax>>,
+    pub documentation: Option<&'syntax crate::SourceDocumentation>,
 }

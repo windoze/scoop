@@ -15,6 +15,7 @@ pub struct SourceInput {
     pub text: SourceText,
     parsed: OnceLock<Result<ParsedFile, SourceLengthError>>,
     pub(crate) symbols: OnceLock<Vec<crate::SourceSymbol>>,
+    pub(crate) documentation: OnceLock<scoop_ast::SourceDocumentation>,
 }
 
 impl SourceInput {
@@ -134,6 +135,7 @@ impl AnalysisHost {
                 text,
                 parsed: OnceLock::new(),
                 symbols: OnceLock::new(),
+                documentation: OnceLock::new(),
             }),
         );
     }

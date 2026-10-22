@@ -9,6 +9,7 @@ mod candidates;
 mod candidates_imported;
 mod conditionals;
 mod definitions;
+mod documentation;
 mod imported_signatures;
 mod imports;
 mod members;
@@ -38,6 +39,7 @@ fn analyze_cancellable(
             role: scoop_identity::SourceRole::Production,
             text: "",
             header: Some(core.header()),
+            documentation: None,
             declarations: core
                 .declarations
                 .iter()

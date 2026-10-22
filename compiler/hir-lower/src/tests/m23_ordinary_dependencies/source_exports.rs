@@ -75,10 +75,10 @@ fn cancelled_source_export_is_distinct_from_failure_and_can_be_retried() {
     let statements = (0..512)
         .map(|index| format!("val v{index}: Boolean = true;\n"))
         .collect::<String>();
-    let source = parsed_ordinary_text_at(
-        &coordinate,
-        &format!("public fun value(): Boolean {{ {statements} return true }}"),
+    let text = format!(
+        "/// The computed [Boolean].\npublic fun value(): Boolean {{ {statements} return true }}"
     );
+    let source = parsed_ordinary_text_at(&coordinate, &text);
     let world = core.world(source.cone());
     let input = CurrentConeSources::try_new(
         &source,
@@ -86,6 +86,12 @@ fn cancelled_source_export_is_distinct_from_failure_and_can_be_retried() {
         &world,
     )
     .unwrap();
+    let input = input
+        .with_documentation(vec![scoop_ast::IdentifiedSourceDocumentation {
+            source: source.iter().next().unwrap().text().identity().clone(),
+            documentation: scoop_doc::prepare_source(&scoop_parser::parse(&text).unwrap(), &text),
+        }])
+        .unwrap();
     let checks = Rc::new(Cell::new(0));
     let measured = checks.clone();
     lower_current_export_with_cancellation(RequestedConeKind::Library, &input, move || {
@@ -94,7 +100,7 @@ fn cancelled_source_export_is_distinct_from_failure_and_can_be_retried() {
     })
     .unwrap();
     let completed_checks = checks.get();
-    for stop in [1, completed_checks / 2] {
+    for stop in [1, completed_checks / 2, completed_checks - 2] {
         checks.set(0);
         let measured = checks.clone();
         let result =
@@ -115,4 +121,5 @@ fn cancelled_source_export_is_distinct_from_failure_and_can_be_retried() {
             .iter()
             .any(|(_, function)| function.name == "value")
     );
+    assert!(retried.documentation.is_some());
 }

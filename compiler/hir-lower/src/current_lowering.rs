@@ -186,9 +186,9 @@ fn lower_current_export_inner<C>(
     lowerer.cancellation = cancellation;
     lowerer.source_names = input.source_names().clone();
     lowerer.test_dependencies = input.test_dependencies().clone();
-    lowerer.documentation = input
-        .documentation()
-        .map(|sources| crate::documentation::DocumentationContext::new(sources).into());
+    lowerer.documentation = input.documentation().map(|sources| {
+        crate::documentation::DocumentationContext::new(sources.iter().enumerate()).into()
+    });
     if tests {
         lowerer.test_compilation = Some(crate::test_entry::TestCompilation::new(world));
     }

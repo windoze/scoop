@@ -1,6 +1,7 @@
 use super::*;
 use hir::DocumentationLink as Link;
 
+mod editing;
 mod index;
 mod tags;
 pub(super) use index::DocumentationIndex;
@@ -13,12 +14,21 @@ enum ReferenceTag {
 }
 
 impl Lowerer {
-    pub(crate) fn finish_documentation(
+    pub(crate) fn finish_documentation<C>(
         &mut self,
         world: Option<&hir::ImportedSemanticWorld<'_>>,
-    ) -> Option<hir::ConeDocumentation> {
+        check: &impl Fn() -> Result<(), C>,
+    ) -> Result<Option<hir::ConeDocumentation>, C> {
+        if self.documentation.is_none() {
+            return Ok(None);
+        }
+        check()?;
         self.document_synthesized_members();
-        let mut context = self.documentation.take()?.into_owned();
+        let mut context = self
+            .documentation
+            .take()
+            .expect("documentation was requested")
+            .into_owned();
         let mut local = context
             .declarations
             .iter()
@@ -32,6 +42,7 @@ impl Lowerer {
             })
             .collect::<HashSet<_>>();
         loop {
+            check()?;
             let count = local.len();
             for entry in &context.declarations {
                 if entry
@@ -59,6 +70,7 @@ impl Lowerer {
         let mut seen = HashSet::new();
         let mut declarations = Vec::with_capacity(context.declarations.len());
         for captured in context.declarations {
+            check()?;
             let mut declaration = captured.declaration;
             resolver.current_file = captured.scope.file;
             resolver.current_owner = captured.scope.owner;
@@ -81,8 +93,15 @@ impl Lowerer {
         for warning in &mut warnings {
             warning.resolve_sources(&sources);
         }
-        Some(hir::ConeDocumentation {
+        let source_locations = self.documentation_source_locations(
+            declarations
+                .iter()
+                .map(|entry| (entry.target, entry.origin)),
+        );
+        check()?;
+        Ok(Some(hir::ConeDocumentation {
             declarations,
+            source_locations,
             warnings,
             hidden_annotation: self.core_source_annotation("DocHidden"),
             alias_annotation: self.core_source_annotation("DocAlias"),
@@ -96,7 +115,7 @@ impl Lowerer {
                         .then_some(binding)
                 })
                 .collect(),
-        })
+        }))
     }
 
     #[allow(clippy::too_many_arguments)]

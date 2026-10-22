@@ -15,6 +15,7 @@ pub fn declaration_source<'syntax, 'input>(
             role,
             text,
             header: Some(source.header()),
+            documentation: None,
             declarations: source
                 .declarations
                 .iter()
@@ -83,5 +84,6 @@ pub fn declaration_source<'syntax, 'input>(
             .as_ref()
             .and_then(|header| header.header(span)),
         declarations,
+        documentation: None,
     }
 }

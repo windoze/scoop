@@ -9,6 +9,7 @@ use serde_json::Value;
 use super::semantic;
 use crate::{convert, initialize::Settings};
 
+mod documentation;
 mod imported;
 
 pub(crate) fn hover(
@@ -26,25 +27,68 @@ pub(crate) fn hover(
     else {
         return Ok(Value::Null);
     };
-    let source = cursor.source;
+    let Some(description) = description(analysis, &cursor, snapshot, cancellation)? else {
+        return super::json(None::<Hover>);
+    };
+    let documentation = match description.documentation {
+        Some(query) => documentation::markdown(
+            semantics,
+            snapshot,
+            source_id,
+            &query,
+            &cursor,
+            settings,
+            cancellation,
+        )?,
+        None => None,
+    };
+    response(
+        &cursor.source.text,
+        cursor.span,
+        description.label,
+        documentation,
+        settings,
+    )
+}
+
+struct Description {
+    label: String,
+    documentation: Option<documentation::Query>,
+}
+
+fn description(
+    analysis: &mut DeclarationAnalysis,
+    cursor: &semantic::Cursor<'_>,
+    snapshot: &AnalysisSnapshot,
+    cancellation: &Cancellation,
+) -> Result<Option<Description>, ResponseError> {
     let target = cursor.span;
-    for function in semantic::functions(analysis, &cursor) {
+    for function in semantic::functions(analysis, cursor) {
         let EditingValue::Known(signature) = analysis.signature(function.function) else {
             continue;
         };
         if function.name_origin.span == target {
             let label = signature_label(analysis, &signature)?;
-            return response(&source.text, function.name_origin.span, label, settings);
+            return Ok(Some(Description {
+                label,
+                documentation: Some(documentation::Query {
+                    symbol: documentation::callable(hir::SemanticCallable::Current(
+                        function.function,
+                    )),
+                    origin: signature.origin,
+                }),
+            }));
         }
-        for parameter in &signature.parameters {
+        for (index, parameter) in signature.parameters.iter().enumerate() {
             if parameter.origin.span == target {
                 let ty = type_label(analysis, function.function, parameter.value_type)?;
-                return response(
-                    &source.text,
-                    parameter.origin.span,
-                    format!("{}: {ty}", parameter.name),
-                    settings,
-                );
+                return Ok(Some(Description {
+                    label: format!("{}: {ty}", parameter.name),
+                    documentation: Some(documentation::Query {
+                        symbol: documentation::parameter(function.function, index),
+                        origin: parameter.origin.clone(),
+                    }),
+                }));
             }
         }
         if let Some(property) =
@@ -55,12 +99,13 @@ pub(crate) fn hover(
                 .map_err(|error| convert::error(ErrorCode::RequestFailed, error.message))?;
             if let EditingValue::Known(ty) = ty {
                 let kind = if property.mutable { "var" } else { "val" };
-                return response(
-                    &source.text,
-                    target,
-                    format!("{kind} {}: {}", property.name, ty.name),
-                    settings,
-                );
+                return Ok(Some(Description {
+                    label: format!("{kind} {}: {}", property.name, ty.name),
+                    documentation: property.definition.map(|origin| documentation::Query {
+                        symbol: documentation::property(property.target),
+                        origin,
+                    }),
+                }));
             }
         }
         if let Some(local) =
@@ -69,15 +114,33 @@ pub(crate) fn hover(
             let ty = semantic::local_type(analysis, function.function, &local)?;
             let label = local
                 .reference
+                .as_ref()
                 .map_or_else(|| ty.clone(), |local| format!("{}: {ty}", local.name));
-            return response(&source.text, target, label, settings);
+            return Ok(Some(Description {
+                label,
+                documentation: local.reference.and_then(|local| {
+                    let index = signature
+                        .parameters
+                        .iter()
+                        .position(|parameter| parameter.origin == local.definition)?;
+                    Some(documentation::Query {
+                        symbol: documentation::parameter(function.function, index),
+                        origin: local.definition,
+                    })
+                }),
+            }));
         }
         if let Some(reference) =
             semantic::callable_at(analysis, function.function, target, snapshot, cancellation)?
         {
+            let mut origin = reference.definition;
             let label = match reference.target {
                 hir::SemanticCallable::Current(function) => match analysis.signature(function) {
-                    EditingValue::Known(signature) => Some(signature_label(analysis, &signature)?),
+                    EditingValue::Known(signature) => {
+                        let label = signature_label(analysis, &signature)?;
+                        origin = Some(signature.origin);
+                        Some(label)
+                    }
                     EditingValue::Unavailable(_) => None,
                 },
                 hir::SemanticCallable::Imported(callable) => {
@@ -87,24 +150,37 @@ pub(crate) fn hover(
                 | hir::SemanticCallable::CurrentSetter(_) => None,
             };
             if let Some(label) = label {
-                return response(&source.text, target, label, settings);
+                return Ok(Some(Description {
+                    label,
+                    documentation: origin.map(|origin| documentation::Query {
+                        symbol: documentation::callable(reference.target),
+                        origin,
+                    }),
+                }));
             }
         }
     }
-    super::json(None::<Hover>)
+    Ok(None)
 }
 
 fn response(
     text: &scoop_source::SourceText,
     span: Span,
     label: String,
+    documentation: Option<String>,
     settings: Settings,
 ) -> Result<Value, ResponseError> {
+    let signature = MarkedString::LanguageString(lsp_types::LanguageString {
+        language: "scoop".into(),
+        value: label,
+    });
     super::json(Hover {
-        contents: HoverContents::Scalar(MarkedString::LanguageString(lsp_types::LanguageString {
-            language: "scoop".into(),
-            value: label,
-        })),
+        contents: match documentation.filter(|text| !text.is_empty()) {
+            Some(documentation) => {
+                HoverContents::Array(vec![signature, MarkedString::String(documentation)])
+            }
+            None => HoverContents::Scalar(signature),
+        },
         range: Some(convert::range(text, span, settings.encoding)?),
     })
 }

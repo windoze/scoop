@@ -846,6 +846,7 @@ name = "scoop-analysis"
 version = "0.0.0"
 dependencies = [
  "scoop-ast",
+ "scoop-doc",
  "scoop-hir",
  "scoop-hir-lower",
  "scoop-identity",
@@ -1002,8 +1003,10 @@ dependencies = [
  "lsp-server",
  "lsp-types",
  "scoop-analysis",
+ "scoop-doc",
  "scoop-hir",
  "scoop-hir-lower",
+ "scoop-identity",
  "scoop-protocol",
  "scoop-source",
  "scoop-syntax",

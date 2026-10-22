@@ -18,6 +18,7 @@ mod nominals;
 mod properties;
 mod relations;
 mod signatures;
+mod sources;
 mod symbols;
 mod synthesized;
 mod type_links;
@@ -46,7 +47,9 @@ struct DocumentationScope {
 }
 
 impl DocumentationContext {
-    pub(crate) fn new(sources: &[ast::SourceDocumentation]) -> Self {
+    pub(crate) fn new<'a>(
+        sources: impl IntoIterator<Item = (usize, &'a ast::SourceDocumentation)>,
+    ) -> Self {
         let mut result = Self {
             comments: BTreeMap::new(),
             declarations: Vec::new(),
@@ -54,7 +57,7 @@ impl DocumentationContext {
             warnings: Vec::new(),
             types: BTreeMap::new(),
         };
-        for (file, source) in sources.iter().enumerate() {
+        for (file, source) in sources {
             for comment in &source.documents {
                 let span = comment.declaration;
                 result

@@ -1,6 +1,5 @@
 use std::{collections::BTreeMap, rc::Rc};
 
-use scoop_hir::OwnedImportedProvider;
 use scoop_hir_lower::DeclarationAnalysis;
 use scoop_identity::ConeIdentity;
 
@@ -14,7 +13,7 @@ struct CachedDeclarations {
 
 struct CachedDependencies {
     versions: Vec<SourceVersion>,
-    result: Result<Vec<OwnedImportedProvider>, Error>,
+    result: Result<dependencies::DependencyInputs, Error>,
 }
 
 pub(super) struct ProjectSemantics {
@@ -25,6 +24,20 @@ pub(super) struct ProjectSemantics {
 }
 
 impl ProjectSemantics {
+    pub fn dependency_documentation(
+        &self,
+        current: ConeIdentity,
+        target: ConeIdentity,
+    ) -> Option<&std::sync::Arc<scoop_hir::SemanticDocumentation>> {
+        self.dependencies
+            .get(&current)?
+            .result
+            .as_ref()
+            .ok()?
+            .documentation
+            .get(&target)
+    }
+
     pub fn new(input: ProjectInput, check: &Rc<dyn Fn() -> bool>) -> Result<Self, Error> {
         let artifacts = dependencies::ArtifactInputs::load(&input, check);
         if artifacts.as_ref().is_err_and(Error::is_cancelled) {
@@ -99,10 +112,11 @@ impl ProjectSemantics {
             self.dependencies
                 .insert(current, CachedDependencies { versions, result });
         }
-        let providers = self.dependencies[&current]
+        let dependencies = self.dependencies[&current]
             .result
             .as_ref()
             .map_err(Clone::clone)?;
+        let providers = &dependencies.providers;
         let world = dependencies::world(&self.input, current, providers)?;
         let core = dependencies::core(current, providers)?;
         let input = self.input.cones[&current]

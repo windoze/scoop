@@ -35,6 +35,7 @@ pub struct DeclarationAnalysis {
     pub(crate) body_facts:
         std::collections::HashMap<hir::FunctionId, hir::EditingValue<ObservedBody>>,
     pub(crate) reference_index: Option<hir::EditingReferenceIndex>,
+    pub(crate) documentation: Option<std::sync::Arc<hir::SemanticDocumentation>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -107,6 +108,18 @@ pub fn analyze_declarations(
         })
         .collect();
     let mut lowerer = crate::current_lowering::prepare_current_lowerer(providers, world)?;
+    if sources.iter().any(|source| source.documentation.is_some()) {
+        lowerer.documentation = Some(
+            crate::documentation::DocumentationContext::new(sources.iter().enumerate().filter_map(
+                |(file, source)| {
+                    source
+                        .documentation
+                        .map(|documentation| (file, documentation))
+                },
+            ))
+            .into(),
+        );
+    }
     crate::current_input::extend_test_dependencies(
         world,
         &mut lowerer.test_dependencies,
@@ -123,6 +136,10 @@ pub fn analyze_declarations(
 }
 
 impl DeclarationAnalysis {
+    pub fn documentation(&self) -> Option<&std::sync::Arc<hir::SemanticDocumentation>> {
+        self.documentation.as_ref()
+    }
+
     pub fn functions(&self) -> &[hir::EditingFunction] {
         &self.functions
     }

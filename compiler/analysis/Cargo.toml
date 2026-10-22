@@ -8,6 +8,7 @@ scoop-source.workspace = true
 scoop-syntax.workspace = true
 scoop-ast.workspace = true
 scoop-parser.workspace = true
+scoop-doc.workspace = true
 scoop-identity.workspace = true
 scoop-manifest.workspace = true
 scoop-toolchain.workspace = true
