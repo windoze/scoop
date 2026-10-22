@@ -1,4 +1,3 @@
-use super::loops::loop_entry_facts;
 use super::*;
 
 impl<F: Fn() -> bool> PrefixQuery<'_, F> {
@@ -15,7 +14,7 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         let incoming = lowerer.smart_casts.clone();
         let prepared = lowerer.with_pattern_transaction(|state| {
             let head = state.lower_iteration_head(&for_loop.iterable, for_loop.span)?;
-            state.smart_casts = loop_entry_facts(state);
+            state.smart_casts = state.facts_without_mutable_bindings(state.smart_casts.clone());
             state.push_scope();
             if state
                 .lower_irrefutable_binding_from_subject(&for_loop.pattern, head.element, false)

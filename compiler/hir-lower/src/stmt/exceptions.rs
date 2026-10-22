@@ -1,5 +1,7 @@
 use super::*;
 
+mod catches;
+
 struct ValueCatch {
     local: hir::LocalId,
     ty: TypeId,
@@ -46,42 +48,18 @@ impl Lowerer {
         let catch_facts = self.catch_smart_cast_facts(incoming.clone(), &body, None);
         let mut catches = Vec::with_capacity(try_.catches.len());
         for catch in &try_.catches {
-            let Some(ty) = self.resolve_type_ref(&catch.ty) else {
-                continue; // diagnostic already recorded
-            };
-            let Some(throwable) = self.throwable_ty(catch.ty.span) else {
+            let Ok(Some(ty)) = self.resolve_catch_type(
+                &catch.ty,
+                catch.span,
+                catches.iter().map(|earlier: &hir::CatchClause| earlier.ty),
+            ) else {
                 continue;
             };
-            if !self.is_subtype(ty, throwable) {
-                let found = self.type_name(ty);
-                self.error(
-                    catch.ty.span,
-                    format!("catch parameter type {found} is not a subtype of Throwable"),
-                );
-                continue;
-            }
-            // Shadowing: an earlier catch whose type covers this one
-            // (supertype or equal) makes it unreachable.
-            if catches
-                .iter()
-                .any(|earlier: &hir::CatchClause| self.is_subtype(ty, earlier.ty))
-            {
-                let found = self.type_name(ty);
-                self.error(
-                    catch.span,
-                    format!(
-                        "unreachable catch block: {found} is already covered by an earlier catch"
-                    ),
-                );
-                continue;
-            }
-            self.push_scope();
             let local =
                 self.alloc_declared_local(catch.name.text.clone(), ty, false, catch.name.span);
-            self.scopes.declare(catch.name.text.clone(), local);
-            let body =
-                self.with_smart_casts(catch_facts.clone(), |this| this.lower_block(&catch.body));
-            self.pop_scope();
+            let body = self.with_catch_scope(&catch.name, local, |this| {
+                this.with_smart_casts(catch_facts.clone(), |this| this.lower_block(&catch.body))
+            });
             catches.push(hir::CatchClause {
                 local,
                 ty,
@@ -119,28 +97,12 @@ impl Lowerer {
         let mut resolved = Vec::new();
         let mut covered = Vec::new();
         for catch in &try_.catches {
-            let Some(ty) = self.resolve_type_ref(&catch.ty) else {
+            let Some(ty) = self
+                .resolve_catch_type(&catch.ty, catch.span, covered.iter().copied())
+                .ok()?
+            else {
                 continue;
             };
-            let throwable = self.throwable_ty(catch.ty.span)?;
-            if !self.is_subtype(ty, throwable) {
-                let found = self.type_name(ty);
-                self.error(
-                    catch.ty.span,
-                    format!("catch parameter type {found} is not a subtype of Throwable"),
-                );
-                continue;
-            }
-            if covered.iter().any(|&earlier| self.is_subtype(ty, earlier)) {
-                let found = self.type_name(ty);
-                self.error(
-                    catch.span,
-                    format!(
-                        "unreachable catch block: {found} is already covered by an earlier catch"
-                    ),
-                );
-                continue;
-            }
             covered.push(ty);
             let local =
                 self.alloc_declared_local(catch.name.text.clone(), ty, false, catch.name.span);
@@ -162,11 +124,7 @@ impl Lowerer {
         let catch_facts = if let Some(body) = &body {
             self.catch_smart_cast_facts(incoming.clone(), &body.statements, body.value.as_ref())
         } else {
-            let mut facts = incoming.clone();
-            for (_, local) in self.locals.iter().filter(|(_, local)| local.mutable) {
-                facts.forget(local.binding);
-            }
-            facts
+            self.facts_without_mutable_bindings(incoming.clone())
         };
         let mut catches: Vec<Option<ValueCatch>> = (0..resolved.len()).map(|_| None).collect();
         for (index, &(catch, ty, local)) in resolved.iter().enumerate() {
@@ -332,10 +290,9 @@ impl Lowerer {
         local: hir::LocalId,
         expected: Option<TypeId>,
     ) -> Option<ValueCatch> {
-        self.push_scope();
-        self.scopes.declare(catch.name.text.clone(), local);
-        let body = self.lower_value_block(&catch.body, expected);
-        self.pop_scope();
+        let body = self.with_catch_scope(&catch.name, local, |this| {
+            this.lower_value_block(&catch.body, expected)
+        });
         Some(ValueCatch {
             local,
             ty,

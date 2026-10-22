@@ -12,6 +12,7 @@ from cancellation import check as check_cancellation
 from diagnostics import check as check_diagnostics
 from do_while_recovery import check as check_do_while_recovery
 from documentation import check as check_documentation
+from exception_recovery import check as check_exception_recovery
 from for_recovery import check as check_for_recovery
 from import_references import check as check_import_references
 from incomplete_signatures import check as check_incomplete_signatures
@@ -346,6 +347,7 @@ def main():
         check_for_recovery(peer, root)
         check_do_while_recovery(peer, root)
         check_when_recovery(peer, root)
+        check_exception_recovery(peer, root)
         check_recovered_interfaces(peer, root)
         check_recovered_structs(peer, root)
         peer.finish()

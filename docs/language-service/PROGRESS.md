@@ -170,6 +170,8 @@ do-while 的恢复上下文已接入：原 grammar 区分损坏 body 与完整 b
 
 when 的恢复上下文已接入原 subject、primary 与 guard 计算：顺序保留完整头部、实际 body 及部分条件入口，模式绑定和条件真假 flow 与普通编译共用；错误 body 不影响其他 arm，未知头部后不发布推测事实。subject 声明不提前可见，未完成 guard 保留已检查的模式绑定，逗号条件的部分输入使用此前条件的否定路径。完整 when 不复制恢复头部；值分支需求仍在原模式作用域计算。格式化、全 workspace Clippy、Ruff、168 项编辑态测试、55 项普通 when／类型推断回归及 682 项 parser／宿主／LSP 测试通过；独立进程和完整 stdio fixture 通过，后者耗时约 64.5 秒，覆盖 tuple／struct／泛型 enum、中文位置、局部遮蔽、错误条件与 guard、EOF、取消和修改／关闭恢复。初次 lint 的恢复数据尺寸及新增语法上下文穷尽分支已修正；try 等恢复作用域及其他引用／重命名范围继续实施。
 
+try／catch／finally 的恢复上下文已接入：实际块入口与完整前置块分开，EOF 或后续未知头部不丢失已知 try 前缀；catch 类型、Throwable 关系、前序覆盖和参数 scope 与普通语句／值 try 共用。完整前置区域复用原异常及 finally 出口计算，未知区域沿共用规则清除可变 binding、别名与 Boolean 关系，保留不可变事实；没有 finally 查询时不额外检查完整 handler body。格式化、全 workspace Clippy、Ruff、179 项编辑态测试、28 项普通异常／类型推断回归及 687 项 parser／宿主／LSP 测试通过；独立进程和完整 stdio fixture 通过，后者耗时约 64.6 秒，覆盖参数遮蔽、泛型异常、错误／被覆盖类型、实际抛出路径、handler 写入、return／循环目标、取消及修改／关闭恢复。原诊断和普通 HIR 期望保持；target 约 15 GiB。内部 callable 恢复、其他引用区域与重命名继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

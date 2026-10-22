@@ -16,6 +16,9 @@ mod do_while;
 #[path = "recovered_bodies/when.rs"]
 mod when;
 
+#[path = "recovered_bodies/exceptions.rs"]
+mod exceptions;
+
 fn body<'a>(parsed: &'a ParsedFile, name: &str) -> &'a ast::RecoveredFunctionBody {
     parsed
         .declaration_data()

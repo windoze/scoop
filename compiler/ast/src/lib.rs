@@ -21,6 +21,8 @@ mod recovered_body;
 pub use recovered_body::*;
 mod recovered_when;
 pub use recovered_when::*;
+mod recovered_try;
+pub use recovered_try::*;
 mod recovered_call;
 pub use recovered_call::*;
 mod statements;

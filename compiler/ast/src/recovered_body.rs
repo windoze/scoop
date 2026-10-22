@@ -145,4 +145,5 @@ pub struct RecoveredFunctionBody {
     pub for_loops: Vec<RecoveredFor>,
     pub do_while_loops: Vec<RecoveredDoWhile>,
     pub whens: Vec<crate::RecoveredWhen>,
+    pub tries: Vec<crate::RecoveredTry>,
 }

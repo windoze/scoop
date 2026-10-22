@@ -11,6 +11,26 @@ use facts::TypeFacts;
 pub(crate) use facts::{BooleanFacts, SmartCastFacts};
 
 impl Lowerer {
+    /// Unknown writes can replace mutable values, including captured aliases.
+    pub(crate) fn facts_without_mutable_bindings(
+        &self,
+        mut facts: SmartCastFacts,
+    ) -> SmartCastFacts {
+        for (_, local) in self.locals.iter() {
+            if local.mutable {
+                facts.forget(local.binding);
+            }
+        }
+        for context in &self.capture_contexts {
+            for capture in context.available.values() {
+                if capture.mutable {
+                    facts.forget(capture.binding);
+                }
+            }
+        }
+        facts
+    }
+
     /// A branch receives an independent state, including snapshots and writes.
     pub(crate) fn with_smart_casts<T>(
         &mut self,

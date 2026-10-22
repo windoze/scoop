@@ -11,6 +11,8 @@ mod conditionals;
 mod definitions;
 mod do_while;
 mod documentation;
+mod exception_flow;
+mod exceptions;
 mod imported_signatures;
 mod imports;
 mod iteration;

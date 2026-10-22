@@ -1,4 +1,3 @@
-use super::loops::loop_entry_facts;
 use super::*;
 
 impl<F: Fn() -> bool> PrefixQuery<'_, F> {
@@ -9,7 +8,7 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         available: bool,
     ) -> Result<(), EditingCancelled> {
         check_cancelled(self.is_cancelled)?;
-        let incoming = loop_entry_facts(lowerer);
+        let incoming = lowerer.facts_without_mutable_bindings(lowerer.smart_casts.clone());
         lowerer.with_smart_casts(incoming.clone(), |lowerer| {
             let target = lowerer.fresh_loop();
             lowerer.push_loop(target, do_while.label.as_ref());
@@ -44,21 +43,11 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         parent: Option<ast::BodyBlockId>,
         body: &ast::Block,
         start: u32,
-        mut available: bool,
+        available: bool,
         incoming: crate::expr::SmartCastFacts,
         target: hir::LoopId,
     ) -> Result<(), EditingCancelled> {
-        let mut statements = Vec::new();
-        for statement in &body.statements {
-            check_cancelled(self.is_cancelled)?;
-            if !available {
-                break;
-            }
-            let before = lowerer.diagnostics.len();
-            lowerer.lower_statement(statement, &mut statements);
-            available = lowerer.diagnostics.len() == before;
-        }
-        if available {
+        if let Some(statements) = self.complete_statements(lowerer, &body.statements, available)? {
             lowerer.with_do_while_condition(incoming, &statements, target, |lowerer| {
                 self.expression(lowerer, parent, start, true)
             })

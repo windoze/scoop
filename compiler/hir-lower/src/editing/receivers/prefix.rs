@@ -2,6 +2,7 @@ use super::*;
 
 mod conditionals;
 mod do_while;
+mod exceptions;
 mod iteration;
 mod loops;
 mod when;
@@ -48,6 +49,27 @@ struct PrefixQuery<'a, F> {
 }
 
 impl<F: Fn() -> bool> PrefixQuery<'_, F> {
+    fn complete_statements(
+        &mut self,
+        lowerer: &mut Lowerer,
+        source: &[ast::Statement],
+        available: bool,
+    ) -> Result<Option<Vec<hir::Statement>>, EditingCancelled> {
+        if !available {
+            return Ok(None);
+        }
+        let mut statements = Vec::new();
+        for statement in source {
+            check_cancelled(self.is_cancelled)?;
+            let before = lowerer.diagnostics.len();
+            lowerer.lower_statement(statement, &mut statements);
+            if lowerer.diagnostics.len() != before {
+                return Ok(None);
+            }
+        }
+        Ok(Some(statements))
+    }
+
     fn block(
         &mut self,
         lowerer: &mut Lowerer,
@@ -185,6 +207,14 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
             .find(|when| when.block == block && when.start == start)
         {
             return self.when(lowerer, when, available);
+        }
+        if let Some(try_) = self
+            .body
+            .tries
+            .iter()
+            .find(|try_| try_.block == block && try_.start == start)
+        {
+            return self.try_(lowerer, try_, available);
         }
         Ok(())
     }
