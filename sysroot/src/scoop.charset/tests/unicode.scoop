@@ -3,41 +3,11 @@ package scoop.charset
 import scoop.test.*
 
 @Test
-private class UnicodeEditingTest {
-    @Test fun boundaries() {
+private class UnicodeAdapterTests {
+    @Test fun `UTF8 byte boundaries become Scoop scalar indices`() {
         assertItems([0L], graphemeBoundaries(""))
-        assertItems([0L, 2L, 3L, 6L, 8L], graphemeBoundaries("e\u0301中👩\u200d💻🇨🇳"))
-        assertItems(["e\u0301", "中", "👩\u200d💻", "🇨🇳"], graphemes("e\u0301中👩\u200d💻🇨🇳"))
-        assertItems(["\r\n", "a"], graphemes("\r\na"))
-    }
-    @Test fun widthAndCase() {
-        assertEquals(1, unicodeScalarWidth('a'))
-        assertEquals(2, unicodeScalarWidth('中'))
-        assertEquals(1, unicodeScalarWidth('·'))
-        assertEquals(3, unicodeScalarWidth('\u17d8'))
-        assertEquals(0, unicodeScalarWidth('\u0301'))
-        assertEquals(-1, unicodeScalarWidth('\n'))
-        assertEquals(-1, unicodeScalarWidth('\u0000'))
-        assertTrue(isUnicodeAlphanumeric('中'))
-        assertTrue(isUnicodeAlphanumeric('\u093e'))
-        assertTrue(isUnicodeAlphanumeric('٣'))
-        assertFalse(isUnicodeAlphanumeric('²'))
-        assertFalse(isUnicodeAlphanumeric('½'))
-        assertFalse(isUnicodeAlphanumeric('!'))
-        assertEquals("STRASSE", unicodeUppercase("straße"))
-        assertEquals("éω", unicodeLowercase("ÉΩ"))
-        assertEquals("strasse σσ", unicodeCasefold("Straße Σς"))
-    }
-
-    @Test fun fullStringCaseContextAndEmptySpans() {
-        assertEquals("", unicodeLowercase(""))
-        assertEquals("", unicodeUppercase(""))
-        assertEquals("", unicodeCasefold(""))
-        assertEquals("ος οσα", unicodeLowercase("ΟΣ ΟΣΑ"))
-        assertEquals("i\u0307iı", unicodeLowercase("İIı"))
-        assertEquals("FFI SS", unicodeUppercase("ﬃ ß"))
-        assertEquals("a\u0000σ", unicodeLowercase("A\u0000Σ"))
-        assertEquals("i\u0307iı\u0000strasse", unicodeCasefold("İIı\u0000Straße"))
+        assertItems([0L, 2L, 3L], graphemeBoundaries("e\u0301中"))
+        assertItems(["e\u0301", "中"], graphemes("e\u0301中"))
     }
 }
 

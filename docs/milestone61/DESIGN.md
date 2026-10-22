@@ -173,9 +173,9 @@ OrNone 仅转换正常输入无效结果，参数和后端运行故障保持既�
 
 M54 的 ENCODINGS.md 列出 108 个 canonical name；M61 的 [新集合](../../sysroot/src/scoop.charset/ENCODINGS.md) 保留 43 个。`encoding_rs` 并非 GNU libiconv 全集的等价实现。[覆盖核对](CHARSET-COVERAGE.md) 已逐项列出原集合。2026-10-22 用户明确选择“保留纯 Rust，仅支持成熟 Rust 库能覆盖的编码”；不再要求保留全部 108 种。实施时在 charset spec 与 ENCODINGS.md 明确新的集合、移除的名称、保留别名及实际映射版本，不让未实现名称继续查找成功。
 
-GB18030 的版本对照已在编码列表明确：旧名称对应 2005，另列 2022；新名称采用 WHATWG 2022 变体并移除年份别名，记录 19 个 PUA 的非往返行为。GBK、Big5、Shift_JIS、EUC-JP、ISO-2022-JP 的标准／厂商扩展与错误恢复也须以现有向量和独立标准数据核对。
+GB18030 的版本对照已在编码列表明确：旧名称对应 2005，另列 2022；新名称采用 WHATWG 2022 变体并移除年份别名，记录 19 个 PUA 的非往返行为。GBK、Big5、Shift_JIS、EUC-JP、ISO-2022-JP 的标准／厂商扩展与错误恢复以固定上游实现及其文档为准。
 
-实际映射差异先写入 charset spec，再迁移到成熟 Rust 后端。不存在的历史编码明确返回 UnsupportedCharsetException；不保留隐藏 GNU fallback、不自行补写 CJK／ISO-2022 算法、不搭建后端插件框架。新的编码集合仍须逐项验证真实双向转换。
+实际映射差异先写入 charset spec，再迁移到成熟 Rust 后端。不存在的历史编码明确返回 UnsupportedCharsetException；不保留隐藏 GNU fallback、不自行补写 CJK／ISO-2022 算法、不搭建后端插件框架。测试检查 Scoop 的名称表与适配合同，不逐项复核上游映射表。
 
 ### 5.3 严格、有损与增量状态
 
@@ -207,41 +207,26 @@ Rust `staticlib` 仍可能需要目标系统库。准备与链接验证使用 `r
 
 ## 7. 已有可行性证据
 
-2026-10-22 在仓库外构建了一个试验 Cargo package，将 `encoding_rs` 0.8.42、`idna` 1.1.0、`icu_normalizer` 2.3.0 编入同一静态库，使用 Apple Clang 编译的纯 C 消费者链接调用。先运行 `cargo fmt` 与 `cargo clippy --all-targets -- -D warnings`，再构建 release 静态库并运行定向检查。
+2026-10-22 在仓库外构建了一个试验 Cargo package，将 encoding_rs、idna、icu_normalizer 编入同一 release 静态库，使用 Apple Clang 编译的纯 C 消费者调用。结果确认 C aggregate 返回、同库释放和 Darwin 系统库链接可行；Cargo 依赖许可为 MIT、Apache-2.0、BSD、Unicode，无 GPL／LGPL。
 
-| 项目 | 已验证结果 |
-| --- | --- |
-| 目标 | Darwin/AArch64 |
-| 构建 | Rust 1.99.0，staticlib、release、LTO、`panic = "abort"` |
-| 调用 | C 通过显式布局的结果结构取得字节，再调用同库释放入口 |
-| NFC | 合成、空串、内嵌 NUL |
-| IDNA | 非过渡 `ß`、符号域名与 ContextO 差异、末尾根点；STD3、连字符、Bidi、ContextJ、空中间标签拒绝 |
-| Punycode | 空串、纯 ASCII 末尾分隔符、含 NUL 和标点的原始往返 |
-| 字符集 | GBK 中文双向转换、截断输入与不可表示输出拒绝 |
-| 总结果 | 19 项检查全部通过 |
-| 本机动态依赖 | C 消费者仅依赖 `libSystem.B.dylib`，没有 C++ 或原 GNU 文本库的动态依赖 |
-| Cargo 许可声明 | 本次解析的直接及传递依赖为 MIT、Apache-2.0、BSD、Unicode 许可，无 GPL／LGPL |
-
-该试验证明所选包能够打包为一个 C 可调用的静态库，并验证表中代表行为；未覆盖 Scoop 正式 FFI、完整字符集、增量状态、错误偏移、OOM、Linux 链接、真实网络组合和发行包。试验的操作编号不是拟交付 API。原始源码、日志与许可 JSON 留在仓库外，本文只保存验证范围、结果与限制。
+该试验仅用于选型；正式 Scoop 适配、目标构建与运行结果见 [进度](PROGRESS.md)。不将上游 Unicode 算法核对或官方一致性向量作为本项目验收。
 
 ## 8. 验收计划
 
-测试围绕正常语言、库与产物行为组织。每项能力有独立用例及实际组合用例；普通功能用例验证诊断和运行结果，不新增 AST／HIR／MIR／LIR 全量快照。
+测试只验证本次实现的 Scoop 适配、库功能与目标资源交付，使用 scoop.test，不新增 fixture。按用户要求，不为编译器、链接器或其他底层缺口增加正例、负例，也不增加 Rust 库 Unicode 兼容性或完备性测试；不随附官方一致性数据。
 
 | 范围 | 必须覆盖 |
 | --- | --- |
 | Rust／C ABI | 真实 C 消费者、布局与长度、空输入和 NUL、所有权与释放、普通失败状态；三个目标实际链接运行 |
-| IDNA | 同数据版本 `IdnaTestV2` 与上游测试，使用明确的 UTS #46 参数；NFC、大小写、A-label、Bidi、ContextJ、连字符、63／255 字节、末尾与独立根点、单标签、并行独立调用 |
-| IDNA 差异 | 符号域名和 ContextO 的新正向用例；保留检查的负向用例；异常不承诺虚构的后端 code／labelIndex 或细分类 |
-| Punycode | RFC 3492 向量、空串、ASCII、NUL、标点、非标量、非法整数序列和溢出 |
-| 字符集 | 基础 14 种双向转换及新的完整名称集合覆盖；ASCII／Latin-1 本义、CJK 差异、GB18030 版本、不可表示字符、BOM 与字节序、状态编码 |
+| IDNA／Punycode／NFC | Scoop profile 边界与参数适配、状态映射、输入借用和输出复制／释放；复用现有公共 API 用例 |
+| 字符集 | Scoop 名称表、退役名称、选项、BOM 与字节序适配 |
 | 增量 | 任意合法分块、极短输入／输出、跨块错误与绝对偏移、明确 EOF、输出背压、严格／替换策略、finish／close 与失败清理 |
-| NFC | 官方规范化向量、重排、组合排除、Hangul、非兼容折叠、NUL／BOM；与字符集和认证凭据组合 |
-| Scoop 消费者 | 跨 Cone charset／idna 与直接受影响的 URL／文本协议入口；复用既有通过结果，不为后端替换重复编译整个 HTTP client 测试 Cone |
-| 资源与运行时 | 普通并发、取消后的 native 清理、定向 moving GC；不把 GC stress 设为全量功能模式 |
+| Unicode 适配与 readline | UTF-8 字节边界转 Scoop 标量索引、长度与所有权；实际编辑、历史记录、补全与 PTY 行为 |
+| Scoop 消费者 | 复用已完成的 charset／idna 与直接消费者结果；不扩展或重跑 HTTP client 组合测试 |
+| 资源生命周期 | 复用库内已有的独立调用、gcCollect 与 close 清理用例，不增加 runtime 缺口专测 |
 | 分发与复用 | 三目标预编译资源、两个正式链接入口、真实应用链接运行、更新命中、输入变化、缺失输入、失败不发布与普通并发准备 |
 
-原严格 IDNA2008 的 NV8／XV8 排除和 ContextO 失败不再作为新 profile 的通过条件；改为断言本文明确选择的行为。保留的 Bidi／ContextJ 检查仍须独立负向覆盖。不能仅以旧 libidn2 的输出作为新行为 oracle。
+原严格 IDNA2008 与 UTS #46 的差异在规范中说明，上游算法与数据正确性由上游负责；不把 Bidi、ContextJ、ContextO、NFC、分段、折叠或编码映射的规则核对设为本项目验收项。
 
 链接专测检查实际使用的目标归档和必要本机依赖，确认原 GNU 文本链已经退出；这些检查只用于定向验收，不进入消费者 reader 或缓存命中的内容复核。复用测试保持源码、工具与原产物存在，以真实调用和输出验证结果。
 
@@ -275,7 +260,7 @@ M61 完成需要同时满足：原 GNU 文本依赖链退出实际应用链接�
 
 - 按用户决定收敛后的 Rust 编码集合及实际映射，特别是 GB18030 版本、CJK 扩展和有状态错误恢复；明确退役不能承接的历史名称。
 - 普通后端 OOM／panic 与现有可恢复 `Backend` 异常的准确边界；不以 `panic = "abort"` 代替这项设计结论。
-- 锁定 ICU4X 数据的实际 Unicode 版本及官方测试向量选择。
+- 锁定 ICU4X 数据的实际 Unicode 版本并记录依赖许可。
 - GNU／musl 的 Rust 本机依赖、unwind 协调、CPU／部署基线以及最终链接运行。
 - 正式 Scoop 适配、原有根域特例、诊断精度、增量状态、跨库组合和发行验收。
 

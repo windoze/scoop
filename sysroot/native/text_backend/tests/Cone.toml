@@ -6,18 +6,16 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"scoop:scoop.std" = "0.1.0"
-"scoop:scoop.idna" = "0.1.0"
-"scoop:scoop.charset" = "0.1.0"
-"scoop:scoop.platform" = "0.1.0"
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
 [native]
 include = ["../include"]
 c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
+[[native.libraries]]
+name = "scoop_text_backend"
+kind = "static"
 [[native.sources]]
 path = "native/abi.c"
-
 
 [[native.sources]]
 path = "native/charset.c"

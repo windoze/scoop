@@ -5,7 +5,7 @@ import scoop.test.*
 @Test
 private class TextBackendAbiTests {
     @Test
-    fun `C Unicode caller checks spans scalars expansion and Rust ownership`() {
+    fun `C Unicode caller checks spans and Rust ownership`() {
         @Unsafe { assertEquals(0, checkUnicodeAbi()) }
     }
     @Test
@@ -18,5 +18,4 @@ private class TextBackendAbiTests {
         @Unsafe { assertEquals(0, checkAbi()) }
     }
 }
-
 

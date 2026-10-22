@@ -1,0 +1,22 @@
+package scoop.charset
+
+import scoop.collections.*
+import scoop.test.*
+
+@Test
+private class CharsetNameTests {
+    @Test
+    fun `every advertised alias resolves to one of the 43 implemented encodings`() {
+        val canonical = ArrayList<String>()
+        for (name in Charset.availableNames) {
+            val charset = Charset.forName(name)
+            assertEquals(charset, Charset.forName(unicodeLowercase(name)))
+            if (!canonical.contains(charset.name)) canonical.add(charset.name)
+        }
+        assertEquals(43L, canonical.size)
+        for (name in ["GB18030:2005", "GB18030:2022", "CP932", "CP936", "CP949", "CP950", "BIG5-HKSCS",
+            "UTF-7", "UCS-2", "UCS-4", "ISO-2022-CN", "ISO-2022-JP-2", "HZ", "JOHAB", "EUC-TW",
+            "ISO-8859-9", "ISO-8859-11", "TIS-620", "CP850", "VISCII", "replacement", "x-user-defined",
+            " UTF-8", "UTF-8 "]) assertTrue(Charset.forNameOrNone(name) == None)
+    }
+}

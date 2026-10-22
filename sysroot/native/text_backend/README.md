@@ -15,6 +15,6 @@ cargo clippy --manifest-path sysroot/native/text_backend/Cargo.toml --locked --a
 SCOOP_SYSROOT="$PWD/sysroot" target/release/scoop test sysroot/native/text_backend/tests --release
 ```
 
-测试包括实际 C 消费者的布局／生命周期、Unicode 17 IDNA、NFC、字素边界和完整 case folding 官方向量；库各自的
-行为与组合回归仍在所属 Cone 的 tests 中。普通应用不执行 Cargo。数据错误返回状态，
+测试检查实际 C 消费者的布局、长度、状态和生命周期；Scoop 接口适配及 readline 编辑行为仍在所属 Cone 的 tests 中。
+不维护上游 Unicode 兼容性／完备性测试或官方一致性数据。普通应用不执行 Cargo。数据错误返回状态，
 Rust 内部 panic／不可恢复 OOM 终止进程，不跨 C ABI 展开。

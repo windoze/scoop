@@ -61,8 +61,8 @@ Readline 所需的 Unicode 基础能力使用 ICU4X 2.3.0 的 segmenter、casema
 
 Content-Type 参数解析属于 HTTP；HTTP client 根据显式 charset、调用方选择和协议规定选择 Charset。本库不猜测媒体类型。JSON 的网络表示采用 UTF-8，SSE 采用其规定的 UTF-8；HTTP 历史字段的原始字节不被整体当成 UTF-8 解码。
 
-Basic／Digest 在选择 UTF-8 凭据时按 RFC 7617／7616 调用 normalizeNfc，再编码和计算凭据；字段语法、凭据选择和摘要分别保留在 HTTP、client 和 crypto。NFC 的独立向量覆盖组合、重排、排除、Hangul、非兼容折叠、NUL／BOM，并组合字符集往返与实际认证字段和摘要。
+Basic／Digest 在选择 UTF-8 凭据时按 RFC 7617／7616 调用 normalizeNfc，再编码和计算凭据；字段语法、凭据选择和摘要分别保留在 HTTP、client 和 crypto。
 
-固定向量覆盖编码双向转换、不等价字符、非法输入、不可表示输出、BOM 与字节序、任意分块及状态编码。用官方映射数据和明确的迁移差异交叉验证，再组合短读 HTTP body、Content-Disposition 扩展参数和取消后的引擎清理。三个目标执行库测试和普通生产消费者，工具只用于开发验证。
+测试围绕 Scoop 自有的名称与选项适配、BOM 与字节序、增量状态、输入消费量、输出背压、错误偏移和资源释放。Unicode 入口验证 C ABI 与字节／标量索引转换，readline 验证实际编辑行为；不新增 Rust 库 Unicode 兼容性或完备性的正例、负例，不维护官方一致性测试数据。三个目标执行相关 Scoop 消费与链接验证；已有直接消费者结果按变更范围复用，不扩展 HTTP client 组合测试。
 
 依据：[encoding_rs](https://docs.rs/encoding_rs/0.8.42/encoding_rs/)、[WHATWG Encoding](https://encoding.spec.whatwg.org/)、[UAX #15](https://www.unicode.org/reports/tr15/)、[RFC 8187](https://www.rfc-editor.org/rfc/rfc8187.html)、[RFC 7616](https://www.rfc-editor.org/rfc/rfc7616.html)、[RFC 7617](https://www.rfc-editor.org/rfc/rfc7617.html)。

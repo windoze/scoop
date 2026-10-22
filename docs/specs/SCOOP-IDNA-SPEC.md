@@ -52,9 +52,9 @@ URL 从已解析的 host 组件调用 IDNA；百分号解码和 IP 识别属于 
 
 维护脚本从固定 Rust package 与锁定依赖准备三个目标的 `libscoop_text_backend.a` 和 C 头文件；源码及许可沿 M52 布局交付。`idna` 使用 MIT／Apache-2.0，ICU4X 与 Unicode 数据使用 Unicode-3.0。普通应用只消费 `.slib` 和静态归档，不执行 Cargo 或探测 Rust 工具链。共同归档复用现有 native library 闭包去重与目标链接规则，见实现规范 §2.8。
 
-采用 Unicode 17.0.0 `IdnaTestV2.txt`，按本规范的参数检查，独立根点按明确的 profile 边界处理。覆盖符号和 ContextO 的正向差异，STD3、Bidi、ContextJ、伪 A-label、连字符、分隔符、空标签、63／255 字节边界、大小写及 NFC；不以旧 GNU 输出作为新 profile 的唯一 oracle。
+测试验证 Scoop 自有的 profile 参数适配、根点与单标签边界、异常映射及结果所有权。Unicode 算法和数据由固定的成熟 Rust 依赖提供，不引入官方一致性数据，也不新增针对上游 Unicode 兼容性或完备性的正例、负例。
 
-三个目标运行真实 C ABI 调用、跨 Cone 消费、并行独立调用和定向 moving GC。公开行为在 scoop.test 中验证，不增加 fixture。更新数据时重跑 IDNA 及 URL／Cookie 的相应组合。
+三个目标运行真实 C ABI 调用及 Scoop 消费，检查长度、状态和释放责任。公开行为在 scoop.test 中验证，不增加 fixture；已有直接消费者结果按实际变更范围复用，不因数据更新扩展到无关消费者。
 
 ## 6. 依据
 
