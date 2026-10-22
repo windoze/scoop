@@ -5,7 +5,7 @@ use lsp_types::{
 use scoop_source::{PositionEncoding, SourceText, Span, TextPosition};
 
 mod location;
-pub(crate) use location::location;
+pub(crate) use location::{definition_location, location};
 
 pub(crate) fn error(code: ErrorCode, message: impl ToString) -> ResponseError {
     ResponseError {

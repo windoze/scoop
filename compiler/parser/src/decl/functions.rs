@@ -104,7 +104,14 @@ impl Parser {
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::FunctionDecl, |parser| {
-            parser.parse_function_inner(annotations, visibility, modifiers, context)
+            let checkpoint = parser.checkpoint();
+            let has_prefix_errors = modifiers.has_syntax_errors;
+            let declaration =
+                parser.parse_function_inner(annotations, visibility, modifiers, context)?;
+            if !has_prefix_errors {
+                parser.record_declaration_source_span(declaration.span, checkpoint);
+            }
+            Ok(declaration)
         })
     }
 

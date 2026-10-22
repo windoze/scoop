@@ -2,6 +2,36 @@ use scoop_parser::parse_recovering;
 use scoop_syntax::SyntaxKind;
 
 #[test]
+fn completed_source_ranges_preserve_prefixes_and_parameter_boundaries() {
+    let source = "@NoGC public fun <T> T.pick(@Tag value: T): T = value\npublic val flag: Boolean = true\nfun broken(value: ) {}";
+    let parsed = parse_recovering(source).unwrap();
+    assert!(parsed.ast().is_none());
+    let declarations = parsed.declarations();
+    let ranges: Vec<_> = declarations
+        .iter()
+        .filter_map(|declaration| {
+            let span = declaration.source_span?;
+            Some((
+                declaration.name.as_ref().unwrap().text.as_str(),
+                &source[span.start as usize..span.end as usize],
+            ))
+        })
+        .collect();
+    assert_eq!(
+        ranges,
+        [
+            (
+                "pick",
+                "@NoGC public fun <T> T.pick(@Tag value: T): T = value"
+            ),
+            ("value", "value: T"),
+            ("flag", "public val flag: Boolean = true"),
+        ]
+    );
+    assert_eq!(&source[declarations[0].span.start as usize..][..3], "fun");
+}
+
+#[test]
 fn declaration_names_follow_the_grammar_including_extension_receivers() {
     let source = "fun <T> List<T>.`first value`(value: T): T = value\nval String.count: Int get() = 0\ntypealias Text = String";
     let parsed = parse_recovering(source).unwrap();

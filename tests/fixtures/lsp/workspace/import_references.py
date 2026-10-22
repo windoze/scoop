@@ -64,6 +64,17 @@ def check(peer, root):
     assert references(consumer, consumer_text, 4, "choose") == original
     overloads = references(consumer, consumer_text, 0, "choose")
     assert sum(item["uri"] == provider.as_uri() for item in overloads) == 2, overloads
+    for name in ["choose", "别名"]:
+        definitions = peer.request(
+            "textDocument/definition",
+            {
+                "textDocument": {"uri": consumer.as_uri()},
+                "position": {"line": 0, "character": consumer_text.splitlines()[0].index(name)},
+            },
+        )
+        assert len(definitions) == 2, definitions
+        assert all(item["uri"] == provider.as_uri() for item in definitions), definitions
+        assert sorted(item["range"]["start"]["line"] for item in definitions) == [1, 2], definitions
 
     changed = consumer_text.replace(
         "import AliasApi.choose as 别名", "import AliasApi.choose"

@@ -5,7 +5,7 @@ use scoop_hir::EditingValue;
 use serde_json::Value;
 
 use super::semantic;
-use crate::initialize::Settings;
+use crate::{convert, initialize::Settings};
 
 pub(crate) fn definition(
     snapshot: &AnalysisSnapshot,
@@ -64,14 +64,45 @@ pub(crate) fn definition(
             )?
             .and_then(|reference| reference.definition);
         }
+        if origin.is_none() {
+            let snapshot = snapshot.clone();
+            let cancellation = cancellation.clone();
+            if let EditingValue::Known(definition) = analysis
+                .argument_definition(function.function, cursor.span, move || {
+                    cancellation.check().is_err() || snapshot.check_cancelled().is_err()
+                })
+                .map_err(|_| semantic::cancelled())?
+            {
+                origin = definition;
+            }
+        }
         if let Some(origin) = origin {
-            return super::json(semantic::location(
+            return super::json(convert::definition_location(
                 snapshot,
                 cursor.project,
                 &origin,
                 settings,
             )?);
         }
+    }
+    let definitions = analysis
+        .import_definitions(&cursor.file.identity, cursor.span, || {
+            cancellation.check().is_err() || snapshot.check_cancelled().is_err()
+        })
+        .map_err(|_| semantic::cancelled())?;
+    let mut locations = Vec::new();
+    for definition in definitions {
+        if let Some(location) =
+            convert::definition_location(snapshot, cursor.project, &definition, settings)?
+        {
+            locations.push(location);
+        }
+    }
+    if locations.len() == 1 {
+        return super::json(locations.pop());
+    }
+    if !locations.is_empty() {
+        return super::json(locations);
     }
     Ok(Value::Null)
 }

@@ -90,6 +90,47 @@ fn declaration_inputs_borrow_the_current_grammar_projection() {
 }
 
 #[test]
+fn definition_names_require_exact_grammar_declaration_ranges() {
+    use scoop_source::Span;
+    let mut host = AnalysisHost::default();
+    let input = "/// Documentation\n@NoGC fun 函数(value: Boolean): Boolean = value\nfun 函数(value: String): String = value";
+    let id = host.add_source(text(input));
+    let source = host.source(id).unwrap();
+    let boundary = input.find("\nfun").unwrap() as u32;
+    let first = Span::new(input.find("@NoGC").unwrap() as u32, boundary);
+    let second = Span::new(boundary + 1, input.len() as u32);
+    for (declaration, name) in [
+        (first, input.find("函数").unwrap()),
+        (second, input.rfind("函数").unwrap()),
+    ] {
+        assert_eq!(
+            source.declaration_name_span(declaration).unwrap(),
+            Some(Span::new(name as u32, (name + "函数".len()) as u32))
+        );
+    }
+    let parameter = input.find("value: Boolean").unwrap() as u32;
+    assert_eq!(
+        source
+            .declaration_name_span(Span::new(parameter, parameter + 14))
+            .unwrap(),
+        Some(Span::new(parameter, parameter + 5))
+    );
+    assert_eq!(
+        source
+            .declaration_name_span(Span::new(first.start + 1, first.end))
+            .unwrap(),
+        None
+    );
+    let value = input.rfind("value").unwrap() as u32;
+    assert_eq!(
+        source
+            .declaration_name_span(Span::new(value, value + 5))
+            .unwrap(),
+        None
+    );
+}
+
+#[test]
 fn declaration_symbol_indexes_keep_error_names_and_exclude_callable_locals() {
     let mut host = AnalysisHost::default();
     let id = host.add_source(text(

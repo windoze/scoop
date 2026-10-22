@@ -67,6 +67,18 @@ def check(peer, root):
         },
     )
     assert named == parameter, (named, parameter)
+    definition = peer.request(
+        "textDocument/definition",
+        {
+            "textDocument": {"uri": caller.as_uri()},
+            "position": {"line": 0, "character": call_text.index("input")},
+        },
+    )
+    assert definition["uri"] == path.as_uri(), definition
+    assert definition["range"]["start"] == {
+        "line": 3,
+        "character": text.splitlines()[3].index("input"),
+    }, definition
     peer.notify(
         "textDocument/didChange",
         {

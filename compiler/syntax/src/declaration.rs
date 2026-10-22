@@ -19,6 +19,9 @@ pub struct DeclarationSyntax {
     pub kind: SyntaxKind,
     pub span: Span,
     pub name: Option<DeclarationName>,
+    /// The AST item's source range, recorded by a completed production.
+    /// Prefixes consumed outside this CST node may extend this range.
+    pub source_span: Option<Span>,
 }
 
 /// Grammar-produced data attached to its actual declaration in this parse.

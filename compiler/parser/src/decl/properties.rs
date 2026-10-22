@@ -15,7 +15,13 @@ impl Parser {
         context: PropertyContext,
     ) -> Result<PropertyDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::PropertyDecl, |parser| {
-            parser.parse_property_inner(prefix, context)
+            let checkpoint = parser.checkpoint();
+            let has_prefix_errors = prefix.modifiers.has_syntax_errors;
+            let declaration = parser.parse_property_inner(prefix, context)?;
+            if !has_prefix_errors {
+                parser.record_declaration_source_span(declaration.span, checkpoint);
+            }
+            Ok(declaration)
         })
     }
 

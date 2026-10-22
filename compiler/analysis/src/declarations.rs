@@ -22,6 +22,20 @@ impl From<Cancelled> for DeclarationAnalysisError {
 }
 
 impl SourceInput {
+    /// Project an exact AST source range to the name recorded by its grammar.
+    pub fn declaration_name_span(
+        &self,
+        span: scoop_source::Span,
+    ) -> Result<Option<scoop_source::Span>, &scoop_source::SourceLengthError> {
+        Ok(self
+            .parse()?
+            .declarations()
+            .iter()
+            .find(|declaration| declaration.source_span == Some(span))
+            .and_then(|declaration| declaration.name.as_ref())
+            .map(|name| name.span))
+    }
+
     pub fn declaration_source<'a>(
         &'a self,
         identity: &'a SourceIdentity,

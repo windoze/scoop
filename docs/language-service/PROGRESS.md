@@ -138,6 +138,8 @@ property 引用已保留独立的 logical property 目标、实际名称、应�
 
 精确 import 与显式 alias 已接入共用引用索引：原解析保存目标名及 alias 名称位置，普通调用、属性读写和 callable reference 在实际精确导入层记录来源；alias 使用拥有本次索引中的独立 typed 目标，原声明引用保留实际消费位置及 alias 来源。同名 alias、重载集合、局部遮蔽、显式对象成员与隐式 extension 查找分别验证。格式化、全 workspace Clippy、Ruff、85 项编辑态测试、74 项原导入回归及宿主／LSP 进程测试通过；完整 stdio fixture 通过，耗时约 29.6 秒，覆盖中文 alias、跨依赖 native 地址、修改／关闭恢复及源码依赖。限定调用测试已按现有语言规则改为对象成员访问；类型与其他引用区域、跨 Cone 转导出 alias 及完整重命名仍继续实施。
 
+定义导航已补齐精确 import／alias 与命名实参：读取原导入目标与实际调用的形参序号，支持重载集合、局部函数及跨 Cone 来源，不为查询导入先建立正文引用索引。parser 将完整函数、property 与参数的实际 AST 范围附着到同一 grammar 声明索引，宿主据此将依赖 metadata 的完整声明来源转换为名称 token；CST 边界和持久来源保持各自语义。格式化、全 workspace Clippy、Ruff、87 项编辑态测试及 641 项 parser／宿主／LSP 测试通过；真实 sysroot stdio fixture 通过，耗时约 28.7 秒。注解前缀导致 AST 与 CST 范围不同的问题由精确 production 附着修复，并覆盖 Unicode、错误相邻声明与参数重排。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

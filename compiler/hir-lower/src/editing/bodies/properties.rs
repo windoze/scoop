@@ -68,21 +68,13 @@ impl Lowerer {
         {
             access = Access::ReadWrite;
         }
-        let (name, mutable, definition) = match target {
+        let definition = self.editing_property_origin(target);
+        let (name, mutable) = match target {
             Target::Current(property) => {
                 let declaration = &self.properties[property];
-                let definition = self.property_name_spans.get(&property).and_then(|span| {
-                    self.property_definition_file(property).map(|file| {
-                        hir::SemanticSourceLocation {
-                            source: self.source_identity(file).clone(),
-                            span: *span,
-                        }
-                    })
-                });
                 (
                     declaration.name.clone(),
                     declaration.capability.setter().is_some(),
-                    definition,
                 )
             }
             Target::Imported(property) => {
@@ -97,10 +89,7 @@ impl Lowerer {
                     .property_name(property)
                     .expect("a selected property has its name")
                     .to_owned();
-                let definition = dependencies
-                    .property_definition_origin(property)
-                    .and_then(|origin| crate::semantic_queries::imported_location(origin).ok());
-                (name, declaration.accessors().setter().is_some(), definition)
+                (name, declaration.accessors().setter().is_some())
             }
         };
         let context = self.observe_body_context();

@@ -2,7 +2,7 @@ use super::*;
 use crate::tests::m23_ordinary_core_only::support::trusted_core;
 use hir::EditingReferenceTarget as Target;
 
-fn analyze_files(files: &[(&str, &str)]) -> DeclarationAnalysis {
+pub(super) fn analyze_files(files: &[(&str, &str)]) -> DeclarationAnalysis {
     let core = trusted_core();
     let identities = files
         .iter()
@@ -36,7 +36,12 @@ fn analyze_files(files: &[(&str, &str)]) -> DeclarationAnalysis {
     analyze_declarations(&inputs, &core_inputs, &world, &[], || false).unwrap()
 }
 
-fn at(path: &str, text: &str, needle: &str, length: usize) -> hir::SemanticSourceLocation {
+pub(super) fn at(
+    path: &str,
+    text: &str,
+    needle: &str,
+    length: usize,
+) -> hir::SemanticSourceLocation {
     let start = text.find(needle).unwrap() as u32;
     hir::SemanticSourceLocation {
         source: crate::tests::test_source_identity(path),

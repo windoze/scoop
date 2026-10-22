@@ -21,6 +21,7 @@ impl Parser {
         &mut self,
         vararg_span: &mut Option<Span>,
     ) -> Result<Param, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let doc_start = self.pos;
         let annotations = self.parse_annotations()?;
         let modifier_span = self.parse_vararg_modifier(vararg_span)?;
@@ -40,6 +41,7 @@ impl Parser {
             syntax,
         };
         self.attach_documentation(doc_start, parameter.span);
+        self.record_declaration_source_span(parameter.span, checkpoint);
         Ok(parameter)
     }
 }

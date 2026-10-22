@@ -46,6 +46,7 @@ enum Event {
     },
     Missing(MissingSyntax),
     DeclarationName(DeclarationName),
+    DeclarationSource(Span),
     DeclarationPrefix(
         scoop_ast::VisibilitySyntax,
         scoop_ast::DeclarationHeaderKind,
@@ -122,6 +123,16 @@ impl SyntaxEvents {
                 }
                 continue;
             }
+            if let Event::DeclarationSource(span) = event {
+                let declaration = *owners
+                    .iter()
+                    .rev()
+                    .flatten()
+                    .next()
+                    .expect("completed declarations have a grammar owner");
+                declarations[declaration.0].source_span = Some(span);
+                continue;
+            }
             if let Event::DeclarationPrefix(visibility, kind) = event {
                 if recovering {
                     let declaration = *owners
@@ -151,6 +162,7 @@ impl SyntaxEvents {
                 Event::Start { offset, .. } | Event::Finish { offset } => *offset,
                 Event::Missing(item) => item.offset,
                 Event::DeclarationName(_)
+                | Event::DeclarationSource(_)
                 | Event::DeclarationPrefix(_, _)
                 | Event::FunctionHeader(_)
                 | Event::Body(_)
@@ -168,6 +180,7 @@ impl SyntaxEvents {
                             kind,
                             span: Span::new(offset, offset),
                             name: None,
+                            source_span: None,
                         });
                         index
                     });
@@ -190,6 +203,7 @@ impl SyntaxEvents {
                     missing.push(item);
                 }
                 Event::DeclarationName(_)
+                | Event::DeclarationSource(_)
                 | Event::DeclarationPrefix(_, _)
                 | Event::FunctionHeader(_)
                 | Event::Body(_)
@@ -294,6 +308,16 @@ impl Parser {
 
     pub(crate) fn record_declaration_name(&mut self, name: &Ident) {
         self.record_syntax_name(&name.text, name.span);
+    }
+
+    pub(crate) fn record_declaration_source_span(
+        &mut self,
+        span: Span,
+        checkpoint: super::checkpoint::Checkpoint,
+    ) {
+        if !self.has_errors_since(checkpoint) && !self.has_lexical_error_in(span) {
+            self.syntax.events.push(Event::DeclarationSource(span));
+        }
     }
 
     pub(crate) fn record_syntax_name(&mut self, text: &str, span: Span) {

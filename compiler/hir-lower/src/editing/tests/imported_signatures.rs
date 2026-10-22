@@ -27,7 +27,7 @@ fn imported_hovers_preserve_declaration_binders_and_default_origins() {
     .unwrap();
     let core_inputs =
         CoreProtocolInput::from(core.foundation.import_core_inputs(&core.interface).unwrap());
-    let text = "import pass as renamed\nimport extension\nimport native as callbackAddress\nfun editing(box: Box<Boolean>): Boolean { val first = box.read(); val second = renamed(choose()); val callback: (Boolean) -> Boolean = ::renamed; val method: () -> Boolean = box::read; val equality: (Boolean) -> Boolean = first::equals; val address: FunPtr<(Int) -> Int> = ::callbackAddress; return box.extension(equality(callback(method()))) }";
+    let text = "import pass as renamed\nimport extension\nimport native as callbackAddress\nfun editing(box: Box<Boolean>): Boolean { val first = box.read(); val second = renamed(value = choose()); val callback: (Boolean) -> Boolean = ::renamed; val method: () -> Boolean = box::read; val equality: (Boolean) -> Boolean = first::equals; val address: FunPtr<(Int) -> Int> = ::callbackAddress; return box.extension(equality(callback(method()))) }";
     let parsed = scoop_parser::parse_recovering(text).unwrap();
     let source = scoop_parser::declaration_source(
         &parsed,
@@ -37,11 +37,42 @@ fn imported_hovers_preserve_declaration_binders_and_default_origins() {
     );
     let mut analysis =
         analyze_declarations(&[source], &core_inputs, &world, &[], || false).unwrap();
+    let alias_offset = text.find("callbackAddress").unwrap() as u32;
+    let definitions = analysis
+        .import_definitions(
+            &identity,
+            ast::Span::new(alias_offset, alias_offset + 15),
+            || false,
+        )
+        .unwrap();
+    assert_eq!(definitions.len(), 1);
+    assert_eq!(definitions[0].source.cone(), coordinate.identity().unwrap());
+    assert_eq!(
+        &provider[definitions[0].span.start as usize..definitions[0].span.end as usize],
+        "@NoGC public fun native(value: Int): Int = value"
+    );
+    assert!(analysis.body_facts.is_empty());
     let function = function(&analysis, "editing");
     let V::Known(facts) = analysis.function_facts(function, || false).unwrap() else {
         panic!("consumer body failed: {:?}", analysis.diagnostics());
     };
     let references = facts.callables.clone();
+    let offset = text.find("value = choose()").unwrap() as u32;
+    let V::Known(Some(origin)) = analysis
+        .argument_definition(function, ast::Span::new(offset, offset + 5), || false)
+        .unwrap()
+    else {
+        panic!("an imported named argument retains its declaration");
+    };
+    assert_eq!(origin.source.cone(), coordinate.identity().unwrap());
+    assert_eq!(
+        origin.span.start as usize,
+        provider.find("pass(value").unwrap() + 5
+    );
+    assert_eq!(
+        &provider[origin.span.start as usize..origin.span.end as usize],
+        "value"
+    );
     assert_eq!(references.len(), 8);
     for reference in references {
         let hir::SemanticCallable::Imported(callable) = reference.target else {

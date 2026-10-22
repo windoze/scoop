@@ -92,4 +92,22 @@ def check_imported(peer, root, library):
         assert all(location["uri"] in (uri, library.as_uri()) for location in references), (
             references
         )
+    for line, name, original in [
+        (1, "property", "property"),
+        (2, "PROPERTY_FLAG", "PROPERTY_FLAG"),
+        (2, "enabled", "PROPERTY_FLAG"),
+    ]:
+        target = peer.request(
+            "textDocument/definition",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": line, "character": text.splitlines()[line].index(name)},
+            },
+        )
+        assert target["uri"] == library.as_uri(), target
+        selected = target["range"]
+        source_line = library.read_text().splitlines()[selected["start"]["line"]]
+        assert (
+            source_line[selected["start"]["character"] : selected["end"]["character"]] == original
+        ), target
     assert not peer.diagnostics[uri]["diagnostics"], peer.diagnostics[uri]

@@ -11,6 +11,25 @@ pub(crate) fn location(
     origin: &SemanticSourceLocation,
     settings: Settings,
 ) -> Result<Option<Location>, ResponseError> {
+    source_location(snapshot, project, origin, settings, false)
+}
+
+pub(crate) fn definition_location(
+    snapshot: &AnalysisSnapshot,
+    project: &ProjectInput,
+    origin: &SemanticSourceLocation,
+    settings: Settings,
+) -> Result<Option<Location>, ResponseError> {
+    source_location(snapshot, project, origin, settings, true)
+}
+
+fn source_location(
+    snapshot: &AnalysisSnapshot,
+    project: &ProjectInput,
+    origin: &SemanticSourceLocation,
+    settings: Settings,
+    select_declaration_name: bool,
+) -> Result<Option<Location>, ResponseError> {
     let Some(file) = project
         .cones
         .values()
@@ -36,8 +55,16 @@ pub(crate) fn location(
         .as_str()
         .parse()
         .map_err(|error| convert::error(ErrorCode::RequestFailed, error))?;
+    let span = if select_declaration_name {
+        source
+            .declaration_name_span(origin.span)
+            .map_err(|error| convert::error(ErrorCode::RequestFailed, error))?
+            .unwrap_or(origin.span)
+    } else {
+        origin.span
+    };
     Ok(Some(Location {
         uri,
-        range: convert::range(&source.text, origin.span, settings.encoding)?,
+        range: convert::range(&source.text, span, settings.encoding)?,
     }))
 }
