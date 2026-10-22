@@ -32,6 +32,17 @@ fn query_projection_reads_queued_dependency_signatures_without_completing_them()
                 panic!("return");
             };
             assert_eq!(value.result_type(), body.result());
+            let json = serde_json::to_value(scoop_generator_protocol::BodyJson::new(body.as_ref()))
+                .unwrap();
+            assert_eq!(
+                json["result"],
+                serde_json::json!(scoop_generator_protocol::QueryJson(body.result()))
+            );
+            assert_eq!(json["parameters"].as_array().unwrap().len(), 1);
+            assert_eq!(
+                json["statements"].as_array().unwrap().last().unwrap()["operation"]["kind"],
+                "return"
+            );
             self.0 = true;
             Ok(Vec::new())
         }

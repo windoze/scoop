@@ -63,3 +63,5 @@ CompleteMethodSignature 包含 `method`、`owner`、`name`、`receiver`、`binde
 值参数保存 `declaration: {owner: CallableDeclaration, index}`、`name`、`valueType`、`calling` 和 `origin`。calling 区分 required／default／vararg：default 携带 `{owner, parameter, arguments}`；vararg 另有 `elementType`，omission 区分 emptyArray 与 default。引用中的 owner、parameter 是实际参数声明，arguments 按原 default 提供方顺序给出完整类型，不携带 arena 下标。context 参数保存其独立参数位置、named／unnamed label、完整类型和来源。
 
 effects 保留 execution、safety、gc、callingConvention、operator、propertyDelegateOperator、infix 与 release；release 区分 unavailable 与 noTransition，并使用签名中的真实 binder 引用表达其条件。签名读取不会执行默认值或填充正文。
+
+正文的完整节点、局部绑定及默认值应用规则见[逻辑正文 JSON](BODY-JSON.md)。

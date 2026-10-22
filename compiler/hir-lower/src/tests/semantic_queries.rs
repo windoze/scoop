@@ -77,6 +77,24 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
                     panic!("shared dependency body")
                 };
                 assert!(std::sync::Arc::ptr_eq(&projected, &body.shared_body()));
+                let json = serde_json::to_value(scoop_generator_protocol::BodyJson::new(
+                    projected.as_ref(),
+                ))
+                .unwrap();
+                assert_eq!(
+                    json["owner"],
+                    serde_json::json!(scoop_generator_protocol::CallableDeclaration::from(
+                        reference
+                    ))
+                );
+                assert_eq!(
+                    json["origin"]["source"]["cone"],
+                    coordinate.identity().unwrap().to_string()
+                );
+                assert_eq!(
+                    json["result"],
+                    serde_json::json!({"kind": "binder", "depth": 0, "index": 0})
+                );
                 checked += 1;
             }
             "opaque" => {
@@ -205,6 +223,20 @@ fn inherited_default_query_preserves_the_dependency_definition_scope() {
                     .type_signature((&binders).into(), value_type)
                     .unwrap(),
             );
+            let json =
+                serde_json::to_value(scoop_generator_protocol::applied_default(&application))
+                    .unwrap();
+            assert_ne!(json["key"]["owner"], json["definitionRoot"]);
+            assert_eq!(
+                json["origin"]["source"]["cone"],
+                projected
+                    .definition_origin()
+                    .origin()
+                    .source()
+                    .cone()
+                    .to_string()
+            );
+            assert_eq!(json["previousParameters"].as_array().unwrap().len(), 1);
             self.0 = true;
             Ok(Vec::new())
         }

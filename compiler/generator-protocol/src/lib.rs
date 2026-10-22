@@ -11,6 +11,8 @@ mod annotations;
 pub use annotations::Annotations;
 mod signature;
 pub use signature::pending_method_signature;
+mod body;
+pub use body::{BodyJson, applied_default};
 
 #[cfg(test)]
 mod tests;

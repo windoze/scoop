@@ -69,6 +69,28 @@ fn inherited_source_default_uses_the_definition_root_and_keeps_its_tree() {
             definition.result(),
             &scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 1 },
         );
+        let original =
+            serde_json::to_value(scoop_generator_protocol::BodyJson::new(definition.as_ref()))
+                .unwrap();
+        let applied =
+            serde_json::to_value(scoop_generator_protocol::applied_default(&application)).unwrap();
+        assert_eq!(
+            original["result"],
+            serde_json::json!({"kind": "binder", "depth": 0, "index": 1})
+        );
+        assert_eq!(
+            applied["result"],
+            serde_json::json!(scoop_generator_protocol::QueryJson(
+                &queries.type_signature(context.into(), int).unwrap()
+            ))
+        );
+        assert_ne!(applied["key"]["owner"], applied["definitionRoot"]);
+        assert_eq!(applied["key"], original["key"]);
+        assert_eq!(
+            applied["previousParameters"],
+            original["previousParameters"]
+        );
+        assert_eq!(applied["origin"], original["origin"]);
         Ok(Vec::new())
     });
     compile(

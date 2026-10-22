@@ -3,6 +3,7 @@ use scoop_hir as hir;
 use scoop_identity::*;
 use serde_json::{Value, json};
 
+mod body;
 mod constants;
 mod requirements;
 mod types;

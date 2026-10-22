@@ -39,6 +39,49 @@ fn projections_keep_control_flow_captures_and_ignore_failed_type_queries() {
             panic!("typed return");
         };
         assert_eq!(result.result_type(), body.result());
+        let json =
+            serde_json::to_value(scoop_generator_protocol::BodyJson::new(body.as_ref())).unwrap();
+        assert_eq!(
+            json["owner"],
+            serde_json::json!(scoop_generator_protocol::CallableDeclaration::from(
+                body.owner()
+            ))
+        );
+        assert_eq!(
+            json["result"],
+            serde_json::json!(scoop_generator_protocol::QueryJson(body.result()))
+        );
+        let statements = json["statements"].as_array().unwrap();
+        let loop_body = statements
+            .iter()
+            .find(|statement| statement["operation"]["kind"] == "while")
+            .unwrap();
+        assert_eq!(loop_body["operation"]["loopKind"], "while");
+        let closure = statements
+            .iter()
+            .find_map(|statement| {
+                let init = &statement["operation"]["init"]["operation"];
+                (init["kind"] == "lambda").then_some(&init["callable"])
+            })
+            .unwrap();
+        let capture = &closure["captures"][0];
+        assert_eq!(capture["source"]["kind"], "local");
+        assert!(
+            json["locals"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|local| local["selector"] == capture["source"]["local"])
+        );
+        assert_eq!(
+            capture["firstUseOrigin"]["source"]["path"],
+            "src/user.scoop"
+        );
+        assert_eq!(
+            serde_json::to_value(scoop_generator_protocol::BodyJson::new(repeated.as_ref()))
+                .unwrap(),
+            json
+        );
         observed = Some((function, body.owner()));
         Ok(Vec::new())
     });
