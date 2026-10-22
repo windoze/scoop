@@ -8,28 +8,7 @@ impl Lowerer {
         is_cancelled: &impl Fn() -> bool,
     ) -> Result<RecoveredFacts, EditingCancelled> {
         let mut facts = unavailable_facts(body, U::IncompleteSyntax);
-        let Some((prefix, start, block)) = receiver_prefix(body) else {
-            return Ok(facts);
-        };
-        let eligible = body
-            .selectors
-            .iter()
-            .enumerate()
-            .filter_map(|(index, selector)| {
-                let ast::RecoveredReceiver::Complete(receiver) = &selector.receiver else {
-                    return None;
-                };
-                (selector.block == block && receiver.span().start == start)
-                    .then_some((index, receiver))
-            })
-            .collect::<Vec<_>>();
-        let calls = body
-            .calls
-            .iter()
-            .enumerate()
-            .filter(|(_, call)| call.block == block && call.span.start == start)
-            .collect::<Vec<_>>();
-        if eligible.is_empty() && calls.is_empty() {
+        if body.selectors.is_empty() && body.calls.is_empty() {
             return Ok(facts);
         }
         self.current_file = self
@@ -37,71 +16,144 @@ impl Lowerer {
             .expect("source function has a definition file");
         let name = self.functions[function].name.clone();
         let previous_params = self.functions[function].params.clone();
-        let before = self.diagnostics.len();
         let result = self.with_function_scope(function, &name, |lowerer| {
-            if block.is_some() {
-                lowerer.push_scope();
+            let mut query = PrefixQuery {
+                body,
+                facts: &mut facts,
+                is_cancelled,
+            };
+            match body.root {
+                ast::RecoveredBodyRoot::Block(id) => query.block(lowerer, id, true),
+                ast::RecoveredBodyRoot::Expression(start) => {
+                    query.expression(lowerer, None, start, true)
+                }
             }
-            let result = (|| {
-                let mut statements = Vec::new();
-                for statement in prefix {
-                    check_cancelled(is_cancelled)?;
-                    let ast::RecoveredStatement::Complete(statement) = statement else {
-                        unreachable!("prefix ends before the first unknown statement");
-                    };
-                    lowerer.lower_statement(statement, &mut statements);
-                    if lowerer.diagnostics.len() != before {
-                        break;
-                    }
-                }
-                for (index, receiver) in eligible {
-                    check_cancelled(is_cancelled)?;
-                    if lowerer.diagnostics.len() == before {
-                        lowerer.check_receiver(
-                            receiver,
-                            &mut facts.receivers[index],
-                            is_cancelled,
-                        )?;
-                    } else {
-                        facts.receivers[index].value_type = V::Unavailable(U::BodyFailure);
-                        facts.receivers[index].members = V::Unavailable(U::BodyFailure);
-                    }
-                }
-                for (index, call) in calls {
-                    check_cancelled(is_cancelled)?;
-                    facts.calls[index].candidates = if lowerer.diagnostics.len() == before {
-                        lowerer.editing_call_candidates(call, is_cancelled)?
-                    } else {
-                        V::Unavailable(U::BodyFailure)
-                    };
-                }
-                Ok(facts)
-            })();
-            if block.is_some() {
-                lowerer.pop_scope();
-            }
-            result
         });
         self.functions[function].params = previous_params;
-        result.value
+        result.value?;
+        Ok(facts)
     }
 }
 
-/// A receiver is checked only after the actual function-body prefix.
-fn receiver_prefix(
-    body: &ast::RecoveredFunctionBody,
-) -> Option<(&[ast::RecoveredStatement], u32, Option<ast::BodyBlockId>)> {
-    match body.root {
-        ast::RecoveredBodyRoot::Expression(start) => Some((&[], start, None)),
-        ast::RecoveredBodyRoot::Block(id) => {
-            let block = body.blocks.iter().find(|block| block.id == id)?;
-            let (index, start) = block.statements.iter().enumerate().find_map(
-                |(index, statement)| match statement {
-                    ast::RecoveredStatement::Unavailable(span) => Some((index, span.start)),
-                    ast::RecoveredStatement::Complete(_) => None,
-                },
-            )?;
-            Some((&block.statements[..index], start, Some(id)))
+struct PrefixQuery<'a, F> {
+    body: &'a ast::RecoveredFunctionBody,
+    facts: &'a mut RecoveredFacts,
+    is_cancelled: &'a F,
+}
+
+impl<F: Fn() -> bool> PrefixQuery<'_, F> {
+    fn block(
+        &mut self,
+        lowerer: &mut Lowerer,
+        id: ast::BodyBlockId,
+        mut available: bool,
+    ) -> Result<(), EditingCancelled> {
+        check_cancelled(self.is_cancelled)?;
+        let block = self
+            .body
+            .blocks
+            .iter()
+            .find(|block| block.id == id)
+            .expect("a recovered block entry retains its grammar block");
+        lowerer.push_scope();
+        let result = (|| {
+            let mut statements = Vec::new();
+            for statement in &block.statements {
+                check_cancelled(self.is_cancelled)?;
+                match statement {
+                    ast::RecoveredStatement::Complete(statement) => {
+                        if available {
+                            let before = lowerer.diagnostics.len();
+                            lowerer.lower_statement(statement, &mut statements);
+                            available = lowerer.diagnostics.len() == before;
+                        }
+                    }
+                    ast::RecoveredStatement::Unavailable(span) => {
+                        return self.expression(lowerer, Some(id), span.start, available);
+                    }
+                }
+            }
+            Ok(())
+        })();
+        lowerer.pop_scope();
+        result
+    }
+
+    fn expression(
+        &mut self,
+        lowerer: &mut Lowerer,
+        block: Option<ast::BodyBlockId>,
+        start: u32,
+        mut available: bool,
+    ) -> Result<(), EditingCancelled> {
+        check_cancelled(self.is_cancelled)?;
+        for (index, selector) in self.body.selectors.iter().enumerate() {
+            let ast::RecoveredReceiver::Complete(receiver) = &selector.receiver else {
+                continue;
+            };
+            if selector.block != block || receiver.span().start != start {
+                continue;
+            }
+            if available {
+                let before = lowerer.diagnostics.len();
+                lowerer.check_receiver(
+                    receiver,
+                    &mut self.facts.receivers[index],
+                    self.is_cancelled,
+                )?;
+                available = lowerer.diagnostics.len() == before;
+            } else {
+                self.facts.receivers[index].value_type = V::Unavailable(U::BodyFailure);
+                self.facts.receivers[index].members = V::Unavailable(U::BodyFailure);
+            }
+        }
+        for (index, call) in self.body.calls.iter().enumerate() {
+            if call.block != block || call.span.start != start {
+                continue;
+            }
+            check_cancelled(self.is_cancelled)?;
+            self.facts.calls[index].candidates = if available {
+                lowerer.editing_call_candidates(call, self.is_cancelled)?
+            } else {
+                V::Unavailable(U::BodyFailure)
+            };
+        }
+        if let Some(operand) = self
+            .body
+            .operands
+            .iter()
+            .find(|operand| operand.block == block && operand.statement_start == start)
+        {
+            let available = available && self.operand_context(lowerer, operand);
+            return self.expression(lowerer, block, operand.expression_start, available);
+        }
+        if let Some(child) = self.body.blocks.iter().find(|child| {
+            child.parent == block
+                && child.span.start == start
+                && child.scope == ast::RecoveredBlockScope::Block
+        }) {
+            return self.block(lowerer, child.id, available);
+        }
+        Ok(())
+    }
+
+    fn operand_context(&self, lowerer: &mut Lowerer, operand: &ast::RecoveredOperand) -> bool {
+        match &operand.context {
+            ast::RecoveredOperandContext::Initializer { annotation } => annotation
+                .as_ref()
+                .is_none_or(|ty| lowerer.resolve_type_ref(ty).is_some()),
+            ast::RecoveredOperandContext::Return { label } => {
+                if matches!(self.body.root, ast::RecoveredBodyRoot::Expression(_)) {
+                    return false;
+                }
+                lowerer
+                    .check_return_context(
+                        label.as_ref(),
+                        ast::Span::new(operand.statement_start, operand.expression_start),
+                    )
+                    .is_some()
+            }
+            ast::RecoveredOperandContext::Throw => true,
         }
     }
 }

@@ -50,10 +50,31 @@ pub enum RecoveredBodyRoot {
     Expression(u32),
 }
 
+/// Complete syntax preceding an unfinished statement operand.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RecoveredOperandContext {
+    Initializer {
+        annotation: Option<Box<crate::TypeRef>>,
+    },
+    Return {
+        label: Option<crate::Ident>,
+    },
+    Throw,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecoveredOperand {
+    pub block: Option<BodyBlockId>,
+    pub statement_start: u32,
+    pub expression_start: u32,
+    pub context: RecoveredOperandContext,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RecoveredFunctionBody {
     pub root: RecoveredBodyRoot,
     pub blocks: Vec<RecoveredBlock>,
     pub selectors: Vec<RecoveredSelector>,
     pub calls: Vec<crate::RecoveredCall>,
+    pub operands: Vec<RecoveredOperand>,
 }

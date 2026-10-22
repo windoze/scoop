@@ -253,6 +253,7 @@ impl Parser {
     /// destructuring uses tuple/struct patterns (spec 4.6). `var` with a
     /// pattern behaves like `val` (value types are immutable).
     fn parse_val_decl(&mut self) -> Result<Statement, Diagnostic> {
+        let header_start = self.checkpoint();
         let keyword = self.bump();
         let mutable = matches!(keyword.kind, TokenKind::Var);
         let target = self.parse_pattern()?;
@@ -285,7 +286,15 @@ impl Parser {
             });
         }
         self.expect("`=`", |k| matches!(k, TokenKind::Equal))?;
-        let init = self.parse_expr()?;
+        let init = if self.fragment_is_complete(header_start) {
+            self.parse_statement_operand(keyword.span.start, || {
+                scoop_ast::RecoveredOperandContext::Initializer {
+                    annotation: ty.clone().map(Box::new),
+                }
+            })?
+        } else {
+            self.parse_expr()?
+        };
         let span = Span::new(keyword.span.start, init.span().end);
         Ok(Statement {
             span,

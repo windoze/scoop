@@ -67,4 +67,20 @@ def check(peer, root):
     assert (
         help_for('fun partialEditing() { partialPick(true, "fixed") }', 10, "partialPick") is None
     )
+    for version, body in enumerate(
+        [
+            "fun partialEditing() { val value = partialPick(true,",
+            "fun partialEditing(): String { return partialPick(true,",
+            "fun partialEditing(): String { return@partialEditing partialPick(true,",
+            "fun partialEditing() { { val value = true; partialPick(value,",
+        ],
+        11,
+    ):
+        result = help_for(body, version)
+        assert (
+            result["signatures"][0]["label"] == "partialPick(flag: Boolean, text: String): String"
+        ), result
+        assert result["signatures"][0]["activeParameter"] == 1, result
+    assert help_for("fun partialEditing() { return@missing partialPick(", 15) is None
+    assert help_for("fun partialEditing() { val value: Missing = partialPick(", 16) is None
     peer.notify("textDocument/didClose", {"textDocument": {"uri": uri}})

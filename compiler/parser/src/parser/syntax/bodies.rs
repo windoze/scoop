@@ -6,6 +6,7 @@ use scoop_syntax::{DeclarationData, DeclarationIndex};
 use super::{Event, Parser};
 
 mod calls;
+mod operands;
 
 #[derive(Debug)]
 pub(super) enum BodyEvent {
@@ -23,6 +24,7 @@ pub(super) enum BodyEvent {
         selector: Span,
     },
     Call(Box<ast::RecoveredCall>),
+    Operand(ast::RecoveredOperand),
     TrailingArgument {
         call: Span,
         argument: Box<ast::RecoveredCallArgument>,
@@ -45,11 +47,22 @@ struct BodyParts {
     blocks: Vec<ast::RecoveredBlock>,
     selectors: Vec<ast::RecoveredSelector>,
     calls: Vec<ast::RecoveredCall>,
+    operands: Vec<ast::RecoveredOperand>,
 }
 
 impl BodyRecorder {
     pub(super) fn record(&mut self, event: BodyEvent, function: Option<DeclarationIndex>) {
         match event {
+            BodyEvent::Operand(mut operand) => {
+                if let Some(function) = function {
+                    operand.block = self.block_for(function);
+                    self.functions
+                        .entry(function.0)
+                        .or_default()
+                        .operands
+                        .push(operand);
+                }
+            }
             BodyEvent::TrailingArgument { call, argument } => {
                 if let Some(parts) =
                     function.and_then(|function| self.functions.get_mut(&function.0))
@@ -147,6 +160,7 @@ impl BodyRecorder {
                         blocks: value.blocks,
                         selectors: value.selectors,
                         calls: value.calls,
+                        operands: value.operands,
                     },
                 })
             })

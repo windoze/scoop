@@ -1,13 +1,16 @@
 use super::*;
 
-fn receiver(analysis: &mut DeclarationAnalysis) -> hir::EditingReceiver {
+pub(super) fn receiver(analysis: &mut DeclarationAnalysis) -> hir::EditingReceiver {
     let id = function(analysis, "editing");
     let facts = analysis.receivers(id, || false).unwrap();
     assert_eq!(facts.len(), 1, "{facts:?}");
     facts[0].clone()
 }
 
-fn known_type(analysis: &mut DeclarationAnalysis, receiver: &hir::EditingReceiver) -> String {
+pub(super) fn known_type(
+    analysis: &mut DeclarationAnalysis,
+    receiver: &hir::EditingReceiver,
+) -> String {
     let V::Known(ty) = receiver.value_type else {
         panic!(
             "receiver must have a complete type: {receiver:?}; {:?}",
@@ -108,7 +111,7 @@ fn failed_property_inference_does_not_expose_its_pending_type() {
 #[test]
 fn unknown_prefix_and_inner_scopes_do_not_reuse_outer_bindings() {
     for text in [
-        "fun editing(value: Boolean) { val missing =\nvalue. }",
+        "fun editing(value: Boolean) { val missing = ;\nvalue. }",
         "fun editing(value: Boolean) { if (value) { value. } }",
         "fun editing(value: Boolean) { invoke { value -> value. } }",
         "fun editing(value: Boolean) = invoke { value -> value. }",

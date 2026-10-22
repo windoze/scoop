@@ -38,6 +38,80 @@ impl Lowerer {
         span: Span,
         out: &mut Vec<hir::Statement>,
     ) -> Option<()> {
+        self.check_return_context(label, span)?;
+        if self.return_inference.is_some() {
+            let value = match value {
+                Some(source) => {
+                    let value = self.lower_expr(source, out, None)?;
+                    if !self.is_nothing_ty(value.ty) {
+                        self.return_inference
+                            .as_mut()
+                            .expect("inference is active")
+                            .value_types
+                            .push(value.ty);
+                    }
+                    Some(value)
+                }
+                None => {
+                    self.return_inference
+                        .as_mut()
+                        .expect("inference is active")
+                        .saw_bare = true;
+                    None
+                }
+            };
+            out.push(hir::Statement {
+                kind: hir::StatementKind::Return {
+                    value: value.unwrap_or_else(|| self.unit_expression(span)),
+                },
+                span,
+            });
+            return Some(());
+        }
+        let return_ty = self.current_return_ty;
+        let value = match value {
+            None => {
+                if !self.types_equal(return_ty, self.unit) {
+                    let name = self.current_fn_name.clone();
+                    let expected = self.type_name(return_ty);
+                    self.error(
+                        span,
+                        format!(
+                            "`return` without a value in function `{name}` returning {expected}"
+                        ),
+                    );
+                    return None;
+                }
+                None
+            }
+            Some(source) => {
+                let value = self.lower_expr(source, out, Some(return_ty))?;
+                if !self.is_subtype(value.ty, return_ty) {
+                    let name = self.current_fn_name.clone();
+                    let expected = self.type_name(return_ty);
+                    let found = self.type_name(value.ty);
+                    let message = self.with_nominal_invariance_detail(
+                        format!(
+                            "`return` value of `{name}` must be of type {expected}, found {found}"
+                        ),
+                        value.ty,
+                        return_ty,
+                    );
+                    self.error(source.span(), message);
+                    return None;
+                }
+                Some(self.adapt_to(value, return_ty))
+            }
+        };
+        self.push_return(value, span, out);
+        Some(())
+    }
+
+    pub(crate) fn check_return_context(
+        &mut self,
+        label: Option<&ast::Ident>,
+        span: Span,
+    ) -> Option<()> {
         if self
             .initialization_context
             .as_ref()
@@ -108,71 +182,6 @@ impl Lowerer {
             self.error(span, "`return` requires an enclosing function body".into());
             return None;
         }
-        if self.return_inference.is_some() {
-            let value = match value {
-                Some(source) => {
-                    let value = self.lower_expr(source, out, None)?;
-                    if !self.is_nothing_ty(value.ty) {
-                        self.return_inference
-                            .as_mut()
-                            .expect("inference is active")
-                            .value_types
-                            .push(value.ty);
-                    }
-                    Some(value)
-                }
-                None => {
-                    self.return_inference
-                        .as_mut()
-                        .expect("inference is active")
-                        .saw_bare = true;
-                    None
-                }
-            };
-            out.push(hir::Statement {
-                kind: hir::StatementKind::Return {
-                    value: value.unwrap_or_else(|| self.unit_expression(span)),
-                },
-                span,
-            });
-            return Some(());
-        }
-        let return_ty = self.current_return_ty;
-        let value = match value {
-            None => {
-                if !self.types_equal(return_ty, self.unit) {
-                    let name = self.current_fn_name.clone();
-                    let expected = self.type_name(return_ty);
-                    self.error(
-                        span,
-                        format!(
-                            "`return` without a value in function `{name}` returning {expected}"
-                        ),
-                    );
-                    return None;
-                }
-                None
-            }
-            Some(source) => {
-                let value = self.lower_expr(source, out, Some(return_ty))?;
-                if !self.is_subtype(value.ty, return_ty) {
-                    let name = self.current_fn_name.clone();
-                    let expected = self.type_name(return_ty);
-                    let found = self.type_name(value.ty);
-                    let message = self.with_nominal_invariance_detail(
-                        format!(
-                            "`return` value of `{name}` must be of type {expected}, found {found}"
-                        ),
-                        value.ty,
-                        return_ty,
-                    );
-                    self.error(source.span(), message);
-                    return None;
-                }
-                Some(self.adapt_to(value, return_ty))
-            }
-        };
-        self.push_return(value, span, out);
         Some(())
     }
 }

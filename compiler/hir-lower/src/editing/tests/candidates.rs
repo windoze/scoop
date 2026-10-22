@@ -1,6 +1,6 @@
 use super::*;
 
-fn call_candidates(text: &str) -> Vec<hir::EditingCallCandidate> {
+pub(super) fn call_candidates(text: &str) -> Vec<hir::EditingCallCandidate> {
     let mut analysis = analyze(text);
     let function = function(&analysis, "editing");
     let calls = analysis.incomplete_calls(function, || false).unwrap();
@@ -111,7 +111,7 @@ fn members_extensions_constructors_and_aliases_use_original_lookup() {
 #[test]
 fn an_earlier_unknown_statement_blocks_later_call_candidates() {
     let mut analysis =
-        analyze("fun choose(flag: Boolean) {}\nfun editing() { val unknown =\nchoose( }");
+        analyze("fun choose(flag: Boolean) {}\nfun editing() { val unknown = ;\nchoose( }");
     let function = function(&analysis, "editing");
     let calls = analysis.incomplete_calls(function, || false).unwrap();
     assert_eq!(calls.len(), 1);

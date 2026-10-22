@@ -219,3 +219,48 @@ fn callable_literals_keep_their_own_parameter_scope_boundaries() {
         );
     }
 }
+
+#[test]
+fn unfinished_operands_retain_real_statement_entries_and_complete_headers() {
+    for (text, keyword) in [
+        (
+            "fun editing(value: User) { val copy: User = value. }",
+            "val",
+        ),
+        (
+            "fun editing(value: User) { return@editing value. }",
+            "return",
+        ),
+        ("fun editing(value: User) { throw value. }", "throw"),
+    ] {
+        let parsed = parse_recovering(text).unwrap();
+        let body = body(&parsed, "editing");
+        assert_eq!(body.operands.len(), 1);
+        let operand = &body.operands[0];
+        assert_eq!(operand.block, body.selectors[0].block);
+        assert!(text[operand.statement_start as usize..].starts_with(keyword));
+        assert!(text[operand.expression_start as usize..].starts_with("value."));
+        match &operand.context {
+            ast::RecoveredOperandContext::Initializer { annotation } => {
+                assert_eq!(source(text, annotation.as_ref().unwrap().span), "User")
+            }
+            ast::RecoveredOperandContext::Return { label } => {
+                assert_eq!(label.as_ref().unwrap().text, "editing")
+            }
+            ast::RecoveredOperandContext::Throw => assert_eq!(keyword, "throw"),
+        }
+        assert_eq!(parsed.syntax().text().to_string(), text);
+    }
+}
+
+#[test]
+fn completed_operands_and_bad_headers_do_not_add_recovery_entries() {
+    for text in [
+        "fun editing() { val done = call(); broken. }",
+        "fun editing() { val item: Box<> = call( }",
+        "fun editing() { return@ = call( }",
+    ] {
+        let parsed = parse_recovering(text).unwrap();
+        assert!(body(&parsed, "editing").operands.is_empty(), "{text}");
+    }
+}
