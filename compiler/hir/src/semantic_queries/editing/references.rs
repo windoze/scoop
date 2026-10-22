@@ -21,6 +21,7 @@ pub enum EditingReferenceTarget {
         index: u32,
     },
     Property(PropertyDeclarationId),
+    Type(crate::EditingTypeIdentity),
     ImportAlias(EditingImportAliasId),
 }
 
@@ -29,6 +30,7 @@ impl EditingReferenceTarget {
         matches!(
             self,
             Self::Binding(_)
+                | Self::Type(crate::EditingTypeIdentity::Parameter(_))
                 | Self::ImportAlias(_)
                 | Self::Callable(EditingCallableIdentity::Local(_))
                 | Self::Parameter {

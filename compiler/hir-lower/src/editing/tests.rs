@@ -20,6 +20,7 @@ mod properties_imported;
 mod receivers;
 mod references;
 mod selectors;
+mod types;
 
 fn analyze(text: &str) -> DeclarationAnalysis {
     analyze_cancellable(text, || false).unwrap()

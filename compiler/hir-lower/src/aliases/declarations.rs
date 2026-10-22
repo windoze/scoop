@@ -149,10 +149,10 @@ impl Lowerer {
                 );
                 continue;
             }
-            let id = self.fresh_type_param(parameters.len());
+            let id = self.fresh_source_type_param(parameter, parameters.len());
             parameters.push(crate::lower_type_param_decl(parameter, id));
         }
-        self.source_type_aliases.alloc(SourceTypeAlias {
+        let id = self.source_type_aliases.alloc(SourceTypeAlias {
             annotations: declaration.annotations.clone(),
             lexical: false,
             name: declaration.name.text.clone(),
@@ -167,7 +167,13 @@ impl Lowerer {
             origin: self.definition_origin(declaration.span),
             file,
             resolution: TypeAliasResolution::Unresolved,
-        })
+        });
+        self.observe_type_declaration(
+            file,
+            declaration.name.span,
+            crate::editing::types::TypeTarget::Alias(id),
+        );
+        id
     }
 
     pub(crate) fn lexical_type_alias(&self, name: &str) -> Option<SourceTypeAliasId> {

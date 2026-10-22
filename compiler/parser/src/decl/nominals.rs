@@ -28,7 +28,10 @@ impl Parser {
     ) -> Result<StructDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::StructDecl, |parser| {
             parser.record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Type);
-            parser.parse_struct_inner(annotations, visibility)
+            let checkpoint = parser.checkpoint();
+            let declaration = parser.parse_struct_inner(annotations, visibility)?;
+            parser.record_declaration_source_span(declaration.span, checkpoint);
+            Ok(declaration)
         })
     }
 
@@ -93,7 +96,16 @@ impl Parser {
     ) -> Result<ClassDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::ClassDecl, |parser| {
             parser.record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Type);
-            parser.parse_class_inner(annotations, visibility, modifier, inner_span, modifier_span)
+            let checkpoint = parser.checkpoint();
+            let declaration = parser.parse_class_inner(
+                annotations,
+                visibility,
+                modifier,
+                inner_span,
+                modifier_span,
+            )?;
+            parser.record_declaration_source_span(declaration.span, checkpoint);
+            Ok(declaration)
         })
     }
 
@@ -161,7 +173,10 @@ impl Parser {
     ) -> Result<InterfaceDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::InterfaceDecl, |parser| {
             parser.record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Type);
-            parser.parse_interface_inner(annotations, visibility, sealed_span)
+            let checkpoint = parser.checkpoint();
+            let declaration = parser.parse_interface_inner(annotations, visibility, sealed_span)?;
+            parser.record_declaration_source_span(declaration.span, checkpoint);
+            Ok(declaration)
         })
     }
 
@@ -300,7 +315,10 @@ impl Parser {
         self.with_node(scoop_syntax::SyntaxKind::ObjectDecl, |parser| {
             parser
                 .record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Singleton);
-            parser.parse_object_inner(annotations, visibility)
+            let checkpoint = parser.checkpoint();
+            let declaration = parser.parse_object_inner(annotations, visibility)?;
+            parser.record_declaration_source_span(declaration.span, checkpoint);
+            Ok(declaration)
         })
     }
 
@@ -362,7 +380,10 @@ impl Parser {
         self.with_node(scoop_syntax::SyntaxKind::CompanionDecl, |parser| {
             parser
                 .record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Singleton);
-            parser.parse_companion_object_inner(annotations, visibility)
+            let checkpoint = parser.checkpoint();
+            let declaration = parser.parse_companion_object_inner(annotations, visibility)?;
+            parser.record_declaration_source_span(declaration.span, checkpoint);
+            Ok(declaration)
         })
     }
 

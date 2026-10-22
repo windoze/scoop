@@ -43,6 +43,7 @@ impl DeclarationAnalysis {
                 builder.body(self, &function, &check)?;
             }
             if self.declarations_ready {
+                builder.types(&self.type_references);
                 let properties = self
                     .lowerer
                     .property_name_spans
@@ -87,6 +88,20 @@ impl DeclarationAnalysis {
 }
 
 impl ReferenceBuilder {
+    fn types(&mut self, references: &[hir::EditingTypeReference]) {
+        for reference in references {
+            self.record(
+                Target::Type(reference.target),
+                reference.origin.clone(),
+                reference.is_declaration,
+            );
+            if !reference.imports.is_empty() {
+                self.import_uses
+                    .push((reference.origin.clone(), reference.imports.clone()));
+            }
+        }
+    }
+
     fn record(
         &mut self,
         target: Target,

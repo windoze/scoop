@@ -44,7 +44,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let id = self.fresh_type_param(type_params.len());
+            let id = self.fresh_source_type_param(parameter, type_params.len());
             type_params.push(crate::lower_type_param_decl(parameter, id));
         }
         type_params = self.resolve_type_parameter_constraints(

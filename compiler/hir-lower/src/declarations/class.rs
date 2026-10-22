@@ -68,7 +68,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let parameter = self.fresh_type_param(type_params.len());
+            let parameter = self.fresh_source_type_param(param, type_params.len());
             type_params.push(lower_type_param_decl(param, parameter));
         }
         let self_application =
@@ -237,7 +237,7 @@ impl Lowerer {
         }
         self.register_nominal_name(
             owner,
-            &decl.name.text,
+            &decl.name,
             NominalTarget::Class(id),
             file_index,
             decl.visibility,

@@ -8,6 +8,9 @@ impl ReferenceBuilder {
         binding: &ImportedTargetBinding,
     ) -> Option<Target> {
         use hir::EditingMemberTarget as M;
+        if let Some(target) = lowerer.editing_import_type_target(binding) {
+            return lowerer.editing_type_identity(target).map(Target::Type);
+        }
         match lowerer.editing_import_member(binding)? {
             M::Callable(callable) => self.callable(lowerer, callable).map(Target::Callable),
             M::Property(property) => self

@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 #[derive(Clone)]
 pub(crate) struct BodyObservation {
+    pub(crate) types: super::super::types::TypeObservation,
     pub(super) function: hir::FunctionId,
     pub(super) file: usize,
     pub(super) diagnostics_start: usize,
@@ -48,6 +49,7 @@ impl BodyObservation {
         check: impl Fn() -> bool + 'static,
     ) -> Self {
         Self {
+            types: Default::default(),
             function,
             file,
             diagnostics_start,
@@ -80,7 +82,12 @@ impl BodyObservation {
         Rc::new(move || cancellation.cancelled())
     }
 
-    pub(super) fn finish(self, lowerer: &Lowerer, complete: bool) -> ObservedBody {
+    pub(super) fn finish(self, lowerer: &mut Lowerer, complete: bool) -> ObservedBody {
+        let types = if complete {
+            self.types.finish(lowerer)
+        } else {
+            Vec::new()
+        };
         let local_type = |binding, ty| {
             lowerer
                 .local_delegate_plans
@@ -159,6 +166,7 @@ impl BodyObservation {
         ObservedBody {
             facts: if complete {
                 V::Known(hir::EditingBodyFacts {
+                    types,
                     locals,
                     expressions,
                     callables,

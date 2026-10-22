@@ -59,7 +59,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let parameter = self.fresh_type_param(type_params.len());
+            let parameter = self.fresh_source_type_param(param, type_params.len());
             let param = crate::lower_type_param_decl(param, parameter);
             type_params.push(param.clone());
         }

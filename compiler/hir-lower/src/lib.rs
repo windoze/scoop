@@ -545,6 +545,10 @@ pub(crate) struct Lowerer {
     cancellation: Option<pipeline::cancellation::FrontendCancellation>,
     pub(crate) editing_receiver: Option<editing::ReceiverObservation>,
     pub(crate) editing_body: Option<editing::BodyObservation>,
+    pub(crate) editing_types: Option<editing::types::TypeObservation>,
+    pub(crate) editing_type_definitions:
+        imbl::HashMap<editing::types::TypeTarget, hir::SemanticSourceLocation>,
+    pub(crate) editing_local_types: imbl::HashMap<Owner, editing::types::TypeObservation>,
     documentation: Option<Shared<documentation::DocumentationContext>>,
     core: CoreLoweringAuthority,
     dependencies: Option<hir::ImportedDependencySelectionPlan>,

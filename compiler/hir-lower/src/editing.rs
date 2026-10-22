@@ -14,6 +14,7 @@ mod imports;
 mod members;
 mod parameters;
 mod references;
+pub(crate) mod types;
 pub(crate) use bodies::{BodyObservation, ObservedBody};
 mod receivers;
 pub(crate) use receivers::ReceiverObservation;
@@ -35,6 +36,7 @@ pub struct DeclarationAnalysis {
     pub(crate) body_facts:
         std::collections::HashMap<hir::FunctionId, hir::EditingValue<ObservedBody>>,
     pub(crate) reference_index: Option<hir::EditingReferenceIndex>,
+    pub(crate) type_references: Vec<hir::EditingTypeReference>,
     pub(crate) documentation: Option<std::sync::Arc<hir::SemanticDocumentation>>,
 }
 

@@ -17,6 +17,7 @@ impl ReferenceBuilder {
         let callables = facts.callables.clone();
         let properties = facts.properties.clone();
         let local_functions = facts.local_functions.clone();
+        self.types(&facts.types);
         self.import_uses
             .extend(facts.imports.iter().map(|reference| {
                 (

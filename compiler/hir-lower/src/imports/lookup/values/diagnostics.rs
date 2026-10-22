@@ -20,6 +20,7 @@ impl Lowerer {
                 return self.type_candidate_note(&super::super::TypeLookupCandidate {
                     target: super::super::TypeLookupTarget::Current(*target),
                     origin: super::super::TypeLookupOrigin::ExistingM22Core,
+                    layer: None,
                 });
             }
             ValueOrigin::SourceNonValue(NonValueTarget::ExtensionProperty(id)) => {

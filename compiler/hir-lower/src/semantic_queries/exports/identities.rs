@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(in crate::semantic_queries) fn query_alias_identity(
+    pub(crate) fn query_alias_identity(
         &mut self,
         id: hir::ExportTypeAliasId,
     ) -> Result<hir::HirTypeAliasIdentity, Diagnostic> {

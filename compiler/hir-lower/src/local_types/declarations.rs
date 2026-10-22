@@ -35,6 +35,16 @@ impl Lowerer {
         declaration: &ast::LocalTypeDecl,
         anonymous: bool,
     ) -> Option<Owner> {
+        self.observe_local_type(declaration, |state| {
+            state.lower_local_type_inner(declaration, anonymous)
+        })
+    }
+
+    fn lower_local_type_inner(
+        &mut self,
+        declaration: &ast::LocalTypeDecl,
+        anonymous: bool,
+    ) -> Option<Owner> {
         let source = (self.current_text_file(), declaration.span().start);
         let available = self.capture_environment();
         if let Some(&owner) = self.local_types_by_source.get(&source) {

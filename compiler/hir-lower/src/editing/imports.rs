@@ -41,7 +41,10 @@ impl DeclarationAnalysis {
                         Some(Member::ImportedProperty(property)) => self
                             .lowerer
                             .editing_property_origin(hir::SemanticProperty::Imported(property)),
-                        None => None,
+                        None => self
+                            .lowerer
+                            .editing_import_type_target(binding)
+                            .and_then(|target| self.lowerer.editing_type_origin(target)),
                     };
                     if let Some(origin) = origin
                         && !definitions.contains(&origin)

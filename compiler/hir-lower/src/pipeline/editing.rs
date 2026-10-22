@@ -13,6 +13,7 @@ impl Lowerer {
         world: &hir::ImportedSemanticWorld<'_>,
         check: &impl Fn() -> Result<(), EditingCancelled>,
     ) -> Result<DeclarationAnalysis, EditingCancelled> {
+        self.editing_types = Some(Default::default());
         let declarations = self.collect_declaration_inputs_with_cancellation(
             headers,
             sources.iter().enumerate().flat_map(|(file, source)| {
@@ -39,6 +40,7 @@ impl Lowerer {
                     body_inputs: Default::default(),
                     body_facts: Default::default(),
                     reference_index: None,
+                    type_references: Vec::new(),
                     documentation: None,
                 });
             }
@@ -98,6 +100,12 @@ impl Lowerer {
             })
             .collect::<Result<_, EditingCancelled>>()?;
         check()?;
+        let type_references = self
+            .editing_types
+            .take()
+            .expect("declaration type observation")
+            .finish(&mut self);
+        check()?;
         let documentation = if declarations_ready {
             self.capture_editing_documentation(&declarations, check)?;
             self.finish_editing_documentation(world, check)?
@@ -114,6 +122,7 @@ impl Lowerer {
             body_inputs,
             body_facts: Default::default(),
             reference_index: None,
+            type_references,
             documentation,
         })
     }

@@ -8,6 +8,8 @@ mod properties;
 pub use properties::*;
 mod references;
 pub use references::*;
+mod type_references;
+pub use type_references::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditingUnavailable {
@@ -128,6 +130,7 @@ pub struct EditingLocalOccurrence {
 /// Source observations from a checked body, without claiming a successful Module.
 #[derive(Clone, Debug, Default)]
 pub struct EditingBodyFacts {
+    pub types: Vec<EditingTypeReference>,
     pub locals: Vec<EditingLocalOccurrence>,
     pub expressions: Vec<EditingExpression>,
     pub callables: Vec<EditingCallableReference>,

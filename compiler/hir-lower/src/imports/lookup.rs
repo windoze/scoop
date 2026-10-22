@@ -75,10 +75,11 @@ impl TypeLookupTarget {
 pub(crate) struct TypeLookupCandidate {
     pub(crate) target: TypeLookupTarget,
     pub(crate) origin: TypeLookupOrigin,
+    pub(crate) layer: Option<ImportLookupLayer>,
 }
 
 impl CurrentUnitTarget {
-    fn type_target(self) -> Option<TopLevelTypeTarget> {
+    pub(crate) fn type_target(self) -> Option<TopLevelTypeTarget> {
         Some(match self {
             Self::Class(id) => TopLevelTypeTarget::Nominal(NominalTarget::Class(id)),
             Self::Interface(id) => TopLevelTypeTarget::Nominal(NominalTarget::Interface(id)),
@@ -164,6 +165,7 @@ impl Lowerer {
                 candidates.push(TypeLookupCandidate {
                     target: TypeLookupTarget::Current(target),
                     origin: TypeLookupOrigin::CurrentUnit(binding),
+                    layer: None,
                 });
             }
         }
@@ -188,6 +190,7 @@ impl Lowerer {
             .map(|binding| TypeLookupCandidate {
                 target: TypeLookupTarget::Dependency(binding),
                 origin: TypeLookupOrigin::Dependency,
+                layer: None,
             })
             .collect()
     }
@@ -221,6 +224,7 @@ impl Lowerer {
                 .map(|target| TypeLookupCandidate {
                     target: TypeLookupTarget::Current(target),
                     origin: TypeLookupOrigin::ExistingM22Core,
+                    layer: None,
                 })
                 .chain(
                     self.dependency_type_candidates(
@@ -261,7 +265,8 @@ impl Lowerer {
                 return LookupResult::Unavailable(ast::NonEmptyVec::new(first, rest.to_vec()));
             }
             let mut accessible = Vec::new();
-            for candidate in layer.candidates {
+            for mut candidate in layer.candidates {
+                candidate.layer = Some(layer.kind);
                 let is_accessible = match &candidate.target {
                     TypeLookupTarget::Current(target) => {
                         self.top_level_type_target_is_accessible(*target)
@@ -304,6 +309,7 @@ impl Lowerer {
             return LookupResult::Unique(TypeLookupCandidate {
                 target: TypeLookupTarget::Current(TopLevelTypeTarget::Alias(alias)),
                 origin: TypeLookupOrigin::Lexical,
+                layer: None,
             });
         }
         self.select_type_layer(self.type_lookup_layers(name))
@@ -377,7 +383,10 @@ impl Lowerer {
                 self.report_unavailable_lookup(name, bindings.as_slice());
                 return Err(());
             }
-            LookupResult::Unique(candidate) => return Ok(Some(candidate.target)),
+            LookupResult::Unique(candidate) => {
+                self.observe_type_lookup(name, &candidate.target, candidate.layer);
+                return Ok(Some(candidate.target));
+            }
             LookupResult::Missing => return Ok(None),
             LookupResult::Inaccessible(candidates) if candidates.len() == 1 => {
                 // Existing alias/nominal consumers attach the established

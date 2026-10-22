@@ -2,6 +2,38 @@ use scoop_parser::parse_recovering;
 use scoop_syntax::SyntaxKind;
 
 #[test]
+fn type_declaration_sources_match_their_original_ast_productions() {
+    let source = "@Tag public struct Point(val x: Int)\npublic open class Base {}\npublic interface Named {}\npublic enum Choice { Yes, No }\npublic object Values {}\npublic typealias Alias = Point\npublic annotation class Tag";
+    let parsed = parse_recovering(source).unwrap();
+    let ast = parsed
+        .ast()
+        .unwrap_or_else(|| panic!("{:?}", parsed.diagnostics()));
+    let declarations = parsed
+        .declarations()
+        .iter()
+        .filter(|declaration| declaration.parent.is_none())
+        .collect::<Vec<_>>();
+    assert_eq!(declarations.len(), ast.declarations.len());
+    for (syntax, declaration) in declarations.iter().zip(&ast.declarations) {
+        assert_eq!(syntax.source_span, Some(declaration.span()));
+        let name = syntax.name.as_ref().unwrap();
+        assert_eq!(
+            &source[name.span.start as usize..name.span.end as usize],
+            name.text
+        );
+    }
+    let damaged =
+        parse_recovering("class Broken { fun bad(value: ) {} }\nclass Healthy {}").unwrap();
+    let types = damaged
+        .declarations()
+        .iter()
+        .filter(|declaration| declaration.kind == SyntaxKind::ClassDecl)
+        .collect::<Vec<_>>();
+    assert!(types[0].source_span.is_none());
+    assert!(types[1].source_span.is_some());
+}
+
+#[test]
 fn completed_source_ranges_preserve_prefixes_and_parameter_boundaries() {
     let source = "@NoGC public fun <T> T.pick(@Tag value: T): T = value\npublic val flag: Boolean = true\nfun broken(value: ) {}";
     let parsed = parse_recovering(source).unwrap();

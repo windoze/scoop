@@ -49,7 +49,11 @@ impl DeclarationAnalysis {
                         }
                         let complete =
                             completed && !observed.failed && candidate.diagnostics.len() == before;
-                        let facts = V::Known(observed.finish(&candidate, complete));
+                        let cancellation = observed.cancellation();
+                        let facts = V::Known(observed.finish(&mut candidate, complete));
+                        if cancellation() {
+                            return Err(EditingCancelled);
+                        }
                         self.lowerer = candidate;
                         facts
                     }

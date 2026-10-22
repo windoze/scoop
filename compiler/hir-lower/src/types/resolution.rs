@@ -1,5 +1,6 @@
 use super::*;
 mod names;
+use crate::editing::types::TypeTarget;
 
 impl Lowerer {
     pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
@@ -92,6 +93,10 @@ impl Lowerer {
                     return None;
                 }
                 if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
+                    self.observe_type_name(
+                        name.span,
+                        TypeTarget::Nominal(self.nominal_identity(target.owner()).declaration_id()),
+                    );
                     return self
                         .resolve_nested_nominal_application(target, args, name.span, &name.text);
                 }
@@ -293,8 +298,10 @@ impl Lowerer {
                     .type_params_in_scope
                     .iter()
                     .find(|param| param.name == name.text)
+                    .map(|param| param.id)
                 {
-                    return Some(self.intern_type(Type::Param(parameter.id)));
+                    self.observe_type_name(name.span, TypeTarget::Parameter(parameter));
+                    return Some(self.intern_type(Type::Param(parameter)));
                 }
                 if self.outer_type_parameter_owner(&name.text).is_some() {
                     self.error(
@@ -314,6 +321,10 @@ impl Lowerer {
                     return None;
                 }
                 if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
+                    self.observe_type_name(
+                        name.span,
+                        TypeTarget::Nominal(self.nominal_identity(target.owner()).declaration_id()),
+                    );
                     return self.resolve_nested_nominal_application(
                         target,
                         &[],

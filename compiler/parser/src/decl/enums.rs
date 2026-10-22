@@ -15,7 +15,10 @@ impl Parser {
     ) -> Result<EnumDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::EnumDecl, |parser| {
             parser.record_declaration_prefix(visibility, scoop_ast::DeclarationHeaderKind::Type);
-            parser.parse_enum_inner(annotations, visibility)
+            let checkpoint = parser.checkpoint();
+            let declaration = parser.parse_enum_inner(annotations, visibility)?;
+            parser.record_declaration_source_span(declaration.span, checkpoint);
+            Ok(declaration)
         })
     }
 

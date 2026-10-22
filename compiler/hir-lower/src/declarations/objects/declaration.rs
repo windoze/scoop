@@ -183,6 +183,14 @@ impl Lowerer {
         });
         assert_eq!(object, object_id);
         self.register_nominal_identity(Owner::Object(object), identity);
+        self.observe_type_declaration(
+            file,
+            name_span,
+            crate::editing::types::TypeTarget::Nominal(
+                self.nominal_identity(Owner::Object(object))
+                    .declaration_id(),
+            ),
+        );
         self.register_nominal_identity(Owner::Class(backing_class), backing_identity);
         let canonical_type = self.class_application(backing_class, host_arguments);
         assert_eq!(self.types[canonical_type], Type::Class(self_application));

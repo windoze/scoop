@@ -11,7 +11,13 @@ impl Parser {
                 prefix.visibility,
                 scoop_ast::DeclarationHeaderKind::Type,
             );
-            parser.parse_type_alias_inner(prefix)
+            let checkpoint = parser.checkpoint();
+            let prefix_valid = !prefix.modifiers.has_syntax_errors;
+            let declaration = parser.parse_type_alias_inner(prefix)?;
+            if prefix_valid {
+                parser.record_declaration_source_span(declaration.span, checkpoint);
+            }
+            Ok(declaration)
         })
     }
 
