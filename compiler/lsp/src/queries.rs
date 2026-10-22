@@ -1,7 +1,7 @@
 use lsp_server::{ErrorCode, Request, ResponseError};
 use lsp_types::{
-    DocumentSymbolParams, FoldingRange, FoldingRangeKind, FoldingRangeParams, Position,
-    SelectionRange, SelectionRangeParams, Uri,
+    DocumentSymbolParams, FoldingRange, FoldingRangeKind, FoldingRangeParams, HoverParams,
+    Position, SelectionRange, SelectionRangeParams, Uri,
 };
 use scoop_analysis::{Cancellation, FoldKind, SourceInput};
 use serde::{Serialize, de::DeserializeOwned};
@@ -9,10 +9,18 @@ use serde_json::Value;
 
 use crate::{convert, initialize::Settings};
 
+mod hover;
 mod symbols;
+pub(crate) use hover::hover;
 
 #[derive(Clone)]
 pub(crate) enum QueryKind {
+    Syntax(SyntaxQuery),
+    Hover(Position),
+}
+
+#[derive(Clone)]
+pub(crate) enum SyntaxQuery {
     Symbols,
     Folds,
     Selection(Vec<Position>),
@@ -39,21 +47,28 @@ impl Query {
                 let params: DocumentSymbolParams = params(request.params.clone())?;
                 Ok(Self {
                     uri: params.text_document.uri,
-                    kind: QueryKind::Symbols,
+                    kind: QueryKind::Syntax(SyntaxQuery::Symbols),
                 })
             }
             "textDocument/foldingRange" => {
                 let params: FoldingRangeParams = params(request.params.clone())?;
                 Ok(Self {
                     uri: params.text_document.uri,
-                    kind: QueryKind::Folds,
+                    kind: QueryKind::Syntax(SyntaxQuery::Folds),
                 })
             }
             "textDocument/selectionRange" => {
                 let params: SelectionRangeParams = params(request.params.clone())?;
                 Ok(Self {
                     uri: params.text_document.uri,
-                    kind: QueryKind::Selection(params.positions),
+                    kind: QueryKind::Syntax(SyntaxQuery::Selection(params.positions)),
+                })
+            }
+            "textDocument/hover" => {
+                let params: HoverParams = params(request.params.clone())?;
+                Ok(Self {
+                    uri: params.text_document_position_params.text_document.uri,
+                    kind: QueryKind::Hover(params.text_document_position_params.position),
                 })
             }
             _ => Err(convert::error(
@@ -62,9 +77,12 @@ impl Query {
             )),
         }
     }
+}
 
+impl SyntaxQuery {
     pub fn run(
         &self,
+        uri: &Uri,
         source: &SourceInput,
         settings: Settings,
         cancellation: &Cancellation,
@@ -75,11 +93,11 @@ impl Query {
         cancellation
             .check()
             .map_err(|_| convert::error(ErrorCode::RequestCanceled, "request cancelled"))?;
-        match &self.kind {
-            QueryKind::Symbols => {
-                symbols::document_symbols(parsed.declarations(), &source.text, &self.uri, settings)
+        match self {
+            Self::Symbols => {
+                symbols::document_symbols(parsed.declarations(), &source.text, uri, settings)
             }
-            QueryKind::Folds => {
+            Self::Folds => {
                 let mut ranges = Vec::new();
                 for fold in scoop_analysis::folding_ranges(&parsed.syntax()) {
                     let range = convert::range(&source.text, fold.span, settings.encoding)?;
@@ -110,7 +128,7 @@ impl Query {
                 }
                 json(ranges)
             }
-            QueryKind::Selection(positions) => {
+            Self::Selection(positions) => {
                 let syntax = parsed.syntax();
                 let mut results = Vec::with_capacity(positions.len());
                 for position in positions {

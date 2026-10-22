@@ -1002,6 +1002,8 @@ dependencies = [
  "lsp-server",
  "lsp-types",
  "scoop-analysis",
+ "scoop-hir",
+ "scoop-hir-lower",
  "scoop-protocol",
  "scoop-source",
  "scoop-syntax",

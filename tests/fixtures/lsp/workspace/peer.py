@@ -91,7 +91,7 @@ def main():
     peer = Peer(server)
     try:
         options = {"target": target, "sysroot": sysroot}
-        peer.request(
+        initialized = peer.request(
             "initialize",
             {
                 "processId": None,
@@ -103,6 +103,7 @@ def main():
                 },
             },
         )
+        assert initialized["capabilities"]["hoverProvider"]
         peer.notify("initialized", {})
         peer.notify(
             "textDocument/didOpen",
@@ -123,6 +124,47 @@ def main():
         symbols()
         assert peer.registered
         assert not peer.diagnostics.get(manifest, {}).get("diagnostics"), peer.diagnostics
+
+        def hover(line, character):
+            return peer.request(
+                "textDocument/hover",
+                {
+                    "textDocument": {"uri": source},
+                    "position": {"line": line, "character": character},
+                },
+            )
+
+        assert hover(0, 5)["contents"]["value"] == "fun greeting(): String"
+        edited = (
+            'fun greeting(): String = "中文😀"\n'
+            "fun damaged(value: Missing): Boolean = true\n"
+            "fun <T> editing(value: T): T { value. }\n"
+            "fun inferred(value: Boolean) ="
+        )
+        peer.notify(
+            "textDocument/didChange",
+            {
+                "textDocument": {"uri": source, "version": 2},
+                "contentChanges": [{"text": edited}],
+            },
+        )
+        assert hover(0, 5)["contents"]["value"] == "fun greeting(): String"
+        assert hover(1, 5) is None
+        assert hover(2, 10)["contents"]["value"] == "fun <T> editing(value: T): T"
+        parameter = hover(2, 18)
+        assert parameter["contents"]["value"] == "value: T", parameter
+        assert parameter["range"]["start"] == {"line": 2, "character": 16}
+        assert (
+            hover(3, 5)["contents"]["value"] == "fun inferred(value: Boolean): <pending inference>"
+        )
+        peer.notify(
+            "textDocument/didChange",
+            {
+                "textDocument": {"uri": source, "version": 3},
+                "contentChanges": [{"text": "fun greeting(value: Boolean): Boolean = value\n"}],
+            },
+        )
+        assert hover(0, 5)["contents"]["value"] == "fun greeting(value: Boolean): Boolean"
         other = (
             "x86_64-unknown-linux-gnu"
             if target == "aarch64-apple-darwin"
@@ -134,12 +176,14 @@ def main():
         )
         symbols()
         assert peer.diagnostics[manifest]["diagnostics"][0]["code"] == "SCOOP_PROJECT"
+        assert hover(0, 5) is None
         peer.notify(
             "workspace/didChangeConfiguration",
             {"settings": {"scoop": {**options, "purpose": "test"}}},
         )
         symbols()
         assert peer.diagnostics[manifest]["diagnostics"] == []
+        assert hover(0, 5)["contents"]["value"] == "fun greeting(value: Boolean): Boolean"
         peer.notify(
             "textDocument/didOpen",
             {

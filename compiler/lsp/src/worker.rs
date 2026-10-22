@@ -2,10 +2,15 @@ use std::sync::mpsc::{self, Sender};
 
 use lsp_server::{ErrorCode, RequestId, ResponseError};
 use lsp_types::{Diagnostic, Uri};
-use scoop_analysis::{AnalysisSnapshot, Cancellation, Revision, SourceId};
+use scoop_analysis::{AnalysisSnapshot, Cancellation, Revision, SemanticSession, SourceId};
 use serde_json::Value;
 
-use crate::{convert, initialize::Settings, queries::Query, server::Event};
+use crate::{
+    convert,
+    initialize::Settings,
+    queries::{self, Query, QueryKind},
+    server::Event,
+};
 
 pub(crate) enum WorkKind {
     Request {
@@ -48,9 +53,10 @@ pub(crate) fn start(events: Sender<Event>) -> std::io::Result<Sender<Work>> {
     std::thread::Builder::new()
         .name("scoop-analysis".to_owned())
         .spawn(move || {
+            let mut semantics = SemanticSession::default();
             while let Ok(work) = receive.recv() {
                 let revision = work.snapshot.revision;
-                let completed = run(work);
+                let completed = run(work, &mut semantics);
                 if events
                     .send(Event::Completed(Completion {
                         revision,
@@ -65,7 +71,7 @@ pub(crate) fn start(events: Sender<Event>) -> std::io::Result<Sender<Work>> {
     Ok(send)
 }
 
-fn run(work: Work) -> Completed {
+fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
     let input = work
         .snapshot
         .source(work.source)
@@ -88,7 +94,18 @@ fn run(work: Work) -> Completed {
                 cancellation
                     .check()
                     .map_err(|_| convert::error(ErrorCode::RequestCanceled, "request cancelled"))?;
-                let result = query.run(source, work.settings, &cancellation)?;
+                let result = match query.kind {
+                    QueryKind::Syntax(query_kind) => {
+                        query_kind.run(&query.uri, source, work.settings, &cancellation)
+                    }
+                    QueryKind::Hover(position) => queries::hover(
+                        &work.snapshot,
+                        work.source,
+                        position,
+                        work.settings,
+                        semantics,
+                    ),
+                }?;
                 check_revision()?;
                 cancellation
                     .check()

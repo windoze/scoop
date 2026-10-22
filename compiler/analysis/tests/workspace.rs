@@ -219,3 +219,39 @@ fn configuration_failures_preserve_selected_source_inputs() {
     assert!(inputs.diagnostics[0].message.contains("cycle"));
     assert!(host.file_source(&source).is_some());
 }
+
+#[test]
+fn semantic_inputs_keep_unavailable_source_dependencies_in_the_selected_graph() {
+    let directory = tempfile::tempdir().unwrap();
+    let configuration = setup(directory.path());
+    let mut host = AnalysisHost::default();
+    let mut loader = WorkspaceLoader::default();
+    let inputs = loader.load(&mut host, &[configuration], &BTreeSet::new(), None);
+    host.set_workspace(inputs);
+    let source = host
+        .file_source(&directory.path().join("app/src/value.scoop"))
+        .unwrap();
+    let mut session = scoop_analysis::SemanticSession::default();
+    assert!(matches!(
+        session.declarations(&host.snapshot(), source),
+        Err(
+            scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable(
+                scoop_identity::ConeIdentity::CORE
+            )
+        )
+    ));
+    let old = host.snapshot();
+    host.set_text(source, SourceText::new("fun changed(): Int = 1".to_owned()));
+    assert!(matches!(
+        session.declarations(&old, source),
+        Err(scoop_analysis::ProjectAnalysisError::Cancelled)
+    ));
+    assert!(matches!(
+        session.declarations(&host.snapshot(), source),
+        Err(
+            scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable(
+                scoop_identity::ConeIdentity::CORE
+            )
+        )
+    ));
+}
