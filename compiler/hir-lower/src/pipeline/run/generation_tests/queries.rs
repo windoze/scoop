@@ -1,6 +1,7 @@
 use super::*;
 use hir::{SemanticBody as Body, SemanticBodyAvailability as Availability, SemanticCallable};
 
+mod annotations;
 mod constructors;
 mod defaults;
 mod descriptions;

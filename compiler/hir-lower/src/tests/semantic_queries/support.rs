@@ -6,7 +6,15 @@ pub(super) fn with_provider(
     consumer: &str,
     generator: &mut dyn hir::MethodBodyGenerator,
 ) -> hir::DependencyHirOutput {
-    let mut core = trusted_core();
+    with_core_provider(trusted_core(), provider, consumer, generator)
+}
+
+pub(super) fn with_core_provider(
+    mut core: crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
+    provider: &str,
+    consumer: &str,
+    generator: &mut dyn hir::MethodBodyGenerator,
+) -> hir::DependencyHirOutput {
     let coordinate = ConeCoordinate::new("test", "query-provider", "1.0.0").unwrap();
     let (foundation, interface) = project_dependency_text(&core, &coordinate, provider, &[]);
     let aliases = alias_expansions(interface.type_aliases());

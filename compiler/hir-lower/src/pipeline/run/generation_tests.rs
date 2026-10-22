@@ -28,7 +28,14 @@ fn compile_files(
     files: &[(&str, &str)],
     generator: &mut dyn MethodBodyGenerator,
 ) -> Result<hir::Module, Vec<Diagnostic>> {
-    let core = crate::tests::core_file();
+    compile_files_with_core(crate::tests::core_file(), files, generator)
+}
+
+fn compile_files_with_core(
+    core: ast::SourceFile,
+    files: &[(&str, &str)],
+    generator: &mut dyn MethodBodyGenerator,
+) -> Result<hir::Module, Vec<Diagnostic>> {
     let mut syntax = vec![core];
     let mut sources = vec![SourceProvider {
         provider: hir::IntrinsicProviderId::from_raw(0),

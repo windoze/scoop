@@ -54,6 +54,28 @@ SourceIdentity 为 `{cone, path}`，`cone` 使用 typed cone identity，`path` �
 
 数组的 scalar elementType 使用 `{kind: "scalar", scalar: ...}`：integer scalar 带 `signed` 与 `width`，float scalar 带 `width`，其余 scalar 仅含 `kind`。integralEnum elementType 带 `valueType`，annotation elementType 带 `annotation`。注解应用使用 `{annotation, arguments, origin}`，源码与依赖投影遵循同一形状。
 
+注解声明为 `{annotation, name, parameters, targets, repeatable, visibility, origin}`。parameters 按声明顺序，每项为 `{declaration: {annotation, index}, name, valueType, default}`；无默认值时 default 为 null，已存在的默认数组与其中的逐元素来源保持。valueType 区分 `{kind: "value", valueType: Type}`、`{kind: "annotation", annotation}` 与 `{kind: "annotationArray", array, element}`，后者保留实际 Array 名义声明和元素 annotation 声明。targets 使用语言中的 AnnotationTarget 名称，如 Class、Field、ValueParameter；不以整数 ordinal 或任意位图传输。visibility 沿成员编码，origin 统一为 SourceLocation。读取声明不展开其他注解声明，也不重新执行默认常量。
+
+注解 target 使用以下封闭形状；其类别直接来自原语义模型。字段中的 callable 使用 CallableDeclaration（局部 callable 为 generated），PropertyDeclaration 为 `{kind: "property" | "extensionProperty", id}`。
+
+| kind | 其他字段 |
+| --- | --- |
+| nominal | `owner: NominalId` |
+| variant | `variant` |
+| field | `field` |
+| variantField | `field` |
+| property | `property` |
+| extensionProperty | `property` |
+| annotation | `annotation` |
+| callable | `callable: CallableDeclaration` |
+| parameter | `callable: CallableDeclaration`、`index` |
+| callableReceiver | `callable: CallableDeclaration` |
+| propertyReceiver | `property: PropertyDeclaration` |
+| typeAlias | `alias` |
+| propertyStorage | `property: PropertyDeclaration`、`role: "backing" | "delegate"` |
+
+参数位置仅在该 callable 内有意义；receiver 不伪装成值参数 0，存储 target 不伪装成属性本身。每个 typed identity 仍采用声明引用的十六进制格式，实际引用解析属于当前固定视图。
+
 ## 待填方法签名
 
 CompleteMethodSignature 包含 `method`、`owner`、`name`、`receiver`、`binders`、`contextParameters`、`parameters`、`result`、`effects` 和 `origin`。method 使用 MethodId，owner 使用实际名义声明引用，所有类型按本签名的 binder 上下文解释。

@@ -8,6 +8,7 @@ use super::m23_ordinary_dependencies::support::{alias_expansions, project_depend
 use crate::semantic_queries::FrontendQueries;
 use hir::{SemanticBodyAvailability as Availability, SemanticQueries};
 
+mod annotations;
 mod constructors;
 mod exports;
 mod fields;

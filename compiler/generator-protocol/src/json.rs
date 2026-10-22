@@ -44,6 +44,7 @@ mod sources;
 mod types;
 pub(crate) use sources::Location;
 mod annotation_values;
+mod annotations;
 mod constants;
 mod effects;
 mod members;

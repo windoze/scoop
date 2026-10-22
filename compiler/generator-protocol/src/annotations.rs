@@ -2,6 +2,9 @@ use crate::{QueryJson, Reference, json::object};
 use scoop_hir::{SemanticAnnotationTarget, SemanticAnnotations, SemanticQueries};
 use serde::{Serialize, Serializer, ser::SerializeSeq};
 
+mod declarations;
+pub use declarations::annotation_declaration;
+
 /// Annotation applications from one already selected semantic target.
 pub struct Annotations<'a> {
     pub queries: &'a dyn SemanticQueries,
