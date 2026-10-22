@@ -188,6 +188,10 @@ pub fn normalize_protocol_build_request(
     .and_then(|request| {
         request
             .with_optimization(build.optimization())
+            .with_generators(
+                scoop_toolchain::GeneratorPrograms::from_registrations(build.generators())
+                    .map_err(BuildRequestNormalizationError::Generators)?,
+            )
             .with_native_inputs(protocol_paths(build.native_inputs())?)
             .with_purpose(build.purpose())
             .map_err(BuildRequestNormalizationError::Request)

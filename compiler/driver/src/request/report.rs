@@ -37,6 +37,7 @@ struct CurrentConeDiagnosticSource {
     identity: SourceIdentity,
     display_locator: String,
     source_text: Option<SourceText>,
+    in_memory: bool,
 }
 
 /// Diagnostics inseparably paired with the exact current-Cone sources whose
@@ -66,12 +67,14 @@ impl CurrentConeDiagnosticSet {
                 identity: source.text().identity().clone(),
                 display_locator: source.diagnostic().display_locator().display().to_string(),
                 source_text: Some(source.text().source_text().clone()),
+                in_memory: false,
             })
             .collect::<Vec<_>>();
         sources.extend(generated.iter().map(|source| CurrentConeDiagnosticSource {
             identity: source.identity.clone(),
             display_locator: source.name.clone(),
             source_text: Some(source.text.clone()),
+            in_memory: true,
         }));
         for diagnostic in &mut diagnostics {
             if let Some(identity) = &diagnostic.source {
@@ -199,6 +202,7 @@ pub struct SingleConeProductionSuccess {
     artifact: PublishedCrossConeArtifact,
     warnings: CurrentConeDiagnosticSet,
     emitted_dumps: Vec<EmittedStageDump>,
+    used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
     pub(in crate::request) documentation: Option<PublishedDocumentation>,
 }
 
@@ -207,17 +211,23 @@ impl SingleConeProductionSuccess {
         artifact: PublishedCrossConeArtifact,
         warnings: CurrentConeDiagnosticSet,
         emitted_dumps: Vec<EmittedStageDump>,
+        used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
     ) -> Self {
         Self {
             artifact,
             warnings,
             emitted_dumps,
+            used_generators,
             documentation: None,
         }
     }
 
     pub const fn artifact(&self) -> &PublishedCrossConeArtifact {
         &self.artifact
+    }
+
+    pub fn used_generators(&self) -> &[scoop_protocol::GeneratorToolInputV1] {
+        &self.used_generators
     }
 
     pub const fn warnings(&self) -> &CurrentConeDiagnosticSet {
@@ -279,6 +289,7 @@ fn source_index(
         identity: identity.clone(),
         display_locator: format!("{}/{}", identity.cone(), identity.logical_path()),
         source_text: None,
+        in_memory: false,
     });
     index
 }

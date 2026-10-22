@@ -290,4 +290,4 @@ M47 查询使用当前编译的固定视图，保留串行同步会话。它不�
 
 codec 端到端测试必须经正式注册和 driver 启动，使用普通 core／依赖 HIR 查询。验证一条含多个接口的 GenerateWith 只产生一次 generate，各接口的缺失方法共同返回，共享 requirement 对应的方法只生成一次；空数组不启动进程。增加普通用户 interface 的实现用例，验证这一协议没有 Encodable／Decodable 的硬编码分支；无需为测试专门建立第二套编译器或语义工厂。
 
-协议 v1 对消息和 HIR 查询 schema 版本化，不将 Rust AST 结构变动作为输出协议的一部分。生成源码使用当前编译器支持的语言语法；消息或查询发生不兼容变化时递增协议版本。现有 single-Cone machine protocol 仍采用自己的编码和版本，只传递工具配置；`.slib` 消费保持普通方法和普通 metadata 合同。
+协议 v1 对消息和 HIR 查询 schema 版本化，不将 Rust AST 结构变动作为输出协议的一部分。生成源码使用当前编译器支持的语言语法；消息或查询发生不兼容变化时递增协议版本。现有 single-Cone machine protocol 仍采用自己的编码和版本，传递工具配置、实际使用输入和必要诊断原文；`.slib` 消费保持普通方法和普通 metadata 合同。

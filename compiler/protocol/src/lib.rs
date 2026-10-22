@@ -8,6 +8,8 @@ mod diagnostic;
 mod dump;
 pub use dump::{StageDumpKindV1, StageDumpPolicyV1, StageDumpSet};
 mod framing;
+mod generators;
+pub use generators::{GeneratorRegistrationV1, GeneratorToolInputV1};
 mod path;
 mod purpose;
 pub use purpose::CompilationPurpose;
@@ -35,7 +37,7 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 13;
+pub const PROTOCOL_VERSION: u32 = 14;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = 4;
 
@@ -56,6 +58,7 @@ pub enum ProtocolValidationError {
     DocumentationObservation,
     DocumentationMachineDump,
     InvalidTargetTriple,
+    InvalidGeneratorRegistration,
 
     TooManyEmittedDumps(usize),
     InvalidDumpStages,
@@ -111,6 +114,8 @@ impl std::fmt::Display for ProtocolValidationError {
             Self::InvalidTargetTriple => formatter.write_str(
                 "target triple must be 1..255 printable ASCII bytes without path separators",
             ),
+            Self::InvalidGeneratorRegistration => formatter
+                .write_str("generator registrations require nonempty, unique names in name order"),
 
             Self::TooManyEmittedDumps(actual) => write!(
                 formatter,

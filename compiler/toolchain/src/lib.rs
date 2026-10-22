@@ -18,7 +18,7 @@ mod compiler;
 mod cxx;
 mod final_link;
 mod generators;
-pub use generators::GeneratorPrograms;
+pub use generators::{GeneratorPrograms, record_generator_input};
 mod linux_c;
 mod linux_target;
 mod manifest;

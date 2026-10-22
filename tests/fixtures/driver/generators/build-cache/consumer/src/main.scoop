@@ -1,0 +1,9 @@
+package test.consumer
+
+import test.generated.GeneratedValue
+import test.generated.Generic
+
+fun main() {
+    println(GeneratedValue().value())
+    println(Generic<Int>().echo(7))
+}

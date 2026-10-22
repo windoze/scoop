@@ -13,6 +13,7 @@ pub(super) struct CurrentConeHirArtifacts {
     pub nominal_classifier: scoop_hir::NominalExactLeafClassifierV1,
     pub generated_sources: Vec<scoop_hir::GeneratedMethodSource>,
     pub generator_warnings: Vec<scoop_ast::Diagnostic>,
+    pub used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
 }
 
 impl CurrentConeHirArtifacts {
@@ -86,6 +87,7 @@ impl CurrentConeHirArtifacts {
         let mut artifacts = Self::from_hir(hir, world)?;
         artifacts.generated_sources = generator.sources;
         artifacts.generator_warnings = generator.warnings;
+        artifacts.used_generators = generator.used;
         Ok(artifacts)
     }
 
@@ -112,6 +114,7 @@ impl CurrentConeHirArtifacts {
         artifacts.test_directory = Some(directory);
         artifacts.generated_sources = generator.sources;
         artifacts.generator_warnings = generator.warnings;
+        artifacts.used_generators = generator.used;
         Ok(artifacts)
     }
 
@@ -155,6 +158,7 @@ impl CurrentConeHirArtifacts {
             nominal_classifier,
             generated_sources: Vec::new(),
             generator_warnings: Vec::new(),
+            used_generators: Vec::new(),
         })
     }
 

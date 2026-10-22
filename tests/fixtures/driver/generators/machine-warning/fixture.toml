@@ -1,0 +1,35 @@
+schema = 1
+name = "generator-machine-warning-retains-fragment-on-cache-hit"
+root = "../errors/program.scoop"
+inputs = ["../errors/program.scoop", "../peer.py"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "generator", "diagnostics", "cache"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--generator", "test.peer=generator", "-o", "${work}/program"]
+expected = "generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:3:5: warning[SCOOPC_COMPILER_WARNING]: fragment warning\n${root}:3:29: note: implementation requested here\nbuilt ${work}/program (release)\n"
+
+[[steps]]
+name = "peer"
+files = [
+  {concat = {path = "${work}/generator", parts = ["#!${python}\n", {file = "../peer.py"}]}},
+  {replace = {path = "${work}/generator", old = 'MODE = "normal"', new = 'MODE = "fragment-warning"'}},
+  {chmod = {path = "${work}/generator", mode = "755"}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${root}", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = "${expected}"
+checks = [{file = "${work}/generator.calls", equals = "called\n"}]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${root}", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = "${expected}"
+checks = [{file = "${work}/generator.calls", equals = "called\n"}]

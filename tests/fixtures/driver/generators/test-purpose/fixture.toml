@@ -1,0 +1,45 @@
+schema = 1
+name = "generator-test-purpose-and-reuse"
+inputs = ["cone", "../peer.py"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "generator", "test-command", "cache"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--generator", "test.peer=generator"]
+
+[[steps]]
+name = "peer"
+files = [
+  {concat = {path = "${work}/generator", parts = ["#!${python}\n", {file = "../peer.py"}]}},
+  {replace = {path = "${work}/generator", old = 'MODE = "normal"', new = 'MODE = "cache"'}},
+  {chmod = {path = "${work}/generator", mode = "755"}},
+]
+
+[[steps]]
+name = "compile"
+argv = ["${scoop}", "test", "${fixture}/cone", {each = "${link_args}"}, {each = "${options}"}, "--no-run"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${compile.result.observations.child_invocations.length}", equals = 1},
+  {file = "${work}/generator.calls", equals = "called\n"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "test", "${fixture}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+  {actual = "${run.result.observations.child_invocations.length}", equals = 0},
+  {actual = "${run.test_result.status}", equals = "passed"},
+  {actual = "${run.test_result.counts.passed}", equals = 1},
+  {file = "${work}/generator.calls", equals = "called\n"},
+]

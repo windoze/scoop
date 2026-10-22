@@ -136,10 +136,13 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
                 actual: *response.request_id().as_array(),
             });
         }
-        if !stderr.is_empty() {
-            return Err(ChildTransportError::UnexpectedStderr(stderr));
-        }
         validate_exit(status, &response)?;
+        if !stderr.is_empty() {
+            std::io::stderr()
+                .lock()
+                .write_all(&stderr)
+                .map_err(ChildTransportError::WriteLog)?;
+        }
         Ok(response)
     }
 }
@@ -224,7 +227,7 @@ pub enum ChildTransportError {
         expected: [u8; 16],
         actual: [u8; 16],
     },
-    UnexpectedStderr(Vec<u8>),
+    WriteLog(std::io::Error),
     Signal,
     ExitMismatch {
         status: ExitStatus,
@@ -276,11 +279,7 @@ impl fmt::Display for ChildTransportError {
                 formatter,
                 "child response request id mismatch: expected {expected:02x?}, found {actual:02x?}"
             ),
-            Self::UnexpectedStderr(stderr) => write!(
-                formatter,
-                "child wrote stderr alongside a protocol response: {:?}",
-                String::from_utf8_lossy(stderr)
-            ),
+            Self::WriteLog(source) => write!(formatter, "cannot write compiler log: {source}"),
             Self::Signal => formatter.write_str("child terminated by signal"),
             Self::ExitMismatch { status, response } => write!(
                 formatter,
@@ -298,6 +297,7 @@ impl std::error::Error for ChildTransportError {
             | Self::WorkerSpawn(source)
             | Self::TemporaryDirectory(source)
             | Self::WriteRequest(source)
+            | Self::WriteLog(source)
             | Self::Wait(source)
             | Self::ReadStream { source, .. } => Some(source),
             Self::Response { source, .. } => Some(source),
@@ -306,7 +306,6 @@ impl std::error::Error for ChildTransportError {
             | Self::ReaderPanicked(_)
             | Self::WorkerPanicked
             | Self::RequestIdMismatch { .. }
-            | Self::UnexpectedStderr(_)
             | Self::Signal
             | Self::ExitMismatch { .. } => None,
         }

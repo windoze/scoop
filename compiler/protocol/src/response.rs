@@ -136,6 +136,7 @@ pub struct ScoopcSuccessV1 {
     product: ScoopcProductV1,
     warnings: Vec<StructuredDiagnosticV1>,
     emitted_dump_descriptors: Vec<EmittedDumpDescriptorV1>,
+    used_generators: Vec<crate::GeneratorToolInputV1>,
 }
 
 impl ScoopcSuccessV1 {
@@ -149,7 +150,17 @@ impl ScoopcSuccessV1 {
             product: product.into(),
             warnings,
             emitted_dump_descriptors,
+            used_generators: Vec::new(),
         })
+    }
+
+    pub fn with_used_generators(mut self, inputs: Vec<crate::GeneratorToolInputV1>) -> Self {
+        self.used_generators = inputs;
+        self
+    }
+
+    pub fn used_generators(&self) -> &[crate::GeneratorToolInputV1] {
+        &self.used_generators
     }
 
     pub fn summary(&self) -> Option<&scoop_slib::ArtifactManifestSummaryV1> {
@@ -270,7 +281,7 @@ fn encode_success(
     request_id: RequestCorrelationId,
     result: &ScoopcSuccessV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(5)?;
+    encoder.map(6)?;
     encoder.field(0)?;
     encoder.unsigned(1)?;
     encoder.field(1)?;
@@ -283,6 +294,11 @@ fn encode_success(
     encoder.array(result.emitted_dump_descriptors.len() as u64)?;
     for dump in &result.emitted_dump_descriptors {
         dump.encode(encoder)?;
+    }
+    encoder.field(5)?;
+    encoder.array(result.used_generators.len() as u64)?;
+    for input in &result.used_generators {
+        input.encode(encoder)?;
     }
     Ok(())
 }

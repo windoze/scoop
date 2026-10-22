@@ -115,6 +115,7 @@ pub struct ScoopcBuildRequestV1 {
     optimization: OptimizationMode,
     purpose: crate::CompilationPurpose,
     native_inputs: Vec<HostPathCarrier>,
+    generators: Vec<crate::GeneratorRegistrationV1>,
 }
 
 impl ScoopcBuildRequestV1 {
@@ -149,6 +150,7 @@ impl ScoopcBuildRequestV1 {
             optimization: OptimizationMode::Debug,
             purpose: crate::CompilationPurpose::Production,
             native_inputs: Vec::new(),
+            generators: Vec::new(),
         })
     }
 
@@ -189,6 +191,24 @@ impl ScoopcBuildRequestV1 {
         &self.native_inputs
     }
 
+    pub fn with_generators(
+        mut self,
+        generators: Vec<crate::GeneratorRegistrationV1>,
+    ) -> Result<Self, ProtocolValidationError> {
+        if !generators
+            .windows(2)
+            .all(|pair| pair[0].name() < pair[1].name())
+        {
+            return Err(ProtocolValidationError::InvalidGeneratorRegistration);
+        }
+        self.generators = generators;
+        Ok(self)
+    }
+
+    pub fn generators(&self) -> &[crate::GeneratorRegistrationV1] {
+        &self.generators
+    }
+
     pub fn current(&self) -> &CurrentConeRequestV1 {
         &self.current
     }
@@ -224,7 +244,7 @@ impl ScoopcBuildRequestV1 {
 
 impl WireEncode for ScoopcBuildRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(12)?;
         encoder.field(1)?;
         self.current.encode(encoder)?;
         encoder.field(2)?;
@@ -246,7 +266,13 @@ impl WireEncode for ScoopcBuildRequestV1 {
         encoder.field(10)?;
         encode_paths(encoder, &self.native_inputs)?;
         encoder.field(11)?;
-        self.purpose.encode(encoder)
+        self.purpose.encode(encoder)?;
+        encoder.field(12)?;
+        encoder.array(self.generators.len() as u64)?;
+        for generator in &self.generators {
+            generator.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 

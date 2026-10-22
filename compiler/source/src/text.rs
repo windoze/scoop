@@ -46,7 +46,7 @@ impl SourceText {
     }
 
     /// Compiler diagnostics retain their original LF-only line convention.
-    pub(crate) fn diagnostic_position(&self, offset: u32) -> (usize, usize) {
+    pub fn diagnostic_position(&self, offset: u32) -> (usize, usize) {
         self.0
             .compiler_lines
             .get_or_init(|| LineIndex::new(self.as_str(), false))

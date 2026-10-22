@@ -824,6 +824,7 @@ dependencies = [
  "scoop-process",
  "scoop-protocol",
  "scoop-slib",
+ "scoop-source",
  "scoop-target-data",
  "scoop-toolchain",
  "scoop-wire",

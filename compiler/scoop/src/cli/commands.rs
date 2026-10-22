@@ -144,6 +144,8 @@ fn build_request(
     enable_gc_stress: bool,
 ) -> BuildResult<BuildRequest> {
     let cwd = std::env::current_dir().map_err(config)?;
+    let generators =
+        scoop_toolchain::GeneratorPrograms::from_cli(&args.generators, &cwd).map_err(config)?;
     let input = absolute(
         &cwd,
         args.root_input
@@ -182,7 +184,8 @@ fn build_request(
         PairedScoopcLocator::new(absolute(&cwd, compiler)?).map_err(config)?,
         DiagnosticsPolicy::Structured,
     )
-    .map_err(BuildFailure::classified)?;
+    .map_err(BuildFailure::classified)?
+    .with_generators(generators);
     if let Some(jobs) = args.jobs {
         graph = graph.with_jobs(jobs);
     }

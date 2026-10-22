@@ -356,7 +356,7 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
             Self::NotOrdinarySource(_) | Self::RequestPlan(_) => {
                 phase_only(BuildFailurePhase::ChildTransport)
             }
-            Self::CacheKey(_) => phase_only(BuildFailurePhase::Cache),
+            Self::CacheKey(_) | Self::Generators(_) => phase_only(BuildFailurePhase::Cache),
         }
     }
 }
@@ -412,13 +412,12 @@ impl ClassifyBuildFailure for CompileCacheStoreError {
 impl ClassifyBuildFailure for ChildTransportError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
-            Self::Request(_)
-            | Self::Response { .. }
-            | Self::RequestIdMismatch { .. }
-            | Self::UnexpectedStderr(_) => classified(
-                BuildFailurePhase::ChildTransport,
-                BuildDiagnosticCode::CHILD_PROTOCOL,
-            ),
+            Self::Request(_) | Self::Response { .. } | Self::RequestIdMismatch { .. } => {
+                classified(
+                    BuildFailurePhase::ChildTransport,
+                    BuildDiagnosticCode::CHILD_PROTOCOL,
+                )
+            }
             Self::Signal | Self::ExitMismatch { .. } => classified(
                 BuildFailurePhase::ChildTransport,
                 BuildDiagnosticCode::CHILD_EXIT,
@@ -428,6 +427,7 @@ impl ClassifyBuildFailure for ChildTransportError {
             | Self::Spawn { .. }
             | Self::MissingPipe(_)
             | Self::WriteRequest(_)
+            | Self::WriteLog(_)
             | Self::Wait(_)
             | Self::ReadStream { .. }
             | Self::ReaderPanicked(_)

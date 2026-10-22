@@ -1,7 +1,11 @@
 use crate::ToolchainError;
+use scoop_protocol::{GeneratorRegistrationV1, HostPathCarrier};
 use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+
+mod inputs;
+pub use inputs::record_generator_input;
 
 /// Explicit host programs, resolved once against the receiving CLI's cwd.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -37,6 +41,43 @@ impl GeneratorPrograms {
         Ok(programs)
     }
 
+    pub fn from_registrations(
+        registrations: &[GeneratorRegistrationV1],
+    ) -> Result<Self, ToolchainError> {
+        let explicit = registrations
+            .iter()
+            .map(|registration| {
+                let path = registration.program().to_path_buf().map_err(error)?;
+                if !path.is_absolute() {
+                    return Err(error(
+                        "generator program path must be absolute in a machine request",
+                    ));
+                }
+                Ok((registration.name().to_owned(), path))
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(Self { explicit })
+    }
+
+    pub fn registrations(&self) -> Result<Vec<GeneratorRegistrationV1>, ToolchainError> {
+        self.explicit
+            .iter()
+            .map(|(name, path)| {
+                GeneratorRegistrationV1::new(
+                    name.clone(),
+                    HostPathCarrier::from_path(path).map_err(error)?,
+                )
+                .map_err(error)
+            })
+            .collect()
+    }
+
+    pub fn program_for_compiler(&self, name: &str, compiler: &Path) -> Option<PathBuf> {
+        self.explicit.get(name).cloned().or_else(|| {
+            (name == "scoop.codec").then(|| compiler.with_file_name("scoop-codec-generator"))
+        })
+    }
+
     /// Resolve only a generator selected by an actual compilation task.
     pub fn program(&self, name: &str) -> Result<Option<PathBuf>, ToolchainError> {
         if let Some(path) = self.explicit.get(name) {
@@ -50,8 +91,8 @@ impl GeneratorPrograms {
     }
 }
 
-fn error(message: impl Into<String>) -> ToolchainError {
-    ToolchainError(message.into())
+fn error(message: impl std::fmt::Display) -> ToolchainError {
+    ToolchainError(message.to_string())
 }
 
 #[cfg(test)]

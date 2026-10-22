@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from pathlib import Path
 
 MODE = "normal"
 
@@ -112,6 +113,13 @@ def main():
     assert params["protocolVersion"] == 1
     methods = [(task, method) for task in params["tasks"] for method in task["methods"]]
     assert methods
+    if MODE in {"cache", "fragment-warning"}:
+        with Path(__file__).with_suffix(".calls").open("a", encoding="utf-8") as output:
+            output.write("called\n")
+    if MODE == "cache":
+        inspect(*methods[0])
+    elif MODE == "logged":
+        print("generator log", file=sys.stderr)
     if MODE == "normal":
         assert len(params["tasks"]) == 2
         assert len(params["tasks"][0]["bindings"]) == 3
@@ -158,7 +166,25 @@ def main():
     elif MODE == "unknown-name":
         bodies[0]["source"] = "{\n    return missingName\n}"
     diagnostics = []
-    if MODE in {"warning", "error"}:
+    if MODE == "fragment-warning":
+        bodies[0]["source"] = "// 中文\n{\n    return 42\n}"
+        method = bodies[0]["method"]
+        start = bodies[0]["source"].encode("utf-8").index(b"return")
+        diagnostics.append(
+            {
+                "severity": "warning",
+                "message": "fragment warning",
+                "location": {
+                    "source": {
+                        "cone": params["currentCone"],
+                        "path": f"generated/{method['kind']}/{method['id']}.scoop",
+                    },
+                    "span": {"startByte": start, "endByte": start + 6},
+                },
+                "notes": [],
+            }
+        )
+    elif MODE in {"warning", "error"}:
         diagnostics.append(
             {"severity": MODE, "message": "peer diagnostic", "location": None, "notes": []}
         )

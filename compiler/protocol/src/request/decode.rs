@@ -137,6 +137,7 @@ pub(super) struct DecodedScoopcBuildRequestV1 {
     optimization: OptimizationMode,
     purpose: crate::CompilationPurpose,
     native_inputs: Vec<DecodedHostPathCarrier>,
+    generators: Vec<crate::GeneratorRegistrationV1>,
 }
 
 impl DecodedScoopcBuildRequestV1 {
@@ -166,12 +167,13 @@ impl DecodedScoopcBuildRequestV1 {
                 .with_native_inputs(native_inputs)
                 .with_purpose(self.purpose)
         })
+        .and_then(|request| request.with_generators(self.generators))
     }
 }
 
 impl WireEncode for DecodedScoopcBuildRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(12)?;
         encoder.field(1)?;
         self.current.encode(encoder)?;
         encoder.field(2)?;
@@ -193,13 +195,19 @@ impl WireEncode for DecodedScoopcBuildRequestV1 {
         encoder.field(10)?;
         encode_decoded_paths(encoder, &self.native_inputs)?;
         encoder.field(11)?;
-        self.purpose.encode(encoder)
+        self.purpose.encode(encoder)?;
+        encoder.field(12)?;
+        encoder.array(self.generators.len() as u64)?;
+        for generator in &self.generators {
+            generator.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
 impl WireDecode for DecodedScoopcBuildRequestV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(11)?;
+        decoder.expect_map(12)?;
         let current = decoder.field(1, DecodedCurrentConeRequestV1::decode)?;
         let direct_slibs = decoder.field(2, |decoder| {
             decoder.decode_array(|decoder, _| DecodedHostPathCarrier::decode(decoder))
@@ -228,6 +236,9 @@ impl WireDecode for DecodedScoopcBuildRequestV1 {
             optimization,
             native_inputs,
             purpose: decoder.field(11, crate::CompilationPurpose::decode)?,
+            generators: decoder.field(12, |d| {
+                d.decode_array(|d, _| crate::GeneratorRegistrationV1::decode(d))
+            })?,
         })
     }
 }

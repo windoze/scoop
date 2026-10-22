@@ -72,6 +72,9 @@ pub(super) struct BuildOptions {
     pub target_dir: Option<PathBuf>,
     #[arg(long)]
     pub scoopc: Option<PathBuf>,
+    /// Register a host method-body generator; may be repeated for distinct names.
+    #[arg(long = "generator", value_name = "NAME=PATH")]
+    pub generators: Vec<OsString>,
     #[arg(long)]
     pub cache_dir: Option<PathBuf>,
     /// Maximum concurrent compiler processes; defaults to available CPUs.

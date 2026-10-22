@@ -23,7 +23,7 @@ diagnostics = []
 checks = [
   {actual = "${cold.result.observations.child_invocations.length}", equals = 1},
   {file = "${cold.result.output}", same_as = "${cold.result.root.path}"},
-  {file = "${work}/cache/compile-v2/${cold.result.observations.nodes.1.cache_key}/record.cbor", exists = true},
+  {file = "${work}/cache/compile-v3/${cold.result.observations.nodes.1.cache_key}/record.cbor", exists = true},
 ]
 
 [[steps]]
@@ -37,7 +37,7 @@ diagnostics = []
 checks = [
   {actual = "${warm.result.observations.child_invocations.length}", equals = 0},
   {file = "${warm.result.output}", same_as = "${warm.result.root.path}"},
-  {file = "${work}/cache/compile-v2/${warm.result.observations.nodes.1.cache_key}/record.cbor", exists = true},
+  {file = "${work}/cache/compile-v3/${warm.result.observations.nodes.1.cache_key}/record.cbor", exists = true},
 ]
 
 [[steps]]
@@ -51,7 +51,7 @@ diagnostics = []
 checks = [
   {actual = "${another_output.result.observations.child_invocations.length}", equals = 0},
   {file = "${another_output.result.output}", same_as = "${another_output.result.root.path}"},
-  {file = "${work}/cache/compile-v2/${another_output.result.observations.nodes.1.cache_key}/record.cbor", exists = true},
+  {file = "${work}/cache/compile-v3/${another_output.result.observations.nodes.1.cache_key}/record.cbor", exists = true},
 ]
 
 [[steps]]
@@ -69,7 +69,7 @@ diagnostics = []
 checks = [
   {actual = "${restore_output.result.observations.child_invocations.length}", equals = 0},
   {file = "${restore_output.result.output}", same_as = "${restore_output.result.root.path}"},
-  {file = "${work}/cache/compile-v2/${restore_output.result.observations.nodes.1.cache_key}/record.cbor", exists = true},
+  {file = "${work}/cache/compile-v3/${restore_output.result.observations.nodes.1.cache_key}/record.cbor", exists = true},
 ]
 
 [[steps]]

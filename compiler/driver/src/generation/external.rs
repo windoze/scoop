@@ -10,6 +10,7 @@ pub(crate) struct ExternalGenerator<'a> {
     programs: &'a GeneratorPrograms,
     pub sources: Vec<hir::GeneratedMethodSource>,
     pub warnings: Vec<Diagnostic>,
+    pub used: Vec<scoop_protocol::GeneratorToolInputV1>,
 }
 
 impl<'a> ExternalGenerator<'a> {
@@ -18,6 +19,7 @@ impl<'a> ExternalGenerator<'a> {
             programs,
             sources: Vec::new(),
             warnings: Vec::new(),
+            used: Vec::new(),
         }
     }
 }
@@ -51,10 +53,17 @@ impl hir::MethodBodyGenerator for ExternalGenerator<'_> {
                         ),
                     )]
                 })?;
+            let used = scoop_toolchain::record_generator_input(
+                &batch.generator,
+                &program,
+                scoop_generator_protocol::PROTOCOL_VERSION,
+            )
+            .map_err(|error| vec![diagnostic(origin, error.to_string())])?;
             let Generated {
                 bodies,
                 diagnostics,
             } = session::generate(queries, &batch, &program).map_err(|error| vec![error])?;
+            self.used.push(used);
             for reported in diagnostics {
                 match diagnostics::resolve(queries, reported, origin) {
                     Ok(diagnostic)
