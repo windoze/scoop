@@ -1,4 +1,5 @@
 mod convert;
+mod diagnostics;
 mod documents;
 mod initialize;
 mod queries;

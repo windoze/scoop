@@ -104,6 +104,8 @@ receiver 的局部语义已接入：grammar 明确函数正文入口，编辑态
 
 实参固定点事实与完整约束求解已分开：普通调用继续顺序执行两步，前一步保留既有表达式和真实失败，partial bindings 不作为完成泛型边界检查的凭据。原独立输入、延期 lambda、结果期望和种子推断共用原算法；代码按事实计算与完成边界分文件。格式化、全 workspace Clippy、41 项调用解析测试和 7 项 lambda 推断回归通过。新增测试覆盖未解变量、违反 kind 边界的提示和失败前的完整实参；测试使用了不需导入环境的实际 receiver-label 错误。半成品调用的查询消费与签名帮助仍待接入。
 
+LSP 语义诊断已接入：同版语法、声明／签名与完整正文诊断合并，正文与 hover、导航复用已有查询；坏正文旁的可检查函数继续分析。主位置按当前文件筛选，附注与定义导航共用 SourceIdentity 定位，分别使用真实文件文本换算位置。修改源码时刷新打开文档，保持 revision／version 检查；依赖函数修复后，未修改调用方的旧诊断也清除。格式化、全 workspace Clippy、固定版本 Ruff、20 项宿主／LSP 测试和真实 sysroot 的 stdio fixture 通过，覆盖语法与类型错误并存、跨文件附注及跨文件修复；fixture 未产生项目构建产物。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

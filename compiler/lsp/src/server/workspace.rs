@@ -19,6 +19,10 @@ impl Server {
         inputs.diagnostics.append(&mut errors);
         self.documents.host.set_workspace(inputs);
         self.publish_project_diagnostics(output)?;
+        self.schedule_open_diagnostics()
+    }
+
+    pub(super) fn schedule_open_diagnostics(&mut self) -> io::Result<()> {
         for uri in self.documents.open_uris() {
             self.schedule_diagnostics(&uri)?;
         }

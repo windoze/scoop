@@ -133,17 +133,14 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
         }
         WorkKind::Diagnostics { uri, version } => {
             let result = input.and_then(|source| {
-                let parsed = source
-                    .parse()
-                    .map_err(|err| convert::error(ErrorCode::RequestFailed, err))?;
-                let mut diagnostics = Vec::new();
-                for diagnostic in parsed.diagnostics() {
-                    if let Some(diagnostic) =
-                        convert::diagnostic(&source.text, &uri, diagnostic, work.settings.encoding)?
-                    {
-                        diagnostics.push(diagnostic);
-                    }
-                }
+                let diagnostics = crate::diagnostics::collect(
+                    &work.snapshot,
+                    work.source,
+                    source,
+                    &uri,
+                    work.settings,
+                    semantics,
+                )?;
                 check_revision()?;
                 Ok(diagnostics)
             });

@@ -7,6 +7,8 @@ import sys
 import threading
 from pathlib import Path
 
+from diagnostics import check as check_diagnostics
+
 
 class Peer:
     def __init__(self, server):
@@ -280,6 +282,7 @@ def main():
         symbols()
         assert peer.diagnostics[manifest]["version"] == 2
         assert peer.diagnostics[manifest]["diagnostics"] == []
+        check_diagnostics(peer, root)
         peer.finish()
     finally:
         if peer.process.poll() is None:

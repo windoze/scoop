@@ -7,7 +7,7 @@ use scoop_identity::{SourceIdentity, SourceRole};
 
 use crate::{AnalysisSnapshot, Cancelled, SourceConeInput, SourceId, SourceInput};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum DeclarationAnalysisError {
     Cancelled,
     MissingSource(SourceId),

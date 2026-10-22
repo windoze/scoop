@@ -1,5 +1,5 @@
 use lsp_server::{ErrorCode, ResponseError};
-use lsp_types::{Location, Position};
+use lsp_types::Position;
 use scoop_analysis::{
     AnalysisSnapshot, Cancellation, ProjectAnalysisError, ProjectInput, ProjectSource,
     SemanticSession, SourceId, SourceInput,
@@ -213,39 +213,7 @@ pub(super) fn local_type(
     }
 }
 
-pub(super) fn location(
-    snapshot: &AnalysisSnapshot,
-    project: &ProjectInput,
-    origin: &hir::SemanticSourceLocation,
-    settings: Settings,
-) -> Result<Option<Location>, ResponseError> {
-    let Some(file) = project
-        .cones
-        .values()
-        .filter_map(|cone| cone.source())
-        .flat_map(|cone| &cone.sources)
-        .find(|file| file.identity == origin.source)
-    else {
-        return Ok(None);
-    };
-    let Some(source) = snapshot.source(file.source).map_err(|_| cancelled())? else {
-        return Ok(None);
-    };
-    let url = url::Url::from_file_path(&file.path).map_err(|_| {
-        convert::error(
-            ErrorCode::RequestFailed,
-            "source path cannot be represented as a URI",
-        )
-    })?;
-    let uri = url
-        .as_str()
-        .parse()
-        .map_err(|error| convert::error(ErrorCode::RequestFailed, error))?;
-    Ok(Some(Location {
-        uri,
-        range: convert::range(&source.text, origin.span, settings.encoding)?,
-    }))
-}
+pub(super) use crate::convert::location;
 
 pub(super) fn cancelled() -> ResponseError {
     convert::error(ErrorCode::RequestCanceled, "request cancelled")

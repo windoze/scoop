@@ -8,7 +8,9 @@ use crate::{
     SourceVersion,
 };
 
-#[derive(Debug)]
+mod diagnostics;
+
+#[derive(Clone, Debug)]
 pub enum ProjectAnalysisError {
     Cancelled,
     MissingSource(SourceId),

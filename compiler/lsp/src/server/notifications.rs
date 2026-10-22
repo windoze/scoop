@@ -44,7 +44,8 @@ impl Server {
                 if workspace {
                     self.refresh_workspace(output)?;
                 }
-                self.schedule_diagnostics(&uri)
+                self.schedule_diagnostics(&uri)?;
+                self.schedule_open_diagnostics()
             }
             Ok(Change::Closed(uri, error)) => {
                 self.diagnostics.remove(&uri);

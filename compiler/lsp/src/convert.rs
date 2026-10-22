@@ -1,8 +1,11 @@
 use lsp_server::{ErrorCode, ResponseError};
 use lsp_types::{
-    Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Position, Range, Uri,
+    Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Position, Range,
 };
 use scoop_source::{PositionEncoding, SourceText, Span, TextPosition};
+
+mod location;
+pub(crate) use location::location;
 
 pub(crate) fn error(code: ErrorCode, message: impl ToString) -> ResponseError {
     ResponseError {
@@ -47,22 +50,23 @@ pub(crate) fn range(
 
 pub(crate) fn diagnostic(
     text: &SourceText,
-    uri: &Uri,
     diagnostic: &scoop_source::Diagnostic,
     encoding: PositionEncoding,
+    mut note_location: impl FnMut(
+        &scoop_source::DiagnosticNote,
+    ) -> Result<Option<Location>, ResponseError>,
 ) -> Result<Option<Diagnostic>, ResponseError> {
     let Some(span) = diagnostic.span else {
         return Ok(None);
     };
     let mut notes = Vec::new();
     for note in &diagnostic.notes {
-        notes.push(DiagnosticRelatedInformation {
-            location: Location {
-                uri: uri.clone(),
-                range: range(text, note.span, encoding)?,
-            },
-            message: note.message.clone(),
-        });
+        if let Some(location) = note_location(note)? {
+            notes.push(DiagnosticRelatedInformation {
+                location,
+                message: note.message.clone(),
+            });
+        }
     }
     Ok(Some(Diagnostic {
         range: range(text, span, encoding)?,
