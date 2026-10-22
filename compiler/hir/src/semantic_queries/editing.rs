@@ -85,4 +85,12 @@ pub struct EditingLocalOccurrence {
 pub struct EditingBodyFacts {
     pub locals: Vec<EditingLocalOccurrence>,
     pub expressions: Vec<EditingExpression>,
+    pub callables: Vec<EditingCallableReference>,
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingCallableReference {
+    pub span: Span,
+    pub target: crate::SemanticCallable,
+    pub definition: Option<SemanticSourceLocation>,
 }

@@ -77,6 +77,19 @@ pub(crate) struct ImportedDependencyCallProbe {
 }
 
 impl ImportedDependencyCallProbe {
+    pub(in crate::expr) fn semantic_target(&self) -> Option<hir::SemanticCallable> {
+        let declaration = match self.candidate.interface().declaration() {
+            scoop_identity::CallableTemplateOrigin::Function(function) => {
+                hir::DefaultCallableDeclarationV1::Function(function)
+            }
+            scoop_identity::CallableTemplateOrigin::GenericFunction(function) => {
+                hir::DefaultCallableDeclarationV1::GenericFunction(function)
+            }
+            _ => return None,
+        };
+        Some(hir::SemanticCallable::Imported(declaration))
+    }
+
     pub(in crate::expr) fn requirement_effects(&self) -> hir::RequiredCallEffects {
         let effects = self.candidate.interface().effects();
         hir::RequiredCallEffects {

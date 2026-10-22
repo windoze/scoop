@@ -39,6 +39,7 @@ impl Lowerer {
             function,
             crate::SourceFunctionDeclaration {
                 name: member.signature.name.clone(),
+                name_span: None,
             },
         );
         let mut diagnostic = ast::Diagnostic::at(

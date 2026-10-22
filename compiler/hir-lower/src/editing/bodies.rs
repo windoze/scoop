@@ -1,6 +1,7 @@
 use super::*;
 use hir::{EditingUnavailable as U, EditingValue as V};
 
+mod calls;
 mod observations;
 mod record;
 pub(crate) use observations::{BodyObservation, CheckedBody};

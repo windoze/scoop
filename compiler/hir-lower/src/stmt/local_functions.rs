@@ -96,6 +96,7 @@ impl Lowerer {
             function,
             crate::SourceFunctionDeclaration {
                 name: decl.name.text.clone(),
+                name_span: Some(decl.name.span),
             },
         );
         self.record_function_file(function, self.current_file);

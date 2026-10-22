@@ -30,7 +30,7 @@ pub(crate) fn hover(
             continue;
         };
         if function.name_origin.span == target {
-            let label = signature_label(analysis, &signature, source.text.as_str())?;
+            let label = signature_label(analysis, &signature)?;
             return response(&source.text, function.name_origin.span, label, settings);
         }
         for parameter in &signature.parameters {
@@ -51,6 +51,14 @@ pub(crate) fn hover(
             let label = local
                 .reference
                 .map_or_else(|| ty.clone(), |local| format!("{}: {ty}", local.name));
+            return response(&source.text, target, label, settings);
+        }
+        if let Some(reference) =
+            semantic::callable_at(analysis, function.function, target, snapshot, cancellation)?
+            && let hir::SemanticCallable::Current(function) = reference.target
+            && let EditingValue::Known(signature) = analysis.signature(function)
+        {
+            let label = signature_label(analysis, &signature)?;
             return response(&source.text, target, label, settings);
         }
     }
@@ -92,7 +100,6 @@ fn type_label(
 fn signature_label(
     analysis: &mut DeclarationAnalysis,
     signature: &scoop_hir_lower::EditingSignature,
-    text: &str,
 ) -> Result<String, ResponseError> {
     let function = signature.function;
     let mut parameters = Vec::with_capacity(signature.parameters.len());
@@ -106,6 +113,7 @@ fn signature_label(
             type_label(analysis, function, ty)?
         );
         if let Some(default) = parameter.declared_default
+            && let Some(text) = analysis.function_source_text(function)
             && let Some(expression) = text.get(default.start as usize..default.end as usize)
         {
             label.push_str(" = ");

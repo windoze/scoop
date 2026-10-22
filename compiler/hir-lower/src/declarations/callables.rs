@@ -109,6 +109,7 @@ impl Lowerer {
             id,
             crate::SourceFunctionDeclaration {
                 name: decl.name.text.clone(),
+                name_span: Some(decl.name.span),
             },
         );
         if let Some(intrinsic) = checked.intrinsic {
@@ -218,6 +219,7 @@ impl Lowerer {
             id,
             crate::SourceFunctionDeclaration {
                 name: decl.name.text.clone(),
+                name_span: Some(decl.name.span),
             },
         );
         if let Some(intrinsic) = checked.intrinsic {

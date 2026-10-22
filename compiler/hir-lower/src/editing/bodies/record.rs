@@ -8,7 +8,7 @@ impl Lowerer {
             .is_some_and(BodyObservation::cancelled)
     }
 
-    fn observes_current_body(&self) -> bool {
+    pub(super) fn observes_current_body(&self) -> bool {
         self.editing_body.as_ref().is_some_and(|body| {
             body.file == self.current_file
                 && self.definition_root == Some(hir::LexicalDefinitionRoot::Function(body.function))

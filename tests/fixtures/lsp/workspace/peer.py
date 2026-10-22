@@ -184,7 +184,11 @@ def main():
             "textDocument/didChange",
             {
                 "textDocument": {"uri": source, "version": 3},
-                "contentChanges": [{"text": "fun greeting(value: Boolean): Boolean = value\n"}],
+                "contentChanges": [
+                    {
+                        "text": "fun greeting(value: Boolean): Boolean = value\nfun called(): Boolean = helper()\nfun builtin(value: Boolean): String = value.toString()\n"
+                    }
+                ],
             },
         )
         assert hover(0, 5)["contents"]["value"] == "fun greeting(value: Boolean): Boolean"
@@ -193,6 +197,17 @@ def main():
         destination = definition(0, body_value)
         assert destination["uri"] == source
         assert destination["range"]["start"] == {"line": 0, "character": 13}
+        helper_call = "fun called(): Boolean = helper()".index("helper")
+        assert (
+            hover(1, helper_call)["contents"]["value"]
+            == "fun helper(value: Boolean = true): Boolean"
+        )
+        destination = definition(1, helper_call)
+        assert destination["uri"] == (root / "src/helper.scoop").as_uri()
+        assert destination["range"]["start"] == {"line": 0, "character": 4}
+        builtin = "fun builtin(value: Boolean): String = value.toString()"
+        assert hover(2, builtin.rindex("value"))["contents"]["value"] == "value: Boolean"
+        assert definition(2, builtin.index("toString")) is None
         other = (
             "x86_64-unknown-linux-gnu"
             if target == "aarch64-apple-darwin"

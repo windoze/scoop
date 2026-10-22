@@ -7,6 +7,7 @@ use scoop_identity::ConeIdentity;
 use crate::{CoreProtocolInput, Lowerer, SourceKind, SourceProvider};
 
 mod bodies;
+mod callables;
 mod parameters;
 pub(crate) use bodies::{BodyObservation, CheckedBody};
 mod receivers;

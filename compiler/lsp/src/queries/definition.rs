@@ -25,7 +25,7 @@ pub(crate) fn definition(
         let EditingValue::Known(signature) = analysis.signature(function.function) else {
             continue;
         };
-        let origin = if function.name_origin.span == cursor.span {
+        let mut origin = if function.name_origin.span == cursor.span {
             Some(function.name_origin)
         } else if let Some(parameter) = signature
             .parameters
@@ -43,6 +43,16 @@ pub(crate) fn definition(
             )?
             .and_then(|local| local.reference.map(|reference| reference.definition))
         };
+        if origin.is_none() {
+            origin = semantic::callable_at(
+                analysis,
+                function.function,
+                cursor.span,
+                snapshot,
+                cancellation,
+            )?
+            .and_then(|reference| reference.definition);
+        }
         if let Some(origin) = origin {
             return super::json(semantic::location(
                 snapshot,

@@ -7,7 +7,7 @@ use scoop_identity::SignatureTypeKey;
 
 mod body_projection;
 mod context;
-use context::imported_location;
+pub(crate) use context::imported_location;
 mod constructors;
 mod declaration_references;
 mod declarations;

@@ -12,6 +12,8 @@ pub(crate) struct BodyObservation {
     pub(super) uses:
         imbl::HashMap<ast::Span, (hir::BindingId, hir::SourceContextId, hir::EditingLocalRole)>,
     pub(super) expressions: imbl::HashMap<ast::Span, hir::EditingExpression>,
+    pub(super) call_names: imbl::HashSet<ast::Span>,
+    pub(super) callables: imbl::HashMap<ast::Span, hir::EditingCallableReference>,
     pub(super) contexts: imbl::HashMap<hir::SourceContextId, ObservedContext>,
 }
 
@@ -41,6 +43,8 @@ impl BodyObservation {
             bindings: Default::default(),
             uses: Default::default(),
             expressions: Default::default(),
+            call_names: Default::default(),
+            callables: Default::default(),
             contexts: Default::default(),
         }
     }
@@ -92,10 +96,17 @@ impl BodyObservation {
             .map(|(_, expression)| expression)
             .collect::<Vec<_>>();
         expressions.sort_by_key(|expression| (expression.span.start, expression.span.end));
+        let mut callables = self
+            .callables
+            .into_iter()
+            .map(|(_, reference)| reference)
+            .collect::<Vec<_>>();
+        callables.sort_by_key(|reference| (reference.span.start, reference.span.end));
         CheckedBody {
             facts: hir::EditingBodyFacts {
                 locals,
                 expressions,
+                callables,
             },
             contexts: self.contexts,
         }

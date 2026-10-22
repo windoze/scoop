@@ -504,6 +504,7 @@ struct SourceProvider {
 #[derive(Debug, Clone)]
 pub(crate) struct SourceFunctionDeclaration {
     pub(crate) name: String,
+    pub(crate) name_span: Option<Span>,
 }
 
 /// Convert an already checked export-side graph into the local concrete graph.

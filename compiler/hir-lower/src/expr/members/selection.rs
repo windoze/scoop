@@ -110,7 +110,7 @@ impl Lowerer {
         {
             return context.probe_local_member_call_partition(
                 candidates,
-                &name.text,
+                name,
                 receiver,
                 call,
                 expected,
@@ -223,16 +223,30 @@ impl Lowerer {
                 .and_then(|resolved| state.finish_named_nominal(resolved, call.span)),
             NamedFunctionLikeProbe::Callable(probe) => state
                 .commit_named_callable(*probe, &mut sink)
-                .and_then(|resolved| match kind {
-                    MemberCallKind::Ordinary => {
-                        state.finish_resolved_method_call(resolved, call.span, &mut sink)
-                    }
-                    MemberCallKind::DirectSuper => {
-                        state.finish_resolved_super_method_call(resolved, &name.text, call.span)
+                .and_then(|resolved| {
+                    state.observe_callable_reference(
+                        name.span,
+                        hir::SemanticCallable::Current(resolved.function()),
+                    );
+                    match kind {
+                        MemberCallKind::Ordinary => {
+                            state.finish_resolved_method_call(resolved, call.span, &mut sink)
+                        }
+                        MemberCallKind::DirectSuper => {
+                            state.finish_resolved_super_method_call(resolved, &name.text, call.span)
+                        }
                     }
                 }),
             NamedFunctionLikeProbe::ImportedDependency(probe) => {
-                state.commit_imported_dependency_callable_with_kind(*probe, &mut sink, kind)
+                let target = probe.semantic_target();
+                let expression =
+                    state.commit_imported_dependency_callable_with_kind(*probe, &mut sink, kind);
+                if expression.is_some()
+                    && let Some(target) = target
+                {
+                    state.observe_callable_reference(name.span, target);
+                }
+                expression
             }
             NamedFunctionLikeProbe::ImportedDerivedEquality(probe) => {
                 Some((*probe).commit(&mut state, &mut sink))

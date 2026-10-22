@@ -221,3 +221,27 @@ pub(super) fn location(
 fn cancelled() -> ResponseError {
     convert::error(ErrorCode::RequestCanceled, "request cancelled")
 }
+
+pub(super) fn callable_at(
+    analysis: &mut DeclarationAnalysis,
+    function: hir::FunctionId,
+    span: Span,
+    snapshot: &AnalysisSnapshot,
+    cancellation: &Cancellation,
+) -> Result<Option<hir::EditingCallableReference>, ResponseError> {
+    let snapshot = snapshot.clone();
+    let cancellation = cancellation.clone();
+    let EditingValue::Known(facts) = analysis
+        .function_facts(function, move || {
+            cancellation.check().is_err() || snapshot.check_cancelled().is_err()
+        })
+        .map_err(|_| cancelled())?
+    else {
+        return Ok(None);
+    };
+    Ok(facts
+        .callables
+        .iter()
+        .find(|reference| reference.span == span)
+        .cloned())
+}

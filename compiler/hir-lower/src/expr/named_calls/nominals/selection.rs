@@ -44,12 +44,25 @@ impl Lowerer {
             }
             (NamedFunctionLikeProbe::Callable(probe), NamedFunctionCommit::Member) => {
                 let resolved = self.commit_named_callable(*probe, sink).ok_or(())?;
+                self.observe_callable_reference(
+                    call.callee.span,
+                    hir::SemanticCallable::Current(resolved.function()),
+                );
                 self.finish_resolved_method_call(resolved, call.span, sink)
             }
             (
                 NamedFunctionLikeProbe::ImportedDependency(probe),
                 NamedFunctionCommit::ImportedDependency,
-            ) => return Ok(self.commit_imported_dependency_callable(*probe, sink)),
+            ) => {
+                let target = probe.semantic_target();
+                let expression = self.commit_imported_dependency_callable(*probe, sink);
+                if expression.is_some()
+                    && let Some(target) = target
+                {
+                    self.observe_callable_reference(call.callee.span, target);
+                }
+                return Ok(expression);
+            }
             (NamedFunctionLikeProbe::Nominal(probe), NamedFunctionCommit::Nominal) => {
                 let resolved = self
                     .commit_named_nominal(*probe, call.span, sink)

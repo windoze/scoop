@@ -336,7 +336,7 @@ impl Lowerer {
     fn probe_local_member_call_partition(
         &self,
         candidates: Vec<crate::CallableCandidate>,
-        name: &str,
+        name: &ast::Ident,
         receiver: hir::Expr,
         call: CallSite<'_>,
         expected: Option<TypeId>,
@@ -353,7 +353,7 @@ impl Lowerer {
         };
         let mut layer_sink = Vec::new();
         match state.resolve_member_overload_outcome(
-            name,
+            &name.text,
             &candidates,
             receiver,
             OverloadCall {
@@ -377,6 +377,10 @@ impl Lowerer {
                 PropertyExtensionInvokeOutcome::Failed(Box::new(state))
             }
             OverloadResolutionOutcome::Resolved(resolved) => {
+                state.observe_callable_reference(
+                    name.span,
+                    hir::SemanticCallable::Current(resolved.function()),
+                );
                 let Some(expression) =
                     state.finish_resolved_method_call(*resolved, call.span, &mut layer_sink)
                 else {
