@@ -20,9 +20,9 @@ def check(peer, root):
         "/// Local **documentation** and [input].\n"
         "/// @param input The local flag.\n"
         "fun localDoc(input: Boolean): Boolean = input\n"
-        "fun documentedCall(): Boolean = documented(true)\n"
+        "fun documentedCall(): Boolean = documented(input = true)\n"
         "fun documentedProperty(): Boolean = flag\n"
-        "fun localCall(): Boolean = localDoc(true)\n"
+        "fun localCall(): Boolean = localDoc(input = true)\n"
         "fun brokenDocumentation(value: ) {}\n"
         "/// @param stored The constructor input.\n"
         "class DocumentedCell(\n"
@@ -60,6 +60,7 @@ def check(peer, root):
         assert f"[input](<{path.as_uri()}#L5>)" in docs, result
         assert "**@param** input — The local flag." in docs, result
     assert hover(4, "input")["contents"][1] == "The local flag."
+    assert hover(7, "input")["contents"][1] == "The local flag."
     damaged = source.replace(
         "fun localDoc(input: Boolean): Boolean = input",
         "fun localDoc(input: Boolean): Boolean { input. }",
@@ -92,6 +93,9 @@ def check(peer, root):
         return docs
 
     imported("原始文档")
+    signature, docs = hover(5, "input")["contents"]
+    assert signature["value"] == "input: Boolean", signature
+    assert docs == "The supplied flag.", docs
     assert hover(1, "flag")["contents"][1] == "The documented property."
     assert hover(6, "flag")["contents"][1] == "The documented property."
     signature, docs = hover(12, "stored")["contents"]
@@ -99,6 +103,7 @@ def check(peer, root):
     assert docs == "The member property.", docs
     updated = (
         library.replace("原始文档", "更新文档")
+        .replace("The supplied flag.", "The updated parameter.")
         .replace("The documented property.", "The updated property.")
         .replace("flag: Boolean = true", 'flag: String = "text"')
     )
@@ -110,11 +115,13 @@ def check(peer, root):
         },
     )
     imported("更新文档")
+    assert hover(5, "input")["contents"][1] == "The updated parameter."
     signature, docs = hover(1, "flag")["contents"]
     assert signature["value"] == "val flag: String", signature
     assert docs == "The updated property.", docs
     peer.notify("textDocument/didClose", {"textDocument": {"uri": provider.as_uri()}})
     imported("原始文档")
+    assert hover(5, "input")["contents"][1] == "The supplied flag."
     signature, docs = hover(1, "flag")["contents"]
     assert signature["value"] == "val flag: Boolean", signature
     assert docs == "The documented property.", docs

@@ -8,19 +8,41 @@ impl DeclarationAnalysis {
         span: ast::Span,
         is_cancelled: impl Fn() -> bool + 'static,
     ) -> Result<V<Option<hir::SemanticSourceLocation>>, EditingCancelled> {
+        Ok(match self.named_argument(function, span, is_cancelled)? {
+            V::Known(argument) => V::Known(argument.and_then(|argument| argument.definition)),
+            V::Unavailable(reason) => V::Unavailable(reason),
+        })
+    }
+
+    pub fn named_argument(
+        &mut self,
+        function: hir::FunctionId,
+        span: ast::Span,
+        is_cancelled: impl Fn() -> bool + 'static,
+    ) -> Result<V<Option<hir::EditingNamedArgument>>, EditingCancelled> {
         let calls = match self.calls(function, is_cancelled)? {
             V::Known(calls) => calls,
             V::Unavailable(reason) => return Ok(V::Unavailable(reason)),
         };
-        let target = calls.iter().find_map(|call| {
+        let mut selected = calls.iter().find_map(|call| {
             call.arguments
                 .iter()
                 .find(|argument| argument.name_span == Some(span))
-                .and_then(|argument| call.callee.map(|callee| (callee, argument.parameter)))
+                .map(|argument| hir::EditingNamedArgument {
+                    parameter: call.parameters[argument.parameter].clone(),
+                    index: argument.parameter,
+                    callee: call.callee,
+                    context: call.context,
+                    definition: None,
+                })
         });
-        Ok(V::Known(target.and_then(|(callable, parameter)| {
-            self.lowerer.editing_parameter_origin(callable, parameter)
-        })))
+        if let Some(argument) = &mut selected {
+            argument.definition = argument.callee.and_then(|callee| {
+                self.lowerer
+                    .editing_parameter_origin(callee, argument.index)
+            });
+        }
+        Ok(V::Known(selected))
     }
 }
 

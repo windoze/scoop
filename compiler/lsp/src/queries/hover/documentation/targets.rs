@@ -16,28 +16,58 @@ pub(in crate::queries::hover) fn callable(callable: hir::SemanticCallable) -> Sy
         hir::SemanticCallable::CurrentSetter(setter) => {
             Symbol::Current(Source::Callable(SourceCallable::Setter(setter)).into())
         }
-        hir::SemanticCallable::Imported(callable) => {
-            use hir::{AnnotationCallableV1 as Callable, DefaultCallableDeclarationV1 as D};
-            use scoop_identity::CallableTemplateOrigin as Origin;
-            let callable = match callable {
-                D::Function(id) => Callable::Declaration(Origin::Function(id)),
-                D::GenericFunction(id) => Callable::Declaration(Origin::GenericFunction(id)),
-                D::PropertyAccessor(id) => Callable::Declaration(Origin::Accessor(id)),
-                D::Generated(id) => Callable::Local(id),
-            };
-            Symbol::Imported(hir::AnnotationTargetV1::Callable(callable))
-        }
+        hir::SemanticCallable::Imported(callable) => Symbol::Imported(
+            hir::AnnotationTargetV1::Callable(imported_callable(callable)),
+        ),
     }
 }
 
 pub(in crate::queries::hover) fn parameter(function: hir::FunctionId, index: usize) -> Symbol {
+    current_parameter(SourceCallable::Function(function), index)
+}
+
+pub(in crate::queries::hover) fn applied_parameter(
+    callable: hir::SemanticCallable,
+    index: usize,
+) -> Symbol {
+    match callable {
+        hir::SemanticCallable::Current(function) => {
+            current_parameter(SourceCallable::Function(function), index)
+        }
+        hir::SemanticCallable::CurrentGetter(getter) => {
+            current_parameter(SourceCallable::Getter(getter), index)
+        }
+        hir::SemanticCallable::CurrentSetter(setter) => {
+            current_parameter(SourceCallable::Setter(setter), index)
+        }
+        hir::SemanticCallable::Imported(callable) => {
+            Symbol::Imported(hir::AnnotationTargetV1::Parameter {
+                callable: imported_callable(callable),
+                index: index as u32,
+            })
+        }
+    }
+}
+
+fn current_parameter(callable: SourceCallable, index: usize) -> Symbol {
     Symbol::Current(
         Source::Parameter {
-            callable: SourceCallable::Function(function),
+            callable,
             index: index as u32,
         }
         .into(),
     )
+}
+
+fn imported_callable(callable: hir::DefaultCallableDeclarationV1) -> hir::AnnotationCallableV1 {
+    use hir::{AnnotationCallableV1 as Callable, DefaultCallableDeclarationV1 as D};
+    use scoop_identity::CallableTemplateOrigin as Origin;
+    match callable {
+        D::Function(id) => Callable::Declaration(Origin::Function(id)),
+        D::GenericFunction(id) => Callable::Declaration(Origin::GenericFunction(id)),
+        D::PropertyAccessor(id) => Callable::Declaration(Origin::Accessor(id)),
+        D::Generated(id) => Callable::Local(id),
+    }
 }
 
 pub(in crate::queries::hover) fn property(property: hir::SemanticProperty) -> Symbol {

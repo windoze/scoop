@@ -9,6 +9,7 @@ use serde_json::Value;
 use super::semantic;
 use crate::{convert, initialize::Settings};
 
+mod arguments;
 mod documentation;
 mod imported;
 mod properties;
@@ -105,6 +106,11 @@ fn description(
         return Ok(Some(description));
     }
     for (function, signature) in functions {
+        if let Some(description) =
+            arguments::named(analysis, function.function, target, cancellation)?
+        {
+            return Ok(Some(description));
+        }
         if let Some(property) =
             semantic::property_at(analysis, function.function, target, snapshot, cancellation)?
         {

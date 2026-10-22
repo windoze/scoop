@@ -183,3 +183,13 @@ pub struct EditingCallArgument {
     pub parameter: usize,
     pub trailing: bool,
 }
+
+/// The original parameter binding and applied type of a checked named argument.
+#[derive(Clone, Debug)]
+pub struct EditingNamedArgument {
+    pub parameter: EditingAppliedParameter,
+    pub index: usize,
+    pub callee: Option<crate::SemanticCallable>,
+    pub context: crate::SourceContextId,
+    pub definition: Option<SemanticSourceLocation>,
+}

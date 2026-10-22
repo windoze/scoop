@@ -27,6 +27,7 @@ mod loops;
 mod member_implementations;
 mod members;
 mod members_imported;
+mod named_arguments;
 mod operands;
 mod properties;
 mod properties_imported;

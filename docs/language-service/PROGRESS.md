@@ -186,6 +186,8 @@ lambda／匿名函数的初始化式与返回位置恢复已接入：原 grammar
 
 属性声明及精确 import 的 hover 已接入同一 logical property，声明导航复用原来源；普通、名义泛型与扩展属性保留原 binder、可写性和完整类型，类型推断失败不暴露暂存值。依赖属性仅读原元数据，局部属性遵守所属正文边界；M60 文档区分同位置属性与构造参数。格式化、全 workspace Clippy、Ruff、31 项 HIR 定向测试及 31 项宿主／LSP 测试通过；完整 stdio fixture 通过，耗时约 76.6 秒，包含导入属性类型和文档修改／关闭更新。首轮会话发现的声明导航入口遗漏已修复并复验；其他引用区域和重命名继续实施。
 
+命名实参的 hover 与定义导航已共用原调用映射，读取应用后的参数类型、嵌套 binder 和 vararg 元素类型；参数文档沿真实 callee 与序号取得，跨 Cone 别名和重排不改变归属。后续正文失败保留先前完整调用，错误调用与未检查区域不发布参数事实。格式化、全 workspace Clippy、Ruff、25 项 HIR 定向测试及 17 项 LSP 测试通过；完整 stdio fixture 通过，耗时约 76.5 秒，覆盖 Unicode 位置、源码依赖参数文档修改与关闭恢复。构造器等来源关联、其他引用区域及重命名继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

@@ -19,6 +19,8 @@ def check(peer, root):
         "}\n"
         "fun importedCall(): Boolean = true.equals(false)\n"
         "fun importedEmpty(): String = true.toString()\n"
+        "fun <Item> appliedArguments(input: Item, rest: Array<Item>): Item = gather(rest = rest, value = input)\n"
+        'fun partialArguments(): Boolean { choose(first = true, second = "done"); return missing }\n'
     )
     path.write_text(text)
     uri = path.as_uri()
@@ -73,4 +75,18 @@ def check(peer, root):
     assert result["activeParameter"] == 0
     result = help_at(14, text.splitlines()[14].rindex(")"))
     assert result["signatures"][0]["label"] == "toString(): String", result
+    for line, name, expected in [
+        (5, "second", "second: String"),
+        (5, "first", "first: Boolean"),
+        (15, "rest", "vararg rest: Item"),
+        (15, "value", "value: Item"),
+        (16, "first", "first: Boolean"),
+    ]:
+        prefix = text.splitlines()[line].split(f"{name} =", 1)[0]
+        position = {"line": line, "character": len(prefix.encode("utf-16-le")) // 2}
+        result = peer.request(
+            "textDocument/hover", {"textDocument": {"uri": uri}, "position": position}
+        )
+        assert result["contents"]["value"] == expected, result
+        assert result["range"]["start"] == position, result
     peer.notify("textDocument/didClose", {"textDocument": {"uri": uri}})
