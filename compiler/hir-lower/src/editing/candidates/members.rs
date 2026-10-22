@@ -10,7 +10,7 @@ impl Lowerer {
         name: &str,
         operator: bool,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         self.editing_member_candidates(call, receiver, name, operator, false, is_cancelled)
     }
 
@@ -22,7 +22,7 @@ impl Lowerer {
         operator: bool,
         direct: bool,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         if name == "invoke" && matches!(self.types[receiver.ty], hir::Type::FunPtr(_)) {
             return Ok(V::Known(Vec::new()));
         }

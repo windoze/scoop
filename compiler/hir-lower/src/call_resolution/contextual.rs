@@ -93,6 +93,7 @@ pub(crate) struct ContextualArgumentFacts {
     pub(crate) result: DeclarationResult,
     pub(crate) values: Vec<Option<hir::Expr>>,
     pub(crate) sinks: Vec<Vec<hir::Statement>>,
+    pub(crate) hints: Vec<Option<hir::TypeId>>,
 }
 
 pub(crate) struct InferredArguments {
@@ -125,6 +126,7 @@ impl Lowerer {
             result,
             values,
             sinks,
+            hints: _,
         } = self.infer_contextual_argument_facts(ArgumentInferenceInput {
             session: &mut *input.session,
             ..input

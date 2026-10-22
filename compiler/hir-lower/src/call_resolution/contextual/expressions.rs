@@ -62,14 +62,13 @@ impl ArgumentExpression<'_> {
         pattern: hir::TypeId,
         bindings: &[Option<hir::TypeId>],
     ) -> Option<ExpressionExpectation> {
-        if let Some(ty) = state.try_substitute(pattern, bindings) {
-            return Some(ExpressionExpectation::Type(ty));
-        }
         match self {
-            Self::Source(ast::Expr::Lambda { .. }) => state
-                .partial_lambda_expectation(pattern, bindings)
-                .map(ExpressionExpectation::Lambda),
-            _ => None,
+            Self::Source(ast::Expr::Lambda { .. }) => {
+                state.callable_argument_expectation(pattern, bindings)
+            }
+            _ => state
+                .try_substitute(pattern, bindings)
+                .map(ExpressionExpectation::Type),
         }
     }
 

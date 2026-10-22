@@ -12,7 +12,7 @@ impl Lowerer {
         is_suspend: bool,
         parameters: Option<&'a [ast::LambdaParam]>,
         span: Span,
-        expected_signature: Option<&LambdaExpectation>,
+        expected_signature: Option<&CallableExpectation>,
     ) -> Option<Vec<Option<&'a ast::LambdaParam>>> {
         if let Some(signature) = expected_signature
             && signature.is_suspend != is_suspend

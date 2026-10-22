@@ -275,12 +275,12 @@ impl Lowerer {
         if self.body_cancelled() {
             return None;
         }
-        let (expected, lambda_expectation) = match expectation {
+        let (expected, callable_expectation) = match expectation {
             Some(ExpressionExpectation::Type(ty)) => (Some(ty), None),
-            Some(ExpressionExpectation::Lambda(signature)) => (None, Some(signature)),
+            Some(ExpressionExpectation::Callable(signature)) => (None, Some(signature)),
             None => (None, None),
         };
-        let partial_expectation = lambda_expectation.is_some();
+        let partial_expectation = callable_expectation.is_some();
         self.observe_callable_syntax(expr);
         self.observe_property_syntax(expr);
         self.observe_selector_syntax(expr);
@@ -440,7 +440,8 @@ impl Lowerer {
                 parameters.as_deref(),
                 body,
                 *span,
-                lambda_expectation.or_else(|| expected.and_then(|ty| self.lambda_expectation(ty))),
+                callable_expectation
+                    .or_else(|| expected.and_then(|ty| self.callable_expectation(ty))),
             ),
             ast::Expr::AnonymousFunction {
                 label,

@@ -7,7 +7,7 @@ impl Lowerer {
         call: &ast::RecoveredCall,
         value: &hir::Expr,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         if matches!(
             self.types[value.ty],
             hir::Type::Function(_) | hir::Type::FunPtr(_)
@@ -35,7 +35,7 @@ impl Lowerer {
         call: &ast::RecoveredCall,
         value: hir::Expr,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         if matches!(self.types[value.ty], hir::Type::FunPtr(_)) {
             return Ok(V::Known(Vec::new()));
         }
@@ -51,7 +51,7 @@ impl Lowerer {
         &self,
         call: &ast::RecoveredCall,
         receiver: &hir::Expr,
-    ) -> V<Vec<hir::EditingCallCandidate>> {
+    ) -> CallCandidates {
         let ast::RecoveredCallTarget::Member { name, .. } = &call.target else {
             return V::Known(Vec::new());
         };

@@ -1,6 +1,7 @@
 use super::*;
 
 mod callables;
+mod calls;
 mod conditionals;
 mod do_while;
 mod exceptions;
@@ -166,12 +167,7 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
             if call.block != block || call.span.start != start {
                 continue;
             }
-            check_cancelled(self.is_cancelled)?;
-            self.facts.calls[index].candidates = if available {
-                lowerer.editing_call_candidates(call, self.is_cancelled)?
-            } else {
-                V::Unavailable(U::BodyFailure)
-            };
+            self.call(lowerer, index, call, available)?;
         }
         if let Some(operand) = self
             .body
@@ -187,7 +183,12 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
             .iter()
             .find(|literal| literal.block == block && literal.span.start == start)
         {
-            return self.callable_literal(lowerer, literal, available, expected);
+            return self.callable_literal(
+                lowerer,
+                literal,
+                available,
+                expected.map(crate::expr::ExpressionExpectation::Type),
+            );
         }
         if let Some(child) = self.body.blocks.iter().find(|child| {
             child.parent == block

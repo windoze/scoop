@@ -11,7 +11,7 @@ impl Lowerer {
         &self,
         call: &ast::RecoveredCall,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         let mut state = self.clone();
         let before = state.diagnostics.len();
         match &call.target {
@@ -93,7 +93,7 @@ impl Lowerer {
         call: &ast::RecoveredCall,
         name: &ast::Ident,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         if let Some(ty) = self.named_callable_value_type(&name.text) {
             let Some(value) = self.lower_var(name, &mut Vec::new(), Some(ty)) else {
                 return Ok(V::Unavailable(U::BodyFailure));

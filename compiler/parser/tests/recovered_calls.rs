@@ -4,6 +4,9 @@ use scoop_ast::{
 };
 use scoop_parser::{ParsedFile, parse_recovering};
 
+#[path = "recovered_calls/callables.rs"]
+mod callables;
+
 fn body<'a>(parsed: &'a ParsedFile, name: &str) -> &'a ast::RecoveredFunctionBody {
     parsed
         .declaration_data()

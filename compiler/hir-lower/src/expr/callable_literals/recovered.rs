@@ -5,15 +5,19 @@ impl Lowerer {
     pub(crate) fn with_recovered_callable_context<R>(
         &mut self,
         literal: &ast::RecoveredCallableLiteral,
-        expected: Option<TypeId>,
+        expected: Option<ExpressionExpectation>,
         query: impl FnOnce(&mut Self) -> R,
     ) -> Option<R> {
         let label = literal.label.as_ref();
         let span = literal.span;
         let is_suspend = literal.is_suspend;
+        let signature = match expected {
+            Some(ExpressionExpectation::Type(ty)) => self.callable_expectation(ty),
+            Some(ExpressionExpectation::Callable(signature)) => Some(signature),
+            None => None,
+        };
         match &literal.header {
             RecoveredCallableHeader::Lambda { parameters } => {
-                let signature = expected.and_then(|ty| self.lambda_expectation(ty));
                 let parameters = self.lambda_source_parameters(
                     is_suspend,
                     parameters.as_deref(),
@@ -57,7 +61,7 @@ impl Lowerer {
                     parameters,
                     return_ty.as_deref(),
                     span,
-                    expected,
+                    signature,
                 )?;
                 self.with_callable_literal_scope(
                     scope::LiteralKind::AnonymousFunction,

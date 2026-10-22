@@ -3,7 +3,7 @@ use crate::call_resolution::applicability::DeclarationTypeArguments;
 use crate::call_resolution::candidates::{ArgumentMode, DeclarationSignature};
 use crate::editing::{
     EditingCancelled,
-    candidates::{Candidate, Candidates, inference::CandidateInput},
+    candidates::{CallCandidates, Candidate, Candidates, inference::CandidateInput},
 };
 use hir::{EditingUnavailable as U, EditingValue as V, ImportedCallableSource};
 
@@ -16,7 +16,7 @@ impl Lowerer {
         binding: &NamedCallBinding,
         call: &ast::RecoveredCall,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         let header = header(call);
         if let (
             NamedCallTarget::ImportedDependency(hir::ImportedTarget::EnumVariant(_)),
@@ -67,7 +67,7 @@ impl Lowerer {
         nominal: crate::NominalTarget,
         call: &ast::RecoveredCall,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         let prepared = match self.nominal_constructor_plans(nominal, header(call), None, false) {
             Ok(prepared) => prepared,
             Err(()) => return Ok(V::Unavailable(U::DeclarationFailure)),
@@ -80,7 +80,7 @@ impl Lowerer {
         call: &ast::RecoveredCall,
         prepared: PreparedNominalPlans,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         let mut result = Candidates::default();
         match prepared {
             PreparedNominalPlans::Nominal(plans, pointer) => {

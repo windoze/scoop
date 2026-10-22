@@ -8,7 +8,7 @@ impl Lowerer {
         owner: ImportedNominalQualifier,
         name: &ast::Ident,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         let target = match self.resolve_imported_qualified_call(owner, name) {
             Ok(target) => target,
             Err(()) => return Ok(V::Unavailable(U::DeclarationFailure)),

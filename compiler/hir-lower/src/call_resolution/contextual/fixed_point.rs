@@ -42,7 +42,7 @@ impl Lowerer {
             let expected = expression.expectation(self, patterns[index].ty, &initial_hints);
             if matches!(
                 expected,
-                Some(crate::expr::ExpressionExpectation::Lambda(_))
+                Some(crate::expr::ExpressionExpectation::Callable(_))
             ) {
                 continue;
             }
@@ -87,7 +87,7 @@ impl Lowerer {
             }
         }
 
-        loop {
+        let hints = loop {
             let partial = match previous.take() {
                 Some(partial) => partial,
                 None => self
@@ -116,7 +116,8 @@ impl Lowerer {
                     .map(|(_, hint)| crate::expr::ExpressionExpectation::Type(hint))
                     .or_else(|| expression.expectation(self, patterns[index].ty, &hints));
                 let Some(hint) = hint else { continue };
-                let partial_lambda = matches!(hint, crate::expr::ExpressionExpectation::Lambda(_));
+                let partial_lambda =
+                    matches!(hint, crate::expr::ExpressionExpectation::Callable(_));
                 if partial_lambda && expected_result.is_some() {
                     continue;
                 }
@@ -146,7 +147,7 @@ impl Lowerer {
                 continue;
             }
             if complete && values.iter().all(Option::is_some) {
-                break;
+                break hints;
             }
             if let Some(expected) = expected_result.take() {
                 let result = self.infer_argument_result(result, &values)?;
@@ -197,13 +198,14 @@ impl Lowerer {
                     kind: ArgumentInferenceFailureKind::Expression(failure),
                 }));
             }
-            break;
-        }
+            break hints;
+        };
 
         Ok(ContextualArgumentFacts {
             result: resolved_result.map_or(result, DeclarationResult::Known),
             values,
             sinks,
+            hints,
         })
     }
 }

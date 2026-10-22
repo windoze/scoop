@@ -35,6 +35,13 @@ fn initializer_and_return_expectations_supply_real_lambda_parameters() {
 }
 
 #[test]
+fn explicit_literal_parameters_do_not_require_a_function_typed_initializer() {
+    let mut analysis = analyze("fun editing() { val action: Any = { value: String -> value. } }");
+    let facts = receiver(&mut analysis);
+    assert_eq!(known_type(&mut analysis, &facts), "String");
+}
+
+#[test]
 fn lambda_destructuring_uses_the_original_irrefutable_pattern_rules() {
     for text in [
         "fun editing() { val action = { (value, flag): (String, Boolean), extra: Boolean -> value. } }",

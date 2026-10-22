@@ -7,6 +7,7 @@ import sys
 import threading
 from pathlib import Path
 
+from callable_arguments import check as check_callable_arguments
 from callable_literals import check as check_callable_literals
 from callable_values import check as check_callable_values
 from cancellation import check as check_cancellation
@@ -350,6 +351,7 @@ def main():
         check_when_recovery(peer, root)
         check_exception_recovery(peer, root)
         check_callable_literals(peer, root)
+        check_callable_arguments(peer, root)
         check_recovered_interfaces(peer, root)
         check_recovered_structs(peer, root)
         peer.finish()

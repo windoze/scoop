@@ -9,7 +9,7 @@ impl Lowerer {
         alias: &AliasTemplate,
         index: u32,
         name: &ast::Ident,
-    ) -> V<Vec<hir::EditingCallCandidate>> {
+    ) -> CallCandidates {
         let Some(constructor) = self.alias_variant_constructor(alias, index, name, call.span)
         else {
             return V::Unavailable(U::DeclarationFailure);

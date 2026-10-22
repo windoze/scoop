@@ -181,11 +181,9 @@ impl BodyRecorder {
             BodyEvent::Call(mut call) => {
                 if let Some(function) = function {
                     call.block = self.block_for(function);
-                    self.functions
-                        .entry(function.0)
-                        .or_default()
-                        .calls
-                        .push(*call);
+                    let parts = self.functions.entry(function.0).or_default();
+                    parts.link_call_literals(&mut call);
+                    parts.calls.push(*call);
                 }
             }
             BodyEvent::FunctionRoot(root) => {

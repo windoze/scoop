@@ -46,6 +46,7 @@ impl Lowerer {
         span: Span,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let expected = expected.and_then(|ty| self.callable_expectation(ty));
         let AnonymousSignature {
             receiver: receiver_ty,
             parameters: parameter_types,

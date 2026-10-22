@@ -11,7 +11,7 @@ impl Lowerer {
         receiver: &ast::Expr,
         name: &ast::Ident,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<Option<V<Vec<hir::EditingCallCandidate>>>, EditingCancelled> {
+    ) -> Result<Option<CallCandidates>, EditingCancelled> {
         if is_cancelled() {
             return Err(EditingCancelled);
         }
@@ -63,7 +63,7 @@ impl Lowerer {
         receiver: &ast::Expr,
         name: &ast::Ident,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<Option<V<Vec<hir::EditingCallCandidate>>>, EditingCancelled> {
+    ) -> Result<Option<CallCandidates>, EditingCancelled> {
         if is_cancelled() {
             return Err(EditingCancelled);
         }

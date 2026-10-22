@@ -6,8 +6,8 @@ mod recovered;
 mod returns;
 mod scope;
 mod synthesized;
+use expectation::CallableExpectation;
 pub(crate) use expectation::ExpressionExpectation;
-use expectation::LambdaExpectation;
 
 impl Lowerer {
     pub(super) fn lower_lambda(
@@ -17,7 +17,7 @@ impl Lowerer {
         parameters: Option<&[ast::LambdaParam]>,
         body: &ast::Block,
         span: Span,
-        expected: Option<LambdaExpectation>,
+        expected: Option<CallableExpectation>,
     ) -> Option<hir::Expr> {
         let lower = |state: &mut Self| {
             state.lower_lambda_inner(
@@ -52,7 +52,7 @@ impl Lowerer {
         parameters: Option<&[ast::LambdaParam]>,
         body_span: Span,
         span: Span,
-        expected_signature: Option<LambdaExpectation>,
+        expected_signature: Option<CallableExpectation>,
         lower_body: impl FnOnce(&mut Self, Option<TypeId>) -> Option<crate::stmt::ValueBlock>,
     ) -> Option<hir::Expr> {
         let source_parameters = self.lambda_source_parameters(

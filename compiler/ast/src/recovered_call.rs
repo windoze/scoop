@@ -29,6 +29,7 @@ pub enum RecoveredCallTarget {
 #[derive(Debug, Clone, PartialEq)]
 pub enum RecoveredArgumentValue {
     Complete(Box<Expr>),
+    CallableLiteral(BodyBlockId),
     Unavailable(Span),
 }
 

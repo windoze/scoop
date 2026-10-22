@@ -174,6 +174,8 @@ try／catch／finally 的恢复上下文已接入：实际块入口与完整前�
 
 lambda／匿名函数的初始化式与返回位置恢复已接入：原 grammar 保留完整头部、显式标签及实际 body，普通 lowering 与恢复查询共用内部 callable 的进入／退出、参数、receiver 和捕获规则。已知注记／返回类型提供 lambda 参数与隐式 `it`，原不可反驳模式检查支持解构；泛型和经收窄的捕获沿真实 BindingId 导航回原定义，不借用外层同名变量。内部 return／suspend／循环边界独立，取消和退出恢复外层状态，不合成成功 callable HIR。格式化、全 workspace Clippy、Ruff、191 项编辑态覆盖、41 项普通 callable／推断回归及 693 项 parser／宿主／LSP 测试通过；独立进程与完整 stdio fixture 通过，后者耗时约 66.6 秒。首轮发现的捕获来源遗漏已闭合；解构测试的类型箭头分隔与 `this` hover 的既有显示断言已修正复验。target 仍约 15 GiB。调用实参中的上下文恢复、其他引用区域与重命名继续实施。
 
+带括号的调用实参恢复已接入：损坏 lambda／匿名函数关联到真实参数槽位，复用原映射、候选查找与固定点 hints；只有单一候选且前序实参和必要输入类型已知时才查询正文，返回类型仍可未定。推断产生的类型与其私有状态一起进入查询，保留泛型实例、receiver、解构、捕获来源及中文标签；不跨候选解释类型，也不把候选视为成功调用。格式化、全 workspace Clippy、Ruff、206 项编辑态与 44 项普通 callable／推断覆盖、698 项 parser／宿主／LSP 测试通过；独立进程和完整 stdio fixture 通过，后者耗时约 70 秒。成员、扩展、构造器、函数值及编辑／关闭更新均有覆盖；非函数期望的限制仅作用于调用参数恢复，既有 Any 初始化式查询通过回归。清理约 2.1 GiB 旧增量缓存后 target 约 13 GiB。尾随 lambda、其他引用区域与重命名继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

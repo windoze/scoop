@@ -76,7 +76,8 @@ impl Lowerer {
                 ast::RecoveredArgumentValue::Complete(expression) => {
                     Some(ArgumentExpression::Source(expression))
                 }
-                ast::RecoveredArgumentValue::Unavailable(_) => None,
+                ast::RecoveredArgumentValue::Unavailable(_)
+                | ast::RecoveredArgumentValue::CallableLiteral(_) => None,
             })
             .collect::<Vec<_>>();
         let mut state = self.clone();
@@ -114,8 +115,8 @@ impl Lowerer {
             expected_result: None,
             forced_hint: None,
         });
-        let values = match facts {
-            Ok(facts) => facts.values,
+        let (values, hints) = match facts {
+            Ok(facts) => (facts.values, Some(facts.hints)),
             Err(failure) => match failure.kind {
                 ArgumentInferenceFailureKind::Constraint(_) => return Ok(None),
                 ArgumentInferenceFailureKind::Declaration { .. } => {
@@ -133,7 +134,7 @@ impl Lowerer {
                     {
                         return Err(U::BodyFailure);
                     }
-                    failure.arguments
+                    (failure.arguments, None)
                 }
             },
         };
@@ -161,7 +162,7 @@ impl Lowerer {
             }
         }
         let format_type = |ty| state.type_name_with_params(ty, &display_parameters);
-        Ok(Some(hir::EditingCallCandidate {
+        let signature = hir::EditingCallCandidate {
             parameters: display
                 .value_parameters
                 .iter()
@@ -205,6 +206,28 @@ impl Lowerer {
             unchecked_arguments: (0..source.len())
                 .filter(|&index| values.get(index).is_none_or(Option::is_none))
                 .collect(),
+        };
+        let argument = hints
+            .filter(|_| values.iter().all(Option::is_some))
+            .and_then(|hints| {
+                let index = expressions.len();
+                let ast::RecoveredArgumentValue::CallableLiteral(body) = source.get(index)?.value
+                else {
+                    return None;
+                };
+                let expected = state.callable_argument_expectation(patterns[index].ty, &hints)?;
+                if matches!(&expected, crate::expr::ExpressionExpectation::Type(ty) if !matches!(state.types[*ty], hir::Type::Function(_))) {
+                    return None;
+                }
+                Some(Box::new(ArgumentContext {
+                    body,
+                    expected,
+                    state,
+                }))
+            });
+        Ok(Some(CallCandidateAnalysis {
+            signature,
+            argument,
         }))
     }
 }

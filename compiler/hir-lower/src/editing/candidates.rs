@@ -11,7 +11,19 @@ mod properties;
 mod source;
 mod values;
 
-pub(crate) type Candidate = Result<Option<hir::EditingCallCandidate>, U>;
+pub(crate) type Candidate = Result<Option<CallCandidateAnalysis>, U>;
+pub(crate) type CallCandidates = V<Vec<CallCandidateAnalysis>>;
+
+pub(crate) struct CallCandidateAnalysis {
+    pub(crate) signature: hir::EditingCallCandidate,
+    pub(crate) argument: Option<Box<ArgumentContext>>,
+}
+
+pub(crate) struct ArgumentContext {
+    pub(crate) body: ast::BodyBlockId,
+    pub(crate) expected: crate::expr::ExpressionExpectation,
+    pub(crate) state: Lowerer,
+}
 
 impl DeclarationAnalysis {
     pub fn incomplete_calls(
@@ -61,7 +73,7 @@ fn arguments(call: &ast::RecoveredCall) -> impl Iterator<Item = &ast::RecoveredC
 
 #[derive(Default)]
 pub(crate) struct Candidates {
-    pub(crate) values: Vec<hir::EditingCallCandidate>,
+    pub(crate) values: Vec<CallCandidateAnalysis>,
     pub(crate) unavailable: Option<U>,
 }
 
@@ -76,7 +88,7 @@ impl Candidates {
         }
     }
 
-    pub(crate) fn finish(self) -> V<Vec<hir::EditingCallCandidate>> {
+    pub(crate) fn finish(self) -> CallCandidates {
         match self.unavailable {
             Some(reason) => V::Unavailable(reason),
             None => V::Known(self.values),

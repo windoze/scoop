@@ -6,7 +6,7 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         lowerer: &mut Lowerer,
         literal: &ast::RecoveredCallableLiteral,
         available: bool,
-        expected: Option<hir::TypeId>,
+        expected: Option<crate::expr::ExpressionExpectation>,
     ) -> Result<(), EditingCancelled> {
         check_cancelled(self.is_cancelled)?;
         if !available {

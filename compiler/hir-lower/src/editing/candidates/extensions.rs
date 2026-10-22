@@ -76,7 +76,7 @@ impl Lowerer {
         property_rank: usize,
         rank: usize,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<V<Vec<hir::EditingCallCandidate>>, EditingCancelled> {
+    ) -> Result<CallCandidates, EditingCancelled> {
         if matches!(
             self.types[value.ty],
             hir::Type::Function(_) | hir::Type::FunPtr(_)
