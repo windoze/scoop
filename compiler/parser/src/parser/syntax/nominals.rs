@@ -11,6 +11,7 @@ use super::{Event, Parser};
 pub(super) enum NominalHeader {
     Class(Box<ast::ClassHeader>),
     Struct(Box<ast::StructHeader>),
+    Interface(Box<ast::InterfaceHeader>),
 }
 
 impl NominalHeader {
@@ -34,14 +35,43 @@ impl NominalHeader {
                     recovery: Default::default(),
                 }))
             }
+            Self::Interface(header) => {
+                let span = ast::Span::new(header.span.start, end);
+                ast::RecoveredNominal::Interface(Box::new(ast::RecoveredInterface {
+                    header: *header,
+                    span,
+                    methods: Vec::new(),
+                    properties: Vec::new(),
+                    nested: Vec::new(),
+                    companion: None,
+                    recovery: Default::default(),
+                }))
+            }
         }
     }
 }
 
-#[derive(Debug)]
-pub(super) enum NominalMember {
+#[derive(Debug, Clone)]
+pub(crate) enum NominalMember {
     Class(Box<ast::ClassMember>),
     Struct(Box<ast::StructMember>),
+    Function(Box<ast::FunctionDecl>),
+    Property(Box<ast::PropertyDecl>),
+    Nested(Box<ast::NestedTypeDecl>),
+    Companion(Box<ast::CompanionObjectDecl>),
+}
+
+impl NominalMember {
+    pub(crate) fn span(&self) -> ast::Span {
+        match self {
+            Self::Class(value) => value.span(),
+            Self::Struct(value) => value.span(),
+            Self::Function(value) => value.span,
+            Self::Property(value) => value.span,
+            Self::Nested(value) => value.span(),
+            Self::Companion(value) => value.span,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -98,7 +128,7 @@ impl NominalRecorder {
                 let Some(owner) = active.owner else { return };
                 if !matches!(
                     declarations[owner.0].kind,
-                    SyntaxKind::ClassDecl | SyntaxKind::StructDecl
+                    SyntaxKind::ClassDecl | SyntaxKind::StructDecl | SyntaxKind::InterfaceDecl
                 ) {
                     return;
                 }
@@ -140,7 +170,7 @@ impl NominalRecorder {
                 if declaration.parent.is_some()
                     || !matches!(
                         declaration.kind,
-                        SyntaxKind::ClassDecl | SyntaxKind::StructDecl
+                        SyntaxKind::ClassDecl | SyntaxKind::StructDecl | SyntaxKind::InterfaceDecl
                     )
                 {
                     return None;
@@ -170,6 +200,21 @@ impl NominalRecorder {
                     (ast::RecoveredNominal::Struct(structure), NominalMember::Struct(value)) => {
                         structure.members.push(*value)
                     }
+                    (
+                        ast::RecoveredNominal::Interface(interface),
+                        NominalMember::Function(value),
+                    ) => interface.methods.push(*value),
+                    (
+                        ast::RecoveredNominal::Interface(interface),
+                        NominalMember::Property(value),
+                    ) => interface.properties.push(*value),
+                    (ast::RecoveredNominal::Interface(interface), NominalMember::Nested(value)) => {
+                        interface.nested.push(*value)
+                    }
+                    (
+                        ast::RecoveredNominal::Interface(interface),
+                        NominalMember::Companion(value),
+                    ) => interface.companion = Some(*value),
                     _ => unreachable!("each nominal body records its own member syntax"),
                 }
                 continue;
@@ -188,10 +233,14 @@ impl NominalRecorder {
                         span,
                     });
                 }
-                SyntaxKind::ClassDecl | SyntaxKind::StructDecl => result
-                    .recovery_mut()
-                    .nested
-                    .push(self.recover_nominal(declaration, declarations, headers, bodies)?),
+                SyntaxKind::ClassDecl | SyntaxKind::StructDecl | SyntaxKind::InterfaceDecl => {
+                    result.recovery_mut().nested.push(self.recover_nominal(
+                        declaration,
+                        declarations,
+                        headers,
+                        bodies,
+                    )?)
+                }
                 _ => return None,
             }
         }
@@ -200,6 +249,18 @@ impl NominalRecorder {
 }
 
 impl Parser {
+    pub(crate) fn record_interface_header(
+        &mut self,
+        header: &ast::InterfaceHeader,
+        checkpoint: super::super::checkpoint::Checkpoint,
+    ) {
+        if self.fragment_is_complete(checkpoint) {
+            self.syntax.events.push(Event::Nominal(NominalEvent::Header(
+                NominalHeader::Interface(Box::new(header.clone())),
+            )));
+        }
+    }
+
     pub(crate) fn record_struct_header(
         &mut self,
         header: &ast::StructHeader,
@@ -234,7 +295,14 @@ impl Parser {
             .push(Event::Nominal(NominalEvent::BeginMember));
     }
 
-    pub(crate) fn nominal_member_kind(&mut self, kind: SyntaxKind) {
+    pub(crate) fn nominal_member_kind(&mut self) {
+        let kind = match self.peek().kind {
+            crate::lexer::TokenKind::Fun => SyntaxKind::FunctionDecl,
+            crate::lexer::TokenKind::Class => SyntaxKind::ClassDecl,
+            crate::lexer::TokenKind::Struct => SyntaxKind::StructDecl,
+            crate::lexer::TokenKind::Interface => SyntaxKind::InterfaceDecl,
+            _ => return,
+        };
         self.syntax
             .events
             .push(Event::Nominal(NominalEvent::MemberKind(kind)));
@@ -276,5 +344,20 @@ impl Parser {
         self.syntax
             .events
             .push(Event::Nominal(NominalEvent::Unavailable));
+    }
+
+    pub(crate) fn end_type_member(
+        &mut self,
+        value: &Result<NominalMember, ast::Diagnostic>,
+        checkpoint: super::super::checkpoint::Checkpoint,
+    ) {
+        let value = value
+            .as_ref()
+            .ok()
+            .filter(|_| self.fragment_is_complete(checkpoint))
+            .cloned();
+        self.syntax
+            .events
+            .push(Event::Nominal(NominalEvent::EndMember(value)));
     }
 }

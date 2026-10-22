@@ -7,7 +7,7 @@ pub(crate) struct SourceDeclarations<'a> {
     pub(super) pending_structs: Vec<(StructId, ast::StructSource<'a>, usize)>,
     pub(super) pending_enums: Vec<(EnumId, &'a ast::EnumDecl, usize)>,
     pub(super) pending_classes: Vec<(ClassId, ast::ClassSource<'a>, usize)>,
-    pub(super) pending_interfaces: Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
+    pub(super) pending_interfaces: Vec<(InterfaceId, ast::InterfaceSource<'a>, usize)>,
     pub(super) pending_objects: Vec<(hir::ObjectId, crate::declarations::ObjectSource<'a>, usize)>,
     pub(super) function_headers: Vec<crate::declarations::FunctionHeaderInput<'a>>,
     pub(super) pending_functions: Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
@@ -142,6 +142,15 @@ impl Lowerer {
                                 None,
                             );
                         }
+                        ast::RecoveredNominal::Interface(declaration) => {
+                            self.declare_interface(
+                                declaration.source(),
+                                &mut pending_interfaces,
+                                &mut pending_methods,
+                                file_index,
+                                None,
+                            );
+                        }
                     }
                     continue;
                 }
@@ -197,7 +206,7 @@ impl Lowerer {
                 }
                 ast::Decl::Interface(decl) => {
                     let _ = self.declare_interface(
-                        decl,
+                        decl.source(),
                         &mut pending_interfaces,
                         &mut pending_methods,
                         file_index,
@@ -294,6 +303,9 @@ impl Lowerer {
                 .map(|(id, declaration, file)| (Owner::Class(*id), declaration.recovery, *file))
                 .chain(pending_structs.iter().map(|(id, declaration, file)| {
                     (Owner::Struct(*id), declaration.recovery, *file)
+                }))
+                .chain(pending_interfaces.iter().map(|(id, declaration, file)| {
+                    (Owner::Interface(*id), declaration.recovery, *file)
                 }));
         for (owner, recovery, file) in recovered_nominals {
             for method in &recovery.methods {
@@ -310,7 +322,19 @@ impl Lowerer {
                 let methods = match owner {
                     Owner::Class(class) => &mut self.classes[class].methods,
                     Owner::Struct(structure) => &mut self.structs[structure].methods,
-                    _ => unreachable!("recovered class and struct inputs"),
+                    Owner::Interface(interface) => {
+                        let declaration = &mut self.interfaces[interface];
+                        declaration.methods.sort_by_key(|member| {
+                            self.functions[self.interface_method_entities[*member].function]
+                                .span
+                                .start
+                        });
+                        declaration
+                            .private_methods
+                            .sort_by_key(|function| self.functions[*function].span.start);
+                        self.interface_methods.get_mut(&interface).unwrap()
+                    }
+                    _ => unreachable!("recovered class, struct and interface inputs"),
                 };
                 methods.sort_by_key(|function| self.functions[*function].span.start);
             }

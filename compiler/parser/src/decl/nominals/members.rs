@@ -73,12 +73,7 @@ impl Parser {
 
     fn parse_class_member_inner(&mut self) -> Result<ClassMember, Diagnostic> {
         let prefix = self.parse_member_prefix()?;
-        match self.peek().kind {
-            TokenKind::Fun => self.nominal_member_kind(scoop_syntax::SyntaxKind::FunctionDecl),
-            TokenKind::Struct => self.nominal_member_kind(scoop_syntax::SyntaxKind::StructDecl),
-            TokenKind::Class => self.nominal_member_kind(scoop_syntax::SyntaxKind::ClassDecl),
-            _ => {}
-        }
+        self.nominal_member_kind();
         match &self.peek().kind {
             TokenKind::Val | TokenKind::Var => self
                 .parse_property(prefix, PropertyContext::ClassOrObject)
@@ -315,12 +310,7 @@ impl Parser {
             let checkpoint = self.checkpoint();
             self.begin_nominal_member();
             let parsed = self.parse_member_prefix().and_then(|prefix| {
-                match self.peek().kind {
-                    TokenKind::Fun => self.nominal_member_kind(scoop_syntax::SyntaxKind::FunctionDecl),
-                    TokenKind::Class => self.nominal_member_kind(scoop_syntax::SyntaxKind::ClassDecl),
-                    TokenKind::Struct => self.nominal_member_kind(scoop_syntax::SyntaxKind::StructDecl),
-                    _ => {}
-                }
+                self.nominal_member_kind();
                 match &self.peek().kind {
                 TokenKind::Ident(text) if text == "constructor" => self
                     .require_unmodified_nominal_prefix(&prefix, "constructor")

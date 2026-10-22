@@ -20,6 +20,7 @@ mod properties;
 mod properties_imported;
 mod receivers;
 mod recovered_classes;
+mod recovered_interfaces;
 mod recovered_structs;
 mod references;
 mod selectors;

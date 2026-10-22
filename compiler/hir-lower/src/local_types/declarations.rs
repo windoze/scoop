@@ -7,7 +7,7 @@ pub(super) struct Declarations<'a> {
     pub(super) structs: Vec<(StructId, ast::StructSource<'a>, usize)>,
     pub(super) enums: Vec<(EnumId, &'a ast::EnumDecl, usize)>,
     pub(super) classes: Vec<(ClassId, ast::ClassSource<'a>, usize)>,
-    pub(super) interfaces: Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
+    pub(super) interfaces: Vec<(InterfaceId, ast::InterfaceSource<'a>, usize)>,
     pub(super) objects: Vec<(ObjectId, crate::declarations::ObjectSource<'a>, usize)>,
     pub(super) methods: Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
 }
@@ -109,7 +109,7 @@ impl Lowerer {
                 .map(NominalTarget::Enum),
             ast::LocalTypeDecl::Interface(decl) => self
                 .declare_interface(
-                    decl,
+                    decl.source(),
                     &mut pending.interfaces,
                     &mut pending.methods,
                     file,
@@ -154,7 +154,7 @@ impl Lowerer {
                 self.declare_enum_nested(owner, decl, &mut queues, file)
             }
             ast::LocalTypeDecl::Interface(decl) => {
-                self.declare_interface_nested(owner, decl, &mut queues, file)
+                self.declare_interface_nested(owner, decl.source(), &mut queues, file)
             }
         }
         self.with_declaration_inference_scope(file, |state| {

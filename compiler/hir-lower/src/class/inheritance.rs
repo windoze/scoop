@@ -25,7 +25,7 @@ impl Lowerer {
         pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         pending_structs: &[(hir::StructId, ast::StructSource<'_>, usize)],
         pending_enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
-        pending_interfaces: &[(hir::InterfaceId, &ast::InterfaceDecl, usize)],
+        pending_interfaces: &[(hir::InterfaceId, ast::InterfaceSource<'_>, usize)],
         pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
         pending_methods: &[crate::declarations::MethodHeaderInput<'_>],
     ) {

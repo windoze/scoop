@@ -11,6 +11,8 @@ mod classes;
 pub use classes::*;
 mod structs;
 pub use structs::*;
+mod interfaces;
+pub use interfaces::*;
 mod local_types;
 pub use local_types::*;
 
@@ -212,24 +214,6 @@ pub enum MethodModifier {
     Final,
     Open,
     Abstract,
-}
-
-/// An interface keeps method defaults and accessor-level property syntax;
-/// semantic obligation/default selection belongs to HIR.
-#[derive(Debug, Clone, PartialEq)]
-pub struct InterfaceDecl {
-    pub sealed_span: Option<Span>,
-    pub annotations: Vec<Annotation>,
-    pub visibility: VisibilitySyntax,
-    pub name: Ident,
-    pub type_params: Vec<TypeParamDecl>,
-    pub supertypes: Vec<SupertypeSpec>,
-    pub where_clause: Option<WhereClause>,
-    pub methods: Vec<FunctionDecl>,
-    pub properties: Vec<PropertyDecl>,
-    pub nested: Vec<NestedTypeDecl>,
-    pub companion: Option<CompanionObjectDecl>,
-    pub span: Span,
 }
 
 /// A singleton object declaration. Its type and value identities are split

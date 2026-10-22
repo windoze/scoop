@@ -11,6 +11,7 @@ use super::Parser;
 mod bodies;
 use bodies::{BodyEvent, BodyRecorder};
 mod nominals;
+pub(crate) use nominals::NominalMember;
 use nominals::{NominalEvent, NominalRecorder};
 
 pub(super) fn expected_token(predicate: &impl Fn(&TokenKind) -> bool) -> Option<SyntaxKind> {

@@ -75,13 +75,16 @@ pub(crate) fn class_decl(
 /// `interface I { fun m(...): T ... }`.
 pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
-        sealed_span: None,
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        type_params: Vec::new(),
-        supertypes: Vec::new(),
-        where_clause: None,
+        header: ast::InterfaceHeader {
+            sealed_span: None,
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            type_params: Vec::new(),
+            supertypes: Vec::new(),
+            where_clause: None,
+            span: sp(),
+        },
         methods,
         properties: Vec::new(),
         nested: Vec::new(),
@@ -96,20 +99,23 @@ pub(crate) fn generic_interface_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
-        sealed_span: None,
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        type_params: type_params
-            .into_iter()
-            .map(|name| ast::TypeParamDecl {
-                name: ident(name),
-                inline_bound: None,
-                span: sp(),
-            })
-            .collect(),
-        supertypes: Vec::new(),
-        where_clause: None,
+        header: ast::InterfaceHeader {
+            sealed_span: None,
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            type_params: type_params
+                .into_iter()
+                .map(|name| ast::TypeParamDecl {
+                    name: ident(name),
+                    inline_bound: None,
+                    span: sp(),
+                })
+                .collect(),
+            supertypes: Vec::new(),
+            where_clause: None,
+            span: sp(),
+        },
         methods,
         properties: Vec::new(),
         nested: Vec::new(),

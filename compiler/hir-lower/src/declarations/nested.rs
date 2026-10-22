@@ -6,7 +6,7 @@ pub(crate) struct NestedDeclarationQueues<'queues, 'source> {
     pub(crate) structs: &'queues mut Vec<(StructId, ast::StructSource<'source>, usize)>,
     pub(crate) enums: &'queues mut Vec<(EnumId, &'source ast::EnumDecl, usize)>,
     pub(crate) classes: &'queues mut Vec<(ClassId, ast::ClassSource<'source>, usize)>,
-    pub(crate) interfaces: &'queues mut Vec<(InterfaceId, &'source ast::InterfaceDecl, usize)>,
+    pub(crate) interfaces: &'queues mut Vec<(InterfaceId, ast::InterfaceSource<'source>, usize)>,
     pub(crate) objects: &'queues mut Vec<(ObjectId, super::objects::ObjectSource<'source>, usize)>,
     pub(crate) methods: &'queues mut Vec<(FunctionId, &'source ast::FunctionDecl, usize, Owner)>,
 }
@@ -117,14 +117,14 @@ impl Lowerer {
     pub(crate) fn declare_interface_nested<'a>(
         &mut self,
         owner: Owner,
-        declaration: &'a ast::InterfaceDecl,
+        declaration: ast::InterfaceSource<'a>,
         queues: &mut NestedDeclarationQueues<'_, 'a>,
         file: usize,
     ) {
-        for nested in &declaration.nested {
+        for nested in declaration.nested {
             self.declare_nested_nominal(owner, nested, queues, file);
         }
-        if let Some(companion) = &declaration.companion {
+        if let Some(companion) = declaration.companion {
             if let Some(id) =
                 self.declare_companion(companion, queues.objects, queues.methods, file, owner)
             {
@@ -135,6 +135,9 @@ impl Lowerer {
                     file,
                 );
             }
+        }
+        for nested in &declaration.recovery.nested {
+            self.declare_recovered_nested_nominal(owner, nested, queues, file);
         }
     }
 
@@ -227,13 +230,18 @@ impl Lowerer {
             }
             ast::NestedTypeDecl::Interface(source) => {
                 if let Some(id) = self.declare_interface(
-                    source,
+                    source.source(),
                     queues.interfaces,
                     queues.methods,
                     file,
                     Some(owner),
                 ) {
-                    self.declare_interface_nested(Owner::Interface(id), source, queues, file);
+                    self.declare_interface_nested(
+                        Owner::Interface(id),
+                        source.source(),
+                        queues,
+                        file,
+                    );
                 }
             }
             ast::NestedTypeDecl::Object(source) => {
@@ -278,6 +286,18 @@ impl Lowerer {
                     self.declare_struct(source, queues.structs, queues.methods, file, Some(owner))
                 {
                     self.declare_struct_nested(Owner::Struct(id), source, queues, file);
+                }
+            }
+            ast::RecoveredNominal::Interface(declaration) => {
+                let source = declaration.source();
+                if let Some(id) = self.declare_interface(
+                    source,
+                    queues.interfaces,
+                    queues.methods,
+                    file,
+                    Some(owner),
+                ) {
+                    self.declare_interface_nested(Owner::Interface(id), source, queues, file);
                 }
             }
         }

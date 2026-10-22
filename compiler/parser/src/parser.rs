@@ -19,6 +19,7 @@ mod lists;
 mod syntax;
 
 pub(crate) use lists::ListKind;
+pub(crate) use syntax::NominalMember;
 
 pub(crate) use entry::{parse_function_body, parse_type};
 pub(crate) use file::parse_file;

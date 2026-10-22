@@ -49,7 +49,7 @@ impl Lowerer {
                 hir::SemanticContext::Nominal(hir::NominalOwner::Interface(id)),
                 |lowerer| {
                     lowerer.document_interface(id, source);
-                    for property in &source.properties {
+                    for property in source.properties {
                         lowerer.document_editing_property(property);
                     }
                 },

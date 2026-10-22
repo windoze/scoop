@@ -169,7 +169,7 @@ impl Lowerer {
     pub(crate) fn annotate_interface(
         &mut self,
         id: hir::InterfaceId,
-        source: &ast::InterfaceDecl,
+        source: ast::InterfaceSource<'_>,
         file: usize,
     ) {
         let owner = Owner::Interface(id);
@@ -188,7 +188,7 @@ impl Lowerer {
             Target::Nominal(owner.as_nominal_owner()),
             &source.annotations,
         );
-        for property in &source.properties {
+        for property in source.properties {
             self.annotate_property_declaration(property, file);
         }
     }

@@ -29,13 +29,16 @@ fn interface_property(name: &str) -> ast::PropertyDecl {
 
 fn interface(name: &str) -> ast::Decl {
     ast::Decl::Interface(ast::InterfaceDecl {
-        sealed_span: None,
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: crate::tests::ident(name),
-        type_params: Vec::new(),
-        supertypes: Vec::new(),
-        where_clause: None,
+        header: ast::InterfaceHeader {
+            sealed_span: None,
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: crate::tests::ident(name),
+            type_params: Vec::new(),
+            supertypes: Vec::new(),
+            where_clause: None,
+            span: sp(),
+        },
         methods: vec![bodyless_method(
             false,
             "run",

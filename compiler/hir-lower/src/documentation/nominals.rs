@@ -86,7 +86,11 @@ impl Lowerer {
         self.document_class_primary(id, source);
     }
 
-    pub(crate) fn document_interface(&mut self, id: hir::InterfaceId, source: &ast::InterfaceDecl) {
+    pub(crate) fn document_interface(
+        &mut self,
+        id: hir::InterfaceId,
+        source: ast::InterfaceSource<'_>,
+    ) {
         if self.documentation.is_none() {
             return;
         }
