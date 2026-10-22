@@ -47,7 +47,7 @@ fn gc_control_intrinsics_reject_signature_tampering_at_the_declaration() {
                     else {
                         unreachable!()
                     };
-                    function.params = replacement.params;
+                    function.params = replacement.signature.params;
                 }
                 InvalidShape::Generic => function.type_params.push(type_param("T")),
                 InvalidShape::Suspend => function.is_suspend = true,

@@ -88,8 +88,11 @@ fn synthetic_function(value: ast::FunctionDecl, owner: Option<&str>) -> ast::Fun
         value.return_ty.as_ref().map(synthetic_type),
         body,
     );
-    result.annotations = synthetic_annotations(value.annotations);
-    result.operator = value.operator.map(|_| ast::OperatorModifier { span: sp() });
+    result.annotations = synthetic_annotations(value.signature.annotations);
+    result.operator = value
+        .signature
+        .operator
+        .map(|_| ast::OperatorModifier { span: sp() });
     result
 }
 

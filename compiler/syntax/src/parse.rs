@@ -22,12 +22,13 @@ pub struct MissingSyntax {
 /// One grammar run: immutable concrete syntax and its strict AST projection.
 /// The green tree can cross worker boundaries; red nodes are created on demand.
 #[derive(Debug, Clone)]
-pub struct Parse<T> {
+pub struct Parse<T, D = ()> {
     green: GreenNode,
     diagnostics: Vec<Diagnostic>,
     missing: Vec<MissingSyntax>,
     declarations: Vec<DeclarationSyntax>,
     ast: Option<T>,
+    declaration_data: D,
 }
 
 impl<T> Parse<T> {
@@ -52,7 +53,25 @@ impl<T> Parse<T> {
             missing,
             declarations,
             ast,
+            declaration_data: (),
         }
+    }
+}
+
+impl<T, D> Parse<T, D> {
+    pub fn with_declaration_data<E>(self, declaration_data: E) -> Parse<T, E> {
+        Parse {
+            green: self.green,
+            diagnostics: self.diagnostics,
+            missing: self.missing,
+            declarations: self.declarations,
+            ast: self.ast,
+            declaration_data,
+        }
+    }
+
+    pub fn declaration_data(&self) -> &D {
+        &self.declaration_data
     }
 
     pub fn syntax(&self) -> SyntaxNode {

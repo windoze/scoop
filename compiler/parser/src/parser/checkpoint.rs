@@ -99,5 +99,10 @@ mod tests {
         let parsed = parser.finish(source, SyntaxKind::FunctionBody, Ok(expression));
         assert!(parsed.missing().is_empty());
         assert_eq!(parsed.syntax().text().to_string(), source);
+        assert_eq!(parsed.declaration_data().len(), 1);
+        assert_eq!(
+            parsed.declaration_data()[0].value.signature.name.text,
+            "local"
+        );
     }
 }

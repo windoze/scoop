@@ -138,30 +138,36 @@ pub fn parse_type(source: &str) -> Result<scoop_ast::TypeRef, Vec<scoop_ast::Dia
     strict(parse_type_recovering(source))
 }
 
+/// Complete function headers paired with declarations from the same grammar run.
+pub type FunctionHeaders = Vec<scoop_syntax::DeclarationData<scoop_ast::FunctionHeader>>;
+
+/// One grammar result, with complete headers independent of strict AST success.
+pub type ParsedSyntax<T> = scoop_syntax::Parse<T, FunctionHeaders>;
+
 /// Parses a file while retaining concrete syntax, including erroneous input.
 /// Only an unrepresentable input length prevents a syntax result.
 pub fn parse_recovering(
     source: &str,
-) -> Result<scoop_syntax::Parse<scoop_ast::SourceFile>, scoop_source::SourceLengthError> {
+) -> Result<ParsedSyntax<scoop_ast::SourceFile>, scoop_source::SourceLengthError> {
     parser::parse_file(source)
 }
 
 /// Retains concrete syntax and diagnostics for a function body fragment.
 pub fn parse_function_body_recovering(
     source: &str,
-) -> Result<scoop_syntax::Parse<scoop_ast::Block>, scoop_source::SourceLengthError> {
+) -> Result<ParsedSyntax<scoop_ast::Block>, scoop_source::SourceLengthError> {
     parser::parse_function_body(source)
 }
 
 /// Retains concrete syntax and diagnostics for a type fragment.
 pub fn parse_type_recovering(
     source: &str,
-) -> Result<scoop_syntax::Parse<scoop_ast::TypeRef>, scoop_source::SourceLengthError> {
+) -> Result<ParsedSyntax<scoop_ast::TypeRef>, scoop_source::SourceLengthError> {
     parser::parse_type(source)
 }
 
 fn strict<T>(
-    result: Result<scoop_syntax::Parse<T>, scoop_source::SourceLengthError>,
+    result: Result<ParsedSyntax<T>, scoop_source::SourceLengthError>,
 ) -> Result<T, Vec<scoop_ast::Diagnostic>> {
     result
         .map_err(|error| {

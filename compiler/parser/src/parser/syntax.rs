@@ -1,7 +1,7 @@
 use scoop_ast::{Diagnostic, Ident, Span};
 use scoop_syntax::{
-    DeclarationIndex, DeclarationName, DeclarationSyntax, ExpectedSyntax, GreenNode,
-    GreenNodeBuilder, MissingSyntax, SyntaxKind,
+    DeclarationData, DeclarationIndex, DeclarationName, DeclarationSyntax, ExpectedSyntax,
+    GreenNode, GreenNodeBuilder, MissingSyntax, SyntaxKind,
 };
 
 use crate::lexer::{Lexeme, TokenKind};
@@ -38,6 +38,7 @@ enum Event {
     Finish { offset: u32 },
     Missing(MissingSyntax),
     DeclarationName(DeclarationName),
+    FunctionHeader(Box<scoop_ast::FunctionHeader>),
 }
 
 #[derive(Debug, Default)]
@@ -59,12 +60,18 @@ impl SyntaxEvents {
         source: &str,
         lexemes: &[Lexeme],
         root: SyntaxKind,
-    ) -> (GreenNode, Vec<MissingSyntax>, Vec<DeclarationSyntax>) {
+    ) -> (
+        GreenNode,
+        Vec<MissingSyntax>,
+        Vec<DeclarationSyntax>,
+        crate::FunctionHeaders,
+    ) {
         let mut builder = GreenNodeBuilder::new();
         let mut cursor = 0;
         let mut missing = Vec::new();
         let mut declarations: Vec<DeclarationSyntax> = Vec::new();
         let mut owners: Vec<Option<DeclarationIndex>> = Vec::new();
+        let mut headers = Vec::new();
         builder.start_node(root.into());
         for event in self.events {
             if let Event::DeclarationName(name) = event {
@@ -73,10 +80,25 @@ impl SyntaxEvents {
                 }
                 continue;
             }
+            if let Event::FunctionHeader(header) = event {
+                let declaration = *owners
+                    .iter()
+                    .rev()
+                    .flatten()
+                    .next()
+                    .expect("function grammar records a header within its declaration");
+                headers.push(DeclarationData {
+                    declaration,
+                    value: *header,
+                });
+                continue;
+            }
             let offset = match &event {
                 Event::Start { offset, .. } | Event::Finish { offset } => *offset,
                 Event::Missing(item) => item.offset,
-                Event::DeclarationName(_) => unreachable!("handled above"),
+                Event::DeclarationName(_) | Event::FunctionHeader(_) => {
+                    unreachable!("handled above")
+                }
             };
             emit_before(&mut builder, source, lexemes, &mut cursor, offset);
             match event {
@@ -106,12 +128,14 @@ impl SyntaxEvents {
                     builder.finish_node();
                     missing.push(item);
                 }
-                Event::DeclarationName(_) => unreachable!("handled above"),
+                Event::DeclarationName(_) | Event::FunctionHeader(_) => {
+                    unreachable!("handled above")
+                }
             }
         }
         emit_before(&mut builder, source, lexemes, &mut cursor, u32::MAX);
         builder.finish_node();
-        (builder.finish(), missing, declarations)
+        (builder.finish(), missing, declarations, headers)
     }
 }
 
@@ -142,6 +166,32 @@ fn emit_before(
 }
 
 impl Parser {
+    pub(crate) fn record_function_header(
+        &mut self,
+        signature: &scoop_ast::FunctionSignature,
+        body_form: scoop_ast::FunctionBodyForm,
+        checkpoint: super::checkpoint::Checkpoint,
+    ) {
+        let span = signature.span;
+        let prefix_error = self
+            .diagnostics
+            .iter()
+            .chain(&self.lexical_diagnostics)
+            .any(|diagnostic| {
+                diagnostic
+                    .span
+                    .is_some_and(|error| error.start < span.end && error.end > span.start)
+            });
+        if !self.has_errors_since(checkpoint) && !prefix_error {
+            self.syntax
+                .events
+                .push(Event::FunctionHeader(Box::new(scoop_ast::FunctionHeader {
+                    signature: signature.clone(),
+                    body_form,
+                })));
+        }
+    }
+
     pub(crate) fn record_declaration_name(&mut self, name: &Ident) {
         self.record_syntax_name(&name.text, name.span);
     }

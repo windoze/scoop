@@ -10,7 +10,10 @@ use scoop_hir as hir;
 use crate::{FnParam, FnParamCalling, Lowerer, TypeId};
 
 impl Lowerer {
-    pub(crate) fn resolve_callable_parameters(&mut self, decl: &ast::FunctionDecl) -> Vec<FnParam> {
+    pub(crate) fn resolve_callable_parameters(
+        &mut self,
+        decl: &ast::FunctionSignature,
+    ) -> Vec<FnParam> {
         let delegate =
             decl.operator.is_some() && property_delegate_operator_kind(&decl.name.text).is_some();
         decl.params

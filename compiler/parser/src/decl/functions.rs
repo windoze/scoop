@@ -111,6 +111,7 @@ impl Parser {
         modifiers: Modifiers,
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let fun = self.expect("`fun`", |k| matches!(k, TokenKind::Fun))?;
         let type_params = self.parse_type_params()?;
         let receiver_start = self.checkpoint();
@@ -164,34 +165,10 @@ impl Parser {
             .map(|clause| clause.span.end)
             .or_else(|| return_ty.as_ref().map(|ty| ty.span.end))
             .unwrap_or(params_end);
-        let (body, end) = match self.peek().kind {
-            TokenKind::LBrace | TokenKind::Equal
-                if modifiers.method_modifier.map(|modifier| modifier.kind)
-                    == Some(MethodModifier::Abstract) =>
-            {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "`abstract` functions must not have a body",
-                ));
-            }
-            TokenKind::LBrace => {
-                let block = self.parse_block()?;
-                let end = block.span.end;
-                (FunctionBody::Block(block), end)
-            }
-            TokenKind::Equal => {
-                self.bump();
-                let expr = self.parse_expr()?;
-                let end = expr.span().end;
-                (FunctionBody::Expr(Box::new(expr)), end)
-            }
-            _ if modifiers.method_modifier.map(|modifier| modifier.kind)
-                == Some(MethodModifier::Abstract)
-                || context == FunctionContext::Interface =>
-            {
-                (FunctionBody::None, signature_end)
-            }
-            _ => (FunctionBody::None, signature_end),
+        let body_form = match self.peek().kind {
+            TokenKind::LBrace => scoop_ast::FunctionBodyForm::Block,
+            TokenKind::Equal => scoop_ast::FunctionBodyForm::Expression,
+            _ => scoop_ast::FunctionBodyForm::Omitted,
         };
         let start = annotations
             .first()
@@ -209,7 +186,7 @@ impl Parser {
             .map(|modifier| modifier.kind)
             .unwrap_or_else(|| {
                 if context == FunctionContext::Interface {
-                    if matches!(&body, FunctionBody::None) {
+                    if body_form == scoop_ast::FunctionBodyForm::Omitted {
                         MethodModifier::Abstract
                     } else {
                         MethodModifier::Open
@@ -222,7 +199,7 @@ impl Parser {
                     MethodModifier::Final
                 }
             });
-        Ok(FunctionDecl {
+        let signature = scoop_ast::FunctionSignature {
             context_parameters: modifiers.context_parameters,
             annotations,
             visibility,
@@ -237,6 +214,38 @@ impl Parser {
             params,
             return_ty,
             where_clause,
+            span: Span::new(start, signature_end),
+        };
+        self.record_function_header(&signature, body_form, checkpoint);
+        let (body, end) = match self.peek().kind {
+            TokenKind::LBrace | TokenKind::Equal
+                if signature.modifier == MethodModifier::Abstract =>
+            {
+                return Err(Diagnostic::at(
+                    self.peek().span,
+                    "`abstract` functions must not have a body",
+                ));
+            }
+            TokenKind::LBrace => {
+                let block = self.parse_block()?;
+                let end = block.span.end;
+                (FunctionBody::Block(block), end)
+            }
+            TokenKind::Equal => {
+                self.bump();
+                let expr = self.parse_expr()?;
+                let end = expr.span().end;
+                (FunctionBody::Expr(Box::new(expr)), end)
+            }
+            _ if signature.modifier == MethodModifier::Abstract
+                || context == FunctionContext::Interface =>
+            {
+                (FunctionBody::None, signature_end)
+            }
+            _ => (FunctionBody::None, signature_end),
+        };
+        Ok(FunctionDecl {
+            signature,
             body,
             span: Span::new(start, end),
         })

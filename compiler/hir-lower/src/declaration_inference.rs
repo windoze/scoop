@@ -49,7 +49,7 @@ pub(crate) enum DeclarationResult {
 }
 
 pub(crate) fn infers_result(declaration: &ast::FunctionDecl) -> bool {
-    declaration.return_ty.is_none() && matches!(declaration.body, ast::FunctionBody::Expr(_))
+    declaration.return_ty.is_none() && declaration.body.form() == ast::FunctionBodyForm::Expression
 }
 
 impl Lowerer {

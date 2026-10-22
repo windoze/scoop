@@ -20,3 +20,10 @@ pub struct DeclarationSyntax {
     pub span: Span,
     pub name: Option<DeclarationName>,
 }
+
+/// Grammar-produced data attached to its actual declaration in this parse.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeclarationData<T> {
+    pub declaration: DeclarationIndex,
+    pub value: T,
+}

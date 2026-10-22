@@ -6,7 +6,9 @@ use crate::lexer::{Lexed, lex};
 
 use super::Parser;
 
-pub(crate) fn parse_function_body(source: &str) -> Result<Parse<Block>, SourceLengthError> {
+pub(crate) fn parse_function_body(
+    source: &str,
+) -> Result<crate::ParsedSyntax<Block>, SourceLengthError> {
     let (mut parser, _) = Parser::from_source(source)?;
     let body = parser.parse_block().and_then(|body| {
         if parser.at_eof() {
@@ -18,7 +20,7 @@ pub(crate) fn parse_function_body(source: &str) -> Result<Parse<Block>, SourceLe
     Ok(parser.finish(source, SyntaxKind::FunctionBody, body))
 }
 
-pub(crate) fn parse_type(source: &str) -> Result<Parse<TypeRef>, SourceLengthError> {
+pub(crate) fn parse_type(source: &str) -> Result<crate::ParsedSyntax<TypeRef>, SourceLengthError> {
     let (mut parser, _) = Parser::from_source(source)?;
     let ty = parser.parse_type_ref().and_then(|ty| {
         if parser.at_eof() {
@@ -65,7 +67,7 @@ impl Parser {
         source: &str,
         root: SyntaxKind,
         result: Result<T, Diagnostic>,
-    ) -> Parse<T> {
+    ) -> crate::ParsedSyntax<T> {
         if let Err(diagnostic) = &result {
             self.diagnostics.push(diagnostic.clone());
         }
@@ -95,7 +97,9 @@ impl Parser {
         diagnostics.dedup_by(|next, previous| {
             next == previous || next.span == Some(eof) && previous.span == Some(eof)
         });
-        let (green, missing, declarations) = self.syntax.build(source, &self.lexemes, root);
+        let (green, missing, declarations, headers) =
+            self.syntax.build(source, &self.lexemes, root);
         Parse::new(green, diagnostics, missing, declarations, result.ok())
+            .with_declaration_data(headers)
     }
 }

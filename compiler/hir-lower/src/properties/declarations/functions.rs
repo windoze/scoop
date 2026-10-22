@@ -267,27 +267,30 @@ impl Lowerer {
         getter: &ast::GetterDecl,
     ) -> ast::FunctionDecl {
         ast::FunctionDecl {
-            context_parameters: property.context_parameters.clone(),
-            annotations: accessor_annotations(
-                property,
-                &getter.annotations,
-                ast::AnnotationUseSiteTarget::Get,
-            ),
-            visibility: property.visibility,
-            is_suspend: false,
-            is_override: property.is_override,
-            operator: None,
-            infix: None,
-            modifier: property.modifier,
-            receiver_ty: property.receiver_ty.clone(),
-            name: ast::Ident {
-                text: format!("$get${}", property.name.text),
-                span: property.name.span,
+            signature: ast::FunctionSignature {
+                context_parameters: property.context_parameters.clone(),
+                annotations: accessor_annotations(
+                    property,
+                    &getter.annotations,
+                    ast::AnnotationUseSiteTarget::Get,
+                ),
+                visibility: property.visibility,
+                is_suspend: false,
+                is_override: property.is_override,
+                operator: None,
+                infix: None,
+                modifier: property.modifier,
+                receiver_ty: property.receiver_ty.clone(),
+                name: ast::Ident {
+                    text: format!("$get${}", property.name.text),
+                    span: property.name.span,
+                },
+                type_params: property.type_params.clone(),
+                params: Vec::new(),
+                return_ty: property.ty.clone(),
+                where_clause: property.where_clause.clone(),
+                span: getter.span,
             },
-            type_params: property.type_params.clone(),
-            params: Vec::new(),
-            return_ty: property.ty.clone(),
-            where_clause: property.where_clause.clone(),
             body: accessor_function_body(&getter.body),
             span: getter.span,
         }
@@ -321,42 +324,45 @@ impl Lowerer {
             ast::SetterParameterSyntax::Named(name) => name.clone(),
         };
         ast::FunctionDecl {
-            context_parameters: property.context_parameters.clone(),
-            annotations: accessor_annotations(
-                property,
-                &setter.annotations,
-                ast::AnnotationUseSiteTarget::Set,
-            ),
-            visibility: match setter.visibility {
-                ast::SetterVisibilitySyntax::Explicit { visibility, span } => {
-                    ast::VisibilitySyntax::Explicit { visibility, span }
-                }
-                ast::SetterVisibilitySyntax::Inherited => property.visibility,
-            },
-            is_suspend: false,
-            is_override: property.is_override,
-            operator: None,
-            infix: None,
-            modifier: property.modifier,
-            receiver_ty: property.receiver_ty.clone(),
-            name: ast::Ident {
-                text: format!("$set${}", property.name.text),
-                span: property.name.span,
-            },
-            type_params: property.type_params.clone(),
-            params: vec![ast::Param {
-                annotations: Vec::new(),
-                name,
-                ty: property.ty.clone().unwrap_or(ast::TypeRef {
-                    annotations: Vec::new(),
-                    kind: ast::TypeRefKind::Unit,
+            signature: ast::FunctionSignature {
+                context_parameters: property.context_parameters.clone(),
+                annotations: accessor_annotations(
+                    property,
+                    &setter.annotations,
+                    ast::AnnotationUseSiteTarget::Set,
+                ),
+                visibility: match setter.visibility {
+                    ast::SetterVisibilitySyntax::Explicit { visibility, span } => {
+                        ast::VisibilitySyntax::Explicit { visibility, span }
+                    }
+                    ast::SetterVisibilitySyntax::Inherited => property.visibility,
+                },
+                is_suspend: false,
+                is_override: property.is_override,
+                operator: None,
+                infix: None,
+                modifier: property.modifier,
+                receiver_ty: property.receiver_ty.clone(),
+                name: ast::Ident {
+                    text: format!("$set${}", property.name.text),
                     span: property.name.span,
-                }),
-                syntax: ast::ParameterSyntax::Required,
+                },
+                type_params: property.type_params.clone(),
+                params: vec![ast::Param {
+                    annotations: Vec::new(),
+                    name,
+                    ty: property.ty.clone().unwrap_or(ast::TypeRef {
+                        annotations: Vec::new(),
+                        kind: ast::TypeRefKind::Unit,
+                        span: property.name.span,
+                    }),
+                    syntax: ast::ParameterSyntax::Required,
+                    span: setter.span,
+                }],
+                return_ty: None,
+                where_clause: property.where_clause.clone(),
                 span: setter.span,
-            }],
-            return_ty: None,
-            where_clause: property.where_clause.clone(),
+            },
             body: accessor_function_body(&setter.body),
             span: setter.span,
         }

@@ -1,10 +1,12 @@
 use scoop_ast::{Diagnostic, DiagnosticNote, PackageSyntax, SourceFile};
 use scoop_source::SourceLengthError;
-use scoop_syntax::{Parse, SyntaxKind};
+use scoop_syntax::SyntaxKind;
 
 use super::{HeaderState, Parser, TopLevelItemKind};
 
-pub(crate) fn parse_file(source: &str) -> Result<Parse<SourceFile>, SourceLengthError> {
+pub(crate) fn parse_file(
+    source: &str,
+) -> Result<crate::ParsedSyntax<SourceFile>, SourceLengthError> {
     let (mut parser, span) = Parser::from_source(source)?;
     let mut package = PackageSyntax::RootPackage;
     let mut imports = Vec::new();

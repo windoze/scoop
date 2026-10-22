@@ -1,7 +1,7 @@
 use scoop_parser::{parse_function_body_recovering, parse_recovering, parse_type_recovering};
 use scoop_syntax::{ExpectedSyntax, Parse, SyntaxKind, TextSize};
 
-fn assert_original<T>(parsed: &Parse<T>, source: &str) {
+fn assert_original<T, D>(parsed: &Parse<T, D>, source: &str) {
     let syntax = parsed.syntax();
     assert_eq!(syntax.text().to_string(), source);
     let tokens: String = syntax

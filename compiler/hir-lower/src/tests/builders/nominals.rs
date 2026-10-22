@@ -125,35 +125,38 @@ pub(crate) fn method_full(
     body: FunctionBody,
 ) -> FunctionDecl {
     FunctionDecl {
-        context_parameters: Vec::new(),
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        is_suspend: false,
-        is_override,
-        operator: None,
-        infix: None,
-        modifier: if is_abstract {
-            ast::MethodModifier::Abstract
-        } else if is_override {
-            ast::MethodModifier::Open
-        } else {
-            ast::MethodModifier::Final
+        signature: ast::FunctionSignature {
+            context_parameters: Vec::new(),
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            is_suspend: false,
+            is_override,
+            operator: None,
+            infix: None,
+            modifier: if is_abstract {
+                ast::MethodModifier::Abstract
+            } else if is_override {
+                ast::MethodModifier::Open
+            } else {
+                ast::MethodModifier::Final
+            },
+            receiver_ty: None,
+            name: ident(name),
+            type_params: Vec::new(),
+            params: params
+                .into_iter()
+                .map(|(name, ty)| Param {
+                    annotations: Vec::new(),
+                    name: ident(name),
+                    ty,
+                    syntax: ast::ParameterSyntax::Required,
+                    span: sp(),
+                })
+                .collect(),
+            return_ty,
+            where_clause: None,
+            span: sp(),
         },
-        receiver_ty: None,
-        name: ident(name),
-        type_params: Vec::new(),
-        params: params
-            .into_iter()
-            .map(|(name, ty)| Param {
-                annotations: Vec::new(),
-                name: ident(name),
-                ty,
-                syntax: ast::ParameterSyntax::Required,
-                span: sp(),
-            })
-            .collect(),
-        return_ty,
-        where_clause: None,
         body,
         span: sp(),
     }
