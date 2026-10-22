@@ -35,7 +35,7 @@ impl Parser {
                             .iter()
                             .any(|existing| matches!(existing, ClassMember::Companion(_)))
                     {
-                        self.invalidate_class_projection();
+                        self.invalidate_nominal_projection();
                         self.diagnostics.push(Diagnostic::at(
                             member.span(),
                             "a nominal declaration may contain at most one companion object",
@@ -64,7 +64,7 @@ impl Parser {
     fn parse_class_member(&mut self) -> Result<ClassMember, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::Member, |parser| {
             let checkpoint = parser.checkpoint();
-            parser.begin_class_member();
+            parser.begin_nominal_member();
             let result = parser.parse_class_member_inner();
             parser.end_class_member(&result, checkpoint);
             result
@@ -74,8 +74,9 @@ impl Parser {
     fn parse_class_member_inner(&mut self) -> Result<ClassMember, Diagnostic> {
         let prefix = self.parse_member_prefix()?;
         match self.peek().kind {
-            TokenKind::Fun => self.class_member_kind(scoop_syntax::SyntaxKind::FunctionDecl),
-            TokenKind::Class => self.class_member_kind(scoop_syntax::SyntaxKind::ClassDecl),
+            TokenKind::Fun => self.nominal_member_kind(scoop_syntax::SyntaxKind::FunctionDecl),
+            TokenKind::Struct => self.nominal_member_kind(scoop_syntax::SyntaxKind::StructDecl),
+            TokenKind::Class => self.nominal_member_kind(scoop_syntax::SyntaxKind::ClassDecl),
             _ => {}
         }
         match &self.peek().kind {
@@ -311,7 +312,16 @@ impl Parser {
                 return self.missing_token(TokenKind::RBrace, "`}`");
             }
             let start = self.pos;
-            let parsed = self.parse_member_prefix().and_then(|prefix| match &self.peek().kind {
+            let checkpoint = self.checkpoint();
+            self.begin_nominal_member();
+            let parsed = self.parse_member_prefix().and_then(|prefix| {
+                match self.peek().kind {
+                    TokenKind::Fun => self.nominal_member_kind(scoop_syntax::SyntaxKind::FunctionDecl),
+                    TokenKind::Class => self.nominal_member_kind(scoop_syntax::SyntaxKind::ClassDecl),
+                    TokenKind::Struct => self.nominal_member_kind(scoop_syntax::SyntaxKind::StructDecl),
+                    _ => {}
+                }
+                match &self.peek().kind {
                 TokenKind::Ident(text) if text == "constructor" => self
                     .require_unmodified_nominal_prefix(&prefix, "constructor")
                     .and_then(|()| {
@@ -358,7 +368,8 @@ impl Parser {
                     self.peek().span,
                     "expected a computed property, function, constructor, nested declaration, or companion object",
                 )),
-            });
+            }});
+            self.end_struct_member(&parsed, checkpoint);
             match parsed {
                 Ok(member) => {
                     self.attach_documentation(start, member.span());
@@ -367,6 +378,7 @@ impl Parser {
                             .iter()
                             .any(|existing| matches!(existing, StructMember::Companion(_)))
                     {
+                        self.invalidate_nominal_projection();
                         self.diagnostics.push(Diagnostic::at(
                             member.span(),
                             "a nominal declaration may contain at most one companion object",

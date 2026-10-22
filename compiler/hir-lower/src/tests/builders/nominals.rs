@@ -270,29 +270,32 @@ pub(crate) fn generic_struct_decl_full(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Struct(AstStructDecl {
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        type_params: type_params.into_iter().map(type_param).collect(),
-        fields: fields
-            .into_iter()
-            .map(|(name, ty)| FieldDecl {
-                annotations: Vec::new(),
-                name: ident(name),
-                ty,
-                syntax: ast::ParameterSyntax::Required,
-                span: sp(),
-            })
-            .collect(),
-        supertypes: interfaces
-            .into_iter()
-            .map(|name| ast::SupertypeSpec {
-                ty: ty_named(name),
-                initialization: ast::SupertypeInitialization::None,
-                span: sp(),
-            })
-            .collect(),
-        where_clause: None,
+        header: ast::StructHeader {
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            type_params: type_params.into_iter().map(type_param).collect(),
+            fields: fields
+                .into_iter()
+                .map(|(name, ty)| FieldDecl {
+                    annotations: Vec::new(),
+                    name: ident(name),
+                    ty,
+                    syntax: ast::ParameterSyntax::Required,
+                    span: sp(),
+                })
+                .collect(),
+            supertypes: interfaces
+                .into_iter()
+                .map(|name| ast::SupertypeSpec {
+                    ty: ty_named(name),
+                    initialization: ast::SupertypeInitialization::None,
+                    span: sp(),
+                })
+                .collect(),
+            where_clause: None,
+            span: sp(),
+        },
         members: methods
             .into_iter()
             .map(Box::new)

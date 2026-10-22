@@ -10,8 +10,8 @@ use super::Parser;
 
 mod bodies;
 use bodies::{BodyEvent, BodyRecorder};
-mod classes;
-use classes::{ClassEvent, ClassRecorder};
+mod nominals;
+use nominals::{NominalEvent, NominalRecorder};
 
 pub(super) fn expected_token(predicate: &impl Fn(&TokenKind) -> bool) -> Option<SyntaxKind> {
     const PUNCTUATION: &[TokenKind] = &[
@@ -55,7 +55,7 @@ enum Event {
     ),
     FunctionHeader(Box<scoop_ast::FunctionHeader>),
     Body(BodyEvent),
-    Class(ClassEvent),
+    Nominal(NominalEvent),
     TopLevelDeclaration,
 }
 
@@ -67,7 +67,7 @@ pub(super) struct SyntaxBuild {
     pub(super) declaration_headers: Vec<DeclarationData<scoop_ast::DeclarationHeader>>,
     pub(super) top_level_declarations: Vec<DeclarationIndex>,
     pub(super) bodies: Vec<DeclarationData<scoop_ast::RecoveredFunctionBody>>,
-    pub(super) classes: Vec<DeclarationData<scoop_ast::RecoveredClass>>,
+    pub(super) nominals: Vec<DeclarationData<scoop_ast::RecoveredNominal>>,
 }
 
 #[derive(Debug, Default)]
@@ -101,11 +101,11 @@ impl SyntaxEvents {
         let mut last_root = None;
         let mut top_level_declarations = Vec::new();
         let mut bodies = BodyRecorder::default();
-        let mut classes = ClassRecorder::default();
+        let mut nominals = NominalRecorder::default();
         builder.start_node(root.into());
         for event in self.events {
-            if let Event::Class(event) = event {
-                classes.record(
+            if let Event::Nominal(event) = event {
+                nominals.record(
                     event,
                     owners.iter().rev().flatten().next().copied(),
                     &declarations,
@@ -179,7 +179,7 @@ impl SyntaxEvents {
                 | Event::DeclarationPrefix(_, _)
                 | Event::FunctionHeader(_)
                 | Event::Body(_)
-                | Event::Class(_)
+                | Event::Nominal(_)
                 | Event::TopLevelDeclaration => {
                     unreachable!("handled above")
                 }
@@ -221,7 +221,7 @@ impl SyntaxEvents {
                 | Event::DeclarationPrefix(_, _)
                 | Event::FunctionHeader(_)
                 | Event::Body(_)
-                | Event::Class(_)
+                | Event::Nominal(_)
                 | Event::TopLevelDeclaration => {
                     unreachable!("handled above")
                 }
@@ -253,8 +253,8 @@ impl SyntaxEvents {
         } else {
             Vec::new()
         };
-        let classes = if recovering {
-            classes.recover(&declarations, &headers, &bodies)
+        let nominals = if recovering {
+            nominals.recover(&declarations, &headers, &bodies)
         } else {
             Vec::new()
         };
@@ -266,7 +266,7 @@ impl SyntaxEvents {
             function_headers: headers,
             top_level_declarations,
             bodies,
-            classes,
+            nominals,
         }
     }
 }

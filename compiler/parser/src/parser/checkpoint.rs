@@ -98,12 +98,24 @@ mod tests {
         assert_eq!(parser.parse_decl().unwrap(), first);
         let (syntax, diagnostics) = parser.finish_syntax(source, SyntaxKind::SourceFile);
         assert_eq!(diagnostics.len(), 1);
-        assert_eq!(syntax.classes.len(), 1);
-        let outer = &syntax.classes[0].value;
-        assert_eq!(outer.classes.len(), 1);
-        let inner = &outer.classes[0];
-        assert_eq!(inner.methods.len(), 1);
-        assert_eq!(inner.methods[0].body.as_ref().unwrap().selectors.len(), 1);
+        assert_eq!(syntax.nominals.len(), 1);
+        let scoop_ast::RecoveredNominal::Class(outer) = &syntax.nominals[0].value else {
+            panic!("outer class")
+        };
+        assert_eq!(outer.recovery.nested.len(), 1);
+        let scoop_ast::RecoveredNominal::Class(inner) = &outer.recovery.nested[0] else {
+            panic!("inner class")
+        };
+        assert_eq!(inner.recovery.methods.len(), 1);
+        assert_eq!(
+            inner.recovery.methods[0]
+                .body
+                .as_ref()
+                .unwrap()
+                .selectors
+                .len(),
+            1
+        );
     }
 
     #[test]

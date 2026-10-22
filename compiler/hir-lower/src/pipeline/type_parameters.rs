@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn resolve_nominal_parameter_constraints(
         &mut self,
-        pending_structs: &[(StructId, &ast::StructDecl, usize)],
+        pending_structs: &[(StructId, ast::StructSource<'_>, usize)],
         pending_enums: &[(EnumId, &ast::EnumDecl, usize)],
         pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         pending_interfaces: &[(InterfaceId, &ast::InterfaceDecl, usize)],
@@ -22,7 +22,7 @@ impl Lowerer {
 
     pub(crate) fn resolve_nominal_parameter_constraints_with_cancellation<C>(
         &mut self,
-        pending_structs: &[(StructId, &ast::StructDecl, usize)],
+        pending_structs: &[(StructId, ast::StructSource<'_>, usize)],
         pending_enums: &[(EnumId, &ast::EnumDecl, usize)],
         pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         pending_interfaces: &[(InterfaceId, &ast::InterfaceDecl, usize)],

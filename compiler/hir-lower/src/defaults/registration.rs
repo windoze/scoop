@@ -57,7 +57,7 @@ impl Lowerer {
         &mut self,
         functions: &[crate::declarations::FunctionHeaderInput<'_>],
         methods: &[crate::declarations::MethodHeaderInput<'_>],
-        structs: &[(hir::StructId, &ast::StructDecl, usize)],
+        structs: &[(hir::StructId, ast::StructSource<'_>, usize)],
         classes: &[(hir::ClassId, ast::ClassSource<'_>, usize)],
         enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
     ) {

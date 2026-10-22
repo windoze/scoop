@@ -196,7 +196,7 @@ fn finish(
                 }
                 DeclarationFragment::Unavailable(_)
                 | DeclarationFragment::FunctionBody(_)
-                | DeclarationFragment::Class(_) => {
+                | DeclarationFragment::Nominal(_) => {
                     unreachable!("unavailable headers are added below")
                 }
             }
@@ -206,12 +206,12 @@ fn finish(
                 complete[index] |= complete[parent.0];
             }
         }
-        for class in syntax.classes {
-            if !complete[class.declaration.0] {
-                known_signature[class.declaration.0] = true;
+        for nominal in syntax.nominals {
+            if !complete[nominal.declaration.0] {
+                known_signature[nominal.declaration.0] = true;
                 projections.push(DeclarationData {
-                    declaration: class.declaration,
-                    value: DeclarationFragment::Class(Box::new(class.value)),
+                    declaration: nominal.declaration,
+                    value: DeclarationFragment::Nominal(nominal.value),
                 });
             }
         }

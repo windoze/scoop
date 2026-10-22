@@ -23,7 +23,7 @@ impl Lowerer {
     pub(crate) fn check_inheritance(
         &mut self,
         pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
-        pending_structs: &[(hir::StructId, &ast::StructDecl, usize)],
+        pending_structs: &[(hir::StructId, ast::StructSource<'_>, usize)],
         pending_enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
         pending_interfaces: &[(hir::InterfaceId, &ast::InterfaceDecl, usize)],
         pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],

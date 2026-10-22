@@ -4,7 +4,7 @@ use super::*;
 pub(crate) struct SourceDeclarations<'a> {
     pub(super) current_cone: scoop_identity::ConeIdentity,
     pub(super) source_headers: Vec<ast::SourceHeaderRef<'a>>,
-    pub(super) pending_structs: Vec<(StructId, &'a ast::StructDecl, usize)>,
+    pub(super) pending_structs: Vec<(StructId, ast::StructSource<'a>, usize)>,
     pub(super) pending_enums: Vec<(EnumId, &'a ast::EnumDecl, usize)>,
     pub(super) pending_classes: Vec<(ClassId, ast::ClassSource<'a>, usize)>,
     pub(super) pending_interfaces: Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
@@ -121,15 +121,28 @@ impl Lowerer {
             let is_core = self.source_is_core(file_index);
             let decl = match input {
                 ast::DeclarationInput::Complete(declaration) => declaration,
-                ast::DeclarationInput::RecoveredClass(declaration) => {
-                    self.declare_class(
-                        declaration.source(),
-                        is_core,
-                        &mut pending_classes,
-                        &mut pending_methods,
-                        file_index,
-                        None,
-                    );
+                ast::DeclarationInput::RecoveredNominal(declaration) => {
+                    match declaration {
+                        ast::RecoveredNominal::Class(declaration) => {
+                            self.declare_class(
+                                declaration.source(),
+                                is_core,
+                                &mut pending_classes,
+                                &mut pending_methods,
+                                file_index,
+                                None,
+                            );
+                        }
+                        ast::RecoveredNominal::Struct(declaration) => {
+                            self.declare_struct(
+                                declaration.source(),
+                                &mut pending_structs,
+                                &mut pending_methods,
+                                file_index,
+                                None,
+                            );
+                        }
+                    }
                     continue;
                 }
                 ast::DeclarationInput::Unavailable(header) => {
@@ -155,7 +168,7 @@ impl Lowerer {
                 ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
                 ast::Decl::Struct(decl) => {
                     let _ = self.declare_struct(
-                        decl,
+                        decl.source(),
                         &mut pending_structs,
                         &mut pending_methods,
                         file_index,
@@ -275,11 +288,17 @@ impl Lowerer {
             .iter()
             .map(|&(id, declaration, file, owner)| (id, declaration.header(), file, owner))
             .collect::<Vec<_>>();
-        for &(class, declaration, file) in &pending_classes {
-            for method in declaration.recovered_methods {
+        let recovered_nominals =
+            pending_classes
+                .iter()
+                .map(|(id, declaration, file)| (Owner::Class(*id), declaration.recovery, *file))
+                .chain(pending_structs.iter().map(|(id, declaration, file)| {
+                    (Owner::Struct(*id), declaration.recovery, *file)
+                }));
+        for (owner, recovery, file) in recovered_nominals {
+            for method in &recovery.methods {
                 PhaseFailure::check(check)?;
                 self.current_file = file;
-                let owner = Owner::Class(class);
                 let header = method.header();
                 let function = self.declare_method_header(header, owner, file);
                 method_headers.push((function, header, file, owner));
@@ -287,10 +306,13 @@ impl Lowerer {
                     recovered_functions.push((function, body));
                 }
             }
-            if !declaration.recovered_methods.is_empty() {
-                self.classes[class]
-                    .methods
-                    .sort_by_key(|function| self.functions[*function].span.start);
+            if !recovery.methods.is_empty() {
+                let methods = match owner {
+                    Owner::Class(class) => &mut self.classes[class].methods,
+                    Owner::Struct(structure) => &mut self.structs[structure].methods,
+                    _ => unreachable!("recovered class and struct inputs"),
+                };
+                methods.sort_by_key(|function| self.functions[*function].span.start);
             }
         }
 

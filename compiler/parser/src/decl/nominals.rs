@@ -40,6 +40,7 @@ impl Parser {
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
     ) -> Result<StructDecl, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let keyword = self.expect("`struct`", |k| matches!(k, TokenKind::Struct))?;
         let name = self.expect_ident("struct name")?;
         self.record_declaration_name(&name);
@@ -55,19 +56,12 @@ impl Parser {
         if let Some(clause) = &where_clause {
             end = clause.span.end;
         }
-        let members = if matches!(self.peek().kind, TokenKind::LBrace) {
-            let (members, body_end) = self.parse_struct_body()?;
-            end = body_end;
-            members
-        } else {
-            Vec::new()
-        };
         let start = match visibility {
             VisibilitySyntax::Explicit { span, .. } => Some(span.start),
             VisibilitySyntax::Omitted => None,
         }
         .unwrap_or(keyword.span.start);
-        Ok(StructDecl {
+        let header = scoop_ast::StructHeader {
             annotations,
             visibility,
             name,
@@ -75,6 +69,18 @@ impl Parser {
             fields,
             supertypes,
             where_clause,
+            span: Span::new(start, self.tokens[self.pos - 1].span.end),
+        };
+        self.record_struct_header(&header, checkpoint);
+        let members = if matches!(self.peek().kind, TokenKind::LBrace) {
+            let (members, body_end) = self.parse_struct_body()?;
+            end = body_end;
+            members
+        } else {
+            Vec::new()
+        };
+        Ok(StructDecl {
+            header,
             members,
             span: Span::new(start, end),
         })

@@ -121,7 +121,7 @@ impl Lowerer {
     pub(super) fn annotate_struct_constructors(
         &mut self,
         owner: hir::StructId,
-        source: &ast::StructDecl,
+        source: ast::StructSource<'_>,
     ) {
         for source in source.secondary_constructors() {
             let id = self.structs[owner]

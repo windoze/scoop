@@ -25,7 +25,7 @@ impl Lowerer {
                 hir::SemanticContext::Nominal(hir::NominalOwner::Struct(id)),
                 |lowerer| {
                     lowerer.document_struct(id, source);
-                    for member in &source.members {
+                    for member in source.members {
                         if let ast::StructMember::Property(property) = member {
                             lowerer.document_editing_property(property);
                         }

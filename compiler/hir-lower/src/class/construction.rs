@@ -28,7 +28,7 @@ impl Lowerer {
     pub(crate) fn resolve_constructor_graphs(
         &mut self,
         classes: &[(ClassId, ast::ClassSource<'_>, usize)],
-        structs: &[(hir::StructId, &ast::StructDecl, usize)],
+        structs: &[(hir::StructId, ast::StructSource<'_>, usize)],
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         self.check_duplicate_constructor_signatures(classes, structs);
@@ -417,7 +417,7 @@ impl Lowerer {
         *current = delegation;
     }
 
-    fn resolve_struct_constructor_edges(&mut self, id: hir::StructId, decl: &ast::StructDecl) {
+    fn resolve_struct_constructor_edges(&mut self, id: hir::StructId, decl: ast::StructSource<'_>) {
         if !matches!(
             self.structs[id].representation,
             hir::StructRepresentation::Declared(_)

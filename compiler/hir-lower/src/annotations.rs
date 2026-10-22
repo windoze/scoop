@@ -145,7 +145,7 @@ impl Lowerer {
 
     pub(crate) fn check_struct_annotations(
         &mut self,
-        decl: &ast::StructDecl,
+        decl: ast::StructSource<'_>,
     ) -> CheckedStructAnnotations {
         let mut attributes = hir::StructAttributes::default();
         let mut intrinsic = None;

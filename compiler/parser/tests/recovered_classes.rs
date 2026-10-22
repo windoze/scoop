@@ -12,7 +12,7 @@ fn class_recovery_keeps_complete_headers_members_and_method_bodies_separate() {
         .declarations
         .iter()
         .find_map(|item| {
-            let Fragment::Class(class) = &item.value else {
+            let Fragment::Nominal(scoop_ast::RecoveredNominal::Class(class)) = &item.value else {
                 return None;
             };
             Some(class)
@@ -21,10 +21,18 @@ fn class_recovery_keeps_complete_headers_members_and_method_bodies_separate() {
     assert_eq!(recovered.header.name.text, "Box");
     assert_eq!(recovered.header.type_params[0].name.text, "T");
     assert_eq!(recovered.header.constructor[0].name.text, "value");
-    assert_eq!(recovered.methods.len(), 1);
-    assert_eq!(recovered.methods[0].header.signature.name.text, "broken");
+    assert_eq!(recovered.recovery.methods.len(), 1);
     assert_eq!(
-        recovered.methods[0].body.as_ref().unwrap().selectors.len(),
+        recovered.recovery.methods[0].header.signature.name.text,
+        "broken"
+    );
+    assert_eq!(
+        recovered.recovery.methods[0]
+            .body
+            .as_ref()
+            .unwrap()
+            .selectors
+            .len(),
         1
     );
     assert_eq!(recovered.members.len(), 2);
@@ -45,17 +53,30 @@ fn nested_class_recovery_preserves_the_actual_container_even_at_eof() {
         .declarations
         .iter()
         .filter_map(|item| match &item.value {
-            Fragment::Class(class) => Some(class),
+            Fragment::Nominal(scoop_ast::RecoveredNominal::Class(class)) => Some(class),
             _ => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(classes.len(), 1, "{:?}", parsed.diagnostics());
     assert_eq!(classes[0].header.name.text, "Outer");
-    let inner = &classes[0].classes[0];
+    let scoop_ast::RecoveredNominal::Class(inner) = &classes[0].recovery.nested[0] else {
+        panic!("nested class")
+    };
     assert_eq!(inner.header.name.text, "Inner");
     assert!(inner.header.inner_span.is_some());
-    assert_eq!(inner.methods[0].header.signature.name.text, "editing");
-    assert_eq!(inner.methods[0].body.as_ref().unwrap().selectors.len(), 1);
+    assert_eq!(
+        inner.recovery.methods[0].header.signature.name.text,
+        "editing"
+    );
+    assert_eq!(
+        inner.recovery.methods[0]
+            .body
+            .as_ref()
+            .unwrap()
+            .selectors
+            .len(),
+        1
+    );
     assert_eq!(inner.span.end as usize, text.len());
 }
 
@@ -77,7 +98,7 @@ fn incomplete_headers_or_non_method_members_do_not_form_smaller_types() {
                 .declaration_data()
                 .declarations
                 .iter()
-                .any(|item| matches!(&item.value, Fragment::Class(_))),
+                .any(|item| matches!(&item.value, Fragment::Nominal(_))),
             "{text}"
         );
         assert!(parsed.declaration_data().declarations.iter().any(|item| matches!(&item.value, Fragment::Unavailable(header) if header.name.text == "Broken")), "{text}");
@@ -94,14 +115,17 @@ fn class_recovery_does_not_duplicate_complete_nested_function_declarations() {
         .declarations
         .iter()
         .find_map(|item| {
-            let Fragment::Class(class) = &item.value else {
+            let Fragment::Nominal(scoop_ast::RecoveredNominal::Class(class)) = &item.value else {
                 return None;
             };
             Some(class)
         })
         .unwrap();
-    assert_eq!(class.methods.len(), 1);
-    assert_eq!(class.methods[0].header.signature.name.text, "editing");
+    assert_eq!(class.recovery.methods.len(), 1);
+    assert_eq!(
+        class.recovery.methods[0].header.signature.name.text,
+        "editing"
+    );
     assert_eq!(class.members.len(), 2);
     assert!(matches!(class.members[0], ClassMember::InitBlock(_)));
     assert!(

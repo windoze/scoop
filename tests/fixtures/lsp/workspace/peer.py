@@ -16,6 +16,7 @@ from incomplete_signatures import check as check_incomplete_signatures
 from member_implementations import check as check_member_implementations
 from property_references import check as check_property_references
 from recovered_classes import check as check_recovered_classes
+from recovered_structs import check as check_recovered_structs
 from references import check as check_references
 from signatures import check as check_signatures
 from source_dependencies import check as check_source_dependencies
@@ -330,6 +331,7 @@ def main():
         check_type_implementations(peer, root)
         check_member_implementations(peer, root)
         check_recovered_classes(peer, root)
+        check_recovered_structs(peer, root)
         peer.finish()
     finally:
         if peer.process.poll() is None:

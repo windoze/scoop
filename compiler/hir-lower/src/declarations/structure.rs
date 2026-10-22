@@ -3,8 +3,8 @@ use super::*;
 impl Lowerer {
     pub(crate) fn declare_struct<'a>(
         &mut self,
-        decl: &'a ast::StructDecl,
-        pending: &mut Vec<(StructId, &'a ast::StructDecl, usize)>,
+        decl: ast::StructSource<'a>,
+        pending: &mut Vec<(StructId, ast::StructSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
         owner: Option<Owner>,

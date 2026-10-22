@@ -32,19 +32,22 @@ fn synthetic_declaration(declaration: Decl) -> Decl {
                         None
                     }
                     ast::StructMember::Function(method) => {
-                        Some(synthetic_function(*method, Some(&value.name.text)))
+                        Some(synthetic_function(*method, Some(&value.header.name.text)))
                     }
                     ast::StructMember::Companion(_) => None,
                     _ => panic!("numeric core only declares methods and a companion"),
                 })
                 .collect();
-            let Decl::Struct(mut result) =
-                struct_decl_full(&value.name.text, Vec::new(), vec!["ToString"], methods)
-            else {
+            let Decl::Struct(mut result) = struct_decl_full(
+                &value.header.name.text,
+                Vec::new(),
+                vec!["ToString"],
+                methods,
+            ) else {
                 unreachable!()
             };
-            result.annotations = synthetic_annotations(value.annotations);
-            result.fields = value.fields;
+            result.annotations = synthetic_annotations(value.header.annotations);
+            result.fields = value.header.fields;
             Decl::Struct(result)
         }
         Decl::Function(value) => Decl::Function(synthetic_function(value, None)),

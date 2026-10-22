@@ -3,7 +3,7 @@ use super::*;
 pub(crate) struct NestedDeclarationQueues<'queues, 'source> {
     pub(crate) annotations:
         &'queues mut Vec<(&'source ast::AnnotationClassDecl, usize, Option<Owner>)>,
-    pub(crate) structs: &'queues mut Vec<(StructId, &'source ast::StructDecl, usize)>,
+    pub(crate) structs: &'queues mut Vec<(StructId, ast::StructSource<'source>, usize)>,
     pub(crate) enums: &'queues mut Vec<(EnumId, &'source ast::EnumDecl, usize)>,
     pub(crate) classes: &'queues mut Vec<(ClassId, ast::ClassSource<'source>, usize)>,
     pub(crate) interfaces: &'queues mut Vec<(InterfaceId, &'source ast::InterfaceDecl, usize)>,
@@ -47,29 +47,19 @@ impl Lowerer {
                 | ast::ClassMember::Function(_) => {}
             }
         }
-        for nested in declaration.recovered_classes {
-            let source = nested.source();
-            if let Some(id) = self.declare_class(
-                source,
-                self.source_is_core(file),
-                queues.classes,
-                queues.methods,
-                file,
-                Some(owner),
-            ) {
-                self.declare_class_nested(Owner::Class(id), source, queues, file);
-            }
+        for nested in &declaration.recovery.nested {
+            self.declare_recovered_nested_nominal(owner, nested, queues, file);
         }
     }
 
     pub(crate) fn declare_struct_nested<'a>(
         &mut self,
         owner: Owner,
-        declaration: &'a ast::StructDecl,
+        declaration: ast::StructSource<'a>,
         queues: &mut NestedDeclarationQueues<'_, 'a>,
         file: usize,
     ) {
-        for member in &declaration.members {
+        for member in declaration.members {
             match member {
                 ast::StructMember::Nested(nested) => {
                     self.declare_nested_nominal(owner, nested, queues, file)
@@ -94,6 +84,9 @@ impl Lowerer {
                 | ast::StructMember::Function(_)
                 | ast::StructMember::Property(_) => {}
             }
+        }
+        for nested in &declaration.recovery.nested {
+            self.declare_recovered_nested_nominal(owner, nested, queues, file);
         }
     }
 
@@ -198,10 +191,14 @@ impl Lowerer {
                 queues.annotations.push((source, file, Some(owner)))
             }
             ast::NestedTypeDecl::Struct(source) => {
-                if let Some(id) =
-                    self.declare_struct(source, queues.structs, queues.methods, file, Some(owner))
-                {
-                    self.declare_struct_nested(Owner::Struct(id), source, queues, file);
+                if let Some(id) = self.declare_struct(
+                    source.source(),
+                    queues.structs,
+                    queues.methods,
+                    file,
+                    Some(owner),
+                ) {
+                    self.declare_struct_nested(Owner::Struct(id), source.source(), queues, file);
                 }
             }
             ast::NestedTypeDecl::Enum(source) => {
@@ -249,6 +246,38 @@ impl Lowerer {
                         queues,
                         file,
                     );
+                }
+            }
+        }
+    }
+
+    fn declare_recovered_nested_nominal<'a>(
+        &mut self,
+        owner: Owner,
+        declaration: &'a ast::RecoveredNominal,
+        queues: &mut NestedDeclarationQueues<'_, 'a>,
+        file: usize,
+    ) {
+        match declaration {
+            ast::RecoveredNominal::Class(declaration) => {
+                let source = declaration.source();
+                if let Some(id) = self.declare_class(
+                    source,
+                    self.source_is_core(file),
+                    queues.classes,
+                    queues.methods,
+                    file,
+                    Some(owner),
+                ) {
+                    self.declare_class_nested(Owner::Class(id), source, queues, file);
+                }
+            }
+            ast::RecoveredNominal::Struct(declaration) => {
+                let source = declaration.source();
+                if let Some(id) =
+                    self.declare_struct(source, queues.structs, queues.methods, file, Some(owner))
+                {
+                    self.declare_struct_nested(Owner::Struct(id), source, queues, file);
                 }
             }
         }

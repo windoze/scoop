@@ -1,7 +1,11 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn document_struct_primary(&mut self, id: hir::StructId, source: &ast::StructDecl) {
+    pub(super) fn document_struct_primary(
+        &mut self,
+        id: hir::StructId,
+        source: ast::StructSource<'_>,
+    ) {
         let constructor = self.structs[id].constructors.iter().copied().find(|id| {
             matches!(
                 self.struct_constructors[*id].kind,

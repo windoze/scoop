@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn document_struct(&mut self, id: hir::StructId, source: &ast::StructDecl) {
+    pub(crate) fn document_struct(&mut self, id: hir::StructId, source: ast::StructSource<'_>) {
         if self.documentation.is_none() {
             return;
         }

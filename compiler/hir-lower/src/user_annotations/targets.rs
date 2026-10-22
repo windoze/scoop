@@ -5,7 +5,7 @@ impl Lowerer {
     pub(crate) fn annotate_struct(
         &mut self,
         id: hir::StructId,
-        source: &ast::StructDecl,
+        source: ast::StructSource<'_>,
         file: usize,
     ) {
         let owner = Owner::Struct(id);
@@ -52,7 +52,7 @@ impl Lowerer {
             }
         }
         self.annotate_struct_constructors(id, source);
-        for member in &source.members {
+        for member in source.members {
             if let ast::StructMember::Property(property) = member {
                 self.annotate_property_declaration(property, file);
             }

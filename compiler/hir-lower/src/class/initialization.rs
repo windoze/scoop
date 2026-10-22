@@ -15,7 +15,7 @@ impl Lowerer {
     pub(crate) fn lower_constructor_initialization(
         &mut self,
         classes: &[(ClassId, ast::ClassSource<'_>, usize)],
-        structs: &[(hir::StructId, &ast::StructDecl, usize)],
+        structs: &[(hir::StructId, ast::StructSource<'_>, usize)],
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         for &(class, declaration, file) in classes {
@@ -201,7 +201,7 @@ impl Lowerer {
     fn lower_struct_constructor_bodies(
         &mut self,
         owner: hir::StructId,
-        declaration: &ast::StructDecl,
+        declaration: ast::StructSource<'_>,
     ) {
         if !matches!(
             self.structs[owner].representation,

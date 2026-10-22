@@ -37,8 +37,7 @@ impl ClassDecl {
         ClassSource {
             header: &self.header,
             members: &self.members,
-            recovered_methods: &[],
-            recovered_classes: &[],
+            recovery: crate::RecoveredNominalMembers::EMPTY,
             span: self.span,
         }
     }
@@ -71,8 +70,7 @@ impl std::ops::DerefMut for ClassDecl {
 pub struct ClassSource<'a> {
     pub header: &'a ClassHeader,
     pub members: &'a [ClassMember],
-    pub recovered_methods: &'a [crate::RecoveredMethod],
-    pub recovered_classes: &'a [crate::RecoveredClass],
+    pub recovery: &'a crate::RecoveredNominalMembers,
     pub span: Span,
 }
 

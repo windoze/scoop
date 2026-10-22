@@ -114,8 +114,8 @@ impl Lowerer {
                         .members
                         .iter()
                         .map(ast::ClassMember::span)
-                        .chain(decl.recovered_methods.iter().map(|method| method.span))
-                        .chain(decl.recovered_classes.iter().map(|class| class.span));
+                        .chain(decl.recovery.methods.iter().map(|method| method.span))
+                        .chain(decl.recovery.nested.iter().map(ast::RecoveredNominal::span));
                     for span in member_spans {
                         self.error(
                             span,
