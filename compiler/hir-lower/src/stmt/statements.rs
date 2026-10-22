@@ -281,7 +281,7 @@ impl Lowerer {
     }
 
     /// `if` / `while` conditions must be `Boolean`.
-    pub(super) fn lower_condition(
+    pub(crate) fn lower_condition(
         &mut self,
         cond: &ast::Expr,
         keyword: &str,

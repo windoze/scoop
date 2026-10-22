@@ -1,6 +1,9 @@
 use scoop_ast::{self as ast, DeclarationFragment, RecoveredReceiver, RecoveredStatement};
 use scoop_parser::{ParsedFile, parse_recovering};
 
+#[path = "recovered_bodies/conditionals.rs"]
+mod conditionals;
+
 fn body<'a>(parsed: &'a ParsedFile, name: &str) -> &'a ast::RecoveredFunctionBody {
     parsed
         .declaration_data()
@@ -248,6 +251,7 @@ fn unfinished_operands_retain_real_statement_entries_and_complete_headers() {
                 assert_eq!(label.as_ref().unwrap().text, "editing")
             }
             ast::RecoveredOperandContext::Throw => assert_eq!(keyword, "throw"),
+            ast::RecoveredOperandContext::IfCondition => panic!("not an if condition"),
         }
         assert_eq!(parsed.syntax().text().to_string(), text);
     }

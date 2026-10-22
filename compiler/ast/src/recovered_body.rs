@@ -60,6 +60,7 @@ pub enum RecoveredOperandContext {
         label: Option<crate::Ident>,
     },
     Throw,
+    IfCondition,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -70,6 +71,27 @@ pub struct RecoveredOperand {
     pub context: RecoveredOperandContext,
 }
 
+/// A control body has a lexical scope even without an opening brace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecoveredControlBody {
+    Block(BodyBlockId),
+    Statement(u32),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RecoveredIfBranch {
+    pub on_true: bool,
+    pub body: RecoveredControlBody,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecoveredIf {
+    pub block: Option<BodyBlockId>,
+    pub start: u32,
+    pub condition: Box<Expr>,
+    pub branches: Vec<RecoveredIfBranch>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RecoveredFunctionBody {
     pub root: RecoveredBodyRoot,
@@ -77,4 +99,5 @@ pub struct RecoveredFunctionBody {
     pub selectors: Vec<RecoveredSelector>,
     pub calls: Vec<crate::RecoveredCall>,
     pub operands: Vec<RecoveredOperand>,
+    pub conditionals: Vec<RecoveredIf>,
 }

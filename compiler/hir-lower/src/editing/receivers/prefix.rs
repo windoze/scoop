@@ -1,5 +1,7 @@
 use super::*;
 
+mod conditionals;
+
 impl Lowerer {
     pub(super) fn check_recovered_facts(
         &mut self,
@@ -134,6 +136,14 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         }) {
             return self.block(lowerer, child.id, available);
         }
+        if let Some(conditional) = self
+            .body
+            .conditionals
+            .iter()
+            .find(|conditional| conditional.block == block && conditional.start == start)
+        {
+            return self.conditional(lowerer, conditional, available);
+        }
         Ok(())
     }
 
@@ -153,7 +163,7 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
                     )
                     .is_some()
             }
-            ast::RecoveredOperandContext::Throw => true,
+            ast::RecoveredOperandContext::Throw | ast::RecoveredOperandContext::IfCondition => true,
         }
     }
 }

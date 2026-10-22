@@ -1,65 +1,15 @@
 //! Structured conditional, loop, pattern dispatch, and exception syntax.
 
 use scoop_ast::{
-    Block, CatchClause, Diagnostic, Expr, For, If, Span, Statement, StatementKind, Try, While,
+    Block, CatchClause, Diagnostic, Expr, For, Span, Statement, StatementKind, Try, While,
 };
 
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
 
+mod conditionals;
+
 impl Parser {
-    /// Parenthesized condition followed by scoped block or statement bodies.
-    /// Recursing through the body binds `else` to the nearest unmatched `if`.
-    pub(super) fn parse_if(&mut self) -> Result<Statement, Diagnostic> {
-        let if_ = self.parse_if_node()?;
-        Ok(Statement {
-            span: if_.span,
-            kind: StatementKind::If(if_),
-        })
-    }
-
-    pub(crate) fn parse_if_expression(&mut self) -> Result<Expr, Diagnostic> {
-        Ok(Expr::If(Box::new(self.parse_if_node()?)))
-    }
-
-    fn parse_if_node(&mut self) -> Result<If, Diagnostic> {
-        self.with_node(scoop_syntax::SyntaxKind::IfExpr, |parser| {
-            parser.parse_if_node_inner()
-        })
-    }
-
-    fn parse_if_node_inner(&mut self) -> Result<If, Diagnostic> {
-        let keyword = self.bump(); // `if`
-        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        let cond = self.parse_expr()?;
-        self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        let then_block = self.parse_control_body()?;
-        let mut end = then_block.span.end;
-        let after_separator = self.tokens[self.pos..]
-            .iter()
-            .position(|token| !matches!(token.kind, TokenKind::Semicolon))
-            .map(|offset| self.pos + offset)
-            .expect("token stream ends in EOF");
-        if matches!(self.tokens[after_separator].kind, TokenKind::Else) {
-            self.pos = after_separator;
-        }
-        let else_block = if matches!(self.peek().kind, TokenKind::Else) {
-            self.bump();
-            let block = self.parse_control_body()?;
-            end = block.span.end;
-            Some(block)
-        } else {
-            None
-        };
-        let span = Span::new(keyword.span.start, end);
-        Ok(If {
-            cond,
-            then_block,
-            else_block,
-            span,
-        })
-    }
-
     pub(crate) fn parse_control_body(&mut self) -> Result<Block, Diagnostic> {
         if matches!(self.peek().kind, TokenKind::LBrace) {
             return self.parse_block();

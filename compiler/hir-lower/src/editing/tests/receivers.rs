@@ -112,7 +112,7 @@ fn failed_property_inference_does_not_expose_its_pending_type() {
 fn unknown_prefix_and_inner_scopes_do_not_reuse_outer_bindings() {
     for text in [
         "fun editing(value: Boolean) { val missing = ;\nvalue. }",
-        "fun editing(value: Boolean) { if (value) { value. } }",
+        "fun editing(value: Boolean) { if (check(,)) { value. } }",
         "fun editing(value: Boolean) { invoke { value -> value. } }",
         "fun editing(value: Boolean) = invoke { value -> value. }",
     ] {

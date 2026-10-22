@@ -25,6 +25,7 @@ pub(super) enum BodyEvent {
     },
     Call(Box<ast::RecoveredCall>),
     Operand(ast::RecoveredOperand),
+    If(Box<ast::RecoveredIf>),
     TrailingArgument {
         call: Span,
         argument: Box<ast::RecoveredCallArgument>,
@@ -48,11 +49,22 @@ struct BodyParts {
     selectors: Vec<ast::RecoveredSelector>,
     calls: Vec<ast::RecoveredCall>,
     operands: Vec<ast::RecoveredOperand>,
+    conditionals: Vec<ast::RecoveredIf>,
 }
 
 impl BodyRecorder {
     pub(super) fn record(&mut self, event: BodyEvent, function: Option<DeclarationIndex>) {
         match event {
+            BodyEvent::If(mut conditional) => {
+                if let Some(function) = function {
+                    conditional.block = self.block_for(function);
+                    self.functions
+                        .entry(function.0)
+                        .or_default()
+                        .conditionals
+                        .push(*conditional);
+                }
+            }
             BodyEvent::Operand(mut operand) => {
                 if let Some(function) = function {
                     operand.block = self.block_for(function);
@@ -161,6 +173,7 @@ impl BodyRecorder {
                         selectors: value.selectors,
                         calls: value.calls,
                         operands: value.operands,
+                        conditionals: value.conditionals,
                     },
                 })
             })
@@ -169,6 +182,12 @@ impl BodyRecorder {
 }
 
 impl Parser {
+    pub(crate) fn record_recovered_if(&mut self, conditional: ast::RecoveredIf) {
+        self.syntax
+            .events
+            .push(Event::Body(BodyEvent::If(Box::new(conditional))));
+    }
+
     pub(crate) fn record_function_body_root(&mut self, root: ast::RecoveredBodyRoot) {
         self.syntax
             .events
