@@ -2,16 +2,14 @@ use super::*;
 use ast::{Expr, RecoveredCallTarget as Target};
 
 impl Parser {
-    pub(crate) fn finish_recovered_call(
+    pub(crate) fn record_recovered_call(
         &mut self,
-        expression: Expr,
-        arguments: Option<ast::RecoveredCallArguments>,
+        expression: &Expr,
+        mut arguments: Option<ast::RecoveredCallArguments>,
         target_complete: bool,
-    ) -> Expr {
-        let Some(mut arguments) = arguments else {
-            return expression;
-        };
-        let (target, type_args) = match &expression {
+        mut trailing: Option<ast::RecoveredCallArgument>,
+    ) {
+        let (target, type_args) = match expression {
             Expr::Call(call) => (Target::Named(call.callee.clone()), &call.type_args),
             Expr::MethodCall {
                 receiver,
@@ -66,7 +64,11 @@ impl Parser {
             Target::Invoke(_) | Target::Unavailable(_) => None,
         };
         if let Some(label) = label {
-            for argument in &mut arguments.items {
+            for argument in arguments
+                .iter_mut()
+                .flat_map(|arguments| &mut arguments.items)
+                .chain(&mut trailing)
+            {
                 if let ast::RecoveredArgumentValue::Complete(expression) = &mut argument.value {
                     crate::expr::name_lambda(expression, label);
                 }
@@ -75,8 +77,19 @@ impl Parser {
         let target = if target_complete {
             target
         } else {
-            Target::Unavailable(Span::new(expression.span().start, arguments.opening.start))
+            let end = arguments
+                .as_ref()
+                .map(|arguments| arguments.opening.start)
+                .or_else(|| trailing.as_ref().map(|argument| argument.span.start))
+                .expect("a call has an argument list or an actual trailing input");
+            Target::Unavailable(Span::new(expression.span().start, end))
         };
+        let span = Span::new(
+            expression.span().start,
+            trailing
+                .as_ref()
+                .map_or(expression.span().end, |argument| argument.span.end),
+        );
         self.syntax
             .events
             .push(Event::Body(BodyEvent::Call(Box::new(ast::RecoveredCall {
@@ -84,35 +97,8 @@ impl Parser {
                 target,
                 type_args: type_args.clone(),
                 arguments,
-                trailing: None,
-                span: expression.span(),
+                trailing,
+                span,
             }))));
-        expression
-    }
-
-    pub(crate) fn record_recovered_trailing_argument(
-        &mut self,
-        call: Span,
-        expression: &Result<Expr, ast::Diagnostic>,
-        complete: bool,
-        span: Span,
-    ) {
-        let value = match expression {
-            Ok(expression) if complete => {
-                ast::RecoveredArgumentValue::Complete(Box::new(expression.clone()))
-            }
-            _ => ast::RecoveredArgumentValue::Unavailable(span),
-        };
-        self.syntax
-            .events
-            .push(Event::Body(BodyEvent::TrailingArgument {
-                call,
-                argument: Box::new(ast::RecoveredCallArgument {
-                    name: ast::CallArgumentName::TrailingLambda,
-                    spread: ast::SpreadSyntax::Plain,
-                    value,
-                    span,
-                }),
-            }));
     }
 }

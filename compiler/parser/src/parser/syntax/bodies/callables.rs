@@ -9,7 +9,12 @@ impl BodyParts {
             | ast::RecoveredCallTarget::QualifiedSuper { name, .. } => Some(name),
             ast::RecoveredCallTarget::Invoke(_) | ast::RecoveredCallTarget::Unavailable(_) => None,
         };
-        for argument in &mut call.arguments.items {
+        for argument in call
+            .arguments
+            .iter_mut()
+            .flat_map(|arguments| &mut arguments.items)
+            .chain(&mut call.trailing)
+        {
             let ast::RecoveredArgumentValue::Unavailable(span) = argument.value else {
                 continue;
             };

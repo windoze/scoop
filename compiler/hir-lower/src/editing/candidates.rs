@@ -41,16 +41,20 @@ pub(super) fn unavailable_call(call: &ast::RecoveredCall, reason: U) -> hir::Edi
     hir::EditingIncompleteCall {
         span: call.span,
         name,
-        opening: call.arguments.opening,
-        commas: call.arguments.commas.clone(),
-        arguments_end: call.arguments.end,
-        closed: call.arguments.closed,
-        argument_spans: call
+        arguments: call
             .arguments
-            .items
-            .iter()
-            .map(|argument| argument.span)
-            .collect(),
+            .as_ref()
+            .map(|arguments| hir::EditingIncompleteArguments {
+                opening: arguments.opening,
+                commas: arguments.commas.clone(),
+                end: arguments.end,
+                closed: arguments.closed,
+                spans: arguments
+                    .items
+                    .iter()
+                    .map(|argument| argument.span)
+                    .collect(),
+            }),
         trailing: call.trailing.as_ref().map(|argument| argument.span),
         candidates: V::Unavailable(reason),
     }
@@ -68,7 +72,10 @@ fn call_name(call: &ast::RecoveredCall) -> Option<&ast::Ident> {
 }
 
 fn arguments(call: &ast::RecoveredCall) -> impl Iterator<Item = &ast::RecoveredCallArgument> {
-    call.arguments.items.iter().chain(&call.trailing)
+    call.arguments
+        .iter()
+        .flat_map(|arguments| &arguments.items)
+        .chain(&call.trailing)
 }
 
 #[derive(Default)]

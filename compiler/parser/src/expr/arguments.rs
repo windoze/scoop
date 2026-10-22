@@ -5,6 +5,7 @@ pub(super) struct ParsedArguments {
     pub(super) args: Vec<CallArgument>,
     pub(super) end: u32,
     pub(super) recovery: Option<RecoveredCallArguments>,
+    pub(super) complete: bool,
 }
 
 enum ArgumentSlot {
@@ -35,33 +36,36 @@ impl Parser {
             parsed_count += usize::from(argument.is_ok());
             argument
         });
-        let recovery = (!self.fragment_is_complete(checkpoint)).then(|| RecoveredCallArguments {
-            opening,
-            commas: parsed.commas,
-            end: parsed.end,
-            closed: parsed.closed,
-            items: slots
-                .into_iter()
-                .map(|slot| match slot {
-                    ArgumentSlot::Complete(index) => {
-                        let argument = &parsed.items[index];
-                        RecoveredCallArgument {
-                            name: argument.name.clone(),
-                            spread: argument.spread,
-                            span: argument.span,
-                            value: RecoveredArgumentValue::Complete(Box::new(
-                                argument.expression.clone(),
-                            )),
+        let complete = self.fragment_is_complete(checkpoint);
+        let recovery =
+            (!complete || self.starts_trailing_lambda()).then(|| RecoveredCallArguments {
+                opening,
+                commas: parsed.commas,
+                end: parsed.end,
+                closed: parsed.closed,
+                items: slots
+                    .into_iter()
+                    .map(|slot| match slot {
+                        ArgumentSlot::Complete(index) => {
+                            let argument = &parsed.items[index];
+                            RecoveredCallArgument {
+                                name: argument.name.clone(),
+                                spread: argument.spread,
+                                span: argument.span,
+                                value: RecoveredArgumentValue::Complete(Box::new(
+                                    argument.expression.clone(),
+                                )),
+                            }
                         }
-                    }
-                    ArgumentSlot::Unavailable(argument) => argument,
-                })
-                .collect(),
-        });
+                        ArgumentSlot::Unavailable(argument) => argument,
+                    })
+                    .collect(),
+            });
         Ok(ParsedArguments {
             args: parsed.items,
             end: parsed.end,
             recovery,
+            complete,
         })
     }
 

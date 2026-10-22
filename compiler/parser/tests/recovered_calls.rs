@@ -6,6 +6,8 @@ use scoop_parser::{ParsedFile, parse_recovering};
 
 #[path = "recovered_calls/callables.rs"]
 mod callables;
+#[path = "recovered_calls/trailing.rs"]
+mod trailing;
 
 fn body<'a>(parsed: &'a ParsedFile, name: &str) -> &'a ast::RecoveredFunctionBody {
     parsed
@@ -37,7 +39,7 @@ fn failed_arguments_keep_source_slots_names_spreads_and_real_separators() {
     let call = &body.calls[0];
     assert!(matches!(&call.target, Target::Named(name) if name.text == "call"));
     assert_eq!(call.block, Some(body.blocks[0].id));
-    let arguments = &call.arguments;
+    let arguments = &call.arguments.as_ref().unwrap();
     assert_eq!(source(text, arguments.opening), "(");
     assert!(arguments.closed);
     assert_eq!(arguments.commas.len(), 3);
@@ -77,9 +79,9 @@ fn empty_slots_and_eof_remain_distinct_from_omitted_arguments() {
         let body = body(&parsed, "editing");
         let call = &body.calls[0];
         assert_eq!(call.block, None);
-        assert_eq!(call.arguments.closed, closed);
-        assert_eq!(call.arguments.items.len(), count);
-        assert_eq!(call.arguments.end as usize, text.len());
+        assert_eq!(call.arguments.as_ref().unwrap().closed, closed);
+        assert_eq!(call.arguments.as_ref().unwrap().items.len(), count);
+        assert_eq!(call.arguments.as_ref().unwrap().end as usize, text.len());
         assert_eq!(parsed.syntax().text().to_string(), text);
     }
 }
@@ -88,7 +90,10 @@ fn empty_slots_and_eof_remain_distinct_from_omitted_arguments() {
 fn a_missing_comma_does_not_invent_a_separator_or_remove_complete_inputs() {
     let text = "fun editing() = call(true\nfalse)";
     let parsed = parse_recovering(text).unwrap();
-    let arguments = &body(&parsed, "editing").calls[0].arguments;
+    let arguments = &body(&parsed, "editing").calls[0]
+        .arguments
+        .as_ref()
+        .unwrap();
     assert!(arguments.commas.is_empty());
     assert_eq!(arguments.items.len(), 2);
     assert!(
@@ -111,10 +116,13 @@ fn nested_errors_never_become_complete_outer_arguments_or_receivers() {
         .find(|call| matches!(&call.target, Target::Named(name) if name.text == "outer"))
         .unwrap();
     assert!(matches!(
-        outer.arguments.items[0].value,
+        outer.arguments.as_ref().unwrap().items[0].value,
         Value::Unavailable(_)
     ));
-    assert!(matches!(outer.arguments.items[1].value, Value::Complete(_)));
+    assert!(matches!(
+        outer.arguments.as_ref().unwrap().items[1].value,
+        Value::Complete(_)
+    ));
     assert!(matches!(
         calls.last().unwrap().target,
         Target::Unavailable(_)
@@ -163,7 +171,7 @@ fn call_forms_and_unicode_positions_follow_the_original_grammar() {
             }
             _ => panic!("wrong call form: {:?}", call.target),
         }
-        assert_eq!(source(text, call.arguments.opening), "(");
+        assert_eq!(source(text, call.arguments.as_ref().unwrap().opening), "(");
         assert_eq!(parsed.syntax().text().to_string(), text);
     }
 }
@@ -174,10 +182,13 @@ fn lexical_errors_do_not_expose_a_complete_argument() {
     let parsed = parse_recovering(text).unwrap();
     let call = &body(&parsed, "editing").calls[0];
     assert!(matches!(
-        call.arguments.items[0].value,
+        call.arguments.as_ref().unwrap().items[0].value,
         Value::Unavailable(_)
     ));
-    assert!(matches!(call.arguments.items[1].value, Value::Complete(_)));
+    assert!(matches!(
+        call.arguments.as_ref().unwrap().items[1].value,
+        Value::Complete(_)
+    ));
 }
 
 #[test]
@@ -213,7 +224,7 @@ fn recovered_calls_keep_complete_and_damaged_trailing_lambdas() {
                 matches!(expression.as_ref(), ast::Expr::Lambda { label: Some(label), .. } if label.text == "call")
             );
         }
-        assert!(trailing.span.start > call.arguments.end);
+        assert!(trailing.span.start > call.arguments.as_ref().unwrap().end);
         assert_eq!(call.span.end, trailing.span.end);
         assert_eq!(call.span.end as usize, text.len());
         assert_eq!(
@@ -231,7 +242,12 @@ fn recovered_calls_keep_complete_and_damaged_trailing_lambdas() {
 fn complete_lambda_arguments_keep_the_ordinary_implicit_call_label() {
     let text = "fun editing() = call({ return@call true }, )";
     let parsed = parse_recovering(text).unwrap();
-    let Value::Complete(expression) = &body(&parsed, "editing").calls[0].arguments.items[0].value
+    let Value::Complete(expression) = &body(&parsed, "editing").calls[0]
+        .arguments
+        .as_ref()
+        .unwrap()
+        .items[0]
+        .value
     else {
         panic!("complete lambda input")
     };

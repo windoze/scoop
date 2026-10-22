@@ -169,6 +169,7 @@ impl Parser {
             args,
             end,
             recovery,
+            complete: arguments_complete,
         } = self.parse_call_inputs()?;
         let expression = Expr::SuperMethodCall {
             super_span,
@@ -177,7 +178,7 @@ impl Parser {
             args,
             span: Span::new(super_span.start, end),
         };
-        Ok(self.finish_recovered_call(expression, recovery, complete))
+        self.finish_recovered_call(expression, recovery, complete, arguments_complete)
     }
 
     fn parse_qualified_interface_super(&mut self, super_span: Span) -> Result<Expr, Diagnostic> {
@@ -198,6 +199,7 @@ impl Parser {
                 args,
                 end,
                 recovery,
+                complete: arguments_complete,
             } = self.parse_call_inputs()?;
             let expression = Expr::QualifiedInterfaceSuperMethodCall {
                 super_span,
@@ -207,7 +209,7 @@ impl Parser {
                 args,
                 span: Span::new(super_span.start, end),
             };
-            return Ok(self.finish_recovered_call(expression, recovery, complete));
+            return self.finish_recovered_call(expression, recovery, complete, arguments_complete);
         }
         if !type_args.is_empty() {
             return Err(Diagnostic::at(
@@ -258,6 +260,7 @@ impl Parser {
             args,
             end,
             recovery,
+            complete: arguments_complete,
         } = self.parse_call_inputs()?;
         let span = Span::new(callee.span.start, end);
         let expression = Expr::Call(CallExpr {
@@ -266,7 +269,7 @@ impl Parser {
             args,
             span,
         });
-        Ok(self.finish_recovered_call(expression, recovery, complete))
+        self.finish_recovered_call(expression, recovery, complete, arguments_complete)
     }
 
     /// Parse `<T, ...>` only when followed by a call argument list or

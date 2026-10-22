@@ -130,7 +130,15 @@ mod tests {
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(syntax.bodies.len(), 1);
         assert_eq!(syntax.bodies[0].value.calls.len(), 1);
-        assert_eq!(syntax.bodies[0].value.calls[0].arguments.items.len(), 2);
+        assert_eq!(
+            syntax.bodies[0].value.calls[0]
+                .arguments
+                .as_ref()
+                .unwrap()
+                .items
+                .len(),
+            2
+        );
     }
 
     #[test]

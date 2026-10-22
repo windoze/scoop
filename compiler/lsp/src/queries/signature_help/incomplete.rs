@@ -91,8 +91,10 @@ fn contains(call: &hir::EditingIncompleteCall, offset: u32) -> bool {
     {
         return true;
     }
-    let end = call.arguments_end - u32::from(call.closed);
-    call.opening.end <= offset && offset <= end
+    call.arguments.as_ref().is_some_and(|arguments| {
+        let end = arguments.end - u32::from(arguments.closed);
+        arguments.opening.end <= offset && offset <= end
+    })
 }
 
 fn active_parameter(
@@ -106,10 +108,16 @@ fn active_parameter(
     {
         return candidate
             .source_parameters
-            .get(call.argument_spans.len())
+            .get(
+                call.arguments
+                    .as_ref()
+                    .map_or(0, |arguments| arguments.spans.len()),
+            )
             .copied();
     }
     let slot = call
+        .arguments
+        .as_ref()?
         .commas
         .iter()
         .filter(|comma| comma.end <= offset)

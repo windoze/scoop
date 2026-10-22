@@ -41,6 +41,7 @@ impl Parser {
                         args,
                         end,
                         recovery,
+                        complete: arguments_complete,
                     } = self.parse_call_inputs()?;
                     let expression = Expr::Invoke {
                         callee: Box::new(receiver),
@@ -48,7 +49,12 @@ impl Parser {
                         args,
                         span: Span::new(start, end),
                     };
-                    receiver = self.finish_recovered_call(expression, recovery, complete);
+                    receiver = self.finish_recovered_call(
+                        expression,
+                        recovery,
+                        complete,
+                        arguments_complete,
+                    )?;
                 }
                 TokenKind::LBrace
                 | TokenKind::Suspend
@@ -57,8 +63,9 @@ impl Parser {
                     if self.starts_trailing_lambda()
                         && !matches!(receiver, Expr::Return { .. } | Expr::Throw { .. }) =>
                 {
-                    let recovered_prefix = !self.fragment_is_complete(checkpoint);
-                    receiver = self.parse_trailing_lambda(receiver, grouped, recovered_prefix)?;
+                    let target_complete = self.fragment_is_complete(checkpoint);
+                    receiver =
+                        self.parse_trailing_lambda(receiver, grouped, target_complete, true, None)?;
                 }
                 // A `[` immediately after the receiver (their spans touch)
                 // is subscript postfix; otherwise it starts a new array
@@ -82,6 +89,7 @@ impl Parser {
                         args,
                         end,
                         recovery,
+                        complete: arguments_complete,
                     } = self.parse_call_inputs()?;
                     let expression = Expr::Invoke {
                         callee: Box::new(receiver),
@@ -89,7 +97,12 @@ impl Parser {
                         args,
                         span: Span::new(start, end),
                     };
-                    receiver = self.finish_recovered_call(expression, recovery, complete);
+                    receiver = self.finish_recovered_call(
+                        expression,
+                        recovery,
+                        complete,
+                        arguments_complete,
+                    )?;
                 }
                 // `a!!` lexes as two adjacent `Bang` tokens — a single
                 // `!!` token would break the double negation `!!flag`,
@@ -183,6 +196,7 @@ impl Parser {
                 args,
                 end,
                 recovery,
+                complete: arguments_complete,
             } = self.parse_call_inputs()?;
             let expression = Expr::MethodCall {
                 span: Span::new(receiver.span().start, end),
@@ -196,7 +210,7 @@ impl Parser {
                 type_args,
                 args,
             };
-            return Ok(self.finish_recovered_call(expression, recovery, complete));
+            return self.finish_recovered_call(expression, recovery, complete, arguments_complete);
         }
         Ok(Expr::FieldAccess(FieldAccess {
             span: Span::new(receiver.span().start, token.span.end),

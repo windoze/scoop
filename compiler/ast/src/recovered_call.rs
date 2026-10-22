@@ -55,7 +55,7 @@ pub struct RecoveredCall {
     pub block: Option<BodyBlockId>,
     pub target: RecoveredCallTarget,
     pub type_args: Vec<CallTypeArgument>,
-    pub arguments: RecoveredCallArguments,
+    pub arguments: Option<RecoveredCallArguments>,
     pub trailing: Option<RecoveredCallArgument>,
     pub span: Span,
 }

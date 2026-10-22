@@ -38,6 +38,7 @@ mod recovered_objects;
 mod recovered_structs;
 mod references;
 mod selectors;
+mod trailing_callables;
 mod type_definitions;
 mod type_implementations;
 mod types;

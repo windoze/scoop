@@ -8,9 +8,12 @@ fn callable_argument_slots_reference_their_actual_header_and_body() {
     let [call] = body.calls.as_slice() else {
         panic!("one call")
     };
-    assert!(matches!(call.arguments.items[0].value, Value::Complete(_)));
+    assert!(matches!(
+        call.arguments.as_ref().unwrap().items[0].value,
+        Value::Complete(_)
+    ));
     assert_eq!(body.callable_literals.len(), 2);
-    for argument in &call.arguments.items[1..] {
+    for argument in &call.arguments.as_ref().unwrap().items[1..] {
         let Value::CallableLiteral(id) = argument.value else {
             panic!("actual callable argument: {argument:?}")
         };
@@ -29,7 +32,7 @@ fn callable_argument_slots_reference_their_actual_header_and_body() {
         );
     }
     assert!(
-        matches!(&call.arguments.items[1].name, ast::CallArgumentName::Named(name) if name.text == "参数")
+        matches!(&call.arguments.as_ref().unwrap().items[1].name, ast::CallArgumentName::Named(name) if name.text == "参数")
     );
     assert_eq!(
         body.callable_literals[0].label.as_ref().unwrap().text,
@@ -53,7 +56,7 @@ fn explicit_labels_take_precedence_over_named_call_labels() {
         let parsed = parse_recovering(&text).unwrap();
         let body = body(&parsed, "editing");
         assert!(matches!(
-            body.calls[0].arguments.items[0].value,
+            body.calls[0].arguments.as_ref().unwrap().items[0].value,
             Value::CallableLiteral(_)
         ));
         assert_eq!(
@@ -73,9 +76,9 @@ fn an_unclosed_callable_argument_keeps_its_source_slot_at_eof() {
     let parsed = parse_recovering(text).unwrap();
     let body = body(&parsed, "editing");
     let call = &body.calls[0];
-    assert!(!call.arguments.closed);
-    assert_eq!(call.arguments.items.len(), 2);
-    let Value::CallableLiteral(id) = call.arguments.items[1].value else {
+    assert!(!call.arguments.as_ref().unwrap().closed);
+    assert_eq!(call.arguments.as_ref().unwrap().items.len(), 2);
+    let Value::CallableLiteral(id) = call.arguments.as_ref().unwrap().items[1].value else {
         panic!("literal at EOF")
     };
     let literal = &body.callable_literals[0];
@@ -89,7 +92,7 @@ fn an_unclosed_callable_argument_keeps_its_source_slot_at_eof() {
             .unwrap()
             .closed
     );
-    assert_eq!(call.arguments.end as usize, text.len());
+    assert_eq!(call.arguments.as_ref().unwrap().end as usize, text.len());
 }
 
 #[test]
@@ -99,7 +102,7 @@ fn nested_call_arguments_keep_separate_literal_associations() {
     let body = body(&parsed, "editing");
     assert_eq!(body.calls.len(), 2);
     for call in &body.calls {
-        let Value::CallableLiteral(id) = call.arguments.items[0].value else {
+        let Value::CallableLiteral(id) = call.arguments.as_ref().unwrap().items[0].value else {
             panic!("nested literal")
         };
         let literal = body
@@ -128,7 +131,10 @@ fn complete_literals_and_invalid_headers_do_not_create_callable_recovery_slots()
         let body = body(&parsed, "editing");
         assert!(body.callable_literals.is_empty(), "{text}");
         assert_eq!(
-            matches!(body.calls[0].arguments.items[0].value, Value::Complete(_)),
+            matches!(
+                body.calls[0].arguments.as_ref().unwrap().items[0].value,
+                Value::Complete(_)
+            ),
             complete,
             "{text}"
         );

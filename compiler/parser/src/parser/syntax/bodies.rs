@@ -37,10 +37,6 @@ pub(super) enum BodyEvent {
         start: u32,
         label: ast::Ident,
     },
-    TrailingArgument {
-        call: Span,
-        argument: Box<ast::RecoveredCallArgument>,
-    },
 }
 
 #[derive(Default)]
@@ -163,19 +159,6 @@ impl BodyRecorder {
                         .or_default()
                         .operands
                         .push(operand);
-                }
-            }
-            BodyEvent::TrailingArgument { call, argument } => {
-                if let Some(parts) =
-                    function.and_then(|function| self.functions.get_mut(&function.0))
-                    && let Some(target) = parts
-                        .calls
-                        .iter_mut()
-                        .rev()
-                        .find(|target| target.span == call)
-                {
-                    target.span.end = argument.span.end;
-                    target.trailing = Some(*argument);
                 }
             }
             BodyEvent::Call(mut call) => {

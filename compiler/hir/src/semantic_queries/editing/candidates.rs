@@ -5,13 +5,19 @@ use super::*;
 pub struct EditingIncompleteCall {
     pub span: Span,
     pub name: Option<String>,
-    pub opening: Span,
-    pub commas: Vec<Span>,
-    pub arguments_end: u32,
-    pub closed: bool,
-    pub argument_spans: Vec<Span>,
+    pub arguments: Option<EditingIncompleteArguments>,
     pub trailing: Option<Span>,
     pub candidates: EditingValue<Vec<EditingCallCandidate>>,
+}
+
+/// Actual parenthesized inputs, absent for calls with only a trailing lambda.
+#[derive(Clone, Debug)]
+pub struct EditingIncompleteArguments {
+    pub opening: Span,
+    pub commas: Vec<Span>,
+    pub end: u32,
+    pub closed: bool,
+    pub spans: Vec<Span>,
 }
 
 /// A candidate's signature display and actual supplied argument bindings.

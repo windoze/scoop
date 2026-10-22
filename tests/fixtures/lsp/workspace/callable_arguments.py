@@ -17,6 +17,15 @@ def check(peer, root):
         "fun argumentCapture(value: String) { argumentWith(true, { value. }) }\n"
         "fun argumentUncertain(value: Boolean) { argumentAmbiguous({ value -> value. }) }\n"
         "fun argumentUnknown(value: Boolean) { argumentMap(, { value -> value. }) }\n"
+        "fun trailingUse(block: (String) -> Boolean) {}\n"
+        'fun trailingHover() { argumentMap("known") { 参数 -> return@argumentMap 参数. } }\n'
+        'fun trailingSignature() { argumentMap("known") { 参数 -> argumentChoice(参数, } }\n'
+        "fun trailingOnly() { trailingUse { 参数 -> 参数. } }\n"
+        'fun trailingReceiver() { argumentWith("receiver") { this. } }\n'
+        "fun trailingUncertain(value: Boolean) { argumentAmbiguous { value -> value. } }\n"
+        "fun trailingUnknown(value: Boolean) { argumentMap(,) { value -> value. } }\n"
+        "fun argumentFactory(): ((String) -> Boolean) -> Boolean = { true }\n"
+        "fun trailingGrouped() { (argumentFactory()) { 参数 -> 参数. } }\n"
     )
     path.write_text(source)
     uri = path.as_uri()
@@ -35,19 +44,24 @@ def check(peer, root):
         )
 
     def check_type(expected):
-        hover = query("textDocument/hover", 6, "参数.")
-        assert hover["contents"]["value"] == f"参数: {expected}", hover
-        signature = query("textDocument/signatureHelp", 7, ",", after=True)
-        assert signature and len(signature["signatures"]) == 1, signature
-        assert signature["signatures"][0]["parameters"][0]["label"] == f"value: {expected}", (
-            signature
-        )
+        for line in [6, 14]:
+            hover = query("textDocument/hover", line, "参数.")
+            assert hover["contents"]["value"] == f"参数: {expected}", hover
+        for line in [7, 15]:
+            signature = query("textDocument/signatureHelp", line, ",", after=True)
+            assert signature and len(signature["signatures"]) == 1, signature
+            assert signature["signatures"][0]["parameters"][0]["label"] == f"value: {expected}", (
+                signature
+            )
 
     check_type("String")
     for line, marker, definition_marker in [
         (6, "参数.", "参数 ->"),
         (8, "value.", "value:"),
         (10, "value.", "value:"),
+        (14, "参数.", "参数 ->"),
+        (16, "参数.", "参数 ->"),
+        (21, "参数.", "参数 ->"),
     ]:
         definition = query("textDocument/definition", line, marker)
         assert definition["uri"] == uri, definition
@@ -61,10 +75,17 @@ def check(peer, root):
         (8, "value.", "value: String"),
         (9, "this.", "String"),
         (10, "value.", "value: String"),
+        (16, "参数.", "参数: String"),
+        (17, "this.", "String"),
+        (21, "参数.", "参数: String"),
     ]:
         hover = query("textDocument/hover", line, marker)
         assert hover["contents"]["value"] == expected, hover
-    for line in [11, 12]:
+    for line, active in [(14, 1), (16, 0), (21, 0)]:
+        signature = query("textDocument/signatureHelp", line, "参数 ->")
+        assert signature and len(signature["signatures"]) == 1, signature
+        assert signature["signatures"][0]["activeParameter"] == active, signature
+    for line in [11, 12, 18, 19]:
         assert query("textDocument/hover", line, "value.") is None
     disk_source = source
     source = source.replace('"known"', "true")
