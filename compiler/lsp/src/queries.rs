@@ -13,6 +13,7 @@ pub(crate) mod code_actions;
 mod completion;
 mod definition;
 mod hover;
+mod references;
 mod semantic;
 mod signature_help;
 mod symbols;
@@ -20,6 +21,7 @@ mod workspace_symbols;
 pub(crate) use completion::completion;
 pub(crate) use definition::definition;
 pub(crate) use hover::hover;
+pub(crate) use references::references;
 pub(crate) use semantic::cancelled;
 pub(crate) use signature_help::signature_help;
 pub(crate) use workspace_symbols::workspace_symbols;
@@ -29,6 +31,10 @@ pub(crate) enum QueryKind {
     Syntax(SyntaxQuery),
     Hover(Position),
     Definition(Position),
+    References {
+        position: Position,
+        include_declaration: bool,
+    },
     Completion(Position),
     SignatureHelp(Position),
     CodeAction(code_actions::ActionQuery),
@@ -82,6 +88,16 @@ impl Query {
 impl DocumentQuery {
     fn from_request(request: &Request) -> Result<Self, ResponseError> {
         match request.method.as_str() {
+            "textDocument/references" => {
+                let params: lsp_types::ReferenceParams = params(request.params.clone())?;
+                Ok(Self {
+                    uri: params.text_document_position.text_document.uri,
+                    kind: QueryKind::References {
+                        position: params.text_document_position.position,
+                        include_declaration: params.context.include_declaration,
+                    },
+                })
+            }
             "textDocument/codeAction" => {
                 let params: lsp_types::CodeActionParams = params(request.params.clone())?;
                 Ok(Self {

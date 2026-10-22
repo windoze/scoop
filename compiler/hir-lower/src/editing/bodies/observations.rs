@@ -17,6 +17,7 @@ pub(crate) struct BodyObservation {
     pub(super) callables: imbl::HashMap<ast::Span, hir::EditingCallableReference>,
     pub(super) property_names: imbl::HashMap<ast::Span, ast::Span>,
     pub(super) properties: imbl::HashMap<ast::Span, hir::EditingPropertyReference>,
+    pub(super) local_functions: imbl::HashMap<hir::FunctionId, hir::EditingFunction>,
     pub(super) call_inputs: imbl::HashMap<ast::Span, calls::CallInput>,
     pub(super) argument_maps: imbl::HashMap<ast::Span, calls::CheckedArguments>,
     pub(super) calls: imbl::HashMap<ast::Span, hir::EditingAppliedCall>,
@@ -58,6 +59,7 @@ impl BodyObservation {
             callables: Default::default(),
             property_names: Default::default(),
             properties: Default::default(),
+            local_functions: Default::default(),
             call_inputs: Default::default(),
             argument_maps: Default::default(),
             calls: Default::default(),
@@ -128,6 +130,12 @@ impl BodyObservation {
             .map(|(_, reference)| reference)
             .collect::<Vec<_>>();
         properties.sort_by_key(|reference| (reference.span.start, reference.span.end));
+        let mut local_functions = self
+            .local_functions
+            .into_iter()
+            .map(|(_, function)| function)
+            .collect::<Vec<_>>();
+        local_functions.sort_by_key(|function| function.name_origin.span.start);
         let mut selectors = self
             .selectors
             .into_iter()
@@ -147,6 +155,7 @@ impl BodyObservation {
                     expressions,
                     callables,
                     properties,
+                    local_functions,
                 })
             } else {
                 V::Unavailable(U::BodyFailure)

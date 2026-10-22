@@ -6,6 +6,8 @@ mod candidates;
 pub use candidates::*;
 mod properties;
 pub use properties::*;
+mod references;
+pub use references::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditingUnavailable {
@@ -130,6 +132,7 @@ pub struct EditingBodyFacts {
     pub expressions: Vec<EditingExpression>,
     pub callables: Vec<EditingCallableReference>,
     pub properties: Vec<EditingPropertyReference>,
+    pub local_functions: Vec<EditingFunction>,
 }
 
 #[derive(Clone, Debug)]
@@ -145,6 +148,7 @@ pub struct EditingAppliedCall {
     pub span: Span,
     pub callee_end: u32,
     pub name: Option<String>,
+    pub callee: Option<crate::SemanticCallable>,
     pub context: crate::SourceContextId,
     pub parameters: Vec<EditingAppliedParameter>,
     pub arguments: Vec<EditingCallArgument>,
@@ -161,6 +165,7 @@ pub struct EditingAppliedParameter {
 #[derive(Clone, Debug)]
 pub struct EditingCallArgument {
     pub span: Span,
+    pub name_span: Option<Span>,
     pub parameter: usize,
     pub trailing: bool,
 }

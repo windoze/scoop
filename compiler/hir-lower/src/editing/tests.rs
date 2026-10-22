@@ -15,6 +15,7 @@ mod operands;
 mod properties;
 mod properties_imported;
 mod receivers;
+mod references;
 mod selectors;
 
 fn analyze(text: &str) -> DeclarationAnalysis {

@@ -130,6 +130,18 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                         semantics,
                         &cancellation,
                     ),
+                    QueryKind::References {
+                        position,
+                        include_declaration,
+                    } => queries::references(
+                        &work.snapshot,
+                        source_id,
+                        position,
+                        include_declaration,
+                        work.settings,
+                        semantics,
+                        &cancellation,
+                    ),
                     QueryKind::Completion(position) => queries::completion(
                         &work.snapshot,
                         source_id,

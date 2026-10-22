@@ -38,4 +38,11 @@ def check(peer, root):
     hover = peer.request("textDocument/hover", params)
     assert "toString" in hover["contents"]["value"], hover
     assert peer.request("textDocument/definition", params) is None
+    references = peer.request(
+        "textDocument/references", {**params, "context": {"includeDeclaration": True}}
+    )
+    assert any(
+        location["uri"] == uri and location["range"]["start"] == position for location in references
+    ), references
+    assert all(location["uri"].startswith(root.as_uri()) for location in references), references
     assert not peer.diagnostics[uri]["diagnostics"], peer.diagnostics[uri]

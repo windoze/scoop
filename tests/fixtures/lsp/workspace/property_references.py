@@ -81,4 +81,12 @@ def check_imported(peer, root, library):
         assert hover["contents"]["value"] == expected, hover
         target = peer.request("textDocument/definition", params)
         assert target["uri"] == library.as_uri(), target
+        references = peer.request(
+            "textDocument/references", {**params, "context": {"includeDeclaration": True}}
+        )
+        assert len(references) == (2 if name == "enabled" else 3), references
+        assert sum(location["uri"] == library.as_uri() for location in references) == 1, references
+        assert all(location["uri"] in (uri, library.as_uri()) for location in references), (
+            references
+        )
     assert not peer.diagnostics[uri]["diagnostics"], peer.diagnostics[uri]

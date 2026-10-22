@@ -133,6 +133,7 @@ impl Lowerer {
             span: decl.span,
         });
         self.local_function_by_function.insert(function, local);
+        self.observe_local_function(function, decl);
 
         let duplicate = self
             .local_function_scopes

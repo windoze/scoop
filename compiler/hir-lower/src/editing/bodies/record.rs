@@ -2,6 +2,33 @@ use super::*;
 use observations::ObservedContext;
 
 impl Lowerer {
+    pub(crate) fn observe_local_function(
+        &mut self,
+        function: hir::FunctionId,
+        declaration: &ast::FunctionDecl,
+    ) {
+        if !self.observes_current_body() {
+            return;
+        }
+        let name_origin = hir::SemanticSourceLocation {
+            source: self.source_identity(self.current_file).clone(),
+            span: declaration.name.span,
+        };
+        self.editing_body
+            .as_mut()
+            .expect("active query")
+            .local_functions
+            .insert(
+                function,
+                hir::EditingFunction {
+                    function,
+                    name: declaration.name.text.clone(),
+                    name_origin,
+                    span: declaration.span,
+                },
+            );
+    }
+
     pub(crate) fn body_cancelled(&self) -> bool {
         self.cancellation
             .as_ref()

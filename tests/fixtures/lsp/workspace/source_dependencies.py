@@ -80,6 +80,12 @@ def check(peer, root):
         destination = peer.request("textDocument/definition", params)
         assert destination["uri"] == path.as_uri(), destination
         assert destination["range"]["start"]["line"] == target_line, destination
+        references = peer.request(
+            "textDocument/references", {**params, "context": {"includeDeclaration": True}}
+        )
+        assert len(references) == 3, references
+        assert sum(location["uri"] == path.as_uri() for location in references) == 2, references
+        assert sum(location["uri"] == uri for location in references) == 1, references
     assert not peer.diagnostics[manifest]["diagnostics"], peer.diagnostics[manifest]
     assert not any(
         "not found" in error["message"] for error in peer.diagnostics[uri]["diagnostics"]

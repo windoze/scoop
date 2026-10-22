@@ -21,13 +21,14 @@ impl Lowerer {
             .arguments
             .iter()
             .enumerate()
-            .map(|(index, &(span, trailing))| {
+            .map(|(index, &(span, trailing, name_span))| {
                 let (parameter, _) = crate::call_resolution::arguments::source_binding(
                     inputs,
                     SourceInputId::from_index(index),
                 );
                 hir::EditingCallArgument {
                     span,
+                    name_span,
                     parameter: parameter.index(),
                     trailing,
                 }
@@ -72,11 +73,14 @@ impl Lowerer {
             .arguments
             .iter()
             .enumerate()
-            .map(|(parameter, &(span, trailing))| hir::EditingCallArgument {
-                span,
-                parameter,
-                trailing,
-            })
+            .map(
+                |(parameter, &(span, trailing, name_span))| hir::EditingCallArgument {
+                    span,
+                    name_span,
+                    parameter,
+                    trailing,
+                },
+            )
             .collect();
         let parameters = parameters
             .map(|value_type| hir::EditingAppliedParameter {

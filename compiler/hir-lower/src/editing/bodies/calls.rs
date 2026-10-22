@@ -5,8 +5,9 @@ mod arguments;
 #[derive(Clone)]
 pub(super) struct CallInput {
     callee_end: u32,
+    callee: Option<ast::Span>,
     name: Option<String>,
-    arguments: Vec<(ast::Span, bool)>,
+    arguments: Vec<(ast::Span, bool, Option<ast::Span>)>,
 }
 
 #[derive(Clone)]
@@ -63,6 +64,7 @@ impl Lowerer {
             expression.span(),
             CallInput {
                 callee_end,
+                callee: name.map(|name| name.span),
                 name: name.map(|name| name.text.clone()),
                 arguments: args
                     .iter()
@@ -70,6 +72,10 @@ impl Lowerer {
                         (
                             argument.span,
                             matches!(argument.name, ast::CallArgumentName::TrailingLambda),
+                            match &argument.name {
+                                ast::CallArgumentName::Named(name) => Some(name.span),
+                                _ => None,
+                            },
                         )
                     })
                     .collect(),
@@ -124,12 +130,17 @@ impl Lowerer {
             return;
         };
         let input = &body.call_inputs[&span];
+        let callee = input
+            .callee
+            .and_then(|span| body.callables.get(&span))
+            .map(|reference| reference.target);
         body.calls.insert(
             span,
             hir::EditingAppliedCall {
                 span,
                 callee_end: input.callee_end,
                 name: input.name.clone(),
+                callee,
                 context,
                 parameters: arguments.parameters,
                 arguments: arguments.arguments,

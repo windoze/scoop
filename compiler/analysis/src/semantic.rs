@@ -10,6 +10,8 @@ use crate::{AnalysisSnapshot, Cancelled, DeclarationAnalysisError, SourceId};
 mod dependencies;
 mod diagnostics;
 mod project;
+mod references;
+pub use references::ReferenceSearch;
 mod sources;
 
 #[derive(Clone, Debug)]
@@ -57,8 +59,6 @@ impl SemanticSession {
         if snapshot.check_cancelled().is_err() || is_cancelled() {
             return Err(&ProjectAnalysisError::Cancelled);
         }
-        self.projects
-            .retain(|cached| snapshot.workspace.projects.contains(&cached.input));
         let Some(project) = snapshot.workspace.project_for_source(source) else {
             return Ok(None);
         };
@@ -68,6 +68,19 @@ impl SemanticSession {
         let revision = snapshot.clone();
         let check: Rc<dyn Fn() -> bool> =
             Rc::new(move || is_cancelled() || revision.check_cancelled().is_err());
+        self.project_declarations(snapshot, project, current, check)
+            .map(Some)
+    }
+
+    fn project_declarations(
+        &mut self,
+        snapshot: &AnalysisSnapshot,
+        project: &crate::ProjectInput,
+        current: ConeIdentity,
+        check: Rc<dyn Fn() -> bool>,
+    ) -> Result<&mut DeclarationAnalysis, &ProjectAnalysisError> {
+        self.projects
+            .retain(|cached| snapshot.workspace.projects.contains(&cached.input));
         let index = match self
             .projects
             .iter()
@@ -84,8 +97,6 @@ impl SemanticSession {
                 self.projects.len() - 1
             }
         };
-        self.projects[index]
-            .declarations(snapshot, current, check)
-            .map(Some)
+        self.projects[index].declarations(snapshot, current, check)
     }
 }

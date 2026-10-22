@@ -12,6 +12,7 @@ from cancellation import check as check_cancellation
 from diagnostics import check as check_diagnostics
 from incomplete_signatures import check as check_incomplete_signatures
 from property_references import check as check_property_references
+from references import check as check_references
 from signatures import check as check_signatures
 from source_dependencies import check as check_source_dependencies
 
@@ -125,6 +126,7 @@ def main():
         )
         assert initialized["capabilities"]["hoverProvider"]
         assert initialized["capabilities"]["definitionProvider"]
+        assert initialized["capabilities"]["referencesProvider"]
         assert initialized["capabilities"]["completionProvider"]["triggerCharacters"] == ["."]
         assert initialized["capabilities"]["signatureHelpProvider"]["triggerCharacters"] == [
             "(",
@@ -312,6 +314,7 @@ def main():
         check_incomplete_signatures(peer, root)
         check_callable_values(peer, root)
         check_property_references(peer, root)
+        check_references(peer, root)
         check_source_dependencies(peer, root)
         peer.finish()
     finally:

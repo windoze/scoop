@@ -1,0 +1,93 @@
+use super::*;
+use scoop_hir::{EditingReference, SemanticSourceLocation};
+use scoop_source::Span;
+
+/// Completed declaration and function-body references in the selected project.
+#[derive(Debug)]
+pub struct ReferenceSearch {
+    pub occurrences: Vec<EditingReference>,
+    pub unavailable: Vec<SemanticSourceLocation>,
+    pub declarations_available: bool,
+}
+
+impl SemanticSession {
+    pub fn references(
+        &mut self,
+        snapshot: &AnalysisSnapshot,
+        source: SourceId,
+        span: Span,
+        is_cancelled: impl Fn() -> bool + 'static,
+    ) -> Result<Option<ReferenceSearch>, ProjectAnalysisError> {
+        snapshot.check_cancelled()?;
+        let Some(project) = snapshot.workspace.project_for_source(source) else {
+            return Ok(None);
+        };
+        let (current, cone) = project
+            .source_cone(source)
+            .expect("the selected project contains the source");
+        let file = cone
+            .sources
+            .iter()
+            .find(|file| file.source == source)
+            .expect("the selected Cone contains the source");
+        let origin = SemanticSourceLocation {
+            source: file.identity.clone(),
+            span,
+        };
+        let revision = snapshot.clone();
+        let check: Rc<dyn Fn() -> bool> =
+            Rc::new(move || is_cancelled() || revision.check_cancelled().is_err());
+        if check() {
+            return Err(ProjectAnalysisError::Cancelled);
+        }
+        let targets = {
+            let analysis = self
+                .project_declarations(snapshot, project, current, check.clone())
+                .map_err(Clone::clone)?;
+            let cancellation = check.clone();
+            analysis
+                .reference_index(move || cancellation())
+                .map_err(|_| ProjectAnalysisError::Cancelled)?
+                .targets_at(&origin)
+                .to_vec()
+        };
+        if targets.is_empty() {
+            return Ok(None);
+        }
+        let mut result = ReferenceSearch {
+            occurrences: Vec::new(),
+            unavailable: Vec::new(),
+            declarations_available: true,
+        };
+        for (&cone, input) in &project.cones {
+            if input.source().is_none()
+                || (cone != current && targets.iter().all(|target| target.is_local()))
+            {
+                continue;
+            }
+            if check() {
+                return Err(ProjectAnalysisError::Cancelled);
+            }
+            let analysis = self
+                .project_declarations(snapshot, project, cone, check.clone())
+                .map_err(Clone::clone)?;
+            let cancellation = check.clone();
+            let index = analysis
+                .reference_index(move || cancellation())
+                .map_err(|_| ProjectAnalysisError::Cancelled)?;
+            result.unavailable.extend(index.unavailable.iter().cloned());
+            result.declarations_available &= index.declarations_available;
+            for &target in &targets {
+                if cone == current || !target.is_local() {
+                    result
+                        .occurrences
+                        .extend(index.references_to(target).cloned());
+                }
+            }
+        }
+        if check() {
+            return Err(ProjectAnalysisError::Cancelled);
+        }
+        Ok(Some(result))
+    }
+}

@@ -39,7 +39,7 @@ pub enum SemanticContext {
     Nominal(NominalOwner),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SemanticSourceLocation {
     pub source: SourceIdentity,
     pub span: Span,

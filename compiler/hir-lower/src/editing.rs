@@ -11,6 +11,7 @@ mod callables;
 pub(crate) mod candidates;
 mod members;
 mod parameters;
+mod references;
 pub(crate) use bodies::{BodyObservation, ObservedBody};
 mod receivers;
 pub(crate) use receivers::ReceiverObservation;
@@ -31,6 +32,7 @@ pub struct DeclarationAnalysis {
     pub(crate) body_inputs: std::collections::HashMap<hir::FunctionId, ast::FunctionDecl>,
     pub(crate) body_facts:
         std::collections::HashMap<hir::FunctionId, hir::EditingValue<ObservedBody>>,
+    pub(crate) reference_index: Option<hir::EditingReferenceIndex>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

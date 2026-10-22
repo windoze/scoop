@@ -37,7 +37,7 @@ impl Lowerer {
         Ok(Some(methods))
     }
 
-    pub(super) fn query_function_identity(
+    pub(crate) fn query_function_identity(
         &mut self,
         function: hir::FunctionId,
     ) -> Result<hir::HirSourceFunctionIdentity, Diagnostic> {

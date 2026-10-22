@@ -36,6 +36,7 @@ impl Lowerer {
                     recovered_facts: Default::default(),
                     body_inputs: Default::default(),
                     body_facts: Default::default(),
+                    reference_index: None,
                 });
             }
         };
@@ -102,6 +103,7 @@ impl Lowerer {
             recovered_facts: Default::default(),
             body_inputs,
             body_facts: Default::default(),
+            reference_index: None,
         })
     }
 }

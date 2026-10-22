@@ -99,6 +99,7 @@ pub(crate) fn initialize(params: InitializeParams) -> (Settings, InitializeResul
             workspace_symbol_provider: Some(OneOf::Left(true)),
             hover_provider: Some(lsp_types::HoverProviderCapability::Simple(true)),
             definition_provider: Some(OneOf::Left(true)),
+            references_provider: Some(OneOf::Left(true)),
             code_action_provider: code_actions.then(|| {
                 lsp_types::CodeActionProviderCapability::Options(lsp_types::CodeActionOptions {
                     code_action_kinds: Some(vec![lsp_types::CodeActionKind::QUICKFIX]),
