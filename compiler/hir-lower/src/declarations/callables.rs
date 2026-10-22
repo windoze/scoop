@@ -243,6 +243,8 @@ impl Lowerer {
     ) {
         let mut rejected = std::collections::HashSet::new();
         let mut ordered_functions = pending_functions.to_vec();
+        ordered_functions
+            .retain(|&(id, _, _)| self.declaration_surface.unavailable_signature(id).is_none());
         ordered_functions.sort_by_key(|(id, _, _)| self.callable_declaration_order(*id));
         for (index, &(id, decl, file_index)) in ordered_functions.iter().enumerate() {
             let duplicates = ordered_functions[..index]
@@ -274,6 +276,8 @@ impl Lowerer {
             }
         }
         let mut ordered_methods = pending_methods.to_vec();
+        ordered_methods
+            .retain(|&(id, _, _, _)| self.declaration_surface.unavailable_signature(id).is_none());
         ordered_methods.sort_by_key(|(id, _, _, _)| self.callable_declaration_order(*id));
         for (index, &(id, decl, file_index, owner)) in ordered_methods.iter().enumerate() {
             let duplicates = ordered_methods[..index]

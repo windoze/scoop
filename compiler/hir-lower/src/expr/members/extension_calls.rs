@@ -11,7 +11,7 @@ impl Lowerer {
     ) -> bool {
         match target {
             ExtensionCallTarget::Current(function) => {
-                Self::matches_required_modifiers(self.signatures[function].modifiers, required)
+                self.function_matches_required_modifiers(*function, required)
             }
             ExtensionCallTarget::Dependency(binding) => {
                 let Some(candidate) = self

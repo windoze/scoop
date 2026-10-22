@@ -22,6 +22,7 @@ impl Lowerer {
         decl: ast::FunctionHeaderRef<'_>,
         owner: Owner,
     ) {
+        let diagnostics_before = self.diagnostics.len();
         let short = decl.name.text.clone();
         if !decl.type_params.is_empty() {
             if matches!(owner, Owner::Interface(_)) {
@@ -121,6 +122,10 @@ impl Lowerer {
         {
             let locals = self.build_abstract_parameter_locals(id, host_ty);
             self.functions[id].kind = hir::FunctionKind::Abstract { locals };
+        }
+        if self.diagnostics.len() != diagnostics_before {
+            self.declaration_surface
+                .mark_signature_unavailable(id, decl);
         }
     }
 

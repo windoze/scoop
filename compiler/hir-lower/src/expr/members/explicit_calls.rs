@@ -43,10 +43,7 @@ impl Lowerer {
         };
         let mut members = self.methods_by_name(receiver.ty, &name.text);
         members.retain(|candidate| {
-            Self::matches_required_modifiers(
-                self.signatures[&candidate.function].modifiers,
-                direct_required,
-            )
+            self.function_matches_required_modifiers(candidate.function, direct_required)
         });
         if !members.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = members.len();

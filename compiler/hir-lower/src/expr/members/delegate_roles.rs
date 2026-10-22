@@ -34,12 +34,18 @@ impl Lowerer {
         let mut probes = Vec::new();
         let mut suppressed = false;
         for candidate in context.methods_by_name(receiver.ty, &name.text) {
-            if context.signatures[&candidate.function]
-                .modifiers
-                .property_delegate_operator
-                != Some(role)
-            {
+            if !context.function_matches_required_modifiers(
+                candidate.function,
+                RequiredCallableModifiers {
+                    property_delegate_operator: Some(role),
+                    ..Default::default()
+                },
+            ) {
                 continue;
+            }
+            if context.report_unavailable_signatures(&name.text, name.span, [candidate.function]) {
+                self.commit_layer_diagnostics(context);
+                return DelegateRoleCall::Failed;
             }
             if context
                 .declaration_surface

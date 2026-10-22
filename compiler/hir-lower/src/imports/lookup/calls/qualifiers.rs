@@ -219,12 +219,7 @@ impl Lowerer {
                         let mut candidates = layer
                             .bindings
                             .into_iter()
-                            .filter(|&binding| {
-                                !matches!(
-                                    self.imports.binding(binding).target,
-                                    CurrentUnitTarget::Unavailable(_)
-                                )
-                            })
+                            .filter(|&binding| self.unavailable_binding_kind(binding).is_none())
                             .map(|binding| self.current_expression_qualifier_candidate(binding))
                             .collect::<Vec<_>>();
                         candidates.extend(layer.dependency_bindings.into_iter().map(|binding| {

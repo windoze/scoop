@@ -130,6 +130,13 @@ impl Lowerer {
         ) {
             return PropertyExtensionInvokeOutcome::Failed(failure);
         }
+        if context.report_unavailable_signatures(
+            &name.text,
+            name.span,
+            candidates.iter().map(|(candidate, _)| candidate.function),
+        ) {
+            return PropertyExtensionInvokeOutcome::Failed(Box::new(context));
+        }
         let mut probes = inner;
         let mut first_failure = inner_failure;
         if let Some(target) = imported_equality {

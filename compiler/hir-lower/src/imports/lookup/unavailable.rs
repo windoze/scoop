@@ -3,6 +3,20 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn unavailable_binding_kind(
+        &self,
+        binding: CurrentUnitBindingId,
+    ) -> Option<ast::DeclarationHeaderKind> {
+        match self.imports.binding(binding).target {
+            CurrentUnitTarget::Unavailable(kind) => Some(kind),
+            CurrentUnitTarget::Function(function) => self
+                .declaration_surface
+                .unavailable_signature(function)
+                .map(|signature| signature.kind),
+            _ => None,
+        }
+    }
+
     pub(crate) fn unavailable_import_bindings(
         &self,
         bindings: &[CurrentUnitBindingId],
@@ -23,7 +37,7 @@ impl Lowerer {
             .copied()
             .filter(|&binding| {
                 let declaration = self.imports.binding(binding);
-                let CurrentUnitTarget::Unavailable(kind) = declaration.target else {
+                let Some(kind) = self.unavailable_binding_kind(binding) else {
                     return false;
                 };
                 matches(kind)

@@ -78,7 +78,13 @@ impl Lowerer {
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
         self.visible_method_candidates(declared, Some(ty), false, |this, candidate| {
-            this.signatures[&candidate.function].modifiers.operator == Some(operator)
+            this.function_matches_required_modifiers(
+                candidate.function,
+                crate::expr::RequiredCallableModifiers {
+                    operator: Some(operator),
+                    ..Default::default()
+                },
+            )
         })
     }
 

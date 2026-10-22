@@ -39,8 +39,7 @@ impl Lowerer {
             None => self.methods_by_name(receiver.ty, &name.text),
         };
         candidates.retain(|candidate| {
-            let modifiers = self.signatures[&candidate.function].modifiers;
-            Self::matches_required_modifiers(modifiers, required)
+            self.function_matches_required_modifiers(candidate.function, required)
         });
         let mut first_failure = None;
         if !candidates.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {

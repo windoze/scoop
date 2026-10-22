@@ -1,6 +1,7 @@
 use super::*;
 
 mod recovered;
+mod unavailable_signatures;
 
 #[test]
 fn empty_input_is_diagnosed_before_selecting_a_current_cone() {

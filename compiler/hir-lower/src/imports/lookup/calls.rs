@@ -244,12 +244,7 @@ impl Lowerer {
                         let mut candidates = layer
                             .bindings
                             .into_iter()
-                            .filter(|&id| {
-                                !matches!(
-                                    self.imports.binding(id).target,
-                                    CurrentUnitTarget::Unavailable(_)
-                                )
-                            })
+                            .filter(|&id| self.unavailable_binding_kind(id).is_none())
                             .map(|id| NamedCallBinding {
                                 target: self.current_named_call_target(id),
                                 origin: NamedCallOrigin::CurrentUnit(id),

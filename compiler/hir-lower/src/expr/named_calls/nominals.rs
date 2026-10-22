@@ -47,6 +47,16 @@ impl Lowerer {
         if targets.is_empty() {
             return Ok(None);
         }
+        if self.report_unavailable_signatures(
+            &call.callee.text,
+            call.callee.span,
+            targets.iter().filter_map(|binding| match binding.target {
+                NamedCallTarget::Function(function) => Some(function),
+                _ => None,
+            }),
+        ) {
+            return Err(());
+        }
         if let Some(result) = self.lower_annotation_key_query(targets, call) {
             return result.map(Some);
         }

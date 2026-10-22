@@ -219,12 +219,7 @@ impl Lowerer {
                             candidates: layer
                                 .bindings
                                 .into_iter()
-                                .filter(|&binding| {
-                                    !matches!(
-                                        self.imports.binding(binding).target,
-                                        CurrentUnitTarget::Unavailable(_)
-                                    )
-                                })
+                                .filter(|&binding| self.unavailable_binding_kind(binding).is_none())
                                 .map(|binding| self.value_binding_origin(binding))
                                 .chain(
                                     layer

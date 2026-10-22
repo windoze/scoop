@@ -78,12 +78,7 @@ impl Lowerer {
         if self
             .methods_by_name(ty, "invoke")
             .into_iter()
-            .any(|candidate| {
-                Self::matches_required_modifiers(
-                    self.signatures[&candidate.function].modifiers,
-                    required,
-                )
-            })
+            .any(|candidate| self.function_matches_required_modifiers(candidate.function, required))
         {
             return true;
         }

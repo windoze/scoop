@@ -49,12 +49,18 @@ impl Lowerer {
         self.current_owner = None;
 
         for &(id, declaration, file) in function_headers {
+            if self.declaration_surface.unavailable_signature(id).is_some() {
+                continue;
+            }
             self.current_file = file;
             self.current_owner = None;
             self.type_params_in_scope = self.signatures[&id].type_params.clone();
             self.annotate_function(id, declaration);
         }
         for &(id, declaration, file, owner) in method_headers {
+            if self.declaration_surface.unavailable_signature(id).is_some() {
+                continue;
+            }
             self.current_file = file;
             self.current_owner = Some(owner);
             self.type_params_in_scope = self.signatures[&id].type_params.clone();

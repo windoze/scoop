@@ -19,6 +19,9 @@ impl Lowerer {
         // parameter interfaces so delegation shares the ordinary call
         // protocol without depending on body declaration order.
         for &(id, decl, file_index) in pending_functions {
+            if self.declaration_surface.unavailable_signature(id).is_some() {
+                continue;
+            }
             if self.has_inferred_function(id) {
                 continue;
             }
@@ -33,6 +36,9 @@ impl Lowerer {
             self.functions[id].kind = FunctionKind::User(body);
         }
         for &(id, decl, file_index, _owner) in pending_methods {
+            if self.declaration_surface.unavailable_signature(id).is_some() {
+                continue;
+            }
             if self.has_inferred_function(id) {
                 continue;
             }

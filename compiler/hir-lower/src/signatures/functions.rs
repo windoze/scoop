@@ -17,6 +17,7 @@ impl Lowerer {
         id: FunctionId,
         decl: ast::FunctionHeaderRef<'_>,
     ) {
+        let diagnostics_before = self.diagnostics.len();
         // Member-only flags on a top-level function (M6).
         if decl.modifier == ast::MethodModifier::Abstract {
             self.error(
@@ -120,6 +121,10 @@ impl Lowerer {
                 signature.params.iter().map(|param| param.ty).collect();
             self.extern_functions[extern_id].result =
                 scoop_identity::ExternResult::Direct(return_ty);
+        }
+        if self.diagnostics.len() != diagnostics_before {
+            self.declaration_surface
+                .mark_signature_unavailable(id, decl);
         }
     }
 }

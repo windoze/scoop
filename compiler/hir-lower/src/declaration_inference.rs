@@ -75,7 +75,10 @@ impl Lowerer {
         id: FunctionId,
         source: &ast::FunctionDecl,
     ) {
-        if infers_result(source) && self.function_accessor_kind(id).is_none() {
+        if infers_result(source)
+            && self.function_accessor_kind(id).is_none()
+            && self.declaration_surface.unavailable_signature(id).is_none()
+        {
             self.declaration_inference.functions.insert(
                 id,
                 InferredFunction {
@@ -170,6 +173,9 @@ impl Lowerer {
     }
 
     pub(crate) fn infer_function_result(&mut self, id: FunctionId) -> Option<TypeId> {
+        if self.declaration_surface.unavailable_signature(id).is_some() {
+            return None;
+        }
         if self.interface_forwarders.contains_key(&id) {
             return self.infer_interface_forwarder_signature(id);
         }

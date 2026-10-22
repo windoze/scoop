@@ -41,6 +41,13 @@ impl Lowerer {
         &mut self,
         function: hir::FunctionId,
     ) -> Result<hir::HirSourceFunctionIdentity, Diagnostic> {
+        if let Some(failure) = self.declaration_surface.unavailable_signature(function) {
+            return Err(Diagnostic::at_file(
+                self.function_files[&function],
+                failure.name_span,
+                "function signature is unavailable",
+            ));
+        }
         if let Some(identity) = self.query_source_function_identities.get(&function) {
             return Ok(identity.clone());
         }

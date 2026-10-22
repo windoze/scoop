@@ -153,6 +153,16 @@ impl Lowerer {
         receiver: Option<&hir::Expr>,
         context: ReferenceResolutionContext<'_>,
     ) -> ReferenceResolutionOutcome {
+        if self.report_unavailable_signatures(
+            context.name,
+            context.span,
+            candidates.iter().filter_map(|candidate| match candidate {
+                ReferenceCandidate::Local(candidate, _) => Some(candidate.function),
+                _ => None,
+            }),
+        ) {
+            return ReferenceResolutionOutcome::Failed;
+        }
         let rejected = |candidate: &ReferenceCandidate| {
             matches!(candidate,
             ReferenceCandidate::Local(candidate, _) if self.declaration_surface.rejects_function(candidate.function))
