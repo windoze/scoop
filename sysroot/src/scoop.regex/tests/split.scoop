@@ -1,0 +1,51 @@
+package scoop.regex
+
+import scoop.sequences.*
+import scoop.test.*
+
+@Test
+private class RegexSplitTests {
+    @Test
+    fun `split keeps empty segments omits captures and respects limits`() {
+        Regex("(,)").use { regex ->
+            checkParts(["", "a", "", "b", ""], regex.split(",a,,b,"))
+            checkParts(["", "a,,b,"], regex.split(",a,,b,", 2L))
+            checkParts([",a,,b,"], regex.split(",a,,b,", 1L))
+            checkParts([""], regex.split(""))
+            checkParts(["abc"], regex.split("abc"))
+            assertFailsWith<IllegalArgumentException> { regex.split("a", -1L) }
+            assertFailsWith<IllegalArgumentException> { regex.splitToSequence("a", -1L) }
+        }
+    }
+
+    @Test
+    fun `empty separators and byte slices preserve scalar text`() {
+        Regex("").use { regex ->
+            checkParts(["", "雪", "😀", ""], regex.split("雪😀"))
+            checkParts(["", "雪😀"], regex.split("雪😀", 2L))
+            checkParts([""], regex.split(""))
+        }
+        Regex("\u{0}").use { regex -> checkParts(["a", "b"], regex.split("a\u{0}b")) }
+    }
+
+    @Test
+    fun `lazy splits replay independently and release early traversals`() {
+        val regex = Regex(",")
+        val sequence = regex.splitToSequence("a,b,c")
+        val left = sequence.iterator()
+        val right = sequence.iterator()
+        assertEquals("a", left.next()!!)
+        assertEquals("b", left.next()!!)
+        assertEquals("a", right.next()!!)
+        checkParts(["a"], sequence.take(1L).toList())
+        checkParts(["a", "b", "c"], sequence.toList())
+        regex.close()
+        assertFailsWith<IllegalStateException> { right.next() }
+        assertFailsWith<IllegalStateException> { regex.split("a,b") }
+    }
+}
+
+private fun checkParts(expected: List<String>, actual: List<String>) {
+    assertEquals(expected.size, actual.size)
+    for (index in 0L..<expected.size) assertEquals(expected[index], actual[index])
+}
