@@ -89,6 +89,21 @@ mod tests {
     use scoop_syntax::SyntaxKind;
 
     #[test]
+    fn rollback_discards_recovered_call_slots_and_ownership() {
+        let source = "fun editing() { call(true,) }";
+        let (mut parser, _) = Parser::from_source(source).unwrap();
+        let checkpoint = parser.checkpoint();
+        let first = parser.parse_decl().unwrap();
+        parser.restore(checkpoint);
+        assert_eq!(parser.parse_decl().unwrap(), first);
+        let (syntax, diagnostics) = parser.finish_syntax(source, SyntaxKind::SourceFile);
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(syntax.bodies.len(), 1);
+        assert_eq!(syntax.bodies[0].value.calls.len(), 1);
+        assert_eq!(syntax.bodies[0].value.calls[0].arguments.items.len(), 2);
+    }
+
+    #[test]
     fn rollback_restores_real_grammar_effects() {
         let source = "{\n/// local\nfun local() = { 1 }\nlocal()\n}";
         let (mut parser, _) = Parser::from_source(source).unwrap();

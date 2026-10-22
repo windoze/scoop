@@ -98,6 +98,8 @@ receiver 的局部语义已接入：grammar 明确函数正文入口，编辑态
 
 已有 selector 的正文事实已接入：直接使用 AST 的 receiver／名称关系，在普通检查时保存真实类型、局部来源、binder、smart cast 与成员候选；后续 selector 失败仍保留独立完成的 receiver，整段正文保持不可用。编辑态 lambda 在查询私有状态中保留对应 arena，失败重载试探仍整体丢弃；此前错误不会发布后续事实。LSP 用实际 selector 范围替换名称，并复用 receiver 的 hover／定义。格式化、全 workspace Clippy、固定版本 Ruff、35 项编辑态测试、7 项普通 lambda 推断回归、20 项宿主／LSP 测试及真实 sysroot 的 stdio fixture 通过。lambda 回退导致事实丢失的问题已闭合；半成品调用与源码依赖继续实施，target 约 18 GiB。
 
+半成品调用的语法输入已保留：原实参 grammar 记录实际括号、同层逗号、闭合状态、逐项命名／spread 前缀及完整或未知表达式；普通、成员、函数值和 super 调用保持真实 callee 形式。恢复调用的尾随 lambda 继续归属同一调用，完整 lambda 复用原隐式标签规则；嵌套错误不形成完整外层实参或 receiver，试探回退同步撤销记录。正常实参列表不复制表达式，严格编译边界保持。格式化、全 workspace Clippy、604 项 parser 测试及 35 项编辑态回归通过；缺逗号测试已按普通中缀 invoke 语法改为跨行输入。语义候选、实参映射及 LSP 签名帮助继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

@@ -55,4 +55,5 @@ pub struct RecoveredFunctionBody {
     pub root: RecoveredBodyRoot,
     pub blocks: Vec<RecoveredBlock>,
     pub selectors: Vec<RecoveredSelector>,
+    pub calls: Vec<crate::RecoveredCall>,
 }

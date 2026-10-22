@@ -5,6 +5,8 @@ use scoop_syntax::{DeclarationData, DeclarationIndex};
 
 use super::{Event, Parser};
 
+mod calls;
+
 #[derive(Debug)]
 pub(super) enum BodyEvent {
     FunctionRoot(ast::RecoveredBodyRoot),
@@ -19,6 +21,11 @@ pub(super) enum BodyEvent {
         navigation: ast::Navigation,
         dot: Span,
         selector: Span,
+    },
+    Call(Box<ast::RecoveredCall>),
+    TrailingArgument {
+        call: Span,
+        argument: Box<ast::RecoveredCallArgument>,
     },
 }
 
@@ -37,11 +44,35 @@ pub(super) struct BodyRecorder {
 struct BodyParts {
     blocks: Vec<ast::RecoveredBlock>,
     selectors: Vec<ast::RecoveredSelector>,
+    calls: Vec<ast::RecoveredCall>,
 }
 
 impl BodyRecorder {
     pub(super) fn record(&mut self, event: BodyEvent, function: Option<DeclarationIndex>) {
         match event {
+            BodyEvent::TrailingArgument { call, argument } => {
+                if let Some(parts) =
+                    function.and_then(|function| self.functions.get_mut(&function.0))
+                    && let Some(target) = parts
+                        .calls
+                        .iter_mut()
+                        .rev()
+                        .find(|target| target.span == call)
+                {
+                    target.span.end = argument.span.end;
+                    target.trailing = Some(*argument);
+                }
+            }
+            BodyEvent::Call(mut call) => {
+                if let Some(function) = function {
+                    call.block = self.block_for(function);
+                    self.functions
+                        .entry(function.0)
+                        .or_default()
+                        .calls
+                        .push(*call);
+                }
+            }
             BodyEvent::FunctionRoot(root) => {
                 if let Some(function) = function {
                     self.roots.insert(function.0, root);
@@ -115,6 +146,7 @@ impl BodyRecorder {
                         root,
                         blocks: value.blocks,
                         selectors: value.selectors,
+                        calls: value.calls,
                     },
                 })
             })

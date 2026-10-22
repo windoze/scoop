@@ -18,11 +18,15 @@ impl Parser {
         })
     }
 
-    pub(super) fn parse_call_inputs(&mut self) -> Result<(Vec<CallArgument>, u32), Diagnostic> {
+    pub(super) fn parse_call_inputs(&mut self) -> Result<ParsedArguments, Diagnostic> {
         if matches!(self.peek().kind, TokenKind::LParen) {
-            self.parse_args()
+            self.parse_arguments()
         } else if self.starts_trailing_lambda() {
-            Ok((Vec::new(), self.tokens[self.pos - 1].span.end))
+            Ok(ParsedArguments {
+                args: Vec::new(),
+                end: self.tokens[self.pos - 1].span.end,
+                recovery: None,
+            })
         } else {
             self.unexpected("call arguments")
         }
@@ -32,6 +36,7 @@ impl Parser {
         &mut self,
         receiver: Expr,
         grouped: bool,
+        recovered_prefix: bool,
     ) -> Result<Expr, Diagnostic> {
         let mut call = if grouped {
             invoke(receiver)
@@ -51,6 +56,14 @@ impl Parser {
                 other => invoke(other),
             }
         };
+        let call_span = call.span();
+        let argument_label = match &call {
+            Expr::Call(call) => Some(call.callee.clone()),
+            Expr::MethodCall { name, .. }
+            | Expr::SuperMethodCall { name, .. }
+            | Expr::QualifiedInterfaceSuperMethodCall { name, .. } => Some(name.clone()),
+            _ => None,
+        };
         let (args, span) = match &mut call {
             Expr::Call(call) => (&mut call.args, &mut call.span),
             Expr::MethodCall { args, span, .. }
@@ -68,7 +81,24 @@ impl Parser {
                 "a call accepts only one trailing lambda; group the call to invoke its result",
             ));
         }
-        let expression = self.parse_atom()?;
+        let checkpoint = self.checkpoint();
+        let start = self.peek().span.start;
+        let mut expression = self.parse_atom();
+        if let (Some(label), Ok(expression)) = (&argument_label, &mut expression) {
+            labels::name_lambda(expression, label);
+        }
+        if recovered_prefix {
+            let end = expression
+                .as_ref()
+                .map_or(self.peek().span.start, |value| value.span().end);
+            self.record_recovered_trailing_argument(
+                call_span,
+                &expression,
+                self.fragment_is_complete(checkpoint),
+                Span::new(start, end),
+            );
+        }
+        let expression = expression?;
         let argument_span = expression.span();
         span.end = argument_span.end;
         args.push(CallArgument {

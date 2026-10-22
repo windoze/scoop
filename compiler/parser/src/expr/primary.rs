@@ -8,6 +8,7 @@ impl Parser {
     }
 
     fn parse_atom_inner(&mut self) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         if self.starts_callable_label() {
             return self.parse_labeled_callable();
         }
@@ -117,7 +118,11 @@ impl Parser {
                 // resolves enum variant construction from that shape.
                 let type_args = self.parse_explicit_call_type_args()?;
                 if matches!(self.peek().kind, TokenKind::LParen) || self.starts_trailing_lambda() {
-                    return self.parse_call(ident, type_args);
+                    return self.parse_call(
+                        ident,
+                        type_args,
+                        self.fragment_is_complete(checkpoint),
+                    );
                 }
                 Ok(Expr::Var(ident))
             }
@@ -128,6 +133,7 @@ impl Parser {
     }
 
     fn parse_super_method_call(&mut self, super_span: Span) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         if matches!(self.peek().kind, TokenKind::QuestionDot) {
             return Err(Diagnostic::at(
                 self.peek().span,
@@ -158,17 +164,24 @@ impl Parser {
                 "`super` only supports method calls, not field access",
             ));
         }
-        let (args, end) = self.parse_call_inputs()?;
-        Ok(Expr::SuperMethodCall {
+        let complete = self.fragment_is_complete(checkpoint);
+        let ParsedArguments {
+            args,
+            end,
+            recovery,
+        } = self.parse_call_inputs()?;
+        let expression = Expr::SuperMethodCall {
             super_span,
             name,
             type_args,
             args,
             span: Span::new(super_span.start, end),
-        })
+        };
+        Ok(self.finish_recovered_call(expression, recovery, complete))
     }
 
     fn parse_qualified_interface_super(&mut self, super_span: Span) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         self.bump(); // `<`
         let qualifier = self.parse_type_ref()?;
         self.expect("`>` after qualified `super` interface", |kind| {
@@ -180,15 +193,21 @@ impl Parser {
         let name = self.expect_ident("interface member name after qualified `super`")?;
         let type_args = self.parse_explicit_call_type_args()?;
         if matches!(self.peek().kind, TokenKind::LParen) || self.starts_trailing_lambda() {
-            let (args, end) = self.parse_call_inputs()?;
-            return Ok(Expr::QualifiedInterfaceSuperMethodCall {
+            let complete = self.fragment_is_complete(checkpoint);
+            let ParsedArguments {
+                args,
+                end,
+                recovery,
+            } = self.parse_call_inputs()?;
+            let expression = Expr::QualifiedInterfaceSuperMethodCall {
                 super_span,
                 qualifier,
                 name,
                 type_args,
                 args,
                 span: Span::new(super_span.start, end),
-            });
+            };
+            return Ok(self.finish_recovered_call(expression, recovery, complete));
         }
         if !type_args.is_empty() {
             return Err(Diagnostic::at(
@@ -233,15 +252,21 @@ impl Parser {
         &mut self,
         callee: Ident,
         type_args: Vec<scoop_ast::CallTypeArgument>,
+        complete: bool,
     ) -> Result<Expr, Diagnostic> {
-        let (args, end) = self.parse_call_inputs()?;
+        let ParsedArguments {
+            args,
+            end,
+            recovery,
+        } = self.parse_call_inputs()?;
         let span = Span::new(callee.span.start, end);
-        Ok(Expr::Call(CallExpr {
+        let expression = Expr::Call(CallExpr {
             callee,
             type_args,
             args,
             span,
-        }))
+        });
+        Ok(self.finish_recovered_call(expression, recovery, complete))
     }
 
     /// Parse `<T, ...>` only when followed by a call argument list or
@@ -311,58 +336,6 @@ impl Parser {
             return Ok(Vec::new());
         }
         Ok(type_args)
-    }
-
-    /// `(arg, ...)` — the `(` is the current token. Shared by calls,
-    /// method calls, and base-class constructor delegation. Returns the
-    /// arguments and the closing paren's end offset.
-    pub(crate) fn parse_args(&mut self) -> Result<(Vec<CallArgument>, u32), Diagnostic> {
-        self.with_node(scoop_syntax::SyntaxKind::ArgumentList, |parser| {
-            parser.parse_args_inner()
-        })
-    }
-
-    fn parse_args_inner(&mut self) -> Result<(Vec<CallArgument>, u32), Diagnostic> {
-        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        Ok(self
-            .parse_delimited_items(
-                crate::parser::ListKind::CallArguments,
-                Self::parse_call_argument,
-            )
-            .into_parts())
-    }
-
-    fn parse_call_argument(&mut self) -> Result<CallArgument, Diagnostic> {
-        self.with_node(scoop_syntax::SyntaxKind::Argument, |parser| {
-            parser.parse_call_argument_inner()
-        })
-    }
-
-    fn parse_call_argument_inner(&mut self) -> Result<CallArgument, Diagnostic> {
-        let start = self.peek().span.start;
-        let name = if let TokenKind::Ident(_) | TokenKind::EscapedIdent(_) = &self.peek().kind
-            && matches!(
-                self.tokens.get(self.pos + 1).map(|token| &token.kind),
-                Some(TokenKind::Equal)
-            ) {
-            let name = self.expect_ident("argument name")?;
-            self.bump(); // `=` verified above
-            CallArgumentName::Named(name)
-        } else {
-            CallArgumentName::Positional
-        };
-        let spread = if matches!(self.peek().kind, TokenKind::Star) {
-            SpreadSyntax::Spread(self.bump().span)
-        } else {
-            SpreadSyntax::Plain
-        };
-        let expression = self.parse_expr()?;
-        Ok(CallArgument {
-            span: Span::new(start, expression.span().end),
-            name,
-            spread,
-            expression,
-        })
     }
 
     /// `( ... )` disambiguation (spec section 4.3): `()` is the unit

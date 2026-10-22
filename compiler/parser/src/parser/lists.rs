@@ -13,6 +13,7 @@ pub(crate) struct DelimitedItems<T> {
     pub(crate) end: u32,
     pub(crate) had_comma: bool,
     pub(crate) closed: bool,
+    pub(crate) commas: Vec<scoop_ast::Span>,
 }
 
 impl<T> DelimitedItems<T> {
@@ -32,7 +33,7 @@ impl Parser {
         let close = kind.close();
         let mut items = Vec::new();
         let mut required = kind.requires_item();
-        let mut had_comma = false;
+        let mut commas = Vec::new();
         loop {
             if !required && (self.peek().kind == close || kind.at_recovery_follow(self)) {
                 break;
@@ -46,8 +47,7 @@ impl Parser {
                 }
             }
             if matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-                had_comma = true;
+                commas.push(self.bump().span);
                 if kind.allows_trailing_comma() && self.peek().kind == close {
                     break;
                 }
@@ -80,8 +80,7 @@ impl Parser {
             ));
             self.synchronize_list_item(kind, self.pos);
             if matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-                had_comma = true;
+                commas.push(self.bump().span);
                 if kind.allows_trailing_comma() && self.peek().kind == close {
                     break;
                 }
@@ -104,8 +103,9 @@ impl Parser {
         DelimitedItems {
             items,
             end,
-            had_comma,
+            had_comma: !commas.is_empty(),
             closed,
+            commas,
         }
     }
 

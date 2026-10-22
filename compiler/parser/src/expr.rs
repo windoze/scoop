@@ -14,6 +14,7 @@ use scoop_ast::{
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
 
+mod arguments;
 mod callables;
 mod context;
 mod interpolation;
@@ -23,6 +24,8 @@ mod postfix;
 mod primary;
 mod qualifiers;
 mod trailing;
+use arguments::ParsedArguments;
+pub(crate) use labels::name_lambda;
 
 /// Precedence tier of the comparison operators — shared by the type
 /// operators `is` / `!is` / `as` / `as?` (M6), which are handled outside

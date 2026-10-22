@@ -54,7 +54,7 @@ pub(super) fn name_call_lambdas(expression: &mut Expr) {
     }
 }
 
-pub(super) fn name_lambda(expression: &mut Expr, name: &Ident) {
+pub(crate) fn name_lambda(expression: &mut Expr, name: &Ident) {
     if let Expr::Lambda { label, .. } = expression
         && label.is_none()
     {
