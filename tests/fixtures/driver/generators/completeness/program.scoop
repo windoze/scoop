@@ -1,0 +1,6 @@
+interface Values { fun value(): Int; fun label(): String }
+
+@GenerateWith("test.peer", ["Values"])
+class Partial : Values
+
+fun main() { println(Partial().value()) }

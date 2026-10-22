@@ -97,8 +97,7 @@ impl Fixture {
         let source = SourceIdentity::new(
             ConeIdentity::CORE,
             NormalizedSourcePath::new("src/Constants.scoop").unwrap(),
-        )
-        .unwrap();
+        );
         let context = CborIdentityRecord::from_key(SourceContextKey::File {
             source: source.clone(),
         })

@@ -364,7 +364,7 @@ mod current_cone_tests {
             .unwrap()
             .identity()
             .unwrap();
-        SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap()).unwrap()
+        SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap())
     }
 
     #[test]

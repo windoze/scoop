@@ -22,8 +22,7 @@ fn fixture(kind: SourceNominalKind) -> Fixture {
     let source = SourceIdentity::new(
         ConeIdentity::CORE,
         NormalizedSourcePath::new("access.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context = SourceContextKey::File {
         source: source.clone(),
     };

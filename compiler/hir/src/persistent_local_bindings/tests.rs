@@ -55,7 +55,7 @@ fn binding_origin_must_use_the_key_source() {
 }
 
 fn source(path: &str) -> SourceIdentity {
-    SourceIdentity::new(ConeIdentity::CORE, NormalizedSourcePath::new(path).unwrap()).unwrap()
+    SourceIdentity::new(ConeIdentity::CORE, NormalizedSourcePath::new(path).unwrap())
 }
 
 fn source_function(name: &str) -> SourceDeclarationKey {

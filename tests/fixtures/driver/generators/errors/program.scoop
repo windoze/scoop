@@ -1,0 +1,6 @@
+interface Value { fun value(): Int }
+
+@GenerateWith("test.peer", ["Value"])
+class GeneratedValue : Value
+
+fun main() { println(GeneratedValue().value()) }

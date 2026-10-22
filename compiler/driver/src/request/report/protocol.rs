@@ -131,10 +131,7 @@ impl SingleConeProductionError {
             Self::Production(error) => match error.cause() {
                 CurrentConeProductionFailure::Hir(CurrentConeHirStageError::Lowering(
                     diagnostics,
-                )) => diagnostics
-                    .iter()
-                    .map(|diagnostic| convert(diagnostic, "SCOOPC_HIR_ERROR", |_| None))
-                    .collect::<Result<Vec<_>, _>>()?,
+                )) => diagnostics.structured_with_code("SCOOPC_HIR_ERROR")?,
                 _ => vec![tool_error(self)?],
             },
             _ => vec![tool_error(self)?],

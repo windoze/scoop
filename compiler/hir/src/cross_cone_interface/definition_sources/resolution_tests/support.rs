@@ -3,7 +3,7 @@ use super::*;
 pub(super) const SOURCE_PATH: &str = "src/Origin.scoop";
 
 pub(super) fn source_identity(cone: ConeIdentity, path: &str) -> SourceIdentity {
-    SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap()).unwrap()
+    SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap())
 }
 pub(super) fn source(start: u64) -> ExportDefinitionSourceV1 {
     let source = source_identity(ConeIdentity::CORE, SOURCE_PATH);

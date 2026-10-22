@@ -54,8 +54,7 @@ impl Fixture {
             source: SourceIdentity::new(
                 current,
                 NormalizedSourcePath::new("src/calls.scoop").unwrap(),
-            )
-            .unwrap(),
+            ),
             owner: CallableOwner::Function(function.id()),
         })
         .unwrap();

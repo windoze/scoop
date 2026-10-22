@@ -262,6 +262,8 @@ driver 将 parser 产出的现有函数体 AST 交给 hir-lower，在目标方�
 
 生成诊断采用现有 severity、message、主位置和 notes 的结构化模型。字段错误优先定位到字段／Serialize 应用，缺失 codec 定位到实际字段并关联生成请求，任务级失败定位到 GenerateWith 应用，必要时关联实际继承位置；配置错误定位到 generator 参数或 interface 的实际数组元素。重复接口或跨 generator 方法冲突关联前后两个配置元素。
 
+结果中的诊断编码为 `{severity: "error" | "warning", message: String, location: SourceLocation | null, notes: [{message: String, location: SourceLocation}]}`。没有主位置的任务错误使用该批首个生成请求位置；显式位置保留原 SourceIdentity 和 UTF-8 byte range。来源只按当前／已选依赖的普通 provider 引用解析，路径及范围检查只承担格式职责，不读取路径指向的外部源码。`compiler/query` 的语义错误使用 JSON-RPC `-32000`，data 为 `{diagnostics: [Diagnostic]}`；格式错误与未知方法仍使用标准错误码。查询失败不终止合法会话，生成器可以继续查询或返回自己的结果。
+
 driver 将每个 source 原样保存在本次编译的诊断源码中，以目标方法关联其展示位置。parser 产生的 byte span 直接对应这段文本；词法、语法与 HIR 诊断显示片段中的行列和内容，并附注对应的 GenerateWith 应用。无需 generator 返回 AST 节点来源表，也不将所有生成表达式的错误压到注解的同一个位置。
 
 调试导出沿现有源码／dump 入口保存可读片段，展示路径由 driver 管理；生成文件不参与普通源码发现或声明收集。诊断位置与语义上下文分开：改变显示文件名、注释或字符串内容不能切换到另一词法作用域或取得额外访问权。这里不要求新增源码映射协议或调试器功能。

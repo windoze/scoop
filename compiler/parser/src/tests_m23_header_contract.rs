@@ -11,7 +11,6 @@ fn source_identity(path: &str) -> SourceIdentity {
             .unwrap(),
         NormalizedSourcePath::new(path).unwrap(),
     )
-    .unwrap()
 }
 
 fn span_of(source: &str, token: &str) -> Span {

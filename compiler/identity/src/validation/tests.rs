@@ -317,8 +317,7 @@ fn external_graph_propagates_transitive_leaf_authorities() {
     let source = SourceIdentity::new(
         provider,
         NormalizedSourcePath::new("src/api.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context =
         CborIdentityRecord::<PersistentSourceContextId, _>::from_key(SourceContextKey::File {
             source,

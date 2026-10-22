@@ -1144,6 +1144,7 @@ dependencies = [
  "clap",
  "insta",
  "la-arena",
+ "lsp-server",
  "object",
  "scoop-ast",
  "scoop-codegen",

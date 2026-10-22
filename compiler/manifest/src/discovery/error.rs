@@ -69,7 +69,6 @@ pub enum SourceDiscoveryErrorKind {
         requested_bytes: u64,
     },
     IdentityHash(String),
-    InvalidSourceIdentity(String),
     Io {
         operation: DiscoveryIoOperation,
         source: std::io::Error,
@@ -124,9 +123,6 @@ impl fmt::Display for SourceDiscoveryError {
             ),
             SourceDiscoveryErrorKind::IdentityHash(error) => {
                 write!(formatter, "cannot derive Cone identity: {error}")
-            }
-            SourceDiscoveryErrorKind::InvalidSourceIdentity(error) => {
-                write!(formatter, "cannot construct source identity: {error}")
             }
             SourceDiscoveryErrorKind::Io { operation, source } => {
                 write!(formatter, "cannot {operation}: {source}")

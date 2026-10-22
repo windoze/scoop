@@ -64,8 +64,7 @@ fn source_and_definition_origins_keep_exact_logical_paths_ranges_and_contexts() 
     let source = SourceIdentity::new(
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/类型.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let span = SourceSpan::new(3, 10).unwrap();
     let context_key = SourceContextKey::File {
         source: source.clone(),

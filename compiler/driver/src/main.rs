@@ -18,46 +18,52 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Compile one Cone into a validated `.slib` artifact.
-    Build {
-        /// Cone directory, exact `Cone.toml`, or one `.scoop` file.
-        input: PathBuf,
-        /// Direct dependency artifact; may be repeated.
-        #[arg(long = "direct-slib")]
-        direct_slibs: Vec<PathBuf>,
-        /// Transitive support dependency artifact; may be repeated.
-        #[arg(long = "support-slib")]
-        support_slibs: Vec<PathBuf>,
-        /// Required destination for the validated current-Cone artifact.
-        #[arg(long = "out-slib")]
-        out_slib: PathBuf,
-        /// Target triple; defaults to the supported host.
-        #[arg(long)]
-        target: Option<String>,
-        /// Compiler optimization profile.
-        #[arg(long, value_enum, default_value_t = Profile::Debug)]
-        profile: Profile,
-        /// Compile this manifest Cone's tests with a generated entry.
-        #[arg(long)]
-        test: bool,
-        /// Core sysroot; defaults to SCOOP_SYSROOT and the development layout.
-        #[arg(long)]
-        sysroot: Option<PathBuf>,
-        /// Linux C compiler driver used for generated native bridges.
-        #[arg(long)]
-        cc: Option<PathBuf>,
-        /// Target C development sysroot, separate from the Scoop sysroot.
-        #[arg(long)]
-        native_sysroot: Option<PathBuf>,
-        /// Print pipeline stage dumps from this compilation to stdout.
-        #[arg(long, value_enum)]
-        emit: Option<Emit>,
-    },
+    Build(Box<BuildArgs>),
     /// Report the exact machine protocol understood by this compiler.
     #[command(name = "__machine-capability", hide = true)]
     MachineCapability,
     /// Compile exactly one request from the versioned machine transport.
     #[command(name = "__child-protocol", hide = true)]
     ChildProtocol { version: u32 },
+}
+
+#[derive(clap::Args)]
+struct BuildArgs {
+    /// Cone directory, exact `Cone.toml`, or one `.scoop` file.
+    input: PathBuf,
+    /// Direct dependency artifact; may be repeated.
+    #[arg(long = "direct-slib")]
+    direct_slibs: Vec<PathBuf>,
+    /// Transitive support dependency artifact; may be repeated.
+    #[arg(long = "support-slib")]
+    support_slibs: Vec<PathBuf>,
+    /// Required destination for the validated current-Cone artifact.
+    #[arg(long = "out-slib")]
+    out_slib: PathBuf,
+    /// Target triple; defaults to the supported host.
+    #[arg(long)]
+    target: Option<String>,
+    /// Compiler optimization profile.
+    #[arg(long, value_enum, default_value_t = Profile::Debug)]
+    profile: Profile,
+    /// Compile this manifest Cone's tests with a generated entry.
+    #[arg(long)]
+    test: bool,
+    /// Core sysroot; defaults to SCOOP_SYSROOT and the development layout.
+    #[arg(long)]
+    sysroot: Option<PathBuf>,
+    /// Linux C compiler driver used for generated native bridges.
+    #[arg(long)]
+    cc: Option<PathBuf>,
+    /// Target C development sysroot, separate from the Scoop sysroot.
+    #[arg(long)]
+    native_sysroot: Option<PathBuf>,
+    /// Register a host source generator; may be repeated.
+    #[arg(long = "generator", value_name = "NAME=PATH")]
+    generators: Vec<std::ffi::OsString>,
+    /// Print pipeline stage dumps from this compilation to stdout.
+    #[arg(long, value_enum)]
+    emit: Option<Emit>,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -91,39 +97,44 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
     let result = match cli.command {
-        Command::Build {
-            input,
-            direct_slibs,
-            support_slibs,
-            out_slib,
-            emit,
-            target,
-            sysroot,
-            cc,
-            native_sysroot,
-            profile,
-            test,
-        } => build(
-            input,
-            direct_slibs,
-            support_slibs,
-            out_slib,
-            emit,
-            scoopc::DirectBuildOptions {
-                optimization: profile.optimization(),
-                purpose: if test {
-                    scoop_protocol::CompilationPurpose::Test
-                } else {
-                    scoop_protocol::CompilationPurpose::Production
-                },
+        Command::Build(args) => {
+            let BuildArgs {
+                input,
+                direct_slibs,
+                support_slibs,
+                out_slib,
+                emit,
                 target,
                 sysroot,
-                c_toolchain: scoop_toolchain::CToolchainOptions {
-                    compiler: cc,
-                    native_sysroot,
+                cc,
+                native_sysroot,
+                generators,
+                profile,
+                test,
+            } = *args;
+            build(
+                input,
+                direct_slibs,
+                support_slibs,
+                out_slib,
+                emit,
+                scoopc::DirectBuildOptions {
+                    optimization: profile.optimization(),
+                    purpose: if test {
+                        scoop_protocol::CompilationPurpose::Test
+                    } else {
+                        scoop_protocol::CompilationPurpose::Production
+                    },
+                    target,
+                    sysroot,
+                    generators,
+                    c_toolchain: scoop_toolchain::CToolchainOptions {
+                        compiler: cc,
+                        native_sysroot,
+                    },
                 },
-            },
-        ),
+            )
+        }
         Command::MachineCapability => write_machine_capability(),
         Command::ChildProtocol { version } => child_protocol::run(version),
     };
@@ -229,9 +240,16 @@ mod tests {
             "arm64-apple-darwin",
             "--sysroot",
             "custom-sysroot",
+            "--generator",
+            "example=tools/first",
+            "--generator",
+            "second=tools/second",
         ])
         .unwrap();
-        let Command::Build {
+        let Command::Build(args) = cli.command else {
+            panic!("expected build command");
+        };
+        let BuildArgs {
             input,
             direct_slibs,
             support_slibs,
@@ -239,11 +257,9 @@ mod tests {
             emit,
             target,
             sysroot,
+            generators,
             ..
-        } = cli.command
-        else {
-            panic!("expected build command");
-        };
+        } = *args;
         assert_eq!(input, PathBuf::from("Cone.toml"));
         assert_eq!(direct_slibs, [PathBuf::from("direct.slib")]);
         assert_eq!(support_slibs, [PathBuf::from("support.slib")]);
@@ -251,6 +267,13 @@ mod tests {
         assert!(matches!(emit, Some(Emit::All)));
         assert_eq!(target.as_deref(), Some("arm64-apple-darwin"));
         assert_eq!(sysroot, Some(PathBuf::from("custom-sysroot")));
+        assert_eq!(
+            generators,
+            [
+                std::ffi::OsString::from("example=tools/first"),
+                std::ffi::OsString::from("second=tools/second")
+            ]
+        );
     }
 
     #[test]

@@ -106,6 +106,7 @@ pub struct SingleConeBuildRequest {
     optimization: scoop_lir::OptimizationMode,
     purpose: CompilationPurpose,
     native_inputs: NativeInputOrigin,
+    generators: scoop_toolchain::GeneratorPrograms,
 }
 
 #[derive(Debug)]
@@ -159,11 +160,17 @@ impl SingleConeBuildRequest {
             optimization: scoop_lir::OptimizationMode::Debug,
             purpose: CompilationPurpose::Production,
             native_inputs: NativeInputOrigin::Source { sysroot: None },
+            generators: scoop_toolchain::GeneratorPrograms::default(),
         })
     }
 
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.optimization = mode;
+        self
+    }
+
+    pub fn with_generators(mut self, programs: scoop_toolchain::GeneratorPrograms) -> Self {
+        self.generators = programs;
         self
     }
 
@@ -271,6 +278,7 @@ pub enum BuildRequestNormalizationError {
     SingleFile(SingleFileInputError),
     HostPath(HostPathError),
     Target(ToolchainError),
+    Generators(ToolchainError),
     Backend(CodegenError),
     Request(SingleConeBuildRequestError),
 }
@@ -283,6 +291,7 @@ impl fmt::Display for BuildRequestNormalizationError {
             Self::SingleFile(error) => error.fmt(formatter),
             Self::HostPath(error) => error.fmt(formatter),
             Self::Target(error) => error.fmt(formatter),
+            Self::Generators(error) => error.fmt(formatter),
             Self::Backend(error) => error.fmt(formatter),
             Self::Request(error) => error.fmt(formatter),
         }
@@ -297,6 +306,7 @@ impl std::error::Error for BuildRequestNormalizationError {
             Self::SingleFile(error) => Some(error),
             Self::HostPath(error) => Some(error),
             Self::Target(error) => Some(error),
+            Self::Generators(error) => Some(error),
             Self::Backend(error) => Some(error),
             Self::Request(error) => Some(error),
         }

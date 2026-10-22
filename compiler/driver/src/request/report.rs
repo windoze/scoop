@@ -49,8 +49,16 @@ pub struct CurrentConeDiagnosticSet {
 
 impl CurrentConeDiagnosticSet {
     pub(super) fn try_new(
+        diagnostics: Vec<Diagnostic>,
+        sources: &CurrentConeParsedSources,
+    ) -> Result<Self, CurrentConeDiagnosticSetError> {
+        Self::try_new_with_generated(diagnostics, sources, &[])
+    }
+
+    pub(super) fn try_new_with_generated(
         mut diagnostics: Vec<Diagnostic>,
         sources: &CurrentConeParsedSources,
+        generated: &[scoop_hir::GeneratedMethodSource],
     ) -> Result<Self, CurrentConeDiagnosticSetError> {
         let mut sources = sources
             .iter()
@@ -60,6 +68,11 @@ impl CurrentConeDiagnosticSet {
                 source_text: Some(source.text().source_text().clone()),
             })
             .collect::<Vec<_>>();
+        sources.extend(generated.iter().map(|source| CurrentConeDiagnosticSource {
+            identity: source.identity.clone(),
+            display_locator: source.name.clone(),
+            source_text: Some(source.text.clone()),
+        }));
         for diagnostic in &mut diagnostics {
             if let Some(identity) = &diagnostic.source {
                 diagnostic.file = source_index(&mut sources, identity);

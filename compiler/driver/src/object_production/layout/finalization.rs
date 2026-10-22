@@ -11,8 +11,6 @@ impl PreparedLayoutObjects {
         self,
         undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
         cone: &ConeRecord,
-        dependencies: &[DependencyRecord],
-        source_count: usize,
         native_objects: Vec<SlibMember>,
     ) -> Result<FinalizedLayoutObjects, BuiltinObjectProductionError> {
         let objects = self.finalize_metadata(undefined)?;
@@ -31,8 +29,6 @@ impl PreparedLayoutObjects {
             .map_err(BuiltinObjectProductionError::CodeLinkObjects)?;
         let projection = slib::verify_cross_cone_layout_production_code_projection_v1(
             cone,
-            dependencies,
-            source_count,
             self.production,
             objects,
         )

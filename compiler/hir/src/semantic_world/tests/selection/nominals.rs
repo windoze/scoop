@@ -14,8 +14,7 @@ fn signatures_use_actual_support_declarations_without_exposing_support_lookup() 
     let source = scoop_identity::SourceIdentity::new(
         types.coordinate.identity().unwrap(),
         scoop_identity::NormalizedSourcePath::new("packet.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let text = "public class Packet";
     let end = text.len() as u64;
     let context = scoop_identity::SourceContextKey::File {

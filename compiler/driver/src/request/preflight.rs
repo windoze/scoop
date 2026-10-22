@@ -105,6 +105,7 @@ pub struct LoadedSingleConeBuildRequest {
     optimization: scoop_lir::OptimizationMode,
     purpose: CompilationPurpose,
     native_inputs: super::NativeInputOrigin,
+    generators: scoop_toolchain::GeneratorPrograms,
 }
 
 impl SingleConeBuildRequest {

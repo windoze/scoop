@@ -71,8 +71,7 @@ fn reader_reports_unresolved_source_identity() {
     let foreign = SourceIdentity::new(
         foreign_cone,
         NormalizedSourcePath::new("foreign.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context = SourceContextKey::File {
         source: foreign.clone(),
     };
@@ -98,7 +97,6 @@ fn core_source() -> SourceIdentity {
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/Alias.scoop").unwrap(),
     )
-    .unwrap()
 }
 
 fn context_key() -> SourceContextKey {

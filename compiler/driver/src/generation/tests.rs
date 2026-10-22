@@ -88,8 +88,7 @@ fn generated(
             identity: SourceIdentity::new(
                 queries.current_cone(),
                 NormalizedSourcePath::new(&path).unwrap(),
-            )
-            .unwrap(),
+            ),
             name: path,
             text: "{ return 1 }".to_owned().into(),
         },
@@ -121,8 +120,7 @@ fn generator_plans_use_real_core_annotations_and_existing_conformance_bindings()
     let identity = SourceIdentity::new(
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/generator-plans.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let mut inputs = sources.iter().map(source_input).collect::<Vec<_>>();
     inputs.push(scoop_parser::CurrentConeSourceInput::new(
         &identity,

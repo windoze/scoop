@@ -239,7 +239,7 @@ pub use source::{
     DecodedNormalizedSourcePath, DecodedSourceContentDigest, DecodedSourceIdentity,
     NormalizedNativeSourcePath, NormalizedSourcePath, NormalizedSourcePathError,
     SemanticSourceNameError, SourceContentDigest, SourceContentDigestError, SourceIdentity,
-    SourceIdentityDecodeError, SourceIdentityError, SourceIdentityResolutionError, SourceRole,
+    SourceIdentityDecodeError, SourceIdentityResolutionError, SourceRole,
 };
 pub use syntax::{
     CanonicalIdentifier, CanonicalIdentifierError, DecodedCanonicalIdentifier, DecodedPackagePath,

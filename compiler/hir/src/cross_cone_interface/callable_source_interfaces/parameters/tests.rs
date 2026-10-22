@@ -146,8 +146,7 @@ fn origin() -> ExportDefinitionSourceV1 {
     let source = SourceIdentity::new(
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/Parameters.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context = SourceContextKey::File {
         source: source.clone(),
     };

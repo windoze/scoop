@@ -96,14 +96,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         )
         .map_err(|error| Error::Layout(Box::new(error)))?;
         let undefined = objects::complete_requirements(&prepared, &native, &shape)?;
-        let current = self.ordinary.cone.identity();
-        let finalized = prepared.finalize(
-            &undefined,
-            &self.ordinary.cone,
-            &self.ordinary.direct_dependencies,
-            self.ordinary.hir_foundation.source_count_for_cone(current),
-            self.native_objects,
-        )?;
+        let finalized = prepared.finalize(&undefined, &self.ordinary.cone, self.native_objects)?;
         let descriptor = self
             .ordinary
             .hir_core

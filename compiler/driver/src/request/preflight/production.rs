@@ -77,10 +77,15 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
         })?;
         let mut source_warnings = packages::single_file_warnings(&self.sources);
         source_warnings.extend(hir.hir.output().warnings.clone());
-        let warnings =
-            CurrentConeDiagnosticSet::try_new(source_warnings, &self.sources).map_err(|e| {
-                CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Warnings(e))
-            })?;
+        source_warnings.extend(hir.generator_warnings.clone());
+        let warnings = CurrentConeDiagnosticSet::try_new_with_generated(
+            source_warnings,
+            &self.sources,
+            &hir.generated_sources,
+        )
+        .map_err(|e| {
+            CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Warnings(e))
+        })?;
         dump.extend(capture_stage_dump(emit, StageDumpKind::Hir, || {
             format!(
                 "== Export ==\n{}== Static Shapes ==\n{}== LocalConcrete ==\n{}== CrossCone ==\n{}",
@@ -234,6 +239,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 world,
                 source_names,
                 test_dependencies,
+                self.request.generators(),
             );
         }
         current_hir::CurrentConeHirArtifacts::lower_with_documentation(
@@ -243,6 +249,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             world,
             source_names,
             self.request.output().documentation().is_some(),
+            self.request.generators(),
         )
     }
 }

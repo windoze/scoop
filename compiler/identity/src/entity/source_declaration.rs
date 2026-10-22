@@ -746,8 +746,7 @@ mod tests {
         let source = SourceIdentity::new(
             ConeIdentity::CORE,
             NormalizedSourcePath::new("src/core.scoop").unwrap(),
-        )
-        .unwrap();
+        );
         let result = SourceDeclarationSite::new(
             ConeIdentity::SINGLE_FILE,
             PackagePath::root(),

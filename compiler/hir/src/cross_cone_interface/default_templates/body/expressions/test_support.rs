@@ -498,7 +498,6 @@ fn source_identity() -> SourceIdentity {
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/Expressions.scoop").unwrap(),
     )
-    .unwrap()
 }
 
 fn context_key() -> SourceContextKey {

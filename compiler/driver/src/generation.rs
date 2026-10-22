@@ -7,6 +7,8 @@ use scoop_identity::{BindableEntity, BindingNamespace, CanonicalIdentifier, Cone
 use std::collections::HashMap;
 
 mod configuration;
+mod external;
+pub(crate) use external::ExternalGenerator;
 mod plan;
 mod request;
 

@@ -349,8 +349,7 @@ const fn binder() -> SignatureTypeKey {
 }
 
 fn origin_at(path: &str, point: u64) -> ExportDefinitionSourceV1 {
-    let source =
-        SourceIdentity::new(ConeIdentity::CORE, NormalizedSourcePath::new(path).unwrap()).unwrap();
+    let source = SourceIdentity::new(ConeIdentity::CORE, NormalizedSourcePath::new(path).unwrap());
     let context = SourceContextKey::File {
         source: source.clone(),
     };

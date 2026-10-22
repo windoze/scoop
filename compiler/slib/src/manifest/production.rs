@@ -9,7 +9,7 @@ use scoop_identity::{
 use scoop_lir::{ConeProductionSectionV1, RegistrationIdentitySurfaceV1};
 use scoop_wire::{Encoder, WireEncode};
 
-use super::{ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, RuntimeImageFingerprint};
+use super::{ConeKind, ConeRecord, ConeSourceForm, RuntimeImageFingerprint};
 use crate::SlibMemberId;
 use crate::link_object::{
     CanonicalOdrMemberDirectoryV1, CodeFingerprintDataV1, EntryProductionBranchV1,
@@ -17,7 +17,6 @@ use crate::link_object::{
 };
 
 mod projection;
-pub(crate) use projection::distribution;
 pub(crate) use projection::{ProductionPlanInputs, build_production_code_projection_common};
 
 mod wire;
@@ -259,53 +258,28 @@ impl WireEncode for SingleConeProductionManifestV1 {
 
 pub fn verify_single_cone_production_code_projection_v1(
     cone: &ConeRecord,
-    direct_dependencies: &[DependencyRecord],
-    source_count: usize,
     strong_production: ConeProductionSectionV1,
     link_objects: FinalCodeObjectSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
-    let dependency_identities = direct_dependencies
-        .iter()
-        .map(DependencyRecord::identity)
-        .collect::<Vec<_>>();
-    verify_production_code_projection_v1(
-        cone,
-        &dependency_identities,
-        source_count,
-        strong_production,
-        link_objects,
-    )
+    verify_production_code_projection_v1(cone, strong_production, link_objects)
 }
 
-/// Verifies the ordinary cross-Cone image against the same direct dependency
-/// inventory used by the artifact graph and semantic/link closures.
+/// Projects the completed ordinary cross-Cone image and its runtime registrations.
 pub fn verify_cross_cone_production_code_projection_v1(
     cone: &ConeRecord,
-    direct_dependencies: &[DependencyRecord],
-    source_count: usize,
     strong_production: ConeProductionSectionV1,
     link_objects: FinalCodeObjectSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
-    verify_single_cone_production_code_projection_v1(
-        cone,
-        direct_dependencies,
-        source_count,
-        strong_production,
-        link_objects,
-    )
+    verify_single_cone_production_code_projection_v1(cone, strong_production, link_objects)
 }
 
 fn verify_production_code_projection_v1(
     cone: &ConeRecord,
-    dependency_identities: &[scoop_identity::ConeIdentity],
-    source_count: usize,
     strong_production: ConeProductionSectionV1,
     link_objects: FinalCodeObjectSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
-    projection::distribution(cone, dependency_identities, source_count)?;
     let projection = build_production_code_projection_common(
         cone,
-        dependency_identities,
         ProductionPlanInputs::from(&strong_production),
         &link_objects,
     )?;
@@ -325,11 +299,6 @@ fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProductionCodeProjectionError {
     InvalidSingleFileLinkRoot,
-    InvalidSingleFileRoot {
-        kind: ConeKind,
-        source_count: usize,
-        dependencies: Vec<scoop_identity::ConeIdentity>,
-    },
     OutputMismatch,
     MissingGatewayFingerprint(PersistentCallableBodyId),
 

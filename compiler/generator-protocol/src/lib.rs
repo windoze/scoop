@@ -23,6 +23,11 @@ mod queries;
 pub use queries::{
     CompilerQuery, DefaultReference, ExportNamespace, Query, TypeRelation, execute_query,
 };
+mod result;
+pub use result::{
+    ByteRange, Generated, GeneratedBody, GeneratorDiagnostic, GeneratorNote, GeneratorSeverity,
+    PROTOCOL_VERSION, QUERY_ERROR, SourceLocation, SourceReference,
+};
 
 #[cfg(test)]
 mod tests;

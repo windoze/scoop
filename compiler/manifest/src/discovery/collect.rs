@@ -58,13 +58,7 @@ pub(super) fn select(
         }
     }
     let mut sources = candidates.into_iter().map(|(role, candidate)| {
-        let identity =
-            SourceIdentity::new(manifest.identity(), candidate.logical_path).map_err(|error| {
-                SourceDiscoveryError::new(
-                    candidate.display_path.clone(),
-                    SourceDiscoveryErrorKind::InvalidSourceIdentity(error.to_string()),
-                )
-            })?;
+        let identity = SourceIdentity::new(manifest.identity(), candidate.logical_path);
         SelectedSource::new(
             identity,
             SourceDisplayLocator::new(candidate.display_path.clone()),

@@ -17,6 +17,8 @@ pub use c_bridge_invocation::{
 mod compiler;
 mod cxx;
 mod final_link;
+mod generators;
+pub use generators::GeneratorPrograms;
 mod linux_c;
 mod linux_target;
 mod manifest;

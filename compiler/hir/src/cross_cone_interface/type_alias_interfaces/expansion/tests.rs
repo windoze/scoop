@@ -108,8 +108,7 @@ fn definition_origin() -> ExportDefinitionSourceV1 {
     let source = SourceIdentity::new(
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/Aliases.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context = SourceContextKey::File {
         source: source.clone(),
     };

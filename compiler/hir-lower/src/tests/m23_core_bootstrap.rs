@@ -42,8 +42,7 @@ fn core_bootstrap_lowers_directly_from_the_atomic_parser_product() {
 }
 
 fn parsed_source(cone: ConeIdentity) -> CurrentConeParsedSources {
-    let identity =
-        SourceIdentity::new(cone, NormalizedSourcePath::new("src/core.scoop").unwrap()).unwrap();
+    let identity = SourceIdentity::new(cone, NormalizedSourcePath::new("src/core.scoop").unwrap());
     CurrentConeParsedSources::try_new(
         AllParsedSources::try_new(NonEmptyVec::new(
             IdentifiedParsedSource::new(identity.clone(), complete_core_file()),

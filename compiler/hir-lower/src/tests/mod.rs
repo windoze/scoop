@@ -254,7 +254,6 @@ pub(crate) fn test_source_identity(path: &str) -> scoop_identity::SourceIdentity
             .unwrap(),
         scoop_identity::NormalizedSourcePath::new(path).unwrap(),
     )
-    .unwrap()
 }
 
 pub(crate) fn core_source_identity(path: &str) -> scoop_identity::SourceIdentity {
@@ -262,7 +261,6 @@ pub(crate) fn core_source_identity(path: &str) -> scoop_identity::SourceIdentity
         scoop_identity::ConeIdentity::CORE,
         scoop_identity::NormalizedSourcePath::new(path).unwrap(),
     )
-    .unwrap()
 }
 
 pub(crate) fn identified_test_sources(sources: Vec<ast::SourceFile>) -> ast::AllParsedSources {

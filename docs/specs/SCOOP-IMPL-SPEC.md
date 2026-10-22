@@ -50,7 +50,7 @@ stage 只通过对应 IR/metadata 交换数据，不调用上游 stage 的实现
 
 ### 2.1 Parser / AST
 
-源码集合非空，文件具有唯一 `SourceIdentity { cone, logical_path }`。manifest Cone 的 logical path 为完整的标准化 Cone-relative source path；默认目录中的文件保持 `src/...`，显式源码根不截短路径或改变相同文件的身份。single-file 为 `main.scoop`。host 路径只用于本次 I/O 与诊断。parser 只接收按语言规范 12.2.2 及本规范 2.7 选定的完整源码集合，不自行补扫目录。
+源码集合非空，文件具有唯一 `SourceIdentity { cone, logical_path }`。manifest Cone 的 logical path 为完整的标准化 Cone-relative source path；默认目录中的文件保持 `src/...`，显式源码根不截短路径或改变相同文件的身份。single-file 的原始入口文件为 `main.scoop`，由输入选择保证；2.20 的生成正文在同一 Cone 中另有按方法身份派生的逻辑来源。SourceIdentity 只组合已有 ConeIdentity 与标准化逻辑路径，不把单文件输入的选择规则施加给所有诊断／正文来源。host 路径只用于本次 I/O 与诊断。parser 只接收按语言规范 12.2.2 及本规范 2.7 选定的完整源码集合，不自行补扫目录。
 
 AST 保留原始源码顺序、byte span、显式类型实参、位置／命名／spread／尾随 lambda 实参，以及独立的声明、表达式、模式和控制转移结构。文件至多有一个开头 package，其后为 import，再后为声明。qualified path 为非空 identifier sequence；package、静态 owner 与实体的分界由名称解析决定。
 
@@ -1323,7 +1323,11 @@ logical property 描述独立保留 getter／setter 身份、实现形式、访�
 
 driver 的任务规划读取普通 GenerateWith 应用及数组逐元素来源，按实际 owner 与完整接口应用检测重复，再以原 conformance requirement 关系选择待填方法。同一 owner／generator 保留全部有效 bindings 并合并方法；不同 generator 只有争用同一待填方法时才冲突。没有待填方法的组不启动程序，错误配置仍正常诊断。接口方法引用使用原 dispatch slot 身份，源码查询与最终产物复用同一 slot 构造路径；任务消息保留完整接口应用、slot、原方法签名和请求位置。
 
+driver 使用既有宿主进程管理和 Content-Length JSON-RPC 分帧，逐组同步执行生成程序；查询上下文只能是该组已有的待填方法。各组成功结果收齐并检查输出结束及进程退出状态后，再沿严格函数体片段入口解析；最终响应后的额外字节、异常退出及错误诊断均使本次生成失败。warning 随正常正文保留。失败和成功诊断都与本次实际片段原文成对保存，不能仅保留逻辑文件名或将所有错误压到配置位置。具体消息及错误字段见 [M47 协议](../milestone47/PROTOCOL.md)2、5、6 节。
+
 生成正文的词法输入文件与诊断文本可以不同：package、import 和访问域取原方法文件，表达式及局部声明的来源取该片段。片段使用由实际方法声明身份派生的普通逻辑源码名，并由 driver 保存原文和注解关联；名称不依赖 generator 路径或进程顺序。原方法参数仍保留声明处来源。此区别仅服务正常绑定、诊断及源码记录，不引入新的来源认证规则。
+
+产物的来源记录包含这些正文来源，其数量不等于原始输入文件数。single-file 的输入选择仍在 driver 边界完成，产物按已选 Cone 的 executable／source form 分类，不以来源记录数量重新验收单文件输入形状。
 
 错误源码中的声明、作用域和表达式事实按实际依赖分别可用或不可用。依赖缺失语法、失败推断或尚未完成分析的结果必须说明原因；不能用 Any、Nothing、空正文、空候选集合或上一版的成功事实表示当前未知。尚未完成的声明仍影响名称遮蔽与候选完整性，不能简单删除后声称决议成功。每个已知类型／正文都保持完整；恢复状态只属于分析结果，不成为普通 HIR 类型或下游输入。只有正常编译完成必要检查和正文补齐后才发布成功 HIR。
 

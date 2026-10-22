@@ -10,7 +10,7 @@ impl GeneratorBatch {
             .map(|task| task.request(queries))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(json!({
-            "protocolVersion": 1, "generator": self.generator,
+            "protocolVersion": scoop_generator_protocol::PROTOCOL_VERSION, "generator": self.generator,
             "currentCone": Reference::from(queries.current_cone()),
             "coreCone": Reference::from(ConeIdentity::CORE), "tasks": tasks,
         }))

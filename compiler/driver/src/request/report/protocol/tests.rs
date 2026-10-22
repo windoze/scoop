@@ -10,7 +10,6 @@ fn source(cone: u8, path: &str) -> SourceIdentity {
             .unwrap(),
         NormalizedSourcePath::new(path).unwrap(),
     )
-    .unwrap()
 }
 
 #[test]

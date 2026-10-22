@@ -55,8 +55,7 @@ fn pending_dependency_method_keeps_inherited_defaults_and_applied_owner_binders(
                         queries.current_cone(),
                         scoop_identity::NormalizedSourcePath::new("generated/choose.scoop")
                             .unwrap(),
-                    )
-                    .unwrap(),
+                    ),
                     name: "generated/choose.scoop".into(),
                     text: text.to_owned().into(),
                 },

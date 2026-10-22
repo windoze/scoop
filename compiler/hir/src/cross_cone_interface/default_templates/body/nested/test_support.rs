@@ -314,7 +314,6 @@ fn source_identity() -> SourceIdentity {
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/Nested.scoop").unwrap(),
     )
-    .unwrap()
 }
 
 fn context_key() -> SourceContextKey {

@@ -46,8 +46,6 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
             .unwrap();
     let code_projection = crate::verify_single_cone_production_code_projection_v1(
         &cone(),
-        &dependencies,
-        hir_foundation.counts().sources,
         strong_production.clone(),
         link_objects,
     )

@@ -144,8 +144,7 @@ fn origin_record(origin: ConeIdentity, subject: DefinitionOriginSubject) -> Defi
     let source = SourceIdentity::new(
         origin,
         NormalizedSourcePath::new("src/protocol_fixture.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context = SourceContextKey::File {
         source: source.clone(),
     };

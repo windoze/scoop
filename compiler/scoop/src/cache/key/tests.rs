@@ -49,8 +49,7 @@ fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 
     let source = SourceIdentity::new(
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/core.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     ConeCompileCacheInputV1::new(
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
@@ -151,8 +150,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
     let source = SourceIdentity::new(
         current_identity,
         NormalizedSourcePath::new("src/main.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let semantic = core.semantic_fingerprints();
     ConeCompileCacheInputV1::new(
         ConeRecord::new(
@@ -296,8 +294,7 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
         input.sources[0].source = SourceIdentity::new(
             input.cone.identity(),
             NormalizedSourcePath::new("src/other.scoop").unwrap(),
-        )
-        .unwrap();
+        );
     });
     assert_mutation_misses(&baseline, |input| {
         input.sources[0].modified += std::time::Duration::from_nanos(1);

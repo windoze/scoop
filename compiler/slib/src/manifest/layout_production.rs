@@ -4,8 +4,7 @@ use scoop_lir::ConeProductionSectionV2;
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{
-    ConeRecord, DependencyRecord, ProductionCodeProjectionError,
-    SingleConeProductionCodeProjectionV1,
+    ConeRecord, ProductionCodeProjectionError, SingleConeProductionCodeProjectionV1,
     production::{ProductionPlanInputs, build_production_code_projection_common},
 };
 use crate::link_object::FinalCodeObjectSetV2;
@@ -38,23 +37,14 @@ impl VerifiedSingleConeProductionCodeProjectionV2 {
     }
 }
 
-/// Verifies the layout image against the artifact's complete direct dependency
-/// inventory before accepting its object and runtime fingerprint projection.
+/// Projects the completed layout image, final objects, and runtime fingerprints.
 pub fn verify_cross_cone_layout_production_code_projection_v1(
     cone: &ConeRecord,
-    direct_dependencies: &[DependencyRecord],
-    source_count: usize,
     strong_production: ConeProductionSectionV2,
     link_objects: FinalCodeObjectSetV2,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV2, ProductionCodeProjectionError> {
-    let dependency_identities = direct_dependencies
-        .iter()
-        .map(DependencyRecord::identity)
-        .collect::<Vec<_>>();
-    super::production::distribution(cone, &dependency_identities, source_count)?;
     let projection = build_production_code_projection_common(
         cone,
-        &dependency_identities,
         ProductionPlanInputs::from(&strong_production),
         &link_objects,
     )?;

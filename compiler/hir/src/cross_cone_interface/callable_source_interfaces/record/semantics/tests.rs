@@ -467,7 +467,7 @@ fn origin(cone: ConeIdentity) -> ExportDefinitionSourceV1 {
     } else {
         NormalizedSourcePath::new("src/Callable.scoop").unwrap()
     };
-    let source = SourceIdentity::new(cone, path).unwrap();
+    let source = SourceIdentity::new(cone, path);
     let context = SourceContextKey::File {
         source: source.clone(),
     };
