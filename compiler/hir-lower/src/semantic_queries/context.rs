@@ -113,10 +113,34 @@ impl FrontendQueries<'_, '_> {
                 let parameters = binders.parameters().cloned().collect();
                 let previous =
                     std::mem::replace(&mut self.lowerer.type_params_in_scope, parameters);
+                let previous_query = std::mem::replace(&mut self.lowerer.in_semantic_query, true);
                 let value = operation(self.lowerer);
+                self.lowerer.in_semantic_query = previous_query;
                 self.lowerer.type_params_in_scope = previous;
                 value
             }
         }
+    }
+
+    pub(super) fn type_query(
+        &mut self,
+        context: hir::SemanticTypeContext<'_>,
+        span: Span,
+        operation: impl FnOnce(&mut Lowerer) -> Option<hir::TypeId>,
+    ) -> Result<hir::TypeId, Vec<Diagnostic>> {
+        self.in_type_context(context, |lowerer| {
+            let before = lowerer.diagnostics.len();
+            let result =
+                operation(lowerer).filter(|ty| lowerer.check_query_type_representation(*ty, span));
+            let mut diagnostics = lowerer.diagnostics.split_off(before);
+            let sources = lowerer.diagnostic_source_identities();
+            for diagnostic in &mut diagnostics {
+                diagnostic.resolve_sources(&sources);
+            }
+            match result {
+                Some(ty) if diagnostics.is_empty() => Ok(ty),
+                _ => Err(diagnostics),
+            }
+        })
     }
 }

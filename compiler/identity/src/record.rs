@@ -781,7 +781,7 @@ mod tests {
         );
 
         let malformed = DecodedRuntimeIdentityRecord::<PersistentCallableBodyId> {
-            id: DecodedPersistentId::from_unvalidated_bytes(*record.id().as_array()),
+            id: DecodedPersistentId::from_bytes(*record.id().as_array()),
             key_bytes: b"\x06\0\0\0".to_vec(),
         };
         assert!(matches!(

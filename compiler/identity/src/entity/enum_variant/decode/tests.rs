@@ -157,7 +157,7 @@ fn variant_resolution_rejects_a_role_that_does_not_match_its_owner() {
     };
     let owner_id = PersistentTypeId::from_generated_key(&owner).unwrap();
     let decoded = DecodedEnumVariantIdentityKey::Generated {
-        owner: DecodedPersistentId::from_unvalidated_bytes(*owner_id.as_array()),
+        owner: DecodedPersistentId::from_bytes(*owner_id.as_array()),
         role: GeneratedEnumVariantRole::CoroutineSlotEmpty,
     };
     let mut resolver = Resolver {

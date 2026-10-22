@@ -3,6 +3,8 @@
 
 mod reference;
 pub use reference::{Reference, ReferenceFormatError};
+mod type_reference;
+pub use type_reference::TypeReference;
 mod declarations;
 pub use declarations::{CallableDeclaration, FieldId, MethodId, NominalId};
 mod json;

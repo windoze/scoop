@@ -1,4 +1,4 @@
-use scoop_identity::PersistentId;
+use scoop_identity::{DecodedPersistentId, PersistentId};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use std::{fmt, marker::PhantomData, str::FromStr};
 
@@ -21,6 +21,12 @@ impl<I: PersistentId> From<I> for Reference<I> {
             bytes: *id.as_array(),
             marker: PhantomData,
         }
+    }
+}
+
+impl<I: PersistentId> From<Reference<I>> for DecodedPersistentId<I> {
+    fn from(reference: Reference<I>) -> Self {
+        Self::from_bytes(reference.bytes)
     }
 }
 

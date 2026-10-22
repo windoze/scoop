@@ -2,6 +2,7 @@ use super::*;
 use hir::SemanticTypeStructure as Shape;
 
 mod declaration_binders;
+mod references;
 
 pub(super) fn resolve(
     queries: &mut dyn SemanticQueries,

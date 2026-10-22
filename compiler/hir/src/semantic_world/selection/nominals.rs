@@ -99,6 +99,10 @@ impl ImportedDependencySelectionPlan {
         self.catalog.nominals.get(&owner)
     }
 
+    pub fn nominal_declarations(&self) -> impl Iterator<Item = &Arc<ImportedNominalDeclaration>> {
+        self.catalog.nominals.values()
+    }
+
     /// Lexical scope visibility does not require a generic owner's machine type.
     pub fn nominal_visibility(
         &self,

@@ -351,16 +351,10 @@ impl Lowerer {
             .collect();
         for (ty, id) in concrete_layouts {
             self.current_file = self.struct_files[&self.struct_id(id)];
-            let mut visiting = HashSet::new();
-            if let Err(error) =
-                self.classify_c_ffi_type(ty, &[], false, vec![self.type_name(ty)], &mut visiting)
-            {
+            if let Some(error) = self.c_ffi_type_error(ty) {
                 self.error(
                     self.structs[self.struct_id(id)].span,
-                    format!(
-                        "concrete `@CLayout` type is not C-FFI-safe: {}",
-                        error.render()
-                    ),
+                    format!("concrete `@CLayout` type is not C-FFI-safe: {error}"),
                 );
             }
         }
@@ -368,15 +362,24 @@ impl Lowerer {
         let fun_ptr_uses = self.fun_ptr_type_uses.clone();
         for (ty, file, span) in fun_ptr_uses {
             self.current_file = file;
-            let mut visiting = HashSet::new();
-            if let Err(error) =
-                self.classify_c_ffi_type(ty, &[], false, vec![self.type_name(ty)], &mut visiting)
-            {
+            if let Some(error) = self.c_ffi_type_error(ty) {
                 self.error(
                     span,
-                    format!("`FunPtr` signature is not C-FFI-safe: {}", error.render()),
+                    format!("`FunPtr` signature is not C-FFI-safe: {error}"),
                 );
             }
         }
+    }
+
+    pub(crate) fn c_ffi_type_error(&mut self, ty: hir::TypeId) -> Option<String> {
+        self.classify_c_ffi_type(
+            ty,
+            &[],
+            false,
+            vec![self.type_name(ty)],
+            &mut HashSet::new(),
+        )
+        .err()
+        .map(|error| error.render())
     }
 }

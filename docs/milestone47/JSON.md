@@ -29,6 +29,10 @@ identity 使用原 32 字节对应的 64 位十六进制字符串；写出小写
 
 类型的 nominal 字段不展开其成员。binder 类型只能随实际声明／正文的上下文传递；声明与应用类型各用其对应上下文，不能把开放参数当作某个全局 concrete type。作用域选择不改变访问权限。
 
+类型输入沿同一形状解码。nominalApplication 的 arguments 和 tuple 的 elements 不得为空；单元素 tuple 合法，空 tuple 使用实际 Unit 名义引用。未知 kind、effect、callingConvention、非法引用文本或不能表示为 u32 的 binder 位置为格式错误。格式解码得到既有 DecodedSignatureTypeKey，不创建已解析的声明身份。
+
+语义解析以当前源码和已选依赖的实际名义声明建立索引，分别查找普通与泛型身份；未找到为查询错误，不要求引用先在另一条响应中出现。泛型元数和 bound、函数指针的普通具体签名与 C ABI 合法性、companion 条件及 NoGC／Ptr／具体 CLayout 表示沿前端原有规则检查。结构表示的 Unit／整数／Any／Ptr／FunPtr 保留真实 core 声明关系。binder 必须存在于本次适配器选定的真实上下文，不能以 arena 序号或同名参数补足。
+
 ## 源码来源
 
 SourceIdentity 为 `{cone, path}`，`cone` 使用 typed cone identity，`path` 为原规范化逻辑路径，不是宿主绝对路径或 LSP URI。来源为 `{source: SourceIdentity, span: {startByte, endByte}}`；byte range 为 UTF-8 的半开区间。带词法来源的正文记录额外保留原 `context` identity。投影不读取源码，也不据路径寻找同名文件。

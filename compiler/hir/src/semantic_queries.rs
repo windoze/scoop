@@ -176,4 +176,10 @@ pub trait SemanticQueries {
         context: SemanticContext,
         syntax: &ast::TypeRef,
     ) -> Result<TypeId, Vec<Diagnostic>>;
+    fn resolve_type_reference(
+        &mut self,
+        context: SemanticTypeContext<'_>,
+        reference: scoop_identity::DecodedSignatureTypeKey,
+        span: Span,
+    ) -> Result<TypeId, Vec<Diagnostic>>;
 }

@@ -419,7 +419,7 @@ fn decode_persistent_id<I: PersistentId>(
     let source = decoder.fixed(32)?;
     let mut bytes = [0; 32];
     bytes.copy_from_slice(source);
-    Ok(DecodedPersistentId::from_unvalidated_bytes(bytes))
+    Ok(DecodedPersistentId::from_bytes(bytes))
 }
 
 #[cfg(test)]

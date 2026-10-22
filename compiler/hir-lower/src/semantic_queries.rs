@@ -16,12 +16,14 @@ mod fields;
 mod methods;
 mod parameters;
 mod properties;
+mod type_references;
 mod types;
 
 pub(crate) struct FrontendQueries<'a, 'input> {
     pub(crate) lowerer: &'a mut Lowerer,
     pub(crate) world: Option<&'a hir::ImportedSemanticWorld<'input>>,
     body_queries: body_projection::BodyQueries<'a>,
+    nominal_references: std::cell::OnceCell<type_references::NominalReferences>,
 }
 
 impl<'a, 'input> FrontendQueries<'a, 'input> {
@@ -34,6 +36,7 @@ impl<'a, 'input> FrontendQueries<'a, 'input> {
             lowerer,
             world,
             body_queries: body_projection::BodyQueries::new(original),
+            nominal_references: std::cell::OnceCell::new(),
         }
     }
 
@@ -326,21 +329,18 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         context: hir::SemanticContext,
         syntax: &scoop_ast::TypeRef,
     ) -> Result<hir::TypeId, Vec<Diagnostic>> {
-        self.in_context(context, |lowerer| {
-            let before = lowerer.diagnostics.len();
-            let result = lowerer
-                .resolve_type_ref(syntax)
-                .filter(|ty| lowerer.check_query_type_representation(*ty, syntax.span));
-            let mut diagnostics = lowerer.diagnostics.split_off(before);
-            let sources = lowerer.diagnostic_source_identities();
-            for diagnostic in &mut diagnostics {
-                diagnostic.resolve_sources(&sources);
-            }
-            match result {
-                Some(ty) if diagnostics.is_empty() => Ok(ty),
-                _ => Err(diagnostics),
-            }
+        self.type_query(context.into(), syntax.span, |lowerer| {
+            lowerer.resolve_type_ref(syntax)
         })
+    }
+
+    fn resolve_type_reference(
+        &mut self,
+        context: hir::SemanticTypeContext<'_>,
+        reference: scoop_identity::DecodedSignatureTypeKey,
+        span: Span,
+    ) -> Result<hir::TypeId, Vec<Diagnostic>> {
+        self.query_type_reference(context, reference, span)
     }
 }
 

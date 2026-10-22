@@ -1,5 +1,6 @@
 use super::*;
 use hir::SemanticTypeStructure as Shape;
+mod references;
 
 #[test]
 fn dependency_type_description_does_not_request_companion_initialization() {

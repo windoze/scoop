@@ -285,19 +285,20 @@ impl Lowerer {
             let Type::Ptr(pointee) = self.types[ty] else {
                 continue;
             };
-            if self.type_contains_param(pointee) {
-                continue;
-            }
-            if !self.is_gc_free(pointee) {
+            if let Some(message) = self.concrete_pointer_pointee_error(pointee) {
                 self.current_file = file;
-                self.error(
-                    span,
-                    format!(
-                        "`Ptr` pointee must be GC-free, found {}",
-                        self.type_name(pointee)
-                    ),
-                );
+                self.error(span, message);
             }
         }
+    }
+
+    pub(crate) fn concrete_pointer_pointee_error(&self, pointee: TypeId) -> Option<String> {
+        if self.type_contains_param(pointee) || self.is_gc_free(pointee) {
+            return None;
+        }
+        Some(format!(
+            "`Ptr` pointee must be GC-free, found {}",
+            self.type_name(pointee)
+        ))
     }
 }

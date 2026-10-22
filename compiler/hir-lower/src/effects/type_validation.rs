@@ -64,8 +64,29 @@ impl Lowerer {
         self.record_nominal_type_sites(ty, self.current_file, span, &mut sites);
         let mut errors = Vec::new();
         for ty in sites.into_keys() {
+            if let hir::Type::Ptr(pointee) = self.types[ty]
+                && let Some(message) = self.concrete_pointer_pointee_error(pointee)
+            {
+                errors.push(message);
+            }
             if self.type_contains_param(ty) {
                 continue;
+            }
+            let ffi_kind = match self.types[ty] {
+                hir::Type::FunPtr(_) => Some("`FunPtr` signature"),
+                hir::Type::Struct(application)
+                    if self
+                        .struct_c_layout(self.struct_applications[application].template)
+                        .is_some() =>
+                {
+                    Some("concrete `@CLayout` type")
+                }
+                _ => None,
+            };
+            if let Some(kind) = ffi_kind
+                && let Some(error) = self.c_ffi_type_error(ty)
+            {
+                errors.push(format!("{kind} is not C-FFI-safe: {error}"));
             }
             let kind = match self.types[ty] {
                 hir::Type::Struct(application)

@@ -203,7 +203,7 @@ fn field_resolution_rejects_a_role_that_does_not_match_its_owner() {
     };
     let owner = PersistentTypeId::from_generated_key(&invalid_owner).unwrap();
     let decoded = DecodedFieldIdentityKey::Generated {
-        owner: DecodedPersistentId::from_unvalidated_bytes(*owner.as_array()),
+        owner: DecodedPersistentId::from_bytes(*owner.as_array()),
         key: DecodedGeneratedFieldKey::BoxPayload,
     };
     let mut resolver = Resolver {
