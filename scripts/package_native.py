@@ -68,6 +68,7 @@ def darwin(root, binaries, llvm_lib):
                 shutil.copy2(dependency, files[dependency])
                 queue.append((dependency, search))
             arguments += ["-change", name, "@rpath/" + dependency.name]
+        has_private_dependencies = bool(arguments)
         for path in rpaths:
             arguments += ["-delete_rpath", path]
         relative = (
@@ -75,10 +76,12 @@ def darwin(root, binaries, llvm_lib):
             if destination.parent == private
             else "@executable_path/../libexec/llvm/lib"
         )
-        arguments += ["-add_rpath", relative]
+        if has_private_dependencies:
+            arguments += ["-add_rpath", relative]
         if own_name is not None:
             arguments += ["-id", "@rpath/" + destination.name]
-        edits.append((destination, arguments))
+        if arguments:
+            edits.append((destination, arguments))
     for destination, arguments in reversed(edits):
         subprocess.run(["install_name_tool", *arguments, str(destination)], check=True)
         subprocess.run(["codesign", "--force", "--sign", "-", str(destination)], check=True)
