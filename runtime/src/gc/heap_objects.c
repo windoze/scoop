@@ -11,13 +11,12 @@ static size_t object_word_index(ScoopGcBlockMeta *block, const void *object) {
     return (size_t)(offset / sizeof(uint64_t));
 }
 
-/* Read-only under the heap lock, or the coordinator's immutable STW mark view. */
-bool object_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
+static inline bool object_meta_in_block(const void *object, ScoopGcBlockMeta *block,
+                                        size_t *word_index) {
     uintptr_t address = (uintptr_t)object;
     if ((address & (sizeof(void *) - 1)) != 0) {
         return false;
     }
-    ScoopGcBlockMeta *block = pointer_block(object);
     if (block == NULL || !active_head(block)) {
         return false;
     }
@@ -37,6 +36,27 @@ bool object_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_ind
         if (((starts >> (*word_index % 64)) & UINT64_C(1)) == 0) {
             return false;
         }
+    }
+    return true;
+}
+
+/* Read-only under the heap lock, or the coordinator's immutable STW mark view. */
+bool object_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
+    ScoopGcBlockMeta *block = pointer_block(object);
+    if (!object_meta_in_block(object, block, word_index)) {
+        return false;
+    }
+    *result = block;
+    return true;
+}
+
+bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
+    ScoopGcBlockMeta *block = pointer_block(object);
+    if (block == NULL) {
+        return false;
+    }
+    if (!object_meta_in_block(object, block, word_index)) {
+        heap_fatal("managed slot is not a current heap object start");
     }
     *result = block;
     return true;

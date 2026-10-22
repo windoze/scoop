@@ -8,6 +8,33 @@ use crate::imported_core::ImportedSignatureTypeError;
 use crate::{CoreLoweringAuthority, Lowerer};
 
 impl Lowerer {
+    pub(crate) fn prepare_selected_intrinsic_types(
+        &mut self,
+    ) -> Result<(), ImportedSignatureTypeError> {
+        let Some(dependencies) = &self.dependencies else {
+            return Ok(());
+        };
+        let arithmetic = self.imported_dependency_callables.iter().any(|(_, use_)| {
+            matches!(
+                dependencies
+                    .resolve_callable(use_.reference())
+                    .expect("a selected callable retains its declaration")
+                    .interface()
+                    .effects()
+                    .implementation(),
+                export::CallableImplementationV1::Intrinsic(
+                    export::IntrinsicFunctionKind::Integer(
+                        export::IntegerIntrinsicKind::ManagedOperation { .. }
+                    )
+                )
+            )
+        });
+        if arithmetic {
+            self.prepare_arithmetic_exception_type()?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn prepare_missing_context_exception_type(
         &mut self,
     ) -> Result<(), ImportedSignatureTypeError> {

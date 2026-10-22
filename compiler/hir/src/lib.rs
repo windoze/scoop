@@ -64,7 +64,9 @@ pub use imported_dependency::*;
 mod initialization_dependencies;
 pub use initialization_dependencies::{HirInitializationUseError, HirPropertyInitializationUseV1};
 
+mod inline_body;
 mod production;
+pub use inline_body::small_inline_body;
 pub use production::*;
 
 mod ids;

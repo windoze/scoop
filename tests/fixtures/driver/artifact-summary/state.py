@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 mode, cache, saved, count = sys.argv[1:]
-paths = sorted(Path(cache).glob("artifact-summaries-v1/*.cbor"))
+paths = sorted(Path(cache).glob("artifact-summaries-v2/*.cbor"))
 assert len(paths) == int(count), paths
 state = {str(path): [path.stat().st_size, path.stat().st_mtime_ns] for path in paths}
 if mode == "save":

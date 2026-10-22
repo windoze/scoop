@@ -146,6 +146,22 @@ impl DependencyHirOutput {
                 executable_callables.push(callable);
             }
         }
+        executable_callables.extend(
+            local
+                .structs
+                .values()
+                .filter(|value| !local_value_dispatch(&value.origin))
+                .flat_map(|value| &value.interface_implementations)
+                .flat_map(|implementation| &implementation.methods)
+                .filter_map(|method| match method.target {
+                    concrete::InterfaceImplementationTarget::Imported(callable)
+                        if local.imported_intrinsics.contains_key(&callable) =>
+                    {
+                        Some(callable)
+                    }
+                    _ => None,
+                }),
+        );
         executable_callables.sort_unstable();
         executable_callables.dedup();
         binding_witness_uses.sort_unstable();

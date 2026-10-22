@@ -3,14 +3,31 @@ use inkwell::values::AnyValue;
 
 #[test]
 fn conditional_polls_materialize_roots_only_on_the_slow_edge() {
+    for kind in [
+        scoop_lir::ManagedPollKind::Full,
+        scoop_lir::ManagedPollKind::EntryActivation,
+    ] {
+        check(kind);
+    }
+}
+
+fn check(kind: scoop_lir::ManagedPollKind) {
+    let loads = if kind == scoop_lir::ManagedPollKind::Full {
+        4
+    } else {
+        1
+    };
     let mut module = qualification::stackmap_qualification_module();
     for function in &mut module.functions {
-        let Instruction::ManagedPoll { site } = &function.blocks[function.entry].instructions[0]
+        let Instruction::ManagedPoll { site } =
+            &mut function.blocks[function.entry].instructions[0]
         else {
             unreachable!()
         };
+        site.kind = kind;
         let second = Instruction::ManagedPoll {
             site: scoop_lir::ManagedPollSite {
+                kind,
                 target: site.target,
                 safepoint: test_safepoint(100),
                 live: site.live.clone(),
@@ -54,7 +71,7 @@ fn conditional_polls_materialize_roots_only_on_the_slow_edge() {
             );
             assert_eq!(
                 function_ir.matches("load atomic").count(),
-                8,
+                loads * 2,
                 "{function_ir}"
             );
             let entry = emitted.get_first_basic_block().unwrap();
@@ -63,8 +80,8 @@ fn conditional_polls_materialize_roots_only_on_the_slow_edge() {
                 .map(|instruction| instruction.print_to_string().to_string())
                 .collect::<Vec<_>>()
                 .join("\n");
-            assert_eq!(entry_ir.matches("load atomic").count(), 4, "{entry_ir}");
-            assert_eq!(entry_ir.matches("acquire").count(), 4, "{entry_ir}");
+            assert_eq!(entry_ir.matches("load atomic").count(), loads, "{entry_ir}");
+            assert_eq!(entry_ir.matches("acquire").count(), loads, "{entry_ir}");
             assert!(entry_ir.contains("icmp eq i32 %poll_mode, 1"), "{entry_ir}");
             assert!(!entry_ir.contains("_source"), "{entry_ir}");
             assert!(

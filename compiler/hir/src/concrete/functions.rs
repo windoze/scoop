@@ -1,5 +1,16 @@
 use super::*;
 
+/// A provider body available for optimization, never a local definition.
+#[derive(Debug, Clone)]
+pub struct ImportedInlineBody {
+    pub callable: ImportedDependencyCallableUseId,
+    pub materialization: CallableMaterialization,
+    pub params: Vec<Param>,
+    pub return_ty: TypeId,
+    pub body: Body,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,

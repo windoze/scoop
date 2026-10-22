@@ -93,6 +93,7 @@ fn semantic_module() -> (Module, CallableBodyIdentity, SafepointIdentity) {
         name: "entry".to_string(),
         instructions: vec![Instruction::ManagedPoll {
             site: ManagedPollSite {
+                kind: scoop_lir::ManagedPollKind::Full,
                 target,
                 safepoint: SafepointSiteRef::from_u32(0),
                 live: live_roots(),

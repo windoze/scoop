@@ -1,0 +1,47 @@
+schema = 1
+name = "inlining-scalars"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+tags = ["inlining", "compiler-correctness"]
+
+[[steps]]
+name = "debug"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "debug", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/debug", "--emit", "mir", "--dump-dir", "${work}/dump-debug", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump-debug/${debug.result.root.identity}/mir.txt", contains = " = @fn0 direct"},
+  {file = "${work}/dump-debug/${debug.result.root.identity}/mir.txt", contains = " = @fn1 direct"},
+  {file = "${work}/dump-debug/${debug.result.root.identity}/mir.txt", contains = " = @fn2 direct"},
+]
+
+[[steps]]
+name = "run-debug"
+argv = ["${debug.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "release"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/release", "--emit", "mir", "--dump-dir", "${work}/dump-release", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump-release/${release.result.root.identity}/mir.txt", not_contains = " = @fn0 direct"},
+  {file = "${work}/dump-release/${release.result.root.identity}/mir.txt", not_contains = " = @fn1 direct"},
+  {file = "${work}/dump-release/${release.result.root.identity}/mir.txt", not_contains = " = @fn2 direct"},
+]
+
+[[steps]]
+name = "run-release"
+argv = ["${release.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""

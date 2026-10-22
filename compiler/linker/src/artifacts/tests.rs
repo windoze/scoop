@@ -27,7 +27,11 @@ fn artifact_cxx_requirement_rejects_both_musl_final_link_modes() {
          version = \"0.1.0\"\nkind = \"executable\"\n[native]\ncxx = true\n",
     )
     .unwrap();
-    std::fs::write(source.join("src/main.scoop"), "fun main() {}\n").unwrap();
+    std::fs::write(
+        source.join("src/main.scoop"),
+        "package dev.m33\nfun main() {}\n",
+    )
+    .unwrap();
     for (input, output, dependencies) in [
         (workspace.join("sysroot/src/scoop.core"), &core, vec![]),
         (source.clone(), &root, vec![&core]),

@@ -34,7 +34,14 @@ pub(super) fn is_constant_root(value: PointerValue<'_>) -> bool {
 
 /// LIR roots are object starts, including a merge of immortal and movable
 /// objects. RS4GC otherwise assigns a null base to the immortal branch.
-pub(super) fn mark_base_merge(value: PointerValue<'_>) -> Result<(), CodegenError> {
+pub(super) fn mark_base_merge(value: PointerValue<'_>) -> Result<bool, CodegenError> {
+    let kind = value.get_type().get_context().get_kind_id("is_base_value");
+    if value
+        .as_instruction_value()
+        .is_some_and(|instruction| instruction.get_metadata(kind).is_some())
+    {
+        return Ok(true);
+    }
     let mut pending = vec![value];
     let mut visited = BTreeSet::new();
     let mut merges = Vec::new();
@@ -45,6 +52,9 @@ pub(super) fn mark_base_merge(value: PointerValue<'_>) -> Result<(), CodegenErro
         let Some(instruction) = value.as_instruction_value() else {
             continue;
         };
+        if instruction.get_metadata(kind).is_some() {
+            continue;
+        }
         let raw = instruction.as_value_ref();
         // SAFETY: phi incoming values and the selected/cast pointer operands
         // have the same scalar pointer type as this verified LLVM instruction.
@@ -75,9 +85,7 @@ pub(super) fn mark_base_merge(value: PointerValue<'_>) -> Result<(), CodegenErro
                     pending.push(BasicValueEnum::new(LLVMGetOperand(raw, 0)).into_pointer_value())
                 }
                 InstructionOpcode::GetElementPtr => {
-                    return Err(CodegenError(
-                        "a final managed root merge contains a derived address".into(),
-                    ));
+                    return Ok(false);
                 }
                 _ => {}
             }
@@ -94,5 +102,5 @@ pub(super) fn mark_base_merge(value: PointerValue<'_>) -> Result<(), CodegenErro
                 CodegenError(format!("cannot preserve managed merge base: {error}"))
             })?;
     }
-    Ok(())
+    Ok(true)
 }

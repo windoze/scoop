@@ -101,7 +101,7 @@ pub fn lower_current_cone(
             signature_types.insert(ty);
         }
     }
-    let mut module = lower_with_dependencies(
+    let (mut module, imported_bodies) = lower_with_dependencies(
         &output.output().local,
         callables,
         dependency_mapping,
@@ -109,7 +109,13 @@ pub fn lower_current_cone(
         &signature_types.into_iter().collect::<Vec<_>>(),
         optimization.coroutine_elision,
     );
-    optimization::run(&mut module, &selected_callables, optimization);
+    optimization::run_current(
+        &mut module,
+        &selected_callables,
+        hir,
+        optimization,
+        imported_bodies,
+    );
     mir::DependencyMirOutput::try_new(module, selected_callables)
         .map_err(CurrentConeMirLoweringError::InvalidOutput)
 }

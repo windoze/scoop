@@ -253,7 +253,9 @@ public struct Int :
     /**
      * Returns a hash consistent with same-type integer equality.
      */
-    public override fun hash(): Long = coreLongHash(this.toLong())
+    public override fun hash(): Long {
+        @Unsafe { return coreLongHash(this.toLong()) }
+    }
 
     /**
      * Fixed representation bounds and the scalar encoding, decoding, and inspection protocols.

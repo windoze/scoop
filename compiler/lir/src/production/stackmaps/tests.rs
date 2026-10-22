@@ -176,6 +176,7 @@ fn poll_function(
         name: "entry".to_string(),
         instructions: vec![Instruction::ManagedPoll {
             site: ManagedPollSite {
+                kind: crate::ManagedPollKind::Full,
                 target,
                 safepoint: reference,
                 live,
@@ -258,6 +259,7 @@ fn function_with_reused_reference(name: &str) -> Function {
     let second = match &function.blocks[function.entry].instructions[0] {
         Instruction::ManagedPoll { site } => Instruction::ManagedPoll {
             site: ManagedPollSite {
+                kind: crate::ManagedPollKind::Full,
                 target: site.target,
                 safepoint: site.safepoint,
                 live: StatepointLiveSet::default(),

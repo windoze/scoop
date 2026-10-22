@@ -245,7 +245,9 @@ public struct UInt :
     /**
      * Returns a hash consistent with same-type integer equality.
      */
-    public override fun hash(): Long = coreULongHash(this.toULong())
+    public override fun hash(): Long {
+        @Unsafe { return coreULongHash(this.toULong()) }
+    }
 
     /**
      * Fixed representation bounds and the scalar encoding, decoding, and inspection protocols.

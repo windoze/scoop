@@ -726,6 +726,14 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 已明确 UTS #46 与旧严格 IDNA2008 的差异，完成 Darwin／GNU／musl 资源准备、适配、两个正式链接入口及运行，移除 GNU 文本链；发行收集 Rust 依赖与标准库通知。
 - 字符集集合收敛到 43 个名称；readline 的字素、宽度、属性和大小写已迁入共同后端。测试仅验证 Scoop 自有行为，不新增底层补缺或上游 Unicode 兼容性／完备性测试。
 
+### M62 intrinsic 下降、跨 Cone 内联与 runtime 性能（已完成，[设计](milestone62/DESIGN.md)、[实施记录](milestone62/PROGRESS.md)、[验收记录](milestone62/ACCEPTANCE.md)）
+
+- 保证 intrinsic function 在所有类型已确定的静态上下文，以及经 devirt 确定具体目标的上下文中下降为对应 intrinsic；覆盖本地、跨 Cone、泛型特化和静态函数引用，不依赖普通内联阈值。
+- 支持符合条件的跨 Cone 非泛型小函数参与内联，改进别名复制和冷异常路径的成本处理；消除已登记 TD 在接口分派热路径上的重复查询。
+- 独立评估有界 core leaf、Managed 入口 poll、TLAB 完成路径、nursery 与回写、HFA 和最终映像链接信息；保留必要的发布、握手、异常与 ABI 语义。
+- 保留现有调查的收益与限制，沿用 M56 的桌面暂停和 footprint 验收，与 M58 优化协作；候选方案不视为已实现，不仅凭 trees 调大默认 nursery。
+- 各功能已独立提交；修正 intrinsic 标量复制成本后 V3 自动内联对照约改善 7.7 倍，普通 GC 移除逐槽 immortal 登记查询。Linux 已知十五个 fixture 失败均定向补测通过；按用户要求停止剩余完整 fixture，实际覆盖与限制见验收记录。
+
 ### 独立 Regex 库（已完成，[设计](regex/INVESTIGATION.md)、[规范](specs/SCOOP-REGEX-SPEC.md)、[实施记录](regex/PROGRESS.md)）
 
 - 普通 `scoop.regex` Cone 使用 PCRE2-8 10.49 和薄 C 适配；独立 C 静态库随 sysroot 交付，不增加 Rust staticlib。

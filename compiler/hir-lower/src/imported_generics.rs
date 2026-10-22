@@ -7,6 +7,7 @@ mod closures;
 mod completion;
 mod context;
 mod delegates;
+mod inline;
 pub(crate) mod intrinsic;
 mod local;
 mod methods;

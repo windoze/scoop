@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m62"
+name = "inline-consumer"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"dev.m62:inline-provider" = "0.1.0"

@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) struct CallableCodePlan {
-    pub safepoints: statepoint::ExpectedSafepoints,
+    pub safepoints: statepoint::LoweredSafepoints,
     pub has_unwind: bool,
 }
 
@@ -96,14 +96,14 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
         },
     )?;
     crate::metadata_sections::place_immutable_metadata(&llvm, profile);
-    let safepoints = statepoint::optimize(&llvm, machine, expected, profile)?;
+    statepoint::optimize(&llvm, machine, expected, profile)?;
     let has_unwind = prune_unused_personalities(&llvm);
+    let safepoints = statepoint::lower(&llvm, machine)?;
     runtime_metadata_v1::emit_callable_safepoints(context, &llvm, production, body, &safepoints)?;
     if profile.lir_target_profile().native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
         elf_symbols.prepare(&llvm)?;
     }
     crate::metadata_sections::place_immutable_metadata(&llvm, profile);
-    statepoint::lower(&llvm, machine)?;
     Ok(PreparedCallableModule {
         llvm,
         plan: CallableCodePlan {
@@ -141,7 +141,7 @@ fn optimize_and_lower_module(
 ) -> Result<(), CodegenError> {
     crate::metadata_sections::place_immutable_metadata(llvm, profile);
     statepoint::optimize(llvm, machine, expected_safepoints, profile)?;
-    statepoint::lower(llvm, machine)
+    statepoint::lower(llvm, machine).map(|_| ())
 }
 
 /// Remove empty personality metadata after ordinary optimization deletes invokes.

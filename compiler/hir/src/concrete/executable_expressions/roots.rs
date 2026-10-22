@@ -37,6 +37,9 @@ pub(super) fn collect<'a>(
             add(function.materialization, Root::Body(&body.statements))?;
         }
     }
+    for (_, body) in module.imported_inline_bodies.iter() {
+        add(body.materialization, Root::Body(&body.body.statements))?;
+    }
     for (_, hook) in module.release_hooks.iter() {
         add(hook.materialization, Root::Body(&hook.body.statements))?;
     }

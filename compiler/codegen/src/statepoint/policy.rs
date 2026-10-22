@@ -30,13 +30,13 @@ pub(crate) fn configure_function(
     }
 }
 
-/// Run the qualified ordinary passes and finalize their physical root groups.
+/// Run the qualified ordinary passes and retain their logical root identities.
 pub(crate) fn optimize(
     module: &LlvmModule<'_>,
     machine: &TargetMachine,
     expected: &ExpectedSafepoints,
     profile: ValidatedBackendProfile,
-) -> Result<ExpectedSafepoints, CodegenError> {
+) -> Result<(), CodegenError> {
     let site_owners = expected
         .sites
         .values()
@@ -81,32 +81,39 @@ pub(crate) fn optimize(
             })?;
         if profile.optimization() == scoop_lir::OptimizationMode::Release && !no_gc {
             bounded_loops::optimize(function, machine)?;
-            // GVN/MemorySSA can expose constant branches after the first SCCP.
-            // Fold them before the root plan: RS4GC also removes dead paths.
-            function
-                .run_passes(
-                    "sccp,unreachableblockelim",
-                    machine,
-                    PassBuilderOptions::create(),
-                )
-                .map_err(|error| {
-                    CodegenError(format!(
-                        "final LLVM constant cleanup of `{name}` failed: {error}"
-                    ))
-                })?;
+            // GVN/MemorySSA can make earlier dynamic bounds equal. Consume
+            // those path constraints before finalizing roots and sites.
+            finish_managed_optimization(function, machine)?;
         }
     }
     finalization::finalize(module, expected, profile)
 }
 
-pub(crate) fn lower(module: &LlvmModule<'_>, machine: &TargetMachine) -> Result<(), CodegenError> {
+pub(super) fn finish_managed_optimization(
+    function: FunctionValue<'_>,
+    machine: &TargetMachine,
+) -> Result<(), CodegenError> {
+    function
+        .run_passes(
+            "constraint-elimination,sccp,unreachableblockelim",
+            machine,
+            PassBuilderOptions::create(),
+        )
+        .map_err(|error| CodegenError(format!("final LLVM constraint cleanup failed: {error}")))
+}
+
+pub(crate) fn lower(
+    module: &LlvmModule<'_>,
+    machine: &TargetMachine,
+) -> Result<LoweredSafepoints, CodegenError> {
     module
         .run_passes(
             "rewrite-statepoints-for-gc",
             machine,
             PassBuilderOptions::create(),
         )
-        .map_err(|error| CodegenError(format!("rewrite-statepoints-for-gc failed: {error}")))
+        .map_err(|error| CodegenError(format!("rewrite-statepoints-for-gc failed: {error}")))?;
+    Ok(lowered::collect(module))
 }
 
 #[cfg(test)]
@@ -115,8 +122,7 @@ pub(crate) fn rewrite(
     machine: &TargetMachine,
     expected: &ExpectedSafepoints,
     profile: ValidatedBackendProfile,
-) -> Result<ExpectedSafepoints, CodegenError> {
-    let plan = optimize(module, machine, expected, profile)?;
-    lower(module, machine)?;
-    Ok(plan)
+) -> Result<LoweredSafepoints, CodegenError> {
+    optimize(module, machine, expected, profile)?;
+    lower(module, machine)
 }

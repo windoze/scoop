@@ -64,10 +64,23 @@ fn published_type_occurrences_retain_imported_evaluation_and_definition_sites() 
             &mut session,
         )
         .unwrap();
+        let provider_identity = coordinate.identity().unwrap();
+        let provider_bodies = closure
+            .semantic()
+            .direct_provider(provider_identity)
+            .unwrap()
+            .production()
+            .hir_interface()
+            .generic_callable_bodies()
+            .records()
+            .iter()
+            .map(|body| body.owner().template_owner())
+            .collect::<std::collections::BTreeSet<_>>();
         let production = closure.current_compile().production();
         let references = production.hir_interface().external_references().records();
         let mut roles = std::collections::BTreeSet::new();
         let mut foreign_definitions = 0;
+        let mut imported_body_sites = 0;
         let mut sites = 0;
         let mut declarations = [0_usize; 8];
         for reference in references {
@@ -81,6 +94,18 @@ fn published_type_occurrences_retain_imported_evaluation_and_definition_sites() 
                 use scoop_hir::HirDependencyTypeSiteV1 as Site;
                 let expression = site.as_expression();
                 if let Some(expression) = expression {
+                    if provider_bodies.contains(&expression.position().root.template()) {
+                        assert_eq!(
+                            expression.origin().evaluation().source().cone(),
+                            provider_identity
+                        );
+                        assert_eq!(
+                            expression.origin().definition().source().cone(),
+                            provider_identity
+                        );
+                        imported_body_sites += 1;
+                        continue;
+                    }
                     // Materialized core generic bodies retain their provider
                     // positions. Count the fixture's own evaluation sites below.
                     if expression.origin().evaluation().source().cone() == ConeIdentity::CORE {
@@ -113,6 +138,7 @@ fn published_type_occurrences_retain_imported_evaluation_and_definition_sites() 
                 assert_eq!(site.origin().evaluation().source().cone(), current);
             }
         }
+        assert_eq!(imported_body_sites > 0, name == "combined");
         if name == "declaration-standalone" {
             assert_eq!(sites, 0);
             assert_eq!(declarations, [2, 1, 0, 0, 0, 0, 0, 0]);

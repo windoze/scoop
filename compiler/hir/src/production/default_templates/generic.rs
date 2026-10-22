@@ -69,7 +69,16 @@ impl<'a> GenericBodyProducer<'a> {
     pub(in crate::production) fn include_roots(&mut self, roots: &SharedSourceRoots) {
         for &function in self.index.values() {
             let export = self.entities.export();
-            if export.functions[function].type_param_count() != 0
+            if (export.functions[function].type_param_count() != 0
+                || (export.functions[function].method.is_none()
+                    && matches!(
+                        &export.function_identities[function],
+                        HirFunctionIdentity::Source(crate::HirSourceFunctionIdentity::Plain(_))
+                    )
+                    && crate::small_inline_body(
+                        &export.functions[function].signature,
+                        &export.functions[function].kind,
+                    )))
                 && is_shared_root(export, function, roots)
                 && self.scheduled.insert(function)
             {

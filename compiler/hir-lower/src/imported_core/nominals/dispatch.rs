@@ -17,12 +17,15 @@ impl Lowerer {
         ),
         ImportedSignatureTypeError,
     > {
-        let hir::Type::Class(application) = self.types[ty] else {
-            return Err(ImportedSignatureTypeError::Structural);
+        let class = match self.types[ty] {
+            hir::Type::Class(application) => self
+                .class_definition(self.class_applications[application].template)
+                .clone(),
+            hir::Type::String => self.loaded_class_definitions[&declaration.owner()]
+                .definition
+                .clone(),
+            _ => return Err(ImportedSignatureTypeError::Structural),
         };
-        let class = self
-            .class_definition(self.class_applications[application].template)
-            .clone();
         let selections = declaration
             .interface
             .declaration_details()

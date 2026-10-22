@@ -1,0 +1,33 @@
+class Gate : SuspendRegistration<Int> {
+    var waiter: Continuation<Int>? = None
+    public override fun register(continuation: Continuation<Int>) {
+        waiter = Some(continuation)
+    }
+}
+
+class Done : Continuation<Int> {
+    var value = 0
+    public override fun resume(value: Int) { this.value = value }
+    public override fun resumeWithException(error: Throwable) { throw error }
+}
+
+suspend fun divideAfterResume(value: Int, gate: Gate): Int {
+    val divisor = suspendCoroutine(gate)
+    val divide = value::div
+    try { return divide(divisor) }
+    catch (error: ArithmeticException) { return 42 }
+}
+
+fun main(): Int {
+    val gate = Gate()
+    val done = Done()
+    startCoroutine(suspend { divideAfterResume(84, gate) }, done)
+    gcCollect()
+    gate.waiter!!.resume(2)
+    if (done.value != 42) return 1
+    startCoroutine(suspend { divideAfterResume(84, gate) }, done)
+    gate.waiter!!.resume(0)
+    if (done.value != 42) return 2
+    println("intrinsics after resume")
+    return 0
+}

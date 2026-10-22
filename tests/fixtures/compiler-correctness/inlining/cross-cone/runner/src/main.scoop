@@ -1,0 +1,15 @@
+package dev.m62
+import dev.m62.consumer.*
+
+fun main(): Int {
+    if (sum(19, 23) != 42) return 1
+    if (quotient(84, 2) != 42) return 2
+    if (quotient(-2147483648, -1) != -2147483648) return 3
+    if (difference(19, 23) != 4 || difference(23, 19) != 4) return 4
+    if (evaluation() != 32) return 5
+    if (exception() != 17) return 6
+    if (factorial(5) != 120) return 7
+    if (half(84) != 42) return 8
+    println("cross-cone inline")
+    return 0
+}

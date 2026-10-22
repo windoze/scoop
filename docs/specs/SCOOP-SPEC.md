@@ -3000,13 +3000,16 @@ public struct Int : Equals<Int>, ToString, Hash {
 
     public override fun toString(): String = coreLongToString(this.toLong())
 
-    public override fun hash(): Long = coreLongHash(this.toLong())
+    public override fun hash(): Long {
+        @Unsafe { return coreLongHash(this.toLong()) }
+    }
 }
 
 @Extern(name = "scoop_rt_long_to_string", abi = "scoop")
 internal fun coreLongToString(value: Long): String
 
-@Extern(name = "scoop_rt_long_hash", abi = "scoop")
+@GCLeaf
+@Extern(name = "scoop_rt_long_hash", abi = "c")
 internal fun coreLongHash(value: Long): Long
 ```
 

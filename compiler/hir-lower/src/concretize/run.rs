@@ -31,6 +31,23 @@ impl Concretizer<'_> {
             native_callback_signatures,
             core_protocols,
         } = prepared;
+        let imported_inline_bodies = self.lower_inline_bodies();
+        let imported_intrinsics: HashMap<_, _> = self
+            .imported_dependency_callables
+            .iter()
+            .filter_map(|(id, _)| {
+                self.concrete_intrinsic(concrete::CallableTarget::Imported(id))
+                    .and_then(export::PrimitiveMemberIntrinsic::from_intrinsic)
+                    .map(|kind| (id, kind))
+            })
+            .collect();
+        if imported_intrinsics
+            .values()
+            .any(|intrinsic| intrinsic.requires_arithmetic_exception())
+        {
+            self.lower_arithmetic_exception_type();
+            self.drain_pending_callables();
+        }
         let coroutine_protocols = self.build_coroutine_protocols();
         if !self.initialization_requests.is_empty()
             || matches!(core_protocols, concrete::ConcreteCoreProtocols::Defined(_))
@@ -123,6 +140,8 @@ impl Concretizer<'_> {
             imported_dependency_callables: self.imported_dependency_callables,
             function_coercions: self.function_coercions,
             foreign_callback_registrations,
+            imported_inline_bodies,
+            imported_intrinsics,
             functions,
             extern_functions: self.extern_functions,
             globals: self.globals,

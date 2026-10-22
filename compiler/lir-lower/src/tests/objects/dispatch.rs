@@ -44,7 +44,7 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
       global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
       fun @scoop$1$cb$6cb4a66fa9aacac49c232a58b41d5c6876ef37a3aeb59531418a4b8f28cce6e2(ptr<managed>) -> i32
       block entry
-        poll managed-void-target0 sp<managed-poll:0> live=[]
+        poll activation managed-void-target0 sp<managed-poll:0> live=[]
         ret integer<Int>(0x00000001)
       fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
         local %0 p: ptr<managed>

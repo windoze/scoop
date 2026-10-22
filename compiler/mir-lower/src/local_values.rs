@@ -7,6 +7,28 @@ use scoop_mir as mir;
 
 use crate::cfg::GeneratedLocalValue;
 
+#[derive(Clone, Copy)]
+pub(super) enum BodyOwner {
+    Emitted(mir::LocalValueOwner),
+    Imported(mir::ExternalCallableUseId),
+}
+
+impl From<mir::LocalValueOwner> for BodyOwner {
+    fn from(owner: mir::LocalValueOwner) -> Self {
+        Self::Emitted(owner)
+    }
+}
+impl From<mir::FunctionId> for BodyOwner {
+    fn from(owner: mir::FunctionId) -> Self {
+        Self::Emitted(owner.into())
+    }
+}
+impl From<mir::ReleaseHookId> for BodyOwner {
+    fn from(owner: mir::ReleaseHookId) -> Self {
+        Self::Emitted(owner.into())
+    }
+}
+
 #[derive(Default)]
 pub(super) struct LocalValueRegistry {
     entries: Vec<mir::LocalValueIdentity>,
@@ -32,13 +54,16 @@ impl LocalValueRegistry {
 
     pub(super) fn record(
         &mut self,
-        function: impl Into<mir::LocalValueOwner>,
+        function: impl Into<BodyOwner>,
         local: mir::LocalId,
         identity: &hir::LocalValueIdentityRecord,
     ) {
+        let BodyOwner::Emitted(function) = function.into() else {
+            return;
+        };
         self.observe_selector(identity.key().owner(), identity.key().selector());
         self.entries.push(mir::LocalValueIdentity::for_owner(
-            function.into(),
+            function,
             local,
             mir::LocalValueIdentityAuthority::Hir,
             identity.clone(),
@@ -58,11 +83,11 @@ impl LocalValueRegistry {
 
     pub(super) fn record_generated(
         &mut self,
-        function: impl Into<mir::LocalValueOwner>,
+        function: impl Into<BodyOwner>,
         owner: hir::CallableMaterialization,
         values: &[GeneratedLocalValue],
     ) {
-        let function = function.into();
+        let function: BodyOwner = function.into();
         for value in values {
             self.record_generated_local(function, value.local, owner, value.site_role, value.role);
         }
@@ -99,12 +124,15 @@ impl LocalValueRegistry {
 
     pub(super) fn record_generated_local(
         &mut self,
-        function: impl Into<mir::LocalValueOwner>,
+        function: impl Into<BodyOwner>,
         local: mir::LocalId,
         owner: hir::CallableMaterialization,
         site_role: hir::StructuralDefinitionSiteRole,
         role: hir::SyntheticLocalRole,
     ) {
+        let BodyOwner::Emitted(function) = function.into() else {
+            return;
+        };
         let ordinal = self.next_ordinals.entry((owner, site_role)).or_default();
         let path = hir::StructuralDefinitionPath::from_first(
             hir::StructuralPathSegment::new(site_role, *ordinal),
@@ -119,7 +147,7 @@ impl LocalValueRegistry {
         ))
         .expect("generated MIR local selectors have hashable identities");
         self.entries.push(mir::LocalValueIdentity::for_owner(
-            function.into(),
+            function,
             local,
             mir::LocalValueIdentityAuthority::Mir,
             identity,

@@ -18,13 +18,11 @@ fn generic_bodies_project_from_source_and_close_only_used_callable_templates() {
         let section = public_projection::public_interface_with_core(output, core);
         let table = section.generic_callable_bodies();
         let export = output.output().export.module();
-        for name in ["identity", "composed", "helper"] {
+        for name in ["identity", "composed", "helper", "seed"] {
             assert!(table.get(owner(export, name)).is_some(), "{name}");
         }
-        for name in ["seed", "unused"] {
-            assert!(table.get(owner(export, name)).is_none(), "{name}");
-        }
-        assert_eq!(table.records().len(), 3);
+        assert!(table.get(owner(export, "unused")).is_none());
+        assert_eq!(table.records().len(), 4);
         let identity = table.get(owner(export, "identity")).unwrap();
         assert_eq!(
             identity.parameters(),

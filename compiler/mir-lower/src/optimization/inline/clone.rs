@@ -17,7 +17,7 @@ pub(super) fn apply(
     registry: &mut LocalValueRegistry,
     owner: CallableMaterialization,
     caller_id: mir::FunctionId,
-    ancestry: &mut Vec<Vec<mir::FunctionId>>,
+    ancestry: &mut Vec<Vec<super::Target>>,
 ) -> Expansion {
     let caller_ancestry = ancestry[index(choice.block)].clone();
     let (statement, tail, terminator, unwind) = {

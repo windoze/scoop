@@ -153,10 +153,15 @@ impl BodyLowerer<'_> {
                 // A specialization has the same call boundary in its provider
                 // and consumers, including generated closures in its body.
                 let managed_caller = match self.current_owner {
-                    mir::LocalValueOwner::Function(caller) => {
-                        self.functions[caller].gc_effect == mir::GcEffect::Managed
+                    crate::local_values::BodyOwner::Emitted(mir::LocalValueOwner::Function(
+                        caller,
+                    )) => self.functions[caller].gc_effect == mir::GcEffect::Managed,
+                    crate::local_values::BodyOwner::Emitted(mir::LocalValueOwner::ReleaseHook(
+                        _,
+                    )) => false,
+                    crate::local_values::BodyOwner::Imported(callable) => {
+                        self.external_callables[callable].gc_effect() == mir::GcEffect::Managed
                     }
-                    mir::LocalValueOwner::ReleaseHook(_) => false,
                 };
                 if managed_caller
                     && !matches!(

@@ -71,7 +71,9 @@ public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash {
     /**
      * Compares the two logical values.
      */
-    public override operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
+    public override operator fun equals(other: Boolean): Boolean {
+        @Unsafe { return coreBooleanEquals(this, other) }
+    }
 
 
     /**
@@ -88,7 +90,9 @@ public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash {
     /**
      * Returns a hash consistent with Boolean equality.
      */
-    public override fun hash(): Long = coreBooleanHash(this)
+    public override fun hash(): Long {
+        @Unsafe { return coreBooleanHash(this) }
+    }
 
     /**
      * Inspection and serialization operations for this value type.
@@ -116,7 +120,8 @@ public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash {
 
 // Representation-level fallbacks used by ordinary source methods. Integer
 // equality and all fixed-width arithmetic stay compiler intrinsics.
-@Extern(name = "scoop_rt_bool_equals", abi = "scoop")
+@GCLeaf
+@Extern(name = "scoop_rt_bool_equals", abi = "c")
 internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
 
 
@@ -129,11 +134,14 @@ internal fun coreULongToString(value: ULong): String
 @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
 internal fun coreBooleanToString(value: Boolean): String
 
-@Extern(name = "scoop_rt_long_hash", abi = "scoop")
+@GCLeaf
+@Extern(name = "scoop_rt_long_hash", abi = "c")
 internal fun coreLongHash(value: Long): Long
 
-@Extern(name = "scoop_rt_ulong_hash", abi = "scoop")
+@GCLeaf
+@Extern(name = "scoop_rt_ulong_hash", abi = "c")
 internal fun coreULongHash(value: ULong): Long
 
-@Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+@GCLeaf
+@Extern(name = "scoop_rt_bool_hash", abi = "c")
 internal fun coreBooleanHash(value: Boolean): Long

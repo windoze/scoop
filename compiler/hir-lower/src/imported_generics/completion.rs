@@ -6,6 +6,7 @@ impl Lowerer {
     pub(crate) fn complete_imported_generic_bodies(&mut self) {
         let mut index = 0;
         let mut constructor = 0;
+        let mut prepared_inline = false;
         loop {
             if index == self.imported_generic_templates.templates.len()
                 && constructor == self.imported_constructor_templates.templates.len()
@@ -13,13 +14,23 @@ impl Lowerer {
                 if !self.diagnostics.is_empty() {
                     break;
                 }
-                if let Err(error) = self.retain_generic_primitive_declarations() {
+                if let Err(error) = self
+                    .retain_generic_primitive_declarations()
+                    .and_then(|()| self.prepare_selected_intrinsic_types())
+                {
                     self.diagnostics.push(scoop_ast::Diagnostic::without_span(
                         scoop_ast::DiagnosticSeverity::Error,
                         self.primary_output_file(),
                         error.diagnostic("generic primitive argument"),
                     ));
                     break;
+                }
+                if !prepared_inline {
+                    prepared_inline = true;
+                    if let Err(error) = self.prepare_inline_templates() {
+                        self.error(hir::Span::new(0, 0), error);
+                        break;
+                    }
                 }
                 if index == self.imported_generic_templates.templates.len()
                     && constructor == self.imported_constructor_templates.templates.len()

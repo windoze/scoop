@@ -5,44 +5,58 @@ use super::{flow::ActualType, mir};
 pub(super) fn resolve(
     module: &mir::Module,
     selected: &mir::SelectedExternalMirSet,
+    intrinsic: &crate::imported_bodies::IntrinsicDispatch,
     call: &mir::Call,
     result: &mir::Type,
     actual: ActualType,
-) -> Option<(mir::DispatchCallee, mir::Type)> {
-    let target = match (actual, &call.target) {
-        (ActualType::Class(class), mir::CallTarget::Virtual { slot, .. }) => {
-            slot_target(module.classes[class].vtable.get(*slot as usize)?)?
-        }
+) -> Option<(mir::DispatchCallee, mir::Type, bool)> {
+    let semantic = match (actual, &call.target) {
         (
             ActualType::Class(class),
             mir::CallTarget::Interface {
                 interface, slot, ..
             },
-        ) => {
-            let table = module.classes[class]
-                .itables
-                .iter()
-                .find(|table| table.interface == *interface)?;
-            slot_target(table.slots.get(*slot as usize)?)?
-        }
-        (
-            ActualType::Closure(class),
-            mir::CallTarget::Closure { function_type, .. }
-            | mir::CallTarget::FunctionBridge { function_type, .. },
-        ) => {
-            let class = &module.closure_classes[class];
-            let function = if class.function_type == *function_type {
-                module.closure_invoke_functions[class.invoke].function
-            } else {
-                class
-                    .bridges
+        ) => intrinsic.get(&(class, *interface, *slot)),
+        _ => None,
+    };
+    let target = if let Some(target) = semantic {
+        target.callee
+    } else {
+        match (actual, &call.target) {
+            (ActualType::Class(class), mir::CallTarget::Virtual { slot, .. }) => {
+                slot_target(module.classes[class].vtable.get(*slot as usize)?)?
+            }
+            (
+                ActualType::Class(class),
+                mir::CallTarget::Interface {
+                    interface, slot, ..
+                },
+            ) => {
+                let table = module.classes[class]
+                    .itables
                     .iter()
-                    .find(|bridge| bridge.target == *function_type)?
-                    .function
-            };
-            mir::DispatchCallee::User(function)
+                    .find(|table| table.interface == *interface)?;
+                slot_target(table.slots.get(*slot as usize)?)?
+            }
+            (
+                ActualType::Closure(class),
+                mir::CallTarget::Closure { function_type, .. }
+                | mir::CallTarget::FunctionBridge { function_type, .. },
+            ) => {
+                let class = &module.closure_classes[class];
+                let function = if class.function_type == *function_type {
+                    module.closure_invoke_functions[class.invoke].function
+                } else {
+                    class
+                        .bridges
+                        .iter()
+                        .find(|bridge| bridge.target == *function_type)?
+                        .function
+                };
+                mir::DispatchCallee::User(function)
+            }
+            _ => return None,
         }
-        _ => return None,
     };
     let receiver =
         match target {
@@ -81,7 +95,17 @@ pub(super) fn resolve(
                 }
             }
         };
-    Some((target, receiver))
+    let unbox = semantic.is_some_and(|target| target.unbox);
+    if unbox
+        && !module
+            .meta
+            .boxed_types
+            .iter()
+            .any(|boxed| actual == ActualType::Class(boxed.class()) && boxed.payload() == &receiver)
+    {
+        return None;
+    }
+    Some((target, receiver, unbox))
 }
 
 fn slot_target(slot: &mir::TableSlot) -> Option<mir::DispatchCallee> {

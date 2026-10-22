@@ -5,6 +5,8 @@ use super::{
     mir,
 };
 
+mod stability;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ActualType {
     Unknown,
@@ -16,12 +18,14 @@ pub(super) enum ActualType {
 pub(super) struct ValueFacts {
     pub actual: ActualType,
     pub constant: Option<Constant>,
+    pub alias: Option<mir::LocalId>,
 }
 
 impl ValueFacts {
     pub const UNKNOWN: Self = Self {
         actual: ActualType::Unknown,
         constant: None,
+        alias: None,
     };
 }
 
@@ -31,7 +35,9 @@ pub(super) struct Analysis<'a> {
     module: &'a mir::Module,
     function: &'a mir::Function,
     addressed: HashSet<mir::LocalId>,
+    stable: Vec<bool>,
     initial: State,
+    string_class: ActualType,
 }
 
 impl<'a> Analysis<'a> {
@@ -47,8 +53,23 @@ impl<'a> Analysis<'a> {
         let mut analysis = Self {
             module,
             function,
+            stable: stability::locals(function, &addressed),
             addressed,
             initial: Vec::new(),
+            string_class: module
+                .classes
+                .iter()
+                .find_map(|(id, class)| {
+                    (class.modifier == mir::ClassModifier::Final
+                        && matches!(
+                            class.representation,
+                            mir::ClassRepresentation::Intrinsic(
+                                mir::IntrinsicClassRepresentation::String
+                            )
+                        ))
+                    .then_some(ActualType::Class(id))
+                })
+                .unwrap_or(ActualType::Unknown),
         };
         let mut initial = vec![ValueFacts::UNKNOWN; function.body.locals.len()];
         for parameter in &function.params {
@@ -66,6 +87,8 @@ impl<'a> Analysis<'a> {
         for (parameter, argument) in self.function.params.iter().zip(arguments) {
             if !self.addressed.contains(&parameter.local) {
                 let mut facts = *argument;
+                // Local ids belong to one body; only semantic facts cross a call.
+                facts.alias = None;
                 if facts.actual == ActualType::Unknown {
                     facts.actual = self.static_type(&parameter.ty);
                 }
@@ -179,11 +202,13 @@ impl<'a> Analysis<'a> {
         ValueFacts {
             actual: self.static_type(ty),
             constant: None,
+            alias: None,
         }
     }
 
     fn static_type(&self, ty: &mir::Type) -> ActualType {
         match ty {
+            mir::Type::String => self.string_class,
             mir::Type::Class(class)
                 if self.module.classes[*class].modifier == mir::ClassModifier::Final =>
             {
@@ -199,7 +224,11 @@ impl<'a> Analysis<'a> {
                 return if self.addressed.contains(local) {
                     ValueFacts::UNKNOWN
                 } else {
-                    state[local.into_raw().into_u32() as usize]
+                    let mut facts = state[local.into_raw().into_u32() as usize];
+                    if facts.alias.is_none() && self.stable[local.into_raw().into_u32() as usize] {
+                        facts.alias = Some(*local);
+                    }
+                    facts
                 };
             }
             mir::ExprKind::ClassAlloc { class_id } => ActualType::Class(*class_id),
@@ -229,6 +258,7 @@ impl<'a> Analysis<'a> {
         };
         ValueFacts {
             actual,
+            alias: None,
             constant: constants::evaluate(expression, |operand| {
                 self.expression(operand, state).constant
             }),
@@ -249,6 +279,10 @@ fn merge(target: &mut State, source: &State) -> bool {
         }
         if target.constant != source.constant && target.constant.is_some() {
             target.constant = None;
+            changed = true;
+        }
+        if target.alias != source.alias && target.alias.is_some() {
+            target.alias = None;
             changed = true;
         }
     }

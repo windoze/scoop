@@ -95,10 +95,12 @@ static void mark_target(ScoopGcMarkWorker *worker, void *object) {
     ScoopGcBlockMeta *block;
     size_t word;
     /* The coordinator owns heap/roots; these metadata remain immutable during mark. */
-    if (!object_meta(object, &block, &word)) {
+    if (!scoop_heap_reference_meta(object, &block, &word)) {
+#if SCOOP_ENABLE_GC_STRESS || (defined(SCOOP_GC_VERIFY_HEAP) && SCOOP_GC_VERIFY_HEAP)
         if (!scoop_gc_stw_is_stable_object(object)) {
             heap_fatal("managed slot points outside the current heap and stable object tables");
         }
+#endif
         return;
     }
     if ((worker->minor && block->generation != SCOOP_GC_YOUNG) || !first_mark(block, word)) {

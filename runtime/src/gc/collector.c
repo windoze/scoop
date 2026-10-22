@@ -18,10 +18,12 @@ static void visit_managed_slot(void **slot, void *raw_context) {
     }
     ScoopGcBlockMeta *block;
     size_t word;
-    if (!object_meta(target, &block, &word)) {
+    if (!scoop_heap_reference_meta(target, &block, &word)) {
+#if SCOOP_ENABLE_GC_STRESS || (defined(SCOOP_GC_VERIFY_HEAP) && SCOOP_GC_VERIFY_HEAP)
         if (!scoop_gc_is_immortal_object_locked(target)) {
             heap_fatal("managed slot points outside the current heap and stable object tables");
         }
+#endif
         return;
     }
     if (context->minor && block->generation == SCOOP_GC_OLD) {

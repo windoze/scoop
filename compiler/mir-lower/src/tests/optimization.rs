@@ -2,6 +2,9 @@ use super::*;
 
 mod boxing;
 mod closures;
+mod cold;
+mod copies;
+mod intrinsics;
 mod iterations;
 mod poll_chunks;
 

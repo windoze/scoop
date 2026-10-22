@@ -135,6 +135,30 @@ fn snapshots_follow_capture_evaluation_order_and_keep_physical_field_indices() {
         });
     }
     assert_eq!(expected.len(), 2);
+    // Changing the inputs after allocation makes both snapshots observable.
+    let body = &mut module.functions[id].body;
+    for &(_, local) in &expected {
+        body.locals[local].mutable = true;
+    }
+    for (_, block) in body.blocks.iter_mut() {
+        let creation = block.statements.iter().position(|statement| {
+            let mut found = false;
+            mir::visit_statement_exprs(statement, &mut |expression| {
+                found |= matches!(expression.kind, mir::ExprKind::ClosureAlloc { .. });
+            });
+            found
+        });
+        if let Some(creation) = creation {
+            let updates = expected.iter().map(|&(_, local)| mir::Statement {
+                kind: mir::StatementKind::Assign {
+                    local,
+                    value: mir::Expr::integer(mir::MirIntegerConstant::Signed32(99)),
+                },
+                span: crate::source_span(SPAN),
+            });
+            block.statements.splice(creation + 1..creation + 1, updates);
+        }
+    }
     optimize(&mut module);
     assert_eq!(counts(&module), (0, 0, 0));
     let body = &module.functions[id].body;

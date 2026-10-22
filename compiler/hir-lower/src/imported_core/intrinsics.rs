@@ -121,6 +121,26 @@ impl Lowerer {
         self.resolve_imported_intrinsic_bound_conformances(kind)
     }
 
+    pub(crate) fn retain_string_dispatch_source(
+        &mut self,
+    ) -> Result<(), ImportedSignatureTypeError> {
+        self.resolve_imported_intrinsic_type(hir::IntrinsicTypeKind::String)?;
+        let Some(source) = self
+            .imported_intrinsic_types
+            .get(&hir::IntrinsicTypeKind::String)
+        else {
+            return Ok(());
+        };
+        let declaration = source.declaration.clone();
+        if !self
+            .loaded_class_definitions
+            .contains_key(&declaration.owner())
+        {
+            self.load_class_definition(declaration)?;
+        }
+        Ok(())
+    }
+
     fn resolve_imported_intrinsic_bound_conformances(
         &mut self,
         kind: hir::IntrinsicTypeKind,

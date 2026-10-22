@@ -91,6 +91,7 @@ pub(super) fn insert_polls(
     loop_header_polls: &[MappedLoopHeaderPollTarget],
     sites: &mut PendingSafepointSites,
     planned: &lir::ScoopAbiSignature,
+    entry_kind: lir::ManagedPollKind,
 ) {
     if function.gc_effect == lir::GcEffect::NoGc {
         return;
@@ -129,6 +130,11 @@ pub(super) fn insert_polls(
             insertion,
             lir::Instruction::ManagedPoll {
                 site: lir::ManagedPollSite {
+                    kind: if block_id == function.entry {
+                        entry_kind
+                    } else {
+                        lir::ManagedPollKind::Full
+                    },
                     target: poll_target,
                     safepoint: sites.allocate(lir::SafepointSiteRole::ManagedPoll),
                     live: lir::StatepointLiveSet::default(),

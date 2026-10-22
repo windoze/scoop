@@ -193,7 +193,7 @@ fn trap_terminators_branch_to_a_shared_trap_block() {
         unreachable
       fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
       block entry
-        poll managed-void-target0 sp<managed-poll:0> live=[]
+        poll activation managed-void-target0 sp<managed-poll:0> live=[]
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry

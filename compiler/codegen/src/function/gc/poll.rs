@@ -21,6 +21,63 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         }
         let context = self.context;
         let builder = self.builder;
+        let fast = self.poll_condition(site.kind)?;
+
+        let safepoint = self.safepoint_id(site.safepoint);
+        let slow = context.append_basic_block(
+            self.llvm_function,
+            &format!("poll.slow.{}", safepoint.get()),
+        );
+        let continuation = context.append_basic_block(
+            self.llvm_function,
+            &format!("poll.continue.{}", safepoint.get()),
+        );
+        builder
+            .build_conditional_branch(fast, continuation, slow)
+            .map_err(poll_error)?;
+        builder.position_at_end(slow);
+        let live = self.materialize_statepoint_live(&site.live, safepoint)?;
+        let poll = self.runtime_fn(
+            scoop_lir::RuntimeFunction::Managed(scoop_lir::ManagedRuntimeFunction::Safepoint)
+                .symbol(),
+            context.void_type().fn_type(&[], false),
+        );
+        for attribute in ["cold", "nounwind"] {
+            poll.add_attribute(
+                AttributeLoc::Function,
+                context.create_enum_attribute(Attribute::get_named_enum_kind_id(attribute), 0),
+            );
+        }
+        let call = builder.build_call(poll, &[], "").map_err(poll_error)?;
+        self.apply_safepoint_id(call, safepoint);
+        self.restore_statepoint_live(live, safepoint)?;
+        builder
+            .build_unconditional_branch(continuation)
+            .map_err(poll_error)?;
+        builder.position_at_end(continuation);
+        Ok(())
+    }
+
+    fn poll_condition(
+        &mut self,
+        kind: scoop_lir::ManagedPollKind,
+    ) -> Result<IntValue<'ctx>, CodegenError> {
+        let context = self.context;
+        let builder = self.builder;
+        if kind == scoop_lir::ManagedPollKind::EntryActivation {
+            let state = self.poll_state()?;
+            let mode = self.poll_atomic_load(context.i32_type(), state, "poll_mode")?;
+            return builder
+                .build_int_compare(
+                    IntPredicate::EQ,
+                    mode,
+                    context
+                        .i32_type()
+                        .const_int(scoop_lir::POLL_THREAD_MANAGED, false),
+                    "poll_managed",
+                )
+                .map_err(poll_error);
+        }
         let i32_ty = context.i32_type();
         let i64_ty = context.i64_type();
         let epoch = self.poll_atomic_load(
@@ -62,44 +119,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let current = builder
             .build_int_compare(IntPredicate::EQ, observed, epoch, "poll_current")
             .map_err(poll_error)?;
-        let fast = builder
+        builder
             .build_and(running, managed, "poll_active")
             .and_then(|active| builder.build_and(active, current, "poll_fast"))
-            .map_err(poll_error)?;
-
-        let safepoint = self.safepoint_id(site.safepoint);
-        let slow = context.append_basic_block(
-            self.llvm_function,
-            &format!("poll.slow.{}", safepoint.get()),
-        );
-        let continuation = context.append_basic_block(
-            self.llvm_function,
-            &format!("poll.continue.{}", safepoint.get()),
-        );
-        builder
-            .build_conditional_branch(fast, continuation, slow)
-            .map_err(poll_error)?;
-        builder.position_at_end(slow);
-        let live = self.materialize_statepoint_live(&site.live, safepoint)?;
-        let poll = self.runtime_fn(
-            scoop_lir::RuntimeFunction::Managed(scoop_lir::ManagedRuntimeFunction::Safepoint)
-                .symbol(),
-            context.void_type().fn_type(&[], false),
-        );
-        for attribute in ["cold", "nounwind"] {
-            poll.add_attribute(
-                AttributeLoc::Function,
-                context.create_enum_attribute(Attribute::get_named_enum_kind_id(attribute), 0),
-            );
-        }
-        let call = builder.build_call(poll, &[], "").map_err(poll_error)?;
-        self.apply_safepoint_id(call, safepoint);
-        self.restore_statepoint_live(live, safepoint)?;
-        builder
-            .build_unconditional_branch(continuation)
-            .map_err(poll_error)?;
-        builder.position_at_end(continuation);
-        Ok(())
+            .map_err(poll_error)
     }
 
     fn poll_state(&mut self) -> Result<PointerValue<'ctx>, CodegenError> {

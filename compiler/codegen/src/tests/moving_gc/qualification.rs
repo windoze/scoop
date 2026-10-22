@@ -28,6 +28,7 @@ pub(in crate::tests) fn stackmap_qualification_module() -> Module {
             name: "entry".to_string(),
             instructions: vec![Instruction::ManagedPoll {
                 site: scoop_lir::ManagedPollSite {
+                    kind: scoop_lir::ManagedPollKind::Full,
                     target,
                     safepoint: test_safepoint(safepoint),
                     live,

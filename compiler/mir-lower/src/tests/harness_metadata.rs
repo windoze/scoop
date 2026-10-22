@@ -1,6 +1,7 @@
 //! Complete declaration metadata for directly assembled MIR test inputs.
 
 mod finish;
+mod origins;
 mod surface;
 
 use super::*;

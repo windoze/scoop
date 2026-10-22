@@ -30,6 +30,7 @@ fn hello_world() -> mir::Module {
 mod control_flow;
 mod gateway;
 mod layouts;
+mod leaf_polls;
 mod module;
 mod operators;
 mod runtime_calls;

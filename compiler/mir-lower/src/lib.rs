@@ -185,16 +185,10 @@ pub fn lower(
     let hir::ConcreteCoreProtocols::Defined(_) = &output.module().core_protocols else {
         return Err(DefinedCoreMirLoweringError::ImportedProtocols);
     };
-    Ok(lower_with_dependencies(
-        output,
-        Arena::new(),
-        HashMap::new(),
-        Vec::new(),
-        &[],
-        false,
-    ))
+    Ok(lower_with_dependencies(output, Arena::new(), HashMap::new(), Vec::new(), &[], false).0)
 }
 
+mod imported_bodies;
 mod imported_callables;
 use imported_callables::{ImportedCallableEntry, ImportedCallableTarget};
 
@@ -207,7 +201,7 @@ fn lower_with_dependencies(
     imported_singletons: Vec<(mir::ParamFreeMirObjectValueV1, mir::ExternalCallableUseId)>,
     external_signature_types: &[hir::TypeId],
     coroutine_elision: bool,
-) -> mir::Module {
+) -> (mir::Module, imported_bodies::ImportedBodies) {
     let module = output.module();
     let shape_support = output.materialization().roots();
     let output = match output.output_kind() {

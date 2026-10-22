@@ -34,7 +34,10 @@ impl BodyLowerer<'_> {
         let target = self.imported_dependency_callable_map[&callee].clone();
         let role = target.lowering_role;
         let return_ty = self.lower_type(result_type);
-        let callee = if matches!(self.current_owner, mir::LocalValueOwner::ReleaseHook(_)) {
+        let callee = if matches!(
+            self.current_owner,
+            crate::local_values::BodyOwner::Emitted(mir::LocalValueOwner::ReleaseHook(_))
+        ) {
             target
                 .native_c()
                 .and_then(|native| self.release_native_target(native, args))

@@ -11,6 +11,7 @@ Module
   class Base vtable=1 itables=0
   class Final vtable=1 itables=0
   class Inherited vtable=1 itables=0
+  class ArithmeticException vtable=0 itables=0
   interface Measure
   interface ToString
   interface Hash
@@ -358,13 +359,13 @@ Module
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external6 direct
+      call $dependency.local.2: String = external8 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external7 direct
+      call external9 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -373,7 +374,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external7 direct
+      call external9 direct
         Type String
         Local $dependency.local.5
       return

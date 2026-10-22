@@ -1,0 +1,20 @@
+package dev.m62.consumer
+import dev.m62.provider.*
+
+public fun sum(a: Int, b: Int): Int = add(a, b)
+public fun quotient(a: Int, b: Int): Int = divide(a, b)
+public fun half(a: Int): Int = divide(a, 2)
+public fun difference(a: Int, b: Int): Int = choose(a, b)
+public fun factorial(n: Int): Int = recurse(n)
+class Counter(var value: Int) {
+    fun next(): Int { value += 1; return value }
+}
+public fun evaluation(): Int {
+    val counter = Counter(0)
+    val result = add(counter.next(), counter.next())
+    return result * 10 + counter.value
+}
+public fun exception(): Int {
+    try { return checked(0) }
+    catch (error: ArithmeticException) { return 17 }
+}

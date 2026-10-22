@@ -100,6 +100,7 @@ fn managed_poll_test_module() -> Module {
         name: "entry".to_string(),
         instructions: vec![Instruction::ManagedPoll {
             site: scoop_lir::ManagedPollSite {
+                kind: scoop_lir::ManagedPollKind::Full,
                 target,
                 safepoint: test_safepoint(703),
                 live: scoop_lir::StatepointLiveSet::default(),

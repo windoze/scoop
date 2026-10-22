@@ -164,3 +164,29 @@ fn elf_shared_library_link_tracks_real_symbol_version_updates() {
     assert_ne!(first.fingerprint, second.fingerprint);
     assert_eq!(run(&second.path), b"99\n");
 }
+
+#[cfg(target_os = "macos")]
+#[test]
+fn darwin_final_link_keeps_body_boundaries_local() {
+    use object::{Object, ObjectSymbol};
+    let fixture = test_support::native_fixture();
+    let bytes = std::fs::read(&fixture.output.path).unwrap();
+    let file = object::File::parse(bytes.as_slice()).unwrap();
+    let is_boundary =
+        |name: &str| name.starts_with("_scoop$1$bs$") || name.starts_with("_scoop$1$be$");
+    let boundaries = file
+        .symbols()
+        .filter(|symbol| symbol.name().is_ok_and(is_boundary))
+        .collect::<Vec<_>>();
+    assert!(!boundaries.is_empty());
+    assert!(boundaries.iter().all(|symbol| symbol.is_local()));
+    let exports = file.exports().unwrap();
+    assert!(
+        exports
+            .iter()
+            .all(|symbol| { !is_boundary(std::str::from_utf8(symbol.name()).unwrap()) })
+    );
+    assert!(exports.iter().any(|symbol| symbol.name() == b"_main"));
+    assert!(exports.iter().any(|symbol| symbol.name() == b"_m23_final"));
+    assert_eq!(run(&fixture.output.path), b"42\n");
+}

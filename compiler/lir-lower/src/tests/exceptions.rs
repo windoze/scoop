@@ -45,11 +45,11 @@ fn try_catch_lowers_to_invoke_landingpad_and_rethrow() {
       global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
       fun @scoop$1$cb$6cb4a66fa9aacac49c232a58b41d5c6876ef37a3aeb59531418a4b8f28cce6e2() -> void
       block entry
-        poll managed-void-target0 sp<managed-poll:0> live=[]
+        poll activation managed-void-target0 sp<managed-poll:0> live=[]
         ret
       fun @scoop$1$cb$1ee6e3355e7cb79209553d18e86a4efbcebcbb6b17fdaac01ee97a6442f4cb33() -> void
       block entry
-        poll managed-void-target0 sp<managed-poll:0> live=[]
+        poll activation managed-void-target0 sp<managed-poll:0> live=[]
         ret
       fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
         local %0 e: ptr<managed>

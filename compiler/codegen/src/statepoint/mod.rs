@@ -1,8 +1,8 @@
 //! LLVM statepoint lowering and physical root planning.
 //!
 //! Typed LIR supplies site identity and logical leaves. Ordinary LLVM passes
-//! determine their final SSA equivalence classes before RS4GC. The same plan
-//! drives runtime metadata and object emission.
+//! retain those identities before RS4GC. Its actual relocation pairs determine
+//! physical registration counts for runtime metadata and object emission.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::CString;
@@ -39,6 +39,8 @@ pub(crate) const STATEPOINT_ROOT_IDENTITY_METADATA: &str = "scoop.statepoint-roo
 mod builders;
 mod constant_roots;
 mod finalization;
+mod lowered;
+pub(crate) use lowered::LoweredSafepoints;
 mod manifest;
 mod root_identity;
 pub(crate) use root_identity::mark_root_identity;
@@ -49,7 +51,7 @@ pub(crate) use builders::{
 };
 #[cfg(test)]
 use manifest::ExpectedSite;
-use manifest::{ExpectedRoot, ExpectedRoots, ExpectedStatepoint};
+use manifest::{ExpectedRoot, ExpectedStatepoint};
 pub(crate) use manifest::{ExpectedSafepoints, expectations};
 #[cfg(test)]
 pub(crate) use policy::rewrite;

@@ -1,0 +1,47 @@
+package test.core.tests.scalars.hash
+
+import scoop.test.*
+
+private fun throughInterface(value: Hash): Long = value.hash()
+
+@Test
+private class ScalarHashTests {
+    @Test
+    fun signedAndUnsignedBoundaries() {
+        assertEquals(0L, 0L.hash())
+        assertEquals(6238072747940578789L, 1L.hash())
+        assertEquals(-5417735806833148549L, (-1L).hash())
+        assertEquals(2720858781877447050L, (-9223372036854775808L).hash())
+        assertEquals(6514504133438201533L, 9223372036854775807L.hash())
+        assertEquals(2720858781877447050L, 9223372036854775808UL.hash())
+        assertEquals(-5417735806833148549L, 18446744073709551615UL.hash())
+        assertEquals((-1L).hash(), (-1).hash())
+        assertEquals((-1L).hash(), (-1).toByte().hash())
+        assertEquals((-1L).hash(), (-1).toShort().hash())
+        assertEquals(255UL.hash(), 255.toUByte().hash())
+        assertEquals(65535UL.hash(), 65535.toUShort().hash())
+        assertEquals(4294967295UL.hash(), 4294967295U.hash())
+    }
+
+    @Test
+    fun dynamicCallsAndBooleanValues() {
+        val hash: () -> Long = (-1L)::hash
+        val equal: (Boolean) -> Boolean = true::equals
+        val values = Array<Hash>(3L) { i -> when (i) {
+            case 0L -> -1L
+            case 1L -> 18446744073709551615UL
+            else -> true
+        } }
+        gcCollect()
+        assertEquals(-5417735806833148549L, hash())
+        assertEquals(-5417735806833148549L, throughInterface(values[0L]))
+        assertEquals(-5417735806833148549L, throughInterface(values[1L]))
+        assertEquals(1L, throughInterface(values[2L]))
+        assertEquals(0L, false.hash())
+        assertEquals(1L, true.hash())
+        assertTrue(equal(true))
+        assertFalse(equal(false))
+        assertTrue(false.equals(false))
+        assertFalse(false.equals(true))
+    }
+}

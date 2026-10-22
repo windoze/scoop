@@ -38,6 +38,10 @@ pub struct Module {
     pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
     pub function_coercions: Arena<FunctionCoercion>,
     pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,
+    pub imported_inline_bodies: Arena<ImportedInlineBody>,
+    /// Typed primitive operations retained for late concrete dispatch.
+    pub imported_intrinsics:
+        std::collections::HashMap<ImportedDependencyCallableUseId, crate::PrimitiveMemberIntrinsic>,
     pub functions: Arena<Function>,
     pub extern_functions: Arena<ExternFunction>,
     pub globals: Arena<Global>,
