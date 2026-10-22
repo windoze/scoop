@@ -3,6 +3,7 @@
 use super::inheritance::InterfaceMemberInstance;
 use super::*;
 use crate::generation::PendingGenerationMethod;
+use hir::ImportedCallableSource;
 
 impl Lowerer {
     pub(in crate::class) fn declare_generated_interface_method(
@@ -70,17 +71,42 @@ impl Lowerer {
         owner: Owner,
         member: &InterfaceMemberInstance,
     ) {
-        if let Some(pending) = self.generation.methods.get_mut(&function)
-            && pending.task.owner == owner.as_nominal_owner()
-        {
-            let requirement = hir::AppliedRequirement {
-                interface: member.owner,
-                declaration: member.member,
-            };
-            if !pending.task.requirements.contains(&requirement) {
-                pending.task.requirements.push(requirement);
-            }
+        let Some(pending) = self.generation.methods.get_mut(&function) else {
+            return;
+        };
+        if pending.task.owner != owner.as_nominal_owner() {
+            return;
         }
+        let requirement = hir::AppliedRequirement {
+            interface: member.owner,
+            declaration: member.member,
+        };
+        if pending.task.requirements.contains(&requirement) {
+            return;
+        }
+        pending.task.requirements.push(requirement);
+        let source = match member.member {
+            hir::InterfaceMethodReference::Local(method) => {
+                let Type::Interface(application) = self.types[member.owner] else {
+                    unreachable!("a requirement retains its interface application")
+                };
+                crate::defaults::DefaultOverrideSource::Local {
+                    function: self.interface_method_entities[method].function,
+                    type_arguments: self.interface_applications[application].arguments.clone(),
+                }
+            }
+            hir::InterfaceMethodReference::Imported { .. } => {
+                let declaration = self.delegated_imported_member(member);
+                crate::defaults::DefaultOverrideSource::Imported {
+                    declaration: declaration.interface().declaration(),
+                    owner: member.owner,
+                }
+            }
+        };
+        self.override_default_sources
+            .entry(function)
+            .or_default()
+            .push(source);
     }
 
     pub(crate) fn query_owner_interfaces(&mut self, owner: hir::NominalOwner) -> Vec<TypeId> {

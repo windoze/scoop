@@ -21,32 +21,40 @@ fn compile(
     source: &str,
     generator: &mut dyn MethodBodyGenerator,
 ) -> Result<hir::Module, Vec<Diagnostic>> {
+    compile_files(&[("src/user.scoop", source)], generator)
+}
+
+fn compile_files(
+    files: &[(&str, &str)],
+    generator: &mut dyn MethodBodyGenerator,
+) -> Result<hir::Module, Vec<Diagnostic>> {
     let core = crate::tests::core_file();
-    let file = scoop_parser::parse(source).unwrap();
-    let sources = vec![
-        SourceProvider {
-            provider: hir::IntrinsicProviderId::from_raw(0),
-            kind: SourceKind::Core,
-            role: scoop_identity::SourceRole::Production,
-            identity: crate::tests::core_source_identity("src/core.scoop"),
-            name: "core.scoop".into(),
-            source: String::new(),
-        },
-        SourceProvider {
-            provider: hir::IntrinsicProviderId::from_raw(1),
+    let mut syntax = vec![core];
+    let mut sources = vec![SourceProvider {
+        provider: hir::IntrinsicProviderId::from_raw(0),
+        kind: SourceKind::Core,
+        role: scoop_identity::SourceRole::Production,
+        identity: crate::tests::core_source_identity("src/core.scoop"),
+        name: "core.scoop".into(),
+        source: String::new(),
+    }];
+    for (index, &(path, source)) in files.iter().enumerate() {
+        syntax.push(scoop_parser::parse(source).unwrap());
+        sources.push(SourceProvider {
+            provider: hir::IntrinsicProviderId::from_raw((index + 1) as u32),
             kind: SourceKind::CurrentUnit,
             role: scoop_identity::SourceRole::Production,
-            identity: crate::tests::test_source_identity("src/user.scoop"),
-            name: "user.scoop".into(),
+            identity: crate::tests::test_source_identity(path),
+            name: path.rsplit('/').next().unwrap().into(),
             source: source.into(),
-        },
-    ];
+        });
+    }
     let lowerer =
         Lowerer::new().with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly);
     let dependencies = hir::ImportedDependencySelectionPlan::empty(lowerer.current_cone());
     lowerer
         .with_imported_dependencies(dependencies)
-        .run(&[core, file], None, Some(generator))
+        .run(&syntax, None, Some(generator))
         .map(|(module, _, _)| module)
 }
 

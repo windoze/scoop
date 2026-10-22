@@ -8,6 +8,7 @@ mod fields;
 mod methods;
 mod projected_bodies;
 mod properties;
+mod signatures;
 mod types;
 
 fn marked_functions(queries: &dyn SemanticQueries) -> Vec<hir::FunctionId> {
@@ -127,6 +128,13 @@ fn default_query_keeps_definition_binders_and_previous_parameter_binding() {
             &scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 0 }
         );
         assert_eq!(projected.value_parameters().parameters().len(), 1);
+        let parameters = queries.function_parameters(function).unwrap();
+        assert_eq!(parameters[0].name, "first");
+        assert_eq!(parameters[1].value_type.declaration, value_type);
+        assert!(matches!(
+            parameters[1].calling,
+            hir::SemanticParameterCalling::Default(_)
+        ));
         Ok(Vec::new())
     });
     compile(

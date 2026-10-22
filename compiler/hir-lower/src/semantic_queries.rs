@@ -187,6 +187,7 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
             is_suspend: signature.is_suspend,
             modifiers: signature.modifiers,
             attributes: signature.attributes,
+            release_callability: lowerer.functions[function].release_callability.clone(),
             origin: hir::SemanticSourceLocation {
                 source: lowerer
                     .source_identity(
@@ -205,6 +206,29 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         function: hir::FunctionId,
     ) -> Result<hir::HirSourceFunctionIdentity, Diagnostic> {
         self.lowerer.query_function_identity(function)
+    }
+
+    fn function_parameters(
+        &mut self,
+        function: hir::FunctionId,
+    ) -> Result<Vec<hir::SemanticParameterDescription>, Diagnostic> {
+        let identity = match self.lowerer.query_function_identity(function)? {
+            hir::HirSourceFunctionIdentity::Plain(record) => {
+                scoop_identity::CallableTemplateOrigin::Function(record.id())
+            }
+            hir::HirSourceFunctionIdentity::Generic(record) => {
+                scoop_identity::CallableTemplateOrigin::GenericFunction(record.id())
+            }
+        };
+        let parameters = self.lowerer.signatures[&function].type_params.clone();
+        let substitutions = self
+            .lowerer
+            .complete_parameter_substitution(parameters.iter(), &[]);
+        Ok(self.lowerer.query_current_parameters(
+            hir::ExportParameterOwner::Function(function),
+            identity,
+            &substitutions,
+        ))
     }
 
     fn type_signature(

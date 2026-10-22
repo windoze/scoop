@@ -56,6 +56,7 @@ pub struct SemanticFunctionSignature {
     pub is_suspend: bool,
     pub modifiers: CallableModifiers,
     pub attributes: FunctionAttributes,
+    pub release_callability: ReleaseCallability,
     pub origin: SemanticSourceLocation,
 }
 
@@ -118,6 +119,10 @@ pub trait SemanticQueries {
     ) -> Result<Option<SemanticDefaultApplication>, Diagnostic>;
     fn source_location(&self, origin: DefinitionOrigin) -> SemanticSourceLocation;
     fn signature(&self, function: FunctionId) -> SemanticFunctionSignature;
+    fn function_parameters(
+        &mut self,
+        function: FunctionId,
+    ) -> Result<Vec<SemanticParameterDescription>, Diagnostic>;
     fn method_identity(
         &mut self,
         function: FunctionId,

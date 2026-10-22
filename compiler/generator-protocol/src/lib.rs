@@ -9,6 +9,8 @@ mod json;
 pub use json::QueryJson;
 mod annotations;
 pub use annotations::Annotations;
+mod signature;
+pub use signature::pending_method_signature;
 
 #[cfg(test)]
 mod tests;

@@ -1291,6 +1291,12 @@ logical property 描述独立保留 getter／setter 身份、实现形式、访�
 
 构造器描述沿实际声明读取 primary／secondary／variant 关系，编译器的零参适配器不成为额外源码构造器。完整源码参数按原位置区分 required、default、vararg 空数组省略与 vararg default；主构造参数和字段／property 的关系沿已有 typed 关联读取，不从名字建立关系。参数及 default 描述保留定义身份和原 binder，同时给出所查询应用下的类型与 default 实参映射；查询不执行 default 或将其迁移到另一作用域。
 
+当前源码 callable 的完整参数查询复用同一参数接口，包括不经名义成员查找的待填方法。签名查询同时保留已有 release callability；协议适配取得这些真实参数、声明 binder 和效果后，形成完整待填方法签名。参数、context 参数与类型参数使用各自所属声明及位置；不能发送 vararg arena 引用或用另一次名称查找补齐参数类型。
+
+待填方法与普通接口转发方法没有独立的参数源码声明，其合成签名项使用实现类型的触发位置；本地接口与依赖接口沿同一规则处理 context 参数。原 requirement 的来源仍通过实际接口引用取得，不把原接口文件的 span 与当前实现文件组合成一个位置。
+
+待填方法按已选定的实际 requirement 登记普通 override 的默认值来源；默认值准备、不同提供方冲突以及调用省略实参仍复用语言规范 8.5 的路径。生成钩子读取固定签名前已完成这些参数接口，不在 JSON 适配器中重新选择或拼接默认表达式。
+
 方法描述沿名义声明的实际成员关系读取，访问器不重复列为普通方法。定义处与当前 owner 应用下的 receiver、context 参数、值参数、结果和方法自身的泛型约束同时保留；约束替换使用原调用解析的替换算法，开放的方法参数仍有其原声明身份。依赖方法的参数在固定查询视图内只准备一次，并复用已加载 owner 的参数身份，不因查询顺序或重复读取形成不同 binder。正文引用和注解目标指向原 callable；访问结论沿原 receiver 检查计算，声明列表不冒充继承后的候选选择结果。
 
 导出查找指定当前 Cone 或已引入的直接 provider、完整名称段和 type／value 命名空间。provider 筛选先于最长 package 前缀选择；之后只沿真实 static owner 与 companion／re-export 关系查找，不因未命中而改查同名库或较短 package。当前源码只贡献公共导出，包含已解析的 public import；private／internal 声明即使在查询方法内部可访问也不成为导出。结果保留各类实际声明身份和重载集合，未找到与歧义分别返回；查找不读取上游源码、不加载未引入的依赖。

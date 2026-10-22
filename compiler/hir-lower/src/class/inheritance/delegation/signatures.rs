@@ -72,6 +72,9 @@ impl Lowerer {
                 }
             }
         };
+        for parameter in &mut signature.context_parameters {
+            parameter.span = span;
+        }
         for parameter in &mut signature.params {
             parameter.name.span = span;
             parameter.calling = match parameter.calling {
@@ -87,7 +90,7 @@ impl Lowerer {
         signature
     }
 
-    pub(super) fn delegated_imported_member(
+    pub(in crate::class) fn delegated_imported_member(
         &self,
         member: &InterfaceMemberInstance,
     ) -> hir::ImportedCallableDeclaration {

@@ -53,3 +53,13 @@ SourceIdentity 为 `{cone, path}`，`cone` 使用 typed cone identity，`path` �
 - `array`：`elementType` 保留 scalar／integralEnum／annotation 类别；`elements` 是 `{value, origin}` 数组，每个元素保留自己的来源。
 
 数组的 scalar elementType 使用 `{kind: "scalar", scalar: ...}`：integer scalar 带 `signed` 与 `width`，float scalar 带 `width`，其余 scalar 仅含 `kind`。integralEnum elementType 带 `valueType`，annotation elementType 带 `annotation`。注解应用使用 `{annotation, arguments, origin}`，源码与依赖投影遵循同一形状。
+
+## 待填方法签名
+
+CompleteMethodSignature 包含 `method`、`owner`、`name`、`receiver`、`binders`、`contextParameters`、`parameters`、`result`、`effects` 和 `origin`。method 使用 MethodId，owner 使用实际名义声明引用，所有类型按本签名的 binder 上下文解释。
+
+每个 binder 保存 `depth`、`index`、`name`、`declaration`、`bounds`、`excludedInterfaces`、`companion`、`requirements` 和 `origin`。declaration 为 `{kind: "nominal", owner: NominalId, index}` 或 `{kind: "callable", owner: MethodId, index}`，宿主参数继续属于名义声明，方法参数属于实际方法。bounds 区分 unconstrained／value／ref／nominal；nominal bounds 按源码顺序保留 class／interface 类型和来源。排除的接口和 companion 约束均保留原绑定。requires 项保存真实 ordinal、完整 contract 与来源，显式类型实参与待推导实参分开。
+
+值参数保存 `declaration: {owner: CallableDeclaration, index}`、`name`、`valueType`、`calling` 和 `origin`。calling 区分 required／default／vararg：default 携带 `{owner, parameter, arguments}`；vararg 另有 `elementType`，omission 区分 emptyArray 与 default。引用中的 owner、parameter 是实际参数声明，arguments 按原 default 提供方顺序给出完整类型，不携带 arena 下标。context 参数保存其独立参数位置、named／unnamed label、完整类型和来源。
+
+effects 保留 execution、safety、gc、callingConvention、operator、propertyDelegateOperator、infix 与 release；release 区分 unavailable 与 noTransition，并使用签名中的真实 binder 引用表达其条件。签名读取不会执行默认值或填充正文。

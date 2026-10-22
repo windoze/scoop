@@ -4,6 +4,7 @@ use scoop_identity::*;
 use serde_json::{Value, json};
 
 mod constants;
+mod requirements;
 mod types;
 
 fn nominal_key(kind: SourceNominalKind, arity: u32) -> SourceDeclarationKey {

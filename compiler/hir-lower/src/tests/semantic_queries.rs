@@ -14,6 +14,7 @@ mod fields;
 mod methods;
 mod projected_bodies;
 mod properties;
+mod signatures;
 mod support;
 mod types;
 
