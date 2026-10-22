@@ -5,7 +5,7 @@ use scoop_hir as hir;
 
 use crate::{
     CoreProtocolInput, CurrentConeSources, IntrinsicDeclarationPolicy, Lowerer, finish_output,
-    materialize_current_sources, select_cone_output_kind,
+    materialize_current_sources, seal_export_output, select_cone_output_kind,
 };
 
 /// Lowers current sources against one validated dependency semantic world.
@@ -14,6 +14,16 @@ pub fn lower_current_cone(
     input: &CurrentConeSources<'_, '_>,
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
     lower_current_mode(requested, input, false, None)
+}
+
+/// Completes source HIR without creating LocalConcrete HIR or machine instances.
+pub fn lower_current_export(
+    requested: scoop_identity::RequestedConeKind,
+    input: &CurrentConeSources<'_, '_>,
+) -> Result<hir::DependencyExportHirOutput, Vec<Diagnostic>> {
+    with_current_source_diagnostics(input, || {
+        lower_current_export_inner(requested, input, false, None)
+    })
 }
 
 /// Lowers current sources, asking the driver to fill missing interface bodies.
@@ -56,12 +66,51 @@ fn lower_current_mode(
     tests: bool,
     generator: Option<&mut dyn hir::MethodBodyGenerator>,
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
+    with_current_source_diagnostics(input, || {
+        let source = lower_current_export_inner(requested, input, tests, generator)?;
+        let sources = source
+            .export
+            .source_files
+            .iter()
+            .map(|source| source.identity.clone())
+            .collect::<Vec<_>>();
+        let mut output = finish_output(
+            source.export,
+            source.warnings,
+            input.semantic_world(),
+            Some(&source.imported_dependencies),
+        )
+        .map_err(|mut diagnostics| {
+            for diagnostic in &mut diagnostics {
+                diagnostic.resolve_sources(&sources);
+            }
+            diagnostics
+        })?;
+        output.documentation = source.documentation;
+        hir::DependencyHirOutput::try_new(
+            output,
+            source.imported_dependencies,
+            source.binding_witness_uses,
+        )
+        .map_err(|error| {
+            vec![Diagnostic::at(
+                Span { start: 0, end: 0 },
+                format!("failed to seal dependency-aware HIR: {error}"),
+            )]
+        })
+    })
+}
+
+fn with_current_source_diagnostics<T>(
+    input: &CurrentConeSources<'_, '_>,
+    run: impl FnOnce() -> Result<T, Vec<Diagnostic>>,
+) -> Result<T, Vec<Diagnostic>> {
     let current_sources = input
         .sources()
         .iter()
         .map(|source| source.text().identity().clone())
         .collect::<Vec<_>>();
-    lower_current_cone_inner(requested, input, tests, generator).map_err(|mut diagnostics| {
+    run().map_err(|mut diagnostics| {
         for diagnostic in &mut diagnostics {
             diagnostic.resolve_sources(&current_sources);
         }
@@ -69,12 +118,12 @@ fn lower_current_mode(
     })
 }
 
-fn lower_current_cone_inner(
+fn lower_current_export_inner(
     requested: scoop_identity::RequestedConeKind,
     input: &CurrentConeSources<'_, '_>,
     tests: bool,
     generator: Option<&mut dyn hir::MethodBodyGenerator>,
-) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
+) -> Result<hir::DependencyExportHirOutput, Vec<Diagnostic>> {
     let (files, mut sources) = materialize_current_sources(input.sources());
     for source in &mut sources {
         if let Some(coordinate) = input.source_names().get(&source.identity.cone()) {
@@ -111,23 +160,20 @@ fn lower_current_cone_inner(
     for warning in &mut warnings {
         warning.resolve_sources(&sources);
     }
-    let mut output = finish_output(module, output_kind, warnings, world, Some(&selected)).map_err(
-        |mut diagnostics| {
+    let export =
+        seal_export_output(module, output_kind, Some(&selected)).map_err(|mut diagnostics| {
             for diagnostic in &mut diagnostics {
                 diagnostic.resolve_sources(&sources);
             }
             diagnostics
-        },
-    )?;
-    output.documentation = completion.documentation;
-    hir::DependencyHirOutput::try_new(output, selected, completion.binding_witness_uses).map_err(
-        |error| {
-            vec![Diagnostic::at(
-                Span { start: 0, end: 0 },
-                format!("failed to seal dependency-aware HIR: {error}"),
-            )]
-        },
-    )
+        })?;
+    Ok(hir::DependencyExportHirOutput {
+        export,
+        imported_dependencies: selected,
+        binding_witness_uses: completion.binding_witness_uses,
+        warnings,
+        documentation: completion.documentation,
+    })
 }
 
 pub(crate) fn prepare_current_lowerer(

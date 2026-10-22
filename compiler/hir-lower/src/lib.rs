@@ -169,8 +169,8 @@ mod visibility;
 
 pub use current_input::*;
 pub use current_lowering::{
-    lower_current_cone, lower_current_cone_with_generator, lower_current_tests,
-    lower_current_tests_with_generator,
+    lower_current_cone, lower_current_cone_with_generator, lower_current_export,
+    lower_current_tests, lower_current_tests_with_generator,
 };
 pub use editing::{
     DeclarationAnalysis, EditingAnalysisError, EditingCancelled, EditingSignature,
@@ -364,7 +364,8 @@ pub(crate) fn lower_defined_for_test(
     let output_kind = select_cone_output_kind(&export, requested)?;
     let world =
         hir::ImportedSemanticWorld::from_dependencies(export.cone, Vec::new(), Vec::new()).unwrap();
-    finish_output(export, output_kind, warnings, &world, None)
+    let export = seal_export_output(export, output_kind, None)?;
+    finish_output(export, warnings, &world, None)
 }
 
 /// Test fixture adapter using the same input and lowering as production.
@@ -389,14 +390,12 @@ pub fn produce_cross_cone_type_semantics(
     hir::CrossConeTypeSemanticsSectionV1::from_dependency_hir(output, metadata, dependencies)
 }
 
-fn finish_output(
+fn seal_export_output(
     export: hir::ExportHir,
     output_kind: hir::ConeOutputKind,
-    warnings: Vec<Diagnostic>,
-    dependencies: &hir::ImportedSemanticWorld<'_>,
     selected: Option<&hir::SelectedImportedDependencySet>,
-) -> Result<hir::Output, Vec<Diagnostic>> {
-    let mut export = match selected {
+) -> Result<hir::ExportHirOutput, Vec<Diagnostic>> {
+    match selected {
         Some(selected) => {
             hir::ExportHirOutput::try_new_with_dependencies(export, output_kind, selected)
         }
@@ -407,7 +406,15 @@ fn finish_output(
             Span { start: 0, end: 0 },
             format!("failed to seal Export HIR output: {error}"),
         )]
-    })?;
+    })
+}
+
+fn finish_output(
+    mut export: hir::ExportHirOutput,
+    warnings: Vec<Diagnostic>,
+    dependencies: &hir::ImportedSemanticWorld<'_>,
+    selected: Option<&hir::SelectedImportedDependencySet>,
+) -> Result<hir::Output, Vec<Diagnostic>> {
     let local = concretize::lower_output(&mut export, selected, dependencies)?;
     let native_boundary_types =
         crate::persistent_native_boundary::build(export.module(), local.module(), dependencies)
