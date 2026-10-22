@@ -65,4 +65,4 @@ mod jumps;
 mod local_functions;
 mod places;
 mod statements;
-mod when;
+pub(crate) mod when;

@@ -1,14 +1,24 @@
 //! Ordered ordinary conditions and explicit pattern dispatch.
 
 use scoop_ast::{
-    Block, Diagnostic, Expr, NonEmptyVec, Span, Statement, StatementKind, When, WhenArm,
-    WhenArmCondition, WhenCondition, WhenSubject,
+    self as ast, Block, Diagnostic, Expr, NonEmptyVec, Span, Statement, StatementKind, When,
+    WhenArm, WhenArmCondition, WhenCondition, WhenSubject,
 };
 
 use crate::lexer::{Token, TokenKind};
 use crate::parser::Parser;
 
 mod arms;
+mod conditions;
+mod subject;
+
+enum ParsedArm {
+    Projected {
+        arm: WhenArm,
+        recovery: Option<Box<ast::RecoveredWhenArm>>,
+    },
+    Failed(ast::RecoveredWhenArm),
+}
 
 impl Parser {
     pub(super) fn parse_when(&mut self) -> Result<Statement, Diagnostic> {
@@ -30,38 +40,102 @@ impl Parser {
     }
 
     fn parse_when_node_inner(&mut self) -> Result<When, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let keyword = self.bump();
-        let subject = self.parse_when_subject()?;
+        let subject = self.parse_when_subject(keyword.span.start)?;
+        let complete_subject = self.fragment_is_complete(checkpoint);
         let has_subject = !matches!(subject, WhenSubject::Absent);
         self.expect("`{`", |kind| matches!(kind, TokenKind::LBrace))?;
-        let body_depth = self.brace_depth();
+        let mut parsed = Vec::new();
+        let result = self.parse_when_arms(has_subject, &mut parsed);
+        let recover =
+            complete_subject && (result.is_err() || !self.fragment_is_complete(checkpoint));
         let mut arms = Vec::new();
         let mut else_body = None;
+        let mut recovered = Vec::new();
+        for entry in parsed {
+            match entry {
+                ParsedArm::Projected { arm, recovery } => {
+                    if recover {
+                        recovered.push(recovery.map(|input| *input).unwrap_or_else(|| {
+                            ast::RecoveredWhenArm::Head {
+                                condition: arm.condition.clone(),
+                                guard: arm.guard.clone(),
+                                body: None,
+                                span: arm.span,
+                            }
+                        }));
+                    }
+                    if matches!(arm.condition, WhenArmCondition::Else) && arm.guard.is_none() {
+                        if else_body.is_none() {
+                            else_body = Some(arm.body);
+                        }
+                    } else {
+                        arms.push(arm);
+                    }
+                }
+                ParsedArm::Failed(input) => {
+                    if recover {
+                        recovered.push(input);
+                    }
+                }
+            }
+        }
+        if recover {
+            self.record_recovered_when(ast::RecoveredWhen {
+                block: None,
+                start: keyword.span.start,
+                subject: subject.clone(),
+                arms: recovered,
+            });
+        }
+        let close = result?;
+        Ok(When {
+            subject,
+            arms,
+            else_body,
+            span: Span::new(keyword.span.start, close.span.end),
+        })
+    }
+
+    fn parse_when_arms(
+        &mut self,
+        has_subject: bool,
+        parsed: &mut Vec<ParsedArm>,
+    ) -> Result<Token, Diagnostic> {
+        let body_depth = self.brace_depth();
+        let mut has_else = false;
         let mut reported_after_else = false;
-        let close = loop {
+        loop {
             match self.peek().kind {
-                TokenKind::RBrace => break self.bump(),
+                TokenKind::RBrace => return Ok(self.bump()),
                 TokenKind::Eof => return self.missing_token(TokenKind::RBrace, "`}`"),
                 _ => {
                     let start = self.pos;
-                    if else_body.is_some() && !reported_after_else {
+                    let offset = self.peek().span.start;
+                    if has_else && !reported_after_else {
                         let diagnostic = self.unexpected::<()>("`}`").unwrap_err();
                         self.diagnostics.push(diagnostic);
                         reported_after_else = true;
                     }
-                    match self.parse_when_arm(has_subject) {
+                    let (result, mut recovery) = self.parse_when_arm(has_subject);
+                    let span = Span::new(offset, self.peek().span.start);
+                    if has_else {
+                        recovery = Some(ast::RecoveredWhenArm::Unavailable(span));
+                    }
+                    match result {
                         Ok(arm) => {
-                            if matches!(arm.condition, WhenArmCondition::Else)
-                                && arm.guard.is_none()
-                            {
-                                if else_body.is_none() {
-                                    else_body = Some(arm.body);
-                                }
-                            } else {
-                                arms.push(arm);
-                            }
+                            has_else |= matches!(arm.condition, WhenArmCondition::Else)
+                                && arm.guard.is_none();
+                            parsed.push(ParsedArm::Projected {
+                                arm,
+                                recovery: recovery.map(Box::new),
+                            });
                         }
                         Err(diagnostic) => {
+                            parsed.push(ParsedArm::Failed(
+                                recovery.unwrap_or(ast::RecoveredWhenArm::Unavailable(span)),
+                            ));
                             if self.at_eof() {
                                 return Err(diagnostic);
                             }
@@ -71,126 +145,7 @@ impl Parser {
                     }
                 }
             }
-        };
-        Ok(When {
-            subject,
-            arms,
-            else_body,
-            span: Span::new(keyword.span.start, close.span.end),
-        })
-    }
-
-    fn parse_when_subject(&mut self) -> Result<WhenSubject, Diagnostic> {
-        if matches!(self.peek().kind, TokenKind::LBrace) {
-            return Ok(WhenSubject::Absent);
         }
-        self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
-        let subject = match self.peek().kind {
-            TokenKind::Var => {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "a when subject declaration must use `val`, not `var`",
-                ));
-            }
-            TokenKind::Val => {
-                let declaration = self.parse_val_decl()?;
-                let StatementKind::ValDecl(value) = declaration.kind else {
-                    return Err(Diagnostic::at(
-                        declaration.span,
-                        "a when subject declaration cannot be delegated",
-                    ));
-                };
-                WhenSubject::Declaration(Box::new(value))
-            }
-            _ => WhenSubject::Expression(self.parse_expr()?),
-        };
-        self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
-        Ok(subject)
-    }
-
-    fn parse_when_arm_condition(
-        &mut self,
-        has_subject: bool,
-    ) -> Result<WhenArmCondition, Diagnostic> {
-        if matches!(self.peek().kind, TokenKind::Else) {
-            self.bump();
-            return Ok(WhenArmCondition::Else);
-        }
-        if matches!(&self.peek().kind, TokenKind::Ident(name) if name == "case") {
-            let keyword = self.bump();
-            if !has_subject {
-                return Err(Diagnostic::at(
-                    keyword.span,
-                    "case patterns require a when subject",
-                ));
-            }
-            let pattern = self.parse_pattern()?;
-            if matches!(self.peek().kind, TokenKind::Comma) {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "a case arm accepts one pattern; use separate arms for alternatives",
-                ));
-            }
-            return Ok(WhenArmCondition::Case(pattern));
-        }
-        if matches!(&self.peek().kind, TokenKind::Ident(name) if name == "_")
-            || matches!(self.peek().kind, TokenKind::DotDot)
-        {
-            return Err(Diagnostic::at(
-                self.peek().span,
-                "match patterns require `case` before the pattern",
-            ));
-        }
-        let first = self.parse_when_condition(has_subject)?;
-        let mut rest = Vec::new();
-        while matches!(self.peek().kind, TokenKind::Comma) {
-            self.bump();
-            if matches!(self.peek().kind, TokenKind::Arrow | TokenKind::If) {
-                break;
-            }
-            rest.push(self.parse_when_condition(has_subject)?);
-        }
-        Ok(WhenArmCondition::Conditions(NonEmptyVec::new(first, rest)))
-    }
-
-    fn parse_when_condition(&mut self, has_subject: bool) -> Result<WhenCondition, Diagnostic> {
-        let start = self.peek().span.start;
-        let negated_is = matches!(self.peek().kind, TokenKind::Bang)
-            && matches!(self.tokens[self.pos + 1].kind, TokenKind::Is);
-        if matches!(self.peek().kind, TokenKind::Is) || negated_is {
-            if !has_subject {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "an abbreviated `is` condition requires a when subject",
-                ));
-            }
-            self.bump();
-            if negated_is {
-                self.bump();
-            }
-            let ty = self.parse_type_ref()?;
-            return Ok(WhenCondition::Is {
-                span: Span::new(start, ty.span.end),
-                ty,
-                negated: negated_is,
-            });
-        }
-        if matches!(self.peek().kind, TokenKind::In | TokenKind::BangIn) {
-            if !has_subject {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "an abbreviated `in` condition requires a when subject",
-                ));
-            }
-            let negated = matches!(self.bump().kind, TokenKind::BangIn);
-            let collection = self.parse_expr()?;
-            return Ok(WhenCondition::In {
-                span: Span::new(start, collection.span().end),
-                collection,
-                negated,
-            });
-        }
-        Ok(WhenCondition::Expression(self.parse_expr()?))
     }
 
     fn parse_arm_body(&mut self) -> Result<Block, Diagnostic> {

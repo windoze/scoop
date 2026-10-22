@@ -11,15 +11,19 @@ impl Parser {
         let checkpoint = self.checkpoint();
         let result = self.parse_expr();
         if result.is_err() || !self.fragment_is_complete(checkpoint) {
-            self.syntax
-                .events
-                .push(Event::Body(BodyEvent::Operand(ast::RecoveredOperand {
-                    block: None,
-                    statement_start,
-                    expression_start: start,
-                    context: context(),
-                })));
+            self.record_recovered_operand(ast::RecoveredOperand {
+                block: None,
+                statement_start,
+                expression_start: start,
+                context: context(),
+            });
         }
         result
+    }
+
+    pub(crate) fn record_recovered_operand(&mut self, operand: ast::RecoveredOperand) {
+        self.syntax
+            .events
+            .push(Event::Body(BodyEvent::Operand(operand)));
     }
 }

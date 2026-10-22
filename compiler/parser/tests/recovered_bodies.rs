@@ -13,6 +13,9 @@ mod iteration;
 #[path = "recovered_bodies/do_while.rs"]
 mod do_while;
 
+#[path = "recovered_bodies/when.rs"]
+mod when;
+
 fn body<'a>(parsed: &'a ParsedFile, name: &str) -> &'a ast::RecoveredFunctionBody {
     parsed
         .declaration_data()
@@ -262,7 +265,8 @@ fn unfinished_operands_retain_real_statement_entries_and_complete_headers() {
             ast::RecoveredOperandContext::Throw => assert_eq!(keyword, "throw"),
             ast::RecoveredOperandContext::IfCondition
             | ast::RecoveredOperandContext::WhileCondition { .. }
-            | ast::RecoveredOperandContext::ForIterable => panic!("not a control operand"),
+            | ast::RecoveredOperandContext::ForIterable
+            | ast::RecoveredOperandContext::WhenSubject => panic!("not a control operand"),
         }
         assert_eq!(parsed.syntax().text().to_string(), text);
     }

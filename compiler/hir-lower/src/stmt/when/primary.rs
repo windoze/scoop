@@ -1,15 +1,14 @@
-use super::conditions::ArmPrimary;
 use super::*;
 
 mod predicates;
 
 impl Lowerer {
-    pub(super) fn subject_primary(
+    pub(crate) fn subject_primary(
         &mut self,
-        arm: &ast::WhenArm,
+        condition: &ast::WhenArmCondition,
         subject: &Subject,
     ) -> Option<ArmPrimary<hir::WhenCondition>> {
-        match &arm.condition {
+        match condition {
             ast::WhenArmCondition::Case(pattern) => {
                 if !matches!(
                     self.types[subject.value.ty],
@@ -69,13 +68,14 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn conditional_primary(
+    pub(crate) fn conditional_primary(
         &mut self,
-        arm: &ast::WhenArm,
+        condition: &ast::WhenArmCondition,
+        span: Span,
     ) -> Option<ArmPrimary<hir::WhenPredicate>> {
-        match &arm.condition {
+        match condition {
             ast::WhenArmCondition::Case(_) => {
-                self.error(arm.span, "case requires a when subject".into());
+                self.error(span, "case requires a when subject".into());
                 None
             }
             ast::WhenArmCondition::Else => Some(ArmPrimary {

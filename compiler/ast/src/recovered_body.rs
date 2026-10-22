@@ -65,6 +65,7 @@ pub enum RecoveredOperandContext {
         label: Option<crate::Ident>,
     },
     ForIterable,
+    WhenSubject,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -143,4 +144,5 @@ pub struct RecoveredFunctionBody {
     pub while_loops: Vec<RecoveredWhile>,
     pub for_loops: Vec<RecoveredFor>,
     pub do_while_loops: Vec<RecoveredDoWhile>,
+    pub whens: Vec<crate::RecoveredWhen>,
 }

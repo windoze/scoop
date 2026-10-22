@@ -168,6 +168,8 @@ for 的恢复上下文已接入普通迭代头部计算，原 iterator operator�
 
 do-while 的恢复上下文已接入：原 grammar 区分损坏 body 与完整 body 后的损坏条件，仅在后者保留完整 body 作为条件作用域的输入。普通编译与恢复查询共用条件入口，按真实正常出口、continue 目标及 finally 结果计算 flow 与未初始化 binding；body 不使用后置条件的收窄，未知 body 不提供条件事实。取消或退出恢复词法、循环及初始化状态。格式化、全 workspace Clippy、Ruff、155 项编辑态测试、6 项普通循环／控制流回归及 675 项 parser／宿主／LSP 测试通过；独立进程和完整 stdio fixture 通过，后者耗时约 61.5 秒，覆盖单语句 body、解构、局部遮蔽、嵌套标签、finally 覆盖跳转、半成品条件调用以及修改／关闭后的结果更新。target 仍约 15 GiB；when、try 等恢复作用域及其他引用／重命名范围继续实施。
 
+when 的恢复上下文已接入原 subject、primary 与 guard 计算：顺序保留完整头部、实际 body 及部分条件入口，模式绑定和条件真假 flow 与普通编译共用；错误 body 不影响其他 arm，未知头部后不发布推测事实。subject 声明不提前可见，未完成 guard 保留已检查的模式绑定，逗号条件的部分输入使用此前条件的否定路径。完整 when 不复制恢复头部；值分支需求仍在原模式作用域计算。格式化、全 workspace Clippy、Ruff、168 项编辑态测试、55 项普通 when／类型推断回归及 682 项 parser／宿主／LSP 测试通过；独立进程和完整 stdio fixture 通过，后者耗时约 64.5 秒，覆盖 tuple／struct／泛型 enum、中文位置、局部遮蔽、错误条件与 guard、EOF、取消和修改／关闭恢复。初次 lint 的恢复数据尺寸及新增语法上下文穷尽分支已修正；try 等恢复作用域及其他引用／重命名范围继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

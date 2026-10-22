@@ -6,22 +6,36 @@ impl Lowerer {
         when: &ast::When,
         out: &mut Vec<hir::Statement>,
     ) -> Option<Option<Subject>> {
+        let has_conditions = when
+            .arms
+            .iter()
+            .any(|arm| matches!(arm.condition, ast::WhenArmCondition::Conditions(_)));
+        self.lower_when_subject_input(&when.subject, has_conditions, out)
+    }
+
+    pub(crate) fn lower_when_subject_input(
+        &mut self,
+        subject: &ast::WhenSubject,
+        has_conditions: bool,
+        out: &mut Vec<hir::Statement>,
+    ) -> Option<Option<Subject>> {
         let incoming = self.smart_casts.clone();
         let start = out.len();
-        let result = self.lower_when_subject_inner(when, out);
+        let result = self.lower_when_subject_inner(subject, has_conditions, out);
         self.advance_smart_casts(incoming, &out[start..], None);
         result
     }
 
     fn lower_when_subject_inner(
         &mut self,
-        when: &ast::When,
+        subject: &ast::WhenSubject,
+        has_conditions: bool,
         out: &mut Vec<hir::Statement>,
     ) -> Option<Option<Subject>> {
-        let Some(initializer) = when.subject.initializer() else {
+        let Some(initializer) = subject.initializer() else {
             return Some(None);
         };
-        let declaration = match &when.subject {
+        let declaration = match subject {
             ast::WhenSubject::Declaration(declaration) => Some(declaration.as_ref()),
             _ => None,
         };
@@ -50,12 +64,7 @@ impl Lowerer {
         }
         // Pattern-only subjects already have an exactly-once evaluation point
         // in MIR. Ordinary conditions also need a front-end local to reference.
-        if declaration.is_none()
-            && !when
-                .arms
-                .iter()
-                .any(|arm| matches!(arm.condition, ast::WhenArmCondition::Conditions(_)))
-        {
+        if declaration.is_none() && !has_conditions {
             return Some(Some(Subject {
                 value,
                 reference: initializer.clone(),

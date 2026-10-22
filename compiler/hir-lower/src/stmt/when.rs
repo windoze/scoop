@@ -9,20 +9,21 @@ mod sealed;
 mod subject;
 mod values;
 
-struct Subject {
+pub(crate) use conditions::ArmPrimary;
+
+pub(crate) struct Subject {
     value: hir::Expr,
     reference: ast::Expr,
 }
 
 /// A checked head retains its bindings while result inference may postpone
 /// the body. Conditions are resolved once, in source order.
-struct ArmHead<C = hir::WhenCondition> {
+pub(crate) struct ArmHead<C = hir::WhenCondition> {
     condition: C,
     guard: Option<hir::WhenGuard>,
     scope: Scopes,
     facts: SmartCastFacts,
     coverage: Vec<hir::Pattern>,
-    context_requirement: ExpressionContextRequirement,
     body_reachable: bool,
 }
 
@@ -38,8 +39,8 @@ impl Lowerer {
             let result = match this.lower_when_subject(when, out)? {
                 Some(subject) => {
                     let prepared = this.lower_statement_arms(when, |this, arm, reachable| {
-                        this.prepare_when_head(arm, reachable, |this| {
-                            this.subject_primary(arm, &subject)
+                        this.prepare_when_head(arm.guard.as_ref(), reachable, |this| {
+                            this.subject_primary(&arm.condition, &subject)
                         })
                     });
                     let else_body = when.else_body.as_ref().map(|body| this.lower_block(body));
@@ -54,7 +55,9 @@ impl Lowerer {
                 }
                 None => {
                     let prepared = this.lower_statement_arms(when, |this, arm, reachable| {
-                        this.prepare_when_head(arm, reachable, |this| this.conditional_primary(arm))
+                        this.prepare_when_head(arm.guard.as_ref(), reachable, |this| {
+                            this.conditional_primary(&arm.condition, arm.span)
+                        })
                     });
                     let else_body = when.else_body.as_ref().map(|body| this.lower_block(body));
                     let (arms, _) = prepared?;
@@ -104,7 +107,7 @@ impl Lowerer {
         self.in_when_scope(|this| this.lower_when_value(when, sink, expected))
     }
 
-    fn in_when_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+    pub(crate) fn in_when_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         self.push_scope();
         let facts = self.smart_casts.clone();
         let result = f(self);
@@ -113,7 +116,11 @@ impl Lowerer {
         result
     }
 
-    fn in_when_arm<C, T>(&mut self, head: &ArmHead<C>, f: impl FnOnce(&mut Self) -> T) -> T {
+    pub(crate) fn in_when_arm<C, T>(
+        &mut self,
+        head: &ArmHead<C>,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
         let scope = std::mem::replace(&mut self.scopes, head.scope.clone());
         let facts = std::mem::replace(&mut self.smart_casts, head.facts.clone());
         self.local_function_scopes.push();

@@ -4,6 +4,7 @@ mod conditionals;
 mod do_while;
 mod iteration;
 mod loops;
+mod when;
 
 impl Lowerer {
     pub(super) fn check_recovered_facts(
@@ -177,6 +178,14 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         {
             return self.do_while(lowerer, do_while, available);
         }
+        if let Some(when) = self
+            .body
+            .whens
+            .iter()
+            .find(|when| when.block == block && when.start == start)
+        {
+            return self.when(lowerer, when, available);
+        }
         Ok(())
     }
 
@@ -232,7 +241,8 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
             }
             ast::RecoveredOperandContext::Throw
             | ast::RecoveredOperandContext::IfCondition
-            | ast::RecoveredOperandContext::ForIterable => true,
+            | ast::RecoveredOperandContext::ForIterable
+            | ast::RecoveredOperandContext::WhenSubject => true,
             ast::RecoveredOperandContext::WhileCondition { label } => {
                 return self.while_condition(lowerer, operand, label.as_ref());
             }

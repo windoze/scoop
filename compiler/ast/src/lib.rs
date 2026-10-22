@@ -19,6 +19,8 @@ mod patterns;
 mod recovered;
 mod recovered_body;
 pub use recovered_body::*;
+mod recovered_when;
+pub use recovered_when::*;
 mod recovered_call;
 pub use recovered_call::*;
 mod statements;

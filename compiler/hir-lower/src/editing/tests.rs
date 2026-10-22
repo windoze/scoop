@@ -35,6 +35,8 @@ mod selectors;
 mod type_definitions;
 mod type_implementations;
 mod types;
+mod when;
+mod when_inputs;
 
 fn analyze(text: &str) -> DeclarationAnalysis {
     analyze_cancellable(text, || false).unwrap()
