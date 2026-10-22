@@ -2,6 +2,8 @@
 
 本文件细化 [M47 协议](PROTOCOL.md)第 3～4 节的公共数据。对象字段使用 camelCase，封闭分支使用字符串 `kind`。此处规定已实现的基础编码；完整查询请求、成员／正文以及进程接入的交付状态仍以[公共基础实施记录](../language-service/PROGRESS.md)为准。
 
+八类 `compiler/query` 的请求字段与结果 envelope 见[查询请求与结果](QUERY-JSON.md)。
+
 ## 声明引用
 
 identity 使用原 32 字节对应的 64 位十六进制字符串；写出小写，读取也接受大写。长度或字符不合法时报格式错误。Rust 的 `Reference<I>` 保留原 identity 类别，只表示一个待读取的引用；它不创建或重新派生语言实体。

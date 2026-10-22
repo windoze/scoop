@@ -7,6 +7,7 @@ mod constructors;
 mod declaration_references;
 mod defaults;
 mod descriptions;
+mod dispatch;
 mod exports;
 mod fields;
 mod methods;

@@ -83,7 +83,7 @@ fn dependency_constructor_queries_keep_source_parameters_and_default_binder_argu
                 .unwrap();
             assert!(std::sync::Arc::ptr_eq(&projected, &repeated));
             let application = queries
-                .default_application(context.into(), default)
+                .default_application(context.into(), default.definition, &default.arguments)
                 .unwrap()
                 .unwrap();
             assert!(std::sync::Arc::ptr_eq(application.definition(), &projected));

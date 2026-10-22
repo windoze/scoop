@@ -14,7 +14,7 @@ fn default_application_keeps_method_binders_separate_from_applied_owner_types() 
         };
         let binders = method.declaration_binders();
         let application = queries
-            .default_application((&binders).into(), default)
+            .default_application((&binders).into(), default.definition, &default.arguments)
             .unwrap()
             .unwrap();
         let definition = application.definition();
@@ -51,7 +51,7 @@ fn inherited_source_default_uses_the_definition_root_and_keeps_its_tree() {
             panic!("inherited source default")
         };
         let application = queries
-            .default_application(context.into(), default)
+            .default_application(context.into(), default.definition, &default.arguments)
             .unwrap()
             .unwrap();
         let definition = application.definition();

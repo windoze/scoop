@@ -47,5 +47,6 @@ mod annotation_values;
 mod annotations;
 mod constants;
 mod effects;
+mod exports;
 mod members;
 mod requirements;

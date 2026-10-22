@@ -4,6 +4,22 @@ use scoop_identity::{BindableEntity, BindingNamespace, CanonicalIdentifier, Cone
 
 mod identities;
 
+impl FrontendQueries<'_, '_> {
+    pub(super) fn query_provider(
+        &self,
+        reference: scoop_identity::DecodedPersistentId<ConeIdentity>,
+    ) -> Option<ConeIdentity> {
+        let current = self.lowerer.current_cone();
+        if current.as_array() == reference.as_array() {
+            return Some(current);
+        }
+        self.world?
+            .direct_providers()
+            .map(|provider| provider.id())
+            .find(|provider| provider.as_array() == reference.as_array())
+    }
+}
+
 impl Lowerer {
     pub(super) fn query_export(
         &mut self,

@@ -54,6 +54,13 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         self.lowerer.current_cone()
     }
 
+    fn resolve_provider(
+        &self,
+        reference: scoop_identity::DecodedPersistentId<scoop_identity::ConeIdentity>,
+    ) -> Option<scoop_identity::ConeIdentity> {
+        self.query_provider(reference)
+    }
+
     fn lookup_export(
         &mut self,
         context: hir::SemanticContext,
@@ -138,9 +145,18 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
     fn default_application(
         &mut self,
         context: hir::SemanticTypeContext<'_>,
-        application: &hir::SemanticDefaultUse,
-    ) -> Result<Option<hir::SemanticDefaultApplication>, Diagnostic> {
-        self.query_default_application(context, application)
+        definition: hir::SemanticDefaultReference,
+        arguments: &[hir::TypeId],
+    ) -> Result<Option<hir::SemanticDefaultApplication>, Vec<Diagnostic>> {
+        self.query_default_application(context, definition, arguments)
+    }
+
+    fn resolve_default_reference(
+        &mut self,
+        owner: hir::DecodedAnnotationCallableV1,
+        parameter: u32,
+    ) -> Result<Option<hir::SemanticDefaultReference>, Diagnostic> {
+        self.query_default_reference(owner, parameter)
     }
 
     fn default_source(&self, source: hir::ExportDefaultSourceId) -> hir::SemanticDefaultSource<'_> {

@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn query_imported_method_binders(
+    pub(in crate::semantic_queries) fn query_imported_method_binders(
         &mut self,
         declaration: &hir::ImportedCallableDeclaration,
         owner_parameters: &[hir::TypeParamDecl],

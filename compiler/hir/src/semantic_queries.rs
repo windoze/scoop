@@ -78,6 +78,10 @@ pub enum SemanticTypeRelation {
 /// Operations compute existing semantic facts; they never generate a body.
 pub trait SemanticQueries {
     fn current_cone(&self) -> ConeIdentity;
+    fn resolve_provider(
+        &self,
+        reference: scoop_identity::DecodedPersistentId<ConeIdentity>,
+    ) -> Option<ConeIdentity>;
     fn lookup_export(
         &mut self,
         context: SemanticContext,
@@ -116,6 +120,11 @@ pub trait SemanticQueries {
         &self,
         source: SemanticDefaultReference,
     ) -> Option<SemanticDefaultDefinition<'_>>;
+    fn resolve_default_reference(
+        &mut self,
+        owner: DecodedAnnotationCallableV1,
+        parameter: u32,
+    ) -> Result<Option<SemanticDefaultReference>, Diagnostic>;
     fn projected_default(
         &mut self,
         source: SemanticDefaultReference,
@@ -123,8 +132,9 @@ pub trait SemanticQueries {
     fn default_application(
         &mut self,
         context: SemanticTypeContext<'_>,
-        application: &SemanticDefaultUse,
-    ) -> Result<Option<SemanticDefaultApplication>, Diagnostic>;
+        definition: SemanticDefaultReference,
+        arguments: &[TypeId],
+    ) -> Result<Option<SemanticDefaultApplication>, Vec<Diagnostic>>;
     fn source_location(&self, origin: DefinitionOrigin) -> SemanticSourceLocation;
     fn signature(&self, function: FunctionId) -> SemanticFunctionSignature;
     fn function_parameters(

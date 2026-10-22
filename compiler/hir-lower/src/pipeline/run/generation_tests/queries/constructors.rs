@@ -83,7 +83,7 @@ fn constructor_queries_preserve_primary_targets_default_providers_and_source_ide
             hir::DefaultExpressionKindV1::Local(_)
         ));
         let application = queries
-            .default_application(context.into(), default)
+            .default_application(context.into(), default.definition, &default.arguments)
             .unwrap()
             .unwrap();
         assert!(std::sync::Arc::ptr_eq(application.definition(), &projected));

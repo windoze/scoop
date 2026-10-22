@@ -12,6 +12,7 @@ mod annotations;
 mod constructor_bodies;
 mod constructors;
 mod declaration_references;
+mod dispatch;
 mod exports;
 mod fields;
 mod methods;
@@ -211,11 +212,8 @@ fn inherited_default_query_preserves_the_dependency_definition_scope() {
             let application = queries
                 .default_application(
                     (&binders).into(),
-                    &hir::SemanticDefaultUse {
-                        definition: hir::SemanticDefaultReference::Current(source),
-                        declaration_arguments: vec![value_type],
-                        arguments: vec![value_type],
-                    },
+                    hir::SemanticDefaultReference::Current(source),
+                    &[value_type],
                 )
                 .unwrap()
                 .unwrap();

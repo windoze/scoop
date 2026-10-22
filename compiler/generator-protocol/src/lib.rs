@@ -19,6 +19,10 @@ mod body;
 pub use body::{BodyJson, applied_default};
 mod descriptions;
 pub use descriptions::{member_description, type_description};
+mod queries;
+pub use queries::{
+    CompilerQuery, DefaultReference, ExportNamespace, Query, TypeRelation, execute_query,
+};
 
 #[cfg(test)]
 mod tests;

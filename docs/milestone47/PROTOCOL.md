@@ -163,6 +163,8 @@ wire 上的 bodies 用有序数组表示 typed 映射，不能将 MethodId 转�
 
 查询是一个有明确 variant 的数据类型，由 `compiler/query` 统一承载。只读描述支持成组读取，保留声明顺序；查询没有 serializer 特殊模式。
 
+八类请求的具体字段、数组对应关系、未找到及正文可用性结果见[查询请求与结果](QUERY-JSON.md)。协议适配接收 driver 已解析的普通方法上下文，引用查找、默认模板选择及应用约束仍由共享前端完成。
+
 | 查询 | 返回的数据 | 本期用途 |
 | --- | --- | --- |
 | `describeTypes` | 完整类型表达式、种类、binder／bound、实际名义声明、直接父类型、companion 关联 | 结构分类、递归引用、取得普通 companion |

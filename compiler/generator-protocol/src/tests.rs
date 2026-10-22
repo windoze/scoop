@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 mod annotations;
 mod body;
 mod constants;
+mod queries;
 mod requirements;
 mod types;
 
