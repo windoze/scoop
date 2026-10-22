@@ -1,0 +1,98 @@
+package scoop.regex
+
+import scoop.collections.toList
+
+/** A half-open Unicode scalar range in the original input. */
+public struct MatchRange(
+    /** The inclusive start position. */ val start: Long,
+    /** The exclusive end position. */ val endExclusive: Long
+)
+
+/** An independently copied capture and its range. An empty capture is still a participating group. */
+public struct MatchGroup(
+    /** The captured text. */ val value: String,
+    /** Its range in the original input. */ val range: MatchRange
+)
+
+/** A snapshot of one successful match, usable after subsequent searches or Regex.close. */
+public class MatchResult internal constructor(
+    /** All capture slots, including group zero. */ public val groups: MatchGroups,
+    internal val byteStart: Long,
+    internal val byteEnd: Long
+) {
+    /** The text of group zero. */
+    public val value: String get() = groups[0L]!!.value
+    /** The range of group zero. */
+    public val range: MatchRange get() = groups[0L]!!.range
+}
+
+internal struct RegexName(val name: String, val group: Long)
+
+/** Immutable numbered and named capture slots. None denotes a group that did not participate. */
+public class MatchGroups internal constructor(
+    private val values: Array<MatchGroup?>,
+    private val names: Array<RegexName>
+) {
+    /** The number of slots, including group zero. */
+    public val size: Long get() = values.size
+
+    /** Returns a slot; out-of-range indices throw IndexOutOfBoundsException. */
+    public operator fun get(index: Long): MatchGroup? {
+        if (index < 0L || index >= size) throw IndexOutOfBoundsException()
+        return values[index]
+    }
+
+    /** Returns the first participating group with this name, or None; unknown names throw. */
+    public operator fun get(name: String): MatchGroup? {
+        var known = false
+        for (entry in names) {
+            if (entry.name == name) {
+                known = true
+                val value = values[entry.group]
+                if (value != None) return value
+            }
+        }
+        if (!known) throw IllegalArgumentException(Some("unknown capture name: " + name))
+        return None
+    }
+
+    /** Returns all slots with the name in group-number order, preserving unparticipating slots. */
+    public fun getAll(name: String): List<MatchGroup?> {
+        val result = ArrayList<MatchGroup?>()
+        for (entry in names) { if (entry.name == name) result.add(values[entry.group]) }
+        if (result.size == 0L) throw IllegalArgumentException(Some("unknown capture name: " + name))
+        return result.toList()
+    }
+}
+
+internal fun copyRegexNames(handle: ULong): Array<RegexName> {
+    try {
+        @Unsafe {
+            return Array<RegexName>(regexNameCount(handle)) { index ->
+                @Unsafe {
+                    val entry = regexName(handle, index)
+                    return@Array RegexName(String.fromUtf8(entry.text, entry.length), entry.group)
+                }
+            }
+        }
+    } catch (error: Throwable) {
+        @Unsafe { regexFree(handle) }
+        throw error
+    }
+}
+
+@Unsafe
+internal fun copyRegexMatch(data: ULong, input: RegexInput, bytes: Ptr<UInt8>, count: Long,
+    names: Array<RegexName>): MatchResult {
+    val groups = Array<MatchGroup?>(regexGroupCount(data)) { index ->
+        @Unsafe {
+            val range = regexGroup(data, index)
+            if (range.start < 0L) return@Array None
+            val value = String.fromUtf8(bytes + range.start, range.end - range.start)
+            return@Array Some(MatchGroup(value, MatchRange(
+                input.scalarOffset(range.start, bytes, count), input.scalarOffset(range.end, bytes, count))))
+        }
+    }
+    val whole = regexGroup(data, 0L)
+    return MatchResult(MatchGroups(groups, names), whole.start, whole.end)
+}

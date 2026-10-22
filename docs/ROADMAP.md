@@ -726,6 +726,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 已明确 UTS #46 与旧严格 IDNA2008 的差异，完成 Darwin／GNU／musl 资源准备、适配、两个正式链接入口及运行，移除 GNU 文本链；发行收集 Rust 依赖与标准库通知。
 - 字符集集合收敛到 43 个名称；readline 的字素、宽度、属性和大小写已迁入共同后端。测试仅验证 Scoop 自有行为，不新增底层补缺或上游 Unicode 兼容性／完备性测试。
 
+### 独立 Regex 库（已完成，[设计](regex/INVESTIGATION.md)、[规范](specs/SCOOP-REGEX-SPEC.md)、[实施记录](regex/PROGRESS.md)）
+
+- 普通 `scoop.regex` Cone 使用 PCRE2-8 10.49 和薄 C 适配；独立 C 静态库随 sysroot 交付，不增加 Rust staticlib。
+- 提供可复用模式、编号／命名捕获、惰性迭代、字面／模板／回调替换、分割与转义；公开位置使用 Long Unicode 标量索引，结果为独立快照，支持 close/use 和构造阶段可选 JIT。
+- Darwin／GNU／musl 各 19 项库测试、3 项预编译库消费者测试及 API 文档检查通过；Darwin 发行组装与组装目录中的消费者验证通过。仅验证 Scoop 适配与公开行为，不新增 fixture、底层缺口或上游 Unicode 符合性测试。
+
 ## 4. 待补齐清单（backlog）
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。

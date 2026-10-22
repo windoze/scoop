@@ -1,0 +1,31 @@
+package scoop.regex
+
+/** Options applied when compiling a PCRE2 UTF-8 pattern. Inline pattern options remain effective. */
+public enum RegexOption : Equals<RegexOption>, Hash {
+    /** Use PCRE2's Unicode case equivalences. */
+    IgnoreCase,
+    /** Let line anchors recognize internal newlines. */
+    Multiline,
+    /** Let a dot match newlines. */
+    DotMatchesAll,
+    /** Ignore unescaped pattern whitespace and permit comments. */
+    Comments,
+    /** Restrict character classes and their word boundaries to ASCII. */
+    AsciiClasses,
+    /** Permit multiple capture groups with the same name. */
+    DuplicateNames
+
+    internal val mask: UInt get() = when (this) {
+        case IgnoreCase -> 1u
+        case Multiline -> 2u
+        case DotMatchesAll -> 4u
+        case Comments -> 8u
+        case AsciiClasses -> 16u
+        case DuplicateNames -> 32u
+    }
+
+    /** Compares the option identities. */
+    public override operator fun equals(other: RegexOption): Boolean = mask == other.mask
+    /** Returns a hash consistent with option equality. */
+    public override fun hash(): Long = mask.toLong()
+}

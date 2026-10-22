@@ -1,0 +1,74 @@
+package scoop.regex
+
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class RegexReplacementTests {
+    @Test
+    fun `literal and template replacements have distinct explicit entry points`() {
+        Regex("(?<letter>a)(b)?").use { regex ->
+            assertEquals("$1-$1", regex.replace("ab-a", "$1"))
+            assertEquals("$1-a", regex.replaceFirst("ab-a", "$1"))
+            assertEquals("a:b:$-a::$", regex.replaceTemplate("ab-a", "${letter}:$2:$$"))
+            assertEquals("<ab>-a", regex.replaceFirstTemplate("ab-a", "<$0>"))
+            assertEquals("\\path\u{0}-\\path\u{0}", regex.replace("ab-a", "\\path\u{0}"))
+        }
+    }
+
+    @Test
+    fun `template errors are mapped only when replacement is used`() {
+        Regex("a").use { regex ->
+            assertEquals("b", regex.replaceTemplate("b", "${unknown}"))
+            val error = assertFailsWith<RegexReplacementException> { regex.replaceTemplate("a", "${unknown}") }
+            assertTrue(error.nativeCode < 0)
+            assertTrue(error.detail.length > 0L)
+            val position = assertFailsWith<RegexReplacementException> { regex.replaceTemplate("a", "雪$") }
+            assertEquals(2L, position.offset!!)
+            assertEquals("x", regex.replace("a", "x"))
+        }
+    }
+
+    @Test
+    fun `output growth and empty matches preserve complete text`() {
+        val replacement = "雪".repeat(400L)
+        Regex("x").use { regex ->
+            assertEquals(replacement + replacement, regex.replace("xx", replacement))
+        }
+        Regex("").use { regex ->
+            assertEquals("-a-b-", regex.replace("ab", "-"))
+            assertEquals("-", regex.replace("", "-"))
+        }
+    }
+
+    @Test
+    fun `callbacks can reenter and exceptions do not invalidate the pattern`() {
+        Regex("""\d+""").use { regex ->
+            val visited = ArrayList<String>()
+            assertEquals("a[1]b[22]", regex.replace("a1b22") { match ->
+                assertTrue(regex.matches(match.value))
+                visited.add(match.value)
+                "[" + match.value + "]"
+            })
+            assertEquals(2L, visited.size)
+            assertEquals("aXb22", regex.replaceFirst("a1b22") { _ -> "X" })
+            assertFailsWith<IllegalArgumentException> {
+                regex.replace("1 2") { _ -> throw IllegalArgumentException(Some("callback")) }
+            }
+            assertEquals("3", regex.find("3")!!.value)
+        }
+    }
+
+    @Test
+    fun `callback close only prevents subsequent matching operations`() {
+        val first = Regex("a")
+        assertEquals("Xa", first.replaceFirst("aa") { _ -> first.close(); "X" })
+        assertTrue(first.isClosed)
+        val all = Regex("a")
+        assertFailsWith<IllegalStateException> {
+            all.replace("aa") { _ -> all.close(); "X" }
+        }
+        assertTrue(all.isClosed)
+        assertFailsWith<IllegalStateException> { all.replaceTemplate("a", "x") }
+    }
+}

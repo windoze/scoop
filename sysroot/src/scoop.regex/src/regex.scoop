@@ -1,0 +1,120 @@
+package scoop.regex
+
+import scoop.collections.*
+import scoop.sequences.Sequence
+
+/**
+ * A reusable PCRE2 UTF-8 pattern. Close it deterministically with close/use. Matching calls can
+ * share a compiled pattern, but callers must serialize close against every use of that pattern.
+ */
+public class Regex public constructor(
+    /** The original pattern. */ public val pattern: String,
+    options: Set<RegexOption> = emptySet()
+) : Closeable {
+    /** An independent snapshot of the constructor options. Inline pattern options are separate. */
+    public val options: Set<RegexOption> = options.toSet()
+    private var handle: ULong = compileRegex(pattern, this.options)
+    private val names: Array<RegexName> = copyRegexNames(handle)
+
+    /** Whether close has released the compiled pattern. */
+    public val isClosed: Boolean get() = handle == 0UL
+
+    /** Tests anchored execution from the beginning through the end of input. */
+    public fun matches(input: String): Boolean = booleanMatch(input, 2)
+
+    /** Tests whether a match exists anywhere in the input, without copying captures. */
+    public fun containsMatchIn(input: String): Boolean = booleanMatch(input, 0)
+
+    /** Matches from the beginning through the end. A native \K can reset the returned start. */
+    public fun matchEntire(input: String): MatchResult? = firstMatch(input, 0L, 2)
+
+    /** Matches at a Unicode scalar index, without searching subsequent start positions. */
+    public fun matchAt(input: String, index: Long): MatchResult? = firstMatch(input, index, 1)
+
+    /** Searches from a Unicode scalar index, preserving the complete input's context. */
+    public fun find(input: String, startIndex: Long = 0L): MatchResult? = firstMatch(input, startIndex, 0)
+
+    /** Returns independent lazy traversals. Keep this Regex open while matching during traversal. */
+    public fun findAll(input: String, startIndex: Long = 0L): Sequence<MatchResult> {
+        checkedHandle()
+        return RegexMatches(this, input, RegexInput(input).byteOffset(startIndex))
+    }
+
+    internal fun checkedHandle(): ULong {
+        if (handle == 0UL) throw IllegalStateException(Some("regex is closed"))
+        return handle
+    }
+
+    private fun booleanMatch(input: String, mode: Int): Boolean {
+        val owned = checkedHandle()
+        @Unsafe {
+            return input.withUtf8Bytes { bytes, count ->
+                @Unsafe {
+                    val matched = regexMatch(owned, bytes, count, 0L, 0u, mode, false)
+                    if (matched.code == -1) return@withUtf8Bytes false
+                    if (matched.code < 0) throw matchFailure(matched.code)
+                    regexMatchFree(matched.data)
+                    return@withUtf8Bytes true
+                }
+            }
+        }
+    }
+
+    private fun firstMatch(text: String, startIndex: Long, mode: Int): MatchResult? {
+        checkedHandle()
+        val input = RegexInput(text)
+        val start = input.byteOffset(startIndex)
+        return search(input, start, 0u, mode)?.result
+    }
+
+    internal fun search(input: RegexInput, start: Long, flags: UInt, mode: Int = 0): RegexStep? {
+        val owned = checkedHandle()
+        @Unsafe {
+            return input.text.withUtf8Bytes { bytes, count ->
+                @Unsafe {
+                    val matched = regexMatch(owned, bytes, count, start, flags, mode, true)
+                    if (matched.code == -1) return@withUtf8Bytes None
+                    if (matched.code < 0) throw matchFailure(matched.code)
+                    try {
+                        val result = copyRegexMatch(matched.data, input, bytes, count, names)
+                        return@withUtf8Bytes Some(RegexStep(result, matched.nextStart,
+                            matched.nextOptions, matched.hasNext))
+                    } finally { regexMatchFree(matched.data) }
+                }
+            }
+        }
+    }
+
+    /** Releases the compiled pattern. Repeated closes are harmless. */
+    public override fun close() {
+        val owned = handle
+        handle = 0UL
+        if (owned != 0UL) @Unsafe { regexFree(owned) }
+    }
+
+    release { if (handle != 0UL) @Unsafe { regexFree(handle) } }
+
+    public companion object {
+        /** Quotes literal text for a pattern, including embedded quote terminators. */
+        public fun escape(literal: String): String = escapeRegexLiteral(literal)
+    }
+}
+
+internal struct RegexStep(val result: MatchResult, val start: Long, val flags: UInt, val hasNext: Boolean)
+
+private fun compileRegex(pattern: String, options: Set<RegexOption>): ULong {
+    var flags = 0u
+    for (option in options) flags = flags or option.mask
+    val compileFlags = flags
+    @Unsafe {
+        return pattern.withUtf8Bytes { bytes, count ->
+            @Unsafe {
+                val compiled = regexCompile(bytes, count, compileFlags)
+                if (compiled.handle != 0UL) return@withUtf8Bytes compiled.handle
+                if (compiled.code < 0) throw matchFailure(compiled.code)
+                val offset = RegexInput(pattern).scalarOffset(compiled.offset, bytes, count)
+                throw RegexSyntaxException(pattern, offset, compiled.code, regexDetail(compiled.code))
+            }
+        }
+    }
+}

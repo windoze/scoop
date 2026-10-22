@@ -1,0 +1,23 @@
+package scoop.regex
+
+@CLayout internal struct NativeCompile(val handle: ULong, val code: Int, val offset: Long)
+@CLayout internal struct NativeName(val text: Ptr<UInt8>, val length: Long, val group: Long)
+@CLayout internal struct NativeRange(val start: Long, val end: Long)
+@CLayout internal struct NativeMatch(
+    val data: ULong, val code: Int, val nextStart: Long, val nextOptions: UInt, val hasNext: Boolean
+)
+
+@Extern(name = "scoop_regex_compile")
+internal fun regexCompile(pattern: Ptr<UInt8>, length: Long, flags: UInt): NativeCompile
+@Extern(name = "scoop_regex_free") internal fun regexFree(handle: ULong)
+@Extern(name = "scoop_regex_name_count") internal fun regexNameCount(handle: ULong): Long
+@Extern(name = "scoop_regex_name") internal fun regexName(handle: ULong, index: Long): NativeName
+@Extern(name = "scoop_regex_message")
+internal fun regexMessage(code: Int, output: Ptr<UInt8>, capacity: Long): Long
+@Extern(name = "scoop_regex_failure_kind") internal fun regexFailureKind(code: Int): Int
+@Extern(name = "scoop_regex_match")
+internal fun regexMatch(handle: ULong, input: Ptr<UInt8>, length: Long, start: Long,
+    options: UInt, mode: Int, captures: Boolean): NativeMatch
+@Extern(name = "scoop_regex_match_free") internal fun regexMatchFree(data: ULong)
+@Extern(name = "scoop_regex_group_count") internal fun regexGroupCount(data: ULong): Long
+@Extern(name = "scoop_regex_group") internal fun regexGroup(data: ULong, group: Long): NativeRange

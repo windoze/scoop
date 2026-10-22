@@ -1,0 +1,51 @@
+package scoop.regex
+
+@CLayout internal struct NativeRegexText(
+    val data: Ptr<UInt8>?, val length: Long, val code: Int, val offset: Long, val replacementError: Boolean
+)
+
+@Extern(name = "scoop_regex_substitute")
+private fun regexSubstitute(handle: ULong, input: Ptr<UInt8>, inputLength: Long,
+    replacement: Ptr<UInt8>, replacementLength: Long, first: Boolean, literal: Boolean): NativeRegexText
+@Extern(name = "scoop_regex_text_free") private fun regexTextFree(data: Ptr<UInt8>?)
+
+/** Replaces every match with literal text. Dollar signs and backslashes are not template syntax. */
+public fun Regex.replace(input: String, replacement: String): String =
+    substitute(this, input, replacement, false, true)
+
+/** Replaces the first match with literal text. */
+public fun Regex.replaceFirst(input: String, replacement: String): String =
+    substitute(this, input, replacement, true, true)
+
+/** Replaces every match using PCRE2's default template syntax, including $1, ${name}, and $$. */
+public fun Regex.replaceTemplate(input: String, replacement: String): String =
+    substitute(this, input, replacement, false, false)
+
+/** Replaces the first match using PCRE2's default template syntax. */
+public fun Regex.replaceFirstTemplate(input: String, replacement: String): String =
+    substitute(this, input, replacement, true, false)
+
+private fun substitute(regex: Regex, input: String, replacement: String, first: Boolean, literal: Boolean): String {
+    val owned = regex.checkedHandle()
+    @Unsafe {
+        return input.withUtf8Bytes { subject, subjectLength ->
+            @Unsafe {
+                return@withUtf8Bytes replacement.withUtf8Bytes { text, textLength ->
+                    @Unsafe {
+                        val output = regexSubstitute(owned, subject, subjectLength, text, textLength, first, literal)
+                        try {
+                            if (output.code < 0) {
+                                if (!output.replacementError) throw matchFailure(output.code)
+                                val offset = if (output.offset < 0L) None else
+                                    Some(RegexInput(replacement).scalarOffset(output.offset, text, textLength))
+                                throw RegexReplacementException(output.code, regexDetail(output.code), offset)
+                            }
+                            if (output.code == 0) return@withUtf8Bytes input
+                            return@withUtf8Bytes String.fromUtf8(output.data!!, output.length)
+                        } finally { regexTextFree(output.data) }
+                    }
+                }
+            }
+        }
+    }
+}
