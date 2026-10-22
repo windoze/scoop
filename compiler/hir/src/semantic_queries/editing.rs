@@ -56,6 +56,17 @@ pub struct EditingReceiver {
     pub members: EditingValue<EditingMembers>,
 }
 
+/// A real AST selector whose receiver was checked in its original body context.
+#[derive(Clone, Debug)]
+pub struct EditingSelector {
+    pub receiver: Span,
+    pub selector: Span,
+    pub context: crate::SourceContextId,
+    pub value_type: TypeId,
+    pub local: Option<EditingLocalReference>,
+    pub members: EditingValue<EditingMembers>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct EditingMembers {
     pub candidates: Vec<EditingMember>,

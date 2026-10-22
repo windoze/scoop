@@ -17,7 +17,7 @@ impl Lowerer {
         span: Span,
         expected: Option<LambdaExpectation>,
     ) -> Option<hir::Expr> {
-        self.with_pattern_transaction(|state| {
+        let lower = |state: &mut Self| {
             state.lower_lambda_inner(
                 label,
                 is_suspend,
@@ -27,13 +27,21 @@ impl Lowerer {
                 expected,
                 |state, expected| state.lower_lambda_body(body, expected),
             )
-        })
+        };
+        if self.observes_current_body() {
+            // The editing query owns this state, including the arenas for
+            // checked receivers in a lambda whose later body fails. Rejected
+            // overload probes still discard their entire private state.
+            lower(self)
+        } else {
+            self.with_pattern_transaction(lower)
+        }
     }
 
     /// A lambda is one lowering owner: its complete parameter header, binding
-    /// plans, body, captures and generated entities commit together. Callers
-    /// enter through `lower_lambda`, which supplies the single owner-level
-    /// transaction around this implementation.
+    /// plans, body, captures and generated entities commit together in ordinary
+    /// compilation. `lower_lambda` supplies that owner-level transaction or the
+    /// editing query's private state, which never publishes a failed body.
     #[allow(clippy::too_many_arguments)]
     fn lower_lambda_inner(
         &mut self,

@@ -8,7 +8,7 @@ impl Lowerer {
             .is_some_and(BodyObservation::cancelled)
     }
 
-    pub(super) fn observes_current_body(&self) -> bool {
+    pub(crate) fn observes_current_body(&self) -> bool {
         self.editing_body.as_ref().is_some_and(|body| {
             body.file == self.current_file
                 && self.definition_root == Some(hir::LexicalDefinitionRoot::Function(body.function))
@@ -21,7 +21,7 @@ impl Lowerer {
         }
     }
 
-    fn observe_body_context(&mut self) -> hir::SourceContextId {
+    pub(super) fn observe_body_context(&mut self) -> hir::SourceContextId {
         let context = self
             .current_source_context
             .expect("a body has its source context");
@@ -38,13 +38,14 @@ impl Lowerer {
     pub(crate) fn observe_expression(
         &mut self,
         span: ast::Span,
-        value_type: hir::TypeId,
+        value: &hir::Expr,
         expected_type: V<Option<hir::TypeId>>,
     ) {
         if !self.observes_current_body() {
             return;
         }
         let context = self.observe_body_context();
+        self.observe_selector_receiver(span, value, context);
         self.editing_body
             .as_mut()
             .expect("active query")
@@ -54,7 +55,7 @@ impl Lowerer {
                 hir::EditingExpression {
                     span,
                     context,
-                    value_type,
+                    value_type: value.ty,
                     expected_type,
                 },
             );

@@ -5,6 +5,7 @@ use std::{cell::Cell, rc::Rc};
 pub(crate) struct BodyObservation {
     pub(super) function: hir::FunctionId,
     pub(super) file: usize,
+    pub(super) diagnostics_start: usize,
     check_cancelled: Rc<dyn Fn() -> bool>,
     cancelled: Rc<Cell<bool>>,
     pub(super) failed: bool,
@@ -14,6 +15,8 @@ pub(crate) struct BodyObservation {
     pub(super) expressions: imbl::HashMap<ast::Span, hir::EditingExpression>,
     pub(super) call_names: imbl::HashSet<ast::Span>,
     pub(super) callables: imbl::HashMap<ast::Span, hir::EditingCallableReference>,
+    pub(super) selector_inputs: imbl::HashMap<ast::Span, Vec<selectors::SelectorInput>>,
+    pub(super) selectors: imbl::HashMap<ast::Span, hir::EditingSelector>,
     pub(super) contexts: imbl::HashMap<hir::SourceContextId, ObservedContext>,
 }
 
@@ -23,8 +26,9 @@ pub(super) struct ObservedContext {
     pub(super) parameters: Vec<hir::TypeParamDecl>,
 }
 
-pub(crate) struct CheckedBody {
-    pub(super) facts: hir::EditingBodyFacts,
+pub(crate) struct ObservedBody {
+    pub(super) facts: V<hir::EditingBodyFacts>,
+    pub(super) selectors: Vec<hir::EditingSelector>,
     pub(super) contexts: imbl::HashMap<hir::SourceContextId, ObservedContext>,
 }
 
@@ -32,11 +36,13 @@ impl BodyObservation {
     pub(super) fn new(
         function: hir::FunctionId,
         file: usize,
+        diagnostics_start: usize,
         check: impl Fn() -> bool + 'static,
     ) -> Self {
         Self {
             function,
             file,
+            diagnostics_start,
             check_cancelled: Rc::new(check),
             cancelled: Rc::new(Cell::new(false)),
             failed: false,
@@ -45,6 +51,8 @@ impl BodyObservation {
             expressions: Default::default(),
             call_names: Default::default(),
             callables: Default::default(),
+            selector_inputs: Default::default(),
+            selectors: Default::default(),
             contexts: Default::default(),
         }
     }
@@ -56,7 +64,18 @@ impl BodyObservation {
         self.cancelled.get()
     }
 
-    pub(super) fn finish(self, lowerer: &Lowerer) -> CheckedBody {
+    pub(super) fn cancellation(&self) -> Rc<dyn Fn() -> bool> {
+        let check = Rc::clone(&self.check_cancelled);
+        let cancelled = Rc::clone(&self.cancelled);
+        Rc::new(move || {
+            if check() {
+                cancelled.set(true);
+            }
+            cancelled.get()
+        })
+    }
+
+    pub(super) fn finish(self, lowerer: &Lowerer, complete: bool) -> ObservedBody {
         let local_type = |binding, ty| {
             lowerer
                 .local_delegate_plans
@@ -102,12 +121,23 @@ impl BodyObservation {
             .map(|(_, reference)| reference)
             .collect::<Vec<_>>();
         callables.sort_by_key(|reference| (reference.span.start, reference.span.end));
-        CheckedBody {
-            facts: hir::EditingBodyFacts {
-                locals,
-                expressions,
-                callables,
+        let mut selectors = self
+            .selectors
+            .into_iter()
+            .map(|(_, value)| value)
+            .collect::<Vec<_>>();
+        selectors.sort_by_key(|selector| selector.selector.start);
+        ObservedBody {
+            facts: if complete {
+                V::Known(hir::EditingBodyFacts {
+                    locals,
+                    expressions,
+                    callables,
+                })
+            } else {
+                V::Unavailable(U::BodyFailure)
             },
+            selectors,
             contexts: self.contexts,
         }
     }

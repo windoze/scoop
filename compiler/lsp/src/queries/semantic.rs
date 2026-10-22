@@ -149,6 +149,21 @@ pub(super) fn local_at(
     }
     let snapshot = snapshot.clone();
     let cancellation = cancellation.clone();
+    let selector_snapshot = snapshot.clone();
+    let selector_cancellation = cancellation.clone();
+    if let EditingValue::Known(selectors) = analysis
+        .selectors(function, move || {
+            selector_cancellation.check().is_err() || selector_snapshot.check_cancelled().is_err()
+        })
+        .map_err(|_| cancelled())?
+        && let Some(selector) = selectors.iter().find(|selector| selector.receiver == span)
+    {
+        return Ok(Some(Local {
+            reference: selector.local.clone(),
+            ty: selector.value_type,
+            context: Some(selector.context),
+        }));
+    }
     let EditingValue::Known(facts) = analysis
         .function_facts(function, move || {
             cancellation.check().is_err() || snapshot.check_cancelled().is_err()

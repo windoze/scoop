@@ -6,6 +6,7 @@ mod callables;
 mod members;
 mod members_imported;
 mod receivers;
+mod selectors;
 
 fn analyze(text: &str) -> DeclarationAnalysis {
     let core = crate::tests::complete_core_file();

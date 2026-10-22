@@ -10,7 +10,7 @@ mod bodies;
 mod callables;
 mod members;
 mod parameters;
-pub(crate) use bodies::{BodyObservation, CheckedBody};
+pub(crate) use bodies::{BodyObservation, ObservedBody};
 mod receivers;
 pub(crate) use receivers::ReceiverObservation;
 #[cfg(test)]
@@ -29,7 +29,7 @@ pub struct DeclarationAnalysis {
         std::collections::HashMap<hir::FunctionId, Vec<hir::EditingReceiver>>,
     pub(crate) body_inputs: std::collections::HashMap<hir::FunctionId, ast::FunctionDecl>,
     pub(crate) body_facts:
-        std::collections::HashMap<hir::FunctionId, hir::EditingValue<CheckedBody>>,
+        std::collections::HashMap<hir::FunctionId, hir::EditingValue<ObservedBody>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

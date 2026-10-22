@@ -204,7 +204,7 @@ def main():
                 "textDocument": {"uri": source, "version": 3},
                 "contentChanges": [
                     {
-                        "text": "fun greeting(value: Boolean): Boolean = value\nfun called(): Boolean = helper()\nfun builtin(value: Boolean): String = value.toString()\n"
+                        "text": "fun greeting(value: Boolean): Boolean = value\nfun called(): Boolean = helper()\nfun builtin(value: Boolean): String = value.toString()\nfun typed(value: String) { value.toS }\n"
                     }
                 ],
             },
@@ -226,6 +226,17 @@ def main():
         builtin = "fun builtin(value: Boolean): String = value.toString()"
         assert hover(2, builtin.rindex("value"))["contents"]["value"] == "value: Boolean"
         assert definition(2, builtin.index("toString")) is None
+        typed = "fun typed(value: String) { value.toS }"
+        selector_start = typed.index("toS")
+        candidates = completion(3, selector_start + 3)
+        selected = next(item for item in candidates["items"] if item["label"] == "toString")
+        assert selected["textEdit"]["range"] == {
+            "start": {"line": 3, "character": selector_start},
+            "end": {"line": 3, "character": selector_start + 3},
+        }
+        assert hover(3, typed.rindex("value"))["contents"]["value"] == "value: String"
+        destination = definition(3, typed.rindex("value"))
+        assert destination["range"]["start"] == {"line": 3, "character": typed.index("value")}
         other = (
             "x86_64-unknown-linux-gnu"
             if target == "aarch64-apple-darwin"

@@ -282,6 +282,7 @@ impl Lowerer {
         };
         let partial_expectation = lambda_expectation.is_some();
         self.observe_call_syntax(expr);
+        self.observe_selector_syntax(expr);
         if self.reject_release_expression(expr) {
             return None;
         }
@@ -615,7 +616,7 @@ impl Lowerer {
                 } else {
                     hir::EditingValue::Known(expected)
                 };
-                self.observe_expression(expr.span(), value.ty, expected);
+                self.observe_expression(expr.span(), value, expected);
             }
         }
         lowered

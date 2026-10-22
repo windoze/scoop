@@ -4,7 +4,8 @@ use hir::{EditingUnavailable as U, EditingValue as V};
 mod calls;
 mod observations;
 mod record;
-pub(crate) use observations::{BodyObservation, CheckedBody};
+mod selectors;
+pub(crate) use observations::{BodyObservation, ObservedBody};
 
 impl DeclarationAnalysis {
     pub fn function_facts(
@@ -28,6 +29,7 @@ impl DeclarationAnalysis {
                         candidate.editing_body = Some(BodyObservation::new(
                             function,
                             candidate.current_file,
+                            before,
                             is_cancelled,
                         ));
                         let completed = if matches!(declaration.body, ast::FunctionBody::None) {
@@ -43,14 +45,9 @@ impl DeclarationAnalysis {
                         if observed.cancelled() {
                             return Err(EditingCancelled);
                         }
-                        let facts = if completed
-                            && !observed.failed
-                            && candidate.diagnostics.len() == before
-                        {
-                            V::Known(observed.finish(&candidate))
-                        } else {
-                            V::Unavailable(U::BodyFailure)
-                        };
+                        let complete =
+                            completed && !observed.failed && candidate.diagnostics.len() == before;
+                        let facts = V::Known(observed.finish(&candidate, complete));
                         self.lowerer = candidate;
                         facts
                     }
@@ -60,7 +57,10 @@ impl DeclarationAnalysis {
             self.body_facts.insert(function, facts);
         }
         Ok(match &self.body_facts[&function] {
-            V::Known(body) => V::Known(&body.facts),
+            V::Known(body) => match &body.facts {
+                V::Known(facts) => V::Known(facts),
+                V::Unavailable(reason) => V::Unavailable(*reason),
+            },
             V::Unavailable(reason) => V::Unavailable(*reason),
         })
     }
