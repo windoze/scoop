@@ -38,6 +38,7 @@ pub(crate) enum FunctionContext {
 /// `start` is the byte offset of the first modifier keyword, for spans.
 #[derive(Debug, Default)]
 pub(crate) struct Modifiers {
+    pub has_syntax_errors: bool,
     pub context_parameters: Vec<scoop_ast::ContextParameter>,
     pub suspend_span: Option<Span>,
     pub override_span: Option<Span>,

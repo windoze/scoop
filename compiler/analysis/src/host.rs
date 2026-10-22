@@ -4,8 +4,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use scoop_ast::SourceFile;
-use scoop_parser::ParsedSyntax;
+use scoop_parser::ParsedFile;
 use scoop_source::{Revision, SourceId, SourceLengthError, SourceText, SourceVersion};
 
 use crate::{Cancellation, Cancelled};
@@ -14,11 +13,11 @@ use crate::{Cancellation, Cancelled};
 pub struct SourceInput {
     pub version: SourceVersion,
     pub text: SourceText,
-    parsed: OnceLock<Result<ParsedSyntax<SourceFile>, SourceLengthError>>,
+    parsed: OnceLock<Result<ParsedFile, SourceLengthError>>,
 }
 
 impl SourceInput {
-    pub fn parse(&self) -> Result<&ParsedSyntax<SourceFile>, &SourceLengthError> {
+    pub fn parse(&self) -> Result<&ParsedFile, &SourceLengthError> {
         self.parsed
             .get_or_init(|| scoop_parser::parse_recovering(self.text.as_str()))
             .as_ref()

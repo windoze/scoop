@@ -10,6 +10,7 @@ impl Parser {
     }
 
     fn parse_declaration_prefix(&mut self, top_level: bool) -> Result<MemberPrefix, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let mut annotations = Vec::new();
         let mut visibility = VisibilitySyntax::Omitted;
         let mut modifiers = Modifiers::default();
@@ -216,6 +217,7 @@ impl Parser {
                 "`context` may only prefix a named function or computed/abstract property",
             ));
         }
+        modifiers.has_syntax_errors = self.has_errors_since(checkpoint);
         Ok(MemberPrefix {
             annotations,
             visibility,

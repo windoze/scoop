@@ -5,7 +5,9 @@ mod kind;
 mod parse;
 mod tree;
 
-pub use declaration::{DeclarationData, DeclarationIndex, DeclarationName, DeclarationSyntax};
+pub use declaration::{
+    DeclarationData, DeclarationIndex, DeclarationName, DeclarationSyntax, FileProjections,
+};
 pub use kind::SyntaxKind;
 pub use parse::{ExpectedSyntax, MissingSyntax, Parse};
 pub use rowan::{GreenNode, GreenNodeBuilder, TextRange, TextSize, TokenAtOffset, WalkEvent};

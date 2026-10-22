@@ -15,6 +15,7 @@ pub use floating::*;
 mod integer;
 mod parsed_sources;
 mod patterns;
+mod recovered;
 mod statements;
 mod types;
 
@@ -28,6 +29,7 @@ pub use headers::*;
 pub use integer::*;
 pub use parsed_sources::*;
 pub use patterns::*;
+pub use recovered::*;
 pub use scoop_source::{Diagnostic, DiagnosticNote, DiagnosticSeverity, Span};
 pub use statements::*;
 pub use types::*;

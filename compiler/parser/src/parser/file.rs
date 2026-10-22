@@ -1,19 +1,32 @@
-use scoop_ast::{Diagnostic, DiagnosticNote, PackageSyntax, SourceFile};
+use scoop_ast::{
+    DeclarationFragment, Diagnostic, DiagnosticNote, DiagnosticSeverity, PackageSyntax,
+    RecoveredFileHeader, SourceFile,
+};
 use scoop_source::SourceLengthError;
-use scoop_syntax::SyntaxKind;
+use scoop_syntax::{DeclarationData, Parse, SyntaxKind};
 
 use super::{HeaderState, Parser, TopLevelItemKind};
 
-pub(crate) fn parse_file(
-    source: &str,
-) -> Result<crate::ParsedSyntax<SourceFile>, SourceLengthError> {
+struct FileRecovery {
+    package_complete: bool,
+    imports_complete: bool,
+    declarations_complete: Vec<bool>,
+}
+
+pub(crate) fn parse_file(source: &str) -> Result<crate::ParsedFile, SourceLengthError> {
     let (mut parser, span) = Parser::from_source(source)?;
     let mut package = PackageSyntax::RootPackage;
     let mut imports = Vec::new();
     let mut declarations = Vec::new();
     let mut header_state = HeaderState::Start;
+    let mut recovery = FileRecovery {
+        package_complete: true,
+        imports_complete: true,
+        declarations_complete: Vec::new(),
+    };
     while !parser.at_eof() {
         let start = parser.pos;
+        let checkpoint = parser.checkpoint();
         match parser.top_level_item_kind() {
             TopLevelItemKind::Package => {
                 let keyword_span = parser.peek().span;
@@ -52,6 +65,7 @@ pub(crate) fn parse_file(
                         parser.synchronize_header_item(start);
                     }
                 }
+                recovery.package_complete &= parser.fragment_is_complete(checkpoint);
             }
             TopLevelItemKind::Import => {
                 let header_span = parser.import_prefix_span();
@@ -71,8 +85,10 @@ pub(crate) fn parse_file(
                         parser.synchronize_header_item(start);
                     }
                 }
+                recovery.imports_complete &= parser.fragment_is_complete(checkpoint);
             }
             TopLevelItemKind::UnsupportedImportModifier(modifier) => {
+                recovery.imports_complete = false;
                 let modifier_token = parser.bump();
                 if header_state >= HeaderState::InDeclarations {
                     parser.diagnostics.push(Diagnostic::at(
@@ -100,6 +116,10 @@ pub(crate) fn parse_file(
                 match parser.parse_decl() {
                     Ok(decl) => {
                         parser.attach_documentation(start, decl.span());
+                        recovery
+                            .declarations_complete
+                            .push(parser.fragment_is_complete(checkpoint));
+                        parser.record_top_level_declaration();
                         declarations.push(decl);
                     }
                     Err(diagnostic) => {
@@ -120,5 +140,74 @@ pub(crate) fn parse_file(
             .collect(),
         span,
     };
-    Ok(parser.finish(source, SyntaxKind::SourceFile, Ok(file)))
+    Ok(finish(parser, source, file, recovery))
+}
+
+fn finish(
+    parser: Parser,
+    source: &str,
+    file: SourceFile,
+    recovery: FileRecovery,
+) -> crate::ParsedFile {
+    let (syntax, diagnostics) = parser.finish_syntax(source, SyntaxKind::SourceFile);
+    let mut projections = syntax
+        .function_headers
+        .into_iter()
+        .map(|header| DeclarationData {
+            declaration: header.declaration,
+            value: DeclarationFragment::FunctionHeader(Box::new(header.value)),
+        })
+        .collect::<Vec<_>>();
+    let (ast, recovered) = if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+    {
+        let SourceFile {
+            package,
+            imports,
+            declarations,
+            documentation,
+            ..
+        } = file;
+        assert_eq!(
+            declarations.len(),
+            syntax.top_level_declarations.len(),
+            "each parsed top-level declaration has its grammar marker"
+        );
+        for ((value, complete), declaration) in declarations
+            .into_iter()
+            .zip(recovery.declarations_complete)
+            .zip(syntax.top_level_declarations)
+        {
+            if complete {
+                projections.push(DeclarationData {
+                    declaration,
+                    value: DeclarationFragment::Complete(Box::new(value)),
+                });
+            }
+        }
+        (
+            None,
+            Some(RecoveredFileHeader {
+                package: recovery.package_complete.then_some(package),
+                imports,
+                imports_complete: recovery.imports_complete,
+                documentation,
+            }),
+        )
+    } else {
+        (Some(file), None)
+    };
+    projections.sort_by_key(|projection| projection.declaration.0);
+    Parse::new(
+        syntax.green,
+        diagnostics,
+        syntax.missing,
+        syntax.declarations,
+        ast,
+    )
+    .with_declaration_data(crate::FileProjections {
+        source: recovered,
+        declarations: projections,
+    })
 }

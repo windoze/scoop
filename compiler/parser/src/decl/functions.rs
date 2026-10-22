@@ -10,8 +10,12 @@ impl Parser {
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
         context: FunctionContext,
+        has_prefix_errors: bool,
     ) -> Result<FunctionDecl, Diagnostic> {
-        let mut modifiers = Modifiers::default();
+        let mut modifiers = Modifiers {
+            has_syntax_errors: has_prefix_errors,
+            ..Modifiers::default()
+        };
         loop {
             let token = self.peek().clone();
             match &token.kind {
@@ -216,7 +220,9 @@ impl Parser {
             where_clause,
             span: Span::new(start, signature_end),
         };
-        self.record_function_header(&signature, body_form, checkpoint);
+        if !modifiers.has_syntax_errors {
+            self.record_function_header(&signature, body_form, checkpoint);
+        }
         let (body, end) = match self.peek().kind {
             TokenKind::LBrace | TokenKind::Equal
                 if signature.modifier == MethodModifier::Abstract =>

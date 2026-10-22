@@ -22,6 +22,7 @@ impl Parser {
                 annotations,
                 VisibilitySyntax::Omitted,
                 crate::decl::FunctionContext::Local,
+                self.has_errors_since(saved),
             )?;
             return Ok(Some(Statement {
                 span: function.span,

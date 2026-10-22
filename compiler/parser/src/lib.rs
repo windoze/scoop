@@ -144,11 +144,17 @@ pub type FunctionHeaders = Vec<scoop_syntax::DeclarationData<scoop_ast::Function
 /// One grammar result, with complete headers independent of strict AST success.
 pub type ParsedSyntax<T> = scoop_syntax::Parse<T, FunctionHeaders>;
 
+pub type FileProjections = scoop_syntax::FileProjections<
+    Option<scoop_ast::RecoveredFileHeader>,
+    scoop_ast::DeclarationFragment,
+>;
+
+/// A file projection keeps successful declarations when its strict AST fails.
+pub type ParsedFile = scoop_syntax::Parse<scoop_ast::SourceFile, FileProjections>;
+
 /// Parses a file while retaining concrete syntax, including erroneous input.
 /// Only an unrepresentable input length prevents a syntax result.
-pub fn parse_recovering(
-    source: &str,
-) -> Result<ParsedSyntax<scoop_ast::SourceFile>, scoop_source::SourceLengthError> {
+pub fn parse_recovering(source: &str) -> Result<ParsedFile, scoop_source::SourceLengthError> {
     parser::parse_file(source)
 }
 
@@ -166,8 +172,8 @@ pub fn parse_type_recovering(
     parser::parse_type(source)
 }
 
-fn strict<T>(
-    result: Result<ParsedSyntax<T>, scoop_source::SourceLengthError>,
+fn strict<T, D>(
+    result: Result<scoop_syntax::Parse<T, D>, scoop_source::SourceLengthError>,
 ) -> Result<T, Vec<scoop_ast::Diagnostic>> {
     result
         .map_err(|error| {

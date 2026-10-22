@@ -27,3 +27,10 @@ pub struct DeclarationData<T> {
     pub declaration: DeclarationIndex,
     pub value: T,
 }
+
+/// File-level context and independently completed declaration projections.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileProjections<S, D> {
+    pub source: S,
+    pub declarations: Vec<DeclarationData<D>>,
+}

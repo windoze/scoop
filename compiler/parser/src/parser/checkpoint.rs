@@ -49,6 +49,23 @@ impl Parser {
         self.diagnostics.len() != checkpoint.diagnostics
     }
 
+    pub(crate) fn has_lexical_error_in(&self, span: Span) -> bool {
+        self.lexical_diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .span
+                .is_some_and(|error| error.start < span.end && error.end > span.start)
+        })
+    }
+
+    pub(crate) fn fragment_is_complete(&self, checkpoint: Checkpoint) -> bool {
+        let start = self.tokens[checkpoint.position].span.start;
+        let end = self
+            .pos
+            .checked_sub(1)
+            .map_or(start, |last| self.tokens[last].span.end);
+        !self.has_errors_since(checkpoint) && !self.has_lexical_error_in(Span::new(start, end))
+    }
+
     pub(crate) fn attach_documentation(&mut self, start_token: usize, target: Span) {
         let start = self
             .documentation

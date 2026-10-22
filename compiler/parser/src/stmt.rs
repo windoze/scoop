@@ -139,6 +139,7 @@ impl Parser {
                 Vec::new(),
                 VisibilitySyntax::Omitted,
                 crate::decl::FunctionContext::Local,
+                false,
             )?;
             return Ok(Statement {
                 span: function.span,
@@ -152,6 +153,7 @@ impl Parser {
                     Vec::new(),
                     VisibilitySyntax::Omitted,
                     crate::decl::FunctionContext::Local,
+                    false,
                 )?;
                 Ok(Statement {
                     span: function.span,
@@ -165,6 +167,7 @@ impl Parser {
                     Vec::new(),
                     VisibilitySyntax::Omitted,
                     crate::decl::FunctionContext::Local,
+                    false,
                 )?;
                 Ok(Statement {
                     span: function.span,
@@ -176,6 +179,7 @@ impl Parser {
                     Vec::new(),
                     VisibilitySyntax::Omitted,
                     crate::decl::FunctionContext::Local,
+                    false,
                 )?;
                 Ok(Statement {
                     span: function.span,
@@ -190,6 +194,7 @@ impl Parser {
                     Vec::new(),
                     VisibilitySyntax::Omitted,
                     crate::decl::FunctionContext::Local,
+                    false,
                 )?;
                 Ok(Statement {
                     span: function.span,

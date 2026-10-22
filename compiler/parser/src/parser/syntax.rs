@@ -39,6 +39,15 @@ enum Event {
     Missing(MissingSyntax),
     DeclarationName(DeclarationName),
     FunctionHeader(Box<scoop_ast::FunctionHeader>),
+    TopLevelDeclaration,
+}
+
+pub(super) struct SyntaxBuild {
+    pub(super) green: GreenNode,
+    pub(super) missing: Vec<MissingSyntax>,
+    pub(super) declarations: Vec<DeclarationSyntax>,
+    pub(super) function_headers: crate::FunctionHeaders,
+    pub(super) top_level_declarations: Vec<DeclarationIndex>,
 }
 
 #[derive(Debug, Default)]
@@ -55,25 +64,25 @@ impl SyntaxEvents {
         self.events.truncate(length);
     }
 
-    pub(super) fn build(
-        self,
-        source: &str,
-        lexemes: &[Lexeme],
-        root: SyntaxKind,
-    ) -> (
-        GreenNode,
-        Vec<MissingSyntax>,
-        Vec<DeclarationSyntax>,
-        crate::FunctionHeaders,
-    ) {
+    pub(super) fn build(self, source: &str, lexemes: &[Lexeme], root: SyntaxKind) -> SyntaxBuild {
         let mut builder = GreenNodeBuilder::new();
         let mut cursor = 0;
         let mut missing = Vec::new();
         let mut declarations: Vec<DeclarationSyntax> = Vec::new();
         let mut owners: Vec<Option<DeclarationIndex>> = Vec::new();
         let mut headers = Vec::new();
+        let mut last_root = None;
+        let mut top_level_declarations = Vec::new();
         builder.start_node(root.into());
         for event in self.events {
+            if let Event::TopLevelDeclaration = event {
+                top_level_declarations.push(
+                    last_root.take().expect(
+                        "a successful top-level production has just finished its declaration",
+                    ),
+                );
+                continue;
+            }
             if let Event::DeclarationName(name) = event {
                 if let Some(index) = owners.iter().rev().flatten().next() {
                     declarations[index.0].name = Some(name);
@@ -96,7 +105,9 @@ impl SyntaxEvents {
             let offset = match &event {
                 Event::Start { offset, .. } | Event::Finish { offset } => *offset,
                 Event::Missing(item) => item.offset,
-                Event::DeclarationName(_) | Event::FunctionHeader(_) => {
+                Event::DeclarationName(_)
+                | Event::FunctionHeader(_)
+                | Event::TopLevelDeclaration => {
                     unreachable!("handled above")
                 }
             };
@@ -120,6 +131,9 @@ impl SyntaxEvents {
                     if let Some(index) = owners.pop().flatten() {
                         let declaration = &mut declarations[index.0];
                         declaration.span.end = offset.max(declaration.span.start);
+                        if declaration.parent.is_none() {
+                            last_root = Some(index);
+                        }
                     }
                     builder.finish_node();
                 }
@@ -128,14 +142,22 @@ impl SyntaxEvents {
                     builder.finish_node();
                     missing.push(item);
                 }
-                Event::DeclarationName(_) | Event::FunctionHeader(_) => {
+                Event::DeclarationName(_)
+                | Event::FunctionHeader(_)
+                | Event::TopLevelDeclaration => {
                     unreachable!("handled above")
                 }
             }
         }
         emit_before(&mut builder, source, lexemes, &mut cursor, u32::MAX);
         builder.finish_node();
-        (builder.finish(), missing, declarations, headers)
+        SyntaxBuild {
+            green: builder.finish(),
+            missing,
+            declarations,
+            function_headers: headers,
+            top_level_declarations,
+        }
     }
 }
 
@@ -166,23 +188,17 @@ fn emit_before(
 }
 
 impl Parser {
+    pub(crate) fn record_top_level_declaration(&mut self) {
+        self.syntax.events.push(Event::TopLevelDeclaration);
+    }
+
     pub(crate) fn record_function_header(
         &mut self,
         signature: &scoop_ast::FunctionSignature,
         body_form: scoop_ast::FunctionBodyForm,
         checkpoint: super::checkpoint::Checkpoint,
     ) {
-        let span = signature.span;
-        let prefix_error = self
-            .diagnostics
-            .iter()
-            .chain(&self.lexical_diagnostics)
-            .any(|diagnostic| {
-                diagnostic
-                    .span
-                    .is_some_and(|error| error.start < span.end && error.end > span.start)
-            });
-        if !self.has_errors_since(checkpoint) && !prefix_error {
+        if !self.has_errors_since(checkpoint) && !self.has_lexical_error_in(signature.span) {
             self.syntax
                 .events
                 .push(Event::FunctionHeader(Box::new(scoop_ast::FunctionHeader {

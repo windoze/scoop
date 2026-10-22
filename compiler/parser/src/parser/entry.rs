@@ -71,6 +71,22 @@ impl Parser {
         if let Err(diagnostic) = &result {
             self.diagnostics.push(diagnostic.clone());
         }
+        let (syntax, diagnostics) = self.finish_syntax(source, root);
+        Parse::new(
+            syntax.green,
+            diagnostics,
+            syntax.missing,
+            syntax.declarations,
+            result.ok(),
+        )
+        .with_declaration_data(syntax.function_headers)
+    }
+
+    pub(super) fn finish_syntax(
+        mut self,
+        source: &str,
+        root: SyntaxKind,
+    ) -> (super::syntax::SyntaxBuild, Vec<Diagnostic>) {
         if !self.at_eof() {
             self.with_node(SyntaxKind::Error, |parser| {
                 while !parser.at_eof() {
@@ -97,9 +113,6 @@ impl Parser {
         diagnostics.dedup_by(|next, previous| {
             next == previous || next.span == Some(eof) && previous.span == Some(eof)
         });
-        let (green, missing, declarations, headers) =
-            self.syntax.build(source, &self.lexemes, root);
-        Parse::new(green, diagnostics, missing, declarations, result.ok())
-            .with_declaration_data(headers)
+        (self.syntax.build(source, &self.lexemes, root), diagnostics)
     }
 }
