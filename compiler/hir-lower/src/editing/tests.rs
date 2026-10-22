@@ -30,6 +30,7 @@ mod members_imported;
 mod operands;
 mod properties;
 mod properties_imported;
+mod property_declarations;
 mod qualified_alias_candidates;
 mod qualified_candidates;
 mod qualified_imported_candidates;

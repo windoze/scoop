@@ -11,6 +11,7 @@ use crate::{convert, initialize::Settings};
 
 mod documentation;
 mod imported;
+mod properties;
 mod types;
 
 pub(crate) fn hover(
@@ -98,6 +99,9 @@ fn description(
         }
     }
     if let Some(description) = types::description(analysis, cursor, cancellation)? {
+        return Ok(Some(description));
+    }
+    if let Some(description) = properties::declaration(analysis, cursor, cancellation)? {
         return Ok(Some(description));
     }
     for (function, signature) in functions {

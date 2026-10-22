@@ -9,6 +9,18 @@ pub enum SemanticProperty {
     Imported(PropertyDeclarationId),
 }
 
+/// Complete declaration types without evaluating the property's implementation.
+#[derive(Clone, Debug)]
+pub struct EditingPropertyDeclaration {
+    pub property: SemanticProperty,
+    pub name: String,
+    pub mutable: bool,
+    pub value_type: TypeId,
+    pub receiver: Option<TypeId>,
+    pub binders: crate::SemanticDeclarationBinders,
+    pub origin: Option<SemanticSourceLocation>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditingPropertyAccess {
     Read,

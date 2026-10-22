@@ -28,6 +28,9 @@ def check(peer, root):
         {"textDocument": {"uri": uri, "languageId": "scoop", "version": 1, "text": text}},
     )
     for line, name, definition, expected in [
+        (0, "PROPERTY_FLAG", 0, "val PROPERTY_FLAG: Boolean"),
+        (1, "属性", 1, "var 属性: T"),
+        (2, "property", 2, "var <T> PropertyBox<T>.property: T"),
         (5, "属性", 1, "var 属性: Boolean"),
         (5, "PROPERTY_FLAG", 0, "val PROPERTY_FLAG: Boolean"),
         (6, "property", 2, "var property: Boolean"),
@@ -97,12 +100,20 @@ def check_imported(peer, root, library):
         (2, "PROPERTY_FLAG", "PROPERTY_FLAG"),
         (2, "enabled", "PROPERTY_FLAG"),
     ]:
+        params = {
+            "textDocument": {"uri": uri},
+            "position": {"line": line, "character": text.splitlines()[line].index(name)},
+        }
+        hover = peer.request("textDocument/hover", params)
+        expected = (
+            "var <T> PropertyBox<T>.property: T"
+            if name == "property"
+            else "val PROPERTY_FLAG: Boolean"
+        )
+        assert hover["contents"]["value"] == expected, hover
         target = peer.request(
             "textDocument/definition",
-            {
-                "textDocument": {"uri": uri},
-                "position": {"line": line, "character": text.splitlines()[line].index(name)},
-            },
+            params,
         )
         assert target["uri"] == library.as_uri(), target
         selected = target["range"]

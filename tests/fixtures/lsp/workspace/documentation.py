@@ -24,6 +24,10 @@ def check(peer, root):
         "fun documentedProperty(): Boolean = flag\n"
         "fun localCall(): Boolean = localDoc(true)\n"
         "fun brokenDocumentation(value: ) {}\n"
+        "/// @param stored The constructor input.\n"
+        "class DocumentedCell(\n"
+        "/// The member property.\n"
+        "val stored: Boolean)\n"
     )
     path.write_text(source)
     for file, text in [(provider, library), (path, source)]:
@@ -88,8 +92,16 @@ def check(peer, root):
         return docs
 
     imported("原始文档")
+    assert hover(1, "flag")["contents"][1] == "The documented property."
     assert hover(6, "flag")["contents"][1] == "The documented property."
-    updated = library.replace("原始文档", "更新文档")
+    signature, docs = hover(12, "stored")["contents"]
+    assert signature["value"] == "val stored: Boolean", signature
+    assert docs == "The member property.", docs
+    updated = (
+        library.replace("原始文档", "更新文档")
+        .replace("The documented property.", "The updated property.")
+        .replace("flag: Boolean = true", 'flag: String = "text"')
+    )
     peer.notify(
         "textDocument/didChange",
         {
@@ -98,6 +110,12 @@ def check(peer, root):
         },
     )
     imported("更新文档")
+    signature, docs = hover(1, "flag")["contents"]
+    assert signature["value"] == "val flag: String", signature
+    assert docs == "The updated property.", docs
     peer.notify("textDocument/didClose", {"textDocument": {"uri": provider.as_uri()}})
     imported("原始文档")
+    signature, docs = hover(1, "flag")["contents"]
+    assert signature["value"] == "val flag: Boolean", signature
+    assert docs == "The documented property.", docs
     assert not (provider.parent.parent / "target").exists()

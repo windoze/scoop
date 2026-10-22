@@ -38,6 +38,37 @@ fn documented(
 }
 
 #[test]
+fn property_declarations_keep_their_own_comment_beside_constructor_parameters() {
+    let text = "/// @param value The constructor input.\nclass Cell(\n/// The stored property.\nval value: Boolean)\n/// Top-level state.\nval state: Boolean = true\nfun broken(): Boolean = missing";
+    let mut analysis = documented(text, || false).unwrap();
+    let identity = crate::tests::test_source_identity("src/docs.scoop");
+    for (needle, name, expected) in [
+        ("value: Boolean", "value", "The stored property."),
+        ("state:", "state", "Top-level state."),
+    ] {
+        let start = text.find(needle).unwrap() as u32;
+        let V::Known(Some(declaration)) = analysis
+            .property_declaration(
+                &identity,
+                ast::Span::new(start, start + name.len() as u32),
+                || false,
+            )
+            .unwrap()
+        else {
+            panic!("complete property declaration")
+        };
+        let hir::SemanticProperty::Current(property) = declaration.property else {
+            panic!("source property")
+        };
+        let symbol = Symbol::Current(hir::SourceAnnotationTarget::Property(property).into());
+        let docs = analysis.documentation().unwrap();
+        let rendered = scoop_doc::hover_markdown(docs.get(symbol).unwrap(), |_| None);
+        assert_eq!(rendered, expected);
+    }
+    assert!(analysis.body_facts.is_empty());
+}
+
+#[test]
 fn comments_bind_in_the_declaration_scope_without_checking_bodies() {
     let text = "/// Returns [value]; see [later].\n/// @param value The input.\nfun pass(value: Boolean): Boolean = value\nfun later(): Boolean = missing\nfun broken(value: ) {}";
     let analysis = documented(text, || false).unwrap();

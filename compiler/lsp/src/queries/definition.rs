@@ -101,6 +101,22 @@ pub(crate) fn definition(
             settings,
         )?);
     }
+    let source_snapshot = snapshot.clone();
+    let request_cancellation = cancellation.clone();
+    if let EditingValue::Known(Some(declaration)) = analysis
+        .property_declaration(&cursor.file.identity, cursor.span, move || {
+            request_cancellation.check().is_err() || source_snapshot.check_cancelled().is_err()
+        })
+        .map_err(|_| semantic::cancelled())?
+        && let Some(origin) = declaration.origin
+    {
+        return super::json(convert::definition_location(
+            snapshot,
+            cursor.project,
+            &origin,
+            settings,
+        )?);
+    }
     let definitions = analysis
         .import_definitions(&cursor.file.identity, cursor.span, || {
             cancellation.check().is_err() || snapshot.check_cancelled().is_err()

@@ -15,6 +15,7 @@ mod implementations;
 mod imports;
 mod members;
 mod parameters;
+mod properties;
 mod references;
 pub(crate) mod types;
 pub(crate) use bodies::{BodyObservation, ObservedBody};
