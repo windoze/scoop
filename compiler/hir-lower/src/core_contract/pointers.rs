@@ -1,11 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn require_core_enum(
-        &mut self,
-        name: &str,
-        files: &[ast::SourceHeaderRef<'_>],
-    ) -> Option<EnumId> {
+    pub(crate) fn require_core_enum(&mut self, name: &str, files: &[ast::Span]) -> Option<EnumId> {
         let candidate = self
             .core_nominal_target(name)
             .and_then(|target| match target {
@@ -18,7 +14,7 @@ impl Lowerer {
         let core_diagnostic_file = self.core_diagnostic_file();
         self.current_file = core_diagnostic_file;
         self.error(
-            files[core_diagnostic_file].span,
+            files[core_diagnostic_file],
             format!("scoop.core must define exactly one `{name}` enum"),
         );
         None

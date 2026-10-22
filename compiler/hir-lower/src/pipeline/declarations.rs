@@ -3,7 +3,7 @@ use super::*;
 /// Original declarations and their allocated identities, shared by later passes.
 pub(crate) struct SourceDeclarations<'a> {
     pub(super) current_cone: scoop_identity::ConeIdentity,
-    pub(super) source_headers: Vec<ast::SourceHeaderRef<'a>>,
+    pub(super) source_spans: Vec<ast::Span>,
     pub(super) pending_structs: Vec<(StructId, ast::StructSource<'a>, usize)>,
     pub(super) pending_enums: Vec<(EnumId, ast::EnumSource<'a>, usize)>,
     pub(super) pending_classes: Vec<(ClassId, ast::ClassSource<'a>, usize)>,
@@ -59,7 +59,7 @@ impl Lowerer {
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) -> Result<SourceDeclarations<'a>, Vec<Diagnostic>> {
         self.collect_declaration_inputs_with_cancellation(
-            source_headers,
+            source_headers.into_iter().map(Into::into).collect(),
             inputs,
             world,
             &cancellation::uninterrupted,
@@ -69,7 +69,7 @@ impl Lowerer {
 
     pub(super) fn collect_declaration_inputs_with_cancellation<'a, C>(
         &mut self,
-        source_headers: Vec<ast::SourceHeaderRef<'a>>,
+        source_headers: Vec<ast::SourceHeaderInput<'a>>,
         inputs: impl IntoIterator<Item = (usize, ast::DeclarationInput<'a>)>,
         world: Option<&hir::ImportedSemanticWorld<'_>>,
         check: &impl Fn() -> Result<(), C>,
@@ -391,7 +391,7 @@ impl Lowerer {
 
         Ok(SourceDeclarations {
             current_cone,
-            source_headers,
+            source_spans: source_headers.iter().map(|header| header.span).collect(),
             pending_structs,
             pending_enums,
             pending_classes,

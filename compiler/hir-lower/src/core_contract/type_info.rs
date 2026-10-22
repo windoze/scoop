@@ -1,10 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn validate_type_info_core(
-        &mut self,
-        files: &[ast::SourceHeaderRef<'_>],
-    ) -> Option<FunctionId> {
+    pub(crate) fn validate_type_info_core(&mut self, files: &[ast::Span]) -> Option<FunctionId> {
         const NAME: &str = "__scoopTypeReference";
         let reference = self
             .core_nominal_target("TypeRef")
@@ -26,7 +23,7 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let (Some(reference), [factory]) = (reference, candidates.as_slice()) else {
             self.current_file = self.core_diagnostic_file();
-            self.error(files[self.current_file].span,
+            self.error(files[self.current_file],
                 "scoop.core must define TypeRef and one internal `fun <T> __scoopTypeReference(): TypeRef`".into());
             return None;
         };

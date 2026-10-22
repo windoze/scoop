@@ -46,7 +46,7 @@ pub(crate) fn build(
         )?;
     }
 
-    for (file, imports) in lowerer.imports.files.iter().enumerate() {
+    for (&file, imports) in &lowerer.imports.files {
         for import in &imports.exact {
             for imported in import.targets.iter() {
                 append_imported_binding(

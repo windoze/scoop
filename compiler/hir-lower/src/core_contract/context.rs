@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(super) fn missing_context_constructor(
         &mut self,
-        files: &[ast::SourceHeaderRef<'_>],
+        files: &[ast::Span],
         throwable: ClassId,
     ) -> Option<hir::ClassConstructorId> {
         let Some(crate::NominalTarget::Class(class)) =
@@ -12,7 +12,7 @@ impl Lowerer {
             let file = self.core_diagnostic_file();
             self.current_file = file;
             self.error(
-                files[file].span,
+                files[file],
                 "scoop.core must define class `MissingContextException`".into(),
             );
             return None;

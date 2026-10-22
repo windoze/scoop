@@ -15,7 +15,7 @@ impl ReferenceBuilder {
         let declarations = lowerer
             .imports
             .files
-            .iter()
+            .values()
             .flat_map(|file| file.exact.iter().cloned())
             .collect::<Vec<_>>();
         let mut imports = HashMap::new();

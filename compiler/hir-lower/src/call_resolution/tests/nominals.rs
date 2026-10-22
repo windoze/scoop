@@ -24,7 +24,7 @@ pub(super) fn lowerer() -> Lowerer {
         cone,
         &files
             .iter()
-            .map(scoop_ast::SourceFile::header)
+            .map(|file| file.header().into())
             .collect::<Vec<_>>(),
     );
     lowerer

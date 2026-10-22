@@ -8,6 +8,34 @@ pub struct SourceHeaderRef<'a> {
     pub span: Span,
 }
 
+/// Independently available file context from one grammar result.
+#[derive(Debug, Clone, Copy)]
+pub struct SourceHeaderInput<'a> {
+    pub package: Option<&'a PackageSyntax>,
+    pub imports: Option<&'a [ImportSyntax]>,
+    pub span: Span,
+}
+
+impl<'a> SourceHeaderInput<'a> {
+    pub fn complete(self) -> Option<SourceHeaderRef<'a>> {
+        Some(SourceHeaderRef {
+            package: self.package?,
+            imports: self.imports?,
+            span: self.span,
+        })
+    }
+}
+
+impl<'a> From<SourceHeaderRef<'a>> for SourceHeaderInput<'a> {
+    fn from(header: SourceHeaderRef<'a>) -> Self {
+        Self {
+            package: Some(header.package),
+            imports: Some(header.imports),
+            span: header.span,
+        }
+    }
+}
+
 impl crate::SourceFile {
     pub fn header(&self) -> SourceHeaderRef<'_> {
         SourceHeaderRef {

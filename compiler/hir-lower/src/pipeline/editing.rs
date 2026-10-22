@@ -9,18 +9,43 @@ impl Lowerer {
     pub(crate) fn analyze_declaration_inputs<'a>(
         mut self,
         sources: &[ast::DeclarationSource<'a, '_>],
-        headers: Vec<ast::SourceHeaderRef<'a>>,
+        headers: Vec<ast::SourceHeaderInput<'a>>,
         world: &hir::ImportedSemanticWorld<'_>,
         check: &impl Fn() -> Result<(), EditingCancelled>,
     ) -> Result<DeclarationAnalysis, EditingCancelled> {
         self.editing_types = Some(Default::default());
+        let mut unavailable_files = Vec::new();
+        let mut unavailable_headers = std::collections::HashMap::new();
+        for (file, source) in sources.iter().enumerate() {
+            check()?;
+            if source.header.complete().is_some() {
+                continue;
+            }
+            unavailable_files.push(hir::SemanticSourceLocation {
+                source: source.identity.clone(),
+                span: source.header.span,
+            });
+            let headers = source
+                .declarations
+                .iter()
+                .map(|input| {
+                    check()?;
+                    Ok(input.unavailable_header())
+                })
+                .collect::<Result<Vec<_>, EditingCancelled>>()?;
+            unavailable_headers.insert(file, headers);
+        }
         let declarations = self.collect_declaration_inputs_with_cancellation(
             headers,
             sources.iter().enumerate().flat_map(|(file, source)| {
-                source
-                    .declarations
+                let (complete, unavailable) = match unavailable_headers.get(&file) {
+                    Some(headers) => (&[][..], headers.as_slice()),
+                    None => (source.declarations.as_slice(), &[][..]),
+                };
+                complete
                     .iter()
                     .copied()
+                    .chain(unavailable.iter().map(ast::DeclarationInput::Unavailable))
                     .map(move |declaration| (file, declaration))
             }),
             Some(world),
@@ -35,6 +60,7 @@ impl Lowerer {
                     lowerer: self,
                     functions: Vec::new(),
                     declarations_ready: false,
+                    unavailable_files,
                     recovered_bodies: Default::default(),
                     recovered_facts: Default::default(),
                     body_inputs: Default::default(),
@@ -120,6 +146,7 @@ impl Lowerer {
             lowerer: self,
             functions,
             declarations_ready,
+            unavailable_files,
             recovered_bodies,
             recovered_facts: Default::default(),
             body_inputs,

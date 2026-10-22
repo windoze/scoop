@@ -86,21 +86,13 @@ impl CurrentUnitImports {
                 .unwrap_or_default(),
             ExportNamespace::Current(current) => {
                 let mut targets = self
-                    .canonicalize(
-                        self.namespaces
-                            .get(current)
-                            .and_then(|names| names.get(name))
-                            .into_iter()
-                            .flatten()
-                            .copied()
-                            .filter(|binding| {
-                                let binding = self.binding(*binding);
-                                binding.target.occupies_namespace(namespace)
-                                    && binding.access.0.is_universal()
-                                    && binding.source.cone() == lowerer.current_cone()
-                                    && lowerer.declaration_source_in_scope(binding.file)
-                            }),
-                    )
+                    .canonicalize(self.namespace_bindings(*current, name).filter(|binding| {
+                        let binding = self.binding(*binding);
+                        binding.target.occupies_namespace(namespace)
+                            && binding.access.0.is_universal()
+                            && binding.source.cone() == lowerer.current_cone()
+                            && lowerer.declaration_source_in_scope(binding.file)
+                    }))
                     .into_iter()
                     .map(ExportLookupTarget::Current)
                     .collect::<Vec<_>>();

@@ -29,7 +29,7 @@ impl Lowerer {
             .top_level_namespaces
             .source_namespace(self.current_file)
         {
-            let imports = &self.imports.files[self.current_file];
+            let imports = &self.imports.files[&self.current_file];
             let origins = [
                 (
                     ImportLookupLayer::Exact,
@@ -47,11 +47,8 @@ impl Lowerer {
                 (
                     ImportLookupLayer::CurrentPackage(package),
                     self.imports
-                        .namespaces
-                        .get(&ResolvedNamespace::Package(package))
-                        .into_iter()
-                        .flat_map(|namespace| namespace.values())
-                        .flatten()
+                        .namespace_members(ResolvedNamespace::Package(package))
+                        .flat_map(|(_, bindings)| bindings)
                         .copied()
                         .collect(),
                 ),
@@ -161,7 +158,7 @@ impl Lowerer {
         else {
             return layers;
         };
-        let imports = &self.imports.files[self.current_file];
+        let imports = &self.imports.files[&self.current_file];
         let dependency_origins = [
             (
                 ImportLookupLayer::Exact,

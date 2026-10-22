@@ -31,6 +31,9 @@ impl DeclarationAnalysis {
         if self.reference_index.is_none() {
             let check: Rc<dyn Fn() -> bool> = Rc::new(is_cancelled);
             let mut builder = ReferenceBuilder::default();
+            builder
+                .unavailable
+                .extend(self.unavailable_files.iter().cloned());
             for function in self.functions.clone() {
                 if check() {
                     return Err(EditingCancelled);
@@ -73,7 +76,7 @@ impl DeclarationAnalysis {
             self.reference_index = Some(hir::EditingReferenceIndex::new(
                 builder.occurrences,
                 builder.unavailable,
-                self.declarations_ready,
+                self.declarations_ready && self.unavailable_files.is_empty(),
                 builder.aliases,
             ));
         }

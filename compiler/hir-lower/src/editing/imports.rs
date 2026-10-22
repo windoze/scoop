@@ -16,7 +16,7 @@ impl DeclarationAnalysis {
             return Err(EditingCancelled);
         }
         let mut definitions = Vec::new();
-        for file in &self.lowerer.imports.files {
+        for file in self.lowerer.imports.files.values() {
             if is_cancelled() {
                 return Err(EditingCancelled);
             }

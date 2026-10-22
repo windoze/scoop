@@ -47,7 +47,7 @@ fn direct_exact_star_and_static_selectors_preserve_typed_witnesses() {
     assert!(resolved.stars[0].snapshot.contains_key("Outer"));
     assert!(resolved.stars[1].snapshot.contains_key("Nested"));
 
-    surface.files.push(resolved);
+    surface.files.insert(surface.files.len(), resolved);
     let exact_layer = surface.layers(
         0,
         crate::namespace::TopLevelNamespaces::root_package(),
@@ -84,7 +84,7 @@ fn production_import_collection_receives_the_dependency_world() {
     lowerer.collect_and_resolve_imports(
         &files
             .iter()
-            .map(ast::SourceFile::header)
+            .map(|file| file.header().into())
             .collect::<Vec<_>>(),
         ImportDeclarationInputs {
             unavailable: &[],
@@ -131,7 +131,7 @@ fn current_package_layer_freezes_direct_split_package_contributions() {
     lowerer.collect_and_resolve_imports(
         &files
             .iter()
-            .map(ast::SourceFile::header)
+            .map(|file| file.header().into())
             .collect::<Vec<_>>(),
         ImportDeclarationInputs {
             unavailable: &[],

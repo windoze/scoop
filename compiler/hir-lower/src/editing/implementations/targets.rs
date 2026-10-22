@@ -35,7 +35,7 @@ impl DeclarationAnalysis {
             .lowerer
             .imports
             .files
-            .iter()
+            .values()
             .flat_map(|file| &file.exact)
             .filter(|import| {
                 &import.origin.source == source

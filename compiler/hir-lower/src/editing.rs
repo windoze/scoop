@@ -31,6 +31,7 @@ pub struct DeclarationAnalysis {
     pub(crate) lowerer: Lowerer,
     pub(crate) functions: Vec<hir::EditingFunction>,
     pub(crate) declarations_ready: bool,
+    pub(crate) unavailable_files: Vec<hir::SemanticSourceLocation>,
     pub(crate) recovered_bodies:
         std::collections::HashMap<hir::FunctionId, ast::RecoveredFunctionBody>,
     pub(crate) recovered_facts: std::collections::HashMap<hir::FunctionId, RecoveredFacts>,
@@ -94,12 +95,7 @@ pub fn analyze_declarations(
             )]
             .into());
         }
-        let Some(header) = source.header else {
-            let mut diagnostic = input_error(file, "the source package or imports are incomplete");
-            diagnostic.source = Some(Box::new(source.identity.clone()));
-            return Err(vec![diagnostic].into());
-        };
-        headers.push(header);
+        headers.push(source.header);
     }
     let providers = sources
         .iter()
@@ -139,9 +135,20 @@ pub fn analyze_declarations(
         CoreProtocolInput::CurrentDeclarations => lowerer,
         CoreProtocolInput::Imported(core) => lowerer.with_imported_core(core),
     };
-    lowerer
+    let mut analysis = lowerer
         .analyze_declaration_inputs(sources, headers, world, &check)
-        .map_err(|_| EditingAnalysisError::Cancelled)
+        .map_err(|_| EditingAnalysisError::Cancelled)?;
+    for (file, source) in sources.iter().enumerate() {
+        check().map_err(|_| EditingAnalysisError::Cancelled)?;
+        if source.header.complete().is_none() {
+            analysis.lowerer.diagnostics.push(ast::Diagnostic::at_file(
+                file,
+                source.header.span,
+                "the source package or imports are incomplete",
+            ));
+        }
+    }
+    Ok(analysis)
 }
 
 impl DeclarationAnalysis {

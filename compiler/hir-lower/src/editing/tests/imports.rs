@@ -3,26 +3,32 @@ use crate::tests::m23_ordinary_core_only::support::trusted_core;
 use hir::EditingReferenceTarget as Target;
 
 pub(super) fn analyze_files(files: &[(&str, &str)]) -> DeclarationAnalysis {
+    analyze_file_roles(
+        &files
+            .iter()
+            .map(|&(path, text)| (path, scoop_identity::SourceRole::Production, text))
+            .collect::<Vec<_>>(),
+    )
+}
+
+pub(super) fn analyze_file_roles(
+    files: &[(&str, scoop_identity::SourceRole, &str)],
+) -> DeclarationAnalysis {
     let core = trusted_core();
     let identities = files
         .iter()
-        .map(|(path, _)| crate::tests::test_source_identity(path))
+        .map(|(path, _, _)| crate::tests::test_source_identity(path))
         .collect::<Vec<_>>();
     let parsed = files
         .iter()
-        .map(|(_, text)| scoop_parser::parse_recovering(text).unwrap())
+        .map(|(_, _, text)| scoop_parser::parse_recovering(text).unwrap())
         .collect::<Vec<_>>();
     let inputs = files
         .iter()
         .zip(&identities)
         .zip(&parsed)
-        .map(|(((_, text), identity), parsed)| {
-            scoop_parser::declaration_source(
-                parsed,
-                identity,
-                scoop_identity::SourceRole::Production,
-                text,
-            )
+        .map(|(((_, role, text), identity), parsed)| {
+            scoop_parser::declaration_source(parsed, identity, *role, text)
         })
         .collect::<Vec<_>>();
     let world = hir::ImportedSemanticWorld::from_dependencies(

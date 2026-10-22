@@ -38,7 +38,7 @@ impl Lowerer {
     ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), PhaseFailure<C>> {
         self.generation.enabled = generator.is_some();
         let declarations = self.collect_declaration_inputs_with_cancellation(
-            files.iter().map(ast::SourceFile::header).collect(),
+            files.iter().map(|file| file.header().into()).collect(),
             files.iter().enumerate().flat_map(|(file, source)| {
                 source
                     .declarations

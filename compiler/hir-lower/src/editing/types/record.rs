@@ -17,7 +17,7 @@ impl Lowerer {
         }
         let target = self.editing_lookup_type_target(binding);
         let imports = if layer == Some(ImportLookupLayer::Exact) {
-            self.imports.files[self.current_file]
+            self.imports.files[&self.current_file]
                 .exact
                 .iter()
                 .filter(|import| import.local_name == name.text)

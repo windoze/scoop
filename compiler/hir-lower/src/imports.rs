@@ -18,6 +18,7 @@ mod selector;
 mod source_scope;
 #[cfg(test)]
 mod tests;
+mod unavailable_sources;
 
 pub(crate) use bindings::*;
 pub(crate) use reexports::*;
@@ -131,7 +132,8 @@ pub(crate) struct CurrentUnitImports {
         scoop_identity::BindingNamespace,
         BTreeMap<String, Vec<hir::DirectImportedTargetBinding>>,
     >,
-    pub(crate) files: Vec<FrozenFileImports>,
+    pub(crate) files: BTreeMap<usize, FrozenFileImports>,
+    unknown_packages: BTreeMap<String, Vec<CurrentUnitBindingId>>,
     pub(crate) reexports: Vec<FrozenReexportBinding>,
     diagnostic_suppressions: ImportDiagnosticSuppressions,
 }
@@ -207,14 +209,17 @@ impl CurrentUnitImports {
 
     pub(crate) fn package_bindings(
         &self,
-        package: PackageId,
+        package: Option<PackageId>,
         name: &str,
     ) -> Vec<CurrentUnitBindingId> {
-        self.namespaces
-            .get(&ResolvedNamespace::Package(package))
-            .and_then(|namespace| namespace.get(name))
-            .cloned()
-            .unwrap_or_default()
+        package
+            .into_iter()
+            .flat_map(|package| self.namespaces.get(&ResolvedNamespace::Package(package)))
+            .filter_map(|members| members.get(name))
+            .flatten()
+            .copied()
+            .chain(self.unknown_package_bindings(name))
+            .collect()
     }
 
     fn insert(
@@ -278,7 +283,7 @@ impl CurrentUnitImports {
         package: PackageId,
         name: &str,
     ) -> Vec<ImportCandidateLayer> {
-        let imports = &self.files[file];
+        let imports = &self.files[&file];
         vec![
             ImportCandidateLayer {
                 kind: ImportLookupLayer::Exact,
@@ -314,14 +319,7 @@ impl CurrentUnitImports {
             },
             ImportCandidateLayer {
                 kind: ImportLookupLayer::CurrentPackage(package),
-                bindings: self.canonicalize(
-                    self.namespaces
-                        .get(&ResolvedNamespace::Package(package))
-                        .and_then(|namespace| namespace.get(name))
-                        .into_iter()
-                        .flatten()
-                        .copied(),
-                ),
+                bindings: self.canonicalize(self.package_bindings(Some(package), name)),
                 dependency_bindings: self.canonicalize_dependencies(
                     imports
                         .current_package_dependencies

@@ -16,7 +16,7 @@ impl Lowerer {
         check: &impl Fn() -> Result<(), C>,
     ) -> Result<SignatureCore, PhaseFailure<C>> {
         PhaseFailure::check(check)?;
-        let files = &declarations.source_headers;
+        let files = &declarations.source_spans;
         let SourceDeclarations {
             pending_structs,
             pending_enums,
@@ -72,14 +72,14 @@ impl Lowerer {
             if self.ffi_ptr != Some(core.ptr) {
                 self.current_file = primary_output_file;
                 self.error(
-                    files[core_diagnostic_file].span,
+                    files[core_diagnostic_file],
                     "the `Ptr` FFI core owner must be the `core_ptr` intrinsic type".to_string(),
                 );
             }
             if self.ffi_fun_ptr != Some(core.fun_ptr) {
                 self.current_file = primary_output_file;
                 self.error(
-                    files[core_diagnostic_file].span,
+                    files[core_diagnostic_file],
                     "the `FunPtr` FFI core owner must be the `core_fun_ptr` intrinsic type"
                         .to_string(),
                 );

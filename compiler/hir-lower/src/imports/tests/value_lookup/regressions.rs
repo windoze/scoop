@@ -305,7 +305,9 @@ fn failed_named_property_write_does_not_commit_rhs_sink() {
             name: "flag".to_string(),
         },
     );
-    state.imports.files = vec![FrozenFileImports::default(); 3];
+    state.imports.files = (0..3)
+        .map(|file| (file, FrozenFileImports::default()))
+        .collect();
     let statements = state.lower_block(&block(vec![assign("flag", conditional(bool_lit(true)))]));
     assert!(state.diagnostics.iter().any(|error| {
         error

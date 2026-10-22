@@ -20,16 +20,19 @@ pub struct RecoveredFileHeader {
 
 impl RecoveredFileHeader {
     pub fn header(&self, span: Span) -> Option<SourceHeaderRef<'_>> {
-        if !self.imports_complete {
-            return None;
-        }
-        Some(SourceHeaderRef {
-            package: self.package.as_ref()?,
-            imports: &self.imports,
+        self.input(span).complete()
+    }
+
+    pub fn input(&self, span: Span) -> crate::SourceHeaderInput<'_> {
+        crate::SourceHeaderInput {
+            package: self.package.as_ref(),
+            imports: self.imports_complete.then_some(self.imports.as_slice()),
             span,
-        })
+        }
     }
 }
+
+mod declaration_header;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DeclarationFragment {

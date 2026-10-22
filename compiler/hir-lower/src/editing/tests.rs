@@ -17,6 +17,7 @@ mod do_while;
 mod documentation;
 mod exception_flow;
 mod exceptions;
+mod file_headers;
 mod imported_signatures;
 mod imports;
 mod iteration;
@@ -44,6 +45,7 @@ mod trailing_callables;
 mod type_definitions;
 mod type_implementations;
 mod types;
+mod unavailable_file_names;
 mod when;
 mod when_inputs;
 
@@ -64,7 +66,7 @@ fn analyze_cancellable(
             identity: &core_identity,
             role: scoop_identity::SourceRole::Production,
             text: "",
-            header: Some(core.header()),
+            header: core.header().into(),
             documentation: None,
             declarations: core
                 .declarations
@@ -200,32 +202,6 @@ fn failed_signatures_are_unavailable_beside_independent_known_signatures() {
         analysis.signature(function(&analysis, "healthy")),
         V::Known(_)
     ));
-}
-
-#[test]
-fn incomplete_file_context_is_not_replaced_with_a_root_package() {
-    let text = "package broken.\nfun healthy() {}";
-    let parsed = scoop_parser::parse_recovering(text).unwrap();
-    let identity = crate::tests::core_source_identity("src/broken.scoop");
-    let source = scoop_parser::declaration_source(
-        &parsed,
-        &identity,
-        scoop_identity::SourceRole::Production,
-        text,
-    );
-    let world =
-        hir::ImportedSemanticWorld::from_dependencies(ConeIdentity::CORE, Vec::new(), Vec::new())
-            .unwrap();
-    let Err(EditingAnalysisError::Input(diagnostics)) = analyze_declarations(
-        &[source],
-        &CoreProtocolInput::CurrentDeclarations,
-        &world,
-        &[],
-        || false,
-    ) else {
-        panic!("incomplete file context");
-    };
-    assert_eq!(diagnostics[0].source.as_deref(), Some(&identity));
 }
 
 #[test]

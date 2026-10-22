@@ -28,7 +28,7 @@ impl Lowerer {
                 .then_some(package)
             });
             package.and_then(|package| {
-                let bindings = self.imports.package_bindings(package, name);
+                let bindings = self.imports.package_bindings(Some(package), name);
                 let [binding] = bindings.as_slice() else {
                     return None;
                 };

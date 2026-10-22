@@ -5,7 +5,7 @@ impl Lowerer {
         &mut self,
         declarations: &SourceDeclarations<'_>,
     ) -> Result<DeclarationBodyCore, Vec<Diagnostic>> {
-        let files = &declarations.source_headers;
+        let files = &declarations.source_spans;
         let SourceDeclarations {
             pending_structs,
             pending_enums,

@@ -19,7 +19,7 @@ impl Lowerer {
     pub(super) fn require_core_struct(
         &mut self,
         name: &str,
-        files: &[ast::SourceHeaderRef<'_>],
+        files: &[ast::Span],
     ) -> Option<StructId> {
         let candidate = self
             .core_nominal_target(name)
@@ -33,7 +33,7 @@ impl Lowerer {
         let core_diagnostic_file = self.core_diagnostic_file();
         self.current_file = core_diagnostic_file;
         self.error(
-            files[core_diagnostic_file].span,
+            files[core_diagnostic_file],
             format!("scoop.core must define exactly one `{name}` struct"),
         );
         None

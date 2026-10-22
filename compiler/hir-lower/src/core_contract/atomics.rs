@@ -9,7 +9,7 @@ const MEMORY_ORDERS: [(&str, hir::AtomicMemoryOrder); 5] = [
 ];
 
 impl Lowerer {
-    pub(crate) fn validate_atomic_intrinsics(&mut self, files: &[ast::SourceHeaderRef<'_>]) {
+    pub(crate) fn validate_atomic_intrinsics(&mut self, files: &[ast::Span]) {
         let functions = hir::AtomicIntrinsic::all()
             .filter_map(|kind| {
                 self.intrinsic_functions

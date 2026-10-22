@@ -132,7 +132,7 @@ fn lowerer() -> (Lowerer, PackageId, PackageId) {
         cone,
         &files
             .iter()
-            .map(ast::SourceFile::header)
+            .map(|file| file.header().into())
             .collect::<Vec<_>>(),
     );
     let (api, _) = lowerer

@@ -281,7 +281,7 @@ impl CurrentUnitImports {
             }
         }
 
-        for (file, imports) in self.files.iter().enumerate() {
+        for (&file, imports) in &self.files {
             let TopLevelLookupLayer::CurrentPackage(package) =
                 lowerer.top_level_namespaces.source_namespace(file)
             else {
@@ -322,10 +322,6 @@ impl CurrentUnitImports {
             for import in &imports.stars {
                 assert_eq!(site, import.origin.source);
                 assert!(import.origin.span.start <= import.origin.span.end);
-                let namespace = import
-                    .namespace
-                    .current()
-                    .and_then(|namespace| self.namespaces.get(&namespace));
                 for (name, targets) in &import.snapshot {
                     for target in targets.iter() {
                         check_target(target);
@@ -333,11 +329,20 @@ impl CurrentUnitImports {
                             assert!(matches!(target, ImportedTargetBinding::DirectDependency(_)));
                         }
                         if let Some(binding) = target.current_binding() {
-                            assert!(
-                                namespace
-                                    .and_then(|members| members.get(name))
-                                    .is_some_and(|members| members.contains(&binding))
-                            );
+                            let selected = match import.namespace.current() {
+                                Some(namespace) => self
+                                    .namespace_bindings(namespace, name)
+                                    .any(|candidate| candidate == binding),
+                                None => {
+                                    matches!(
+                                        import.namespace,
+                                        ResolvedImportNamespace::DirectPackage(_)
+                                    ) && self
+                                        .unknown_package_bindings(name)
+                                        .any(|candidate| candidate == binding)
+                                }
+                            };
+                            assert!(selected);
                         }
                     }
                 }

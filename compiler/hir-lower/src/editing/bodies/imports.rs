@@ -13,7 +13,7 @@ impl Lowerer {
         {
             return;
         }
-        let imports = self.imports.files[self.current_file]
+        let imports = self.imports.files[&self.current_file]
             .exact
             .iter()
             .filter(|import| import.local_name == name.text)

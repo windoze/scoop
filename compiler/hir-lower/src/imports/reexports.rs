@@ -49,7 +49,7 @@ impl CurrentUnitImports {
         lowerer: &Lowerer,
     ) -> Result<(), ReexportPlanBuildError> {
         let mut pending = BTreeMap::<ExportBindingKey, ReexportAccumulator>::new();
-        for (file, imports) in self.files.iter().enumerate() {
+        for (&file, imports) in &self.files {
             let has_reexports = imports
                 .exact
                 .iter()

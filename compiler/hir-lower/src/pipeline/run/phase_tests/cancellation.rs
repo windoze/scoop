@@ -14,7 +14,7 @@ fn declaration_collection_stops_between_actual_source_declarations() {
     let checks = Cell::new(0);
     let limit = files[0].declarations.len() + 6;
     let result = lowerer.collect_declaration_inputs_with_cancellation(
-        files.iter().map(ast::SourceFile::header).collect(),
+        files.iter().map(|file| file.header().into()).collect(),
         files.iter().enumerate().flat_map(|(file, source)| {
             source
                 .declarations

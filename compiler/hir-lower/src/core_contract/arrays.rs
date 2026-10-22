@@ -2,10 +2,7 @@ use super::*;
 use crate::types::ArrayKind;
 
 impl Lowerer {
-    pub(crate) fn validate_array_conversion_intrinsics(
-        &mut self,
-        files: &[ast::SourceHeaderRef<'_>],
-    ) {
+    pub(crate) fn validate_array_conversion_intrinsics(&mut self, files: &[ast::Span]) {
         for kind in hir::ArrayIntrinsic::ALL {
             let intrinsic = hir::IntrinsicFunctionKind::Array(kind);
             if let Some(function) = self.require_intrinsic(intrinsic, files) {

@@ -34,7 +34,7 @@ fn collect_files<'a>(
             lowerer.intrinsic_sources[index + 1].role,
             text,
         );
-        headers.push(source.header.unwrap());
+        headers.push(source.header.complete().unwrap());
         inputs.extend(
             source
                 .declarations

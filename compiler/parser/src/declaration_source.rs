@@ -14,7 +14,7 @@ pub fn declaration_source<'syntax, 'input>(
             identity,
             role,
             text,
-            header: Some(source.header()),
+            header: source.header().into(),
             documentation: None,
             declarations: source
                 .declarations
@@ -82,10 +82,14 @@ pub fn declaration_source<'syntax, 'input>(
         identity,
         role,
         text,
-        header: projections
-            .source
-            .as_ref()
-            .and_then(|header| header.header(span)),
+        header: projections.source.as_ref().map_or(
+            ast::SourceHeaderInput {
+                package: None,
+                imports: None,
+                span,
+            },
+            |header| header.input(span),
+        ),
         declarations,
         documentation: None,
     }

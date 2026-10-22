@@ -524,10 +524,7 @@ impl Lowerer {
     }
 
     pub(crate) fn source_is_current_cone(&self, file: usize) -> bool {
-        matches!(
-            self.top_level_namespaces.source_namespace(file),
-            crate::namespace::TopLevelLookupLayer::CurrentPackage(_)
-        )
+        self.top_level_namespaces.source_is_current_cone(file)
     }
 
     pub(crate) fn current_source_is_core(&self) -> bool {

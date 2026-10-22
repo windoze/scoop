@@ -1,9 +1,6 @@
 //! Typed, visibility-filtered lookup layers shared by semantic consumers.
 
-use super::{
-    CurrentUnitBindingId, CurrentUnitTarget, ImportCandidateLayer, ImportLookupLayer,
-    ResolvedNamespace,
-};
+use super::{CurrentUnitBindingId, CurrentUnitTarget, ImportCandidateLayer, ImportLookupLayer};
 use crate::{
     Lowerer, NominalTarget,
     namespace::{PackageId, TopLevelLookupLayer, TopLevelTypeTarget},
@@ -323,17 +320,7 @@ impl Lowerer {
         if !self.source_is_current_cone(self.current_file) {
             return LookupResult::Missing;
         }
-        let bindings = package
-            .current
-            .and_then(|package| {
-                self.imports
-                    .namespaces
-                    .get(&ResolvedNamespace::Package(package))
-            })
-            .and_then(|members| members.get(name))
-            .into_iter()
-            .flatten()
-            .copied();
+        let bindings = self.imports.package_bindings(package.current, name);
         let bindings = self.imports.canonicalize(bindings);
         let unavailable = self
             .unavailable_import_bindings(&bindings, Some(scoop_identity::BindingNamespace::Type));
