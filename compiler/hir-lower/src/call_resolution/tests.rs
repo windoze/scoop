@@ -20,6 +20,7 @@ fn parameter(identity: u32, slot: u32) -> hir::TypeParamDecl {
     }
 }
 
+mod contextual;
 mod nominals;
 mod receivers;
 use nominals::{add_generic_struct, add_interface};
