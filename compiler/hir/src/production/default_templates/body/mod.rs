@@ -90,7 +90,7 @@ impl<'a, 'hir> BodyProjection<'a, 'hir> {
         &self,
         id: crate::FunctionTypeId,
     ) -> Result<SignatureTypeKey, super::DefaultBodyProjectionError> {
-        let function_type = super::arena_get(&self.entities.export().function_types, id).ok_or(
+        let function_type = super::arena_get(self.entities.inputs().function_types, id).ok_or(
             super::DefaultBodyProjectionError::Entity(
                 super::DefaultEntityProjectionError::Unknown {
                     kind: "function type",
@@ -112,7 +112,10 @@ impl<'a, 'hir> BodyProjection<'a, 'hir> {
         &self,
         origin: crate::DefinitionOrigin,
     ) -> Result<crate::ExportDefinitionSourceV1, super::DefaultBodyProjectionError> {
-        super::super::definition_sources::project_definition_source(self.entities.export(), origin)
+        self.entities
+            .inputs()
+            .sources
+            .definition(origin)
             .map_err(Into::into)
     }
 

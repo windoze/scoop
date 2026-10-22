@@ -40,6 +40,7 @@ mod definition_sources;
 pub(crate) use definition_sources::project_definition_source;
 pub use definition_sources::{
     ExportDefinitionSourceProductionError, HirDefinitionSourceProjectionError,
+    HirSourceProjectionInputs,
 };
 mod external_references;
 pub use external_references::*;

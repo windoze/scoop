@@ -98,7 +98,7 @@ pub(super) fn project(
         .signatures
         .map_type(function.return_ty, &binders)
         .map_err(CallableProjectionError::Signature)?;
-    let effects = effects::function(projection.export, function, &binders)
+    let effects = effects::function(&projection.export.extern_functions, function, &binders)
         .map_err(CallableProjectionError::Effects)?;
     let modality = modality(projection, function_id, function)?;
 

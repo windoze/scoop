@@ -10,6 +10,9 @@ use super::callable_source_interfaces::{SourceCallableOwner, shared_source_calla
 
 mod body;
 mod entities;
+mod inputs;
+mod query;
+pub use inputs::HirBodyProjectionInputs;
 mod envelope;
 mod errors;
 mod generic;
@@ -106,7 +109,7 @@ impl CanonicalExportDefaultTemplatesV1 {
                 };
                 if let Some(default) = default {
                     templates.push(envelope::project(
-                        export, &entities, callables, &owner, position, default,
+                        &entities, callables, &owner, position, default,
                     )?);
                 }
             }

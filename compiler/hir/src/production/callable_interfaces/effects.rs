@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub(in crate::production) fn function(
-    export: &crate::ExportHir,
+    extern_functions: &la_arena::Arena<crate::ExternFunction>,
     declaration: &Function,
     binders: &[crate::HirSignatureBinder],
 ) -> Result<CallableSourceEffectsV1, CallableEffectProjectionError> {
@@ -18,7 +18,7 @@ pub(in crate::production) fn function(
         | FunctionKind::InitializationEnsure => CallableImplementationV1::Scoop,
         FunctionKind::Intrinsic(intrinsic) => CallableImplementationV1::Intrinsic(intrinsic.kind),
         FunctionKind::Extern(id) => {
-            let Some(external) = super::arena_get(&export.extern_functions, id) else {
+            let Some(external) = super::arena_get(extern_functions, id) else {
                 return Err(CallableEffectProjectionError::UnknownExternFunction(
                     super::raw_index(id),
                 ));

@@ -2,8 +2,7 @@
 use super::super::{DefaultTemplateEnvelopeProjectionError, entities::DefaultEntityProjector};
 use crate::production::signatures::HirInterfaceSignatureProjector;
 use crate::{
-    ExportHir, FunctionGenericity, HirSignatureBinder, PersistentLexicalRootV1, TypeParamDecl,
-    TypeParamId,
+    FunctionGenericity, HirSignatureBinder, PersistentLexicalRootV1, TypeParamDecl, TypeParamId,
 };
 
 pub(in crate::production::default_templates) struct ProviderScope {
@@ -13,14 +12,14 @@ pub(in crate::production::default_templates) struct ProviderScope {
 }
 
 pub(in crate::production::default_templates) fn provider_scope(
-    export: &ExportHir,
     entities: &DefaultEntityProjector<'_>,
     root: crate::LexicalDefinitionRoot,
 ) -> Result<ProviderScope, DefaultTemplateEnvelopeProjectionError> {
-    let signatures = HirInterfaceSignatureProjector::new(export);
+    let inputs = entities.inputs();
+    let signatures = HirInterfaceSignatureProjector::from_inputs(inputs.type_inputs);
     let (binders, flattened) = match root {
         crate::LexicalDefinitionRoot::Function(id) => {
-            let function = super::super::arena_get(&export.functions, id).ok_or(
+            let function = super::super::arena_get(inputs.functions, id).ok_or(
                 DefaultTemplateEnvelopeProjectionError::Provider(
                     super::super::DefaultEntityProjectionError::Unknown {
                         kind: "default provider function",
@@ -36,7 +35,7 @@ pub(in crate::production::default_templates) fn provider_scope(
             (binders, flattened)
         }
         crate::LexicalDefinitionRoot::StructConstructor(id) => {
-            let constructor = super::super::arena_get(&export.struct_constructors, id).ok_or(
+            let constructor = super::super::arena_get(inputs.struct_constructors, id).ok_or(
                 DefaultTemplateEnvelopeProjectionError::Provider(
                     super::super::DefaultEntityProjectionError::Unknown {
                         kind: "default provider struct constructor",
@@ -44,14 +43,13 @@ pub(in crate::production::default_templates) fn provider_scope(
                     },
                 ),
             )?;
-            let owner = super::super::arena_get(&export.structs, constructor.owner).ok_or(
-                DefaultTemplateEnvelopeProjectionError::Provider(
+            let owner = super::super::arena_get(inputs.type_inputs.structs, constructor.owner)
+                .ok_or(DefaultTemplateEnvelopeProjectionError::Provider(
                     super::super::DefaultEntityProjectionError::Unknown {
                         kind: "default provider struct",
                         index: super::super::raw_index(constructor.owner),
                     },
-                ),
-            )?;
+                ))?;
 
             (
                 signatures
@@ -61,7 +59,7 @@ pub(in crate::production::default_templates) fn provider_scope(
             )
         }
         crate::LexicalDefinitionRoot::ClassConstructor(id) => {
-            let constructor = super::super::arena_get(&export.class_constructors, id).ok_or(
+            let constructor = super::super::arena_get(inputs.class_constructors, id).ok_or(
                 DefaultTemplateEnvelopeProjectionError::Provider(
                     super::super::DefaultEntityProjectionError::Unknown {
                         kind: "default provider class constructor",
@@ -69,14 +67,13 @@ pub(in crate::production::default_templates) fn provider_scope(
                     },
                 ),
             )?;
-            let owner = super::super::arena_get(&export.classes, constructor.owner).ok_or(
-                DefaultTemplateEnvelopeProjectionError::Provider(
+            let owner = super::super::arena_get(inputs.type_inputs.classes, constructor.owner)
+                .ok_or(DefaultTemplateEnvelopeProjectionError::Provider(
                     super::super::DefaultEntityProjectionError::Unknown {
                         kind: "default provider class",
                         index: super::super::raw_index(constructor.owner),
                     },
-                ),
-            )?;
+                ))?;
 
             (
                 signatures
@@ -86,14 +83,15 @@ pub(in crate::production::default_templates) fn provider_scope(
             )
         }
         crate::LexicalDefinitionRoot::VariantConstructor(variant) => {
-            let enumeration = super::super::arena_get(&export.enums, variant.enumeration()).ok_or(
-                DefaultTemplateEnvelopeProjectionError::Provider(
-                    super::super::DefaultEntityProjectionError::Unknown {
-                        kind: "default provider enum",
-                        index: super::super::raw_index(variant.enumeration()),
-                    },
-                ),
-            )?;
+            let enumeration =
+                super::super::arena_get(inputs.type_inputs.enums, variant.enumeration()).ok_or(
+                    DefaultTemplateEnvelopeProjectionError::Provider(
+                        super::super::DefaultEntityProjectionError::Unknown {
+                            kind: "default provider enum",
+                            index: super::super::raw_index(variant.enumeration()),
+                        },
+                    ),
+                )?;
 
             (
                 signatures

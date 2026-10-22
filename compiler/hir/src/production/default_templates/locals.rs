@@ -38,11 +38,11 @@ impl TemplateLocalProjection {
             }
             let definition = match local.definition {
                 LocalValueDefinitionSite::Source(origin) => TemplateLocalDefinitionV1::Source(
-                    super::super::definition_sources::project_definition_source(
-                        entities.export(),
-                        origin,
-                    )
-                    .map_err(DefaultTemplateEnvelopeProjectionError::DefinitionOrigin)?,
+                    entities
+                        .inputs()
+                        .sources
+                        .definition(origin)
+                        .map_err(DefaultTemplateEnvelopeProjectionError::DefinitionOrigin)?,
                 ),
                 LocalValueDefinitionSite::Synthetic => TemplateLocalDefinitionV1::Synthetic,
             };

@@ -24,7 +24,7 @@ impl DefaultEntityProjector<'_> {
         id: LocalFunctionId,
         binders: &[HirSignatureBinder],
     ) -> Result<SignatureTypeKey, DefaultEntityProjectionError> {
-        let local = arena_get(&self.export.local_functions, id).ok_or(
+        let local = arena_get(self.inputs.local_functions, id).ok_or(
             DefaultEntityProjectionError::Unknown {
                 kind: "local function",
                 index: raw_index(id),
@@ -35,7 +35,7 @@ impl DefaultEntityProjector<'_> {
         };
         let parameters = match local.definition {
             crate::LexicalFunctionDefinition::Source { function, .. } => {
-                let function = arena_get(&self.export.functions, function).ok_or(
+                let function = arena_get(self.inputs.functions, function).ok_or(
                     DefaultEntityProjectionError::Unknown {
                         kind: "function",
                         index: raw_index(function),
@@ -48,7 +48,7 @@ impl DefaultEntityProjector<'_> {
                     .collect::<Vec<_>>()
             }
             crate::LexicalFunctionDefinition::Template(template) => {
-                self.export.imported_generic_templates[template]
+                self.inputs.imported_generic_templates[template]
                     .type_parameters
                     .ids()
             }
@@ -56,7 +56,7 @@ impl DefaultEntityProjector<'_> {
         let own = parameters
             .get(local.owner_type_param_count..)
             .ok_or_else(invalid)?;
-        let ty = arena_get(&self.export.function_types, local.function_type)
+        let ty = arena_get(self.inputs.function_types, local.function_type)
             .ok_or(DefaultEntityProjectionError::Unknown {
                 kind: "function type",
                 index: raw_index(local.function_type),

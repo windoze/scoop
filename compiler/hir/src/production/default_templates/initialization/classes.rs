@@ -9,11 +9,11 @@ use crate::{
 use scoop_identity::{CallableTemplateOrigin, LocalValueSelector};
 
 pub(super) fn project(
+    export: &ExportHir,
     entities: &DefaultEntityProjector<'_>,
     owner: scoop_identity::PersistentGenericTypeId,
     class: crate::ClassId,
 ) -> Result<ExportGenericNominalInitializationV1, Error> {
-    let export = entities.export();
     let declaration = &export.classes[class];
     let owner_type = export.class_applications[declaration.self_application].canonical_type;
     let primary = declaration.constructors.iter().copied().find(|&id| {
@@ -159,7 +159,7 @@ pub(super) fn project(
         owner,
         common,
         constructors,
-        super::release::project(entities, declaration)?,
+        super::release::project(export, entities, declaration)?,
     )
     .map_err(Error::Initialization)
 }

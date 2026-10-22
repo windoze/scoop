@@ -4,17 +4,17 @@ use super::super::{body, locals::TemplateLocalProjection};
 use super::{DefaultEntityProjector, GenericTemplateProductionError as Error};
 use crate::{
     CanonicalBinderUseListV1, DefaultCallableDeclarationV1, DefinitionOrigin,
-    ExportDefinitionSourceV1, ExportGenericCallableBodyV1, ExportHir, FunctionGenericity,
-    FunctionId, FunctionKind, GenericTemplatePredicatesV1, HirSignatureBinder, TypeParamId,
+    ExportGenericCallableBodyV1, ExportHir, FunctionGenericity, FunctionId, FunctionKind,
+    GenericTemplatePredicatesV1, HirSignatureBinder, TypeParamId,
 };
 
 pub(super) fn project(
+    export: &ExportHir,
     entities: &DefaultEntityProjector<'_>,
     function_id: FunctionId,
 ) -> Result<Option<ExportGenericCallableBodyV1>, Error> {
-    let export = entities.export();
     let function = &export.functions[function_id];
-    let FunctionKind::User(implementation) = &function.kind else {
+    let FunctionKind::User(_) = &function.kind else {
         return Ok(None);
     };
     let owner = entities
@@ -38,7 +38,29 @@ pub(super) fn project(
         .ok_or(Error::MissingOrigin(subject))?
         .origin();
     let origin = local_origin(export, definition, subject)?;
-    let signatures = crate::production::signatures::HirInterfaceSignatureProjector::new(export);
+    project_with_origin(entities, function_id, origin)
+}
+
+pub(in crate::production::default_templates) fn project_with_origin(
+    entities: &DefaultEntityProjector<'_>,
+    function_id: FunctionId,
+    origin: DefinitionOrigin,
+) -> Result<Option<ExportGenericCallableBodyV1>, Error> {
+    let inputs = entities.inputs();
+    let function = &inputs.functions[function_id];
+    let FunctionKind::User(implementation) = &function.kind else {
+        return Ok(None);
+    };
+    let owner = entities
+        .callable_declaration(function_id)
+        .map_err(Error::Entity)?;
+    let definition = inputs
+        .sources
+        .definition(origin)
+        .map_err(|error| Error::Body(Box::new(crate::DefaultBodyProjectionError::from(error))))?;
+    let signatures = crate::production::signatures::HirInterfaceSignatureProjector::from_inputs(
+        inputs.type_inputs,
+    );
     let binders = signatures
         .function_binders(function)
         .map_err(Error::Signature)?;
@@ -66,9 +88,12 @@ pub(super) fn project(
     let result = entities
         .type_key(function.return_ty, &binders)
         .map_err(Error::Entity)?;
-    let effects =
-        crate::production::callable_interfaces::source_function_effects(export, function, &binders)
-            .map_err(Error::Effects)?;
+    let effects = crate::production::callable_interfaces::source_function_effects(
+        inputs.extern_functions,
+        function,
+        &binders,
+    )
+    .map_err(Error::Effects)?;
     let type_parameters = binder_uses(
         function
             .type_params()
@@ -79,7 +104,7 @@ pub(super) fn project(
     let (no_gc, pointees) = match &function.genericity {
         FunctionGenericity::Plain => (&[][..], &[][..]),
         FunctionGenericity::Generic { definition, .. } => {
-            let declaration = &export.generic_functions[*definition];
+            let declaration = &inputs.generic_functions[*definition];
             (
                 declaration.no_gc_type_params.as_slice(),
                 declaration.gc_free_pointee_requirements.as_slice(),
@@ -94,7 +119,7 @@ pub(super) fn project(
             gc_free_pointee_requirements.as_slice(),
         ),
         FunctionGenericity::GenericMethod { definition, .. } => {
-            let declaration = &export.generic_methods[*definition];
+            let declaration = &inputs.generic_methods[*definition];
             (
                 declaration.no_gc_type_params.as_slice(),
                 declaration.gc_free_pointee_requirements.as_slice(),
@@ -117,7 +142,7 @@ pub(super) fn project(
         effects,
         type_parameters,
         predicates,
-        ExportDefinitionSourceV1::new(definition.clone()),
+        definition,
         capture_types,
         crate::production::callable_interfaces::context_parameters(&signatures, function, &binders)
             .map_err(Error::ContextParameters)?,

@@ -19,7 +19,7 @@ use crate::{
 };
 
 pub(super) struct DefaultEntityProjector<'a> {
-    export: &'a ExportHir,
+    inputs: crate::HirBodyProjectionInputs<'a>,
     imported_dependencies: Option<&'a SelectedImportedDependencySet>,
     signatures: HirInterfaceSignatureProjector<'a>,
 }
@@ -29,16 +29,25 @@ impl<'a> DefaultEntityProjector<'a> {
         export: &'a ExportHir,
         imported_dependencies: Option<&'a SelectedImportedDependencySet>,
     ) -> Self {
-        Self {
-            export,
-
+        Self::from_inputs(
+            crate::HirBodyProjectionInputs::from_export(export),
             imported_dependencies,
-            signatures: HirInterfaceSignatureProjector::new(export),
+        )
+    }
+
+    pub(super) fn from_inputs(
+        inputs: crate::HirBodyProjectionInputs<'a>,
+        imported_dependencies: Option<&'a SelectedImportedDependencySet>,
+    ) -> Self {
+        Self {
+            signatures: HirInterfaceSignatureProjector::from_inputs(inputs.type_inputs),
+            inputs,
+            imported_dependencies,
         }
     }
 
-    pub(super) const fn export(&self) -> &'a ExportHir {
-        self.export
+    pub(super) const fn inputs(&self) -> &crate::HirBodyProjectionInputs<'a> {
+        &self.inputs
     }
 
     pub(super) fn type_key(
@@ -105,12 +114,12 @@ impl<'a> DefaultEntityProjector<'a> {
                 HirFunctionIdentity::PropertyAccessor(accessor) => {
                     let id = match accessor {
                         HirPropertyAccessorFunction::Getter(id) => self
-                            .export
+                            .inputs
                             .property_accessor_identities
                             .get_getter(*id)
                             .map(|identity| identity.id()),
                         HirPropertyAccessorFunction::Setter(id) => self
-                            .export
+                            .inputs
                             .property_accessor_identities
                             .get_setter(*id)
                             .map(|identity| identity.id()),
@@ -186,12 +195,12 @@ impl<'a> DefaultEntityProjector<'a> {
             HirFunctionIdentity::PropertyAccessor(accessor) => {
                 let id = match accessor {
                     HirPropertyAccessorFunction::Getter(id) => self
-                        .export
+                        .inputs
                         .property_accessor_identities
                         .get_getter(*id)
                         .map(|identity| identity.id()),
                     HirPropertyAccessorFunction::Setter(id) => self
-                        .export
+                        .inputs
                         .property_accessor_identities
                         .get_setter(*id)
                         .map(|identity| identity.id()),
@@ -237,13 +246,13 @@ impl<'a> DefaultEntityProjector<'a> {
         &self,
         function: crate::FunctionId,
     ) -> Result<&crate::HirFunctionIdentity, DefaultEntityProjectionError> {
-        arena_get(&self.export.functions, function).ok_or(
+        arena_get(self.inputs.functions, function).ok_or(
             DefaultEntityProjectionError::Unknown {
                 kind: "function",
                 index: super::raw_index(function),
             },
         )?;
-        self.export.function_identities.get(function).ok_or(
+        self.inputs.function_identities.get(function).ok_or(
             DefaultEntityProjectionError::MissingIdentity {
                 kind: "function",
                 index: super::raw_index(function),

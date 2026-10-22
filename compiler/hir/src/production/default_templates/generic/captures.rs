@@ -10,7 +10,7 @@ pub(super) fn project(
     binders: &[HirSignatureBinder],
     locals: &mut TemplateLocalProjection,
 ) -> Result<Vec<SignatureTypeKey>, Error> {
-    let export = entities.export();
+    let export = entities.inputs();
     if let Some((_, local)) = export
         .local_functions
         .iter()

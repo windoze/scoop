@@ -5,11 +5,11 @@ use crate::{
 };
 
 pub(super) fn project(
+    export: &ExportHir,
     entities: &DefaultEntityProjector<'_>,
     owner: scoop_identity::PersistentGenericTypeId,
     structure: crate::StructId,
 ) -> Result<ExportGenericNominalInitializationV1, Error> {
-    let export = entities.export();
     let declaration = &export.structs[structure];
     let owner_type = export.struct_applications[declaration.self_application].canonical_type;
     let constructors = declaration

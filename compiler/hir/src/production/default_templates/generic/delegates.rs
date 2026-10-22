@@ -8,13 +8,13 @@ impl GenericBodyProducer<'_> {
         &self,
         template: GenericDelegateTemplateId,
     ) -> Result<ExportGenericDelegateTemplateV1, GenericTemplateProductionError> {
-        let export = self.entities.export();
+        let export = self.export;
         let template = &export.generic_delegate_templates[template];
         let unit = &export.initialization_units[template.initialization];
         let property = export.property_identities[template.property]
             .extension_id()
             .expect("a generic delegate retains its extension declaration");
-        let initializer = projection::project(&self.entities, unit.initializer)?
+        let initializer = projection::project(self.export, &self.entities, unit.initializer)?
             .expect("a source delegate initializer has a checked executable body");
         let binders = crate::production::signatures::HirInterfaceSignatureProjector::new(export)
             .function_binders(&export.functions[unit.initializer])

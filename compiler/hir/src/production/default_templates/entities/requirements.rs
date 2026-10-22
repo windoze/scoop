@@ -6,7 +6,7 @@ impl DefaultEntityProjector<'_> {
         &self,
         id: crate::MemberRequirementId,
     ) -> Result<crate::DefaultMemberRequirementRefV1, DefaultEntityProjectionError> {
-        let owner = self.export.member_requirement_owners.get(&id).ok_or(
+        let owner = self.inputs.member_requirement_owners.get(&id).ok_or(
             DefaultEntityProjectionError::MissingIdentity {
                 kind: "member requirement owner",
                 index: id.ordinal,
@@ -14,7 +14,7 @@ impl DefaultEntityProjector<'_> {
         )?;
         let (declaration, parameters, binders) = match *owner {
             Owner::Source(function) => {
-                let source = &self.export.functions[function];
+                let source = &self.inputs.functions[function];
                 (
                     self.callable_declaration(function)?,
                     source
@@ -28,7 +28,7 @@ impl DefaultEntityProjector<'_> {
                 )
             }
             Owner::Imported(template) => {
-                let template = &self.export.imported_generic_templates[template];
+                let template = &self.inputs.imported_generic_templates[template];
                 let parameters = template.type_parameters.declarations().to_vec();
                 let binders = parameters
                     .iter()
@@ -101,11 +101,11 @@ impl DefaultEntityProjector<'_> {
                 type_arguments,
             } => {
                 let implementation =
-                    &self.export.member_requirement_implementations[*implementation];
+                    &self.inputs.member_requirement_implementations[*implementation];
                 let recipe_binders = type_arguments
                     .iter()
                     .enumerate()
-                    .filter_map(|(index, ty)| match self.export.types[*ty] {
+                    .filter_map(|(index, ty)| match self.inputs.types[*ty] {
                         crate::Type::Param(parameter) => Some(HirSignatureBinder {
                             parameter,
                             depth: 0,

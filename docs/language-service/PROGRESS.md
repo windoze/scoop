@@ -40,6 +40,7 @@
 - 完整方法描述：普通声明方法保留 receiver、context／值参数、结果、effect、正文引用、原身份及访问域；方法自身的泛型 bound 同时提供定义与 owner 应用视图，沿原调用解析补全并替换参数。依赖方法在同一查询视图内复用实际 owner binder 和一次准备的自身 binder；原生类型也使用实际 core 方法。格式化、全 workspace Clippy 和 49 项查询／生成／调用解析定向测试通过，包括原参数身份、default 实参、接口默认／抽象状态和最终身份复用。导出查找、逻辑正文投影、实际 generator 和 D／E 继续实施。
 - 导出查找：共享查询按明确 provider 和 type／value 命名空间读取当前公共导出与直接依赖；复用最长 package 前缀和真实 static／companion 边，provider 筛选先于前缀选择。public import 保持原声明身份，重载集合和各类声明区分保留，private／internal 不成为导出；alias 身份由最终封装复用。格式化、全 workspace Clippy 和 132 项查询／命名空间／import／持久 alias 定向测试通过。默认值与正文的逻辑投影、实际 generator 进程及 D／E 继续实施。
 - 声明类型上下文：类型描述和签名投影可使用实际名义／方法声明的 binder，独立于调用方的词法上下文；宿主参数和方法自身参数保持原签名层级，跨 Cone 的同名参数不会混用，读取后恢复原上下文。格式化、全 workspace Clippy 和 33 项共享查询／生成测试通过。正文与默认值投影继续复用这一上下文，实际协议及 D／E 尚未完成。
+- 共同正文投影：从原默认模板／泛型正文生产器中提取借用类型、实体与来源的输入视图；普通正文和默认模板可沿同一转换形成完整可移植逻辑树，不要求先创建成功 ExportHir。原产物路径复用该实现，保留 capture、前参、effect 与定义来源。格式化、全 workspace Clippy 和 253 项 HIR／前端的模板、共享源码及生成查询测试通过。固定查询接入及 JSON 编码继续实施，此批不表示外部 generator 已完成。
 
 ## 环境与验证策略
 

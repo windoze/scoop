@@ -24,10 +24,10 @@ impl BodyProjection<'_, '_> {
             kind,
             self.type_key(expression.ty)?,
             self.origin(expression.origin.definition())?,
-            crate::production::definition_sources::project_evaluation_origin(
-                self.entities.export(),
-                expression.origin.concrete().evaluation,
-            )?,
+            self.entities
+                .inputs()
+                .sources
+                .evaluation(expression.origin.concrete().evaluation)?,
         )
         .map_err(super::super::DefaultBodyProjectionError::Expression)
     }
@@ -195,7 +195,7 @@ impl BodyProjection<'_, '_> {
                 target_type,
             } => {
                 let coercion =
-                    super::super::arena_get(&self.entities.export().function_coercions, *coercion)
+                    super::super::arena_get(self.entities.inputs().function_coercions, *coercion)
                         .ok_or_else(|| self.unknown("function coercion", *coercion))?;
                 DefaultExpressionKindV1::FunctionCoercion {
                     source: Box::new(self.expression(source)?),

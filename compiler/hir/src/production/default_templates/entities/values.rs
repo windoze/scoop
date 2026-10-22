@@ -16,12 +16,12 @@ impl DefaultEntityProjector<'_> {
         application: crate::StructConstructorApplicationId,
         binders: &[HirSignatureBinder],
     ) -> Result<DefaultConstructorRefV1, super::super::DefaultEntityProjectionError> {
-        let application = arena_get(&self.export.struct_constructor_applications, application)
+        let application = arena_get(self.inputs.struct_constructor_applications, application)
             .ok_or(super::super::DefaultEntityProjectionError::Unknown {
                 kind: "struct constructor application",
                 index: super::super::raw_index(application),
             })?;
-        let owner = arena_get(&self.export.struct_applications, application.owner).ok_or(
+        let owner = arena_get(self.inputs.struct_applications, application.owner).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "struct application",
                 index: super::super::raw_index(application.owner),
@@ -33,7 +33,7 @@ impl DefaultEntityProjector<'_> {
                     self.struct_constructor_id(constructor)?
                 }
                 crate::StructConstructorDefinition::Template(template) => {
-                    self.export.imported_constructor_templates[template].declaration
+                    self.inputs.imported_constructor_templates[template].declaration
                 }
             },
             owner_type: self.type_key(owner.canonical_type, binders)?,
@@ -45,12 +45,12 @@ impl DefaultEntityProjector<'_> {
         application: crate::ClassConstructorApplicationId,
         binders: &[HirSignatureBinder],
     ) -> Result<DefaultConstructorRefV1, super::super::DefaultEntityProjectionError> {
-        let application = arena_get(&self.export.class_constructor_applications, application)
+        let application = arena_get(self.inputs.class_constructor_applications, application)
             .ok_or(super::super::DefaultEntityProjectionError::Unknown {
                 kind: "class constructor application",
                 index: super::super::raw_index(application),
             })?;
-        let owner = arena_get(&self.export.class_applications, application.owner).ok_or(
+        let owner = arena_get(self.inputs.class_applications, application.owner).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "class application",
                 index: super::super::raw_index(application.owner),
@@ -63,7 +63,7 @@ impl DefaultEntityProjector<'_> {
                 }
                 crate::ClassConstructorDefinition::Template(template) => {
                     DefaultClassConstructorIdV1::Source(
-                        self.export.imported_constructor_templates[template].declaration,
+                        self.inputs.imported_constructor_templates[template].declaration,
                     )
                 }
             },
@@ -79,7 +79,7 @@ impl DefaultEntityProjector<'_> {
         Ok(DefaultEnumVariantRefV1::new(
             variant.variant,
             self.type_key(
-                self.export.enum_applications[variant.owner].canonical_type,
+                self.inputs.enum_applications[variant.owner].canonical_type,
                 binders,
             )?,
         ))
@@ -93,7 +93,7 @@ impl DefaultEntityProjector<'_> {
         Ok(DefaultEnumVariantFieldRefV1::new(
             field.field,
             self.type_key(
-                self.export.enum_applications[field.variant.owner].canonical_type,
+                self.inputs.enum_applications[field.variant.owner].canonical_type,
                 binders,
             )?,
         ))
@@ -124,13 +124,13 @@ impl DefaultEntityProjector<'_> {
         global: crate::GlobalId,
     ) -> Result<scoop_identity::PersistentPropertyId, super::super::DefaultEntityProjectionError>
     {
-        let global = arena_get(&self.export.globals, global).ok_or(
+        let global = arena_get(self.inputs.globals, global).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "global",
                 index: super::super::raw_index(global),
             },
         )?;
-        let property = self.export.property_identities.get(global.property).ok_or(
+        let property = self.inputs.property_identities.get(global.property).ok_or(
             super::super::DefaultEntityProjectionError::MissingIdentity {
                 kind: "property",
                 index: super::super::raw_index(global.property),
@@ -148,7 +148,7 @@ impl DefaultEntityProjector<'_> {
         property: crate::PropertyId,
     ) -> Result<scoop_identity::PersistentPropertyId, super::super::DefaultEntityProjectionError>
     {
-        self.export
+        self.inputs
             .property_identities
             .get(property)
             .ok_or(
@@ -170,13 +170,13 @@ impl DefaultEntityProjector<'_> {
         value: crate::SingletonValueId,
     ) -> Result<scoop_identity::PersistentObjectValueId, super::super::DefaultEntityProjectionError>
     {
-        arena_get(&self.export.singleton_values, value).ok_or(
+        arena_get(self.inputs.singleton_values, value).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "singleton value",
                 index: super::super::raw_index(value),
             },
         )?;
-        self.export
+        self.inputs
             .object_value_identities
             .get(value)
             .map(|identity| identity.id())
@@ -195,13 +195,13 @@ impl DefaultEntityProjector<'_> {
         scoop_identity::PersistentCallbackRegistrationId,
         super::super::DefaultEntityProjectionError,
     > {
-        arena_get(&self.export.foreign_callback_registrations, id).ok_or(
+        arena_get(self.inputs.foreign_callback_registrations, id).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "callback registration",
                 index: super::super::raw_index(id),
             },
         )?;
-        Ok(self.export.callback_registration_identities[id].id())
+        Ok(self.inputs.callback_registration_identities[id].id())
     }
 
     pub(in crate::production::default_templates) fn initialization_id(
@@ -211,13 +211,13 @@ impl DefaultEntityProjector<'_> {
         scoop_identity::PersistentInitializationUnitId,
         super::super::DefaultEntityProjectionError,
     > {
-        arena_get(&self.export.initialization_units, id).ok_or(
+        arena_get(self.inputs.initialization_units, id).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "initialization unit",
                 index: super::super::raw_index(id),
             },
         )?;
-        Ok(self.export.initialization_unit_identities[id].id())
+        Ok(self.inputs.initialization_unit_identities[id].id())
     }
 
     pub(in crate::production::default_templates) fn callable_reference_invoke(
@@ -245,7 +245,7 @@ impl DefaultEntityProjector<'_> {
             }
         };
         let sites =
-            self.export
+            self.inputs
                 .local_functions
                 .values()
                 .filter_map(|declaration| {
@@ -253,14 +253,14 @@ impl DefaultEntityProjector<'_> {
                         .source()
                         .map(|(function, root)| (function, root, &declaration.definition_path))
                 })
-                .chain(self.export.lambdas.values().filter_map(|declaration| {
+                .chain(self.inputs.lambdas.values().filter_map(|declaration| {
                     declaration
                         .definition
                         .source()
                         .map(|(function, root)| (function, root, &declaration.definition_path))
                 }))
                 .chain(
-                    self.export
+                    self.inputs
                         .anonymous_functions
                         .values()
                         .filter_map(|declaration| {
@@ -290,13 +290,13 @@ impl DefaultEntityProjector<'_> {
         constructor: crate::StructConstructorId,
     ) -> Result<scoop_identity::PersistentConstructorId, super::super::DefaultEntityProjectionError>
     {
-        arena_get(&self.export.struct_constructors, constructor).ok_or(
+        arena_get(self.inputs.struct_constructors, constructor).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "struct constructor",
                 index: super::super::raw_index(constructor),
             },
         )?;
-        self.export
+        self.inputs
             .constructor_identities
             .get_struct(constructor)
             .map(|identity| identity.id())
@@ -312,14 +312,14 @@ impl DefaultEntityProjector<'_> {
         &self,
         constructor: crate::ClassConstructorId,
     ) -> Result<DefaultClassConstructorIdV1, super::super::DefaultEntityProjectionError> {
-        arena_get(&self.export.class_constructors, constructor).ok_or(
+        arena_get(self.inputs.class_constructors, constructor).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "class constructor",
                 index: super::super::raw_index(constructor),
             },
         )?;
         match self
-            .export
+            .inputs
             .constructor_identities
             .get_class(constructor)
             .ok_or(
@@ -342,7 +342,7 @@ impl DefaultEntityProjector<'_> {
         variant: crate::EnumVariantRef,
     ) -> Result<scoop_identity::PersistentEnumVariantId, super::super::DefaultEntityProjectionError>
     {
-        self.export
+        self.inputs
             .enum_member_identities
             .get_variant(variant)
             .map(|identity| identity.id())

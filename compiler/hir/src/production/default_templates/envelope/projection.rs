@@ -24,18 +24,18 @@ pub(in crate::production::default_templates) struct ProjectedDefaultBody<'a> {
 }
 
 pub(in crate::production::default_templates) fn project_body<'a>(
-    export: &'a ExportHir,
-    entities: &DefaultEntityProjector<'_>,
+    entities: &DefaultEntityProjector<'a>,
     target_binders: &[HirSignatureBinder],
     expression: ExportDefaultExprId,
     type_arguments: &[TypeId],
 ) -> Result<ProjectedDefaultBody<'a>, DefaultTemplateEnvelopeProjectionError> {
-    let template = super::super::arena_get(&export.export_default_exprs, expression).ok_or(
-        DefaultTemplateEnvelopeProjectionError::UnknownDefaultExpression(super::super::raw_index(
-            expression,
-        )),
-    )?;
-    let provider = provider_scope(export, entities, template.definition_root)?;
+    let template = super::super::arena_get(entities.inputs().export_default_exprs, expression)
+        .ok_or(
+            DefaultTemplateEnvelopeProjectionError::UnknownDefaultExpression(
+                super::super::raw_index(expression),
+            ),
+        )?;
+    let provider = provider_scope(entities, template.definition_root)?;
     if template.type_parameters.len() != provider.flattened.len() {
         return Err(DefaultTemplateEnvelopeProjectionError::TypeParameterArity {
             expected: provider.flattened.len(),
@@ -115,9 +115,11 @@ pub(in crate::production::default_templates) fn project_body<'a>(
     let value_parameters = CanonicalTemplateValueParametersV1::try_new(value_parameters)
         .map_err(DefaultTemplateEnvelopeProjectionError::ValueParameters)?;
 
-    let definition_origin =
-        crate::production::definition_sources::project_definition_source(export, template.origin)
-            .map_err(DefaultTemplateEnvelopeProjectionError::DefinitionOrigin)?;
+    let definition_origin = entities
+        .inputs()
+        .sources
+        .definition(template.origin)
+        .map_err(DefaultTemplateEnvelopeProjectionError::DefinitionOrigin)?;
     Ok(ProjectedDefaultBody {
         root: provider.root,
         path: template.definition_path.clone(),

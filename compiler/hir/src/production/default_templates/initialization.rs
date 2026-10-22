@@ -23,6 +23,7 @@ enum Owner {
 }
 
 pub(in crate::production) struct GenericInitializationProducer<'a> {
+    export: &'a ExportHir,
     entities: DefaultEntityProjector<'a>,
     pending: VecDeque<(scoop_identity::PersistentGenericTypeId, Owner)>,
     scheduled: BTreeSet<scoop_identity::PersistentGenericTypeId>,
@@ -34,6 +35,7 @@ impl<'a> GenericInitializationProducer<'a> {
         imported: Option<&'a SelectedImportedDependencySet>,
     ) -> Self {
         Self {
+            export,
             entities: DefaultEntityProjector::new(export, imported),
             pending: VecDeque::new(),
             scheduled: BTreeSet::new(),
@@ -41,7 +43,7 @@ impl<'a> GenericInitializationProducer<'a> {
     }
 
     pub(in crate::production) fn include_roots(&mut self, roots: &SharedSourceRoots) {
-        let export = self.entities.export();
+        let export = self.export;
         for (class, declaration) in export.classes.iter() {
             if declaration.is_declared() {
                 self.schedule(
@@ -93,9 +95,11 @@ impl<'a> GenericInitializationProducer<'a> {
             return Ok(None);
         };
         match local {
-            Owner::Class(class) => classes::project(&self.entities, owner, class).map(Some),
+            Owner::Class(class) => {
+                classes::project(self.export, &self.entities, owner, class).map(Some)
+            }
             Owner::Struct(structure) => {
-                structures::project(&self.entities, owner, structure).map(Some)
+                structures::project(self.export, &self.entities, owner, structure).map(Some)
             }
         }
     }
