@@ -31,6 +31,14 @@ typedef struct {
     bool has_next;
 } ScoopRegexMatch;
 
+typedef struct {
+    uint8_t *data;
+    int64_t length;
+    int32_t code;
+    int64_t offset;
+    bool replacement_error;
+} ScoopRegexText;
+
 static inline pcre2_code *scoop_regex_code(uint64_t handle) {
     return (pcre2_code *)(uintptr_t)handle;
 }

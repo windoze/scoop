@@ -1,0 +1,36 @@
+package scoop.regex
+
+/**
+ * Replaces every match with a callback result. Callbacks run after the native match and borrow
+ * have ended; exceptions propagate without returning partial output.
+ */
+public fun Regex.replace(input: String, transform: (MatchResult) -> String): String =
+    callbackReplacement(this, input, false, transform)
+
+/** Replaces the first match with a callback result, after ending the native input borrow. */
+public fun Regex.replaceFirst(input: String, transform: (MatchResult) -> String): String =
+    callbackReplacement(this, input, true, transform)
+
+private fun callbackReplacement(regex: Regex, input: String, first: Boolean, transform: (MatchResult) -> String): String {
+    val output = StringBuilder()
+    var position = 0L
+    var replaced = false
+    for (match in regex.findAll(input)) {
+        output.append(regexSlice(input, position, match.byteStart))
+        output.append(transform(match))
+        position = match.byteEnd
+        replaced = true
+        if (first) break
+    }
+    if (!replaced) return input
+    output.append(regexSlice(input, position, input.byteLength))
+    return output.toString()
+}
+
+internal fun regexSlice(input: String, start: Long, end: Long): String {
+    @Unsafe {
+        return input.withUtf8Bytes { bytes, _ ->
+            @Unsafe { return@withUtf8Bytes String.fromUtf8(bytes + start, end - start) }
+        }
+    }
+}

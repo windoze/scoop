@@ -23,3 +23,5 @@ kind = "static"
 path = "native/compile.c"
 [[native.sources]]
 path = "native/match.c"
+[[native.sources]]
+path = "native/replace.c"
