@@ -9,7 +9,7 @@ pub enum AnnotationCallableV1 {
     Local(PersistentGeneratedCallableId),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum DecodedAnnotationCallableV1 {
     Declaration(DecodedCallableTemplateOrigin),
     Local(DecodedPersistentId<PersistentGeneratedCallableId>),

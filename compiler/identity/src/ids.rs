@@ -199,6 +199,12 @@ impl<I: PersistentId> DecodedPersistentId<I> {
     }
 }
 
+impl<I: PersistentId> From<I> for DecodedPersistentId<I> {
+    fn from(id: I) -> Self {
+        Self::from_bytes(*id.as_array())
+    }
+}
+
 impl<I: PersistentId> WireEncode for DecodedPersistentId<I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.bytes(&self.bytes)

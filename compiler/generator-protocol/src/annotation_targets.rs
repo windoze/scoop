@@ -5,6 +5,8 @@ use scoop_hir as hir;
 use scoop_identity::*;
 use serde::{Deserialize, Serialize};
 
+mod decode;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "id", rename_all = "camelCase")]
 pub enum PropertyDeclaration {

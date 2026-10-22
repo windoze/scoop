@@ -93,7 +93,7 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn property_annotation_site(
+    pub(crate) fn property_annotation_site(
         &self,
         property: hir::PropertyId,
         site: Site,

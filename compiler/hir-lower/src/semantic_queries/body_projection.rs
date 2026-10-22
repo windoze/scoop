@@ -7,7 +7,7 @@ mod data;
 mod defaults;
 mod inputs;
 mod retention;
-use data::ProjectionData;
+pub(super) use data::ProjectionData;
 
 pub(super) struct BodyQueries<'a> {
     lowerer: &'a Lowerer,
@@ -28,7 +28,7 @@ impl<'a> BodyQueries<'a> {
         }
     }
 
-    fn data(&self) -> Result<&ProjectionData, Diagnostic> {
+    pub(super) fn data(&self) -> Result<&ProjectionData, Diagnostic> {
         self.data
             .get_or_init(|| ProjectionData::new(self.lowerer))
             .as_ref()

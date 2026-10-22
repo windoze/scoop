@@ -53,7 +53,7 @@ impl WireDecode for DecodedPropertyAccessorKey {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum DecodedCallableTemplateOrigin {
     Function(DecodedPersistentId<PersistentFunctionId>),
     GenericFunction(DecodedPersistentId<PersistentGenericFunctionId>),

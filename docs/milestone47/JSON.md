@@ -80,6 +80,10 @@ SourceIdentity 为 `{cone, path}`，`cone` 使用 typed cone identity，`path` �
 
 参数位置仅在该 callable 内有意义；receiver 不伪装成值参数 0，存储 target 不伪装成属性本身。每个 typed identity 仍采用声明引用的十六进制格式，实际引用解析属于当前固定视图。
 
+target 的解析覆盖当前源码和已选依赖中的实际声明，也覆盖没有注解的合法目标。字段／variant 字段、普通／扩展 property 和 callable 类别分别查找；不存在的参数位置、receiver 或存储组成部分返回未找到，不能当作一个空注解列表。已解析的目标保留原规范化引用、可供读取注解的本地关联和定义来源。字段、variant 字段与值参数使用自己的来源；receiver／存储位置关联到实际 callable／property 的定义位置。
+
+依赖按已发布的实际组成部分查询：`RuntimeAccessor` 本身不能推出隐藏存储；已有 storage 访问器、native storage、委托模板或已发布的存储注解目标才提供对应的 backing／delegate 引用。局部 callable 的值参数沿原参数 selector 读取，receiver、闭包环境和 capture ABI 参数不计入值参数位置。
+
 ## 待填方法签名
 
 CompleteMethodSignature 包含 `method`、`owner`、`name`、`receiver`、`binders`、`contextParameters`、`parameters`、`result`、`effects` 和 `origin`。method 使用 MethodId，owner 使用实际名义声明引用，所有类型按本签名的 binder 上下文解释。

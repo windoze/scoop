@@ -1,10 +1,10 @@
 use super::*;
 
-pub(super) struct ProjectionData {
-    pub(super) functions: hir::HirFunctionIdentities,
-    pub(super) properties: hir::HirPropertyIdentities,
-    pub(super) accessors: hir::HirPropertyAccessorIdentities,
-    pub(super) constructors: hir::HirConstructorIdentities,
+pub(in crate::semantic_queries) struct ProjectionData {
+    pub(in crate::semantic_queries) functions: hir::HirFunctionIdentities,
+    pub(in crate::semantic_queries) properties: hir::HirPropertyIdentities,
+    pub(in crate::semantic_queries) accessors: hir::HirPropertyAccessorIdentities,
+    pub(in crate::semantic_queries) constructors: hir::HirConstructorIdentities,
     pub(super) initializations: hir::HirInitializationUnitIdentities,
     pub(super) objects: hir::HirObjectValueIdentities,
     pub(super) callbacks: hir::HirCallbackRegistrationIdentities,

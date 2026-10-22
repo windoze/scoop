@@ -10,8 +10,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 mod callable;
 mod kind;
 mod wire;
-pub use callable::AnnotationCallableV1;
-use callable::DecodedAnnotationCallableV1;
+pub use callable::{AnnotationCallableV1, DecodedAnnotationCallableV1};
+mod decoded;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum AnnotationTargetV1 {
@@ -36,7 +36,7 @@ pub enum AnnotationTargetV1 {
     },
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum DecodedAnnotationTargetV1 {
     Nominal(DecodedNominalDeclarationOwner),
     Variant(DecodedPersistentId<PersistentEnumVariantId>),

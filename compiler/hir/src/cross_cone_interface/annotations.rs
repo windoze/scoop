@@ -13,7 +13,10 @@ mod type_uses;
 pub use type_uses::{AnnotatedTypeUseV1, AnnotationTypeSiteV1};
 mod value;
 mod wire;
-pub use target::{AnnotationCallableV1, AnnotationTargetV1, DecodedAnnotationTargetV1};
+pub use target::{
+    AnnotationCallableV1, AnnotationTargetV1, DecodedAnnotationCallableV1,
+    DecodedAnnotationTargetV1,
+};
 pub use value::{
     AnnotationElementTypeV1, AnnotationElementV1, CanonicalAnnotationValueV1,
     DecodedAnnotationValueV1,

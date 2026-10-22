@@ -92,6 +92,10 @@ pub trait SemanticQueries {
         annotation: scoop_identity::PersistentAnnotationId,
     ) -> Option<SemanticAnnotationDeclaration<'_>>;
     fn describe_annotations(&self, target: SemanticAnnotationTarget) -> SemanticAnnotations<'_>;
+    fn resolve_declaration(
+        &mut self,
+        reference: DecodedAnnotationTargetV1,
+    ) -> Result<Option<SemanticDeclaration>, Diagnostic>;
     fn body(
         &self,
         callable: SemanticCallable,

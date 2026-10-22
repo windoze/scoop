@@ -3,6 +3,7 @@ use hir::{SemanticBody as Body, SemanticBodyAvailability as Availability, Semant
 
 mod annotations;
 mod constructors;
+mod declaration_references;
 mod defaults;
 mod descriptions;
 mod exports;

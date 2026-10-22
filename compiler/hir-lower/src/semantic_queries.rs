@@ -9,6 +9,7 @@ mod body_projection;
 mod context;
 use context::imported_location;
 mod constructors;
+mod declaration_references;
 mod declarations;
 mod defaults;
 mod exports;
@@ -24,6 +25,8 @@ pub(crate) struct FrontendQueries<'a, 'input> {
     pub(crate) world: Option<&'a hir::ImportedSemanticWorld<'input>>,
     body_queries: body_projection::BodyQueries<'a>,
     nominal_references: std::cell::OnceCell<type_references::NominalReferences>,
+    declaration_references:
+        std::cell::OnceCell<Result<declaration_references::DeclarationReferences, Diagnostic>>,
 }
 
 impl<'a, 'input> FrontendQueries<'a, 'input> {
@@ -37,6 +40,7 @@ impl<'a, 'input> FrontendQueries<'a, 'input> {
             world,
             body_queries: body_projection::BodyQueries::new(original),
             nominal_references: std::cell::OnceCell::new(),
+            declaration_references: std::cell::OnceCell::new(),
         }
     }
 
@@ -81,6 +85,13 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         annotation: scoop_identity::PersistentAnnotationId,
     ) -> Option<hir::SemanticAnnotationDeclaration<'_>> {
         self.query_annotation_declaration(annotation)
+    }
+
+    fn resolve_declaration(
+        &mut self,
+        reference: hir::DecodedAnnotationTargetV1,
+    ) -> Result<Option<hir::SemanticDeclaration>, Diagnostic> {
+        self.query_declaration(reference)
     }
 
     fn describe_annotations(
