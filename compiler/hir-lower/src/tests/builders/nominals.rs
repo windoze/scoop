@@ -330,13 +330,16 @@ pub(crate) fn enum_decl_full(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Enum(ast::EnumDecl {
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        type_params: type_params.into_iter().map(type_param).collect(),
+        header: ast::EnumHeader {
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            type_params: type_params.into_iter().map(type_param).collect(),
+            interfaces: interfaces.into_iter().map(ty_named).collect(),
+            where_clause: None,
+            span: sp(),
+        },
         variants,
-        interfaces: interfaces.into_iter().map(ty_named).collect(),
-        where_clause: None,
         methods,
         properties: Vec::new(),
         nested: Vec::new(),

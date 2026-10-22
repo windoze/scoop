@@ -61,7 +61,7 @@ impl Lowerer {
                 hir::SemanticContext::Nominal(hir::NominalOwner::Enum(id)),
                 |lowerer| {
                     lowerer.document_enum(id, source);
-                    for property in &source.properties {
+                    for property in source.properties {
                         lowerer.document_editing_property(property);
                     }
                 },

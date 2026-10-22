@@ -7,12 +7,15 @@ use crate::{
 
 mod interfaces;
 pub use interfaces::*;
+mod enums;
+pub use enums::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RecoveredNominal {
     Class(Box<RecoveredClass>),
     Struct(Box<RecoveredStruct>),
     Interface(Box<RecoveredInterface>),
+    Enum(Box<RecoveredEnum>),
 }
 
 impl RecoveredNominal {
@@ -21,6 +24,7 @@ impl RecoveredNominal {
             Self::Class(value) => value.span,
             Self::Struct(value) => value.span,
             Self::Interface(value) => value.span,
+            Self::Enum(value) => value.span,
         }
     }
 
@@ -29,6 +33,7 @@ impl RecoveredNominal {
             Self::Class(value) => &mut value.recovery,
             Self::Struct(value) => &mut value.recovery,
             Self::Interface(value) => &mut value.recovery,
+            Self::Enum(value) => &mut value.recovery,
         }
     }
 }

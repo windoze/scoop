@@ -4,7 +4,7 @@ impl Lowerer {
     pub(crate) fn resolve_nominal_parameter_constraints(
         &mut self,
         pending_structs: &[(StructId, ast::StructSource<'_>, usize)],
-        pending_enums: &[(EnumId, &ast::EnumDecl, usize)],
+        pending_enums: &[(EnumId, ast::EnumSource<'_>, usize)],
         pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         pending_interfaces: &[(InterfaceId, ast::InterfaceSource<'_>, usize)],
         pending_objects: &[(ObjectId, crate::declarations::ObjectSource<'_>, usize)],
@@ -23,7 +23,7 @@ impl Lowerer {
     pub(crate) fn resolve_nominal_parameter_constraints_with_cancellation<C>(
         &mut self,
         pending_structs: &[(StructId, ast::StructSource<'_>, usize)],
-        pending_enums: &[(EnumId, &ast::EnumDecl, usize)],
+        pending_enums: &[(EnumId, ast::EnumSource<'_>, usize)],
         pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         pending_interfaces: &[(InterfaceId, ast::InterfaceSource<'_>, usize)],
         pending_objects: &[(ObjectId, crate::declarations::ObjectSource<'_>, usize)],

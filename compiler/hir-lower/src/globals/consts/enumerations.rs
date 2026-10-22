@@ -3,14 +3,14 @@ use super::*;
 impl Lowerer {
     pub(crate) fn resolve_local_integral_enum_constants(
         &mut self,
-        enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
+        enums: &[(hir::EnumId, ast::EnumSource<'_>, usize)],
     ) {
         self.resolve_integral_enum_constants(enums, &[], &[], &mut []);
     }
 
     pub(super) fn resolve_integral_enum_constants(
         &mut self,
-        enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
+        enums: &[(hir::EnumId, ast::EnumSource<'_>, usize)],
         declarations: &[PendingConst<'_>],
         ordinary: &[PendingOrdinary<'_>],
         states: &mut [ConstState],
@@ -25,7 +25,7 @@ impl Lowerer {
             let expected = self.intern_type(hir::Type::Integer(kind));
             let mut values = Vec::new();
             let mut seen = std::collections::HashSet::new();
-            for variant in &declaration.variants {
+            for variant in declaration.variants {
                 let ast::VariantDeclKind::Constant(expression) = &variant.kind else {
                     continue;
                 };

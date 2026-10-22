@@ -255,7 +255,7 @@ impl SyntaxEvents {
             Vec::new()
         };
         let nominals = if recovering {
-            nominals.recover(&declarations, &headers, &bodies)
+            nominals.recover(&mut declarations, &headers, &bodies)
         } else {
             Vec::new()
         };

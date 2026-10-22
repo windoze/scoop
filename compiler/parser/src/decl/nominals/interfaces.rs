@@ -43,11 +43,14 @@ impl Parser {
                         NominalMember::Property(property) => properties.push(*property),
                         NominalMember::Nested(declaration) => nested.push(*declaration),
                         NominalMember::Companion(declaration) => companion = Some(*declaration),
-                        NominalMember::Class(_) | NominalMember::Struct(_) => {
+                        NominalMember::Class(_)
+                        | NominalMember::Struct(_)
+                        | NominalMember::Variant(_) => {
                             unreachable!("interface member production")
                         }
                     }
                     if let Err(diagnostic) = self.expect_statement_end() {
+                        self.invalidate_nominal_projection();
                         self.diagnostics.push(diagnostic);
                         self.synchronize_body_item(body_depth, start);
                     }

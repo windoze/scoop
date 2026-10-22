@@ -13,6 +13,8 @@ mod structs;
 pub use structs::*;
 mod interfaces;
 pub use interfaces::*;
+mod enums;
+pub use enums::*;
 mod local_types;
 pub use local_types::*;
 
@@ -315,58 +317,4 @@ impl TypeConstraintSubject {
             Self::Parameter(parameter) | Self::Companion(parameter) => parameter,
         }
     }
-}
-
-/// `enum E<T> { ... }` (spec 4.2).
-#[derive(Debug, Clone, PartialEq)]
-pub struct EnumDecl {
-    pub annotations: Vec<Annotation>,
-    pub visibility: VisibilitySyntax,
-    pub name: Ident,
-    pub type_params: Vec<TypeParamDecl>,
-    pub variants: Vec<VariantDecl>,
-    /// Implemented interfaces (spec 4.4.3).
-    pub interfaces: Vec<TypeRef>,
-    pub where_clause: Option<WhereClause>,
-    /// Member functions (spec 4.2).
-    pub methods: Vec<FunctionDecl>,
-    pub properties: Vec<PropertyDecl>,
-    pub nested: Vec<NestedTypeDecl>,
-    pub companion: Option<CompanionObjectDecl>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct VariantDecl {
-    pub annotations: Vec<Annotation>,
-    pub name: Ident,
-    pub kind: VariantDeclKind,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum VariantDeclKind {
-    /// `Variant = integer_constant` in an integral enum.
-    Constant(Box<crate::Expr>),
-    /// `SimpleVariant`
-    Unit,
-    /// `VariantWithValue(Int, String)` — unnamed fields.
-    Positional(Vec<crate::PositionalVariantFieldDecl>),
-    /// `Variant { f1: Int, f2: String }` — block-style named fields.
-    Named(Vec<VariantFieldDecl>),
-    /// `Variant(val f1: Int, val f2: String = "...")` —
-    /// constructor-style named fields (spec 4.2); defaults are
-    /// constant expressions in M4 (DESIGN.md 5.4).
-    Constructor(Vec<VariantFieldDecl>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct VariantFieldDecl {
-    pub annotations: Vec<Annotation>,
-    pub name: Ident,
-    pub ty: TypeRef,
-    /// Constructor-style variants use the full source parameter protocol;
-    /// block-style named variants always use [`ParameterSyntax::Required`].
-    pub syntax: ParameterSyntax,
-    pub span: Span,
 }

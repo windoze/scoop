@@ -59,7 +59,7 @@ impl Lowerer {
         methods: &[crate::declarations::MethodHeaderInput<'_>],
         structs: &[(hir::StructId, ast::StructSource<'_>, usize)],
         classes: &[(hir::ClassId, ast::ClassSource<'_>, usize)],
-        enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
+        enums: &[(hir::EnumId, ast::EnumSource<'_>, usize)],
     ) {
         for &(function, _, file) in functions {
             self.current_file = file;

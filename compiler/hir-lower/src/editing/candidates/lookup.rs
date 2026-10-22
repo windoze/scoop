@@ -21,6 +21,16 @@ impl Lowerer {
                 name,
                 navigation,
             } => {
+                if *navigation == ast::Navigation::Direct
+                    && let Some(candidates) = state.editing_current_qualified_candidates(
+                        call,
+                        receiver,
+                        name,
+                        is_cancelled,
+                    )?
+                {
+                    return Ok(candidates);
+                }
                 let Some(value) = state
                     .lower_expr(receiver, &mut Vec::new(), None)
                     .filter(|_| state.diagnostics.len() == before)

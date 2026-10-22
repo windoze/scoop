@@ -14,7 +14,7 @@ impl Lowerer {
         self.editing_member_candidates(call, receiver, name, operator, false, is_cancelled)
     }
 
-    pub(super) fn editing_member_candidates(
+    pub(crate) fn editing_member_candidates(
         &mut self,
         call: &ast::RecoveredCall,
         receiver: hir::Expr,

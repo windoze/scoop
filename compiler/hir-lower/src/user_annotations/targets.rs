@@ -59,7 +59,12 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn annotate_enum(&mut self, id: hir::EnumId, source: &ast::EnumDecl, file: usize) {
+    pub(crate) fn annotate_enum(
+        &mut self,
+        id: hir::EnumId,
+        source: ast::EnumSource<'_>,
+        file: usize,
+    ) {
         let owner = Owner::Enum(id);
         self.annotation_scope(owner, file);
         self.document_enum(id, source);
@@ -118,7 +123,7 @@ impl Lowerer {
                 }
             }
         }
-        for property in &source.properties {
+        for property in source.properties {
             self.annotate_property_declaration(property, file);
         }
     }

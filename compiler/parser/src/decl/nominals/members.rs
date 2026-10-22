@@ -45,6 +45,7 @@ impl Parser {
                     }
                     members.push(member);
                     if let Err(diagnostic) = self.expect_statement_end() {
+                        self.invalidate_nominal_projection();
                         self.diagnostics.push(diagnostic);
                         self.synchronize_body_item(body_depth, start);
                     }
@@ -378,6 +379,7 @@ impl Parser {
                     }
                     members.push(member);
                     if let Err(diagnostic) = self.expect_statement_end() {
+                        self.invalidate_nominal_projection();
                         self.diagnostics.push(diagnostic);
                         self.synchronize_body_item(body_depth, start);
                     }

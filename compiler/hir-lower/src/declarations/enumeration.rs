@@ -5,9 +5,9 @@ mod integral;
 impl Lowerer {
     pub(crate) fn declare_enum<'a>(
         &mut self,
-        decl: &'a ast::EnumDecl,
+        decl: ast::EnumSource<'a>,
         is_core: bool,
-        pending: &mut Vec<(EnumId, &'a ast::EnumDecl, usize)>,
+        pending: &mut Vec<(EnumId, ast::EnumSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
         owner: Option<Owner>,
@@ -111,7 +111,7 @@ impl Lowerer {
             self.option_candidates
                 .push((id, file_index, decl.span, decl.type_params.len()));
         }
-        for method in &decl.methods {
+        for method in decl.methods {
             self.declare_method(method, Owner::Enum(id), pending_methods, file_index);
         }
         pending.push((id, decl, file_index));

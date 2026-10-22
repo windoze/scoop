@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn resolve_enum_supertypes(&mut self, id: EnumId, declaration: &ast::EnumDecl) {
+    pub(crate) fn resolve_enum_supertypes(&mut self, id: EnumId, declaration: ast::EnumSource<'_>) {
         self.type_params_in_scope = self.enums[id].type_params.clone();
         let mut interfaces = Vec::new();
         for source in &declaration.interfaces {
@@ -40,7 +40,18 @@ impl Lowerer {
         }
         self.enums[id].interfaces = interfaces;
         if self.enums[id].representation.integer_kind().is_some() {
-            for method in &declaration.methods {
+            let methods = declaration
+                .methods
+                .iter()
+                .map(ast::FunctionDecl::header)
+                .chain(
+                    declaration
+                        .recovery
+                        .methods
+                        .iter()
+                        .map(ast::RecoveredMethod::header),
+                );
+            for method in methods {
                 if method.operator.is_some()
                     && matches!(
                         method.name.text.as_str(),

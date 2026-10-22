@@ -74,7 +74,7 @@ impl Lowerer {
         &mut self,
         pending: &[(&ast::GlobalDecl, usize)],
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
-        enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
+        enums: &[(hir::EnumId, ast::EnumSource<'_>, usize)],
     ) {
         let mut initializers = Vec::new();
         let mut constants = Vec::new();

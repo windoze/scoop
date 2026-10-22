@@ -205,7 +205,7 @@ impl Lowerer {
     /// variant and field names are diagnosed, field types resolve in
     /// the enum's type-parameter scope. Constructor-style defaults are
     /// type-checked into hygienic templates by the source-interface pass.
-    pub(super) fn resolve_variants(&mut self, id: EnumId, decl: &ast::EnumDecl) {
+    pub(super) fn resolve_variants(&mut self, id: EnumId, decl: ast::EnumSource<'_>) {
         self.type_params_in_scope = self.enums[id].type_params.clone();
         let mut seen = HashSet::new();
         let mut variants = Vec::new();
@@ -282,7 +282,7 @@ impl Lowerer {
             self.imports.bind_variant(id, source_index, target);
         }
         let mut properties = HashSet::new();
-        for property in &decl.properties {
+        for property in decl.properties {
             if !properties.insert(property.name.text.clone()) {
                 self.error(
                     property.name.span,

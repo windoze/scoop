@@ -1,6 +1,9 @@
 use super::*;
 
 mod fields;
+mod members;
+
+use crate::parser::NominalMember;
 
 impl Parser {
     /// `enum <name><T, ...>? (: <interface>, ...)? { <variant>, ...
@@ -27,6 +30,7 @@ impl Parser {
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
     ) -> Result<EnumDecl, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let keyword = self.expect("`enum`", |k| matches!(k, TokenKind::Enum))?;
         let name = self.expect_ident("enum name")?;
         self.record_declaration_name(&name);
@@ -34,6 +38,28 @@ impl Parser {
         let mut end = name.span.end;
         let interfaces = interfaces_only(self.parse_supertypes(&mut end)?)?;
         let where_clause = self.parse_where_clause()?;
+        let start = annotations
+            .first()
+            .map(|annotation| annotation.span.start)
+            .into_iter()
+            .chain(match visibility {
+                VisibilitySyntax::Explicit { span, .. } => Some(span.start),
+                VisibilitySyntax::Omitted => None,
+            })
+            .min()
+            .unwrap_or(keyword.span.start);
+        let header = scoop_ast::EnumHeader {
+            annotations,
+            visibility,
+            name,
+            type_params,
+            interfaces,
+            where_clause,
+            span: Span::new(start, self.tokens[self.pos - 1].span.end),
+        };
+        if matches!(self.peek().kind, TokenKind::LBrace) {
+            self.record_enum_header(&header, checkpoint);
+        }
         self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
         let body_depth = self.brace_depth();
         let mut variants = Vec::new();
@@ -50,72 +76,47 @@ impl Parser {
                 return self.missing_token(TokenKind::RBrace, "`}`");
             }
             let start = self.pos;
-            let annotations = self.parse_annotations()?;
-            let member_start = saw_member || self.enum_member_starts_here();
-            let parsed = if member_start {
+            let checkpoint = self.checkpoint();
+            let annotations = match self.parse_annotations() {
+                Ok(annotations) => annotations,
+                Err(error) => {
+                    self.invalidate_nominal_projection();
+                    return Err(error);
+                }
+            };
+            self.begin_nominal_member();
+            let parsed = if saw_member || self.enum_member_starts_here() {
                 saw_member = true;
-                self.parse_member_prefix().and_then(|mut prefix| {
-                    prefix.annotations.splice(0..0, annotations);
-                    match &self.peek().kind {
-                    TokenKind::Fun => self
-                        .parse_prefixed_member_function(prefix, FunctionContext::TypeBody)
-                        .map(|method| { self.attach_documentation(start, method.span); methods.push(method); }),
-                    TokenKind::Val | TokenKind::Var => self
-                        .parse_property(prefix, PropertyContext::ValueType)
-                        .map(|property| { self.attach_documentation(start, property.span); properties.push(property); }),
-                    TokenKind::Struct
-                    | TokenKind::Enum
-                    | TokenKind::Class
-                    | TokenKind::Interface => self
-                        .parse_nested_nominal(prefix)
-                        .map(|declaration| { self.attach_documentation(start, declaration.span()); nested.push(declaration); }),
-                    TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedTypeDecl::AnnotationClass).map(|declaration| { self.attach_documentation(start, declaration.span()); nested.push(declaration); }),
-                    TokenKind::Ident(text) if text == "object" => {
-                        self.require_unmodified_nominal_prefix(&prefix, "object")?;
-                        self.parse_object(prefix.annotations, prefix.visibility)
-                            .map(Box::new)
-                            .map(NestedTypeDecl::Object)
-                            .map(|declaration| { self.attach_documentation(start, declaration.span()); nested.push(declaration); })
-                    }
-                    TokenKind::Ident(text) if text == "companion" => {
-                        self.require_unmodified_nominal_prefix(&prefix, "companion object")?;
-                        if companion.is_some() {
-                            return Err(Diagnostic::at(
-                                self.peek().span,
-                                "a nominal declaration may contain at most one companion object",
-                            ));
-                        }
-                        self.parse_companion_object(prefix.annotations, prefix.visibility)
-                            .map(|declaration| { self.attach_documentation(start, declaration.span); companion = Some(declaration); })
-                    }
-                    TokenKind::Ident(text) if text == "init" => Err(Diagnostic::at(
-                        self.peek().span,
-                        "`init` blocks are not allowed in enums",
-                    )),
-                    TokenKind::Ident(text) if text == "release" => {
-                        self.invalid_release_owner("enums")
-                    }
-                    TokenKind::Ident(text) if text == "constructor" => Err(Diagnostic::at(
-                        self.peek().span,
-                        "secondary constructors are not allowed in enums",
-                    )),
-                    TokenKind::Ident(text) if text == "typealias" => {
-                        self.parse_type_alias(prefix).map(Box::new).map(NestedTypeDecl::TypeAlias).map(|declaration| { self.attach_documentation(start, declaration.span()); nested.push(declaration); })
-                    }
-                    _ => Err(Diagnostic::at(
-                        self.peek().span,
-                        "expected an enum property, function, nested declaration, or companion object",
-                    )),
-                }})
-                .and_then(|()| self.expect_statement_end())
+                self.parse_enum_member(annotations, companion.is_some())
             } else {
                 self.parse_variant(annotations)
-                    .map(|variant| {
-                        self.attach_documentation(start, variant.span);
-                        variants.push(variant);
-                    })
-                    .and_then(|()| self.expect_variant_end())
+                    .map(Box::new)
+                    .map(NominalMember::Variant)
             };
+            self.end_type_member(&parsed, checkpoint);
+            let parsed = parsed.and_then(|member| {
+                self.attach_documentation(start, member.span());
+                let variant = matches!(member, NominalMember::Variant(_));
+                match member {
+                    NominalMember::Variant(value) => variants.push(*value),
+                    NominalMember::Function(value) => methods.push(*value),
+                    NominalMember::Property(value) => properties.push(*value),
+                    NominalMember::Nested(value) => nested.push(*value),
+                    NominalMember::Companion(value) => companion = Some(*value),
+                    NominalMember::Class(_) | NominalMember::Struct(_) => {
+                        unreachable!("enum member production")
+                    }
+                }
+                let boundary = if variant {
+                    self.expect_variant_end()
+                } else {
+                    self.expect_statement_end()
+                };
+                if boundary.is_err() {
+                    self.invalidate_nominal_projection();
+                }
+                boundary
+            });
             if let Err(diagnostic) = parsed {
                 if self.at_eof() {
                     return Err(diagnostic);
@@ -124,24 +125,9 @@ impl Parser {
                 self.synchronize_body_item(body_depth, start);
             }
         };
-        let start = annotations
-            .first()
-            .map(|annotation| annotation.span.start)
-            .into_iter()
-            .chain(match visibility {
-                VisibilitySyntax::Explicit { span, .. } => Some(span.start),
-                VisibilitySyntax::Omitted => None,
-            })
-            .min()
-            .unwrap_or(keyword.span.start);
         Ok(EnumDecl {
-            annotations,
-            visibility,
-            name,
-            type_params,
+            header,
             variants,
-            interfaces,
-            where_clause,
             methods,
             properties,
             nested,

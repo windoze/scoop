@@ -1,5 +1,4 @@
 use super::*;
-use crate::NominalTarget;
 
 mod delegate_roles;
 mod equality;
@@ -14,6 +13,7 @@ mod pointers;
 mod primitives;
 mod property_invoke;
 mod qualifiers;
+pub(in crate::expr) use qualifiers::CurrentQualifiedCall;
 mod receiver_calls;
 mod resolution;
 mod selection;
@@ -219,84 +219,29 @@ impl Lowerer {
         if let Some(owner) = self.resolve_imported_nominal_qualifier(receiver).ok()? {
             return self.lower_imported_qualified_call(owner, name, call, sink, expected);
         }
-        let applied = self.resolve_applied_qualifier(receiver).ok()?;
-        let direct_alias = match self.resolve_direct_alias_qualifier(receiver) {
-            Ok(alias) => alias,
-            Err(()) => return None,
-        };
-        let qualifier = applied.map(|(_, target)| target).or_else(|| {
-            direct_alias
-                .as_ref()
-                .map(|(_, target)| *target)
-                .or_else(|| self.nominal_qualifier_target(receiver))
-        });
-        if let Some(qualifier) = qualifier {
-            if let Some(target) = self.nested_nominal_target(qualifier.owner(), &name.text) {
-                return self.lower_static_nested_constructor(target, name, call, sink, expected);
-            }
-            if let NominalTarget::Enum(enum_id) = qualifier {
-                if let Some(target) = self.find_variant_ref(enum_id, &name.text) {
-                    let expected = self.alias_fixed_expected(
-                        direct_alias.as_ref().map(|(alias, _)| alias),
-                        call.type_args,
-                        applied.map(|(ty, _)| ty).or(expected),
-                    )?;
-                    return self.lower_variant_construct(target, call, sink, expected);
+        if let Some(target) = self
+            .resolve_current_qualified_call(receiver, name, call.type_args, expected)
+            .ok()?
+        {
+            return match target {
+                CurrentQualifiedCall::Struct { id, ty } => {
+                    self.lower_struct_init(id, ty, call, sink, expected)
                 }
-            }
-            let forwarded = self.companion_forwarding_object(qualifier, &name.text);
-            if let NominalTarget::Object(object) = qualifier
-                && forwarded.is_none()
-            {
-                let receiver = self.lower_qualified_singleton(
-                    object,
-                    applied.map(|(ty, _)| ty),
-                    receiver.span(),
-                )?;
-                return self.lower_explicit_named_call(
+                CurrentQualifiedCall::Class(id) => {
+                    self.lower_class_construct(id, call, sink, expected)
+                }
+                CurrentQualifiedCall::Variant { target, expected } => {
+                    self.lower_variant_construct(target, call, sink, expected)
+                }
+                CurrentQualifiedCall::Singleton(receiver) => self.lower_explicit_named_call(
                     receiver,
                     name,
                     call,
                     sink,
                     expected,
                     RequiredCallableModifiers::default(),
-                );
-            }
-            if let Some(companion) = forwarded {
-                let receiver = self.lower_qualified_singleton(
-                    companion,
-                    applied.map(|(ty, _)| ty),
-                    receiver.span(),
-                )?;
-                return self.lower_explicit_named_call(
-                    receiver,
-                    name,
-                    call,
-                    sink,
-                    expected,
-                    RequiredCallableModifiers::default(),
-                );
-            }
-            if let NominalTarget::Enum(_) = qualifier {
-                self.error(
-                    name.span,
-                    format!(
-                        "enum `{}` has no variant `{}`",
-                        qualifier.owner().describe_name(self),
-                        name.text
-                    ),
-                );
-                return None;
-            }
-            self.error(
-                name.span,
-                format!(
-                    "type `{}` has no nested type `{}`",
-                    qualifier.owner().describe_name(self),
-                    name.text
                 ),
-            );
-            return None;
+            };
         }
         if let Some(layer) = self.probe_numeric_literal_receiver(
             receiver,

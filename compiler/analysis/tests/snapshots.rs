@@ -131,6 +131,38 @@ fn definition_names_require_exact_grammar_declaration_ranges() {
 }
 
 #[test]
+fn recovered_nominal_names_use_the_original_nested_declaration_ranges() {
+    use scoop_source::Span;
+    let mut host = AnalysisHost::default();
+    let input = "/// Documentation\n@Marker class 宿主 {\n@Marker enum 选择<T> { Value(T)\nfun editing(value: T) { value. }\n}\n}";
+    let id = host.add_source(text(input));
+    let source = host.source(id).unwrap();
+    assert!(source.parse().unwrap().ast().is_none());
+    for (start, end, name) in [
+        (input.find("class").unwrap(), input.len(), "宿主"),
+        (
+            input.rfind("@Marker").unwrap(),
+            input.rfind("\n}").unwrap(),
+            "选择",
+        ),
+    ] {
+        let range = Span::new(start as u32, end as u32);
+        let name_start = input.find(name).unwrap() as u32;
+        assert_eq!(
+            source.declaration_name_span(range).unwrap(),
+            Some(Span::new(name_start, name_start + name.len() as u32)),
+            "{name}"
+        );
+        assert_eq!(
+            source
+                .declaration_name_span(Span::new(range.start + 1, range.end))
+                .unwrap(),
+            None
+        );
+    }
+}
+
+#[test]
 fn prepared_documentation_belongs_to_the_original_source_version() {
     let mut host = AnalysisHost::default();
     let input = "/// Original **text**.\nfun healthy(): Boolean = true\nfun broken(value: ) {}";

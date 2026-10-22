@@ -2,13 +2,16 @@ use super::*;
 
 pub(crate) fn enum_decl(name: &str, type_params: Vec<&str>, variants: Vec<VariantDecl>) -> Decl {
     Decl::Enum(ast::EnumDecl {
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        type_params: type_params.into_iter().map(type_param).collect(),
+        header: ast::EnumHeader {
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            type_params: type_params.into_iter().map(type_param).collect(),
+            interfaces: Vec::new(),
+            where_clause: None,
+            span: sp(),
+        },
         variants,
-        interfaces: Vec::new(),
-        where_clause: None,
         methods: Vec::new(),
         properties: Vec::new(),
         nested: Vec::new(),

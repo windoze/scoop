@@ -19,7 +19,7 @@ pub struct DeclarationSyntax {
     pub kind: SyntaxKind,
     pub span: Span,
     pub name: Option<DeclarationName>,
-    /// The AST item's source range, recorded by a completed production.
+    /// The source range of a completed production or assembled recovery input.
     /// Prefixes consumed outside this CST node may extend this range.
     pub source_span: Option<Span>,
 }

@@ -46,7 +46,7 @@ impl Lowerer {
         &mut self,
         declarations: &[PendingConst<'_>],
         ordinary: &[PendingOrdinary<'_>],
-        enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
+        enums: &[(hir::EnumId, ast::EnumSource<'_>, usize)],
     ) {
         let cyclic = self.diagnose_const_dependency_cycles(declarations);
         let mut states = (0..declarations.len())

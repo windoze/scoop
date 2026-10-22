@@ -7,81 +7,10 @@ use scoop_syntax::{DeclarationData, DeclarationIndex, DeclarationSyntax, SyntaxK
 
 use super::{Event, Parser};
 
-#[derive(Debug)]
-pub(super) enum NominalHeader {
-    Class(Box<ast::ClassHeader>),
-    Struct(Box<ast::StructHeader>),
-    Interface(Box<ast::InterfaceHeader>),
-}
-
-impl NominalHeader {
-    fn recovered(self, end: u32) -> ast::RecoveredNominal {
-        match self {
-            Self::Class(header) => {
-                let span = ast::Span::new(header.span.start, end);
-                ast::RecoveredNominal::Class(Box::new(ast::RecoveredClass {
-                    header: *header,
-                    span,
-                    members: Vec::new(),
-                    recovery: Default::default(),
-                }))
-            }
-            Self::Struct(header) => {
-                let span = ast::Span::new(header.span.start, end);
-                ast::RecoveredNominal::Struct(Box::new(ast::RecoveredStruct {
-                    header: *header,
-                    span,
-                    members: Vec::new(),
-                    recovery: Default::default(),
-                }))
-            }
-            Self::Interface(header) => {
-                let span = ast::Span::new(header.span.start, end);
-                ast::RecoveredNominal::Interface(Box::new(ast::RecoveredInterface {
-                    header: *header,
-                    span,
-                    methods: Vec::new(),
-                    properties: Vec::new(),
-                    nested: Vec::new(),
-                    companion: None,
-                    recovery: Default::default(),
-                }))
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) enum NominalMember {
-    Class(Box<ast::ClassMember>),
-    Struct(Box<ast::StructMember>),
-    Function(Box<ast::FunctionDecl>),
-    Property(Box<ast::PropertyDecl>),
-    Nested(Box<ast::NestedTypeDecl>),
-    Companion(Box<ast::CompanionObjectDecl>),
-}
-
-impl NominalMember {
-    pub(crate) fn span(&self) -> ast::Span {
-        match self {
-            Self::Class(value) => value.span(),
-            Self::Struct(value) => value.span(),
-            Self::Function(value) => value.span,
-            Self::Property(value) => value.span,
-            Self::Nested(value) => value.span(),
-            Self::Companion(value) => value.span,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(super) enum NominalEvent {
-    Header(NominalHeader),
-    BeginMember,
-    MemberKind(SyntaxKind),
-    EndMember(Option<NominalMember>),
-    Unavailable,
-}
+mod events;
+pub(super) use events::NominalEvent;
+use events::NominalHeader;
+pub(crate) use events::NominalMember;
 
 struct Member {
     declaration: Option<DeclarationIndex>,
@@ -128,7 +57,10 @@ impl NominalRecorder {
                 let Some(owner) = active.owner else { return };
                 if !matches!(
                     declarations[owner.0].kind,
-                    SyntaxKind::ClassDecl | SyntaxKind::StructDecl | SyntaxKind::InterfaceDecl
+                    SyntaxKind::ClassDecl
+                        | SyntaxKind::StructDecl
+                        | SyntaxKind::InterfaceDecl
+                        | SyntaxKind::EnumDecl
                 ) {
                     return;
                 }
@@ -151,7 +83,7 @@ impl NominalRecorder {
 
     pub(super) fn recover(
         mut self,
-        declarations: &[DeclarationSyntax],
+        declarations: &mut [DeclarationSyntax],
         headers: &[DeclarationData<ast::FunctionHeader>],
         bodies: &[DeclarationData<ast::RecoveredFunctionBody>],
     ) -> Vec<DeclarationData<ast::RecoveredNominal>> {
@@ -163,19 +95,27 @@ impl NominalRecorder {
             .iter()
             .map(|item| (item.declaration, &item.value))
             .collect();
-        declarations
+        let roots = declarations
             .iter()
             .enumerate()
             .filter_map(|(index, declaration)| {
                 if declaration.parent.is_some()
                     || !matches!(
                         declaration.kind,
-                        SyntaxKind::ClassDecl | SyntaxKind::StructDecl | SyntaxKind::InterfaceDecl
+                        SyntaxKind::ClassDecl
+                            | SyntaxKind::StructDecl
+                            | SyntaxKind::InterfaceDecl
+                            | SyntaxKind::EnumDecl
                     )
                 {
                     return None;
                 }
-                let declaration = DeclarationIndex(index);
+                Some(DeclarationIndex(index))
+            })
+            .collect::<Vec<_>>();
+        roots
+            .into_iter()
+            .filter_map(|declaration| {
                 let value = self.recover_nominal(declaration, declarations, &headers, &bodies)?;
                 Some(DeclarationData { declaration, value })
             })
@@ -185,7 +125,7 @@ impl NominalRecorder {
     fn recover_nominal(
         &mut self,
         index: DeclarationIndex,
-        declarations: &[DeclarationSyntax],
+        declarations: &mut [DeclarationSyntax],
         headers: &HashMap<DeclarationIndex, &ast::FunctionHeader>,
         bodies: &HashMap<DeclarationIndex, &ast::RecoveredFunctionBody>,
     ) -> Option<ast::RecoveredNominal> {
@@ -215,6 +155,21 @@ impl NominalRecorder {
                         ast::RecoveredNominal::Interface(interface),
                         NominalMember::Companion(value),
                     ) => interface.companion = Some(*value),
+                    (ast::RecoveredNominal::Enum(enumeration), NominalMember::Variant(value)) => {
+                        enumeration.variants.push(*value)
+                    }
+                    (ast::RecoveredNominal::Enum(enumeration), NominalMember::Function(value)) => {
+                        enumeration.methods.push(*value)
+                    }
+                    (ast::RecoveredNominal::Enum(enumeration), NominalMember::Property(value)) => {
+                        enumeration.properties.push(*value)
+                    }
+                    (ast::RecoveredNominal::Enum(enumeration), NominalMember::Nested(value)) => {
+                        enumeration.nested.push(*value)
+                    }
+                    (ast::RecoveredNominal::Enum(enumeration), NominalMember::Companion(value)) => {
+                        enumeration.companion = Some(*value)
+                    }
                     _ => unreachable!("each nominal body records its own member syntax"),
                 }
                 continue;
@@ -233,22 +188,40 @@ impl NominalRecorder {
                         span,
                     });
                 }
-                SyntaxKind::ClassDecl | SyntaxKind::StructDecl | SyntaxKind::InterfaceDecl => {
-                    result.recovery_mut().nested.push(self.recover_nominal(
-                        declaration,
-                        declarations,
-                        headers,
-                        bodies,
-                    )?)
-                }
+                SyntaxKind::ClassDecl
+                | SyntaxKind::StructDecl
+                | SyntaxKind::InterfaceDecl
+                | SyntaxKind::EnumDecl => result.recovery_mut().nested.push(self.recover_nominal(
+                    declaration,
+                    declarations,
+                    headers,
+                    bodies,
+                )?),
                 _ => return None,
             }
         }
+        declarations[index.0]
+            .source_span
+            .get_or_insert(result.span());
         Some(result)
     }
 }
 
 impl Parser {
+    pub(crate) fn record_enum_header(
+        &mut self,
+        header: &ast::EnumHeader,
+        checkpoint: super::super::checkpoint::Checkpoint,
+    ) {
+        if self.fragment_is_complete(checkpoint) {
+            self.syntax
+                .events
+                .push(Event::Nominal(NominalEvent::Header(NominalHeader::Enum(
+                    Box::new(header.clone()),
+                ))));
+        }
+    }
+
     pub(crate) fn record_interface_header(
         &mut self,
         header: &ast::InterfaceHeader,
@@ -301,6 +274,7 @@ impl Parser {
             crate::lexer::TokenKind::Class => SyntaxKind::ClassDecl,
             crate::lexer::TokenKind::Struct => SyntaxKind::StructDecl,
             crate::lexer::TokenKind::Interface => SyntaxKind::InterfaceDecl,
+            crate::lexer::TokenKind::Enum => SyntaxKind::EnumDecl,
             _ => return,
         };
         self.syntax

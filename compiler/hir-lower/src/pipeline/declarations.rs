@@ -5,7 +5,7 @@ pub(crate) struct SourceDeclarations<'a> {
     pub(super) current_cone: scoop_identity::ConeIdentity,
     pub(super) source_headers: Vec<ast::SourceHeaderRef<'a>>,
     pub(super) pending_structs: Vec<(StructId, ast::StructSource<'a>, usize)>,
-    pub(super) pending_enums: Vec<(EnumId, &'a ast::EnumDecl, usize)>,
+    pub(super) pending_enums: Vec<(EnumId, ast::EnumSource<'a>, usize)>,
     pub(super) pending_classes: Vec<(ClassId, ast::ClassSource<'a>, usize)>,
     pub(super) pending_interfaces: Vec<(InterfaceId, ast::InterfaceSource<'a>, usize)>,
     pub(super) pending_objects: Vec<(hir::ObjectId, crate::declarations::ObjectSource<'a>, usize)>,
@@ -151,6 +151,16 @@ impl Lowerer {
                                 None,
                             );
                         }
+                        ast::RecoveredNominal::Enum(declaration) => {
+                            self.declare_enum(
+                                declaration.source(),
+                                is_core,
+                                &mut pending_enums,
+                                &mut pending_methods,
+                                file_index,
+                                None,
+                            );
+                        }
                     }
                     continue;
                 }
@@ -186,7 +196,7 @@ impl Lowerer {
                 }
                 ast::Decl::Enum(decl) => {
                     let _ = self.declare_enum(
-                        decl,
+                        decl.source(),
                         is_core,
                         &mut pending_enums,
                         &mut pending_methods,
@@ -306,6 +316,9 @@ impl Lowerer {
                 }))
                 .chain(pending_interfaces.iter().map(|(id, declaration, file)| {
                     (Owner::Interface(*id), declaration.recovery, *file)
+                }))
+                .chain(pending_enums.iter().map(|(id, declaration, file)| {
+                    (Owner::Enum(*id), declaration.recovery, *file)
                 }));
         for (owner, recovery, file) in recovered_nominals {
             for method in &recovery.methods {
@@ -322,6 +335,7 @@ impl Lowerer {
                 let methods = match owner {
                     Owner::Class(class) => &mut self.classes[class].methods,
                     Owner::Struct(structure) => &mut self.structs[structure].methods,
+                    Owner::Enum(enumeration) => &mut self.enums[enumeration].methods,
                     Owner::Interface(interface) => {
                         let declaration = &mut self.interfaces[interface];
                         declaration.methods.sort_by_key(|member| {
@@ -334,7 +348,7 @@ impl Lowerer {
                             .sort_by_key(|function| self.functions[*function].span.start);
                         self.interface_methods.get_mut(&interface).unwrap()
                     }
-                    _ => unreachable!("recovered class, struct and interface inputs"),
+                    Owner::Object(_) => unreachable!("recovered nominal inputs"),
                 };
                 methods.sort_by_key(|function| self.functions[*function].span.start);
             }

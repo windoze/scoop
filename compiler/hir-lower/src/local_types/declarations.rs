@@ -5,7 +5,7 @@ use crate::{ClassId, EnumId, FunctionId, InterfaceId, ObjectId, StructId};
 pub(super) struct Declarations<'a> {
     annotations: Vec<(&'a ast::AnnotationClassDecl, usize, Option<Owner>)>,
     pub(super) structs: Vec<(StructId, ast::StructSource<'a>, usize)>,
-    pub(super) enums: Vec<(EnumId, &'a ast::EnumDecl, usize)>,
+    pub(super) enums: Vec<(EnumId, ast::EnumSource<'a>, usize)>,
     pub(super) classes: Vec<(ClassId, ast::ClassSource<'a>, usize)>,
     pub(super) interfaces: Vec<(InterfaceId, ast::InterfaceSource<'a>, usize)>,
     pub(super) objects: Vec<(ObjectId, crate::declarations::ObjectSource<'a>, usize)>,
@@ -99,7 +99,7 @@ impl Lowerer {
                 .map(NominalTarget::Struct),
             ast::LocalTypeDecl::Enum(decl) => self
                 .declare_enum(
-                    decl,
+                    decl.source(),
                     false,
                     &mut pending.enums,
                     &mut pending.methods,
@@ -151,7 +151,7 @@ impl Lowerer {
                 self.declare_struct_nested(owner, decl.source(), &mut queues, file)
             }
             ast::LocalTypeDecl::Enum(decl) => {
-                self.declare_enum_nested(owner, decl, &mut queues, file)
+                self.declare_enum_nested(owner, decl.source(), &mut queues, file)
             }
             ast::LocalTypeDecl::Interface(decl) => {
                 self.declare_interface_nested(owner, decl.source(), &mut queues, file)

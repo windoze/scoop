@@ -51,7 +51,7 @@ pub(crate) struct ImportDeclarationInputs<'a> {
     pub(crate) functions: &'a [crate::declarations::FunctionHeaderInput<'a>],
     pub(crate) methods: &'a [crate::declarations::MethodHeaderInput<'a>],
     pub(crate) properties: &'a [(&'a ast::GlobalDecl, usize)],
-    pub(crate) enumerations: &'a [(hir::EnumId, &'a ast::EnumDecl, usize)],
+    pub(crate) enumerations: &'a [(hir::EnumId, ast::EnumSource<'a>, usize)],
     pub(crate) objects: &'a [(hir::ObjectId, crate::declarations::ObjectSource<'a>, usize)],
 }
 

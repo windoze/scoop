@@ -143,7 +143,7 @@ impl Lowerer {
         );
     }
 
-    pub(crate) fn document_enum(&mut self, id: hir::EnumId, source: &ast::EnumDecl) {
+    pub(crate) fn document_enum(&mut self, id: hir::EnumId, source: ast::EnumSource<'_>) {
         if self.documentation.is_none() {
             return;
         }

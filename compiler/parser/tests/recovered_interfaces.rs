@@ -56,6 +56,7 @@ fn interface_recovery_obeys_original_nested_owners_at_eof() {
             Nominal::Class(outer) => &outer.recovery.nested,
             Nominal::Struct(outer) => &outer.recovery.nested,
             Nominal::Interface(outer) => &outer.recovery.nested,
+            Nominal::Enum(_) => panic!("class, struct or interface test source"),
         };
         let [Nominal::Interface(inner)] = nested.as_slice() else {
             panic!("original nested interface");

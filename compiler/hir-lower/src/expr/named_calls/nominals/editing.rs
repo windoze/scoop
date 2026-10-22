@@ -8,6 +8,7 @@ use crate::editing::{
 use hir::{EditingUnavailable as U, EditingValue as V, ImportedCallableSource};
 
 mod constructors;
+mod qualified;
 
 impl Lowerer {
     pub(crate) fn editing_named_nominal_candidates(

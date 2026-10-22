@@ -4,6 +4,8 @@ use crate::imports::lookup::calls::{ExpressionQualifierLookup, ExpressionQualifi
 
 mod aliases;
 mod applied;
+mod calls;
+pub(in crate::expr) use calls::CurrentQualifiedCall;
 
 impl Lowerer {
     /// A direct receiver spelling is still an expression name first. Keep
@@ -162,14 +164,11 @@ impl Lowerer {
         Ok(Some((target, nominal)))
     }
 
-    pub(super) fn lower_static_nested_constructor(
+    pub(super) fn resolve_static_nested_constructor(
         &mut self,
         target: NominalTarget,
         name: &ast::Ident,
-        call: CallSite<'_>,
-        sink: &mut Vec<hir::Statement>,
-        expected: Option<TypeId>,
-    ) -> Option<hir::Expr> {
+    ) -> Option<CurrentQualifiedCall> {
         match target {
             NominalTarget::Struct(struct_id) => {
                 let application = self.structs[struct_id].self_application;
@@ -181,7 +180,7 @@ impl Lowerer {
                     );
                     return None;
                 }
-                self.lower_struct_init(struct_id, ty, call, sink, expected)
+                Some(CurrentQualifiedCall::Struct { id: struct_id, ty })
             }
             NominalTarget::Class(class_id) => {
                 let application = self.classes[class_id].self_application;
@@ -193,7 +192,7 @@ impl Lowerer {
                     );
                     return None;
                 }
-                self.lower_class_construct(class_id, call, sink, expected)
+                Some(CurrentQualifiedCall::Class(class_id))
             }
             NominalTarget::Enum(_) => {
                 self.error(
