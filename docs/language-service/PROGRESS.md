@@ -172,6 +172,8 @@ when 的恢复上下文已接入原 subject、primary 与 guard 计算：顺序�
 
 try／catch／finally 的恢复上下文已接入：实际块入口与完整前置块分开，EOF 或后续未知头部不丢失已知 try 前缀；catch 类型、Throwable 关系、前序覆盖和参数 scope 与普通语句／值 try 共用。完整前置区域复用原异常及 finally 出口计算，未知区域沿共用规则清除可变 binding、别名与 Boolean 关系，保留不可变事实；没有 finally 查询时不额外检查完整 handler body。格式化、全 workspace Clippy、Ruff、179 项编辑态测试、28 项普通异常／类型推断回归及 687 项 parser／宿主／LSP 测试通过；独立进程和完整 stdio fixture 通过，后者耗时约 64.6 秒，覆盖参数遮蔽、泛型异常、错误／被覆盖类型、实际抛出路径、handler 写入、return／循环目标、取消及修改／关闭恢复。原诊断和普通 HIR 期望保持；target 约 15 GiB。内部 callable 恢复、其他引用区域与重命名继续实施。
 
+lambda／匿名函数的初始化式与返回位置恢复已接入：原 grammar 保留完整头部、显式标签及实际 body，普通 lowering 与恢复查询共用内部 callable 的进入／退出、参数、receiver 和捕获规则。已知注记／返回类型提供 lambda 参数与隐式 `it`，原不可反驳模式检查支持解构；泛型和经收窄的捕获沿真实 BindingId 导航回原定义，不借用外层同名变量。内部 return／suspend／循环边界独立，取消和退出恢复外层状态，不合成成功 callable HIR。格式化、全 workspace Clippy、Ruff、191 项编辑态覆盖、41 项普通 callable／推断回归及 693 项 parser／宿主／LSP 测试通过；独立进程与完整 stdio fixture 通过，后者耗时约 66.6 秒。首轮发现的捕获来源遗漏已闭合；解构测试的类型箭头分隔与 `this` hover 的既有显示断言已修正复验。target 仍约 15 GiB。调用实参中的上下文恢复、其他引用区域与重命名继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

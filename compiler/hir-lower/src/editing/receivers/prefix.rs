@@ -1,10 +1,12 @@
 use super::*;
 
+mod callables;
 mod conditionals;
 mod do_while;
 mod exceptions;
 mod iteration;
 mod loops;
+mod operands;
 mod when;
 
 impl Lowerer {
@@ -23,16 +25,20 @@ impl Lowerer {
             .expect("source function has a definition file");
         let name = self.functions[function].name.clone();
         let previous_params = self.functions[function].params.clone();
+        let known_result = (!self.signatures[&function].result_pending)
+            .then_some(self.signatures[&function].return_ty);
         let result = self.with_function_scope(function, &name, |lowerer| {
             let mut query = PrefixQuery {
                 body,
                 facts: &mut facts,
                 is_cancelled,
+                expression_body_return: matches!(body.root, ast::RecoveredBodyRoot::Expression(_)),
+                capture_definitions: Default::default(),
             };
             match body.root {
                 ast::RecoveredBodyRoot::Block(id) => query.block(lowerer, id, true),
                 ast::RecoveredBodyRoot::Expression(start) => {
-                    query.expression(lowerer, None, start, true)
+                    query.expression_with_expected(lowerer, None, start, true, known_result)
                 }
             }
         });
@@ -46,6 +52,8 @@ struct PrefixQuery<'a, F> {
     body: &'a ast::RecoveredFunctionBody,
     facts: &'a mut RecoveredFacts,
     is_cancelled: &'a F,
+    expression_body_return: bool,
+    capture_definitions: std::collections::HashMap<hir::BindingId, hir::EditingLocalReference>,
 }
 
 impl<F: Fn() -> bool> PrefixQuery<'_, F> {
@@ -119,7 +127,18 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         lowerer: &mut Lowerer,
         block: Option<ast::BodyBlockId>,
         start: u32,
+        available: bool,
+    ) -> Result<(), EditingCancelled> {
+        self.expression_with_expected(lowerer, block, start, available, None)
+    }
+
+    fn expression_with_expected(
+        &mut self,
+        lowerer: &mut Lowerer,
+        block: Option<ast::BodyBlockId>,
+        start: u32,
         mut available: bool,
+        expected: Option<hir::TypeId>,
     ) -> Result<(), EditingCancelled> {
         check_cancelled(self.is_cancelled)?;
         for (index, selector) in self.body.selectors.iter().enumerate() {
@@ -134,6 +153,7 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
                 lowerer.check_receiver(
                     receiver,
                     &mut self.facts.receivers[index],
+                    &self.capture_definitions,
                     self.is_cancelled,
                 )?;
                 available = lowerer.diagnostics.len() == before;
@@ -160,6 +180,14 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
             .find(|operand| operand.block == block && operand.statement_start == start)
         {
             return self.operand(lowerer, operand, available);
+        }
+        if let Some(literal) = self
+            .body
+            .callable_literals
+            .iter()
+            .find(|literal| literal.block == block && literal.span.start == start)
+        {
+            return self.callable_literal(lowerer, literal, available, expected);
         }
         if let Some(child) = self.body.blocks.iter().find(|child| {
             child.parent == block
@@ -245,38 +273,5 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
                 self.expression(lowerer, parent, start, available)
             }
         }
-    }
-
-    fn operand(
-        &mut self,
-        lowerer: &mut Lowerer,
-        operand: &ast::RecoveredOperand,
-        available: bool,
-    ) -> Result<(), EditingCancelled> {
-        if !available {
-            return self.expression(lowerer, operand.block, operand.expression_start, false);
-        }
-        let available = match &operand.context {
-            ast::RecoveredOperandContext::Initializer { annotation } => annotation
-                .as_ref()
-                .is_none_or(|ty| lowerer.resolve_type_ref(ty).is_some()),
-            ast::RecoveredOperandContext::Return { label } => {
-                !matches!(self.body.root, ast::RecoveredBodyRoot::Expression(_))
-                    && lowerer
-                        .check_return_context(
-                            label.as_ref(),
-                            ast::Span::new(operand.statement_start, operand.expression_start),
-                        )
-                        .is_some()
-            }
-            ast::RecoveredOperandContext::Throw
-            | ast::RecoveredOperandContext::IfCondition
-            | ast::RecoveredOperandContext::ForIterable
-            | ast::RecoveredOperandContext::WhenSubject => true,
-            ast::RecoveredOperandContext::WhileCondition { label } => {
-                return self.while_condition(lowerer, operand, label.as_ref());
-            }
-        };
-        self.expression(lowerer, operand.block, operand.expression_start, available)
     }
 }

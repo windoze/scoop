@@ -59,6 +59,7 @@ impl Parser {
         is_suspend: bool,
         expression_start: Option<u32>,
     ) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let keyword = self.expect("`fun`", |kind| matches!(kind, TokenKind::Fun))?;
         let receiver_start = self.checkpoint();
         let receiver_annotations = self.parse_annotations()?;
@@ -79,8 +80,34 @@ impl Parser {
         } else {
             None
         };
-        let body =
-            self.parse_block_with_scope(scoop_ast::RecoveredBlockScope::AnonymousFunction)?;
+        let complete_header = self.fragment_is_complete(checkpoint);
+        let opening = matches!(self.peek().kind, TokenKind::LBrace)
+            .then_some(scoop_ast::BodyBlockId(self.peek().span.start));
+        let body_checkpoint = self.checkpoint();
+        let result = self.parse_block_with_scope(scoop_ast::RecoveredBlockScope::AnonymousFunction);
+        if complete_header
+            && let Some(body) = opening
+            && (result.is_err() || !self.fragment_is_complete(body_checkpoint))
+        {
+            self.record_recovered_callable(scoop_ast::RecoveredCallableLiteral {
+                block: None,
+                span: Span::new(
+                    expression_start.unwrap_or(keyword.span.start),
+                    result
+                        .as_ref()
+                        .map_or(self.peek().span.start, |body| body.span.end),
+                ),
+                label: None,
+                is_suspend,
+                header: scoop_ast::RecoveredCallableHeader::AnonymousFunction {
+                    receiver: receiver.clone().map(Box::new),
+                    parameters: params.clone(),
+                    return_ty: return_ty.clone().map(Box::new),
+                },
+                body,
+            });
+        }
+        let body = result?;
         Ok(Expr::AnonymousFunction {
             label: None,
             receiver: receiver.map(Box::new),
@@ -115,6 +142,7 @@ impl Parser {
         is_suspend: bool,
         expression_start: Option<u32>,
     ) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let open = self.expect("`{`", |kind| matches!(kind, TokenKind::LBrace))?;
         let header_start = self.checkpoint();
         let parameters = if matches!(self.peek().kind, TokenKind::Arrow) {
@@ -130,8 +158,28 @@ impl Parser {
                 }
             }
         };
-        let body =
-            self.parse_block_after_open(open.clone(), scoop_ast::RecoveredBlockScope::Lambda)?;
+        let complete_header = self.fragment_is_complete(checkpoint);
+        let body_checkpoint = self.checkpoint();
+        let result =
+            self.parse_block_after_open(open.clone(), scoop_ast::RecoveredBlockScope::Lambda);
+        if complete_header && (result.is_err() || !self.fragment_is_complete(body_checkpoint)) {
+            self.record_recovered_callable(scoop_ast::RecoveredCallableLiteral {
+                block: None,
+                span: Span::new(
+                    expression_start.unwrap_or(open.span.start),
+                    result
+                        .as_ref()
+                        .map_or(self.peek().span.start, |body| body.span.end),
+                ),
+                label: None,
+                is_suspend,
+                header: scoop_ast::RecoveredCallableHeader::Lambda {
+                    parameters: parameters.clone(),
+                },
+                body: scoop_ast::BodyBlockId(open.span.start),
+            });
+        }
+        let body = result?;
         let span = Span::new(expression_start.unwrap_or(open.span.start), body.span.end);
         Ok(Expr::Lambda {
             label: None,

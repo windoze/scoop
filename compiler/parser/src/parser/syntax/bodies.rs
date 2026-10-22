@@ -5,6 +5,7 @@ use scoop_syntax::{DeclarationData, DeclarationIndex};
 
 use super::{Event, Parser};
 
+mod callables;
 mod calls;
 mod operands;
 
@@ -31,6 +32,11 @@ pub(super) enum BodyEvent {
     DoWhile(Box<ast::RecoveredDoWhile>),
     When(Box<ast::RecoveredWhen>),
     Try(Box<ast::RecoveredTry>),
+    CallableLiteral(Box<ast::RecoveredCallableLiteral>),
+    CallableLabel {
+        start: u32,
+        label: ast::Ident,
+    },
     TrailingArgument {
         call: Span,
         argument: Box<ast::RecoveredCallArgument>,
@@ -60,11 +66,35 @@ struct BodyParts {
     do_while_loops: Vec<ast::RecoveredDoWhile>,
     whens: Vec<ast::RecoveredWhen>,
     tries: Vec<ast::RecoveredTry>,
+    callable_literals: Vec<ast::RecoveredCallableLiteral>,
 }
 
 impl BodyRecorder {
     pub(super) fn record(&mut self, event: BodyEvent, function: Option<DeclarationIndex>) {
         match event {
+            BodyEvent::CallableLiteral(mut literal) => {
+                if let Some(function) = function {
+                    literal.block = self.block_for(function);
+                    self.functions
+                        .entry(function.0)
+                        .or_default()
+                        .callable_literals
+                        .push(*literal);
+                }
+            }
+            BodyEvent::CallableLabel { start, label } => {
+                if let Some(parts) =
+                    function.and_then(|function| self.functions.get_mut(&function.0))
+                    && let Some(literal) = parts
+                        .callable_literals
+                        .iter_mut()
+                        .rev()
+                        .find(|literal| literal.span.start == start)
+                {
+                    literal.span.start = label.span.start;
+                    literal.label = Some(label);
+                }
+            }
             BodyEvent::Try(mut try_) => {
                 if let Some(function) = function {
                     try_.block = self.block_for(function);
@@ -239,6 +269,7 @@ impl BodyRecorder {
                         do_while_loops: value.do_while_loops,
                         whens: value.whens,
                         tries: value.tries,
+                        callable_literals: value.callable_literals,
                     },
                 })
             })

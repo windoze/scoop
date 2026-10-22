@@ -2,6 +2,8 @@ use super::*;
 use hir::{EditingUnavailable as U, EditingValue as V};
 
 mod bodies;
+mod callable_literal_contexts;
+mod callable_literals;
 mod callable_values;
 mod callables;
 mod calls;

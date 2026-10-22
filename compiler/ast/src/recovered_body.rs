@@ -146,4 +146,5 @@ pub struct RecoveredFunctionBody {
     pub do_while_loops: Vec<RecoveredDoWhile>,
     pub whens: Vec<crate::RecoveredWhen>,
     pub tries: Vec<crate::RecoveredTry>,
+    pub callable_literals: Vec<crate::RecoveredCallableLiteral>,
 }

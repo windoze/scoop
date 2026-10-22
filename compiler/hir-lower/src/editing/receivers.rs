@@ -13,7 +13,13 @@ pub(crate) struct RecoveredFacts {
 pub(crate) struct ReceiverObservation {
     file: usize,
     span: ast::Span,
-    local: Option<hir::EditingLocalReference>,
+    local: Option<ObservedReceiverLocal>,
+}
+
+#[derive(Clone)]
+enum ObservedReceiverLocal {
+    Local(hir::EditingLocalReference),
+    Capture(hir::BindingId),
 }
 
 impl DeclarationAnalysis {
@@ -90,6 +96,32 @@ fn unavailable_facts(body: &ast::RecoveredFunctionBody, reason: U) -> RecoveredF
 }
 
 impl Lowerer {
+    pub(crate) fn editing_local_reference(
+        &self,
+        local: &hir::Local,
+    ) -> Option<hir::EditingLocalReference> {
+        let hir::LocalValueDefinitionSite::Source(definition) = local.definition else {
+            return None;
+        };
+        Some(hir::EditingLocalReference {
+            binding: local.binding,
+            name: local.name.clone(),
+            definition: hir::SemanticSourceLocation {
+                source: self.source_identity(definition.file as usize).clone(),
+                span: definition.span,
+            },
+        })
+    }
+
+    pub(crate) fn observe_receiver_capture(&mut self, binding: hir::BindingId, span: ast::Span) {
+        if let Some(observation) = &mut self.editing_receiver
+            && observation.file == self.current_file
+            && observation.span == span
+        {
+            observation.local = Some(ObservedReceiverLocal::Capture(binding));
+        }
+    }
+
     pub(crate) fn observe_receiver_local(&mut self, local: hir::LocalId, span: ast::Span) {
         let Some(observation) = &self.editing_receiver else {
             return;
@@ -97,28 +129,20 @@ impl Lowerer {
         if observation.file != self.current_file || observation.span != span {
             return;
         }
-        let local = &self.locals[local];
-        let hir::LocalValueDefinitionSite::Source(definition) = local.definition else {
+        let Some(reference) = self.editing_local_reference(&self.locals[local]) else {
             return;
-        };
-        let reference = hir::EditingLocalReference {
-            binding: local.binding,
-            name: local.name.clone(),
-            definition: hir::SemanticSourceLocation {
-                source: self.source_identity(definition.file as usize).clone(),
-                span: definition.span,
-            },
         };
         self.editing_receiver
             .as_mut()
             .expect("active observation")
-            .local = Some(reference);
+            .local = Some(ObservedReceiverLocal::Local(reference));
     }
 
     fn check_receiver(
         &mut self,
         expression: &ast::Expr,
         facts: &mut hir::EditingReceiver,
+        captures: &std::collections::HashMap<hir::BindingId, hir::EditingLocalReference>,
         is_cancelled: &impl Fn() -> bool,
     ) -> Result<(), EditingCancelled> {
         let before = self.diagnostics.len();
@@ -131,7 +155,11 @@ impl Lowerer {
         let observation = self.editing_receiver.take().expect("active observation");
         if let Some(value) = value.filter(|_| self.diagnostics.len() == before) {
             facts.value_type = V::Known(value.ty);
-            facts.local = observation.local;
+            facts.local = match observation.local {
+                Some(ObservedReceiverLocal::Local(reference)) => Some(reference),
+                Some(ObservedReceiverLocal::Capture(binding)) => captures.get(&binding).cloned(),
+                None => None,
+            };
             facts.members =
                 self.editing_receiver_members(&value, facts.safe_navigation, is_cancelled)?;
         } else {

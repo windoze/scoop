@@ -107,14 +107,9 @@ impl Lowerer {
         {
             return;
         }
-        let reference = hir::EditingLocalReference {
-            binding: local.binding,
-            name: local.name.clone(),
-            definition: hir::SemanticSourceLocation {
-                source: self.source_identity(definition.file as usize).clone(),
-                span: definition.span,
-            },
-        };
+        let reference = self
+            .editing_local_reference(local)
+            .expect("source local was checked");
         let value_type = local.ty;
         let context = self.observe_body_context();
         self.editing_body

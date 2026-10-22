@@ -25,6 +25,8 @@ mod recovered_try;
 pub use recovered_try::*;
 mod recovered_call;
 pub use recovered_call::*;
+mod recovered_callable;
+pub use recovered_callable::*;
 mod statements;
 mod types;
 

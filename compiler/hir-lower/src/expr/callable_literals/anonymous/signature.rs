@@ -1,13 +1,13 @@
 use super::*;
 
-pub(super) struct AnonymousSignature {
-    pub(super) receiver: Option<TypeId>,
-    pub(super) parameters: Vec<TypeId>,
-    pub(super) result: Option<TypeId>,
+pub(in crate::expr::callable_literals) struct AnonymousSignature {
+    pub(in crate::expr::callable_literals) receiver: Option<TypeId>,
+    pub(in crate::expr::callable_literals) parameters: Vec<TypeId>,
+    pub(in crate::expr::callable_literals) result: Option<TypeId>,
 }
 
 impl Lowerer {
-    pub(super) fn anonymous_signature(
+    pub(in crate::expr::callable_literals) fn anonymous_signature(
         &mut self,
         source_receiver: Option<&ast::TypeRef>,
         is_suspend: bool,
