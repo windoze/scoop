@@ -113,14 +113,12 @@ impl Lowerer {
             .to_vec();
         let arguments = arguments
             .iter()
-            .map(|ty| {
-                self.query_published_type_use(ty, bindings, substitutions)
-                    .map(|ty| ty.applied)
-            })
+            .map(|ty| self.query_published_type_use(ty, bindings, substitutions))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(hir::SemanticDefaultUse {
             definition: hir::SemanticDefaultReference::Imported(key),
-            arguments,
+            declaration_arguments: arguments.iter().map(|ty| ty.declaration).collect(),
+            arguments: arguments.iter().map(|ty| ty.applied).collect(),
         })
     }
 }

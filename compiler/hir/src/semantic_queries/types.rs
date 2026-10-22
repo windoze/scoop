@@ -26,4 +26,6 @@ pub struct SemanticNominalDescription {
     pub parameters: Vec<TypeParamDecl>,
     /// The declared companion application, irrespective of source visibility.
     pub companion: Option<TypeId>,
+    pub annotations: SemanticAnnotationTarget,
+    pub origin: SemanticSourceLocation,
 }

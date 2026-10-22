@@ -126,6 +126,7 @@ impl Lowerer {
             .to_vec();
         hir::SemanticDefaultUse {
             definition: hir::SemanticDefaultReference::Current(source),
+            declaration_arguments: arguments.clone(),
             arguments: arguments
                 .into_iter()
                 .map(|ty| self.instantiate_method_ty(ty, substitutions))

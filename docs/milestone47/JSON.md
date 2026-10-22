@@ -65,3 +65,5 @@ CompleteMethodSignature 包含 `method`、`owner`、`name`、`receiver`、`binde
 effects 保留 execution、safety、gc、callingConvention、operator、propertyDelegateOperator、infix 与 release；release 区分 unavailable 与 noTransition，并使用签名中的真实 binder 引用表达其条件。签名读取不会执行默认值或填充正文。
 
 正文的完整节点、局部绑定及默认值应用规则见[逻辑正文 JSON](BODY-JSON.md)。
+
+完整类型、字段、logical property、构造器、方法及访问域的字段见[类型与成员 JSON](MEMBERS-JSON.md)。

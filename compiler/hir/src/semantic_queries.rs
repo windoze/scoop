@@ -136,7 +136,12 @@ pub trait SemanticQueries {
         &mut self,
         context: SemanticTypeContext<'_>,
         ty: TypeId,
-    ) -> Result<SemanticTypeDescription, StaticShapeUnboundParameter>;
+    ) -> Result<SemanticTypeDescription, Diagnostic>;
+    /// Includes core nominals whose runtime representation is structural.
+    fn nominal_declaration(
+        &mut self,
+        ty: TypeId,
+    ) -> Result<Option<SemanticNominalDescription>, Diagnostic>;
     fn nominal_fields(
         &mut self,
         context: SemanticContext,

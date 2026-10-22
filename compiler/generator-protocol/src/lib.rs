@@ -13,6 +13,8 @@ mod signature;
 pub use signature::pending_method_signature;
 mod body;
 pub use body::{BodyJson, applied_default};
+mod descriptions;
+pub use descriptions::{member_description, type_description};
 
 #[cfg(test)]
 mod tests;

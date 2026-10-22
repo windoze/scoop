@@ -2,7 +2,7 @@
 
 use crate::{CallableDeclaration, MethodId, NominalId, QueryJson};
 use scoop_hir as hir;
-use scoop_identity::SourceIdentity;
+use scoop_identity::{SignatureTypeKey, SourceIdentity};
 use scoop_source::Diagnostic;
 use serde_json::{Value, json};
 
@@ -10,7 +10,7 @@ mod bounds;
 mod effects;
 mod parameters;
 
-type Result<T> = std::result::Result<T, Diagnostic>;
+pub(crate) type Result<T> = std::result::Result<T, Diagnostic>;
 
 pub fn pending_method_signature(
     queries: &mut dyn hir::SemanticQueries,
@@ -26,9 +26,7 @@ pub fn pending_method_signature(
             "the pending method has no nominal receiver",
         )
     })?;
-    let owner = queries
-        .describe_type((&binders).into(), receiver)
-        .map_err(|cause| error(signature.origin.span, cause))?;
+    let owner = queries.describe_type((&binders).into(), receiver)?;
     let hir::SemanticTypeStructure::Nominal(owner) = owner.structure else {
         return Err(error(
             signature.origin.span,
@@ -42,6 +40,7 @@ pub fn pending_method_signature(
         context: (&binders).into(),
         source: &signature.origin.source,
         binders: &binder_references,
+        application: None,
     };
     let parameters = parameters
         .iter()
@@ -79,21 +78,35 @@ pub fn pending_method_signature(
         "receiver": projection.ty(receiver)?, "binders": type_parameters,
         "contextParameters": context_parameters, "parameters": parameters,
         "result": projection.ty(signature.result)?,
-        "effects": projection.effects(&signature)?, "origin": QueryJson(&signature.origin),
+        "effects": projection.effects(signature.is_suspend, &signature.modifiers, &signature.attributes,
+            &signature.release_callability, signature.origin.span)?, "origin": QueryJson(&signature.origin),
     }))
 }
 
-struct SignatureProjection<'a> {
-    queries: &'a dyn hir::SemanticQueries,
-    context: hir::SemanticTypeContext<'a>,
-    source: &'a SourceIdentity,
-    binders: &'a [hir::HirSignatureBinder],
+pub(crate) struct SignatureProjection<'a> {
+    pub queries: &'a dyn hir::SemanticQueries,
+    pub context: hir::SemanticTypeContext<'a>,
+    pub source: &'a SourceIdentity,
+    pub binders: &'a [hir::HirSignatureBinder],
+    pub application: Option<(&'a hir::CanonicalBinderUseListV1, u32)>,
 }
 
 impl SignatureProjection<'_> {
-    fn ty(&self, ty: hir::TypeId) -> Result<Value> {
+    pub(crate) fn signature_type(&self, ty: hir::TypeId) -> Result<SignatureTypeKey> {
         let signature = self.queries.type_signature(self.context, ty)?;
-        Ok(json!(QueryJson(&signature)))
+        if let Some((arguments, introduced)) = self.application {
+            let provider = hir::DefaultTemplateProviderShapeV1::try_new(arguments.len_u32(), 0)
+                .map_err(|cause| error(hir::Span::new(0, 0), cause))?;
+            arguments
+                .substitute_provider_type_in_scope(provider, &signature, introduced)
+                .map_err(|cause| error(hir::Span::new(0, 0), cause))
+        } else {
+            Ok(signature)
+        }
+    }
+
+    pub(crate) fn ty(&self, ty: hir::TypeId) -> Result<Value> {
+        Ok(json!(QueryJson(&self.signature_type(ty)?)))
     }
 
     fn origin(&self, span: hir::Span) -> Value {
@@ -101,9 +114,9 @@ impl SignatureProjection<'_> {
     }
 }
 
-fn error(span: hir::Span, cause: impl std::fmt::Display) -> Diagnostic {
+pub(crate) fn error(span: hir::Span, cause: impl std::fmt::Display) -> Diagnostic {
     Diagnostic::at(
         span,
-        format!("cannot project the pending method signature: {cause}"),
+        format!("cannot project the semantic description: {cause}"),
     )
 }

@@ -46,6 +46,37 @@ fn dependency_method_queries_keep_stable_binders_and_apply_owner_bounds() {
             let reader = resolve("Reader<Int>");
             let integer = resolve("Int");
             let methods = queries.nominal_methods(context, box_type).unwrap().unwrap();
+            let json =
+                scoop_generator_protocol::member_description(queries, function, box_type).unwrap();
+            assert_eq!(json["methods"][0]["name"], "copy");
+            assert_eq!(
+                json["methods"][0]["parameters"][0]["valueType"]["appliedType"],
+                serde_json::to_value(scoop_generator_protocol::QueryJson(
+                    &queries
+                        .type_signature(context.into(), methods[0].parameters[0].value_type.applied)
+                        .unwrap()
+                ))
+                .unwrap()
+            );
+            assert_eq!(
+                json["methods"][1]["result"]["appliedType"],
+                serde_json::json!({"kind": "binder", "depth": 0, "index": 0})
+            );
+            assert_eq!(
+                json["methods"][0]["origin"],
+                serde_json::to_value(scoop_generator_protocol::QueryJson(&methods[0].origin))
+                    .unwrap()
+            );
+            assert_eq!(json["methods"][3]["access"]["accessible"], false);
+            assert_eq!(json["methods"][1]["body"]["availability"], "available");
+            for text in ["Unit", "Any", "Ptr<Int>", "FunPtr<(Int) -> Boolean>"] {
+                let ty = queries
+                    .resolve_type(context, &scoop_parser::parse_type(text).unwrap())
+                    .unwrap();
+                let core =
+                    scoop_generator_protocol::member_description(queries, function, ty).unwrap();
+                assert!(!core.is_null(), "imported core declaration: {text}");
+            }
             assert_eq!(
                 methods
                     .iter()

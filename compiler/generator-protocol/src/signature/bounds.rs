@@ -1,7 +1,7 @@
 use super::*;
 
 impl SignatureProjection<'_> {
-    pub(super) fn type_parameter(
+    pub(crate) fn type_parameter(
         &self,
         parameter: &hir::TypeParamDecl,
         binder: &hir::HirSignatureBinder,
@@ -22,9 +22,7 @@ impl SignatureProjection<'_> {
             .requirements
             .iter()
             .map(|requirement| {
-                let contract = requirement
-                    .contract
-                    .key(|ty| self.queries.type_signature(self.context, ty))?;
+                let contract = requirement.contract.key(|ty| self.signature_type(ty))?;
                 Ok(json!({
                     "index": requirement.id.ordinal, "contract": QueryJson(&contract),
                     "origin": self.origin(requirement.span),

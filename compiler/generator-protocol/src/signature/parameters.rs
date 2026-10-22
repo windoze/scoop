@@ -1,7 +1,7 @@
 use super::*;
 
 impl SignatureProjection<'_> {
-    pub(super) fn parameter(&self, parameter: &hir::SemanticParameterDescription) -> Result<Value> {
+    pub(crate) fn parameter(&self, parameter: &hir::SemanticParameterDescription) -> Result<Value> {
         let calling = match &parameter.calling {
             hir::SemanticParameterCalling::Required => json!({"kind": "required"}),
             hir::SemanticParameterCalling::Default(default) => json!({
@@ -27,13 +27,13 @@ impl SignatureProjection<'_> {
         }))
     }
 
-    fn default_use(
+    pub(crate) fn default_use(
         &self,
         parameter: hir::SemanticParameterIdentity,
         default: &hir::SemanticDefaultUse,
     ) -> Result<Value> {
         let arguments = default
-            .arguments
+            .declaration_arguments
             .iter()
             .map(|&ty| self.ty(ty))
             .collect::<Result<Vec<_>>>()?;

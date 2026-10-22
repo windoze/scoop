@@ -210,6 +210,7 @@ fn inherited_default_query_preserves_the_dependency_definition_scope() {
                     (&binders).into(),
                     &hir::SemanticDefaultUse {
                         definition: hir::SemanticDefaultReference::Current(source),
+                        declaration_arguments: vec![value_type],
                         arguments: vec![value_type],
                     },
                 )

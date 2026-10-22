@@ -11,34 +11,19 @@ impl Lowerer {
         &mut self,
         ty: hir::TypeId,
     ) -> Result<Option<Vec<hir::SemanticMethodDescription>>, Diagnostic> {
-        let target = self.nominal_target_for_type(ty);
-        let declaration = target
-            .map(|target| self.nominal_identity(target.owner()).declaration_id())
-            .or_else(|| self.imported_nominal_owner(ty));
-        let Some(declaration) = declaration else {
+        let Some(nominal) = self.describe_semantic_nominal(ty)? else {
             return Ok(None);
         };
-        let parameters = match self.types[ty] {
-            hir::Type::Unit
-            | hir::Type::Any
-            | hir::Type::Integer(_)
-            | hir::Type::Boolean
-            | hir::Type::String => Vec::new(),
-            _ => self
-                .nominal_declaration_parameters(declaration)
-                .expect("a resolved nominal retains its declaration parameters"),
-        };
-        let arguments = self.nominal_application(ty).map_or_else(
-            || self.imported_owner_arguments(ty).to_vec(),
-            |a| a.arguments,
-        );
+        let declaration = nominal.declaration;
+        let parameters = nominal.parameters;
+        let arguments = nominal.arguments;
         let substitutions = parameters
             .iter()
             .zip(&arguments)
             .map(|(parameter, argument)| (parameter.id, *argument))
             .collect::<Vec<_>>();
-        let mut methods = if let Some(target) = target {
-            self.query_source_methods(ty, target.owner(), &substitutions)?
+        let mut methods = if let Some(owner) = self.nominal_owners.get(&declaration).copied() {
+            self.query_source_methods(ty, owner, &substitutions)?
         } else {
             let owner = self
                 .dependencies

@@ -16,6 +16,8 @@ pub enum SemanticDefaultReference {
 #[derive(Clone, Debug)]
 pub struct SemanticDefaultUse {
     pub definition: SemanticDefaultReference,
+    /// The provider mapping before applying the queried nominal arguments.
+    pub declaration_arguments: Vec<TypeId>,
     /// Ordered definition-binder arguments in the queried application.
     pub arguments: Vec<TypeId>,
 }

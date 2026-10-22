@@ -1,8 +1,15 @@
 use super::*;
 
 impl SignatureProjection<'_> {
-    pub(super) fn effects(&self, signature: &hir::SemanticFunctionSignature) -> Result<Value> {
-        let release = match &signature.release_callability {
+    pub(crate) fn effects(
+        &self,
+        is_suspend: bool,
+        modifiers: &hir::CallableModifiers,
+        attributes: &hir::FunctionAttributes,
+        release_callability: &hir::ReleaseCallability,
+        span: hir::Span,
+    ) -> Result<Value> {
+        let release = match release_callability {
             hir::ConditionalReleaseCallability::Unavailable => json!({"kind": "unavailable"}),
             hir::ConditionalReleaseCallability::NoTransition { requirements } => {
                 let requirements = requirements
@@ -13,10 +20,7 @@ impl SignatureProjection<'_> {
                             .iter()
                             .find(|binder| binder.parameter == *parameter)
                             .ok_or_else(|| {
-                                error(
-                                    signature.origin.span,
-                                    "release condition has no declaration binder",
-                                )
+                                error(span, "release condition has no declaration binder")
                             })?;
                         Ok(json!({"kind": "binder", "depth": binder.depth, "index": binder.index}))
                     })
@@ -25,13 +29,13 @@ impl SignatureProjection<'_> {
             }
         };
         Ok(json!({
-            "execution": if signature.is_suspend { "suspend" } else { "ordinary" },
-            "safety": QueryJson(&signature.attributes.safety),
-            "gc": QueryJson(&signature.attributes.gc_effect),
-            "callingConvention": match signature.attributes.calling_convention { hir::CallingConvention::Cdecl => "c" },
-            "operator": QueryJson(&signature.modifiers.operator),
-            "propertyDelegateOperator": QueryJson(&signature.modifiers.property_delegate_operator),
-            "infix": signature.modifiers.is_infix,
+            "execution": if is_suspend { "suspend" } else { "ordinary" },
+            "safety": QueryJson(&attributes.safety),
+            "gc": QueryJson(&attributes.gc_effect),
+            "callingConvention": match attributes.calling_convention { hir::CallingConvention::Cdecl => "c" },
+            "operator": QueryJson(&modifiers.operator),
+            "propertyDelegateOperator": QueryJson(&modifiers.property_delegate_operator),
+            "infix": modifiers.is_infix,
             "release": release,
         }))
     }

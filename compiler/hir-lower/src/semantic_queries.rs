@@ -255,8 +255,15 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         &mut self,
         context: hir::SemanticTypeContext<'_>,
         ty: hir::TypeId,
-    ) -> Result<hir::SemanticTypeDescription, hir::StaticShapeUnboundParameter> {
+    ) -> Result<hir::SemanticTypeDescription, Diagnostic> {
         self.in_type_context(context, |lowerer| lowerer.describe_semantic_type(ty))
+    }
+
+    fn nominal_declaration(
+        &mut self,
+        ty: hir::TypeId,
+    ) -> Result<Option<hir::SemanticNominalDescription>, Diagnostic> {
+        self.lowerer.describe_semantic_nominal(ty)
     }
 
     fn nominal_fields(

@@ -1287,6 +1287,8 @@ lambda 参数试探只有实际消费了所属 header 的 `->` 才提交；恢�
 
 M47 的 JSON 投影属于 `scoop-generator-protocol`，其字段合同见[JSON 数据编码](../milestone47/JSON.md)。投影沿既有完整类型、声明引用和注解值形成显式分支，来源使用实际 SourceIdentity 与 byte range。跨进程引用保留 typed identity 的类别与 32 字节内容；读取十六进制引用不创建语言声明，后续查询仍在当前视图中按该类别查找。常量保留整数宽度／符号和精确十进制值，浮点保留 IEEE 位模式。
 
+完整类型与成员消息沿上述查询保留名义声明的真实来源、注解、原参数及其约束，声明列表按原顺序返回。字段、属性、构造参数和方法签名分别给出声明类型与应用类型。应用泛型方法时，宿主实参属于查询位置，方法自身参数仍属于该方法；协议复用已有的 binder 替换与层级提升，不把两者拼成同一层，也不让同名或相同 arena 参数造成捕获。default 的实参同时保留声明侧映射与本次应用，供同一替换路径投影。访问结论与访问域直接来自普通前端，正文只报告已有可用性，不因读取成员而投影或执行正文。字段形状及上下文规则见 [M47 成员编码](../milestone47/MEMBERS-JSON.md)。
+
 存储字段和 enum variant 按实际声明顺序读取；基类字段通过父关系访问，不混入子类声明表。class 的 backing／delegate 字段保留所关联的 logical property 身份，存储元数据不表示源码可访问性或 setter 能力。当前来源取绑定时记录的成员范围，依赖来源取既有 foundation 的对应 typed definition origin；读取描述不寻找上游源码，也不以 owner 的范围替代缺失的成员位置。
 
 logical property 描述独立保留 getter／setter 身份、实现形式、访问域和 override 关系；只读属性没有 setter。给定查询上下文的访问结论沿原有 property／callable 访问检查计算，包含 protected receiver 限制，不由客户端从可见性关键字推测。访问器正文查询复用普通正文可用性；存储或常量访问器无普通正文，abstract slot 为 NoBody，已有源码访问器返回其实际 typed body。

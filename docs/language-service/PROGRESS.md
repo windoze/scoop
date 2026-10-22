@@ -47,6 +47,8 @@
 - 待填方法 JSON 签名：完整参数查询复用原声明 binder，协议保留 receiver、宿主／方法约束、context、required／default／vararg、effects、release 条件与来源。合成方法登记真实 requirement 的普通默认值继承关系，沿原路径处理实参省略与冲突；本地接口 context 参数统一使用合成方法的触发文件和范围。格式化、全 workspace Clippy 及 82 项编码／生成／依赖查询／context／调用协议测试通过，覆盖不同宿主泛型元数、跨文件位置和默认值冲突。测试发现的空替换映射与遗漏继承关系已修复，新增源码用例的语法、context key 和可见性问题已闭合；完整正文 JSON 与实际生成器进程继续实施。
 - 逻辑正文 JSON：按独立 schema 借用编码现有完整表达式、语句、模式、存储、调用、capture、效果与来源，数值保留精度，局部引用使用原 selector。普通正文、默认值定义和应用视图共用编码；局部泛型签名保留自身 binder，requirement 实现片段保持原定义，并单独应用外层类型实参。格式化、全 workspace Clippy 及 52 项协议／真实前端查询测试通过，覆盖默认值与依赖来源、循环／闭包、原子内存序、指针 offset、空分支与缺失分支、开放实参的层级提升。测试 fixture 的单文件来源构造已改为已有入口并复验。完整类型／成员描述消息、双向查询及真实 generator 进程仍待接入。
 
+- 类型与成员 JSON：完整投影类型结构、原名义参数和来源、字段／variant、logical property、构造器、方法、访问域及正文可用性。声明类型与应用类型复用已有 binder 替换，保留方法自身参数，并提升查询位置的开放实参；默认值同时保留声明映射，避免查询同一个泛型方法时发生参数捕获。Unit／Any／Ptr／函数指针等结构表示沿真实 core 声明读取成员。格式化、全 workspace Clippy 及 55 项协议／生成／依赖查询测试通过，覆盖实际字段与构造参数关联、private setter、依赖来源、重复读取、同名及同一声明参数。依赖测试发现的原生空参数加载问题已闭合。注解声明／target 消息、远程引用解析、双向查询及真实 generator 进程继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。
