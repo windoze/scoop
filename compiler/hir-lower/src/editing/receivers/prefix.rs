@@ -1,6 +1,7 @@
 use super::*;
 
 mod conditionals;
+mod iteration;
 mod loops;
 
 impl Lowerer {
@@ -49,6 +50,18 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         &mut self,
         lowerer: &mut Lowerer,
         id: ast::BodyBlockId,
+        available: bool,
+    ) -> Result<(), EditingCancelled> {
+        lowerer.push_scope();
+        let result = self.block_contents(lowerer, id, available);
+        lowerer.pop_scope();
+        result
+    }
+
+    fn block_contents(
+        &mut self,
+        lowerer: &mut Lowerer,
+        id: ast::BodyBlockId,
         mut available: bool,
     ) -> Result<(), EditingCancelled> {
         check_cancelled(self.is_cancelled)?;
@@ -58,28 +71,23 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
             .iter()
             .find(|block| block.id == id)
             .expect("a recovered block entry retains its grammar block");
-        lowerer.push_scope();
-        let result = (|| {
-            let mut statements = Vec::new();
-            for statement in &block.statements {
-                check_cancelled(self.is_cancelled)?;
-                match statement {
-                    ast::RecoveredStatement::Complete(statement) => {
-                        if available {
-                            let before = lowerer.diagnostics.len();
-                            lowerer.lower_statement(statement, &mut statements);
-                            available = lowerer.diagnostics.len() == before;
-                        }
-                    }
-                    ast::RecoveredStatement::Unavailable(span) => {
-                        return self.expression(lowerer, Some(id), span.start, available);
+        let mut statements = Vec::new();
+        for statement in &block.statements {
+            check_cancelled(self.is_cancelled)?;
+            match statement {
+                ast::RecoveredStatement::Complete(statement) => {
+                    if available {
+                        let before = lowerer.diagnostics.len();
+                        lowerer.lower_statement(statement, &mut statements);
+                        available = lowerer.diagnostics.len() == before;
                     }
                 }
+                ast::RecoveredStatement::Unavailable(span) => {
+                    return self.expression(lowerer, Some(id), span.start, available);
+                }
             }
-            Ok(())
-        })();
-        lowerer.pop_scope();
-        result
+        }
+        Ok(())
     }
 
     fn expression(
@@ -152,6 +160,14 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         {
             return self.while_loop(lowerer, while_loop, available);
         }
+        if let Some(for_loop) = self
+            .body
+            .for_loops
+            .iter()
+            .find(|for_loop| for_loop.block == block && for_loop.span.start == start)
+        {
+            return self.for_loop(lowerer, for_loop, available);
+        }
         Ok(())
     }
 
@@ -162,13 +178,23 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         body: ast::RecoveredControlBody,
         available: bool,
     ) -> Result<(), EditingCancelled> {
+        lowerer.push_scope();
+        let result = self.control_body_contents(lowerer, parent, body, available);
+        lowerer.pop_scope();
+        result
+    }
+
+    fn control_body_contents(
+        &mut self,
+        lowerer: &mut Lowerer,
+        parent: Option<ast::BodyBlockId>,
+        body: ast::RecoveredControlBody,
+        available: bool,
+    ) -> Result<(), EditingCancelled> {
         match body {
-            ast::RecoveredControlBody::Block(id) => self.block(lowerer, id, available),
+            ast::RecoveredControlBody::Block(id) => self.block_contents(lowerer, id, available),
             ast::RecoveredControlBody::Statement(start) => {
-                lowerer.push_scope();
-                let result = self.expression(lowerer, parent, start, available);
-                lowerer.pop_scope();
-                result
+                self.expression(lowerer, parent, start, available)
             }
         }
     }
@@ -195,7 +221,9 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
                         )
                         .is_some()
             }
-            ast::RecoveredOperandContext::Throw | ast::RecoveredOperandContext::IfCondition => true,
+            ast::RecoveredOperandContext::Throw
+            | ast::RecoveredOperandContext::IfCondition
+            | ast::RecoveredOperandContext::ForIterable => true,
             ast::RecoveredOperandContext::WhileCondition { label } => {
                 return self.while_condition(lowerer, operand, label.as_ref());
             }

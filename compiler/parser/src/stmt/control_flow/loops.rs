@@ -87,6 +87,7 @@ impl Parser {
     }
 
     fn parse_for_inner(&mut self, label: Option<ast::Ident>) -> Result<Statement, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let keyword = self.bump();
         let start = label
             .as_ref()
@@ -94,9 +95,27 @@ impl Parser {
         self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
         let pattern = self.parse_pattern()?;
         self.expect("`in`", |kind| matches!(kind, TokenKind::In))?;
-        let iterable = self.parse_expr()?;
+        let iterable =
+            self.parse_statement_operand(start, || ast::RecoveredOperandContext::ForIterable)?;
         self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
-        let body = self.parse_control_body()?;
+        let complete_header = self.fragment_is_complete(checkpoint);
+        let (result, recovered) = self.parse_recoverable_control_body();
+        if complete_header && let Some(body) = recovered {
+            self.record_recovered_for(ast::RecoveredFor {
+                block: None,
+                span: Span::new(
+                    start,
+                    result
+                        .as_ref()
+                        .map_or(self.peek().span.start, |body| body.span.end),
+                ),
+                label: label.clone(),
+                pattern: Box::new(pattern.clone()),
+                iterable: Box::new(iterable.clone()),
+                body,
+            });
+        }
+        let body = result?;
         let span = Span::new(start, body.span.end);
         Ok(Statement {
             kind: StatementKind::For(For {

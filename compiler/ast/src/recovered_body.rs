@@ -64,6 +64,7 @@ pub enum RecoveredOperandContext {
     WhileCondition {
         label: Option<crate::Ident>,
     },
+    ForIterable,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -105,6 +106,16 @@ pub struct RecoveredWhile {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct RecoveredFor {
+    pub block: Option<BodyBlockId>,
+    pub span: Span,
+    pub label: Option<crate::Ident>,
+    pub pattern: Box<crate::Pattern>,
+    pub iterable: Box<Expr>,
+    pub body: RecoveredControlBody,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct RecoveredFunctionBody {
     pub root: RecoveredBodyRoot,
     pub blocks: Vec<RecoveredBlock>,
@@ -113,4 +124,5 @@ pub struct RecoveredFunctionBody {
     pub operands: Vec<RecoveredOperand>,
     pub conditionals: Vec<RecoveredIf>,
     pub while_loops: Vec<RecoveredWhile>,
+    pub for_loops: Vec<RecoveredFor>,
 }

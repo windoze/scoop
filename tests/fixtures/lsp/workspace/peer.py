@@ -11,6 +11,7 @@ from callable_values import check as check_callable_values
 from cancellation import check as check_cancellation
 from diagnostics import check as check_diagnostics
 from documentation import check as check_documentation
+from for_recovery import check as check_for_recovery
 from import_references import check as check_import_references
 from incomplete_signatures import check as check_incomplete_signatures
 from member_implementations import check as check_member_implementations
@@ -340,6 +341,7 @@ def main():
         check_recovered_objects(peer, root)
         check_qualified_signatures(peer, root)
         check_while_recovery(peer, root)
+        check_for_recovery(peer, root)
         check_recovered_interfaces(peer, root)
         check_recovered_structs(peer, root)
         peer.finish()

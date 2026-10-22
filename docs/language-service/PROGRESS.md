@@ -164,6 +164,8 @@ object／companion 的方法正文恢复已接入普通单例声明流程。完�
 
 while 的恢复上下文已接入：原 grammar 保存循环标签、完整条件与实际块／单语句入口，不完整条件单独保留输入起点；完整循环不复制条件 AST。查询使用原循环目标、Boolean 检查和词法作用域，并沿已有 flow 操作移除未知回边可能改变的可变 binding 关系，保留不可变事实、地址逃逸及条件重新建立的收窄。if 与 while 共用实际控制体入口。格式化、全 workspace Clippy、Ruff、142 项编辑态测试、8 项普通循环／控制流回归及 667 项 parser／宿主／LSP 测试通过；独立进程与完整 stdio fixture 通过，后者耗时约 56.1 秒，覆盖中文／嵌套标签、未完成条件、局部遮蔽、可变 Boolean 蕴含失效、取消以及修改／关闭后的 hover 和签名更新。Python import 排序已修正并复验；for／do-while、其他恢复作用域与 E 阶段范围继续实施。
 
+for 的恢复上下文已接入普通迭代头部计算，原 iterator operator、唯一 core `Iterator<T>`、next／Option 和元素类型保持同一生产路径。完整模式沿原事务建立只读 binding，与该轮 body 共享作用域；iterable 使用外层 flow 和控制目标，未知回边再按 while 边界移除可变事实。普通循环的求值与输出顺序保持，失败模式不留下部分声明。格式化、全 workspace Clippy、Ruff、148 项编辑态测试、21 项迭代／循环目标回归及 671 项 parser／宿主／LSP 测试通过；独立进程和完整 stdio fixture 通过，后者耗时约 58.9 秒，覆盖泛型、tuple 解构、错误协议／重复绑定、标签求值边界以及预编译 core 下的修改与关闭恢复。parser 测试已改为读取原 tuple pattern 的范围，未增加仅供测试使用的 AST API；target 仍约 15 GiB。do-while、其他恢复作用域及引用／重命名范围继续实施。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

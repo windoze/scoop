@@ -50,7 +50,7 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
     }
 }
 
-fn loop_entry_facts(lowerer: &Lowerer) -> crate::expr::SmartCastFacts {
+pub(super) fn loop_entry_facts(lowerer: &Lowerer) -> crate::expr::SmartCastFacts {
     // The unknown backedge can write mutable values but cannot replace val bindings.
     let mut facts = lowerer.smart_casts.clone();
     for (_, local) in lowerer.locals.iter() {
