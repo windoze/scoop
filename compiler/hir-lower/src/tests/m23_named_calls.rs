@@ -23,10 +23,13 @@ fn mixed_inapplicable_partition_reports_each_typed_origin() {
 fn object_without_invoke_keeps_its_non_constructor_diagnostic() {
     let mut user = consumer(call("Only", Vec::new()));
     user.declarations.push(Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident("Only"),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident("Only"),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members: Vec::new(),
         span: sp(),
     }));
@@ -759,10 +762,13 @@ fn imported_singleton_method_and_property_invoke_preserve_typed_receivers() {
         file(vec![
             handler(true),
             Decl::Object(ast::ObjectDecl {
-                annotations: Vec::new(),
-                visibility: ast::VisibilitySyntax::Omitted,
-                name: ident("Tools"),
-                supertypes: Vec::new(),
+                header: ast::ObjectHeader {
+                    annotations: Vec::new(),
+                    visibility: ast::VisibilitySyntax::Omitted,
+                    name: ident("Tools"),
+                    supertypes: Vec::new(),
+                    span: sp(),
+                },
                 members: vec![
                     ast::ClassMember::Function(method_expr(
                         "choose",

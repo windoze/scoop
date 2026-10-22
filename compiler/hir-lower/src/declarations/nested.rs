@@ -25,20 +25,7 @@ impl Lowerer {
                     self.declare_nested_nominal(owner, nested, queues, file)
                 }
                 ast::ClassMember::Companion(companion) => {
-                    if let Some(id) = self.declare_companion(
-                        companion,
-                        queues.objects,
-                        queues.methods,
-                        file,
-                        owner,
-                    ) {
-                        self.declare_object_nested(
-                            Owner::Object(id),
-                            super::objects::ObjectSource::Companion(companion),
-                            queues,
-                            file,
-                        );
-                    }
+                    self.declare_companion_nested(owner, companion.source(), queues, file);
                 }
                 ast::ClassMember::StoredProperty(_)
                 | ast::ClassMember::InitBlock(_)
@@ -47,9 +34,7 @@ impl Lowerer {
                 | ast::ClassMember::Function(_) => {}
             }
         }
-        for nested in &declaration.recovery.nested {
-            self.declare_recovered_nested_nominal(owner, nested, queues, file);
-        }
+        self.declare_recovered_nested_members(owner, declaration.recovery, queues, file);
     }
 
     pub(crate) fn declare_struct_nested<'a>(
@@ -65,29 +50,14 @@ impl Lowerer {
                     self.declare_nested_nominal(owner, nested, queues, file)
                 }
                 ast::StructMember::Companion(companion) => {
-                    if let Some(id) = self.declare_companion(
-                        companion,
-                        queues.objects,
-                        queues.methods,
-                        file,
-                        owner,
-                    ) {
-                        self.declare_object_nested(
-                            Owner::Object(id),
-                            super::objects::ObjectSource::Companion(companion),
-                            queues,
-                            file,
-                        );
-                    }
+                    self.declare_companion_nested(owner, companion.source(), queues, file);
                 }
                 ast::StructMember::SecondaryConstructor(_)
                 | ast::StructMember::Function(_)
                 | ast::StructMember::Property(_) => {}
             }
         }
-        for nested in &declaration.recovery.nested {
-            self.declare_recovered_nested_nominal(owner, nested, queues, file);
-        }
+        self.declare_recovered_nested_members(owner, declaration.recovery, queues, file);
     }
 
     pub(crate) fn declare_enum_nested<'a>(
@@ -101,20 +71,9 @@ impl Lowerer {
             self.declare_nested_nominal(owner, nested, queues, file);
         }
         if let Some(companion) = declaration.companion {
-            if let Some(id) =
-                self.declare_companion(companion, queues.objects, queues.methods, file, owner)
-            {
-                self.declare_object_nested(
-                    Owner::Object(id),
-                    super::objects::ObjectSource::Companion(companion),
-                    queues,
-                    file,
-                );
-            }
+            self.declare_companion_nested(owner, companion.source(), queues, file);
         }
-        for nested in &declaration.recovery.nested {
-            self.declare_recovered_nested_nominal(owner, nested, queues, file);
-        }
+        self.declare_recovered_nested_members(owner, declaration.recovery, queues, file);
     }
 
     pub(crate) fn declare_interface_nested<'a>(
@@ -128,20 +87,9 @@ impl Lowerer {
             self.declare_nested_nominal(owner, nested, queues, file);
         }
         if let Some(companion) = declaration.companion {
-            if let Some(id) =
-                self.declare_companion(companion, queues.objects, queues.methods, file, owner)
-            {
-                self.declare_object_nested(
-                    Owner::Object(id),
-                    super::objects::ObjectSource::Companion(companion),
-                    queues,
-                    file,
-                );
-            }
+            self.declare_companion_nested(owner, companion.source(), queues, file);
         }
-        for nested in &declaration.recovery.nested {
-            self.declare_recovered_nested_nominal(owner, nested, queues, file);
-        }
+        self.declare_recovered_nested_members(owner, declaration.recovery, queues, file);
     }
 
     pub(crate) fn declare_object_nested<'a>(
@@ -157,20 +105,7 @@ impl Lowerer {
                     self.declare_nested_nominal(owner, nested, queues, file)
                 }
                 ast::ClassMember::Companion(companion) => {
-                    if let Some(id) = self.declare_companion(
-                        companion,
-                        queues.objects,
-                        queues.methods,
-                        file,
-                        owner,
-                    ) {
-                        self.declare_object_nested(
-                            Owner::Object(id),
-                            super::objects::ObjectSource::Companion(companion),
-                            queues,
-                            file,
-                        );
-                    }
+                    self.declare_companion_nested(owner, companion.source(), queues, file);
                 }
                 ast::ClassMember::StoredProperty(_)
                 | ast::ClassMember::InitBlock(_)
@@ -178,6 +113,41 @@ impl Lowerer {
                 | ast::ClassMember::SecondaryConstructor(_)
                 | ast::ClassMember::Function(_) => {}
             }
+        }
+        self.declare_recovered_nested_members(owner, source.recovery(), queues, file);
+    }
+
+    fn declare_companion_nested<'a>(
+        &mut self,
+        owner: Owner,
+        source: ast::CompanionObjectSource<'a>,
+        queues: &mut NestedDeclarationQueues<'_, 'a>,
+        file: usize,
+    ) {
+        if let Some(id) =
+            self.declare_companion(source, queues.objects, queues.methods, file, owner)
+        {
+            self.declare_object_nested(
+                Owner::Object(id),
+                super::objects::ObjectSource::Companion(source),
+                queues,
+                file,
+            );
+        }
+    }
+
+    fn declare_recovered_nested_members<'a>(
+        &mut self,
+        owner: Owner,
+        recovery: &'a ast::RecoveredNominalMembers,
+        queues: &mut NestedDeclarationQueues<'_, 'a>,
+        file: usize,
+    ) {
+        for nested in &recovery.nested {
+            self.declare_recovered_nested_nominal(owner, nested, queues, file);
+        }
+        if let Some(companion) = &recovery.companion {
+            self.declare_companion_nested(owner, companion.source(), queues, file);
         }
     }
 
@@ -248,12 +218,16 @@ impl Lowerer {
                 }
             }
             ast::NestedTypeDecl::Object(source) => {
-                if let Some(id) =
-                    self.declare_object(source, queues.objects, queues.methods, file, Some(owner))
-                {
+                if let Some(id) = self.declare_object(
+                    source.source(),
+                    queues.objects,
+                    queues.methods,
+                    file,
+                    Some(owner),
+                ) {
                     self.declare_object_nested(
                         Owner::Object(id),
-                        super::objects::ObjectSource::Object(source),
+                        super::objects::ObjectSource::Object(source.source()),
                         queues,
                         file,
                     );
@@ -314,6 +288,19 @@ impl Lowerer {
                     Some(owner),
                 ) {
                     self.declare_enum_nested(Owner::Enum(id), source, queues, file);
+                }
+            }
+            ast::RecoveredNominal::Object(declaration) => {
+                let source = declaration.source();
+                if let Some(id) =
+                    self.declare_object(source, queues.objects, queues.methods, file, Some(owner))
+                {
+                    self.declare_object_nested(
+                        Owner::Object(id),
+                        super::objects::ObjectSource::Object(source),
+                        queues,
+                        file,
+                    );
                 }
             }
         }

@@ -113,10 +113,13 @@ fn extension(receiver: &str, name: &str, parameter: &str, marker: i64) -> Decl {
 
 fn object_with_method(object: &str, name: &str, marker: i64) -> Decl {
     Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(object),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(object),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members: vec![ast::ClassMember::Function(method_expr(
             name,
             vec![("value", ty_named("Int"))],
@@ -142,10 +145,13 @@ fn class_with_companion_method(host: &str, companion: &str, name: &str, marker: 
         .members
         .push(ast::ClassMember::Companion(Box::new(
             ast::CompanionObjectDecl {
-                annotations: Vec::new(),
-                visibility: ast::VisibilitySyntax::Omitted,
-                name: ast::CompanionNameSyntax::Named(ident(companion)),
-                supertypes: Vec::new(),
+                header: ast::CompanionObjectHeader {
+                    annotations: Vec::new(),
+                    visibility: ast::VisibilitySyntax::Omitted,
+                    name: ast::CompanionNameSyntax::Named(ident(companion)),
+                    supertypes: Vec::new(),
+                    span: sp(),
+                },
                 members: vec![ast::ClassMember::Function(method_expr(
                     name,
                     vec![("value", ty_named("Int"))],

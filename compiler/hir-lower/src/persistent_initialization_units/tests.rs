@@ -72,10 +72,13 @@ fn extension_delegate() -> ast::Decl {
 
 fn object(name: &str) -> ast::Decl {
     ast::Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members: Vec::new(),
         span: sp(),
     })
@@ -94,10 +97,13 @@ fn host_with_companion() -> ast::Decl {
     };
     host.members.push(ast::ClassMember::Companion(Box::new(
         ast::CompanionObjectDecl {
-            annotations: Vec::new(),
-            visibility: ast::VisibilitySyntax::Omitted,
-            name: ast::CompanionNameSyntax::Named(ident("Factory")),
-            supertypes: Vec::new(),
+            header: ast::CompanionObjectHeader {
+                annotations: Vec::new(),
+                visibility: ast::VisibilitySyntax::Omitted,
+                name: ast::CompanionNameSyntax::Named(ident("Factory")),
+                supertypes: Vec::new(),
+                span: sp(),
+            },
             members: Vec::new(),
             span: sp(),
         },

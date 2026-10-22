@@ -9,6 +9,8 @@ mod interfaces;
 pub use interfaces::*;
 mod enums;
 pub use enums::*;
+mod objects;
+pub use objects::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RecoveredNominal {
@@ -16,6 +18,7 @@ pub enum RecoveredNominal {
     Struct(Box<RecoveredStruct>),
     Interface(Box<RecoveredInterface>),
     Enum(Box<RecoveredEnum>),
+    Object(Box<RecoveredObject>),
 }
 
 impl RecoveredNominal {
@@ -25,6 +28,7 @@ impl RecoveredNominal {
             Self::Struct(value) => value.span,
             Self::Interface(value) => value.span,
             Self::Enum(value) => value.span,
+            Self::Object(value) => value.span,
         }
     }
 
@@ -34,6 +38,7 @@ impl RecoveredNominal {
             Self::Struct(value) => &mut value.recovery,
             Self::Interface(value) => &mut value.recovery,
             Self::Enum(value) => &mut value.recovery,
+            Self::Object(value) => &mut value.recovery,
         }
     }
 }
@@ -42,12 +47,14 @@ impl RecoveredNominal {
 pub struct RecoveredNominalMembers {
     pub methods: Vec<RecoveredMethod>,
     pub nested: Vec<RecoveredNominal>,
+    pub companion: Option<Box<RecoveredCompanionObject>>,
 }
 
 impl RecoveredNominalMembers {
     pub const EMPTY: &'static Self = &Self {
         methods: Vec::new(),
         nested: Vec::new(),
+        companion: None,
     };
 }
 

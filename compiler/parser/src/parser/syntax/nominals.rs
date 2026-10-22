@@ -7,6 +7,8 @@ use scoop_syntax::{DeclarationData, DeclarationIndex, DeclarationSyntax, SyntaxK
 
 use super::{Event, Parser};
 
+mod body;
+use body::RecoveredBody;
 mod events;
 pub(super) use events::NominalEvent;
 use events::NominalHeader;
@@ -61,6 +63,8 @@ impl NominalRecorder {
                         | SyntaxKind::StructDecl
                         | SyntaxKind::InterfaceDecl
                         | SyntaxKind::EnumDecl
+                        | SyntaxKind::ObjectDecl
+                        | SyntaxKind::CompanionDecl
                 ) {
                     return;
                 }
@@ -106,6 +110,7 @@ impl NominalRecorder {
                             | SyntaxKind::StructDecl
                             | SyntaxKind::InterfaceDecl
                             | SyntaxKind::EnumDecl
+                            | SyntaxKind::ObjectDecl
                     )
                 {
                     return None;
@@ -116,62 +121,28 @@ impl NominalRecorder {
         roots
             .into_iter()
             .filter_map(|declaration| {
-                let value = self.recover_nominal(declaration, declarations, &headers, &bodies)?;
+                let RecoveredBody::Nominal(value) =
+                    self.recover_body(declaration, declarations, &headers, &bodies)?
+                else {
+                    return None;
+                };
                 Some(DeclarationData { declaration, value })
             })
             .collect()
     }
 
-    fn recover_nominal(
+    fn recover_body(
         &mut self,
         index: DeclarationIndex,
         declarations: &mut [DeclarationSyntax],
         headers: &HashMap<DeclarationIndex, &ast::FunctionHeader>,
         bodies: &HashMap<DeclarationIndex, &ast::RecoveredFunctionBody>,
-    ) -> Option<ast::RecoveredNominal> {
+    ) -> Option<RecoveredBody> {
         let header = self.headers.remove(&index)?;
         let mut result = header.recovered(declarations[index.0].span.end);
         for member in self.members.remove(&index).unwrap_or_default() {
             if let Some(value) = member.value {
-                match (&mut result, value) {
-                    (ast::RecoveredNominal::Class(class), NominalMember::Class(value)) => {
-                        class.members.push(*value)
-                    }
-                    (ast::RecoveredNominal::Struct(structure), NominalMember::Struct(value)) => {
-                        structure.members.push(*value)
-                    }
-                    (
-                        ast::RecoveredNominal::Interface(interface),
-                        NominalMember::Function(value),
-                    ) => interface.methods.push(*value),
-                    (
-                        ast::RecoveredNominal::Interface(interface),
-                        NominalMember::Property(value),
-                    ) => interface.properties.push(*value),
-                    (ast::RecoveredNominal::Interface(interface), NominalMember::Nested(value)) => {
-                        interface.nested.push(*value)
-                    }
-                    (
-                        ast::RecoveredNominal::Interface(interface),
-                        NominalMember::Companion(value),
-                    ) => interface.companion = Some(*value),
-                    (ast::RecoveredNominal::Enum(enumeration), NominalMember::Variant(value)) => {
-                        enumeration.variants.push(*value)
-                    }
-                    (ast::RecoveredNominal::Enum(enumeration), NominalMember::Function(value)) => {
-                        enumeration.methods.push(*value)
-                    }
-                    (ast::RecoveredNominal::Enum(enumeration), NominalMember::Property(value)) => {
-                        enumeration.properties.push(*value)
-                    }
-                    (ast::RecoveredNominal::Enum(enumeration), NominalMember::Nested(value)) => {
-                        enumeration.nested.push(*value)
-                    }
-                    (ast::RecoveredNominal::Enum(enumeration), NominalMember::Companion(value)) => {
-                        enumeration.companion = Some(*value)
-                    }
-                    _ => unreachable!("each nominal body records its own member syntax"),
-                }
+                result.push_member(value)?;
                 continue;
             }
             let declaration = member.declaration?;
@@ -191,12 +162,12 @@ impl NominalRecorder {
                 SyntaxKind::ClassDecl
                 | SyntaxKind::StructDecl
                 | SyntaxKind::InterfaceDecl
-                | SyntaxKind::EnumDecl => result.recovery_mut().nested.push(self.recover_nominal(
-                    declaration,
-                    declarations,
-                    headers,
-                    bodies,
-                )?),
+                | SyntaxKind::EnumDecl
+                | SyntaxKind::ObjectDecl
+                | SyntaxKind::CompanionDecl => {
+                    let member = self.recover_body(declaration, declarations, headers, bodies)?;
+                    result.push_recovered(member)?;
+                }
                 _ => return None,
             }
         }
@@ -208,6 +179,32 @@ impl NominalRecorder {
 }
 
 impl Parser {
+    pub(crate) fn record_object_header(
+        &mut self,
+        header: &ast::ObjectHeader,
+        checkpoint: super::super::checkpoint::Checkpoint,
+    ) {
+        if self.fragment_is_complete(checkpoint) {
+            self.syntax
+                .events
+                .push(Event::Nominal(NominalEvent::Header(NominalHeader::Object(
+                    Box::new(header.clone()),
+                ))));
+        }
+    }
+
+    pub(crate) fn record_companion_header(
+        &mut self,
+        header: &ast::CompanionObjectHeader,
+        checkpoint: super::super::checkpoint::Checkpoint,
+    ) {
+        if self.fragment_is_complete(checkpoint) {
+            self.syntax.events.push(Event::Nominal(NominalEvent::Header(
+                NominalHeader::Companion(Box::new(header.clone())),
+            )));
+        }
+    }
+
     pub(crate) fn record_enum_header(
         &mut self,
         header: &ast::EnumHeader,
@@ -275,6 +272,10 @@ impl Parser {
             crate::lexer::TokenKind::Struct => SyntaxKind::StructDecl,
             crate::lexer::TokenKind::Interface => SyntaxKind::InterfaceDecl,
             crate::lexer::TokenKind::Enum => SyntaxKind::EnumDecl,
+            crate::lexer::TokenKind::Ident(ref text) if text == "object" => SyntaxKind::ObjectDecl,
+            crate::lexer::TokenKind::Ident(ref text) if text == "companion" => {
+                SyntaxKind::CompanionDecl
+            }
             _ => return,
         };
         self.syntax

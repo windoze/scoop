@@ -161,6 +161,15 @@ impl Lowerer {
                                 None,
                             );
                         }
+                        ast::RecoveredNominal::Object(declaration) => {
+                            self.declare_object(
+                                declaration.source(),
+                                &mut pending_objects,
+                                &mut pending_methods,
+                                file_index,
+                                None,
+                            );
+                        }
                     }
                     continue;
                 }
@@ -225,7 +234,7 @@ impl Lowerer {
                 }
                 ast::Decl::Object(decl) => {
                     let _ = self.declare_object(
-                        decl,
+                        decl.source(),
                         &mut pending_objects,
                         &mut pending_methods,
                         file_index,
@@ -317,8 +326,13 @@ impl Lowerer {
                 .chain(pending_interfaces.iter().map(|(id, declaration, file)| {
                     (Owner::Interface(*id), declaration.recovery, *file)
                 }))
-                .chain(pending_enums.iter().map(|(id, declaration, file)| {
-                    (Owner::Enum(*id), declaration.recovery, *file)
+                .chain(
+                    pending_enums.iter().map(|(id, declaration, file)| {
+                        (Owner::Enum(*id), declaration.recovery, *file)
+                    }),
+                )
+                .chain(pending_objects.iter().map(|(id, declaration, file)| {
+                    (Owner::Object(*id), declaration.recovery(), *file)
                 }));
         for (owner, recovery, file) in recovered_nominals {
             for method in &recovery.methods {
@@ -348,7 +362,9 @@ impl Lowerer {
                             .sort_by_key(|function| self.functions[*function].span.start);
                         self.interface_methods.get_mut(&interface).unwrap()
                     }
-                    Owner::Object(_) => unreachable!("recovered nominal inputs"),
+                    Owner::Object(object) => {
+                        &mut self.classes[self.objects[object].backing_class].methods
+                    }
                 };
                 methods.sort_by_key(|function| self.functions[*function].span.start);
             }

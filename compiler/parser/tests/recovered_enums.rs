@@ -71,6 +71,7 @@ fn recovered_enum_members_and_nested_types_keep_the_original_body_owner() {
             Nominal::Struct(outer) => &outer.recovery.nested,
             Nominal::Interface(outer) => &outer.recovery.nested,
             Nominal::Enum(outer) => &outer.recovery.nested,
+            Nominal::Object(outer) => &outer.recovery.nested,
         };
         let [Nominal::Enum(inner)] = nested.as_slice() else {
             panic!("original nested enum")

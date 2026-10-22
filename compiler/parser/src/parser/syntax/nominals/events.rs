@@ -1,5 +1,6 @@
 //! Member syntax recorded by the original nominal productions.
 
+use super::body::RecoveredBody;
 use scoop_ast as ast;
 use scoop_syntax::SyntaxKind;
 
@@ -9,11 +10,13 @@ pub(in crate::parser::syntax) enum NominalHeader {
     Struct(Box<ast::StructHeader>),
     Interface(Box<ast::InterfaceHeader>),
     Enum(Box<ast::EnumHeader>),
+    Object(Box<ast::ObjectHeader>),
+    Companion(Box<ast::CompanionObjectHeader>),
 }
 
 impl NominalHeader {
-    pub(super) fn recovered(self, end: u32) -> ast::RecoveredNominal {
-        match self {
+    pub(super) fn recovered(self, end: u32) -> RecoveredBody {
+        let nominal = match self {
             Self::Class(header) => {
                 let span = ast::Span::new(header.span.start, end);
                 ast::RecoveredNominal::Class(Box::new(ast::RecoveredClass {
@@ -57,7 +60,26 @@ impl NominalHeader {
                     recovery: Default::default(),
                 }))
             }
-        }
+            Self::Object(header) => {
+                let span = ast::Span::new(header.span.start, end);
+                ast::RecoveredNominal::Object(Box::new(ast::RecoveredObject {
+                    header: *header,
+                    span,
+                    members: Vec::new(),
+                    recovery: Default::default(),
+                }))
+            }
+            Self::Companion(header) => {
+                let span = ast::Span::new(header.span.start, end);
+                return RecoveredBody::Companion(Box::new(ast::RecoveredCompanionObject {
+                    header: *header,
+                    span,
+                    members: Vec::new(),
+                    recovery: Default::default(),
+                }));
+            }
+        };
+        RecoveredBody::Nominal(nominal)
     }
 }
 

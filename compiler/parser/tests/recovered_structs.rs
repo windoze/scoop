@@ -62,13 +62,17 @@ fn recovered_class_and_struct_nesting_uses_the_original_member_productions() {
         let (outer, inner) = match nominal {
             Nominal::Class(outer) => (outer.header.name.text.as_str(), &outer.recovery.nested[0]),
             Nominal::Struct(outer) => (outer.header.name.text.as_str(), &outer.recovery.nested[0]),
-            Nominal::Interface(_) | Nominal::Enum(_) => panic!("class or struct test source"),
+            Nominal::Interface(_) | Nominal::Enum(_) | Nominal::Object(_) => {
+                panic!("class or struct test source")
+            }
         };
         assert_eq!(outer, "Outer");
         let (name, methods) = match inner {
             Nominal::Class(inner) => (&inner.header.name.text, &inner.recovery.methods),
             Nominal::Struct(inner) => (&inner.header.name.text, &inner.recovery.methods),
-            Nominal::Interface(_) | Nominal::Enum(_) => panic!("class or struct test source"),
+            Nominal::Interface(_) | Nominal::Enum(_) | Nominal::Object(_) => {
+                panic!("class or struct test source")
+            }
         };
         assert_eq!(name, "Inner");
         assert_eq!(methods.len(), 1);

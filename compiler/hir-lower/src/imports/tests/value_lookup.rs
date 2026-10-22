@@ -7,10 +7,13 @@ use crate::tests::{
 
 fn object(name: &str, members: Vec<ast::ClassMember>) -> ast::Decl {
     ast::Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members,
         span: sp(),
     })
@@ -378,10 +381,13 @@ fn companion_forwarding_and_direct_import_preserve_one_property_origin() {
     };
     host.members.push(ast::ClassMember::Companion(Box::new(
         ast::CompanionObjectDecl {
-            annotations: Vec::new(),
-            visibility: ast::VisibilitySyntax::Omitted,
-            name: ast::CompanionNameSyntax::Named(ident("Factory")),
-            supertypes: Vec::new(),
+            header: ast::CompanionObjectHeader {
+                annotations: Vec::new(),
+                visibility: ast::VisibilitySyntax::Omitted,
+                name: ast::CompanionNameSyntax::Named(ident("Factory")),
+                supertypes: Vec::new(),
+                span: sp(),
+            },
             members: vec![
                 ast::ClassMember::StoredProperty(stored("counter", ty_named("Int"), int_lit(0))),
                 ast::ClassMember::StoredProperty(constant("version")),

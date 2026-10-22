@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn declare_object<'a>(
         &mut self,
-        declaration: &'a ast::ObjectDecl,
+        declaration: ast::ObjectSource<'a>,
         pending: &mut Vec<(ObjectId, ObjectSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file: usize,
@@ -20,7 +20,7 @@ impl Lowerer {
 
     pub(crate) fn declare_companion<'a>(
         &mut self,
-        declaration: &'a ast::CompanionObjectDecl,
+        declaration: ast::CompanionObjectSource<'a>,
         pending: &mut Vec<(ObjectId, ObjectSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file: usize,

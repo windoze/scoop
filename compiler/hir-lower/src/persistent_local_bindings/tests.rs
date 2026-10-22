@@ -60,10 +60,13 @@ fn star(parts: &[&str], start: u32) -> ast::ImportSyntax {
 
 fn object(name: &str) -> ast::Decl {
     ast::Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members: Vec::new(),
         span: sp(),
     })

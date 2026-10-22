@@ -44,7 +44,9 @@ pub(super) fn cursor(
     let Some(token) = candidates.into_iter().find(|token| {
         matches!(
             token.kind(),
-            scoop_syntax::SyntaxKind::Ident | scoop_syntax::SyntaxKind::EscapedIdent
+            scoop_syntax::SyntaxKind::Ident
+                | scoop_syntax::SyntaxKind::EscapedIdent
+                | scoop_syntax::SyntaxKind::KwThis
         )
     }) else {
         return Ok(None);

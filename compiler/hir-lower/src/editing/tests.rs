@@ -23,6 +23,7 @@ mod receivers;
 mod recovered_classes;
 mod recovered_enums;
 mod recovered_interfaces;
+mod recovered_objects;
 mod recovered_structs;
 mod references;
 mod selectors;

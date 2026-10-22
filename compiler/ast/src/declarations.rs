@@ -15,6 +15,8 @@ mod interfaces;
 pub use interfaces::*;
 mod enums;
 pub use enums::*;
+mod objects;
+pub use objects::*;
 mod local_types;
 pub use local_types::*;
 
@@ -216,34 +218,6 @@ pub enum MethodModifier {
     Final,
     Open,
     Abstract,
-}
-
-/// A singleton object declaration. Its type and value identities are split
-/// later by HIR; the AST keeps one source declaration with ordered members.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ObjectDecl {
-    pub annotations: Vec<Annotation>,
-    pub visibility: VisibilitySyntax,
-    pub name: Ident,
-    pub supertypes: Vec<SupertypeSpec>,
-    pub members: Vec<ClassMember>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct CompanionObjectDecl {
-    pub annotations: Vec<Annotation>,
-    pub visibility: VisibilitySyntax,
-    pub name: CompanionNameSyntax,
-    pub supertypes: Vec<SupertypeSpec>,
-    pub members: Vec<ClassMember>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum CompanionNameSyntax {
-    Default { span: Span },
-    Named(Ident),
 }
 
 #[derive(Debug, Clone, PartialEq)]
