@@ -133,6 +133,7 @@ pub struct EditingBodyFacts {
     pub callables: Vec<EditingCallableReference>,
     pub properties: Vec<EditingPropertyReference>,
     pub local_functions: Vec<EditingFunction>,
+    pub imports: Vec<EditingImportUse>,
 }
 
 #[derive(Clone, Debug)]

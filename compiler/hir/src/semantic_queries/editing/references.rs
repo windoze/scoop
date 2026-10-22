@@ -21,6 +21,7 @@ pub enum EditingReferenceTarget {
         index: u32,
     },
     Property(PropertyDeclarationId),
+    ImportAlias(EditingImportAliasId),
 }
 
 impl EditingReferenceTarget {
@@ -28,6 +29,7 @@ impl EditingReferenceTarget {
         matches!(
             self,
             Self::Binding(_)
+                | Self::ImportAlias(_)
                 | Self::Callable(EditingCallableIdentity::Local(_))
                 | Self::Parameter {
                     callable: EditingCallableIdentity::Local(_),
@@ -42,6 +44,26 @@ pub struct EditingReference {
     pub target: EditingReferenceTarget,
     pub origin: SemanticSourceLocation,
     pub is_declaration: bool,
+    /// Explicit aliases through which this occurrence names its target.
+    pub aliases: Vec<SemanticSourceLocation>,
+}
+
+pub type EditingImportAliasId = la_arena::Idx<EditingImportAlias>;
+
+/// One explicit alias in this Cone's current reference index.
+#[derive(Clone, Debug)]
+pub struct EditingImportAlias {
+    pub name: String,
+    pub origin: SemanticSourceLocation,
+    pub targets: crate::NonEmptyVec<EditingReferenceTarget>,
+    pub reexported: bool,
+}
+
+/// Successful exact-layer lookup; targets remain the ordinary bound targets.
+#[derive(Clone, Debug)]
+pub struct EditingImportUse {
+    pub span: crate::Span,
+    pub imports: Vec<SemanticSourceLocation>,
 }
 
 /// An index of completed observations, with unavailable analysis kept explicit.
@@ -52,6 +74,7 @@ pub struct EditingReferenceIndex {
     locations: HashMap<SemanticSourceLocation, Vec<EditingReferenceTarget>>,
     pub unavailable: Vec<SemanticSourceLocation>,
     pub declarations_available: bool,
+    pub aliases: la_arena::Arena<EditingImportAlias>,
 }
 
 impl EditingReferenceIndex {
@@ -59,6 +82,7 @@ impl EditingReferenceIndex {
         occurrences: Vec<EditingReference>,
         unavailable: Vec<SemanticSourceLocation>,
         declarations_available: bool,
+        aliases: la_arena::Arena<EditingImportAlias>,
     ) -> Self {
         let mut seen = HashSet::new();
         let occurrences = occurrences
@@ -80,12 +104,21 @@ impl EditingReferenceIndex {
                 at.push(occurrence.target);
             }
         }
+        for at in locations.values_mut() {
+            if at
+                .iter()
+                .any(|target| matches!(target, EditingReferenceTarget::ImportAlias(_)))
+            {
+                at.retain(|target| matches!(target, EditingReferenceTarget::ImportAlias(_)));
+            }
+        }
         Self {
             occurrences,
             targets,
             locations,
             unavailable,
             declarations_available,
+            aliases,
         }
     }
 

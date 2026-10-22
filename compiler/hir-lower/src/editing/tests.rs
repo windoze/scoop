@@ -9,6 +9,7 @@ mod candidates;
 mod candidates_imported;
 mod conditionals;
 mod imported_signatures;
+mod imports;
 mod members;
 mod members_imported;
 mod operands;

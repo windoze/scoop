@@ -218,7 +218,13 @@ impl Lowerer {
                     false,
                     "extension candidate",
                 ) {
-                    PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                    PropertyExtensionInvokeOutcome::Resolved(mut layer) => {
+                        if let Some(origin) = extension_layers
+                            .iter()
+                            .find(|origin| origin.kind.call_rank() == rank)
+                        {
+                            layer.state.observe_import_lookup(name, origin.kind);
+                        }
                         return Some(self.commit_expr_layer(layer, sink));
                     }
                     PropertyExtensionInvokeOutcome::Blocked => return None,
@@ -303,6 +309,12 @@ impl Lowerer {
                     &mut extension_property_sink,
                 ) {
                     crate::properties::ExtensionPropertyCandidateOutcome::Resolved(property) => {
+                        if let Some(origin) = extension_property_layers
+                            .iter()
+                            .find(|origin| origin.kind.call_rank() == rank)
+                        {
+                            extension_property_state.observe_import_lookup(name, origin.kind);
+                        }
                         match extension_property_state.probe_property_member_invoke_partition(
                             property.read,
                             call,
@@ -381,6 +393,7 @@ impl Lowerer {
                         crate::properties::ExtensionPropertyCandidateOutcome::Resolved(
                             property,
                         ) => {
+                            property_state.observe_import_lookup(name, property_layer.kind);
                             if self.report_unavailable_lookup(
                                 &ast::Ident {
                                     text: "invoke".to_owned(),

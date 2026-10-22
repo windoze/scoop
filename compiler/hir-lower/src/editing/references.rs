@@ -9,6 +9,7 @@ use hir::{
 
 mod bodies;
 mod identities;
+mod imports;
 
 #[derive(Default)]
 struct ReferenceBuilder {
@@ -16,6 +17,11 @@ struct ReferenceBuilder {
     unavailable: Vec<hir::SemanticSourceLocation>,
     callables: HashMap<hir::FunctionId, Option<Callable>>,
     properties: HashMap<hir::PropertyId, Option<hir::PropertyDeclarationId>>,
+    import_uses: Vec<(
+        hir::SemanticSourceLocation,
+        Vec<hir::SemanticSourceLocation>,
+    )>,
+    aliases: la_arena::Arena<hir::EditingImportAlias>,
 }
 
 impl DeclarationAnalysis {
@@ -65,10 +71,12 @@ impl DeclarationAnalysis {
             if check() {
                 return Err(EditingCancelled);
             }
+            builder.imports(&mut self.lowerer, &check)?;
             self.reference_index = Some(hir::EditingReferenceIndex::new(
                 builder.occurrences,
                 builder.unavailable,
                 self.declarations_ready,
+                builder.aliases,
             ));
         }
         Ok(self
@@ -89,6 +97,7 @@ impl ReferenceBuilder {
             target,
             origin,
             is_declaration,
+            aliases: Vec::new(),
         });
     }
 

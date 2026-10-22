@@ -12,6 +12,14 @@ impl ReferenceBuilder {
             }
             hir::SemanticCallable::Current(function) => {
                 *self.callables.entry(function).or_insert_with(|| {
+                    if lowerer.signatures.get(&function)?.parameter_pending
+                        || lowerer
+                            .declaration_surface
+                            .unavailable_signature(function)
+                            .is_some()
+                    {
+                        return None;
+                    }
                     if let Some(local) = lowerer.local_function_by_function.get(&function) {
                         return Some(Callable::Local(*local));
                     }

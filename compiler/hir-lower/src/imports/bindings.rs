@@ -149,6 +149,8 @@ pub(crate) struct ResolvedExactImport {
     pub(crate) source_role: LocalBindingRole,
     pub(crate) targets: ast::NonEmptyVec<ImportedTargetBinding>,
     pub(crate) origin: ImportSyntaxOrigin,
+    pub(crate) target_span: ast::Span,
+    pub(crate) alias: Option<ast::Ident>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -84,8 +84,11 @@ def check_imported(peer, root, library):
         references = peer.request(
             "textDocument/references", {**params, "context": {"includeDeclaration": True}}
         )
-        assert len(references) == (2 if name == "enabled" else 3), references
-        assert sum(location["uri"] == library.as_uri() for location in references) == 1, references
+        counts = {"enabled": 2, "property": 4, "item": 3}
+        assert len(references) == counts[name], references
+        assert sum(location["uri"] == library.as_uri() for location in references) == (
+            0 if name == "enabled" else 1
+        ), references
         assert all(location["uri"] in (uri, library.as_uri()) for location in references), (
             references
         )

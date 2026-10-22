@@ -130,8 +130,9 @@ impl Lowerer {
                 required.operator == Some(hir::OperatorKind::Set),
                 "extension candidate",
             ) {
-                PropertyExtensionInvokeOutcome::Resolved(layer) => {
-                    return Some(self.commit_expr_layer(layer, sink));
+                PropertyExtensionInvokeOutcome::Resolved(mut selected) => {
+                    selected.state.observe_import_lookup(name, layer.kind);
+                    return Some(self.commit_expr_layer(selected, sink));
                 }
                 PropertyExtensionInvokeOutcome::Blocked => return None,
                 PropertyExtensionInvokeOutcome::Failed(failure) => {

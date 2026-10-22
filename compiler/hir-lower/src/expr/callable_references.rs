@@ -218,6 +218,7 @@ impl Lowerer {
             ) {
                 ReferenceResolutionOutcome::Resolved(resolved) => {
                     let expression = state.finish_named_callable_reference(resolved, span)?;
+                    state.observe_import_lookup(name, layer.kind);
                     return Some(self.commit_expr_layer(
                         SuccessfulExprLayer {
                             state: Box::new(state),

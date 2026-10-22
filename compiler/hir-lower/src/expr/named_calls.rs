@@ -220,6 +220,7 @@ impl Lowerer {
                 expected,
             ) {
                 Ok(Some(expression)) => {
+                    state.observe_import_lookup(&call.callee, layer.kind);
                     return Some(self.commit_expr_layer(
                         SuccessfulExprLayer {
                             state: Box::new(state),
@@ -305,7 +306,9 @@ impl Lowerer {
             }
             if let Some((value, origin)) = values.into_iter().next() {
                 match self.probe_expr_layer(|state, _| {
-                    state.lower_resolved_value_target(&call.callee, value, None)
+                    let read = state.lower_resolved_value_target(&call.callee, value, None)?;
+                    state.observe_import_lookup(&call.callee, layer.kind);
+                    Some(read)
                 }) {
                     Ok(read) => current_values.push(NamedValueLayer { read, rank, origin }),
                     Err(failure) => {
@@ -343,6 +346,7 @@ impl Lowerer {
                     &mut setup,
                 ) {
                     crate::properties::ExtensionPropertyCandidateOutcome::Resolved(property) => {
+                        state.observe_import_lookup(&call.callee, layer.kind);
                         current_values.push(NamedValueLayer {
                             origin: PropertyExtensionInvokeOrigin::Extension(property.identity()),
                             read: SuccessfulExprLayer {

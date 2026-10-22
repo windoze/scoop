@@ -36,11 +36,13 @@ impl Lowerer {
             return;
         }
         if let ast::Expr::CallableReference { name, span, .. } = expression {
-            self.editing_body
+            let names = &mut self
+                .editing_body
                 .as_mut()
                 .expect("active query")
-                .callable_names
-                .insert(*span, name.span);
+                .callable_names;
+            names.insert(*span, name.span);
+            names.insert(name.span, name.span);
             return;
         }
         let (name, callee_end, args) = match expression {

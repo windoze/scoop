@@ -170,6 +170,7 @@ impl Lowerer {
                 access,
             ) {
                 ExtensionPropertySelectionOutcome::Resolved(resolved) => {
+                    state.observe_import_lookup(name, layer.kind);
                     *self = state;
                     sink.extend(layer_sink);
                     return ExtensionPropertyResolution::Resolved(resolved);

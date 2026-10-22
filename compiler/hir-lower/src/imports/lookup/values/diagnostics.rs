@@ -78,10 +78,9 @@ impl Lowerer {
                             .expect("body lookup follows complete declaration materialization"),
                     ),
                 };
-                (
-                    target,
-                    layer.expect("a resolved value belongs to a lookup layer"),
-                )
+                let layer = layer.expect("a resolved value belongs to a lookup layer");
+                self.observe_import_lookup(name, layer);
+                (target, layer)
             })
         })
     }

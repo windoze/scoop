@@ -154,6 +154,7 @@ impl Lowerer {
                 span,
             ) {
                 BoundReferenceOutcome::Resolved(expression) => {
+                    state.observe_import_lookup(name, layer.kind);
                     return Some(self.commit_expr_layer(
                         SuccessfulExprLayer {
                             state: Box::new(state),

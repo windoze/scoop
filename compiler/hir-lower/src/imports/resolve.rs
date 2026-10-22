@@ -147,6 +147,8 @@ impl CurrentUnitImports {
                             scoop_identity::LocalBindingRole::ExactImport
                         },
                         targets,
+                        target_span: selector.segments().last().expect("non-empty selector").span,
+                        alias: alias.as_ref().map(|alias| alias.name.clone()),
                         origin: ImportSyntaxOrigin {
                             source: source_identity.clone(),
                             span: *span,

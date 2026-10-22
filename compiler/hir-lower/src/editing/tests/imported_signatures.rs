@@ -27,7 +27,7 @@ fn imported_hovers_preserve_declaration_binders_and_default_origins() {
     .unwrap();
     let core_inputs =
         CoreProtocolInput::from(core.foundation.import_core_inputs(&core.interface).unwrap());
-    let text = "import pass as renamed\nimport extension\nfun editing(box: Box<Boolean>): Boolean { val first = box.read(); val second = renamed(choose()); val callback: (Boolean) -> Boolean = ::renamed; val method: () -> Boolean = box::read; val equality: (Boolean) -> Boolean = first::equals; val address: FunPtr<(Int) -> Int> = ::native; return box.extension(equality(callback(method()))) }";
+    let text = "import pass as renamed\nimport extension\nimport native as callbackAddress\nfun editing(box: Box<Boolean>): Boolean { val first = box.read(); val second = renamed(choose()); val callback: (Boolean) -> Boolean = ::renamed; val method: () -> Boolean = box::read; val equality: (Boolean) -> Boolean = first::equals; val address: FunPtr<(Int) -> Int> = ::callbackAddress; return box.extension(equality(callback(method()))) }";
     let parsed = scoop_parser::parse_recovering(text).unwrap();
     let source = scoop_parser::declaration_source(
         &parsed,
@@ -97,5 +97,25 @@ fn imported_hovers_preserve_declaration_binders_and_default_origins() {
             }
             other => panic!("unexpected call: {other}"),
         }
+    }
+    let index = analysis.reference_index(|| false).unwrap();
+    for (name, count) in [("renamed", 3), ("callbackAddress", 2)] {
+        let (id, alias) = index
+            .aliases
+            .iter()
+            .find(|(_, alias)| alias.name == name)
+            .unwrap();
+        assert_eq!(
+            index
+                .references_to(hir::EditingReferenceTarget::ImportAlias(id))
+                .count(),
+            count
+        );
+        assert_eq!(
+            index
+                .references_to(*alias.targets.iter().next().unwrap())
+                .count(),
+            count
+        );
     }
 }

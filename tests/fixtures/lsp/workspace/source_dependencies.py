@@ -83,9 +83,25 @@ def check(peer, root):
         references = peer.request(
             "textDocument/references", {**params, "context": {"includeDeclaration": True}}
         )
-        assert len(references) == 3, references
-        assert sum(location["uri"] == path.as_uri() for location in references) == 2, references
-        assert sum(location["uri"] == uri for location in references) == 1, references
+        assert len(references) == (2 if name == "renamed" else 4), references
+        assert sum(location["uri"] == path.as_uri() for location in references) == (
+            0 if name == "renamed" else 2
+        ), references
+        assert sum(location["uri"] == uri for location in references) == 2, references
+        original_references = peer.request(
+            "textDocument/references",
+            {
+                "textDocument": {"uri": path.as_uri()},
+                "position": {
+                    "line": target_line,
+                    "character": original.splitlines()[target_line].index(
+                        "pass" if name == "renamed" else "choose"
+                    ),
+                },
+                "context": {"includeDeclaration": True},
+            },
+        )
+        assert len(original_references) == 4, original_references
     assert not peer.diagnostics[manifest]["diagnostics"], peer.diagnostics[manifest]
     assert not any(
         "not found" in error["message"] for error in peer.diagnostics[uri]["diagnostics"]

@@ -49,7 +49,7 @@ target 默认使用宿主的现有目标选择；purpose 可为 production 或 t
 
 完整函数正文中的 property 读取／写入显示应用后的属性类型，并导航到原属性声明；支持常量、存储、计算与扩展属性以及导入声明。构造参数属性指向原参数名称，getter／setter 和泛型实例不产生额外定义。具名 callable value 与 native 地址同样沿实际重载选择导航到原函数。
 
-`textDocument/references` 查询当前文件所选项目中的源码声明与已完成函数正文，区分局部遮蔽和重载，合并同一原声明的泛型应用；跨 Cone 的函数与属性引用使用普通声明身份。函数参数的声明、正文引用和已绑定命名实参一起查询。`includeDeclaration` 控制是否包含源码声明，预编译依赖缺少源码时只返回已有使用位置。错误或尚未分析的区域不产生猜测引用；该范围目前不包括 import 子句、独立初始化式和 accessor 正文，不能据此推断符号在完整工程中未被使用。
+`textDocument/references` 查询当前文件所选项目中的源码声明、精确 import 的函数／property 目标与已完成函数正文，区分局部遮蔽和重载，合并同一原声明的泛型应用；跨 Cone 的函数与属性引用使用普通声明身份。函数参数的声明、正文引用和已绑定命名实参一起查询。选择显式 alias 时查询该 alias 的声明与实际使用，选择原声明时仍包含这些消费位置及 import 目标名；同名 alias 和静态宿主限定调用保持区分。`includeDeclaration` 控制是否包含源码声明，预编译依赖缺少源码时只返回已有使用位置。错误或尚未分析的区域不产生猜测引用；该范围目前不包括类型引用、独立初始化式和 accessor 正文，alias 的跨 Cone 转导出来源仍待接入，不能据此推断符号在完整工程中未被使用。
 
 客户端支持 code action literal 和 `workspace.workspaceEdit.documentChanges` 时，提供缺失右括号、逗号等固定标点的 quickfix；返回的 TextDocumentEdit 带实际文档 version。名称、类型与表达式缺失不生成猜测内容。支持 resolve 的客户端还可重新取得同版修复；原文变化后旧动作返回 ContentModified，原文未变而客户端 version 更新时返回最新 version。其他引用区域、实现与重命名继续按设计实施，未实现的能力不在初始化中声明。
 

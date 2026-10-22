@@ -17,6 +17,16 @@ impl ReferenceBuilder {
         let callables = facts.callables.clone();
         let properties = facts.properties.clone();
         let local_functions = facts.local_functions.clone();
+        self.import_uses
+            .extend(facts.imports.iter().map(|reference| {
+                (
+                    hir::SemanticSourceLocation {
+                        source: function.name_origin.source.clone(),
+                        span: reference.span,
+                    },
+                    reference.imports.clone(),
+                )
+            }));
         let mut parameters = HashMap::new();
         for declaration in std::iter::once(function).chain(local_functions.iter()) {
             if check() {

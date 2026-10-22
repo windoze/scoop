@@ -18,6 +18,7 @@ pub(crate) struct BodyObservation {
     pub(super) property_names: imbl::HashMap<ast::Span, ast::Span>,
     pub(super) properties: imbl::HashMap<ast::Span, hir::EditingPropertyReference>,
     pub(super) local_functions: imbl::HashMap<hir::FunctionId, hir::EditingFunction>,
+    pub(super) imports: imbl::HashMap<ast::Span, Vec<hir::SemanticSourceLocation>>,
     pub(super) call_inputs: imbl::HashMap<ast::Span, calls::CallInput>,
     pub(super) argument_maps: imbl::HashMap<ast::Span, calls::CheckedArguments>,
     pub(super) calls: imbl::HashMap<ast::Span, hir::EditingAppliedCall>,
@@ -60,6 +61,7 @@ impl BodyObservation {
             property_names: Default::default(),
             properties: Default::default(),
             local_functions: Default::default(),
+            imports: Default::default(),
             call_inputs: Default::default(),
             argument_maps: Default::default(),
             calls: Default::default(),
@@ -136,6 +138,12 @@ impl BodyObservation {
             .map(|(_, function)| function)
             .collect::<Vec<_>>();
         local_functions.sort_by_key(|function| function.name_origin.span.start);
+        let mut imports = self
+            .imports
+            .into_iter()
+            .map(|(span, imports)| hir::EditingImportUse { span, imports })
+            .collect::<Vec<_>>();
+        imports.sort_by_key(|reference| (reference.span.start, reference.span.end));
         let mut selectors = self
             .selectors
             .into_iter()
@@ -156,6 +164,7 @@ impl BodyObservation {
                     callables,
                     properties,
                     local_functions,
+                    imports,
                 })
             } else {
                 V::Unavailable(U::BodyFailure)

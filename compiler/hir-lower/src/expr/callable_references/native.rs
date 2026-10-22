@@ -97,6 +97,7 @@ impl Lowerer {
                 if let Some(semantic_target) = semantic_target {
                     self.observe_callable_reference(span, semantic_target);
                 }
+                self.observe_import_lookup(name, layer.kind);
                 return Some(hir::Expr {
                     kind: ExprKind::FunctionAddress(target),
                     ty: expected,

@@ -202,6 +202,7 @@ impl Lowerer {
                                 self.diagnose_value_layer(name, layer.kind, &origins);
                                 return ImplicitValueSelection::Failed;
                             }
+                            state.observe_import_lookup(name, layer.kind);
                             *self = state;
                             sink.extend(layer_sink);
                             return ImplicitValueSelection::ExtensionProperty(property);
@@ -223,6 +224,7 @@ impl Lowerer {
             match values.as_slice() {
                 [] => {}
                 [(target, _)] => {
+                    self.observe_import_lookup(name, layer.kind);
                     return ImplicitValueSelection::Value {
                         target: target.clone(),
                         layer: layer.kind,
