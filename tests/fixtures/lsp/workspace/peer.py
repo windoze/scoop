@@ -9,6 +9,7 @@ from pathlib import Path
 
 from cancellation import check as check_cancellation
 from diagnostics import check as check_diagnostics
+from signatures import check as check_signatures
 
 
 class Peer:
@@ -121,6 +122,10 @@ def main():
         assert initialized["capabilities"]["hoverProvider"]
         assert initialized["capabilities"]["definitionProvider"]
         assert initialized["capabilities"]["completionProvider"]["triggerCharacters"] == ["."]
+        assert initialized["capabilities"]["signatureHelpProvider"]["triggerCharacters"] == [
+            "(",
+            ",",
+        ]
         peer.notify("initialized", {})
         peer.notify(
             "textDocument/didOpen",
@@ -297,6 +302,7 @@ def main():
         assert peer.diagnostics[manifest]["diagnostics"] == []
         check_diagnostics(peer, root)
         check_cancellation(peer, root)
+        check_signatures(peer, root)
         peer.finish()
     finally:
         if peer.process.poll() is None:

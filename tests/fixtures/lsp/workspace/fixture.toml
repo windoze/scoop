@@ -1,6 +1,6 @@
 schema = 1
 name = "lsp-workspace-precompiled-inputs"
-inputs = ["project", "peer.py", "diagnostics.py", "cancellation.py"]
+inputs = ["project", "peer.py", "diagnostics.py", "cancellation.py", "signatures.py"]
 tools = ["scoop-lsp", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["lsp", "workspace", "artifacts"]

@@ -45,6 +45,7 @@ impl Lowerer {
             return;
         }
         let context = self.observe_body_context();
+        self.observe_completed_call(span, value.ty, context);
         self.observe_selector_receiver(span, value, context);
         self.editing_body
             .as_mut()

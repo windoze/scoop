@@ -15,6 +15,9 @@ pub(crate) struct BodyObservation {
     pub(super) expressions: imbl::HashMap<ast::Span, hir::EditingExpression>,
     pub(super) call_names: imbl::HashSet<ast::Span>,
     pub(super) callables: imbl::HashMap<ast::Span, hir::EditingCallableReference>,
+    pub(super) call_inputs: imbl::HashMap<ast::Span, calls::CallInput>,
+    pub(super) argument_maps: imbl::HashMap<ast::Span, calls::CheckedArguments>,
+    pub(super) calls: imbl::HashMap<ast::Span, hir::EditingAppliedCall>,
     pub(super) selector_inputs: imbl::HashMap<ast::Span, Vec<selectors::SelectorInput>>,
     pub(super) selectors: imbl::HashMap<ast::Span, hir::EditingSelector>,
     pub(super) contexts: imbl::HashMap<hir::SourceContextId, ObservedContext>,
@@ -29,6 +32,7 @@ pub(super) struct ObservedContext {
 pub(crate) struct ObservedBody {
     pub(super) facts: V<hir::EditingBodyFacts>,
     pub(super) selectors: Vec<hir::EditingSelector>,
+    pub(super) calls: Vec<hir::EditingAppliedCall>,
     pub(super) contexts: imbl::HashMap<hir::SourceContextId, ObservedContext>,
 }
 
@@ -51,6 +55,9 @@ impl BodyObservation {
             expressions: Default::default(),
             call_names: Default::default(),
             callables: Default::default(),
+            call_inputs: Default::default(),
+            argument_maps: Default::default(),
+            calls: Default::default(),
             selector_inputs: Default::default(),
             selectors: Default::default(),
             contexts: Default::default(),
@@ -127,6 +134,12 @@ impl BodyObservation {
             .map(|(_, value)| value)
             .collect::<Vec<_>>();
         selectors.sort_by_key(|selector| selector.selector.start);
+        let mut calls = self
+            .calls
+            .into_iter()
+            .map(|(_, call)| call)
+            .collect::<Vec<_>>();
+        calls.sort_by_key(|call| (call.span.start, call.span.end));
         ObservedBody {
             facts: if complete {
                 V::Known(hir::EditingBodyFacts {
@@ -138,6 +151,7 @@ impl BodyObservation {
                 V::Unavailable(U::BodyFailure)
             },
             selectors,
+            calls,
             contexts: self.contexts,
         }
     }

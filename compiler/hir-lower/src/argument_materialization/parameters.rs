@@ -22,6 +22,7 @@ impl Lowerer {
             evaluation,
             temporary_prefix,
         } = request;
+        self.observe_materialized_arguments(call_span, parameters, inputs, source_args.len());
         let receiver = receiver.map(|value| {
             self.evaluate_call_argument(
                 format!("{temporary_prefix}receiver"),

@@ -21,6 +21,11 @@ fn a_document_without_a_semantic_project_does_not_guess_types() {
         json!({"textDocument": {"uri": uri}, "position": {"line": 0, "character": 5}}),
     );
     assert!(definition.response_result.unwrap().is_null());
+    let signature = client.request(
+        "textDocument/signatureHelp",
+        json!({"textDocument": {"uri": uri}, "position": {"line": 0, "character": 10}}),
+    );
+    assert!(signature.response_result.unwrap().is_null());
     assert_eq!(client.symbols(uri)[0]["name"], "name");
     client.finish();
 }

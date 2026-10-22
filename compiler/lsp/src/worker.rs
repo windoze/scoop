@@ -122,6 +122,14 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                         semantics,
                         &cancellation,
                     ),
+                    QueryKind::SignatureHelp(position) => queries::signature_help(
+                        &work.snapshot,
+                        work.source,
+                        position,
+                        work.settings,
+                        semantics,
+                        &cancellation,
+                    ),
                 }?;
                 check_revision()?;
                 cancellation

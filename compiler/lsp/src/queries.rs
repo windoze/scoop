@@ -13,10 +13,12 @@ mod completion;
 mod definition;
 mod hover;
 mod semantic;
+mod signature_help;
 mod symbols;
 pub(crate) use completion::completion;
 pub(crate) use definition::definition;
 pub(crate) use hover::hover;
+pub(crate) use signature_help::signature_help;
 
 #[derive(Clone)]
 pub(crate) enum QueryKind {
@@ -24,6 +26,7 @@ pub(crate) enum QueryKind {
     Hover(Position),
     Definition(Position),
     Completion(Position),
+    SignatureHelp(Position),
 }
 
 #[derive(Clone)]
@@ -50,6 +53,13 @@ pub(crate) fn json(value: impl Serialize) -> Result<Value, ResponseError> {
 impl Query {
     pub fn from_request(request: &Request) -> Result<Self, ResponseError> {
         match request.method.as_str() {
+            "textDocument/signatureHelp" => {
+                let params: lsp_types::SignatureHelpParams = params(request.params.clone())?;
+                Ok(Self {
+                    uri: params.text_document_position_params.text_document.uri,
+                    kind: QueryKind::SignatureHelp(params.text_document_position_params.position),
+                })
+            }
             "textDocument/completion" => {
                 let params: lsp_types::CompletionParams = params(request.params.clone())?;
                 Ok(Self {

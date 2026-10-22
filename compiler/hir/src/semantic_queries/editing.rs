@@ -132,3 +132,29 @@ pub struct EditingCallableReference {
     pub target: crate::SemanticCallable,
     pub definition: Option<SemanticSourceLocation>,
 }
+
+/// Applied parameter types and source bindings from one checked call expression.
+#[derive(Clone, Debug)]
+pub struct EditingAppliedCall {
+    pub span: Span,
+    pub callee_end: u32,
+    pub name: Option<String>,
+    pub context: crate::SourceContextId,
+    pub parameters: Vec<EditingAppliedParameter>,
+    pub arguments: Vec<EditingCallArgument>,
+    pub result: TypeId,
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingAppliedParameter {
+    pub name: Option<String>,
+    pub value_type: TypeId,
+    pub vararg_element_type: Option<TypeId>,
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingCallArgument {
+    pub span: Span,
+    pub parameter: usize,
+    pub trailing: bool,
+}

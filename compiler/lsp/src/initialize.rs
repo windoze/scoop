@@ -78,6 +78,11 @@ pub(crate) fn initialize(params: InitializeParams) -> (Settings, InitializeResul
                 trigger_characters: Some(vec![".".into()]),
                 ..Default::default()
             }),
+            signature_help_provider: Some(lsp_types::SignatureHelpOptions {
+                trigger_characters: Some(vec!["(".into(), ",".into()]),
+                retrigger_characters: Some(vec![")".into()]),
+                ..Default::default()
+            }),
             folding_range_provider: Some(lsp_types::FoldingRangeProviderCapability::Simple(true)),
             selection_range_provider: Some(lsp_types::SelectionRangeProviderCapability::Simple(
                 true,

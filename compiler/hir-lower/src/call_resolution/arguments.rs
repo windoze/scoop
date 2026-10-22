@@ -201,34 +201,42 @@ impl<D> CandidateArgumentMap<D> {
         &self,
         source: SourceInputId,
     ) -> (ValueParameterId, SourceInputKind) {
-        for parameter in &self.parameters {
-            match &parameter.input {
-                ResolvedParameterInput::Explicit(input) if *input == source => {
-                    return (parameter.parameter, SourceInputKind::Value);
-                }
-                ResolvedParameterInput::Vararg(ResolvedVarargInput::WholeArray(input))
-                    if *input == source =>
-                {
-                    return (parameter.parameter, SourceInputKind::VarargArray);
-                }
-                ResolvedParameterInput::Vararg(ResolvedVarargInput::Parts(parts)) => {
-                    if let Some(part) = parts.iter().find(|part| part.input == source) {
-                        let kind = match part.kind {
-                            VarargPartKind::Element => SourceInputKind::VarargElement,
-                            VarargPartKind::CopyArray => SourceInputKind::VarargArray,
-                        };
-                        return (parameter.parameter, kind);
-                    }
-                }
-                ResolvedParameterInput::Explicit(_)
-                | ResolvedParameterInput::Default(_)
-                | ResolvedParameterInput::Vararg(
-                    ResolvedVarargInput::WholeArray(_)
-                    | ResolvedVarargInput::Empty
-                    | ResolvedVarargInput::Default(_),
-                ) => {}
-            }
-        }
-        unreachable!("each source argument is bound exactly once")
+        source_binding(&self.parameters, source)
     }
+}
+
+/// Both compiled calls and editor observations read the same completed map.
+pub(crate) fn source_binding<D>(
+    parameters: &[ParameterInput<D>],
+    source: SourceInputId,
+) -> (ValueParameterId, SourceInputKind) {
+    for parameter in parameters {
+        match &parameter.input {
+            ResolvedParameterInput::Explicit(input) if *input == source => {
+                return (parameter.parameter, SourceInputKind::Value);
+            }
+            ResolvedParameterInput::Vararg(ResolvedVarargInput::WholeArray(input))
+                if *input == source =>
+            {
+                return (parameter.parameter, SourceInputKind::VarargArray);
+            }
+            ResolvedParameterInput::Vararg(ResolvedVarargInput::Parts(parts)) => {
+                if let Some(part) = parts.iter().find(|part| part.input == source) {
+                    let kind = match part.kind {
+                        VarargPartKind::Element => SourceInputKind::VarargElement,
+                        VarargPartKind::CopyArray => SourceInputKind::VarargArray,
+                    };
+                    return (parameter.parameter, kind);
+                }
+            }
+            ResolvedParameterInput::Explicit(_)
+            | ResolvedParameterInput::Default(_)
+            | ResolvedParameterInput::Vararg(
+                ResolvedVarargInput::WholeArray(_)
+                | ResolvedVarargInput::Empty
+                | ResolvedVarargInput::Default(_),
+            ) => {}
+        }
+    }
+    unreachable!("each source argument is bound exactly once")
 }
