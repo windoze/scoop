@@ -35,7 +35,7 @@ pub(crate) fn collect(
         Ok(diagnostics) => diagnostics,
         Err(
             ProjectAnalysisError::ConfigurationUnavailable
-            | ProjectAnalysisError::SourceDependencyUnavailable(_),
+            | ProjectAnalysisError::SourceDependencyUnavailable { .. },
         ) => Vec::new(),
         Err(
             ProjectAnalysisError::Cancelled
@@ -46,7 +46,9 @@ pub(crate) fn collect(
                 "analysis revision changed",
             ));
         }
-        Err(ProjectAnalysisError::Artifact(message)) => {
+        Err(
+            ProjectAnalysisError::Artifact(message) | ProjectAnalysisError::Dependency(message),
+        ) => {
             return Err(convert::error(ErrorCode::RequestFailed, message));
         }
         Err(error) => {

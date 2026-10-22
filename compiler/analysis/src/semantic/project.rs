@@ -1,0 +1,135 @@
+use std::{collections::BTreeMap, rc::Rc};
+
+use scoop_hir::OwnedImportedProvider;
+use scoop_hir_lower::DeclarationAnalysis;
+use scoop_identity::ConeIdentity;
+
+use super::{ProjectAnalysisError as Error, dependencies};
+use crate::{AnalysisSnapshot, ConeInput, ProjectInput, SourceVersion};
+
+struct CachedDeclarations {
+    versions: Vec<SourceVersion>,
+    result: Result<DeclarationAnalysis, Error>,
+}
+
+struct CachedDependencies {
+    versions: Vec<SourceVersion>,
+    result: Result<Vec<OwnedImportedProvider>, Error>,
+}
+
+pub(super) struct ProjectSemantics {
+    pub input: ProjectInput,
+    artifacts: Result<dependencies::ArtifactInputs, Error>,
+    dependencies: BTreeMap<ConeIdentity, CachedDependencies>,
+    declarations: BTreeMap<ConeIdentity, CachedDeclarations>,
+}
+
+impl ProjectSemantics {
+    pub fn new(input: ProjectInput, check: &Rc<dyn Fn() -> bool>) -> Result<Self, Error> {
+        let artifacts = dependencies::ArtifactInputs::load(&input, check);
+        if artifacts.as_ref().is_err_and(Error::is_cancelled) {
+            return Err(Error::Cancelled);
+        }
+        Ok(Self {
+            input,
+            artifacts,
+            dependencies: BTreeMap::new(),
+            declarations: BTreeMap::new(),
+        })
+    }
+
+    pub fn declarations(
+        &mut self,
+        snapshot: &AnalysisSnapshot,
+        current: ConeIdentity,
+        check: Rc<dyn Fn() -> bool>,
+    ) -> Result<&mut DeclarationAnalysis, &Error> {
+        if !self.input.complete {
+            return Err(&Error::ConfigurationUnavailable);
+        }
+        let reachable = dependencies::reachable(&self.input, current);
+        let versions = source_versions(snapshot, &self.input, |cone| {
+            cone == current || reachable.contains(&cone)
+        });
+        let unchanged = versions.as_ref().ok().is_some_and(|versions| {
+            self.declarations
+                .get(&current)
+                .is_some_and(|cached| cached.versions == *versions)
+        });
+        if !unchanged {
+            let (versions, result) = match versions {
+                Ok(versions) => {
+                    let result = self.analyze(snapshot, current, check);
+                    (versions, result)
+                }
+                Err(error) => (Vec::new(), Err(error)),
+            };
+            if result.as_ref().is_err_and(Error::is_cancelled) {
+                return Err(&Error::Cancelled);
+            }
+            self.declarations
+                .insert(current, CachedDeclarations { versions, result });
+        }
+        self.declarations
+            .get_mut(&current)
+            .expect("the selected Cone was analyzed")
+            .result
+            .as_mut()
+            .map_err(|error| &*error)
+    }
+
+    fn analyze(
+        &mut self,
+        snapshot: &AnalysisSnapshot,
+        current: ConeIdentity,
+        check: Rc<dyn Fn() -> bool>,
+    ) -> Result<DeclarationAnalysis, Error> {
+        let artifacts = self.artifacts.as_ref().map_err(Clone::clone)?;
+        let reachable = dependencies::reachable(&self.input, current);
+        let versions = source_versions(snapshot, &self.input, |cone| reachable.contains(&cone))?;
+        if self
+            .dependencies
+            .get(&current)
+            .is_none_or(|cached| cached.versions != versions)
+        {
+            let result = artifacts.with_sources(snapshot, &self.input, &reachable, &check);
+            if result.as_ref().is_err_and(Error::is_cancelled) {
+                return Err(Error::Cancelled);
+            }
+            self.dependencies
+                .insert(current, CachedDependencies { versions, result });
+        }
+        let providers = self.dependencies[&current]
+            .result
+            .as_ref()
+            .map_err(Clone::clone)?;
+        let world = dependencies::world(&self.input, current, providers)?;
+        let core = dependencies::core(current, providers)?;
+        let input = self.input.cones[&current]
+            .source()
+            .expect("the requested Cone is source input");
+        snapshot
+            .analyze_declarations(input, &core, &world, || check())
+            .map_err(Error::Declarations)
+    }
+}
+
+fn source_versions(
+    snapshot: &AnalysisSnapshot,
+    project: &ProjectInput,
+    selected: impl Fn(ConeIdentity) -> bool,
+) -> Result<Vec<SourceVersion>, Error> {
+    project
+        .cones
+        .iter()
+        .filter(|(cone, _)| selected(**cone))
+        .filter_map(|(_, cone)| ConeInput::source(cone))
+        .flat_map(|input| &input.sources)
+        .map(|file| {
+            snapshot
+                .source(file.source)?
+                .ok_or(Error::MissingSource(file.source))
+                .map(|source| source.version)
+        })
+        .collect()
+}

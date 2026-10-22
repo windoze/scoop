@@ -90,15 +90,16 @@ pub(super) fn declarations<'a>(
     source: SourceId,
     cancellation: &Cancellation,
 ) -> Result<Option<&'a mut DeclarationAnalysis>, ResponseError> {
-    match semantics.declarations(snapshot, source, || cancellation.check().is_err()) {
+    let cancellation = cancellation.clone();
+    match semantics.declarations(snapshot, source, move || cancellation.check().is_err()) {
         Ok(analysis) => Ok(analysis),
         Err(
             ProjectAnalysisError::Cancelled
             | ProjectAnalysisError::Declarations(scoop_analysis::DeclarationAnalysisError::Cancelled),
         ) => Err(cancelled()),
-        Err(ProjectAnalysisError::Artifact(message)) => {
-            Err(convert::error(ErrorCode::RequestFailed, message))
-        }
+        Err(
+            ProjectAnalysisError::Artifact(message) | ProjectAnalysisError::Dependency(message),
+        ) => Err(convert::error(ErrorCode::RequestFailed, message)),
         Err(_) => Ok(None),
     }
 }

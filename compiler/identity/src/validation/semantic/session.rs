@@ -47,7 +47,7 @@ impl SemanticIdentitySession {
             }
         }
 
-        let mut staged = self.try_clone_for_batch()?;
+        let mut staged = self.try_clone()?;
         let mut imported = Vec::new();
         imported.try_reserve_exact(imports.len()).map_err(|_| {
             SemanticIdentityImportError::Allocation {
@@ -206,7 +206,9 @@ impl SemanticIdentitySession {
         Ok(ImportedIdentityLayers { hir, mir, lir })
     }
 
-    fn try_clone_for_batch(&self) -> Result<Self, SemanticIdentityImportError> {
+    /// Preserve existing world ids in an independent analysis snapshot, sharing
+    /// the immutable canonical keys without re-importing their records.
+    pub fn try_clone(&self) -> Result<Self, SemanticIdentityImportError> {
         let mut origins = HashMap::new();
         origins.try_reserve(self.origins.len()).map_err(|_| {
             SemanticIdentityImportError::Allocation {

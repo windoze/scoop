@@ -232,25 +232,34 @@ fn semantic_inputs_keep_unavailable_source_dependencies_in_the_selected_graph() 
         .file_source(&directory.path().join("app/src/value.scoop"))
         .unwrap();
     let mut session = scoop_analysis::SemanticSession::default();
+    let interrupted = std::cell::Cell::new(0);
+    assert!(matches!(
+        session.declarations(&host.snapshot(), source, move || {
+            interrupted.set(interrupted.get() + 1);
+            interrupted.get() == 2
+        }),
+        Err(scoop_analysis::ProjectAnalysisError::Cancelled)
+    ));
     assert!(matches!(
         session.declarations(&host.snapshot(), source, || false),
         Err(
-            scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable(
-                scoop_identity::ConeIdentity::CORE
-            )
-        )
+            scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable {
+                cone: scoop_identity::ConeIdentity::CORE, diagnostics
+            }
+        ) if !diagnostics.is_empty()
     ));
     assert!(matches!(
         session.declarations(&host.snapshot(), source, || true),
         Err(scoop_analysis::ProjectAnalysisError::Cancelled)
     ));
-    let checks = std::cell::Cell::new(0);
+    let checks = std::rc::Rc::new(std::cell::Cell::new(0));
+    let measured = checks.clone();
     assert!(matches!(
-        session.declarations(&host.snapshot(), source, || {
-            checks.set(checks.get() + 1);
-            checks.get() > 1
+        session.declarations(&host.snapshot(), source, move || {
+            measured.set(measured.get() + 1);
+            measured.get() > 1
         }),
-        Err(scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable(_))
+        Err(scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable { .. })
     ));
     assert_eq!(
         checks.get(),
@@ -266,9 +275,10 @@ fn semantic_inputs_keep_unavailable_source_dependencies_in_the_selected_graph() 
     assert!(matches!(
         session.declarations(&host.snapshot(), source, || false),
         Err(
-            scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable(
-                scoop_identity::ConeIdentity::CORE
-            )
+            scoop_analysis::ProjectAnalysisError::SourceDependencyUnavailable {
+                cone: scoop_identity::ConeIdentity::CORE,
+                ..
+            }
         )
     ));
 }

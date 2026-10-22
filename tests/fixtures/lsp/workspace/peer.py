@@ -11,6 +11,7 @@ from cancellation import check as check_cancellation
 from diagnostics import check as check_diagnostics
 from incomplete_signatures import check as check_incomplete_signatures
 from signatures import check as check_signatures
+from source_dependencies import check as check_source_dependencies
 
 
 class Peer:
@@ -305,6 +306,7 @@ def main():
         check_cancellation(peer, root)
         check_signatures(peer, root)
         check_incomplete_signatures(peer, root)
+        check_source_dependencies(peer, root)
         peer.finish()
     finally:
         if peer.process.poll() is None:

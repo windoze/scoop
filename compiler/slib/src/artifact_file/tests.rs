@@ -36,6 +36,15 @@ fn source_declarations_leave_unused_machine_members_unread() {
     assert_eq!(declarations.provider_count(), 2);
     let machine = declarations.read_machine_dependencies([]).unwrap();
     assert_eq!(machine.artifact_count(), 0);
+    let (providers, identities) = declarations.into_semantic_inputs();
+    assert_eq!(identities.origin_count(), 2);
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
+        current,
+        vec![providers[1].input()],
+        vec![providers[0].input()],
+    )
+    .unwrap();
+    assert!(world.direct_provider(identity).is_some());
     for file in [&core, &file] {
         let saved = file.directory().unwrap();
         for (record, (_, _, cached)) in saved.manifest.members().iter().zip(&saved.members) {
