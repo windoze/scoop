@@ -16,6 +16,12 @@ use crate::{
     TypeAliasInterfaceBuildError,
 };
 
+struct ExportDependencies<'a> {
+    shared: &'a super::ExportSharedSource,
+    selected: &'a crate::SelectedImportedDependencySet,
+    concrete: Option<&'a DependencyHirOutput>,
+}
+
 impl CrossConeHirInterfaceSectionV1 {
     /// Projects a self-contained Export HIR graph into the complete general
     /// cross-Cone interface section.
@@ -28,6 +34,26 @@ impl CrossConeHirInterfaceSectionV1 {
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
         Self::from_parts(export, None, witness_uses, authority)
+    }
+
+    /// Reuses complete logical bodies without requiring concrete call sites.
+    pub fn from_source_hir<A, E>(
+        output: &crate::DependencyExportHirOutput,
+        authority: &mut A,
+    ) -> Result<Self, CrossConeHirInterfaceProductionError<E>>
+    where
+        A: ExternalHirReferenceSemanticAuthority<E>,
+    {
+        Self::from_parts(
+            output.export.module(),
+            Some(ExportDependencies {
+                shared: output.export.shared_source(),
+                selected: &output.imported_dependencies,
+                concrete: None,
+            }),
+            &output.binding_witness_uses,
+            authority,
+        )
     }
 
     /// Projects a current-Cone HIR graph using its dependency selections to
@@ -50,7 +76,11 @@ impl CrossConeHirInterfaceSectionV1 {
         complete_witness_uses.extend_from_slice(output.concrete_dependency_witness_uses());
         Self::from_parts(
             output.output().export.module(),
-            Some(output),
+            Some(ExportDependencies {
+                shared: output.output().export.shared_source(),
+                selected: output.imported_dependencies(),
+                concrete: Some(output),
+            }),
             &complete_witness_uses,
             authority,
         )
@@ -58,19 +88,18 @@ impl CrossConeHirInterfaceSectionV1 {
 
     fn from_parts<A, E>(
         export: &ExportHir,
-        dependency_output: Option<&DependencyHirOutput>,
+        dependencies: Option<ExportDependencies<'_>>,
         witness_uses: &[ExternalHirBindingWitnessUse],
         authority: &mut A,
     ) -> Result<Self, CrossConeHirInterfaceProductionError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        let imported_dependencies =
-            dependency_output.map(DependencyHirOutput::imported_dependencies);
+        let imported_dependencies = dependencies.as_ref().map(|input| input.selected);
 
         let projected;
-        let shared = if let Some(output) = dependency_output {
-            output.output().export.shared_source()
+        let shared = if let Some(input) = &dependencies {
+            input.shared
         } else {
             projected = super::ExportSharedSource::from_export(export, imported_dependencies)
                 .map_err(CrossConeHirInterfaceProductionError::GenericBodies)?;
@@ -149,7 +178,7 @@ impl CrossConeHirInterfaceSectionV1 {
                     &annotations,
                 ),
                 witness_uses,
-                dependency_output,
+                dependencies.as_ref().and_then(|input| input.concrete),
                 authority,
             )
             .map_err(CrossConeHirInterfaceProductionError::ExternalReferences)?;

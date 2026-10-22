@@ -12,6 +12,7 @@ mod core;
 mod extensions;
 mod occurrences;
 mod source_exports;
+mod source_providers;
 pub(crate) mod support;
 
 use support::*;

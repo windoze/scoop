@@ -16,6 +16,7 @@ use crate::{
 };
 
 mod records;
+mod source_import;
 
 fn source_type_record() -> CborIdentityRecord<PersistentTypeId, SourceDeclarationKey> {
     let cone = ConeCoordinate::reserved_core().identity().unwrap();

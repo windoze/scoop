@@ -7,6 +7,22 @@ pub(crate) fn build(
     local: &hir::concrete::Module,
     dependencies: &hir::ImportedSemanticWorld<'_>,
 ) -> Result<hir::HirNativeBoundaryTypeDefinitions, PersistentNativeBoundaryTypeError> {
+    hir::HirNativeBoundaryTypeDefinitions::from_roots(inputs(export, dependencies), local)
+        .map_err(PersistentNativeBoundaryTypeError)
+}
+
+pub(crate) fn build_source(
+    export: &hir::Module,
+    dependencies: &hir::ImportedSemanticWorld<'_>,
+) -> Result<hir::HirNativeBoundaryTypeDefinitions, PersistentNativeBoundaryTypeError> {
+    hir::HirNativeBoundaryTypeDefinitions::from_source_roots(inputs(export, dependencies))
+        .map_err(PersistentNativeBoundaryTypeError)
+}
+
+fn inputs<'a>(
+    export: &'a hir::Module,
+    dependencies: &'a hir::ImportedSemanticWorld<'a>,
+) -> hir::HirNativeBoundaryTypeDefinitionInputs<'a> {
     let core_types = match &export.core_protocols {
         hir::CoreProtocols::Defined(protocols) => {
             hir::HirCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types)
@@ -15,7 +31,7 @@ pub(crate) fn build(
             hir::HirCoreTypeIdentityAuthority::Imported(protocols.fundamental_types())
         }
     };
-    hir::HirNativeBoundaryTypeDefinitions::from_roots(hir::HirNativeBoundaryTypeDefinitionInputs {
+    hir::HirNativeBoundaryTypeDefinitionInputs {
         protocols: &export.core_protocols,
         structs: &export.structs,
         enums: &export.enums,
@@ -47,10 +63,8 @@ pub(crate) fn build(
         source_native_contracts: &export.source_native_contracts,
         callback_registration_identities: &export.callback_registration_identities,
         initialization_unit_identities: &export.initialization_unit_identities,
-        local,
         dependencies,
-    })
-    .map_err(PersistentNativeBoundaryTypeError)
+    }
 }
 
 #[derive(Debug)]

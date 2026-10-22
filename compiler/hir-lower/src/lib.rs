@@ -158,6 +158,7 @@ mod semantic_queries;
 mod shared;
 mod signatures;
 mod snapshot_arena;
+mod source_dependencies;
 mod stmt;
 mod test_annotations;
 mod test_entry;
@@ -177,6 +178,7 @@ pub use editing::{
     analyze_declarations,
 };
 pub use output_kind::select_cone_output_kind;
+pub use source_dependencies::{SourceDependencyProjectionError, project_source_dependency};
 
 use std::collections::{HashMap, HashSet};
 

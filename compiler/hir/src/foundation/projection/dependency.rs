@@ -9,25 +9,26 @@ impl CanonicalHirFoundation {
         let hir = output.output();
         let mut foundation =
             Self::from_modules(&hir.export, &hir.local, &hir.native_boundary_types)?;
-        let declared_source_types = foundation
+        foundation.complete_external_nominals()?;
+        super::call_points::complete(output, &mut foundation)?;
+        Ok(foundation)
+    }
+
+    pub(super) fn complete_external_nominals(&mut self) -> Result<(), HirFoundationBuildError> {
+        let declared_source_types = self
             .types
             .iter()
             .map(CborIdentityRecord::id)
-            .chain(
-                foundation
-                    .generated_types
-                    .iter()
-                    .map(CborIdentityRecord::id),
-            )
+            .chain(self.generated_types.iter().map(CborIdentityRecord::id))
             .collect::<std::collections::BTreeSet<_>>();
-        let declared_generic_types = foundation
+        let declared_generic_types = self
             .generic_types
             .iter()
             .map(CborIdentityRecord::id)
             .collect::<std::collections::BTreeSet<_>>();
         let mut external_source_types = std::collections::BTreeSet::new();
         let mut external_generic_types = std::collections::BTreeSet::new();
-        for record in &foundation.exact_types {
+        for record in &self.exact_types {
             match record.key() {
                 ExactTypeKey::Nominal(source) if !declared_source_types.contains(source) => {
                     external_source_types.insert(*source);
@@ -45,7 +46,7 @@ impl CanonicalHirFoundation {
                 | ExactTypeKey::NativeFunctionPointer { .. } => {}
             }
         }
-        for record in &foundation.native_boundary_types {
+        for record in &self.native_boundary_types {
             match record.owner() {
                 crate::NativeBoundaryNominalOwner::Concrete(source)
                     if !declared_source_types.contains(&source) =>
@@ -61,9 +62,7 @@ impl CanonicalHirFoundation {
                 | crate::NativeBoundaryNominalOwner::GenericTemplate(_) => {}
             }
         }
-        foundation.set_external_source_types(external_source_types.into_iter().collect())?;
-        foundation.set_external_generic_types(external_generic_types.into_iter().collect())?;
-        super::call_points::complete(output, &mut foundation)?;
-        Ok(foundation)
+        self.set_external_source_types(external_source_types.into_iter().collect())?;
+        self.set_external_generic_types(external_generic_types.into_iter().collect())
     }
 }

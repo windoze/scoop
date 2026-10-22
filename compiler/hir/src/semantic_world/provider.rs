@@ -10,6 +10,8 @@ use crate::{
 
 mod views;
 pub use views::*;
+mod owned;
+pub use owned::OwnedImportedProvider;
 
 /// Shared declarations already read and checked at the artifact boundary.
 pub struct ImportedProviderInput<'input> {
