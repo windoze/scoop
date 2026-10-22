@@ -248,6 +248,8 @@ def main():
         builtin = "fun builtin(value: Boolean): String = value.toString()"
         assert hover(2, builtin.rindex("value"))["contents"]["value"] == "value: Boolean"
         assert definition(2, builtin.index("toString")) is None
+        imported_hover = hover(2, builtin.index("toString"))["contents"]["value"]
+        assert "toString" in imported_hover and imported_hover.endswith(": String"), imported_hover
         typed = "fun typed(value: String) { value.toS }"
         selector_start = typed.index("toS")
         candidates = completion(3, selector_start + 3)

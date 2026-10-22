@@ -9,6 +9,8 @@ use serde_json::Value;
 use super::semantic;
 use crate::{convert, initialize::Settings};
 
+mod imported;
+
 pub(crate) fn hover(
     snapshot: &AnalysisSnapshot,
     source_id: SourceId,
@@ -56,11 +58,21 @@ pub(crate) fn hover(
         }
         if let Some(reference) =
             semantic::callable_at(analysis, function.function, target, snapshot, cancellation)?
-            && let hir::SemanticCallable::Current(function) = reference.target
-            && let EditingValue::Known(signature) = analysis.signature(function)
         {
-            let label = signature_label(analysis, &signature)?;
-            return response(&source.text, target, label, settings);
+            let label = match reference.target {
+                hir::SemanticCallable::Current(function) => match analysis.signature(function) {
+                    EditingValue::Known(signature) => Some(signature_label(analysis, &signature)?),
+                    EditingValue::Unavailable(_) => None,
+                },
+                hir::SemanticCallable::Imported(callable) => {
+                    imported::label(analysis, callable, snapshot, cursor.project)?
+                }
+                hir::SemanticCallable::CurrentGetter(_)
+                | hir::SemanticCallable::CurrentSetter(_) => None,
+            };
+            if let Some(label) = label {
+                return response(&source.text, target, label, settings);
+            }
         }
     }
     super::json(None::<Hover>)

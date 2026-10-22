@@ -6,6 +6,30 @@ impl DeclarationAnalysis {
         let file = self.lowerer.function_definition_file(function)?;
         Some(&self.lowerer.intrinsic_sources[file].source)
     }
+
+    pub fn imported_signature(
+        &mut self,
+        callable: hir::DefaultCallableDeclarationV1,
+    ) -> Result<Option<hir::SemanticCallableSignature>, ast::Diagnostic> {
+        self.lowerer.imported_function_signature(callable)
+    }
+
+    pub fn describe_declaration_type(
+        &mut self,
+        binders: &hir::SemanticDeclarationBinders,
+        ty: hir::TypeId,
+    ) -> Result<hir::SemanticTypeDescription, ast::Diagnostic> {
+        self.lowerer
+            .in_type_context(binders.into(), |lowerer| lowerer.describe_semantic_type(ty))
+    }
+
+    pub fn imported_default_origin(
+        &self,
+        key: hir::ExportDefaultTemplateKeyV1,
+    ) -> Option<hir::SemanticSourceLocation> {
+        let template = self.lowerer.dependencies.as_ref()?.default_template(key)?;
+        crate::semantic_queries::imported_location(template.definition_origin().origin()).ok()
+    }
 }
 
 impl Lowerer {

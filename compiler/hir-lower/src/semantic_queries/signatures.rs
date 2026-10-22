@@ -1,6 +1,24 @@
 use super::*;
 
+mod imported;
+
 impl Lowerer {
+    pub(crate) fn imported_callable_owner_parameters(
+        &mut self,
+        owner: hir::SourceNominalId,
+    ) -> Result<Vec<hir::TypeParamDecl>, crate::imported_core::ImportedSignatureTypeError> {
+        let declaration = self
+            .dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.nominal_declaration(owner))
+            .ok_or(crate::imported_core::ImportedSignatureTypeError::Structural)?;
+        if declaration.interface.type_parameters().binders().is_empty() {
+            Ok(Vec::new())
+        } else {
+            self.nominal_declaration_parameters(owner)
+        }
+    }
+
     pub(crate) fn semantic_function_signature<R, P>(
         &self,
         function: hir::FunctionId,

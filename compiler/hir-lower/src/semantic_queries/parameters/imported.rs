@@ -2,7 +2,7 @@ use super::*;
 use hir::ImportedCallableSource;
 
 impl Lowerer {
-    pub(in crate::semantic_queries) fn query_imported_parameters(
+    pub(crate) fn query_imported_parameters(
         &mut self,
         declaration: &hir::ImportedCallableDeclaration,
         bindings: &ImportedTypeBindings,

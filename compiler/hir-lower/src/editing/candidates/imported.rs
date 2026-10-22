@@ -15,21 +15,9 @@ impl Lowerer {
         }
         let (owner_parameters, owner_arguments) = match interface.owner() {
             hir::PublicDeclarationOwnerV1::Nominal(owner) => {
-                let has_parameters = !self
-                    .dependencies
-                    .as_ref()
-                    .and_then(|dependencies| dependencies.nominal_declaration(owner))
-                    .ok_or(U::SignatureFailure)?
-                    .interface
-                    .type_parameters()
-                    .binders()
-                    .is_empty();
-                let parameters = if has_parameters {
-                    self.nominal_declaration_parameters(owner)
-                        .map_err(|_| U::SignatureFailure)?
-                } else {
-                    Vec::new()
-                };
+                let parameters = self
+                    .imported_callable_owner_parameters(owner)
+                    .map_err(|_| U::SignatureFailure)?;
                 let arguments = if let Some(receiver) = receiver {
                     let Some(owner_type) = self.imported_member_owner_type(receiver, owner) else {
                         return Ok(None);

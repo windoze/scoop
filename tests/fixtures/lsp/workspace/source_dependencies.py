@@ -32,8 +32,8 @@ def check(peer, root):
     )
     consumer = root / "src/sourceConsumer.scoop"
     consumer_text = (
-        "import shared.answer\nimport shared.pass\nimport shared.choose\n"
-        "fun call(): Boolean = pass(choose())\n"
+        "import shared.answer\nimport shared.pass as renamed\nimport shared.choose\n"
+        "fun call(): Boolean = renamed(choose())\n"
         "fun editing() { val value = answer(); value. }\n"
     )
     consumer.write_text(consumer_text)
@@ -66,6 +66,18 @@ def check(peer, root):
         {"textDocument": {"uri": uri}, "position": {"line": 3, "character": 4}},
     )
     assert call["contents"]["value"] == "fun call(): Boolean", call
+    call_line = consumer_text.splitlines()[3]
+    for name, expected, target_line in [
+        ("renamed", "fun <Item> pass(value: Item): Item", 2),
+        ("choose", "fun choose(value: Boolean = true): Boolean", 3),
+    ]:
+        position = {"line": 3, "character": call_line.index(name)}
+        params = {"textDocument": {"uri": uri}, "position": position}
+        result = peer.request("textDocument/hover", params)
+        assert result["contents"]["value"] == expected, result
+        destination = peer.request("textDocument/definition", params)
+        assert destination["uri"] == path.as_uri(), destination
+        assert destination["range"]["start"]["line"] == target_line, destination
     assert not peer.diagnostics[manifest]["diagnostics"], peer.diagnostics[manifest]
     assert not any(
         "not found" in error["message"] for error in peer.diagnostics[uri]["diagnostics"]

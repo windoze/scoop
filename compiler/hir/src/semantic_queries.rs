@@ -46,8 +46,8 @@ pub struct SemanticSourceLocation {
 }
 
 #[derive(Clone, Debug)]
-pub struct SemanticFunctionSignature<R = TypeId, P = ExportValueParameter> {
-    pub function: FunctionId,
+pub struct SemanticFunctionSignature<R = TypeId, P = ExportValueParameter, F = FunctionId> {
+    pub function: F,
     pub name: String,
     pub receiver: Option<TypeId>,
     pub parameters: Vec<P>,
@@ -61,6 +61,9 @@ pub struct SemanticFunctionSignature<R = TypeId, P = ExportValueParameter> {
     pub release_callability: ReleaseCallability,
     pub origin: SemanticSourceLocation,
 }
+
+pub type SemanticCallableSignature =
+    SemanticFunctionSignature<TypeId, SemanticParameterDescription, SemanticCallable>;
 
 /// Complete type structure and the ordinary direct parent relation.
 #[derive(Clone, Debug)]

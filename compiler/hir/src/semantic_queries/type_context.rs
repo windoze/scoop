@@ -75,7 +75,7 @@ impl SemanticMethodDescription {
     }
 }
 
-impl SemanticFunctionSignature {
+impl<R, P, F> SemanticFunctionSignature<R, P, F> {
     pub fn declaration_binders(&self) -> SemanticDeclarationBinders {
         let (owner, callable) = self.type_parameters.split_at(self.owner_parameter_count);
         SemanticDeclarationBinders {
