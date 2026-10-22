@@ -27,6 +27,7 @@ from source_dependencies import check as check_source_dependencies
 from type_definitions import check as check_type_definitions
 from type_implementations import check as check_type_implementations
 from type_references import check as check_type_references
+from while_recovery import check as check_while_recovery
 
 
 class Peer:
@@ -338,6 +339,7 @@ def main():
         check_recovered_enums(peer, root)
         check_recovered_objects(peer, root)
         check_qualified_signatures(peer, root)
+        check_while_recovery(peer, root)
         check_recovered_interfaces(peer, root)
         check_recovered_structs(peer, root)
         peer.finish()

@@ -61,6 +61,9 @@ pub enum RecoveredOperandContext {
     },
     Throw,
     IfCondition,
+    WhileCondition {
+        label: Option<crate::Ident>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -93,6 +96,15 @@ pub struct RecoveredIf {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct RecoveredWhile {
+    pub block: Option<BodyBlockId>,
+    pub start: u32,
+    pub label: Option<crate::Ident>,
+    pub condition: Box<Expr>,
+    pub body: RecoveredControlBody,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct RecoveredFunctionBody {
     pub root: RecoveredBodyRoot,
     pub blocks: Vec<RecoveredBlock>,
@@ -100,4 +112,5 @@ pub struct RecoveredFunctionBody {
     pub calls: Vec<crate::RecoveredCall>,
     pub operands: Vec<RecoveredOperand>,
     pub conditionals: Vec<RecoveredIf>,
+    pub while_loops: Vec<RecoveredWhile>,
 }

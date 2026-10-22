@@ -1,6 +1,7 @@
 use super::*;
 
 mod conditionals;
+mod loops;
 
 impl Lowerer {
     pub(super) fn check_recovered_facts(
@@ -126,8 +127,7 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
             .iter()
             .find(|operand| operand.block == block && operand.statement_start == start)
         {
-            let available = available && self.operand_context(lowerer, operand);
-            return self.expression(lowerer, block, operand.expression_start, available);
+            return self.operand(lowerer, operand, available);
         }
         if let Some(child) = self.body.blocks.iter().find(|child| {
             child.parent == block
@@ -144,26 +144,62 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
         {
             return self.conditional(lowerer, conditional, available);
         }
+        if let Some(while_loop) = self
+            .body
+            .while_loops
+            .iter()
+            .find(|while_loop| while_loop.block == block && while_loop.start == start)
+        {
+            return self.while_loop(lowerer, while_loop, available);
+        }
         Ok(())
     }
 
-    fn operand_context(&self, lowerer: &mut Lowerer, operand: &ast::RecoveredOperand) -> bool {
-        match &operand.context {
+    fn control_body(
+        &mut self,
+        lowerer: &mut Lowerer,
+        parent: Option<ast::BodyBlockId>,
+        body: ast::RecoveredControlBody,
+        available: bool,
+    ) -> Result<(), EditingCancelled> {
+        match body {
+            ast::RecoveredControlBody::Block(id) => self.block(lowerer, id, available),
+            ast::RecoveredControlBody::Statement(start) => {
+                lowerer.push_scope();
+                let result = self.expression(lowerer, parent, start, available);
+                lowerer.pop_scope();
+                result
+            }
+        }
+    }
+
+    fn operand(
+        &mut self,
+        lowerer: &mut Lowerer,
+        operand: &ast::RecoveredOperand,
+        available: bool,
+    ) -> Result<(), EditingCancelled> {
+        if !available {
+            return self.expression(lowerer, operand.block, operand.expression_start, false);
+        }
+        let available = match &operand.context {
             ast::RecoveredOperandContext::Initializer { annotation } => annotation
                 .as_ref()
                 .is_none_or(|ty| lowerer.resolve_type_ref(ty).is_some()),
             ast::RecoveredOperandContext::Return { label } => {
-                if matches!(self.body.root, ast::RecoveredBodyRoot::Expression(_)) {
-                    return false;
-                }
-                lowerer
-                    .check_return_context(
-                        label.as_ref(),
-                        ast::Span::new(operand.statement_start, operand.expression_start),
-                    )
-                    .is_some()
+                !matches!(self.body.root, ast::RecoveredBodyRoot::Expression(_))
+                    && lowerer
+                        .check_return_context(
+                            label.as_ref(),
+                            ast::Span::new(operand.statement_start, operand.expression_start),
+                        )
+                        .is_some()
             }
             ast::RecoveredOperandContext::Throw | ast::RecoveredOperandContext::IfCondition => true,
-        }
+            ast::RecoveredOperandContext::WhileCondition { label } => {
+                return self.while_condition(lowerer, operand, label.as_ref());
+            }
+        };
+        self.expression(lowerer, operand.block, operand.expression_start, available)
     }
 }

@@ -1,13 +1,15 @@
 //! Structured conditional, loop, pattern dispatch, and exception syntax.
 
 use scoop_ast::{
-    Block, CatchClause, Diagnostic, Expr, For, Span, Statement, StatementKind, Try, While,
+    self as ast, Block, CatchClause, Diagnostic, Expr, For, Span, Statement, StatementKind, Try,
+    While,
 };
 
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
 
 mod conditionals;
+mod loops;
 
 impl Parser {
     pub(crate) fn parse_control_body(&mut self) -> Result<Block, Diagnostic> {
@@ -22,84 +24,19 @@ impl Parser {
         })
     }
 
-    /// `while (<cond>) body` — the condition is always parenthesized.
-    pub(super) fn parse_while(&mut self) -> Result<Statement, Diagnostic> {
-        self.with_node(scoop_syntax::SyntaxKind::WhileStmt, |parser| {
-            parser.parse_while_inner()
-        })
-    }
-
-    fn parse_while_inner(&mut self) -> Result<Statement, Diagnostic> {
-        let keyword = self.bump(); // `while`
-        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        let cond = self.parse_expr()?;
-        self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        let body = self.parse_control_body()?;
-        let span = Span::new(keyword.span.start, body.span.end);
-        Ok(Statement {
-            span,
-            kind: StatementKind::While(While {
-                loop_kind: scoop_ast::LoopKind::While,
-                label: None,
-                cond,
-                body,
-                span,
-            }),
-        })
-    }
-
-    pub(super) fn parse_do_while(&mut self) -> Result<Statement, Diagnostic> {
-        let keyword = self.bump();
-        let body = self.parse_control_body()?;
-        self.expect("`while` after do body", |kind| {
-            matches!(kind, TokenKind::While)
-        })?;
-        self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
-        let cond = self.parse_expr()?;
-        let end = self
-            .expect("`)`", |kind| matches!(kind, TokenKind::RParen))?
-            .span
-            .end;
-        let span = Span::new(keyword.span.start, end);
-        Ok(Statement {
-            kind: StatementKind::While(While {
-                loop_kind: scoop_ast::LoopKind::DoWhile,
-                label: None,
-                cond,
-                body,
-                span,
-            }),
-            span,
-        })
-    }
-
-    /// `for (<pattern> in <iterable>) body`. Pattern syntax is deliberately
-    /// shared with `val`/lambda/`when`; irrefutability is a later typed check.
-    pub(super) fn parse_for(&mut self) -> Result<Statement, Diagnostic> {
-        self.with_node(scoop_syntax::SyntaxKind::ForStmt, |parser| {
-            parser.parse_for_inner()
-        })
-    }
-
-    fn parse_for_inner(&mut self) -> Result<Statement, Diagnostic> {
-        let keyword = self.bump(); // `for`
-        self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
-        let pattern = self.parse_pattern()?;
-        self.expect("`in`", |kind| matches!(kind, TokenKind::In))?;
-        let iterable = self.parse_expr()?;
-        self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
-        let body = self.parse_control_body()?;
-        let span = Span::new(keyword.span.start, body.span.end);
-        Ok(Statement {
-            kind: StatementKind::For(For {
-                label: None,
-                pattern,
-                iterable,
-                body,
-                span,
-            }),
-            span,
-        })
+    fn parse_recoverable_control_body(
+        &mut self,
+    ) -> (Result<Block, Diagnostic>, Option<ast::RecoveredControlBody>) {
+        let checkpoint = self.checkpoint();
+        let start = self.peek().span.start;
+        let body = if matches!(self.peek().kind, TokenKind::LBrace) {
+            ast::RecoveredControlBody::Block(ast::BodyBlockId(start))
+        } else {
+            ast::RecoveredControlBody::Statement(start)
+        };
+        let result = self.parse_control_body();
+        let recovered = (result.is_err() || !self.fragment_is_complete(checkpoint)).then_some(body);
+        (result, recovered)
     }
 
     /// `try { ... } (catch (<name>: <type>) { ... })* (finally { ... })?`

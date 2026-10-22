@@ -79,15 +79,8 @@ impl Parser {
         on_true: bool,
         recovered: &mut Vec<ast::RecoveredIfBranch>,
     ) -> Result<Block, Diagnostic> {
-        let checkpoint = self.checkpoint();
-        let start = self.peek().span.start;
-        let body = if matches!(self.peek().kind, TokenKind::LBrace) {
-            ast::RecoveredControlBody::Block(ast::BodyBlockId(start))
-        } else {
-            ast::RecoveredControlBody::Statement(start)
-        };
-        let result = self.parse_control_body();
-        if result.is_err() || !self.fragment_is_complete(checkpoint) {
+        let (result, body) = self.parse_recoverable_control_body();
+        if let Some(body) = body {
             recovered.push(ast::RecoveredIfBranch { on_true, body });
         }
         result

@@ -21,17 +21,8 @@ impl<F: Fn() -> bool> PrefixQuery<'_, F> {
                 .as_ref()
                 .map(|condition| lowerer.checked_condition_facts(condition, branch.on_true))
                 .unwrap_or_default();
-            lowerer.with_smart_casts(facts, |lowerer| match branch.body {
-                ast::RecoveredControlBody::Block(id) => {
-                    self.block(lowerer, id, condition.is_some())
-                }
-                ast::RecoveredControlBody::Statement(start) => {
-                    lowerer.push_scope();
-                    let result =
-                        self.expression(lowerer, conditional.block, start, condition.is_some());
-                    lowerer.pop_scope();
-                    result
-                }
+            lowerer.with_smart_casts(facts, |lowerer| {
+                self.control_body(lowerer, conditional.block, branch.body, condition.is_some())
             })?;
         }
         Ok(())

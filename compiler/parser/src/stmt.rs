@@ -156,7 +156,7 @@ impl Parser {
             TokenKind::Val | TokenKind::Var => self.parse_val_decl(),
             TokenKind::If => self.parse_if(),
             TokenKind::When => self.parse_when(),
-            TokenKind::While => self.parse_while(),
+            TokenKind::While => self.parse_while(None),
             TokenKind::Return => self.parse_return(),
             TokenKind::LBrace => {
                 let block = self.parse_block()?;
@@ -166,9 +166,9 @@ impl Parser {
                 })
             }
             TokenKind::At => self.parse_safety_block(),
-            TokenKind::For => self.parse_for(),
+            TokenKind::For => self.parse_for(None),
             TokenKind::Break | TokenKind::Continue => self.parse_loop_jump(),
-            TokenKind::Do => self.parse_do_while(),
+            TokenKind::Do => self.parse_do_while(None),
             // `try` / `catch` / `finally` / `throw` are contextual: they
             // stay identifiers everywhere except statement position.
             TokenKind::Ident(text) if text == "try" => self.parse_try(),
@@ -329,25 +329,12 @@ impl Parser {
     fn parse_labeled_loop(&mut self) -> Result<Statement, Diagnostic> {
         let label = self.expect_ident("loop label")?;
         self.expect("`@`", |kind| matches!(kind, TokenKind::At))?;
-        let mut statement = match self.peek().kind {
-            TokenKind::While => self.parse_while()?,
-            TokenKind::Do => self.parse_do_while()?,
-            TokenKind::For => self.parse_for()?,
-            _ => return self.unexpected("loop after label"),
-        };
-        statement.span.start = label.span.start;
-        match &mut statement.kind {
-            StatementKind::While(loop_) => {
-                loop_.span = statement.span;
-                loop_.label = Some(label);
-            }
-            StatementKind::For(loop_) => {
-                loop_.span = statement.span;
-                loop_.label = Some(label);
-            }
-            _ => unreachable!("a labeled loop is a while or for statement"),
+        match self.peek().kind {
+            TokenKind::While => self.parse_while(Some(label)),
+            TokenKind::Do => self.parse_do_while(Some(label)),
+            TokenKind::For => self.parse_for(Some(label)),
+            _ => self.unexpected("loop after label"),
         }
-        Ok(statement)
     }
 }
 
