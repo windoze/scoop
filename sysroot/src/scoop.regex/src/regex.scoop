@@ -1,6 +1,7 @@
 package scoop.regex
 
 import scoop.collections.*
+import scoop.sequences.Sequence
 
 /**
  * A reusable PCRE2 UTF-8 pattern. Close it deterministically with close/use. Matching calls can
@@ -32,6 +33,12 @@ public class Regex public constructor(
 
     /** Searches from a Unicode scalar index, preserving the complete input's context. */
     public fun find(input: String, startIndex: Long = 0L): MatchResult? = firstMatch(input, startIndex, 0)
+
+    /** Returns independent lazy traversals. Keep this Regex open while matching during traversal. */
+    public fun findAll(input: String, startIndex: Long = 0L): Sequence<MatchResult> {
+        checkedHandle()
+        return RegexMatches(this, input, RegexInput(input).byteOffset(startIndex))
+    }
 
     internal fun checkedHandle(): ULong {
         if (handle == 0UL) throw IllegalStateException(Some("regex is closed"))
@@ -86,6 +93,11 @@ public class Regex public constructor(
     }
 
     release { if (handle != 0UL) @Unsafe { regexFree(handle) } }
+
+    public companion object {
+        /** Quotes literal text for a pattern, including embedded quote terminators. */
+        public fun escape(literal: String): String = escapeRegexLiteral(literal)
+    }
 }
 
 internal struct RegexStep(val result: MatchResult, val start: Long, val flags: UInt, val hasNext: Boolean)

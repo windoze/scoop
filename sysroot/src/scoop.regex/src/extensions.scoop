@@ -1,0 +1,16 @@
+package scoop.regex
+
+import scoop.collections.*
+import scoop.text.replace
+
+/** Compiles this string as a reusable PCRE2 UTF-8 pattern. The caller owns the returned Regex. */
+public fun String.toRegex(options: Set<RegexOption> = emptySet()): Regex = Regex(this, options)
+
+/** Returns None only for pattern syntax errors; allocation and unrelated failures still propagate. */
+public fun String.toRegexOrNone(options: Set<RegexOption> = emptySet()): Regex? {
+    try { return Some(Regex(this, options)) }
+    catch (error: RegexSyntaxException) { return None }
+}
+
+internal fun escapeRegexLiteral(literal: String): String =
+    """\Q""" + literal.replace("""\E""", """\E\\E\Q""") + """\E"""
