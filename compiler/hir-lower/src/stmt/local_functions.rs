@@ -117,7 +117,7 @@ impl Lowerer {
         if !type_params.is_empty() {
             self.register_generic(function, type_params.clone());
         }
-        self.annotate_function(function, decl);
+        self.annotate_function(function, decl.header());
         let local = self.local_functions.alloc(hir::LocalFunction {
             definition: hir::LexicalFunctionDefinition::Source {
                 function,

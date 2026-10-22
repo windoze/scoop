@@ -27,7 +27,7 @@ impl Lowerer {
         pending_enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
         pending_interfaces: &[(hir::InterfaceId, &ast::InterfaceDecl, usize)],
         pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
-        pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
+        pending_methods: &[crate::declarations::MethodHeaderInput<'_>],
     ) {
         let owners = pending_interfaces
             .iter()
@@ -90,7 +90,7 @@ impl Lowerer {
                 .iter()
                 .filter(|(_, _, _, candidate)| *candidate == owner)
             {
-                let declaration = overrides::MemberOverride::source(source);
+                let declaration = overrides::MemberOverride::source(source.signature);
                 let before = self.diagnostics.len();
                 self.check_member_access_contract(id, &declaration, owner);
                 self.check_override_rules(id, &declaration, owner);

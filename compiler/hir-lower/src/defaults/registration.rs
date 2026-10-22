@@ -55,8 +55,8 @@ impl Lowerer {
 
     pub(crate) fn register_export_parameter_interfaces(
         &mut self,
-        functions: &[(hir::FunctionId, &ast::FunctionDecl, usize)],
-        methods: &[(hir::FunctionId, &ast::FunctionDecl, usize, Owner)],
+        functions: &[crate::declarations::FunctionHeaderInput<'_>],
+        methods: &[crate::declarations::MethodHeaderInput<'_>],
         structs: &[(hir::StructId, &ast::StructDecl, usize)],
         classes: &[(hir::ClassId, &ast::ClassDecl, usize)],
         enums: &[(hir::EnumId, &ast::EnumDecl, usize)],

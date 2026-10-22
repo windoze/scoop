@@ -76,6 +76,8 @@
 
 - 文件上下文：package／import／原文范围以借用视图进入原 namespace、import 和 core 合同检查，严格 AST 与恢复文件共用同一接口；不完整文件头不能形成完整上下文。格式化、全 workspace Clippy 和 85 项导入／core／阶段边界测试通过，包含实际坏正文的 package、alias import 及诊断位置；编辑态整体入口仍在实施。
 
+- 恢复声明输入：原声明收集直接接收完整声明或独立函数头；函数头进入正常导入、签名、重复签名、继承与默认参数接口，完整正文单独登记推断及检查。格式化、全 workspace Clippy 和 307 项相关测试通过，包含坏正文函数经 alias import／默认实参被正常调用、与完整声明发生重载冲突、缺失表达式正文不泄漏结果类型。当前 target 约 18 GiB；未知名称阻塞、正文事实与 LSP 语义请求仍待完成。
+
 ## 环境与验证策略
 
 工作文件和原始日志位于仓库外的 `/Volumes/Data/home/chenxu/work/scoop-language-service/`；命令显式设置该目录内的 scratch 为 TMPDIR，不使用 `/tmp`。保留源码、工具和普通缓存，按真实输入变化与调用结果验证更新。Linux 环境为 `ssh nuc12` 的 `~/repos/scoop`，本机功能完成后再同步和验证。

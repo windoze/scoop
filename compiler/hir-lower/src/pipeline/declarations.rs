@@ -1,7 +1,7 @@
 use super::*;
 
 /// Original declarations and their allocated identities, shared by later passes.
-pub(super) struct SourceDeclarations<'a> {
+pub(crate) struct SourceDeclarations<'a> {
     pub(super) current_cone: scoop_identity::ConeIdentity,
     pub(super) source_headers: Vec<ast::SourceHeaderRef<'a>>,
     pub(super) pending_structs: Vec<(StructId, &'a ast::StructDecl, usize)>,
@@ -9,8 +9,10 @@ pub(super) struct SourceDeclarations<'a> {
     pub(super) pending_classes: Vec<(ClassId, &'a ast::ClassDecl, usize)>,
     pub(super) pending_interfaces: Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
     pub(super) pending_objects: Vec<(hir::ObjectId, crate::declarations::ObjectSource<'a>, usize)>,
+    pub(super) function_headers: Vec<crate::declarations::FunctionHeaderInput<'a>>,
     pub(super) pending_functions: Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
     pub(super) pending_globals: Vec<(&'a ast::GlobalDecl, usize)>,
+    pub(super) method_headers: Vec<crate::declarations::MethodHeaderInput<'a>>,
     pub(super) pending_methods: Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
 }
 
@@ -35,7 +37,25 @@ impl Lowerer {
         files: &'a [ast::SourceFile],
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) -> Result<SourceDeclarations<'a>, Vec<Diagnostic>> {
-        if files.is_empty() {
+        self.collect_declaration_inputs(
+            files.iter().map(ast::SourceFile::header).collect(),
+            files.iter().enumerate().flat_map(|(file, source)| {
+                source
+                    .declarations
+                    .iter()
+                    .map(move |declaration| (file, ast::DeclarationInput::Complete(declaration)))
+            }),
+            world,
+        )
+    }
+
+    pub(crate) fn collect_declaration_inputs<'a>(
+        &mut self,
+        source_headers: Vec<ast::SourceHeaderRef<'a>>,
+        inputs: impl IntoIterator<Item = (usize, ast::DeclarationInput<'a>)>,
+        world: Option<&hir::ImportedSemanticWorld<'_>>,
+    ) -> Result<SourceDeclarations<'a>, Vec<Diagnostic>> {
+        if source_headers.is_empty() {
             return Err(vec![Diagnostic::without_span(
                 ast::DiagnosticSeverity::Error,
                 0,
@@ -43,15 +63,11 @@ impl Lowerer {
             )]);
         }
         assert_eq!(
-            files.len(),
+            source_headers.len(),
             self.intrinsic_sources.len(),
             "every parsed source has exactly one lowering source descriptor"
         );
         let current_cone = self.current_cone();
-        let source_headers = files
-            .iter()
-            .map(ast::SourceFile::header)
-            .collect::<Vec<_>>();
         self.top_level_namespaces.initialize_sources(
             self.intrinsic_sources
                 .iter()
@@ -73,70 +89,77 @@ impl Lowerer {
         let mut pending_interfaces = Vec::new();
         let mut pending_objects = Vec::new();
         let mut pending_functions = Vec::new();
+        let mut function_headers = Vec::new();
         let mut pending_globals = Vec::new();
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
-        for (file_index, file) in files.iter().enumerate() {
+        for (file_index, input) in inputs {
             self.current_file = file_index;
             let is_core = self.source_is_core(file_index);
-            for decl in &file.declarations {
-                match decl {
-                    ast::Decl::AnnotationClass(decl) => {
-                        pending_annotations.push((decl, file_index, None))
-                    }
-                    ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
-                    ast::Decl::Struct(decl) => {
-                        let _ = self.declare_struct(
-                            decl,
-                            &mut pending_structs,
-                            &mut pending_methods,
-                            file_index,
-                            None,
-                        );
-                    }
-                    ast::Decl::Enum(decl) => {
-                        let _ = self.declare_enum(
-                            decl,
-                            is_core,
-                            &mut pending_enums,
-                            &mut pending_methods,
-                            file_index,
-                            None,
-                        );
-                    }
-                    ast::Decl::Class(decl) => {
-                        let _ = self.declare_class(
-                            decl,
-                            is_core,
-                            &mut pending_classes,
-                            &mut pending_methods,
-                            file_index,
-                            None,
-                        );
-                    }
-                    ast::Decl::Interface(decl) => {
-                        let _ = self.declare_interface(
-                            decl,
-                            &mut pending_interfaces,
-                            &mut pending_methods,
-                            file_index,
-                            None,
-                        );
-                    }
-                    ast::Decl::Object(decl) => {
-                        let _ = self.declare_object(
-                            decl,
-                            &mut pending_objects,
-                            &mut pending_methods,
-                            file_index,
-                            None,
-                        );
-                    }
-                    ast::Decl::TypeAlias(decl) => {
-                        self.declare_type_alias(decl, file_index);
-                    }
-                    ast::Decl::Function(decl) => {
-                        self.declare_function(decl, &mut pending_functions, file_index)
-                    }
+            let decl = match input {
+                ast::DeclarationInput::Complete(declaration) => declaration,
+                ast::DeclarationInput::FunctionHeader(header) => {
+                    let id = self.declare_function_header(header, file_index);
+                    function_headers.push((id, header, file_index));
+                    continue;
+                }
+            };
+            match decl {
+                ast::Decl::AnnotationClass(decl) => {
+                    pending_annotations.push((decl, file_index, None))
+                }
+                ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
+                ast::Decl::Struct(decl) => {
+                    let _ = self.declare_struct(
+                        decl,
+                        &mut pending_structs,
+                        &mut pending_methods,
+                        file_index,
+                        None,
+                    );
+                }
+                ast::Decl::Enum(decl) => {
+                    let _ = self.declare_enum(
+                        decl,
+                        is_core,
+                        &mut pending_enums,
+                        &mut pending_methods,
+                        file_index,
+                        None,
+                    );
+                }
+                ast::Decl::Class(decl) => {
+                    let _ = self.declare_class(
+                        decl,
+                        is_core,
+                        &mut pending_classes,
+                        &mut pending_methods,
+                        file_index,
+                        None,
+                    );
+                }
+                ast::Decl::Interface(decl) => {
+                    let _ = self.declare_interface(
+                        decl,
+                        &mut pending_interfaces,
+                        &mut pending_methods,
+                        file_index,
+                        None,
+                    );
+                }
+                ast::Decl::Object(decl) => {
+                    let _ = self.declare_object(
+                        decl,
+                        &mut pending_objects,
+                        &mut pending_methods,
+                        file_index,
+                        None,
+                    );
+                }
+                ast::Decl::TypeAlias(decl) => {
+                    self.declare_type_alias(decl, file_index);
+                }
+                ast::Decl::Function(decl) => {
+                    self.declare_function(decl, &mut pending_functions, file_index)
                 }
             }
         }
@@ -191,12 +214,22 @@ impl Lowerer {
             self.declare_annotation_class(declaration, file, owner);
         }
 
+        function_headers.extend(
+            pending_functions
+                .iter()
+                .map(|&(id, declaration, file)| (id, declaration.header(), file)),
+        );
+        let method_headers = pending_methods
+            .iter()
+            .map(|&(id, declaration, file, owner)| (id, declaration.header(), file, owner))
+            .collect::<Vec<_>>();
+
         let errors_before_imports = self.diagnostics.len();
         self.collect_and_resolve_imports(
             &source_headers,
             crate::imports::ImportDeclarationInputs {
-                functions: &pending_functions,
-                methods: &pending_methods,
+                functions: &function_headers,
+                methods: &method_headers,
                 properties: &pending_globals,
                 enumerations: &pending_enums,
                 objects: &pending_objects,
@@ -215,8 +248,10 @@ impl Lowerer {
             pending_classes,
             pending_interfaces,
             pending_objects,
+            function_headers,
             pending_functions,
             pending_globals,
+            method_headers,
             pending_methods,
         })
     }

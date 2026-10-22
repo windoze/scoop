@@ -78,8 +78,13 @@ impl Lowerer {
             self.current_owner = Some(owner);
             self.resolve_method_signature(id, declaration, owner);
         }
+        let method_headers = pending
+            .methods
+            .iter()
+            .map(|&(id, declaration, file, owner)| (id, declaration.header(), file, owner))
+            .collect::<Vec<_>>();
         self.resolve_property_accessor_signatures_from(accessor_start);
-        self.validate_and_freeze_duplicate_signatures(&[], &pending.methods);
+        self.validate_and_freeze_duplicate_signatures(&[], &method_headers);
         self.resolve_local_owner_annotations(&pending.owners());
         self.annotate_local_owner_aliases(&pending.owners());
         self.check_inheritance(
@@ -88,12 +93,12 @@ impl Lowerer {
             &pending.enums,
             &pending.interfaces,
             &pending.objects,
-            &pending.methods,
+            &method_headers,
         );
         self.declare_owner_equality_methods(&pending.owners());
         self.register_export_parameter_interfaces(
             &[],
-            &pending.methods,
+            &method_headers,
             &pending.structs,
             &pending.classes,
             &pending.enums,
@@ -146,7 +151,7 @@ impl Lowerer {
             self.current_file = file;
             self.current_owner = Some(owner);
             self.type_params_in_scope = self.signatures[&id].type_params.clone();
-            self.annotate_function(id, declaration);
+            self.annotate_function(id, declaration.header());
         }
 
         for &(id, declaration, file, _) in &pending.methods {

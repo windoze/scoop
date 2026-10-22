@@ -46,8 +46,8 @@ pub(crate) struct ImportCandidateLayer {
 }
 
 pub(crate) struct ImportDeclarationInputs<'a> {
-    pub(crate) functions: &'a [(hir::FunctionId, &'a ast::FunctionDecl, usize)],
-    pub(crate) methods: &'a [(hir::FunctionId, &'a ast::FunctionDecl, usize, crate::Owner)],
+    pub(crate) functions: &'a [crate::declarations::FunctionHeaderInput<'a>],
+    pub(crate) methods: &'a [crate::declarations::MethodHeaderInput<'a>],
     pub(crate) properties: &'a [(&'a ast::GlobalDecl, usize)],
     pub(crate) enumerations: &'a [(hir::EnumId, &'a ast::EnumDecl, usize)],
     pub(crate) objects: &'a [(hir::ObjectId, crate::declarations::ObjectSource<'a>, usize)],

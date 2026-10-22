@@ -1,5 +1,7 @@
 use super::*;
 
+mod recovered;
+
 #[test]
 fn empty_input_is_diagnosed_before_selecting_a_current_cone() {
     let Err(diagnostics) = Lowerer::new().run(&[], None, None) else {
@@ -14,6 +16,10 @@ fn input(source: &str) -> (Lowerer, Vec<ast::SourceFile>) {
         crate::tests::core_file(),
         scoop_parser::parse(source).unwrap(),
     ];
+    (source_lowerer(source), files)
+}
+
+fn source_lowerer(source: &str) -> Lowerer {
     let sources = vec![
         SourceProvider {
             provider: hir::IntrinsicProviderId::from_raw(0),
@@ -35,7 +41,7 @@ fn input(source: &str) -> (Lowerer, Vec<ast::SourceFile>) {
     let lowerer =
         Lowerer::new().with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly);
     let dependencies = hir::ImportedDependencySelectionPlan::empty(lowerer.current_cone());
-    (lowerer.with_imported_dependencies(dependencies), files)
+    lowerer.with_imported_dependencies(dependencies)
 }
 
 #[test]

@@ -1,6 +1,9 @@
 //! Independently complete syntax retained alongside a failed file projection.
 
-use crate::{Decl, DocComment, FunctionHeader, ImportSyntax, PackageSyntax, SourceHeaderRef, Span};
+use crate::{
+    Decl, DocComment, FunctionHeader, FunctionHeaderRef, ImportSyntax, PackageSyntax,
+    SourceHeaderRef, Span,
+};
 
 /// File context for recovered declarations, never a successful SourceFile.
 #[derive(Debug, Clone, PartialEq)]
@@ -29,4 +32,11 @@ impl RecoveredFileHeader {
 pub enum DeclarationFragment {
     Complete(Box<Decl>),
     FunctionHeader(Box<FunctionHeader>),
+}
+
+/// Independently complete input to declaration collection, never a full file.
+#[derive(Debug, Clone, Copy)]
+pub enum DeclarationInput<'a> {
+    Complete(&'a Decl),
+    FunctionHeader(FunctionHeaderRef<'a>),
 }

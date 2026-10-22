@@ -12,6 +12,9 @@ mod structure;
 pub(crate) use nested::NestedDeclarationQueues;
 pub(crate) use objects::ObjectSource;
 
+pub(crate) type FunctionHeaderInput<'a> = (FunctionId, ast::FunctionHeaderRef<'a>, usize);
+pub(crate) type MethodHeaderInput<'a> = (FunctionId, ast::FunctionHeaderRef<'a>, usize, Owner);
+
 impl Lowerer {
     pub(super) fn require_core_struct(
         &mut self,

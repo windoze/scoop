@@ -12,7 +12,7 @@ pub(super) struct MemberOverride {
 }
 
 impl MemberOverride {
-    pub fn source(source: &ast::FunctionDecl) -> Self {
+    pub fn source(source: &ast::FunctionSignature) -> Self {
         Self {
             name: source.name.clone(),
             is_override: source.is_override,

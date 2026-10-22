@@ -9,7 +9,7 @@ use crate::Lowerer;
 impl Lowerer {
     pub(crate) fn resolve_errno_annotations(
         &mut self,
-        functions: &[(hir::FunctionId, &ast::FunctionDecl, usize)],
+        functions: &[crate::declarations::FunctionHeaderInput<'_>],
         globals: &[(&ast::GlobalDecl, usize)],
     ) -> bool {
         let mut valid = true;

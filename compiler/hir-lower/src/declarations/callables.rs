@@ -238,8 +238,8 @@ impl Lowerer {
     /// have been fully resolved.
     pub(crate) fn validate_and_freeze_duplicate_signatures(
         &mut self,
-        pending_functions: &[(FunctionId, &ast::FunctionDecl, usize)],
-        pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
+        pending_functions: &[crate::declarations::FunctionHeaderInput<'_>],
+        pending_methods: &[crate::declarations::MethodHeaderInput<'_>],
     ) {
         let mut rejected = std::collections::HashSet::new();
         let mut ordered_functions = pending_functions.to_vec();

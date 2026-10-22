@@ -12,9 +12,9 @@ impl Lowerer {
             pending_classes,
             pending_interfaces,
             pending_objects,
-            pending_functions,
+            function_headers,
             pending_globals,
-            pending_methods,
+            method_headers,
             ..
         } = declarations;
         let defines_core = matches!(self.core, CoreLoweringAuthority::Defined);
@@ -48,13 +48,13 @@ impl Lowerer {
         }
         self.current_owner = None;
 
-        for &(id, declaration, file) in pending_functions {
+        for &(id, declaration, file) in function_headers {
             self.current_file = file;
             self.current_owner = None;
             self.type_params_in_scope = self.signatures[&id].type_params.clone();
             self.annotate_function(id, declaration);
         }
-        for &(id, declaration, file, owner) in pending_methods {
+        for &(id, declaration, file, owner) in method_headers {
             self.current_file = file;
             self.current_owner = Some(owner);
             self.type_params_in_scope = self.signatures[&id].type_params.clone();

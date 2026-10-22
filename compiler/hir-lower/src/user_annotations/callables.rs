@@ -5,7 +5,7 @@ impl Lowerer {
     pub(crate) fn annotate_function(
         &mut self,
         function: hir::FunctionId,
-        source: &ast::FunctionDecl,
+        source: ast::FunctionHeaderRef<'_>,
     ) {
         self.document_function(function, source);
         self.bind_source_annotations(

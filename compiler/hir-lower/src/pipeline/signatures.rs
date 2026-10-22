@@ -12,8 +12,10 @@ impl Lowerer {
             pending_classes,
             pending_interfaces,
             pending_objects,
+            function_headers,
             pending_functions,
             pending_globals,
+            method_headers,
             pending_methods,
             ..
         } = declarations;
@@ -166,15 +168,21 @@ impl Lowerer {
         // declaration order. Interface method signatures become
         // `hir::MethodSig`s; bodyless declarations (interface and
         // abstract methods) get their parameter-only body here.
-        for &(id, decl, file_index) in pending_functions {
+        for &(id, decl, file_index) in function_headers {
             self.current_file = file_index;
             self.current_owner = None;
-            self.resolve_signature(id, decl);
+            self.resolve_function_header(id, decl);
         }
-        for &(id, decl, file_index, owner) in pending_methods {
+        for &(id, decl, file_index, owner) in method_headers {
             self.current_file = file_index;
             self.current_owner = Some(owner);
-            self.resolve_method_signature(id, decl, owner);
+            self.resolve_method_header(id, decl, owner);
+        }
+        for &(id, declaration, _) in pending_functions {
+            self.register_inferred_function(id, declaration);
+        }
+        for &(id, declaration, _, _) in pending_methods {
+            self.register_inferred_function(id, declaration);
         }
         self.current_owner = None;
 
@@ -227,13 +235,13 @@ impl Lowerer {
         // Publish the complete duplicate-signature rejection set after all
         // related signatures are final and before body-capable passes may
         // perform semantic callable lookup.
-        self.validate_and_freeze_duplicate_signatures(pending_functions, pending_methods);
+        self.validate_and_freeze_duplicate_signatures(function_headers, method_headers);
         assert!(
             self.declaration_surface.is_frozen(),
             "body-capable passes require a frozen declaration surface"
         );
 
-        if !self.resolve_errno_annotations(pending_functions, pending_globals) {
+        if !self.resolve_errno_annotations(function_headers, pending_globals) {
             return Err(self.take_source_diagnostics());
         }
         self.validate_extern_functions();
@@ -251,14 +259,14 @@ impl Lowerer {
             pending_enums,
             pending_interfaces,
             pending_objects,
-            pending_methods,
+            method_headers,
         );
         // Defaults and constructor expressions can select derived equality.
         // Publish its conditional signatures before any of those bodies lower.
         self.declare_derived_equality_methods();
         self.register_export_parameter_interfaces(
-            pending_functions,
-            pending_methods,
+            function_headers,
+            method_headers,
             pending_structs,
             pending_classes,
             pending_enums,
