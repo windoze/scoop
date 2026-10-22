@@ -32,6 +32,7 @@ from references import check as check_references
 from signatures import check as check_signatures
 from source_dependencies import check as check_source_dependencies
 from type_definitions import check as check_type_definitions
+from type_hovers import check as check_type_hovers
 from type_implementations import check as check_type_implementations
 from type_references import check as check_type_references
 from when_recovery import check as check_when_recovery
@@ -341,6 +342,7 @@ def main():
         check_documentation(peer, root)
         check_type_references(peer, root)
         check_type_definitions(peer, root)
+        check_type_hovers(peer, root)
         check_type_implementations(peer, root)
         check_member_implementations(peer, root)
         check_recovered_classes(peer, root)

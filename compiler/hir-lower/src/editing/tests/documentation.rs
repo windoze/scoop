@@ -205,3 +205,41 @@ fn recovered_function_bodies_keep_their_actual_document_attachment() {
     ));
     assert!(analysis.body_facts.is_empty());
 }
+
+#[test]
+fn type_descriptions_use_their_original_m60_declaration_and_parameter_targets() {
+    let text = "/// A documented box.\n/// @param Item The stored type.\nstruct Box<Item>(val value: Item)\n/// A documented alias.\n/// @param Element The wrapped type.\ntypealias Wrapped<Element> = Box<Element>\nfun use(value: Wrapped<Boolean>): Box<Boolean> = missing";
+    let mut analysis = documented(text, || false).unwrap();
+    let identity = crate::tests::test_source_identity("src/docs.scoop");
+    for (needle, name, expected) in [
+        ("Box<Item>", "Box", "A documented box."),
+        ("Item>", "Item", "The stored type."),
+        ("Wrapped<Boolean>", "Wrapped", "A documented alias."),
+        ("Element>", "Element", "The wrapped type."),
+    ] {
+        let start = text.find(needle).unwrap() as u32;
+        let V::Known(Some(description)) = analysis
+            .type_description(
+                &identity,
+                ast::Span::new(start, start + name.len() as u32),
+                || false,
+            )
+            .unwrap()
+        else {
+            panic!("complete type description")
+        };
+        let target = description
+            .documentation
+            .expect("original documentation target");
+        let docs = analysis.documentation().unwrap();
+        let content = docs.get(target).unwrap_or_else(|| {
+            panic!(
+                "missing M60 comment for {needle}: {target:?}; {:?}",
+                docs.warnings
+            )
+        });
+        let rendered = scoop_doc::hover_markdown(content, |_| None);
+        assert!(rendered.contains(expected), "{rendered}");
+    }
+    assert!(analysis.body_facts.is_empty());
+}

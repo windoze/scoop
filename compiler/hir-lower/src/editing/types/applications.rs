@@ -21,6 +21,7 @@ impl Lowerer {
         if !self.observes_types() {
             return;
         }
+        let name = self.type_name(ty);
         let observation = self.editing_types.as_mut().unwrap_or_else(|| {
             &mut self
                 .editing_body
@@ -30,7 +31,7 @@ impl Lowerer {
         });
         observation
             .applications
-            .insert((self.current_file, span), ty);
+            .insert((self.current_file, span), (ty, name));
     }
 }
 
@@ -57,6 +58,19 @@ impl DeclarationAnalysis {
         span: ast::Span,
         is_cancelled: impl Fn() -> bool + 'static,
     ) -> Result<V<Option<hir::TypeId>>, EditingCancelled> {
+        self.type_application(source, span, is_cancelled)
+            .map(|result| match result {
+                V::Known(application) => V::Known(application.map(|application| application.ty)),
+                V::Unavailable(reason) => V::Unavailable(reason),
+            })
+    }
+
+    pub(super) fn type_application(
+        &mut self,
+        source: &scoop_identity::SourceIdentity,
+        span: ast::Span,
+        is_cancelled: impl Fn() -> bool + 'static,
+    ) -> Result<V<Option<hir::EditingTypeApplication>>, EditingCancelled> {
         if is_cancelled() {
             return Err(EditingCancelled);
         }
@@ -66,7 +80,14 @@ impl DeclarationAnalysis {
         if let Some(application) = self.type_applications.iter().find(|application| {
             &application.origin.source == source && application.origin.span == span
         }) {
-            return Ok(V::Known(Some(application.ty)));
+            return Ok(V::Known(Some(application.clone())));
+        }
+        if self
+            .type_references
+            .iter()
+            .any(|reference| &reference.origin.source == source && reference.origin.span == span)
+        {
+            return Ok(V::Known(None));
         }
         let check = std::rc::Rc::new(is_cancelled);
         let functions = self
@@ -86,7 +107,7 @@ impl DeclarationAnalysis {
                     if let Some(application) = facts.type_applications.iter().find(|application| {
                         &application.origin.source == source && application.origin.span == span
                     }) {
-                        return Ok(V::Known(Some(application.ty)));
+                        return Ok(V::Known(Some(application.clone())));
                     }
                 }
                 V::Unavailable(reason) => return Ok(V::Unavailable(reason)),

@@ -6,6 +6,24 @@ use crate::imports::{CurrentUnitTarget, ImportedTargetBinding};
 use hir::EditingMemberTarget as Member;
 
 impl DeclarationAnalysis {
+    pub(super) fn import_bindings<'a>(
+        &'a self,
+        source: &'a scoop_identity::SourceIdentity,
+        span: ast::Span,
+    ) -> impl Iterator<Item = &'a ImportedTargetBinding> {
+        self.lowerer
+            .imports
+            .files
+            .values()
+            .flat_map(|file| &file.exact)
+            .filter(move |import| {
+                &import.origin.source == source
+                    && (import.target_span == span
+                        || import.alias.as_ref().is_some_and(|name| name.span == span))
+            })
+            .flat_map(|import| import.targets.iter())
+    }
+
     pub fn import_definitions(
         &self,
         source: &scoop_identity::SourceIdentity,
@@ -16,43 +34,31 @@ impl DeclarationAnalysis {
             return Err(EditingCancelled);
         }
         let mut definitions = Vec::new();
-        for file in self.lowerer.imports.files.values() {
+        for binding in self.import_bindings(source, span) {
             if is_cancelled() {
                 return Err(EditingCancelled);
             }
-            for import in &file.exact {
-                if &import.origin.source != source
-                    || (import.target_span != span
-                        && import.alias.as_ref().is_none_or(|name| name.span != span))
-                {
-                    continue;
-                }
-                for binding in import.targets.iter() {
-                    if is_cancelled() {
-                        return Err(EditingCancelled);
-                    }
-                    let origin = match self.lowerer.editing_import_member(binding) {
-                        Some(Member::Callable(callable)) => {
-                            self.lowerer.editing_callable_origin(callable)
-                        }
-                        Some(Member::Property(property)) => self
-                            .lowerer
-                            .editing_property_origin(hir::SemanticProperty::Current(property)),
-                        Some(Member::ImportedProperty(property)) => self
-                            .lowerer
-                            .editing_property_origin(hir::SemanticProperty::Imported(property)),
-                        None => self
-                            .lowerer
-                            .editing_import_type_target(binding)
-                            .and_then(|target| self.lowerer.editing_type_origin(target)),
-                    };
-                    if let Some(origin) = origin
-                        && !definitions.contains(&origin)
-                    {
-                        definitions.push(origin);
-                    }
-                }
+            let origin = match self.lowerer.editing_import_member(binding) {
+                Some(Member::Callable(callable)) => self.lowerer.editing_callable_origin(callable),
+                Some(Member::Property(property)) => self
+                    .lowerer
+                    .editing_property_origin(hir::SemanticProperty::Current(property)),
+                Some(Member::ImportedProperty(property)) => self
+                    .lowerer
+                    .editing_property_origin(hir::SemanticProperty::Imported(property)),
+                None => self
+                    .lowerer
+                    .editing_import_type_target(binding)
+                    .and_then(|target| self.lowerer.editing_type_origin(target)),
+            };
+            if let Some(origin) = origin
+                && !definitions.contains(&origin)
+            {
+                definitions.push(origin);
             }
+        }
+        if is_cancelled() {
+            return Err(EditingCancelled);
         }
         Ok(definitions)
     }

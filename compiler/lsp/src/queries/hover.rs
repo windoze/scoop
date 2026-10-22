@@ -11,6 +11,7 @@ use crate::{convert, initialize::Settings};
 
 mod documentation;
 mod imported;
+mod types;
 
 pub(crate) fn hover(
     snapshot: &AnalysisSnapshot,
@@ -63,19 +64,23 @@ fn description(
     cancellation: &Cancellation,
 ) -> Result<Option<Description>, ResponseError> {
     let target = cursor.span;
-    for function in semantic::functions(analysis, cursor) {
-        let EditingValue::Known(signature) = analysis.signature(function.function) else {
-            continue;
-        };
+    let functions = semantic::functions(analysis, cursor)
+        .into_iter()
+        .filter_map(|function| match analysis.signature(function.function) {
+            EditingValue::Known(signature) => Some((function, signature)),
+            EditingValue::Unavailable(_) => None,
+        })
+        .collect::<Vec<_>>();
+    for (function, signature) in &functions {
         if function.name_origin.span == target {
-            let label = signature_label(analysis, &signature)?;
+            let label = signature_label(analysis, signature)?;
             return Ok(Some(Description {
                 label,
                 documentation: Some(documentation::Query {
                     symbol: documentation::callable(hir::SemanticCallable::Current(
                         function.function,
                     )),
-                    origin: signature.origin,
+                    origin: signature.origin.clone(),
                 }),
             }));
         }
@@ -91,6 +96,11 @@ fn description(
                 }));
             }
         }
+    }
+    if let Some(description) = types::description(analysis, cursor, cancellation)? {
+        return Ok(Some(description));
+    }
+    for (function, signature) in functions {
         if let Some(property) =
             semantic::property_at(analysis, function.function, target, snapshot, cancellation)?
         {

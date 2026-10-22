@@ -50,10 +50,11 @@ pub(super) struct PropertyCatalogEntry {
 }
 
 #[derive(Clone, Debug)]
-pub(super) struct TypeAliasCatalogEntry {
+pub struct ImportedTypeAliasDeclaration {
     pub(super) provider: ConeIdentity,
-    pub(super) interface: TypeAliasInterfaceRecordV1,
-    pub(super) expansion: scoop_identity::SignatureTypeKey,
+    pub name: String,
+    pub interface: TypeAliasInterfaceRecordV1,
+    pub expansion: scoop_identity::SignatureTypeKey,
 }
 
 #[derive(Debug)]
@@ -89,7 +90,7 @@ pub(super) struct DependencyCatalog {
     >,
     pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
     pub(super) constants: BTreeMap<PersistentPropertyId, ConstantCatalogEntry>,
-    pub(super) type_aliases: BTreeMap<PersistentTypeAliasId, TypeAliasCatalogEntry>,
+    pub(super) type_aliases: BTreeMap<PersistentTypeAliasId, ImportedTypeAliasDeclaration>,
     pub(super) annotations:
         BTreeMap<scoop_identity::PersistentAnnotationId, super::ImportedAnnotationDeclaration>,
     pub(super) annotated_targets:
@@ -438,8 +439,17 @@ impl ImportedSemanticWorld<'_> {
                         declaration,
                     ),
                 )?;
-                let entry = TypeAliasCatalogEntry {
+                let (_, source) = provider
+                    .foundation()
+                    .canonical_for_semantic_authority()
+                    .type_alias_by_bytes(declaration.as_array())
+                    .expect("the semantic world retains each alias declaration key");
+                let scoop_identity::DeclarationName::Named(name) = source.name() else {
+                    unreachable!("type aliases have source names");
+                };
+                let entry = ImportedTypeAliasDeclaration {
                     provider: provider.identity(),
+                    name: name.as_str().to_owned(),
                     interface: alias.clone(),
                     expansion: expansion.target().clone(),
                 };

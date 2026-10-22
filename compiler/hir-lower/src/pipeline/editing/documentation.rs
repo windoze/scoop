@@ -77,6 +77,7 @@ impl Lowerer {
                 },
             );
         }
+        self.capture_editing_alias_documentation(check)?;
         let previous = (
             self.current_file,
             self.current_owner,

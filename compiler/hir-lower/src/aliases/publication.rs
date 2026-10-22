@@ -12,6 +12,18 @@ use super::{
 use crate::{Lowerer, Type};
 
 impl Lowerer {
+    pub(crate) fn type_alias_own_parameters(
+        &self,
+        declaration: hir::ExportTypeAliasId,
+    ) -> Option<&[hir::TypeParamDecl]> {
+        self.source_type_aliases.iter().find_map(|(_, alias)| {
+            matches!(alias.resolution, TypeAliasResolution::Published {
+                declaration: published, ..
+            } if published == declaration)
+            .then(|| &alias.parameters[alias.outer_parameter_count..])
+        })
+    }
+
     pub(crate) fn validate_type_alias_targets(&mut self) {
         assert!(
             self.type_aliases.is_empty(),

@@ -32,17 +32,8 @@ impl DeclarationAnalysis {
             V::Known(None) => {}
         }
         let bindings = self
-            .lowerer
-            .imports
-            .files
-            .values()
-            .flat_map(|file| &file.exact)
-            .filter(|import| {
-                &import.origin.source == source
-                    && (import.target_span == span
-                        || import.alias.as_ref().is_some_and(|name| name.span == span))
-            })
-            .flat_map(|import| import.targets.iter().cloned())
+            .import_bindings(source, span)
+            .cloned()
             .collect::<Vec<_>>();
         let mut targets = Vec::new();
         for binding in bindings {

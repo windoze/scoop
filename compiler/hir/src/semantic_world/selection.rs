@@ -36,6 +36,7 @@ pub use nominals::{
 };
 
 use catalog::DependencyCatalog;
+pub use catalog::ImportedTypeAliasDeclaration;
 
 /// A cloneable, lifetime-free transaction for dependency selections.
 ///
@@ -164,6 +165,14 @@ impl ImportedDependencySelectionPlan {
             interface: entry.interface.clone(),
             expansion: entry.expansion.clone(),
         })
+    }
+
+    /// Reads an already resolved declaration without selecting an executable use.
+    pub fn type_alias_declaration(
+        &self,
+        alias: PersistentTypeAliasId,
+    ) -> Option<&ImportedTypeAliasDeclaration> {
+        self.catalog.type_aliases.get(&alias)
     }
 
     pub fn select_callable(

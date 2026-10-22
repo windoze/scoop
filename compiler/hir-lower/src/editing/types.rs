@@ -4,6 +4,7 @@ use super::*;
 use crate::{aliases::SourceTypeAliasId, imports::lookup::TypeLookupTarget};
 
 mod applications;
+mod descriptions;
 mod local_types;
 mod record;
 mod targets;
@@ -27,7 +28,7 @@ struct TypeUse {
 #[derive(Clone, Default)]
 pub(crate) struct TypeObservation {
     uses: imbl::HashMap<(usize, ast::Span), TypeUse>,
-    applications: imbl::HashMap<(usize, ast::Span), hir::TypeId>,
+    applications: imbl::HashMap<(usize, ast::Span), (hir::TypeId, String)>,
 }
 
 impl TypeObservation {
@@ -43,7 +44,9 @@ impl TypeObservation {
                 && let TypeTarget::Alias(id) = reference.target
                 && let Some(ty) = lowerer.resolved_type_alias_target(id)
             {
-                self.applications.insert(origin, ty);
+                let name =
+                    lowerer.type_name_with_params(ty, &lowerer.source_type_aliases[id].parameters);
+                self.applications.insert(origin, (ty, name));
             }
         }
         let mut references = self
@@ -78,12 +81,13 @@ impl TypeObservation {
         let applications = self
             .applications
             .into_iter()
-            .map(|((file, span), ty)| hir::EditingTypeApplication {
+            .map(|((file, span), (ty, name))| hir::EditingTypeApplication {
                 origin: hir::SemanticSourceLocation {
                     source: lowerer.source_identity(file).clone(),
                     span,
                 },
                 ty,
+                name,
             })
             .collect();
         (references, applications)

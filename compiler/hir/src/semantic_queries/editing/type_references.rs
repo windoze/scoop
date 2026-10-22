@@ -6,6 +6,18 @@ use scoop_identity::{PersistentAnnotationId, PersistentTypeAliasId};
 pub struct EditingTypeApplication {
     pub origin: SemanticSourceLocation,
     pub ty: crate::TypeId,
+    /// Formatted while the original declaration binders are still in scope.
+    pub name: String,
+}
+
+/// A source-bound declaration and, when present, its checked application.
+#[derive(Clone, Debug)]
+pub struct EditingTypeDescription {
+    pub target: EditingTypeIdentity,
+    pub label: String,
+    pub application: Option<EditingTypeApplication>,
+    pub documentation: Option<crate::DocumentationSymbol>,
+    pub definition: Option<SemanticSourceLocation>,
 }
 
 /// One source declaration with a checked nominal inheritance relationship.

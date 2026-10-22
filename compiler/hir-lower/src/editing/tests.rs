@@ -43,6 +43,7 @@ mod references;
 mod selectors;
 mod trailing_callables;
 mod type_definitions;
+mod type_descriptions;
 mod type_implementations;
 mod types;
 mod unavailable_file_names;

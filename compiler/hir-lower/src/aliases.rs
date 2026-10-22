@@ -10,6 +10,7 @@ mod annotations;
 mod applications;
 mod constructors;
 mod declarations;
+mod documentation;
 mod forwarding;
 mod inference;
 mod publication;
