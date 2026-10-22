@@ -113,7 +113,7 @@ escape 只生成模式字面量引用，正确处理输入中的 `\E`；不增�
 
 Regex 实现 Closeable，close 幂等；使用与关闭同一实例由调用者串行化。编译/JIT 完成后的模式可以被并发只读查询，每次调用使用独立 match-data/context；不共享可变 Matcher。release block 只释放 native handle，遵守既有 GC-free 合同，不承诺回收时点。构造、结果复制、回调失败均释放其已取得的临时资源。
 
-JIT 在构造、对象发布前尝试；不适用或不可用时保持解释器能力。公共匹配调用 pcre2_match；match-time ANCHORED/ENDANCHORED 的入口使用解释器。JIT 不改变回溯复杂度。引擎限制原样映射，不提供硬超时、自动取消或跨库资源预算。
+JIT 在构造、对象发布前尝试；JIT 不适用、不可用或生成失败时保持已编译模式的解释器能力。公共匹配调用 pcre2_match；match-time ANCHORED/ENDANCHORED 的入口使用解释器。JIT 不改变回溯复杂度。引擎限制原样映射，不提供硬超时、自动取消或跨库资源预算。
 
 ## 7. 接入与验证
 

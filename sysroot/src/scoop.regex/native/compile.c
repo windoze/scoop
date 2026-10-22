@@ -28,6 +28,9 @@ ScoopRegexCompile scoop_regex_compile(const uint8_t *pattern, int64_t length, ui
     pcre2_code *compiled =
         pcre2_compile(pattern, (PCRE2_SIZE)length, options, &code, &offset, context);
     pcre2_compile_context_free(context);
+    /* JIT is optional: the compiled interpreter code remains usable on any JIT failure. */
+    if (compiled)
+        pcre2_jit_compile(compiled, PCRE2_JIT_COMPLETE);
     if (code == PCRE2_ERROR_HEAP_FAILED)
         code = PCRE2_ERROR_NOMEMORY;
     return (ScoopRegexCompile){(uint64_t)(uintptr_t)compiled, code, (int64_t)offset};
