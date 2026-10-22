@@ -1,5 +1,6 @@
 //! Current-Cone source lowering against the shared dependency semantic world.
 
+use crate::pipeline::cancellation::{self, FrontendCancellation, PhaseFailure};
 use scoop_ast::{Diagnostic, Span};
 use scoop_hir as hir;
 
@@ -22,7 +23,41 @@ pub fn lower_current_export(
     input: &CurrentConeSources<'_, '_>,
 ) -> Result<hir::DependencyExportHirOutput, Vec<Diagnostic>> {
     with_current_source_diagnostics(input, || {
-        lower_current_export_inner(requested, input, false, None)
+        lower_current_export_inner(
+            requested,
+            input,
+            false,
+            None,
+            None,
+            &cancellation::uninterrupted,
+        )
+        .map_err(PhaseFailure::into_diagnostics)
+    })
+}
+
+/// Checks a source dependency while allowing its owning editor request to stop.
+pub fn lower_current_export_with_cancellation(
+    requested: scoop_identity::RequestedConeKind,
+    input: &CurrentConeSources<'_, '_>,
+    is_cancelled: impl Fn() -> bool + 'static,
+) -> Result<hir::DependencyExportHirOutput, crate::EditingAnalysisError> {
+    let cancellation = FrontendCancellation::new(is_cancelled);
+    let result = lower_current_export_inner(
+        requested,
+        input,
+        false,
+        None,
+        Some(cancellation.clone()),
+        &|| cancellation.check(),
+    );
+    if cancellation.cancelled() {
+        return Err(crate::EditingAnalysisError::Cancelled);
+    }
+    result.map_err(|failure| match failure {
+        PhaseFailure::Cancelled(()) => crate::EditingAnalysisError::Cancelled,
+        PhaseFailure::Diagnostics(diagnostics) => crate::EditingAnalysisError::Input(
+            resolve_current_source_diagnostics(input, diagnostics),
+        ),
     })
 }
 
@@ -67,7 +102,15 @@ fn lower_current_mode(
     generator: Option<&mut dyn hir::MethodBodyGenerator>,
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
     with_current_source_diagnostics(input, || {
-        let source = lower_current_export_inner(requested, input, tests, generator)?;
+        let source = lower_current_export_inner(
+            requested,
+            input,
+            tests,
+            generator,
+            None,
+            &cancellation::uninterrupted,
+        )
+        .map_err(PhaseFailure::into_diagnostics)?;
         let sources = source
             .export
             .source_files
@@ -105,25 +148,33 @@ fn with_current_source_diagnostics<T>(
     input: &CurrentConeSources<'_, '_>,
     run: impl FnOnce() -> Result<T, Vec<Diagnostic>>,
 ) -> Result<T, Vec<Diagnostic>> {
+    run().map_err(|diagnostics| resolve_current_source_diagnostics(input, diagnostics))
+}
+
+fn resolve_current_source_diagnostics(
+    input: &CurrentConeSources<'_, '_>,
+    mut diagnostics: Vec<Diagnostic>,
+) -> Vec<Diagnostic> {
     let current_sources = input
         .sources()
         .iter()
         .map(|source| source.text().identity().clone())
         .collect::<Vec<_>>();
-    run().map_err(|mut diagnostics| {
-        for diagnostic in &mut diagnostics {
-            diagnostic.resolve_sources(&current_sources);
-        }
-        diagnostics
-    })
+    for diagnostic in &mut diagnostics {
+        diagnostic.resolve_sources(&current_sources);
+    }
+    diagnostics
 }
 
-fn lower_current_export_inner(
+fn lower_current_export_inner<C>(
     requested: scoop_identity::RequestedConeKind,
     input: &CurrentConeSources<'_, '_>,
     tests: bool,
     generator: Option<&mut dyn hir::MethodBodyGenerator>,
-) -> Result<hir::DependencyExportHirOutput, Vec<Diagnostic>> {
+    cancellation: Option<FrontendCancellation>,
+    check: &impl Fn() -> Result<(), C>,
+) -> Result<hir::DependencyExportHirOutput, PhaseFailure<C>> {
+    PhaseFailure::check(check)?;
     let (files, mut sources) = materialize_current_sources(input.sources());
     for source in &mut sources {
         if let Some(coordinate) = input.source_names().get(&source.identity.cone()) {
@@ -132,6 +183,7 @@ fn lower_current_export_inner(
     }
     let world = input.semantic_world();
     let mut lowerer = prepare_current_lowerer(sources, world)?;
+    lowerer.cancellation = cancellation;
     lowerer.source_names = input.source_names().clone();
     lowerer.test_dependencies = input.test_dependencies().clone();
     lowerer.documentation = input
@@ -145,7 +197,8 @@ fn lower_current_export_inner(
         CoreProtocolInput::Imported(core) => lowerer.with_imported_core(core),
     };
     let (module, mut warnings, completion) =
-        lowerer.run_with_dependencies(&files, world, generator)?;
+        lowerer.run_with_dependencies(&files, world, generator, check)?;
+    PhaseFailure::check(check)?;
     let output_kind = if tests {
         crate::test_entry::output_kind(&module)?
     } else {
@@ -167,6 +220,7 @@ fn lower_current_export_inner(
             }
             diagnostics
         })?;
+    PhaseFailure::check(check)?;
     Ok(hir::DependencyExportHirOutput {
         export,
         imported_dependencies: selected,

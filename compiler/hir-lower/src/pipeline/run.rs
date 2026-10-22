@@ -14,27 +14,40 @@ impl Lowerer {
         let dependencies = hir::ImportedDependencySelectionPlan::empty(self.current_cone());
         let (module, warnings, _) = self
             .with_imported_dependencies(dependencies)
-            .run(files, None, None)?;
+            .run(files, None, None, &cancellation::uninterrupted)
+            .map_err(PhaseFailure::into_diagnostics)?;
         Ok((module, warnings))
     }
 
-    pub(crate) fn run_with_dependencies(
+    pub(crate) fn run_with_dependencies<C>(
         self,
         files: &[ast::SourceFile],
         world: &hir::ImportedSemanticWorld<'_>,
         generator: Option<&mut dyn hir::MethodBodyGenerator>,
-    ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
-        self.run(files, Some(world), generator)
+        check: &impl Fn() -> Result<(), C>,
+    ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), PhaseFailure<C>> {
+        self.run(files, Some(world), generator, check)
     }
 
-    fn run(
+    fn run<C>(
         mut self,
         files: &[ast::SourceFile],
         world: Option<&hir::ImportedSemanticWorld<'_>>,
         generator: Option<&mut dyn hir::MethodBodyGenerator>,
-    ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
+        check: &impl Fn() -> Result<(), C>,
+    ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), PhaseFailure<C>> {
         self.generation.enabled = generator.is_some();
-        let declarations = self.collect_source_declarations(files, world)?;
+        let declarations = self.collect_declaration_inputs_with_cancellation(
+            files.iter().map(ast::SourceFile::header).collect(),
+            files.iter().enumerate().flat_map(|(file, source)| {
+                source
+                    .declarations
+                    .iter()
+                    .map(move |declaration| (file, ast::DeclarationInput::Complete(declaration)))
+            }),
+            world,
+            check,
+        )?;
         let current_cone = declarations.current_cone;
         let SignatureCore {
             intrinsic_type_core,
@@ -43,16 +56,19 @@ impl Lowerer {
             coroutine_core,
             ffi_core,
             foreign_callback_core,
-        } = self.resolve_source_signatures(&declarations)?;
+        } = self.resolve_source_signatures_with_cancellation(&declarations, check)?;
+        PhaseFailure::check(check)?;
         let DeclarationBodyCore {
             program_arguments,
             type_reference,
             exception_core,
         } = self.complete_declaration_bodies(&declarations)?;
-        self.lower_source_bodies(&declarations, type_reference);
+        self.lower_source_bodies_with_cancellation(&declarations, type_reference, check)?;
+        PhaseFailure::check(check)?;
         if let Some(generator) = generator {
             self.generate_method_bodies(generator, world);
         }
+        PhaseFailure::check(check)?;
         if self.diagnostics.is_empty() {
             self.discover_tests();
         }
@@ -65,12 +81,14 @@ impl Lowerer {
             self.error(Span::new(0, 0), error);
         }
         self.complete_imported_generic_bodies();
+        PhaseFailure::check(check)?;
         if self.diagnostics.is_empty()
             && let Err(error) = self.prepare_type_info_dependencies()
         {
             self.error(Span::new(0, 0), error);
         }
         self.complete_imported_generic_bodies();
+        PhaseFailure::check(check)?;
         if self.diagnostics.is_empty() {
             self.prepare_published_equalities();
         }
@@ -78,10 +96,13 @@ impl Lowerer {
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.
         self.validate_c_ffi_types();
+        PhaseFailure::check(check)?;
         self.check_generic_recursion();
+        PhaseFailure::check(check)?;
         let type_sites = self.validate_gc_free_pointee_requirements();
         self.check_no_gc_types(type_sites.clone());
         self.check_no_gc_functions();
+        PhaseFailure::check(check)?;
         if self.diagnostics.is_empty() {
             let release_values = self.infer_release_callability();
             self.check_release_blocks(&release_values, &type_sites);
@@ -96,7 +117,7 @@ impl Lowerer {
         });
         if !self.diagnostics.is_empty() {
             self.diagnostics.append(&mut self.warnings);
-            return Err(self.take_source_diagnostics());
+            return Err(self.take_source_diagnostics().into());
         }
         let warnings = std::mem::take(&mut self.warnings);
         // Protocol provenance and dependency selections are independent.
@@ -131,12 +152,13 @@ impl Lowerer {
         };
         let sources = self.diagnostic_source_identities();
         let documentation = self.finish_documentation(world);
+        PhaseFailure::check(check)?;
         self.finish(current_cone, warnings, core_protocols, documentation)
             .map_err(|mut diagnostics| {
                 for diagnostic in &mut diagnostics {
                     diagnostic.resolve_sources(&sources);
                 }
-                diagnostics
+                diagnostics.into()
             })
     }
 }

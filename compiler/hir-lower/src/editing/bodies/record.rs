@@ -2,10 +2,14 @@ use super::*;
 use observations::ObservedContext;
 
 impl Lowerer {
-    pub(crate) fn editing_body_cancelled(&self) -> bool {
-        self.editing_body
+    pub(crate) fn body_cancelled(&self) -> bool {
+        self.cancellation
             .as_ref()
-            .is_some_and(BodyObservation::cancelled)
+            .is_some_and(|cancel| cancel.cancelled())
+            || self
+                .editing_body
+                .as_ref()
+                .is_some_and(BodyObservation::cancelled)
     }
 
     pub(crate) fn observes_current_body(&self) -> bool {

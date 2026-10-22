@@ -1,6 +1,7 @@
 use super::*;
 
 impl Lowerer {
+    #[cfg(test)]
     pub(super) fn resolve_source_signatures(
         &mut self,
         declarations: &SourceDeclarations<'_>,

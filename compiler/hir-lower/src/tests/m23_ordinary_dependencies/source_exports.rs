@@ -1,6 +1,10 @@
 use super::super::m23_ordinary_core_only::support::{parsed_ordinary_text_at, trusted_core};
-use crate::{CurrentConeSources, lower_current_export};
+use crate::{
+    CurrentConeSources, EditingAnalysisError, lower_current_export,
+    lower_current_export_with_cancellation,
+};
 use scoop_identity::{ConeCoordinate, RequestedConeKind};
+use std::{cell::Cell, rc::Rc};
 
 #[test]
 fn source_export_retains_checked_generic_bodies_defaults_and_dependency_calls() {
@@ -62,4 +66,53 @@ fn source_export_failure_keeps_real_source_diagnostics() {
             .as_ref()
             .is_some_and(|identity| identity.cone() == source.cone())
     }));
+}
+
+#[test]
+fn cancelled_source_export_is_distinct_from_failure_and_can_be_retried() {
+    let core = trusted_core();
+    let coordinate = ConeCoordinate::new("test", "cancelled-export", "1.0.0").unwrap();
+    let statements = (0..512)
+        .map(|index| format!("val v{index}: Boolean = true;\n"))
+        .collect::<String>();
+    let source = parsed_ordinary_text_at(
+        &coordinate,
+        &format!("public fun value(): Boolean {{ {statements} return true }}"),
+    );
+    let world = core.world(source.cone());
+    let input = CurrentConeSources::try_new(
+        &source,
+        core.foundation.import_core_inputs(&core.interface).unwrap(),
+        &world,
+    )
+    .unwrap();
+    let checks = Rc::new(Cell::new(0));
+    let measured = checks.clone();
+    lower_current_export_with_cancellation(RequestedConeKind::Library, &input, move || {
+        measured.set(measured.get() + 1);
+        false
+    })
+    .unwrap();
+    let completed_checks = checks.get();
+    for stop in [1, completed_checks / 2] {
+        checks.set(0);
+        let measured = checks.clone();
+        let result =
+            lower_current_export_with_cancellation(RequestedConeKind::Library, &input, move || {
+                measured.set(measured.get() + 1);
+                measured.get() == stop
+            });
+        assert!(matches!(result, Err(EditingAnalysisError::Cancelled)));
+        assert_eq!(checks.get(), stop, "a transient cancellation stays latched");
+    }
+    let retried =
+        lower_current_export_with_cancellation(RequestedConeKind::Library, &input, || false)
+            .unwrap();
+    assert!(
+        retried
+            .export
+            .functions
+            .iter()
+            .any(|(_, function)| function.name == "value")
+    );
 }

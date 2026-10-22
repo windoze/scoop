@@ -33,6 +33,7 @@ pub(super) struct DeclarationBodyCore {
 }
 
 impl Lowerer {
+    #[cfg(test)]
     pub(super) fn collect_source_declarations<'a>(
         &mut self,
         files: &'a [ast::SourceFile],
@@ -50,6 +51,7 @@ impl Lowerer {
         )
     }
 
+    #[cfg(test)]
     pub(crate) fn collect_declaration_inputs<'a>(
         &mut self,
         source_headers: Vec<ast::SourceHeaderRef<'a>>,

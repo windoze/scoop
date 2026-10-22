@@ -1,13 +1,13 @@
 use super::*;
-use std::{cell::Cell, rc::Rc};
+use crate::pipeline::cancellation::FrontendCancellation;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub(crate) struct BodyObservation {
     pub(super) function: hir::FunctionId,
     pub(super) file: usize,
     pub(super) diagnostics_start: usize,
-    check_cancelled: Rc<dyn Fn() -> bool>,
-    cancelled: Rc<Cell<bool>>,
+    cancellation: FrontendCancellation,
     pub(super) failed: bool,
     pub(super) bindings: imbl::HashMap<hir::BindingId, hir::EditingLocalOccurrence>,
     pub(super) uses:
@@ -47,8 +47,7 @@ impl BodyObservation {
             function,
             file,
             diagnostics_start,
-            check_cancelled: Rc::new(check),
-            cancelled: Rc::new(Cell::new(false)),
+            cancellation: FrontendCancellation::new(check),
             failed: false,
             bindings: Default::default(),
             uses: Default::default(),
@@ -65,21 +64,12 @@ impl BodyObservation {
     }
 
     pub(super) fn cancelled(&self) -> bool {
-        if (self.check_cancelled)() {
-            self.cancelled.set(true);
-        }
-        self.cancelled.get()
+        self.cancellation.cancelled()
     }
 
     pub(super) fn cancellation(&self) -> Rc<dyn Fn() -> bool> {
-        let check = Rc::clone(&self.check_cancelled);
-        let cancelled = Rc::clone(&self.cancelled);
-        Rc::new(move || {
-            if check() {
-                cancelled.set(true);
-            }
-            cancelled.get()
-        })
+        let cancellation = self.cancellation.clone();
+        Rc::new(move || cancellation.cancelled())
     }
 
     pub(super) fn finish(self, lowerer: &Lowerer, complete: bool) -> ObservedBody {

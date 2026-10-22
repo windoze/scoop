@@ -6,7 +6,15 @@ mod unavailable_signatures;
 
 #[test]
 fn empty_input_is_diagnosed_before_selecting_a_current_cone() {
-    let Err(diagnostics) = Lowerer::new().run(&[], None, None) else {
+    let Err(diagnostics) = Lowerer::new()
+        .run(
+            &[],
+            None,
+            None,
+            &crate::pipeline::cancellation::uninterrupted,
+        )
+        .map_err(PhaseFailure::into_diagnostics)
+    else {
         panic!("an empty source set cannot compile");
     };
     assert_eq!(diagnostics.len(), 1);

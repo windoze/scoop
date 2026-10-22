@@ -171,7 +171,8 @@ mod visibility;
 pub use current_input::*;
 pub use current_lowering::{
     lower_current_cone, lower_current_cone_with_generator, lower_current_export,
-    lower_current_tests, lower_current_tests_with_generator,
+    lower_current_export_with_cancellation, lower_current_tests,
+    lower_current_tests_with_generator,
 };
 pub use editing::{
     DeclarationAnalysis, EditingAnalysisError, EditingCancelled, EditingSignature,
@@ -541,6 +542,7 @@ pub fn concretize_output(
 
 #[derive(Clone)]
 pub(crate) struct Lowerer {
+    cancellation: Option<pipeline::cancellation::FrontendCancellation>,
     pub(crate) editing_receiver: Option<editing::ReceiverObservation>,
     pub(crate) editing_body: Option<editing::BodyObservation>,
     documentation: Option<Shared<documentation::DocumentationContext>>,

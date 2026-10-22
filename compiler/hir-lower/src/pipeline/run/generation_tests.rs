@@ -61,7 +61,13 @@ fn compile_files_with_core(
     let dependencies = hir::ImportedDependencySelectionPlan::empty(lowerer.current_cone());
     lowerer
         .with_imported_dependencies(dependencies)
-        .run(&syntax, None, Some(generator))
+        .run(
+            &syntax,
+            None,
+            Some(generator),
+            &crate::pipeline::cancellation::uninterrupted,
+        )
+        .map_err(PhaseFailure::into_diagnostics)
         .map(|(module, _, _)| module)
 }
 

@@ -230,7 +230,7 @@ impl Lowerer {
         let baseline = self.diagnostics.len();
         debug_assert!(
             failed.diagnostics.len() > baseline
-                || failed.editing_body_cancelled()
+                || failed.body_cancelled()
                 || self
                     .diagnostics
                     .iter()
@@ -272,7 +272,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expectation: Option<ExpressionExpectation>,
     ) -> Option<hir::Expr> {
-        if self.editing_body_cancelled() {
+        if self.body_cancelled() {
             return None;
         }
         let (expected, lambda_expectation) = match expectation {
