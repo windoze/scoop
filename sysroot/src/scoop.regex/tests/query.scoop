@@ -1,0 +1,116 @@
+package scoop.regex
+
+import scoop.collections.*
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class RegexQueryTests {
+    @Test
+    fun `query modes preserve the complete input and scalar start`() {
+        Regex("(?<=雪)a").use { regex ->
+            val input = "x雪ab"
+            assertTrue(regex.containsMatchIn(input))
+            assertFalse(regex.matches(input))
+            assertEquals(MatchRange(2L, 3L), regex.find(input)!!.range)
+            assertEquals("a", regex.matchAt(input, 2L)!!.value)
+            assertNoMatch(regex.matchAt(input, 1L))
+            assertNoMatch(regex.find(input, 3L))
+            assertNoMatch(regex.find(input, 4L))
+            assertFailsWith<IndexOutOfBoundsException> { regex.find(input, -1L) }
+            assertFailsWith<IndexOutOfBoundsException> { regex.matchAt(input, 5L) }
+        }
+        Regex("(ab)(cd)").use { regex ->
+            assertTrue(regex.matches("abcd"))
+            assertFalse(regex.matches("abcde"))
+            assertEquals("abcd", regex.matchEntire("abcd")!!.value)
+            assertNoMatch(regex.matchEntire("xabcd"))
+        }
+        Regex("""foo\Kbar""").use { regex ->
+            assertEquals(MatchRange(3L, 6L), regex.matchEntire("foobar")!!.range)
+        }
+    }
+
+    @Test
+    fun `captures preserve NUL scalar offsets and absent slots`() {
+        Regex("(?<text>雪)(😀)(\u{0})(x)?()").use { regex ->
+            val result = regex.find("A雪😀\u{0}B")!!
+            assertEquals("雪😀\u{0}", result.value)
+            assertEquals(MatchRange(1L, 4L), result.range)
+            assertEquals(6L, result.groups.size)
+            assertEquals("雪", result.groups["text"]!!.value)
+            assertEquals(MatchRange(2L, 3L), result.groups[2L]!!.range)
+            assertEquals("\u{0}", result.groups[3L]!!.value)
+            assertTrue(result.groups[4L] == None)
+            assertEquals("", result.groups[5L]!!.value)
+            assertEquals(MatchRange(4L, 4L), result.groups[5L]!!.range)
+            assertFailsWith<IndexOutOfBoundsException> { result.groups[-1L] }
+            assertFailsWith<IndexOutOfBoundsException> { result.groups[6L] }
+            assertFailsWith<IllegalArgumentException> { result.groups["missing"] }
+        }
+    }
+
+    @Test
+    fun `result snapshots and duplicate names survive close`() {
+        val regex = Regex("(?<value>a)|(?<value>b)", setOf(RegexOption.DuplicateNames))
+        val first = regex.find("a")!!
+        val second = regex.find("b")!!
+        regex.close()
+        regex.close()
+        assertTrue(regex.isClosed)
+        assertEquals("a", first.groups["value"]!!.value)
+        assertEquals("b", second.groups["value"]!!.value)
+        assertEquals(2L, second.groups.getAll("value").size)
+        assertTrue(second.groups.getAll("value")[0L] == None)
+        assertFailsWith<IllegalArgumentException> { second.groups.getAll("missing") }
+        assertFailsWith<IllegalStateException> { regex.find("a") }
+        assertFailsWith<IllegalStateException> { regex.matches("a") }
+    }
+
+    @Test
+    fun `options are snapshots and configure the native pattern`() {
+        val options = mutableSetOf(RegexOption.IgnoreCase)
+        Regex("abc", options).use { regex ->
+            options.clear()
+            assertTrue(RegexOption.IgnoreCase in regex.options)
+            assertTrue(regex.matches("ABC"))
+        }
+        Regex("^a.b$", setOf(RegexOption.Multiline, RegexOption.DotMatchesAll)).use { regex ->
+            assertEquals("a\nb", regex.find("z\na\nb\nz")!!.value)
+        }
+        Regex(" a # comment\n b ", setOf(RegexOption.Comments)).use { regex ->
+            assertTrue(regex.matches("ab"))
+        }
+        Regex("(?i)abc").use { regex -> assertTrue(regex.matches("ABC")) }
+        assertFailsWith<RegexSyntaxException> { Regex("""\C""") }
+    }
+
+    @Test
+    fun `index checkpoints handle lookaround captures outside group zero`() {
+        val prefix = "雪😀".repeat(80L)
+        Regex("(?=(?<outer>ab))a").use { regex ->
+            val result = regex.find(prefix + "ab", 159L)!!
+            assertEquals(MatchRange(160L, 161L), result.range)
+            assertEquals(MatchRange(160L, 162L), result.groups["outer"]!!.range)
+            assertEquals("ab", result.groups["outer"]!!.value)
+        }
+    }
+
+    @Test
+    fun `compile offsets and execution errors stay distinct from nonmatches`() {
+        val error = assertFailsWith<RegexSyntaxException> { Regex("雪(") }
+        assertEquals("雪(", error.pattern)
+        assertEquals(2L, error.offset)
+        assertTrue(error.nativeCode > 0)
+        assertTrue(error.detail.length > 0L)
+        Regex("(*LIMIT_MATCH=1)(a+)+$").use { regex ->
+            val failure = assertFailsWith<RegexMatchException> { regex.containsMatchIn("aaaaaaaaaa!") }
+            assertTrue(failure.kind == RegexFailureKind.MatchLimit)
+            assertTrue(failure.nativeCode < 0)
+        }
+    }
+}
+
+private fun assertNoMatch(value: MatchResult?) {
+    assertTrue(when (value) { case Some(_) -> false; case None -> true })
+}

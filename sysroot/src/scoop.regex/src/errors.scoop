@@ -1,0 +1,62 @@
+package scoop.regex
+
+/** A PCRE2 execution failure category, distinct from an ordinary unsuccessful match. */
+public enum RegexFailureKind {
+    /** The engine's match work limit was reached. */
+    MatchLimit,
+    /** The interpreter's depth limit was reached. */
+    DepthLimit,
+    /** The interpreter's heap limit was reached. */
+    HeapLimit,
+    /** The JIT stack was exhausted. */
+    JitStackLimit,
+    /** Native allocation failed. */
+    Memory,
+    /** Another native execution error occurred. */
+    Other
+}
+
+/** A pattern compilation error with a Unicode scalar offset into the original pattern. */
+public class RegexSyntaxException public constructor(
+    /** The supplied pattern. */ public val pattern: String,
+    /** The Unicode scalar position reported by compilation. */ public val offset: Long,
+    /** The original PCRE2 error code. */ public val nativeCode: Int,
+    /** The copied native diagnostic. */ public val detail: String
+) : Exception(Some(detail))
+
+/** An error in a replacement template; an available offset counts Unicode scalars. */
+public class RegexReplacementException public constructor(
+    /** The original PCRE2 error code. */ public val nativeCode: Int,
+    /** The copied native diagnostic. */ public val detail: String,
+    /** The template position, if the engine reports one. */ public val offset: Long?
+) : Exception(Some(detail))
+
+/** An execution or allocation failure, never converted into an ordinary nonmatch. */
+public class RegexMatchException public constructor(
+    /** The execution failure category. */ public val kind: RegexFailureKind,
+    /** The original PCRE2 error code. */ public val nativeCode: Int,
+    /** The copied native diagnostic. */ public val detail: String
+) : Exception(Some(detail))
+
+internal fun regexDetail(code: Int): String {
+    val buffer = MutableArray<UInt8>(256L) { _ -> 0.toUByte() }
+    @Unsafe {
+        return buffer.withDataPointer { data, count ->
+            @Unsafe { return@withDataPointer String.fromUtf8(data, regexMessage(code, data, count)) }
+        }
+    }
+}
+
+internal fun matchFailure(code: Int): RegexMatchException {
+    @Unsafe {
+        val kind = regexFailureKind(code)
+        return RegexMatchException(when (kind) {
+            case 0 -> RegexFailureKind.MatchLimit
+            case 1 -> RegexFailureKind.DepthLimit
+            case 2 -> RegexFailureKind.HeapLimit
+            case 3 -> RegexFailureKind.JitStackLimit
+            case 4 -> RegexFailureKind.Memory
+            else -> RegexFailureKind.Other
+        }, code, regexDetail(code))
+    }
+}

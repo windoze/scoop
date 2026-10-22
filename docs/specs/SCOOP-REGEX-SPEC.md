@@ -14,7 +14,7 @@
 
 ## 2. 编译与查询
 
-`RegexOption` 是普通 enum：IgnoreCase、Multiline、DotMatchesAll、Comments、AsciiClasses、DuplicateNames。AsciiClasses 仅切换字符类和相关单词边界，不关闭 UTF，也不改变 IgnoreCase。构造器保存选项的独立快照。
+`RegexOption` 是实现 Equals<RegexOption> 和 Hash 的普通 enum：IgnoreCase、Multiline、DotMatchesAll、Comments、AsciiClasses、DuplicateNames。AsciiClasses 仅切换字符类和相关单词边界，不关闭 UTF，也不改变 IgnoreCase。构造器保存选项的独立快照。
 
 ```scoop
 public class Regex public constructor(
