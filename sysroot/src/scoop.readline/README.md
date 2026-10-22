@@ -70,9 +70,13 @@ terminal restoration. The small
 `test-native` Cone only owns the PTY and subprocess; it contains no editing logic.
 Ignored child cases are selected explicitly by their parent tests.
 
-Validation on 2026-10-22: release tests pass on aarch64-apple-darwin and
-x86_64-unknown-linux-gnu: 39 top-level cases and all six PTY child cases. The child
-cases are marked ignored in the ordinary test list and launched by their parents.
-Unicode behavior and API documentation checks also pass. No dedicated tests are
-added for compiler, linker or supporting-library gaps. Raw logs
-are kept outside the repository. Linux musl was not separately exercised here.
+Validation on 2026-10-22: release tests pass on aarch64-apple-darwin,
+x86_64-unknown-linux-gnu and x86_64-unknown-linux-musl: 39 top-level cases and
+all six PTY child cases. The child cases are marked ignored in the ordinary test
+list and launched by their parents. The musl PTY helper initializes termios before
+comparing restored state; its four affected cases pass after that fix.
+
+Unicode operations now use the shared Rust text backend through `scoop.charset`.
+API documentation checks pass. No fixtures, dedicated lower-layer gap tests or
+upstream Unicode compatibility/completeness tests are added. Raw logs remain
+outside the repository.

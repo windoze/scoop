@@ -720,11 +720,11 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 已补齐 19 个生产库与 7 个嵌套测试／辅助 Cone 的说明；打包流程为全部生产库生成各目标站点并安装到 SYSROOT/docs。文档示例执行留待后续。
 - 三目标完整 CLI 验收闭合：Darwin 4,503、GNU 4,487、musl 4,484 项通过；双宿主完整打包、最终归档的文档与解压构建／运行、文档更新复用检查通过。真实浏览器离线交互的工具限制见验收记录。
 
-### M61 Rust 文本后端与宽松许可静态分发（实施中，[设计](milestone61/DESIGN.md)、[进度](milestone61/PROGRESS.md)）
+### M61 Rust 文本后端与宽松许可静态分发（已完成，[设计](milestone61/DESIGN.md)、[进度](milestone61/PROGRESS.md)）
 
 - 将 IDNA、Punycode、NFC 及字符集能力迁到固定 Rust 文本后端；按用户决定收敛到成熟 Rust 库可覆盖的编码，保留增量、BOM、错误偏移合同。
-- 明确 UTS #46 与旧严格 IDNA2008 的差异，完成 Darwin／GNU／musl 真实消费、链接、缓存和发行验证后移除 GNU 文本链。
-- IDNA／NFC 正在迁移；新的 Rust 字符集集合仍须闭合。M61 完成后再迁移 readline 使用的 Unicode 基础功能。
+- 已明确 UTS #46 与旧严格 IDNA2008 的差异，完成 Darwin／GNU／musl 资源准备、适配、两个正式链接入口及运行，移除 GNU 文本链；发行收集 Rust 依赖与标准库通知。
+- 字符集集合收敛到 43 个名称；readline 的字素、宽度、属性和大小写已迁入共同后端。测试仅验证 Scoop 自有行为，不新增底层补缺或上游 Unicode 兼容性／完备性测试。
 
 ## 4. 待补齐清单（backlog）
 
