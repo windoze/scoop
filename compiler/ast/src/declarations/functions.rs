@@ -10,6 +10,16 @@ pub struct FunctionDecl {
     pub span: Span,
 }
 
+impl FunctionDecl {
+    pub fn header(&self) -> FunctionHeaderRef<'_> {
+        FunctionHeaderRef {
+            signature: &self.signature,
+            body_form: self.body.form(),
+            span: self.span,
+        }
+    }
+}
+
 impl std::ops::Deref for FunctionDecl {
     type Target = FunctionSignature;
 
@@ -47,6 +57,22 @@ impl FunctionBody {
 pub struct FunctionHeader {
     pub signature: FunctionSignature,
     pub body_form: FunctionBodyForm,
+}
+
+/// Declaration algorithms borrow syntax without requiring a body projection.
+#[derive(Debug, Clone, Copy)]
+pub struct FunctionHeaderRef<'a> {
+    pub signature: &'a FunctionSignature,
+    pub body_form: FunctionBodyForm,
+    pub span: Span,
+}
+
+impl std::ops::Deref for FunctionHeaderRef<'_> {
+    type Target = FunctionSignature;
+
+    fn deref(&self) -> &Self::Target {
+        self.signature
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

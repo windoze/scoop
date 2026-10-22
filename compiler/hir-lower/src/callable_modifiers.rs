@@ -38,7 +38,7 @@ impl Lowerer {
 
     pub(crate) fn validate_callable_modifiers(
         &mut self,
-        decl: &ast::FunctionDecl,
+        decl: ast::FunctionHeaderRef<'_>,
         receiver: Option<TypeId>,
         is_member: bool,
         is_ordinary: bool,
@@ -169,7 +169,7 @@ impl Lowerer {
 
     fn validate_property_delegate_operator_shape(
         &mut self,
-        decl: &ast::FunctionDecl,
+        decl: ast::FunctionHeaderRef<'_>,
         kind: hir::PropertyDelegateOperatorKind,
         is_ordinary: bool,
         return_ty: TypeId,
@@ -208,7 +208,7 @@ impl Lowerer {
             );
         }
         if kind == hir::PropertyDelegateOperatorKind::SetValue
-            && !crate::declaration_inference::infers_result(decl)
+            && !crate::declaration_inference::infers_header_result(decl)
             && !self.types_equal(return_ty, self.unit)
         {
             self.error(
@@ -223,7 +223,7 @@ impl Lowerer {
 
     fn validate_operator_shape(
         &mut self,
-        decl: &ast::FunctionDecl,
+        decl: ast::FunctionHeaderRef<'_>,
         kind: hir::OperatorKind,
         receiver: Option<TypeId>,
         is_member: bool,
@@ -333,14 +333,14 @@ impl Lowerer {
             }
             _ => {}
         }
-        if !crate::declaration_inference::infers_result(decl) {
-            self.validate_operator_result(decl, kind, receiver, return_ty);
+        if !crate::declaration_inference::infers_header_result(decl) {
+            self.validate_operator_result(decl.signature, kind, receiver, return_ty);
         }
     }
 
     fn require_operator_return(
         &mut self,
-        decl: &ast::FunctionDecl,
+        decl: &ast::FunctionSignature,
         actual: TypeId,
         expected: TypeId,
         expected_name: &str,

@@ -14,6 +14,16 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
+        let id = self.declare_method_header(decl.header(), owner, file_index);
+        pending.push((id, decl, file_index, owner));
+    }
+
+    pub(crate) fn declare_method_header(
+        &mut self,
+        decl: ast::FunctionHeaderRef<'_>,
+        owner: Owner,
+        file_index: usize,
+    ) -> FunctionId {
         let checked = self.check_function_annotations(decl, FunctionTarget::Member(owner));
         let host_ty = self.owner_ty(owner);
         let private_interface_member = matches!(owner, Owner::Interface(_))
@@ -26,7 +36,7 @@ impl Lowerer {
             );
         let modifier = match owner {
             Owner::Interface(_) if private_interface_member => hir::MethodModifier::Final,
-            Owner::Interface(_) if matches!(decl.body, ast::FunctionBody::None) => {
+            Owner::Interface(_) if decl.body_form == ast::FunctionBodyForm::Omitted => {
                 hir::MethodModifier::Abstract
             }
             Owner::Interface(_) => hir::MethodModifier::Open,
@@ -114,7 +124,7 @@ impl Lowerer {
                     .expect("the interface owner map was initialized above")
                     .push(id);
                 if !private_interface_member {
-                    let implementation = if matches!(decl.body, ast::FunctionBody::None) {
+                    let implementation = if decl.body_form == ast::FunctionBodyForm::Omitted {
                         hir::InterfaceMemberImplementation::AbstractSlot
                     } else {
                         hir::InterfaceMemberImplementation::Body
@@ -143,7 +153,7 @@ impl Lowerer {
                 self.classes[backing].methods.push(id);
             }
         }
-        pending.push((id, decl, file_index, owner));
+        id
     }
 
     /// Allocate a top-level declaration in either the ordinary or extension
@@ -154,6 +164,15 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
         file_index: usize,
     ) {
+        let id = self.declare_function_header(decl.header(), file_index);
+        pending.push((id, decl, file_index));
+    }
+
+    pub(crate) fn declare_function_header(
+        &mut self,
+        decl: ast::FunctionHeaderRef<'_>,
+        file_index: usize,
+    ) -> FunctionId {
         let checked = self.check_function_annotations(decl, FunctionTarget::TopLevel);
         let kind = match (checked.intrinsic, checked.extern_) {
             (Some(intrinsic), _) => FunctionKind::Intrinsic(intrinsic),
@@ -212,7 +231,7 @@ impl Lowerer {
             decl.receiver_ty.is_some(),
         );
         self.record_function_file(id, file_index);
-        pending.push((id, decl, file_index));
+        id
     }
 
     /// Reject declarations that differ only in return type after signatures

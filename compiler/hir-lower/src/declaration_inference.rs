@@ -49,7 +49,11 @@ pub(crate) enum DeclarationResult {
 }
 
 pub(crate) fn infers_result(declaration: &ast::FunctionDecl) -> bool {
-    declaration.return_ty.is_none() && declaration.body.form() == ast::FunctionBodyForm::Expression
+    infers_header_result(declaration.header())
+}
+
+pub(crate) fn infers_header_result(declaration: ast::FunctionHeaderRef<'_>) -> bool {
+    declaration.return_ty.is_none() && declaration.body_form == ast::FunctionBodyForm::Expression
 }
 
 impl Lowerer {
@@ -179,7 +183,8 @@ impl Lowerer {
             return Some(self.signatures[&id].return_ty);
         }
         let Some(inference) = self.declaration_inference.functions.get(&id).cloned() else {
-            return Some(self.signatures[&id].return_ty);
+            let signature = &self.signatures[&id];
+            return (!signature.result_pending).then_some(signature.return_ty);
         };
         match inference.state {
             InferenceState::Complete => return Some(self.signatures[&id].return_ty),

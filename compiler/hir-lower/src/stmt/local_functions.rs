@@ -64,7 +64,7 @@ impl Lowerer {
             return_ty,
         );
         let attributes = self
-            .check_function_annotations(decl, crate::FunctionTarget::Local)
+            .check_function_annotations(decl.header(), crate::FunctionTarget::Local)
             .attributes;
         let definition_path = self
             .definition_paths

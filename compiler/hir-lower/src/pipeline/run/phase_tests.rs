@@ -39,6 +39,43 @@ fn input(source: &str) -> (Lowerer, Vec<ast::SourceFile>) {
 }
 
 #[test]
+fn a_header_only_result_query_does_not_publish_the_pending_storage_type() {
+    for (source, pending) in [("fun subject() = true", true), ("fun subject() {}", false)] {
+        let (mut lowerer, files) = input(source);
+        let declarations = lowerer.collect_source_declarations(&files, None).unwrap();
+        let &(function, declaration, file) = declarations
+            .pending_functions
+            .iter()
+            .find(|(_, declaration, _)| declaration.name.text == "subject")
+            .unwrap();
+        let parsed = scoop_parser::parse_recovering(source).unwrap();
+        let header = parsed
+            .declaration_data()
+            .declarations
+            .iter()
+            .find_map(|item| match &item.value {
+                ast::DeclarationFragment::FunctionHeader(header) => Some(header.as_ref()),
+                ast::DeclarationFragment::Complete(_) => None,
+            })
+            .unwrap();
+        lowerer.current_file = file;
+        lowerer.resolve_function_header(
+            function,
+            ast::FunctionHeaderRef {
+                signature: &header.signature,
+                body_form: header.body_form,
+                span: declaration.span,
+            },
+        );
+        assert_eq!(lowerer.signatures[&function].result_pending, pending);
+        assert_eq!(
+            lowerer.infer_function_result(function),
+            (!pending).then_some(lowerer.unit)
+        );
+    }
+}
+
+#[test]
 fn explicit_signatures_are_available_before_erroneous_bodies_are_checked() {
     let (mut lowerer, files) = input(
         "fun caller(): Boolean = known(true)\nfun known(value: Boolean): Boolean { missingBodyName }",

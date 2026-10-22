@@ -62,7 +62,7 @@ impl Lowerer {
             FunctionTarget::Member(owner) => Some(owner),
             FunctionTarget::TopLevel | FunctionTarget::Local => None,
         };
-        let checked = self.check_function_annotations(&declaration, target);
+        let checked = self.check_function_annotations(declaration.header(), target);
         let method = method_owner.map(|owner| hir::Method {
             owner: self.owner_ty(owner),
             modifier,

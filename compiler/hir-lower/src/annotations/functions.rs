@@ -11,7 +11,7 @@ use crate::Lowerer;
 impl Lowerer {
     pub(crate) fn check_function_annotations(
         &mut self,
-        decl: &ast::FunctionDecl,
+        decl: ast::FunctionHeaderRef<'_>,
         target: FunctionTarget,
     ) -> CheckedFunctionAnnotations {
         let mut attributes = hir::FunctionAttributes::default();
@@ -166,7 +166,7 @@ impl Lowerer {
                     "an `@Extern` function must not be generic".to_string(),
                 );
             }
-            if !matches!(decl.body, ast::FunctionBody::None) {
+            if decl.body_form != ast::FunctionBodyForm::Omitted {
                 self.error(
                     decl.span,
                     "an `@Extern` function must not have a body".to_string(),
@@ -258,7 +258,7 @@ impl Lowerer {
                 "`@Intrinsic` and `@Extern` cannot be combined".to_string(),
             );
         }
-        if intrinsic.is_some() && !matches!(decl.body, ast::FunctionBody::None) {
+        if intrinsic.is_some() && decl.body_form != ast::FunctionBodyForm::Omitted {
             self.error(
                 decl.span,
                 "`@Intrinsic` functions must not have a body (spec 13.1)".to_string(),

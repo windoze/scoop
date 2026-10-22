@@ -4,7 +4,7 @@ impl Lowerer {
     pub(crate) fn validate_inferred_operator_result(
         &mut self,
         id: hir::FunctionId,
-        decl: &ast::FunctionDecl,
+        decl: &ast::FunctionSignature,
     ) {
         let function = &self.functions[id];
         let result = function.return_ty;
@@ -31,7 +31,7 @@ impl Lowerer {
 
     pub(super) fn validate_operator_result(
         &mut self,
-        decl: &ast::FunctionDecl,
+        decl: &ast::FunctionSignature,
         kind: hir::OperatorKind,
         receiver: Option<TypeId>,
         result: TypeId,
