@@ -4,7 +4,7 @@ use crate::imports::lookup::calls::{ExtensionCallTarget, wire_operator};
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
 impl Lowerer {
-    pub(in crate::expr) fn extension_call_target_matches_required(
+    pub(crate) fn extension_call_target_matches_required(
         &self,
         target: &ExtensionCallTarget,
         required: RequiredCallableModifiers,

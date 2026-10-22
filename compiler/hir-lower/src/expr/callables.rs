@@ -124,43 +124,47 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if let Some(ty) = self.named_callable_value_type(&call.callee.text) {
+            let callee = self.lower_var(&call.callee, sink, Some(ty))?;
+            return self.lower_value_invoke(
+                callee,
+                CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                },
+                sink,
+                expected,
+                false,
+            );
+        }
+        self.lower_layered_named_call(call, sink, expected)
+    }
+
+    pub(crate) fn named_callable_value_type(&mut self, name: &str) -> Option<TypeId> {
         let binding = self
             .scopes
-            .lookup(&call.callee.text)
+            .lookup(name)
             .map(|local| (self.locals[local].binding, self.locals[local].ty))
             .or_else(|| {
-                self.available_capture(&call.callee.text)
+                self.available_capture(name)
                     .map(|capture| (capture.binding, capture.ty))
             })
             .or_else(|| {
                 self.constructor_params_in_scope
-                    .get(&call.callee.text)
+                    .get(name)
                     .map(|&(_, ty, binding)| (binding, ty))
             });
-        if let Some((binding, declared)) = binding {
+        binding.and_then(|(binding, declared)| {
             let declared = self
                 .local_delegate_plans
                 .get(&binding)
                 .map_or(declared, |plan| plan.property_ty);
             let views = self.smart_casts.get(&binding).cloned().unwrap_or_default();
-            if let Some(ty) = views.into_iter().chain([declared]).find(|&ty| {
+            views.into_iter().chain([declared]).find(|&ty| {
                 self.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_))
-            }) {
-                let callee = self.lower_var(&call.callee, sink, Some(ty))?;
-                return self.lower_value_invoke(
-                    callee,
-                    CallSite {
-                        type_args: &call.type_args,
-                        args: &call.args,
-                        span: call.span,
-                    },
-                    sink,
-                    expected,
-                    false,
-                );
-            }
-        }
-        self.lower_layered_named_call(call, sink, expected)
+            })
+        })
     }
 
     pub(in crate::expr) fn lower_nominal_constructor_call(

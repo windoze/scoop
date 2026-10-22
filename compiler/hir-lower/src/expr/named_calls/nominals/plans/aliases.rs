@@ -4,7 +4,7 @@ impl Lowerer {
     pub(in crate::expr) fn named_alias_plans(
         &mut self,
         mut alias: crate::aliases::AliasTemplate,
-        call: &ast::CallExpr,
+        call: NamedCallHeader<'_>,
         expected: Option<TypeId>,
     ) -> Result<PreparedNominalPlans, ()> {
         let generic = !alias.parameters.is_empty();
@@ -21,7 +21,7 @@ impl Lowerer {
             Some(alias.target)
         };
         let target = if matches!(self.types[alias.target], Type::Param(_)) {
-            let explicit = self.resolve_call_type_args(&call.type_args).ok_or(())?;
+            let explicit = self.resolve_call_type_args(call.type_args).ok_or(())?;
             let (target, arguments) = self
                 .infer_alias_target(&alias, &explicit, expected, call.span)
                 .ok_or(())?;
@@ -74,7 +74,9 @@ impl Lowerer {
             args: call.args.to_vec(),
             span: call.span,
         };
-        let prepared = self.named_alias_plans(alias, &call, expected).ok()?;
+        let prepared = self
+            .named_alias_plans(alias, (&call).into(), expected)
+            .ok()?;
         let explicit = self.resolve_call_type_args(&call.type_args)?;
         let mut applicable = Vec::new();
         let mut failures = Vec::new();

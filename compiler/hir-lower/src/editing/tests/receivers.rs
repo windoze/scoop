@@ -149,7 +149,7 @@ fn cancellation_discards_partial_scopes_and_allows_a_clean_retry() {
         checks.get() == 3
     });
     assert!(matches!(cancelled, Err(EditingCancelled)));
-    assert!(!analysis.receiver_facts.contains_key(&id));
+    assert!(!analysis.recovered_facts.contains_key(&id));
     let facts = receiver(&mut analysis);
     assert_eq!(known_type(&mut analysis, &facts), "Boolean");
     assert!(analysis.diagnostics().is_empty());

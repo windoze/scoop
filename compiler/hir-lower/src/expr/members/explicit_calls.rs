@@ -501,7 +501,7 @@ impl Lowerer {
             .collect()
     }
 
-    fn retain_highest_rank_origins<T: Clone + PartialEq>(
+    pub(crate) fn retain_highest_rank_origins<T: Clone + PartialEq>(
         layers: &mut [crate::imports::lookup::LookupLayer<T>],
     ) {
         let mut seen = Vec::new();

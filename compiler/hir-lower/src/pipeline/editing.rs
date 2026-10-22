@@ -33,7 +33,7 @@ impl Lowerer {
                     functions: Vec::new(),
                     declarations_ready: false,
                     recovered_bodies: Default::default(),
-                    receiver_facts: Default::default(),
+                    recovered_facts: Default::default(),
                     body_inputs: Default::default(),
                     body_facts: Default::default(),
                 });
@@ -99,7 +99,7 @@ impl Lowerer {
             functions,
             declarations_ready,
             recovered_bodies,
-            receiver_facts: Default::default(),
+            recovered_facts: Default::default(),
             body_inputs,
             body_facts: Default::default(),
         })

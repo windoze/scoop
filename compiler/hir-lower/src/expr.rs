@@ -193,14 +193,14 @@ struct ResolvedReference {
 }
 
 #[derive(Clone)]
-struct SuccessfulExprLayer {
-    state: Box<Lowerer>,
-    expression: hir::Expr,
-    sink: Vec<hir::Statement>,
+pub(crate) struct SuccessfulExprLayer {
+    pub(crate) state: Box<Lowerer>,
+    pub(crate) expression: hir::Expr,
+    pub(crate) sink: Vec<hir::Statement>,
 }
 
 impl Lowerer {
-    fn probe_expr_layer(
+    pub(crate) fn probe_expr_layer(
         &self,
         lower: impl FnOnce(&mut Lowerer, &mut Vec<hir::Statement>) -> Option<hir::Expr>,
     ) -> Result<SuccessfulExprLayer, Box<Lowerer>> {

@@ -221,7 +221,7 @@ impl Lowerer {
         }))
     }
 
-    fn resolve_direct_interface_super(
+    pub(crate) fn resolve_direct_interface_super(
         &mut self,
         qualifier: &ast::TypeRef,
         span: Span,

@@ -2,6 +2,7 @@ use super::*;
 use crate::constructor_resolution::NominalConstructorCall;
 
 mod annotation_keys;
+mod editing;
 mod finish;
 mod functions;
 mod imported;
@@ -9,6 +10,23 @@ mod plans;
 mod pointers;
 mod probes;
 mod selection;
+
+#[derive(Clone, Copy)]
+pub(in crate::expr) struct NamedCallHeader<'a> {
+    pub(in crate::expr) callee: &'a ast::Ident,
+    pub(in crate::expr) type_args: &'a [ast::CallTypeArgument],
+    pub(in crate::expr) span: Span,
+}
+
+impl<'a> From<&'a ast::CallExpr> for NamedCallHeader<'a> {
+    fn from(call: &'a ast::CallExpr) -> Self {
+        Self {
+            callee: &call.callee,
+            type_args: &call.type_args,
+            span: call.span,
+        }
+    }
+}
 
 pub(in crate::expr) struct NominalPlan {
     pub(in crate::expr) view: NominalConstructorView,
@@ -79,7 +97,7 @@ impl Lowerer {
                 continue;
             }
             let mut preparation = self.clone();
-            match preparation.named_nominal_plans(binding, call, expected) {
+            match preparation.named_nominal_plans(binding, call.into(), expected) {
                 Ok(PreparedNominalPlans::Nominal(mut prepared, intrinsic)) => {
                     *self = preparation;
                     plans.append(&mut prepared);

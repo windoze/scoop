@@ -4,6 +4,20 @@ use super::*;
 use crate::call_resolution::candidates::ArgumentMode;
 
 impl<D: Copy> SuppliedArgumentMap<D> {
+    pub(crate) fn declaration(
+        parameters: &[ValueParameter<D>],
+        mode: ArgumentMode,
+        arguments: &[ArgumentShape<'_>],
+        receiver: ReceiverInput,
+    ) -> Result<Self, ArgumentShapeFailure> {
+        Self::bind(
+            &source::parameter_shapes(parameters),
+            mode,
+            arguments,
+            receiver,
+        )
+    }
+
     pub(crate) fn bind(
         parameters: &[ParameterShape<'_, D>],
         mode: ArgumentMode,
@@ -153,5 +167,23 @@ impl<D: Copy> SuppliedArgumentMap<D> {
                 .collect(),
             positional_required_call,
         })
+    }
+}
+
+impl<D> SuppliedArgumentMap<D> {
+    pub(crate) fn source_binding(
+        &self,
+        source: SourceInputId,
+    ) -> (ValueParameterId, SourceInputKind) {
+        self.parameters
+            .iter()
+            .enumerate()
+            .find_map(|(index, parameter)| {
+                parameter
+                    .as_ref()?
+                    .source_kind(source)
+                    .map(|kind| (ValueParameterId::from_index(index), kind))
+            })
+            .expect("every supplied source slot has its parameter binding")
     }
 }

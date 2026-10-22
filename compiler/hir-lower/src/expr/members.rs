@@ -33,41 +33,8 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        if self.initialization_context.is_some() {
-            self.error(
-                call.span,
-                "initializing receiver cannot escape before construction completes".into(),
-            );
-            return None;
-        }
-        let Some(receiver) = self.lower_current_this(call.span) else {
-            self.error(
-                call.span,
-                "`super` method calls are only allowed inside class member functions".into(),
-            );
-            return None;
-        };
-        let Type::Class(application) = self.types[receiver.ty] else {
-            self.error(
-                call.span,
-                "`super` method calls require a class receiver".into(),
-            );
-            return None;
-        };
-        let current = self.class_applications[application].clone();
-        let Some(base) = self.classes[self.class_id(current.template)].base_class else {
-            self.error(
-                call.span,
-                format!(
-                    "class `{}` has no direct base for `super.{}`",
-                    self.classes[self.class_id(current.template)].name,
-                    name.text
-                ),
-            );
-            return None;
-        };
-        let base = self.instantiate_ty(base, &current.arguments);
-        let receiver = self.adapt_to(receiver, base);
+        let receiver = self.resolve_super_call_receiver(name, call.span)?;
+        let base = receiver.ty;
         let candidates = self.super_methods_by_name(base, &name.text);
         match self.probe_member_call_partition_with_kind(
             candidates,
@@ -101,6 +68,45 @@ impl Lowerer {
                 None
             }
         }
+    }
+
+    pub(crate) fn resolve_super_call_receiver(
+        &mut self,
+        name: &ast::Ident,
+        span: Span,
+    ) -> Option<hir::Expr> {
+        if self.initialization_context.is_some() {
+            self.error(
+                span,
+                "initializing receiver cannot escape before construction completes".into(),
+            );
+            return None;
+        }
+        let Some(receiver) = self.lower_current_this(span) else {
+            self.error(
+                span,
+                "`super` method calls are only allowed inside class member functions".into(),
+            );
+            return None;
+        };
+        let Type::Class(application) = self.types[receiver.ty] else {
+            self.error(span, "`super` method calls require a class receiver".into());
+            return None;
+        };
+        let current = self.class_applications[application].clone();
+        let Some(base) = self.classes[self.class_id(current.template)].base_class else {
+            self.error(
+                span,
+                format!(
+                    "class `{}` has no direct base for `super.{}`",
+                    self.classes[self.class_id(current.template)].name,
+                    name.text
+                ),
+            );
+            return None;
+        };
+        let base = self.instantiate_ty(base, &current.arguments);
+        Some(self.adapt_to(receiver, base))
     }
 
     /// `this` (M6): only inside member functions, where it is
@@ -405,6 +411,50 @@ impl Lowerer {
             .flatten()
     }
 
+    pub(crate) fn prepare_safe_call_receiver(
+        &mut self,
+        receiver: hir::Expr,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<(hir::Expr, hir::Expr)> {
+        let Some(inner) = self.as_option(receiver.ty) else {
+            let found = self.type_name(receiver.ty);
+            self.error(
+                span,
+                format!("`?.` requires an Option receiver, found {found}"),
+            );
+            return None;
+        };
+        let option_ty = receiver.ty;
+        let origin = self.expression_origin(span);
+        let receiver_local = self.alloc_hidden("opt", option_ty);
+        sink.push(hir::Statement {
+            kind: hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding {
+                    local: receiver_local,
+                },
+                init: receiver,
+            },
+            span,
+        });
+        let receiver_ref = hir::Expr {
+            kind: ExprKind::Local(receiver_local),
+            ty: option_ty,
+            span,
+            origin,
+        };
+        let payload = hir::Expr {
+            kind: ExprKind::Unwrap {
+                operand: Box::new(receiver_ref.clone()),
+                trap_on_none: false,
+            },
+            ty: inner,
+            span,
+            origin,
+        };
+        Some((receiver_ref, payload))
+    }
+
     pub(super) fn lower_safe_method_call(
         &mut self,
         receiver: &ast::Expr,
@@ -414,41 +464,8 @@ impl Lowerer {
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         let receiver = self.lower_expr(receiver, sink, None)?;
-        let Some(inner) = self.as_option(receiver.ty) else {
-            let found = self.type_name(receiver.ty);
-            self.error(
-                call.span,
-                format!("`?.` requires an Option receiver, found {found}"),
-            );
-            return None;
-        };
-        let option_ty = receiver.ty;
+        let (receiver_ref, payload) = self.prepare_safe_call_receiver(receiver, call.span, sink)?;
         let origin = self.expression_origin(call.span);
-        let receiver_local = self.alloc_hidden("opt", option_ty);
-        sink.push(hir::Statement {
-            kind: hir::StatementKind::ValDecl {
-                pattern: hir::Pattern::Binding {
-                    local: receiver_local,
-                },
-                init: receiver,
-            },
-            span: call.span,
-        });
-        let receiver_ref = hir::Expr {
-            kind: ExprKind::Local(receiver_local),
-            ty: option_ty,
-            span: call.span,
-            origin,
-        };
-        let payload = hir::Expr {
-            kind: ExprKind::Unwrap {
-                operand: Box::new(receiver_ref.clone()),
-                trap_on_none: false,
-            },
-            ty: inner,
-            span: call.span,
-            origin,
-        };
         let mut then_body = Vec::new();
         let value = self.lower_explicit_named_call(
             payload,

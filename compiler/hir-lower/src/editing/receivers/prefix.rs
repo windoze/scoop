@@ -1,13 +1,13 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn check_recovered_receivers(
+    pub(super) fn check_recovered_facts(
         &mut self,
         function: hir::FunctionId,
         body: &ast::RecoveredFunctionBody,
         is_cancelled: &impl Fn() -> bool,
-    ) -> Result<Vec<hir::EditingReceiver>, EditingCancelled> {
-        let mut facts = unavailable_receivers(body, U::IncompleteSyntax);
+    ) -> Result<RecoveredFacts, EditingCancelled> {
+        let mut facts = unavailable_facts(body, U::IncompleteSyntax);
         let Some((prefix, start, block)) = receiver_prefix(body) else {
             return Ok(facts);
         };
@@ -23,7 +23,13 @@ impl Lowerer {
                     .then_some((index, receiver))
             })
             .collect::<Vec<_>>();
-        if eligible.is_empty() {
+        let calls = body
+            .calls
+            .iter()
+            .enumerate()
+            .filter(|(_, call)| call.block == block && call.span.start == start)
+            .collect::<Vec<_>>();
+        if eligible.is_empty() && calls.is_empty() {
             return Ok(facts);
         }
         self.current_file = self
@@ -51,11 +57,23 @@ impl Lowerer {
                 for (index, receiver) in eligible {
                     check_cancelled(is_cancelled)?;
                     if lowerer.diagnostics.len() == before {
-                        lowerer.check_receiver(receiver, &mut facts[index], is_cancelled)?;
+                        lowerer.check_receiver(
+                            receiver,
+                            &mut facts.receivers[index],
+                            is_cancelled,
+                        )?;
                     } else {
-                        facts[index].value_type = V::Unavailable(U::BodyFailure);
-                        facts[index].members = V::Unavailable(U::BodyFailure);
+                        facts.receivers[index].value_type = V::Unavailable(U::BodyFailure);
+                        facts.receivers[index].members = V::Unavailable(U::BodyFailure);
                     }
+                }
+                for (index, call) in calls {
+                    check_cancelled(is_cancelled)?;
+                    facts.calls[index].candidates = if lowerer.diagnostics.len() == before {
+                        lowerer.editing_call_candidates(call, is_cancelled)?
+                    } else {
+                        V::Unavailable(U::BodyFailure)
+                    };
                 }
                 Ok(facts)
             })();

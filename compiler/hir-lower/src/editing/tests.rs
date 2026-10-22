@@ -4,6 +4,8 @@ use hir::{EditingUnavailable as U, EditingValue as V};
 mod bodies;
 mod callables;
 mod calls;
+mod candidates;
+mod candidates_imported;
 mod members;
 mod members_imported;
 mod receivers;

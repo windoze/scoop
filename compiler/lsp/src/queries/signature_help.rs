@@ -10,6 +10,7 @@ use serde_json::Value;
 use super::semantic;
 use crate::{convert, initialize::Settings};
 
+mod incomplete;
 mod position;
 
 pub(crate) fn signature_help(
@@ -59,7 +60,7 @@ pub(crate) fn signature_help(
         }
     }
     let Some((function, _, call, active_parameter)) = selected else {
-        return Ok(Value::Null);
+        return incomplete::signature_help(analysis, &cursor, snapshot, cancellation);
     };
     let mut labels = Vec::with_capacity(call.parameters.len());
     for parameter in &call.parameters {

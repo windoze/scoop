@@ -3,6 +3,12 @@ use hir::{EditingUnavailable as U, EditingValue as V};
 
 mod prefix;
 
+#[derive(Default)]
+pub(crate) struct RecoveredFacts {
+    pub(super) receivers: Vec<hir::EditingReceiver>,
+    pub(super) calls: Vec<hir::EditingIncompleteCall>,
+}
+
 #[derive(Clone)]
 pub(crate) struct ReceiverObservation {
     file: usize,
@@ -16,26 +22,35 @@ impl DeclarationAnalysis {
         function: hir::FunctionId,
         is_cancelled: impl Fn() -> bool,
     ) -> Result<&[hir::EditingReceiver], EditingCancelled> {
+        self.ensure_recovered_facts(function, is_cancelled)?;
+        Ok(&self.recovered_facts[&function].receivers)
+    }
+
+    pub(super) fn ensure_recovered_facts(
+        &mut self,
+        function: hir::FunctionId,
+        is_cancelled: impl Fn() -> bool,
+    ) -> Result<(), EditingCancelled> {
         check_cancelled(&is_cancelled)?;
-        if !self.receiver_facts.contains_key(&function) {
+        if !self.recovered_facts.contains_key(&function) {
             let facts = if let Some(body) = self.recovered_bodies.get(&function) {
                 match self.signature(function) {
-                    V::Unavailable(reason) => unavailable_receivers(body, reason),
+                    V::Unavailable(reason) => unavailable_facts(body, reason),
                     V::Known(_) => {
                         let mut candidate = self.lowerer.clone();
                         let facts =
-                            candidate.check_recovered_receivers(function, body, &is_cancelled)?;
+                            candidate.check_recovered_facts(function, body, &is_cancelled)?;
                         check_cancelled(&is_cancelled)?;
                         self.lowerer = candidate;
                         facts
                     }
                 }
             } else {
-                Vec::new()
+                RecoveredFacts::default()
             };
-            self.receiver_facts.insert(function, facts);
+            self.recovered_facts.insert(function, facts);
         }
-        Ok(&self.receiver_facts[&function])
+        Ok(())
     }
 }
 
@@ -47,11 +62,9 @@ pub(super) fn check_cancelled(is_cancelled: &impl Fn() -> bool) -> Result<(), Ed
     }
 }
 
-fn unavailable_receivers(
-    body: &ast::RecoveredFunctionBody,
-    reason: U,
-) -> Vec<hir::EditingReceiver> {
-    body.selectors
+fn unavailable_facts(body: &ast::RecoveredFunctionBody, reason: U) -> RecoveredFacts {
+    let receivers = body
+        .selectors
         .iter()
         .map(|selector| hir::EditingReceiver {
             span: match &selector.receiver {
@@ -65,7 +78,15 @@ fn unavailable_receivers(
             local: None,
             members: V::Unavailable(reason),
         })
-        .collect()
+        .collect();
+    RecoveredFacts {
+        receivers,
+        calls: body
+            .calls
+            .iter()
+            .map(|call| super::candidates::unavailable_call(call, reason))
+            .collect(),
+    }
 }
 
 impl Lowerer {

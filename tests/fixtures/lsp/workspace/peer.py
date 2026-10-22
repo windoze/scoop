@@ -9,6 +9,7 @@ from pathlib import Path
 
 from cancellation import check as check_cancellation
 from diagnostics import check as check_diagnostics
+from incomplete_signatures import check as check_incomplete_signatures
 from signatures import check as check_signatures
 
 
@@ -303,6 +304,7 @@ def main():
         check_diagnostics(peer, root)
         check_cancellation(peer, root)
         check_signatures(peer, root)
+        check_incomplete_signatures(peer, root)
         peer.finish()
     finally:
         if peer.process.poll() is None:

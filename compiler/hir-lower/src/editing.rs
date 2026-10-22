@@ -8,11 +8,13 @@ use crate::{CoreProtocolInput, Lowerer, SourceKind, SourceProvider};
 
 mod bodies;
 mod callables;
+pub(crate) mod candidates;
 mod members;
 mod parameters;
 pub(crate) use bodies::{BodyObservation, ObservedBody};
 mod receivers;
 pub(crate) use receivers::ReceiverObservation;
+pub(crate) use receivers::RecoveredFacts;
 #[cfg(test)]
 mod tests;
 
@@ -25,8 +27,7 @@ pub struct DeclarationAnalysis {
     pub(crate) declarations_ready: bool,
     pub(crate) recovered_bodies:
         std::collections::HashMap<hir::FunctionId, ast::RecoveredFunctionBody>,
-    pub(crate) receiver_facts:
-        std::collections::HashMap<hir::FunctionId, Vec<hir::EditingReceiver>>,
+    pub(crate) recovered_facts: std::collections::HashMap<hir::FunctionId, RecoveredFacts>,
     pub(crate) body_inputs: std::collections::HashMap<hir::FunctionId, ast::FunctionDecl>,
     pub(crate) body_facts:
         std::collections::HashMap<hir::FunctionId, hir::EditingValue<ObservedBody>>,

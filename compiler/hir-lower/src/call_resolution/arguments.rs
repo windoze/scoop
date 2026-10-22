@@ -167,19 +167,7 @@ impl<D> CandidateArgumentMap<D> {
             .iter()
             .map(|input| {
                 let (parameter, kind) = self.source_binding(*input);
-                let parameter = &parameters[parameter.index()];
-                match (&parameter.calling, kind) {
-                    (
-                        ValueParameterCalling::Vararg { element_type, .. },
-                        SourceInputKind::VarargElement,
-                    ) => *element_type,
-                    (ValueParameterCalling::Vararg { .. }, SourceInputKind::VarargArray)
-                    | (
-                        ValueParameterCalling::Required | ValueParameterCalling::Default(_),
-                        SourceInputKind::Value,
-                    ) => parameter.ty,
-                    _ => unreachable!("argument mapping fixes each input shape"),
-                }
+                parameters[parameter.index()].input_type(kind)
             })
             .collect()
     }
@@ -211,32 +199,51 @@ pub(crate) fn source_binding<D>(
     source: SourceInputId,
 ) -> (ValueParameterId, SourceInputKind) {
     for parameter in parameters {
-        match &parameter.input {
-            ResolvedParameterInput::Explicit(input) if *input == source => {
-                return (parameter.parameter, SourceInputKind::Value);
-            }
-            ResolvedParameterInput::Vararg(ResolvedVarargInput::WholeArray(input))
-                if *input == source =>
-            {
-                return (parameter.parameter, SourceInputKind::VarargArray);
-            }
-            ResolvedParameterInput::Vararg(ResolvedVarargInput::Parts(parts)) => {
-                if let Some(part) = parts.iter().find(|part| part.input == source) {
-                    let kind = match part.kind {
-                        VarargPartKind::Element => SourceInputKind::VarargElement,
-                        VarargPartKind::CopyArray => SourceInputKind::VarargArray,
-                    };
-                    return (parameter.parameter, kind);
-                }
-            }
-            ResolvedParameterInput::Explicit(_)
-            | ResolvedParameterInput::Default(_)
-            | ResolvedParameterInput::Vararg(
-                ResolvedVarargInput::WholeArray(_)
-                | ResolvedVarargInput::Empty
-                | ResolvedVarargInput::Default(_),
-            ) => {}
+        if let Some(kind) = parameter.input.source_kind(source) {
+            return (parameter.parameter, kind);
         }
     }
     unreachable!("each source argument is bound exactly once")
+}
+
+impl<D> ResolvedParameterInput<D> {
+    fn source_kind(&self, source: SourceInputId) -> Option<SourceInputKind> {
+        match self {
+            Self::Explicit(input) if *input == source => Some(SourceInputKind::Value),
+            Self::Vararg(ResolvedVarargInput::WholeArray(input)) if *input == source => {
+                Some(SourceInputKind::VarargArray)
+            }
+            Self::Vararg(ResolvedVarargInput::Parts(parts)) => parts
+                .iter()
+                .find(|part| part.input == source)
+                .map(|part| match part.kind {
+                    VarargPartKind::Element => SourceInputKind::VarargElement,
+                    VarargPartKind::CopyArray => SourceInputKind::VarargArray,
+                }),
+            Self::Explicit(_)
+            | Self::Default(_)
+            | Self::Vararg(
+                ResolvedVarargInput::WholeArray(_)
+                | ResolvedVarargInput::Empty
+                | ResolvedVarargInput::Default(_),
+            ) => None,
+        }
+    }
+}
+
+impl<D> ValueParameter<D> {
+    pub(super) fn input_type(&self, kind: SourceInputKind) -> scoop_hir::TypeId {
+        match (&self.calling, kind) {
+            (
+                ValueParameterCalling::Vararg { element_type, .. },
+                SourceInputKind::VarargElement,
+            ) => *element_type,
+            (ValueParameterCalling::Vararg { .. }, SourceInputKind::VarargArray)
+            | (
+                ValueParameterCalling::Required | ValueParameterCalling::Default(_),
+                SourceInputKind::Value,
+            ) => self.ty,
+            _ => unreachable!("argument mapping fixes each input shape"),
+        }
+    }
 }

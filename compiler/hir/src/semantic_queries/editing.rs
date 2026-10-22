@@ -2,6 +2,9 @@
 
 use crate::{FunctionId, SemanticSourceLocation, Span, TypeId};
 
+mod candidates;
+pub use candidates::*;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditingUnavailable {
     IncompleteSyntax,

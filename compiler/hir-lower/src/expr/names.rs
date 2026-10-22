@@ -265,7 +265,7 @@ impl Lowerer {
         }
     }
 
-    pub(in crate::expr) fn lower_resolved_value_target(
+    pub(crate) fn lower_resolved_value_target(
         &mut self,
         name: &ast::Ident,
         target: ResolvedValueTarget,

@@ -2,7 +2,7 @@
 
 use scoop_hir as hir;
 
-use super::arguments::{CandidateArgumentMap, SourceInputId, SourceInputKind};
+use super::arguments::{CandidateArgumentMap, SourceInputId, SourceInputKind, SuppliedArgumentMap};
 use super::candidates::ValueParameter;
 use super::constraints::{
     Constraint, ConstraintFailure, ConstraintOrigin, InferenceEnvironmentId, InferenceSession,
@@ -53,6 +53,24 @@ impl<D> CandidateArgumentMap<D> {
             .map(|(ty, input)| ArgumentPattern {
                 ty,
                 exact: self.source_binding(*input).1 == SourceInputKind::VarargArray,
+            })
+            .collect()
+    }
+}
+
+impl<D> SuppliedArgumentMap<D> {
+    pub(crate) fn inference_patterns(
+        &self,
+        parameters: &[ValueParameter<D>],
+    ) -> Vec<ArgumentPattern> {
+        self.source_order
+            .iter()
+            .map(|source| {
+                let (parameter, kind) = self.source_binding(*source);
+                ArgumentPattern {
+                    ty: parameters[parameter.index()].input_type(kind),
+                    exact: kind == SourceInputKind::VarargArray,
+                }
             })
             .collect()
     }
