@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn imported_location(
+pub(crate) fn imported_location(
     origin: &scoop_identity::DefinitionOrigin,
 ) -> Result<hir::SemanticSourceLocation, Diagnostic> {
     let span = origin.span();
@@ -21,56 +21,55 @@ pub(super) fn imported_location(
     })
 }
 
-impl FrontendQueries<'_, '_> {
-    pub(super) fn in_context<T>(
+impl Lowerer {
+    pub(crate) fn in_context<T>(
         &mut self,
         context: hir::SemanticContext,
         operation: impl FnOnce(&mut Lowerer) -> T,
     ) -> T {
         let (file, owner, parameters) = match context {
             hir::SemanticContext::Function(function) => (
-                self.lowerer.function_files[&function],
-                self.lowerer.function_owner.get(&function).copied(),
-                self.lowerer.signatures[&function].type_params.clone(),
+                self.function_files[&function],
+                self.function_owner.get(&function).copied(),
+                self.signatures[&function].type_params.clone(),
             ),
             hir::SemanticContext::Nominal(owner) => {
                 let file = match owner {
-                    hir::NominalOwner::Class(id) => self.lowerer.class_files[&id],
-                    hir::NominalOwner::Struct(id) => self.lowerer.struct_files[&id],
-                    hir::NominalOwner::Enum(id) => self.lowerer.enum_files[&id],
-                    hir::NominalOwner::Interface(id) => self.lowerer.interface_files[&id],
-                    hir::NominalOwner::Object(id) => self.lowerer.object_files[&id],
+                    hir::NominalOwner::Class(id) => self.class_files[&id],
+                    hir::NominalOwner::Struct(id) => self.struct_files[&id],
+                    hir::NominalOwner::Enum(id) => self.enum_files[&id],
+                    hir::NominalOwner::Interface(id) => self.interface_files[&id],
+                    hir::NominalOwner::Object(id) => self.object_files[&id],
                 };
                 let owner = Owner::from_nominal_owner(owner);
-                (file, Some(owner), self.lowerer.owner_type_params(owner))
+                (file, Some(owner), self.owner_type_params(owner))
             }
         };
-        let previous_file = std::mem::replace(&mut self.lowerer.current_file, file);
-        let previous_query = std::mem::replace(&mut self.lowerer.in_semantic_query, true);
-        let previous_owner = std::mem::replace(&mut self.lowerer.current_owner, owner);
-        let previous_parameters =
-            std::mem::replace(&mut self.lowerer.type_params_in_scope, parameters);
+        let previous_file = std::mem::replace(&mut self.current_file, file);
+        let previous_query = std::mem::replace(&mut self.in_semantic_query, true);
+        let previous_owner = std::mem::replace(&mut self.current_owner, owner);
+        let previous_parameters = std::mem::replace(&mut self.type_params_in_scope, parameters);
         let previous_scopes = owner
-            .and_then(|owner| self.lowerer.local_nominal_scopes(owner))
-            .map(|scopes| std::mem::replace(&mut self.lowerer.scopes, scopes));
+            .and_then(|owner| self.local_nominal_scopes(owner))
+            .map(|scopes| std::mem::replace(&mut self.scopes, scopes));
         let previous_functions = owner
-            .and_then(|owner| self.lowerer.local_nominal_functions(owner))
-            .map(|functions| std::mem::replace(&mut self.lowerer.local_function_scopes, functions));
-        let value = operation(self.lowerer);
+            .and_then(|owner| self.local_nominal_functions(owner))
+            .map(|functions| std::mem::replace(&mut self.local_function_scopes, functions));
+        let value = operation(self);
         if let Some(scopes) = previous_scopes {
-            self.lowerer.scopes = scopes;
+            self.scopes = scopes;
         }
         if let Some(functions) = previous_functions {
-            self.lowerer.local_function_scopes = functions;
+            self.local_function_scopes = functions;
         }
-        self.lowerer.current_file = previous_file;
-        self.lowerer.in_semantic_query = previous_query;
-        self.lowerer.current_owner = previous_owner;
-        self.lowerer.type_params_in_scope = previous_parameters;
+        self.current_file = previous_file;
+        self.in_semantic_query = previous_query;
+        self.current_owner = previous_owner;
+        self.type_params_in_scope = previous_parameters;
         value
     }
 
-    pub(super) fn signature_binders(
+    pub(crate) fn signature_binders(
         &self,
         context: hir::SemanticTypeContext<'_>,
     ) -> Vec<hir::HirSignatureBinder> {
@@ -80,16 +79,14 @@ impl FrontendQueries<'_, '_> {
         };
         let (parameters, owner_count) = match context {
             hir::SemanticContext::Function(function) => {
-                let signature = &self.lowerer.signatures[&function];
+                let signature = &self.signatures[&function];
                 (
                     signature.type_params.clone(),
                     signature.owner_type_param_count,
                 )
             }
             hir::SemanticContext::Nominal(owner) => {
-                let parameters = self
-                    .lowerer
-                    .owner_type_params(Owner::from_nominal_owner(owner));
+                let parameters = self.owner_type_params(Owner::from_nominal_owner(owner));
                 let count = parameters.len();
                 (parameters, count)
             }
@@ -102,7 +99,7 @@ impl FrontendQueries<'_, '_> {
         .signature_binders()
     }
 
-    pub(super) fn in_type_context<T>(
+    pub(crate) fn in_type_context<T>(
         &mut self,
         context: hir::SemanticTypeContext<'_>,
         operation: impl FnOnce(&mut Lowerer) -> T,
@@ -111,18 +108,17 @@ impl FrontendQueries<'_, '_> {
             hir::SemanticTypeContext::Lexical(context) => self.in_context(context, operation),
             hir::SemanticTypeContext::Declaration(binders) => {
                 let parameters = binders.parameters().cloned().collect();
-                let previous =
-                    std::mem::replace(&mut self.lowerer.type_params_in_scope, parameters);
-                let previous_query = std::mem::replace(&mut self.lowerer.in_semantic_query, true);
-                let value = operation(self.lowerer);
-                self.lowerer.in_semantic_query = previous_query;
-                self.lowerer.type_params_in_scope = previous;
+                let previous = std::mem::replace(&mut self.type_params_in_scope, parameters);
+                let previous_query = std::mem::replace(&mut self.in_semantic_query, true);
+                let value = operation(self);
+                self.in_semantic_query = previous_query;
+                self.type_params_in_scope = previous;
                 value
             }
         }
     }
 
-    pub(super) fn type_query(
+    pub(crate) fn type_query(
         &mut self,
         context: hir::SemanticTypeContext<'_>,
         span: Span,

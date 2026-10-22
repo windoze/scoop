@@ -109,6 +109,7 @@ mod defaults;
 mod definition_paths;
 mod derived;
 mod documentation;
+mod editing;
 mod effects;
 mod expr;
 mod ffi;
@@ -171,6 +172,7 @@ pub use current_lowering::{
     lower_current_cone, lower_current_cone_with_generator, lower_current_tests,
     lower_current_tests_with_generator,
 };
+pub use editing::{DeclarationAnalysis, EditingSignature, analyze_declarations};
 pub use output_kind::select_cone_output_kind;
 
 use std::collections::{HashMap, HashSet};

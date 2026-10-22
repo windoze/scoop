@@ -18,8 +18,8 @@ impl FrontendQueries<'_, '_> {
             .nominal_references
             .get_or_init(|| NominalReferences::new(self.lowerer));
         let signature = reference.resolve(&mut references);
-        let binders = self.signature_binders(context);
-        self.type_query(context, span, |lowerer| {
+        let binders = self.lowerer.signature_binders(context);
+        self.lowerer.type_query(context, span, |lowerer| {
             let signature = signature
                 .map_err(|message| lowerer.error(span, message))
                 .ok()?;

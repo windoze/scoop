@@ -846,6 +846,8 @@ name = "scoop-analysis"
 version = "0.0.0"
 dependencies = [
  "scoop-ast",
+ "scoop-hir",
+ "scoop-hir-lower",
  "scoop-identity",
  "scoop-lir",
  "scoop-manifest",

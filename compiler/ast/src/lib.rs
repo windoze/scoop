@@ -12,6 +12,7 @@ mod expressions;
 mod floating;
 mod headers;
 pub use floating::*;
+mod declaration_source;
 mod integer;
 mod parsed_sources;
 mod patterns;
@@ -21,6 +22,7 @@ mod types;
 
 pub use annotations::*;
 pub use context::*;
+pub use declaration_source::*;
 pub use declarations::*;
 pub use documentation::*;
 pub use dump::{dump, dump_pattern};

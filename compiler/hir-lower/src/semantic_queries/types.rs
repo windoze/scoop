@@ -5,7 +5,7 @@ use super::*;
 mod nominals;
 
 impl Lowerer {
-    pub(super) fn describe_semantic_type(
+    pub(crate) fn describe_semantic_type(
         &mut self,
         ty: hir::TypeId,
     ) -> Result<hir::SemanticTypeDescription, Diagnostic> {

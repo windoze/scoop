@@ -1,6 +1,7 @@
 use super::*;
 mod declaration_bodies;
 mod declarations;
+mod editing;
 mod signatures;
 mod source_bodies;
 

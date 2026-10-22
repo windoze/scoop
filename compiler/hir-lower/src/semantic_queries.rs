@@ -17,6 +17,7 @@ mod fields;
 mod methods;
 mod parameters;
 mod properties;
+mod signatures;
 mod type_references;
 mod types;
 
@@ -69,7 +70,7 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         namespace: scoop_identity::BindingNamespace,
     ) -> Result<Vec<scoop_identity::BindableEntity>, Diagnostic> {
         let world = self.world;
-        self.in_context(context, |lowerer| {
+        self.lowerer.in_context(context, |lowerer| {
             lowerer.query_export(world, provider, path, namespace)
         })
     }
@@ -203,42 +204,19 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
     }
 
     fn signature(&self, function: hir::FunctionId) -> hir::SemanticFunctionSignature {
-        let lowerer = &self.lowerer;
-        let signature = &lowerer.signatures[&function];
-        let parameters = lowerer
+        let parameters = self
+            .lowerer
             .source_parameter_interfaces
             .iter()
             .find(|interface| {
                 matches!(interface.owner, hir::ExportParameterOwner::Function(id) if id == function)
             })
             .expect("complete source signatures retain their parameter interface");
-        hir::SemanticFunctionSignature {
+        self.lowerer.semantic_function_signature(
             function,
-            name: lowerer.source_function_name(function).into(),
-            receiver: lowerer.functions[function]
-                .method
-                .map(|method| method.owner)
-                .or_else(|| lowerer.extension_receivers.get(&function).copied()),
-            parameters: parameters.parameters.clone(),
-            type_parameters: signature.type_params.clone(),
-            owner_parameter_count: signature.owner_type_param_count,
-            context_parameters: signature.context_parameters.clone(),
-            result: signature.return_ty,
-            is_suspend: signature.is_suspend,
-            modifiers: signature.modifiers,
-            attributes: signature.attributes,
-            release_callability: lowerer.functions[function].release_callability.clone(),
-            origin: hir::SemanticSourceLocation {
-                source: lowerer
-                    .source_identity(
-                        lowerer
-                            .function_definition_file(function)
-                            .expect("source callable signatures retain their definition file"),
-                    )
-                    .clone(),
-                span: lowerer.functions[function].span,
-            },
-        }
+            self.lowerer.signatures[&function].return_ty,
+            parameters.parameters.clone(),
+        )
     }
 
     fn method_identity(
@@ -285,7 +263,7 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
             self.core_types(),
         );
         mapper
-            .map(ty, &self.signature_binders(context))
+            .map(ty, &self.lowerer.signature_binders(context))
             .map_err(|error| {
                 Diagnostic::at(Span::new(0, 0), format!("cannot describe type: {error}"))
             })
@@ -296,7 +274,8 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         context: hir::SemanticTypeContext<'_>,
         ty: hir::TypeId,
     ) -> Result<hir::SemanticTypeDescription, Diagnostic> {
-        self.in_type_context(context, |lowerer| lowerer.describe_semantic_type(ty))
+        self.lowerer
+            .in_type_context(context, |lowerer| lowerer.describe_semantic_type(ty))
     }
 
     fn nominal_declaration(
@@ -311,7 +290,8 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         context: hir::SemanticContext,
         ty: hir::TypeId,
     ) -> Result<Option<hir::SemanticNominalFields>, Diagnostic> {
-        self.in_context(context, |lowerer| lowerer.query_nominal_fields(ty))
+        self.lowerer
+            .in_context(context, |lowerer| lowerer.query_nominal_fields(ty))
     }
 
     fn nominal_properties(
@@ -319,7 +299,8 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         context: hir::SemanticContext,
         ty: hir::TypeId,
     ) -> Result<Option<Vec<hir::SemanticPropertyDescription>>, Diagnostic> {
-        self.in_context(context, |lowerer| lowerer.query_nominal_properties(ty))
+        self.lowerer
+            .in_context(context, |lowerer| lowerer.query_nominal_properties(ty))
     }
 
     fn nominal_constructors(
@@ -327,7 +308,8 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         context: hir::SemanticContext,
         ty: hir::TypeId,
     ) -> Result<Option<Vec<hir::SemanticConstructorDescription>>, Diagnostic> {
-        self.in_context(context, |lowerer| lowerer.query_nominal_constructors(ty))
+        self.lowerer
+            .in_context(context, |lowerer| lowerer.query_nominal_constructors(ty))
     }
 
     fn nominal_methods(
@@ -335,7 +317,8 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         context: hir::SemanticContext,
         ty: hir::TypeId,
     ) -> Result<Option<Vec<hir::SemanticMethodDescription>>, Diagnostic> {
-        self.in_context(context, |lowerer| lowerer.query_nominal_methods(ty))
+        self.lowerer
+            .in_context(context, |lowerer| lowerer.query_nominal_methods(ty))
     }
 
     fn type_relation(
@@ -345,16 +328,17 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         left: hir::TypeId,
         right: hir::TypeId,
     ) -> bool {
-        self.in_context(context, |lowerer| match relation {
+        self.lowerer.in_context(context, |lowerer| match relation {
             hir::SemanticTypeRelation::Equal => lowerer.types_equal(left, right),
             hir::SemanticTypeRelation::Subtype => lowerer.is_subtype(left, right),
         })
     }
 
     fn interfaces(&mut self, owner: hir::NominalOwner) -> Vec<hir::TypeId> {
-        self.in_context(hir::SemanticContext::Nominal(owner), |lowerer| {
-            lowerer.query_owner_interfaces(owner)
-        })
+        self.lowerer
+            .in_context(hir::SemanticContext::Nominal(owner), |lowerer| {
+                lowerer.query_owner_interfaces(owner)
+            })
     }
 
     fn requirements(&mut self, interface: hir::TypeId) -> Vec<hir::AppliedRequirement> {
@@ -385,9 +369,10 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
         context: hir::SemanticContext,
         syntax: &scoop_ast::TypeRef,
     ) -> Result<hir::TypeId, Vec<Diagnostic>> {
-        self.type_query(context.into(), syntax.span, |lowerer| {
-            lowerer.resolve_type_ref(syntax)
-        })
+        self.lowerer
+            .type_query(context.into(), syntax.span, |lowerer| {
+                lowerer.resolve_type_ref(syntax)
+            })
     }
 
     fn resolve_type_reference(

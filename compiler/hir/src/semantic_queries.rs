@@ -9,6 +9,8 @@ use scoop_identity::{ConeIdentity, SignatureTypeKey, SourceIdentity};
 
 mod generation;
 pub use generation::*;
+mod editing;
+pub use editing::*;
 mod annotations;
 pub use annotations::*;
 mod bodies;
@@ -44,15 +46,15 @@ pub struct SemanticSourceLocation {
 }
 
 #[derive(Clone, Debug)]
-pub struct SemanticFunctionSignature {
+pub struct SemanticFunctionSignature<R = TypeId, P = ExportValueParameter> {
     pub function: FunctionId,
     pub name: String,
     pub receiver: Option<TypeId>,
-    pub parameters: Vec<ExportValueParameter>,
+    pub parameters: Vec<P>,
     pub type_parameters: Vec<TypeParamDecl>,
     pub owner_parameter_count: usize,
     pub context_parameters: Vec<ContextParameter>,
-    pub result: TypeId,
+    pub result: R,
     pub is_suspend: bool,
     pub modifiers: CallableModifiers,
     pub attributes: FunctionAttributes,

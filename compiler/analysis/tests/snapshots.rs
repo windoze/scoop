@@ -44,3 +44,45 @@ fn identical_text_reuses_the_revision_and_released_sources_do_not_reappear() {
     let replacement = host.add_source(text("fun f() = 3"));
     assert_ne!(replacement, source);
 }
+
+#[test]
+fn declaration_inputs_borrow_the_current_grammar_projection() {
+    let mut host = AnalysisHost::default();
+    let source = host.add_source(text(
+        "fun editing(value: Boolean): Boolean { value. }\nfun good(): Boolean = true",
+    ));
+    let snapshot = host.snapshot();
+    let source = snapshot.source(source).unwrap().unwrap();
+    let parsed = source.parse().unwrap();
+    let identity = scoop_identity::SourceIdentity::new(
+        scoop_identity::ConeIdentity::CORE,
+        scoop_identity::NormalizedSourcePath::new("src/editing.scoop").unwrap(),
+    );
+    let input = source
+        .declaration_source(&identity, scoop_identity::SourceRole::Test)
+        .unwrap();
+    assert_eq!(input.role, scoop_identity::SourceRole::Test);
+    assert_eq!(input.text, source.text.as_str());
+    assert_eq!(input.declarations.len(), 2);
+    let scoop_ast::DeclarationInput::FunctionHeader(header) = input.declarations[0] else {
+        panic!("the first source declaration has a complete header");
+    };
+    let original = parsed
+        .declaration_data()
+        .declarations
+        .iter()
+        .find_map(|item| match &item.value {
+            scoop_ast::DeclarationFragment::FunctionHeader(header)
+                if header.signature.name.text == "editing" =>
+            {
+                Some(&header.signature)
+            }
+            _ => None,
+        })
+        .unwrap();
+    assert!(std::ptr::eq(header.signature, original));
+    assert!(matches!(
+        input.declarations[1],
+        scoop_ast::DeclarationInput::Complete(_)
+    ));
+}

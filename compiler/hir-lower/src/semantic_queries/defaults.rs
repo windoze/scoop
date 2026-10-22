@@ -24,7 +24,7 @@ impl FrontendQueries<'_, '_> {
             hir::CanonicalBinderUseListV1::try_new(types).map_err(|cause| one(error(cause)))?;
         let application = hir::SemanticDefaultApplication::try_new(definition, provider, types)
             .map_err(|cause| one(error(cause)))?;
-        self.in_type_context(context, |lowerer| {
+        self.lowerer.in_type_context(context, |lowerer| {
             let before = lowerer.diagnostics.len();
             let valid = lowerer.check_type_argument_kinds(
                 &parameters,

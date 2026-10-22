@@ -82,15 +82,7 @@ fn lower_current_cone_inner(
         }
     }
     let world = input.semantic_world();
-    let dependency_selection = world.dependency_selection_plan().map_err(|error| {
-        vec![Diagnostic::at(
-            Span { start: 0, end: 0 },
-            format!("failed to prepare dependency selection: {error}"),
-        )]
-    })?;
-    let mut lowerer = Lowerer::new()
-        .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
-        .with_imported_dependencies(dependency_selection);
+    let mut lowerer = prepare_current_lowerer(sources, world)?;
     lowerer.source_names = input.source_names().clone();
     lowerer.test_dependencies = input.test_dependencies().clone();
     lowerer.documentation = input
@@ -136,6 +128,21 @@ fn lower_current_cone_inner(
             )]
         },
     )
+}
+
+pub(crate) fn prepare_current_lowerer(
+    sources: Vec<crate::SourceProvider>,
+    world: &hir::ImportedSemanticWorld<'_>,
+) -> Result<Lowerer, Vec<Diagnostic>> {
+    let dependency_selection = world.dependency_selection_plan().map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to prepare dependency selection: {error}"),
+        )]
+    })?;
+    Ok(Lowerer::new()
+        .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
+        .with_imported_dependencies(dependency_selection))
 }
 
 impl Lowerer {

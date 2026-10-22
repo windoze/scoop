@@ -7,6 +7,8 @@
 //! the source and AST data channels.
 
 mod decl;
+mod declaration_source;
+pub use declaration_source::declaration_source;
 mod expr;
 mod header;
 mod lexer;
