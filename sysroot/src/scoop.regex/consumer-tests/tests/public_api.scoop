@@ -1,0 +1,58 @@
+package scoop.tests.regex.consumer
+
+import scoop.collections.*
+import scoop.platform.concurrent.Thread
+import scoop.regex.*
+import scoop.sequences.*
+import scoop.test.*
+
+@Test
+private class RegexConsumerTests {
+    @Test
+    fun `imported APIs extract and rewrite named fields`() {
+        Regex("(?<key>[a-z]+)=(?<value>[^;]+)", setOf(RegexOption.IgnoreCase)).use { regex ->
+            val input = "user=chen;COUNT=12"
+            val fields = HashMap<String, String>()
+            for (match in regex.findAll(input)) fields[match.groups["key"]!!.value] = match.groups["value"]!!.value
+            assertEquals("chen", fields["user"]!!)
+            assertEquals("12", fields["COUNT"]!!)
+            assertEquals("user:chen;COUNT:12", regex.replaceTemplate(input, "${key}:${value}"))
+            assertEquals("chen;12", regex.replace(input) { match -> match.groups["value"]!!.value })
+        }
+    }
+
+    @Test
+    fun `imported snapshots escaping and lazy splits compose`() {
+        val snapshot = "(?<text>雪😀)".toRegex().use { regex -> regex.matchEntire("雪😀")!! }
+        assertEquals(MatchRange(0L, 2L), snapshot.range)
+        assertEquals("雪😀", snapshot.groups["text"]!!.value)
+        Regex(Regex.escape("[x]\\E")).use { regex -> assertTrue(regex.matches("[x]\\E")) }
+        ",".toRegex().use { regex ->
+            val fields = regex.splitToSequence("one,two,three", 2L).toList()
+            assertEquals(2L, fields.size)
+            assertEquals("two,three", fields[1L])
+        }
+    }
+
+    @Test
+    fun `read-only compiled patterns are shared with separate match state`() {
+        Regex("(?<number>[0-9]+)").use { regex ->
+            val work: () -> Unit = {
+                for (index in 0L..<24L) {
+                    val text = index.toString()
+                    val match = regex.find("prefix:" + text)!!
+                    assertEquals(text, match.groups["number"]!!.value)
+                    assertEquals(MatchRange(7L, 7L + text.length), match.range)
+                    assertEquals("prefix:X", regex.replace("prefix:" + text, "X"))
+                }
+            }
+            Thread.start(work).use { first ->
+                Thread.start(work).use { second ->
+                    work()
+                    first.join()
+                    second.join()
+                }
+            }
+        }
+    }
+}
