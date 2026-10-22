@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare fixed iconv, Unicode and IDNA static libraries for one Scoop target."""
+"""Prepare fixed character conversion and Rust text libraries for a Scoop target."""
 
 import argparse
 import json
@@ -11,12 +11,12 @@ import tarfile
 import tomllib
 from pathlib import Path
 
-from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record, source_metadata
+import build_rust_text
+from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record
 
 PACKAGES = (
     ("libiconv", "1.19", ".tar.gz", ("libiconv.a", "libcharset.a"), "iconv.h"),
     ("libunistring", "1.4.2", ".tar.xz", ("libunistring.a",), "unistr.h"),
-    ("libidn2", "2.3.8", ".tar.gz", ("libidn2.a",), "idn2.h"),
 )
 TARGETS = {
     "aarch64-apple-darwin": ("Darwin", "clang"),
@@ -29,14 +29,10 @@ def dependency_headers(prefix, name):
     if name == "libiconv":
         return []
     names = ["iconv.h", "libcharset.h", "localcharset.h"]
-    nested = []
-    if name == "libidn2":
-        names += ["uniconv.h", "uninorm.h", "unistr.h", "unictype.h", "unitypes.h", "unimetadata.h"]
-        nested = source_metadata(prefix, ("include/unistring",))
-    return [metadata(prefix / "include" / name) for name in names] + nested
+    return [metadata(prefix / "include" / name) for name in names]
 
 
-def prepare(package, args, cc, make, dependencies):
+def prepare(package, args, dependencies):
     name, version, extension, libraries, header = package
     vendor = ROOT / "sysroot/vendor" / name
     archive = vendor / f"{name}-{version}{extension}"
@@ -46,7 +42,9 @@ def prepare(package, args, cc, make, dependencies):
     inputs = {
         "archive": metadata(archive),
         "patches": [metadata(path) for path in patches],
-        "tools": [metadata(path) for path in (cc, make, __file__, RELEASE_CONFIG)],
+        "files": [metadata(path) for path in (__file__, RELEASE_CONFIG)],
+        "cc": args.cc or TARGETS[args.target][1],
+        "path": os.environ.get("PATH"),
         "support": metadata(ROOT / "scripts/build_support.py"),
         "target": args.target,
         "prefix": str(prefix),
@@ -54,14 +52,21 @@ def prepare(package, args, cc, make, dependencies):
         "headers": dependency_headers(prefix, name),
         "deployment": os.environ.get("MACOSX_DEPLOYMENT_TARGET"),
     }
-    if patches:
-        inputs["patch_tool"] = metadata(shutil.which("patch") or "/usr/bin/patch")
     outputs = [prefix / library for library in libraries] + [prefix / "include" / header]
     record = build / "inputs.json"
     if reusable(record, inputs, outputs):
         print(f"Reusing {args.target} {name} {version}", flush=True)
         return
 
+    cc, make = shutil.which(inputs["cc"]), shutil.which("make")
+    if not cc or not make:
+        raise ValueError("the selected C compiler and make must be installed")
+    tools = [cc, make]
+    if patches:
+        patch_tool = shutil.which("patch")
+        if not patch_tool:
+            raise ValueError("preparing the character converter requires patch")
+        tools.append(patch_tool)
     build.mkdir(parents=True, exist_ok=True)
     source = build / f"{name}-{version}"
     source_record = build / "source.json"
@@ -72,7 +77,7 @@ def prepare(package, args, cc, make, dependencies):
         with tarfile.open(archive) as package:
             package.extractall(build, filter="data")
         for patch in patches:
-            subprocess.run(["patch", "--batch", "-p1", "-i", str(patch)], cwd=source, check=True)
+            subprocess.run([patch_tool, "--batch", "-p1", "-i", str(patch)], cwd=source, check=True)
         source_record.write_text(json.dumps(source_inputs) + "\n")
 
     objects = build / "objects"
@@ -89,8 +94,6 @@ def prepare(package, args, cc, make, dependencies):
     )
     if name != "libiconv":
         flags += f" -Dlocale_charset=scoop_{name}_locale_charset"
-    if name == "libidn2":
-        flags += " -D_UC_CATEGORY_NONE=scoop_libidn2_uc_category_none"
     environment = dict(
         os.environ,
         TMPDIR=str(scratch),
@@ -112,8 +115,6 @@ def prepare(package, args, cc, make, dependencies):
         options.append("--disable-nls")
     if name != "libiconv":
         options.append(f"--with-libiconv-prefix={prefix}")
-    if name == "libidn2":
-        options += [f"--with-libunistring-prefix={prefix}", "--disable-doc"]
     for command in (
         [str(source / "configure"), *options],
         [make, "-j", str(args.jobs)],
@@ -126,7 +127,7 @@ def prepare(package, args, cc, make, dependencies):
     for library in libraries:
         shutil.copy2(installed / library, prefix / library)
     shutil.copytree(installed / "include", prefix / "include", dirs_exist_ok=True)
-    save_record(record, inputs, objects)
+    save_record(record, inputs, objects, tools)
     print(f"Prepared {args.target} {name} {version}", flush=True)
 
 
@@ -138,19 +139,17 @@ def main():
     parser.add_argument("--cc")
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
-    host, default_cc = TARGETS[args.target]
+    host, _ = TARGETS[args.target]
     if platform.system() != host:
         parser.error(f"prepare {args.target} on a {host} build host")
     if args.jobs < 1:
         parser.error("--jobs must be positive")
-    cc, make = shutil.which(args.cc or default_cc), shutil.which("make")
-    if not cc or not make:
-        parser.error("the selected C compiler and make must be installed")
     args.build_dir = args.build_dir.resolve()
     args.prefix = (args.prefix or ROOT / "sysroot/lib" / args.target).resolve()
+    build_rust_text.prepare(args)
     dependencies = []
     for package in PACKAGES:
-        prepare(package, args, cc, make, dependencies)
+        prepare(package, args, dependencies)
         dependencies.extend(package[3])
 
 

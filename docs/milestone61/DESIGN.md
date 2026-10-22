@@ -1,10 +1,10 @@
 # M61 设计：Rust 文本后端与宽松许可静态分发
 
-状态：设计阶段，尚未实施；已完成 Darwin/AArch64 的 Rust 静态库与 C 调用可行性试验。日期：2026-10-22。
+状态：实施中。初版日期：2026-10-22；已进入正式 IDNA／NFC 迁移，逐项结果见 [进度](PROGRESS.md)，字符集范围见 [覆盖核对](CHARSET-COVERAGE.md)。
 
-本期以纯 Rust 后端替换 `scoop.charset`、`scoop.idna` 引入的 GNU libiconv、libcharset、libunistring 和 libidn2，使应用静态链接这些文本能力时不再承担这条 LGPL 依赖链的再链接材料等分发义务。允许 IDNA 改用成熟库的 UTS #46 行为，在规范与库文档中明确其与原严格 IDNA2008 profile 的差异；字符集合同不随之自动放宽。
+本期以纯 Rust 后端替换 `scoop.charset`、`scoop.idna` 引入的 GNU libiconv、libcharset、libunistring 和 libidn2，使应用静态链接这些文本能力时不再承担这条 LGPL 依赖链的再链接材料等分发义务。允许 IDNA 改用成熟库的 UTS #46 行为，在规范与库文档中明确其与原严格 IDNA2008 profile 的差异；字符集集合按 2026-10-22 用户决定收敛到成熟 Rust 库能够覆盖的编码，严格／有损、BOM 与增量合同继续保留。
 
-本次变更只新增本文。现有 spec、M54 设计、路线图、源码、manifest、构建脚本、锁文件与 sysroot 资源均保持原状。本文描述待实施的目标；实施时先按第 9 节修订相应 spec，再修改实现，不能将设计记录当作当前后端已经切换。
+本文初版仅记录设计；现行合同随实现先行写入对应 spec。IDNA／NFC 可独立迁移，字符集转换在所选 Rust 编码集合闭合前继续保留原实现；M61 完成仍以第 10 节全部条件为准。不能以部分入口完成替代整个里程碑验收。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md) §11.4、§12.2、§13，[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) §3.5、§4、§5.5，[实现规范](../specs/SCOOP-IMPL-SPEC.md) §1、§2.7～2.8，[字符集规范](../specs/SCOOP-CHARSET-SPEC.md)、[IDNA 规范](../specs/SCOOP-IDNA-SPEC.md)、[M52 分发设计](../milestone52/DESIGN.md)与 [M54 设计](../milestone54/DESIGN.md)。
 
@@ -57,7 +57,7 @@ Rust 是后端维护与预编译时使用的实现语言。普通应用消费 `.
 
 ### 3.1 单个共享归档
 
-拟在 `sysroot/native/text_backend/` 放置独立的内部 Cargo package，包含 `Cargo.toml`、`Cargo.lock` 和按字符集、规范化、域名、Punycode 划分的 Rust 模块。该路径是实施布局，不代表本次创建这些文件；它不进入 compiler 的 stage workspace，也不成为新的公开 Scoop Cone。
+在 `sysroot/native/text_backend/` 放置独立的内部 Cargo package，包含 `Cargo.toml`、`Cargo.lock` 和按字符集、规范化、域名、Punycode 划分的 Rust 模块。该 package 不进入 compiler 的 stage workspace，也不成为新的公开 Scoop Cone。
 
 Cargo 配置的核心形态为：
 
@@ -95,7 +95,7 @@ Scoop 的 `Long` 计数与 Rust `usize` 在真实边界转换，检查负值、�
 
 普通格式、编码、参数和输出空间不足通过结果状态报告，不使用 panic 作为可恢复错误通道。`panic = "abort"` 防止 Rust panic 展开越过 C ABI；它不表示 Rust 内部的分配失败已经被转换为 Scoop 异常。
 
-能显式检测的长度溢出、缓冲区错误及可恢复分配失败按现有 native 错误合同返回。上游内部不可恢复 OOM／panic 与现有 `Backend` 异常承诺之间的关系必须在实施前明确，不能借 IDNA 验证放宽一并改变失败语义，也不能为捕获所有 OOM 引入通用分配预算或异常代理框架。当前可行性试验没有验证内存耗尽路径；这属于第 10 节的实际待闭合项。
+能显式检测的长度溢出、缓冲区错误及可恢复分配失败按现有 native 错误合同返回。现行 IDNA／NFC spec 明确：上游内部不可恢复 OOM／panic 终止进程，不保证转换为 Backend 异常；显式返回的参数、长度或后端失败仍按状态传播。普通格式错误不得使用 fatal 路径。不为捕获所有 OOM 引入通用分配预算或异常代理框架。
 
 ## 4. IDNA 的目标行为
 
@@ -169,11 +169,11 @@ OrNone 仅转换正常输入无效结果，参数和后端运行故障保持既�
 
 不能将 `Encoding::for_label` 的 WHATWG 别名规则原样作为 `Charset.forName`：它会把 ASCII／ISO-8859-1 等名称解释为 Windows-1252，并具有与当前名称合同不同的空白处理。名称解析继续大小写无关，使用明确的 canonical name 与别名；未知名称失败，不回退 locale，不接受 `//TRANSLIT`／`//IGNORE` 等选项后缀。
 
-当前 [ENCODINGS.md](../../sysroot/src/scoop.charset/ENCODINGS.md) 列出 108 个 canonical name。`encoding_rs` 并非 GNU libiconv 全集的等价实现，实施前必须形成完整覆盖对照，区分可直接对应、需保持名称或基础语义的适配、尚缺实现的编码。IDNA 的放宽不授权悄悄缩减这张表或改变其他编码规则。
+当前 [ENCODINGS.md](../../sysroot/src/scoop.charset/ENCODINGS.md) 列出 108 个 canonical name。`encoding_rs` 并非 GNU libiconv 全集的等价实现。[覆盖核对](CHARSET-COVERAGE.md) 已逐项列出原集合。2026-10-22 用户明确选择“保留纯 Rust，仅支持成熟 Rust 库能覆盖的编码”；不再要求保留全部 108 种。实施时在 charset spec 与 ENCODINGS.md 明确新的集合、移除的名称、保留别名及实际映射版本，不让未实现名称继续查找成功。
 
 GB18030 尤其需要版本对照：当前 `GB18030` 名称对应 2005 版，另列 2022 版；新后端的映射版本不能被名称掩盖。GBK、Big5、Shift_JIS、EUC-JP、ISO-2022-JP 的标准／厂商扩展与错误恢复也须以现有向量和独立标准数据核对。
 
-实际发现的非等价字符集能力需在对应 spec 中单独解决后再迁移，不通过保留隐藏 GNU fallback 宣称 LGPL 链已经移除，也不为补齐所有历史名称搭建后端插件框架。完整编码集合如何闭合属于第 10 节列明的实施前工作。
+实际映射差异先写入 charset spec，再迁移到成熟 Rust 后端。不存在的历史编码明确返回 UnsupportedCharsetException；不保留隐藏 GNU fallback、不自行补写 CJK／ISO-2022 算法、不搭建后端插件框架。新的编码集合仍须逐项验证真实双向转换。
 
 ### 5.3 严格、有损与增量状态
 
@@ -232,7 +232,7 @@ Rust `staticlib` 仍可能需要目标系统库。准备与链接验证使用 `r
 | IDNA | 同数据版本 `IdnaTestV2` 与上游测试，使用明确的 UTS #46 参数；NFC、大小写、A-label、Bidi、ContextJ、连字符、63／255 字节、末尾与独立根点、单标签、并行独立调用 |
 | IDNA 差异 | 符号域名和 ContextO 的新正向用例；保留检查的负向用例；异常不承诺虚构的后端 code／labelIndex 或细分类 |
 | Punycode | RFC 3492 向量、空串、ASCII、NUL、标点、非标量、非法整数序列和溢出 |
-| 字符集 | 基础 14 种双向转换及完整名称覆盖；ASCII／Latin-1 本义、CJK 差异、GB18030 版本、不可表示字符、BOM 与字节序、状态编码 |
+| 字符集 | 基础 14 种双向转换及新的完整名称集合覆盖；ASCII／Latin-1 本义、CJK 差异、GB18030 版本、不可表示字符、BOM 与字节序、状态编码 |
 | 增量 | 任意合法分块、极短输入／输出、跨块错误与绝对偏移、明确 EOF、输出背压、严格／替换策略、finish／close 与失败清理 |
 | NFC | 官方规范化向量、重排、组合排除、Hangul、非兼容折叠、NUL／BOM；与字符集和认证凭据组合 |
 | Scoop 消费者 | 跨 Cone charset／idna，URL host 与 origin、Cookie 域、TLS ASCII 名、HTTP 响应文本、字段参数、Basic／Digest 凭据 |
@@ -248,12 +248,12 @@ Rust `staticlib` 仍可能需要目标系统库。准备与链接验证使用 `r
 ## 9. 实施顺序与后续文档同步
 
 1. 完成字符集覆盖对照、精确 Unicode 数据版本、上游分配失败行为和 Linux 本机链接需求的核对，形成可执行的迁移边界。
-2. 先修订 IDNA／charset spec；涉及实际 FFI 故障或目标链接合同的变更，同步对应运行时／实现 spec 及其引用。把允许的 IDNA 差异和未放宽的字符集要求分别写清。
+2. 按已确认的范围先修订 IDNA／charset spec；涉及实际 FFI 故障或目标链接合同的变更，同步对应运行时／实现 spec 及其引用。把允许的 IDNA 差异和未放宽的字符集要求分别写清。
 3. 实现内部 Rust package、固定依赖与 C ABI，先完成三个目标的原生消费者；复用既有目标资源准备入口，不增加普通应用构建时的 Cargo 步骤。
 4. 迁移两个 Scoop Cone、native 依赖与错误映射，完成独立测试及 URL／HTTP／TLS 组合，移除对应 GNU 使用与补丁需求。
 5. 更新预编译资源准备、发行许可和使用文档，运行三目标正式消费者、链接及缓存复用验收，最后记录完成状态。
 
-实施时需要同步的现有文档列在下表；本次均不修改：
+实施中需要同步的文档列在下表；实际完成范围见进度：
 
 | 文档／配置 | 后续修改内容 |
 | --- | --- |
@@ -271,7 +271,7 @@ M61 完成需要同时满足：原 GNU 文本依赖链退出实际应用链接�
 
 目前尚不能从可行性试验推导完成的事项包括：
 
-- 108 个原有 canonical name 的完整替代与映射等价性，特别是 GB18030 版本、CJK 扩展和有状态错误恢复；不默认接受缩减范围。
+- 按用户决定收敛后的 Rust 编码集合及实际映射，特别是 GB18030 版本、CJK 扩展和有状态错误恢复；明确退役不能承接的历史名称。
 - 普通后端 OOM／panic 与现有可恢复 `Backend` 异常的准确边界；不以 `panic = "abort"` 代替这项设计结论。
 - 锁定 ICU4X 数据的实际 Unicode 版本及官方测试向量选择。
 - GNU／musl 的 Rust 本机依赖、unwind 协调、CPU／部署基线以及最终链接运行。

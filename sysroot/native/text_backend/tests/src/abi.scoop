@@ -1,0 +1,3 @@
+package scoop.tests.textbackend
+
+@Extern(name = "scoop_test_text_abi") internal fun checkAbi(): Int

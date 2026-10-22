@@ -16,19 +16,6 @@ include = [
     {path = "../../lib/x86_64-unknown-linux-gnu/include", when = {env = "gnu"}},
     {path = "../../lib/x86_64-unknown-linux-musl/include", when = {env = "musl"}},
 ]
-c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-DIDN2_STATIC", "-DIDN2_SKIP_LIBIDN_COMPAT"]
 [[native.libraries]]
-name = "idn2"
+name = "scoop_text_backend"
 kind = "static"
-[[native.libraries]]
-name = "unistring"
-kind = "static"
-[[native.libraries]]
-name = "iconv"
-kind = "static"
-[[native.sources]]
-path = "native/common.c"
-[[native.sources]]
-path = "native/domain.c"
-[[native.sources]]
-path = "native/punycode.c"

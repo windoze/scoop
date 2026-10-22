@@ -1,6 +1,6 @@
 # Scoop 字符集库规范
 
-版本：M54。提供普通 Cone `scoop:scoop.charset:0.1.0`，依赖 core、std、platform。它补齐 HTTP text、字段参数和认证凭据所需的字符集转换与 NFC 规范化，负责字符集识别、内存转换和增量状态；不依赖 URL、IDNA、HTTP、asyncio 或 ICU。实际验证范围见 [M54 进度](../milestone54/PROGRESS.md)。
+版本：M61（分步迁移）。提供普通 Cone `scoop:scoop.charset:0.1.0`，依赖 core、std、platform。它补齐 HTTP text、字段参数和认证凭据所需的字符集转换与 NFC 规范化，负责字符集识别、内存转换和增量状态；不依赖 URL、IDNA、HTTP、asyncio 或 ICU4C。M54 的原验收范围见 [M54 进度](../milestone54/PROGRESS.md)，迁移状态见 [M61 进度](../milestone61/PROGRESS.md)。
 
 ## 1. 后端与范围
 
@@ -8,7 +8,7 @@
 
 必须支持 UTF-8、US-ASCII、ISO-8859-1、Windows-1252、UTF-16LE／BE、UTF-32LE／BE、GB18030、GBK、Big5、Shift_JIS、EUC-JP 和 ISO-2022-JP。名称解析采用固定后端的受支持名称与显式别名，大小写无关；记录具体版本支持列表，不把未知名字退回系统默认编码。ISO-8859-1 按该编码本义处理，不采用浏览器将其当 Windows-1252 的隐式规则。
 
-NFC 使用已有的固定 GNU libunistring 1.4.2，与 IDNA 的目标资源共享同一份静态库；不通过域名转换接口处理普通文本。此库不改变 core String 的 UTF-8 表示，也不把 native 依赖加入仅依赖 core 的 `scoop.std`。语言检测、浏览器编码猜测与完整国际化服务不属于本库。
+M61 将 NFC 迁移到内部 Rust `scoop_text_backend` 的 ICU4X `icu_normalizer` 2.3.0，与 IDNA 共享同一 normalizer 和 Unicode 17.0.0 数据；不通过域名转换处理普通文本。字符集转换在完整覆盖核对完成前仍使用上述后端，不将 WHATWG 名称映射直接替换现有 108 个 canonical name。实际迁移状态见 [M61 进度](../milestone61/PROGRESS.md)。此库不改变 core String 的 UTF-8 表示，也不把 native 依赖加入仅依赖 core 的 `scoop.std`。语言检测、浏览器编码猜测与完整国际化服务不属于本库。
 
 ## 2. 公共合同
 
@@ -36,7 +36,7 @@ native 引擎使用同一 libiconv 后端解码到一个 Unicode 标量，再交
 
 引擎串行使用，不执行 I/O。HTTP 等流适配逐块调用它即可保持同步／异步流的相同编码语义，不得在上层另写 GBK、UTF-16 等 decoder。只需要现有 UTF-8 能力的库继续使用 core 的公开入口，无须重复引入转换实现。
 
-`normalizeNfc(text: String): String` 对完整 String 执行 Unicode NFC，返回拥有独立生命周期的 String。规范分解、组合顺序、组合排除和 Hangul 组合均使用 libunistring；不做兼容性折叠、大小写映射、空白删除或 BOM 消费。空字符串、内嵌 NUL 与 U+FEFF 都是普通文本。该入口不修改原字符串，各次调用没有共享可变转换状态；后端失败以 CharsetException 的 Backend 类别保留实际错误码。它不对任意流分块分别规范化，因为组合字符可以跨块关联；调用者明确提供完整文本。
+`normalizeNfc(text: String): String` 对完整 String 执行 Unicode NFC，返回拥有独立生命周期的 String。规范分解、组合顺序、组合排除和 Hangul 组合均使用 ICU4X；不做兼容性折叠、大小写映射、空白删除或 BOM 消费。空字符串、内嵌 NUL 与 U+FEFF 都是普通文本。各次调用没有共享可变状态；Scoop 复制 Rust 结果后在 finally 中经 `scoop_text_free(data, size)` 释放。显式返回的参数、长度及后端故障为 CharsetException.Backend，无后端原码时为 None；上游不可恢复分配失败或内部 panic 按 `panic=abort` 终止进程，不保证转成可捕获异常，也不跨 C ABI 展开。它不对任意流分块分别规范化，因为组合字符可以跨块关联；调用者明确提供完整文本。
 
 ### 2.1 Unicode 分段、宽度与大小写
 

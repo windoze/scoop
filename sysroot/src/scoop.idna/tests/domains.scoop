@@ -10,12 +10,13 @@ private class IdnaDomainTests {
         checkName("faß.de", "xn--fa-hia.de", "faß.de")
         checkName("ς.gr", "xn--3xa.gr", "ς.gr")
         checkName("e\u{0301}.example", "xn--9ca.example", "é.example")
+        checkName("=\u{0338}.example", "xn--1ch.example", "≠.example")
         checkName("Ａ。Ｂ．Ｃ｡", "a.b.c.", "a.b.c.")
         checkName("BÜCHER.example", "xn--bcher-kva.example", "bücher.example")
         checkName("XN--BCHER-KVA.example", "xn--bcher-kva.example", "bücher.example")
         assertEquals("xn--fa-hia", Idna.labelToAscii("faß"))
         assertEquals("faß", Idna.labelToUnicode("xn--fa-hia"))
-        assertEquals("15.1.0", Idna.unicodeVersion)
+        assertEquals("17.0.0", Idna.unicodeVersion)
     }
 
     @Test
@@ -45,16 +46,22 @@ private class IdnaDomainTests {
     }
 
     @Test
-    fun `ContextJ ContextO and Bidi use the same rules for Unicode and A-labels`() {
+    fun `UTS46 accepts symbols and ContextO while retaining ContextJ and Bidi`() {
         assertEquals("xn--ll-0ea.cat", Idna.toAscii("l·l.cat"))
-        for (input in ["a·b.cat", "xn--ab-0ea.cat", "a・b.test", "͵a.test", "a\u{200d}b.test"]) {
+        checkName("a·b.cat", "xn--ab-0ea.cat", "a·b.cat")
+        checkName("☃.example", "xn--n3h.example", "☃.example")
+        for (input in ["a・b.test", "͵a.test"]) {
+            assertEquals(input, Idna.toUnicode(Idna.toAscii(input)))
+        }
+        for (input in ["a\u{200d}b.test", "a\u{200c}b.test"]) {
             val error = assertFailsWith<IdnaException> { Idna.toAscii(input) }
-            assertTrue(error.kind == IdnaFailureKind.Context)
-            assertTrue(error.code != None)
+            assertTrue(error.kind == IdnaFailureKind.InvalidLabel)
+            assertTrue(error.code == None)
+            assertTrue(error.labelIndex == None)
             assertTrue(Idna.toUnicodeOrNone(input) == None)
         }
         val bidi = assertFailsWith<IdnaException> { Idna.toAscii("אa.test") }
-        assertTrue(bidi.kind == IdnaFailureKind.Bidi)
+        assertTrue(bidi.kind == IdnaFailureKind.InvalidLabel)
         assertEquals("क्\u{200d}ष.test", Idna.toUnicode(Idna.toAscii("क्\u{200d}ष.test")))
         assertEquals("カ・ナ.test", Idna.toUnicode(Idna.toAscii("カ・ナ.test")))
     }
@@ -98,7 +105,7 @@ private class IdnaDomainTests {
         assertEquals("123.example", Idna.toAscii("123.example"))
         for (input in ["0a.א", "123.xn--4db", "àˇ.א", "xn--0ca88g.xn--4db", "א0٠א", "א7٧ת", "א-\u{0300}.test", "ا١۱.test"]) {
             val error = assertFailsWith<IdnaException> { Idna.toAscii(input) }
-            assertTrue(error.kind == IdnaFailureKind.Bidi)
+            assertTrue(error.kind == IdnaFailureKind.InvalidLabel)
             assertTrue(Idna.toUnicodeOrNone(input) == None)
         }
         checkName("א0א.example", "xn--0-zhcb.example", "א0א.example")

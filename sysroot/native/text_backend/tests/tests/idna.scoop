@@ -1,0 +1,56 @@
+package scoop.tests.textbackend
+
+import scoop.idna.*
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class IdnaConformanceTests {
+    @Test
+    fun `Unicode 17 nontransitional STD3 hyphens bidi joiners and DNS lengths`() {
+        var checked = 0L
+        var skipped = 0L
+        var lineNumber = 0L
+        for (line in unicodeData("IdnaTestV2.txt").lineSequence()) {
+            lineNumber += 1L
+            val body = line.split('#')[0L].trim()
+            if (body.length == 0L) continue
+            val fields = body.split(';')
+            val source = escapedUnicode(fields[0L].trim())
+            if (source == None) { skipped += 1L; continue }
+            val input = source!!
+            val unicodeField = fields[1L].trim()
+            val unicodeText = if (unicodeField.length == 0L) input else escapedUnicode(unicodeField)!!
+            val asciiField = fields[3L].trim()
+            val asciiText = if (asciiField.length == 0L) unicodeText else escapedUnicode(asciiField)!!
+            val explicitStatus = fields[4L].trim()
+            val status = if (explicitStatus.length == 0L) fields[2L].trim() else explicitStatus
+            val root = input == "." || input == "。" || input == "．" || input == "｡"
+            val valid = root || status.length == 0L || status == "[]" ||
+                (status == "[A4_2]" && validRootedName(asciiText))
+            val detail = Some("IdnaTestV2 line " + lineNumber.toString())
+            if (valid) {
+                val name = try { Idna.parse(input) }
+                catch (error: IdnaException) {
+                    throw IllegalStateException(Some("IdnaTestV2 line " + lineNumber.toString() + ": " + error.detail))
+                }
+                assertEquals(if (root) "." else asciiText, name.ascii, detail)
+                assertEquals(if (root) "." else unicodeText, name.unicode, detail)
+            } else {
+                assertTrue(Idna.toAsciiOrNone(input) == None, detail)
+                assertTrue(Idna.toUnicodeOrNone(input) == None, detail)
+            }
+            checked += 1L
+        }
+        assertTrue(checked > 6000L)
+        assertTrue(skipped > 0L)
+    }
+}
+
+private fun validRootedName(ascii: String): Boolean {
+    if (ascii.length < 2L || ascii.length > 254L || ascii[ascii.length - 1L] != '.') return false
+    for (label in ascii.substring(0L, ascii.length - 1L).split('.')) {
+        if (label.length == 0L || label.length > 63L) return false
+    }
+    return true
+}

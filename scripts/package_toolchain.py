@@ -18,6 +18,7 @@ import package_documentation
 import package_licenses
 import package_native
 from build_llvm import HOSTS, VERSION
+from build_rust_text import LIBRARY as RUST_TEXT_LIBRARY
 from build_support import RELEASE_CONFIG, ROOT
 from build_text_backends import PACKAGES as TEXT_PACKAGES
 from compression_backends import PACKAGES as COMPRESSION_PACKAGES
@@ -116,6 +117,11 @@ def assemble(root, targets, binaries, args, release):
         shutil.copy2(binary, root / "bin" / binary.name)
     for name in ("src", "include"):
         shutil.copytree(sysroot / name, root / name)
+    shutil.copytree(
+        sysroot / "native/text_backend",
+        root / "native/text_backend",
+        ignore=shutil.ignore_patterns("target"),
+    )
     for vendor in (sysroot / "vendor").iterdir():
         destination = root / "vendor" / vendor.name
         if vendor.name == "llvm-project":
@@ -135,6 +141,7 @@ def assemble(root, targets, binaries, args, release):
         for cone in cones:
             shutil.copy2(source / f"{cone['name']}.slib", destination)
         shutil.copytree(source / "include", destination / "include")
+        shutil.copy2(source / RUST_TEXT_LIBRARY, destination / RUST_TEXT_LIBRARY)
         for _, _, _, libraries, _ in TEXT_PACKAGES:
             for library in libraries:
                 shutil.copy2(source / library, destination / library)
@@ -178,6 +185,10 @@ def assemble(root, targets, binaries, args, release):
         f"host_libraries = {json.dumps(sorted(path.name for path in native))}",
     ]
     manifest += [f"{name} = {json.dumps(release[name])}" for name, *_ in TEXT_PACKAGES]
+    manifest += [
+        f"{name} = {json.dumps(release[name])}"
+        for name in ("text_backend", "idna", "icu4x", "unicode")
+    ]
     manifest += [
         f"{package['name']} = {json.dumps(release[package['name']])}"
         for package in COMPRESSION_PACKAGES

@@ -15,9 +15,9 @@ public class IdnaName internal constructor(
     public val unicode: String)
 
 /**
- * Internationalized domain-name conversion with label, normalization, contextual, and
- * bidirectional checks. Domain operations accept a complete name; label operations accept exactly
- * one label.
+ * UTS #46 nontransitional domain-name conversion with STD3, hyphen, ContextJ,
+ * bidirectional, and DNS length checks. Symbols and ContextO follow UTS #46;
+ * strict IDNA2008 exclusions are not added. Label operations accept one label.
  */
 public object Idna {
     /**
@@ -27,7 +27,7 @@ public object Idna {
     /**
      * The Unicode data version used by the supported IDNA profile.
      */
-    public val unicodeVersion: String get() = "15.1.0"
+    public val unicodeVersion: String get() { @Unsafe { return String.fromCString(idnaUnicodeVersion()) } }
 
     /**
      * Validates a domain name and returns both its ASCII and Unicode representations.

@@ -1,0 +1,13 @@
+package scoop.tests.textbackend
+
+import scoop.test.*
+
+@Test
+private class TextBackendAbiTests {
+    @Test
+    fun `C caller checks aggregate returns lengths zero spans and Rust ownership`() {
+        @Unsafe { assertEquals(0, checkAbi()) }
+    }
+}
+
+

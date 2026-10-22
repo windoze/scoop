@@ -1,0 +1,48 @@
+package scoop.tests.textbackend
+
+import scoop.platform.env.environmentVariable
+import scoop.platform.fs.*
+import scoop.text.*
+
+internal fun unicodeData(name: String): String {
+    val root = environmentVariable("SCOOP_SYSROOT")
+        ?: throw IllegalStateException(Some("set SCOOP_SYSROOT to the prepared sysroot"))
+    return Path.fromOsString(root).resolve(Path.fromString("vendor/unicode/17.0.0/" + name)).readText()
+}
+
+internal fun escapedUnicode(text: String): String? {
+    if (text == "\"\"") return Some("")
+    val result = StringBuilder()
+    var index = 0L
+    while (index < text.length) {
+        val next = text[index]
+        if (next != '\\') {
+            result.append(next)
+            index += 1L
+            continue
+        }
+        val kind = text[index + 1L]
+        var start = index + 2L
+        var end = start + 4L
+        if (kind == 'x') {
+            start += 1L
+            end = start
+            while (text[end] != '}') end += 1L
+        } else if (kind != 'u') {
+            throw IllegalStateException(Some("unknown Unicode test escape"))
+        }
+        val scalar = text.substring(start, end).toInt(16)
+        if (scalar >= 0xD800 && scalar <= 0xDFFF) return None
+        result.append(scalar.toChar())
+        index = if (kind == 'x') end + 1L else end
+    }
+    return Some(result.toString())
+}
+
+internal fun scalarSequence(text: String): String {
+    val result = StringBuilder()
+    for (part in text.trim().split(' ')) {
+        if (part.length != 0L) result.append(part.toInt(16).toChar())
+    }
+    return result.toString()
+}

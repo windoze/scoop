@@ -1,72 +1,63 @@
 # Scoop IDNA 库规范
 
-版本：M54。提供独立普通 Cone `scoop:scoop.idna:0.1.0`，依赖 core、std；使用者包括 [URL 库](SCOOP-URL-SPEC.md)和 HTTP 域名处理。IDNA 不依赖 URL、HTTP、TLS、asyncio 或 ICU，不执行 DNS，也不维护公共后缀名单。实际目标验证进度见 [M54 进度](../milestone54/PROGRESS.md)。
+版本：M61。提供独立普通 Cone `scoop:scoop.idna:0.1.0`，依赖 core、std；使用者包括 [URL 库](SCOOP-URL-SPEC.md)和 HTTP 域名处理。IDNA 不依赖 URL、HTTP、TLS 或 asyncio，不执行 DNS，也不维护公共后缀名单。迁移范围及实际验证进度见 [M61 设计](../milestone61/DESIGN.md)与[进度](../milestone61/PROGRESS.md)。
 
 ## 1. 实现选择
 
-采用 libidn2 2.3.8，Unicode 基础操作使用固定的 libunistring 1.4.2。前者提供 IDNA2008、UTS #46 和 Punycode；后者提供其所需的规范化与 Unicode 操作。两者是本 Cone 的普通 native 依赖，不作为 Scoop API 暴露，不复制到 URL 或 client。
+使用内部 Rust 静态库 `scoop_text_backend`：`idna` 1.1.0 提供 UTS #46 与原始 Punycode，`idna_adapter` 1.2.2 使用 ICU4X 2.3.0 的 normalizer 和 properties；完整依赖由独立 Cargo.lock 固定。普通文本 NFC 复用同一 normalizer，不引入 ICU4C、C++ 或第二份 Unicode 规范化实现。
 
-libidn2 2.3.8 的 IDNA 数据基线为 Unicode 15.1；libunistring 的数据版本不把这组 IDNA 表自动升级为 Unicode 17。文档与版本查询分别记录后端版本及 IDNA 数据版本。升级 IDNA 表属于本库的正常版本更新，不能在 client 中追加另一套字符例外表。
-
-不要求整个 ICU。未选择 ada-idna 0.7.0 作为本期严格 DNS 入口，是因为它明确包含 WHATWG 的宽松处理，ASCII 快路径及 ToUnicode 不能直接作为完整域名有效性检查；仅执行 Punycode 也不足以替代 IDNA。
-
-固定后端修正三处实际校验缺口：lookup 执行已有的 ContextO 规则；RFC 5893 Bidi 检查覆盖整个域名中的所有标签，包括 A-label 解码结果、RTL 标签的 EN／AN 混用与末尾 NSM；Unicode 长度预检查放在 NFC 后，最终 DNS 长度仍按 A-label 计算。复用后端 Unicode 属性与既有转换结果，不添加另一套数据或重复规范化。关闭会删除非 STD3 字符的 `IDN2_USE_STD3_ASCII_RULES` 路径，在 IDNA 包装层按转换结果检查 DNS ASCII 字符与结构；原输入中的 NUL 和控制字符在进入 C 字符串接口前拒绝。
+固定的 normalizer／properties 数据来自 ICU release-78.1rc，Unicode 版本为 17.0.0。ICU4X 的包版本与 Unicode 数据版本分别记录。数据升级属于本库的正常更新，不在 URL 或 client 中追加另一套字符例外表。
 
 ## 2. 转换合同
 
-默认使用 UTS #46 non-transitional 处理及 IDNA2008 有效性规则：大小写与兼容映射、NFC、Punycode、A-label roundtrip、Bidi、ContextJ／ContextO、连字符位置、标签与 DNS 长度检查。ASCII 输入和已经是 `xn--` 的输入同样检查，不通过只转小写的快路径绕过校验。
+采用 UTS #46 non-transitional，显式选择 `AsciiDenyList::STD3`、`Hyphens::Check` 及允许末尾根点的 DNS 长度规则。执行大小写与兼容映射、NFC、Punycode、A-label 有效性、Bidi、ContextJ 和连字符检查。ASCII 与已有 `xn--` 输入使用相同验证入口。
 
-输入为 String，已具有 core 的合法 UTF-8 保证；内嵌 NUL、控制字符、空域名、空中间标签和不符合 DNS 主机名规则的字符报 IdnaException。只允许末尾一个根点，转换后保留；根域 `.` 可以作为独立 IDNA 域名值表达，但 URL 的 HTTP 目标另要求实际 host。DNS wire name 总长不超过 255 字节、每标签不超过 63 字节，按 A-label 结果计算。
+与 M54 的严格 IDNA2008 profile 不同，本版接受上游 UTS #46 允许的符号名称（如 `☃.example`），不另行执行 ContextO（如 `a·b.cat` 可接受），也不按旧表的 NV8／XV8 标记额外拒绝字符。这项变更不放宽 STD3、Bidi、ContextJ、连字符或 DNS 结构规则。
 
-全角点等 UTS #46 定义的映射由同一个后端完成。不能为了得到可连接字符串而删除非法字符。包装层检查实际 DNS 结果与原输入中的结构字符边界；若固定后端的某条校验不符合上述合同，必须在 `scoop.idna` 所属实现或其后端补齐并独立回归，不能降低合同或让 URL／client 补判。
+输入为 String，已有 core 的合法 UTF-8 保证；内嵌 NUL、控制字符、ASCII 下划线、空域名和空中间标签报 IdnaException。末尾最多一个根点，转换后保留；根域 `.` 及单个 UTS #46 Unicode 点分隔符的等价输入可以作为独立 IDNA 域名值，URL HTTP 目标另要求实际 host。DNS wire name 总长不超过 255 字节、每标签不超过 63 字节，均按 A-label 结果计算。
 
-本期不提供 transitional 兼容开关、IDNA2003、混淆字符检测或注册局政策。转换结果表示算法合法，不表示域名已注册、可解析、视觉上不混淆或获某机构授权。
+全角点等映射由后端完成。单标签入口拒绝任何转换后的分隔符。根域是本库既有局部边界，不对普通名称绕过上游检查。转换中不能删除非法 ASCII 字符来得到可连接字符串。
+
+不提供 transitional 开关、IDNA2003、混淆字符检测或注册局政策。转换结果表示算法合法，不表示域名已注册、可解析或视觉上不混淆。
 
 ## 3. 公共 API
 
 | API | 结果 |
 | --- | --- |
-| `Idna.parse(domain): IdnaName` | 一次验证后同时持有规范 `ascii` 和 `unicode` 字符串，供 URL 的传输与展示视图复用 |
-| `Idna.toAscii(domain: String): String` | 完整验证后返回小写 ASCII／A-label，保留可选末尾根点 |
+| `Idna.parse(domain): IdnaName` | 一次验证同时取得规范 `ascii` 和 `unicode`，供传输与展示复用 |
+| `Idna.toAscii(domain: String): String` | 验证后返回小写 ASCII／A-label，保留可选末尾根点 |
 | `Idna.toAsciiOrNone(domain): String?` | 仅对无效域名返回 None |
-| `Idna.toUnicode(domain: String): String` | 验证输入对应的域名后返回规范 U-label；非法 A-label 不作为成功原样返回 |
-| `Idna.toUnicodeOrNone(domain): String?` | 与上一项相同，只转换正常格式失败 |
-| `Idna.labelToAscii(label)`／`labelToUnicode(label)` | 单标签版本，拒绝任何标签分隔符，执行相同有效性检查 |
-| `Punycode.encode(text)`／`decode(text)` | RFC 3492 的原始单标签编码；名称明确区分它与 IDNA 验证 |
+| `Idna.toUnicode(domain: String): String` | 验证后返回规范 U-label；不把带错误标记的结果作为成功文本 |
+| `Idna.toUnicodeOrNone(domain): String?` | 只转换正常格式失败 |
+| `Idna.labelToAscii(label)`／`labelToUnicode(label)` | 单标签版本，拒绝分隔符，使用相同 profile |
+| `Punycode.encode(text)`／`decode(text)` | RFC 3492 原始 codec，与域名验证分离 |
 
-libidn2 的 ToUnicode 本身不是有效性校验入口。公共 `toUnicode` 先取得经过 lookup／roundtrip 验证的域名，再调用后端解码，不把其 unused flags 当成已经执行验证。验证结果在本次转换内复用，不在 URL 或 TLS 的每次访问中重复重跑 Unicode 算法。
+`parse` 使用 `Uts46::process` 的两个输出 sink，并对本次 ASCII 结果检查 DNS 长度；不能串联两次处理或为细分错误逐标签重跑。`IdnaName` 的构造归本库，两个字符串都是独立 Scoop 快照，不持有 native 状态。单一表示入口复用同一处理逻辑。
 
-`IdnaName` 的构造归本库，两个字符串都是独立 Scoop 快照，不持有 native 状态。只需要一种表示时继续使用 `toAscii`／`toUnicode`；同时需要两种表示的调用者使用 `parse`，不串联两个完整验证入口。
+`IdnaException` 保存 operation、kind、可选 code、detail 和可选 labelIndex。无法细分的上游有效性错误为 InvalidLabel，不提供虚构的后端数值或标签索引。包装层直接掌握的结构、ASCII 字符或长度错误可以分别报告 InvalidLabel、Disallowed、NameTooLong 及已知标签索引。原有 InvalidAlabel、Context、Bidi 类别保留，但不承诺新后端逐项区分它们。参数及后端运行故障为 Backend，不被 OrNone 吞掉。`backendVersion` 标明包装层、idna 与 ICU4X 版本；`unicodeVersion` 标明实际数据版本。
 
-`IdnaException` 保存 operation、kind、可选 code 与已复制 detail；kind 区分 InvalidLabel、InvalidAlabel、Disallowed、Context、Bidi、NameTooLong 和 Backend。code 仅在实际后端返回错误时保存原码，包装层检查失败为 None。不能确定某个标签的位置时 labelIndex 为 None，不虚构索引。参数／分配／后端运行故障不被 OrNone 吞掉。`Idna.backendVersion` 记录 libidn2、libunistring 与局部补丁，`unicodeVersion` 记录 IDNA 数据版本。
+原始 Punycode 直接复用 `idna::punycode`，不执行 IDNA 校验、映射、大小写折叠、标签拆分或 DNS 长度限制。空串往返，纯 ASCII 编码保留末尾分隔符；内嵌 NUL 和标点属于数据。非法整数序列、溢出和非 Unicode 标量报格式错误。
 
-原始 Punycode 不执行 IDNA 校验、映射、大小写折叠或分隔标签；空串可往返，纯 ASCII 编码保留 RFC 3492 的末尾分隔符。输入与结果仍须为有效 Unicode 标量序列；非法编码和解码得到的非标量值报格式错误，分配失败保持 Backend。
+输入借用只在同步 FFI 调用内有效。Rust 分配的输出通过同一库的 `scoop_text_free(data, size)` 释放，不能交给 C free；Scoop 在 finally 中释放复制前的 native 结果。零长度允许 null。库不保存 managed 指针，不创建线程或执行 I/O；不因 Rust 实现而增加 GCLeaf 标注。
 
-后端原有 Punycode decode 入口对基本字符和末尾分隔符施加了 DNS 限制。本库为原始 codec 在同一后端算法中提供内部 raw 入口，IDNA 继续使用带 DNS 限制的入口；两者都拒绝整数编码中的非字母数字字符与代理码点，不另写一份 Bootstring 算法。
-
-输入借用只在同步 FFI 调用内有效，返回文本为独立 Scoop String。转换临时资源在返回前全部释放，没有需要调用者关闭的 IDNA 对象。计算是同步内存操作，不创建线程或伪装成网络 suspend。
+格式失败使用返回状态。能显式返回的参数、长度或后端故障映射为 Backend；上游 Rust 的不可恢复分配失败及内部 panic 按 `panic=abort` 终止进程，不保证转成 Scoop 异常，也不跨 C ABI 展开。此边界不把普通无效域名变成 fatal 错误，不引入通用分配预算或 panic 捕获代理。
 
 ## 4. DNS、URL 与 TLS 的使用
 
-URL 从已解析的 host 组件调用 IDNA；百分号解码和 IPv4／IPv6 识别属于 URL，不属于 IDNA。TLS 继续只接收 ASCII／A-label DNS 名或 IP，不从展示文本重新转换。Cookie 域名使用相同 A-label，公共后缀判断另由 HTTP 的域名策略数据承担。
+URL 从已解析的 host 组件调用 IDNA；百分号解码和 IP 识别属于 URL。TLS 只接收已验证的 ASCII／A-label DNS 名或 IP，不从展示文本重算。Cookie 域使用同一 A-label，公共后缀判断由 HTTP 策略数据承担。
 
-通用 DNS 的 OsString 接口保留原始名称语义，不被改成自动 IDNA 接口；网络 client 显式把规范化名称交给它。服务发现中 `_service._tcp` 等名称不属于本库的 DNS 主机名 profile，不能为了接受它们而放宽 URL 的 host 校验。
+通用 DNS 的 OsString 接口保留原始名称语义，网络 client 显式传入规范名称。`_service._tcp` 等服务发现名不属于本库的 DNS hostname profile。
 
 ## 5. 构建与验收
 
-源码、头文件、静态库和许可按 M52 的三个目标布局准备；使用 libidn2 的 LGPL-3.0-or-later 库许可选择，libunistring 与 Unicode 数据保留各自许可。分发同时履行对应源码、修改说明和静态再链接材料要求；不携带 libidn2 的 GPL 命令行程序作为运行依赖。
+维护脚本从固定 Rust package 与锁定依赖准备三个目标的 `libscoop_text_backend.a` 和 C 头文件；源码及许可沿 M52 布局交付。`idna` 使用 MIT／Apache-2.0，ICU4X 与 Unicode 数据使用 Unicode-3.0。普通应用只消费 `.slib` 和静态归档，不执行 Cargo 或探测 Rust 工具链。共同归档复用现有 native library 闭包去重与目标链接规则，见实现规范 §2.8。
 
-使用上游 UTF-8 API，不调用 locale 转换入口。libunistring 构建若需要 iconv，使用目标依赖，不能误用宿主库；该 native 依赖不使 IDNA 的公共接口依赖字符集 Cone。多个静态后端自带的 gnulib 私有辅助符号在构建时使用各自前缀，正常链接器不依赖 archive 顺序选择重复定义。源准备由维护脚本完成，普通应用只消费预编译资源。
+采用 Unicode 17.0.0 `IdnaTestV2.txt`，按本规范的参数检查，独立根点按明确的 profile 边界处理。覆盖符号和 ContextO 的正向差异，STD3、Bidi、ContextJ、伪 A-label、连字符、分隔符、空标签、63／255 字节边界、大小写及 NFC；不以旧 GNU 输出作为新 profile 的唯一 oracle。
 
-测试采用固定 IDNA 数据版本的官方向量和上游测试：Unicode／A-label roundtrip、ASCII 非法项、NFC 等价输入、德语 ß、希腊末尾 sigma、连接符、Bidi、ContextJ／ContextO、伪 A-label、分隔符映射、空标签、63／255 字节边界和末尾根点。为固定版本中任何已知差异建立精确回归，不能把同一个有缺陷的转换结果作为唯一 oracle。
-
-对照 Unicode `IdnaTestV2.txt` 时，按同版本 `IdnaMappingTable.txt` 的 NV8／XV8 标记识别严格 IDNA2008 所排除的字符；本库不为通过较宽松 UTS #46 用例而放开它们。独立根域 `.` 的允许行为是本文第 2 节的明确 profile 差异，其余正常转换与错误结果必须相符。
-
-三个目标运行真实跨 Cone 消费、并行独立调用和 moving GC；更新 native 或 Unicode 数据时重跑本库和 URL／Cookie 的对应组合用例。
+三个目标运行真实 C ABI 调用、跨 Cone 消费、并行独立调用和定向 moving GC。公开行为在 scoop.test 中验证，不增加 fixture。更新数据时重跑 IDNA 及 URL／Cookie 的相应组合。
 
 ## 6. 依据
 
-- [libidn2 官方源码与发行](https://ftp.gnu.org/gnu/libidn/)、[API 参考](https://libidn.gitlab.io/libidn2/reference/api-index-full.html)。
-- [libunistring 发行](https://ftp.gnu.org/gnu/libunistring/)。
-- [UTS #46](https://www.unicode.org/reports/tr46/)、[RFC 5890](https://www.rfc-editor.org/rfc/rfc5890.html)、[RFC 5891](https://www.rfc-editor.org/rfc/rfc5891.html)、[RFC 5892](https://www.rfc-editor.org/rfc/rfc5892.html)、[RFC 5893](https://www.rfc-editor.org/rfc/rfc5893.html)。
-- [ada-idna 的 ToASCII 合同](https://github.com/ada-url/idna/blob/v0.7.0/include/ada/idna/to_ascii.h)。
+- [idna 1.1.0](https://docs.rs/idna/1.1.0/idna/)、[UTS #46 API](https://docs.rs/idna/1.1.0/idna/uts46/struct.Uts46.html)。
+- [ICU4X 2.3.0](https://github.com/unicode-org/icu4x/releases/tag/icu%402.3.0)、[固定 ICU 数据的 Unicode 版本](https://github.com/unicode-org/icu/blob/release-78.1rc/icu4c/source/common/unicode/uchar.h)。
+- [UTS #46](https://www.unicode.org/reports/tr46/)、[RFC 3492](https://www.rfc-editor.org/rfc/rfc3492.html)、[RFC 5893](https://www.rfc-editor.org/rfc/rfc5893.html)。

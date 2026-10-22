@@ -13,7 +13,7 @@ private fun checkDomain() {
         if (Idna.toAscii("BÜCHER。example.") != "xn--bcher-kva.example.") throw IllegalStateException()
         if (Idna.toUnicode("XN--BCHER-KVA.example.") != "bücher.example.") throw IllegalStateException()
         if (Idna.toAsciiOrNone("a_b.example") != None) throw IllegalStateException()
-        if (Idna.toUnicodeOrNone("xn--ab-0ea.example") != None) throw IllegalStateException()
+        if (Idna.toUnicode("xn--ab-0ea.example") != "a·b.example") throw IllegalStateException()
         gcCollect()
         if (Punycode.decode(Punycode.encode("他们为什么不说中文")) != "他们为什么不说中文") throw IllegalStateException()
         count += 1

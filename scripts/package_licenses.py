@@ -42,6 +42,14 @@ def collect(root, repository, source, host, native):
     for vendor in (repository / "sysroot/vendor").iterdir():
         if vendor.is_dir() and vendor.name != "llvm-project":
             add(vendor.name, "See included documents", license_files(vendor))
+            if vendor.name == "text_backend":
+                for package in json.loads((vendor / "packages.json").read_text()):
+                    name = package["name"] + "-" + package["version"]
+                    add(
+                        "text-" + name,
+                        package["license"],
+                        license_files(vendor / "licenses" / name),
+                    )
 
     metadata = json.loads(
         subprocess.check_output(
