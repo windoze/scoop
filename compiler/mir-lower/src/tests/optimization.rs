@@ -8,6 +8,7 @@ mod copies;
 mod interface_views;
 mod intrinsics;
 mod iterations;
+mod observations;
 mod poll_chunks;
 
 fn optimize(module: &mut mir::Module) {

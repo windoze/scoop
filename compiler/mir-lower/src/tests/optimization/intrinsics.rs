@@ -167,6 +167,7 @@ fn intrinsic_references_expand_with_ordinary_optimizations_disabled() {
                 source.module(),
                 options,
                 Default::default(),
+                None,
             );
             let function = module
                 .functions
@@ -229,6 +230,7 @@ fn ordinary_inlining_exposes_an_intrinsic_without_optional_devirtualization() {
             ..Default::default()
         },
         Default::default(),
+        None,
     );
     let function = module
         .functions

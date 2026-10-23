@@ -120,7 +120,8 @@ impl CanonicalHirFoundation {
         })
     }
 
-    fn callable_names(&self, callable: CallableTemplateOwner) -> Option<SourceContextNames> {
+    /// Display labels from the original declaration, never identity fallbacks.
+    pub fn callable_names(&self, callable: CallableTemplateOwner) -> Option<SourceContextNames> {
         let declaration = match callable {
             CallableTemplateOwner::Function(id) => record_key(&self.functions, id),
             CallableTemplateOwner::GenericFunction(id) => record_key(&self.generic_functions, id),

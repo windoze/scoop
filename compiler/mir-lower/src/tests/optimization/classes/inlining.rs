@@ -1,5 +1,6 @@
 use super::*;
 
+mod observations;
 mod retention;
 
 fn program() -> (mir::Module, mir::FunctionId, mir::FunctionId) {

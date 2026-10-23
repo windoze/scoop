@@ -42,7 +42,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     assert_eq!(input.output.imported_dependencies().callable_count(), 1);
     let dependencies = selection::mir(&input);
     let mir = input
-        .lower_selected_mir(dependencies, Default::default())
+        .lower_selected_mir(dependencies, Default::default(), None)
         .unwrap();
     assert_eq!(mir.strong.selected_callables().len(), 1);
     assert_eq!(

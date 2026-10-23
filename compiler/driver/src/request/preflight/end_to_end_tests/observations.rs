@@ -31,6 +31,24 @@ fn observations_stop_at_requested_stage_without_publishing_artifacts() {
         assert!(matches!(result, SingleConeCompilation::Observed(_)));
         assert_eq!(result.emitted_dumps().len(), 1);
         assert_eq!(result.emitted_dumps()[0].kind(), stage);
+        if stage == StageDumpKind::Optimizations {
+            let report: serde_json::Value =
+                serde_json::from_str(result.emitted_dumps()[0].text()).unwrap();
+            assert_eq!(report["schema"], 1);
+            assert_eq!(report["rounds"], 0);
+            assert_eq!(report["converged"], true);
+            assert_eq!(report["passes"]["inline"], false);
+            assert_eq!(report["passes"]["allocation-elision"], false);
+            assert!(report["events"].as_array().unwrap().is_empty());
+            let answer = report["functions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|function| function["name"] == "answer")
+                .unwrap();
+            assert_eq!(answer["declaration"]["source"]["path"], "src/main.scoop");
+            assert_eq!(answer["materialization"]["template"]["kind"], "function");
+        }
         assert!(!output.exists());
     }
     // Parsing an AST observation must not run the type checker.

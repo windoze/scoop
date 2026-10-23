@@ -89,16 +89,16 @@ pub(super) use cost::{
     statement_cost, tree_cost,
 };
 
-pub(super) fn worthwhile(
+pub(super) fn execution_limit(
     structs: &la_arena::Arena<mir::StructDef>,
     cost: usize,
     original: usize,
     in_loop: bool,
     arguments: &[ValueFacts],
     function: &mir::Function,
-) -> bool {
+) -> usize {
     if cost <= 12 {
-        return true;
+        return 12;
     }
     let folds = cost < original && arguments.iter().any(|argument| argument.constant.is_some());
     let receiver = arguments.iter().any(|argument| argument.actual != ActualType::Unknown)
@@ -109,13 +109,11 @@ pub(super) fn worthwhile(
         .params
         .iter()
         .any(|parameter| copy_cost(structs, &parameter.ty) > 0);
-    let threshold = (20
-        + usize::from(in_loop) * 16
+    (20 + usize::from(in_loop) * 16
         + usize::from(folds) * 12
         + usize::from(receiver) * 8
         + usize::from(value_copy) * 4)
-        .min(48);
-    cost <= threshold
+        .min(48)
 }
 
 fn copy_cost(structs: &la_arena::Arena<mir::StructDef>, ty: &mir::Type) -> usize {

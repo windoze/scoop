@@ -45,8 +45,13 @@ fn shared_constructor_initialization_lowers_captures_in_each_executable_body() {
                 let dependencies =
                     scoop_mir::SelectedExternalMirSet::try_from_callables(module.cone, Vec::new())
                         .unwrap();
-                scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default())
-                    .expect("each shared initializer retains its actual capture expressions");
+                scoop_mir_lower::lower_current_cone(
+                    &output,
+                    dependencies,
+                    Default::default(),
+                    None,
+                )
+                .expect("each shared initializer retains its actual capture expressions");
             },
         )
         .unwrap_or_else(|errors| panic!("{case}: {errors:?}"));

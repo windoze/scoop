@@ -26,6 +26,7 @@ pub fn lower_current_cone(
     output: &scoop_hir::DependencyHirOutput,
     mut selected_callables: mir::SelectedExternalMirSet,
     optimization: MirOptimizationOptions,
+    report: Option<&mut mir::optimization_report::OptimizationReport>,
 ) -> Result<mir::DependencyMirOutput, CurrentConeMirLoweringError> {
     let hir = output.output().local.module();
     if selected_callables.consumer() != hir.cone {
@@ -115,6 +116,7 @@ pub fn lower_current_cone(
         hir,
         optimization,
         imported_bodies,
+        report,
     );
     mir::DependencyMirOutput::try_new(module, selected_callables)
         .map_err(CurrentConeMirLoweringError::InvalidOutput)

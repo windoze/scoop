@@ -7,7 +7,7 @@ fn directory() -> HostPathCarrier {
 
 #[test]
 fn all_nonempty_stage_sets_round_trip_in_stage_order() {
-    for bits in 1..16 {
+    for bits in 1..(1 << StageDumpKindV1::ALL.len()) {
         let stages = StageDumpSet::new(
             &StageDumpKindV1::ALL
                 .into_iter()
@@ -38,7 +38,7 @@ fn empty_repeated_and_reordered_stage_sets_are_rejected() {
             Err(ProtocolValidationError::InvalidDumpStages)
         );
     }
-    for stages in [vec![], vec![1, 1], vec![4, 2], vec![5]] {
+    for stages in [vec![], vec![1, 1], vec![4, 2], vec![6]] {
         let raw = DecodedStageDumpPolicyV1::Files {
             stages,
             directory: decode_canonical::<DecodedHostPathCarrier>(&encode(&directory()).unwrap())
@@ -58,4 +58,19 @@ fn empty_repeated_and_reordered_stage_sets_are_rejected() {
 fn retired_single_stage_tag_is_rejected() {
     let error = decode_canonical::<DecodedStageDumpPolicyV1>(&[0xa2, 0, 2, 1, 1]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 2 });
+}
+
+#[test]
+fn optimization_observation_keeps_existing_tags_and_pipeline_order() {
+    use StageDumpKindV1::*;
+    assert_eq!(encode(&Lir).unwrap(), [4]);
+    assert_eq!(encode(&Optimizations).unwrap(), [5]);
+    assert_eq!(
+        StageDumpSet::new(&[Mir, Optimizations, Lir])
+            .unwrap()
+            .iter()
+            .collect::<Vec<_>>(),
+        [Mir, Optimizations, Lir]
+    );
+    assert!(StageDumpSet::new(&[Mir, Lir, Optimizations]).is_err());
 }

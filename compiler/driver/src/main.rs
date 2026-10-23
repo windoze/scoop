@@ -86,6 +86,7 @@ enum Emit {
     Ast,
     Hir,
     Mir,
+    Optimizations,
     Lir,
     All,
 }
@@ -179,6 +180,9 @@ fn build(
             Emit::Ast => scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Ast),
             Emit::Hir => scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Hir),
             Emit::Mir => scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Mir),
+            Emit::Optimizations => {
+                scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Optimizations)
+            }
             Emit::Lir => scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Lir),
             Emit::All => scoop_protocol::StageDumpSet::all(),
         }),

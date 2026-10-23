@@ -39,6 +39,7 @@ fn with_production<R>(
         .lower_selected_mir(
             scoop_mir::SelectedExternalMirSet::empty(ConeIdentity::CORE),
             Default::default(),
+            None,
         )
         .unwrap();
     let mir_foundation: scoop_mir::DecodedMirFoundation = decoded(mir.strong.foundation());

@@ -174,7 +174,7 @@ fn imported_generic_bodies_infer_and_materialize_provider_templates() {
     let _ = scoop_wire::encode(&foundation).unwrap();
     let dependencies =
         scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, Vec::new()).unwrap();
-    scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default())
+    scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default(), None)
         .expect("dependency templates lower through the ordinary MIR body path");
 }
 

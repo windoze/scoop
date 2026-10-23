@@ -90,7 +90,11 @@ fn documentation_requires_production_manifest_and_a_real_frontend_result() {
     for stage in [StageDumpKindV1::Ast, StageDumpKindV1::Hir] {
         assert!(build(documentation(), manifest(), dumps(stage)).is_ok());
     }
-    for stage in [StageDumpKindV1::Mir, StageDumpKindV1::Lir] {
+    for stage in [
+        StageDumpKindV1::Mir,
+        StageDumpKindV1::Optimizations,
+        StageDumpKindV1::Lir,
+    ] {
         assert_eq!(
             build(documentation(), manifest(), dumps(stage)).unwrap_err(),
             ProtocolValidationError::DocumentationMachineDump

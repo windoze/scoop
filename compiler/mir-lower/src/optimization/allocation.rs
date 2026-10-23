@@ -8,6 +8,7 @@ use crate::local_values::LocalValueRegistry;
 
 mod control;
 mod inlining;
+mod observation;
 mod origins;
 mod rewrite;
 mod storage;
@@ -20,6 +21,8 @@ pub(super) fn run(
     module: &mut mir::Module,
     active: &[bool],
     registry: &mut LocalValueRegistry,
+    observer: Option<&super::observation::Observer<'_>>,
+    inliner: Option<&inline::Session>,
 ) -> Vec<bool> {
     let mut changed = vec![false; module.functions.len()];
     let functions = module
@@ -28,13 +31,22 @@ pub(super) fn run(
         .map(|(id, _)| id)
         .collect::<Vec<_>>();
     for id in functions {
-        if !active[index(id)] || !supported(&module.functions[id]) {
+        if !active[index(id)] {
+            continue;
+        }
+        if !supported(&module.functions[id]) {
+            if let Some(observer) = observer {
+                observation::record(module, id, None, observer, inliner);
+            }
             continue;
         }
         let Some(owner) = inline::owner(module, id) else {
             continue;
         };
-        let plan = uses::Plan::new(module, &module.functions[id]);
+        let plan = uses::Plan::new(module, &module.functions[id], observer.is_some());
+        if let Some(observer) = observer {
+            observation::record(module, id, Some(&plan), observer, inliner);
+        }
         if plan.sources.allocations.is_empty() {
             continue;
         }

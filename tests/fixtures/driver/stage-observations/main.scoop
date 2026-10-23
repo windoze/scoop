@@ -1,1 +1,7 @@
-fun main(): Int = 48
+fun answer(value: Int): Int = value
+fun sum(values: ArrayList<Long>): Long {
+    var total = 0L
+    for (value in values) total += value
+    return total
+}
+fun main(): Int = answer(48)

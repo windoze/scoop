@@ -14,7 +14,7 @@ pub(in crate::optimization) struct Receiver {
 
 impl InlineReceivers {
     pub fn new(module: &mir::Module, function: &mir::Function) -> Option<Self> {
-        super::supported(function).then(|| Self(Plan::new(module, function)))
+        super::supported(function).then(|| Self(Plan::new(module, function, false)))
     }
 
     pub fn receiver(&self, operand: &mir::Expr) -> Option<Receiver> {

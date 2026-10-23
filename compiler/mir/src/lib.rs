@@ -30,6 +30,8 @@ pub use ids::*;
 mod integer;
 pub use integer::*;
 
+pub mod optimization_report;
+
 mod data_borrow;
 pub use data_borrow::*;
 

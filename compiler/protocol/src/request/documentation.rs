@@ -17,6 +17,7 @@ pub(super) fn validate_documentation(
     if output.artifact().is_none()
         && let StageDumpPolicyV1::Files { stages, .. } = emit
         && (stages.contains(crate::StageDumpKindV1::Mir)
+            || stages.contains(crate::StageDumpKindV1::Optimizations)
             || stages.contains(crate::StageDumpKindV1::Lir))
     {
         return Err(ProtocolValidationError::DocumentationMachineDump);

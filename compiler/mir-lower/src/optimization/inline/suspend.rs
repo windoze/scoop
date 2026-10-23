@@ -173,14 +173,15 @@ fn choose(
         let source = &templates[&callee];
         let growth = source.cost.size.saturating_sub(6).max(1);
         if growth <= state.remaining
-            && policy::worthwhile(
-                &lowerer.structs.defs,
-                source.cost.execution,
-                source.cost.execution,
-                in_loop[index(site.block)],
-                &[],
-                &source.function,
-            )
+            && source.cost.execution
+                <= policy::execution_limit(
+                    &lowerer.structs.defs,
+                    source.cost.execution,
+                    source.cost.execution,
+                    in_loop[index(site.block)],
+                    &[],
+                    &source.function,
+                )
         {
             state.remaining -= growth;
             return Some((order, callee));

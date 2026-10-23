@@ -111,6 +111,7 @@ pub(super) enum Emit {
     Ast,
     Hir,
     Mir,
+    Optimizations,
     Lir,
     All,
 }
@@ -121,6 +122,7 @@ impl Emit {
             Self::Ast => Set::one(Stage::Ast),
             Self::Hir => Set::one(Stage::Hir),
             Self::Mir => Set::one(Stage::Mir),
+            Self::Optimizations => Set::one(Stage::Optimizations),
             Self::Lir => Set::one(Stage::Lir),
             Self::All => Set::all(),
         }

@@ -3,12 +3,14 @@ use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
 };
 
+use super::observation::Observer;
 use super::{
     flow,
     graph::{self, index},
     mir, simplify,
 };
 use crate::local_values::LocalValueRegistry;
+use mir::optimization_report::{InlineOutcome, OptimizationDecision, OptimizationSite};
 
 mod class_fields;
 mod clone;
@@ -21,6 +23,15 @@ pub(super) use suspend::run as inline_synchronous_coroutines;
 enum Target {
     Local(mir::FunctionId),
     Imported(mir::ExternalCallableUseId),
+}
+
+impl Target {
+    fn callee(self) -> mir::Callee {
+        match self {
+            Self::Local(id) => mir::Callee::User(id),
+            Self::Imported(id) => mir::Callee::External(id),
+        }
+    }
 }
 
 struct Choice {
@@ -89,18 +100,56 @@ impl Session {
         module: &mut mir::Module,
         active: &[bool],
         registry: &mut LocalValueRegistry,
+        observer: Option<&Observer<'_>>,
     ) -> Vec<bool> {
         // Devirtualization can reveal cycles that were absent in earlier rounds.
         let recursive = policy::recursive(module);
-        let eligible = self
+        let exclusions = self
             .supported
             .iter()
             .enumerate()
-            .map(|(id, supported)| *supported && !recursive[id] && !self.protocol[id])
+            .map(|(id, supported)| {
+                if !supported {
+                    Some(InlineOutcome::UnsupportedBody)
+                } else if recursive[id] {
+                    Some(InlineOutcome::RecursiveCallee)
+                } else if self.protocol[id] {
+                    Some(InlineOutcome::ProtocolCallee)
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>();
         let mut changed = vec![false; module.functions.len()];
         for (id, _) in self.templates.iter() {
-            if !active[index(id)] || (self.ordinary && self.protocol[index(id)]) {
+            if !active[index(id)] {
+                continue;
+            }
+            if self.ordinary && self.protocol[index(id)] {
+                if let Some(observer) = observer {
+                    for (block_id, block) in module.functions[id].body.blocks.iter() {
+                        for (statement, node) in block.statements.iter().enumerate() {
+                            if let mir::StatementKind::Call(effect) = &node.kind {
+                                observer.record(
+                                    OptimizationSite {
+                                        function: id,
+                                        block: block_id,
+                                        statement,
+                                        span: node.span,
+                                        inline_path: self.ancestry(id, block_id),
+                                    },
+                                    OptimizationDecision::Inline {
+                                        target: super::observation::call_target(
+                                            &super::call(effect).target,
+                                        ),
+                                        outcome: InlineOutcome::ProtocolCaller,
+                                        estimate: None,
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
                 continue;
             }
             if !self.ordinary
@@ -123,12 +172,13 @@ impl Session {
             let context = Context {
                 module,
                 templates: &self.templates,
-                eligible: &eligible,
+                exclusions: &exclusions,
                 costs: &self.costs,
                 required: &self.required,
                 ordinary: self.ordinary,
                 allocation_elision: self.allocation_elision,
                 imported: &self.imported,
+                observer,
             };
             let (body, rewritten) =
                 context.optimize(id, owner, registry, &mut self.callers[index(id)]);
@@ -145,38 +195,52 @@ impl Session {
         registry: &mut LocalValueRegistry,
     ) -> Vec<bool> {
         let ordinary = std::mem::replace(&mut self.ordinary, false);
-        let changed = self.run(module, active, registry);
+        let changed = self.run(module, active, registry, None);
         self.ordinary = ordinary;
         changed
     }
+
+    pub(super) fn ancestry(
+        &self,
+        function: mir::FunctionId,
+        block: mir::BlockId,
+    ) -> Vec<mir::Callee> {
+        self.callers[index(function)].ancestry[index(block)]
+            .iter()
+            .map(|target| target.callee())
+            .collect()
+    }
 }
 
-struct Context<'a> {
+struct Context<'a, 'report> {
     module: &'a mir::Module,
     templates: &'a Arena<mir::Function>,
-    eligible: &'a [bool],
+    exclusions: &'a [Option<InlineOutcome>],
     costs: &'a [policy::Cost],
     required: &'a super::intrinsics::Entries,
     ordinary: bool,
     allocation_elision: bool,
     imported: &'a crate::imported_bodies::ImportedBodies,
+    observer: Option<&'a Observer<'report>>,
 }
 
-impl Context<'_> {
-    fn target(&self, call: &mir::Call) -> Option<Target> {
+impl Context<'_, '_> {
+    fn target(&self, call: &mir::Call) -> Result<Target, InlineOutcome> {
         if let Some(local) = policy::local_target(self.module, call) {
-            return self.eligible[index(local)].then_some(Target::Local(local));
+            return self.exclusions[index(local)].map_or(Ok(Target::Local(local)), Err);
         }
-        if let mir::CallTarget::Direct(mir::Callee::External(id)) = call.target
-            && self
-                .imported
-                .functions
-                .get(&id)
-                .is_some_and(policy::supported)
-        {
-            return Some(Target::Imported(id));
+        if let mir::CallTarget::Direct(mir::Callee::External(id)) = call.target {
+            return match self.imported.functions.get(&id) {
+                Some(function) if policy::supported(function) => Ok(Target::Imported(id)),
+                Some(_) => Err(InlineOutcome::UnsupportedBody),
+                None => Err(InlineOutcome::NoBody),
+            };
         }
-        None
+        Err(if matches!(call.target, mir::CallTarget::Direct(_)) {
+            InlineOutcome::NoBody
+        } else {
+            InlineOutcome::IndirectCall
+        })
     }
 
     fn template(&self, target: Target) -> &mir::Function {
@@ -212,7 +276,7 @@ impl Context<'_> {
         let mut function = self.module.functions[id].clone();
         let mut changed = false;
         loop {
-            let choices = self.choose(&function, &state.ancestry, &mut state.remaining);
+            let choices = self.choose(id, &function, &state.ancestry, &mut state.remaining);
             if choices.is_empty() {
                 break;
             }

@@ -288,6 +288,7 @@ mod tests {
             (StageDumpKind::Ast, StageDumpKind::Ast),
             (StageDumpKind::Hir, StageDumpKind::Hir),
             (StageDumpKind::Mir, StageDumpKind::Mir),
+            (StageDumpKind::Optimizations, StageDumpKind::Optimizations),
             (StageDumpKind::Lir, StageDumpKind::Lir),
         ] {
             assert_eq!(
