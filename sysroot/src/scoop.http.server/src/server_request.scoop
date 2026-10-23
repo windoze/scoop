@@ -22,6 +22,7 @@ internal suspend fun executeHttp1Request(state: ServerState, entry: ServerConnec
         executeRequestPipeline(state.application, request, output, requestId, entry.info, state.options.requestDeadline, result)
     } catch (error: Throwable) { result.failure = Some(error) }
     finally {
+        closeRequestViews(result)
         try { incoming.body.close() }
         catch (cleanup: Throwable) {
             result.failure = Some(if (present(result.failure)) ResourceUseException(result.failure!!, cleanup) else cleanup)
@@ -29,6 +30,14 @@ internal suspend fun executeHttp1Request(state: ServerState, entry: ServerConnec
         completeServerRequest(state, result, started)
     }
     if (present(result.failure)) throw result.failure!!
+}
+
+internal suspend fun closeRequestViews(result: RequestExecution) {
+    if (!present(result.context)) return
+    try { result.context!!.request.body.closeView() }
+    catch (cleanup: Throwable) {
+        result.failure = Some(if (present(result.failure)) ResourceUseException(result.failure!!, cleanup) else cleanup)
+    }
 }
 
 internal fun completeServerRequest(state: ServerState, result: RequestExecution, started: TimeMark) {

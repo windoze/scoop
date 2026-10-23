@@ -30,7 +30,7 @@ private fun sseFailureText(error: Throwable?): String = when (error) {
                 h2ServerClient(address, scope).useAsync suspend { client ->
                     val events = client.openRequest(h2ServerRequest("/events"))
                     assertEquals(200U, events.receiveResponse().status)
-                    assertEquals(": \n\n", readSseText(events, 4L))
+                    assertEquals(": \n\n", readNetworkText(events, 4L))
                     val stopping: Job? = if (action == "shutdown") Some(scope.launch suspend { server.close() }) else None
                     try {
                         if (action == "reset") events.close()

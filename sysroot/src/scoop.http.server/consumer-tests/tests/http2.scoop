@@ -1,6 +1,7 @@
 package scoop.tests.http.server.consumer
 
 import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
 import scoop.http.*
 import scoop.http.asyncio.*
 import scoop.http.server.*
@@ -8,8 +9,21 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.*
 import scoop.test.*
 
+private suspend fun consumerResponseText(source: AsyncByteSource): String {
+    val result = ByteArrayBuilder()
+    NativeByteBuffer.allocate(32L).use suspend { buffer ->
+        while (true) {
+            buffer.clear()
+            val count = source.readInto(buffer, buffer.writableBytes)
+            if (count == 0L) break
+            result.append(buffer.readBytes(count))
+        }
+    }
+    return String.fromUtf8(result.toByteArray())
+}
+
 @Test private class HttpServerH2ConsumerTests {
-    @Test fun `published server supports HTTP2 response streams and SSE through public APIs`() {
+    @Test fun `published server supports HTTP2 streams SSE and multipart through public APIs`() {
         val routes = RouterBuilder()
         routes.get("/", suspend { ctx ->
             assertEquals(HttpProtocol.Http2, ctx.connection.protocol)
@@ -19,6 +33,14 @@ import scoop.test.*
             ctx.setDeadline(None)
             val id = ctx.request.lastEventId
             sse(produce = suspend { events -> events.send(SseMessage(Some("public SSE"), id = id)) })
+        })
+        routes.post("/upload", suspend { ctx ->
+            ctx.request.body.multipart(RequestMultipartOptions(maxPartBytes = 16L)).useAsync suspend { reader ->
+                val part = reader.nextPart()!!
+                val result = part.name + ":" + part.text()
+                assertTrue(when (reader.nextPart()) { case None -> true; case Some(_) -> false })
+                text(result)
+            }
         })
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { scope ->
@@ -30,16 +52,7 @@ import scoop.test.*
                         HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/".toByteArray()))
                     val response = client.openRequest(request)
                     assertEquals(200U, response.receiveResponse().status)
-                    NativeByteBuffer.allocate(32L).use suspend { buffer ->
-                        val result = StringBuilder()
-                        while (true) {
-                            buffer.clear()
-                            val count = response.readInto(buffer, buffer.writableBytes)
-                            if (count == 0L) break
-                            result.append(String.fromUtf8(buffer.readBytes(count)))
-                        }
-                        assertEquals("public h2", result.toString())
-                    }
+                    assertEquals("public h2", consumerResponseText(response))
                     val eventRequest = HttpRequestHead(HttpVersion.Http2, "GET".toByteArray(),
                         HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/events".toByteArray()),
                         [HttpField("Last-Event-ID".toByteArray(), "42".toByteArray())])
@@ -51,6 +64,15 @@ import scoop.test.*
                         assertEquals("42", event.lastEventId)
                         assertTrue(when (source.next()) { case None -> true; case Some(_) -> false })
                     }
+                    val uploadHead = HttpRequestHead(HttpVersion.Http2, "POST".toByteArray(),
+                        HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/upload".toByteArray()),
+                        [HttpField("Content-Type".toByteArray(), "multipart/form-data; boundary=external".toByteArray())])
+                    val upload = client.openRequest(uploadHead, false)
+                    val body = "--external\r\nContent-Disposition: form-data; name=message\r\n\r\npublished\r\n--external--\r\n".toByteArray()
+                    NativeByteBuffer.allocate(body.size).use suspend { buffer -> buffer.writeBytes(body); upload.writeFully(buffer) }
+                    upload.finish()
+                    assertEquals(200U, upload.receiveResponse().status)
+                    assertEquals("message:published", consumerResponseText(upload))
                     server.shutdownGracefully()
                     assertTrue(server.isClosed)
                 }

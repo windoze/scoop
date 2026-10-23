@@ -3,6 +3,7 @@ package scoop.http.server
 import scoop.asyncio.*
 import scoop.bytes.ByteArrayBuilder
 import scoop.http.HttpField
+import scoop.http.asyncio.MultipartSource
 import scoop.json.Json
 import scoop.platform.memory.NativeByteBuffer
 import scoop.url.*
@@ -14,6 +15,8 @@ public class HttpRequestBody internal constructor(source: AsyncByteSource, limit
     public val bufferedBodyLimit: Long = 2097152L) {
     private val selectionLock: ServerLock = ServerLock()
     private var selected: Boolean = false
+    private var ended: Boolean = false
+    private var localView: AsyncCloseable? = None
     private val input: RequestBodySource = RequestBodySource(source, limit)
     internal val receivedBytes: Long get() = input.receivedBytes
 
@@ -23,17 +26,39 @@ public class HttpRequestBody internal constructor(source: AsyncByteSource, limit
     /** Claims the body once as a streaming byte source. */
     public fun openStream(): AsyncByteSource {
         return selectionLock.withLock {
-            if (selected) throw IllegalStateException(Some("request body already has a consumer"))
+            requireSelection()
             selected = true
             input
         }
+    }
+
+    /** Selects one lazy form-data reader, whose local resources also belong to this request. */
+    public fun multipart(options: RequestMultipartOptions = RequestMultipartOptions()): RequestMultipart {
+        val boundary = requestMultipartBoundary(fields)
+        return selectionLock.withLock {
+            requireSelection()
+            val reader = RequestMultipart(MultipartSource(input, boundary, options.limits, options.bufferSize), options)
+            selected = true
+            localView = Some<AsyncCloseable>(reader)
+            reader
+        }
+    }
+
+    internal suspend fun closeView() {
+        val view = selectionLock.withLock { ended = true; val value = localView; localView = None; value }
+        if (present(view)) view!!.close()
+    }
+
+    private fun requireSelection() {
+        if (ended) throw IllegalStateException(Some("request body is no longer active"))
+        if (selected) throw IllegalStateException(Some("request body already has a consumer"))
     }
 
     /** Overrides the total input limit before selecting a consumption path; None disables it. */
     public fun setLimit(maxBytes: Long?) {
         if (present(maxBytes) && maxBytes!! < 0L) throw IllegalArgumentException(Some("negative request body limit"))
         selectionLock.withLock {
-            if (selected) throw IllegalStateException(Some("request body already has a consumer"))
+            requireSelection()
             input.limit = maxBytes
         }
     }

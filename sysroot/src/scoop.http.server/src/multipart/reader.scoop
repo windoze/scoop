@@ -1,0 +1,48 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.asyncio.MultipartSource
+import scoop.http.asyncio.MultipartPart
+
+/** A single-pass form-data view, borrowing the underlying HTTP request body. */
+public class RequestMultipart internal constructor(private val source: MultipartSource,
+    private val options: RequestMultipartOptions) : AsyncCloseable {
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private var current: RequestPart? = None
+
+    /** Whether the closing delimiter and outer body EOF were both consumed. */
+    public val isFinished: Boolean get() = source.isFinished
+    /** Whether this view's local decoder and buffers have been released. */
+    public val isClosed: Boolean get() = source.isClosed
+
+    /** Receives the next part only after the current one has reached EOF or been discarded. */
+    public suspend fun nextPart(): RequestPart? {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("concurrent multipart iteration"))
+        try {
+            if (present(current)) {
+                if (!current!!.isComplete) throw IllegalStateException(Some("current multipart part must be completed first"))
+            }
+            val next = multipartInput<MultipartPart?> suspend { source.nextPart() }
+            if (present(current)) current!!.retire()
+            current = None
+            if (!present(next)) return None
+            try {
+                val part = RequestPart(next!!, this, options)
+                current = Some(part)
+                return Some(part)
+            } catch (error: Throwable) { fail(error) }
+        } finally { busy.store(false) }
+    }
+
+    /** Releases local state without draining or closing the borrowed HTTP body. */
+    public override suspend fun close() {
+        try { source.close() }
+        finally { if (present(current)) current!!.retire(); current = None }
+    }
+
+    internal suspend fun fail(error: Throwable): Nothing {
+        try { close() }
+        catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}

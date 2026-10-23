@@ -88,7 +88,7 @@ ASP.NET Core 的请求参数绑定也不只是 DI：HttpContext、Request、Resp
                  TCP / TLS
 ~~~
 
-scoop.http.server 可以依赖 scoop.url 和 scoop.json，提供常用应用 API。公共类型复用 HttpField、HttpRequestHead、HttpSetCookie、Duration 等现有类型，避免为同一个概念再建一套格式或校验器。
+scoop.http.server 可以依赖 scoop.url 和 scoop.json，提供常用应用 API；multipart 文本提取复用 scoop.charset。公共类型复用 HttpField、HttpRequestHead、HttpSetCookie、Duration 等现有类型，避免为同一个概念再建一套格式或校验器。
 
 职责边界：
 

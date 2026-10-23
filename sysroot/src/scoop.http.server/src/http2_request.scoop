@@ -20,6 +20,7 @@ internal suspend fun executeHttp2Request(state: ServerState, entry: ServerConnec
         }
     } catch (error: Throwable) { result.failure = Some(error) }
     finally {
+        closeRequestViews(result)
         try {
             if (!incoming.stream.isReadComplete || !incoming.stream.isWriteComplete) incoming.stream.close()
         } catch (cleanup: Throwable) {

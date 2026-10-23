@@ -1,0 +1,71 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class RequestPartInput(private val body: MultipartBody, private val owner: RequestMultipart,
+    private val limit: Long) : AsyncByteSource {
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private val retired: AtomicBoolean = AtomicBoolean(false)
+    private var consumed: Long = 0L
+    val isComplete: Boolean get() = body.isComplete
+
+    suspend fun <T> withRead(block: suspend () -> T): T {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("concurrent multipart part reads"))
+        try {
+            ensureActive()
+            if (retired.load()) throw IllegalStateException(Some("multipart part is no longer current"))
+            return block()
+        } finally { busy.store(false) }
+    }
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        withRead<Long> suspend { read(buffer, count) }
+
+    private suspend fun read(buffer: NativeByteBuffer, count: Long): Long {
+        if (count < 0L || count > buffer.writableBytes) throw IndexOutOfBoundsException()
+        val remaining = limit - consumed
+        val requested = if (remaining < count) remaining + 1L else count
+        val read = multipartInput<Long> suspend { body.readInto(buffer, requested) }
+        if (read > remaining) exceeded("multipart part exceeds its byte limit")
+        consumed += read
+        return read
+    }
+
+    suspend fun consume(maxBytes: Long, accept: suspend (NativeByteBuffer, Long) -> Unit): Long =
+        withRead<Long> suspend {
+            NativeByteBuffer.allocate(8192L).use suspend { buffer ->
+                var total = 0L
+                while (true) {
+                    buffer.clear()
+                    val remaining = maxBytes - total
+                    val count = read(buffer, if (remaining < 8192L) remaining + 1L else 8192L)
+                    if (count == 0L) break
+                    if (count > remaining) exceeded("multipart part exceeds its consumption limit")
+                    accept(buffer, count)
+                    total += count
+                }
+                total
+            }
+        }
+
+    suspend fun discard(maxBytes: Long): Long = withRead<Long> suspend {
+        val remaining = limit - consumed
+        val allowed = if (maxBytes < remaining) maxBytes else remaining
+        try {
+            val discarded = multipartInput<Long> suspend { body.discard(allowed) }
+            consumed += discarded
+            discarded
+        } catch (_: MultipartDiscardLimitException) { exceeded("multipart discard exceeds its byte limit") }
+    }
+
+    private suspend fun exceeded(detail: String): Nothing { owner.fail(HttpRejection(text(detail, 413U))) }
+
+    fun retire() { retired.store(true) }
+
+    suspend fun close() {
+        try { body.close() }
+        finally { retire() }
+    }
+}

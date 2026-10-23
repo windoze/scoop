@@ -2,12 +2,8 @@ package scoop.http.server
 
 import scoop.asyncio.*
 import scoop.http.*
-import scoop.platform.memory.NativeByteBuffer
 import scoop.test.*
 import scoop.time.Duration
-
-internal suspend fun readSseText(source: AsyncByteSource, count: Long): String =
-    NativeByteBuffer.allocate(count).use suspend { buffer -> source.readFully(buffer); String.fromUtf8(buffer.readBytes(count)) }
 
 private class SseWriterHolder { var value: SseWriter? = None }
 
@@ -33,7 +29,7 @@ private class SseWriterHolder { var value: SseWriter? = None }
                     assertEquals("no-cache", RequestHeaders(head.fields).getSingle("Cache-Control")!!)
                     assertEquals(None, parseHttpContentLength(head.fields))
                     send.signal()
-                    assertEquals(expected, readSseText(body, expected.byteLength))
+                    assertEquals(expected, readNetworkText(body, expected.byteLength))
                     assertFalse(finished.load())
                     finish.signal()
                     assertEquals("", networkText(body))

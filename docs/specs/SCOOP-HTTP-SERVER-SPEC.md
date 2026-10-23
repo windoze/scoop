@@ -46,7 +46,7 @@ RequestCookies 延迟复用 HttpCookieHeader.parseFields 的结果；getAllBytes
 
 HttpRequestBody.json 使用显式 ValueDecoder 或 T.Companion；只接受 application/json 和 application/*+json。form 接受 application/x-www-form-urlencoded，复用 FormUrlEncoded；其加号为空格。两者检查唯一且语法合法的 Content-Type；缺失／不支持的媒体类型或 charset 为 415，畸形／重复字段为 400。只支持 UTF-8，未声明 charset 也按 UTF-8 处理。没有安装内容解码策略时，结构化入口对非 identity Content-Encoding 返回 415；bytes 和 openStream 保持原始字节。正文解析、UTF-8 和 codec 输入不匹配在提取边界变为 400；业务代码自行抛出的解码错误仍走 500 映射。
 
-结构化入口先检查元数据，再取得单次消费权并执行有界聚合；不会为错误媒体类型读取上传。bytes、text、json、form 与 openStream 共用消费权。JSON 仍使用现有完整值树 codec，不是流式 JSON 解码器。
+结构化入口先检查元数据，再取得单次消费权并执行有界聚合；不会为错误媒体类型读取上传。bytes、text、json、form、multipart 与 openStream 共用消费权。请求结束后不能选择新的消费方式或修改输入上限，以免在已结束的请求上创建无归属的 decoder 视图。JSON 仍使用现有完整值树 codec，不是流式 JSON 解码器；multipart 按第 8 节逐 part 读取。
 
 ## 5. 连接接入、限制与停机
 
@@ -90,6 +90,18 @@ SseOptions.heartbeatInterval 默认 None，启用时必须为正 Duration。计�
 
 SSE 的动态响应压缩默认关闭；明确开启后的 flush 合同随响应压缩功能一起交付。
 
-## 8. 分步交付与验证
+## 8. Multipart 上传
+
+HttpRequestBody.multipart(options) 在读取前检查唯一 Content-Type、multipart/form-data、有效 boundary 和已安装的内容解码策略，然后占用 body 唯一消费权。未安装解码时非 identity 编码为 415；缺失或不匹配的媒体类型为 415，重复／非法字段及缺失／非法 boundary 为 400。构造不预读，不创建文件。RequestMultipart 借用选定的请求流和现有 MultipartSource；close 只释放本地视图，不自动 drain，也不提前关闭底层 HTTP body。请求执行器在管线结束后统一关闭本地视图，再收尾 HTTP 输入；用户也可在 producer／handler 中 useAsync 提前关闭。
+
+nextPart 按线上顺序返回 RequestPart，完成外层 EOF 验证后返回 None。当前 part 必须读到 EOF 或完成显式 discard 后才能推进；旧流在推进后失效。part.head 保留原字段；nameBytes 是必需的 form-data name 参数，filenameBytes 可缺失或为空。空 name 保留；name／filename 的文本属性严格按 UTF-8 解码，不猜编码、不百分号解码、不解释路径、不优先使用 filename*。重复字段与附件分别交付，不折叠成 Map；缺失／非法 Content-Disposition 或 name 为 400。
+
+part.openStream、text 和 copyTo 共用一次消费权。discard(maxBytes) 可显式丢弃尚未读取的余下内容；关闭未完成 part 终止整个 multipart 视图。RequestMultipartOptions 复用 MultipartLimits，另外默认 maxFieldBytes=64 KiB、maxPartBytes=8 MiB、bufferSize=8192；上限须非负，bufferSize 须为正。每个 part 的实际累计字节在所有入口之间共享，文本上限取调用上限、字段上限与 part 上限的最小值。copyTo(sink, maxBytes) 使用有限缓冲并处理短写，借用 sink，不隐式 flush 或关闭。discard 复用底层有界丢弃，仍受剩余 part 上限约束。所有总量上限至多多读一个字节来区分恰好到限和超限；超限为 413，并使当前 multipart 视图不可继续读取。外层头部、boundary、preamble 和 epilogue 仍计入 requestBodyLimit。
+
+text 可显式传入 Charset，也使用 part Content-Type 中声明的有效 charset；两者冲突为 400，输入声明的不支持 charset 为 415。默认严格 UTF-8，BOM 行为复用 Charset.decode 的默认规则；只把实际文本输入错误映射为 400，后端故障保留原异常。_charset_ 是普通字段，嵌套 multipart 是普通正文，均不自动改变后续解析。格式错误／截断为 400，底层 MultipartLimits 超限为 413；只有读取本次输入产生的错误在提取边界转换，应用 sink、文件和业务错误保持真实原因。
+
+保存文件由应用显式组合 AsyncFile、copyTo、createTempFile 和 moveFile。客户端 filename 不参与路径选择；需要失败不发布时，应用读取所有 part 及外层 EOF、关闭文件后才移动到选定目标，并在失败或取消时删除自己创建的临时文件。库不增加存储插件或后台清理服务。
+
+## 9. 分步交付与验证
 
 接入、超时与停机、SSE、multipart、WebSocket、压缩、文件和 DTO 的完整范围保持设计第 12～17 节，按完成的功能逐项扩充本规范。尚未实现的功能不公开占位 API。测试用所属 Cone 的 release 测试；只有 CLI／诊断／外部对端等必要边界使用 fixture。协议引擎的既有验证不在 server 重放。

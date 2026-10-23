@@ -1,0 +1,74 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.charset.Charset
+import scoop.http.*
+import scoop.http.asyncio.MultipartPart
+
+/** One ordered form-data part with strict text metadata and a single body consumption path. */
+public class RequestPart internal constructor(part: MultipartPart, owner: RequestMultipart,
+    private val options: RequestMultipartOptions) : AsyncCloseable {
+    private val disposition: HttpContentDisposition = requestPartDisposition(part.head)
+    private val input: RequestPartInput = RequestPartInput(part.body, owner, options.maxPartBytes)
+    private val selected: AtomicBoolean = AtomicBoolean(false)
+
+    /** The original ordered part fields; Content-Length does not change boundary framing. */
+    public val head: MultipartPartHead = part.head
+    /** The raw, unescaped name parameter, including an explicitly empty name. */
+    public val nameBytes: Array<Byte> = disposition.parameter("name")!!.value
+    /** The raw filename parameter; missing and empty filenames remain distinct. */
+    public val filenameBytes: Array<Byte>? = when (disposition.parameter("filename")) {
+        case None -> None
+        case Some(value) -> Some(value.value)
+    }
+    /** The name interpreted strictly as UTF-8. */
+    public val name: String get() = inputText(nameBytes, "multipart name")
+    /** The optional filename interpreted strictly as UTF-8, without path processing. */
+    public val filename: String? get() = when (filenameBytes) {
+        case None -> None
+        case Some(value) -> Some(inputText(value, "multipart filename"))
+    }
+    /** Whether this part reached its boundary through a positive-sized read or discard. */
+    public val isComplete: Boolean get() = input.isComplete
+
+    private fun select() {
+        if (!selected.compareAndSet(false, true)) throw IllegalStateException(Some("multipart part already has a consumer"))
+    }
+
+    /** Claims a bounded stream that becomes invalid when iteration advances. */
+    public fun openStream(): AsyncByteSource { select(); return input }
+
+    /** Collects text within the configured field and part limits. */
+    public suspend fun text(charset: Charset? = None): String = text(options.maxFieldBytes, charset)
+
+    /** Collects text within the smaller of the explicit, configured field and part limits. */
+    public suspend fun text(maxBytes: Long, charset: Charset? = None): String {
+        if (maxBytes < 0L) throw IllegalArgumentException(Some("negative multipart text limit"))
+        val encoding = requestPartCharset(head, charset)
+        select()
+        val result = ByteArrayBuilder()
+        val limit = if (maxBytes < options.maxFieldBytes) maxBytes else options.maxFieldBytes
+        input.consume(limit, suspend { buffer, count -> result.append(buffer.readBytes(count)); Unit })
+        return requestPartText(result.toByteArray(), encoding)
+    }
+
+    /** Copies bounded content with backpressure, without flushing or closing the borrowed sink. */
+    public suspend fun copyTo(sink: AsyncByteSink, maxBytes: Long): Long {
+        if (maxBytes < 0L) throw IllegalArgumentException(Some("negative multipart copy limit"))
+        select()
+        return input.consume(maxBytes, suspend { buffer, count -> sink.writeFully(buffer, count) })
+    }
+
+    /** Explicitly discards remaining body bytes within both limits, even after a partial read. */
+    public suspend fun discard(maxBytes: Long): Long {
+        if (maxBytes < 0L) throw IllegalArgumentException(Some("negative multipart discard limit"))
+        selected.store(true)
+        return input.discard(maxBytes)
+    }
+
+    /** Closes this view; abandoning an incomplete part terminates the multipart reader. */
+    public override suspend fun close() { input.close() }
+
+    internal fun retire() { input.retire() }
+}

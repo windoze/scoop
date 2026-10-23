@@ -1,0 +1,37 @@
+package scoop.http.server
+
+import scoop.charset.*
+import scoop.http.*
+
+internal fun requestPartDisposition(head: MultipartPartHead): HttpContentDisposition {
+    val value = RequestHeaders(head.fields).getSingleBytes("Content-Disposition")
+        ?: reject(400U, "missing form-data Content-Disposition")
+    try {
+        val disposition = HttpContentDisposition.parse(value)
+        if (disposition.disposition != "form-data" || !present(disposition.parameter("name")))
+            reject(400U, "invalid form-data disposition or name")
+        return disposition
+    } catch (_: HttpFieldParseException) { reject(400U, "invalid form-data Content-Disposition") }
+}
+
+internal fun requestPartCharset(head: MultipartPartHead, explicit: Charset?): Charset {
+    val declared: Charset? = try {
+        val media = HttpMediaType.parseFields(head.fields)
+        val parameter = if (present(media)) media!!.parameter("charset") else None
+        when (parameter) {
+            case None -> None
+            case Some(value) -> Some(Charset.forNameOrNone(inputText(value.value, "part charset"))
+                ?: reject(415U, "unsupported multipart charset"))
+        }
+    } catch (_: HttpFieldParseException) { reject(400U, "invalid part Content-Type") }
+    if (present(explicit) && present(declared) && explicit!! != declared!!) reject(400U, "conflicting multipart charset")
+    return explicit ?: declared ?: Charset.Utf8
+}
+
+internal fun requestPartText(bytes: Array<Byte>, charset: Charset): String {
+    try { return charset.decode(bytes) }
+    catch (error: CharsetException) {
+        if (error.kind == CharsetFailureKind.Backend || error.kind == CharsetFailureKind.InvalidOptions) throw error
+        reject(400U, "invalid multipart text")
+    }
+}

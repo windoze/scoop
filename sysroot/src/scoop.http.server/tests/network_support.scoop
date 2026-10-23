@@ -75,6 +75,9 @@ internal suspend fun networkText(source: AsyncByteSource): String {
     return String.fromUtf8(result.toByteArray())
 }
 
+internal suspend fun readNetworkText(source: AsyncByteSource, count: Long): String =
+    NativeByteBuffer.allocate(count).use suspend { buffer -> source.readFully(buffer); String.fromUtf8(buffer.readBytes(count)) }
+
 internal suspend fun networkWrite(sink: AsyncByteSink, text: String) {
     val bytes = text.toByteArray()
     NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); sink.writeFully(buffer) }
