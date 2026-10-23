@@ -1,0 +1,96 @@
+var trace = 0
+fun stage(value: Int): Int { trace = trace * 10 + value; return value }
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+open class Base(val base: Int)
+class Record(seed: Int) : Base(stage(1)) {
+    var value = stage(seed)
+    init { stage(3) }
+}
+class Checked(code: Int) {
+    val first = stage(4)
+    init { if (code < 0) throw ArithmeticException() }
+    val last = stage(5)
+}
+class Cell<T>(var value: T)
+class Finalized(val value: Int) { release { val copied = value } }
+class Cursor(var current: Int, val limit: Int) {
+    fun hasNext(): Boolean = current < limit
+    fun next(): Int { val result = current; current += 1; return result }
+}
+
+fun constructors(): Int {
+    val record = Record(2)
+    val base: Base = record
+    val before = record.value
+    record.value += base.base
+    check(before == 2 && record.value == 3)
+    return base.base
+}
+
+fun checked(code: Int): Int {
+    val value = Checked(code)
+    return value.first + value.last
+}
+
+fun snapshots(input: Int): Int {
+    val cell = Cell(input)
+    val alias = cell
+    val before = alias.value
+    cell.value += 7
+    check(alias.value == input + 7)
+    return before
+}
+
+fun traversals(count: Int): Int {
+    var index = 0
+    var sum = 0
+    while (index < count) {
+        val cursor = Cursor(index, index + 4)
+        while (cursor.hasNext()) sum += cursor.next()
+        index += 1
+    }
+    return sum
+}
+
+fun previousIterations(count: Int): Int {
+    var previous = Cell(-1)
+    var index = 0
+    var total = 0
+    while (index < count) {
+        val current = Cell(index)
+        total += current.value + previous.value
+        check(current !== previous)
+        previous = current
+        index += 1
+    }
+    return total
+}
+
+fun merged(first: Boolean): Int {
+    val one = Cell(11)
+    val two = Cell(22)
+    var selected = one
+    if (!first) selected = two
+    selected.value += 3
+    check(one !== two)
+    return one.value + two.value
+}
+
+fun main() {
+    check(constructors() == 1 && trace == 123)
+    check(snapshots(19) == 19)
+    check(traversals(0) == 0 && traversals(8) == 160)
+    check(previousIterations(8) == 48)
+    check(merged(true) == 36 && merged(false) == 36)
+    val released = Finalized(73)
+    gcCollect()
+    check(released.value == 73)
+    trace = 0
+    check(checked(1) == 9 && trace == 45)
+    trace = 0
+    var caught = false
+    try { checked(-1) } catch (_: ArithmeticException) { caught = true }
+    check(caught && trace == 4)
+    println("local classes preserve field state, constructors and iteration identity")
+}

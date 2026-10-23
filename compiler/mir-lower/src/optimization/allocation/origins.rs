@@ -24,16 +24,26 @@ pub(super) enum AllocationKind {
         class: mir::ClosureClassId,
         captures: Vec<mir::ClosureCaptureInit>,
     },
+    Class(mir::ClassId),
 }
 
 impl AllocationKind {
-    fn from_expression(expr: &mir::Expr) -> Option<Self> {
+    fn from_expression(module: &mir::Module, expr: &mir::Expr) -> Option<Self> {
         match &expr.kind {
             mir::ExprKind::Box(payload) => Some(Self::Box((**payload).clone())),
             mir::ExprKind::ClosureAlloc { class, captures } => Some(Self::Closure {
                 class: *class,
                 captures: captures.clone(),
             }),
+            mir::ExprKind::ClassAlloc { class_id }
+                if module.classes[*class_id].release_policy == mir::ReleasePolicy::None
+                    && matches!(
+                        module.classes[*class_id].representation,
+                        mir::ClassRepresentation::Declared(_)
+                    ) =>
+            {
+                Some(Self::Class(*class_id))
+            }
             _ => None,
         }
     }
@@ -43,6 +53,7 @@ impl AllocationKind {
 pub(super) enum Projection {
     BoxPayload,
     Capture(u32),
+    Field(u32),
 }
 
 pub(super) type AllocationId = Idx<Allocation>;
@@ -76,7 +87,7 @@ pub(super) struct Sources {
 }
 
 impl Sources {
-    pub fn new(function: &mir::Function, control: &ControlFlow) -> Self {
+    pub fn new(module: &mir::Module, function: &mir::Function, control: &ControlFlow) -> Self {
         let mut sources = Self {
             allocations: Arena::new(),
             locals: vec![Origins::default(); function.body.locals.len()],
@@ -94,8 +105,12 @@ impl Sources {
                     continue;
                 };
                 let value = match &statement.kind {
-                    mir::StatementKind::ValDecl { init, .. } => {
-                        if let Some(kind) = AllocationKind::from_expression(init) {
+                    mir::StatementKind::ValDecl { init, .. }
+                    | mir::StatementKind::Assign { value: init, .. } => {
+                        if (matches!(statement.kind, mir::StatementKind::ValDecl { .. })
+                            || matches!(init.kind, mir::ExprKind::ClassAlloc { .. }))
+                            && let Some(kind) = AllocationKind::from_expression(module, init)
+                        {
                             let allocation = sources.allocations.alloc(Allocation {
                                 site: Site {
                                     block: block_id,
@@ -111,7 +126,6 @@ impl Sources {
                         }
                         Some(init)
                     }
-                    mir::StatementKind::Assign { value, .. } => Some(value),
                     _ => None,
                 };
                 if let Some(source) = value.and_then(local_alias) {

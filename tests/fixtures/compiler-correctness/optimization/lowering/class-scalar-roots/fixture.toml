@@ -1,0 +1,32 @@
+schema = 1
+name = "local-class-scalar-roots"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["optimization", "class", "gc", "generic", "compiler-correctness"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "--enable-gc-stress", "build", {each = "${link_args}"}, "${root}", "--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "scalar fields retain relocated references and aggregate snapshots\n"
+stderr = ""
+
+[[steps]]
+name = "minor"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "scalar fields retain relocated references and aggregate snapshots\n"
+stderr = ""

@@ -25,7 +25,7 @@ pub(super) struct Plan {
 impl Plan {
     pub fn new(module: &mir::Module, function: &mir::Function) -> Self {
         let control = ControlFlow::new(&function.body);
-        let sources = Sources::new(function, &control);
+        let sources = Sources::new(module, function, &control);
         let mut removable = vec![true; sources.allocations.len()];
         for origins in &sources.locals {
             if origins.unique().is_none() {
@@ -57,6 +57,9 @@ impl Plan {
                     for &candidate in &plan.sources.locals[index(local)].candidates {
                         replaced[index(candidate)] += 1;
                     }
+                }
+                if let Some((candidate, _)) = plan.field_write(module, node, site) {
+                    replaced[index(candidate)] += 1;
                 }
                 mir::visit_statement_exprs(node, &mut |expr| {
                     plan.count(module, expr, site, &mut reads, &mut replaced);
@@ -106,6 +109,16 @@ impl Plan {
         let operand = match &expr.kind {
             mir::ExprKind::Unbox(operand) | mir::ExprKind::IsInstance { operand, .. } => operand,
             mir::ExprKind::ClosureCapture { closure, .. } => closure,
+            mir::ExprKind::FieldAccess { receiver, index } => {
+                let candidate = self.field_source(module, receiver, *index, &expr.ty, site)?;
+                return Some((
+                    candidate,
+                    Replacement::Value {
+                        candidate,
+                        projection: Projection::Field(*index),
+                    },
+                ));
+            }
             _ => return None,
         };
         let candidate = self.sources.locals[index(local_alias(operand)?)].unique()?;
@@ -150,6 +163,57 @@ impl Plan {
             _ => return None,
         };
         Some((candidate, replacement))
+    }
+
+    pub fn field_write(
+        &self,
+        module: &mir::Module,
+        statement: &mir::Statement,
+        site: Site,
+    ) -> Option<(AllocationId, Projection)> {
+        let mir::StatementKind::FieldSet {
+            object,
+            index,
+            value,
+        } = &statement.kind
+        else {
+            return None;
+        };
+        let candidate = self.field_source(module, object, *index, &value.ty, site)?;
+        Some((candidate, Projection::Field(*index)))
+    }
+
+    fn field_source(
+        &self,
+        module: &mir::Module,
+        object: &mir::Expr,
+        field: u32,
+        ty: &mir::Type,
+        site: Site,
+    ) -> Option<AllocationId> {
+        let mir::Type::Class(view) = object.ty else {
+            return None;
+        };
+        let candidate = self.sources.locals[index(local_alias(object)?)].unique()?;
+        let allocation = &self.sources.allocations[candidate];
+        let AllocationKind::Class(class) = allocation.kind else {
+            return None;
+        };
+        let mut base = Some(class);
+        while let Some(id) = base {
+            if id == view {
+                let mir::ClassRepresentation::Declared(declared) =
+                    &module.classes[class].representation
+                else {
+                    return None;
+                };
+                return (declared.fields.get(field as usize)?.ty == *ty
+                    && self.control.dominates(allocation.site, site))
+                .then_some(candidate);
+            }
+            base = module.classes[id].base_class();
+        }
+        None
     }
 }
 

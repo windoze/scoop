@@ -1,6 +1,7 @@
 use super::*;
 
 mod boxing;
+mod classes;
 mod closures;
 mod cold;
 mod copies;

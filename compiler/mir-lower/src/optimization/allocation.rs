@@ -9,7 +9,7 @@ use crate::local_values::LocalValueRegistry;
 mod control;
 mod origins;
 mod rewrite;
-mod snapshots;
+mod storage;
 mod uses;
 
 pub(super) fn run(
@@ -31,6 +31,9 @@ pub(super) fn run(
             continue;
         };
         let plan = uses::Plan::new(module, &module.functions[id]);
+        if plan.sources.allocations.is_empty() {
+            continue;
+        }
         let (function, rewritten) = rewrite::apply(module, id, owner, registry, &plan);
         if rewritten {
             module.functions[id].body = simplify::body(module, &function).0;
@@ -61,7 +64,18 @@ fn supported(function: &mir::Function) -> bool {
                 mir::StatementKind::ValDecl {
                     init:
                         mir::Expr {
-                            kind: mir::ExprKind::Box(_) | mir::ExprKind::ClosureAlloc { .. },
+                            kind:
+                                mir::ExprKind::Box(_)
+                                | mir::ExprKind::ClosureAlloc { .. }
+                                | mir::ExprKind::ClassAlloc { .. },
+                            ..
+                        },
+                    ..
+                } => has_candidate = true,
+                mir::StatementKind::Assign {
+                    value:
+                        mir::Expr {
+                            kind: mir::ExprKind::ClassAlloc { .. },
                             ..
                         },
                     ..

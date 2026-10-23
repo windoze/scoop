@@ -1,0 +1,50 @@
+interface Read { fun read(): Long }
+class Node(var value: Long) : Read {
+    public override fun read(): Long = value
+}
+struct Payload(val node: Node, val nested: (Node, String), val view: Read)
+open class Base(val base: Node)
+class Holder<T>(var value: T, node: Node) : Base(node)
+class Constructed(val first: Node, last: Node) {
+    init { gcCollect() }
+    val second = last
+}
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun references(index: Long) {
+    val first = Node(index)
+    val next = Node(index + 1L)
+    val holder = Holder(Payload(first, (next, "left" + "right"), first), first)
+    val alias = holder
+    val before = alias.value
+    gcCollect()
+    holder.value = Payload(next, (first, "right" + "left"), next)
+    gcCollect()
+    check(before.node === first && before.nested._1 === next && before.view === first)
+    check(before.nested._2 == "leftright")
+    check(alias.value.node === next && alias.value.nested._1 === first)
+    check(alias.value.nested._2 == "rightleft" && alias.value.view.read() == index + 1L)
+    val base: Base = holder
+    check(base.base === first)
+    before.node.value += 2L
+    gcCollect()
+    check(alias.value.nested._1.value == index + 2L)
+}
+
+fun construction(index: Long) {
+    val value = Constructed(Node(index), Node(index + 1L))
+    gcCollect()
+    check(value.first !== value.second)
+    check(value.first.value == index && value.second.value == index + 1L)
+}
+
+fun main() {
+    var index = 0L
+    while (index < 8L) {
+        references(index)
+        construction(index)
+        index += 1L
+    }
+    println("scalar fields retain relocated references and aggregate snapshots")
+}
