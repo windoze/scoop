@@ -1,11 +1,27 @@
 use super::*;
 
+mod lazy;
+
 fn selectors(analysis: &mut DeclarationAnalysis) -> Vec<hir::EditingSelector> {
     let function = function(analysis, "editing");
     let V::Known(selectors) = analysis.selectors(function, || false).unwrap() else {
         panic!("body input is available");
     };
     selectors.to_vec()
+}
+
+fn members(
+    analysis: &mut DeclarationAnalysis,
+    selector: &hir::EditingSelector,
+) -> hir::EditingMembers {
+    let function = function(analysis, "editing");
+    let V::Known(Some(members)) = analysis
+        .selector_members(function, selector.selector, || false)
+        .unwrap()
+    else {
+        panic!("known receiver");
+    };
+    members.clone()
 }
 
 #[test]
@@ -20,9 +36,7 @@ fn a_failed_selector_keeps_its_checked_receiver_without_a_successful_body() {
         &text[selector.selector.start as usize..selector.selector.end as usize],
         "mem"
     );
-    let V::Known(members) = &selector.members else {
-        panic!("known receiver");
-    };
+    let members = members(&mut analysis, selector);
     assert!(
         members
             .candidates
@@ -53,9 +67,7 @@ fn nested_lambda_selector_uses_the_shadowing_parameter() {
     let mut analysis = analyze(text);
     let selectors = selectors(&mut analysis);
     assert_eq!(selectors.len(), 1, "{selectors:?}");
-    let V::Known(members) = &selectors[0].members else {
-        panic!("lambda receiver");
-    };
+    let members = members(&mut analysis, &selectors[0]);
     assert!(
         members
             .candidates
@@ -80,9 +92,7 @@ fn selector_candidates_use_the_actual_smart_cast() {
     let mut analysis = analyze(text);
     let selectors = selectors(&mut analysis);
     assert_eq!(selectors.len(), 1, "{selectors:?}");
-    let V::Known(members) = &selectors[0].members else {
-        panic!("narrowed receiver");
-    };
+    let members = members(&mut analysis, &selectors[0]);
     assert!(
         members
             .candidates

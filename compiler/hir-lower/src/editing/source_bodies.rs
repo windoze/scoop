@@ -3,6 +3,7 @@ use crate::globals::{PendingRuntimeInitializer, PendingRuntimeInitializerKind};
 use crate::properties::{PropertyAccessorBodyKind, PropertyAccessorKind, PropertyAccessorSource};
 use hir::EditingValue as V;
 
+mod availability;
 mod parameters;
 
 pub(super) enum SourceBodyInput<'a> {
@@ -24,15 +25,17 @@ impl DeclarationAnalysis {
             if check() {
                 return Err(EditingCancelled);
             }
-            let selected = self
-                .source_bodies()
-                .into_iter()
+            let regions = self.source_body_regions().collect::<Vec<_>>();
+            let selected = regions
+                .iter()
                 .filter(|body| {
                     &body.origin.source == source
                         && body.origin.span.start <= span.start
                         && span.end <= body.origin.span.end
                 })
-                .min_by_key(|body| body.origin.span.end - body.origin.span.start);
+                .filter(|body| self.source_body_scope_available(&body.origin, &regions))
+                .min_by_key(|body| body.origin.span.end - body.origin.span.start)
+                .cloned();
             let Some(body) = selected else {
                 return Ok(None);
             };
@@ -46,8 +49,11 @@ impl DeclarationAnalysis {
     }
 
     pub fn source_bodies(&self) -> Vec<hir::EditingSourceBody> {
-        self.source_body_regions()
-            .filter(|body| self.declaration_scope_available(&body.origin))
+        let regions = self.source_body_regions().collect::<Vec<_>>();
+        regions
+            .iter()
+            .filter(|body| self.source_body_scope_available(&body.origin, &regions))
+            .cloned()
             .collect()
     }
 
@@ -220,37 +226,4 @@ impl Lowerer {
 fn has_source_body(source: &PropertyAccessorSource) -> bool {
     source.body_kind == PropertyAccessorBodyKind::Source
         && !matches!(source.declaration.body, ast::FunctionBody::None)
-}
-
-impl DeclarationAnalysis {
-    pub(super) fn declaration_scope_available(&self, origin: &hir::SemanticSourceLocation) -> bool {
-        if !self.lowerer.editing_declaration_scope_available(origin) {
-            return false;
-        }
-        self.source_body_regions()
-            .filter(|body| {
-                body.origin.source == origin.source
-                    && body.origin.span != origin.span
-                    && body.origin.span.start <= origin.span.start
-                    && origin.span.end <= body.origin.span.end
-                    && body
-                        .id
-                        .function()
-                        .and_then(|function| self.lowerer.editing_accessor_source(function))
-                        .is_none_or(|source| {
-                            self.lowerer.property_name_spans.get(&source.property)
-                                != Some(&origin.span)
-                        })
-            })
-            .all(|body| match self.body_facts.get(&body.id) {
-                Some(V::Known(body)) => body.available(),
-                Some(V::Unavailable(_)) => false,
-                None => self
-                    .lowerer
-                    .editing_prepared_bodies
-                    .as_ref()
-                    .and_then(|facts| facts.get(&body.id))
-                    .is_some_and(|body| body.available()),
-            })
-    }
 }

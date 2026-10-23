@@ -41,6 +41,7 @@ pub(in crate::editing) struct ObservedContext {
 pub(crate) struct ObservedBody {
     pub(super) facts: V<hir::EditingBodyFacts>,
     pub(super) selectors: Vec<hir::EditingSelector>,
+    pub(super) selector_members: imbl::HashMap<ast::Span, V<hir::EditingMembers>>,
     pub(super) calls: Vec<hir::EditingAppliedCall>,
     pub(super) contexts: imbl::HashMap<hir::SourceContextId, ObservedContext>,
 }
@@ -198,6 +199,7 @@ impl BodyObservation {
                 V::Unavailable(U::BodyFailure)
             },
             selectors,
+            selector_members: Default::default(),
             calls,
             contexts: self.contexts,
         }

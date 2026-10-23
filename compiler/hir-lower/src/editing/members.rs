@@ -12,9 +12,20 @@ impl Lowerer {
         safe_navigation: bool,
         is_cancelled: &impl Fn() -> bool,
     ) -> Result<V<hir::EditingMembers>, EditingCancelled> {
-        let types = if safe_navigation {
+        match self.editing_receiver_types(receiver, safe_navigation) {
+            V::Known(types) => self.editing_type_members(&types, is_cancelled),
+            V::Unavailable(reason) => Ok(V::Unavailable(reason)),
+        }
+    }
+
+    pub(super) fn editing_receiver_types(
+        &mut self,
+        receiver: &hir::Expr,
+        safe_navigation: bool,
+    ) -> V<Vec<hir::TypeId>> {
+        V::Known(if safe_navigation {
             let Some(inner) = self.as_option(receiver.ty) else {
-                return Ok(V::Unavailable(U::BodyFailure));
+                return V::Unavailable(U::BodyFailure);
             };
             vec![inner]
         } else {
@@ -22,9 +33,16 @@ impl Lowerer {
                 .into_iter()
                 .map(|view| view.ty)
                 .collect()
-        };
+        })
+    }
+
+    pub(super) fn editing_type_members(
+        &mut self,
+        types: &[hir::TypeId],
+        is_cancelled: &impl Fn() -> bool,
+    ) -> Result<V<hir::EditingMembers>, EditingCancelled> {
         let mut members = hir::EditingMembers::default();
-        for ty in types {
+        for &ty in types {
             super::receivers::check_cancelled(is_cancelled)?;
             if self.resolve_imported_member_receiver_type(ty).is_err() {
                 return Ok(V::Unavailable(U::DeclarationFailure));

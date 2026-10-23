@@ -19,6 +19,55 @@ impl DeclarationAnalysis {
             V::Unavailable(reason) => V::Unavailable(*reason),
         })
     }
+
+    pub fn selector_members(
+        &mut self,
+        body: impl Into<hir::EditingSourceBodyId>,
+        selector: ast::Span,
+        is_cancelled: impl Fn() -> bool + 'static,
+    ) -> Result<V<Option<&hir::EditingMembers>>, EditingCancelled> {
+        let body = body.into();
+        let check = std::rc::Rc::new(is_cancelled);
+        let cancellation = check.clone();
+        self.source_body_facts(body, move || cancellation())?;
+        let observed = match self.body_facts.get_mut(&body).expect("queried body") {
+            V::Known(observed) => observed,
+            V::Unavailable(reason) => return Ok(V::Unavailable(*reason)),
+        };
+        if !observed.selector_members.contains_key(&selector) {
+            let Some(input) = observed
+                .selectors
+                .iter()
+                .find(|input| input.selector == selector)
+            else {
+                return Ok(V::Known(None));
+            };
+            let members = match &input.receiver_types {
+                V::Unavailable(reason) => V::Unavailable(*reason),
+                V::Known(types) => {
+                    let context = &observed.contexts[&input.context];
+                    let mut candidate = self.lowerer.clone();
+                    let members = candidate.with_type_query_context(
+                        context.file,
+                        context.owner,
+                        context.parameters.clone(),
+                        Some(input.context),
+                        |lowerer| lowerer.editing_type_members(types, &|| check()),
+                    )?;
+                    if check() {
+                        return Err(EditingCancelled);
+                    }
+                    self.lowerer = candidate;
+                    members
+                }
+            };
+            observed.selector_members.insert(selector, members);
+        }
+        Ok(match &observed.selector_members[&selector] {
+            V::Known(members) => V::Known(Some(members)),
+            V::Unavailable(reason) => V::Unavailable(*reason),
+        })
+    }
 }
 
 impl Lowerer {
@@ -73,13 +122,8 @@ impl Lowerer {
             .get(&span)
             .and_then(|(binding, _, _)| self.editing_local_definitions.get(binding))
             .map(|definition| definition.reference.clone());
-        let cancelled = body.cancellation();
         for input in inputs {
-            let Ok(members) =
-                self.editing_receiver_members(value, input.safe_navigation, &|| cancelled())
-            else {
-                return;
-            };
+            let receiver_types = self.editing_receiver_types(value, input.safe_navigation);
             self.editing_body
                 .as_mut()
                 .expect("active body query")
@@ -92,7 +136,7 @@ impl Lowerer {
                         context,
                         value_type: value.ty,
                         local: local.clone(),
-                        members,
+                        receiver_types,
                     },
                 );
         }

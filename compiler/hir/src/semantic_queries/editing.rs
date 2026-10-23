@@ -91,7 +91,8 @@ pub struct EditingSelector {
     pub context: crate::SourceContextId,
     pub value_type: TypeId,
     pub local: Option<EditingLocalReference>,
-    pub members: EditingValue<EditingMembers>,
+    /// Receiver views fixed by the original smart-cast and navigation context.
+    pub receiver_types: EditingValue<Vec<TypeId>>,
 }
 
 #[derive(Clone, Debug, Default)]

@@ -40,25 +40,37 @@ pub(crate) fn completion(
                 convert::range(&cursor.source.text, cursor.span, settings.encoding)?,
             );
         }
-        let snapshot = snapshot.clone();
-        let cancellation = cancellation.clone();
+        let revision = snapshot.clone();
+        let check = cancellation.clone();
         let EditingValue::Known(selectors) = analysis
             .selectors(function.id, move || {
-                cancellation.check().is_err() || snapshot.check_cancelled().is_err()
+                check.check().is_err() || revision.check_cancelled().is_err()
             })
             .map_err(|_| semantic::cancelled())?
         else {
             return json(None::<CompletionList>);
         };
-        if let Some(selector) = selectors.iter().find(|selector| {
-            selector.selector.start <= cursor.span.start && cursor.span.end <= selector.selector.end
-        }) {
-            let EditingValue::Known(members) = &selector.members else {
+        let selected = selectors
+            .iter()
+            .find(|selector| {
+                selector.selector.start <= cursor.span.start
+                    && cursor.span.end <= selector.selector.end
+            })
+            .map(|selector| selector.selector);
+        if let Some(selector) = selected {
+            let revision = snapshot.clone();
+            let check = cancellation.clone();
+            let EditingValue::Known(Some(members)) = analysis
+                .selector_members(function.id, selector, move || {
+                    check.check().is_err() || revision.check_cancelled().is_err()
+                })
+                .map_err(|_| semantic::cancelled())?
+            else {
                 return json(None::<CompletionList>);
             };
             return items(
                 members,
-                convert::range(&cursor.source.text, selector.selector, settings.encoding)?,
+                convert::range(&cursor.source.text, selector, settings.encoding)?,
             );
         }
     }
