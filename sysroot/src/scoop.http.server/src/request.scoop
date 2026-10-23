@@ -23,6 +23,8 @@ public class HttpRequest internal constructor(
     public val headers: RequestHeaders = RequestHeaders(head.fields)
     /** Lazily parsed request cookies, unaffected by response mutations. */
     public val cookies: RequestCookies = RequestCookies(head.fields)
+    /** The optional SSE resume identifier; duplicates and malformed UTF-8 are rejected. */
+    public val lastEventId: String? get() = headers.getSingle("Last-Event-ID")
 
     internal fun target(): RequestTarget {
         if (!present(parsed)) parsed = Some(requestTarget(head.target, method))

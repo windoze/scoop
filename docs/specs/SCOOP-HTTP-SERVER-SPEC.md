@@ -80,6 +80,16 @@ H2 keepAliveIdleTimeout 仅在首个请求之后、没有活动请求、已排�
 
 优雅停机对已登记的 H2 连接请求 GOAWAY，保留接受 Job 和协议所有者。GOAWAY 边界覆盖底层已接受请求，acceptRequest 继续交付边界内队列，然后自然返回 None；这批请求仍受全局容量约束。停止接收 TCP、H2 连接登记与排空请求共用 server 状态边界，避免错过登记竞争。已开始发送的 GOAWAY 不因并发 shutdown 重复提交。宽限覆盖 GOAWAY 发送、请求执行和自然清理，届满后取消连接及所有剩余请求，并等待真实收尾。接受循环结束后仍等待请求子任务，再关闭协议连接。
 
-## 7. 分步交付与验证
+## 7. SSE 输出
+
+sse(options, produce) 构造普通 Stream 结果，状态为 200，Content-Type 为 text/event-stream; charset=utf-8，Cache-Control 为 no-cache，不设置固定长度。响应头提交并 flush 后才执行 producer；HEAD 不执行 producer 或启动心跳。SSE 不自动修改 requestDeadline，端点可在返回结果前显式调用 setDeadline。HttpRequest.lastEventId 复用单值字段提取，缺失返回 None，重复或非法 UTF-8 为 400；重放和历史存储由应用负责。
+
+SseWriter 仅在 producer 执行期间可用，借用 HTTP body，不提供结束响应的入口。send(SseMessage) 与 comment(String) 默认在完整块写出后 flush；可明确传入 flush=false 合并发送，再调用 flush()。编码与短写复用 HTTP 消息库的 SseEncoder／SseSink，不缓冲完整事件副本。应用至多执行一个发送或 flush 操作，并发调用在写出前失败，不破坏正在发送的事件。
+
+SseOptions.heartbeatInterval 默认 None，启用时必须为正 Duration。计时从最近完成的输出操作起算；空闲到期发送一个空注释块并 flush。心跳与应用操作在完整事件边界串行，正在写入或背压时跳过本次心跳，不积累队列；应用可等待已开始的心跳完成。心跳只属于 producer 的结构化作用域。producer 正常返回时停止新心跳，等待已开始的心跳写出，然后结束 HTTP body；失败或取消时取消并等待心跳，释放本地缓冲后中止。任何失败路径都不补发事件。H2 reset 和停机取消外部事件等待；H1 无 I/O 时的断开观测限制仍适用。
+
+SSE 的动态响应压缩默认关闭；明确开启后的 flush 合同随响应压缩功能一起交付。
+
+## 8. 分步交付与验证
 
 接入、超时与停机、SSE、multipart、WebSocket、压缩、文件和 DTO 的完整范围保持设计第 12～17 节，按完成的功能逐项扩充本规范。尚未实现的功能不公开占位 API。测试用所属 Cone 的 release 测试；只有 CLI／诊断／外部对端等必要边界使用 fixture。协议引擎的既有验证不在 server 重放。

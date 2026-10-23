@@ -60,11 +60,15 @@ import scoop.time.Duration
                 catch (_: HttpException) { reset = true }
                 assertTrue(reset)
                 completed.ready.await()
-                val result = completed.snapshot()[1L]
-                assertEquals(HttpRequestOutcome.Cancelled, result.outcome)
-                assertTrue(result.failure!! is HttpServerTimeoutException)
-                val error = result.failure!! as HttpServerTimeoutException
-                assertEquals(Duration.milliseconds(30), error.limit)
+                var matched = 0
+                for (result in completed.snapshot()) if (result.route!!.template == "/expire") {
+                    matched += 1
+                    assertEquals(HttpRequestOutcome.Cancelled, result.outcome)
+                    assertTrue(result.failure!! is HttpServerTimeoutException)
+                    val error = result.failure!! as HttpServerTimeoutException
+                    assertEquals(Duration.milliseconds(30), error.limit)
+                }
+                assertEquals(1, matched)
             }
         })
     }

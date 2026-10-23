@@ -23,9 +23,11 @@ internal class TestOutput : ResponseOutput, AsyncByteSink {
     val data: ByteArrayBuilder = ByteArrayBuilder()
     var starts: Int = 0
     var finishes: Int = 0
+    var flushes: Int = 0
     var aborts: Int = 0
     var writeLimit: Long = 3L
     var writeFailure: Throwable? = None
+    var beforeWrite: (suspend () -> Unit)? = None
     var trailers: Array<HttpField> = []
 
     public override suspend fun begin(head: HttpResponseHead, length: Long?): AsyncByteSink {
@@ -34,12 +36,13 @@ internal class TestOutput : ResponseOutput, AsyncByteSink {
         return this
     }
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        if (present(beforeWrite)) beforeWrite!!()
         if (present(writeFailure)) throw writeFailure!!
         val size = if (count < writeLimit) count else writeLimit
         data.append(buffer.readBytes(size))
         return size
     }
-    public override suspend fun flush() { ensureActive() }
+    public override suspend fun flush() { ensureActive(); flushes += 1 }
     public override suspend fun finish(trailers: List<HttpField>) {
         finishes += 1
         this.trailers = trailers.toArray()

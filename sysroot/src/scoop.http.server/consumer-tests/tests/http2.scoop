@@ -9,11 +9,16 @@ import scoop.platform.net.*
 import scoop.test.*
 
 @Test private class HttpServerH2ConsumerTests {
-    @Test fun `published server supports HTTP2 through public options and response streams`() {
+    @Test fun `published server supports HTTP2 response streams and SSE through public APIs`() {
         val routes = RouterBuilder()
         routes.get("/", suspend { ctx ->
             assertEquals(HttpProtocol.Http2, ctx.connection.protocol)
             stream("text/plain", suspend { writer -> writer.writeText("public h2") }, length = Some(9L))
+        })
+        routes.get("/events", suspend { ctx ->
+            ctx.setDeadline(None)
+            val id = ctx.request.lastEventId
+            sse(produce = suspend { events -> events.send(SseMessage(Some("public SSE"), id = id)) })
         })
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { scope ->
@@ -34,6 +39,17 @@ import scoop.test.*
                             result.append(String.fromUtf8(buffer.readBytes(count)))
                         }
                         assertEquals("public h2", result.toString())
+                    }
+                    val eventRequest = HttpRequestHead(HttpVersion.Http2, "GET".toByteArray(),
+                        HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/events".toByteArray()),
+                        [HttpField("Last-Event-ID".toByteArray(), "42".toByteArray())])
+                    val events = client.openRequest(eventRequest)
+                    assertEquals(200U, events.receiveResponse().status)
+                    SseSource(events).useAsync suspend { source ->
+                        val event = source.next()!!
+                        assertEquals("public SSE", event.data)
+                        assertEquals("42", event.lastEventId)
+                        assertTrue(when (source.next()) { case None -> true; case Some(_) -> false })
                     }
                     server.shutdownGracefully()
                     assertTrue(server.isClosed)
