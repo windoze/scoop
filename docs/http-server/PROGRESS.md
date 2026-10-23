@@ -7,7 +7,8 @@
 - 已完成阶段 A：路由、请求 Context、中间件与结果执行。
 - 已完成阶段 B：H1.0／H1.1、TLS／ALPN、字段／Cookie／JSON／form、Continue、body 限制、连接／请求容量、总时限与 I/O idle、停机和完成通知。
 - 已完成阶段 C：H2 明文 prior knowledge／TLS ALPN、每流请求与取消、GOAWAY 排空、全局请求容量、首部／空闲时限和正常终结。
-- 后续仍需 D1～D7 的七项能力。路由级 deadline 覆盖随长流式端点补齐；当前 requestDeadline 是 server 级配置。服务端 mTLS／动态 SNI、HTTP/3 不在本次范围内。
+- D1 的 SSE 发送底层已完成：SseMessage、增量 SseEncoder 和借用 SseSink；server 结果、心跳与路由 deadline 覆盖仍待接入。
+- 后续仍需完成 D1，并实现 D2～D7。路由级 deadline 覆盖随长流式端点补齐；当前 requestDeadline 是 server 级配置。服务端 mTLS／动态 SNI、HTTP/3 不在本次范围内。
 - 每个功能验证后独立提交；本机采用定向 release Cone 测试，避免重复全量测试。
 - Linux 工作目录为 `nuc12:~/repos/scoop-http-server-work`；最终串行运行一组最小库验证，不跑完整套件或大规模性能测试。
 - 本机辅助工作及原始日志位于 `~/scoop-work/http-server`，所有命令的临时目录显式放在其 scratch 下，不使用系统 `/tmp`。
@@ -30,3 +31,5 @@
 - 独立预编译 consumer 的 H1／H2 2／2 release 测试通过；H2 经公开选项接入、执行流式响应并完成优雅停机；强制关闭调整后重新发布，H2 consumer 定向复验 1／1 通过。
 - 清理已验证的底层 HTTP／HTTP asyncio 测试产物及旧可执行缓存约 1.8 GiB，保留 release 工具、当前 server／consumer 程序和编译缓存。
 - Linux 尚未验证；在完整库功能就绪后串行运行最小验证集合。
+
+- SSE 发送底层：HTTP 编码器 4／4、异步 sink 3／3 定向 release 测试通过，两个 Cone 的 API 文档检查通过。覆盖标准字节向量、逐字节 UTF-8、多行与空值、ID／retry／注释、短写、flush、原始失败及关闭等待真实 buffer borrow；不重复全量协议测试。

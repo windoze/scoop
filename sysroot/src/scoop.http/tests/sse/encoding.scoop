@@ -1,0 +1,80 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+private fun encodeSse(encoder: SseEncoder, chunk: Long = 7L): Array<Byte> {
+    val result = ByteArrayBuilder()
+    NativeByteBuffer.allocate(chunk).use { buffer ->
+        while (!encoder.isFinished) {
+            buffer.clear()
+            val count = encoder.writeInto(buffer)
+            assertTrue(count > 0L && count <= chunk)
+            result.append(buffer.readBytes(count))
+        }
+        buffer.clear()
+        assertEquals(0L, encoder.writeInto(buffer))
+    }
+    return result.toByteArray()
+}
+
+@Test private class SseEncoderTests {
+    @Test fun `known bytes preserve normalized lines and UTF8 even with one-byte output`() {
+        val message = SseMessage(Some("one\r\n中🙂\rthree\n"), Some("changed"), Some(""), Some(0L))
+        val expected = "id: \nevent: changed\nretry: 0\ndata: one\ndata: 中🙂\ndata: three\ndata: \n\n"
+        for (chunk in [1L, 7L, 64L]) SseEncoder(message).use { encoder ->
+            assertEquals(expected, String.fromUtf8(encodeSse(encoder, chunk)))
+            assertTrue(encoder.isFinished)
+        }
+    }
+
+    @Test fun `absence empty data metadata-only messages and comments have different wire blocks`() {
+        SseEncoder(SseMessage()).use { encoder -> assertEquals("\n", String.fromUtf8(encodeSse(encoder))) }
+        SseEncoder(SseMessage(Some(""))).use { encoder -> assertEquals("data: \n\n", String.fromUtf8(encodeSse(encoder))) }
+        SseEncoder(SseMessage(id = Some("next"), retryMilliseconds = Some(Long.MAX_VALUE))).use { encoder ->
+            assertEquals("id: next\nretry: 9223372036854775807\n\n", String.fromUtf8(encodeSse(encoder)))
+        }
+        SseEncoder.comment("ready\r\n\nend\r").use { encoder ->
+            assertEquals(": ready\n: \n: end\n: \n\n", String.fromUtf8(encodeSse(encoder, 1L)))
+        }
+        SseEncoder.comment("").use { encoder -> assertEquals(": \n\n", String.fromUtf8(encodeSse(encoder))) }
+    }
+
+    @Test fun `invalid fields and output bounds fail without consuming valid encoder state`() {
+        for (value in ["a\rb", "a\nb"]) {
+            assertFailsWith<IllegalArgumentException> { SseMessage(event = Some(value)) }
+            assertFailsWith<IllegalArgumentException> { SseMessage(id = Some(value)) }
+        }
+        assertFailsWith<IllegalArgumentException> { SseMessage(id = Some("\u0000")) }
+        assertFailsWith<IllegalArgumentException> { SseMessage(retryMilliseconds = Some(-1L)) }
+        val encoder = SseEncoder(SseMessage(Some("valid")))
+        NativeByteBuffer.allocate(2L).use { buffer ->
+            assertFailsWith<IllegalArgumentException> { encoder.writeInto(buffer, -1L) }
+            assertFailsWith<IndexOutOfBoundsException> { encoder.writeInto(buffer, 3L) }
+            assertEquals(0L, encoder.writeInto(buffer, 0L))
+            assertFalse(encoder.isFinished || encoder.isClosed)
+            assertEquals("data: valid\n\n", String.fromUtf8(encodeSse(encoder)))
+            encoder.close(); encoder.close()
+            assertTrue(encoder.isClosed && encoder.isFinished)
+            assertFailsWith<IllegalStateException> { encoder.writeInto(buffer, 0L) }
+            buffer.writeInt8(1.toByte())
+        }
+    }
+
+    @Test fun `encoder output composes with existing event dispatch and ID state`() {
+        SseDecoder().use { decoder ->
+            SseEncoder(SseMessage(id = Some("saved"), retryMilliseconds = Some(20L))).use { encoder ->
+                assertEquals(0L, feedSse(decoder, encodeSse(encoder), 1L).size)
+            }
+            SseEncoder(SseMessage(Some("中\r\n\n"), event = Some("tick"))).use { encoder ->
+                val events = feedSse(decoder, encodeSse(encoder), 1L)
+                assertEquals(1L, events.size)
+                assertEquals("中\n\n", events[0L].data)
+                assertEquals("saved", events[0L].lastEventId)
+                assertEquals("tick", events[0L].event)
+                assertEquals(20L, decoder.retryMilliseconds!!)
+            }
+        }
+    }
+}

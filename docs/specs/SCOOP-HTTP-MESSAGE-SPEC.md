@@ -250,6 +250,16 @@ isFinished、isClosed、lastEventId、retryMilliseconds 和 failure 公开已有
 
 每次 next 的实际 I/O 使用结构化子作用域。close 先拒绝新读取并取消该操作，等待它及原生 buffer borrow 真正结束，再释放 decoder／buffer 和关闭所接管端点；借用模式不关闭 source。并发 close 等待同一次收尾，后续幂等，取消的 finally 仍可完成；正文与清理同时失败由 useAsync 保留为 ResourceUseException。关闭解除端点、Job 和等待 continuation 的引用，不自动读取剩余正文、不重连、不执行用户回调。HTTP/1 未完成 body 的放弃、HTTP/2 单流取消继续由下层 HTTP body 的原有合同处理。
 
+### 5.3 增量发送与借用 sink
+
+`SseMessage(data = None, event = None, id = None, retryMilliseconds = None)` 保存待发送字段，区别于接收时已经派发的 SseEvent。data 允许任意 Unicode 文本，CRLF／CR 编码为 LF；每个逻辑行单独输出 data 字段，保留末尾空行。None 不输出字段，Some("") 输出空字段。event 拒绝 CR／LF，id 另外拒绝 NUL；空 id 明确清除客户端 ID。retry 必须非负，零合法。字段在构造时校验，不等到部分发送后再拒绝。
+
+`SseEncoder(message)` 增量输出一条消息；`SseEncoder.comment(text)` 增量输出一个注释块，注释也规范化行尾并保留空行。`writeInto(buffer, count = buffer.writableBytes)` 返回实际写入字节数，输出固定 UTF-8、LF、不写 BOM。消息按 id、event、retry、data 顺序编码，每行使用字段名加冒号和一个 SP；注释每行以冒号和一个 SP 开头。块末尾输出空行。可以在任意字节处短输出，包括多字节字符内部；编码器只保留原始文本、当前位置及一个标量的至多 4 字节，不复制整条消息为另一个完整字节数组或预先切分所有行。
+
+编码器串行使用；负 count 或超过 writableBytes 报参数／边界错误且不推进，零容量不推进。isFinished 仅在完整块的最后字节已写入后为 true，随后 writeInto 返回零；isClosed 区分显式关闭。close 幂等释放保留的文本，不补发字节或关闭调用者 buffer；关闭后不能继续输出。实际推进失败后不能继续使用该编码器。
+
+`SseSink(sink, bufferSize = 8192)` 借用 AsyncByteSink，使用一个正容量本地输出缓冲。send(message)、comment(text) 完整发送对应块，处理短写并保留背压；flush 单独穿透下游，send／comment 不隐式 flush，也不结束 HTTP body。构造和操作遵守当前 EventLoop／Job 合同；同一 sink 至多一个应用发送或 flush，状态／参数／并发检查在开始前完成。实际写入／flush 失败或取消保存 failure，后续推进失败；原异常不改写为 SSE 格式错误。close 拒绝新操作、取消并等待实际在途操作，再释放本地缓冲；不关闭所借用的下游。isClosed 与 failure 可观察已有状态。
+
 ## 6. HTTP/1.1 WebSocket
 
 握手、扩展字段与协商的详细 API 见 [WebSocket 规范](SCOOP-HTTP-WEBSOCKET-SPEC.md)；实际实施进度仍分功能记录。
