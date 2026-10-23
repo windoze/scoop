@@ -19,5 +19,8 @@ name = "reject"
 argv = ["${scoopc}", "build", "--profile", "release", {"each" = "${compile_args}"}, "${fixture}/program", "--test", "--direct-slib", "${library.result.root.path}", {"each" = "${library.result.dependencies}", "field" = "path", "prefix" = "--direct-slib"}, "--out-slib", "${work}/tests.slib"]
 exit = 1
 stdout = ""
-stderr = {file = "diagnostics.txt"}
+stderr = """
+error: current Cone HIR lowering failed with 1 diagnostic(s)
+${fixture}/program/src/api.scoop:2:8: error: import target is not available in the current compilation unit
+"""
 checks = [{file = "${work}/tests.slib", exists = false}]

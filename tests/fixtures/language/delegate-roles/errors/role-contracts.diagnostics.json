@@ -115,18 +115,5 @@
       "start": 412
     },
     "severity": "error"
-  },
-  {
-    "code": "SCOOPC_HIR_ERROR",
-    "message": "body of `getValue` must be of type T, found Int",
-    "notes": [],
-    "origin": {
-      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 322,
-      "kind": "source",
-      "path": "main.scoop",
-      "start": 321
-    },
-    "severity": "error"
   }
 ]

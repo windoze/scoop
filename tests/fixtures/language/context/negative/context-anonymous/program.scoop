@@ -1,2 +1,2 @@
-fun use() { val action = context(a: String) fun(): String = a }
+fun use() { val action = context(a: String) fun(): String { return a } }
 fun main() {}
