@@ -7,4 +7,13 @@ struct Box<T>(val value: T) {
 }
 fun <T> unknown(value: Box<T>): Int = value.read()
 fun absent(value: Box<Empty>): Int = value.read()
+
+interface Value<X> { public fun get(): X }
+open class Projected<T> {
+    override interface Value<T.Companion> where T.Companion : ref {
+        public open override fun get(): T.Companion = T.Companion
+    }
+}
+fun <T> unknownProjection(value: Projected<T>): Any = value.get()
+fun absentProjection(value: Projected<Empty>): Any = value.get()
 fun main() {}

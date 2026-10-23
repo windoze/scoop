@@ -63,3 +63,10 @@
 - 本机 workspace Clippy 通过。25 项 M57 定向检查、867 项 HIR 格式测试、84 项泛型导入回归、97 项普通规则回归、121 项类型／产物回归通过。格式版本对应的固定向量已更新，17 项 profile 检查通过。
 - 已显式按格式 80 准备 Darwin 的 21 个系统 Cone。完整 core consumer 的 41 项原生测试通过，新增 3 项覆盖普通／条件 override、条件关闭后的虚表位置、构造实参、abstract 与 computed property。跨 Cone ODR fixture 增加相同继承组合及 marker 接口，原链接／逆序依赖重链接均通过；10 个条件接口诊断 fixture 通过。
 - 继承 codec 合成、companion 出现在条件接口目标／成员签名、default 条件交叉、sealed／类型描述／文档及 Linux 完整验收仍须继续完成；本节不代表这些组合已验收。
+
+## 8. 条件目标与成员签名中的 companion 投影
+
+- 已确定不成立的继承条件在目标／成员签名替换前排除；仍未知的条件继续保留。判定约束之前先检查全部必需投影的存在性，支持一项参数约束引用另一参数的 companion。
+- 成员签名比较不展开已知不适用的投影，调用候选仍保留原有约束失败诊断。跨 Cone 的条件槽位同样先判定适用域，避免为没有 companion 的实参解析投影接口。
+- workspace Clippy 与变更后的定向 Clippy 通过，29 项 M57 检查、85 项泛型导入回归、10 个诊断 fixture 通过。完整 core consumer 的 42 项原生测试及 ODR fixture 的原链接／逆序依赖重链接通过；新增用例覆盖接口参数、方法参数／结果、继承、条件关闭及子类普通成员。
+- 后续继续处理继承 codec 合成、可同时成立的 default 条件、sealed／类型描述／文档以及 Linux 完整验收。

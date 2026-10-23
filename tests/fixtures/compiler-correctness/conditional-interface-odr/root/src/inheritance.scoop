@@ -8,6 +8,7 @@ class Local<T> : Gated<T>() {
 }
 class Completed<T> : ConditionalAbstract<T>() { public override fun next(): Int = 53 }
 class NoObligation : ConditionalAbstract<Plain>()
+class ProjectedAbsent : Projected<Plain>() { public fun get(): Int = 63 }
 
 fun inheritedRelations(): Boolean {
     val inherited: Counter = Inherited<Int>()
@@ -20,9 +21,16 @@ fun inheritedRelations(): Boolean {
     val marker: Any = Relisted<Int>()
     val absent: Any = Relisted<Plain>()
     val erased: Any = directAbsent
+    val projection: CompanionValue<CompanionSeed.Companion> = ProjectedChild<CompanionSeed>()
+    val projectedBase: Projected<CompanionSeed> = ProjectedChild<CompanionSeed>()
+    val projectionAbsent: Any = ProjectedAbsent()
     return inherited.next() == 51 && relisted.next() == 52
         && local.next() == 54 && local.stable() == 62 && localAbsent.stable() == 62
         && directAbsent.next() == 54 && complete.next() == 53
         && !(empty is Counter) && !(erased is Counter)
         && marker is Marker && !(absent is Counter) && !(absent is Marker)
+        && projection.get() === CompanionSeed.Companion
+        && projectedBase.get() === CompanionSeed.Companion
+        && ProjectedAbsent().get() == 63
+        && !(projectionAbsent is CompanionValue<CompanionSeed.Companion>)
 }

@@ -50,4 +50,16 @@ private class ConditionalInheritanceTests {
         val erased: Any = propertyAbsent
         assertTrue(!(erased is Reading) && propertyAbsent.number == 37)
     }
+
+    @Test
+    fun companionProjectionTargetsAndSignatures() {
+        val value: CompanionValue<WithCompanion.Companion> = ProjectedChild<WithCompanion>()
+        assertTrue(value.get() === WithCompanion.Companion)
+        assertTrue(value.echo(WithCompanion.Companion) === WithCompanion.Companion)
+        val base: Projected<WithCompanion> = ProjectedChild<WithCompanion>()
+        assertTrue(base.get() === WithCompanion.Companion)
+        val absent = ProjectedAbsent()
+        val erased: Any = absent
+        assertTrue(absent.get() == 43 && !(erased is CompanionValue<WithCompanion.Companion>))
+    }
 }

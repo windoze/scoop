@@ -4,6 +4,20 @@ use crate::call_resolution::applicability::{
 };
 
 impl Lowerer {
+    pub(crate) fn local_member_condition(
+        &self,
+        function: hir::FunctionId,
+        arguments: &[TypeId],
+    ) -> Option<hir::ConditionalInterfaceApplication> {
+        let declaration = self.functions[function].method?.availability?;
+        let owner = self.function_owner[&function];
+        Some(hir::ConditionalInterfaceApplication {
+            declaration,
+            owner: self.nominal_identity(owner).declaration_id(),
+            arguments: arguments.to_vec(),
+        })
+    }
+
     pub(crate) fn imported_member_condition(
         &mut self,
         declaration: &hir::CallableDeclarationRecordV1,
@@ -67,6 +81,19 @@ impl Lowerer {
             .expect("conditional applications retain their declaration")
             .parameters
             .clone();
+        // A bound on one parameter may mention another parameter's companion.
+        // Reject missing projections before substituting any of those bounds.
+        if parameters
+            .iter()
+            .zip(&application.arguments)
+            .any(|(parameter, &argument)| {
+                parameter.companion.is_some()
+                    && !matches!(self.types[argument], Type::Param(_) | Type::Companion(_))
+                    && self.public_companion_declaration(argument).is_none()
+            })
+        {
+            return true;
+        }
         for (parameter, &argument) in parameters.iter().zip(&application.arguments) {
             if self.conditional_bounds_are_impossible(
                 argument,

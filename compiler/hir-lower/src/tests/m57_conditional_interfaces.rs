@@ -1,6 +1,7 @@
 use super::*;
 
 mod inheritance;
+mod projections;
 
 const READ: &str = r#"
     interface Read { public fun read(): Int }

@@ -66,7 +66,6 @@ impl Lowerer {
             let Some(interface) = selection.role().interface() else {
                 continue;
             };
-            let interface = self.imported_signature_type_with_bindings(interface, &bindings)?;
             let condition = selection
                 .role()
                 .condition()
@@ -90,6 +89,13 @@ impl Lowerer {
                     })
                 })
                 .transpose()?;
+            if condition
+                .as_ref()
+                .is_some_and(|condition| self.conditional_application_is_impossible(condition))
+            {
+                continue;
+            }
+            let interface = self.imported_signature_type_with_bindings(interface, &bindings)?;
             if let Some(previous) =
                 selections.insert((interface, condition, selection.slot()), selection)
                 && (previous.selection() != selection.selection()

@@ -24,5 +24,31 @@
       "start": 283
     },
     "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `get` in member candidate layer:\n  - fun Projected<T>.get(): T.Companion — the generic environment does not require a public companion for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 573,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 562
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `get` in member candidate layer:\n  - fun Projected<T>.get(): T.Companion — static type `Empty` has no public companion",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 638,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 627
+    },
+    "severity": "error"
   }
 ]

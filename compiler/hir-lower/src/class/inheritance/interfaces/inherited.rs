@@ -30,6 +30,9 @@ impl Lowerer {
                     .into_iter()
                     .map(|argument| self.instantiate_ty(argument, &base.arguments))
                     .collect();
+                if self.conditional_application_is_impossible(&condition) {
+                    return None;
+                }
                 Some((
                     self.instantiate_ty(implementation.interface, &base.arguments),
                     condition,

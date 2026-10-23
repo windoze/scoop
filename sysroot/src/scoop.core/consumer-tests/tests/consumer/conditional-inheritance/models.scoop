@@ -48,3 +48,17 @@ class PropertyDerived<T>(value: T) : PropertyBase<T>(value) {
 
 fun <T : Read> callBase(value: Base<T>): Int = value.read()
 fun <T> callStable(value: Base<T>): Int = value.stable()
+
+interface CompanionValue<X> {
+    public fun get(): X
+    public fun echo(value: X): X
+}
+struct WithCompanion() { public companion object {} }
+open class Projected<T> {
+    override interface CompanionValue<T.Companion> where T.Companion : ref {
+        public open override fun get(): T.Companion = T.Companion
+        public override fun echo(value: T.Companion): T.Companion = value
+    }
+}
+class ProjectedChild<T> : Projected<T>()
+class ProjectedAbsent : Projected<Absent>() { public fun get(): Int = 43 }

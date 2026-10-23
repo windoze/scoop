@@ -19,3 +19,12 @@ public class Relisted<T> public constructor() : Gated<T>() {
 public abstract class ConditionalAbstract<T> protected constructor() {
     override interface Counter where T : Hash { public abstract override fun next(): Int }
 }
+
+public interface CompanionValue<X> { public fun get(): X }
+public struct CompanionSeed() { public companion object {} }
+public open class Projected<T> public constructor() {
+    override interface CompanionValue<T.Companion> where T.Companion : ref {
+        public open override fun get(): T.Companion = T.Companion
+    }
+}
+public class ProjectedChild<T> public constructor() : Projected<T>()

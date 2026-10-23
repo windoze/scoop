@@ -2,6 +2,39 @@ use super::wire_equivalence::compare_consumers;
 use super::*;
 
 #[test]
+fn m57_companion_projection_targets_and_signatures_survive_wire_consumption() {
+    compare_consumers(
+        "conditional projection targets",
+        r#"
+        package dependency.api
+        public interface Value<X> { public fun get(): X }
+        public struct Present<X>() { public companion object {} }
+        public struct Absent<X>()
+        public open class Base<T> public constructor() {
+            override interface Value<T.Companion> where T.Companion : ref {
+                public open override fun get(): T.Companion = T.Companion
+            }
+        }
+        public class Child<T> public constructor() : Base<T>()
+        public class NoCompanion<X> public constructor() : Base<Absent<X>>()
+        "#,
+        r#"
+        import dependency.api.*
+        class Local<T> : Base<T>()
+        class LocalAbsent : Base<Absent<Int>>() { public fun get(): Int = 5 }
+        fun use(): Int {
+            val a: Value<Present<Int>.Companion> = Child<Present<Int>>()
+            val b: Value<Present<Int>.Companion> = Local<Present<Int>>()
+            val x = a.get()
+            val y = b.get()
+            val plain = NoCompanion<Int>()
+            return LocalAbsent().get()
+        }
+        "#,
+    );
+}
+
+#[test]
 fn m57_inherited_conditions_survive_wire_and_concrete_virtual_dispatch() {
     compare_consumers(
         "inherited conditional interfaces",
