@@ -384,6 +384,14 @@ pub enum ExternalHirSignatureUseSiteV1 {
         record_index: usize,
         implementation_index: usize,
     },
+    NominalConditionalConformance {
+        record_index: usize,
+        conformance_index: usize,
+    },
+    NominalConditionalConformanceOwner {
+        record_index: usize,
+        conformance_index: usize,
+    },
     NominalConditionalParameter {
         record_index: usize,
         implementation_index: usize,

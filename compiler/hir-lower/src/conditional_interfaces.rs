@@ -4,6 +4,7 @@ use crate::{FunctionId, Lowerer, Owner, Type, TypeId};
 use scoop_ast as ast;
 use scoop_hir as hir;
 
+mod assumptions;
 mod companions;
 mod declarations;
 mod identity;
@@ -20,6 +21,7 @@ pub(crate) struct ConditionalInterfaceState {
     relation_depth: usize,
     cycles: Vec<ConditionalProofCycle>,
     retained_companions: std::collections::HashSet<hir::SourceNominalId>,
+    assumptions: assumptions::ConditionalAssumptions,
 }
 
 #[derive(Clone)]

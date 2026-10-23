@@ -6,6 +6,7 @@ mod members;
 /// Collects protected member references and dispatch schemas for each nominal.
 pub(in crate::production::type_semantics) fn project(
     export: &ExportHir,
+    local: &LocalConcreteHir,
     nominals: &[ConcreteNominal<'_>],
 ) -> Result<CanonicalSourceInheritanceInventoriesV1, Error> {
     let path = WirePath::root();
@@ -27,7 +28,7 @@ pub(in crate::production::type_semantics) fn project(
         records.push(SourceInheritanceInventoryV1::new(
             nominal.exact,
             members,
-            schemas::project(export, nominal)?,
+            schemas::project(export, local, nominal)?,
         ));
     }
     CanonicalSourceInheritanceInventoriesV1::try_new(records).map_err(Error::SourceInventory)

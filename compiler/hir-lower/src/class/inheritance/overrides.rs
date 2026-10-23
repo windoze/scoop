@@ -1,5 +1,6 @@
 use super::interfaces::InterfaceMemberInstance;
 use super::*;
+mod conditions;
 use hir::ImportedCallableSource;
 
 mod access;
@@ -126,6 +127,13 @@ impl Lowerer {
             .cloned()
             .collect::<Vec<_>>();
         if decl.is_override {
+            self.check_override_condition_coverage(
+                owner,
+                id,
+                &matching_overrides,
+                &imported_class_matches,
+                decl.name.span,
+            );
             for method in &imported_class_matches {
                 self.check_imported_class_override(id, decl, &sig, method);
             }

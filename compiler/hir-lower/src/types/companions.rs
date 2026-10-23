@@ -17,6 +17,7 @@ impl Lowerer {
                 .type_params_in_scope
                 .iter()
                 .any(|p| p.id == parameter && p.companion.is_some())
+                || self.assumed_conditional_companion(host)
             {
                 return Ok(self.intern_type(Type::Companion(parameter)));
             }

@@ -11,9 +11,44 @@ impl Lowerer {
         let saved_parameters = std::mem::replace(&mut self.type_params_in_scope, parameters);
         let blocks = self.owner_conditional_interfaces(owner).to_vec();
         let interfaces = self.unconditional_owner_interfaces(owner);
-        let mut conformances =
-            self.collect_nominal_interface_implementations(owner, span, host, &interfaces, None);
+        let inherited = self.inherited_conditional_interface_domains(owner);
+        let relisted = self.check_inherited_conditional_relisting(owner, &interfaces, &inherited);
+        let mut conformances = self.collect_nominal_interface_implementations(
+            owner,
+            span,
+            host,
+            &interfaces,
+            InterfaceImplementationContext::Unconditional,
+        );
+        for (interface, condition) in inherited {
+            if self.conditional_application_is_impossible(&condition) {
+                continue;
+            }
+            let mut implementations =
+                self.with_conditional_interface_assumptions(&condition, |state| {
+                    let context = relisted
+                        .iter()
+                        .find(|(_, target)| *target == interface)
+                        .map_or(InterfaceImplementationContext::Inherited, |(id, _)| {
+                            InterfaceImplementationContext::Declared(*id)
+                        });
+                    state.collect_nominal_interface_implementations(
+                        owner,
+                        span,
+                        host,
+                        &[interface],
+                        context,
+                    )
+                });
+            for implementation in &mut implementations {
+                implementation.condition = Some(condition.clone());
+            }
+            conformances.extend(implementations);
+        }
         for block in blocks {
+            if relisted.iter().any(|(id, _)| *id == block.id()) {
+                continue;
+            }
             self.type_params_in_scope = block.parameters.clone();
             let mut interfaces = Vec::new();
             self.append_interface_closure(block.interface, &mut interfaces);
@@ -22,7 +57,7 @@ impl Lowerer {
                 block.span,
                 host,
                 &interfaces,
-                Some(block.id()),
+                InterfaceImplementationContext::Declared(block.id()),
             );
             for implementation in &mut implementations {
                 implementation.condition = Some(hir::ConditionalInterfaceApplication {
@@ -98,7 +133,22 @@ impl Lowerer {
             Owner::Interface(_) => unreachable!("conformance owners are ordinary types"),
         };
         if let Some(base) = class.and_then(|class| self.classes[class].base_class) {
-            roots.extend(self.type_interfaces(base));
+            let Type::Class(base) = self.types[base] else {
+                unreachable!("a checked class base has a class application")
+            };
+            let base = self.class_applications[base].clone();
+            let inherited = self
+                .class_definition(base.template)
+                .interface_implementations
+                .clone();
+            roots.extend(
+                inherited
+                    .into_iter()
+                    .filter(|implementation| implementation.condition.is_none())
+                    .map(|implementation| {
+                        self.instantiate_ty(implementation.interface, &base.arguments)
+                    }),
+            );
         }
         let mut interfaces = Vec::new();
         for root in roots {

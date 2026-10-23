@@ -5,6 +5,34 @@ use super::*;
 mod relations;
 
 impl Concretizer<'_> {
+    pub(super) fn imported_virtual_method_applies(
+        &mut self,
+        callable: export::ImportedDispatchCallable,
+        substitution: &[concrete::TypeId],
+    ) -> bool {
+        let export::ImportedDispatchCallable::Template(application) = callable else {
+            return true;
+        };
+        let application = &self.source.imported_generic_applications[application];
+        let template = &self.source.imported_generic_templates[application.template];
+        let arguments = application
+            .arguments
+            .substitution(
+                &self.source.types,
+                &self.source.enum_applications,
+                &self.source.struct_applications,
+                &self.source.class_applications,
+                &self.source.interface_applications,
+            )
+            .into_iter()
+            .map(|argument| self.lower_type(argument, substitution))
+            .collect::<Vec<_>>();
+        self.concrete_conditional_parameters_hold(
+            template.type_parameters.declarations(),
+            &arguments,
+        )
+    }
+
     pub(super) fn concrete_direct_interfaces(
         &mut self,
         declarations: &[export::ConditionalInterfaceDeclaration],

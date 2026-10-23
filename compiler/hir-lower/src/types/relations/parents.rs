@@ -4,7 +4,9 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn direct_nominal_supertypes(&mut self, ty: TypeId) -> Vec<TypeId> {
-        self.direct_nominal_supertypes_for(self.types[ty].clone())
+        let mut parents = self.direct_nominal_supertypes_for(self.types[ty].clone());
+        parents.extend(self.assumed_conditional_parents(ty));
+        parents
     }
 
     pub(super) fn direct_nominal_supertypes_for(&mut self, ty: Type) -> Vec<TypeId> {

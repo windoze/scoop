@@ -32,6 +32,29 @@ impl NominalInterfaceRecordV1 {
                 )));
             }
         }
+        let scope = self.type_parameters.signature_scope(None);
+        for (index, conformance) in self.details.conditional_conformances().iter().enumerate() {
+            let error = |error| NominalInterfaceSemanticValidationError::ConditionalInterface {
+                index,
+                error,
+            };
+            let shape = scope
+                .validate_nominal_signature_semantics(&conformance.interface, authority)
+                .map_err(|source| error(ExactSupertypeSemanticError::Signature(source)))?;
+            if shape.kind() != PublicNominalKindV1::Interface {
+                return Err(error(ExactSupertypeSemanticError::InvalidTargetKind(
+                    shape.kind(),
+                )));
+            }
+            scope
+                .validate_nominal_signature_semantics(&conformance.condition.owner, authority)
+                .map_err(
+                    |error| NominalInterfaceSemanticValidationError::ConditionalOwner {
+                        index,
+                        error,
+                    },
+                )?;
+        }
         Ok(())
     }
 }

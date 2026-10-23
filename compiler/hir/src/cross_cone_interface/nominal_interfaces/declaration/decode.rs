@@ -18,6 +18,7 @@ pub struct DecodedNominalDeclarationDetailsV1 {
     class_primary_constructor: Option<DecodedClassPrimaryConstructorV1>,
     sealed_subtypes: Option<Vec<DecodedSourceNominalId>>,
     conditional_interfaces: Vec<DecodedConditionalInterfaceRecordV1>,
+    conditional_conformances: Vec<DecodedConditionalInterfaceConformanceV1>,
 }
 
 impl DecodedNominalDeclarationDetailsV1 {
@@ -96,6 +97,13 @@ impl DecodedNominalDeclarationDetailsV1 {
                 .map(|implementation| implementation.resolve(resolver))
                 .collect::<Result<_, _>>()
                 .map_err(Error::ConditionalInterface)?,
+        )
+        .with_conditional_conformances(
+            self.conditional_conformances
+                .into_iter()
+                .map(|value| value.resolve(resolver))
+                .collect::<Result<_, _>>()
+                .map_err(Error::Reference)?,
         ))
     }
 }
@@ -103,7 +111,7 @@ impl DecodedNominalDeclarationDetailsV1 {
 impl WireDecode for DecodedNominalDeclarationDetailsV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
-        if !(11..=13).contains(&fields) {
+        if !(11..=14).contains(&fields) {
             return Err(WireError::new(
                 WireErrorKind::InvalidLength {
                     expected: 11,
@@ -150,20 +158,11 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
                 None
             },
             conditional_interfaces: Vec::new(),
+            conditional_conformances: Vec::new(),
         };
 
-        let consumed = 11 + u64::from(value.sealed_subtypes.is_some());
-        if fields > consumed {
-            if fields != consumed + 1 {
-                return Err(WireError::new(
-                    WireErrorKind::InvalidLength {
-                        expected: consumed + 1,
-                        actual: fields,
-                    },
-                    decoder.path().clone(),
-                    Some(decoder.position()),
-                ));
-            }
+        let mut consumed = 11 + u64::from(value.sealed_subtypes.is_some());
+        if fields > consumed && decoder.peek_field()? == 13 {
             value.conditional_interfaces = decoder.field(13, |decoder| {
                 let values = decoder.decode_array(|decoder, _| {
                     DecodedConditionalInterfaceRecordV1::decode(decoder)
@@ -180,6 +179,36 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
                 }
                 Ok(values)
             })?;
+            consumed += 1;
+        }
+        if fields > consumed {
+            value.conditional_conformances = decoder.field(14, |decoder| {
+                let values = decoder.decode_array(|decoder, _| {
+                    DecodedConditionalInterfaceConformanceV1::decode(decoder)
+                })?;
+                if values.is_empty() {
+                    return Err(WireError::new(
+                        WireErrorKind::InvalidLength {
+                            expected: 1,
+                            actual: 0,
+                        },
+                        decoder.path().clone(),
+                        Some(decoder.position()),
+                    ));
+                }
+                Ok(values)
+            })?;
+            consumed += 1;
+        }
+        if fields != consumed {
+            return Err(WireError::new(
+                WireErrorKind::InvalidLength {
+                    expected: consumed,
+                    actual: fields,
+                },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            ));
         }
 
         Ok(value)
@@ -190,7 +219,8 @@ impl WireEncode for DecodedNominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(
             11 + u64::from(self.sealed_subtypes.is_some())
-                + u64::from(!self.conditional_interfaces.is_empty()),
+                + u64::from(!self.conditional_interfaces.is_empty())
+                + u64::from(!self.conditional_conformances.is_empty()),
         )?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
@@ -238,6 +268,13 @@ impl WireEncode for DecodedNominalDeclarationDetailsV1 {
             encoder.array(self.conditional_interfaces.len() as u64)?;
             for implementation in &self.conditional_interfaces {
                 implementation.encode(encoder)?;
+            }
+        }
+        if !self.conditional_conformances.is_empty() {
+            encoder.field(14)?;
+            encoder.array(self.conditional_conformances.len() as u64)?;
+            for conformance in &self.conditional_conformances {
+                conformance.encode(encoder)?;
             }
         }
         Ok(())

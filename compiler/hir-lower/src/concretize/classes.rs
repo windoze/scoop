@@ -164,25 +164,25 @@ impl Concretizer<'_> {
             definition.interfaces,
             substitution,
         );
-        methods.extend(
-            definition
-                .virtual_methods
-                .iter()
-                .map(|method| match method.callable {
-                    export::ImportedDispatchCallable::External(callable) => {
-                        concrete::ClassMethod::Imported {
-                            family: self.lower_virtual_method(method.family),
-                            callable: self.imported_dependency_callable_map[&callable],
-                        }
+        methods.extend(definition.virtual_methods.iter().filter_map(|method| {
+            if !self.imported_virtual_method_applies(method.callable, substitution) {
+                return None;
+            }
+            Some(match method.callable {
+                export::ImportedDispatchCallable::External(callable) => {
+                    concrete::ClassMethod::Imported {
+                        family: self.lower_virtual_method(method.family),
+                        callable: self.imported_dependency_callable_map[&callable],
                     }
-                    export::ImportedDispatchCallable::Template(application) => {
-                        concrete::ClassMethod::Local(self.lower_imported_callable_application(
-                            &self.source.imported_generic_applications[application],
-                            substitution,
-                        ))
-                    }
-                }),
-        );
+                }
+                export::ImportedDispatchCallable::Template(application) => {
+                    concrete::ClassMethod::Local(self.lower_imported_callable_application(
+                        &self.source.imported_generic_applications[application],
+                        substitution,
+                    ))
+                }
+            })
+        }));
         let interface_implementations = self
             .lower_interface_implementations(definition.interface_implementations, substitution);
         self.classes[id].interfaces = interface_implementations

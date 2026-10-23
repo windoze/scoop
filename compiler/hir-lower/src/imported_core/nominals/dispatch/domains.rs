@@ -8,51 +8,39 @@ impl Lowerer {
         ty: hir::TypeId,
         declaration: &hir::ImportedNominalDeclaration,
         roots: &[hir::TypeId],
-    ) -> Vec<(hir::TypeId, Option<hir::ConditionalInterfaceApplication>)> {
+    ) -> Result<
+        Vec<(hir::TypeId, Option<hir::ConditionalInterfaceApplication>)>,
+        ImportedSignatureTypeError,
+    > {
         let mut domains = Vec::new();
         for root in roots {
             self.append_imported_interface_domain(*root, None, &mut domains);
         }
-        let arguments = self.imported_owner_arguments(ty).to_vec();
-        let conditional = self
-            .declaration_conditional_interfaces(declaration.owner())
-            .to_vec();
-        for implementation in conditional {
-            let interface = self.instantiate_ty(implementation.interface, &arguments);
-            let condition = hir::ConditionalInterfaceApplication {
-                declaration: implementation.id(),
-                owner: declaration.owner(),
-                arguments: arguments.clone(),
-            };
-            self.append_imported_interface_domain(interface, Some(condition), &mut domains);
-        }
-        if let hir::Type::Class(class) = self.types[ty] {
-            let class = self.class_applications[class].clone();
-            if let Some(base) = self.class_definition(class.template).base_class {
-                let base = self.instantiate_ty(base, &class.arguments);
-                let hir::Type::Class(base) = self.types[base] else {
-                    unreachable!("checked class parents are classes")
-                };
-                let base = self.class_applications[base].clone();
-                let inherited = self
-                    .class_definition(base.template)
-                    .interface_implementations
-                    .clone();
-                for implementation in inherited {
-                    let Some(mut condition) = implementation.condition else {
-                        continue;
-                    };
-                    let interface = self.instantiate_ty(implementation.interface, &base.arguments);
-                    condition.arguments = condition
-                        .arguments
-                        .into_iter()
-                        .map(|argument| self.instantiate_ty(argument, &base.arguments))
-                        .collect();
-                    self.append_imported_interface_domain(interface, Some(condition), &mut domains);
-                }
+        for conformance in declaration
+            .interface
+            .declaration_details()
+            .conditional_conformances()
+        {
+            let interface = self.imported_dispatch_receiver(&conformance.interface, ty)?;
+            let owner_type = self.imported_dispatch_receiver(&conformance.condition.owner, ty)?;
+            let owner = self
+                .imported_nominal_owner(owner_type)
+                .ok_or(ImportedSignatureTypeError::Structural)?;
+            if !self
+                .declaration_conditional_interfaces(owner)
+                .iter()
+                .any(|block| block.id() == conformance.condition.declaration)
+            {
+                return Err(ImportedSignatureTypeError::Structural);
             }
+            let condition = hir::ConditionalInterfaceApplication {
+                declaration: conformance.condition.declaration,
+                owner,
+                arguments: self.imported_owner_arguments(owner_type).to_vec(),
+            };
+            domains.push((interface, Some(condition)));
         }
-        domains
+        Ok(domains)
     }
 
     fn append_imported_interface_domain(

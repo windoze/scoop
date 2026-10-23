@@ -17,7 +17,7 @@
 | 语法与普通类型条件接口 | 本 Cone 基础闭环已完成；继承等组合另行验收 | 4 个 parser 用例、11 个 M57 HIR 用例、8 个诊断 fixture、4 个 core consumer 原生用例通过 |
 | Companion、HashMap 与 Json 闭环 | 已完成 | 6 个 JSON Cone 原生用例覆盖四种能力组合、嵌套、显式工厂及重复 key 路径 |
 | 条件 codec 合成 | 已完成 | 2 个定向检查、24 个既有合成回归、完整 JSON Cone 76 项测试及跨 Cone 合成 codec 运行通过 |
-| 继承、default、property 与效果组合 | 待完成 | 定向检查已定位继承条件保存、abstract 义务与 override 域覆盖的缺口 |
+| 继承、default、property 与效果组合 | 继承基本闭环已完成；其余组合待完成 | 条件继承、等价重列、域覆盖、abstract 义务、虚分派及计算属性有本地／跨 Cone 验证 |
 | 导出、跨 Cone 与 ODR | 基础闭环已完成；继承组合另行验收 | 83 个泛型导入回归、条件记录 wire 往返／再次发布与双 consumer 原生链接运行通过 |
 | 完整组合与 Linux 验收 | 待完成 | 尚无完整验收 |
 
@@ -54,3 +54,12 @@
 - 2 个 HIR 定向检查与 24 个既有 encoding／decoding 合成回归通过；正式负向 fixture 验证不能用 decoder 条件替代 encoder 条件，反向亦然。
 - 完整 JSON Cone 的 76 项原生测试通过。新增 5 项覆盖独立方向、Envelope 与 HashMap 等完整泛型字段、显式依赖与方法优先、递归节点和默认值。首次失败为新用例误把应省略的默认 None 字段写成 null，按现行 wire 规则修正预期后通过，未更改编码规则。
 - 跨 Cone ODR fixture 同时消费并执行 provider 合成的 Envelope codec，原链接及逆序依赖重链接均通过。
+
+## 7. 继承条件与分派
+
+- 基类的条件 conformance 沿完整 base application 代入，保留原 owner 与条件身份；重列接口要求在派生类基础约束下等价。普通 override 可覆盖条件 slot，带条件的 override 必须覆盖继承义务的完整域，不能用自身条件证明覆盖。
+- 具体子类检查全部可能适用的 abstract 义务，已证明不可能的条件不产生义务。构造类型实参的条件使用代入后的声明事实，不反向猜测其内部参数约束。
+- `cross-cone-interface/80` 增加检查后 conformance 记录，导入方直接消费原关系；空接口与继承重列也保留完整条件。普通源声明的虚表描述复用具体 HIR 实际保留的 family；无条件 override 在基类方法不可用时仍保留自己的合法成员与分派，不要求生成不适用的基类正文。
+- 本机 workspace Clippy 通过。25 项 M57 定向检查、867 项 HIR 格式测试、84 项泛型导入回归、97 项普通规则回归、121 项类型／产物回归通过。格式版本对应的固定向量已更新，17 项 profile 检查通过。
+- 已显式按格式 80 准备 Darwin 的 21 个系统 Cone。完整 core consumer 的 41 项原生测试通过，新增 3 项覆盖普通／条件 override、条件关闭后的虚表位置、构造实参、abstract 与 computed property。跨 Cone ODR fixture 增加相同继承组合及 marker 接口，原链接／逆序依赖重链接均通过；10 个条件接口诊断 fixture 通过。
+- 继承 codec 合成、companion 出现在条件接口目标／成员签名、default 条件交叉、sealed／类型描述／文档及 Linux 完整验收仍须继续完成；本节不代表这些组合已验收。

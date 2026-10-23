@@ -47,7 +47,7 @@ impl Lowerer {
     }
 
     pub(crate) fn type_satisfies_kind(&self, ty: TypeId, required: hir::TypeParamKind) -> bool {
-        if required == hir::TypeParamKind::Any {
+        if required == hir::TypeParamKind::Any || self.assumed_conditional_kind(ty, required) {
             return true;
         }
         if let Type::Param(index) = self.types[ty] {

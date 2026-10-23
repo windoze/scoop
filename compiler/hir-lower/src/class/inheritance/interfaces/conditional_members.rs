@@ -14,6 +14,13 @@ impl Lowerer {
         } else {
             Vec::new()
         };
+        if condition.is_none() {
+            for (interface, condition) in self.inherited_conditional_interface_domains(owner) {
+                if !self.conditional_application_is_impossible(&condition) {
+                    self.append_interface_closure(interface, &mut interfaces);
+                }
+            }
+        }
         for block in self.owner_conditional_interfaces(owner).to_vec() {
             if condition.is_none_or(|condition| condition == block.id()) {
                 self.append_interface_closure(block.interface, &mut interfaces);

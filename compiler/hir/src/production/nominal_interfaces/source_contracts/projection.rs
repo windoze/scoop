@@ -92,7 +92,13 @@ pub(super) fn project(
                 ))
             })
             .collect::<Result<Vec<_>, Error>>()?,
-    );
+    )
+    .with_conditional_conformances(conditional::conformances(
+        export,
+        local,
+        &signatures,
+        &binders,
+    )?);
     NominalInterfaceRecordV1::try_new(
         owner,
         shape.kind(),

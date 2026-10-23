@@ -1,72 +1,50 @@
 use super::*;
-use crate::production::nominal_dispatch::ClassChainEntry;
 
 impl Projection<'_> {
-    pub(super) fn class(&mut self, class: ClassId) -> Result<InheritanceSlotSchemaV1, Error> {
-        let chain = self.class_chain(class)?;
+    pub(super) fn class(&mut self, source: ClassId) -> Result<InheritanceSlotSchemaV1, Error> {
+        let origin = &self.export.nominal_identities[source];
+        let (class, _) = self
+            .local
+            .classes
+            .iter()
+            .find(|(_, class)| &class.origin == origin && class.type_arguments.is_empty())
+            .ok_or_else(|| self.invalid("concrete source class has no materialized definition"))?;
+        let mut chain = Vec::new();
+        let mut current = Some(class);
+        while let Some(class) = current {
+            chain.push(class);
+            current = self.local.classes[class].base_class();
+        }
         let mut slots = Vec::new();
         let mut seen = BTreeSet::new();
-        for entry in chain.into_iter().rev() {
-            let class = match entry {
-                ClassChainEntry::Local(class) => class,
-                ClassChainEntry::Imported(ty) => {
-                    let Type::Class(application) = self.export.types[ty] else {
-                        return Err(self.invalid("class base does not resolve to a class type"));
-                    };
-                    let class = &self.export.loaded_class_definitions
-                        [&self.export.class_applications[application].template];
-                    for method in &class.virtual_methods {
-                        if seen.insert(method.slot) {
-                            self.push(&mut slots, method.slot)?;
+        // Concretization has already removed unavailable members. Reuse its
+        // family order, including unconditional overrides of conditional slots.
+        for class in chain.into_iter().rev() {
+            for method in &self.local.classes[class].methods {
+                let family = match *method {
+                    concrete::ClassMethod::Imported { family, .. } => family,
+                    concrete::ClassMethod::Local(function) => {
+                        let method = self.local.functions[function]
+                            .receiver
+                            .method()
+                            .expect("class methods have a checked receiver");
+                        match method.dispatch {
+                            concrete::MethodDispatch::Virtual(family)
+                            | concrete::MethodDispatch::FinalOverride(family) => family,
+                            _ => continue,
                         }
                     }
-                    continue;
-                }
-            };
-            let declaration = &self.export.classes[class];
-            for function in &declaration.methods {
-                let Some(method) = self.export.functions[*function].method else {
-                    return Err(self.invalid("class method has no dispatch metadata"));
                 };
-                let family = match method.dispatch {
-                    MethodDispatch::Virtual(family) | MethodDispatch::FinalOverride(family) => {
-                        family
-                    }
-                    MethodDispatch::Direct => continue,
-                    MethodDispatch::Interface(_) => {
-                        return Err(
-                            self.invalid("class method carries interface declaration dispatch")
-                        );
-                    }
-                };
-
-                let identity = self
-                    .export
+                let slot = self
+                    .local
                     .dispatch_slot_identities
-                    .get_virtual(family)
-                    .ok_or_else(|| {
-                        self.invalid("virtual family has no sealed dispatch identity")
-                    })?;
-                if seen.insert(identity.id()) {
-                    self.push(&mut slots, identity.id())?;
+                    .virtual_slot(family)
+                    .id();
+                if seen.insert(slot) {
+                    self.push(&mut slots, slot)?;
                 }
             }
         }
         self.schema(InheritanceSlotSchemaRoleV1::ClassVtable, slots)
-    }
-
-    pub(super) fn class_chain(&mut self, class: ClassId) -> Result<Vec<ClassChainEntry>, Error> {
-        let result =
-            crate::production::nominal_dispatch::Projection::new(self.export).class_chain(class)?;
-        for entry in &result {
-            let base = match entry {
-                ClassChainEntry::Local(class) => self.export.classes[*class].base_class,
-                ClassChainEntry::Imported(ty) => Some(*ty),
-            };
-            if let Some(base) = base {
-                exact(self.export, base)?;
-            }
-        }
-        Ok(result)
     }
 }

@@ -61,7 +61,7 @@ pub(super) fn append(
                 for (position, target) in class.vtable.iter().enumerate() {
                     let target = physical_target(context, target)?;
                     let slot = *slots.get(&target).ok_or(Error::Application(owner))?;
-                    let contract = virtual_contract(context, owner, slot, position)?;
+                    let contract = virtual_contract(context, owner, slot, position, target)?;
                     entries.push(entry(context, owner, contract, target)?);
                 }
                 vtable = mir::MirDispatchSlotsV1::ClassVtable(entries);
@@ -196,23 +196,39 @@ fn virtual_contract(
     owner: PersistentExactTypeId,
     slot: PersistentDispatchSlotId,
     position: usize,
+    target: CallableDefinitionOwner,
 ) -> Result<mir::MirDispatchSlotV1, Error> {
     let key = context
         .authority
         .identities
         .canonical_key::<_, DispatchSlotKey>(slot)?;
-    let declaration = mir::dispatch_declaration_target(
+    let receiver = mir::dispatch_declaration_receiver(
         context.authority.identities,
         context.authority.types,
         key.owner(),
         owner,
     )?;
+    // A wider override can exist when the original conditional method has no
+    // body for this application. Reuse the checked non-receiver contract of
+    // the selected implementation, with the original family's receiver.
+    let binding = context.callable(target)?;
+    let signature = binding.lowered_signature();
+    let exact = signature.exact();
+    let signature = mir::MirBridgeCallableSignatureV1::new(
+        ExactCallableSignature::new(
+            exact.effect(),
+            Some(receiver),
+            exact.parameters().to_vec(),
+            exact.result(),
+        ),
+        signature.gc_effect(),
+    );
     Ok(mir::MirDispatchSlotV1::new(
         slot,
         mir::MirDispatchPositionV1::new(
             u32::try_from(position).map_err(|_| Error::Application(owner))?,
         ),
-        context.callable(declaration)?.lowered_signature().clone(),
+        signature,
     ))
 }
 

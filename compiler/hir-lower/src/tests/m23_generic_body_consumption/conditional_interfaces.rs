@@ -2,6 +2,49 @@ use super::wire_equivalence::compare_consumers;
 use super::*;
 
 #[test]
+fn m57_inherited_conditions_survive_wire_and_concrete_virtual_dispatch() {
+    compare_consumers(
+        "inherited conditional interfaces",
+        r#"
+        package dependency.api
+        public interface Read<X> { public fun read(): Int }
+        public interface Mark {}
+        public struct Good<X>() : Read<Int> { public override fun read(): Int = 7 }
+        public struct Empty<X>()
+        public open class Base<T> public constructor(public val value: T) {
+            override interface Read<Int> where T : Read<Int> {
+                public open override fun read(): Int = value.read()
+            }
+            public open fun stable(): Int = 3
+        }
+        public class Derived<T> public constructor(value: T) : Base<T>(value)
+        public class Relisted<T> public constructor(value: T) : Base<T>(value) {
+            override interface Read<Int> where T : Read<Int> { public override fun read(): Int = 9 }
+        }
+        public abstract class Abstract<T> protected constructor() {
+            override interface Read<Int> where T : Read<Int> { public abstract override fun read(): Int }
+        }
+        "#,
+        r#"
+        import dependency.api.*
+        class Local<T>(value: T) : Base<T>(value) { public override fun read(): Int = 11 }
+        class Completed<T> : Abstract<T>() { public override fun read(): Int = 12 }
+        class NoObligation : Abstract<Empty<Int>>()
+        fun use(): Int {
+            val a: Read<Int> = Derived(Good<Int>())
+            val b: Read<Int> = Relisted(Good<Int>())
+            val c: Read<Int> = Local(Good<Int>())
+            val d: Base<Empty<Int>> = Derived(Empty<Int>())
+            val e = Completed<Empty<Int>>().read()
+            val f = NoObligation()
+            val g = Relisted(Empty<Int>()).stable()
+            return a.read() + b.read() + c.read() + d.stable() + e + g
+        }
+        "#,
+    );
+}
+
+#[test]
 fn m57_companion_conditions_do_not_depend_on_static_interface_use() {
     with_provider_consumer(
         r#"

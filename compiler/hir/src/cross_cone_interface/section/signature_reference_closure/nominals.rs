@@ -74,6 +74,35 @@ impl CrossConeHirInterfaceSectionV1 {
                 )?;
             }
 
+            for (conformance_index, conformance) in record
+                .declaration_details()
+                .conditional_conformances()
+                .iter()
+                .enumerate()
+            {
+                let path = record_path
+                    .clone()
+                    .field(9)
+                    .field(14)
+                    .index(conformance_index as u64);
+                validator.visit_signature(
+                    &conformance.interface,
+                    ExternalHirSignatureUseSiteV1::NominalConditionalConformance {
+                        record_index,
+                        conformance_index,
+                    },
+                    &path.clone().field(1),
+                )?;
+                validator.visit_signature(
+                    &conformance.condition.owner,
+                    ExternalHirSignatureUseSiteV1::NominalConditionalConformanceOwner {
+                        record_index,
+                        conformance_index,
+                    },
+                    &path.field(2).field(2),
+                )?;
+            }
+
             for (selection_index, selection) in record
                 .declaration_details()
                 .dispatch_selections()

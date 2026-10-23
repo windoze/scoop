@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 mod conditional;
 mod conditional_members;
+mod inherited;
 mod integral;
 mod members;
 pub(super) use members::{InterfaceMemberInstance, InterfaceSignature};
@@ -12,6 +13,13 @@ enum InterfaceDefaultSelection {
     Default(InterfaceMemberInstance),
     Obligation(InterfaceMemberInstance),
     Conflict(Vec<InterfaceMemberInstance>),
+}
+
+#[derive(Clone, Copy)]
+enum InterfaceImplementationContext {
+    Unconditional,
+    Declared(hir::ConditionalInterfaceId),
+    Inherited,
 }
 
 impl Lowerer {
@@ -56,7 +64,7 @@ impl Lowerer {
         span: ast::Span,
         host: &str,
         interfaces: &[TypeId],
-        condition: Option<hir::ConditionalInterfaceId>,
+        context: InterfaceImplementationContext,
     ) -> Vec<hir::InterfaceImplementation> {
         let (own_methods, class) = match owner {
             Owner::Class(id) => (self.classes[id].methods.clone(), Some(id)),
@@ -148,7 +156,13 @@ impl Lowerer {
                         )
                         .into_iter()
                         .find(|method| {
-                            self.same_interface_signature(&method.signature, &member.signature)
+                            self.imported_member_condition(
+                                method.declaration.interface(),
+                                method.owner,
+                            )
+                            .is_none_or(|condition| self.conditional_application_holds(&condition))
+                                && self
+                                    .same_interface_signature(&method.signature, &member.signature)
                         })
                     })
                 } else {
@@ -246,6 +260,18 @@ impl Lowerer {
                         InterfaceDefaultSelection::Obligation(declaration) if abstract_class => {
                             self.conformance_target(&declaration, span)
                         }
+                        InterfaceDefaultSelection::Obligation(_)
+                            if matches!(context, InterfaceImplementationContext::Inherited) =>
+                        {
+                            self.report_interface_obligation(
+                                &mut reported_obligations,
+                                &member,
+                                span,
+                                host,
+                                true,
+                            );
+                            None
+                        }
                         InterfaceDefaultSelection::Obligation(_) => {
                             if let Some(function) = self
                                 .derive_missing_encoding(
@@ -271,7 +297,8 @@ impl Lowerer {
                                     )
                                 })
                             {
-                                if let Some(condition) = condition {
+                                if let InterfaceImplementationContext::Declared(condition) = context
+                                {
                                     self.bind_synthesized_interface_condition(
                                         function, owner, condition,
                                     );

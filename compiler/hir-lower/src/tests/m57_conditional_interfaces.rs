@@ -1,5 +1,7 @@
 use super::*;
 
+mod inheritance;
+
 const READ: &str = r#"
     interface Read { public fun read(): Int }
     struct Good(val number: Int) : Read {

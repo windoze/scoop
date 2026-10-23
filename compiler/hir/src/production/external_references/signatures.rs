@@ -60,6 +60,20 @@ where
             )?;
             collect_binders(implementation.parameters(), accumulator, &path.field(3))?;
         }
+        for (index, conformance) in record
+            .declaration_details()
+            .conditional_conformances()
+            .iter()
+            .enumerate()
+        {
+            let path = path.clone().field(9).field(14).index(index as u64);
+            observe(accumulator, &conformance.interface, &path.clone().field(1))?;
+            observe(
+                accumulator,
+                &conformance.condition.owner,
+                &path.field(2).field(2),
+            )?;
+        }
         collect_dispatch_signatures(
             accumulator,
             record.declaration_details().dispatch_selections(),

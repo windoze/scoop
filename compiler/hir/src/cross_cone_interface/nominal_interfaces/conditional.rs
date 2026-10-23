@@ -9,10 +9,14 @@ use crate::{
 };
 
 mod application;
+mod conformance;
 mod key;
 mod wire;
 pub use application::{
     ConditionalInterfaceApplicationV1, DecodedConditionalInterfaceApplicationV1,
+};
+pub use conformance::{
+    ConditionalInterfaceConformanceV1, DecodedConditionalInterfaceConformanceV1,
 };
 pub use wire::{ConditionalInterfaceRecordResolutionError, DecodedConditionalInterfaceRecordV1};
 

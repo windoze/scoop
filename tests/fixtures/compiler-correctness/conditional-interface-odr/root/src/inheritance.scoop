@@ -1,0 +1,28 @@
+package test.m57.program
+
+import test.m57.provider.*
+
+class Local<T> : Gated<T>() {
+    public override fun next(): Int = 54
+    public override fun stable(): Int = 62
+}
+class Completed<T> : ConditionalAbstract<T>() { public override fun next(): Int = 53 }
+class NoObligation : ConditionalAbstract<Plain>()
+
+fun inheritedRelations(): Boolean {
+    val inherited: Counter = Inherited<Int>()
+    val relisted: Counter = Relisted<Int>()
+    val local: Gated<Int> = Local<Int>()
+    val localAbsent: Gated<Plain> = Local<Plain>()
+    val directAbsent = Local<Plain>()
+    val complete: Counter = Completed<Int>()
+    val empty: Any = NoObligation()
+    val marker: Any = Relisted<Int>()
+    val absent: Any = Relisted<Plain>()
+    val erased: Any = directAbsent
+    return inherited.next() == 51 && relisted.next() == 52
+        && local.next() == 54 && local.stable() == 62 && localAbsent.stable() == 62
+        && directAbsent.next() == 54 && complete.next() == 53
+        && !(empty is Counter) && !(erased is Counter)
+        && marker is Marker && !(absent is Counter) && !(absent is Marker)
+}

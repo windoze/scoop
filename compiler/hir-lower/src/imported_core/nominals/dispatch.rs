@@ -125,7 +125,7 @@ impl Lowerer {
         roots: &[hir::TypeId],
     ) -> Result<Vec<hir::InterfaceImplementation>, ImportedSignatureTypeError> {
         let selections = self.imported_interface_dispatch_selections(ty, declaration)?;
-        let interfaces = self.imported_interface_domains(ty, declaration, roots);
+        let interfaces = self.imported_interface_domains(ty, declaration, roots)?;
         let mut implementations = Vec::new();
         for (interface_ty, condition) in interfaces {
             let Some(interface) = self.dependency_interface_definition(interface_ty).cloned()
