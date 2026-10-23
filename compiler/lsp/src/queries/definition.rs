@@ -45,12 +45,12 @@ pub(crate) fn definition(
         }
     }
     if let Some(function) = semantic::body(analysis, &cursor, snapshot, cancellation)? {
-        let parameter = match analysis.signature(function.function) {
-            EditingValue::Known(signature) => signature
+        let parameter = match analysis.source_body_signature(&function) {
+            Some(EditingValue::Known(signature)) => signature
                 .parameters
                 .into_iter()
                 .find(|parameter| parameter.origin.span == cursor.span),
-            EditingValue::Unavailable(_) => None,
+            Some(EditingValue::Unavailable(_)) | None => None,
         };
         let mut origin = if let Some(parameter) = parameter {
             Some(parameter.origin)

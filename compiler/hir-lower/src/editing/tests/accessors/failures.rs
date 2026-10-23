@@ -58,7 +58,12 @@ fn accessor_cancellation_discards_body_facts_and_can_retry_without_stale_errors(
     let getter = analysis
         .source_bodies()
         .into_iter()
-        .find(|body| matches!(body.callable, hir::SemanticCallable::CurrentGetter(_)))
+        .find(|body| {
+            matches!(
+                body.callable(),
+                Some(hir::SemanticCallable::CurrentGetter(_))
+            )
+        })
         .unwrap();
     let checks = std::rc::Rc::new(std::cell::Cell::new(0));
     let observed = checks.clone();

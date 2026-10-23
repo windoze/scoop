@@ -48,12 +48,12 @@ fn nested_local_accessors_obtain_their_complete_outer_source_contexts() {
         analysis
             .source_bodies()
             .iter()
-            .all(|body| matches!(body.callable, hir::SemanticCallable::Current(_)))
+            .all(|body| matches!(body.callable(), Some(hir::SemanticCallable::Current(_))))
     );
     let nested = region(&mut analysis, text, "return saved");
     assert!(matches!(
-        nested.callable,
-        hir::SemanticCallable::CurrentGetter(_)
+        nested.callable(),
+        Some(hir::SemanticCallable::CurrentGetter(_))
     ));
     let body = facts(&mut analysis, &nested);
     let saved = body

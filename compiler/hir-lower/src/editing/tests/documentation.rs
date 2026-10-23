@@ -78,7 +78,7 @@ fn setter_body_parameters_keep_the_original_accessor_documentation_target() {
         .source_body_at(&source, ast::Span::new(start, start + 4), || false)
         .unwrap()
         .unwrap();
-    let hir::SemanticCallable::CurrentSetter(setter) = body.callable else {
+    let Some(hir::SemanticCallable::CurrentSetter(setter)) = body.callable() else {
         panic!("the source body belongs to the actual setter")
     };
     let V::Known(facts) = analysis.function_facts(body.function, || false).unwrap() else {

@@ -207,7 +207,6 @@ impl Lowerer {
                 span: declaration.declaration.span,
                 kind: PendingRuntimeInitializerKind::Stored {
                     storage: global,
-                    ty: declaration.ty,
                     expression,
                 },
             });

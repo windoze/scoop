@@ -106,20 +106,21 @@ fn description(
         return Ok(Some(description));
     }
     if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {
-        let EditingValue::Known(signature) = analysis.signature(function.function) else {
-            return Ok(None);
+        let signature = match analysis.source_body_signature(&function) {
+            Some(EditingValue::Known(signature)) => Some(signature),
+            Some(EditingValue::Unavailable(_)) => return Ok(None),
+            None => None,
         };
         if let Some((index, parameter)) = signature
-            .parameters
             .iter()
-            .enumerate()
+            .flat_map(|signature| signature.parameters.iter().enumerate())
             .find(|(_, parameter)| parameter.origin.span == target)
         {
             let ty = type_label(analysis, function.function, parameter.value_type)?;
             return Ok(Some(Description {
                 label: format!("{}: {ty}", parameter.name),
-                documentation: Some(documentation::Query {
-                    symbol: documentation::applied_parameter(function.callable.into(), index),
+                documentation: function.callable().map(|callable| documentation::Query {
+                    symbol: documentation::applied_parameter(callable.into(), index),
                     origin: parameter.origin.clone(),
                 }),
             }));
@@ -158,11 +159,15 @@ fn description(
                 label,
                 documentation: local.reference.and_then(|local| {
                     let index = signature
+                        .as_ref()?
                         .parameters
                         .iter()
                         .position(|parameter| parameter.origin == local.definition)?;
                     Some(documentation::Query {
-                        symbol: documentation::applied_parameter(function.callable.into(), index),
+                        symbol: documentation::applied_parameter(
+                            function.callable()?.into(),
+                            index,
+                        ),
                         origin: local.definition,
                     })
                 }),

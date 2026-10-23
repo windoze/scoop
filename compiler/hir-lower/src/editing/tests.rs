@@ -44,6 +44,7 @@ mod recovered_interfaces;
 mod recovered_objects;
 mod recovered_structs;
 mod references;
+mod runtime_initializers;
 mod selectors;
 mod trailing_callables;
 mod type_definitions;

@@ -53,12 +53,12 @@ fn explicit_bodies_keep_backing_fields_calls_and_source_accessor_identities() {
     let getter = region(&mut analysis, text, "pass(saved)");
     let setter = region(&mut analysis, text, "pass(next)");
     assert!(matches!(
-        getter.callable,
-        hir::SemanticCallable::CurrentGetter(_)
+        getter.callable(),
+        Some(hir::SemanticCallable::CurrentGetter(_))
     ));
     assert!(matches!(
-        setter.callable,
-        hir::SemanticCallable::CurrentSetter(_)
+        setter.callable(),
+        Some(hir::SemanticCallable::CurrentSetter(_))
     ));
     assert_ne!(getter.function, setter.function);
     assert_eq!(analysis.functions().len(), 1);

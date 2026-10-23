@@ -10,7 +10,7 @@ impl ReferenceBuilder {
         let cancellation = check.clone();
         let V::Known(facts) = analysis.function_facts(function.function, move || cancellation())?
         else {
-            self.parameters(analysis, function.function, function.callable);
+            self.parameters(analysis, function.function, function.callable());
             self.unavailable.push(function.origin.clone());
             return Ok(());
         };
@@ -29,7 +29,7 @@ impl ReferenceBuilder {
                     reference.imports.clone(),
                 )
             }));
-        let mut parameters = self.parameters(analysis, function.function, function.callable);
+        let mut parameters = self.parameters(analysis, function.function, function.callable());
         for declaration in &local_functions {
             if check() {
                 return Err(EditingCancelled);
@@ -38,7 +38,7 @@ impl ReferenceBuilder {
             parameters.extend(self.parameters(
                 analysis,
                 declaration.function,
-                hir::SemanticCallable::Current(declaration.function),
+                Some(hir::SemanticCallable::Current(declaration.function)),
             ));
         }
         let source = &function.origin.source;
@@ -129,8 +129,11 @@ impl ReferenceBuilder {
         &mut self,
         analysis: &mut DeclarationAnalysis,
         function: hir::FunctionId,
-        declaration: hir::SemanticCallable,
+        declaration: Option<hir::SemanticCallable>,
     ) -> HashMap<hir::SemanticSourceLocation, Target> {
+        let Some(declaration) = declaration else {
+            return HashMap::new();
+        };
         let V::Known(signature) = analysis.signature(function) else {
             return HashMap::new();
         };

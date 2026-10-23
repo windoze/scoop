@@ -1,6 +1,13 @@
 use super::*;
+use crate::globals::{PendingRuntimeInitializer, PendingRuntimeInitializerKind};
 use crate::properties::{PropertyAccessorBodyKind, PropertyAccessorKind, PropertyAccessorSource};
 use hir::EditingValue as V;
+
+pub(super) enum SourceBodyInput<'a> {
+    Function(&'a ast::FunctionDecl),
+    Accessor(&'a PropertyAccessorSource),
+    Initializer(&'a PendingRuntimeInitializer),
+}
 
 impl DeclarationAnalysis {
     pub fn source_body_at(
@@ -37,11 +44,26 @@ impl DeclarationAnalysis {
     }
 
     pub fn source_bodies(&self) -> Vec<hir::EditingSourceBody> {
+        self.source_body_regions()
+            .filter(|body| self.declaration_scope_available(&body.origin))
+            .collect()
+    }
+
+    pub fn source_body_signature(
+        &self,
+        body: &hir::EditingSourceBody,
+    ) -> Option<V<EditingSignature>> {
+        body.callable().map(|_| self.signature(body.function))
+    }
+
+    fn source_body_regions(&self) -> impl Iterator<Item = hir::EditingSourceBody> + '_ {
         self.functions
             .iter()
             .map(|function| hir::EditingSourceBody {
                 function: function.function,
-                callable: hir::SemanticCallable::Current(function.function),
+                owner: hir::EditingSourceBodyOwner::Callable(hir::SemanticCallable::Current(
+                    function.function,
+                )),
                 origin: hir::SemanticSourceLocation {
                     source: function.name_origin.source.clone(),
                     span: function.span,
@@ -55,27 +77,46 @@ impl DeclarationAnalysis {
                         if !has_source_body(source) {
                             return None;
                         }
-                        let origin = self.lowerer.accessor_source_origin(source);
-                        self.declaration_scope_available(&origin)
-                            .then(|| hir::EditingSourceBody {
-                                function: source.function,
-                                callable: self.lowerer.accessor_callable(source),
-                                origin,
-                            })
+                        Some(hir::EditingSourceBody {
+                            function: source.function,
+                            owner: hir::EditingSourceBodyOwner::Callable(
+                                self.lowerer.accessor_callable(source),
+                            ),
+                            origin: self.lowerer.accessor_source_origin(source),
+                        })
                     }),
             )
-            .collect()
+            .chain(
+                self.lowerer
+                    .pending_runtime_initializers
+                    .iter()
+                    .map(|source| hir::EditingSourceBody {
+                        function: source.function,
+                        owner: hir::EditingSourceBodyOwner::Initialization(source.unit),
+                        origin: self.lowerer.initializer_source_origin(source),
+                    }),
+            )
     }
 
-    pub(super) fn source_body_declaration(
+    pub(super) fn source_body_input(
         &self,
         function: hir::FunctionId,
-    ) -> Option<&ast::FunctionDecl> {
-        self.body_inputs.get(&function).or_else(|| {
-            let source = self.lowerer.editing_accessor_source(function)?;
-            self.declaration_scope_available(&self.lowerer.accessor_source_origin(source))
-                .then_some(&source.declaration)
-        })
+    ) -> Option<SourceBodyInput<'_>> {
+        if let Some(declaration) = self.body_inputs.get(&function) {
+            return Some(SourceBodyInput::Function(declaration));
+        }
+        if let Some(source) = self.lowerer.editing_accessor_source(function) {
+            return self
+                .declaration_scope_available(&self.lowerer.accessor_source_origin(source))
+                .then_some(SourceBodyInput::Accessor(source));
+        }
+        let source = self
+            .lowerer
+            .pending_runtime_initializers
+            .iter()
+            .find(|source| source.function == function)?;
+        self.declaration_scope_available(&self.lowerer.initializer_source_origin(source))
+            .then_some(SourceBodyInput::Initializer(source))
     }
 }
 
@@ -118,6 +159,32 @@ impl Lowerer {
             span: source.declaration.span,
         }
     }
+
+    fn initializer_source_origin(
+        &self,
+        source: &PendingRuntimeInitializer,
+    ) -> hir::SemanticSourceLocation {
+        let expression = match &source.kind {
+            PendingRuntimeInitializerKind::Stored { expression, .. }
+            | PendingRuntimeInitializerKind::Delegated { expression, .. } => expression,
+        };
+        hir::SemanticSourceLocation {
+            source: self.source_identity(source.file).clone(),
+            span: expression.span(),
+        }
+    }
+
+    pub(super) fn lower_editing_initializer(&mut self, source: &PendingRuntimeInitializer) -> bool {
+        let property = match source.kind {
+            PendingRuntimeInitializerKind::Stored { storage, .. } => self.globals[storage].property,
+            PendingRuntimeInitializerKind::Delegated { property, .. } => property,
+        };
+        if self.property_type_pending(property) {
+            self.infer_property_type(property).is_some()
+        } else {
+            self.lower_runtime_initializer(source).is_some()
+        }
+    }
 }
 
 fn has_source_body(source: &PropertyAccessorSource) -> bool {
@@ -127,31 +194,15 @@ fn has_source_body(source: &PropertyAccessorSource) -> bool {
 
 impl DeclarationAnalysis {
     pub(super) fn declaration_scope_available(&self, origin: &hir::SemanticSourceLocation) -> bool {
-        let functions = self
-            .functions
-            .iter()
-            .filter(|function| {
-                function.name_origin.source == origin.source
-                    && function.span.start <= origin.span.start
-                    && origin.span.end <= function.span.end
+        self.source_body_regions()
+            .filter(|body| {
+                body.origin.source == origin.source
+                    && body.origin.span != origin.span
+                    && body.origin.span.start <= origin.span.start
+                    && origin.span.end <= body.origin.span.end
+                    && self.lowerer.editing_accessor_source(body.function)
+                        .is_none_or(|source| self.lowerer.property_name_spans.get(&source.property) != Some(&origin.span))
             })
-            .map(|function| function.function);
-        let accessors = self
-            .lowerer
-            .property_accessor_sources
-            .iter()
-            .filter(|source| {
-                has_source_body(source)
-                    && *self
-                        .lowerer
-                        .source_identity(self.lowerer.function_files[&source.function])
-                        == origin.source
-                    && source.declaration.span != origin.span
-                    && source.declaration.span.start <= origin.span.start
-                    && origin.span.end <= source.declaration.span.end
-                    && self.lowerer.property_name_spans.get(&source.property) != Some(&origin.span)
-            })
-            .map(|source| source.function);
-        functions.chain(accessors).all(|function| matches!(self.body_facts.get(&function), Some(V::Known(body)) if body.available()))
+            .all(|body| matches!(self.body_facts.get(&body.function), Some(V::Known(body)) if body.available()))
     }
 }

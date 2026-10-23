@@ -1,3 +1,4 @@
+use super::source_bodies::SourceBodyInput;
 use super::*;
 use hir::{EditingUnavailable as U, EditingValue as V};
 
@@ -37,13 +38,15 @@ impl DeclarationAnalysis {
         function: hir::FunctionId,
         is_cancelled: impl Fn() -> bool + 'static,
     ) -> Result<V<ObservedBody>, EditingCancelled> {
-        if let V::Unavailable(reason) = self.signature(function)
+        let input = self.source_body_input(function);
+        if !matches!(input, Some(SourceBodyInput::Initializer(_)))
+            && let V::Unavailable(reason) = self.signature(function)
             && !(reason == U::PendingInference
                 && self.lowerer.editing_accessor_source(function).is_some())
         {
             return Ok(V::Unavailable(reason));
         }
-        let Some(declaration) = self.source_body_declaration(function) else {
+        let Some(input) = input else {
             return Ok(V::Unavailable(U::IncompleteSyntax));
         };
         let mut candidate = self.lowerer.clone();
@@ -57,24 +60,32 @@ impl DeclarationAnalysis {
             before,
             is_cancelled,
         ));
-        let completed = if let Some(source) = candidate.editing_accessor_source(function).cloned() {
-            let pending = candidate.property_type_pending(source.property);
-            if candidate.infer_property_type(source.property).is_none() {
-                false
-            } else {
-                if !pending || !candidate.property_accessor_was_lowered(function) {
-                    candidate.lower_property_accessor_body(&source);
+        let completed = match input {
+            SourceBodyInput::Accessor(source) => {
+                let pending = candidate.property_type_pending(source.property);
+                if candidate.infer_property_type(source.property).is_none() {
+                    false
+                } else {
+                    if !pending || !candidate.property_accessor_was_lowered(function) {
+                        candidate.lower_property_accessor_body(source);
+                    }
+                    true
                 }
+            }
+            SourceBodyInput::Initializer(source) => candidate.lower_editing_initializer(source),
+            SourceBodyInput::Function(declaration)
+                if matches!(declaration.body, ast::FunctionBody::None) =>
+            {
                 true
             }
-        } else if matches!(declaration.body, ast::FunctionBody::None) {
-            true
-        } else if candidate.signatures[&function].result_pending {
-            candidate.infer_function_result(function).is_some()
-        } else {
-            let body = candidate.lower_body(function, declaration);
-            candidate.functions[function].kind = hir::FunctionKind::User(body);
-            true
+            SourceBodyInput::Function(_) if candidate.signatures[&function].result_pending => {
+                candidate.infer_function_result(function).is_some()
+            }
+            SourceBodyInput::Function(declaration) => {
+                let body = candidate.lower_body(function, declaration);
+                candidate.functions[function].kind = hir::FunctionKind::User(body);
+                true
+            }
         };
         let observed = candidate.editing_body.take().expect("active body query");
         if observed.cancelled() {

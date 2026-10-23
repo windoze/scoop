@@ -50,7 +50,6 @@ pub(crate) struct PendingRuntimeInitializer {
 pub(crate) enum PendingRuntimeInitializerKind {
     Stored {
         storage: hir::GlobalId,
-        ty: hir::TypeId,
         expression: ast::Expr,
     },
     Delegated {

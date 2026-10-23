@@ -39,12 +39,27 @@ pub struct EditingFunction {
     pub span: Span,
 }
 
-/// One source body and the callable declaration implemented by its real function.
+/// One source region checked through its existing implementation function.
 #[derive(Clone, Debug)]
 pub struct EditingSourceBody {
     pub function: FunctionId,
-    pub callable: super::SemanticCallable,
+    pub owner: EditingSourceBodyOwner,
     pub origin: SemanticSourceLocation,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum EditingSourceBodyOwner {
+    Callable(super::SemanticCallable),
+    Initialization(crate::InitializationUnitId),
+}
+
+impl EditingSourceBody {
+    pub fn callable(&self) -> Option<super::SemanticCallable> {
+        match self.owner {
+            EditingSourceBodyOwner::Callable(callable) => Some(callable),
+            EditingSourceBodyOwner::Initialization(_) => None,
+        }
+    }
 }
 
 /// Resolved declaration types, without claiming that defaults have been checked.

@@ -84,7 +84,7 @@ fn origin(
         return Ok(reference.definition);
     }
     if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {
-        if let V::Known(signature) = analysis.signature(function.function)
+        if let Some(V::Known(signature)) = analysis.source_body_signature(&function)
             && let Some(parameter) = signature
                 .parameters
                 .iter()
