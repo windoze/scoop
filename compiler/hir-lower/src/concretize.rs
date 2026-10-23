@@ -220,7 +220,7 @@ struct Concretizer<'a> {
     next_loop_identity: u32,
     requirement_environment: requirements::RequirementEnvironment,
     body_requirements: HashMap<type_info::CallableBody, requirements::RequirementEnvironment>,
-    specialization_parents: HashMap<type_info::CallableBody, Vec<type_info::CallableBody>>,
+    specialization_parents: HashMap<type_info::CallableBody, Vec<recursion::SpecializationParent>>,
     specialization_failed: bool,
     requirement_evaluation: Option<export::EvaluationOrigin>,
 }

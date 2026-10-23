@@ -193,3 +193,17 @@ fn m55_requirement_combinations_keep_references_and_capture_free_local_construct
     ))
     .unwrap();
 }
+
+#[test]
+fn m55_requirement_call_cycles_still_reject_changed_arguments() {
+    let errors = check(include_str!(
+        "../../../../tests/fixtures/language/requirements/errors/polymorphic-call-chain.scoop"
+    ))
+    .unwrap_err();
+    assert!(
+        errors.iter().any(|error| error
+            .message
+            .contains("member-requirement call chain changes")),
+        "{errors:#?}"
+    );
+}

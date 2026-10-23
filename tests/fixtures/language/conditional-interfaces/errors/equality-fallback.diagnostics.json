@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `equals` in member candidate layer:\n  - fun Compared<T : Hash>.equals(other: Compared<T>): Boolean \u2014 type argument `Plain` for `T` must satisfy interface upper bound `Hash`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 281,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 268
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `equals` in member candidate layer:\n  - fun Compared<T : Hash>.equals(other: Compared<T>): Boolean \u2014 type argument `T` for `T` must satisfy interface upper bound `Hash`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 361,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 348
+    },
+    "severity": "error"
+  }
+]

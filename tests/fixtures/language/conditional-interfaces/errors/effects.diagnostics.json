@@ -1,0 +1,93 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`read` must have the same `suspend` modifier as `AsyncRead.read`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 400,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 396
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Synchronous` does not implement interface method `AsyncRead.read`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 417,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 322
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`read` must have the same `suspend` modifier as `Read.read`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 584,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 580
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Suspending` does not implement interface method `Read.read`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 601,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 503
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`read` must have the same `effect` modifier as `Read.read`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 726,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 722
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `UnsafeRead` does not implement interface method `Read.read`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 743,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 645
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` code may not call managed function `managedCount`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 216,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 202
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,73 @@
+package test.core.tests.consumer.conditional_combinations
+
+import scoop.test.*
+
+struct Plain()
+
+class Outer<T>(val value: T) {
+    inner class View {
+        override interface Hash where T : Hash {
+            public override fun hash(): Long = value.hash()
+        }
+    }
+
+    class Nested<U>(val value: U) {
+        override interface Hash where U : Hash {
+            public override fun hash(): Long = value.hash()
+        }
+    }
+}
+
+fun <T> local(value: T): Any {
+    class Local(val stored: T) {
+        override interface Hash where T : Hash {
+            public override fun hash(): Long = stored.hash()
+        }
+    }
+    return Local(value)
+}
+
+fun <T> anonymous(value: T): Any = object {
+    override interface Hash where T : Hash {
+        public override fun hash(): Long = value.hash()
+    }
+}
+
+struct Box<T>(val value: T) {
+    override interface Hash where T : Hash {
+        public override fun hash(): Long = value.hash()
+    }
+}
+
+fun <T> required(value: T): Long where requires(x: T) { x.hash(): Long } = value.hash()
+fun <T : Hash> forward(value: Box<T>): Long = required(value)
+
+struct Compared<T>(val value: T) {
+    override interface Equals<Compared<T>> where T : Hash {
+        public override operator fun equals(other: Compared<T>): Boolean = false
+    }
+}
+
+@Test
+private class ConditionalScopeTests {
+    @Test
+    fun enclosingParametersAndCaptures() {
+        assertEquals((7).hash(), Outer(7).View().hash())
+        assertEquals((11).hash(), Outer.Nested(11).hash())
+        assertEquals((13).hash(), (local(13) as Hash).hash())
+        assertEquals((17).hash(), (anonymous(17) as Hash).hash())
+        val innerAbsent: Any = Outer(Plain()).View()
+        val nestedAbsent: Any = Outer.Nested(Plain())
+        assertTrue(!(innerAbsent is Hash) && !(nestedAbsent is Hash))
+        assertTrue(!(local(Plain()) is Hash) && !(anonymous(Plain()) is Hash))
+    }
+
+    @Test
+    fun requirementsAndExplicitOperators() {
+        assertEquals((19).hash(), forward(Box(19)))
+        assertEquals(typeInfo<Box<Int>>().type, typeInfo<Box<Int>>().describe().type)
+        assertTrue(!(Compared(3) == Compared(3)))
+        val erased: Any = Compared(Plain())
+        assertTrue(!(erased is Equals<Compared<Plain>>))
+    }
+}

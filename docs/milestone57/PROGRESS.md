@@ -17,7 +17,7 @@
 | 语法与普通类型条件接口 | 本 Cone 基础闭环已完成；where 必填且非空 | 5 个 parser 用例、M57 HIR 定向检查及正式 CLI 诊断通过；组合验证见下文 |
 | Companion、HashMap 与 Json 闭环 | 已完成 | 6 个 JSON Cone 原生用例覆盖四种能力组合、嵌套、显式工厂及重复 key 路径 |
 | 条件 codec 合成 | 本体与继承合成已完成 | 原有合成回归、JSON Cone 79 项及跨 Cone 合成 codec 验证已闭合，见第 6、12 节 |
-| 继承、default、property 与效果组合 | 继承与 default 基本闭环已完成；其余组合待完成 | 条件继承、等价重列、域覆盖、abstract 义务、默认方法／属性及分派有本地／跨 Cone 验证 |
+| 继承、default、property 与效果组合 | 已完成 | 条件继承、域覆盖、默认方法／属性、suspend、NoGC、运算符及参数作用域通过，见第 7–9、17 节 |
 | 导出、跨 Cone 与 ODR | 已覆盖继承、投影与 default；完整验收待完成 | 85 个泛型导入回归、条件记录 wire 往返／再次发布与双 consumer 原生链接运行通过 |
 | sealed 条件关系与穷尽性 | 已完成 | 6 项定向检查、42 个既有 sealed fixture、条件边界诊断、原生及跨 Cone 验证通过 |
 | 类型描述与文档 | 已完成 | 具体接口、属性过滤、注解及条件文档的本地／跨 Cone 验证通过，见第 13、14 节 |
@@ -134,3 +134,10 @@
 - 新增定向 GC fixture，使用同一 release 构建分别运行移动 GC 与 minor GC；普通 Cone 测试不启用 stress。
 - 包含引用字段的条件 struct 装箱后，通过 Any、父接口、子接口、成员引用及拆箱读取保持正确；条件 class 的继承 override、条件关闭后的字段、NoGC 到 Managed slot 适配均保持原行为。跨挂起 frame 保存接口视图，恢复后再次 GC 并读取原字段。
 - 本机 fixture 三个进程全部通过，复用现有字段扫描、协程及接口表实现；未增加 runtime ABI 或 GC 特殊路径。完整本机和 Linux 验收继续实施。
+
+## 17. 参数作用域、成员要求与效果组合
+
+- 新增四项 core consumer 测试，覆盖 inner／nested／局部类型和匿名 object 的参数、捕获及条件真／假；requires 转发、显式 equality、NoGC 到 Managed slot 调用及引用、suspend 接口调用和成员引用保持既有语义。
+- 组合验证发现 M55 补充递归检查把无关类型描述生成依赖误判为多态递归。现保存要求展开边，只在包含这类边的调用链检查改变完整实参的递归；普通有限类型描述与 requires 可以共存，真正的要求递归仍拒绝。先补充实现规范，未改变产物格式或引入查询预算。
+- workspace Clippy、完整 core consumer 的 54 项原生测试、55 个 M55 requires fixture 及 16 个条件接口诊断 fixture 通过。新增诊断覆盖 suspend／Unsafe 契约和 NoGC 正文，以及显式条件 equality 不可用时不得派生兜底；条件方法尚未实例化也检查声明错误。
+- 本机完整 Rust 与 CLI 回归、Linux 完整验收继续推进。
