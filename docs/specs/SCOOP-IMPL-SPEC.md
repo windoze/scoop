@@ -645,6 +645,8 @@ persistent identity 只由首次引入的层声明一次，并同时保存 typed
 
 共有 HIR expression 为 `{1=kind, 2=result_type, 3=definition_origin, 4=evaluation_origin}`。Call 的 tag 为 57，payload 保存 callee、arguments、SourceCallReceiver；receiver 为 NoReceiver=1 或 Receiver=2（完整静态类型）。实际 call-site 保留完整逻辑实参与结果、定义／求值位置及原 receiver，Unit/ZST 参数不能按物理省略规则消失。
 
+普通成员的接收者适用性由 HIR 成员绑定与条件求解完成。产物的类型依赖投影消费已检查的成员选择，保留原 receiver 的完整类型引用、所选声明归属和调用形状检查；不再从声明头重做接收者到成员 owner 的语言子类型证明。条件接口不要求额外产生无条件 `exact_supertypes` 边，IR／meta crate 也不另建条件求解器。
+
 nominal declaration 保留原 binder 条件、GC-free pointee requirements 与 NoGC 标记。property/accessor、constructor safety/effect、InteriorMutable、CLayout、泛型 companion、release、annotation 和编码合成所需的声明事实均不可由缺字段的默认值替代。读取只检查格式、kind、引用与合同连接，不重新进行定义处的重载或可见性选择。
 
 C extern 的 NativeSafe/GcLeaf 模式作为声明及调用的语义字段进入相应 HIR/MIR/LIR metadata、语义指纹和构建缓存。跨 Cone 编译与泛型展开保留原声明的模式；artifact-only program-link 消费已生成的调用，不能按合并后的 C symbol 统一提升或降级调用模式。该字段不改变 C bridge 的物理签名，也不要求为同一 native ABI 构造第二套桥接格式。

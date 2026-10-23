@@ -2,6 +2,7 @@ use super::*;
 
 mod constructors;
 mod definition;
+mod interfaces;
 
 use definition::{ResolvedClassDefinition, ResolvedClassRepresentation};
 
@@ -237,77 +238,6 @@ impl Concretizer<'_> {
                         unreachable!("nominal method lists do not contain generic functions")
                     }
                 }
-            })
-            .collect()
-    }
-
-    pub(super) fn lower_interface_implementations(
-        &mut self,
-        source_implementations: &[export::InterfaceImplementation],
-        substitution: &[concrete::TypeId],
-    ) -> Vec<concrete::InterfaceImplementation> {
-        let mut seen = std::collections::HashSet::new();
-        source_implementations
-            .iter()
-            .cloned()
-            .filter_map(|implementation| {
-                if implementation.condition.as_ref().is_some_and(|condition| {
-                    !self.concrete_implementation_applies(condition, substitution)
-                }) {
-                    return None;
-                }
-                let interface = self.lower_interface_type(implementation.interface, substitution);
-                if !seen.insert(interface) {
-                    return None;
-                }
-                let methods = implementation
-                    .methods
-                    .into_iter()
-                    .map(|method| {
-                        let source_slot = self.interface_reference_slot(method.member);
-                        let slot = self.interface_slot_by_source[&(interface, source_slot)];
-                        let target = match method.target {
-                            export::InterfaceImplementationTarget::ImportedTemplate(
-                                application,
-                            ) => concrete::InterfaceImplementationTarget::Method(
-                                self.lower_imported_callable_application(
-                                    &self.source.imported_generic_applications[application],
-                                    substitution,
-                                ),
-                            ),
-                            export::InterfaceImplementationTarget::ImportedAbstractTemplate(
-                                application,
-                            ) => concrete::InterfaceImplementationTarget::Abstract {
-                                declaration: self.lower_imported_callable_application(
-                                    &self.source.imported_generic_applications[application],
-                                    substitution,
-                                ),
-                            },
-                            export::InterfaceImplementationTarget::Method(application) => {
-                                let concrete::Callable::Function(function) =
-                                    self.lower_method_application(application, substitution);
-                                concrete::InterfaceImplementationTarget::Method(function)
-                            }
-                            export::InterfaceImplementationTarget::Imported(callable) => {
-                                concrete::InterfaceImplementationTarget::Imported(
-                                    self.imported_dependency_callable_map[&callable],
-                                )
-                            }
-                            export::InterfaceImplementationTarget::ImportedAbstract(callable) => {
-                                concrete::InterfaceImplementationTarget::ImportedAbstract {
-                                    declaration: self.imported_dependency_callable_map[&callable],
-                                }
-                            }
-                            export::InterfaceImplementationTarget::Abstract(application) => {
-                                let concrete::Callable::Function(declaration) =
-                                    self.lower_method_application(application, substitution);
-                                concrete::InterfaceImplementationTarget::Abstract { declaration }
-                            }
-                        };
-                        concrete::InterfaceMethodImplementation { slot, target }
-                    })
-                    .collect();
-                Some(concrete::InterfaceImplementation { interface, methods })
             })
             .collect()
     }

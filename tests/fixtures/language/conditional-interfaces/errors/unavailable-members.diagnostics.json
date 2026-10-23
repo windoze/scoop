@@ -50,5 +50,31 @@
       "start": 627
     },
     "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Defaults<T>` has no method `defaultRead`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 856,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 845
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Defaults<Empty>` has no method `defaultRead`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 925,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 914
+    },
+    "severity": "error"
   }
 ]

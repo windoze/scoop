@@ -1,0 +1,82 @@
+package test.core.tests.consumer.conditional_defaults
+
+import scoop.test.*
+
+interface First {}
+interface Second {}
+struct FirstOnly() : First
+struct SecondOnly() : Second
+struct Both() : First, Second
+struct Neither()
+
+interface Root {
+    public fun read(): Int
+    public val number: Int
+}
+interface Left : Root {
+    public override fun read(): Int = 11
+    public override val number: Int get() = 12
+}
+interface More : Left {
+    public override fun read(): Int = 21
+    public override val number: Int get() = 22
+}
+interface Right : Root {
+    public override fun read(): Int = 31
+    public override val number: Int get() = 32
+}
+
+struct Select<T>(val value: T) {
+    override interface Left where T : First {}
+    override interface More where T : Second {}
+}
+struct Reversed<T>(val value: T) {
+    override interface More where T : Second {}
+    override interface Left where T : First {}
+}
+struct Ordinary<T>(val value: T) : Left {
+    override interface More where T : Second {}
+}
+struct Shared<T>(val value: T) {
+    public override fun read(): Int = 41
+    public override val number: Int get() = 42
+    override interface Left where T : First {}
+    override interface Right where T : Second {}
+}
+object Fixed {
+    override interface Left {}
+    override interface More {}
+}
+
+fun <T : First> fromFirst(value: Select<T>): Int = value.read()
+
+@Test
+private class ConditionalDefaultTests {
+    @Test
+    fun subinterfaceOverridesAreIndependentOfBlockOrder() {
+        val first: Root = Select(FirstOnly())
+        val second: Root = Select(SecondOnly())
+        val both: Root = Select(Both())
+        val reversed: Root = Reversed(Both())
+        assertTrue(first.read() == 11 && first.number == 12)
+        assertTrue(second.read() == 21 && second.number == 22)
+        assertTrue(both.read() == 21 && both.number == 22)
+        assertTrue(reversed.read() == 21 && reversed.number == 22)
+        assertTrue(Select(Both()).read() == 21 && fromFirst(Select(Both())) == 21)
+        val neither: Any = Select(Neither())
+        assertTrue(!(neither is Root))
+    }
+
+    @Test
+    fun ordinaryRootsAndSharedOverridesUseTheSameDispatch() {
+        val ordinary: Root = Ordinary(Both())
+        val ordinaryAbsent: Root = Ordinary(Neither())
+        assertTrue(ordinary.read() == 21 && ordinary.number == 22)
+        assertTrue(ordinaryAbsent.read() == 11 && ordinaryAbsent.number == 12)
+        val shared: Root = Shared(Both())
+        assertTrue(shared.read() == 41 && shared.number == 42)
+        assertTrue(Shared(Neither()).read() == 41 && Shared(Neither()).number == 42)
+        val fixed: Root = Fixed
+        assertTrue(fixed.read() == 21 && fixed.number == 22)
+    }
+}

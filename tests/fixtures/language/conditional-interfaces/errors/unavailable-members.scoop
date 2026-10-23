@@ -16,4 +16,10 @@ open class Projected<T> {
 }
 fun <T> unknownProjection(value: Projected<T>): Any = value.get()
 fun absentProjection(value: Projected<Empty>): Any = value.get()
+interface DefaultRead { public fun defaultRead(): Int = 1 }
+struct Defaults<T>(val value: T) {
+    override interface DefaultRead where T : Read {}
+}
+fun <T> unknownDefault(value: Defaults<T>): Int = value.defaultRead()
+fun absentDefault(value: Defaults<Empty>): Int = value.defaultRead()
 fun main() {}

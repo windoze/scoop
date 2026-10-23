@@ -95,7 +95,7 @@ impl Lowerer {
         relisted
     }
 
-    fn conditional_domains_are_disjoint(
+    pub(super) fn conditional_domains_are_disjoint(
         &mut self,
         left: &hir::ConditionalInterfaceApplication,
         right: &hir::ConditionalInterfaceApplication,

@@ -17,6 +17,7 @@ private fun check(ok: Boolean) {
 
 fun main() {
     check(inheritedRelations())
+    check(conditionalDefaults())
     val always: Counter = Always
     check(always.next() == 41)
     check(Box<Int>.count() == 0)

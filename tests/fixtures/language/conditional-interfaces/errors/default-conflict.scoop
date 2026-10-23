@@ -1,0 +1,17 @@
+interface Root { public fun read(): Int }
+interface Left : Root { public override fun read(): Int = 1 }
+interface Right : Root { public override fun read(): Int = 2 }
+interface First {}
+interface Second {}
+
+struct Conflict<T>(val value: T) {
+    override interface Left where T : First {}
+    override interface Right where T : Second {}
+}
+open class Base<T> { override interface Left where T : First {} }
+class Child<T> : Base<T>() { override interface Right where T : Second {} }
+struct Partial<T>(val value: T) {
+    override interface Left where T : First { public override fun read(): Int = 3 }
+    override interface Right where T : Second {}
+}
+fun main() {}

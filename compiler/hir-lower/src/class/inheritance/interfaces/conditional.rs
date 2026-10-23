@@ -68,6 +68,8 @@ impl Lowerer {
             }
             conformances.extend(implementations);
         }
+        self.type_params_in_scope = self.owner_type_params(owner);
+        self.check_conditional_default_conflicts(span, host, &conformances);
         self.type_params_in_scope = saved_parameters;
         match owner {
             Owner::Class(id) => self.classes[id].interface_implementations = conformances,

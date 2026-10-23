@@ -14,7 +14,7 @@ pub(in crate::imported_core) type ImportedInterfaceSelections<'a> = BTreeMap<
 >;
 
 impl Lowerer {
-    pub(super) fn imported_dispatch_receiver(
+    pub(in crate::imported_core) fn imported_dispatch_receiver(
         &mut self,
         source: &SignatureTypeKey,
         receiver: hir::TypeId,

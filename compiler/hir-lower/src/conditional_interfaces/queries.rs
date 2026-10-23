@@ -148,14 +148,40 @@ impl Lowerer {
                                 == crate::types::InterfaceExclusion::Satisfied
                         }
                         hir::NominalBoundRef::Class(_) => {
-                            !self.type_contains_param(subject)
-                                && !self.type_contains_param(required)
-                                && !self.is_subtype(subject, required)
+                            self.conditional_class_bound_is_impossible(subject, required)
                         }
                     }
                 })
             }
         }
+    }
+
+    fn conditional_class_bound_is_impossible(&mut self, subject: TypeId, required: TypeId) -> bool {
+        if !self.type_contains_param(subject) && !self.type_contains_param(required) {
+            return !self.is_subtype(subject, required);
+        }
+        let mut known = self
+            .parameter_nominal_bounds(subject)
+            .into_iter()
+            .filter_map(|bound| {
+                matches!(bound, hir::NominalBoundRef::Class(_)).then_some(bound.ty())
+            })
+            .collect::<Vec<_>>();
+        known.extend(
+            self.assumed_conditional_parents(subject)
+                .into_iter()
+                .filter(|&bound| matches!(self.types[bound], Type::Class(_))),
+        );
+        known
+            .into_iter()
+            .any(|bound| self.closed_class_bounds_are_disjoint(bound, required))
+    }
+
+    pub(super) fn closed_class_bounds_are_disjoint(&mut self, left: TypeId, right: TypeId) -> bool {
+        !self.type_contains_param(left)
+            && !self.type_contains_param(right)
+            && !self.is_subtype(left, right)
+            && !self.is_subtype(right, left)
     }
 
     /// Owner arguments are fixed before checking a block. This uses the same

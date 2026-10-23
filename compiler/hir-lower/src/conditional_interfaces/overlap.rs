@@ -89,9 +89,6 @@ impl Lowerer {
         };
         // Closed class applications have one inheritance chain. Open arguments
         // require more information, so they do not establish disjointness.
-        !self.type_contains_param(left.ty)
-            && !self.type_contains_param(right.ty)
-            && !self.is_subtype(left.ty, right.ty)
-            && !self.is_subtype(right.ty, left.ty)
+        self.closed_class_bounds_are_disjoint(left.ty, right.ty)
     }
 }

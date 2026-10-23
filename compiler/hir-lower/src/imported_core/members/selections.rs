@@ -63,15 +63,25 @@ impl Lowerer {
         let selections = self
             .imported_interface_dispatch_selections(ty, &declaration)
             .expect("dependency interface selections retain their complete applications");
-        let selections = selections
-            .into_iter()
-            .filter(|((_, condition, _), _)| {
-                condition
-                    .as_ref()
-                    .is_none_or(|condition| self.conditional_application_holds(condition))
-            })
-            .map(|((interface, _, slot), selection)| ((interface, slot), selection))
-            .collect::<BTreeMap<_, _>>();
+        let mut applicable = BTreeMap::new();
+        for ((interface, condition, slot), selection) in selections {
+            if condition
+                .as_ref()
+                .is_some_and(|condition| !self.conditional_application_holds(condition))
+            {
+                continue;
+            }
+            let owner = self
+                .imported_dispatch_receiver(selection.receiver(), ty)
+                .expect("an applicable selection has its declared receiver");
+            let key = (interface, slot);
+            if applicable
+                .get(&key)
+                .is_none_or(|(_, previous)| self.is_subtype(owner, *previous))
+            {
+                applicable.insert(key, (selection, owner));
+            }
+        }
         let mut seen = BTreeSet::new();
         while let Some(owner) = pending.pop() {
             if !seen.insert(owner) {
@@ -89,9 +99,10 @@ impl Lowerer {
                 .expect("dependency parents retain their complete nominal types");
             for method in &interface.methods {
                 let slot = method.slot.id();
-                let target = selections
+                let target = applicable
                     .get(&(owner, slot))
                     .expect("the declaration retains its selected interface source")
+                    .0
                     .callable_target();
                 selected.entry((owner, slot)).or_insert(target);
             }
