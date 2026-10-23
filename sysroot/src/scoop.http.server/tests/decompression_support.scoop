@@ -1,0 +1,35 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal fun requestGzip(data: List<Byte>): Array<Byte> = compress(data, CompressionOptions.Gzip(GzipOptions()))
+
+internal fun requestEncodedFields(coding: String = "gzip", media: String = "text/plain"): Array<HttpField> =
+    [field("Content-Encoding", coding), field("Content-Type", media)]
+
+internal fun decompressionExercise(input: Array<Byte>, coding: String = "gzip",
+    options: RequestDecompressionOptions = RequestDecompressionOptions(bufferSize = 7L),
+    limit: Long? = Some(8388608L), aggregateLimit: Long = 2097152L): Exchange {
+    val routes = RouterBuilder()
+    routes.use(requestDecompression(options))
+    routes.post("/", suspend { ctx -> ctx.request.body.setLimit(limit); text(ctx.request.body.text()) })
+    return exercise(routes.build(), method = "POST", input = input, fields = requestEncodedFields(coding),
+        bufferedBodyLimit = aggregateLimit)
+}
+
+internal suspend fun sendEncodedBytes(sink: AsyncByteSink, bytes: Array<Byte>) {
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); sink.writeFully(buffer) }
+}
+
+internal class DecompressionReadSource(private val data: AsyncByteSource) : AsyncByteSource {
+    var calls: Int = 0
+    var failure: Throwable? = None
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        calls += 1
+        if (present(failure)) throw failure!!
+        return data.readInto(buffer, count)
+    }
+}

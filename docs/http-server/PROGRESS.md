@@ -8,11 +8,12 @@
 - 已完成阶段 B：H1.0／H1.1、TLS／ALPN、字段／Cookie／JSON／form、Continue、body 限制、连接／请求容量、总时限与 I/O idle、停机和完成通知。
 - 已完成阶段 C：H2 明文 prior knowledge／TLS ALPN、每流请求与取消、GOAWAY 排空、全局请求容量、首部／空闲时限和正常终结。
 - 已完成 D1：SseMessage、增量 SseEncoder、借用 SseSink、server SSE 结果与可选心跳；显式 gzip flush 已随 D4 验证。
-- 已完成 D2：form-data 单遍提取、严格元数据、part／文本／复制／discard 限制、请求内视图清理及显式文件保存；gzip multipart 组合随 D5 验证。
+- 已完成 D2：form-data 单遍提取、严格元数据、part／文本／复制／discard 限制、请求内视图清理及显式文件保存；gzip multipart 组合已随 D5 验证。
 - 已完成 D3：扁平 query DTO decoder、显式／companion codec、未知字段策略及静态 query／JSON extractor 适配。
 - 已完成 D4：Accept-Encoding 协商、gzip／deflate／br／zstd 响应策略、元数据与 trailer 更新、流式压缩及双侧输出计数。
+- 已完成 D5：请求解压策略、反向编码链、raw／decoded 唯一消费、各层实际输出限制、尾部校验与请求收尾。
 - 路由级 deadline 覆盖已完成，端点／middleware 可在提交前调用 HttpContext.setDeadline 调整或关闭本次请求总时限。
-- 后续仍需实现 D5～D7。服务端 mTLS／动态 SNI、HTTP/3 不在本次范围内。
+- 后续仍需实现 D6～D7。服务端 mTLS／动态 SNI、HTTP/3 不在本次范围内。
 - 每个功能验证后独立提交；本机采用定向 release Cone 测试，避免重复全量测试。
 - Linux 工作目录为 `nuc12:~/repos/scoop-http-server-work`；最终串行运行一组最小库验证，不跑完整套件或大规模性能测试。
 - 本机辅助工作及原始日志位于 `~/scoop-work/http-server`，所有命令的临时目录显式放在其 scratch 下，不使用系统 `/tmp`。
@@ -47,3 +48,5 @@
 - D4 协商底层：HttpAcceptEncoding 的 4／4 定向 release 测试和 API 文档检查通过。覆盖缺失／空字段、跨行重复最低质量、严格 q 语法和原始偏移、星号、identity、候选次序及零质量排除；没有重跑全部 HTTP 协议测试。
 - D4 server：新增 10／10 定向 release 测试通过，管线 8／8、SSE 6／6、H2 网络 3／3 回归通过，API 文档检查通过。覆盖四种编码与短写、阈值／406、嵌套策略、最终草稿、Vary／ETag／摘要／trailer、HEAD、原文长度和失败不 finish；真实 H1／H2 流式及 SSE gzip 在 producer 结束前完成可读 flush，H2 小窗口背压与 reset 等待清理且不影响其他流。
 - 已发布 HTTP／HTTP asyncio／HTTP client／server 开发产物，独立 H1 consumer 1／1 release 验证通过，组合 typed extractor 与 gzip 输出；只使用公开字段工具和解压流。新生产文件均不足 60 行。清理 5 个旧可执行缓存及已验证的 HTTP 测试产物，target 约 11 GiB。准备／打包脚本已按根 Cone 清单自动发现 server，无需新增发布机制。
+- D5：新增 13／13 定向 release 测试通过；multipart 11／11、结构化提取 4／4、管线 8／8、H1 网络 4／4 回归通过，API 文档检查通过。覆盖四种编码、重复字段与双层反序、raw 选择、未变换长度、原 head 保真、编码／解码／聚合及中间层／窗口上限、连续 member／frame、空输入／截断／尾随／checksum、原始 I/O 分类和延迟 EOF。H1 编码链与声明长度拒绝均先于 Continue；H2 慢上传 reset 等待清理且不影响其他流。H1／H2 gzip multipart 在尾部校验前不发布文件，checksum 失败删除暂存文件。
+- 已发布 D5 server 开发产物，独立 H2 consumer 1／1 release 测试及 API 文档检查通过，以公开请求解压和 multipart API 消费 gzip 上传。新增生产文件最长 81 行；清理 6 个旧可执行缓存，保留当前 server／consumer 和编译缓存，未运行全量套件。

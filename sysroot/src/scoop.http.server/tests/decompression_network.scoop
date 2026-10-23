@@ -1,0 +1,80 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+
+@Test
+private class ServerDecompressionNetworkTests {
+    @Test
+    fun `H1 rejects encoding and declared length before Continue and counts decoded JSON`() {
+        val completed = ServerTestCompletions(4L)
+        val routes = RouterBuilder()
+        routes.use(requestDecompression())
+        routes.post("/", suspend { ctx -> json(ctx.request.body.json<Int>() + 1) })
+        val wire = requestGzip("41".toByteArray())
+        withServer(routes.build(), HttpServerOptions(requestBodyLimit = Some(64L), onRequestCompleted = Some(completed::receive)),
+            suspend { scope, _, address ->
+                for ((coding, length, status) in [("unknown", 40L, 415U), ("gzip;bad", 40L, 400U), ("gzip", 65L, 413U)]) {
+                    networkClient(address, scope).useAsync suspend { client ->
+                        client.sendRequest(networkRequest(method = "POST", fields = [field("Content-Type", "application/json"),
+                            field("Content-Encoding", coding), field("Expect", "100-continue")]), Http1BodyFraming.Length(length))
+                        val response = client.receiveResponse()
+                        assertEquals(status, response.head.status)
+                        networkText(response.body)
+                        assertFalse(client.isReusable)
+                    }
+                }
+                networkClient(address, scope).useAsync suspend { client ->
+                    val upload = client.sendRequest(networkRequest(method = "POST", fields = [field("Content-Type", "application/json"),
+                        field("Content-Encoding", "gzip"), field("Expect", "100-continue")]), Http1BodyFraming.Length(wire.size))
+                    val interim = client.receiveResponse()
+                    assertEquals(100U, interim.head.status); networkText(interim.body)
+                    sendEncodedBytes(upload, wire); upload.finish()
+                    val response = client.receiveResponse()
+                    assertEquals(200U, response.head.status); assertEquals("42", networkText(response.body))
+                    assertTrue(client.isReusable)
+                }
+                completed.ready.await()
+                for (record in completed.snapshot()) {
+                    if (record.status == Some(200U)) {
+                        assertEquals(wire.size, record.receivedBytes); assertEquals(2L, record.deliveredBytes)
+                    } else {
+                        assertEquals(0L, record.receivedBytes); assertEquals(0L, record.deliveredBytes)
+                    }
+                }
+            })
+    }
+
+    @Test
+    fun `HTTP2 decoding errors stay within their stream and completion counts plaintext`() {
+        val completed = ServerTestCompletions(3L)
+        val routes = RouterBuilder()
+        routes.use(requestDecompression())
+        routes.post("/upload", suspend { ctx -> text(ctx.request.body.text()) })
+        routes.get("/ok", suspend { _ -> text("ok") })
+        val wire = requestGzip("hello".toByteArray())
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true, onRequestCompleted = Some(completed::receive)),
+            suspend { scope, _, address ->
+                h2ServerClient(address, scope).useAsync suspend { client ->
+                    for (valid in [false, true]) {
+                        val upload = client.openRequest(h2ServerRequest("/upload", "POST", requestEncodedFields()), false)
+                        sendEncodedBytes(upload, if (valid) wire else "bad".toByteArray()); upload.finish()
+                        assertEquals(if (valid) 200U else 400U, upload.receiveResponse().status)
+                        val text = networkText(upload)
+                        if (valid) assertEquals("hello", text)
+                    }
+                    assertEquals("ok", h2ServerText(client, "/ok"))
+                    completed.ready.await()
+                    var found = false
+                    for (record in completed.snapshot()) if (record.route!!.template == "/upload" && record.status == Some(200U)) {
+                        found = true
+                        assertEquals(wire.size, record.receivedBytes); assertEquals(5L, record.deliveredBytes)
+                    }
+                    assertTrue(found)
+                    assertFalse(client.isClosed)
+                }
+            })
+    }
+}

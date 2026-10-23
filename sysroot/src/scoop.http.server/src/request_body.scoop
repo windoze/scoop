@@ -1,86 +1,45 @@
 package scoop.http.server
 
-import scoop.asyncio.*
-import scoop.bytes.ByteArrayBuilder
+import scoop.asyncio.AsyncByteSource
 import scoop.http.HttpField
-import scoop.http.asyncio.MultipartSource
 import scoop.json.Json
-import scoop.platform.memory.NativeByteBuffer
 import scoop.url.*
 
-/** A request body with one explicit consumption path and a limit on actual input bytes. */
+/** A request body with one explicit consumption path and bounded input and decoding. */
 public class HttpRequestBody internal constructor(source: AsyncByteSource, limit: Long? = Some(8388608L),
     private val fields: Array<HttpField> = [],
     /** The server-configured default limit used by aggregate helpers. */
     public val bufferedBodyLimit: Long = 2097152L) {
-    private val selectionLock: ServerLock = ServerLock()
-    private var selected: Boolean = false
-    private var ended: Boolean = false
-    private var localView: AsyncCloseable? = None
-    private val input: RequestBodySource = RequestBodySource(source, limit)
-    internal val receivedBytes: Long get() = input.receivedBytes
+    private val state: RequestBodyState = RequestBodyState(source, limit, fields)
+    internal val receivedBytes: Long get() = state.receivedBytes
+    internal val deliveredBytes: Long get() = state.deliveredBytes
 
-    /** Whether the selected source has reached its normal EOF. */
-    public val isComplete: Boolean get() = input.completed.load()
+    /** Whether the selected source has reached its normal, validated EOF. */
+    public val isComplete: Boolean get() = state.isComplete
+    /** Selected decoding and length facts, or None before a consumer is chosen. */
+    public val view: HttpRequestBodyView? get() = state.view
 
-    /** Claims the body once as a streaming byte source. */
-    public fun openStream(): AsyncByteSource {
-        return selectionLock.withLock {
-            requireSelection()
-            selected = true
-            input
-        }
-    }
+    /** Claims the body once, applying an installed request decoding policy. */
+    public fun openStream(): AsyncByteSource = state.open(false)
+    /** Claims the encoded body once, bypassing any installed content decoding. */
+    public fun openRawStream(): AsyncByteSource = state.open(true)
 
     /** Selects one lazy form-data reader, whose local resources also belong to this request. */
-    public fun multipart(options: RequestMultipartOptions = RequestMultipartOptions()): RequestMultipart {
-        val boundary = requestMultipartBoundary(fields)
-        return selectionLock.withLock {
-            requireSelection()
-            val reader = RequestMultipart(MultipartSource(input, boundary, options.limits, options.bufferSize), options)
-            selected = true
-            localView = Some<AsyncCloseable>(reader)
-            reader
-        }
-    }
+    public fun multipart(options: RequestMultipartOptions = RequestMultipartOptions()): RequestMultipart =
+        state.multipart(requestMultipartBoundary(fields), options)
 
-    internal suspend fun closeView() {
-        val view = selectionLock.withLock { ended = true; val value = localView; localView = None; value }
-        if (present(view)) view!!.close()
-    }
+    internal suspend fun closeView() { state.close() }
+    internal fun configureDecoding(options: RequestDecompressionOptions) { state.configure(options) }
 
-    private fun requireSelection() {
-        if (ended) throw IllegalStateException(Some("request body is no longer active"))
-        if (selected) throw IllegalStateException(Some("request body already has a consumer"))
-    }
-
-    /** Overrides the total input limit before selecting a consumption path; None disables it. */
-    public fun setLimit(maxBytes: Long?) {
-        if (present(maxBytes) && maxBytes!! < 0L) throw IllegalArgumentException(Some("negative request body limit"))
-        selectionLock.withLock {
-            requireSelection()
-            input.limit = maxBytes
-        }
-    }
+    /** Overrides the encoded input limit before selecting a consumption path; None disables it. */
+    public fun setLimit(maxBytes: Long?) { state.setLimit(maxBytes) }
 
     /** Reads one complete body into a bounded independent snapshot. */
-    public suspend fun bytes(maxBytes: Long = bufferedBodyLimit): Array<Byte> {
+    public suspend fun bytes(maxBytes: Long = bufferedBodyLimit): Array<Byte> = aggregate(maxBytes, false)
+
+    private suspend fun aggregate(maxBytes: Long, structured: Boolean): Array<Byte> {
         if (maxBytes < 0L) throw IllegalArgumentException(Some("negative aggregate body limit"))
-        val source = openStream()
-        return NativeByteBuffer.allocate(8192L).use suspend { buffer ->
-            val result = ByteArrayBuilder()
-            var total = 0L
-            while (true) {
-                buffer.clear()
-                val remaining = maxBytes - total
-                val count = source.readInto(buffer, if (remaining < 8192L) remaining + 1L else 8192L)
-                if (count == 0L) break
-                if (count > remaining) reject(413U, "request body exceeds aggregation limit")
-                result.append(buffer.readBytes(count))
-                total += count
-            }
-            result.toByteArray()
-        }
+        return aggregateRequestBody(state.open(false, structured), maxBytes)
     }
 
     /** Reads a complete, bounded, strictly UTF-8 request body. */
@@ -89,7 +48,7 @@ public class HttpRequestBody internal constructor(source: AsyncByteSource, limit
     /** Decodes one bounded UTF-8 JSON body using an explicit codec. */
     public suspend fun <T> json(codec: ValueDecoder<T>, maxBytes: Long = bufferedBodyLimit): T {
         requireStructuredMedia(fields, true)
-        val value = text(maxBytes)
+        val value = inputText(aggregate(maxBytes, true), "request body")
         try { return Json.decodeFromString(value, codec) }
         catch (_: DecodingException) { reject(400U, "invalid JSON request body") }
     }
@@ -101,40 +60,8 @@ public class HttpRequestBody internal constructor(source: AsyncByteSource, limit
     /** Decodes a bounded form body, where plus represents a space. */
     public suspend fun form(maxBytes: Long = bufferedBodyLimit): RequestQuery {
         requireStructuredMedia(fields, false)
-        val value = text(maxBytes)
+        val value = inputText(aggregate(maxBytes, true), "request body")
         try { return RequestQuery(FormUrlEncoded.parse(value)) }
         catch (_: UrlParseException) { reject(400U, "invalid form request body") }
-    }
-}
-
-private class RequestBodySource(private val source: AsyncByteSource, var limit: Long?) : AsyncByteSource {
-    val completed: AtomicBoolean = AtomicBoolean(false)
-    private val busy: AtomicBoolean = AtomicBoolean(false)
-    private var received: Long = 0L
-    val receivedBytes: Long get() = received
-    private var failure: Throwable? = None
-
-    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
-        if (count < 0L || count > buffer.writableBytes) throw IndexOutOfBoundsException()
-        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("concurrent request body reads"))
-        try {
-            ensureActive()
-            if (present(failure)) throw failure!!
-            if (count == 0L || completed.load()) return 0L
-            val remaining = if (!present(limit)) Long.MAX_VALUE - received else limit!! - received
-            val requested = if (remaining < count) remaining + 1L else count
-            val before = buffer.readableBytes
-            val progress = source.readInto(buffer, requested)
-            if (progress < 0L || progress > requested || buffer.readableBytes - before != progress)
-                throw IllegalStateException(Some("invalid request source progress"))
-            if (progress > Long.MAX_VALUE - received) throw ArithmeticException()
-            received += progress
-            if (progress > remaining) reject(413U, "request body exceeds input limit")
-            if (progress == 0L) completed.store(true)
-            return progress
-        } catch (error: Throwable) {
-            failure = Some(error)
-            throw error
-        } finally { busy.store(false) }
     }
 }

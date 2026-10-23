@@ -2,6 +2,7 @@ package scoop.tests.http.server.consumer
 
 import scoop.asyncio.*
 import scoop.bytes.ByteArrayBuilder
+import scoop.compression.*
 import scoop.http.*
 import scoop.http.asyncio.*
 import scoop.http.server.*
@@ -23,8 +24,9 @@ private suspend fun consumerResponseText(source: AsyncByteSource): String {
 }
 
 @Test private class HttpServerH2ConsumerTests {
-    @Test fun `published server supports HTTP2 streams SSE and multipart through public APIs`() {
+    @Test fun `published server supports HTTP2 streams SSE and compressed multipart through public APIs`() {
         val routes = RouterBuilder()
+        routes.use(requestDecompression())
         routes.get("/", suspend { ctx ->
             assertEquals(HttpProtocol.Http2, ctx.connection.protocol)
             stream("text/plain", suspend { writer -> writer.writeText("public h2") }, length = Some(9L))
@@ -39,6 +41,8 @@ private suspend fun consumerResponseText(source: AsyncByteSource): String {
                 val part = reader.nextPart()!!
                 val result = part.name + ":" + part.text()
                 assertTrue(when (reader.nextPart()) { case None -> true; case Some(_) -> false })
+                assertEquals("gzip", ctx.request.body.view!!.decodedEncodings[0L])
+                assertEquals(None, ctx.request.body.view!!.contentLength)
                 text(result)
             }
         })
@@ -66,9 +70,11 @@ private suspend fun consumerResponseText(source: AsyncByteSource): String {
                     }
                     val uploadHead = HttpRequestHead(HttpVersion.Http2, "POST".toByteArray(),
                         HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/upload".toByteArray()),
-                        [HttpField("Content-Type".toByteArray(), "multipart/form-data; boundary=external".toByteArray())])
+                        [HttpField("Content-Type".toByteArray(), "multipart/form-data; boundary=external".toByteArray()),
+                            HttpField("Content-Encoding".toByteArray(), "gzip".toByteArray())])
                     val upload = client.openRequest(uploadHead, false)
-                    val body = "--external\r\nContent-Disposition: form-data; name=message\r\n\r\npublished\r\n--external--\r\n".toByteArray()
+                    val body = compress("--external\r\nContent-Disposition: form-data; name=message\r\n\r\npublished\r\n--external--\r\n".toByteArray(),
+                        CompressionOptions.Gzip(GzipOptions()))
                     NativeByteBuffer.allocate(body.size).use suspend { buffer -> buffer.writeBytes(body); upload.writeFully(buffer) }
                     upload.finish()
                     assertEquals(200U, upload.receiveResponse().status)

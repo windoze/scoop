@@ -797,9 +797,9 @@ HTTP 完成快照把 101 记为协议升级，耗时覆盖握手和 HTTP 清理�
 
 ### 15.5 请求解压
 
-**落点与 API。**提供拟议 `requestDecompression(options): HttpMiddleware`，只在 next() 前配置本请求 HttpRequestBody 的内容解码策略，不读 body、不发 100 Continue。认证需要在读 body 前完成时放在它或提取器之前。策略必须在取得任何消费入口之前确定；后续试图改变活动 reader 的解码方式是程序错误。
+**落点与 API。**提供 `requestDecompression(options): HttpMiddleware`，只在 next() 前配置本请求 HttpRequestBody 的内容解码策略，不读 body、不发 100 Continue。认证需要在读 body 前完成时放在它或提取器之前。策略必须在取得任何消费入口之前确定；内层可在消费前覆盖策略，退出 middleware 不恢复已选正文的策略。后续试图改变活动 reader 的解码方式是程序错误。具体合同见[server 规范第 11 节](../specs/SCOOP-HTTP-SERVER-SPEC.md#11-请求解压)。
 
-安装后 openStream／bytes／text／json／form／multipart 使用解码后的视图；新增 `openRawStream()` 显式读取编码后的表示字节。两个入口仍竞争同一消费权，没有可同时读取的“原文副本”。未安装策略时 openStream 保持原始流，结构化提取器遇到未支持的 Content-Encoding 按 9.1 返回 415。原始请求 head 不被改写；body 视图另提供所选解码信息，解码后未知的长度为 None，绝不把压缩 Content-Length 冒充明文长度。
+安装后 openStream／bytes／text／json／form／multipart 使用解码后的视图；`openRawStream()` 显式读取编码后的表示字节。两个入口仍竞争同一消费权，没有可同时读取的“原文副本”。未安装策略时 openStream 保持原始流，结构化提取器遇到未支持的 Content-Encoding 按 9.1 返回 415。原始请求 head 不被改写；成功选择后 body.view 提供 HttpRequestBodyView，其 decodedEncodings 按原字段顺序记录实际去除的编码，contentLength 在有实际解码时为 None，绝不把压缩 Content-Length 冒充明文长度。
 
 Content-Encoding 的 token 语法复用 parseHttpTokenFields；gzip、deflate、br、zstd 映射到已有格式，HTTP deflate 只用 zlib 包装。按字段列出的相反顺序逐层借用 AsyncDecompressionSource，先验证整条编码链再开始输入。默认允许四种算法、最多两层实际编码；identity 不增加解码器。未知／未启用编码和超过该局部层数策略的请求为 415，可给出 Accept-Encoding 列出可接受编码；不进行原始 DEFLATE 回退或隐式字典下载。
 

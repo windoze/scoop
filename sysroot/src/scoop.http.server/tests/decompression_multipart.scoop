@@ -1,0 +1,82 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.fs.*
+import scoop.test.*
+
+private class DecodedUploadPath { var value: Path? = None }
+
+private suspend fun saveDecodedUpload(ctx: HttpContext, directory: UploadTestDirectory, staged: DecodedUploadPath,
+    copied: ServerTestGate): HttpResult {
+    val loop = currentEventLoop()
+    val temporary = loop.createTempFile(Some(directory.path))
+    staged.value = Some(temporary.path)
+    var published = false
+    try {
+        temporary.useAsync suspend { file ->
+            ctx.request.body.multipart(RequestMultipartOptions(bufferSize = 7L)).useAsync suspend { reader ->
+                val part = reader.nextPart()!!
+                assertEquals("file", part.name)
+                part.copyTo(file.file, 65536L)
+                copied.signal()
+                assertFalse(present(reader.nextPart()))
+                assertTrue(ctx.request.body.isComplete)
+            }
+        }
+        loop.moveFile(temporary.path, directory.child("published.bin"))
+        published = true
+        return text("saved")
+    } finally { deleteUnpublishedUpload(temporary.path, published) }
+}
+
+@Test
+private class ServerDecompressionMultipartTests {
+    @Test
+    fun `gzip multipart publishes only after outer EOF and never after a late checksum failure`() {
+        val payload = Array<Byte>(4097L) { index -> (index % 26L + 65L).toByte() }
+        val multipart = requestMultipartBytes([(MultipartPartHead.formData("file", Some("input.bin")), payload)])
+        val encoded = requestGzip(multipart)
+        for (h2 in [false, true]) for (valid in [false, true]) UploadTestDirectory().use { directory ->
+            val copied = ServerTestGate(); val staged = DecodedUploadPath()
+            val completed = ServerTestCompletions()
+            val routes = RouterBuilder()
+            routes.use(requestDecompression(RequestDecompressionOptions(bufferSize = 7L)))
+            routes.post("/", suspend { ctx -> saveDecodedUpload(ctx, directory, staged, copied) })
+            val fields = [requestMultipartFields()[0L], field("Content-Encoding", "gzip")]
+            val prefix = Array<Byte>(encoded.size - 8L) { index -> encoded[index] }
+            val tail = Array<Byte>(8L) { index ->
+                val value = encoded[encoded.size - 8L + index]
+                if (!valid && index == 0L) (value.toInt() xor 1).toByte() else value
+            }
+            withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true, onRequestCompleted = Some(completed::receive)),
+                suspend { scope, _, address ->
+                    if (h2) h2ServerClient(address, scope).useAsync suspend { client ->
+                        val upload = client.openRequest(h2ServerRequest(method = "POST", fields = fields), false)
+                        sendEncodedBytes(upload, prefix); copied.await()
+                        assertFalse(directory.child("published.bin").exists())
+                        sendEncodedBytes(upload, tail); upload.finish()
+                        assertEquals(if (valid) 200U else 400U, upload.receiveResponse().status)
+                        networkText(upload)
+                    } else networkClient(address, scope).useAsync suspend { client ->
+                        val upload = client.sendRequest(networkRequest(method = "POST", fields = fields), Http1BodyFraming.Chunked)
+                        sendEncodedBytes(upload, prefix); copied.await()
+                        assertFalse(directory.child("published.bin").exists())
+                        sendEncodedBytes(upload, tail); upload.finish()
+                        val response = client.receiveResponse()
+                        assertEquals(if (valid) 200U else 400U, response.head.status)
+                        networkText(response.body)
+                    }
+                    completed.ready.await()
+                    assertFalse(staged.value!!.exists())
+                    assertEquals(valid, directory.child("published.bin").exists())
+                    if (valid) {
+                        assertEquals(String.fromUtf8(payload), directory.child("published.bin").readText())
+                        assertEquals(encoded.size, completed.snapshot()[0L].receivedBytes)
+                        assertEquals(multipart.size, completed.snapshot()[0L].deliveredBytes)
+                    }
+                })
+        }
+    }
+}

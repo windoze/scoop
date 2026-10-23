@@ -22,7 +22,7 @@ HttpContext 属于一次请求，保存 request、response、route、pathParams 
 
 无端点匹配时采用最长适用分组的 fallback，等长按静态片段优先；默认 404。404 和默认 405／OPTIONS 执行这个最长适用分组的 middleware，正常端点执行其注册分组及端点 middleware。全局 middleware 覆盖所有这些结果。route 只在路径端点选定后可见，fallback 没有虚构的端点模板。
 
-Query 复用 UrlQuery，普通 URI 的 `+` 保持加号。标量读取拒绝重复值；optional 只容许字段缺失，不把无等号或空字符串自动当作缺失。Path 参数缺失为程序错误，转换失败为 HttpRejection。DTO 提取遵守第 9 节，结构化 body 遵守第 4、8 节。
+Query 复用 UrlQuery，普通 URI 的 `+` 保持加号。标量读取拒绝重复值；optional 只容许字段缺失，不把无等号或空字符串自动当作缺失。Path 参数缺失为程序错误，转换失败为 HttpRejection。DTO 提取遵守第 9 节，结构化 body 遵守第 4、8、11 节。
 
 ## 3. 管线与响应
 
@@ -128,6 +128,20 @@ HttpResult.allowCompression 默认 true，可明确关闭动态变换。已有 C
 
 通用压缩策略不自动执行条件请求；应用做强验证前须已选择实际表示，或禁用动态压缩。文件表示的条件与范围由其专属实现处理。
 
-## 11. 分步交付与验证
+## 11. 请求解压
+
+requestDecompression(options) 在 next 前配置 HttpRequestBody，不读正文或发送 100 Continue。RequestDecompressionOptions 默认允许 Gzip、Zlib、Brotli、Zstd，最多两层实际编码；identity 不占层数。allowedFormats 保存快照，拒绝重复格式与 RawDeflate；maxLayers、decodedBodyLimit 须非负，bufferSize 与 maxWindowBytes 须为正。decodedBodyLimit 默认 8 MiB，maxWindowBytes 默认 8 MiB，bufferSize 默认 8192；总量／窗口上限可分别以 None 关闭。嵌套策略可在消费前覆盖；一旦选择入口或请求结束，不能更改策略。退出 middleware 不恢复已选正文的策略。
+
+安装后 openStream、bytes、text、json、form、multipart 均使用解码视图；openRawStream 显式绕过内容解码，两者共用一次消费权。未安装时 openStream 保持原始流，结构化入口仍拒绝非 identity 编码。选择前验证所需媒体类型和整条编码链；语法错误为 400，未知／未启用编码及超出 maxLayers 为 415。拒绝发生在实际读取前，且不占用消费权。Content-Encoding 复用 parseHttpTokenFields，大小写无关；HTTP deflate 固定使用 Zlib。支持的编码按字段列出顺序的反向解码，不探测格式、不回退 RawDeflate、不下载字典。
+
+原 head 保持不变。body.view 在成功选择前为 None，之后提供 HttpRequestBodyView：decodedEncodings 是实际去除的编码，按原字段顺序记录且不含 identity；contentLength 只在未变换时保留原 Content-Length，有实际解码时为 None。raw 入口不解析 Content-Encoding。isComplete 只在选定视图达到正常 EOF 后为 true，不能因底层已预取完压缩字节提前成立。
+
+requestBodyLimit 继续统计 HTTP 去定界后的实际编码输入，setLimit 仍只可在选择前调用。声明 Content-Length 超过该上限时在选择时拒绝 413；未知长度按实际推进检查。decodedBodyLimit 传给每层解码器的 maxOutputBytes，包括中间层；identity 视图也执行此明文上限。bufferedBodyLimit 另限制聚合明文，不因其他上限关闭而取消。zstd 窗口上限只传给 zstd。计数均检查溢出；完成快照 receivedBytes 为实际编码输入，deliveredBytes 为成功交付到选定正文视图的字节，multipart 的内部预取也在此边界计数。
+
+解码器在首次非空读取时按层创建，借用上游；未读取的请求不分配 codec。部分构造失败的已创建 decoder 仍由请求收尾释放。格式损坏、截断、checksum 和非法尾随数据为携带原 CompressionException 的 HttpRejection 400；OutputLimit／WindowLimit 为 413；需要未提供字典或字典不匹配为 415。底层 I/O、取消、内存失败及 Backend 保留实际异常。gzip 连续 member、zstd 连续 frame 复用 compression 的 Automatic 模式，不计为额外编码层。失败的视图不能继续推进。
+
+完整 JSON 聚合、multipart 外层 EOF 均须完成解码尾部校验；读取部分明文不表示上传成功。管线及请求子任务结束后，框架先使读取入口失效，关闭 multipart 本地视图，再从外到内关闭解码器，最后按协议收尾输入；每层借用上游，不提前关闭会阻止错误响应的连接。清理尝试覆盖所有已创建层，保留真实清理失败；早退不自动 drain 或补完压缩输入。提交后的输入失败仅中止实际连接／stream。
+
+## 12. 分步交付与验证
 
 接入、超时与停机、SSE、multipart、WebSocket、压缩、文件和 DTO 的完整范围保持设计第 12～17 节，按完成的功能逐项扩充本规范。尚未实现的功能不公开占位 API。测试用所属 Cone 的 release 测试；只有 CLI／诊断／外部对端等必要边界使用 fixture。协议引擎的既有验证不在 server 重放。

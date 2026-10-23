@@ -1,0 +1,47 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.compression.asyncio.AsyncDecompressionSource
+import scoop.platform.memory.NativeByteBuffer
+
+// Reads are serialized by RequestBodySource; request cleanup runs after its child tasks finish.
+internal class RequestDecompressionSource(input: AsyncByteSource, private val codings: Array<RequestContentCoding>,
+    private val options: RequestDecompressionOptions) : AsyncByteSource, AsyncCloseable {
+    private var source: AsyncByteSource = input
+    private var prepared: Boolean = false
+    private val codecs: ArrayList<AsyncDecompressionSource> = ArrayList<AsyncDecompressionSource>()
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        try {
+            if (!prepared) {
+                var index = codings.size
+                while (index > 0L) {
+                    ensureActive()
+                    index -= 1L
+                    val format = codings[index].format
+                    val window = if (format == CompressionFormat.Zstd) options.maxWindowBytes else None
+                    val codec = AsyncDecompressionSource(source,
+                        DecompressionOptions(format, maxOutputBytes = options.decodedBodyLimit, maxWindowBytes = window),
+                        options.bufferSize)
+                    codecs.add(codec)
+                    source = codec
+                }
+                prepared = true
+            }
+            return source.readInto(buffer, count)
+        } catch (error: CompressionException) { requestCodingFailure(error) }
+    }
+
+    public override suspend fun close() {
+        var failure: Throwable? = None
+        var index = codecs.size
+        while (index > 0L) {
+            index -= 1L
+            try { codecs[index].close() }
+            catch (error: Throwable) { failure = Some(if (present(failure)) ResourceUseException(failure!!, error) else error) }
+        }
+        codecs.clear()
+        if (present(failure)) throw failure!!
+    }
+}

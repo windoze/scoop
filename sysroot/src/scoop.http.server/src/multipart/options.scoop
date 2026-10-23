@@ -20,7 +20,6 @@ public class RequestMultipartOptions public constructor(
 }
 
 internal fun requestMultipartBoundary(fields: Array<HttpField>): MultipartBoundary {
-    requireIdentityContent(fields)
     try {
         val media = HttpMediaType.parseFields(fields) ?: reject(415U, "missing request Content-Type")
         if (media.type != "multipart" || media.subtype != "form-data") reject(415U, "expected multipart/form-data")

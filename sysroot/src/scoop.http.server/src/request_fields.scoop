@@ -35,7 +35,6 @@ public class RequestHeaders internal constructor(private val fields: Array<HttpF
 
 internal fun requireStructuredMedia(fields: Array<HttpField>, json: Boolean) {
     try {
-        requireIdentityContent(fields)
         val media = HttpMediaType.parseFields(fields) ?: reject(415U, "missing request Content-Type")
         val accepted = media.type == "application" &&
             (if (json) media.subtype == "json" || media.subtype.endsWith("+json") else media.subtype == "x-www-form-urlencoded")
