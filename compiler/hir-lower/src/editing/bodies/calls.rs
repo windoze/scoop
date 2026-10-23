@@ -3,11 +3,11 @@ use super::*;
 mod arguments;
 
 #[derive(Clone)]
-pub(super) struct CallInput {
-    callee_end: u32,
-    callee: Option<ast::Span>,
-    name: Option<String>,
-    arguments: Vec<(ast::Span, bool, Option<ast::Span>)>,
+pub(in crate::editing) struct CallInput {
+    pub(in crate::editing) callee_end: u32,
+    pub(in crate::editing) callee: Option<ast::Span>,
+    pub(in crate::editing) name: Option<String>,
+    pub(in crate::editing) arguments: Vec<(ast::Span, bool, Option<ast::Span>)>,
 }
 
 #[derive(Clone)]
@@ -45,44 +45,17 @@ impl Lowerer {
             names.insert(name.span, name.span);
             return;
         }
-        let (name, callee_end, args) = match expression {
-            ast::Expr::Call(call) => (Some(&call.callee), call.callee.span.end, &call.args),
-            ast::Expr::MethodCall { name, args, .. }
-            | ast::Expr::SuperMethodCall { name, args, .. }
-            | ast::Expr::QualifiedInterfaceSuperMethodCall { name, args, .. } => {
-                (Some(name), name.span.end, args)
-            }
-            ast::Expr::Invoke { callee, args, .. } => (None, callee.span().end, args),
-            _ => return,
+        let Some(input) = CallInput::from_expression(expression) else {
+            return;
         };
         let body = self.editing_body.as_mut().expect("active query");
-        if let Some(name) = name {
-            body.callable_names.insert(name.span, name.span);
+        if let Some(span) = input.callee {
+            body.callable_names.insert(span, span);
         }
         if body.failed || self.diagnostics.len() != body.diagnostics_start {
             return;
         }
-        body.call_inputs.insert(
-            expression.span(),
-            CallInput {
-                callee_end,
-                callee: name.map(|name| name.span),
-                name: name.map(|name| name.text.clone()),
-                arguments: args
-                    .iter()
-                    .map(|argument| {
-                        (
-                            argument.span,
-                            matches!(argument.name, ast::CallArgumentName::TrailingLambda),
-                            match &argument.name {
-                                ast::CallArgumentName::Named(name) => Some(name.span),
-                                _ => None,
-                            },
-                        )
-                    })
-                    .collect(),
-            },
-        );
+        body.call_inputs.insert(expression.span(), input);
     }
 
     pub(crate) fn observe_callable_reference(
@@ -150,11 +123,60 @@ impl Lowerer {
                 callee_end: input.callee_end,
                 name: input.name.clone(),
                 callee,
-                context,
+                context: hir::EditingCallContext::Body {
+                    function: body.function,
+                    source: context,
+                },
                 parameters: arguments.parameters,
                 arguments: arguments.arguments,
                 result,
             },
         );
+    }
+}
+
+impl CallInput {
+    pub(in crate::editing) fn from_expression(expression: &ast::Expr) -> Option<Self> {
+        if let ast::Expr::InfixCall {
+            target: ast::InfixTarget::Named(name),
+            rhs,
+            ..
+        } = expression
+        {
+            return Some(Self {
+                callee_end: name.span.end,
+                callee: Some(name.span),
+                name: Some(name.text.clone()),
+                arguments: vec![(rhs.span(), false, None)],
+            });
+        }
+        let (name, callee_end, args) = match expression {
+            ast::Expr::Call(call) => (Some(&call.callee), call.callee.span.end, &call.args),
+            ast::Expr::MethodCall { name, args, .. }
+            | ast::Expr::SuperMethodCall { name, args, .. }
+            | ast::Expr::QualifiedInterfaceSuperMethodCall { name, args, .. } => {
+                (Some(name), name.span.end, args)
+            }
+            ast::Expr::Invoke { callee, args, .. } => (None, callee.span().end, args),
+            _ => return None,
+        };
+        Some(Self {
+            callee_end,
+            callee: name.map(|name| name.span),
+            name: name.map(|name| name.text.clone()),
+            arguments: args
+                .iter()
+                .map(|argument| {
+                    (
+                        argument.span,
+                        matches!(argument.name, ast::CallArgumentName::TrailingLambda),
+                        match &argument.name {
+                            ast::CallArgumentName::Named(name) => Some(name.span),
+                            _ => None,
+                        },
+                    )
+                })
+                .collect(),
+        })
     }
 }

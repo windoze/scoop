@@ -96,6 +96,20 @@ fn origin(
     if let Some(reference) = semantic::static_variant(analysis, cursor, snapshot, cancellation)? {
         return value_origin(analysis, reference.value_type);
     }
+    if let Some(argument) =
+        semantic::static_named_argument(analysis, cursor, snapshot, cancellation)?
+    {
+        return value_origin(analysis, argument.parameter.value_type);
+    }
+    if let V::Known(calls) = analysis
+        .static_calls(&cursor.file.identity, check(snapshot, cancellation))
+        .map_err(|_| semantic::cancelled())?
+        && let Some(call) = calls
+            .iter()
+            .find(|call| call.callee_span == Some(cursor.span))
+    {
+        return value_origin(analysis, call.result);
+    }
     if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {
         if let Some(V::Known(signature)) = analysis.source_body_signature(&function)
             && let Some(parameter) = signature

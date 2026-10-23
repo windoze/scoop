@@ -13,6 +13,13 @@ pub(super) fn named(
     let EditingValue::Known(Some(argument)) = argument else {
         return Ok(None);
     };
+    description(analysis, argument)
+}
+
+pub(super) fn description(
+    analysis: &mut DeclarationAnalysis,
+    argument: hir::EditingNamedArgument,
+) -> Result<Option<Description>, ResponseError> {
     let Some(name) = &argument.parameter.name else {
         return Ok(None);
     };
@@ -21,7 +28,7 @@ pub(super) fn named(
         .vararg_element_type
         .map_or(("", argument.parameter.value_type), |ty| ("vararg ", ty));
     let ty = analysis
-        .describe_body_type(function, argument.context, ty)
+        .describe_call_type(&argument.context, ty)
         .map_err(|error| convert::error(ErrorCode::RequestFailed, error.message))?;
     let EditingValue::Known(ty) = ty else {
         return Ok(None);

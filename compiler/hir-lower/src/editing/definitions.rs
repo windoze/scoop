@@ -24,6 +24,17 @@ impl DeclarationAnalysis {
             V::Known(calls) => calls,
             V::Unavailable(reason) => return Ok(V::Unavailable(reason)),
         };
+        let calls = calls.to_vec();
+        Ok(V::Known(self.lowerer.editing_named_argument(&calls, span)))
+    }
+}
+
+impl Lowerer {
+    pub(super) fn editing_named_argument(
+        &self,
+        calls: &[hir::EditingAppliedCall],
+        span: ast::Span,
+    ) -> Option<hir::EditingNamedArgument> {
         let mut selected = calls.iter().find_map(|call| {
             call.arguments
                 .iter()
@@ -32,17 +43,16 @@ impl DeclarationAnalysis {
                     parameter: call.parameters[argument.parameter].clone(),
                     index: argument.parameter,
                     callee: call.callee,
-                    context: call.context,
+                    context: call.context.clone(),
                     definition: None,
                 })
         });
         if let Some(argument) = &mut selected {
-            argument.definition = argument.callee.and_then(|callee| {
-                self.lowerer
-                    .editing_callee_parameter_origin(callee, argument.index)
-            });
+            argument.definition = argument
+                .callee
+                .and_then(|callee| self.editing_callee_parameter_origin(callee, argument.index));
         }
-        Ok(V::Known(selected))
+        selected
     }
 }
 

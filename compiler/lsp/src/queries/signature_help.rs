@@ -33,11 +33,19 @@ pub(crate) fn signature_help(
     let Some(analysis) = semantic::declarations(semantics, snapshot, source, cancellation)? else {
         return Ok(Value::Null);
     };
-    let mut selected = None;
+    let mut calls = match analysis
+        .static_calls(&cursor.file.identity, || {
+            cancellation.check().is_err() || snapshot.check_cancelled().is_err()
+        })
+        .map_err(|_| semantic::cancelled())?
+    {
+        EditingValue::Known(calls) => calls,
+        EditingValue::Unavailable(_) => Vec::new(),
+    };
     if let Some(function) = semantic::body(analysis, &cursor, snapshot, cancellation)? {
         let revision = snapshot.clone();
         let cancelled = cancellation.clone();
-        let EditingValue::Known(calls) = analysis
+        let EditingValue::Known(body_calls) = analysis
             .calls(function.function, move || {
                 cancelled.check().is_err() || revision.check_cancelled().is_err()
             })
@@ -45,29 +53,23 @@ pub(crate) fn signature_help(
         else {
             return incomplete::signature_help(analysis, &cursor, snapshot, cancellation);
         };
-        for call in calls {
-            let Some(active) = position::active_parameter(call, cursor.span.start, &positions)
-            else {
-                continue;
-            };
-            let width = call.span.end - call.span.start;
-            if selected
-                .as_ref()
-                .is_none_or(|(_, previous, _, _)| width < *previous)
-            {
-                selected = Some((function.function, width, call.clone(), active));
-            }
-        }
+        calls.extend_from_slice(body_calls);
     }
-    let Some((function, _, call, active_parameter)) = selected else {
+    let selected = calls
+        .into_iter()
+        .filter_map(|call| {
+            let active = position::active_parameter(&call, cursor.span.start, &positions)?;
+            Some((call, active))
+        })
+        .min_by_key(|(call, _)| call.span.end - call.span.start);
+    let Some((call, active_parameter)) = selected else {
         return incomplete::signature_help(analysis, &cursor, snapshot, cancellation);
     };
     let mut labels = Vec::with_capacity(call.parameters.len());
     for parameter in &call.parameters {
         let ty = type_label(
             analysis,
-            function,
-            call.context,
+            &call.context,
             parameter
                 .vararg_element_type
                 .unwrap_or(parameter.value_type),
@@ -90,7 +92,7 @@ pub(crate) fn signature_help(
         .as_deref()
         .map(scoop_analysis::identifier_spelling)
         .unwrap_or_default();
-    let result = type_label(analysis, function, call.context, call.result)?;
+    let result = type_label(analysis, &call.context, call.result)?;
     super::json(SignatureHelp {
         signatures: vec![SignatureInformation {
             label: format!("{name}({}): {result}", labels.join(", ")),
@@ -113,12 +115,11 @@ pub(crate) fn signature_help(
 
 fn type_label(
     analysis: &mut DeclarationAnalysis,
-    function: hir::FunctionId,
-    context: hir::SourceContextId,
+    context: &hir::EditingCallContext,
     ty: hir::TypeId,
 ) -> Result<String, ResponseError> {
     match analysis
-        .describe_body_type(function, context, ty)
+        .describe_call_type(context, ty)
         .map_err(|error| convert::error(ErrorCode::RequestFailed, error.message))?
     {
         EditingValue::Known(description) => Ok(description.name),

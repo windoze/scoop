@@ -42,6 +42,17 @@ struct EvaluatedConst {
     ty: hir::TypeId,
 }
 
+fn imported_const_intrinsic_callable(
+    callable: hir::ImportedIntrinsicCallable<'_>,
+) -> hir::SemanticCallable {
+    let scoop_identity::CallableTemplateOrigin::Function(function) =
+        callable.interface().declaration()
+    else {
+        unreachable!("a checked numeric intrinsic has a concrete function declaration")
+    };
+    hir::SemanticCallable::Imported(hir::DefaultCallableDeclarationV1::Function(function))
+}
+
 impl Lowerer {
     pub(super) fn resolve_const_properties(
         &mut self,

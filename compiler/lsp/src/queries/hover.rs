@@ -10,6 +10,7 @@ use super::semantic;
 use crate::{convert, initialize::Settings};
 
 mod arguments;
+mod callables;
 mod documentation;
 mod imported;
 mod properties;
@@ -109,6 +110,14 @@ fn description(
     if let Some(description) = variants::description(analysis, cursor, snapshot, cancellation)? {
         return Ok(Some(description));
     }
+    if let Some(argument) =
+        semantic::static_named_argument(analysis, cursor, snapshot, cancellation)?
+    {
+        return arguments::description(analysis, argument);
+    }
+    if let Some(reference) = semantic::static_callable(analysis, cursor, snapshot, cancellation)? {
+        return callables::description(analysis, reference, snapshot, cursor);
+    }
     if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {
         let signature = match analysis.source_body_signature(&function) {
             Some(EditingValue::Known(signature)) => Some(signature),
@@ -179,33 +188,8 @@ fn description(
         }
         if let Some(reference) =
             semantic::callable_at(analysis, function.function, target, snapshot, cancellation)?
-            && let Some(callable) = reference.target.callable()
         {
-            let mut origin = reference.definition;
-            let label = match callable {
-                hir::SemanticCallable::Current(function) => match analysis.signature(function) {
-                    EditingValue::Known(signature) => {
-                        let label = signature_label(analysis, &signature)?;
-                        origin = Some(signature.origin);
-                        Some(label)
-                    }
-                    EditingValue::Unavailable(_) => None,
-                },
-                hir::SemanticCallable::Imported(callable) => {
-                    imported::label(analysis, callable, snapshot, cursor.project)?
-                }
-                hir::SemanticCallable::CurrentGetter(_)
-                | hir::SemanticCallable::CurrentSetter(_) => None,
-            };
-            if let Some(label) = label {
-                return Ok(Some(Description {
-                    label,
-                    documentation: origin.map(|origin| documentation::Query {
-                        symbol: documentation::callable(callable),
-                        origin,
-                    }),
-                }));
-            }
+            return callables::description(analysis, reference, snapshot, cursor);
         }
     }
     Ok(None)

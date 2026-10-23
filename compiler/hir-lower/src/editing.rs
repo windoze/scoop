@@ -47,6 +47,7 @@ pub struct DeclarationAnalysis {
     pub(crate) type_applications: Vec<hir::EditingTypeApplication>,
     pub(crate) constant_references: Vec<hir::EditingConstantReference>,
     pub(crate) static_variant_references: Vec<hir::EditingStaticVariantReference>,
+    pub(crate) static_calls: Vec<hir::EditingStaticCall>,
     pub(crate) type_implementations: Option<
         std::collections::HashMap<hir::SourceNominalId, Vec<hir::EditingTypeImplementation>>,
     >,

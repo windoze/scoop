@@ -100,29 +100,38 @@ impl ReferenceBuilder {
             if check() {
                 return Err(EditingCancelled);
             }
-            let Some(callee) = call
-                .callee
-                .and_then(|callee| self.identities.callee(&mut analysis.lowerer, callee))
-            else {
-                continue;
-            };
-            for argument in call.arguments {
-                if let Some(span) = argument.name_span {
-                    self.record(
-                        Target::Parameter {
-                            callable: callee,
-                            index: argument.parameter as u32,
-                        },
-                        hir::SemanticSourceLocation {
-                            source: source.clone(),
-                            span,
-                        },
-                        false,
-                    );
-                }
-            }
+            self.call_parameters(&mut analysis.lowerer, source, &call);
         }
         Ok(())
+    }
+
+    pub(super) fn call_parameters(
+        &mut self,
+        lowerer: &mut Lowerer,
+        source: &scoop_identity::SourceIdentity,
+        call: &hir::EditingAppliedCall,
+    ) {
+        let Some(callee) = call
+            .callee
+            .and_then(|callee| self.identities.callee(lowerer, callee))
+        else {
+            return;
+        };
+        for argument in &call.arguments {
+            if let Some(span) = argument.name_span {
+                self.record(
+                    Target::Parameter {
+                        callable: callee,
+                        index: argument.parameter as u32,
+                    },
+                    hir::SemanticSourceLocation {
+                        source: source.clone(),
+                        span,
+                    },
+                    false,
+                );
+            }
+        }
     }
 
     fn parameters(

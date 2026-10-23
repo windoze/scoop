@@ -13,11 +13,7 @@ fn type_name(
     call: &hir::EditingAppliedCall,
     ty: hir::TypeId,
 ) -> String {
-    let function = function(analysis, "editing");
-    let V::Known(description) = analysis
-        .describe_body_type(function, call.context, ty)
-        .unwrap()
-    else {
+    let V::Known(description) = analysis.describe_call_type(&call.context, ty).unwrap() else {
         panic!("call keeps its actual binder context");
     };
     description.name

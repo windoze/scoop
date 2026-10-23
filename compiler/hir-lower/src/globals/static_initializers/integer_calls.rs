@@ -90,6 +90,7 @@ impl Lowerer {
         target: &ast::InfixTarget,
         rhs: &ast::Expr,
         expected: Option<hir::TypeId>,
+        span: ast::Span,
     ) -> Option<StaticValue> {
         let ast::InfixTarget::Named(name) = target else {
             return None;
@@ -130,12 +131,18 @@ impl Lowerer {
             return None;
         };
         let value = evaluate_integer_no_gc_operation(operation, left_value, Some(right_value))?;
-        Some(StaticValue {
-            value,
-            ty: self.integer_no_gc_result_type(kind, operation),
-        })
+        let ty = self.integer_no_gc_result_type(kind, operation);
+        self.observe_constant_intrinsic(
+            span,
+            resolved.callable,
+            &resolved.parameters,
+            Some(right_expected),
+            ty,
+        );
+        Some(StaticValue { value, ty })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn evaluate_static_integer_method(
         &mut self,
         receiver: &ast::Expr,
@@ -144,6 +151,7 @@ impl Lowerer {
         type_args: &[ast::CallTypeArgument],
         args: &[ast::CallArgument],
         expected: Option<hir::TypeId>,
+        span: ast::Span,
     ) -> Option<StaticValue> {
         if navigation != ast::Navigation::Direct || !type_args.is_empty() {
             return None;
@@ -165,7 +173,7 @@ impl Lowerer {
         let receiver_expected = receiver_kind.map(|kind| self.integer_type(kind));
         let receiver = self.evaluate_static_value(receiver, receiver_expected)?;
         if let Some(resolved) = self.resolve_const_float_intrinsic(receiver.ty, &name.text) {
-            return self.evaluate_static_float_call(resolved, receiver, args);
+            return self.evaluate_static_float_call(resolved, receiver, args, span);
         }
         let hir::Type::Integer(source_kind) = self.types[receiver.ty] else {
             return None;
@@ -174,7 +182,8 @@ impl Lowerer {
             return None;
         };
         let resolved = self.resolve_const_integer_intrinsic(source_kind, &name.text)?;
-        match resolved.kind {
+        let mut parameter_type = None;
+        let evaluated = match resolved.kind {
             ConstIntegerIntrinsicKind::NoGcOperation(operation) => {
                 let right = match (operation.arity(), args) {
                     (hir::IntegerOperationArity::Unary, []) => None,
@@ -199,6 +208,7 @@ impl Lowerer {
                         } else {
                             receiver.ty
                         };
+                        parameter_type = Some(expected);
                         let value =
                             self.evaluate_static_value(&argument.expression, Some(expected))?;
                         if !self.types_equal(value.ty, expected) {
@@ -232,6 +242,7 @@ impl Lowerer {
                     return None;
                 }
                 let right = self.evaluate_static_value(&argument.expression, Some(receiver.ty))?;
+                parameter_type = Some(receiver.ty);
                 if !self.types_equal(right.ty, receiver.ty) {
                     return None;
                 }
@@ -262,6 +273,14 @@ impl Lowerer {
                 })
             }
             ConstIntegerIntrinsicKind::Conversion(_) => None,
-        }
+        }?;
+        self.observe_constant_intrinsic(
+            span,
+            resolved.callable,
+            &resolved.parameters,
+            parameter_type,
+            evaluated.ty,
+        );
+        Some(evaluated)
     }
 }

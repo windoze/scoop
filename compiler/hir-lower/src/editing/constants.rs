@@ -2,7 +2,15 @@
 
 use super::*;
 
+mod calls;
 mod variants;
+
+#[derive(Default)]
+pub(crate) struct ConstantFacts {
+    pub(crate) references: Vec<hir::EditingConstantReference>,
+    pub(crate) variants: Vec<hir::EditingStaticVariantReference>,
+    pub(crate) calls: Vec<hir::EditingStaticCall>,
+}
 
 #[derive(Clone, Copy)]
 pub(crate) enum ConstantTarget {
@@ -17,6 +25,8 @@ pub(crate) struct ConstantFrame {
     properties: imbl::HashMap<ast::Span, ConstantTarget>,
     imports: imbl::HashMap<ast::Span, Vec<hir::SemanticSourceLocation>>,
     variants: imbl::HashMap<ast::Span, hir::EditingStaticVariantReference>,
+    call_inputs: imbl::HashMap<ast::Span, super::bodies::CallInput>,
+    calls: imbl::HashMap<ast::Span, hir::EditingAppliedCall>,
 }
 
 #[derive(Clone, Default)]
@@ -46,21 +56,14 @@ impl ConstantObservation {
         }
     }
 
-    pub(crate) fn finish(
-        self,
-        lowerer: &Lowerer,
-    ) -> (
-        Vec<hir::EditingConstantReference>,
-        Vec<hir::EditingStaticVariantReference>,
-    ) {
-        let mut references = Vec::new();
-        let mut variants = Vec::new();
+    pub(crate) fn finish(self, lowerer: &Lowerer) -> ConstantFacts {
+        let mut facts = ConstantFacts::default();
         for frame in self.completed {
             for (span, target) in frame.properties {
                 let ConstantTarget::Bound(target) = target else {
                     unreachable!("the const worklist resolves references after allocation")
                 };
-                references.push(hir::EditingConstantReference {
+                facts.references.push(hir::EditingConstantReference {
                     origin: hir::SemanticSourceLocation {
                         source: lowerer.source_identity(frame.file).clone(),
                         span,
@@ -71,16 +74,28 @@ impl ConstantObservation {
             }
             for (span, mut reference) in frame.variants {
                 reference.imports = frame.imports.get(&span).cloned().unwrap_or_default();
-                variants.push(reference);
+                facts.variants.push(reference);
             }
+            facts.calls.extend(
+                frame
+                    .calls
+                    .into_iter()
+                    .map(|(_, call)| hir::EditingStaticCall {
+                        source: lowerer.source_identity(frame.file).clone(),
+                        call,
+                    }),
+            );
         }
-        references.sort_by_key(|reference| {
+        facts.references.sort_by_key(|reference| {
             (reference.origin.source.clone(), reference.origin.span.start)
         });
-        variants.sort_by_key(|reference| {
+        facts.variants.sort_by_key(|reference| {
             (reference.origin.source.clone(), reference.origin.span.start)
         });
-        (references, variants)
+        facts
+            .calls
+            .sort_by_key(|call| (call.source.clone(), call.call.span.start));
+        facts
     }
 }
 
@@ -95,6 +110,8 @@ impl Lowerer {
                 properties: Default::default(),
                 imports: Default::default(),
                 variants: Default::default(),
+                call_inputs: Default::default(),
+                calls: Default::default(),
             })
     }
 

@@ -8,10 +8,26 @@ mod observations;
 mod properties;
 mod record;
 mod selectors;
+pub(in crate::editing) use calls::CallInput;
 pub(in crate::editing) use observations::ObservedContext;
 pub(crate) use observations::{BodyObservation, ObservedBody};
 
 impl DeclarationAnalysis {
+    pub fn describe_call_type(
+        &mut self,
+        context: &hir::EditingCallContext,
+        ty: hir::TypeId,
+    ) -> Result<V<hir::SemanticTypeDescription>, ast::Diagnostic> {
+        match context {
+            hir::EditingCallContext::Body { function, source } => {
+                self.describe_body_type(*function, *source, ty)
+            }
+            hir::EditingCallContext::Declaration(binders) => {
+                self.describe_declaration_type(binders, ty).map(V::Known)
+            }
+        }
+    }
+
     pub fn function_facts(
         &mut self,
         function: hir::FunctionId,

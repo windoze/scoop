@@ -7,6 +7,7 @@ impl Lowerer {
         resolved: ResolvedConstFloatIntrinsic,
         receiver: StaticValue,
         arguments: &[ast::CallArgument],
+        span: ast::Span,
     ) -> Option<StaticValue> {
         if !resolved.arguments_match(arguments) {
             return None;
@@ -22,6 +23,13 @@ impl Lowerer {
         };
         let value = evaluate_float_call(resolved.kind, receiver.value, right);
         let ty = self.float_const_result_type(&value)?;
+        self.observe_constant_intrinsic(
+            span,
+            resolved.callable,
+            &resolved.parameters,
+            (!arguments.is_empty()).then_some(receiver.ty),
+            ty,
+        );
         Some(StaticValue { value, ty })
     }
 }

@@ -71,6 +71,7 @@ impl Lowerer {
                     type_applications: Vec::new(),
                     constant_references: Vec::new(),
                     static_variant_references: Vec::new(),
+                    static_calls: Vec::new(),
                     type_implementations: None,
                     member_implementations: None,
                     documentation: None,
@@ -145,7 +146,7 @@ impl Lowerer {
         } else {
             None
         };
-        let (constant_references, static_variant_references) = self
+        let constants = self
             .editing_constants
             .take()
             .expect("declaration constant observation")
@@ -162,8 +163,9 @@ impl Lowerer {
             reference_index: None,
             type_references,
             type_applications,
-            constant_references,
-            static_variant_references,
+            constant_references: constants.references,
+            static_variant_references: constants.variants,
+            static_calls: constants.calls,
             type_implementations: None,
             member_implementations: None,
             documentation,

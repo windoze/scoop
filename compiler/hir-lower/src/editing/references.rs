@@ -114,6 +114,7 @@ impl DeclarationAnalysis {
                             .push((reference.origin.clone(), reference.imports.clone()));
                     }
                 }
+                builder.static_calls(self, &check)?;
                 builder.constructors(self, &check)?;
                 let properties = self
                     .lowerer
@@ -163,6 +164,31 @@ impl DeclarationAnalysis {
 }
 
 impl ReferenceBuilder {
+    fn static_calls(
+        &mut self,
+        analysis: &mut DeclarationAnalysis,
+        check: &Rc<dyn Fn() -> bool>,
+    ) -> Result<(), EditingCancelled> {
+        for reference in &analysis.static_calls {
+            if check() {
+                return Err(EditingCancelled);
+            }
+            let call = &reference.call;
+            if let Some((callee, span)) = call.callee.zip(call.callee_span) {
+                let origin = hir::SemanticSourceLocation {
+                    source: reference.source.clone(),
+                    span,
+                };
+                match self.identities.callee(&mut analysis.lowerer, callee) {
+                    Some(target) => self.record(Target::Callable(target), origin, false),
+                    None => self.unavailable.push(origin),
+                }
+            }
+            self.call_parameters(&mut analysis.lowerer, &reference.source, call);
+        }
+        Ok(())
+    }
+
     fn types(&mut self, references: &[hir::EditingTypeReference]) {
         for reference in references {
             self.record(

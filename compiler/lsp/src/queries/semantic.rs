@@ -12,6 +12,8 @@ use crate::{convert, initialize::Settings};
 
 mod references;
 pub(super) use references::{callable_at, property_at};
+mod static_calls;
+pub(super) use static_calls::{static_callable, static_named_argument};
 
 pub(super) struct Cursor<'a> {
     pub source: &'a SourceInput,

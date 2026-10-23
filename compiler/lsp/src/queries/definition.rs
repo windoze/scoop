@@ -147,6 +147,21 @@ pub(crate) fn definition(
             settings,
         )?);
     }
+    let static_origin = semantic::static_callable(analysis, &cursor, snapshot, cancellation)?
+        .and_then(|reference| reference.definition);
+    let static_origin = match static_origin {
+        Some(origin) => Some(origin),
+        None => semantic::static_named_argument(analysis, &cursor, snapshot, cancellation)?
+            .and_then(|argument| argument.definition),
+    };
+    if let Some(origin) = static_origin {
+        return super::json(convert::definition_location(
+            snapshot,
+            cursor.project,
+            &origin,
+            settings,
+        )?);
+    }
     let definitions = analysis
         .import_definitions(&cursor.file.identity, cursor.span, || {
             cancellation.check().is_err() || snapshot.check_cancelled().is_err()

@@ -25,11 +25,7 @@ fn type_name(
     argument: &hir::EditingNamedArgument,
     ty: hir::TypeId,
 ) -> String {
-    let function = function(analysis, "editing");
-    match analysis
-        .describe_body_type(function, argument.context, ty)
-        .unwrap()
-    {
+    match analysis.describe_call_type(&argument.context, ty).unwrap() {
         V::Known(description) => description.name,
         result => panic!("missing applied type: {result:?}"),
     }

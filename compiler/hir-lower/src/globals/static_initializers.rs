@@ -59,6 +59,7 @@ impl Lowerer {
         expected: Option<hir::TypeId>,
     ) -> Option<StaticValue> {
         self.observe_property_syntax(expression);
+        self.observe_constant_call_syntax(expression);
         match expression {
             ast::Expr::IntLiteral(literal) => {
                 let expression =
@@ -271,7 +272,7 @@ impl Lowerer {
             }
             ast::Expr::InfixCall {
                 lhs, target, rhs, ..
-            } => self.evaluate_static_integer_infix(lhs, target, rhs, expected),
+            } => self.evaluate_static_integer_infix(lhs, target, rhs, expected, expression.span()),
             ast::Expr::MethodCall {
                 receiver,
                 name,
@@ -286,6 +287,7 @@ impl Lowerer {
                 type_args,
                 args,
                 expected,
+                expression.span(),
             ),
             _ => None,
         }

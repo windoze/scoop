@@ -47,6 +47,7 @@ impl Lowerer {
         stack: &mut Vec<usize>,
     ) -> Option<EvaluatedConst> {
         self.observe_property_syntax(expression);
+        self.observe_constant_call_syntax(expression);
         if declarations.is_empty()
             && matches!(expression, ast::Expr::Var(_) | ast::Expr::FieldAccess(_))
         {

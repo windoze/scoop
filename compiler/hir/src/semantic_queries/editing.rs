@@ -4,6 +4,8 @@ use crate::{FunctionId, SemanticSourceLocation, Span, TypeId};
 
 mod callees;
 pub use callees::*;
+mod calls;
+pub use calls::*;
 mod candidates;
 pub use candidates::*;
 mod implementations;
@@ -177,44 +179,5 @@ pub struct EditingBodyFacts {
 pub struct EditingCallableReference {
     pub span: Span,
     pub target: EditingCallee,
-    pub definition: Option<SemanticSourceLocation>,
-}
-
-/// Applied parameter types and source bindings from one checked call expression.
-#[derive(Clone, Debug)]
-pub struct EditingAppliedCall {
-    pub span: Span,
-    pub callee_span: Option<Span>,
-    pub callee_end: u32,
-    pub name: Option<String>,
-    pub callee: Option<EditingCallee>,
-    pub context: crate::SourceContextId,
-    pub parameters: Vec<EditingAppliedParameter>,
-    pub arguments: Vec<EditingCallArgument>,
-    pub result: TypeId,
-}
-
-#[derive(Clone, Debug)]
-pub struct EditingAppliedParameter {
-    pub name: Option<String>,
-    pub value_type: TypeId,
-    pub vararg_element_type: Option<TypeId>,
-}
-
-#[derive(Clone, Debug)]
-pub struct EditingCallArgument {
-    pub span: Span,
-    pub name_span: Option<Span>,
-    pub parameter: usize,
-    pub trailing: bool,
-}
-
-/// The original parameter binding and applied type of a checked named argument.
-#[derive(Clone, Debug)]
-pub struct EditingNamedArgument {
-    pub parameter: EditingAppliedParameter,
-    pub index: usize,
-    pub callee: Option<EditingCallee>,
-    pub context: crate::SourceContextId,
     pub definition: Option<SemanticSourceLocation>,
 }
