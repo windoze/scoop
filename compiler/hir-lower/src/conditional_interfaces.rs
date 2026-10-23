@@ -17,7 +17,8 @@ mod recursion;
 #[derive(Clone, Default)]
 pub(crate) struct ConditionalInterfaceState {
     pending: Vec<PendingImplementation>,
-    active_queries: Vec<(hir::ConditionalInterfaceId, Vec<TypeId>)>,
+    active_queries: Vec<hir::ConditionalInterfaceApplication>,
+    negative_queries: Vec<(TypeId, TypeId)>,
     relation_depth: usize,
     cycles: Vec<ConditionalProofCycle>,
     retained_companions: std::collections::HashSet<hir::SourceNominalId>,

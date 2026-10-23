@@ -10,30 +10,97 @@ impl Lowerer {
             .conditional_interfaces
             .active_queries
             .iter()
-            .find(|(id, previous)| {
-                *id == declaration.id()
-                    && previous.len() == arguments.len()
+            .position(|previous| {
+                previous.declaration == declaration.id()
+                    && previous.arguments.len() == arguments.len()
                     && previous
+                        .arguments
                         .iter()
                         .zip(arguments)
                         .all(|(&previous, &argument)| self.query_type_embeds(previous, argument))
             });
-        let Some((_, previous)) = previous else {
+        let Some(start) = previous else {
             return false;
         };
-        let kind = if previous == arguments {
+        let kind = if self.conditional_interfaces.active_queries[start].arguments == arguments {
             "cyclic"
         } else {
             "expanding"
         };
         let interface = self.instantiate_ty(declaration.interface, arguments);
-        self.conditional_interfaces.cycles.push(ConditionalProofCycle {
-            interface,
-            diagnostic: ast::Diagnostic::at_file(self.current_file, declaration.span, format!(
-                "{kind} conditional interface proof: the implementation cannot establish its own condition"
-            )),
+        let mut path = self.conditional_interfaces.active_queries[start..].to_vec();
+        path.push(hir::ConditionalInterfaceApplication {
+            declaration: declaration.id(),
+            owner: declaration.key.owner,
+            arguments: arguments.to_vec(),
         });
+        let path = path
+            .iter()
+            .map(|query| self.conditional_query_label(query))
+            .collect::<Vec<_>>()
+            .join(" -> ");
+        let message = format!(
+            "{kind} conditional interface proof: the implementation cannot establish its own condition ({path})"
+        );
+        let diagnostic = self.conditional_query_diagnostic(declaration, message);
+        self.conditional_interfaces
+            .cycles
+            .push(ConditionalProofCycle {
+                interface,
+                diagnostic,
+            });
         true
+    }
+
+    fn conditional_query_label(&mut self, query: &hir::ConditionalInterfaceApplication) -> String {
+        let name = match self.nominal_owners.get(&query.owner) {
+            Some(owner) => owner.describe_name(self),
+            None => self
+                .dependencies
+                .as_ref()
+                .and_then(|world| world.nominal_declaration(query.owner))
+                .expect("a conditional query retains its owner")
+                .name()
+                .to_owned(),
+        };
+        let arguments = query
+            .arguments
+            .iter()
+            .map(|&argument| self.type_name(argument))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let declaration = self
+            .declaration_conditional_interfaces(query.owner)
+            .iter()
+            .find(|declaration| declaration.id() == query.declaration)
+            .expect("an active conditional query retains its declaration");
+        let interface = self.instantiate_ty(declaration.interface, &query.arguments);
+        format!("{name}<{arguments}> : {}", self.type_name(interface))
+    }
+
+    fn conditional_query_diagnostic(
+        &self,
+        declaration: &hir::ConditionalInterfaceDeclaration,
+        message: String,
+    ) -> ast::Diagnostic {
+        if let Some(owner) = self.nominal_owners.get(&declaration.key.owner) {
+            let file = match owner {
+                Owner::Class(id) => self.class_files[id],
+                Owner::Struct(id) => self.struct_files[id],
+                Owner::Enum(id) => self.enum_files[id],
+                Owner::Object(id) => self.object_files[id],
+                Owner::Interface(id) => self.interface_files[id],
+            };
+            return ast::Diagnostic::at_file(file, declaration.span, message);
+        }
+        let origin = self
+            .dependencies
+            .as_ref()
+            .and_then(|world| world.nominal_declaration(declaration.key.owner))
+            .expect("an imported conditional declaration retains its nominal origin");
+        let mut diagnostic = ast::Diagnostic::at_file(self.current_file, declaration.span, message);
+        diagnostic.source = Some(Box::new(origin.origin.origin().source().clone()));
+        diagnostic
     }
 
     pub(crate) fn begin_conditional_relation_query(&mut self) {
@@ -49,8 +116,9 @@ impl Lowerer {
         if proved {
             return;
         }
-        self.diagnostics
-            .extend(cycles.into_iter().map(|cycle| cycle.diagnostic));
+        for cycle in cycles {
+            self.report_conditional_cycle(cycle.diagnostic);
+        }
     }
 
     pub(crate) fn finish_conditional_interface_set(&mut self, interfaces: &[TypeId]) {
@@ -60,8 +128,20 @@ impl Lowerer {
         let cycles = std::mem::take(&mut self.conditional_interfaces.cycles);
         for cycle in cycles {
             if !interfaces.contains(&cycle.interface) {
-                self.diagnostics.push(cycle.diagnostic);
+                self.report_conditional_cycle(cycle.diagnostic);
             }
+        }
+    }
+
+    fn report_conditional_cycle(&mut self, diagnostic: ast::Diagnostic) {
+        let repeated = self.diagnostics.iter().any(|previous| {
+            previous.source == diagnostic.source
+                && (diagnostic.source.is_some() || previous.file == diagnostic.file)
+                && previous.span == diagnostic.span
+                && previous.message == diagnostic.message
+        });
+        if !repeated {
+            self.diagnostics.push(diagnostic);
         }
     }
 
@@ -72,7 +152,7 @@ impl Lowerer {
 
     /// Structural embedding detects an expanding revisit of the same rule;
     /// descending through a nested container remains legal.
-    fn query_type_embeds(&self, smaller: TypeId, larger: TypeId) -> bool {
+    pub(super) fn query_type_embeds(&self, smaller: TypeId, larger: TypeId) -> bool {
         if self.types_equal(smaller, larger) {
             return true;
         }

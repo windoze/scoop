@@ -267,7 +267,11 @@ impl Lowerer {
     ) -> Vec<TypeId> {
         let mut interfaces = Vec::new();
         for declaration in declarations {
-            let key = (declaration.id(), arguments.to_vec());
+            let key = hir::ConditionalInterfaceApplication {
+                declaration: declaration.id(),
+                owner: declaration.key.owner,
+                arguments: arguments.to_vec(),
+            };
             if self.conditional_query_repeats(declaration, arguments) {
                 continue;
             }

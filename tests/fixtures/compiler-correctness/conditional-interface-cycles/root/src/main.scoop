@@ -1,0 +1,7 @@
+package test.m57.cycles
+
+class LocalCycle : LocalGate<LocalCycle>()
+class RemoteCycle : RemoteGate<RemoteCycle>()
+class Expanding<T> : LocalGate<Expanding<Wrap<T>>>()
+
+fun main() {}

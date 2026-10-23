@@ -1,0 +1,29 @@
+package test.core.tests.consumer.conditional_queries
+
+import scoop.test.*
+
+interface Mark {}
+interface Flag {}
+open class Left
+open class Right
+struct RefOnly<T>() { override interface Mark where T : ref {} }
+struct LeftOnly<T>() { override interface Mark where T : Left {} }
+struct Marked<T>() { override interface Mark where T : Flag {} }
+struct Recursive<T>() { override interface Mark where T : Mark {} }
+
+fun <X : !Mark> absent(value: X): Int = 7
+fun <T : value> byKind(value: RefOnly<T>): Int = absent(value)
+fun <T : Right> byClass(value: LeftOnly<T>): Int = absent(value)
+fun <T : !Flag> byNegativeFact(value: Marked<T>): Int = absent(value)
+fun <T : !Mark> nested(value: Recursive<Recursive<T>>): Int = absent(value)
+
+@Test
+private class ConditionalQueryTests {
+    @Test
+    fun impossibleConditionsSupplyNegativeFacts() {
+        assertEquals(7, byKind(RefOnly<Int>()))
+        assertEquals(7, byClass(LeftOnly<Right>()))
+        assertEquals(7, byNegativeFact(Marked<Int>()))
+        assertEquals(7, nested(Recursive<Recursive<Int>>()))
+    }
+}

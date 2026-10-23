@@ -3,6 +3,7 @@ use super::*;
 mod defaults;
 mod inheritance;
 mod projections;
+mod queries;
 mod sealed;
 
 const READ: &str = r#"

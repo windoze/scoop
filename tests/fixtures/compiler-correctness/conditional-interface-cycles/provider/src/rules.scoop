@@ -1,0 +1,6 @@
+package test.m57.cycles
+
+public interface RemoteMark {}
+public open class RemoteGate<T> public constructor() {
+    override interface RemoteMark where T : RemoteMark {}
+}

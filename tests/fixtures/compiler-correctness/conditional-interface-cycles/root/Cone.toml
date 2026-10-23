@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "test.m57"
+name = "cycle-program"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"test.m57:cycle-provider" = {version = "0.1.0", path = "../provider"}
