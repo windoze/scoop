@@ -20,7 +20,7 @@
 | 继承、default、property 与效果组合 | 继承与 default 基本闭环已完成；其余组合待完成 | 条件继承、等价重列、域覆盖、abstract 义务、默认方法／属性及分派有本地／跨 Cone 验证 |
 | 导出、跨 Cone 与 ODR | 已覆盖继承、投影与 default；完整验收待完成 | 85 个泛型导入回归、条件记录 wire 往返／再次发布与双 consumer 原生链接运行通过 |
 | sealed 条件关系与穷尽性 | 已完成 | 6 项定向检查、42 个既有 sealed fixture、条件边界诊断、原生及跨 Cone 验证通过 |
-| 类型描述与文档 | TypeInfo 已完成；generic 文档待完成 | 具体接口、属性过滤及注解的本地／跨 Cone 验证通过，见第 13 节 |
+| 类型描述与文档 | 已完成 | 具体接口、属性过滤、注解及条件文档的本地／跨 Cone 验证通过，见第 13、14 节 |
 | 完整组合与 Linux 验收 | 待完成 | 尚无完整验收 |
 
 此表只在实际代码及对应验证完成后更新，不以规范已写入代替功能交付。
@@ -112,3 +112,10 @@
 - 接口表、成员具体化及描述按条件 id 与完整具体实参复用判定结果。实现块目标和 computed property／accessor 的注解进入既有 type-use／声明注解通道；互斥的同一接口目标保留各自注解，未增加产物字段或 runtime ABI。
 - workspace Clippy、49 项 M57／静态描述 HIR 回归及完整 core consumer 的 49 项原生测试通过。3 项新增原生测试覆盖 class／struct／enum／companion、条件真／假、投影、注解及过滤后的稳定序号，描述不执行测试中会抛异常的 getter。
 - ODR fixture 的原链接与逆序重链接均通过，验证导出的条件接口、property/getter/type-use 注解、泛型描述函数及 consumer 自行查询的一致结果。generic 文档展示、其余效果组合、定向 GC 与 Linux 完整验收继续保留为未完成项。
+
+## 14. Generic 文档中的条件能力
+
+- 条件接口关系、普通／companion 块成员、accessor 与合成方法展示完整适用条件。继承展示使用原 owner 的完整实参，保留 `Wrapper<T>.Companion` 等条件主体；未知关系不隐藏，已知不可能的继承成员排除，互斥条件下的同一目标保留不同关系。
+- 文档沿用现有声明与成员查询，不创建实现块页面或 callable 身份。条件事实仅用于文档查询副本；导入文档前后的普通类型集合与机器调用集合保持一致。
+- workspace Clippy 与 29 项文档回归通过，追加互斥关系检查后两项 M57 本地／导入测试定向复验通过。首次新增测试选中了接口声明的同名方法、且 provider 构造器未标 public，修正测试后闭合。
+- 正式 `scoop doc` 成功生成 ODR provider 与 root 的文档；核对合成 encode 展示 `Envelope<T>.Companion : ValueEncoder<Envelope<T>>`，保持完整构造实参。其余效果组合、定向 GC、查询诊断边界与 Linux 完整验收继续实施。
