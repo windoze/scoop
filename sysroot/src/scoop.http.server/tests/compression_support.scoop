@@ -1,0 +1,30 @@
+package scoop.http.server
+
+import scoop.compression.*
+import scoop.http.HttpField
+
+internal fun compressionExercise(result: HttpResult, accept: String? = Some("gzip"),
+    options: ResponseCompressionOptions = ResponseCompressionOptions(minimumBytes = 0L),
+    method: String = "GET", output: TestOutput = TestOutput()): Exchange {
+    val routes = RouterBuilder()
+    routes.use(responseCompression(options))
+    routes.get("/", suspend { _ -> result })
+    val fields = ArrayList<HttpField>()
+    if (present(accept)) fields.add(field("Accept-Encoding", accept!!))
+    return exercise(routes.build(), method = method, output = output, fields = fields)
+}
+
+internal fun responseEncoding(result: Exchange): String? = RequestHeaders(result.output.head!!.fields).getSingle("Content-Encoding")
+
+internal fun decodedResponse(result: Exchange): String {
+    val coding = responseEncoding(result)
+    if (coding == None) return result.text()
+    val format = when (coding!!) {
+        case "gzip" -> CompressionFormat.Gzip
+        case "deflate" -> CompressionFormat.Zlib
+        case "br" -> CompressionFormat.Brotli
+        case "zstd" -> CompressionFormat.Zstd
+        else -> throw IllegalStateException(Some("unexpected response coding"))
+    }
+    return String.fromUtf8(decompress(result.output.data.toByteArray(), DecompressionOptions(format)))
+}

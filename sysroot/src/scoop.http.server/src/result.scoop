@@ -33,7 +33,9 @@ public class HttpResult public constructor(
     public val status: UInt = 200U,
     fields: List<HttpField> = ArrayList<HttpField>(),
     /** The response content, executed within the request scope. */
-    public val body: HttpBody = HttpBody.Empty
+    public val body: HttpBody = HttpBody.Empty,
+    /** Whether an installed compression policy may dynamically transform this representation. */
+    public val allowCompression: Boolean = true
 ) {
     /** Ordered response fields, including independently preserved Set-Cookie entries. */
     public val fields: Array<HttpField> = fields.toArray()

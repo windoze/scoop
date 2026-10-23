@@ -14,6 +14,7 @@ kind = "library"
 "scoop:scoop.http" = "0.1.0"
 "scoop:scoop.http.asyncio" = "0.1.0"
 "scoop:scoop.http.server" = "0.1.0"
+"scoop:scoop.compression" = "0.1.0"
 
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"

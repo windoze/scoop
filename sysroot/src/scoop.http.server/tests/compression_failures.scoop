@@ -1,0 +1,51 @@
+package scoop.http.server
+
+import scoop.compression.*
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class ServerCompressionFailureTests {
+    @Test
+    fun `compression preserves original length checks and never finishes failed producers`() {
+        for ((value, length) in [("short", 6L), ("too long", 2L)]) {
+            val result = compressionExercise(stream("text/plain", suspend { writer -> writer.writeText(value) }, length = Some(length)))
+            assertTrue(present(result.failure))
+            assertTrue(result.failure!! is IllegalStateException)
+            assertEquals(1, result.output.starts)
+            assertEquals(0, result.output.finishes)
+            assertEquals(1, result.output.aborts)
+        }
+        val failure = IllegalArgumentException(Some("producer failed"))
+        val broken = compressionExercise(stream("text/plain", suspend { writer -> writer.writeText("partial"); writer.flush(); throw failure }))
+        assertSame(failure, broken.failure!!)
+        assertEquals(0, broken.output.finishes)
+        assertTrue(broken.context.encodedResponseBytes > 0L)
+        val output = TestOutput()
+        output.writeFailure = Some(failure)
+        val sinkFailed = compressionExercise(text("hello"), output = output)
+        assertSame(failure, sinkFailed.failure!!)
+        assertEquals(0, output.finishes)
+        assertEquals(1, output.aborts)
+    }
+
+    @Test
+    fun `unacceptable and minimal error responses do not execute the original producer`() {
+        val calls = TestCounter()
+        val response = stream("text/plain", suspend { _ -> calls.value += 1 })
+        val unacceptable = compressionExercise(response, Some("identity;q=0, gzip;q=0"))
+        assertEquals(406U, unacceptable.status)
+        assertEquals(0, calls.value)
+        assertEquals(1, unacceptable.output.finishes)
+        val routes = RouterBuilder()
+        routes.use(responseCompression(ResponseCompressionOptions(minimumBytes = 0L)))
+        routes.get("/", suspend { ctx ->
+            ctx.response.beforeCommit { _ -> calls.value += 1; throw IllegalStateException(Some("invalid draft")) }
+            response
+        })
+        val result = exercise(routes.build(), fields = [field("Accept-Encoding", "*;q=0")])
+        assertEquals(500U, result.status)
+        assertEquals(None, responseEncoding(result))
+        assertEquals(1, calls.value)
+    }
+}

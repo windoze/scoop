@@ -88,7 +88,7 @@ SseWriter 仅在 producer 执行期间可用，借用 HTTP body，不提供结�
 
 SseOptions.heartbeatInterval 默认 None，启用时必须为正 Duration。计时从最近完成的输出操作起算；空闲到期发送一个空注释块并 flush。心跳与应用操作在完整事件边界串行，正在写入或背压时跳过本次心跳，不积累队列；应用可等待已开始的心跳完成。心跳只属于 producer 的结构化作用域。producer 正常返回时停止新心跳，等待已开始的心跳写出，然后结束 HTTP body；失败或取消时取消并等待心跳，释放本地缓冲后中止。任何失败路径都不补发事件。H2 reset 和停机取消外部事件等待；H1 无 I/O 时的断开观测限制仍适用。
 
-SSE 的动态响应压缩默认关闭；明确开启后的 flush 合同随响应压缩功能一起交付。
+SseOptions.allowCompression 默认 false；明确设为 true 时参与第 10 节安装的响应压缩策略，flush 穿透压缩同步点后再刷新 HTTP 输出。
 
 ## 8. Multipart 上传
 
@@ -114,6 +114,20 @@ required 缺失报 400；optional 缺失返回 None，默认值及 Option 的组
 
 HttpExtractor<T> 是普通 `suspend (HttpContext) -> T`；adapt(extract, handle) 顺序等待提取并调用 `suspend (HttpContext, T) -> HttpResult`，失败不调用 handle。queryExtractor 的显式／companion 重载复用 query.decode；jsonExtractor 的对应重载复用 body.json，未指定 maxBytes 时采用该请求的 bufferedBodyLimit。多个来源由应用以普通 extractor 顺序组合；两次 body 提取仍受唯一消费权约束。不增加资源持有者、DI 或参数注入，Context 与流式响应仍在原请求管线和 middleware 作用域内执行。
 
-## 10. 分步交付与验证
+## 10. 响应压缩
+
+responseCompression(options) 是普通 middleware，在 next 前安装策略，退出时恢复外层策略；内层可覆盖外层，不能在提交后安装。ResponseCompressionOptions 默认仅 gzip，minimumBytes=1024、bufferSize=8192；编码列表保存快照并按顺序作为服务端偏好，拒绝重复编码和 RawDeflate，HTTP deflate 只对应 Zlib。阈值须非负、缓冲须为正；已有算法选项继续由 compression 的实际编码器构造校验，不另建参数校验器。字典等外部资源由应用持有。shouldCompress 默认接受 text/*、application/json、application/xml、+json／+xml；应用可显式提供媒体类型判定函数。不探测 body 或预读 producer。
+
+表示选择在 beforeCommit 之后、HTTP 定界与提交之前进行。请求 Accept-Encoding 复用消息工具规范 1.14 的解析值，同一请求只解析一次；非法值在首次需要协商时返回 400，错误响应不再解析该字段。缺失或空字段选择 identity；最高质量和服务端顺序决定其他候选，显式 identity 参与比较，隐式 identity 是回退。已知原文长度小于阈值时优先 identity；identity 被禁止且有可用编码时可以越过阈值。未知长度直接按媒体类型选择。没有可接受表示时生成空 406，不运行原 producer 或再次协商该错误。
+
+HttpResult.allowCompression 默认 true，可明确关闭动态变换。已有 Content-Encoding、206／Content-Range、禁止压缩的结果或 Cache-Control: no-transform 不动态变换；已有编码链的每一项仍须为客户端接受，否则为 406。204／205／304 和成功 CONNECT 等不携带表示内容的响应跳过协商；HEAD 按 GET 的表示规则选择但不运行 producer 或创建压缩器。304 保留已选表示的元数据。文件结果按其专属规则选择表示并禁止再次压缩。
+
+参与协商的响应合并 Vary: Accept-Encoding，含最终选择 identity 或 406 的结果；字段名去重，Vary: * 保持。动态压缩写入 Content-Encoding 并移除原文 Content-Length；已知原文长度及显式长度一致性在输入侧检查，编码后的长度为未知，不完整执行 producer 来测长。HEAD 同样省略未知的编码后长度。动态压缩将强 ETag 弱化并保留弱标签；移除 Content-MD5、Digest、Content-Digest 和 Repr-Digest，响应 trailer 中同样处理标签和摘要，并从 Trailer 声明移除失效摘要。406 保留非表示字段，移除原表示的类型、长度、编码、范围、验证器、摘要及 trailer 声明。
+
+执行器用现有 AsyncCompressionSink 借用 HTTP writer，再把受原文长度约束的 HttpBodyWriter 交给 producer；两侧字节数分别进入完成快照。flush 先排出压缩同步点，再 flush HTTP。正常顺序为 producer 完成、原文长度检查、压缩 finish、trailer／HTTP finish、释放本地压缩器；失败或取消只关闭，不补完压缩流。没有压缩时复用原 writer。任何实际编码器创建、输出或清理失败均按实际响应提交状态处理，不改写已发送的响应。
+
+通用压缩策略不自动执行条件请求；应用做强验证前须已选择实际表示，或禁用动态压缩。文件表示的条件与范围由其专属实现处理。
+
+## 11. 分步交付与验证
 
 接入、超时与停机、SSE、multipart、WebSocket、压缩、文件和 DTO 的完整范围保持设计第 12～17 节，按完成的功能逐项扩充本规范。尚未实现的功能不公开占位 API。测试用所属 Cone 的 release 测试；只有 CLI／诊断／外部对端等必要边界使用 fixture。协议引擎的既有验证不在 server 重放。

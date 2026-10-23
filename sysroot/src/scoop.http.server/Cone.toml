@@ -16,6 +16,7 @@ kind = "library"
 "scoop:scoop.url" = "0.1.0"
 "scoop:scoop.json" = "0.1.0"
 "scoop:scoop.charset" = "0.1.0"
+"scoop:scoop.compression" = "0.1.0"
 "scoop:scoop.tls" = "0.1.0"
 "scoop:scoop.tls.asyncio" = "0.1.0"
 

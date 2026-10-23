@@ -1,0 +1,48 @@
+package scoop.http.server
+
+import scoop.http.*
+
+internal class ResponsePlan(val head: HttpResponseHead, val body: HttpBody, val allowsContent: Boolean,
+    val originalLength: Long?, val framingLength: Long?, val encoding: ResponseEncoding?)
+
+internal fun prepareResponse(ctx: HttpContext, result: HttpResult, initial: HttpResponseDraft, minimal: Boolean): ResponsePlan {
+    if (initial.status < 200U || initial.status > 599U) throw IllegalArgumentException(Some("invalid final response status"))
+    var draft = HttpResponseDraft(initial.status, initial.fields)
+    var body = result.body
+    var length = bodyLength(body)
+    var declared = parseHttpContentLength(draft.fields)
+    val version = ctx.request.head.version
+    val method = if (ctx.request.method == "HEAD") "GET".toByteArray() else ctx.request.head.method
+    val representation = httpResponseAllowsContent(HttpResponseHead(version, draft.status), method)
+    val allows = representation && ctx.request.method != "HEAD"
+    if (representation && present(declared)) {
+        if (present(length) && length!! != declared!!) throw IllegalArgumentException(Some("Content-Length does not match response body"))
+        length = declared
+    }
+    val encoding: ResponseEncoding? = when (selectResponseCompression(ctx, draft, result.allowCompression, length, representation, minimal)) {
+        case ResponseCompressionChoice.Identity -> None
+        case ResponseCompressionChoice.Encoded(value) -> {
+            draft = HttpResponseDraft(draft.status, compressedFields(draft.fields))
+            draft.remove("Content-Length")
+            draft.set(field("Content-Encoding", value.name))
+            declared = None
+            Some(value)
+        }
+        case ResponseCompressionChoice.Unacceptable -> {
+            draft = HttpResponseDraft(406U, unacceptableFields(draft.fields))
+            body = HttpBody.Empty
+            length = Some(0L)
+            declared = None
+            None
+        }
+    }
+    val trailers = when (body) { case HttpBody.Stream(value) -> present(value.trailers); else -> false }
+    val chunkedTrailers = allows && trailers && version != HttpVersion.Http2
+    if (chunkedTrailers && version == HttpVersion.Http10) throw IllegalArgumentException(Some("HTTP/1.0 cannot send trailers"))
+    if (chunkedTrailers && present(declared)) throw IllegalArgumentException(Some("HTTP/1 trailers conflict with Content-Length"))
+    val wireLength = if (present(encoding)) None else length
+    if (!chunkedTrailers && !present(declared) && present(wireLength) && draft.status != 204U && draft.status != 205U && draft.status != 304U)
+        draft.add(field("Content-Length", wireLength!!.toString()))
+    return ResponsePlan(HttpResponseHead(version, draft.status, fields = draft.fields), body, allows, length,
+        if (!allows) Some(0L) else if (chunkedTrailers) None else wireLength, encoding)
+}

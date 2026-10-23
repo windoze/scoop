@@ -49,7 +49,7 @@ internal fun completeServerRequest(state: ServerState, result: RequestExecution,
         else HttpRequestOutcome.Failed
     val received = ctx.request.body.receivedBytes
     val snapshot = HttpRequestCompletion(ctx.requestId, ctx.route, ctx.request.method, ctx.response.status,
-        MonotonicTimeSource.markNow() - started, received, received, ctx.responseBytes, ctx.responseBytes, outcome, error)
+        MonotonicTimeSource.markNow() - started, received, received, ctx.responseBytes, ctx.encodedResponseBytes, outcome, error)
     try { state.options.onRequestCompleted!!(snapshot) }
     catch (_: Throwable) { return }
 }

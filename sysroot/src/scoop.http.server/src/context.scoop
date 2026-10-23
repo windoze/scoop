@@ -26,6 +26,10 @@ public class HttpContext internal constructor(
     internal var mappedFailure: Boolean = false
     internal var observedFailure: Throwable? = None
     internal var responseBytes: Long = 0L
+    internal var encodedResponseBytes: Long = 0L
+    internal var compressionOptions: ResponseCompressionOptions? = None
+    internal var acceptEncoding: HttpAcceptEncoding? = None
+    internal var invalidAcceptEncoding: Boolean = false
 
     /** The selected endpoint metadata, absent before routing and for fallback results. */
     public val route: HttpRouteInfo? get() = selectedRoute
@@ -48,45 +52,7 @@ public class HttpContext internal constructor(
         try {
             requestJob.ensureActive()
             val draft = response.prepare(result, minimal)
-            if (draft.status < 200U || draft.status > 599U) throw IllegalArgumentException(Some("invalid final response status"))
-            val preliminary = HttpResponseHead(request.head.version, draft.status, fields = draft.fields)
-            val allows = httpResponseAllowsContent(preliminary, request.head.method)
-            val trailersSelected = when (result.body) {
-                case HttpBody.Stream(value) -> present(value.trailers)
-                else -> false
-            }
-            val chunkedTrailers = allows && trailersSelected && request.head.version != HttpVersion.Http2
-            if (chunkedTrailers && request.head.version == HttpVersion.Http10)
-                throw IllegalArgumentException(Some("HTTP/1.0 cannot send trailers"))
-            var length = bodyLength(result.body)
-            val declared = parseHttpContentLength(draft.fields)
-            if (chunkedTrailers && present(declared)) throw IllegalArgumentException(Some("HTTP/1 trailers conflict with Content-Length"))
-            if (allows && present(declared)) {
-                if (present(length) && length!! != declared!!) throw IllegalArgumentException(Some("Content-Length does not match response body"))
-                length = declared
-            }
-            val fields = ArrayList<HttpField>()
-            for (value in draft.fields) fields.add(value)
-            if (!chunkedTrailers && !present(declared) && present(length) && draft.status != 204U && draft.status != 205U && draft.status != 304U)
-                fields.add(field("Content-Length", length!!.toString()))
-            val head = HttpResponseHead(request.head.version, draft.status, fields = fields)
-            response.commit(head.status)
-            val sink = output.begin(head, if (!allows) Some(0L) else if (chunkedTrailers) None else length)
-            val writer = HttpBodyWriter(sink, if (allows) length else Some(0L))
-            try {
-                var trailers: List<HttpField> = ArrayList<HttpField>()
-                if (allows) when (result.body) {
-                    case HttpBody.Empty -> writer.flush()
-                    case HttpBody.Bytes(value) -> writer.writeAll(value)
-                    case HttpBody.Stream(value) -> {
-                        value.produce(writer)
-                        if (present(value.trailers)) trailers = value.trailers!!()
-                    }
-                }
-                writer.complete()
-                output.finish(trailers)
-                response.finish()
-            } finally { writer.invalidate(); responseBytes = writer.writtenBytes }
+            executeResponse(this, prepareResponse(this, result, draft, minimal))
         } catch (error: Throwable) {
             response.releasePreparation()
             throw error

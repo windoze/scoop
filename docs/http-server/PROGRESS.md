@@ -7,11 +7,12 @@
 - 已完成阶段 A：路由、请求 Context、中间件与结果执行。
 - 已完成阶段 B：H1.0／H1.1、TLS／ALPN、字段／Cookie／JSON／form、Continue、body 限制、连接／请求容量、总时限与 I/O idle、停机和完成通知。
 - 已完成阶段 C：H2 明文 prior knowledge／TLS ALPN、每流请求与取消、GOAWAY 排空、全局请求容量、首部／空闲时限和正常终结。
-- 已完成 D1：SseMessage、增量 SseEncoder、借用 SseSink、server SSE 结果与可选心跳；显式 gzip 的组合验证随 D4 完成。
+- 已完成 D1：SseMessage、增量 SseEncoder、借用 SseSink、server SSE 结果与可选心跳；显式 gzip flush 已随 D4 验证。
 - 已完成 D2：form-data 单遍提取、严格元数据、part／文本／复制／discard 限制、请求内视图清理及显式文件保存；gzip multipart 组合随 D5 验证。
 - 已完成 D3：扁平 query DTO decoder、显式／companion codec、未知字段策略及静态 query／JSON extractor 适配。
+- 已完成 D4：Accept-Encoding 协商、gzip／deflate／br／zstd 响应策略、元数据与 trailer 更新、流式压缩及双侧输出计数。
 - 路由级 deadline 覆盖已完成，端点／middleware 可在提交前调用 HttpContext.setDeadline 调整或关闭本次请求总时限。
-- 后续仍需实现 D4～D7。服务端 mTLS／动态 SNI、HTTP/3 不在本次范围内。
+- 后续仍需实现 D5～D7。服务端 mTLS／动态 SNI、HTTP/3 不在本次范围内。
 - 每个功能验证后独立提交；本机采用定向 release Cone 测试，避免重复全量测试。
 - Linux 工作目录为 `nuc12:~/repos/scoop-http-server-work`；最终串行运行一组最小库验证，不跑完整套件或大规模性能测试。
 - 本机辅助工作及原始日志位于 `~/scoop-work/http-server`，所有命令的临时目录显式放在其 scratch 下，不使用系统 `/tmp`。
@@ -43,4 +44,6 @@
 - Multipart 请求寿命收尾后复验 11／11、管线 8／8 通过；未消费的 body 也不能在请求结束后创建新视图。已发布 server 开发产物，独立 H2 consumer 1／1 release 验证通过，使用公开 multipart API 完成表单上传。
 - Query／extractor：新增 11／11 定向 release 测试及原结构化提取 4／4 回归通过，API 文档检查通过。覆盖默认值／Option／重复列表、名称解码与字面语义、未知字段和复读、数值精度／范围、输入错误路径及 cause、装配错误分类；提取失败不调用 handler，组合提取不重复消费 body，适配后仍保持 Context 与流式资源寿命。明确通用 Decoder 的格式专属未知字段策略，JSON 行为不变。
 - 已发布 D3 server 开发产物，独立 H1 consumer 1／1 release 测试通过，组合公开 query／JSON extractor 与泛型 adapt。新增生产文件均少于 75 行；清理 4 个已验证的旧可执行缓存，保留当前产物和编译缓存。
-- D4 协商底层：HttpAcceptEncoding 的 4／4 定向 release 测试和 API 文档检查通过。覆盖缺失／空字段、跨行重复最低质量、严格 q 语法和原始偏移、星号、identity、候选次序及零质量排除；没有重跑全部 HTTP 协议测试。server 压缩策略与流式执行仍在实施。
+- D4 协商底层：HttpAcceptEncoding 的 4／4 定向 release 测试和 API 文档检查通过。覆盖缺失／空字段、跨行重复最低质量、严格 q 语法和原始偏移、星号、identity、候选次序及零质量排除；没有重跑全部 HTTP 协议测试。
+- D4 server：新增 10／10 定向 release 测试通过，管线 8／8、SSE 6／6、H2 网络 3／3 回归通过，API 文档检查通过。覆盖四种编码与短写、阈值／406、嵌套策略、最终草稿、Vary／ETag／摘要／trailer、HEAD、原文长度和失败不 finish；真实 H1／H2 流式及 SSE gzip 在 producer 结束前完成可读 flush，H2 小窗口背压与 reset 等待清理且不影响其他流。
+- 已发布 HTTP／HTTP asyncio／HTTP client／server 开发产物，独立 H1 consumer 1／1 release 验证通过，组合 typed extractor 与 gzip 输出；只使用公开字段工具和解压流。新生产文件均不足 60 行。清理 5 个旧可执行缓存及已验证的 HTTP 测试产物，target 约 11 GiB。准备／打包脚本已按根 Cone 清单自动发现 server，无需新增发布机制。

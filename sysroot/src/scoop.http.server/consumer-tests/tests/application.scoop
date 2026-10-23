@@ -1,6 +1,8 @@
 package scoop.tests.http.server.consumer
 
 import scoop.asyncio.*
+import scoop.compression.*
+import scoop.compression.asyncio.AsyncDecompressionSource
 import scoop.http.*
 import scoop.http.asyncio.*
 import scoop.http.server.*
@@ -11,8 +13,9 @@ import scoop.test.*
 @Test
 private class HttpServerConsumerTests {
     @Test
-    fun `published server composes query and JSON extraction through public APIs`() {
+    fun `published server composes typed extraction and gzip responses through public APIs`() {
         val routes = RouterBuilder()
+        routes.use(responseCompression(ResponseCompressionOptions(minimumBytes = 0L)))
         routes.post("/hello/{id}", adapt(suspend { ctx ->
             val query = queryExtractor<ConsumerQuery>()(ctx)
             val name = jsonExtractor(String.Companion)(ctx)
@@ -28,6 +31,7 @@ private class HttpServerConsumerTests {
                     val request = HttpRequestHead(HttpVersion.Http11, "POST".toByteArray(),
                         HttpRequestTarget.Http1("/hello/42?count=2".toByteArray()), [
                             HttpField("Host".toByteArray(), "localhost".toByteArray()),
+                            HttpField("Accept-Encoding".toByteArray(), "gzip".toByteArray()),
                             HttpField("Content-Type".toByteArray(), "application/json".toByteArray())])
                     val bytes = "\"Ada\"".toByteArray()
                     val writer = client.sendRequest(request, Http1BodyFraming.Length(bytes.size))
@@ -38,14 +42,17 @@ private class HttpServerConsumerTests {
                         val response = client.receiveResponse()
                         assertEquals(200U, response.head.status)
                         assertEquals(1L, response.head.fields.findAll("Set-Cookie".toByteArray()).size)
-                        val body = StringBuilder()
-                        while (true) {
-                            buffer.clear()
-                            val count = response.body.readInto(buffer, buffer.writableBytes)
-                            if (count == 0L) break
-                            body.append(String.fromUtf8(buffer.readBytes(count)))
+                        assertEquals("gzip", String.fromUtf8(response.head.fields.findAll("Content-Encoding".toByteArray())[0L].value))
+                        AsyncDecompressionSource(response.body, DecompressionOptions(CompressionFormat.Gzip)).useAsync suspend { source ->
+                            val body = StringBuilder()
+                            while (true) {
+                                buffer.clear()
+                                val count = source.readInto(buffer, buffer.writableBytes)
+                                if (count == 0L) break
+                                body.append(String.fromUtf8(buffer.readBytes(count)))
+                            }
+                            assertEquals("\"42:Ada:2\"", body.toString())
                         }
-                        assertEquals("\"42:Ada:2\"", body.toString())
                     }
                 }
             }
