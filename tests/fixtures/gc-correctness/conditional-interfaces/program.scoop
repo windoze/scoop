@@ -1,0 +1,82 @@
+interface Text { public fun text(): String }
+interface Detailed : Text { public fun number(): Int }
+class Node(val text: String, val next: Node?)
+
+struct Payload<T>(val node: Node, val value: T) {
+    override interface Detailed where T : Hash {
+        public override fun text(): String = node.text + node.next!!.text
+        public override fun number(): Int = 31
+    }
+}
+
+open class Base<T>(val node: Node, val value: T) {
+    override interface Detailed where T : Hash {
+        public open override fun text(): String = node.text
+        public open override fun number(): Int = 37
+    }
+}
+class Child<T>(node: Node, value: T) : Base<T>(node, value) {
+    public override fun number(): Int = 41
+}
+
+interface Count { public fun count(): Int }
+struct Counter<T>(val value: T) {
+    override interface Count where T : value {
+        @NoGC public override fun count(): Int = 43
+    }
+}
+
+struct Plain()
+class Gate : SuspendRegistration<Unit> {
+    var waiter: Continuation<Unit>? = None
+    public override fun register(continuation: Continuation<Unit>) { waiter = Some(continuation) }
+}
+class Done : Continuation<String> {
+    var count = 0
+    var value = ""
+    public override fun resume(value: String) { count += 1; this.value = value }
+    public override fun resumeWithException(error: Throwable) { throw error }
+}
+
+suspend fun deferred(value: Detailed, gate: Gate): String {
+    suspendCoroutine(gate)
+    gcCollect()
+    check(value.number() == 31)
+    return value.text()
+}
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun <T> erase(value: T): Any = value
+
+fun main() {
+    val value = Payload(Node("moving ", Some(Node("payload", None))), 7)
+    val boxed: Any = erase(value)
+    val detailed: Detailed = boxed as Detailed
+    val text: Text = detailed
+    val read = detailed::text
+    val child: Base<Int> = Child(Node("class payload", None), 11)
+    val childView: Detailed = child
+    val counter: Count = Counter(13)
+    val absent: Any = Payload(Node("absent", None), Plain())
+    val absentChild: Any = Child(Node("absent child", None), Plain())
+    val gate = Gate()
+    val done = Done()
+    startCoroutine(suspend { deferred(detailed, gate) }, done)
+    check(done.count == 0)
+
+    gcCollect()
+    check(boxed is Text && boxed is Detailed)
+    check(text.text() == "moving payload" && read() == "moving payload")
+    check((boxed as Payload<Int>).node.next!!.text == "payload")
+    check(detailed.number() == 31 && child.number() == 41)
+    check(childView.text() == "class payload" && childView.number() == 41)
+    check(counter.count() == 43)
+    check(!(absent is Detailed) && !(absentChild is Detailed))
+    check((absent as Payload<Plain>).node.text == "absent")
+
+    gate.waiter!!.resume(Unit)
+    check(done.count == 1 && done.value == "moving payload")
+    gcCollect()
+    check(text.text() == "moving payload" && childView.number() == 41)
+    println("conditional interface roots and dispatch")
+}
