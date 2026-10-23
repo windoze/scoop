@@ -1,0 +1,86 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test private class ServerRequestDeadlineTests {
+    @Test fun `H1 and H2 routes can extend or disable the inherited deadline`() {
+        val routes = RouterBuilder()
+        routes.get("/extend", suspend { ctx ->
+            ctx.setDeadline(Some(Duration.seconds(1)))
+            currentEventLoop().sleep(Duration.milliseconds(80))
+            text("extended")
+        })
+        routes.get("/disable", suspend { ctx ->
+            ctx.setDeadline(None)
+            currentEventLoop().sleep(Duration.milliseconds(80))
+            text("disabled")
+        })
+        val options = HttpServerOptions(allowCleartextHttp2 = true, requestDeadline = Some(Duration.milliseconds(30)))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                assertEquals("extended", requestText(client, "/extend"))
+                assertEquals("disabled", requestText(client, "/disable"))
+            }
+            h2ServerClient(address, scope).useAsync suspend { client ->
+                assertEquals("extended", h2ServerText(client, "/extend"))
+                assertEquals("disabled", h2ServerText(client, "/disable"))
+            }
+        })
+    }
+
+    @Test fun `a newly enabled deadline uses pipeline entry and joins cleanup without cancelling another stream`() {
+        val cleaning = ServerTestGate(); val release = ServerTestGate()
+        val completed = ServerTestCompletions(2L)
+        val routes = RouterBuilder()
+        routes.get("/expire", suspend { ctx ->
+            currentEventLoop().sleep(Duration.milliseconds(80))
+            ctx.setDeadline(Some(Duration.milliseconds(30)))
+            try {
+                currentEventLoop().sleep(Duration.milliseconds(10))
+                text("deadline incorrectly restarted")
+            } finally {
+                nonCancellableScope<Unit> suspend { _ -> cleaning.signal(); release.await() }
+            }
+        })
+        routes.get("/ok", suspend { _ -> text("ok") })
+        val options = HttpServerOptions(allowCleartextHttp2 = true, onRequestCompleted = Some(completed::receive))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            h2ServerClient(address, scope).useAsync suspend { client ->
+                val expired = client.openRequest(h2ServerRequest("/expire"))
+                try {
+                    cleaning.await()
+                    assertEquals(0L, completed.snapshot().size)
+                    assertEquals("ok", h2ServerText(client, "/ok"))
+                } finally { release.signal() }
+                var reset = false
+                try { expired.receiveResponse() }
+                catch (_: HttpException) { reset = true }
+                assertTrue(reset)
+                completed.ready.await()
+                val result = completed.snapshot()[1L]
+                assertEquals(HttpRequestOutcome.Cancelled, result.outcome)
+                assertTrue(result.failure!! is HttpServerTimeoutException)
+                val error = result.failure!! as HttpServerTimeoutException
+                assertEquals(Duration.milliseconds(30), error.limit)
+            }
+        })
+    }
+
+    @Test fun `invalid and committed deadline changes fail without altering successful output`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { ctx ->
+            expectArgument { ctx.setDeadline(Some(Duration.milliseconds(-1))) }
+            stream("text/plain", suspend { writer ->
+                expectState { ctx.setDeadline(None) }
+                writer.writeText("ok")
+            })
+        })
+        val response = exercise(routes.build())
+        assertEquals("ok", response.text())
+        assertTrue(response.context.requestJob.isCompleted)
+        expectState { response.context.setDeadline(None) }
+    }
+}

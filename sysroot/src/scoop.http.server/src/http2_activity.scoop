@@ -16,7 +16,7 @@ internal class ServerHttp2(private val options: HttpServerOptions, private val s
     private var drainStarted: Boolean = false
     private var peerDraining: Boolean = false
     private var problem: Throwable? = None
-    val changes: Http2ServerChanges = Http2ServerChanges()
+    val changes: ServerSignal = ServerSignal()
 
     val failure: Throwable? get() = lock.withLock { problem }
 

@@ -62,11 +62,10 @@ internal fun exercise(application: HttpApplication, path: String = "/", method: 
         val request = HttpRequest(head, HttpRequestBody(TestSource(input), fields = head.fields))
         val address = SocketAddress(IpAddress.IPV4_LOOPBACK, 0)
         val info = HttpConnectionInfo(address, address, HttpProtocol.Http1)
-        val context = HttpContext(request, output, "test-request", currentJobOrNone()!!, info)
-        var failure: Throwable? = None
-        try { application.execute(context) }
-        catch (error: Throwable) { failure = Some(error) }
-        Exchange(context, output, failure)
+        val result = RequestExecution()
+        try { executeRequestPipeline(application, request, output, "test-request", info, None, result) }
+        catch (error: Throwable) { result.failure = Some(error) }
+        Exchange(result.context!!, output, result.failure)
     }
 }
 

@@ -19,13 +19,7 @@ internal suspend fun executeHttp1Request(state: ServerState, entry: ServerConnec
     val body = HttpRequestBody(source, state.options.requestBodyLimit, incoming.head.fields, state.options.bufferedBodyLimit)
     val request = HttpRequest(incoming.head, body, expectations)
     try {
-        coroutineScope<Unit> suspend { _ ->
-            serverDeadline<Unit>(state.options.requestDeadline, "request", suspend {
-                val ctx = HttpContext(request, output, requestId, currentJobOrNone()!!, entry.info)
-                result.context = Some(ctx)
-                state.application.execute(ctx)
-            })
-        }
+        executeRequestPipeline(state.application, request, output, requestId, entry.info, state.options.requestDeadline, result)
     } catch (error: Throwable) { result.failure = Some(error) }
     finally {
         try { incoming.body.close() }

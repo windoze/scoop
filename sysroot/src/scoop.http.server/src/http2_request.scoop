@@ -16,11 +16,7 @@ internal suspend fun executeHttp2Request(state: ServerState, entry: ServerConnec
         coroutineScope<Unit> suspend { requestScope ->
             activity.register(incoming.stream.id, requestScope.job)
             if (present(incoming.stream.failure)) requestScope.job.cancel()
-            serverDeadline<Unit>(state.options.requestDeadline, "request", suspend {
-                val ctx = HttpContext(request, output, requestId, currentJobOrNone()!!, entry.info)
-                result.context = Some(ctx)
-                state.application.execute(ctx)
-            })
+            executeRequestPipeline(state.application, request, output, requestId, entry.info, state.options.requestDeadline, result)
         }
     } catch (error: Throwable) { result.failure = Some(error) }
     finally {

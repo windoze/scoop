@@ -1,0 +1,62 @@
+package scoop.http.server
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.*
+
+internal class RequestDeadline(initial: Duration?) {
+    private val started: TimeMark = MonotonicTimeSource.markNow()
+    private val lock: ServerLock = ServerLock()
+    private val changes: ServerSignal = ServerSignal()
+    private var duration: Duration? = initial
+    private var expired: Duration? = None
+    private var stopped: Boolean = false
+
+    val expiredLimit: Duration? get() = lock.withLock { expired }
+
+    fun set(value: Duration?) {
+        requireServerDuration(value)
+        lock.withLock {
+            if (stopped || present(expired)) throw IllegalStateException(Some("request deadline is no longer active"))
+            duration = value
+        }
+        changes.signal()
+    }
+
+    fun stop() { lock.withLock { stopped = true } }
+
+    suspend fun watch(owner: Job) {
+        while (true) {
+            val remaining = lock.withLock { remainingServerTime(duration, started) }
+            try { serverDeadline<Unit>(remaining, "request deadline wait", suspend { changes.await() }) }
+            catch (_: HttpServerTimeoutException) {
+                val elapsed = lock.withLock {
+                    val current = remainingServerTime(duration, started)
+                    if (stopped || !present(current) || current!! > Duration.ZERO) false
+                    else { expired = duration; true }
+                }
+                if (elapsed) { owner.cancel(); return }
+            }
+        }
+    }
+}
+
+internal suspend fun executeRequestPipeline(application: HttpApplication, request: HttpRequest,
+    output: ResponseOutput, requestId: String, info: HttpConnectionInfo, duration: Duration?, result: RequestExecution) {
+    val deadline = RequestDeadline(duration)
+    try {
+        coroutineScope<Unit> suspend { owner ->
+            val timer = owner.launch suspend { deadline.watch(owner.job) }
+            try {
+                coroutineScope<Unit> suspend { scope ->
+                    val ctx = HttpContext(request, output, requestId, scope.job, info, deadline)
+                    result.context = Some(ctx)
+                    application.execute(ctx)
+                }
+            } finally { deadline.stop(); timer.cancel() }
+        }
+    } catch (error: CancellationException) {
+        val expired = deadline.expiredLimit
+        if (present(expired)) throw HttpServerTimeoutException("request", expired!!)
+        throw error
+    }
+}

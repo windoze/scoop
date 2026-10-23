@@ -2,6 +2,7 @@ package scoop.http.server
 
 import scoop.asyncio.*
 import scoop.http.*
+import scoop.time.Duration
 
 /** One request's explicit context; it is also bound by exact type while its pipeline executes. */
 public class HttpContext internal constructor(
@@ -13,7 +14,8 @@ public class HttpContext internal constructor(
     /** The structured job that owns this request's work. */
     public val requestJob: Job,
     /** Immutable socket and negotiated protocol facts for this request. */
-    public val connection: HttpConnectionInfo
+    public val connection: HttpConnectionInfo,
+    private val deadline: RequestDeadline
 ) {
     /** Pending response mutations and submitted response state. */
     public val response: HttpResponse = HttpResponse()
@@ -29,6 +31,14 @@ public class HttpContext internal constructor(
     public val route: HttpRouteInfo? get() = selectedRoute
     /** Captured parameters for the selected endpoint or fallback group. */
     public val pathParams: PathParameters get() = parameters
+
+    /** Overrides the total time since pipeline entry, before commit; None disables this deadline. */
+    public fun setDeadline(duration: Duration?) {
+        requestJob.ensureActive()
+        if (requestJob.isCompleted || response.isCommitted || response.isAborted)
+            throw IllegalStateException(Some("request deadline can only change before response commit"))
+        deadline.set(duration)
+    }
 
     /** Executes a final response, waiting for its producer and protocol completion. */
     public suspend fun respond(result: HttpResult) { sendResult(result, false) }
