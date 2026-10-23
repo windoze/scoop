@@ -138,6 +138,16 @@ void scoop_rt_println_boolean(bool value) {
     fputc('\n', stdout);
 }
 
+static const ScoopItableEntryV1 *find_itable_entry(
+    const ScoopTypeDescriptor *source, const ScoopTypeDescriptor *interface) {
+    for (uint64_t i = 0; i < source->itable_count; i++) {
+        if (source->itables[i].interface == interface) {
+            return &source->itables[i];
+        }
+    }
+    return NULL;
+}
+
 static bool type_is_subtype(const ScoopTypeDescriptor *source,
                             const ScoopTypeDescriptor *target) {
     if (target == NULL || source == target) {
@@ -173,10 +183,8 @@ static bool type_is_subtype(const ScoopTypeDescriptor *source,
             return true;
         }
     }
-    for (uint64_t i = 0; i < source->itable_count; i++) {
-        if (source->itables[i].interface == target) {
-            return true;
-        }
+    if (find_itable_entry(source, target) != NULL) {
+        return true;
     }
     if (source->relation_kind == 3) {
         for (uint32_t i = 0; i < source->related_type_count; i++) {
@@ -193,12 +201,16 @@ bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td) {
     return type_is_subtype(source, td);
 }
 
+const ScoopItableEntryV1 *scoop_rt_itable_find(
+    const ScoopTypeDescriptor *obj_td, const ScoopTypeDescriptor *iface_td) {
+    return find_itable_entry(obj_td, iface_td);
+}
+
 const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
-                                          const ScoopTypeDescriptor *iface_td) {
-    for (uint64_t i = 0; i < obj_td->itable_count; i++) {
-        if (obj_td->itables[i].interface == iface_td) {
-            return obj_td->itables[i].slots;
-        }
+                                        const ScoopTypeDescriptor *iface_td) {
+    const ScoopItableEntryV1 *entry = find_itable_entry(obj_td, iface_td);
+    if (entry != NULL) {
+        return entry->slots;
     }
     fprintf(stderr, "scoop_rt_itable_lookup: no itable entry for the interface\n");
     abort();

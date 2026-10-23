@@ -140,6 +140,11 @@ SCOOP_RT_NORETURN void scoop_rt_allocation_overflow(void);
  * keys (runtime spec 2.2). */
 bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td);
 
+/* Exact interface query on an actual object's descriptor. Returns immutable
+ * metadata, or NULL on failure. A matching empty interface still has an entry. */
+const ScoopItableEntryV1 *scoop_rt_itable_find(
+    const ScoopTypeDescriptor *obj_td, const ScoopTypeDescriptor *iface_td);
+
 /* Linear scan of `obj_td`'s itable keys; returns the slots array.
  * Aborts when missing (the compiler guarantees the entry exists —
  * defensive). */

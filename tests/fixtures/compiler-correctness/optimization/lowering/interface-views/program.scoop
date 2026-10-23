@@ -86,6 +86,47 @@ fun empty(value: Any): Boolean {
     return false
 }
 
+interface Generic<T> { fun get(): T }
+class GenericValue<T>(val item: T) : Generic<T> {
+    public override fun get(): T = item
+}
+fun generic(value: Any): Int {
+    if (value is Generic<Int>) return value.get()
+    return -1
+}
+fun guardedLoop(value: Any, count: Int): Int {
+    if (!(value is Child)) return -1
+    var total = 0
+    var index = 0
+    while (index < count) {
+        if (index % 2 == 0) total += value.first()
+        else total += value.second()
+        index += 1
+    }
+    return total + value.own()
+}
+fun guardedTry(value: Any, early: Boolean): Int {
+    if (value is Child) {
+        try {
+            fail(early)
+            return value.first() + value.second()
+        } catch (error: IllegalStateException) {
+            return value.own()
+        }
+    }
+    return -1
+}
+fun castParent(value: Any): Int {
+    val view = value as Parent
+    return view.first() + view.second()
+}
+fun tryParent(value: Any): Int {
+    return when (value as? Parent) {
+        case Some(view) -> view.first() + view.second()
+        case None -> -1
+    }
+}
+
 fun main() {
     val first = Base(3)
     val second = Derived(7)
@@ -102,5 +143,14 @@ fun main() {
     check(changedLoop(first, second) == 79)
     check(exception(first, second, true) == 7 && exception(first, second, false) == 24)
     check(empty(first) && empty(second) && !empty("absent"))
+    check(generic(GenericValue<Int>(23)) == 23 && generic(GenericValue<String>("other")) == -1)
+    check(guardedLoop(first, 4) == 19 && guardedLoop(second, 4) == 57)
+    check(guardedLoop("absent", 4) == -1)
+    check(guardedTry(second, false) == 24 && guardedTry(second, true) == 9)
+    check(guardedTry("absent", false) == -1)
+    check(castParent(Boxed(4)) == 9 && tryParent(second) == 24 && tryParent("absent") == -1)
+    var failed = false
+    try { castParent("absent") } catch (error: ClassCastException) { failed = true }
+    check(failed)
     println("interface views preserve receivers and control flow")
 }

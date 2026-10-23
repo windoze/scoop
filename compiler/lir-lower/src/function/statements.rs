@@ -6,18 +6,27 @@ impl<'a> FunctionLowerer<'a> {
     pub(super) fn lower_statements(
         &mut self,
         statements: &'a [mir::Statement],
+        interface_check: Option<interface_checks::PlannedCheck>,
     ) -> StorageResult<()> {
-        for statement in statements {
+        for (index, statement) in statements.iter().enumerate() {
             if self.current_sealed {
                 break;
             }
-            self.lower_statement(statement)?;
+            let check = interface_check.and_then(|check| match check.location {
+                interface_checks::Location::Statement(at) if at == index => Some(check.entry),
+                _ => None,
+            });
+            self.lower_statement(statement, check)?;
             self.interface_tables.written(statement);
         }
         Ok(())
     }
 
-    fn lower_statement(&mut self, statement: &'a mir::Statement) -> StorageResult<()> {
+    fn lower_statement(
+        &mut self,
+        statement: &'a mir::Statement,
+        interface_check: Option<lir::LocalId>,
+    ) -> StorageResult<()> {
         match &statement.kind {
             mir::StatementKind::Expr(expr) => {
                 self.lower_expr(expr)?;
@@ -41,15 +50,12 @@ impl<'a> FunctionLowerer<'a> {
             },
             // Initialization and assignment are both stores into the
             // local's stack slot.
-            mir::StatementKind::ValDecl { local, init } => {
-                let value = self.lower_expr(init)?;
-                self.push(lir::Instruction::Store {
-                    local: self.local_slot(*local),
-                    value,
-                });
-            }
-            mir::StatementKind::Assign { local, value } => {
-                let value = self.lower_expr(value)?;
+            mir::StatementKind::ValDecl { local, init: value }
+            | mir::StatementKind::Assign { local, value } => {
+                let value = match interface_check {
+                    Some(slot) => self.checked_condition(value, slot)?,
+                    None => self.lower_expr(value)?,
+                };
                 self.push(lir::Instruction::Store {
                     local: self.local_slot(*local),
                     value,
@@ -195,7 +201,11 @@ impl<'a> FunctionLowerer<'a> {
         Ok(())
     }
 
-    pub(super) fn lower_terminator(&mut self, terminator: &mir::Terminator) -> StorageResult<()> {
+    pub(super) fn lower_terminator(
+        &mut self,
+        terminator: &mir::Terminator,
+        interface_check: Option<lir::LocalId>,
+    ) -> StorageResult<()> {
         match terminator {
             mir::Terminator::Goto(target) => {
                 self.seal(lir::Terminator::Br(self.block_map[target]));
@@ -205,7 +215,10 @@ impl<'a> FunctionLowerer<'a> {
                 then_block,
                 else_block,
             } => {
-                let cond = self.lower_expr(cond)?;
+                let cond = match interface_check {
+                    Some(slot) => self.checked_condition(cond, slot)?,
+                    None => self.lower_expr(cond)?,
+                };
                 self.seal(lir::Terminator::CondBr {
                     cond,
                     then_block: self.block_map[then_block],

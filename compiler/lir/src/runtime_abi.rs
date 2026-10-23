@@ -67,7 +67,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 14,
+                1 => 15,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -116,7 +116,7 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 67] = [
+    pub const ALL: [Self; 68] = [
         Self::PollState,
         Self::WorldPhase,
         Self::GcEpoch,
@@ -162,6 +162,7 @@ impl RuntimeAbiSymbolV1 {
         )),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::IsInstance)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ITableLookup)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ITableFind)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Pin)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Unpin)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::GetHandle)),
@@ -277,6 +278,9 @@ impl RuntimeAbiSymbolV1 {
             }
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ITableLookup)) => {
                 "scoop_rt_itable_lookup"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ITableFind)) => {
+                "scoop_rt_itable_find"
             }
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Pin)) => "scoop_rt_pin",
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Unpin)) => "scoop_rt_unpin",
@@ -793,10 +797,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_current_metadata_layout() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010e02010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010f02010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "59ffdf49e0a70aed93e58d2a094211793eb4daa234474ebb21a7760be036cb37"
+            "e8fe8e5e2d1aa5a9dc91a4bb8246e161ee82596a6fa3741b8d695104ba84000d"
         );
     }
 
@@ -853,6 +857,27 @@ mod tests {
     }
 
     #[test]
+    fn interface_query_is_a_metadata_returning_no_gc_leaf() {
+        let function = RuntimeFunction::NoGc(NoGcRuntimeFunction::ITableFind);
+        assert_eq!(function.wire_family_tag(), 2);
+        assert_eq!(function.wire_function_tag(), 25);
+        assert_eq!(RuntimeFunction::from_wire_tags(2, 25), Some(function));
+        assert_eq!(function.symbol(), "scoop_rt_itable_find");
+        assert!(!function.requires_dedicated_operation());
+        assert_eq!(
+            RuntimeAbiSymbolV1::LirCall(function).machine_contract(),
+            CompilerNativeContractV1::Function {
+                parameters: &[
+                    CompilerNativeValueV1::Pointer,
+                    CompilerNativeValueV1::Pointer
+                ],
+                result: CompilerNativeValueV1::Pointer,
+                effect: scoop_identity::GcEffect::NoGc,
+            }
+        );
+    }
+
+    #[test]
     fn runtime_registry_has_one_contract_per_typed_symbol() {
         let target = crate::target_fixtures::DARWIN_AARCH64;
         let registry = RuntimeSymbolContractRegistryV1::current(target).unwrap();
@@ -871,7 +896,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "b740cdb570835de93631ef79eca73cefb5eec79098710ab793a073e83e974d01"
+            "8b107a7073b3cd206cb861c28a109c7b06948d3b768c549f518002e0d47b054e"
         );
         assert!(
             registry
@@ -927,7 +952,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "6959831f4677cfdaa65ba01124f463f0084dd22e3cf509c5227bcfddb1eb1c22"
+            "31c1652a2768efa2f69097aee8dc4a1cb6672b876a4ab4e3f602be65d9899e9f"
         );
     }
 

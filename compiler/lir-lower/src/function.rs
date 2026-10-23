@@ -9,6 +9,7 @@ mod data_borrow;
 mod expression;
 mod expression_support;
 mod floating;
+mod interface_checks;
 mod interface_tables;
 mod interfaces;
 mod maybe_uninit;
@@ -254,13 +255,31 @@ pub(super) fn lower_function<'a>(
                 });
         }
     }
+    let mut interface_checks = if optimization == lir::OptimizationMode::Release {
+        interface_checks::Plan::new(module, &function.body, &address_taken, &mut lowerer)?
+    } else {
+        interface_checks::Plan::default()
+    };
     for (mir_id, block) in function.body.blocks.iter() {
         let lir_id = lowerer.block_map[&mir_id];
         lowerer.enter(lir_id);
+        lowerer.interface_tables.enter_mir(
+            interface_checks
+                .incoming
+                .remove(&mir_id)
+                .unwrap_or_default(),
+        );
         lowerer.current_unwind = block.unwind.map(|target| lowerer.block_map[&target]);
-        lowerer.lower_statements(&block.statements)?;
+        let interface_check = interface_checks.checks.get(&mir_id).copied();
+        lowerer.lower_statements(&block.statements, interface_check)?;
         if !lowerer.current_sealed {
-            lowerer.lower_terminator(&block.terminator)?;
+            lowerer.lower_terminator(
+                &block.terminator,
+                interface_check.and_then(|check| match check.location {
+                    interface_checks::Location::Terminator => Some(check.entry),
+                    interface_checks::Location::Statement(_) => None,
+                }),
+            )?;
         }
         assert!(lowerer.current_sealed, "every MIR block has a terminator");
     }

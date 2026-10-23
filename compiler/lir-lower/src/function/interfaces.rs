@@ -90,7 +90,15 @@ impl FunctionLowerer<'_> {
             let table = self.interface_component(value, 1);
             self.project_interface_table(table, offset)
         } else if let Some(table) = self.interface_tables.get(operand, interface) {
-            table
+            match table {
+                interface_tables::CachedTable::Slots(table) => table,
+                interface_tables::CachedTable::CheckedEntry(entry) => {
+                    let table = self.load_at_offset(lir::Value::Local(entry), 8, lir::METADATA_PTR);
+                    let table = lir::Value::Temp(table);
+                    self.interface_tables.insert(operand, interface, table);
+                    table
+                }
+            }
         } else {
             let table = self.interface_table(object, interface, known_class)?;
             self.interface_tables.insert(operand, interface, table);

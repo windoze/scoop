@@ -60,7 +60,7 @@ impl RuntimeAbiSymbolV1 {
                     N::ContextSnapshot | N::ContextCurrent => (&[], P),
                     N::ContextLeave => (&[P], V),
                     N::IsInstance => (&[P, P], Boolean),
-                    N::ITableLookup => (&[P, P], P),
+                    N::ITableLookup | N::ITableFind => (&[P, P], P),
                     N::Pin | N::Unpin => (&[P], P),
                     N::GetHandle => (&[P], I(64)),
                     N::ReleaseHandle => (&[I(64)], P),

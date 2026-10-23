@@ -6,6 +6,8 @@ use std::process::Command;
 
 #[path = "runtime_collector_tests/compile.rs"]
 mod compile;
+#[path = "runtime_collector_tests/dispatch.rs"]
+mod dispatch;
 
 #[path = "runtime_collector_tests/nursery.rs"]
 mod nursery;

@@ -66,6 +66,12 @@ fun repeatedSmartAcrossGc(value: Any): String {
     throw IllegalStateException()
 }
 
+fun smartViewAfterGc(value: Any): String {
+    if (!(value is Detailed)) throw IllegalStateException()
+    gcCollect()
+    return value.text()
+}
+
 fun main() {
     val value = Payload(Node("moving ", Some(Node("payload", None))), 7)
     val boxed: Any = erase(value)
@@ -84,6 +90,7 @@ fun main() {
     check(done.count == 0)
     check(repeatedParentAcrossGc(holder) == 31)
     check(repeatedSmartAcrossGc(holder.value) == "moving payloadmoving payload")
+    check(smartViewAfterGc(holder.value) == "moving payload")
 
     gcCollect()
     check(boxed is Text && boxed is Detailed)
