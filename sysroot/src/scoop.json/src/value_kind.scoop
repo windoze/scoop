@@ -1,0 +1,17 @@
+package scoop.json
+
+/** The six JSON value kinds; numbers preserve their source token independently of machine ranges. */
+public enum JsonValueKind {
+    /** The explicit JSON null value. */
+    Null,
+    /** A Boolean scalar. */
+    Boolean,
+    /** A JSON number token. */
+    Number,
+    /** A Unicode string. */
+    String,
+    /** An ordered sequence of values. */
+    Array,
+    /** An ordered collection of uniquely named members. */
+    Object
+}

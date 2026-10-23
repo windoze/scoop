@@ -133,6 +133,17 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
          * Builds a sequence decoder using the supplied element decoder.
          */
         public fun decoder(element: ValueDecoder<T>): ValueDecoder<ArrayList<T>> = ArrayListDecoder<T>(element)
+
+        override interface ValueEncoder<ArrayList<T>> where T.Companion : ValueEncoder<T> {
+            /** Encodes logical elements using the element companion. */
+            public override fun encode(value: ArrayList<T>, encoder: Encoder): Unit =
+                encodeList(value, T.Companion, encoder)
+        }
+
+        override interface ValueDecoder<ArrayList<T>> where T.Companion : ValueDecoder<T> {
+            /** Decodes a new list using the element companion. */
+            public override fun decode(decoder: Decoder): ArrayList<T> = decodeSequence(decoder, T.Companion)
+        }
     }
 }
 

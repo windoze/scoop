@@ -58,11 +58,11 @@ body 的已知长度必须与实际字节数一致，不能提前 EOF 或超长�
 
 响应 body 实现 AsyncByteSource／AsyncCloseable。同一 body 只能有一个消费者；bytes、text、JSON、copyTo 和其他解码视图共享这一次消费，不能同时读取 raw 与 decoded 两条伪独立流。便利入口明确传入 maxBytes，或使用调用方设置的有限缓冲上限；流式 copyTo 不要求把完整消息放入内存。取消及错误保留已交付的实际进度，不回滚文件或用户 sink。
 
-JSON 便利函数通过现有 Json 与显式 ValueEncoder／ValueDecoder 工作，完整 JSON 校验遵守语言规范 11.13。typed JSON body 是明确的有限缓冲转换，不声称业务 codec 可挂起或能逐元素处理无限 JSON；大 body 使用流接口，格式能力若需扩展必须在 scoop.json 补齐。非 UTF-8 文本使用 scoop.charset，不在 client 内实现编码器。
+JSON 便利函数通过现有 Json 与显式 ValueEncoder／ValueDecoder 工作，另提供分别受`T.Companion : ValueEncoder<T>`／`ValueDecoder<T>`约束的默认重载，完整 JSON 校验遵守语言规范 11.13及[JSON库规范](SCOOP-JSON-SPEC.md)。两个方向独立，显式codec始终使用传入值。typed JSON body 是明确的有限缓冲转换，不声称业务 codec 可挂起或能逐元素处理无限 JSON；大 body 使用流接口，格式能力若需扩展必须在 scoop.json 补齐。非 UTF-8 文本使用 scoop.charset，不在 client 内实现编码器。
 
 ### 3.1 Body 的基本工厂与发送
 
-`RequestBody` 保存可选 contentLength／contentType，以及实际的一次性生产过程或可重新创建内容的工厂；isReplayable 只报告该结构提供的能力。Empty、fromByteArray、fromText、fromJson、fromForm 产生可重复发送的独立字节快照；fromByteArray 接收 List<Byte>。fromText 使用显式 Charset（默认 UTF-8）严格编码并生成相应 text/plain 媒体类型。fromJson 接收 ValueEncoder 和 maxBytes，在调用现有 Json 完成编码后检查 UTF-8 结果长度；该上限约束接受的表示，不是 Json 编码过程的内存预算。fromForm 使用 URL 库的 FormUrlEncoded 与 UrlQuery。
+`RequestBody` 保存可选 contentLength／contentType，以及实际的一次性生产过程或可重新创建内容的工厂；isReplayable 只报告该结构提供的能力。Empty、fromByteArray、fromText、fromJson、fromForm 产生可重复发送的独立字节快照；fromByteArray 接收 List<Byte>。fromText 使用显式 Charset（默认 UTF-8）严格编码并生成相应 text/plain 媒体类型。fromJson(value, codec, maxBytes) 接收 ValueEncoder 和 maxBytes；fromJson<T>(value, maxBytes) 要求`T.Companion : ValueEncoder<T>`并转发到前者。在调用现有 Json 完成编码后检查 UTF-8 结果长度；该上限约束接受的表示，不是 Json 编码过程的内存预算。fromForm 使用 URL 库的 FormUrlEncoded 与 UrlQuery。
 
 fromSource 接收单次借用的 AsyncByteSource，调用者负责其完整生命周期；构造不读取，未发送时也不关闭。fromSourceFactory 的 suspend 工厂在每次实际发送时创建同时满足 AsyncByteSource／AsyncCloseable 的独立来源，该次发送负责关闭，正文和关闭同时失败用 ResourceUseException。fromFile 是后者的便利入口，每次用当前 EventLoop 打开指定 Path，不在构造时同步查询或保存文件快照；可显式提供已知 contentLength，缺省为未知。
 
@@ -352,7 +352,7 @@ Content-Encoding 的多行列表、大小写和空项由 HTTP 工具解释，按
 
 ### 9.2 有界读取、文本与 JSON
 
-HttpResponseBody 提供 readAllBytes(maxBytes)／bytes(maxBytes)、text(maxBytes, charset = None, options = CharsetDecodeOptions(), malformedInput = CharsetErrorAction.Strict)、json(codec, maxBytes) 与 copyTo(destination, bufferSize = 8192)。前三类便利读取的上限计入交付视图的字节，因此自动解压后按解码字节计数；超限沿用 asyncio 的 ReadLimitException 和至多一个额外字节的检查。copyTo 使用有限缓冲且不接管或关闭目的端。
+HttpResponseBody 提供 readAllBytes(maxBytes)／bytes(maxBytes)、text(maxBytes, charset = None, options = CharsetDecodeOptions(), malformedInput = CharsetErrorAction.Strict)、json(codec, maxBytes)、json<T>(maxBytes) 与 copyTo(destination, bufferSize = 8192)。无codec的json重载要求`T.Companion : ValueDecoder<T>`，将T.Companion和原maxBytes转发到显式入口，保持suspend和一次消费合同。前三类便利读取的上限计入交付视图的字节，因此自动解压后按解码字节计数；超限沿用 asyncio 的 ReadLimitException 和至多一个额外字节的检查。copyTo 使用有限缓冲且不接管或关闭目的端。
 
 每次便利读取在整个 suspend 过程独占 body，同一时间的其他读取报忙；普通 readInto 仍按单个操作独占。它们复用同一消费位置，顺序调用不会重放已读内容。当前 reader Job 的取消登记覆盖整个便利操作，保留该调用的真实 I/O 收尾。
 

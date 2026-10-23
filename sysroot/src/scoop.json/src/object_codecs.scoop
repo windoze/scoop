@@ -1,0 +1,22 @@
+package scoop.json
+
+import scoop.collections.Map
+import scoop.collections.LinkedHashMap
+
+internal class JsonObjectEncoder<V>(private val codec: ValueEncoder<V>) : ValueEncoder<Map<String, V>> {
+    public override fun encode(value: Map<String, V>, encoder: Encoder) {
+        val fields = encoder.keyed()
+        for (entry in value) { codec.encode(entry.value, fields.field(entry.key)) }
+        fields.end()
+    }
+}
+
+internal class JsonObjectDecoder<V>(private val codec: ValueDecoder<V>) : ValueDecoder<LinkedHashMap<String, V>> {
+    public override fun decode(decoder: Decoder): LinkedHashMap<String, V> {
+        val fields = decoder.keyed()
+        val result = LinkedHashMap<String, V>()
+        for (name in fields.keys) { result.put(name, codec.decode(fields.required(name))) }
+        fields.end()
+        return result
+    }
+}

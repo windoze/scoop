@@ -5,8 +5,38 @@ import scoop.charset.*
 import scoop.http.*
 import scoop.test.*
 
+private struct JsonResponseOnly(val value: String) {
+    public companion object : ValueDecoder<JsonResponseOnly> {
+        public override fun decode(decoder: Decoder): JsonResponseOnly = JsonResponseOnly(String.decode(decoder))
+    }
+}
+
 @Test
 private class HttpClientResponseJsonTest {
+    @Test
+    fun `default JSON decoding preserves independent capability limits and explicit overrides`() {
+        val bytes = "\"中文\"".toByteArray()
+        withResponseTestHttp1(suspend { connection ->
+            for (attempt in 0L..2L) {
+                connection.receiveRequest()!!.body.readAllBytes(0L)
+                sendResponseTestBytes(connection, bytes, [responseTestField("Content-Type", "application/json")])
+            }
+        }, suspend { client, url ->
+            client.withResponse(HttpRequest.get(url)) suspend { response ->
+                assertEquals("中文", response.body.json<JsonResponseOnly>(maxBytes = bytes.size).value)
+                assertTrue(response.body.isComplete)
+                assertEquals(0L, response.body.readAllBytes(0L).size)
+            }
+            val custom = ValueDecoderFunction<JsonResponseOnly> { decoder -> JsonResponseOnly("custom:" + String.decode(decoder)) }
+            client.withResponse(HttpRequest.get(url)) suspend { response ->
+                assertEquals("custom:中文", response.body.json(custom, bytes.size).value)
+            }
+            client.withResponse(HttpRequest.get(url)) suspend { response ->
+                expectBodyFailure<ReadLimitException> suspend { response.body.json<JsonResponseOnly>(maxBytes = 7L); Unit }
+            }
+        })
+    }
+
     @Test
     fun `JSON requires strict UTF8 and retains parser and typed codec failures`() {
         val messages = ["\uFEFF\"中文\"".toByteArray(), "123".toByteArray(), "\"x\" trailing".toByteArray(),

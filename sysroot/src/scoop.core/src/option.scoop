@@ -33,5 +33,17 @@ public enum Option<T> {
          * Builds a decoder that delegates a present payload to the supplied element decoder.
          */
         public fun decoder(element: ValueDecoder<T>): ValueDecoder<Option<T>> = OptionDecoder<T>(element)
+
+        override interface ValueEncoder<Option<T>> where T.Companion : ValueEncoder<T> {
+            /** Encodes None as null and delegates Some to the element companion. */
+            public override fun encode(value: Option<T>, encoder: Encoder): Unit =
+                OptionEncoder<T>(T.Companion).encode(value, encoder)
+        }
+
+        override interface ValueDecoder<Option<T>> where T.Companion : ValueDecoder<T> {
+            /** Decodes null as None and delegates other values to the element companion. */
+            public override fun decode(decoder: Decoder): Option<T> =
+                OptionDecoder<T>(T.Companion).decode(decoder)
+        }
     }
 }

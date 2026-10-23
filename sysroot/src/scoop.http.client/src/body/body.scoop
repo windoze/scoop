@@ -114,6 +114,10 @@ public class RequestBody internal constructor(
         public fun <T> fromJson(value: T, codec: ValueEncoder<T>, maxBytes: Long): RequestBody =
             jsonRequestBody(value, codec, maxBytes)
 
+        /** Encodes JSON using the value companion, retaining the explicit UTF-8 byte limit. */
+        public fun <T> fromJson(value: T, maxBytes: Long): RequestBody
+            where T.Companion : ValueEncoder<T> = fromJson(value, T.Companion, maxBytes)
+
         /**
          * Encodes form parameters as application/x-www-form-urlencoded.
          */

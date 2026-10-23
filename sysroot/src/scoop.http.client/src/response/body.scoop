@@ -67,6 +67,10 @@ public class HttpResponseBody internal constructor(private val input: ClientResp
     public suspend fun <T> json(codec: ValueDecoder<T>, maxBytes: Long): T =
         Json.decodeFromString(Charset.Utf8.decode(readAllBytes(maxBytes)), codec)
 
+    /** Consumes this body once as JSON using the type companion and the same byte limit. */
+    public suspend fun <T> json(maxBytes: Long): T
+        where T.Companion : ValueDecoder<T> = json(T.Companion, maxBytes)
+
     private suspend fun <T> withReader(block: suspend (AsyncByteSource) -> T): T {
         val call = input.call
         val reader = clientJob(call.client.loop, true)

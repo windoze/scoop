@@ -68,7 +68,18 @@ impl Lowerer {
         span: Span,
     ) -> Option<SelectedCodec> {
         let companion = self.coding_companion(ty, span)?;
-        if let Some(companion) = companion
+        let container_element = self.nominal_application(ty).and_then(|application| {
+            ["Option", "Array", "MutableArray", "ArrayList"]
+                .iter()
+                .any(|name| self.core_coding_nominal(name) == Some(application.template))
+                .then(|| application.arguments[0])
+        });
+        // Preserve injected element codecs and recursive `this` when core containers
+        // also expose a default companion. Inspection keeps its existing precedence.
+        let compose_container = container_element.is_some()
+            && !matches!(context.direction, CodingDirection::Inspect(_));
+        if !compose_container
+            && let Some(companion) = companion
             && self.is_subtype(companion, interface)
         {
             return Some(SelectedCodec {
@@ -76,31 +87,26 @@ impl Lowerer {
                 value: CodecValue::Singleton(companion),
             });
         }
-        if let Some(application) = self.nominal_application(ty) {
-            let container = ["Option", "Array", "MutableArray", "ArrayList"]
-                .iter()
-                .any(|name| self.core_coding_nominal(name) == Some(application.template));
-            if container {
-                let element = self.select_field_codec(context, application.arguments[0], span)?;
-                let Some(companion) = companion else {
-                    self.error(
-                        span,
-                        format!(
-                            "core container {} requires its predefined {} companion",
-                            self.type_name(ty),
-                            context.direction.factory()
-                        ),
-                    );
-                    return None;
-                };
-                return Some(SelectedCodec {
-                    ty,
-                    value: CodecValue::Container {
-                        companion,
-                        element: Box::new(element),
-                    },
-                });
-            }
+        if let Some(element_type) = container_element {
+            let element = self.select_field_codec(context, element_type, span)?;
+            let Some(companion) = companion else {
+                self.error(
+                    span,
+                    format!(
+                        "core container {} requires its predefined {} companion",
+                        self.type_name(ty),
+                        context.direction.factory()
+                    ),
+                );
+                return None;
+            };
+            return Some(SelectedCodec {
+                ty,
+                value: CodecValue::Container {
+                    companion,
+                    element: Box::new(element),
+                },
+            });
         }
         if ty == self.unit {
             let unit_codec = self.core_coding_nominal(context.direction.unit_codec())?;
