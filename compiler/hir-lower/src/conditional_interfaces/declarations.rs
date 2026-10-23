@@ -57,6 +57,9 @@ impl Lowerer {
             );
             return;
         }
+        if !self.check_sealed_supertype(interface, declaration.interface.span) {
+            return;
+        }
         let Some(key) =
             self.conditional_interface_key(owner, interface, &parameters, declaration.span)
         else {

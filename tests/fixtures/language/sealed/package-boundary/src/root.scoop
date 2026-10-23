@@ -1,2 +1,3 @@
 package dev.m37.first
 public sealed class Root {}
+public sealed interface Closed {}

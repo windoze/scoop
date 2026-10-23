@@ -7,6 +7,7 @@ mod applications;
 struct Family {
     ty: TypeId,
     parameters: Vec<hir::TypeParamDecl>,
+    condition: Option<hir::ConditionalInterfaceApplication>,
 }
 
 impl Lowerer {
@@ -49,58 +50,78 @@ impl Lowerer {
             return Some(hir::ExhaustivenessProof::PatternMatrix);
         }
         let mut probe = self.clone();
-        let mut pending = vec![Family {
+        let family = Family {
             ty: subject,
             parameters: Vec::new(),
-        }];
-        let mut seen = std::collections::HashSet::new();
-        while let Some(family) = pending.pop() {
-            if !seen.insert(family.ty) {
-                continue;
-            }
-            let scope_len = probe.type_params_in_scope.len();
-            probe
-                .type_params_in_scope
-                .extend(family.parameters.iter().cloned());
-            let covered = checks.iter().any(|&(target, negated)| {
-                if negated {
-                    !probe.family_may_match(family.ty, target)
-                } else {
-                    probe.is_subtype(family.ty, target)
-                }
-            });
-            if !covered {
-                if probe.sealed_subtypes(family.ty).is_some() {
-                    let Some(mut children) = probe.sealed_children(family.ty) else {
-                        self.diagnostics.extend(
-                            probe
-                                .diagnostics
-                                .iter()
-                                .skip(self.diagnostics.len())
-                                .cloned(),
-                        );
-                        return None;
-                    };
-                    for child in &mut children {
-                        child.parameters.extend(family.parameters.iter().cloned());
-                    }
-                    pending.extend(children);
-                } else {
-                    let witness = probe.type_name(family.ty);
-                    let guard = if when.arms.iter().any(|arm| arm.guard.is_some()) {
-                        "; guarded arms do not contribute to exhaustiveness"
-                    } else {
-                        ""
-                    };
-                    self.error(
-                        when.span,
-                        format!("non-exhaustive when: missing subtype family `{witness}`{guard}"),
-                    );
-                    return None;
-                }
-            }
-            probe.type_params_in_scope.truncate(scope_len);
+            condition: None,
+        };
+        if !probe.prove_sealed_family(family, &checks, when) {
+            self.diagnostics.extend(
+                probe
+                    .diagnostics
+                    .iter()
+                    .skip(self.diagnostics.len())
+                    .cloned(),
+            );
+            return None;
         }
         Some(hir::ExhaustivenessProof::PatternMatrix)
+    }
+
+    fn prove_sealed_family(
+        &mut self,
+        family: Family,
+        checks: &[(TypeId, bool)],
+        when: &ast::When,
+    ) -> bool {
+        let scope_len = self.type_params_in_scope.len();
+        self.type_params_in_scope.extend(family.parameters);
+        let result = match family.condition {
+            Some(condition) if self.conditional_application_is_impossible(&condition) => true,
+            Some(condition) => self.with_conditional_interface_assumptions(&condition, |this| {
+                this.prove_sealed_family_domain(family.ty, checks, when)
+            }),
+            None => self.prove_sealed_family_domain(family.ty, checks, when),
+        };
+        self.type_params_in_scope.truncate(scope_len);
+        result
+    }
+
+    fn prove_sealed_family_domain(
+        &mut self,
+        ty: TypeId,
+        checks: &[(TypeId, bool)],
+        when: &ast::When,
+    ) -> bool {
+        if checks.iter().any(|&(target, negated)| {
+            if negated {
+                !self.family_may_match(ty, target)
+            } else {
+                self.is_subtype(ty, target)
+            }
+        }) {
+            return true;
+        }
+        if self.sealed_subtypes(ty).is_some() {
+            // Declaration inheritance is acyclic. Keep each path's conditions
+            // in scope: the same nominal reached under another domain is not
+            // necessarily covered by the same arms.
+            return self.sealed_children(ty).is_some_and(|children| {
+                children
+                    .into_iter()
+                    .all(|child| self.prove_sealed_family(child, checks, when))
+            });
+        }
+        let witness = self.type_name(ty);
+        let guard = if when.arms.iter().any(|arm| arm.guard.is_some()) {
+            "; guarded arms do not contribute to exhaustiveness"
+        } else {
+            ""
+        };
+        self.error(
+            when.span,
+            format!("non-exhaustive when: missing subtype family `{witness}`{guard}"),
+        );
+        false
     }
 }

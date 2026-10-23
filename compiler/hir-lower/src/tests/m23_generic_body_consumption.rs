@@ -39,6 +39,7 @@ mod qualified_types;
 mod reference_targets;
 mod references;
 mod requests;
+mod sealed;
 mod selection;
 mod shared_closures;
 mod shared_defaults;

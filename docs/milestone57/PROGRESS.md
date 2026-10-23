@@ -19,6 +19,7 @@
 | 条件 codec 合成 | 已完成 | 2 个定向检查、24 个既有合成回归、完整 JSON Cone 76 项测试及跨 Cone 合成 codec 运行通过 |
 | 继承、default、property 与效果组合 | 继承与 default 基本闭环已完成；其余组合待完成 | 条件继承、等价重列、域覆盖、abstract 义务、默认方法／属性及分派有本地／跨 Cone 验证 |
 | 导出、跨 Cone 与 ODR | 已覆盖继承、投影与 default；完整验收待完成 | 85 个泛型导入回归、条件记录 wire 往返／再次发布与双 consumer 原生链接运行通过 |
+| sealed 条件关系与穷尽性 | 已完成 | 6 项定向检查、42 个既有 sealed fixture、条件边界诊断、原生及跨 Cone 验证通过 |
 | 完整组合与 Linux 验收 | 待完成 | 尚无完整验收 |
 
 此表只在实际代码及对应验证完成后更新，不以规范已写入代替功能交付。
@@ -85,3 +86,11 @@
 - 按讨论收紧语法：`override interface` 的 where 必填且非空；无条件实现写在类型或 companion 的接口列表，override 成员留在普通 body。条件继续遵守既有重复约束规则，不增加严格缩小实参域的证明要求。
 - AST 直接保存必填条件；缺省 where 的诊断定位到接口名称并指向普通接口列表写法。原无条件块示例、继承用例与 ODR provider 已改写，删除仅为该旧写法建立的专测；产物格式保持 80。
 - 5 项 parser 检查与 M57 HIR 定向检查通过；正式 CLI 覆盖普通类型／companion 缺少条件和空 where，原有存储诊断保留。workspace Clippy、core consumer 原生测试及跨 Cone ODR 原链接／逆序重链接通过。
+
+## 11. sealed 条件关系与穷尽性
+
+- 条件实现复用直接子类型登记，检查 named／non-local、原 Cone 与 package；目标经 alias／re-export 引入也不改变限制。共享声明的直接引用检查同时识别普通父类型与条件目标，格式保持 80。
+- sealed 家族按每条关系的原条件展开，未知条件及额外参数继续保留；已证明条件不成立的应用排除。覆盖检查使用当前路径的条件事实，companion 投影无法反解时保留整个可能家族，支持未公开子类型和 companion 自身的条件关系。
+- workspace Clippy、38 项 M57 定向检查、87 项跨 Cone 导入回归、97 项普通规则回归和 866 项 HIR 元数据测试通过。完整 core consumer 的 46 项原生测试与 ODR 原链接／逆序重链接通过。
+- 13 个条件接口诊断 fixture 和 42 个既有 sealed fixture 通过；后者首次仅有一个缺失示例从 Two 变为 One，两者均不被值比较分支覆盖，核对后更新该快照并定向复验通过。新增诊断覆盖未知条件漏分支、局部／匿名实现以及跨 package／Cone 实现。
+- 继承 codec 合成、类型描述／文档、其余效果组合及 Linux 完整验收仍未完成。

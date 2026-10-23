@@ -81,11 +81,19 @@ impl Lowerer {
             .expect("conditional applications retain their declaration")
             .parameters
             .clone();
+        self.conditional_parameters_are_impossible(&parameters, &application.arguments)
+    }
+
+    pub(crate) fn conditional_parameters_are_impossible(
+        &mut self,
+        parameters: &[hir::TypeParamDecl],
+        arguments: &[TypeId],
+    ) -> bool {
         // A bound on one parameter may mention another parameter's companion.
         // Reject missing projections before substituting any of those bounds.
         if parameters
             .iter()
-            .zip(&application.arguments)
+            .zip(arguments)
             .any(|(parameter, &argument)| {
                 parameter.companion.is_some()
                     && !matches!(self.types[argument], Type::Param(_) | Type::Companion(_))
@@ -94,12 +102,8 @@ impl Lowerer {
         {
             return true;
         }
-        for (parameter, &argument) in parameters.iter().zip(&application.arguments) {
-            if self.conditional_bounds_are_impossible(
-                argument,
-                &parameter.bounds,
-                &application.arguments,
-            ) {
+        for (parameter, &argument) in parameters.iter().zip(arguments) {
+            if self.conditional_bounds_are_impossible(argument, &parameter.bounds, arguments) {
                 return true;
             }
             if let Some(companion) = &parameter.companion {
@@ -108,7 +112,7 @@ impl Lowerer {
                         if self.conditional_bounds_are_impossible(
                             subject,
                             &companion.bounds,
-                            &application.arguments,
+                            arguments,
                         ) =>
                     {
                         return true;

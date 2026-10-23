@@ -2,3 +2,6 @@ package dev.m37.provider
 import dev.m37.bridge.*
 class Foreign : State()
 fun main() {}
+class ConditionalForeign<T> {
+    override interface Outcome<T> where T : ref {}
+}

@@ -3,6 +3,7 @@ use super::*;
 mod defaults;
 mod inheritance;
 mod projections;
+mod sealed;
 
 const READ: &str = r#"
     interface Read { public fun read(): Int }

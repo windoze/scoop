@@ -1,3 +1,6 @@
 package dev.m37.second
 import dev.m37.first.Root
 class Child : Root()
+class Conditional<T> {
+    override interface dev.m37.first.Closed where T : ref {}
+}
