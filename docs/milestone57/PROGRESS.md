@@ -15,7 +15,7 @@
 | 功能 | 状态 | 验证证据 |
 | --- | --- | --- |
 | 语法与普通类型条件接口 | 本 Cone 基础闭环已完成；继承等组合另行验收 | 4 个 parser 用例、11 个 M57 HIR 用例、8 个诊断 fixture、4 个 core consumer 原生用例通过 |
-| Companion、HashMap 与 Json 闭环 | 待完成 | 尚无实现验收 |
+| Companion、HashMap 与 Json 闭环 | 已完成 | 6 个 JSON Cone 原生用例覆盖四种能力组合、嵌套、显式工厂及重复 key 路径 |
 | 继承、default、property、效果与 codec 合成 | 待完成 | 尚无实现验收 |
 | 导出、跨 Cone 与 ODR | 基础闭环已完成；继承组合另行验收 | 83 个泛型导入回归、条件记录 wire 往返／再次发布与双 consumer 原生链接运行通过 |
 | 完整组合与 Linux 验收 | 待完成 | 尚无完整验收 |
@@ -39,3 +39,9 @@
 - 本机 workspace Clippy、867 个 HIR 格式测试、83 个泛型导入回归通过；16 个 M57 定向用例覆盖本地、导入及产物分派。格式版本变更导致的一项 slib 期望向量失败已更新，相关 17 个 profile 测试通过。
 - 正式 ODR fixture 由 provider、两个 library consumer 和 root 构成，验证条件真／假、非泛型实现块、单例共享及不同实参独立；原链接与逆序依赖重链接均运行成功。Darwin sysroot 已按新格式显式重建。
 - HashMap 默认 codec、继承／合成组合、完整 Linux 验收仍未完成。
+
+## 5. HashMap 的默认 codec
+
+- HashMap 原 companion 分别声明 ValueEncoder 与 ValueDecoder 条件实现，使用 K／V 的 public companion；保留原存储、键约束、显式工厂及 map helper。
+- JSON Cone 的 6 项原生测试通过：编码／解码独立，两个组件均须满足对应条件；没有 companion 仍能正常使用容器及显式 codec；覆盖嵌套 HashMap、泛型转发、原 entry 表示、新建解码结果和重复 key 的 `/1/0` 路径。
+- 明确验证显式 codec 优先于已有默认能力。其他容器未自动迁移，条件 codec 合成及继承组合继续实施。

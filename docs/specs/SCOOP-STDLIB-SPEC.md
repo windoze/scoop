@@ -369,7 +369,7 @@ UtcOffset.fromTotalSeconds(Int) 与 fromHoursMinutesSeconds(hours: Int = 0, minu
 
 ## 9. Codec 组合
 
-复用 core 的 ValueEncoder/ValueDecoder 值与容器协议，不引入运行期反射或新条件 conformance。新增容器与 Result 的 companion 工厂显式接收元素/key/value/error codec；无关用途不要求 codec bound。
+复用 core 的 ValueEncoder/ValueDecoder 值与容器协议，不引入运行期反射。容器与 Result 的 companion 工厂显式接收元素/key/value/error codec；HashMap 另按语言规范 9.1.8 声明两个独立的条件接口实现，无关用途不要求 codec bound。
 
 既有 Array/MutableArray/ArrayList 的 codec 继续由 core 提供。std 需要 List 接口 codec 时使用普通 top-level `listEncoder/listDecoder` 工厂，返回 ValueEncoder<List<T>>／ValueDecoder<List<T>>；不假定 core List 已有可扩展的 companion，也不使 core codec 依赖 std。listDecoder 返回独立只读快照，listEncoder 可复用公开 encodeList。
 
@@ -377,9 +377,11 @@ List/Deque/Set/PriorityQueue 编码为 unkeyed 序列，Map 编码为 unkeyed �
 
 Result 使用一个 keyed 字段 success 或 failure，值交给对应 codec，要求恰好一个字段。Uuid、Duration、Instant、LocalDate/Time/DateTime、YearMonth、UtcOffset、OffsetDateTime 采用本文件规定的 canonical String。DatePeriod 为 years/months/days 字段；DateTimePeriod 为 date/time 字段并复用其 codec。解析失败由 codec 转为带当前 path 的 DecodingException，其他异常照常传播。
 
-TimeMark、Clock、TimeSource、Random、Iterator 不提供默认 codec；来源对象、执行状态与 RNG state 不作为可移植数据。JSON 通过它现有的显式 codec 入口消费 std codec，不需要识别 std 类型名或改变格式协议。
+TimeMark、Clock、TimeSource、Random、Iterator 不提供默认 codec；来源对象、执行状态与 RNG state 不作为可移植数据。JSON 通过它现有的显式 codec 或 companion 约束入口消费 std codec，不需要识别 std 类型名或改变格式协议。
 
 HashMap／LinkedHashMap／TreeMap 的 companion 提供 encoder(key, value)；decoder(key, value) 对 TreeMap 另有必传的最后一个 comparator 参数。HashSet／LinkedHashSet／TreeSet／ArrayDeque／PriorityQueue 提供 encoder(element) 和 decoder(element)，其中 TreeSet／PriorityQueue 的 decoder 另有必传的最后一个 comparator 参数。工厂返回对应具体容器的 ValueEncoder／ValueDecoder；解码每次创建独立容器。Result<T,E> 的 encoder(success, failure)／decoder(success, failure) 接收两支的显式 codec。这里参数 key/value/element/success/failure 的类型分别为对应 ValueEncoder 或 ValueDecoder，不要求元素本身实现编码接口。
+
+HashMap<K,V> 的原 companion 在 K.Companion 与 V.Companion 分别满足 ValueEncoder<K>／ValueEncoder<V> 时实现 ValueEncoder<HashMap<K,V>>；解码方向独立要求两个 ValueDecoder 条件。两方向均使用 public 直接 companion，可分别成立，支持嵌套 HashMap。HashMap 原有的 K : Equals<K>、K : Hash 及存储、迭代、构造规则不变；缺少默认 codec 不影响容器本身。默认实现复用 encodeMap／decodeMapInto，保持 entry 序列表示、每次解码新建容器及原错误 path。显式 encoder／decoder 工厂继续使用调用者提供的 codec，不被默认 companion 覆盖。其他容器仅在其源码实际声明条件接口时获得相应默认能力。
 
 Uuid、Duration、Instant、各日期时间值、UtcOffset、DatePeriod 与 DateTimePeriod 的 companion 直接实现相应 ValueEncoder<T>／ValueDecoder<T>，调用方显式传递该 companion。DatePeriod 的三个字段与 DateTimePeriod 的两个字段在编码时全部写出、解码时全部要求存在；构造器缺省不代表文本字段可省略。未知字段和容器消费边界沿用 core／格式库合同。重复 Map key 的错误 path 指向重复 entry 的 key，重复 Set 元素指向该元素；entry 恰好两项，不能静默接受多余项。格式、元素 codec、hash／equals／comparator 的其它异常照常传播，不被统一转成 DecodingException。
 

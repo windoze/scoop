@@ -1,0 +1,133 @@
+package scoop.json.tests.consumer.conditional_map_codecs
+
+import scoop.collections.HashMap
+import scoop.json.Json
+import scoop.test.*
+
+private struct EncodeOnly(val number: Int) : Equals<EncodeOnly>, Hash {
+    public override operator fun equals(other: EncodeOnly): Boolean = number == other.number
+    public override fun hash(): Long = number.hash()
+
+    public companion object Writer : ValueEncoder<EncodeOnly> {
+        public override fun encode(value: EncodeOnly, encoder: Encoder) {
+            Int.encode(value.number, encoder)
+        }
+    }
+}
+
+private struct DecodeOnly(val number: Int) {
+    public companion object Reader : ValueDecoder<DecodeOnly> {
+        public override fun decode(decoder: Decoder): DecodeOnly = DecodeOnly(Int.decode(decoder))
+    }
+}
+
+private struct Plain(val number: Int)
+
+private fun <K, V> encodeDefault(value: HashMap<K, V>): String
+    where K : Equals<K>, K : Hash,
+          K.Companion : ValueEncoder<K>, V.Companion : ValueEncoder<V> =
+    Json.encodeToString(value)
+
+private fun <K, V> decodeDefault(text: String): HashMap<K, V>
+    where K : Equals<K>, K : Hash,
+          K.Companion : ValueDecoder<K>, V.Companion : ValueDecoder<V> =
+    Json.decodeFromString<HashMap<K, V>>(text)
+
+@Test
+private class ConditionalMapCodecs {
+    @Test
+    fun bothDirectionsPreserveEntryRepresentation() {
+        val values = HashMap<String, Int>()
+        values.put("answer", 42)
+        val text = Json.encodeToString(values)
+        assertTrue(text == "[[\"answer\",42]]")
+        assertTrue(text == Json.encodeToString(values,
+            HashMap<String, Int>.encoder(String.Companion, Int.Companion)))
+        val restored = Json.decodeFromString<HashMap<String, Int>>(text)
+        assertTrue(restored["answer"] == Some(42))
+        restored.put("other", 7)
+        assertTrue(values.size == 1L && restored.size == 2L)
+        val codec: Any = HashMap<String, Int>.Companion
+        assertTrue(codec is ValueEncoder<HashMap<String, Int>>)
+        assertTrue(codec is ValueDecoder<HashMap<String, Int>>)
+    }
+
+    @Test
+    fun directionsAreIndependentAndRequireBothComponents() {
+        val encoded = HashMap<Int, EncodeOnly>()
+        encoded.put(3, EncodeOnly(8))
+        assertTrue(encodeDefault(encoded) == "[[3,8]]")
+        val writer: Any = HashMap<Int, EncodeOnly>.Companion
+        assertTrue(writer is ValueEncoder<HashMap<Int, EncodeOnly>>)
+        assertTrue(!(writer is ValueDecoder<HashMap<Int, EncodeOnly>>))
+
+        val decoded = decodeDefault<Int, DecodeOnly>("[[3,8]]")
+        assertTrue(decoded[3] == Some(DecodeOnly(8)))
+        val reader: Any = HashMap<Int, DecodeOnly>.Companion
+        assertTrue(!(reader is ValueEncoder<HashMap<Int, DecodeOnly>>))
+        assertTrue(reader is ValueDecoder<HashMap<Int, DecodeOnly>>)
+
+        val keyOnly = HashMap<EncodeOnly, Int>()
+        keyOnly.put(EncodeOnly(5), 9)
+        assertTrue(encodeDefault(keyOnly) == "[[5,9]]")
+        val keyWriter: Any = HashMap<EncodeOnly, Int>.Companion
+        assertTrue(!(keyWriter is ValueDecoder<HashMap<EncodeOnly, Int>>))
+        val mixed: Any = HashMap<EncodeOnly, DecodeOnly>.Companion
+        assertTrue(!(mixed is ValueEncoder<HashMap<EncodeOnly, DecodeOnly>>))
+        assertTrue(!(mixed is ValueDecoder<HashMap<EncodeOnly, DecodeOnly>>))
+    }
+
+    @Test
+    fun absentCompanionsKeepOrdinaryMapsAndExplicitFactories() {
+        val values = HashMap<Int, Plain>()
+        values.put(2, Plain(6))
+        val companion: Any = HashMap<Int, Plain>.Companion
+        assertTrue(!(companion is ValueEncoder<HashMap<Int, Plain>>))
+        assertTrue(!(companion is ValueDecoder<HashMap<Int, Plain>>))
+        val encode = ValueEncoderFunction<Plain> { value, encoder -> Int.encode(value.number, encoder) }
+        val decode = ValueDecoderFunction<Plain> { decoder -> Plain(Int.decode(decoder)) }
+        val text = Json.encodeToString(values, HashMap<Int, Plain>.encoder(Int.Companion, encode))
+        assertTrue(text == "[[2,6]]")
+        val restored = Json.decodeFromString(text, HashMap<Int, Plain>.decoder(Int.Companion, decode))
+        assertTrue(restored[2] == Some(Plain(6)))
+    }
+
+    @Test
+    fun explicitCodecsOverrideAvailableDefaults() {
+        val values = HashMap<Int, Int>()
+        values.put(2, 6)
+        val encode = ValueEncoderFunction<Int> { value, encoder -> Int.encode(value + 10, encoder) }
+        val decode = ValueDecoderFunction<Int> { decoder -> Int.decode(decoder) - 10 }
+        val text = Json.encodeToString(values, HashMap<Int, Int>.encoder(Int.Companion, encode))
+        assertTrue(text == "[[2,16]]")
+        assertTrue(Json.decodeFromString(text, HashMap<Int, Int>.decoder(Int.Companion, decode))[2] == Some(6))
+        assertTrue(Json.encodeToString(values) == "[[2,6]]")
+    }
+
+    @Test
+    fun nestedMapsComposeCompanionConditions() {
+        val inner = HashMap<String, Int>()
+        inner.put("answer", 42)
+        val outer = HashMap<Int, HashMap<String, Int>>()
+        outer.put(1, inner)
+        val text = encodeDefault(outer)
+        assertTrue(text == "[[1,[[\"answer\",42]]]]")
+        val restored = decodeDefault<Int, HashMap<String, Int>>(text)
+        val restoredInner = restored[1] ?: throw IllegalStateException()
+        assertTrue(restoredInner["answer"] == Some(42))
+        restoredInner.put("answer", 7)
+        assertTrue(inner["answer"] == Some(42))
+    }
+
+    @Test
+    fun defaultDecodingKeepsDuplicateKeyPath() {
+        var failed = false
+        try {
+            Json.decodeFromString<HashMap<Int, Int>>("[[1,2],[1,3]]")
+        } catch (error: DecodingException) {
+            assertTrue(error.path == "/1/0")
+            failed = true
+        }
+        assertTrue(failed)
+    }
+}
