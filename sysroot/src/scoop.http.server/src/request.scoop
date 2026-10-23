@@ -18,6 +18,10 @@ public class HttpRequest internal constructor(
     public val path: String get() = target().path
     /** Ordered query access using URI, rather than form, plus semantics. */
     public val query: RequestQuery get() = RequestQuery(target().query)
+    /** Byte-preserving access to the original request fields. */
+    public val headers: RequestHeaders = RequestHeaders(head.fields)
+    /** Lazily parsed request cookies, unaffected by response mutations. */
+    public val cookies: RequestCookies = RequestCookies(head.fields)
 
     internal fun target(): RequestTarget {
         if (!present(parsed)) parsed = Some(requestTarget(head.target, method))

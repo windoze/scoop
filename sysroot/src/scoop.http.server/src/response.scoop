@@ -40,6 +40,8 @@ internal enum HeaderChange { Set(HttpField), Add(HttpField), Remove(String) }
 
 /** Response mutations allowed before execution, with read-only completion facts afterwards. */
 public class HttpResponse internal constructor() {
+    /** Appends or expires cookies as independent Set-Cookie fields. */
+    public val cookies: ResponseCookies get() = ResponseCookies(this)
     internal val lock: ServerLock = ServerLock()
     private val changes: ArrayList<HeaderChange> = ArrayList<HeaderChange>()
     private val callbacks: ArrayList<(HttpResponseDraft) -> Unit> = ArrayList<(HttpResponseDraft) -> Unit>()

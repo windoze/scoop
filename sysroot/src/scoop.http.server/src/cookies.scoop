@@ -1,0 +1,63 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.text.startsWith
+
+/** Lazily parsed cookies retaining all duplicate values in arrival order. */
+public class RequestCookies internal constructor(private val fields: Array<HttpField>) {
+    private val lock: ServerLock = ServerLock()
+    private var parsed: HttpCookieHeader? = None
+
+    private fun values(): HttpCookieHeader = lock.withLock {
+        if (!present(parsed)) {
+            try { parsed = Some(HttpCookieHeader.parseFields(fields)) }
+            catch (_: HttpFieldParseException) { reject(400U, "invalid Cookie field") }
+        }
+        parsed!!
+    }
+
+    /** Returns all exact-name matches without decoding their value bytes. */
+    public fun getAllBytes(name: String): Array<Array<Byte>> {
+        val bytes = name.toByteArray()
+        val result = ArrayList<Array<Byte>>()
+        for (pair in values().pairs) if (sameBytes(pair.name, bytes)) result.add(pair.value)
+        return result.toArray()
+    }
+
+    /** Reads a unique cookie, rejecting ambiguous duplicate values. */
+    public fun getSingleBytes(name: String): Array<Byte>? {
+        val all = getAllBytes(name)
+        if (all.size > 1L) reject(400U, "duplicate Cookie: " + name)
+        return if (all.size == 0L) None else Some(all[0L])
+    }
+
+    /** Strictly decodes all matching cookie values as UTF-8. */
+    public fun getAll(name: String): Array<String> {
+        val result = ArrayList<String>()
+        for (value in getAllBytes(name)) result.add(inputText(value, "Cookie " + name))
+        return result.toArray()
+    }
+
+    /** Returns one UTF-8 value or None; duplicates are a request rejection. */
+    public fun getSingle(name: String): String? = when (getSingleBytes(name)) {
+        case None -> None
+        case Some(value) -> Some(inputText(value, "Cookie " + name))
+    }
+}
+
+/** Response-only cookie operations using the existing HTTP cookie model. */
+public class ResponseCookies internal constructor(private val response: HttpResponse) {
+    /** Appends one independent Set-Cookie field. */
+    public fun append(cookie: HttpSetCookie) { response.add(cookie.toHttpField()) }
+
+    /** Expires the explicitly selected name, path and optional domain. */
+    public fun delete(name: String, path: String, domain: String?) {
+        if (!path.startsWith("/")) throw IllegalArgumentException(Some("cookie deletion requires an absolute path"))
+        val attributes = ArrayList<HttpCookieAttribute>()
+        attributes.add(HttpCookieAttribute("Path", path))
+        if (present(domain)) attributes.add(HttpCookieAttribute("Domain", domain!!))
+        attributes.add(HttpCookieAttribute("Max-Age", "0"))
+        attributes.add(HttpCookieAttribute("Expires", "Thu, 01 Jan 1970 00:00:00 GMT"))
+        append(HttpSetCookie(HttpCookiePair(name, ""), attributes))
+    }
+}

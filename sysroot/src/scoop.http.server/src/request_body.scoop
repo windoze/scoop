@@ -2,10 +2,14 @@ package scoop.http.server
 
 import scoop.asyncio.*
 import scoop.bytes.ByteArrayBuilder
+import scoop.http.HttpField
+import scoop.json.Json
 import scoop.platform.memory.NativeByteBuffer
+import scoop.url.*
 
 /** A request body with one explicit consumption path and a limit on actual input bytes. */
-public class HttpRequestBody internal constructor(source: AsyncByteSource, limit: Long? = Some(8388608L)) {
+public class HttpRequestBody internal constructor(source: AsyncByteSource, limit: Long? = Some(8388608L),
+    private val fields: Array<HttpField> = []) {
     private val selected: AtomicBoolean = AtomicBoolean(false)
     private val input: RequestBodySource = RequestBodySource(source, limit)
 
@@ -40,6 +44,26 @@ public class HttpRequestBody internal constructor(source: AsyncByteSource, limit
 
     /** Reads a complete, bounded, strictly UTF-8 request body. */
     public suspend fun text(maxBytes: Long = 2097152L): String = inputText(bytes(maxBytes), "request body")
+
+    /** Decodes one bounded UTF-8 JSON body using an explicit codec. */
+    public suspend fun <T> json(codec: ValueDecoder<T>, maxBytes: Long = 2097152L): T {
+        requireStructuredMedia(fields, true)
+        val value = text(maxBytes)
+        try { return Json.decodeFromString(value, codec) }
+        catch (_: DecodingException) { reject(400U, "invalid JSON request body") }
+    }
+
+    /** Decodes one bounded JSON body using the type's companion codec. */
+    public suspend fun <T> json(maxBytes: Long = 2097152L): T
+        where T.Companion : ValueDecoder<T> = json(T.Companion, maxBytes)
+
+    /** Decodes a bounded form body, where plus represents a space. */
+    public suspend fun form(maxBytes: Long = 2097152L): RequestQuery {
+        requireStructuredMedia(fields, false)
+        val value = text(maxBytes)
+        try { return RequestQuery(FormUrlEncoded.parse(value)) }
+        catch (_: UrlParseException) { reject(400U, "invalid form request body") }
+    }
 }
 
 private class RequestBodySource(private val source: AsyncByteSource, private val limit: Long?) : AsyncByteSource {

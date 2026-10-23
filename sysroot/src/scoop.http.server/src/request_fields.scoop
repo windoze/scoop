@@ -1,0 +1,49 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.text.*
+
+/** Ordered request fields without implicit merging or text conversion. */
+public class RequestHeaders internal constructor(private val fields: Array<HttpField>) {
+    /** Returns every matching field's immutable value bytes. */
+    public fun getAllBytes(name: String): Array<Array<Byte>> {
+        val result = ArrayList<Array<Byte>>()
+        for (value in fields.findAll(name.toByteArray())) result.add(value.value)
+        return result.toArray()
+    }
+
+    /** Requires at most one matching field, returning None only for absence. */
+    public fun getSingleBytes(name: String): Array<Byte>? {
+        val values = getAllBytes(name)
+        if (values.size > 1L) reject(400U, "duplicate header: " + name)
+        return if (values.size == 0L) None else Some(values[0L])
+    }
+
+    /** Strictly decodes each matching field as UTF-8 without combining it. */
+    public fun getAll(name: String): Array<String> {
+        val result = ArrayList<String>()
+        for (value in getAllBytes(name)) result.add(inputText(value, "header " + name))
+        return result.toArray()
+    }
+
+    /** Reads one optional UTF-8 field and rejects duplicate occurrences. */
+    public fun getSingle(name: String): String? = when (getSingleBytes(name)) {
+        case None -> None
+        case Some(value) -> Some(inputText(value, "header " + name))
+    }
+}
+
+internal fun requireStructuredMedia(fields: Array<HttpField>, json: Boolean) {
+    try {
+        for (coding in parseHttpTokenFields(fields, "Content-Encoding")) {
+            if (coding.lowercaseAscii() != "identity") reject(415U, "unsupported request content encoding")
+        }
+        val media = HttpMediaType.parseFields(fields) ?: reject(415U, "missing request Content-Type")
+        val accepted = media.type == "application" &&
+            (if (json) media.subtype == "json" || media.subtype.endsWith("+json") else media.subtype == "x-www-form-urlencoded")
+        if (!accepted) reject(415U, "unsupported request Content-Type")
+        val charset = media.parameter("charset")
+        if (present(charset) && inputText(charset!!.value, "charset").lowercaseAscii() != "utf-8")
+            reject(415U, "unsupported request charset")
+    } catch (_: HttpFieldParseException) { reject(400U, "invalid request representation fields") }
+}

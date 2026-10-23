@@ -38,6 +38,34 @@ handler 和结果准备失败在终端内部映射，使错误结果仍在业务
 
 错误观察入口是普通非挂起函数，接收当前 context 和原始异常；观察器失败不得替代主异常或造成另一条正常请求失败。观察器与应用代码均不在框架内部锁内调用。
 
-## 4. 分步交付与验证
+## 4. 字段、Cookie 与结构化正文
+
+RequestHeaders 保留 head 的字段顺序与字节。getAllBytes 不合并同名字段，getSingleBytes 拒绝重复值；对应 String 方法严格解码 UTF-8。不同字段的列表／合并规则继续通过 scoop.http 中相应的解析器使用，不提供自动拼接任意 header 的入口。
+
+RequestCookies 延迟复用 HttpCookieHeader.parseFields 的结果；getAllBytes／getAll 保留同名值顺序，getSingleBytes／getSingle 仅在缺失时返回 None，重复项为 400。ResponseCookies.append 追加独立 Set-Cookie；delete 必须明确传入 name、path 和可选 domain，生成该范围的 Max-Age=0、过去 Expires，不能清除其他未知范围的同名 Cookie。响应修改不影响本次请求。
+
+HttpRequestBody.json 使用显式 ValueDecoder 或 T.Companion；只接受 application/json 和 application/*+json。form 接受 application/x-www-form-urlencoded，复用 FormUrlEncoded；其加号为空格。两者检查唯一且语法合法的 Content-Type；缺失／不支持的媒体类型或 charset 为 415，畸形／重复字段为 400。只支持 UTF-8，未声明 charset 也按 UTF-8 处理。没有安装内容解码策略时，结构化入口对非 identity Content-Encoding 返回 415；bytes 和 openStream 保持原始字节。正文解析、UTF-8 和 codec 输入不匹配在提取边界变为 400；业务代码自行抛出的解码错误仍走 500 映射。
+
+结构化入口先检查元数据，再取得单次消费权并执行有界聚合；不会为错误媒体类型读取上传。bytes、text、json、form 与 openStream 共用消费权。JSON 仍使用现有完整值树 codec，不是流式 JSON 解码器。
+
+## 5. H1 接入、限制与停机
+
+HttpServer.takeOwnership(listener, application, scope, options) 检查选项和当前／父 Job，在父 scope 中登记自己的所有者后接管 listener。登记前失败仍由调用方清理；登记后失败由 server 清理。返回表示接受循环已建立。application 和可共享的 TlsServerContext 由调用方持有，不随 server 自动关闭。一个连接的握手、业务和清理失败在连接边界隔离；不取消其他连接。
+
+H1 接入阶段支持明文 H1 和 TLS 上的 H1。TLS 在每条连接的独立任务完成握手，协商的 ALPN 必须为 http/1.1，是否允许无 ALPN 的 H1 回退由选项明确指定；配置的证书／私钥及 ALPN 来自应用提供的 TlsServerContext。后续 H2 接入同时扩充可选协议集合，不公开不可执行的协议选项。
+
+每条 H1 连接顺序处理请求，每条请求进入独立 coroutineScope，创建独立 HttpContext、body 和 requestId。HttpConnectionInfo 提供只读本地／对端地址、协议与 TLS 信息；不把 X-Forwarded-* 当成已验证地址。已完成请求的业务 Context 不泄漏到下一条请求。HEAD 和无内容状态继续由协议层定界，未知长度 H1.1 为 chunked、H1.0 为 EOF。响应写出后才放弃未消费的输入；未读完时强制 Connection: close，不自动 drain 上传。
+
+Expect 使用 HTTP 消息层的完整解析结果。包含未知 expectation 时默认 417，畸形语法 400；只有应用第一次读取非空 body 且尚未提交最终响应时，才发送一次 100-continue。100 不经过最终响应草稿或完成通知。应用直接拒绝不先发送 100；最终响应开始后不再从未读 body 触发 100。
+
+默认 maxConnections=1024，maxActiveRequests=256；连接容量覆盖握手和 keep-alive，请求容量覆盖 handler、流式输出及其清理。登记、排空和容量判断在同一状态边界完成；无容量直接关闭新连接／当前 H1 连接，不为拒绝响应另建等待队列。requestBodyLimit=8 MiB，bufferedBodyLimit=2 MiB；路由可在选择 body 消费方式之前明确调整 body 总量上限，非法负值是配置错误。
+
+TLS 握手总时限默认 10 秒；首条 H1 请求头从协议接管完成到完整首部的总时限默认 10 秒；后续无活动请求时从开始等待到下一完整请求头的总时限默认 60 秒。bodyReadIdle 和 responseWriteIdle 默认 30 秒，复用异步 HTTP 层真实 I/O 进展计时；这些不是请求总时限。requestDeadline 默认关闭，启用后覆盖进入管线直到响应和请求子任务结束。超时执行协作式取消并等待清理，不在已关闭连接上补发 504。H1 没有独立的断开通知，TCP 半关闭仍可以等待响应。
+
+server 有 Running／Draining／Closed 三态。shutdownGracefully 先停止接受并取消无活动请求的 H1 连接；活动请求完成后关闭，不进入下一次业务分派。默认自然排空宽限 30 秒，届满后取消所有者和剩余连接，等待真实 I/O 与资源清理。close 直接执行强制取消并等待；并发等待共享同一所有者结果。awaitTermination 只等待。调用方取消关闭等待也不能跳过本地资源清理；清理失败保留实际异常。
+
+onRequestCompleted 在响应、请求子任务和输入收尾结束后接收不可变快照：requestId、route、method、状态、耗时、接收／交付及输出字节和完成类别。onConnectionError 观察握手或连接边界的失败。观察函数非挂起、在内部锁外调用；自身失败不改变已发出的结果或取消其他请求。完成不承诺对端已处理数据。
+
+## 6. 分步交付与验证
 
 接入、超时与停机、SSE、multipart、WebSocket、压缩、文件和 DTO 的完整范围保持设计第 12～17 节，按完成的功能逐项扩充本规范。尚未实现的功能不公开占位 API。测试用所属 Cone 的 release 测试；只有 CLI／诊断／外部对端等必要边界使用 fixture。协议引擎的既有验证不在 server 重放。
