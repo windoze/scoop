@@ -145,7 +145,7 @@ pub(crate) fn initialize(params: InitializeParams) -> (Settings, InitializeResul
         },
         server_info: Some(ServerInfo {
             name: "scoop-lsp".to_owned(),
-            version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+            version: Some(scoop_toolchain::VERSION.to_owned()),
         }),
     };
     (settings, result)

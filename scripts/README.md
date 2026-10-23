@@ -4,7 +4,7 @@
 
 发行配置集中在 `release.toml`。当前 Darwin 基线为 macOS 27.0.1／SDK 27.0，Linux 构建环境为 Ubuntu 26.04.1、glibc 2.43／musl 1.2.5；只在相应环境完成验证后声明支持，不推定更老系统可用。LLVM 固定 22.1.8，CPU 使用 AArch64 generic／x86-64。工具构建时写入默认 Darwin 最低版本，普通命令的 `MACOSX_DEPLOYMENT_TARGET` 覆盖贯通 Scoop 对象、C bridge、native、runtime 与最终链接；预编译 runtime 的最低版本仍必须兼容。OpenSSL 准备使用同一设置。
 
-三个命令的 `--version` 显示相同发行版本与源码 revision。开发构建读取默认版本和当前 Git revision；发行构建显式设置 `SCOOP_RELEASE_VERSION` 与 `SCOOP_SOURCE_REVISION`，不在运行时读取 Git 或发行清单。
+四个命令（`scoop`、`scoopc`、`scoop-link`、`scoop-lsp`）的 `--version` 显示相同发行版本与源码 revision。开发构建读取默认版本和当前 Git revision；发行构建显式设置 `SCOOP_RELEASE_VERSION` 与 `SCOOP_SOURCE_REVISION`，不在运行时读取 Git 或发行清单。
 
 `build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主动态库，仅启用 AArch64／X86 后端，并安装 Rust 构建所需的 llvm-config、头文件和 CMake 资料。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
 
@@ -50,21 +50,42 @@ python3 scripts/prepare_sysroot.py \
 
 开发 sysroot 准备完成后，设置 `SCOOP_SYSROOT="$PWD/sysroot"`，再运行相关的正式 CLI fixture 和库测试。Cargo 输出目录中的命令也遵守显式参数、环境变量、执行文件所属安装根的选择顺序，不再回退到编译时仓库。普通 build／run／test 和两个 link 命令默认使用目标 runtime 索引；`--runtime-root` 只用于明确需要源码构建的开发请求。准备 sysroot 不要求构建发行 LLVM、压缩归档或运行全套测试。
 
-## 手工生成工具包
+## 单一入口构建完整安装包
 
 开发与发行 sysroot 均准备 `runtime/index.cbor` 和 `runtime-stress/index.cbor` 两组目标 runtime。默认构建使用前者，不包含 GC stress 支持；`scoop --enable-gc-stress build/run/test/link` 使用后者，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。普通 fixtures 不传该开关，GC 专测显式选择。旧 schema 4 runtime 索引需要重新准备。
 
-`package_toolchain.py` 构建三个 release 宿主命令、准备该宿主支持的目标资源，为全部内置库生成 API 文档，再生成工具包与 LLVM 源码包。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
+`package_toolchain.py` 是完整安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM 与四个 release 宿主命令、准备该宿主支持的全部 native／slib／runtime 资源、为全部内置库生成 API 文档，最后生成工具包与 LLVM 源码包。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
+
+构建机需要 Python 3.12+、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
 
 ```sh
 python3 scripts/package_toolchain.py --jobs 6
 ```
 
-上例用于 Darwin。Linux 还要提供 `--musl-include /usr/include/x86_64-linux-musl`，并安装 `musl-gcc`、`patchelf` 和适用于 LLVM libunwind 的 Clang／Clang++；可通过 `--gnu-cc`、`--musl-cc`、`--unwind-cc`、`--unwind-cxx` 明确选择工具。Linux 包同时包含 GNU 与 musl 目标资源。
+上例用于 Darwin。Linux 还要提供 `--musl-include /usr/include/x86_64-linux-musl`，并安装 `musl-gcc`、`patchelf` 和适用于 LLVM libunwind 的 Clang／Clang++；Rust 工具链需要同时具有 `x86_64-unknown-linux-musl` 目标。可通过 `--gnu-cc`、`--musl-cc`、`--unwind-cc`、`--unwind-cxx` 明确选择工具。Linux 包同时包含 GNU 与 musl 目标资源。
 
 musl 的 C 开发环境也需要 Linux UAPI 头。Debian／Ubuntu 的 `musl-gcc` 默认搜索目录可能缺少 `linux/mman.h`；此时可在工作目录准备仅包含 `linux`、`asm`、`asm-generic` 的头文件搜索根，以编译器包装脚本添加该根，并通过 `--musl-cc` 选择包装脚本。这些目录可指向系统已安装的对应 Linux 头；保留 musl 自己的 libc 头文件搜索顺序。
 
-LLVM 源码与归档默认取 vendor 的固定版本位置，也可传入 `--llvm-source` 和 `--llvm-archive`。已经用 `build_llvm.py` 准备的宿主 LLVM 可通过 `--llvm-prefix` 复用；省略时脚本在自己的工作目录构建。`--version` 和 `--revision` 可显式设置发行标识，默认采用配置版本与当前 Git revision，存在未提交修改时标注 `+modified`。
+LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工作目录的 `inputs` 下下载官方固定版本归档并解包。也可传入已有的 `--llvm-source` 和 `--llvm-archive`，显式路径不存在时直接报错。已经准备的匹配版本宿主 LLVM 可通过 `--llvm-prefix` 复用；省略时脚本在自己的工作目录构建。`--version` 和 `--revision` 可显式设置发行标识，默认采用配置版本与当前 Git revision，存在未提交修改时标注 `+modified`。这些参数也写入安装根的 `VERSION`。
+
+工具包 `scoop-<version>-<host>.tar.xz` 内直接是安装根内容，可直接解压到 `~/.scoop`，不需要 `--strip-components`。Darwin 包包含 Darwin/AArch64 目标，Linux/GNU amd64 包同时包含 GNU／musl 两套目标；每套均包含全部生产 Cone 的 release `.slib`、native 静态库／头文件和两种 runtime。LLVM 源码包单独保留有版本名称的顶层目录。
+
+```text
+~/.scoop/
+  VERSION
+  bin/                 scoop、scoopc、scoop-link、scoop-lsp
+  lib/<target-triple>/  *.slib、native 库／头文件、runtime、runtime-stress
+  include/             公开 Scoop C 头文件
+  src/                 全部内置 Cone 源码
+  vendor/              native 上游输入和补丁
+  native/              Rust 文本后端维护源码
+  libexec/llvm/lib/     宿主工具所需动态库
+  docs/                离线 API 文档
+  share/               发行说明、组件清单及许可证
+  tooling/             scoop-language-support-<extension-version>.vsix
+```
+
+`~/.scoop/bin/scoop` 默认使用相邻的 `~/.scoop/lib/<target-triple>/*.slib`，不因 debug profile 或空缓存重编系统库。显式 `--sysroot`／`SCOOP_SYSROOT` 和 source locator 仍按原有规则生效。安装及 VSIX 使用步骤见[随包说明](distribution/README.md)。
 
 脚本读取宿主命令的实际动态依赖，将所需非系统库复制到 `libexec/llvm/lib`，为实际引用这些私有库的 Darwin 文件设置相对加载路径。目标资源和许可说明按实际组件收集；归档在完整写入后才替换同名文件。安装方法、系统开发环境要求及升级说明随包放在 `share/scoop`。
 
@@ -72,4 +93,6 @@ LLVM 源码与归档默认取 vendor 的固定版本位置，也可传入 `--llv
 
 安装根的 `docs/index.html` 提供目标选择，具体站点位于 `docs/<canonical-target-triple>/`。Darwin 包包含 Darwin 站点；Linux 包包含 GNU／musl 两个站点。源码原文嵌入 HTML，搜索和资源均在本地；`.slib` 不保存完整源码。手工验收时检查解压后的目标及库清单、跨库链接、源码页、离线搜索与重复生成的复用情况；详细范围见 [M60 设计](../docs/milestone60/DESIGN.md)。
 
-手工验证发布包时，将归档解压到新的目录，可使用带空格路径；保留源码、原工具和原产物。运行三个命令的版本查询，检查实际加载的私有 LLVM，再用空缓存完成含 native／泛型／GC 的应用、crypto／TLS、普通库测试和两个 link 入口，重复构建检查复用。Linux 还应覆盖 GNU 与 musl 的既有链接模式。常规 fixture 使用已准备的开发 sysroot，不执行打包或解压步骤。具体结果记录在 [M52 实施记录](../docs/milestone52/PROGRESS.md)。
+手工验证发布包时，将归档解压到新的目录，可使用带空格路径；保留源码、原工具和原产物。运行四个命令的版本查询，检查实际加载的私有 LLVM，再用空缓存完成含 native／泛型／GC 的应用、crypto／TLS、普通库测试和两个 link 入口，重复构建检查复用。Linux 还应覆盖 GNU 与 musl 的既有链接模式。常规 fixture 使用已准备的开发 sysroot，不执行打包或解压步骤。具体结果记录在 [M52 实施记录](../docs/milestone52/PROGRESS.md)。
+
+打包脚本的归档布局与失败保留检查使用 `python3 -m unittest discover -s scripts/tests`；运行前对改动的 Python 脚本执行与 fixture runner 相同版本的 Ruff 格式化及 lint。完整包验收还应确认 `VERSION` 与命令版本一致、VSIX 内包含扩展代码及两个 WASM，并使用解压目录中的工具完成冷构建／运行及再次复用。

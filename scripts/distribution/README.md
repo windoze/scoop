@@ -1,12 +1,30 @@
 # Scoop 工具包
 
-把此完整目录解压到常用位置，将其中 `bin` 加入 PATH。三个命令通过实际执行文件定位相邻资源，也支持正常软链接启动。移动整个目录后可以直接继续使用。
+工具包直接包含安装根内容，默认解压到 `~/.scoop`，然后把 `~/.scoop/bin` 加入 PATH。将下面的归档文件名替换为实际下载的版本与宿主平台：
 
-`scoop --version`、`scoopc --version`、`scoop-link --version` 显示发行版本和源码 revision。此目录中的 `toolchain.toml` 列出宿主、目标、内置 Cone 和 native 版本；它只说明包内容，不是命令启动时的验证清单。
+```sh
+mkdir -p "$HOME/.scoop"
+tar -xJf scoop-0.0.0-dev-aarch64-apple-darwin.tar.xz -C "$HOME/.scoop"
+export PATH="$HOME/.scoop/bin:$PATH"
+cat "$HOME/.scoop/VERSION"
+scoop --version
+```
+
+归档内没有额外的版本目录、`.scoop` 或 `sysroot` 层，无需 `--strip-components`。四个命令通过实际执行文件定位相邻资源，也支持正常软链接启动。也可解压到其他安装根；移动整个目录后可以直接继续使用。
+
+安装根的 `VERSION` 第一行为发行版本，随后记录源码 revision 与宿主平台。`scoop --version`、`scoopc --version`、`scoop-link --version`、`scoop-lsp --version` 显示同一份发行版本和源码 revision。此目录中的 `toolchain.toml` 列出宿主、目标、内置 Cone、native 版本和 VSIX 路径；它只说明包内容，不是命令启动时的验证清单。
 
 Darwin/AArch64 包要求声明版本的 macOS、Xcode 或 Command Line Tools、Apple Clang、macOS SDK 和系统 linker。Linux/GNU amd64 包要求声明版本的 glibc、GCC、GNU ld 和开发文件；生成 musl 程序还需要 musl-gcc 与匹配的 musl 开发文件。GNU 宿主工具不承诺在纯 musl 系统运行。native C++ 另需配套 clang++／g++ 与标准库；musl C++ 不在当前范围。
 
-内置库以 release 预编译，debug 和 release 应用都直接使用这些产物；当前应用需要的泛型实例仍正常生成。普通 build、run、test 和 link 不重新编译内置 Cone 或 runtime。应用构建缓存和输出写到各自正常位置，安装目录无需可写。
+内置库以 release 预编译，debug 和 release 应用都直接使用 `~/.scoop/lib/<target-triple>/*.slib`；当前应用需要的泛型实例仍正常生成。空缓存也不触发系统库重编。普通 build、run、test 和 link 不重新编译内置 Cone 或 runtime。应用构建缓存和输出写到各自正常位置，安装目录无需可写。显式 `--sysroot` 或环境变量 `SCOOP_SYSROOT` 会覆盖默认安装根；使用安装包时不需要设置这两项。
+
+VS Code 扩展位于 `tooling/scoop-language-support-<extension-version>.vsix`，内含语法高亮、折叠和缩进所需代码及 WASM。在 VS Code 中选择“从 VSIX 安装”，或运行：
+
+```sh
+code --install-extension "$HOME"/.scoop/tooling/scoop-language-support-*.vsix
+```
+
+安装后使用扩展无需 Node.js、npm 或 WASM 构建工具。扩展默认启动 `~/.scoop/bin/scoop-lsp --stdio`，提供诊断、补全、签名、导航、符号、引用、重命名和快速修复；高亮、折叠与缩进由 Tree-sitter 提供。安装到其他位置时，在 VS Code 设置 `scoop.server.path` 为该安装根的 `bin/scoop-lsp` 绝对路径。`scoop.sysroot` 默认沿用服务器安装布局；工作区需受信任才能启动语言服务器。可用命令面板的 `Scoop: Restart Language Server` 重启，或 `Scoop: Show Language Server Output` 查看日志。
 
 ```sh
 scoop run hello.scoop
@@ -36,4 +54,4 @@ scoop build my-cone --target x86_64-unknown-linux-musl
 
 Darwin 默认最低版本由发行配置确定；`MACOSX_DEPLOYMENT_TARGET` 可显式选择兼容的部署版本。默认 runtime 的最低要求不能高于所选版本。较老系统的支持必须另经实际验证，不能通过降低此变量得到保证。
 
-升级时解压到另一个版本目录并调整 PATH 或软链接，原版本仍可保留。无需删除整个用户缓存。第三方许可见 `../licenses/README.md`；Scoop 自身的许可状态也列在该文件中，应以维护者确定的项目许可为准。
+升级时可将旧 `~/.scoop` 移到备份位置，再创建新的 `~/.scoop` 并解压完整包，避免旧版本文件残留；也可安装到另一目录并调整 PATH 或软链接。无需删除整个用户缓存。第三方许可见 `../licenses/README.md`；Scoop 自身的许可状态也列在该文件中，应以维护者确定的项目许可为准。

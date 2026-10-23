@@ -75,7 +75,7 @@ def collect(root, repository, source, host, native, targets):
     queue = [
         package["id"]
         for package in packages.values()
-        if package["name"] in {"scoop", "scoopc", "scoop-linker"}
+        if package["name"] in {"scoop", "scoopc", "scoop-linker", "scoop-lsp"}
     ]
     visited = set()
     while queue:
