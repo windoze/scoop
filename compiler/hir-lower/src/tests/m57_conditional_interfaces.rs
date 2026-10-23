@@ -90,12 +90,18 @@ fn m57_block_facts_do_not_escape_into_ordinary_members() {
 
 #[test]
 fn m57_overlap_is_rejected_even_for_empty_interfaces_and_stronger_conditions() {
-    for declarations in [
-        "override interface Mark where T : Read {}\n override interface Mark {}",
-        "override interface Mark where T : Read {}\n override interface Mark where T : Read, T : Hash {}",
-        "override interface Mark where T : Read {}\n override interface Mark where T : Hash {}",
+    for (parents, declarations) in [
+        (": Mark", "override interface Mark where T : Read {}"),
+        (
+            "",
+            "override interface Mark where T : Read {}\n override interface Mark where T : Read, T : Hash {}",
+        ),
+        (
+            "",
+            "override interface Mark where T : Read {}\n override interface Mark where T : Hash {}",
+        ),
     ] {
-        let errors = check(&format!("interface Read {{}}\n interface Mark {{}}\n struct Value<T>(val value: T) {{ {declarations} }}\n fun main() {{}} ")).unwrap_err();
+        let errors = check(&format!("interface Read {{}}\n interface Mark {{}}\n struct Value<T>(val value: T) {parents} {{ {declarations} }}\n fun main() {{}} ")).unwrap_err();
         assert!(
             errors
                 .iter()

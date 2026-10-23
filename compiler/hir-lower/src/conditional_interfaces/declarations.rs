@@ -42,7 +42,7 @@ impl Lowerer {
             self.owner_type_params(owner),
             0,
             &[],
-            declaration.where_clause.as_ref(),
+            Some(&declaration.where_clause),
             true,
             "interface implementation",
         );

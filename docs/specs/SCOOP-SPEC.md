@@ -1392,7 +1392,7 @@ public struct Box<T>(val value: T) {
 }
 ```
 
-语法为 `override interface InterfaceType [where PositiveCondition, ...] { members }`。目标必须是完整 interface application，允许透明 alias；每块一个目标。没有新的 type parameter 列表，目标后的实参使用原作用域类型。省略 where 表示无条件实现，空 where 非法。原有类型头的无条件接口声明继续可用；实现块不是嵌套 interface 类型声明。
+语法为 `override interface InterfaceType where PositiveCondition, ... { members }`。目标必须是完整 interface application，允许透明 alias；每块一个目标。没有新的 type parameter 列表，目标后的实参使用原作用域类型。where 必填且非空；无条件实现写在类型或 companion 的接口列表中，成员写在其普通 body 内。条件沿用既有重复约束规则，不要求证明其严格缩小合法实参域。实现块不是嵌套 interface 类型声明。
 
 块直接属于所在宿主，与宿主原声明必须同 origin Cone、同 typed owner。首版只允许写在原 body 内，不提供外置 impl、扩展实现、跨文件重新打开类型或消费方追加；目标接口可以来自依赖 Cone，但 sealed 接口仍满足 9.1.7 的同 Cone／package 约束。类型和 companion 始终各有原来一份定义，不支持整份类型偏特化、全特化或重叠接口实现的特化。
 

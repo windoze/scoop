@@ -10,10 +10,8 @@ public struct Envelope<T>(val value: T) {
     }
 }
 
-public object Always {
-    override interface Counter {
-        public override fun next(): Int = 41
-    }
+public object Always : Counter {
+    public override fun next(): Int = 41
 }
 
 public struct Box<T>(val value: T) {

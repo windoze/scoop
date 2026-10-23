@@ -398,7 +398,7 @@ fn dump_interface_implementation(
         "{}override interface {}{}\n",
         "  ".repeat(indent),
         dump_type_ref(&implementation.interface),
-        dump_where_clause(implementation.where_clause.as_ref()),
+        dump_where_clause(Some(&implementation.where_clause)),
     ));
     for member in &implementation.members {
         match member {

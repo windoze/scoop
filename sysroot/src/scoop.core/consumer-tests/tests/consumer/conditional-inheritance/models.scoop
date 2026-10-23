@@ -21,7 +21,7 @@ class Relisted<T>(value: T) : Base<T>(value) {
     override interface Read where T : Read { public override fun read(): Int = 19 }
 }
 class Restricted<T : Read>(value: T) : Base<T>(value) {
-    override interface Read { public override fun read(): Int = 23 }
+    public override fun read(): Int = 23
 }
 
 struct Box<T>(val value: T) {

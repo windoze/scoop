@@ -14,7 +14,7 @@
 
 | 功能 | 状态 | 验证证据 |
 | --- | --- | --- |
-| 语法与普通类型条件接口 | 本 Cone 基础闭环已完成；继承等组合另行验收 | 4 个 parser 用例、11 个 M57 HIR 用例、8 个诊断 fixture、4 个 core consumer 原生用例通过 |
+| 语法与普通类型条件接口 | 本 Cone 基础闭环已完成；where 必填且非空 | 5 个 parser 用例、M57 HIR 定向检查及正式 CLI 诊断通过；组合验证见下文 |
 | Companion、HashMap 与 Json 闭环 | 已完成 | 6 个 JSON Cone 原生用例覆盖四种能力组合、嵌套、显式工厂及重复 key 路径 |
 | 条件 codec 合成 | 已完成 | 2 个定向检查、24 个既有合成回归、完整 JSON Cone 76 项测试及跨 Cone 合成 codec 运行通过 |
 | 继承、default、property 与效果组合 | 继承与 default 基本闭环已完成；其余组合待完成 | 条件继承、等价重列、域覆盖、abstract 义务、默认方法／属性及分派有本地／跨 Cone 验证 |
@@ -36,7 +36,7 @@
 
 - `cross-cone-interface/79` 保存原宿主 binder 下的条件声明、成员适用性及带完整 owner application 的 slot 选择；导入后沿用定义处目标，互斥条件下的 default 选择保持独立。
 - 参数的 public companion 声明在具体化前随实际泛型实参保留，避免仅使用 Any／动态判断时漏掉接口关系；查询不执行 companion 初始化。
-- 无泛型的实现块同时导出普通继承边和接口槽位，class／struct／enum／object 均有从源码到 MIR 分派表的验证。
+- 无条件实现沿用类型头的普通继承边和接口槽位；实现块只承担有 where 的条件实现（见第 10 节）。
 - 本机 workspace Clippy、867 个 HIR 格式测试、83 个泛型导入回归通过；16 个 M57 定向用例覆盖本地、导入及产物分派。格式版本变更导致的一项 slib 期望向量失败已更新，相关 17 个 profile 测试通过。
 - 正式 ODR fixture 由 provider、两个 library consumer 和 root 构成，验证条件真／假、非泛型实现块、单例共享及不同实参独立；原链接与逆序依赖重链接均运行成功。Darwin sysroot 已按新格式显式重建。
 - HashMap 默认 codec、继承／合成组合、完整 Linux 验收仍未完成。
@@ -79,3 +79,9 @@
 - workspace Clippy、33 项 M57 检查、85 项泛型导入回归、97 项普通规则回归及 866 项 HIR 元数据测试通过。完整 core consumer 的 44 项原生测试通过，新增用例覆盖默认方法／属性、块顺序、无条件父接口、共同 override 与未知条件下的泛型转发；ODR fixture 的原链接／逆序依赖重链接通过。
 - 11 个条件接口诊断 fixture 通过，覆盖未实例化时的潜在 default 冲突、继承冲突、未覆盖全部条件的成员以及条件未知／不成立时的 default 调用；已有重复成员与 override 诊断保持独立。
 - 继承 codec 合成、sealed／类型描述／文档、其余效果组合及 Linux 完整验收继续保留为未完成项。
+
+## 10. 实现块要求显式条件
+
+- 按讨论收紧语法：`override interface` 的 where 必填且非空；无条件实现写在类型或 companion 的接口列表，override 成员留在普通 body。条件继续遵守既有重复约束规则，不增加严格缩小实参域的证明要求。
+- AST 直接保存必填条件；缺省 where 的诊断定位到接口名称并指向普通接口列表写法。原无条件块示例、继承用例与 ODR provider 已改写，删除仅为该旧写法建立的专测；产物格式保持 80。
+- 5 项 parser 检查与 M57 HIR 定向检查通过；正式 CLI 覆盖普通类型／companion 缺少条件和空 where，原有存储诊断保留。workspace Clippy、core consumer 原生测试及跨 Cone ODR 原链接／逆序重链接通过。

@@ -12,7 +12,7 @@
 
 | 问题 | 决定 |
 | --- | --- |
-| 语法 | 宿主体内的 `override interface InterfaceType [where ...] { ... }`，复用已有关键字 |
+| 语法 | 宿主体内的 `override interface InterfaceType where ... { ... }`，where 必填，复用已有关键字 |
 | 实现者 | 实现块直接所在的普通 class／struct／enum／object，或 companion 自身 |
 | 条件作用 | 控制一条接口关系及块内实现成员的可用性，不改变宿主类型的合法实参域 |
 | 条件范围 | 现有正向名义／kind bound，以及固定 `T.Companion` 的正向／ref bound |
@@ -127,7 +127,7 @@ public fun <K, V> encodeMapDefault(value: HashMap<K, V>): String
 
 ```ebnf
 InterfaceImplementation = "override" "interface" InterfaceType
-                          [ ImplementationWhere ]
+                          ImplementationWhere
                           "{" { ImplementationMember } "}" ;
 ImplementationWhere = "where" PositiveCondition { "," PositiveCondition } ;
 PositiveCondition = Subject ":" PositiveBound ;
@@ -135,7 +135,7 @@ Subject = VisibleOwnerTypeParameter [ "." "Companion" ] ;
 PositiveBound = Type | "value" | "ref" ;
 ```
 
-每块实现一个完整 interface application；透明 alias 展开后必须指向 interface，不能是 class、类型参数或否定类型。省略 where 表示无条件实现，仍使用本文件的归属、重复与成员规则；空的 where 非法。实现块没有新的类型参数列表，接口名称后的参数都是类型引用。
+每块实现一个完整 interface application；透明 alias 展开后必须指向 interface，不能是 class、类型参数或否定类型。where 必填且至少包含一项正向条件；省略或留空都是语法错误。无条件实现直接写在类型或 companion 的接口列表中，成员写在其普通 body 内，不另设等价的实现块写法。实现块没有新的类型参数列表，接口名称后的参数都是类型引用。条件沿用既有重复约束规则，不额外要求证明它严格缩小宿主的合法实参域。
 
 `override interface` 在这里是宿主 body 内的实现声明，不声明新的 interface 类型。原有 `interface I<T> { ... }` 继续声明嵌套 interface；两者由 token 区分，不靠名称查找猜测意图。现有类型头中的 `: I<T>` 无条件接口语法继续可用。
 

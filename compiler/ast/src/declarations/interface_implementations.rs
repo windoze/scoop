@@ -7,7 +7,7 @@ use super::*;
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceImplementationDecl {
     pub interface: TypeRef,
-    pub where_clause: Option<WhereClause>,
+    pub where_clause: WhereClause,
     pub members: Vec<InterfaceImplementationMember>,
     pub span: Span,
 }

@@ -24,7 +24,7 @@ fn implementation_is_distinct_from_a_nested_interface_and_retains_conditions() {
         panic!("implementation")
     };
     assert_eq!(block.functions().next().unwrap().name.text, "hash");
-    assert_eq!(block.where_clause.as_ref().unwrap().constraints.len(), 1);
+    assert_eq!(block.where_clause.constraints.len(), 1);
     let StructMember::Companion(companion) = &host.members[2] else {
         panic!("companion")
     };
@@ -32,7 +32,7 @@ fn implementation_is_distinct_from_a_nested_interface_and_retains_conditions() {
         panic!("implementation")
     };
     assert!(matches!(
-        block.where_clause.as_ref().unwrap().constraints[0].subject,
+        block.where_clause.constraints[0].subject,
         TypeConstraintSubject::Companion(_)
     ));
     assert!(block.members.is_empty());
@@ -44,11 +44,11 @@ fn implementation_is_distinct_from_a_nested_interface_and_retains_conditions() {
 }
 
 #[test]
-fn ordinary_owners_allow_unconditional_blocks_and_computed_members() {
+fn ordinary_owners_allow_conditional_blocks_and_computed_members() {
     for source in [
-        "class C { override interface I { public override val value: Int get() = 1 } }",
-        "object O { override interface I { public override val value: Int get() = 1 } }",
-        "enum E { One\n override interface I { public override val value: Int get() = 1 } }",
+        "class C<T> { override interface I where T : ref { public override val value: Int get() = 1 } }",
+        "object O { override interface I where T : ref { public override val value: Int get() = 1 } }",
+        "enum E<T> { One\n override interface I where T : ref { public override val value: Int get() = 1 } }",
     ] {
         let file = ok(source);
         let block = match &file.declarations[0] {
@@ -63,11 +63,30 @@ fn ordinary_owners_allow_unconditional_blocks_and_computed_members() {
             Decl::Enum(host) => &host.interface_implementations[0],
             _ => panic!("owner"),
         };
-        assert!(block.where_clause.is_none());
+        assert_eq!(block.where_clause.constraints.len(), 1);
         assert!(matches!(
             block.members[0],
             InterfaceImplementationMember::Property(_)
         ));
+    }
+}
+
+#[test]
+fn blocks_require_explicit_nonempty_conditions() {
+    for source in [
+        "class C<T> { override interface I {} }",
+        "struct S<T>() { override interface I {} }",
+        "enum E<T> { One\n override interface I {} }",
+        "object O { override interface I {} }",
+        "class C<T> { companion object { override interface I {} } }",
+    ] {
+        let (span, message) = err(source);
+        assert_eq!(&source[span.start as usize..span.end as usize], "I");
+        assert!(
+            message.contains("requires a non-empty `where` clause"),
+            "{message}"
+        );
+        assert!(message.contains("type or companion's interface list"));
     }
 }
 
@@ -105,7 +124,7 @@ fn blocks_cannot_add_storage_initialization_helpers_or_generic_slots() {
         "public override fun <T> f(value: T): T = value",
     ] {
         err(&format!(
-            "class C {{ override interface I {{ {member} }} }}"
+            "class C<T> {{ override interface I where T : ref {{ {member} }} }}"
         ));
     }
 }

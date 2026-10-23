@@ -29,24 +29,24 @@ impl Parser {
         }
         self.expect("`interface`", |kind| matches!(kind, TokenKind::Interface))?;
         let interface = self.parse_type_ref()?;
-        let where_clause = self.parse_where_clause()?;
-        if let Some(clause) = &where_clause {
-            if let Some(requirement) = clause.requirements.first() {
-                return Err(Diagnostic::at(
-                    requirement.span,
-                    "`requires` is not allowed in an interface implementation",
-                ));
-            }
-            if let Some(condition) = clause
-                .constraints
-                .iter()
-                .find(|condition| matches!(condition.bound, TypeBound::ExcludedInterface(_)))
-            {
-                return Err(Diagnostic::at(
-                    condition.span,
-                    "interface implementation conditions must be positive",
-                ));
-            }
+        let where_clause = self.parse_where_clause()?.ok_or_else(|| {
+            Diagnostic::at(interface.span, "`override interface` requires a non-empty `where` clause; declare an unconditional interface in the type or companion's interface list")
+        })?;
+        if let Some(requirement) = where_clause.requirements.first() {
+            return Err(Diagnostic::at(
+                requirement.span,
+                "`requires` is not allowed in an interface implementation",
+            ));
+        }
+        if let Some(condition) = where_clause
+            .constraints
+            .iter()
+            .find(|condition| matches!(condition.bound, TypeBound::ExcludedInterface(_)))
+        {
+            return Err(Diagnostic::at(
+                condition.span,
+                "interface implementation conditions must be positive",
+            ));
         }
         self.expect("`{`", |kind| matches!(kind, TokenKind::LBrace))?;
         let body_depth = self.brace_depth();

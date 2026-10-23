@@ -43,10 +43,7 @@ struct Shared<T>(val value: T) {
     override interface Left where T : First {}
     override interface Right where T : Second {}
 }
-object Fixed {
-    override interface Left {}
-    override interface More {}
-}
+object Fixed : Left, More {}
 
 fun <T : First> fromFirst(value: Select<T>): Int = value.read()
 

@@ -62,7 +62,7 @@ class Relisted<T>(value: T) : Base<T>(value) {{
     override interface Read where T : Read {{ public override fun read(): Int = 11 }}
 }}
 class Restricted<T : Read>(value: T) : Base<T>(value) {{
-    override interface Read {{ public override fun read(): Int = 12 }}
+    public override fun read(): Int = 12
 }}
 struct Wrap<T>(val value: T) {{
     override interface Read where T : Read {{ public override fun read(): Int = value.read() }}
