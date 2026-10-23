@@ -22,5 +22,5 @@
 - H1 接入：本机 release Cone 测试 36／36 通过；新增真实动态端口 TCP／TLS 覆盖请求隔离、HTTP/1.0 EOF、HEAD／trailer、Continue／417／提前拒绝、半关闭、容量、超时、优雅／强制／并发关闭和接管前失败。API 文档检查通过。
 - 已发布本机 `scoop.http.server.slib`，并更新因 HTTP 消息工具变化而受影响的 HTTP／HTTP asyncio／HTTP client 开发产物；不修改客户端源码。
 - 独立 `consumer-tests` Cone 消费发布的 `.slib`，通过公开 API 完成真实 JSON 请求、path 参数、Cookie 和响应；1／1 release 测试通过。该 Cone 单独运行，避免父 Cone 重复收集同一测试。
-- H2 底层首部观测：新增 RequestHeadStarted／RequestHeadReceived，HTTP 定向测试 3／3、异步通知测试 1／1 通过，两个 Cone 的 API 文档检查通过。覆盖分段帧头、HPACK／CONTINUATION、非法首部和通知先于接受交付；响应／trailer 不重复开始。
+- H2 底层首部观测：新增 RequestHeadStarted／RequestHeadReceived，HTTP 定向测试 4／4、异步通知测试 1／1 通过，两个 Cone 的 API 文档检查通过。覆盖分段帧头、HPACK／CONTINUATION、非法首部和通知先于接受交付；响应／trailer 不重复开始；reset 后被后端忽略的迟到 trailer 也不启动计时，后续请求仍可处理。
 - H2 server 与 Linux 尚未验证；Linux 在完整库功能就绪后串行运行最小验证集合。

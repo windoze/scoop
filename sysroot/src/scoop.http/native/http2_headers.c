@@ -23,7 +23,10 @@ static int begin_headers(nghttp2_session *session, const nghttp2_frame *frame,
   h->headers->info.version = 20;
   h->headers->info.stream_id = frame->hd.stream_id;
   h->header_bytes = h->header_count = 0;
-  return 0;
+  return kind == HTTP_EVENT_REQUEST
+             ? http2_push_simple(h, HTTP_EVENT_REQUEST_HEAD_START,
+                                 frame->hd.stream_id, 0)
+             : 0;
 }
 
 static int header_limit(http2 *h, int32_t id, size_t name, size_t value) {

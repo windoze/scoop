@@ -61,4 +61,17 @@ private fun starts2(events: List<Http2Event>, streamId: Int): Long {
             assertTrue(closed2(events, 1, 1U))
         }
     }
+
+    @Test fun `a late trailer after reset does not start a phantom request head`() {
+        Http2Session.server().use { server ->
+            receive2(server, clientPreface2())
+            receive2(server, frame2(1, 4, 1, headerBlock2(rawRequestFields2())))
+            assertEquals(1L, starts2(events2(server), 1))
+            server.reset(1); output2(server); events2(server)
+            receive2(server, frame2(1, 5, 1, headerBlock2([HttpField("x-tail".toByteArray(), "late".toByteArray())])))
+            assertEquals(0L, starts2(events2(server), 1))
+            receive2(server, frame2(1, 5, 3, headerBlock2(rawRequestFields2())))
+            assertEquals(1L, requests2(events2(server)).size)
+        }
+    }
 }

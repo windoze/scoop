@@ -20,8 +20,7 @@ static int progress(http2_input *input, int32_t id, int64_t count) {
 static int begin_frame(nghttp2_session *session, const nghttp2_frame_hd *hd,
                        void *user_data) {
   (void)session;
-  http2 *h = user_data;
-  http2_input *input = &h->input;
+  http2_input *input = &((http2 *)user_data)->input;
   input->began = 1;
   input->payload_left = hd->length;
   input->header_left = 9;
@@ -30,12 +29,6 @@ static int begin_frame(nghttp2_session *session, const nghttp2_frame_hd *hd,
                              hd->type == NGHTTP2_DATA
                          ? hd->stream_id
                          : 0;
-  if (h->server && hd->type == NGHTTP2_HEADERS) {
-    http2_stream *stream = http2_find(h, hd->stream_id);
-    if ((!stream || !stream->received_final) &&
-        http2_push_simple(h, HTTP_EVENT_REQUEST_HEAD_START, hd->stream_id, 0))
-      return NGHTTP2_ERR_CALLBACK_FAILURE;
-  }
   return progress(input, input->stream_id, 9) ? 0
                                               : NGHTTP2_ERR_CALLBACK_FAILURE;
 }

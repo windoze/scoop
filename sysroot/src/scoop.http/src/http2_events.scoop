@@ -5,7 +5,7 @@ package scoop.http
  * separately through the session.
  */
 public enum Http2Event {
-    /** A server recognized an initial request HEADERS frame, before the head is complete. */
+    /** A server began decoding a new request header block, before the head is complete. */
     RequestHeadStarted(Int),
     /**
      * A stream ID and its initial request head.

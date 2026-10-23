@@ -87,7 +87,7 @@ Http2Session 的 client／server 工厂固定角色、接收选项、本地限�
 
 submitRequest／submitResponse 的 endStream 表示头部后立即结束发送；需要 body 或 trailer 时设为 false，随后 writeBody／finish。信息响应不结束流，必须显式使用 endStream=false。writeBody 只接受每流待发送容量内的前缀；返回零表示等待实际输出或窗口进展。finish 表示没有更多 DATA，可附独立 trailer。接收端通过 Request／Response／Data／Trailers／End 事件区分阶段，End 前没有 trailer 时也交付空 Trailers。StreamClosed 保存实际 HTTP/2 错误码，GoAway 另保存方向、最后 stream ID 与调试字节；不能把正常单向 End 等同于整个流关闭。
 
-`Http2Event.RequestHeadStarted(streamId)` 仅由服务端接收初始请求 HEADERS 的帧头时交付，在完整的 HPACK／CONTINUATION 首部块之前可观察；同一块的 CONTINUATION 不重复开始，响应及 trailer 不产生此事件。该事件只表示后端已识别开始，不表示请求合法或已接受。成功以 Request 结束，拒绝／失败以实际 StreamClosed 或连接终止结束；部分 9 字节帧头尚未被后端识别时不提前报告。实现复用 nghttp2 帧开始回调，不另外解析输入。
+`Http2Event.RequestHeadStarted(streamId)` 仅在后端确认开始接收新的初始请求首部块时交付，在完整的 HPACK／CONTINUATION 首部块之前可观察；同一块的 CONTINUATION 不重复开始，响应及 trailer 不产生此事件。该事件只表示后端已识别开始，不表示请求合法或已接受。成功以 Request 结束，拒绝／失败以实际 StreamClosed 或连接终止结束；部分 9 字节帧头尚未被后端识别时不提前报告。实现复用 nghttp2 的请求首部块开始回调，不另外解析输入；尚未读完的 padding／priority 前缀可能延后此观测。后端忽略的已关闭流 HEADERS 不开始新的请求首部计时。
 
 请求 HEADERS 已排队但尚未发送时，对端 GOAWAY 可以使后端拒绝打开该流。nghttp2 随后的实际 StreamClosed(REFUSED_STREAM) 是该次拒绝的终止结果；包装层不先将同一次 START_STREAM_NOT_ALLOWED 未发送回调重复报告为 Failure。该流的待发正文与 trailer 随关闭释放，已接受的其他流仍可完成；其他发送错误保留其实际 Failure，不一律解释成请求未处理。
 
