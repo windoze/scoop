@@ -23,18 +23,26 @@ impl SemanticSession {
             .identity;
         let diagnostics = match self.declarations(snapshot, source, || false) {
             Ok(Some(analysis)) => {
-                let functions = analysis
-                    .functions()
-                    .iter()
-                    .filter(|function| function.name_origin.source == *identity)
-                    .map(|function| function.function)
-                    .collect::<Vec<_>>();
-                for function in functions {
+                let mut checked = std::collections::HashSet::new();
+                loop {
                     snapshot.check_cancelled()?;
-                    let revision = snapshot.clone();
-                    analysis
-                        .function_facts(function, move || revision.check_cancelled().is_err())
-                        .map_err(|_| ProjectAnalysisError::Cancelled)?;
+                    let functions = analysis
+                        .source_bodies()
+                        .into_iter()
+                        .filter(|body| body.origin.source == *identity)
+                        .map(|body| body.function)
+                        .filter(|function| !checked.contains(function))
+                        .collect::<Vec<_>>();
+                    if functions.is_empty() {
+                        break;
+                    }
+                    for function in functions {
+                        let revision = snapshot.clone();
+                        analysis
+                            .function_facts(function, move || revision.check_cancelled().is_err())
+                            .map_err(|_| ProjectAnalysisError::Cancelled)?;
+                        checked.insert(function);
+                    }
                 }
                 analysis.diagnostics()
             }

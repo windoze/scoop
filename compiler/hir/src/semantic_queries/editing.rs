@@ -39,6 +39,14 @@ pub struct EditingFunction {
     pub span: Span,
 }
 
+/// One source body and the callable declaration implemented by its real function.
+#[derive(Clone, Debug)]
+pub struct EditingSourceBody {
+    pub function: FunctionId,
+    pub callable: super::SemanticCallable,
+    pub origin: SemanticSourceLocation,
+}
+
 /// Resolved declaration types, without claiming that defaults have been checked.
 #[derive(Clone, Debug)]
 pub struct EditingParameter {

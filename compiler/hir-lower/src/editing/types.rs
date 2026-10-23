@@ -116,17 +116,9 @@ impl DeclarationAnalysis {
             return Ok(V::Known(Some(reference.clone())));
         }
         let check = std::rc::Rc::new(is_cancelled);
-        let functions = self
-            .functions
-            .iter()
-            .filter(|function| {
-                &function.name_origin.source == source
-                    && function.span.start <= span.start
-                    && span.end <= function.span.end
-            })
-            .map(|function| function.function)
-            .collect::<Vec<_>>();
-        for function in functions {
+        let cancellation = check.clone();
+        if let Some(body) = self.source_body_at(source, span, move || cancellation())? {
+            let function = body.function;
             let check = check.clone();
             match self.function_facts(function, move || check())? {
                 V::Known(facts) => {

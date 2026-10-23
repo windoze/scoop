@@ -125,6 +125,21 @@ pub(super) fn functions(
         .collect()
 }
 
+pub(super) fn body(
+    analysis: &mut DeclarationAnalysis,
+    cursor: &Cursor<'_>,
+    snapshot: &AnalysisSnapshot,
+    cancellation: &Cancellation,
+) -> Result<Option<hir::EditingSourceBody>, ResponseError> {
+    let revision = snapshot.clone();
+    let requested = cancellation.clone();
+    analysis
+        .source_body_at(&cursor.file.identity, cursor.span, move || {
+            requested.check().is_err() || revision.check_cancelled().is_err()
+        })
+        .map_err(|_| cancelled())
+}
+
 pub(super) struct Local {
     pub reference: Option<hir::EditingLocalReference>,
     pub ty: hir::TypeId,

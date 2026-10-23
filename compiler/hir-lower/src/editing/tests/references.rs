@@ -110,7 +110,13 @@ fn property_indexes_use_logical_declarations_for_reads_and_writes() {
             index: 0
         }
     )));
-    assert_eq!(index.references_to(item).count(), 2);
+    assert_eq!(index.references_to(item).count(), 4);
+    for needle in ["item\nset", "item = value"] {
+        assert_eq!(
+            index.targets_at(&origin(text.find(needle).unwrap(), 4)),
+            &[item]
+        );
+    }
 }
 
 #[test]

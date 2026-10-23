@@ -4,13 +4,14 @@ impl ReferenceBuilder {
     pub(super) fn body(
         &mut self,
         analysis: &mut DeclarationAnalysis,
-        function: &hir::EditingFunction,
+        function: &hir::EditingSourceBody,
         check: &Rc<dyn Fn() -> bool>,
     ) -> Result<(), EditingCancelled> {
         let cancellation = check.clone();
         let V::Known(facts) = analysis.function_facts(function.function, move || cancellation())?
         else {
-            self.unavailable.push(function.name_origin.clone());
+            self.parameters(analysis, function.function, function.callable);
+            self.unavailable.push(function.origin.clone());
             return Ok(());
         };
         let locals = facts.locals.clone();
@@ -22,40 +23,25 @@ impl ReferenceBuilder {
             .extend(facts.imports.iter().map(|reference| {
                 (
                     hir::SemanticSourceLocation {
-                        source: function.name_origin.source.clone(),
+                        source: function.origin.source.clone(),
                         span: reference.span,
                     },
                     reference.imports.clone(),
                 )
             }));
-        let mut parameters = HashMap::new();
-        for declaration in std::iter::once(function).chain(local_functions.iter()) {
+        let mut parameters = self.parameters(analysis, function.function, function.callable);
+        for declaration in &local_functions {
             if check() {
                 return Err(EditingCancelled);
             }
-            if declaration.function != function.function {
-                self.function(analysis, declaration);
-            }
-            let V::Known(signature) = analysis.signature(declaration.function) else {
-                continue;
-            };
-            let Some(callable) = self.identities.callable(
-                &mut analysis.lowerer,
+            self.function(analysis, declaration);
+            parameters.extend(self.parameters(
+                analysis,
+                declaration.function,
                 hir::SemanticCallable::Current(declaration.function),
-            ) else {
-                continue;
-            };
-            for (index, parameter) in signature.parameters.iter().enumerate() {
-                parameters.insert(
-                    parameter.origin.clone(),
-                    Target::Parameter {
-                        callable,
-                        index: index as u32,
-                    },
-                );
-            }
+            ));
         }
-        let source = &function.name_origin.source;
+        let source = &function.origin.source;
         for local in locals {
             if check() {
                 return Err(EditingCancelled);
@@ -137,5 +123,32 @@ impl ReferenceBuilder {
             }
         }
         Ok(())
+    }
+
+    fn parameters(
+        &mut self,
+        analysis: &mut DeclarationAnalysis,
+        function: hir::FunctionId,
+        declaration: hir::SemanticCallable,
+    ) -> HashMap<hir::SemanticSourceLocation, Target> {
+        let V::Known(signature) = analysis.signature(function) else {
+            return HashMap::new();
+        };
+        let Some(callable) = self.identities.callable(&mut analysis.lowerer, declaration) else {
+            return HashMap::new();
+        };
+        signature
+            .parameters
+            .into_iter()
+            .enumerate()
+            .map(|(index, parameter)| {
+                let target = Target::Parameter {
+                    callable,
+                    index: index as u32,
+                };
+                self.record(target, parameter.origin.clone(), true);
+                (parameter.origin, target)
+            })
+            .collect()
     }
 }

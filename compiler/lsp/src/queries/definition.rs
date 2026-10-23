@@ -26,14 +26,34 @@ pub(crate) fn definition(
         let EditingValue::Known(signature) = analysis.signature(function.function) else {
             continue;
         };
-        let mut origin = if function.name_origin.span == cursor.span {
+        let origin = if function.name_origin.span == cursor.span {
             Some(function.name_origin)
-        } else if let Some(parameter) = signature
-            .parameters
-            .iter()
-            .find(|parameter| parameter.origin.span == cursor.span)
-        {
-            Some(parameter.origin.clone())
+        } else {
+            signature
+                .parameters
+                .iter()
+                .find(|parameter| parameter.origin.span == cursor.span)
+                .map(|parameter| parameter.origin.clone())
+        };
+        if let Some(origin) = origin {
+            return super::json(convert::definition_location(
+                snapshot,
+                cursor.project,
+                &origin,
+                settings,
+            )?);
+        }
+    }
+    if let Some(function) = semantic::body(analysis, &cursor, snapshot, cancellation)? {
+        let parameter = match analysis.signature(function.function) {
+            EditingValue::Known(signature) => signature
+                .parameters
+                .into_iter()
+                .find(|parameter| parameter.origin.span == cursor.span),
+            EditingValue::Unavailable(_) => None,
+        };
+        let mut origin = if let Some(parameter) = parameter {
+            Some(parameter.origin)
         } else {
             semantic::local_at(
                 analysis,

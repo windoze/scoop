@@ -102,7 +102,11 @@ impl Lowerer {
             return;
         };
         if definition.file as usize != self.current_file
-            || definition.span.start == definition.span.end
+            || (definition.span.start == definition.span.end
+                && !matches!(
+                    local.selector,
+                    scoop_identity::LocalValueSelector::Parameter { .. }
+                ))
             || matches!(local.selector, scoop_identity::LocalValueSelector::This)
         {
             return;

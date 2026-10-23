@@ -1,15 +1,6 @@
 use super::*;
 use hir::{EditingCallee as C, SemanticConstructor as Constructor};
 
-impl DeclarationAnalysis {
-    pub(super) fn declaration_scope_available(&self, origin: &hir::SemanticSourceLocation) -> bool {
-        self.functions.iter().filter(|function| {
-            function.name_origin.source == origin.source
-                && function.span.start <= origin.span.start && origin.span.end <= function.span.end
-        }).all(|function| matches!(self.body_facts.get(&function.function), Some(V::Known(body)) if body.available()))
-    }
-}
-
 impl ReferenceBuilder {
     pub(super) fn constructors(
         &mut self,

@@ -69,6 +69,37 @@ fn property_declarations_keep_their_own_comment_beside_constructor_parameters() 
 }
 
 #[test]
+fn setter_body_parameters_keep_the_original_accessor_documentation_target() {
+    let text = "/// The logical property.\nvar state: Boolean = true\nget() = field\n/// @param next The replacement value.\nset(next) { field = next }";
+    let mut analysis = documented(text, || false).unwrap();
+    let source = crate::tests::test_source_identity("src/docs.scoop");
+    let start = text.rfind("next").unwrap() as u32;
+    let body = analysis
+        .source_body_at(&source, ast::Span::new(start, start + 4), || false)
+        .unwrap()
+        .unwrap();
+    let hir::SemanticCallable::CurrentSetter(setter) = body.callable else {
+        panic!("the source body belongs to the actual setter")
+    };
+    let V::Known(facts) = analysis.function_facts(body.function, || false).unwrap() else {
+        panic!("the setter body is complete")
+    };
+    assert!(facts.locals.iter().any(|local| {
+        local.reference.name == "next" && local.role == hir::EditingLocalRole::Read
+    }));
+    let target = hir::SourceAnnotationTarget::Parameter {
+        callable: hir::SourceAnnotationCallable::Setter(setter),
+        index: 0,
+    };
+    let docs = analysis.documentation().unwrap();
+    assert!(docs.warnings.is_empty(), "{:?}", docs.warnings);
+    assert_eq!(
+        scoop_doc::hover_markdown(docs.get(Symbol::Current(target.into())).unwrap(), |_| None),
+        "The replacement value."
+    );
+}
+
+#[test]
 fn variant_arguments_read_parameter_tags_without_borrowing_payload_comments() {
     let text = "enum Event {\n/// @param value The constructor argument.\nData(/** The stored payload. */ val value: Boolean)\n}\nfun editing() { val event = Event.Data(value = true) }";
     let mut analysis = documented(text, || false).unwrap();

@@ -40,7 +40,33 @@ impl DeclarationAnalysis {
                     return Err(EditingCancelled);
                 }
                 builder.function(self, &function);
-                builder.body(self, &function, &check)?;
+                builder.body(
+                    self,
+                    &hir::EditingSourceBody {
+                        function: function.function,
+                        callable: hir::SemanticCallable::Current(function.function),
+                        origin: function.name_origin,
+                    },
+                    &check,
+                )?;
+            }
+            let mut checked_accessors = std::collections::HashSet::new();
+            loop {
+                let bodies = self
+                    .source_bodies()
+                    .into_iter()
+                    .filter(|body| {
+                        !matches!(body.callable, hir::SemanticCallable::Current(_))
+                            && !checked_accessors.contains(&body.function)
+                    })
+                    .collect::<Vec<_>>();
+                if bodies.is_empty() {
+                    break;
+                }
+                for body in bodies {
+                    checked_accessors.insert(body.function);
+                    builder.body(self, &body, &check)?;
+                }
             }
             if self.declarations_ready {
                 builder.types(&self.type_references);

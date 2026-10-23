@@ -105,7 +105,25 @@ fn description(
     if let Some(description) = properties::declaration(analysis, cursor, cancellation)? {
         return Ok(Some(description));
     }
-    for (function, signature) in functions {
+    if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {
+        let EditingValue::Known(signature) = analysis.signature(function.function) else {
+            return Ok(None);
+        };
+        if let Some((index, parameter)) = signature
+            .parameters
+            .iter()
+            .enumerate()
+            .find(|(_, parameter)| parameter.origin.span == target)
+        {
+            let ty = type_label(analysis, function.function, parameter.value_type)?;
+            return Ok(Some(Description {
+                label: format!("{}: {ty}", parameter.name),
+                documentation: Some(documentation::Query {
+                    symbol: documentation::applied_parameter(function.callable.into(), index),
+                    origin: parameter.origin.clone(),
+                }),
+            }));
+        }
         if let Some(description) =
             arguments::named(analysis, function.function, target, cancellation)?
         {
@@ -144,7 +162,7 @@ fn description(
                         .iter()
                         .position(|parameter| parameter.origin == local.definition)?;
                     Some(documentation::Query {
-                        symbol: documentation::parameter(function.function, index),
+                        symbol: documentation::applied_parameter(function.callable.into(), index),
                         origin: local.definition,
                     })
                 }),

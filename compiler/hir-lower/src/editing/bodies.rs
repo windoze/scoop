@@ -20,47 +20,7 @@ impl DeclarationAnalysis {
             return Err(EditingCancelled);
         }
         if !self.body_facts.contains_key(&function) {
-            let facts = match self.signature(function) {
-                V::Unavailable(reason) => V::Unavailable(reason),
-                V::Known(_) => match self.body_inputs.get(&function) {
-                    Some(declaration) => {
-                        let mut candidate = self.lowerer.clone();
-                        let before = candidate.diagnostics.len();
-                        candidate.current_file = candidate
-                            .function_definition_file(function)
-                            .expect("source function has its definition file");
-                        candidate.editing_body = Some(BodyObservation::new(
-                            function,
-                            candidate.current_file,
-                            before,
-                            is_cancelled,
-                        ));
-                        let completed = if matches!(declaration.body, ast::FunctionBody::None) {
-                            true
-                        } else if candidate.signatures[&function].result_pending {
-                            candidate.infer_function_result(function).is_some()
-                        } else {
-                            let body = candidate.lower_body(function, declaration);
-                            candidate.functions[function].kind = hir::FunctionKind::User(body);
-                            true
-                        };
-                        let observed = candidate.editing_body.take().expect("active body query");
-                        if observed.cancelled() {
-                            return Err(EditingCancelled);
-                        }
-                        let complete =
-                            completed && !observed.failed && candidate.diagnostics.len() == before;
-                        let cancellation = observed.cancellation();
-                        let facts = V::Known(observed.finish(&mut candidate, complete));
-                        if cancellation() {
-                            return Err(EditingCancelled);
-                        }
-                        self.lowerer = candidate;
-                        facts
-                    }
-                    None => V::Unavailable(U::IncompleteSyntax),
-                },
-            };
+            let facts = self.analyze_source_body(function, is_cancelled)?;
             self.body_facts.insert(function, facts);
         }
         Ok(match &self.body_facts[&function] {
@@ -70,6 +30,64 @@ impl DeclarationAnalysis {
             },
             V::Unavailable(reason) => V::Unavailable(*reason),
         })
+    }
+
+    fn analyze_source_body(
+        &mut self,
+        function: hir::FunctionId,
+        is_cancelled: impl Fn() -> bool + 'static,
+    ) -> Result<V<ObservedBody>, EditingCancelled> {
+        if let V::Unavailable(reason) = self.signature(function)
+            && !(reason == U::PendingInference
+                && self.lowerer.editing_accessor_source(function).is_some())
+        {
+            return Ok(V::Unavailable(reason));
+        }
+        let Some(declaration) = self.source_body_declaration(function) else {
+            return Ok(V::Unavailable(U::IncompleteSyntax));
+        };
+        let mut candidate = self.lowerer.clone();
+        let before = candidate.diagnostics.len();
+        candidate.current_file = candidate
+            .function_definition_file(function)
+            .expect("source body has its definition file");
+        candidate.editing_body = Some(BodyObservation::new(
+            function,
+            candidate.current_file,
+            before,
+            is_cancelled,
+        ));
+        let completed = if let Some(source) = candidate.editing_accessor_source(function).cloned() {
+            let pending = candidate.property_type_pending(source.property);
+            if candidate.infer_property_type(source.property).is_none() {
+                false
+            } else {
+                if !pending || !candidate.property_accessor_was_lowered(function) {
+                    candidate.lower_property_accessor_body(&source);
+                }
+                true
+            }
+        } else if matches!(declaration.body, ast::FunctionBody::None) {
+            true
+        } else if candidate.signatures[&function].result_pending {
+            candidate.infer_function_result(function).is_some()
+        } else {
+            let body = candidate.lower_body(function, declaration);
+            candidate.functions[function].kind = hir::FunctionKind::User(body);
+            true
+        };
+        let observed = candidate.editing_body.take().expect("active body query");
+        if observed.cancelled() {
+            return Err(EditingCancelled);
+        }
+        let complete = completed && !observed.failed && candidate.diagnostics.len() == before;
+        let cancellation = observed.cancellation();
+        let facts = V::Known(observed.finish(&mut candidate, complete));
+        if cancellation() {
+            return Err(EditingCancelled);
+        }
+        self.lowerer = candidate;
+        Ok(facts)
     }
 
     pub fn describe_body_type(

@@ -18,6 +18,7 @@ mod members;
 mod parameters;
 mod properties;
 mod references;
+mod source_bodies;
 pub(crate) mod types;
 pub(crate) use bodies::{BodyObservation, ObservedBody};
 mod receivers;

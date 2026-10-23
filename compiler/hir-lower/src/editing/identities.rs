@@ -77,8 +77,31 @@ impl DeclarationIdentities {
                     Some(Callable::Declaration(declaration))
                 })
             }
-            hir::SemanticCallable::CurrentGetter(_) | hir::SemanticCallable::CurrentSetter(_) => {
-                None
+            hir::SemanticCallable::CurrentGetter(getter) => {
+                let property = lowerer
+                    .properties
+                    .iter()
+                    .find(|(_, property)| property.capability.getter() == getter)?
+                    .0;
+                self.property(lowerer, hir::SemanticProperty::Current(property))?;
+                Some(Callable::Declaration(
+                    hir::DefaultCallableDeclarationV1::PropertyAccessor(
+                        lowerer.query_getter_identity(property, getter),
+                    ),
+                ))
+            }
+            hir::SemanticCallable::CurrentSetter(setter) => {
+                let property = lowerer
+                    .properties
+                    .iter()
+                    .find(|(_, property)| property.capability.setter() == Some(setter))?
+                    .0;
+                self.property(lowerer, hir::SemanticProperty::Current(property))?;
+                Some(Callable::Declaration(
+                    hir::DefaultCallableDeclarationV1::PropertyAccessor(
+                        lowerer.query_setter_identity(property, setter),
+                    ),
+                ))
             }
         }
     }

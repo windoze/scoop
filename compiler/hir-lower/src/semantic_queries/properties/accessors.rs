@@ -8,15 +8,7 @@ impl Lowerer {
         getter: hir::PropertyGetterId,
         file: usize,
     ) -> hir::SemanticAccessorDescription {
-        let owner = self.ordinary_property_identity(property).property_owner();
-        let identity = self
-            .getter_identity_records
-            .entry(getter)
-            .or_insert_with(|| {
-                hir::HirPropertyAccessorIdentity::getter(property, owner)
-                    .expect("a checked property identifies its getter")
-            })
-            .id();
+        let identity = self.query_getter_identity(property, getter);
         let value = &self.property_getters[getter];
         hir::SemanticAccessorDescription {
             identity,
@@ -52,15 +44,7 @@ impl Lowerer {
         setter: hir::PropertySetterId,
         file: usize,
     ) -> hir::SemanticAccessorDescription {
-        let owner = self.ordinary_property_identity(property).property_owner();
-        let identity = self
-            .setter_identity_records
-            .entry(setter)
-            .or_insert_with(|| {
-                hir::HirPropertyAccessorIdentity::setter(property, owner)
-                    .expect("a checked property identifies its setter")
-            })
-            .id();
+        let identity = self.query_setter_identity(property, setter);
         let value = &self.property_setters[setter];
         hir::SemanticAccessorDescription {
             identity,
@@ -87,5 +71,39 @@ impl Lowerer {
                 span: value.span,
             },
         }
+    }
+}
+
+impl Lowerer {
+    pub(crate) fn query_getter_identity(
+        &mut self,
+        property: hir::PropertyId,
+        getter: hir::PropertyGetterId,
+    ) -> scoop_identity::PersistentPropertyAccessorId {
+        let owner = self.ordinary_property_identity(property).property_owner();
+        self.getter_identity_records
+            .entry(getter)
+            .or_insert_with(|| {
+                hir::HirPropertyAccessorIdentity::getter(property, owner)
+                    .expect("a checked property identifies its getter")
+            })
+            .id()
+    }
+}
+
+impl Lowerer {
+    pub(crate) fn query_setter_identity(
+        &mut self,
+        property: hir::PropertyId,
+        setter: hir::PropertySetterId,
+    ) -> scoop_identity::PersistentPropertyAccessorId {
+        let owner = self.ordinary_property_identity(property).property_owner();
+        self.setter_identity_records
+            .entry(setter)
+            .or_insert_with(|| {
+                hir::HirPropertyAccessorIdentity::setter(property, owner)
+                    .expect("a checked property identifies its setter")
+            })
+            .id()
     }
 }

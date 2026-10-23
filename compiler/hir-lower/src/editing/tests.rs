@@ -1,6 +1,7 @@
 use super::*;
 use hir::{EditingUnavailable as U, EditingValue as V};
 
+mod accessors;
 mod bodies;
 mod callable_argument_contexts;
 mod callable_arguments;

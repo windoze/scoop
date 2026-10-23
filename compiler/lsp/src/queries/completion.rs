@@ -23,7 +23,7 @@ pub(crate) fn completion(
     let Some(analysis) = semantic::declarations(semantics, snapshot, source, cancellation)? else {
         return json(None::<CompletionList>);
     };
-    for function in semantic::functions(analysis, &cursor) {
+    if let Some(function) = semantic::body(analysis, &cursor, snapshot, cancellation)? {
         let receivers = analysis
             .receivers(function.function, || {
                 cancellation.check().is_err() || snapshot.check_cancelled().is_err()
@@ -48,7 +48,7 @@ pub(crate) fn completion(
             })
             .map_err(|_| semantic::cancelled())?
         else {
-            continue;
+            return json(None::<CompletionList>);
         };
         if let Some(selector) = selectors.iter().find(|selector| {
             selector.selector.start <= cursor.span.start && cursor.span.end <= selector.selector.end

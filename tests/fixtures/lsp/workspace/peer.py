@@ -7,6 +7,7 @@ import sys
 import threading
 from pathlib import Path
 
+from accessor_bodies import check as check_accessor_bodies
 from callable_arguments import check as check_callable_arguments
 from callable_literals import check as check_callable_literals
 from callable_values import check as check_callable_values
@@ -342,6 +343,7 @@ def main():
         check_source_dependencies(peer, root)
         check_documentation(peer, root)
         check_constructor_references(peer, root)
+        check_accessor_bodies(peer, root)
         check_type_references(peer, root)
         check_type_definitions(peer, root)
         check_type_hovers(peer, root)

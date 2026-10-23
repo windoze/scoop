@@ -34,7 +34,7 @@ pub(crate) fn signature_help(
         return Ok(Value::Null);
     };
     let mut selected = None;
-    for function in semantic::functions(analysis, &cursor) {
+    if let Some(function) = semantic::body(analysis, &cursor, snapshot, cancellation)? {
         let revision = snapshot.clone();
         let cancelled = cancellation.clone();
         let EditingValue::Known(calls) = analysis
@@ -43,7 +43,7 @@ pub(crate) fn signature_help(
             })
             .map_err(|_| semantic::cancelled())?
         else {
-            continue;
+            return incomplete::signature_help(analysis, &cursor, snapshot, cancellation);
         };
         for call in calls {
             let Some(active) = position::active_parameter(call, cursor.span.start, &positions)

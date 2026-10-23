@@ -83,7 +83,15 @@ fn origin(
     {
         return Ok(reference.definition);
     }
-    for function in functions {
+    if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {
+        if let V::Known(signature) = analysis.signature(function.function)
+            && let Some(parameter) = signature
+                .parameters
+                .iter()
+                .find(|parameter| parameter.origin.span == cursor.span)
+        {
+            return value_origin(analysis, parameter.value_type);
+        }
         if let V::Known(calls) = analysis
             .calls(function.function, check(snapshot, cancellation))
             .map_err(|_| semantic::cancelled())?
