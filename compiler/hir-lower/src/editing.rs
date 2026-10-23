@@ -9,6 +9,7 @@ use crate::{CoreProtocolInput, Lowerer, SourceKind, SourceProvider};
 mod bodies;
 mod callables;
 pub(crate) mod candidates;
+pub(crate) mod constants;
 mod constructors;
 mod definitions;
 mod identities;
@@ -44,6 +45,7 @@ pub struct DeclarationAnalysis {
     pub(crate) reference_index: Option<hir::EditingReferenceIndex>,
     pub(crate) type_references: Vec<hir::EditingTypeReference>,
     pub(crate) type_applications: Vec<hir::EditingTypeApplication>,
+    pub(crate) constant_references: Vec<hir::EditingConstantReference>,
     pub(crate) type_implementations: Option<
         std::collections::HashMap<hir::SourceNominalId, Vec<hir::EditingTypeImplementation>>,
     >,

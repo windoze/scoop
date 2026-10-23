@@ -40,6 +40,15 @@ impl DeclarationAnalysis {
                     (&origin.source == source).then_some(Property::Current(property))
                 });
         if selected.is_none() {
+            selected = self
+                .constant_references
+                .iter()
+                .find(|reference| {
+                    &reference.origin.source == source && reference.origin.span == span
+                })
+                .map(|reference| reference.target);
+        }
+        if selected.is_none() {
             for binding in self.import_bindings(source, span) {
                 if check() {
                     return Err(EditingCancelled);

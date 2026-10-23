@@ -14,6 +14,7 @@ impl Lowerer {
         check: &impl Fn() -> Result<(), EditingCancelled>,
     ) -> Result<DeclarationAnalysis, EditingCancelled> {
         self.editing_types = Some(Default::default());
+        self.editing_constants = Some(Default::default());
         let mut unavailable_files = Vec::new();
         let mut unavailable_headers = std::collections::HashMap::new();
         for (file, source) in sources.iter().enumerate() {
@@ -68,6 +69,7 @@ impl Lowerer {
                     reference_index: None,
                     type_references: Vec::new(),
                     type_applications: Vec::new(),
+                    constant_references: Vec::new(),
                     type_implementations: None,
                     member_implementations: None,
                     documentation: None,
@@ -142,6 +144,11 @@ impl Lowerer {
         } else {
             None
         };
+        let constant_references = self
+            .editing_constants
+            .take()
+            .expect("declaration constant observation")
+            .finish(&self);
         Ok(DeclarationAnalysis {
             lowerer: self,
             functions,
@@ -154,6 +161,7 @@ impl Lowerer {
             reference_index: None,
             type_references,
             type_applications,
+            constant_references,
             type_implementations: None,
             member_implementations: None,
             documentation,

@@ -34,6 +34,7 @@ from references import check as check_references
 from runtime_initializers import check as check_runtime_initializers
 from signatures import check as check_signatures
 from source_dependencies import check as check_source_dependencies
+from static_constants import check as check_static_constants
 from type_definitions import check as check_type_definitions
 from type_hovers import check as check_type_hovers
 from type_implementations import check as check_type_implementations
@@ -346,6 +347,7 @@ def main():
         check_constructor_references(peer, root)
         check_accessor_bodies(peer, root)
         check_runtime_initializers(peer, root)
+        check_static_constants(peer, root)
         check_type_references(peer, root)
         check_type_definitions(peer, root)
         check_type_hovers(peer, root)

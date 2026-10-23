@@ -187,7 +187,7 @@ impl Lowerer {
         self.lookup_value_origin_with_layer(name).1
     }
 
-    pub(super) fn lookup_value_origin_with_layer(
+    pub(crate) fn lookup_value_origin_with_layer(
         &self,
         name: &str,
     ) -> (Option<ImportLookupLayer>, LookupResult<ValueOrigin>) {

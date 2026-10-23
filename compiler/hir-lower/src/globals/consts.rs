@@ -19,6 +19,7 @@ mod integer_authority;
 mod integer_calls;
 mod integer_intrinsics;
 mod integer_values;
+mod lookup;
 
 pub(super) use integer_intrinsics::{ConstIntegerIntrinsicKind, ResolvedConstIntegerIntrinsic};
 pub(super) use integer_values::{
@@ -70,6 +71,7 @@ impl Lowerer {
             );
         }
 
+        let mut allocated = vec![None; declarations.len()];
         for (index, declaration) in declarations.iter().enumerate() {
             let ConstState::Complete(value) = states[index].clone() else {
                 continue;
@@ -116,6 +118,10 @@ impl Lowerer {
             self.property_files.insert(property, declaration.file);
             self.imports
                 .bind_property(declaration.import_source, property);
+            allocated[index] = Some(property);
+        }
+        if let Some(observation) = &mut self.editing_constants {
+            observation.resolve_pending(&allocated);
         }
         self.resolve_integral_enum_constants(enums, declarations, ordinary, &mut states);
         self.current_owner = None;
@@ -166,6 +172,7 @@ impl Lowerer {
         let ast::PropertyBodySyntax::Const(expression) = &declaration.declaration.body else {
             unreachable!("the const worklist contains only const properties")
         };
+        let observation = self.begin_constant_observation();
         let evaluated = self.evaluate_const_expression(
             expression,
             declaration.ty,
@@ -214,6 +221,7 @@ impl Lowerer {
                 None
             }
         });
+        self.finish_constant_observation(observation, result.is_some());
         self.current_file = previous_file;
         self.current_owner = previous_owner;
         stack.pop();
@@ -221,115 +229,6 @@ impl Lowerer {
             .clone()
             .map_or(ConstState::Failed, ConstState::Complete);
         result
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn find_qualified_const_definition(
-        &self,
-        declarations: &[PendingConst<'_>],
-        qualifier: crate::NominalTarget,
-        name: &str,
-        file: usize,
-    ) -> Option<usize> {
-        let direct = match qualifier {
-            crate::NominalTarget::Object(object) => self.find_const_definition(
-                declarations,
-                hir::PropertyOwner::Object(object),
-                name,
-                file,
-                false,
-            ),
-            _ => None,
-        };
-        direct.or_else(|| {
-            let companion = self.companion_object(qualifier.owner())?;
-            self.find_const_definition(
-                declarations,
-                hir::PropertyOwner::Object(companion),
-                name,
-                file,
-                false,
-            )
-        })
-    }
-
-    fn find_const_definition(
-        &self,
-        declarations: &[PendingConst<'_>],
-        owner: hir::PropertyOwner,
-        name: &str,
-        file: usize,
-        fallback_to_top_level: bool,
-    ) -> Option<usize> {
-        let find = |wanted_owner| {
-            if wanted_owner == hir::PropertyOwner::TopLevel {
-                match self.lookup_value_origin(name) {
-                    crate::imports::lookup::LookupResult::Unique(
-                        crate::imports::lookup::values::ValueOrigin::CurrentUnit(binding),
-                    ) => {
-                        let crate::imports::CurrentUnitTarget::SourceProperty(source) =
-                            self.imports.binding(binding).target
-                        else {
-                            return None;
-                        };
-                        return declarations.iter().position(|candidate| matches!(candidate.import_source, crate::imports::PropertyImportSource::CurrentUnit(id) if id == source));
-                    }
-                    crate::imports::lookup::LookupResult::Missing
-                    | crate::imports::lookup::LookupResult::Inaccessible(_)
-                    | crate::imports::lookup::LookupResult::Unique(
-                        crate::imports::lookup::values::ValueOrigin::Core(
-                            crate::imports::lookup::values::ValueTarget::Property(_),
-                        ),
-                    ) => {}
-                    _ => return None,
-                }
-                // Embedded prelude constants have no current-unit import ids and
-                // are evaluated before their ordinary prelude properties exist.
-                let candidates = declarations
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(index, candidate)| {
-                        (!self.source_is_current_cone(candidate.file)
-                            && candidate.owner == wanted_owner
-                            && candidate.declaration.name.text == name
-                            && self.access_domain_allows(&candidate.access.lookup.0))
-                        .then_some(index)
-                    })
-                    .collect::<Vec<_>>();
-                return match candidates.as_slice() {
-                    [one] => Some(*one),
-                    _ => None,
-                };
-            }
-            declarations
-                .iter()
-                .enumerate()
-                .find_map(|(index, candidate)| {
-                    (candidate.owner == wanted_owner
-                        && candidate.declaration.name.text == name
-                        && (candidate.access.declared != hir::DeclaredVisibility::Private
-                            || candidate.file == file
-                            || self.access_domain_allows(&candidate.access.lookup.0)))
-                    .then_some(index)
-                })
-        };
-        find(owner).or_else(|| {
-            (fallback_to_top_level && owner != hir::PropertyOwner::TopLevel)
-                .then(|| find(hir::PropertyOwner::TopLevel))
-                .flatten()
-        })
-    }
-
-    fn const_definition_name(&self, declaration: &PendingConst<'_>) -> String {
-        match declaration.owner {
-            hir::PropertyOwner::TopLevel => declaration.declaration.name.text.clone(),
-            hir::PropertyOwner::Object(object) => format!(
-                "{}.{}",
-                crate::Owner::Object(object).describe_name(self),
-                declaration.declaration.name.text
-            ),
-            _ => unreachable!("the const worklist contains only top-level and object values"),
-        }
     }
 
     fn evaluate_const_unary(

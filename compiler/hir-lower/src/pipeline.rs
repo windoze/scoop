@@ -227,6 +227,7 @@ impl Lowerer {
             editing_receiver: None,
             editing_body: None,
             editing_types: None,
+            editing_constants: None,
             editing_type_definitions: Default::default(),
             editing_local_types: Default::default(),
             core: CoreLoweringAuthority::Defined,

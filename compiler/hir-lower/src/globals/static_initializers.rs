@@ -23,9 +23,12 @@ impl Lowerer {
         expected: hir::TypeId,
     ) -> Option<hir::HirConstantImage> {
         let mut probe = self.clone();
+        let observation = probe.begin_constant_observation();
         let value = probe.evaluate_static_property_constant(expression, expected);
+        probe.finish_constant_observation(observation, value.is_some());
         if value.is_some() {
             self.dependencies = probe.dependencies;
+            self.editing_constants = probe.editing_constants;
         }
         value
     }
@@ -56,6 +59,7 @@ impl Lowerer {
         expression: &ast::Expr,
         expected: Option<hir::TypeId>,
     ) -> Option<StaticValue> {
+        self.observe_property_syntax(expression);
         match expression {
             ast::Expr::IntLiteral(literal) => {
                 let expression =
@@ -98,11 +102,13 @@ impl Lowerer {
                 Some(StaticValue { value, ty })
             }
             ast::Expr::Var(name) => {
-                let crate::imports::lookup::LookupResult::Unique(origin) =
-                    self.lookup_value_origin(&name.text)
-                else {
+                let (layer, lookup) = self.lookup_value_origin_with_layer(&name.text);
+                let crate::imports::lookup::LookupResult::Unique(origin) = lookup else {
                     return None;
                 };
+                if let Some(layer) = layer {
+                    self.observe_import_lookup(name, layer);
+                }
                 if let crate::imports::lookup::values::ValueOrigin::Dependency(binding) = origin {
                     let imported = self.select_imported_dependency_constant(&binding, name.span)?;
                     return Some(StaticValue {
@@ -120,6 +126,12 @@ impl Lowerer {
                 else {
                     return None;
                 };
+                self.observe_constant_reference(
+                    name.span,
+                    crate::editing::constants::ConstantTarget::Bound(
+                        hir::SemanticProperty::Current(property),
+                    ),
+                );
                 Some(StaticValue {
                     value,
                     ty: declaration.ty,

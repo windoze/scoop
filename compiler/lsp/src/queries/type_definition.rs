@@ -83,6 +83,16 @@ fn origin(
     {
         return Ok(reference.definition);
     }
+    if let V::Known(Some(property)) = analysis
+        .property_declaration(
+            &cursor.file.identity,
+            cursor.span,
+            check(snapshot, cancellation),
+        )
+        .map_err(|_| semantic::cancelled())?
+    {
+        return value_origin(analysis, property.value_type);
+    }
     if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {
         if let Some(V::Known(signature)) = analysis.source_body_signature(&function)
             && let Some(parameter) = signature

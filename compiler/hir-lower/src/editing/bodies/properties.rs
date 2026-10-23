@@ -3,7 +3,7 @@ use hir::{EditingPropertyAccess as Access, SemanticProperty as Target};
 
 impl Lowerer {
     pub(crate) fn observe_property_syntax(&mut self, expression: &ast::Expr) {
-        if !self.observes_current_body() {
+        if self.editing_constants.is_none() && !self.observes_current_body() {
             return;
         }
         let name = match expression {
@@ -21,6 +21,10 @@ impl Lowerer {
             }
             _ => return,
         };
+        self.observe_constant_name(expression.span(), name.span);
+        if !self.observes_current_body() {
+            return;
+        }
         self.observe_property_name(expression.span(), name.span);
     }
 
@@ -55,6 +59,12 @@ impl Lowerer {
         value_type: hir::TypeId,
         mut access: Access,
     ) {
+        if access == Access::Read {
+            self.observe_constant_reference(
+                span,
+                crate::editing::constants::ConstantTarget::Bound(target),
+            );
+        }
         if !self.observes_current_body() {
             return;
         }

@@ -72,6 +72,27 @@ impl DeclarationAnalysis {
             }
             if self.declarations_ready {
                 builder.types(&self.type_references);
+                for reference in &self.constant_references {
+                    if check() {
+                        return Err(EditingCancelled);
+                    }
+                    match builder
+                        .identities
+                        .property(&mut self.lowerer, reference.target)
+                    {
+                        Some(target) => builder.record(
+                            Target::Property(target),
+                            reference.origin.clone(),
+                            false,
+                        ),
+                        None => builder.unavailable.push(reference.origin.clone()),
+                    }
+                    if !reference.imports.is_empty() {
+                        builder
+                            .import_uses
+                            .push((reference.origin.clone(), reference.imports.clone()));
+                    }
+                }
                 builder.constructors(self, &check)?;
                 let properties = self
                     .lowerer

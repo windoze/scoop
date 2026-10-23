@@ -46,6 +46,7 @@ mod recovered_structs;
 mod references;
 mod runtime_initializers;
 mod selectors;
+mod static_constants;
 mod trailing_callables;
 mod type_definitions;
 mod type_descriptions;

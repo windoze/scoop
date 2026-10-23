@@ -9,6 +9,14 @@ pub enum SemanticProperty {
     Imported(PropertyDeclarationId),
 }
 
+/// A constant read retained by its original successful evaluator.
+#[derive(Clone, Debug)]
+pub struct EditingConstantReference {
+    pub origin: SemanticSourceLocation,
+    pub target: SemanticProperty,
+    pub imports: Vec<SemanticSourceLocation>,
+}
+
 /// Complete declaration types without evaluating the property's implementation.
 #[derive(Clone, Debug)]
 pub struct EditingPropertyDeclaration {
