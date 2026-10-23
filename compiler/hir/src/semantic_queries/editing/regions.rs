@@ -1,5 +1,6 @@
 use crate::{
-    EditingCallee, FunctionId, InitializationUnitId, SemanticCallable, SemanticSourceLocation,
+    ClassFieldId, ClassId, EditingCallee, FunctionId, InitializationUnitId, PropertyId,
+    SemanticCallable, SemanticConstructor, SemanticSourceLocation, SourceContextConstructor,
     SourceDefaultKey,
 };
 
@@ -8,6 +9,17 @@ use crate::{
 pub enum EditingSourceBodyId {
     Function(FunctionId),
     Default(SourceDefaultKey),
+    Construction(EditingConstructionBody),
+}
+
+/// A real source input in the original constructor initialization plan.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum EditingConstructionBody {
+    Delegation(SourceContextConstructor),
+    Secondary(SourceContextConstructor),
+    Property(PropertyId),
+    InterfaceDelegate(ClassFieldId),
+    InitBlock { owner: ClassId, member: u32 },
 }
 
 impl From<FunctionId> for EditingSourceBodyId {
@@ -20,7 +32,7 @@ impl EditingSourceBodyId {
     pub fn function(self) -> Option<FunctionId> {
         match self {
             Self::Function(function) => Some(function),
-            Self::Default(_) => None,
+            Self::Default(_) | Self::Construction(_) => None,
         }
     }
 }
@@ -38,6 +50,7 @@ pub enum EditingSourceBodyOwner {
     Callable(SemanticCallable),
     Initialization(InitializationUnitId),
     Default(EditingCallee),
+    Constructor(SemanticConstructor),
 }
 
 impl EditingSourceBody {
@@ -45,6 +58,9 @@ impl EditingSourceBody {
         match self.owner {
             EditingSourceBodyOwner::Callable(callable) => Some(callable.into()),
             EditingSourceBodyOwner::Default(callee) => Some(callee),
+            EditingSourceBodyOwner::Constructor(constructor) => {
+                Some(EditingCallee::Constructor(constructor))
+            }
             EditingSourceBodyOwner::Initialization(_) => None,
         }
     }

@@ -1,5 +1,5 @@
 use super::*;
-use crate::editing::{BodyObservation, ObservedBody};
+use crate::editing::ObservedBody;
 
 impl Lowerer {
     pub(crate) fn editing_default_sources(&self) -> Vec<hir::EditingSourceBody> {
@@ -19,6 +19,9 @@ impl Lowerer {
         key: SourceDefaultKey,
     ) -> Option<hir::EditingSourceBody> {
         let recipe = self.default_preparation.recipes.get(&key.owner)?;
+        if !recipe.observe_source {
+            return None;
+        }
         let parameter = recipe.sources.get(key.position as usize)?;
         let expression = match &parameter.calling {
             FnParamCalling::Default { expression }
@@ -46,7 +49,7 @@ impl Lowerer {
             .recipes
             .iter()
             .find_map(|(owner, recipe)| {
-                if self.source_identity(recipe.file) != &origin.source {
+                if !recipe.observe_source || self.source_identity(recipe.file) != &origin.source {
                     return None;
                 }
                 let index = recipe
@@ -71,10 +74,11 @@ impl Lowerer {
 
     pub(crate) fn lower_editing_default(&mut self, key: SourceDefaultKey) -> Option<ObservedBody> {
         let origin = self.editing_default_source(key)?.origin;
-        if !self.editing_defaults.as_ref()?.contains_key(&key) {
+        let id = hir::EditingSourceBodyId::Default(key);
+        if !self.editing_prepared_bodies.as_ref()?.contains_key(&id) {
             self.prepare_default(key, origin.span);
         }
-        self.editing_defaults.as_mut()?.remove(&key)
+        self.editing_prepared_bodies.as_mut()?.remove(&id)
     }
 
     pub(super) fn observe_default_preparation(
@@ -83,42 +87,15 @@ impl Lowerer {
         recipe: &ParameterRecipe,
         operation: impl FnOnce(&mut Self) -> Option<DefaultExprTemplateRef>,
     ) -> Option<DefaultExprTemplateRef> {
-        if self.editing_defaults.is_none() {
+        if !recipe.observe_source {
             return operation(self);
         }
-        let cancellation = self.editing_body.as_ref().map_or_else(
-            || {
-                let cancellation = self.cancellation.clone();
-                Rc::new(move || cancellation.as_ref().is_some_and(|check| check.cancelled()))
-                    as Rc<dyn Fn() -> bool>
-            },
-            BodyObservation::cancellation,
-        );
-        let check = cancellation.clone();
-        let observation = BodyObservation::new(
+        self.observe_prepared_body(
             hir::EditingSourceBodyId::Default(key),
             recipe.context.definition_root,
             recipe.file,
-            self.diagnostics.len(),
-            move || check(),
-        );
-        let previous = self.editing_body.replace(observation);
-        let result = operation(self);
-        let observed = self
-            .editing_body
-            .take()
-            .expect("active default observation");
-        self.editing_body = previous;
-        if !observed.cancelled() {
-            let facts = observed.finish(self, result.is_some());
-            if !cancellation() {
-                self.editing_defaults
-                    .as_mut()
-                    .expect("editing keeps observations from default preparation")
-                    .insert(key, facts);
-            }
-        }
-        result
+            operation,
+        )
     }
 }
 

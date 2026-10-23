@@ -304,6 +304,7 @@ impl Lowerer {
         self.property_name_spans
             .insert(property, declaration.name.span);
         self.classes[backing_class].properties.push(property);
+        self.remember_construction_property(property, declaration);
         self.imports.bind_property(import_source, property);
         field
     }

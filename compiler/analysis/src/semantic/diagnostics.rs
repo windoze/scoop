@@ -26,6 +26,12 @@ impl SemanticSession {
                 let mut checked = std::collections::HashSet::new();
                 loop {
                     snapshot.check_cancelled()?;
+                    let revision = snapshot.clone();
+                    analysis
+                        .check_source_constructions(Some(identity), move || {
+                            revision.check_cancelled().is_err()
+                        })
+                        .map_err(|_| ProjectAnalysisError::Cancelled)?;
                     let functions = analysis
                         .source_bodies()
                         .into_iter()

@@ -15,7 +15,8 @@ impl Lowerer {
     ) -> Result<DeclarationAnalysis, EditingCancelled> {
         self.editing_types = Some(Default::default());
         self.editing_constants = Some(Default::default());
-        self.editing_defaults = Some(Default::default());
+        self.editing_prepared_bodies = Some(Default::default());
+        self.editing_constructions = Some(Default::default());
         let mut unavailable_files = Vec::new();
         let mut unavailable_headers = std::collections::HashMap::new();
         for (file, source) in sources.iter().enumerate() {

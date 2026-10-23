@@ -32,6 +32,8 @@ struct ParameterRecipe {
     file: usize,
     paths: crate::definition_paths::DefinitionPathContext,
     kind: RecipeKind,
+    // Shared initializers can register another executable copy of a local callable.
+    observe_source: bool,
 }
 #[derive(Clone, Copy)]
 enum PreparationState {
@@ -74,6 +76,7 @@ impl Lowerer {
             kind,
             file: self.current_file,
             paths: self.definition_paths.clone(),
+            observe_source: self.editing_prepared_bodies.is_some(),
         };
         assert!(
             self.default_preparation

@@ -20,15 +20,27 @@ impl Lowerer {
     ) {
         for &(class, declaration, file) in classes {
             self.current_file = file;
+            let before = self.diagnostics.len();
             self.lower_class_initialization(class, declaration);
+            self.finish_editing_construction(Owner::Class(class), self.diagnostics.len() == before);
         }
         for &(structure, declaration, file) in structs {
             self.current_file = file;
+            let before = self.diagnostics.len();
             self.lower_struct_constructor_bodies(structure, declaration);
+            self.finish_editing_construction(
+                Owner::Struct(structure),
+                self.diagnostics.len() == before,
+            );
         }
         for &(object, declaration, file) in objects {
             self.current_file = file;
+            let before = self.diagnostics.len();
             self.lower_object_initialization(object, declaration);
+            self.finish_editing_construction(
+                Owner::Object(object),
+                self.diagnostics.len() == before,
+            );
         }
     }
 
@@ -155,8 +167,11 @@ impl Lowerer {
                 ),
                 capture_depth: self.capture_contexts.len(),
             });
-            let lowered = self.with_constructor_expression_context(
+            let lowered = self.with_constructor_source_body(
                 constructor,
+                hir::EditingConstructionBody::Secondary(hir::SourceContextConstructor::Class(
+                    constructor,
+                )),
                 "secondary constructor body",
                 self.class_constructors[constructor].safety,
                 |this, _| Some(this.lower_block(&source.body)),
@@ -233,8 +248,11 @@ impl Lowerer {
                 ),
                 capture_depth: self.capture_contexts.len(),
             });
-            let lowered = self.with_constructor_expression_context(
+            let lowered = self.with_constructor_source_body(
                 constructor,
+                hir::EditingConstructionBody::Secondary(hir::SourceContextConstructor::Struct(
+                    constructor,
+                )),
                 "struct secondary constructor body",
                 self.struct_constructors[constructor].safety,
                 |this, _| Some(this.lower_block(&source.body)),

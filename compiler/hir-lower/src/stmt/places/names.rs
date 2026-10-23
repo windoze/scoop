@@ -89,7 +89,8 @@ impl Lowerer {
         }
         if self.initialization_context.is_some() && self.initializing_receiver_has_field(&name.text)
         {
-            let field = self.initializing_field(name, name.span)?;
+            let field =
+                self.initializing_field(name, name.span, hir::EditingPropertyAccess::ReadWrite)?;
             let write = field
                 .write
                 .map(WriteCapability::Direct)

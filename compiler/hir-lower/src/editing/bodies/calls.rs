@@ -1,6 +1,7 @@
 use super::*;
 
 mod arguments;
+mod delegations;
 
 #[derive(Clone)]
 pub(in crate::editing) struct CallInput {
@@ -98,7 +99,7 @@ impl Lowerer {
             );
     }
 
-    pub(super) fn observe_completed_call(
+    pub(in crate::editing) fn observe_completed_call(
         &mut self,
         span: ast::Span,
         result: hir::TypeId,
@@ -161,7 +162,15 @@ impl CallInput {
             ast::Expr::Invoke { callee, args, .. } => (None, callee.span().end, args),
             _ => return None,
         };
-        Some(Self {
+        Some(Self::from_arguments(name, callee_end, args))
+    }
+
+    pub(in crate::editing) fn from_arguments(
+        name: Option<&ast::Ident>,
+        callee_end: u32,
+        args: &[ast::CallArgument],
+    ) -> Self {
+        Self {
             callee_end,
             callee: name.map(|name| name.span),
             name: name.map(|name| name.text.clone()),
@@ -178,6 +187,6 @@ impl CallInput {
                     )
                 })
                 .collect(),
-        })
+        }
     }
 }

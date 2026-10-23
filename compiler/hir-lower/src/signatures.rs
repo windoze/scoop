@@ -9,6 +9,7 @@ impl Lowerer {
     /// duplicate names or unresolvable types are diagnosed and dropped;
     /// the module is rejected anyway once any diagnostic is recorded.
     pub(super) fn resolve_fields(&mut self, id: StructId, decl: ast::StructSource<'_>) {
+        self.remember_struct_construction(id, decl);
         self.type_params_in_scope = self.structs[id].type_params.clone();
         if matches!(
             self.structs[id].representation,

@@ -109,6 +109,7 @@ impl DeclarationAnalysis {
                     }),
             )
             .chain(self.lowerer.editing_default_sources())
+            .chain(self.lowerer.editing_construction_sources())
     }
 
     fn function_body_span(&self, function: &hir::EditingFunction) -> Option<ast::Span> {
@@ -241,15 +242,12 @@ impl DeclarationAnalysis {
             .all(|body| match self.body_facts.get(&body.id) {
                 Some(V::Known(body)) => body.available(),
                 Some(V::Unavailable(_)) => false,
-                None => match body.id {
-                    hir::EditingSourceBodyId::Default(key) => self
-                        .lowerer
-                        .editing_defaults
-                        .as_ref()
-                        .and_then(|facts| facts.get(&key))
-                        .is_some_and(|body| body.available()),
-                    hir::EditingSourceBodyId::Function(_) => false,
-                },
+                None => self
+                    .lowerer
+                    .editing_prepared_bodies
+                    .as_ref()
+                    .and_then(|facts| facts.get(&body.id))
+                    .is_some_and(|body| body.available()),
             })
     }
 }

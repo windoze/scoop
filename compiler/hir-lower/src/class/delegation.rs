@@ -10,6 +10,12 @@ pub(crate) struct InterfaceDelegateSource {
     pub span: ast::Span,
 }
 
+impl InterfaceDelegateSource {
+    pub(crate) fn expression_span(&self) -> ast::Span {
+        self.expression.span()
+    }
+}
+
 impl Lowerer {
     pub(super) fn declare_interface_delegate(
         &mut self,
@@ -55,8 +61,9 @@ impl Lowerer {
         let context = self.initialization_context.take();
         let mut steps = Vec::new();
         for delegate in &delegates {
-            let initializer = self.with_constructor_expression_context(
+            let initializer = self.with_constructor_source_body(
                 constructor,
+                hir::EditingConstructionBody::InterfaceDelegate(delegate.field),
                 "interface delegate initializer",
                 hir::Safety::Safe,
                 |this, sink| {

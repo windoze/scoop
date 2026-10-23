@@ -51,7 +51,7 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn observe_body_context(&mut self) -> hir::SourceContextId {
+    pub(in crate::editing) fn observe_body_context(&mut self) -> hir::SourceContextId {
         let context = self
             .current_source_context
             .expect("a body has its source context");

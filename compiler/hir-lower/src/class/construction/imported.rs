@@ -32,11 +32,16 @@ impl Lowerer {
                 )
             })
             .ok()?;
-        let resolved = self.with_constructor_expression_context(
+        let resolved = self.with_constructor_source_body(
             source,
+            hir::EditingConstructionBody::Delegation(hir::SourceContextConstructor::Class(source)),
             context,
             self.class_constructors[source].safety,
             |this, sink| {
+                this.observe_constructor_delegation(
+                    hir::SourceContextConstructor::Class(source),
+                    span,
+                );
                 let mut probes = Vec::new();
                 let mut failures = Vec::new();
                 for candidate in candidates {
@@ -78,7 +83,9 @@ impl Lowerer {
                 else {
                     unreachable!("base constructor candidates are dependency declarations")
                 };
-                this.commit_imported_dependency_callable(*probe, sink)
+                let value = this.commit_imported_dependency_callable(*probe, sink)?;
+                this.observe_completed_delegation(span, value.ty);
+                Some(value)
             },
         )?;
         let (target, args) = match resolved.value.kind {

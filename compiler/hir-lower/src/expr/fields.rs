@@ -114,7 +114,7 @@ impl Lowerer {
                 return None;
             };
             return self
-                .initializing_field(name, access.span)
+                .initializing_field(name, access.span, hir::EditingPropertyAccess::Read)
                 .map(|field| field.read);
         }
         let receiver = if let Some((ty, crate::NominalTarget::Object(object))) = applied {

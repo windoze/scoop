@@ -549,8 +549,9 @@ pub(crate) struct Lowerer {
         imbl::HashMap<hir::BindingId, hir::EditingLocalOccurrence>,
     pub(crate) editing_types: Option<editing::types::TypeObservation>,
     pub(crate) editing_constants: Option<editing::constants::ConstantObservation>,
-    pub(crate) editing_defaults:
-        Option<imbl::HashMap<hir::SourceDefaultKey, editing::ObservedBody>>,
+    pub(crate) editing_prepared_bodies:
+        Option<imbl::HashMap<hir::EditingSourceBodyId, editing::ObservedBody>>,
+    pub(crate) editing_constructions: Option<editing::constructions::ConstructionInputs>,
     pub(crate) editing_type_definitions:
         imbl::HashMap<editing::types::TypeTarget, hir::SemanticSourceLocation>,
     pub(crate) editing_local_types: imbl::HashMap<Owner, editing::types::TypeObservation>,

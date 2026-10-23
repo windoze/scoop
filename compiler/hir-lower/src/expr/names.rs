@@ -38,6 +38,7 @@ impl Lowerer {
             if let Some(&(parameter, ty, binding)) =
                 self.constructor_params_in_scope.get(&name.text)
             {
+                self.observe_local_use(binding, name.span, hir::EditingLocalRole::Read);
                 let source = hir::Expr {
                     kind: ExprKind::ConstructorParam(parameter),
                     ty,
@@ -57,7 +58,7 @@ impl Lowerer {
                 && self.initializing_receiver_has_field(&name.text)
             {
                 return self
-                    .initializing_field(name, name.span)
+                    .initializing_field(name, name.span, hir::EditingPropertyAccess::Read)
                     .map(|field| field.read);
             }
             if let Some(crate::Owner::Object(object)) = self.current_owner {
@@ -379,7 +380,7 @@ impl Lowerer {
         if self.initialization_context.is_some() && self.initializing_receiver_has_field(&name.text)
         {
             return self
-                .initializing_field(name, name.span)
+                .initializing_field(name, name.span, hir::EditingPropertyAccess::Read)
                 .map(|field| field.read);
         }
         for binding in self.implicit_receivers() {

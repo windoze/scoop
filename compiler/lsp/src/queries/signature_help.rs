@@ -88,9 +88,20 @@ pub(crate) fn signature_help(
         });
     }
     let name = call
-        .name
-        .as_deref()
-        .map(scoop_analysis::identifier_spelling)
+        .callee_span
+        .and_then(|span| {
+            syntax
+                .token_at_offset(scoop_syntax::TextSize::from(span.start))
+                .right_biased()
+                .filter(|token| u32::from(token.text_range().end()) == span.end)
+                .filter(|token| token.kind() == scoop_syntax::SyntaxKind::KwThis)
+                .map(|token| std::borrow::Cow::Owned(token.text().to_owned()))
+        })
+        .or_else(|| {
+            call.name
+                .as_deref()
+                .map(scoop_analysis::identifier_spelling)
+        })
         .unwrap_or_default();
     let result = type_label(analysis, &call.context, call.result)?;
     super::json(SignatureHelp {

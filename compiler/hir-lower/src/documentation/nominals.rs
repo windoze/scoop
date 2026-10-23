@@ -50,6 +50,19 @@ impl Lowerer {
             }
         }
         self.document_struct_primary(id, source);
+        for secondary in source.secondary_constructors() {
+            let constructor = self.structs[id]
+                .constructors
+                .iter()
+                .copied()
+                .find(|id| self.struct_constructors[*id].span == secondary.span);
+            if let Some(constructor) = constructor {
+                self.document_secondary_constructor(
+                    Callable::StructConstructor(constructor),
+                    secondary,
+                );
+            }
+        }
     }
 
     pub(crate) fn document_class(&mut self, id: hir::ClassId, source: ast::ClassSource<'_>) {
@@ -84,6 +97,19 @@ impl Lowerer {
             &parameters[self.enclosing_parameter_count(id)..],
         );
         self.document_class_primary(id, source);
+        for secondary in source.secondary_constructors() {
+            let constructor = self.classes[id]
+                .constructors
+                .iter()
+                .copied()
+                .find(|id| self.class_constructors[*id].span == secondary.span);
+            if let Some(constructor) = constructor {
+                self.document_secondary_constructor(
+                    Callable::ClassConstructor(constructor),
+                    secondary,
+                );
+            }
+        }
     }
 
     pub(crate) fn document_interface(

@@ -1,6 +1,8 @@
 use super::*;
 use hir::{DocumentationLink as Link, DocumentationSymbol as Symbol};
 
+mod constructors;
+
 fn documented(
     text: &str,
     is_cancelled: impl Fn() -> bool,

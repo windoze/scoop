@@ -188,6 +188,7 @@ impl Lowerer {
     }
 
     pub(crate) fn resolve_object(&mut self, object: ObjectId, source: ObjectSource<'_>) {
+        self.remember_object_construction(object, source);
         let backing = self.objects[object].backing_class;
         self.type_params_in_scope = self.classes[backing].type_params.clone();
         let mut names = std::collections::HashSet::new();

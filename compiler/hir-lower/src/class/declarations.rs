@@ -4,6 +4,7 @@ impl Lowerer {
     /// Resolve a class's constructor properties, base-class clause and
     /// interface list (pass 2).
     pub(crate) fn resolve_class(&mut self, id: ClassId, decl: ast::ClassSource<'_>) {
+        self.remember_class_construction(id, decl);
         self.type_params_in_scope = self.classes[id].type_params.clone();
         if matches!(
             self.classes[id].representation,
@@ -254,6 +255,7 @@ impl Lowerer {
                         continue;
                     }
                     base = Some(ty);
+                    self.remember_construction_base(id, spec);
                 }
                 Type::Interface(_) => {
                     if spec.constructor_arguments().is_some() {

@@ -101,7 +101,8 @@ impl Lowerer {
         name: &ast::Ident,
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
-        let field = self.initializing_field(name, assign.span)?;
+        let field =
+            self.initializing_field(name, assign.span, hir::EditingPropertyAccess::Write)?;
         let Some(target) = field.write else {
             self.error(
                 name.span,

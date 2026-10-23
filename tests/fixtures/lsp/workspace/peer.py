@@ -12,6 +12,7 @@ from callable_arguments import check as check_callable_arguments
 from callable_literals import check as check_callable_literals
 from callable_values import check as check_callable_values
 from cancellation import check as check_cancellation
+from construction_bodies import check as check_construction_bodies
 from constructor_references import check as check_constructor_references
 from defaults import check as check_defaults
 from diagnostics import check as check_diagnostics
@@ -354,6 +355,7 @@ def main():
         check_static_calls(peer, root)
         check_static_variants(peer, root)
         check_defaults(peer, root)
+        check_construction_bodies(peer, root)
         check_type_references(peer, root)
         check_type_definitions(peer, root)
         check_type_hovers(peer, root)

@@ -111,7 +111,6 @@ impl Lowerer {
                 .find(|id| self.class_constructors[*id].span == source.span);
             if let Some(id) = id {
                 let callable = Callable::ClassConstructor(id);
-                self.document_secondary_constructor(callable, source);
                 self.bind_source_annotations(Target::Callable(callable), &source.annotations);
                 self.annotate_parameters(callable, &source.params);
             }
@@ -131,7 +130,6 @@ impl Lowerer {
                 .find(|id| self.struct_constructors[*id].span == source.span);
             if let Some(id) = id {
                 let callable = Callable::StructConstructor(id);
-                self.document_secondary_constructor(callable, source);
                 self.bind_source_annotations(Target::Callable(callable), &source.annotations);
                 self.annotate_parameters(callable, &source.params);
             }

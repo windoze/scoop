@@ -56,6 +56,10 @@ impl DeclarationAnalysis {
                 checked_bodies.insert(function.function.into());
             }
             loop {
+                let cancellation = check.clone();
+                builder
+                    .unavailable
+                    .extend(self.check_source_constructions(None, move || cancellation())?);
                 let bodies = self
                     .source_bodies()
                     .into_iter()

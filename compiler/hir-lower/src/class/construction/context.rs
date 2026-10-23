@@ -3,6 +3,23 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn with_constructor_source_body<T>(
+        &mut self,
+        source: impl Into<ConstructorSource>,
+        body: hir::EditingConstructionBody,
+        context: &str,
+        safety: hir::Safety,
+        lower: impl FnOnce(&mut Self, &mut Vec<hir::Statement>) -> Option<T>,
+    ) -> Option<LoweredConstructorExpression<T>> {
+        let source = source.into();
+        self.observe_prepared_body(
+            hir::EditingSourceBodyId::Construction(body),
+            source.definition_root(),
+            self.current_file,
+            |this| this.with_constructor_expression_context(source, context, safety, lower),
+        )
+    }
+
     pub(crate) fn with_constructor_expression_context<T>(
         &mut self,
         source: impl Into<ConstructorSource>,
@@ -31,12 +48,21 @@ impl Lowerer {
             ordinal as u32,
         );
         let paths = crate::definition_paths::DefinitionPathContext::nested(&path);
-        self.with_constructor_context(
-            constructor.into(),
-            context,
-            hir::Safety::Safe,
-            Some(paths),
-            lower,
+        self.observe_prepared_body(
+            hir::EditingSourceBodyId::Construction(hir::EditingConstructionBody::Property(
+                property,
+            )),
+            hir::LexicalDefinitionRoot::ClassConstructor(constructor),
+            self.current_file,
+            |this| {
+                this.with_constructor_context(
+                    constructor.into(),
+                    context,
+                    hir::Safety::Safe,
+                    Some(paths),
+                    lower,
+                )
+            },
         )
     }
 
@@ -56,14 +82,7 @@ impl Lowerer {
         });
         let outer_definition_paths =
             std::mem::replace(&mut self.definition_paths, definition_paths);
-        let definition_root = match source {
-            ConstructorSource::Class(constructor) => {
-                hir::LexicalDefinitionRoot::ClassConstructor(constructor)
-            }
-            ConstructorSource::Struct(constructor) => {
-                hir::LexicalDefinitionRoot::StructConstructor(constructor)
-            }
-        };
+        let definition_root = source.definition_root();
         let outer_definition_root = self.definition_root.replace(definition_root);
         let (parameters, type_parameters, owner, owner_name) = match source {
             ConstructorSource::Class(constructor) => {
@@ -174,6 +193,7 @@ impl Lowerer {
             }
         }
         let outer_capture_scope = self.enter_local_type_captures(owner, capture_environment);
+        self.observe_constructor_parameters(&parameters);
         let value = lower(self, &mut statements);
         let locals = std::mem::take(&mut self.locals).into_arena();
 
@@ -223,6 +243,15 @@ impl Lowerer {
 pub(crate) enum ConstructorSource {
     Class(hir::ClassConstructorId),
     Struct(hir::StructConstructorId),
+}
+
+impl ConstructorSource {
+    fn definition_root(self) -> hir::LexicalDefinitionRoot {
+        match self {
+            Self::Class(id) => hir::LexicalDefinitionRoot::ClassConstructor(id),
+            Self::Struct(id) => hir::LexicalDefinitionRoot::StructConstructor(id),
+        }
+    }
 }
 
 impl From<hir::ClassConstructorId> for ConstructorSource {

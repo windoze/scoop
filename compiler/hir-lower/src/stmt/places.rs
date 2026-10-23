@@ -150,7 +150,11 @@ impl Lowerer {
                     && self.is_initializing_this_label(label.as_ref())
                 {
                     self.check_initializing_receiver_label(label.as_ref())?;
-                    let field = self.initializing_field(name, *span)?;
+                    let field = self.initializing_field(
+                        name,
+                        *span,
+                        hir::EditingPropertyAccess::ReadWrite,
+                    )?;
                     let write = field
                         .write
                         .map(WriteCapability::Direct)

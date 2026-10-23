@@ -5,6 +5,7 @@ use hir::{EditingUnavailable as U, EditingValue as V};
 mod calls;
 mod imports;
 mod observations;
+mod prepared;
 mod properties;
 mod record;
 mod selectors;
@@ -51,6 +52,9 @@ impl DeclarationAnalysis {
                 }
                 hir::EditingSourceBodyId::Default(key) => {
                     self.analyze_default_body(key, is_cancelled)?
+                }
+                hir::EditingSourceBodyId::Construction(body) => {
+                    self.analyze_construction_body(body, is_cancelled)?
                 }
             };
             self.body_facts.insert(body, facts);

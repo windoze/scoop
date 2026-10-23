@@ -116,7 +116,7 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn document_secondary_constructor(
+    pub(super) fn document_secondary_constructor(
         &mut self,
         callable: Callable,
         source: &ast::SecondaryConstructorDecl,

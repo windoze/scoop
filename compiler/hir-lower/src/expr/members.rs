@@ -185,7 +185,8 @@ impl Lowerer {
                 );
                 return None;
             }
-            let property = self.initializing_field(name, call.span)?;
+            let property =
+                self.initializing_field(name, call.span, hir::EditingPropertyAccess::Read)?;
             return match self.probe_property_member_invoke_partition(
                 property.read,
                 call,

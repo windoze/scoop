@@ -140,10 +140,10 @@ fn default_and_caller_queries_reuse_the_first_prepared_template() {
         assert!(
             analysis
                 .lowerer
-                .editing_defaults
+                .editing_prepared_bodies
                 .as_ref()
                 .unwrap()
-                .get(&key)
+                .get(&hir::EditingSourceBodyId::Default(key))
                 .is_none()
         );
     }
