@@ -89,13 +89,17 @@ impl Lowerer {
             PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Interface(id));
+            let declaration_check = self.begin_editing_declaration(Owner::Interface(id));
             self.type_params_in_scope = self.interfaces[id].type_params.clone();
             let parents = self.resolve_supertype_interface_list(&decl.supertypes);
             self.type_params_in_scope.clear();
             self.interfaces[id].parents = parents;
+            self.finish_editing_declaration(declaration_check);
         }
         self.current_owner = None;
-        if !self.check_interface_inheritance_cycles(pending_interfaces) {
+        if !self.check_interface_inheritance_cycles(pending_interfaces)
+            && self.editing_declarations.is_none()
+        {
             return Err(self.take_source_diagnostics().into());
         }
 
@@ -114,7 +118,9 @@ impl Lowerer {
             PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Interface(id));
+            let declaration_check = self.begin_editing_declaration(Owner::Interface(id));
             self.resolve_interface_properties(id, decl);
+            self.finish_editing_declaration(declaration_check);
         }
         self.current_owner = None;
 
@@ -126,6 +132,7 @@ impl Lowerer {
             PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Struct(id));
+            let declaration_check = self.begin_editing_declaration(Owner::Struct(id));
             self.allow_deferred_fun_ptr = Some(id) == self.ffi_foreign_callback;
             self.resolve_fields(id, decl);
             self.allow_deferred_fun_ptr = false;
@@ -133,13 +140,16 @@ impl Lowerer {
             let interfaces = self.resolve_supertype_interface_list(&decl.supertypes);
             self.type_params_in_scope.clear();
             self.structs[id].interfaces = interfaces;
+            self.finish_editing_declaration(declaration_check);
         }
         for &(id, decl, file_index) in pending_enums {
             PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Enum(id));
+            let declaration_check = self.begin_editing_declaration(Owner::Enum(id));
             self.resolve_enum_supertypes(id, decl);
             self.resolve_variants(id, decl);
+            self.finish_editing_declaration(declaration_check);
         }
         if let Err(error) = self.establish_enum_member_identities() {
             self.current_file = error.file();
@@ -153,17 +163,23 @@ impl Lowerer {
             PhaseFailure::check(check)?;
             self.current_file = *file_index;
             self.current_owner = Some(Owner::Class(*id));
+            let declaration_check = self.begin_editing_declaration(Owner::Class(*id));
             self.resolve_class(*id, *decl);
+            self.finish_editing_declaration(declaration_check);
         }
         for &(id, decl, file_index) in pending_objects {
             PhaseFailure::check(check)?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Object(id));
+            let declaration_check = self.begin_editing_declaration(Owner::Object(id));
             self.resolve_object(id, decl);
+            self.finish_editing_declaration(declaration_check);
         }
         self.current_owner = None;
 
-        if !self.check_class_inheritance_cycles(pending_classes, pending_objects) {
+        if !self.check_class_inheritance_cycles(pending_classes, pending_objects)
+            && self.editing_declarations.is_none()
+        {
             return Err(self.take_source_diagnostics().into());
         }
         self.validate_deferred_type_bounds();
@@ -172,7 +188,7 @@ impl Lowerer {
         // request concrete applications. The declaration graph deliberately
         // stops at every reference/pointer boundary and recognizes generic
         // growth by template identity rather than materializing applications.
-        if !self.validate_value_layout_cycles() {
+        if !self.validate_value_layout_cycles() && self.editing_declarations.is_none() {
             // No later pass may try to materialize an application whose
             // inline layout grows forever. The validator has collected one
             // stable definition-site diagnostic for every cyclic SCC.

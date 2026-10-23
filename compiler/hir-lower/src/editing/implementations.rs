@@ -18,7 +18,11 @@ impl DeclarationAnalysis {
         if is_cancelled() {
             return Err(EditingCancelled);
         }
-        if !self.declarations_ready {
+        if !self.declarations_ready
+            || !self
+                .lowerer
+                .editing_type_available(types::TypeTarget::Nominal(declaration))
+        {
             return Ok(V::Unavailable(U::DeclarationFailure));
         }
         if self.type_implementations.is_none() {

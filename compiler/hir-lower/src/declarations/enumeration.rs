@@ -12,6 +12,7 @@ impl Lowerer {
         file_index: usize,
         owner: Option<Owner>,
     ) -> Option<EnumId> {
+        let diagnostics_before = self.diagnostics.len();
         let no_gc = self.check_enum_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(
             owner,
@@ -111,6 +112,7 @@ impl Lowerer {
             self.option_candidates
                 .push((id, file_index, decl.span, decl.type_params.len()));
         }
+        self.record_editing_owner_errors(Owner::Enum(id), diagnostics_before);
         for method in decl.methods {
             self.declare_method(method, Owner::Enum(id), pending_methods, file_index);
         }

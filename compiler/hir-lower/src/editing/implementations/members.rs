@@ -74,6 +74,10 @@ impl DeclarationAnalysis {
             if is_cancelled() {
                 return Err(EditingCancelled);
             }
+            builder
+                .result
+                .unavailable
+                .extend(self.lowerer.failed_editing_declarations());
             self.member_implementations = Some(builder.result);
         }
         Ok(V::Known(
@@ -114,6 +118,16 @@ impl MemberIndex {
         function: hir::FunctionId,
     ) -> Option<Member> {
         lowerer.functions[function].method?;
+        if lowerer
+            .declaration_surface
+            .unavailable_signature(function)
+            .is_some()
+            || lowerer
+                .editing_callable_origin(hir::SemanticCallable::Current(function))
+                .is_some_and(|origin| !lowerer.editing_declaration_scope_available(&origin))
+        {
+            return None;
+        }
         if let Some(property) = lowerer.function_property(function) {
             return self.current_property(lowerer, property);
         }
@@ -135,6 +149,12 @@ impl MemberIndex {
         lowerer: &mut Lowerer,
         property: hir::PropertyId,
     ) -> Option<Member> {
+        if lowerer
+            .editing_property_origin(hir::SemanticProperty::Current(property))
+            .is_some_and(|origin| !lowerer.editing_declaration_scope_available(&origin))
+        {
+            return None;
+        }
         if matches!(
             lowerer.properties[property].owner,
             hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_)

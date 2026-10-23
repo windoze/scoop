@@ -152,6 +152,9 @@ impl DeclarationAnalysis {
                 return Err(EditingCancelled);
             }
             builder.imports(&mut self.lowerer, &check)?;
+            builder
+                .unavailable
+                .extend(self.lowerer.failed_editing_declarations());
             self.reference_index = Some(hir::EditingReferenceIndex::new(
                 builder.occurrences,
                 builder.definitions,

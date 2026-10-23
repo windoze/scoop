@@ -72,6 +72,9 @@ impl Lowerer {
         if !self.observes_types() || span.start == span.end {
             return;
         }
+        if !is_declaration {
+            self.observe_declaration_type_dependency(target);
+        }
         let observation = self.editing_types.as_mut().unwrap_or_else(|| {
             &mut self
                 .editing_body

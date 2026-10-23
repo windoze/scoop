@@ -32,6 +32,7 @@ mod member_implementations;
 mod members;
 mod members_imported;
 mod named_arguments;
+mod nominal_failures;
 mod operands;
 mod operators;
 mod properties;

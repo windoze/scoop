@@ -17,6 +17,15 @@ impl DeclarationAnalysis {
         if !self.declarations_ready {
             return Ok(V::Unavailable(U::DeclarationFailure));
         }
+        if !self
+            .lowerer
+            .editing_declaration_scope_available(&hir::SemanticSourceLocation {
+                source: source.clone(),
+                span,
+            })
+        {
+            return Ok(V::Unavailable(U::DeclarationFailure));
+        }
         let check = std::rc::Rc::new(is_cancelled);
         let cancellation = check.clone();
         if let Some(body) = self.source_body_at(source, span, move || cancellation())? {

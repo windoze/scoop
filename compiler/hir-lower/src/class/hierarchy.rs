@@ -10,6 +10,7 @@ impl Lowerer {
             self.current_file = file;
             let mut visiting = Vec::new();
             if self.interface_reaches(interface, interface, &mut visiting) {
+                self.fail_editing_owner(Owner::Interface(interface));
                 self.error(
                     declaration.span,
                     format!(

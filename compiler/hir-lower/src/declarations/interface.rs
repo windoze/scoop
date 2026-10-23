@@ -9,6 +9,7 @@ impl Lowerer {
         file_index: usize,
         owner: Option<Owner>,
     ) -> Option<InterfaceId> {
+        let diagnostics_before = self.diagnostics.len();
         self.reject_type_annotations("an interface", &decl.annotations);
         if let Some(kind) = self.type_namespace_conflict(
             owner,
@@ -106,6 +107,7 @@ impl Lowerer {
         );
         self.record_nominal_file(Owner::Interface(id), file_index);
         self.interface_methods.insert(id, Vec::new());
+        self.record_editing_owner_errors(Owner::Interface(id), diagnostics_before);
         for method in decl.methods {
             self.declare_method(method, Owner::Interface(id), pending_methods, file_index);
         }

@@ -10,6 +10,7 @@ pub(crate) struct DeferredTypeBound {
     file: usize,
     span: ast::Span,
     diagnostic: String,
+    declaration: Option<crate::editing::types::TypeTarget>,
 }
 
 impl Lowerer {
@@ -41,6 +42,7 @@ impl Lowerer {
         span: ast::Span,
         diagnostic: String,
     ) -> bool {
+        let declaration = self.current_editing_declaration();
         if let Some(pending) = &mut self.deferred_type_bounds {
             pending.push(DeferredTypeBound {
                 argument,
@@ -49,6 +51,7 @@ impl Lowerer {
                 file: self.current_file,
                 span,
                 diagnostic,
+                declaration,
             });
             true
         } else if self.is_subtype(argument, required) {
@@ -67,14 +70,23 @@ impl Lowerer {
         let file = self.current_file;
         let parameters = std::mem::take(&mut self.type_params_in_scope);
         for check in pending {
+            if check
+                .declaration
+                .is_some_and(|target| !self.editing_type_available(target))
+            {
+                continue;
+            }
             self.current_file = check.file;
             self.type_params_in_scope = check.parameters;
-            self.check_type_argument_bound(
+            if !self.check_type_argument_bound(
                 check.argument,
                 check.required,
                 check.span,
                 check.diagnostic,
-            );
+            ) && let Some(target) = check.declaration
+            {
+                self.fail_editing_type_declaration(target);
+            }
         }
         self.current_file = file;
         self.type_params_in_scope = parameters;

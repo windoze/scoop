@@ -224,6 +224,9 @@ fn has_source_body(source: &PropertyAccessorSource) -> bool {
 
 impl DeclarationAnalysis {
     pub(super) fn declaration_scope_available(&self, origin: &hir::SemanticSourceLocation) -> bool {
+        if !self.lowerer.editing_declaration_scope_available(origin) {
+            return false;
+        }
         self.source_body_regions()
             .filter(|body| {
                 body.origin.source == origin.source

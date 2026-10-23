@@ -13,6 +13,9 @@ impl Lowerer {
 
     pub(crate) fn declare_owner_equality_methods(&mut self, owners: &[Owner]) {
         for &owner in owners {
+            if !self.editing_owner_available(owner) {
+                continue;
+            }
             let Owner::Struct(id) = owner else {
                 continue;
             };
@@ -31,6 +34,9 @@ impl Lowerer {
         }
 
         for &owner in owners {
+            if !self.editing_owner_available(owner) {
+                continue;
+            }
             let Owner::Enum(id) = owner else {
                 continue;
             };

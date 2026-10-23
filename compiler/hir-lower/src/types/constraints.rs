@@ -128,6 +128,7 @@ impl Lowerer {
 
     pub(crate) fn validate_owner_type_parameter_constraints(&mut self, owners: &[crate::Owner]) {
         for &owner in owners {
+            let declaration_check = self.begin_editing_declaration(owner);
             self.current_file = match owner {
                 crate::Owner::Class(id) => self.class_files[&id],
                 crate::Owner::Struct(id) => self.struct_files[&id],
@@ -172,6 +173,7 @@ impl Lowerer {
                     );
                 }
             }
+            self.finish_editing_declaration(declaration_check);
         }
         self.type_params_in_scope.clear();
     }

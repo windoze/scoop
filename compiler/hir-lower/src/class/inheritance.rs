@@ -52,6 +52,7 @@ impl Lowerer {
                     .iter()
                     .map(|&(id, _, file)| (Owner::Enum(id), file)),
             )
+            .filter(|&(owner, _)| self.editing_owner_available(owner))
             .collect::<Vec<_>>();
         let owners = self.source_inheritance_order(owners);
         let accessors = self.property_accessor_sources.clone();
@@ -166,6 +167,7 @@ impl Lowerer {
                 break;
             };
             if seen.contains(&base) {
+                self.fail_editing_owner(self.current_owner.expect("source inheritance owner"));
                 let name = self.classes[id].name.clone();
                 self.error(
                     span,

@@ -77,6 +77,15 @@ impl DeclarationAnalysis {
         if !self.declarations_ready {
             return Ok(V::Unavailable(U::DeclarationFailure));
         }
+        if !self
+            .lowerer
+            .editing_declaration_scope_available(&hir::SemanticSourceLocation {
+                source: source.clone(),
+                span,
+            })
+        {
+            return Ok(V::Unavailable(U::DeclarationFailure));
+        }
         if let Some(application) = self.type_applications.iter().find(|application| {
             &application.origin.source == source && application.origin.span == span
         }) {

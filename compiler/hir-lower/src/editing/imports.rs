@@ -22,6 +22,11 @@ impl DeclarationAnalysis {
                         || import.alias.as_ref().is_some_and(|name| name.span == span))
             })
             .flat_map(|import| import.targets.iter())
+            .filter(|binding| {
+                binding
+                    .current_binding()
+                    .is_none_or(|binding| self.lowerer.unavailable_binding_kind(binding).is_none())
+            })
     }
 
     pub fn import_definitions(

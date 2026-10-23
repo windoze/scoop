@@ -39,6 +39,18 @@ impl TypeObservation {
         Vec<hir::EditingTypeReference>,
         Vec<hir::EditingTypeApplication>,
     ) {
+        let failed = lowerer.failed_editing_declarations().collect::<Vec<_>>();
+        let available = |file, span: ast::Span| {
+            let source = lowerer.source_identity(file);
+            failed.iter().all(|failed| {
+                &failed.source != source
+                    || failed.span.start > span.start
+                    || failed.span.end < span.end
+            })
+        };
+        self.uses.retain(|&(file, span), _| available(file, span));
+        self.applications
+            .retain(|&(file, span), _| available(file, span));
         for (&origin, reference) in &self.uses {
             if reference.is_declaration
                 && let TypeTarget::Alias(id) = reference.target
@@ -106,6 +118,15 @@ impl DeclarationAnalysis {
             return Err(EditingCancelled);
         }
         if !self.declarations_ready {
+            return Ok(V::Unavailable(U::DeclarationFailure));
+        }
+        if !self
+            .lowerer
+            .editing_declaration_scope_available(&hir::SemanticSourceLocation {
+                source: source.clone(),
+                span,
+            })
+        {
             return Ok(V::Unavailable(U::DeclarationFailure));
         }
         if let Some(reference) = self

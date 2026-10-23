@@ -37,6 +37,7 @@ impl Lowerer {
             check()?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Struct(id));
+            let declaration_check = self.begin_editing_declaration(Owner::Struct(id));
             let declared = self.structs[id].type_params.clone();
             let params = self.resolve_type_parameter_constraints(
                 declared,
@@ -47,11 +48,13 @@ impl Lowerer {
                 "struct",
             );
             self.structs[id].type_params = params;
+            self.finish_editing_declaration(declaration_check);
         }
         for &(id, decl, file_index) in pending_enums {
             check()?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Enum(id));
+            let declaration_check = self.begin_editing_declaration(Owner::Enum(id));
             let declared = self.enums[id].type_params.clone();
             let params = self.resolve_type_parameter_constraints(
                 declared,
@@ -62,11 +65,13 @@ impl Lowerer {
                 "enum",
             );
             self.enums[id].type_params = params;
+            self.finish_editing_declaration(declaration_check);
         }
         for &(id, decl, file_index) in pending_classes {
             check()?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Class(id));
+            let declaration_check = self.begin_editing_declaration(Owner::Class(id));
             let mut declared = self.classes[id].type_params.clone();
             let outer_count = self
                 .enclosing_parameter_count(id)
@@ -85,11 +90,13 @@ impl Lowerer {
                 "class",
             );
             self.classes[id].type_params = params;
+            self.finish_editing_declaration(declaration_check);
         }
         for &(id, decl, file_index) in pending_interfaces {
             check()?;
             self.current_file = file_index;
             self.current_owner = Some(Owner::Interface(id));
+            let declaration_check = self.begin_editing_declaration(Owner::Interface(id));
             let declared = self.interfaces[id].type_params.clone();
             let params = self.resolve_type_parameter_constraints(
                 declared,
@@ -100,6 +107,7 @@ impl Lowerer {
                 "interface",
             );
             self.interfaces[id].type_params = params;
+            self.finish_editing_declaration(declaration_check);
         }
         for &(object, _, _) in pending_objects {
             check()?;

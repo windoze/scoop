@@ -177,6 +177,14 @@ impl Lowerer {
         let sources = self.property_accessor_sources[start..].to_vec();
         for source in sources {
             self.current_file = self.function_files[&source.function];
+            if source
+                .owner
+                .is_some_and(|owner| !self.editing_owner_available(owner))
+            {
+                self.declaration_surface
+                    .mark_signature_unavailable(source.function, source.declaration.header());
+                continue;
+            }
             if source.body_kind == PropertyAccessorBodyKind::Storage
                 && let Some(hir::PropertyBacking::TopLevelGlobal {
                     storage,

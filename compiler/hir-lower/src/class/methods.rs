@@ -22,6 +22,11 @@ impl Lowerer {
         decl: ast::FunctionHeaderRef<'_>,
         owner: Owner,
     ) {
+        if !self.editing_owner_available(owner) {
+            self.declaration_surface
+                .mark_signature_unavailable(id, decl);
+            return;
+        }
         let diagnostics_before = self.diagnostics.len();
         let short = decl.name.text.clone();
         if !decl.type_params.is_empty() {

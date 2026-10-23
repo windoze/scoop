@@ -11,6 +11,12 @@ impl DeclarationIdentities {
         if let ImportedTargetBinding::DirectDependency(binding) = binding {
             return Self::imported_target(lowerer, binding.target());
         }
+        if binding
+            .current_binding()
+            .is_some_and(|binding| lowerer.unavailable_binding_kind(binding).is_some())
+        {
+            return None;
+        }
         use hir::EditingMemberTarget as M;
         if let Some(target) = lowerer.editing_import_type_target(binding) {
             return lowerer.editing_type_identity(target).map(Target::Type);

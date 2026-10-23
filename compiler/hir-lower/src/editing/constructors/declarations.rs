@@ -12,6 +12,7 @@ impl Lowerer {
             .filter(|(_, declaration)| {
                 declaration.identity_kind == hir::ClassConstructorIdentityKind::Source
                     && nominals[declaration.owner].source().is_some()
+                    && self.editing_owner_available(crate::Owner::Class(declaration.owner))
             })
             .map(|(constructor, declaration)| {
                 (
@@ -22,7 +23,10 @@ impl Lowerer {
         let structs = self
             .struct_constructors
             .iter()
-            .filter(|(_, declaration)| nominals[declaration.owner].source().is_some())
+            .filter(|(_, declaration)| {
+                nominals[declaration.owner].source().is_some()
+                    && self.editing_owner_available(crate::Owner::Struct(declaration.owner))
+            })
             .map(|(constructor, declaration)| {
                 (
                     C::Constructor(Constructor::CurrentStruct(constructor)),
@@ -32,7 +36,10 @@ impl Lowerer {
         let variants = self
             .enums
             .iter()
-            .filter(|(enumeration, _)| nominals[*enumeration].source().is_some())
+            .filter(|(enumeration, _)| {
+                nominals[*enumeration].source().is_some()
+                    && self.editing_owner_available(crate::Owner::Enum(*enumeration))
+            })
             .flat_map(|(enumeration, declaration)| {
                 declaration
                     .variants

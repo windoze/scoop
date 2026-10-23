@@ -10,6 +10,7 @@ impl Lowerer {
         file_index: usize,
         owner: Option<Owner>,
     ) -> Option<ClassId> {
+        let diagnostics_before = self.diagnostics.len();
         let enclosing = if let Some(span) = decl.inner_span {
             let Some(Owner::Class(outer)) = owner else {
                 self.error(
@@ -269,6 +270,7 @@ impl Lowerer {
         if is_core && owner.is_none() && decl.name.text == "Throwable" {
             self.throwable_candidates.push((id, ty));
         }
+        self.record_editing_owner_errors(Owner::Class(id), diagnostics_before);
         for method in decl.functions() {
             self.declare_method(method, Owner::Class(id), pending_methods, file_index);
         }

@@ -228,6 +228,7 @@ impl Lowerer {
             editing_body: None,
             editing_local_definitions: Default::default(),
             editing_types: None,
+            editing_declarations: None,
             editing_constants: None,
             editing_prepared_bodies: None,
             editing_constructions: None,

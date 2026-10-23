@@ -40,6 +40,9 @@ impl Lowerer {
         &mut self,
         target: TypeTarget,
     ) -> Option<hir::EditingTypeIdentity> {
+        if !self.editing_type_available(target) {
+            return None;
+        }
         use hir::EditingTypeIdentity as T;
         Some(match target {
             TypeTarget::Nominal(id) => T::Nominal(id),

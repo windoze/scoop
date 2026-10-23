@@ -44,6 +44,7 @@ impl Lowerer {
         owner: Option<Owner>,
     ) -> Option<ObjectId> {
         self.current_file = file;
+        let diagnostics_before = self.diagnostics.len();
         let (name, name_span) = source.name();
         self.reject_type_annotations(source.article_description(), source.annotations());
         if matches!(source, ObjectSource::Companion(_))
@@ -280,6 +281,7 @@ impl Lowerer {
         }
         self.object_by_backing_class.insert(backing_class, object);
         self.record_nominal_file(Owner::Class(backing_class), file);
+        self.record_editing_owner_errors(Owner::Object(object), diagnostics_before);
         for method in source.members().iter().filter_map(|member| match member {
             ast::ClassMember::Function(function) => Some(function),
             _ => None,

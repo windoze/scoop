@@ -548,6 +548,7 @@ pub(crate) struct Lowerer {
     pub(crate) editing_local_definitions:
         imbl::HashMap<hir::BindingId, hir::EditingLocalOccurrence>,
     pub(crate) editing_types: Option<editing::types::TypeObservation>,
+    pub(crate) editing_declarations: Option<editing::availability::DeclarationAvailability>,
     pub(crate) editing_constants: Option<editing::constants::ConstantObservation>,
     pub(crate) editing_prepared_bodies:
         Option<imbl::HashMap<hir::EditingSourceBodyId, editing::ObservedBody>>,

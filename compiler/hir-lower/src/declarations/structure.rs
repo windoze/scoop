@@ -9,6 +9,7 @@ impl Lowerer {
         file_index: usize,
         owner: Option<Owner>,
     ) -> Option<StructId> {
+        let diagnostics_before = self.diagnostics.len();
         let mut checked = self.check_struct_annotations(decl);
         if owner.is_some() && checked.intrinsic.is_some() {
             self.error(
@@ -162,6 +163,7 @@ impl Lowerer {
         if let hir::StructRepresentation::Intrinsic(intrinsic) = self.structs[id].representation {
             self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Struct(id), decl.span);
         }
+        self.record_editing_owner_errors(Owner::Struct(id), diagnostics_before);
         for method in decl.functions() {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
         }

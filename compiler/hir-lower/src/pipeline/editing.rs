@@ -14,6 +14,7 @@ impl Lowerer {
         check: &impl Fn() -> Result<(), EditingCancelled>,
     ) -> Result<DeclarationAnalysis, EditingCancelled> {
         self.editing_types = Some(Default::default());
+        self.editing_declarations = Some(Default::default());
         self.editing_constants = Some(Default::default());
         self.editing_prepared_bodies = Some(Default::default());
         self.editing_constructions = Some(Default::default());

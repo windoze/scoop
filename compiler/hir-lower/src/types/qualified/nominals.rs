@@ -10,6 +10,12 @@ impl Lowerer {
         span: ast::Span,
         display_name: &str,
     ) -> Option<TypeId> {
+        self.require_editing_type(
+            crate::editing::types::TypeTarget::Nominal(
+                self.nominal_identity(target.owner()).declaration_id(),
+            ),
+            span,
+        )?;
         let (kind, params) = match target {
             NominalTarget::Struct(id) => ("struct", self.structs[id].type_params.clone()),
             NominalTarget::Enum(id) => ("enum", self.enums[id].type_params.clone()),

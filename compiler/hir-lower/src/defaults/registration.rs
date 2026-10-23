@@ -79,6 +79,9 @@ impl Lowerer {
             self.register_function_parameter_interface(function);
         }
         for &(structure, declaration, file) in structs {
+            if !self.editing_owner_available(Owner::Struct(structure)) {
+                continue;
+            }
             self.current_file = file;
             if matches!(
                 self.structs[structure].representation,
@@ -147,6 +150,9 @@ impl Lowerer {
             }
         }
         for &(class, declaration, file) in classes {
+            if !self.editing_owner_available(Owner::Class(class)) {
+                continue;
+            }
             self.current_file = file;
             if matches!(
                 self.classes[class].representation,
@@ -227,6 +233,9 @@ impl Lowerer {
             }
         }
         for &(enumeration, declaration, file) in enums {
+            if !self.editing_owner_available(Owner::Enum(enumeration)) {
+                continue;
+            }
             self.current_file = file;
             if declaration.variants.len() != self.enums[enumeration].variants.len() {
                 continue;
@@ -296,6 +305,9 @@ impl Lowerer {
 
     pub(crate) fn register_object_parameter_interfaces(&mut self, objects: &[hir::ObjectId]) {
         for &object in objects {
+            if !self.editing_owner_available(Owner::Object(object)) {
+                continue;
+            }
             let object = self.objects[object].clone();
             let class = &self.classes[object.backing_class];
             for constructor in class.constructors.clone() {

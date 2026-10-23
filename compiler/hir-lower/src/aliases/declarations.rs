@@ -137,6 +137,7 @@ impl Lowerer {
         mut parameters: Vec<hir::TypeParamDecl>,
         scope: Option<crate::Scopes>,
     ) -> SourceTypeAliasId {
+        let diagnostics_before = self.diagnostics.len();
         let outer_parameter_count = parameters.len();
         for parameter in &declaration.type_params {
             if parameters
@@ -172,6 +173,10 @@ impl Lowerer {
             file,
             declaration.name.span,
             crate::editing::types::TypeTarget::Alias(id),
+        );
+        self.record_editing_type_errors(
+            crate::editing::types::TypeTarget::Alias(id),
+            diagnostics_before,
         );
         id
     }

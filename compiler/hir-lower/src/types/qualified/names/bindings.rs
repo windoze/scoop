@@ -9,6 +9,7 @@ impl Lowerer {
         host: Option<TypeId>,
         subject: Option<TypeId>,
     ) -> Option<ResolvedTypeName> {
+        self.require_editing_type(self.editing_lookup_type_target(&binding), name.span)?;
         self.observe_type_lookup(name, &binding, None);
         match binding {
             TypeLookupTarget::Current(TopLevelTypeTarget::Annotation(id)) => {
@@ -77,6 +78,11 @@ impl Lowerer {
                 .nested_nominal_target(owner, &name.text)
                 .map(|target| self.nominal_identity(target.owner()).declaration_id());
             if let Some(nominal) = nominal {
+                self.require_editing_type(
+                    crate::editing::types::TypeTarget::Nominal(nominal),
+                    name.span,
+                )
+                .ok_or(())?;
                 self.observe_type_name(
                     name.span,
                     crate::editing::types::TypeTarget::Nominal(nominal),

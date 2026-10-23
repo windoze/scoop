@@ -12,6 +12,41 @@ impl Lowerer {
         &self,
         binding: CurrentUnitBindingId,
     ) -> Option<UnavailableBindingKind> {
+        let target = self.imports.binding(binding).target;
+        if self.editing_declarations.is_some()
+            && let Some(target) = target.type_target()
+        {
+            let observed = self.editing_lookup_type_target(&TypeLookupTarget::Current(target));
+            if !self.editing_type_available(observed) {
+                return Some(UnavailableBindingKind::Declaration(match target {
+                    crate::namespace::TopLevelTypeTarget::Nominal(
+                        crate::NominalTarget::Object(_),
+                    ) => ast::DeclarationHeaderKind::Singleton,
+                    _ => ast::DeclarationHeaderKind::Type,
+                }));
+            }
+        }
+        if self.editing_declarations.is_some()
+            && matches!(
+                target,
+                CurrentUnitTarget::Property(_)
+                    | CurrentUnitTarget::SourceProperty(_)
+                    | CurrentUnitTarget::EnumVariant(_)
+                    | CurrentUnitTarget::SourceVariant(_)
+            )
+        {
+            let declaration = self.imports.binding(binding);
+            if !self.editing_declaration_scope_available(&hir::SemanticSourceLocation {
+                source: declaration.source.clone(),
+                span: declaration.span,
+            }) {
+                return Some(UnavailableBindingKind::Declaration(
+                    ast::DeclarationHeaderKind::Property {
+                        is_extension: false,
+                    },
+                ));
+            }
+        }
         match self.imports.binding(binding).target {
             CurrentUnitTarget::Unavailable(kind) => Some(UnavailableBindingKind::Declaration(kind)),
             CurrentUnitTarget::UnavailableImport => Some(UnavailableBindingKind::Import),

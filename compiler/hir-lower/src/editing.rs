@@ -6,6 +6,7 @@ use scoop_identity::ConeIdentity;
 
 use crate::{CoreProtocolInput, Lowerer, SourceKind, SourceProvider};
 
+pub(crate) mod availability;
 mod bodies;
 mod callables;
 pub(crate) mod candidates;
@@ -185,6 +186,13 @@ impl DeclarationAnalysis {
     pub fn signature(&self, function: hir::FunctionId) -> hir::EditingValue<EditingSignature> {
         use hir::{EditingUnavailable as U, EditingValue as V};
         if !self.declarations_ready || !self.lowerer.signatures.contains_key(&function) {
+            return V::Unavailable(U::DeclarationFailure);
+        }
+        if self
+            .lowerer
+            .editing_callable_origin(hir::SemanticCallable::Current(function))
+            .is_some_and(|origin| !self.lowerer.editing_declaration_scope_available(&origin))
+        {
             return V::Unavailable(U::DeclarationFailure);
         }
         if self
