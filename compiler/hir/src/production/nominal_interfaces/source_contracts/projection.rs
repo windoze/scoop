@@ -77,6 +77,21 @@ pub(super) fn project(
                 CanonicalSourceNominalIdsV1::try_new(subtypes.to_vec()).map_err(invalid)
             })
             .transpose()?,
+    )
+    .with_conditional_interfaces(
+        export
+            .conditional_interfaces(owner)
+            .iter()
+            .map(|implementation| {
+                Ok(ConditionalInterfaceRecordV1::new(
+                    implementation.id(),
+                    implementation.key.interface.clone(),
+                    signatures
+                        .project_binder_list(&implementation.parameters, &binders)
+                        .map_err(invalid)?,
+                ))
+            })
+            .collect::<Result<Vec<_>, Error>>()?,
     );
     NominalInterfaceRecordV1::try_new(
         owner,

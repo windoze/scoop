@@ -23,7 +23,8 @@ pub(in crate::production::type_semantics) fn project(
                     NominalDispatchSelectionRoleV1::ClassVtable => {
                         InheritanceSlotSchemaRoleV1::ClassVtable
                     }
-                    NominalDispatchSelectionRoleV1::Interface { interface } => {
+                    NominalDispatchSelectionRoleV1::Interface { interface }
+                    | NominalDispatchSelectionRoleV1::ConditionalInterface { interface, .. } => {
                         InheritanceSlotSchemaRoleV1::Interface {
                             interface_exact: metadata
                                 .signature_exact_type(interface)

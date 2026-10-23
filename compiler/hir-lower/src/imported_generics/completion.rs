@@ -14,6 +14,7 @@ impl Lowerer {
                 if !self.diagnostics.is_empty() {
                     break;
                 }
+                let type_count = self.types.len();
                 if let Err(error) = self
                     .retain_generic_primitive_declarations()
                     .and_then(|()| self.prepare_selected_intrinsic_types())
@@ -21,7 +22,7 @@ impl Lowerer {
                     self.diagnostics.push(scoop_ast::Diagnostic::without_span(
                         scoop_ast::DiagnosticSeverity::Error,
                         self.primary_output_file(),
-                        error.diagnostic("generic primitive argument"),
+                        error.diagnostic("generic argument support"),
                     ));
                     break;
                 }
@@ -35,6 +36,9 @@ impl Lowerer {
                 if index == self.imported_generic_templates.templates.len()
                     && constructor == self.imported_constructor_templates.templates.len()
                 {
+                    if self.types.len() != type_count {
+                        continue;
+                    }
                     break;
                 }
             }

@@ -1,0 +1,49 @@
+schema = 1
+name = "conditional-interface-odr"
+inputs = ["provider", "left", "right", "root"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["conditional-interfaces", "odr", "compiler-correctness"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/source/provider"}},
+  {copy = {from = "${fixture}/left", to = "${work}/source/left"}},
+  {copy = {from = "${fixture}/right", to = "${work}/source/right"}},
+  {copy = {from = "${fixture}/root", to = "${work}/source/root"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {each = "${link_args}"}, "${work}/source/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${build.result.dependencies.length}", equals = 4}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "relink"
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.3.path}", "--dependency-slib", "${build.result.dependencies.2.path}", "--dependency-slib", "${build.result.dependencies.1.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/relinked", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run_relinked"
+argv = ["${work}/relinked"]
+exit = 0
+stdout = ""
+stderr = ""

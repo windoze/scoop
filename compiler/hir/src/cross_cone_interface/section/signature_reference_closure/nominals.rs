@@ -40,6 +40,40 @@ impl CrossConeHirInterfaceSectionV1 {
                 )?;
             }
 
+            for (implementation_index, implementation) in record
+                .declaration_details()
+                .conditional_interfaces()
+                .iter()
+                .enumerate()
+            {
+                let path = record_path
+                    .clone()
+                    .field(9)
+                    .field(13)
+                    .index(implementation_index as u64);
+                validator.visit_signature(
+                    implementation.interface(),
+                    ExternalHirSignatureUseSiteV1::NominalConditionalInterface {
+                        record_index,
+                        implementation_index,
+                    },
+                    &path.clone().field(2),
+                )?;
+                visit_binder_signatures(
+                    validator,
+                    implementation.parameters(),
+                    &path.field(3),
+                    |binder_index, bound| {
+                        ExternalHirSignatureUseSiteV1::NominalConditionalParameter {
+                            record_index,
+                            implementation_index,
+                            binder_index,
+                            bound,
+                        }
+                    },
+                )?;
+            }
+
             for (selection_index, selection) in record
                 .declaration_details()
                 .dispatch_selections()
@@ -60,9 +94,7 @@ impl CrossConeHirInterfaceSectionV1 {
                         .index(selection_index as u64)
                         .field(3),
                 )?;
-                if let crate::NominalDispatchSelectionRoleV1::Interface { interface } =
-                    selection.role()
-                {
+                if let Some(interface) = selection.role().interface() {
                     validator.visit_signature(
                         interface,
                         ExternalHirSignatureUseSiteV1::NominalDispatchInterface {
@@ -76,6 +108,23 @@ impl CrossConeHirInterfaceSectionV1 {
                             .index(selection_index as u64)
                             .field(0)
                             .field(1),
+                    )?;
+                }
+                if let Some(condition) = selection.role().condition() {
+                    validator.visit_signature(
+                        &condition.owner,
+                        ExternalHirSignatureUseSiteV1::NominalConditionalOwner {
+                            record_index,
+                            selection_index,
+                        },
+                        &record_path
+                            .clone()
+                            .field(9)
+                            .field(7)
+                            .index(selection_index as u64)
+                            .field(0)
+                            .field(2)
+                            .field(2),
                     )?;
                 }
             }

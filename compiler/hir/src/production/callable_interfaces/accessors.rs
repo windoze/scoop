@@ -190,6 +190,19 @@ fn finish(
         super::slots::accessor(projection.export, implementation)?,
         context_parameters,
     )
+    .map(|record| {
+        record.with_availability(match implementation {
+            PropertyAccessorImplementation::Body(function)
+            | PropertyAccessorImplementation::StorageBody(function)
+            | PropertyAccessorImplementation::AbstractSlot(function) => projection.export.functions
+                [function]
+                .method
+                .and_then(|method| method.availability),
+            PropertyAccessorImplementation::Storage | PropertyAccessorImplementation::Constant => {
+                None
+            }
+        })
+    })
     .map_err(CallableProjectionError::Record)
 }
 

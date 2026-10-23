@@ -26,7 +26,8 @@ impl Lowerer {
         let span = origin.span;
         let binders = nominal
             .interface
-            .type_parameters()
+            .member_owner_parameters(declaration.interface().availability())
+            .ok_or("abstract member names an absent conditional implementation")?
             .binders()
             .iter()
             .collect::<Vec<_>>();

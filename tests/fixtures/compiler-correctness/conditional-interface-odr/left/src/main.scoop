@@ -1,0 +1,7 @@
+package test.m57.left
+import test.m57.provider.*
+
+public fun value(): Hash = Box(7)
+public fun increment(): Int = Box<Int>.next()
+public fun singleton(): Any = Box<Int>.Companion
+public fun absent(): Any = Box<Plain>.Companion

@@ -17,6 +17,7 @@ pub struct DecodedNominalDeclarationDetailsV1 {
     release_policy: NominalReleasePolicyV1,
     class_primary_constructor: Option<DecodedClassPrimaryConstructorV1>,
     sealed_subtypes: Option<Vec<DecodedSourceNominalId>>,
+    conditional_interfaces: Vec<DecodedConditionalInterfaceRecordV1>,
 }
 
 impl DecodedNominalDeclarationDetailsV1 {
@@ -88,14 +89,21 @@ impl DecodedNominalDeclarationDetailsV1 {
                 .transpose()
                 .map_err(Error::ClassPrimary)?,
         )
-        .with_sealed_subtypes(sealed_subtypes))
+        .with_sealed_subtypes(sealed_subtypes)
+        .with_conditional_interfaces(
+            self.conditional_interfaces
+                .into_iter()
+                .map(|implementation| implementation.resolve(resolver))
+                .collect::<Result<_, _>>()
+                .map_err(Error::ConditionalInterface)?,
+        ))
     }
 }
 
 impl WireDecode for DecodedNominalDeclarationDetailsV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
-        if fields != 11 && fields != 12 {
+        if !(11..=13).contains(&fields) {
             return Err(WireError::new(
                 WireErrorKind::InvalidLength {
                     expected: 11,
@@ -105,7 +113,7 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
                 Some(decoder.position()),
             ));
         }
-        let value = Self {
+        let mut value = Self {
             modality: decoder.field(1, NominalInheritanceModalityV1::decode)?,
             visibility: decoder.field(2, DeclaredVisibilityV1::decode)?,
             constructors: decoder.field(3, DecodedCanonicalPersistentIdsV1::decode)?,
@@ -134,14 +142,45 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
                 .field(9, DecodedNominalInstantiationConditionsV1::decode)?,
             release_policy: decoder.field(10, NominalReleasePolicyV1::decode)?,
             class_primary_constructor: decoder.field(11, super::class_primary::wire::optional)?,
-            sealed_subtypes: if fields == 12 {
+            sealed_subtypes: if fields >= 12 && decoder.peek_field()? == 12 {
                 Some(decoder.field(12, |d| {
                     d.decode_array(|d, _| DecodedSourceNominalId::decode(d))
                 })?)
             } else {
                 None
             },
+            conditional_interfaces: Vec::new(),
         };
+
+        let consumed = 11 + u64::from(value.sealed_subtypes.is_some());
+        if fields > consumed {
+            if fields != consumed + 1 {
+                return Err(WireError::new(
+                    WireErrorKind::InvalidLength {
+                        expected: consumed + 1,
+                        actual: fields,
+                    },
+                    decoder.path().clone(),
+                    Some(decoder.position()),
+                ));
+            }
+            value.conditional_interfaces = decoder.field(13, |decoder| {
+                let values = decoder.decode_array(|decoder, _| {
+                    DecodedConditionalInterfaceRecordV1::decode(decoder)
+                })?;
+                if values.is_empty() {
+                    return Err(WireError::new(
+                        WireErrorKind::InvalidLength {
+                            expected: 1,
+                            actual: 0,
+                        },
+                        decoder.path().clone(),
+                        Some(decoder.position()),
+                    ));
+                }
+                Ok(values)
+            })?;
+        }
 
         Ok(value)
     }
@@ -149,11 +188,10 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
 
 impl WireEncode for DecodedNominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(if self.sealed_subtypes.is_some() {
-            12
-        } else {
-            11
-        })?;
+        encoder.map(
+            11 + u64::from(self.sealed_subtypes.is_some())
+                + u64::from(!self.conditional_interfaces.is_empty()),
+        )?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -195,12 +233,20 @@ impl WireEncode for DecodedNominalDeclarationDetailsV1 {
                 subtype.encode(encoder)?;
             }
         }
+        if !self.conditional_interfaces.is_empty() {
+            encoder.field(13)?;
+            encoder.array(self.conditional_interfaces.len() as u64)?;
+            for implementation in &self.conditional_interfaces {
+                implementation.encode(encoder)?;
+            }
+        }
         Ok(())
     }
 }
 
 #[derive(Debug)]
 pub enum NominalDeclarationDetailsResolutionError<E> {
+    ConditionalInterface(ConditionalInterfaceRecordResolutionError<E>),
     SealedSubtypes(crate::SourceInventoryError),
     ClassPrimary(ClassPrimaryConstructorResolutionError<E>),
     InstantiationConditions(crate::BinderUseListValidationError<E>),
@@ -214,6 +260,7 @@ pub enum NominalDeclarationDetailsResolutionError<E> {
 impl<E: std::fmt::Display> std::fmt::Display for NominalDeclarationDetailsResolutionError<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::ConditionalInterface(e) => e.fmt(f),
             Self::SealedSubtypes(e) => e.fmt(f),
             Self::InstantiationConditions(e) => e.fmt(f),
             Self::ClassPrimary(e) => e.fmt(f),

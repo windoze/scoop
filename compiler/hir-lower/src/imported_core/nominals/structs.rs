@@ -129,6 +129,13 @@ impl Lowerer {
             .expect("the struct builder registered its identity")
             .definition
             .type_params = type_params.clone();
+        let conditional_interfaces =
+            self.load_imported_conditional_interfaces(&declaration, &type_params, &bindings, span)?;
+        self.loaded_struct_definitions
+            .get_mut(&owner)
+            .expect("the struct builder registered its identity")
+            .definition
+            .conditional_interfaces = conditional_interfaces;
         if let hir::NominalSourceShapeV1::Struct(shape) = declaration.interface.source_shape() {
             let fields = shape
                 .fields()

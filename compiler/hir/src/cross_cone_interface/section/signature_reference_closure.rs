@@ -380,6 +380,20 @@ pub enum ExternalHirSignatureUseSiteV1 {
         record_index: usize,
         signature_index: usize,
     },
+    NominalConditionalInterface {
+        record_index: usize,
+        implementation_index: usize,
+    },
+    NominalConditionalParameter {
+        record_index: usize,
+        implementation_index: usize,
+        binder_index: usize,
+        bound: TypeParameterBoundLocation,
+    },
+    NominalConditionalOwner {
+        record_index: usize,
+        selection_index: usize,
+    },
     NominalDispatchReceiver {
         record_index: usize,
         selection_index: usize,

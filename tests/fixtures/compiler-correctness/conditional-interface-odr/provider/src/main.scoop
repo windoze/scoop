@@ -1,0 +1,28 @@
+package test.m57.provider
+
+public interface Counter { public fun next(): Int }
+public struct Plain()
+
+public object Always {
+    override interface Counter {
+        public override fun next(): Int = 41
+    }
+}
+
+public struct Box<T>(val value: T) {
+    override interface Hash where T : Hash {
+        public override fun hash(): Long = value.hash()
+    }
+
+    public companion object {
+        private var state: Int = 0
+        public fun count(): Int = state
+
+        override interface Counter where T : Hash {
+            public override fun next(): Int {
+                state += 1
+                return state
+            }
+        }
+    }
+}

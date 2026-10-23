@@ -32,6 +32,15 @@ impl<'input> Decoder<'input> {
         &self.path
     }
 
+    /// Inspect the next optional field without consuming its canonical encoding.
+    /// The selected field is subsequently read with `field`.
+    pub fn peek_field(&self) -> Result<u64, WireError> {
+        self.inner
+            .clone()
+            .u64()
+            .map_err(|_| self.type_error(WireType::Unsigned))
+    }
+
     pub fn unsigned(&mut self) -> Result<u64, WireError> {
         let start = self.inner.position();
         let value = self

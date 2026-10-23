@@ -545,7 +545,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/78`、`cross-cone-type-semantics/30` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/79`、`cross-cone-type-semantics/30` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/16`、`cone-production/14`、`link-identity-closure/18`、`link-support/1` |
 
@@ -984,6 +984,8 @@ LIR 的 MaybeUninit 操作写入完整类型的独立 local place；零大小结
 
 Export HIR保留完整条件关系、成员适用性、投影绑定、继承及必要support body，不按某个consumer的import或已用实参裁剪接口集合。消费方、再次发布方和linker不能为外来owner追加实现。查询结果只有在相同参数事实下复用；完全具体的同一application保持唯一接口集合。实际编码改变时升级对应格式，IR/meta只承载数据与正常格式／引用检查，不重建语义查询器。
 
+M57 将 `cross-cone-interface` 升至 79。nominal declaration details 的可缺省 field 13 保存非空条件接口声明序列，每项保存 typed 条件声明 id、目标 signature key 和完整原宿主 binder 条件；缺省表示没有接口实现块记录，无 where 的实现块仍保存为条件为空的记录。callable declaration 的可缺省 field 12 引用成员所属条件声明，普通成员不携带该字段。dispatch selection role 增加 tag 3，保存接口 application 和条件声明的完整原宿主 application，区分互斥条件下的不同 slot 选择。这些记录使用既有签名、binder、实体引用和正文格式；读取时检查普通归属、引用与形状，不重放声明方的重叠或正文检查。旧产物须重建，其他 section 与 runtime ABI 保持不变。
+
 具体化根据完整实参落实条件并填充普通itable／vtable输入；保留定义处选择的重载、default表达式和字段codec，仅替换已绑定投影与slot目标。进入LocalConcreteHir前必须消除待定条件，类型、调用与实现关系完整；后续stage不重放条件推导。宿主布局、构造、GC scan、companion初始化及ABI维持普通规则，不引入类型定义分支、赢家集合、dictionary或运行期条件选择。
 
 target/backend/C toolchain 的 typed identity 保留既有 canonical 编码及实体派生关系，支持集合在实际消费者处判断；仅移动实现和改变进程内表示不提升 wire/schema/runtime ABI，只有实际编码或可消费合同变化才升级相关格式。artifact-only 消费使用已保存的布局与 ABI，不加载 codegen、创建 TargetMachine 或重新分类。具体 target/backend 布局与合同常量可由 codegen 所属的静态数据模块供 artifact-only 消费者共享；该模块不含 LLVM、ABI 分类器或工具执行，公共 identity/LIR 只定义数据类型和规范化编码。
@@ -1169,7 +1171,7 @@ annotation 声明保存已绑定的允许目标集合与 repeatable 属性。集
 
 HIR lower 在正常类型解析过程中记录这些位置和 alias 的实际替换关系，注解值待相应 schema/常量完成后仅绑定一次。alias 与泛型替换复用原 binder 映射，合并相应路径的静态应用，不污染共享类型或重跑类型检查。annotation 参数的 annotation class 及其 Array 使用独立 annotation identity，不制造 runtime TypeId；用于确认 Array alias 转发关系的临时参数不进入静态描述。
 
-共享注解表增加类型使用记录与声明位置关联，完整类型用既有 signature key 与独立 annotation 参数类型表示，应用沿用 canonical 静态值并保留各自来源。reader 在原静态数据边界检查实际引用、binder、路径及 TYPE/Repeatable 规则，不重放 alias 展开、默认值或布局。静态查询从同一记录取得类型、各节点注解和参数替换结果。cross-cone-interface 当前版本为 78，旧产物须重建；MIR/LIR 和 runtime ABI 保持不变。
+共享注解表增加类型使用记录与声明位置关联，完整类型用既有 signature key 与独立 annotation 参数类型表示，应用沿用 canonical 静态值并保留各自来源。reader 在原静态数据边界检查实际引用、binder、路径及 TYPE/Repeatable 规则，不重放 alias 展开、默认值或布局。静态查询从同一记录取得类型、各节点注解和参数替换结果。该变更使用 cross-cone-interface/78；当前版本见 2.6 与 2.11，旧产物须重建。MIR/LIR 和 runtime ABI 保持不变。
 
 property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 保存 sealed 直接子类型（2.2）；generated callable tag 17 为 TestEntry，tag 18 为 AnnotationDescription。
 

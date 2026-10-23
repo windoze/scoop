@@ -109,6 +109,27 @@ impl CanonicalCallableInterfacesV1 {
     ) -> Result<(), CallableDeclarationInventoryError> {
         let required = Self::required_declarations(nominals, properties)?;
 
+        for record in self.all_declarations() {
+            let Some(availability) = record.availability() else {
+                continue;
+            };
+            let owner = match record.owner() {
+                PublicDeclarationOwnerV1::Nominal(owner) => nominals.declaration(owner),
+                PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension => None,
+            };
+            if !matches!(
+                record.declaration(),
+                CallableTemplateOrigin::Function(_) | CallableTemplateOrigin::Accessor(_)
+            ) || owner
+                .is_none_or(|owner| owner.member_owner_parameters(Some(availability)).is_none())
+            {
+                return Err(CallableDeclarationInventoryError::Availability {
+                    declaration: record.declaration(),
+                    implementation: availability,
+                });
+            }
+        }
+
         for (declaration, owner) in &required {
             let record = self
                 .declaration(*declaration)
@@ -145,6 +166,10 @@ impl CanonicalCallableInterfacesV1 {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum CallableDeclarationInventoryError {
+    Availability {
+        declaration: CallableTemplateOrigin,
+        implementation: crate::ConditionalInterfaceId,
+    },
     Missing(CallableTemplateOrigin),
     UnexpectedSupport(CallableTemplateOrigin),
     Owner {

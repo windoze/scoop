@@ -63,6 +63,15 @@ impl Lowerer {
         let selections = self
             .imported_interface_dispatch_selections(ty, &declaration)
             .expect("dependency interface selections retain their complete applications");
+        let selections = selections
+            .into_iter()
+            .filter(|((_, condition, _), _)| {
+                condition
+                    .as_ref()
+                    .is_none_or(|condition| self.conditional_application_holds(condition))
+            })
+            .map(|((interface, _, slot), selection)| ((interface, slot), selection))
+            .collect::<BTreeMap<_, _>>();
         let mut seen = BTreeSet::new();
         while let Some(owner) = pending.pop() {
             if !seen.insert(owner) {

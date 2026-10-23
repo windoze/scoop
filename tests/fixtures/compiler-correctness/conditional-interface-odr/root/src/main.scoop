@@ -1,0 +1,31 @@
+package test.m57.program
+
+import test.m57.provider.*
+import test.m57.left.value as leftValue
+import test.m57.right.value as rightValue
+import test.m57.left.increment as leftIncrement
+import test.m57.right.increment as rightIncrement
+import test.m57.left.singleton as leftSingleton
+import test.m57.right.singleton as rightSingleton
+import test.m57.left.absent
+import test.m57.right.plain
+
+private fun check(ok: Boolean) {
+    if (!ok) throw IllegalStateException()
+}
+
+fun main() {
+    val always: Counter = Always
+    check(always.next() == 41)
+    check(Box<Int>.count() == 0)
+    check(leftSingleton() === rightSingleton())
+    check(leftSingleton() is Counter)
+    check(leftIncrement() == 1)
+    check(rightIncrement() == 2)
+    check(Box<Int>.count() == 2)
+    check(Box<Long>.count() == 0)
+    check(!(absent() is Counter))
+    check(!(plain() is Hash))
+    check(leftValue().hash() == (7).hash())
+    check(rightValue().hash() == (9).hash())
+}

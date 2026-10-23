@@ -2,7 +2,7 @@ use super::*;
 
 impl WireEncode for CallableDeclarationRecordV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(11 + u64::from(self.availability.is_some()))?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
@@ -28,6 +28,10 @@ impl WireEncode for CallableDeclarationRecordV1 {
         for parameter in &self.context_parameters {
             parameter.encode(encoder)?;
         }
+        if let Some(availability) = self.availability {
+            encoder.field(12)?;
+            availability.encode(encoder)?;
+        }
         Ok(())
     }
 }
@@ -45,6 +49,7 @@ pub struct DecodedCallableDeclarationRecordV1 {
     visibility: DeclaredVisibilityV1,
     slots: DecodedCanonicalPersistentIdsV1<PersistentDispatchSlotId>,
     context_parameters: Vec<crate::DecodedSourceParameterShapeV1>,
+    availability: Option<crate::ConditionalInterfaceId>,
 }
 
 impl DecodedCallableDeclarationRecordV1 {
@@ -110,13 +115,14 @@ impl DecodedCallableDeclarationRecordV1 {
                 })
                 .collect::<Result<_, _>>()?,
         )
+        .map(|record| record.with_availability(self.availability))
         .map_err(CallableInterfaceRecordResolutionError::Record)
     }
 }
 
 impl WireEncode for DecodedCallableDeclarationRecordV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(11 + u64::from(self.availability.is_some()))?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
@@ -142,13 +148,27 @@ impl WireEncode for DecodedCallableDeclarationRecordV1 {
         for parameter in &self.context_parameters {
             parameter.encode(encoder)?;
         }
+        if let Some(availability) = self.availability {
+            encoder.field(12)?;
+            availability.encode(encoder)?;
+        }
         Ok(())
     }
 }
 
 impl WireDecode for DecodedCallableDeclarationRecordV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(11)?;
+        let fields = decoder.map()?;
+        if fields != 11 && fields != 12 {
+            return Err(WireError::new(
+                scoop_wire::WireErrorKind::InvalidLength {
+                    expected: 11,
+                    actual: fields,
+                },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            ));
+        }
         let value = Self {
             declaration: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,
             owner: decoder.field(2, DecodedPublicDeclarationOwnerV1::decode)?,
@@ -165,6 +185,11 @@ impl WireDecode for DecodedCallableDeclarationRecordV1 {
                     crate::DecodedSourceParameterShapeV1::decode(decoder)
                 })
             })?,
+            availability: if fields == 12 {
+                Some(decoder.field(12, crate::ConditionalInterfaceId::decode)?)
+            } else {
+                None
+            },
         };
 
         Ok(value)

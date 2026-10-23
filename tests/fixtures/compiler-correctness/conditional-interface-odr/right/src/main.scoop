@@ -1,0 +1,11 @@
+package test.m57.right
+import test.m57.provider.*
+
+private fun <T : Hash> forward(value: Box<T>): Hash = value
+public fun value(): Hash = forward(Box(9))
+public fun increment(): Int {
+    val view: Counter = Box<Int>.Companion
+    return view.next()
+}
+public fun singleton(): Any = Box<Int>.Companion
+public fun plain(): Any = Box(Plain())

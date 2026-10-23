@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test.m57"
+name = "right"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"test.m57:provider" = {version = "0.1.0", path = "../provider"}

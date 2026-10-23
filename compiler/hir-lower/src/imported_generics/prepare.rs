@@ -75,10 +75,18 @@ impl Lowerer {
         let source = PreparedImportedCallableSource::Declaration(Box::new(declaration.clone()));
         let origin = self.import_generic_definition(&source, body.definition_origin())?;
         let span = origin.span;
-        let binders = nominal
+        let owner_parameters = nominal
             .as_ref()
+            .map(|nominal| {
+                nominal
+                    .interface
+                    .member_owner_parameters(interface.availability())
+                    .ok_or("dependency member names an absent conditional implementation")
+            })
+            .transpose()?;
+        let binders = owner_parameters
             .into_iter()
-            .flat_map(|nominal| nominal.interface.type_parameters().binders())
+            .flat_map(|parameters| parameters.binders())
             .chain(
                 extension
                     .as_ref()

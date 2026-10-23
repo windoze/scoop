@@ -21,7 +21,7 @@ fn exported_graphs_have_identical_direct_and_wire_consumers() {
     }
 }
 
-fn compare_consumers(label: &str, provider: &str, consumer: &str) {
+pub(super) fn compare_consumers(label: &str, provider: &str, consumer: &str) {
     let mut core = trusted_core();
     let coordinate = ConeCoordinate::new("test", "generic-provider", "1.0.0").unwrap();
     let (foundation, interface) =
@@ -116,8 +116,13 @@ fn compare_consumers(label: &str, provider: &str, consumer: &str) {
         published
             .complete_cross_cone_interface_source_points(output.output().export.module(), &public)
             .unwrap();
+        let initialization = if output.output().local.initialization_units.is_empty() {
+            Vec::new()
+        } else {
+            vec![core.project_initialization_cycle_to_mir()]
+        };
         let dependencies =
-            scoop_mir::SelectedExternalMirSet::try_from_callables(source.cone(), Vec::new())
+            scoop_mir::SelectedExternalMirSet::try_from_callables(source.cone(), initialization)
                 .unwrap();
         let mir = scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default())
             .unwrap_or_else(|errors| panic!("{label}: {errors:?}"));

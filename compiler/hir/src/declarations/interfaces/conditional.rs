@@ -2,12 +2,26 @@
 
 use super::*;
 use scoop_identity::{SignatureConditionKey, SignatureTypeKey};
-use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash};
+use scoop_wire::{
+    Decoder, Digest256, Encoder, WireDecode, WireEncode, WireError, domain_separated_cbor_hash,
+};
 
 /// A declaration key in the original owner's binder domain. It is stable
 /// across imports and independent of source order and local arena indices.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConditionalInterfaceId(Digest256);
+
+impl WireEncode for ConditionalInterfaceId {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        self.0.encode(encoder)
+    }
+}
+
+impl WireDecode for ConditionalInterfaceId {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
+        Digest256::decode(decoder).map(Self)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConditionalInterfaceKey {
@@ -48,7 +62,7 @@ pub struct ConditionalInterfaceDeclaration {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ConditionalInterfaceApplication {
     pub declaration: ConditionalInterfaceId,
     pub owner: SourceNominalId,

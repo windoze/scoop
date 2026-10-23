@@ -147,3 +147,55 @@ fn actual_object_overrides_replace_base_slots_and_preserve_distinct_receivers() 
         assertions::object_overrides(output, input, types, authority, schemas);
     });
 }
+
+#[test]
+fn m57_body_interfaces_have_source_edges_and_native_dispatch_paths() {
+    with_dispatch(
+        r#"
+public interface Flag { public fun read(): Boolean }
+public class Reference {
+    override interface Flag { public override fun read(): Boolean = true }
+}
+public struct Value() {
+    override interface Flag { public override fun read(): Boolean = true }
+}
+public enum Choice {
+    One
+    override interface Flag { public override fun read(): Boolean = true }
+}
+public object Singleton {
+    override interface Flag { public override fun read(): Boolean = true }
+}
+"#,
+        |output, _, source, _, authority, schemas| {
+            let owners = source_dispatch::owners(output);
+            let interface = owners["Flag"];
+            for name in ["Reference", "Value", "Choice", "Singleton"] {
+                let owner = owners[name];
+                assert_eq!(
+                    source
+                        .inheritance()
+                        .get(owner)
+                        .unwrap()
+                        .edges()
+                        .direct_interfaces(),
+                    [interface]
+                );
+                assert_eq!(
+                    authority.canonical_receiver_path(owner, interface).unwrap(),
+                    [owner, interface]
+                );
+                assert_eq!(
+                    schemas
+                        .get(owner)
+                        .unwrap()
+                        .interface_table(interface)
+                        .unwrap()
+                        .entries()
+                        .len(),
+                    1
+                );
+            }
+        },
+    );
+}

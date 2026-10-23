@@ -17,7 +17,8 @@
 | 语法与普通类型条件接口 | 本 Cone 基础闭环已完成；继承等组合另行验收 | 4 个 parser 用例、11 个 M57 HIR 用例、8 个诊断 fixture、4 个 core consumer 原生用例通过 |
 | Companion、HashMap 与 Json 闭环 | 待完成 | 尚无实现验收 |
 | 继承、default、property、效果与 codec 合成 | 待完成 | 尚无实现验收 |
-| 导出、跨 Cone、ODR、动态接口表与 Linux 验收 | 待完成 | 尚无实现验收 |
+| 导出、跨 Cone 与 ODR | 基础闭环已完成；继承组合另行验收 | 83 个泛型导入回归、条件记录 wire 往返／再次发布与双 consumer 原生链接运行通过 |
+| 完整组合与 Linux 验收 | 待完成 | 尚无完整验收 |
 
 此表只在实际代码及对应验证完成后更新，不以规范已写入代替功能交付。
 
@@ -29,3 +30,12 @@
 - Concrete 接口关系从声明求值，不读取尚未构造完成的接口表；递归基类实例化顺序有原生覆盖。
 - 本机 workspace Clippy 通过。HIR 回归首次 1,526 通过、15 失败；失败均为导入 intrinsic 的独立存储路径，修正后相关 128 个回归用例通过。后续关系求值调整通过 M55／M57 共 29 个用例。
 - 已显式准备 Darwin 的 21 个系统 Cone 与 runtime；正式验证消费共享 sysroot／Cone cache。跨 Cone 条件元数据、复杂继承／default、codec 合成及 Linux 验收仍待后续步骤。
+
+## 4. 条件关系的跨 Cone 消费
+
+- `cross-cone-interface/79` 保存原宿主 binder 下的条件声明、成员适用性及带完整 owner application 的 slot 选择；导入后沿用定义处目标，互斥条件下的 default 选择保持独立。
+- 参数的 public companion 声明在具体化前随实际泛型实参保留，避免仅使用 Any／动态判断时漏掉接口关系；查询不执行 companion 初始化。
+- 无泛型的实现块同时导出普通继承边和接口槽位，class／struct／enum／object 均有从源码到 MIR 分派表的验证。
+- 本机 workspace Clippy、867 个 HIR 格式测试、83 个泛型导入回归通过；16 个 M57 定向用例覆盖本地、导入及产物分派。格式版本变更导致的一项 slib 期望向量失败已更新，相关 17 个 profile 测试通过。
+- 正式 ODR fixture 由 provider、两个 library consumer 和 root 构成，验证条件真／假、非泛型实现块、单例共享及不同实参独立；原链接与逆序依赖重链接均运行成功。Darwin sysroot 已按新格式显式重建。
+- HashMap 默认 codec、继承／合成组合、完整 Linux 验收仍未完成。

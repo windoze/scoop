@@ -4,6 +4,39 @@ use crate::call_resolution::applicability::{
 };
 
 impl Lowerer {
+    pub(crate) fn declaration_conditional_interfaces(
+        &self,
+        owner: hir::SourceNominalId,
+    ) -> &[hir::ConditionalInterfaceDeclaration] {
+        if let Some(owner) = self.nominal_owners.get(&owner) {
+            return self.owner_conditional_interfaces(*owner);
+        }
+        if let Some(loaded) = self.loaded_class_definitions.get(&owner) {
+            &loaded.definition.conditional_interfaces
+        } else if let Some(loaded) = self.loaded_struct_definitions.get(&owner) {
+            &loaded.definition.conditional_interfaces
+        } else if let Some(loaded) = self.loaded_enum_definitions.get(&owner) {
+            &loaded.definition.conditional_interfaces
+        } else {
+            &[]
+        }
+    }
+
+    pub(crate) fn conditional_application_holds(
+        &mut self,
+        application: &hir::ConditionalInterfaceApplication,
+    ) -> bool {
+        let declaration = self
+            .declaration_conditional_interfaces(application.owner)
+            .iter()
+            .find(|declaration| declaration.id() == application.declaration)
+            .expect("conditional applications retain their declaration")
+            .clone();
+        !self
+            .applicable_conditional_interfaces(&[declaration], &application.arguments)
+            .is_empty()
+    }
+
     /// Owner arguments are fixed before checking a block. This uses the same
     /// bound solver as calls, without inferring a different host application.
     pub(crate) fn conditional_parameters_hold(

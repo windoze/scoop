@@ -116,6 +116,7 @@ pub(super) fn project(
         parameters::context(&projection.signatures, function, &binders)
             .map_err(CallableProjectionError::Parameters)?,
     )
+    .map(|record| record.with_availability(function.method.and_then(|method| method.availability)))
     .map_err(CallableProjectionError::Record)
 }
 

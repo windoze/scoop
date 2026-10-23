@@ -100,6 +100,13 @@ impl Lowerer {
             .expect("the enum builder registered its identity")
             .definition
             .type_params = type_params.clone();
+        let conditional_interfaces =
+            self.load_imported_conditional_interfaces(&declaration, &type_params, &bindings, span)?;
+        self.loaded_enum_definitions
+            .get_mut(&owner)
+            .expect("the enum builder registered its identity")
+            .definition
+            .conditional_interfaces = conditional_interfaces;
         let variants = shape
             .variants()
             .iter()
