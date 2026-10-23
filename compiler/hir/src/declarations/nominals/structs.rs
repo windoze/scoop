@@ -30,6 +30,7 @@ pub struct StructDefinition {
     pub type_params: Vec<TypeParamDecl>,
     pub representation: StructRepresentation,
     pub interfaces: Vec<TypeId>,
+    pub conditional_interfaces: Vec<ConditionalInterfaceDeclaration>,
     pub interface_implementations: Vec<InterfaceImplementation>,
 }
 

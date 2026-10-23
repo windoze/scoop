@@ -8,8 +8,12 @@ impl Parser {
     ) -> Result<NominalMember, Diagnostic> {
         let mut prefix = self.parse_member_prefix()?;
         prefix.annotations.splice(0..0, annotations);
-        self.nominal_member_kind();
+        self.nominal_member_kind(prefix.modifiers.override_span.is_some());
         match &self.peek().kind {
+            TokenKind::Interface if prefix.modifiers.override_span.is_some() => self
+                .parse_interface_implementation(prefix, PropertyContext::ValueType)
+                .map(Box::new)
+                .map(NominalMember::InterfaceImplementation),
             TokenKind::Fun => self
                 .parse_prefixed_member_function(prefix, FunctionContext::TypeBody)
                 .map(Box::new)

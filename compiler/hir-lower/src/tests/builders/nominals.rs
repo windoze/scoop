@@ -330,6 +330,7 @@ pub(crate) fn enum_decl_full(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Enum(ast::EnumDecl {
+        interface_implementations: Vec::new(),
         header: ast::EnumHeader {
             annotations: vec![],
             visibility: ast::VisibilitySyntax::Omitted,

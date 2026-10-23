@@ -34,6 +34,9 @@ impl InheritanceSourceSlotSelectionRecordV1 {
     pub const fn owner(self) -> PersistentExactTypeId {
         self.owner
     }
+    pub const fn role(self) -> InheritanceSlotSchemaRoleV1 {
+        self.role
+    }
     pub const fn slot(self) -> PersistentDispatchSlotId {
         self.slot
     }

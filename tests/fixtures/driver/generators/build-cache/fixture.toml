@@ -132,7 +132,7 @@ name = "failed"
 argv = ["${scoop}", "build", "${work}/provider", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--generator", "test.peer=failing", "-o", "${work}/failed.slib"]
 exit = 1
 stdout = ""
-stderr = "${work}/provider/src/api.scoop:5:29: error[SCOOPC_HIR_ERROR]: generator `test.peer` failed: process exited with exit status: 7\n${work}/provider/src/api.scoop:6:1: error[SCOOPC_HIR_ERROR]: class `GeneratedValue` does not implement interface method `Value.value`\n${work}/provider/src/api.scoop:11:1: error[SCOOPC_HIR_ERROR]: class `Generic` does not implement interface method `Echo<T0>.echo`\n"
+stderr = "${work}/provider/src/api.scoop:5:29: error[SCOOPC_HIR_ERROR]: generator `test.peer` failed: process exited with exit status: 7\n${work}/provider/src/api.scoop:6:1: error[SCOOPC_HIR_ERROR]: class `GeneratedValue` does not implement interface method `Value.value`\n${work}/provider/src/api.scoop:11:1: error[SCOOPC_HIR_ERROR]: class `Generic` does not implement interface method `Echo<T>.echo`\n"
 checks = [{file = "${work}/failed.slib", exists = false}]
 
 [[steps]]

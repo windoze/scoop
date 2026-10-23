@@ -91,6 +91,7 @@ impl<'a> ClassSource<'a> {
             | ClassMember::ReleaseBlock(_)
             | ClassMember::SecondaryConstructor(_)
             | ClassMember::Nested(_)
+            | ClassMember::InterfaceImplementation(_)
             | ClassMember::Companion(_) => None,
         })
     }
@@ -103,6 +104,7 @@ impl<'a> ClassSource<'a> {
             | ClassMember::ReleaseBlock(_)
             | ClassMember::Function(_)
             | ClassMember::Nested(_)
+            | ClassMember::InterfaceImplementation(_)
             | ClassMember::Companion(_) => None,
         })
     }
@@ -252,6 +254,7 @@ pub enum ClassMember {
     Function(FunctionDecl),
     Nested(Box<NestedTypeDecl>),
     Companion(Box<CompanionObjectDecl>),
+    InterfaceImplementation(Box<InterfaceImplementationDecl>),
 }
 
 impl ClassMember {
@@ -264,6 +267,7 @@ impl ClassMember {
             Self::Function(function) => function.span,
             Self::Nested(declaration) => declaration.span(),
             Self::Companion(companion) => companion.span,
+            Self::InterfaceImplementation(implementation) => implementation.span,
         }
     }
 }

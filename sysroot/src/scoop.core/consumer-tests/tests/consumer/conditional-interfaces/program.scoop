@@ -1,0 +1,114 @@
+package test.core.tests.consumer.conditional_interfaces
+
+import scoop.test.*
+
+interface Read { public fun read(): Int }
+interface Reading { public val number: Int }
+interface OtherRead { public fun read(): Int }
+interface Mark {}
+interface DefaultRead { public fun read(): Int = 29 }
+open class Gate<T> { override interface DefaultRead where T : DefaultRead {} }
+class Recursive : Gate<Recursive>(), DefaultRead
+
+struct Present(val number: Int) : Read, Mark {
+    public override fun read(): Int = number
+}
+struct Absent()
+
+struct Box<T>(val value: T) {
+    override interface Read where T : Read {
+        public override fun read(): Int = value.read()
+    }
+    override interface Reading where T : Read {
+        public override val number: Int get() = value.read()
+    }
+}
+
+class RefBox<T>(val value: T) {
+    override interface Read where T : Read {
+        public override fun read(): Int = value.read()
+    }
+}
+
+enum Choice<T> {
+    Value(val value: T)
+    override interface Read where T : Read {
+        public override fun read(): Int = when (this) {
+            case Value(value) -> value.read()
+        }
+    }
+}
+
+struct Shared<T>(val value: T) {
+    public override fun read(): Int = 17
+    override interface Read where T : Read {}
+    override interface OtherRead where T : Mark {}
+}
+
+struct Container<T>(val value: T) {
+    public companion object {
+        override interface Read where T : Read {
+            public override fun read(): Int = 23
+        }
+    }
+}
+
+fun <T : Read> throughBound(value: T): Int = value.read()
+fun <T : Read> forward(value: Box<T>): Read = value
+fun <T : !Read> knownAbsent(value: T): Boolean = true
+
+@Test
+private class ConditionalInterfaceTests {
+    @Test
+    fun callsAndConversions() {
+        val value = Box(Present(7))
+        val erased: Read = value
+        assertTrue(value.read() == 7 && erased.read() == 7)
+        assertTrue(forward(value).read() == 7)
+        assertTrue(throughBound(Box(Box(Present(11)))) == 11)
+        val callback: () -> Int = value::read
+        assertTrue(callback() == 7)
+        val reading: Reading = value
+        assertTrue(reading.number == 7 && value.number == 7)
+        assertTrue(throughBound(RefBox(Present(13))) == 13)
+        assertTrue(throughBound(Choice<Present>.Value(Present(19))) == 19)
+    }
+
+    @Test
+    fun runtimeInterfaceSet() {
+        val enabled: Any = Box(Present(7))
+        val disabled: Any = Box(Absent())
+        assertTrue(enabled is Read && enabled is Reading)
+        assertTrue(!(disabled is Read) && !(disabled is Reading))
+        assertTrue((enabled as? Read)!!.read() == 7)
+        assertTrue(knownAbsent(Box(Absent())))
+        val shared: Shared<Absent> = Shared(Absent())
+        assertTrue(shared.read() == 17)
+        val first: Read = Shared(Present(1))
+        val second: OtherRead = Shared(Present(2))
+        assertTrue(first.read() == 17 && second.read() == 17)
+    }
+
+    @Test
+    fun companionsRetainOneSingleton() {
+        val available: Read = Container<Present>.Companion
+        assertTrue(available.read() == 23)
+        assertTrue(Container<Present>.read() == 23)
+        val same: Any = Container<Present>.Companion
+        assertTrue(same === available)
+        val disabled: Any = Container<Absent>.Companion
+        assertTrue(!(disabled is Read))
+    }
+
+    @Test
+    fun recursiveConstructionOrder() {
+        val base: Gate<Recursive> = Recursive()
+        val reader: DefaultRead = base
+        assertTrue(reader.read() == 29)
+        val erased: Any = base
+        assertTrue(erased is DefaultRead)
+        val independent: Any = Gate<Recursive>()
+        assertTrue(independent is DefaultRead)
+        assertTrue((independent as DefaultRead).read() == 29)
+    }
+}

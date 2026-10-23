@@ -45,6 +45,7 @@ impl Parser {
                         NominalMember::Companion(declaration) => companion = Some(*declaration),
                         NominalMember::Class(_)
                         | NominalMember::Struct(_)
+                        | NominalMember::InterfaceImplementation(_)
                         | NominalMember::Variant(_) => {
                             unreachable!("interface member production")
                         }
@@ -69,7 +70,7 @@ impl Parser {
 
     fn parse_interface_member(&mut self, has_companion: bool) -> Result<NominalMember, Diagnostic> {
         let prefix = self.parse_member_prefix()?;
-        self.nominal_member_kind();
+        self.nominal_member_kind(prefix.modifiers.override_span.is_some());
         match &self.peek().kind {
             TokenKind::Val | TokenKind::Var => self
                 .parse_property(prefix, PropertyContext::Interface)

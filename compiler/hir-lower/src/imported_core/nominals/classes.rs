@@ -80,6 +80,7 @@ impl Lowerer {
                 context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::ClassDefinition {
+                    conditional_interfaces: Vec::new(),
                     inheritance_family: declaration
                         .interface
                         .declaration_details()
@@ -116,6 +117,13 @@ impl Lowerer {
             .expect("the class builder registered its identity")
             .definition
             .type_params = type_params.clone();
+        let conditional_interfaces =
+            self.load_imported_conditional_interfaces(&declaration, &type_params, &bindings, span)?;
+        self.loaded_class_definitions
+            .get_mut(&owner)
+            .expect("the class builder registered its identity")
+            .definition
+            .conditional_interfaces = conditional_interfaces;
         let mut base_class = None;
         let mut interfaces = Vec::new();
         for parent in declaration.interface.exact_supertypes().values() {

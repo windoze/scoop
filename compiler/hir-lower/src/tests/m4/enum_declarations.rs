@@ -268,6 +268,7 @@ fn named_variant_default_is_an_error() {
     // HIR rejects the shape too.
     let file = file(vec![
         Decl::Enum(ast::EnumDecl {
+            interface_implementations: Vec::new(),
             header: ast::EnumHeader {
                 annotations: vec![],
                 visibility: ast::VisibilitySyntax::Omitted,

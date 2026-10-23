@@ -3,6 +3,7 @@
 use super::*;
 use hir::ImportedCallableSource;
 
+mod domains;
 mod selections;
 
 impl Lowerer {
@@ -102,6 +103,7 @@ impl Lowerer {
                 .class_definition(base.template)
                 .interface_implementations
                 .iter()
+                .filter(|implementation| implementation.condition.is_none())
                 .map(|implementation| implementation.interface)
                 .collect::<Vec<_>>();
             interfaces.extend(
@@ -123,12 +125,9 @@ impl Lowerer {
         roots: &[hir::TypeId],
     ) -> Result<Vec<hir::InterfaceImplementation>, ImportedSignatureTypeError> {
         let selections = self.imported_interface_dispatch_selections(ty, declaration)?;
-        let mut interfaces = Vec::new();
-        for root in roots {
-            self.append_interface_closure(*root, &mut interfaces);
-        }
+        let interfaces = self.imported_interface_domains(ty, declaration, roots)?;
         let mut implementations = Vec::new();
-        for interface_ty in interfaces {
+        for (interface_ty, condition) in interfaces {
             let Some(interface) = self.dependency_interface_definition(interface_ty).cloned()
             else {
                 return Err(ImportedSignatureTypeError::Structural);
@@ -137,7 +136,7 @@ impl Lowerer {
             for method in &interface.methods {
                 let slot = method.slot.id();
                 let selection = selections
-                    .get(&(interface_ty, slot))
+                    .get(&(interface_ty, condition.clone(), slot))
                     .ok_or(ImportedSignatureTypeError::Structural)?;
                 let callable = self.select_imported_dispatch_target(selection, ty)?;
                 let hir::PublicDeclarationOwnerV1::Nominal(owner) = method.declaration.owner()
@@ -170,6 +169,7 @@ impl Lowerer {
                 });
             }
             implementations.push(hir::InterfaceImplementation {
+                condition,
                 interface: interface_ty,
                 methods,
             });

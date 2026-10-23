@@ -57,6 +57,7 @@ impl NominalHeader {
                     properties: Vec::new(),
                     nested: Vec::new(),
                     companion: None,
+                    interface_implementations: Vec::new(),
                     recovery: Default::default(),
                 }))
             }
@@ -92,6 +93,7 @@ pub(crate) enum NominalMember {
     Nested(Box<ast::NestedTypeDecl>),
     Companion(Box<ast::CompanionObjectDecl>),
     Variant(Box<ast::VariantDecl>),
+    InterfaceImplementation(Box<ast::InterfaceImplementationDecl>),
 }
 
 impl NominalMember {
@@ -104,6 +106,7 @@ impl NominalMember {
             Self::Nested(value) => value.span(),
             Self::Companion(value) => value.span,
             Self::Variant(value) => value.span,
+            Self::InterfaceImplementation(value) => value.span,
         }
     }
 }

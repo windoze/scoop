@@ -1,0 +1,25 @@
+interface Count { public fun count(): Int }
+fun managedCount(): Int = 1
+struct Managed<T>(val value: T) {
+    override interface Count where T : value {
+        @NoGC public override fun count(): Int = managedCount()
+    }
+}
+interface AsyncRead { public suspend fun read(): Int }
+struct Synchronous<T>(val value: T) {
+    override interface AsyncRead where T : Hash {
+        public override fun read(): Int = 2
+    }
+}
+interface Read { public fun read(): Int }
+struct Suspending<T>(val value: T) {
+    override interface Read where T : Hash {
+        public override suspend fun read(): Int = 3
+    }
+}
+struct UnsafeRead<T>(val value: T) {
+    override interface Read where T : Hash {
+        @Unsafe public override fun read(): Int = 4
+    }
+}
+fun main() {}

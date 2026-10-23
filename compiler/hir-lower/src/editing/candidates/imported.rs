@@ -104,8 +104,11 @@ impl Lowerer {
             .imported_signature_type_with_bindings(interface.result(), &bindings)
             .map_err(|_| U::SignatureFailure)?;
         Ok(DeclarationSignature {
+            availability: self
+                .import_member_guard(interface, &bindings)
+                .map_err(|_| U::SignatureFailure)?,
             callable_parameters: parameters[owner_parameters.len()..].to_vec(),
-            owner_parameters,
+            owner_parameters: parameters[..owner_parameters.len()].to_vec(),
             value_parameters,
             return_type,
         })

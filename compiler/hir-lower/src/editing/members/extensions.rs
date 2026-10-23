@@ -109,6 +109,7 @@ impl Lowerer {
         receiver: hir::TypeId,
     ) -> bool {
         let (session, _) = self.declaration_applicability_session(DeclarationApplicabilityInput {
+            availability: None,
             owner_parameters: &[],
             callable_parameters: parameters,
             type_arguments: DeclarationTypeArguments::Callable {

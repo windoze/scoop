@@ -126,6 +126,7 @@ syntax_kinds! {
     ClassBody,
     StructBody,
     InterfaceBody,
+    InterfaceImplementation,
     ParameterList,
     Parameter,
     PrimaryConstructor,

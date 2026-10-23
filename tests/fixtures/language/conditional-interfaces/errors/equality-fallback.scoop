@@ -1,0 +1,9 @@
+struct Plain()
+struct Compared<T>(val value: T) {
+    override interface Equals<Compared<T>> where T : Hash {
+        public override operator fun equals(other: Compared<T>): Boolean = false
+    }
+}
+fun absent(left: Compared<Plain>, right: Compared<Plain>): Boolean = left == right
+fun <T> unknown(left: Compared<T>, right: Compared<T>): Boolean = left == right
+fun main() {}

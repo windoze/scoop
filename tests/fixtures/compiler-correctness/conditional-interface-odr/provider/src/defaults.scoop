@@ -1,0 +1,18 @@
+package test.m57.provider
+
+public interface DefaultFirst {}
+public interface DefaultSecond {}
+public struct DefaultBoth() : DefaultFirst, DefaultSecond
+public struct DefaultFirstOnly() : DefaultFirst
+public interface DefaultRoot { public fun read(): Int }
+public interface DefaultLeft : DefaultRoot { public override fun read(): Int = 71 }
+public interface DefaultMore : DefaultLeft { public override fun read(): Int = 72 }
+public struct DefaultSelect<T>(val value: T) {
+    override interface DefaultLeft where T : DefaultFirst {}
+    override interface DefaultMore where T : DefaultSecond {}
+}
+public struct DefaultReversed<T>(val value: T) {
+    override interface DefaultMore where T : DefaultSecond {}
+    override interface DefaultLeft where T : DefaultFirst {}
+}
+public fun <T : DefaultFirst> defaultForward(value: DefaultSelect<T>): Int = value.read()

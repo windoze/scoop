@@ -19,6 +19,8 @@ mod objects;
 pub use objects::*;
 mod local_types;
 pub use local_types::*;
+mod interface_implementations;
+pub use interface_implementations::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceFile {

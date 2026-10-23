@@ -67,6 +67,7 @@ impl Parser {
         let mut properties = Vec::new();
         let mut nested = Vec::new();
         let mut companion = None;
+        let mut interface_implementations = Vec::new();
         let mut saw_member = false;
         let close = loop {
             if matches!(self.peek().kind, TokenKind::RBrace) {
@@ -103,6 +104,9 @@ impl Parser {
                     NominalMember::Property(value) => properties.push(*value),
                     NominalMember::Nested(value) => nested.push(*value),
                     NominalMember::Companion(value) => companion = Some(*value),
+                    NominalMember::InterfaceImplementation(value) => {
+                        interface_implementations.push(*value)
+                    }
                     NominalMember::Class(_) | NominalMember::Struct(_) => {
                         unreachable!("enum member production")
                     }
@@ -132,6 +136,7 @@ impl Parser {
             properties,
             nested,
             companion,
+            interface_implementations,
             span: Span::new(start, close.span.end),
         })
     }

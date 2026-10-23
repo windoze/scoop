@@ -40,6 +40,7 @@ pub fn folding_ranges(root: &SyntaxNode) -> Vec<Fold> {
             | SyntaxKind::ClassBody
             | SyntaxKind::StructBody
             | SyntaxKind::InterfaceBody
+            | SyntaxKind::InterfaceImplementation
             | SyntaxKind::EnumDecl
             | SyntaxKind::WhenExpr
             | SyntaxKind::LambdaExpr

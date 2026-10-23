@@ -180,6 +180,8 @@ alias只建立名称、declared visibility、source origin与导出实体，不�
 
 #### 3.2.3 泛型函数的 companion 投影
 
+本节的函数参数范围不限制 9.1.8 的条件接口实现块；实现块按该节对宿主参数建立独立条件环境，并复用本节的固定 companion 投影。
+
 有自身类型参数的函数可用 `where T.Companion : I<T>`、`Base<T>`、`ref` 或 `!I<T>` 约束其 companion。它要求实际静态类型直接拥有 public companion；不能借用基类 companion，也不能使用 private／internal companion。`value` 与 companion 的引用 singleton 性质矛盾，声明处报错。主体必须是本函数参数；宿主与外层参数仅可在条件的类型中被引用。正向、负向、kind 的组合规则分别应用于 `T` 和 `T.Companion`。
 
 投影可作为签名、默认值、正文和类型实参中的完整类型，也可作为 companion 值访问。先登记整个函数的投影存在条件，再解析条件和签名；仅使用投影不隐式建立该条件。依赖类型只允许固定的 `T.Companion`，不支持 `T.Factory` 或其他 nested 投影。`T.method(...)` 在此环境中固定表示 `T.Companion.method(...)`。投影不反向推断宿主，无法由其他位置确定 T 时需写显式类型实参。
@@ -1374,9 +1376,53 @@ when 的覆盖域来自完整直接子类型关系，继续 sealed 的节点递�
 
 泛型关系按实际继承替换，例如 `Success<T> : Result<T>` 对 `Result<Int>` 对应 `Success<Int>`。子类型的额外参数若不能由 subject application 确定，就保留该未知参数所代表的整个家族；列举有限个具体 application 不算完整，只有覆盖整个家族的类型条件才能免除 else。不能用类型擦除、wildcard 或 existential 代替完整 application。
 
+条件接口实现也登记为 sealed 的直接子类型关系。穷尽性检查在该关系的原有约束与条件下展开子类型家族，代入 subject 后只有确定不成立的条件才排除；未知条件仍代表可能的值。不能由接口实参反推出 companion 宿主等剩余参数时，保留整个未知家族，不能据此认定 sealed 类型没有值。
+
 跨 Cone 元数据保留完整直接子类型身份以及它们的类型参数与继承 application，未公开子类型可以作为穷尽性检查的数据存在，但不获得源码名称可见性。消费方不扫描恰好已使用的实现来推测封闭集合；无法命名所需叶类型时可以正常使用 else。增加子类型改变接口依赖，沿既有失效规则重新编译。
 
 默认值表达式内部声明的局部类型、匿名类型及其成员属于该默认值自身携带的定义；默认值的可见性检查不要求这些局部名字对调用者可见，但其所引用的外部声明仍须满足原有默认值访问规则。
+
+#### 9.1.8 条件 interface 实现
+
+普通 class、struct、enum、object 及 companion 的原始 body 可以包含接口实现块：
+
+```scoop
+public struct Box<T>(val value: T) {
+    override interface Hash where T : Hash {
+        public override fun hash(): Long = value.hash()
+    }
+}
+```
+
+语法为 `override interface InterfaceType where PositiveCondition, ... { members }`。目标必须是完整 interface application，允许透明 alias；每块一个目标。没有新的 type parameter 列表，目标后的实参使用原作用域类型。where 必填且非空；无条件实现写在类型或 companion 的接口列表中，成员写在其普通 body 内。条件沿用既有重复约束规则，不要求证明其严格缩小合法实参域。实现块不是嵌套 interface 类型声明。
+
+块直接属于所在宿主，与宿主原声明必须同 origin Cone、同 typed owner。首版只允许写在原 body 内，不提供外置 impl、扩展实现、跨文件重新打开类型或消费方追加；目标接口可以来自依赖 Cone，但 sealed 接口仍满足 9.1.7 的同 Cone／package 约束。类型和 companion 始终各有原来一份定义，不支持整份类型偏特化、全特化或重叠接口实现的特化。
+
+块可约束在宿主定义中合法可见的类型参数，包括 companion 的宿主参数以及 inner／局部类型原本可见的外层参数；普通 static nested 声明仍隔断外层参数。条件主体为该参数或固定的 `T.Companion`；目标为现有正向 class／interface bound 或 value/ref kind。沿用每主体 class 上界数量、kind 与正向名义 bound 的互斥、重复及矛盾检查。首版不接受负向 guard、requires、析取、类型相等条件或任意 constructed subject，已有泛型函数的 M55 条件保持。
+
+实现块先登记完整条件中的 companion 存在事实，再解析目标、其他条件和成员签名。`T.Companion : I<T>` 要求 T 直接拥有 public companion 并满足 I<T>；不能向基类或 private/internal companion 回退。`: ref` 仅要求存在，`: value` 矛盾；投影的类型和值访问遵守 3.2.3。块没有自身 receiver，this 是宿主实例；companion 块的 this 就是原 companion singleton。
+
+宿主原有约束 B 决定类型的合法实参域；块的条件 C 只贡献 `B ∧ C ⇒ Host : Interface`。接口闭包也包含普通继承和 superinterface。条件不成立不使宿主非法，不改变字段、enum payload、构造器、基类、捕获、release 或初始化序列。不同接口的实现可以同时成立。条件未知时不能使用该块贡献的接口或成员，也不能将未知当作否定；完整静态类型的接口集合由原声明与完整实参决定，不依赖调用点、import 或已有约束数量。
+
+块内只允许兑现目标接口或其 superinterface 的普通 override 方法、computed property 和宿主原本允许的 abstract member；已有实现、default 或 11.13 的合法合成已满足义务时可为空。块不能包含字段、stored/delegated property、constructor、init、release、variant、nested declaration、companion、任意 helper 或 `I by expression`。块本身没有独立可见性或注解目标，成员的 modifier、注解和访问域沿用普通规则，公共接口义务仍要求 public override。接口方法自身不能泛型。
+
+成员属于宿主普通成员表，带有所在块的可用条件。块目标、成员签名、默认值和正文在宿主原环境加 C 下检查；块外字段、构造和普通成员不取得 C。直接调用、companion 转发、operator、成员引用及接口转换都须在定义处证明所需条件。已绑定普通重载不在具体化时重选；接口调用保留接口 application 与 slot。实现正文非法不能降为条件不匹配，也不延后到首次实例化检查。
+
+同一 owner 的同签名方法和同名 property 不能仅靠宿主条件区分，即使条件互斥也遵守普通重复声明规则。一个显式普通 override 成员可共同兑现多个条件接口，正文按该成员自身环境检查，各 slot 的签名、可见性及效果在对应条件下验证；接口条件均不成立时，这个无条件成员仍存在。带条件的成员兑现其他义务时，必须证明该义务成立的整个域都满足成员条件。显式同签名成员阻止派生 equality 或其他合成另造兜底同签名成员。
+
+每条适用接口的全部 slot 按 9.1.4、9.2.2 选实现：具体类型不可保留 abstract obligation，abstract class 可以；value type 不实现需要 setter 的 var contract。不同 default 可能在合法实参下同时适用而无法按普通继承消歧时，要求共同显式 override。不能按 guard 更具体、源码顺序或当前实例列表选择。`super<I>` 只在定义环境已证明相应 direct superinterface 关系时使用，保持普通 direct default 调用。参数、返回值、operator、suspend、Unsafe/NoGC 及默认参数协议均按既有完整合同检查。
+
+同一完整宿主对同一完整接口的两份独立实现不得存在可能重叠的适用域。类型头的普通接口项和各块一同检查，包含规范化条件、宿主约束以及接口实参代入后可能相等的情况；无法证明不相交就报定义处错误。更强 guard、相同正文或空接口不豁免；追加交叉块也不能修复。普通 superinterface／继承菱形的同一关系路径按真实 slot 合并，不当作两份独立实现，但仍须检查成员冲突。
+
+派生类沿基类 application 继承条件接口及成员，保持单一基类与构造链。override 的可用条件 Q 必须覆盖继承 slot 条件 C 的整个域：派生类基础约束 D 下须证明 `D ∧ C ⇒ Q`，正文只取得自身事实；无条件 override 不取得 C。final、可见性和效果规则保持。派生类在实现块重列已继承的同一接口以提供普通 override 时，首版要求条件在 D 下与继承关系等价，沿用原 conformance；不能借更强或不同 guard 建立实现特化。具体子类须在全部适用域完成条件 abstract obligation。
+
+条件查询不执行方法、singleton 初始化或字段布局计算。块正文中用于 this 调用的局部接口事实不能用于证明自己的 guard。实际关系查询没有独立依据而回到同一未决关系时诊断循环；类型实参沿声明依赖环持续扩张时按泛型结构终止性拒绝。输入类型子项上的嵌套查询、已声明关系上的 F-bound 和普通方法递归保持合法，不以深度或数量配额替代这些检查。
+
+M55 正负向条件及成员要求均查询相同关系闭包。未知条件不能支持 !I；静态 class 上界不实现 I 也不能否定未知子类型。runtime is/as、接口转换和分派使用同一具体接口表。companion 查询不初始化对象，实际值访问沿用原 ensure；同一完整宿主跨 Cone 只对应原有一份 singleton。具体类型描述只报告适用的接口与成员，文档对未具体化声明保留其条件。导出／再次发布必须保留原 Cone 的完整条件关系，sealed 穷尽性不能把未知条件当作不可达。
+
+负向查询须排除已证明不可能的条件实现，包括互斥 kind、不相关 class 上界、已知负向接口事实或缺少必需 companion；存在其他未知实现域时仍不能取得 !I。负向查询再次依赖同一未决或持续扩张的排除关系时保持未知，不把递归未完成当作排除依据；正向自我证明的循环诊断保持。
+
+文档中的条件接口关系、块成员、继承成员及合成成员显示其完整适用条件；继承时按原 owner application 替换，例如保留 `Wrapper<T>.Companion` 上的条件，不反向改写成 T 的条件。已知不可能的继承成员不列出，未知条件仍显示；普通 override 自身没有条件时按普通成员展示。这里的 where 是文档中的适用性说明，不改变方法自身的泛型参数或声明身份，也不为实现块增加独立类型页面。
 
 ### 9.2 委托
 
@@ -1694,6 +1740,8 @@ public fun <T> decodeFrom(decoder: Decoder, codec: ValueDecoder<T>): T =
 `NominalRef`、`FieldRef`、`PropertyRef`、`AccessorRef`、`VariantRef`、`ConstructorRef` 和 `ParameterRef` 分别表示实际声明身份并实现自身类型的 Equals。owner 使用完整 TypeRef，泛型声明身份与 application 分开保存；visibility 明确区分 Public、Internal、Protected、Private、Local。
 
 struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/property 和 constructor 参数分别保持声明序。`MemberName.Named(String)` 与 `Positional(Long)`、`VariantPayload.Unit/Named/Positional` 保留源码形状；tuple 元素只有索引和 `_1` 起的展示名，不伪造字段声明。ClassInfo.isFinal 保存普通 class 的 final 声明事实；class 的 base、interface 的 parents 不扁平化，object/companion 的宿主关系以 `Option<NominalRef>` 保存：泛型宿主是声明，不伪造某个具体实参。storage 的 Declared、Backing、Delegate、Outer、Capture、Generated 来源不混入 logical property 列表。
+
+普通 nominal 的 interfaces 先保存类型头中的直接接口，再按实现块声明序保存适用的直接条件接口；不展开这些接口的父接口或基类继承关系。条件 computed property 仅在条件成立时出现，保留原 PropertyRef、声明序号与注解；过滤不适用成员不改变其他声明的身份或序号。实现块本身不是注解目标，其接口类型使用及成员继续保留各自的注解。
 
 `FieldInfo` 与 `PropertyInfo` 保存 `typeUse`，`type` 是其只读便捷属性。`isOptionAtDeclaration` 从原成员完成绑定、展开 alias 后的类型取得，与 11.13 的默认字段规则复用同一事实；原声明 T 具体化为 Option<U> 时仍为 false，原声明 Option<T> 为 true。property 保存实际 getter/setter、被覆写 property 与 Stored/Computed/Delegated 类别，backing/delegate field 仍为独立实体。AccessorInfo.kind 只区分源码的 Storage、Constant、Body、Abstract；普通存储 accessor 在发布或分派时物化为函数体仍为 Storage，本地与跨 Cone 描述保持一致。
 
@@ -2376,7 +2424,7 @@ public annotation class Serialize(
 - 泛型目标如`Box<E>`可包含普通参数E，两个方向分别由显式`ValueEncoder<E>`、`ValueDecoder<E>`依赖提供字段能力，不要求E自身实现接口。companion可使用宿主参数并按9.1.3具体化，但不能等E具体化后再发现其codec。裸T没有可展开目标形状，不能仅凭声明`ValueEncoder<T>`或`ValueDecoder<T>`自动得到body。
 - 合法递归类型先建立合成方法签名，再生成body；值布局和单态化终止性继续遵守3.2。已有接口实现选择在定义处完成，具体化不重新选重载、default或字段codec依赖。
 
-核心Boolean、现有定宽整数、String、Char的companion分别实现具体的`ValueEncoder<Scalar>`与`ValueDecoder<Scalar>`；Unit使用普通object UnitEncoder与UnitDecoder。`Option<T>`、`Array<T>`、`MutableArray<T>`、`ArrayList<T>`及tuple的codec按11.13.4组合。标量、Unit、容器和tuple数据值不因此获得编码/解码接口；不提供条件conformance，容器的无bound用途不受影响。
+核心Boolean、现有定宽整数、String、Char的companion分别实现具体的`ValueEncoder<Scalar>`与`ValueDecoder<Scalar>`；Unit使用普通object UnitEncoder与UnitDecoder。`Option<T>`、`Array<T>`、`MutableArray<T>`、`ArrayList<T>`及tuple的codec按11.13.4组合。容器的普通 companion 可按9.1.8显式增加条件接口；只有实际声明该关系的类型才提供对应默认能力，不自动迁移全部库类型。标量、Unit、容器和tuple数据值不因此获得编码/解码接口，容器的无bound用途不受影响。
 
 List/MutableList没有唯一默认解码结果。核心库提供普通
 `fun <T> encodeList(values: List<T>, element: ValueEncoder<T>, encoder: Encoder): Unit`：
@@ -2512,10 +2560,10 @@ Float/Double的companion分别以普通core body实现`ValueEncoder<Float>`/`Val
 
 1. 当前codec class/struct的primary constructor中，以val保存且静态类型满足所需完整interface application的显式依赖。没有匹配才继续；多个匹配诊断歧义，不按参数名称或顺序任选。companion没有constructor，不扫描其任意property、Context或整个词法作用域寻找依赖。
 2. F与目标R相同则使用this，支持当前方向的递归调用。
-3. F是可明确命名的名义类型，且它的可见普通companion实现了所需的`ValueEncoder<F>`或`ValueDecoder<F>`，则使用该值。F为`Envelope<E>`等完整application时保留宿主实参；不向F的基类companion回退，仅有同名encode/decode/encoder/decoder方法也不构成conformance。
+3. F是可明确命名的名义类型，且定义环境可证明其可见普通companion实现了所需的`ValueEncoder<F>`或`ValueDecoder<F>`，则使用该值；F是类型参数且环境已有相应public companion投影及接口条件时，也使用该已绑定投影。F为`Envelope<E>`等完整application时保留宿主实参并计入9.1.8条件关系；不向F的基类companion回退，仅有同名encode/decode/encoder/decoder方法也不构成conformance。
 4. F为核心Option/Array/MutableArray/ArrayList时，递归取得相应元素codec并调用完整宿主companion上预定义的普通encoder/decoder方法，例如`Array<E>.Companion.encoder(element)`。Unit使用UnitEncoder/UnitDecoder，tuple按元素递归组合普通codec。其余缺失情况报错，要求显式注入或手写body；不能在实例化时猜测裸类型参数的companion。
 
-同一字段类型可以复用同一依赖，不同字段需要不同策略时手写相应方法。两个不同binder在具体化后恰好相同不触发重新选择或新的歧义；body继续使用定义处选定的参数。generic用户类型不按名约定自动调用companion.encoder/decoder；调用方显式组合其codec并传入需要它的provider。
+同一字段类型可以复用同一依赖，不同字段需要不同策略时手写相应方法。两个不同binder在具体化后恰好相同不触发重新选择或新的歧义；body继续使用定义处选定的参数或投影。9.1.8实现块的合成正文使用该块的条件环境，未知参数仍不能在实例化时猜测codec。generic用户类型不按名约定自动调用companion.encoder/decoder；调用方显式组合其codec并传入需要它的provider。
 
 ```scoop
 public struct Box<T>(val value: T) {

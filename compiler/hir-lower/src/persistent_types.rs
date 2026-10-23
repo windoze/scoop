@@ -1,6 +1,8 @@
 use scoop_hir as hir;
 
 use crate::Lowerer;
+mod conditions;
+pub(crate) use conditions::signature_parameter_conditions;
 
 pub(crate) use hir::{
     HirSignatureBinder as SignatureBinder,

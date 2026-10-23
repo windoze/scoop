@@ -1,0 +1,13 @@
+struct EncoderNeedsEncoding<T>(val value: T) {
+    public companion object {
+        override interface ValueEncoder<EncoderNeedsEncoding<T>>
+            where T.Companion : ValueDecoder<T> {}
+    }
+}
+struct DecoderNeedsDecoding<T>(val value: T) {
+    public companion object {
+        override interface ValueDecoder<DecoderNeedsDecoding<T>>
+            where T.Companion : ValueEncoder<T> {}
+    }
+}
+fun main() {}

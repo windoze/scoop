@@ -56,7 +56,7 @@ impl Graph<'_> {
                 self.call_signature(call)?;
                 self.source_extension(source, call, &path)?;
                 self.source_construction(source)?;
-                self.source_member(source, metadata, call, &path)?;
+                self.source_member(source, metadata, call)?;
             }
         }
         Ok(())

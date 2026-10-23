@@ -6,6 +6,13 @@ impl Lowerer {
     /// Subtyping follows the complete parent applications shared by source
     /// checking and inference. Function types retain their structural variance.
     pub(crate) fn is_subtype(&mut self, a: TypeId, b: TypeId) -> bool {
+        self.begin_conditional_relation_query();
+        let proved = self.is_subtype_in_query(a, b);
+        self.finish_conditional_relation_query(proved);
+        proved
+    }
+
+    fn is_subtype_in_query(&mut self, a: TypeId, b: TypeId) -> bool {
         if self.types_equal(a, b) || self.is_nothing_ty(a) || matches!(self.types[b], Type::Any) {
             return true;
         }
@@ -114,6 +121,7 @@ impl Lowerer {
             }
             pending.extend(bases.into_iter().rev());
         }
+        self.finish_conditional_interface_set(&result);
         result
     }
 

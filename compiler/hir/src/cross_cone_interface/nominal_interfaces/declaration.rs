@@ -31,6 +31,8 @@ pub struct NominalDeclarationDetailsV1 {
     release_policy: NominalReleasePolicyV1,
     class_primary_constructor: Option<ClassPrimaryConstructorV1>,
     sealed_subtypes: Option<crate::CanonicalSourceNominalIdsV1>,
+    conditional_interfaces: Vec<ConditionalInterfaceRecordV1>,
+    conditional_conformances: Vec<ConditionalInterfaceConformanceV1>,
 }
 
 impl NominalDeclarationDetailsV1 {
@@ -61,6 +63,8 @@ impl NominalDeclarationDetailsV1 {
             release_policy,
             class_primary_constructor,
             sealed_subtypes: None,
+            conditional_interfaces: Vec::new(),
+            conditional_conformances: Vec::new(),
         }
     }
 
@@ -74,6 +78,30 @@ impl NominalDeclarationDetailsV1 {
 
     pub fn sealed_subtypes(&self) -> Option<&crate::CanonicalSourceNominalIdsV1> {
         self.sealed_subtypes.as_ref()
+    }
+
+    pub fn with_conditional_interfaces(
+        mut self,
+        implementations: Vec<ConditionalInterfaceRecordV1>,
+    ) -> Self {
+        self.conditional_interfaces = implementations;
+        self
+    }
+
+    pub fn conditional_interfaces(&self) -> &[ConditionalInterfaceRecordV1] {
+        &self.conditional_interfaces
+    }
+
+    pub fn with_conditional_conformances(
+        mut self,
+        values: Vec<ConditionalInterfaceConformanceV1>,
+    ) -> Self {
+        self.conditional_conformances = values;
+        self
+    }
+
+    pub fn conditional_conformances(&self) -> &[ConditionalInterfaceConformanceV1] {
+        &self.conditional_conformances
     }
 
     pub fn inheritance_family(&self) -> crate::InheritanceFamily {
@@ -233,11 +261,11 @@ impl NominalDeclarationDetailsV1 {
 
 impl WireEncode for NominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(if self.sealed_subtypes.is_some() {
-            12
-        } else {
-            11
-        })?;
+        encoder.map(
+            11 + u64::from(self.sealed_subtypes.is_some())
+                + u64::from(!self.conditional_interfaces.is_empty())
+                + u64::from(!self.conditional_conformances.is_empty()),
+        )?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -271,6 +299,20 @@ impl WireEncode for NominalDeclarationDetailsV1 {
             encoder.array(subtypes.values().len() as u64)?;
             for subtype in subtypes.values() {
                 subtype.encode(encoder)?;
+            }
+        }
+        if !self.conditional_interfaces.is_empty() {
+            encoder.field(13)?;
+            encoder.array(self.conditional_interfaces.len() as u64)?;
+            for implementation in &self.conditional_interfaces {
+                implementation.encode(encoder)?;
+            }
+        }
+        if !self.conditional_conformances.is_empty() {
+            encoder.field(14)?;
+            encoder.array(self.conditional_conformances.len() as u64)?;
+            for conformance in &self.conditional_conformances {
+                conformance.encode(encoder)?;
             }
         }
         Ok(())

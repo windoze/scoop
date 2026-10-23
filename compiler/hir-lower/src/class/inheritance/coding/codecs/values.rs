@@ -38,6 +38,9 @@ impl Lowerer {
     }
 
     fn coding_singleton(&mut self, ty: TypeId, span: Span) -> Option<hir::Expr> {
+        if let Type::Companion(parameter) = self.types[ty] {
+            return self.lower_parameter_companion(parameter, span);
+        }
         let application = self
             .nominal_application(ty)
             .expect("a selected singleton has its complete application");

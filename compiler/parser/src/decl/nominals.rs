@@ -2,6 +2,7 @@ use super::*;
 
 mod constructors;
 mod fields;
+mod interface_implementations;
 mod interfaces;
 mod members;
 mod objects;

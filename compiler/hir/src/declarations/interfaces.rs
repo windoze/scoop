@@ -1,4 +1,6 @@
 use super::*;
+mod conditional;
+pub use conditional::*;
 
 mod queries;
 
@@ -107,6 +109,7 @@ pub enum InterfaceMemberImplementation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterfaceImplementation {
     pub interface: TypeId,
+    pub condition: Option<ConditionalInterfaceApplication>,
     pub methods: Vec<InterfaceMethodImplementation>,
 }
 

@@ -32,6 +32,7 @@ fn callable(
     CallableView {
         target: CallableSource::Free(hir::FunctionId::from_raw(0.into())),
         signature: crate::call_resolution::candidates::DeclarationSignature {
+            availability: None,
             owner_parameters: owners,
             callable_parameters: parameters,
             value_parameters: values,
@@ -55,6 +56,7 @@ fn constructor(
     NominalConstructorView {
         target: NominalConstructorSource::Struct(hir::StructConstructorId::from_raw(0.into())),
         signature: crate::call_resolution::candidates::DeclarationSignature {
+            availability: None,
             owner_parameters: owners,
             callable_parameters: Vec::new(),
             value_parameters: values,

@@ -114,7 +114,18 @@ impl Lowerer {
             || self.functions[id].name.clone(),
             |source| source.name.clone(),
         );
-        self.with_function_body(id, &name, generate)
+        let condition = self.functions[id]
+            .method
+            .and_then(|method| {
+                method
+                    .availability
+                    .filter(|guard| guard.owner != method.owner)
+            })
+            .map(|guard| self.conditional_guard_application(guard));
+        self.with_function_body(id, &name, |state| match condition {
+            Some(condition) => state.with_conditional_interface_assumptions(&condition, generate),
+            None => generate(state),
+        })
     }
 
     pub(crate) fn lower_generated_body(

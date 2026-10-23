@@ -1,6 +1,7 @@
 //! A concrete class must provide every inherited virtual implementation.
 
 use super::*;
+use hir::ImportedCallableSource;
 
 impl Lowerer {
     pub(super) fn check_abstract_class_methods(
@@ -29,13 +30,9 @@ impl Lowerer {
                         .source_class_id(self.class_applications[application].template)
                         .is_none() =>
                 {
-                    let class = self.loaded_class_definitions
-                        [&self.class_applications[application].template]
-                        .clone();
+                    let application = self.class_applications[application].clone();
+                    let class = self.loaded_class_definitions[&application.template].clone();
                     for method in &class.virtual_methods {
-                        if !seen_families.insert(method.family) {
-                            continue;
-                        }
                         let selection = class
                             .declaration
                             .interface
@@ -46,16 +43,25 @@ impl Lowerer {
                                 method.slot,
                             )
                             .expect("dependency virtual family has a complete selection");
+                        let declaration = self
+                            .dependencies
+                            .as_ref()
+                            .expect("dependency class has a catalog")
+                            .callable_declaration(selection.callable_target())
+                            .expect("dependency slot has an actual declaration");
+                        if let Some(condition) =
+                            self.imported_member_condition(declaration.interface(), ty)
+                            && self.conditional_application_is_impossible(&condition)
+                        {
+                            continue;
+                        }
+                        if !seen_families.insert(method.family) {
+                            continue;
+                        }
                         if matches!(
                             selection.selection(),
                             hir::InheritanceSourceSlotSelectionV1::Abstract(_)
                         ) {
-                            let declaration = self
-                                .dependencies
-                                .as_ref()
-                                .expect("dependency class has a catalog")
-                                .callable_declaration(selection.callable_target())
-                                .expect("dependency slot has an actual declaration");
                             let kind = match selection.selection().declaration() {
                                 hir::InheritanceCallableDeclarationV1::Function(_) => "method",
                                 hir::InheritanceCallableDeclarationV1::Getter(_) => "getter",
@@ -88,6 +94,12 @@ impl Lowerer {
                         let method = self.functions[function]
                             .method
                             .expect("class member has method metadata");
+                        if let Some(condition) =
+                            self.local_member_condition(function, &application.arguments)
+                            && self.conditional_application_is_impossible(&condition)
+                        {
+                            continue;
+                        }
                         let family = match method.dispatch {
                             hir::MethodDispatch::Virtual(family)
                             | hir::MethodDispatch::FinalOverride(family) => family,

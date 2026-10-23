@@ -101,6 +101,7 @@ impl Lowerer {
             genericity: hir::FunctionGenericity::Plain,
             kind,
             method: Some(hir::Method {
+                availability: None,
                 owner: host_ty,
                 modifier,
                 dispatch: hir::MethodDispatch::Direct,

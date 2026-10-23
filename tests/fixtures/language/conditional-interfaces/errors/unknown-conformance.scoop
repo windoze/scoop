@@ -1,0 +1,9 @@
+interface Read { public fun read(): Int }
+struct Empty()
+struct Box<T>(val value: T) {
+    override interface Read where T : Read {
+        public override fun read(): Int = value.read()
+    }
+}
+fun <T> invalid(value: Box<T>): Read = value
+fun main() {}

@@ -152,6 +152,7 @@ impl Lowerer {
             owner: owner.map(Owner::as_nominal_owner),
             access: access.clone(),
             definition: hir::ClassDefinition {
+                conditional_interfaces: Vec::new(),
                 inheritance_family: Default::default(),
                 release_policy: Default::default(),
                 modifier: hir::ClassModifier::Final,
@@ -289,6 +290,11 @@ impl Lowerer {
             self.declare_method(method, Owner::Object(object), pending_methods, file);
         }
         pending.push((object, source, file));
+        for member in source.members() {
+            if let ast::ClassMember::InterfaceImplementation(block) = member {
+                self.declare_interface_block(Owner::Object(object), block, pending_methods, file);
+            }
+        }
         Some(object)
     }
 }

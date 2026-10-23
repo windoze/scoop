@@ -17,6 +17,7 @@ impl Lowerer {
                 .type_params_in_scope
                 .iter()
                 .any(|p| p.id == parameter && p.companion.is_some())
+                || self.assumed_conditional_companion(host)
             {
                 return Ok(self.intern_type(Type::Companion(parameter)));
             }
@@ -25,20 +26,7 @@ impl Lowerer {
                 self.type_name(host)
             ));
         }
-        let companion = self.declared_companion_type(host).filter(|companion| {
-            match self.current_nominal_name_target(*companion) {
-                Some(crate::NominalTarget::Object(object)) => {
-                    self.objects[object].access.declared == hir::DeclaredVisibility::Public
-                }
-                Some(_) => false,
-                None => {
-                    self.dependencies
-                        .as_ref()
-                        .and_then(|dependencies| dependencies.nominal_visibility(*companion))
-                        == Some(hir::DeclaredVisibilityV1::Public)
-                }
-            }
-        });
+        let companion = self.public_companion_declaration(host);
         let companion = companion.ok_or_else(|| {
             format!(
                 "static type `{}` has no public companion",
@@ -64,6 +52,26 @@ impl Lowerer {
             self.request_imported_companion(owner)?;
         }
         Ok(ty)
+    }
+
+    pub(crate) fn public_companion_declaration(
+        &self,
+        host: TypeId,
+    ) -> Option<hir::SourceNominalId> {
+        self.declared_companion_type(host).filter(|companion| {
+            match self.current_nominal_name_target(*companion) {
+                Some(crate::NominalTarget::Object(object)) => {
+                    self.objects[object].access.declared == hir::DeclaredVisibility::Public
+                }
+                Some(_) => false,
+                None => {
+                    self.dependencies
+                        .as_ref()
+                        .and_then(|dependencies| dependencies.nominal_visibility(*companion))
+                        == Some(hir::DeclaredVisibilityV1::Public)
+                }
+            }
+        })
     }
 
     /// Declaration metadata only; forming this relation does not request initialization.

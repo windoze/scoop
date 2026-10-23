@@ -117,6 +117,7 @@ pub enum CallableInterfaceRecordResolutionError<E> {
     Owner(E),
     TypeParameters(BinderListValidationError<E>),
     Receiver(E),
+    Availability(E),
     Parameters(SourceParameterListValidationError<E>),
     Result(E),
     ContextParameter {
@@ -137,6 +138,7 @@ impl<E: fmt::Display> fmt::Display for CallableInterfaceRecordResolutionError<E>
                 write!(formatter, "invalid callable type parameters: {error}")
             }
             Self::Receiver(error) => write!(formatter, "invalid callable receiver: {error}"),
+            Self::Availability(error) => write!(formatter, "invalid callable condition: {error}"),
             Self::Parameters(error) => write!(formatter, "invalid callable parameters: {error}"),
             Self::ContextParameter { index, error } => {
                 write!(formatter, "invalid context parameter {index}: {error}")

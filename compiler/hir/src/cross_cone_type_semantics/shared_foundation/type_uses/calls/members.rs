@@ -8,8 +8,6 @@ impl Graph<'_> {
         source: &crate::CallableDeclarationRecordV1,
         metadata: SharedTypeMetadataV1<'_>,
         call: &crate::HirDependencyCallSiteV1,
-
-        path: &WirePath,
     ) -> Result<(), Error> {
         let Some(owner) = source.owner().nominal_owner() else {
             return Ok(());
@@ -48,9 +46,9 @@ impl Graph<'_> {
             return Err(invalid());
         };
 
-        if !self.receiver_is_subtype(static_type, owner_exact, path)? {
-            return Err(invalid());
-        }
+        // HIR already selected this member under its complete parameter
+        // environment. Declaration headers alone omit conditional interfaces;
+        // collecting type dependencies must not replay that language proof.
         // The declaration's provider owns the use, even for a local receiver.
         // Check each occurrence before selected records are deduplicated.
         self.select(

@@ -89,26 +89,20 @@ Module
     local %9 $inline.1.number: f64
     local %10 $inline.1.tag: i64
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    poll activation managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = extract param1, 0 : f64
     store t0 -> local3
     t1 = extract param1, 1 : i64
     store t1 -> local0
     t2 = heap_load param0 +16 : i64
     store t2 -> local1
-    store local1 -> local2
-    t3 = integer_Add<Long> local0, local2 : i64
+    t3 = integer_Add<Long> local0, local1 : i64
     store t3 -> local4
-    store local3 -> local5
-    store local4 -> local6
-    store local5 -> local9
-    store local6 -> local10
     br @inline.1.entry
   block inline.cont.1
-    store local8 -> local7
-    ret local7
+    ret local8
   block inline.1.entry
-    t4 = aggregate (local9, local10) : struct0
+    t4 = aggregate (local3, local4) : struct0
     store t4 -> local8
     br @inline.cont.1
   fun @scoop$1$cb$1407b782423b323ce7cd5f7bc075bc9ff3b8ea205a3f9c5796c28339f8bba002(parts<struct0 [f64@0+8/8,i64@8+8/8]>) -> parts<struct0 [f64@0+8/8,i64@8+8/8]>
@@ -119,7 +113,7 @@ Module
     ret param0
   fun @scoop$1$cb$870158bbf17a69089498d7cfef79f1aff84cc65ff5164509e3047f72557788f3(parts<struct2 [<2xf32>@0+8/4,f32@8+4/4]>) -> parts<struct2 [<2xf32>@0+8/4,f32@8+4/4]>
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
+    poll activation managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
   fun @scoop$1$cb$10127e4bb27fb9a8081c89368e76c995522a9ee83de3786b08aacc66e27729db(i64, i64, i64, i64, i64, i64, indirect<struct0 size=16 align=8 scan=none>, f64) -> parts<struct0 [f64@0+8/8,i64@8+8/8]>
     local %0 $dependency.receiver: i64
@@ -150,26 +144,15 @@ Module
     local %25 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    store param1 -> local1
-    store local1 -> local2
-    t0 = integer_Add<Long> local0, local2 : i64
+    t0 = integer_Add<Long> param0, param1 : i64
     store t0 -> local3
-    store param2 -> local4
-    store local4 -> local5
-    t1 = integer_Add<Long> local3, local5 : i64
+    t1 = integer_Add<Long> local3, param2 : i64
     store t1 -> local6
-    store param3 -> local7
-    store local7 -> local8
-    t2 = integer_Add<Long> local6, local8 : i64
+    t2 = integer_Add<Long> local6, param3 : i64
     store t2 -> local9
-    store param4 -> local10
-    store local10 -> local11
-    t3 = integer_Add<Long> local9, local11 : i64
+    t3 = integer_Add<Long> local9, param4 : i64
     store t3 -> local12
-    store param5 -> local13
-    store local13 -> local14
-    t4 = integer_Add<Long> local12, local14 : i64
+    t4 = integer_Add<Long> local12, param5 : i64
     store t4 -> local15
     store integer<Long>(0x0000000000000015) -> local16
     store integer<Long>(0x0000000000000015) -> local17
@@ -180,10 +163,8 @@ Module
     store true -> local21
     br @if.merge.3
   block if.else.2
-    store param7 -> local18
     store f64(0x4004000000000000) -> local19
-    store local19 -> local20
-    t7 = float_Equal<F64> local18, local20 : i1
+    t7 = float_Equal<F64> param7, local19 : i1
     t8 = Not t7 : i1
     store t8 -> local21
     br @if.merge.3
@@ -191,12 +172,11 @@ Module
     cbr local21 then @if.then.4 else @if.merge.5
   block if.then.4
     store global0 -> local22
-    store local22 -> local23
-    t9 = enum_wrap e0 v0 (local23) : enum0
+    t9 = enum_wrap e0 v0 (local22) : enum0
     store t9 -> local24
     call managed-direct-target0 sp<managed-call:0> live=[local24:enum0@0] t10 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
     store t10 -> local25
-    call managed-void-target0 sp<managed-call:1> live=[local24:enum0@0, local25:ptr<managed>@0] sig=void0 (ptr<managed>, enum0) external-fn0(local25, local24)
+    call managed-void-target0 sp<managed-call:1> live=[local24:enum0@0, local25:ptr<managed>@0] sig=void0 (ptr<managed>, enum0) external-fn22(local25, local24)
     t11 = aggregate () : {}
     throw local25
     unreachable

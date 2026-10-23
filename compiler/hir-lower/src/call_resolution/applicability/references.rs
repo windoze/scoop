@@ -186,6 +186,7 @@ impl Lowerer {
         });
         let (mut session, environment) =
             self.declaration_applicability_session(DeclarationApplicabilityInput {
+                availability: signature.availability,
                 owner_parameters,
                 callable_parameters,
                 type_arguments: DeclarationTypeArguments::Callable { owner_arguments },

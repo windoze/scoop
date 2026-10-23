@@ -1,5 +1,6 @@
 use super::interfaces::InterfaceMemberInstance;
 use super::*;
+mod conditions;
 use hir::ImportedCallableSource;
 
 mod access;
@@ -45,6 +46,21 @@ impl Lowerer {
         {
             return;
         }
+        let condition = self.functions[id]
+            .method
+            .and_then(|method| method.availability);
+        let interfaces =
+            self.member_override_interfaces(owner, condition.map(|guard| guard.declaration));
+        if condition.is_some() && !self.conditional_member_has_slot(id, &interfaces) {
+            self.error(
+                decl.name.span,
+                format!(
+                    "`{}` does not override a member of this interface implementation's target",
+                    decl.name.text,
+                ),
+            );
+            return;
+        }
         let mut candidates: Vec<(FunctionId, Vec<TypeId>)> = match owner {
             Owner::Class(class_id) => {
                 let mut candidates: Vec<_> = self
@@ -56,7 +72,6 @@ impl Lowerer {
                         (candidate.function, arguments)
                     })
                     .collect();
-                let interfaces = self.class_interfaces_all(class_id);
                 candidates.extend(self.interface_method_candidates(&interfaces));
                 candidates
             }
@@ -71,16 +86,11 @@ impl Lowerer {
                         (candidate.function, arguments)
                     })
                     .collect();
-                let interfaces = self.class_interfaces_all(class_id);
                 candidates.extend(self.interface_method_candidates(&interfaces));
                 candidates
             }
-            Owner::Struct(struct_id) => {
-                self.interface_method_candidates(&self.structs[struct_id].interfaces.clone())
-            }
-            Owner::Enum(enum_id) => {
-                self.interface_method_candidates(&self.enums[enum_id].interfaces.clone())
-            }
+            Owner::Struct(_) => self.interface_method_candidates(&interfaces),
+            Owner::Enum(_) => self.interface_method_candidates(&interfaces),
             Owner::Interface(interface) => {
                 let parents = self.interfaces[interface].parents.clone();
                 self.interface_method_candidates(&parents)
@@ -98,7 +108,6 @@ impl Lowerer {
             })
             .cloned()
             .collect::<Vec<_>>();
-        let interfaces = self.owner_interfaces(owner);
         let signature = super::interfaces::InterfaceSignature::local(&short, &sig, accessor_kind);
         let class = match owner {
             Owner::Class(class) => Some(class),
@@ -119,6 +128,13 @@ impl Lowerer {
             .cloned()
             .collect::<Vec<_>>();
         if decl.is_override {
+            self.check_override_condition_coverage(
+                owner,
+                id,
+                &matching_overrides,
+                &imported_class_matches,
+                decl.name.span,
+            );
             for method in &imported_class_matches {
                 self.check_imported_class_override(id, decl, &sig, method);
             }

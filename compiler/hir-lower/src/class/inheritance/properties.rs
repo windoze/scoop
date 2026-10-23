@@ -52,7 +52,7 @@ impl Lowerer {
             if declaration.access.declared == hir::DeclaredVisibility::Private {
                 continue;
             }
-            let inherited = self.inherited_property_candidates(owner, &declaration.name);
+            let inherited = self.inherited_property_candidates(owner, property);
             if inherited.is_empty() {
                 if declaration.is_override {
                     self.error(
@@ -136,8 +136,11 @@ impl Lowerer {
     pub(super) fn inherited_property_candidates(
         &mut self,
         owner: Owner,
-        name: &str,
+        property: hir::PropertyId,
     ) -> Vec<InheritedProperty> {
+        let name = self.properties[property].name.clone();
+        let name = name.as_str();
+        let condition = self.property_implementation_condition(property);
         let receiver_ty = self.owner_ty(owner);
         let mut result = Vec::new();
         let class = match owner {
@@ -186,7 +189,7 @@ impl Lowerer {
                 });
             }
         }
-        for interface_ty in self.owner_interfaces(owner) {
+        for interface_ty in self.member_override_interfaces(owner, condition) {
             match self.types[interface_ty].clone() {
                 Type::Interface(application) => {
                     let value = self.interface_applications[application].clone();

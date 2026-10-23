@@ -111,11 +111,11 @@ impl Concretizer<'_> {
         self.check_completed_no_gc_type("enum", &definition.name, definition.no_gc, gc_free);
         let methods =
             self.request_concrete_methods(definition.methods, concrete::MethodOwner::Enum(id));
-        let mut direct_interfaces: Vec<_> = definition
-            .interfaces
-            .iter()
-            .map(|interface| self.lower_type(*interface, substitution))
-            .collect();
+        let mut direct_interfaces = self.concrete_direct_interfaces(
+            definition.conditional_interfaces,
+            definition.interfaces,
+            substitution,
+        );
         if let Some(kind) = definition.representation.integer_kind() {
             self.lower_integer_type(kind, substitution);
             for source in self.source.integer_interface_roots(kind).to_vec() {

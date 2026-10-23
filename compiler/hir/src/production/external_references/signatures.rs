@@ -46,6 +46,34 @@ where
                 &path.clone().field(4).index(signature_index),
             )?;
         }
+        for (index, implementation) in record
+            .declaration_details()
+            .conditional_interfaces()
+            .iter()
+            .enumerate()
+        {
+            let path = path.clone().field(9).field(13).index(index as u64);
+            observe(
+                accumulator,
+                implementation.interface(),
+                &path.clone().field(2),
+            )?;
+            collect_binders(implementation.parameters(), accumulator, &path.field(3))?;
+        }
+        for (index, conformance) in record
+            .declaration_details()
+            .conditional_conformances()
+            .iter()
+            .enumerate()
+        {
+            let path = path.clone().field(9).field(14).index(index as u64);
+            observe(accumulator, &conformance.interface, &path.clone().field(1))?;
+            observe(
+                accumulator,
+                &conformance.condition.owner,
+                &path.field(2).field(2),
+            )?;
+        }
         collect_dispatch_signatures(
             accumulator,
             record.declaration_details().dispatch_selections(),
@@ -103,8 +131,15 @@ where
     for (index, selection) in selections.records().iter().enumerate() {
         let path = path.clone().index(index as u64);
         observe(accumulator, selection.receiver(), &path.clone().field(3))?;
-        if let crate::NominalDispatchSelectionRoleV1::Interface { interface } = selection.role() {
-            observe(accumulator, interface, &path.field(0).field(1))?;
+        if let Some(interface) = selection.role().interface() {
+            observe(accumulator, interface, &path.clone().field(0).field(1))?;
+        }
+        if let Some(condition) = selection.role().condition() {
+            observe(
+                accumulator,
+                &condition.owner,
+                &path.field(0).field(2).field(2),
+            )?;
         }
     }
     Ok(())

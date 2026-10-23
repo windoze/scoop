@@ -78,6 +78,7 @@ impl Lowerer {
     ) -> Candidate {
         let function = &self.function_types[function];
         let signature = DeclarationSignature::<()> {
+            availability: None,
             owner_parameters: Vec::new(),
             callable_parameters: Vec::new(),
             value_parameters: function

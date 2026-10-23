@@ -8,6 +8,8 @@
 
 函数条件与成员调用要求属于编译期合同（语言规范3.2.2～3.2.4、实现规范2.11、2.13），具体化后只产生已有的普通调用、构造与 singleton 访问。不增加 runtime 约束检查、dictionary、TypeDescriptor 字段或按调用点作用域分派的 ABI。
 
+语言9.1.8的条件interface实现同样在具体HIR前落实。每个exact type的普通接口表仅包含适用关系，接口转换、is/as、装箱和分派共同使用该结果；runtime不执行guard或选择实现块。字段表示、GC扫描、基类前缀及companion的原singleton状态和ensure协议保持，同一完整宿主跨Cone共享原对象。关系查询不执行初始化，不增加TD字段、额外codec参数或新的运行期分派ABI。
+
 M42 的平台无关标准基础库按 [标准基础库规范](SCOOP-STDLIB-SPEC.md) 完全使用普通 Scoop Cone 实现，只通过公开 core API 使用既有运行时能力。集合、排序、文本和字节处理、数值文本转换、RNG、日期／时间运算均不增加 runtime helper、native 后备或专用 ABI；Clock／TimeSource 只有普通库接口，没有系统取时实现。库代码触发的实际 GC、异常或 ABI 缺陷必须先在对应底层修复并建立独立回归，不能将缺陷处理转移成库专用绕行。
 
 受支持目标使用 little-endian、64-bit data/code pointer 和 natural 8-byte metadata alignment。所有大小、数量、对齐和地址范围计算必须检查溢出及实际存储边界；不满足目标表示或 ABI 的输入必须拒绝。

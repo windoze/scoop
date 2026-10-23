@@ -186,6 +186,11 @@ impl Lowerer {
                 .member_callable_candidates(owner, lookup)?
             {
                 let declaration = candidate.interface();
+                if let Some(condition) = self.imported_member_condition(declaration, ty)
+                    && !self.conditional_application_holds(&condition)
+                {
+                    continue;
+                }
                 if !(if public_only {
                     declaration.declared_visibility() == hir::DeclaredVisibilityV1::Public
                 } else {

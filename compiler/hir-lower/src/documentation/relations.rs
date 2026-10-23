@@ -6,6 +6,7 @@ use hir::{
     DocumentationSymbol as Symbol, ImportedCallableSource,
 };
 
+mod conditions;
 mod constraints;
 mod implemented;
 mod imported;
@@ -37,7 +38,14 @@ impl Lowerer {
         self.current_owner = Some(owner);
         let mut relations = Vec::new();
         let parents = self.direct_nominal_supertypes(ty);
+        let conditional = self.owner_conditional_interfaces(owner).to_vec();
         for parent in &parents {
+            if conditional
+                .iter()
+                .any(|declaration| declaration.interface == *parent)
+            {
+                continue;
+            }
             if let Some(target) = self.documentation_nominal_symbol(*parent) {
                 relations.push(Relation {
                     kind: RelationKind::Supertype,
@@ -49,13 +57,87 @@ impl Lowerer {
                 });
             }
         }
+        for declaration in conditional {
+            let condition = self.conditional_guard_application(hir::ConditionalInterfaceGuard {
+                declaration: declaration.id(),
+                owner: ty,
+            });
+            if let Some(target) = self.documentation_nominal_symbol(declaration.interface) {
+                let suffix = self.documentation_condition(&condition);
+                relations.push(Relation {
+                    kind: RelationKind::Supertype,
+                    target,
+                    signature: format!(
+                        "{}{suffix}",
+                        self.type_name_with_params(
+                            declaration.interface,
+                            &self.type_params_in_scope
+                        )
+                    ),
+                    origin: String::new(),
+                    visibility: hir::DeclaredVisibility::Public,
+                    hidden: false,
+                });
+            }
+        }
+        let inherited = self.documentation_inherited_members(owner, ty);
+        let ordinary = inherited
+            .iter()
+            .map(|(relation, _)| (relation.target, relation.signature.clone()))
+            .collect::<HashSet<_>>();
+        relations.extend(inherited.into_iter().map(|(relation, _)| relation));
+        for condition in self.documentation_inherited_conditions(ty) {
+            if self.conditional_application_is_impossible(&condition) {
+                continue;
+            }
+            let suffix = self.documentation_condition(&condition);
+            let additions = self.with_conditional_interface_assumptions(&condition, |this| {
+                this.documentation_inherited_members(owner, ty)
+            });
+            for (mut relation, guarded) in additions {
+                if ordinary.contains(&(relation.target, relation.signature.clone())) {
+                    continue;
+                }
+                if !guarded {
+                    relation.signature.push_str(&suffix);
+                }
+                relations.push(relation);
+            }
+        }
+        let mut seen = HashSet::new();
+        relations.retain(|entry| seen.insert((entry.target, entry.signature.clone())));
+        relations
+    }
+
+    fn documentation_inherited_members(
+        &mut self,
+        owner: Owner,
+        ty: hir::TypeId,
+    ) -> Vec<(Relation, bool)> {
+        let mut relations = Vec::new();
         for method in self.visible_methods(ty) {
-            if self.function_owner.get(&method.function) != Some(&owner) {
-                relations.push(self.documentation_inherited_method(method));
+            if self.function_owner.get(&method.function) == Some(&owner) {
+                continue;
+            }
+            let arguments = self.callable_candidate_owner_arguments(&method);
+            let condition = self.local_member_condition(method.function, &arguments);
+            if let Some(condition) = condition {
+                if self.conditional_application_is_impossible(&condition) {
+                    continue;
+                }
+                let suffix = self.documentation_condition(&condition);
+                let mut relation = self
+                    .with_conditional_interface_assumptions(&condition, |this| {
+                        this.documentation_inherited_method(method)
+                    });
+                relation.signature.push_str(&suffix);
+                relations.push((relation, true));
+            } else {
+                relations.push((self.documentation_inherited_method(method), false));
             }
         }
         let mut names = std::collections::BTreeSet::new();
-        let mut pending = parents;
+        let mut pending = self.direct_nominal_supertypes(ty);
         let mut seen = HashSet::new();
         while let Some(parent) = pending.pop() {
             if !seen.insert(parent) {
@@ -89,10 +171,17 @@ impl Lowerer {
             {
                 let declaring = self.method_owner_type(application);
                 if self.documentation_nominal_symbol(declaring)
-                    != Some(Symbol::Current(Source::Nominal(nominal).into()))
+                    != Some(Symbol::Current(
+                        Source::Nominal(owner.as_nominal_owner()).into(),
+                    ))
                 {
+                    let condition = self.documentation_property_condition(id, application);
+                    let suffix = condition
+                        .as_ref()
+                        .map(|condition| self.documentation_condition(condition))
+                        .unwrap_or_default();
                     let property = &self.properties[id];
-                    relations.push(Relation {
+                    let mut relation = Relation {
                         kind: RelationKind::Inherited,
                         target: Symbol::Current(Source::Property(id).into()),
                         signature: property_signature(
@@ -109,7 +198,9 @@ impl Lowerer {
                         origin: self.type_name(declaring),
                         visibility: property.access.declared,
                         hidden: false,
-                    });
+                    };
+                    relation.signature.push_str(&suffix);
+                    relations.push((relation, condition.is_some()));
                 }
             }
             let lookup = if property {
@@ -121,11 +212,26 @@ impl Lowerer {
                 .imported_member_candidates(ty, lookup)
                 .expect("a completed HIR has valid imported member declarations");
             for candidate in candidates {
-                relations.push(self.documentation_imported_member(ty, candidate, property));
+                let condition = self.imported_member_condition(candidate.interface(), ty);
+                if let Some(condition) = condition {
+                    if self.conditional_application_is_impossible(&condition) {
+                        continue;
+                    }
+                    let suffix = self.documentation_condition(&condition);
+                    let mut relation = self
+                        .with_conditional_interface_assumptions(&condition, |this| {
+                            this.documentation_imported_member(ty, candidate, property)
+                        });
+                    relation.signature.push_str(&suffix);
+                    relations.push((relation, true));
+                } else {
+                    relations.push((
+                        self.documentation_imported_member(ty, candidate, property),
+                        false,
+                    ));
+                }
             }
         }
-        let mut seen = HashSet::new();
-        relations.retain(|entry| seen.insert(entry.target));
         relations
     }
 

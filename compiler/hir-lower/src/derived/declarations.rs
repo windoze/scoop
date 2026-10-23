@@ -127,6 +127,7 @@ impl Lowerer {
             genericity: hir::FunctionGenericity::Plain,
             kind: FunctionKind::DerivedEquality,
             method: Some(hir::Method {
+                availability: None,
                 owner: owner_ty,
                 modifier: hir::MethodModifier::Final,
                 dispatch: hir::MethodDispatch::Direct,
@@ -212,6 +213,7 @@ impl Lowerer {
             genericity: hir::FunctionGenericity::Plain,
             kind: FunctionKind::DerivedEquality,
             method: Some(hir::Method {
+                availability: None,
                 owner: owner_ty,
                 modifier: hir::MethodModifier::Final,
                 dispatch: hir::MethodDispatch::Direct,

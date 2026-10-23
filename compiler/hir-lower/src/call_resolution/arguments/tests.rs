@@ -34,6 +34,7 @@ fn view(parameter_count: usize, receiver: ReceiverShape) -> CallableView {
     CallableView {
         target: CallableSource::Free(hir::FunctionId::from_raw(0_u32.into())),
         signature: crate::call_resolution::candidates::DeclarationSignature {
+            availability: None,
             owner_parameters: Vec::new(),
             callable_parameters: Vec::new(),
             value_parameters: (0..parameter_count)
@@ -102,6 +103,7 @@ fn exact_nominal_mapping_uses_constructor_fields() {
     let view = NominalConstructorView {
         target: NominalConstructorSource::Struct(hir::StructConstructorId::from_raw(0_u32.into())),
         signature: crate::call_resolution::candidates::DeclarationSignature {
+            availability: None,
             owner_parameters: Vec::new(),
             callable_parameters: Vec::new(),
             value_parameters: vec![

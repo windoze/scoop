@@ -101,6 +101,7 @@ pub(super) fn project(
     let effects = effects::function(&projection.export.extern_functions, function, &binders)
         .map_err(CallableProjectionError::Effects)?;
     let modality = modality(projection, function_id, function)?;
+    let availability = project_availability(projection, function)?;
 
     CallableDeclarationRecordV1::try_new(
         declaration,
@@ -116,7 +117,29 @@ pub(super) fn project(
         parameters::context(&projection.signatures, function, &binders)
             .map_err(CallableProjectionError::Parameters)?,
     )
+    .map(|record| record.with_availability(availability))
     .map_err(CallableProjectionError::Record)
+}
+
+pub(super) fn project_availability(
+    projection: &CallableProjection<'_>,
+    function: &crate::Function,
+) -> Result<Option<crate::ConditionalInterfaceApplicationV1>, CallableProjectionError> {
+    let Some(guard) = function.method.and_then(|method| method.availability) else {
+        return Ok(None);
+    };
+    let binders = projection
+        .signatures
+        .function_binders(function)
+        .map_err(CallableProjectionError::Signature)?;
+    let owner = projection
+        .signatures
+        .map_type(guard.owner, &binders)
+        .map_err(CallableProjectionError::Signature)?;
+    Ok(Some(crate::ConditionalInterfaceApplicationV1 {
+        declaration: guard.declaration,
+        owner,
+    }))
 }
 
 fn validate_source_key(

@@ -1,0 +1,65 @@
+package test.core.tests.consumer.conditional_inheritance
+
+import scoop.test.*
+
+@Test
+private class ConditionalInheritanceTests {
+    @Test
+    fun inheritedAndOverriddenDispatch() {
+        val inherited: Read = Derived(Present(7))
+        assertTrue(inherited.read() == 7)
+        assertTrue(callBase(Derived(Present(11))) == 11)
+        val replaced = Replaced(Present(1))
+        val throughInterface: Read = replaced
+        assertTrue(throughInterface.read() == 13 && callBase(replaced) == 13)
+        assertTrue(callStable(replaced) == 17)
+        val absent: Any = Derived(Absent())
+        assertTrue(!(absent is Read))
+        assertTrue(callStable(Derived(Absent())) == 3)
+        val replacedAbsent = Replaced(Absent())
+        val erased: Any = replacedAbsent
+        assertTrue(!(erased is Read))
+        assertTrue(replacedAbsent.read() == 13 && callStable(replacedAbsent) == 17)
+    }
+
+    @Test
+    fun equivalentDomainsAndConstructedArguments() {
+        val relisted: Read = Relisted(Present(1))
+        val restricted: Read = Restricted(Present(1))
+        val nested: Read = Nested(Box(Present(1)))
+        assertTrue(relisted.read() == 19 && restricted.read() == 23 && nested.read() == 29)
+        assertTrue(callBase(Relisted(Present(1))) == 19)
+        assertTrue(callBase(Nested(Box(Present(1)))) == 29)
+        val unavailable: Any = Relisted(Absent())
+        assertTrue(!(unavailable is Read) && callStable(Relisted(Absent())) == 3)
+        val nestedAbsent = Nested(Box(Absent()))
+        val erased: Any = nestedAbsent
+        assertTrue(!(erased is Read) && nestedAbsent.read() == 29)
+    }
+
+    @Test
+    fun abstractObligationsAndProperties() {
+        val complete: Read = Completed<Present>()
+        assertTrue(complete.read() == 31 && Completed<Absent>().read() == 31)
+        val noObligation: Any = NoObligation()
+        assertTrue(!(noObligation is Read))
+        val property: Reading = PropertyDerived(Present(1))
+        val base: PropertyBase<Present> = PropertyDerived(Present(1))
+        assertTrue(property.number == 37 && base.number == 37)
+        val propertyAbsent = PropertyDerived(Absent())
+        val erased: Any = propertyAbsent
+        assertTrue(!(erased is Reading) && propertyAbsent.number == 37)
+    }
+
+    @Test
+    fun companionProjectionTargetsAndSignatures() {
+        val value: CompanionValue<WithCompanion.Companion> = ProjectedChild<WithCompanion>()
+        assertTrue(value.get() === WithCompanion.Companion)
+        assertTrue(value.echo(WithCompanion.Companion) === WithCompanion.Companion)
+        val base: Projected<WithCompanion> = ProjectedChild<WithCompanion>()
+        assertTrue(base.get() === WithCompanion.Companion)
+        val absent = ProjectedAbsent()
+        val erased: Any = absent
+        assertTrue(absent.get() == 43 && !(erased is CompanionValue<WithCompanion.Companion>))
+    }
+}

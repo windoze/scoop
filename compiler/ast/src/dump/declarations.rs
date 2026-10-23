@@ -97,6 +97,9 @@ pub fn dump(file: &SourceFile) -> String {
                 if let Some(companion) = &e.companion {
                     dump_companion(companion, 2, &mut out);
                 }
+                for implementation in &e.interface_implementations {
+                    dump_interface_implementation(implementation, 2, &mut out);
+                }
             }
             Decl::Class(c) => {
                 dump_annotations(&c.annotations, 2, &mut out);
@@ -275,6 +278,9 @@ pub fn dump(file: &SourceFile) -> String {
                         StructMember::Companion(companion) => {
                             dump_companion(companion, 2, &mut out)
                         }
+                        StructMember::InterfaceImplementation(implementation) => {
+                            dump_interface_implementation(implementation, 2, &mut out)
+                        }
                     }
                 }
             }
@@ -383,6 +389,29 @@ fn dump_supertype(supertype: &SupertypeSpec) -> String {
     }
 }
 
+fn dump_interface_implementation(
+    implementation: &InterfaceImplementationDecl,
+    indent: usize,
+    out: &mut String,
+) {
+    out.push_str(&format!(
+        "{}override interface {}{}\n",
+        "  ".repeat(indent),
+        dump_type_ref(&implementation.interface),
+        dump_where_clause(Some(&implementation.where_clause)),
+    ));
+    for member in &implementation.members {
+        match member {
+            InterfaceImplementationMember::Function(function) => {
+                dump_member_function(function, indent + 1, out)
+            }
+            InterfaceImplementationMember::Property(property) => {
+                dump_property(property, indent + 1, out)
+            }
+        }
+    }
+}
+
 fn dump_class_member(member: &ClassMember, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match member {
@@ -428,6 +457,9 @@ fn dump_class_member(member: &ClassMember, indent: usize, out: &mut String) {
         ClassMember::Function(function) => dump_member_function(function, indent, out),
         ClassMember::Nested(declaration) => dump_nested_nominal(declaration, indent, out),
         ClassMember::Companion(companion) => dump_companion(companion, indent, out),
+        ClassMember::InterfaceImplementation(implementation) => {
+            dump_interface_implementation(implementation, indent, out)
+        }
     }
 }
 

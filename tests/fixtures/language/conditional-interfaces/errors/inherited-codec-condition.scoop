@@ -1,0 +1,18 @@
+struct Payload<T>(val value: T)
+struct Wrapper<T>(val value: T) {
+    public companion object {
+        override interface ValueEncoder<Wrapper<T>> where T.Companion : ValueEncoder<T> {}
+    }
+}
+abstract class Base<T> {
+    override interface ValueEncoder<Payload<T>> where T.Companion : ValueEncoder<T> {}
+}
+class Derived<T> : Base<T>()
+class Constructed<T> : Base<Wrapper<T>>()
+struct Absent()
+fun <T> unknown(value: Payload<T>, output: Encoder) { Derived<T>().encode(value, output) }
+fun <T> reference(): (Payload<T>, Encoder) -> Unit = Derived<T>()::encode
+fun absent(value: Payload<Wrapper<Absent>>, output: Encoder) {
+    Constructed<Absent>().encode(value, output)
+}
+fun main() {}

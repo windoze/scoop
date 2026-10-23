@@ -28,6 +28,7 @@ impl Lowerer {
                     self.declare_companion_nested(owner, companion.source(), queues, file);
                 }
                 ast::ClassMember::StoredProperty(_)
+                | ast::ClassMember::InterfaceImplementation(_)
                 | ast::ClassMember::InitBlock(_)
                 | ast::ClassMember::ReleaseBlock(_)
                 | ast::ClassMember::SecondaryConstructor(_)
@@ -53,6 +54,7 @@ impl Lowerer {
                     self.declare_companion_nested(owner, companion.source(), queues, file);
                 }
                 ast::StructMember::SecondaryConstructor(_)
+                | ast::StructMember::InterfaceImplementation(_)
                 | ast::StructMember::Function(_)
                 | ast::StructMember::Property(_) => {}
             }
@@ -108,6 +110,7 @@ impl Lowerer {
                     self.declare_companion_nested(owner, companion.source(), queues, file);
                 }
                 ast::ClassMember::StoredProperty(_)
+                | ast::ClassMember::InterfaceImplementation(_)
                 | ast::ClassMember::InitBlock(_)
                 | ast::ClassMember::ReleaseBlock(_)
                 | ast::ClassMember::SecondaryConstructor(_)

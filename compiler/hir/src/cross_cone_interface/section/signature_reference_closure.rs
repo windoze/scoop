@@ -69,6 +69,13 @@ impl CrossConeHirInterfaceSectionV1 {
                     &record_path.clone().field(4).field(1),
                 )?;
             }
+            if let Some(availability) = record.availability() {
+                validator.visit_signature(
+                    &availability.owner,
+                    ExternalHirSignatureUseSiteV1::CallableAvailability { record_index },
+                    &record_path.clone().field(12).field(2),
+                )?;
+            }
             for (parameter_index, parameter) in record.parameters().parameters().iter().enumerate()
             {
                 validator.visit_signature(
@@ -380,6 +387,28 @@ pub enum ExternalHirSignatureUseSiteV1 {
         record_index: usize,
         signature_index: usize,
     },
+    NominalConditionalInterface {
+        record_index: usize,
+        implementation_index: usize,
+    },
+    NominalConditionalConformance {
+        record_index: usize,
+        conformance_index: usize,
+    },
+    NominalConditionalConformanceOwner {
+        record_index: usize,
+        conformance_index: usize,
+    },
+    NominalConditionalParameter {
+        record_index: usize,
+        implementation_index: usize,
+        binder_index: usize,
+        bound: TypeParameterBoundLocation,
+    },
+    NominalConditionalOwner {
+        record_index: usize,
+        selection_index: usize,
+    },
     NominalDispatchReceiver {
         record_index: usize,
         selection_index: usize,
@@ -403,6 +432,9 @@ pub enum ExternalHirSignatureUseSiteV1 {
         bound: TypeParameterBoundLocation,
     },
     CallableReceiver {
+        record_index: usize,
+    },
+    CallableAvailability {
         record_index: usize,
     },
     CallableParameter {

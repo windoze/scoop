@@ -106,6 +106,7 @@ impl Lowerer {
         let pointee = self.intern_type(Type::Param(parameters[0].id));
         let return_type = self.intern_type(Type::Ptr(pointee));
         let signature = DeclarationSignature::<()> {
+            availability: None,
             owner_parameters: parameters,
             callable_parameters: Vec::new(),
             value_parameters: vec![ValueParameter {

@@ -88,6 +88,10 @@ impl RecoveredBody {
             (Self::Nominal(Nominal::Enum(owner)), NominalMember::Companion(value)) => {
                 owner.companion = Some(*value)
             }
+            (
+                Self::Nominal(Nominal::Enum(owner)),
+                NominalMember::InterfaceImplementation(value),
+            ) => owner.interface_implementations.push(*value),
             _ => unreachable!("each nominal body records its own member syntax"),
         }
         Some(())

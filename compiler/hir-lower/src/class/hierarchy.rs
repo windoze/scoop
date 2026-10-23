@@ -95,12 +95,17 @@ impl Lowerer {
             let Some(class) = self.source_class_id(base.template) else {
                 break;
             };
-            result.extend(self.classes[class].methods.iter().copied().map(|function| {
-                crate::CallableCandidate::method(
+            for function in self.classes[class].methods.clone() {
+                if let Some(condition) = self.local_member_condition(function, &base.arguments)
+                    && self.conditional_application_is_impossible(&condition)
+                {
+                    continue;
+                }
+                result.push(crate::CallableCandidate::method(
                     function,
                     hir::MethodOwnerApplication::Class(base_application),
-                )
-            }));
+                ));
+            }
             current = base_application;
         }
         result

@@ -265,11 +265,14 @@ impl Parser {
             .push(Event::Nominal(NominalEvent::BeginMember));
     }
 
-    pub(crate) fn nominal_member_kind(&mut self) {
+    pub(crate) fn nominal_member_kind(&mut self, interface_implementation: bool) {
         let kind = match self.peek().kind {
             crate::lexer::TokenKind::Fun => SyntaxKind::FunctionDecl,
             crate::lexer::TokenKind::Class => SyntaxKind::ClassDecl,
             crate::lexer::TokenKind::Struct => SyntaxKind::StructDecl,
+            crate::lexer::TokenKind::Interface if interface_implementation => {
+                SyntaxKind::InterfaceImplementation
+            }
             crate::lexer::TokenKind::Interface => SyntaxKind::InterfaceDecl,
             crate::lexer::TokenKind::Enum => SyntaxKind::EnumDecl,
             crate::lexer::TokenKind::Ident(ref text) if text == "object" => SyntaxKind::ObjectDecl,

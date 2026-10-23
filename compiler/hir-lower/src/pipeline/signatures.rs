@@ -182,6 +182,7 @@ impl Lowerer {
         {
             return Err(self.take_source_diagnostics().into());
         }
+        self.resolve_pending_conditional_interfaces();
         self.validate_deferred_type_bounds();
 
         // Inline value layout must be finite before signatures or bodies can

@@ -27,6 +27,7 @@ pub struct EnumDefinition {
     pub type_params: Vec<TypeParamDecl>,
     pub variants: Vec<Variant>,
     pub interfaces: Vec<TypeId>,
+    pub conditional_interfaces: Vec<ConditionalInterfaceDeclaration>,
     pub interface_implementations: Vec<InterfaceImplementation>,
 }
 

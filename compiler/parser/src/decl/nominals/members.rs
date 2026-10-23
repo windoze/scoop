@@ -74,8 +74,12 @@ impl Parser {
 
     fn parse_class_member_inner(&mut self) -> Result<ClassMember, Diagnostic> {
         let prefix = self.parse_member_prefix()?;
-        self.nominal_member_kind();
+        self.nominal_member_kind(prefix.modifiers.override_span.is_some());
         match &self.peek().kind {
+            TokenKind::Interface if prefix.modifiers.override_span.is_some() => self
+                .parse_interface_implementation(prefix, PropertyContext::ClassOrObject)
+                .map(Box::new)
+                .map(ClassMember::InterfaceImplementation),
             TokenKind::Val | TokenKind::Var => self
                 .parse_property(prefix, PropertyContext::ClassOrObject)
                 .map(ClassMember::StoredProperty),
@@ -167,7 +171,7 @@ impl Parser {
         )
     }
 
-    fn require_empty_member_prefix(
+    pub(in crate::decl) fn require_empty_member_prefix(
         &self,
         prefix: &MemberPrefix,
         target: &str,
@@ -311,8 +315,12 @@ impl Parser {
             let checkpoint = self.checkpoint();
             self.begin_nominal_member();
             let parsed = self.parse_member_prefix().and_then(|prefix| {
-                self.nominal_member_kind();
+                self.nominal_member_kind(prefix.modifiers.override_span.is_some());
                 match &self.peek().kind {
+                TokenKind::Interface if prefix.modifiers.override_span.is_some() => self
+                    .parse_interface_implementation(prefix, PropertyContext::ValueType)
+                    .map(Box::new)
+                    .map(StructMember::InterfaceImplementation),
                 TokenKind::Ident(text) if text == "constructor" => self
                     .require_unmodified_nominal_prefix(&prefix, "constructor")
                     .and_then(|()| {

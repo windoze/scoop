@@ -5,6 +5,8 @@ use scoop_hir as hir;
 
 #[derive(Debug, Clone)]
 pub(crate) struct DeclarationSignature<D = DefaultArgumentSource> {
+    /// An inherited condition whose subject cannot be represented by owner bounds.
+    pub(crate) availability: Option<hir::ConditionalInterfaceGuard>,
     pub(crate) owner_parameters: Vec<hir::TypeParamDecl>,
     pub(crate) callable_parameters: Vec<hir::TypeParamDecl>,
     pub(crate) value_parameters: Vec<ValueParameter<D>>,
@@ -38,12 +40,10 @@ impl<D> DeclarationSignature<D> {
                 *array_type = state.instantiate_method_ty(*array_type, bindings);
             }
         }
-        for parameter in self
-            .owner_parameters
-            .iter_mut()
-            .chain(&mut self.callable_parameters)
-        {
-            state.substitute_type_parameter(parameter, bindings);
+        state.substitute_parameter_bounds(&mut self.owner_parameters, bindings);
+        state.substitute_parameter_bounds(&mut self.callable_parameters, bindings);
+        if let Some(guard) = &mut self.availability {
+            guard.owner = state.instantiate_method_ty(guard.owner, bindings);
         }
         self.return_type = state.instantiate_method_ty(self.return_type, bindings);
     }
@@ -129,4 +129,16 @@ pub(crate) enum ValueParameterCalling<D = DefaultArgumentSource> {
 pub(crate) enum VarargOmission<D = DefaultArgumentSource> {
     EmptyArray,
     Default(D),
+}
+
+impl crate::Lowerer {
+    pub(crate) fn substitute_parameter_bounds(
+        &mut self,
+        parameters: &mut [hir::TypeParamDecl],
+        bindings: &[(hir::TypeParamId, hir::TypeId)],
+    ) {
+        for parameter in parameters {
+            self.substitute_type_parameter(parameter, bindings);
+        }
+    }
 }

@@ -36,6 +36,16 @@ impl NominalInterfaceRecordV1 {
                 continue;
             }
             previous = Some(selection.role());
+            if let Some(condition) = selection.role().condition() {
+                scope
+                    .validate_nominal_signature_semantics(&condition.owner, authority)
+                    .map_err(
+                        |error| NominalInterfaceSemanticValidationError::ConditionalOwner {
+                            index,
+                            error,
+                        },
+                    )?;
+            }
             match selection.role() {
                 NominalDispatchSelectionRoleV1::ClassVtable => {
                     if !matches!(
@@ -47,7 +57,8 @@ impl NominalInterfaceRecordV1 {
                         ));
                     }
                 }
-                NominalDispatchSelectionRoleV1::Interface { interface } => {
+                NominalDispatchSelectionRoleV1::Interface { interface }
+                | NominalDispatchSelectionRoleV1::ConditionalInterface { interface, .. } => {
                     let error =
                         |error| NominalInterfaceSemanticValidationError::DispatchApplication {
                             index,

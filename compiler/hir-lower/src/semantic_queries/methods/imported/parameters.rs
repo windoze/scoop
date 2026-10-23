@@ -56,6 +56,25 @@ impl Lowerer {
             })
             .collect::<Vec<_>>();
         let mut parameters = owner_parameters.to_vec();
+        if let hir::PublicDeclarationOwnerV1::Nominal(owner) = declaration.interface().owner()
+            && declaration.interface().availability().is_some()
+        {
+            let nominal = self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.nominal_declaration(owner))
+                .expect("an imported member retains its nominal declaration")
+                .clone();
+            let owner_binders = nominal
+                .interface
+                .member_owner_parameters(declaration.interface().availability())
+                .expect("a checked member retains its conditional implementation");
+            for (parameter, binder) in parameters.iter_mut().zip(owner_binders.binders()) {
+                *parameter = self
+                    .resolve_imported_type_parameter(binder, parameter.id, &bindings, span)
+                    .map_err(|error| Diagnostic::at(span, error))?;
+            }
+        }
         for (binder, id) in binders.iter().zip(ids) {
             parameters.push(
                 self.resolve_imported_type_parameter(binder, id, &bindings, span)

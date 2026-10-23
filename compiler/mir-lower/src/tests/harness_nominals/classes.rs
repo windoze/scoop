@@ -131,6 +131,7 @@ impl Harness {
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             definition: hir::ClassDefinition {
+                conditional_interfaces: Vec::new(),
                 inheritance_family: Default::default(),
                 release_policy: Default::default(),
                 modifier,

@@ -11,6 +11,7 @@ pub struct EnumDecl {
     pub properties: Vec<PropertyDecl>,
     pub nested: Vec<NestedTypeDecl>,
     pub companion: Option<CompanionObjectDecl>,
+    pub interface_implementations: Vec<InterfaceImplementationDecl>,
     pub span: Span,
 }
 
@@ -48,6 +49,7 @@ impl EnumDecl {
             properties: &self.properties,
             nested: &self.nested,
             companion: self.companion.as_ref(),
+            interface_implementations: &self.interface_implementations,
             recovery: crate::RecoveredNominalMembers::EMPTY,
             span: self.span,
         }
@@ -62,6 +64,7 @@ pub struct EnumSource<'a> {
     pub properties: &'a [PropertyDecl],
     pub nested: &'a [NestedTypeDecl],
     pub companion: Option<&'a CompanionObjectDecl>,
+    pub interface_implementations: &'a [InterfaceImplementationDecl],
     pub recovery: &'a crate::RecoveredNominalMembers,
     pub span: Span,
 }

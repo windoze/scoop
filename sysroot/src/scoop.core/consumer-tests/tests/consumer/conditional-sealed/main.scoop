@@ -1,0 +1,65 @@
+package test.core.tests.consumer.conditional_sealed
+
+import scoop.test.*
+
+interface Mark {}
+interface Tagged {}
+struct Present() : Mark { public companion object : Mark {} }
+struct Absent()
+
+sealed interface Root<T> {}
+class Always<T> : Root<T>
+struct Conditional<T>(val value: T) {
+    override interface Root<T> where T : Mark {}
+    override interface Tagged where T : Mark {}
+}
+struct Provider<T>() {
+    public companion object {
+        override interface Root<T> where T.Companion : Mark {}
+    }
+}
+sealed class Branch<T> {
+    override interface Root<T> where T : Mark {}
+}
+class Leaf<T> : Branch<T>()
+class RefOnly<T> {
+    override interface Root<T> where T : ref {}
+}
+
+fun <T> classify(value: Root<T>): Int = when (value) {
+    is Always<T> -> 1
+    is Tagged -> 2
+    is Provider<T>.Companion -> 3
+    is Leaf<T> -> 4
+    is RefOnly<T> -> 5
+}
+fun absent(value: Root<Absent>): Int = when (value) {
+    is Always<Absent> -> 6
+}
+
+sealed interface ProjectionRoot<T> {}
+interface ProjectionTag {}
+class Projection<T> : ProjectionTag {
+    override interface ProjectionRoot<T.Companion> where T.Companion : Mark {}
+}
+fun projected(value: ProjectionRoot<Present.Companion>): Int = when (value) {
+    is ProjectionTag -> 7
+}
+
+@Test
+private class ConditionalSealedTests {
+    @Test
+    fun conditionsAndCompanionsContributeToTheSameSealedFamily() {
+        assertTrue(classify(Always<Present>()) == 1)
+        assertTrue(classify(Conditional(Present())) == 2)
+        assertTrue(classify(Provider<Present>.Companion) == 3)
+        assertTrue(classify(Leaf<Present>()) == 4)
+        assertTrue(classify(RefOnly<Always<Present>>()) == 5)
+        assertTrue(absent(Always<Absent>()) == 6)
+    }
+
+    @Test
+    fun unresolvedProjectionHostsRetainTheirWholeFamily() {
+        assertTrue(projected(Projection<Present>()) == 7)
+    }
+}

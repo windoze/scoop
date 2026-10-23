@@ -9,6 +9,7 @@ pub enum StructMember {
     Property(Box<PropertyDecl>),
     Nested(Box<NestedTypeDecl>),
     Companion(Box<CompanionObjectDecl>),
+    InterfaceImplementation(Box<InterfaceImplementationDecl>),
 }
 
 impl StructMember {
@@ -19,6 +20,7 @@ impl StructMember {
             Self::Property(property) => property.span,
             Self::Nested(declaration) => declaration.span(),
             Self::Companion(companion) => companion.span,
+            Self::InterfaceImplementation(implementation) => implementation.span,
         }
     }
 }
@@ -102,6 +104,7 @@ impl<'a> StructSource<'a> {
             StructMember::SecondaryConstructor(_)
             | StructMember::Property(_)
             | StructMember::Nested(_)
+            | StructMember::InterfaceImplementation(_)
             | StructMember::Companion(_) => None,
         })
     }
@@ -112,6 +115,7 @@ impl<'a> StructSource<'a> {
             StructMember::Function(_)
             | StructMember::Property(_)
             | StructMember::Nested(_)
+            | StructMember::InterfaceImplementation(_)
             | StructMember::Companion(_) => None,
         })
     }

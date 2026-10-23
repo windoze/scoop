@@ -1,0 +1,69 @@
+package test.core.tests.consumer.conditional_combinations
+
+import scoop.test.*
+
+interface Count { public fun count(): Int }
+struct Counted<T>(val value: T) {
+    override interface Count where T : Hash {
+        @NoGC public override fun count(): Int = 23
+    }
+}
+
+interface AsyncRead { public suspend fun read(): String }
+class Gate : SuspendRegistration<Unit> {
+    var waiter: Continuation<Unit>? = None
+    public override fun register(continuation: Continuation<Unit>) { waiter = Some(continuation) }
+}
+
+class Done : Continuation<String> {
+    var count = 0
+    var value = ""
+    public override fun resume(value: String) { count += 1; this.value = value }
+    public override fun resumeWithException(error: Throwable) { throw error }
+}
+
+class Async<T>(val value: T, val text: String, val gate: Gate) {
+    override interface AsyncRead where T : Hash {
+        public override suspend fun read(): String {
+            suspendCoroutine(gate)
+            return text
+        }
+    }
+}
+
+@Test
+private class ConditionalEffectTests {
+    @Test
+    fun noGcImplementationUsesManagedSlot() {
+        val erased: Count = Counted(7)
+        val call = erased::count
+        assertEquals(23, erased.count())
+        assertEquals(23, call())
+    }
+
+    @Test
+    fun suspendDispatchAndCallableReference() {
+        val gate = Gate()
+        val reader: AsyncRead = Async(7, "conditional coroutine", gate)
+        val done = Done()
+        startCoroutine(suspend { reader.read() }, done)
+        assertEquals(0, done.count)
+        gcCollect()
+        gate.waiter!!.resume(Unit)
+        assertEquals(1, done.count)
+        assertEquals("conditional coroutine", done.value)
+
+        val nextGate = Gate()
+        val source = Async(11, "conditional reference", nextGate)
+        val call = source::read
+        val nextDone = Done()
+        startCoroutine(suspend { call() }, nextDone)
+        assertEquals(0, nextDone.count)
+        gcCollect()
+        nextGate.waiter!!.resume(Unit)
+        assertEquals(1, nextDone.count)
+        assertEquals("conditional reference", nextDone.value)
+        val absent: Any = Async(Plain(), "unavailable", Gate())
+        assertTrue(!(absent is AsyncRead))
+    }
+}

@@ -93,7 +93,7 @@ impl Lowerer {
                 declaration: declaration_type,
                 applied: receiver,
             },
-            owner_parameters: owner_parameters.to_vec(),
+            owner_parameters: parameters[..owner_parameters.len()].to_vec(),
             type_parameters: self
                 .query_method_type_parameters(&parameters[owner_parameters.len()..], substitutions),
             context_parameters: self.query_context_parameters(&context_parameters, substitutions),

@@ -39,6 +39,7 @@ fn structure(name: &str, fields: &[&str]) -> StructDecl {
         derived_equality: None,
         span: Span::new(0, 0),
         definition: crate::StructDefinition {
+            conditional_interfaces: Vec::new(),
             self_application: StructApplicationId::from_raw(0_u32.into()),
             type_params: Vec::new(),
             representation: StructRepresentation::Declared(
@@ -65,6 +66,7 @@ fn class(name: &str, fields: Vec<ClassFieldId>, properties: Vec<PropertyId>) -> 
         owner: None,
         access: NominalAccess::public(),
         definition: crate::ClassDefinition {
+            conditional_interfaces: Vec::new(),
             inheritance_family: Default::default(),
             release_policy: Default::default(),
             modifier: ClassModifier::Final,

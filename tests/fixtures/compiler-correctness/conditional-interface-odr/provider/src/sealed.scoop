@@ -1,0 +1,21 @@
+package test.m57.provider
+
+public sealed interface SealedRoot<T> {}
+public interface SealedMark {}
+public interface SealedTag {}
+public struct SealedSeed<X>() : SealedMark { public companion object : SealedMark {} }
+public struct SealedAbsent<X>()
+public class SealedAlways<T> public constructor() : SealedRoot<T>
+public struct SealedValue<T>(val value: T) {
+    override interface SealedRoot<T> where T : SealedMark {}
+    override interface SealedTag where T : SealedMark {}
+}
+public struct SealedHost<T>() {
+    public companion object {
+        override interface SealedRoot<T> where T.Companion : SealedMark {}
+    }
+}
+private class SealedHidden<T> : SealedTag {
+    override interface SealedRoot<T> where T : ref {}
+}
+public fun hiddenSealed(): SealedRoot<SealedAlways<Int>> = SealedHidden<SealedAlways<Int>>()

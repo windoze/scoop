@@ -99,6 +99,7 @@ impl ImportedIntrinsicSignature {
             declaration,
             signature: LoadedCallableSignature {
                 signature: crate::call_resolution::candidates::DeclarationSignature {
+                    availability: None,
                     owner_parameters: parameters,
                     callable_parameters: type_parameters,
                     value_parameters,
@@ -166,6 +167,7 @@ impl Lowerer {
             .collect();
         Ok(PreparedImportedGeneric {
             signature: hir::ImportedGenericCallableSignature {
+                availability: None,
                 declaration: identity,
                 signature: hir::CallableSignature::from_source_effects(
                     prepared.declaration.name().to_owned(),

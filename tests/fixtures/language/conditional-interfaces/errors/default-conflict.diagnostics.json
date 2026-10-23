@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Child` may inherit conflicting implementations for `read` from `Left` and `Right` when their conditions both hold; declare a common override that covers both conditions",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 481,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 406
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Conflict` may inherit conflicting implementations for `read` from `Left` and `Right` when their conditions both hold; declare a common override that covers both conditions",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 339,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 207
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Partial` may inherit conflicting implementations for `read` from `Partial<T>` and `Right` when their conditions both hold; declare a common override that covers both conditions",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 650,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 482
+    },
+    "severity": "error"
+  }
+]

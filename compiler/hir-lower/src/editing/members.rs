@@ -50,6 +50,17 @@ impl Lowerer {
             for candidate in self.visible_methods(ty) {
                 super::receivers::check_cancelled(is_cancelled)?;
                 let function = candidate.function;
+                if self.functions[function]
+                    .method
+                    .is_some_and(|method| method.availability.is_some())
+                {
+                    let arguments = self.callable_candidate_owner_arguments(&candidate);
+                    if let Some(condition) = self.local_member_condition(function, &arguments)
+                        && !self.conditional_application_holds(&condition)
+                    {
+                        continue;
+                    }
+                }
                 let name = self.source_function_name(function).to_owned();
                 if self.declaration_surface.rejects_function(function)
                     || self

@@ -66,6 +66,7 @@ impl Lowerer {
         };
         let checked = self.check_function_annotations(declaration.header(), target);
         let method = method_owner.map(|owner| hir::Method {
+            availability: None,
             owner: self.owner_ty(owner),
             modifier,
             dispatch: hir::MethodDispatch::Direct,
