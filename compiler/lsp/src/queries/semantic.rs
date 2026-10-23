@@ -12,6 +12,8 @@ use crate::{convert, initialize::Settings};
 
 mod references;
 pub(super) use references::{callables_at, property_at};
+mod constructors;
+pub(super) use constructors::constructor_declaration;
 mod static_calls;
 pub(super) use static_calls::{static_callable, static_named_argument};
 

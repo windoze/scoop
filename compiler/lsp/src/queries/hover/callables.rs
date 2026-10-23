@@ -7,7 +7,7 @@ pub(super) fn description(
     cursor: &semantic::Cursor<'_>,
 ) -> Result<Option<Description>, ResponseError> {
     let Some(callable) = reference.target.callable() else {
-        return Ok(None);
+        return constructors::description(analysis, reference.target, snapshot, cursor);
     };
     let mut origin = reference.definition;
     let label = match callable {

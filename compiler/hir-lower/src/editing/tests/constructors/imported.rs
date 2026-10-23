@@ -50,6 +50,23 @@ fn imported_constructors_and_variants_keep_parameter_origins_and_callable_values
     assert!(matches!(references[3].target, C::ImportedVariant(_)));
     assert_eq!(references[3].target, references[4].target);
     assert_eq!(references[5].target, references[6].target);
+    for (index, reference) in references.iter().enumerate() {
+        let signature = analysis
+            .constructor_signature(reference.target)
+            .unwrap()
+            .unwrap();
+        assert_eq!(signature.callee, reference.target);
+        let result = analysis
+            .describe_declaration_type(&signature.binders, signature.result)
+            .unwrap()
+            .name;
+        assert_eq!(result, if index < 3 { "Box<T>" } else { "Event" });
+        assert_eq!(signature.parameters.len(), usize::from(index < 5));
+        assert_eq!(
+            signature.origin.source.cone(),
+            coordinate.identity().unwrap()
+        );
+    }
     let function = function(&analysis, "editing");
     for needle in ["value = true", "value = \"text\""] {
         let span = at("src/constructors.scoop", text, needle, 5).span;

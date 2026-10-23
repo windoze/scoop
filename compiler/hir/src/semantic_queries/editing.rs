@@ -8,6 +8,8 @@ mod calls;
 pub use calls::*;
 mod candidates;
 pub use candidates::*;
+mod constructors;
+pub use constructors::*;
 mod implementations;
 pub use implementations::*;
 mod properties;
@@ -49,7 +51,7 @@ pub struct EditingParameter {
     pub name: String,
     pub value_type: TypeId,
     pub vararg_element_type: Option<TypeId>,
-    pub declared_default: Option<Span>,
+    pub declared_default: Option<SemanticSourceLocation>,
     pub origin: SemanticSourceLocation,
 }
 

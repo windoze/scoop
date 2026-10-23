@@ -97,6 +97,14 @@ fn default_text<'a>(
     let Some(origin) = analysis.imported_default_origin(key) else {
         return Ok(None);
     };
+    source_text(snapshot, project, &origin)
+}
+
+pub(super) fn source_text<'a>(
+    snapshot: &'a AnalysisSnapshot,
+    project: &ProjectInput,
+    origin: &hir::SemanticSourceLocation,
+) -> Result<Option<&'a str>, ResponseError> {
     let Some(file) = project
         .cones
         .values()

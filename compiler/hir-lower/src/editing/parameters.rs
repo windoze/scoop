@@ -29,7 +29,10 @@ impl DeclarationAnalysis {
                     name: parameter.name.text.clone(),
                     value_type: parameter.ty,
                     vararg_element_type,
-                    declared_default,
+                    declared_default: declared_default.map(|span| hir::SemanticSourceLocation {
+                        source: self.lowerer.source_identity(file).clone(),
+                        span,
+                    }),
                     origin: hir::SemanticSourceLocation {
                         source: self.lowerer.source_identity(file).clone(),
                         span: parameter.name.span,

@@ -44,6 +44,17 @@ pub(crate) fn definition(
             )?);
         }
     }
+    if let Some(declaration) =
+        semantic::constructor_declaration(analysis, &cursor, snapshot, cancellation)?
+        && let Some(origin) = analysis.constructor_declaration_origin(declaration)
+    {
+        return super::json(convert::definition_location(
+            snapshot,
+            cursor.project,
+            &origin,
+            settings,
+        )?);
+    }
     if let Some(function) = semantic::body(analysis, &cursor, snapshot, cancellation)? {
         let parameter = match analysis.source_body_signature(&function) {
             Some(EditingValue::Known(signature)) => signature

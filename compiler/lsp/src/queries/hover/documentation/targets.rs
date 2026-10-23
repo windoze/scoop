@@ -26,6 +26,25 @@ pub(in crate::queries::hover) fn parameter(function: hir::FunctionId, index: usi
     current_parameter(SourceCallable::Function(function), index)
 }
 
+pub(in crate::queries::hover) fn callee(callee: hir::EditingCallee) -> Symbol {
+    use hir::{EditingCallee as C, SemanticConstructor as Constructor};
+    let constructor = match callee {
+        C::Callable(target) => return callable(target),
+        C::CurrentVariant(target) => return variant(hir::SemanticVariant::Current(target)),
+        C::ImportedVariant(target) => return variant(hir::SemanticVariant::Imported(target)),
+        C::Constructor(Constructor::CurrentClass(id)) => SourceCallable::ClassConstructor(id),
+        C::Constructor(Constructor::CurrentStruct(id)) => SourceCallable::StructConstructor(id),
+        C::Constructor(Constructor::Imported(id)) => {
+            return Symbol::Imported(hir::AnnotationTargetV1::Callable(
+                hir::AnnotationCallableV1::Declaration(
+                    scoop_identity::CallableTemplateOrigin::Constructor(id),
+                ),
+            ));
+        }
+    };
+    Symbol::Current(Source::Callable(constructor).into())
+}
+
 pub(in crate::queries::hover) fn variant(variant: hir::SemanticVariant) -> Symbol {
     match variant {
         hir::SemanticVariant::Current(variant) => Symbol::Current(Source::Variant(variant).into()),

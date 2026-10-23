@@ -11,6 +11,7 @@ use crate::{convert, initialize::Settings};
 
 mod arguments;
 mod callables;
+mod constructors;
 mod documentation;
 mod imported;
 mod properties;
@@ -116,10 +117,17 @@ fn descriptions(
             }
         }
     }
+    if let Some(description) = constructors::selected(analysis, cursor, snapshot, cancellation)? {
+        return Ok(vec![description]);
+    }
     if let Some(description) = types::description(analysis, cursor, cancellation)? {
         return Ok(vec![description]);
     }
     if let Some(description) = properties::declaration(analysis, cursor, cancellation)? {
+        return Ok(vec![description]);
+    }
+    if let Some(description) = constructors::declaration(analysis, cursor, snapshot, cancellation)?
+    {
         return Ok(vec![description]);
     }
     if let Some(description) = variants::description(analysis, cursor, snapshot, cancellation)? {
@@ -243,9 +251,10 @@ fn signature_label(
             parameter.name,
             type_label(analysis, function, ty)?
         );
-        if let Some(default) = parameter.declared_default
+        if let Some(default) = &parameter.declared_default
             && let Some(text) = analysis.function_source_text(function)
-            && let Some(expression) = text.get(default.start as usize..default.end as usize)
+            && let Some(expression) =
+                text.get(default.span.start as usize..default.span.end as usize)
         {
             label.push_str(" = ");
             label.push_str(expression);

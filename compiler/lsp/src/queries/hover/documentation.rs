@@ -1,7 +1,7 @@
 use super::*;
 
 mod targets;
-pub(super) use targets::{applied_parameter, callable, parameter, property, variant};
+pub(super) use targets::{applied_parameter, callable, callee, parameter, property, variant};
 
 pub(super) struct Query {
     pub symbol: hir::DocumentationSymbol,

@@ -2,7 +2,9 @@ use super::*;
 use hir::{EditingCallee as C, ImportedCallableSource, SemanticConstructor as Constructor};
 use scoop_identity::CallableTemplateOrigin;
 
+mod declarations;
 mod parameters;
+mod signatures;
 
 impl Lowerer {
     pub(crate) fn observe_variant_reference(

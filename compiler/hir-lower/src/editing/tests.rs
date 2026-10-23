@@ -236,7 +236,7 @@ fn declared_defaults_and_vararg_types_do_not_require_default_body_preparation() 
     };
     assert_eq!(description.name, "Boolean");
     for parameter in signature.parameters {
-        let default = parameter.declared_default.unwrap();
+        let default = parameter.declared_default.unwrap().span;
         assert_eq!(
             &text[default.start as usize..default.end as usize],
             "missing"
