@@ -2,7 +2,10 @@ import * as vscode from "vscode";
 import { folds } from "./folding.ts";
 import { highlights, tokenModifiers, tokenTypes } from "./highlights.ts";
 import { indentLines } from "./indentation.ts";
+import { ScoopLanguageServer } from "./language-server.ts";
 import { ScoopSyntax } from "./syntax.ts";
+
+let languageServer: ScoopLanguageServer | undefined;
 
 export async function activate(
   context: vscode.ExtensionContext,
@@ -155,4 +158,11 @@ export async function activate(
       },
     }),
   );
+  languageServer = new ScoopLanguageServer(context);
+  await languageServer.update();
+}
+
+export async function deactivate(): Promise<void> {
+  await languageServer?.dispose();
+  languageServer = undefined;
 }

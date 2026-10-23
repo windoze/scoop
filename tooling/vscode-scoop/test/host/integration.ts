@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import * as vscode from "vscode";
+import { runLanguageServerTests } from "./lsp.ts";
 
 const formatting = { tabSize: 4, insertSpaces: true };
 
@@ -164,4 +165,5 @@ export async function run(): Promise<void> {
   console.log(
     "Scoop Extension Host: activation, UTF-16 tokens, folding, range/document/on-type indentation and incremental edits passed.",
   );
+  await runLanguageServerTests();
 }

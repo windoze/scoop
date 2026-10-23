@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Manually build and archive Scoop's host tools and precompiled target resources."""
+"""Build a complete Scoop installation archive, including sysroot and VS Code tooling."""
 
 import argparse
 import json
@@ -16,14 +16,16 @@ from pathlib import Path
 
 import package_documentation
 import package_licenses
+import package_llvm
 import package_native
+import package_tooling
 from build_llvm import HOSTS, VERSION
 from build_rust_text import HEADER as RUST_TEXT_HEADER
 from build_rust_text import LIBRARY as RUST_TEXT_LIBRARY
 from build_support import RELEASE_CONFIG, ROOT
 from compression_backends import PACKAGES as COMPRESSION_PACKAGES
 
-TOOLS = ("scoop", "scoopc", "scoop-link")
+TOOLS = ("scoop", "scoopc", "scoop-link", "scoop-lsp")
 
 
 def run_script(name, arguments, environment):
@@ -111,11 +113,16 @@ def prepare_targets(args, targets, binaries, environment):
         )
 
 
-def assemble(root, targets, binaries, args, release):
+def assemble(root, targets, binaries, args, release, extension):
     sysroot = ROOT / "sysroot"
     (root / "bin").mkdir(parents=True)
     for binary in binaries:
         shutil.copy2(binary, root / "bin" / binary.name)
+    (root / "VERSION").write_text(
+        f"{args.version}\nrevision: {args.revision}\nhost: {args.host}\n", encoding="utf-8"
+    )
+    (root / "tooling").mkdir()
+    shutil.copy2(extension, root / "tooling" / extension.name)
     for name in ("src", "include"):
         shutil.copytree(sysroot / name, root / name, ignore=shutil.ignore_patterns("target"))
     shutil.copytree(
@@ -196,6 +203,7 @@ def assemble(root, targets, binaries, args, release):
         f"version = {json.dumps(args.version)}",
         f"source_revision = {json.dumps(args.revision)}",
         f"host = {json.dumps(args.host)}",
+        f"vscode_extension = {json.dumps('tooling/' + extension.name)}",
         f"llvm = {json.dumps(release['llvm'])}",
         f"openssl = {json.dumps(release['openssl'])}",
         f"llhttp = {json.dumps(release['llhttp'])}",
@@ -240,11 +248,11 @@ def assemble(root, targets, binaries, args, release):
     (share / "toolchain.toml").write_text("\n".join(manifest) + "\n")
 
 
-def archive(directory, destination):
+def archive(directory, destination, *, arcname="."):
     staged = destination.with_suffix(destination.suffix + ".new")
     try:
         with tarfile.open(staged, "w:xz", preset=6) as output:
-            output.add(directory, arcname=directory.name)
+            output.add(directory, arcname=arcname)
         staged.replace(destination)
     finally:
         staged.unlink(missing_ok=True)
@@ -260,14 +268,14 @@ def main():
     parser.add_argument(
         "--llvm-source",
         type=Path,
-        default=ROOT / f"sysroot/vendor/llvm-project/{VERSION}/llvm-project-{VERSION}.src",
+        help="Use an existing LLVM source directory instead of extracting the fixed archive",
     )
     parser.add_argument(
         "--llvm-archive",
         type=Path,
-        default=ROOT / f"sysroot/vendor/llvm-project/{VERSION}/llvm-project-{VERSION}.src.tar.xz",
+        help="Use a local LLVM source archive instead of downloading the fixed release",
     )
-    parser.add_argument("--llvm-prefix", type=Path, help="Reuse LLVM prepared by build_llvm.py")
+    parser.add_argument("--llvm-prefix", type=Path, help="Reuse an installed matching LLVM version")
     parser.add_argument("--gnu-cc", default="gcc")
     parser.add_argument("--musl-cc", default="musl-gcc")
     parser.add_argument("--unwind-cc", default="clang")
@@ -294,8 +302,6 @@ def main():
         parser.error("--revision must be nonempty and on one line")
     args.work_dir = (args.work_dir or ROOT / "tmp/package" / args.host).resolve()
     args.output_dir = args.output_dir.resolve()
-    args.llvm_source = args.llvm_source.resolve()
-    args.llvm_archive = args.llvm_archive.resolve()
     scratch = args.work_dir / "scratch"
     scratch.mkdir(parents=True, exist_ok=True)
     environment = dict(
@@ -307,6 +313,10 @@ def main():
     )
     if args.host.endswith("darwin"):
         environment["MACOSX_DEPLOYMENT_TARGET"] = release["targets"][args.host]["minimum_os"]
+    args.llvm_source, args.llvm_archive = package_llvm.prepare(
+        args.work_dir, args.llvm_source, args.llvm_archive
+    )
+    extension = package_tooling.build(args.work_dir, environment)
     if args.llvm_prefix is None:
         args.llvm_prefix = args.work_dir / "llvm/installed"
         run_script(
@@ -350,6 +360,8 @@ def main():
             "scoopc",
             "-p",
             "scoop-linker",
+            "-p",
+            "scoop-lsp",
             "--bins",
             "-j",
             str(args.jobs),
@@ -369,7 +381,7 @@ def main():
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="assemble-", dir=args.work_dir) as temporary:
         root = Path(temporary) / f"scoop-{args.version}-{args.host}"
-        assemble(root, targets, binaries, args, release)
+        assemble(root, targets, binaries, args, release, extension)
         package_documentation.install(root / "docs", documentation)
         sources = Path(temporary) / f"scoop-{args.version}-llvm-sources"
         vendor = sources / "vendor/llvm-project" / VERSION
@@ -381,7 +393,7 @@ def main():
         )
         shutil.copy2(args.llvm_archive, vendor / f"llvm-project-{VERSION}.src.tar.xz")
         shutil.copy2(args.llvm_source / "llvm/LICENSE.TXT", vendor / "LICENSE.TXT")
-        archive(sources, args.output_dir / f"{sources.name}.tar.xz")
+        archive(sources, args.output_dir / f"{sources.name}.tar.xz", arcname=sources.name)
         archive(root, args.output_dir / f"{root.name}.tar.xz")
 
 

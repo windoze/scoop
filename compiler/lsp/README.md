@@ -9,6 +9,10 @@ target/release/scoop-lsp --stdio
 
 将编辑器的 Scoop language server 命令设置为该可执行文件的绝对路径，参数为 `--stdio`。标准输入／输出仅承载 LSP Content-Length 消息，启动错误写到 stderr。此命令不依赖 LLVM；语法服务也不要求 sysroot。
 
+VS Code 用户可安装完整工具包 `tooling/` 中的 VSIX，扩展自动发现
+`~/.scoop/bin/scoop-lsp`。开发配置与扩展宿主测试见
+[VS Code 扩展说明](../../tooling/vscode-scoop/README.md)。
+
 当前已实现 initialize／shutdown／exit、完整或增量文档同步、UTF-8／UTF-16／UTF-32 位置协商（默认 UTF-16）、语法诊断、documentSymbol、foldingRange 和 selectionRange。大纲按客户端能力返回分层或平面结构。URI 为未保存文档时同样提供语法服务；本地文件关闭后恢复普通磁盘输入，文件变更通知不会覆盖打开的 buffer。
 
 workspace/symbol 搜索已加载项目的顶层声明与名义类型成员，支持不区分大小写的名称子串；空查询返回当前范围内的全部声明。输入版本各自保存声明索引，已知名称在签名或正文错误时仍可搜索和导航。局部声明保留在文档大纲中；不同配置中的同一文件按当前选择去重，移出项目或切换源码用途后相应结果同步更新。
