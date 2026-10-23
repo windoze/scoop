@@ -5,6 +5,7 @@ name = "program"
 version = "0.1.0"
 kind = "executable"
 [dependencies]
+"scoop:scoop.json" = "0.1.0"
 "test.m57:provider" = {version = "0.1.0", path = "../provider"}
 "test.m57:left" = {version = "0.1.0", path = "../left"}
 "test.m57:right" = {version = "0.1.0", path = "../right"}

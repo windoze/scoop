@@ -56,6 +56,7 @@ impl Lowerer {
         span: ast::Span,
         host: &str,
         interfaces: &[TypeId],
+        condition: Option<hir::ConditionalInterfaceId>,
     ) -> Vec<hir::InterfaceImplementation> {
         let (own_methods, class) = match owner {
             Owner::Class(id) => (self.classes[id].methods.clone(), Some(id)),
@@ -270,6 +271,11 @@ impl Lowerer {
                                     )
                                 })
                             {
+                                if let Some(condition) = condition {
+                                    self.bind_synthesized_interface_condition(
+                                        function, owner, condition,
+                                    );
+                                }
                                 candidates
                                     .push(crate::CallableCandidate::method(function, own_owner));
                                 Some(hir::InterfaceImplementationTarget::Method(

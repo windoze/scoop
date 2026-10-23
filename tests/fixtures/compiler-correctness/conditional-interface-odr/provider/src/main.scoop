@@ -3,6 +3,13 @@ package test.m57.provider
 public interface Counter { public fun next(): Int }
 public struct Plain()
 
+public struct Envelope<T>(val value: T) {
+    public companion object {
+        override interface ValueEncoder<Envelope<T>> where T.Companion : ValueEncoder<T> {}
+        override interface ValueDecoder<Envelope<T>> where T.Companion : ValueDecoder<T> {}
+    }
+}
+
 public object Always {
     override interface Counter {
         public override fun next(): Int = 41

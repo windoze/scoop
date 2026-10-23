@@ -16,7 +16,8 @@
 | --- | --- | --- |
 | 语法与普通类型条件接口 | 本 Cone 基础闭环已完成；继承等组合另行验收 | 4 个 parser 用例、11 个 M57 HIR 用例、8 个诊断 fixture、4 个 core consumer 原生用例通过 |
 | Companion、HashMap 与 Json 闭环 | 已完成 | 6 个 JSON Cone 原生用例覆盖四种能力组合、嵌套、显式工厂及重复 key 路径 |
-| 继承、default、property、效果与 codec 合成 | 待完成 | 尚无实现验收 |
+| 条件 codec 合成 | 已完成 | 2 个定向检查、24 个既有合成回归、完整 JSON Cone 76 项测试及跨 Cone 合成 codec 运行通过 |
+| 继承、default、property 与效果组合 | 待完成 | 定向检查已定位继承条件保存、abstract 义务与 override 域覆盖的缺口 |
 | 导出、跨 Cone 与 ODR | 基础闭环已完成；继承组合另行验收 | 83 个泛型导入回归、条件记录 wire 往返／再次发布与双 consumer 原生链接运行通过 |
 | 完整组合与 Linux 验收 | 待完成 | 尚无完整验收 |
 
@@ -45,3 +46,11 @@
 - HashMap 原 companion 分别声明 ValueEncoder 与 ValueDecoder 条件实现，使用 K／V 的 public companion；保留原存储、键约束、显式工厂及 map helper。
 - JSON Cone 的 6 项原生测试通过：编码／解码独立，两个组件均须满足对应条件；没有 companion 仍能正常使用容器及显式 codec；覆盖嵌套 HashMap、泛型转发、原 entry 表示、新建解码结果和重复 key 的 `/1/0` 路径。
 - 明确验证显式 codec 优先于已有默认能力。其他容器未自动迁移，条件 codec 合成及继承组合继续实施。
+
+## 6. 条件 codec 合成
+
+- 空实现块的既有 codec 合成保留原条件及成员适用性，合成正文使用完整 B+C 环境；字段 codec 可以使用已证明的参数 companion 投影。
+- 保持显式 primary val 依赖、递归 this、普通 companion、原容器／tuple 组合的优先级。显式方法阻止同签名合成；不具备正确字段 codec 的条件在声明处报错，诊断定位到实现块。
+- 2 个 HIR 定向检查与 24 个既有 encoding／decoding 合成回归通过；正式负向 fixture 验证不能用 decoder 条件替代 encoder 条件，反向亦然。
+- 完整 JSON Cone 的 76 项原生测试通过。新增 5 项覆盖独立方向、Envelope 与 HashMap 等完整泛型字段、显式依赖与方法优先、递归节点和默认值。首次失败为新用例误把应省略的默认 None 字段写成 null，按现行 wire 规则修正预期后通过，未更改编码规则。
+- 跨 Cone ODR fixture 同时消费并执行 provider 合成的 Envelope codec，原链接及逆序依赖重链接均通过。

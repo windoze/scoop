@@ -1,5 +1,6 @@
 package test.m57.program
 
+import scoop.json.Json
 import test.m57.provider.*
 import test.m57.left.value as leftValue
 import test.m57.right.value as rightValue
@@ -28,4 +29,7 @@ fun main() {
     check(!(plain() is Hash))
     check(leftValue().hash() == (7).hash())
     check(rightValue().hash() == (9).hash())
+    val text = Json.encodeToString(Envelope(42))
+    check(text == "{\"value\":42}")
+    check(Json.decodeFromString<Envelope<Int>>(text).value == 42)
 }

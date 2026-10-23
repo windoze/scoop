@@ -12,7 +12,7 @@ impl Lowerer {
         let blocks = self.owner_conditional_interfaces(owner).to_vec();
         let interfaces = self.unconditional_owner_interfaces(owner);
         let mut conformances =
-            self.collect_nominal_interface_implementations(owner, span, host, &interfaces);
+            self.collect_nominal_interface_implementations(owner, span, host, &interfaces, None);
         for block in blocks {
             self.type_params_in_scope = block.parameters.clone();
             let mut interfaces = Vec::new();
@@ -22,6 +22,7 @@ impl Lowerer {
                 block.span,
                 host,
                 &interfaces,
+                Some(block.id()),
             );
             for implementation in &mut implementations {
                 implementation.condition = Some(hir::ConditionalInterfaceApplication {
@@ -42,6 +43,38 @@ impl Lowerer {
             Owner::Struct(id) => self.structs[id].interface_implementations = conformances,
             Owner::Enum(id) => self.enums[id].interface_implementations = conformances,
             Owner::Interface(_) => unreachable!("interfaces do not carry nominal conformances"),
+        }
+    }
+
+    pub(super) fn bind_synthesized_interface_condition(
+        &mut self,
+        function: FunctionId,
+        owner: Owner,
+        condition: hir::ConditionalInterfaceId,
+    ) {
+        let block = self
+            .owner_conditional_interfaces(owner)
+            .iter()
+            .find(|block| block.id() == condition)
+            .expect("a synthesized implementation belongs to its original block");
+        let parameters = block.parameters.clone();
+        self.functions[function].span = block.span;
+        self.functions[function]
+            .method
+            .as_mut()
+            .expect("a synthesized implementation is a member")
+            .availability = Some(condition);
+        self.signatures.get_mut(&function).unwrap().type_params = parameters.clone();
+        match &mut self.functions[function].genericity {
+            hir::FunctionGenericity::OwnerParameterizedMethod {
+                owner_parameters, ..
+            } => {
+                *owner_parameters = parameters;
+            }
+            hir::FunctionGenericity::Plain => {
+                assert!(parameters.is_empty());
+            }
+            _ => unreachable!("synthesized interface members have no method parameters"),
         }
     }
 

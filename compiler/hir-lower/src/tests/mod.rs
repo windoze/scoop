@@ -115,6 +115,7 @@ mod m5;
 mod m55_companion;
 mod m55_negative;
 mod m55_requirements;
+mod m57_conditional_codecs;
 mod m57_conditional_interfaces;
 mod m6;
 mod m60_doc_annotations;

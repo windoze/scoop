@@ -1,0 +1,65 @@
+package scoop.json.tests.consumer.conditional_derived_codecs
+
+import scoop.collections.HashMap
+import scoop.json.Json
+import scoop.test.*
+
+@Test
+private class ConditionalDerivedCodecs {
+    @Test
+    fun parameterCompanionsProvideBothDirections() {
+        val value = Envelope(7)
+        assertTrue(Json.encodeToString(value) == "{\"value\":7}")
+        assertTrue(Json.decodeFromString<Envelope<Int>>("{\"value\":7}") == value)
+        assertTrue(Json.encodeToString(Envelope(Envelope("ok"))) == "{\"value\":{\"value\":\"ok\"}}")
+    }
+
+    @Test
+    fun directionsRemainIndependentAfterSynthesis() {
+        assertTrue(Json.encodeToString(Envelope(WriteOnly(4))) == "{\"value\":4}")
+        assertTrue(Json.decodeFromString<Envelope<ReadOnly>>("{\"value\":5}").value == ReadOnly(5))
+        val writer: Any = Envelope<WriteOnly>.Companion
+        val reader: Any = Envelope<ReadOnly>.Companion
+        val plain: Any = Envelope<Plain>.Companion
+        assertTrue(writer is ValueEncoder<Envelope<WriteOnly>>)
+        assertTrue(!(writer is ValueDecoder<Envelope<WriteOnly>>))
+        assertTrue(reader is ValueDecoder<Envelope<ReadOnly>>)
+        assertTrue(!(reader is ValueEncoder<Envelope<ReadOnly>>))
+        assertTrue(!(plain is ValueEncoder<Envelope<Plain>>))
+        assertTrue(!(plain is ValueDecoder<Envelope<Plain>>))
+        assertTrue(Envelope(Plain(6)).value.number == 6)
+    }
+
+    @Test
+    fun completeApplicationsUseTheirConditionalCompanions() {
+        val values = HashMap<Int, String>()
+        values.put(1, "a")
+        val value = Nested(Envelope("b"), values)
+        val text = Json.encodeToString(value)
+        assertTrue(text == "{\"value\":{\"value\":\"b\"},\"values\":[[1,\"a\"]]}")
+        val restored = Json.decodeFromString<Nested<String>>(text)
+        assertTrue(restored.value.value == "b" && restored.values[1] == Some("a"))
+    }
+
+    @Test
+    fun explicitDependenciesAndMethodsKeepPriority() {
+        val encode = ValueEncoderFunction<Int> { value, encoder -> Int.encode(value + 10, encoder) }
+        val decode = ValueDecoderFunction<Int> { decoder -> Int.decode(decoder) - 10 }
+        assertTrue(Json.encodeToString(Envelope(7), SuppliedEncoder(encode)) == "{\"value\":17}")
+        assertTrue(Json.decodeFromString("{\"value\":17}", SuppliedDecoder(decode)) == Envelope(7))
+        assertTrue(Json.encodeToString(Manual("ignored")) == "99")
+    }
+
+    @Test
+    fun recursiveThisAndConstructorDefaultsKeepTheirBindings() {
+        val value = Node(1, Some(Node(2)))
+        val text = Json.encodeToString(value)
+        assertEquals("{\"value\":1,\"next\":{\"value\":2}}", text)
+        val restored = Json.decodeFromString<Node<Int>>(text)
+        assertTrue(restored.value == 1 && restored.next!!.value == 2)
+        assertTrue(when (restored.next!!.next) { case None -> true; else -> false })
+        val defaulted = Json.decodeFromString<Node<Int>>("{\"value\":3}")
+        assertTrue(defaulted.value == 3)
+        assertTrue(when (defaulted.next) { case None -> true; else -> false })
+    }
+}
