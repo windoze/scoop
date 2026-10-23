@@ -22,7 +22,7 @@ pub(crate) enum TypeTarget {
 struct TypeUse {
     target: TypeTarget,
     is_declaration: bool,
-    imports: Vec<hir::SemanticSourceLocation>,
+    imports: Vec<hir::EditingImportSource>,
 }
 
 #[derive(Clone, Default)]

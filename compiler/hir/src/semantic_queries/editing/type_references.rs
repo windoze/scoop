@@ -43,5 +43,5 @@ pub struct EditingTypeReference {
     pub definition: Option<SemanticSourceLocation>,
     pub is_declaration: bool,
     /// Exact imports selected by ordinary type lookup for this occurrence.
-    pub imports: Vec<SemanticSourceLocation>,
+    pub imports: Vec<crate::EditingImportSource>,
 }

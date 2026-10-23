@@ -1,5 +1,5 @@
 use super::*;
-use scoop_hir::{EditingReference, SemanticSourceLocation};
+use scoop_hir::{EditingReference, EditingReferenceTarget as Target, SemanticSourceLocation};
 use scoop_source::Span;
 
 /// Completed declaration and function-body references in the selected project.
@@ -62,6 +62,21 @@ impl SemanticSession {
                     if !targets.contains(target) {
                         targets.push(*target);
                     }
+                }
+            }
+            let exported = targets
+                .iter()
+                .filter_map(|target| match target {
+                    Target::ImportAlias(alias) => Some(&index.aliases[*alias].exports),
+                    _ => None,
+                })
+                .flatten()
+                .copied()
+                .map(Target::ExportBinding)
+                .collect::<Vec<_>>();
+            for target in exported {
+                if !targets.contains(&target) {
+                    targets.push(target);
                 }
             }
             targets

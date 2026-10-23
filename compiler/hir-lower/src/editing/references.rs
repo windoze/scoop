@@ -14,11 +14,10 @@ struct ReferenceBuilder {
     occurrences: Vec<hir::EditingReference>,
     unavailable: Vec<hir::SemanticSourceLocation>,
     identities: super::identities::DeclarationIdentities,
-    import_uses: Vec<(
-        hir::SemanticSourceLocation,
-        Vec<hir::SemanticSourceLocation>,
-    )>,
+    import_uses: Vec<(hir::SemanticSourceLocation, Vec<hir::EditingImportSource>)>,
     aliases: la_arena::Arena<hir::EditingImportAlias>,
+    export_references: Vec<hir::EditingExportReference>,
+    reexports: Vec<hir::EditingReexport>,
     parameter_definitions: HashMap<hir::SemanticSourceLocation, Target>,
 }
 
@@ -157,6 +156,8 @@ impl DeclarationAnalysis {
                 builder.unavailable,
                 self.declarations_ready && self.unavailable_files.is_empty(),
                 builder.aliases,
+                builder.export_references,
+                builder.reexports,
             ));
         }
         Ok(self

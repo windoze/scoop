@@ -8,7 +8,7 @@ pub struct EditingStaticVariantReference {
     pub name: String,
     pub value_type: crate::TypeId,
     pub definition: Option<crate::SemanticSourceLocation>,
-    pub imports: Vec<crate::SemanticSourceLocation>,
+    pub imports: Vec<crate::EditingImportSource>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

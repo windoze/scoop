@@ -23,7 +23,7 @@ pub(crate) struct ConstantFrame {
     file: usize,
     names: imbl::HashMap<ast::Span, ast::Span>,
     properties: imbl::HashMap<ast::Span, ConstantTarget>,
-    imports: imbl::HashMap<ast::Span, Vec<hir::SemanticSourceLocation>>,
+    imports: imbl::HashMap<ast::Span, Vec<hir::EditingImportSource>>,
     variants: imbl::HashMap<ast::Span, hir::EditingStaticVariantReference>,
     call_inputs: imbl::HashMap<ast::Span, super::bodies::CallInput>,
     calls: imbl::HashMap<ast::Span, hir::EditingAppliedCall>,
@@ -151,14 +151,13 @@ impl Lowerer {
         name: &ast::Ident,
         layer: crate::imports::ImportLookupLayer,
     ) {
-        if layer != crate::imports::ImportLookupLayer::Exact
-            || self
-                .constant_frame()
-                .is_none_or(|frame| !frame.names.contains_key(&name.span))
+        if self
+            .constant_frame()
+            .is_none_or(|frame| !frame.names.contains_key(&name.span))
         {
             return;
         }
-        let imports = self.editing_exact_import_origins(name);
+        let imports = self.editing_import_sources(name, layer);
         self.constant_frame()
             .expect("active constant evaluation")
             .imports

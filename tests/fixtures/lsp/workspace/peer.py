@@ -34,6 +34,7 @@ from recovered_enums import check as check_recovered_enums
 from recovered_interfaces import check as check_recovered_interfaces
 from recovered_objects import check as check_recovered_objects
 from recovered_structs import check as check_recovered_structs
+from reexport_references import check as check_reexport_references
 from references import check as check_references
 from runtime_initializers import check as check_runtime_initializers
 from signatures import check as check_signatures
@@ -380,6 +381,7 @@ def main():
         check_callable_arguments(peer, root)
         check_local_function_recovery(peer, root)
         check_file_headers(peer, root)
+        check_reexport_references(peer, root)
         check_recovered_interfaces(peer, root)
         check_recovered_structs(peer, root)
         peer.finish()

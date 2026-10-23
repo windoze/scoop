@@ -16,19 +16,11 @@ impl Lowerer {
             return;
         }
         let target = self.editing_lookup_type_target(binding);
-        let imports = if layer == Some(ImportLookupLayer::Exact) {
-            self.imports.files[&self.current_file]
-                .exact
-                .iter()
-                .filter(|import| import.local_name == name.text)
-                .map(|import| hir::SemanticSourceLocation {
-                    source: import.origin.source.clone(),
-                    span: import.origin.span,
-                })
-                .collect()
-        } else {
-            Vec::new()
-        };
+        let mut imports =
+            layer.map_or_else(Vec::new, |layer| self.editing_import_sources(name, layer));
+        if let TypeLookupTarget::Dependency(binding) = binding {
+            imports.push(Self::editing_dependency_import(binding));
+        }
         self.observe_type_use(self.current_file, name.span, target, false, imports);
     }
 
@@ -75,7 +67,7 @@ impl Lowerer {
         span: ast::Span,
         target: TypeTarget,
         is_declaration: bool,
-        imports: Vec<hir::SemanticSourceLocation>,
+        imports: Vec<hir::EditingImportSource>,
     ) {
         if !self.observes_types() || span.start == span.end {
             return;

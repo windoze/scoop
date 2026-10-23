@@ -25,6 +25,7 @@ pub enum EditingReferenceTarget {
     Property(PropertyDeclarationId),
     Type(crate::EditingTypeIdentity),
     ImportAlias(EditingImportAliasId),
+    ExportBinding(scoop_identity::PersistentExportBindingId),
 }
 
 impl EditingReferenceTarget {
@@ -61,13 +62,14 @@ pub struct EditingImportAlias {
     pub origin: SemanticSourceLocation,
     pub targets: crate::NonEmptyVec<EditingReferenceTarget>,
     pub reexported: bool,
+    pub exports: Vec<scoop_identity::PersistentExportBindingId>,
 }
 
 /// Successful exact-layer lookup; targets remain the ordinary bound targets.
 #[derive(Clone, Debug)]
 pub struct EditingImportUse {
     pub span: crate::Span,
-    pub imports: Vec<SemanticSourceLocation>,
+    pub imports: Vec<crate::EditingImportSource>,
 }
 
 /// An index of completed observations, with unavailable analysis kept explicit.
@@ -79,6 +81,8 @@ pub struct EditingReferenceIndex {
     pub unavailable: Vec<SemanticSourceLocation>,
     pub declarations_available: bool,
     pub aliases: la_arena::Arena<EditingImportAlias>,
+    pub export_references: Vec<crate::EditingExportReference>,
+    pub reexports: Vec<crate::EditingReexport>,
 }
 
 impl EditingReferenceIndex {
@@ -87,10 +91,23 @@ impl EditingReferenceIndex {
         unavailable: Vec<SemanticSourceLocation>,
         declarations_available: bool,
         aliases: la_arena::Arena<EditingImportAlias>,
+        export_references: Vec<crate::EditingExportReference>,
+        reexports: Vec<crate::EditingReexport>,
     ) -> Self {
+        let exported = export_references.iter().flat_map(|reference| {
+            reference.routes.iter().flat_map(move |route| {
+                route.hops().iter().map(move |hop| EditingReference {
+                    target: EditingReferenceTarget::ExportBinding(hop.binding()),
+                    origin: reference.origin.clone(),
+                    is_declaration: false,
+                    aliases: reference.aliases.clone(),
+                })
+            })
+        });
         let mut seen = HashSet::new();
         let occurrences = occurrences
             .into_iter()
+            .chain(exported)
             .filter(|occurrence| {
                 seen.insert((
                     occurrence.target,
@@ -107,6 +124,32 @@ impl EditingReferenceIndex {
             if !at.contains(&occurrence.target) {
                 at.push(occurrence.target);
             }
+        }
+        for reference in &export_references {
+            let Some(at) = locations.get_mut(&reference.origin) else {
+                continue;
+            };
+            if reference.routes.iter().all(|route| route.hops().len() > 1) {
+                at.retain(|target| *target != reference.target);
+            }
+            let heads = reference
+                .routes
+                .iter()
+                .filter(|route| route.hops().len() > 1)
+                .map(|route| route.hops()[0].binding())
+                .collect::<HashSet<_>>();
+            let bindings = reference
+                .routes
+                .iter()
+                .flat_map(|route| route.hops())
+                .map(|hop| hop.binding())
+                .collect::<HashSet<_>>();
+            at.retain(|target| match target {
+                EditingReferenceTarget::ExportBinding(binding) => {
+                    !bindings.contains(binding) || heads.contains(binding)
+                }
+                _ => true,
+            });
         }
         for at in locations.values_mut() {
             let aliased = at
@@ -128,6 +171,8 @@ impl EditingReferenceIndex {
             unavailable,
             declarations_available,
             aliases,
+            export_references,
+            reexports,
         }
     }
 

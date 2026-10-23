@@ -14,7 +14,7 @@ pub enum SemanticProperty {
 pub struct EditingConstantReference {
     pub origin: SemanticSourceLocation,
     pub target: SemanticProperty,
-    pub imports: Vec<SemanticSourceLocation>,
+    pub imports: Vec<crate::EditingImportSource>,
 }
 
 /// Complete declaration types without evaluating the property's implementation.

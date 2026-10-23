@@ -20,7 +20,7 @@ pub(crate) struct BodyObservation {
     pub(super) property_names: imbl::HashMap<ast::Span, ast::Span>,
     pub(super) properties: imbl::HashMap<ast::Span, hir::EditingPropertyReference>,
     pub(super) local_functions: imbl::HashMap<hir::FunctionId, hir::EditingFunction>,
-    pub(super) imports: imbl::HashMap<ast::Span, Vec<hir::SemanticSourceLocation>>,
+    pub(super) imports: imbl::HashMap<ast::Span, Vec<hir::EditingImportSource>>,
     pub(super) call_inputs: imbl::HashMap<ast::Span, calls::CallInput>,
     pub(super) argument_maps: imbl::HashMap<ast::Span, calls::CheckedArguments>,
     pub(super) calls: imbl::HashMap<ast::Span, hir::EditingAppliedCall>,
