@@ -102,6 +102,7 @@ fn qualified_super_read(interface: &str, name: &str) -> Expr {
 fn qualified_super_write(interface: &str, name: &str, value: Expr) -> Statement {
     Statement {
         kind: StatementKind::Assign(ast::Assign {
+            operator_span: None,
             target: ast::AssignTarget::QualifiedInterfaceSuperProperty {
                 qualifier: ty_named(interface),
                 name: ident(name),

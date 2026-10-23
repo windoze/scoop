@@ -137,6 +137,8 @@ pub enum Expr {
     Update {
         place: PlaceExpr,
         op: UpdateOp,
+        /// The actual source token, absent for a synthesized update.
+        operator_span: Option<Span>,
         notation: UpdateNotation,
         span: Span,
     },
@@ -217,6 +219,8 @@ pub enum Expr {
     Index {
         receiver: Box<Expr>,
         indices: NonEmptyVec<Expr>,
+        /// The opening bracket, absent for a synthesized subscript.
+        bracket_span: Option<Span>,
         span: Span,
     },
     /// Structured control expressions. Their branch blocks use the same

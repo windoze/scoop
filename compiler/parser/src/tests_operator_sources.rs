@@ -81,3 +81,81 @@ fn abbreviated_membership_conditions_keep_their_actual_tokens() {
         );
     }
 }
+
+#[test]
+fn subscript_and_update_tokens_survive_place_conversion() {
+    for expression in [
+        "++items[true]",
+        "--items[false]",
+        "items[true]++",
+        "items[false]--",
+    ] {
+        let text = format!("{{ val result = {expression} }}");
+        let Expr::Update {
+            place,
+            operator_span: Some(operator),
+            ..
+        } = initializer(&text)
+        else {
+            panic!("a source update")
+        };
+        let scoop_ast::PlaceExpr::Index {
+            bracket_span: Some(bracket),
+            ..
+        } = place
+        else {
+            panic!("the original subscript place")
+        };
+        let expected = if expression.contains("++") {
+            "++"
+        } else {
+            "--"
+        };
+        assert_eq!(
+            &text[operator.start as usize..operator.end as usize],
+            expected
+        );
+        assert_eq!(bracket.start as usize, text.find('[').unwrap());
+        assert_eq!(bracket.end, bracket.start + 1);
+    }
+    let text = "{ val result = /* 🌟 */ items[nested[true]] }";
+    let Expr::Index {
+        bracket_span: Some(outer),
+        indices,
+        ..
+    } = initializer(text)
+    else {
+        panic!("an outer subscript")
+    };
+    let Expr::Index {
+        bracket_span: Some(inner),
+        ..
+    } = indices.first()
+    else {
+        panic!("an inner subscript")
+    };
+    assert_eq!(outer.start as usize, text.find('[').unwrap());
+    assert_eq!(inner.start as usize, text.rfind('[').unwrap());
+}
+
+#[test]
+fn assignments_preserve_distinct_subscript_and_assignment_tokens() {
+    for operator in ["=", "+=", "-=", "*=", "/=", "%="] {
+        let text = format!("{{ /* 🌟 */ items[true] {operator} value }}");
+        let block = crate::parse_function_body(&text).unwrap();
+        let StatementKind::Assign(assign) = &block.statements[0].kind else {
+            panic!("an assignment")
+        };
+        let span = assign.operator_span.unwrap();
+        assert_eq!(&text[span.start as usize..span.end as usize], operator);
+        let scoop_ast::PlaceExpr::Index {
+            bracket_span: Some(bracket),
+            ..
+        } = assign.target
+        else {
+            panic!("a subscript place")
+        };
+        assert_eq!(bracket.start as usize, text.find('[').unwrap());
+        assert_eq!(bracket.end, bracket.start + 1);
+    }
+}

@@ -11,7 +11,7 @@ use scoop_source::Span;
 use crate::{convert, initialize::Settings};
 
 mod references;
-pub(super) use references::{callable_at, property_at};
+pub(super) use references::{callables_at, property_at};
 mod static_calls;
 pub(super) use static_calls::{static_callable, static_named_argument};
 
@@ -65,6 +65,14 @@ pub(super) fn cursor(
                 | scoop_syntax::SyntaxKind::DotDotLess
                 | scoop_syntax::SyntaxKind::KwIn
                 | scoop_syntax::SyntaxKind::BangIn
+                | scoop_syntax::SyntaxKind::LBracket
+                | scoop_syntax::SyntaxKind::PlusPlus
+                | scoop_syntax::SyntaxKind::MinusMinus
+                | scoop_syntax::SyntaxKind::PlusEqual
+                | scoop_syntax::SyntaxKind::MinusEqual
+                | scoop_syntax::SyntaxKind::StarEqual
+                | scoop_syntax::SyntaxKind::SlashEqual
+                | scoop_syntax::SyntaxKind::PercentEqual
         )
     }) else {
         return Ok(None);

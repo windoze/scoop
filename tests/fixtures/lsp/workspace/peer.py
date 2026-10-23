@@ -40,6 +40,7 @@ from source_dependencies import check as check_source_dependencies
 from static_calls import check as check_static_calls
 from static_constants import check as check_static_constants
 from static_variants import check as check_static_variants
+from subscript_references import check as check_subscript_references
 from type_definitions import check as check_type_definitions
 from type_hovers import check as check_type_hovers
 from type_implementations import check as check_type_implementations
@@ -358,6 +359,7 @@ def main():
         check_defaults(peer, root)
         check_construction_bodies(peer, root)
         check_operator_references(peer, root)
+        check_subscript_references(peer, root)
         check_type_references(peer, root)
         check_type_definitions(peer, root)
         check_type_hovers(peer, root)

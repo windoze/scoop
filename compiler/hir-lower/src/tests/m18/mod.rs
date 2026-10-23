@@ -22,6 +22,7 @@ fn invoke_expr(callee: Expr, argument: Expr) -> Expr {
 fn multi_index(receiver: Expr, indices: Vec<Expr>) -> Expr {
     let mut indices = indices.into_iter();
     Expr::Index {
+        bracket_span: None,
         receiver: Box::new(receiver),
         indices: ast::NonEmptyVec::new(
             indices.next().expect("test index must be non-empty"),
@@ -34,6 +35,7 @@ fn multi_index(receiver: Expr, indices: Vec<Expr>) -> Expr {
 fn assignment(target: ast::PlaceExpr, op: ast::AssignmentOp, value: Expr) -> Statement {
     Statement {
         kind: StatementKind::Assign(ast::Assign {
+            operator_span: None,
             target,
             op,
             value,
@@ -46,6 +48,7 @@ fn assignment(target: ast::PlaceExpr, op: ast::AssignmentOp, value: Expr) -> Sta
 fn index_place(receiver: Expr, indices: Vec<Expr>) -> ast::PlaceExpr {
     let mut indices = indices.into_iter();
     ast::PlaceExpr::Index {
+        bracket_span: None,
         receiver: Box::new(receiver),
         indices: ast::NonEmptyVec::new(
             indices.next().expect("test index must be non-empty"),
@@ -57,6 +60,7 @@ fn index_place(receiver: Expr, indices: Vec<Expr>) -> ast::PlaceExpr {
 
 fn update(place: ast::PlaceExpr, op: ast::UpdateOp, notation: ast::UpdateNotation) -> Expr {
     Expr::Update {
+        operator_span: None,
         place,
         op,
         notation,

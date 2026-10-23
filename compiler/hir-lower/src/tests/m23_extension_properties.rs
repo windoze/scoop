@@ -168,6 +168,7 @@ fn extension_read(name: &str, value: Expr) -> Decl {
 
 fn update_name(name: &str) -> Expr {
     Expr::Update {
+        operator_span: None,
         place: ast::PlaceExpr::Name(ident(name)),
         op: ast::UpdateOp::Increment,
         notation: ast::UpdateNotation::Postfix,

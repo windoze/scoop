@@ -107,6 +107,7 @@ fn subscript_read() {
         receiver,
         indices,
         span,
+        ..
     } = &expr
     else {
         panic!("expected an index expression");
@@ -228,6 +229,7 @@ fn subscript_assignment() {
         receiver,
         indices,
         span,
+        ..
     } = &assign.target
     else {
         panic!("expected an index assignment target");

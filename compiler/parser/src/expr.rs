@@ -241,6 +241,7 @@ impl Parser {
                         UpdateOp::Decrement
                     },
                     notation: UpdateNotation::Prefix,
+                    operator_span: Some(token.span),
                     span: Span::new(token.span.start, end),
                 });
             }

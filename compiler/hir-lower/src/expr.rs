@@ -512,6 +512,7 @@ impl Lowerer {
                 op,
                 notation,
                 span,
+                ..
             } => self.lower_update(place, *op, *notation, *span, sink),
             ast::Expr::NullAssert { operand, span } => self.lower_null_assert(operand, *span, sink),
             ast::Expr::Elvis { lhs, rhs, span } => {
@@ -599,6 +600,7 @@ impl Lowerer {
                 receiver,
                 indices,
                 span,
+                ..
             } => self.lower_index_read(receiver, indices.as_slice(), *span, sink),
             ast::Expr::If(if_) => self.lower_if_expression(if_, sink, expected),
             ast::Expr::When(when) => self.lower_when_expression(when, sink, expected),

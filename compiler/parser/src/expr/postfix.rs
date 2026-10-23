@@ -127,6 +127,7 @@ impl Parser {
                             UpdateOp::Decrement
                         },
                         notation: UpdateNotation::Postfix,
+                        operator_span: Some(token.span),
                         span: Span::new(start, token.span.end),
                     };
                 }

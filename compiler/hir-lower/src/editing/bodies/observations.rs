@@ -16,7 +16,7 @@ pub(crate) struct BodyObservation {
         imbl::HashMap<ast::Span, (hir::BindingId, hir::SourceContextId, hir::EditingLocalRole)>,
     pub(super) expressions: imbl::HashMap<ast::Span, hir::EditingExpression>,
     pub(super) callable_names: imbl::HashMap<ast::Span, ast::Span>,
-    pub(super) callables: imbl::HashMap<ast::Span, hir::EditingCallableReference>,
+    pub(super) callables: imbl::HashMap<ast::Span, Vec<hir::EditingCallableReference>>,
     pub(super) property_names: imbl::HashMap<ast::Span, ast::Span>,
     pub(super) properties: imbl::HashMap<ast::Span, hir::EditingPropertyReference>,
     pub(super) local_functions: imbl::HashMap<hir::FunctionId, hir::EditingFunction>,
@@ -147,7 +147,7 @@ impl BodyObservation {
         let mut callables = self
             .callables
             .into_iter()
-            .map(|(_, reference)| reference)
+            .flat_map(|(_, references)| references)
             .collect::<Vec<_>>();
         callables.sort_by_key(|reference| (reference.span.start, reference.span.end));
         let mut properties = self

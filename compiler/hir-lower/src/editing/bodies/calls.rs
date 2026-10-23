@@ -46,6 +46,16 @@ impl Lowerer {
             operator_span: Some(operator),
             span,
             ..
+        }
+        | ast::Expr::Update {
+            operator_span: Some(operator),
+            span,
+            ..
+        }
+        | ast::Expr::Index {
+            bracket_span: Some(operator),
+            span,
+            ..
         } = expression
         {
             self.editing_body
@@ -103,18 +113,19 @@ impl Lowerer {
             return;
         };
         let definition = self.editing_callee_origin(target);
-        self.editing_body
+        let references = self
+            .editing_body
             .as_mut()
             .expect("active query")
             .callables
-            .insert(
-                span,
-                hir::EditingCallableReference {
-                    span,
-                    target,
-                    definition,
-                },
-            );
+            .entry(span)
+            .or_default();
+        references.retain(|reference| reference.target != target);
+        references.push(hir::EditingCallableReference {
+            span,
+            target,
+            definition,
+        });
     }
 
     pub(in crate::editing) fn observe_completed_call(
@@ -134,6 +145,7 @@ impl Lowerer {
         let callee = input
             .callee
             .and_then(|span| body.callables.get(&span))
+            .and_then(|references| references.last())
             .map(|reference| reference.target);
         body.calls.insert(
             span,

@@ -109,11 +109,16 @@ impl EditingReferenceIndex {
             }
         }
         for at in locations.values_mut() {
-            if at
+            let aliased = at
                 .iter()
-                .any(|target| matches!(target, EditingReferenceTarget::ImportAlias(_)))
-            {
-                at.retain(|target| matches!(target, EditingReferenceTarget::ImportAlias(_)));
+                .filter_map(|target| match target {
+                    EditingReferenceTarget::ImportAlias(alias) => Some(&aliases[*alias].targets),
+                    _ => None,
+                })
+                .flat_map(|targets| targets.iter().copied())
+                .collect::<HashSet<_>>();
+            if !aliased.is_empty() {
+                at.retain(|target| !aliased.contains(target));
             }
         }
         Self {

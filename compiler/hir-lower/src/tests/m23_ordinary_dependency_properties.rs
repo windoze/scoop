@@ -111,6 +111,7 @@ fn top_level_getter_setter_and_update_use_two_dependency_accessors() {
         span: sp(),
     });
     let update = Expr::Update {
+        operator_span: None,
         place: scoop_ast::PlaceExpr::Name(ident("state")),
         op: scoop_ast::UpdateOp::Increment,
         notation: scoop_ast::UpdateNotation::Postfix,

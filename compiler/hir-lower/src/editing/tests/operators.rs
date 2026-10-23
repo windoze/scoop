@@ -2,6 +2,7 @@ use super::imports::{analyze_files, at};
 use super::*;
 
 mod imported;
+mod places;
 
 fn references(analysis: &mut DeclarationAnalysis) -> Vec<hir::EditingCallableReference> {
     let function = function(analysis, "editing");

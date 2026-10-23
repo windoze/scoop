@@ -352,6 +352,7 @@ fn imported_singleton_properties_support_reads_writes_updates_and_constants() {
             val(
                 "previous",
                 ast::Expr::Update {
+                    operator_span: None,
                     place: ast::PlaceExpr::Name(ident("counter")),
                     op: ast::UpdateOp::Increment,
                     notation: ast::UpdateNotation::Postfix,
@@ -440,6 +441,7 @@ fn assignment_and_update_do_not_skip_a_higher_object_for_a_lower_property() {
     for statement in [
         assign("Chosen", int_lit(1)),
         stmt(ast::Expr::Update {
+            operator_span: None,
             place: ast::PlaceExpr::Name(ident("Chosen")),
             op: ast::UpdateOp::Increment,
             notation: ast::UpdateNotation::Postfix,

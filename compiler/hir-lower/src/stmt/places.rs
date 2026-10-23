@@ -39,6 +39,7 @@ pub(super) enum WriteCapability {
     OperatorSet {
         receiver: hir::Expr,
         index_arguments: Vec<ast::CallArgument>,
+        bracket_span: Option<Span>,
     },
 }
 
@@ -247,8 +248,11 @@ impl Lowerer {
             ast::PlaceExpr::Index {
                 receiver,
                 indices,
+                bracket_span,
                 span,
-            } => self.resolve_index_place(receiver, indices, *span, sink),
+            } => self.with_operator_source(*span, *bracket_span, |lowerer| {
+                lowerer.resolve_index_place(receiver, indices, *span, *bracket_span, sink)
+            }),
             ast::PlaceExpr::QualifiedInterfaceSuperProperty {
                 qualifier,
                 name,
@@ -330,31 +334,34 @@ impl Lowerer {
             WriteCapability::OperatorSet {
                 receiver,
                 mut index_arguments,
+                bracket_span,
             } => {
                 let value = self.materialize_place_expr(value, "write", span, sink);
                 let hir::ExprKind::Local(value_local) = value.kind else {
                     unreachable!("place values are materialized as local reads")
                 };
                 index_arguments.push(self.local_source_argument(value_local, span));
-                let call = self.lower_named_call_on_receiver(
-                    receiver,
-                    &ast::Ident {
-                        text: "set".to_string(),
-                        span,
-                    },
-                    CallSite {
-                        type_args: &[],
-                        args: &index_arguments,
-                        span,
-                    },
-                    sink,
-                    Some(self.unit),
-                    RequiredCallableModifiers {
-                        operator: Some(hir::OperatorKind::Set),
-                        infix: false,
-                        ..Default::default()
-                    },
-                )?;
+                let call = self.with_operator_source(span, bracket_span, |lowerer| {
+                    lowerer.lower_named_call_on_receiver(
+                        receiver,
+                        &ast::Ident {
+                            text: "set".to_string(),
+                            span,
+                        },
+                        CallSite {
+                            type_args: &[],
+                            args: &index_arguments,
+                            span,
+                        },
+                        sink,
+                        Some(lowerer.unit),
+                        RequiredCallableModifiers {
+                            operator: Some(hir::OperatorKind::Set),
+                            infix: false,
+                            ..Default::default()
+                        },
+                    )
+                })?;
                 Some(hir::StatementKind::Expr(call))
             }
         }

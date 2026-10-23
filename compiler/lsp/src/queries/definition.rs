@@ -64,9 +64,14 @@ pub(crate) fn definition(
                     .and_then(|reference| reference.definition);
         }
         if origin.is_none() {
-            origin =
-                semantic::callable_at(analysis, function.id, cursor.span, snapshot, cancellation)?
-                    .and_then(|reference| reference.definition);
+            let definitions =
+                semantic::callables_at(analysis, function.id, cursor.span, snapshot, cancellation)?
+                    .into_iter()
+                    .filter_map(|reference| reference.definition)
+                    .collect::<Vec<_>>();
+            if !definitions.is_empty() {
+                return definition_locations(snapshot, &cursor, definitions, settings);
+            }
         }
         if origin.is_none() {
             let snapshot = snapshot.clone();
@@ -151,12 +156,23 @@ pub(crate) fn definition(
             cancellation.check().is_err() || snapshot.check_cancelled().is_err()
         })
         .map_err(|_| semantic::cancelled())?;
+    definition_locations(snapshot, &cursor, definitions, settings)
+}
+
+fn definition_locations(
+    snapshot: &AnalysisSnapshot,
+    cursor: &semantic::Cursor<'_>,
+    definitions: Vec<scoop_hir::SemanticSourceLocation>,
+    settings: Settings,
+) -> Result<Value, ResponseError> {
     let mut locations = Vec::new();
     for definition in definitions {
         if let Some(location) =
             convert::definition_location(snapshot, cursor.project, &definition, settings)?
         {
-            locations.push(location);
+            if !locations.contains(&location) {
+                locations.push(location);
+            }
         }
     }
     if locations.len() == 1 {

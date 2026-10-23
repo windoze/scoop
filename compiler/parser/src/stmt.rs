@@ -178,7 +178,7 @@ impl Parser {
                 if let Some(op) = assignment_op(&self.peek().kind) {
                     let target = Parser::expr_into_place(expr, "assignment target")?;
                     let start = place_span(&target).start;
-                    self.bump();
+                    let operator_span = self.bump().span;
                     let value = self.parse_expr()?;
                     let span = Span::new(start, value.span().end);
                     return Ok(Statement {
@@ -186,6 +186,7 @@ impl Parser {
                         kind: StatementKind::Assign(Assign {
                             target,
                             op,
+                            operator_span: Some(operator_span),
                             value,
                             span,
                         }),

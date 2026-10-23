@@ -1,19 +1,20 @@
 use super::*;
 
-pub(in crate::queries) fn callable_at(
+pub(in crate::queries) fn callables_at(
     analysis: &mut DeclarationAnalysis,
     function: hir::EditingSourceBodyId,
     span: Span,
     snapshot: &AnalysisSnapshot,
     cancellation: &Cancellation,
-) -> Result<Option<hir::EditingCallableReference>, ResponseError> {
+) -> Result<Vec<hir::EditingCallableReference>, ResponseError> {
     Ok(
-        body_facts(analysis, function, snapshot, cancellation)?.and_then(|facts| {
+        body_facts(analysis, function, snapshot, cancellation)?.map_or_else(Vec::new, |facts| {
             facts
                 .callables
                 .iter()
-                .find(|reference| reference.span == span)
+                .filter(|reference| reference.span == span)
                 .cloned()
+                .collect()
         }),
     )
 }

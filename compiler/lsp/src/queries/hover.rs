@@ -32,28 +32,43 @@ pub(crate) fn hover(
     else {
         return Ok(Value::Null);
     };
-    let Some(description) = description(analysis, &cursor, snapshot, cancellation)? else {
+    let descriptions = descriptions(analysis, &cursor, snapshot, cancellation)?;
+    if descriptions.is_empty() {
         return super::json(None::<Hover>);
-    };
-    let documentation = match description.documentation {
-        Some(query) => documentation::markdown(
-            semantics,
-            snapshot,
-            source_id,
-            &query,
-            &cursor,
-            settings,
-            cancellation,
-        )?,
-        None => None,
-    };
-    response(
-        &cursor.source.text,
-        cursor.span,
-        description.label,
-        documentation,
-        settings,
-    )
+    }
+    let mut contents = Vec::new();
+    for description in descriptions {
+        contents.push(MarkedString::LanguageString(lsp_types::LanguageString {
+            language: "scoop".into(),
+            value: description.label,
+        }));
+        if let Some(query) = description.documentation
+            && let Some(markdown) = documentation::markdown(
+                semantics,
+                snapshot,
+                source_id,
+                &query,
+                &cursor,
+                settings,
+                cancellation,
+            )?
+            && !markdown.is_empty()
+        {
+            contents.push(MarkedString::String(markdown));
+        }
+    }
+    super::json(Hover {
+        contents: if contents.len() == 1 {
+            HoverContents::Scalar(contents.remove(0))
+        } else {
+            HoverContents::Array(contents)
+        },
+        range: Some(convert::range(
+            &cursor.source.text,
+            cursor.span,
+            settings.encoding,
+        )?),
+    })
 }
 
 struct Description {
@@ -61,12 +76,12 @@ struct Description {
     documentation: Option<documentation::Query>,
 }
 
-fn description(
+fn descriptions(
     analysis: &mut DeclarationAnalysis,
     cursor: &semantic::Cursor<'_>,
     snapshot: &AnalysisSnapshot,
     cancellation: &Cancellation,
-) -> Result<Option<Description>, ResponseError> {
+) -> Result<Vec<Description>, ResponseError> {
     let target = cursor.span;
     let functions = semantic::functions(analysis, cursor)
         .into_iter()
@@ -78,7 +93,7 @@ fn description(
     for (function, signature) in &functions {
         if function.name_origin.span == target {
             let label = signature_label(analysis, signature)?;
-            return Ok(Some(Description {
+            return Ok(vec![Description {
                 label,
                 documentation: Some(documentation::Query {
                     symbol: documentation::callable(hir::SemanticCallable::Current(
@@ -86,42 +101,44 @@ fn description(
                     )),
                     origin: signature.origin.clone(),
                 }),
-            }));
+            }]);
         }
         for (index, parameter) in signature.parameters.iter().enumerate() {
             if parameter.origin.span == target {
                 let ty = type_label(analysis, function.function, parameter.value_type)?;
-                return Ok(Some(Description {
+                return Ok(vec![Description {
                     label: format!("{}: {ty}", parameter.name),
                     documentation: Some(documentation::Query {
                         symbol: documentation::parameter(function.function, index),
                         origin: parameter.origin.clone(),
                     }),
-                }));
+                }]);
             }
         }
     }
     if let Some(description) = types::description(analysis, cursor, cancellation)? {
-        return Ok(Some(description));
+        return Ok(vec![description]);
     }
     if let Some(description) = properties::declaration(analysis, cursor, cancellation)? {
-        return Ok(Some(description));
+        return Ok(vec![description]);
     }
     if let Some(description) = variants::description(analysis, cursor, snapshot, cancellation)? {
-        return Ok(Some(description));
+        return Ok(vec![description]);
     }
     if let Some(argument) =
         semantic::static_named_argument(analysis, cursor, snapshot, cancellation)?
     {
-        return arguments::description(analysis, argument);
+        return arguments::description(analysis, argument)
+            .map(|description| description.into_iter().collect());
     }
     if let Some(reference) = semantic::static_callable(analysis, cursor, snapshot, cancellation)? {
-        return callables::description(analysis, reference, snapshot, cursor);
+        return callables::description(analysis, reference, snapshot, cursor)
+            .map(|description| description.into_iter().collect());
     }
     if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {
         let signature = match analysis.source_body_signature(&function) {
             Some(EditingValue::Known(signature)) => Some(signature),
-            Some(EditingValue::Unavailable(_)) => return Ok(None),
+            Some(EditingValue::Unavailable(_)) => return Ok(Vec::new()),
             None => None,
         };
         if let Some(signature) = &signature
@@ -132,16 +149,16 @@ fn description(
                 .find(|(_, parameter)| parameter.origin.span == target)
         {
             let ty = type_label(analysis, signature.function, parameter.value_type)?;
-            return Ok(Some(Description {
+            return Ok(vec![Description {
                 label: format!("{}: {ty}", parameter.name),
                 documentation: function.callable().map(|callable| documentation::Query {
                     symbol: documentation::applied_parameter(callable.into(), index),
                     origin: parameter.origin.clone(),
                 }),
-            }));
+            }]);
         }
         if let Some(description) = arguments::named(analysis, function.id, target, cancellation)? {
-            return Ok(Some(description));
+            return Ok(vec![description]);
         }
         if let Some(property) =
             semantic::property_at(analysis, function.id, target, snapshot, cancellation)?
@@ -151,13 +168,13 @@ fn description(
                 .map_err(|error| convert::error(ErrorCode::RequestFailed, error.message))?;
             if let EditingValue::Known(ty) = ty {
                 let kind = if property.mutable { "var" } else { "val" };
-                return Ok(Some(Description {
+                return Ok(vec![Description {
                     label: format!("{kind} {}: {}", property.name, ty.name),
                     documentation: property.definition.map(|origin| documentation::Query {
                         symbol: documentation::property(property.target),
                         origin,
                     }),
-                }));
+                }]);
             }
         }
         if let Some(local) =
@@ -168,7 +185,7 @@ fn description(
                 .reference
                 .as_ref()
                 .map_or_else(|| ty.clone(), |local| format!("{}: {ty}", local.name));
-            return Ok(Some(Description {
+            return Ok(vec![Description {
                 label,
                 documentation: local.reference.and_then(|local| {
                     let (callee, index) = analysis.body_parameter(&function, &local.definition)?;
@@ -177,37 +194,21 @@ fn description(
                         origin: local.definition,
                     })
                 }),
-            }));
+            }]);
         }
-        if let Some(reference) =
-            semantic::callable_at(analysis, function.id, target, snapshot, cancellation)?
+        let mut descriptions = Vec::new();
+        for reference in
+            semantic::callables_at(analysis, function.id, target, snapshot, cancellation)?
         {
-            return callables::description(analysis, reference, snapshot, cursor);
-        }
-    }
-    Ok(None)
-}
-
-fn response(
-    text: &scoop_source::SourceText,
-    span: Span,
-    label: String,
-    documentation: Option<String>,
-    settings: Settings,
-) -> Result<Value, ResponseError> {
-    let signature = MarkedString::LanguageString(lsp_types::LanguageString {
-        language: "scoop".into(),
-        value: label,
-    });
-    super::json(Hover {
-        contents: match documentation.filter(|text| !text.is_empty()) {
-            Some(documentation) => {
-                HoverContents::Array(vec![signature, MarkedString::String(documentation)])
+            if let Some(description) =
+                callables::description(analysis, reference, snapshot, cursor)?
+            {
+                descriptions.push(description);
             }
-            None => HoverContents::Scalar(signature),
-        },
-        range: Some(convert::range(text, span, settings.encoding)?),
-    })
+        }
+        return Ok(descriptions);
+    }
+    Ok(Vec::new())
 }
 
 fn type_label(

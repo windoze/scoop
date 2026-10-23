@@ -17,6 +17,7 @@ impl Lowerer {
         let Some(callable) = body
             .callables
             .get(&span)
+            .and_then(|references| references.last())
             .and_then(|reference| reference.target.callable())
         else {
             return;
@@ -32,11 +33,7 @@ impl Lowerer {
                 span: import.origin.span,
             })
             .collect();
-        self.editing_body
-            .as_mut()
-            .expect("active body query")
-            .imports
-            .insert(span, imports);
+        self.observe_selected_imports(span, imports);
     }
 
     /// Called only after ordinary lookup selected this source-level layer.
@@ -55,11 +52,26 @@ impl Lowerer {
             return;
         };
         let imports = self.editing_exact_import_origins(name);
-        self.editing_body
+        self.observe_selected_imports(span, imports);
+    }
+
+    fn observe_selected_imports(
+        &mut self,
+        span: ast::Span,
+        imports: Vec<hir::SemanticSourceLocation>,
+    ) {
+        let selected = self
+            .editing_body
             .as_mut()
             .expect("active body query")
             .imports
-            .insert(span, imports);
+            .entry(span)
+            .or_default();
+        for origin in imports {
+            if !selected.contains(&origin) {
+                selected.push(origin);
+            }
+        }
     }
 
     pub(crate) fn editing_exact_import_origins(

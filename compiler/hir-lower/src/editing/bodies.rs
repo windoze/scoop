@@ -5,6 +5,7 @@ use hir::{EditingUnavailable as U, EditingValue as V};
 mod calls;
 mod imports;
 mod observations;
+mod operators;
 mod prepared;
 mod properties;
 mod record;

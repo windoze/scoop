@@ -9,6 +9,7 @@ fn getter_setter_and_update_support_explicit_and_implicit_receivers() {
         Some(Vec::new()),
     )]);
     let explicit_update = Expr::Update {
+        operator_span: None,
         place: scoop_ast::PlaceExpr::Field {
             receiver: Box::new(int_lit(3)),
             name: ident("score"),
