@@ -118,6 +118,8 @@ challenge 和 credentials 共用同一个字节语法实现。参数值使用 to
 
 缺少 Expect、只有空项或只有未知 expectation 时返回 false。`100-continue=value` 是带值的其他 expectation，不作为标准 Continue 信号。即使此前已经找到有效 100-continue，后续非法结构仍报 HttpFieldParseException，field 为 Expect，byteOffset 相对发生错误的那条原始字段值。工具不启动 producer、不查询时钟，也不决定何时发送 body；这些等待行为由 client 组合。
 
+`parseHttpExpectations(fields): HttpExpectations` 以同一遍解析同时返回 continueRequested 和 hasUnsupported，供服务端区分没有要求与不能满足的要求。空列表项不属于未知要求；不带值的 100-continue 设前者，其他合法项设后者；两个标志可同时为 true。httpExpectsContinue 复用此结果的 continueRequested，不另行扫描或改变既有错误位置。是否返回 417、何时发送 100 由服务端管线决定。
+
 ### 1.11 Trailer 声明与发送限制
 
 `HttpTrailerDeclaration(names)` 表示发送方预先声明的 trailer 名称，复制输入、按 ASCII 小写规范化，并按首次出现顺序去重；名称必须为普通 HTTP token。空声明合法，toHttpField 生成 Trailer 字段，contains 按 HTTP 名称规则查询。接收的 Trailer 字段仍用 parseHttpTokenFields 读取，不以发送声明的限制丢弃原始接收信息。

@@ -5,6 +5,24 @@ import scoop.test.*
 @Test
 private class HttpExpectContinueTest {
     @Test
+    fun `server distinguishes absent continue and unknown expectations`() {
+        val absent = parseHttpExpectations([HttpField("Expect".toByteArray(), " , \t,".toByteArray())])
+        assertFalse(absent.continueRequested)
+        assertFalse(absent.hasUnsupported)
+        val standard = parseHttpExpectations([HttpField("Expect".toByteArray(), "100-Continue".toByteArray())])
+        assertTrue(standard.continueRequested)
+        assertFalse(standard.hasUnsupported)
+        val mixed = parseHttpExpectations([
+            HttpField("Expect".toByteArray(), "100-continue, extension=\"a,b\";mode=fast".toByteArray()),
+            HttpField("Expect".toByteArray(), "100-continue=other".toByteArray())])
+        assertTrue(mixed.continueRequested)
+        assertTrue(mixed.hasUnsupported)
+        val unknown = parseHttpExpectations([HttpField("Expect".toByteArray(), "extension".toByteArray())])
+        assertFalse(unknown.continueRequested)
+        assertTrue(unknown.hasUnsupported)
+    }
+
+    @Test
     fun `Continue matches complete bare expectations across repeated fields and empty items`() {
         assertFalse(httpExpectsContinue(ArrayList<HttpField>()))
         for (value in ["", " ,\t,", "other", "x100-continue", "100-continue-x", "100-continue=value"]) {
