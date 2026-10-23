@@ -1,5 +1,4 @@
 package dev.programlink
-@NoGC
-@Extern(name = "scoop_rt_bool_hash", abi = "scoop")
-private fun wrong(value: Boolean): Long
+@Extern(name = "scoop_rt_allocation_overflow", abi = "scoop")
+private fun wrong(): Unit
 fun main() {}
