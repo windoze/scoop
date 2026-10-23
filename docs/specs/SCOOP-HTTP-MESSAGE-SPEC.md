@@ -16,6 +16,7 @@
 | `HttpAuthChallenge`、`HttpCredentials`、`HttpAuthenticationInfo` | 多 challenge、quoted 参数、token68、请求凭据和 Digest 完成参数；不获取凭据或执行密码计算 |
 | `HttpRetryAfter` | delta-seconds 或 HTTP-date，解析与实际等待分开 |
 | `HttpAge`、`HttpVary` | 缓存 Age 的饱和秒数及接收首值规则；Vary 的有序字段名、空项和通配符，不计算 freshness 或选择缓存条目 |
+| `HttpAcceptEncoding` | 内容编码 token、质量值与 identity／星号协商；不启动压缩器或读取正文 |
 | `HttpLocation` | 单值 URI-reference、相对解析与重定向 fragment 继承；不决定是否跟随或允许哪个 scheme |
 
 参数名大小写、重复值处理和扩展编码按字段所属 RFC 固定，不能用一个逗号 split 处理全部字段。扩展参数先在本层拆出 charset／language／百分号字节，再交给 URL 百分号 codec 与 charset 转换；优先满足 RFC 8187 的 UTF-8，历史 ISO-8859-1 兼容须显式记录。建议文件名只作为元数据，操作系统 Path 选择由调用者负责。
@@ -141,6 +142,16 @@ requireDeclared(fields) 只检查本次实际 trailer 的名称均在声明内�
 `parseFields(fields)` 在没有 Location 时返回 None，多条同名字段报 HttpFieldParseException，即使相同也不合并；逗号是 URI 中可用的字节，不作为列表分隔。字段格式错误保留 Location 名称与原始字节偏移，URL 格式错误作为 cause；parseOrNone 只吸收字段格式异常。
 
 `resolve(base: Url)` 调用 base.resolve(reference)。按 RFC 9110 §10.2.2，reference 没有 fragment 时继承 base 的 fragment，显式空 fragment 则覆盖而不继承；其他解析行为沿用 URL 库。不在此处限制 http／https、检查降级或跟随次数，也不执行请求。
+
+### 1.14 Accept-Encoding
+
+HttpAcceptEncoding.parse／parseOrNone 接收单个字节或 String 值；parseFields 合并全部同名字段。originalValues 保留每条原始值，isPresent 区分没有字段与存在空字段。preferences 按编码 token 首次出现顺序保存规范小写 coding 与 0～1000 的整数 quality；未知编码保留，重复编码包括跨行重复采用最低质量值。格式规则依据 [RFC 9110 §12.5.3](https://www.rfc-editor.org/rfc/rfc9110.html#section-12.5.3) 与 [§12.4.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-12.4.2)，最低值为本库明确选择的重复消歧规则。
+
+列表允许 OWS、逗号空项和空字段；编码必须为非空 ASCII token。每项只有可选的 q 参数，名称不区分大小写，值默认为 1。q 只接受 0／1 以及可选小数点和至多三位小数，1 后只能有零；允许 0.／1.，拒绝引号、符号、前导额外数字、指数、非 ASCII、未知／重复参数及等号两侧空白。分号两侧可有 OWS。非法输入为 HttpFieldParseException，field 为 Accept-Encoding，byteOffset 相对于发生错误的原始字段值；parseOrNone 只吸收该格式异常。
+
+quality(coding) 返回实际编码的可接受质量：明确条目覆盖星号；无字段时任何编码为 1000；存在字段但未列出且没有星号的编码为 0。identity 未明确列出时为 1000，只有星号质量为零才默认排除它。存在空字段只允许 identity。查询参数必须是实际编码 token，不能是星号。
+
+select(candidates) 从调用方提供的有序实际编码列表中返回规范名称或 None；零质量绝不选择，最高质量优先，同质量按候选次序。显式 identity 参与质量比较，隐式 identity 仅作为允许时的回退；缺少字段时优先选候选中的 identity，否则选第一个候选。候选列表可不含 identity，工具不自行增加调用方没有提供的表示。工具不决定 406、媒体类型、小正文阈值或编码选项，这些属于 server 表示选择策略。
 
 ## 2. Cookie 与公共后缀
 

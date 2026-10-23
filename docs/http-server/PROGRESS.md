@@ -43,3 +43,4 @@
 - Multipart 请求寿命收尾后复验 11／11、管线 8／8 通过；未消费的 body 也不能在请求结束后创建新视图。已发布 server 开发产物，独立 H2 consumer 1／1 release 验证通过，使用公开 multipart API 完成表单上传。
 - Query／extractor：新增 11／11 定向 release 测试及原结构化提取 4／4 回归通过，API 文档检查通过。覆盖默认值／Option／重复列表、名称解码与字面语义、未知字段和复读、数值精度／范围、输入错误路径及 cause、装配错误分类；提取失败不调用 handler，组合提取不重复消费 body，适配后仍保持 Context 与流式资源寿命。明确通用 Decoder 的格式专属未知字段策略，JSON 行为不变。
 - 已发布 D3 server 开发产物，独立 H1 consumer 1／1 release 测试通过，组合公开 query／JSON extractor 与泛型 adapt。新增生产文件均少于 75 行；清理 4 个已验证的旧可执行缓存，保留当前产物和编译缓存。
+- D4 协商底层：HttpAcceptEncoding 的 4／4 定向 release 测试和 API 文档检查通过。覆盖缺失／空字段、跨行重复最低质量、严格 q 语法和原始偏移、星号、identity、候选次序及零质量排除；没有重跑全部 HTTP 协议测试。server 压缩策略与流式执行仍在实施。

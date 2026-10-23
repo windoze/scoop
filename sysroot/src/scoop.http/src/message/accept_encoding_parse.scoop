@@ -1,0 +1,55 @@
+package scoop.http
+
+import scoop.collections.LinkedHashMap
+import scoop.text.lowercaseAscii
+
+internal fun readAcceptEncoding(fields: List<HttpField>): HttpAcceptEncoding {
+    val preferences = LinkedHashMap<String, Int>()
+    val originals = ArrayList<Array<Byte>>()
+    for (field in fields.findAll("accept-encoding".toByteArray())) {
+        val reader = HttpFieldReader("Accept-Encoding", field.value)
+        originals.add(reader.bytes)
+        reader.skipOws()
+        while (!reader.ended) {
+            if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
+            val name = reader.token().lowercaseAscii()
+            var quality = 1000
+            reader.skipOws()
+            if (reader.peek() == 59) {
+                reader.position += 1L
+                reader.skipOws()
+                val parameter = reader.position
+                if (reader.token().lowercaseAscii() != "q") reader.failAt(parameter, "expected a q weight")
+                reader.expect(61)
+                quality = readEncodingQuality(reader)
+                reader.skipOws()
+            }
+            val previous = preferences[name]
+            if (previous == None || quality < previous!!) preferences.put(name, quality)
+            if (!reader.ended) { reader.expect(44); reader.skipOws() }
+        }
+    }
+    val values = ArrayList<HttpEncodingPreference>()
+    for (entry in preferences) values.add(HttpEncodingPreference(entry.key, entry.value))
+    return HttpAcceptEncoding(values.toArray(), originals.toArray())
+}
+
+private fun readEncodingQuality(reader: HttpFieldReader): Int {
+    val whole = reader.peek() - 48
+    if (whole != 0 && whole != 1) reader.fail("quality must be between zero and one")
+    reader.position += 1L
+    var result = whole * 1000
+    if (reader.peek() == 46) {
+        reader.position += 1L
+        var scale = 100
+        while (reader.peek() >= 48 && reader.peek() <= 57) {
+            if (scale == 0) reader.fail("quality has more than three fractional digits")
+            val digit = reader.peek() - 48
+            if (whole == 1 && digit != 0) reader.fail("quality exceeds one")
+            result += digit * scale
+            scale /= 10
+            reader.position += 1L
+        }
+    }
+    return result
+}
