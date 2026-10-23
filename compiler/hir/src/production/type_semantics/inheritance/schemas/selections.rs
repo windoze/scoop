@@ -4,6 +4,7 @@ use super::*;
 pub(in crate::production::type_semantics) fn project(
     metadata: SharedTypeMetadataV1<'_>,
     nominals: &[ConcreteNominal<'_>],
+    inventory: &CanonicalSourceInheritanceInventoriesV1,
 ) -> Result<CanonicalInheritanceSourceSlotSelectionsV1, Error> {
     let mut records = Vec::new();
     for nominal in nominals {
@@ -17,13 +18,14 @@ pub(in crate::production::type_semantics) fn project(
         for selection in selections.records() {
             scoop_wire::allocation::try_reserve(&mut records, 1, &WirePath::root())
                 .map_err(resource)?;
-            records.push(InheritanceSourceSlotSelectionRecordV1::new(
+            let record = InheritanceSourceSlotSelectionRecordV1::new(
                 nominal.exact,
                 match selection.role() {
                     NominalDispatchSelectionRoleV1::ClassVtable => {
                         InheritanceSlotSchemaRoleV1::ClassVtable
                     }
-                    NominalDispatchSelectionRoleV1::Interface { interface } => {
+                    NominalDispatchSelectionRoleV1::Interface { interface }
+                    | NominalDispatchSelectionRoleV1::ConditionalInterface { interface, .. } => {
                         InheritanceSlotSchemaRoleV1::Interface {
                             interface_exact: metadata
                                 .signature_exact_type(interface)
@@ -36,7 +38,17 @@ pub(in crate::production::type_semantics) fn project(
                     .map_err(invalid)?,
                 selection.slot(),
                 selection.selection(),
-            ));
+            );
+            let schemas = inventory
+                .get(nominal.exact)
+                .expect("source slot selection uses the checked nominal inventory")
+                .slot_schemas();
+            if schemas.records().iter().any(|schema| {
+                schema.role() == record.role() && schema.slots().contains(&record.slot())
+            }) && !records.contains(&record)
+            {
+                records.push(record);
+            }
         }
     }
     CanonicalInheritanceSourceSlotSelectionsV1::try_new(records).map_err(Error::SourceInventory)

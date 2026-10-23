@@ -17,6 +17,7 @@ mod callables;
 mod callback_slots;
 mod classes;
 mod closures;
+mod conditional_interfaces;
 mod constructor_definitions;
 mod constructor_slots;
 mod constructor_work;
@@ -126,6 +127,8 @@ struct Concretizer<'a> {
         HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::InterfaceId>,
     interface_families: HashMap<export::SourceNominalId, concrete::InterfaceFamilyId>,
     interface_type: HashMap<concrete::InterfaceId, concrete::TypeId>,
+    conditional_interface_results:
+        HashMap<(export::ConditionalInterfaceId, Vec<concrete::TypeId>), bool>,
     interface_slot_by_source: HashMap<
         (
             concrete::InterfaceId,
@@ -190,6 +193,7 @@ struct Concretizer<'a> {
     evaluation_context: Option<export::SourceContextId>,
     instantiation_site: Option<SourceSite>,
     type_condition_errors: Vec<scoop_ast::Diagnostic>,
+    active_conditional_relations: std::collections::HashSet<(concrete::TypeId, concrete::TypeId)>,
     checked_context_requirements:
         std::collections::HashSet<(export::ContextRequirementOwner, Vec<concrete::TypeId>)>,
     pending_functions: VecDeque<(FunctionKey, concrete::FunctionId, Option<SourceSite>)>,
@@ -216,7 +220,7 @@ struct Concretizer<'a> {
     next_loop_identity: u32,
     requirement_environment: requirements::RequirementEnvironment,
     body_requirements: HashMap<type_info::CallableBody, requirements::RequirementEnvironment>,
-    specialization_parents: HashMap<type_info::CallableBody, Vec<type_info::CallableBody>>,
+    specialization_parents: HashMap<type_info::CallableBody, Vec<recursion::SpecializationParent>>,
     specialization_failed: bool,
     requirement_evaluation: Option<export::EvaluationOrigin>,
 }
@@ -328,6 +332,7 @@ impl<'a> Concretizer<'a> {
             interface_by_key: HashMap::new(),
             interface_families,
             interface_type: HashMap::new(),
+            conditional_interface_results: HashMap::new(),
             interface_slot_by_source: HashMap::new(),
             virtual_method_by_source: HashMap::new(),
             classes: Arena::new(),
@@ -376,6 +381,7 @@ impl<'a> Concretizer<'a> {
             evaluation_context: None,
             instantiation_site: None,
             type_condition_errors: Vec::new(),
+            active_conditional_relations: std::collections::HashSet::new(),
             checked_context_requirements: Default::default(),
             pending_functions: VecDeque::new(),
             current_body: None,

@@ -1,0 +1,64 @@
+package test.core.tests.consumer.conditional_inheritance
+
+interface Read { public fun read(): Int }
+interface Reading { public val number: Int }
+struct Present(val number: Int) : Read { public override fun read(): Int = number }
+struct Absent()
+
+open class Base<T>(val value: T) {
+    override interface Read where T : Read {
+        public open override fun read(): Int = value.read()
+    }
+    public open fun stable(): Int = 3
+}
+
+class Derived<T>(value: T) : Base<T>(value)
+class Replaced<T>(value: T) : Base<T>(value) {
+    public override fun read(): Int = 13
+    public override fun stable(): Int = 17
+}
+class Relisted<T>(value: T) : Base<T>(value) {
+    override interface Read where T : Read { public override fun read(): Int = 19 }
+}
+class Restricted<T : Read>(value: T) : Base<T>(value) {
+    public override fun read(): Int = 23
+}
+
+struct Box<T>(val value: T) {
+    override interface Read where T : Read { public override fun read(): Int = value.read() }
+}
+class Nested<T>(value: Box<T>) : Base<Box<T>>(value) {
+    public override fun read(): Int = 29
+}
+
+abstract class Abstract<T> {
+    override interface Read where T : Read { public abstract override fun read(): Int }
+}
+class Completed<T> : Abstract<T>() { public override fun read(): Int = 31 }
+class NoObligation : Abstract<Absent>()
+
+open class PropertyBase<T>(val value: T) {
+    override interface Reading where T : Read {
+        public open override val number: Int get() = value.read()
+    }
+}
+class PropertyDerived<T>(value: T) : PropertyBase<T>(value) {
+    public override val number: Int get() = 37
+}
+
+fun <T : Read> callBase(value: Base<T>): Int = value.read()
+fun <T> callStable(value: Base<T>): Int = value.stable()
+
+interface CompanionValue<X> {
+    public fun get(): X
+    public fun echo(value: X): X
+}
+struct WithCompanion() { public companion object {} }
+open class Projected<T> {
+    override interface CompanionValue<T.Companion> where T.Companion : ref {
+        public open override fun get(): T.Companion = T.Companion
+        public override fun echo(value: T.Companion): T.Companion = value
+    }
+}
+class ProjectedChild<T> : Projected<T>()
+class ProjectedAbsent : Projected<Absent>() { public fun get(): Int = 43 }

@@ -26,7 +26,8 @@ impl Lowerer {
         let span = origin.span;
         let binders = nominal
             .interface
-            .type_parameters()
+            .member_owner_parameters(declaration.interface().availability())
+            .ok_or("abstract member names an absent conditional implementation")?
             .binders()
             .iter()
             .collect::<Vec<_>>();
@@ -112,6 +113,7 @@ impl Lowerer {
         };
         Ok(PreparedImportedGeneric {
             signature: hir::ImportedGenericCallableSignature {
+                availability: self.import_member_guard(declaration.interface(), &bindings)?,
                 declaration: identity,
                 signature: hir::CallableSignature::from_source_effects(
                     format!("{}.{member_name}", nominal.name()),

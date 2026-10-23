@@ -1,0 +1,22 @@
+schema = 1
+name = "conditional-interface-cycle-origins"
+inputs = ["provider", "root"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["conditional-interfaces", "diagnostics", "compiler-correctness"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/source/provider"}},
+  {copy = {from = "${fixture}/root", to = "${work}/source/root"}},
+]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "--release", {each = "${link_args}"}, "${work}/source/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "cycles.diagnostics.json"}

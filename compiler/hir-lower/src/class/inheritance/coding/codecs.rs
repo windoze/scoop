@@ -132,6 +132,9 @@ impl Lowerer {
     }
 
     fn coding_companion(&mut self, ty: TypeId, span: Span) -> Option<Option<TypeId>> {
+        if matches!(self.types[ty], Type::Param(_)) {
+            return Some(self.projected_companion_type(ty).ok());
+        }
         let owner = self
             .nominal_target_for_type(ty)
             .map(|target| self.nominal_identity(target.owner()).declaration_id())

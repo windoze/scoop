@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "condition of override `read` must cover the entire inherited method condition",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 316,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 312
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Missing` does not implement abstract method `Abstract.read`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 499,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 467
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Missing` leaves interface method `Read.read` abstract",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 499,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 467
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "condition for inherited interface `Read` must be equivalent to its original implementation condition",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 587,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 536
+    },
+    "severity": "error"
+  }
+]

@@ -4,7 +4,9 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn direct_nominal_supertypes(&mut self, ty: TypeId) -> Vec<TypeId> {
-        self.direct_nominal_supertypes_for(self.types[ty].clone())
+        let mut parents = self.direct_nominal_supertypes_for(self.types[ty].clone());
+        parents.extend(self.assumed_conditional_parents(ty));
+        parents
     }
 
     pub(super) fn direct_nominal_supertypes_for(&mut self, ty: Type) -> Vec<TypeId> {
@@ -23,18 +25,25 @@ impl Lowerer {
                         .into_iter()
                         .map(|interface| self.instantiate_ty(interface, &application.arguments)),
                 );
+                result.extend(self.applicable_conditional_interfaces(
+                    &declaration.conditional_interfaces,
+                    &application.arguments,
+                ));
                 result
             }
             Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
-                let interfaces = self
-                    .struct_definition(application.template)
+                let definition = self.struct_definition(application.template).clone();
+                let mut interfaces = definition
                     .interfaces
-                    .clone();
-                interfaces
                     .into_iter()
                     .map(|interface| self.instantiate_ty(interface, &application.arguments))
-                    .collect()
+                    .collect::<Vec<_>>();
+                interfaces.extend(self.applicable_conditional_interfaces(
+                    &definition.conditional_interfaces,
+                    &application.arguments,
+                ));
+                interfaces
             }
             Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
@@ -47,6 +56,10 @@ impl Lowerer {
                 if let Some(kind) = definition.representation.integer_kind() {
                     parents.push(self.intern_type(Type::Integer(kind)));
                 }
+                parents.extend(self.applicable_conditional_interfaces(
+                    &definition.conditional_interfaces,
+                    &application.arguments,
+                ));
                 parents
             }
             Type::Interface(application) => {

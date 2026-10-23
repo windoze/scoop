@@ -65,13 +65,15 @@ fn shared_nominals_preserve_actual_dispatch_choices_for_all_concrete_owner_kinds
                                 hir::NominalDispatchSelectionRoleV1::ClassVtable => {
                                     hir::InheritanceSlotSchemaRoleV1::ClassVtable
                                 }
-                                hir::NominalDispatchSelectionRoleV1::Interface { interface } => {
-                                    hir::InheritanceSlotSchemaRoleV1::Interface {
-                                        interface_exact: metadata
-                                            .signature_exact_type(interface)
-                                            .unwrap(),
-                                    }
-                                }
+                                hir::NominalDispatchSelectionRoleV1::Interface { interface }
+                                | hir::NominalDispatchSelectionRoleV1::ConditionalInterface {
+                                    interface,
+                                    ..
+                                } => hir::InheritanceSlotSchemaRoleV1::Interface {
+                                    interface_exact: metadata
+                                        .signature_exact_type(interface)
+                                        .unwrap(),
+                                },
                             };
                             ((role, record.slot()), record.selection())
                         })

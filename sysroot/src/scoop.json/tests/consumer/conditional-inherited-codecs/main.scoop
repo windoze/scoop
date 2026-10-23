@@ -1,0 +1,49 @@
+package scoop.json.tests.consumer.conditional_inherited_codecs
+
+import scoop.json.Json
+import scoop.test.*
+
+private fun <T> write(value: Payload<T>, encoder: Encoder)
+    where T.Companion : ValueEncoder<T> {
+    val encode: (Payload<T>, Encoder) -> Unit = Derived<T>()::encode
+    encode(value, encoder)
+}
+
+@Test
+private class ConditionalInheritedCodecs {
+    @Test
+    fun ordinaryAndCompanionInheritanceRetainSeparateDirections() {
+        val value = Payload(7)
+        val text = Json.encodeToString(value, Derived<Int>())
+        assertEquals("{\"value\":7}", text)
+        assertTrue(Json.decodeFromString(text, Derived<Int>()) == value)
+        assertEquals("Payload<Int>(value=7)", DebugPrinter.format(Derived<Int>().inspect(value)))
+        assertEquals(text, Json.encodeToString(value, Host<Int>.Companion))
+        assertTrue(Json.decodeFromString(text, Host<Int>.Companion) == value)
+        assertEquals(text, Json.encodeToString(value, ValueEncoderFunction<Payload<Int>> { value, encoder -> write(value, encoder) }))
+    }
+
+    @Test
+    fun constructedBaseArgumentsKeepTheirCompanionConditions() {
+        val value = Payload(Wrapper("ok"))
+        val codec = Constructed<String>()
+        val text = Json.encodeToString(value, codec)
+        assertEquals("{\"value\":{\"value\":\"ok\"}}", text)
+        assertTrue(Json.decodeFromString(text, codec) == value)
+        assertEquals("Payload<Wrapper<String>>(value=Wrapper<String>(value=\"ok\"))", DebugPrinter.format(codec.inspect(value)))
+    }
+
+    @Test
+    fun unavailableCodecsLeaveOrdinaryTypesUsable() {
+        val ordinary: Any = Derived<Absent>()
+        val constructed: Any = Constructed<Absent>()
+        val companion: Any = Host<Absent>.Companion
+        assertTrue(!(ordinary is ValueEncoder<Payload<Absent>>))
+        assertTrue(!(ordinary is ValueDecoder<Payload<Absent>>))
+        assertTrue(!(ordinary is ValueInspector<Payload<Absent>>))
+        assertTrue(!(constructed is ValueEncoder<Payload<Wrapper<Absent>>>))
+        assertTrue(!(constructed is ValueDecoder<Payload<Wrapper<Absent>>>))
+        assertTrue(!(companion is ValueEncoder<Payload<Absent>>))
+        assertTrue(companion === Host<Absent>.Companion)
+    }
+}

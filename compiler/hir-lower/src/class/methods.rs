@@ -35,7 +35,7 @@ impl Lowerer {
         }
         self.check_method_body_shape(id, decl, owner);
 
-        let mut type_params = self.owner_type_params(owner);
+        let mut type_params = self.method_type_parameter_environment(id, owner);
         let owner_type_param_count = type_params.len();
         for param in &decl.type_params {
             if type_params

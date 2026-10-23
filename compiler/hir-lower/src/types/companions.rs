@@ -17,6 +17,7 @@ impl Lowerer {
                 .type_params_in_scope
                 .iter()
                 .any(|p| p.id == parameter && p.companion.is_some())
+                || self.assumed_conditional_companion(host)
             {
                 return Ok(self.intern_type(Type::Companion(parameter)));
             }
@@ -25,7 +26,38 @@ impl Lowerer {
                 self.type_name(host)
             ));
         }
-        let companion = if let Some(target) = self.nominal_target_for_type(host) {
+        let companion = self.public_companion_declaration(host);
+        let companion = companion.ok_or_else(|| {
+            format!(
+                "static type `{}` has no public companion",
+                self.type_name(host)
+            )
+        })?;
+        let arguments = self
+            .nominal_application(host)
+            .map_or_else(Vec::new, |application| application.arguments);
+        let ty = self
+            .apply_nominal_type(companion, arguments)
+            .map_err(|error| format!("cannot apply companion: {error:?}"))?;
+        // An open body can evaluate this projection only after concretization.
+        // Retain the existing generic singleton template for that substitution;
+        // loading it does not execute its initialization unit.
+        if let hir::SourceNominalId::GenericTemplate(owner) = companion
+            && self
+                .dependencies
+                .as_ref()
+                .is_some_and(|dependencies| dependencies.nominal_declaration(companion).is_some())
+        {
+            self.request_imported_companion(owner)?;
+        }
+        Ok(ty)
+    }
+
+    pub(crate) fn public_companion_declaration(
+        &self,
+        host: TypeId,
+    ) -> Option<hir::SourceNominalId> {
+        if let Some(target) = self.nominal_target_for_type(host) {
             let object = self.companion_object(target.owner());
             object
                 .filter(|object| {
@@ -65,31 +97,7 @@ impl Lowerer {
                 })
         } else {
             None
-        };
-        let companion = companion.ok_or_else(|| {
-            format!(
-                "static type `{}` has no public companion",
-                self.type_name(host)
-            )
-        })?;
-        let arguments = self
-            .nominal_application(host)
-            .map_or_else(Vec::new, |application| application.arguments);
-        let ty = self
-            .apply_nominal_type(companion, arguments)
-            .map_err(|error| format!("cannot apply companion: {error:?}"))?;
-        // An open body can evaluate this projection only after concretization.
-        // Retain the existing generic singleton template for that substitution;
-        // loading it does not execute its initialization unit.
-        if let hir::SourceNominalId::GenericTemplate(owner) = companion
-            && self
-                .dependencies
-                .as_ref()
-                .is_some_and(|dependencies| dependencies.nominal_declaration(companion).is_some())
-        {
-            self.request_imported_companion(owner)?;
         }
-        Ok(ty)
     }
 
     pub(super) fn resolve_parameter_companion(

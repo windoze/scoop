@@ -5,6 +5,7 @@ use super::*;
 use std::sync::Arc;
 
 mod classes;
+mod conditional;
 mod dispatch;
 mod enums;
 mod parameters;

@@ -338,6 +338,15 @@ impl Lowerer {
         }
         let left_arguments = self.callable_candidate_owner_arguments(left);
         let right_arguments = self.callable_candidate_owner_arguments(right);
+        // Keep inapplicable candidates for normal bound diagnostics, but they
+        // cannot hide another member or require an unavailable projection.
+        for (candidate, arguments) in [(left, &left_arguments), (right, &right_arguments)] {
+            if let Some(condition) = self.local_member_condition(candidate.function, arguments)
+                && self.conditional_application_is_impossible(&condition)
+            {
+                return false;
+            }
+        }
         let canonical_method_parameters = match &self.functions[left.function].genericity {
             hir::FunctionGenericity::GenericMethod {
                 method_parameters, ..

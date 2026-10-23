@@ -1,0 +1,13 @@
+interface Reading { public fun read(): Int = 1 }
+struct Direct<T>() {
+    override interface Reading {}
+}
+struct Host<T>() {
+    public companion object {
+        override interface Reading {}
+    }
+}
+struct Empty<T>() {
+    override interface Reading where {}
+}
+fun main() {}

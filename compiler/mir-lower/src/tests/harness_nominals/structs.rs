@@ -70,6 +70,7 @@ impl Harness {
             derived_equality: None,
             span: SPAN,
             definition: hir::StructDefinition {
+                conditional_interfaces: Vec::new(),
                 self_application,
                 type_params,
                 representation: hir::StructRepresentation::Declared(
@@ -112,6 +113,7 @@ impl Harness {
             derived_equality: None,
             span: SPAN,
             definition: hir::StructDefinition {
+                conditional_interfaces: Vec::new(),
                 self_application,
                 type_params: Vec::new(),
                 representation: hir::StructRepresentation::Intrinsic(declaration),
@@ -152,6 +154,7 @@ impl Harness {
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             definition: hir::ClassDefinition {
+                conditional_interfaces: Vec::new(),
                 inheritance_family: Default::default(),
                 release_policy: Default::default(),
                 modifier: hir::ClassModifier::Final,
@@ -226,7 +229,11 @@ impl Harness {
                     target,
                 });
             }
-            implementations.push(hir::InterfaceImplementation { interface, methods });
+            implementations.push(hir::InterfaceImplementation {
+                condition: None,
+                interface,
+                methods,
+            });
         }
         implementations
     }

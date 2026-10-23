@@ -1,0 +1,30 @@
+package test.m57.program
+
+import scoop.json.Json
+import test.m57.provider.*
+import test.m57.left.codec as leftCodec
+import test.m57.right.codec as rightCodec
+
+class LocalCodec<T> : CodecBase<T>()
+class LocalWrappedCodec<T> : CodecBase<Envelope<T>>()
+struct LocalCodecHost<T>() { public companion object : CodecBase<T>() }
+
+fun inheritedCodecs(): Boolean {
+    val value = Envelope(7)
+    val text = Json.encodeToString(value, InheritedCodec<Int>())
+    if (text != "{\"value\":7}") return false
+    if (Json.decodeFromString(text, LocalCodec<Int>()).value != 7) return false
+    if (Json.decodeFromString(text, CodecHost<Int>.Companion).value != 7) return false
+    if (Json.encodeToString(value, LocalCodecHost<Int>.Companion) != text) return false
+    if (Json.encodeToString(value, KnownCodec()) != text) return false
+    val wrap = Envelope(value)
+    val nested = Json.encodeToString(wrap, WrappedCodec<Int>())
+    if (Json.decodeFromString(nested, LocalWrappedCodec<Int>()).value.value != 7) return false
+    if (Json.decodeFromString(nested, WrappedCodec<Int>()).value.value != 7) return false
+    val encode: (Envelope<Int>, Encoder) -> Unit = InheritedCodec<Int>()::encode
+    if (Json.encodeToString(value, ValueEncoderFunction<Envelope<Int>>(encode)) != text) return false
+    val absent: Any = WrappedCodec<Plain>()
+    if (absent is ValueEncoder<Envelope<Envelope<Plain>>>) return false
+    if (absent is ValueDecoder<Envelope<Envelope<Plain>>>) return false
+    return Json.encodeToString(value, leftCodec()) == Json.encodeToString(value, rightCodec())
+}

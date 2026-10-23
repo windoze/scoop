@@ -1,0 +1,7 @@
+interface Mark {}
+interface Read {}
+struct Box<T>(val value: T) {
+    override interface Mark where T : Read {}
+    override interface Mark where T : Read, T : Hash {}
+}
+fun main() {}

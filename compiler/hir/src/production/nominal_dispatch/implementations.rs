@@ -9,7 +9,38 @@ impl Projection<'_> {
         selections: &mut Selections,
     ) -> Result<(), Error> {
         for implementation in implementations {
-            let role = self.interface_role(implementation.interface)?;
+            let role = if let Some(condition) = &implementation.condition {
+                SelectionRole::ConditionalInterface {
+                    interface: self.type_key(implementation.interface)?,
+                    condition: ConditionalInterfaceApplicationV1 {
+                        declaration: condition.declaration,
+                        owner: match condition.owner {
+                            SourceNominalId::Concrete(owner) => {
+                                scoop_identity::SignatureTypeKey::Nominal(owner)
+                            }
+                            SourceNominalId::GenericTemplate(origin) => {
+                                scoop_identity::SignatureTypeKey::NominalApplication {
+                                    origin,
+                                    arguments: scoop_identity::NonEmptyVec::new(
+                                        condition
+                                            .arguments
+                                            .iter()
+                                            .map(|&argument| self.type_key(argument))
+                                            .collect::<Result<_, _>>()?,
+                                    )
+                                    .map_err(|_| {
+                                        invalid(
+                                            "conditional owner is missing its original arguments",
+                                        )
+                                    })?,
+                                }
+                            }
+                        },
+                    },
+                }
+            } else {
+                self.interface_role(implementation.interface)?
+            };
             for method in &implementation.methods {
                 let slot = self.interface_slot(method.member)?;
                 let selection = match method.target {

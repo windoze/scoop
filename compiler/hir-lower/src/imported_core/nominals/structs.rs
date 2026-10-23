@@ -92,6 +92,7 @@ impl Lowerer {
                 context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::StructDefinition {
+                    conditional_interfaces: Vec::new(),
                     gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
                         &declaration,
                         &type_params,
@@ -128,6 +129,13 @@ impl Lowerer {
             .expect("the struct builder registered its identity")
             .definition
             .type_params = type_params.clone();
+        let conditional_interfaces =
+            self.load_imported_conditional_interfaces(&declaration, &type_params, &bindings, span)?;
+        self.loaded_struct_definitions
+            .get_mut(&owner)
+            .expect("the struct builder registered its identity")
+            .definition
+            .conditional_interfaces = conditional_interfaces;
         if let hir::NominalSourceShapeV1::Struct(shape) = declaration.interface.source_shape() {
             let fields = shape
                 .fields()

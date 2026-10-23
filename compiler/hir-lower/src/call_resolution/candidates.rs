@@ -151,6 +151,11 @@ impl Lowerer {
         CallableView {
             target,
             signature: crate::call_resolution::candidates::DeclarationSignature {
+                availability: self.functions[function].method.and_then(|method| {
+                    method
+                        .availability
+                        .filter(|guard| guard.owner != method.owner)
+                }),
                 owner_parameters: signature.type_params[..owner_count].to_vec(),
                 callable_parameters: signature.type_params[owner_count..].to_vec(),
                 value_parameters: signature
@@ -199,6 +204,7 @@ impl Lowerer {
                 NominalConstructorView {
                     target,
                     signature: crate::call_resolution::candidates::DeclarationSignature {
+                        availability: None,
                         owner_parameters: declaration.type_params.clone(),
                         callable_parameters: Vec::new(),
                         value_parameters: constructor
@@ -236,6 +242,7 @@ impl Lowerer {
                 NominalConstructorView {
                     target,
                     signature: crate::call_resolution::candidates::DeclarationSignature {
+                        availability: None,
                         owner_parameters: declaration.type_params.clone(),
                         callable_parameters: Vec::new(),
                         value_parameters: constructor
@@ -300,6 +307,7 @@ impl Lowerer {
                 NominalConstructorView {
                     target,
                     signature: crate::call_resolution::candidates::DeclarationSignature {
+                        availability: None,
                         owner_parameters: declaration.type_params.clone(),
                         callable_parameters: Vec::new(),
                         value_parameters: declaration.variants[variant_index as usize]

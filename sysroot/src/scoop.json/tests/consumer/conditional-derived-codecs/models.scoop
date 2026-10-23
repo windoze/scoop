@@ -1,0 +1,54 @@
+package scoop.json.tests.consumer.conditional_derived_codecs
+
+import scoop.collections.HashMap
+
+struct Envelope<T>(val value: T) {
+    public companion object {
+        override interface ValueEncoder<Envelope<T>> where T.Companion : ValueEncoder<T> {}
+        override interface ValueDecoder<Envelope<T>> where T.Companion : ValueDecoder<T> {}
+    }
+}
+
+struct Nested<T>(val value: Envelope<T>, val values: HashMap<Int, T>) {
+    public companion object {
+        override interface ValueEncoder<Nested<T>> where T.Companion : ValueEncoder<T> {}
+        override interface ValueDecoder<Nested<T>> where T.Companion : ValueDecoder<T> {}
+    }
+}
+
+class Node<T>(public val value: T, public val next: Node<T>? = None) {
+    public companion object {
+        override interface ValueEncoder<Node<T>> where T.Companion : ValueEncoder<T> {}
+        override interface ValueDecoder<Node<T>> where T.Companion : ValueDecoder<T> {}
+    }
+}
+
+class SuppliedEncoder<T>(private val element: ValueEncoder<T>) {
+    override interface ValueEncoder<Envelope<T>> where T.Companion : ValueEncoder<T> {}
+}
+
+class SuppliedDecoder<T>(private val element: ValueDecoder<T>) {
+    override interface ValueDecoder<Envelope<T>> where T.Companion : ValueDecoder<T> {}
+}
+
+struct Manual<T>(val value: T) {
+    public companion object {
+        override interface ValueEncoder<Manual<T>> where T.Companion : ValueEncoder<T> {
+            public override fun encode(value: Manual<T>, encoder: Encoder) { Int.encode(99, encoder) }
+        }
+    }
+}
+
+struct WriteOnly(val number: Int) {
+    public companion object : ValueEncoder<WriteOnly> {
+        public override fun encode(value: WriteOnly, encoder: Encoder) { Int.encode(value.number, encoder) }
+    }
+}
+
+struct ReadOnly(val number: Int) {
+    public companion object : ValueDecoder<ReadOnly> {
+        public override fun decode(decoder: Decoder): ReadOnly = ReadOnly(Int.decode(decoder))
+    }
+}
+
+struct Plain(val number: Int)

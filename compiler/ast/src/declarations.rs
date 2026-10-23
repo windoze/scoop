@@ -9,6 +9,8 @@ mod classes;
 pub use classes::*;
 mod local_types;
 pub use local_types::*;
+mod interface_implementations;
+pub use interface_implementations::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceFile {
@@ -217,6 +219,7 @@ pub enum StructMember {
     Property(Box<PropertyDecl>),
     Nested(Box<NestedTypeDecl>),
     Companion(Box<CompanionObjectDecl>),
+    InterfaceImplementation(Box<InterfaceImplementationDecl>),
 }
 
 impl StructMember {
@@ -227,6 +230,7 @@ impl StructMember {
             Self::Property(property) => property.span,
             Self::Nested(declaration) => declaration.span(),
             Self::Companion(companion) => companion.span,
+            Self::InterfaceImplementation(implementation) => implementation.span,
         }
     }
 }
@@ -366,6 +370,7 @@ pub struct EnumDecl {
     pub properties: Vec<PropertyDecl>,
     pub nested: Vec<NestedTypeDecl>,
     pub companion: Option<CompanionObjectDecl>,
+    pub interface_implementations: Vec<InterfaceImplementationDecl>,
     pub span: Span,
 }
 
@@ -428,6 +433,7 @@ impl StructDecl {
             StructMember::SecondaryConstructor(_)
             | StructMember::Property(_)
             | StructMember::Nested(_)
+            | StructMember::InterfaceImplementation(_)
             | StructMember::Companion(_) => None,
         })
     }
@@ -438,6 +444,7 @@ impl StructDecl {
             StructMember::Function(_)
             | StructMember::Property(_)
             | StructMember::Nested(_)
+            | StructMember::InterfaceImplementation(_)
             | StructMember::Companion(_) => None,
         })
     }

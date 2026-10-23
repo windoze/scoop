@@ -2,6 +2,7 @@ use super::*;
 
 mod constructors;
 mod definition;
+mod interfaces;
 
 use definition::{ResolvedClassDefinition, ResolvedClassRepresentation};
 
@@ -159,30 +160,30 @@ impl Concretizer<'_> {
             .into_iter()
             .map(concrete::ClassMethod::Local)
             .collect::<Vec<_>>();
-        let direct_interfaces: Vec<_> = definition
-            .interfaces
-            .iter()
-            .map(|interface| self.lower_type(*interface, substitution))
-            .collect();
-        methods.extend(
-            definition
-                .virtual_methods
-                .iter()
-                .map(|method| match method.callable {
-                    export::ImportedDispatchCallable::External(callable) => {
-                        concrete::ClassMethod::Imported {
-                            family: self.lower_virtual_method(method.family),
-                            callable: self.imported_dependency_callable_map[&callable],
-                        }
-                    }
-                    export::ImportedDispatchCallable::Template(application) => {
-                        concrete::ClassMethod::Local(self.lower_imported_callable_application(
-                            &self.source.imported_generic_applications[application],
-                            substitution,
-                        ))
-                    }
-                }),
+        let direct_interfaces = self.concrete_direct_interfaces(
+            definition.conditional_interfaces,
+            definition.interfaces,
+            substitution,
         );
+        methods.extend(definition.virtual_methods.iter().filter_map(|method| {
+            if !self.imported_virtual_method_applies(method.callable, substitution) {
+                return None;
+            }
+            Some(match method.callable {
+                export::ImportedDispatchCallable::External(callable) => {
+                    concrete::ClassMethod::Imported {
+                        family: self.lower_virtual_method(method.family),
+                        callable: self.imported_dependency_callable_map[&callable],
+                    }
+                }
+                export::ImportedDispatchCallable::Template(application) => {
+                    concrete::ClassMethod::Local(self.lower_imported_callable_application(
+                        &self.source.imported_generic_applications[application],
+                        substitution,
+                    ))
+                }
+            })
+        }));
         let interface_implementations = self
             .lower_interface_implementations(definition.interface_implementations, substitution);
         self.classes[id].interfaces = interface_implementations
@@ -205,14 +206,18 @@ impl Concretizer<'_> {
         owner: concrete::MethodOwner,
     ) -> Vec<concrete::FunctionId> {
         let substitution = self.concrete_method_owner_arguments(owner).to_vec();
-        for &method in source_methods {
-            self.check_source_method_context(method, &substitution);
-        }
         source_methods
             .iter()
             .copied()
             .filter_map(|method| {
                 let function = &self.source.functions[method];
+                if let Some(guard) = function.method.and_then(|method| method.availability) {
+                    let condition = self.source.conditional_guard_application(guard);
+                    if !self.concrete_implementation_applies(&condition, &substitution) {
+                        return None;
+                    }
+                }
+                self.check_source_method_context(method, &substitution);
                 if !self.automatic_method(method) {
                     return None;
                 }
@@ -226,68 +231,6 @@ impl Concretizer<'_> {
                         unreachable!("nominal method lists do not contain generic functions")
                     }
                 }
-            })
-            .collect()
-    }
-
-    pub(super) fn lower_interface_implementations(
-        &mut self,
-        source_implementations: &[export::InterfaceImplementation],
-        substitution: &[concrete::TypeId],
-    ) -> Vec<concrete::InterfaceImplementation> {
-        source_implementations
-            .iter()
-            .cloned()
-            .map(|implementation| {
-                let interface = self.lower_interface_type(implementation.interface, substitution);
-                let methods = implementation
-                    .methods
-                    .into_iter()
-                    .map(|method| {
-                        let source_slot = self.interface_reference_slot(method.member);
-                        let slot = self.interface_slot_by_source[&(interface, source_slot)];
-                        let target = match method.target {
-                            export::InterfaceImplementationTarget::ImportedTemplate(
-                                application,
-                            ) => concrete::InterfaceImplementationTarget::Method(
-                                self.lower_imported_callable_application(
-                                    &self.source.imported_generic_applications[application],
-                                    substitution,
-                                ),
-                            ),
-                            export::InterfaceImplementationTarget::ImportedAbstractTemplate(
-                                application,
-                            ) => concrete::InterfaceImplementationTarget::Abstract {
-                                declaration: self.lower_imported_callable_application(
-                                    &self.source.imported_generic_applications[application],
-                                    substitution,
-                                ),
-                            },
-                            export::InterfaceImplementationTarget::Method(application) => {
-                                let concrete::Callable::Function(function) =
-                                    self.lower_method_application(application, substitution);
-                                concrete::InterfaceImplementationTarget::Method(function)
-                            }
-                            export::InterfaceImplementationTarget::Imported(callable) => {
-                                concrete::InterfaceImplementationTarget::Imported(
-                                    self.imported_dependency_callable_map[&callable],
-                                )
-                            }
-                            export::InterfaceImplementationTarget::ImportedAbstract(callable) => {
-                                concrete::InterfaceImplementationTarget::ImportedAbstract {
-                                    declaration: self.imported_dependency_callable_map[&callable],
-                                }
-                            }
-                            export::InterfaceImplementationTarget::Abstract(application) => {
-                                let concrete::Callable::Function(declaration) =
-                                    self.lower_method_application(application, substitution);
-                                concrete::InterfaceImplementationTarget::Abstract { declaration }
-                            }
-                        };
-                        concrete::InterfaceMethodImplementation { slot, target }
-                    })
-                    .collect();
-                concrete::InterfaceImplementation { interface, methods }
             })
             .collect()
     }

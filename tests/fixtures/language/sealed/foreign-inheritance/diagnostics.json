@@ -11,5 +11,18 @@
       "start": 65
     },
     "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a direct subtype of sealed `Result<T>` must be a named non-local declaration in the same origin Cone and package",
+    "notes": [],
+    "origin": {
+      "cone": "b628d73c0e833be22c75a45a8187c7469fbe81d50dddc220c4d6b5eac2d2458e",
+      "end": 150,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 140
+    },
+    "severity": "error"
   }
 ]

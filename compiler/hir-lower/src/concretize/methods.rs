@@ -128,7 +128,7 @@ impl Concretizer<'_> {
         }
     }
 
-    fn concrete_bound_conformances(
+    pub(super) fn concrete_bound_conformances(
         &mut self,
         receiver: concrete::TypeId,
     ) -> Vec<concrete::InterfaceImplementation> {

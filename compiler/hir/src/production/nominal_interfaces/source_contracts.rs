@@ -8,6 +8,7 @@ use scoop_wire::WirePath;
 type Error = CrossConeTypeSemanticsProductionError;
 
 mod class_primary;
+mod conditional;
 mod constructors;
 mod declarations;
 mod dispatch_order;

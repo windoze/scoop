@@ -30,6 +30,7 @@ impl Harness {
             span: SPAN,
 
             definition: hir::EnumDefinition {
+                conditional_interfaces: Vec::new(),
                 representation: hir::EnumRepresentation::Algebraic,
                 self_application: option_self_application,
                 type_params: vec![type_param("T")],

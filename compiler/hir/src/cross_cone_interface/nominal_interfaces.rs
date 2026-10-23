@@ -15,7 +15,9 @@ use super::{
 };
 use crate::BinderListValidationError;
 
+mod conditional;
 mod declaration;
+pub use conditional::*;
 mod dispatch;
 mod errors;
 mod field_inventory;
@@ -64,6 +66,17 @@ impl NominalInterfaceRecordV1 {
         source_shape: NominalSourceShapeV1,
         details: NominalDeclarationDetailsV1,
     ) -> Result<Self, NominalInterfaceRecordBuildError> {
+        let mut conditions = std::collections::BTreeSet::new();
+        for condition in details.conditional_interfaces() {
+            if kind == PublicNominalKindV1::Interface
+                || matches!(source_shape, NominalSourceShapeV1::Intrinsic(_))
+                || condition.parameters().binders().len() != type_parameters.binders().len()
+                || condition.key(declaration).id() != condition.id()
+                || !conditions.insert(condition.id())
+            {
+                return Err(NominalInterfaceRecordBuildError::ConditionalInterface);
+            }
+        }
         if source_shape.kind() != kind {
             return Err(NominalInterfaceRecordBuildError::SourceShapeKind {
                 expected: kind,

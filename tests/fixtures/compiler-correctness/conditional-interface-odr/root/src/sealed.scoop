@@ -1,0 +1,18 @@
+package test.m57.program
+
+import test.m57.provider.*
+
+private fun <T> classifySealed(value: SealedRoot<T>): Int = when (value) {
+    is SealedAlways<T> -> 1
+    is SealedTag -> 2
+    is SealedHost<T>.Companion -> 3
+}
+private fun absentSealed(value: SealedRoot<SealedAbsent<Int>>): Int = when (value) {
+    is SealedAlways<SealedAbsent<Int>> -> 4
+}
+fun conditionalSealed(): Boolean =
+    classifySealed(SealedAlways<SealedSeed<Int>>()) == 1 &&
+    classifySealed(SealedValue(SealedSeed<Int>())) == 2 &&
+    classifySealed(SealedHost<SealedSeed<Int>>.Companion) == 3 &&
+    absentSealed(SealedAlways<SealedAbsent<Int>>()) == 4 &&
+    classifySealed(hiddenSealed()) == 2

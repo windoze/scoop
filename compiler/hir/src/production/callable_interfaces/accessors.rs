@@ -177,6 +177,17 @@ fn finish(
             Vec::new()
         }
     };
+    let availability = match implementation {
+        PropertyAccessorImplementation::Body(function)
+        | PropertyAccessorImplementation::StorageBody(function)
+        | PropertyAccessorImplementation::AbstractSlot(function) => {
+            super::functions::project_availability(
+                projection,
+                &projection.export.functions[function],
+            )?
+        }
+        PropertyAccessorImplementation::Storage | PropertyAccessorImplementation::Constant => None,
+    };
     crate::CallableDeclarationRecordV1::try_new(
         CallableTemplateOrigin::Accessor(accessor),
         interface.owner(),
@@ -190,6 +201,7 @@ fn finish(
         super::slots::accessor(projection.export, implementation)?,
         context_parameters,
     )
+    .map(|record| record.with_availability(availability))
     .map_err(CallableProjectionError::Record)
 }
 

@@ -1,6 +1,32 @@
 use super::*;
 
 impl<'a> StaticNominalShape<'a> {
+    pub fn conditional_interface_annotations(
+        self,
+        index: usize,
+        world: &ImportedSemanticWorld<'a>,
+    ) -> &'a [TypeAnnotationNode] {
+        let ordinary = self.interfaces(world).len() + usize::from(self.base_class(world).is_some());
+        let slot = AnnotationTypeSlot::Supertype((ordinary + index) as u32);
+        let target = match self.origin {
+            StaticNominalOrigin::Current(owner) => {
+                StaticAnnotationTarget::Current(SourceAnnotationTarget::Nominal(owner))
+            }
+            StaticNominalOrigin::Dependency(owner) => {
+                let owner = match owner {
+                    SourceNominalId::Concrete(id) => {
+                        scoop_identity::NominalDeclarationOwner::Concrete(id)
+                    }
+                    SourceNominalId::GenericTemplate(id) => {
+                        scoop_identity::NominalDeclarationOwner::GenericTemplate(id)
+                    }
+                };
+                StaticAnnotationTarget::Dependency(AnnotationTargetV1::Nominal(owner))
+            }
+        };
+        target.type_annotations(self, world, slot)
+    }
+
     pub fn companion_host(self) -> Option<SourceNominalId> {
         match self.origin {
             StaticNominalOrigin::Current(NominalOwner::Object(id)) => {

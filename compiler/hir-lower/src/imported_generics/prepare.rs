@@ -75,10 +75,18 @@ impl Lowerer {
         let source = PreparedImportedCallableSource::Declaration(Box::new(declaration.clone()));
         let origin = self.import_generic_definition(&source, body.definition_origin())?;
         let span = origin.span;
-        let binders = nominal
+        let owner_parameters = nominal
             .as_ref()
+            .map(|nominal| {
+                nominal
+                    .interface
+                    .member_owner_parameters(interface.availability())
+                    .ok_or("dependency member names an absent conditional implementation")
+            })
+            .transpose()?;
+        let binders = owner_parameters
             .into_iter()
-            .flat_map(|nominal| nominal.interface.type_parameters().binders())
+            .flat_map(|parameters| parameters.binders())
             .chain(
                 extension
                     .as_ref()
@@ -130,6 +138,7 @@ impl Lowerer {
         let (no_gc_type_params, gc_free_pointee_requirements) =
             self.imported_body_predicates(body, &bindings)?;
         let signature = hir::ImportedGenericCallableSignature {
+            availability: self.import_member_guard(interface, &bindings)?,
             declaration: identity,
             signature: hir::CallableSignature::from_source_effects(
                 declaration.name().to_owned(),

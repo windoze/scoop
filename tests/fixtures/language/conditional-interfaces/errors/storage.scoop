@@ -1,0 +1,7 @@
+interface Reading { public val number: Int }
+struct Box<T>(val value: T) {
+    override interface Reading where T : ref {
+        public override val number: Int = 1
+    }
+}
+fun main() {}

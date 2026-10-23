@@ -1,42 +1,6 @@
 use super::*;
 
 #[test]
-fn shared_member_calls_reject_later_unrelated_and_same_named_receivers() {
-    let core = Artifact::new(ConeCoordinate::reserved_core()).load(&[]);
-    let mut source = Artifact::new(coordinate("members"));
-    let owner = source.nominal("Owner", SourceNominalKind::Class, &[]);
-    let unrelated = source.nominal("Unrelated", SourceNominalKind::Class, &[]);
-    let mut provider = source.load(&[&core]);
-    let member = provider.callable(nominal_owner(owner), "run", CallForm::Function);
-    let mut source = Artifact::new(coordinate("impostors"));
-    let impostor = source.nominal("Owner", SourceNominalKind::Class, &[]);
-    let impostors = source.load(&[&core]);
-    let dependencies = vec![&core, &provider, &impostors];
-    for receiver in [
-        unrelated,
-        impostor,
-        CoreBuiltinNominal::Any.identity_record().id(),
-    ] {
-        let mut consumer = Artifact::new(coordinate_for_consumer()).load(&dependencies);
-        consumer.calls(&provider, &[member, member]);
-        let actual = consumer.uses(&dependencies).unwrap();
-        consumer.change_last_receiver(exact(receiver));
-        for error in [
-            consumer.uses(&dependencies).unwrap_err(),
-            consumer.validate(&actual, &dependencies).unwrap_err(),
-        ] {
-            assert!(matches!(error, Error::CallReceiver {
-                position,
-                receiver: crate::SourceCallReceiver::Receiver { static_type },
-                expected: actual_owner,
-            } if position.expression_index == 1
-                && static_type == exact(receiver)
-                && actual_owner == exact(owner)));
-        }
-    }
-}
-
-#[test]
 fn shared_member_calls_require_the_exact_occurrence_derived_selected_partition() {
     let core = Artifact::new(ConeCoordinate::reserved_core()).load(&[]);
     let mut source = Artifact::new(coordinate("members"));

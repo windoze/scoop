@@ -252,10 +252,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 7416,
+      "end": 7449,
       "kind": "source",
       "path": "src/integer_int.scoop",
-      "start": 7313
+      "start": 7346
     },
     "severity": "error"
   },
@@ -265,10 +265,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 7657,
+      "end": 7690,
       "kind": "source",
       "path": "src/integer_int16.scoop",
-      "start": 7552
+      "start": 7585
     },
     "severity": "error"
   },
@@ -278,10 +278,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 7562,
+      "end": 7595,
       "kind": "source",
       "path": "src/integer_int8.scoop",
-      "start": 7458
+      "start": 7491
     },
     "severity": "error"
   },
@@ -291,10 +291,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 7497,
+      "end": 7530,
       "kind": "source",
       "path": "src/integer_long.scoop",
-      "start": 7402
+      "start": 7435
     },
     "severity": "error"
   },
@@ -304,10 +304,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 7246,
+      "end": 7279,
       "kind": "source",
       "path": "src/integer_uint.scoop",
-      "start": 7139
+      "start": 7172
     },
     "severity": "error"
   },
@@ -317,10 +317,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 7480,
+      "end": 7513,
       "kind": "source",
       "path": "src/integer_uint16.scoop",
-      "start": 7371
+      "start": 7404
     },
     "severity": "error"
   },
@@ -330,10 +330,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 7387,
+      "end": 7420,
       "kind": "source",
       "path": "src/integer_uint8.scoop",
-      "start": 7279
+      "start": 7312
     },
     "severity": "error"
   },
@@ -343,10 +343,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 7311,
+      "end": 7344,
       "kind": "source",
       "path": "src/integer_ulong.scoop",
-      "start": 7213
+      "start": 7246
     },
     "severity": "error"
   },
@@ -356,10 +356,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 2975,
+      "end": 3041,
       "kind": "source",
       "path": "src/types.scoop",
-      "start": 2876
+      "start": 2942
     },
     "severity": "error"
   },

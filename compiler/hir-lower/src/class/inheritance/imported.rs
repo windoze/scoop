@@ -72,12 +72,27 @@ impl Lowerer {
                 {
                     continue;
                 }
-                let signature = self.imported_inheritance_signature(
-                    name,
-                    accessor,
-                    callable,
-                    &application.arguments,
-                );
+                let condition = self.imported_member_condition(callable, ty);
+                if condition
+                    .as_ref()
+                    .is_some_and(|condition| self.conditional_application_is_impossible(condition))
+                {
+                    continue;
+                }
+                let signature = |state: &mut Self| {
+                    state.imported_inheritance_signature(
+                        name,
+                        accessor,
+                        callable,
+                        &application.arguments,
+                    )
+                };
+                let signature = match condition {
+                    Some(condition) => {
+                        self.with_conditional_interface_assumptions(&condition, signature)
+                    }
+                    None => signature(self),
+                };
                 let Some(signature) = signature else {
                     self.error(span, format!("invalid inherited signature for `{name}`"));
                     continue;

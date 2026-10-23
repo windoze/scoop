@@ -13,10 +13,12 @@ pub(in crate::production::type_semantics) use selections::project as slot_select
 
 pub(super) fn project(
     export: &ExportHir,
+    local: &LocalConcreteHir,
     nominal: &ConcreteNominal<'_>,
 ) -> Result<CanonicalInheritanceSlotSchemasV1, Error> {
     let mut projection = Projection {
         export,
+        local,
         owner: nominal.exact,
     };
     let mut schemas = Vec::new();
@@ -43,15 +45,16 @@ pub(super) fn project(
     };
     for conformance in conformances {
         let interface_exact = exact(export, conformance.interface)?;
+        let role = InheritanceSlotSchemaRoleV1::Interface { interface_exact };
+        if schemas.iter().any(|schema| schema.role() == role) {
+            continue;
+        }
         let slots = conformance
             .methods
             .iter()
             .map(|method| projection.interface_slot(method.member))
             .collect::<Result<Vec<_>, Error>>()?;
-        let schema = projection.schema(
-            InheritanceSlotSchemaRoleV1::Interface { interface_exact },
-            slots,
-        )?;
+        let schema = projection.schema(role, slots)?;
         projection.push(&mut schemas, schema)?;
     }
 
@@ -60,6 +63,7 @@ pub(super) fn project(
 
 struct Projection<'a> {
     export: &'a ExportHir,
+    local: &'a LocalConcreteHir,
     owner: PersistentExactTypeId,
 }
 

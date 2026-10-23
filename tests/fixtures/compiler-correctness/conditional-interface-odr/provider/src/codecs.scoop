@@ -1,0 +1,10 @@
+package test.m57.provider
+
+public abstract class CodecBase<T> protected constructor() {
+    override interface ValueEncoder<Envelope<T>> where T.Companion : ValueEncoder<T> {}
+    override interface ValueDecoder<Envelope<T>> where T.Companion : ValueDecoder<T> {}
+}
+public class InheritedCodec<T> public constructor() : CodecBase<T>()
+public class WrappedCodec<T> public constructor() : CodecBase<Envelope<T>>()
+public class KnownCodec public constructor() : CodecBase<Int>()
+public struct CodecHost<T>() { public companion object : CodecBase<T>() }

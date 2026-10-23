@@ -1,0 +1,24 @@
+package test.m57.provider
+
+@Target([AnnotationTarget.Type])
+public annotation class Use(val text: String)
+public annotation class Tag(val text: String)
+public interface DescribedValue<C> { public val described: C }
+public interface DescribedMarker {}
+public struct HasDescription() { public companion object : DescribedMarker }
+
+public class Described<T> {
+    public val before: Int = 0
+    override interface @Use("projection") DescribedValue<T.Companion>
+        where T.Companion : DescribedMarker {
+        @Tag("property")
+        public override val described: @Use("value") T.Companion
+            @Tag("getter") get() { throw IllegalStateException() }
+    }
+    public val after: Int = 2
+    public companion object {
+        override interface @Use("companion") DescribedMarker where T : Hash {}
+    }
+}
+
+public fun <T> publishedDescription(): TypeInfo<Described<T>> = typeInfo<Described<T>>()

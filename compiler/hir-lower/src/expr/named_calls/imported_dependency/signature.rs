@@ -163,6 +163,7 @@ impl Lowerer {
             .collect::<Result<Vec<_>, _>>()?;
         let value_parameters = self.imported_parameter_views(candidate, types);
         Ok(DeclarationSignature {
+            availability: None,
             owner_parameters: Vec::new(),
             callable_parameters: Vec::new(),
             value_parameters,

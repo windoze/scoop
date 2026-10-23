@@ -403,6 +403,7 @@ impl Lowerer {
             declaration_inference: Default::default(),
             pending_raw_initializers: Vec::new(),
             type_params_in_scope: Vec::new(),
+            conditional_interfaces: Default::default(),
             deferred_type_bounds: None,
             current_return_ty: unit,
             return_inference: None,

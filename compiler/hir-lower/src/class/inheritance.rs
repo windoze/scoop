@@ -57,6 +57,7 @@ impl Lowerer {
         for (owner, file) in owners {
             self.current_file = file;
             self.current_owner = Some(owner);
+            self.type_params_in_scope = self.owner_type_params(owner);
             let before_delegation = self.diagnostics.len();
             let forwarders = self.declare_interface_forwarders(owner);
             let delegation_failed = self.diagnostics.len() != before_delegation;
@@ -65,6 +66,8 @@ impl Lowerer {
                 .iter()
                 .filter(|source| source.owner == Some(owner))
             {
+                self.type_params_in_scope =
+                    self.method_type_parameter_environment(source.function, owner);
                 let mut declaration = overrides::MemberOverride::source(&source.declaration);
                 let validated_target = self.properties[source.property]
                     .overrides
@@ -72,8 +75,7 @@ impl Lowerer {
                     .copied()
                     .any(|inherited| self.property_has_callable_accessor(inherited, source.kind));
                 let declared_target = if source.declaration.is_override {
-                    let name = self.properties[source.property].name.clone();
-                    self.inherited_property_candidates(owner, &name)
+                    self.inherited_property_candidates(owner, source.property)
                         .into_iter()
                         .any(|inherited| {
                             self.property_has_callable_accessor(inherited.reference, source.kind)
@@ -89,6 +91,7 @@ impl Lowerer {
                 .iter()
                 .filter(|(_, _, _, candidate)| *candidate == owner)
             {
+                self.type_params_in_scope = self.method_type_parameter_environment(id, owner);
                 let declaration = overrides::MemberOverride::source(source);
                 let before = self.diagnostics.len();
                 self.check_member_access_contract(id, &declaration, owner);
@@ -97,6 +100,7 @@ impl Lowerer {
                     self.invalid_override_methods.insert(id);
                 }
             }
+            self.type_params_in_scope = self.owner_type_params(owner);
             for function in forwarders {
                 self.check_interface_forwarder(owner, function);
             }
@@ -124,6 +128,7 @@ impl Lowerer {
                 Owner::Interface(_) => {}
             }
         }
+        self.type_params_in_scope.clear();
         self.current_owner = None;
     }
 

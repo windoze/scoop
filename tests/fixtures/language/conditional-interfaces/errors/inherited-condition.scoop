@@ -1,0 +1,22 @@
+interface Read { public fun read(): Int }
+interface Other { public fun read(): Int }
+open class Base<T> {
+    override interface Read where T : Read {
+        public open override fun read(): Int = 1
+    }
+}
+class Narrow<T> : Base<T>() {
+    override interface Other where T : Hash {
+        public override fun read(): Int = 2
+    }
+}
+abstract class Abstract<T> {
+    override interface Read where T : Read {
+        public abstract override fun read(): Int
+    }
+}
+class Missing<T> : Abstract<T>()
+class Restated<T> : Base<T>() {
+    override interface Read where T : Read, T : Hash {}
+}
+fun main() {}

@@ -1,4 +1,4 @@
-//! Generic bodies can require boxing only after their arguments become concrete.
+//! Generic arguments retain source declarations needed only after concretization.
 
 use super::*;
 
@@ -36,9 +36,13 @@ impl Lowerer {
             }
         }
         let mut visited = std::collections::HashSet::new();
+        let companions = self.conditional_interfaces_use_companions();
         while let Some(ty) = pending.pop() {
             if !visited.insert(ty) {
                 continue;
+            }
+            if companions {
+                self.retain_conditional_companion(ty)?;
             }
             if let Some(application) = self.nominal_application(ty) {
                 pending.extend(application.arguments.iter().copied());

@@ -319,6 +319,7 @@ impl Lowerer {
         if !self.check_class_inheritance_cycles(&pending_classes, &pending_objects) {
             return Err(self.take_source_diagnostics());
         }
+        self.resolve_pending_conditional_interfaces();
         self.validate_deferred_type_bounds();
 
         // Inline value layout must be finite before signatures or bodies can

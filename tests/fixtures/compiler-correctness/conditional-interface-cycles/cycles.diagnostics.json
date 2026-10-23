@@ -1,0 +1,67 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cyclic conditional interface proof: the implementation cannot establish its own condition (LocalGate<LocalCycle> : LocalMark -> LocalGate<LocalCycle> : LocalMark)",
+    "notes": [],
+    "origin": {
+      "cone": "f7a586459f3dfa0ba735d3607dd460c999d53ba8e3f5ac47c93ee9c5da178a84",
+      "end": 164,
+      "kind": "source",
+      "path": "src/rules.scoop",
+      "start": 113
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cyclic conditional interface proof: the implementation cannot establish its own condition (RemoteGate<RemoteCycle> : RemoteMark -> RemoteGate<RemoteCycle> : RemoteMark)",
+    "notes": [],
+    "origin": {
+      "cone": "b85d40b943f805d66618312ff1c11fd5bff2819fe3353b7bd136ec7f9140f742",
+      "end": 170,
+      "kind": "source",
+      "path": "src/rules.scoop",
+      "start": 56
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "expanding conditional interface proof: the implementation cannot establish its own condition (LocalGate<Expanding<Wrap<T>>> : LocalMark -> LocalGate<Expanding<Wrap<Wrap<T>>>> : LocalMark)",
+    "notes": [],
+    "origin": {
+      "cone": "f7a586459f3dfa0ba735d3607dd460c999d53ba8e3f5ac47c93ee9c5da178a84",
+      "end": 164,
+      "kind": "source",
+      "path": "src/rules.scoop",
+      "start": 113
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "expanding conditional interface proof: the implementation cannot establish its own condition (LocalGate<Expanding<Wrap<Wrap<T>>>> : LocalMark -> LocalGate<Expanding<Wrap<Wrap<Wrap<T>>>>> : LocalMark)",
+    "notes": [],
+    "origin": {
+      "cone": "f7a586459f3dfa0ba735d3607dd460c999d53ba8e3f5ac47c93ee9c5da178a84",
+      "end": 164,
+      "kind": "source",
+      "path": "src/rules.scoop",
+      "start": 113
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "expanding conditional interface proof: the implementation cannot establish its own condition (LocalGate<Expanding<Wrap<Wrap<Wrap<T>>>>> : LocalMark -> LocalGate<Expanding<Wrap<Wrap<Wrap<Wrap<T>>>>>> : LocalMark)",
+    "notes": [],
+    "origin": {
+      "cone": "f7a586459f3dfa0ba735d3607dd460c999d53ba8e3f5ac47c93ee9c5da178a84",
+      "end": 164,
+      "kind": "source",
+      "path": "src/rules.scoop",
+      "start": 113
+    },
+    "severity": "error"
+  }
+]

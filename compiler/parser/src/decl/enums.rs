@@ -24,6 +24,7 @@ impl Parser {
         let mut properties = Vec::new();
         let mut nested = Vec::new();
         let mut companion = None;
+        let mut interface_implementations = Vec::new();
         let mut saw_member = false;
         let close = loop {
             if matches!(self.peek().kind, TokenKind::RBrace) {
@@ -40,6 +41,12 @@ impl Parser {
                 self.parse_member_prefix().and_then(|mut prefix| {
                     prefix.annotations.splice(0..0, annotations);
                     match &self.peek().kind {
+                    TokenKind::Interface if prefix.modifiers.override_span.is_some() => self
+                        .parse_interface_implementation(prefix, PropertyContext::ValueType)
+                        .map(|implementation| {
+                            self.attach_documentation(start, implementation.span);
+                            interface_implementations.push(implementation);
+                        }),
                     TokenKind::Fun => self
                         .parse_prefixed_member_function(prefix, FunctionContext::TypeBody)
                         .map(|method| { self.attach_documentation(start, method.span); methods.push(method); }),
@@ -129,6 +136,7 @@ impl Parser {
             properties,
             nested,
             companion,
+            interface_implementations,
             span: Span::new(start, close.span.end),
         })
     }

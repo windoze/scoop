@@ -122,6 +122,7 @@ impl Harness {
             genericity,
             kind: hir::FunctionKind::User(body),
             method: Some(hir::Method {
+                availability: None,
                 owner: method_of,
                 modifier: if matches!(dispatch, hir::MethodDispatch::Direct) {
                     hir::MethodModifier::Final

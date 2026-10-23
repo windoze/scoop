@@ -1,0 +1,5 @@
+interface Mark {}
+struct Box<T>(val value: T) {
+    override interface Mark where T : !Mark {}
+}
+fun main() {}

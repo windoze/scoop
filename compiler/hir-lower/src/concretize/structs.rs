@@ -162,14 +162,17 @@ impl Concretizer<'_> {
         );
         let methods =
             self.request_concrete_methods(definition.methods, concrete::MethodOwner::Struct(id));
-        let direct_interfaces: Vec<_> = definition
-            .interfaces
-            .iter()
-            .map(|interface| self.lower_type(*interface, substitution))
-            .collect();
+        let direct_interfaces = self.concrete_direct_interfaces(
+            definition.conditional_interfaces,
+            definition.interfaces,
+            substitution,
+        );
         let interface_implementations = self
             .lower_interface_implementations(definition.interface_implementations, substitution);
-        self.structs[id].interfaces = self.concrete_interface_closure(&direct_interfaces);
+        self.structs[id].interfaces = interface_implementations
+            .iter()
+            .map(|implementation| self.interface_type[&implementation.interface])
+            .collect();
         self.structs[id].direct_interfaces = direct_interfaces;
         self.structs[id].interface_implementations = interface_implementations;
         self.structs[id].methods = methods;
@@ -180,7 +183,10 @@ impl Concretizer<'_> {
         }
     }
 
-    fn concrete_interface_closure(&self, roots: &[concrete::TypeId]) -> Vec<concrete::TypeId> {
+    pub(super) fn concrete_interface_closure(
+        &self,
+        roots: &[concrete::TypeId],
+    ) -> Vec<concrete::TypeId> {
         let mut pending: Vec<_> = roots.iter().rev().copied().collect();
         let mut interfaces = Vec::new();
         while let Some(ty) = pending.pop() {

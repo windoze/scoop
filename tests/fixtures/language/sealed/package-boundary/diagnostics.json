@@ -11,5 +11,18 @@
       "start": 63
     },
     "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a direct subtype of sealed `Closed` must be a named non-local declaration in the same origin Cone and package",
+    "notes": [],
+    "origin": {
+      "cone": "4510268ff48467fa8acb94bdfe9cd14fb2c9f0b71041427bf2cc42edc91ae3d9",
+      "end": 136,
+      "kind": "source",
+      "path": "src/child.scoop",
+      "start": 116
+    },
+    "severity": "error"
   }
 ]

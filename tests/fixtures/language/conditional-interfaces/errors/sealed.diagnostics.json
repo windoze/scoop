@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing subtype family `Conditional<T>`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 224,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 186
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a direct subtype of sealed `Root<T>` must be a named non-local declaration in the same origin Cone and package",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 296,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 289
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a direct subtype of sealed `Root<T>` must be a named non-local declaration in the same origin Cone and package",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 405,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 398
+    },
+    "severity": "error"
+  }
+]

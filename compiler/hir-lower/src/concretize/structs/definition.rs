@@ -7,6 +7,7 @@ pub(super) struct ResolvedStructDefinition<'a> {
     pub owner: Option<concrete::NominalOwner>,
     pub representation: ResolvedStructRepresentation<'a>,
     pub interfaces: &'a [export::TypeId],
+    pub conditional_interfaces: &'a [export::ConditionalInterfaceDeclaration],
     pub interface_implementations: &'a [export::InterfaceImplementation],
     pub methods: &'a [export::FunctionId],
     pub constructors: &'a [export::StructConstructorId],
@@ -75,6 +76,7 @@ impl<'input> Concretizer<'input> {
             owner: self.lower_nominal_owner(declaration.owner),
             representation,
             interfaces: &declaration.interfaces,
+            conditional_interfaces: &declaration.conditional_interfaces,
             interface_implementations: &declaration.interface_implementations,
             methods: &declaration.methods,
             constructors: if declaration.type_params.is_empty() {
@@ -105,6 +107,7 @@ impl<'a> ResolvedStructDefinition<'a> {
                     application,
                 },
                 &source.definition.interfaces,
+                &source.definition.conditional_interfaces,
                 &source.definition.interface_implementations,
             );
         }
@@ -138,6 +141,7 @@ impl<'a> ResolvedStructDefinition<'a> {
                 fields,
             },
             &source.definition.interfaces,
+            &source.definition.conditional_interfaces,
             &source.definition.interface_implementations,
         )
     }
@@ -154,6 +158,7 @@ impl<'a> ResolvedStructDefinition<'a> {
                 application,
             },
             &source.interfaces,
+            &[],
             &source.interface_implementations,
         )
     }
@@ -162,6 +167,7 @@ impl<'a> ResolvedStructDefinition<'a> {
         declaration: &export::ImportedNominalDeclaration,
         representation: ResolvedStructRepresentation<'a>,
         interfaces: &'a [export::TypeId],
+        conditional_interfaces: &'a [export::ConditionalInterfaceDeclaration],
         interface_implementations: &'a [export::InterfaceImplementation],
     ) -> Self {
         Self {
@@ -170,6 +176,7 @@ impl<'a> ResolvedStructDefinition<'a> {
             owner: None,
             representation,
             interfaces,
+            conditional_interfaces,
             interface_implementations,
             methods: &[],
             constructors: &[],

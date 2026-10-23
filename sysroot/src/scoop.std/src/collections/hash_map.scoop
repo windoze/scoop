@@ -146,7 +146,7 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
     internal val table: HashStorage<K, V> get() = storage
 
     /**
-     * Serialization factories using explicit element or key/value codecs.
+     * Serialization through component companions or explicit key/value codecs.
      */
     public companion object {
         /**
@@ -164,6 +164,27 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
                 decodeMapInto(decoder, key, value, result)
                 result
             }
+
+        override interface ValueEncoder<HashMap<K, V>>
+            where K.Companion : ValueEncoder<K>, V.Companion : ValueEncoder<V> {
+            /**
+             * Encodes entries using the key and value companions in iteration order.
+             */
+            public override fun encode(value: HashMap<K, V>, encoder: Encoder): Unit =
+                encodeMap(value, K.Companion, V.Companion, encoder)
+        }
+
+        override interface ValueDecoder<HashMap<K, V>>
+            where K.Companion : ValueDecoder<K>, V.Companion : ValueDecoder<V> {
+            /**
+             * Decodes entries using the key and value companions into a new map.
+             */
+            public override fun decode(decoder: Decoder): HashMap<K, V> {
+                val result = HashMap<K, V>()
+                decodeMapInto(decoder, K.Companion, V.Companion, result)
+                return result
+            }
+        }
     }
 }
 

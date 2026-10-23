@@ -1,0 +1,31 @@
+package test.m57.program
+
+import test.m57.provider.*
+
+private fun shape(description: TypeDescription): ClassInfo = when (description.shape) {
+    case TypeShape.Class(value) -> value; else -> throw IllegalStateException()
+}
+
+private fun text(annotations: Array<AnnotationInfo>): String = when (annotations[0L].arguments[0L].value) {
+    case AnnotationValue.String(value) -> value; else -> throw IllegalStateException()
+}
+
+fun conditionalDescriptions(): Boolean {
+    val enabled = shape(publishedDescription<HasDescription>().describe())
+    val local = shape(typeInfo<Described<HasDescription>>().describe())
+    val absent = shape(typeInfo<Described<Plain>>().describe())
+    val companion = when (typeInfo<Described<Int>.Companion>().describe().shape) {
+        case TypeShape.Object(value) -> value; else -> throw IllegalStateException()
+    }
+    return enabled.interfaces.size == 1L && absent.interfaces.size == 0L &&
+        enabled.interfaces[0L].type == local.interfaces[0L].type &&
+        text(enabled.interfaces[0L].annotations) == "projection" &&
+        enabled.properties.size == 3L && absent.properties.size == 2L &&
+        enabled.properties[2L].id == absent.properties[1L].id &&
+        absent.properties[1L].index == 2L &&
+        text(enabled.properties[1L].annotations) == "property" &&
+        text(enabled.properties[1L].getter.annotations) == "getter" &&
+        text(enabled.properties[1L].typeUse.annotations) == "value" &&
+        enabled.properties[1L].type == typeInfo<HasDescription.Companion>().type &&
+        text(companion.interfaces[0L].annotations) == "companion"
+}

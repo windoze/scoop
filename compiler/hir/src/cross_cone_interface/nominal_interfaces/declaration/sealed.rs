@@ -60,12 +60,7 @@ impl CanonicalNominalInterfacesV1 {
                         "subtype must be named, non-local and in the same origin Cone and package",
                     ));
                 }
-                if !child
-                    .exact_supertypes()
-                    .values()
-                    .iter()
-                    .any(|parent| signature_owner(parent) == Some(owner))
-                {
+                if !direct_parents(child).any(|parent| signature_owner(parent) == Some(owner)) {
                     return Err(error(
                         "subtype does not directly inherit the sealed declaration",
                     ));
@@ -73,12 +68,7 @@ impl CanonicalNominalInterfacesV1 {
             }
         }
         for child in self.all_records() {
-            for parent in child
-                .exact_supertypes()
-                .values()
-                .iter()
-                .filter_map(signature_owner)
-            {
+            for parent in direct_parents(child).filter_map(signature_owner) {
                 if let Some(subtypes) = self
                     .declaration(parent)
                     .and_then(|parent| parent.declaration_details().sealed_subtypes())
@@ -97,6 +87,16 @@ impl CanonicalNominalInterfacesV1 {
         }
         Ok(())
     }
+}
+
+fn direct_parents(record: &NominalInterfaceRecordV1) -> impl Iterator<Item = &SignatureTypeKey> {
+    record.exact_supertypes().values().iter().chain(
+        record
+            .declaration_details()
+            .conditional_interfaces()
+            .iter()
+            .map(|implementation| implementation.interface()),
+    )
 }
 
 fn signature_owner(ty: &SignatureTypeKey) -> Option<SourceNominalId> {

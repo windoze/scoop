@@ -52,6 +52,14 @@ impl Lowerer {
             }
         }
         self.annotate_struct_constructors(id, source);
+        self.annotate_interface_blocks(
+            owner,
+            source.supertypes.len(),
+            source.members.iter().filter_map(|member| match member {
+                ast::StructMember::InterfaceImplementation(block) => Some(block.as_ref()),
+                _ => None,
+            }),
+        );
         for member in &source.members {
             if let ast::StructMember::Property(property) = member {
                 self.annotate_property_declaration(property, file);
@@ -121,6 +129,11 @@ impl Lowerer {
         for property in &source.properties {
             self.annotate_property_declaration(property, file);
         }
+        self.annotate_interface_blocks(
+            owner,
+            source.interfaces.len(),
+            source.interface_implementations.iter(),
+        );
     }
 
     pub(crate) fn annotate_class(
@@ -163,7 +176,7 @@ impl Lowerer {
             }
         }
         self.annotate_class_constructors(id, source);
-        self.annotate_class_members(owner, &source.members);
+        self.annotate_class_members(owner, &source.members, source.supertypes.len());
     }
 
     pub(crate) fn annotate_interface(
@@ -210,15 +223,28 @@ impl Lowerer {
             Target::Nominal(owner.as_nominal_owner()),
             source.annotations(),
         );
-        self.annotate_class_members(owner, source.members());
+        self.annotate_class_members(owner, source.members(), source.supertypes().len());
     }
 
-    fn annotate_class_members(&mut self, _owner: Owner, members: &[ast::ClassMember]) {
+    fn annotate_class_members(
+        &mut self,
+        owner: Owner,
+        members: &[ast::ClassMember],
+        ordinary_count: usize,
+    ) {
         for member in members {
             if let ast::ClassMember::StoredProperty(property) = member {
                 self.annotate_property_declaration(property, self.current_file);
             }
         }
+        self.annotate_interface_blocks(
+            owner,
+            ordinary_count,
+            members.iter().filter_map(|member| match member {
+                ast::ClassMember::InterfaceImplementation(block) => Some(block.as_ref()),
+                _ => None,
+            }),
+        );
     }
 
     fn annotate_property(

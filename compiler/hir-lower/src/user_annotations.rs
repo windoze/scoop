@@ -6,6 +6,7 @@ use crate::{
 mod arrays;
 mod binding;
 mod callables;
+mod conditional_interfaces;
 mod nested;
 mod properties;
 mod rules;

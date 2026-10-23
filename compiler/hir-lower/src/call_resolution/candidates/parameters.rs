@@ -5,6 +5,8 @@ use scoop_hir as hir;
 
 #[derive(Debug, Clone)]
 pub(crate) struct DeclarationSignature<D = DefaultArgumentSource> {
+    /// An inherited condition whose subject cannot be represented by owner bounds.
+    pub(crate) availability: Option<hir::ConditionalInterfaceGuard>,
     pub(crate) owner_parameters: Vec<hir::TypeParamDecl>,
     pub(crate) callable_parameters: Vec<hir::TypeParamDecl>,
     pub(crate) value_parameters: Vec<ValueParameter<D>>,
@@ -45,38 +47,10 @@ impl<D> DeclarationSignature<D> {
                 *array_type = state.instantiate_method_ty(*array_type, bindings);
             }
         }
-        for parameter in self
-            .owner_parameters
-            .iter_mut()
-            .chain(&mut self.callable_parameters)
-        {
-            for requirement in &mut parameter.requirements {
-                requirement
-                    .contract
-                    .map_types(|ty| state.instantiate_method_ty(ty, bindings));
-            }
-            for (positive, excluded) in
-                [(&mut parameter.bounds, &mut parameter.excluded_interfaces)]
-                    .into_iter()
-                    .chain(
-                        parameter
-                            .companion
-                            .as_mut()
-                            .map(|bounds| (&mut bounds.bounds, &mut bounds.excluded_interfaces)),
-                    )
-            {
-                if let hir::TypeParamBounds::Nominal(bounds) = positive {
-                    if let Some(bound) = &mut bounds.class {
-                        bound.ty = state.instantiate_method_ty(bound.ty, bindings);
-                    }
-                    for bound in &mut bounds.interfaces {
-                        bound.ty = state.instantiate_method_ty(bound.ty, bindings);
-                    }
-                }
-                for bound in excluded {
-                    bound.ty = state.instantiate_method_ty(bound.ty, bindings);
-                }
-            }
+        state.substitute_parameter_bounds(&mut self.owner_parameters, bindings);
+        state.substitute_parameter_bounds(&mut self.callable_parameters, bindings);
+        if let Some(guard) = &mut self.availability {
+            guard.owner = state.instantiate_method_ty(guard.owner, bindings);
         }
         self.return_type = state.instantiate_method_ty(self.return_type, bindings);
     }
@@ -110,4 +84,42 @@ pub(crate) enum ValueParameterCalling<D = DefaultArgumentSource> {
 pub(crate) enum VarargOmission<D = DefaultArgumentSource> {
     EmptyArray,
     Default(D),
+}
+
+impl crate::Lowerer {
+    pub(crate) fn substitute_parameter_bounds(
+        &mut self,
+        parameters: &mut [hir::TypeParamDecl],
+        bindings: &[(hir::TypeParamId, hir::TypeId)],
+    ) {
+        for parameter in parameters {
+            for requirement in &mut parameter.requirements {
+                requirement
+                    .contract
+                    .map_types(|ty| self.instantiate_method_ty(ty, bindings));
+            }
+            for (positive, excluded) in
+                [(&mut parameter.bounds, &mut parameter.excluded_interfaces)]
+                    .into_iter()
+                    .chain(
+                        parameter
+                            .companion
+                            .as_mut()
+                            .map(|bounds| (&mut bounds.bounds, &mut bounds.excluded_interfaces)),
+                    )
+            {
+                if let hir::TypeParamBounds::Nominal(bounds) = positive {
+                    if let Some(bound) = &mut bounds.class {
+                        bound.ty = self.instantiate_method_ty(bound.ty, bindings);
+                    }
+                    for bound in &mut bounds.interfaces {
+                        bound.ty = self.instantiate_method_ty(bound.ty, bindings);
+                    }
+                }
+                for bound in excluded {
+                    bound.ty = self.instantiate_method_ty(bound.ty, bindings);
+                }
+            }
+        }
+    }
 }

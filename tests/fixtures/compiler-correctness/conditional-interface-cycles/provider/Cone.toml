@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "test.m57"
+name = "cycle-provider"
+version = "0.1.0"
+kind = "library"

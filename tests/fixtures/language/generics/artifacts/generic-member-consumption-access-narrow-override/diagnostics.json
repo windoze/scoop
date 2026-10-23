@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "visibility of `secret` does not cover inherited slot `ProtectedBox<T0>.secret`",
+    "message": "visibility of `secret` does not cover inherited slot `ProtectedBox<T>.secret`",
     "notes": [],
     "origin": {
       "cone": "aab32041b0f594fd3f04138fcdb35d873a482418fbcc301ab0ceda4f8674a60b",

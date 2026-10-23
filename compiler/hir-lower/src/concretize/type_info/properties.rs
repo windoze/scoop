@@ -14,8 +14,25 @@ impl Concretizer<'_> {
             .properties(self.dependencies)
             .into_iter()
             .enumerate()
-            .map(|(index, property)| {
-                self.metadata_property(owner, property, index, constructor, record, origin)
+            .filter_map(|(index, property)| {
+                if let Some((id, source)) = property.availability(self.dependencies) {
+                    let host = self.metadata_source_type(source, &self.type_arguments(owner));
+                    let declaration = self
+                        .source
+                        .conditional_interfaces(
+                            self.type_nominal(host)
+                                .expect("a property condition has a nominal owner"),
+                        )
+                        .iter()
+                        .find(|declaration| declaration.id() == id)
+                        .expect("a property retains its conditional declaration");
+                    if !self
+                        .concrete_interface_condition_holds(declaration, &self.type_arguments(host))
+                    {
+                        return None;
+                    }
+                }
+                Some(self.metadata_property(owner, property, index, constructor, record, origin))
             })
             .collect();
         self.metadata_array(result, properties, origin)

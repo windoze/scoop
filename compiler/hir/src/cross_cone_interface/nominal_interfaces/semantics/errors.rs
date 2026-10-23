@@ -30,6 +30,18 @@ pub enum NominalInterfaceSemanticValidationError<E> {
         index: usize,
         error: ExactSupertypeSemanticError<E>,
     },
+    ConditionalOwner {
+        index: usize,
+        error: NominalSignatureSemanticError<E>,
+    },
+    ConditionalParameters {
+        index: usize,
+        error: TypeParameterBinderSemanticValidationError<E>,
+    },
+    ConditionalInterface {
+        index: usize,
+        error: ExactSupertypeSemanticError<E>,
+    },
     DeclarationKind {
         expected: PublicNominalKindV1,
         actual: SourceDeclarationKind,
@@ -120,6 +132,17 @@ impl<E: fmt::Display> fmt::Display for NominalInterfaceSemanticValidationError<E
                 formatter,
                 "invalid dispatch interface application {index}: {error}"
             ),
+            Self::ConditionalOwner { index, error } => write!(
+                formatter,
+                "invalid conditional dispatch owner {index}: {error}"
+            ),
+            Self::ConditionalParameters { index, error } => write!(
+                formatter,
+                "invalid conditional interface parameters {index}: {error}"
+            ),
+            Self::ConditionalInterface { index, error } => {
+                write!(formatter, "invalid conditional interface {index}: {error}")
+            }
             Self::DeclarationKind { expected, actual } => write!(
                 formatter,
                 "nominal declaration kind {actual:?} does not match {expected:?}"

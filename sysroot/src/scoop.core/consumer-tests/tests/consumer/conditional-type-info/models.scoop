@@ -1,0 +1,46 @@
+package test.core.tests.consumer.conditional_type_info
+
+@Target([AnnotationTarget.Type])
+annotation class Use(val text: String)
+annotation class Tag(val text: String)
+
+interface Always {}
+interface Read { public val value: Int }
+interface Project<C> { public val projected: C }
+interface Mark {}
+struct Plain()
+class Reference
+struct Available() { public companion object : Mark }
+
+open class Base : Always
+class Described<T> : Base() {
+    val before: Int = 0
+    override interface @Use("read") Read where T : Hash {
+        @Tag("property")
+        public override val value: @Use("result") Int
+            @Tag("getter") get() { throw IllegalStateException() }
+    }
+    val after: Int = 2
+}
+
+struct Choice<T>() {
+    override interface @Use("value") Mark where T : value {}
+    override interface @Use("ref") Mark where T : ref {}
+}
+
+enum Flag<T> { Entry
+    override interface Mark where T : Hash {}
+}
+
+class Projected<T> {
+    override interface Project<T.Companion> where T.Companion : Mark {
+        public override val projected: T.Companion get() = T.Companion
+    }
+    public companion object {
+        override interface Read where T : Hash {
+            public override val value: Int get() { throw IllegalStateException() }
+        }
+    }
+}
+
+fun <T> companionDescription(): TypeDescription = typeInfo<T>().describe()

@@ -60,7 +60,7 @@ impl Lowerer {
             .map(|p| p.id)
     }
 
-    pub(in crate::expr) fn lower_parameter_companion(
+    pub(crate) fn lower_parameter_companion(
         &mut self,
         parameter: hir::TypeParamId,
         span: Span,

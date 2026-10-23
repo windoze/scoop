@@ -56,10 +56,23 @@ impl Lowerer {
                 (implementations, Vec::new())
             }
         };
-        for method in implementations
+        let applicable = implementations
             .into_iter()
+            .filter(|implementation| {
+                let Some(mut condition) = implementation.condition.clone() else {
+                    return true;
+                };
+                condition.arguments = condition
+                    .arguments
+                    .into_iter()
+                    .map(|argument| self.instantiate_ty(argument, &arguments))
+                    .collect();
+                self.conditional_application_holds(&condition)
+            })
             .flat_map(|implementation| implementation.methods)
-        {
+            .collect::<Vec<_>>();
+        let mut selected = Vec::<crate::CallableCandidate>::new();
+        for method in applicable {
             let application = match method.target {
                 hir::InterfaceImplementationTarget::Method(application)
                 | hir::InterfaceImplementationTarget::Abstract(application) => application,
@@ -81,11 +94,37 @@ impl Lowerer {
                 application.function,
                 hir::MethodOwnerApplication::Interface(owner),
             );
-            if !out.iter().any(|(existing, _, _)| {
+            if selected.iter().any(|existing| {
                 existing.function == candidate.function && existing.owner == candidate.owner
             }) {
-                out.push((candidate, 0, 0));
+                continue;
+            }
+            let candidate_owner = self.interface_applications[owner].canonical_type;
+            let mut shadowed = false;
+            selected.retain(|existing| {
+                if self.source_function_name(existing.function)
+                    != self.source_function_name(candidate.function)
+                    || self.function_accessor_kind(existing.function)
+                        != self.function_accessor_kind(candidate.function)
+                    || !self.same_applied_method_signature(existing, &candidate)
+                {
+                    return true;
+                }
+                let crate::CallableCandidateOwner::Method(existing_owner) = existing.owner else {
+                    unreachable!("selected interface defaults are methods")
+                };
+                let existing_owner = self.method_owner_type(existing_owner);
+                if self.is_subtype(existing_owner, candidate_owner) {
+                    shadowed = true;
+                    true
+                } else {
+                    !self.is_subtype(candidate_owner, existing_owner)
+                }
+            });
+            if !shadowed {
+                selected.push(candidate);
             }
         }
+        out.extend(selected.into_iter().map(|candidate| (candidate, 0, 0)));
     }
 }

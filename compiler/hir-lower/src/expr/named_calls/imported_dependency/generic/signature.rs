@@ -86,6 +86,9 @@ impl ImportedGenericTarget {
                 (
                     LoadedCallableSignature {
                         signature: crate::call_resolution::candidates::DeclarationSignature {
+                            availability: template
+                                .availability
+                                .filter(|guard| Some(guard.owner) != template.receiver),
                             owner_parameters: owner.to_vec(),
                             callable_parameters: callable.to_vec(),
                             value_parameters: state.imported_parameter_views(
@@ -111,6 +114,7 @@ impl ImportedGenericTarget {
                 (
                     LoadedCallableSignature {
                         signature: crate::call_resolution::candidates::DeclarationSignature {
+                            availability: None,
                             owner_parameters: signature.type_parameters.clone(),
                             callable_parameters: Vec::new(),
                             value_parameters: state.imported_parameter_views(

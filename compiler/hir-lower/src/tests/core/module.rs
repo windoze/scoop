@@ -191,6 +191,7 @@ fn make_class_members_public(members: &mut [ast::ClassMember]) {
                 constructor.visibility = public_visibility();
             }
             ast::ClassMember::Function(function) => make_function_public(function),
+            ast::ClassMember::InterfaceImplementation(block) => make_interface_block_public(block),
             ast::ClassMember::Nested(declaration) => make_nested_public(declaration),
             ast::ClassMember::Companion(companion) => {
                 companion.visibility = public_visibility();
@@ -238,6 +239,7 @@ fn make_struct_public(declaration: &mut ast::StructDecl) {
                 constructor.visibility = public_visibility();
             }
             ast::StructMember::Function(function) => make_function_public(function),
+            ast::StructMember::InterfaceImplementation(block) => make_interface_block_public(block),
             ast::StructMember::Property(property) => make_property_public(property),
             ast::StructMember::Nested(declaration) => make_nested_public(declaration),
             ast::StructMember::Companion(companion) => {
@@ -253,6 +255,9 @@ fn make_enum_public(declaration: &mut ast::EnumDecl) {
     for method in &mut declaration.methods {
         make_function_public(method);
     }
+    for block in &mut declaration.interface_implementations {
+        make_interface_block_public(block);
+    }
     for property in &mut declaration.properties {
         make_property_public(property);
     }
@@ -262,6 +267,19 @@ fn make_enum_public(declaration: &mut ast::EnumDecl) {
     if let Some(companion) = &mut declaration.companion {
         companion.visibility = public_visibility();
         make_class_members_public(&mut companion.members);
+    }
+}
+
+fn make_interface_block_public(block: &mut ast::InterfaceImplementationDecl) {
+    for member in &mut block.members {
+        match member {
+            ast::InterfaceImplementationMember::Function(function) => {
+                make_function_public(function)
+            }
+            ast::InterfaceImplementationMember::Property(property) => {
+                make_property_public(property)
+            }
+        }
     }
 }
 

@@ -69,6 +69,7 @@ impl Lowerer {
             self.deferred_type_bounds = None;
             return;
         }
+        self.resolve_pending_conditional_interfaces();
         self.validate_deferred_type_bounds();
         if !self.validate_local_value_layouts(&pending.owners()) {
             return;

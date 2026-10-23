@@ -2,6 +2,7 @@ use super::*;
 use scoop_identity::{DeclarationName, PersistentFieldId, PersistentPropertyId, SignatureTypeKey};
 
 mod accessors;
+mod conditions;
 pub use accessors::*;
 
 #[derive(Clone, Copy)]
@@ -94,7 +95,7 @@ impl<'a> StaticNominalShape<'a> {
                         &self.module.classes[self.module.objects[id].backing_class].properties
                     }
                 };
-                properties
+                let mut properties = properties
                     .iter()
                     .map(|id| {
                         let declaration = &self.module.properties[*id];
@@ -110,7 +111,14 @@ impl<'a> StaticNominalShape<'a> {
                             },
                         }
                     })
-                    .collect()
+                    .collect::<Vec<_>>();
+                properties.sort_by_key(|property| match property.source {
+                    StaticPropertyDeclaration::Current { declaration, .. } => {
+                        declaration.span.start
+                    }
+                    StaticPropertyDeclaration::Dependency(_) => unreachable!(),
+                });
+                properties
             }
             StaticNominalOrigin::Dependency(owner) => {
                 self.dependency_properties(owner, dependencies)

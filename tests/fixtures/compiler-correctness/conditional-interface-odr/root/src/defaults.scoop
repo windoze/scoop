@@ -1,0 +1,12 @@
+package test.m57.program
+
+import test.m57.provider.*
+
+fun conditionalDefaults(): Boolean {
+    val both: DefaultRoot = DefaultSelect(DefaultBoth())
+    val first: DefaultRoot = DefaultSelect(DefaultFirstOnly())
+    val reverse: DefaultRoot = DefaultReversed(DefaultBoth())
+    return both.read() == 72 && first.read() == 71 && reverse.read() == 72
+        && DefaultSelect(DefaultBoth()).read() == 72
+        && defaultForward(DefaultSelect(DefaultBoth())) == 72
+}

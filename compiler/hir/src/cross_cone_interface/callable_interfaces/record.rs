@@ -45,6 +45,7 @@ pub struct CallableDeclarationRecordV1 {
     visibility: DeclaredVisibilityV1,
     slots: CanonicalPersistentIdsV1<PersistentDispatchSlotId>,
     context_parameters: Vec<crate::SourceParameterShapeV1>,
+    availability: Option<crate::ConditionalInterfaceApplicationV1>,
 }
 
 impl CallableDeclarationRecordV1 {
@@ -78,11 +79,24 @@ impl CallableDeclarationRecordV1 {
             visibility,
             slots,
             context_parameters,
+            availability: None,
         })
     }
 
     pub fn context_parameters(&self) -> &[crate::SourceParameterShapeV1] {
         &self.context_parameters
+    }
+
+    pub fn with_availability(
+        mut self,
+        availability: Option<crate::ConditionalInterfaceApplicationV1>,
+    ) -> Self {
+        self.availability = availability;
+        self
+    }
+
+    pub fn availability(&self) -> Option<&crate::ConditionalInterfaceApplicationV1> {
+        self.availability.as_ref()
     }
 
     pub const fn declaration(&self) -> CallableTemplateOrigin {

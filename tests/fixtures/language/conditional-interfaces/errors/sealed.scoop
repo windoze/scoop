@@ -1,0 +1,23 @@
+sealed interface Root<T> {}
+interface Mark {}
+class Always<T> : Root<T>
+class Conditional<T> {
+    override interface Root<T> where T : Mark {}
+}
+
+fun <T> missing(value: Root<T>): Int = when (value) {
+    is Always<T> -> 1
+}
+
+fun <T> local() {
+    class Local {
+        override interface Root<T> where T : Mark {}
+    }
+}
+
+fun <T> anonymous() {
+    val value = object {
+        override interface Root<T> where T : Mark {}
+    }
+}
+fun main() {}

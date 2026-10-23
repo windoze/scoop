@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "`override interface` requires a non-empty `where` clause; declare an unconditional interface in the type or companion's interface list",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 100,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 93
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "`override interface` requires a non-empty `where` clause; declare an unconditional interface in the type or companion's interface list",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 189,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 182
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "expected type parameter name in `where` constraint, found `{`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 259,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 258
+    },
+    "severity": "error"
+  }
+]

@@ -38,6 +38,7 @@ fn enum_declaration() -> EnumDecl {
         span: Span::new(0, 0),
 
         definition: crate::EnumDefinition {
+            conditional_interfaces: Vec::new(),
             representation: crate::EnumRepresentation::Algebraic,
             self_application: EnumApplicationId::from_raw(0_u32.into()),
             type_params: Vec::new(),

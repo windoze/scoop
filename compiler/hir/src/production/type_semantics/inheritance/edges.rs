@@ -4,11 +4,11 @@ pub(in crate::production::type_semantics) fn project_edges(
     export: &ExportHir,
     nominal: &ConcreteNominal<'_>,
 ) -> Result<NominalInheritanceEdgesV1, Error> {
-    let (modality, base, interfaces) = match nominal.local {
+    let (modality, base, mut interfaces) = match nominal.local {
         NominalLocalId::Struct(id) => (
             NominalInheritanceModalityV1::Final,
             None,
-            export.structs[id].interfaces.as_slice(),
+            export.structs[id].interfaces.clone(),
         ),
         NominalLocalId::Enum(id) => {
             let definition = &export.enums[id];
@@ -20,13 +20,7 @@ pub(in crate::production::type_semantics) fn project_edges(
                     }
                 }
             }
-            return build_edges(
-                export,
-                nominal.exact,
-                NominalInheritanceModalityV1::Final,
-                None,
-                &interfaces,
-            );
+            (NominalInheritanceModalityV1::Final, None, interfaces)
         }
         NominalLocalId::Class(id) => {
             let class = &export.classes[id];
@@ -35,7 +29,7 @@ pub(in crate::production::type_semantics) fn project_edges(
                 ClassModifier::Open => NominalInheritanceModalityV1::Open,
                 ClassModifier::Abstract => NominalInheritanceModalityV1::Abstract,
             };
-            (modality, class.base_class, class.interfaces.as_slice())
+            (modality, class.base_class, class.interfaces.clone())
         }
         NominalLocalId::Interface(id) => {
             let interface = &export.interfaces[id];
@@ -52,11 +46,18 @@ pub(in crate::production::type_semantics) fn project_edges(
             (
                 NominalInheritanceModalityV1::Final,
                 class.base_class,
-                class.interfaces.as_slice(),
+                class.interfaces.clone(),
             )
         }
     };
-    build_edges(export, nominal.exact, modality, base, interfaces)
+    // A parameter-free source owner has no conditional binder left to solve.
+    // Its body-declared interfaces are direct edges just like header entries.
+    for implementation in export.conditional_interfaces(SourceNominalId::Concrete(nominal.owner)) {
+        if !interfaces.contains(&implementation.interface) {
+            interfaces.push(implementation.interface);
+        }
+    }
+    build_edges(export, nominal.exact, modality, base, &interfaces)
 }
 
 fn build_edges(

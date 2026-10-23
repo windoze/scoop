@@ -2,6 +2,7 @@ use super::*;
 use scoop_doc::{ApiItem, ApiKind, ConeInput, LinkTarget, Visibility};
 
 mod annotations;
+mod conditional;
 mod identity;
 mod relations;
 mod visibility;
