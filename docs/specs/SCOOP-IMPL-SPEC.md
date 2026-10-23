@@ -56,7 +56,7 @@ AST 保留原始源码顺序、byte span、显式类型实参、位置／命名�
 
 driver 在完整解析后、HIR 前统一检查语言规范 12.1 的 manifest package/group 关系，生产、测试和文档路径共用此检查；只比较已经解析的实际名称段，不用字符串前缀或重新拆分转义段。core/std 豁免只按其 group/name 识别。单文件的 AST 与原文继续保留合法 package header，driver 产生 warning；HIR 创建当前 source namespace 时使用保留的 single-file 身份选择 RootPackage。AST 观察同样返回该 warning；HIR 失败时保留已经产生的源码 warning。后续 IR 不再重验 package/group，也不改源码或诊断偏移。
 
-AST 不包含依赖 locator 解析、构建顺序、已推断类型或实体身份猜测。词法与语法恢复收集 Error 级诊断；任何解析失败阻止成功 HIR 输出。面向编辑态的可恢复语法结果与成功编译 AST 分开，公共基础的目标合同见 2.20；保留错误语法不表示该程序可以进入后续编译阶段。
+AST 不包含依赖 locator 解析、构建顺序、已推断类型或实体身份猜测。词法与语法恢复收集 Error 级诊断；任何解析失败阻止成功 HIR 输出。面向编辑态的可恢复语法结果与成功编译 AST 分开，公共基础的合同见 2.20；保留错误语法不表示该程序可以进入后续编译阶段。
 
 共享 lexer 按语言规范 2.5 消费仅位于 byte offset 0 的 `#!` 行，将其视为普通 trivia；不创建删除该行的临时源码，也不将其附着为文档片段。LF、CRLF 和行尾 EOF 沿用原有源码位置规则。
 
@@ -1253,9 +1253,9 @@ OptimizationMode 在 machine request field 9 中编码 Debug=1、Release=2；生
 
 digest kinds 4、8、9，digest owner tags 4、11、9，保留不用；全部 runtime digest patch role 与 patch intent 退役。registration 公共 identity 只含 linkage、semantic ID、ODR group/member；body、layout、descriptor、scan 与 normalized-stackmap fingerprints 仍用于所选实现自身的内容、引用及 GC 合同，不作为不同优化正文必须相等的条件。
 
-### 2.20 可恢复语法与语言服务公共基础（设计合同，待实施）
+### 2.20 可恢复语法与语言服务公共基础
 
-本节规定 M47 与后续 LSP 的共同基础，不表示现有入口已经支持编辑态分析。调研、模块分工、分批交付和验收见[公共基础设计](../language-service/DESIGN.md)；M47 的同步生成流程仍由[其主设计](../milestone47/DESIGN.md)及[协议](../milestone47/PROTOCOL.md)规定。合法源码的语言语义、成功 HIR 的完备性、产物和 runtime 合同保持。
+本节规定 M47 与 LSP 的共同基础。模块分工与查询边界见[公共基础设计](../language-service/DESIGN.md)，实际交付与验证见[实施与验收](../language-service/PROGRESS.md)；M47 的同步生成流程由[其主设计](../milestone47/DESIGN.md)及[协议](../milestone47/PROTOCOL.md)规定。合法源码的语言语义、成功 HIR 的完备性、产物和 runtime 合同保持。
 
 **源码与位置。** 同一文本版本提供不可变 UTF-8 源码、byte range 和可复用的行索引。普通文件继续沿用 SourceIdentity；编辑 buffer 和生成正文的本地定位由输入宿主维护，不使用显示路径、LSP URI、文档版本或请求编号构造语言实体身份。语义查询只消费显式传入的源码和依赖视图，不进行源码发现、磁盘读取或工具启动。LSP 在边界协商位置编码并转换为 byte offset；其零基行列、UTF-16 默认值及换行定义不能直接套用 CLI 的显示列或持久 SourcePointRecord。
 

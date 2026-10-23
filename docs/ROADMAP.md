@@ -608,7 +608,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - 从完整声明与签名提供通用 typed 语义查询，以同步宿主 generator 返回普通方法体源码，driver 经正式 parser／HIR 补齐既有接口实现；M46 codec 策略作为迁移试点。
 - 2026-10-21 补充[可恢复语法／LSP 公共基础](language-service/DESIGN.md)与[调研](language-service/INVESTIGATION.md)：共用源码坐标、同一 grammar、语义上下文、查询与源码关联；编辑态未知不进入成功 HIR。
-- 固定编译视图、严格片段入口、共享查询及真实 generator 双向协议已随公共基础接入，验证范围见[实施记录](language-service/PROGRESS.md)。可恢复 CST、编辑态分析、LSP 与后续增量优化分批接入，不成为 codec 迁移的额外前置；codec 迁移仍按 M47 设计推进。
+- 固定编译视图、严格片段入口、共享查询及真实 generator 双向协议已随公共基础接入；可恢复 CST、编辑态语义、LSP 与引用／编辑能力也已完成 A～E 交付，验证范围和当前限制见[实施记录](language-service/PROGRESS.md)。codec 迁移仍按 M47 设计推进。
 
 ## 3. 备注
 
@@ -724,11 +724,11 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
-### 可恢复语法与 LSP（基础语法／服务已接入，编辑态语义实施中）
+### 可恢复语法与 LSP（公共基础 A～E 已完成，扩展能力待排期）
 
-- 以[公共基础设计](language-service/DESIGN.md)推进：保留全部源码的 CST、缺失／错误语法、完整 AST 适配；错误文件仍可查询，成功编译继续要求完整 HIR。
-- 文档同步、语法诊断、结构查询及项目输入已交付；预编译依赖项目已提供声明 hover。正文语义、导航／补全／签名帮助、引用索引和版本化重命名／修复继续实施，完整状态见[实施记录](language-service/PROGRESS.md)。
-- 先按文件重解析、按实际受影响 Cone 保守失效，测量后再细化。首版不以局部重解析、Salsa 或全部 LSP 可选能力为验收门槛。
+- 已按[公共基础设计](language-service/DESIGN.md)交付保留全部源码的 CST、缺失／错误语法和完整 AST 适配；错误文件仍可查询，成功编译继续要求完整 HIR。
+- 文档同步、诊断、结构查询、项目输入、编辑态语义、导航／receiver 成员补全／签名帮助、引用与实现索引、版本化重命名和固定标点修复均已交付，完整范围与验收见[实施记录](language-service/PROGRESS.md)。
+- 当前按文件重解析、按实际受影响 Cone 保守失效，已按实测优化正文定位与成员候选计算，见[性能记录](language-service/PERFORMANCE.md)。局部重解析、正文级增量分析，以及 semanticTokens、inlayHint、格式化和 call／type hierarchy 独立安排。
 
 ### M54 明确后续的客户端能力
 
@@ -748,7 +748,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 ### 来自 M1
 
 - ~~always-leak GC → M9 替换~~（已完成）；
-- ~~编译诊断的 parser 错误恢复~~（已完成：lexer 收集多个可恢复词法错误；parser 按顶层声明、类型成员和块内语句同步，存在诊断时不发布完整 AST；编辑态 CST 与恢复声明已接入，局部语义按[公共基础设计](language-service/DESIGN.md)继续实施）；
+- ~~编译诊断的 parser 错误恢复~~（已完成：lexer 收集多个可恢复词法错误；parser 按顶层声明、类型成员和块内语句同步，存在诊断时不发布完整 AST；编辑态 CST、恢复声明与局部语义已按[公共基础设计](language-service/DESIGN.md)交付）；
 - 正式单文件Cone编译/运行模式 → M23-11 `scoop build/run <file>`。
 
 ### 来自 M2

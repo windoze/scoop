@@ -1,6 +1,6 @@
 # 可恢复语法、M47 与 LSP 的公共基础
 
-状态：实施中。设计日期：2026-10-21；实施起始：2026-10-22，基线 `033dd9e1d`。原调研基线：`4de3ae9e8`。外部资料、依赖候选与功能清单见[调研](INVESTIGATION.md)；阶段目标合同见[实现规范 2.20](../specs/SCOOP-IMPL-SPEC.md#220-可恢复语法与语言服务公共基础设计合同待实施)。各项实际交付、验证与剩余范围见[实施记录](PROGRESS.md)，未闭合的批次不视为已经实现。
+状态：公共基础 A～E 已完成。设计日期：2026-10-21；实施起始：2026-10-22，基线 `033dd9e1d`。原调研基线：`4de3ae9e8`。外部资料、依赖候选与功能清单见[调研](INVESTIGATION.md)；阶段合同见[实现规范 2.20](../specs/SCOOP-IMPL-SPEC.md#220-可恢复语法与语言服务公共基础)。实际交付、验收与当前限制见[实施记录](PROGRESS.md)，M47 的 codec 迁移仍按其设计独立推进。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)的语法、名称、类型与文档规则，[实现规范](../specs/SCOOP-IMPL-SPEC.md)2.1、2.2、2.7、2.11、2.20，[M47 设计](../milestone47/DESIGN.md)及[同步查询协议](../milestone47/PROTOCOL.md)。运行时继续遵守[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)，本设计没有 runtime 变更。
 
