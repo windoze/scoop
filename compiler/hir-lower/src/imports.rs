@@ -18,6 +18,7 @@ mod selector;
 mod source_scope;
 #[cfg(test)]
 mod tests;
+mod unavailable_imports;
 mod unavailable_sources;
 
 pub(crate) use bindings::*;
@@ -297,7 +298,10 @@ impl CurrentUnitImports {
                                 .targets
                                 .iter()
                                 .filter_map(ImportedTargetBinding::current_binding)
-                        }),
+                        })
+                        .chain(imports.unavailable.iter().filter_map(|import| {
+                            (import.local_name.as_deref() == Some(name)).then_some(import.binding)
+                        })),
                 ),
                 dependency_bindings: self.canonicalize_dependencies(
                     imports
@@ -336,14 +340,22 @@ impl CurrentUnitImports {
             },
             ImportCandidateLayer {
                 kind: ImportLookupLayer::Star,
-                bindings: self.canonicalize(imports.stars.iter().flat_map(|import| {
-                    import
-                        .snapshot
-                        .get(name)
-                        .into_iter()
-                        .flat_map(ast::NonEmptyVec::iter)
-                        .filter_map(ImportedTargetBinding::current_binding)
-                })),
+                bindings: self.canonicalize(
+                    imports
+                        .stars
+                        .iter()
+                        .flat_map(|import| {
+                            import
+                                .snapshot
+                                .get(name)
+                                .into_iter()
+                                .flat_map(ast::NonEmptyVec::iter)
+                                .filter_map(ImportedTargetBinding::current_binding)
+                        })
+                        .chain(imports.unavailable.iter().filter_map(|import| {
+                            import.local_name.is_none().then_some(import.binding)
+                        })),
+                ),
                 dependency_bindings: self.canonicalize_dependencies(imports.stars.iter().flat_map(
                     |import| {
                         import

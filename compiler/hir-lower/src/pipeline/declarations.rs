@@ -385,7 +385,7 @@ impl Lowerer {
             world,
         );
         PhaseFailure::check(check)?;
-        if self.diagnostics.len() != errors_before_imports {
+        if self.diagnostics.len() != errors_before_imports && self.editing_types.is_none() {
             return Err(self.take_source_diagnostics().into());
         }
 

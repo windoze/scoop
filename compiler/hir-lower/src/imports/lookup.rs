@@ -86,6 +86,7 @@ impl CurrentUnitTarget {
             Self::TypeAlias(id) => TopLevelTypeTarget::Alias(id),
             Self::Annotation(id) => TopLevelTypeTarget::Annotation(id),
             Self::Unavailable(_)
+            | Self::UnavailableImport
             | Self::Function(_)
             | Self::Property(_)
             | Self::EnumVariant(_)

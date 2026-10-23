@@ -23,6 +23,7 @@ from documentation import check as check_documentation
 from exception_recovery import check as check_exception_recovery
 from file_headers import check as check_file_headers
 from for_recovery import check as check_for_recovery
+from import_failures import check as check_import_failures
 from import_references import check as check_import_references
 from incomplete_signatures import check as check_incomplete_signatures
 from local_function_recovery import check as check_local_function_recovery
@@ -400,6 +401,7 @@ def main():
         check_rename_exports(peer, root)
         check_rename_bodies(peer, root)
         check_rename_versions(peer, root)
+        check_import_failures(peer, root)
         check_recovered_interfaces(peer, root)
         check_recovered_structs(peer, root)
         peer.finish()

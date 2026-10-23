@@ -2,17 +2,23 @@
 
 use super::*;
 
+pub(crate) enum UnavailableBindingKind {
+    Declaration(ast::DeclarationHeaderKind),
+    Import,
+}
+
 impl Lowerer {
     pub(crate) fn unavailable_binding_kind(
         &self,
         binding: CurrentUnitBindingId,
-    ) -> Option<ast::DeclarationHeaderKind> {
+    ) -> Option<UnavailableBindingKind> {
         match self.imports.binding(binding).target {
-            CurrentUnitTarget::Unavailable(kind) => Some(kind),
+            CurrentUnitTarget::Unavailable(kind) => Some(UnavailableBindingKind::Declaration(kind)),
+            CurrentUnitTarget::UnavailableImport => Some(UnavailableBindingKind::Import),
             CurrentUnitTarget::Function(function) => self
                 .declaration_surface
                 .unavailable_signature(function)
-                .map(|signature| signature.kind),
+                .map(|signature| UnavailableBindingKind::Declaration(signature.kind)),
             _ => None,
         }
     }
@@ -40,8 +46,10 @@ impl Lowerer {
                 let Some(kind) = self.unavailable_binding_kind(binding) else {
                     return false;
                 };
-                matches(kind)
-                    && self.declaration_source_in_scope(declaration.file)
+                (match kind {
+                    UnavailableBindingKind::Declaration(kind) => matches(kind),
+                    UnavailableBindingKind::Import => true,
+                }) && self.declaration_source_in_scope(declaration.file)
                     && self.access_domain_allows(&declaration.access.0)
             })
             .collect()
@@ -99,6 +107,12 @@ impl Lowerer {
         })
         .into_iter()
         .filter(|&binding| {
+            if matches!(
+                self.imports.binding(binding).target,
+                CurrentUnitTarget::UnavailableImport
+            ) {
+                return true;
+            }
             let role = callable_operator_kind(&self.imports.binding(binding).name).ok();
             required
                 .operator
@@ -119,17 +133,31 @@ impl Lowerer {
             return false;
         }
         let bindings = self.imports.canonicalize(bindings.iter().copied());
+        let has_import_failure = bindings.iter().any(|&binding| {
+            matches!(
+                self.imports.binding(binding).target,
+                CurrentUnitTarget::UnavailableImport
+            )
+        });
         let mut diagnostic = ast::Diagnostic::at_file(
             self.current_file,
             name.span,
-            format!("declaration `{}` is incomplete", name.text),
+            if has_import_failure {
+                format!("import binding for `{}` is unavailable", name.text)
+            } else {
+                format!("declaration `{}` is incomplete", name.text)
+            },
         );
         diagnostic.notes.extend(bindings.iter().map(|&binding| {
             let declaration = self.imports.binding(binding);
             ast::DiagnosticNote::at(
                 declaration.file,
                 declaration.span,
-                "this declaration has no complete semantic input",
+                if matches!(declaration.target, CurrentUnitTarget::UnavailableImport) {
+                    "this import could not be resolved"
+                } else {
+                    "this declaration has no complete semantic input"
+                },
             )
         }));
         self.diagnostics.push(diagnostic);

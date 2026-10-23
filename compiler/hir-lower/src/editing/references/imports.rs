@@ -21,6 +21,18 @@ impl ReferenceBuilder {
         lowerer: &mut Lowerer,
         check: &Rc<dyn Fn() -> bool>,
     ) -> Result<(), EditingCancelled> {
+        for file in lowerer.imports.files.values() {
+            for import in &file.unavailable {
+                if check() {
+                    return Err(EditingCancelled);
+                }
+                let binding = lowerer.imports.binding(import.binding);
+                self.unavailable.push(hir::SemanticSourceLocation {
+                    source: binding.source.clone(),
+                    span: binding.span,
+                });
+            }
+        }
         let declarations = lowerer
             .imports
             .files

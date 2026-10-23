@@ -259,7 +259,7 @@ fn binding_targets(
     target: CurrentUnitTarget,
 ) -> Result<Vec<BindingTarget>, PersistentLocalBindingIdentityErrorDetail> {
     let targets = match target {
-        CurrentUnitTarget::Unavailable(_) => {
+        CurrentUnitTarget::Unavailable(_) | CurrentUnitTarget::UnavailableImport => {
             return Err(PersistentLocalBindingIdentityErrorDetail::UnresolvedDeclaration);
         }
         CurrentUnitTarget::Class(id) => vec![type_name(tables.nominals[id].source())?],

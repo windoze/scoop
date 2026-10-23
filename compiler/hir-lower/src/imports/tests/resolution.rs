@@ -160,7 +160,7 @@ fn public_gate_precedes_visibility_and_never_publishes_local_bindings() {
 #[test]
 fn unknown_and_external_public_selectors_keep_unavailable_diagnostics() {
     let (mut lowerer, _, _) = lowerer();
-    let surface = CurrentUnitImports::default();
+    let mut surface = CurrentUnitImports::default();
     for public in [false, true] {
         for import in [
             exact(&["scoop", "core", "Int"], None, public),

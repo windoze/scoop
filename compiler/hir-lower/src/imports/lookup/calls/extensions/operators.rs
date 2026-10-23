@@ -42,6 +42,9 @@ impl Lowerer {
                                 .iter()
                                 .filter_map(ImportedTargetBinding::current_binding)
                         })
+                        .chain(imports.unavailable.iter().filter_map(|import| {
+                            import.local_name.is_some().then_some(import.binding)
+                        }))
                         .collect::<Vec<_>>(),
                 ),
                 (
@@ -63,6 +66,9 @@ impl Lowerer {
                                 .iter()
                                 .filter_map(ImportedTargetBinding::current_binding)
                         })
+                        .chain(imports.unavailable.iter().filter_map(|import| {
+                            import.local_name.is_none().then_some(import.binding)
+                        }))
                         .collect(),
                 ),
             ];
@@ -80,7 +86,10 @@ impl Lowerer {
                     })
                     .into_iter()
                     .filter(|&binding| {
-                        callable_operator_kind(&self.imports.binding(binding).name).ok()
+                        matches!(
+                            self.imports.binding(binding).target,
+                            CurrentUnitTarget::UnavailableImport
+                        ) || callable_operator_kind(&self.imports.binding(binding).name).ok()
                             == Some(role)
                     })
                     .collect();

@@ -94,7 +94,7 @@ impl Lowerer {
             });
         }
         Ok(match target {
-            CurrentUnitTarget::Unavailable(_) => {
+            CurrentUnitTarget::Unavailable(_) | CurrentUnitTarget::UnavailableImport => {
                 return Err(Diagnostic::without_span(
                     scoop_ast::DiagnosticSeverity::Error,
                     self.current_file,

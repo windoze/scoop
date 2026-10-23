@@ -46,7 +46,7 @@ fn recovered_file_context_uses_normal_packages_imports_and_diagnostic_spans() {
         Some(target)
     );
 
-    let empty = CurrentUnitImports::default();
+    let mut empty = CurrentUnitImports::default();
     empty.resolve_file_with_world(&mut lowerer, &header, None);
     let ast::ImportSyntax::Exact { selector, .. } = &header.imports[0] else {
         panic!("the source has an exact import");
