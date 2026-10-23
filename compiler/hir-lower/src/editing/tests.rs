@@ -25,6 +25,7 @@ mod file_headers;
 mod imported_signatures;
 mod imports;
 mod iteration;
+mod late_declarations;
 mod local_function_contexts;
 mod local_functions;
 mod loops;

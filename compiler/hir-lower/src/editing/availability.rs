@@ -9,6 +9,7 @@ pub(crate) struct DeclarationAvailability {
     current: Option<Target>,
     dependents: imbl::HashMap<Target, imbl::HashSet<Target>>,
     failed: imbl::HashSet<Target>,
+    failed_sources: imbl::HashSet<hir::SemanticSourceLocation>,
 }
 
 pub(crate) struct DeclarationCheck {
@@ -145,6 +146,21 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn fail_editing_source_declaration(&mut self, span: ast::Span) {
+        if self.editing_declarations.is_none() {
+            return;
+        }
+        let origin = hir::SemanticSourceLocation {
+            source: self.source_identity(self.current_file).clone(),
+            span,
+        };
+        self.editing_declarations
+            .as_mut()
+            .expect("editing declarations")
+            .failed_sources
+            .insert(origin);
+    }
+
     pub(crate) fn editing_type_available(&self, target: Target) -> bool {
         self.editing_declarations
             .as_ref()
@@ -202,6 +218,12 @@ impl Lowerer {
                 }
                 _ => None,
             })
+            .chain(
+                self.editing_declarations
+                    .as_ref()
+                    .into_iter()
+                    .flat_map(|state| state.failed_sources.iter().cloned()),
+            )
     }
 
     pub(crate) fn editing_declaration_scope_available(

@@ -26,6 +26,7 @@ from for_recovery import check as check_for_recovery
 from import_failures import check as check_import_failures
 from import_references import check as check_import_references
 from incomplete_signatures import check as check_incomplete_signatures
+from late_declarations import check as check_late_declarations
 from local_function_recovery import check as check_local_function_recovery
 from member_implementations import check as check_member_implementations
 from nominal_failures import check as check_nominal_failures
@@ -404,6 +405,7 @@ def main():
         check_rename_versions(peer, root)
         check_import_failures(peer, root)
         check_nominal_failures(peer, root)
+        check_late_declarations(peer, root)
         check_recovered_interfaces(peer, root)
         check_recovered_structs(peer, root)
         peer.finish()

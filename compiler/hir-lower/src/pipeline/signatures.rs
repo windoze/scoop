@@ -292,7 +292,9 @@ impl Lowerer {
             "body-capable passes require a frozen declaration surface"
         );
 
-        if !self.resolve_errno_annotations(function_headers, pending_globals) {
+        if !self.resolve_errno_annotations(function_headers, pending_globals)
+            && self.editing_declarations.is_none()
+        {
             return Err(self.take_source_diagnostics().into());
         }
         self.validate_extern_functions();
