@@ -55,40 +55,24 @@ pub(crate) fn definition(
         let mut origin = if let Some(parameter) = parameter {
             Some(parameter.origin)
         } else {
-            semantic::local_at(
-                analysis,
-                function.function,
-                cursor.span,
-                snapshot,
-                cancellation,
-            )?
-            .and_then(|local| local.reference.map(|reference| reference.definition))
+            semantic::local_at(analysis, function.id, cursor.span, snapshot, cancellation)?
+                .and_then(|local| local.reference.map(|reference| reference.definition))
         };
         if origin.is_none() {
-            origin = semantic::property_at(
-                analysis,
-                function.function,
-                cursor.span,
-                snapshot,
-                cancellation,
-            )?
-            .and_then(|reference| reference.definition);
+            origin =
+                semantic::property_at(analysis, function.id, cursor.span, snapshot, cancellation)?
+                    .and_then(|reference| reference.definition);
         }
         if origin.is_none() {
-            origin = semantic::callable_at(
-                analysis,
-                function.function,
-                cursor.span,
-                snapshot,
-                cancellation,
-            )?
-            .and_then(|reference| reference.definition);
+            origin =
+                semantic::callable_at(analysis, function.id, cursor.span, snapshot, cancellation)?
+                    .and_then(|reference| reference.definition);
         }
         if origin.is_none() {
             let snapshot = snapshot.clone();
             let cancellation = cancellation.clone();
             if let EditingValue::Known(definition) = analysis
-                .argument_definition(function.function, cursor.span, move || {
+                .argument_definition(function.id, cursor.span, move || {
                     cancellation.check().is_err() || snapshot.check_cancelled().is_err()
                 })
                 .map_err(|_| semantic::cancelled())?

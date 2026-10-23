@@ -122,7 +122,7 @@ fn expression_cancellation_discards_the_query_and_retry_observes_a_clean_body() 
     });
     assert!(matches!(result, Err(EditingCancelled)));
     assert!(checks.get() >= 4);
-    assert!(!analysis.body_facts.contains_key(&function));
+    assert!(!analysis.body_facts.contains_key(&function.into()));
     let body = facts(&mut analysis, "editing");
     assert_eq!(body.locals.len(), 4);
     assert!(analysis.diagnostics().is_empty());

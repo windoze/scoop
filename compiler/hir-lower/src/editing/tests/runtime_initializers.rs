@@ -26,7 +26,7 @@ fn facts(
     analysis: &mut DeclarationAnalysis,
     region: &hir::EditingSourceBody,
 ) -> hir::EditingBodyFacts {
-    match analysis.function_facts(region.function, || false).unwrap() {
+    match analysis.source_body_facts(region.id, || false).unwrap() {
         V::Known(facts) => facts.clone(),
         V::Unavailable(reason) => panic!(
             "initializer unavailable: {reason:?}; {:?}",
@@ -41,7 +41,7 @@ fn type_name(
     local: &hir::EditingLocalOccurrence,
 ) -> String {
     let V::Known(description) = analysis
-        .describe_body_type(region.function, local.context, local.value_type)
+        .describe_body_type(region.id, local.context, local.value_type)
         .unwrap()
     else {
         panic!("a checked initializer local keeps its type context")
@@ -59,7 +59,7 @@ fn runtime_initializers_keep_real_units_calls_and_property_references() {
     };
     assert_eq!(
         analysis.lowerer.initialization_units[unit].initializer,
-        body.function
+        body.id.function().unwrap()
     );
     assert_eq!(
         body.origin,
@@ -72,7 +72,7 @@ fn runtime_initializers_keep_real_units_calls_and_property_references() {
     assert_eq!(facts.properties.len(), 1);
     let argument = at("src/initializers.scoop", text, "value = input", 5);
     let V::Known(Some(argument)) = analysis
-        .named_argument(body.function, argument.span, || false)
+        .named_argument(body.id, argument.span, || false)
         .unwrap()
     else {
         panic!("a checked initializer call has its real argument map")

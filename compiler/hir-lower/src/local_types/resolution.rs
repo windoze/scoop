@@ -7,6 +7,7 @@ impl Lowerer {
         let accessor_start = self.property_accessor_sources.len();
         let function_start = self.functions.len();
         let property_start = self.properties.len();
+        let default_start = self.pending_default_interfaces();
         self.deferred_type_bounds = Some(Vec::new());
         self.resolve_nominal_parameter_constraints(
             &pending.structs,
@@ -129,7 +130,7 @@ impl Lowerer {
             }
         }
         self.validate_inferred_result_contracts();
-        self.finish_export_parameter_interfaces();
+        self.finish_export_parameter_interfaces_from(default_start);
         self.resolve_constructor_graphs(&pending.classes, &pending.structs, &pending.objects);
         self.lower_constructor_initialization(&pending.classes, &pending.structs, &pending.objects);
         for &(id, declaration, file) in &pending.structs {

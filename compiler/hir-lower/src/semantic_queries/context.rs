@@ -45,10 +45,28 @@ impl Lowerer {
                 (file, Some(owner), self.owner_type_params(owner))
             }
         };
+        self.with_type_query_context(
+            file,
+            owner,
+            parameters,
+            self.current_source_context,
+            operation,
+        )
+    }
+
+    pub(crate) fn with_type_query_context<T>(
+        &mut self,
+        file: usize,
+        owner: Option<Owner>,
+        parameters: Vec<hir::TypeParamDecl>,
+        source: Option<hir::SourceContextId>,
+        operation: impl FnOnce(&mut Lowerer) -> T,
+    ) -> T {
         let previous_file = std::mem::replace(&mut self.current_file, file);
         let previous_query = std::mem::replace(&mut self.in_semantic_query, true);
         let previous_owner = std::mem::replace(&mut self.current_owner, owner);
         let previous_parameters = std::mem::replace(&mut self.type_params_in_scope, parameters);
+        let previous_source = std::mem::replace(&mut self.current_source_context, source);
         let previous_scopes = owner
             .and_then(|owner| self.local_nominal_scopes(owner))
             .map(|scopes| std::mem::replace(&mut self.scopes, scopes));
@@ -66,6 +84,7 @@ impl Lowerer {
         self.in_semantic_query = previous_query;
         self.current_owner = previous_owner;
         self.type_params_in_scope = previous_parameters;
+        self.current_source_context = previous_source;
         value
     }
 

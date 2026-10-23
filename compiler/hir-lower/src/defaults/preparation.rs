@@ -3,25 +3,9 @@ use super::*;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+mod editing;
 mod interfaces;
 mod resolve;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub(crate) struct SourceDefaultKey {
-    pub(super) owner: SourceParameterOwner,
-    pub(super) position: u32,
-}
-impl SourceDefaultKey {
-    pub(super) fn new(owner: SourceParameterOwner, position: usize) -> Self {
-        Self {
-            owner,
-            position: u32::try_from(position).expect("parameter position fits u32"),
-        }
-    }
-    pub(super) const fn tuple(self) -> (SourceParameterOwner, u32) {
-        (self.owner, self.position)
-    }
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum DefaultArgumentSource {

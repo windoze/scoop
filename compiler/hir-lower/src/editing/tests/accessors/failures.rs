@@ -6,10 +6,10 @@ fn a_failed_getter_keeps_completed_calls_and_the_independent_setter() {
     let mut analysis = analyze_accessors(text);
     let getter = region(&mut analysis, text, "pass(value = true)");
     assert!(matches!(
-        analysis.function_facts(getter.function, || false).unwrap(),
+        analysis.source_body_facts(getter.id, || false).unwrap(),
         V::Unavailable(U::BodyFailure)
     ));
-    let V::Known(calls) = analysis.calls(getter.function, || false).unwrap() else {
+    let V::Known(calls) = analysis.calls(getter.id, || false).unwrap() else {
         panic!("completed calls precede the failed expression")
     };
     assert_eq!(calls.len(), 1);
@@ -67,13 +67,13 @@ fn accessor_cancellation_discards_body_facts_and_can_retry_without_stale_errors(
         .unwrap();
     let checks = std::rc::Rc::new(std::cell::Cell::new(0));
     let observed = checks.clone();
-    let result = analysis.function_facts(getter.function, move || {
+    let result = analysis.source_body_facts(getter.id, move || {
         observed.set(observed.get() + 1);
         observed.get() >= 4
     });
     assert!(matches!(result, Err(EditingCancelled)));
     assert!(checks.get() >= 4);
-    assert!(!analysis.body_facts.contains_key(&getter.function));
+    assert!(!analysis.body_facts.contains_key(&getter.id));
     assert!(!facts(&mut analysis, &getter).locals.is_empty());
     assert!(analysis.diagnostics().is_empty());
     assert!(analysis.reference_index(|| true).is_err());

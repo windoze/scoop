@@ -19,6 +19,7 @@ struct ReferenceBuilder {
         Vec<hir::SemanticSourceLocation>,
     )>,
     aliases: la_arena::Arena<hir::EditingImportAlias>,
+    parameter_definitions: HashMap<hir::SemanticSourceLocation, Target>,
 }
 
 impl DeclarationAnalysis {
@@ -35,6 +36,7 @@ impl DeclarationAnalysis {
             builder
                 .unavailable
                 .extend(self.unavailable_files.iter().cloned());
+            let mut checked_bodies = std::collections::HashSet::new();
             for function in self.functions.clone() {
                 if check() {
                     return Err(EditingCancelled);
@@ -43,7 +45,7 @@ impl DeclarationAnalysis {
                 builder.body(
                     self,
                     &hir::EditingSourceBody {
-                        function: function.function,
+                        id: function.function.into(),
                         owner: hir::EditingSourceBodyOwner::Callable(
                             hir::SemanticCallable::Current(function.function),
                         ),
@@ -51,22 +53,19 @@ impl DeclarationAnalysis {
                     },
                     &check,
                 )?;
+                checked_bodies.insert(function.function.into());
             }
-            let mut checked_bodies = std::collections::HashSet::new();
             loop {
                 let bodies = self
                     .source_bodies()
                     .into_iter()
-                    .filter(|body| {
-                        !matches!(body.callable(), Some(hir::SemanticCallable::Current(_)))
-                            && !checked_bodies.contains(&body.function)
-                    })
+                    .filter(|body| !checked_bodies.contains(&body.id))
                     .collect::<Vec<_>>();
                 if bodies.is_empty() {
                     break;
                 }
                 for body in bodies {
-                    checked_bodies.insert(body.function);
+                    checked_bodies.insert(body.id);
                     builder.body(self, &body, &check)?;
                 }
             }
@@ -209,6 +208,9 @@ impl ReferenceBuilder {
         origin: hir::SemanticSourceLocation,
         is_declaration: bool,
     ) {
+        if is_declaration && matches!(target, Target::Parameter { .. }) {
+            self.parameter_definitions.insert(origin.clone(), target);
+        }
         self.occurrences.push(hir::EditingReference {
             target,
             origin,

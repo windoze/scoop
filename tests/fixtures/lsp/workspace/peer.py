@@ -13,6 +13,7 @@ from callable_literals import check as check_callable_literals
 from callable_values import check as check_callable_values
 from cancellation import check as check_cancellation
 from constructor_references import check as check_constructor_references
+from defaults import check as check_defaults
 from diagnostics import check as check_diagnostics
 from do_while_recovery import check as check_do_while_recovery
 from documentation import check as check_documentation
@@ -352,6 +353,7 @@ def main():
         check_static_constants(peer, root)
         check_static_calls(peer, root)
         check_static_variants(peer, root)
+        check_defaults(peer, root)
         check_type_references(peer, root)
         check_type_definitions(peer, root)
         check_type_hovers(peer, root)

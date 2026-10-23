@@ -20,7 +20,8 @@ pub(crate) type DefaultExpressionKey = (
     hir::PersistentLexicalRootV1,
     scoop_identity::StructuralDefinitionPath,
 );
-pub(crate) use preparation::{DefaultArgumentSource, DefaultPreparation, SourceDefaultKey};
+pub(crate) use hir::{SourceDefaultKey, SourceParameterOwner};
+pub(crate) use preparation::{DefaultArgumentSource, DefaultPreparation};
 
 #[derive(Clone)]
 pub(crate) struct LocalDefaultExpr {
@@ -59,14 +60,6 @@ pub(crate) enum DefaultOverrideSource {
         declaration: scoop_identity::CallableTemplateOrigin,
         owner: hir::TypeId,
     },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum SourceParameterOwner {
-    Function(hir::FunctionId),
-    StructConstructor(hir::StructConstructorId),
-    ClassConstructor(hir::ClassConstructorId),
-    VariantConstructor(hir::EnumVariantRef),
 }
 
 #[derive(Clone)]

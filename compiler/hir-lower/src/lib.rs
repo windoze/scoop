@@ -545,8 +545,12 @@ pub(crate) struct Lowerer {
     cancellation: Option<pipeline::cancellation::FrontendCancellation>,
     pub(crate) editing_receiver: Option<editing::ReceiverObservation>,
     pub(crate) editing_body: Option<editing::BodyObservation>,
+    pub(crate) editing_local_definitions:
+        imbl::HashMap<hir::BindingId, hir::EditingLocalOccurrence>,
     pub(crate) editing_types: Option<editing::types::TypeObservation>,
     pub(crate) editing_constants: Option<editing::constants::ConstantObservation>,
+    pub(crate) editing_defaults:
+        Option<imbl::HashMap<hir::SourceDefaultKey, editing::ObservedBody>>,
     pub(crate) editing_type_definitions:
         imbl::HashMap<editing::types::TypeTarget, hir::SemanticSourceLocation>,
     pub(crate) editing_local_types: imbl::HashMap<Owner, editing::types::TypeObservation>,

@@ -19,8 +19,8 @@ impl DeclarationAnalysis {
         ty: hir::TypeId,
     ) -> Result<V<hir::SemanticTypeDescription>, ast::Diagnostic> {
         match context {
-            hir::EditingCallContext::Body { function, source } => {
-                self.describe_body_type(*function, *source, ty)
+            hir::EditingCallContext::Body { body, source } => {
+                self.describe_body_type(*body, *source, ty)
             }
             hir::EditingCallContext::Declaration(binders) => {
                 self.describe_declaration_type(binders, ty).map(V::Known)
@@ -33,14 +33,29 @@ impl DeclarationAnalysis {
         function: hir::FunctionId,
         is_cancelled: impl Fn() -> bool + 'static,
     ) -> Result<V<&hir::EditingBodyFacts>, EditingCancelled> {
+        self.source_body_facts(function.into(), is_cancelled)
+    }
+
+    pub fn source_body_facts(
+        &mut self,
+        body: hir::EditingSourceBodyId,
+        is_cancelled: impl Fn() -> bool + 'static,
+    ) -> Result<V<&hir::EditingBodyFacts>, EditingCancelled> {
         if is_cancelled() {
             return Err(EditingCancelled);
         }
-        if !self.body_facts.contains_key(&function) {
-            let facts = self.analyze_source_body(function, is_cancelled)?;
-            self.body_facts.insert(function, facts);
+        if !self.body_facts.contains_key(&body) {
+            let facts = match body {
+                hir::EditingSourceBodyId::Function(function) => {
+                    self.analyze_function_body(function, is_cancelled)?
+                }
+                hir::EditingSourceBodyId::Default(key) => {
+                    self.analyze_default_body(key, is_cancelled)?
+                }
+            };
+            self.body_facts.insert(body, facts);
         }
-        Ok(match &self.body_facts[&function] {
+        Ok(match &self.body_facts[&body] {
             V::Known(body) => match &body.facts {
                 V::Known(facts) => V::Known(facts),
                 V::Unavailable(reason) => V::Unavailable(*reason),
@@ -49,7 +64,7 @@ impl DeclarationAnalysis {
         })
     }
 
-    fn analyze_source_body(
+    fn analyze_function_body(
         &mut self,
         function: hir::FunctionId,
         is_cancelled: impl Fn() -> bool + 'static,
@@ -71,7 +86,8 @@ impl DeclarationAnalysis {
             .function_definition_file(function)
             .expect("source body has its definition file");
         candidate.editing_body = Some(BodyObservation::new(
-            function,
+            function.into(),
+            hir::LexicalDefinitionRoot::Function(function),
             candidate.current_file,
             before,
             is_cancelled,
@@ -107,9 +123,8 @@ impl DeclarationAnalysis {
         if observed.cancelled() {
             return Err(EditingCancelled);
         }
-        let complete = completed && !observed.failed && candidate.diagnostics.len() == before;
         let cancellation = observed.cancellation();
-        let facts = V::Known(observed.finish(&mut candidate, complete));
+        let facts = V::Known(observed.finish(&mut candidate, completed));
         if cancellation() {
             return Err(EditingCancelled);
         }
@@ -117,30 +132,67 @@ impl DeclarationAnalysis {
         Ok(facts)
     }
 
+    fn analyze_default_body(
+        &mut self,
+        key: hir::SourceDefaultKey,
+        is_cancelled: impl Fn() -> bool + 'static,
+    ) -> Result<V<ObservedBody>, EditingCancelled> {
+        if !self.declarations_ready {
+            return Ok(V::Unavailable(U::DeclarationFailure));
+        }
+        if let hir::SourceParameterOwner::Function(function) = key.owner
+            && let V::Unavailable(reason) = self.signature(function)
+        {
+            return Ok(V::Unavailable(reason));
+        }
+        let Some(source) = self.lowerer.editing_default_source(key) else {
+            return Ok(V::Unavailable(U::IncompleteSyntax));
+        };
+        if !self.declaration_scope_available(&source.origin) {
+            return Ok(V::Unavailable(U::BodyFailure));
+        }
+        let mut candidate = self.lowerer.clone();
+        let cancellation = crate::pipeline::cancellation::FrontendCancellation::new(is_cancelled);
+        let previous = candidate.cancellation.replace(cancellation.clone());
+        let facts = candidate.lower_editing_default(key);
+        if cancellation.cancelled() {
+            return Err(EditingCancelled);
+        }
+        candidate.cancellation = previous;
+        self.lowerer = candidate;
+        Ok(facts.map_or(V::Unavailable(U::BodyFailure), V::Known))
+    }
+
     pub fn describe_body_type(
         &mut self,
-        function: hir::FunctionId,
+        body: impl Into<hir::EditingSourceBodyId>,
         context: hir::SourceContextId,
         ty: hir::TypeId,
     ) -> Result<V<hir::SemanticTypeDescription>, ast::Diagnostic> {
+        let body = body.into();
         let context_data = self
             .body_facts
-            .get(&function)
+            .get(&body)
             .and_then(|body| {
                 let V::Known(body) = body else { return None };
                 body.contexts.get(&context)
             })
-            .or_else(|| self.recovered_facts.get(&function)?.contexts.get(&context))
+            .or_else(|| {
+                self.recovered_facts
+                    .get(&body.function()?)?
+                    .contexts
+                    .get(&context)
+            })
             .cloned();
         let Some(context_data) = context_data else {
             return Ok(V::Unavailable(U::BodyFailure));
         };
-        self.lowerer
-            .in_context(hir::SemanticContext::Function(function), |lowerer| {
-                lowerer.current_owner = context_data.owner;
-                lowerer.current_source_context = Some(context);
-                lowerer.type_params_in_scope = context_data.parameters;
-                lowerer.describe_semantic_type(ty).map(V::Known)
-            })
+        self.lowerer.with_type_query_context(
+            context_data.file,
+            context_data.owner,
+            context_data.parameters,
+            Some(context),
+            |lowerer| lowerer.describe_semantic_type(ty).map(V::Known),
+        )
     }
 }

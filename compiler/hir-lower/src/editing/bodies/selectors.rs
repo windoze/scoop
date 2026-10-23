@@ -9,11 +9,12 @@ pub(super) struct SelectorInput {
 impl DeclarationAnalysis {
     pub fn selectors(
         &mut self,
-        function: hir::FunctionId,
+        body: impl Into<hir::EditingSourceBodyId>,
         is_cancelled: impl Fn() -> bool + 'static,
     ) -> Result<V<&[hir::EditingSelector]>, EditingCancelled> {
-        self.function_facts(function, is_cancelled)?;
-        Ok(match &self.body_facts[&function] {
+        let body = body.into();
+        self.source_body_facts(body, is_cancelled)?;
+        Ok(match &self.body_facts[&body] {
             V::Known(body) => V::Known(&body.selectors),
             V::Unavailable(reason) => V::Unavailable(*reason),
         })
@@ -70,7 +71,7 @@ impl Lowerer {
         let local = body
             .uses
             .get(&span)
-            .and_then(|(binding, _, _)| body.bindings.get(binding))
+            .and_then(|(binding, _, _)| self.editing_local_definitions.get(binding))
             .map(|definition| definition.reference.clone());
         let cancelled = body.cancellation();
         for input in inputs {

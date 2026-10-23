@@ -5,7 +5,8 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub(crate) struct BodyObservation {
     pub(crate) types: super::super::types::TypeObservation,
-    pub(super) function: hir::FunctionId,
+    pub(super) id: hir::EditingSourceBodyId,
+    pub(super) root: hir::LexicalDefinitionRoot,
     pub(super) file: usize,
     pub(super) diagnostics_start: usize,
     cancellation: FrontendCancellation,
@@ -30,10 +31,12 @@ pub(crate) struct BodyObservation {
 
 #[derive(Clone)]
 pub(in crate::editing) struct ObservedContext {
+    pub(in crate::editing) file: usize,
     pub(in crate::editing) owner: Option<crate::Owner>,
     pub(in crate::editing) parameters: Vec<hir::TypeParamDecl>,
 }
 
+#[derive(Clone)]
 pub(crate) struct ObservedBody {
     pub(super) facts: V<hir::EditingBodyFacts>,
     pub(super) selectors: Vec<hir::EditingSelector>,
@@ -48,15 +51,17 @@ impl ObservedBody {
 }
 
 impl BodyObservation {
-    pub(super) fn new(
-        function: hir::FunctionId,
+    pub(crate) fn new(
+        id: hir::EditingSourceBodyId,
+        root: hir::LexicalDefinitionRoot,
         file: usize,
         diagnostics_start: usize,
         check: impl Fn() -> bool + 'static,
     ) -> Self {
         Self {
             types: Default::default(),
-            function,
+            id,
+            root,
             file,
             diagnostics_start,
             cancellation: FrontendCancellation::new(check),
@@ -79,16 +84,18 @@ impl BodyObservation {
         }
     }
 
-    pub(super) fn cancelled(&self) -> bool {
+    pub(crate) fn cancelled(&self) -> bool {
         self.cancellation.cancelled()
     }
 
-    pub(super) fn cancellation(&self) -> Rc<dyn Fn() -> bool> {
+    pub(crate) fn cancellation(&self) -> Rc<dyn Fn() -> bool> {
         let cancellation = self.cancellation.clone();
         Rc::new(move || cancellation.cancelled())
     }
 
-    pub(super) fn finish(self, lowerer: &mut Lowerer, complete: bool) -> ObservedBody {
+    pub(crate) fn finish(self, lowerer: &mut Lowerer, complete: bool) -> ObservedBody {
+        let complete =
+            complete && !self.failed && lowerer.diagnostics.len() == self.diagnostics_start;
         let (types, type_applications) = if complete {
             self.types.finish(lowerer)
         } else {
@@ -111,7 +118,11 @@ impl BodyObservation {
             })
             .collect::<Vec<_>>();
         for (span, (binding, context, role)) in &self.uses {
-            let Some(definition) = self.bindings.get(binding) else {
+            let Some(definition) = self
+                .bindings
+                .get(binding)
+                .or_else(|| lowerer.editing_local_definitions.get(binding))
+            else {
                 continue;
             };
             let value_type = self.expressions.get(span).map_or_else(

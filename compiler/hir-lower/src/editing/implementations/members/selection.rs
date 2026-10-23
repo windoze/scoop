@@ -95,10 +95,10 @@ impl DeclarationAnalysis {
         let check = std::rc::Rc::new(is_cancelled);
         let cancellation = check.clone();
         if let Some(body) = self.source_body_at(source, span, move || cancellation())? {
-            let function = body.function;
+            let body = body.id;
             let cancellation = check.clone();
             let (callables, properties) =
-                match self.function_facts(function, move || cancellation())? {
+                match self.source_body_facts(body, move || cancellation())? {
                     V::Known(facts) => (
                         facts
                             .callables

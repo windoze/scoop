@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn named(
     analysis: &mut DeclarationAnalysis,
-    function: hir::FunctionId,
+    function: hir::EditingSourceBodyId,
     target: Span,
     cancellation: &Cancellation,
 ) -> Result<Option<Description>, ResponseError> {

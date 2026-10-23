@@ -87,7 +87,7 @@ fn generic_alias_constructions_share_the_original_struct_constructor() {
     };
     assert_eq!(
         argument.definition,
-        Some(at("src/constructors.scoop", text, "val item: T", 11))
+        Some(at("src/constructors.scoop", text, "item: T", 4))
     );
 }
 
@@ -135,8 +135,8 @@ fn unused_variant_declarations_publish_their_own_parameter_targets() {
     let location = at(
         "src/constructors.scoop",
         text,
-        "val value: Boolean",
-        "val value: Boolean".len(),
+        "value: Boolean",
+        "value".len(),
     );
     let targets = index.targets_at(&location);
     assert!(matches!(

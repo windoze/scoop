@@ -1,13 +1,13 @@
 use crate::{
-    EditingCallee, FunctionId, SemanticDeclarationBinders, SemanticSourceLocation, SourceContextId,
-    Span, TypeId,
+    EditingCallee, EditingSourceBodyId, SemanticDeclarationBinders, SemanticSourceLocation,
+    SourceContextId, Span, TypeId,
 };
 
 /// The actual type environment of a completed source call.
 #[derive(Clone, Debug)]
 pub enum EditingCallContext {
     Body {
-        function: FunctionId,
+        body: EditingSourceBodyId,
         source: SourceContextId,
     },
     Declaration(SemanticDeclarationBinders),

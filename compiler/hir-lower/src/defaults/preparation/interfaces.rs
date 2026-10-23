@@ -2,8 +2,16 @@ use super::*;
 use crate::FnVarargOmission;
 
 impl Lowerer {
+    pub(crate) fn pending_default_interfaces(&self) -> usize {
+        self.default_preparation.export_order.len()
+    }
+
     pub(crate) fn finish_export_parameter_interfaces(&mut self) {
-        let owners = std::mem::take(&mut self.default_preparation.export_order);
+        self.finish_export_parameter_interfaces_from(0);
+    }
+
+    pub(crate) fn finish_export_parameter_interfaces_from(&mut self, start: usize) {
+        let owners = self.default_preparation.export_order.split_off(start);
         let outer_file = self.current_file;
         for &owner in &owners {
             let owner = lowering::source_owner(owner);

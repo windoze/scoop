@@ -41,7 +41,7 @@ pub struct DeclarationAnalysis {
     pub(crate) recovered_facts: std::collections::HashMap<hir::FunctionId, RecoveredFacts>,
     pub(crate) body_inputs: std::collections::HashMap<hir::FunctionId, ast::FunctionDecl>,
     pub(crate) body_facts:
-        std::collections::HashMap<hir::FunctionId, hir::EditingValue<ObservedBody>>,
+        std::collections::HashMap<hir::EditingSourceBodyId, hir::EditingValue<ObservedBody>>,
     pub(crate) reference_index: Option<hir::EditingReferenceIndex>,
     pub(crate) type_references: Vec<hir::EditingTypeReference>,
     pub(crate) type_applications: Vec<hir::EditingTypeApplication>,

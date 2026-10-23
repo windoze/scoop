@@ -14,6 +14,7 @@ mod candidates;
 mod candidates_imported;
 mod conditionals;
 mod constructors;
+mod defaults;
 mod definitions;
 mod do_while;
 mod documentation;

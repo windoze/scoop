@@ -118,9 +118,9 @@ impl DeclarationAnalysis {
         let check = std::rc::Rc::new(is_cancelled);
         let cancellation = check.clone();
         if let Some(body) = self.source_body_at(source, span, move || cancellation())? {
-            let function = body.function;
+            let body = body.id;
             let check = check.clone();
-            match self.function_facts(function, move || check())? {
+            match self.source_body_facts(body, move || check())? {
                 V::Known(facts) => {
                     if let Some(reference) = facts.types.iter().find(|reference| {
                         &reference.origin.source == source && reference.origin.span == span

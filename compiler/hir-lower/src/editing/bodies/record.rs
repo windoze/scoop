@@ -41,8 +41,7 @@ impl Lowerer {
 
     pub(crate) fn observes_current_body(&self) -> bool {
         self.editing_body.as_ref().is_some_and(|body| {
-            body.file == self.current_file
-                && self.definition_root == Some(hir::LexicalDefinitionRoot::Function(body.function))
+            body.file == self.current_file && self.definition_root == Some(body.root)
         })
     }
 
@@ -60,6 +59,7 @@ impl Lowerer {
         body.contexts
             .entry(context)
             .or_insert_with(|| ObservedContext {
+                file: self.current_file,
                 owner: self.current_owner,
                 parameters: self.type_params_in_scope.clone(),
             });
@@ -116,20 +116,20 @@ impl Lowerer {
             .expect("source local was checked");
         let value_type = local.ty;
         let context = self.observe_body_context();
+        let occurrence = hir::EditingLocalOccurrence {
+            span: definition.span,
+            context,
+            reference,
+            value_type,
+            role: hir::EditingLocalRole::Declaration,
+        };
+        self.editing_local_definitions
+            .insert(occurrence.reference.binding, occurrence.clone());
         self.editing_body
             .as_mut()
             .expect("active query")
             .bindings
-            .insert(
-                reference.binding,
-                hir::EditingLocalOccurrence {
-                    span: definition.span,
-                    context,
-                    reference,
-                    value_type,
-                    role: hir::EditingLocalRole::Declaration,
-                },
-            );
+            .insert(occurrence.reference.binding, occurrence);
     }
 
     pub(crate) fn observe_local_use(

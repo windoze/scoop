@@ -21,6 +21,14 @@ impl Lowerer {
                     .definition
             }
             C::CurrentVariant(variant) => {
+                if self.enums[variant.enumeration()].variants[variant.local_index() as usize].style
+                    != hir::VariantStyle::Positional
+                {
+                    return self.editing_source_parameter_origin(
+                        hir::SourceParameterOwner::VariantConstructor(variant),
+                        index,
+                    );
+                }
                 let field = hir::EnumVariantFieldRef::checked(&self.enums, variant, index as u32)?;
                 return Some(hir::SemanticSourceLocation {
                     source: self

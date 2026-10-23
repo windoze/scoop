@@ -2,7 +2,7 @@ use super::*;
 
 pub(in crate::queries) fn callable_at(
     analysis: &mut DeclarationAnalysis,
-    function: hir::FunctionId,
+    function: hir::EditingSourceBodyId,
     span: Span,
     snapshot: &AnalysisSnapshot,
     cancellation: &Cancellation,
@@ -20,7 +20,7 @@ pub(in crate::queries) fn callable_at(
 
 pub(in crate::queries) fn property_at(
     analysis: &mut DeclarationAnalysis,
-    function: hir::FunctionId,
+    function: hir::EditingSourceBodyId,
     span: Span,
     snapshot: &AnalysisSnapshot,
     cancellation: &Cancellation,
@@ -38,14 +38,14 @@ pub(in crate::queries) fn property_at(
 
 fn body_facts<'a>(
     analysis: &'a mut DeclarationAnalysis,
-    function: hir::FunctionId,
+    function: hir::EditingSourceBodyId,
     snapshot: &AnalysisSnapshot,
     cancellation: &Cancellation,
 ) -> Result<Option<&'a hir::EditingBodyFacts>, ResponseError> {
     let snapshot = snapshot.clone();
     let cancellation = cancellation.clone();
     let facts = analysis
-        .function_facts(function, move || {
+        .source_body_facts(function, move || {
             cancellation.check().is_err() || snapshot.check_cancelled().is_err()
         })
         .map_err(|_| cancelled())?;

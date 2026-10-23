@@ -120,7 +120,7 @@ fn origin(
             return value_origin(analysis, parameter.value_type);
         }
         if let V::Known(calls) = analysis
-            .calls(function.function, check(snapshot, cancellation))
+            .calls(function.id, check(snapshot, cancellation))
             .map_err(|_| semantic::cancelled())?
             && let Some(ty) = calls
                 .iter()
@@ -129,22 +129,14 @@ fn origin(
         {
             return value_origin(analysis, ty);
         }
-        if let Some(property) = semantic::property_at(
-            analysis,
-            function.function,
-            cursor.span,
-            snapshot,
-            cancellation,
-        )? {
+        if let Some(property) =
+            semantic::property_at(analysis, function.id, cursor.span, snapshot, cancellation)?
+        {
             return value_origin(analysis, property.value_type);
         }
-        if let Some(local) = semantic::local_at(
-            analysis,
-            function.function,
-            cursor.span,
-            snapshot,
-            cancellation,
-        )? {
+        if let Some(local) =
+            semantic::local_at(analysis, function.id, cursor.span, snapshot, cancellation)?
+        {
             return value_origin(analysis, local.ty);
         }
     }

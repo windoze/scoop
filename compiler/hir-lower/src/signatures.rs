@@ -107,15 +107,7 @@ impl Lowerer {
             .semantic_fields()
             .iter()
             .enumerate()
-            .map(|(index, field)| {
-                let field_ref = hir::StructFieldRef::checked(&self.structs, id, index as u32)
-                    .expect("a primary-constructor parameter belongs to its source field");
-                (
-                    field.name.clone(),
-                    field.ty,
-                    self.struct_field_spans[&field_ref],
-                )
-            })
+            .map(|(index, field)| (field.name.clone(), field.ty, field_name_spans[index]))
             .collect::<Vec<_>>();
         let parameters = fields
             .into_iter()

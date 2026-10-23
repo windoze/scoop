@@ -8,9 +8,9 @@ impl ReferenceBuilder {
         check: &Rc<dyn Fn() -> bool>,
     ) -> Result<(), EditingCancelled> {
         let cancellation = check.clone();
-        let V::Known(facts) = analysis.function_facts(function.function, move || cancellation())?
+        let V::Known(facts) = analysis.source_body_facts(function.id, move || cancellation())?
         else {
-            self.parameters(analysis, function.function, function.callable());
+            self.parameters(analysis, function);
             self.unavailable.push(function.origin.clone());
             return Ok(());
         };
@@ -29,24 +29,30 @@ impl ReferenceBuilder {
                     reference.imports.clone(),
                 )
             }));
-        let mut parameters = self.parameters(analysis, function.function, function.callable());
+        self.parameters(analysis, function);
         for declaration in &local_functions {
             if check() {
                 return Err(EditingCancelled);
             }
             self.function(analysis, declaration);
-            parameters.extend(self.parameters(
+            self.parameters(
                 analysis,
-                declaration.function,
-                Some(hir::SemanticCallable::Current(declaration.function)),
-            ));
+                &hir::EditingSourceBody {
+                    id: declaration.function.into(),
+                    owner: hir::EditingSourceBodyOwner::Callable(hir::SemanticCallable::Current(
+                        declaration.function,
+                    )),
+                    origin: declaration.name_origin.clone(),
+                },
+            );
         }
         let source = &function.origin.source;
         for local in locals {
             if check() {
                 return Err(EditingCancelled);
             }
-            let target = parameters
+            let target = self
+                .parameter_definitions
                 .get(&local.reference.definition)
                 .copied()
                 .unwrap_or(Target::Binding(local.reference.binding));
@@ -92,7 +98,7 @@ impl ReferenceBuilder {
             }
         }
         let cancellation = check.clone();
-        let V::Known(calls) = analysis.calls(function.function, move || cancellation())? else {
+        let V::Known(calls) = analysis.calls(function.id, move || cancellation())? else {
             return Ok(());
         };
         let calls = calls.to_vec();
@@ -134,33 +140,20 @@ impl ReferenceBuilder {
         }
     }
 
-    fn parameters(
-        &mut self,
-        analysis: &mut DeclarationAnalysis,
-        function: hir::FunctionId,
-        declaration: Option<hir::SemanticCallable>,
-    ) -> HashMap<hir::SemanticSourceLocation, Target> {
-        let Some(declaration) = declaration else {
-            return HashMap::new();
+    fn parameters(&mut self, analysis: &mut DeclarationAnalysis, body: &hir::EditingSourceBody) {
+        let Some(declaration) = body.callee() else {
+            return;
         };
-        let V::Known(signature) = analysis.signature(function) else {
-            return HashMap::new();
+        let parameters = analysis.body_parameters(body);
+        let Some(callable) = self.identities.callee(&mut analysis.lowerer, declaration) else {
+            return;
         };
-        let Some(callable) = self.identities.callable(&mut analysis.lowerer, declaration) else {
-            return HashMap::new();
-        };
-        signature
-            .parameters
-            .into_iter()
-            .enumerate()
-            .map(|(index, parameter)| {
-                let target = Target::Parameter {
-                    callable,
-                    index: index as u32,
-                };
-                self.record(target, parameter.origin.clone(), true);
-                (parameter.origin, target)
-            })
-            .collect()
+        for (index, parameter) in parameters.into_iter().enumerate() {
+            let target = Target::Parameter {
+                callable,
+                index: index as u32,
+            };
+            self.record(target, parameter, true);
+        }
     }
 }

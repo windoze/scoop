@@ -140,6 +140,19 @@ impl Lowerer {
         )
     }
 
+    pub(crate) fn lower_local_type_named_capture(
+        &mut self,
+        name: &ast::Ident,
+    ) -> Option<hir::Expr> {
+        let key = CaptureKey::Name(name.text.clone());
+        let scope = self.local_type_capture_scope.as_ref()?;
+        let binding = self.local_types[&scope.owner].available.get(&key)?.binding;
+        let value = self.lower_local_type_capture(&key, name.span)?;
+        self.observe_receiver_capture(binding, name.span);
+        self.observe_local_use(binding, name.span, hir::EditingLocalRole::Read);
+        Some(value)
+    }
+
     pub(crate) fn local_constructor_environment(
         &mut self,
         class: hir::ClassId,

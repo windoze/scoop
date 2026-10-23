@@ -34,9 +34,13 @@ enum ObservedReceiverLocal {
 impl DeclarationAnalysis {
     pub fn receivers(
         &mut self,
-        function: hir::FunctionId,
+        body: impl Into<hir::EditingSourceBodyId>,
         is_cancelled: impl Fn() -> bool,
     ) -> Result<&[hir::EditingReceiver], EditingCancelled> {
+        check_cancelled(&is_cancelled)?;
+        let Some(function) = body.into().function() else {
+            return Ok(&[]);
+        };
         self.ensure_recovered_facts(function, is_cancelled)?;
         Ok(&self.recovered_facts[&function].receivers)
     }
@@ -185,6 +189,7 @@ impl Lowerer {
             contexts
                 .entry(context)
                 .or_insert_with(|| super::bodies::ObservedContext {
+                    file: self.current_file,
                     owner: self.current_owner,
                     parameters: self.type_params_in_scope.clone(),
                 });

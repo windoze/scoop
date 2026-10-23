@@ -28,9 +28,13 @@ pub(crate) struct ArgumentContext {
 impl DeclarationAnalysis {
     pub fn incomplete_calls(
         &mut self,
-        function: hir::FunctionId,
+        body: impl Into<hir::EditingSourceBodyId>,
         is_cancelled: impl Fn() -> bool,
     ) -> Result<&[hir::EditingIncompleteCall], EditingCancelled> {
+        super::receivers::check_cancelled(&is_cancelled)?;
+        let Some(function) = body.into().function() else {
+            return Ok(&[]);
+        };
         self.ensure_recovered_facts(function, is_cancelled)?;
         Ok(&self.recovered_facts[&function].calls)
     }

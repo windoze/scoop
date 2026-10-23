@@ -9,7 +9,7 @@ pub(super) fn signature_help(
     let mut selected: Option<hir::EditingIncompleteCall> = None;
     if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {
         let calls = analysis
-            .incomplete_calls(function.function, || {
+            .incomplete_calls(function.id, || {
                 cancellation.check().is_err() || snapshot.check_cancelled().is_err()
             })
             .map_err(|_| semantic::cancelled())?;

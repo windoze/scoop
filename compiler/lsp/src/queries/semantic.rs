@@ -162,12 +162,12 @@ pub(super) fn static_variant(
 pub(super) struct Local {
     pub reference: Option<hir::EditingLocalReference>,
     pub ty: hir::TypeId,
-    pub context: Option<hir::SourceContextId>,
+    pub context: hir::SourceContextId,
 }
 
 pub(super) fn local_at(
     analysis: &mut DeclarationAnalysis,
-    function: hir::FunctionId,
+    function: hir::EditingSourceBodyId,
     span: Span,
     snapshot: &AnalysisSnapshot,
     cancellation: &Cancellation,
@@ -185,7 +185,7 @@ pub(super) fn local_at(
         return Ok(Some(Local {
             reference: receiver.local.clone(),
             ty: ty.ty,
-            context: Some(ty.context),
+            context: ty.context,
         }));
     }
     let snapshot = snapshot.clone();
@@ -202,11 +202,11 @@ pub(super) fn local_at(
         return Ok(Some(Local {
             reference: selector.local.clone(),
             ty: selector.value_type,
-            context: Some(selector.context),
+            context: selector.context,
         }));
     }
     let EditingValue::Known(facts) = analysis
-        .function_facts(function, move || {
+        .source_body_facts(function, move || {
             cancellation.check().is_err() || snapshot.check_cancelled().is_err()
         })
         .map_err(|_| cancelled())?
@@ -220,7 +220,7 @@ pub(super) fn local_at(
         .map(|local| Local {
             reference: Some(local.reference.clone()),
             ty: local.value_type,
-            context: Some(local.context),
+            context: local.context,
         })
         .or_else(|| {
             facts
@@ -230,21 +230,19 @@ pub(super) fn local_at(
                 .map(|expression| Local {
                     reference: None,
                     ty: expression.value_type,
-                    context: Some(expression.context),
+                    context: expression.context,
                 })
         }))
 }
 
 pub(super) fn local_type(
     analysis: &mut DeclarationAnalysis,
-    function: hir::FunctionId,
+    function: hir::EditingSourceBodyId,
     local: &Local,
 ) -> Result<String, ResponseError> {
-    let description = match local.context {
-        Some(context) => analysis.describe_body_type(function, context, local.ty),
-        None => analysis.describe_type(function, local.ty),
-    }
-    .map_err(|error| convert::error(ErrorCode::RequestFailed, error.message))?;
+    let description = analysis
+        .describe_body_type(function, local.context, local.ty)
+        .map_err(|error| convert::error(ErrorCode::RequestFailed, error.message))?;
     match description {
         EditingValue::Known(description) => Ok(description.name),
         EditingValue::Unavailable(_) => Err(convert::error(

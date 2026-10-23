@@ -25,7 +25,7 @@ pub(crate) fn completion(
     };
     if let Some(function) = semantic::body(analysis, &cursor, snapshot, cancellation)? {
         let receivers = analysis
-            .receivers(function.function, || {
+            .receivers(function.id, || {
                 cancellation.check().is_err() || snapshot.check_cancelled().is_err()
             })
             .map_err(|_| semantic::cancelled())?;
@@ -43,7 +43,7 @@ pub(crate) fn completion(
         let snapshot = snapshot.clone();
         let cancellation = cancellation.clone();
         let EditingValue::Known(selectors) = analysis
-            .selectors(function.function, move || {
+            .selectors(function.id, move || {
                 cancellation.check().is_err() || snapshot.check_cancelled().is_err()
             })
             .map_err(|_| semantic::cancelled())?

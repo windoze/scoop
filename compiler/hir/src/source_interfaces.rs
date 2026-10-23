@@ -2,6 +2,9 @@
 
 use super::*;
 
+mod default_keys;
+pub use default_keys::{SourceDefaultKey, SourceParameterOwner};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceFileMetadata {
     pub provider: IntrinsicProviderId,

@@ -4,11 +4,11 @@ use hir::EditingValue as V;
 impl DeclarationAnalysis {
     pub fn argument_definition(
         &mut self,
-        function: hir::FunctionId,
+        body: impl Into<hir::EditingSourceBodyId>,
         span: ast::Span,
         is_cancelled: impl Fn() -> bool + 'static,
     ) -> Result<V<Option<hir::SemanticSourceLocation>>, EditingCancelled> {
-        Ok(match self.named_argument(function, span, is_cancelled)? {
+        Ok(match self.named_argument(body, span, is_cancelled)? {
             V::Known(argument) => V::Known(argument.and_then(|argument| argument.definition)),
             V::Unavailable(reason) => V::Unavailable(reason),
         })
@@ -16,11 +16,11 @@ impl DeclarationAnalysis {
 
     pub fn named_argument(
         &mut self,
-        function: hir::FunctionId,
+        body: impl Into<hir::EditingSourceBodyId>,
         span: ast::Span,
         is_cancelled: impl Fn() -> bool + 'static,
     ) -> Result<V<Option<hir::EditingNamedArgument>>, EditingCancelled> {
-        let calls = match self.calls(function, is_cancelled)? {
+        let calls = match self.calls(body, is_cancelled)? {
             V::Known(calls) => calls,
             V::Unavailable(reason) => return Ok(V::Unavailable(reason)),
         };

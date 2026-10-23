@@ -30,7 +30,7 @@ impl SemanticSession {
                         .source_bodies()
                         .into_iter()
                         .filter(|body| body.origin.source == *identity)
-                        .map(|body| body.function)
+                        .map(|body| body.id)
                         .filter(|function| !checked.contains(function))
                         .collect::<Vec<_>>();
                     if functions.is_empty() {
@@ -39,7 +39,9 @@ impl SemanticSession {
                     for function in functions {
                         let revision = snapshot.clone();
                         analysis
-                            .function_facts(function, move || revision.check_cancelled().is_err())
+                            .source_body_facts(function, move || {
+                                revision.check_cancelled().is_err()
+                            })
                             .map_err(|_| ProjectAnalysisError::Cancelled)?;
                         checked.insert(function);
                     }

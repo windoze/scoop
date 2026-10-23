@@ -19,11 +19,12 @@ pub(super) struct CheckedArguments {
 impl DeclarationAnalysis {
     pub fn calls(
         &mut self,
-        function: hir::FunctionId,
+        body: impl Into<hir::EditingSourceBodyId>,
         is_cancelled: impl Fn() -> bool + 'static,
     ) -> Result<V<&[hir::EditingAppliedCall]>, EditingCancelled> {
-        self.function_facts(function, is_cancelled)?;
-        Ok(match &self.body_facts[&function] {
+        let body = body.into();
+        self.source_body_facts(body, is_cancelled)?;
+        Ok(match &self.body_facts[&body] {
             V::Known(body) => V::Known(&body.calls),
             V::Unavailable(reason) => V::Unavailable(*reason),
         })
@@ -124,7 +125,7 @@ impl Lowerer {
                 name: input.name.clone(),
                 callee,
                 context: hir::EditingCallContext::Body {
-                    function: body.function,
+                    body: body.id,
                     source: context,
                 },
                 parameters: arguments.parameters,

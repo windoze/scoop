@@ -3,6 +3,8 @@ use crate::globals::{PendingRuntimeInitializer, PendingRuntimeInitializerKind};
 use crate::properties::{PropertyAccessorBodyKind, PropertyAccessorKind, PropertyAccessorSource};
 use hir::EditingValue as V;
 
+mod parameters;
+
 pub(super) enum SourceBodyInput<'a> {
     Function(&'a ast::FunctionDecl),
     Accessor(&'a PropertyAccessorSource),
@@ -34,12 +36,12 @@ impl DeclarationAnalysis {
             let Some(body) = selected else {
                 return Ok(None);
             };
-            if previous == Some(body.function) {
+            if previous == Some(body.id) {
                 return Ok(Some(body));
             }
-            previous = Some(body.function);
+            previous = Some(body.id);
             let cancellation = check.clone();
-            self.function_facts(body.function, move || cancellation())?;
+            self.source_body_facts(body.id, move || cancellation())?;
         }
     }
 
@@ -53,21 +55,31 @@ impl DeclarationAnalysis {
         &self,
         body: &hir::EditingSourceBody,
     ) -> Option<V<EditingSignature>> {
-        body.callable().map(|_| self.signature(body.function))
+        let function = match body.id {
+            hir::EditingSourceBodyId::Function(function) if body.callable().is_some() => function,
+            hir::EditingSourceBodyId::Default(hir::SourceDefaultKey {
+                owner: hir::SourceParameterOwner::Function(function),
+                ..
+            }) => function,
+            _ => return None,
+        };
+        Some(self.signature(function))
     }
 
     fn source_body_regions(&self) -> impl Iterator<Item = hir::EditingSourceBody> + '_ {
         self.functions
             .iter()
-            .map(|function| hir::EditingSourceBody {
-                function: function.function,
-                owner: hir::EditingSourceBodyOwner::Callable(hir::SemanticCallable::Current(
-                    function.function,
-                )),
-                origin: hir::SemanticSourceLocation {
-                    source: function.name_origin.source.clone(),
-                    span: function.span,
-                },
+            .filter_map(|function| {
+                Some(hir::EditingSourceBody {
+                    id: function.function.into(),
+                    owner: hir::EditingSourceBodyOwner::Callable(hir::SemanticCallable::Current(
+                        function.function,
+                    )),
+                    origin: hir::SemanticSourceLocation {
+                        source: function.name_origin.source.clone(),
+                        span: self.function_body_span(function)?,
+                    },
+                })
             })
             .chain(
                 self.lowerer
@@ -78,7 +90,7 @@ impl DeclarationAnalysis {
                             return None;
                         }
                         Some(hir::EditingSourceBody {
-                            function: source.function,
+                            id: source.function.into(),
                             owner: hir::EditingSourceBodyOwner::Callable(
                                 self.lowerer.accessor_callable(source),
                             ),
@@ -91,11 +103,28 @@ impl DeclarationAnalysis {
                     .pending_runtime_initializers
                     .iter()
                     .map(|source| hir::EditingSourceBody {
-                        function: source.function,
+                        id: source.function.into(),
                         owner: hir::EditingSourceBodyOwner::Initialization(source.unit),
                         origin: self.lowerer.initializer_source_origin(source),
                     }),
             )
+            .chain(self.lowerer.editing_default_sources())
+    }
+
+    fn function_body_span(&self, function: &hir::EditingFunction) -> Option<ast::Span> {
+        if let Some(declaration) = self.body_inputs.get(&function.function) {
+            return match &declaration.body {
+                ast::FunctionBody::Block(block) => Some(block.span),
+                ast::FunctionBody::Expr(expression) => Some(expression.span()),
+                ast::FunctionBody::None => None,
+            };
+        }
+        let body = self.recovered_bodies.get(&function.function)?;
+        let start = match body.root {
+            ast::RecoveredBodyRoot::Block(ast::BodyBlockId(start))
+            | ast::RecoveredBodyRoot::Expression(start) => start,
+        };
+        Some(ast::Span::new(start, function.span.end))
     }
 
     pub(super) fn source_body_input(
@@ -200,9 +229,27 @@ impl DeclarationAnalysis {
                     && body.origin.span != origin.span
                     && body.origin.span.start <= origin.span.start
                     && origin.span.end <= body.origin.span.end
-                    && self.lowerer.editing_accessor_source(body.function)
-                        .is_none_or(|source| self.lowerer.property_name_spans.get(&source.property) != Some(&origin.span))
+                    && body
+                        .id
+                        .function()
+                        .and_then(|function| self.lowerer.editing_accessor_source(function))
+                        .is_none_or(|source| {
+                            self.lowerer.property_name_spans.get(&source.property)
+                                != Some(&origin.span)
+                        })
             })
-            .all(|body| matches!(self.body_facts.get(&body.function), Some(V::Known(body)) if body.available()))
+            .all(|body| match self.body_facts.get(&body.id) {
+                Some(V::Known(body)) => body.available(),
+                Some(V::Unavailable(_)) => false,
+                None => match body.id {
+                    hir::EditingSourceBodyId::Default(key) => self
+                        .lowerer
+                        .editing_defaults
+                        .as_ref()
+                        .and_then(|facts| facts.get(&key))
+                        .is_some_and(|body| body.available()),
+                    hir::EditingSourceBodyId::Function(_) => false,
+                },
+            })
     }
 }

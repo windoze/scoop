@@ -21,7 +21,7 @@ fn facts(
     analysis: &mut DeclarationAnalysis,
     body: &hir::EditingSourceBody,
 ) -> hir::EditingBodyFacts {
-    match analysis.function_facts(body.function, || false).unwrap() {
+    match analysis.source_body_facts(body.id, || false).unwrap() {
         V::Known(facts) => facts.clone(),
         V::Unavailable(reason) => {
             panic!(
@@ -38,7 +38,7 @@ fn local_type(
     local: &hir::EditingLocalOccurrence,
 ) -> String {
     let V::Known(description) = analysis
-        .describe_body_type(body.function, local.context, local.value_type)
+        .describe_body_type(body.id, local.context, local.value_type)
         .unwrap()
     else {
         panic!("checked local preserves its actual type context")
@@ -60,7 +60,7 @@ fn explicit_bodies_keep_backing_fields_calls_and_source_accessor_identities() {
         setter.callable(),
         Some(hir::SemanticCallable::CurrentSetter(_))
     ));
-    assert_ne!(getter.function, setter.function);
+    assert_ne!(getter.id, setter.id);
     assert_eq!(analysis.functions().len(), 1);
     let getter_facts = facts(&mut analysis, &getter);
     let setter_facts = facts(&mut analysis, &setter);
@@ -124,7 +124,7 @@ fn querying_a_setter_first_resolves_its_real_inferred_property_type() {
             "Boolean",
             "{text}"
         );
-        let V::Known(signature) = analysis.signature(setter.function) else {
+        let V::Known(signature) = analysis.signature(setter.id.function().unwrap()) else {
             panic!("inferred setter has a complete signature")
         };
         assert_eq!(signature.parameters.len(), 1);

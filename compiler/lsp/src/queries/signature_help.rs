@@ -46,7 +46,7 @@ pub(crate) fn signature_help(
         let revision = snapshot.clone();
         let cancelled = cancellation.clone();
         let EditingValue::Known(body_calls) = analysis
-            .calls(function.function, move || {
+            .calls(function.id, move || {
                 cancelled.check().is_err() || revision.check_cancelled().is_err()
             })
             .map_err(|_| semantic::cancelled())?

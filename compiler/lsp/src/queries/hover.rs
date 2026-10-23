@@ -124,12 +124,14 @@ fn description(
             Some(EditingValue::Unavailable(_)) => return Ok(None),
             None => None,
         };
-        if let Some((index, parameter)) = signature
-            .iter()
-            .flat_map(|signature| signature.parameters.iter().enumerate())
-            .find(|(_, parameter)| parameter.origin.span == target)
+        if let Some(signature) = &signature
+            && let Some((index, parameter)) = signature
+                .parameters
+                .iter()
+                .enumerate()
+                .find(|(_, parameter)| parameter.origin.span == target)
         {
-            let ty = type_label(analysis, function.function, parameter.value_type)?;
+            let ty = type_label(analysis, signature.function, parameter.value_type)?;
             return Ok(Some(Description {
                 label: format!("{}: {ty}", parameter.name),
                 documentation: function.callable().map(|callable| documentation::Query {
@@ -138,16 +140,14 @@ fn description(
                 }),
             }));
         }
-        if let Some(description) =
-            arguments::named(analysis, function.function, target, cancellation)?
-        {
+        if let Some(description) = arguments::named(analysis, function.id, target, cancellation)? {
             return Ok(Some(description));
         }
         if let Some(property) =
-            semantic::property_at(analysis, function.function, target, snapshot, cancellation)?
+            semantic::property_at(analysis, function.id, target, snapshot, cancellation)?
         {
             let ty = analysis
-                .describe_body_type(function.function, property.context, property.value_type)
+                .describe_body_type(function.id, property.context, property.value_type)
                 .map_err(|error| convert::error(ErrorCode::RequestFailed, error.message))?;
             if let EditingValue::Known(ty) = ty {
                 let kind = if property.mutable { "var" } else { "val" };
@@ -161,9 +161,9 @@ fn description(
             }
         }
         if let Some(local) =
-            semantic::local_at(analysis, function.function, target, snapshot, cancellation)?
+            semantic::local_at(analysis, function.id, target, snapshot, cancellation)?
         {
-            let ty = semantic::local_type(analysis, function.function, &local)?;
+            let ty = semantic::local_type(analysis, function.id, &local)?;
             let label = local
                 .reference
                 .as_ref()
@@ -171,23 +171,16 @@ fn description(
             return Ok(Some(Description {
                 label,
                 documentation: local.reference.and_then(|local| {
-                    let index = signature
-                        .as_ref()?
-                        .parameters
-                        .iter()
-                        .position(|parameter| parameter.origin == local.definition)?;
+                    let (callee, index) = analysis.body_parameter(&function, &local.definition)?;
                     Some(documentation::Query {
-                        symbol: documentation::applied_parameter(
-                            function.callable()?.into(),
-                            index,
-                        ),
+                        symbol: documentation::applied_parameter(callee, index),
                         origin: local.definition,
                     })
                 }),
             }));
         }
         if let Some(reference) =
-            semantic::callable_at(analysis, function.function, target, snapshot, cancellation)?
+            semantic::callable_at(analysis, function.id, target, snapshot, cancellation)?
         {
             return callables::description(analysis, reference, snapshot, cursor);
         }

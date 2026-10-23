@@ -20,9 +20,9 @@ impl DeclarationAnalysis {
         let check = std::rc::Rc::new(is_cancelled);
         let cancellation = check.clone();
         if let Some(body) = self.source_body_at(source, span, move || cancellation())? {
-            let function = body.function;
+            let body = body.id;
             let cancellation = check.clone();
-            if let V::Unavailable(reason) = self.function_facts(function, move || cancellation())? {
+            if let V::Unavailable(reason) = self.source_body_facts(body, move || cancellation())? {
                 return Ok(V::Unavailable(reason));
             }
         }
