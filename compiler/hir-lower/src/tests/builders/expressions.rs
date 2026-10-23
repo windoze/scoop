@@ -225,6 +225,7 @@ pub(crate) fn index(receiver: Expr, n: u32) -> Expr {
 pub(crate) fn binary(op: BinOp, lhs: Expr, rhs: Expr) -> Expr {
     Expr::Binary {
         op,
+        operator_span: None,
         lhs: Box::new(lhs),
         rhs: Box::new(rhs),
         span: sp(),
@@ -234,6 +235,7 @@ pub(crate) fn binary(op: BinOp, lhs: Expr, rhs: Expr) -> Expr {
 pub(crate) fn unary(op: UnOp, operand: Expr) -> Expr {
     Expr::Unary {
         op,
+        operator_span: None,
         operand: Box::new(operand),
         span: sp(),
     }

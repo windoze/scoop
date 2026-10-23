@@ -119,12 +119,16 @@ pub enum Expr {
     },
     Binary {
         op: BinOp,
+        /// The actual source token; absent for conditions synthesized by lowering.
+        operator_span: Option<Span>,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
         span: Span,
     },
     Unary {
         op: UnOp,
+        /// The actual source token; absent for literals synthesized by lowering.
+        operator_span: Option<Span>,
         operand: Box<Expr>,
         span: Span,
     },

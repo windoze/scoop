@@ -501,12 +501,12 @@ impl Lowerer {
                 rhs,
                 span,
             } => self.lower_infix_call(lhs, target, rhs, *span, sink, expected),
-            ast::Expr::Binary { op, lhs, rhs, span } => {
-                self.lower_binary(*op, lhs, rhs, *span, sink, expected)
-            }
-            ast::Expr::Unary { op, operand, span } => {
-                self.lower_unary(*op, operand, *span, sink, expected)
-            }
+            ast::Expr::Binary {
+                op, lhs, rhs, span, ..
+            } => self.lower_binary(*op, lhs, rhs, *span, sink, expected),
+            ast::Expr::Unary {
+                op, operand, span, ..
+            } => self.lower_unary(*op, operand, *span, sink, expected),
             ast::Expr::Update {
                 place,
                 op,

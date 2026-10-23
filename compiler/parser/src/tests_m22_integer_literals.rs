@@ -112,6 +112,7 @@ fn minus_remains_a_unary_node_outside_unsigned_magnitude() {
         op: UnOp::Neg,
         operand,
         span,
+        ..
     } = expr
     else {
         panic!("expected unary minus");

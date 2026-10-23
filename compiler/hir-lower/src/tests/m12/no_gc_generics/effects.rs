@@ -45,6 +45,7 @@ fn no_gc_rejects_managed_signatures_calls_and_implicit_exception_ops() {
             Some(ty_named("Int")),
             Expr::Binary {
                 op: ast::BinOp::Div,
+                operator_span: None,
                 lhs: Box::new(int_lit(4)),
                 rhs: Box::new(int_lit(2)),
                 span: sp(),

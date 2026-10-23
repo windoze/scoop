@@ -79,7 +79,8 @@ def check(peer, root):
     assert label("(1.5).plus(other", "other") == "other: Double"
     assert len(refs("3.shl", "shl")) == 4
     assert len(refs("count = 1L", "count")) == 3
-    assert len(refs("2.plus", "plus")) == 2
+    assert len(refs("2.plus", "plus")) == 3
+    assert query("+ numericCallInput()", "+", "definition") == query("7.plus", "plus", "definition")
     assert len(refs("other = 3", "other")) == 2
 
     original = source
@@ -96,7 +97,7 @@ def check(peer, root):
     assert query("2.div(other = 0)", "div", "hover") is None
     assert query("2.div(other = 0)", "other", "signatureHelp") is None
     assert signature("3.shr(count", "count") == "shr(count: Long): Int"
-    assert len(refs("2.plus", "plus")) == 2
+    assert len(refs("2.plus", "plus")) == 3
 
     source = original
     peer.notify("textDocument/didClose", {"textDocument": {"uri": path.as_uri()}})

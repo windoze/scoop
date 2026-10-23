@@ -32,6 +32,7 @@ impl Lowerer {
                 lhs,
                 rhs,
                 span,
+                ..
             } => {
                 let mut left = self.lower_subject_predicate(lhs, subject)?;
                 let facts = self.checked_condition_facts(&left.condition, false);

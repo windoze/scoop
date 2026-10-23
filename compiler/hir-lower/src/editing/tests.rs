@@ -33,6 +33,7 @@ mod members;
 mod members_imported;
 mod named_arguments;
 mod operands;
+mod operators;
 mod properties;
 mod properties_imported;
 mod property_declarations;

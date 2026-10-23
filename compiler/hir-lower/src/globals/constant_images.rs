@@ -133,6 +133,7 @@ impl Lowerer {
                     op: ast::UnOp::Neg,
                     operand,
                     span,
+                    ..
                 },
             ) => match &**operand {
                 ast::Expr::IntLiteral(literal)

@@ -211,7 +211,9 @@ impl Lowerer {
                     Some(name.span),
                 )
             }
-            ast::Expr::Unary { op, operand, span } => {
+            ast::Expr::Unary {
+                op, operand, span, ..
+            } => {
                 if *op == ast::UnOp::Neg
                     && let ast::Expr::IntLiteral(literal) = &**operand
                     && matches!(
@@ -232,7 +234,9 @@ impl Lowerer {
                 )?;
                 self.evaluate_const_unary(*op, operand, *span)
             }
-            ast::Expr::Binary { op, lhs, rhs, span } => self.evaluate_const_binary(
+            ast::Expr::Binary {
+                op, lhs, rhs, span, ..
+            } => self.evaluate_const_binary(
                 *op,
                 lhs,
                 rhs,

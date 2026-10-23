@@ -99,6 +99,8 @@ mod tests_m8;
 #[cfg(test)]
 mod tests_m9;
 #[cfg(test)]
+mod tests_operator_sources;
+#[cfg(test)]
 mod tests_shebang;
 mod ty;
 

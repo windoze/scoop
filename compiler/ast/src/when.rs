@@ -54,6 +54,7 @@ pub enum WhenCondition {
     In {
         collection: Expr,
         negated: bool,
+        operator_span: Span,
         span: Span,
     },
 }

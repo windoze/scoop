@@ -133,7 +133,19 @@ fn failed_constants_and_static_probes_do_not_duplicate_runtime_calls() {
     );
     let index = analysis.reference_index(|| false).unwrap();
     let target = index.targets_at(&at(FILE, text, "plus(other = 9)", 4))[0];
-    assert_eq!(index.references_to(target).count(), 2);
+    let mut uses = index
+        .references_to(target)
+        .map(|reference| reference.origin.clone())
+        .collect::<Vec<_>>();
+    uses.sort_by_key(|origin| origin.span.start);
+    assert_eq!(
+        uses,
+        [
+            at(FILE, text, "plus(other = 5)", 4),
+            at(FILE, text, "+ source()", 1),
+            at(FILE, text, "plus(other = 9)", 4),
+        ]
+    );
     for needle in ["plus(other = 3)", "div(other = 0)", "plus(other = 7)"] {
         assert!(
             index

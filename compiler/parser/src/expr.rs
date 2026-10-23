@@ -187,10 +187,11 @@ impl Parser {
             if precedence < min_precedence {
                 break;
             }
-            self.bump();
+            let operator_span = self.bump().span;
             let rhs = self.parse_binary(precedence + 1)?;
             lhs = Expr::Binary {
                 op,
+                operator_span: Some(operator_span),
                 span: Span::new(lhs.span().start, rhs.span().end),
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
@@ -249,6 +250,7 @@ impl Parser {
         let operand = self.parse_unary()?;
         Ok(Expr::Unary {
             op,
+            operator_span: Some(token.span),
             span: Span::new(token.span.start, operand.span().end),
             operand: Box::new(operand),
         })

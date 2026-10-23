@@ -49,6 +49,22 @@ pub(super) fn cursor(
             scoop_syntax::SyntaxKind::Ident
                 | scoop_syntax::SyntaxKind::EscapedIdent
                 | scoop_syntax::SyntaxKind::KwThis
+                | scoop_syntax::SyntaxKind::Plus
+                | scoop_syntax::SyntaxKind::Minus
+                | scoop_syntax::SyntaxKind::Star
+                | scoop_syntax::SyntaxKind::Slash
+                | scoop_syntax::SyntaxKind::Percent
+                | scoop_syntax::SyntaxKind::Bang
+                | scoop_syntax::SyntaxKind::EqualEqual
+                | scoop_syntax::SyntaxKind::BangEqual
+                | scoop_syntax::SyntaxKind::Less
+                | scoop_syntax::SyntaxKind::LessEqual
+                | scoop_syntax::SyntaxKind::Greater
+                | scoop_syntax::SyntaxKind::GreaterEqual
+                | scoop_syntax::SyntaxKind::DotDot
+                | scoop_syntax::SyntaxKind::DotDotLess
+                | scoop_syntax::SyntaxKind::KwIn
+                | scoop_syntax::SyntaxKind::BangIn
         )
     }) else {
         return Ok(None);

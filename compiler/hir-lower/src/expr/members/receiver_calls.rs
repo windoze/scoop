@@ -131,7 +131,13 @@ impl Lowerer {
                 "extension candidate",
             ) {
                 PropertyExtensionInvokeOutcome::Resolved(mut selected) => {
-                    selected.state.observe_import_lookup(name, layer.kind);
+                    if required.operator.is_some() {
+                        selected
+                            .state
+                            .observe_operator_import_lookup(name.span, layer.kind);
+                    } else {
+                        selected.state.observe_import_lookup(name, layer.kind);
+                    }
                     return Some(self.commit_expr_layer(selected, sink));
                 }
                 PropertyExtensionInvokeOutcome::Blocked => return None,

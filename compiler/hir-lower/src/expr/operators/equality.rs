@@ -102,6 +102,9 @@ impl Lowerer {
                 }
                 _ => None,
             };
+            if derived_callee.is_none() {
+                self.observe_callable_reference(span, hir::SemanticCallable::Current(function));
+            }
             let call = if let Some(application) = derived_callee {
                 let other = resolved
                     .args
@@ -151,7 +154,11 @@ impl Lowerer {
             .select_imported_equality(ImportedMemberReceiver::Value(lhs.clone()), &rhs, span)
             .ok()?
         {
+            let target = probe.semantic_target();
             let call = self.commit_imported_dependency_callable(probe, sink)?;
+            if let Some(target) = target {
+                self.observe_callable_reference(span, target);
+            }
             return Some(if negate {
                 hir::Expr {
                     kind: ExprKind::Unary {

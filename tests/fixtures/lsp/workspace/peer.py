@@ -25,6 +25,7 @@ from import_references import check as check_import_references
 from incomplete_signatures import check as check_incomplete_signatures
 from local_function_recovery import check as check_local_function_recovery
 from member_implementations import check as check_member_implementations
+from operator_references import check as check_operator_references
 from property_references import check as check_property_references
 from qualified_signatures import check as check_qualified_signatures
 from recovered_classes import check as check_recovered_classes
@@ -356,6 +357,7 @@ def main():
         check_static_variants(peer, root)
         check_defaults(peer, root)
         check_construction_bodies(peer, root)
+        check_operator_references(peer, root)
         check_type_references(peer, root)
         check_type_definitions(peer, root)
         check_type_hovers(peer, root)

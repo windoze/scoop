@@ -37,6 +37,24 @@ impl Lowerer {
         if !self.observes_current_body() {
             return;
         }
+        if let ast::Expr::Binary {
+            operator_span: Some(operator),
+            span,
+            ..
+        }
+        | ast::Expr::Unary {
+            operator_span: Some(operator),
+            span,
+            ..
+        } = expression
+        {
+            self.editing_body
+                .as_mut()
+                .expect("active query")
+                .callable_names
+                .insert(*span, *operator);
+            return;
+        }
         if let ast::Expr::CallableReference { name, span, .. } = expression {
             let names = &mut self
                 .editing_body

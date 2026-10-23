@@ -100,13 +100,15 @@ impl Parser {
                     "an abbreviated `in` condition requires a when subject",
                 ));
             }
-            let negated = matches!(self.bump().kind, TokenKind::BangIn);
+            let operator = self.bump();
+            let negated = matches!(operator.kind, TokenKind::BangIn);
             *expression_start = self.peek().span.start;
             let collection = self.parse_expr()?;
             return Ok(WhenCondition::In {
                 span: Span::new(start, collection.span().end),
                 collection,
                 negated,
+                operator_span: operator.span,
             });
         }
         Ok(WhenCondition::Expression(self.parse_expr()?))
