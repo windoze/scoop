@@ -1,0 +1,18 @@
+package scoop.charset
+
+import scoop.test.*
+
+@Test
+private class UnicodeAdapterTests {
+    @Test fun `UTF8 byte boundaries become Scoop scalar indices`() {
+        assertItems([0L], graphemeBoundaries(""))
+        assertItems([0L, 2L, 3L], graphemeBoundaries("e\u0301中"))
+        assertItems(["e\u0301", "中"], graphemes("e\u0301中"))
+    }
+}
+
+private fun <T : Equals<T>> assertItems(expected: List<T>, actual: List<T>) {
+    assertEquals(expected.size, actual.size)
+    var index = 0L
+    while (index < expected.size) { assertEquals(expected[index], actual[index]); index += 1L }
+}

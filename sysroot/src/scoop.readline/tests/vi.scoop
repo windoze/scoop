@@ -1,0 +1,86 @@
+package scoop.readline
+
+import scoop.terminal.event.*
+import scoop.test.*
+import scoop.readline.history.MemoryHistory
+
+@Test private class ViTest {
+    @Test fun repeatCountOverridesMovementOrWholeInsertion() {
+        val session = EditingSession(Config(editMode = EditMode.Vi), initial = "one two three four")
+        press(session, KeyCode.Esc)
+        typeText(session, "0cwX")
+        press(session, KeyCode.Esc)
+        typeText(session, "w2.")
+        assertEquals("X X four", session.line)
+        typeText(session, "Aab")
+        press(session, KeyCode.Esc)
+        typeText(session, "2.")
+        assertEquals("X X fourababab", session.line)
+    }
+    @Test fun historyAndIndentMotions() {
+        val history = MemoryHistory()
+        history.add("first")
+        history.add("second")
+        val session = EditingSession(Config(editMode = EditMode.Vi), history, initial = "one\ntwo", cursor = 0L)
+        press(session, KeyCode.Esc)
+        typeText(session, "2>>")
+        assertEquals("  one\n  two", session.line)
+        typeText(session, "2<<")
+        assertEquals("one\ntwo", session.line)
+        typeText(session, "jkk")
+        assertEquals("second", session.line)
+        typeText(session, "k")
+        assertEquals("first", session.line)
+        typeText(session, "j")
+        assertEquals("second", session.line)
+    }
+    @Test fun changeInsertUndoAndRepeatAreOneEdit() {
+        val session = EditingSession(Config(editMode = EditMode.Vi), initial = "one two three")
+        press(session, KeyCode.Esc)
+        typeText(session, "0cwhello")
+        press(session, KeyCode.Esc)
+        assertEquals("hello two three", session.line)
+        typeText(session, "u")
+        assertEquals("one two three", session.line)
+        session.execute(Command.Redo())
+        assertEquals("hello two three", session.line)
+        typeText(session, "w.")
+        assertEquals("hello hello three", session.line)
+        typeText(session, "u")
+        assertEquals("hello two three", session.line)
+    }
+    @Test fun appendAndReplaceRepeatCompleteInput() {
+        val session = EditingSession(Config(editMode = EditMode.Vi), initial = "x")
+        press(session, KeyCode.Esc)
+        typeText(session, "Aab")
+        press(session, KeyCode.Esc)
+        typeText(session, ".")
+        assertEquals("xabab", session.line)
+        typeText(session, "0RXY")
+        press(session, KeyCode.Esc)
+        typeText(session, "l.")
+        assertEquals("XYXYb", session.line)
+    }
+    @Test fun countedFindTillAndOperatorBoundaries() {
+        val buffer = LineBuffer("a:b:c:d", 0L)
+        assertEquals(4L, buffer.destination(Movement.Find(':', 3L, till = true)))
+        assertEquals(0L, buffer.destination(Movement.Find(':', 4L)))
+        buffer.moveTo(6L)
+        assertEquals(2L, buffer.destination(Movement.Find(':', 3L, forward = false, till = true)))
+        val session = EditingSession(Config(editMode = EditMode.Vi), initial = "a:b:c:d", cursor = 0L)
+        press(session, KeyCode.Esc)
+        typeText(session, "d2t:")
+        assertEquals(":c:d", session.line)
+        typeText(session, "ldt:")
+        assertEquals("::d", session.line)
+    }
+    @Test fun commandCursorStaysOnLastCharacter() {
+        val session = EditingSession(Config(editMode = EditMode.Vi), initial = "ab")
+        press(session, KeyCode.Esc)
+        typeText(session, "l")
+        assertEquals(1L, session.cursor)
+        typeText(session, "x")
+        assertEquals("a", session.line)
+        assertEquals(0L, session.cursor)
+    }
+}

@@ -12,6 +12,7 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class IntRange vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
   interface ToString
   interface Hash
   interface Iterable<Int>
@@ -121,14 +122,11 @@ Module
       val $default.local.0: String
         Type String
         StringConst @str0
-      val $default.local.1: String
-        Type String
-        Local $default.local.0
       val $dependency.parameter.message: Option<String>
         Type Option<String>
         VariantConstruct Option<String> v0
           Type String
-          Local $default.local.1
+          Local $default.local.0
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
@@ -141,9 +139,6 @@ Module
         Type IllegalStateException
         Local $new.1
     bb3 if.then.3
-      val $dependency.receiver: UInt
-        Type UInt
-        Local shifted
       val $dependency.argument.0: UInt
         Type UInt
         IntegerLiteral UInt value=1 bits=0x00000001
@@ -154,7 +149,7 @@ Module
         Type Boolean
         IntegerCompare equal operands=UInt result=Boolean
           Type UInt
-          Local $dependency.receiver
+          Local shifted
           Type UInt
           IntegerLiteral UInt value=1 bits=0x00000001
     bb4 if.merge.4
@@ -191,39 +186,27 @@ Module
         VariantConstruct Choice v0
           Type Int
           IntegerLiteral Int value=23 bits=0x00000017
-      val copied: Choice
-        Type Choice
-        Local value
-      val $when.1: Choice
-        Type Choice
-        Local copied
-      val $pattern.subject.2: Choice
-        Type Choice
-        Local $when.1
       branch bb1 bb2
         Type Boolean
         VariantTest Choice v0
           Type Choice
-          Local $pattern.subject.2
+          Local value
     bb1 pattern.pass.1
       val number: Int
         Type Int
         VariantPayloadProject Choice v0 f0
           Type Choice
-          Local $pattern.subject.2
+          Local value
       assign $result.0
         Type Int
         Local number
       goto bb3
     bb2 pattern.else.2
-      val $pattern.subject.3: Choice
-        Type Choice
-        Local $when.1
       branch bb4 bb5
         Type Boolean
         VariantTest Choice v1
           Type Choice
-          Local $pattern.subject.3
+          Local value
     bb3 pattern.merge.3
       return
         Type Int
@@ -251,39 +234,27 @@ Module
         VariantConstruct Option<Int> v0
           Type Int
           IntegerLiteral Int value=19 bits=0x00000013
-      val copied: Option<Int>
-        Type Option<Int>
-        Local value
-      val $when.1: Option<Int>
-        Type Option<Int>
-        Local copied
-      val $pattern.subject.2: Option<Int>
-        Type Option<Int>
-        Local $when.1
       branch bb1 bb2
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $pattern.subject.2
+          Local value
     bb1 pattern.pass.1
       val number: Int
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $pattern.subject.2
+          Local value
       assign $result.1
         Type Int
         Local number
       goto bb3
     bb2 pattern.else.2
-      val $pattern.subject.3: Option<Int>
-        Type Option<Int>
-        Local $when.1
       branch bb4 bb5
         Type Boolean
         VariantTest Option<Int> v1
           Type Option<Int>
-          Local $pattern.subject.3
+          Local value
     bb3 pattern.merge.3
       return
         Type Int
@@ -301,56 +272,38 @@ Module
   fun main @fn3() -> Unit
     bb0 entry
       call $dependency.argument.0: Int = @fn0 direct
-      val $dependency.parameter.value: Int
-        Type Int
-        Local $dependency.argument.0
       call @fn4 direct
         Type Int
-        Local $dependency.parameter.value
+        Local $dependency.argument.0
       call $dependency.receiver: Int = @fn1 direct
       call $dependency.argument.0: Int = @fn2 direct
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
       val $dependency.argument.0: Int
         Type Int
         IntegerBinary add kind=Int
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
-      val $dependency.parameter.value: Int
-        Type Int
-        Local $dependency.argument.0
+          Local $dependency.argument.0
       call @fn4 direct
         Type Int
-        Local $dependency.parameter.value
+        Local $dependency.argument.0
       return
         Type Unit
         UnitLiteral
   fun println @fn4(value: Int) -> Unit
     bb0 entry
-      val $dependency.local.1: Int
-        Type Int
-        Local value
       call $dependency.local.2: String = external3 direct
         Type Int
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
+        Local value
       call external4 direct
         Type String
-        Local $dependency.local.3
+        Local $dependency.local.2
       val $dependency.local.4: String
         Type String
         StringConst @str1
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
       call external4 direct
         Type String
-        Local $dependency.local.5
+        Local $dependency.local.4
       return
         Type Unit
         UnitLiteral

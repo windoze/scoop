@@ -41,7 +41,7 @@ Linux Rust 首轮发现 C++／musl 链接测试的普通 Cone 输入缺少所需
 
 CLI 首轮的 25 项失败分别来自压缩 manifest 首项名称、artifact summary 缓存目录、恢复诊断／声明失败隔离后的消息与顺序，以及 CLI 人类诊断的路径行列期望。两批提交只修正这些期望，保留主错误、精确位置、实际运行与复用断言；context 匿名函数负例同时改用规范要求的块正文，使其只验证不允许的 context 前缀。本机与 Linux GNU 各执行 27 项定向复验，首轮失败全部闭合。验收修正未改变语言或链接规则。
 
-本次相对实施基线未修改 MIR、MIR lowering、LIR、LIR lowering 或 codegen，Linux 全量只选择 `x86_64-unknown-linux-gnu`。Linux 专用 Rust 测试包含其原有 GNU／musl 链接覆盖；按用户要求，不再执行 musl 全量 fixture。运行中的源码、工具和产物保持存在，日志与报告未提交到仓库。
+公共基础实施区间（`033dd9e1d`～`0842bec3f`）未修改 MIR、MIR lowering、LIR、LIR lowering 或 codegen，该轮 Linux 全量只选择 `x86_64-unknown-linux-gnu`。Linux 专用 Rust 测试包含其原有 GNU／musl 链接覆盖；按用户要求，不再执行 musl 全量 fixture。运行中的源码、工具和产物保持存在，日志与报告未提交到仓库。
 
 ## 性能与当前边界
 
@@ -52,3 +52,14 @@ CLI 首轮的 25 项失败分别来自压缩 manifest 首项名称、artifact su
 rename 当前要求所选项目的必要源码及语义分析完整；存在不可证明的引用或绑定时明确拒绝，缺少源码的位置不猜测。code action 仅修复已确定的缺失固定标点。semanticTokens、inlayHint、格式化和 call／type hierarchy 属于后续能力，服务器没有声明它们已实现。
 
 启动与编辑器配置见[服务器说明](../../compiler/lsp/README.md)。
+
+## 合并 origin/main
+
+接入 `f3f8ace69` 的 M61 文本后端、Regex 与 M62 优化。上述公共基础全量验收截至 `0842bec3f`；本次合并的验证单独记录，不将此前结果视为合并后重新执行的全量。
+
+- HIR 正文导出保留查询重构后的输入借用，并接入 M62 的普通小函数正文选择；另一处冲突仅为已修正 Linux 链接测试源码的空行差异。
+- M47 按依赖实际提供的正文区分 Available／NotPublished。两项用例改为同时覆盖非泛型小函数的完整正文与包含字符串的未发布正文，继续保留原函数身份、来源和泛型正文检查。
+- macOS 格式化、全 workspace／all-targets Clippy 及 Ruff 0.16.10 通过；受影响四个 crate 初轮 2,907 项通过，两项旧正文可用性假设修正后，15 项语义查询测试全部通过。
+- 合并后的 release 工具和 macOS sysroot 构建通过；15 项正式 CLI 组合用例全部通过，包含 8 项 M47 生成器、LSP 工作区、跨产物泛型、普通跨 Cone 内联及 intrinsic，覆盖 35 个运行变体。
+
+原始合并验证日志仍保存在仓库外；未重复执行 GNU／musl 全量。

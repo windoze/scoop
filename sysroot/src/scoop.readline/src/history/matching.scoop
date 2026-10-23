@@ -1,0 +1,21 @@
+package scoop.readline.history
+
+import scoop.charset.unicodeCasefold
+import scoop.text.*
+
+internal fun foldedMatch(entry: String, term: String, prefix: Boolean): Long {
+    val folded = StringBuilder()
+    val offsets = ArrayList<Long>()
+    var offset = 0L
+    for (character in entry) {
+        val part = unicodeCasefold(character.toString())
+        folded.append(part)
+        var index = 0L
+        while (index < part.length) { offsets.add(offset); index += 1L }
+        offset += 1L
+    }
+    val query = unicodeCasefold(term)
+    val position = folded.toString().indexOf(query)
+    if (position < 0L || (prefix && position != 0L)) return -1L
+    return if (prefix) offsets[query.length - 1L] + 1L else offsets[position]
+}

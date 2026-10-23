@@ -209,6 +209,16 @@ static void record_allocation(ScoopGcMutator *mutator, size_t size, bool nursery
     }
 }
 
+static void initialize_small_allocation(ScoopGcMutator *mutator, ScoopGcBlockMeta *block,
+                                        void *object, const ScoopTypeDescriptor *td, size_t size) {
+    memset(object, 0, size);
+    ScoopObjectHeader *header = object;
+    scoop_gc_set_object_type(object, td);
+    header->gc_word = 0;
+    record_small_object(block, object, size, false);
+    record_allocation(mutator, size, block->generation == SCOOP_GC_YOUNG);
+}
+
 static void finish_small_allocation(ScoopGcMutator *mutator, void *object,
                                     const ScoopTypeDescriptor *td, size_t size) {
     ScoopGcBlockMeta *block = mutator->allocation_block;
@@ -220,20 +230,13 @@ static void finish_small_allocation(ScoopGcMutator *mutator, void *object,
         (uintptr_t)object % scoop_gc_type_alignment(td) != 0 || block == NULL) {
         heap_fatal("invalid inline TLAB allocation");
     }
-    memset(object, 0, size);
-    ScoopObjectHeader *header = object;
-    scoop_gc_set_object_type(object, td);
-    header->gc_word = 0;
-    record_small_object(block, object, size, false);
-    record_allocation(mutator, size, block->generation == SCOOP_GC_YOUNG);
+    initialize_small_allocation(mutator, block, object, td, size);
 }
 
 void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td, size_t size) {
-    if (scoop_gc_stress_move_enabled() || scoop_gc_type_has_release(td)) {
-        heap_fatal("inline TLAB allocation violates its nursery contract");
-    }
-    finish_small_allocation(scoop_gc_current_mutator(), object, td,
-                            scoop_gc_allocation_size(td, size));
+    /* Generated code has already aligned and bounded this nursery bump. */
+    ScoopGcMutator *mutator = scoop_gc_current_mutator();
+    initialize_small_allocation(mutator, mutator->allocation_block, object, td, size);
 }
 
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {

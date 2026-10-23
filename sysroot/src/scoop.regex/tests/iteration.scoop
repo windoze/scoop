@@ -1,0 +1,74 @@
+package scoop.regex
+
+import scoop.collections.*
+import scoop.sequences.*
+import scoop.test.*
+
+@Test
+private class RegexIterationTests {
+    @Test
+    fun `empty results retain native same-position matches and then exhaust`() {
+        Regex(".*?").use { regex ->
+            val iterator = regex.findAll("ab").iterator()
+            assertEquals("", iterator.next()!!.value)
+            assertEquals("a", iterator.next()!!.value)
+            assertEquals("", iterator.next()!!.value)
+            assertEquals("b", iterator.next()!!.value)
+            assertEquals(MatchRange(2L, 2L), iterator.next()!!.range)
+            assertTrue(exhausted(iterator))
+            assertTrue(exhausted(iterator))
+        }
+    }
+
+    @Test
+    fun `traversals are independent and return persistent snapshots`() {
+        val regex = Regex("(?<value>.)")
+        val sequence = regex.findAll("A雪😀", 1L)
+        val left = sequence.iterator()
+        val right = sequence.iterator()
+        val first = left.next()!!
+        assertEquals("雪", first.value)
+        assertEquals("😀", left.next()!!.value)
+        assertEquals("雪", right.next()!!.value)
+        regex.close()
+        assertEquals("雪", first.groups["value"]!!.value)
+        assertFailsWith<IllegalStateException> { right.next() }
+        assertFailsWith<IllegalStateException> { sequence.iterator().next() }
+        assertFailsWith<IllegalStateException> { regex.findAll("x") }
+    }
+
+    @Test
+    fun `validation is eager while matching and early termination are lazy`() {
+        Regex(".").use { regex ->
+            assertFailsWith<IndexOutOfBoundsException> { regex.findAll("a", 2L) }
+            assertEquals(1L, regex.findAll("abc").take(1L).toList().size)
+            assertEquals(3L, regex.findAll("abc").toList().size)
+            assertEquals(0L, regex.findAll("abc", 3L).toList().size)
+        }
+    }
+
+    @Test
+    fun `literal escaping and string constructors preserve their contracts`() {
+        val literal = "a$^?*[](){}.+\\E# \n\u{0}"
+        Regex.escape(literal).toRegex(setOf(RegexOption.Comments)).use { regex ->
+            assertTrue(regex.matches(literal))
+            assertFalse(regex.matches("a"))
+        }
+        assertTrue(when ("[".toRegexOrNone()) { case None -> true; case Some(_) -> false })
+        "[a-z]+".toRegexOrNone()!!.use { regex -> assertTrue(regex.matches("abc")) }
+    }
+
+    @Test
+    fun `ASCII class option leaves UTF input and case options intact`() {
+        Regex("""\w+""", setOf(RegexOption.AsciiClasses, RegexOption.IgnoreCase)).use { regex ->
+            assertTrue(regex.matches("Ab1"))
+            assertFalse(regex.matches("a雪"))
+        }
+        Regex(".", setOf(RegexOption.AsciiClasses)).use { regex ->
+            assertEquals(MatchRange(0L, 1L), regex.find("雪")!!.range)
+        }
+    }
+}
+
+private fun exhausted(iterator: Iterator<MatchResult>): Boolean =
+    when (iterator.next()) { case None -> true; case Some(_) -> false }

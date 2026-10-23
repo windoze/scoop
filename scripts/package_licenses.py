@@ -5,6 +5,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from build_rust_text import NOTICE_DIRECTORY
+
 
 def license_files(directory):
     return sorted(
@@ -15,7 +17,7 @@ def license_files(directory):
     )
 
 
-def collect(root, repository, source, host, native):
+def collect(root, repository, source, host, native, targets):
     destination = root / "share/licenses"
     destination.mkdir(parents=True)
     rows = [
@@ -39,9 +41,20 @@ def collect(root, repository, source, host, native):
     own = license_files(repository)
     add("Scoop", "See project license" if own else "Not yet selected by the maintainer", own)
     add("LLVM", "Apache-2.0 WITH LLVM-exception", [source / "llvm/LICENSE.TXT"])
+    for target in targets:
+        notices = repository / "sysroot/lib" / target / NOTICE_DIRECTORY
+        add("Rust-std-" + target, "See included documents", sorted(notices.iterdir()))
     for vendor in (repository / "sysroot/vendor").iterdir():
         if vendor.is_dir() and vendor.name != "llvm-project":
             add(vendor.name, "See included documents", license_files(vendor))
+            if vendor.name == "text_backend":
+                for package in json.loads((vendor / "packages.json").read_text()):
+                    name = package["name"] + "-" + package["version"]
+                    add(
+                        "text-" + name,
+                        package["license"],
+                        license_files(vendor / "licenses" / name),
+                    )
 
     metadata = json.loads(
         subprocess.check_output(

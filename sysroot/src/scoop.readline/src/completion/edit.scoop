@@ -1,0 +1,55 @@
+package scoop.readline
+
+internal fun EditingSession.complete(backward: Boolean) {
+    var active = completion
+    if ((when (active) { case Some(_) -> false; case None -> true })) {
+        val result = completer.complete(line, cursor, context)
+        if (result.start < 0L || result.start > cursor || buffer.snap(result.start, false) != result.start) {
+            throw IllegalArgumentException(Some("completion start is not a valid grapheme boundary"))
+        }
+        if (result.candidates.size == 0L) { bellValue = true; return }
+        if (config.completionType == CompletionType.Fuzzy) {
+            fuzzy = Some(FuzzyCompletion(result))
+            updateFuzzy()
+            return
+        }
+        active = Some(CompletionState(buffer.state(), result))
+        completion = active
+        if (config.completionType == CompletionType.List) {
+            val prefix = commonCompletionPrefix(result.candidates)
+            buffer.replace(result.start, cursor, prefix)
+            if (result.candidates.size == 1L) { completion = None; return }
+            if (config.completionShowAllIfAmbiguous) displayedCandidates = result.candidates
+            else bellValue = true
+            return
+        }
+    }
+    val state = active!!
+    if (config.completionType == CompletionType.List) {
+        displayedCandidates = state.result.candidates
+        return
+    }
+    val size = state.result.candidates.size
+    state.index += if (backward) -1L else 1L
+    if (state.index < -1L) state.index = size - 1L
+    if (state.index >= size) state.index = -1L
+    buffer.restore(state.original)
+    if (state.index >= 0L) buffer.replace(state.result.start, cursor, state.result.candidates[state.index].replacement)
+}
+
+internal fun commonCompletionPrefix(candidates: Array<Candidate>): String {
+    if (candidates.size == 0L) return ""
+    val first = candidates[0L].replacement
+    var length = first.length
+    var index = 1L
+    while (index < candidates.size) {
+        val other = candidates[index].replacement
+        if (other.length < length) length = other.length
+        var matched = 0L
+        while (matched < length && first[matched] == other[matched]) matched += 1L
+        length = matched
+        index += 1L
+    }
+    val buffer = LineBuffer(first)
+    return first.slice(0L, buffer.snap(length, false))
+}

@@ -4,6 +4,8 @@
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)第 11.9、11.13、11.18、12～14 节／章、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[库 API 风格](../specs/SCOOP-API-STYLE.md)、[M49](../milestone49/DESIGN.md)、[M51](../milestone51/DESIGN.md)、[M52](../milestone52/DESIGN.md)与 [M53](../milestone53/DESIGN.md)。本期以普通库交付为主；合法源码暴露的编译器、GC、ABI、产物或链接缺陷在所属层按规范修复，不新增 client 专用的语言、runtime、stage 或缓存机制。
 
+本文记录 M54 当时的实现与验收边界。IDNA／NFC 后端及 IDNA profile 正在由 [M61](../milestone61/PROGRESS.md) 迁移；下文的 GNU 选型与严格 IDNA2008 描述不代表迁移后的现行合同。
+
 ## 0. 范围与决定
 
 1. 提供统一的 `scoop.http.client`，建立在 M53 协议库之上，自动选择 HTTP/1.x／HTTP/2，对外使用同一请求、响应、body 和策略接口。客户端本身为纯 Scoop；native 与系统缺口在各自基础库补齐。

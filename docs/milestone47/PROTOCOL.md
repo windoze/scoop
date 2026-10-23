@@ -212,6 +212,8 @@ logical property 与 backing field 保留各自的实际 target，不能丢失 u
 - `NotPublished`：依赖产物没有提供该正文，仍可读取已有签名。
 - `NoBody`：该声明本来没有可读取的普通正文，例如抽象 requirement。
 
+`Available` 与 `NotPublished` 按依赖产物实际提供的正文区分，不能仅从声明是否泛型推断。实现规范 2.19 允许发布的普通非泛型小函数同样返回完整正文，保留原普通函数身份与空 callable binder；未发布的普通实现仍返回 `NotPublished`。
+
 合法查询不得触发寻找上游源码或执行第二轮生成来填补这些情况。core 与依赖的必要 default 模板应沿现有产物合同可用；若 codec 试点所需事实在现有静态描述中确实缺失，实施时补齐通用描述及其必要产物数据，不恢复专用 codec 计划。
 
 ### 4.4 复用原有语义

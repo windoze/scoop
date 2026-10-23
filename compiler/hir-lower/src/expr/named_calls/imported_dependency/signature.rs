@@ -65,7 +65,9 @@ impl Lowerer {
                         _
                     ))
                 ))
-            || candidate.callable_body().is_some();
+            || candidate
+                .callable_body()
+                .is_some_and(|body| !body.type_parameters().arguments().is_empty());
         if generic {
             let declaration = self
                 .dependencies

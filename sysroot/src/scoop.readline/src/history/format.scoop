@@ -1,0 +1,45 @@
+package scoop.readline.history
+
+import scoop.text.*
+
+internal fun decodeHistory(text: String): Array<String> {
+    val lines = text.split("\n")
+    val version2 = lines.size > 0L && lines[0L].removeSuffix("\r") == "#V2"
+    val result = ArrayList<String>()
+    var index = if (version2) 1L else 0L
+    while (index < lines.size) {
+        val line = lines[index].removeSuffix("\r")
+        if (line.byteLength > 0L) result.add(if (version2) unescapeHistory(line) else line)
+        index += 1L
+    }
+    return result.toArray()
+}
+
+private fun unescapeHistory(line: String): String {
+    val result = StringBuilder()
+    var escape = false
+    for (character in line) {
+        if (escape) {
+            if (character == 'n') result.append('\n')
+            else if (character == '\\') result.append('\\')
+            else return line
+            escape = false
+        } else if (character == '\\') escape = true
+        else result.append(character)
+    }
+    return if (escape) line else result.toString()
+}
+
+internal fun encodeHistory(history: MemoryHistory): String {
+    val result = StringBuilder()
+    result.append("#V2\n")
+    for (entry in history.toArray()) {
+        for (character in entry) {
+            if (character == '\n') result.append("\\n")
+            else if (character == '\\') result.append("\\\\")
+            else result.append(character)
+        }
+        result.append('\n')
+    }
+    return result.toString()
+}

@@ -8,7 +8,8 @@ impl CallableIdentityBuilder<'_> {
         arguments: &[concrete::TypeId],
     ) -> CallableMaterialization {
         match declaration {
-            export::ImportedCallableTemplateOrigin::Intrinsic(id) => self.source_materialization(
+            export::ImportedCallableTemplateOrigin::Intrinsic(id)
+            | export::ImportedCallableTemplateOrigin::Inline(id) => self.source_materialization(
                 SourceTemplate::Function(id),
                 CallableInstantiationOwner::NoOwner,
                 arguments,

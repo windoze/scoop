@@ -15,6 +15,7 @@ impl Concretizer<'_> {
             })
             .or(previous);
         let expression = self.lower_expr_at_site(source, substitution, locals);
+        let expression = self.normalize_concrete_intrinsic(expression);
         if let concrete::ExprKind::Call {
             callee: concrete::CallableTarget::Imported(callee),
             ..
@@ -441,6 +442,7 @@ impl Concretizer<'_> {
                 if self.is_nothing_type(value.ty) {
                     return value;
                 }
+                self.ensure_box_source(value.ty);
                 concrete::ExprKind::Upcast(Box::new(value))
             }
             export::ExprKind::IsInstance { operand, check_ty } => concrete::ExprKind::IsInstance {

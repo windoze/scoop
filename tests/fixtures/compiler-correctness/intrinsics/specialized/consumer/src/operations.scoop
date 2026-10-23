@@ -1,0 +1,57 @@
+package dev.m62.consumer
+import dev.m62.operations.*
+
+fun <T> localAdd(a: T, b: T): T where T: Add<T, T> = a + b
+fun <T> localNegate(a: T): T where T: UnaryMinus<T> = -a
+fun <T> localCompare(a: T, b: T): Long where T: Compare<T> = a.compareTo(b)
+
+public fun integers(a: Int, b: Int): Int = importedAdd<Int>(localNegate<Int>(a), b)
+public fun longs(a: Long, b: Long): Long = localAdd<Long>(importedNegate<Long>(a), b)
+public fun unsigned(a: UInt, b: UInt): UInt = importedAdd<UInt>(a, b)
+public fun floats(a: Float, b: Float): Float = localAdd<Float>(a, b)
+public fun doubles(a: Double, b: Double): Double = importedAdd<Double>(a, b)
+public fun characters(a: Char, b: Char): Long = importedCompare<Char>(a, b)
+public fun strings(a: String, b: String): String = localAdd<String>(a, b)
+public fun stringOrder(a: String, b: String): Long = localCompare<String>(a, b)
+public fun conversion(value: Int): Long = value.toLong()
+public fun reference(a: Int, b: Int): Int {
+    val add = a::plus
+    return add(b)
+}
+
+fun <T> localRemainder(a: T, b: T): T where T: Rem<T, T> = a % b
+
+public fun genericReference(a: Int, b: Int): Int = importedReference<Int>(a, b)
+public fun quotient(a: Int, b: Int): Int = importedDivide<Int>(a, b)
+public fun remainder(a: Int, b: Int): Int = localRemainder<Int>(a, b)
+
+public fun divideReference(a: Int, b: Int): Int {
+    val divide = a::div
+    return divide(b)
+}
+
+public fun boxedAdd(a: Int, b: Int): Int {
+    val receiver: Add<Int, Int> = a
+    return receiver + b
+}
+public fun boxedDivide(a: Int, b: Int): Int {
+    val receiver: Div<Int, Int> = a
+    return receiver / b
+}
+public fun boxedFloat(a: Double, b: Double): Double {
+    val receiver: Add<Double, Double> = a
+    return receiver + b
+}
+public fun boxedChar(a: Char, b: Char): Long {
+    val receiver: Compare<Char> = a
+    return receiver.compareTo(b)
+}
+public fun interfaceString(a: String, b: String): Long {
+    val receiver: Compare<String> = a
+    return receiver.compareTo(b)
+}
+public fun caughtDivide(a: Int, b: Int): Int {
+    val receiver: Div<Int, Int> = a
+    try { return receiver / b }
+    catch (error: ArithmeticException) { return 17 }
+}

@@ -18,6 +18,7 @@ pub(in crate::tests) fn lower_tail(source: &hir::ExportHirOutput, enabled: bool)
         &[],
         enabled,
     )
+    .0
 }
 
 pub(in crate::tests) fn program(shape: Shape, depth: usize, unit: bool) -> hir::ExportHirOutput {

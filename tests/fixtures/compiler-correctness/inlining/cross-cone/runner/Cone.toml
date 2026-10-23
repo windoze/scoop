@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m62"
+name = "inline-runner"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.m62:inline-consumer" = "0.1.0"

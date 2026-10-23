@@ -38,8 +38,8 @@ def reusable(record, inputs, outputs):
     )
 
 
-def save_record(path, inputs, objects):
-    dependencies = set()
+def save_record(path, inputs, objects, tools=()):
+    dependencies = {Path(tool) for tool in tools}
     for depfile in objects.rglob("*.o.d"):
         text = depfile.read_text().replace("\\\n", " ")
         _, separator, prerequisites = text.partition(": ")

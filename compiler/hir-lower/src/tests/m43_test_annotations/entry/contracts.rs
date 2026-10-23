@@ -8,7 +8,7 @@ fn a_selection_function_must_return_boolean_before_building_hir_control_flow() {
         &[
             (
                 "src/selection.scoop",
-                "package scoop.test.execution\npublic fun isTestSelected(arguments: Array<String>, caseIndex: String, ignored: Boolean): Int = 0",
+                "package scoop.test.execution\npublic fun isTestSelected(arguments: Array<String>, caseIndex: String, ignored: Boolean, caseName: String): Int = 0",
                 SourceRole::Production,
             ),
             (
@@ -48,9 +48,7 @@ fn an_incompatible_execution_function_is_diagnosed_instead_of_skipping_the_case(
         &[
             (
                 "src/execution/selection.scoop",
-                include_str!(
-                    "../../../../../../sysroot/src/scoop.test/src/execution/selection.scoop"
-                ),
+                crate::tests::m43_test_annotations::support::SELECTION_DECL,
                 SourceRole::Production,
             ),
             (

@@ -1,4 +1,4 @@
-//! Form physical root groups from optimized SSA before statepoint rewriting.
+//! Retain logical root identities and base merges before statepoint rewriting.
 
 use super::*;
 
@@ -6,13 +6,11 @@ pub(super) fn finalize(
     module: &LlvmModule<'_>,
     expected: &ExpectedSafepoints,
     profile: ValidatedBackendProfile,
-) -> Result<ExpectedSafepoints, CodegenError> {
+) -> Result<(), CodegenError> {
     let metadata = module
         .get_context()
         .get_kind_id(STATEPOINT_ROOT_IDENTITY_METADATA);
-    let mut final_plan = expected.without_body_sites();
-    let mut roots = BTreeMap::<u64, BTreeMap<usize, Vec<ExpectedRoot>>>::new();
-    let mut constants = BTreeMap::<u64, Vec<ExpectedRoot>>::new();
+    let mut sites = BTreeSet::new();
     let mut identities = BTreeMap::<u64, BTreeSet<(u8, u32, u64)>>::new();
     for function in module.get_functions() {
         let function_name = function
@@ -21,6 +19,7 @@ pub(super) fn finalize(
             .map_err(|error| CodegenError(format!("LLVM function name: {error}")))?;
         for block in function.get_basic_blocks() {
             for instruction in block.get_instructions() {
+                retain_merge_base(instruction, profile)?;
                 if let Some((id, root)) = root_identity::read(instruction, metadata)? {
                     let site = expected.sites.get(&id).ok_or_else(|| {
                         CodegenError(format!(
@@ -43,16 +42,12 @@ pub(super) fn finalize(
                         instruction,
                         profile.managed_address_space_contract(),
                     )?;
-                    if constant_roots::is_constant_root(value) {
-                        constants.entry(id).or_default().push(root);
-                    } else {
-                        constant_roots::mark_base_merge(value)?;
-                        roots
-                            .entry(id)
-                            .or_default()
-                            .entry(value.as_value_ref() as usize)
-                            .or_default()
-                            .push(root);
+                    if !constant_roots::is_constant_root(value)
+                        && !constant_roots::mark_base_merge(value)?
+                    {
+                        return Err(CodegenError(
+                            "a final managed root merge contains a derived address".into(),
+                        ));
                     }
                 }
                 let Some(id) = site_id(instruction)? else {
@@ -68,7 +63,7 @@ pub(super) fn finalize(
                         "optimized SafepointId {id} changed its callable owner"
                     )));
                 }
-                if final_plan.sites.insert(id, site.clone()).is_some() {
+                if !sites.insert(id) {
                     return Err(CodegenError(format!(
                         "optimization duplicated SafepointId {id}"
                     )));
@@ -76,7 +71,8 @@ pub(super) fn finalize(
             }
         }
     }
-    for (id, site) in &mut final_plan.sites {
+    for id in &sites {
+        let site = &expected.sites[id];
         let ExpectedStatepoint::Relocating(initial) = &site.statepoint else {
             continue;
         };
@@ -88,26 +84,37 @@ pub(super) fn finalize(
                 initial.identities()
             )));
         }
-        let mut groups = roots
-            .remove(id)
-            .unwrap_or_default()
-            .into_values()
-            .collect::<Vec<_>>();
-        for group in &mut groups {
-            group.sort_unstable_by_key(|root| root.key());
-        }
-        groups.sort_unstable_by_key(|group| group[0].key());
-        site.statepoint = ExpectedStatepoint::Relocating(ExpectedRoots {
-            groups,
-            constants: constants.remove(id).unwrap_or_default(),
-        });
     }
     if let Some(id) = identities.keys().next() {
         return Err(CodegenError(format!(
             "restoration remains for deleted SafepointId {id}"
         )));
     }
-    Ok(final_plan)
+    Ok(())
+}
+
+// Path folding can replace a restore with null while a shared successor keeps
+// the original merge alive. Preserve its base fact independently of that use.
+fn retain_merge_base(
+    instruction: InstructionValue<'_>,
+    profile: ValidatedBackendProfile,
+) -> Result<(), CodegenError> {
+    if matches!(
+        instruction.get_opcode(),
+        InstructionOpcode::Phi | InstructionOpcode::Select
+    ) && instruction.get_type().is_pointer_type()
+    {
+        // SAFETY: the opcode and type establish a scalar pointer instruction.
+        let value = unsafe { BasicValueEnum::new(instruction.as_value_ref()) }.into_pointer_value();
+        if value.get_type().get_address_space()
+            == profile.managed_address_space_contract().inkwell()
+            && !constant_roots::is_constant_root(value)
+        {
+            // Non-root derived merges may exist; they cannot be marked as bases.
+            constant_roots::mark_base_merge(value)?;
+        }
+    }
+    Ok(())
 }
 
 fn site_id(instruction: InstructionValue<'_>) -> Result<Option<u64>, CodegenError> {

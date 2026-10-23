@@ -37,7 +37,7 @@ impl Lowerer {
     pub(crate) fn body_lowerer<'a>(
         &'a mut self,
         module: &'a hir::Module,
-        function: impl Into<mir::LocalValueOwner>,
+        function: impl Into<crate::local_values::BodyOwner>,
         materialization: hir::CallableMaterialization,
         string_owner: mir::ImmortalObjectOwner,
     ) -> BodyLowerer<'a> {

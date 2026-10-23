@@ -4,7 +4,7 @@ use super::*;
 use crate::closures::primitive::PrimitiveReference;
 
 impl Lowerer {
-    pub(super) fn interface_method_entry(
+    pub(crate) fn interface_method_entry(
         &mut self,
         module: &hir::Module,
         source: hir::FunctionId,

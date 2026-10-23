@@ -1,0 +1,90 @@
+package scoop.readline
+
+import scoop.text.*
+
+internal fun requireRepeat(count: Long) {
+    if (count < 0L) throw IllegalArgumentException(Some("negative repeat count"))
+}
+
+internal fun bufferDestination(buffer: LineBuffer, movement: Movement): Long {
+    when (movement) {
+        case Find(character, count, forward, till) -> return findDestination(buffer, character, count, forward, till) ?: buffer.cursor
+        else -> return ordinaryDestination(buffer, movement)
+    }
+}
+
+internal fun findDestination(buffer: LineBuffer, character: Char, count: Long, forward: Boolean, till: Boolean): Long? {
+    requireRepeat(count)
+    if (count == 0L) return None
+    var index = buffer.cursor
+    var remaining = count
+    val start = buffer.lineStart(index)
+    val end = buffer.lineEnd(index)
+    while (remaining > 0L) {
+        if ((!forward && index == start) || (forward && index >= end)) return None
+        index = if (forward) buffer.next(index) else buffer.previous(index)
+        while (index >= start && index < end && buffer.charAt(index) != character) {
+            if (!forward && index == start) return None
+            index = if (forward) buffer.next(index) else buffer.previous(index)
+        }
+        if (index < start || index >= end) return None
+        remaining -= 1L
+    }
+    return Some(if (!till) index else if (forward) buffer.previous(index) else buffer.next(index))
+}
+
+private fun ordinaryDestination(buffer: LineBuffer, movement: Movement): Long {
+    var position = buffer.cursor
+    var count = when (movement) {
+        case BackwardChar(n) -> n
+        case ForwardChar(n) -> n
+        case BackwardWord(n, _) -> n
+        case ForwardWord(n, _, _) -> n
+        case LineUp(n) -> n
+        case LineDown(n) -> n
+        case Find(_, n, _, _) -> n
+        else -> 1L
+    }
+    requireRepeat(count)
+    val column = position - buffer.lineStart(position)
+    while (count > 0L) {
+        val before = position
+        position = when (movement) {
+            case BackwardChar(_) -> buffer.previous(position)
+            case ForwardChar(_) -> buffer.next(position)
+            case BeginningOfLine -> buffer.lineStart(position)
+            case WholeLine(_) -> buffer.lineStart(position)
+            case EndOfLine -> buffer.lineEnd(position)
+            case BeginningOfBuffer -> 0L
+            case WholeBuffer -> 0L
+            case EndOfBuffer -> buffer.length
+            case FirstNonBlank -> {
+                var index = buffer.lineStart(position)
+                while (index < buffer.lineEnd(position) && buffer.charAt(index).toString().isBlank()) index = buffer.next(index)
+                index
+            }
+            case BackwardWord(_, word) -> buffer.backwardWord(position, word)
+            case ForwardWord(_, word, end) -> buffer.forwardWord(position, word, end)
+            case LineUp(_) -> {
+                val start = buffer.lineStart(position)
+                if (start == 0L) position else {
+                    val end = start - 1L
+                    val previous = buffer.lineStart(end)
+                    buffer.snap(if (column < end - previous) previous + column else end, false)
+                }
+            }
+            case LineDown(_) -> {
+                val end = buffer.lineEnd(position)
+                if (end == buffer.length) position else {
+                    val start = end + 1L
+                    val nextEnd = buffer.lineEnd(start)
+                    buffer.snap(if (column < nextEnd - start) start + column else nextEnd, false)
+                }
+            }
+            case Find(character, n, forward, till) -> findDestination(buffer, character, n, forward, till) ?: position
+        }
+        count -= 1L
+        if (position == before) break
+    }
+    return position
+}

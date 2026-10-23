@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/stat.h>
+#include <sys/file.h>
 #include <unistd.h>
 
 int scoop_platform_file_open(const char *path, int flags, int mode) {
@@ -67,4 +68,17 @@ int scoop_platform_file_same(int first, int second) {
     if (fstat(first, &left) < 0 || fstat(second, &right) < 0)
         return -1;
     return left.st_dev == right.st_dev && left.st_ino == right.st_ino;
+}
+
+int scoop_platform_file_lock(int fd, int operation) {
+    int flags = operation == 0 ? LOCK_UN : ((operation & 1) ? LOCK_SH : LOCK_EX);
+    if (operation & 4)
+        flags |= LOCK_NB;
+    int result;
+    do {
+        result = flock(fd, flags);
+    } while (result < 0 && errno == EINTR);
+    if (result < 0 && (operation & 4) && (errno == EWOULDBLOCK || errno == EAGAIN))
+        return 1;
+    return result;
 }

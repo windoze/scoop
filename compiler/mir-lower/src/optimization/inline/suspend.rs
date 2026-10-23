@@ -11,7 +11,7 @@ mod sites;
 struct Template {
     function: mir::Function,
     calls: Vec<CallSite>,
-    cost: usize,
+    cost: policy::Cost,
 }
 
 pub(in crate::optimization) fn run(lowerer: &mut Lowerer) {
@@ -21,7 +21,7 @@ pub(in crate::optimization) fn run(lowerer: &mut Lowerer) {
         .map(|source| {
             let function = lowerer.functions[source.function].clone();
             let calls = lowerer.coroutines.pre_coroutine_call_sites[&source.function].clone();
-            let cost = policy::function_cost(&function);
+            let cost = policy::function_cost(&lowerer.structs.defs, &function);
             (
                 source.function,
                 Template {
@@ -43,8 +43,8 @@ pub(in crate::optimization) fn run(lowerer: &mut Lowerer) {
         let mut function = source.function.clone();
         let mut calls = source.calls.clone();
         let mut state = CallerState {
-            remaining: (source.cost / 2 + 96).min(384),
-            ancestry: vec![vec![id]; function.body.blocks.len()],
+            remaining: (source.cost.size / 2 + 96).min(384),
+            ancestry: vec![vec![super::Target::Local(id)]; function.body.blocks.len()],
         };
         while let Some((order, callee)) = choose(
             lowerer,
@@ -59,7 +59,7 @@ pub(in crate::optimization) fn run(lowerer: &mut Lowerer) {
             let choice = Choice {
                 block: site.block,
                 statement: site.statement,
-                callee,
+                callee: super::Target::Local(callee),
                 blocks: template
                     .function
                     .body
@@ -165,15 +165,18 @@ fn choose(
         let Some(callee) = direct_target(lowerer, call) else {
             continue;
         };
-        if !synchronous[index(callee)] || state.ancestry[index(site.block)].contains(&callee) {
+        if !synchronous[index(callee)]
+            || state.ancestry[index(site.block)].contains(&super::Target::Local(callee))
+        {
             continue;
         }
         let source = &templates[&callee];
-        let growth = source.cost.saturating_sub(6).max(1);
+        let growth = source.cost.size.saturating_sub(6).max(1);
         if growth <= state.remaining
             && policy::worthwhile(
-                source.cost,
-                source.cost,
+                &lowerer.structs.defs,
+                source.cost.execution,
+                source.cost.execution,
                 in_loop[index(site.block)],
                 &[],
                 &source.function,

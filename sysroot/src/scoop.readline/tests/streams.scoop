@@ -1,0 +1,29 @@
+package scoop.readline
+
+import scoop.platform.fs.*
+import scoop.readline.history.MemoryHistory
+import scoop.test.*
+
+@Test private class StreamTest {
+    @Test fun borrowedStreamsMultilineAndEof() {
+        val source = createTempFile(prefix = "readline-input-")
+        val output = createTempFile(prefix = "readline-output-")
+        try {
+            source.writeText("(a\nb)\r\nbye\u0008!\n")
+            val editor = Editor(Config(autoAddHistory = true), MemoryHistory())
+            editor.validator = MatchingBracketValidator()
+            File.open(source).use { input ->
+                File.open(output, OpenOptions(write = true)).use { sink ->
+                    assertEquals("(a\nb)", editor.readLineFrom(input, sink, "> "))
+                    assertEquals("by!", editor.readLineFrom(input, sink))
+                    assertFailsWith<ReadlineEofException> { editor.readLineFrom(input, sink) }
+                    assertFalse(input.isClosed)
+                    assertFalse(sink.isClosed)
+                }
+            }
+            assertEquals("> ", output.readText())
+            assertEquals(2L, editor.history.size)
+            assertFailsWith<IllegalStateException> { editor.saveHistory(output) }
+        } finally { source.delete(); output.delete() }
+    }
+}

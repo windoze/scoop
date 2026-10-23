@@ -29,6 +29,8 @@ mod guarded_unwrap;
 mod interface_parts;
 #[path = "statepoint_tests/late_branches.rs"]
 mod late_branches;
+#[path = "statepoint_tests/late_comparisons.rs"]
+mod late_comparisons;
 #[path = "statepoint_tests/loops.rs"]
 mod loops;
 #[path = "statepoint_tests/manifest.rs"]
@@ -37,6 +39,8 @@ mod manifest_selection;
 mod nogc_loops;
 #[path = "statepoint_tests/nonduplicable.rs"]
 mod nonduplicable;
+#[path = "statepoint_tests/null_paths.rs"]
+mod null_paths;
 #[path = "statepoint_tests/optimized.rs"]
 mod optimized;
 #[path = "statepoint_tests/ranges.rs"]
@@ -101,7 +105,10 @@ fn assert_machine_site_count(path: &std::path::Path, expected: usize) {
     );
 }
 
-fn assert_machine_root_counts(path: &std::path::Path, expected: &ExpectedSafepoints) {
+fn assert_machine_root_counts(
+    path: &std::path::Path,
+    expected: &crate::statepoint::LoweredSafepoints,
+) {
     use object::{Object, ObjectSection};
     let bytes = std::fs::read(path).unwrap();
     let object = object::File::parse(bytes.as_slice()).unwrap();
@@ -118,7 +125,7 @@ fn assert_machine_root_counts(path: &std::path::Path, expected: &ExpectedSafepoi
         .collect::<BTreeMap<_, _>>();
     assert_eq!(parsed.record_count(), actual.len());
     let expected = expected
-        .sites
+        .roots
         .keys()
         .map(|id| (*id, 3 + 2 * expected.root_count(*id).unwrap()))
         .collect::<BTreeMap<_, _>>();

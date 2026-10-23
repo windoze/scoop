@@ -1,0 +1,16 @@
+package dev.m62.provider
+
+public fun add(a: Int, b: Int): Int = a + b
+public fun divide(a: Int, b: Int): Int = a / b
+public fun checked(value: Int): Int {
+    if (value == 0) divide(42, value)
+    return value + 1
+}
+public fun choose(a: Int, b: Int): Int {
+    if (a < b) return b - a
+    return a - b
+}
+public fun recurse(n: Int): Int {
+    if (n == 0) return 1
+    return n * recurse(n - 1)
+}

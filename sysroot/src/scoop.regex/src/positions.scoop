@@ -1,0 +1,64 @@
+package scoop.regex
+
+// Checkpoints are scalar-aligned and contain no borrowed pointers. Each scanned byte is
+// visited once when extending the index; endpoint conversion scans at most one 64-scalar block.
+internal class RegexInput internal constructor(internal val text: String) {
+    private val blocks: ArrayList<Long> = initialBlocks()
+    private var scannedByte: Long = 0L
+    private var scannedScalar: Long = 0L
+
+    internal fun byteOffset(index: Long): Long {
+        if (index < 0L) throw IndexOutOfBoundsException()
+        @Unsafe {
+            return text.withUtf8Bytes { bytes, count ->
+                @Unsafe {
+                    while (scannedScalar < index && scannedByte < count) advance(bytes)
+                    if (scannedScalar < index) throw IndexOutOfBoundsException()
+                    var scalar = (index / 64L) * 64L
+                    var offset = blocks[index / 64L]
+                    while (scalar < index) { offset += utf8Step(bytes.load(offset)); scalar += 1L }
+                    return@withUtf8Bytes offset
+                }
+            }
+        }
+    }
+
+    @Unsafe
+    internal fun scalarOffset(offset: Long, bytes: Ptr<UInt8>, count: Long): Long {
+        while (scannedByte < offset && scannedByte < count) advance(bytes)
+        var low = 0L
+        var high = blocks.size
+        while (low + 1L < high) {
+            val middle = low + (high - low) / 2L
+            if (blocks[middle] <= offset) low = middle else high = middle
+        }
+        var cursor = blocks[low]
+        var scalar = low * 64L
+        while (cursor < offset && cursor < count) {
+            cursor += utf8Step(bytes.load(cursor))
+            scalar += 1L
+        }
+        return scalar
+    }
+
+    @Unsafe
+    private fun advance(bytes: Ptr<UInt8>) {
+        scannedByte += utf8Step(bytes.load(scannedByte))
+        scannedScalar += 1L
+        if (scannedScalar % 64L == 0L) blocks.add(scannedByte)
+    }
+}
+
+private fun initialBlocks(): ArrayList<Long> {
+    val result = ArrayList<Long>()
+    result.add(0L)
+    return result
+}
+
+private fun utf8Step(first: UInt8): Long {
+    val value = first.toInt()
+    if (value < 128) return 1L
+    if (value < 224) return 2L
+    if (value < 240) return 3L
+    return 4L
+}

@@ -21,6 +21,7 @@ pub(super) fn semantic_module() -> (Module, CallableBodyIdentity, Vec<SafepointI
         instructions: vec![
             Instruction::ManagedPoll {
                 site: ManagedPollSite {
+                    kind: scoop_lir::ManagedPollKind::Full,
                     target,
                     safepoint: SafepointSiteRef::from_u32(0),
                     live: StatepointLiveSet::default(),
@@ -28,6 +29,7 @@ pub(super) fn semantic_module() -> (Module, CallableBodyIdentity, Vec<SafepointI
             },
             Instruction::ManagedPoll {
                 site: ManagedPollSite {
+                    kind: scoop_lir::ManagedPollKind::Full,
                     target,
                     safepoint: SafepointSiteRef::from_u32(1),
                     live: StatepointLiveSet::default(),

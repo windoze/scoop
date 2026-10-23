@@ -1,0 +1,12 @@
+package scoop.platform.fs
+
+/** Borrows a non-nested advisory lock and releases it on every exit. */
+public fun <R> File.withLock(shared: Boolean = false, block: () -> R): R {
+    val scope = FileLockScope(this)
+    lock(shared)
+    return scope.use { block() }
+}
+
+private class FileLockScope(private val file: File) : Closeable {
+    public override fun close() { file.unlock() }
+}

@@ -1,0 +1,56 @@
+schema = 1
+name = "intrinsics-specialized-cross-cone"
+inputs = ["provider", "consumer", "runner"]
+tools = ["scoop", "scoopc"]
+tags = ["intrinsics", "compiler-correctness"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/provider"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+  {copy = {from = "${fixture}/runner", to = "${work}/runner"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/provider", "--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "-o", "${work}/artifacts/dev.m62/intrinsic-provider/0.1.0/cone.slib", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "-o", "${work}/artifacts/dev.m62/intrinsic-consumer/0.1.0/cone.slib", "--emit", "mir", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", contains = "IntegerBinary add kind=Int"},
+  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", contains = "FloatBinary F64 Add"},
+  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", not_contains = " = external"},
+]
+
+[[steps]]
+name = "runner"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/runner", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-runner", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${runner.result.output}"]
+exit = 0
+stdout = "specialized intrinsics\n"
+stderr = ""

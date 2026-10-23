@@ -33,7 +33,7 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) core_protocols: &'a hir::ConcreteCoreProtocols,
     pub(super) source_exact_types: &'a mut SourceExactTypeRegistry,
     pub(super) local_values: &'a mut LocalValueRegistry,
-    pub(super) current_owner: mir::LocalValueOwner,
+    pub(super) current_owner: crate::local_values::BodyOwner,
     pub(super) current_materialization: hir::CallableMaterialization,
     pub(super) current_string_owner: mir::ImmortalObjectOwner,
     pub(super) next_string_ordinal: u32,

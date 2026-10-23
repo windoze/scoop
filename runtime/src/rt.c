@@ -6,7 +6,6 @@
 
 #include "eh_internal.h"
 #include "gc.h"
-#include "image/registry.h"
 #include "managed_entries.h"
 #include "scoop_rt.h"
 #include "thread.h"
@@ -191,17 +190,11 @@ static bool type_is_subtype(const ScoopTypeDescriptor *source,
 
 bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td) {
     const ScoopTypeDescriptor *source = ((const ScoopObjectHeader *)obj)->td;
-    scoop_image_require_type(source);
-    if (td != NULL) {
-        scoop_image_require_type(td);
-    }
     return type_is_subtype(source, td);
 }
 
 const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
                                           const ScoopTypeDescriptor *iface_td) {
-    scoop_image_require_type(obj_td);
-    scoop_image_require_type(iface_td);
     for (uint64_t i = 0; i < obj_td->itable_count; i++) {
         if (obj_td->itables[i].interface == iface_td) {
             return obj_td->itables[i].slots;

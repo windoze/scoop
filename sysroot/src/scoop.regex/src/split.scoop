@@ -1,0 +1,47 @@
+package scoop.regex
+
+import scoop.sequences.*
+
+/**
+ * Splits on matches, retaining empty segments and omitting delimiter captures. Zero limit means
+ * unlimited; a positive limit leaves the remaining text in the final segment. Negative limits throw.
+ */
+public fun Regex.split(input: String, limit: Long = 0L): List<String> = splitToSequence(input, limit).toList()
+
+/** Produces the same segments as split lazily. Each iterator has independent progress. */
+public fun Regex.splitToSequence(input: String, limit: Long = 0L): Sequence<String> {
+    checkedHandle()
+    if (limit < 0L) throw IllegalArgumentException(Some("split limit must be nonnegative"))
+    return RegexSplits(this, input, limit)
+}
+
+private class RegexSplits(private val regex: Regex, private val input: String, private val limit: Long) : Sequence<String> {
+    public override operator fun iterator(): Iterator<String> = RegexSplitIterator(regex, input, limit)
+}
+
+private class RegexSplitIterator(regex: Regex, private val input: String, private val limit: Long) : Iterator<String> {
+    private val matches: Iterator<MatchResult> = RegexIterator(regex, input, 0L)
+    private var position: Long = 0L
+    private var emitted: Long = 0L
+    private var finished: Boolean = false
+
+    public override fun next(): String? {
+        if (finished) return None
+        if (input.byteLength == 0L || (limit > 0L && emitted == limit - 1L)) return tail()
+        when (val match = matches.next()) {
+            case None -> return tail()
+            case Some(value) -> {
+                val result = regexSlice(input, position, value.byteStart)
+                position = value.byteEnd
+                emitted += 1L
+                return Some(result)
+            }
+        }
+    }
+
+    private fun tail(): String? {
+        val result = regexSlice(input, position, input.byteLength)
+        finished = true
+        return Some(result)
+    }
+}

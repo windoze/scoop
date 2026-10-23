@@ -28,6 +28,13 @@ pub(crate) enum NativeBinding {
 }
 
 impl NativeBinding {
+    pub fn symbol_binding(&self) -> crate::NativeSymbolBinding {
+        match self {
+            Self::Darwin(binding) => crate::NativeSymbolBinding::from_weak(binding.interface.weak),
+            Self::Elf(binding) => binding.definition().binding,
+        }
+    }
+
     pub fn definition(&self) -> Option<NativeSymbolDefinition> {
         match self {
             Self::Darwin(binding) => match binding.storage {

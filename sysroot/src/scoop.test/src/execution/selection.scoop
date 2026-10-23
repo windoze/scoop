@@ -7,9 +7,25 @@ package scoop.test.execution
  * stable case index.
  */
 public fun isTestSelected(
-    arguments: Array<String>, caseIndex: String, ignored: Boolean
+    arguments: Array<String>, caseIndex: String, ignored: Boolean, caseName: String = ""
 ): Boolean {
     if (arguments.size <= 1L) { return !ignored }
+    if (arguments[1L] == "--scoop-test-filter" || arguments[1L] == "--scoop-test-filter-ignored") {
+        if (arguments.size != 3L) return false
+        val selectIgnored = arguments[1L] == "--scoop-test-filter-ignored"
+        if (ignored != selectIgnored) return false
+        val name = caseName.toCharArray()
+        val filter = arguments[2L].toCharArray()
+        var start = 0L
+        while (start <= name.size - filter.size) {
+            var index = 0L
+            while (index < filter.size && name[start + index] == filter[index]) index += 1L
+            if (index == filter.size) return true
+            start += 1L
+        }
+        return false
+    }
+    if (arguments[1L] != "--scoop-test-cases") return false
     var index = 2L
     while (index < arguments.size) {
         if (arguments[index] == caseIndex) { return true }

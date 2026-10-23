@@ -1,0 +1,207 @@
+package scoop.readline
+
+import scoop.readline.history.*
+import scoop.terminal.event.*
+import scoop.text.*
+
+internal class SearchState(val original: BufferState, val originalIndex: Long, var direction: SearchDirection) {
+    var query: String = ""
+    var index: Long = originalIndex
+}
+internal class CompletionState(val original: BufferState, val result: Completions) {
+    var index: Long = -1L
+}
+internal struct KeyBinding(val keys: Array<KeyEvent>, val handler: (LineBuffer, Context) -> Command)
+
+/** The production editor core, driven by terminal events or application-provided events. */
+public class EditingSession public constructor(
+    public val config: Config = Config(),
+    public val history: History = FileHistory(config),
+    initial: String = "",
+    cursor: Long = initial.length,
+    public val completer: Completer = NoCompleter,
+    public val hinter: Hinter = NoHinter,
+    public val highlighter: Highlighter = PlainHighlighter,
+    public val validator: Validator = AcceptAll
+) {
+    public val buffer: LineBuffer = LineBuffer(initial, cursor)
+    internal val keys: KeyMap = KeyMap(config.editMode)
+    internal val undo: UndoHistory = UndoHistory()
+    internal var kills: KillRing = KillRing()
+    internal var historyPosition: Long = history.size
+    internal var draft: BufferState = buffer.state()
+    internal var search: SearchState? = None
+    internal var lastSearch: String = ""
+    internal var completion: CompletionState? = None
+    internal var fuzzy: FuzzyCompletion? = None
+    internal var quoted: Boolean = false
+    internal var lastYank: (Long, Long)? = None
+    internal var lastChange: Command? = None
+    internal var viChange: ViChange? = None
+    internal var replaying: Boolean = false
+    internal var printer: ExternalPrinter? = None
+    internal var messageValue: String? = None
+    internal var bellValue: Boolean = false
+    internal var clearValue: Boolean = false
+    internal var displayedCandidates: Array<Candidate> = []
+    internal val bindings: ArrayList<KeyBinding> = ArrayList<KeyBinding>()
+    private val sequence: ArrayList<KeyEvent> = ArrayList<KeyEvent>()
+    private var finished: Boolean = false
+
+    public val line: String get() = buffer.text
+    public val cursor: Long get() = buffer.cursor
+    public val historyIndex: Long get() = historyPosition
+    public val viMode: ViMode get() = keys.mode
+    public val message: String? get() = messageValue
+    public val candidates: Array<Candidate> get() = displayedCandidates
+    public val hasPendingSequence: Boolean get() = sequence.size > 0L
+    public val context: Context get() = Context(history, historyPosition)
+    public val hint: Hint? get() = if ((when (search) { case Some(_) -> true; case None -> false }) ||
+        (when (fuzzy) { case Some(_) -> true; case None -> false }) || finished) None else hinter.hint(line, cursor, context)
+
+    /** Installs or replaces a literal key binding; key release events never trigger bindings. */
+    public fun bind(key: KeyEvent, command: Command) { bindSequence([key]) { _, _ -> command } }
+    /** Installs an ordered key sequence with an application-selected command. */
+    public fun bindSequence(keys: Array<KeyEvent>, handler: (LineBuffer, Context) -> Command) {
+        if (keys.size == 0L) throw IllegalArgumentException(Some("empty key sequence"))
+        var index = 0L
+        while (index < bindings.size) {
+            if (sameKeys(bindings[index].keys, keys)) { bindings.removeAt(index); break }
+            index += 1L
+        }
+        bindings.add(KeyBinding(keys.toArray(), handler))
+    }
+
+    /** Removes an exact custom key sequence, returning whether it was present. */
+    public fun unbindSequence(keys: Array<KeyEvent>): Boolean = removeBinding(bindings, keys)
+
+    /** Processes a terminal event, preserving edit state across resize and paste events. */
+    public fun handle(event: Event): EditResult {
+        if (finished) throw IllegalStateException(Some("editing session has finished"))
+        bellValue = false
+        clearValue = false
+        displayedCandidates = []
+        return when (event) {
+            case Key(key) -> handleKey(key)
+            case Paste(text) -> {
+                val normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+                when (fuzzy) {
+                    case Some(state) -> { state.query += normalized; updateFuzzy(); EditResult.Continue }
+                    case None -> execute(Command.Insert(normalized))
+                }
+            }
+            else -> EditResult.Continue
+        }
+    }
+
+    private fun handleKey(key: KeyEvent): EditResult {
+        if (key.kind == KeyEventKind.Release) return EditResult.Continue
+        if ((when (fuzzy) { case Some(_) -> true; case None -> false })) return handleFuzzyKey(key)
+        if (quoted) {
+            quoted = false
+            val character = keyCharacter(key)
+            val text = if (character != None) {
+                if (key.modifiers.has(KeyModifier.Control)) (character!!.code and 31).toChar().toString() else character!!.toString()
+            } else when (key.code) {
+                case Enter -> "\n"; case Tab -> "\t"; case Esc -> "\u001b"
+                case Backspace -> "\u007f"; case Null -> "\u0000"; else -> ""
+            }
+            return execute(Command.Insert(text))
+        }
+        if ((when (search) { case Some(_) -> true; case None -> false })) return handleSearchKey(key)
+        sequence.add(key)
+        return resolveSequence(false)
+    }
+
+    /** Resolves an incomplete custom sequence through the normal key map after its timeout. */
+    public fun flushPendingSequence(): EditResult = resolveSequence(true)
+
+    private fun resolveSequence(force: Boolean): EditResult {
+        while (sequence.size > 0L) {
+            var prefix = false
+            var matched = -1L
+            var length = 0L
+            var index = 0L
+            while (index < bindings.size) {
+                val binding = bindings[index]
+                if (binding.keys.size > sequence.size && keysPrefix(sequence, binding.keys)) prefix = true
+                if (binding.keys.size <= sequence.size && binding.keys.size > length && keysPrefix(binding.keys, sequence)) {
+                    matched = index
+                    length = binding.keys.size
+                }
+                index += 1L
+            }
+            if (prefix && !force) return EditResult.Continue
+            val result = if (matched >= 0L) {
+                var removed = 0L
+                while (removed < length) { sequence.removeAt(0L); removed += 1L }
+                execute(bindings[matched].handler(buffer, context))
+            } else {
+                val key = sequence.removeAt(0L)
+                var command = keys.command(key)
+                val suggestion = hint
+                if (key.code == KeyCode.Right && cursor == buffer.length && suggestion != None && suggestion!!.completion != None) command = Command.CompleteHint
+                execute(command)
+            }
+            if (result != EditResult.Continue) return result
+        }
+        return EditResult.Continue
+    }
+
+    /** Executes a command using exactly the same path as keyboard input. */
+    public fun execute(command: Command): EditResult {
+        if (finished) throw IllegalStateException(Some("editing session has finished"))
+        val reverting = when (command) { case Undo(_) -> true; case Redo(_) -> true; else -> false }
+        if (reverting) finishViChange()
+        val before = buffer.state()
+        val previousMode = keys.mode
+        val result = applyCommand(command)
+        val recordsUndo = when (command) {
+            case Undo(_) -> false
+            case Redo(_) -> false
+            case RepeatLastChange(_) -> false
+            else -> true
+        }
+        if (recordsUndo && config.editMode == EditMode.Vi && !replaying) {
+            recordViChange(command, before, previousMode, result)
+        } else if (recordsUndo) {
+            val insertion = when (command) { case Insert(text, count) -> text.length == 1L && count == 1L; else -> false }
+            undo.record(before, buffer.state(), insertion)
+        }
+        if (before.text != line && !replaying && recordsUndo && config.editMode != EditMode.Vi) lastChange = Some(command)
+        val killing = when (command) { case Kill(_) -> true; case Change(_) -> true; case Copy(_) -> true; else -> false }
+        if (!killing) kills.boundary()
+        val yanking = when (command) { case Yank(_, _) -> true; case YankPop -> true; else -> false }
+        if (!yanking) lastYank = None
+        val completing = when (command) { case Complete -> true; case CompleteBackward -> true; else -> false }
+        if (!completing) completion = None
+        if (result != EditResult.Continue && result != EditResult.Suspended) finished = true
+        return result
+    }
+
+    /** Consumes pending bell feedback. */
+    public fun takeBell(): Boolean { val result = bellValue; bellValue = false; return result }
+    /** Consumes a request to clear the screen. */
+    public fun takeClearScreen(): Boolean { val result = clearValue; clearValue = false; return result }
+}
+
+private fun keysPrefix(prefix: List<KeyEvent>, keys: List<KeyEvent>): Boolean {
+    if (prefix.size > keys.size) return false
+    var index = 0L
+    while (index < prefix.size) {
+        if (prefix[index].code != keys[index].code || prefix[index].modifiers.bits != keys[index].modifiers.bits) return false
+        index += 1L
+    }
+    return true
+}
+internal fun sameKeys(left: List<KeyEvent>, right: List<KeyEvent>): Boolean =
+    left.size == right.size && keysPrefix(left, right)
+
+internal fun removeBinding(bindings: ArrayList<KeyBinding>, keys: Array<KeyEvent>): Boolean {
+    var index = 0L
+    while (index < bindings.size) {
+        if (sameKeys(bindings[index].keys, keys)) { bindings.removeAt(index); return true }
+        index += 1L
+    }
+    return false
+}

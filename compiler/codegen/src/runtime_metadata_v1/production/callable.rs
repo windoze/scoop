@@ -33,7 +33,7 @@ pub(crate) fn emit_callable_safepoints<'ctx, D, C, I>(
     llvm: &LlvmModule<'ctx>,
     production: &scoop_lir::ConeProductionSection<D, C, I>,
     body: scoop_lir::PersistentCallableBodyId,
-    expected: &crate::statepoint::ExpectedSafepoints,
+    expected: &crate::statepoint::LoweredSafepoints,
 ) -> Result<(), CodegenError> {
     let safepoints = emit_strong_safepoint_registrations_v1(
         context,

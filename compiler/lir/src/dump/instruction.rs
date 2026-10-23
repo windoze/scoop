@@ -515,7 +515,11 @@ pub(super) fn dump_instruction(
             buf.push_str(&format!("    call {}\n", call_site_name(function, site)));
         }
         Instruction::ManagedPoll { site } => buf.push_str(&format!(
-            "    poll managed-void-target{} sp{} live=[{}]\n",
+            "    poll{} managed-void-target{} sp{} live=[{}]\n",
+            match site.kind {
+                ManagedPollKind::Full => "",
+                ManagedPollKind::EntryActivation => " activation",
+            },
             site.target.into_raw(),
             safepoint_name(function, site.safepoint),
             live_set_name(&site.live)

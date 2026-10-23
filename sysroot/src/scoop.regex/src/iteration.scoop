@@ -1,0 +1,38 @@
+package scoop.regex
+
+import scoop.sequences.Sequence
+
+internal class RegexMatches internal constructor(
+    private val regex: Regex,
+    private val text: String,
+    private val start: Long
+) : Sequence<MatchResult> {
+    public override operator fun iterator(): Iterator<MatchResult> = RegexIterator(regex, text, start)
+}
+
+internal class RegexIterator internal constructor(
+    private val regex: Regex,
+    text: String,
+    start: Long
+) : Iterator<MatchResult> {
+    private val input: RegexInput = RegexInput(text)
+    private var position: Long = start
+    private var flags: UInt = 0u
+    private var finished: Boolean = false
+
+    public override fun next(): MatchResult? {
+        if (finished) return None
+        when (val step = regex.search(input, position, flags)) {
+            case None -> {
+                finished = true
+                return None
+            }
+            case Some(found) -> {
+                position = found.start
+                flags = found.flags
+                finished = !found.hasNext
+                return Some(found.result)
+            }
+        }
+    }
+}

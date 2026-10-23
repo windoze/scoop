@@ -5,6 +5,29 @@ use super::*;
 impl Concretizer<'_> {
     pub(in crate::concretize) fn ensure_box_source(&mut self, ty: concrete::TypeId) {
         let (family, application) = match self.types[ty].kind {
+            concrete::TypeKind::String => {
+                let owner = match self.core {
+                    export::CoreProtocols::Defined(core) => self.source.nominal_identities
+                        [core.fundamental_types.string]
+                        .declaration_id(),
+                    export::CoreProtocols::Imported(core) => export::SourceNominalId::Concrete(
+                        core.fundamental_types().string().persistent(),
+                    ),
+                };
+                if matches!(self.core, export::CoreProtocols::Imported(_))
+                    && !self.source.loaded_class_definitions.contains_key(&owner)
+                {
+                    return;
+                }
+                self.ensure_class_definition(
+                    owner,
+                    Vec::new(),
+                    ConcreteApplicationRepresentation::Intrinsic(
+                        concrete::IntrinsicTypeRepresentation::String,
+                    ),
+                );
+                return;
+            }
             concrete::TypeKind::Ptr(pointee) => {
                 self.ensure_pointer_source(pointee);
                 return;

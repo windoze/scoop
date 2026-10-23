@@ -1,14 +1,14 @@
 # Scoop 字符集库规范
 
-版本：M54。提供普通 Cone `scoop:scoop.charset:0.1.0`，依赖 core、std、platform。它补齐 HTTP text、字段参数和认证凭据所需的字符集转换与 NFC 规范化，负责字符集识别、内存转换和增量状态；不依赖 URL、IDNA、HTTP、asyncio 或 ICU。实际验证范围见 [M54 进度](../milestone54/PROGRESS.md)。
+版本：M61（分步迁移）。提供普通 Cone `scoop:scoop.charset:0.1.0`，依赖 core、std、platform。它补齐 HTTP text、字段参数和认证凭据所需的字符集转换与 NFC 规范化，负责字符集识别、内存转换和增量状态；不依赖 URL、IDNA、HTTP、asyncio 或 ICU4C。M54 的原验收范围见 [M54 进度](../milestone54/PROGRESS.md)，迁移状态见 [M61 进度](../milestone61/PROGRESS.md)。
 
 ## 1. 后端与范围
 
-使用固定 GNU libiconv 1.19 的库部分，经普通 C API 集成。三个目标使用同一实现与编码集合，避免依赖 Darwin、glibc、musl 各自不同的 iconv 行为；源码、目标静态库、LGPL 许可及相应分发材料沿 M52 交付。native 库使用 libiconv 自身符号，不用进程全局 locale 或运行时后端搜索决定语义。
+内部共享 Rust 静态库 `scoop_text_backend` 使用 encoding_rs 0.8.42 负责遗留编码和 UTF-8／16 解码，Rust 标准库的 Unicode 标量与端序转换负责 UTF 编码、UTF-32、真正的 ASCII／Latin-1。三个目标使用同一固定实现与 43 个 canonical name，实际全集及别名、65 个退役名称和映射差异见 [ENCODINGS.md](../../sysroot/src/scoop.charset/ENCODINGS.md)。没有系统 iconv、进程 locale、CJK／ISO-2022 自实现或 GNU fallback。
 
-必须支持 UTF-8、US-ASCII、ISO-8859-1、Windows-1252、UTF-16LE／BE、UTF-32LE／BE、GB18030、GBK、Big5、Shift_JIS、EUC-JP 和 ISO-2022-JP。名称解析采用固定后端的受支持名称与显式别名，大小写无关；记录具体版本支持列表，不把未知名字退回系统默认编码。ISO-8859-1 按该编码本义处理，不采用浏览器将其当 Windows-1252 的隐式规则。
+支持 UTF-8、US-ASCII、ISO-8859-1、Windows-1252、UTF-16LE／BE、UTF-32LE／BE、GB18030、GBK、Big5、Shift_JIS、EUC-JP 和 ISO-2022-JP。遗留编码采用 encoding_rs 的 WHATWG 映射；GB18030 为带网页兼容差异的 2022 变体，不保留 2005／2022 年份别名。GBK 解码兼容四字节 GB18030，但编码限 GBK；Big5 可解码为多个标量；Shift_JIS、EUC-KR 包含厂商扩展；Windows 未定义字节、EUC-JP 反向集合与 CP1258 组合行为均以映射文档为准。严格转换拒绝当前映射中的非法输入／不可表示字符，不额外承诺一一映射或旧 GNU 行为。
 
-NFC 使用已有的固定 GNU libunistring 1.4.2，与 IDNA 的目标资源共享同一份静态库；不通过域名转换接口处理普通文本。此库不改变 core String 的 UTF-8 表示，也不把 native 依赖加入仅依赖 core 的 `scoop.std`。语言检测、浏览器编码猜测与完整国际化服务不属于本库。
+NFC 使用 ICU4X `icu_normalizer` 2.3.0，与 IDNA 共享 normalizer 和 Unicode 17.0.0 数据。Readline Unicode 操作见 §2.1，全部使用同一 Rust 静态库。此库不改变 core String 的 UTF-8 表示，也不把 native 依赖加入仅依赖 core 的 `scoop.std`。语言检测、浏览器编码猜测与完整国际化服务不属于本库。
 
 ## 2. 公共合同
 
@@ -30,20 +30,39 @@ NFC 使用已有的固定 GNU libunistring 1.4.2，与 IDNA 的目标资源共�
 
 `CharsetTranscodeOptions` 分别保存上述 decode／encode 选项，以及 malformedInput／unmappableOutput 的 Strict 或 Replace 策略。增量 `process(input, output, endInput = false)` 推进两个 buffer 的实际位置；endInput 只在本次提供的输入全部接收后生效，未消费完时后续调用继续携带 true。Finished 后允许空输入查询完成状态，不能继续追加数据。转换错误后只允许 close；close 幂等，资源最终释放不冒充成功 finish。
 
-native 引擎使用同一 libiconv 后端解码到一个 Unicode 标量，再交给同一目标编码器，保留两侧状态与有限的跨块字节。源错误由后端 fallback 输出 U+FFFD；不可表示输出在同一个编码器中改为编码 U+003F，确保状态编码的转义序列正确。固定后端关闭默认静默丢弃 Unicode tag 和隐式 U+FFFD 替代的路径；严格模式不接受这些有损行为。截断尾部的 Replace 产生一个 U+FFFD，非截断错误按后端报告的非法编码单元替换。
+native 引擎保留成熟库的 decoder／encoder 与有限的跨块字节，逐编码单元传递 Unicode 标量；Big5 等解码出的多个标量关联到同一源单元。源错误采用上游无替换接口报告的长度与已消费字节定位，Replace 输出 U+FFFD；不可表示输出在同一个编码器中编码 U+003F，不使用 HTML 字符引用。明确 EOF 的残缺尾部为 IncompleteInput，其余非法编码单元为 MalformedInput。不可表示字符的偏移指向对应源单元起点，包括该单元之前尚未产生字符的状态转义；偏移不因分块变化。
 
 处理空输入与暂时无输入不等于 EOF，输出空间不足不等于格式错误。数据错误保存原始输入流中的字节偏移，不把每块起点当成零。`CharsetException` 保存操作、源／目标编码、kind、offset 和后端原因。输入有错误时可能已有输出，增量入口不提供回滚；一次性转换只在完整成功后交付结果。
 
 引擎串行使用，不执行 I/O。HTTP 等流适配逐块调用它即可保持同步／异步流的相同编码语义，不得在上层另写 GBK、UTF-16 等 decoder。只需要现有 UTF-8 能力的库继续使用 core 的公开入口，无须重复引入转换实现。
 
-`normalizeNfc(text: String): String` 对完整 String 执行 Unicode NFC，返回拥有独立生命周期的 String。规范分解、组合顺序、组合排除和 Hangul 组合均使用 libunistring；不做兼容性折叠、大小写映射、空白删除或 BOM 消费。空字符串、内嵌 NUL 与 U+FEFF 都是普通文本。该入口不修改原字符串，各次调用没有共享可变转换状态；后端失败以 CharsetException 的 Backend 类别保留实际错误码。它不对任意流分块分别规范化，因为组合字符可以跨块关联；调用者明确提供完整文本。
+`normalizeNfc(text: String): String` 对完整 String 执行 Unicode NFC，返回拥有独立生命周期的 String。规范分解、组合顺序、组合排除和 Hangul 组合均使用 ICU4X；不做兼容性折叠、大小写映射、空白删除或 BOM 消费。空字符串、内嵌 NUL 与 U+FEFF 都是普通文本。各次调用没有共享可变状态；Scoop 复制 Rust 结果后在 finally 中经 `scoop_text_free(data, size)` 释放。显式返回的参数、长度及后端故障为 CharsetException.Backend，无后端原码时为 None；上游不可恢复分配失败或内部 panic 按 `panic=abort` 终止进程，不保证转成可捕获异常，也不跨 C ABI 展开。它不对任意流分块分别规范化，因为组合字符可以跨块关联；调用者明确提供完整文本。
+
+### 2.1 Unicode 分段、宽度与大小写
+
+Readline 所需的 Unicode 基础能力使用 ICU4X 2.3.0 的 segmenter、casemap、properties
+及 unicode-width 0.2.2，数据基线均为 Unicode 17.0.0，无 GNU 后备实现。
+`graphemeBoundaries(text)` 返回扩展字素簇边界的 Unicode 标量索引（含 0 和末尾，
+空串返回 [0]），`graphemes(text)` 返回各簇的独立 String 数组；不使用缺少上下文的
+逐字符 break 判断。分段采用 UAX #29 扩展字素簇规则，底层 UTF-8 byte offset 只在
+适配边界转换为标量索引。`unicodeScalarWidth(character)` 使用 unicode-width 的非 CJK
+单标量宽度；控制字符（包括 NUL）返回 -1，组合字符通常为 0，东亚宽字符为 2，
+少数上游定义的宽符号可为 3（例如 U+17D8）；不把返回值限制在 0..2，也不读取进程 locale。
+`isUnicodeAlphanumeric` 明确定义为 ICU 的 Alnum（Alphabetic 或 Decimal_Number），
+包括具有 Alphabetic 属性的组合符号；这取代原 GNU ISO C 分类，非十进制且非 Alphabetic
+的数字符号（例如 ²、½）不属于该集合。
+`unicodeLowercase/unicodeUppercase` 使用完整字符串上下文与 und locale，允许一个标量
+展开为多个标量，保留希腊词尾 sigma 等上下文规则；`unicodeCasefold` 使用默认的非 Turkic
+完整折叠。空串和内嵌 NUL 是普通数据，拥有的结果经 `scoop_text_free(data, size)` 释放，
+显式错误及不可恢复 panic／OOM 遵守 NFC 的边界。终端序列与字素簇显示策略属于 readline，
+不改变 core String 的标量索引语义。
 
 ## 3. HTTP 使用与验收
 
 Content-Type 参数解析属于 HTTP；HTTP client 根据显式 charset、调用方选择和协议规定选择 Charset。本库不猜测媒体类型。JSON 的网络表示采用 UTF-8，SSE 采用其规定的 UTF-8；HTTP 历史字段的原始字节不被整体当成 UTF-8 解码。
 
-Basic／Digest 在选择 UTF-8 凭据时按 RFC 7617／7616 调用 normalizeNfc，再编码和计算凭据；字段语法、凭据选择和摘要分别保留在 HTTP、client 和 crypto。NFC 的独立向量覆盖组合、重排、排除、Hangul、非兼容折叠、NUL／BOM，并组合字符集往返与实际认证字段和摘要。
+Basic／Digest 在选择 UTF-8 凭据时按 RFC 7617／7616 调用 normalizeNfc，再编码和计算凭据；字段语法、凭据选择和摘要分别保留在 HTTP、client 和 crypto。
 
-固定向量覆盖编码双向转换、不等价字符、非法输入、不可表示输出、BOM 与字节序、任意分块及状态编码。与独立 libiconv 工具交叉验证，再组合短读 HTTP body、Content-Disposition 扩展参数和取消后的引擎清理。三个目标执行库测试和普通生产消费者，工具只用于开发验证。
+测试围绕 Scoop 自有的名称与选项适配、BOM 与字节序、增量状态、输入消费量、输出背压、错误偏移和资源释放。Unicode 入口验证 C ABI 与字节／标量索引转换，readline 验证实际编辑行为；不新增 Rust 库 Unicode 兼容性或完备性的正例、负例，不维护官方一致性测试数据。三个目标执行相关 Scoop 消费与链接验证；已有直接消费者结果按变更范围复用，不扩展 HTTP client 组合测试。
 
-依据：[GNU libiconv](https://www.gnu.org/software/libiconv/)、[固定版本发行](https://ftp.gnu.org/gnu/libiconv/)、[GNU libunistring](https://www.gnu.org/software/libunistring/)、[UAX #15](https://www.unicode.org/reports/tr15/)、[RFC 8187](https://www.rfc-editor.org/rfc/rfc8187.html)、[RFC 7616](https://www.rfc-editor.org/rfc/rfc7616.html)、[RFC 7617](https://www.rfc-editor.org/rfc/rfc7617.html)。
+依据：[encoding_rs](https://docs.rs/encoding_rs/0.8.42/encoding_rs/)、[WHATWG Encoding](https://encoding.spec.whatwg.org/)、[UAX #15](https://www.unicode.org/reports/tr15/)、[RFC 8187](https://www.rfc-editor.org/rfc/rfc8187.html)、[RFC 7616](https://www.rfc-editor.org/rfc/rfc7616.html)、[RFC 7617](https://www.rfc-editor.org/rfc/rfc7617.html)。

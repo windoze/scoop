@@ -287,6 +287,7 @@ fn poll(
 ) -> Instruction {
     Instruction::ManagedPoll {
         site: ManagedPollSite {
+            kind: crate::ManagedPollKind::Full,
             target,
             safepoint,
             live,

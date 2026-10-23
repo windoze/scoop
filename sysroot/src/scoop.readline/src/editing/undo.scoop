@@ -1,0 +1,59 @@
+package scoop.readline
+
+internal class UndoHistory {
+    private val past: ArrayList<BufferState> = ArrayList<BufferState>()
+    private val future: ArrayList<BufferState> = ArrayList<BufferState>()
+    private var inserting: Boolean = false
+
+    fun record(before: BufferState, after: BufferState, insert: Boolean) {
+        if (before.text == after.text) { inserting = false; return }
+        if (!insert || !inserting) past.add(before)
+        future.clear()
+        inserting = insert
+    }
+    fun boundary() { inserting = false }
+    fun undo(buffer: LineBuffer, count: Long) {
+        requireRepeat(count)
+        inserting = false
+        var left = count
+        while (left > 0L && past.size > 0L) {
+            future.add(buffer.state())
+            buffer.restore(past.removeAt(past.size - 1L))
+            left -= 1L
+        }
+    }
+    fun redo(buffer: LineBuffer, count: Long) {
+        requireRepeat(count)
+        inserting = false
+        var left = count
+        while (left > 0L && future.size > 0L) {
+            past.add(buffer.state())
+            buffer.restore(future.removeAt(future.size - 1L))
+            left -= 1L
+        }
+    }
+}
+
+internal class KillRing {
+    private val entries: ArrayList<String> = ArrayList<String>()
+    private var continuing: Boolean = false
+    private var index: Long = 0L
+    fun boundary() { continuing = false }
+    fun kill(text: String, backward: Boolean) {
+        if (text.byteLength == 0L) return
+        if (continuing && entries.size > 0L) {
+            entries[0L] = if (backward) text + entries[0L] else entries[0L] + text
+        } else {
+            entries.add(0L, text)
+            if (entries.size > 60L) entries.removeAt(entries.size - 1L)
+        }
+        continuing = true
+        index = 0L
+    }
+    fun current(): String? = if (entries.size == 0L) None else Some(entries[index])
+    fun rotate(): String? {
+        if (entries.size == 0L) return None
+        index = (index + 1L) % entries.size
+        return Some(entries[index])
+    }
+}

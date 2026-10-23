@@ -1,3 +1,5 @@
+/* Fixture initialization must also run when testing an optimized runtime. */
+#undef NDEBUG
 #include <assert.h>
 
 #include "image_fixture.h"

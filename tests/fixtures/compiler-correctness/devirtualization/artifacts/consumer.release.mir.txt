@@ -11,6 +11,7 @@ Module
   class Base vtable=1 itables=0
   class Final vtable=1 itables=0
   class Inherited vtable=1 itables=0
+  class ArithmeticException vtable=0 itables=0
   interface Measure
   interface ToString
   interface Hash
@@ -29,26 +30,20 @@ Module
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   fun check @fn0(value: Boolean) -> Unit
     bb0 entry
-      val $dependency.receiver: Boolean
-        Type Boolean
-        Local value
       branch bb1 bb2
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $dependency.receiver
+          Local value
     bb1 if.then.1
       val $default.local.0: String
         Type String
         StringConst @str0
-      val $default.local.1: String
-        Type String
-        Local $default.local.0
       val $dependency.parameter.message: Option<String>
         Type Option<String>
         VariantConstruct Option<String> v0
           Type String
-          Local $default.local.1
+          Local $default.local.0
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
@@ -86,14 +81,11 @@ Module
           Type Final
           Local $new.1
       call @scoop_rt_gc_collect direct
-      val $dependency.receiver: Base
-        Type Base
-        Local value
       call $call.2: Int = external2 direct
         Type Final
         Retype Final
           Type Base
-          Local $dependency.receiver
+          Local value
       return
         Type Int
         Local $call.2
@@ -119,23 +111,17 @@ Module
           Type Inherited
           Local $new.1
       call @scoop_rt_gc_collect direct
-      val $dependency.receiver: Base
-        Type Base
-        Local value
       call $call.2: Int = external0 direct
         Type Base
-        Local $dependency.receiver
+        Local value
       return
         Type Int
         Local $call.2
   fun openParameter @fn3(value: Base) -> Int
     bb0 entry
-      val $dependency.receiver: Base
-        Type Base
-        Local value
       call $call.1: Int = external0 virtual[0]
         Type Base
-        Local $dependency.receiver
+        Local value
       return
         Type Int
         Local $call.1
@@ -189,12 +175,233 @@ Module
       val $argument.0: Boolean
         Type Boolean
         Local $shortCircuit.0
-      val $parameter.value: Boolean
+      goto bb28
+    bb4 if.then.4
+      goto bb18
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
         Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      goto bb14
+    bb7 inline.cont.7
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      call @fn7 direct
+        Type String
+        Local $dependency.argument.0
+      return
+        Type Unit
+        UnitLiteral
+    bb8 inline.7.entry
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $argument.0
+    bb9 inline.7.if.then.1
+      val $inline.7.$default.local.0: String
+        Type String
+        StringConst @str0
+      val $inline.7.$dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $inline.7.$default.local.0
+      assign $inline.7.$new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $inline.7.$new.1
+        Type Option<String>
+        Local $inline.7.$dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $inline.7.$new.1
+    bb10 inline.7.if.merge.2
+      Type Unit
+      UnitLiteral
+      goto bb7
+    bb11 inline.cont.11
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.11.$call.1
+          Type Int
+          IntegerLiteral Int value=70 bits=0x00000046
+      goto bb8
+    bb12 inline.11.entry
+      call $inline.11.$call.1: Int = external2 direct
+        Type Final
+        Local $new.2
+      assign $inline.11.result
+        Type Int
+        Local $inline.11.$call.1
+      goto bb11
+    bb13 inline.cont.13
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $new.2
+        Type Final
+        ClassAlloc Final
+      call external3 direct
+        Type Final
+        Local $new.2
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb12
+    bb14 inline.13.entry
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $argument.0
+    bb15 inline.13.if.then.1
+      val $inline.13.$default.local.0: String
+        Type String
+        StringConst @str0
+      val $inline.13.$dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $inline.13.$default.local.0
+      assign $inline.13.$new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $inline.13.$new.1
+        Type Option<String>
+        Local $inline.13.$dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $inline.13.$new.1
+    bb16 inline.13.if.merge.2
+      Type Unit
+      UnitLiteral
+      goto bb13
+    bb17 inline.cont.17
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.17.$call.1
+          Type Int
+          IntegerLiteral Int value=99 bits=0x00000063
+      goto bb6
+    bb18 inline.17.entry
+      call $inline.17.$dependency.receiver: Base = external5 direct
+      call $inline.17.$call.1: Int = external0 virtual[0]
+        Type Base
+        Local $inline.17.$dependency.receiver
+      assign $inline.17.result
+        Type Int
+        Local $inline.17.$call.1
+      goto bb17
+    bb19 inline.cont.19
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.19.$call.1
+          Type Int
+          IntegerLiteral Int value=99 bits=0x00000063
+    bb20 inline.19.entry
+      call $inline.19.$call.1: Int = external0 virtual[0]
+        Type Base
         Local $argument.0
-      call @fn0 direct
+      assign $inline.19.result
+        Type Int
+        Local $inline.19.$call.1
+      goto bb19
+    bb21 inline.cont.21
+      call $argument.0: Base = external5 direct
+      goto bb20
+    bb22 inline.21.entry
+      branch bb23 bb24
         Type Boolean
-        Local $parameter.value
+        Unary BoolNot
+          Type Boolean
+          Local $argument.0
+    bb23 inline.21.if.then.1
+      val $inline.21.$default.local.0: String
+        Type String
+        StringConst @str0
+      val $inline.21.$dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $inline.21.$default.local.0
+      assign $inline.21.$new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $inline.21.$new.1
+        Type Option<String>
+        Local $inline.21.$dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $inline.21.$new.1
+    bb24 inline.21.if.merge.2
+      Type Unit
+      UnitLiteral
+      goto bb21
+    bb25 inline.cont.25
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.25.$call.1
+          Type Int
+          IntegerLiteral Int value=70 bits=0x00000046
+      goto bb22
+    bb26 inline.25.entry
+      call $inline.25.$call.1: Int = external2 direct
+        Type Final
+        Retype Final
+          Type Base
+          Local $argument.0
+      assign $inline.25.result
+        Type Int
+        Local $inline.25.$call.1
+      goto bb25
+    bb27 inline.cont.27
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
@@ -214,233 +421,59 @@ Module
         Retype Base
           Type Final
           Local $new.1
-      val $parameter.value: Base
-        Type Base
-        Local $argument.0
-      val $inline.13.value: Base
-        Type Base
-        Local $parameter.value
-      goto bb14
-    bb4 if.then.4
-      goto bb10
-    bb5 if.else.5
-      val $shortCircuit.1: Boolean
+      goto bb26
+    bb28 inline.27.entry
+      branch bb29 bb30
         Type Boolean
-        BoolLiteral false
-      goto bb6
-    bb6 if.merge.6
-      val $argument.0: Boolean
-        Type Boolean
-        Local $shortCircuit.1
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
-      val $dependency.parameter.number: Int
-        Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
-      assign $new.2
-        Type Final
-        ClassAlloc Final
-      call external3 direct
-        Type Final
-        Local $new.2
-        Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
-      val $dependency.argument.0: Final
-        Type Final
-        Local $new.2
-      val $dependency.parameter.value: Final
-        Type Final
-        Local $dependency.argument.0
-      val $inline.7.value: Final
-        Type Final
-        Local $dependency.parameter.value
-      goto bb8
-    bb7 inline.cont.7
-      val $dependency.receiver: Int
-        Type Int
-        Local $inline.7.result
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=70 bits=0x00000046
-      val $dependency.parameter.other: Int
-        Type Int
-        IntegerLiteral Int value=70 bits=0x00000046
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          IntegerLiteral Int value=70 bits=0x00000046
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val $dependency.argument.0: String
+        Unary BoolNot
+          Type Boolean
+          Local $argument.0
+    bb29 inline.27.if.then.1
+      val $inline.27.$default.local.0: String
         Type String
-        StringConst @str1
-      val $dependency.parameter.value: String
-        Type String
-        Local $dependency.argument.0
-      call @fn7 direct
-        Type String
-        Local $dependency.parameter.value
-      return
-        Type Unit
-        UnitLiteral
-    bb8 inline.7.entry
-      val $inline.7.$dependency.local.1: Final
-        Type Final
-        Local $inline.7.value
-      call $inline.7.$call.1: Int = external2 direct
-        Type Final
-        Local $inline.7.$dependency.local.1
-      assign $inline.7.result
-        Type Int
-        Local $inline.7.$call.1
-      goto bb7
-    bb9 inline.cont.9
-      val $dependency.receiver: Int
-        Type Int
-        Local $inline.9.result
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=99 bits=0x00000063
-      val $dependency.parameter.other: Int
-        Type Int
-        IntegerLiteral Int value=99 bits=0x00000063
-      val $shortCircuit.1: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          IntegerLiteral Int value=99 bits=0x00000063
-      goto bb6
-    bb10 inline.9.entry
-      call $inline.9.$dependency.receiver: Base = external5 direct
-      call $inline.9.$call.1: Int = external0 virtual[0]
-        Type Base
-        Local $inline.9.$dependency.receiver
-      assign $inline.9.result
-        Type Int
-        Local $inline.9.$call.1
-      goto bb9
-    bb11 inline.cont.11
-      val $dependency.receiver: Int
-        Type Int
-        Local $inline.11.result
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=99 bits=0x00000063
-      val $dependency.parameter.other: Int
-        Type Int
-        IntegerLiteral Int value=99 bits=0x00000063
-      branch bb4 bb5
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          IntegerLiteral Int value=99 bits=0x00000063
-    bb12 inline.11.entry
-      val $inline.11.$dependency.receiver: Base
-        Type Base
-        Local $inline.11.value
-      call $inline.11.$call.1: Int = external0 virtual[0]
-        Type Base
-        Local $inline.11.$dependency.receiver
-      assign $inline.11.result
-        Type Int
-        Local $inline.11.$call.1
-      goto bb11
-    bb13 inline.cont.13
-      val $dependency.receiver: Int
-        Type Int
-        Local $inline.13.result
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=70 bits=0x00000046
-      val $dependency.parameter.other: Int
-        Type Int
-        IntegerLiteral Int value=70 bits=0x00000046
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          IntegerLiteral Int value=70 bits=0x00000046
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      call $argument.0: Base = external5 direct
-      val $parameter.value: Base
-        Type Base
-        Local $argument.0
-      val $inline.11.value: Base
-        Type Base
-        Local $parameter.value
-      goto bb12
-    bb14 inline.13.entry
-      val $inline.13.$dependency.receiver: Base
-        Type Base
-        Local $inline.13.value
-      call $inline.13.$call.1: Int = external2 direct
-        Type Final
-        Retype Final
-          Type Base
-          Local $inline.13.$dependency.receiver
-      assign $inline.13.result
-        Type Int
-        Local $inline.13.$call.1
-      goto bb13
+        StringConst @str0
+      val $inline.27.$dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $inline.27.$default.local.0
+      assign $inline.27.$new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $inline.27.$new.1
+        Type Option<String>
+        Local $inline.27.$dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $inline.27.$new.1
+    bb30 inline.27.if.merge.2
+      Type Unit
+      UnitLiteral
+      goto bb27
   fun generic @fn6(value: Final) -> Int
     bb0 entry
-      val $dependency.local.1: Final
-        Type Final
-        Local value
       call $call.1: Int = external2 direct
         Type Final
-        Local $dependency.local.1
+        Local value
       return
         Type Int
         Local $call.1
   fun println @fn7(value: String) -> Unit
     bb0 entry
-      val $dependency.local.1: String
+      call $dependency.local.2: String = external8 direct
         Type String
         Local value
-      call $dependency.local.2: String = external6 direct
-        Type String
-        Local $dependency.local.1
-      val $dependency.local.3: String
+      call external9 direct
         Type String
         Local $dependency.local.2
-      call external7 direct
-        Type String
-        Local $dependency.local.3
       val $dependency.local.4: String
         Type String
         StringConst @str2
-      val $dependency.local.5: String
+      call external9 direct
         Type String
         Local $dependency.local.4
-      call external7 direct
-        Type String
-        Local $dependency.local.5
       return
         Type Unit
         UnitLiteral

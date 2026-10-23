@@ -1,0 +1,31 @@
+[package]
+name = "scoop-text-backend"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[workspace]
+
+[lib]
+name = "scoop_text_backend"
+crate-type = ["staticlib"]
+
+[dependencies]
+encoding_rs = "=0.8.42"
+idna = "=1.1.0"
+icu_normalizer = { version = "=2.3.0", default-features = false, features = ["compiled_data"] }
+icu_casemap = { version = "=2.3.0", default-features = false, features = ["compiled_data"] }
+icu_segmenter = { version = "=2.3.0", default-features = false, features = ["compiled_data"] }
+icu_properties = { version = "=2.3.0", default-features = false, features = ["compiled_data"] }
+icu_locale_core = { version = "=2.3.0", default-features = false }
+unicode-width = { version = "=0.2.2", default-features = false }
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+

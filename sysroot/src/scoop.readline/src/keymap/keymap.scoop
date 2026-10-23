@@ -1,0 +1,64 @@
+package scoop.readline
+
+import scoop.terminal.event.*
+
+internal class KeyMap(private val editMode: EditMode) {
+    var mode: ViMode = ViMode.Insert
+    private var count: Long = 0L
+    private var negative: Boolean = false
+    private var argument: Boolean = false
+    private var digits: Boolean = false
+    internal var pending: Char? = None
+    internal var operatorCount: Long = 1L
+    internal var findOperation: Char? = None
+    internal var lastFind: Movement? = None
+
+    fun reset() { count = 0L; argument = false; digits = false; negative = false; pending = None; findOperation = None }
+
+    fun command(key: KeyEvent): Command {
+        if (key.kind == KeyEventKind.Release) return Command.Noop
+        val character = keyCharacter(key)
+        if (key.code == KeyCode.Esc && editMode == EditMode.Vi) {
+            reset()
+            return Command.SetViMode(ViMode.Command)
+        }
+        if (editMode == EditMode.Emacs && pending == Some('x')) {
+            pending = None
+            return if (controlCharacter(key) == Some('u')) Command.Undo() else Command.Unknown
+        }
+        val digitArgument = (editMode == EditMode.Emacs && (key.modifiers.has(KeyModifier.Alt) || argument)) ||
+            (editMode == EditMode.Vi && mode == ViMode.Command && findOperation == None && pending != Some('r'))
+        if (digitArgument && character != None && character!! >= '0' && character!! <= '9' &&
+            (character!! != '0' || argument || editMode == EditMode.Emacs)) {
+            val digit = (character!!.code - 48).toLong()
+            if (count > (Long.MAX_VALUE - digit) / 10L) throw ArithmeticException()
+            count = count * 10L + digit
+            argument = true
+            digits = true
+            return Command.Noop
+        }
+        if (editMode == EditMode.Emacs && character == Some('-') && key.modifiers.has(KeyModifier.Alt)) {
+            negative = true
+            argument = true
+            return Command.Noop
+        }
+        val repeat = if (digits) count else 1L
+        val explicitCount = digits
+        val reverse = negative
+        count = 0L
+        argument = false
+        digits = false
+        negative = false
+        if (editMode == EditMode.Emacs) {
+            if (controlCharacter(key) == Some('x')) { pending = Some('x'); return Command.Noop }
+            return emacsCommand(key, repeat, reverse)
+        }
+        if (mode != ViMode.Command) {
+            if (mode == ViMode.Replace && character != None && !key.modifiers.has(KeyModifier.Control) && !key.modifiers.has(KeyModifier.Alt)) {
+                return Command.Overwrite(character!!)
+            }
+            return emacsCommand(key, repeat, false)
+        }
+        return viCommand(this, key, repeat, explicitCount)
+    }
+}

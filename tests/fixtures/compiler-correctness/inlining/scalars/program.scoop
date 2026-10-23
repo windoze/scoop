@@ -1,0 +1,26 @@
+struct V3(val x: Double, val y: Double, val z: Double)
+
+fun add(a: V3, b: V3): V3 = V3(a.x + b.x, a.y + b.y, a.z + b.z)
+fun scale(a: V3, k: Double): V3 = V3(a.x * k, a.y * k, a.z * k)
+fun scalar(value: Float): Float {
+    val a = value + 1.0f
+    val b = a * 3.0f
+    val c = b - 2.0f
+    val d = c * 5.0f
+    val e = d + 7.0f
+    return e * 2.0f
+}
+
+fun main(): Int {
+    var p = V3(0.0, 0.0, 0.0)
+    val v = V3(1.0, 2.0, 3.0)
+    var i = 0
+    while (i < 3) {
+        p = add(scale(p, 2.0), v)
+        i += 1
+    }
+    if (p.x != 7.0 || p.y != 14.0 || p.z != 21.0) return 1
+    if (v.x != 1.0 || v.y != 2.0 || v.z != 3.0) return 2
+    if (scalar(2.0f) != 84.0f) return 3
+    return 0
+}

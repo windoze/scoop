@@ -133,6 +133,17 @@ pub enum PrimitiveMemberIntrinsic {
 }
 
 impl PrimitiveMemberIntrinsic {
+    pub const fn from_intrinsic(kind: IntrinsicFunctionKind) -> Option<Self> {
+        match kind {
+            IntrinsicFunctionKind::Char(kind) => Some(Self::Char(kind)),
+            IntrinsicFunctionKind::Float(kind) => Some(Self::Float(kind)),
+            IntrinsicFunctionKind::Integer(kind) => Some(Self::Integer(kind)),
+            IntrinsicFunctionKind::PrimitiveUnary(kind) => Some(Self::Unary(kind)),
+            IntrinsicFunctionKind::PrimitiveBinary(kind) => Some(Self::Binary(kind)),
+            _ => None,
+        }
+    }
+
     pub const fn requires_arithmetic_exception(self) -> bool {
         matches!(
             self,

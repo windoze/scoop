@@ -1,0 +1,71 @@
+package scoop.readline
+
+import scoop.readline.history.*
+
+/** History view passed to extension callbacks. */
+public struct Context(val history: History, val historyIndex: Long)
+/** Completion display text and the exact text inserted into the buffer. */
+public struct Candidate(val display: String, val replacement: String)
+/** Replaces [start, cursor) with a selected candidate. Positions are scalar indices. */
+public struct Completions(val start: Long, val candidates: Array<Candidate>)
+
+/** Supplies completion candidates for the current input. */
+public interface Completer {
+    public fun complete(line: String, cursor: Long, context: Context): Completions
+}
+
+/** A visible suggestion with an optional independently accepted suffix. */
+public struct Hint(val display: String, val completion: String?)
+/** Supplies suggestions without changing the input. */
+public interface Hinter {
+    public fun hint(line: String, cursor: Long, context: Context): Hint?
+}
+
+/** ANSI styling must preserve the original visible text and width. */
+public interface Highlighter {
+    public fun highlight(line: String, cursor: Long): String = line
+    public fun highlightPrompt(prompt: String): String = prompt
+    public fun highlightHint(hint: String): String = hint
+    public fun highlightCandidate(candidate: String): String = candidate
+}
+
+/** Determines whether Enter accepts, rejects, or continues a multiline input. */
+public enum ValidationResult {
+    Valid(val message: String? = None),
+    Invalid(val message: String? = None),
+    Incomplete
+}
+
+/** Input validation invoked on acceptance. */
+public interface Validator {
+    public fun validate(input: String): ValidationResult
+}
+
+/** Default completion provider with no candidates. */
+public object NoCompleter : Completer {
+    public override fun complete(line: String, cursor: Long, context: Context): Completions = Completions(cursor, [])
+}
+/** Default hint provider. */
+public object NoHinter : Hinter {
+    public override fun hint(line: String, cursor: Long, context: Context): Hint? = None
+}
+/** Default identity highlighter. */
+public object PlainHighlighter : Highlighter
+/** Default validator accepting any input. */
+public object AcceptAll : Validator {
+    public override fun validate(input: String): ValidationResult = ValidationResult.Valid()
+}
+
+/** Suggests the newest matching history suffix when the cursor is at the end. */
+public class HistoryHinter public constructor() : Hinter {
+    public override fun hint(line: String, cursor: Long, context: Context): Hint? {
+        if (line.byteLength == 0L || cursor != line.length || context.history.isEmpty) return None
+        val start = if (context.historyIndex == context.history.size) context.historyIndex - 1L else context.historyIndex
+        val found = context.history.startsWith(line, start, SearchDirection.Reverse)
+        if (found == None) return None
+        val entry = found!!.entry
+        if (found!!.position >= entry.length) return None
+        val suffix = entry.slice(found!!.position, entry.length)
+        return Some(Hint(suffix, Some(suffix)))
+    }
+}

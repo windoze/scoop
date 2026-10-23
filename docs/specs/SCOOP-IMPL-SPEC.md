@@ -124,7 +124,7 @@ Export HIR lowering 的结构类型与完整函数签名通过结构键查询已
 
 `SemanticHir` 保存已检查的声明与正文，对外有两个不同的输出合同：
 
-- **ExportHir**：跨 Cone 的声明与必要正文。区分 public/re-export lookup、protected inheritance/slot、generic hidden support 和 interface dependency；支持声明的存在不扩大可见性。保存签名、默认值、const、alias、注解、类型关系与模板，普通非泛型函数的实现正文不复制给下游。
+- **ExportHir**：跨 Cone 的声明与必要正文。区分 public/re-export lookup、protected inheritance/slot、generic hidden support 和 interface dependency；支持声明的存在不扩大可见性。保存签名、默认值、const、alias、注解、类型关系与模板；符合 2.19 选择条件的普通非泛型小函数可附带优化正文，其他普通实现仍由原提供方执行。
 - **LocalConcreteHir**：本 Cone 实际需要发射的完整实体与正文。全部类型参数已替换，所有调用、构造、字段、variant、slot 与 external target 已确定；不含未完成推断、待实例化请求或上游普通函数正文。
 
 两者使用不同的实体 ID 家族和显式映射。导出声明、完整泛型 application 与本地 concrete 实体不能用同一 arena index 或别名混用。
@@ -285,7 +285,11 @@ release 默认启用 MIR 优化，debug 保留未优化的完整 MIR；两种模
 
 函数内类型事实为不可达、未知或唯一实际类型。最派生 allocation、已知 box／closure 和 final class 提供事实，复制和合法转换传播，合流只保留一致事实，循环求不动点；未知返回、可变字段和取址后的可变 local 保守处理。base／this initializer 不收窄实际类型，initializing receiver 的使用仍受语言规范中的构造约束；静态 open class 或本 Cone 实现数量不构成全程序闭合。去虚拟化按原 typed slot 查询实际表项，一次生成含完整 callee 与 receiver 适配的新调用分支，保留原 effect、EH、Context 与 continuation。
 
-自动内联只处理本 Cone 已有完整 concrete 正文的非递归 callable，包括本地物化的外部泛型和普通 adapter；递归 SCC、无正文的外部 Strong、native／callback／gateway 和无法完整重写的特定 EH／Context／协程控制流保留调用。内联重分配 local、value、block 和临时存储身份，连接 return／异常出口，保留实参各求值一次、独立按值 place、位置、初始化发布和清理。Managed、分配或可能抛异常本身不构成拒绝理由；不复制后端 root/frame plan，站点由后续 LIR 统一形成。
+已知装箱值或 final intrinsic class 的接口调用，也可消费 concrete HIR 中同一 exact owner／typed interface slot 的完整实现选择；这些语义关系随已使用类型保留，不要求在 consumer 重建 provider 的物理 itable。选中外部 primitive intrinsic 时保留其操作身份及完整签名，以原 primitive 下降生成优化正文；装箱 receiver 显式解箱，实参和结果必须匹配已选实现的 exact 类型。该正文与本地 intrinsic 一样强制展开，包含除零异常准备，不受普通内联策略影响；未知实际类型或不匹配的调用继续原动态分派。
+
+自动内联处理本 Cone 已有完整 concrete 正文的非递归 callable，包括本地物化的外部泛型和普通 adapter；也可消费依赖公开的普通非泛型小函数正文。后者复用 shared-source 的可移植 HIR 正文格式，保留提供方声明身份，经 hir-lower 成为独立的完整 concrete 优化正文，经 mir-lower 的原正文下降和 CFG 构造进入同一内联成本模型。优化正文不是当前 Cone 的函数定义，不产生外部 Strong 的副本；没有正文或未选中展开时仍调用原外部入口。首批普通正文选择不含 closure、字符串常量、Context、协程和局部异常处理的标量／值计算、分支及普通调用，不改变语言可用性或公共签名。
+
+递归 SCC、无正文的外部 Strong、native／callback／gateway 和无法完整重写的特定 EH／Context／协程控制流保留调用。内联重分配 local、value、block 和临时存储身份，连接 return／异常出口，保留实参各求值一次、独立按值 place、位置、初始化发布和清理。Managed、分配或可能抛异常本身不构成拒绝理由；不复制后端 root/frame plan，站点由后续 LIR 统一形成。导入正文的局部值仅在实际展开时取得 caller 的新身份，候选之间以本地函数或外部 callable 的不同 typed id 区分，防止跨 Cone 调用环反复展开。
 
 首版克隆不含自身 landing pad／catch／resume 协议的普通 CFG；callee 的可能抛出操作与显式 throw 继承调用点的异常出口，caller 已有 catch／finally 可以继续承接异常。依赖函数局部异常槽的 callee 及协程执行入口保留调用。克隆产生的局部值属于 caller 的新 SyntheticValue 身份，所有形参先取得独立局部副本；常量折叠只处理可证明无副作用的布尔与整数运算，整数保留对应 MIR 运算的精确位宽与符号规则。地址可见的 local 不参与常量替换。Managed callee 的循环保留 poll 标记，NoGC callee 的循环内联到 Managed caller 后也不得新增 poll。
 
@@ -300,6 +304,8 @@ release 默认启用 MIR 优化，debug 保留未优化的完整 MIR；两种模
 LIR 以完整操作表达托管分配、字段／数组写入、值复制、原子引用访问、`ManagedPoll` 与 `PublishReleaseReady`，携带实际类型、布局、GC effect 和 live set。Immix 普通对象上限、TLAB 资格及 card/page-map 算法属于 codegen 的 GC 实现，不作为通用 LIR 策略常量；实际 runtime 符号、共享布局和兼容性摘要仍由现有 ABI 数据目录保存。
 
 `ManagedPoll` 表示运行时规范 3.2 的条件 poll，携带唯一慢路径 site 与完整 live set。codegen 发射 acquire 检查和快／慢分支，只在慢分支物化该站点的 managed leaves、调用协调入口并回写 relocation；后续使用通过普通 canonical storage／SSA 合流取得快路径原值或慢路径新值。入口 pending 的 mode 检查属于同一操作，不能仅按 world phase 删除首次激活。TLS 与全局数据引用使用闭合 runtime ABI 目录中的普通数据合同。
+
+LIR lowering 在最终 CFG 上按运行时规范 3.2 选择有界叶函数的 `EntryActivation` 入口模式；其快路径仅 acquire 读取 mode 并判断 MANAGED，其他模式保留相同的完整慢路径与根计划。普通 `Full` poll 继续读取 epoch、phase、mode 与 observed epoch。资格由明确的操作集合、无环直线路径和小值复制决定，不依赖源函数名称或调用方推测；codegen 消费该模式，不再重做资格分析。
 
 driver 按“lir-lower 准备布局与逻辑签名 → codegen 规划目标 ABI → lir-lower 完成正文”的顺序编排，stage 之间只传递 LIR crate 定义的完整数据。准备结果与最终 Module 是不同类型；不得用缺失签名、默认 ABI 或完整 lowering 后丢弃正文重跑来实现准备。布局、scalar leaves、扫描信息与已选依赖 ABI 在准备时建立／映射一次并复用。聚合输入以 typed 字段引用共享已准备的存储节点；不按逻辑字节数展开大型 tagged payload，也不复制嵌套值布局。后端只为可能使用寄存器的聚合读取其标量叶子。
 
@@ -411,9 +417,9 @@ codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；不在后端�
 
 codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM function，dispatch 携带对应分派数据；native transition 的准备分支一并取得 safepoint 与 roots，发射入口握手后保留退出所需的 roots、frame 与结果存储，不拆成需要彼此同步的可选参数，也不额外保存已消费且后续不再使用的状态。LLVM builder、对象及目标发射的实际失败继续走后端错误路径。
 
-优化后的 AS1 根若通过 phi／select 合并 immortal 常量与动态对象，仍表示对象起点。codegen 在最终根分组处检查该合并链没有派生地址，并以 LLVM 22.1 的 `is_base_value` 标记向 RS4GC 保留这一事实；不能让常量分支被替换为 null base 而产生不符合当前 runtime 的 base／derived pair。纯常量选择仍不参与 relocation；typed 根恢复、base=derived 与实际 stackmap 数据生成保持。
+优化后的 AS1 根若通过 phi／select 合并 immortal 常量与动态对象，仍表示对象起点。codegen 在根准备处为不含派生地址的 managed phi／select 保留对象起点事实，并以 LLVM 22.1 的 `is_base_value` 标记传给 RS4GC。逻辑恢复标记在某条路径折叠为常量时，共享后继仍可能使用原合并值，因此该处理不只依赖恢复标记当前指向的 SSA；不能让常量分支被替换为 null base 而产生不符合当前 runtime 的 base／derived pair。纯常量选择仍不参与 relocation；typed 根恢复、base=derived 与实际 stackmap 数据生成保持。
 
-LLVM 优化、RS4GC 与对象发射使用前一步的成功结果，生产路径不在变换前后完整验证自产 module，也不另写 RS4GC 后的策略、指针活跃性和 root restoration 复核器。优化后从实际 SSA 形成根分组、保留必要的根身份并发射 GC 元数据，继续执行真实转换。GC 与 ABI 回归通过实际 IR、机器输出和运行测试验证，不为内部转换添加证明专用的指针边界标记。
+LLVM 优化、RS4GC 与对象发射使用前一步的成功结果，生产路径不在变换前后完整验证自产 module，也不另写 RS4GC 后的策略、指针活跃性和 root restoration 复核器。普通优化后保留必要的逻辑根身份与 base 合并信息，再执行 RS4GC；注册元数据的物理根数消费其实际 relocation 结果，不重新分析指针活跃性。GC 与 ABI 回归通过实际 IR、机器输出和运行测试验证，不为内部转换添加证明专用的指针边界标记。
 
 managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
 
@@ -568,6 +574,8 @@ production 与 Link metadata 保存消费方实际使用的 body/type/site ID、
 executable entry 保存完整签名以及封闭的声明分支：生产入口引用源码 PersistentFunctionId，测试入口引用 PersistentGeneratedCallableId。测试入口的 generated key 由当前 ConeIdentity 与 TestEntry role 确定，不生成伪造的源码 main identity；两者均通过正常 Strong callable body、root gateway 和 failure-root 链接。HIR 完成入口选择并检查签名，后续 stage 传递实际声明、body 与签名，不重新按名称选择入口。
 
 前端以独立的 TestEntry 函数身份合成测试入口，正文为普通非泛型、非 suspend 的 Scoop HIR。该函数可以作为测试初始化与方法调用适配的词法根；各适配保留所对应测试声明的源码文件与位置。具体化将入口及其闭包按既有 generated callable materialization 处理，不把生成函数加入源码函数、成员分派或生产 main 的候选集合。
+
+生成的测试入口向 scoop.test.execution.isTestSelected 传递现有目录的完整显示名，支持语言规范 16.5 的独立程序名称过滤；用例身份、排序与 scoop 命令的目录索引参数保持不变。
 
 M43 的 TestEntry generated key 使用 tag 17，HIR／MIR `identity-foundation` 分别升至 9／7；入口声明改为 Source／Generated 封闭分支后，HIR `core-bootstrap-interface` 升至 15、MIR `core-bootstrap-bridge` 升至 2、LIR `cone-production` 升至 12，仍使用 Strong profile 的 `strong-production` 升至 22。旧 section 需重建；其余未改变编码的 section 与 runtime ABI 保持原版本。
 
@@ -843,11 +851,15 @@ runtime object index schema 5 保存相对索引目录的普通对象路径、�
 
 sysroot 采用同一源码与产物布局：`src/<cone-name>` 保存普通 Cone，`vendor/<project>` 保存共享上游输入，`lib/<canonical-target-triple>` 保存 `.slib`、runtime、OpenSSL、nghttp2 与 Linux unwind。libuv、OpenSSL、Ryu、llhttp、nghttp2 及 LLVM／libunwind 的上游源码、版本说明、许可证和补丁集中在 vendor，目标生成头与 archive 不写入 vendor。runtime 编排显式接收 runtime source root 和所选 sysroot 的 vendor root；Ryu 源码与 include 从后者取得，按实际 depfile 输入更新，命中不读取源码或复制输入。公开头的发行位置为 `include`。
 
+Rust 文本后端的维护源码位于 `native/text_backend`，独立 Cargo package 与 lock 不进入编译器 stage workspace；固定依赖源码及许可位于 vendor。维护脚本离线生成目标 `libscoop_text_backend.a` 与头文件，Rust LTO 在准备阶段完成；同时保留实际构建工具链的标准库版权通知和许可，发行时与该目标归档一并收集到 `share/licenses`。普通 Cone 通过既有 C ABI 和 native.libraries 消费普通机器对象；两个链接入口去重同一个目标归档，不执行 Cargo 或探测 Rust。更新命中先于解包、源码复制与工具探测；具体文本行为及故障边界见字符集与 IDNA 规范。
+
 发行打包在各目标的预编译资源准备完成后，使用本次配套工具为全部内置库源码生成文档。文档入口位于 SYSROOT 的 `docs/index.html`，按目标生成的共同站点位于 `docs/<canonical-target-triple>/`；页面、搜索、资源及内嵌源码一同进入归档，跨库导航遵守该目标的真实声明身份。文档警告或生成失败阻止本次归档发布，保留已有完整发行包。此步骤属于维护者打包编排，普通 `scoop doc` 不隐式准备 sysroot；`.slib` 不增加完整源码、注释正文或文档缓存。
 
 普通 build／run／test 的 executable 和两个 link 命令默认消费 `lib/<canonical-target-triple>/runtime/index.cbor`，不触发 runtime 源码构建。显式 `--runtime-objects` 选择另一份索引；build／run／test 的 `--runtime-root` 明确请求从源码构建，与对象选项互斥。缺失实际需要的索引时报告目标和所选路径，不补建或改选其他目标；library 构建不读取未使用的 runtime。
 
 runtime 构建使用 `runtime-v6` 普通记录，按实际源码根、选中源码、include／unwind 配置、flags、C 工具输入和规则版本定位。命中前只查询上次实际源码、depfile 头文件及 include 候选的路径／mtime／大小；不读取源码、扫描并复制整棵头文件树或重读 compiler 内容。更新时直接从原始源码预处理并编译，观察实际 include 名称；全部成功后保存对象、index 与记录。每批对象位于 index 同级的 `objects` 子目录，使准备脚本可按同一相对布局复制本次已知输出，不改写索引或重新提取对象信息。对象采用稳定且不同批次不覆盖的位置；所需 index／对象缺失时补产，真实输入缺失照常报错，失败不发布新记录或替换已有结果。本机 metadata 不改变 runtime ABI。
+
+Darwin 最终 executable 将仅供静态链接定位的 Scoop body 起止别名（`_scoop$1$bs$*`／`_scoop$1$be$*`）设为 private external，移出动态导出。对象和 `.slib` 仍保留原定义与 ODR 合并规则；callable、native 入口及 GC／EH 元数据引用继续正常解析。该选择属于 final-link 配置并参与其更新指纹，不按宽泛前缀隐藏其他公开符号。
 
 native linker 成功后直接发布其输出，不重新读取整份 Mach-O／ELF，重放输入对象、重定位、stackmap、EH、动态绑定或代码签名的正确性检查；不通过链接 map／trace 审计实际读取文件。必要的符号选择、对象格式、ABI／GC 数据及工具参数在产生输入与实际链接时完成，工具退出失败正常传播。生成程序的正常运行和专门 ABI／GC 回归承担输出行为验收，不保留修改刚生成的可执行文件后要求发布复核拒绝的测试。
 
@@ -864,6 +876,8 @@ Linux 系统库选择由所选 C driver/linker 按目标配置完成。发行版
 musl 将数学库、pthread 等接口合入 libc；所选工具链为这些固定系统库提供的空兼容 archive 按该平台规则绑定到现有 libc provider。此别名仅适用于实际系统解析选中的固定兼容文件，显式 roots 中的空 archive 不获得额外符号。
 
 普通 archive 使用既有 archive reader 返回的普通成员顺序作为从 0 开始的 member index（不包含 TOC 和名称表），保留实际 header／payload offset、length 与 digest，允许 BSD/GNU 命名；不另遍历原始 headers／padding 或按名称前缀拒绝普通成员。拒绝 thin、外部或嵌套 archive，实际读取的损坏边界由 reader 报告。通过普通对象 reader 建立候选的定义／引用索引，不为候选或选中 member 另建完整 relocation/EH/TLS/初始化验证器。实际 undefined references 驱动成员选择，新增引用继续闭合，每个物理 member 最多加入一次。
+
+尚未满足的 native 引用在候选选择时保留 Strong／Common／Weak 绑定，按下述目标优先级排除较弱候选；不能将一个强定义与 archive 中的弱后备实现误报为多 provider 歧义。最高优先级有多个 Strong 时仍报歧义；仅有同级 Weak／Common 时，优先复用 namespace provider，否则按既有 native 输入顺序选择。已经引入的对象定义继续按平台规则满足引用，不为查找另一个后备实现额外抽取 archive member；显式 library 的归属检查不变。
 
 ELF native 对象中的未定义 STB_WEAK 引用不加入必须解析的 requirements，也不单独拉取 archive member。对象保留原有弱引用标志，最终地址由目标 linker／loader 按平台规则处理；缺少可选定义可以得到空地址，已经引入的定义仍可满足引用。普通未定义强引用及 Scoop 的 extern 合同仍必须闭合，不能因另一对象对同名符号使用弱引用而放宽。
 
@@ -918,6 +932,10 @@ qualified super 保存实际 direct target。dispatch 数据不重新进行 over
 ### 2.10 Intrinsic 合同
 
 intrinsic 的识别来自实际声明及其完整 name/target/shape/signature，普通候选和效果规则先确定其合法使用。成功 HIR 保存封闭 typed kind，后续不得按 symbol、FQN 或 annotation 文本重新识别。
+
+类型与目标已经确定的 intrinsic 调用必须下降为该操作规定的 IR 或 runtime helper。本地／跨 Cone 的直接调用、泛型具体化后的约束实现选择、静态函数引用以及去虚拟化得到的唯一目标遵守同一合同；后续内联或传播暴露的新目标也必须消费。此下降独立于普通函数内联开关、成本阈值与 debug／release 模式；优化模式只影响是否推导出额外的目标事实。默认实参、访问器、初始化器和闭包正文没有例外。动态目标尚不唯一时保留分派，真实动态引用所需的 callable 入口继续发射。
+
+具体化将约束选择得到的 primitive intrinsic 归一化为完整的标量操作，与早期直接调用一致；除法／余数同时物化原有异常依赖。所用操作身份来自本地声明或依赖 HIR 中的 typed implementation，不靠函数名或普通外部函数体推断。
 
 | 合同 | 必须确定的内容 |
 | --- | --- |
@@ -1201,21 +1219,25 @@ LLVM 22.1 关闭寄存器分配后的独立 tail duplication pass 及机器基�
 
 普通优化可以消除已证明不可达的代码及 site，但保留实际求值、异常、Context、initialization、release-ready 与严格浮点语义。类型错误不能因优化删除代码而消失。
 
-release 的普通 LLVM 优化按 callable 选择。typed LIR effect 为 NoGc 且该 callable 的实际调用／poll 合同不含任何 safepoint 时，可以运行循环规范化、归纳变量化简、LICM 及 loop／SLP vectorization；不能仅凭优化前没有 LLVM statepoint 指令推断资格。其余定义使用不复制 site／恢复标记、不移动握手位置的标量管线，包括表达式重结合、关闭 PRE 和回边加载拆分的 GVN、位级死代码消除。严格浮点不启用 fast-math；正常 Managed 回边 poll、原子顺序、invoke 出口及逻辑根恢复保持。普通优化后仍由同一最终根计划确定实际保留的 site／roots，再执行 RS4GC；机器层限制继续适用。
+release 的普通 LLVM 优化按 callable 选择。typed LIR effect 为 NoGc 且该 callable 的实际调用／poll 合同不含任何 safepoint 时，可以运行循环规范化、归纳变量化简、LICM 及 loop／SLP vectorization；不能仅凭优化前没有 LLVM statepoint 指令推断资格。其余定义使用不复制 site／恢复标记、不移动握手位置的标量管线，包括表达式重结合、关闭 PRE 和回边加载拆分的 GVN、位级死代码消除。严格浮点不启用 fast-math；正常 Managed 回边 poll、原子顺序、invoke 出口及逻辑根恢复保持。普通优化后保留实际 site 与逻辑根身份，再执行 RS4GC 并从其 relocation 结果记录物理根数；机器层限制继续适用。
 
 codegen 在生成带 SafepointId 的普通调用、显式 statepoint 以及保留逻辑根身份的 llvm.fake.use 时，统一附加 LLVM noduplicate 调用属性，使 LLVM IR 变换直接遵守调用点与恢复标记不可复制的约束。优化仍可消除已证明不可达的完整调用点及对应恢复；普通 ID 值在编译器数据结构中的复制不代表产生新的调用点。GC 根定稿继续核对实际保留的 site，机器层仍遵守前述 LLVM 22.1 限制。
 
 两条 release 管线均在 SROA／mem2reg 与初始表达式化简后执行 constraint-elimination、correlated-propagation 和 SCCP，再用 InstCombine、受限 GVN、BDCE、DSE／ADCE、MemorySSA early-CSE 及不可达块清理收尾。范围事实只来自实际支配条件和对应整数语义，不凭无溢出假设删除检查。NoGc 在同一标量阶段之后执行其既有循环／向量优化；不重复运行整个标量管线。Managed 不因此启用一般 SimplifyCFG、循环复制或跳转线程化。机器 O2 不等于 LLVM IR 的 default<O2>；不能用默认 O2／O3 替代这里的管线选择。NoGc／gc-leaf 本身也不提供 readonly、无副作用或内存不相交的事实。
 
-release 的短路条件与合流形成的不可达错误分支，在 GC 根和 safepoint 计划定稿前由普通 LLVM CFG 化简消除；仅做常量传播不足以识别这些关系。Managed 管线的该化简关闭块推测及公共指令提升／下沉，随后沿用 MemorySSA 整理根加载，保留仍可达的错误调用与根恢复。debug 保留原来的 O0 控制流和对应实际调用点。不能等机器发射删除调用后再忽略缺失的 stackmap，也不为已删除的分支登记运行时 safepoint。
+release 的短路条件与合流形成的不可达错误分支，在 GC 根和 safepoint 计划定稿前由普通 LLVM CFG 化简消除；仅做常量传播不足以识别这些关系。Managed 管线的该化简关闭块推测及公共指令提升／下沉，随后沿用 MemorySSA 整理根加载，保留仍可达的错误调用与根恢复。后段加载合并可能新暴露与支配分支矛盾的动态比较，收尾应消费这些路径约束，再折叠常量与删除不可达块。debug 保留原来的 O0 控制流和对应实际调用点。不能等机器发射删除调用后再忽略缺失的 stackmap，也不为已删除的分支登记运行时 safepoint。
 
-Managed release 在全部标量及受限内层优化之后、最终根计划之前，再执行一次 SCCP 与不可达块清理，折叠后段 GVN／MemorySSA 优化新暴露的常量条件。单独的 unreachableblockelim 不承担常量终结指令折叠；不能让 RS4GC 首次删除这些路径而留下过时的 site／根描述。此收尾只做常量传播和死路径删除，不开放一般 CFG 复制，也不在根定稿之后补做普通优化。
+Managed release 在全部标量及受限内层优化之后、最终根计划之前，再执行路径约束化简、SCCP 与不可达块清理，折叠后段 GVN／MemorySSA 优化新暴露的常量条件。单独的 unreachableblockelim 不承担常量终结指令折叠；不能让 RS4GC 首次删除这些路径而留下过时的 site／根描述。此收尾只做常量传播和死路径删除，不开放一般 CFG 复制，也不在根定稿之后补做普通优化。
 
 两条 release 管线在上述 BDCE 与 DSE 之间执行 memcpyopt，消除可转发的按值中间副本并合并初始化；SROA 在前、死存储与死代码清理在后。消除的是可替换的复制，不改变值的独立性：源值在复制与消费之间被写入时仍保留快照。含引用副本保留 AS1 provenance、typed logical root restore、volatile 重读与必要屏障／发布；不能以 NoGc 或 byval 推导整个调用无内存副作用。其普通优化仍先于最终根计划与 RS4GC，不为复制优化移动握手或复制 SafepointId。
 
 上述同时满足 typed NoGc 与实际无 safepoint 条件的 release 函数，在 loop-rotate／LICM 后执行 simple-loop-unswitch（trivial 与受 LLVM 自身代码增长限制的 nontrivial 变换），再执行 indvars、loop-load-elim 与小规模完整 loop-unroll，最后执行既有 loop／SLP vectorization 及清理。unroll 仅考虑最多四次的完整展开，关闭 partial、runtime、upper-bound 展开及普通／profile peeling；不提高 LLVM 原有展开成本阈值。Managed 函数及带 site 的定义不进入这些变换。loop-idiom、jump-threading、aggressive-instcombine、vector-combine 仍关闭；不改变严格浮点、GC 合同或 poll 频率。
 
 MIR 内联按调用点代入已知实参、局部常量和可证明不可达分支后的加权成本选择：极小正文积极内联，普通小正文结合循环位置、常量／receiver 机会和累计增长选择，较大正文保留调用，除非化简后进入前两档。标量运算、字段访问、aggregate copy、分配、调用和复杂控制流具有不同成本；实参副作用始终求值一次。稳定顺序、caller 累计增长及嵌套展开限制只决定优化选择，不决定程序合法性或 ABI。实际参数由性能记录公开，不增加通用跨阶段预算或源码属性。
+
+复制成本按 MIR 类型的已确定表示区分：以 intrinsic struct 身份保留的 Float、Double 和 Char 属于标量，局部赋值与参数不附加 aggregate copy 成本；普通 struct、tuple、enum 仍按值复制计价。此区分共用于普通及同步 suspend 内联，不改变字段访问权重、全局阈值或值的独立存储语义。
+
+内联成本计算和展开后的化简复用局部值的数据流事实，转发同类型的纯局部副本；只有源值在对应路径保持不变时才替换，取地址的存储及循环中重新赋值的快照保守保留。传入 callee 的事实只携带常量与动态类型，不携带 caller 的局部变量 id。清理已经无读者的纯副本不删除实参副作用、分配、调用、内存读取或异常检查。只通向显式异常／trap 出口、且不能正常返回的分支可以降低执行成本权重；代码增长仍按全部实际保留的正文计入，冷分支不会因此被删除或取得无界展开资格。
 
 普通 release MIR 优化交替执行去虚拟化、内联与局部化简，当前最多三轮；没有实际改写时提前结束，达到轮次上限不视为已收敛。内联使用同一阶段入口的稳定 callee 模板，跨轮保留原始成本、caller 累计增长与每个块的展开祖先，化简不返还增长额度。每轮新直接边进入当前调用图的递归判断，重复展开祖先仍保留调用。下一轮只重新分析实际改变的函数；本期不消费更新过的 callee 正文，因而不为其建立额外 caller 摘要或通用 pass 调度框架。所有改写仍先于最终 LIR roots 生成，调用实参的顺序、异常出口及 poll 责任保持。
 
@@ -1239,7 +1261,7 @@ Managed release 标量优化后，仅对实际 LLVM CFG 为单块自循环、倒
 
 依据语言规范 1.2，编译器可以假定普通非原子访问不存在数据竞争，不为竞争场景提供单字或逐字段不撕裂的保证。普通字段、数组元素、全局存储和聚合值复制无需为此改用 LLVM `unordered` 原子 load/store、增加发布屏障或限制访问的机器指令粒度；显式同步原语以及 runtime/GC 内部同步的契约仍须保持。
 
-最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。多个逻辑 leaf 可以对应同一 SSA 值，已知 null/不可移动常量不要求 relocation pair；仅在这些常量之间选择的 phi/select 同样不要求重定位，包含任何动态 managed 输入的选择仍按移动根处理。runtime root count 使用实际 pair 数。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。
+最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。普通优化后保留逻辑根身份，标明包含可移动对象的 base phi/select；RS4GC 完成真实下降后，注册元数据直接使用其实际 gc.relocate 引用的不同 derived SSA 值数量，随后执行机器发射和原 stackmap 格式／根合同检查。多个逻辑 leaf 可以对应同一 SSA 值；已知 null／不可移动常量通常不产生 relocation pair，但不能仅按已折叠的逻辑恢复标记提前推算物理根数：共享后继或循环仍可能使原动态 SSA 值跨站点存活。该计数消费实际下降结果，不添加独立的指针活跃性分析或 RS4GC 策略复核器。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。
 
 release 在 roots 定稿前以 MemorySSA 消除跨无写入分支的重复加载，防止同一根槽的两个 SSA 加载直到机器发射时才合并，造成注册计数与 stackmap 不一致。任一路径可能修改该位置时保留独立引用；每个逻辑 leaf 的调用后恢复继续保留，并使用对应的重定位结果。
 

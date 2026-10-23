@@ -1,4 +1,8 @@
-# M60 API 文档与内置库文档交付
+# PCRE2 正则表达式库
+
+新增普通 Cone `scoop.regex`，基于 PCRE2-8 10.49 提供编译模式、编号／命名捕获、惰性搜索、字面／模板／回调替换及分割。公开位置使用 Long Unicode 标量索引，结果为独立快照，Regex 使用 close/use 管理 native 生命周期。PCRE2 采用独立 C 静态库和可选 JIT，不增加 Rust staticlib；Darwin、GNU、musl 目标资源、头文件及 PCRE2/SLJIT 许可随包交付。用法见 `src/scoop.regex/README.md`。
+
+## M60 API 文档与内置库文档交付
 
 新增 `scoop doc`，支持多 Cone、完整类型检查、声明与类型链接、继承／扩展导航、静态搜索及按输入变化复用。源代码直接嵌入 HTML；`.slib` 不增加完整源码或注释正文。渲染输入缺少源码文本时省略对应的源码展示和链接。
 
@@ -14,7 +18,7 @@
 
 纯 Scoop 的 `scoop.http.client` 在既有 HTTP、TLS 和 asyncio 库之上统一 HTTP/1.x／HTTP/2 与 ALPN，提供连接池、流式上传下载、完整生命周期超时、取消和 suspend 回调。请求策略包括重定向、重试、Basic／Bearer／Digest、mTLS、HTTP／HTTPS／SOCKS5 代理、Cookie 和私有内存／磁盘缓存；同时提供 multipart、断点续传、SSE、HTTP/1.1 WebSocket／WSS、permessage-deflate 与可观察性接口。URL、协议、压缩、TLS 和系统 I/O 能力由各自所属库提供。
 
-`scoop.idna` 使用 libidn2／libunistring，不需要 ICU，IDNA 数据基线为 Unicode 15.1。`scoop.url` 使用 uriparser，提供 RFC 3986 URL／IRI 解析、拼装、相对引用和网络 origin，不包含浏览器全部 WHATWG 容错。`scoop.charset` 提供固定编码集合的内存及增量转换；`scoop.compression` 在同一 Cone 中提供 zstd、gzip、zlib／raw DEFLATE 和 Brotli 的内存、同步流与异步流。
+`scoop.idna` 使用 Rust idna／ICU4X，IDNA 数据基线为 Unicode 17.0.0，采用 UTS #46 + STD3 + CheckHyphens，接受其符号与 ContextO 行为。NFC 共用同一 ICU4X normalizer。字符集转换已改为 encoding_rs 0.8.42，提供 43 个名称，退役名称及映射差异见 ENCODINGS.md；readline 的 Unicode 操作也使用 ICU4X／unicode-width，原 GNU 文本链的源码、补丁、归档和头文件不再进入发行包。`scoop.url` 使用 uriparser，提供 RFC 3986 URL／IRI 解析、拼装、相对引用和网络 origin，不包含浏览器全部 WHATWG 容错。`scoop.charset` 提供固定编码集合的内存及增量转换；`scoop.compression` 在同一 Cone 中提供 zstd、gzip、zlib／raw DEFLATE 和 Brotli 的内存、同步流与异步流。
 
 HTTP/1 固定使用 llhttp 9.4.3。发送与客户端响应关联支持任意合法方法 token，服务端请求解析仍限于 llhttp 的已知方法集合。HTTP/2 固定使用 nghttp2 1.70.0 的完整静态核心；协议库保留独立使用已有传输的接口，client 负责连接选择、池与请求策略。
 

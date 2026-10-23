@@ -45,9 +45,6 @@ Module
           Local this
   fun ordinary @fn1(value: Int) -> Int
     bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        Local value
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
@@ -58,7 +55,7 @@ Module
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.receiver
+          Local value
           Type Int
           IntegerLiteral Int value=2 bits=0x00000002
   fun Continuation.resume @fn2(this: Continuation<Measure>, value: Measure) -> Unit

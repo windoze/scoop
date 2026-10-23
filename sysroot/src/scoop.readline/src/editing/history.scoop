@@ -1,0 +1,97 @@
+package scoop.readline
+
+import scoop.readline.history.*
+import scoop.terminal.event.*
+import scoop.text.*
+
+internal fun EditingSession.selectHistory(index: Long) {
+    if (index < 0L || index > history.size) { bellValue = true; return }
+    if (historyPosition == history.size) draft = buffer.state()
+    if (index == history.size) buffer.restore(draft)
+    else {
+        val entry = history.get(index)
+        if (entry == None) { bellValue = true; return }
+        buffer.restore(BufferState(entry!!.entry, entry!!.entry.length))
+    }
+    historyPosition = index
+}
+
+internal fun EditingSession.navigateHistory(backward: Boolean) {
+    val target = buffer.destination(if (backward) Movement.LineUp() else Movement.LineDown())
+    if (target != cursor) { buffer.moveTo(target); return }
+    selectHistory(historyPosition + if (backward) -1L else 1L)
+}
+
+internal fun EditingSession.prefixHistory(backward: Boolean) {
+    val term = line.slice(0L, cursor)
+    val start = historyPosition + if (backward) -1L else 1L
+    val direction = if (backward) SearchDirection.Reverse else SearchDirection.Forward
+    val found = history.startsWith(term, start, direction)
+    if (found == None) { bellValue = true; return }
+    if (historyPosition == history.size) draft = buffer.state()
+    buffer.restore(BufferState(found!!.entry, found!!.position))
+    historyPosition = found!!.index
+}
+
+internal fun EditingSession.startSearch(backward: Boolean) {
+    val state = SearchState(buffer.state(), historyPosition, if (backward) SearchDirection.Reverse else SearchDirection.Forward)
+    search = Some(state)
+    messageValue = Some(if (backward) "(reverse-i-search): " else "(forward-i-search): ")
+}
+
+internal fun EditingSession.handleSearchKey(key: KeyEvent): EditResult {
+    val state = search!!
+    val control = controlCharacter(key)
+    if (key.code == KeyCode.Esc || control == Some('g')) {
+        buffer.restore(state.original)
+        historyPosition = state.originalIndex
+        search = None
+        messageValue = None
+        return EditResult.Continue
+    }
+    if (control == Some('c')) { search = None; return execute(Command.Interrupt) }
+    if (key.code == KeyCode.Enter || control == Some('j') || control == Some('m')) {
+        lastSearch = state.query
+        search = None
+        messageValue = None
+        return execute(Command.AcceptLine)
+    }
+    var repeated = false
+    if (control == Some('r') || control == Some('s')) {
+        state.direction = if (control == Some('r')) SearchDirection.Reverse else SearchDirection.Forward
+        if (state.query.byteLength == 0L) state.query = lastSearch
+        repeated = true
+    } else if (key.code == KeyCode.Backspace || control == Some('h')) {
+        val query = LineBuffer(state.query)
+        query.replace(query.previous(query.cursor), query.cursor, "")
+        state.query = query.text
+        state.index = state.originalIndex
+    } else {
+        val character = keyCharacter(key)
+        if (character == None || key.modifiers.has(KeyModifier.Control) || key.modifiers.has(KeyModifier.Alt)) {
+            lastSearch = state.query
+            search = None
+            messageValue = None
+            return execute(keys.command(key))
+        }
+        state.query += character!!.toString()
+        state.index = state.originalIndex
+    }
+    var start = state.index
+    if (repeated) start += if (state.direction == SearchDirection.Reverse) -1L else 1L
+    if (start >= history.size && state.direction == SearchDirection.Reverse) start = history.size - 1L
+    if (state.query.byteLength == 0L) {
+        buffer.restore(state.original)
+        historyPosition = state.originalIndex
+        return EditResult.Continue
+    }
+    val found = history.search(state.query, start, state.direction)
+    val label = if (state.direction == SearchDirection.Reverse) "reverse-i-search" else "forward-i-search"
+    messageValue = Some("(" + (if (found == None) "failed " else "") + label + ") " + state.query + ": ")
+    if (found != None) {
+        buffer.restore(BufferState(found!!.entry, found!!.position))
+        historyPosition = found!!.index
+        state.index = found!!.index
+    } else bellValue = true
+    return EditResult.Continue
+}

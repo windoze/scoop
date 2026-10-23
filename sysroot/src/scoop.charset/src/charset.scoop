@@ -154,8 +154,7 @@ public class Charset private constructor(
          */
         public val backendVersion: String get() {
             @Unsafe {
-                val version = charsetVersion()
-                return (version shr 8).toString() + "." + (version and 255).toString()
+                return String.fromCString(charsetVersion())
             }
         }
     }

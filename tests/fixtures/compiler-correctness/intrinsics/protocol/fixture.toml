@@ -1,0 +1,19 @@
+schema = 1
+name = "intrinsics-after-resume"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+tags = ["intrinsics", "coroutines", "compiler-correctness"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--profile", "${profile}", "--sysroot", "${sysroot}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 0
+stdout = "intrinsics after resume\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

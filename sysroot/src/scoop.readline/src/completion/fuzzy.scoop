@@ -1,0 +1,94 @@
+package scoop.readline
+
+import scoop.charset.*
+import scoop.collections.sortedBy
+import scoop.terminal.event.*
+import scoop.text.*
+
+internal struct FuzzyMatch(val candidate: Candidate, val gaps: Long)
+internal class FuzzyCompletion(val result: Completions) {
+    var query: String = ""
+    var selected: Long = 0L
+    var matches: Array<Candidate> = []
+}
+
+internal fun EditingSession.updateFuzzy() {
+    val state = fuzzy!!
+    val query = unicodeCasefold(state.query)
+    val matches = ArrayList<FuzzyMatch>()
+    for (candidate in state.result.candidates) {
+        val text = unicodeCasefold(candidate.display)
+        var at = 0L
+        var gaps = 0L
+        var matched = true
+        for (character in query) {
+            val found = text.indexOf(character, at)
+            if (found < 0L) { matched = false; break }
+            gaps += found - at
+            at = found + 1L
+        }
+        if (matched) matches.add(FuzzyMatch(candidate, gaps))
+    }
+    val ordered = matches.sortedBy { it.gaps }
+    state.matches = Array<Candidate>(ordered.size) { index -> ordered[index].candidate }
+    state.selected = 0L
+    showFuzzy()
+}
+
+private fun EditingSession.showFuzzy() {
+    val state = fuzzy!!
+    val message = StringBuilder().append("fuzzy: ").append(state.query)
+    var index = if (state.selected >= 5L) state.selected - 4L else 0L
+    val limit = index + 5L
+    while (index < state.matches.size && index < limit) {
+        message.append(if (index == state.selected) "\n> " else "\n  ")
+        message.append(state.matches[index].display)
+        index += 1L
+    }
+    messageValue = Some(message.toString())
+}
+
+internal fun EditingSession.handleFuzzyKey(key: KeyEvent): EditResult {
+    val state = fuzzy!!
+    val control = controlCharacter(key)
+    if (key.code == KeyCode.Esc || control == Some('g')) {
+        fuzzy = None
+        messageValue = None
+        return EditResult.Continue
+    }
+    if (control == Some('c')) {
+        fuzzy = None
+        messageValue = None
+        return execute(Command.Interrupt)
+    }
+    if (key.code == KeyCode.Enter) {
+        if (state.matches.size == 0L) { bellValue = true; return EditResult.Continue }
+        val candidate = state.matches[state.selected]
+        val count = graphemeBoundaries(line.slice(state.result.start, cursor)).size - 1L
+        fuzzy = None
+        messageValue = None
+        return execute(Command.Replace(Movement.BackwardChar(count), candidate.replacement))
+    }
+    if (key.code == KeyCode.Up || key.code == KeyCode.BackTab || key.code == KeyCode.Down || key.code == KeyCode.Tab) {
+        if (state.matches.size > 0L) {
+            val previous = key.code == KeyCode.Up || key.code == KeyCode.BackTab
+            state.selected = (state.selected + (if (previous) state.matches.size - 1L else 1L)) % state.matches.size
+        }
+        showFuzzy()
+        return EditResult.Continue
+    }
+    if (key.code == KeyCode.Backspace || control == Some('h')) {
+        val query = LineBuffer(state.query)
+        state.query = state.query.slice(0L, query.previous(query.length))
+    } else if (control == Some('u')) state.query = ""
+    else {
+        val character = keyCharacter(key)
+        if (character == None || key.modifiers.has(KeyModifier.Control) || key.modifiers.has(KeyModifier.Alt)) {
+            bellValue = true
+            return EditResult.Continue
+        }
+        state.query += character!!.toString()
+    }
+    updateFuzzy()
+    return EditResult.Continue
+}

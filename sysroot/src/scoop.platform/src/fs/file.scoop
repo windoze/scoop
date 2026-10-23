@@ -36,6 +36,23 @@ public class File private constructor(private val context: OsString?) : ByteSour
      */
     public fun size(): Long = metadata().size
 
+    /** Acquires an advisory whole-file lock, waiting for conflicting owners. */
+    public fun lock(shared: Boolean = false) { lockNative(if (shared) 1 else 2) }
+
+    /** Attempts an advisory lock; only contention returns false. */
+    public fun tryLock(shared: Boolean = false): Boolean = lockNative(if (shared) 5 else 6) == 0
+
+    /** Releases this open file description's advisory lock. */
+    public fun unlock() { lockNative(0) }
+
+    private fun lockNative(operation: Int): Int = withDescriptor { fd ->
+        @Unsafe {
+            val (status, error) = nativeFileLock(fd, operation)
+            checkNativeStatus(status, error, "file lock", context)
+            return@withDescriptor status
+        }
+    }
+
     /**
      * Opens owned file descriptors with explicit access and creation policy.
      */
@@ -230,6 +247,8 @@ public class File private constructor(private val context: OsString?) : ByteSour
 
 @Extern(name = "scoop_platform_file_open", captureErrno = true)
 private fun nativeFileOpen(path: Ptr<Byte>, flags: Int, mode: Int): (Int, Int)
+@Extern(name = "scoop_platform_file_lock", captureErrno = true)
+private fun nativeFileLock(fd: Int, operation: Int): (Int, Int)
 @Extern(name = "scoop_platform_file_seek", captureErrno = true)
 private fun nativeFileSeek(fd: Int, offset: Long, current: Boolean): (Long, Int)
 @Extern(name = "scoop_platform_file_truncate", captureErrno = true)

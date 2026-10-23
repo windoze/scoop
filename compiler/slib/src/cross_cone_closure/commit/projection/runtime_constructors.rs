@@ -16,7 +16,10 @@ impl ValidatedCrossConeSemanticClosure {
             return Ok(());
         };
         let mut cast_required = false;
-        let mut arithmetic_required = false;
+        let mut arithmetic_required = module
+            .imported_intrinsics
+            .values()
+            .any(|intrinsic| intrinsic.requires_arithmetic_exception());
         let mut unwrap_required = false;
         let mut bounds_required = false;
         let mut array_size_required = false;

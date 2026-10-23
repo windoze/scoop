@@ -117,8 +117,15 @@ impl NativeBorrowedRootSet {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ManagedPollKind {
+    Full,
+    EntryActivation,
+}
+
 #[derive(Debug)]
 pub struct ManagedPollSite {
+    pub kind: ManagedPollKind,
     pub target: ManagedVoidTargetId,
     pub safepoint: SafepointSiteRef,
     pub live: StatepointLiveSet,

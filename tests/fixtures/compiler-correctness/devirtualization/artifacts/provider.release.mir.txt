@@ -85,9 +85,6 @@ Module
       assign $new.1
         Type Hidden
         ClassAlloc Hidden
-      val $inline.1.this: Hidden
-        Type Hidden
-        Local $new.1
       goto bb2
     bb1 inline.cont.1
       return
@@ -106,7 +103,7 @@ Module
         Type Base
         Retype Base
           Type Hidden
-          Local $inline.1.this
+          Local $new.1
       val $inline.3.number: Int
         Type Int
         IntegerLiteral Int value=99 bits=0x00000063
@@ -187,20 +184,11 @@ Module
         UnitLiteral
   fun init.Final.$c1 @fn22(this: Final, number: Int) -> Unit
     bb0 entry
-      val $argument.0: Int
-        Type Int
-        Local number
-      val $parameter.number: Int
-        Type Int
-        Local $argument.0
       val $inline.1.this: Base
         Type Base
         Retype Base
           Type Final
           Local this
-      val $inline.1.number: Int
-        Type Int
-        Local $parameter.number
       goto bb2
     bb1 inline.cont.1
       return
@@ -211,26 +199,17 @@ Module
         Type Base
         Local $inline.1.this
         Type Int
-        Local $inline.1.number
+        Local number
       Type Unit
       UnitLiteral
       goto bb1
   fun init.Inherited.$c2 @fn23(this: Inherited, number: Int) -> Unit
     bb0 entry
-      val $argument.0: Int
-        Type Int
-        Local number
-      val $parameter.number: Int
-        Type Int
-        Local $argument.0
       val $inline.1.this: Base
         Type Base
         Retype Base
           Type Inherited
           Local this
-      val $inline.1.number: Int
-        Type Int
-        Local $parameter.number
       goto bb2
     bb1 inline.cont.1
       return
@@ -241,7 +220,7 @@ Module
         Type Base
         Local $inline.1.this
         Type Int
-        Local $inline.1.number
+        Local number
       Type Unit
       UnitLiteral
       goto bb1

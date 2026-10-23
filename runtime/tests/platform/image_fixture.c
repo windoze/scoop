@@ -1,3 +1,5 @@
+/* Keep fixture allocation checks active with an optimized runtime. */
+#undef NDEBUG
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>

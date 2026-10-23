@@ -83,82 +83,11 @@ pub(super) fn supported(function: &mir::Function) -> bool {
     supported && executable
 }
 
-pub(super) fn function_cost(function: &mir::Function) -> usize {
-    blocks_cost(function.body.blocks.iter().map(|(_, block)| block)) + parameter_cost(function)
-}
-
-pub(super) fn blocks_cost<'a>(blocks: impl Iterator<Item = &'a mir::BasicBlock>) -> usize {
-    blocks
-        .map(|block| {
-            let mut cost = usize::from(block.unwind.is_some()) * 4;
-            for statement in &block.statements {
-                cost += match &statement.kind {
-                    mir::StatementKind::Call(effect) => {
-                        if matches!(
-                            super::super::call(effect).target,
-                            mir::CallTarget::Direct(_)
-                        ) {
-                            6
-                        } else {
-                            10
-                        }
-                    }
-                    mir::StatementKind::ValDecl { init, .. }
-                    | mir::StatementKind::Assign { value: init, .. } => 1 + copy_cost(&init.ty),
-                    mir::StatementKind::Eh(_) => 8,
-                    _ => 2,
-                };
-            }
-            mir::visit_block_exprs(block, &mut |expression| {
-                cost += match expression.kind {
-                    mir::ExprKind::Local(_)
-                    | mir::ExprKind::IntegerLiteral(_)
-                    | mir::ExprKind::BoolLiteral(_)
-                    | mir::ExprKind::CharLiteral(_)
-                    | mir::ExprKind::FloatLiteral(_)
-                    | mir::ExprKind::UnitLiteral
-                    | mir::ExprKind::StringConst(_)
-                    | mir::ExprKind::MachineScalarLiteral(_) => 0,
-                    mir::ExprKind::ClassAlloc { .. }
-                    | mir::ExprKind::ClosureAlloc { .. }
-                    | mir::ExprKind::Box(_)
-                    | mir::ExprKind::ArrayAllocate { .. }
-                    | mir::ExprKind::ArrayLiteral { .. }
-                    | mir::ExprKind::ArrayAssembly { .. }
-                    | mir::ExprKind::ArrayClone { .. }
-                    | mir::ExprKind::AtomicNew(_) => 12,
-                    mir::ExprKind::Context(_) | mir::ExprKind::Atomic(_) => 6,
-                    mir::ExprKind::StructInit { .. }
-                    | mir::ExprKind::StructConstruct { .. }
-                    | mir::ExprKind::TupleLiteral(_)
-                    | mir::ExprKind::VariantConstruct { .. } => 4,
-                    mir::ExprKind::FieldAccess { .. }
-                    | mir::ExprKind::ArrayGet { .. }
-                    | mir::ExprKind::PtrLoad { .. } => 2,
-                    _ => 1,
-                };
-            });
-            cost + match block.terminator {
-                mir::Terminator::Goto(_) | mir::Terminator::Unreachable => 0,
-                mir::Terminator::Branch { .. } => 2,
-                mir::Terminator::Throw { .. }
-                | mir::Terminator::Rethrow { .. }
-                | mir::Terminator::Resume => 8,
-                _ => 1,
-            }
-        })
-        .sum()
-}
-
-pub(super) fn parameter_cost(function: &mir::Function) -> usize {
-    function
-        .params
-        .iter()
-        .map(|parameter| 1 + copy_cost(&parameter.ty))
-        .sum()
-}
+mod cost;
+pub(super) use cost::{Cost, blocks_cost, function_cost};
 
 pub(super) fn worthwhile(
+    structs: &la_arena::Arena<mir::StructDef>,
     cost: usize,
     original: usize,
     in_loop: bool,
@@ -176,7 +105,7 @@ pub(super) fn worthwhile(
     let value_copy = function
         .params
         .iter()
-        .any(|parameter| copy_cost(&parameter.ty) > 0);
+        .any(|parameter| copy_cost(structs, &parameter.ty) > 0);
     let threshold = (20
         + usize::from(in_loop) * 16
         + usize::from(folds) * 12
@@ -186,8 +115,19 @@ pub(super) fn worthwhile(
     cost <= threshold
 }
 
-fn copy_cost(ty: &mir::Type) -> usize {
+fn copy_cost(structs: &la_arena::Arena<mir::StructDef>, ty: &mir::Type) -> usize {
     match ty {
+        mir::Type::Struct(id)
+            if matches!(
+                structs[*id].representation,
+                mir::StructRepresentation::Intrinsic(
+                    mir::IntrinsicStructRepresentation::Float(_)
+                        | mir::IntrinsicStructRepresentation::Char
+                )
+            ) =>
+        {
+            0
+        }
         mir::Type::Struct(_) | mir::Type::Tuple(_) | mir::Type::Enum(..) => 3,
         mir::Type::Interface(_) => 1,
         _ => 0,

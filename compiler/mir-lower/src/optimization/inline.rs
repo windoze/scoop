@@ -15,10 +15,16 @@ mod policy;
 mod suspend;
 pub(super) use suspend::run as inline_synchronous_coroutines;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Target {
+    Local(mir::FunctionId),
+    Imported(mir::ExternalCallableUseId),
+}
+
 struct Choice {
     block: mir::BlockId,
     statement: usize,
-    callee: mir::FunctionId,
+    callee: Target,
     blocks: Vec<(mir::BlockId, mir::BasicBlock)>,
 }
 
@@ -26,28 +32,36 @@ pub(super) struct Session {
     templates: Arena<mir::Function>,
     protocol: Vec<bool>,
     supported: Vec<bool>,
-    costs: Vec<usize>,
+    costs: Vec<policy::Cost>,
     callers: Vec<CallerState>,
+    required: super::intrinsics::Entries,
+    ordinary: bool,
+    imported: crate::imported_bodies::ImportedBodies,
 }
 
 struct CallerState {
     remaining: usize,
-    ancestry: Vec<Vec<mir::FunctionId>>,
+    ancestry: Vec<Vec<Target>>,
 }
 
 impl Session {
-    pub(super) fn new(module: &mir::Module) -> Self {
+    pub(super) fn new(
+        module: &mir::Module,
+        required: super::intrinsics::Entries,
+        ordinary: bool,
+        imported: crate::imported_bodies::ImportedBodies,
+    ) -> Self {
         // Stable templates avoid counting an already expanded body as one level.
         let templates = module.functions.clone();
         let costs = templates
             .iter()
-            .map(|(_, function)| policy::function_cost(function))
+            .map(|(_, function)| policy::function_cost(&module.structs, function))
             .collect::<Vec<_>>();
         let callers = templates
             .iter()
             .map(|(id, function)| CallerState {
-                remaining: (costs[index(id)] / 2 + 96).min(384),
-                ancestry: vec![vec![id]; function.body.blocks.len()],
+                remaining: (costs[index(id)].size / 2 + 96).min(384),
+                ancestry: vec![vec![Target::Local(id)]; function.body.blocks.len()],
             })
             .collect();
         Self {
@@ -59,6 +73,9 @@ impl Session {
             templates,
             costs,
             callers,
+            required,
+            ordinary,
+            imported,
         }
     }
 
@@ -78,7 +95,21 @@ impl Session {
             .collect::<Vec<_>>();
         let mut changed = vec![false; module.functions.len()];
         for (id, _) in self.templates.iter() {
-            if !active[index(id)] || self.protocol[index(id)] {
+            if !active[index(id)] || (self.ordinary && self.protocol[index(id)]) {
+                continue;
+            }
+            if !self.ordinary
+                && !module.functions[id].body.blocks.iter().any(|(_, block)| {
+                    block.statements.iter().any(|statement| {
+                        if let mir::StatementKind::Call(effect) = &statement.kind {
+                            matches!(super::call(effect).target, mir::CallTarget::Direct(callee)
+                                if self.required.contains(module, callee))
+                        } else {
+                            false
+                        }
+                    })
+                })
+            {
                 continue;
             }
             let Some(owner) = owner(module, id) else {
@@ -89,6 +120,9 @@ impl Session {
                 templates: &self.templates,
                 eligible: &eligible,
                 costs: &self.costs,
+                required: &self.required,
+                ordinary: self.ordinary,
+                imported: &self.imported,
             };
             let (body, rewritten) =
                 context.optimize(id, owner, registry, &mut self.callers[index(id)]);
@@ -97,16 +131,70 @@ impl Session {
         }
         changed
     }
+
+    pub(super) fn run_required(
+        &mut self,
+        module: &mut mir::Module,
+        active: &[bool],
+        registry: &mut LocalValueRegistry,
+    ) -> Vec<bool> {
+        let ordinary = std::mem::replace(&mut self.ordinary, false);
+        let changed = self.run(module, active, registry);
+        self.ordinary = ordinary;
+        changed
+    }
 }
 
 struct Context<'a> {
     module: &'a mir::Module,
     templates: &'a Arena<mir::Function>,
     eligible: &'a [bool],
-    costs: &'a [usize],
+    costs: &'a [policy::Cost],
+    required: &'a super::intrinsics::Entries,
+    ordinary: bool,
+    imported: &'a crate::imported_bodies::ImportedBodies,
 }
 
 impl Context<'_> {
+    fn target(&self, call: &mir::Call) -> Option<Target> {
+        if let Some(local) = policy::local_target(self.module, call) {
+            return self.eligible[index(local)].then_some(Target::Local(local));
+        }
+        if let mir::CallTarget::Direct(mir::Callee::External(id)) = call.target
+            && self
+                .imported
+                .functions
+                .get(&id)
+                .is_some_and(policy::supported)
+        {
+            return Some(Target::Imported(id));
+        }
+        None
+    }
+
+    fn template(&self, target: Target) -> &mir::Function {
+        match target {
+            Target::Local(id) => &self.templates[id],
+            Target::Imported(id) => &self.imported.functions[&id],
+        }
+    }
+
+    fn required(&self, target: Target) -> bool {
+        match target {
+            Target::Local(id) => self.required.contains(self.module, mir::Callee::User(id)),
+            Target::Imported(id) => self.required.external.contains(&id),
+        }
+    }
+
+    fn cost(&self, target: Target) -> policy::Cost {
+        match target {
+            Target::Local(id) => self.costs[index(id)],
+            Target::Imported(id) => {
+                policy::function_cost(&self.module.structs, &self.imported.functions[&id])
+            }
+        }
+    }
+
     fn optimize(
         &self,
         id: mir::FunctionId,
@@ -125,7 +213,7 @@ impl Context<'_> {
             // Reverse application preserves every selected source position.
             // Selection and growth accounting above remain in stable order.
             for choice in choices.into_iter().rev() {
-                let callee = &self.templates[choice.callee];
+                let callee = self.template(choice.callee);
                 clone::apply(
                     &mut function,
                     callee,
@@ -137,6 +225,9 @@ impl Context<'_> {
                 );
             }
         }
+        if !self.ordinary && !changed {
+            return (function.body, false);
+        }
         let (body, simplified) = simplify::body(self.module, &function);
         (body, changed || simplified)
     }
@@ -144,7 +235,7 @@ impl Context<'_> {
     fn choose(
         &self,
         function: &mir::Function,
-        ancestry: &[Vec<mir::FunctionId>],
+        ancestry: &[Vec<Target>],
         remaining: &mut usize,
     ) -> Vec<Choice> {
         let analysis = flow::Analysis::new(self.module, function);
@@ -152,14 +243,14 @@ impl Context<'_> {
         let in_loop = graph::cyclic_nodes(&graph::block_edges(&function.body));
         let mut choices = Vec::new();
         for (block_id, block) in function.body.blocks.iter() {
-            if ancestry[index(block_id)].len() > 6 {
+            if self.ordinary && ancestry[index(block_id)].len() > 6 {
                 continue;
             }
             let Some(mut state) = incoming[index(block_id)].clone() else {
                 continue;
             };
             for (statement_index, statement) in block.statements.iter().enumerate() {
-                if *remaining == 0 {
+                if self.ordinary && *remaining == 0 {
                     return choices;
                 }
                 // Release publication is adjacent to its outer initializer
@@ -175,8 +266,8 @@ impl Context<'_> {
                     && !publishes_release
                 {
                     let call = super::call(effect);
-                    if let Some(callee) = policy::local_target(self.module, call)
-                        && self.eligible[index(callee)]
+                    if let Some(callee) = self.target(call)
+                        && (self.ordinary || self.required(callee))
                         && !ancestry[index(block_id)].contains(&callee)
                     {
                         let arguments = call
@@ -184,21 +275,28 @@ impl Context<'_> {
                             .iter()
                             .map(|argument| analysis.expression(argument, &state))
                             .collect::<Vec<_>>();
-                        let source = &self.templates[callee];
+                        let source = self.template(callee);
                         let blocks = simplify::blocks(self.module, source, &arguments);
-                        let cost = policy::blocks_cost(blocks.iter().map(|(_, block)| block))
-                            + policy::parameter_cost(source);
-                        let growth = cost.saturating_sub(6).max(1);
-                        if growth <= *remaining
-                            && policy::worthwhile(
-                                cost,
-                                self.costs[index(callee)],
-                                in_loop[index(block_id)],
-                                &arguments,
-                                source,
-                            )
+                        let cost = policy::blocks_cost(
+                            &self.module.structs,
+                            blocks.iter().map(|(id, block)| (*id, block)),
+                        )
+                        .with_parameters(&self.module.structs, source);
+                        let growth = cost.size.saturating_sub(6).max(1);
+                        if self.required(callee)
+                            || (growth <= *remaining
+                                && policy::worthwhile(
+                                    &self.module.structs,
+                                    cost.execution,
+                                    self.cost(callee).execution,
+                                    in_loop[index(block_id)],
+                                    &arguments,
+                                    source,
+                                ))
                         {
-                            *remaining -= growth;
+                            if !self.required(callee) {
+                                *remaining -= growth;
+                            }
                             choices.push(Choice {
                                 block: block_id,
                                 statement: statement_index,

@@ -8,6 +8,7 @@ mod dispatch;
 mod flow;
 mod graph;
 mod inline;
+mod intrinsics;
 mod poll_chunks;
 mod simplify;
 
@@ -35,6 +36,7 @@ pub(super) fn inline_synchronous_coroutines(lowerer: &mut crate::Lowerer) {
     inline::inline_synchronous_coroutines(lowerer);
 }
 
+#[cfg(test)]
 pub(super) fn run(
     module: &mut mir::Module,
     selected: &mir::SelectedExternalMirSet,
@@ -43,32 +45,78 @@ pub(super) fn run(
     run_to_limit(module, selected, options, 3)
 }
 
+pub(super) fn run_current(
+    module: &mut mir::Module,
+    selected: &mir::SelectedExternalMirSet,
+    source: &scoop_hir::concrete::Module,
+    options: MirOptimizationOptions,
+    mut imported: crate::imported_bodies::ImportedBodies,
+) -> (usize, bool) {
+    let required = intrinsics::entries(module, source, std::mem::take(&mut imported.required));
+    run_with_intrinsics(module, selected, options, 3, &required, imported)
+}
+
 /// Return the rounds used and whether an unchanged round was observed.
+#[cfg(test)]
 pub(super) fn run_to_limit(
     module: &mut mir::Module,
     selected: &mir::SelectedExternalMirSet,
     options: MirOptimizationOptions,
     limit: usize,
 ) -> (usize, bool) {
+    run_with_intrinsics(
+        module,
+        selected,
+        options,
+        limit,
+        &Default::default(),
+        Default::default(),
+    )
+}
+
+fn run_with_intrinsics(
+    module: &mut mir::Module,
+    selected: &mir::SelectedExternalMirSet,
+    options: MirOptimizationOptions,
+    limit: usize,
+    required: &intrinsics::Entries,
+    mut imported: crate::imported_bodies::ImportedBodies,
+) -> (usize, bool) {
+    let mut registry =
+        crate::local_values::LocalValueRegistry::from_existing(&module.meta.local_values);
+    let dispatch = std::mem::take(&mut imported.dispatch);
+    let has_intrinsics = !required.is_empty();
+    let mut inliner = (options.inline || has_intrinsics)
+        .then(|| inline::Session::new(module, required.clone(), options.inline, imported));
+    if has_intrinsics {
+        intrinsics::normalize(
+            module,
+            selected,
+            required,
+            &dispatch,
+            inliner.as_mut().unwrap(),
+            &mut registry,
+        );
+    }
     if !options.devirtualize
         && !options.inline
         && !options.allocation_elision
         && !options.poll_chunking
     {
+        module.meta.local_values = registry.finish();
         return (0, true);
     }
-    let mut inliner = options.inline.then(|| inline::Session::new(module));
-    let mut registry =
-        crate::local_values::LocalValueRegistry::from_existing(&module.meta.local_values);
     let mut active = vec![true; module.functions.len()];
     let mut outcome = (limit, false);
     for round in 0..limit {
         let mut changed = if options.devirtualize {
-            devirtualize(module, selected, &active)
+            devirtualize(module, selected, &active, None, &dispatch)
         } else {
             vec![false; active.len()]
         };
-        if let Some(inliner) = &mut inliner {
+        if options.inline
+            && let Some(inliner) = &mut inliner
+        {
             for (changed, inlined) in
                 changed
                     .iter_mut()
@@ -84,6 +132,18 @@ pub(super) fn run_to_limit(
                     .zip(allocation::run(module, &active, &mut registry))
             {
                 *changed |= elided;
+            }
+        }
+        if has_intrinsics {
+            for (changed, normalized) in changed.iter_mut().zip(intrinsics::normalize(
+                module,
+                selected,
+                required,
+                &dispatch,
+                inliner.as_mut().unwrap(),
+                &mut registry,
+            )) {
+                *changed |= normalized;
             }
         }
         if !changed.iter().any(|changed| *changed) {
@@ -110,6 +170,8 @@ fn devirtualize(
     module: &mut mir::Module,
     selected: &mir::SelectedExternalMirSet,
     active: &[bool],
+    required: Option<&intrinsics::Entries>,
+    dispatch: &crate::imported_bodies::IntrinsicDispatch,
 ) -> Vec<bool> {
     let mut rewrites = Vec::new();
     for (function_id, function) in module.functions.iter() {
@@ -139,20 +201,32 @@ fn devirtualize(
                         }
                     };
                     if let Some(receiver) = call.target.receiver()
-                        && let Some((target, receiver_ty)) = dispatch::resolve(
+                        && let Some((target, receiver_ty, unbox)) = dispatch::resolve(
                             module,
                             selected,
+                            dispatch,
                             call,
                             result,
                             analysis.expression(receiver, &state).actual,
                         )
                     {
+                        if required
+                            .is_some_and(|required| !required.contains(module, target.into()))
+                        {
+                            analysis.statement(statement, &mut state);
+                            continue;
+                        }
                         rewrites.push(Rewrite {
                             function: function_id,
                             block: block_id,
                             statement: statement_index,
                             call: {
-                                let receiver = if receiver.ty == receiver_ty {
+                                let receiver = if unbox {
+                                    mir::Expr::new(
+                                        receiver_ty,
+                                        mir::ExprKind::Unbox(Box::new(receiver.clone())),
+                                    )
+                                } else if receiver.ty == receiver_ty {
                                     receiver.clone()
                                 } else {
                                     mir::Expr::new(

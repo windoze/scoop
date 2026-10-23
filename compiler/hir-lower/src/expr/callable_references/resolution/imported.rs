@@ -45,7 +45,9 @@ impl ImportedReferenceDeclaration {
                     .into(),
             );
         }
-        if candidate.callable_body().is_some()
+        if candidate
+            .callable_body()
+            .is_some_and(|body| !body.type_parameters().arguments().is_empty())
             || matches!(
                 interface.owner(),
                 hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::GenericTemplate(_))

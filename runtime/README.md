@@ -147,3 +147,9 @@ There is no runtime mode that replays static metadata validation.
 `-DSCOOP_GC_VERIFY_HEAP=1` and moving stress can check the current heap and
 references after collection. Boxing roots use the descriptor's inline scan
 pointer directly, including before the managed-entry handshake.
+
+Normal GC marking and reference updates leave non-heap references unchanged
+without repeating the immortal registration lookup. Stress-capable runtimes
+(`SCOOP_ENABLE_GC_STRESS=1`) and explicit heap-verification builds retain that
+diagnostic lookup, independently of application debug/release profiles. Heap
+object-start checks and image-registration, pin and handle checks still apply.

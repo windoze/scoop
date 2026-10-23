@@ -17,7 +17,7 @@
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @fn13 direct
+      call @fn17 direct
         Type ArithmeticException
         Local $new.1
       throw

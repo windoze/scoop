@@ -12,6 +12,7 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class IntRange vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
   interface ToString
   interface Hash
   interface Iterable<Int>

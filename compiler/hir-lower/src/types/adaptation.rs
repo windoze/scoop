@@ -142,6 +142,12 @@ impl Lowerer {
                 self.retain_boxing_sources(target, source, span);
             }
             self.retain_boxing_sources(source.return_type, target.return_type, span);
+        } else if matches!(self.types[source], Type::String)
+            && matches!(self.types[target], Type::Interface(_))
+        {
+            if let Err(error) = self.retain_string_dispatch_source() {
+                self.error(span, error.diagnostic("String interface dispatch"));
+            }
         } else if self.is_value_ty(source)
             && self.is_ref_ty(target)
             && let Err(error) = self.retain_imported_box_source(source)

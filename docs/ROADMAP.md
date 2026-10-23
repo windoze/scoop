@@ -720,6 +720,26 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 已补齐 19 个生产库与 7 个嵌套测试／辅助 Cone 的说明；打包流程为全部生产库生成各目标站点并安装到 SYSROOT/docs。文档示例执行留待后续。
 - 三目标完整 CLI 验收闭合：Darwin 4,503、GNU 4,487、musl 4,484 项通过；双宿主完整打包、最终归档的文档与解压构建／运行、文档更新复用检查通过。真实浏览器离线交互的工具限制见验收记录。
 
+### M61 Rust 文本后端与宽松许可静态分发（已完成，[设计](milestone61/DESIGN.md)、[进度](milestone61/PROGRESS.md)）
+
+- 将 IDNA、Punycode、NFC 及字符集能力迁到固定 Rust 文本后端；按用户决定收敛到成熟 Rust 库可覆盖的编码，保留增量、BOM、错误偏移合同。
+- 已明确 UTS #46 与旧严格 IDNA2008 的差异，完成 Darwin／GNU／musl 资源准备、适配、两个正式链接入口及运行，移除 GNU 文本链；发行收集 Rust 依赖与标准库通知。
+- 字符集集合收敛到 43 个名称；readline 的字素、宽度、属性和大小写已迁入共同后端。测试仅验证 Scoop 自有行为，不新增底层补缺或上游 Unicode 兼容性／完备性测试。
+
+### M62 intrinsic 下降、跨 Cone 内联与 runtime 性能（已完成，[设计](milestone62/DESIGN.md)、[实施记录](milestone62/PROGRESS.md)、[验收记录](milestone62/ACCEPTANCE.md)）
+
+- 保证 intrinsic function 在所有类型已确定的静态上下文，以及经 devirt 确定具体目标的上下文中下降为对应 intrinsic；覆盖本地、跨 Cone、泛型特化和静态函数引用，不依赖普通内联阈值。
+- 支持符合条件的跨 Cone 非泛型小函数参与内联，改进别名复制和冷异常路径的成本处理；消除已登记 TD 在接口分派热路径上的重复查询。
+- 独立评估有界 core leaf、Managed 入口 poll、TLAB 完成路径、nursery 与回写、HFA 和最终映像链接信息；保留必要的发布、握手、异常与 ABI 语义。
+- 保留现有调查的收益与限制，沿用 M56 的桌面暂停和 footprint 验收，与 M58 优化协作；候选方案不视为已实现，不仅凭 trees 调大默认 nursery。
+- 各功能已独立提交；修正 intrinsic 标量复制成本后 V3 自动内联对照约改善 7.7 倍，普通 GC 移除逐槽 immortal 登记查询。Linux 已知十五个 fixture 失败均定向补测通过；按用户要求停止剩余完整 fixture，实际覆盖与限制见验收记录。
+
+### 独立 Regex 库（已完成，[设计](regex/INVESTIGATION.md)、[规范](specs/SCOOP-REGEX-SPEC.md)、[实施记录](regex/PROGRESS.md)）
+
+- 普通 `scoop.regex` Cone 使用 PCRE2-8 10.49 和薄 C 适配；独立 C 静态库随 sysroot 交付，不增加 Rust staticlib。
+- 提供可复用模式、编号／命名捕获、惰性迭代、字面／模板／回调替换、分割与转义；公开位置使用 Long Unicode 标量索引，结果为独立快照，支持 close/use 和构造阶段可选 JIT。
+- Darwin／GNU／musl 各 19 项库测试、3 项预编译库消费者测试及 API 文档检查通过；Darwin 发行组装与组装目录中的消费者验证通过。仅验证 Scoop 适配与公开行为，不新增 fixture、底层缺口或上游 Unicode 符合性测试。
+
 ## 4. 待补齐清单（backlog）
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。

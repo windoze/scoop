@@ -25,6 +25,12 @@ public class StringBuilder public constructor() : ToString {
      * Joins all appended parts in order into an immutable string.
      */
     public override fun toString(): String = coreStringJoinParts(parts.backing, parts.size)
+
+    /** Removes accumulated parts, preserving previously returned string snapshots. */
+    public fun clear(): StringBuilder {
+        parts.clear()
+        return this
+    }
 }
 
 @Extern(name = "scoop_rt_string_join_parts", abi = "scoop")

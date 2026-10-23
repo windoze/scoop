@@ -16,7 +16,7 @@ private class PunycodeTests {
         }
         assertEquals("abc-", Punycode.encode("abc"))
         assertEquals("", Punycode.decode(""))
-        assertTrue(Idna.toAsciiOrNone("☃") == None)
+        assertEquals("xn--n3h", Idna.toAscii("☃"))
     }
 
     @Test

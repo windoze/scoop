@@ -1,0 +1,55 @@
+package dev.m62
+
+import dev.m62.consumer.*
+
+class Offset(val value: Int) : Add<Int, Int> {
+    public override operator fun plus(other: Int): Int = value + other + 1
+}
+
+fun unknownAdd(a: Add<Int, Int>, b: Int): Int = a + b
+fun lateAdd(a: Int, b: Int): Int = unknownAdd(a, b)
+
+fun main(): Int {
+    if (integers(-19, 23) != 42) return 1
+    if (longs(-19L, 23L) != 42L) return 2
+    if (unsigned(19u, 23u) != 42u) return 3
+    if (floats(19.0f, 23.0f) != 42.0f) return 4
+    if (doubles(19.0, 23.0) != 42.0) return 5
+    if (characters('a', 'b') != -1L) return 6
+    if (strings("four", "two") != "fourtwo") return 7
+    if (stringOrder("a", "b") != -1L) return 8
+    if (conversion(42) != 42L) return 9
+    if (reference(19, 23) != 42) return 10
+    if (genericReference(19, 23) != 42) return 11
+    if (quotient(84, 2) != 42) return 12
+    if (remainder(85, 43) != 42) return 13
+    try {
+        quotient(42, 0)
+        return 14
+    } catch (error: ArithmeticException) {}
+    try {
+        remainder(42, 0)
+        return 15
+    } catch (error: ArithmeticException) {}
+    if (divideReference(84, 2) != 42) return 16
+    if (divideReference(-2147483648, -1) != -2147483648) return 17
+    try {
+        divideReference(42, 0)
+        return 18
+    } catch (error: ArithmeticException) {}
+    if (boxedAdd(19, 23) != 42) return 19
+    if (boxedDivide(84, 2) != 42) return 20
+    if (boxedDivide(-2147483648, -1) != -2147483648) return 21
+    try {
+        boxedDivide(42, 0)
+        return 22
+    } catch (error: ArithmeticException) {}
+    if (boxedFloat(19.0, 23.0) != 42.0) return 23
+    if (boxedChar('a', 'b') != -1L) return 24
+    if (interfaceString("a", "b") != -1L) return 25
+    if (unknownAdd(19, 23) != 42 || lateAdd(19, 23) != 42) return 26
+    if (unknownAdd(Offset(19), 23) != 43) return 27
+    if (caughtDivide(42, 0) != 17 || caughtDivide(84, 2) != 42) return 28
+    println("specialized intrinsics")
+    return 0
+}

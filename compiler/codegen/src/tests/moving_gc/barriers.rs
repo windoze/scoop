@@ -81,6 +81,7 @@ fn barrier_module() -> Module {
         instructions: vec![
             Instruction::ManagedPoll {
                 site: scoop_lir::ManagedPollSite {
+                    kind: scoop_lir::ManagedPollKind::Full,
                     target: poll_target,
                     safepoint: test_safepoint(2),
                     live: live_array(),
@@ -105,6 +106,7 @@ fn barrier_module() -> Module {
         name: "while.cond".to_string(),
         instructions: vec![Instruction::ManagedPoll {
             site: scoop_lir::ManagedPollSite {
+                kind: scoop_lir::ManagedPollKind::Full,
                 target: poll_target,
                 safepoint: test_safepoint(3),
                 live: scoop_lir::StatepointLiveSet::default(),

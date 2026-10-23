@@ -154,8 +154,7 @@ impl<'a> ResolvedStructDefinition<'a> {
                 application,
             },
             &source.interfaces,
-            // Ordinary primitive implementations and boxing adapters remain external.
-            &[],
+            &source.interface_implementations,
         )
     }
 

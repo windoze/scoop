@@ -1,0 +1,40 @@
+package scoop.readline
+
+import scoop.readline.history.*
+import scoop.terminal.event.*
+import scoop.test.*
+
+private class CustomHistory : History {
+    private val memory: MemoryHistory = MemoryHistory()
+    var reads: Long = 0L
+    var reject: Boolean = false
+    public override val size: Long get() = memory.size
+    public override fun get(index: Long, direction: SearchDirection): SearchResult? {
+        reads += 1L
+        if (reject) throw IllegalArgumentException(Some("backend failure"))
+        return memory.get(index, direction)
+    }
+    public override fun add(line: String): Boolean = memory.add(line)
+    public override fun clear() { memory.clear() }
+    public override fun setMaxLength(length: Long) { memory.setMaxLength(length) }
+    public override fun setIgnoreDuplicates(ignore: Boolean) { memory.setIgnoreDuplicates(ignore) }
+    public override fun setIgnoreSpace(ignore: Boolean) { memory.setIgnoreSpace(ignore) }
+    public override fun search(term: String, start: Long, direction: SearchDirection): SearchResult? =
+        memory.search(term, start, direction)
+    public override fun startsWith(term: String, start: Long, direction: SearchDirection): SearchResult? =
+        memory.startsWith(term, start, direction)
+}
+
+@Test private class BackendTest {
+    @Test fun thirdPartyHistoryAndFailures() {
+        val history = CustomHistory()
+        history.add("from backend")
+        val session = Editor(history = history).start()
+        press(session, KeyCode.Up)
+        assertEquals("from backend", session.line)
+        assertEquals(1L, history.reads)
+        history.reject = true
+        assertFailsWith<IllegalArgumentException> { session.execute(Command.BeginningOfHistory) }
+        assertEquals("from backend", session.line)
+    }
+}

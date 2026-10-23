@@ -201,15 +201,15 @@ fn return_inside_try_runs_finally_before_returning() {
       global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
       fun @scoop$1$cb$6cb4a66fa9aacac49c232a58b41d5c6876ef37a3aeb59531418a4b8f28cce6e2() -> void
       block entry
-        poll managed-void-target0 sp<managed-poll:0> live=[]
+        poll activation managed-void-target0 sp<managed-poll:0> live=[]
         ret
       fun @scoop$1$cb$1ee6e3355e7cb79209553d18e86a4efbcebcbb6b17fdaac01ee97a6442f4cb33() -> void
       block entry
-        poll managed-void-target0 sp<managed-poll:0> live=[]
+        poll activation managed-void-target0 sp<managed-poll:0> live=[]
         ret
       fun @scoop$1$cb$cc1665cbd41137b78422d03083be999f7aa52ece11a187473bd365748ced6ca3() -> void
       block entry
-        poll managed-void-target0 sp<managed-poll:0> live=[]
+        poll activation managed-void-target0 sp<managed-poll:0> live=[]
         ret
       fun @scoop$1$cb$fa63b60232562a72d6eaffee084a8d1e2b42cb1c26479c4434f71e0ab7c84806() -> i32
         local %0 $return.1: i32
@@ -228,7 +228,7 @@ fn return_inside_try_runs_finally_before_returning() {
         ret local0
       fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
       block entry
-        poll managed-void-target0 sp<managed-poll:0> live=[]
+        poll activation managed-void-target0 sp<managed-poll:0> live=[]
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry

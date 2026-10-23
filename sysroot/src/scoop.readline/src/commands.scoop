@@ -1,0 +1,61 @@
+package scoop.readline
+
+/** Word boundaries used by the Emacs and Vi maps. */
+public enum Word { Emacs, Vi, Big }
+/** Destination relative to a word. */
+public enum WordEnd { Start, BeforeEnd, AfterEnd }
+/** Position of a Vi paste. */
+public enum Anchor { Before, After }
+/** Current Vi editing state. */
+public enum ViMode { Insert, Command, Replace }
+
+/** A cursor motion or edit range. Counts must be nonnegative. */
+public enum Movement {
+    BackwardChar(val count: Long = 1L),
+    ForwardChar(val count: Long = 1L),
+    BeginningOfLine,
+    EndOfLine,
+    BeginningOfBuffer,
+    EndOfBuffer,
+    WholeLine(val count: Long = 1L),
+    WholeBuffer,
+    FirstNonBlank,
+    BackwardWord(val count: Long = 1L, val word: Word = Word.Emacs),
+    ForwardWord(val count: Long = 1L, val word: Word = Word.Emacs, val end: WordEnd = WordEnd.AfterEnd),
+    LineUp(val count: Long = 1L),
+    LineDown(val count: Long = 1L),
+    Find(val character: Char, val count: Long = 1L, val forward: Boolean = true, val till: Boolean = false)
+}
+
+/** Commands accepted by the editing core and custom key bindings. */
+public enum Command {
+    Noop, Unknown, Abort, AcceptLine, AcceptOrInsertLine, Newline, EndOfFile, Interrupt, Suspend,
+    Sequence(val commands: Array<Command>),
+    Change(val movement: Movement),
+    OpenLine(val above: Boolean),
+    Move(val movement: Movement),
+    Insert(val text: String, val count: Long = 1L),
+    Kill(val movement: Movement),
+    Replace(val movement: Movement, val text: String),
+    ReplaceChar(val character: Char, val count: Long = 1L),
+    Overwrite(val character: Char),
+    Yank(val count: Long = 1L, val anchor: Anchor = Anchor.Before),
+    YankPop,
+    Copy(val movement: Movement),
+    Undo(val count: Long = 1L), Redo(val count: Long = 1L),
+    TransposeChars, TransposeWords,
+    UpcaseWord, DowncaseWord, CapitalizeWord,
+    Indent(val movement: Movement = Movement.WholeLine()), Dedent(val movement: Movement = Movement.WholeLine()),
+    PreviousHistory, NextHistory, BeginningOfHistory, EndOfHistory,
+    NavigateHistory(val backward: Boolean, val count: Long = 1L),
+    HistorySearchBackward, HistorySearchForward,
+    ReverseSearchHistory, ForwardSearchHistory,
+    Complete, CompleteBackward, CompleteHint, QuotedInsert,
+    ClearScreen, Repaint,
+    SetViMode(val mode: ViMode), RepeatLastChange(val count: Long? = None)
+}
+
+/** Outcome of processing one input event. */
+public enum EditResult {
+    Continue, Accepted(val line: String), Eof, Interrupted, Suspended
+}

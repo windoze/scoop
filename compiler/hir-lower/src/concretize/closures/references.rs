@@ -47,6 +47,18 @@ impl Concretizer<'_> {
                 let receiver = self.lower_expr(receiver, substitution, locals);
                 let (callee, target) = self.lower_method_callee(*callee, receiver.ty, substitution);
                 let receiver = self.adapt_method_receiver(receiver, target);
+                if let Some(intrinsic) = self
+                    .concrete_intrinsic(callee)
+                    .and_then(export::PrimitiveMemberIntrinsic::from_intrinsic)
+                {
+                    if intrinsic.requires_arithmetic_exception() {
+                        self.lower_arithmetic_exception_type();
+                    }
+                    return concrete::CallableReferenceTarget::BoundIntrinsic {
+                        receiver: Box::new(receiver),
+                        intrinsic,
+                    };
+                }
                 concrete::CallableReferenceTarget::BoundMember {
                     receiver: Box::new(receiver),
                     callee,

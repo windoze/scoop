@@ -12,7 +12,7 @@ Module
     ret t0
   fun @scoop$1$cb$1ee6e3355e7cb79209553d18e86a4efbcebcbb6b17fdaac01ee97a6442f4cb33() -> elided-zst<struct0 size=0 align=1>
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
+    poll activation managed-void-target0 sp<managed-poll:0> live=[]
     t0 = aggregate () : struct0
     ret t0
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void

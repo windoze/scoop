@@ -11,7 +11,7 @@ impl Lowerer {
         module: &hir::Module,
         shape_support: &[scoop_hir::LocalShapeSupportRoot],
         external_signature_types: &[hir::TypeId],
-    ) -> mir::Module {
+    ) -> (mir::Module, crate::imported_bodies::ImportedBodies) {
         // Struct / class / interface ids first (types can reference
         // any of them regardless of declaration order), then the temporary
         // type context, then the field types themselves — which can
@@ -142,7 +142,6 @@ impl Lowerer {
         // Dispatch itself only depends on declared methods, not constructors
         // or lowered source bodies.
         self.compute_dispatch(module, &class_order);
-        self.declare_closures(module);
         // Constructor functions are declared from HIR's complete hidden
         // callable arena; MIR does not rediscover instantiability from class
         // modifiers or representation shape.
@@ -156,6 +155,9 @@ impl Lowerer {
             let id = self.declare_struct_ctor(module, constructor_id);
             struct_ctor_functions.push((constructor_id, id));
         }
+        // Intrinsic reference bodies can throw, so their exception
+        // constructors must already have typed callable locations.
+        self.declare_closures(module);
         if !module.initialization_units.is_empty()
             || matches!(self.output, LoweringOutput::Executable(_))
         {
@@ -256,6 +258,7 @@ impl Lowerer {
 
         // Finalize boxed value types to a fixed point. Function-type bridges
         // can discover additional boxed payloads.
+        let mut imported_bodies = self.lower_imported_bodies(module);
         let mut next_boxed = 0;
         let mut next_dynamic_adapter = 0;
         let mut function_shapes = HashSet::new();
@@ -274,6 +277,8 @@ impl Lowerer {
                 break;
             }
         }
+
+        imported_bodies.dispatch = self.intrinsic_dispatch(module);
 
         // A logical callable signature is itself a HIR -> MIR type use. This
         // includes hidden class-initializer receivers and source result types
@@ -398,7 +403,7 @@ impl Lowerer {
         };
         output.meta.generated_callables = generated_callables(&output);
         output.meta.callable_signatures = callable_signatures(&output);
-        output
+        (output, imported_bodies)
     }
 
     fn generated_exact_types(

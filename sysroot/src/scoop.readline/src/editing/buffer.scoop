@@ -1,0 +1,150 @@
+package scoop.readline
+
+import scoop.charset.graphemeBoundaries
+import scoop.charset.isUnicodeAlphanumeric
+import scoop.text.*
+
+internal struct BufferState(val text: String, val cursor: Long)
+
+/** A Unicode line buffer whose cursor always lies on an extended-grapheme boundary. */
+public class LineBuffer public constructor(initial: String = "", cursor: Long = initial.length) {
+    private var value: String = initial
+    private var scalars: Array<Char> = initial.toCharArray()
+    private var boundaries: Array<Long> = graphemeBoundaries(initial)
+    private var position: Long = 0L
+    init {
+        if (cursor < 0L || cursor > scalars.size) throw IndexOutOfBoundsException()
+        position = boundaryPosition(boundaries, cursor, false)
+    }
+
+    public val text: String get() = value
+    public val cursor: Long get() = position
+    public val length: Long get() = scalars.size
+
+    /** Moves to a scalar position, rounding an interior cluster position toward its start. */
+    public fun moveTo(cursor: Long) {
+        if (cursor < 0L || cursor > length) throw IndexOutOfBoundsException()
+        position = snap(cursor, false)
+    }
+
+    /** Replaces an interval aligned to grapheme boundaries, leaving the cursor after inserted text. */
+    public fun replace(start: Long, end: Long, text: String) {
+        if (start < 0L || end < start || end > length || snap(start, false) != start || snap(end, false) != end) {
+            throw IndexOutOfBoundsException()
+        }
+        value = value.slice(0L, start) + text + value.slice(end, length)
+        scalars = value.toCharArray()
+        boundaries = graphemeBoundaries(value)
+        position = snap(start + text.length, true)
+    }
+
+    /** Inserts text as a single edit, preserving whole grapheme clusters. */
+    public fun insert(text: String) { replace(position, position, text) }
+
+    internal fun state(): BufferState = BufferState(value, position)
+    internal fun restore(state: BufferState) {
+        value = state.text
+        scalars = value.toCharArray()
+        boundaries = graphemeBoundaries(value)
+        moveTo(state.cursor)
+    }
+    internal fun charAt(index: Long): Char = scalars[index]
+
+    internal fun snap(offset: Long, forward: Boolean): Long = boundaryPosition(boundaries, offset, forward)
+    internal fun previous(offset: Long): Long = if (offset == 0L) 0L else snap(offset - 1L, false)
+    internal fun next(offset: Long): Long = if (offset == length) length else snap(offset + 1L, true)
+    internal fun lineStart(offset: Long): Long {
+        var index = offset
+        while (index > 0L && scalars[index - 1L] != '\n') index -= 1L
+        return index
+    }
+    internal fun lineEnd(offset: Long): Long {
+        var index = offset
+        while (index < length && scalars[index] != '\n') index += 1L
+        return index
+    }
+
+    internal fun wordClass(offset: Long, word: Word): Int {
+        if (scalars[offset].toString().isBlank()) return 0
+        if (word == Word.Big || isUnicodeAlphanumeric(scalars[offset]) || (word == Word.Vi && scalars[offset] == '_')) return 1
+        return if (word == Word.Emacs) 0 else 2
+    }
+
+    internal fun backwardWord(offset: Long, word: Word): Long {
+        var index = offset
+        while (index > 0L && wordClass(previous(index), word) == 0) index = previous(index)
+        if (index == 0L) return 0L
+        val kind = wordClass(previous(index), word)
+        while (index > 0L && wordClass(previous(index), word) == kind) index = previous(index)
+        return index
+    }
+    internal fun forwardWord(offset: Long, word: Word, end: WordEnd): Long {
+        var index = offset
+        if (end == WordEnd.Start) {
+            if (index < length) {
+                val kind = wordClass(index, word)
+                while (index < length && wordClass(index, word) == kind) index = next(index)
+            }
+            while (index < length && wordClass(index, word) == 0) index = next(index)
+        } else {
+            if (end == WordEnd.BeforeEnd && index < length) index = next(index)
+            while (index < length && wordClass(index, word) == 0) index = next(index)
+            if (index < length) {
+                val kind = wordClass(index, word)
+                while (index < length && wordClass(index, word) == kind) index = next(index)
+            }
+            if (end == WordEnd.BeforeEnd) index = previous(index)
+        }
+        return index
+    }
+
+    /** Computes a bounded motion without changing the buffer. */
+    public fun destination(movement: Movement): Long = bufferDestination(this, movement)
+
+    internal fun range(movement: Movement): (Long, Long) {
+        when (movement) {
+            case WholeBuffer -> return (0L, length)
+            case Find(character, count, forward, till) -> {
+                val found = findDestination(this, character, count, forward, till)
+                if (found == None) return (position, position)
+                return if (forward) (position, next(found!!)) else (found!!, position)
+            }
+            case WholeLine(count) -> {
+                requireRepeat(count)
+                var end = position
+                var left = count
+                while (left > 0L) {
+                    end = lineEnd(end)
+                    left -= 1L
+                    if (left == 0L || end == length) break
+                    end = next(end)
+                }
+                if (count == 0L) return (position, position)
+                return (lineStart(position), if (end < length) next(end) else end)
+            }
+            else -> { return destinationRange(movement) }
+        }
+    }
+
+    private fun destinationRange(movement: Movement): (Long, Long) {
+        var target = destination(movement)
+        val inclusive = when (movement) {
+            case ForwardWord(_, _, end) -> end == WordEnd.BeforeEnd && target < length
+            case Find(_, _, forward, till) -> forward && !till && target != position
+            else -> false
+        }
+        if (inclusive) target = next(target)
+        return if (target < position) (target, position) else (position, target)
+    }
+}
+
+private fun boundaryPosition(boundaries: Array<Long>, offset: Long, forward: Boolean): Long {
+    var low = 0L
+    var high = boundaries.size
+    while (low < high) {
+        val middle = low + (high - low) / 2L
+        if (boundaries[middle] < offset) low = middle + 1L else high = middle
+    }
+    if (low < boundaries.size && boundaries[low] == offset) return offset
+    return if (forward) boundaries[low] else boundaries[low - 1L]
+}

@@ -1,0 +1,27 @@
+package scoop.readline
+
+import scoop.text.*
+
+internal fun EditingSession.indentLines(movement: Movement, remove: Boolean) {
+    val (from, to) = buffer.range(movement)
+    val start = buffer.lineStart(from)
+    val end = if (to > start && buffer.charAt(to - 1L) == '\n') to else buffer.lineEnd(to)
+    val replacement = StringBuilder()
+    var position = start
+    var first = true
+    var destination = start
+    while (position < end || first) {
+        val lineEnd = buffer.lineEnd(position)
+        var contentStart = position
+        if (remove) {
+            while (contentStart < lineEnd && contentStart - position < config.indentSize && buffer.charAt(contentStart) == ' ') contentStart += 1L
+        } else replacement.append(" ".repeat(config.indentSize))
+        if (first) destination = start + if (remove) 0L else config.indentSize
+        replacement.append(line.slice(contentStart, lineEnd))
+        if (lineEnd < end) replacement.append('\n')
+        position = lineEnd + 1L
+        first = false
+    }
+    buffer.replace(start, end, replacement.toString())
+    buffer.moveTo(destination)
+}

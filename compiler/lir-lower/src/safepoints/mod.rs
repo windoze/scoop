@@ -19,6 +19,7 @@ mod constants;
 mod dataflow;
 mod identity;
 mod layout;
+mod leaf;
 mod plans;
 mod release;
 mod roots;
@@ -111,11 +112,17 @@ pub(super) fn complete_function(
 ) -> StorageResult<lir::Function> {
     fold_constant_branches(&mut lowered.function);
     prune_unreachable_blocks(&mut lowered);
+    let entry_kind = if leaf::eligible(context, &lowered.function, structs, enums)? {
+        lir::ManagedPollKind::EntryActivation
+    } else {
+        lir::ManagedPollKind::Full
+    };
     insert_polls(
         &mut lowered.function,
         &lowered.loop_header_polls,
         &mut lowered.pending_safepoints,
         poll_signature,
+        entry_kind,
     );
     annotate_root_plans(context, &mut lowered.function, structs, enums)?;
     assign_safepoint_identities(&mut lowered.function, &lowered.pending_safepoints);

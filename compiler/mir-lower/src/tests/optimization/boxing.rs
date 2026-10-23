@@ -141,42 +141,24 @@ fn payload_snapshot_precedes_source_reassignment_and_replaces_aliases() {
     let body = &module.functions[id].body;
     assert_eq!(counts(&module.functions[id]), (0, 0, 0));
     let statements = &body.blocks[body.entry].statements;
-    let mir::StatementKind::ValDecl {
-        local: snapshot,
-        init,
-    } = &statements[1].kind
-    else {
-        panic!("snapshot at the creation point");
-    };
-    assert_eq!(init.ty, body.locals[source].ty);
-    assert!(matches!(init.kind, mir::ExprKind::Local(local) if local == source));
-    assert!(
-        matches!(statements[2].kind, mir::StatementKind::Assign { local, .. } if local == source)
-    );
-    let mir::Terminator::Return { value } = &body.blocks[body.entry].terminator else {
-        panic!("returns the copied payload");
-    };
-    let mir::ExprKind::Local(result) = value.kind else {
-        panic!("normalized return local");
-    };
+    let input = named(body, "input");
     assert!(statements.iter().any(|statement| matches!(statement.kind,
-        mir::StatementKind::ValDecl { local, init: mir::Expr { kind: mir::ExprKind::Local(input), .. } }
-        if local == result && input == *snapshot
-    )));
-    assert!(matches!(
-        statements[3].kind,
-        mir::StatementKind::Expr(mir::Expr {
-            kind: mir::ExprKind::BoolLiteral(true),
-            ..
+        mir::StatementKind::Assign { local, value: mir::Expr { kind: mir::ExprKind::IntegerLiteral(mir::MirIntegerConstant::Signed32(99)), .. } }
+            if local == source)));
+    assert!(matches!(body.blocks[body.entry].terminator,
+        mir::Terminator::Return { value: mir::Expr { kind: mir::ExprKind::Local(local), .. } }
+            if local == input));
+    let checks = statements
+        .iter()
+        .filter_map(|statement| match statement.kind {
+            mir::StatementKind::Expr(mir::Expr {
+                kind: mir::ExprKind::BoolLiteral(value),
+                ..
+            }) => Some(value),
+            _ => None,
         })
-    ));
-    assert!(matches!(
-        statements[4].kind,
-        mir::StatementKind::Expr(mir::Expr {
-            kind: mir::ExprKind::BoolLiteral(false),
-            ..
-        })
-    ));
+        .collect::<Vec<_>>();
+    assert_eq!(checks, [true, false]);
 }
 
 #[test]

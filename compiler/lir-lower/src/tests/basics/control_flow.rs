@@ -482,7 +482,7 @@ fn or_short_circuits_through_blocks() {
         local %1 y: i1
         local %2 b: i1
       block entry
-        poll managed-void-target0 sp<managed-poll:0> live=[]
+        poll activation managed-void-target0 sp<managed-poll:0> live=[]
         store true -> local0
         store false -> local1
         br @logic.short.2
@@ -767,6 +767,12 @@ fn unmarked_cycle_does_not_synthesize_a_loop_header_poll() {
         managed_poll_block_names(&module.functions[0]),
         vec!["entry"]
     );
+    let lir::Instruction::ManagedPoll { site } =
+        &module.functions[0].blocks[module.functions[0].entry].instructions[0]
+    else {
+        unreachable!()
+    };
+    assert_eq!(site.kind, lir::ManagedPollKind::Full);
 }
 
 #[test]

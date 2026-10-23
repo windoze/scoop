@@ -1,4 +1,5 @@
 use super::{constants::Constant, flow, graph::index, mir};
+use std::collections::HashSet;
 
 /// Fold only known scalar expressions; statements with effects are retained.
 pub(super) fn blocks(
@@ -32,6 +33,13 @@ fn fold_blocks(
                 {
                     *expression = value.expression();
                     changed = true;
+                } else if let mir::ExprKind::Local(local) = expression.kind
+                    && let Some(alias) = analysis.expression(expression, &state).alias
+                    && local != alias
+                    && expression.ty == function.body.locals[alias].ty
+                {
+                    expression.kind = mir::ExprKind::Local(alias);
+                    changed = true;
                 }
             });
             analysis.statement(statement, &mut state);
@@ -43,6 +51,13 @@ fn fold_blocks(
             ) && let Some(value) = analysis.expression(expression, &state).constant
             {
                 *expression = value.expression();
+                changed = true;
+            } else if let mir::ExprKind::Local(local) = expression.kind
+                && let Some(alias) = analysis.expression(expression, &state).alias
+                && local != alias
+                && expression.ty == function.body.locals[alias].ty
+            {
+                expression.kind = mir::ExprKind::Local(alias);
                 changed = true;
             }
         });
@@ -57,6 +72,25 @@ fn fold_blocks(
             changed = true;
         }
         blocks.push((id, block));
+    }
+    let mut read = HashSet::new();
+    for (_, block) in &blocks {
+        mir::visit_block_exprs(block, &mut |expression| {
+            if let mir::ExprKind::Local(local) | mir::ExprKind::AddressOf { local, .. } =
+                expression.kind
+            {
+                read.insert(local);
+            }
+        });
+    }
+    for (_, block) in &mut blocks {
+        block.statements.retain(|statement| {
+            let unused_copy = matches!(statement.kind,
+                mir::StatementKind::ValDecl { local, init: mir::Expr { kind: mir::ExprKind::Local(_), .. } }
+                    if !read.contains(&local));
+            changed |= unused_copy;
+            !unused_copy
+        });
     }
     (blocks, changed)
 }

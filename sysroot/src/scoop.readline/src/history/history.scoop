@@ -1,0 +1,29 @@
+package scoop.readline.history
+
+import scoop.platform.fs.Path
+
+/** Direction of an inclusive history search. */
+public enum SearchDirection { Forward, Reverse }
+/** A stable entry and its history index and Unicode-scalar match position. */
+public struct SearchResult(val entry: String, val index: Long, val position: Long)
+
+/** Pluggable history storage and navigation used by the editor. */
+public interface History {
+    public val size: Long
+    public val isEmpty: Boolean get() = size == 0L
+    public fun get(index: Long, direction: SearchDirection = SearchDirection.Forward): SearchResult?
+    public fun add(line: String): Boolean
+    public fun clear()
+    public fun setMaxLength(length: Long)
+    public fun setIgnoreDuplicates(ignore: Boolean)
+    public fun setIgnoreSpace(ignore: Boolean)
+    public fun search(term: String, start: Long, direction: SearchDirection): SearchResult?
+    public fun startsWith(term: String, start: Long, direction: SearchDirection): SearchResult?
+}
+
+/** Optional persistence capability; memory-only backends need not implement it. */
+public interface PersistentHistory : History {
+    public fun load(path: Path)
+    public fun save(path: Path)
+    public fun append(path: Path)
+}

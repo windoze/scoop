@@ -1,0 +1,17 @@
+package dev.m62.operations
+
+public fun boxedInteger(a: Int, b: Int): Int {
+    val receiver: Add<Int, Int> = a
+    return receiver + b
+}
+
+public fun <T> importedAdd(a: T, b: T): T where T: Add<T, T> = a + b
+public fun <T> importedNegate(a: T): T where T: UnaryMinus<T> = -a
+public fun <T> importedCompare(a: T, b: T): Long where T: Compare<T> = a.compareTo(b)
+
+public fun <T> importedDivide(a: T, b: T): T where T: Div<T, T> = a / b
+
+public fun <T> importedReference(a: T, b: T): T where T: Add<T, T> {
+    val add = a::plus
+    return add(b)
+}

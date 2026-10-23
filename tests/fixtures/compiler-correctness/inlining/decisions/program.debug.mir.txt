@@ -8,6 +8,7 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
   interface ToString
   interface Hash
   interface Compare<String>
@@ -1052,13 +1053,13 @@ Module
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external1 direct
+      call $dependency.local.2: String = external3 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -1067,7 +1068,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return

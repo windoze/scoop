@@ -97,7 +97,7 @@ internal fun checkCharset(code: Int, backend: Int, operation: String, source: St
         case MissingBom -> "a byte order mark or an explicit default byte order is required"
         case ConflictingBom -> "byte order mark conflicts with the selected byte order"
         case InvalidOptions -> "BOM or byte order option does not apply to the selected charset"
-        case Backend -> "libiconv failed with code " + backend.toString()
+        case Backend -> "Rust text backend could not complete the conversion"
     }
     throw CharsetException(operation, source, destination, kind, offset,
         if (backend == 0) None else Some(backend), detail)

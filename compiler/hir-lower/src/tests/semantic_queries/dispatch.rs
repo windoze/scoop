@@ -63,6 +63,7 @@ fn compiler_queries_consume_dependency_references_defaults_and_body_availability
             };
             let choose = lookup("choose", "value");
             let opaque = lookup("opaque", "value");
+            let small = lookup("small", "value");
             let mark = lookup("Mark", "type");
             let box_type = type_reference(queries, function, "Box<Int>");
             let reader_type = type_reference(queries, function, "Reader<Int>");
@@ -112,7 +113,7 @@ fn compiler_queries_consume_dependency_references_defaults_and_body_availability
                 queries,
                 function,
                 json!({"kind": "describeBodies", "callables": [
-                    choose, opaque, constructor["declaration"], abstract_method, getter,
+                    choose, opaque, constructor["declaration"], abstract_method, getter, small,
                 ]}),
             )?;
             assert_eq!(bodies["bodies"][0]["availability"], "available");
@@ -121,6 +122,10 @@ fn compiler_queries_consume_dependency_references_defaults_and_body_availability
             assert_eq!(bodies["bodies"][2]["kind"], "constructor");
             assert_eq!(bodies["bodies"][3], json!({"availability": "noBody"}));
             assert_eq!(bodies["bodies"][4]["availability"], "available");
+            assert_eq!(bodies["bodies"][5]["availability"], "available");
+            assert_eq!(bodies["bodies"][5]["body"]["owner"], small);
+            assert_eq!(bodies["bodies"][5]["body"]["typeParameters"], json!([]));
+            assert_eq!(bodies["bodies"][5]["body"]["result"], int);
             let parameter = json!({"kind": "parameter", "callable": choose, "index": 1});
             let annotations = request(
                 queries,
@@ -162,7 +167,8 @@ fn compiler_queries_consume_dependency_references_defaults_and_body_availability
             }
             public class Item
             public fun <T: ref> choose(first: T, second: T = first): T = second
-            public fun opaque(): Int = 1
+            public fun small(): Int = 1
+            public fun opaque(): String = "opaque"
             public interface Reader<T> { public fun read(): T }
         "#,
         "@Mark fun inspect() {}",

@@ -1,0 +1,98 @@
+package scoop.readline
+
+import scoop.readline.history.*
+import scoop.platform.fs.*
+import scoop.terminal.event.*
+import scoop.test.*
+
+private class Words : Completer {
+    public override fun complete(line: String, cursor: Long, context: Context): Completions =
+        Completions(0L, [Candidate("hello", "hello"), Candidate("help", "help")])
+}
+private class BrokenHighlighter : Highlighter {
+    public override fun highlight(line: String, cursor: Long): String = "changed"
+}
+
+@Test private class HelperTest {
+    @Test fun circularAndListCompletion() {
+        val session = EditingSession(initial = "he", completer = Words())
+        press(session, KeyCode.Tab)
+        assertEquals("hello", session.line)
+        press(session, KeyCode.Tab)
+        assertEquals("help", session.line)
+        press(session, KeyCode.Tab)
+        assertEquals("he", session.line)
+        press(session, KeyCode.BackTab)
+        assertEquals("help", session.line)
+        val list = EditingSession(Config(completionType = CompletionType.List), initial = "he", completer = Words())
+        press(list, KeyCode.Tab)
+        assertEquals("hel", list.line)
+        press(list, KeyCode.Tab)
+        assertEquals(2L, list.candidates.size)
+    }
+    @Test fun historyHintAndAutomaticHistory() {
+        val history = MemoryHistory()
+        history.add("hello world")
+        val session = EditingSession(Config(autoAddHistory = true), history, initial = "hello", hinter = HistoryHinter())
+        assertEquals(" world", session.hint!!.display)
+        press(session, KeyCode.Right)
+        assertEquals("hello world", session.line)
+        press(session, KeyCode.Enter)
+        assertEquals(1L, history.size)
+        val caseless = MemoryHistory(Config(historyCaseSensitive = false))
+        caseless.add("straße")
+        val expanding = EditingSession(history = caseless, initial = "STRASS", hinter = HistoryHinter())
+        assertEquals("e", expanding.hint!!.display)
+        press(expanding, KeyCode.Right)
+        assertEquals("STRASSe", expanding.line)
+        assertEquals(None, expanding.hint)
+    }
+    @Test fun multilineValidationAndBracketHighlight() {
+        val session = EditingSession(validator = MatchingBracketValidator(), highlighter = MatchingBracketHighlighter())
+        typeText(session, "(")
+        assertTrue(press(session, KeyCode.Enter) == EditResult.Continue)
+        assertEquals("(\n", session.line)
+        typeText(session, ")")
+        assertTrue(press(session, KeyCode.Enter) == EditResult.Accepted("(\n)"))
+        val highlighter = MatchingBracketHighlighter()
+        assertEquals("\u001b[1;34m(\u001b[0m)", highlighter.highlight("()", 2L))
+        assertTrue(MatchingBracketValidator().validate("([)]") != ValidationResult.Valid())
+    }
+    @Test fun filenameCompletionQuotesAndDirectories() {
+        val directory = createTempDirectory(prefix = "readline-completion-")
+        try {
+            directory.resolve(Path.fromString("a b")).writeText("")
+            directory.resolve(Path.fromString("a-dir")).createDirectory()
+            val prefix = directory.toOsString().decodeUtf8() + "/a"
+            val completer = FilenameCompleter()
+            val result = completer.completePath(prefix, prefix.length)
+            assertEquals(2L, result.candidates.size)
+            assertEquals(directory.toOsString().decodeUtf8() + "/a\\ b", result.candidates[0L].replacement)
+            val quoted = "'" + prefix
+            val quotes = completer.completePath(quoted, quoted.length)
+            assertEquals(1L, quotes.start)
+            assertEquals(directory.toOsString().decodeUtf8() + "/a b", quotes.candidates[0L].replacement)
+        } finally { directory.deleteRecursively() }
+    }
+    @Test fun terminalLayoutUnicodeWrappingAndControls() {
+        val session = EditingSession(initial = "中e\u0301👩\u200d💻")
+        val frame = renderLine("> ", session, 6L, 4L)
+        assertEquals(1L, frame.cursorRow)
+        assertEquals(2L, frame.cursorColumn)
+        val controls = renderLine("", EditingSession(initial = "a\u0003"), 20L, 3L)
+        assertEquals("a^C\u001b[0m", controls.lines[0L])
+        assertEquals(3L, controls.cursorColumn)
+        val nul = renderLine("", EditingSession(initial = "\u0000"), 20L, 3L)
+        assertEquals("^@\u001b[0m", nul.lines[0L])
+        assertEquals(2L, nul.cursorColumn)
+        val narrow = renderLine("", EditingSession(initial = "中"), 1L, 3L)
+        assertEquals("�\u001b[0m", narrow.lines[0L])
+        assertEquals(1L, narrow.cursorRow)
+        val tab = renderLine("", EditingSession(initial = "x\t"), 20L, 3L)
+        assertEquals(8L, tab.cursorColumn)
+        val clipped = renderLine("", EditingSession(initial = "1\n2\n3\n4"), 20L, 2L)
+        assertEquals(2L, clipped.lines.size)
+        assertEquals("3\u001b[0m", clipped.lines[0L])
+        assertFailsWith<IllegalArgumentException> { renderLine("", EditingSession(initial = "x", highlighter = BrokenHighlighter()), 20L, 3L) }
+    }
+}

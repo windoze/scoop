@@ -18,31 +18,19 @@ impl ExpectedRoot {
     }
 }
 
-/// Each group shares one actual SSA root; constants need no relocation.
+/// Complete logical leaves retained through ordinary LLVM optimization.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(super) struct ExpectedRoots {
-    pub(super) groups: Vec<Vec<ExpectedRoot>>,
-    pub(super) constants: Vec<ExpectedRoot>,
-}
+pub(super) struct ExpectedRoots(Vec<ExpectedRoot>);
 
 impl From<Vec<ExpectedRoot>> for ExpectedRoots {
     fn from(roots: Vec<ExpectedRoot>) -> Self {
-        Self {
-            groups: roots.into_iter().map(|root| vec![root]).collect(),
-            constants: Vec::new(),
-        }
+        Self(roots)
     }
 }
 
 impl ExpectedRoots {
     pub(super) fn identities(&self) -> BTreeSet<(u8, u32, u64)> {
-        self.groups
-            .iter()
-            .flatten()
-            .chain(&self.constants)
-            .copied()
-            .map(ExpectedRoot::key)
-            .collect()
+        self.0.iter().copied().map(ExpectedRoot::key).collect()
     }
 }
 
@@ -68,15 +56,17 @@ pub(crate) struct ExpectedSafepoints {
 }
 
 impl ExpectedSafepoints {
+    #[cfg(test)]
     pub(crate) fn site_count(&self) -> usize {
         self.sites.len()
     }
 
+    #[cfg(test)]
     pub(crate) fn root_count(&self, safepoint: u64) -> Option<usize> {
         self.sites
             .get(&safepoint)
             .map(|site| match &site.statepoint {
-                ExpectedStatepoint::Relocating(roots) => roots.groups.len(),
+                ExpectedStatepoint::Relocating(roots) => roots.0.len(),
                 ExpectedStatepoint::NativeTransition(_) | ExpectedStatepoint::ZeroLiveInvoke => 0,
             })
     }

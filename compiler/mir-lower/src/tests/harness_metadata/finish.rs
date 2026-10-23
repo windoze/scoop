@@ -438,31 +438,8 @@ impl Harness {
             function_identity_rows,
         )
         .expect("the MIR test fixture functions have persistent identities");
-        let hir::HirSourceFunctionIdentity::Plain(entry_identity) = function_identities[entry]
-            .source_identity()
-            .expect("the executable entry is a source function")
-        else {
-            panic!("the executable entry is non-generic")
-        };
-        let entry_source = scoop_identity::SourceIdentity::single_file();
-        let entry_context = scoop_identity::SourceContextKey::File {
-            source: entry_source.clone(),
-        };
-        let entry_span = self.functions[entry].span;
-        let entry_origin = scoop_identity::DefinitionOrigin::new(
-            entry_source,
-            scoop_identity::SourceSpan::new(u64::from(entry_span.start), u64::from(entry_span.end))
-                .unwrap(),
-            &entry_context,
-        )
-        .unwrap();
-        let export_definition_origins = hir::HirExportDefinitionOrigins::canonicalize(vec![
-            scoop_identity::DefinitionOriginRecord::new(
-                scoop_identity::DefinitionOriginSubject::Function(entry_identity.id()),
-                entry_origin,
-            ),
-        ])
-        .unwrap();
+        let export_definition_origins =
+            super::origins::functions(&self.functions, &function_identities);
         let dispatch_key =
             |function: hir::FunctionId, interface: bool| match &function_identities[function] {
                 hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Plain(record)) => {

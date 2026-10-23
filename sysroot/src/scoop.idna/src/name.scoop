@@ -10,8 +10,8 @@ internal fun parseIdna(text: String): IdnaName {
     @Unsafe {
         val result = bytes.withDataPointer { data, count -> @Unsafe { return@withDataPointer nativeParse(data, count) } }
         if (result.code != 0) {
-            throw IdnaException("IDNA parse", failureKind(result.code, 0),
-                if (result.code > -1000) Some(result.code) else None, String.fromCString(nativeMessage(result.code)),
+            throw IdnaException("IDNA parse", failureKind(result.code),
+                None, String.fromCString(nativeMessage(result.code)),
                 if (result.label < 0L) None else Some(result.label))
         }
         try {
@@ -19,12 +19,12 @@ internal fun parseIdna(text: String): IdnaName {
             val unicode = Array<Byte>(result.unicodeSize) { index -> @Unsafe { return@Array result.unicode!!.load(index) } }
             return IdnaName(String.fromUtf8(ascii), String.fromUtf8(unicode))
         } finally {
-            nativeFree(result.ascii)
-            nativeFree(result.unicode)
+            nativeFree(result.ascii, result.asciiSize)
+            nativeFree(result.unicode, result.unicodeSize)
         }
     }
 }
 
 @Extern(name = "scoop_idna_parse") private fun nativeParse(data: Ptr<Byte>, count: Long): NativeIdnaName
 @Extern(name = "scoop_idna_message") private fun nativeMessage(code: Int): Ptr<Byte>
-@Extern(name = "scoop_idna_free") private fun nativeFree(data: Ptr<Byte>?)
+@Extern(name = "scoop_text_free") private fun nativeFree(data: Ptr<Byte>?, count: Long)

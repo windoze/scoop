@@ -40,7 +40,8 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
         &coordinate,
         "public annotation class Note(val text: String)\n\
          @Note(\"provider\") public fun <T> identity(value: T): T = value\n\
-         public fun opaque(): Int = 7\n\
+         public fun small(): Int = 7\n\
+         public fun opaque(): String = \"opaque\"\n\
          public interface Reader<T> { public fun read(): T }",
         &[],
     );
@@ -68,13 +69,13 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
         let reference = interface.declaration();
         let declaration = selection.callable_declaration(reference).unwrap();
         match declaration.name() {
-            "identity" => {
+            "identity" | "small" => {
                 let Some(Availability::Available(hir::SemanticBody::Imported(body))) =
                     queries.body(body_reference(reference))
                 else {
-                    panic!("the generic function publishes its typed body")
+                    panic!("the dependency publishes its typed body")
                 };
-                assert_eq!(body.source_name().unwrap().as_str(), "identity");
+                assert_eq!(body.source_name().unwrap().as_str(), declaration.name());
                 let Some(Availability::Available(projected)) =
                     queries.projected_body(body_reference(reference)).unwrap()
                 else {
@@ -95,10 +96,19 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
                     json["origin"]["source"]["cone"],
                     coordinate.identity().unwrap().to_string()
                 );
-                assert_eq!(
-                    json["result"],
-                    serde_json::json!({"kind": "binder", "depth": 0, "index": 0})
-                );
+                if declaration.name() == "identity" {
+                    assert_eq!(
+                        json["result"],
+                        serde_json::json!({"kind": "binder", "depth": 0, "index": 0})
+                    );
+                } else {
+                    assert_eq!(json["typeParameters"], serde_json::json!([]));
+                    assert_eq!(json["statements"][0]["operation"]["kind"], "return");
+                    assert_eq!(
+                        json["statements"][0]["operation"]["value"]["operation"]["value"]["value"],
+                        "7"
+                    );
+                }
                 checked += 1;
             }
             "opaque" => {
@@ -118,7 +128,7 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
             _ => {}
         }
     }
-    assert_eq!(checked, 3);
+    assert_eq!(checked, 4);
     let target = interface
         .annotations()
         .targets()

@@ -14,7 +14,7 @@ private class CharsetVectorTests {
         for (name in ["", "CHAR", "WCHAR_T", "UTF-8//IGNORE", "utf-8//translit", "UCS-2-INTERNAL", "UCS-4-SWAPPED", "no-such-charset", "UTF-8\u{0000}bad"]) {
             assertTrue(Charset.forNameOrNone(name) == None)
         }
-        assertEquals("1.19", Charset.backendVersion)
+        assertEquals("encoding_rs 0.8.42", Charset.backendVersion)
         assertTrue(Charset.availableNames.contains("UTF-8"))
         assertTrue(Charset.availableNames.contains("GB18030"))
     }
