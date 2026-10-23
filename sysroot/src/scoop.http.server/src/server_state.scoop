@@ -7,7 +7,8 @@ internal enum ServerPhase { Running, Draining, Closed }
 
 internal class ServerConnection(val transport: AsyncTcpStream) {
     var job: Job? = None
-    var active: Boolean = false
+    var active: Long = 0L
+    var http2: ServerHttp2? = None
     var info: HttpConnectionInfo = HttpConnectionInfo(transport.localAddress, transport.peerAddress, HttpProtocol.Http1)
 }
 
@@ -39,24 +40,33 @@ internal class ServerState(val listener: AsyncTcpListener, val application: Http
         }
     }
 
-    fun beginRequest(connection: ServerConnection): String? = lock.withLock {
-        if (phase != ServerPhase.Running || requests >= options.maxActiveRequests) return@withLock None
+    fun beginRequest(connection: ServerConnection, queuedHttp2: Boolean = false): String? = lock.withLock {
+        if ((phase != ServerPhase.Running && !queuedHttp2) || phase == ServerPhase.Closed ||
+            requests >= options.maxActiveRequests) return@withLock None
         if (nextId == ULong.MAX_VALUE) throw ArithmeticException()
         nextId += 1UL
         requests += 1L
-        connection.active = true
+        connection.active += 1L
         Some(nextId.toString())
     }
 
     fun endRequest(connection: ServerConnection) {
-        lock.withLock { connection.active = false; requests -= 1L }
+        lock.withLock { connection.active -= 1L; requests -= 1L }
     }
 
-    fun stopAccepting(): Array<Job> = lock.withLock {
-        if (phase == ServerPhase.Running) phase = ServerPhase.Draining
-        val idle = ArrayList<Job>()
-        for (connection in connections) if (!connection.active && present(connection.job)) idle.add(connection.job!!)
-        idle.toArray()
+    fun stopAccepting(graceful: Boolean = true) {
+        val actions = lock.withLock {
+            if (phase == ServerPhase.Running) phase = ServerPhase.Draining
+            val pending = ArrayList<() -> Unit>()
+            if (graceful) for (connection in connections) {
+                val http2 = connection.http2
+                val job = connection.job
+                if (present(http2)) pending.add { http2!!.requestDrain() }
+                else if (connection.active == 0L && present(job)) pending.add { job!!.cancel() }
+            }
+            pending.toArray()
+        }
+        for (action in actions) action()
     }
 
     fun recordFailure(error: Throwable) {

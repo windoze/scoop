@@ -1,0 +1,57 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.time.TimeMark
+
+internal suspend fun <T> serveHttp2(state: ServerState, entry: ServerConnection, transport: T,
+    scope: CoroutineScope, started: TimeMark) where T : AsyncByteStream, T : AsyncCloseable {
+    val options = state.options
+    val activity = ServerHttp2(options, started)
+    val draining = state.lock.withLock { entry.http2 = Some(activity); state.phase != ServerPhase.Running }
+    if (draining) activity.requestDrain()
+    val connection = AsyncHttp2Connection.takeOwnershipAsServer(transport, scope, options.http2Receive,
+        options.http2Limits, options.http2Settings, HttpIoTimeoutOptions(options.bodyReadIdle, options.responseWriteIdle),
+        { event -> activity.observe(event) })
+    var failure: Throwable? = None
+    val monitor = scope.launch suspend { watchServerHttp2(activity, connection, scope.job) }
+    try {
+        coroutineScope<Unit> suspend { requests ->
+            while (true) {
+                val incoming = connection.acceptRequest()
+                if (!present(incoming)) break
+                val request = incoming!!
+                val requestId = state.beginRequest(entry, true)
+                if (!present(requestId)) {
+                    request.stream.close()
+                    activity.finished(request.stream.id)
+                    continue
+                }
+                val launched = AtomicBoolean(false)
+                try {
+                    requests.launch suspend {
+                        launched.store(true)
+                        try { executeHttp2Request(state, entry, activity, request, requestId!!) }
+                        finally { state.endRequest(entry) }
+                    }
+                } finally {
+                    if (!launched.load()) {
+                        state.endRequest(entry)
+                        activity.finished(request.stream.id)
+                        request.stream.close()
+                    }
+                }
+            }
+        }
+        monitor.join()
+        if (present(activity.failure)) throw activity.failure!!
+    } catch (error: Throwable) {
+        val cause = activity.failure ?: error
+        failure = Some(cause)
+        throw cause
+    } finally {
+        monitor.cancel()
+        closeServerResource(state, connection, failure)
+    }
+}

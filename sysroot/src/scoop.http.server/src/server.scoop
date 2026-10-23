@@ -61,10 +61,13 @@ public class HttpServer private constructor(private val state: ServerState) : As
         requireLoop()
         var failure: Throwable? = None
         try {
-            val idle = state.stopAccepting()
-            for (job in idle) job.cancel()
-            state.listener.close()
-            try { serverDeadline<Unit>(Some(grace), "graceful shutdown", suspend { state.owner!!.join() }) }
+            try {
+                serverDeadline<Unit>(Some(grace), "graceful shutdown", suspend {
+                    state.stopAccepting()
+                    state.listener.close()
+                    state.owner!!.join()
+                })
+            }
             catch (_: HttpServerTimeoutException) { state.owner!!.cancel() }
         } catch (error: Throwable) { failure = Some(error); state.owner!!.cancel() }
         finally { nonCancellableScope<Unit> suspend { _ -> state.owner!!.join() } }
@@ -75,7 +78,7 @@ public class HttpServer private constructor(private val state: ServerState) : As
     /** Cancels owned work immediately and waits for actual local cleanup. */
     public override suspend fun close() {
         requireLoop()
-        state.stopAccepting()
+        state.stopAccepting(false)
         state.owner!!.cancel()
         nonCancellableScope<Unit> suspend { _ -> state.owner!!.join() }
         state.reportFailure()

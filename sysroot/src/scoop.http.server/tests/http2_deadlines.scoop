@@ -1,0 +1,93 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+private suspend fun sendH2SessionOutput(session: Http2Session, sink: AsyncByteSink, partialHead: Boolean = false) {
+    NativeByteBuffer.allocate(4096L).use suspend { buffer ->
+        while (true) {
+            buffer.clear()
+            val chunk = session.takeOutputChunk(buffer)
+            if (chunk.count == 0L) break
+            if (partialHead && chunk.kind == Http2OutputKind.Headers) {
+                assertTrue(chunk.count > 9L)
+                sink.writeFully(buffer, 9L)
+                return@use
+            }
+            sink.writeFully(buffer)
+        }
+    }
+}
+
+@Test private class ServerHttp2DeadlineTests {
+    @Test fun `first request timeout includes an H2 preface without a request head`() {
+        val expired = ServerTestGate()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> text("ok") })
+        val options = HttpServerOptions(allowCleartextHttp2 = true, firstRequestHeadTimeout = Some(Duration.milliseconds(50)),
+            onConnectionError = Some({ _, error -> if (error is HttpServerTimeoutException) expired.signal() }))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            currentEventLoop().connectTcp(address).useAsync suspend { raw ->
+                Http2Session.client().use suspend { client -> sendH2SessionOutput(client, raw); expired.await() }
+            }
+            h2ServerClient(address, scope).useAsync suspend { client -> assertEquals("ok", h2ServerText(client)) }
+        })
+    }
+
+    @Test fun `unfinished initial HEADERS time out even while another application stream is active`() {
+        val entered = ServerTestGate(); val cleaned = ServerTestGate(); val never = ServerTestGate()
+        val expired = ServerTestGate()
+        val routes = RouterBuilder()
+        routes.get("/active", suspend { _ ->
+            try { entered.signal(); never.await(); text("late") }
+            finally { cleaned.signal() }
+        })
+        val options = HttpServerOptions(allowCleartextHttp2 = true, http2HeadTimeout = Some(Duration.milliseconds(40)),
+            onConnectionError = Some({ _, error ->
+                if (error is HttpServerTimeoutException && error.operation == "HTTP/2 request head") expired.signal()
+            }))
+        withServer(routes.build(), options, suspend { _, _, address ->
+            currentEventLoop().connectTcp(address).useAsync suspend { raw ->
+                Http2Session.client().use suspend { client ->
+                    client.submitRequest(h2ServerRequest("/active"))
+                    sendH2SessionOutput(client, raw); entered.await()
+                    client.submitRequest(h2ServerRequest("/partial"))
+                    sendH2SessionOutput(client, raw, true)
+                    expired.await(); cleaned.await()
+                }
+            }
+        })
+    }
+
+    @Test fun `connection idle waits for request completion and request deadlines isolate streams`() {
+        val expired = ServerTestGate(); val entered = ServerTestGate(); val never = ServerTestGate()
+        val completed = ServerTestCompletions(2L)
+        val routes = RouterBuilder()
+        routes.get("/wait", suspend { _ -> entered.signal(); never.await(); text("late") })
+        routes.get("/ok", suspend { _ -> text("ok") })
+        val options = HttpServerOptions(allowCleartextHttp2 = true, keepAliveIdleTimeout = Some(Duration.milliseconds(30)),
+            requestDeadline = Some(Duration.milliseconds(150)), onRequestCompleted = Some(completed::receive),
+            onConnectionError = Some({ _, error ->
+                if (error is HttpServerTimeoutException && error.operation == "HTTP/2 idle connection") expired.signal()
+            }))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            h2ServerClient(address, scope).useAsync suspend { client ->
+                val slow = client.openRequest(h2ServerRequest("/wait")); entered.await()
+                currentEventLoop().sleep(Duration.milliseconds(60))
+                assertEquals("ok", h2ServerText(client, "/ok"))
+                var reset = false
+                try { slow.receiveResponse() }
+                catch (_: HttpException) { reset = true }
+                assertTrue(reset)
+                completed.ready.await()
+                val results = completed.snapshot()
+                assertEquals(HttpRequestOutcome.Cancelled, results[1L].outcome)
+                assertEquals("ok", h2ServerText(client, "/ok"))
+                expired.await()
+            }
+        })
+    }
+}

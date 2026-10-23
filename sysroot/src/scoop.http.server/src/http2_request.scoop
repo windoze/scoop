@@ -1,0 +1,35 @@
+package scoop.http.server
+
+import scoop.http.asyncio.Http2IncomingRequest
+import scoop.platform.time.MonotonicTimeSource
+
+internal suspend fun executeHttp2Request(state: ServerState, entry: ServerConnection, activity: ServerHttp2,
+    incoming: Http2IncomingRequest, requestId: String) {
+    val started = MonotonicTimeSource.markNow()
+    val result = RequestExecution()
+    try {
+        val output = Http2ResponseOutput(incoming.stream, incoming.head.method)
+        val expectations = RequestExpectations(incoming.head.fields)
+        val source = Http2RequestInput(incoming.stream, output, expectations)
+        val body = HttpRequestBody(source, state.options.requestBodyLimit, incoming.head.fields, state.options.bufferedBodyLimit)
+        val request = HttpRequest(incoming.head, body, expectations)
+        coroutineScope<Unit> suspend { requestScope ->
+            activity.register(incoming.stream.id, requestScope.job)
+            if (present(incoming.stream.failure)) requestScope.job.cancel()
+            serverDeadline<Unit>(state.options.requestDeadline, "request", suspend {
+                val ctx = HttpContext(request, output, requestId, currentJobOrNone()!!, entry.info)
+                result.context = Some(ctx)
+                state.application.execute(ctx)
+            })
+        }
+    } catch (error: Throwable) { result.failure = Some(error) }
+    finally {
+        try {
+            if (!incoming.stream.isReadComplete || !incoming.stream.isWriteComplete) incoming.stream.close()
+        } catch (cleanup: Throwable) {
+            result.failure = Some(if (present(result.failure)) ResourceUseException(result.failure!!, cleanup) else cleanup)
+        }
+        completeServerRequest(state, result, started)
+        activity.finished(incoming.stream.id)
+    }
+}

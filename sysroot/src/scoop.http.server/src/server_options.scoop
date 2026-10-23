@@ -6,10 +6,14 @@ import scoop.tls.TlsServerContext
 
 /** Transport, capacity and timeout configuration for an owned HTTP server. */
 public class HttpServerOptions public constructor(
-    /** Shared TLS configuration, retained by the caller; None selects cleartext HTTP/1. */
+    /** Shared TLS configuration, retained by the caller; None selects cleartext. */
     public val tls: TlsServerContext? = None,
     /** Whether TLS without negotiated ALPN may use HTTP/1. */
     public val allowHttp1Fallback: Boolean = true,
+    /** Whether cleartext connections may select HTTP/2 prior knowledge by their preface. */
+    public val allowCleartextHttp2: Boolean = false,
+    /** Whether TLS connections may select h2 through ALPN. */
+    public val allowTlsHttp2: Boolean = true,
     /** Maximum owned TCP connections, including handshakes and idle keep-alive connections. */
     public val maxConnections: Long = 1024L,
     /** Maximum concurrent application requests, including response execution and cleanup. */
@@ -20,9 +24,11 @@ public class HttpServerOptions public constructor(
     public val bufferedBodyLimit: Long = 2097152L,
     /** Total TLS handshake time, or None to disable this deadline. */
     public val tlsHandshakeTimeout: Duration? = Some(Duration.seconds(10)),
-    /** Total time to receive the first complete HTTP/1 request head. */
+    /** Total time to receive the first complete request head, including cleartext probing. */
     public val firstRequestHeadTimeout: Duration? = Some(Duration.seconds(10)),
-    /** Maximum wait for the next complete HTTP/1 head when no request is active. */
+    /** Total time for each recognized initial HTTP/2 HEADERS block, including CONTINUATION. */
+    public val http2HeadTimeout: Duration? = Some(Duration.seconds(10)),
+    /** Idle connection limit; HTTP/1 includes the next head, HTTP/2 excludes active requests. */
     public val keepAliveIdleTimeout: Duration? = Some(Duration.seconds(60)),
     /** Read stagnation limit applied by the HTTP transport to request input. */
     public val bodyReadIdle: Duration? = Some(Duration.seconds(30)),
@@ -36,6 +42,12 @@ public class HttpServerOptions public constructor(
     public val http1Receive: Http1ReceiveOptions = Http1ReceiveOptions(),
     /** Existing HTTP/1 start-line, field and buffering limits. */
     public val http1Limits: Http1Limits = Http1Limits(),
+    /** HTTP/2 receive behavior, rejecting invalid regular fields by default. */
+    public val http2Receive: Http2ReceiveOptions = Http2ReceiveOptions(invalidRegularField = Http2InvalidRegularField.RejectStream),
+    /** Existing HTTP/2 header and pending output limits. */
+    public val http2Limits: Http2Limits = Http2Limits(),
+    /** Local HTTP/2 settings, including the bounded incoming request queue. */
+    public val http2Settings: Http2Settings = Http2Settings(),
     /** Observes a completed request snapshot after its resources have been released. */
     public val onRequestCompleted: ((HttpRequestCompletion) -> Unit)? = None,
     /** Observes isolated connection failures without controlling another connection. */
@@ -46,7 +58,7 @@ public class HttpServerOptions public constructor(
             throw IllegalArgumentException(Some("invalid HTTP server capacity"))
         if (present(requestBodyLimit) && requestBodyLimit!! < 0L)
             throw IllegalArgumentException(Some("negative request body limit"))
-        for (value in [tlsHandshakeTimeout, firstRequestHeadTimeout, keepAliveIdleTimeout,
+        for (value in [tlsHandshakeTimeout, firstRequestHeadTimeout, http2HeadTimeout, keepAliveIdleTimeout,
             bodyReadIdle, responseWriteIdle, requestDeadline, Some(gracefulShutdownTimeout)]) requireServerDuration(value)
     }
 }

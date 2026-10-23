@@ -37,7 +37,7 @@ internal suspend fun executeHttp1Request(state: ServerState, entry: ServerConnec
     if (present(result.failure)) throw result.failure!!
 }
 
-private fun completeServerRequest(state: ServerState, result: RequestExecution, started: TimeMark) {
+internal fun completeServerRequest(state: ServerState, result: RequestExecution, started: TimeMark) {
     if (!present(result.context) || !present(state.options.onRequestCompleted)) return
     val ctx = result.context!!
     val error = result.failure

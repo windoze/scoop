@@ -1,0 +1,52 @@
+package scoop.http.server
+
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.time.Duration
+
+internal class Http2ServerChanges {
+    private val lock: ServerLock = ServerLock()
+    private var changed: Boolean = false
+    private var waiting: CancellableContinuation<Unit>? = None
+
+    fun signal() {
+        val waiter = lock.withLock {
+            val result = waiting
+            waiting = None
+            if (!present(result)) changed = true
+            result
+        }
+        if (present(waiter)) waiter!!.tryResume(Unit)
+    }
+
+    suspend fun await() {
+        suspendCancellableCoroutine<Unit> { waiter ->
+            val ready = lock.withLock {
+                if (changed) { changed = false; true } else { waiting = Some(waiter); false }
+            }
+            waiter.invokeOnCancellation { _ ->
+                lock.withLock { if (present(waiting) && waiting!! === waiter) waiting = None; Unit }
+            }
+            if (ready) waiter.tryResume(Unit)
+        }
+    }
+}
+
+internal suspend fun watchServerHttp2(activity: ServerHttp2, connection: AsyncHttp2Connection, owner: Job) {
+    try {
+        while (true) {
+            if (activity.takeDrainRequest() && !connection.isDraining) connection.goAway()
+            if (connection.isDraining) return
+            val deadline = activity.nextDeadline()
+            try {
+                val remaining: Duration? = when (deadline) { case None -> None; case Some(value) -> Some(value.remaining()) }
+                serverDeadline<Unit>(remaining, "HTTP/2 connection wait", suspend { activity.changes.await() })
+            } catch (_: HttpServerTimeoutException) {
+                val current = activity.nextDeadline()
+                if (present(current) && current!!.remaining() == Duration.ZERO)
+                    throw HttpServerTimeoutException(current!!.operation, current!!.limit)
+            }
+        }
+    } catch (error: Throwable) {
+        if (!(error is CancellationException)) { activity.fail(error); owner.cancel() }
+    }
+}

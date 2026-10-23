@@ -1,0 +1,37 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp2Stream
+import scoop.platform.memory.NativeByteBuffer
+
+internal class Http2ResponseOutput(private val stream: AsyncHttp2Stream, private val method: Array<Byte>) : ResponseOutput {
+    val started: AtomicBoolean = AtomicBoolean(false)
+
+    public override suspend fun begin(head: HttpResponseHead, length: Long?): AsyncByteSink {
+        if (!started.compareAndSet(false, true)) throw IllegalStateException(Some("HTTP/2 response already started"))
+        stream.sendResponse(head, !httpResponseAllowsContent(head, method))
+        return stream
+    }
+
+    public override suspend fun finish(trailers: List<HttpField>) {
+        if (!stream.isWriteComplete) stream.finish(trailers)
+    }
+    public override suspend fun abort() { stream.close() }
+}
+
+internal class Http2RequestInput(private val stream: AsyncHttp2Stream, private val output: Http2ResponseOutput,
+    private val expectations: RequestExpectations) : AsyncByteSource {
+    private var readStarted: Boolean = false
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (count > 0L && !readStarted) {
+            readStarted = true
+            if (!stream.isReadComplete && expectations.requireSupported()) {
+                if (output.started.load()) throw IllegalStateException(Some("cannot send Continue after the final response"))
+                stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 100U), false)
+            }
+        }
+        return stream.readInto(buffer, count)
+    }
+}

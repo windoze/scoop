@@ -1,0 +1,44 @@
+package scoop.tests.http.server.consumer
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.server.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+
+@Test private class HttpServerH2ConsumerTests {
+    @Test fun `published server supports HTTP2 through public options and response streams`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { ctx ->
+            assertEquals(HttpProtocol.Http2, ctx.connection.protocol)
+            stream("text/plain", suspend { writer -> writer.writeText("public h2") }, length = Some(9L))
+        })
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val address = listener.localAddress
+            HttpServer.takeOwnership(listener, routes.build(), scope, HttpServerOptions(allowCleartextHttp2 = true)).useAsync suspend { server ->
+                AsyncHttp2Connection.takeOwnershipAsClient(loop.connectTcp(address), scope).useAsync suspend { client ->
+                    val request = HttpRequestHead(HttpVersion.Http2, "GET".toByteArray(),
+                        HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/".toByteArray()))
+                    val response = client.openRequest(request)
+                    assertEquals(200U, response.receiveResponse().status)
+                    NativeByteBuffer.allocate(32L).use suspend { buffer ->
+                        val result = StringBuilder()
+                        while (true) {
+                            buffer.clear()
+                            val count = response.readInto(buffer, buffer.writableBytes)
+                            if (count == 0L) break
+                            result.append(String.fromUtf8(buffer.readBytes(count)))
+                        }
+                        assertEquals("public h2", result.toString())
+                    }
+                    server.shutdownGracefully()
+                    assertTrue(server.isClosed)
+                }
+            }
+        }
+    }
+}

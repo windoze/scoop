@@ -1,0 +1,38 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.net.SocketAddress
+
+internal class ServerH2Notices {
+    private val lock: ServerLock = ServerLock()
+    private val events: ArrayList<Http2Notice> = ArrayList<Http2Notice>()
+    val goAway: ServerTestGate = ServerTestGate()
+    val settings: ServerTestGate = ServerTestGate()
+    fun receive(event: Http2Notice) {
+        lock.withLock { events.add(event) }
+        when (event) {
+            case GoAway(_, _, _, _) -> goAway.signal()
+            case Settings(_, _) -> settings.signal()
+            else -> {}
+        }
+    }
+    fun snapshot(): Array<Http2Notice> = lock.withLock { events.toArray() }
+}
+
+internal fun h2ServerRequest(path: String = "/", method: String = "GET",
+    fields: List<HttpField> = ArrayList<HttpField>()): HttpRequestHead =
+    HttpRequestHead(HttpVersion.Http2, method.toByteArray(),
+        HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), path.toByteArray()), fields)
+
+internal suspend fun h2ServerClient(address: SocketAddress, scope: CoroutineScope,
+    notices: ServerH2Notices = ServerH2Notices()): AsyncHttp2Connection =
+    AsyncHttp2Connection.takeOwnershipAsClient(currentEventLoop().connectTcp(address), scope,
+        onEvent = { event -> notices.receive(event) })
+
+internal suspend fun h2ServerText(client: AsyncHttp2Connection, path: String = "/"): String {
+    val stream = client.openRequest(h2ServerRequest(path))
+    stream.receiveResponse()
+    return networkText(stream)
+}

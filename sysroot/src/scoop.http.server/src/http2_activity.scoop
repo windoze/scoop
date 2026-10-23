@@ -1,0 +1,92 @@
+package scoop.http.server
+
+import scoop.collections.*
+import scoop.http.asyncio.Http2Notice
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.*
+
+internal class ServerHttp2(private val options: HttpServerOptions, private val started: TimeMark) {
+    private val lock: ServerLock = ServerLock()
+    private val queued: HashSet<Int> = HashSet<Int>()
+    private val requests: HashMap<Int, Job> = HashMap<Int, Job>()
+    private var first: Boolean = true
+    private var head: (Int, TimeMark)? = None
+    private var idle: TimeMark? = None
+    private var draining: Boolean = false
+    private var drainStarted: Boolean = false
+    private var peerDraining: Boolean = false
+    private var problem: Throwable? = None
+    val changes: Http2ServerChanges = Http2ServerChanges()
+
+    val failure: Throwable? get() = lock.withLock { problem }
+
+    fun observe(event: Http2Notice) {
+        val cancel: Job? = lock.withLock {
+            var job: Job? = None
+            when (event) {
+                case RequestHeadStarted(id) -> { head = Some((id, MonotonicTimeSource.markNow())) }
+                case RequestHeadReceived(id) -> { clearHead(id); first = false; queued.add(id) }
+                case StreamFailure(id, _) -> { clearHead(id); queued.remove(id); job = requests[id] }
+                case StreamClosed(id, code) -> {
+                    clearHead(id)
+                    if (code != 0U) queued.remove(id)
+                }
+                case GoAway(_, _, _, _) -> { peerDraining = true; head = None }
+                else -> { return@withLock None }
+            }
+            updateIdle()
+            job
+        }
+        if (present(cancel)) cancel!!.cancel()
+        changes.signal()
+    }
+
+    fun register(id: Int, job: Job) {
+        lock.withLock { queued.remove(id); requests[id] = job; updateIdle() }
+        changes.signal()
+    }
+
+    fun finished(id: Int) {
+        lock.withLock { queued.remove(id); requests.remove(id); updateIdle() }
+        changes.signal()
+    }
+
+    fun requestDrain() {
+        lock.withLock { draining = true }
+        changes.signal()
+    }
+
+    fun takeDrainRequest(): Boolean = lock.withLock {
+        if (!draining || drainStarted) false else { drainStarted = true; true }
+    }
+
+    fun fail(error: Throwable) { lock.withLock { if (!present(problem)) problem = Some(error); Unit } }
+
+    fun nextDeadline(): Http2ServerDeadline? = lock.withLock {
+        if (draining || peerDraining) return@withLock None
+        var selected: Http2ServerDeadline? = None
+        if (first && present(options.firstRequestHeadTimeout))
+            selected = Some(Http2ServerDeadline("first HTTP/2 request head", options.firstRequestHeadTimeout!!, started))
+        if (present(head) && present(options.http2HeadTimeout)) {
+            val candidate = Http2ServerDeadline("HTTP/2 request head", options.http2HeadTimeout!!, head!!._2)
+            if (!present(selected) || candidate.end < selected!!.end) selected = Some(candidate)
+        }
+        if (present(idle) && present(options.keepAliveIdleTimeout)) {
+            val candidate = Http2ServerDeadline("HTTP/2 idle connection", options.keepAliveIdleTimeout!!, idle!!)
+            if (!present(selected) || candidate.end < selected!!.end) selected = Some(candidate)
+        }
+        selected
+    }
+
+    private fun clearHead(id: Int) { if (present(head) && head!!._1 == id) head = None }
+
+    private fun updateIdle() {
+        if (first || present(head) || queued.size != 0L || requests.size != 0L) idle = None
+        else if (!present(idle)) idle = Some(MonotonicTimeSource.markNow())
+    }
+}
+
+internal class Http2ServerDeadline(val operation: String, val limit: Duration, val started: TimeMark) {
+    val end: TimeMark get() = started + limit
+    fun remaining(): Duration = remainingServerTime(Some(limit), started)!!
+}

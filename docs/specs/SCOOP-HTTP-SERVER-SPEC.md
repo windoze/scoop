@@ -48,11 +48,11 @@ HttpRequestBody.json 使用显式 ValueDecoder 或 T.Companion；只接受 appli
 
 结构化入口先检查元数据，再取得单次消费权并执行有界聚合；不会为错误媒体类型读取上传。bytes、text、json、form 与 openStream 共用消费权。JSON 仍使用现有完整值树 codec，不是流式 JSON 解码器。
 
-## 5. H1 接入、限制与停机
+## 5. 连接接入、限制与停机
 
 HttpServer.takeOwnership(listener, application, scope, options) 检查选项和当前／父 Job，在父 scope 中登记自己的所有者后接管 listener。登记前失败仍由调用方清理；登记后失败由 server 清理。返回表示接受循环已建立。application 和可共享的 TlsServerContext 由调用方持有，不随 server 自动关闭。一个连接的握手、业务和清理失败在连接边界隔离；不取消其他连接。
 
-H1 接入阶段支持明文 H1 和 TLS 上的 H1。TLS 在每条连接的独立任务完成握手，协商的 ALPN 必须为 http/1.1，是否允许无 ALPN 的 H1 回退由选项明确指定；配置的证书／私钥及 ALPN 来自应用提供的 TlsServerContext。后续 H2 接入同时扩充可选协议集合，不公开不可执行的协议选项。
+明文默认 H1；allowCleartextHttp2 显式启用 prior-knowledge 探测，保留探测前缀后交给对应协议连接。TLS 在每条连接的独立任务完成握手，ALPN 支持 http/1.1 和 h2；allowTlsHttp2 可关闭 H2，allowHttp1Fallback 控制无 ALPN 的 H1 回退。证书／私钥及 ALPN 来自应用提供的 TlsServerContext；协商结果必须属于已启用协议。h2c Upgrade 不在当前接入范围。
 
 每条 H1 连接顺序处理请求，每条请求进入独立 coroutineScope，创建独立 HttpContext、body 和 requestId。HttpConnectionInfo 提供只读本地／对端地址、协议与 TLS 信息；不把 X-Forwarded-* 当成已验证地址。已完成请求的业务 Context 不泄漏到下一条请求。HEAD 和无内容状态继续由协议层定界，未知长度 H1.1 为 chunked、H1.0 为 EOF。响应写出后才放弃未消费的输入；未读完时强制 Connection: close，不自动 drain 上传。
 
@@ -60,12 +60,24 @@ Expect 使用 HTTP 消息层的完整解析结果。包含未知 expectation 时
 
 默认 maxConnections=1024，maxActiveRequests=256；连接容量覆盖握手和 keep-alive，请求容量覆盖 handler、流式输出及其清理。登记、排空和容量判断在同一状态边界完成；无容量直接关闭新连接／当前 H1 连接，不为拒绝响应另建等待队列。requestBodyLimit=8 MiB，bufferedBodyLimit=2 MiB；路由可在选择 body 消费方式之前明确调整 body 总量上限，非法负值是配置错误。
 
-TLS 握手总时限默认 10 秒；首条 H1 请求头从协议接管完成到完整首部的总时限默认 10 秒；后续无活动请求时从开始等待到下一完整请求头的总时限默认 60 秒。bodyReadIdle 和 responseWriteIdle 默认 30 秒，复用异步 HTTP 层真实 I/O 进展计时；这些不是请求总时限。requestDeadline 默认关闭，启用后覆盖进入管线直到响应和请求子任务结束。超时执行协作式取消并等待清理，不在已关闭连接上补发 504。H1 没有独立的断开通知，TCP 半关闭仍可以等待响应。
+TLS 握手总时限默认 10 秒；首条请求头从握手完成（明文为连接任务开始）到完整首部的总时限默认 10 秒，包含明文协议探测；H1 后续无活动请求时从开始等待到下一完整请求头的总时限默认 60 秒。bodyReadIdle 和 responseWriteIdle 默认 30 秒，复用异步 HTTP 层真实 I/O 进展计时；这些不是请求总时限。requestDeadline 默认关闭，启用后覆盖进入管线直到响应和请求子任务结束。超时执行协作式取消并等待清理，不在已关闭连接上补发 504。H1 没有独立的断开通知，TCP 半关闭仍可以等待响应。
 
 server 有 Running／Draining／Closed 三态。shutdownGracefully 先停止接受并取消无活动请求的 H1 连接；活动请求完成后关闭，不进入下一次业务分派。默认自然排空宽限 30 秒，届满后取消所有者和剩余连接，等待真实 I/O 与资源清理。close 直接执行强制取消并等待；并发等待共享同一所有者结果。awaitTermination 只等待。调用方取消关闭等待也不能跳过本地资源清理；清理失败保留实际异常。
 
 onRequestCompleted 在响应、请求子任务和输入收尾结束后接收不可变快照：requestId、route、method、状态、耗时、接收／交付及输出字节和完成类别。onConnectionError 观察握手或连接边界的失败。观察函数非挂起、在内部锁外调用；自身失败不改变已发出的结果或取消其他请求。完成不承诺对端已处理数据。
 
-## 6. 分步交付与验证
+## 6. H2 请求与排空
+
+每个 H2 stream 在独立的请求 coroutineScope 中执行，拥有自己的 HttpContext 和 Job。共享协议驱动与 TLS 属于连接；请求异常、deadline 或对端 RST_STREAM 只取消对应请求。StreamFailure 通知映射到已登记的请求 Job；登记后读取一次 stream.failure 衔接提前到达的失败。通知仅修改框架状态和通知内部等待，不在协议锁内运行应用 handler。请求清理后移除登记；无需转移底层 stream 的接受 Job。
+
+H2 的接收选项默认明确选择 Http2InvalidRegularField.RejectStream，Http2Limits 与 Http2Settings 直接复用既有类型，可显式覆盖。全局 maxActiveRequests 在启动业务任务前占用，直到资源与完成通知收尾后释放；超容量只关闭对应 stream，不建立拒绝任务队列。正常响应使用 HEADERS／DATA／END_STREAM 和独立 trailer，不写 Transfer-Encoding。100-continue 仍在首次实际 body 读取前按需发出。正常双向完成不追加 CANCEL；提前响应先完成输出，再放弃尚未消费的输入。
+
+firstRequestHeadTimeout 覆盖首个完整请求之前的前言／首部等待；每个已识别的初始请求 HEADERS／CONTINUATION 块另外受 http2HeadTimeout 总时限控制，默认 10 秒。该时限由 HTTP 层 RequestHeadStarted／RequestHeadReceived 及真实终止通知驱动，不被其他 stream 或控制帧刷新。部分帧头及 padding／priority 前缀尚未被后端识别为新请求块时，首条请求仍由 firstRequestHeadTimeout 覆盖；后续在没有活动请求时由连接空闲时限覆盖。首部块超时结束共享连接，因为未完成的 HPACK 块阻止继续解析其他流。trailer 继续按已有 stream 的读取规则处理。
+
+H2 keepAliveIdleTimeout 仅在首个请求之后、没有活动请求、已排队请求及正在接收的初始首部块时计时。长响应与只等待外部服务的活动请求不会因接受下一条请求的等待而超时；SETTINGS／PING 不延长真正空闲。总请求 deadline 与每流 bodyReadIdle／responseWriteIdle 各自保持独立合同。
+
+优雅停机对已登记的 H2 连接请求 GOAWAY，保留接受 Job 和协议所有者。GOAWAY 边界覆盖底层已接受请求，acceptRequest 继续交付边界内队列，然后自然返回 None；这批请求仍受全局容量约束。停止接收 TCP、H2 连接登记与排空请求共用 server 状态边界，避免错过登记竞争。已开始发送的 GOAWAY 不因并发 shutdown 重复提交。宽限覆盖 GOAWAY 发送、请求执行和自然清理，届满后取消连接及所有剩余请求，并等待真实收尾。接受循环结束后仍等待请求子任务，再关闭协议连接。
+
+## 7. 分步交付与验证
 
 接入、超时与停机、SSE、multipart、WebSocket、压缩、文件和 DTO 的完整范围保持设计第 12～17 节，按完成的功能逐项扩充本规范。尚未实现的功能不公开占位 API。测试用所属 Cone 的 release 测试；只有 CLI／诊断／外部对端等必要边界使用 fixture。协议引擎的既有验证不在 server 重放。
