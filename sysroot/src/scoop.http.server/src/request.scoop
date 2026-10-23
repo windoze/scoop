@@ -9,7 +9,8 @@ public class HttpRequest internal constructor(
     /** The original protocol head; fields retain order, repetition and byte values. */
     public val head: HttpRequestHead,
     /** The single-consumer request body. */
-    public val body: HttpRequestBody
+    public val body: HttpRequestBody,
+    internal val expectations: RequestExpectations = RequestExpectations(head.fields)
 ) {
     private var parsed: RequestTarget? = None
     /** The exact, case-sensitive HTTP method token. */

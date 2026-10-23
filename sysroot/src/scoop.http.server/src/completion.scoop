@@ -1,0 +1,54 @@
+package scoop.http.server
+
+import scoop.http.HttpProtocol
+import scoop.platform.net.SocketAddress
+import scoop.time.Duration
+import scoop.tls.TlsConnectionInfo
+
+/** Immutable connection metadata; forwarded headers never replace these socket addresses. */
+public class HttpConnectionInfo internal constructor(
+    /** The actual local socket address. */
+    public val localAddress: SocketAddress,
+    /** The actual peer socket address. */
+    public val peerAddress: SocketAddress,
+    /** The selected HTTP framing protocol. */
+    public val protocol: HttpProtocol,
+    /** Negotiated TLS facts, or None for a cleartext connection. */
+    public val tls: TlsConnectionInfo? = None
+)
+
+/** The request pipeline's final outcome after cleanup. */
+public enum HttpRequestOutcome {
+    /** The pipeline and resource cleanup completed normally. */
+    Completed,
+    /** Cooperative request cancellation, including deadline expiration. */
+    Cancelled,
+    /** An unrecovered pipeline or cleanup error. */
+    Failed
+}
+
+/** Completion facts detached from the mutable request and its resource lifetimes. */
+public class HttpRequestCompletion internal constructor(
+    /** The server-generated request identifier. */
+    public val requestId: String,
+    /** The selected route, absent for an unmatched fallback or special target. */
+    public val route: HttpRouteInfo?,
+    /** The original method token. */
+    public val method: String,
+    /** The submitted final status, absent if no response was submitted. */
+    public val status: UInt?,
+    /** Time through response completion and request cleanup. */
+    public val elapsed: Duration,
+    /** Body bytes received after protocol framing removal. */
+    public val receivedBytes: Long,
+    /** Body bytes delivered after any installed content decoding. */
+    public val deliveredBytes: Long,
+    /** Response content accepted from the producer. */
+    public val responseBytes: Long,
+    /** Response content accepted by HTTP, excluding framing and TLS overhead. */
+    public val encodedResponseBytes: Long,
+    /** The final pipeline outcome, independent of an already-sent success status. */
+    public val outcome: HttpRequestOutcome,
+    /** The terminal failure when the pipeline did not complete normally. */
+    public val failure: Throwable?
+)

@@ -1,0 +1,72 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.HttpProtocol
+
+internal enum ServerPhase { Running, Draining, Closed }
+
+internal class ServerConnection(val transport: AsyncTcpStream) {
+    var job: Job? = None
+    var active: Boolean = false
+    var info: HttpConnectionInfo = HttpConnectionInfo(transport.localAddress, transport.peerAddress, HttpProtocol.Http1)
+}
+
+internal class ServerState(val listener: AsyncTcpListener, val application: HttpApplication,
+    val options: HttpServerOptions, val loop: EventLoop) {
+    val lock: ServerLock = ServerLock()
+    var phase: ServerPhase = ServerPhase.Running
+    var owner: Job? = None
+    var failure: Throwable? = None
+    val connections: ArrayList<ServerConnection> = ArrayList<ServerConnection>()
+    var requests: Long = 0L
+    private var nextId: ULong = 0UL
+
+    fun running(): Boolean = lock.withLock { phase == ServerPhase.Running }
+
+    fun register(connection: ServerConnection): Boolean = lock.withLock {
+        if (phase != ServerPhase.Running || connections.size >= options.maxConnections) return@withLock false
+        connections.add(connection)
+        true
+    }
+
+    fun unregister(connection: ServerConnection) {
+        lock.withLock {
+            var index = 0L
+            while (index < connections.size) {
+                if (connections[index] === connection) { connections.removeAt(index); break }
+                index += 1L
+            }
+        }
+    }
+
+    fun beginRequest(connection: ServerConnection): String? = lock.withLock {
+        if (phase != ServerPhase.Running || requests >= options.maxActiveRequests) return@withLock None
+        if (nextId == ULong.MAX_VALUE) throw ArithmeticException()
+        nextId += 1UL
+        requests += 1L
+        connection.active = true
+        Some(nextId.toString())
+    }
+
+    fun endRequest(connection: ServerConnection) {
+        lock.withLock { connection.active = false; requests -= 1L }
+    }
+
+    fun stopAccepting(): Array<Job> = lock.withLock {
+        if (phase == ServerPhase.Running) phase = ServerPhase.Draining
+        val idle = ArrayList<Job>()
+        for (connection in connections) if (!connection.active && present(connection.job)) idle.add(connection.job!!)
+        idle.toArray()
+    }
+
+    fun recordFailure(error: Throwable) {
+        lock.withLock {
+            failure = Some(if (present(failure)) ResourceUseException(failure!!, error) else error)
+        }
+    }
+
+    fun reportFailure() {
+        val error = lock.withLock { failure }
+        if (present(error)) throw error!!
+    }
+}

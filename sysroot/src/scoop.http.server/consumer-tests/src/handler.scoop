@@ -1,0 +1,10 @@
+package scoop.tests.http.server.consumer
+
+import scoop.http.*
+import scoop.http.server.*
+
+internal suspend fun consumerHello(ctx: HttpContext): HttpResult {
+    val name = ctx.request.body.json<String>()
+    ctx.response.cookies.append(HttpSetCookie(HttpCookiePair("visited", "yes")))
+    return json(ctx.pathParams.long("id").toString() + ":" + name)
+}

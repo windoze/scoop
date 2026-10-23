@@ -1,0 +1,73 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.crypto.*
+import scoop.crypto.x509.*
+import scoop.http.asyncio.*
+import scoop.test.*
+import scoop.tests.scoop.crypto.testdata.*
+import scoop.time.Duration
+import scoop.tls.*
+import scoop.tls.asyncio.*
+
+private fun testServerTls(): TlsServerContext = Certificate.fromPem(serverPem()).use { leaf ->
+    Certificate.fromPem(intermediatePem()).use { intermediate ->
+        PrivateKey.fromPem(serverKeyPem()).use { key ->
+            TlsServerContext([leaf, intermediate], key, TlsOptions(alpn = ["http/1.1".toByteArray()]))
+        }
+    }
+}
+
+private fun testClientTls(alpn: Boolean): TlsClientContext = Certificate.fromPem(rootPem()).use { root ->
+    TrustStore.fromCertificates([root]).use { store ->
+        TlsClientContext(store, TlsOptions(alpn = if (alpn) ["http/1.1".toByteArray()] else Array<Array<Byte>>(0L) { _ -> [] }))
+    }
+}
+
+@Test
+private class ServerTlsTests {
+    @Test
+    fun `stalled TLS handshake does not block another accepted HTTPS connection`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { ctx -> text(if (present(ctx.connection.tls)) "secure" else "clear") })
+        testServerTls().use { serverTls ->
+            testClientTls(true).use { clientTls ->
+                val options = HttpServerOptions(tls = Some(serverTls), tlsHandshakeTimeout = Some(Duration.seconds(1)))
+                withServer(routes.build(), options, suspend { scope, _, address ->
+                    currentEventLoop().connectTcp(address).useAsync suspend { _ ->
+                        val raw = currentEventLoop().connectTcp(address)
+                        val tls = AsyncTlsStream.takeOwnershipAsClient(raw, clientTls, TlsPeerName.Dns("localhost"))
+                        val client = AsyncHttp1Connection.takeOwnershipAsClient(tls, scope)
+                        client.useAsync suspend { connection -> assertEquals("secure", requestText(connection)) }
+                    }
+                })
+            }
+        }
+    }
+
+    @Test
+    fun `TLS without ALPN follows the explicit HTTP1 fallback setting`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> text("fallback") })
+        val app = routes.build()
+        testServerTls().use { serverTls ->
+            testClientTls(false).use { clientTls ->
+                for (allow in [true, false]) {
+                    withServer(app, HttpServerOptions(tls = Some(serverTls), allowHttp1Fallback = allow), suspend { scope, _, address ->
+                        val raw = currentEventLoop().connectTcp(address)
+                        val tls = AsyncTlsStream.takeOwnershipAsClient(raw, clientTls, TlsPeerName.Dns("localhost"))
+                        AsyncHttp1Connection.takeOwnershipAsClient(tls, scope).useAsync suspend { client ->
+                            if (allow) assertEquals("fallback", requestText(client))
+                            else {
+                                var rejected = false
+                                try { requestText(client) }
+                                catch (_: Throwable) { rejected = true }
+                                assertTrue(rejected)
+                            }
+                        }
+                    })
+                }
+            }
+        }
+    }
+}

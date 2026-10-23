@@ -121,7 +121,7 @@ private class ServerPipelineTests {
         routes.get("/", suspend { _ -> stream("text/plain", suspend { output ->
             invoked.value += 1
             output.writeText("hello")
-        }, length = Some(5L), trailers = { invoked.value += 10; [field("X-End", "done")] }) })
+        }, length = Some(5L), trailers = Some({ invoked.value += 10; [field("X-End", "done")] })) })
         val app = routes.build()
         val head = exercise(app, method = "HEAD")
         assertEquals("", head.text())

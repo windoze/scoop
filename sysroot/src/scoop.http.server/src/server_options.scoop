@@ -1,0 +1,56 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.time.Duration
+import scoop.tls.TlsServerContext
+
+/** Transport, capacity and timeout configuration for an owned HTTP server. */
+public class HttpServerOptions public constructor(
+    /** Shared TLS configuration, retained by the caller; None selects cleartext HTTP/1. */
+    public val tls: TlsServerContext? = None,
+    /** Whether TLS without negotiated ALPN may use HTTP/1. */
+    public val allowHttp1Fallback: Boolean = true,
+    /** Maximum owned TCP connections, including handshakes and idle keep-alive connections. */
+    public val maxConnections: Long = 1024L,
+    /** Maximum concurrent application requests, including response execution and cleanup. */
+    public val maxActiveRequests: Long = 256L,
+    /** Default maximum body input bytes, or None for no total input limit. */
+    public val requestBodyLimit: Long? = Some(8388608L),
+    /** Default maximum bytes collected by aggregate body helpers. */
+    public val bufferedBodyLimit: Long = 2097152L,
+    /** Total TLS handshake time, or None to disable this deadline. */
+    public val tlsHandshakeTimeout: Duration? = Some(Duration.seconds(10)),
+    /** Total time to receive the first complete HTTP/1 request head. */
+    public val firstRequestHeadTimeout: Duration? = Some(Duration.seconds(10)),
+    /** Maximum wait for the next complete HTTP/1 head when no request is active. */
+    public val keepAliveIdleTimeout: Duration? = Some(Duration.seconds(60)),
+    /** Read stagnation limit applied by the HTTP transport to request input. */
+    public val bodyReadIdle: Duration? = Some(Duration.seconds(30)),
+    /** Write stagnation limit applied by the HTTP transport to response output. */
+    public val responseWriteIdle: Duration? = Some(Duration.seconds(30)),
+    /** Total request lifetime deadline, disabled by default for long responses. */
+    public val requestDeadline: Duration? = None,
+    /** Default natural-drain period before forced cancellation and cleanup. */
+    public val gracefulShutdownTimeout: Duration = Duration.seconds(30),
+    /** HTTP/1 receive behavior; strict defaults are preserved. */
+    public val http1Receive: Http1ReceiveOptions = Http1ReceiveOptions(),
+    /** Existing HTTP/1 start-line, field and buffering limits. */
+    public val http1Limits: Http1Limits = Http1Limits(),
+    /** Observes a completed request snapshot after its resources have been released. */
+    public val onRequestCompleted: ((HttpRequestCompletion) -> Unit)? = None,
+    /** Observes isolated connection failures without controlling another connection. */
+    public val onConnectionError: ((HttpConnectionInfo, Throwable) -> Unit)? = None
+) {
+    init {
+        if (maxConnections <= 0L || maxActiveRequests <= 0L || bufferedBodyLimit < 0L)
+            throw IllegalArgumentException(Some("invalid HTTP server capacity"))
+        if (present(requestBodyLimit) && requestBodyLimit!! < 0L)
+            throw IllegalArgumentException(Some("negative request body limit"))
+        for (value in [tlsHandshakeTimeout, firstRequestHeadTimeout, keepAliveIdleTimeout,
+            bodyReadIdle, responseWriteIdle, requestDeadline, Some(gracefulShutdownTimeout)]) requireServerDuration(value)
+    }
+}
+
+internal fun requireServerDuration(value: Duration?) {
+    if (present(value) && value!! < Duration.ZERO) throw IllegalArgumentException(Some("negative HTTP server duration"))
+}

@@ -16,6 +16,7 @@ public class HttpBodyWriter internal constructor(private val sink: AsyncByteSink
     private val busy: AtomicBoolean = AtomicBoolean(false)
     private val ended: AtomicBoolean = AtomicBoolean(false)
     private var written: Long = 0L
+    internal val writtenBytes: Long get() = written
 
     private fun enter() {
         if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("concurrent response writes"))

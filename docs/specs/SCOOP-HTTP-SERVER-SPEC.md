@@ -32,7 +32,7 @@ HttpResult 保存状态码、HttpField 快照和 HttpBody。基础 body 为 Empt
 
 HttpResponse 保存提交前的 set／add／remove 操作及 beforeCommit。set／remove 按字段名 ASCII 大小写无关地替换／移除；add 保留重复项，Set-Cookie 不合并。执行依次应用结果字段、暂存操作、普通非挂起 beforeCommit；回调接收可修改的 HttpResponseDraft，回调序列退出后草稿只读。状态依次为准备、已提交、已结束，失败可转为已中止。开始不可撤回的发送尝试前标为已提交，之后不再修改头或发送第二个最终响应。
 
-HttpBodyWriter 是执行期间借用的 AsyncByteSink 视图，允许短写，flush 不代表客户端已经处理内容。producer 不能 finish 底层 HTTP 消息。原文已知长度在实际写入时检查，完成时检查精确长度；超长／过短均失败。HEAD 不调用 producer 或 trailer 回调；204／304／205 等响应按 HTTP 消息内容规则处理。正常输出依次完成 producer、trailer 和底层 finish；结束后 writer 不可再用。
+HttpBodyWriter 是执行期间借用的 AsyncByteSink 视图，允许短写，flush 不代表客户端已经处理内容。producer 不能 finish 底层 HTTP 消息。原文已知长度在实际写入时检查，完成时检查精确长度；超长／过短均失败。trailer 回调为显式可选项；H1.1 带 trailer 的响应使用 chunked，不能同时提供 Content-Length，但仍检查 producer 声明的原文长度。H1.0 不支持 trailer，在提交前报程序错误。HEAD 不调用 producer 或 trailer 回调；204／304／205 等响应按 HTTP 消息内容规则处理。正常输出依次完成 producer、trailer 和底层 finish；结束后 writer 不可再用。
 
 handler 和结果准备失败在终端内部映射，使错误结果仍在业务 Context 范围内执行。HttpRejection 携带明确结果；其他非取消失败默认 500，正文仅含稳定提示和 requestId。beforeCommit 失败不重放回调，以不应用原草稿的最小 500 收尾。mapper 或错误结果失败直接中止，不递归映射。最外层另外处理 middleware 自身失败。取消及提交后的异常保留实际原因并中止，发送后的清理异常不能改写已经发出的状态。
 

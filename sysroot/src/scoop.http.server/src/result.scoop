@@ -20,7 +20,7 @@ public class HttpStreamBody public constructor(
     /** The exact original-content length, if known without executing the producer. */
     public val length: Long? = None,
     /** Trailers collected after successful production; never called for HEAD. */
-    public val trailers: () -> List<HttpField> = { ArrayList<HttpField>() }
+    public val trailers: (() -> List<HttpField>)? = None
 ) {
     init {
         if (present(length) && length!! < 0L) throw IllegalArgumentException(Some("negative response length"))
@@ -73,7 +73,7 @@ public fun redirect(location: String, status: UInt = 303U): HttpResult {
 /** Builds a streaming response whose producer remains inside all enclosing middleware scopes. */
 public fun stream(contentType: String, produce: suspend (HttpBodyWriter) -> Unit,
     length: Long? = None, status: UInt = 200U,
-    trailers: () -> List<HttpField> = { ArrayList<HttpField>() }): HttpResult =
+    trailers: (() -> List<HttpField>)? = None): HttpResult =
     HttpResult(status, [field("Content-Type", contentType)], HttpBody.Stream(HttpStreamBody(produce, length, trailers)))
 
 internal fun bodyLength(body: HttpBody): Long? = when (body) {

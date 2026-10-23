@@ -25,6 +25,7 @@ public class HttpApplication internal constructor(
     }
 
     private suspend fun dispatch(ctx: HttpContext) {
+        ctx.request.expectations.requireSupported()
         val target = ctx.request.target()
         when (target.kind) {
             case TargetKind.Connect -> ctx.respond(text("Not Implemented", 501U))

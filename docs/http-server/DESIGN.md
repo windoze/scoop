@@ -2,11 +2,11 @@
 
 日期：2026-10-24
 
-状态：仓库内设计提案，可用于评审和拆分实现任务；不是已实现的 API 规范。
+状态：仓库内总体设计，正在分步实现；已交付范围见[实施记录](PROGRESS.md)，具体公共 API 合同见 [server 规范](../specs/SCOOP-HTTP-SERVER-SPEC.md)。
 
 范围：在现有 Scoop HTTP、异步 I/O、TLS 和 Context 能力上建立应用层 HTTP server 库。本文不要求改编译器，不引入反射或通用 DI 容器。
 
-本文根据当前工作区的规范和相关实现核对能力边界。所有 scoop.http.server 类型、方法及其示例均为拟议 API；业务侧 UserRepository、AuthContext、DatabaseSession 等也是示例类型。示例用于说明契约，尚未制作或编译原型。已有库能力与建议补齐的能力在下文分别标明。
+本文根据当前工作区的规范和相关实现核对能力边界。尚未交付章节中的 scoop.http.server 类型、方法及其示例仍为拟议 API；业务侧 UserRepository、AuthContext、DatabaseSession 等是示例类型。示例用于说明契约，已实现 API 以库规范和源码为准。已有库能力与建议补齐的能力在下文分别标明。
 
 本文迁入 `docs/http-server/` 时保留原设计主线，并在第 15 节规划 SSE 输出、multipart 上传、H1 WebSocket、响应压缩、请求解压、静态文件与条件请求、DTO query 与静态提取适配器。服务端 mTLS／动态 SNI 和 HTTP/3 保留原有范围说明，不在本次展开；第 12 节已有的基础 TLS 接入仍保留。第 16 节给出各增量的依赖、规范落点和交付标准。
 
@@ -530,7 +530,7 @@ suspend fun exportUsers(ctx: HttpContext): HttpResult {
 
 定界与完成规则：
 
-- H1 已知长度使用 Content-Length；未知长度在 HTTP/1.1 使用 chunked，在需要时按 HTTP/1.0 的连接关闭定界。
+- H1 已知长度且没有 trailer 时使用 Content-Length；未知长度在 HTTP/1.1 使用 chunked，在需要时按 HTTP/1.0 的连接关闭定界。显式提供 trailer 回调时，H1.1 也使用 chunked，不能同时提供 Content-Length；仍检查声明的原文长度。H1.0 的 trailer 在提交前报程序错误。
 - H2 不发送 Transfer-Encoding: chunked；通过 DATA 和 END_STREAM 表达内容。
 - HEAD 保留允许的元数据，不执行 stream producer 来计算长度或生成内容。
 - 204、304 等按 HTTP 规则抑制或禁止 body；不能通过高层便利 API 绕过底层规则。
