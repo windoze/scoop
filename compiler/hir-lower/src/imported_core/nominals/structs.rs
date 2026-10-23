@@ -92,6 +92,7 @@ impl Lowerer {
                 context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::StructDefinition {
+                    conditional_interfaces: Vec::new(),
                     gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
                         &declaration,
                         &type_params,

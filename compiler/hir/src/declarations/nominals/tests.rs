@@ -75,6 +75,7 @@ fn enum_declaration(
         span: Span::new(0, 0),
 
         definition: EnumDefinition {
+            conditional_interfaces: Vec::new(),
             representation: crate::EnumRepresentation::Algebraic,
             self_application,
             type_params: Vec::new(),
@@ -103,6 +104,7 @@ fn struct_declaration(
         derived_equality: None,
         span: Span::new(0, 0),
         definition: StructDefinition {
+            conditional_interfaces: Vec::new(),
             self_application,
             type_params: Vec::new(),
             representation,

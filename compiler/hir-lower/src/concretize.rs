@@ -17,6 +17,7 @@ mod callables;
 mod callback_slots;
 mod classes;
 mod closures;
+mod conditional_interfaces;
 mod constructor_definitions;
 mod constructor_slots;
 mod constructor_work;
@@ -190,6 +191,7 @@ struct Concretizer<'a> {
     evaluation_context: Option<export::SourceContextId>,
     instantiation_site: Option<SourceSite>,
     type_condition_errors: Vec<scoop_ast::Diagnostic>,
+    active_conditional_relations: std::collections::HashSet<(concrete::TypeId, concrete::TypeId)>,
     checked_context_requirements:
         std::collections::HashSet<(export::ContextRequirementOwner, Vec<concrete::TypeId>)>,
     pending_functions: VecDeque<(FunctionKey, concrete::FunctionId, Option<SourceSite>)>,
@@ -376,6 +378,7 @@ impl<'a> Concretizer<'a> {
             evaluation_context: None,
             instantiation_site: None,
             type_condition_errors: Vec::new(),
+            active_conditional_relations: std::collections::HashSet::new(),
             checked_context_requirements: Default::default(),
             pending_functions: VecDeque::new(),
             current_body: None,

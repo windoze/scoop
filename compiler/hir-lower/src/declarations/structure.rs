@@ -125,6 +125,7 @@ impl Lowerer {
             derived_equality: None,
             span: decl.span,
             definition: hir::StructDefinition {
+                conditional_interfaces: Vec::new(),
                 self_application,
                 type_params: type_params.clone(),
                 representation,
@@ -164,6 +165,11 @@ impl Lowerer {
         }
         for method in decl.functions() {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
+        }
+        for member in &decl.members {
+            if let ast::StructMember::InterfaceImplementation(block) = member {
+                self.declare_interface_block(Owner::Struct(id), block, pending_methods, file_index);
+            }
         }
         pending.push((id, decl, file_index));
         Some(id)

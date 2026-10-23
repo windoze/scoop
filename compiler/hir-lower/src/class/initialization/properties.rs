@@ -170,6 +170,7 @@ impl Lowerer {
                     }
                 }
                 ast::ClassMember::SecondaryConstructor(_)
+                | ast::ClassMember::InterfaceImplementation(_)
                 | ast::ClassMember::Function(_)
                 | ast::ClassMember::Nested(_)
                 | ast::ClassMember::Companion(_)

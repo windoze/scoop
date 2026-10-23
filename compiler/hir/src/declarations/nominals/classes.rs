@@ -29,6 +29,7 @@ pub struct ClassDefinition {
     pub fields: Vec<Field>,
     pub base_class: Option<TypeId>,
     pub interfaces: Vec<TypeId>,
+    pub conditional_interfaces: Vec<ConditionalInterfaceDeclaration>,
     pub interface_implementations: Vec<InterfaceImplementation>,
 }
 

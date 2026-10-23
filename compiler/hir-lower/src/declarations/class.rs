@@ -167,6 +167,7 @@ impl Lowerer {
             owner: owner.map(Owner::as_nominal_owner),
             access,
             definition: hir::ClassDefinition {
+                conditional_interfaces: Vec::new(),
                 inheritance_family: if decl.modifier == ast::ClassModifier::Sealed {
                     hir::InheritanceFamily::Sealed(Vec::new())
                 } else {
@@ -265,6 +266,11 @@ impl Lowerer {
         }
         for method in decl.functions() {
             self.declare_method(method, Owner::Class(id), pending_methods, file_index);
+        }
+        for member in &decl.members {
+            if let ast::ClassMember::InterfaceImplementation(block) = member {
+                self.declare_interface_block(Owner::Class(id), block, pending_methods, file_index);
+            }
         }
         pending.push((id, decl, file_index));
         Some(id)

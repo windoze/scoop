@@ -1,0 +1,11 @@
+interface Read { public fun read(): Int }
+interface OtherRead { public fun read(): Int }
+struct Box<T>(val value: T) {
+    override interface Read where T : Read {
+        public override fun read(): Int = 1
+    }
+    override interface OtherRead where T : Hash {
+        public override fun read(): Int = 2
+    }
+}
+fun main() {}

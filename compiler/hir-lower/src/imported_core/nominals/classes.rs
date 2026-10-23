@@ -80,6 +80,7 @@ impl Lowerer {
                 context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::ClassDefinition {
+                    conditional_interfaces: Vec::new(),
                     inheritance_family: declaration
                         .interface
                         .declaration_details()

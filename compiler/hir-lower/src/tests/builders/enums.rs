@@ -2,6 +2,7 @@ use super::*;
 
 pub(crate) fn enum_decl(name: &str, type_params: Vec<&str>, variants: Vec<VariantDecl>) -> Decl {
     Decl::Enum(ast::EnumDecl {
+        interface_implementations: Vec::new(),
         annotations: vec![],
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),

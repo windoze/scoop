@@ -170,6 +170,7 @@ impl Lowerer {
                 });
             }
             implementations.push(hir::InterfaceImplementation {
+                condition: None,
                 interface: interface_ty,
                 methods,
             });

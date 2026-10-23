@@ -20,6 +20,24 @@ impl Lowerer {
         };
         self.find_accessible_declared_nominal_property(lookup_ty, receiver_ty, name)
             .or_else(|| self.find_selected_interface_property(lookup_ty, receiver_ty, name))
+            .filter(|&(property, owner, _)| {
+                if self.property_implementation_condition(property).is_none() {
+                    return true;
+                }
+                let arguments = self.method_owner_arguments(owner).to_vec();
+                let getter = self.properties[property].capability.getter();
+                let function = match self.property_getters[getter].implementation {
+                    hir::PropertyAccessorImplementation::Body(function)
+                    | hir::PropertyAccessorImplementation::AbstractSlot(function) => function,
+                    _ => unreachable!("conditional properties have no storage"),
+                };
+                let parameters = self.functions[function]
+                    .type_params()
+                    .into_iter()
+                    .cloned()
+                    .collect::<Vec<_>>();
+                self.conditional_parameters_hold(&parameters, &arguments)
+            })
     }
 
     fn find_accessible_declared_nominal_property(

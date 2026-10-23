@@ -66,6 +66,7 @@ impl Lowerer {
                 context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::EnumDefinition {
+                    conditional_interfaces: Vec::new(),
                     representation: shape.representation().clone(),
                     gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
                         &declaration,

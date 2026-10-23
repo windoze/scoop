@@ -50,12 +50,15 @@ impl Lowerer {
                 return InterfaceExclusion::Unknown;
             }
         }
+        if self.has_undetermined_conditional_interface(subject, interface) {
+            return InterfaceExclusion::Unknown;
+        }
         InterfaceExclusion::Satisfied
     }
 
     /// Only distinguish definite structural mismatches. No substitution is
     /// inferred from a negative condition, including inside invariant types.
-    fn open_types_may_equal(&self, left: TypeId, right: TypeId) -> bool {
+    pub(crate) fn open_types_may_equal(&self, left: TypeId, right: TypeId) -> bool {
         if self.types_equal(left, right) {
             return true;
         }

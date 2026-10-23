@@ -76,6 +76,7 @@ impl Lowerer {
             span: decl.span,
 
             definition: hir::EnumDefinition {
+                conditional_interfaces: Vec::new(),
                 representation: hir::EnumRepresentation::Algebraic,
                 no_gc,
                 self_application,
@@ -113,6 +114,9 @@ impl Lowerer {
         }
         for method in &decl.methods {
             self.declare_method(method, Owner::Enum(id), pending_methods, file_index);
+        }
+        for block in &decl.interface_implementations {
+            self.declare_interface_block(Owner::Enum(id), block, pending_methods, file_index);
         }
         pending.push((id, decl, file_index));
         Some(id)

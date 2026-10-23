@@ -108,6 +108,7 @@ pub(super) fn add_generic_struct(
         derived_equality: None,
         span: Span::new(0, 0),
         definition: hir::StructDefinition {
+            conditional_interfaces: Vec::new(),
             self_application,
             type_params: vec![parameter],
             representation,

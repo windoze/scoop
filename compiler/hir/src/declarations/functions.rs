@@ -399,6 +399,7 @@ mod tests {
                 provider: IntrinsicProviderId::from_raw(0),
             }),
             method: Some(Method {
+                availability: None,
                 owner: ty,
                 modifier: MethodModifier::Final,
                 dispatch: MethodDispatch::Direct,

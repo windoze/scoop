@@ -159,11 +159,11 @@ impl Concretizer<'_> {
             .into_iter()
             .map(concrete::ClassMethod::Local)
             .collect::<Vec<_>>();
-        let direct_interfaces: Vec<_> = definition
-            .interfaces
-            .iter()
-            .map(|interface| self.lower_type(*interface, substitution))
-            .collect();
+        let direct_interfaces = self.concrete_direct_interfaces(
+            definition.conditional_interfaces,
+            definition.interfaces,
+            substitution,
+        );
         methods.extend(
             definition
                 .virtual_methods
@@ -205,14 +205,25 @@ impl Concretizer<'_> {
         owner: concrete::MethodOwner,
     ) -> Vec<concrete::FunctionId> {
         let substitution = self.concrete_method_owner_arguments(owner).to_vec();
-        for &method in source_methods {
-            self.check_source_method_context(method, &substitution);
-        }
         source_methods
             .iter()
             .copied()
             .filter_map(|method| {
                 let function = &self.source.functions[method];
+                if function
+                    .method
+                    .is_some_and(|method| method.availability.is_some())
+                {
+                    let parameters = function
+                        .type_params()
+                        .into_iter()
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    if !self.concrete_conditional_parameters_hold(&parameters, &substitution) {
+                        return None;
+                    }
+                }
+                self.check_source_method_context(method, &substitution);
                 if !self.automatic_method(method) {
                     return None;
                 }
@@ -235,11 +246,20 @@ impl Concretizer<'_> {
         source_implementations: &[export::InterfaceImplementation],
         substitution: &[concrete::TypeId],
     ) -> Vec<concrete::InterfaceImplementation> {
+        let mut seen = std::collections::HashSet::new();
         source_implementations
             .iter()
             .cloned()
-            .map(|implementation| {
+            .filter_map(|implementation| {
+                if implementation.condition.as_ref().is_some_and(|condition| {
+                    !self.concrete_implementation_applies(condition, substitution)
+                }) {
+                    return None;
+                }
                 let interface = self.lower_interface_type(implementation.interface, substitution);
+                if !seen.insert(interface) {
+                    return None;
+                }
                 let methods = implementation
                     .methods
                     .into_iter()
@@ -287,7 +307,7 @@ impl Concretizer<'_> {
                         concrete::InterfaceMethodImplementation { slot, target }
                     })
                     .collect();
-                concrete::InterfaceImplementation { interface, methods }
+                Some(concrete::InterfaceImplementation { interface, methods })
             })
             .collect()
     }

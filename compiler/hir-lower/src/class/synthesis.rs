@@ -43,6 +43,7 @@ impl Lowerer {
                 statements: Vec::new(),
             }),
             method: Some(hir::Method {
+                availability: None,
                 owner: host,
                 modifier,
                 dispatch: hir::MethodDispatch::Direct,

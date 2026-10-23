@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `read` in member candidate layer:\n  - fun Box<T : Read>.read(): Int — type argument `T` for `T` must satisfy interface upper bound `Read`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 245,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 233
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `read` in member candidate layer:\n  - fun Box<T : Read>.read(): Int — type argument `Empty` for `T` must satisfy interface upper bound `Read`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 295,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 283
+    },
+    "severity": "error"
+  }
+]

@@ -98,6 +98,7 @@ mod call_resolution;
 mod callable_modifiers;
 mod class;
 mod concretize;
+mod conditional_interfaces;
 mod constructor_resolution;
 mod core_contract;
 mod current_input;
@@ -852,6 +853,7 @@ pub(crate) struct Lowerer {
     /// Type parameter names of the function or enum whose signature,
     /// variants or body is currently being lowered; empty elsewhere.
     pub(crate) type_params_in_scope: Vec<hir::TypeParamDecl>,
+    pub(crate) conditional_interfaces: conditional_interfaces::ConditionalInterfaceState,
     pub(crate) deferred_type_bounds: Option<Vec<types::DeferredTypeBound>>,
     /// Return type of the function whose body is being lowered.
     pub(crate) current_return_ty: TypeId,

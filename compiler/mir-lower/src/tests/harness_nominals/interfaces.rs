@@ -68,6 +68,7 @@ impl Harness {
             genericity: hir::FunctionGenericity::Plain,
             kind: hir::FunctionKind::Abstract { locals },
             method: Some(hir::Method {
+                availability: None,
                 owner,
                 modifier: hir::MethodModifier::Abstract,
                 dispatch: hir::MethodDispatch::Direct,

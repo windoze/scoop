@@ -8,6 +8,7 @@ pub(super) struct ResolvedEnumDefinition<'a> {
     pub owner: Option<concrete::NominalOwner>,
     pub variants: Vec<ResolvedEnumVariant<'a>>,
     pub interfaces: &'a [export::TypeId],
+    pub conditional_interfaces: &'a [export::ConditionalInterfaceDeclaration],
     pub interface_implementations: &'a [export::InterfaceImplementation],
     pub methods: &'a [export::FunctionId],
     pub span: scoop_ast::Span,
@@ -75,6 +76,7 @@ impl<'input> Concretizer<'input> {
             owner: self.lower_nominal_owner(declaration.owner),
             variants,
             interfaces: &declaration.interfaces,
+            conditional_interfaces: &declaration.conditional_interfaces,
             interface_implementations: &declaration.interface_implementations,
             methods: &declaration.methods,
             span: declaration.span,
@@ -111,6 +113,7 @@ impl<'a> ResolvedEnumDefinition<'a> {
                 })
                 .collect(),
             interfaces: &source.definition.interfaces,
+            conditional_interfaces: &source.definition.conditional_interfaces,
             interface_implementations: &source.definition.interface_implementations,
             methods: &[],
             span: scoop_ast::Span::new(

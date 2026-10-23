@@ -2,6 +2,8 @@ use super::*;
 use hir::ImportedCallableSource;
 use std::collections::HashSet;
 
+mod conditional;
+mod conditional_members;
 mod integral;
 mod members;
 pub(super) use members::{InterfaceMemberInstance, InterfaceSignature};
@@ -32,18 +34,15 @@ impl Lowerer {
     }
 
     pub(in crate::class) fn owner_interfaces(&mut self, owner: Owner) -> Vec<TypeId> {
-        let mut roots = match owner {
+        let roots = match owner {
             Owner::Class(id) => return self.class_interfaces_all(id),
             Owner::Object(id) => return self.class_interfaces_all(self.objects[id].backing_class),
-            Owner::Struct(id) => self.structs[id].interfaces.clone(),
-            Owner::Enum(id) => self.enums[id].interfaces.clone(),
+            Owner::Struct(_) | Owner::Enum(_) => {
+                let ty = self.owner_ty(owner);
+                return self.type_interfaces(ty);
+            }
             Owner::Interface(id) => self.interfaces[id].parents.clone(),
         };
-        if let Owner::Enum(id) = owner
-            && let Some(kind) = self.enums[id].representation.integer_kind()
-        {
-            roots.extend(self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind)));
-        }
         let mut interfaces = Vec::new();
         for root in roots {
             self.append_interface_closure(root, &mut interfaces);
@@ -51,12 +50,13 @@ impl Lowerer {
         interfaces
     }
 
-    fn check_nominal_interface_implementation(
+    fn collect_nominal_interface_implementations(
         &mut self,
         owner: Owner,
         span: ast::Span,
         host: &str,
-    ) {
+        interfaces: &[TypeId],
+    ) -> Vec<hir::InterfaceImplementation> {
         let (own_methods, class) = match owner {
             Owner::Class(id) => (self.classes[id].methods.clone(), Some(id)),
             Owner::Object(id) => {
@@ -85,7 +85,7 @@ impl Lowerer {
         let mut reported_conflicts = HashSet::new();
         let mut reported_obligations = HashSet::new();
         let mut reported_mutable = HashSet::new();
-        for &interface in &all_interfaces {
+        for &interface in interfaces {
             let members = self.conformance_members(interface);
             let mut methods = Vec::with_capacity(members.len());
             for member in members {
@@ -115,6 +115,14 @@ impl Lowerer {
                             unreachable!("nominal candidates are methods")
                         };
                         let arguments = self.method_owner_arguments(method_owner).to_vec();
+                        let parameters = self.functions[candidate.function]
+                            .type_params()
+                            .into_iter()
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        if !self.conditional_parameters_hold(&parameters, &arguments) {
+                            return false;
+                        }
                         let signature =
                             self.instantiated_signature(candidate.function, &arguments, &[]);
                         let signature = InterfaceSignature::local(
@@ -310,18 +318,13 @@ impl Lowerer {
                     });
                 }
             }
-            conformances.push(hir::InterfaceImplementation { interface, methods });
+            conformances.push(hir::InterfaceImplementation {
+                condition: None,
+                interface,
+                methods,
+            });
         }
-        match owner {
-            Owner::Class(id) => self.classes[id].interface_implementations = conformances,
-            Owner::Object(id) => {
-                self.classes[self.objects[id].backing_class].interface_implementations =
-                    conformances
-            }
-            Owner::Struct(id) => self.structs[id].interface_implementations = conformances,
-            Owner::Enum(id) => self.enums[id].interface_implementations = conformances,
-            Owner::Interface(_) => unreachable!("interfaces do not carry nominal conformances"),
-        }
+        conformances
     }
 
     fn report_interface_obligation(

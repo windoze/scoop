@@ -130,6 +130,7 @@ impl Harness {
                 locals: resume_locals,
             },
             method: Some(hir::Method {
+                availability: None,
                 owner: continuation_ty,
                 modifier: hir::MethodModifier::Abstract,
                 dispatch: hir::MethodDispatch::Direct,
@@ -159,6 +160,7 @@ impl Harness {
                 locals: failure_locals,
             },
             method: Some(hir::Method {
+                availability: None,
                 owner: continuation_ty,
                 modifier: hir::MethodModifier::Abstract,
                 dispatch: hir::MethodDispatch::Direct,
@@ -232,6 +234,7 @@ impl Harness {
             genericity: hir::FunctionGenericity::Plain,
             kind: hir::FunctionKind::Abstract { locals: run_locals },
             method: Some(hir::Method {
+                availability: None,
                 owner: suspend_task_ty,
                 modifier: hir::MethodModifier::Abstract,
                 dispatch: hir::MethodDispatch::Interface(self.interfaces[suspend_task].methods[0]),
@@ -275,6 +278,7 @@ impl Harness {
                 locals: register_locals,
             },
             method: Some(hir::Method {
+                availability: None,
                 owner: suspend_registration_ty,
                 modifier: hir::MethodModifier::Abstract,
                 dispatch: hir::MethodDispatch::Interface(
