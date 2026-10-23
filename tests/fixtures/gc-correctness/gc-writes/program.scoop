@@ -5,6 +5,7 @@ interface Reading { fun read(): Long }
 class Node(val value: Long) : Reading {
     public override fun read(): Long = value
 }
+private var allocationPressure: Node? = None
 struct Pair(val node: Node, val view: Reading)
 class Holder(var pair: Pair)
 class Constructed {
@@ -33,7 +34,9 @@ fun populate(holder: Holder, values: MutableArray<Pair>, cell: AtomicRef<Reading
         var index = 0L
         while (index < 256L) {
             val node = Node(index)
+            allocationPressure = Some(node)
             index = node.value + 1L
+            allocationPressure = None
         }
     }
 }

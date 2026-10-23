@@ -12,6 +12,7 @@ fun movingStress(): Boolean
 
 interface Read { fun value(): Int }
 class Payload(val number: Int) : Read { override fun value(): Int = number }
+private var allocationPressure: Payload? = None
 struct Rooted(val serial: Long, val payload: Payload)
 enum Packet { Empty, Data(Rooted), Number(Int) }
 class Holder(var data: MaybeUninit<Rooted>)
@@ -26,7 +27,9 @@ fun minorCollection() {
             var index = 0
             while (index < 256) {
                 val churn = Payload(index)
+                allocationPressure = Some(churn)
                 index = churn.number + 1
+                allocationPressure = None
             }
         }
     }

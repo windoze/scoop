@@ -7,6 +7,7 @@ interface Value { fun get(): Long }
 class Node(val value: Long, var next: Node?) : Value {
     public override fun get(): Long = value
 }
+private var allocationPressure: Node? = None
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun fill(roots: MutableArray<Node?>) {
@@ -27,7 +28,12 @@ fun mutate(roots: MutableArray<Node?>, values: MutableArray<Value?>, cell: Atomi
     val before = minorCount()
     while (minorCount() == before) {
         var index = 0L
-        while (index < 4096L) { val node = Node(index, None); index = node.value + 1L }
+        while (index < 4096L) {
+            val node = Node(index, None)
+            allocationPressure = Some(node)
+            index = node.value + 1L
+            allocationPressure = None
+        }
     }
 }
 

@@ -22,6 +22,10 @@
 - 真实 benchmark 的 Point／Cursor 每处 ClassAlloc 从 1 降为 0，各自 4 次字段读取和 3 次字段写入全部消失。机器码中相应 TLAB 分配和慢路调用消失；Darwin 指令数为 99→54、120→71，两个 Linux 目标均为 101→64、128→83。LIR 的入口／循环 poll 数保持 2／3。
 - GC 专测的 Holder<Payload> 与 Constructed 分配均实际消失。跨 `gcCollect` 的根为仍使用的 Node 与聚合值，Payload 扫描偏移为 0、8、16、24，接口 itab 不作为对象根。构造中尚未赋值的第二字段 local 不进入根集合；已初始化参数／字段值正常保活、移动回写。没有为了优化额外保留 Holder／Constructed 对象。
 
+收尾检查另定位了既有 GC 压力循环的问题：只创建 Node 并读取字段时，新的优化正确消除该对象，等待 minorCount 增加的循环因此不再制造压力。原 gc-writes 的 collectYoung 在 MIR 中已无 ClassAlloc，并在五秒定向探针中持续等待。六组相关 GC fixture 和 minor-mark 基准改为将压力对象写入全局槽，再在下一次分配前清空；既保留实际堆分配，也避免因测试槽保活而额外晋升垃圾。
+
+这部分只补跑受影响的验证：Darwin 的 gc-writes、containers-storage、regions-values、atomics-gc、maybe-uninit-gc、nursery-native-context-copy 共六组、13 个 variants 全部通过；GNU／musl 各补 gc-writes 的 debug／release 与正常／moving／minor 组合。三目标 minor-mark 冒烟检查均完成两轮、每轮一次 minor GC，checksum 为 1,047,552；修改后的 collectYoung 保留一次 Node 分配及原来的两个循环 poll。编译器实现和以下性能负载没有因这项测试修正而改变。
+
 ## 性能与分配
 
 [classes.scoop](../../tests/benchmarks/allocation/classes.scoop) 复用既有 phases.c 与 compare.py。两版使用相同源码、预编译 core／std、runtime、release profile 和单个 GC worker。Point／无对象对照运行 10,000,000 轮，Cursor 运行 2,000,000 轮，ArrayList 运行 500,000 轮；后两者每轮读取 16 个值。先预热一对，再串行执行七对 AB／BA；各次均校验结果。正常计时关闭 GC stress／统计，分配诊断另跑一次。

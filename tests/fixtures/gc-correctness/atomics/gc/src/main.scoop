@@ -7,6 +7,7 @@ fun minorCount(): Long
 fun movingStress(): Boolean
 
 class Payload(val value: Int)
+private var allocationPressure: Payload? = None
 struct Snapshot(val serial: Int, val payload: Payload)
 enum Packet { Empty, Data(Int, Payload) }
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
@@ -22,7 +23,9 @@ fun minorCollection() {
             var index = 0
             while (index < 256) {
                 val churn = Payload(index)
+                allocationPressure = Some(churn)
                 index = churn.value + 1
+                allocationPressure = None
             }
         }
     }
