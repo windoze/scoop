@@ -1,4 +1,35 @@
-# M31 性能用例
+# 程序性能基准
+
+## 预构建程序的 A/B 对照
+
+`compare.py` 用于比较两个已经构建并验证输出的程序，支持 Darwin 和 Linux。构建不进入计时区间；同一组输入参数分别传给 baseline 和 candidate，先预热，再按 AB／BA 次序交替启动独立进程。它直接服务编译器、runtime 和库优化的前后对照，也可比较同一程序的不同运行配置。
+
+```sh
+mkdir -p tmp/program-performance
+export TMPDIR="$PWD/tmp"
+python3 tests/benchmarks/compare.py \
+  --baseline "$PWD/tmp/program-performance/baseline/app" \
+  --candidate "$PWD/tmp/program-performance/candidate/app" \
+  --baseline-label "before, release" --candidate-label "after, release" \
+  --runs 7 --warmups 1 \
+  --work "$PWD/tmp/program-performance/compare-01"
+```
+
+工作目录必须尚不存在。每次运行的 stdout／stderr、耗时、user／system CPU 和峰值 RSS 都保存于该目录；`report.json` 记录可执行文件、参数、显式环境覆盖、主机、实际运行顺序和原始样本。峰值 RSS 按每次子进程的资源统计读取，在 Darwin／Linux 上统一为 bytes；它不是整个进程树的内存曲线。耗时包含进程启动、输出和退出，应用内部稳态区间、GC 暂停或请求尾延迟需用对应专项测量。
+
+所有预热和正式运行必须正常退出且 stdout 完全相同。可用 `--expected-stdout <file>` 核对已知正确输出，避免两个版本恰好产生相同错误；普通 stderr 保留供检查。`--arg=<value>` 可重复指定双方相同的参数。`--baseline-env NAME=VALUE`／`--candidate-env NAME=VALUE` 可重复指定不同运行配置，报告只保存显式覆盖及工具控制的 GC 设置，不保存整个继承环境。构建版本与选项写入对应 label。
+
+工具默认清除继承的 GC stress、full-only 和统计开关。`--gc-stats` 显式开启诊断，保留每次 GC 原始记录并核对暂停直方图；它与正常发布形态分别测量。例如通过 `--candidate-env SCOOP_GC_FULL_ONLY=1 --gc-stats` 对照 nursery 与 full-only。
+
+报告汇总双方正式样本的中位数、baseline／candidate 比值和每对运行的耗时比；大于 1 表示 candidate 的该项耗费更少。这些是描述统计，不能据此宣称统计显著性，也不能将程序启动测量当作 Java JIT 稳态结果。预热样本不进入汇总。出现失败或输出不一致时保留原始文件并停止，不发布成功报告。
+
+工具自身的进程、交替次序、输出及 GC 记录测试：
+
+```sh
+TMPDIR="$PWD/tmp" python3 -m unittest discover -s tests/benchmarks/tests
+```
+
+## M31 性能用例
 
 M33 的真实 C FFI 调用与 collector 等待基准见 [ffi/README.md](ffi/README.md)。
 
