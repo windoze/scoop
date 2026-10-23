@@ -157,6 +157,7 @@ impl Lowerer {
         };
         let function = resolved.function();
         let local_function = self.local_function_by_function[&function];
+        self.observe_callable_reference(call.callee.span, hir::SemanticCallable::Current(function));
         let mut args = self
             .local_call_capture_args(local_function, call.span)
             .ok_or(())?;
@@ -208,6 +209,7 @@ impl Lowerer {
         sink: &mut [hir::Statement],
     ) -> Option<hir::Expr> {
         let function = resolved.function();
+        self.observe_callable_reference(call.callee.span, hir::SemanticCallable::Current(function));
         if let Some(core) = self.foreign_callback_core {
             if function == core.register {
                 return self

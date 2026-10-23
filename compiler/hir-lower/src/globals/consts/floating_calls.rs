@@ -2,6 +2,7 @@ use super::floating_values::{convert_float_constant, evaluate_float_binary, eval
 use super::*;
 
 pub(in crate::globals) struct ResolvedConstFloatIntrinsic {
+    pub(in crate::globals) callable: hir::SemanticCallable,
     pub(in crate::globals) kind: hir::FloatIntrinsicKind,
     pub(in crate::globals) parameters: Vec<String>,
 }
@@ -29,6 +30,7 @@ impl Lowerer {
                     continue;
                 }
                 return Some(ResolvedConstFloatIntrinsic {
+                    callable: hir::SemanticCallable::Current(function),
                     kind,
                     parameters: self.signatures[&function]
                         .params
@@ -42,6 +44,7 @@ impl Lowerer {
             }) && callable.name().as_str() == source_name
             {
                 return Some(ResolvedConstFloatIntrinsic {
+                    callable: super::imported_const_intrinsic_callable(callable),
                     kind,
                     parameters: callable
                         .source()
@@ -103,6 +106,13 @@ impl Lowerer {
         };
         let value = evaluate_float_call(resolved.kind, receiver.value, right);
         let ty = self.float_const_result_type(&value)?;
+        self.observe_constant_intrinsic(
+            span,
+            resolved.callable,
+            &resolved.parameters,
+            (!args.is_empty()).then_some(receiver.ty),
+            ty,
+        );
         Some(EvaluatedConst { value, ty })
     }
 

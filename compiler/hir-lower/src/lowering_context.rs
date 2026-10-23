@@ -13,7 +13,7 @@ impl Lowerer {
         subject: hir::SourceContextSubject,
     ) -> hir::SourceContextId {
         let context = hir::SourceContext::new(
-            self.intrinsic_sources[self.current_file].identity.clone(),
+            self.source_identity(self.current_text_file()).clone(),
             subject,
         );
         self.source_context_by_value
@@ -38,10 +38,16 @@ impl Lowerer {
     }
 
     pub(crate) fn source_context_for_current_file(&self) -> hir::SourceContextId {
-        let source = &self.intrinsic_sources[self.current_file].identity;
+        let source = self.source_identity(self.current_text_file());
         self.current_source_context
             .filter(|&context| self.source_contexts[context].source() == source)
-            .unwrap_or(self.file_source_contexts[self.current_file])
+            .unwrap_or_else(|| {
+                assert!(
+                    self.generated_source_file.is_none(),
+                    "generated regions have a callable context"
+                );
+                self.file_source_contexts[self.current_file]
+            })
     }
 
     /// Allocate a hidden desugaring temporary (`$opt.N` / `$res.N`).
@@ -291,13 +297,13 @@ impl Lowerer {
 
     pub(crate) fn error(&mut self, span: Span, message: String) {
         let mut diagnostic = Diagnostic::at(span, message);
-        diagnostic.file = self.current_file;
+        diagnostic.file = self.current_text_file();
         self.diagnostics.push(diagnostic);
     }
 
     pub(crate) fn warning(&mut self, span: Span, message: String) {
         let mut diagnostic = Diagnostic::warning_at(span, message);
-        diagnostic.file = self.current_file;
+        diagnostic.file = self.current_text_file();
         self.warnings.push(diagnostic);
     }
 }

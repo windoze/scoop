@@ -145,6 +145,8 @@ impl Lowerer {
             span: declaration.span,
         });
         assert_eq!(property, expected_property);
+        self.property_name_spans
+            .insert(property, declaration.name.span);
         self.pending_runtime_initializers
             .push(PendingRuntimeInitializer {
                 unit,

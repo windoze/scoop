@@ -1,0 +1,11 @@
+package test.generated
+
+public interface Value { public fun value(): Int }
+
+@GenerateWith("test.peer", ["Value"])
+public class GeneratedValue public constructor() : Value
+
+public interface Echo<T> { public fun echo(value: T): T }
+
+@GenerateWith("test.peer", ["Echo<T>"])
+public class Generic<T> public constructor() : Echo<T>

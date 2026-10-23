@@ -113,8 +113,7 @@ pub(super) fn parsed_sources(
         .unwrap()
         .identity()
         .unwrap();
-    let identity =
-        |path| SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap()).unwrap();
+    let identity = |path| SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap());
     let identities = files
         .iter()
         .map(|(path, _, _)| identity(path))

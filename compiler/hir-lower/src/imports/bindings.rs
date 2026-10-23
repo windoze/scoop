@@ -17,6 +17,8 @@ pub(crate) struct SourceVariantId(pub(super) usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CurrentUnitTarget {
+    Unavailable(ast::DeclarationHeaderKind),
+    UnavailableImport,
     Class(hir::ClassId),
     Interface(hir::InterfaceId),
     Struct(hir::StructId),
@@ -33,6 +35,12 @@ pub(crate) enum CurrentUnitTarget {
 
 impl CurrentUnitTarget {
     pub(crate) const fn occupies_namespace(self, namespace: BindingNamespace) -> bool {
+        if matches!(self, Self::UnavailableImport) {
+            return true;
+        }
+        if let Self::Unavailable(kind) = self {
+            return kind.namespaces().contains(namespace);
+        }
         match namespace {
             BindingNamespace::Type => matches!(
                 self,
@@ -145,6 +153,8 @@ pub(crate) struct ResolvedExactImport {
     pub(crate) source_role: LocalBindingRole,
     pub(crate) targets: ast::NonEmptyVec<ImportedTargetBinding>,
     pub(crate) origin: ImportSyntaxOrigin,
+    pub(crate) target_span: ast::Span,
+    pub(crate) alias: Option<ast::Ident>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -182,4 +192,11 @@ pub(crate) struct FrozenFileImports {
     pub(crate) current_package_dependencies:
         BTreeMap<String, Vec<hir::DirectImportedTargetBinding>>,
     pub(crate) stars: Vec<ResolvedStarImport>,
+    pub(crate) unavailable: Vec<UnavailableImport>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct UnavailableImport {
+    pub(crate) local_name: Option<String>,
+    pub(crate) binding: CurrentUnitBindingId,
 }

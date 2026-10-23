@@ -39,8 +39,7 @@ impl Lowerer {
             None => self.methods_by_name(receiver.ty, &name.text),
         };
         candidates.retain(|candidate| {
-            let modifiers = self.signatures[&candidate.function].modifiers;
-            Self::matches_required_modifiers(modifiers, required)
+            self.function_matches_required_modifiers(candidate.function, required)
         });
         let mut first_failure = None;
         if !candidates.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {
@@ -104,6 +103,10 @@ impl Lowerer {
             None => self.named_executable_extension_call_layers(&name.text),
         };
         for layer in extension_layers {
+            let unavailable = self.unavailable_extension_candidates(&layer.unavailable, required);
+            if self.report_unavailable_lookup(name, &unavailable) {
+                return None;
+            }
             let suppressed = layer.suppressed_callables.iter().copied().any(|function| {
                 Self::matches_required_modifiers(self.signatures[&function].modifiers, required)
             });
@@ -127,8 +130,15 @@ impl Lowerer {
                 required.operator == Some(hir::OperatorKind::Set),
                 "extension candidate",
             ) {
-                PropertyExtensionInvokeOutcome::Resolved(layer) => {
-                    return Some(self.commit_expr_layer(layer, sink));
+                PropertyExtensionInvokeOutcome::Resolved(mut selected) => {
+                    if required.operator.is_some() {
+                        selected
+                            .state
+                            .observe_operator_import_lookup(name.span, layer.kind);
+                    } else {
+                        selected.state.observe_import_lookup(name, layer.kind);
+                    }
+                    return Some(self.commit_expr_layer(selected, sink));
                 }
                 PropertyExtensionInvokeOutcome::Blocked => return None,
                 PropertyExtensionInvokeOutcome::Failed(failure) => {

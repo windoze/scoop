@@ -50,7 +50,8 @@ impl Lowerer {
             );
             return None;
         }
-        let argument_count = args.len() + usize::from(receiver.is_some());
+        let bound_receiver_count = usize::from(receiver.is_some());
+        let argument_count = args.len() + bound_receiver_count;
         if signature.arity() != argument_count {
             self.error(
                 span,
@@ -138,6 +139,10 @@ impl Lowerer {
             };
             lowered.push(value);
         }
+        self.observe_function_call_arguments(
+            span,
+            signature.parameters().copied().skip(bound_receiver_count),
+        );
         Some(hir::Expr {
             kind: ExprKind::CallableCall {
                 callee: Box::new(callee),

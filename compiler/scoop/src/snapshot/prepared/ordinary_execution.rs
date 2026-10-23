@@ -63,7 +63,6 @@ impl PreparedBuildGraph {
             return Err(Error::NotOrdinarySource(identity));
         }
         let store = CompileCacheStoreV1::new(&self.context.cache_root);
-        let dumps = store.entry_path(key).join("dumps");
         {
             let Some(lock) = store
                 .acquire_available(key, crate::CompileCacheLockModeV1::Shared, wait_for_lock)
@@ -71,21 +70,14 @@ impl PreparedBuildGraph {
             else {
                 return Ok(PreparedSourceExecution::WaitingForLock);
             };
-            if let CompileCacheLookupV1::Hit(entry) =
-                store.lookup(&lock).map_err(Error::CacheStore)?
+            if let CompileCacheLookupV1::Hit(entry) = self.lookup_current(&store, &lock)?
                 && self
-                    .missing_dumps(identity, &dumps)
+                    .missing_dumps(identity, &entry.dumps_path())
                     .map_err(Error::Observation)?
                     .is_none()
             {
                 return self
-                    .finish_result(
-                        identity,
-                        *entry,
-                        completed,
-                        CompletedNodeOrigin::CacheHit,
-                        &dumps,
-                    )
+                    .finish_result(identity, *entry, completed, CompletedNodeOrigin::CacheHit)
                     .map(Box::new)
                     .map(PreparedSourceExecution::Complete);
             }
@@ -96,20 +88,14 @@ impl PreparedBuildGraph {
         else {
             return Ok(PreparedSourceExecution::WaitingForLock);
         };
-        let cached = store.lookup(&lock).map_err(Error::CacheStore)?;
+        let cached = self.lookup_current(&store, &lock)?;
         let operation = if let CompileCacheLookupV1::Hit(entry) = cached {
             let missing = self
-                .missing_dumps(identity, &dumps)
+                .missing_dumps(identity, &entry.dumps_path())
                 .map_err(Error::Observation)?;
             let Some(missing) = missing else {
                 return self
-                    .finish_result(
-                        identity,
-                        *entry,
-                        completed,
-                        CompletedNodeOrigin::CacheHit,
-                        &dumps,
-                    )
+                    .finish_result(identity, *entry, completed, CompletedNodeOrigin::CacheHit)
                     .map(Box::new)
                     .map(PreparedSourceExecution::Complete);
             };
@@ -153,7 +139,6 @@ impl PreparedBuildGraph {
             operation,
         } = pending;
         let store = CompileCacheStoreV1::new(&self.context.cache_root);
-        let dumps = store.entry_path(lock.key()).join("dumps");
         match (operation, response.map_err(Error::ChildTransport)?) {
             (_, ScoopcResponseEnvelopeV1::Failure { diagnostics, .. }) => {
                 Err(Error::ChildFailure(diagnostics))
@@ -166,16 +151,10 @@ impl PreparedBuildGraph {
                     identity,
                     Some(missing),
                     result.emitted_dump_descriptors(),
-                    &dumps,
+                    &entry.dumps_path(),
                 )
                 .map_err(Error::Observation)?;
-                self.finish_result(
-                    identity,
-                    *entry,
-                    completed,
-                    CompletedNodeOrigin::CacheHit,
-                    &dumps,
-                )
+                self.finish_result(identity, *entry, completed, CompletedNodeOrigin::CacheHit)
             }
             (
                 PendingOperation::Build,
@@ -184,6 +163,8 @@ impl PreparedBuildGraph {
                 },
             ) => {
                 let result = (|| {
+                    let summary = success.summary().ok_or(Error::UnexpectedResponse)?;
+                    let dumps = store.result_directory(lock.key(), summary).join("dumps");
                     self.store_dumps(identity, None, success.emitted_dump_descriptors(), &dumps)
                         .map_err(Error::Observation)?;
                     let entry = store
@@ -191,21 +172,13 @@ impl PreparedBuildGraph {
                             &lock,
                             invocation.output_path(),
                             CompileBuildRecordV1 {
-                                summary: success
-                                    .summary()
-                                    .ok_or(Error::UnexpectedResponse)?
-                                    .clone(),
+                                summary: summary.clone(),
                                 warnings: success.warnings().to_vec(),
+                                used_generators: success.used_generators().to_vec(),
                             },
                         )
                         .map_err(Error::CacheStore)?;
-                    self.finish_result(
-                        identity,
-                        entry,
-                        completed,
-                        CompletedNodeOrigin::Compiled,
-                        &dumps,
-                    )
+                    self.finish_result(identity, entry, completed, CompletedNodeOrigin::Compiled)
                 })();
                 result.map_err(|source| {
                     if success.warnings().is_empty() {
@@ -256,12 +229,34 @@ impl PreparedBuildGraph {
         entry: CompileCacheEntryV1,
         completed: &[&CompletedNode],
         origin: CompletedNodeOrigin,
-        dumps: &std::path::Path,
     ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
-        self.publish_cached_dumps(identity, dumps)
+        self.publish_cached_dumps(identity, &entry.dumps_path())
             .map_err(OrdinarySourceExecutionError::Observation)?;
         self.complete_result(identity, entry, completed, origin)
             .map_err(OrdinarySourceExecutionError::Completion)
+    }
+
+    fn lookup_current(
+        &self,
+        store: &CompileCacheStoreV1,
+        lock: &CompileCacheKeyLockV1,
+    ) -> Result<CompileCacheLookupV1, OrdinarySourceExecutionError> {
+        let cached = store
+            .lookup(lock)
+            .map_err(OrdinarySourceExecutionError::CacheStore)?;
+        if let CompileCacheLookupV1::Hit(entry) = &cached
+            && !self
+                .context
+                .generators
+                .inputs_current(
+                    &entry.record.used_generators,
+                    self.compiler.executable_path(),
+                )
+                .map_err(OrdinarySourceExecutionError::Generators)?
+        {
+            return Ok(CompileCacheLookupV1::Miss);
+        }
+        Ok(cached)
     }
 
     fn complete_result(
@@ -291,6 +286,7 @@ impl PreparedBuildGraph {
 
 #[derive(Debug)]
 pub enum OrdinarySourceExecutionError {
+    Generators(scoop_toolchain::ToolchainError),
     ProducedOutput {
         source: Box<OrdinarySourceExecutionError>,
         warnings: Vec<StructuredDiagnosticV1>,
@@ -310,6 +306,7 @@ pub enum OrdinarySourceExecutionError {
 impl fmt::Display for OrdinarySourceExecutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Generators(source) => source.fmt(formatter),
             Self::ProducedOutput { source, .. } => source.fmt(formatter),
             Self::UnexpectedResponse => {
                 formatter.write_str("compiler response does not match the requested operation")
@@ -338,6 +335,7 @@ impl fmt::Display for OrdinarySourceExecutionError {
 impl std::error::Error for OrdinarySourceExecutionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Generators(source) => Some(source),
             Self::ProducedOutput { source, .. } => Some(source.as_ref()),
             Self::Observation(source) => Some(source),
             Self::CacheKey(source) => Some(source.as_ref()),

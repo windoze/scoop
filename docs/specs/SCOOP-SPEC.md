@@ -1663,6 +1663,8 @@ DocHidden 从生成的 API 页面、成员目录和搜索中省略目标及其�
 
 不增加文件目标、局部变量目标、任意表达式目标、注解继承、运行期 Retention、元注解执行或处理器/plugin API。局部声明的静态注解随其原声明保留，不能因此扩大源码名称的可见范围。
 
+core 提供普通 annotation class `GenerateWith`，带 `@Target([AnnotationTarget.Class])` 和 `@Repeatable`。两个参数分别为 `generator: String` 与 `interface: Array<String>`，均无默认值；interface 是关键字，声明及具名实参使用普通反引号转义。编译 driver 在注解绑定后按实际 core 声明读取配置；class／struct／enum／object 可以选择自己已继承的完整接口应用，interface 本体不能替实现者配置生成。类型字符串使用普通类型语法、import、alias 和 owner binder。空接口数组不产生任务；非空白 generator 名称、接口应用存在、重复绑定及重叠方法归属按 [M47 设计](../milestone47/DESIGN.md)2.1～2.3 检查。已有合法实现先排除，生成配置不继承、不增加接口或改变可见性。此注解不具有 compiler role，不改变 parser 或普通注解绑定规则。
+
 ### 9.5 companion 与普通 codec 的编码、解码接口
 
 两个方向都用显式目标类型参数表达，由companion或普通codec对象实现：
@@ -1765,7 +1767,7 @@ struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/proper
 
 文档采用前置附着：在声明语法位置中，属于紧随其后的完整声明及其 annotations、modifiers。空白、空行和普通注释可位于文档片段之间或文档与声明之间。不得越过 package、import、另一完整声明、语句或当前列表／块结束边界；表达式和类型内部的片段不得漂移到后续声明。
 
-文档可附着于类型、函数、property、typealias、annotation class、enum variant、字段、完整源码参数、构造器及 accessor。主构造 val／var 参数前的文档属于实际字段／property，其构造参数关联仍按原语言规则保留；getter／setter 的文档属于实际 accessor。局部具名声明可以保留文档，但文档工具不因此扩大其名称可见性或把它导出为非局部 API。init／release 块、局部变量和普通表达式不作为声明文档目标。
+文档可附着于类型、函数、property、typealias、annotation class、enum variant、字段、完整源码参数、构造器及 accessor。主构造 val／var 参数前的文档属于实际字段／property，其构造参数关联仍按原语言规则保留；struct／variant 的表示字段与构造参数说明也分别保存，字段前的注释属于字段，`@param` 属于构造参数。getter／setter 的文档属于实际 accessor。局部具名声明可以保留文档，但文档工具不因此扩大其名称可见性或把它导出为非局部 API。init／release 块、局部变量和普通表达式不作为声明文档目标。
 
 同一目标的片段按源码顺序保存；相邻 `///` 行可组成同一段，分开的片段以空段落连接。保留原始文本及 UTF-8 byte span，去前缀、块注释装饰性 `*`、公共缩进与 CRLF 归一化不得丢失诊断到原文本的位置映射。没有附着目标的片段保留为文档专有诊断输入；普通编译仍将其视为注释，不因此失败或产生文档 warning。
 
@@ -2374,7 +2376,7 @@ fun currentSourceLocation(): SourceLocation
 ```
 
 - `currentSourceLocation()` 返回所在表达式的标准**求值来源**所指示的源码位置（文件、行、列）与所处函数、类型的名称。该信息在编译期已知，不依赖调试信息；本intrinsic不建立独立的调用处传播机制。
-- `file`保存可重现的canonical semantic source path，而不是host绝对路径或CLI operand spelling。manifest Cone中其形式为`group:name:version/<normalized Cone-relative source path>`；默认目录中的文件仍为`group:name:version/src/...`，12.2.2 的显式源码目录不截去其目录前缀。12.2的single-file Cone中恒为`scoop:single-file:0.0.0/main.scoop`。编译诊断可另行显示当次调用路径，但该display locator不改变`SourceLocation`的值。
+- `file`保存可重现的canonical semantic source path，而不是host绝对路径或CLI operand spelling。manifest Cone中其形式为`group:name:version/<normalized Cone-relative source path>`；默认目录中的文件仍为`group:name:version/src/...`，12.2.2 的显式源码目录不截去其目录前缀。12.2的single-file Cone的原始入口文件为`scoop:single-file:0.0.0/main.scoop`；生成方法体使用同一 Cone 下按目标方法身份派生的逻辑来源，规则见实现规范2.20。编译诊断可另行显示当次调用路径，但该display locator不改变`SourceLocation`的值。
 - 可与 8.5 的缺省参数规则组合，取得调用者的源码位置：
 
 ```
@@ -2777,7 +2779,7 @@ kind = "library" # 或 "executable"
 - `scoop build [root-input]` 与 `scoop run [root-input]` 允许省略 root：此时明确使用调用者当前目录的 `Cone.toml`，与显式传入该文件相同；缺失或无效时报告输入错误，不向父目录搜索，也不猜测某个 `.scoop` 文件。显式 root 继续按目录、`Cone.toml` 或单文件规则分类；低层 `scoopc build` 仍要求明确输入；
 - `scoop:single-file:0.0.0`是另一reserved coordinate，用户manifest不得声明它。`scoop build/run`收到basename扩展名精确为`.scoop`、跟随symlink后目标为已存在regular file的operand时，构造`kind = executable`、source set恰好为该文件、logical source path恒为`main.scoop`、direct Cone dependency为core、std及头部显式dep并集的typed synthetic projection；symlink cycle、dangling link或最终目标非regular file是输入错误，resolved host path不进入identity。显式文件operand即使位于某Cone目录中也不读取相邻`Cone.toml`、其他`.scoop`、C/C++ source或blob；额外依赖仅由头部 `//! dep: group:name:version` 声明，沿显式 cone-path 与 sysroot 的精确产物查找，不隐式构建相邻源码。该`.slib`可缓存，并可作为产生它的build/run或显式`scoop link --root-slib`的唯一executable root；但不能作为可分发artifact发布、作为dependency或被manifest artifact locator引用；
 - 单文件依赖头部仅到首个语言 token（包括被忽略的 package）之前；允许首行 shebang、空白和普通注释穿插。只有真实行注释 `//! dep: group:name:version` 指定精确坐标；不读取块注释、文档正文或字符串中的相似文本。dep 缺少冒号/坐标、非法 coordinate/SemVer、重复显式坐标均定位到原始注释行报错；其他 `//!` 与 token 后的所有注释按普通注释处理。默认依赖始终为 `scoop:scoop.core:0.1.0` 和 `scoop:scoop.std:0.1.0`，显式相同坐标只合并边，重复源码声明仍报错；不同版本沿现有版本冲突规则处理。普通 manifest build/test/doc 不解释这些注释。依赖不隐式导入名称，core prelude 保持；
-- manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file source使用相同pair形态，但第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file构建记录另外区分实际source及其修改时间／大小、实际依赖结果、compiler/schema/target/toolchain；需要编译时源码内容参与正常语义计算，不因共用reserved identity而冒用另一输入的缓存；
+- manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file 的原始输入使用相同pair形态，第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。生成方法体在同一 Cone 下保留自己的逻辑来源，不成为额外的输入文件或顶层声明。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file构建记录另外区分实际source及其修改时间／大小、实际依赖结果、compiler/schema/target/toolchain；需要编译时源码内容参与正常语义计算，不因共用reserved identity而冒用另一输入的缓存；
 
 #### 12.2.1 Native C/C++ 源码
 

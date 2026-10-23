@@ -1,11 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn require_core_enum(
-        &mut self,
-        name: &str,
-        files: &[ast::SourceFile],
-    ) -> Option<EnumId> {
+    pub(crate) fn require_core_enum(&mut self, name: &str, files: &[ast::Span]) -> Option<EnumId> {
         let candidate = self
             .core_nominal_target(name)
             .and_then(|target| match target {
@@ -18,7 +14,7 @@ impl Lowerer {
         let core_diagnostic_file = self.core_diagnostic_file();
         self.current_file = core_diagnostic_file;
         self.error(
-            files[core_diagnostic_file].span,
+            files[core_diagnostic_file],
             format!("scoop.core must define exactly one `{name}` enum"),
         );
         None
@@ -285,19 +281,20 @@ impl Lowerer {
             let Type::Ptr(pointee) = self.types[ty] else {
                 continue;
             };
-            if self.type_contains_param(pointee) {
-                continue;
-            }
-            if !self.is_gc_free(pointee) {
+            if let Some(message) = self.concrete_pointer_pointee_error(pointee) {
                 self.current_file = file;
-                self.error(
-                    span,
-                    format!(
-                        "`Ptr` pointee must be GC-free, found {}",
-                        self.type_name(pointee)
-                    ),
-                );
+                self.error(span, message);
             }
         }
+    }
+
+    pub(crate) fn concrete_pointer_pointee_error(&self, pointee: TypeId) -> Option<String> {
+        if self.type_contains_param(pointee) || self.is_gc_free(pointee) {
+            return None;
+        }
+        Some(format!(
+            "`Ptr` pointee must be GC-free, found {}",
+            self.type_name(pointee)
+        ))
     }
 }

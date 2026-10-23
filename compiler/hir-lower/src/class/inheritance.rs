@@ -9,6 +9,7 @@ mod encoding;
 mod imported;
 mod inspection;
 mod interfaces;
+pub(super) use interfaces::InterfaceMemberInstance;
 mod order;
 mod overrides;
 mod properties;
@@ -21,12 +22,12 @@ impl Lowerer {
     /// for value types implementing interfaces (spec 4.4.3).
     pub(crate) fn check_inheritance(
         &mut self,
-        pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
-        pending_structs: &[(hir::StructId, &ast::StructDecl, usize)],
-        pending_enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
-        pending_interfaces: &[(hir::InterfaceId, &ast::InterfaceDecl, usize)],
+        pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
+        pending_structs: &[(hir::StructId, ast::StructSource<'_>, usize)],
+        pending_enums: &[(hir::EnumId, ast::EnumSource<'_>, usize)],
+        pending_interfaces: &[(hir::InterfaceId, ast::InterfaceSource<'_>, usize)],
         pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
-        pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
+        pending_methods: &[crate::declarations::MethodHeaderInput<'_>],
     ) {
         let owners = pending_interfaces
             .iter()
@@ -51,6 +52,7 @@ impl Lowerer {
                     .iter()
                     .map(|&(id, _, file)| (Owner::Enum(id), file)),
             )
+            .filter(|&(owner, _)| self.editing_owner_available(owner))
             .collect::<Vec<_>>();
         let owners = self.source_inheritance_order(owners);
         let accessors = self.property_accessor_sources.clone();
@@ -92,7 +94,7 @@ impl Lowerer {
                 .filter(|(_, _, _, candidate)| *candidate == owner)
             {
                 self.type_params_in_scope = self.method_type_parameter_environment(id, owner);
-                let declaration = overrides::MemberOverride::source(source);
+                let declaration = overrides::MemberOverride::source(source.signature);
                 let before = self.diagnostics.len();
                 self.check_member_access_contract(id, &declaration, owner);
                 self.check_override_rules(id, &declaration, owner);
@@ -134,7 +136,7 @@ impl Lowerer {
 
     pub(crate) fn check_class_inheritance_cycles(
         &mut self,
-        pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
+        pending_classes: &[(ClassId, ast::ClassSource<'_>, usize)],
         pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) -> bool {
         let errors = self.diagnostics.len();
@@ -170,6 +172,7 @@ impl Lowerer {
                 break;
             };
             if seen.contains(&base) {
+                self.fail_editing_owner(self.current_owner.expect("source inheritance owner"));
                 let name = self.classes[id].name.clone();
                 self.error(
                     span,

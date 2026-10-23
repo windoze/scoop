@@ -1,7 +1,8 @@
 //! Trivia and documentation share the ordinary lexer, including interpolation.
 
-use super::Lexer;
+use super::{Lexeme, Lexer};
 use scoop_ast::{Diagnostic, DocComment, DocCommentKind, DocCommentTarget};
+use scoop_syntax::SyntaxKind;
 
 #[derive(Debug)]
 pub(crate) struct LexicalDocComment {
@@ -12,14 +13,18 @@ pub(crate) struct LexicalDocComment {
 impl Lexer<'_> {
     pub(super) fn skip_trivia(&mut self, before_token: usize) -> Result<(), Diagnostic> {
         loop {
+            let start = self.pos;
             match self.peek_char() {
-                Some(' ' | '\t' | '\r') => self.pos += 1,
-                Some('\n') => {
-                    self.pos += 1;
-                    self.newline_before = true;
+                Some(' ' | '\t' | '\r' | '\n') => {
+                    while let Some(c @ (' ' | '\t' | '\r' | '\n')) = self.peek_char() {
+                        self.pos += 1;
+                        self.newline_before |= c == '\n';
+                    }
+                    self.save_trivia(start, SyntaxKind::Whitespace);
                 }
                 Some('#') if self.pos == 0 && self.source.starts_with("#!") => {
                     self.skip_line_comment();
+                    self.save_trivia(start, SyntaxKind::Shebang);
                 }
                 Some('/') if self.source[self.pos + 1..].starts_with('/') => {
                     let start = self.pos;
@@ -29,12 +34,31 @@ impl Lexer<'_> {
                     if is_doc {
                         self.save_doc(start, before_token, DocCommentKind::Line);
                     }
+                    self.save_trivia(
+                        start,
+                        if is_doc {
+                            SyntaxKind::DocLineComment
+                        } else {
+                            SyntaxKind::LineComment
+                        },
+                    );
                 }
                 Some('/') if self.source[self.pos + 1..].starts_with('*') => {
                     let start = self.pos;
                     let rest = &self.source[start..];
                     let is_doc = rest.starts_with("/**") && !rest.starts_with("/***");
-                    self.skip_block_comment()?;
+                    let result = self.skip_block_comment();
+                    self.save_trivia(
+                        start,
+                        if result.is_err() {
+                            SyntaxKind::InvalidToken
+                        } else if is_doc {
+                            SyntaxKind::DocBlockComment
+                        } else {
+                            SyntaxKind::BlockComment
+                        },
+                    );
+                    result?;
                     if is_doc {
                         self.save_doc(start, before_token, DocCommentKind::Block);
                     }
@@ -42,6 +66,13 @@ impl Lexer<'_> {
                 _ => return Ok(()),
             }
         }
+    }
+
+    fn save_trivia(&mut self, start: usize, kind: SyntaxKind) {
+        self.lexemes.push(Lexeme {
+            kind,
+            span: self.span_from(start),
+        });
     }
 
     fn skip_line_comment(&mut self) {

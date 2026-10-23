@@ -6,7 +6,12 @@ impl Lowerer {
         &mut self,
         application: hir::ClassApplicationId,
         name: &str,
-    ) -> Option<(hir::InitializingClassFieldRef, TypeId, bool)> {
+    ) -> Option<(
+        hir::InitializingClassFieldRef,
+        TypeId,
+        bool,
+        hir::SemanticProperty,
+    )> {
         let application_value = self.class_applications[application].clone();
         let receiver = self.initializing_receiver_type()?;
         let Some(class) = self.source_class_id(application_value.template) else {
@@ -44,6 +49,7 @@ impl Lowerer {
                 self.initializing_class_field_reference(application, field),
                 ty,
                 mutable,
+                hir::SemanticProperty::Current(property_id),
             ));
         }
         let base = self.classes[class].base_class?;
@@ -59,7 +65,12 @@ impl Lowerer {
         base: TypeId,
         receiver: TypeId,
         name: &str,
-    ) -> Option<(hir::InitializingClassFieldRef, TypeId, bool)> {
+    ) -> Option<(
+        hir::InitializingClassFieldRef,
+        TypeId,
+        bool,
+        hir::SemanticProperty,
+    )> {
         use scoop_identity::{CallableTemplateOrigin, PropertyOwner};
         let candidates = self
             .imported_member_candidates_for_receiver(
@@ -76,6 +87,7 @@ impl Lowerer {
         };
         let dependencies = self.dependencies.as_ref()?;
         let property = dependencies.property_for_accessor(accessor)?;
+        let property_target = hir::SemanticProperty::Imported(property.declaration());
         if property.representation() != hir::PropertyRepresentationV1::RuntimeAccessor {
             return None;
         }
@@ -109,7 +121,12 @@ impl Lowerer {
         let class = &self.loaded_class_definitions[&application.template];
         let ty = class.definition.fields[class.field_index(field)?].ty;
         let ty = self.instantiate_ty(ty, &application.arguments);
-        Some((hir::InitializingClassFieldRef { owner, field }, ty, mutable))
+        Some((
+            hir::InitializingClassFieldRef { owner, field },
+            ty,
+            mutable,
+            property_target,
+        ))
     }
 
     pub(crate) fn initializing_receiver_type(&self) -> Option<TypeId> {
@@ -127,6 +144,7 @@ impl Lowerer {
         &mut self,
         name: &ast::Ident,
         span: ast::Span,
+        access: hir::EditingPropertyAccess,
     ) -> Option<InitializingField> {
         let context = self.initialization_context.clone()?;
         if self.capture_contexts.len() > context.capture_depth {
@@ -142,7 +160,7 @@ impl Lowerer {
                 initialized,
             } => {
                 let class = self.class_applications[application].template;
-                let Some((field, ty, mutable)) =
+                let Some((field, ty, mutable, property)) =
                     self.find_initializing_class_field(application, &name.text)
                 else {
                     self.error(
@@ -168,6 +186,7 @@ impl Lowerer {
                     );
                     return None;
                 }
+                self.observe_property_reference(span, property, ty, access);
                 let read = hir::Expr {
                     kind: hir::ExprKind::InitializingClassFieldAccess { field },
                     ty,
@@ -196,6 +215,21 @@ impl Lowerer {
                     return None;
                 };
                 let ty = self.instantiate_ty(fields[index].ty, &application_value.arguments);
+                if self.observes_current_body() {
+                    let structure = self.struct_id(structure);
+                    let property = self.structs[structure].properties.iter().copied().find(|property| matches!(
+                        &self.properties[*property].representation,
+                        hir::PropertyRepresentation::Stored(hir::StoredProperty {
+                            backing: hir::PropertyBacking::StructField { owner, index: field }, ..
+                        }) if *owner == structure && *field as usize == index
+                    )).expect("a declared struct field has its original logical property");
+                    self.observe_property_reference(
+                        span,
+                        hir::SemanticProperty::Current(property),
+                        ty,
+                        access,
+                    );
+                }
                 let hir::FieldRef::StructField { owner, field } =
                     self.struct_field_reference(application, index as u32)
                 else {

@@ -43,15 +43,23 @@ impl Lowerer {
             self.current_file = self.function_files[&function];
             self.register_function_parameter_interface(function);
         }
+        let pending = self.generation.methods.keys().copied().collect::<Vec<_>>();
+        for function in pending {
+            if (function.into_raw().into_u32() as usize) < start {
+                continue;
+            }
+            self.current_file = self.function_files[&function];
+            self.register_function_parameter_interface(function);
+        }
     }
 
     pub(crate) fn register_export_parameter_interfaces(
         &mut self,
-        functions: &[(hir::FunctionId, &ast::FunctionDecl, usize)],
-        methods: &[(hir::FunctionId, &ast::FunctionDecl, usize, Owner)],
-        structs: &[(hir::StructId, &ast::StructDecl, usize)],
-        classes: &[(hir::ClassId, &ast::ClassDecl, usize)],
-        enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
+        functions: &[crate::declarations::FunctionHeaderInput<'_>],
+        methods: &[crate::declarations::MethodHeaderInput<'_>],
+        structs: &[(hir::StructId, ast::StructSource<'_>, usize)],
+        classes: &[(hir::ClassId, ast::ClassSource<'_>, usize)],
+        enums: &[(hir::EnumId, ast::EnumSource<'_>, usize)],
     ) {
         for &(function, _, file) in functions {
             self.current_file = file;
@@ -71,6 +79,9 @@ impl Lowerer {
             self.register_function_parameter_interface(function);
         }
         for &(structure, declaration, file) in structs {
+            if !self.editing_owner_available(Owner::Struct(structure)) {
+                continue;
+            }
             self.current_file = file;
             if matches!(
                 self.structs[structure].representation,
@@ -139,6 +150,9 @@ impl Lowerer {
             }
         }
         for &(class, declaration, file) in classes {
+            if !self.editing_owner_available(Owner::Class(class)) {
+                continue;
+            }
             self.current_file = file;
             if matches!(
                 self.classes[class].representation,
@@ -219,6 +233,9 @@ impl Lowerer {
             }
         }
         for &(enumeration, declaration, file) in enums {
+            if !self.editing_owner_available(Owner::Enum(enumeration)) {
+                continue;
+            }
             self.current_file = file;
             if declaration.variants.len() != self.enums[enumeration].variants.len() {
                 continue;
@@ -288,6 +305,9 @@ impl Lowerer {
 
     pub(crate) fn register_object_parameter_interfaces(&mut self, objects: &[hir::ObjectId]) {
         for &object in objects {
+            if !self.editing_owner_available(Owner::Object(object)) {
+                continue;
+            }
             let object = self.objects[object].clone();
             let class = &self.classes[object.backing_class];
             for constructor in class.constructors.clone() {

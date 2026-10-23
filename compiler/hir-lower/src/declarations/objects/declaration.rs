@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn declare_object<'a>(
         &mut self,
-        declaration: &'a ast::ObjectDecl,
+        declaration: ast::ObjectSource<'a>,
         pending: &mut Vec<(ObjectId, ObjectSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file: usize,
@@ -20,7 +20,7 @@ impl Lowerer {
 
     pub(crate) fn declare_companion<'a>(
         &mut self,
-        declaration: &'a ast::CompanionObjectDecl,
+        declaration: ast::CompanionObjectSource<'a>,
         pending: &mut Vec<(ObjectId, ObjectSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file: usize,
@@ -44,6 +44,7 @@ impl Lowerer {
         owner: Option<Owner>,
     ) -> Option<ObjectId> {
         self.current_file = file;
+        let diagnostics_before = self.diagnostics.len();
         let (name, name_span) = source.name();
         self.reject_type_annotations(source.article_description(), source.annotations());
         if matches!(source, ObjectSource::Companion(_))
@@ -184,6 +185,14 @@ impl Lowerer {
         });
         assert_eq!(object, object_id);
         self.register_nominal_identity(Owner::Object(object), identity);
+        self.observe_type_declaration(
+            file,
+            name_span,
+            crate::editing::types::TypeTarget::Nominal(
+                self.nominal_identity(Owner::Object(object))
+                    .declaration_id(),
+            ),
+        );
         self.register_nominal_identity(Owner::Class(backing_class), backing_identity);
         let canonical_type = self.class_application(backing_class, host_arguments);
         assert_eq!(self.types[canonical_type], Type::Class(self_application));
@@ -206,7 +215,7 @@ impl Lowerer {
             assert!(self.companion_by_host.insert(host, relation).is_none());
         }
 
-        self.object_files.insert(object, file);
+        self.record_nominal_file(Owner::Object(object), file);
         let display_name = self.singleton_initialization_display_name(object);
         let published_root = self
             .singleton_published_roots
@@ -272,7 +281,8 @@ impl Lowerer {
             }
         }
         self.object_by_backing_class.insert(backing_class, object);
-        self.class_files.insert(backing_class, file);
+        self.record_nominal_file(Owner::Class(backing_class), file);
+        self.record_editing_owner_errors(Owner::Object(object), diagnostics_before);
         for method in source.members().iter().filter_map(|member| match member {
             ast::ClassMember::Function(function) => Some(function),
             _ => None,

@@ -67,7 +67,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             .map_err(|e| {
                 CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Hir(e))
             })?;
-        let hir = self.lower_hir(requested, protocols, &world).map_err(|e| {
+        let mut hir = self.lower_hir(requested, protocols, &world).map_err(|e| {
             let warnings = CurrentConeDiagnosticSet::try_new(
                 packages::single_file_warnings(&self.sources),
                 &self.sources,
@@ -75,12 +75,18 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             .expect("single-file warnings reference their parsed source");
             CurrentConeProductionError::after_hir(CurrentConeProductionFailure::Hir(e), warnings)
         })?;
+        let used_generators = std::mem::take(&mut hir.used_generators);
         let mut source_warnings = packages::single_file_warnings(&self.sources);
         source_warnings.extend(hir.hir.output().warnings.clone());
-        let warnings =
-            CurrentConeDiagnosticSet::try_new(source_warnings, &self.sources).map_err(|e| {
-                CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Warnings(e))
-            })?;
+        source_warnings.extend(hir.generator_warnings.clone());
+        let warnings = CurrentConeDiagnosticSet::try_new_with_generated(
+            source_warnings,
+            &self.sources,
+            &hir.generated_sources,
+        )
+        .map_err(|e| {
+            CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Warnings(e))
+        })?;
         dump.extend(capture_stage_dump(emit, StageDumpKind::Hir, || {
             format!(
                 "== Export ==\n{}== Static Shapes ==\n{}== LocalConcrete ==\n{}== CrossCone ==\n{}",
@@ -128,6 +134,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                     documentation,
                     warnings,
                     dumps: dump,
+                    used_generators,
                 },
             ));
         }
@@ -175,8 +182,12 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                         ));
                     }
                 };
-                let mut success =
-                    SingleConeProductionSuccess::new_cross_cone(artifact, warnings, dump);
+                let mut success = SingleConeProductionSuccess::new_cross_cone(
+                    artifact,
+                    warnings,
+                    dump,
+                    used_generators,
+                );
                 success.documentation = documentation;
                 Ok(SingleConeCompilation::Published(Box::new(success)))
             }
@@ -234,6 +245,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 world,
                 source_names,
                 test_dependencies,
+                self.request.generators(),
             );
         }
         current_hir::CurrentConeHirArtifacts::lower_with_documentation(
@@ -243,6 +255,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             world,
             source_names,
             self.request.output().documentation().is_some(),
+            self.request.generators(),
         )
     }
 }

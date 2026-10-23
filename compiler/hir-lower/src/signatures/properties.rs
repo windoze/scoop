@@ -4,7 +4,7 @@ impl Lowerer {
     pub(super) fn resolve_struct_properties(
         &mut self,
         id: StructId,
-        decl: &ast::StructDecl,
+        decl: ast::StructSource<'_>,
         seen: &mut HashSet<String>,
     ) {
         for property in decl.members.iter().filter_map(|member| match member {

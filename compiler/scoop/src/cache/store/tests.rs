@@ -12,6 +12,10 @@ fn key(seed: &[u8]) -> ConeCompileCacheKeyV1 {
 }
 
 fn fixture() -> (Vec<u8>, CompileBuildRecordV1) {
+    fixture_named("build-record")
+}
+
+fn fixture_named(name: &str) -> (Vec<u8>, CompileBuildRecordV1) {
     let archive = crate::test_artifacts::manifest_archive(
         scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
@@ -21,7 +25,7 @@ fn fixture() -> (Vec<u8>, CompileBuildRecordV1) {
             ConeSourceForm::Manifest,
         )
         .unwrap(),
-        "build-record",
+        name,
         Vec::new(),
     );
     let summary = scoop_slib::read_artifact_manifest_summary(
@@ -34,6 +38,7 @@ fn fixture() -> (Vec<u8>, CompileBuildRecordV1) {
         CompileBuildRecordV1 {
             summary,
             warnings: Vec::new(),
+            used_generators: Vec::new(),
         },
     )
 }
@@ -85,6 +90,28 @@ fn failed_output_publication_does_not_publish_a_build_record() {
         store.lookup(&lock).unwrap(),
         CompileCacheLookupV1::Miss
     ));
+}
+
+#[test]
+fn changed_result_keeps_the_previous_consumers_artifact_path() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = store(temp.path());
+    let lock = store.acquire_exclusive(key(b"generator-update")).unwrap();
+    let output = temp.path().join("candidate.slib");
+    let (first, first_record) = fixture_named("first-generator-result");
+    std::fs::write(&output, &first).unwrap();
+    let first_entry = store.publish(&lock, &output, first_record).unwrap();
+    let (second, second_record) = fixture_named("changed-generator-result");
+    std::fs::write(&output, &second).unwrap();
+    let second_entry = store.publish(&lock, &output, second_record).unwrap();
+    assert_ne!(first_entry.artifact, second_entry.artifact);
+    assert_ne!(first_entry.dumps_path(), second_entry.dumps_path());
+    assert_eq!(std::fs::read(first_entry.artifact).unwrap(), first);
+    assert_eq!(std::fs::read(&second_entry.artifact).unwrap(), second);
+    let CompileCacheLookupV1::Hit(current) = store.lookup(&lock).unwrap() else {
+        panic!("published result")
+    };
+    assert_eq!(current.artifact, second_entry.artifact);
 }
 
 #[test]

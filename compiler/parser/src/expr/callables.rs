@@ -5,9 +5,11 @@ use scoop_ast::{Diagnostic, Expr, LambdaParam, Param, Span};
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
 
+mod parameters;
+
 impl Parser {
     pub(crate) fn starts_anonymous_function(&mut self) -> bool {
-        let saved = self.pos;
+        let saved = self.checkpoint();
         if matches!(self.peek().kind, TokenKind::Suspend) {
             self.bump();
         }
@@ -15,12 +17,12 @@ impl Parser {
         let ordinary = matches!(self.peek().kind, TokenKind::LParen);
         let receiver = self.parse_type_atom_with_suffix().is_ok()
             && matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot);
-        let anonymous = if receiver {
+        let anonymous = if receiver && !self.has_errors_since(saved) {
             matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen)
         } else {
             ordinary
         };
-        self.pos = saved;
+        self.restore(saved);
         anonymous
     }
 
@@ -47,50 +49,65 @@ impl Parser {
         is_suspend: bool,
         expression_start: Option<u32>,
     ) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::AnonymousFunctionExpr, |parser| {
+            parser.parse_anonymous_function_inner(is_suspend, expression_start)
+        })
+    }
+
+    fn parse_anonymous_function_inner(
+        &mut self,
+        is_suspend: bool,
+        expression_start: Option<u32>,
+    ) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let keyword = self.expect("`fun`", |kind| matches!(kind, TokenKind::Fun))?;
-        let receiver_start = self.pos;
+        let receiver_start = self.checkpoint();
         let receiver_annotations = self.parse_annotations()?;
         let receiver = match self.parse_type_atom_with_suffix() {
             Ok(receiver) if matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot) => {
                 Some(self.parse_receiver_separator(receiver))
             }
             _ => {
-                self.pos = receiver_start;
+                self.restore(receiver_start);
                 None
             }
         }
         .map(|receiver| receiver.with_annotations(receiver_annotations));
-        self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
-        let mut params = Vec::new();
-        if !matches!(self.peek().kind, TokenKind::RParen) {
-            loop {
-                let annotations = self.parse_annotations()?;
-                self.skip_parameter_compatibility_modifiers();
-                let name = self.expect_ident("parameter name")?;
-                self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
-                let ty = self.parse_type_ref()?;
-                params.push(Param {
-                    annotations,
-                    span: Span::new(name.span.start, ty.span.end),
-                    name,
-                    ty,
-                    syntax: scoop_ast::ParameterSyntax::Required,
-                });
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-        }
-        self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
+        let params = self.parse_anonymous_parameters()?;
         let return_ty = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
             Some(self.parse_type_ref()?)
         } else {
             None
         };
-        let body = self.parse_block()?;
+        let complete_header = self.fragment_is_complete(checkpoint);
+        let opening = matches!(self.peek().kind, TokenKind::LBrace)
+            .then_some(scoop_ast::BodyBlockId(self.peek().span.start));
+        let body_checkpoint = self.checkpoint();
+        let result = self.parse_block_with_scope(scoop_ast::RecoveredBlockScope::AnonymousFunction);
+        if complete_header
+            && let Some(body) = opening
+            && (result.is_err() || !self.fragment_is_complete(body_checkpoint))
+        {
+            self.record_recovered_callable(scoop_ast::RecoveredCallableLiteral {
+                block: None,
+                span: Span::new(
+                    expression_start.unwrap_or(keyword.span.start),
+                    result
+                        .as_ref()
+                        .map_or(self.peek().span.start, |body| body.span.end),
+                ),
+                label: None,
+                is_suspend,
+                header: scoop_ast::RecoveredCallableHeader::AnonymousFunction {
+                    receiver: receiver.clone().map(Box::new),
+                    parameters: params.clone(),
+                    return_ty: return_ty.clone().map(Box::new),
+                },
+                body,
+            });
+        }
+        let body = result?;
         Ok(Expr::AnonymousFunction {
             label: None,
             receiver: receiver.map(Box::new),
@@ -115,9 +132,19 @@ impl Parser {
         is_suspend: bool,
         expression_start: Option<u32>,
     ) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::LambdaExpr, |parser| {
+            parser.parse_lambda_inner(is_suspend, expression_start)
+        })
+    }
+
+    fn parse_lambda_inner(
+        &mut self,
+        is_suspend: bool,
+        expression_start: Option<u32>,
+    ) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let open = self.expect("`{`", |kind| matches!(kind, TokenKind::LBrace))?;
-        let header_start = self.pos;
-        let diagnostics_start = self.diagnostics.len();
+        let header_start = self.checkpoint();
         let parameters = if matches!(self.peek().kind, TokenKind::Arrow) {
             self.bump();
             Some(Vec::new())
@@ -126,13 +153,33 @@ impl Parser {
             match parsed {
                 Some(parameters) => Some(parameters),
                 None => {
-                    self.pos = header_start;
-                    self.diagnostics.truncate(diagnostics_start);
+                    self.restore(header_start);
                     None
                 }
             }
         };
-        let body = self.parse_block_after_open(open.clone())?;
+        let complete_header = self.fragment_is_complete(checkpoint);
+        let body_checkpoint = self.checkpoint();
+        let result =
+            self.parse_block_after_open(open.clone(), scoop_ast::RecoveredBlockScope::Lambda);
+        if complete_header && (result.is_err() || !self.fragment_is_complete(body_checkpoint)) {
+            self.record_recovered_callable(scoop_ast::RecoveredCallableLiteral {
+                block: None,
+                span: Span::new(
+                    expression_start.unwrap_or(open.span.start),
+                    result
+                        .as_ref()
+                        .map_or(self.peek().span.start, |body| body.span.end),
+                ),
+                label: None,
+                is_suspend,
+                header: scoop_ast::RecoveredCallableHeader::Lambda {
+                    parameters: parameters.clone(),
+                },
+                body: scoop_ast::BodyBlockId(open.span.start),
+            });
+        }
+        let body = result?;
         let span = Span::new(expression_start.unwrap_or(open.span.start), body.span.end);
         Ok(Expr::Lambda {
             label: None,
@@ -145,36 +192,15 @@ impl Parser {
     }
 
     fn try_parse_lambda_parameters(&mut self) -> Option<Vec<LambdaParam>> {
-        let start = self.pos;
-        let mut parameters = Vec::new();
-        loop {
-            let annotations = self.parse_annotations().ok()?;
-            self.skip_parameter_compatibility_modifiers();
-            let target = self.parse_pattern().ok()?;
-            let target_span = crate::pattern::pattern_span(&target);
-            let ty = if matches!(self.peek().kind, TokenKind::Colon) {
-                self.bump();
-                Some(self.parse_type_ref().ok()?)
-            } else {
-                None
-            };
-            let end = ty.as_ref().map_or(target_span.end, |ty| ty.span.end);
-            parameters.push(LambdaParam {
-                annotations,
-                target,
-                ty,
-                span: Span::new(target_span.start, end),
-            });
-            if matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-                continue;
-            }
-            if matches!(self.peek().kind, TokenKind::Arrow) {
-                self.bump();
-                return Some(parameters);
-            }
-            self.pos = start;
-            return None;
-        }
+        self.with_node(scoop_syntax::SyntaxKind::ParameterList, |parser| {
+            let parsed =
+                parser.parse_delimited_items(crate::parser::ListKind::LambdaParameters, |parser| {
+                    parser.with_node(
+                        scoop_syntax::SyntaxKind::Parameter,
+                        Self::parse_lambda_parameter,
+                    )
+                });
+            parsed.closed.then_some(parsed.items)
+        })
     }
 }

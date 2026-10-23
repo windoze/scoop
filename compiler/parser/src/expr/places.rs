@@ -80,7 +80,7 @@ impl Parser {
     /// `receiver[index]` — the `[` is the current token. A `:` after the
     /// index expression is a slice, out of the M5 subset.
     pub(super) fn parse_index(&mut self, receiver: Expr) -> Result<Expr, Diagnostic> {
-        self.bump(); // `[`
+        let bracket_span = self.bump().span;
         let first = self.parse_expr()?;
         if matches!(self.peek().kind, TokenKind::Colon) {
             return Err(Diagnostic::at(
@@ -98,6 +98,7 @@ impl Parser {
         }
         let close = self.expect("`]`", |k| matches!(k, TokenKind::RBracket))?;
         Ok(Expr::Index {
+            bracket_span: Some(bracket_span),
             span: Span::new(receiver.span().start, close.span.end),
             receiver: Box::new(receiver),
             indices: NonEmptyVec::new(first, rest),
@@ -126,10 +127,12 @@ impl Parser {
             Expr::Index {
                 receiver,
                 indices,
+                bracket_span,
                 span,
             } => Ok(PlaceExpr::Index {
                 receiver,
                 indices,
+                bracket_span,
                 span,
             }),
             Expr::QualifiedInterfaceSuperAccess {

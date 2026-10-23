@@ -9,6 +9,8 @@ impl Lowerer {
         host: Option<TypeId>,
         subject: Option<TypeId>,
     ) -> Option<ResolvedTypeName> {
+        self.require_editing_type(self.editing_lookup_type_target(&binding), name.span)?;
+        self.observe_type_lookup(name, &binding, None);
         match binding {
             TypeLookupTarget::Current(TopLevelTypeTarget::Annotation(id)) => {
                 Some(ResolvedTypeName::Annotation(id))
@@ -54,6 +56,7 @@ impl Lowerer {
                 .get(&(owner, name.text.clone()))
                 .copied()
             {
+                self.observe_type_name(name.span, crate::editing::types::TypeTarget::Alias(alias));
                 let alias = self.source_alias_template(alias, name).ok_or(())?;
                 return self
                     .resolve_alias_type_name(alias, arguments, host, subject)
@@ -63,12 +66,29 @@ impl Lowerer {
             if let Some(id) = self
                 .nested_annotations_by_owner
                 .get(&(owner, name.text.clone()))
+                .copied()
             {
-                return Ok(Some(ResolvedTypeName::Annotation(*id)));
+                self.observe_type_name(
+                    name.span,
+                    crate::editing::types::TypeTarget::Annotation(id),
+                );
+                return Ok(Some(ResolvedTypeName::Annotation(id)));
             }
-            return Ok(self.nested_nominal_target(owner, &name.text).map(|target| {
-                ResolvedTypeName::Nominal(self.nominal_identity(target.owner()).declaration_id())
-            }));
+            let nominal = self
+                .nested_nominal_target(owner, &name.text)
+                .map(|target| self.nominal_identity(target.owner()).declaration_id());
+            if let Some(nominal) = nominal {
+                self.require_editing_type(
+                    crate::editing::types::TypeTarget::Nominal(nominal),
+                    name.span,
+                )
+                .ok_or(())?;
+                self.observe_type_name(
+                    name.span,
+                    crate::editing::types::TypeTarget::Nominal(nominal),
+                );
+            }
+            return Ok(nominal.map(ResolvedTypeName::Nominal));
         }
         let dependencies = self
             .dependencies
@@ -78,9 +98,18 @@ impl Lowerer {
             .static_bindings(owner, scoop_identity::BindingNamespace::Type, &name.text)
             .to_vec();
         match bindings.as_slice() {
-            [] => Ok(dependencies
-                .nested_nominal(owner, &name.text)
-                .map(|declaration| ResolvedTypeName::Nominal(declaration.owner()))),
+            [] => {
+                let nominal = dependencies
+                    .nested_nominal(owner, &name.text)
+                    .map(|declaration| declaration.owner());
+                if let Some(nominal) = nominal {
+                    self.observe_type_name(
+                        name.span,
+                        crate::editing::types::TypeTarget::Nominal(nominal),
+                    );
+                }
+                Ok(nominal.map(ResolvedTypeName::Nominal))
+            }
             [binding] => self
                 .resolve_type_name_binding(
                     TypeLookupTarget::Dependency(binding.clone()),
@@ -112,6 +141,7 @@ impl Lowerer {
         } else {
             self.apply_alias_template(&alias, &alias.name, arguments, host)?
         };
+        self.observe_type_application_name(alias.name.span, ty);
         Some(ResolvedTypeName::Applied(ty))
     }
 }

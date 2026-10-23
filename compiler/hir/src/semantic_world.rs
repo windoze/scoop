@@ -110,6 +110,14 @@ impl<'input> ImportedSemanticWorld<'input> {
         self.providers.len() - self.direct.len()
     }
 
+    pub fn alias_expansions(
+        &self,
+    ) -> impl Iterator<Item = &'input crate::CanonicalTypeAliasExpansionsV1> {
+        self.providers
+            .iter()
+            .map(ImportedProvider::alias_expansions)
+    }
+
     pub fn direct_provider(
         &self,
         identity: ConeIdentity,

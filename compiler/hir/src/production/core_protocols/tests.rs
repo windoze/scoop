@@ -192,8 +192,7 @@ fn origin_record_at(
     let source = SourceIdentity::new(
         origin,
         NormalizedSourcePath::new("src/protocol.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context = SourceContextKey::File {
         source: source.clone(),
     };

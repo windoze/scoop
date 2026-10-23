@@ -30,6 +30,7 @@ impl BuildGraphRequest {
             optimization,
             purpose,
             jobs,
+            generators,
         } = self.into_parts();
 
         LoadedBuildRoot::from_input(
@@ -44,6 +45,7 @@ impl BuildGraphRequest {
                 optimization,
                 purpose,
                 jobs,
+                generators,
             },
         )
     }

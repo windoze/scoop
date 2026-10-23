@@ -1,60 +1,18 @@
 use scoop_ast::{
-    Assign, AssignmentOp, Block, CompoundAssignOp, Diagnostic, LocalDelegatedPropertyDecl, Pattern,
+    Assign, AssignmentOp, CompoundAssignOp, Diagnostic, LocalDelegatedPropertyDecl, Pattern,
     SafetyMode, Span, Statement, StatementKind, ValDecl, VisibilitySyntax,
 };
 
 use crate::lexer::{Token, TokenKind};
 use crate::parser::Parser;
 
+mod blocks;
 mod control_flow;
 mod declarations;
 mod jumps;
 mod when;
 
 impl Parser {
-    pub(crate) fn parse_block(&mut self) -> Result<Block, Diagnostic> {
-        let open = self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
-        self.parse_block_after_open(open)
-    }
-
-    /// Parse block items after the opening brace has already been consumed.
-    /// Lambda parsing uses this after its optional parameter header.
-    pub(crate) fn parse_block_after_open(&mut self, open: Token) -> Result<Block, Diagnostic> {
-        let body_depth = self.brace_depth();
-        let mut statements = Vec::new();
-        loop {
-            match self.peek().kind {
-                TokenKind::RBrace => {
-                    let close = self.bump();
-                    return Ok(Block {
-                        statements,
-                        span: Span::new(open.span.start, close.span.end),
-                    });
-                }
-                TokenKind::Eof => return self.unexpected("`}`"),
-                _ => {
-                    let start = self.pos;
-                    match self.parse_statement() {
-                        Ok(statement) => {
-                            statements.push(statement);
-                            if let Err(diagnostic) = self.expect_statement_end() {
-                                self.diagnostics.push(diagnostic);
-                                self.synchronize_body_item(body_depth, start);
-                            }
-                        }
-                        Err(diagnostic) => {
-                            if self.at_eof() {
-                                return Err(diagnostic);
-                            }
-                            self.diagnostics.push(diagnostic);
-                            self.synchronize_body_item(body_depth, start);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     /// A statement ends at a newline, at `}`, or at an explicit `;`.
     pub(crate) fn expect_statement_end(&mut self) -> Result<(), Diagnostic> {
         if matches!(self.peek().kind, TokenKind::Semicolon) {
@@ -72,6 +30,12 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<Statement, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Statement, |parser| {
+            parser.parse_documented_statement()
+        })
+    }
+
+    fn parse_documented_statement(&mut self) -> Result<Statement, Diagnostic> {
         let start = self.pos;
         let statement = self.parse_statement_inner()?;
         if matches!(
@@ -127,6 +91,7 @@ impl Parser {
                 Vec::new(),
                 VisibilitySyntax::Omitted,
                 crate::decl::FunctionContext::Local,
+                false,
             )?;
             return Ok(Statement {
                 span: function.span,
@@ -140,6 +105,7 @@ impl Parser {
                     Vec::new(),
                     VisibilitySyntax::Omitted,
                     crate::decl::FunctionContext::Local,
+                    false,
                 )?;
                 Ok(Statement {
                     span: function.span,
@@ -153,6 +119,7 @@ impl Parser {
                     Vec::new(),
                     VisibilitySyntax::Omitted,
                     crate::decl::FunctionContext::Local,
+                    false,
                 )?;
                 Ok(Statement {
                     span: function.span,
@@ -164,6 +131,7 @@ impl Parser {
                     Vec::new(),
                     VisibilitySyntax::Omitted,
                     crate::decl::FunctionContext::Local,
+                    false,
                 )?;
                 Ok(Statement {
                     span: function.span,
@@ -178,6 +146,7 @@ impl Parser {
                     Vec::new(),
                     VisibilitySyntax::Omitted,
                     crate::decl::FunctionContext::Local,
+                    false,
                 )?;
                 Ok(Statement {
                     span: function.span,
@@ -187,7 +156,7 @@ impl Parser {
             TokenKind::Val | TokenKind::Var => self.parse_val_decl(),
             TokenKind::If => self.parse_if(),
             TokenKind::When => self.parse_when(),
-            TokenKind::While => self.parse_while(),
+            TokenKind::While => self.parse_while(None),
             TokenKind::Return => self.parse_return(),
             TokenKind::LBrace => {
                 let block = self.parse_block()?;
@@ -197,9 +166,9 @@ impl Parser {
                 })
             }
             TokenKind::At => self.parse_safety_block(),
-            TokenKind::For => self.parse_for(),
+            TokenKind::For => self.parse_for(None),
             TokenKind::Break | TokenKind::Continue => self.parse_loop_jump(),
-            TokenKind::Do => self.parse_do_while(),
+            TokenKind::Do => self.parse_do_while(None),
             // `try` / `catch` / `finally` / `throw` are contextual: they
             // stay identifiers everywhere except statement position.
             TokenKind::Ident(text) if text == "try" => self.parse_try(),
@@ -209,7 +178,7 @@ impl Parser {
                 if let Some(op) = assignment_op(&self.peek().kind) {
                     let target = Parser::expr_into_place(expr, "assignment target")?;
                     let start = place_span(&target).start;
-                    self.bump();
+                    let operator_span = self.bump().span;
                     let value = self.parse_expr()?;
                     let span = Span::new(start, value.span().end);
                     return Ok(Statement {
@@ -217,6 +186,7 @@ impl Parser {
                         kind: StatementKind::Assign(Assign {
                             target,
                             op,
+                            operator_span: Some(operator_span),
                             value,
                             span,
                         }),
@@ -284,6 +254,7 @@ impl Parser {
     /// destructuring uses tuple/struct patterns (spec 4.6). `var` with a
     /// pattern behaves like `val` (value types are immutable).
     fn parse_val_decl(&mut self) -> Result<Statement, Diagnostic> {
+        let header_start = self.checkpoint();
         let keyword = self.bump();
         let mutable = matches!(keyword.kind, TokenKind::Var);
         let target = self.parse_pattern()?;
@@ -316,7 +287,15 @@ impl Parser {
             });
         }
         self.expect("`=`", |k| matches!(k, TokenKind::Equal))?;
-        let init = self.parse_expr()?;
+        let init = if self.fragment_is_complete(header_start) {
+            self.parse_statement_operand(keyword.span.start, || {
+                scoop_ast::RecoveredOperandContext::Initializer {
+                    annotation: ty.clone().map(Box::new),
+                }
+            })?
+        } else {
+            self.parse_expr()?
+        };
         let span = Span::new(keyword.span.start, init.span().end);
         Ok(Statement {
             span,
@@ -351,25 +330,12 @@ impl Parser {
     fn parse_labeled_loop(&mut self) -> Result<Statement, Diagnostic> {
         let label = self.expect_ident("loop label")?;
         self.expect("`@`", |kind| matches!(kind, TokenKind::At))?;
-        let mut statement = match self.peek().kind {
-            TokenKind::While => self.parse_while()?,
-            TokenKind::Do => self.parse_do_while()?,
-            TokenKind::For => self.parse_for()?,
-            _ => return self.unexpected("loop after label"),
-        };
-        statement.span.start = label.span.start;
-        match &mut statement.kind {
-            StatementKind::While(loop_) => {
-                loop_.span = statement.span;
-                loop_.label = Some(label);
-            }
-            StatementKind::For(loop_) => {
-                loop_.span = statement.span;
-                loop_.label = Some(label);
-            }
-            _ => unreachable!("a labeled loop is a while or for statement"),
+        match self.peek().kind {
+            TokenKind::While => self.parse_while(Some(label)),
+            TokenKind::Do => self.parse_do_while(Some(label)),
+            TokenKind::For => self.parse_for(Some(label)),
+            _ => self.unexpected("loop after label"),
         }
-        Ok(statement)
     }
 }
 

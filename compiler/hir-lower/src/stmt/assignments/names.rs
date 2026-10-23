@@ -226,6 +226,7 @@ impl Lowerer {
             return None;
         };
         let binding = self.locals[local].binding;
+        self.observe_local_use(binding, name.span, hir::EditingLocalRole::Write);
         if let Some(plan) = self.local_delegate_plans.get(&binding).cloned() {
             if !plan.mutable {
                 self.error(

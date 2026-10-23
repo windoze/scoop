@@ -54,8 +54,7 @@ impl Fixture {
         let source = SourceIdentity::new(
             ConeIdentity::CORE,
             NormalizedSourcePath::new("types.scoop").unwrap(),
-        )
-        .unwrap();
+        );
         let context = SourceContextKey::File {
             source: source.clone(),
         };

@@ -2,6 +2,13 @@ use super::*;
 
 impl Parser {
     pub(super) fn parse_atom(&mut self) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Atom, |parser| {
+            parser.parse_atom_inner()
+        })
+    }
+
+    fn parse_atom_inner(&mut self) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         if self.starts_callable_label() {
             return self.parse_labeled_callable();
         }
@@ -111,7 +118,11 @@ impl Parser {
                 // resolves enum variant construction from that shape.
                 let type_args = self.parse_explicit_call_type_args()?;
                 if matches!(self.peek().kind, TokenKind::LParen) || self.starts_trailing_lambda() {
-                    return self.parse_call(ident, type_args);
+                    return self.parse_call(
+                        ident,
+                        type_args,
+                        self.fragment_is_complete(checkpoint),
+                    );
                 }
                 Ok(Expr::Var(ident))
             }
@@ -122,6 +133,7 @@ impl Parser {
     }
 
     fn parse_super_method_call(&mut self, super_span: Span) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         if matches!(self.peek().kind, TokenKind::QuestionDot) {
             return Err(Diagnostic::at(
                 self.peek().span,
@@ -152,17 +164,25 @@ impl Parser {
                 "`super` only supports method calls, not field access",
             ));
         }
-        let (args, end) = self.parse_call_inputs()?;
-        Ok(Expr::SuperMethodCall {
+        let complete = self.fragment_is_complete(checkpoint);
+        let ParsedArguments {
+            args,
+            end,
+            recovery,
+            complete: arguments_complete,
+        } = self.parse_call_inputs()?;
+        let expression = Expr::SuperMethodCall {
             super_span,
             name,
             type_args,
             args,
             span: Span::new(super_span.start, end),
-        })
+        };
+        self.finish_recovered_call(expression, recovery, complete, arguments_complete)
     }
 
     fn parse_qualified_interface_super(&mut self, super_span: Span) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         self.bump(); // `<`
         let qualifier = self.parse_type_ref()?;
         self.expect("`>` after qualified `super` interface", |kind| {
@@ -174,15 +194,22 @@ impl Parser {
         let name = self.expect_ident("interface member name after qualified `super`")?;
         let type_args = self.parse_explicit_call_type_args()?;
         if matches!(self.peek().kind, TokenKind::LParen) || self.starts_trailing_lambda() {
-            let (args, end) = self.parse_call_inputs()?;
-            return Ok(Expr::QualifiedInterfaceSuperMethodCall {
+            let complete = self.fragment_is_complete(checkpoint);
+            let ParsedArguments {
+                args,
+                end,
+                recovery,
+                complete: arguments_complete,
+            } = self.parse_call_inputs()?;
+            let expression = Expr::QualifiedInterfaceSuperMethodCall {
                 super_span,
                 qualifier,
                 name,
                 type_args,
                 args,
                 span: Span::new(super_span.start, end),
-            });
+            };
+            return self.finish_recovered_call(expression, recovery, complete, arguments_complete);
         }
         if !type_args.is_empty() {
             return Err(Diagnostic::at(
@@ -201,22 +228,22 @@ impl Parser {
     /// `[e1, e2, ...]` — an array literal (spec 10.2). The empty `[]`
     /// parses too; HIR rejects it when there is no expected type.
     fn parse_array_literal(&mut self) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ArrayExpr, |parser| {
+            parser.parse_array_literal_inner()
+        })
+    }
+
+    fn parse_array_literal_inner(&mut self) -> Result<Expr, Diagnostic> {
         let open = self.bump(); // `[`
-        let mut elements = Vec::new();
-        if !matches!(self.peek().kind, TokenKind::RBracket) {
-            loop {
-                elements.push(self.parse_expr()?);
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
+        let diagnostic_start = self.diagnostics.len();
+        let elements =
+            self.parse_delimited_items(crate::parser::ListKind::ArrayElements, Self::parse_expr);
+        if let Some(diagnostic) = self.diagnostics.get(diagnostic_start) {
+            return Err(diagnostic.clone());
         }
-        let close = self.expect("`]`", |k| matches!(k, TokenKind::RBracket))?;
         Ok(Expr::ArrayLiteral {
-            elements,
-            span: Span::new(open.span.start, close.span.end),
+            elements: elements.items,
+            span: Span::new(open.span.start, elements.end),
         })
     }
 
@@ -227,15 +254,22 @@ impl Parser {
         &mut self,
         callee: Ident,
         type_args: Vec<scoop_ast::CallTypeArgument>,
+        complete: bool,
     ) -> Result<Expr, Diagnostic> {
-        let (args, end) = self.parse_call_inputs()?;
+        let ParsedArguments {
+            args,
+            end,
+            recovery,
+            complete: arguments_complete,
+        } = self.parse_call_inputs()?;
         let span = Span::new(callee.span.start, end);
-        Ok(Expr::Call(CallExpr {
+        let expression = Expr::Call(CallExpr {
             callee,
             type_args,
             args,
             span,
-        }))
+        });
+        self.finish_recovered_call(expression, recovery, complete, arguments_complete)
     }
 
     /// Parse `<T, ...>` only when followed by a call argument list or
@@ -247,7 +281,7 @@ impl Parser {
         if !matches!(self.peek().kind, TokenKind::Less) {
             return Ok(Vec::new());
         }
-        let start = self.pos;
+        let start = self.checkpoint();
         self.bump();
         let mut type_args = Vec::new();
         let mut saw_infer = false;
@@ -258,7 +292,11 @@ impl Parser {
                 scoop_ast::CallTypeArgument::Infer { span: token.span }
             } else {
                 let ty = match self.parse_type_ref() {
-                    Ok(ty) => ty,
+                    Ok(ty) if saw_infer || !self.has_errors_since(start) => ty,
+                    Ok(_) => {
+                        self.restore(start);
+                        return Ok(Vec::new());
+                    }
                     Err(error)
                         if saw_infer
                             || error.message
@@ -267,7 +305,7 @@ impl Parser {
                         return Err(error);
                     }
                     Err(_) => {
-                        self.pos = start;
+                        self.restore(start);
                         return Ok(Vec::new());
                     }
                 };
@@ -284,7 +322,7 @@ impl Parser {
             if saw_infer {
                 return self.unexpected("`>` after call type argument list");
             }
-            self.pos = start;
+            self.restore(start);
             return Ok(Vec::new());
         }
         self.bump();
@@ -293,91 +331,43 @@ impl Parser {
         {
             if saw_infer {
                 return Err(Diagnostic::at(
-                    self.tokens[start].span,
+                    self.tokens[start.position].span,
                     "`_` is only allowed in a type argument list immediately followed by a call",
                 ));
             }
-            self.pos = start;
+            self.restore(start);
             return Ok(Vec::new());
         }
         Ok(type_args)
-    }
-
-    /// `(arg, ...)` — the `(` is the current token. Shared by calls,
-    /// method calls, and base-class constructor delegation. Returns the
-    /// arguments and the closing paren's end offset.
-    pub(crate) fn parse_args(&mut self) -> Result<(Vec<CallArgument>, u32), Diagnostic> {
-        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        let mut args = Vec::new();
-        if !matches!(self.peek().kind, TokenKind::RParen) {
-            loop {
-                args.push(self.parse_call_argument()?);
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-        }
-        let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        Ok((args, close.span.end))
-    }
-
-    fn parse_call_argument(&mut self) -> Result<CallArgument, Diagnostic> {
-        let start = self.peek().span.start;
-        let name = if let TokenKind::Ident(_) | TokenKind::EscapedIdent(_) = &self.peek().kind
-            && matches!(
-                self.tokens.get(self.pos + 1).map(|token| &token.kind),
-                Some(TokenKind::Equal)
-            ) {
-            let name = self.expect_ident("argument name")?;
-            self.bump(); // `=` verified above
-            CallArgumentName::Named(name)
-        } else {
-            CallArgumentName::Positional
-        };
-        let spread = if matches!(self.peek().kind, TokenKind::Star) {
-            SpreadSyntax::Spread(self.bump().span)
-        } else {
-            SpreadSyntax::Plain
-        };
-        let expression = self.parse_expr()?;
-        Ok(CallArgument {
-            span: Span::new(start, expression.span().end),
-            name,
-            spread,
-            expression,
-        })
     }
 
     /// `( ... )` disambiguation (spec section 4.3): `()` is the unit
     /// literal, `(e)` is just `e` (no node), `(e,)` a 1-tuple, and
     /// `(e1, e2, ...)` a tuple literal.
     fn parse_paren_expr(&mut self) -> Result<Expr, Diagnostic> {
-        let open = self.bump(); // `(`
-        if matches!(self.peek().kind, TokenKind::RParen) {
-            let close = self.bump();
-            return Ok(Expr::UnitLiteral {
-                span: Span::new(open.span.start, close.span.end),
-            });
-        }
-        let first = self.parse_expr()?;
-        if !matches!(self.peek().kind, TokenKind::Comma) {
-            self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-            return Ok(first);
-        }
-        let mut elements = vec![first];
-        while matches!(self.peek().kind, TokenKind::Comma) {
-            self.bump();
-            if matches!(self.peek().kind, TokenKind::RParen) {
-                break; // trailing comma: `(e,)` / `(e1, e2,)`
-            }
-            elements.push(self.parse_expr()?);
-        }
-        let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        Ok(Expr::TupleLiteral {
-            elements,
-            span: Span::new(open.span.start, close.span.end),
+        self.with_node(scoop_syntax::SyntaxKind::ParenExpr, |parser| {
+            parser.parse_paren_expr_inner()
         })
+    }
+
+    fn parse_paren_expr_inner(&mut self) -> Result<Expr, Diagnostic> {
+        let open = self.bump();
+        let diagnostic_start = self.diagnostics.len();
+        let mut elements =
+            self.parse_delimited_items(crate::parser::ListKind::ParenExpressions, Self::parse_expr);
+        if let Some(diagnostic) = self.diagnostics.get(diagnostic_start) {
+            return Err(diagnostic.clone());
+        }
+        let span = Span::new(open.span.start, elements.end);
+        if elements.items.is_empty() {
+            Ok(Expr::UnitLiteral { span })
+        } else if elements.items.len() == 1 && !elements.had_comma {
+            Ok(elements.items.pop().expect("one parenthesized expression"))
+        } else {
+            Ok(Expr::TupleLiteral {
+                elements: elements.items,
+                span,
+            })
+        }
     }
 }

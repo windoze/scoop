@@ -78,6 +78,8 @@ mod types;
 pub use types::*;
 mod static_shape;
 pub use static_shape::*;
+mod semantic_queries;
+pub use semantic_queries::*;
 
 mod integer;
 pub use integer::*;

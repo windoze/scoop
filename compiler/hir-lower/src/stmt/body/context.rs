@@ -8,6 +8,20 @@ impl Lowerer {
         name: &str,
         lower: impl FnOnce(&mut Self) -> Vec<hir::Statement>,
     ) -> hir::Body {
+        let mut scope = self.with_function_scope(id, name, lower);
+        scope.entry.extend(scope.value);
+        hir::Body {
+            locals: scope.locals,
+            statements: scope.entry,
+        }
+    }
+
+    pub(crate) fn with_function_scope<T>(
+        &mut self,
+        id: FunctionId,
+        name: &str,
+        lower: impl FnOnce(&mut Self) -> T,
+    ) -> crate::stmt::FunctionScopeResult<T> {
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_receivers = std::mem::take(&mut self.receiver_scopes);
         let outer_smart_casts = self.smart_casts.clone();
@@ -132,7 +146,7 @@ impl Lowerer {
             owner.and_then(|owner| self.enter_local_type_captures(owner, capture_environment));
         entry.extend(self.lower_context_entry(id));
 
-        let statements = lower(self);
+        let value = lower(self);
         self.pop_scope();
         if let Some(scopes) = outer_type_scope {
             self.scopes = scopes;
@@ -155,12 +169,10 @@ impl Lowerer {
         debug_assert!(self.loop_targets.is_empty());
         self.loop_targets = outer_loop_targets;
 
-        hir::Body {
+        crate::stmt::FunctionScopeResult {
             locals: std::mem::take(&mut self.locals).into_arena(),
-            statements: {
-                entry.extend(statements);
-                entry
-            },
+            entry,
+            value,
         }
     }
 }

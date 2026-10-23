@@ -72,3 +72,11 @@ public annotation class Target(val allowed: Array<AnnotationTarget>)
  * Allows multiple applications of the annotated annotation type at one target.
  */
 public annotation class Repeatable
+
+/**
+ * Selects a host source generator for existing interface implementations.
+ * Each interface string is resolved in the annotated implementation's scope.
+ */
+@Target([AnnotationTarget.Class])
+@Repeatable
+public annotation class GenerateWith(val generator: String, val `interface`: Array<String>)

@@ -18,8 +18,12 @@ pub(super) struct HirInterfaceSignatureProjector<'a> {
 
 impl<'a> HirInterfaceSignatureProjector<'a> {
     pub(super) fn new(export: &'a ExportHir) -> Self {
+        Self::from_inputs(crate::HirTypeIdentityInputs::from_export(export))
+    }
+
+    pub(super) fn from_inputs(inputs: crate::HirTypeIdentityInputs<'a>) -> Self {
         Self {
-            mapper: HirSignatureTypeMapper::new(crate::HirTypeIdentityInputs::from_export(export)),
+            mapper: HirSignatureTypeMapper::new(inputs),
         }
     }
 

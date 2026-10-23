@@ -23,8 +23,7 @@ pub trait PersistentId: private::Sealed + Copy + fmt::Debug + Eq + Ord + std::ha
     fn as_array(&self) -> &[u8; 32];
 }
 
-/// Resolves one kind of untrusted persistent identity reference against an
-/// already validated identity table.
+/// Resolves one kind of persistent identity reference against existing declarations.
 ///
 /// Implementations are deliberately kind-specific: a resolver for type ids
 /// cannot be used for generic-type ids even though both have the same wire
@@ -166,10 +165,10 @@ persistent_id!(
     "canonical C ABI layout fingerprint"
 );
 
-/// Typed but not yet semantically trusted bytes read from Wire CBOR v1.
+/// A typed reference read from an external representation.
 ///
-/// Validation must call [`Self::verify`] with an id recomputed from the
-/// canonical key before the concrete identity can escape.
+/// Constructing a reference does not create a declaration. Consumers resolve it
+/// in their existing table; [`Self::verify`] also compares a known identity.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DecodedPersistentId<I: PersistentId> {
     bytes: [u8; 32],
@@ -177,7 +176,7 @@ pub struct DecodedPersistentId<I: PersistentId> {
 }
 
 impl<I: PersistentId> DecodedPersistentId<I> {
-    pub(crate) const fn from_unvalidated_bytes(bytes: [u8; 32]) -> Self {
+    pub const fn from_bytes(bytes: [u8; 32]) -> Self {
         Self {
             bytes,
             marker: PhantomData,
@@ -197,6 +196,12 @@ impl<I: PersistentId> DecodedPersistentId<I> {
                 actual: self.bytes,
             })
         }
+    }
+}
+
+impl<I: PersistentId> From<I> for DecodedPersistentId<I> {
+    fn from(id: I) -> Self {
+        Self::from_bytes(*id.as_array())
     }
 }
 

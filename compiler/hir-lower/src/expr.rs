@@ -193,14 +193,14 @@ struct ResolvedReference {
 }
 
 #[derive(Clone)]
-struct SuccessfulExprLayer {
-    state: Box<Lowerer>,
-    expression: hir::Expr,
-    sink: Vec<hir::Statement>,
+pub(crate) struct SuccessfulExprLayer {
+    pub(crate) state: Box<Lowerer>,
+    pub(crate) expression: hir::Expr,
+    pub(crate) sink: Vec<hir::Statement>,
 }
 
 impl Lowerer {
-    fn probe_expr_layer(
+    pub(crate) fn probe_expr_layer(
         &self,
         lower: impl FnOnce(&mut Lowerer, &mut Vec<hir::Statement>) -> Option<hir::Expr>,
     ) -> Result<SuccessfulExprLayer, Box<Lowerer>> {
@@ -230,6 +230,7 @@ impl Lowerer {
         let baseline = self.diagnostics.len();
         debug_assert!(
             failed.diagnostics.len() > baseline
+                || failed.body_cancelled()
                 || self
                     .diagnostics
                     .iter()
@@ -258,15 +259,36 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expectation: Option<ExpressionExpectation>,
     ) -> Option<hir::Expr> {
-        let (expected, lambda_expectation) = match expectation {
+        let result = self.lower_expr_with_expectation_inner(expr, sink, expectation);
+        if result.is_none() {
+            self.observe_expression_failure();
+        }
+        result
+    }
+
+    fn lower_expr_with_expectation_inner(
+        &mut self,
+        expr: &ast::Expr,
+        sink: &mut Vec<hir::Statement>,
+        expectation: Option<ExpressionExpectation>,
+    ) -> Option<hir::Expr> {
+        if self.body_cancelled() {
+            return None;
+        }
+        let (expected, callable_expectation) = match expectation {
             Some(ExpressionExpectation::Type(ty)) => (Some(ty), None),
-            Some(ExpressionExpectation::Lambda(signature)) => (None, Some(signature)),
+            Some(ExpressionExpectation::Callable(signature)) => (None, Some(signature)),
             None => (None, None),
         };
+        let partial_expectation = callable_expectation.is_some();
+        self.observe_callable_syntax(expr);
+        self.observe_property_syntax(expr);
+        self.observe_selector_syntax(expr);
         if self.reject_release_expression(expr) {
             return None;
         }
         let incoming = self.smart_casts.clone();
+        let diagnostics_before = self.diagnostics.len();
         let start = sink.len();
         let lowered = match expr {
             ast::Expr::AnonymousObject(declaration) => {
@@ -418,7 +440,8 @@ impl Lowerer {
                 parameters.as_deref(),
                 body,
                 *span,
-                lambda_expectation.or_else(|| expected.and_then(|ty| self.lambda_expectation(ty))),
+                callable_expectation
+                    .or_else(|| expected.and_then(|ty| self.callable_expectation(ty))),
             ),
             ast::Expr::AnonymousFunction {
                 label,
@@ -478,17 +501,18 @@ impl Lowerer {
                 rhs,
                 span,
             } => self.lower_infix_call(lhs, target, rhs, *span, sink, expected),
-            ast::Expr::Binary { op, lhs, rhs, span } => {
-                self.lower_binary(*op, lhs, rhs, *span, sink, expected)
-            }
-            ast::Expr::Unary { op, operand, span } => {
-                self.lower_unary(*op, operand, *span, sink, expected)
-            }
+            ast::Expr::Binary {
+                op, lhs, rhs, span, ..
+            } => self.lower_binary(*op, lhs, rhs, *span, sink, expected),
+            ast::Expr::Unary {
+                op, operand, span, ..
+            } => self.lower_unary(*op, operand, *span, sink, expected),
             ast::Expr::Update {
                 place,
                 op,
                 notation,
                 span,
+                ..
             } => self.lower_update(place, *op, *notation, *span, sink),
             ast::Expr::NullAssert { operand, span } => self.lower_null_assert(operand, *span, sink),
             ast::Expr::Elvis { lhs, rhs, span } => {
@@ -576,6 +600,7 @@ impl Lowerer {
                 receiver,
                 indices,
                 span,
+                ..
             } => self.lower_index_read(receiver, indices.as_slice(), *span, sink),
             ast::Expr::If(if_) => self.lower_if_expression(if_, sink, expected),
             ast::Expr::When(when) => self.lower_when_expression(when, sink, expected),
@@ -589,6 +614,14 @@ impl Lowerer {
         if let Some(value) = &lowered {
             self.materialize_callable_captures(value, sink);
             self.advance_smart_casts(incoming, &sink[start..], Some(value));
+            if self.diagnostics.len() == diagnostics_before {
+                let expected = if partial_expectation {
+                    hir::EditingValue::Unavailable(hir::EditingUnavailable::PendingInference)
+                } else {
+                    hir::EditingValue::Known(expected)
+                };
+                self.observe_expression(expr.span(), value, expected);
+            }
         }
         lowered
     }

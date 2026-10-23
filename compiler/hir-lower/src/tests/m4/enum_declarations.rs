@@ -269,13 +269,16 @@ fn named_variant_default_is_an_error() {
     let file = file(vec![
         Decl::Enum(ast::EnumDecl {
             interface_implementations: Vec::new(),
-            annotations: vec![],
-            visibility: ast::VisibilitySyntax::Omitted,
-            name: ident("Shape"),
-            type_params: vec![],
+            header: ast::EnumHeader {
+                annotations: vec![],
+                visibility: ast::VisibilitySyntax::Omitted,
+                name: ident("Shape"),
+                type_params: vec![],
+                interfaces: vec![],
+                where_clause: None,
+                span: sp(),
+            },
             methods: vec![],
-            interfaces: vec![],
-            where_clause: None,
             variants: vec![VariantDecl {
                 annotations: Vec::new(),
                 name: ident("Named"),

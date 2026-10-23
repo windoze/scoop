@@ -7,20 +7,23 @@ fn interface(
     properties: Vec<ast::PropertyDecl>,
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
-        sealed_span: None,
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        type_params: Vec::new(),
-        supertypes: parents
-            .into_iter()
-            .map(|parent| ast::SupertypeSpec {
-                ty: ty_named(parent),
-                initialization: ast::SupertypeInitialization::None,
-                span: sp(),
-            })
-            .collect(),
-        where_clause: None,
+        header: ast::InterfaceHeader {
+            sealed_span: None,
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            type_params: Vec::new(),
+            supertypes: parents
+                .into_iter()
+                .map(|parent| ast::SupertypeSpec {
+                    ty: ty_named(parent),
+                    initialization: ast::SupertypeInitialization::None,
+                    span: sp(),
+                })
+                .collect(),
+            where_clause: None,
+            span: sp(),
+        },
         methods,
         properties,
         nested: Vec::new(),
@@ -99,6 +102,7 @@ fn qualified_super_read(interface: &str, name: &str) -> Expr {
 fn qualified_super_write(interface: &str, name: &str, value: Expr) -> Statement {
     Statement {
         kind: StatementKind::Assign(ast::Assign {
+            operator_span: None,
             target: ast::AssignTarget::QualifiedInterfaceSuperProperty {
                 qualifier: ty_named(interface),
                 name: ident(name),

@@ -1,17 +1,17 @@
 # M47 设计：HIR 查询与接口实现生成器
 
-状态：设计完成，待实施。初稿：2026-10-15；公共基础修订：2026-10-21。原调研基线：`e548b9ebe`；本次公共基础核对基线：`4de3ae9e8`。M46 已完成；本文以 [M46 主设计](../milestone46/DESIGN.md)、[Serialize／Option 合同](../milestone46/SERIALIZE.md)及其完成后的实现为迁移基线，不实施或重新安排 M46。
+状态：通用机制已实现，codec 迁移待实施。初稿：2026-10-15；公共基础修订：2026-10-21。原调研基线：`e548b9ebe`；本次公共基础核对基线：`4de3ae9e8`。M46 已完成；本文以 [M46 主设计](../milestone46/DESIGN.md)、[Serialize／Option 合同](../milestone46/SERIALIZE.md)及其完成后的实现为迁移基线，不实施或重新安排 M46。
 
-依据：[语言规范](../specs/SCOOP-SPEC.md) 8.5、9.4～9.6、11.13，[编译器与产物规范](../specs/SCOOP-IMPL-SPEC.md) 2.1、2.2、2.7、2.11、2.17，以及[路线图](../ROADMAP.md)。本文规定功能边界、编译编排、试点迁移和验收；[同步协议与语义查询](PROTOCOL.md)规定进程交互、HIR 查询与方法体源码片段。本次只修改设计；各批实施前先同步相应 spec。
+依据：[语言规范](../specs/SCOOP-SPEC.md) 8.5、9.4～9.6、11.13，[编译器与产物规范](../specs/SCOOP-IMPL-SPEC.md) 2.1、2.2、2.7、2.11、2.17、2.20，以及[路线图](../ROADMAP.md)。本文规定功能边界、编译编排、试点迁移和验收；[同步协议与语义查询](PROTOCOL.md)规定进程交互、HIR 查询与方法体源码片段。通用查询、同步协议与方法体填充已随公共基础实现，实际范围见[实施与验收](../language-service/PROGRESS.md)；codec 迁移仍按本文推进，各批行为变更先同步相应 spec。
 
 ## 1. 本期交付与边界
 
 M47 只新增两个基础能力：
 
-1. 通用的 HIR 查询接口，向 generator 提供现有类型、成员、注解、默认值和正文等语义信息，供后续 LSP 复用。编译器内部有实际需要时也可重构为调用同一接口，查询实现复用已有语义规则。
+1. 通用的 HIR 查询接口，向 generator 提供现有类型、成员、注解、默认值和正文等语义信息，供 LSP 复用。编译器内部有实际需要时也可重构为调用同一接口，查询实现复用已有语义规则。
 2. generator 的同步交互流程。driver 启动宿主可执行程序，建立 stdin／stdout 双向管道；generator 逐次查询 HIR，最后一次返回 `MethodId -> 方法体源码文本`。driver 使用现有 parser 得到普通 AST，再交回正常 HIR lowering。
 
-源码、片段解析、语义上下文及查询与[可恢复语法／LSP 公共基础](../language-service/DESIGN.md)对齐。M47 消费其中的固定编译视图和严格片段入口；可恢复 CST、编辑态分析与 LSP 服务按公共基础设计分批交付，不成为本期的额外前置。
+源码、片段解析、语义上下文及查询与[可恢复语法／LSP 公共基础](../language-service/DESIGN.md)对齐。M47 消费其中的固定编译视图和严格片段入口；可恢复 CST、编辑态分析与 LSP 服务已按公共基础设计完成 A～E 交付，仍与 codec 迁移分别验收。
 
 encoder／decoder 是这两个能力的落地试点：把 M46 更新后的合成策略迁入独立的 `scoop-codec-generator`，使 `Serialize` 完全按普通 annotation class 绑定和保存。试点中的字段策略、codec 选择和源码组织归 generator；不能为迁移预先扩展 AST、名称绑定、类型系统或默认值语义。实际缺口的处理见 4.1 和 5.2。
 
@@ -30,7 +30,7 @@ encoder／decoder 是这两个能力的落地试点：把 M46 更新后的合成
 GenerateWith 是 `scoop.core` 中的普通 annotation class，标在实际实现类型上。一条注解为同一个 generator 指定一组接口，一轮生成它们的缺失实现；同一个类型可以重复标注，为其他接口选择不同程序。interface 声明本身不绑定生成策略。
 
 ```scoop
-@Target([AnnotationTarget.CLASS])
+@Target([AnnotationTarget.Class])
 @Repeatable
 public annotation class GenerateWith(
     val generator: String,
@@ -50,7 +50,7 @@ public class UserCodec : Encodable<User>, Decodable<User> {}
 
 源码 parser 不识别 GenerateWith 的名字或参数含义，只产生普通 annotation AST；HIR 使用普通参数／target／Repeatable 规则绑定它。之后 driver 通过普通 core 命名空间查到 GenerateWith 的实际声明，读取正常 metadata 中对它的应用，解释 generator 名称与 interface 数组中的各个字符串，选择要填充的既有接口实现。导入别名、generator 的常量字符串及数组中的字符串常量元素都沿普通注解规则工作；不在 parser／HIR 中增加 GenerateWith 专属的 core role、schema 校验或注解节点。
 
-CLASS 沿用覆盖名义声明的规则；driver 只对实际承载实现的 class／struct／enum／object（包括 companion）建立任务。interface 本体不能用此入口替实现者指定策略，配置在没有相应实现对象时报告不适用。重复应用沿现有 Repeatable 行为保留各自来源，具体接口重复规则见 2.2。
+Class 沿用覆盖名义声明的规则；driver 只对实际承载实现的 class／struct／enum／object（包括 companion）建立任务。interface 本体不能用此入口替实现者指定策略，配置在没有相应实现对象时报告不适用。重复应用沿现有 Repeatable 行为保留各自来源，具体接口重复规则见 2.2。
 
 codec 试点在一条注解中列出两个接口，由工具链注册的同一个程序在一次请求中处理两个方向：
 
@@ -332,6 +332,6 @@ GenerateWith 与 Serialize 都按普通 annotation metadata 保存在各自实�
 | 构建与缓存 | core bootstrap、CLI 注册、修改 generator 后失效、缓存命中不调用、无任务不启动、程序缺失／失败不回退 |
 | 产物与运行 | 源码和工具保持存在，复用 DTO metadata 并生成本地 codec；再次构建／下游消费不重跑有效的上游生成任务；泛型、ZST／大值和托管引用按必要组合覆盖，不增加源码／工具隔离场景 |
 
-先执行变更语言对应的格式化和 lint，再执行相关 Rust 测试、fixture runner 规则测试及正式 CLI fixture。将 generator binary 纳入 fixture 的正式工具准备，不能用内存测试后端代替端到端验证。最终覆盖 Darwin、Linux GNU、Linux musl 的适用组合；只有实际影响共享 ABI、GC 或产物基础时才据此扩大回归。
+先执行变更语言对应的格式化和 lint，再执行相关 Rust 测试、fixture runner 规则测试及正式 CLI fixture。将 generator binary 纳入 fixture 的正式工具准备，不能用内存测试后端代替端到端验证。按实际变更选择 Darwin 与 Linux 的适用组合；未涉及 LIR、codegen 或目标 ABI 时，Linux GNU 与 musl 选择一组完整验证。只有实际影响共享 ABI、GC 或产物基础时才据此扩大回归。
 
-M47 完成的判据是：保持 M46 编解码行为的真实程序经独立 generator 编译运行；编译器中已无 Serialize 专用解释和 encode／decode 策略合成；普通用户 interface 也能通过同一同步协议补充方法实现。设计提交本身不声称这些验收已经执行。
+M47 完成的判据是：保持 M46 编解码行为的真实程序经独立 generator 编译运行；编译器中已无 Serialize 专用解释和 encode／decode 策略合成；普通用户 interface 也能通过同一同步协议补充方法实现。codec 迁移的上述完成条件尚未闭合；已交付通用机制的验证见[公共基础验收](../language-service/PROGRESS.md)。

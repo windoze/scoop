@@ -88,6 +88,12 @@ impl Lowerer {
             }
 
             valid = false;
+            for &node in &component {
+                self.fail_editing_owner(match node {
+                    ValueLayoutTemplate::Struct(id) => Owner::Struct(id),
+                    ValueLayoutTemplate::Enum(id) => Owner::Enum(id),
+                });
+            }
             let cycle = find_component_cycle(component[0], &component, &graph);
             let path = cycle
                 .iter()
@@ -108,7 +114,9 @@ impl Lowerer {
             self.error(span, message);
         }
         self.current_file = previous_file;
-        if valid {
+        // Relevance is complete independently of finiteness. Editing queries
+        // keep it for the declarations outside the failed components.
+        if valid || self.editing_declarations.is_some() {
             self.value_layout_relevance = relevance;
         }
         valid

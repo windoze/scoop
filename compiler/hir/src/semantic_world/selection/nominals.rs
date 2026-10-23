@@ -16,7 +16,7 @@ pub struct ImportedNominalDeclaration {
     pub origin: crate::ExportDefinitionSourceV1,
     pub interface: NominalInterfaceRecordV1,
     pub field_sources: Vec<ImportedNominalFieldSource>,
-    pub variant_names: Vec<ImportedEnumVariantNames>,
+    pub variant_sources: Vec<ImportedEnumVariantSource>,
     pub c_abi: NativeBoundaryCAbiV1,
     pub dispatch_slots: Vec<
         CborIdentityRecord<
@@ -30,12 +30,20 @@ pub struct ImportedNominalDeclaration {
 pub struct ImportedNominalFieldSource {
     pub name: String,
     pub storage: crate::NominalFieldStorage,
+    pub origin: crate::ExportDefinitionSourceV1,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ImportedEnumVariantNames {
+pub struct ImportedEnumVariantSource {
     pub name: String,
-    pub fields: Vec<String>,
+    pub fields: Vec<ImportedEnumVariantFieldSource>,
+    pub origin: crate::ExportDefinitionSourceV1,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ImportedEnumVariantFieldSource {
+    pub name: String,
+    pub origin: crate::ExportDefinitionSourceV1,
 }
 
 impl ImportedNominalDeclaration {
@@ -91,6 +99,10 @@ impl ImportedDependencySelectionPlan {
         self.catalog.nominals.get(&owner)
     }
 
+    pub fn nominal_declarations(&self) -> impl Iterator<Item = &Arc<ImportedNominalDeclaration>> {
+        self.catalog.nominals.values()
+    }
+
     /// Lexical scope visibility does not require a generic owner's machine type.
     pub fn nominal_visibility(
         &self,
@@ -130,6 +142,12 @@ pub(super) fn declarations(
     use ImportedDependencySelectionPlanBuildError as Error;
     let foundation = provider.foundation();
     let canonical = foundation.canonical_for_semantic_authority();
+    let definition_origin = |subject| {
+        canonical
+            .definition_origin(subject)
+            .map(|record| crate::ExportDefinitionSourceV1::new(record.origin().clone()))
+            .ok_or(Error::MissingDefinitionOrigin(subject))
+    };
     provider
         .interface()
         .nominal_interfaces()
@@ -193,7 +211,13 @@ pub(super) fn declarations(
                         crate::NominalFieldStorage::EnclosingInstance => "$outer".into(),
                         crate::NominalFieldStorage::CapturedEnvironment => "$captures".into(),
                     };
-                    Ok(ImportedNominalFieldSource { name, storage })
+                    Ok(ImportedNominalFieldSource {
+                        name,
+                        storage,
+                        origin: definition_origin(scoop_identity::DefinitionOriginSubject::Field(
+                            field.field(),
+                        ))?,
+                    })
                 })
                 .collect::<Result<Vec<_>, Error>>()?;
             let c_abi = foundation
@@ -208,7 +232,7 @@ pub(super) fn declarations(
                 .map_or(NativeBoundaryCAbiV1::SourceRepresentation, |record| {
                     record.c_abi()
                 });
-            let variant_names = match interface.source_shape() {
+            let variant_sources = match interface.source_shape() {
                 crate::NominalSourceShapeV1::Enum(shape) => shape
                     .variants()
                     .iter()
@@ -228,17 +252,33 @@ pub(super) fn declarations(
                                 let (_, key) = canonical
                                     .enum_variant_field_by_bytes(field.field().as_array())
                                     .ok_or(Error::MissingEnumField(field.field()))?;
-                                Ok(match key.selector() {
+                                let name = match key.selector() {
                                     EnumVariantFieldSelector::Named(name) => {
                                         name.as_str().to_owned()
                                     }
                                     EnumVariantFieldSelector::Positional { declaration_index } => {
                                         format!("_{declaration_index}")
                                     }
+                                };
+                                Ok(ImportedEnumVariantFieldSource {
+                                    name,
+                                    origin: definition_origin(
+                                        scoop_identity::DefinitionOriginSubject::EnumVariantField(
+                                            field.field(),
+                                        ),
+                                    )?,
                                 })
                             })
                             .collect::<Result<Vec<_>, Error>>()?;
-                        Ok(ImportedEnumVariantNames { name, fields })
+                        Ok(ImportedEnumVariantSource {
+                            name,
+                            fields,
+                            origin: definition_origin(
+                                scoop_identity::DefinitionOriginSubject::EnumVariant(
+                                    variant.variant(),
+                                ),
+                            )?,
+                        })
                     })
                     .collect::<Result<Vec<_>, Error>>()?,
                 _ => Vec::new(),
@@ -259,7 +299,7 @@ pub(super) fn declarations(
                 origin: crate::ExportDefinitionSourceV1::new(origin.origin().clone()),
                 interface: interface.clone(),
                 field_sources,
-                variant_names,
+                variant_sources,
                 c_abi,
             }))
         })

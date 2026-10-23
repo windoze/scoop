@@ -96,6 +96,11 @@ impl Lowerer {
         let identity = CborIdentityRecord::<PersistentAnnotationId, _>::from_key(key)
             .expect("a non-generic annotation source key has an annotation identity");
         let annotation = identity.id();
+        self.observe_type_declaration(
+            file,
+            declaration.name.span,
+            crate::editing::types::TypeTarget::Annotation(annotation),
+        );
         if let Some(owner) = owner {
             self.nested_annotations_by_owner
                 .insert((owner, declaration.name.text.clone()), annotation);

@@ -143,6 +143,12 @@ impl Lowerer {
         self.check_call_effects(hir::Callable::Function(function), span);
         let application =
             self.record_method_application(function, hir::MethodOwnerApplication::Interface(owner));
+        self.observe_property_reference(
+            span,
+            hir::SemanticProperty::Current(id),
+            property.ty,
+            hir::EditingPropertyAccess::Read,
+        );
         Some(hir::Expr {
             kind: ExprKind::DirectSuperMethodCall {
                 receiver: Box::new(property.receiver),
@@ -209,6 +215,12 @@ impl Lowerer {
         self.check_call_effects(hir::Callable::Function(function), span);
         let application =
             self.record_method_application(function, hir::MethodOwnerApplication::Interface(owner));
+        self.observe_property_reference(
+            span,
+            hir::SemanticProperty::Current(id),
+            property.ty,
+            hir::EditingPropertyAccess::Write,
+        );
         Some(hir::StatementKind::Expr(hir::Expr {
             kind: ExprKind::DirectSuperMethodCall {
                 receiver: Box::new(property.receiver),
@@ -221,7 +233,7 @@ impl Lowerer {
         }))
     }
 
-    fn resolve_direct_interface_super(
+    pub(crate) fn resolve_direct_interface_super(
         &mut self,
         qualifier: &ast::TypeRef,
         span: Span,

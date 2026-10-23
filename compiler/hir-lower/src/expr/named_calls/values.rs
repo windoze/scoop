@@ -34,42 +34,44 @@ impl Lowerer {
         real_member: bool,
         layer_name: &str,
     ) -> PropertyExtensionInvokeOutcome {
-        let inputs = properties
-            .iter()
-            .filter_map(|property| {
-                let candidates = property
-                    .read
-                    .state
-                    .named_executable_extension_call_layers("invoke")
-                    .into_iter()
-                    .filter(|layer| {
-                        let invoke_rank = layer.kind.call_rank();
-                        if real_member {
-                            invoke_rank == rank
-                        } else {
-                            property.rank.max(invoke_rank) == rank
-                        }
-                    })
-                    .flat_map(|layer| layer.candidates)
-                    .filter(|target| {
-                        property.read.state.extension_call_target_matches_required(
-                            target,
-                            RequiredCallableModifiers {
-                                operator: Some(hir::OperatorKind::Invoke),
-                                ..Default::default()
-                            },
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                (!candidates.is_empty()).then(|| {
-                    PropertyExtensionInvokeInput::new(
-                        property.origin,
-                        property.read.clone(),
-                        candidates,
-                    )
-                })
-            })
-            .collect();
+        let mut inputs = Vec::new();
+        for property in properties {
+            let mut candidates = Vec::new();
+            for layer in property
+                .read
+                .state
+                .named_executable_extension_operator_layers(hir::OperatorKind::Invoke)
+            {
+                let invoke_rank = layer.kind.call_rank();
+                let effective_rank = if real_member {
+                    invoke_rank
+                } else {
+                    property.rank.max(invoke_rank)
+                };
+                if effective_rank != rank {
+                    continue;
+                }
+                if !layer.unavailable.is_empty() {
+                    let mut failure = property.read.state.clone();
+                    failure.report_unavailable_lookup(
+                        &ast::Ident {
+                            text: "invoke".to_owned(),
+                            span: call.span,
+                        },
+                        &layer.unavailable,
+                    );
+                    return PropertyExtensionInvokeOutcome::Failed(failure);
+                }
+                candidates.extend(layer.candidates);
+            }
+            if !candidates.is_empty() {
+                inputs.push(PropertyExtensionInvokeInput::new(
+                    property.origin,
+                    property.read.clone(),
+                    candidates,
+                ));
+            }
+        }
         self.probe_property_extension_invoke_partition(inputs, call, expected, layer_name)
     }
 

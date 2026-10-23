@@ -103,6 +103,8 @@ impl Lowerer {
             span: parameter.span,
         });
         assert_eq!(property, expected_property);
+        self.property_name_spans
+            .insert(property, parameter.name.span);
         self.classes[owner].properties.push(property);
         field
     }
@@ -299,7 +301,10 @@ impl Lowerer {
             span: declaration.span,
         });
         assert_eq!(property, expected_property);
+        self.property_name_spans
+            .insert(property, declaration.name.span);
         self.classes[backing_class].properties.push(property);
+        self.remember_construction_property(property, declaration);
         self.imports.bind_property(import_source, property);
         field
     }

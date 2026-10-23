@@ -1,6 +1,6 @@
 # M47：同步 generator 协议与语义查询
 
-状态：设计完成，待实施。初稿：2026-10-15；公共基础修订：2026-10-21。本文配套[主设计](DESIGN.md)及[可恢复语法／LSP 公共基础](../language-service/DESIGN.md)，只定义通用 HIR 查询与独立 generator 的同步交互。首个调用方为承接 M46 的 codec generator；消息和查询本身不含序列化策略。generator 返回可读的方法体源码文本，driver 使用同一 parser 的严格片段适配和正常 HIR lowering 填充指定 interface 的缺失实现，不扩展 AST 的绑定能力或编译器语义。
+状态：通用查询与同步协议已实现，codec 迁移待实施。初稿：2026-10-15；公共基础修订：2026-10-21。本文配套[主设计](DESIGN.md)及[可恢复语法／LSP 公共基础](../language-service/DESIGN.md)，只定义通用 HIR 查询与独立 generator 的同步交互。计划中的首个生产调用方为承接 M46 的 codec generator；消息和查询本身不含序列化策略。generator 返回可读的方法体源码文本，driver 使用同一 parser 的严格片段适配和正常 HIR lowering 填充指定 interface 的缺失实现，不扩展 AST 的绑定能力或编译器语义。真实 generator 的协议与产物闭环验证见[公共基础验收](../language-service/PROGRESS.md)。
 
 ## 1. 一条线性会话
 
@@ -119,6 +119,8 @@ owner 是实际实现类型，如 `User.Companion` 或带开放 binder 的 `BoxC
 
 `CompleteMethodSignature` 保存实际 receiver、各参数的独立引用与源码名称、完整参数／结果类型、泛型 binder／bound、上下文参数和已有 effect 信息。generator 使用这些普通参数名与类型参数名编写正文，不返回或重新声明这份签名；结果的 MethodId 只指定要填充的方法。
 
+任务中的 owner 和 binding.interface 沿完整 Type 编码；requirement 为 `{interface: Type, slot: DispatchSlotId}`，完整接口应用已经包含实际名义声明。slot 使用原 typed dispatch identity，不以方法名称、声明序号或实现方法的 MethodId 代替。方法 origin 指向选择它的配置位置，signature.origin 保留原方法定义位置。
+
 `currentCone` 和 `coreCone` 用于定位既有语义命名空间；两者在编译 core 时可以相同。源码展示位置采用已有 SourceIdentity 与范围，宿主绝对路径由 driver 的 source locator 负责，不借路径重新构造实体身份。
 
 wire 上的 bodies 用有序数组表示 typed 映射，不能将 MethodId 转成无类型的 JSON object key。空数组是合法返回；缺失的必要实现由普通完整性检查报告。重复 MethodId、非本批方法或已有实现的覆盖均拒绝。
@@ -143,6 +145,8 @@ wire 上的 bodies 用有序数组表示 typed 映射，不能将 MethodId 转�
 
 二进制 identity 在 JSON 中使用 schema 指定的固定长度十六进制字符串和明确的字段／variant 种类。可能超出通用 JSON 精确整数范围的查询常量使用十进制字符串；Float／Double 查询常量保留规定宽度的位模式，避免客户端 JSON 数值转换改变精度。生成源码中的字面量使用普通 Scoop 拼写和转义，沿现有 parser 处理。
 
+类型、声明引用、来源及注解常量的具体字段见 [JSON 数据编码](JSON.md)。编码实现位于 `scoop-generator-protocol`；它读取共享查询返回的真实数据，不给 HIR 增加 JSON 字段或重新解释语言规则。具有开放 binder 的签名必须随所属声明／默认值／正文上下文传递，depth／index 仅引用该上下文中的真实参数，不是请求内 arena 下标。
+
 名称可用于展示、生成 wire 名和在正常命名空间中首次查询声明。`lookupExport(provider, path, kind)` 返回后，后续查询、annotation 比较和类型关联使用实际 typed 引用；查找失败不能转而以同名声明代替。输出正文则使用普通名称或限定名，hir-lower 按源码上下文重新进行正常绑定；协议不提供从源码名称到实体 ID 的绑定旁表。
 
 ## 4. 共享语义查询
@@ -160,6 +164,8 @@ wire 上的 bodies 用有序数组表示 typed 映射，不能将 MethodId 转�
 ### 4.2 v1 查询表面
 
 查询是一个有明确 variant 的数据类型，由 `compiler/query` 统一承载。只读描述支持成组读取，保留声明顺序；查询没有 serializer 特殊模式。
+
+八类请求的具体字段、数组对应关系、未找到及正文可用性结果见[查询请求与结果](QUERY-JSON.md)。协议适配接收 driver 已解析的普通方法上下文，引用查找、默认模板选择及应用约束仍由共享前端完成。
 
 | 查询 | 返回的数据 | 本期用途 |
 | --- | --- | --- |
@@ -183,6 +189,8 @@ appliedType:     当前 owner application 替换后的完整类型
 
 例如 `Box<T>.value: T` 应返回原 binder T 与当前实际类型；`Box<T>.value: T?` 则在原类型中已包含真实 Option 声明。generator 由第一组事实决定 M46 的缺省／省略资格，由第二组事实选择完整字段 codec。编译器不提供 `isSerializable`、`shouldOmitNone` 或 `isOptionForSerialization`。
 
+适配器投影 declarationType 与原 bound 时使用该声明的实际 binder 上下文，投影 appliedType 时使用应用所处的上下文。名义宿主与方法自身的参数保持签名中的层级；查询方法中同名的类型参数不能替代原声明参数。此处只描述已有绑定，不改变生成方法的词法访问权限。
+
 logical property 与 backing field 保留各自的实际 target，不能丢失 use-site 或复制为两个参与字段。构造参数映射、storage／computed／delegated 区分、enum 的命名／位置 payload 和基类关系都沿静态描述返回，generator 决定哪些形状属于本次策略。
 
 访问元数据不授予源码访问能力。返回的 private 信息可供诊断和结构判断，生成正文若真正访问它，仍执行当前方法上下文的普通字段／property／constructor 访问检查。
@@ -193,6 +201,8 @@ logical property 与 backing field 保留各自的实际 target，不能丢失 u
 
 按指定 callable application 读取 default 时，类型和外部 callable／member 引用沿编译器已有替换规则提供应用后的视图，同时保留定义处 binder 关系。查询不求值 default、不选择缺失字段分支，也不把 default 复制到待生成方法中。正文如何用现有源码表达由 generator 决定；M46 默认值迁移中的真实缺口按主设计 5.2 核对，不预设 HIR 转源码的语义保持能力。
 
+适配器复用共享的默认值应用视图：映射以 definition root 的宿主／callable binder 为准，继承后的参数接口只提供实际类型实参。局部泛型函数的签名保留新引入的 binder 层，应用实参中的开放参数相应提升层级；不能将局部参数替换为默认值提供方的参数。原声明引用及定义投影继续可读。
+
 `describeBodies` 是 HIR 的只读逻辑投影，包含节点类别、每个表达式的完整类型、局部绑定、控制流和实际 callable／member 引用。它不暴露 Rust 地址、缓存内部状态、LLVM 数据或物理布局。正文按显式的查询 schema 编码，不能通过把 `Debug` 文本塞进 JSON 宣称支持 HIR。
 
 正文可用性是封闭分支：
@@ -201,6 +211,8 @@ logical property 与 backing field 保留各自的实际 target，不能丢失 u
 - `PendingGeneration`：本批尚待填充的实现。
 - `NotPublished`：依赖产物没有提供该正文，仍可读取已有签名。
 - `NoBody`：该声明本来没有可读取的普通正文，例如抽象 requirement。
+
+`Available` 与 `NotPublished` 按依赖产物实际提供的正文区分，不能仅从声明是否泛型推断。实现规范 2.19 允许发布的普通非泛型小函数同样返回完整正文，保留原普通函数身份与空 callable binder；未发布的普通实现仍返回 `NotPublished`。
 
 合法查询不得触发寻找上游源码或执行第二轮生成来填补这些情况。core 与依赖的必要 default 模板应沿现有产物合同可用；若 codec 试点所需事实在现有静态描述中确实缺失，实施时补齐通用描述及其必要产物数据，不恢复专用 codec 计划。
 
@@ -252,6 +264,8 @@ driver 将 parser 产出的现有函数体 AST 交给 hir-lower，在目标方�
 
 生成诊断采用现有 severity、message、主位置和 notes 的结构化模型。字段错误优先定位到字段／Serialize 应用，缺失 codec 定位到实际字段并关联生成请求，任务级失败定位到 GenerateWith 应用，必要时关联实际继承位置；配置错误定位到 generator 参数或 interface 的实际数组元素。重复接口或跨 generator 方法冲突关联前后两个配置元素。
 
+结果中的诊断编码为 `{severity: "error" | "warning", message: String, location: SourceLocation | null, notes: [{message: String, location: SourceLocation}]}`。没有主位置的任务错误使用该批首个生成请求位置；显式位置保留原 SourceIdentity 和 UTF-8 byte range。来源只按当前／已选依赖的普通 provider 引用解析，路径及范围检查只承担格式职责，不读取路径指向的外部源码。`compiler/query` 的语义错误使用 JSON-RPC `-32000`，data 为 `{diagnostics: [Diagnostic]}`；格式错误与未知方法仍使用标准错误码。查询失败不终止合法会话，生成器可以继续查询或返回自己的结果。
+
 driver 将每个 source 原样保存在本次编译的诊断源码中，以目标方法关联其展示位置。parser 产生的 byte span 直接对应这段文本；词法、语法与 HIR 诊断显示片段中的行列和内容，并附注对应的 GenerateWith 应用。无需 generator 返回 AST 节点来源表，也不将所有生成表达式的错误压到注解的同一个位置。
 
 调试导出沿现有源码／dump 入口保存可读片段，展示路径由 driver 管理；生成文件不参与普通源码发现或声明收集。诊断位置与语义上下文分开：改变显示文件名、注释或字符串内容不能切换到另一词法作用域或取得额外访问权。这里不要求新增源码映射协议或调试器功能。
@@ -278,4 +292,4 @@ M47 查询使用当前编译的固定视图，保留串行同步会话。它不�
 
 codec 端到端测试必须经正式注册和 driver 启动，使用普通 core／依赖 HIR 查询。验证一条含多个接口的 GenerateWith 只产生一次 generate，各接口的缺失方法共同返回，共享 requirement 对应的方法只生成一次；空数组不启动进程。增加普通用户 interface 的实现用例，验证这一协议没有 Encodable／Decodable 的硬编码分支；无需为测试专门建立第二套编译器或语义工厂。
 
-协议 v1 对消息和 HIR 查询 schema 版本化，不将 Rust AST 结构变动作为输出协议的一部分。生成源码使用当前编译器支持的语言语法；消息或查询发生不兼容变化时递增协议版本。现有 single-Cone machine protocol 仍采用自己的编码和版本，只传递工具配置；`.slib` 消费保持普通方法和普通 metadata 合同。
+协议 v1 对消息和 HIR 查询 schema 版本化，不将 Rust AST 结构变动作为输出协议的一部分。生成源码使用当前编译器支持的语言语法；消息或查询发生不兼容变化时递增协议版本。现有 single-Cone machine protocol 仍采用自己的编码和版本，传递工具配置、实际使用输入和必要诊断原文；`.slib` 消费保持普通方法和普通 metadata 合同。

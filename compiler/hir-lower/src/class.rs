@@ -47,6 +47,7 @@ pub(crate) use delegation::InterfaceDelegateSource;
 mod hierarchy;
 mod inheritance;
 pub(crate) use inheritance::InterfaceForwarder;
+mod generation;
 mod initialization;
 mod lookup;
 mod methods;

@@ -98,8 +98,7 @@ impl DependencyFunctionFixture {
         let identity = SourceIdentity::new(
             origin,
             NormalizedSourcePath::new("declaration.scoop").unwrap(),
-        )
-        .unwrap();
+        );
         let context = SourceContextKey::File {
             source: identity.clone(),
         };

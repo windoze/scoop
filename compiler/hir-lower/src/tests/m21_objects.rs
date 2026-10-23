@@ -27,10 +27,13 @@ fn const_property(name: &str, value: Expr) -> ast::PropertyDecl {
 
 fn public_object(name: &str, members: Vec<ast::ClassMember>) -> Decl {
     Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: public_visibility(),
-        name: ident(name),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: public_visibility(),
+            name: ident(name),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members,
         span: sp(),
     })

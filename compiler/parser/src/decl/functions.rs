@@ -1,5 +1,7 @@
 use super::*;
 
+mod parameters;
+
 impl Parser {
     /// Parse the modifiers accepted syntactically on top-level and local
     /// functions. Target/signature legality of `operator` belongs to HIR.
@@ -8,8 +10,12 @@ impl Parser {
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
         context: FunctionContext,
+        has_prefix_errors: bool,
     ) -> Result<FunctionDecl, Diagnostic> {
-        let mut modifiers = Modifiers::default();
+        let mut modifiers = Modifiers {
+            has_syntax_errors: has_prefix_errors,
+            ..Modifiers::default()
+        };
         loop {
             let token = self.peek().clone();
             match &token.kind {
@@ -97,9 +103,29 @@ impl Parser {
         modifiers: Modifiers,
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::FunctionDecl, |parser| {
+            let checkpoint = parser.checkpoint();
+            let has_prefix_errors = modifiers.has_syntax_errors;
+            let declaration =
+                parser.parse_function_inner(annotations, visibility, modifiers, context)?;
+            if !has_prefix_errors {
+                parser.record_declaration_source_span(declaration.span, checkpoint);
+            }
+            Ok(declaration)
+        })
+    }
+
+    fn parse_function_inner(
+        &mut self,
+        annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
+        modifiers: Modifiers,
+        context: FunctionContext,
+    ) -> Result<FunctionDecl, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let fun = self.expect("`fun`", |k| matches!(k, TokenKind::Fun))?;
         let type_params = self.parse_type_params()?;
-        let receiver_start = self.pos;
+        let receiver_start = self.checkpoint();
         let receiver_annotations = self.parse_annotations()?;
         let mut parsed_name = None;
         let receiver_ty = match self.parse_type_ref() {
@@ -113,13 +139,13 @@ impl Parser {
                         Some(receiver)
                     }
                     Err(_) => {
-                        self.pos = receiver_start;
+                        self.restore(receiver_start);
                         None
                     }
                 }
             }
             _ => {
-                self.pos = receiver_start;
+                self.restore(receiver_start);
                 None
             }
         }
@@ -136,38 +162,16 @@ impl Parser {
             Some(name) => name,
             None => self.expect_ident("function name")?,
         };
-        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        let mut params = Vec::new();
-        let mut vararg_span = None;
-        if !matches!(self.peek().kind, TokenKind::RParen) {
-            loop {
-                let doc_start = self.pos;
-                let annotations = self.parse_annotations()?;
-                let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
-                let param_name = self.expect_ident("parameter name")?;
-                self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
-                let ty = self.parse_type_ref()?;
-                let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
-                let documented = Param {
-                    annotations,
-                    span: Span::new(
-                        modifier_span.map_or(param_name.span.start, |span| span.start),
-                        end,
-                    ),
-                    name: param_name,
-                    ty,
-                    syntax,
-                };
-                self.attach_documentation(doc_start, documented.span);
-                params.push(documented);
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-        }
-        let params_close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
+        self.record_declaration_name(&name);
+        self.record_declaration_prefix(
+            visibility,
+            scoop_ast::DeclarationHeaderKind::Function {
+                is_extension: receiver_ty.is_some(),
+                is_operator: modifiers.operator.is_some(),
+                is_infix: modifiers.infix.is_some(),
+            },
+        );
+        let (params, params_end) = self.parse_function_parameters()?;
         let return_ty = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
             Some(self.parse_type_ref()?)
@@ -179,35 +183,11 @@ impl Parser {
             .as_ref()
             .map(|clause| clause.span.end)
             .or_else(|| return_ty.as_ref().map(|ty| ty.span.end))
-            .unwrap_or(params_close.span.end);
-        let (body, end) = match self.peek().kind {
-            TokenKind::LBrace | TokenKind::Equal
-                if modifiers.method_modifier.map(|modifier| modifier.kind)
-                    == Some(MethodModifier::Abstract) =>
-            {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "`abstract` functions must not have a body",
-                ));
-            }
-            TokenKind::LBrace => {
-                let block = self.parse_block()?;
-                let end = block.span.end;
-                (FunctionBody::Block(block), end)
-            }
-            TokenKind::Equal => {
-                self.bump();
-                let expr = self.parse_expr()?;
-                let end = expr.span().end;
-                (FunctionBody::Expr(Box::new(expr)), end)
-            }
-            _ if modifiers.method_modifier.map(|modifier| modifier.kind)
-                == Some(MethodModifier::Abstract)
-                || context == FunctionContext::Interface =>
-            {
-                (FunctionBody::None, signature_end)
-            }
-            _ => (FunctionBody::None, signature_end),
+            .unwrap_or(params_end);
+        let body_form = match self.peek().kind {
+            TokenKind::LBrace => scoop_ast::FunctionBodyForm::Block,
+            TokenKind::Equal => scoop_ast::FunctionBodyForm::Expression,
+            _ => scoop_ast::FunctionBodyForm::Omitted,
         };
         let start = annotations
             .first()
@@ -225,7 +205,7 @@ impl Parser {
             .map(|modifier| modifier.kind)
             .unwrap_or_else(|| {
                 if context == FunctionContext::Interface {
-                    if matches!(&body, FunctionBody::None) {
+                    if body_form == scoop_ast::FunctionBodyForm::Omitted {
                         MethodModifier::Abstract
                     } else {
                         MethodModifier::Open
@@ -238,7 +218,7 @@ impl Parser {
                     MethodModifier::Final
                 }
             });
-        Ok(FunctionDecl {
+        let signature = scoop_ast::FunctionSignature {
             context_parameters: modifiers.context_parameters,
             annotations,
             visibility,
@@ -253,6 +233,46 @@ impl Parser {
             params,
             return_ty,
             where_clause,
+            span: Span::new(start, signature_end),
+        };
+        if !modifiers.has_syntax_errors {
+            self.record_function_header(&signature, body_form, checkpoint);
+        }
+        let (body, end) = match self.peek().kind {
+            TokenKind::LBrace | TokenKind::Equal
+                if signature.modifier == MethodModifier::Abstract =>
+            {
+                return Err(Diagnostic::at(
+                    self.peek().span,
+                    "`abstract` functions must not have a body",
+                ));
+            }
+            TokenKind::LBrace => {
+                self.record_function_body_root(scoop_ast::RecoveredBodyRoot::Block(
+                    scoop_ast::BodyBlockId(self.peek().span.start),
+                ));
+                let block = self.parse_block()?;
+                let end = block.span.end;
+                (FunctionBody::Block(block), end)
+            }
+            TokenKind::Equal => {
+                self.bump();
+                self.record_function_body_root(scoop_ast::RecoveredBodyRoot::Expression(
+                    self.peek().span.start,
+                ));
+                let expr = self.parse_expr()?;
+                let end = expr.span().end;
+                (FunctionBody::Expr(Box::new(expr)), end)
+            }
+            _ if signature.modifier == MethodModifier::Abstract
+                || context == FunctionContext::Interface =>
+            {
+                (FunctionBody::None, signature_end)
+            }
+            _ => (FunctionBody::None, signature_end),
+        };
+        Ok(FunctionDecl {
+            signature,
             body,
             span: Span::new(start, end),
         })

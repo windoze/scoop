@@ -67,10 +67,13 @@ fn const_property(name: &str, ty: TypeRef, expression: Expr) -> ast::PropertyDec
 
 fn object_with_const(name: &str, property: ast::PropertyDecl) -> Decl {
     Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members: vec![ast::ClassMember::StoredProperty(property)],
         span: sp(),
     })

@@ -83,6 +83,13 @@ impl Lowerer {
             owner = self.nominal_parent(current);
         }
         for layer in self.named_call_layers(name) {
+            let namespace = types_only.then_some(scoop_identity::BindingNamespace::Type);
+            if !self
+                .unavailable_import_bindings(&layer.unavailable, namespace)
+                .is_empty()
+            {
+                return Vec::new();
+            }
             if !layer.candidates.is_empty() {
                 let mut symbols = self.documentation_named_targets(
                     layer

@@ -28,8 +28,7 @@ fn fixture_at(coordinate: ConeCoordinate, include_origin: bool, include_points: 
     let declaration = declaration(cone, "Widget");
     let record = CborIdentityRecord::from_key(declaration.clone()).unwrap();
     let subject = DefinitionOriginSubject::Type(record.id());
-    let source =
-        SourceIdentity::new(cone, NormalizedSourcePath::new("src/Widget.scoop").unwrap()).unwrap();
+    let source = SourceIdentity::new(cone, NormalizedSourcePath::new("src/Widget.scoop").unwrap());
     let context = CborIdentityRecord::from_key(SourceContextKey::File {
         source: source.clone(),
     })
@@ -170,8 +169,7 @@ fn dependency_source_mode_resolves_an_external_source_identity() {
     let source = SourceIdentity::new(
         provider,
         NormalizedSourcePath::new("src/api.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context = CborIdentityRecord::from_key(SourceContextKey::File {
         source: source.clone(),
     })

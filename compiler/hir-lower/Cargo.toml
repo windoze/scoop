@@ -13,6 +13,8 @@ scoop-identity.workspace = true
 scoop-wire.workspace = true
 
 [dev-dependencies]
+scoop-generator-protocol.workspace = true
+serde_json.workspace = true
 scoop-doc.workspace = true
 scoop-parser.workspace = true
 scoop-mir.workspace = true

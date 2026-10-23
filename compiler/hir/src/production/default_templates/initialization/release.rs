@@ -2,6 +2,7 @@ use super::*;
 use crate::{ExportReleaseHookRef, ExportReleaseTemplateV1, ReleasePolicy};
 
 pub(super) fn project(
+    export: &ExportHir,
     entities: &DefaultEntityProjector<'_>,
     declaration: &crate::ClassDecl,
 ) -> Result<ReleasePolicy<ExportReleaseTemplateV1>, Error> {
@@ -18,7 +19,6 @@ pub(super) fn project(
             ));
         }
     };
-    let export = entities.export();
     let hook = &export.release_hooks[id];
     let binders = crate::production::signatures::HirInterfaceSignatureProjector::new(export)
         .binder_frame(&declaration.type_params, 0)
@@ -41,7 +41,7 @@ pub(super) fn project(
     .map_err(|source| Error::Body(Box::new(source)))?;
     Ok(ReleasePolicy::SynchronousGcFree {
         hook: ExportReleaseTemplateV1::try_new(
-            fragment::definition_source(export, hook.origin)?,
+            fragment::definition_source(entities.inputs(), hook.origin)?,
             body,
         )
         .map_err(Error::Initialization)?,

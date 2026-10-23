@@ -6,6 +6,12 @@ use scoop_ast::{
 
 impl Parser {
     pub(super) fn parse_member_requirements(&mut self) -> Result<MemberRequirements, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::RequirementList, |parser| {
+            parser.parse_member_requirements_inner()
+        })
+    }
+
+    fn parse_member_requirements_inner(&mut self) -> Result<MemberRequirements, Diagnostic> {
         let start = self.bump().span.start;
         let mut parameters = Vec::new();
         if matches!(self.peek().kind, TokenKind::LParen) {
@@ -52,6 +58,12 @@ impl Parser {
     }
 
     fn parse_member_requirement(&mut self) -> Result<MemberRequirement, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Requirement, |parser| {
+            parser.parse_member_requirement_inner()
+        })
+    }
+
+    fn parse_member_requirement_inner(&mut self) -> Result<MemberRequirement, Diagnostic> {
         let start = self.peek().span.start;
         let mut annotations = Vec::new();
         let mut suspend_span = None;

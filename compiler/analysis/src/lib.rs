@@ -1,0 +1,27 @@
+//! Immutable editor inputs, ordinary project loading, and query snapshots.
+
+mod cancellation;
+mod declarations;
+mod fixes;
+mod host;
+mod semantic;
+mod symbols;
+mod syntax;
+mod workspace;
+
+pub use cancellation::{Cancellation, Cancelled};
+pub use declarations::DeclarationAnalysisError;
+pub use fixes::SyntaxFix;
+pub use host::{AnalysisHost, AnalysisSnapshot, SnapshotEditError, SourceInput};
+pub use scoop_parser::identifier_spelling;
+pub use scoop_source::{Revision, SourceId, SourceVersion};
+pub use semantic::{
+    MemberImplementationSearch, ProjectAnalysisError, ReferenceSearch, RenameError,
+    RenamePreparation, SemanticSession, TypeImplementationSearch,
+};
+pub use symbols::{SourceSymbol, SymbolQueryError, WorkspaceSymbol};
+pub use syntax::{Fold, FoldKind, SyntaxPtr, folding_ranges, selection_ranges};
+pub use workspace::{
+    ArtifactConeInput, ConeInput, ProjectConfiguration, ProjectDiagnostic, ProjectInput,
+    ProjectSource, SourceConeInput, WorkspaceInputs, WorkspaceLoader, normalize_path,
+};

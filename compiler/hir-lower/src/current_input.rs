@@ -34,23 +34,7 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
         world: &'world hir::ImportedSemanticWorld<'input>,
     ) -> Result<Self, CurrentConeSourceError> {
         let core = core.into();
-        match (&core, sources.cone() == ConeIdentity::CORE) {
-            (CoreProtocolInput::CurrentDeclarations, false) => {
-                return Err(CurrentConeSourceError::CurrentProtocolsInOrdinaryCone(
-                    sources.cone(),
-                ));
-            }
-            (CoreProtocolInput::Imported(_), true) => {
-                return Err(CurrentConeSourceError::CoreImportsOwnProtocols);
-            }
-            _ => {}
-        }
-        if world.current() != sources.cone() {
-            return Err(CurrentConeSourceError::SemanticWorldCurrentConeMismatch {
-                sources: sources.cone(),
-                world: world.current(),
-            });
-        }
+        validate_protocol_context(sources.cone(), &core, world)?;
         Ok(Self {
             sources,
             core,
@@ -71,15 +55,7 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
         mut self,
         dependencies: impl IntoIterator<Item = ConeIdentity>,
     ) -> Result<Self, CurrentConeSourceError> {
-        for dependency in dependencies {
-            if dependency == ConeIdentity::CORE {
-                return Err(CurrentConeSourceError::TestOnlyCore);
-            }
-            if self.world.direct_provider(dependency).is_none() {
-                return Err(CurrentConeSourceError::TestDependencyNotDirect(dependency));
-            }
-            self.test_dependencies.insert(dependency);
-        }
+        extend_test_dependencies(self.world, &mut self.test_dependencies, dependencies)?;
         Ok(self)
     }
 
@@ -131,6 +107,48 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
     pub(crate) const fn core(&self) -> &CoreProtocolInput {
         &self.core
     }
+}
+
+pub(crate) fn extend_test_dependencies(
+    world: &hir::ImportedSemanticWorld<'_>,
+    selected: &mut BTreeSet<ConeIdentity>,
+    dependencies: impl IntoIterator<Item = ConeIdentity>,
+) -> Result<(), CurrentConeSourceError> {
+    for dependency in dependencies {
+        if dependency == ConeIdentity::CORE {
+            return Err(CurrentConeSourceError::TestOnlyCore);
+        }
+        if world.direct_provider(dependency).is_none() {
+            return Err(CurrentConeSourceError::TestDependencyNotDirect(dependency));
+        }
+        selected.insert(dependency);
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_protocol_context(
+    current: ConeIdentity,
+    core: &CoreProtocolInput,
+    world: &hir::ImportedSemanticWorld<'_>,
+) -> Result<(), CurrentConeSourceError> {
+    match (core, current == ConeIdentity::CORE) {
+        (CoreProtocolInput::CurrentDeclarations, false) => {
+            return Err(CurrentConeSourceError::CurrentProtocolsInOrdinaryCone(
+                current,
+            ));
+        }
+        (CoreProtocolInput::Imported(_), true) => {
+            return Err(CurrentConeSourceError::CoreImportsOwnProtocols);
+        }
+        _ => {}
+    }
+    if world.current() != current {
+        return Err(CurrentConeSourceError::SemanticWorldCurrentConeMismatch {
+            sources: current,
+            world: world.current(),
+        });
+    }
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

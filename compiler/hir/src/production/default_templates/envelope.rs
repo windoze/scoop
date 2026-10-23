@@ -4,14 +4,13 @@ use super::{
 };
 use crate::{
     CanonicalCallableInterfacesV1, ExportDefaultSource, ExportDefaultSourceId,
-    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ExportHir,
+    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
 };
 
 pub(super) mod projection;
 pub(super) mod scope;
 
 pub(super) fn project(
-    export: &ExportHir,
     entities: &DefaultEntityProjector<'_>,
     callables: &CanonicalCallableInterfacesV1,
     owner: &super::SourceCallableOwner,
@@ -19,7 +18,7 @@ pub(super) fn project(
     source_id: ExportDefaultSourceId,
 ) -> Result<ExportDefaultTemplateV1, super::DefaultTemplateProductionError> {
     let key = ExportDefaultTemplateKeyV1::new(owner.declaration, position);
-    project_inner(export, entities, callables, owner, key, source_id).map_err(|source| {
+    project_inner(entities, callables, owner, key, source_id).map_err(|source| {
         super::DefaultTemplateProductionError::Template {
             key,
             source: Box::new(source),
@@ -28,14 +27,38 @@ pub(super) fn project(
 }
 
 fn project_inner(
-    export: &ExportHir,
     entities: &DefaultEntityProjector<'_>,
     callables: &CanonicalCallableInterfacesV1,
     owner: &super::SourceCallableOwner,
     key: ExportDefaultTemplateKeyV1,
     source_id: ExportDefaultSourceId,
 ) -> Result<ExportDefaultTemplateV1, DefaultTemplateEnvelopeProjectionError> {
-    let source = super::arena_get(&export.export_default_sources, source_id).ok_or(
+    let result = project_template(entities, &owner.binders, key, source_id)?;
+    if matches!(
+        entities.inputs().export_default_sources[source_id],
+        ExportDefaultSource::Declared { .. }
+    ) {
+        for declaration in [owner.declaration, result.definition_root().declaration()] {
+            callables.declaration(declaration).ok_or(
+                DefaultTemplateEnvelopeProjectionError::Provider(
+                    super::DefaultEntityProjectionError::MissingIdentity {
+                        kind: "default provider callable interface",
+                        index: super::owner_index(owner.local),
+                    },
+                ),
+            )?;
+        }
+    }
+    Ok(result)
+}
+
+pub(super) fn project_template(
+    entities: &DefaultEntityProjector<'_>,
+    target_binders: &[crate::HirSignatureBinder],
+    key: ExportDefaultTemplateKeyV1,
+    source_id: ExportDefaultSourceId,
+) -> Result<ExportDefaultTemplateV1, DefaultTemplateEnvelopeProjectionError> {
+    let source = super::arena_get(entities.inputs().export_default_sources, source_id).ok_or(
         DefaultTemplateEnvelopeProjectionError::UnknownDefaultSource(super::default_source_id(
             source_id,
         )),
@@ -53,7 +76,7 @@ fn project_inner(
                 .iter()
                 .map(|&argument| {
                     entities
-                        .type_key(argument, &owner.binders)
+                        .type_key(argument, target_binders)
                         .map_err(DefaultTemplateEnvelopeProjectionError::Provider)
                 })
                 .collect::<Result<Vec<_>, _>>()?;
@@ -62,25 +85,7 @@ fn project_inner(
             return Ok(template.as_ref().clone().inherited_at(key, parameters));
         }
     };
-    let projected =
-        projection::project_body(export, entities, &owner.binders, expression, type_arguments)?;
-    callables.declaration(owner.declaration).ok_or(
-        DefaultTemplateEnvelopeProjectionError::Provider(
-            super::DefaultEntityProjectionError::MissingIdentity {
-                kind: "default owner callable interface",
-                index: super::owner_index(owner.local),
-            },
-        ),
-    )?;
-    let provider_owner = projected.root.declaration();
-    callables.declaration(provider_owner).ok_or(
-        DefaultTemplateEnvelopeProjectionError::Provider(
-            super::DefaultEntityProjectionError::MissingIdentity {
-                kind: "default provider callable interface",
-                index: super::owner_index(owner.local),
-            },
-        ),
-    )?;
+    let projected = projection::project_body(entities, target_binders, expression, type_arguments)?;
     let references =
         references::project(entities, &projected.provider_binders, projected.references)
             .map_err(DefaultTemplateEnvelopeProjectionError::References)?;

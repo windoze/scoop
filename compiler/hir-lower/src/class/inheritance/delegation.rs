@@ -132,7 +132,10 @@ impl Lowerer {
         if matches!(role, ForwardingRole::Method) {
             self.source_function_declarations.insert(
                 function,
-                crate::SourceFunctionDeclaration { name: name.clone() },
+                crate::SourceFunctionDeclaration {
+                    name: name.clone(),
+                    name_span: None,
+                },
             );
         }
         self.interface_forwarders.insert(

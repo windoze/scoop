@@ -3,13 +3,14 @@ use super::*;
 impl Lowerer {
     /// Resolve a class's constructor properties, base-class clause and
     /// interface list (pass 2).
-    pub(crate) fn resolve_class(&mut self, id: ClassId, decl: &ast::ClassDecl) {
+    pub(crate) fn resolve_class(&mut self, id: ClassId, decl: ast::ClassSource<'_>) {
+        self.remember_class_construction(id, decl);
         self.type_params_in_scope = self.classes[id].type_params.clone();
         if matches!(
             self.classes[id].representation,
             hir::ClassRepresentation::Intrinsic(_)
         ) {
-            for member in &decl.members {
+            for member in decl.members {
                 let valid = match member {
                     ast::ClassMember::Function(_)
                     | ast::ClassMember::Nested(_)
@@ -254,6 +255,7 @@ impl Lowerer {
                         continue;
                     }
                     base = Some(ty);
+                    self.remember_construction_base(id, spec);
                 }
                 Type::Interface(_) => {
                     if spec.constructor_arguments().is_some() {
@@ -327,7 +329,7 @@ impl Lowerer {
     fn resolve_class_properties(
         &mut self,
         id: ClassId,
-        decl: &ast::ClassDecl,
+        decl: ast::ClassSource<'_>,
         field_names: &mut std::collections::HashSet<String>,
         intrinsic: bool,
     ) -> Vec<hir::ClassFieldId> {

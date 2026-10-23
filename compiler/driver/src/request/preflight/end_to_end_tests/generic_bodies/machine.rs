@@ -226,17 +226,12 @@ fn actual_generic_library_emits_shared_odr_objects() {
             target.c_bridge_toolchain(),
         )
         .unwrap();
-        let source_count = hir.foundation.source_count_for_cone(lir.module().cone);
         let object_fingerprints = objects::verify(
             objects,
             &generated,
             &lir_public,
             selected_layout.physical_imports(),
-            (
-                &machine_dependencies,
-                request.dependencies().direct_dependencies(),
-            ),
-            source_count,
+            &machine_dependencies,
             expected_bodies,
         );
         if case == "control-flow" {
@@ -269,11 +264,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
                     &generated,
                     &lir_public,
                     selected_layout.physical_imports(),
-                    (
-                        &machine_dependencies,
-                        request.dependencies().direct_dependencies(),
-                    ),
-                    source_count,
+                    &machine_dependencies,
                     expected_bodies,
                 );
                 for (body, original) in &object_fingerprints {

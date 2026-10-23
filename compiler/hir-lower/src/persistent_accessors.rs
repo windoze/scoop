@@ -126,16 +126,23 @@ impl PropertyAccessorIdentityBuilder<'_> {
                         },
                     )
                 })?;
-                hir::HirPropertyAccessorIdentity::getter(
-                    property,
-                    self.properties[property].property_owner(),
-                )
-                .map_err(|error| {
-                    self.property_failure(
-                        property,
-                        PersistentPropertyAccessorIdentityErrorDetail::InvalidIdentity(error),
-                    )
-                })
+                self.lowerer
+                    .getter_identity_records
+                    .get(&self.lowerer.properties[property].capability.getter())
+                    .cloned()
+                    .map(Ok)
+                    .unwrap_or_else(|| {
+                        hir::HirPropertyAccessorIdentity::getter(
+                            property,
+                            self.properties[property].property_owner(),
+                        )
+                    })
+                    .map_err(|error| {
+                        self.property_failure(
+                            property,
+                            PersistentPropertyAccessorIdentityErrorDetail::InvalidIdentity(error),
+                        )
+                    })
             })
             .collect::<Result<Vec<_>, _>>()?;
         let setter_identities = setters
@@ -152,16 +159,28 @@ impl PropertyAccessorIdentityBuilder<'_> {
                         },
                     )
                 })?;
-                hir::HirPropertyAccessorIdentity::setter(
-                    property,
-                    self.properties[property].property_owner(),
-                )
-                .map_err(|error| {
-                    self.property_failure(
-                        property,
-                        PersistentPropertyAccessorIdentityErrorDetail::InvalidIdentity(error),
+                self.lowerer
+                    .setter_identity_records
+                    .get(
+                        &self.lowerer.properties[property]
+                            .capability
+                            .setter()
+                            .expect("a setter retains its owning property's capability"),
                     )
-                })
+                    .cloned()
+                    .map(Ok)
+                    .unwrap_or_else(|| {
+                        hir::HirPropertyAccessorIdentity::setter(
+                            property,
+                            self.properties[property].property_owner(),
+                        )
+                    })
+                    .map_err(|error| {
+                        self.property_failure(
+                            property,
+                            PersistentPropertyAccessorIdentityErrorDetail::InvalidIdentity(error),
+                        )
+                    })
             })
             .collect::<Result<Vec<_>, _>>()?;
 

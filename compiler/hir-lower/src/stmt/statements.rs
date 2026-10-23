@@ -9,11 +9,14 @@ impl Lowerer {
     /// Expression positions create a fresh desugaring sink (see
     /// `lower_expr` in expr.rs); the sink is drained into `out` right
     /// before the owning statement.
-    pub(super) fn lower_statement(
+    pub(crate) fn lower_statement(
         &mut self,
         statement: &ast::Statement,
         out: &mut Vec<hir::Statement>,
     ) {
+        if self.body_cancelled() {
+            return;
+        }
         let incoming = self.smart_casts.clone();
         let start = out.len();
         self.lower_statement_inner(statement, out);
@@ -278,7 +281,7 @@ impl Lowerer {
     }
 
     /// `if` / `while` conditions must be `Boolean`.
-    pub(super) fn lower_condition(
+    pub(crate) fn lower_condition(
         &mut self,
         cond: &ast::Expr,
         keyword: &str,

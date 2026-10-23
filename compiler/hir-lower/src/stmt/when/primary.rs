@@ -1,15 +1,14 @@
-use super::conditions::ArmPrimary;
 use super::*;
 
 mod predicates;
 
 impl Lowerer {
-    pub(super) fn subject_primary(
+    pub(crate) fn subject_primary(
         &mut self,
-        arm: &ast::WhenArm,
+        condition: &ast::WhenArmCondition,
         subject: &Subject,
     ) -> Option<ArmPrimary<hir::WhenCondition>> {
-        match &arm.condition {
+        match condition {
             ast::WhenArmCondition::Case(pattern) => {
                 if !matches!(
                     self.types[subject.value.ty],
@@ -69,13 +68,14 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn conditional_primary(
+    pub(crate) fn conditional_primary(
         &mut self,
-        arm: &ast::WhenArm,
+        condition: &ast::WhenArmCondition,
+        span: Span,
     ) -> Option<ArmPrimary<hir::WhenPredicate>> {
-        match &arm.condition {
+        match condition {
             ast::WhenArmCondition::Case(_) => {
-                self.error(arm.span, "case requires a when subject".into());
+                self.error(span, "case requires a when subject".into());
                 None
             }
             ast::WhenArmCondition::Else => Some(ArmPrimary {
@@ -129,6 +129,7 @@ fn combine_conditions(conditions: impl Iterator<Item = ast::Expr>) -> ast::Expr 
             };
             ast::Expr::Binary {
                 op: ast::BinOp::Or,
+                operator_span: None,
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
                 span,
@@ -141,6 +142,7 @@ fn subject_condition(condition: &ast::WhenCondition, subject: &Subject) -> ast::
     match condition {
         ast::WhenCondition::Expression(value) => ast::Expr::Binary {
             op: ast::BinOp::Eq,
+            operator_span: None,
             lhs: Box::new(subject.reference.clone()),
             rhs: Box::new(value.clone()),
             span: value.span(),
@@ -154,6 +156,7 @@ fn subject_condition(condition: &ast::WhenCondition, subject: &Subject) -> ast::
         ast::WhenCondition::In {
             collection,
             negated,
+            operator_span,
             span,
         } => ast::Expr::Binary {
             op: if *negated {
@@ -161,6 +164,7 @@ fn subject_condition(condition: &ast::WhenCondition, subject: &Subject) -> ast::
             } else {
                 ast::BinOp::Contains
             },
+            operator_span: Some(*operator_span),
             lhs: Box::new(subject.reference.clone()),
             rhs: Box::new(collection.clone()),
             span: *span,

@@ -10,9 +10,11 @@ use scoop_identity::{
 
 use crate::{ExportTypeAliasId, TypeAliasDecl};
 
+pub type HirTypeAliasIdentity = CborIdentityRecord<PersistentTypeAliasId, SourceDeclarationKey>;
+
 #[derive(Clone, Debug)]
 pub struct HirTypeAliasIdentities {
-    identities: Vec<CborIdentityRecord<PersistentTypeAliasId, SourceDeclarationKey>>,
+    identities: Vec<HirTypeAliasIdentity>,
 }
 
 impl HirTypeAliasIdentities {

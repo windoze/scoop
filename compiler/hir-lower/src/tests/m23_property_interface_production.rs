@@ -91,10 +91,13 @@ fn object_const(name: &str) -> Decl {
         span: sp(),
     };
     Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: public_visibility(),
-        name: ident(name),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: public_visibility(),
+            name: ident(name),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members: vec![ast::ClassMember::StoredProperty(property)],
         span: sp(),
     })

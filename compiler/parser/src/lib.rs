@@ -4,10 +4,13 @@
 //! surface, including the M21 declaration syntax; see
 //! `docs/milestone21/DESIGN.md` and
 //! `docs/specs/SCOOP-IMPL-SPEC.md` section 2.1. Depends only on
-//! `scoop-ast` (the output data channel).
+//! the source and AST data channels.
 
 mod decl;
-mod documentation;
+mod declaration_source;
+pub use declaration_source::declaration_source;
+mod names;
+pub use names::{identifier_name, identifier_spelling};
 mod expr;
 mod header;
 mod lexer;
@@ -98,6 +101,8 @@ mod tests_m8;
 #[cfg(test)]
 mod tests_m9;
 #[cfg(test)]
+mod tests_operator_sources;
+#[cfg(test)]
 mod tests_shebang;
 mod ty;
 
@@ -121,5 +126,70 @@ pub use source_input::{
 /// assert_eq!(main.name.text, "main");
 /// ```
 pub fn parse(source: &str) -> Result<scoop_ast::SourceFile, Vec<scoop_ast::Diagnostic>> {
+    strict(parse_recovering(source))
+}
+
+/// Parses exactly one ordinary function body, including its outer braces.
+///
+/// Leading and trailing trivia are accepted. All spans refer to the original
+/// fragment. Errors inside the body and input remaining outside it prevent a
+/// successful AST, just as they do for a complete source file.
+pub fn parse_function_body(source: &str) -> Result<scoop_ast::Block, Vec<scoop_ast::Diagnostic>> {
+    strict(parse_function_body_recovering(source))
+}
+
+/// Parses exactly one complete type using the ordinary type grammar.
+///
+/// This only parses syntax: names and constraints are resolved by HIR lowering
+/// in the caller's semantic context. Leading and trailing trivia are accepted.
+pub fn parse_type(source: &str) -> Result<scoop_ast::TypeRef, Vec<scoop_ast::Diagnostic>> {
+    strict(parse_type_recovering(source))
+}
+
+/// Complete function headers paired with declarations from the same grammar run.
+pub type FunctionHeaders = Vec<scoop_syntax::DeclarationData<scoop_ast::FunctionHeader>>;
+
+/// One grammar result, with complete headers independent of strict AST success.
+pub type ParsedSyntax<T> = scoop_syntax::Parse<T, FunctionHeaders>;
+
+pub type FileProjections = scoop_syntax::FileProjections<
+    Option<scoop_ast::RecoveredFileHeader>,
+    scoop_ast::DeclarationFragment,
+>;
+
+/// A file projection keeps successful declarations when its strict AST fails.
+pub type ParsedFile = scoop_syntax::Parse<scoop_ast::SourceFile, FileProjections>;
+
+/// Parses a file while retaining concrete syntax, including erroneous input.
+/// Only an unrepresentable input length prevents a syntax result.
+pub fn parse_recovering(source: &str) -> Result<ParsedFile, scoop_source::SourceLengthError> {
     parser::parse_file(source)
+}
+
+/// Retains concrete syntax and diagnostics for a function body fragment.
+pub fn parse_function_body_recovering(
+    source: &str,
+) -> Result<ParsedSyntax<scoop_ast::Block>, scoop_source::SourceLengthError> {
+    parser::parse_function_body(source)
+}
+
+/// Retains concrete syntax and diagnostics for a type fragment.
+pub fn parse_type_recovering(
+    source: &str,
+) -> Result<ParsedSyntax<scoop_ast::TypeRef>, scoop_source::SourceLengthError> {
+    parser::parse_type(source)
+}
+
+fn strict<T, D>(
+    result: Result<scoop_syntax::Parse<T, D>, scoop_source::SourceLengthError>,
+) -> Result<T, Vec<scoop_ast::Diagnostic>> {
+    result
+        .map_err(|error| {
+            vec![scoop_ast::Diagnostic::without_span(
+                scoop_ast::DiagnosticSeverity::Error,
+                0,
+                error.to_string(),
+            )]
+        })?
+        .into_ast()
 }

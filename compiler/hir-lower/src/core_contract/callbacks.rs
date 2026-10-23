@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn validate_foreign_callback_core(
         &mut self,
-        files: &[ast::SourceFile],
+        files: &[ast::Span],
     ) -> Option<hir::ForeignCallbackCore> {
         // The exception-core validator owns the missing-Throwable diagnostic.
         // Callback failure typing cannot be validated until that prerequisite

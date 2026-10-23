@@ -9,10 +9,13 @@ use crate::tests::{
 
 fn object(name: &str) -> ast::Decl {
     ast::Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: crate::tests::ident(name),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: crate::tests::ident(name),
+            supertypes: Vec::new(),
+            span: crate::tests::sp(),
+        },
         members: Vec::new(),
         span: crate::tests::sp(),
     })

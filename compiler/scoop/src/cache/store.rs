@@ -37,6 +37,15 @@ impl CompileCacheStoreV1 {
         self.namespace.join(key.to_string())
     }
 
+    pub(crate) fn result_directory(
+        &self,
+        key: ConeCompileCacheKeyV1,
+        summary: &scoop_slib::ArtifactManifestSummaryV1,
+    ) -> PathBuf {
+        self.entry_path(key)
+            .join(summary.artifact_fingerprint().to_string())
+    }
+
     pub fn acquire_shared(
         &self,
         key: ConeCompileCacheKeyV1,
@@ -75,7 +84,9 @@ impl CompileCacheStoreV1 {
         let record =
             CompileBuildRecordV1::decode(&mut decoder).map_err(CompileCacheStoreError::Decode)?;
         decoder.finish().map_err(CompileCacheStoreError::Decode)?;
-        let artifact = entry.join(ARTIFACT_FILE);
+        let artifact = self
+            .result_directory(lock.key, &record.summary)
+            .join(ARTIFACT_FILE);
         if !artifact.try_exists().map_err(|source| {
             CompileCacheStoreError::io(CacheIoOperation::Inspect, &artifact, source)
         })? {
@@ -105,7 +116,11 @@ impl CompileCacheStoreV1 {
         temporary.write_all(&bytes).map_err(|source| {
             CompileCacheStoreError::io(CacheIoOperation::Write, temporary.path(), source)
         })?;
-        let artifact = entry.join(ARTIFACT_FILE);
+        let result = self.result_directory(lock.key, &record.summary);
+        std::fs::create_dir_all(&result).map_err(|source| {
+            CompileCacheStoreError::io(CacheIoOperation::CreateDirectory, &result, source)
+        })?;
+        let artifact = result.join(ARTIFACT_FILE);
         std::fs::rename(output, &artifact).map_err(|source| {
             CompileCacheStoreError::io(CacheIoOperation::Publish, &artifact, source)
         })?;
@@ -227,6 +242,15 @@ pub enum CompileCacheLookupV1 {
 pub struct CompileCacheEntryV1 {
     pub artifact: PathBuf,
     pub record: CompileBuildRecordV1,
+}
+
+impl CompileCacheEntryV1 {
+    pub(crate) fn dumps_path(&self) -> PathBuf {
+        self.artifact
+            .parent()
+            .expect("cache artifact has a result directory")
+            .join("dumps")
+    }
 }
 
 #[cfg(test)]

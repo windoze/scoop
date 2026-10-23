@@ -9,7 +9,7 @@ impl Lowerer {
         span: Span,
         generate: impl FnOnce(&mut Self, Vec<hir::Expr>) -> Option<crate::stmt::ValueBlock>,
     ) -> Option<hir::Expr> {
-        let expected = LambdaExpectation {
+        let expected = CallableExpectation {
             is_suspend,
             receiver: None,
             parameter_types: parameter_types.to_vec(),

@@ -175,6 +175,22 @@ fn reexported_owners_expose_nested_bindings_from_support_providers() {
 
     let package = world.direct_package(&package(&["facade", "api"])).unwrap();
     for facade in &facades {
+        let selected_nested = world
+            .resolve_provider_export(
+                facade.identity(),
+                &identifiers(&["facade", "api", "Outer", "Nested"]),
+                BindingNamespace::Type,
+            )
+            .unwrap();
+        assert_eq!(
+            selected_nested
+                .targets()
+                .next()
+                .unwrap()
+                .target()
+                .persistent(),
+            scoop_identity::BindableEntity::Type(origin.nested.unwrap())
+        );
         let selected = package
             .binding_group_filtered(BindingNamespace::Type, "Outer", |provider| {
                 provider == facade.identity()
@@ -271,6 +287,17 @@ fn longest_package_prefix_never_falls_back_to_a_shorter_static_path() {
     assert_eq!(production.provider_count(), 1);
     assert!(matches!(
         world.resolve_direct_exact(&path, BindingNamespace::Type),
+        Err(DirectNamespaceLookupError::MissingBinding { segment: 3, .. })
+    ));
+    let selected = world
+        .resolve_provider_export(outer.identity(), &path, BindingNamespace::Type)
+        .unwrap();
+    assert_eq!(
+        selected.targets().next().unwrap().target().persistent(),
+        scoop_identity::BindableEntity::Type(outer.nested.unwrap())
+    );
+    assert!(matches!(
+        world.resolve_provider_export(shadow.identity(), &path, BindingNamespace::Type),
         Err(DirectNamespaceLookupError::MissingBinding { segment: 3, .. })
     ));
     let direct_order = world

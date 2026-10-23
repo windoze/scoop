@@ -4,10 +4,10 @@ use crate::{ClassId, EnumId, FunctionId, InterfaceId, ObjectId, StructId};
 #[derive(Default)]
 pub(super) struct Declarations<'a> {
     annotations: Vec<(&'a ast::AnnotationClassDecl, usize, Option<Owner>)>,
-    pub(super) structs: Vec<(StructId, &'a ast::StructDecl, usize)>,
-    pub(super) enums: Vec<(EnumId, &'a ast::EnumDecl, usize)>,
-    pub(super) classes: Vec<(ClassId, &'a ast::ClassDecl, usize)>,
-    pub(super) interfaces: Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
+    pub(super) structs: Vec<(StructId, ast::StructSource<'a>, usize)>,
+    pub(super) enums: Vec<(EnumId, ast::EnumSource<'a>, usize)>,
+    pub(super) classes: Vec<(ClassId, ast::ClassSource<'a>, usize)>,
+    pub(super) interfaces: Vec<(InterfaceId, ast::InterfaceSource<'a>, usize)>,
     pub(super) objects: Vec<(ObjectId, crate::declarations::ObjectSource<'a>, usize)>,
     pub(super) methods: Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
 }
@@ -35,7 +35,17 @@ impl Lowerer {
         declaration: &ast::LocalTypeDecl,
         anonymous: bool,
     ) -> Option<Owner> {
-        let source = (self.current_file, declaration.span().start);
+        self.observe_local_type(declaration, |state| {
+            state.lower_local_type_inner(declaration, anonymous)
+        })
+    }
+
+    fn lower_local_type_inner(
+        &mut self,
+        declaration: &ast::LocalTypeDecl,
+        anonymous: bool,
+    ) -> Option<Owner> {
+        let source = (self.current_text_file(), declaration.span().start);
         let available = self.capture_environment();
         if let Some(&owner) = self.local_types_by_source.get(&source) {
             self.local_types.get_mut(&owner).unwrap().available = available;
@@ -70,7 +80,7 @@ impl Lowerer {
         let target = match declaration {
             ast::LocalTypeDecl::Class(decl) => self
                 .declare_class(
-                    decl,
+                    decl.source(),
                     false,
                     &mut pending.classes,
                     &mut pending.methods,
@@ -80,7 +90,7 @@ impl Lowerer {
                 .map(NominalTarget::Class),
             ast::LocalTypeDecl::Struct(decl) => self
                 .declare_struct(
-                    decl,
+                    decl.source(),
                     &mut pending.structs,
                     &mut pending.methods,
                     file,
@@ -89,7 +99,7 @@ impl Lowerer {
                 .map(NominalTarget::Struct),
             ast::LocalTypeDecl::Enum(decl) => self
                 .declare_enum(
-                    decl,
+                    decl.source(),
                     false,
                     &mut pending.enums,
                     &mut pending.methods,
@@ -99,7 +109,7 @@ impl Lowerer {
                 .map(NominalTarget::Enum),
             ast::LocalTypeDecl::Interface(decl) => self
                 .declare_interface(
-                    decl,
+                    decl.source(),
                     &mut pending.interfaces,
                     &mut pending.methods,
                     file,
@@ -135,16 +145,16 @@ impl Lowerer {
         };
         match declaration {
             ast::LocalTypeDecl::Class(decl) => {
-                self.declare_class_nested(owner, decl, &mut queues, file)
+                self.declare_class_nested(owner, decl.source(), &mut queues, file)
             }
             ast::LocalTypeDecl::Struct(decl) => {
-                self.declare_struct_nested(owner, decl, &mut queues, file)
+                self.declare_struct_nested(owner, decl.source(), &mut queues, file)
             }
             ast::LocalTypeDecl::Enum(decl) => {
-                self.declare_enum_nested(owner, decl, &mut queues, file)
+                self.declare_enum_nested(owner, decl.source(), &mut queues, file)
             }
             ast::LocalTypeDecl::Interface(decl) => {
-                self.declare_interface_nested(owner, decl, &mut queues, file)
+                self.declare_interface_nested(owner, decl.source(), &mut queues, file)
             }
         }
         self.with_declaration_inference_scope(file, |state| {

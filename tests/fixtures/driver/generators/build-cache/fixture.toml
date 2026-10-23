@@ -1,0 +1,150 @@
+schema = 1
+name = "generator-build-cache-and-prebuilt-consumption"
+inputs = ["provider", "consumer", "../peer.py"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "generator", "cache", "artifacts"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/provider"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+  {concat = {path = "${work}/generator", parts = ["#!${python}\n", {file = "../peer.py"}]}},
+  {replace = {path = "${work}/generator", old = 'MODE = "normal"', new = 'MODE = "cache"'}},
+  {chmod = {path = "${work}/generator", mode = "755"}},
+  {copy = {from = "${work}/generator", to = "${work}/unused"}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/provider", {each = "${link_args}"}, {each = "${options}"}, "--generator", "test.peer=generator", "--generator", "unused=unused", "--emit", "hir", "--dump-dir", "${work}/first-dumps", "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${cold.result.observations.child_invocations.length}", equals = 1},
+  {file = "${work}/generator.calls", equals = "called\n"},
+  {file = "${work}/unused.calls", exists = false},
+]
+
+[[steps]]
+name = "unused_change"
+files = [
+  {replace = {path = "${work}/unused", old = 'return "{ return 42 }"', new = 'return "{ return 100 }"'}},
+  {copy = {from = "${work}/unused", to = "${work}/unused-other"}},
+]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/provider", {each = "${link_args}"}, {each = "${options}"}, "--generator", "test.peer=generator", "--generator", "unused=unused-other", "--emit", "hir", "--dump-dir", "${work}/warm-dumps", "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${warm.result.observations.child_invocations.length}", equals = 0},
+  {actual = "${warm.result.root.path}", equals = "${cold.result.root.path}"},
+  {file = "${work}/generator.calls", equals = "called\n"},
+  {file = "${work}/unused-other.calls", exists = false},
+  {file = "${work}/warm-dumps/${warm.result.root.identity}/hir.txt", same_as = "${work}/first-dumps/${cold.result.root.identity}/hir.txt"},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "run", "${work}/consumer", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = "42\n7\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${consumer.result.observations.child_invocations.length}", equals = 1},
+  {file = "${work}/generator.calls", equals = "called\n"},
+]
+
+[[steps]]
+name = "tool_change"
+files = [{replace = {path = "${work}/generator", old = 'return "{ return 42 }"', new = 'return "{ return 43 }"'}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${work}/provider", {each = "${link_args}"}, {each = "${options}"}, "--generator", "test.peer=generator", "--emit", "hir", "--dump-dir", "${work}/changed-dumps", "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${changed.result.observations.child_invocations.length}", equals = 1},
+  {actual = "${changed.result.root.path}", not_equals = "${cold.result.root.path}"},
+  {file = "${cold.result.root.path}", exists = true},
+  {file = "${work}/generator.calls", equals = "called\ncalled\n"},
+  {file = "${work}/changed-dumps/${changed.result.root.identity}/hir.txt", different_from = "${work}/first-dumps/${cold.result.root.identity}/hir.txt"},
+]
+
+[[steps]]
+name = "consumer_changed"
+argv = ["${scoop}", "run", "${work}/consumer", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = "43\n7\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${consumer_changed.result.observations.child_invocations.length}", equals = 1},
+  {file = "${work}/generator.calls", equals = "called\ncalled\n"},
+]
+
+[[steps]]
+name = "other_binding"
+files = [
+  {copy = {from = "${work}/generator", to = "${work}/alternate"}},
+  {replace = {path = "${work}/alternate", old = 'return "{ return 43 }"', new = 'return "{ return 99 }"'}},
+  {copy = {from = "${work}/generator", to = "${work}/failing"}},
+  {replace = {path = "${work}/failing", old = 'MODE = "cache"', new = 'MODE = "exit-failure"'}},
+]
+
+[[steps]]
+name = "rebound"
+argv = ["${scoop}", "build", "${work}/provider", {each = "${link_args}"}, {each = "${options}"}, "--generator", "test.peer=alternate", "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${rebound.result.observations.child_invocations.length}", equals = 1},
+  {actual = "${rebound.result.root.path}", not_equals = "${changed.result.root.path}"},
+  {file = "${changed.result.root.path}", exists = true},
+  {file = "${work}/alternate.calls", equals = "called\n"},
+  {file = "${work}/generator.calls", equals = "called\ncalled\n"},
+]
+
+[[steps]]
+name = "failed"
+argv = ["${scoop}", "build", "${work}/provider", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--generator", "test.peer=failing", "-o", "${work}/failed.slib"]
+exit = 1
+stdout = ""
+stderr = "${work}/provider/src/api.scoop:5:29: error[SCOOPC_HIR_ERROR]: generator `test.peer` failed: process exited with exit status: 7\n${work}/provider/src/api.scoop:6:1: error[SCOOPC_HIR_ERROR]: class `GeneratedValue` does not implement interface method `Value.value`\n${work}/provider/src/api.scoop:11:1: error[SCOOPC_HIR_ERROR]: class `Generic` does not implement interface method `Echo<T>.echo`\n"
+checks = [{file = "${work}/failed.slib", exists = false}]
+
+[[steps]]
+name = "retained"
+argv = ["${scoop}", "build", "${work}/provider", {each = "${link_args}"}, {each = "${options}"}, "--generator", "test.peer=alternate", "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${retained.result.observations.child_invocations.length}", equals = 0},
+  {actual = "${retained.result.root.path}", equals = "${rebound.result.root.path}"},
+  {file = "${work}/alternate.calls", equals = "called\n"},
+]

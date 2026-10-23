@@ -9,7 +9,7 @@ use crate::Lowerer;
 impl Lowerer {
     pub(crate) fn resolve_errno_annotations(
         &mut self,
-        functions: &[(hir::FunctionId, &ast::FunctionDecl, usize)],
+        functions: &[crate::declarations::FunctionHeaderInput<'_>],
         globals: &[(&ast::GlobalDecl, usize)],
     ) -> bool {
         let mut valid = true;
@@ -18,58 +18,72 @@ impl Lowerer {
                 continue;
             };
             self.current_file = file;
-            let Some(capture) = self.capture_errno(&declaration.annotations) else {
+            if !self.resolve_function_errno(external, declaration) {
                 valid = false;
-                continue;
-            };
-            if !capture {
-                continue;
-            }
-            if !self.extern_functions[external].abi.is_c() {
-                self.error(
-                    declaration.span,
-                    "`captureErrno = true` requires a C ABI extern function".into(),
-                );
-                valid = false;
-                continue;
-            }
-            let scoop = *self.extern_functions[external].result.scoop_type();
-            let native = match &self.types[scoop] {
-                hir::Type::Tuple(elements)
-                    if elements.len() == 2
-                        && matches!(
-                            self.types[elements[1]],
-                            hir::Type::Integer(hir::IntegerKind::SIGNED_32)
-                        ) =>
-                {
-                    elements[0]
+                if self.editing_declarations.is_some() {
+                    self.declaration_surface
+                        .mark_signature_unavailable(function, declaration);
+                    self.fail_editing_source_declaration(declaration.span);
                 }
-                _ => {
-                    self.error(
-                        declaration.span,
-                        "an errno-capturing extern must return `(R, Int)`".into(),
-                    );
-                    valid = false;
-                    continue;
-                }
-            };
-            self.extern_functions[external].result = ExternResult::CaptureErrno { native, scoop };
+            }
         }
         for &(declaration, file) in globals {
             self.current_file = file;
-            match self.capture_errno(&declaration.annotations) {
-                Some(false) => {}
-                Some(true) => {
-                    self.error(
-                        declaration.span,
-                        "`captureErrno = true` is not allowed on an extern variable".into(),
-                    );
-                    valid = false;
-                }
-                None => valid = false,
+            let capture = self.capture_errno(&declaration.annotations);
+            if capture == Some(false) {
+                continue;
             }
+            if capture == Some(true) {
+                self.error(
+                    declaration.span,
+                    "`captureErrno = true` is not allowed on an extern variable".into(),
+                );
+            }
+            valid = false;
+            self.fail_editing_source_declaration(declaration.span);
         }
         valid
+    }
+
+    fn resolve_function_errno(
+        &mut self,
+        external: hir::ExternFunctionId,
+        declaration: ast::FunctionHeaderRef<'_>,
+    ) -> bool {
+        let Some(capture) = self.capture_errno(&declaration.annotations) else {
+            return false;
+        };
+        if !capture {
+            return true;
+        }
+        if !self.extern_functions[external].abi.is_c() {
+            self.error(
+                declaration.span,
+                "`captureErrno = true` requires a C ABI extern function".into(),
+            );
+            return false;
+        }
+        let scoop = *self.extern_functions[external].result.scoop_type();
+        let native = match &self.types[scoop] {
+            hir::Type::Tuple(elements)
+                if elements.len() == 2
+                    && matches!(
+                        self.types[elements[1]],
+                        hir::Type::Integer(hir::IntegerKind::SIGNED_32)
+                    ) =>
+            {
+                elements[0]
+            }
+            _ => {
+                self.error(
+                    declaration.span,
+                    "an errno-capturing extern must return `(R, Int)`".into(),
+                );
+                return false;
+            }
+        };
+        self.extern_functions[external].result = ExternResult::CaptureErrno { native, scoop };
+        true
     }
 
     fn capture_errno(&mut self, annotations: &[ast::Annotation]) -> Option<bool> {

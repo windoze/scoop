@@ -141,8 +141,7 @@ fn definition_source_with_span(
     let source = SourceIdentity::new(
         cone,
         NormalizedSourcePath::new("src/default.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context = SourceContextKey::File {
         source: source.clone(),
     };

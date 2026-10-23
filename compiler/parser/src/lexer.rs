@@ -14,16 +14,19 @@ mod identifiers;
 mod integers;
 mod interpolation;
 mod literals;
+mod syntax;
 mod token;
 
 pub(crate) use comments::LexicalDocComment;
 use interpolation::InterpolationMode;
+pub(crate) use syntax::Lexeme;
 pub(crate) use token::{IntegerLiteralLexeme, Token, TokenKind};
 
 pub(crate) struct Lexed {
     pub tokens: Vec<Token>,
     pub diagnostics: Vec<Diagnostic>,
     pub documentation: Vec<LexicalDocComment>,
+    pub lexemes: Vec<Lexeme>,
 }
 
 pub(crate) fn lex(source: &str) -> Lexed {
@@ -36,6 +39,7 @@ struct Lexer<'a> {
     newline_before: bool,
     interpolations: Vec<InterpolationMode>,
     documentation: Vec<LexicalDocComment>,
+    lexemes: Vec<Lexeme>,
 }
 
 impl<'a> Lexer<'a> {
@@ -46,6 +50,7 @@ impl<'a> Lexer<'a> {
             newline_before: false,
             interpolations: Vec::new(),
             documentation: Vec::new(),
+            lexemes: Vec::new(),
         }
     }
 
@@ -67,6 +72,10 @@ impl<'a> Lexer<'a> {
                         TokenKind::Error
                     }
                 };
+                self.lexemes.push(Lexeme {
+                    kind: kind.syntax_kind(),
+                    span: self.span_from(start),
+                });
                 tokens.push(Token {
                     kind,
                     span: self.span_from(start),
@@ -85,6 +94,7 @@ impl<'a> Lexer<'a> {
                     tokens,
                     diagnostics,
                     documentation: self.documentation,
+                    lexemes: self.lexemes,
                 };
             }
             let start = self.pos;
@@ -107,6 +117,7 @@ impl<'a> Lexer<'a> {
                     tokens,
                     diagnostics,
                     documentation: self.documentation,
+                    lexemes: self.lexemes,
                 };
             };
             let kind = match self.lex_token(c, start) {
@@ -116,6 +127,10 @@ impl<'a> Lexer<'a> {
                     TokenKind::Error
                 }
             };
+            self.lexemes.push(Lexeme {
+                kind: kind.syntax_kind(),
+                span: self.span_from(start),
+            });
             tokens.push(Token {
                 kind,
                 span: self.span_from(start),

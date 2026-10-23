@@ -9,7 +9,9 @@ impl Lowerer {
         for implementation in pending {
             self.current_owner = Some(implementation.owner);
             self.current_file = implementation.file;
+            let check = self.begin_editing_declaration(implementation.owner);
             self.resolve_interface_block(implementation);
+            self.finish_editing_declaration(check);
         }
         self.current_owner = saved_owner;
         self.current_file = saved_file;

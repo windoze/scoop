@@ -5,7 +5,8 @@ pub enum CurrentConeHirStageError {
     SemanticWorld(scoop_hir::ImportedSemanticWorldBuildError),
     NominalClassifier(scoop_hir::NominalExactLeafClassifierBuildError),
     Input(scoop_hir_lower::CurrentConeSourceError),
-    Lowering(Vec<scoop_ast::Diagnostic>),
+    Lowering(crate::CurrentConeDiagnosticSet),
+    Diagnostics(crate::CurrentConeDiagnosticSetError),
     Foundation(scoop_hir::HirFoundationBuildError),
     ProductionSection(scoop_hir::CoreBootstrapInterfaceBuildError),
     CrossConeSection(
@@ -27,17 +28,11 @@ impl fmt::Display for CurrentConeHirStageError {
                 write!(
                     formatter,
                     "current Cone HIR lowering failed with {} diagnostic(s)",
-                    diagnostics.len()
+                    diagnostics.diagnostics().len()
                 )?;
-                for diagnostic in diagnostics {
-                    write!(formatter, "\nsource {}", diagnostic.file)?;
-                    if let Some(span) = diagnostic.span {
-                        write!(formatter, ":{}..{}", span.start, span.end)?;
-                    }
-                    write!(formatter, ": {}", diagnostic.message)?;
-                }
-                Ok(())
+                write!(formatter, "\n{}", diagnostics.render_human())
             }
+            Self::Diagnostics(source) => source.fmt(formatter),
             Self::Foundation(source) => source.fmt(formatter),
             Self::ProductionSection(source) => source.fmt(formatter),
             Self::CrossConeSection(source) => source.fmt(formatter),
@@ -52,6 +47,7 @@ impl std::error::Error for CurrentConeHirStageError {
             Self::NominalClassifier(source) => Some(source),
             Self::Input(source) => Some(source),
             Self::Lowering(_) => None,
+            Self::Diagnostics(source) => Some(source),
             Self::Foundation(source) => Some(source),
             Self::ProductionSection(source) => Some(source),
             Self::CrossConeSection(source) => Some(source.as_ref()),

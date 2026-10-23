@@ -3,13 +3,14 @@ use super::*;
 impl Lowerer {
     pub(crate) fn declare_class<'a>(
         &mut self,
-        decl: &'a ast::ClassDecl,
+        decl: ast::ClassSource<'a>,
         is_core: bool,
-        pending: &mut Vec<(ClassId, &'a ast::ClassDecl, usize)>,
+        pending: &mut Vec<(ClassId, ast::ClassSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
         owner: Option<Owner>,
     ) -> Option<ClassId> {
+        let diagnostics_before = self.diagnostics.len();
         let enclosing = if let Some(span) = decl.inner_span {
             let Some(Owner::Class(outer)) = owner else {
                 self.error(
@@ -68,7 +69,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let parameter = self.fresh_type_param(type_params.len());
+            let parameter = self.fresh_source_type_param(param, type_params.len());
             type_params.push(lower_type_param_decl(param, parameter));
         }
         let self_application =
@@ -110,9 +111,15 @@ impl Lowerer {
                             "a root intrinsic type cannot declare supertypes".to_string(),
                         );
                     }
-                    for member in &decl.members {
+                    let member_spans = decl
+                        .members
+                        .iter()
+                        .map(ast::ClassMember::span)
+                        .chain(decl.recovery.methods.iter().map(|method| method.span))
+                        .chain(decl.recovery.nested.iter().map(ast::RecoveredNominal::span));
+                    for span in member_spans {
                         self.error(
-                            member.span(),
+                            span,
                             "a root intrinsic type cannot declare members".to_string(),
                         );
                     }
@@ -238,12 +245,12 @@ impl Lowerer {
         }
         self.register_nominal_name(
             owner,
-            &decl.name.text,
+            &decl.name,
             NominalTarget::Class(id),
             file_index,
             decl.visibility,
         );
-        self.class_files.insert(id, file_index);
+        self.record_nominal_file(Owner::Class(id), file_index);
         self.classes[id].access.inheritance =
             hir::InheritanceDomain(if modifier == hir::ClassModifier::Final {
                 hir::AccessDomain::empty()
@@ -264,10 +271,11 @@ impl Lowerer {
         if is_core && owner.is_none() && decl.name.text == "Throwable" {
             self.throwable_candidates.push((id, ty));
         }
+        self.record_editing_owner_errors(Owner::Class(id), diagnostics_before);
         for method in decl.functions() {
             self.declare_method(method, Owner::Class(id), pending_methods, file_index);
         }
-        for member in &decl.members {
+        for member in decl.members {
             if let ast::ClassMember::InterfaceImplementation(block) = member {
                 self.declare_interface_block(Owner::Class(id), block, pending_methods, file_index);
             }

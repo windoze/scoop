@@ -18,17 +18,18 @@ impl DefaultEntityProjector<'_> {
         let (function, owner, arguments) = match callable {
             Callable::Function(function) => (function, None, Vec::new()),
             Callable::Generic(application_id) => {
-                let application = arena_get(&self.export.instantiations, application_id).ok_or(
+                let application = arena_get(self.inputs.instantiations, application_id).ok_or(
                     super::super::DefaultEntityProjectionError::Unknown {
                         kind: "generic function application",
                         index: super::super::raw_index(application_id),
                     },
                 )?;
-                let generic = arena_get(&self.export.generic_functions, application.generic)
-                    .ok_or(super::super::DefaultEntityProjectionError::Unknown {
+                let generic = arena_get(self.inputs.generic_functions, application.generic).ok_or(
+                    super::super::DefaultEntityProjectionError::Unknown {
                         kind: "generic function",
                         index: super::super::raw_index(application.generic),
-                    })?;
+                    },
+                )?;
                 (
                     generic.function,
                     None,
@@ -36,7 +37,7 @@ impl DefaultEntityProjector<'_> {
                 )
             }
             Callable::Method(application_id) => {
-                let application = arena_get(&self.export.method_applications, application_id)
+                let application = arena_get(self.inputs.method_applications, application_id)
                     .ok_or(super::super::DefaultEntityProjectionError::Unknown {
                         kind: "method application",
                         index: super::super::raw_index(application_id),
@@ -49,13 +50,13 @@ impl DefaultEntityProjector<'_> {
             }
             Callable::GenericMethod(application_id) => {
                 let application =
-                    arena_get(&self.export.generic_method_applications, application_id).ok_or(
+                    arena_get(self.inputs.generic_method_applications, application_id).ok_or(
                         super::super::DefaultEntityProjectionError::Unknown {
                             kind: "generic method application",
                             index: super::super::raw_index(application_id),
                         },
                     )?;
-                let method = arena_get(&self.export.generic_methods, application.method).ok_or(
+                let method = arena_get(self.inputs.generic_methods, application.method).ok_or(
                     super::super::DefaultEntityProjectionError::Unknown {
                         kind: "generic method",
                         index: super::super::raw_index(application.method),
@@ -69,9 +70,9 @@ impl DefaultEntityProjector<'_> {
             }
         };
         let requirements = match callable {
-            Callable::Generic(id) => &self.export.instantiations[id].requirements[..],
+            Callable::Generic(id) => &self.inputs.instantiations[id].requirements[..],
             Callable::GenericMethod(id) => {
-                &self.export.generic_method_applications[id].requirements[..]
+                &self.inputs.generic_method_applications[id].requirements[..]
             }
             _ => &[],
         };
@@ -103,7 +104,7 @@ impl DefaultEntityProjector<'_> {
         super::super::DefaultEntityProjectionError,
     > {
         let index = super::super::raw_index(id);
-        let use_ = arena_get(&self.export.imported_dependency_callables, id).ok_or(
+        let use_ = arena_get(self.inputs.imported_dependency_callables, id).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "imported dependency callable use",
                 index,
@@ -141,7 +142,7 @@ impl DefaultEntityProjector<'_> {
                 ));
             }
         };
-        let owner = if self.export.imported_dependency_callables[id].dispatch()
+        let owner = if self.inputs.imported_dependency_callables[id].dispatch()
             == crate::ImportedDependencyDispatch::Direct
             && interface.modality() != crate::CallableModalityV1::Final
         {
@@ -169,7 +170,7 @@ impl DefaultEntityProjector<'_> {
         binders: &[HirSignatureBinder],
     ) -> Result<crate::DefaultConstructorRefV1, super::super::DefaultEntityProjectionError> {
         let source_type = self.type_key(owner_type, binders)?;
-        match &self.export.types[owner_type] {
+        match &self.inputs.types[owner_type] {
             crate::Type::Struct(_) => Ok(crate::DefaultConstructorRefV1::Struct {
                 declaration,
                 owner_type: source_type,
@@ -189,7 +190,7 @@ impl DefaultEntityProjector<'_> {
         id: crate::BoundCallableRefId,
         binders: &[HirSignatureBinder],
     ) -> Result<DefaultBoundCallableRefV1, super::super::DefaultEntityProjectionError> {
-        let bound = arena_get(&self.export.bound_callable_refs, id).ok_or(
+        let bound = arena_get(self.inputs.bound_callable_refs, id).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "bound callable",
                 index: super::super::raw_index(id),
@@ -197,7 +198,7 @@ impl DefaultEntityProjector<'_> {
         )?;
         let source = match bound.source {
             crate::BoundCallableSource::Class { bound, callable } => {
-                let application = arena_get(&self.export.class_applications, bound)
+                let application = arena_get(self.inputs.class_applications, bound)
                     .ok_or_else(|| unknown("bound class application", bound))?;
                 DefaultBoundCallableSourceV1::Class {
                     bound: self.type_key(application.canonical_type, binders)?,
@@ -207,7 +208,7 @@ impl DefaultEntityProjector<'_> {
             crate::BoundCallableSource::Interface {
                 bound, declared, ..
             } => {
-                let application = arena_get(&self.export.interface_applications, bound)
+                let application = arena_get(self.inputs.interface_applications, bound)
                     .ok_or_else(|| unknown("bound interface application", bound))?;
                 let member = match self.callable_target(declared, binders)?.declaration() {
                     crate::DefaultCallableDeclarationV1::Function(id) => {
@@ -229,7 +230,7 @@ impl DefaultEntityProjector<'_> {
                 }
             }
         };
-        let signature = arena_get(&self.export.function_types, bound.instantiated_signature)
+        let signature = arena_get(self.inputs.function_types, bound.instantiated_signature)
             .ok_or_else(|| unknown("bound callable signature", bound.instantiated_signature))?;
         Ok(DefaultBoundCallableRefV1::new(
             self.type_key(bound.receiver_type, binders)?,
@@ -243,21 +244,21 @@ impl DefaultEntityProjector<'_> {
         owner: MethodOwnerApplication,
     ) -> Result<TypeId, super::super::DefaultEntityProjectionError> {
         match owner {
-            MethodOwnerApplication::Class(id) => arena_get(&self.export.class_applications, id)
+            MethodOwnerApplication::Class(id) => arena_get(self.inputs.class_applications, id)
                 .map(|application| application.canonical_type)
                 .ok_or_else(|| unknown("class application", id)),
-            MethodOwnerApplication::Struct(id) => arena_get(&self.export.struct_applications, id)
+            MethodOwnerApplication::Struct(id) => arena_get(self.inputs.struct_applications, id)
                 .map(|application| application.canonical_type)
                 .ok_or_else(|| unknown("struct application", id)),
-            MethodOwnerApplication::Enum(id) => arena_get(&self.export.enum_applications, id)
+            MethodOwnerApplication::Enum(id) => arena_get(self.inputs.enum_applications, id)
                 .map(|application| application.canonical_type)
                 .ok_or_else(|| unknown("enum application", id)),
             MethodOwnerApplication::Interface(id) => {
-                arena_get(&self.export.interface_applications, id)
+                arena_get(self.inputs.interface_applications, id)
                     .map(|application| application.canonical_type)
                     .ok_or_else(|| unknown("interface application", id))
             }
-            MethodOwnerApplication::Object(id) => arena_get(&self.export.object_types, id)
+            MethodOwnerApplication::Object(id) => arena_get(self.inputs.object_types, id)
                 .map(|object| object.canonical_type)
                 .ok_or_else(|| unknown("object type", id)),
         }
@@ -268,16 +269,16 @@ impl DefaultEntityProjector<'_> {
         owner: GenericMethodOwner,
     ) -> Result<TypeId, super::super::DefaultEntityProjectionError> {
         match owner {
-            GenericMethodOwner::Class(id) => arena_get(&self.export.class_applications, id)
+            GenericMethodOwner::Class(id) => arena_get(self.inputs.class_applications, id)
                 .map(|application| application.canonical_type)
                 .ok_or_else(|| unknown("class application", id)),
-            GenericMethodOwner::Struct(id) => arena_get(&self.export.struct_applications, id)
+            GenericMethodOwner::Struct(id) => arena_get(self.inputs.struct_applications, id)
                 .map(|application| application.canonical_type)
                 .ok_or_else(|| unknown("struct application", id)),
-            GenericMethodOwner::Enum(id) => arena_get(&self.export.enum_applications, id)
+            GenericMethodOwner::Enum(id) => arena_get(self.inputs.enum_applications, id)
                 .map(|application| application.canonical_type)
                 .ok_or_else(|| unknown("enum application", id)),
-            GenericMethodOwner::Object(id) => arena_get(&self.export.object_types, id)
+            GenericMethodOwner::Object(id) => arena_get(self.inputs.object_types, id)
                 .map(|object| object.canonical_type)
                 .ok_or_else(|| unknown("object type", id)),
         }

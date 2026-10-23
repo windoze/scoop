@@ -4,14 +4,14 @@ use crate::imports::lookup::calls::{ExtensionCallTarget, wire_operator};
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
 impl Lowerer {
-    pub(in crate::expr) fn extension_call_target_matches_required(
+    pub(crate) fn extension_call_target_matches_required(
         &self,
         target: &ExtensionCallTarget,
         required: RequiredCallableModifiers,
     ) -> bool {
         match target {
             ExtensionCallTarget::Current(function) => {
-                Self::matches_required_modifiers(self.signatures[function].modifiers, required)
+                self.function_matches_required_modifiers(*function, required)
             }
             ExtensionCallTarget::Dependency(binding) => {
                 let Some(candidate) = self
@@ -146,6 +146,10 @@ impl Lowerer {
                 let Some(resolved) = state.commit_named_callable(*probe, &mut layer_sink) else {
                     return PropertyExtensionInvokeOutcome::Failed(Box::new(state));
                 };
+                state.observe_callable_reference(
+                    name.span,
+                    hir::SemanticCallable::Current(resolved.function()),
+                );
                 let callee = state.materialize_resolved_callee(&resolved);
                 state.check_call_effects(callee, call.span);
                 let expression = hir::Expr {
@@ -166,12 +170,16 @@ impl Lowerer {
                 })
             }
             NamedFunctionLikeProbe::ImportedDependency(probe) => {
+                let target = probe.semantic_target();
                 let mut layer_sink = Vec::new();
                 let Some(expression) =
                     state.commit_imported_dependency_callable(*probe, &mut layer_sink)
                 else {
                     return PropertyExtensionInvokeOutcome::Failed(Box::new(state));
                 };
+                if let Some(target) = target {
+                    state.observe_callable_reference(name.span, target);
+                }
                 PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
                     state: Box::new(state),
                     expression,

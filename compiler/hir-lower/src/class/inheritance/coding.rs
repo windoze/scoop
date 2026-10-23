@@ -152,7 +152,10 @@ impl Lowerer {
         );
         self.source_function_declarations.insert(
             function,
-            crate::SourceFunctionDeclaration { name: name.into() },
+            crate::SourceFunctionDeclaration {
+                name: name.into(),
+                name_span: None,
+            },
         );
         function
     }

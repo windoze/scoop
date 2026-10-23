@@ -17,6 +17,8 @@ pub use c_bridge_invocation::{
 mod compiler;
 mod cxx;
 mod final_link;
+mod generators;
+pub use generators::{GeneratorPrograms, record_generator_input};
 mod linux_c;
 mod linux_target;
 mod manifest;
@@ -45,9 +47,9 @@ pub use native::{
     strip_native_include_observations,
 };
 pub use paths::{
-    configured_cache_root, configured_sysroot_root, default_runtime_index,
+    artifact_candidate_path, configured_cache_root, configured_sysroot_root, default_runtime_index,
     development_runtime_root, development_workspace_root, installed_executable,
-    target_library_root,
+    sysroot_library_path, target_library_root,
 };
 pub use registry::host_target_triple;
 pub use registry::{CToolchainOptions, ResolvedTargetProfile, select_target};

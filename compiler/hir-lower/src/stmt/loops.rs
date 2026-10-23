@@ -29,18 +29,9 @@ impl Lowerer {
                 for statement in &source.body.statements {
                     self.lower_statement(statement, &mut body);
                 }
-                let mut exits = self.smart_cast_exits(incoming.clone(), &body);
-                let normal = exits.remove(&flow::ControlOutcome::Fallthrough);
-                let continues = exits.remove(&flow::ControlOutcome::Continue(target));
-                self.smart_casts = match (normal, continues) {
-                    (Some(left), Some(right)) => self.common_smart_casts(left, right),
-                    (left, right) => left.or(right).unwrap_or_else(|| incoming.clone()),
-                };
-                let previous = self.uninitialized_condition_bindings.clone();
-                let skipped = self.bindings_skipped_by_continue(&body, target);
-                self.uninitialized_condition_bindings.extend(skipped);
-                let cond = self.lower_condition(&source.cond, "do-while", &mut condition_setup);
-                self.uninitialized_condition_bindings = previous;
+                let cond = self.with_do_while_condition(incoming.clone(), &body, target, |state| {
+                    state.lower_condition(&source.cond, "do-while", &mut condition_setup)
+                });
                 self.pop_scope();
                 (body, cond)
             }
@@ -54,6 +45,28 @@ impl Lowerer {
             cond: cond?,
             body,
         })
+    }
+
+    pub(crate) fn with_do_while_condition<T>(
+        &mut self,
+        incoming: crate::expr::SmartCastFacts,
+        body: &[hir::Statement],
+        target: hir::LoopId,
+        query: impl FnOnce(&mut Lowerer) -> T,
+    ) -> T {
+        let mut exits = self.smart_cast_exits(incoming.clone(), body);
+        let normal = exits.remove(&flow::ControlOutcome::Fallthrough);
+        let continues = exits.remove(&flow::ControlOutcome::Continue(target));
+        let facts = match (normal, continues) {
+            (Some(left), Some(right)) => self.common_smart_casts(left, right),
+            (left, right) => left.or(right).unwrap_or(incoming),
+        };
+        let previous = self.uninitialized_condition_bindings.clone();
+        let skipped = self.bindings_skipped_by_continue(body, target);
+        self.uninitialized_condition_bindings.extend(skipped);
+        let result = self.with_smart_casts(facts, query);
+        self.uninitialized_condition_bindings = previous;
+        result
     }
 
     pub(crate) fn loop_label_is_active(&self, name: &str) -> bool {

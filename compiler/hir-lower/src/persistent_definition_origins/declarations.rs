@@ -10,35 +10,39 @@ impl DefinitionOriginBuilder<'_> {
         for (id, declaration) in self.lowerer.structs.iter() {
             self.append_source_nominal(
                 &identities[id],
-                self.lowerer.struct_files.get(&id).copied(),
+                self.lowerer
+                    .nominal_definition_file(crate::Owner::Struct(id)),
                 declaration.span,
             )?;
         }
         for (id, declaration) in self.lowerer.enums.iter() {
             self.append_source_nominal(
                 &identities[id],
-                self.lowerer.enum_files.get(&id).copied(),
+                self.lowerer.nominal_definition_file(crate::Owner::Enum(id)),
                 declaration.span,
             )?;
         }
         for (id, declaration) in self.lowerer.classes.iter() {
             self.append_source_nominal(
                 &identities[id],
-                self.lowerer.class_files.get(&id).copied(),
+                self.lowerer
+                    .nominal_definition_file(crate::Owner::Class(id)),
                 declaration.span,
             )?;
         }
         for (id, declaration) in self.lowerer.interfaces.iter() {
             self.append_source_nominal(
                 &identities[id],
-                self.lowerer.interface_files.get(&id).copied(),
+                self.lowerer
+                    .nominal_definition_file(crate::Owner::Interface(id)),
                 declaration.span,
             )?;
         }
         for (id, declaration) in self.lowerer.objects.iter() {
             self.append_source_nominal(
                 &identities[id],
-                self.lowerer.object_files.get(&id).copied(),
+                self.lowerer
+                    .nominal_definition_file(crate::Owner::Object(id)),
                 declaration.span,
             )?;
         }
@@ -76,7 +80,7 @@ impl DefinitionOriginBuilder<'_> {
             let file = self.source_file(
                 subject,
                 declaration.span,
-                self.lowerer.function_files.get(&id).copied(),
+                self.lowerer.function_definition_file(id),
             )?;
             self.append(subject, file, declaration.span)?;
         }
@@ -92,7 +96,8 @@ impl DefinitionOriginBuilder<'_> {
             let file = self.source_file(
                 subject,
                 declaration.span,
-                self.lowerer.struct_files.get(&declaration.owner).copied(),
+                self.lowerer
+                    .nominal_definition_file(crate::Owner::Struct(declaration.owner)),
             )?;
             self.append(subject, file, declaration.span)?;
         }
@@ -108,7 +113,8 @@ impl DefinitionOriginBuilder<'_> {
             let file = self.source_file(
                 subject,
                 declaration.span,
-                self.lowerer.class_files.get(&declaration.owner).copied(),
+                self.lowerer
+                    .nominal_definition_file(crate::Owner::Class(declaration.owner)),
             )?;
             self.append(subject, file, declaration.span)?;
         }

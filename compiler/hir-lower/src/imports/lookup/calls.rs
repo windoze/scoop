@@ -45,6 +45,7 @@ pub(crate) enum ExpressionQualifierTarget {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ExpressionQualifierLookup {
     Missing,
+    Unavailable,
     Value,
     Unique(ExpressionQualifierTarget),
     Inaccessible(ExpressionQualifierTarget),
@@ -198,6 +199,7 @@ impl Lowerer {
         let core = || {
             let (targets, suppressed_callables) = self.core_named_call_targets(name);
             LookupLayer {
+                unavailable: Vec::new(),
                 kind: ImportLookupLayer::CorePrelude,
                 suppressed_callables,
                 candidates: targets
@@ -238,9 +240,11 @@ impl Lowerer {
                     if layer.kind == ImportLookupLayer::CorePrelude {
                         core()
                     } else {
+                        let unavailable = self.unavailable_import_bindings(&layer.bindings, None);
                         let mut candidates = layer
                             .bindings
                             .into_iter()
+                            .filter(|&id| self.unavailable_binding_kind(id).is_none())
                             .map(|id| NamedCallBinding {
                                 target: self.current_named_call_target(id),
                                 origin: NamedCallOrigin::CurrentUnit(id),
@@ -253,6 +257,7 @@ impl Lowerer {
                             }
                         }));
                         LookupLayer {
+                            unavailable,
                             kind: layer.kind,
                             suppressed_callables: layer.suppressed_callables,
                             candidates,
@@ -275,6 +280,7 @@ impl Lowerer {
                     }
                 }
                 LookupLayer {
+                    unavailable: layer.unavailable,
                     kind: layer.kind,
                     candidates,
                     suppressed_callables: layer.suppressed_callables,

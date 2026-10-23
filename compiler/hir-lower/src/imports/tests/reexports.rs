@@ -47,9 +47,11 @@ fn reexport_destination_is_the_importing_source_package() {
     let mut source = package(file(Vec::new()), &["api"]);
     source.imports = vec![exact(&["dependency", "Remote"], Some("Facade"), true)];
     let mut surface = CurrentUnitImports::default();
-    surface.files.push(FrozenFileImports::default());
-    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
-    surface.files.push(resolved);
+    surface
+        .files
+        .insert(surface.files.len(), FrozenFileImports::default());
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source.header(), Some(&world));
+    surface.files.insert(surface.files.len(), resolved);
 
     surface.freeze_reexports(&lowerer).unwrap();
 
@@ -74,9 +76,9 @@ fn public_star_destination_conflict_aborts_the_whole_surface() {
     let mut surface = CurrentUnitImports::default();
     let mut source = file(Vec::new());
     source.imports.push(star(&["dependency", "api"], true));
-    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source.header(), Some(&world));
     assert_eq!(resolved.stars.len(), 1);
-    surface.files.push(resolved);
+    surface.files.insert(surface.files.len(), resolved);
 
     let error = surface.freeze_reexports(&lowerer).unwrap_err();
 
@@ -126,9 +128,9 @@ fn public_star_rejects_same_signature_dependency_overloads() {
     let mut surface = CurrentUnitImports::default();
     let mut source = file(Vec::new());
     source.imports.push(star(&["dependency", "api"], true));
-    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source.header(), Some(&world));
     assert_eq!(resolved.stars.len(), 1);
-    surface.files.push(resolved);
+    surface.files.insert(surface.files.len(), resolved);
 
     let error = surface.freeze_reexports(&lowerer).unwrap_err();
 
@@ -148,9 +150,9 @@ fn public_star_rejects_function_mixed_with_non_overloadable_value() {
     let mut surface = CurrentUnitImports::default();
     let mut source = file(Vec::new());
     source.imports.push(star(&["dependency", "api"], true));
-    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source.header(), Some(&world));
     assert_eq!(resolved.stars.len(), 1);
-    surface.files.push(resolved);
+    surface.files.insert(surface.files.len(), resolved);
 
     let error = surface.freeze_reexports(&lowerer).unwrap_err();
 
@@ -170,9 +172,9 @@ fn freeze(
     source.imports = imports;
     let mut resolving = lowerer.clone();
     let mut surface = CurrentUnitImports::default();
-    let resolved = surface.resolve_file_with_world(&mut resolving, &source, Some(world));
+    let resolved = surface.resolve_file_with_world(&mut resolving, &source.header(), Some(world));
     assert!(resolving.diagnostics.is_empty());
-    surface.files.push(resolved);
+    surface.files.insert(surface.files.len(), resolved);
     surface.freeze_reexports(&resolving).unwrap();
     surface.reexports
 }

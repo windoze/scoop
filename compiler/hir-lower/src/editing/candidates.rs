@@ -1,0 +1,108 @@
+use super::*;
+use crate::call_resolution::candidates::{ArgumentMode, DeclarationSignature};
+use hir::{EditingUnavailable as U, EditingValue as V};
+
+mod extensions;
+mod imported;
+pub(crate) mod inference;
+mod lookup;
+mod members;
+mod properties;
+mod source;
+mod values;
+
+pub(crate) type Candidate = Result<Option<CallCandidateAnalysis>, U>;
+pub(crate) type CallCandidates = V<Vec<CallCandidateAnalysis>>;
+
+pub(crate) struct CallCandidateAnalysis {
+    pub(crate) signature: hir::EditingCallCandidate,
+    pub(crate) argument: Option<Box<ArgumentContext>>,
+}
+
+pub(crate) struct ArgumentContext {
+    pub(crate) body: ast::BodyBlockId,
+    pub(crate) expected: crate::expr::ExpressionExpectation,
+    pub(crate) state: Lowerer,
+}
+
+impl DeclarationAnalysis {
+    pub fn incomplete_calls(
+        &mut self,
+        body: impl Into<hir::EditingSourceBodyId>,
+        is_cancelled: impl Fn() -> bool,
+    ) -> Result<&[hir::EditingIncompleteCall], EditingCancelled> {
+        super::receivers::check_cancelled(&is_cancelled)?;
+        let Some(function) = body.into().function() else {
+            return Ok(&[]);
+        };
+        self.ensure_recovered_facts(function, is_cancelled)?;
+        Ok(&self.recovered_facts[&function].calls)
+    }
+}
+
+pub(super) fn unavailable_call(call: &ast::RecoveredCall, reason: U) -> hir::EditingIncompleteCall {
+    let name = call_name(call).map(|name| name.text.clone());
+    hir::EditingIncompleteCall {
+        span: call.span,
+        name,
+        arguments: call
+            .arguments
+            .as_ref()
+            .map(|arguments| hir::EditingIncompleteArguments {
+                opening: arguments.opening,
+                commas: arguments.commas.clone(),
+                end: arguments.end,
+                closed: arguments.closed,
+                spans: arguments
+                    .items
+                    .iter()
+                    .map(|argument| argument.span)
+                    .collect(),
+            }),
+        trailing: call.trailing.as_ref().map(|argument| argument.span),
+        candidates: V::Unavailable(reason),
+    }
+}
+
+fn call_name(call: &ast::RecoveredCall) -> Option<&ast::Ident> {
+    use ast::RecoveredCallTarget as Target;
+    match &call.target {
+        Target::Named(name)
+        | Target::Member { name, .. }
+        | Target::Super { name, .. }
+        | Target::QualifiedSuper { name, .. } => Some(name),
+        Target::Invoke(_) | Target::Unavailable(_) => None,
+    }
+}
+
+fn arguments(call: &ast::RecoveredCall) -> impl Iterator<Item = &ast::RecoveredCallArgument> {
+    call.arguments
+        .iter()
+        .flat_map(|arguments| &arguments.items)
+        .chain(&call.trailing)
+}
+
+#[derive(Default)]
+pub(crate) struct Candidates {
+    pub(crate) values: Vec<CallCandidateAnalysis>,
+    pub(crate) unavailable: Option<U>,
+}
+
+impl Candidates {
+    pub(crate) fn add(&mut self, candidate: Candidate) {
+        match candidate {
+            Ok(Some(candidate)) => self.values.push(candidate),
+            Ok(None) => {}
+            Err(reason) => {
+                self.unavailable.get_or_insert(reason);
+            }
+        }
+    }
+
+    pub(crate) fn finish(self) -> CallCandidates {
+        match self.unavailable {
+            Some(reason) => V::Unavailable(reason),
+            None => V::Known(self.values),
+        }
+    }
+}

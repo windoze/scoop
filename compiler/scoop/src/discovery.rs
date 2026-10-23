@@ -42,6 +42,7 @@ pub(crate) struct BuildContext {
     pub(crate) optimization: scoop_lir::OptimizationMode,
     pub(crate) purpose: scoop_protocol::CompilationPurpose,
     pub(crate) jobs: std::num::NonZeroUsize,
+    pub(crate) generators: scoop_toolchain::GeneratorPrograms,
 }
 
 #[derive(Debug)]

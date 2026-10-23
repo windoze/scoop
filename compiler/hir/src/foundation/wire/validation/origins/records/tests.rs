@@ -23,8 +23,7 @@ fn imported_generic_parameters_require_the_template_source_and_points() {
     let source = SourceIdentity::new(
         provider,
         NormalizedSourcePath::new("identity.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let span = SourceSpan::new(16, 21).unwrap();
     let origin = DefinitionOrigin::new(
         source.clone(),
@@ -103,8 +102,7 @@ fn imported_generic_parameters_require_the_template_source_and_points() {
     let wrong_source = SourceIdentity::new(
         consumer,
         NormalizedSourcePath::new("consumer.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let wrong = DefinitionOrigin::new(
         wrong_source.clone(),
         span,

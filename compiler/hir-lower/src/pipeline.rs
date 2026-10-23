@@ -1,4 +1,14 @@
 use super::*;
+pub(crate) mod cancellation;
+mod declaration_bodies;
+mod declarations;
+mod editing;
+mod signatures;
+mod source_bodies;
+
+use cancellation::PhaseFailure;
+use declarations::{DeclarationBodyCore, SignatureCore, SourceDeclarations};
+
 mod finish;
 mod run;
 mod type_parameters;
@@ -106,14 +116,16 @@ impl Lowerer {
         definition: hir::LocalValueDefinitionSite,
     ) -> hir::LocalId {
         let binding = self.fresh_binding();
-        self.locals.alloc(hir::Local {
+        let local = self.locals.alloc(hir::Local {
             binding,
             selector,
             definition,
             name,
             ty,
             mutable,
-        })
+        });
+        self.observe_local_definition(local);
+        local
     }
 
     pub(crate) fn alloc_this_local(&mut self, ty: TypeId, span: Span) -> hir::LocalId {
@@ -211,6 +223,17 @@ impl Lowerer {
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
         Lowerer {
+            cancellation: None,
+            editing_receiver: None,
+            editing_body: None,
+            editing_local_definitions: Default::default(),
+            editing_types: None,
+            editing_declarations: None,
+            editing_constants: None,
+            editing_prepared_bodies: None,
+            editing_constructions: None,
+            editing_type_definitions: Default::default(),
+            editing_local_types: Default::default(),
             core: CoreLoweringAuthority::Defined,
             dependencies: None,
             imports: Shared::default(),
@@ -225,6 +248,10 @@ impl Lowerer {
             local_types_by_source: HashMap::new(),
             local_type_capture_scope: None,
             property_identity_records: HashMap::new(),
+            struct_constructor_identity_records: HashMap::new(),
+            class_constructor_identity_records: HashMap::new(),
+            getter_identity_records: HashMap::new(),
+            setter_identity_records: HashMap::new(),
             field_identity_builder: hir::HirFieldIdentityBuilder::default(),
             source_contexts: Shared::default(),
             source_context_by_value: Shared::default(),
@@ -303,6 +330,9 @@ impl Lowerer {
             interface_application_by_key: HashMap::new(),
             functions: SnapshotArena::default(),
             source_function_declarations: Shared::default(),
+            query_source_function_identities: HashMap::new(),
+            query_imported_method_parameters: HashMap::new(),
+            query_alias_identities: HashMap::new(),
             intrinsic_functions: HashMap::new(),
             intrinsic_type_owners: HashMap::new(),
             imported_intrinsic_types: std::collections::BTreeMap::new(),
@@ -346,6 +376,7 @@ impl Lowerer {
             derived_equality_applications: SnapshotArena::default(),
             derived_equality_application_by_type: HashMap::new(),
             derived_encoding_methods: Vec::new(),
+            generation: generation::PendingGeneration::default(),
             interface_delegates: HashMap::new(),
             interface_forwarders: HashMap::new(),
             derived_decoding_methods: Vec::new(),
@@ -361,6 +392,7 @@ impl Lowerer {
             function_files: Shared::default(),
             extension_property_by_getter: HashMap::new(),
             property_files: HashMap::new(),
+            property_name_spans: HashMap::new(),
             property_accessor_sources: Shared::default(),
             runtime_accessor_units: HashMap::new(),
             pending_runtime_initializers: Vec::new(),
@@ -425,6 +457,8 @@ impl Lowerer {
             backing_field_context: None,
             smart_casts: Default::default(),
             current_file: 0,
+            generated_source_file: None,
+            in_semantic_query: false,
             intrinsic_sources: Shared::default(),
             test_dependencies: Default::default(),
             source_names: std::collections::BTreeMap::new(),
@@ -496,10 +530,7 @@ impl Lowerer {
     }
 
     pub(crate) fn source_is_current_cone(&self, file: usize) -> bool {
-        matches!(
-            self.top_level_namespaces.source_namespace(file),
-            crate::namespace::TopLevelLookupLayer::CurrentPackage(_)
-        )
+        self.top_level_namespaces.source_is_current_cone(file)
     }
 
     pub(crate) fn current_source_is_core(&self) -> bool {

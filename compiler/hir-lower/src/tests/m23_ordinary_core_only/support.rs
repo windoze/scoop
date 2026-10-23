@@ -201,8 +201,7 @@ pub(crate) fn parsed_ordinary_at(
     let identity = SourceIdentity::new(
         coordinate.identity().unwrap(),
         NormalizedSourcePath::new("src/main.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     parsed_sources(identity, source, "<dependency-main>", "")
 }
 
@@ -247,8 +246,7 @@ pub(crate) fn parsed_ordinary_text_at(
         SourceIdentity::new(
             coordinate.identity().unwrap(),
             NormalizedSourcePath::new("src/main.scoop").unwrap(),
-        )
-        .unwrap(),
+        ),
         scoop_parser::parse(source).unwrap(),
         "<dependency-main>",
         source,

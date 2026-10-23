@@ -119,12 +119,16 @@ pub enum Expr {
     },
     Binary {
         op: BinOp,
+        /// The actual source token; absent for conditions synthesized by lowering.
+        operator_span: Option<Span>,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
         span: Span,
     },
     Unary {
         op: UnOp,
+        /// The actual source token; absent for literals synthesized by lowering.
+        operator_span: Option<Span>,
         operand: Box<Expr>,
         span: Span,
     },
@@ -133,6 +137,8 @@ pub enum Expr {
     Update {
         place: PlaceExpr,
         op: UpdateOp,
+        /// The actual source token, absent for a synthesized update.
+        operator_span: Option<Span>,
         notation: UpdateNotation,
         span: Span,
     },
@@ -213,6 +219,8 @@ pub enum Expr {
     Index {
         receiver: Box<Expr>,
         indices: NonEmptyVec<Expr>,
+        /// The opening bracket, absent for a synthesized subscript.
+        bracket_span: Option<Span>,
         span: Span,
     },
     /// Structured control expressions. Their branch blocks use the same

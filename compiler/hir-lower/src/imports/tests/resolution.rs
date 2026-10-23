@@ -36,7 +36,7 @@ fn exact_alias_and_star_retain_overloads_and_deduplicate_each_layer() {
         let resolved = surface.resolve_file(&mut lowerer, &syntax);
         assert!(lowerer.diagnostics.is_empty());
         assert_eq!(resolved.exact[0].targets.len(), 2);
-        surface.files = vec![resolved];
+        surface.files = [(0, resolved)].into();
         let alias_layers = surface.layers(
             0,
             crate::namespace::TopLevelNamespaces::root_package(),
@@ -160,7 +160,7 @@ fn public_gate_precedes_visibility_and_never_publishes_local_bindings() {
 #[test]
 fn unknown_and_external_public_selectors_keep_unavailable_diagnostics() {
     let (mut lowerer, _, _) = lowerer();
-    let surface = CurrentUnitImports::default();
+    let mut surface = CurrentUnitImports::default();
     for public in [false, true] {
         for import in [
             exact(&["scoop", "core", "Int"], None, public),

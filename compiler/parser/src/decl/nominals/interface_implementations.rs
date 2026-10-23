@@ -5,6 +5,17 @@ use super::*;
 impl Parser {
     pub(in crate::decl) fn parse_interface_implementation(
         &mut self,
+        prefix: MemberPrefix,
+        property_context: PropertyContext,
+    ) -> Result<InterfaceImplementationDecl, Diagnostic> {
+        self.with_node(
+            scoop_syntax::SyntaxKind::InterfaceImplementation,
+            |parser| parser.parse_interface_implementation_inner(prefix, property_context),
+        )
+    }
+
+    fn parse_interface_implementation_inner(
+        &mut self,
         mut prefix: MemberPrefix,
         property_context: PropertyContext,
     ) -> Result<InterfaceImplementationDecl, Diagnostic> {
@@ -56,7 +67,7 @@ impl Parser {
                 break self.bump();
             }
             if self.at_eof() {
-                return self.unexpected("`}`");
+                return self.missing_token(TokenKind::RBrace, "`}`");
             }
             let member_start = self.pos;
             match self.parse_interface_implementation_member(property_context) {

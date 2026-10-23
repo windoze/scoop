@@ -94,10 +94,13 @@ fn receiver_struct(name: &str, marker: i64) -> Decl {
 
 fn receiver_object(name: &str, marker: i64) -> Decl {
     Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members: vec![ast::ClassMember::Function(method_expr(
             "mark",
             Vec::new(),
@@ -110,10 +113,13 @@ fn receiver_object(name: &str, marker: i64) -> Decl {
 
 fn empty_object(name: &str) -> Decl {
     Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members: Vec::new(),
         span: sp(),
     })

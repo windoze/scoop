@@ -86,8 +86,12 @@ stderr = ""
 native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`${ar}`，指定
 `{each = "${cc_args}"}` 和输出；随后传 `--library-path`。
 
-`${fixture}`、`${root}`、`${repo}`、`${runtime}`、`${target}` 也是内置值；三个 Scoop
+`${fixture}`、`${root}`、`${repo}`、`${runtime}`、`${target}` 也是内置值；Scoop
 工具默认从 `target/debug` 取得，可用 CLI 参数或 `SCOOP_TEST_PAIRED_*` 指定。
+
+LSP 进程用例声明 `tools = ["scoop-lsp", "python"]`，使用 `${scoop-lsp}` 和真实协议 peer；
+先构建 `cargo build -p scoop-lsp`。可用 `--scoop-lsp` 或 `SCOOP_TEST_PAIRED_SCOOP_LSP`
+选择服务器，runner 不自动构建，也不为项目加载准备 sysroot。
 
 PTY fixture 声明 `tools = ["scoop", "scoopc", "terminal-host"]`，以普通 argv
 步骤调用 `${terminal-host}` 并传入 Scoop 产物。先按

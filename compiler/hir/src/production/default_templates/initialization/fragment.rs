@@ -25,10 +25,11 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
         owner: crate::TypeId,
         origin: DefinitionOrigin,
     ) -> Result<Self, Error> {
-        let binders =
-            crate::production::signatures::HirInterfaceSignatureProjector::new(entities.export())
-                .binder_frame(type_parameters, 0)
-                .map_err(Error::Signature)?;
+        let binders = crate::production::signatures::HirInterfaceSignatureProjector::from_inputs(
+            entities.inputs().type_inputs,
+        )
+        .binder_frame(type_parameters, 0)
+        .map_err(Error::Signature)?;
         let owner = entities.type_key(owner, &binders).map_err(Error::Entity)?;
         let mut inputs = Vec::new();
         inputs.push(
@@ -36,7 +37,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
                 LocalValueSelector::This,
                 owner.clone(),
                 CanonicalBooleanV1::from(false),
-                TemplateLocalDefinitionV1::Source(definition_source(entities.export(), origin)?),
+                TemplateLocalDefinitionV1::Source(definition_source(entities.inputs(), origin)?),
             )
             .map_err(|source| {
                 Error::Locals(Box::new(
@@ -60,7 +61,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
             let value_type = entities
                 .type_key(parameter.ty, &binders)
                 .map_err(Error::Entity)?;
-            let definition = definition_source(entities.export(), parameter.definition)?;
+            let definition = definition_source(entities.inputs(), parameter.definition)?;
             inputs.push(
                 TemplateLocalRecordV1::try_new(
                     selector,
@@ -158,19 +159,17 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
     }
 
     pub fn definition_source(&self) -> Result<ExportDefinitionSourceV1, Error> {
-        definition_source(self.entities.export(), self.origin)
+        definition_source(self.entities.inputs(), self.origin)
     }
 }
 
 pub(super) fn definition_source(
-    export: &ExportHir,
+    inputs: &crate::HirBodyProjectionInputs<'_>,
     origin: DefinitionOrigin,
 ) -> Result<ExportDefinitionSourceV1, Error> {
-    crate::production::definition_sources::project_definition_source(export, origin).map_err(
-        |source| {
-            Error::Body(Box::new(
-                crate::DefaultBodyProjectionError::DefinitionOrigin(source),
-            ))
-        },
-    )
+    inputs.sources.definition(origin).map_err(|source| {
+        Error::Body(Box::new(
+            crate::DefaultBodyProjectionError::DefinitionOrigin(source),
+        ))
+    })
 }

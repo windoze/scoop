@@ -52,22 +52,7 @@ pub(crate) fn build(
     let interface_slots = lowerer
         .interface_method_entities
         .iter()
-        .map(|(_, member)| {
-            let key = dispatch_key(
-                functions,
-                accessors,
-                member.function,
-                DispatchDeclarationKind::Interface,
-            )
-            .map_err(|detail| failure(lowerer, member.function, detail))?;
-            CborIdentityRecord::from_key(key).map_err(|error| {
-                failure(
-                    lowerer,
-                    member.function,
-                    PersistentDispatchSlotIdentityErrorDetail::Hash(error.to_string()),
-                )
-            })
-        })
+        .map(|(method, _)| interface_slot(lowerer, functions, accessors, method))
         .collect::<Result<Vec<_>, _>>()?;
 
     hir::HirDispatchSlotIdentities::checked(
@@ -84,6 +69,29 @@ pub(crate) fn build(
         file: 0,
         span: scoop_ast::Span { start: 0, end: 0 },
         detail: PersistentDispatchSlotIdentityErrorDetail::Relation(error),
+    })
+}
+
+pub(crate) fn interface_slot(
+    lowerer: &Lowerer,
+    functions: &hir::HirFunctionIdentities,
+    accessors: &hir::HirPropertyAccessorIdentities,
+    method: hir::InterfaceMethodId,
+) -> Result<hir::HirDispatchSlotIdentity, PersistentDispatchSlotIdentityError> {
+    let function = lowerer.interface_method_entities[method].function;
+    let key = dispatch_key(
+        functions,
+        accessors,
+        function,
+        DispatchDeclarationKind::Interface,
+    )
+    .map_err(|detail| failure(lowerer, function, detail))?;
+    CborIdentityRecord::from_key(key).map_err(|error| {
+        failure(
+            lowerer,
+            function,
+            PersistentDispatchSlotIdentityErrorDetail::Hash(error.to_string()),
+        )
     })
 }
 

@@ -69,6 +69,16 @@ pub(super) struct ReferenceFailure {
 }
 
 impl ReferenceDeclaration {
+    fn semantic_target(&self) -> Option<hir::EditingCallee> {
+        match self {
+            Self::Local(declaration) => {
+                Some(hir::SemanticCallable::Current(declaration.candidate.function).into())
+            }
+            Self::Imported(declaration) => declaration.semantic_target().map(Into::into),
+            Self::Constructor(declaration) => declaration.editing_target(),
+        }
+    }
+
     fn forwarding(&self, state: &mut Lowerer) -> OwnedDeclarationForwarding {
         match self {
             Self::Constructor(declaration) => declaration.forwarding(state),
@@ -153,6 +163,16 @@ impl Lowerer {
         receiver: Option<&hir::Expr>,
         context: ReferenceResolutionContext<'_>,
     ) -> ReferenceResolutionOutcome {
+        if self.report_unavailable_signatures(
+            context.name,
+            context.span,
+            candidates.iter().filter_map(|candidate| match candidate {
+                ReferenceCandidate::Local(candidate, _) => Some(candidate.function),
+                _ => None,
+            }),
+        ) {
+            return ReferenceResolutionOutcome::Failed;
+        }
         let rejected = |candidate: &ReferenceCandidate| {
             matches!(candidate,
             ReferenceCandidate::Local(candidate, _) if self.declaration_surface.rejects_function(candidate.function))
@@ -270,6 +290,7 @@ impl Lowerer {
         };
         let selected = applicable.swap_remove(selected);
         *self = *selected.state;
+        let semantic_target = selected.declaration.semantic_target();
         match selected.declaration.commit(
             self,
             &selected.type_args,
@@ -282,11 +303,16 @@ impl Lowerer {
             )
             .then_some(context.span),
         ) {
-            Ok(target) => ReferenceResolutionOutcome::Resolved(ResolvedReference {
-                target,
-                type_args: selected.type_args,
-                ty: selected.ty,
-            }),
+            Ok(target) => {
+                if let Some(semantic_target) = semantic_target {
+                    self.observe_callee_reference(context.span, semantic_target);
+                }
+                ReferenceResolutionOutcome::Resolved(ResolvedReference {
+                    target,
+                    type_args: selected.type_args,
+                    ty: selected.ty,
+                })
+            }
             Err(message) => {
                 self.error(context.span, message);
                 ReferenceResolutionOutcome::Failed

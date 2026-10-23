@@ -42,6 +42,7 @@ impl Lowerer {
             crate::imports::lookup::LookupResult::Unique(candidate) => candidate.target.current(),
             crate::imports::lookup::LookupResult::Missing
             | crate::imports::lookup::LookupResult::Ambiguous { .. }
+            | crate::imports::lookup::LookupResult::Unavailable(_)
             | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
         }
     }
@@ -59,6 +60,7 @@ impl Lowerer {
             }
             crate::imports::lookup::LookupResult::Missing
             | crate::imports::lookup::LookupResult::Ambiguous { .. }
+            | crate::imports::lookup::LookupResult::Unavailable(_)
             | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
         }
     }

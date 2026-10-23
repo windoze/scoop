@@ -42,11 +42,12 @@ impl CurrentUnitImports {
         let mut group = SelectorGroup::default();
         match cursor {
             NamespaceCursor::Current(current) => {
-                self.extend_current_group(lowerer, &mut group, *current, namespace, name);
+                self.extend_current_group(lowerer, &mut group, Some(*current), namespace, name);
             }
             NamespaceCursor::Direct(direct) => {
                 let bindings = match direct {
                     hir::DirectNamespaceView::Package(package) => {
+                        self.extend_current_group(lowerer, &mut group, None, namespace, name);
                         package.binding_group_filtered(namespace, name, |provider| {
                             lowerer.dependency_in_source_scope(provider)
                         })
@@ -61,7 +62,7 @@ impl CurrentUnitImports {
                 self.extend_current_group(
                     lowerer,
                     &mut group,
-                    ResolvedNamespace::Package(*current),
+                    Some(ResolvedNamespace::Package(*current)),
                     namespace,
                     name,
                 );
@@ -80,23 +81,19 @@ impl CurrentUnitImports {
         &self,
         lowerer: &Lowerer,
         group: &mut SelectorGroup,
-        namespace: ResolvedNamespace,
+        namespace: Option<ResolvedNamespace>,
         binding_namespace: BindingNamespace,
         name: &str,
     ) {
-        for binding in self.canonicalize(
-            self.namespaces
-                .get(&namespace)
-                .and_then(|members| members.get(name))
-                .into_iter()
-                .flatten()
-                .copied()
-                .filter(|binding| {
-                    self.binding(*binding)
-                        .target
-                        .occupies_namespace(binding_namespace)
-                }),
-        ) {
+        let bindings = match namespace {
+            Some(namespace) => self.namespace_bindings(namespace, name).collect::<Vec<_>>(),
+            None => self.unknown_package_bindings(name).collect(),
+        };
+        for binding in self.canonicalize(bindings.into_iter().filter(|binding| {
+            self.binding(*binding)
+                .target
+                .occupies_namespace(binding_namespace)
+        })) {
             if !lowerer.declaration_source_in_scope(self.binding(binding).file) {
                 continue;
             }
@@ -180,31 +177,29 @@ impl CurrentUnitImports {
             }
             NamespaceCursor::Direct(_) => None,
         };
-        if let Some(current) = current
-            && let Some(members) = self.namespaces.get(&current)
-        {
-            for name in members.keys() {
-                let mut group = SelectorGroup::default();
-                self.extend_current_group(
-                    lowerer,
-                    &mut group,
-                    current,
-                    BindingNamespace::Type,
-                    name,
-                );
-                self.extend_current_group(
-                    lowerer,
-                    &mut group,
-                    current,
-                    BindingNamespace::Value,
-                    name,
-                );
-                group.current = self.canonicalize(group.current);
-                names
-                    .entry(name.clone())
-                    .or_default()
-                    .extend(self.materialize_group(lowerer, group.current, Vec::new()));
+        let source_names = match current {
+            Some(current) => self
+                .namespace_members(current)
+                .map(|(name, _)| name)
+                .collect(),
+            None if matches!(
+                cursor,
+                NamespaceCursor::Direct(hir::DirectNamespaceView::Package(_))
+            ) =>
+            {
+                self.unknown_packages.keys().collect()
             }
+            None => std::collections::BTreeSet::new(),
+        };
+        for name in source_names {
+            let mut group = SelectorGroup::default();
+            self.extend_current_group(lowerer, &mut group, current, BindingNamespace::Type, name);
+            self.extend_current_group(lowerer, &mut group, current, BindingNamespace::Value, name);
+            group.current = self.canonicalize(group.current);
+            names
+                .entry(name.clone())
+                .or_default()
+                .extend(self.materialize_group(lowerer, group.current, Vec::new()));
         }
 
         let direct = match cursor {

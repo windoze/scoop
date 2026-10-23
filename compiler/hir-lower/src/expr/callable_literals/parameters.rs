@@ -7,6 +7,57 @@ pub(super) struct LambdaParameters {
 }
 
 impl Lowerer {
+    pub(super) fn lambda_source_parameters<'a>(
+        &mut self,
+        is_suspend: bool,
+        parameters: Option<&'a [ast::LambdaParam]>,
+        span: Span,
+        expected_signature: Option<&CallableExpectation>,
+    ) -> Option<Vec<Option<&'a ast::LambdaParam>>> {
+        if let Some(signature) = expected_signature
+            && signature.is_suspend != is_suspend
+        {
+            self.error(
+                span,
+                "ordinary and suspend function types are incompatible".to_string(),
+            );
+            return None;
+        }
+        let source_parameters: Vec<Option<&ast::LambdaParam>> = match parameters {
+            Some(parameters) => parameters.iter().map(Some).collect(),
+            None => match expected_signature {
+                Some(signature) if signature.parameter_types.len() == 1 => vec![None],
+                Some(signature) if signature.parameter_types.is_empty() => Vec::new(),
+                Some(signature) => {
+                    self.error(
+                        span,
+                        format!(
+                            "lambda omits its parameter list, but the expected type has {} parameters",
+                            signature.parameter_types.len()
+                        ),
+                    );
+                    return None;
+                }
+                None => Vec::new(),
+            },
+        };
+        if let Some(signature) = expected_signature
+            && source_parameters.len() != signature.parameter_types.len()
+        {
+            self.error(
+                span,
+                format!(
+                    "lambda has {} parameter(s), but the expected function type has {}",
+                    source_parameters.len(),
+                    signature.parameter_types.len()
+                ),
+            );
+            return None;
+        }
+
+        Some(source_parameters)
+    }
+
     pub(super) fn lower_lambda_parameters(
         &mut self,
         source_parameters: &[Option<&ast::LambdaParam>],

@@ -10,6 +10,7 @@ mod generic;
 #[derive(Clone)]
 pub(crate) struct ImportedExtensionPropertyTarget {
     pub(crate) binding: hir::DirectImportedTargetBinding,
+    declaration: hir::PropertyDeclarationId,
     accessors: ImportedExtensionPropertyAccessors,
 }
 
@@ -167,6 +168,7 @@ impl Lowerer {
             state: Box::new(state),
             target: ImportedExtensionPropertyTarget {
                 binding: binding.clone(),
+                declaration: property.interface().declaration(),
                 accessors: ImportedExtensionPropertyAccessors::ParameterFree,
             },
             receiver,

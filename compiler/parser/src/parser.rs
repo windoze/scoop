@@ -8,161 +8,21 @@
 //! statement/control-flow parsing in `stmt.rs`, expression parsing in
 //! `expr.rs`, and pattern parsing in `pattern.rs`.
 
-use scoop_ast::{Diagnostic, DiagnosticNote, Ident, PackageSyntax, SourceFile, Span};
+use scoop_ast::{Diagnostic, Ident, Span};
 
-use crate::lexer::{Token, TokenKind, lex};
+use crate::lexer::{Token, TokenKind};
 
-pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
-    let crate::lexer::Lexed {
-        tokens,
-        diagnostics: lexical_diagnostics,
-        documentation,
-    } = lex(source);
-    let mut parser = Parser {
-        expression_nesting: Parser::expression_nesting(&tokens),
-        arm_body_nesting: None,
-        supertype_expression_nesting: None,
-        tokens,
-        pos: 0,
-        diagnostics: Vec::new(),
-        next_lambda_id: 0,
-        next_anonymous_function_id: 0,
-        next_callable_reference_id: 0,
-        documentation,
-    };
-    let mut package = PackageSyntax::RootPackage;
-    let mut imports = Vec::new();
-    let mut declarations = Vec::new();
-    let mut header_state = HeaderState::Start;
-    while !parser.at_eof() {
-        let start = parser.pos;
-        match parser.top_level_item_kind() {
-            TopLevelItemKind::Package => {
-                let keyword_span = parser.peek().span;
-                if let PackageSyntax::QualifiedPackage {
-                    package_keyword_span: first_keyword_span,
-                    ..
-                } = &package
-                {
-                    parser.diagnostics.push(
-                        Diagnostic::at(
-                            keyword_span,
-                            "a source file may contain only one `package` header",
-                        )
-                        .with_note(DiagnosticNote::at(
-                            0,
-                            *first_keyword_span,
-                            "first `package` header is here",
-                        )),
-                    );
-                } else if header_state >= HeaderState::AfterImport {
-                    parser.diagnostics.push(Diagnostic::at(
-                        keyword_span,
-                        "a `package` header must appear before imports and declarations",
-                    ));
-                }
-                let accept = matches!(package, PackageSyntax::RootPackage)
-                    && header_state < HeaderState::AfterImport;
-                header_state.advance_to(HeaderState::AfterPackage);
-                match parser.parse_package_header() {
-                    Ok(parsed) if accept => {
-                        package = parsed;
-                    }
-                    Ok(_) => {}
-                    Err(diagnostic) => {
-                        parser.diagnostics.push(diagnostic);
-                        parser.synchronize_header_item(start);
-                    }
-                }
-            }
-            TopLevelItemKind::Import => {
-                let header_span = parser.import_prefix_span();
-                let accept = header_state < HeaderState::InDeclarations;
-                if !accept {
-                    parser.diagnostics.push(Diagnostic::at(
-                        header_span,
-                        "`import` headers must appear before declarations",
-                    ));
-                }
-                header_state.advance_to(HeaderState::AfterImport);
-                match parser.parse_import_header() {
-                    Ok(import) if accept => imports.push(import),
-                    Ok(_) => {}
-                    Err(diagnostic) => {
-                        parser.diagnostics.push(diagnostic);
-                        parser.synchronize_header_item(start);
-                    }
-                }
-            }
-            TopLevelItemKind::UnsupportedImportModifier(modifier) => {
-                let modifier_token = parser.bump();
-                if header_state >= HeaderState::InDeclarations {
-                    parser.diagnostics.push(Diagnostic::at(
-                        modifier_token.span,
-                        "`import` headers must appear before declarations",
-                    ));
-                }
-                parser.diagnostics.push(Diagnostic::at(
-                    modifier_token.span,
-                    format!(
-                        "`{modifier} import` is not supported; imports may be ordinary or `public`"
-                    ),
-                ));
-                header_state.advance_to(HeaderState::AfterImport);
-                match parser.parse_import_header() {
-                    Ok(_) => {}
-                    Err(diagnostic) => {
-                        parser.diagnostics.push(diagnostic);
-                        parser.synchronize_header_item(start);
-                    }
-                }
-            }
-            TopLevelItemKind::Declaration => {
-                header_state.advance_to(HeaderState::InDeclarations);
-                match parser.parse_decl() {
-                    Ok(decl) => {
-                        parser.attach_documentation(start, decl.span());
-                        declarations.push(decl);
-                    }
-                    Err(diagnostic) => {
-                        parser.diagnostics.push(diagnostic);
-                        parser.synchronize_top_level(start);
-                    }
-                }
-            }
-        }
-    }
-    let file = SourceFile {
-        package,
-        imports,
-        declarations,
-        documentation: std::mem::take(&mut parser.documentation)
-            .into_iter()
-            .map(|doc| doc.comment)
-            .collect(),
-        span: Span::new(0, source.len() as u32),
-    };
-    let mut diagnostics = lexical_diagnostics;
-    let syntax_diagnostics = parser
-        .diagnostics
-        .iter()
-        .filter(|diagnostic| {
-            !parser.syntax_diagnostic_is_shadowed_by_lexical_error(diagnostic, &diagnostics)
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-    diagnostics.extend(syntax_diagnostics);
-    diagnostics.sort_by_key(|diagnostic| {
-        diagnostic
-            .span
-            .map_or((u32::MAX, u32::MAX), |span| (span.start, span.end))
-    });
-    if diagnostics.is_empty() {
-        Ok(file)
-    } else {
-        Err(diagnostics)
-    }
-}
+mod checkpoint;
+mod entry;
+mod file;
+mod lists;
+mod syntax;
+
+pub(crate) use lists::ListKind;
+pub(crate) use syntax::NominalMember;
+
+pub(crate) use entry::{parse_function_body, parse_type};
+pub(crate) use file::parse_file;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum HeaderState {
@@ -218,6 +78,10 @@ pub(crate) struct Parser {
     pub(crate) supertype_expression_nesting: Option<usize>,
     pub(crate) pos: usize,
     pub(crate) diagnostics: Vec<Diagnostic>,
+    lexical_diagnostics: Vec<Diagnostic>,
+    lexemes: Vec<crate::lexer::Lexeme>,
+    syntax: syntax::SyntaxEvents,
+    attachment_undo: Vec<(usize, scoop_ast::DocCommentTarget)>,
     pub(crate) next_lambda_id: u32,
     pub(crate) next_anonymous_function_id: u32,
     pub(crate) next_callable_reference_id: u32,
@@ -439,6 +303,12 @@ impl Parser {
     /// top-level item. Unlike declaration recovery, header grammar does not
     /// require a newline boundary, so any balanced top-level starter is safe.
     fn synchronize_header_item(&mut self, item_start: usize) {
+        self.with_node(scoop_syntax::SyntaxKind::Error, |parser| {
+            parser.synchronize_header_item_inner(item_start)
+        })
+    }
+
+    fn synchronize_header_item_inner(&mut self, item_start: usize) {
         let mut balance = DelimiterBalance::default();
         for token in &self.tokens[item_start..self.pos] {
             balance.observe(&token.kind);
@@ -457,6 +327,12 @@ impl Parser {
     /// crossed before synchronization, so errors in a body do not turn each
     /// remaining statement into a top-level diagnostic.
     fn synchronize_top_level(&mut self, item_start: usize) {
+        self.with_node(scoop_syntax::SyntaxKind::Error, |parser| {
+            parser.synchronize_top_level_inner(item_start)
+        })
+    }
+
+    fn synchronize_top_level_inner(&mut self, item_start: usize) {
         while !self.at_eof() {
             if self.pos > item_start
                 && self.brace_depth() == 0
@@ -473,6 +349,12 @@ impl Parser {
     /// the brace closing the current body. `item_start` prevents a token that
     /// itself failed at the beginning of an item from being retried forever.
     pub(crate) fn synchronize_body_item(&mut self, target_depth: usize, item_start: usize) {
+        self.with_node(scoop_syntax::SyntaxKind::Error, |parser| {
+            parser.synchronize_body_item_inner(target_depth, item_start)
+        })
+    }
+
+    fn synchronize_body_item_inner(&mut self, target_depth: usize, item_start: usize) {
         while !self.at_eof() {
             let depth = self.brace_depth();
             if depth < target_depth
@@ -491,12 +373,30 @@ impl Parser {
     }
 
     /// Builds "expected <what>, found <token>" at the current token.
-    pub(crate) fn unexpected<T>(&self, what: &str) -> Result<T, Diagnostic> {
-        let token = self.peek();
-        Err(Diagnostic::at(
-            token.span,
-            format!("expected {what}, found {}", token.describe()),
-        ))
+    pub(crate) fn unexpected<T>(&mut self, what: &str) -> Result<T, Diagnostic> {
+        use scoop_syntax::ExpectedSyntax;
+        let expected = match what {
+            "type" => ExpectedSyntax::Type,
+            "expression" => ExpectedSyntax::Expression,
+            "pattern" => ExpectedSyntax::Pattern,
+            _ => ExpectedSyntax::Description(what.to_owned()),
+        };
+        self.missing(expected, what)
+    }
+
+    pub(crate) fn missing_name<T>(&mut self, what: &str) -> Result<T, Diagnostic> {
+        self.missing(scoop_syntax::ExpectedSyntax::Name, what)
+    }
+
+    pub(crate) fn missing_token<T>(
+        &mut self,
+        kind: TokenKind,
+        what: &str,
+    ) -> Result<T, Diagnostic> {
+        self.missing(
+            scoop_syntax::ExpectedSyntax::Token(kind.syntax_kind()),
+            what,
+        )
     }
 
     pub(crate) fn expect(
@@ -507,11 +407,20 @@ impl Parser {
         if pred(&self.peek().kind) {
             Ok(self.bump())
         } else {
-            self.unexpected(what)
+            let expected = syntax::expected_token(&pred)
+                .map(scoop_syntax::ExpectedSyntax::Token)
+                .unwrap_or_else(|| scoop_syntax::ExpectedSyntax::Description(what.to_owned()));
+            self.missing(expected, what)
         }
     }
 
     pub(crate) fn expect_ident(&mut self, what: &str) -> Result<Ident, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Name, |parser| {
+            parser.expect_ident_inner(what)
+        })
+    }
+
+    fn expect_ident_inner(&mut self, what: &str) -> Result<Ident, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
             TokenKind::Ident(text) | TokenKind::EscapedIdent(text) => {
@@ -521,7 +430,7 @@ impl Parser {
                     span: token.span,
                 })
             }
-            _ => self.unexpected(what),
+            _ => self.missing(scoop_syntax::ExpectedSyntax::Name, what),
         }
     }
 }

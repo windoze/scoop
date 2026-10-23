@@ -30,13 +30,26 @@ fn mapping(error: impl fmt::Display) -> DiagnosticMappingError {
 fn source_origin(
     source: Option<&SourceIdentity>,
     span: Span,
+    source_text: impl FnOnce(&SourceIdentity) -> Option<String>,
 ) -> Result<DiagnosticOriginV1, DiagnosticMappingError> {
     let source =
         source.ok_or_else(|| mapping("internal error: diagnostic source index is unresolved"))?;
-    Ok(DiagnosticOriginV1::SemanticSourceSpan {
-        cone: ProtocolConeIdentity::from_array(*source.cone().as_array()),
-        logical_path: source.logical_path().clone(),
-        span: ProtocolByteSpan::new(u64::from(span.start), u64::from(span.end)).map_err(mapping)?,
+    let cone = ProtocolConeIdentity::from_array(*source.cone().as_array());
+    let logical_path = source.logical_path().clone();
+    let span =
+        ProtocolByteSpan::new(u64::from(span.start), u64::from(span.end)).map_err(mapping)?;
+    Ok(match source_text(source) {
+        Some(text) => DiagnosticOriginV1::SourceTextSpan {
+            cone,
+            logical_path,
+            span,
+            text,
+        },
+        None => DiagnosticOriginV1::SemanticSourceSpan {
+            cone,
+            logical_path,
+            span,
+        },
     })
 }
 
@@ -44,6 +57,7 @@ fn convert<'a>(
     diagnostic: &'a Diagnostic,
     code: &str,
     source_at: impl Fn(usize) -> Option<&'a SourceIdentity>,
+    source_text: impl Fn(&SourceIdentity) -> Option<String>,
 ) -> Result<StructuredDiagnosticV1, DiagnosticMappingError> {
     let origin = match diagnostic.span {
         Some(span) => source_origin(
@@ -52,6 +66,7 @@ fn convert<'a>(
                 .as_deref()
                 .or_else(|| source_at(diagnostic.file)),
             span,
+            &source_text,
         )?,
         None => DiagnosticOriginV1::None,
     };
@@ -64,6 +79,7 @@ fn convert<'a>(
                 source_origin(
                     note.source.as_deref().or_else(|| source_at(note.file)),
                     note.span,
+                    &source_text,
                 )?,
             )
             .map_err(mapping)
@@ -100,9 +116,18 @@ impl CurrentConeDiagnosticSet {
         self.diagnostics
             .iter()
             .map(|diagnostic| {
-                convert(diagnostic, code, |index| {
-                    self.sources.get(index).map(|source| &source.identity)
-                })
+                convert(
+                    diagnostic,
+                    code,
+                    |index| self.sources.get(index).map(|source| &source.identity),
+                    |identity| {
+                        self.sources
+                            .iter()
+                            .find(|source| source.in_memory && &source.identity == identity)
+                            .and_then(|source| source.source_text.as_ref())
+                            .map(|text| text.as_str().to_owned())
+                    },
+                )
             })
             .collect()
     }
@@ -121,9 +146,12 @@ impl SingleConeProductionError {
                 scoop_parser::ParseCurrentConeError::Diagnostics(diagnostics) => diagnostics
                     .iter()
                     .map(|parsed| {
-                        convert(parsed.diagnostic(), "SCOOPC_PARSE_ERROR", |_| {
-                            Some(parsed.identity())
-                        })
+                        convert(
+                            parsed.diagnostic(),
+                            "SCOOPC_PARSE_ERROR",
+                            |_| Some(parsed.identity()),
+                            |_| None,
+                        )
                     })
                     .collect::<Result<Vec<_>, _>>()?,
                 _ => vec![tool_error(self)?],
@@ -131,10 +159,7 @@ impl SingleConeProductionError {
             Self::Production(error) => match error.cause() {
                 CurrentConeProductionFailure::Hir(CurrentConeHirStageError::Lowering(
                     diagnostics,
-                )) => diagnostics
-                    .iter()
-                    .map(|diagnostic| convert(diagnostic, "SCOOPC_HIR_ERROR", |_| None))
-                    .collect::<Result<Vec<_>, _>>()?,
+                )) => diagnostics.structured_with_code("SCOOPC_HIR_ERROR")?,
                 _ => vec![tool_error(self)?],
             },
             _ => vec![tool_error(self)?],

@@ -253,6 +253,13 @@ impl Lowerer {
         resolution: OverloadResolution<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> OverloadResolutionOutcome {
+        if self.report_unavailable_signatures(
+            name,
+            resolution.span,
+            candidates.iter().map(|candidate| candidate.function),
+        ) {
+            return OverloadResolutionOutcome::Failed;
+        }
         let suppressed = candidates.iter().any(|candidate| {
             self.declaration_surface
                 .rejects_function(candidate.function)

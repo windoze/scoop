@@ -75,10 +75,10 @@ impl Lowerer {
             } => None,
         };
         let template = if let Some(expression) = expression {
-            match &recipe.kind {
+            self.observe_default_preparation(key, &recipe, |lowerer| match &recipe.kind {
                 RecipeKind::Export(owner) => {
-                    let captures = std::mem::take(&mut self.capture_contexts);
-                    let result = self
+                    let captures = std::mem::take(&mut lowerer.capture_contexts);
+                    let result = lowerer
                         .lower_export_default(
                             *owner,
                             expression,
@@ -88,10 +88,10 @@ impl Lowerer {
                             &recipe.context,
                         )
                         .map(DefaultExprTemplateRef::Export);
-                    self.capture_contexts = captures;
+                    lowerer.capture_contexts = captures;
                     result
                 }
-                RecipeKind::Local(environment) => self
+                RecipeKind::Local(environment) => lowerer
                     .lower_local_default(
                         expression,
                         parameter,
@@ -101,7 +101,7 @@ impl Lowerer {
                         environment,
                     )
                     .map(DefaultExprTemplateRef::Local),
-            }
+            })
         } else {
             self.prepare_inherited_default(key, parameter.name.span)
         };

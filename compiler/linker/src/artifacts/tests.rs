@@ -29,7 +29,7 @@ fn artifact_cxx_requirement_rejects_both_musl_final_link_modes() {
     .unwrap();
     std::fs::write(
         source.join("src/main.scoop"),
-        "package dev.m33\nfun main() {}\n",
+        "package dev.m33\n\nfun main() {}\n",
     )
     .unwrap();
     for (input, output, dependencies) in [

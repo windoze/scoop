@@ -1,4 +1,5 @@
 use scoop_identity::SourceIdentity;
+use scoop_source::SourceText;
 use std::fmt;
 
 mod documentation;
@@ -35,7 +36,8 @@ impl EmittedStageDump {
 struct CurrentConeDiagnosticSource {
     identity: SourceIdentity,
     display_locator: String,
-    source_text: Option<String>,
+    source_text: Option<SourceText>,
+    in_memory: bool,
 }
 
 /// Diagnostics inseparably paired with the exact current-Cone sources whose
@@ -48,17 +50,32 @@ pub struct CurrentConeDiagnosticSet {
 
 impl CurrentConeDiagnosticSet {
     pub(super) fn try_new(
+        diagnostics: Vec<Diagnostic>,
+        sources: &CurrentConeParsedSources,
+    ) -> Result<Self, CurrentConeDiagnosticSetError> {
+        Self::try_new_with_generated(diagnostics, sources, &[])
+    }
+
+    pub(super) fn try_new_with_generated(
         mut diagnostics: Vec<Diagnostic>,
         sources: &CurrentConeParsedSources,
+        generated: &[scoop_hir::GeneratedMethodSource],
     ) -> Result<Self, CurrentConeDiagnosticSetError> {
         let mut sources = sources
             .iter()
             .map(|source| CurrentConeDiagnosticSource {
                 identity: source.text().identity().clone(),
                 display_locator: source.diagnostic().display_locator().display().to_string(),
-                source_text: Some(source.text().text().to_owned()),
+                source_text: Some(source.text().source_text().clone()),
+                in_memory: false,
             })
             .collect::<Vec<_>>();
+        sources.extend(generated.iter().map(|source| CurrentConeDiagnosticSource {
+            identity: source.identity.clone(),
+            display_locator: source.name.clone(),
+            source_text: Some(source.text.clone()),
+            in_memory: true,
+        }));
         for diagnostic in &mut diagnostics {
             if let Some(identity) = &diagnostic.source {
                 diagnostic.file = source_index(&mut sources, identity);
@@ -108,7 +125,9 @@ impl CurrentConeDiagnosticSet {
             .flat_map(|diagnostic| {
                 let primary_source = &self.sources[diagnostic.file];
                 let primary = match &primary_source.source_text {
-                    Some(text) => diagnostic.render(&primary_source.display_locator, text),
+                    Some(text) => {
+                        diagnostic.render_with_source(&primary_source.display_locator, text)
+                    }
                     None => {
                         let severity = match diagnostic.severity {
                             scoop_ast::DiagnosticSeverity::Error => "error",
@@ -125,7 +144,7 @@ impl CurrentConeDiagnosticSet {
                 std::iter::once(primary).chain(diagnostic.notes.iter().map(|note| {
                     let note_source = &self.sources[note.file];
                     match &note_source.source_text {
-                        Some(text) => note.render(&note_source.display_locator, text),
+                        Some(text) => note.render_with_source(&note_source.display_locator, text),
                         None => {
                             render_without_text(note_source, Some(note.span), "note", &note.message)
                         }
@@ -183,6 +202,7 @@ pub struct SingleConeProductionSuccess {
     artifact: PublishedCrossConeArtifact,
     warnings: CurrentConeDiagnosticSet,
     emitted_dumps: Vec<EmittedStageDump>,
+    used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
     pub(in crate::request) documentation: Option<PublishedDocumentation>,
 }
 
@@ -191,17 +211,23 @@ impl SingleConeProductionSuccess {
         artifact: PublishedCrossConeArtifact,
         warnings: CurrentConeDiagnosticSet,
         emitted_dumps: Vec<EmittedStageDump>,
+        used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
     ) -> Self {
         Self {
             artifact,
             warnings,
             emitted_dumps,
+            used_generators,
             documentation: None,
         }
     }
 
     pub const fn artifact(&self) -> &PublishedCrossConeArtifact {
         &self.artifact
+    }
+
+    pub fn used_generators(&self) -> &[scoop_protocol::GeneratorToolInputV1] {
+        &self.used_generators
     }
 
     pub const fn warnings(&self) -> &CurrentConeDiagnosticSet {
@@ -263,6 +289,7 @@ fn source_index(
         identity: identity.clone(),
         display_locator: format!("{}/{}", identity.cone(), identity.logical_path()),
         source_text: None,
+        in_memory: false,
     });
     index
 }

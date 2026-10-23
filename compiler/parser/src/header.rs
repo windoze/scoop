@@ -16,6 +16,12 @@ enum ImportSelector {
 
 impl Parser {
     pub(crate) fn parse_package_header(&mut self) -> Result<PackageSyntax, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::PackageHeader, |parser| {
+            parser.parse_package_header_inner()
+        })
+    }
+
+    fn parse_package_header_inner(&mut self) -> Result<PackageSyntax, Diagnostic> {
         let keyword = self.expect("`package`", |kind| matches!(kind, TokenKind::Package))?;
         let path = self.parse_qualified_name("package name")?;
         let span = Span::new(keyword.span.start, path.span.end);
@@ -27,6 +33,12 @@ impl Parser {
     }
 
     pub(crate) fn parse_import_header(&mut self) -> Result<ImportSyntax, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ImportHeader, |parser| {
+            parser.parse_import_header_inner()
+        })
+    }
+
+    fn parse_import_header_inner(&mut self) -> Result<ImportSyntax, Diagnostic> {
         let (start, exposure) = if self.at_public_import() {
             let public = self.bump();
             (

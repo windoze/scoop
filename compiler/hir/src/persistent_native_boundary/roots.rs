@@ -13,15 +13,17 @@ use crate::NativeBoundaryNominalOwner;
 
 pub(super) fn collect(
     inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
+    local: Option<&crate::concrete::Module>,
 ) -> Result<BTreeSet<NativeBoundaryNominalOwner>, HirNativeBoundaryTypeDefinitionError> {
     let mut required = BTreeSet::new();
-    collect_contracts(inputs, &mut required);
-    collect_callbacks(inputs, &mut required)?;
+    collect_contracts(inputs, local, &mut required);
+    collect_callbacks(inputs, local, &mut required)?;
     Ok(required)
 }
 
 fn collect_contracts(
     inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
+    local: Option<&crate::concrete::Module>,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
 ) {
     let contracts = inputs
@@ -29,10 +31,9 @@ fn collect_contracts(
         .iter()
         .map(|entry| entry.record())
         .chain(
-            inputs
-                .local
-                .globals
-                .values()
+            local
+                .into_iter()
+                .flat_map(|local| local.globals.values())
                 .filter_map(|global| match &global.storage {
                     crate::concrete::GlobalStorage::Extern {
                         source_contract, ..
@@ -60,6 +61,7 @@ fn collect_contracts(
 
 fn collect_callbacks(
     inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
+    local: Option<&crate::concrete::Module>,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
 ) -> Result<(), HirNativeBoundaryTypeDefinitionError> {
     for record in inputs.callback_registration_identities.records() {
@@ -67,12 +69,16 @@ fn collect_callbacks(
         collect_callable_shape(record.key().managed_signature(), required);
     }
 
+    let Some(local) = local else {
+        return Ok(());
+    };
     let mut visited_applications = BTreeSet::new();
     let mut visited_exact_types = BTreeSet::new();
-    for application in inputs.local.callback_applications.records() {
+    for application in local.callback_applications.records() {
         collect_materialization_context(
             application.key().context(),
             inputs,
+            local,
             required,
             &mut visited_applications,
             &mut visited_exact_types,
@@ -84,6 +90,7 @@ fn collect_callbacks(
 fn collect_materialization_context(
     context: CallableMaterializationContext,
     inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
+    local: &crate::concrete::Module,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
     visited_applications: &mut BTreeSet<PersistentCallableApplicationId>,
     visited_exact_types: &mut BTreeSet<PersistentExactTypeId>,
@@ -93,12 +100,13 @@ fn collect_materialization_context(
         CallableMaterializationContext::Application(application) => collect_callable_application(
             application,
             inputs,
+            local,
             required,
             visited_applications,
             visited_exact_types,
         ),
         CallableMaterializationContext::InitializationApplication(unit) => {
-            collect_initialization_application(unit, inputs, required, visited_exact_types)
+            collect_initialization_application(unit, inputs, local, required, visited_exact_types)
         }
     }
 }
@@ -106,6 +114,7 @@ fn collect_materialization_context(
 fn collect_callable_application(
     application: PersistentCallableApplicationId,
     inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
+    local: &crate::concrete::Module,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
     visited_applications: &mut BTreeSet<PersistentCallableApplicationId>,
     visited_exact_types: &mut BTreeSet<PersistentExactTypeId>,
@@ -113,31 +122,32 @@ fn collect_callable_application(
     if !visited_applications.insert(application) {
         return Ok(());
     }
-    let record =
-        inputs.local.callable_applications.get(application).ok_or(
-            HirNativeBoundaryTypeDefinitionError::MissingCallableApplication { application },
-        )?;
+    let record = local
+        .callable_applications
+        .get(application)
+        .ok_or(HirNativeBoundaryTypeDefinitionError::MissingCallableApplication { application })?;
     match record.key().instantiation_owner() {
         CallableInstantiationOwner::NoOwner => {}
         CallableInstantiationOwner::ExactNominalOwner(owner) => {
-            collect_exact_type(owner, inputs, required, visited_exact_types)?
+            collect_exact_type(owner, local, required, visited_exact_types)?
         }
         CallableInstantiationOwner::EnclosingCallableApplication(enclosing) => {
             collect_callable_application(
                 enclosing,
                 inputs,
+                local,
                 required,
                 visited_applications,
                 visited_exact_types,
             )?;
         }
         CallableInstantiationOwner::EnclosingInitializationApplication(unit) => {
-            collect_initialization_application(unit, inputs, required, visited_exact_types)?;
+            collect_initialization_application(unit, inputs, local, required, visited_exact_types)?;
         }
     }
     if let CallableArguments::Arguments(arguments) = record.key().callable_arguments() {
         for argument in arguments.as_slice() {
-            collect_exact_type(*argument, inputs, required, visited_exact_types)?;
+            collect_exact_type(*argument, local, required, visited_exact_types)?;
         }
     }
     Ok(())
@@ -146,6 +156,7 @@ fn collect_callable_application(
 fn collect_initialization_application(
     unit: PersistentInitializationUnitId,
     inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
+    local: &crate::concrete::Module,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
     visited_exact_types: &mut BTreeSet<PersistentExactTypeId>,
 ) -> Result<(), HirNativeBoundaryTypeDefinitionError> {
@@ -160,7 +171,7 @@ fn collect_initialization_application(
     } = record.key()
     {
         for argument in receiver_arguments.as_slice() {
-            collect_exact_type(*argument, inputs, required, visited_exact_types)?;
+            collect_exact_type(*argument, local, required, visited_exact_types)?;
         }
     }
     Ok(())
@@ -168,19 +179,18 @@ fn collect_initialization_application(
 
 fn collect_exact_type(
     exact: PersistentExactTypeId,
-    inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
+    local: &crate::concrete::Module,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
     visited: &mut BTreeSet<PersistentExactTypeId>,
 ) -> Result<(), HirNativeBoundaryTypeDefinitionError> {
     if !visited.insert(exact) {
         return Ok(());
     }
-    let ty = inputs
-        .local
+    let ty = local
         .exact_type_identities
         .type_for_identity(exact)
         .ok_or(HirNativeBoundaryTypeDefinitionError::MissingExactType { exact })?;
-    let record = &inputs.local.exact_type_identities[ty];
+    let record = &local.exact_type_identities[ty];
     match record.key() {
         ExactTypeKey::Nominal(owner) => {
             required.insert(NativeBoundaryNominalOwner::Concrete(*owner));
@@ -194,7 +204,7 @@ fn collect_exact_type(
         | ExactTypeKey::NativeFunctionPointer { .. } => {}
     }
     for dependency in record.key().exact_type_dependencies() {
-        collect_exact_type(dependency, inputs, required, visited)?;
+        collect_exact_type(dependency, local, required, visited)?;
     }
     Ok(())
 }

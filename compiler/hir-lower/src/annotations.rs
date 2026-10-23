@@ -145,7 +145,7 @@ impl Lowerer {
 
     pub(crate) fn check_struct_annotations(
         &mut self,
-        decl: &ast::StructDecl,
+        decl: ast::StructSource<'_>,
     ) -> CheckedStructAnnotations {
         let mut attributes = hir::StructAttributes::default();
         let mut intrinsic = None;
@@ -215,7 +215,7 @@ impl Lowerer {
 
     pub(crate) fn check_class_annotations(
         &mut self,
-        decl: &ast::ClassDecl,
+        decl: ast::ClassSource<'_>,
     ) -> CheckedClassAnnotations {
         let mut intrinsic = None;
         let mut seen = HashSet::new();
@@ -287,7 +287,7 @@ impl Lowerer {
         Some(spec)
     }
 
-    pub(crate) fn check_enum_annotations(&mut self, decl: &ast::EnumDecl) -> bool {
+    pub(crate) fn check_enum_annotations(&mut self, decl: ast::EnumSource<'_>) -> bool {
         let mut no_gc = false;
         let mut seen = HashSet::new();
         for annotation in decl.annotations.iter().filter(|annotation| {

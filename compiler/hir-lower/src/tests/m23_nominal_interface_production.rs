@@ -81,13 +81,16 @@ fn projected_declarations() -> Vec<Decl> {
         .push(ty_generic("ProjectedCarrier", vec![ty_named("T")]));
 
     let object = Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident("ProjectedObject"),
-        supertypes: vec![bare_supertype(ty_generic(
-            "ProjectedCarrier",
-            vec![ty_named("Int")],
-        ))],
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident("ProjectedObject"),
+            supertypes: vec![bare_supertype(ty_generic(
+                "ProjectedCarrier",
+                vec![ty_named("Int")],
+            ))],
+            span: sp(),
+        },
         members: vec![ast::ClassMember::Function(method_expr(
             "projectedObjectMethod",
             Vec::new(),
@@ -101,10 +104,13 @@ fn projected_declarations() -> Vec<Decl> {
         unreachable!()
     };
     let nested_object = ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident("NestedSingleton"),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident("NestedSingleton"),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members: Vec::new(),
         span: sp(),
     };

@@ -25,6 +25,10 @@ pub(in crate::expr::callable_references) struct ImportedReferenceDeclaration {
 }
 
 impl ImportedReferenceDeclaration {
+    pub(super) fn semantic_target(&self) -> Option<hir::SemanticCallable> {
+        crate::expr::named_calls::imported_dependency::semantic_function_target(&self.candidate)
+    }
+
     fn resolve(state: &mut Lowerer, candidate: ImportedCallableCandidate) -> Result<Self, String> {
         let interface = candidate.interface();
         if matches!(

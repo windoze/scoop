@@ -12,11 +12,14 @@ mod structure;
 pub(crate) use nested::NestedDeclarationQueues;
 pub(crate) use objects::ObjectSource;
 
+pub(crate) type FunctionHeaderInput<'a> = (FunctionId, ast::FunctionHeaderRef<'a>, usize);
+pub(crate) type MethodHeaderInput<'a> = (FunctionId, ast::FunctionHeaderRef<'a>, usize, Owner);
+
 impl Lowerer {
     pub(super) fn require_core_struct(
         &mut self,
         name: &str,
-        files: &[ast::SourceFile],
+        files: &[ast::Span],
     ) -> Option<StructId> {
         let candidate = self
             .core_nominal_target(name)
@@ -30,7 +33,7 @@ impl Lowerer {
         let core_diagnostic_file = self.core_diagnostic_file();
         self.current_file = core_diagnostic_file;
         self.error(
-            files[core_diagnostic_file].span,
+            files[core_diagnostic_file],
             format!("scoop.core must define exactly one `{name}` struct"),
         );
         None

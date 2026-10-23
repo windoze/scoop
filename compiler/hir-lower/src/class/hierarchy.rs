@@ -3,13 +3,14 @@ use super::*;
 impl Lowerer {
     pub(crate) fn check_interface_inheritance_cycles(
         &mut self,
-        pending: &[(hir::InterfaceId, &ast::InterfaceDecl, usize)],
+        pending: &[(hir::InterfaceId, ast::InterfaceSource<'_>, usize)],
     ) -> bool {
         let errors = self.diagnostics.len();
         for &(interface, declaration, file) in pending {
             self.current_file = file;
             let mut visiting = Vec::new();
             if self.interface_reaches(interface, interface, &mut visiting) {
+                self.fail_editing_owner(Owner::Interface(interface));
                 self.error(
                     declaration.span,
                     format!(

@@ -50,7 +50,6 @@ pub(crate) struct PendingRuntimeInitializer {
 pub(crate) enum PendingRuntimeInitializerKind {
     Stored {
         storage: hir::GlobalId,
-        ty: hir::TypeId,
         expression: ast::Expr,
     },
     Delegated {
@@ -74,7 +73,7 @@ impl Lowerer {
         &mut self,
         pending: &[(&ast::GlobalDecl, usize)],
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
-        enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
+        enums: &[(hir::EnumId, ast::EnumSource<'_>, usize)],
     ) {
         let mut initializers = Vec::new();
         let mut constants = Vec::new();
@@ -218,6 +217,7 @@ impl Lowerer {
                     span: decl.span,
                 });
                 assert_eq!(property, expected_property);
+                self.property_name_spans.insert(property, decl.name.span);
                 self.top_level_namespaces.register_property(
                     file_index,
                     decl.name.text.clone(),

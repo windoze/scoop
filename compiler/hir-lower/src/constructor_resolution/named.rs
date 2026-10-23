@@ -235,7 +235,9 @@ impl Lowerer {
         span: ast::Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedNominalConstructor> {
-        self.commit_nominal_candidate(probe.candidate, span, sink)
+        let resolved = self.commit_nominal_candidate(probe.candidate, span, sink)?;
+        self.observe_nominal_constructor_name(span, resolved.source, probe.alias.as_ref());
+        Some(resolved)
     }
 
     pub(super) fn commit_nominal_candidate(
@@ -259,6 +261,9 @@ impl Lowerer {
             },
             sink,
         )?;
+        if let Some(target) = Self::editing_nominal_callee(winner.source) {
+            self.observe_callee_reference(span, target);
+        }
         Some(ResolvedNominalConstructor {
             source: winner.source,
             type_args,

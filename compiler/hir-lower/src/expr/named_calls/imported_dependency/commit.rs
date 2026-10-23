@@ -63,9 +63,21 @@ impl Lowerer {
             parameter_types,
             result_type,
             call_span,
+            alias,
             ..
         } = probe;
         *self = *state;
+        self.observe_dependency_constructor_name(
+            call_span,
+            candidate.interface().declaration(),
+            candidate.interface().owner(),
+            alias.as_ref(),
+        );
+        if let Some(target) =
+            Self::editing_imported_construction_callee(candidate.interface().declaration())
+        {
+            self.observe_callee_reference(call_span, target);
+        }
         if kind == MemberCallKind::DirectSuper
             && candidate.interface().modality() == hir::CallableModalityV1::Abstract
         {

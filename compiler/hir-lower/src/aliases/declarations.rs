@@ -137,6 +137,7 @@ impl Lowerer {
         mut parameters: Vec<hir::TypeParamDecl>,
         scope: Option<crate::Scopes>,
     ) -> SourceTypeAliasId {
+        let diagnostics_before = self.diagnostics.len();
         let outer_parameter_count = parameters.len();
         for parameter in &declaration.type_params {
             if parameters
@@ -149,10 +150,10 @@ impl Lowerer {
                 );
                 continue;
             }
-            let id = self.fresh_type_param(parameters.len());
+            let id = self.fresh_source_type_param(parameter, parameters.len());
             parameters.push(crate::lower_type_param_decl(parameter, id));
         }
-        self.source_type_aliases.alloc(SourceTypeAlias {
+        let id = self.source_type_aliases.alloc(SourceTypeAlias {
             annotations: declaration.annotations.clone(),
             lexical: false,
             name: declaration.name.text.clone(),
@@ -167,7 +168,17 @@ impl Lowerer {
             origin: self.definition_origin(declaration.span),
             file,
             resolution: TypeAliasResolution::Unresolved,
-        })
+        });
+        self.observe_type_declaration(
+            file,
+            declaration.name.span,
+            crate::editing::types::TypeTarget::Alias(id),
+        );
+        self.record_editing_type_errors(
+            crate::editing::types::TypeTarget::Alias(id),
+            diagnostics_before,
+        );
+        id
     }
 
     pub(crate) fn lexical_type_alias(&self, name: &str) -> Option<SourceTypeAliasId> {

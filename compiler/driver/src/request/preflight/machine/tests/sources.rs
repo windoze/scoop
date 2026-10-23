@@ -49,8 +49,7 @@ pub(super) fn core_sources_with(additional: &[(&str, &str)]) -> CurrentConeParse
         let identity = SourceIdentity::new(
             ConeIdentity::CORE,
             NormalizedSourcePath::new(&path).unwrap(),
-        )
-        .unwrap();
+        );
         parsed.push(IdentifiedParsedSource::new(
             identity.clone(),
             scoop_parser::parse(&text).unwrap(),

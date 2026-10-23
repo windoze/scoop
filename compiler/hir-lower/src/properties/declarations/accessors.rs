@@ -228,6 +228,7 @@ impl Lowerer {
                 let body = ast::AccessorBodySyntax::Block(ast::Block {
                     statements: vec![ast::Statement {
                         kind: ast::StatementKind::Assign(ast::Assign {
+                            operator_span: None,
                             target: ast::PlaceExpr::Name(ast::Ident {
                                 text: "field".to_string(),
                                 span: declaration.name.span,

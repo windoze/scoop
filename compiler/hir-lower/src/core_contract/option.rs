@@ -5,14 +5,14 @@ impl Lowerer {
     /// exactly one type parameter (hir docs, spec 7.2). A second
     /// `Option` was already rejected as a duplicate enum in pass 1, so
     /// at most one candidate reaches here.
-    pub(crate) fn validate_option_enum(&mut self, files: &[ast::SourceFile]) {
+    pub(crate) fn validate_option_enum(&mut self, files: &[ast::Span]) {
         let Some(&(id, file_index, span, type_param_count)) = self.option_candidates.first() else {
             // Attribute to a core source when the existing M22 core input is
             // present; a core-less test input falls back to its user source.
             let core_diagnostic_file = self.core_diagnostic_file();
             self.current_file = core_diagnostic_file;
             self.error(
-                files[core_diagnostic_file].span,
+                files[core_diagnostic_file],
                 "scoop.core must define an enum `Option<T>`".to_string(),
             );
             return;

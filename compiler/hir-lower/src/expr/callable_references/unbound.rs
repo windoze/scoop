@@ -38,10 +38,15 @@ impl Lowerer {
                 members,
                 ReferenceExtensionMode::UnboundMember(receiver),
                 false,
+                Vec::new(),
+                None,
             ));
         }
         for layer in self.named_executable_extension_call_layers(&name.text) {
-            if !layer.candidates.is_empty() || !layer.suppressed_callables.is_empty() {
+            if !layer.candidates.is_empty()
+                || !layer.suppressed_callables.is_empty()
+                || !layer.unavailable.is_empty()
+            {
                 layers.push((
                     layer
                         .candidates
@@ -50,6 +55,8 @@ impl Lowerer {
                         .collect(),
                     ReferenceExtensionMode::UnboundExtension(receiver),
                     !layer.suppressed_callables.is_empty(),
+                    layer.unavailable,
+                    Some(layer.kind),
                 ));
             }
         }
@@ -60,7 +67,10 @@ impl Lowerer {
             name.text
         );
         let mut first_failure = None;
-        for (candidates, mode, suppressed) in layers {
+        for (candidates, mode, suppressed, unavailable, import_layer) in layers {
+            if self.report_unavailable_lookup(name, &unavailable) {
+                return None;
+            }
             if candidates.is_empty() && suppressed {
                 return None;
             }
@@ -78,6 +88,9 @@ impl Lowerer {
             ) {
                 ReferenceResolutionOutcome::Resolved(resolved) => {
                     let expression = state.finish_named_callable_reference(resolved, span)?;
+                    if let Some(layer) = import_layer {
+                        state.observe_import_lookup(name, layer);
+                    }
                     *self = state;
                     return Some(expression);
                 }

@@ -20,7 +20,13 @@ impl Parser {
         ) {
             return self.unexpected("lambda or anonymous function after label");
         }
-        let mut expression = self.parse_atom()?;
+        let start = self.peek().span.start;
+        let checkpoint = self.checkpoint();
+        let result = self.parse_atom();
+        if result.is_err() || !self.fragment_is_complete(checkpoint) {
+            self.label_recovered_callable(start, label.clone());
+        }
+        let mut expression = result?;
         match &mut expression {
             Expr::Lambda {
                 label: target,
@@ -54,7 +60,7 @@ pub(super) fn name_call_lambdas(expression: &mut Expr) {
     }
 }
 
-pub(super) fn name_lambda(expression: &mut Expr, name: &Ident) {
+pub(crate) fn name_lambda(expression: &mut Expr, name: &Ident) {
     if let Expr::Lambda { label, .. } = expression
         && label.is_none()
     {

@@ -6,6 +6,8 @@ use scoop_hir as hir;
 use crate::Lowerer;
 use crate::imported_capabilities::ImportedCapabilityRequirement;
 
+mod declarations;
+
 impl Lowerer {
     pub(crate) fn resolve_imported_dependency_type_target(
         &mut self,
@@ -113,40 +115,17 @@ impl Lowerer {
                 return None;
             }
         };
-        let parameters = candidate
-            .interface()
-            .type_parameters()
-            .binders()
-            .iter()
-            .collect::<Vec<_>>();
-        let signatures = (0..parameters.len())
-            .map(|index| scoop_identity::SignatureTypeKey::Binder {
-                depth: 0,
-                index: index as u32,
-            })
-            .collect::<Vec<_>>();
-        let (parameters, bindings) =
-            match self.prepare_imported_type_parameters(&parameters, &signatures, name.span) {
-                Ok(result) => result,
-                Err(error) => {
-                    self.error(
-                        name.span,
-                        format!("invalid imported typealias parameters: {error}"),
-                    );
-                    return None;
-                }
-            };
-        let target =
-            match self.imported_signature_type_with_bindings(candidate.expansion(), &bindings) {
-                Ok(target) => target,
-                Err(error) => {
-                    self.error(
-                        name.span,
-                        format!("invalid imported typealias target: {error:?}"),
-                    );
-                    return None;
-                }
-            };
+        let (parameters, target) = match self.imported_alias_declaration_types(
+            candidate.interface(),
+            candidate.expansion(),
+            name.span,
+        ) {
+            Ok(types) => types,
+            Err(error) => {
+                self.error(name.span, error.message);
+                return None;
+            }
+        };
         let template = crate::aliases::AliasTemplate {
             origin: crate::aliases::AliasOrigin::Imported(Box::new(binding.clone())),
             name: name.clone(),

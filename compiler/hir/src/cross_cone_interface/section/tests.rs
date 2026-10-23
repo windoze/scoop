@@ -375,8 +375,7 @@ fn origin(point: u64) -> ExportDefinitionSourceV1 {
     let source = SourceIdentity::new(
         ConeIdentity::SINGLE_FILE,
         NormalizedSourcePath::new("main.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context = SourceContextKey::File {
         source: source.clone(),
     };

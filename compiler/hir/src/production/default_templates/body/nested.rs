@@ -77,7 +77,7 @@ impl BodyProjection<'_, '_> {
         &mut self,
         id: crate::LambdaId,
     ) -> Result<DefaultLambdaV1, super::super::DefaultBodyProjectionError> {
-        let lambda = super::super::arena_get(&self.entities.export().lambdas, id).ok_or(
+        let lambda = super::super::arena_get(self.entities.inputs().lambdas, id).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "lambda",
                 index: super::super::raw_index(id),
@@ -99,7 +99,7 @@ impl BodyProjection<'_, '_> {
         &mut self,
         id: crate::AnonymousFunctionId,
     ) -> Result<DefaultAnonymousFunctionV1, super::super::DefaultBodyProjectionError> {
-        let function = super::super::arena_get(&self.entities.export().anonymous_functions, id)
+        let function = super::super::arena_get(self.entities.inputs().anonymous_functions, id)
             .ok_or(super::super::DefaultEntityProjectionError::Unknown {
                 kind: "anonymous function",
                 index: super::super::raw_index(id),
@@ -153,7 +153,7 @@ impl BodyProjection<'_, '_> {
         &mut self,
         id: crate::CallableReferenceId,
     ) -> Result<DefaultCallableReferenceV1, super::super::DefaultBodyProjectionError> {
-        let reference = super::super::arena_get(&self.entities.export().callable_references, id)
+        let reference = super::super::arena_get(self.entities.inputs().callable_references, id)
             .ok_or(super::super::DefaultEntityProjectionError::Unknown {
                 kind: "callable reference",
                 index: super::super::raw_index(id),
@@ -182,7 +182,7 @@ impl BodyProjection<'_, '_> {
                 let requirements = match definition {
                     crate::LexicalFunctionDefinition::Source { function, .. } => self
                         .entities
-                        .export()
+                        .inputs()
                         .functions[function]
                         .type_params()
                         .into_iter()
@@ -268,7 +268,7 @@ impl BodyProjection<'_, '_> {
         &self,
         binding: crate::BindingId,
     ) -> Result<crate::DefaultCaptureBindingV1, super::super::DefaultBodyProjectionError> {
-        for (_, scope) in self.entities.export().default_local_value_scopes.iter() {
+        for (_, scope) in self.entities.inputs().default_local_value_scopes.iter() {
             let Some(value) = scope.values.iter().find(|value| value.binding == binding) else {
                 continue;
             };
@@ -294,7 +294,7 @@ impl BodyProjection<'_, '_> {
         &self,
         id: crate::LocalFunctionId,
     ) -> Result<&crate::LocalFunction, super::super::DefaultBodyProjectionError> {
-        super::super::arena_get(&self.entities.export().local_functions, id).ok_or_else(|| {
+        super::super::arena_get(self.entities.inputs().local_functions, id).ok_or_else(|| {
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "local function",
                 index: super::super::raw_index(id),

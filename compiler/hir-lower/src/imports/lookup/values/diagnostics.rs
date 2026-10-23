@@ -20,6 +20,7 @@ impl Lowerer {
                 return self.type_candidate_note(&super::super::TypeLookupCandidate {
                     target: super::super::TypeLookupTarget::Current(*target),
                     origin: super::super::TypeLookupOrigin::ExistingM22Core,
+                    layer: None,
                 });
             }
             ValueOrigin::SourceNonValue(NonValueTarget::ExtensionProperty(id)) => {
@@ -78,10 +79,9 @@ impl Lowerer {
                             .expect("body lookup follows complete declaration materialization"),
                     ),
                 };
-                (
-                    target,
-                    layer.expect("a resolved value belongs to a lookup layer"),
-                )
+                let layer = layer.expect("a resolved value belongs to a lookup layer");
+                self.observe_import_lookup(name, layer);
+                (target, layer)
             })
         })
     }
@@ -99,6 +99,10 @@ impl Lowerer {
         lookup: LookupResult<ValueOrigin>,
     ) -> Result<Option<ValueOrigin>, ()> {
         let (message, candidates) = match lookup {
+            LookupResult::Unavailable(bindings) => {
+                self.report_unavailable_lookup(name, bindings.as_slice());
+                return Err(());
+            }
             LookupResult::Missing => return Ok(None),
             LookupResult::Unique(ValueOrigin::RejectedFunction(_)) => return Err(()),
             LookupResult::Unique(origin) => match Self::non_value_origin(&origin) {

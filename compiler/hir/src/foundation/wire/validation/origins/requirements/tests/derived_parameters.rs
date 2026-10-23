@@ -32,8 +32,7 @@ fn derived_parameters_reject_fabricated_source_origins() {
     let source = SourceIdentity::new(
         ConeIdentity::CORE,
         NormalizedSourcePath::new("equality.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context = SourceContextKey::File {
         source: source.clone(),
     };

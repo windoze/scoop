@@ -6,7 +6,7 @@ use crate::{
 };
 
 impl Lowerer {
-    fn initialization_cycle_thrower(&mut self, files: &[ast::SourceFile]) -> Option<FunctionId> {
+    fn initialization_cycle_thrower(&mut self, files: &[ast::Span]) -> Option<FunctionId> {
         const NAME: &str = "__scoopThrowInitializationCycle";
 
         let candidates = self
@@ -29,7 +29,7 @@ impl Lowerer {
             let span = candidates
                 .first()
                 .map(|function| self.functions[*function].span)
-                .unwrap_or(files[file].span);
+                .unwrap_or(files[file]);
             self.error(
                 span,
                 format!(
@@ -173,7 +173,7 @@ impl Lowerer {
     pub(crate) fn compiler_exception(
         &mut self,
         name: &str,
-        files: &[ast::SourceFile],
+        files: &[ast::Span],
         throwable: ClassId,
     ) -> Option<hir::CompilerException> {
         let candidate = self
@@ -189,7 +189,7 @@ impl Lowerer {
                 .and_then(|id| self.class_files.get(&id).copied())
                 .unwrap_or(core_diagnostic_file);
             self.error(
-                files[core_diagnostic_file].span,
+                files[core_diagnostic_file],
                 format!("scoop.core must define class `{name}`"),
             );
             return None;
@@ -224,7 +224,7 @@ impl Lowerer {
 
     pub(crate) fn validate_exception_core(
         &mut self,
-        files: &[ast::SourceFile],
+        files: &[ast::Span],
     ) -> Option<hir::CompilerExceptionCore> {
         let throwable = self.throwable.map(|(id, _)| id)?;
         self.current_file = self.class_files[&throwable];
@@ -289,12 +289,12 @@ impl Lowerer {
         })
     }
 
-    pub(crate) fn validate_throwable(&mut self, files: &[ast::SourceFile]) {
+    pub(crate) fn validate_throwable(&mut self, files: &[ast::Span]) {
         let Some(&candidate) = self.throwable_candidates.first() else {
             let core_diagnostic_file = self.core_diagnostic_file();
             self.current_file = core_diagnostic_file;
             self.error(
-                files[core_diagnostic_file].span,
+                files[core_diagnostic_file],
                 "scoop.core must define a class `Throwable`".to_string(),
             );
             return;

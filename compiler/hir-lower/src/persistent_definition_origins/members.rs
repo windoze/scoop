@@ -19,7 +19,7 @@ impl DefinitionOriginBuilder<'_> {
             let file = self.source_file(
                 subject,
                 declaration.span,
-                self.lowerer.property_source_file(id),
+                self.lowerer.property_definition_file(id),
             )?;
             self.append(subject, file, declaration.span)?;
         }
@@ -36,7 +36,7 @@ impl DefinitionOriginBuilder<'_> {
             let file = self.source_file(
                 subject,
                 declaration.span,
-                self.lowerer.property_source_file(identity.property()),
+                self.lowerer.property_definition_file(identity.property()),
             )?;
             self.append(subject, file, declaration.span)?;
         }
@@ -46,7 +46,7 @@ impl DefinitionOriginBuilder<'_> {
             let file = self.source_file(
                 subject,
                 declaration.span,
-                self.lowerer.property_source_file(identity.property()),
+                self.lowerer.property_definition_file(identity.property()),
             )?;
             self.append(subject, file, declaration.span)?;
         }
@@ -79,7 +79,9 @@ impl DefinitionOriginBuilder<'_> {
         identities: &hir::HirFieldIdentities,
     ) -> Result<(), PersistentDefinitionOriginError> {
         for (structure, declaration) in self.lowerer.structs.iter() {
-            let file = self.lowerer.struct_files.get(&structure).copied();
+            let file = self
+                .lowerer
+                .nominal_definition_file(crate::Owner::Struct(structure));
             for index in 0..declaration.semantic_fields().len() {
                 let index = u32::try_from(index)
                     .expect("persistent struct-field identities already enforce u32 arity");
@@ -100,7 +102,8 @@ impl DefinitionOriginBuilder<'_> {
             let file = self.source_file(
                 subject,
                 declaration.span,
-                self.lowerer.class_files.get(&declaration.owner).copied(),
+                self.lowerer
+                    .nominal_definition_file(crate::Owner::Class(declaration.owner)),
             )?;
             self.append(subject, file, declaration.span)?;
         }
@@ -112,7 +115,9 @@ impl DefinitionOriginBuilder<'_> {
         identities: &hir::HirEnumMemberIdentities,
     ) -> Result<(), PersistentDefinitionOriginError> {
         for (enumeration, declaration) in self.lowerer.enums.iter() {
-            let file = self.lowerer.enum_files.get(&enumeration).copied();
+            let file = self
+                .lowerer
+                .nominal_definition_file(crate::Owner::Enum(enumeration));
             for variant_index in 0..declaration.variants.len() {
                 let variant_index = u32::try_from(variant_index)
                     .expect("persistent enum identities already enforce u32 arity");

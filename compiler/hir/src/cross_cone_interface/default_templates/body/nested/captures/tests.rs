@@ -378,7 +378,6 @@ fn source_identity() -> SourceIdentity {
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/Defaults.scoop").unwrap(),
     )
-    .unwrap()
 }
 
 fn context_key() -> SourceContextKey {

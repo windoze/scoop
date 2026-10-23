@@ -52,15 +52,82 @@ impl Lowerer {
             })
             .collect::<Vec<_>>();
         for (ty, kind, file, span) in types {
-            if self.is_gc_free(ty) {
+            if let Some(message) = self.no_gc_representation_error(ty, kind) {
+                self.current_file = file;
+                self.error(span, message);
+            }
+        }
+    }
+
+    pub(crate) fn check_query_type_representation(&mut self, ty: hir::TypeId, span: Span) -> bool {
+        let mut sites = HashMap::new();
+        self.record_nominal_type_sites(ty, self.current_file, span, &mut sites);
+        let mut errors = Vec::new();
+        for ty in sites.into_keys() {
+            if let hir::Type::Ptr(pointee) = self.types[ty]
+                && let Some(message) = self.concrete_pointer_pointee_error(pointee)
+            {
+                errors.push(message);
+            }
+            if self.type_contains_param(ty) {
                 continue;
             }
-            self.current_file = file;
-            self.error(span, format!(
-                "`@NoGC` {kind} specialization `{}` is not GC-free because it directly or indirectly contains a ref type",
-                self.type_name(ty),
-            ));
+            let ffi_kind = match self.types[ty] {
+                hir::Type::FunPtr(_) => Some("`FunPtr` signature"),
+                hir::Type::Struct(application)
+                    if self
+                        .struct_c_layout(self.struct_applications[application].template)
+                        .is_some() =>
+                {
+                    Some("concrete `@CLayout` type")
+                }
+                _ => None,
+            };
+            if let Some(kind) = ffi_kind
+                && let Some(error) = self.c_ffi_type_error(ty)
+            {
+                errors.push(format!("{kind} is not C-FFI-safe: {error}"));
+            }
+            let kind = match self.types[ty] {
+                hir::Type::Struct(application)
+                    if self
+                        .struct_definition(self.struct_applications[application].template)
+                        .attributes
+                        .no_gc =>
+                {
+                    "struct"
+                }
+                hir::Type::Enum(application)
+                    if self
+                        .enum_definition(self.enum_applications[application].template)
+                        .no_gc =>
+                {
+                    "enum"
+                }
+                _ => continue,
+            };
+            if let Some(message) = self.no_gc_representation_error(ty, kind) {
+                errors.push(message);
+            }
         }
+        // Alias expansion can introduce applications below a structural root.
+        // Diagnose this query's reachable applications in a stable order.
+        errors.sort();
+        let valid = errors.is_empty();
+        for message in errors {
+            self.error(span, message);
+        }
+        valid
+    }
+
+    fn no_gc_representation_error(&mut self, ty: hir::TypeId, kind: &str) -> Option<String> {
+        if self.is_gc_free(ty) {
+            return None;
+        }
+        Some(format!(
+            "`@NoGC` {kind} specialization `{}` is not GC-free because it directly or indirectly contains a ref type",
+            self.type_name(ty),
+        ))
     }
 
     fn record_nominal_type_sites(

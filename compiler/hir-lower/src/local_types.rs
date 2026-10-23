@@ -99,22 +99,35 @@ impl Lowerer {
     pub(crate) fn register_nominal_name(
         &mut self,
         owner: Option<Owner>,
-        name: &str,
+        name: &ast::Ident,
         target: NominalTarget,
         file: usize,
         visibility: ast::VisibilitySyntax,
     ) {
+        if self
+            .local_type_declaration
+            .as_ref()
+            .is_none_or(|context| !context.anonymous)
+        {
+            self.observe_type_declaration(
+                file,
+                name.span,
+                crate::editing::types::TypeTarget::Nominal(
+                    self.nominal_identity(target.owner()).declaration_id(),
+                ),
+            );
+        }
         if let Some(context) = &self.local_type_declaration {
             if !context.anonymous {
-                self.scopes.declare_nominal(name.to_owned(), target);
+                self.scopes.declare_nominal(name.text.clone(), target);
             }
         } else if let Some(owner) = owner {
             self.nested_nominals_by_owner
-                .insert((owner, name.to_owned()), target);
+                .insert((owner, name.text.clone()), target);
         } else {
             self.top_level_namespaces.register_type(
                 file,
-                name.to_owned(),
+                name.text.clone(),
                 crate::namespace::TopLevelTypeTarget::Nominal(target),
                 crate::namespace::is_file_private(visibility),
             );
@@ -127,18 +140,21 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let source = ast::LocalTypeDecl::Class(Box::new(ast::ClassDecl {
-            annotations: Vec::new(),
-            visibility: ast::VisibilitySyntax::Omitted,
-            modifier: ast::ClassModifier::Final,
-            inner_span: None,
-            name: ast::Ident {
-                text: "object".into(),
+            header: ast::ClassHeader {
+                annotations: Vec::new(),
+                visibility: ast::VisibilitySyntax::Omitted,
+                modifier: ast::ClassModifier::Final,
+                inner_span: None,
+                name: ast::Ident {
+                    text: "object".into(),
+                    span: declaration.span,
+                },
+                type_params: Vec::new(),
+                constructor: ast::ClassConstructorDecl::Omitted,
+                supertypes: declaration.supertypes.clone(),
+                where_clause: None,
                 span: declaration.span,
             },
-            type_params: Vec::new(),
-            constructor: ast::ClassConstructorDecl::Omitted,
-            supertypes: declaration.supertypes.clone(),
-            where_clause: None,
             members: declaration.members.clone(),
             span: declaration.span,
         }));

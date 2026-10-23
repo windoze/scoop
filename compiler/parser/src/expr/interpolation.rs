@@ -3,6 +3,12 @@ use scoop_ast::StringPart;
 
 impl Parser {
     pub(super) fn parse_interpolated_string(&mut self) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::InterpolatedString, |parser| {
+            parser.parse_interpolated_string_inner()
+        })
+    }
+
+    fn parse_interpolated_string_inner(&mut self) -> Result<Expr, Diagnostic> {
         let open = self.bump();
         let mut parts = Vec::new();
         loop {

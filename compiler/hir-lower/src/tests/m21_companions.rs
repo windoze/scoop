@@ -34,10 +34,13 @@ fn host_class() -> ast::ClassDecl {
     host.visibility = public_visibility();
     host.members.push(ast::ClassMember::Companion(Box::new(
         ast::CompanionObjectDecl {
-            annotations: Vec::new(),
-            visibility: public_visibility(),
-            name: ast::CompanionNameSyntax::Named(ident("Factory")),
-            supertypes: Vec::new(),
+            header: ast::CompanionObjectHeader {
+                annotations: Vec::new(),
+                visibility: public_visibility(),
+                name: ast::CompanionNameSyntax::Named(ident("Factory")),
+                supertypes: Vec::new(),
+                span: sp(),
+            },
             members: vec![ast::ClassMember::Function(companion_method())],
             span: sp(),
         },

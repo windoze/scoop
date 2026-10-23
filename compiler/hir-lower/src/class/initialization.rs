@@ -14,25 +14,37 @@ pub(crate) struct InitializingField {
 impl Lowerer {
     pub(crate) fn lower_constructor_initialization(
         &mut self,
-        classes: &[(ClassId, &ast::ClassDecl, usize)],
-        structs: &[(hir::StructId, &ast::StructDecl, usize)],
+        classes: &[(ClassId, ast::ClassSource<'_>, usize)],
+        structs: &[(hir::StructId, ast::StructSource<'_>, usize)],
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         for &(class, declaration, file) in classes {
             self.current_file = file;
+            let before = self.diagnostics.len();
             self.lower_class_initialization(class, declaration);
+            self.finish_editing_construction(Owner::Class(class), self.diagnostics.len() == before);
         }
         for &(structure, declaration, file) in structs {
             self.current_file = file;
+            let before = self.diagnostics.len();
             self.lower_struct_constructor_bodies(structure, declaration);
+            self.finish_editing_construction(
+                Owner::Struct(structure),
+                self.diagnostics.len() == before,
+            );
         }
         for &(object, declaration, file) in objects {
             self.current_file = file;
+            let before = self.diagnostics.len();
             self.lower_object_initialization(object, declaration);
+            self.finish_editing_construction(
+                Owner::Object(object),
+                self.diagnostics.len() == before,
+            );
         }
     }
 
-    fn lower_class_initialization(&mut self, owner: ClassId, declaration: &ast::ClassDecl) {
+    fn lower_class_initialization(&mut self, owner: ClassId, declaration: ast::ClassSource<'_>) {
         if !self.classes[owner].is_declared() {
             return;
         }
@@ -155,8 +167,11 @@ impl Lowerer {
                 ),
                 capture_depth: self.capture_contexts.len(),
             });
-            let lowered = self.with_constructor_expression_context(
+            let lowered = self.with_constructor_source_body(
                 constructor,
+                hir::EditingConstructionBody::Secondary(hir::SourceContextConstructor::Class(
+                    constructor,
+                )),
                 "secondary constructor body",
                 self.class_constructors[constructor].safety,
                 |this, _| Some(this.lower_block(&source.body)),
@@ -183,14 +198,14 @@ impl Lowerer {
     fn lower_class_common_initialization(
         &mut self,
         owner: ClassId,
-        declaration: &ast::ClassDecl,
+        declaration: ast::ClassSource<'_>,
         constructor: hir::ClassConstructorId,
         primary: bool,
     ) -> Vec<hir::ClassInitializationStep> {
         let mut common = self.lower_interface_delegate_initialization(owner, constructor, primary);
         common.extend(self.lower_common_initialization(
             owner,
-            &declaration.members,
+            declaration.members,
             constructor,
             primary,
             &format!("class `{}`", self.classes[owner].name),
@@ -201,7 +216,7 @@ impl Lowerer {
     fn lower_struct_constructor_bodies(
         &mut self,
         owner: hir::StructId,
-        declaration: &ast::StructDecl,
+        declaration: ast::StructSource<'_>,
     ) {
         if !matches!(
             self.structs[owner].representation,
@@ -233,8 +248,11 @@ impl Lowerer {
                 ),
                 capture_depth: self.capture_contexts.len(),
             });
-            let lowered = self.with_constructor_expression_context(
+            let lowered = self.with_constructor_source_body(
                 constructor,
+                hir::EditingConstructionBody::Secondary(hir::SourceContextConstructor::Struct(
+                    constructor,
+                )),
                 "struct secondary constructor body",
                 self.struct_constructors[constructor].safety,
                 |this, _| Some(this.lower_block(&source.body)),

@@ -205,8 +205,7 @@ mod tests {
         let source = SourceIdentity::new(
             ConeIdentity::CORE,
             NormalizedSourcePath::new("src/Payload.scoop").unwrap(),
-        )
-        .unwrap();
+        );
         let origin = DefinitionOrigin::new(
             source.clone(),
             SourceSpan::new(0, 7).unwrap(),

@@ -43,10 +43,7 @@ impl Lowerer {
         };
         let mut members = self.methods_by_name(receiver.ty, &name.text);
         members.retain(|candidate| {
-            Self::matches_required_modifiers(
-                self.signatures[&candidate.function].modifiers,
-                direct_required,
-            )
+            self.function_matches_required_modifiers(candidate.function, direct_required)
         });
         if !members.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = members.len();
@@ -154,12 +151,41 @@ impl Lowerer {
             Some(operator) => self.named_executable_extension_operator_layers(operator),
             None => self.named_executable_extension_call_layers(&name.text),
         };
-        let mut invoke_layers = self.named_executable_extension_call_layers("invoke");
+        let mut invoke_layers =
+            self.named_executable_extension_operator_layers(hir::OperatorKind::Invoke);
+        for layer in &mut extension_layers {
+            layer.unavailable =
+                self.unavailable_extension_candidates(&layer.unavailable, direct_required);
+        }
+        for layer in &mut invoke_layers {
+            layer.unavailable = self.unavailable_extension_candidates(
+                &layer.unavailable,
+                RequiredCallableModifiers {
+                    operator: Some(hir::OperatorKind::Invoke),
+                    infix: direct_required.infix,
+                    ..Default::default()
+                },
+            );
+        }
         let mut extension_property_layers = self.named_extension_property_layers(&name.text);
         Self::retain_highest_rank_origins(&mut extension_layers);
         Self::retain_highest_rank_origins(&mut invoke_layers);
         Self::retain_highest_rank_origins(&mut extension_property_layers);
         for rank in 0..=3 {
+            let unavailable = extension_layers
+                .iter()
+                .filter(|layer| layer.kind.call_rank() == rank)
+                .flat_map(|layer| layer.unavailable.iter().copied())
+                .chain(
+                    extension_property_layers
+                        .iter()
+                        .filter(|layer| layer.kind.call_rank() == rank)
+                        .flat_map(|layer| layer.unavailable.iter().copied()),
+                )
+                .collect::<Vec<_>>();
+            if self.report_unavailable_lookup(name, &unavailable) {
+                return None;
+            }
             let suppressed_extensions =
                 Self::suppressed_extensions_at_rank(&extension_layers, rank, |function| {
                     Self::matches_required_modifiers(
@@ -192,7 +218,13 @@ impl Lowerer {
                     false,
                     "extension candidate",
                 ) {
-                    PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                    PropertyExtensionInvokeOutcome::Resolved(mut layer) => {
+                        if let Some(origin) = extension_layers
+                            .iter()
+                            .find(|origin| origin.kind.call_rank() == rank)
+                        {
+                            layer.state.observe_import_lookup(name, origin.kind);
+                        }
                         return Some(self.commit_expr_layer(layer, sink));
                     }
                     PropertyExtensionInvokeOutcome::Blocked => return None,
@@ -218,6 +250,22 @@ impl Lowerer {
                     },
                 )
             });
+            if property.is_some() {
+                let unavailable = invoke_layers
+                    .iter()
+                    .filter(|layer| layer.kind.call_rank() == rank)
+                    .flat_map(|layer| layer.unavailable.iter().copied())
+                    .collect::<Vec<_>>();
+                if self.report_unavailable_lookup(
+                    &ast::Ident {
+                        text: "invoke".to_owned(),
+                        span: call.span,
+                    },
+                    &unavailable,
+                ) {
+                    return None;
+                }
+            }
             if let Some(property) = &property
                 && !invokes.is_empty()
             {
@@ -261,6 +309,12 @@ impl Lowerer {
                     &mut extension_property_sink,
                 ) {
                     crate::properties::ExtensionPropertyCandidateOutcome::Resolved(property) => {
+                        if let Some(origin) = extension_property_layers
+                            .iter()
+                            .find(|origin| origin.kind.call_rank() == rank)
+                        {
+                            extension_property_state.observe_import_lookup(name, origin.kind);
+                        }
                         match extension_property_state.probe_property_member_invoke_partition(
                             property.read,
                             call,
@@ -323,7 +377,9 @@ impl Lowerer {
                         })
                         .cloned()
                         .collect::<Vec<_>>();
-                    if property_layer.candidates.is_empty() || invokes.is_empty() {
+                    if property_layer.candidates.is_empty()
+                        || (invokes.is_empty() && invoke_layer.unavailable.is_empty())
+                    {
                         continue;
                     }
                     let mut property_state = self.clone();
@@ -337,6 +393,16 @@ impl Lowerer {
                         crate::properties::ExtensionPropertyCandidateOutcome::Resolved(
                             property,
                         ) => {
+                            property_state.observe_import_lookup(name, property_layer.kind);
+                            if self.report_unavailable_lookup(
+                                &ast::Ident {
+                                    text: "invoke".to_owned(),
+                                    span: call.span,
+                                },
+                                &invoke_layer.unavailable,
+                            ) {
+                                return None;
+                            }
                             property_extension_inputs.push(PropertyExtensionInvokeInput::new(
                                 PropertyExtensionInvokeOrigin::Extension(property.identity()),
                                 SuccessfulExprLayer {
@@ -448,7 +514,7 @@ impl Lowerer {
             .collect()
     }
 
-    fn retain_highest_rank_origins<T: Clone + PartialEq>(
+    pub(crate) fn retain_highest_rank_origins<T: Clone + PartialEq>(
         layers: &mut [crate::imports::lookup::LookupLayer<T>],
     ) {
         let mut seen = Vec::new();

@@ -14,6 +14,7 @@ use scoop_ast::{
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
 
+mod arguments;
 mod callables;
 mod context;
 mod interpolation;
@@ -23,6 +24,8 @@ mod postfix;
 mod primary;
 mod qualifiers;
 mod trailing;
+use arguments::ParsedArguments;
+pub(crate) use labels::name_lambda;
 
 /// Precedence tier of the comparison operators — shared by the type
 /// operators `is` / `!is` / `as` / `as?` (M6), which are handled outside
@@ -80,6 +83,12 @@ fn tuple_index(text: &str) -> Option<u32> {
 
 impl Parser {
     pub(crate) fn parse_expr(&mut self) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Expression, |parser| {
+            parser.parse_expr_inner()
+        })
+    }
+
+    fn parse_expr_inner(&mut self) -> Result<Expr, Diagnostic> {
         self.parse_binary(0)
     }
 
@@ -178,10 +187,11 @@ impl Parser {
             if precedence < min_precedence {
                 break;
             }
-            self.bump();
+            let operator_span = self.bump().span;
             let rhs = self.parse_binary(precedence + 1)?;
             lhs = Expr::Binary {
                 op,
+                operator_span: Some(operator_span),
                 span: Span::new(lhs.span().start, rhs.span().end),
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
@@ -231,6 +241,7 @@ impl Parser {
                         UpdateOp::Decrement
                     },
                     notation: UpdateNotation::Prefix,
+                    operator_span: Some(token.span),
                     span: Span::new(token.span.start, end),
                 });
             }
@@ -240,6 +251,7 @@ impl Parser {
         let operand = self.parse_unary()?;
         Ok(Expr::Unary {
             op,
+            operator_span: Some(token.span),
             span: Span::new(token.span.start, operand.span().end),
             operand: Box::new(operand),
         })

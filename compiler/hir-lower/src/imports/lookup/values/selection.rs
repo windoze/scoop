@@ -187,13 +187,14 @@ impl Lowerer {
         self.lookup_value_origin_with_layer(name).1
     }
 
-    pub(super) fn lookup_value_origin_with_layer(
+    pub(crate) fn lookup_value_origin_with_layer(
         &self,
         name: &str,
     ) -> (Option<ImportLookupLayer>, LookupResult<ValueOrigin>) {
         let core = || {
             let (_, suppressed_callables) = self.core_named_callable_partition(name);
             LookupLayer {
+                unavailable: Vec::new(),
                 kind: ImportLookupLayer::CorePrelude,
                 suppressed_callables,
                 candidates: self.core_value_candidates(name),
@@ -212,11 +213,13 @@ impl Lowerer {
                         core()
                     } else {
                         LookupLayer {
+                            unavailable: self.unavailable_import_bindings(&layer.bindings, None),
                             kind: layer.kind,
                             suppressed_callables: layer.suppressed_callables,
                             candidates: layer
                                 .bindings
                                 .into_iter()
+                                .filter(|&binding| self.unavailable_binding_kind(binding).is_none())
                                 .map(|binding| self.value_binding_origin(binding))
                                 .chain(
                                     layer
@@ -246,6 +249,20 @@ impl Lowerer {
             let has_value = visible
                 .iter()
                 .any(|origin| Self::non_value_origin(origin).is_none());
+            let unavailable = if has_value {
+                self.unavailable_bindings_matching(
+                    &layer.unavailable,
+                    ast::DeclarationHeaderKind::is_value,
+                )
+            } else {
+                layer.unavailable
+            };
+            if let Some((&first, rest)) = unavailable.split_first() {
+                return (
+                    Some(layer.kind),
+                    LookupResult::Unavailable(ast::NonEmptyVec::new(first, rest.to_vec())),
+                );
+            }
             if has_value {
                 visible.retain(|origin| Self::non_value_origin(origin).is_none());
             } else if let Some(&function) = layer.suppressed_callables.first() {

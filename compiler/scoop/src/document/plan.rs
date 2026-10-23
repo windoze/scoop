@@ -46,6 +46,7 @@ impl Plan {
                 optimization: Default::default(),
                 purpose: scoop_protocol::CompilationPurpose::Production,
                 jobs: std::num::NonZeroUsize::MIN,
+                generators: Default::default(),
             };
             let graph = LoadedBuildRoot::from_input(root.clone(), context)
                 .map_err(BuildFailure::root)?

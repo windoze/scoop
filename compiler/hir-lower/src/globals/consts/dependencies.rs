@@ -70,7 +70,7 @@ impl Lowerer {
                 if let Some(index) =
                     self.find_const_definition(declarations, owner, &name.text, file, true)
                 {
-                    dependencies.push((index, name.span, file));
+                    dependencies.push((index.definition, name.span, file));
                 }
             }
             ast::Expr::FieldAccess(access)
@@ -84,7 +84,7 @@ impl Lowerer {
                     && let Some(index) =
                         self.find_qualified_const_definition(declarations, target, &name.text, file)
                 {
-                    dependencies.push((index, name.span, file));
+                    dependencies.push((index.definition, name.span, file));
                 }
             }
             ast::Expr::Unary { operand, .. } => {

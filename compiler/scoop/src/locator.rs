@@ -18,10 +18,7 @@ mod default_library;
 pub(crate) use default_library::locate_build_dependency;
 
 pub(crate) fn artifact_candidate_path(root: &Path, coordinate: &ConeCoordinate) -> PathBuf {
-    root.join(coordinate.group())
-        .join(coordinate.name())
-        .join(coordinate.version())
-        .join("cone.slib")
+    scoop_toolchain::artifact_candidate_path(root, coordinate)
 }
 
 #[derive(Debug)]

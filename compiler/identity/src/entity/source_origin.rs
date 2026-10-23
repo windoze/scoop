@@ -489,7 +489,6 @@ mod tests {
             ConeIdentity::CORE,
             NormalizedSourcePath::new("src/String.scoop").unwrap(),
         )
-        .unwrap()
     }
 
     #[test]

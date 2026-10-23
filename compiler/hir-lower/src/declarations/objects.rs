@@ -4,15 +4,17 @@ mod declaration;
 
 #[derive(Clone, Copy)]
 pub(crate) enum ObjectSource<'a> {
-    Object(&'a ast::ObjectDecl),
-    Companion(&'a ast::CompanionObjectDecl),
+    Object(ast::ObjectSource<'a>),
+    Companion(ast::CompanionObjectSource<'a>),
 }
 
 impl<'a> ObjectSource<'a> {
     pub(crate) fn name(self) -> (&'a str, ast::Span) {
         match self {
-            Self::Object(declaration) => (&declaration.name.text, declaration.name.span),
-            Self::Companion(declaration) => match &declaration.name {
+            Self::Object(declaration) => {
+                (&declaration.header.name.text, declaration.header.name.span)
+            }
+            Self::Companion(declaration) => match &declaration.header.name {
                 ast::CompanionNameSyntax::Default { span } => ("Companion", *span),
                 ast::CompanionNameSyntax::Named(name) => (&name.text, name.span),
             },
@@ -21,15 +23,15 @@ impl<'a> ObjectSource<'a> {
 
     pub(crate) fn members(self) -> &'a [ast::ClassMember] {
         match self {
-            Self::Object(declaration) => &declaration.members,
-            Self::Companion(declaration) => &declaration.members,
+            Self::Object(declaration) => declaration.members,
+            Self::Companion(declaration) => declaration.members,
         }
     }
 
     pub(crate) fn supertypes(self) -> &'a [ast::SupertypeSpec] {
         match self {
-            Self::Object(declaration) => &declaration.supertypes,
-            Self::Companion(declaration) => &declaration.supertypes,
+            Self::Object(declaration) => &declaration.header.supertypes,
+            Self::Companion(declaration) => &declaration.header.supertypes,
         }
     }
 
@@ -42,8 +44,15 @@ impl<'a> ObjectSource<'a> {
 
     pub(crate) fn annotations(self) -> &'a [ast::Annotation] {
         match self {
-            Self::Object(declaration) => &declaration.annotations,
-            Self::Companion(declaration) => &declaration.annotations,
+            Self::Object(declaration) => &declaration.header.annotations,
+            Self::Companion(declaration) => &declaration.header.annotations,
+        }
+    }
+
+    pub(crate) fn recovery(self) -> &'a ast::RecoveredNominalMembers {
+        match self {
+            Self::Object(declaration) => declaration.recovery,
+            Self::Companion(declaration) => declaration.recovery,
         }
     }
 
@@ -179,6 +188,7 @@ impl Lowerer {
     }
 
     pub(crate) fn resolve_object(&mut self, object: ObjectId, source: ObjectSource<'_>) {
+        self.remember_object_construction(object, source);
         let backing = self.objects[object].backing_class;
         self.type_params_in_scope = self.classes[backing].type_params.clone();
         let mut names = std::collections::HashSet::new();

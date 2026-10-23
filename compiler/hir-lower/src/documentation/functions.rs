@@ -1,7 +1,11 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn document_function(&mut self, id: hir::FunctionId, source: &ast::FunctionDecl) {
+    pub(crate) fn document_function(
+        &mut self,
+        id: hir::FunctionId,
+        source: ast::FunctionHeaderRef<'_>,
+    ) {
         if self.documentation.is_none() || !self.source_function_declarations.contains_key(&id) {
             return;
         }

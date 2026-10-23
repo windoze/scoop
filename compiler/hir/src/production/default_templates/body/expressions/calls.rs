@@ -14,7 +14,7 @@ impl BodyProjection<'_, '_> {
         args: &[Expr],
         receiver: SourceCallReceiver<TypeId>,
     ) -> Result<DefaultExpressionKindV1, DefaultBodyProjectionError> {
-        let export = self.entities.export();
+        let export = self.entities.inputs();
         let function = export.callable_function(target);
         let local = export.local_functions.iter().find_map(|(id, local)| {
             local
@@ -60,9 +60,11 @@ impl BodyProjection<'_, '_> {
         let callee = self
             .entities
             .imported_generic_callable(application, self.binders)?;
-        let export = self.entities.export();
+        let export = self.entities.inputs();
         let application = &export.imported_generic_applications[application];
-        let template = &export.imported_generic_templates[application.template];
+        let template = export
+            .imported_signatures
+            .callable_signature(application.template);
         if matches!(
             application.arguments,
             crate::ImportedCallableArguments::Method { .. }
@@ -119,7 +121,7 @@ impl BodyProjection<'_, '_> {
         result_type: TypeId,
     ) -> Result<DefaultExpressionKindV1, DefaultBodyProjectionError> {
         let selected = self.entities.imported_dependency_source(callee)?;
-        let direct_super = self.entities.export().imported_dependency_callables[callee].dispatch()
+        let direct_super = self.entities.inputs().imported_dependency_callables[callee].dispatch()
             == ImportedDependencyDispatch::Direct
             && selected.interface().modality() != crate::CallableModalityV1::Final;
         let declaration = selected.interface().declaration();

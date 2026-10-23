@@ -31,6 +31,9 @@ impl Lowerer {
         }
         let mut first_failure = None;
         for layer in self.named_callable_reference_layers(&name.text) {
+            if self.report_unavailable_lookup(name, &layer.unavailable) {
+                return None;
+            }
             let mut matching = Vec::new();
             let mut failures = Vec::new();
             let mut suppressed = !layer.suppressed_callables.is_empty();
@@ -83,6 +86,7 @@ impl Lowerer {
                 if selected.declaration.effects.attributes.safety == hir::Safety::Unsafe {
                     self.require_unsafe_operation(span, "taking the address of an unsafe callback");
                 }
+                let semantic_target = selected.declaration.semantic_target();
                 let target = match selected.declaration.commit(self) {
                     Ok(target) => target,
                     Err(message) => {
@@ -90,6 +94,10 @@ impl Lowerer {
                         return None;
                     }
                 };
+                if let Some(semantic_target) = semantic_target {
+                    self.observe_callable_reference(span, semantic_target);
+                }
+                self.observe_import_lookup(name, layer.kind);
                 return Some(hir::Expr {
                     kind: ExprKind::FunctionAddress(target),
                     ty: expected,

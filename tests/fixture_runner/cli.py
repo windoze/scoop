@@ -39,6 +39,7 @@ def arguments(argv):
     parser.add_argument("--scoop", type=Path)
     parser.add_argument("--scoopc", type=Path)
     parser.add_argument("--scoop-link", type=Path)
+    parser.add_argument("--scoop-lsp", type=Path)
     parser.add_argument("--terminal-host", type=Path, help="prebuilt native PTY test host")
     parser.add_argument(
         "--target",
@@ -111,7 +112,7 @@ def environment(repo, work, fixtures, args):
         if not fixture.data.get("targets") or target in fixture.data["targets"]
     ]
     needed = set().union(*(set(fixture.data.get("tools", ["scoop"])) for fixture in applicable))
-    for name in ("scoop", "scoopc", "scoop-link", "terminal-host"):
+    for name in ("scoop", "scoopc", "scoop-link", "scoop-lsp", "terminal-host"):
         configured = getattr(args, name.replace("-", "_")) or os.environ.get(
             "SCOOP_TEST_PAIRED_" + name.upper().replace("-", "_")
         )
@@ -123,6 +124,7 @@ def environment(repo, work, fixtures, args):
         "scoop",
         "scoopc",
         "scoop-link",
+        "scoop-lsp",
         "terminal-host",
         "cc",
         "ar",

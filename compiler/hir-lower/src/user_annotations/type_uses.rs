@@ -82,7 +82,7 @@ pub(crate) struct PendingTypeAnnotations {
 
 impl Lowerer {
     pub(crate) fn begin_type_annotations(&mut self, source: &ast::TypeRef) -> bool {
-        if self.type_annotations.suspended {
+        if self.type_annotations.suspended || self.in_semantic_query {
             return false;
         }
         let selector = match &source.kind {
@@ -108,6 +108,10 @@ impl Lowerer {
             alias: None,
         });
         true
+    }
+
+    pub(crate) fn validate_query_type_annotations(&mut self, source: &ast::TypeRef) {
+        self.bind_type_annotations(&source.annotations);
     }
 
     pub(crate) fn end_type_annotations(&mut self, source: &ast::TypeRef, ty: Option<hir::TypeId>) {

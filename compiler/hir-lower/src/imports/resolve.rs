@@ -9,11 +9,11 @@ use crate::{Lowerer, namespace::TopLevelLookupLayer};
 impl CurrentUnitImports {
     #[cfg(test)]
     pub(super) fn resolve_file(
-        &self,
+        &mut self,
         lowerer: &mut Lowerer,
         source: &ast::SourceFile,
     ) -> FrozenFileImports {
-        self.resolve_file_with_world(lowerer, source, None)
+        self.resolve_file_with_world(lowerer, &source.header(), None)
     }
 
     fn resolve_exposure<'a>(
@@ -45,9 +45,9 @@ impl CurrentUnitImports {
     }
 
     pub(super) fn resolve_file_with_world(
-        &self,
+        &mut self,
         lowerer: &mut Lowerer,
-        source: &ast::SourceFile,
+        source: &ast::SourceHeaderRef<'_>,
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) -> FrozenFileImports {
         let diagnostics_before = lowerer.diagnostics.len();
@@ -58,146 +58,163 @@ impl CurrentUnitImports {
         let mut exact_dependency_slots = BTreeMap::new();
         debug_assert!(lowerer.source_is_current_cone(lowerer.current_file));
         let source_identity = lowerer.visibility_file(lowerer.current_file);
-        for import in &source.imports {
-            match import {
-                ast::ImportSyntax::Exact {
-                    exposure,
-                    selector,
-                    alias,
-                    span,
-                    ..
-                } => {
-                    let targets = match self.selector(lowerer, world, selector, false) {
-                        Ok(SelectorResult::Targets(targets)) => targets,
-                        Ok(SelectorResult::Namespace { .. }) => {
-                            unreachable!("exact selectors end in bindings")
-                        }
-                        Err(error) if !error.inaccessible().is_empty() => {
-                            if matches!(exposure, ast::ImportExposureSyntax::PublicReexport { .. })
-                            {
-                                let _ = Self::resolve_exposure(
-                                    lowerer,
-                                    *exposure,
-                                    selector.span,
-                                    false,
-                                    std::iter::empty(),
-                                );
-                                continue;
+        for import in source.imports {
+            let errors_before_item = lowerer.diagnostics.len();
+            'item: {
+                match import {
+                    ast::ImportSyntax::Exact {
+                        exposure,
+                        selector,
+                        alias,
+                        span,
+                        ..
+                    } => {
+                        let targets = match self.selector(lowerer, world, selector, false) {
+                            Ok(SelectorResult::Targets(targets)) => targets,
+                            Ok(SelectorResult::Namespace { .. }) => {
+                                unreachable!("exact selectors end in bindings")
                             }
-                            let last = selector.segments().last().expect("selector is non-empty");
-                            let mut diagnostic = ast::Diagnostic::at_file(
-                                lowerer.current_file,
-                                last.span,
-                                "import target is not accessible from this source location",
-                            );
-                            for target in error.inaccessible() {
-                                let declaration = self.binding(*target);
-                                diagnostic.notes.push(ast::DiagnosticNote::at(
+                            Err(error) if !error.inaccessible().is_empty() => {
+                                if matches!(
+                                    exposure,
+                                    ast::ImportExposureSyntax::PublicReexport { .. }
+                                ) {
+                                    let _ = Self::resolve_exposure(
+                                        lowerer,
+                                        *exposure,
+                                        selector.span,
+                                        false,
+                                        std::iter::empty(),
+                                    );
+                                    break 'item;
+                                }
+                                let last =
+                                    selector.segments().last().expect("selector is non-empty");
+                                let mut diagnostic = ast::Diagnostic::at_file(
+                                    lowerer.current_file,
+                                    last.span,
+                                    "import target is not accessible from this source location",
+                                );
+                                for target in error.inaccessible() {
+                                    let declaration = self.binding(*target);
+                                    diagnostic.notes.push(ast::DiagnosticNote::at(
                                     declaration.file,
                                     declaration.span,
                                     "declaration is outside this file's permitted access domain",
                                 ));
+                                }
+                                lowerer.diagnostics.push(diagnostic);
+                                break 'item;
                             }
-                            lowerer.diagnostics.push(diagnostic);
-                            continue;
+                            Err(error) => {
+                                lowerer.error(selector.span, error.message().to_string());
+                                break 'item;
+                            }
+                        };
+                        let Some(exposure) = Self::resolve_exposure(
+                            lowerer,
+                            *exposure,
+                            selector.span,
+                            false,
+                            targets.iter(),
+                        ) else {
+                            break 'item;
+                        };
+                        let local_name = alias
+                            .as_ref()
+                            .map(|alias| alias.name.text.clone())
+                            .unwrap_or_else(|| {
+                                selector
+                                    .segments()
+                                    .last()
+                                    .expect("selector is non-empty")
+                                    .text
+                                    .clone()
+                            });
+                        if !stage_exact_dependency_targets(
+                            &mut exact_dependency_slots,
+                            &local_name,
+                            &targets,
+                        ) {
+                            lowerer.error(
+                                selector.span,
+                                "import target is ambiguous in the current compilation unit"
+                                    .to_string(),
+                            );
+                            break 'item;
                         }
-                        Err(error) => {
-                            lowerer.error(selector.span, error.message().to_string());
-                            continue;
-                        }
-                    };
-                    let Some(exposure) = Self::resolve_exposure(
-                        lowerer,
-                        *exposure,
-                        selector.span,
-                        false,
-                        targets.iter(),
-                    ) else {
-                        continue;
-                    };
-                    let local_name = alias
-                        .as_ref()
-                        .map(|alias| alias.name.text.clone())
-                        .unwrap_or_else(|| {
-                            selector
+                        frozen.exact.push(ResolvedExactImport {
+                            exposure,
+                            local_name,
+                            source_role: if alias.is_some() {
+                                scoop_identity::LocalBindingRole::AliasImport
+                            } else {
+                                scoop_identity::LocalBindingRole::ExactImport
+                            },
+                            targets,
+                            target_span: selector
                                 .segments()
                                 .last()
-                                .expect("selector is non-empty")
-                                .text
-                                .clone()
+                                .expect("non-empty selector")
+                                .span,
+                            alias: alias.as_ref().map(|alias| alias.name.clone()),
+                            origin: ImportSyntaxOrigin {
+                                source: source_identity.clone(),
+                                span: *span,
+                            },
                         });
-                    if !stage_exact_dependency_targets(
-                        &mut exact_dependency_slots,
-                        &local_name,
-                        &targets,
-                    ) {
-                        lowerer.error(
-                            selector.span,
-                            "import target is ambiguous in the current compilation unit"
-                                .to_string(),
-                        );
-                        continue;
                     }
-                    frozen.exact.push(ResolvedExactImport {
+                    ast::ImportSyntax::Star {
                         exposure,
-                        local_name,
-                        source_role: if alias.is_some() {
-                            scoop_identity::LocalBindingRole::AliasImport
-                        } else {
-                            scoop_identity::LocalBindingRole::ExactImport
-                        },
-                        targets,
-                        origin: ImportSyntaxOrigin {
-                            source: source_identity.clone(),
-                            span: *span,
-                        },
-                    });
-                }
-                ast::ImportSyntax::Star {
-                    exposure,
-                    namespace,
-                    star_span,
-                    span,
-                    ..
-                } => {
-                    let selector_span = ast::Span::new(namespace.span.start, star_span.end);
-                    let (selected, snapshot) = match self.selector(lowerer, world, namespace, true)
-                    {
-                        Ok(SelectorResult::Namespace { identity, snapshot }) => {
-                            (identity, snapshot)
-                        }
-                        Ok(SelectorResult::Targets(_)) => {
-                            unreachable!("star selectors end in namespaces")
-                        }
-                        Err(error) => {
-                            lowerer.error(selector_span, error.message().to_string());
-                            continue;
-                        }
-                    };
-                    let allow_empty_direct_namespace =
-                        !matches!(selected, ResolvedImportNamespace::Current(_));
-                    let Some(exposure) = Self::resolve_exposure(
-                        lowerer,
-                        *exposure,
-                        selector_span,
-                        allow_empty_direct_namespace,
-                        snapshot.values().flat_map(ast::NonEmptyVec::iter),
-                    ) else {
-                        continue;
-                    };
-                    frozen.stars.push(ResolvedStarImport {
-                        exposure,
-                        namespace: selected,
-                        snapshot,
-                        origin: ImportSyntaxOrigin {
-                            source: source_identity.clone(),
-                            span: *span,
-                        },
-                    });
+                        namespace,
+                        star_span,
+                        span,
+                        ..
+                    } => {
+                        let selector_span = ast::Span::new(namespace.span.start, star_span.end);
+                        let (selected, snapshot) =
+                            match self.selector(lowerer, world, namespace, true) {
+                                Ok(SelectorResult::Namespace { identity, snapshot }) => {
+                                    (identity, snapshot)
+                                }
+                                Ok(SelectorResult::Targets(_)) => {
+                                    unreachable!("star selectors end in namespaces")
+                                }
+                                Err(error) => {
+                                    lowerer.error(selector_span, error.message().to_string());
+                                    break 'item;
+                                }
+                            };
+                        let allow_empty_direct_namespace =
+                            !matches!(selected, ResolvedImportNamespace::Current(_));
+                        let Some(exposure) = Self::resolve_exposure(
+                            lowerer,
+                            *exposure,
+                            selector_span,
+                            allow_empty_direct_namespace,
+                            snapshot.values().flat_map(ast::NonEmptyVec::iter),
+                        ) else {
+                            break 'item;
+                        };
+                        frozen.stars.push(ResolvedStarImport {
+                            exposure,
+                            namespace: selected,
+                            snapshot,
+                            origin: ImportSyntaxOrigin {
+                                source: source_identity.clone(),
+                                span: *span,
+                            },
+                        });
+                    }
                 }
             }
+            if lowerer.diagnostics.len() != errors_before_item && lowerer.editing_types.is_some() {
+                frozen
+                    .unavailable
+                    .push(self.unavailable_import(lowerer, import));
+            }
         }
-        if lowerer.diagnostics.len() == diagnostics_before {
+        if lowerer.diagnostics.len() == diagnostics_before || lowerer.editing_types.is_some() {
             frozen
         } else {
             FrozenFileImports {
@@ -279,7 +296,7 @@ impl CurrentUnitImports {
             }
         }
 
-        for (file, imports) in self.files.iter().enumerate() {
+        for (&file, imports) in &self.files {
             let TopLevelLookupLayer::CurrentPackage(package) =
                 lowerer.top_level_namespaces.source_namespace(file)
             else {
@@ -320,10 +337,6 @@ impl CurrentUnitImports {
             for import in &imports.stars {
                 assert_eq!(site, import.origin.source);
                 assert!(import.origin.span.start <= import.origin.span.end);
-                let namespace = import
-                    .namespace
-                    .current()
-                    .and_then(|namespace| self.namespaces.get(&namespace));
                 for (name, targets) in &import.snapshot {
                     for target in targets.iter() {
                         check_target(target);
@@ -331,11 +344,20 @@ impl CurrentUnitImports {
                             assert!(matches!(target, ImportedTargetBinding::DirectDependency(_)));
                         }
                         if let Some(binding) = target.current_binding() {
-                            assert!(
-                                namespace
-                                    .and_then(|members| members.get(name))
-                                    .is_some_and(|members| members.contains(&binding))
-                            );
+                            let selected = match import.namespace.current() {
+                                Some(namespace) => self
+                                    .namespace_bindings(namespace, name)
+                                    .any(|candidate| candidate == binding),
+                                None => {
+                                    matches!(
+                                        import.namespace,
+                                        ResolvedImportNamespace::DirectPackage(_)
+                                    ) && self
+                                        .unknown_package_bindings(name)
+                                        .any(|candidate| candidate == binding)
+                                }
+                            };
+                            assert!(selected);
                         }
                     }
                 }

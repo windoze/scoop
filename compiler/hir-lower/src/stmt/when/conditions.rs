@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) struct ArmPrimary<C> {
+pub(crate) struct ArmPrimary<C> {
     pub condition: C,
     pub paths: Option<(SmartCastFacts, SmartCastFacts)>,
     pub coverage: Vec<hir::Pattern>,
@@ -9,15 +9,15 @@ pub(super) struct ArmPrimary<C> {
 }
 
 impl Lowerer {
-    pub(super) fn prepare_when_head<C>(
+    pub(crate) fn prepare_when_head<C>(
         &mut self,
-        arm: &ast::WhenArm,
+        guard: Option<&ast::Expr>,
         reachable: &mut bool,
         prepare: impl FnOnce(&mut Self) -> Option<ArmPrimary<C>>,
     ) -> Option<ArmHead<C>> {
         let incoming = self.smart_casts.clone();
         let result = prepare(self)
-            .and_then(|primary| self.finish_when_head(arm, primary, reachable, incoming.clone()));
+            .and_then(|primary| self.finish_when_head(guard, primary, reachable, incoming.clone()));
         if result.is_none() {
             self.smart_casts = incoming;
         }
@@ -26,7 +26,7 @@ impl Lowerer {
 
     fn finish_when_head<C>(
         &mut self,
-        arm: &ast::WhenArm,
+        source_guard: Option<&ast::Expr>,
         primary: ArmPrimary<C>,
         reachable: &mut bool,
         incoming: SmartCastFacts,
@@ -37,7 +37,7 @@ impl Lowerer {
             .paths
             .unwrap_or_else(|| (incoming.clone(), incoming));
         self.smart_casts = primary_true;
-        let guard = arm.guard.as_ref().map(|source| {
+        let guard = source_guard.map(|source| {
             let mut setup = Vec::new();
             let condition = self.lower_expr(source, &mut setup, None)?;
             if !self.is_subtype(condition.ty, self.boolean) {
@@ -74,12 +74,11 @@ impl Lowerer {
             scope: self.scopes.clone(),
             facts: self.smart_casts.clone(),
             coverage: primary.coverage,
-            context_requirement: self.value_block_context_requirement(&arm.body),
             body_reachable: *reachable && primary_completes && guard_completes,
         };
         *reachable = *reachable
             && primary_completes
-            && (!irrefutable || (arm.guard.is_some() && guard_completes));
+            && (!irrefutable || (source_guard.is_some() && guard_completes));
         self.smart_casts = next;
         Some(head)
     }

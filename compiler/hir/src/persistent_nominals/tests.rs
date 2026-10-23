@@ -13,13 +13,10 @@ fn source_nominal(name: &str, parameters: u32) -> SourceDeclarationKey {
             ConeIdentity::CORE,
             PackagePath::root(),
             DefinitionOwnerChain::top_level(),
-            DeclarationScope::SourceScoped(
-                SourceIdentity::new(
-                    ConeIdentity::CORE,
-                    NormalizedSourcePath::new("src/types.scoop").unwrap(),
-                )
-                .unwrap(),
-            ),
+            DeclarationScope::SourceScoped(SourceIdentity::new(
+                ConeIdentity::CORE,
+                NormalizedSourcePath::new("src/types.scoop").unwrap(),
+            )),
         )
         .unwrap(),
         CanonicalIdentifier::new(name).unwrap(),

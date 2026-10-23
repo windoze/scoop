@@ -49,7 +49,11 @@ pub(crate) enum DeclarationResult {
 }
 
 pub(crate) fn infers_result(declaration: &ast::FunctionDecl) -> bool {
-    declaration.return_ty.is_none() && matches!(declaration.body, ast::FunctionBody::Expr(_))
+    infers_header_result(declaration.header())
+}
+
+pub(crate) fn infers_header_result(declaration: ast::FunctionHeaderRef<'_>) -> bool {
+    declaration.return_ty.is_none() && declaration.body_form == ast::FunctionBodyForm::Expression
 }
 
 impl Lowerer {
@@ -71,7 +75,10 @@ impl Lowerer {
         id: FunctionId,
         source: &ast::FunctionDecl,
     ) {
-        if infers_result(source) && self.function_accessor_kind(id).is_none() {
+        if infers_result(source)
+            && self.function_accessor_kind(id).is_none()
+            && self.declaration_surface.unavailable_signature(id).is_none()
+        {
             self.declaration_inference.functions.insert(
                 id,
                 InferredFunction {
@@ -166,6 +173,9 @@ impl Lowerer {
     }
 
     pub(crate) fn infer_function_result(&mut self, id: FunctionId) -> Option<TypeId> {
+        if self.declaration_surface.unavailable_signature(id).is_some() {
+            return None;
+        }
         if self.interface_forwarders.contains_key(&id) {
             return self.infer_interface_forwarder_signature(id);
         }
@@ -179,7 +189,23 @@ impl Lowerer {
             return Some(self.signatures[&id].return_ty);
         }
         let Some(inference) = self.declaration_inference.functions.get(&id).cloned() else {
-            return Some(self.signatures[&id].return_ty);
+            let signature = &self.signatures[&id];
+            if !signature.result_pending {
+                return Some(signature.return_ty);
+            }
+            let file = self
+                .function_definition_file(id)
+                .unwrap_or(self.current_file);
+            let previous = std::mem::replace(&mut self.current_file, file);
+            self.error(
+                self.functions[id].span,
+                format!(
+                    "return type of `{}` is unavailable because its expression body is incomplete",
+                    self.source_function_name(id)
+                ),
+            );
+            self.current_file = previous;
+            return None;
         };
         match inference.state {
             InferenceState::Complete => return Some(self.signatures[&id].return_ty),

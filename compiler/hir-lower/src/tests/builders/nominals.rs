@@ -24,43 +24,46 @@ pub(crate) fn class_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Class(ast::ClassDecl {
-        inner_span: None,
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        modifier,
-        name: ident(name),
-        type_params: Vec::new(),
-        constructor: ctor
-            .into_iter()
-            .map(|(mutable, name, ty)| ast::PrimaryClassParameter {
-                annotations: Vec::new(),
-                property: if mutable {
-                    ast::PrimaryParameterProperty::Var
-                } else {
-                    ast::PrimaryParameterProperty::Val
-                },
-                member_visibility: Some(ast::VisibilitySyntax::Omitted),
-                is_override: false,
-                name: ident(name),
-                ty,
-                syntax: ast::ParameterSyntax::Required,
-                span: sp(),
-            })
-            .collect(),
-        supertypes: base
-            .into_iter()
-            .map(|(name, args)| ast::SupertypeSpec {
-                ty: ty_named(name),
-                initialization: ast::SupertypeInitialization::Constructor(call_arguments(args)),
-                span: sp(),
-            })
-            .chain(interfaces.into_iter().map(|name| ast::SupertypeSpec {
-                ty: ty_named(name),
-                initialization: ast::SupertypeInitialization::None,
-                span: sp(),
-            }))
-            .collect(),
-        where_clause: None,
+        header: ast::ClassHeader {
+            inner_span: None,
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            modifier,
+            name: ident(name),
+            type_params: Vec::new(),
+            constructor: ctor
+                .into_iter()
+                .map(|(mutable, name, ty)| ast::PrimaryClassParameter {
+                    annotations: Vec::new(),
+                    property: if mutable {
+                        ast::PrimaryParameterProperty::Var
+                    } else {
+                        ast::PrimaryParameterProperty::Val
+                    },
+                    member_visibility: Some(ast::VisibilitySyntax::Omitted),
+                    is_override: false,
+                    name: ident(name),
+                    ty,
+                    syntax: ast::ParameterSyntax::Required,
+                    span: sp(),
+                })
+                .collect(),
+            supertypes: base
+                .into_iter()
+                .map(|(name, args)| ast::SupertypeSpec {
+                    ty: ty_named(name),
+                    initialization: ast::SupertypeInitialization::Constructor(call_arguments(args)),
+                    span: sp(),
+                })
+                .chain(interfaces.into_iter().map(|name| ast::SupertypeSpec {
+                    ty: ty_named(name),
+                    initialization: ast::SupertypeInitialization::None,
+                    span: sp(),
+                }))
+                .collect(),
+            where_clause: None,
+            span: sp(),
+        },
         members: methods
             .into_iter()
             .map(ast::ClassMember::Function)
@@ -72,13 +75,16 @@ pub(crate) fn class_decl(
 /// `interface I { fun m(...): T ... }`.
 pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
-        sealed_span: None,
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        type_params: Vec::new(),
-        supertypes: Vec::new(),
-        where_clause: None,
+        header: ast::InterfaceHeader {
+            sealed_span: None,
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            type_params: Vec::new(),
+            supertypes: Vec::new(),
+            where_clause: None,
+            span: sp(),
+        },
         methods,
         properties: Vec::new(),
         nested: Vec::new(),
@@ -93,20 +99,23 @@ pub(crate) fn generic_interface_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
-        sealed_span: None,
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        type_params: type_params
-            .into_iter()
-            .map(|name| ast::TypeParamDecl {
-                name: ident(name),
-                inline_bound: None,
-                span: sp(),
-            })
-            .collect(),
-        supertypes: Vec::new(),
-        where_clause: None,
+        header: ast::InterfaceHeader {
+            sealed_span: None,
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            type_params: type_params
+                .into_iter()
+                .map(|name| ast::TypeParamDecl {
+                    name: ident(name),
+                    inline_bound: None,
+                    span: sp(),
+                })
+                .collect(),
+            supertypes: Vec::new(),
+            where_clause: None,
+            span: sp(),
+        },
         methods,
         properties: Vec::new(),
         nested: Vec::new(),
@@ -125,35 +134,38 @@ pub(crate) fn method_full(
     body: FunctionBody,
 ) -> FunctionDecl {
     FunctionDecl {
-        context_parameters: Vec::new(),
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        is_suspend: false,
-        is_override,
-        operator: None,
-        infix: None,
-        modifier: if is_abstract {
-            ast::MethodModifier::Abstract
-        } else if is_override {
-            ast::MethodModifier::Open
-        } else {
-            ast::MethodModifier::Final
+        signature: ast::FunctionSignature {
+            context_parameters: Vec::new(),
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            is_suspend: false,
+            is_override,
+            operator: None,
+            infix: None,
+            modifier: if is_abstract {
+                ast::MethodModifier::Abstract
+            } else if is_override {
+                ast::MethodModifier::Open
+            } else {
+                ast::MethodModifier::Final
+            },
+            receiver_ty: None,
+            name: ident(name),
+            type_params: Vec::new(),
+            params: params
+                .into_iter()
+                .map(|(name, ty)| Param {
+                    annotations: Vec::new(),
+                    name: ident(name),
+                    ty,
+                    syntax: ast::ParameterSyntax::Required,
+                    span: sp(),
+                })
+                .collect(),
+            return_ty,
+            where_clause: None,
+            span: sp(),
         },
-        receiver_ty: None,
-        name: ident(name),
-        type_params: Vec::new(),
-        params: params
-            .into_iter()
-            .map(|(name, ty)| Param {
-                annotations: Vec::new(),
-                name: ident(name),
-                ty,
-                syntax: ast::ParameterSyntax::Required,
-                span: sp(),
-            })
-            .collect(),
-        return_ty,
-        where_clause: None,
         body,
         span: sp(),
     }
@@ -264,29 +276,32 @@ pub(crate) fn generic_struct_decl_full(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Struct(AstStructDecl {
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        type_params: type_params.into_iter().map(type_param).collect(),
-        fields: fields
-            .into_iter()
-            .map(|(name, ty)| FieldDecl {
-                annotations: Vec::new(),
-                name: ident(name),
-                ty,
-                syntax: ast::ParameterSyntax::Required,
-                span: sp(),
-            })
-            .collect(),
-        supertypes: interfaces
-            .into_iter()
-            .map(|name| ast::SupertypeSpec {
-                ty: ty_named(name),
-                initialization: ast::SupertypeInitialization::None,
-                span: sp(),
-            })
-            .collect(),
-        where_clause: None,
+        header: ast::StructHeader {
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            type_params: type_params.into_iter().map(type_param).collect(),
+            fields: fields
+                .into_iter()
+                .map(|(name, ty)| FieldDecl {
+                    annotations: Vec::new(),
+                    name: ident(name),
+                    ty,
+                    syntax: ast::ParameterSyntax::Required,
+                    span: sp(),
+                })
+                .collect(),
+            supertypes: interfaces
+                .into_iter()
+                .map(|name| ast::SupertypeSpec {
+                    ty: ty_named(name),
+                    initialization: ast::SupertypeInitialization::None,
+                    span: sp(),
+                })
+                .collect(),
+            where_clause: None,
+            span: sp(),
+        },
         members: methods
             .into_iter()
             .map(Box::new)
@@ -316,13 +331,16 @@ pub(crate) fn enum_decl_full(
 ) -> Decl {
     Decl::Enum(ast::EnumDecl {
         interface_implementations: Vec::new(),
-        annotations: vec![],
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        type_params: type_params.into_iter().map(type_param).collect(),
+        header: ast::EnumHeader {
+            annotations: vec![],
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            type_params: type_params.into_iter().map(type_param).collect(),
+            interfaces: interfaces.into_iter().map(ty_named).collect(),
+            where_clause: None,
+            span: sp(),
+        },
         variants,
-        interfaces: interfaces.into_iter().map(ty_named).collect(),
-        where_clause: None,
         methods,
         properties: Vec::new(),
         nested: Vec::new(),

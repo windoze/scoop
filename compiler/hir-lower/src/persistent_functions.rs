@@ -11,13 +11,31 @@ use crate::{Lowerer, Owner, SourceFunctionDeclaration, namespace::TopLevelLookup
 mod error;
 pub(crate) use error::PersistentFunctionIdentityError;
 use error::PersistentFunctionIdentityErrorDetail as Detail;
-mod conditions;
 mod context;
 mod derived;
+mod source;
 mod topology;
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) fn direct_source_identity(
+    lowerer: &Lowerer,
+    function: hir::FunctionId,
+    core_types: hir::HirCoreTypeIdentityAuthority<'_>,
+) -> Result<hir::HirSourceFunctionIdentity, PersistentFunctionIdentityError> {
+    let nominals = lowerer
+        .nominal_identities
+        .as_ref()
+        .expect("source callable identities follow nominal declarations");
+    let type_mapper = SignatureTypeMapper::new(lowerer, nominals, core_types);
+    source::SourceIdentityBuilder {
+        lowerer,
+        nominals,
+        type_mapper: &type_mapper,
+    }
+    .direct_identity(function, &lowerer.source_function_declarations[&function])
+}
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn build(
@@ -191,33 +209,45 @@ impl FunctionIdentityBuilder<'_> {
         Ok(identity)
     }
 
+    fn source_builder(&self) -> source::SourceIdentityBuilder<'_, '_> {
+        source::SourceIdentityBuilder {
+            lowerer: self.lowerer,
+            nominals: self.nominals,
+            type_mapper: &self.type_mapper,
+        }
+    }
+
     fn source_identity(
         &mut self,
         function: hir::FunctionId,
         source_declaration: &SourceFunctionDeclaration,
     ) -> Result<hir::HirSourceFunctionIdentity, PersistentFunctionIdentityError> {
+        if let Some(identity) = self.lowerer.query_source_function_identities.get(&function) {
+            return Ok(identity.clone());
+        }
+        let Some(local) = self
+            .lowerer
+            .local_function_by_function
+            .get(&function)
+            .copied()
+        else {
+            return self
+                .source_builder()
+                .direct_identity(function, source_declaration);
+        };
         let signature = self
             .lowerer
             .signatures
             .get(&function)
             .ok_or_else(|| self.failure(function, Detail::MissingSignature))?;
-        let own_count = signature
-            .type_params
-            .len()
-            .checked_sub(signature.owner_type_param_count)
-            .ok_or_else(|| self.failure(function, Detail::InvalidBinderInheritance))?;
-        let own_count_u32 = u32::try_from(own_count)
-            .map_err(|_| self.failure(function, Detail::TooManyTypeParameters))?;
-        let file = self.lowerer.function_files[&function];
-        let source = self.source(function, file)?;
-        let package = self.package(function, file)?;
-
-        let (owners, scope, binders) = if let Some(local) = self
-            .lowerer
-            .local_function_by_function
-            .get(&function)
-            .copied()
-        {
+        if signature.owner_type_param_count > signature.type_params.len() {
+            return Err(self.failure(function, Detail::InvalidBinderInheritance));
+        }
+        let source = self.lowerer.source_contexts
+            [self.lowerer.local_functions[local].origin.context]
+            .source()
+            .clone();
+        let context = {
             let local = &self.lowerer.local_functions[local];
             let context = self.context_for_site(
                 function,
@@ -241,71 +271,21 @@ impl FunctionIdentityBuilder<'_> {
                 context.binders,
                 &signature.type_params[signature.owner_type_param_count..],
             )?;
-            (
-                context.owners,
-                DeclarationScope::LexicalScoped {
-                    source: source.clone(),
+            source::SourceFunctionContext {
+                source: source.clone(),
+                package: self
+                    .source_builder()
+                    .package(function, self.lowerer.function_files[&function])?,
+                owners: context.owners,
+                scope: DeclarationScope::LexicalScoped {
+                    source,
                     path: local.definition_path.clone(),
                 },
                 binders,
-            )
-        } else {
-            let owners = self.direct_source_owners(function, &source, &package)?;
-            let scope = if !self.lowerer.function_owner.contains_key(&function)
-                && self.lowerer.functions[function].access.declared
-                    == hir::DeclaredVisibility::Private
-            {
-                DeclarationScope::SourceScoped(source.clone())
-            } else {
-                DeclarationScope::ConeWide
-            };
-            let owner_group = self.binder_group(
-                function,
-                &signature.type_params[..signature.owner_type_param_count],
-            )?;
-            let binders = self.append_binder_group(
-                function,
-                owner_group,
-                &signature.type_params[signature.owner_type_param_count..],
-            )?;
-            (owners, scope, binders)
+            }
         };
-
-        let site = SourceDeclarationSite::new(
-            source.cone(),
-            package,
-            DefinitionOwnerChain::from_outer_to_inner(owners),
-            scope,
-        )
-        .map_err(|error| self.failure(function, Detail::InvalidSite(error)))?;
-        let name = CanonicalIdentifier::new(&source_declaration.name)
-            .map_err(|error| self.failure(function, Detail::InvalidName(error)))?;
-        let receiver = self
-            .lowerer
-            .extension_receivers
-            .get(&function)
-            .copied()
-            .map(|ty| self.type_mapper.map(ty, &binders))
-            .transpose()
-            .map_err(|error| self.failure(function, Detail::InvalidSignatureType(error)))?;
-        let parameters = signature
-            .params
-            .iter()
-            .map(|parameter| self.type_mapper.map(parameter.ty, &binders))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| self.failure(function, Detail::InvalidSignatureType(error)))?;
-        let conditions = self.function_conditions(function, &binders)?;
-        hir::HirSourceFunctionIdentity::from_declaration(
-            SourceDeclarationKey::constrained_function(
-                site,
-                name,
-                own_count_u32,
-                receiver,
-                parameters,
-                conditions,
-            ),
-        )
-        .map_err(|error| self.failure(function, Detail::InvalidIdentity(error)))
+        self.source_builder()
+            .identity(function, source_declaration, context)
     }
 
     fn source_function_binders(
@@ -365,97 +345,17 @@ impl FunctionIdentityBuilder<'_> {
         function: hir::FunctionId,
         parameters: &[hir::TypeParamDecl],
     ) -> Result<Vec<SignatureBinder>, PersistentFunctionIdentityError> {
-        parameters
-            .iter()
-            .enumerate()
-            .map(|(index, parameter)| {
-                Ok(SignatureBinder {
-                    parameter: parameter.id,
-                    depth: 0,
-                    index: u32::try_from(index)
-                        .map_err(|_| self.failure(function, Detail::TooManyTypeParameters))?,
-                })
-            })
-            .collect()
+        self.source_builder().binder_group(function, parameters)
     }
 
     fn append_binder_group(
         &self,
         function: hir::FunctionId,
-        mut outer: Vec<SignatureBinder>,
+        outer: Vec<SignatureBinder>,
         inner: &[hir::TypeParamDecl],
     ) -> Result<Vec<SignatureBinder>, PersistentFunctionIdentityError> {
-        if inner.is_empty() {
-            return Ok(outer);
-        }
-        for binder in &mut outer {
-            binder.depth = binder
-                .depth
-                .checked_add(1)
-                .ok_or_else(|| self.failure(function, Detail::BinderDepthOverflow))?;
-        }
-        outer.extend(self.binder_group(function, inner)?);
-        Ok(outer)
-    }
-
-    fn direct_source_owners(
-        &self,
-        function: hir::FunctionId,
-        source: &scoop_identity::SourceIdentity,
-        package: &PackagePath,
-    ) -> Result<Vec<DefinitionOwnerAtom>, PersistentFunctionIdentityError> {
-        let Some(owner) = self.lowerer.function_owner.get(&function).copied() else {
-            return Ok(Vec::new());
-        };
-        let identity = match owner {
-            Owner::Class(owner) => &self.nominals[owner],
-            Owner::Struct(owner) => &self.nominals[owner],
-            Owner::Enum(owner) => &self.nominals[owner],
-            Owner::Interface(owner) => &self.nominals[owner],
-            Owner::Object(owner) => &self.nominals[owner],
-        };
-        let identity = identity
-            .source()
-            .ok_or_else(|| self.failure(function, Detail::GeneratedDeclarationOwner))?;
-        if identity.declaration().origin() != source.cone()
-            || identity.declaration().package() != package
-        {
-            return Err(self.failure(function, Detail::OwnerSiteMismatch));
-        }
-        let mut owners = identity.declaration().owners().owners().to_vec();
-        owners.push(identity.definition_owner());
-        Ok(owners)
-    }
-
-    fn source(
-        &self,
-        function: hir::FunctionId,
-        file: usize,
-    ) -> Result<scoop_identity::SourceIdentity, PersistentFunctionIdentityError> {
-        self.lowerer
-            .intrinsic_sources
-            .get(file)
-            .map(|source| source.identity.clone())
-            .ok_or_else(|| self.failure(function, Detail::MissingSourceFile))
-    }
-
-    fn package(
-        &self,
-        function: hir::FunctionId,
-        file: usize,
-    ) -> Result<PackagePath, PersistentFunctionIdentityError> {
-        match self.lowerer.top_level_namespaces.source_namespace(file) {
-            TopLevelLookupLayer::CorePrelude => Ok(PackagePath::root()),
-            TopLevelLookupLayer::CurrentPackage(package) => self
-                .lowerer
-                .top_level_namespaces
-                .package_segments(package)
-                .into_iter()
-                .map(CanonicalIdentifier::new)
-                .collect::<Result<Vec<_>, _>>()
-                .map(PackagePath::from_segments)
-                .map_err(|error| self.failure(function, Detail::InvalidName(error))),
-        }
+        self.source_builder()
+            .append_binder_group(function, outer, inner)
     }
 
     fn failure(

@@ -44,7 +44,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let id = self.fresh_type_param(type_params.len());
+            let id = self.fresh_source_type_param(parameter, type_params.len());
             type_params.push(crate::lower_type_param_decl(parameter, id));
         }
         type_params = self.resolve_type_parameter_constraints(
@@ -127,6 +127,8 @@ impl Lowerer {
             true,
         );
         self.property_files.insert(property, file_index);
+        self.property_name_spans
+            .insert(property, declaration.name.span);
         self.imports.bind_property(import_source, property);
         let getter = match self.property_getters[capability.getter()].implementation {
             hir::PropertyAccessorImplementation::Body(function) => function,

@@ -138,7 +138,7 @@ impl Lowerer {
 
     pub(crate) fn lower_capture(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
         let Some(context_index) = self.capture_contexts.len().checked_sub(1) else {
-            return self.lower_local_type_capture(&CaptureKey::Name(name.text.clone()), name.span);
+            return self.lower_local_type_named_capture(name);
         };
         let available = self.capture_contexts[context_index]
             .available
@@ -156,6 +156,8 @@ impl Lowerer {
             return None;
         }
         self.register_capture_at(context_index, &name.text, available.clone(), name.span)?;
+        self.observe_receiver_capture(available.binding, name.span);
+        self.observe_local_use(available.binding, name.span, hir::EditingLocalRole::Read);
         Some(hir::Expr {
             kind: ExprKind::Capture(available.binding),
             ty: available.ty,
@@ -196,6 +198,7 @@ impl Lowerer {
             return None;
         }
         self.register_capture_at(context_index, &name, available.clone(), span)?;
+        self.observe_receiver_capture(available.binding, span);
         Some(hir::Expr {
             kind: ExprKind::Capture(available.binding),
             ty: available.ty,

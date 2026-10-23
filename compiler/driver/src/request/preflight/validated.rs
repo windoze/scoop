@@ -92,6 +92,10 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         self.request.purpose
     }
 
+    pub fn generators(&self) -> &scoop_toolchain::GeneratorPrograms {
+        &self.request.generators
+    }
+
     pub const fn emit(&self) -> StageDumpPolicy {
         self.request.emit
     }

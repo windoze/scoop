@@ -191,7 +191,7 @@ pub(super) fn definition_origin(
 }
 
 pub(super) fn source(cone: ConeIdentity, path: &str) -> SourceIdentity {
-    SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap()).unwrap()
+    SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap())
 }
 
 pub(super) fn foreign_cone() -> ConeIdentity {

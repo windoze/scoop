@@ -12,18 +12,43 @@ use crate::{Lowerer, namespace::TopLevelLookupLayer};
 pub(crate) fn build(
     lowerer: &Lowerer,
 ) -> Result<hir::HirTypeAliasIdentities, PersistentTypeAliasIdentityError> {
-    let declarations = lowerer
+    let identities = lowerer
         .type_aliases
         .iter()
-        .map(|(_, alias)| declaration(lowerer, alias))
+        .map(|(id, _)| {
+            lowerer
+                .query_alias_identities
+                .get(&id)
+                .cloned()
+                .map(Ok)
+                .unwrap_or_else(|| record(lowerer, id))
+        })
         .collect::<Result<Vec<_>, _>>()?;
-    hir::HirTypeAliasIdentities::from_declarations(&lowerer.type_aliases, declarations).map_err(
-        |error| PersistentTypeAliasIdentityError {
+    hir::HirTypeAliasIdentities::checked(&lowerer.type_aliases, identities).map_err(|error| {
+        PersistentTypeAliasIdentityError {
             file: 0,
             span: Span { start: 0, end: 0 },
-            detail: PersistentTypeAliasIdentityErrorDetail::InvalidIdentity(error),
-        },
-    )
+            detail: PersistentTypeAliasIdentityErrorDetail::InvalidIdentity(
+                hir::HirTypeAliasIdentityError::Table(error),
+            ),
+        }
+    })
+}
+
+pub(crate) fn record(
+    lowerer: &Lowerer,
+    id: hir::ExportTypeAliasId,
+) -> Result<hir::HirTypeAliasIdentity, PersistentTypeAliasIdentityError> {
+    let alias = &lowerer.type_aliases[id];
+    scoop_identity::CborIdentityRecord::from_key(declaration(lowerer, alias)?).map_err(|error| {
+        failure(
+            alias.origin.file as usize,
+            alias,
+            PersistentTypeAliasIdentityErrorDetail::InvalidIdentity(
+                hir::HirTypeAliasIdentityError::Identity(error),
+            ),
+        )
+    })
 }
 
 fn declaration(
@@ -37,15 +62,18 @@ fn declaration(
             PersistentTypeAliasIdentityErrorDetail::UnknownSourceFile(alias.origin.file),
         )
     })?;
-    if file >= lowerer.intrinsic_sources.len() {
+    if file >= lowerer.intrinsic_sources.len() + lowerer.imported_source_files.len() {
         return Err(failure(
             0,
             alias,
             PersistentTypeAliasIdentityErrorDetail::UnknownSourceFile(alias.origin.file),
         ));
     }
-    let source = lowerer.visibility_file(file);
-    let package = match lowerer.top_level_namespaces.source_namespace(file) {
+    let source = lowerer.source_identity(file).clone();
+    let package = match lowerer
+        .top_level_namespaces
+        .source_namespace(lowerer.lexical_source_file(file))
+    {
         TopLevelLookupLayer::CorePrelude => PackagePath::root(),
         TopLevelLookupLayer::CurrentPackage(package) => {
             let segments = lowerer

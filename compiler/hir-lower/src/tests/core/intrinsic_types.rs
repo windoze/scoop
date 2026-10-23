@@ -283,20 +283,23 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         };
     let strukt = |name: &str, intrinsic: &str, methods: Vec<ast::FunctionDecl>| {
         Decl::Struct(AstStructDecl {
-            annotations: vec![annotation(intrinsic)],
-            visibility: ast::VisibilitySyntax::Omitted,
-            name: ident(name),
-            type_params: Vec::new(),
-            fields: ast::StructRepresentationDecl::Omitted,
-            supertypes: ["ToString", "Hash"]
-                .into_iter()
-                .map(|name| ast::SupertypeSpec {
-                    ty: ty_named(name),
-                    initialization: ast::SupertypeInitialization::None,
-                    span: sp(),
-                })
-                .collect(),
-            where_clause: None,
+            header: ast::StructHeader {
+                annotations: vec![annotation(intrinsic)],
+                visibility: ast::VisibilitySyntax::Omitted,
+                name: ident(name),
+                type_params: Vec::new(),
+                fields: ast::StructRepresentationDecl::Omitted,
+                supertypes: ["ToString", "Hash"]
+                    .into_iter()
+                    .map(|name| ast::SupertypeSpec {
+                        ty: ty_named(name),
+                        initialization: ast::SupertypeInitialization::None,
+                        span: sp(),
+                    })
+                    .collect(),
+                where_clause: None,
+                span: sp(),
+            },
             members: methods
                 .into_iter()
                 .map(Box::new)
@@ -307,15 +310,18 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     };
     let class = |name: &str, intrinsic: &str, type_params: Vec<&str>| {
         Decl::Class(ast::ClassDecl {
-            inner_span: None,
-            annotations: vec![annotation(intrinsic)],
-            visibility: ast::VisibilitySyntax::Omitted,
-            modifier: ast::ClassModifier::Final,
-            name: ident(name),
-            type_params: type_params.into_iter().map(type_param).collect(),
-            constructor: ast::ClassConstructorDecl::Omitted,
-            supertypes: Vec::new(),
-            where_clause: None,
+            header: ast::ClassHeader {
+                inner_span: None,
+                annotations: vec![annotation(intrinsic)],
+                visibility: ast::VisibilitySyntax::Omitted,
+                modifier: ast::ClassModifier::Final,
+                name: ident(name),
+                type_params: type_params.into_iter().map(type_param).collect(),
+                constructor: ast::ClassConstructorDecl::Omitted,
+                supertypes: Vec::new(),
+                where_clause: None,
+                span: sp(),
+            },
             members: Vec::new(),
             span: sp(),
         })

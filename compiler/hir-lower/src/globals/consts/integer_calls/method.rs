@@ -123,7 +123,8 @@ impl Lowerer {
             );
             return None;
         };
-        match resolved.kind {
+        let mut parameter_type = None;
+        let evaluated = match resolved.kind {
             ConstIntegerIntrinsicKind::NoGcOperation(operation) => {
                 let right = match (operation.arity(), args) {
                     (hir::IntegerOperationArity::Unary, []) => None,
@@ -148,6 +149,7 @@ impl Lowerer {
                         } else {
                             receiver.ty
                         };
+                        parameter_type = Some(expected);
                         let value = self.evaluate_const_expression(
                             &argument.expression,
                             Some(expected),
@@ -227,6 +229,7 @@ impl Lowerer {
                     states,
                     stack,
                 )?;
+                parameter_type = Some(receiver.ty);
                 if !self.types_equal(right.ty, receiver.ty) {
                     self.error(
                         argument.span,
@@ -280,6 +283,14 @@ impl Lowerer {
                     ty: self.integer_type(target_kind),
                 })
             }
-        }
+        }?;
+        self.observe_constant_intrinsic(
+            span,
+            resolved.callable,
+            &resolved.parameters,
+            parameter_type,
+            evaluated.ty,
+        );
+        Some(evaluated)
     }
 }

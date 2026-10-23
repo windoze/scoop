@@ -169,11 +169,12 @@ impl Lowerer {
 
     pub(crate) fn collect_and_resolve_imports(
         &mut self,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderInput<'_>],
         declarations: ImportDeclarationInputs<'_>,
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) {
         let ImportDeclarationInputs {
+            unavailable,
             functions,
             methods,
             properties,
@@ -226,6 +227,28 @@ impl Lowerer {
                         .entry(group.name().as_str().to_owned())
                         .or_default()
                         .extend(targets);
+                }
+            }
+        }
+        for &(header, file) in unavailable {
+            self.current_file = file;
+            let access =
+                self.top_level_access(header.visibility, header.name.span, "declaration", file);
+            let binding = CurrentUnitBinding {
+                target: CurrentUnitTarget::Unavailable(header.kind),
+                source: self.import_source(file),
+                file,
+                span: header.name.span,
+                access: access.lookup,
+                name: header.name.text.clone(),
+            };
+            match self.top_level_namespaces.known_source_namespace(file) {
+                Some(TopLevelLookupLayer::CurrentPackage(package)) => {
+                    surface.insert(ResolvedNamespace::Package(package), binding);
+                }
+                None => surface.insert_unknown_package(binding),
+                Some(TopLevelLookupLayer::CorePrelude) => {
+                    unreachable!("external core inputs are complete")
                 }
             }
         }
@@ -434,14 +457,18 @@ impl Lowerer {
             }
         }
         self.current_owner = None;
-        for (file, syntax) in files.iter().enumerate() {
+        for (file, syntax) in files
+            .iter()
+            .enumerate()
+            .filter_map(|(file, syntax)| syntax.complete().map(|syntax| (file, syntax)))
+        {
             self.current_file = file;
             let imports = if self.source_is_current_cone(file) {
-                surface.resolve_file_with_world(self, syntax, world)
+                surface.resolve_file_with_world(self, &syntax, world)
             } else {
                 FrozenFileImports::default()
             };
-            surface.files.push(imports);
+            surface.files.insert(file, imports);
         }
         if let Err(error) = surface.freeze_reexports(self) {
             let mut diagnostic = ast::Diagnostic::at(error.span(), error.to_string());
@@ -518,7 +545,7 @@ impl Lowerer {
 
         let mut exact_suppressions = Vec::new();
         let mut star_suppressions = Vec::new();
-        for (file, imports) in self.imports.files.iter_mut().enumerate() {
+        for (&file, imports) in &mut self.imports.files {
             imports.exact.retain(|import| {
                 let mut failed = false;
                 for target in import.targets.iter() {

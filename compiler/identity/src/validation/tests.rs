@@ -16,6 +16,7 @@ use crate::{
 };
 
 mod records;
+mod source_import;
 
 fn source_type_record() -> CborIdentityRecord<PersistentTypeId, SourceDeclarationKey> {
     let cone = ConeCoordinate::reserved_core().identity().unwrap();
@@ -317,8 +318,7 @@ fn external_graph_propagates_transitive_leaf_authorities() {
     let source = SourceIdentity::new(
         provider,
         NormalizedSourcePath::new("src/api.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let context =
         CborIdentityRecord::<PersistentSourceContextId, _>::from_key(SourceContextKey::File {
             source,

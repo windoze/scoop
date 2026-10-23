@@ -1,6 +1,6 @@
 # 可恢复 parser、M47 与 LSP 调研
 
-日期：2026-10-21。仓库基线：`4de3ae9e8`。本文记录现状、外部依据与功能需求；采纳的架构、接口边界和实施顺序见[公共基础设计](DESIGN.md)。这是设计调研，未实施 parser 改造或 LSP，也未执行它们的功能验收。
+日期：2026-10-21。仓库基线：`4de3ae9e8`。本文记录调研当时的仓库状态、外部依据与功能需求；采纳的架构、接口边界和实施顺序见[公共基础设计](DESIGN.md)。调研阶段未实施 parser 改造或 LSP；后续实现与实际验收见[实施记录](PROGRESS.md)。
 
 ## 1. 结论
 
@@ -17,7 +17,7 @@ Scoop 需要把“有错仍能继续报错”推进到“有错仍保留可查�
 | [完整文件入口](../../compiler/parser/src/lib.rs)与[解析主循环](../../compiler/parser/src/parser.rs) | `Result<SourceFile, Vec<Diagnostic>>`；按声明、成员、语句边界恢复；有错误时丢弃整份 AST | 要新增保留错误结构的结果，保留现有严格编译适配 |
 | [多文件入口](../../compiler/parser/src/source_input.rs) | 一个文件失败时不返回该 Cone 的 AST 集合 | LSP 不能直接把这个成功／失败结果当作全部分析状态 |
 | [lexer](../../compiler/parser/src/lexer.rs)与[注释处理](../../compiler/parser/src/lexer/comments.rs) | 非法词法单元可继续诊断；普通空白／注释丢弃，文档注释另行保留；未终止块注释读至 EOF | 现有 token／AST 无法逐字节还原源码；需要保留 trivia 和错误文本 |
-| [Span 与诊断](../../compiler/ast/src/source.rs) | 文件内 `u32` byte span、Error／Warning、主位置与 notes；CLI 逐次扫描文本得到一基行列 | 可提取共同坐标与诊断数据，但不能把 CLI 的 Unicode 标量列当成 LSP UTF-16 列 |
+| [Span 与诊断](../../compiler/source/src/diagnostic.rs) | 调研时位于 `compiler/ast/src/source.rs`：文件内 `u32` byte span、Error／Warning、主位置与 notes；CLI 逐次扫描文本得到一基行列 | 现已开始提取到共同源码 crate；不能把 CLI 的 Unicode 标量列当成 LSP UTF-16 列 |
 | [HIR pipeline](../../compiler/hir-lower/src/pipeline/run.rs) | 已分声明、签名、继承、正文等步骤，但多个错误出口会结束整轮 lowering | 需要逐步暴露独立的声明／正文分析结果，不能只在 LSP 外面捕获整个编译失败 |
 | [M60 文档视图](../../compiler/hir/src/documentation.rs)与[持久源码记录](../../compiler/hir/src/source_record.rs) | 已有实际声明、原始签名、文档与位置关联；持久记录不含完整源码 | hover 应复用现有事实；依赖位置缺少原文时不能凭 byte offset 伪造 UTF-16 范围 |
 | [M47 查询](../milestone47/PROTOCOL.md) | 从待填方法的 typed 引用出发，固定声明／已有正文视图，返回四类正文可用状态 | 保留其语义合同，增加编辑态的定位与分析宿主；不把 MethodId 或生成会话作为所有查询的必需输入 |
@@ -116,4 +116,4 @@ M47 的通用查询仍覆盖实际语义事实，codec 算法继续由 generator
 - 保留固定生成视图和四类正文状态；LSP 的未知／未分析状态不冒充 PendingGeneration，也不要求 M47 v1 增加编辑器会话字段。
 - M47 可以先落地源码／片段入口和固定视图查询，后续可恢复 CST、编辑态分析与 LSP 分批接入。完整 LSP、局部重解析和增量数据库均不成为 codec 迁移的新验收门槛。
 
-最终设计与验收按[公共基础设计](DESIGN.md)执行，语言行为与阶段边界以[实现规范 2.20](../specs/SCOOP-IMPL-SPEC.md#220-可恢复语法与语言服务公共基础设计合同待实施)为目标合同。
+最终设计与验收按[公共基础设计](DESIGN.md)执行，语言行为与阶段边界以[实现规范 2.20](../specs/SCOOP-IMPL-SPEC.md#220-可恢复语法与语言服务公共基础)为目标合同。

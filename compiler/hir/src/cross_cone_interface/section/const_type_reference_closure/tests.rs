@@ -281,8 +281,7 @@ fn identifier(value: &str) -> CanonicalIdentifier {
 }
 
 fn definition_origin(cone: ConeIdentity, point: u64) -> ExportDefinitionSourceV1 {
-    let source =
-        SourceIdentity::new(cone, NormalizedSourcePath::new("main.scoop").unwrap()).unwrap();
+    let source = SourceIdentity::new(cone, NormalizedSourcePath::new("main.scoop").unwrap());
     let context = SourceContextKey::File {
         source: source.clone(),
     };

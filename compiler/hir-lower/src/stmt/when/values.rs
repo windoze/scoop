@@ -15,8 +15,8 @@ impl Lowerer {
         let lowered = match self.lower_when_subject(when, &mut subject_sink)? {
             Some(subject) => {
                 let (heads, reachable) = self.prepare_when_arms(when, |this, arm, reachable| {
-                    this.prepare_when_head(arm, reachable, |this| {
-                        this.subject_primary(arm, &subject)
+                    this.prepare_when_head(arm.guard.as_ref(), reachable, |this| {
+                        this.subject_primary(&arm.condition, &subject)
                     })
                 })?;
                 self.lower_when_value_arms(
@@ -37,7 +37,9 @@ impl Lowerer {
             }
             None => {
                 let (heads, reachable) = self.prepare_when_arms(when, |this, arm, reachable| {
-                    this.prepare_when_head(arm, reachable, |this| this.conditional_primary(arm))
+                    this.prepare_when_head(arm.guard.as_ref(), reachable, |this| {
+                        this.conditional_primary(&arm.condition, arm.span)
+                    })
                 })?;
                 self.lower_when_value_arms(
                     when,
@@ -84,8 +86,11 @@ impl Lowerer {
             } else {
                 None
             };
+            let context_requirement = self.in_when_arm(&heads[index], |this| {
+                this.value_block_context_requirement(&arm.body)
+            });
             arms[index] = self.probe_contextual_value(
-                heads[index].context_requirement,
+                context_requirement,
                 branch_expected,
                 &mut failures[index],
                 |this, expected| this.lower_value_arm(arm, &heads[index], expected),

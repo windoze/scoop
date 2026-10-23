@@ -1,0 +1,14 @@
+package test.generatedtesting
+
+import scoop.test.*
+
+interface Value { fun value(): Int }
+
+@GenerateWith("test.peer", ["Value"])
+class GeneratedValue : Value
+
+@Test
+private class Values {
+    @Test
+    fun generated() { assertEquals(ordinaryValue(), GeneratedValue().value()) }
+}

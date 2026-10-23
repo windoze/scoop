@@ -70,8 +70,8 @@ mod m23_local_value_identities;
 mod m23_local_value_selectors;
 mod m23_named_calls;
 mod m23_nominal_interface_production;
-mod m23_ordinary_core_only;
-mod m23_ordinary_dependencies;
+pub(crate) mod m23_ordinary_core_only;
+pub(crate) mod m23_ordinary_dependencies;
 mod m23_ordinary_dependency_constants;
 mod m23_ordinary_dependency_defaults;
 mod m23_ordinary_dependency_properties;
@@ -123,6 +123,7 @@ mod m60_documentation;
 mod m7;
 mod m8;
 mod m9;
+mod semantic_queries;
 
 use super::*;
 use ast::{
@@ -255,7 +256,6 @@ pub(crate) fn test_source_identity(path: &str) -> scoop_identity::SourceIdentity
             .unwrap(),
         scoop_identity::NormalizedSourcePath::new(path).unwrap(),
     )
-    .unwrap()
 }
 
 pub(crate) fn core_source_identity(path: &str) -> scoop_identity::SourceIdentity {
@@ -263,7 +263,6 @@ pub(crate) fn core_source_identity(path: &str) -> scoop_identity::SourceIdentity
         scoop_identity::ConeIdentity::CORE,
         scoop_identity::NormalizedSourcePath::new(path).unwrap(),
     )
-    .unwrap()
 }
 
 pub(crate) fn identified_test_sources(sources: Vec<ast::SourceFile>) -> ast::AllParsedSources {

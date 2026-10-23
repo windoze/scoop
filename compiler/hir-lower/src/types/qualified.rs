@@ -23,6 +23,10 @@ impl Lowerer {
             .find(|p| p.name == path[0].text)
             .map(|p| p.id)
         {
+            self.observe_type_name(
+                path[0].span,
+                crate::editing::types::TypeTarget::Parameter(parameter),
+            );
             if path.len() != 2 {
                 self.error(
                     span,

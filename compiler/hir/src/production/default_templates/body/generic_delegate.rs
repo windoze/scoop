@@ -6,7 +6,7 @@ impl BodyProjection<'_, '_> {
         reference: &crate::GenericDelegateReference,
     ) -> Result<crate::DefaultGenericDelegateReferenceV1, super::super::DefaultBodyProjectionError>
     {
-        let export = self.entities.export();
+        let export = self.entities.inputs();
         let property = match reference.template {
             crate::GenericDelegateTemplateSource::Defined(template) => {
                 let property = export.generic_delegate_templates[template].property;

@@ -9,7 +9,6 @@ use super::{
 };
 use crate::Lowerer;
 use crate::call_resolution::arguments::ArgumentShapeFailure;
-use crate::call_resolution::candidates::ArgumentMode;
 use crate::expr::CallSite;
 
 mod native;
@@ -288,41 +287,10 @@ impl Lowerer {
             );
             return Err(state);
         }
-        let mut argument_mode = ArgumentMode::Mixed;
-        if let scoop_identity::CallableTemplateOrigin::VariantConstructor(variant) =
-            interface.declaration()
-        {
-            let hir::PublicDeclarationOwnerV1::Nominal(owner) = interface.owner() else {
-                unreachable!("a dependency variant retains its enum owner")
-            };
-            let enumeration = state
-                .dependencies
-                .as_ref()
-                .and_then(|dependencies| dependencies.nominal_declaration(owner))
-                .expect("the variant owner is in the dependency catalog");
-            let hir::NominalSourceShapeV1::Enum(shape) = enumeration.interface.source_shape()
-            else {
-                unreachable!("a dependency variant retains its enum source shape")
-            };
-            let variant = shape
-                .variants()
-                .iter()
-                .find(|value| value.variant() == variant)
-                .expect("the shared enum contains its declared variant");
-            if variant.style() == hir::EnumSourceVariantStyleV1::Unit {
-                state.error(call.span, format!(
-                    "unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses",
-                    name.text, enumeration.name(), name.text,
-                ));
-                return Err(state);
-            }
-            argument_mode = match variant.style() {
-                hir::EnumSourceVariantStyleV1::Named => ArgumentMode::NamedOnly,
-                hir::EnumSourceVariantStyleV1::Positional => ArgumentMode::PositionalOnly,
-                hir::EnumSourceVariantStyleV1::Constructor => ArgumentMode::Mixed,
-                hir::EnumSourceVariantStyleV1::Unit => unreachable!("unit variants were rejected"),
-            };
-        }
+        let Some(argument_mode) = state.imported_call_argument_mode(&candidate, name, call.span)
+        else {
+            return Err(state);
+        };
         let declaration =
             match state.imported_call_declaration(&candidate, constructor_owner.is_some()) {
                 Ok(declaration) => declaration,

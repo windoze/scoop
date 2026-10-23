@@ -1,0 +1,167 @@
+//! Partial editor observations remain separate from successful HIR products.
+
+use crate::{FunctionId, SemanticSourceLocation, Span, TypeId};
+
+mod callees;
+pub use callees::*;
+mod calls;
+pub use calls::*;
+mod candidates;
+pub use candidates::*;
+mod constructors;
+mod imports;
+pub use constructors::*;
+pub use imports::*;
+mod implementations;
+pub use implementations::*;
+mod properties;
+pub use properties::*;
+mod regions;
+pub use regions::*;
+mod references;
+pub use references::*;
+mod type_references;
+pub use type_references::*;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditingUnavailable {
+    IncompleteSyntax,
+    DeclarationFailure,
+    SignatureFailure,
+    PendingInference,
+    BodyFailure,
+}
+
+#[derive(Clone, Debug)]
+pub enum EditingValue<T> {
+    Known(T),
+    Unavailable(EditingUnavailable),
+}
+
+/// A source declaration paired with the function allocated for that declaration.
+#[derive(Clone, Debug)]
+pub struct EditingFunction {
+    pub function: FunctionId,
+    pub name: String,
+    pub name_origin: SemanticSourceLocation,
+    pub span: Span,
+}
+
+/// Resolved declaration types, without claiming that defaults have been checked.
+#[derive(Clone, Debug)]
+pub struct EditingParameter {
+    pub name: String,
+    pub value_type: TypeId,
+    pub vararg_element_type: Option<TypeId>,
+    pub declared_default: Option<SemanticSourceLocation>,
+    pub origin: SemanticSourceLocation,
+}
+
+/// A local reference observed by the ordinary name resolver.
+#[derive(Clone, Debug)]
+pub struct EditingLocalReference {
+    pub binding: crate::BindingId,
+    pub name: String,
+    pub definition: SemanticSourceLocation,
+}
+
+/// Facts about an existing receiver before its missing selector.
+#[derive(Clone, Debug)]
+pub struct EditingReceiver {
+    pub span: Span,
+    pub dot: Span,
+    pub selector: Span,
+    pub safe_navigation: bool,
+    pub value_type: EditingValue<EditingReceiverType>,
+    pub local: Option<EditingLocalReference>,
+    pub members: EditingValue<EditingMembers>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct EditingReceiverType {
+    pub ty: TypeId,
+    pub context: crate::SourceContextId,
+}
+
+/// A real AST selector whose receiver was checked in its original body context.
+#[derive(Clone, Debug)]
+pub struct EditingSelector {
+    pub receiver: Span,
+    pub selector: Span,
+    pub context: crate::SourceContextId,
+    pub value_type: TypeId,
+    pub local: Option<EditingLocalReference>,
+    /// Receiver views fixed by the original smart-cast and navigation context.
+    pub receiver_types: EditingValue<Vec<TypeId>>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct EditingMembers {
+    pub candidates: Vec<EditingMember>,
+    pub unavailable: Vec<EditingUnavailableMember>,
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingMember {
+    pub name: String,
+    pub target: EditingMemberTarget,
+    pub is_extension: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditingMemberTarget {
+    Callable(crate::SemanticCallable),
+    Property(crate::PropertyId),
+    ImportedProperty(crate::PropertyDeclarationId),
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingUnavailableMember {
+    pub name: String,
+    pub reason: EditingUnavailable,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditingLocalRole {
+    Declaration,
+    Read,
+    Write,
+    ReadWrite,
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingExpression {
+    pub span: Span,
+    pub context: crate::SourceContextId,
+    pub value_type: TypeId,
+    pub expected_type: EditingValue<Option<TypeId>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingLocalOccurrence {
+    pub span: Span,
+    pub context: crate::SourceContextId,
+    pub reference: EditingLocalReference,
+    pub value_type: TypeId,
+    pub role: EditingLocalRole,
+}
+
+/// Source observations from a checked body, without claiming a successful Module.
+#[derive(Clone, Debug, Default)]
+pub struct EditingBodyFacts {
+    pub types: Vec<EditingTypeReference>,
+    pub type_applications: Vec<EditingTypeApplication>,
+    pub locals: Vec<EditingLocalOccurrence>,
+    pub expressions: Vec<EditingExpression>,
+    pub callables: Vec<EditingCallableReference>,
+    pub properties: Vec<EditingPropertyReference>,
+    pub local_functions: Vec<EditingFunction>,
+    pub imports: Vec<EditingImportUse>,
+}
+
+#[derive(Clone, Debug)]
+pub struct EditingCallableReference {
+    pub span: Span,
+    pub target: EditingCallee,
+    pub definition: Option<SemanticSourceLocation>,
+}

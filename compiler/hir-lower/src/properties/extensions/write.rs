@@ -86,6 +86,12 @@ impl Lowerer {
         let candidate = crate::CallableCandidate::function(function, Vec::new());
         let callee = self.materialize_candidate_callable(&candidate, type_args);
         self.check_call_effects(callee, span);
+        self.observe_property_reference(
+            span,
+            hir::SemanticProperty::Current(property),
+            value.ty,
+            hir::EditingPropertyAccess::Write,
+        );
         Some(hir::StatementKind::Expr(hir::Expr {
             kind: hir::ExprKind::Call {
                 binding: None,

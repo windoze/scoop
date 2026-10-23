@@ -1,30 +1,26 @@
 use super::*;
 
-pub(super) struct AnonymousSignature {
-    pub(super) receiver: Option<TypeId>,
-    pub(super) parameters: Vec<TypeId>,
-    pub(super) result: Option<TypeId>,
+pub(in crate::expr::callable_literals) struct AnonymousSignature {
+    pub(in crate::expr::callable_literals) receiver: Option<TypeId>,
+    pub(in crate::expr::callable_literals) parameters: Vec<TypeId>,
+    pub(in crate::expr::callable_literals) result: Option<TypeId>,
 }
 
 impl Lowerer {
-    pub(super) fn anonymous_signature(
+    pub(in crate::expr::callable_literals) fn anonymous_signature(
         &mut self,
         source_receiver: Option<&ast::TypeRef>,
         is_suspend: bool,
         source_params: &[ast::Param],
         source_return_ty: Option<&ast::TypeRef>,
         span: Span,
-        expected: Option<TypeId>,
+        expected_signature: Option<CallableExpectation>,
     ) -> Option<AnonymousSignature> {
         let receiver_ty = match source_receiver {
             Some(ty) => Some(self.resolve_type_ref(ty)?),
             None => None,
         };
-        let expected_signature = expected.and_then(|ty| match self.types[ty] {
-            Type::Function(id) => Some((ty, self.function_types[id].clone())),
-            _ => None,
-        });
-        if let Some((_, signature)) = &expected_signature {
+        if let Some(signature) = &expected_signature {
             if signature.is_suspend != is_suspend {
                 self.error(
                     span,
@@ -45,7 +41,7 @@ impl Lowerer {
             }
         }
 
-        if let (Some(receiver), Some((_, signature))) = (receiver_ty, &expected_signature) {
+        if let (Some(receiver), Some(signature)) = (receiver_ty, &expected_signature) {
             let expected = *signature
                 .parameters()
                 .next()
@@ -62,7 +58,7 @@ impl Lowerer {
                 return None;
             }
         }
-        let expected_parameters = expected_signature.as_ref().map(|(_, signature)| {
+        let expected_parameters = expected_signature.as_ref().map(|signature| {
             signature
                 .parameters()
                 .copied()
@@ -94,7 +90,7 @@ impl Lowerer {
         };
         let expected_return = expected_signature
             .as_ref()
-            .map(|(_, signature)| signature.return_type);
+            .and_then(|signature| signature.return_type);
         if let (Some(explicit), Some(expected)) = (explicit_return, expected_return)
             && !self.is_subtype(explicit, expected)
         {

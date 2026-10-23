@@ -11,7 +11,7 @@ impl Lowerer {
     }
     pub(crate) fn resolve_context_parameters(
         &mut self,
-        declaration: &ast::FunctionDecl,
+        declaration: &ast::FunctionSignature,
     ) -> Vec<hir::ContextParameter> {
         let mut parameters: Vec<hir::ContextParameter> = Vec::new();
         let mut names = declaration

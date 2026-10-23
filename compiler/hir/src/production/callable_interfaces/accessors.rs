@@ -154,7 +154,7 @@ fn finish(
                 .signatures
                 .function_binders(function)
                 .map_err(CallableProjectionError::Signature)?;
-            effects::function(projection.export, function, &binders)
+            effects::function(&projection.export.extern_functions, function, &binders)
         }
         PropertyAccessorImplementation::Storage | PropertyAccessorImplementation::Constant => {
             effects::accessor(attributes)

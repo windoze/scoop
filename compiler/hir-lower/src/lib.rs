@@ -110,9 +110,11 @@ mod defaults;
 mod definition_paths;
 mod derived;
 mod documentation;
+mod editing;
 mod effects;
 mod expr;
 mod ffi;
+mod generation;
 mod generic_entities;
 mod globals;
 mod graph;
@@ -153,9 +155,11 @@ mod pipeline;
 mod properties;
 mod release;
 mod scope;
+mod semantic_queries;
 mod shared;
 mod signatures;
 mod snapshot_arena;
+mod source_dependencies;
 mod stmt;
 mod test_annotations;
 mod test_entry;
@@ -166,8 +170,17 @@ mod user_annotations;
 mod visibility;
 
 pub use current_input::*;
-pub use current_lowering::{lower_current_cone, lower_current_tests};
+pub use current_lowering::{
+    lower_current_cone, lower_current_cone_with_generator, lower_current_export,
+    lower_current_export_with_cancellation, lower_current_tests,
+    lower_current_tests_with_generator,
+};
+pub use editing::{
+    DeclarationAnalysis, EditingAnalysisError, EditingCancelled, EditingSignature,
+    analyze_declarations,
+};
 pub use output_kind::select_cone_output_kind;
+pub use source_dependencies::{SourceDependencyProjectionError, project_source_dependency};
 
 use std::collections::{HashMap, HashSet};
 
@@ -355,7 +368,8 @@ pub(crate) fn lower_defined_for_test(
     let output_kind = select_cone_output_kind(&export, requested)?;
     let world =
         hir::ImportedSemanticWorld::from_dependencies(export.cone, Vec::new(), Vec::new()).unwrap();
-    finish_output(export, output_kind, warnings, &world, None)
+    let export = seal_export_output(export, output_kind, None)?;
+    finish_output(export, warnings, &world, None)
 }
 
 /// Test fixture adapter using the same input and lowering as production.
@@ -380,14 +394,12 @@ pub fn produce_cross_cone_type_semantics(
     hir::CrossConeTypeSemanticsSectionV1::from_dependency_hir(output, metadata, dependencies)
 }
 
-fn finish_output(
+fn seal_export_output(
     export: hir::ExportHir,
     output_kind: hir::ConeOutputKind,
-    warnings: Vec<Diagnostic>,
-    dependencies: &hir::ImportedSemanticWorld<'_>,
     selected: Option<&hir::SelectedImportedDependencySet>,
-) -> Result<hir::Output, Vec<Diagnostic>> {
-    let mut export = match selected {
+) -> Result<hir::ExportHirOutput, Vec<Diagnostic>> {
+    match selected {
         Some(selected) => {
             hir::ExportHirOutput::try_new_with_dependencies(export, output_kind, selected)
         }
@@ -398,7 +410,15 @@ fn finish_output(
             Span { start: 0, end: 0 },
             format!("failed to seal Export HIR output: {error}"),
         )]
-    })?;
+    })
+}
+
+fn finish_output(
+    mut export: hir::ExportHirOutput,
+    warnings: Vec<Diagnostic>,
+    dependencies: &hir::ImportedSemanticWorld<'_>,
+    selected: Option<&hir::SelectedImportedDependencySet>,
+) -> Result<hir::Output, Vec<Diagnostic>> {
     let local = concretize::lower_output(&mut export, selected, dependencies)?;
     let native_boundary_types =
         crate::persistent_native_boundary::build(export.module(), local.module(), dependencies)
@@ -498,6 +518,7 @@ struct SourceProvider {
 #[derive(Debug, Clone)]
 pub(crate) struct SourceFunctionDeclaration {
     pub(crate) name: String,
+    pub(crate) name_span: Option<Span>,
 }
 
 /// Convert an already checked export-side graph into the local concrete graph.
@@ -522,6 +543,20 @@ pub fn concretize_output(
 
 #[derive(Clone)]
 pub(crate) struct Lowerer {
+    cancellation: Option<pipeline::cancellation::FrontendCancellation>,
+    pub(crate) editing_receiver: Option<editing::ReceiverObservation>,
+    pub(crate) editing_body: Option<editing::BodyObservation>,
+    pub(crate) editing_local_definitions:
+        imbl::HashMap<hir::BindingId, hir::EditingLocalOccurrence>,
+    pub(crate) editing_types: Option<editing::types::TypeObservation>,
+    pub(crate) editing_declarations: Option<editing::availability::DeclarationAvailability>,
+    pub(crate) editing_constants: Option<editing::constants::ConstantObservation>,
+    pub(crate) editing_prepared_bodies:
+        Option<imbl::HashMap<hir::EditingSourceBodyId, editing::ObservedBody>>,
+    pub(crate) editing_constructions: Option<editing::constructions::ConstructionInputs>,
+    pub(crate) editing_type_definitions:
+        imbl::HashMap<editing::types::TypeTarget, hir::SemanticSourceLocation>,
+    pub(crate) editing_local_types: imbl::HashMap<Owner, editing::types::TypeObservation>,
     documentation: Option<Shared<documentation::DocumentationContext>>,
     core: CoreLoweringAuthority,
     dependencies: Option<hir::ImportedDependencySelectionPlan>,
@@ -556,6 +591,14 @@ pub(crate) struct Lowerer {
     pub(crate) local_types_by_source: HashMap<(usize, u32), Owner>,
     pub(crate) local_type_capture_scope: Option<local_types::CaptureScope>,
     pub(crate) property_identity_records: HashMap<hir::PropertyId, hir::HirPropertyIdentity>,
+    pub(crate) struct_constructor_identity_records:
+        HashMap<hir::StructConstructorId, hir::HirSourceConstructorIdentity>,
+    pub(crate) class_constructor_identity_records:
+        HashMap<hir::ClassConstructorId, hir::HirSourceConstructorIdentity>,
+    pub(crate) getter_identity_records:
+        HashMap<hir::PropertyGetterId, hir::HirPropertyAccessorIdentity>,
+    pub(crate) setter_identity_records:
+        HashMap<hir::PropertySetterId, hir::HirPropertyAccessorIdentity>,
     pub(crate) field_identity_builder: hir::HirFieldIdentityBuilder,
     pub(crate) types: Shared<Arena<Type>>,
     type_by_kind: imbl::HashMap<Type, TypeId>,
@@ -668,6 +711,11 @@ pub(crate) struct Lowerer {
     /// Typed source-declaration provenance. Display names cannot substitute
     /// for this relation because member and lifted-local names are decorated.
     pub(crate) source_function_declarations: Shared<HashMap<FunctionId, SourceFunctionDeclaration>>,
+    pub(crate) query_source_function_identities:
+        HashMap<FunctionId, hir::HirSourceFunctionIdentity>,
+    pub(crate) query_imported_method_parameters:
+        HashMap<scoop_identity::CallableTemplateOrigin, Vec<hir::TypeParamDecl>>,
+    pub(crate) query_alias_identities: HashMap<hir::ExportTypeAliasId, hir::HirTypeAliasIdentity>,
     /// Complete source relation for every validated intrinsic kind. Duplicate
     /// declarations are diagnosed at insertion; core contract validation reads
     /// this map directly and never scans functions or compares names.
@@ -740,6 +788,7 @@ pub(crate) struct Lowerer {
     derived_encoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     derived_decoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     derived_inspection_methods: Vec<(FunctionId, hir::SourceNominalId)>,
+    generation: generation::PendingGeneration,
     interface_delegates: HashMap<ClassId, Vec<class::InterfaceDelegateSource>>,
     interface_forwarders: HashMap<FunctionId, class::InterfaceForwarder>,
     invalid_override_methods: HashSet<FunctionId>,
@@ -764,6 +813,7 @@ pub(crate) struct Lowerer {
     /// function names are never parsed to recover a logical property.
     pub(crate) extension_property_by_getter: HashMap<FunctionId, hir::PropertyId>,
     pub(crate) property_files: HashMap<hir::PropertyId, usize>,
+    pub(crate) property_name_spans: HashMap<hir::PropertyId, ast::Span>,
     pub(crate) property_accessor_sources: Shared<Vec<properties::PropertyAccessorSource>>,
     pub(crate) runtime_accessor_units: HashMap<FunctionId, hir::InitializationUnitId>,
     pub(crate) pending_runtime_initializers: Vec<globals::PendingRuntimeInitializer>,
@@ -898,6 +948,10 @@ pub(crate) struct Lowerer {
     pub(crate) smart_casts: expr::SmartCastFacts,
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
+    /// Text provenance may differ from the method's lexical input file.
+    pub(crate) generated_source_file: Option<usize>,
+    /// Read-only queries may intern types but do not request executable uses.
+    pub(crate) in_semantic_query: bool,
     intrinsic_sources: Shared<Vec<SourceProvider>>,
     test_dependencies: std::collections::BTreeSet<scoop_identity::ConeIdentity>,
     source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,

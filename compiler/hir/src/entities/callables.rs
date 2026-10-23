@@ -145,14 +145,30 @@ pub struct NativeCallbackSignature {
 }
 
 pub(crate) fn callable_function(module: &Module, callable: Callable) -> FunctionId {
+    callable_function_in(
+        callable,
+        &module.instantiations,
+        &module.generic_functions,
+        &module.method_applications,
+        &module.generic_method_applications,
+        &module.generic_methods,
+    )
+}
+
+pub(crate) fn callable_function_in(
+    callable: Callable,
+    instantiations: &Arena<ResolvedGenericFunction>,
+    generic_functions: &Arena<GenericFunction>,
+    method_applications: &Arena<MethodApplication>,
+    generic_method_applications: &Arena<GenericMethodApplication>,
+    generic_methods: &Arena<GenericMethod>,
+) -> FunctionId {
     match callable {
         Callable::Function(function) => function,
-        Callable::Generic(id) => {
-            module.generic_functions[module.instantiations[id].generic].function
-        }
-        Callable::Method(id) => module.method_applications[id].function,
+        Callable::Generic(id) => generic_functions[instantiations[id].generic].function,
+        Callable::Method(id) => method_applications[id].function,
         Callable::GenericMethod(id) => {
-            module.generic_methods[module.generic_method_applications[id].method].function
+            generic_methods[generic_method_applications[id].method].function
         }
     }
 }

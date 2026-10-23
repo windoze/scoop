@@ -59,8 +59,7 @@ fn current_source_count_excludes_retained_foreign_definitions() {
     let current = SourceIdentity::new(
         ConeIdentity::SINGLE_FILE,
         NormalizedSourcePath::new("main.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let mut foundation = CanonicalHirFoundation::empty();
     foundation
         .set_sources(vec![
@@ -155,7 +154,7 @@ fn source_record(path: &str) -> SourceRecord {
 }
 
 fn source_identity(path: &str) -> SourceIdentity {
-    SourceIdentity::new(ConeIdentity::CORE, NormalizedSourcePath::new(path).unwrap()).unwrap()
+    SourceIdentity::new(ConeIdentity::CORE, NormalizedSourcePath::new(path).unwrap())
 }
 
 fn nominal_exact(name: &str) -> PersistentExactTypeId {

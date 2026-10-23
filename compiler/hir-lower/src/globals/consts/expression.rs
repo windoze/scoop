@@ -46,6 +46,8 @@ impl Lowerer {
         states: &mut [ConstState],
         stack: &mut Vec<usize>,
     ) -> Option<EvaluatedConst> {
+        self.observe_property_syntax(expression);
+        self.observe_constant_call_syntax(expression);
         if declarations.is_empty()
             && matches!(expression, ast::Expr::Var(_) | ast::Expr::FieldAccess(_))
         {
@@ -86,13 +88,16 @@ impl Lowerer {
                 let Some(target) =
                     self.find_const_definition(declarations, current_owner, &name.text, file, true)
                 else {
-                    let lookup = self.lookup_value_origin(&name.text);
+                    let (layer, lookup) = self.lookup_value_origin_with_layer(&name.text);
                     if let crate::imports::lookup::LookupResult::Unique(
                         crate::imports::lookup::values::ValueOrigin::Dependency(binding),
                     ) = &lookup
                     {
                         let imported =
                             self.select_imported_dependency_constant(binding, name.span)?;
+                        if let Some(layer) = layer {
+                            self.observe_import_lookup(name, layer);
+                        }
                         return Some(EvaluatedConst {
                             value: imported.value,
                             ty: imported.ty,
@@ -141,8 +146,15 @@ impl Lowerer {
                     self.error(name.span, message);
                     return None;
                 };
+                self.observe_constant_reference(
+                    name.span,
+                    crate::editing::constants::ConstantTarget::Pending(target.definition),
+                );
+                if let Some(layer) = target.layer {
+                    self.observe_import_lookup(name, layer);
+                }
                 self.evaluate_const_definition(
-                    target,
+                    target.definition,
                     declarations,
                     ordinary,
                     states,
@@ -186,8 +198,12 @@ impl Lowerer {
                     );
                     return None;
                 };
+                self.observe_constant_reference(
+                    name.span,
+                    crate::editing::constants::ConstantTarget::Pending(definition.definition),
+                );
                 self.evaluate_const_definition(
-                    definition,
+                    definition.definition,
                     declarations,
                     ordinary,
                     states,
@@ -195,7 +211,9 @@ impl Lowerer {
                     Some(name.span),
                 )
             }
-            ast::Expr::Unary { op, operand, span } => {
+            ast::Expr::Unary {
+                op, operand, span, ..
+            } => {
                 if *op == ast::UnOp::Neg
                     && let ast::Expr::IntLiteral(literal) = &**operand
                     && matches!(
@@ -216,7 +234,9 @@ impl Lowerer {
                 )?;
                 self.evaluate_const_unary(*op, operand, *span)
             }
-            ast::Expr::Binary { op, lhs, rhs, span } => self.evaluate_const_binary(
+            ast::Expr::Binary {
+                op, lhs, rhs, span, ..
+            } => self.evaluate_const_binary(
                 *op,
                 lhs,
                 rhs,

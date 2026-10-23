@@ -114,6 +114,15 @@ impl Lowerer {
             );
             return None;
         }
+        let hir::ImportedTarget::Property(property) = binding.target() else {
+            unreachable!("a selected dependency constant is a logical property")
+        };
+        self.observe_constant_reference(
+            usage_span,
+            crate::editing::constants::ConstantTarget::Bound(hir::SemanticProperty::Imported(
+                hir::PropertyDeclarationId::Property(property.persistent()),
+            )),
+        );
         Some(ImportedDependencyConstantValue {
             value,
             ty,

@@ -13,8 +13,8 @@ use crate::link_object::symbol_verification::tests::fixture_for_producer;
 use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
 use crate::{
     ConeKind, ConeRecord, ConeSourceForm, CrossConeLayoutProductionManifestV1,
-    DecodedSingleConeProductionManifestV1, DependencyRecord, HirFingerprint, LirFingerprint,
-    MirFingerprint, finalize_layout_partitioned_undefined_symbol_requirements_v1,
+    DecodedSingleConeProductionManifestV1,
+    finalize_layout_partitioned_undefined_symbol_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_dependency_strong_requirements_v1,
     verify_external_shape_requirements_v1, verify_runtime_and_eh_requirements_v1,
     verify_source_external_requirements_after_external_shape_v1,
@@ -50,23 +50,8 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
         scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
-    let dependencies = vec![
-        DependencyRecord::new(
-            ConeCoordinate::reserved_core(),
-            HirFingerprint::from_array([1; 32]),
-            MirFingerprint::from_array([2; 32]),
-            LirFingerprint::from_array([3; 32]),
-        )
-        .unwrap(),
-    ];
-    let production = crate::verify_cross_cone_layout_production_code_projection_v1(
-        &cone,
-        &dependencies,
-        0,
-        v2,
-        objects,
-    )
-    .unwrap();
+    let production =
+        crate::verify_cross_cone_layout_production_code_projection_v1(&cone, v2, objects).unwrap();
     let strong = production
         .link_objects()
         .final_objects()

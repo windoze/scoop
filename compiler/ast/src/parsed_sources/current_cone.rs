@@ -2,6 +2,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use scoop_identity::{ConeIdentity, SourceContentDigest, SourceIdentity};
+use scoop_source::SourceText;
 
 use super::{AllParsedSources, IdentifiedParsedSource};
 use crate::NonEmptyVec;
@@ -13,7 +14,7 @@ use crate::NonEmptyVec;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CurrentSourceText {
     identity: SourceIdentity,
-    text: String,
+    text: SourceText,
     content_digest: SourceContentDigest,
 }
 
@@ -22,7 +23,7 @@ impl CurrentSourceText {
         let content_digest = SourceContentDigest::from_utf8(&text);
         Self {
             identity,
-            text,
+            text: SourceText::new(text),
             content_digest,
         }
     }
@@ -32,6 +33,10 @@ impl CurrentSourceText {
     }
 
     pub fn text(&self) -> &str {
+        self.text.as_str()
+    }
+
+    pub fn source_text(&self) -> &SourceText {
         &self.text
     }
 

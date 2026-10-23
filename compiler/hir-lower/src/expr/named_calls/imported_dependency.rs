@@ -23,7 +23,7 @@ mod signature;
 pub(in crate::expr) use signature::DependencySignature;
 
 pub(in crate::expr) use arguments::ImportedArgumentMap;
-pub(in crate::expr) use candidate::ImportedCallableCandidate;
+pub(in crate::expr) use candidate::{ImportedCallableCandidate, semantic_function_target};
 use defaults::ImportedDefaultPlan;
 pub(in crate::expr) use generic::ImportedGenericTarget;
 use inputs::ImportedCallReceiver;
@@ -77,6 +77,10 @@ pub(crate) struct ImportedDependencyCallProbe {
 }
 
 impl ImportedDependencyCallProbe {
+    pub(in crate::expr) fn semantic_target(&self) -> Option<hir::SemanticCallable> {
+        semantic_function_target(&self.candidate)
+    }
+
     pub(in crate::expr) fn requirement_effects(&self) -> hir::RequiredCallEffects {
         let effects = self.candidate.interface().effects();
         hir::RequiredCallEffects {

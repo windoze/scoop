@@ -10,6 +10,7 @@ fn lowers_function_and_struct_annotations_to_typed_hir() {
             Some(ty_named("Int")),
             Expr::Binary {
                 op: ast::BinOp::Add,
+                operator_span: None,
                 lhs: Box::new(var("value")),
                 rhs: Box::new(int_lit(1)),
                 span: sp(),

@@ -8,6 +8,7 @@ use crate::defaults::DefaultArgumentSource;
 use scoop_ast::{self as ast, Span};
 use scoop_hir as hir;
 
+mod supplied;
 mod trailing;
 
 fn argument(name: Option<&str>, spread: bool) -> ast::CallArgument {

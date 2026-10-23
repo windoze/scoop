@@ -186,7 +186,7 @@ fn production_runner_preserves_linux_tools_and_uses_private_scratch() {
 }
 
 #[test]
-fn production_runner_rejects_wrong_id_exit_stderr_and_trailing_frame() {
+fn production_runner_rejects_wrong_id_exit_and_trailing_frame() {
     let directory = tempfile::tempdir().unwrap();
     let compiler = directory.path().join("scoopc");
     let request = request([8; 16]);
@@ -220,18 +220,6 @@ fn production_runner_rejects_wrong_id_exit_stderr_and_trailing_frame() {
             response: ChildResponseKind::Success,
             ..
         })
-    ));
-
-    fake_compiler(
-        &compiler,
-        &encode_response_frame(&success([8; 16])).unwrap(),
-        0,
-        "fatal detail",
-    );
-    let tool = resolve_fake(&compiler);
-    assert!(matches!(
-        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
-        Err(ChildTransportError::UnexpectedStderr(_))
     ));
 
     let mut trailing = encode_response_frame(&success([8; 16])).unwrap();

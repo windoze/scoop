@@ -4,17 +4,19 @@ impl Parser {
     /// Postfix operators share the highest precedence tier and chain left
     /// to right: `.name` / `._n`, `?.name`, `!!`, and `[index]`.
     pub(crate) fn parse_postfix(&mut self) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let mut grouped = matches!(self.peek().kind, TokenKind::LParen);
         let mut receiver = self.parse_atom()?;
         loop {
             super::labels::name_call_lambdas(&mut receiver);
             match self.peek().kind {
                 TokenKind::Dot => {
-                    self.bump();
+                    let dot = self.bump();
+                    let complete = self.fragment_is_complete(checkpoint);
                     receiver = if matches!(self.peek().kind, TokenKind::LBrace) {
                         self.parse_copy_update(receiver)?
                     } else {
-                        self.parse_field_access(receiver, false)?
+                        self.parse_field_access(receiver, false, dot.span, complete)?
                     };
                 }
                 TokenKind::QuestionDot => {
@@ -25,20 +27,34 @@ impl Parser {
                             "copy update does not support safe navigation; unwrap the Option with `when` first",
                         ));
                     }
-                    receiver = self.parse_field_access(receiver, true)?;
+                    let complete = self.fragment_is_complete(checkpoint);
+                    receiver =
+                        self.parse_field_access(receiver, true, navigation.span, complete)?;
                 }
                 TokenKind::DoubleColon => {
                     receiver = self.parse_callable_reference(Some(receiver))?;
                 }
                 TokenKind::LParen if !self.peek().newline_before => {
                     let start = receiver.span().start;
-                    let (args, end) = self.parse_call_inputs()?;
-                    receiver = Expr::Invoke {
+                    let complete = self.fragment_is_complete(checkpoint);
+                    let ParsedArguments {
+                        args,
+                        end,
+                        recovery,
+                        complete: arguments_complete,
+                    } = self.parse_call_inputs()?;
+                    let expression = Expr::Invoke {
                         callee: Box::new(receiver),
                         type_args: Vec::new(),
                         args,
                         span: Span::new(start, end),
                     };
+                    receiver = self.finish_recovered_call(
+                        expression,
+                        recovery,
+                        complete,
+                        arguments_complete,
+                    )?;
                 }
                 TokenKind::LBrace
                 | TokenKind::Suspend
@@ -47,7 +63,9 @@ impl Parser {
                     if self.starts_trailing_lambda()
                         && !matches!(receiver, Expr::Return { .. } | Expr::Throw { .. }) =>
                 {
-                    receiver = self.parse_trailing_lambda(receiver, grouped)?;
+                    let target_complete = self.fragment_is_complete(checkpoint);
+                    receiver =
+                        self.parse_trailing_lambda(receiver, grouped, target_complete, true, None)?;
                 }
                 // A `[` immediately after the receiver (their spans touch)
                 // is subscript postfix; otherwise it starts a new array
@@ -66,13 +84,25 @@ impl Parser {
                         break;
                     }
                     let start = receiver.span().start;
-                    let (args, end) = self.parse_call_inputs()?;
-                    receiver = Expr::Invoke {
+                    let complete = self.fragment_is_complete(checkpoint);
+                    let ParsedArguments {
+                        args,
+                        end,
+                        recovery,
+                        complete: arguments_complete,
+                    } = self.parse_call_inputs()?;
+                    let expression = Expr::Invoke {
                         callee: Box::new(receiver),
                         type_args,
                         args,
                         span: Span::new(start, end),
                     };
+                    receiver = self.finish_recovered_call(
+                        expression,
+                        recovery,
+                        complete,
+                        arguments_complete,
+                    )?;
                 }
                 // `a!!` lexes as two adjacent `Bang` tokens — a single
                 // `!!` token would break the double negation `!!flag`,
@@ -97,6 +127,7 @@ impl Parser {
                             UpdateOp::Decrement
                         },
                         notation: UpdateNotation::Postfix,
+                        operator_span: Some(token.span),
                         span: Span::new(start, token.span.end),
                     };
                 }
@@ -120,14 +151,31 @@ impl Parser {
     /// token is already consumed. A name directly followed by `(` is a
     /// method call; otherwise the selector is a field. `?.` accepts only
     /// named selectors and, in M6, no method calls (DESIGN.md section 6).
-    fn parse_field_access(&mut self, receiver: Expr, safe: bool) -> Result<Expr, Diagnostic> {
+    fn parse_field_access(
+        &mut self,
+        receiver: Expr,
+        safe: bool,
+        dot: Span,
+        complete: bool,
+    ) -> Result<Expr, Diagnostic> {
+        let checkpoint = self.checkpoint();
         let token = self.peek().clone();
         let (TokenKind::Ident(text) | TokenKind::EscapedIdent(text)) = token.kind else {
-            return self.unexpected("field name or tuple index");
+            self.record_recovered_selector(
+                receiver,
+                complete,
+                if safe {
+                    Navigation::Safe
+                } else {
+                    Navigation::Direct
+                },
+                dot,
+            );
+            return self.missing_name("field name or tuple index");
         };
         if let Some(index) = tuple_index(&text) {
             if safe {
-                return self.unexpected("field name");
+                return self.missing_name("field name");
             }
             self.pos += 1;
             return Ok(Expr::FieldAccess(FieldAccess {
@@ -144,8 +192,14 @@ impl Parser {
         };
         let type_args = self.parse_explicit_call_type_args()?;
         if matches!(self.peek().kind, TokenKind::LParen) || self.starts_trailing_lambda() {
-            let (args, end) = self.parse_call_inputs()?;
-            return Ok(Expr::MethodCall {
+            let complete = complete && self.fragment_is_complete(checkpoint);
+            let ParsedArguments {
+                args,
+                end,
+                recovery,
+                complete: arguments_complete,
+            } = self.parse_call_inputs()?;
+            let expression = Expr::MethodCall {
                 span: Span::new(receiver.span().start, end),
                 receiver: Box::new(receiver),
                 name,
@@ -156,7 +210,8 @@ impl Parser {
                 },
                 type_args,
                 args,
-            });
+            };
+            return self.finish_recovered_call(expression, recovery, complete, arguments_complete);
         }
         Ok(Expr::FieldAccess(FieldAccess {
             span: Span::new(receiver.span().start, token.span.end),

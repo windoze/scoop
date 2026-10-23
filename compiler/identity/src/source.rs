@@ -245,14 +245,8 @@ pub struct SourceIdentity {
 }
 
 impl SourceIdentity {
-    pub fn new(
-        cone: ConeIdentity,
-        logical_path: NormalizedSourcePath,
-    ) -> Result<Self, SourceIdentityError> {
-        if cone == ConeIdentity::SINGLE_FILE && logical_path.as_str() != SINGLE_FILE_LOGICAL_PATH {
-            return Err(SourceIdentityError::InvalidSingleFilePath);
-        }
-        Ok(Self { cone, logical_path })
+    pub const fn new(cone: ConeIdentity, logical_path: NormalizedSourcePath) -> Self {
+        Self { cone, logical_path }
     }
 
     pub fn single_file() -> Self {
@@ -333,7 +327,7 @@ impl DecodedSourceIdentity {
             .logical_path
             .validate()
             .map_err(SourceIdentityDecodeError::Path)?;
-        SourceIdentity::new(cone, path).map_err(SourceIdentityDecodeError::Identity)
+        Ok(SourceIdentity::new(cone, path))
     }
 
     pub fn resolve<R>(
@@ -350,7 +344,7 @@ impl DecodedSourceIdentity {
             .logical_path
             .validate()
             .map_err(SourceIdentityResolutionError::Path)?;
-        SourceIdentity::new(cone, path).map_err(SourceIdentityResolutionError::Identity)
+        Ok(SourceIdentity::new(cone, path))
     }
 }
 
@@ -372,19 +366,6 @@ impl WireDecode for DecodedSourceIdentity {
         Ok(Self { cone, logical_path })
     }
 }
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SourceIdentityError {
-    InvalidSingleFilePath,
-}
-
-impl fmt::Display for SourceIdentityError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("the reserved single-file Cone must use logical path 'main.scoop'")
-    }
-}
-
-impl std::error::Error for SourceIdentityError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SemanticSourceNameError {
@@ -412,7 +393,6 @@ pub enum SourceIdentityDecodeError {
     Hash(HashError),
     ConeMismatch(PersistentIdMismatch<ConeIdentity>),
     Path(NormalizedSourcePathError),
-    Identity(SourceIdentityError),
 }
 
 impl fmt::Display for SourceIdentityDecodeError {
@@ -421,7 +401,6 @@ impl fmt::Display for SourceIdentityDecodeError {
             Self::Hash(error) => write!(formatter, "failed to hash Cone coordinate: {error}"),
             Self::ConeMismatch(error) => error.fmt(formatter),
             Self::Path(error) => error.fmt(formatter),
-            Self::Identity(error) => error.fmt(formatter),
         }
     }
 }
@@ -432,7 +411,6 @@ impl std::error::Error for SourceIdentityDecodeError {}
 pub enum SourceIdentityResolutionError<E> {
     Cone(E),
     Path(NormalizedSourcePathError),
-    Identity(SourceIdentityError),
 }
 
 impl<E: fmt::Display> fmt::Display for SourceIdentityResolutionError<E> {
@@ -440,7 +418,6 @@ impl<E: fmt::Display> fmt::Display for SourceIdentityResolutionError<E> {
         match self {
             Self::Cone(error) => error.fmt(formatter),
             Self::Path(error) => error.fmt(formatter),
-            Self::Identity(error) => error.fmt(formatter),
         }
     }
 }
@@ -455,7 +432,7 @@ mod tests {
 
     use super::{
         DecodedSourceContentDigest, NormalizedSourcePath, NormalizedSourcePathError,
-        SourceContentDigest, SourceContentDigestError, SourceIdentity, SourceIdentityError,
+        SourceContentDigest, SourceContentDigestError, SourceIdentity,
     };
     use crate::{
         ConeCoordinate, ConeIdentity, DecodedPersistentId, DecodedSourceIdentity,
@@ -487,13 +464,18 @@ mod tests {
     }
 
     #[test]
-    fn single_file_pair_is_enforced_by_the_constructor() {
+    fn single_file_input_and_generated_sources_keep_distinct_logical_paths() {
+        let generated = SourceIdentity::new(
+            ConeIdentity::SINGLE_FILE,
+            NormalizedSourcePath::new("generated/body.scoop").unwrap(),
+        );
+        let decoded =
+            decode_canonical::<DecodedSourceIdentity>(&encode(&generated).unwrap()).unwrap();
         assert_eq!(
-            SourceIdentity::new(
-                ConeIdentity::SINGLE_FILE,
-                NormalizedSourcePath::new("other.scoop").unwrap(),
-            ),
-            Err(SourceIdentityError::InvalidSingleFilePath)
+            decoded
+                .validate(&ConeCoordinate::reserved_single_file())
+                .unwrap(),
+            generated
         );
         assert_eq!(
             SourceIdentity::single_file().logical_path().as_str(),

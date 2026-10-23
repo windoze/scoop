@@ -6,6 +6,15 @@ use crate::CallArgument;
 /// `class Name(props) : Base(args), I1, I2 { members }` (spec 9.1).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDecl {
+    pub header: ClassHeader,
+    /// Class body items preserve property/initializer interleaving.
+    pub members: Vec<ClassMember>,
+    pub span: Span,
+}
+
+/// A complete class header is independent of its member bodies.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassHeader {
     pub annotations: Vec<Annotation>,
     pub visibility: VisibilitySyntax,
     pub modifier: ClassModifier,
@@ -20,14 +29,61 @@ pub struct ClassDecl {
     /// deliberately does not equate parentheses with "base class".
     pub supertypes: Vec<SupertypeSpec>,
     pub where_clause: Option<WhereClause>,
-    /// Class body items in source order so property initializers and `init`
-    /// blocks keep their observable interleaving.
-    pub members: Vec<ClassMember>,
     pub span: Span,
 }
 
 impl ClassDecl {
+    pub fn source(&self) -> ClassSource<'_> {
+        ClassSource {
+            header: &self.header,
+            members: &self.members,
+            recovery: crate::RecoveredNominalMembers::EMPTY,
+            span: self.span,
+        }
+    }
+
     pub fn functions(&self) -> impl Iterator<Item = &FunctionDecl> {
+        self.source().functions()
+    }
+
+    pub fn secondary_constructors(&self) -> impl Iterator<Item = &SecondaryConstructorDecl> {
+        self.source().secondary_constructors()
+    }
+}
+
+impl std::ops::Deref for ClassDecl {
+    type Target = ClassHeader;
+
+    fn deref(&self) -> &Self::Target {
+        &self.header
+    }
+}
+
+impl std::ops::DerefMut for ClassDecl {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.header
+    }
+}
+
+/// Declaration passes borrow only independently completed syntax.
+#[derive(Debug, Clone, Copy)]
+pub struct ClassSource<'a> {
+    pub header: &'a ClassHeader,
+    pub members: &'a [ClassMember],
+    pub recovery: &'a crate::RecoveredNominalMembers,
+    pub span: Span,
+}
+
+impl std::ops::Deref for ClassSource<'_> {
+    type Target = ClassHeader;
+
+    fn deref(&self) -> &Self::Target {
+        self.header
+    }
+}
+
+impl<'a> ClassSource<'a> {
+    pub fn functions(self) -> impl Iterator<Item = &'a FunctionDecl> {
         self.members.iter().filter_map(|member| match member {
             ClassMember::Function(function) => Some(function),
             ClassMember::StoredProperty(_)
@@ -40,7 +96,7 @@ impl ClassDecl {
         })
     }
 
-    pub fn secondary_constructors(&self) -> impl Iterator<Item = &SecondaryConstructorDecl> {
+    pub fn secondary_constructors(self) -> impl Iterator<Item = &'a SecondaryConstructorDecl> {
         self.members.iter().filter_map(|member| match member {
             ClassMember::SecondaryConstructor(constructor) => Some(constructor),
             ClassMember::StoredProperty(_)

@@ -108,11 +108,17 @@ struct PackageNode {
 }
 
 #[derive(Clone)]
+struct SourceScope {
+    namespace: Option<TopLevelLookupLayer>,
+    role: scoop_identity::SourceRole,
+    current: bool,
+}
+
+#[derive(Clone)]
 pub(crate) struct TopLevelNamespaces {
     packages: Vec<PackageNode>,
     package_children: HashMap<(PackageId, String), PackageId>,
-    source_namespaces: Vec<TopLevelLookupLayer>,
-    source_roles: Vec<scoop_identity::SourceRole>,
+    sources: Vec<SourceScope>,
     production_packages: HashSet<PackageId>,
     current: HashMap<PackageId, NamespaceBindings>,
     core_prelude: NamespaceBindings,
@@ -126,8 +132,7 @@ impl Default for TopLevelNamespaces {
                 segment: None,
             }],
             package_children: HashMap::new(),
-            source_namespaces: Vec::new(),
-            source_roles: Vec::new(),
+            sources: Vec::new(),
             production_packages: HashSet::new(),
             current: HashMap::new(),
             core_prelude: NamespaceBindings::default(),
@@ -136,6 +141,22 @@ impl Default for TopLevelNamespaces {
 }
 
 impl TopLevelNamespaces {
+    pub(crate) fn lookup_names(&self, file: usize) -> std::collections::BTreeSet<String> {
+        self.lookup_namespaces(file)
+            .into_iter()
+            .flat_map(|(_, namespace)| {
+                namespace
+                    .functions
+                    .keys()
+                    .chain(namespace.extensions.keys())
+                    .chain(namespace.properties.keys())
+                    .chain(namespace.extension_properties.keys())
+                    .chain(namespace.types.keys())
+                    .cloned()
+            })
+            .collect()
+    }
+
     pub(crate) fn current_type_bindings(
         &self,
     ) -> Vec<(PackageId, String, TopLevelTypeTarget, usize)> {
@@ -249,9 +270,8 @@ impl TopLevelNamespaces {
         file: usize,
         name: &str,
     ) -> impl Iterator<Item = TopLevelTypeTarget> + '_ {
-        self.namespace(self.source_namespace(file))
-            .types
-            .get(name)
+        self.known_source_namespace(file)
+            .and_then(|namespace| self.namespace(namespace).types.get(name))
             .into_iter()
             .flatten()
             .filter(move |binding| binding.file == file)

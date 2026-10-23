@@ -3,12 +3,13 @@ use super::*;
 impl Lowerer {
     pub(crate) fn declare_interface<'a>(
         &mut self,
-        decl: &'a ast::InterfaceDecl,
-        pending: &mut Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
+        decl: ast::InterfaceSource<'a>,
+        pending: &mut Vec<(InterfaceId, ast::InterfaceSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
         owner: Option<Owner>,
     ) -> Option<InterfaceId> {
+        let diagnostics_before = self.diagnostics.len();
         self.reject_type_annotations("an interface", &decl.annotations);
         if let Some(kind) = self.type_namespace_conflict(
             owner,
@@ -39,7 +40,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let parameter = self.fresh_type_param(type_params.len());
+            let parameter = self.fresh_source_type_param(param, type_params.len());
             type_params.push(lower_type_param_decl(param, parameter));
         }
         let self_application = hir::InterfaceApplicationId::from_raw(
@@ -99,14 +100,15 @@ impl Lowerer {
         assert_eq!(self.types[ty], Type::Interface(self_application));
         self.register_nominal_name(
             owner,
-            &decl.name.text,
+            &decl.name,
             NominalTarget::Interface(id),
             file_index,
             decl.visibility,
         );
-        self.interface_files.insert(id, file_index);
+        self.record_nominal_file(Owner::Interface(id), file_index);
         self.interface_methods.insert(id, Vec::new());
-        for method in &decl.methods {
+        self.record_editing_owner_errors(Owner::Interface(id), diagnostics_before);
+        for method in decl.methods {
             self.declare_method(method, Owner::Interface(id), pending_methods, file_index);
         }
         pending.push((id, decl, file_index));

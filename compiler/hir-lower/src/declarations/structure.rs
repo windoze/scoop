@@ -3,12 +3,13 @@ use super::*;
 impl Lowerer {
     pub(crate) fn declare_struct<'a>(
         &mut self,
-        decl: &'a ast::StructDecl,
-        pending: &mut Vec<(StructId, &'a ast::StructDecl, usize)>,
+        decl: ast::StructSource<'a>,
+        pending: &mut Vec<(StructId, ast::StructSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
         owner: Option<Owner>,
     ) -> Option<StructId> {
+        let diagnostics_before = self.diagnostics.len();
         let mut checked = self.check_struct_annotations(decl);
         if owner.is_some() && checked.intrinsic.is_some() {
             self.error(
@@ -60,7 +61,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let parameter = self.fresh_type_param(type_params.len());
+            let parameter = self.fresh_source_type_param(param, type_params.len());
             type_params.push(lower_type_param_decl(param, parameter));
         }
         let self_application =
@@ -154,19 +155,20 @@ impl Lowerer {
         }
         self.register_nominal_name(
             owner,
-            &decl.name.text,
+            &decl.name,
             NominalTarget::Struct(id),
             file_index,
             decl.visibility,
         );
-        self.struct_files.insert(id, file_index);
+        self.record_nominal_file(Owner::Struct(id), file_index);
         if let hir::StructRepresentation::Intrinsic(intrinsic) = self.structs[id].representation {
             self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Struct(id), decl.span);
         }
+        self.record_editing_owner_errors(Owner::Struct(id), diagnostics_before);
         for method in decl.functions() {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
         }
-        for member in &decl.members {
+        for member in decl.members {
             if let ast::StructMember::InterfaceImplementation(block) = member {
                 self.declare_interface_block(Owner::Struct(id), block, pending_methods, file_index);
             }

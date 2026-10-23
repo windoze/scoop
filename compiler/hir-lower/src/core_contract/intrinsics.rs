@@ -111,14 +111,14 @@ impl Lowerer {
 
     pub(crate) fn validate_intrinsic_type_core(
         &mut self,
-        files: &[ast::SourceFile],
+        files: &[ast::Span],
     ) -> Option<hir::IntrinsicTypeCore> {
         let require = |this: &mut Self, kind: hir::IntrinsicTypeKind| {
             let Some(&(owner, _provider)) = this.intrinsic_type_owners.get(&kind) else {
                 let core_diagnostic_file = this.core_diagnostic_file();
                 this.current_file = core_diagnostic_file;
                 this.error(
-                    files[core_diagnostic_file].span,
+                    files[core_diagnostic_file],
                     format!(
                         "scoop.core must define exactly one `{}` intrinsic type",
                         kind.name()

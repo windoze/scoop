@@ -37,7 +37,7 @@ impl Lowerer {
         }
         let prepared = if let Some(nominal) = nominal {
             let mut prepared = self
-                .nominal_constructor_plans(nominal, &call, Some(subject), true)
+                .nominal_constructor_plans(nominal, (&call).into(), Some(subject), true)
                 .map_err(|()| self.requirement_failure("type has no public constructor"))?;
             if let PreparedNominalPlans::Nominal(plans, _) = &mut prepared {
                 plans.retain(|plan| match plan.view.target {

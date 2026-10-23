@@ -30,29 +30,32 @@ pub(crate) fn fun_sig(
     statements: Vec<Statement>,
 ) -> Decl {
     Decl::Function(FunctionDecl {
-        context_parameters: Vec::new(),
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        is_suspend: false,
-        is_override: false,
-        operator: None,
-        infix: None,
-        modifier: ast::MethodModifier::Final,
-        receiver_ty: None,
-        name: ident(name),
-        type_params: type_params.into_iter().map(type_param).collect(),
-        params: params
-            .into_iter()
-            .map(|(name, ty)| Param {
-                annotations: Vec::new(),
-                name: ident(name),
-                ty,
-                syntax: ast::ParameterSyntax::Required,
-                span: sp(),
-            })
-            .collect(),
-        return_ty,
-        where_clause: None,
+        signature: ast::FunctionSignature {
+            context_parameters: Vec::new(),
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            is_suspend: false,
+            is_override: false,
+            operator: None,
+            infix: None,
+            modifier: ast::MethodModifier::Final,
+            receiver_ty: None,
+            name: ident(name),
+            type_params: type_params.into_iter().map(type_param).collect(),
+            params: params
+                .into_iter()
+                .map(|(name, ty)| Param {
+                    annotations: Vec::new(),
+                    name: ident(name),
+                    ty,
+                    syntax: ast::ParameterSyntax::Required,
+                    span: sp(),
+                })
+                .collect(),
+            return_ty,
+            where_clause: None,
+            span: sp(),
+        },
         body: FunctionBody::Block(block(statements)),
         span: sp(),
     })
@@ -83,29 +86,32 @@ pub(crate) fn fun_expr(
     expr: Expr,
 ) -> Decl {
     Decl::Function(FunctionDecl {
-        context_parameters: Vec::new(),
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        is_suspend: false,
-        is_override: false,
-        operator: None,
-        infix: None,
-        modifier: ast::MethodModifier::Final,
-        receiver_ty: None,
-        name: ident(name),
-        type_params: type_params.into_iter().map(type_param).collect(),
-        params: params
-            .into_iter()
-            .map(|(name, ty)| Param {
-                annotations: Vec::new(),
-                name: ident(name),
-                ty,
-                syntax: ast::ParameterSyntax::Required,
-                span: sp(),
-            })
-            .collect(),
-        return_ty,
-        where_clause: None,
+        signature: ast::FunctionSignature {
+            context_parameters: Vec::new(),
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            is_suspend: false,
+            is_override: false,
+            operator: None,
+            infix: None,
+            modifier: ast::MethodModifier::Final,
+            receiver_ty: None,
+            name: ident(name),
+            type_params: type_params.into_iter().map(type_param).collect(),
+            params: params
+                .into_iter()
+                .map(|(name, ty)| Param {
+                    annotations: Vec::new(),
+                    name: ident(name),
+                    ty,
+                    syntax: ast::ParameterSyntax::Required,
+                    span: sp(),
+                })
+                .collect(),
+            return_ty,
+            where_clause: None,
+            span: sp(),
+        },
         body: FunctionBody::Expr(Box::new(expr)),
         span: sp(),
     })
@@ -146,38 +152,41 @@ pub(crate) fn intrinsic_generic_fun(
     return_ty: Option<TypeRef>,
 ) -> Decl {
     Decl::Function(FunctionDecl {
-        context_parameters: Vec::new(),
-        annotations: vec![ast::Annotation {
-            use_site: None,
-            name: ident("Intrinsic").into(),
-            args: vec![ast::AnnotationArg {
-                name: None,
-                value: ast::AnnotationLiteral::String(intrinsic.to_string()),
+        signature: ast::FunctionSignature {
+            context_parameters: Vec::new(),
+            annotations: vec![ast::Annotation {
+                use_site: None,
+                name: ident("Intrinsic").into(),
+                args: vec![ast::AnnotationArg {
+                    name: None,
+                    value: ast::AnnotationLiteral::String(intrinsic.to_string()),
+                    span: sp(),
+                }],
                 span: sp(),
             }],
+            visibility: ast::VisibilitySyntax::Omitted,
+            is_suspend: false,
+            is_override: false,
+            operator: None,
+            infix: None,
+            modifier: ast::MethodModifier::Final,
+            receiver_ty: None,
+            name: ident(name),
+            type_params: type_params.into_iter().map(type_param).collect(),
+            params: params
+                .into_iter()
+                .map(|(name, ty)| Param {
+                    annotations: Vec::new(),
+                    name: ident(name),
+                    ty,
+                    syntax: ast::ParameterSyntax::Required,
+                    span: sp(),
+                })
+                .collect(),
+            return_ty,
+            where_clause: None,
             span: sp(),
-        }],
-        visibility: ast::VisibilitySyntax::Omitted,
-        is_suspend: false,
-        is_override: false,
-        operator: None,
-        infix: None,
-        modifier: ast::MethodModifier::Final,
-        receiver_ty: None,
-        name: ident(name),
-        type_params: type_params.into_iter().map(type_param).collect(),
-        params: params
-            .into_iter()
-            .map(|(name, ty)| Param {
-                annotations: Vec::new(),
-                name: ident(name),
-                ty,
-                syntax: ast::ParameterSyntax::Required,
-                span: sp(),
-            })
-            .collect(),
-        return_ty,
-        where_clause: None,
+        },
         body: FunctionBody::None,
         span: sp(),
     })

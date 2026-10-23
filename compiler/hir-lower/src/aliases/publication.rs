@@ -12,6 +12,18 @@ use super::{
 use crate::{Lowerer, Type};
 
 impl Lowerer {
+    pub(crate) fn type_alias_own_parameters(
+        &self,
+        declaration: hir::ExportTypeAliasId,
+    ) -> Option<&[hir::TypeParamDecl]> {
+        self.source_type_aliases.iter().find_map(|(_, alias)| {
+            matches!(alias.resolution, TypeAliasResolution::Published {
+                declaration: published, ..
+            } if published == declaration)
+            .then(|| &alias.parameters[alias.outer_parameter_count..])
+        })
+    }
+
     pub(crate) fn validate_type_alias_targets(&mut self) {
         assert!(
             self.type_aliases.is_empty(),
@@ -55,31 +67,34 @@ impl Lowerer {
     ) {
         self.current_file = alias.file;
         self.type_params_in_scope = alias.parameters.clone();
-        let mut visited = HashSet::new();
-        self.validate_type_alias_target_tree(
-            target.expanded,
-            alias.target.span,
-            &format!("target of typealias `{}`", alias.name),
-            &mut visited,
-        );
         let access = alias.access;
-        let exposed = std::iter::once(target.expanded)
-            .chain(alias.parameters.iter().flat_map(|parameter| {
-                parameter
-                    .nominal_bounds_in_source_order()
-                    .into_iter()
-                    .map(|bound| match bound {
-                        hir::NominalBoundRef::Class(bound) => bound.ty,
-                        hir::NominalBoundRef::Interface(bound) => bound.ty,
-                    })
-            }))
-            .collect::<Vec<_>>();
-        self.check_signature_exposure(
-            &access,
-            &exposed,
-            alias.origin.span,
-            &format!("typealias `{}`", alias.name),
-        );
+        if self.editing_type_available(crate::editing::types::TypeTarget::Alias(id)) {
+            let declaration_check = self.begin_editing_alias(id);
+            let mut visited = HashSet::new();
+            self.validate_type_alias_target_tree(
+                target.expanded,
+                alias.target.span,
+                &format!("target of typealias `{}`", alias.name),
+                &mut visited,
+            );
+            let exposed = std::iter::once(target.expanded)
+                .chain(alias.parameters.iter().flat_map(|parameter| {
+                    parameter.nominal_bounds_in_source_order().into_iter().map(
+                        |bound| match bound {
+                            hir::NominalBoundRef::Class(bound) => bound.ty,
+                            hir::NominalBoundRef::Interface(bound) => bound.ty,
+                        },
+                    )
+                }))
+                .collect::<Vec<_>>();
+            self.check_signature_exposure(
+                &access,
+                &exposed,
+                alias.origin.span,
+                &format!("typealias `{}`", alias.name),
+            );
+            self.finish_editing_declaration(declaration_check);
+        }
         let source_target = match target.source {
             ResolvedTypeAliasSource::Expanded => hir::TypeAliasSourceTarget::Expanded,
             ResolvedTypeAliasSource::Alias(source) => hir::TypeAliasSourceTarget::Alias(

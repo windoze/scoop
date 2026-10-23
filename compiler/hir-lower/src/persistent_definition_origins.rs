@@ -65,17 +65,21 @@ impl DefinitionOriginBuilder<'_> {
         file: usize,
         span: Span,
     ) -> Result<(), PersistentDefinitionOriginError> {
-        let source = self.lowerer.intrinsic_sources.get(file).ok_or_else(|| {
-            PersistentDefinitionOriginError::new(
+        if file >= self.lowerer.intrinsic_sources.len() + self.lowerer.imported_source_files.len() {
+            return Err(PersistentDefinitionOriginError::new(
                 0,
                 span,
                 PersistentDefinitionOriginErrorDetail::UnknownSourceFile { subject, file },
-            )
-        })?;
+            ));
+        }
+        let source = self.lowerer.source_identity(file);
         let context = self
             .lowerer
-            .file_source_contexts
-            .get(file)
+            .source_context_by_value
+            .get(&hir::SourceContext::new(
+                source.clone(),
+                hir::SourceContextSubject::File,
+            ))
             .copied()
             .ok_or_else(|| {
                 PersistentDefinitionOriginError::new(
@@ -94,8 +98,8 @@ impl DefinitionOriginBuilder<'_> {
                     PersistentDefinitionOriginErrorDetail::InvalidSpan { subject, error },
                 )
             })?;
-        let origin = DefinitionOrigin::new(source.identity.clone(), span, persistent_context)
-            .map_err(|error| {
+        let origin =
+            DefinitionOrigin::new(source.clone(), span, persistent_context).map_err(|error| {
                 PersistentDefinitionOriginError::new(
                     file,
                     diagnostic_span,

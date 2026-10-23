@@ -13,6 +13,9 @@ impl Lowerer {
 
     pub(crate) fn declare_owner_equality_methods(&mut self, owners: &[Owner]) {
         for &owner in owners {
+            if !self.editing_owner_available(owner) {
+                continue;
+            }
             let Owner::Struct(id) = owner else {
                 continue;
             };
@@ -31,6 +34,9 @@ impl Lowerer {
         }
 
         for &owner in owners {
+            if !self.editing_owner_available(owner) {
+                continue;
+            }
             let Owner::Enum(id) = owner else {
                 continue;
             };
@@ -129,7 +135,7 @@ impl Lowerer {
         });
         self.register_method_parameters(function, owner_parameters.clone(), Vec::new());
         self.function_owner.insert(function, owner);
-        self.function_files.insert(function, file);
+        self.record_function_file(function, file);
         self.signatures.insert(
             function,
             FnSig {
@@ -213,7 +219,7 @@ impl Lowerer {
                 dispatch: hir::MethodDispatch::Direct,
             }),
         });
-        self.function_files.insert(function, self.current_file);
+        self.record_function_file(function, self.current_file);
         self.signatures.insert(
             function,
             FnSig {

@@ -86,7 +86,7 @@ fn strong_callable_owner_has_its_own_closed_wire_sum() {
     assert_eq!(
         decode_canonical::<DecodedStrongCallableDefinitionOwner>(&encoded,).unwrap(),
         DecodedStrongCallableDefinitionOwner::GeneratedCallable(
-            crate::DecodedPersistentId::from_unvalidated_bytes(ConeIdentity::CORE.0),
+            crate::DecodedPersistentId::from_bytes(ConeIdentity::CORE.0),
         )
     );
 

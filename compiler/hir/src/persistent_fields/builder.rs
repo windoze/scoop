@@ -14,6 +14,10 @@ impl HirFieldIdentityBuilder {
         self.class_by_identity.get(&identity).copied()
     }
 
+    pub fn class_record(&self, field: ClassFieldId) -> Option<&FieldRecord> {
+        self.class_fields.get(&field)
+    }
+
     pub fn struct_field(
         &mut self,
         structs: &Arena<StructDecl>,

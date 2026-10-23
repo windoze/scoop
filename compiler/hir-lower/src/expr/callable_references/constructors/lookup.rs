@@ -31,7 +31,7 @@ impl Lowerer {
             }
             let mut state = self.clone();
             let result = state
-                .named_nominal_plans(&binding, &call, expected_result)
+                .named_nominal_plans(&binding, (&call).into(), expected_result)
                 .and_then(|plans| state.reference_constructor_plans(plans, name, span));
             match result {
                 Ok(prepared) => {
@@ -112,14 +112,14 @@ impl Lowerer {
         };
         let plans = match target {
             crate::namespace::TopLevelTypeTarget::Nominal(nominal) => {
-                self.nominal_constructor_plans(nominal, &call, None, false)?
+                self.nominal_constructor_plans(nominal, (&call).into(), None, false)?
             }
             crate::namespace::TopLevelTypeTarget::Alias(id) => {
                 let alias = self.source_alias_template(id, name).ok_or(())?;
                 let result = self
                     .expected_function_signature(expected)
                     .map(|(_, signature)| signature.return_type);
-                self.named_alias_plans(alias, &call, result)?
+                self.named_alias_plans(alias, (&call).into(), result)?
             }
             crate::namespace::TopLevelTypeTarget::Annotation(_) => {
                 self.error(

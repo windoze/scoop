@@ -12,11 +12,16 @@ impl<'a> Substitution<'a, '_> {
                 depth: binder_depth,
                 index,
             } => {
-                if let Transform::Substitute { mapping, provider } = self.transform
+                if let Transform::Substitute {
+                    mapping,
+                    provider,
+                    introduced_binders,
+                } = self.transform
                     && substitute
+                    && *binder_depth >= introduced_binders
                 {
                     let position = provider
-                        .flattened_binder_position(*binder_depth, *index)
+                        .flattened_binder_position(binder_depth - introduced_binders, *index)
                         .map_err(DefaultTemplateTypeSubstitutionError::ProviderBinder)?;
                     let mapped = usize::try_from(position)
                         .ok()
@@ -32,8 +37,16 @@ impl<'a> Substitution<'a, '_> {
                         substitute: false,
                     });
                 } else {
+                    let depth = match self.transform {
+                        Transform::Substitute {
+                            introduced_binders, ..
+                        } if !substitute => binder_depth
+                            .checked_add(introduced_binders)
+                            .ok_or_else(|| overflow(self.path))?,
+                        _ => *binder_depth,
+                    };
                     self.values.push(SignatureTypeKey::Binder {
-                        depth: *binder_depth,
+                        depth,
                         index: *index,
                     });
                 }

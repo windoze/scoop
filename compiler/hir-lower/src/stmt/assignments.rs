@@ -16,19 +16,27 @@ impl Lowerer {
         assign: &ast::Assign,
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
+        self.observe_property_place(&assign.target, assign.span);
         if let ast::AssignTarget::Name(name) = &assign.target
             && self.reject_release_field_write(name)
         {
             return None;
         }
         if let ast::AssignmentOp::Compound(op) = assign.op {
-            return self.lower_compound_assign(assign, op, out);
+            return self.with_operator_source(assign.span, assign.operator_span, |lowerer| {
+                lowerer.lower_compound_assign(assign, op, out)
+            });
         }
         match &assign.target {
             ast::AssignTarget::Name(name) => self.lower_local_assign(assign, name, out),
             ast::AssignTarget::Index {
-                receiver, indices, ..
-            } => self.lower_index_assign(assign, receiver, indices.as_slice(), out),
+                receiver,
+                indices,
+                bracket_span,
+                ..
+            } => self.with_operator_source(assign.span, *bracket_span, |lowerer| {
+                lowerer.lower_index_assign(assign, receiver, indices.as_slice(), out)
+            }),
             ast::AssignTarget::Field { receiver, name, .. } => {
                 if let ast::Expr::This { label, .. } = &**receiver
                     && self.is_initializing_this_label(label.as_ref())
@@ -100,7 +108,8 @@ impl Lowerer {
         name: &ast::Ident,
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
-        let field = self.initializing_field(name, assign.span)?;
+        let field =
+            self.initializing_field(name, assign.span, hir::EditingPropertyAccess::Write)?;
         let Some(target) = field.write else {
             self.error(
                 name.span,

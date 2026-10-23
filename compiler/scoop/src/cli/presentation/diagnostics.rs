@@ -3,10 +3,11 @@ use std::path::PathBuf;
 
 use scoop::SelectedSource;
 use scoop_protocol::{DiagnosticOriginV1, DiagnosticSeverityV1, StructuredDiagnosticV1};
+use scoop_source::SourceText;
 
 use super::*;
 
-type SourceContents = BTreeMap<PathBuf, Option<Vec<u8>>>;
+type SourceContents = BTreeMap<PathBuf, Option<SourceText>>;
 
 impl Reporter {
     pub(super) fn diagnostics(
@@ -63,6 +64,12 @@ fn origin(origin: &DiagnosticOriginV1) -> Value {
             cone,
             logical_path,
             span,
+        }
+        | DiagnosticOriginV1::SourceTextSpan {
+            cone,
+            logical_path,
+            span,
+            ..
         } => json!({
             "kind": "source", "cone": scoop_wire::Digest256::from_array(*cone.as_array()).to_string(), "path": logical_path.as_str(), "start": span.start(), "end": span.end(),
         }),
@@ -87,6 +94,17 @@ fn display(
     contents: &mut SourceContents,
 ) -> Value {
     match origin {
+        DiagnosticOriginV1::SourceTextSpan {
+            logical_path,
+            span,
+            text,
+            ..
+        } => {
+            let mut value =
+                json!({"path": logical_path.as_str(), "start": span.start(), "end": span.end()});
+            add_position(&mut value, &SourceText::new(text.clone()), span.start());
+            value
+        }
         DiagnosticOriginV1::None => Value::Null,
         DiagnosticOriginV1::SemanticSourceSpan {
             cone,
@@ -100,16 +118,15 @@ fn display(
                 return Value::Null;
             };
             let mut value = json!({"path": path_value(source.display_locator().as_path()), "start": span.start(), "end": span.end()});
-            let bytes = contents
+            let text = contents
                 .entry(source.physical_path().to_owned())
-                .or_insert_with(|| std::fs::read(source.physical_path()).ok());
-            if let Ok(offset) = usize::try_from(span.start())
-                && let Some(bytes) = bytes.as_deref().and_then(|bytes| bytes.get(..offset))
-                && let Ok(prefix) = std::str::from_utf8(bytes)
-            {
-                value["line"] = json!(prefix.bytes().filter(|byte| *byte == b'\n').count() + 1);
-                value["column"] =
-                    json!(prefix.rsplit('\n').next().unwrap_or("").chars().count() + 1);
+                .or_insert_with(|| {
+                    std::fs::read_to_string(source.physical_path())
+                        .ok()
+                        .map(SourceText::new)
+                });
+            if let Some(text) = text {
+                add_position(&mut value, text, span.start());
             }
             value
         }
@@ -125,6 +142,16 @@ fn display(
         } => {
             json!({"path": path.to_path_buf().ok().map(|path| path_value(&path)), "member": semantic_path})
         }
+    }
+}
+
+fn add_position(value: &mut Value, text: &SourceText, offset: u64) {
+    if let Ok(offset) = u32::try_from(offset)
+        && text.as_str().get(..offset as usize).is_some()
+    {
+        let (line, column) = text.diagnostic_position(offset);
+        value["line"] = json!(line);
+        value["column"] = json!(column);
     }
 }
 
@@ -151,6 +178,12 @@ fn location(
             cone,
             logical_path,
             span,
+        }
+        | DiagnosticOriginV1::SourceTextSpan {
+            cone,
+            logical_path,
+            span,
+            ..
         } => format!(
             "{}/{logical_path}:bytes {}..{}: ",
             scoop_wire::Digest256::from_array(*cone.as_array()),

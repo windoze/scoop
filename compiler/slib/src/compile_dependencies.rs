@@ -154,6 +154,25 @@ impl<'input> CompileDependencyClosure<'input> {
         self.providers.len()
     }
 
+    /// Retain already loaded semantic inputs after the artifact read completes.
+    /// Editor analysis does not need the borrowed graph or machine sections.
+    pub fn into_semantic_inputs(
+        self,
+    ) -> (Vec<hir::OwnedImportedProvider>, SemanticIdentitySession) {
+        let providers = self
+            .providers
+            .into_iter()
+            .zip(self.imported)
+            .map(|(provider, foundation)| hir::OwnedImportedProvider {
+                foundation: Rc::new(foundation),
+                interface: provider.interface,
+                alias_expansions: provider.aliases,
+                core: provider.core,
+            })
+            .collect();
+        (providers, self.session.into_inner())
+    }
+
     pub fn identity_inputs(
         &self,
     ) -> impl Iterator<Item = (&ConeCoordinate, &ValidatedIdentityGraph)> {

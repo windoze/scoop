@@ -2,6 +2,13 @@ use super::*;
 
 impl Lowerer {
     pub(super) fn register_function_parameter_interface(&mut self, function: hir::FunctionId) {
+        if self
+            .declaration_surface
+            .unavailable_signature(function)
+            .is_some()
+        {
+            return;
+        }
         let signature = self.signatures[&function].clone();
         let sources = signature
             .params

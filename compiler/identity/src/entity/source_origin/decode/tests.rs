@@ -277,7 +277,6 @@ fn source() -> SourceIdentity {
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/context.scoop").unwrap(),
     )
-    .unwrap()
 }
 
 fn evaluation_source() -> SourceIdentity {
@@ -285,7 +284,6 @@ fn evaluation_source() -> SourceIdentity {
         ConeIdentity::CORE,
         NormalizedSourcePath::new("src/evaluation.scoop").unwrap(),
     )
-    .unwrap()
 }
 
 fn context_keys() -> Vec<SourceContextKey> {

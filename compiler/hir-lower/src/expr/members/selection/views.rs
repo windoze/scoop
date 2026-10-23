@@ -17,7 +17,7 @@ impl Lowerer {
             };
             for candidate in candidates {
                 let signature = &self.signatures[&candidate.function];
-                if !Self::matches_required_modifiers(signature.modifiers, required)
+                if !self.function_matches_required_modifiers(candidate.function, required)
                     || (matches!(self.types[receiver.ty], Type::Interface(_))
                         && signature.type_params.len() != signature.owner_type_param_count)
                     || local.iter().any(|(selected, _)| {

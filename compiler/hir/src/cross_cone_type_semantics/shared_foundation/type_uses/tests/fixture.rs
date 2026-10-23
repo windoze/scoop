@@ -39,8 +39,7 @@ impl Artifact {
         let file = SourceIdentity::new(
             provider,
             NormalizedSourcePath::new("fixture.scoop").unwrap(),
-        )
-        .unwrap();
+        );
         let context = CborIdentityRecord::from_key(SourceContextKey::File {
             source: file.clone(),
         })

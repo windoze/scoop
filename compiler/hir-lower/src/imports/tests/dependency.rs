@@ -19,7 +19,7 @@ fn direct_exact_star_and_static_selectors_preserve_typed_witnesses() {
     ];
 
     let mut surface = CurrentUnitImports::default();
-    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source.header(), Some(&world));
 
     assert!(lowerer.diagnostics.is_empty());
     assert_eq!(resolved.exact.len(), 3);
@@ -47,7 +47,7 @@ fn direct_exact_star_and_static_selectors_preserve_typed_witnesses() {
     assert!(resolved.stars[0].snapshot.contains_key("Outer"));
     assert!(resolved.stars[1].snapshot.contains_key("Nested"));
 
-    surface.files.push(resolved);
+    surface.files.insert(surface.files.len(), resolved);
     let exact_layer = surface.layers(
         0,
         crate::namespace::TopLevelNamespaces::root_package(),
@@ -82,8 +82,12 @@ fn production_import_collection_receives_the_dependency_world() {
     ];
 
     lowerer.collect_and_resolve_imports(
-        &files,
+        &files
+            .iter()
+            .map(|file| file.header().into())
+            .collect::<Vec<_>>(),
         ImportDeclarationInputs {
+            unavailable: &[],
             functions: &[],
             methods: &[],
             properties: &[],
@@ -125,8 +129,12 @@ fn current_package_layer_freezes_direct_split_package_contributions() {
     ];
 
     lowerer.collect_and_resolve_imports(
-        &files,
+        &files
+            .iter()
+            .map(|file| file.header().into())
+            .collect::<Vec<_>>(),
         ImportDeclarationInputs {
+            unavailable: &[],
             functions: &[],
             methods: &[],
             properties: &[],
@@ -170,7 +178,7 @@ fn equal_package_prefix_merges_current_and_direct_star_snapshots() {
     let mut source = file(Vec::new());
     source.imports.push(star(&["api"], false));
 
-    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source.header(), Some(&world));
 
     assert!(lowerer.diagnostics.is_empty());
     assert!(matches!(
@@ -202,8 +210,11 @@ fn globally_longest_current_package_never_falls_back_to_direct_static_owner() {
         .imports
         .push(exact(&["api", "child", "Nested"], None, false));
 
-    let resolved =
-        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = CurrentUnitImports::default().resolve_file_with_world(
+        &mut lowerer,
+        &source.header(),
+        Some(&world),
+    );
 
     assert!(resolved.exact.is_empty());
     assert_eq!(lowerer.diagnostics.len(), 1);
@@ -223,8 +234,11 @@ fn exact_import_rejects_conflicting_non_overloadable_dependency_targets() {
     let mut source = file(Vec::new());
     source.imports.push(import);
 
-    let resolved =
-        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = CurrentUnitImports::default().resolve_file_with_world(
+        &mut lowerer,
+        &source.header(),
+        Some(&world),
+    );
 
     assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
     assert_eq!(lowerer.diagnostics.len(), 1);
@@ -246,8 +260,11 @@ fn exact_import_preserves_distinct_dependency_overloads() {
         .imports
         .push(exact(&["dependency", "api", "invoke"], None, false));
 
-    let resolved =
-        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = CurrentUnitImports::default().resolve_file_with_world(
+        &mut lowerer,
+        &source.header(),
+        Some(&world),
+    );
 
     assert!(lowerer.diagnostics.is_empty());
     assert_eq!(resolved.exact.len(), 1);
@@ -276,8 +293,11 @@ fn exact_import_rejects_same_signature_dependency_overloads() {
     let mut source = file(Vec::new());
     source.imports.push(import);
 
-    let resolved =
-        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = CurrentUnitImports::default().resolve_file_with_world(
+        &mut lowerer,
+        &source.header(),
+        Some(&world),
+    );
 
     assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
     assert_eq!(lowerer.diagnostics.len(), 1);
@@ -299,8 +319,11 @@ fn exact_import_rejects_function_mixed_with_non_overloadable_value() {
     let mut source = file(Vec::new());
     source.imports.push(import);
 
-    let resolved =
-        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = CurrentUnitImports::default().resolve_file_with_world(
+        &mut lowerer,
+        &source.header(),
+        Some(&world),
+    );
 
     assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
     assert_eq!(lowerer.diagnostics.len(), 1);
@@ -322,8 +345,11 @@ fn repeated_exact_aliases_reject_incompatible_dependency_targets_atomically() {
     let mut source = file(Vec::new());
     source.imports = vec![first, second];
 
-    let resolved =
-        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = CurrentUnitImports::default().resolve_file_with_world(
+        &mut lowerer,
+        &source.header(),
+        Some(&world),
+    );
 
     assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
     assert_eq!(lowerer.diagnostics.len(), 1);
@@ -350,8 +376,11 @@ fn repeated_exact_aliases_reject_mixed_value_kinds_atomically() {
     let mut source = file(Vec::new());
     source.imports = vec![first, second];
 
-    let resolved =
-        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = CurrentUnitImports::default().resolve_file_with_world(
+        &mut lowerer,
+        &source.header(),
+        Some(&world),
+    );
 
     assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
     assert_eq!(lowerer.diagnostics.len(), 1);
@@ -374,8 +403,11 @@ fn public_exact_and_star_freeze_direct_reexport_plans() {
         star(&["dependency", "api", "Outer"], true),
     ];
 
-    let resolved =
-        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = CurrentUnitImports::default().resolve_file_with_world(
+        &mut lowerer,
+        &source.header(),
+        Some(&world),
+    );
 
     assert!(lowerer.diagnostics.is_empty());
     assert_eq!(resolved.exact.len(), 1);
@@ -428,7 +460,7 @@ fn public_split_star_rejects_the_whole_file_when_any_target_is_current() {
         exact(&["api", "Remote"], Some("AfterFailure"), false),
     ];
 
-    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source.header(), Some(&world));
 
     assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
     assert_eq!(lowerer.diagnostics.len(), 1);

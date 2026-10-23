@@ -43,6 +43,7 @@ impl Lowerer {
         // Retain the existing generic singleton template for that substitution;
         // loading it does not execute its initialization unit.
         if let hir::SourceNominalId::GenericTemplate(owner) = companion
+            && !self.in_semantic_query
             && self
                 .dependencies
                 .as_ref()
@@ -57,47 +58,40 @@ impl Lowerer {
         &self,
         host: TypeId,
     ) -> Option<hir::SourceNominalId> {
+        self.declared_companion_type(host).filter(|companion| {
+            match self.current_nominal_name_target(*companion) {
+                Some(crate::NominalTarget::Object(object)) => {
+                    self.objects[object].access.declared == hir::DeclaredVisibility::Public
+                }
+                Some(_) => false,
+                None => {
+                    self.dependencies
+                        .as_ref()
+                        .and_then(|dependencies| dependencies.nominal_visibility(*companion))
+                        == Some(hir::DeclaredVisibilityV1::Public)
+                }
+            }
+        })
+    }
+
+    /// Declaration metadata only; forming this relation does not request initialization.
+    pub(crate) fn declared_companion_type(&self, host: TypeId) -> Option<hir::SourceNominalId> {
         if let Some(target) = self.nominal_target_for_type(host) {
-            let object = self.companion_object(target.owner());
-            object
-                .filter(|object| {
-                    self.objects[*object].access.declared == hir::DeclaredVisibility::Public
-                })
-                .map(|object| {
-                    self.nominal_identity(crate::Owner::Object(object))
-                        .declaration_id()
-                })
-        } else if let Some(owner) = self.imported_nominal_owner(host) {
-            self.dependencies
-                .as_ref()
-                .and_then(|dependencies| dependencies.nominal_declaration(owner))
-                .map(|declaration| {
-                    declaration
-                        .interface
-                        .declaration_details()
-                        .children()
-                        .values()
-                        .to_vec()
-                })
-                .unwrap_or_default()
-                .into_iter()
-                .find(|child| {
-                    self.nominal_is_companion(*child)
-                        && self
-                            .dependencies
-                            .as_ref()
-                            .and_then(|dependencies| dependencies.nominal_declaration(*child))
-                            .is_some_and(|declaration| {
-                                declaration
-                                    .interface
-                                    .declaration_details()
-                                    .declared_visibility()
-                                    == hir::DeclaredVisibilityV1::Public
-                            })
-                })
-        } else {
-            None
+            return self.companion_object(target.owner()).map(|object| {
+                self.nominal_identity(crate::Owner::Object(object))
+                    .declaration_id()
+            });
         }
+        let owner = self.imported_nominal_owner(host)?;
+        let declaration = self.dependencies.as_ref()?.nominal_declaration(owner)?;
+        declaration
+            .interface
+            .declaration_details()
+            .children()
+            .values()
+            .iter()
+            .copied()
+            .find(|child| self.nominal_is_companion(*child))
     }
 
     pub(super) fn resolve_parameter_companion(

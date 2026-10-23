@@ -14,6 +14,22 @@ impl Parser {
         prefix: MemberPrefix,
         context: PropertyContext,
     ) -> Result<PropertyDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::PropertyDecl, |parser| {
+            let checkpoint = parser.checkpoint();
+            let has_prefix_errors = prefix.modifiers.has_syntax_errors;
+            let declaration = parser.parse_property_inner(prefix, context)?;
+            if !has_prefix_errors {
+                parser.record_declaration_source_span(declaration.span, checkpoint);
+            }
+            Ok(declaration)
+        })
+    }
+
+    fn parse_property_inner(
+        &mut self,
+        prefix: MemberPrefix,
+        context: PropertyContext,
+    ) -> Result<PropertyDecl, Diagnostic> {
         if let Some(span) = prefix.modifiers.tailrec_span {
             return Err(Diagnostic::at(
                 span,
@@ -56,7 +72,7 @@ impl Parser {
         let mutable = matches!(keyword.kind, TokenKind::Var);
         let type_params = self.parse_type_params()?;
 
-        let receiver_start = self.pos;
+        let receiver_start = self.checkpoint();
         let receiver_annotations = self.parse_annotations()?;
         let mut parsed_name = None;
         let receiver_ty = match self.parse_type_ref() {
@@ -69,12 +85,12 @@ impl Parser {
                     Some(receiver)
                 }
                 Err(_) => {
-                    self.pos = receiver_start;
+                    self.restore(receiver_start);
                     None
                 }
             },
             _ => {
-                self.pos = receiver_start;
+                self.restore(receiver_start);
                 None
             }
         }
@@ -98,6 +114,13 @@ impl Parser {
             Some(name) => name,
             None => self.expect_ident("property name")?,
         };
+        self.record_declaration_name(&name);
+        self.record_declaration_prefix(
+            visibility,
+            scoop_ast::DeclarationHeaderKind::Property {
+                is_extension: receiver_ty.is_some(),
+            },
+        );
         let ty = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
             Some(self.parse_type_ref()?)
@@ -219,11 +242,11 @@ impl Parser {
     fn parse_property_accessors(&mut self) -> Result<AccessorSyntax, Diagnostic> {
         let mut accessors = AccessorSyntax::default();
         loop {
-            let checkpoint = self.pos;
+            let checkpoint = self.checkpoint();
             let (annotations, visibility) = self.parse_accessor_prefix()?;
             let token = self.peek().clone();
             let TokenKind::Ident(name) = &token.kind else {
-                self.pos = checkpoint;
+                self.restore(checkpoint);
                 break;
             };
             match name.as_str() {
@@ -238,7 +261,7 @@ impl Parser {
                         ));
                     }
                     let getter = self.parse_getter(annotations)?;
-                    self.attach_documentation(checkpoint, getter.span);
+                    self.attach_documentation(checkpoint.position, getter.span);
                     accessors.getter = Some(getter);
                 }
                 "set" => {
@@ -252,11 +275,11 @@ impl Parser {
                         VisibilitySyntax::Omitted => SetterVisibilitySyntax::Inherited,
                     };
                     let setter = self.parse_setter(annotations, visibility)?;
-                    self.attach_documentation(checkpoint, setter.span);
+                    self.attach_documentation(checkpoint.position, setter.span);
                     accessors.setter = Some(setter);
                 }
                 _ => {
-                    self.pos = checkpoint;
+                    self.restore(checkpoint);
                     break;
                 }
             }

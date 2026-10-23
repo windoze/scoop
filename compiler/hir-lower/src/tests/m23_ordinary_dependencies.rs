@@ -11,7 +11,9 @@ use crate::{CurrentConeSources, lower_current_cone};
 mod core;
 mod extensions;
 mod occurrences;
-pub(super) mod support;
+mod source_exports;
+mod source_providers;
+pub(crate) mod support;
 
 use support::*;
 

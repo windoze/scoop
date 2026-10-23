@@ -72,8 +72,8 @@ impl Lowerer {
         let mut candidate_state = self.clone();
         let mut candidates = candidate_state.methods_by_name(property.ty, "invoke");
         candidates.retain(|candidate| {
-            Self::matches_required_modifiers(
-                candidate_state.signatures[&candidate.function].modifiers,
+            candidate_state.function_matches_required_modifiers(
+                candidate.function,
                 RequiredCallableModifiers {
                     operator: Some(hir::OperatorKind::Invoke),
                     infix: require_infix,

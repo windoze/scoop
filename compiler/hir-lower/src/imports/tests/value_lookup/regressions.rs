@@ -142,6 +142,7 @@ fn blockers_prevent_assignment_place_const_and_static_initializer_fallback() {
             vec![val(
                 "old",
                 ast::Expr::Update {
+                    operator_span: None,
                     place: ast::PlaceExpr::Name(ident("Chosen")),
                     op: ast::UpdateOp::Increment,
                     notation: ast::UpdateNotation::Postfix,
@@ -305,7 +306,9 @@ fn failed_named_property_write_does_not_commit_rhs_sink() {
             name: "flag".to_string(),
         },
     );
-    state.imports.files = vec![FrozenFileImports::default(); 3];
+    state.imports.files = (0..3)
+        .map(|file| (file, FrozenFileImports::default()))
+        .collect();
     let statements = state.lower_block(&block(vec![assign("flag", conditional(bool_lit(true)))]));
     assert!(state.diagnostics.iter().any(|error| {
         error

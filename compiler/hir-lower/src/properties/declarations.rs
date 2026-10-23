@@ -26,11 +26,11 @@ impl Lowerer {
     pub(crate) fn resolve_interface_properties(
         &mut self,
         owner: hir::InterfaceId,
-        declaration: &ast::InterfaceDecl,
+        declaration: ast::InterfaceSource<'_>,
     ) {
         self.type_params_in_scope = self.interfaces[owner].type_params.clone();
         let mut names = std::collections::HashSet::new();
-        for property in &declaration.properties {
+        for property in declaration.properties {
             if !names.insert(property.name.text.clone()) {
                 self.error(
                     property.name.span,
@@ -174,6 +174,8 @@ impl Lowerer {
             span: declaration.span,
         });
         assert_eq!(property, expected);
+        self.property_name_spans
+            .insert(property, declaration.name.span);
         match owner {
             Owner::Struct(owner) => self.structs[owner].properties.push(property),
             Owner::Enum(owner) => self.enums[owner].properties.push(property),

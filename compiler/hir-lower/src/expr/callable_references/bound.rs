@@ -127,6 +127,9 @@ impl Lowerer {
             }
         }
         for layer in self.named_executable_extension_call_layers(&name.text) {
+            if self.report_unavailable_lookup(name, &layer.unavailable) {
+                return None;
+            }
             if layer.candidates.is_empty() {
                 if !layer.suppressed_callables.is_empty() {
                     if let Some(failure) = first_failure {
@@ -151,6 +154,7 @@ impl Lowerer {
                 span,
             ) {
                 BoundReferenceOutcome::Resolved(expression) => {
+                    state.observe_import_lookup(name, layer.kind);
                     return Some(self.commit_expr_layer(
                         SuccessfulExprLayer {
                             state: Box::new(state),

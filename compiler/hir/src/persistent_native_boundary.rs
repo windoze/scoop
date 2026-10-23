@@ -33,7 +33,6 @@ pub struct HirNativeBoundaryTypeDefinitionInputs<'a> {
     pub source_native_contracts: &'a HirSourceNativeContracts,
     pub callback_registration_identities: &'a HirCallbackRegistrationIdentities,
     pub initialization_unit_identities: &'a HirInitializationUnitIdentities,
-    pub local: &'a crate::concrete::Module,
     pub dependencies: &'a ImportedSemanticWorld<'a>,
 }
 
@@ -50,9 +49,23 @@ pub struct HirNativeBoundaryTypeDefinitions {
 impl HirNativeBoundaryTypeDefinitions {
     pub fn from_roots(
         inputs: HirNativeBoundaryTypeDefinitionInputs<'_>,
+        local: &crate::concrete::Module,
+    ) -> Result<Self, HirNativeBoundaryTypeDefinitionError> {
+        Self::from_parts(inputs, Some(local))
+    }
+
+    pub fn from_source_roots(
+        inputs: HirNativeBoundaryTypeDefinitionInputs<'_>,
+    ) -> Result<Self, HirNativeBoundaryTypeDefinitionError> {
+        Self::from_parts(inputs, None)
+    }
+
+    fn from_parts(
+        inputs: HirNativeBoundaryTypeDefinitionInputs<'_>,
+        local: Option<&crate::concrete::Module>,
     ) -> Result<Self, HirNativeBoundaryTypeDefinitionError> {
         let declarations = LocalNominalDeclarations::new(&inputs)?;
-        let required = roots::collect(&inputs)?;
+        let required = roots::collect(&inputs, local)?;
         let mapper = HirSignatureTypeMapper::new(inputs.type_inputs);
         let result = closure::close(required, |owner| {
             if let Some(declaration) = declarations.get(owner) {

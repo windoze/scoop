@@ -1,0 +1,213 @@
+use super::*;
+use hir::{EditingUnavailable as U, EditingValue as V};
+
+mod prefix;
+
+#[derive(Default)]
+pub(crate) struct RecoveredFacts {
+    pub(super) receivers: Vec<hir::EditingReceiver>,
+    pub(super) calls: Vec<hir::EditingIncompleteCall>,
+    pub(super) contexts:
+        std::collections::HashMap<hir::SourceContextId, super::bodies::ObservedContext>,
+    body_starts: std::collections::HashMap<ast::RecoveredBodyRoot, FactStart>,
+}
+
+#[derive(Clone, Copy, Default)]
+struct FactStart {
+    receivers: usize,
+    calls: usize,
+}
+
+#[derive(Clone)]
+pub(crate) struct ReceiverObservation {
+    file: usize,
+    span: ast::Span,
+    local: Option<ObservedReceiverLocal>,
+}
+
+#[derive(Clone)]
+enum ObservedReceiverLocal {
+    Local(hir::EditingLocalReference),
+    Capture(hir::BindingId),
+}
+
+impl DeclarationAnalysis {
+    pub fn receivers(
+        &mut self,
+        body: impl Into<hir::EditingSourceBodyId>,
+        is_cancelled: impl Fn() -> bool,
+    ) -> Result<&[hir::EditingReceiver], EditingCancelled> {
+        check_cancelled(&is_cancelled)?;
+        let Some(function) = body.into().function() else {
+            return Ok(&[]);
+        };
+        self.ensure_recovered_facts(function, is_cancelled)?;
+        Ok(&self.recovered_facts[&function].receivers)
+    }
+
+    pub(super) fn ensure_recovered_facts(
+        &mut self,
+        function: hir::FunctionId,
+        is_cancelled: impl Fn() -> bool,
+    ) -> Result<(), EditingCancelled> {
+        check_cancelled(&is_cancelled)?;
+        if !self.recovered_facts.contains_key(&function) {
+            let facts = if let Some(body) = self.recovered_bodies.get(&function) {
+                match self.signature(function) {
+                    V::Unavailable(reason) => unavailable_facts(body, reason),
+                    V::Known(_) => {
+                        let mut candidate = self.lowerer.clone();
+                        let facts =
+                            candidate.check_recovered_facts(function, body, &is_cancelled)?;
+                        check_cancelled(&is_cancelled)?;
+                        self.lowerer = candidate;
+                        facts
+                    }
+                }
+            } else {
+                RecoveredFacts::default()
+            };
+            self.recovered_facts.insert(function, facts);
+        }
+        Ok(())
+    }
+}
+
+pub(super) fn check_cancelled(is_cancelled: &impl Fn() -> bool) -> Result<(), EditingCancelled> {
+    if is_cancelled() {
+        Err(EditingCancelled)
+    } else {
+        Ok(())
+    }
+}
+
+fn unavailable_facts(body: &ast::RecoveredFunctionBody, reason: U) -> RecoveredFacts {
+    let mut facts = RecoveredFacts::default();
+    facts.add_body(body, reason);
+    facts
+}
+
+impl RecoveredFacts {
+    fn add_body(&mut self, body: &ast::RecoveredFunctionBody, reason: U) {
+        self.body_starts.insert(
+            body.root,
+            FactStart {
+                receivers: self.receivers.len(),
+                calls: self.calls.len(),
+            },
+        );
+        self.receivers
+            .extend(body.selectors.iter().map(|selector| hir::EditingReceiver {
+                span: match &selector.receiver {
+                    ast::RecoveredReceiver::Complete(receiver) => receiver.span(),
+                    ast::RecoveredReceiver::Unavailable(span) => *span,
+                },
+                dot: selector.dot,
+                selector: selector.selector,
+                safe_navigation: selector.navigation == ast::Navigation::Safe,
+                value_type: V::Unavailable(reason),
+                local: None,
+                members: V::Unavailable(reason),
+            }));
+        self.calls.extend(
+            body.calls
+                .iter()
+                .map(|call| super::candidates::unavailable_call(call, reason)),
+        );
+        for function in &body.local_functions {
+            self.add_body(&function.body, reason);
+        }
+    }
+}
+
+impl Lowerer {
+    pub(crate) fn editing_local_reference(
+        &self,
+        local: &hir::Local,
+    ) -> Option<hir::EditingLocalReference> {
+        let hir::LocalValueDefinitionSite::Source(definition) = local.definition else {
+            return None;
+        };
+        Some(hir::EditingLocalReference {
+            binding: local.binding,
+            name: local.name.clone(),
+            definition: hir::SemanticSourceLocation {
+                source: self.source_identity(definition.file as usize).clone(),
+                span: definition.span,
+            },
+        })
+    }
+
+    pub(crate) fn observe_receiver_capture(&mut self, binding: hir::BindingId, span: ast::Span) {
+        if let Some(observation) = &mut self.editing_receiver
+            && observation.file == self.current_file
+            && observation.span == span
+        {
+            observation.local = Some(ObservedReceiverLocal::Capture(binding));
+        }
+    }
+
+    pub(crate) fn observe_receiver_local(&mut self, local: hir::LocalId, span: ast::Span) {
+        let Some(observation) = &self.editing_receiver else {
+            return;
+        };
+        if observation.file != self.current_file || observation.span != span {
+            return;
+        }
+        let Some(reference) = self.editing_local_reference(&self.locals[local]) else {
+            return;
+        };
+        self.editing_receiver
+            .as_mut()
+            .expect("active observation")
+            .local = Some(ObservedReceiverLocal::Local(reference));
+    }
+
+    fn check_receiver(
+        &mut self,
+        expression: &ast::Expr,
+        facts: &mut hir::EditingReceiver,
+        contexts: &mut std::collections::HashMap<
+            hir::SourceContextId,
+            super::bodies::ObservedContext,
+        >,
+        captures: &std::collections::HashMap<hir::BindingId, hir::EditingLocalReference>,
+        is_cancelled: &impl Fn() -> bool,
+    ) -> Result<(), EditingCancelled> {
+        let before = self.diagnostics.len();
+        self.editing_receiver = Some(ReceiverObservation {
+            file: self.current_file,
+            span: expression.span(),
+            local: None,
+        });
+        let value = self.lower_expr(expression, &mut Vec::new(), None);
+        let observation = self.editing_receiver.take().expect("active observation");
+        if let Some(value) = value.filter(|_| self.diagnostics.len() == before) {
+            let context = self
+                .current_source_context
+                .expect("receiver query has a body source context");
+            contexts
+                .entry(context)
+                .or_insert_with(|| super::bodies::ObservedContext {
+                    file: self.current_file,
+                    owner: self.current_owner,
+                    parameters: self.type_params_in_scope.clone(),
+                });
+            facts.value_type = V::Known(hir::EditingReceiverType {
+                ty: value.ty,
+                context,
+            });
+            facts.local = match observation.local {
+                Some(ObservedReceiverLocal::Local(reference)) => Some(reference),
+                Some(ObservedReceiverLocal::Capture(binding)) => captures.get(&binding).cloned(),
+                None => None,
+            };
+            facts.members =
+                self.editing_receiver_members(&value, facts.safe_navigation, is_cancelled)?;
+        } else {
+            facts.value_type = V::Unavailable(U::BodyFailure);
+            facts.members = V::Unavailable(U::BodyFailure);
+        }
+        Ok(())
+    }
+}

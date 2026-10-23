@@ -120,9 +120,7 @@ fn callable_application_rejects_template_argument_shape_mismatches() {
     let mut decoded =
         decode_canonical::<DecodedCallableApplicationKey>(&encode(&key).unwrap()).unwrap();
     decoded.callable_arguments = DecodedCallableArguments::Arguments(NonEmptyVec::from_first(
-        crate::DecodedPersistentId::from_unvalidated_bytes(
-            *PersistentExactTypeId::expected().as_array(),
-        ),
+        crate::DecodedPersistentId::from_bytes(*PersistentExactTypeId::expected().as_array()),
         [],
     ));
 

@@ -26,12 +26,12 @@ impl Lowerer {
             if let Some(crate::Owner::Class(class)) = self.nominal_owners.get(&owner).copied() {
                 self.nominal_constructor_plans(
                     crate::NominalTarget::Class(class),
-                    &call,
+                    (&call).into(),
                     expected,
                     false,
                 )?
             } else {
-                self.imported_nominal_plans(owner, &call, expected, false)
+                self.imported_nominal_plans(owner, (&call).into(), expected, false)
             };
         let mut candidates = self.reference_constructor_plans(plans, name, span)?;
         for candidate in &mut candidates {

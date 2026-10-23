@@ -212,9 +212,9 @@ fn generated_callable_resolution_rejects_nonlexical_generated_parent() {
     };
     let parent_id = PersistentGeneratedCallableId::from_key(&parent_key).unwrap();
     let decoded = DecodedGeneratedCallableKey::Lexical {
-        parent: DecodedLexicalCallableParent::Generated(
-            DecodedPersistentId::from_unvalidated_bytes(*parent_id.as_array()),
-        ),
+        parent: DecodedLexicalCallableParent::Generated(DecodedPersistentId::from_bytes(
+            *parent_id.as_array(),
+        )),
         role: LexicalCallableRole::LambdaBody,
         path: StructuralDefinitionPath::from_first(
             StructuralPathSegment::new(StructuralDefinitionSiteRole::Lambda, 0),

@@ -97,6 +97,7 @@ pub(crate) fn arm(
 pub(crate) fn assign(target: &str, value: Expr) -> Statement {
     Statement {
         kind: StatementKind::Assign(ast::Assign {
+            operator_span: None,
             target: ast::AssignTarget::Name(ident(target)),
             op: ast::AssignmentOp::Assign,
             value,
@@ -110,6 +111,7 @@ pub(crate) fn assign(target: &str, value: Expr) -> Statement {
 pub(crate) fn assign_field(receiver: Expr, name: &str, value: Expr) -> Statement {
     Statement {
         kind: StatementKind::Assign(ast::Assign {
+            operator_span: None,
             target: ast::AssignTarget::Field {
                 receiver: Box::new(receiver),
                 name: ident(name),
@@ -127,7 +129,9 @@ pub(crate) fn assign_field(receiver: Expr, name: &str, value: Expr) -> Statement
 pub(crate) fn assign_index(receiver: Expr, index: Expr, value: Expr) -> Statement {
     Statement {
         kind: StatementKind::Assign(ast::Assign {
+            operator_span: None,
             target: ast::AssignTarget::Index {
+                bracket_span: None,
                 receiver: Box::new(receiver),
                 indices: ast::NonEmptyVec::new(index, Vec::new()),
                 span: sp(),

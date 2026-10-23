@@ -7,6 +7,7 @@ use super::integer_values::{
 use crate::Lowerer;
 
 pub(in crate::globals) struct ResolvedConstIntegerIntrinsic {
+    pub(in crate::globals) callable: hir::SemanticCallable,
     pub(in crate::globals) kind: ConstIntegerIntrinsicKind,
     pub(in crate::globals) is_infix: bool,
     pub(in crate::globals) parameters: Vec<String>,
@@ -78,6 +79,7 @@ impl Lowerer {
             }
             let signature = &self.signatures[&function];
             return Some(ResolvedConstIntegerIntrinsic {
+                callable: hir::SemanticCallable::Current(function),
                 kind,
                 is_infix: signature.modifiers.is_infix,
                 parameters: signature
@@ -98,6 +100,7 @@ impl Lowerer {
             return None;
         }
         Some(ResolvedConstIntegerIntrinsic {
+            callable: super::imported_const_intrinsic_callable(callable),
             kind,
             is_infix: callable.interface().effects().infix() == hir::CallableInfixV1::Infix,
             parameters: callable

@@ -105,7 +105,9 @@ impl<D: Copy> CandidateArgumentMap<D> {
     }
 }
 
-fn parameter_shapes<D: Copy>(parameters: &[ValueParameter<D>]) -> Vec<ParameterShape<'_, D>> {
+pub(super) fn parameter_shapes<D: Copy>(
+    parameters: &[ValueParameter<D>],
+) -> Vec<ParameterShape<'_, D>> {
     parameters
         .iter()
         .map(|parameter| ParameterShape {

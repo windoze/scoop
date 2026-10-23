@@ -14,8 +14,11 @@ impl DefaultEntityProjector<'_> {
                 self.generated_function_id(function)
             }
             crate::LexicalFunctionDefinition::Template(template) => {
-                let crate::ImportedCallableTemplateOrigin::Closure { body, .. } =
-                    self.export().imported_generic_templates[template].declaration
+                let crate::ImportedCallableTemplateOrigin::Closure { body, .. } = self
+                    .inputs()
+                    .imported_signatures
+                    .callable_signature(template)
+                    .declaration
                 else {
                     unreachable!("a closure definition retains its generated body")
                 };
@@ -29,7 +32,7 @@ impl DefaultEntityProjector<'_> {
         id: crate::LocalFunctionId,
     ) -> Result<scoop_identity::CallableTemplateOrigin, super::super::DefaultEntityProjectionError>
     {
-        let local = super::super::arena_get(&self.export().local_functions, id).ok_or(
+        let local = super::super::arena_get(self.inputs().local_functions, id).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "local function",
                 index: super::super::raw_index(id),
@@ -39,11 +42,12 @@ impl DefaultEntityProjector<'_> {
             crate::LexicalFunctionDefinition::Source { function, .. } => {
                 self.source_callable_declaration(function)
             }
-            crate::LexicalFunctionDefinition::Template(template) => {
-                Ok(self.export().imported_generic_templates[template]
-                    .declaration
-                    .declaration())
-            }
+            crate::LexicalFunctionDefinition::Template(template) => Ok(self
+                .inputs()
+                .imported_signatures
+                .callable_signature(template)
+                .declaration
+                .declaration()),
         }
     }
 
@@ -53,7 +57,7 @@ impl DefaultEntityProjector<'_> {
         binders: &[HirSignatureBinder],
     ) -> Result<ExportDefaultCallableTargetV1, super::super::DefaultEntityProjectionError> {
         let entities = self;
-        let export = entities.export();
+        let export = entities.inputs();
         Ok(match target {
             ExportDefaultCallableTarget::Callable(callable) => {
                 ExportDefaultCallableTargetV1::Callable(entities.callable(callable, binders)?)
@@ -73,13 +77,11 @@ impl DefaultEntityProjector<'_> {
                 ExportDefaultCallableTargetV1::Bound(entities.bound_callable(bound, binders)?)
             }
             ExportDefaultCallableTarget::DerivedEquality(id) => {
-                let application =
-                    super::super::arena_get(&export.derived_equality_applications, id).ok_or(
-                        super::super::DefaultEntityProjectionError::Unknown {
-                            kind: "derived equality application",
-                            index: super::super::raw_index(id),
-                        },
-                    )?;
+                let application = super::super::arena_get(export.derived_equality_applications, id)
+                    .ok_or(super::super::DefaultEntityProjectionError::Unknown {
+                        kind: "derived equality application",
+                        index: super::super::raw_index(id),
+                    })?;
                 ExportDefaultCallableTargetV1::DerivedEquality {
                     owner_type: entities.type_key(application.owner_ty, binders)?,
                 }
@@ -95,7 +97,7 @@ impl DefaultEntityProjector<'_> {
                 }
             }
             ExportDefaultCallableTarget::Lambda(id) => {
-                let lambda = super::super::arena_get(&export.lambdas, id).ok_or(
+                let lambda = super::super::arena_get(export.lambdas, id).ok_or(
                     super::super::DefaultEntityProjectionError::Unknown {
                         kind: "lambda",
                         index: super::super::raw_index(id),
@@ -106,7 +108,7 @@ impl DefaultEntityProjector<'_> {
                 }
             }
             ExportDefaultCallableTarget::AnonymousFunction(id) => {
-                let function = super::super::arena_get(&export.anonymous_functions, id).ok_or(
+                let function = super::super::arena_get(export.anonymous_functions, id).ok_or(
                     super::super::DefaultEntityProjectionError::Unknown {
                         kind: "anonymous function",
                         index: super::super::raw_index(id),
@@ -117,7 +119,7 @@ impl DefaultEntityProjector<'_> {
                 }
             }
             ExportDefaultCallableTarget::CallableReference(id) => {
-                let reference = super::super::arena_get(&export.callable_references, id).ok_or(
+                let reference = super::super::arena_get(export.callable_references, id).ok_or(
                     super::super::DefaultEntityProjectionError::Unknown {
                         kind: "callable reference",
                         index: super::super::raw_index(id),
@@ -159,9 +161,11 @@ impl DefaultEntityProjector<'_> {
         application: crate::ImportedGenericCallableApplicationId,
         binders: &[HirSignatureBinder],
     ) -> Result<crate::DefaultCallableRefV1, super::super::DefaultEntityProjectionError> {
-        let export = self.export();
+        let export = self.inputs();
         let application = &export.imported_generic_applications[application];
-        let declaration = export.imported_generic_templates[application.template]
+        let declaration = export
+            .imported_signatures
+            .callable_signature(application.template)
             .declaration
             .body_owner();
         let (owner, arguments) = match &application.arguments {

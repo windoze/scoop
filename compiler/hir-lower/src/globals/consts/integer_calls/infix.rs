@@ -64,7 +64,8 @@ impl Lowerer {
         let Some(ResolvedConstIntegerIntrinsic {
             kind: ConstIntegerIntrinsicKind::NoGcOperation(operation),
             is_infix,
-            ..
+            callable,
+            parameters,
         }) = self.resolve_const_integer_intrinsic(kind, &name.text)
         else {
             self.error(
@@ -125,9 +126,8 @@ impl Lowerer {
             return None;
         }
         let value = evaluate_integer_no_gc_operation(operation, left_value, Some(right_value))?;
-        Some(EvaluatedConst {
-            value,
-            ty: self.integer_no_gc_result_type(kind, operation),
-        })
+        let ty = self.integer_no_gc_result_type(kind, operation);
+        self.observe_constant_intrinsic(span, callable, &parameters, Some(right_expected), ty);
+        Some(EvaluatedConst { value, ty })
     }
 }

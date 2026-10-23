@@ -156,6 +156,8 @@ pub struct LocalDelegatedPropertyDecl {
 pub struct Assign {
     pub target: PlaceExpr,
     pub op: AssignmentOp,
+    /// The actual source token, absent for a synthesized assignment.
+    pub operator_span: Option<Span>,
     pub value: Expr,
     pub span: Span,
 }
@@ -167,6 +169,8 @@ pub enum PlaceExpr {
     Index {
         receiver: Box<Expr>,
         indices: NonEmptyVec<Expr>,
+        /// The opening bracket, retained from the original subscript.
+        bracket_span: Option<Span>,
         span: Span,
     },
     /// `receiver.field = value` (only `var` properties of classes).

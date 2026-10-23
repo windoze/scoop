@@ -143,6 +143,15 @@ impl Lowerer {
             !self.declaration_surface.rejects_function(target.function),
             "rejected declarations never enter named callable probing"
         );
+        if self
+            .declaration_surface
+            .unavailable_signature(target.function)
+            .is_some()
+        {
+            let mut failure = self.clone();
+            failure.report_unavailable_signatures(name, call.span, [target.function]);
+            return Err(Box::new(failure));
+        }
         let arguments = call.arguments;
         let materialize_arguments = matches!(arguments, OverloadArguments::Source(_));
         let receiver = match call.receiver {

@@ -1,7 +1,11 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn document_struct_primary(&mut self, id: hir::StructId, source: &ast::StructDecl) {
+    pub(super) fn document_struct_primary(
+        &mut self,
+        id: hir::StructId,
+        source: ast::StructSource<'_>,
+    ) {
         let constructor = self.structs[id].constructors.iter().copied().find(|id| {
             matches!(
                 self.struct_constructors[*id].kind,
@@ -34,7 +38,11 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn document_class_primary(&mut self, id: hir::ClassId, source: &ast::ClassDecl) {
+    pub(super) fn document_class_primary(
+        &mut self,
+        id: hir::ClassId,
+        source: ast::ClassSource<'_>,
+    ) {
         let constructor = self.classes[id].constructors.iter().copied().find(|id| {
             matches!(
                 self.class_constructors[*id].kind,
@@ -108,7 +116,7 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn document_secondary_constructor(
+    pub(super) fn document_secondary_constructor(
         &mut self,
         callable: Callable,
         source: &ast::SecondaryConstructorDecl,

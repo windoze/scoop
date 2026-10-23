@@ -123,8 +123,7 @@ fn reader_resolves_a_dependency_source_through_validated_cone_authority() {
     let source = scoop_identity::SourceIdentity::new(
         coordinate.identity().unwrap(),
         scoop_identity::NormalizedSourcePath::new("src/api.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let expected = SourceRecord::from_utf8(source, "abc", [0, 3]).unwrap();
     let decoded: DecodedSourceRecord =
         scoop_wire::decode_canonical(&scoop_wire::encode(&expected).unwrap()).unwrap();

@@ -12,6 +12,22 @@ impl Lowerer {
         decl: &ast::FunctionDecl,
         owner: Owner,
     ) {
+        self.resolve_method_header(id, decl.header(), owner);
+        self.register_inferred_function(id, decl);
+    }
+
+    pub(crate) fn resolve_method_header(
+        &mut self,
+        id: FunctionId,
+        decl: ast::FunctionHeaderRef<'_>,
+        owner: Owner,
+    ) {
+        if !self.editing_owner_available(owner) {
+            self.declaration_surface
+                .mark_signature_unavailable(id, decl);
+            return;
+        }
+        let diagnostics_before = self.diagnostics.len();
         let short = decl.name.text.clone();
         if !decl.type_params.is_empty() {
             if matches!(owner, Owner::Interface(_)) {
@@ -48,7 +64,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let parameter = self.fresh_type_param(type_params.len());
+            let parameter = self.fresh_source_type_param(param, type_params.len());
             let param = crate::lower_type_param_decl(param, parameter);
             type_params.push(param.clone());
         }
@@ -64,8 +80,8 @@ impl Lowerer {
         let method_parameters = owner_parameters.split_off(owner_type_param_count);
         self.register_method_parameters(id, owner_parameters, method_parameters);
         self.type_params_in_scope = type_params.clone();
-        let params = self.resolve_callable_parameters(decl);
-        self.functions[id].context_parameters = self.resolve_context_parameters(decl);
+        let params = self.resolve_callable_parameters(decl.signature);
+        self.functions[id].context_parameters = self.resolve_context_parameters(decl.signature);
         let return_ty = match &decl.return_ty {
             Some(ty_ref) => self.resolve_type_ref(ty_ref).unwrap_or(self.unit),
             None => self.unit,
@@ -84,13 +100,12 @@ impl Lowerer {
         );
         self.type_params_in_scope.clear();
 
-        self.register_inferred_function(id, decl);
         self.functions[id].return_ty = return_ty;
         self.functions[id].modifiers = modifiers;
         self.signatures.insert(
             id,
             FnSig {
-                result_pending: crate::declaration_inference::infers_result(decl),
+                result_pending: crate::declaration_inference::infers_header_result(decl),
                 parameter_pending: false,
                 context_parameters: self.functions[id].context_parameters.clone(),
                 is_suspend: decl.is_suspend,
@@ -108,17 +123,26 @@ impl Lowerer {
         let host_ty = self.owner_ty(owner);
         if !matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_))
             && (decl.modifier == ast::MethodModifier::Abstract
-                || matches!(decl.body, ast::FunctionBody::None))
+                || decl.body_form == ast::FunctionBodyForm::Omitted)
         {
             let locals = self.build_abstract_parameter_locals(id, host_ty);
             self.functions[id].kind = hir::FunctionKind::Abstract { locals };
+        }
+        if self.diagnostics.len() != diagnostics_before {
+            self.declaration_surface
+                .mark_signature_unavailable(id, decl);
         }
     }
 
     /// Body-shape rules for member declarations: `abstract` only in
     /// abstract classes, interface methods may be abstract or default, and
     /// concrete class/value methods always have a body.
-    fn check_method_body_shape(&mut self, id: FunctionId, decl: &ast::FunctionDecl, owner: Owner) {
+    fn check_method_body_shape(
+        &mut self,
+        id: FunctionId,
+        decl: ast::FunctionHeaderRef<'_>,
+        owner: Owner,
+    ) {
         if matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_)) {
             return;
         }
@@ -126,7 +150,7 @@ impl Lowerer {
         match owner {
             Owner::Interface(_) => {
                 if self.functions[id].access.declared == hir::DeclaredVisibility::Private
-                    && matches!(decl.body, ast::FunctionBody::None)
+                    && decl.body_form == ast::FunctionBodyForm::Omitted
                 {
                     self.error(
                         decl.name.span,
@@ -154,15 +178,20 @@ impl Lowerer {
                         ),
                     );
                 }
-                match (&decl.body, decl.modifier == ast::MethodModifier::Abstract) {
-                    (ast::FunctionBody::None, false) => self.error(
+                match (
+                    decl.body_form,
+                    decl.modifier == ast::MethodModifier::Abstract,
+                ) {
+                    (ast::FunctionBodyForm::Omitted, false) => self.error(
                         decl.name.span,
                         format!("function `{short}` must have a body"),
                     ),
-                    (ast::FunctionBody::Block(_) | ast::FunctionBody::Expr(_), true) => self.error(
-                        decl.name.span,
-                        format!("abstract function `{short}` must not have a body"),
-                    ),
+                    (ast::FunctionBodyForm::Block | ast::FunctionBodyForm::Expression, true) => {
+                        self.error(
+                            decl.name.span,
+                            format!("abstract function `{short}` must not have a body"),
+                        )
+                    }
                     _ => {}
                 }
             }
@@ -182,7 +211,7 @@ impl Lowerer {
                 // `override` on a value-type method is checked in pass
                 // 2.75 (it is required exactly when the method
                 // implements an interface method, DESIGN.md 5.2).
-                if matches!(decl.body, ast::FunctionBody::None) {
+                if decl.body_form == ast::FunctionBodyForm::Omitted {
                     self.error(
                         decl.name.span,
                         format!("function `{short}` must have a body"),
@@ -202,7 +231,7 @@ impl Lowerer {
                         format!("open function `{short}` is not allowed in an object declaration"),
                     );
                 }
-                if matches!(decl.body, ast::FunctionBody::None)
+                if decl.body_form == ast::FunctionBodyForm::Omitted
                     && decl.modifier != ast::MethodModifier::Abstract
                 {
                     self.error(

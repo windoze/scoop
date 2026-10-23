@@ -23,6 +23,24 @@ impl CanonicalHirFoundation {
         local: &LocalConcreteHir,
         native_boundary_types: &HirNativeBoundaryTypeDefinitions,
     ) -> Result<Self, HirFoundationBuildError> {
+        Self::from_parts(export, Some(local), native_boundary_types)
+    }
+
+    /// Source dependency queries need only identities present in Export HIR.
+    pub fn from_source_export(
+        export: &ExportHir,
+        native_boundary_types: &HirNativeBoundaryTypeDefinitions,
+    ) -> Result<Self, HirFoundationBuildError> {
+        let mut foundation = Self::from_parts(export, None, native_boundary_types)?;
+        foundation.complete_external_nominals()?;
+        Ok(foundation)
+    }
+
+    fn from_parts(
+        export: &ExportHir,
+        local: Option<&LocalConcreteHir>,
+        native_boundary_types: &HirNativeBoundaryTypeDefinitions,
+    ) -> Result<Self, HirFoundationBuildError> {
         let mut foundation = Self::empty();
 
         project_nominals(export, &mut foundation)?;
@@ -41,7 +59,6 @@ impl CanonicalHirFoundation {
 
         foundation
             .set_export_bindings(export.export_binding_identities.iter().cloned().collect())?;
-        foundation.set_callable_applications(local.callable_applications.records().to_vec())?;
         foundation
             .set_dispatch_slots(export.dispatch_slot_identities.records().cloned().collect())?;
         project_initialization_units(export, local, &mut foundation)?;
@@ -54,7 +71,6 @@ impl CanonicalHirFoundation {
                 .map(|identity| identity.record().clone())
                 .collect(),
         )?;
-        foundation.set_local_values(local.local_value_identities.records().to_vec())?;
         foundation.set_callback_registrations(
             export.callback_registration_identities.records().to_vec(),
         )?;
@@ -67,8 +83,13 @@ impl CanonicalHirFoundation {
                 .map(|contract| contract.record().clone())
                 .collect(),
         )?;
-        foundation.set_odr_groups(odr_group_records(local)?)?;
-        foundation.set_odr_members(local.callable_applications.odr_member_records().to_vec())?;
+        if let Some(local) = local {
+            foundation.set_callable_applications(local.callable_applications.records().to_vec())?;
+            foundation.set_local_values(local.local_value_identities.records().to_vec())?;
+            foundation.set_odr_groups(odr_group_records(local)?)?;
+            foundation
+                .set_odr_members(local.callable_applications.odr_member_records().to_vec())?;
+        }
 
         foundation.set_definition_origins(definition_origin_records(export, local))?;
         source_callable_keys::complete(export, &mut foundation)?;
@@ -148,7 +169,7 @@ fn project_nominals(
 
 fn project_functions_and_constructors(
     export: &ExportHir,
-    local: &LocalConcreteHir,
+    local: Option<&LocalConcreteHir>,
     foundation: &mut CanonicalHirFoundation,
 ) -> Result<(), HirFoundationBuildError> {
     let mut functions = Vec::new();
@@ -201,14 +222,20 @@ fn project_functions_and_constructors(
             }
         }
     }
-    for (_, reference) in local.callable_references.iter() {
+    for (_, reference) in local
+        .into_iter()
+        .flat_map(|local| local.callable_references.iter())
+    {
         insert_identity(
             &mut generated,
             reference.identity.callable_record(),
             HirFoundationTable::GeneratedCallable,
         )?;
     }
-    for record in &local.generated_callable_identities {
+    for record in local
+        .into_iter()
+        .flat_map(|local| &local.generated_callable_identities)
+    {
         insert_identity(
             &mut generated,
             record,
@@ -318,7 +345,7 @@ fn enum_member_records(
 
 fn project_exact_types(
     export: &ExportHir,
-    local: &LocalConcreteHir,
+    local: Option<&LocalConcreteHir>,
     foundation: &mut CanonicalHirFoundation,
 ) -> Result<(), HirFoundationBuildError> {
     let mut records = BTreeMap::new();
@@ -327,19 +354,20 @@ fn project_exact_types(
             insert_identity(&mut records, record, HirFoundationTable::ExactType)?;
         }
     }
-    for (ty, _) in local.types.iter() {
-        insert_identity(
-            &mut records,
-            &local.exact_type_identities[ty],
-            HirFoundationTable::ExactType,
-        )?;
+    for record in local.into_iter().flat_map(|local| {
+        local
+            .types
+            .iter()
+            .map(|(ty, _)| &local.exact_type_identities[ty])
+    }) {
+        insert_identity(&mut records, record, HirFoundationTable::ExactType)?;
     }
     foundation.set_exact_types(records.into_values().collect())
 }
 
 fn project_initialization_units(
     export: &ExportHir,
-    local: &LocalConcreteHir,
+    local: Option<&LocalConcreteHir>,
     foundation: &mut CanonicalHirFoundation,
 ) -> Result<(), HirFoundationBuildError> {
     let mut records = BTreeMap::new();
@@ -349,8 +377,8 @@ fn project_initialization_units(
         .iter()
         .chain(
             local
-                .initialization_units
-                .iter()
+                .into_iter()
+                .flat_map(|local| local.initialization_units.iter())
                 .map(|(_, unit)| &unit.identity),
         )
     {
@@ -387,7 +415,7 @@ fn odr_group_records(
 
 fn definition_origin_records(
     export: &ExportHir,
-    local: &LocalConcreteHir,
+    local: Option<&LocalConcreteHir>,
 ) -> Vec<DefinitionOriginRecord> {
     export
         .export_definition_origins
@@ -396,10 +424,8 @@ fn definition_origin_records(
         .cloned()
         .chain(
             local
-                .local_value_identities
-                .definition_origins()
-                .records()
-                .iter()
+                .into_iter()
+                .flat_map(|local| local.local_value_identities.definition_origins().records())
                 .cloned(),
         )
         .collect()

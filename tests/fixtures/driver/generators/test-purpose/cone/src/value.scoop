@@ -1,0 +1,3 @@
+package test.generatedtesting
+
+public fun ordinaryValue(): Int = 42

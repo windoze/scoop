@@ -111,3 +111,43 @@ fn substitution_rejects_mapping_arity_and_provider_scope_without_repair() {
         Err(DefaultTemplateTypeSubstitutionError::ProviderBinder(_))
     ));
 }
+
+#[test]
+fn substitution_preserves_local_binders_and_lifts_application_arguments() {
+    let mapping = CanonicalBinderUseListV1::try_new(vec![
+        SignatureTypeKey::RawPointer(Box::new(binder(0, 3))),
+        binder(1, 4),
+    ])
+    .unwrap();
+    let provider = DefaultTemplateProviderShapeV1::try_new(1, 1).unwrap();
+    let source = SignatureTypeKey::Function {
+        receiver: Some(Box::new(binder(3, 0))),
+        effect: Effect::Ordinary,
+        parameters: vec![binder(0, 0), binder(1, 2), binder(2, 0)],
+        result: Box::new(binder(3, 0)),
+    };
+    assert_eq!(
+        mapping
+            .substitute_provider_type_in_scope(provider, &source, 2)
+            .unwrap(),
+        SignatureTypeKey::Function {
+            receiver: Some(Box::new(SignatureTypeKey::RawPointer(Box::new(binder(
+                2, 3
+            ))))),
+            effect: Effect::Ordinary,
+            parameters: vec![binder(0, 0), binder(1, 2), binder(3, 4)],
+            result: Box::new(SignatureTypeKey::RawPointer(Box::new(binder(2, 3)))),
+        }
+    );
+    assert_eq!(mapping.arguments()[1], binder(1, 4));
+    let overflowing = CanonicalBinderUseListV1::try_new(vec![binder(u32::MAX, 0)]).unwrap();
+    assert!(
+        overflowing
+            .substitute_provider_type_in_scope(
+                DefaultTemplateProviderShapeV1::try_new(0, 1).unwrap(),
+                &binder(1, 0),
+                1,
+            )
+            .is_err()
+    );
+}

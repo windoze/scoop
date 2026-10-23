@@ -6,7 +6,7 @@ impl Lowerer {
     pub(in crate::expr) fn named_nominal_plans(
         &mut self,
         binding: &NamedCallBinding,
-        call: &ast::CallExpr,
+        call: NamedCallHeader<'_>,
         expected: Option<TypeId>,
     ) -> Result<PreparedNominalPlans, ()> {
         let (nominal, expected, fixed_alias) = match binding.target {
@@ -29,7 +29,7 @@ impl Lowerer {
                 (nominal, expected, false)
             }
             NamedCallTarget::Type(TopLevelTypeTarget::Alias(id)) => {
-                let alias = self.source_alias_template(id, &call.callee).ok_or(())?;
+                let alias = self.source_alias_template(id, call.callee).ok_or(())?;
                 return self.named_alias_plans(alias, call, expected);
             }
             NamedCallTarget::ImportedDependency(hir::ImportedTarget::TypeAlias(_)) => {
@@ -37,7 +37,7 @@ impl Lowerer {
                     unreachable!("a dependency alias has its name binding");
                 };
                 let alias = self
-                    .imported_alias_template(binding, &call.callee)
+                    .imported_alias_template(binding, call.callee)
                     .ok_or(())?;
                 return self.named_alias_plans(alias, call, expected);
             }
@@ -56,7 +56,7 @@ impl Lowerer {
                 let ty = self
                     .resolve_imported_dependency_type_target(
                         binding,
-                        &call.callee,
+                        call.callee,
                         !call.type_args.is_empty(),
                     )
                     .ok_or(())?;
@@ -106,7 +106,7 @@ impl Lowerer {
     pub(in crate::expr) fn nominal_constructor_plans(
         &mut self,
         nominal: crate::NominalTarget,
-        call: &ast::CallExpr,
+        call: NamedCallHeader<'_>,
         expected: Option<TypeId>,
         fixed_alias: bool,
     ) -> Result<PreparedNominalPlans, ()> {
@@ -262,7 +262,7 @@ impl Lowerer {
     pub(in crate::expr) fn imported_nominal_plans(
         &mut self,
         owner: hir::SourceNominalId,
-        call: &ast::CallExpr,
+        call: NamedCallHeader<'_>,
         expected: Option<TypeId>,
         fixed_alias: bool,
     ) -> PreparedNominalPlans {

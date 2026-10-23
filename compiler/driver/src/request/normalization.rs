@@ -10,6 +10,7 @@ pub struct DirectBuildOptions {
     pub target: Option<String>,
     pub sysroot: Option<PathBuf>,
     pub c_toolchain: scoop_toolchain::CToolchainOptions,
+    pub generators: Vec<std::ffi::OsString>,
 }
 
 pub fn normalize_direct_build_request(
@@ -21,6 +22,17 @@ pub fn normalize_direct_build_request(
     emit: StageDumpPolicy,
     options: DirectBuildOptions,
 ) -> Result<SingleConeBuildRequest, BuildRequestNormalizationError> {
+    let generators = if options.generators.is_empty() {
+        scoop_toolchain::GeneratorPrograms::default()
+    } else {
+        let cwd = std::env::current_dir().map_err(|error| {
+            BuildRequestNormalizationError::Generators(ToolchainError(format!(
+                "cannot resolve generator paths against the current directory: {error}"
+            )))
+        })?;
+        scoop_toolchain::GeneratorPrograms::from_cli(&options.generators, &cwd)
+            .map_err(BuildRequestNormalizationError::Generators)?
+    };
     let current = classify_current_cone_operand(operand)
         .map_err(BuildRequestNormalizationError::CurrentOperand)?;
     if options.purpose == CompilationPurpose::Test
@@ -78,6 +90,7 @@ pub fn normalize_direct_build_request(
     .and_then(|request| {
         request
             .with_native_sysroot(sysroot)
+            .with_generators(generators)
             .with_optimization(options.optimization)
             .with_purpose(options.purpose)
     })
@@ -175,6 +188,10 @@ pub fn normalize_protocol_build_request(
     .and_then(|request| {
         request
             .with_optimization(build.optimization())
+            .with_generators(
+                scoop_toolchain::GeneratorPrograms::from_registrations(build.generators())
+                    .map_err(BuildRequestNormalizationError::Generators)?,
+            )
             .with_native_inputs(protocol_paths(build.native_inputs())?)
             .with_purpose(build.purpose())
             .map_err(BuildRequestNormalizationError::Request)

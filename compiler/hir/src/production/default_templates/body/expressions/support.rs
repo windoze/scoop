@@ -56,7 +56,7 @@ impl BodyProjection<'_, '_> {
             )),
             crate::MethodCallee::DerivedEquality(application_id) => {
                 let application = super::super::super::arena_get(
-                    &self.entities.export().derived_equality_applications,
+                    self.entities.inputs().derived_equality_applications,
                     application_id,
                 )
                 .ok_or_else(|| self.unknown("derived equality application", application_id))?;
@@ -96,7 +96,7 @@ impl BodyProjection<'_, '_> {
     ) -> Result<scoop_identity::SignatureTypeKey, super::super::super::DefaultBodyProjectionError>
     {
         let application = super::super::super::arena_get(
-            &self.entities.export().struct_applications,
+            self.entities.inputs().struct_applications,
             application_id,
         )
         .ok_or_else(|| self.unknown("struct application", application_id))?;

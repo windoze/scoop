@@ -7,14 +7,19 @@ use std::collections::{BTreeMap, HashMap};
 
 mod bindings;
 mod collect;
+mod exports;
 pub(crate) mod lookup;
+mod names;
 mod packages;
+pub(crate) use exports::ExportLookupTarget;
 mod reexports;
 mod resolve;
 mod selector;
 mod source_scope;
 #[cfg(test)]
 mod tests;
+mod unavailable_imports;
+mod unavailable_sources;
 
 pub(crate) use bindings::*;
 pub(crate) use reexports::*;
@@ -44,10 +49,11 @@ pub(crate) struct ImportCandidateLayer {
 }
 
 pub(crate) struct ImportDeclarationInputs<'a> {
-    pub(crate) functions: &'a [(hir::FunctionId, &'a ast::FunctionDecl, usize)],
-    pub(crate) methods: &'a [(hir::FunctionId, &'a ast::FunctionDecl, usize, crate::Owner)],
+    pub(crate) unavailable: &'a [(&'a ast::DeclarationHeader, usize)],
+    pub(crate) functions: &'a [crate::declarations::FunctionHeaderInput<'a>],
+    pub(crate) methods: &'a [crate::declarations::MethodHeaderInput<'a>],
     pub(crate) properties: &'a [(&'a ast::GlobalDecl, usize)],
-    pub(crate) enumerations: &'a [(hir::EnumId, &'a ast::EnumDecl, usize)],
+    pub(crate) enumerations: &'a [(hir::EnumId, ast::EnumSource<'a>, usize)],
     pub(crate) objects: &'a [(hir::ObjectId, crate::declarations::ObjectSource<'a>, usize)],
 }
 
@@ -127,7 +133,8 @@ pub(crate) struct CurrentUnitImports {
         scoop_identity::BindingNamespace,
         BTreeMap<String, Vec<hir::DirectImportedTargetBinding>>,
     >,
-    pub(crate) files: Vec<FrozenFileImports>,
+    pub(crate) files: BTreeMap<usize, FrozenFileImports>,
+    unknown_packages: BTreeMap<String, Vec<CurrentUnitBindingId>>,
     pub(crate) reexports: Vec<FrozenReexportBinding>,
     diagnostic_suppressions: ImportDiagnosticSuppressions,
 }
@@ -203,14 +210,17 @@ impl CurrentUnitImports {
 
     pub(crate) fn package_bindings(
         &self,
-        package: PackageId,
+        package: Option<PackageId>,
         name: &str,
     ) -> Vec<CurrentUnitBindingId> {
-        self.namespaces
-            .get(&ResolvedNamespace::Package(package))
-            .and_then(|namespace| namespace.get(name))
-            .cloned()
-            .unwrap_or_default()
+        package
+            .into_iter()
+            .flat_map(|package| self.namespaces.get(&ResolvedNamespace::Package(package)))
+            .filter_map(|members| members.get(name))
+            .flatten()
+            .copied()
+            .chain(self.unknown_package_bindings(name))
+            .collect()
     }
 
     fn insert(
@@ -274,7 +284,7 @@ impl CurrentUnitImports {
         package: PackageId,
         name: &str,
     ) -> Vec<ImportCandidateLayer> {
-        let imports = &self.files[file];
+        let imports = &self.files[&file];
         vec![
             ImportCandidateLayer {
                 kind: ImportLookupLayer::Exact,
@@ -288,7 +298,10 @@ impl CurrentUnitImports {
                                 .targets
                                 .iter()
                                 .filter_map(ImportedTargetBinding::current_binding)
-                        }),
+                        })
+                        .chain(imports.unavailable.iter().filter_map(|import| {
+                            (import.local_name.as_deref() == Some(name)).then_some(import.binding)
+                        })),
                 ),
                 dependency_bindings: self.canonicalize_dependencies(
                     imports
@@ -310,14 +323,7 @@ impl CurrentUnitImports {
             },
             ImportCandidateLayer {
                 kind: ImportLookupLayer::CurrentPackage(package),
-                bindings: self.canonicalize(
-                    self.namespaces
-                        .get(&ResolvedNamespace::Package(package))
-                        .and_then(|namespace| namespace.get(name))
-                        .into_iter()
-                        .flatten()
-                        .copied(),
-                ),
+                bindings: self.canonicalize(self.package_bindings(Some(package), name)),
                 dependency_bindings: self.canonicalize_dependencies(
                     imports
                         .current_package_dependencies
@@ -334,14 +340,22 @@ impl CurrentUnitImports {
             },
             ImportCandidateLayer {
                 kind: ImportLookupLayer::Star,
-                bindings: self.canonicalize(imports.stars.iter().flat_map(|import| {
-                    import
-                        .snapshot
-                        .get(name)
-                        .into_iter()
-                        .flat_map(ast::NonEmptyVec::iter)
-                        .filter_map(ImportedTargetBinding::current_binding)
-                })),
+                bindings: self.canonicalize(
+                    imports
+                        .stars
+                        .iter()
+                        .flat_map(|import| {
+                            import
+                                .snapshot
+                                .get(name)
+                                .into_iter()
+                                .flat_map(ast::NonEmptyVec::iter)
+                                .filter_map(ImportedTargetBinding::current_binding)
+                        })
+                        .chain(imports.unavailable.iter().filter_map(|import| {
+                            import.local_name.is_none().then_some(import.binding)
+                        })),
+                ),
                 dependency_bindings: self.canonicalize_dependencies(imports.stars.iter().flat_map(
                     |import| {
                         import

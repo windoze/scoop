@@ -9,10 +9,13 @@ fn pipeline_materializes_importable_nominals_aliases_properties_variants_and_sta
         unreachable!()
     };
     let object = ast::Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident("Tools"),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident("Tools"),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members: vec![
             ast::ClassMember::Function(method("answer")),
             ast::ClassMember::StoredProperty(constant("version")),
@@ -32,18 +35,24 @@ fn pipeline_materializes_importable_nominals_aliases_properties_variants_and_sta
     };
     host.members.push(ast::ClassMember::Companion(Box::new(
         ast::CompanionObjectDecl {
-            annotations: Vec::new(),
-            visibility: ast::VisibilitySyntax::Omitted,
-            name: ast::CompanionNameSyntax::Named(ident("Factory")),
-            supertypes: Vec::new(),
+            header: ast::CompanionObjectHeader {
+                annotations: Vec::new(),
+                visibility: ast::VisibilitySyntax::Omitted,
+                name: ast::CompanionNameSyntax::Named(ident("Factory")),
+                supertypes: Vec::new(),
+                span: sp(),
+            },
             members: vec![
                 ast::ClassMember::Function(method("make")),
                 ast::ClassMember::StoredProperty(constant("revision")),
                 ast::ClassMember::Companion(Box::new(ast::CompanionObjectDecl {
-                    annotations: Vec::new(),
-                    visibility: ast::VisibilitySyntax::Omitted,
-                    name: ast::CompanionNameSyntax::Named(ident("Inner")),
-                    supertypes: Vec::new(),
+                    header: ast::CompanionObjectHeader {
+                        annotations: Vec::new(),
+                        visibility: ast::VisibilitySyntax::Omitted,
+                        name: ast::CompanionNameSyntax::Named(ident("Inner")),
+                        supertypes: Vec::new(),
+                        span: sp(),
+                    },
                     members: vec![ast::ClassMember::Function(method("deep"))],
                     span: sp(),
                 })),

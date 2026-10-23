@@ -6,11 +6,12 @@ use std::collections::{HashMap, HashSet};
 impl Lowerer {
     pub(super) fn check_duplicate_constructor_signatures(
         &mut self,
-        classes: &[(ClassId, &ast::ClassDecl, usize)],
-        structs: &[(hir::StructId, &ast::StructDecl, usize)],
+        classes: &[(ClassId, ast::ClassSource<'_>, usize)],
+        structs: &[(hir::StructId, ast::StructSource<'_>, usize)],
     ) {
         for &(class, _, file) in classes {
             self.current_file = file;
+            let before = self.diagnostics.len();
             let constructors = self.classes[class].constructors.clone();
             for (index, &constructor) in constructors.iter().enumerate() {
                 for &previous in &constructors[..index] {
@@ -28,9 +29,13 @@ impl Lowerer {
                     }
                 }
             }
+            if self.diagnostics.len() != before {
+                self.fail_editing_construction(Owner::Class(class));
+            }
         }
         for &(structure, _, file) in structs {
             self.current_file = file;
+            let before = self.diagnostics.len();
             let constructors = self.structs[structure].constructors.clone();
             for (index, &constructor) in constructors.iter().enumerate() {
                 for &previous in &constructors[..index] {
@@ -47,6 +52,9 @@ impl Lowerer {
                         );
                     }
                 }
+            }
+            if self.diagnostics.len() != before {
+                self.fail_editing_construction(Owner::Struct(structure));
             }
         }
     }

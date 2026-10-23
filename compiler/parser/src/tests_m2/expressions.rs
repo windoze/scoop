@@ -66,6 +66,7 @@ fn postfix_binds_tighter_than_unary() {
         op: UnOp::Neg,
         operand,
         span,
+        ..
     } = &expr
     else {
         panic!("expected a unary expression");

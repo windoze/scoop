@@ -14,7 +14,6 @@ fn source_identity(path: &str) -> SourceIdentity {
             .unwrap(),
         NormalizedSourcePath::new(path).unwrap(),
     )
-    .unwrap()
 }
 
 fn ok(source: &str) -> scoop_ast::SourceFile {

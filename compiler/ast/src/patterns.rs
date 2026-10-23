@@ -75,6 +75,7 @@ impl LiteralPattern {
         if negated {
             Expr::Unary {
                 op: UnOp::Neg,
+                operator_span: None,
                 operand: Box::new(operand),
                 span,
             }

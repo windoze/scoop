@@ -7,6 +7,7 @@ impl Lowerer {
         receiver: &ast::Expr,
         indices: &ast::NonEmptyVec<ast::Expr>,
         span: Span,
+        bracket_span: Option<Span>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedPlacePlan> {
         let receiver = self.lower_expr(receiver, sink, None)?;
@@ -54,6 +55,7 @@ impl Lowerer {
             write: WriteCapability::OperatorSet {
                 receiver,
                 index_arguments,
+                bracket_span,
             },
         })
     }

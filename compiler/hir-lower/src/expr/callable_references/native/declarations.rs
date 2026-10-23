@@ -34,6 +34,19 @@ pub(super) struct NativeReferenceFailure {
 }
 
 impl NativeReferenceDeclaration {
+    pub(super) fn semantic_target(&self) -> Option<hir::SemanticCallable> {
+        match &self.source {
+            NativeReferenceSource::Local(view) => {
+                Some(hir::SemanticCallable::Current(view.function()))
+            }
+            NativeReferenceSource::Dependency(candidate, _) => {
+                crate::expr::named_calls::imported_dependency::semantic_function_target(
+                    candidate.as_ref(),
+                )
+            }
+        }
+    }
+
     pub(super) fn resolve(
         state: &mut Lowerer,
         binding: &NamedCallBinding,

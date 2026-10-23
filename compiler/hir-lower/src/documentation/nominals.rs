@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn document_struct(&mut self, id: hir::StructId, source: &ast::StructDecl) {
+    pub(crate) fn document_struct(&mut self, id: hir::StructId, source: ast::StructSource<'_>) {
         if self.documentation.is_none() {
             return;
         }
@@ -50,9 +50,22 @@ impl Lowerer {
             }
         }
         self.document_struct_primary(id, source);
+        for secondary in source.secondary_constructors() {
+            let constructor = self.structs[id]
+                .constructors
+                .iter()
+                .copied()
+                .find(|id| self.struct_constructors[*id].span == secondary.span);
+            if let Some(constructor) = constructor {
+                self.document_secondary_constructor(
+                    Callable::StructConstructor(constructor),
+                    secondary,
+                );
+            }
+        }
     }
 
-    pub(crate) fn document_class(&mut self, id: hir::ClassId, source: &ast::ClassDecl) {
+    pub(crate) fn document_class(&mut self, id: hir::ClassId, source: ast::ClassSource<'_>) {
         if self.documentation.is_none() {
             return;
         }
@@ -84,9 +97,26 @@ impl Lowerer {
             &parameters[self.enclosing_parameter_count(id)..],
         );
         self.document_class_primary(id, source);
+        for secondary in source.secondary_constructors() {
+            let constructor = self.classes[id]
+                .constructors
+                .iter()
+                .copied()
+                .find(|id| self.class_constructors[*id].span == secondary.span);
+            if let Some(constructor) = constructor {
+                self.document_secondary_constructor(
+                    Callable::ClassConstructor(constructor),
+                    secondary,
+                );
+            }
+        }
     }
 
-    pub(crate) fn document_interface(&mut self, id: hir::InterfaceId, source: &ast::InterfaceDecl) {
+    pub(crate) fn document_interface(
+        &mut self,
+        id: hir::InterfaceId,
+        source: ast::InterfaceSource<'_>,
+    ) {
         if self.documentation.is_none() {
             return;
         }
@@ -139,7 +169,7 @@ impl Lowerer {
         );
     }
 
-    pub(crate) fn document_enum(&mut self, id: hir::EnumId, source: &ast::EnumDecl) {
+    pub(crate) fn document_enum(&mut self, id: hir::EnumId, source: ast::EnumSource<'_>) {
         if self.documentation.is_none() {
             return;
         }
@@ -206,12 +236,26 @@ impl Lowerer {
                 self.document_declaration(
                     Source::VariantField(field).into(),
                     Some(Source::Variant(id).into()),
-                    Kind::Parameter,
+                    Kind::Field,
                     name.unwrap_or("_"),
                     span,
                     hir::DeclaredVisibility::Public,
                     vec![Part::Source(span)],
                     true,
+                );
+                self.document_declaration(
+                    Source::Parameter {
+                        callable: hir::SourceAnnotationCallable::VariantConstructor(id),
+                        index: index as u32,
+                    }
+                    .into(),
+                    Some(Source::Variant(id).into()),
+                    Kind::Parameter,
+                    name.unwrap_or("_"),
+                    span,
+                    hir::DeclaredVisibility::Public,
+                    vec![Part::Source(span)],
+                    false,
                 );
             }
         }

@@ -10,6 +10,7 @@ mod annotations;
 mod applications;
 mod constructors;
 mod declarations;
+mod documentation;
 mod forwarding;
 mod inference;
 mod publication;
@@ -134,6 +135,7 @@ impl Lowerer {
         id: SourceTypeAliasId,
         reference_span: ast::Span,
     ) -> Option<hir::TypeId> {
+        self.require_editing_type(crate::editing::types::TypeTarget::Alias(id), reference_span)?;
         match self.source_type_aliases[id].resolution {
             TypeAliasResolution::Resolved(ResolvedTypeAliasTarget {
                 expanded: target, ..
@@ -156,12 +158,14 @@ impl Lowerer {
                     format!("typealias cycle: {}", names.join(" -> ")),
                 );
                 self.source_type_aliases[id].resolution = TypeAliasResolution::Failed;
+                self.fail_editing_type_declaration(crate::editing::types::TypeTarget::Alias(id));
                 return None;
             }
             TypeAliasResolution::Unresolved => {}
         }
 
         let alias = self.source_type_aliases[id].clone();
+        let declaration_check = self.begin_editing_alias(id);
         self.source_type_aliases[id].resolution = TypeAliasResolution::Resolving;
         self.type_alias_resolution_stack.push(id);
 
@@ -212,6 +216,9 @@ impl Lowerer {
             .pop()
             .expect("an alias being resolved owns one stack entry");
         debug_assert_eq!(popped, id);
+        self.finish_editing_declaration(declaration_check);
+        let target = target
+            .filter(|_| self.editing_type_available(crate::editing::types::TypeTarget::Alias(id)));
         match target {
             Some(target) => {
                 self.source_type_aliases[id].resolution =
@@ -223,6 +230,7 @@ impl Lowerer {
             }
             None => {
                 self.source_type_aliases[id].resolution = TypeAliasResolution::Failed;
+                self.fail_editing_type_declaration(crate::editing::types::TypeTarget::Alias(id));
                 None
             }
         }
@@ -238,6 +246,7 @@ impl Lowerer {
                 }
                 crate::imports::lookup::LookupResult::Missing
                 | crate::imports::lookup::LookupResult::Ambiguous { .. }
+                | crate::imports::lookup::LookupResult::Unavailable(_)
                 | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
             },
             ast::TypeRefKind::Qualified { path, arguments } if arguments.is_empty() => {
@@ -251,6 +260,7 @@ impl Lowerer {
                         }
                         crate::imports::lookup::LookupResult::Missing
                         | crate::imports::lookup::LookupResult::Ambiguous { .. }
+                        | crate::imports::lookup::LookupResult::Unavailable(_)
                         | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
                     }
                 } else {

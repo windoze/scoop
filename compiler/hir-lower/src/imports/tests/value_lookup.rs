@@ -7,10 +7,13 @@ use crate::tests::{
 
 fn object(name: &str, members: Vec<ast::ClassMember>) -> ast::Decl {
     ast::Decl::Object(ast::ObjectDecl {
-        annotations: Vec::new(),
-        visibility: ast::VisibilitySyntax::Omitted,
-        name: ident(name),
-        supertypes: Vec::new(),
+        header: ast::ObjectHeader {
+            annotations: Vec::new(),
+            visibility: ast::VisibilitySyntax::Omitted,
+            name: ident(name),
+            supertypes: Vec::new(),
+            span: sp(),
+        },
         members,
         span: sp(),
     })
@@ -349,6 +352,7 @@ fn imported_singleton_properties_support_reads_writes_updates_and_constants() {
             val(
                 "previous",
                 ast::Expr::Update {
+                    operator_span: None,
                     place: ast::PlaceExpr::Name(ident("counter")),
                     op: ast::UpdateOp::Increment,
                     notation: ast::UpdateNotation::Postfix,
@@ -378,10 +382,13 @@ fn companion_forwarding_and_direct_import_preserve_one_property_origin() {
     };
     host.members.push(ast::ClassMember::Companion(Box::new(
         ast::CompanionObjectDecl {
-            annotations: Vec::new(),
-            visibility: ast::VisibilitySyntax::Omitted,
-            name: ast::CompanionNameSyntax::Named(ident("Factory")),
-            supertypes: Vec::new(),
+            header: ast::CompanionObjectHeader {
+                annotations: Vec::new(),
+                visibility: ast::VisibilitySyntax::Omitted,
+                name: ast::CompanionNameSyntax::Named(ident("Factory")),
+                supertypes: Vec::new(),
+                span: sp(),
+            },
             members: vec![
                 ast::ClassMember::StoredProperty(stored("counter", ty_named("Int"), int_lit(0))),
                 ast::ClassMember::StoredProperty(constant("version")),
@@ -434,6 +441,7 @@ fn assignment_and_update_do_not_skip_a_higher_object_for_a_lower_property() {
     for statement in [
         assign("Chosen", int_lit(1)),
         stmt(ast::Expr::Update {
+            operator_span: None,
             place: ast::PlaceExpr::Name(ident("Chosen")),
             op: ast::UpdateOp::Increment,
             notation: ast::UpdateNotation::Postfix,

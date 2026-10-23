@@ -4,7 +4,7 @@ impl Lowerer {
     pub(crate) fn require_intrinsic(
         &mut self,
         kind: hir::IntrinsicFunctionKind,
-        files: &[ast::SourceFile],
+        files: &[ast::Span],
     ) -> Option<FunctionId> {
         if let Some(&(function, _provider)) = self.intrinsic_functions.get(&kind) {
             return Some(function);
@@ -12,7 +12,7 @@ impl Lowerer {
         let core_diagnostic_file = self.core_diagnostic_file();
         self.current_file = core_diagnostic_file;
         self.error(
-            files[core_diagnostic_file].span,
+            files[core_diagnostic_file],
             format!(
                 "scoop.core must define exactly one `{}` intrinsic",
                 kind.name()

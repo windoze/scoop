@@ -6,6 +6,25 @@ impl Parser {
         &mut self,
         prefix: MemberPrefix,
     ) -> Result<TypeAliasDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::TypeAliasDecl, |parser| {
+            parser.record_declaration_prefix(
+                prefix.visibility,
+                scoop_ast::DeclarationHeaderKind::Type,
+            );
+            let checkpoint = parser.checkpoint();
+            let prefix_valid = !prefix.modifiers.has_syntax_errors;
+            let declaration = parser.parse_type_alias_inner(prefix)?;
+            if prefix_valid {
+                parser.record_declaration_source_span(declaration.span, checkpoint);
+            }
+            Ok(declaration)
+        })
+    }
+
+    fn parse_type_alias_inner(
+        &mut self,
+        prefix: MemberPrefix,
+    ) -> Result<TypeAliasDecl, Diagnostic> {
         let modifier_span = prefix
             .const_span
             .into_iter()
@@ -32,6 +51,7 @@ impl Parser {
             |kind| matches!(kind, TokenKind::Ident(text) if text == "typealias"),
         )?;
         let name = self.expect_ident("typealias name")?;
+        self.record_declaration_name(&name);
         let type_params = self.parse_type_params()?;
         let where_clause = self.parse_where_clause()?;
         self.expect("`=` in typealias declaration", |kind| {

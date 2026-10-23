@@ -28,7 +28,7 @@ impl Lowerer {
                 kind,
                 method: None,
             });
-            this.function_files.insert(function, file);
+            this.record_function_file(function, file);
             this.signatures.insert(
                 function,
                 FnSig {
@@ -118,21 +118,21 @@ impl Lowerer {
         let value = match &pending.kind {
             PendingRuntimeInitializerKind::Stored {
                 storage,
-                ty,
                 expression,
             } => {
                 let property = self.globals[*storage].property;
-                let expected = (!self.property_type_pending(property)).then_some(*ty);
+                let expected =
+                    (!self.property_type_pending(property)).then_some(self.properties[property].ty);
                 self.lower_expr(expression, &mut sink, expected)
                     .and_then(|value| {
-                        if expected.is_none() {
+                        let Some(ty) = expected else {
                             self.set_inferred_property_type(property, value.ty);
                             return Some(value);
-                        }
-                        if self.is_subtype(value.ty, *ty) {
-                            Some(self.adapt_to(value, *ty))
+                        };
+                        if self.is_subtype(value.ty, ty) {
+                            Some(self.adapt_to(value, ty))
                         } else {
-                            let expected = self.type_name(*ty);
+                            let expected = self.type_name(ty);
                             let found = self.type_name(value.ty);
                             self.error(
                                 expression.span(),

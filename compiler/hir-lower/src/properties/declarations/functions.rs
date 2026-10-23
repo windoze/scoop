@@ -1,5 +1,7 @@
 use super::*;
 
+mod bodies;
+
 impl Lowerer {
     pub(super) fn property_function_target(owner: hir::PropertyOwner) -> FunctionTarget {
         match owner {
@@ -62,7 +64,7 @@ impl Lowerer {
             FunctionTarget::Member(owner) => Some(owner),
             FunctionTarget::TopLevel | FunctionTarget::Local => None,
         };
-        let checked = self.check_function_annotations(&declaration, target);
+        let checked = self.check_function_annotations(declaration.header(), target);
         let method = method_owner.map(|owner| hir::Method {
             availability: None,
             owner: self.owner_ty(owner),
@@ -144,7 +146,7 @@ impl Lowerer {
         } else {
             self.top_level.push(function);
         }
-        self.function_files.insert(function, self.current_file);
+        self.record_function_file(function, self.current_file);
         if let Some(hir::PropertyBacking::TopLevelGlobal {
             initialization: hir::TopLevelInitialization::Runtime(unit),
             ..
@@ -176,6 +178,14 @@ impl Lowerer {
         let sources = self.property_accessor_sources[start..].to_vec();
         for source in sources {
             self.current_file = self.function_files[&source.function];
+            if source
+                .owner
+                .is_some_and(|owner| !self.editing_owner_available(owner))
+            {
+                self.declaration_surface
+                    .mark_signature_unavailable(source.function, source.declaration.header());
+                continue;
+            }
             if source.body_kind == PropertyAccessorBodyKind::Storage
                 && let Some(hir::PropertyBacking::TopLevelGlobal {
                     storage,
@@ -200,95 +210,36 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn lower_property_accessor_bodies(&mut self) {
-        self.lower_property_accessor_bodies_from(0);
-    }
-
-    pub(crate) fn lower_property_accessor_bodies_from(&mut self, start: usize) {
-        let sources = self.property_accessor_sources[start..].to_vec();
-        for source in sources {
-            if self.property_accessor_was_lowered(source.function) {
-                continue;
-            }
-            if self.functions[source.function]
-                .method
-                .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
-            {
-                continue;
-            }
-            self.current_file = self.function_files[&source.function];
-            if source.body_kind == PropertyAccessorBodyKind::Delegate {
-                let mut body = self.lower_generated_delegate_accessor(&source);
-                self.prepend_accessor_initialization_ensure(&source, &mut body);
-                self.functions[source.function].kind = FunctionKind::User(body);
-                continue;
-            }
-            self.backing_field_context = source.backing.map(|backing| BackingFieldContext {
-                backing,
-                capture_depth: self.capture_contexts.len(),
-            });
-            let mut body = self.lower_body(source.function, &source.declaration);
-            self.prepend_accessor_initialization_ensure(&source, &mut body);
-            self.functions[source.function].kind = FunctionKind::User(body);
-            self.backing_field_context = None;
-        }
-    }
-
-    pub(crate) fn prepend_accessor_initialization_ensure(
-        &mut self,
-        source: &PropertyAccessorSource,
-        body: &mut hir::Body,
-    ) {
-        let Some(&unit) = self.runtime_accessor_units.get(&source.function) else {
-            return;
-        };
-        let kind = match self.initialization_units[unit].kind {
-            hir::InitializationUnitKind::GenericDelegatedExtension { template, .. } => {
-                hir::StatementKind::GenericDelegateEnsure(
-                    self.generic_delegate_reference(template, source.function),
-                )
-            }
-            hir::InitializationUnitKind::EagerTopLevel { .. }
-            | hir::InitializationUnitKind::LazySingleton { .. } => {
-                hir::StatementKind::InitializationEnsure(unit)
-            }
-        };
-        body.statements.insert(
-            0,
-            hir::Statement {
-                kind,
-                span: source.declaration.span,
-            },
-        );
-    }
-
     pub(super) fn getter_function_declaration(
         &self,
         property: &ast::PropertyDecl,
         getter: &ast::GetterDecl,
     ) -> ast::FunctionDecl {
         ast::FunctionDecl {
-            context_parameters: property.context_parameters.clone(),
-            annotations: accessor_annotations(
-                property,
-                &getter.annotations,
-                ast::AnnotationUseSiteTarget::Get,
-            ),
-            visibility: property.visibility,
-            is_suspend: false,
-            is_override: property.is_override,
-            operator: None,
-            infix: None,
-            modifier: property.modifier,
-            receiver_ty: property.receiver_ty.clone(),
-            name: ast::Ident {
-                text: format!("$get${}", property.name.text),
-                span: property.name.span,
+            signature: ast::FunctionSignature {
+                context_parameters: property.context_parameters.clone(),
+                annotations: accessor_annotations(
+                    property,
+                    &getter.annotations,
+                    ast::AnnotationUseSiteTarget::Get,
+                ),
+                visibility: property.visibility,
+                is_suspend: false,
+                is_override: property.is_override,
+                operator: None,
+                infix: None,
+                modifier: property.modifier,
+                receiver_ty: property.receiver_ty.clone(),
+                name: ast::Ident {
+                    text: format!("$get${}", property.name.text),
+                    span: property.name.span,
+                },
+                type_params: property.type_params.clone(),
+                params: Vec::new(),
+                return_ty: property.ty.clone(),
+                where_clause: property.where_clause.clone(),
+                span: getter.span,
             },
-            type_params: property.type_params.clone(),
-            params: Vec::new(),
-            return_ty: property.ty.clone(),
-            where_clause: property.where_clause.clone(),
             body: accessor_function_body(&getter.body),
             span: getter.span,
         }
@@ -322,42 +273,45 @@ impl Lowerer {
             ast::SetterParameterSyntax::Named(name) => name.clone(),
         };
         ast::FunctionDecl {
-            context_parameters: property.context_parameters.clone(),
-            annotations: accessor_annotations(
-                property,
-                &setter.annotations,
-                ast::AnnotationUseSiteTarget::Set,
-            ),
-            visibility: match setter.visibility {
-                ast::SetterVisibilitySyntax::Explicit { visibility, span } => {
-                    ast::VisibilitySyntax::Explicit { visibility, span }
-                }
-                ast::SetterVisibilitySyntax::Inherited => property.visibility,
-            },
-            is_suspend: false,
-            is_override: property.is_override,
-            operator: None,
-            infix: None,
-            modifier: property.modifier,
-            receiver_ty: property.receiver_ty.clone(),
-            name: ast::Ident {
-                text: format!("$set${}", property.name.text),
-                span: property.name.span,
-            },
-            type_params: property.type_params.clone(),
-            params: vec![ast::Param {
-                annotations: Vec::new(),
-                name,
-                ty: property.ty.clone().unwrap_or(ast::TypeRef {
-                    annotations: Vec::new(),
-                    kind: ast::TypeRefKind::Unit,
+            signature: ast::FunctionSignature {
+                context_parameters: property.context_parameters.clone(),
+                annotations: accessor_annotations(
+                    property,
+                    &setter.annotations,
+                    ast::AnnotationUseSiteTarget::Set,
+                ),
+                visibility: match setter.visibility {
+                    ast::SetterVisibilitySyntax::Explicit { visibility, span } => {
+                        ast::VisibilitySyntax::Explicit { visibility, span }
+                    }
+                    ast::SetterVisibilitySyntax::Inherited => property.visibility,
+                },
+                is_suspend: false,
+                is_override: property.is_override,
+                operator: None,
+                infix: None,
+                modifier: property.modifier,
+                receiver_ty: property.receiver_ty.clone(),
+                name: ast::Ident {
+                    text: format!("$set${}", property.name.text),
                     span: property.name.span,
-                }),
-                syntax: ast::ParameterSyntax::Required,
+                },
+                type_params: property.type_params.clone(),
+                params: vec![ast::Param {
+                    annotations: Vec::new(),
+                    name,
+                    ty: property.ty.clone().unwrap_or(ast::TypeRef {
+                        annotations: Vec::new(),
+                        kind: ast::TypeRefKind::Unit,
+                        span: property.name.span,
+                    }),
+                    syntax: ast::ParameterSyntax::Required,
+                    span: setter.span,
+                }],
+                return_ty: None,
+                where_clause: property.where_clause.clone(),
                 span: setter.span,
-            }],
-            return_ty: None,
-            where_clause: property.where_clause.clone(),
+            },
             body: accessor_function_body(&setter.body),
             span: setter.span,
         }

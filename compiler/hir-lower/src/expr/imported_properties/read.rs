@@ -16,12 +16,17 @@ impl Lowerer {
                 );
                 return None;
             }
-            return self
-                .lower_imported_dependency_constant(binding, span)
-                .map(|expression| ImportedDependencyPropertyRead {
-                    expression,
-                    has_setter: false,
-                });
+            let expression = self.lower_imported_dependency_constant(binding, span)?;
+            self.observe_property_reference(
+                span,
+                hir::SemanticProperty::Imported(property.interface().declaration()),
+                expression.ty,
+                hir::EditingPropertyAccess::Read,
+            );
+            return Some(ImportedDependencyPropertyRead {
+                expression,
+                has_setter: false,
+            });
         }
 
         let candidate = self.imported_dependency_property_accessor(
@@ -32,6 +37,12 @@ impl Lowerer {
         )?;
         let receiver = self.validate_imported_property_receiver(&property, receiver, span)?;
         let result_type = self.imported_property_value_type(&property, span)?;
+        self.observe_property_reference(
+            span,
+            hir::SemanticProperty::Imported(property.interface().declaration()),
+            result_type,
+            hir::EditingPropertyAccess::Read,
+        );
         if let Some(place) = self.imported_property_native_place(&property, span)? {
             self.require_unsafe_operation(span, "reading an extern global");
             let pointer = self.external_storage_pointer(place, span);

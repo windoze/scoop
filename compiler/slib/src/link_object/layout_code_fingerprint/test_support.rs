@@ -83,14 +83,8 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         )
         .unwrap(),
     ];
-    let production = crate::verify_cross_cone_layout_production_code_projection_v1(
-        &cone,
-        &dependencies,
-        0,
-        v2,
-        objects,
-    )
-    .unwrap();
+    let production =
+        crate::verify_cross_cone_layout_production_code_projection_v1(&cone, v2, objects).unwrap();
     let strong = production
         .link_objects()
         .final_objects()

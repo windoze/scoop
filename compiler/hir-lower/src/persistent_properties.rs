@@ -335,6 +335,30 @@ impl PropertyIdentityBuilder<'_> {
 }
 
 impl Lowerer {
+    pub(crate) fn complete_property_identity(
+        &mut self,
+        property: hir::PropertyId,
+    ) -> Result<hir::HirPropertyIdentity, PersistentPropertyIdentityError> {
+        if let Some(identity) = self.property_identity_records.get(&property) {
+            return Ok(identity.clone());
+        }
+        let identity = PropertyIdentityBuilder {
+            lowerer: self,
+            nominals: self
+                .nominal_identities
+                .as_ref()
+                .expect("property identity follows declaration binding"),
+        }
+        .identity(
+            property,
+            &self.properties[property],
+            self.query_core_types(),
+        )?;
+        self.property_identity_records
+            .insert(property, identity.clone());
+        Ok(identity)
+    }
+
     pub(crate) fn ordinary_property_identity(
         &mut self,
         property: hir::PropertyId,

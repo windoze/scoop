@@ -5,13 +5,14 @@ mod integral;
 impl Lowerer {
     pub(crate) fn declare_enum<'a>(
         &mut self,
-        decl: &'a ast::EnumDecl,
+        decl: ast::EnumSource<'a>,
         is_core: bool,
-        pending: &mut Vec<(EnumId, &'a ast::EnumDecl, usize)>,
+        pending: &mut Vec<(EnumId, ast::EnumSource<'a>, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
         owner: Option<Owner>,
     ) -> Option<EnumId> {
+        let diagnostics_before = self.diagnostics.len();
         let no_gc = self.check_enum_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(
             owner,
@@ -42,7 +43,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let parameter = self.fresh_type_param(type_params.len());
+            let parameter = self.fresh_source_type_param(param, type_params.len());
             type_params.push(lower_type_param_decl(param, parameter));
         }
         let self_application =
@@ -91,7 +92,7 @@ impl Lowerer {
         self.register_nominal_identity(Owner::Enum(id), identity);
         self.register_nominal_name(
             owner,
-            &decl.name.text,
+            &decl.name,
             NominalTarget::Enum(id),
             file_index,
             decl.visibility,
@@ -107,15 +108,16 @@ impl Lowerer {
             .collect();
         let ty = self.enum_application(id, type_args);
         assert_eq!(self.types[ty], Type::Enum(self_application));
-        self.enum_files.insert(id, file_index);
+        self.record_nominal_file(Owner::Enum(id), file_index);
         if is_core && owner.is_none() && decl.name.text == "Option" {
             self.option_candidates
                 .push((id, file_index, decl.span, decl.type_params.len()));
         }
-        for method in &decl.methods {
+        self.record_editing_owner_errors(Owner::Enum(id), diagnostics_before);
+        for method in decl.methods {
             self.declare_method(method, Owner::Enum(id), pending_methods, file_index);
         }
-        for block in &decl.interface_implementations {
+        for block in decl.interface_implementations {
             self.declare_interface_block(Owner::Enum(id), block, pending_methods, file_index);
         }
         pending.push((id, decl, file_index));

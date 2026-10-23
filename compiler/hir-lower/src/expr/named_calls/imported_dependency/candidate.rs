@@ -9,6 +9,21 @@ pub(in crate::expr) enum ImportedCallableCandidate {
 
 pub(super) use hir::PrimitiveMemberIntrinsic as NormalizedImportedIntrinsic;
 
+pub(in crate::expr) fn semantic_function_target(
+    source: &impl ImportedCallableSource,
+) -> Option<hir::SemanticCallable> {
+    let declaration = match source.interface().declaration() {
+        scoop_identity::CallableTemplateOrigin::Function(function) => {
+            hir::DefaultCallableDeclarationV1::Function(function)
+        }
+        scoop_identity::CallableTemplateOrigin::GenericFunction(function) => {
+            hir::DefaultCallableDeclarationV1::GenericFunction(function)
+        }
+        _ => return None,
+    };
+    Some(hir::SemanticCallable::Imported(declaration))
+}
+
 impl ImportedCallableCandidate {
     pub(super) fn description(&self) -> &'static str {
         if matches!(

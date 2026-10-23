@@ -270,7 +270,9 @@ impl Lowerer {
                 debug_assert_ne!(completion, CompletionMode::Complete);
                 continue;
             };
-            if completion != CompletionMode::Partial {
+            if completion == CompletionMode::Partial {
+                self.validate_fixed_variable_relations(session, state)?;
+            } else {
                 self.validate_variable(session, &bindings, state, solution)?;
             }
         }

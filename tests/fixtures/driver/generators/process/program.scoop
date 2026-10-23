@@ -1,0 +1,22 @@
+interface Sum { fun add(left: Int, right: Int): Int }
+interface OtherSum { fun add(left: Int, right: Int): Int }
+interface Label { fun label(): String }
+interface Echo<T> { fun echo(value: T): T }
+
+@GenerateWith("test.peer", ["Sum", "OtherSum", "Label"])
+class Combined : Sum, OtherSum, Label
+
+@GenerateWith("test.peer", ["Echo<T>"])
+class Generic<T> : Echo<T>
+
+@GenerateWith("unused", []) class Empty
+@GenerateWith("unused", ["Sum"])
+class Manual : Sum { override fun add(left: Int, right: Int): Int = left - right }
+
+fun main() {
+    val combined = Combined()
+    println(combined.add(19, 23))
+    println(combined.label())
+    println(Generic<Int>().echo(7))
+    println(Manual().add(8, 3))
+}

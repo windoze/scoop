@@ -1,5 +1,51 @@
 use crate::{Ident, Span};
 
+/// File context used independently of declaration and body projections.
+#[derive(Debug, Clone, Copy)]
+pub struct SourceHeaderRef<'a> {
+    pub package: &'a PackageSyntax,
+    pub imports: &'a [ImportSyntax],
+    pub span: Span,
+}
+
+/// Independently available file context from one grammar result.
+#[derive(Debug, Clone, Copy)]
+pub struct SourceHeaderInput<'a> {
+    pub package: Option<&'a PackageSyntax>,
+    pub imports: Option<&'a [ImportSyntax]>,
+    pub span: Span,
+}
+
+impl<'a> SourceHeaderInput<'a> {
+    pub fn complete(self) -> Option<SourceHeaderRef<'a>> {
+        Some(SourceHeaderRef {
+            package: self.package?,
+            imports: self.imports?,
+            span: self.span,
+        })
+    }
+}
+
+impl<'a> From<SourceHeaderRef<'a>> for SourceHeaderInput<'a> {
+    fn from(header: SourceHeaderRef<'a>) -> Self {
+        Self {
+            package: Some(header.package),
+            imports: Some(header.imports),
+            span: header.span,
+        }
+    }
+}
+
+impl crate::SourceFile {
+    pub fn header(&self) -> SourceHeaderRef<'_> {
+        SourceHeaderRef {
+            package: &self.package,
+            imports: &self.imports,
+            span: self.span,
+        }
+    }
+}
+
 /// The package declared by one source file.
 ///
 /// The root package is represented explicitly rather than by a missing or

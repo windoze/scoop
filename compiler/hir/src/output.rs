@@ -13,6 +13,8 @@ use crate::{
 
 mod dependencies;
 pub use dependencies::*;
+mod source;
+pub use source::DependencyExportHirOutput;
 
 /// Export HIR paired with its validated library/executable contract.
 #[derive(Debug, Clone)]

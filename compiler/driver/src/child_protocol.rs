@@ -158,7 +158,8 @@ fn success_response(
                 None => scoop_protocol::ScoopcProductV1::Artifact(artifact),
             };
             let result = ScoopcSuccessV1::new(product, warnings, dumps)
-                .map_err(ChildProtocolError::ConstructResponse)?;
+                .map_err(ChildProtocolError::ConstructResponse)?
+                .with_used_generators(success.used_generators().to_vec());
             Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
         }
         scoopc::SingleConeCompilation::Documented(success) => {
@@ -169,7 +170,8 @@ fn success_response(
                 warnings,
                 dumps,
             )
-            .map_err(ChildProtocolError::ConstructResponse)?;
+            .map_err(ChildProtocolError::ConstructResponse)?
+            .with_used_generators(success.used_generators().to_vec());
             Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
         }
         scoopc::SingleConeCompilation::Observed(_) => Ok(ScoopcResponseEnvelopeV1::Observed {

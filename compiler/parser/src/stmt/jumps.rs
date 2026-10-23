@@ -76,7 +76,12 @@ impl Parser {
                     | TokenKind::Eof
             );
         let value = if has_value {
-            Some(Box::new(self.parse_expr()?))
+            Some(Box::new(self.parse_statement_operand(
+                keyword.span.start,
+                || scoop_ast::RecoveredOperandContext::Return {
+                    label: label.clone(),
+                },
+            )?))
         } else {
             None
         };
@@ -107,7 +112,9 @@ impl Parser {
 
     pub(crate) fn parse_throw_expression(&mut self) -> Result<Expr, Diagnostic> {
         let keyword = self.bump();
-        let value = self.parse_expr()?;
+        let value = self.parse_statement_operand(keyword.span.start, || {
+            scoop_ast::RecoveredOperandContext::Throw
+        })?;
         let span = Span::new(keyword.span.start, value.span().end);
         Ok(Expr::Throw {
             value: Box::new(value),

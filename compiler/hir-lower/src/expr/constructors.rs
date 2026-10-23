@@ -1,6 +1,7 @@
 use super::*;
 
 mod aliases;
+pub(in crate::expr) use aliases::AliasVariantConstructor;
 
 mod arrays;
 mod ffi;

@@ -147,6 +147,12 @@ impl Lowerer {
         }
         // A local raw access retains its storage identity; the generated
         // accessor body supplies the ordinary cross-Cone callable.
+        self.observe_property_reference(
+            span,
+            hir::SemanticProperty::Current(property),
+            ty,
+            hir::EditingPropertyAccess::Read,
+        );
         if matches!(
             declaration.representation,
             hir::PropertyRepresentation::NativeStorage { .. }
@@ -246,6 +252,12 @@ impl Lowerer {
             );
             return None;
         }
+        self.observe_property_reference(
+            span,
+            hir::SemanticProperty::Current(property),
+            value.ty,
+            hir::EditingPropertyAccess::Write,
+        );
         if matches!(
             declaration.representation,
             hir::PropertyRepresentation::NativeStorage { .. }

@@ -4,8 +4,13 @@ members = [
     "compiler/wire",
     "compiler/process",
     "compiler/identity",
+    "compiler/source",
+    "compiler/syntax",
+    "compiler/analysis",
+    "compiler/lsp",
     "compiler/manifest",
     "compiler/protocol",
+    "compiler/generator-protocol",
     "compiler/toolchain",
     "compiler/linker",
     "compiler/scoop",
@@ -58,12 +63,20 @@ signal-hook = "0.4.4"
 unicode-ident = "1.0.26"
 pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
 minijinja = { version = "3.0.1", features = ["serde"] }
+rowan = "0.17.0"
+lsp-server = "0.10.0"
+lsp-types = "0.97.0"
+url = "2.5.8"
 
 scoop-wire = { path = "compiler/wire" }
 scoop-process = { path = "compiler/process" }
 scoop-identity = { path = "compiler/identity" }
+scoop-source = { path = "compiler/source" }
+scoop-syntax = { path = "compiler/syntax" }
+scoop-analysis = { path = "compiler/analysis" }
 scoop-manifest = { path = "compiler/manifest" }
 scoop-protocol = { path = "compiler/protocol" }
+scoop-generator-protocol = { path = "compiler/generator-protocol" }
 scoop-toolchain = { path = "compiler/toolchain" }
 scoop-linker = { path = "compiler/linker" }
 scoop = { path = "compiler/scoop" }

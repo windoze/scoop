@@ -10,7 +10,10 @@ impl Lowerer {
         host: &str,
     ) -> Vec<hir::ClassInitializationStep> {
         let mut steps = Vec::new();
-        for member in members {
+        for (member_index, member) in members.iter().enumerate() {
+            if self.body_cancelled() {
+                break;
+            }
             match member {
                 ast::ClassMember::StoredProperty(property) => {
                     let Some(property_id) = self.classes[owner]
@@ -21,6 +24,14 @@ impl Lowerer {
                     else {
                         continue;
                     };
+                    if matches!(
+                        property.body,
+                        ast::PropertyBodySyntax::Initializer { .. }
+                            | ast::PropertyBodySyntax::Delegated { .. }
+                    ) && self.infer_property_type(property_id).is_none()
+                    {
+                        continue;
+                    }
                     if let Some(step) = self
                         .declaration_inference
                         .field_initializers
@@ -72,8 +83,9 @@ impl Lowerer {
                             let Some(property_initializer) = property.initializer() else {
                                 continue;
                             };
-                            self.with_constructor_expression_context(
+                            self.with_constructor_source_body(
                                 constructor,
+                                hir::EditingConstructionBody::Property(property_id),
                                 "stored property initializer",
                                 hir::Safety::Safe,
                                 |this, sink| {
@@ -144,8 +156,14 @@ impl Lowerer {
                     if let Some(context) = &mut self.initialization_context {
                         context.step = format!("init block in {host}");
                     }
-                    let lowered = self.with_constructor_expression_context(
+                    let lowered = self.with_constructor_source_body(
                         constructor,
+                        hir::EditingConstructionBody::InitBlock {
+                            owner,
+                            member: member_index
+                                .try_into()
+                                .expect("source member index fits u32"),
+                        },
                         "init block",
                         hir::Safety::Safe,
                         |this, _| {
@@ -221,8 +239,9 @@ impl Lowerer {
                 lower,
             )
         } else {
-            self.with_constructor_expression_context(
+            self.with_constructor_source_body(
                 constructor,
+                hir::EditingConstructionBody::Property(property_id),
                 "delegated property initializer",
                 hir::Safety::Safe,
                 lower,

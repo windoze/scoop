@@ -303,8 +303,7 @@ fn combined_source_input_rejects_multiple_current_cones() {
     let second_identity = scoop_identity::SourceIdentity::new(
         other_cone,
         scoop_identity::NormalizedSourcePath::new("src/second.scoop").unwrap(),
-    )
-    .unwrap();
+    );
     let second = ast::IdentifiedParsedSource::new(second_identity, file(Vec::new()));
     let parsed =
         ast::AllParsedSources::try_new(ast::NonEmptyVec::new(first, vec![second])).unwrap();

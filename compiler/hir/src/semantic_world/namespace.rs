@@ -362,7 +362,26 @@ impl<'input> ImportedSemanticWorld<'input> {
         segments: &[CanonicalIdentifier],
         namespace: BindingNamespace,
     ) -> Result<DirectPublicBindingGroup<'_, 'input>, DirectNamespaceLookupError> {
-        let (consumed, mut cursor) = self.longest_package_cursor(segments)?;
+        self.resolve_direct_exact_filtered(segments, namespace, None)
+    }
+
+    /// Select one provider before package precedence and follow its actual routes.
+    pub fn resolve_provider_export(
+        &self,
+        provider: ConeIdentity,
+        segments: &[CanonicalIdentifier],
+        namespace: BindingNamespace,
+    ) -> Result<DirectPublicBindingGroup<'_, 'input>, DirectNamespaceLookupError> {
+        self.resolve_direct_exact_filtered(segments, namespace, Some(provider))
+    }
+
+    fn resolve_direct_exact_filtered(
+        &self,
+        segments: &[CanonicalIdentifier],
+        namespace: BindingNamespace,
+        provider: Option<ConeIdentity>,
+    ) -> Result<DirectPublicBindingGroup<'_, 'input>, DirectNamespaceLookupError> {
+        let (consumed, mut cursor) = self.longest_package_cursor(segments, provider)?;
         let remaining = &segments[consumed..];
         let Some((last, owners)) = remaining.split_last() else {
             return Err(DirectNamespaceLookupError::ExpectedBindingAfterPackage);
@@ -383,12 +402,12 @@ impl<'input> ImportedSemanticWorld<'input> {
         &self,
         segments: &[CanonicalIdentifier],
     ) -> Result<DirectNamespaceView<'_, 'input>, DirectNamespaceLookupError> {
-        let (consumed, mut cursor) = self.longest_package_cursor(segments)?;
+        let (consumed, mut cursor) = self.longest_package_cursor(segments, None)?;
         for (offset, owner) in segments[consumed..].iter().enumerate() {
             cursor = self.descend_static(cursor, owner, consumed + offset)?;
         }
         Ok(match cursor {
-            NamespaceCursor::Package { path, entry } => {
+            NamespaceCursor::Package { path, entry, .. } => {
                 DirectNamespaceView::Package(DirectPackageView {
                     world: self,
                     path,
@@ -404,10 +423,13 @@ impl<'input> ImportedSemanticWorld<'input> {
     fn longest_package_cursor(
         &self,
         segments: &[CanonicalIdentifier],
+        provider: Option<ConeIdentity>,
     ) -> Result<(usize, NamespaceCursor<'_>), DirectNamespaceLookupError> {
         let matched = self
             .direct_packages
-            .longest_prefix(segments)
+            .longest_prefix_filtered(segments, |candidate| {
+                provider.is_none_or(|id| candidate == id)
+            })
             .ok_or(DirectNamespaceLookupError::NoVisiblePackage)?;
         let entry = self
             .direct_packages
@@ -419,6 +441,7 @@ impl<'input> ImportedSemanticWorld<'input> {
             NamespaceCursor::Package {
                 path: matched.path(),
                 entry,
+                provider,
             },
         ))
     }
@@ -469,12 +492,18 @@ impl<'input> ImportedSemanticWorld<'input> {
         name: &str,
     ) -> Option<DirectPublicBindingGroup<'world, 'input>> {
         match cursor {
-            NamespaceCursor::Package { path, entry } => DirectPackageView {
+            NamespaceCursor::Package {
+                path,
+                entry,
+                provider,
+            } => DirectPackageView {
                 world: self,
                 path,
                 entry,
             }
-            .binding_group(namespace, name),
+            .binding_group_filtered(namespace, name, |candidate| {
+                provider.is_none_or(|id| candidate == id)
+            }),
             NamespaceCursor::Static(owner) => ImportedStaticNamespace {
                 world: self,
                 owner: *owner,
@@ -492,6 +521,7 @@ enum NamespaceCursor<'world> {
     Package {
         path: &'world PackagePath,
         entry: &'world DirectPackageEntry,
+        provider: Option<ConeIdentity>,
     },
     Static(SourceNominalId),
 }

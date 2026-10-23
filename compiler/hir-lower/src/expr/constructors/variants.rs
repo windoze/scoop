@@ -61,6 +61,7 @@ impl Lowerer {
         )
         .expect("the selected application belongs to the checked variant declaration");
         let ty = self.enum_applications[application].canonical_type;
+        self.observe_callee_reference(name.span, hir::EditingCallee::CurrentVariant(target));
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
                 variant: self.enum_variant_reference(variant),
@@ -180,6 +181,7 @@ impl Lowerer {
         )
         .expect("the selected application belongs to the checked variant declaration");
         let ty = self.enum_applications[application].canonical_type;
+        self.observe_callee_reference(span, hir::EditingCallee::CurrentVariant(target));
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
                 variant: self.enum_variant_reference(variant),

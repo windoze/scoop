@@ -5,7 +5,7 @@ impl Lowerer {
     pub(crate) fn annotate_struct(
         &mut self,
         id: hir::StructId,
-        source: &ast::StructDecl,
+        source: ast::StructSource<'_>,
         file: usize,
     ) {
         let owner = Owner::Struct(id);
@@ -60,14 +60,19 @@ impl Lowerer {
                 _ => None,
             }),
         );
-        for member in &source.members {
+        for member in source.members {
             if let ast::StructMember::Property(property) = member {
                 self.annotate_property_declaration(property, file);
             }
         }
     }
 
-    pub(crate) fn annotate_enum(&mut self, id: hir::EnumId, source: &ast::EnumDecl, file: usize) {
+    pub(crate) fn annotate_enum(
+        &mut self,
+        id: hir::EnumId,
+        source: ast::EnumSource<'_>,
+        file: usize,
+    ) {
         let owner = Owner::Enum(id);
         self.annotation_scope(owner, file);
         self.document_enum(id, source);
@@ -126,7 +131,7 @@ impl Lowerer {
                 }
             }
         }
-        for property in &source.properties {
+        for property in source.properties {
             self.annotate_property_declaration(property, file);
         }
         self.annotate_interface_blocks(
@@ -139,7 +144,7 @@ impl Lowerer {
     pub(crate) fn annotate_class(
         &mut self,
         id: hir::ClassId,
-        source: &ast::ClassDecl,
+        source: ast::ClassSource<'_>,
         file: usize,
     ) {
         let owner = Owner::Class(id);
@@ -176,13 +181,13 @@ impl Lowerer {
             }
         }
         self.annotate_class_constructors(id, source);
-        self.annotate_class_members(owner, &source.members, source.supertypes.len());
+        self.annotate_class_members(owner, source.members, source.supertypes.len());
     }
 
     pub(crate) fn annotate_interface(
         &mut self,
         id: hir::InterfaceId,
-        source: &ast::InterfaceDecl,
+        source: ast::InterfaceSource<'_>,
         file: usize,
     ) {
         let owner = Owner::Interface(id);
@@ -201,7 +206,7 @@ impl Lowerer {
             Target::Nominal(owner.as_nominal_owner()),
             &source.annotations,
         );
-        for property in &source.properties {
+        for property in source.properties {
             self.annotate_property_declaration(property, file);
         }
     }

@@ -4,6 +4,12 @@ impl Parser {
     pub(in crate::decl) fn parse_class_body(
         &mut self,
     ) -> Result<(Vec<ClassMember>, u32), Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ClassBody, |parser| {
+            parser.parse_class_body_inner()
+        })
+    }
+
+    fn parse_class_body_inner(&mut self) -> Result<(Vec<ClassMember>, u32), Diagnostic> {
         self.bump(); // `{`
         let body_depth = self.brace_depth();
         let mut members = Vec::new();
@@ -12,7 +18,7 @@ impl Parser {
                 break self.bump();
             }
             if matches!(self.peek().kind, TokenKind::Eof) {
-                return self.unexpected("`}`");
+                return self.missing_token(TokenKind::RBrace, "`}`");
             }
             let start = self.pos;
             let parsed = self.parse_class_member();
@@ -29,6 +35,7 @@ impl Parser {
                             .iter()
                             .any(|existing| matches!(existing, ClassMember::Companion(_)))
                     {
+                        self.invalidate_nominal_projection();
                         self.diagnostics.push(Diagnostic::at(
                             member.span(),
                             "a nominal declaration may contain at most one companion object",
@@ -38,6 +45,7 @@ impl Parser {
                     }
                     members.push(member);
                     if let Err(diagnostic) = self.expect_statement_end() {
+                        self.invalidate_nominal_projection();
                         self.diagnostics.push(diagnostic);
                         self.synchronize_body_item(body_depth, start);
                     }
@@ -55,7 +63,18 @@ impl Parser {
     }
 
     fn parse_class_member(&mut self) -> Result<ClassMember, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Member, |parser| {
+            let checkpoint = parser.checkpoint();
+            parser.begin_nominal_member();
+            let result = parser.parse_class_member_inner();
+            parser.end_class_member(&result, checkpoint);
+            result
+        })
+    }
+
+    fn parse_class_member_inner(&mut self) -> Result<ClassMember, Diagnostic> {
         let prefix = self.parse_member_prefix()?;
+        self.nominal_member_kind(prefix.modifiers.override_span.is_some());
         match &self.peek().kind {
             TokenKind::Interface if prefix.modifiers.override_span.is_some() => self
                 .parse_interface_implementation(prefix, PropertyContext::ClassOrObject)
@@ -276,6 +295,12 @@ impl Parser {
     }
 
     pub(super) fn parse_struct_body(&mut self) -> Result<(Vec<StructMember>, u32), Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::StructBody, |parser| {
+            parser.parse_struct_body_inner()
+        })
+    }
+
+    fn parse_struct_body_inner(&mut self) -> Result<(Vec<StructMember>, u32), Diagnostic> {
         self.bump(); // `{`
         let body_depth = self.brace_depth();
         let mut members = Vec::new();
@@ -284,10 +309,14 @@ impl Parser {
                 break self.bump();
             }
             if matches!(self.peek().kind, TokenKind::Eof) {
-                return self.unexpected("`}`");
+                return self.missing_token(TokenKind::RBrace, "`}`");
             }
             let start = self.pos;
-            let parsed = self.parse_member_prefix().and_then(|prefix| match &self.peek().kind {
+            let checkpoint = self.checkpoint();
+            self.begin_nominal_member();
+            let parsed = self.parse_member_prefix().and_then(|prefix| {
+                self.nominal_member_kind(prefix.modifiers.override_span.is_some());
+                match &self.peek().kind {
                 TokenKind::Interface if prefix.modifiers.override_span.is_some() => self
                     .parse_interface_implementation(prefix, PropertyContext::ValueType)
                     .map(Box::new)
@@ -338,7 +367,8 @@ impl Parser {
                     self.peek().span,
                     "expected a computed property, function, constructor, nested declaration, or companion object",
                 )),
-            });
+            }});
+            self.end_struct_member(&parsed, checkpoint);
             match parsed {
                 Ok(member) => {
                     self.attach_documentation(start, member.span());
@@ -347,6 +377,7 @@ impl Parser {
                             .iter()
                             .any(|existing| matches!(existing, StructMember::Companion(_)))
                     {
+                        self.invalidate_nominal_projection();
                         self.diagnostics.push(Diagnostic::at(
                             member.span(),
                             "a nominal declaration may contain at most one companion object",
@@ -356,6 +387,7 @@ impl Parser {
                     }
                     members.push(member);
                     if let Err(diagnostic) = self.expect_statement_end() {
+                        self.invalidate_nominal_projection();
                         self.diagnostics.push(diagnostic);
                         self.synchronize_body_item(body_depth, start);
                     }

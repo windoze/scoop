@@ -223,6 +223,9 @@ impl Lowerer {
             result => return result,
         }
         for layer in self.named_extension_delegate_operator_layers(role) {
+            if self.report_unavailable_lookup(&name, &layer.unavailable) {
+                return DelegateRoleCall::Failed;
+            }
             match self.resolve_delegate_extension_role(
                 &layer.candidates,
                 receiver.clone(),

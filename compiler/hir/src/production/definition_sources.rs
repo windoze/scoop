@@ -190,54 +190,79 @@ impl crate::ExportDefaultTemplateV1 {
     }
 }
 
+/// Source relations already established by ordinary frontend binding.
+#[derive(Clone, Copy)]
+pub struct HirSourceProjectionInputs<'a> {
+    pub source_files: &'a [crate::SourceFileMetadata],
+    pub source_contexts: &'a la_arena::Arena<crate::SourceContext>,
+    pub source_context_identities: &'a crate::HirSourceContextIdentities,
+}
+
+impl<'a> HirSourceProjectionInputs<'a> {
+    pub fn from_export(export: &'a ExportHir) -> Self {
+        Self {
+            source_files: &export.source_files,
+            source_contexts: &export.source_contexts,
+            source_context_identities: &export.source_context_identities,
+        }
+    }
+
+    pub fn definition(
+        &self,
+        origin: crate::DefinitionOrigin,
+    ) -> Result<ExportDefinitionSourceV1, HirDefinitionSourceProjectionError> {
+        let (source, span, context) = project_source_location(
+            self,
+            origin.provider,
+            origin.file,
+            origin.span,
+            origin.context,
+        )?;
+        DefinitionOrigin::new(source.clone(), span, context)
+            .map(ExportDefinitionSourceV1::new)
+            .map_err(HirDefinitionSourceProjectionError::Origin)
+    }
+
+    pub fn evaluation(
+        &self,
+        origin: crate::EvaluationOrigin,
+    ) -> Result<scoop_identity::EvaluationOrigin, HirDefinitionSourceProjectionError> {
+        let (source, span, context) = project_source_location(
+            self,
+            origin.provider,
+            origin.file,
+            origin.span,
+            origin.context,
+        )?;
+        scoop_identity::EvaluationOrigin::new(source.clone(), span, context)
+            .map_err(HirDefinitionSourceProjectionError::Origin)
+    }
+}
+
 pub(crate) fn project_definition_source(
     export: &ExportHir,
     origin: crate::DefinitionOrigin,
 ) -> Result<ExportDefinitionSourceV1, HirDefinitionSourceProjectionError> {
-    let (source, span, context) = project_source_location(
-        export,
-        origin.provider,
-        origin.file,
-        origin.span,
-        origin.context,
-    )?;
-    DefinitionOrigin::new(source.clone(), span, context)
-        .map(ExportDefinitionSourceV1::new)
-        .map_err(HirDefinitionSourceProjectionError::Origin)
+    HirSourceProjectionInputs::from_export(export).definition(origin)
 }
 
-pub(crate) fn project_evaluation_origin(
-    export: &ExportHir,
-    origin: crate::EvaluationOrigin,
-) -> Result<scoop_identity::EvaluationOrigin, HirDefinitionSourceProjectionError> {
-    let (source, span, context) = project_source_location(
-        export,
-        origin.provider,
-        origin.file,
-        origin.span,
-        origin.context,
-    )?;
-    scoop_identity::EvaluationOrigin::new(source.clone(), span, context)
-        .map_err(HirDefinitionSourceProjectionError::Origin)
-}
-
-fn project_source_location(
-    export: &ExportHir,
+fn project_source_location<'a>(
+    inputs: &HirSourceProjectionInputs<'a>,
     provider: IntrinsicProviderId,
     file: u32,
     source_span: crate::Span,
     source_context: crate::SourceContextId,
 ) -> Result<
     (
-        &scoop_identity::SourceIdentity,
+        &'a scoop_identity::SourceIdentity,
         SourceSpan,
-        &scoop_identity::SourceContextKey,
+        &'a scoop_identity::SourceContextKey,
     ),
     HirDefinitionSourceProjectionError,
 > {
     let file_index =
         usize::try_from(file).map_err(|_| HirDefinitionSourceProjectionError::UnknownFile(file))?;
-    let source = export
+    let source = inputs
         .source_files
         .get(file_index)
         .ok_or(HirDefinitionSourceProjectionError::UnknownFile(file))?;
@@ -249,7 +274,7 @@ fn project_source_location(
         });
     }
     let context_index = raw_index(source_context);
-    let local_context = arena_get(&export.source_contexts, source_context).ok_or(
+    let local_context = arena_get(inputs.source_contexts, source_context).ok_or(
         HirDefinitionSourceProjectionError::UnknownContext(context_index),
     )?;
     if local_context.source() != &source.identity {
@@ -260,7 +285,7 @@ fn project_source_location(
             },
         );
     }
-    let context = export
+    let context = inputs
         .source_context_identities
         .get(source_context)
         .ok_or(HirDefinitionSourceProjectionError::MissingPersistentContext(context_index))?;

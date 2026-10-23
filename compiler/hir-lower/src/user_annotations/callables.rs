@@ -5,7 +5,7 @@ impl Lowerer {
     pub(crate) fn annotate_function(
         &mut self,
         function: hir::FunctionId,
-        source: &ast::FunctionDecl,
+        source: ast::FunctionHeaderRef<'_>,
     ) {
         self.document_function(function, source);
         self.bind_source_annotations(
@@ -70,7 +70,7 @@ impl Lowerer {
     pub(super) fn annotate_class_constructors(
         &mut self,
         owner: hir::ClassId,
-        source: &ast::ClassDecl,
+        source: ast::ClassSource<'_>,
     ) {
         if let ast::ClassConstructorDecl::Declared(primary) = &source.constructor {
             let id = self.classes[owner].constructors.iter().copied().find(|id| {
@@ -111,7 +111,6 @@ impl Lowerer {
                 .find(|id| self.class_constructors[*id].span == source.span);
             if let Some(id) = id {
                 let callable = Callable::ClassConstructor(id);
-                self.document_secondary_constructor(callable, source);
                 self.bind_source_annotations(Target::Callable(callable), &source.annotations);
                 self.annotate_parameters(callable, &source.params);
             }
@@ -121,7 +120,7 @@ impl Lowerer {
     pub(super) fn annotate_struct_constructors(
         &mut self,
         owner: hir::StructId,
-        source: &ast::StructDecl,
+        source: ast::StructSource<'_>,
     ) {
         for source in source.secondary_constructors() {
             let id = self.structs[owner]
@@ -131,7 +130,6 @@ impl Lowerer {
                 .find(|id| self.struct_constructors[*id].span == source.span);
             if let Some(id) = id {
                 let callable = Callable::StructConstructor(id);
-                self.document_secondary_constructor(callable, source);
                 self.bind_source_annotations(Target::Callable(callable), &source.annotations);
                 self.annotate_parameters(callable, &source.params);
             }

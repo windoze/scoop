@@ -3,6 +3,7 @@ mod dependency;
 mod dependency_fixture;
 mod materialization;
 mod pipeline;
+mod recovery;
 mod reexports;
 mod resolution;
 mod type_lookup;
@@ -129,7 +130,10 @@ fn lowerer() -> (Lowerer, PackageId, PackageId) {
     lowerer.top_level_namespaces.initialize_sources(
         [(cone, scoop_identity::SourceRole::Production); 4],
         cone,
-        &files,
+        &files
+            .iter()
+            .map(|file| file.header().into())
+            .collect::<Vec<_>>(),
     );
     let (api, _) = lowerer
         .top_level_namespaces

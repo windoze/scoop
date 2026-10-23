@@ -1,4 +1,4 @@
-use super::{PackageId, PackageNode, TopLevelLookupLayer, TopLevelNamespaces};
+use super::{PackageId, PackageNode, SourceScope, TopLevelLookupLayer, TopLevelNamespaces};
 use scoop_ast as ast;
 use scoop_identity::SourceRole;
 
@@ -9,35 +9,40 @@ impl TopLevelNamespaces {
             Item = (scoop_identity::ConeIdentity, scoop_identity::SourceRole),
         >,
         current_cone: scoop_identity::ConeIdentity,
-        files: &[ast::SourceFile],
+        files: &[ast::SourceHeaderInput<'_>],
     ) {
         assert!(
-            self.source_namespaces.is_empty(),
+            self.sources.is_empty(),
             "source namespaces are initialized exactly once"
         );
         let source_cones = source_cones.into_iter().collect::<Vec<_>>();
         assert_eq!(source_cones.len(), files.len());
         for ((cone, role), file) in source_cones.into_iter().zip(files) {
-            let namespace = if cone == current_cone {
-                let package = if cone == scoop_identity::ConeIdentity::SINGLE_FILE {
-                    Self::root_package()
-                } else {
-                    self.intern_package(&file.package)
-                };
-                self.current.entry(package).or_default();
-                if role == scoop_identity::SourceRole::Production {
-                    let mut ancestor = Some(package);
-                    while let Some(package) = ancestor {
-                        self.production_packages.insert(package);
-                        ancestor = self.packages[package.0 as usize].parent;
+            let namespace = file.package.map(|package| {
+                if cone == current_cone {
+                    let package = if cone == scoop_identity::ConeIdentity::SINGLE_FILE {
+                        Self::root_package()
+                    } else {
+                        self.intern_package(package)
+                    };
+                    self.current.entry(package).or_default();
+                    if role == scoop_identity::SourceRole::Production {
+                        let mut ancestor = Some(package);
+                        while let Some(package) = ancestor {
+                            self.production_packages.insert(package);
+                            ancestor = self.packages[package.0 as usize].parent;
+                        }
                     }
+                    TopLevelLookupLayer::CurrentPackage(package)
+                } else {
+                    TopLevelLookupLayer::CorePrelude
                 }
-                TopLevelLookupLayer::CurrentPackage(package)
-            } else {
-                TopLevelLookupLayer::CorePrelude
-            };
-            self.source_namespaces.push(namespace);
-            self.source_roles.push(role);
+            });
+            self.sources.push(SourceScope {
+                namespace,
+                role,
+                current: cone == current_cone,
+            });
         }
     }
 
@@ -66,7 +71,17 @@ impl TopLevelNamespaces {
     }
 
     pub(crate) fn source_namespace(&self, file: usize) -> TopLevelLookupLayer {
-        self.source_namespaces[file]
+        self.sources[file]
+            .namespace
+            .expect("only a known package enters semantic lookup")
+    }
+
+    pub(crate) fn known_source_namespace(&self, file: usize) -> Option<TopLevelLookupLayer> {
+        self.sources[file].namespace
+    }
+
+    pub(crate) fn source_is_current_cone(&self, file: usize) -> bool {
+        self.sources[file].current
     }
 
     pub(crate) fn sources_share_namespace(&self, left: usize, right: usize) -> bool {
@@ -116,17 +131,25 @@ impl TopLevelNamespaces {
         file: usize,
         path: &[ast::Ident],
     ) -> (PackageId, usize) {
+        self.longest_package_prefix_names(file, path.iter().map(|segment| segment.text.as_str()))
+    }
+
+    pub(crate) fn longest_package_prefix_names<'a>(
+        &self,
+        file: usize,
+        path: impl Iterator<Item = &'a str>,
+    ) -> (PackageId, usize) {
         let mut package = Self::root_package();
         let mut length = 0;
         for segment in path {
             let Some(child) = self
                 .package_children
-                .get(&(package, segment.text.clone()))
+                .get(&(package, segment.to_owned()))
                 .copied()
             else {
                 break;
             };
-            if self.source_roles[file] == scoop_identity::SourceRole::Production
+            if self.sources[file].role == scoop_identity::SourceRole::Production
                 && !self.production_packages.contains(&child)
             {
                 break;
@@ -138,7 +161,7 @@ impl TopLevelNamespaces {
     }
 
     pub(crate) fn source_in_scope(&self, reference: usize, declaration: usize) -> bool {
-        self.source_roles[reference] == SourceRole::Test
-            || self.source_roles[declaration] == SourceRole::Production
+        self.sources[reference].role == SourceRole::Test
+            || self.sources[declaration].role == SourceRole::Production
     }
 }

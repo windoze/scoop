@@ -21,6 +21,7 @@ impl Lowerer {
         Ok(ImportedDependencyExtensionPropertyProbe {
             target: ImportedExtensionPropertyTarget {
                 binding: binding.clone(),
+                declaration: property.interface().declaration(),
                 accessors: ImportedExtensionPropertyAccessors::Generic {
                     getter: selected.template,
                     arguments: selected.arguments,
@@ -48,7 +49,15 @@ impl Lowerer {
                 .lower_imported_dependency_property_read(&target.binding, Some(receiver), span)
                 .map(|read| read.expression),
             ImportedExtensionPropertyAccessors::Generic { getter, arguments } => {
-                Some(self.emit_generic_extension_accessor(*getter, arguments, receiver, None, span))
+                let expression =
+                    self.emit_generic_extension_accessor(*getter, arguments, receiver, None, span);
+                self.observe_property_reference(
+                    span,
+                    hir::SemanticProperty::Imported(target.declaration),
+                    expression.ty,
+                    hir::EditingPropertyAccess::Read,
+                );
+                Some(expression)
             }
         }
     }
@@ -109,6 +118,12 @@ impl Lowerer {
                 return None;
             }
         };
+        self.observe_property_reference(
+            span,
+            hir::SemanticProperty::Imported(target.declaration),
+            value.ty,
+            hir::EditingPropertyAccess::Write,
+        );
         Some(hir::StatementKind::Expr(
             self.emit_generic_extension_accessor(template, arguments, receiver, Some(value), span),
         ))

@@ -15,7 +15,7 @@ use crate::{
 mod captures;
 mod delegates;
 mod errors;
-mod projection;
+pub(super) mod projection;
 pub use errors::GenericTemplateProductionError;
 pub(in crate::production::default_templates) use projection::binder_uses;
 
@@ -34,6 +34,7 @@ impl CanonicalExportGenericCallableBodiesV1 {
 }
 
 pub(in crate::production) struct GenericBodyProducer<'a> {
+    export: &'a ExportHir,
     entities: DefaultEntityProjector<'a>,
     index: BTreeMap<DefaultCallableDeclarationV1, FunctionId>,
     pending: VecDeque<FunctionId>,
@@ -58,6 +59,7 @@ impl<'a> GenericBodyProducer<'a> {
             index.insert(owner, function);
         }
         Ok(Self {
+            export,
             entities,
             index,
             pending: VecDeque::new(),
@@ -68,7 +70,7 @@ impl<'a> GenericBodyProducer<'a> {
 
     pub(in crate::production) fn include_roots(&mut self, roots: &SharedSourceRoots) {
         for &function in self.index.values() {
-            let export = self.entities.export();
+            let export = self.export;
             if (export.functions[function].type_param_count() != 0
                 || (export.functions[function].method.is_none()
                     && matches!(
@@ -91,7 +93,7 @@ impl<'a> GenericBodyProducer<'a> {
         &mut self,
         defaults: &BTreeSet<crate::ExportDefaultExprId>,
     ) -> Result<(), GenericTemplateProductionError> {
-        let export = self.entities.export();
+        let export = self.export;
         for &id in defaults {
             if !self.defaults.insert(id) {
                 continue;
@@ -144,7 +146,7 @@ impl<'a> GenericBodyProducer<'a> {
         &mut self,
     ) -> Result<Option<crate::ExportGenericCallableBodyV1>, GenericTemplateProductionError> {
         while let Some(function) = self.pending.pop_front() {
-            if let Some(body) = projection::project(&self.entities, function)? {
+            if let Some(body) = projection::project(self.export, &self.entities, function)? {
                 return Ok(Some(body));
             }
         }
@@ -156,7 +158,7 @@ impl<'a> GenericBodyProducer<'a> {
         owner: DefaultCallableDeclarationV1,
     ) -> Option<FunctionId> {
         let &function = self.index.get(&owner)?;
-        let export = self.entities.export();
+        let export = self.export;
         let lexical = match &export.function_identities[function] {
             HirFunctionIdentity::Source(source) => matches!(
                 source.declaration().scope(),

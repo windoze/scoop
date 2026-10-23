@@ -3,7 +3,7 @@
 use super::entities::DefaultEntityProjector;
 use crate::{
     DefaultConstructorRefV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
-    ExportDefaultReferences, ExportHir, HirSignatureBinder,
+    ExportDefaultReferences, HirSignatureBinder,
 };
 
 pub(super) fn project(
@@ -16,7 +16,7 @@ pub(super) fn project(
         let target = entities.reference_callable(reference.target, binders)?;
         callables.push(ExportDefaultReferenceV1::new(
             target,
-            origin(entities.export(), reference.origin)?,
+            origin(entities.inputs(), reference.origin)?,
         ));
     }
 
@@ -43,7 +43,7 @@ pub(super) fn project(
         };
         constructors.push(ExportDefaultReferenceV1::new(
             target,
-            origin(entities.export(), reference.origin)?,
+            origin(entities.inputs(), reference.origin)?,
         ));
     }
 
@@ -51,7 +51,7 @@ pub(super) fn project(
     for reference in &references.types {
         types.push(ExportDefaultReferenceV1::new(
             entities.reference_type(reference.target, binders)?,
-            origin(entities.export(), reference.origin)?,
+            origin(entities.inputs(), reference.origin)?,
         ));
     }
 
@@ -64,7 +64,7 @@ pub(super) fn project(
                 }
                 crate::ExportDefaultGlobalTarget::Dependency(property) => property,
             },
-            origin(entities.export(), reference.origin)?,
+            origin(entities.inputs(), reference.origin)?,
         ));
     }
 
@@ -79,7 +79,7 @@ pub(super) fn project(
         };
         singleton_values.push(ExportDefaultReferenceV1::new(
             value,
-            origin(entities.export(), reference.origin)?,
+            origin(entities.inputs(), reference.origin)?,
         ));
     }
 
@@ -87,7 +87,7 @@ pub(super) fn project(
     for reference in &references.fields {
         fields.push(ExportDefaultReferenceV1::new(
             entities.field(reference.target, binders)?,
-            origin(entities.export(), reference.origin)?,
+            origin(entities.inputs(), reference.origin)?,
         ));
     }
 
@@ -97,7 +97,7 @@ pub(super) fn project(
         .map(|reference| {
             Ok(ExportDefaultReferenceV1::new(
                 reference.target,
-                origin(entities.export(), reference.origin)?,
+                origin(entities.inputs(), reference.origin)?,
             ))
         })
         .collect::<Result<Vec<_>, super::DefaultReferenceProjectionError>>()?;
@@ -126,9 +126,11 @@ fn canonicalize<T: Ord>(records: &mut Vec<T>) {
 }
 
 fn origin(
-    export: &ExportHir,
+    inputs: &crate::HirBodyProjectionInputs<'_>,
     origin: crate::DefinitionOrigin,
 ) -> Result<crate::ExportDefinitionSourceV1, super::DefaultReferenceProjectionError> {
-    super::super::definition_sources::project_definition_source(export, origin)
+    inputs
+        .sources
+        .definition(origin)
         .map_err(super::DefaultReferenceProjectionError::DefinitionOrigin)
 }
