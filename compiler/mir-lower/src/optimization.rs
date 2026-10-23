@@ -89,8 +89,15 @@ fn run_with_intrinsics(
         crate::local_values::LocalValueRegistry::from_existing(&module.meta.local_values);
     let dispatch = std::mem::take(&mut imported.dispatch);
     let has_intrinsics = !required.is_empty();
-    let mut inliner = (options.inline || has_intrinsics)
-        .then(|| inline::Session::new(module, required.clone(), options.inline, imported));
+    let mut inliner = (options.inline || has_intrinsics).then(|| {
+        inline::Session::new(
+            module,
+            required.clone(),
+            options.inline,
+            options.allocation_elision,
+            imported,
+        )
+    });
     if has_intrinsics {
         intrinsics::normalize(
             module,

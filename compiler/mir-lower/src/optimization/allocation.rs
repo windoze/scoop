@@ -7,10 +7,14 @@ use super::{
 use crate::local_values::LocalValueRegistry;
 
 mod control;
+mod inlining;
 mod origins;
 mod rewrite;
 mod storage;
 mod uses;
+
+pub(super) use inlining::InlineReceivers;
+pub(super) use origins::{defined_local, is_class_field, local_alias, statement_alias};
 
 pub(super) fn run(
     module: &mut mir::Module,

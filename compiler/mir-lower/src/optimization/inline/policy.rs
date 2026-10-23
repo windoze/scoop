@@ -84,7 +84,10 @@ pub(super) fn supported(function: &mir::Function) -> bool {
 }
 
 mod cost;
-pub(super) use cost::{Cost, blocks_cost, function_cost};
+pub(super) use cost::{
+    Cost, adjusted_blocks_cost, assignment_cost, blocks_cost, expression_cost, function_cost,
+    statement_cost, tree_cost,
+};
 
 pub(super) fn worthwhile(
     structs: &la_arena::Arena<mir::StructDef>,

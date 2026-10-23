@@ -10,8 +10,10 @@ use super::{
 };
 use crate::local_values::LocalValueRegistry;
 
+mod class_fields;
 mod clone;
 mod policy;
+mod selection;
 mod suspend;
 pub(super) use suspend::run as inline_synchronous_coroutines;
 
@@ -36,6 +38,7 @@ pub(super) struct Session {
     callers: Vec<CallerState>,
     required: super::intrinsics::Entries,
     ordinary: bool,
+    allocation_elision: bool,
     imported: crate::imported_bodies::ImportedBodies,
 }
 
@@ -49,6 +52,7 @@ impl Session {
         module: &mir::Module,
         required: super::intrinsics::Entries,
         ordinary: bool,
+        allocation_elision: bool,
         imported: crate::imported_bodies::ImportedBodies,
     ) -> Self {
         // Stable templates avoid counting an already expanded body as one level.
@@ -75,6 +79,7 @@ impl Session {
             callers,
             required,
             ordinary,
+            allocation_elision,
             imported,
         }
     }
@@ -122,6 +127,7 @@ impl Session {
                 costs: &self.costs,
                 required: &self.required,
                 ordinary: self.ordinary,
+                allocation_elision: self.allocation_elision,
                 imported: &self.imported,
             };
             let (body, rewritten) =
@@ -152,6 +158,7 @@ struct Context<'a> {
     costs: &'a [policy::Cost],
     required: &'a super::intrinsics::Entries,
     ordinary: bool,
+    allocation_elision: bool,
     imported: &'a crate::imported_bodies::ImportedBodies,
 }
 
@@ -230,86 +237,6 @@ impl Context<'_> {
         }
         let (body, simplified) = simplify::body(self.module, &function);
         (body, changed || simplified)
-    }
-
-    fn choose(
-        &self,
-        function: &mir::Function,
-        ancestry: &[Vec<Target>],
-        remaining: &mut usize,
-    ) -> Vec<Choice> {
-        let analysis = flow::Analysis::new(self.module, function);
-        let incoming = analysis.solve();
-        let in_loop = graph::cyclic_nodes(&graph::block_edges(&function.body));
-        let mut choices = Vec::new();
-        for (block_id, block) in function.body.blocks.iter() {
-            if self.ordinary && ancestry[index(block_id)].len() > 6 {
-                continue;
-            }
-            let Some(mut state) = incoming[index(block_id)].clone() else {
-                continue;
-            };
-            for (statement_index, statement) in block.statements.iter().enumerate() {
-                if self.ordinary && *remaining == 0 {
-                    return choices;
-                }
-                // Release publication is adjacent to its outer initializer
-                // and allocation. Keep that call when copying the sequence.
-                let publishes_release =
-                    block
-                        .statements
-                        .get(statement_index + 1)
-                        .is_some_and(|next| {
-                            matches!(next.kind, mir::StatementKind::PublishReleaseReady { .. })
-                        });
-                if let mir::StatementKind::Call(effect) = &statement.kind
-                    && !publishes_release
-                {
-                    let call = super::call(effect);
-                    if let Some(callee) = self.target(call)
-                        && (self.ordinary || self.required(callee))
-                        && !ancestry[index(block_id)].contains(&callee)
-                    {
-                        let arguments = call
-                            .args
-                            .iter()
-                            .map(|argument| analysis.expression(argument, &state))
-                            .collect::<Vec<_>>();
-                        let source = self.template(callee);
-                        let blocks = simplify::blocks(self.module, source, &arguments);
-                        let cost = policy::blocks_cost(
-                            &self.module.structs,
-                            blocks.iter().map(|(id, block)| (*id, block)),
-                        )
-                        .with_parameters(&self.module.structs, source);
-                        let growth = cost.size.saturating_sub(6).max(1);
-                        if self.required(callee)
-                            || (growth <= *remaining
-                                && policy::worthwhile(
-                                    &self.module.structs,
-                                    cost.execution,
-                                    self.cost(callee).execution,
-                                    in_loop[index(block_id)],
-                                    &arguments,
-                                    source,
-                                ))
-                        {
-                            if !self.required(callee) {
-                                *remaining -= growth;
-                            }
-                            choices.push(Choice {
-                                block: block_id,
-                                statement: statement_index,
-                                callee,
-                                blocks,
-                            });
-                        }
-                    }
-                }
-                analysis.statement(statement, &mut state);
-            }
-        }
-        choices
     }
 }
 

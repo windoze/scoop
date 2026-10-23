@@ -1,6 +1,7 @@
 use super::*;
 
 mod control;
+mod inlining;
 mod retention;
 
 fn sample(base_field: bool) -> (mir::Module, mir::FunctionId) {

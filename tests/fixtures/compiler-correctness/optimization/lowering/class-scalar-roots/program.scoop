@@ -39,11 +39,41 @@ fun construction(index: Long) {
     check(value.first.value == index && value.second.value == index + 1L)
 }
 
+fun drain(values: ArrayList<Payload>): Long {
+    var total = 0L
+    var round = 0L
+    while (round < 3L) {
+        var index = 0L
+        for (value in values) {
+            val snapshot = value
+            gcCollect()
+            check(snapshot.node.read() == snapshot.view.read())
+            check(snapshot.node !== snapshot.nested._1)
+            check(snapshot.nested._2 == (if (index == 0L) "onetwo" else "threefour"))
+            total += snapshot.node.value + snapshot.nested._1.value
+            index += 1L
+        }
+        round += 1L
+    }
+    return total
+}
+
+fun iteratorReferences() {
+    val first = Node(11L)
+    val second = Node(17L)
+    val values = ArrayList<Payload>()
+    values.add(Payload(first, (second, "one" + "two"), first))
+    values.add(Payload(second, (first, "three" + "four"), second))
+    check(drain(values) == 168L)
+    check(drain(ArrayList<Payload>()) == 0L)
+}
+
 fun main() {
     var index = 0L
     while (index < 8L) {
         references(index)
         construction(index)
+        iteratorReferences()
         index += 1L
     }
     println("scalar fields retain relocated references and aggregate snapshots")

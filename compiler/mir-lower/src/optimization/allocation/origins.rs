@@ -168,7 +168,7 @@ impl Sources {
     }
 }
 
-pub(super) fn local_alias(mut expr: &mir::Expr) -> Option<mir::LocalId> {
+pub(in crate::optimization) fn local_alias(mut expr: &mir::Expr) -> Option<mir::LocalId> {
     loop {
         match &expr.kind {
             mir::ExprKind::Local(local) => return Some(*local),
@@ -178,7 +178,7 @@ pub(super) fn local_alias(mut expr: &mir::Expr) -> Option<mir::LocalId> {
     }
 }
 
-pub(super) fn defined_local(statement: &mir::Statement) -> Option<mir::LocalId> {
+pub(in crate::optimization) fn defined_local(statement: &mir::Statement) -> Option<mir::LocalId> {
     match statement.kind {
         mir::StatementKind::ValDecl { local, .. }
         | mir::StatementKind::Assign { local, .. }
@@ -189,11 +189,41 @@ pub(super) fn defined_local(statement: &mir::Statement) -> Option<mir::LocalId> 
     }
 }
 
-pub(super) fn statement_alias(statement: &mir::Statement) -> Option<mir::LocalId> {
+pub(in crate::optimization) fn statement_alias(statement: &mir::Statement) -> Option<mir::LocalId> {
     match &statement.kind {
         mir::StatementKind::ValDecl { init: value, .. }
         | mir::StatementKind::Assign { value, .. }
         | mir::StatementKind::Expr(value) => local_alias(value),
         _ => None,
     }
+}
+
+pub(in crate::optimization) fn is_class_field(
+    module: &mir::Module,
+    class: mir::ClassId,
+    object: &mir::Expr,
+    field: u32,
+    ty: &mir::Type,
+) -> bool {
+    let mir::Type::Class(view) = object.ty else {
+        return false;
+    };
+    let mir::ClassRepresentation::Declared(declared) = &module.classes[class].representation else {
+        return false;
+    };
+    if !declared
+        .fields
+        .get(field as usize)
+        .is_some_and(|f| f.ty == *ty)
+    {
+        return false;
+    }
+    let mut base = Some(class);
+    while let Some(id) = base {
+        if id == view {
+            return true;
+        }
+        base = module.classes[id].base_class();
+    }
+    false
 }

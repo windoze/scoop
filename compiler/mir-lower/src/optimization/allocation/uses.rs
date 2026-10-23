@@ -4,7 +4,8 @@ use super::{
     control::ControlFlow,
     index, mir,
     origins::{
-        AllocationId, AllocationKind, Projection, Site, Sources, local_alias, statement_alias,
+        AllocationId, AllocationKind, Projection, Site, Sources, is_class_field, local_alias,
+        statement_alias,
     },
 };
 
@@ -19,6 +20,7 @@ pub(super) enum Replacement {
 pub(super) struct Plan {
     pub sources: Sources,
     pub removable: Vec<bool>,
+    pub single_use: Vec<bool>,
     control: ControlFlow,
 }
 
@@ -40,6 +42,7 @@ impl Plan {
         let mut plan = Self {
             sources,
             removable,
+            single_use: Vec::new(),
             control,
         };
         let mut reads = vec![0_usize; plan.removable.len()];
@@ -74,6 +77,8 @@ impl Plan {
             });
         }
         for (id, removable) in plan.removable.iter_mut().enumerate() {
+            plan.single_use
+                .push(*removable && reads[id] == replaced[id] + 1);
             *removable &= reads[id] == replaced[id];
         }
         plan
@@ -191,29 +196,14 @@ impl Plan {
         ty: &mir::Type,
         site: Site,
     ) -> Option<AllocationId> {
-        let mir::Type::Class(view) = object.ty else {
-            return None;
-        };
         let candidate = self.sources.locals[index(local_alias(object)?)].unique()?;
         let allocation = &self.sources.allocations[candidate];
         let AllocationKind::Class(class) = allocation.kind else {
             return None;
         };
-        let mut base = Some(class);
-        while let Some(id) = base {
-            if id == view {
-                let mir::ClassRepresentation::Declared(declared) =
-                    &module.classes[class].representation
-                else {
-                    return None;
-                };
-                return (declared.fields.get(field as usize)?.ty == *ty
-                    && self.control.dominates(allocation.site, site))
-                .then_some(candidate);
-            }
-            base = module.classes[id].base_class();
-        }
-        None
+        (is_class_field(module, class, object, field, ty)
+            && self.control.dominates(allocation.site, site))
+        .then_some(candidate)
     }
 }
 

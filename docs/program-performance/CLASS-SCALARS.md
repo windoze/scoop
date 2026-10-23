@@ -49,7 +49,7 @@ Darwin 为 M3 Ultra／macOS 27.0.1／LLVM 22.1.8；Linux 为 i7-12700H／Ubuntu 
 | GNU | +2.27%／+1.64% | −2.34%／+0.40% |
 | musl | +0.21%／+0.45% | −1.77%／−1.73% |
 
-ArrayList 的 `iterator()` 构造器已展开，`next()` 虽已去虚化为 direct call，仍未内联，故当前分析保留该迭代器。两个 Linux 目标的 ArrayList／无对象对照分别为 301／64 条指令，排除重定位后的指令和符号引用一致；ArrayList 入口也未移动，但 TD 和 runtime 被调函数的位置有变化。保留实测回退，当前没有硬件计数归因，不把未命中的集合路径计为优化收益。
+本项版本中，ArrayList 的 `iterator()` 构造器已展开，`next()` 虽已去虚化为 direct call，仍未内联，故保留该迭代器；后续由[字段替换指导内联](ITERATOR-INLINING.md)继续优化。两个 Linux 目标的 ArrayList／无对象对照分别为 301／64 条指令，排除重定位后的指令和符号引用一致；ArrayList 入口也未移动，但 TD 和 runtime 被调函数的位置有变化。保留本项实测回退，没有硬件计数归因，不把未命中的集合路径计为本项收益。
 
 Point 的本机旧版内核样本为 109.344～147.143 ms，新版为 19.839～20.682 ms，说明旧版分配路径存在波动；七对样本的中位数不是显著性证明。以上是相对 Scoop 上一版的特定负载结果，不表示跨语言综合性能已经达到 Go／Java／Kotlin Native。
 

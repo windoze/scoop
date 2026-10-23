@@ -77,12 +77,28 @@ fun merged(first: Boolean): Int {
     return one.value + two.value
 }
 
+fun listTraversal(rounds: Long): Long {
+    val values = ArrayList<Long>()
+    var index = 0L
+    while (index < 5L) { values.add(index); index += 1L }
+    var total = 0L
+    index = 0L
+    while (index < rounds) {
+        for (value in values) total += value + index
+        index += 1L
+    }
+    val empty = ArrayList<Long>()
+    for (value in empty) total += value + 100L
+    return total
+}
+
 fun main() {
     check(constructors() == 1 && trace == 123)
     check(snapshots(19) == 19)
     check(traversals(0) == 0 && traversals(8) == 160)
     check(previousIterations(8) == 48)
     check(merged(true) == 36 && merged(false) == 36)
+    check(listTraversal(0L) == 0L && listTraversal(8L) == 220L)
     val released = Finalized(73)
     gcCollect()
     check(released.value == 73)

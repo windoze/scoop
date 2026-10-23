@@ -86,7 +86,7 @@ Java 稳态峰值需要充分预热后比较；启动和短命命令行程序则
 | 历史方向 | 当前状态 | 本轮结论 |
 | --- | --- | --- |
 | 自动内联、去虚化 | 已有本地／泛型及有限跨库实现 | 扩展到 EH、成员、构造器及全程序／profile 类型反馈 |
-| managed allocation 消除 | 已有局部 box／closure，以及构造和字段操作可见时的 class／游标字段替换 | 继续处理库 iterator 的未内联调用、containment、跨调用和部分逃逸 |
+| managed allocation 消除 | 已有局部 box／closure、class／游标字段替换，以及最后一个 receiver 调用的联合内联估价 | 继续处理未命中的创建／调用、containment、跨调用和部分逃逸 |
 | coroutine frame elision | 已有同步正文内联和尾转交 | 继续处理实际挂起协议及未消除的立即完成路径 |
 | bounds-check elimination | 已有路径约束化简，通用循环能力未闭合 | 作为托管数组优化的核心项目 |
 | 激进 unroll／SIMD | NoGc 已有；Managed 只有窄范围整数内层 | 扩展内存循环、严格浮点和目标特化 |
@@ -158,7 +158,7 @@ smart cast 已有正确的路径类型收窄：命中分支中的引用读取变
 
 ### 5.3 从局部 box 消除走向 class 标量替换与部分逃逸分析
 
-第一步已交付[普通 class／局部游标字段替换](CLASS-SCALARS.md)，三目标的 Point／Cursor 分配消失；真实 ArrayList 的 next 尚未内联，迭代器继续保留。后续按实际调用与字段状态推进以下其余能力，不能将局部结果视为部分逃逸或全程序消除已经完成。
+第一步已交付[普通 class／局部游标字段替换](CLASS-SCALARS.md)，三目标的 Point／Cursor 分配消失；随后完成[字段替换指导内联](ITERATOR-INLINING.md)，真实 ArrayList 反复遍历的 next 得以展开，迭代器分配消失。创建尚未展开、多个引用调用和逃逸等情况仍保留。后续按实际调用与字段状态推进以下其余能力，不能将局部结果视为部分逃逸或全程序消除已经完成。
 
 建议依次实现：
 
