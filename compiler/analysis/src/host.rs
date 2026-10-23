@@ -9,6 +9,9 @@ use scoop_source::{Revision, SourceId, SourceLengthError, SourceText, SourceVers
 
 use crate::{Cancellation, Cancelled};
 
+mod edits;
+pub use edits::SnapshotEditError;
+
 #[derive(Debug)]
 pub struct SourceInput {
     pub version: SourceVersion,

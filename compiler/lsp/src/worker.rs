@@ -142,6 +142,23 @@ fn run(work: Work, semantics: &mut SemanticSession) -> Completed {
                         semantics,
                         &cancellation,
                     ),
+                    QueryKind::PrepareRename(position) => queries::prepare_rename(
+                        &work.snapshot,
+                        source_id,
+                        position,
+                        work.settings,
+                        semantics,
+                        &cancellation,
+                    ),
+                    QueryKind::Rename { position, new_name } => queries::rename(
+                        &work.snapshot,
+                        source_id,
+                        position,
+                        &new_name,
+                        work.settings,
+                        semantics,
+                        &cancellation,
+                    ),
                     QueryKind::TypeDefinition(position) => queries::type_definition(
                         &work.snapshot,
                         source_id,

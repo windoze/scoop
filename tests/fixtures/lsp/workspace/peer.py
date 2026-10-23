@@ -37,6 +37,12 @@ from recovered_objects import check as check_recovered_objects
 from recovered_structs import check as check_recovered_structs
 from reexport_references import check as check_reexport_references
 from references import check as check_references
+from rename import check as check_rename
+from rename_bodies import check as check_rename_bodies
+from rename_exports import check as check_rename_exports
+from rename_members import check as check_rename_members
+from rename_types import check as check_rename_types
+from rename_versions import check as check_rename_versions
 from runtime_initializers import check as check_runtime_initializers
 from signatures import check as check_signatures
 from source_dependencies import check as check_source_dependencies
@@ -154,7 +160,10 @@ def main():
                 "workspaceFolders": [{"name": "project", "uri": root.as_uri()}],
                 "initializationOptions": options,
                 "capabilities": {
-                    "workspace": {"didChangeWatchedFiles": {"dynamicRegistration": True}},
+                    "workspace": {
+                        "didChangeWatchedFiles": {"dynamicRegistration": True},
+                        "workspaceEdit": {"documentChanges": True},
+                    },
                     "textDocument": {"documentSymbol": {"hierarchicalDocumentSymbolSupport": True}},
                 },
             },
@@ -162,6 +171,7 @@ def main():
         assert initialized["capabilities"]["hoverProvider"]
         assert initialized["capabilities"]["definitionProvider"]
         assert initialized["capabilities"]["referencesProvider"]
+        assert initialized["capabilities"]["renameProvider"]["prepareProvider"]
         assert initialized["capabilities"]["completionProvider"]["triggerCharacters"] == ["."]
         assert initialized["capabilities"]["signatureHelpProvider"]["triggerCharacters"] == [
             "(",
@@ -384,6 +394,12 @@ def main():
         check_local_function_recovery(peer, root)
         check_file_headers(peer, root)
         check_reexport_references(peer, root)
+        check_rename(peer, root)
+        check_rename_types(peer, root)
+        check_rename_members(peer, root)
+        check_rename_exports(peer, root)
+        check_rename_bodies(peer, root)
+        check_rename_versions(peer, root)
         check_recovered_interfaces(peer, root)
         check_recovered_structs(peer, root)
         peer.finish()

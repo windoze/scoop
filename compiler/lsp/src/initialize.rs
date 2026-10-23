@@ -13,6 +13,7 @@ pub(crate) struct Settings {
     pub folding_limit: Option<u32>,
     pub code_actions: bool,
     pub code_action_resolve: bool,
+    pub renames: bool,
 }
 
 impl Default for Settings {
@@ -24,6 +25,7 @@ impl Default for Settings {
             folding_limit: None,
             code_actions: false,
             code_action_resolve: false,
+            renames: false,
         }
     }
 }
@@ -48,16 +50,17 @@ pub(crate) fn initialize(params: InitializeParams) -> (Settings, InitializeResul
     let documents = params.capabilities.text_document.as_ref();
     let folding = documents.and_then(|documents| documents.folding_range.as_ref());
     let actions = documents.and_then(|documents| documents.code_action.as_ref());
+    let versioned_edits = params
+        .capabilities
+        .workspace
+        .as_ref()
+        .and_then(|workspace| workspace.workspace_edit.as_ref())
+        .and_then(|edit| edit.document_changes)
+        .unwrap_or(false);
     let code_actions = actions
         .and_then(|actions| actions.code_action_literal_support.as_ref())
         .is_some()
-        && params
-            .capabilities
-            .workspace
-            .as_ref()
-            .and_then(|workspace| workspace.workspace_edit.as_ref())
-            .and_then(|edit| edit.document_changes)
-            .unwrap_or(false);
+        && versioned_edits;
     let code_action_resolve = code_actions
         && actions.is_some_and(|actions| {
             actions.data_support == Some(true)
@@ -77,6 +80,7 @@ pub(crate) fn initialize(params: InitializeParams) -> (Settings, InitializeResul
         folding_limit: folding.and_then(|folding| folding.range_limit),
         code_actions,
         code_action_resolve,
+        renames: versioned_edits,
     };
     let result = InitializeResult {
         capabilities: ServerCapabilities {
@@ -106,6 +110,10 @@ pub(crate) fn initialize(params: InitializeParams) -> (Settings, InitializeResul
                 true,
             )),
             references_provider: Some(OneOf::Left(true)),
+            rename_provider: versioned_edits.then_some(OneOf::Right(lsp_types::RenameOptions {
+                prepare_provider: Some(true),
+                work_done_progress_options: Default::default(),
+            })),
             code_action_provider: code_actions.then(|| {
                 lsp_types::CodeActionProviderCapability::Options(lsp_types::CodeActionOptions {
                     code_action_kinds: Some(vec![lsp_types::CodeActionKind::QUICKFIX]),

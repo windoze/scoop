@@ -11,6 +11,7 @@ mod imports;
 
 #[derive(Default)]
 struct ReferenceBuilder {
+    definitions: HashMap<Target, hir::SemanticSourceLocation>,
     occurrences: Vec<hir::EditingReference>,
     unavailable: Vec<hir::SemanticSourceLocation>,
     identities: super::identities::DeclarationIdentities,
@@ -153,6 +154,7 @@ impl DeclarationAnalysis {
             builder.imports(&mut self.lowerer, &check)?;
             self.reference_index = Some(hir::EditingReferenceIndex::new(
                 builder.occurrences,
+                builder.definitions,
                 builder.unavailable,
                 self.declarations_ready && self.unavailable_files.is_empty(),
                 builder.aliases,
@@ -195,6 +197,11 @@ impl ReferenceBuilder {
 
     fn types(&mut self, references: &[hir::EditingTypeReference]) {
         for reference in references {
+            if let Some(definition) = &reference.definition {
+                self.definitions
+                    .entry(Target::Type(reference.target))
+                    .or_insert_with(|| definition.clone());
+            }
             self.record(
                 Target::Type(reference.target),
                 reference.origin.clone(),
@@ -213,6 +220,9 @@ impl ReferenceBuilder {
         origin: hir::SemanticSourceLocation,
         is_declaration: bool,
     ) {
+        if is_declaration {
+            self.definitions.insert(target, origin.clone());
+        }
         if is_declaration && matches!(target, Target::Parameter { .. }) {
             self.parameter_definitions.insert(origin.clone(), target);
         }

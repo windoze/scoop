@@ -77,7 +77,13 @@ impl ReferenceBuilder {
                 .identities
                 .callee(&mut analysis.lowerer, reference.target)
             {
-                Some(target) => self.record(Target::Callable(target), origin, false),
+                Some(target) => {
+                    let target = Target::Callable(target);
+                    if let Some(definition) = reference.definition {
+                        self.definitions.entry(target).or_insert(definition);
+                    }
+                    self.record(target, origin, false);
+                }
                 None => self.unavailable.push(origin),
             }
         }
@@ -93,7 +99,13 @@ impl ReferenceBuilder {
                 .identities
                 .property(&mut analysis.lowerer, reference.target)
             {
-                Some(target) => self.record(Target::Property(target), origin, false),
+                Some(target) => {
+                    let target = Target::Property(target);
+                    if let Some(definition) = reference.definition {
+                        self.definitions.entry(target).or_insert(definition);
+                    }
+                    self.record(target, origin, false);
+                }
                 None => self.unavailable.push(origin),
             }
         }

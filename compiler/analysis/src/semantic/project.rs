@@ -18,7 +18,7 @@ struct CachedDependencies {
 
 pub(super) struct ProjectSemantics {
     pub input: ProjectInput,
-    artifacts: Result<dependencies::ArtifactInputs, Error>,
+    artifacts: Rc<Result<dependencies::ArtifactInputs, Error>>,
     dependencies: BTreeMap<ConeIdentity, CachedDependencies>,
     declarations: BTreeMap<ConeIdentity, CachedDeclarations>,
 }
@@ -45,10 +45,19 @@ impl ProjectSemantics {
         }
         Ok(Self {
             input,
-            artifacts,
+            artifacts: Rc::new(artifacts),
             dependencies: BTreeMap::new(),
             declarations: BTreeMap::new(),
         })
+    }
+
+    pub(super) fn for_edits(&self) -> Self {
+        Self {
+            input: self.input.clone(),
+            artifacts: self.artifacts.clone(),
+            dependencies: BTreeMap::new(),
+            declarations: BTreeMap::new(),
+        }
     }
 
     pub fn declarations(
@@ -97,7 +106,7 @@ impl ProjectSemantics {
         current: ConeIdentity,
         check: Rc<dyn Fn() -> bool>,
     ) -> Result<DeclarationAnalysis, Error> {
-        let artifacts = self.artifacts.as_ref().map_err(Clone::clone)?;
+        let artifacts = self.artifacts.as_ref().as_ref().map_err(Clone::clone)?;
         let reachable = dependencies::reachable(&self.input, current);
         let versions = source_versions(snapshot, &self.input, |cone| reachable.contains(&cone))?;
         if self

@@ -75,6 +75,7 @@ pub struct EditingImportUse {
 /// An index of completed observations, with unavailable analysis kept explicit.
 #[derive(Clone, Debug)]
 pub struct EditingReferenceIndex {
+    pub definitions: HashMap<EditingReferenceTarget, SemanticSourceLocation>,
     occurrences: Vec<EditingReference>,
     targets: HashMap<EditingReferenceTarget, Vec<usize>>,
     locations: HashMap<SemanticSourceLocation, Vec<EditingReferenceTarget>>,
@@ -88,6 +89,7 @@ pub struct EditingReferenceIndex {
 impl EditingReferenceIndex {
     pub fn new(
         occurrences: Vec<EditingReference>,
+        definitions: HashMap<EditingReferenceTarget, SemanticSourceLocation>,
         unavailable: Vec<SemanticSourceLocation>,
         declarations_available: bool,
         aliases: la_arena::Arena<EditingImportAlias>,
@@ -194,6 +196,7 @@ impl EditingReferenceIndex {
             }
         }
         Self {
+            definitions,
             occurrences,
             targets,
             locations,

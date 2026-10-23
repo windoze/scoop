@@ -10,7 +10,7 @@ mod decl;
 mod declaration_source;
 pub use declaration_source::declaration_source;
 mod names;
-pub use names::identifier_spelling;
+pub use names::{identifier_name, identifier_spelling};
 mod expr;
 mod header;
 mod lexer;

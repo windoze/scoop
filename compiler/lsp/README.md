@@ -111,7 +111,11 @@ try、catch 和 finally 的未完成块支持已有输入与局部 binding 的�
 
 方法与 logical property 的实现导航复用实际重写和接口选择，抽象中间声明保持连接，返回具体声明自身、默认实现和继承提供方的源码位置。getter／setter 合并到原 property，构造参数属性仍指向原参数名称；只有部分 accessor 提供默认实现时保留该来源。调用与绑定方法引用沿普通绑定选中目标，重载和泛型声明保持原身份；预编译中间层沿已有 slot 与 property 引用读取。待生成方法和内部 adapter 不产生导航结果。
 
-客户端支持 code action literal 和 `workspace.workspaceEdit.documentChanges` 时，提供缺失右括号、逗号等固定标点的 quickfix；返回的 TextDocumentEdit 带实际文档 version。名称、类型与表达式缺失不生成猜测内容。支持 resolve 的客户端还可重新取得同版修复；原文变化后旧动作返回 ContentModified，原文未变而客户端 version 更新时返回最新 version。其他引用区域与重命名继续按设计实施，未实现的能力不在初始化中声明。
+客户端支持 `workspace.workspaceEdit.documentChanges` 时，提供 `textDocument/prepareRename` 与 `textDocument/rename`。改名使用原声明、引用和重写关系，区分重载、局部遮蔽、透明类型别名与显式 import alias；构造名称随对应类型改名，同一名称 token 上的 property 和构造参数共同更新。无 alias 的转导出沿实际 binding 路径联动，显式 alias 的拼写独立保留。名称支持 Unicode 和反引号，关键字会使用合法转义形式。
+
+当前 rename 检查所选项目全部源码 Cone 的语法、声明、正文引用及成员关系；缺少必要源码或存在分析失败时明确拒绝，不返回部分修改。运算符、隐式名称和构造委派关键字不能当成标识符替换。候选编辑只在独立快照中沿普通前端分析，并按原声明来源比较前后绑定，避免无类型错误的局部捕获；成功后返回带各打开文档当前 version 的多文件编辑，关闭文件使用 `null` version。候选不修改当前文档或磁盘，取消和实际输入更新继续沿共同快照机制处理。
+
+客户端同时支持 code action literal 和版本化编辑时，提供缺失右括号、逗号等固定标点的 quickfix；返回的 TextDocumentEdit 带实际文档 version。名称、类型与表达式缺失不生成猜测内容。支持 resolve 的客户端还可重新取得同版修复；原文变化后旧动作返回 ContentModified，原文未变而客户端 version 更新时返回最新 version。未实现的能力不在初始化中声明。
 
 开发验证使用 `cargo test -p scoop-analysis -p scoop-lsp`；LSP 集成测试启动真实 `scoop-lsp` 进程，检查传输、状态变化和查询结果。运行时将 `TMPDIR` 指向仓库外工作目录，测试工作文件遵守同一设置。
 

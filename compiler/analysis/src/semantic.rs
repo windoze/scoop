@@ -15,6 +15,8 @@ pub use implementations::{MemberImplementationSearch, TypeImplementationSearch};
 mod project;
 mod references;
 pub use references::ReferenceSearch;
+mod rename;
+pub use rename::{RenameError, RenamePreparation};
 mod sources;
 
 #[derive(Clone, Debug)]

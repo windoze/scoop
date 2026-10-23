@@ -15,6 +15,7 @@ mod definition;
 mod hover;
 mod implementation;
 mod references;
+mod rename;
 mod semantic;
 mod signature_help;
 mod symbols;
@@ -25,6 +26,7 @@ pub(crate) use definition::definition;
 pub(crate) use hover::hover;
 pub(crate) use implementation::implementation;
 pub(crate) use references::references;
+pub(crate) use rename::{prepare_rename, rename};
 pub(crate) use semantic::cancelled;
 pub(crate) use signature_help::signature_help;
 pub(crate) use type_definition::type_definition;
@@ -40,6 +42,11 @@ pub(crate) enum QueryKind {
     References {
         position: Position,
         include_declaration: bool,
+    },
+    PrepareRename(Position),
+    Rename {
+        position: Position,
+        new_name: String,
     },
     Completion(Position),
     SignatureHelp(Position),
@@ -94,6 +101,23 @@ impl Query {
 impl DocumentQuery {
     fn from_request(request: &Request) -> Result<Self, ResponseError> {
         match request.method.as_str() {
+            "textDocument/prepareRename" => {
+                let params: lsp_types::TextDocumentPositionParams = params(request.params.clone())?;
+                Ok(Self {
+                    uri: params.text_document.uri,
+                    kind: QueryKind::PrepareRename(params.position),
+                })
+            }
+            "textDocument/rename" => {
+                let params: lsp_types::RenameParams = params(request.params.clone())?;
+                Ok(Self {
+                    uri: params.text_document_position.text_document.uri,
+                    kind: QueryKind::Rename {
+                        position: params.text_document_position.position,
+                        new_name: params.new_name,
+                    },
+                })
+            }
             "textDocument/references" => {
                 let params: lsp_types::ReferenceParams = params(request.params.clone())?;
                 Ok(Self {
