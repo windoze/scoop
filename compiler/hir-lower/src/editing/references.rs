@@ -93,6 +93,27 @@ impl DeclarationAnalysis {
                             .push((reference.origin.clone(), reference.imports.clone()));
                     }
                 }
+                for reference in &self.static_variant_references {
+                    if check() {
+                        return Err(EditingCancelled);
+                    }
+                    match builder
+                        .identities
+                        .callee(&mut self.lowerer, reference.target.into())
+                    {
+                        Some(target) => builder.record(
+                            Target::Callable(target),
+                            reference.origin.clone(),
+                            false,
+                        ),
+                        None => builder.unavailable.push(reference.origin.clone()),
+                    }
+                    if !reference.imports.is_empty() {
+                        builder
+                            .import_uses
+                            .push((reference.origin.clone(), reference.imports.clone()));
+                    }
+                }
                 builder.constructors(self, &check)?;
                 let properties = self
                     .lowerer

@@ -26,6 +26,15 @@ pub(in crate::queries::hover) fn parameter(function: hir::FunctionId, index: usi
     current_parameter(SourceCallable::Function(function), index)
 }
 
+pub(in crate::queries::hover) fn variant(variant: hir::SemanticVariant) -> Symbol {
+    match variant {
+        hir::SemanticVariant::Current(variant) => Symbol::Current(Source::Variant(variant).into()),
+        hir::SemanticVariant::Imported(variant) => {
+            Symbol::Imported(hir::AnnotationTargetV1::Variant(variant))
+        }
+    }
+}
+
 pub(in crate::queries::hover) fn applied_parameter(
     callee: hir::EditingCallee,
     index: usize,

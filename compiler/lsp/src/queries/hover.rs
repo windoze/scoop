@@ -14,6 +14,7 @@ mod documentation;
 mod imported;
 mod properties;
 mod types;
+mod variants;
 
 pub(crate) fn hover(
     snapshot: &AnalysisSnapshot,
@@ -103,6 +104,9 @@ fn description(
         return Ok(Some(description));
     }
     if let Some(description) = properties::declaration(analysis, cursor, cancellation)? {
+        return Ok(Some(description));
+    }
+    if let Some(description) = variants::description(analysis, cursor, snapshot, cancellation)? {
         return Ok(Some(description));
     }
     if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {

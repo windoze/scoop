@@ -47,6 +47,7 @@ mod references;
 mod runtime_initializers;
 mod selectors;
 mod static_constants;
+mod static_variants;
 mod trailing_callables;
 mod type_definitions;
 mod type_descriptions;

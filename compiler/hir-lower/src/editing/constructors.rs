@@ -13,12 +13,21 @@ impl Lowerer {
         if !self.observes_current_body() {
             return;
         }
-        let target = self
-            .enum_member_identities
+        let target = self.editing_variant_target(variant);
+        self.observe_callee_reference(span, target.into());
+    }
+
+    pub(crate) fn editing_variant_target(
+        &self,
+        variant: hir::EnumVariantApplication,
+    ) -> hir::SemanticVariant {
+        self.enum_member_identities
             .as_ref()
             .and_then(|identities| identities.variant_declaration(variant.variant))
-            .map_or(C::ImportedVariant(variant.variant), C::CurrentVariant);
-        self.observe_callee_reference(span, target);
+            .map_or(
+                hir::SemanticVariant::Imported(variant.variant),
+                hir::SemanticVariant::Current,
+            )
     }
 
     pub(crate) fn editing_nominal_callee(

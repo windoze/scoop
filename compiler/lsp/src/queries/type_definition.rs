@@ -93,6 +93,9 @@ fn origin(
     {
         return value_origin(analysis, property.value_type);
     }
+    if let Some(reference) = semantic::static_variant(analysis, cursor, snapshot, cancellation)? {
+        return value_origin(analysis, reference.value_type);
+    }
     if let Some(function) = semantic::body(analysis, cursor, snapshot, cancellation)? {
         if let Some(V::Known(signature)) = analysis.source_body_signature(&function)
             && let Some(parameter) = signature

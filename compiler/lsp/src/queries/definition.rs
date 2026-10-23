@@ -137,6 +137,16 @@ pub(crate) fn definition(
             settings,
         )?);
     }
+    if let Some(reference) = semantic::static_variant(analysis, &cursor, snapshot, cancellation)?
+        && let Some(origin) = reference.definition
+    {
+        return super::json(convert::definition_location(
+            snapshot,
+            cursor.project,
+            &origin,
+            settings,
+        )?);
+    }
     let definitions = analysis
         .import_definitions(&cursor.file.identity, cursor.span, || {
             cancellation.check().is_err() || snapshot.check_cancelled().is_err()

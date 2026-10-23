@@ -92,7 +92,8 @@ impl Lowerer {
         {
             return None;
         }
-        self.dependencies = probe.dependencies;
+        probe.observe_static_variant(expression.span(), variant, expected);
+        *self = probe;
         Some(hir::HirConstantImage::EnumUnit {
             variant: hir::EnumVariantApplication {
                 owner,

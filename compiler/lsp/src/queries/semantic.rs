@@ -140,6 +140,23 @@ pub(super) fn body(
         .map_err(|_| cancelled())
 }
 
+pub(super) fn static_variant(
+    analysis: &DeclarationAnalysis,
+    cursor: &Cursor<'_>,
+    snapshot: &AnalysisSnapshot,
+    cancellation: &Cancellation,
+) -> Result<Option<hir::EditingStaticVariantReference>, ResponseError> {
+    match analysis
+        .static_variant_reference(&cursor.file.identity, cursor.span, || {
+            cancellation.check().is_err() || snapshot.check_cancelled().is_err()
+        })
+        .map_err(|_| cancelled())?
+    {
+        hir::EditingValue::Known(reference) => Ok(reference),
+        hir::EditingValue::Unavailable(_) => Ok(None),
+    }
+}
+
 pub(super) struct Local {
     pub reference: Option<hir::EditingLocalReference>,
     pub ty: hir::TypeId,

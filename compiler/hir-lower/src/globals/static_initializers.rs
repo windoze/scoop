@@ -27,8 +27,7 @@ impl Lowerer {
         let value = probe.evaluate_static_property_constant(expression, expected);
         probe.finish_constant_observation(observation, value.is_some());
         if value.is_some() {
-            self.dependencies = probe.dependencies;
-            self.editing_constants = probe.editing_constants;
+            *self = probe;
         }
         value
     }
