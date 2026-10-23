@@ -1,0 +1,143 @@
+package scoop.http.server
+
+/** Application-level error handling, independent of the server's transport configuration. */
+public class HttpApplicationOptions public constructor(
+    /** Maps an uncommitted endpoint failure while its middleware Context remains installed. */
+    public val errorMapper: suspend (HttpContext, Throwable) -> HttpResult = suspend { ctx, _ ->
+        text("Internal Server Error\nRequest: " + ctx.requestId, 500U)
+    },
+    /** Observes failures outside internal locks; observer errors do not replace the primary cause. */
+    public val onError: ((HttpContext, Throwable) -> Unit)? = None
+)
+
+/** An immutable routing table and request pipeline, reusable across server instances. */
+public class HttpApplication internal constructor(
+    internal val routes: RouteNode,
+    private val middleware: Array<HttpMiddleware>,
+    internal val methods: Array<String>,
+    private val options: HttpApplicationOptions
+) {
+    internal suspend fun execute(ctx: HttpContext) {
+        context(ctx) {
+            try { invokeMiddleware(ctx, middleware, 0L, suspend { dispatch(ctx) }) }
+            catch (error: Throwable) { handleFailure(ctx, error) }
+        }
+    }
+
+    private suspend fun dispatch(ctx: HttpContext) {
+        val target = ctx.request.target()
+        when (target.kind) {
+            case TargetKind.Connect -> ctx.respond(text("Not Implemented", 501U))
+            case TargetKind.Star -> {
+                if (ctx.request.method == "OPTIONS") ctx.respond(methodResult(204U, methods))
+                else ctx.respond(text("Invalid asterisk target", 400U))
+            }
+            case TargetKind.Path -> {
+                val group = matchGroup(routes, target.segments, 0L, ArrayList<PathSegment>(),
+                    GroupMatch(routes.group!!, [], 0L))
+                val resource = matchResource(routes, target.segments, 0L, ArrayList<PathSegment>())
+                if (!present(resource)) {
+                    ctx.parameters = PathParameters(group.group.names, group.values)
+                    invokeMiddleware(ctx, group.group.middleware, 0L, suspend { endpoint(ctx, group.group.fallback) })
+                } else {
+                    val match = resource!!
+                    val route = selectedMethod(match.node, ctx.request.method)
+                    if (present(route)) {
+                        val selected = route!!
+                        ctx.selectedRoute = Some(selected.info)
+                        ctx.parameters = PathParameters(selected.names, match.values)
+                        invokeMiddleware(ctx, selected.middleware, 0L, suspend { endpoint(ctx, selected.handler) })
+                    } else {
+                        ctx.selectedRoute = Some(match.node.endpoints[0L].info)
+                        ctx.parameters = PathParameters(group.group.names, group.values)
+                        val result = methodResult(if (ctx.request.method == "OPTIONS") 204U else 405U, resourceMethods(match.node))
+                        invokeMiddleware(ctx, group.group.middleware, 0L, suspend { endpoint(ctx, suspend { _ -> result }) })
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun endpoint(ctx: HttpContext, handler: HttpHandler) {
+        try { ctx.respond(handler(ctx)) }
+        catch (error: Throwable) { handleFailure(ctx, error) }
+    }
+
+    private suspend fun handleFailure(ctx: HttpContext, failure: Throwable) {
+        val error = if (failure is CommitCallbackFailure) failure.original else failure
+        observeFailure(ctx, error)
+        if (error is CancellationException || ctx.response.isCommitted || ctx.response.isAborted || ctx.mappedFailure) {
+            try { ctx.abort() }
+            catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+            throw error
+        }
+        ctx.mappedFailure = true
+        try {
+            if (failure is CommitCallbackFailure) {
+                ctx.sendResult(text("Internal Server Error\nRequest: " + ctx.requestId, 500U), true)
+            } else if (error is HttpRejection) {
+                ctx.respond(error.result)
+            } else {
+                ctx.respond(options.errorMapper(ctx, error))
+            }
+        } catch (secondary: Throwable) {
+            try { ctx.abort() }
+            catch (cleanup: Throwable) { throw ResourceUseException(secondary, cleanup) }
+            throw secondary
+        }
+    }
+
+    private fun observeFailure(ctx: HttpContext, error: Throwable) {
+        if (present(ctx.observedFailure) && ctx.observedFailure!! === error) return
+        ctx.observedFailure = Some(error)
+        if (present(options.onError)) {
+            try { options.onError!!(ctx, error) }
+            catch (_: Throwable) { return }
+        }
+    }
+}
+
+private class NextCall {
+    val called: AtomicBoolean = AtomicBoolean(false)
+    val completed: AtomicBoolean = AtomicBoolean(false)
+    val exited: AtomicBoolean = AtomicBoolean(false)
+}
+
+internal suspend fun invokeMiddleware(ctx: HttpContext, middleware: Array<HttpMiddleware>, index: Long, terminal: HttpNext) {
+    if (index == middleware.size) { terminal(); return }
+    val next = NextCall()
+    try {
+        middleware[index](ctx, suspend {
+            if (next.exited.load() || ctx.response.isCommitted || !next.called.compareAndSet(false, true))
+                throw IllegalStateException(Some("middleware next may only be awaited once before responding"))
+            try { invokeMiddleware(ctx, middleware, index + 1L, terminal) }
+            finally { next.completed.store(true) }
+        })
+        if (next.called.load() && !next.completed.load()) throw IllegalStateException(Some("middleware did not await next"))
+        if (!ctx.response.isFinished) throw IllegalStateException(Some("middleware returned without completing a response"))
+    } finally { next.exited.store(true) }
+}
+
+private fun selectedMethod(node: RouteNode, method: String): RoutePlan? {
+    for (route in node.endpoints) if (route.info.method == method) return Some(route)
+    if (method == "HEAD") for (route in node.endpoints) if (route.info.method == "GET") return Some(route)
+    return None
+}
+
+private fun resourceMethods(node: RouteNode): Array<String> {
+    val methods = ArrayList<String>()
+    for (route in node.endpoints) addMethod(methods, route.info.method)
+    includeImplicitMethods(methods)
+    return methods.toArray()
+}
+
+private fun methodResult(status: UInt, methods: Array<String>): HttpResult {
+    val allow = StringBuilder()
+    var first = true
+    for (method in methods) {
+        if (!first) allow.append(", ")
+        first = false
+        allow.append(method)
+    }
+    return empty(status, [field("Allow", allow.toString())])
+}

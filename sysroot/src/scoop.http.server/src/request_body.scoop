@@ -1,0 +1,73 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+/** A request body with one explicit consumption path and a limit on actual input bytes. */
+public class HttpRequestBody internal constructor(source: AsyncByteSource, limit: Long? = Some(8388608L)) {
+    private val selected: AtomicBoolean = AtomicBoolean(false)
+    private val input: RequestBodySource = RequestBodySource(source, limit)
+
+    /** Whether the selected source has reached its normal EOF. */
+    public val isComplete: Boolean get() = input.completed.load()
+
+    /** Claims the body once as a streaming byte source. */
+    public fun openStream(): AsyncByteSource {
+        if (!selected.compareAndSet(false, true)) throw IllegalStateException(Some("request body already has a consumer"))
+        return input
+    }
+
+    /** Reads one complete body into a bounded independent snapshot. */
+    public suspend fun bytes(maxBytes: Long = 2097152L): Array<Byte> {
+        if (maxBytes < 0L) throw IllegalArgumentException(Some("negative aggregate body limit"))
+        val source = openStream()
+        return NativeByteBuffer.allocate(8192L).use suspend { buffer ->
+            val result = ByteArrayBuilder()
+            var total = 0L
+            while (true) {
+                buffer.clear()
+                val remaining = maxBytes - total
+                val count = source.readInto(buffer, if (remaining < 8192L) remaining + 1L else 8192L)
+                if (count == 0L) break
+                if (count > remaining) reject(413U, "request body exceeds aggregation limit")
+                result.append(buffer.readBytes(count))
+                total += count
+            }
+            result.toByteArray()
+        }
+    }
+
+    /** Reads a complete, bounded, strictly UTF-8 request body. */
+    public suspend fun text(maxBytes: Long = 2097152L): String = inputText(bytes(maxBytes), "request body")
+}
+
+private class RequestBodySource(private val source: AsyncByteSource, private val limit: Long?) : AsyncByteSource {
+    val completed: AtomicBoolean = AtomicBoolean(false)
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private var received: Long = 0L
+    private var failure: Throwable? = None
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (count < 0L || count > buffer.writableBytes) throw IndexOutOfBoundsException()
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("concurrent request body reads"))
+        try {
+            ensureActive()
+            if (present(failure)) throw failure!!
+            if (count == 0L || completed.load()) return 0L
+            val remaining = if (!present(limit)) Long.MAX_VALUE - received else limit!! - received
+            val requested = if (remaining < count) remaining + 1L else count
+            val before = buffer.readableBytes
+            val progress = source.readInto(buffer, requested)
+            if (progress < 0L || progress > requested || buffer.readableBytes - before != progress)
+                throw IllegalStateException(Some("invalid request source progress"))
+            if (progress > remaining) reject(413U, "request body exceeds input limit")
+            received += progress
+            if (progress == 0L) completed.store(true)
+            return progress
+        } catch (error: Throwable) {
+            failure = Some(error)
+            throw error
+        } finally { busy.store(false) }
+    }
+}

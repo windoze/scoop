@@ -1,0 +1,100 @@
+package scoop.http.server
+
+import scoop.http.isHttpToken
+
+internal class GroupConfig(val prefix: String, val parent: GroupConfig?) {
+    val middleware: ArrayList<HttpMiddleware> = ArrayList<HttpMiddleware>()
+    var fallback: HttpHandler? = None
+}
+
+internal class RouteConfig(val method: String, val pattern: RoutePattern, val handler: HttpHandler,
+    val group: GroupConfig, val middleware: Array<HttpMiddleware>)
+
+internal class RouterConfig {
+    val root: GroupConfig = GroupConfig("", None)
+    val groups: ArrayList<GroupConfig> = ArrayList<GroupConfig>()
+    val routes: ArrayList<RouteConfig> = ArrayList<RouteConfig>()
+    var built: Boolean = false
+
+    fun requireOpen() {
+        if (built) throw IllegalStateException(Some("router builder has already been built"))
+    }
+
+    fun add(group: GroupConfig, method: String, path: String, handler: HttpHandler, middleware: List<HttpMiddleware>) {
+        requireOpen()
+        if (!isHttpToken(method)) throw IllegalArgumentException(Some("route method must be an HTTP token"))
+        routes.add(RouteConfig(method, routePattern(joinedRoute(group.prefix, path)), handler, group, middleware.toArray()))
+    }
+}
+
+/** Explicit route and middleware configuration, frozen by build. */
+public class RouterBuilder public constructor() {
+    private val config: RouterConfig = RouterConfig()
+    private val root: RouteGroup = RouteGroup(config, config.root)
+
+    /** Registers a method and path with optional endpoint middleware. */
+    public fun route(method: String, path: String, handler: HttpHandler, middleware: List<HttpMiddleware> = ArrayList<HttpMiddleware>()) {
+        root.route(method, path, handler, middleware)
+    }
+    /** Registers a GET endpoint, also serving implicit HEAD when no HEAD is registered. */
+    public fun get(path: String, handler: HttpHandler) { route("GET", path, handler) }
+    /** Registers a POST endpoint. */
+    public fun post(path: String, handler: HttpHandler) { route("POST", path, handler) }
+    /** Registers a PUT endpoint. */
+    public fun put(path: String, handler: HttpHandler) { route("PUT", path, handler) }
+    /** Registers a PATCH endpoint. */
+    public fun patch(path: String, handler: HttpHandler) { route("PATCH", path, handler) }
+    /** Registers a DELETE endpoint. */
+    public fun delete(path: String, handler: HttpHandler) { route("DELETE", path, handler) }
+    /** Registers an explicit HEAD endpoint. */
+    public fun head(path: String, handler: HttpHandler) { route("HEAD", path, handler) }
+    /** Registers an explicit OPTIONS endpoint. */
+    public fun options(path: String, handler: HttpHandler) { route("OPTIONS", path, handler) }
+    /** Appends a global middleware, including for unmatched requests. */
+    public fun use(middleware: HttpMiddleware) { root.use(middleware) }
+    /** Configures a path-prefix group synchronously. */
+    public fun group(prefix: String, configure: (RouteGroup) -> Unit) { root.group(prefix, configure) }
+    /** Sets the root fallback for unmatched paths. */
+    public fun fallback(handler: HttpHandler) { root.fallback(handler) }
+    /** Freezes the routing trie and all middleware snapshots. */
+    public fun build(options: HttpApplicationOptions = HttpApplicationOptions()): HttpApplication {
+        config.requireOpen()
+        val application = buildApplication(config, options)
+        config.built = true
+        return application
+    }
+}
+
+/** A configuration-only group sharing its builder's freeze boundary. */
+public class RouteGroup internal constructor(private val config: RouterConfig, private val current: GroupConfig) {
+    /** Registers one method and relative path suffix in this group. */
+    public fun route(method: String, path: String, handler: HttpHandler, middleware: List<HttpMiddleware> = ArrayList<HttpMiddleware>()) {
+        config.add(current, method, path, handler, middleware)
+    }
+    /** Registers a GET endpoint in this group. */
+    public fun get(path: String, handler: HttpHandler) { route("GET", path, handler) }
+    /** Registers a POST endpoint in this group. */
+    public fun post(path: String, handler: HttpHandler) { route("POST", path, handler) }
+    /** Registers a PUT endpoint in this group. */
+    public fun put(path: String, handler: HttpHandler) { route("PUT", path, handler) }
+    /** Registers a PATCH endpoint in this group. */
+    public fun patch(path: String, handler: HttpHandler) { route("PATCH", path, handler) }
+    /** Registers a DELETE endpoint in this group. */
+    public fun delete(path: String, handler: HttpHandler) { route("DELETE", path, handler) }
+    /** Registers an explicit HEAD endpoint in this group. */
+    public fun head(path: String, handler: HttpHandler) { route("HEAD", path, handler) }
+    /** Registers an explicit OPTIONS endpoint in this group. */
+    public fun options(path: String, handler: HttpHandler) { route("OPTIONS", path, handler) }
+    /** Appends middleware to this group's configured endpoints and fallback. */
+    public fun use(middleware: HttpMiddleware) { config.requireOpen(); current.middleware.add(middleware) }
+    /** Overrides the fallback for this prefix and inheriting nested groups. */
+    public fun fallback(handler: HttpHandler) { config.requireOpen(); current.fallback = Some(handler) }
+    /** Adds a nested prefix group; all paths remain relative to the root application. */
+    public fun group(prefix: String, configure: (RouteGroup) -> Unit) {
+        config.requireOpen()
+        val next = GroupConfig(joinedRoute(current.prefix, prefix), Some(current))
+        routePattern(next.prefix, true)
+        config.groups.add(next)
+        configure(RouteGroup(config, next))
+    }
+}

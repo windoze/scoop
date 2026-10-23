@@ -1,0 +1,105 @@
+package scoop.http.server
+
+import scoop.http.*
+
+/** A mutable response draft, valid only during its beforeCommit callback sequence. */
+public class HttpResponseDraft internal constructor(initialStatus: UInt, fields: List<HttpField>) {
+    private val values: ArrayList<HttpField> = ArrayList<HttpField>()
+    private var writable: Boolean = true
+    private var currentStatus: UInt = initialStatus
+    init { for (value in fields) values.add(value) }
+
+    /** The final response status, writable only during preparation. */
+    public var status: UInt
+        get() = currentStatus
+        set(value) { requireMutable(); currentStatus = value }
+    /** Returns an independent ordered snapshot of the current draft fields. */
+    public val fields: Array<HttpField> get() = values.toArray()
+    /** Adds an independent field without combining repeated values. */
+    public fun add(value: HttpField) { requireMutable(); values.add(value) }
+    /** Removes every field with this ASCII case-insensitive name. */
+    public fun remove(name: String) {
+        requireMutable()
+        val bytes = name.toByteArray()
+        var index = values.size
+        while (index > 0L) {
+            index -= 1L
+            if (values[index].hasName(bytes)) values.removeAt(index)
+        }
+    }
+    /** Replaces all fields with the new field's name. */
+    public fun set(value: HttpField) { remove(String.fromUtf8(value.name)); add(value) }
+
+    private fun requireMutable() {
+        if (!writable) throw IllegalStateException(Some("response draft is no longer mutable"))
+    }
+    internal fun seal() { writable = false }
+}
+
+internal enum HeaderChange { Set(HttpField), Add(HttpField), Remove(String) }
+
+/** Response mutations allowed before execution, with read-only completion facts afterwards. */
+public class HttpResponse internal constructor() {
+    internal val lock: ServerLock = ServerLock()
+    private val changes: ArrayList<HeaderChange> = ArrayList<HeaderChange>()
+    private val callbacks: ArrayList<(HttpResponseDraft) -> Unit> = ArrayList<(HttpResponseDraft) -> Unit>()
+    private var claimed: Boolean = false
+    private var committed: Boolean = false
+    private var finished: Boolean = false
+    private var aborted: Boolean = false
+    private var finalStatus: UInt? = None
+
+    /** Whether an irreversible final-response send has been attempted. */
+    public val isCommitted: Boolean get() = lock.withLock { committed }
+    /** Whether the response body and framing finished successfully. */
+    public val isFinished: Boolean get() = lock.withLock { finished }
+    /** Whether response execution was aborted. */
+    public val isAborted: Boolean get() = lock.withLock { aborted }
+    /** The submitted final status, or None before submission. */
+    public val status: UInt? get() = lock.withLock { finalStatus }
+
+    private fun requireMutable() {
+        if (claimed || committed || finished || aborted) throw IllegalStateException(Some("response is no longer mutable"))
+    }
+
+    /** Replaces all occurrences of the field's name at response preparation. */
+    public fun set(value: HttpField) { lock.withLock { requireMutable(); changes.add(HeaderChange.Set(value)) } }
+    /** Appends one field at response preparation, preserving duplicates. */
+    public fun add(value: HttpField) { lock.withLock { requireMutable(); changes.add(HeaderChange.Add(value)) } }
+    /** Removes all matching fields at response preparation. */
+    public fun remove(name: String) { lock.withLock { requireMutable(); changes.add(HeaderChange.Remove(name)) } }
+    /** Registers a non-suspending draft callback; it runs at most once. */
+    public fun beforeCommit(callback: (HttpResponseDraft) -> Unit) {
+        lock.withLock { requireMutable(); callbacks.add(callback) }
+    }
+
+    internal fun prepare(result: HttpResult, minimal: Boolean): HttpResponseDraft {
+        val snapshot = lock.withLock {
+            requireMutable()
+            claimed = true
+            val pending = callbacks.toArray()
+            callbacks.clear()
+            (changes.toArray(), pending)
+        }
+        val (edits, beforeCommit) = snapshot
+        val draft = HttpResponseDraft(result.status, result.fields)
+        if (!minimal) {
+            for (change in edits) when (change) {
+                case HeaderChange.Set(value) -> draft.set(value)
+                case HeaderChange.Add(value) -> draft.add(value)
+                case HeaderChange.Remove(name) -> draft.remove(name)
+            }
+            try { for (callback in beforeCommit) callback(draft) }
+            catch (error: Throwable) { draft.seal(); throw CommitCallbackFailure(error) }
+        }
+        draft.seal()
+        return draft
+    }
+
+    internal fun releasePreparation() { lock.withLock { if (!committed && !aborted) claimed = false; Unit } }
+    internal fun commit(status: UInt) { lock.withLock { committed = true; finalStatus = Some(status) } }
+    internal fun finish() { lock.withLock { finished = true } }
+    internal fun abort() { lock.withLock { aborted = true } }
+}
+
+internal class CommitCallbackFailure(val original: Throwable) : Exception(Some("beforeCommit failed"))

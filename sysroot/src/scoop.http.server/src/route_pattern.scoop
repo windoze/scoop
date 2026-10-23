@@ -1,0 +1,49 @@
+package scoop.http.server
+
+import scoop.text.*
+import scoop.url.*
+
+internal enum RoutePart { Literal(Array<Byte>), Parameter, Tail }
+internal class RoutePattern(val path: String, val parts: Array<RoutePart>, val names: Array<String>)
+
+internal fun routePattern(path: String, group: Boolean = false): RoutePattern {
+    if (!path.startsWith("/") || path.indexOf('?') >= 0L || path.indexOf('#') >= 0L)
+        throw IllegalArgumentException(Some("route must be an absolute path without query or fragment"))
+    val parts = ArrayList<RoutePart>()
+    val names = ArrayList<String>()
+    val segments = path.slice(1L, path.length).split('/')
+    var index = 0L
+    for (segment in segments) {
+        if (segment.startsWith("{")) {
+            if (!segment.endsWith("}")) throw IllegalArgumentException(Some("unterminated route parameter"))
+            val tail = segment.startsWith("{*")
+            val name = segment.slice(if (tail) 2L else 1L, segment.length - 1L)
+            if (name.length == 0L || name.indexOf('{') >= 0L || name.indexOf('}') >= 0L || name.indexOf('*') >= 0L)
+                throw IllegalArgumentException(Some("invalid route parameter name"))
+            for (existing in names) if (existing == name) throw IllegalArgumentException(Some("duplicate route parameter name"))
+            if (tail && (group || index != segments.size - 1L)) throw IllegalArgumentException(Some("wildcard must end an endpoint path"))
+            names.add(name)
+            parts.add(if (tail) RoutePart.Tail else RoutePart.Parameter)
+        } else {
+            if (segment.indexOf('{') >= 0L || segment.indexOf('}') >= 0L)
+                throw IllegalArgumentException(Some("route parameters occupy a whole segment"))
+            try { parts.add(RoutePart.Literal(PercentEncoding.decode(segment))) }
+            catch (_: UrlParseException) { throw IllegalArgumentException(Some("invalid route percent encoding")) }
+        }
+        index += 1L
+    }
+    return RoutePattern(path, parts.toArray(), names.toArray())
+}
+
+internal fun joinedRoute(prefix: String, path: String): String {
+    if (!path.startsWith("/")) throw IllegalArgumentException(Some("route suffix must start with slash"))
+    return prefix + path
+}
+
+/** The stable metadata of a selected route resource. */
+public class HttpRouteInfo internal constructor(
+    /** The original configured path template. */
+    public val template: String,
+    /** The configured method selected for the endpoint, including GET for implicit HEAD. */
+    public val method: String
+)

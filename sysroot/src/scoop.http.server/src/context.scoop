@@ -1,0 +1,78 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+
+/** One request's explicit context; it is also bound by exact type while its pipeline executes. */
+public class HttpContext internal constructor(
+    /** The original request and its single-consumer body. */
+    public val request: HttpRequest,
+    internal val output: ResponseOutput,
+    /** A server-generated identifier, independent of untrusted incoming fields. */
+    public val requestId: String,
+    /** The structured job that owns this request's work. */
+    public val requestJob: Job
+) {
+    /** Pending response mutations and submitted response state. */
+    public val response: HttpResponse = HttpResponse()
+    private val responding: AtomicBoolean = AtomicBoolean(false)
+    private val aborting: AtomicBoolean = AtomicBoolean(false)
+    internal var selectedRoute: HttpRouteInfo? = None
+    internal var parameters: PathParameters = PathParameters([], [])
+    internal var mappedFailure: Boolean = false
+    internal var observedFailure: Throwable? = None
+
+    /** The selected endpoint metadata, absent before routing and for fallback results. */
+    public val route: HttpRouteInfo? get() = selectedRoute
+    /** Captured parameters for the selected endpoint or fallback group. */
+    public val pathParams: PathParameters get() = parameters
+
+    /** Executes a final response, waiting for its producer and protocol completion. */
+    public suspend fun respond(result: HttpResult) { sendResult(result, false) }
+
+    internal suspend fun sendResult(result: HttpResult, minimal: Boolean) {
+        if (!responding.compareAndSet(false, true)) throw IllegalStateException(Some("response is already executing"))
+        try {
+            requestJob.ensureActive()
+            val draft = response.prepare(result, minimal)
+            if (draft.status < 200U || draft.status > 599U) throw IllegalArgumentException(Some("invalid final response status"))
+            val preliminary = HttpResponseHead(request.head.version, draft.status, fields = draft.fields)
+            val allows = httpResponseAllowsContent(preliminary, request.head.method)
+            var length = bodyLength(result.body)
+            val declared = parseHttpContentLength(draft.fields)
+            if (allows && present(declared)) {
+                if (present(length) && length!! != declared!!) throw IllegalArgumentException(Some("Content-Length does not match response body"))
+                length = declared
+            }
+            val fields = ArrayList<HttpField>()
+            for (value in draft.fields) fields.add(value)
+            if (!present(declared) && present(length) && draft.status != 204U && draft.status != 205U && draft.status != 304U)
+                fields.add(field("Content-Length", length!!.toString()))
+            val head = HttpResponseHead(request.head.version, draft.status, fields = fields)
+            response.commit(head.status)
+            val sink = output.begin(head, if (allows) length else Some(0L))
+            val writer = HttpBodyWriter(sink, if (allows) length else Some(0L))
+            try {
+                var trailers: List<HttpField> = ArrayList<HttpField>()
+                if (allows) when (result.body) {
+                    case HttpBody.Empty -> writer.flush()
+                    case HttpBody.Bytes(value) -> writer.writeAll(value)
+                    case HttpBody.Stream(value) -> { value.produce(writer); trailers = value.trailers() }
+                }
+                writer.complete()
+                output.finish(trailers)
+                response.finish()
+            } finally { writer.invalidate() }
+        } catch (error: Throwable) {
+            response.releasePreparation()
+            throw error
+        } finally { responding.store(false) }
+    }
+
+    internal suspend fun abort() {
+        if (aborting.compareAndSet(false, true)) {
+            if (!response.isFinished) response.abort()
+            output.abort()
+        }
+    }
+}

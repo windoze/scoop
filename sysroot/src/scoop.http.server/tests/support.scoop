@@ -1,0 +1,84 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class TestSource(private val input: Array<Byte>) : AsyncByteSource {
+    private var position: Long = 0L
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        val remaining = input.size - position
+        val size = if (remaining < count) remaining else count
+        val start = position
+        buffer.writeBytes(Array<Byte>(size) { index -> input[start + index] })
+        position += size
+        return size
+    }
+}
+
+internal class TestOutput : ResponseOutput, AsyncByteSink {
+    var head: HttpResponseHead? = None
+    val data: ByteArrayBuilder = ByteArrayBuilder()
+    var starts: Int = 0
+    var finishes: Int = 0
+    var aborts: Int = 0
+    var writeLimit: Long = 3L
+    var writeFailure: Throwable? = None
+    var trailers: Array<HttpField> = []
+
+    public override suspend fun begin(head: HttpResponseHead, length: Long?): AsyncByteSink {
+        starts += 1
+        this.head = Some(head)
+        return this
+    }
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        if (present(writeFailure)) throw writeFailure!!
+        val size = if (count < writeLimit) count else writeLimit
+        data.append(buffer.readBytes(size))
+        return size
+    }
+    public override suspend fun flush() { ensureActive() }
+    public override suspend fun finish(trailers: List<HttpField>) {
+        finishes += 1
+        this.trailers = trailers.toArray()
+    }
+    public override suspend fun abort() { aborts += 1 }
+    fun text(): String = String.fromUtf8(data.toByteArray())
+    fun header(name: String): String = String.fromUtf8(head!!.fields.findAll(name.toByteArray())[0L].value)
+}
+
+internal class Exchange(val context: HttpContext, val output: TestOutput, val failure: Throwable?) {
+    val status: UInt get() = output.head!!.status
+    fun text(): String = output.text()
+}
+
+internal fun exercise(application: HttpApplication, path: String = "/", method: String = "GET",
+    input: Array<Byte> = [], output: TestOutput = TestOutput()): Exchange {
+    val loop: EventLoop = LibuvEventLoop()
+    return loop.runWithResult<Exchange> suspend { _ ->
+        val head = HttpRequestHead(HttpVersion.Http11, method.toByteArray(), HttpRequestTarget.Http1(path.toByteArray()))
+        val request = HttpRequest(head, HttpRequestBody(TestSource(input)))
+        val context = HttpContext(request, output, "test-request", currentJobOrNone()!!)
+        var failure: Throwable? = None
+        try { application.execute(context) }
+        catch (error: Throwable) { failure = Some(error) }
+        Exchange(context, output, failure)
+    }
+}
+
+internal class TestCounter { var value: Int = 0 }
+
+internal fun expectState(block: () -> Unit) {
+    var rejected = false
+    try { block() }
+    catch (_: IllegalStateException) { rejected = true }
+    if (!rejected) throw IllegalStateException(Some("expected an IllegalStateException"))
+}
+
+internal fun expectArgument(block: () -> Unit) {
+    var rejected = false
+    try { block() }
+    catch (_: IllegalArgumentException) { rejected = true }
+    if (!rejected) throw IllegalStateException(Some("expected an IllegalArgumentException"))
+}

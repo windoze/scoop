@@ -1,5 +1,7 @@
 # Scoop HTTP 库规范
 
+应用层路由、请求 Context、middleware 与结果执行属于独立的 [HTTP server 库](SCOOP-HTTP-SERVER-SPEC.md)，不进入本协议引擎。
+
 版本：M53 已实施基线，含 M54 修订；扩展方法已实现，其余补充按 [M54 进度](../milestone54/PROGRESS.md)记录。既有实现见 [M53 设计](../milestone53/DESIGN.md)，新增范围见 [M54 设计](../milestone54/DESIGN.md)与第 9 节。本规范使用[库 API 风格](SCOOP-API-STYLE.md)、[异步 I/O](SCOOP-ASYNCIO-SPEC.md)和 [TLS](SCOOP-TLS-SPEC.md)的既有合同，不改变语言语义、runtime ABI 或编译阶段职责。
 
 ## 1. 分层与后端

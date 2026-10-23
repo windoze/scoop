@@ -1,0 +1,76 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.HttpField
+import scoop.http.HttpResponseHead
+import scoop.platform.memory.NativeByteBuffer
+
+internal interface ResponseOutput {
+    suspend fun begin(head: HttpResponseHead, length: Long?): AsyncByteSink
+    suspend fun finish(trailers: List<HttpField>)
+    suspend fun abort()
+}
+
+/** A borrowed output view valid only while the framework executes one response body. */
+public class HttpBodyWriter internal constructor(private val sink: AsyncByteSink, private val length: Long?) : AsyncByteSink {
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private val ended: AtomicBoolean = AtomicBoolean(false)
+    private var written: Long = 0L
+
+    private fun enter() {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("concurrent response writes"))
+        if (ended.load()) { busy.store(false); throw IllegalStateException(Some("response writer is no longer active")) }
+    }
+
+    /** Accepts a possibly short prefix, enforcing the declared original-content length. */
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        enter()
+        try {
+            ensureActive()
+            if (count < 0L || count > buffer.readableBytes) throw IndexOutOfBoundsException()
+            if (present(length) && count > length!! - written) throw IllegalStateException(Some("response exceeds its declared length"))
+            val before = buffer.readableBytes
+            val progress = sink.writeFrom(buffer, count)
+            if (progress < 0L || progress > count || before - buffer.readableBytes != progress)
+                throw IllegalStateException(Some("invalid response sink progress"))
+            if (progress > Long.MAX_VALUE - written) throw ArithmeticException()
+            written += progress
+            return progress
+        } finally { busy.store(false) }
+    }
+
+    /** Flushes accepted bytes without finishing the response. */
+    public override suspend fun flush() {
+        enter()
+        try { ensureActive(); sink.flush() }
+        finally { busy.store(false) }
+    }
+
+    /** Writes an entire byte sequence through a bounded buffer. */
+    public suspend fun writeAll(value: List<Byte>) {
+        NativeByteBuffer.allocate(8192L).use suspend { buffer ->
+            var index = 0L
+            while (index < value.size) {
+                buffer.clear()
+                val count = if (value.size - index < 8192L) value.size - index else 8192L
+                val start = index
+                buffer.writeBytes(Array<Byte>(count) { offset -> value[start + offset] })
+                writeFully(buffer)
+                index += count
+            }
+        }
+    }
+
+    /** Writes UTF-8 text through the same bounded output path. */
+    public suspend fun writeText(value: String) { writeAll(value.toByteArray()) }
+
+    internal fun complete() {
+        enter()
+        try {
+            if (present(length) && length!! != written) throw IllegalStateException(Some("response is shorter than its declared length"))
+            ended.store(true)
+        } finally { busy.store(false) }
+    }
+
+    internal fun invalidate() { ended.store(true) }
+}

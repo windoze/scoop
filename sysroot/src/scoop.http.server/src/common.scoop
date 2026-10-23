@@ -1,0 +1,51 @@
+package scoop.http.server
+
+import scoop.http.HttpField
+
+internal class ServerLock {
+    private val held: AtomicBoolean = AtomicBoolean(false)
+
+    fun <T> withLock(block: () -> T): T {
+        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {}
+        try { return block() }
+        finally { held.store(false, MemoryOrder.Release) }
+    }
+}
+
+internal fun field(name: String, value: String): HttpField =
+    HttpField(name.toByteArray(), value.toByteArray())
+
+internal fun <T> present(value: T?): Boolean = when (value) {
+    case Some(_) -> true
+    case None -> false
+}
+
+internal fun sameBytes(a: List<Byte>, b: List<Byte>): Boolean {
+    if (a.size != b.size) return false
+    var index = 0L
+    while (index < a.size) {
+        if (a[index] != b[index]) return false
+        index += 1L
+    }
+    return true
+}
+
+internal fun inputText(bytes: List<Byte>, location: String): String =
+    String.fromUtf8OrNone(bytes) ?: reject(400U, location + " must be UTF-8")
+
+internal fun reject(status: UInt, detail: String): Nothing = throw HttpRejection(text(detail, status))
+
+/** An expected request rejection carrying the response selected by the application or extractor. */
+public class HttpRejection public constructor(
+    /** The response to execute in the current request pipeline. */
+    public val result: HttpResult
+) : Exception(Some("HTTP request rejected"))
+
+/** A suspending endpoint returning a response description. */
+public typealias HttpHandler = suspend (HttpContext) -> HttpResult
+
+/** A single-use continuation that waits for the entire downstream response. */
+public typealias HttpNext = suspend () -> Unit
+
+/** A request middleware that either delegates once, responds, or throws. */
+public typealias HttpMiddleware = suspend (HttpContext, HttpNext) -> Unit

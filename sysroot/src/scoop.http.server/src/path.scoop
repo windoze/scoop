@@ -1,0 +1,67 @@
+package scoop.http.server
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.HttpRequestTarget
+import scoop.text.*
+import scoop.url.*
+
+internal class PathSegment(val encoded: String, val decoded: Array<Byte>)
+internal enum TargetKind { Path, Star, Connect }
+internal class RequestTarget(val kind: TargetKind, val path: String, val segments: Array<PathSegment>, val query: UrlQuery)
+
+internal fun requestTarget(target: HttpRequestTarget, method: String): RequestTarget {
+    if (method == "CONNECT") return RequestTarget(TargetKind.Connect, "", [], UrlQuery())
+    val encoded = when (target) {
+        case HttpRequestTarget.Http1(value) -> inputText(value, "request target")
+        case HttpRequestTarget.Http2(_, _, value) -> inputText(value, "request path")
+        case HttpRequestTarget.Connect(_) -> return RequestTarget(TargetKind.Connect, "", [], UrlQuery())
+    }
+    if (encoded == "*") return RequestTarget(TargetKind.Star, "*", [], UrlQuery())
+    if (!encoded.startsWith("/") || encoded.indexOf('#') >= 0L) reject(400U, "expected an origin-form request target")
+    val queryAt = encoded.indexOf('?')
+    val path = if (queryAt < 0L) encoded else encoded.slice(0L, queryAt)
+    try {
+        val query = if (queryAt < 0L) UrlQuery() else UrlQuery.parse(encoded.slice(queryAt + 1L, encoded.length))
+        return RequestTarget(TargetKind.Path, path, decodePath(path), query)
+    } catch (_: UrlParseException) { reject(400U, "invalid request target encoding") }
+}
+
+internal fun decodePath(path: String): Array<PathSegment> {
+    val result = ArrayList<PathSegment>()
+    for (part in path.slice(1L, path.length).split('/')) result.add(PathSegment(part, PercentEncoding.decode(part)))
+    return result.toArray()
+}
+
+/** Captured route parameters with explicit raw-byte and strict UTF-8 access. */
+public class PathParameters internal constructor(private val names: Array<String>, private val values: Array<PathSegment>) {
+    private fun find(name: String): PathSegment {
+        var index = 0L
+        while (index < names.size) {
+            if (names[index] == name) return values[index]
+            index += 1L
+        }
+        throw IllegalStateException(Some("route has no parameter named " + name))
+    }
+
+    /** Returns the original percent-encoded parameter bytes, preserving encoded separators. */
+    public fun rawBytes(name: String): Array<Byte> = find(name).encoded.toByteArray()
+    /** Returns a snapshot of the once-decoded parameter bytes. */
+    public fun bytes(name: String): Array<Byte> = find(name).decoded
+    /** Decodes one captured parameter as strict UTF-8. */
+    public fun text(name: String): String = inputText(bytes(name), "path parameter " + name)
+    /** Reads a required signed decimal integer or rejects the request with 400. */
+    public fun long(name: String): Long = text(name).toLongOrNone() ?: reject(400U, "invalid path integer " + name)
+}
+
+internal fun pathTail(parts: Array<PathSegment>, start: Long): PathSegment {
+    val encoded = StringBuilder()
+    val decoded = ByteArrayBuilder()
+    var index = start
+    while (index < parts.size) {
+        if (index != start) { encoded.append("/"); decoded.append(47.toByte()) }
+        encoded.append(parts[index].encoded)
+        decoded.append(parts[index].decoded)
+        index += 1L
+    }
+    return PathSegment(encoded.toString(), decoded.toByteArray())
+}
