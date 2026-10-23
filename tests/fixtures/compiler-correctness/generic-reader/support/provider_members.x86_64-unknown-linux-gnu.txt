@@ -1,4 +1,4 @@
-manifest.cbor
+manifest.zst
 m00000000
 m00000001
 m00000002
