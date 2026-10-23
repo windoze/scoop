@@ -6,6 +6,12 @@ import scoop.json.*
 import scoop.test.*
 import scoop.url.*
 
+private struct JsonRequestOnly(val value: String) {
+    public companion object : ValueEncoder<JsonRequestOnly> {
+        public override fun encode(value: JsonRequestOnly, encoder: Encoder) { String.encode(value.value, encoder) }
+    }
+}
+
 @Test
 private class RequestBodyDataTest {
     @Test
@@ -68,6 +74,25 @@ private class RequestBodyDataTest {
             assertEquals("\"中文\"", bodyText(body))
         }
         assertEquals(2L, calls.load())
+    }
+
+    @Test
+    fun `default JSON encoding preserves independent capability limits and explicit overrides`() {
+        val value = JsonRequestOnly("中文")
+        assertFailsWith<IllegalArgumentException> { RequestBody.fromJson(value, maxBytes = -1L) }
+        val limit = assertFailsWith<RequestBodyLimitException> { RequestBody.fromJson(value, maxBytes = 7L) }
+        assertEquals(8L, limit.actualBytes)
+        val body = RequestBody.fromJson(value, maxBytes = 8L)
+        assertTrue(body.isReplayable && body.contentLength == Some(8L))
+        assertEquals("application/json", String.fromUtf8(body.contentType!!.toByteArray()))
+        val custom = ValueEncoderFunction<JsonRequestOnly> { _, encoder -> Int.encode(7, encoder) }
+        val explicit = RequestBody.fromJson(value, custom, 1L)
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            assertEquals("\"中文\"", bodyText(body))
+            assertEquals("\"中文\"", bodyText(body))
+            assertEquals("7", bodyText(explicit))
+        }
     }
 
     @Test

@@ -50,6 +50,18 @@ public class Array<T> : List<T> {
          * Builds a sequence decoder using the supplied element decoder.
          */
         public fun decoder(element: ValueDecoder<T>): ValueDecoder<Array<T>> = ArrayDecoder<T>(element)
+
+        override interface ValueEncoder<Array<T>> where T.Companion : ValueEncoder<T> {
+            /** Encodes elements in index order using the element companion. */
+            public override fun encode(value: Array<T>, encoder: Encoder): Unit =
+                encodeList(value, T.Companion, encoder)
+        }
+
+        override interface ValueDecoder<Array<T>> where T.Companion : ValueDecoder<T> {
+            /** Decodes a new array using the element companion. */
+            public override fun decode(decoder: Decoder): Array<T> =
+                decodeSequence(decoder, T.Companion).toArray()
+        }
     }
 }
 
@@ -114,5 +126,17 @@ public class MutableArray<T> : List<T>, IndexSet<Long, T> {
          */
         public fun decoder(element: ValueDecoder<T>): ValueDecoder<MutableArray<T>> =
             MutableArrayDecoder<T>(element)
+
+        override interface ValueEncoder<MutableArray<T>> where T.Companion : ValueEncoder<T> {
+            /** Encodes elements in index order using the element companion. */
+            public override fun encode(value: MutableArray<T>, encoder: Encoder): Unit =
+                encodeList(value, T.Companion, encoder)
+        }
+
+        override interface ValueDecoder<MutableArray<T>> where T.Companion : ValueDecoder<T> {
+            /** Decodes a new mutable array using the element companion. */
+            public override fun decode(decoder: Decoder): MutableArray<T> =
+                decodeSequence(decoder, T.Companion).toMutableArray()
+        }
     }
 }

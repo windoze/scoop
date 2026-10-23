@@ -1,18 +1,18 @@
-# 序列化与 JSON 库改进调研：M55 现状与 M57 的作用
+# 序列化与 JSON 库改进调研：M57 完成后的库适配
 
-调研日期：2026-10-21。设计同步：2026-10-23。状态：调研与设计建议。M55 已实现；[M57](../milestone57/DESIGN.md)已按普通类型与 companion 的条件 interface 实现方案进入实施，完成范围以其进度记录为准。本文对未来能力的判断均以相应实现通过验收为前提。
+调研日期：2026-10-21。实现同步：2026-10-24。M55、[M57](../milestone57/PROGRESS.md)均已完成；M57 已交付 HashMap 的条件 codec、泛型字段 companion 投影及派生衔接。本轮补齐核心容器、JSON DOM／object codec 和默认入口，规范见[JSON库规范](../specs/SCOOP-JSON-SPEC.md)，本轮验证范围见第8节。字段级 codec 定制暂不实施。
 
 本次重点是 M57 对默认 codec、泛型容器和 DTO 的帮助，同时检查现有 JSON 库的可用性与实现。与 [LLM client 调研](../llm-client/INVESTIGATION.md)衔接，但这些改进服务普通序列化和 JSON 使用，不新增 LLM 专用编译器行为。
 
 ## 1. 主要结论
 
-1. **M55 解决调用处如何取得默认 codec，M57 可以解决泛型类型何时拥有默认 codec。** 两者组合后，现有 Json 泛型入口就能消费按元素能力提供 codec 的容器，无需在 Json 中逐个识别商业 API 或容器名称。
-2. **M57 的收益需要标准库和普通用户类型主动采用。** 新增语言能力本身不会改写现有 HashMap、Option、ArrayList 或 DTO 的 companion；当前显式工厂也不能直接删除。
+1. **M55 解决调用处如何取得默认 codec，M57 解决泛型类型何时拥有默认 codec。** 两者组合后，现有 Json 泛型入口就能消费按元素能力提供 codec 的容器，无需在 Json 中逐个识别商业 API 或容器名称。
+2. **M57 的收益需要标准库和普通用户类型主动采用。** HashMap 已随 M57 适配；本轮补齐 Option、Array、MutableArray 和 ArrayList。显式工厂继续保留，未适配的其他 std 容器不自动获得默认 codec。
 3. **编码与解码由两个条件实现块独立提供。** 两块可以同时生效，覆盖编码、解码、两者都有、无默认 codec 四种能力组合；无需复制容器定义或增加交叉特化分支。
 4. **自动 codec 不等于 JSON 格式适配。** Map 的键值对序列、enum 的外层单 key、Option 的 null 规则都不会因 M57 自动变成某个 API 所需的对象、discriminator 或三态字段。
-5. **JSON 的直接缺口仍是公开 DOM、便利入口、对象字段查找和 UTF-8／流式衔接。** 这些不依赖 M57，可以先做。M57 主要改善静态组合与易用性，不会自动加快 parser 或降低大文档内存占用。
+5. **本轮补齐公开 DOM、便利入口和 String-key object codec。** 字段索引、UTF-8／流式衔接仍为独立后续工作。M57 主要改善静态组合与易用性，不会自动加快 parser 或降低大文档内存占用。
 
-## 2. 已有基础与 M55 可以立即利用的能力
+## 2. 已有基础与默认入口
 
 ### 2.1 当前库不是只有简单文本转换
 
@@ -20,18 +20,18 @@
 
 - 独立的 `ValueEncoder<T>`／`ValueDecoder<T>`，显式 codec 可替换默认策略。
 - `Json.encodeToString(value)`、`Json.decodeFromString<T>(text)` 的 companion bound 重载；标量、普通派生 DTO、具有相应 companion 的日期／UUID 等类型已能使用。
-- `encodeToValue(value, codec)`／`decodeFromValue(value, codec)`，typed 数据与 JSON 树之间无需文本中转。
+- `encodeToValue(value, codec)`／`decodeFromValue(value, codec)`及对应默认重载，typed 数据与 JSON 树之间无需文本中转。
 - 不可变 `JsonValue`，能保存未知子树、精确数字 token 和对象顺序，再交给其他 codec 读取。
 - 严格的完整文档检查、重复 key 检查、JSON Pointer 路径；未知字段仍检查 JSON 语法。
 - 稳定且可复读的 Decoder；复用一个 decoder 组合多个 DTO、收集未知字段、尝试其他读取不会消耗节点。
 - `Serialize` 的 rename、required、emitNull、ignore，以及缺失字段、显式 null 和默认值的既有区分。
 - Option、数组、列表、Map、Set、Result 等显式 codec 组合。
 
-因此应扩展现有协议和 JsonValue，不另建一个反射序列化系统或第二棵 `Any` JSON 树。[现有组合 Cone 测试](../../sysroot/src/scoop.json/tests/consumer/values-composition/main.scoop)已经展示“读取两个 DTO＋收集未知字段＋重新编码”，缺的是更直接的公共操作。
+本轮扩展现有协议和 JsonValue，不另建反射序列化系统或第二棵 `Any` JSON 树。[现有组合 Cone 测试](../../sysroot/src/scoop.json/tests/consumer/values-composition/main.scoop)已经展示“读取两个 DTO＋收集未知字段＋重新编码”；新增的 DOM API 让这些操作更直接。
 
-### 2.2 M55 已实现，尚未用到所有入口
+### 2.2 值树和 HTTP 默认入口
 
-当前字符串重载分别使用 `T.Companion : ValueEncoder<T>` 和 `ValueDecoder<T>`，而值树转换仍要求显式 codec。可增加同形重载：
+字符串与值树入口分别使用 `T.Companion : ValueEncoder<T>` 和 `ValueDecoder<T>`。本轮增加的值树重载为：
 
 ```scoop
 public fun <T> encodeToValue(value: T): JsonValue
@@ -43,11 +43,11 @@ public fun <T> decodeFromValue(value: JsonValue): T
     decodeFromValue(value, T.Companion)
 ```
 
-这是拟添加到 Json 的方法，不是已经存在的重载。相同形式的普通 helper 已适合当前语言，不需要 M57。
+两个方向各自转发原显式入口，不增加隐式参数或运行期查找。
 
-同样可补 `RequestBody.fromJson(value, maxBytes)`、`HttpResponseBody.json<T>(maxBytes)`，由调用方向分别约束 encoder／decoder，转发到现有显式入口。容器 reader／writer 若确有重复调用，可以添加普通泛型扩展函数；不能在 Encoder／Decoder interface 上引入当前语言不支持的泛型虚方法。
+HTTP 同步增加 `RequestBody.fromJson(value, maxBytes)`、`HttpResponseBody.json<T>(maxBytes)`，由调用方向分别约束 encoder／decoder，转发到现有显式入口。容器 reader／writer 若确有重复调用，可以添加普通泛型扩展函数；不能在 Encoder／Decoder interface 上引入当前语言不支持的泛型虚方法。
 
-少量有自身类型参数的工厂也可简化调用，例如 `arrayEncoder<T>() where T.Companion : ValueEncoder<T>` 返回 `Array<T>.encoder(T.Companion)`。它只自动取得当前元素的 codec；如果元素本身是没有默认 companion codec 的另一个容器，仍需显式组合。不能用大量“Array of Option of Array”重载模拟递归类型匹配。
+容器默认能力由各自的条件 companion 提供，避免在 Json 中枚举嵌套形状。Json 的 objectEncoder／objectDecoder 也分别提供显式元素 codec 和无参数 companion 重载。
 
 ### 2.3 M55 的其他约束不应被误用
 
@@ -62,7 +62,7 @@ public fun <T> decodeFromValue(value: JsonValue): T
 
 ### 3.1 泛型容器可以向外提供自己的默认 codec
 
-当前嵌套 Map 需要逐层写策略：
+显式嵌套 Map 策略继续可用：
 
 ```scoop
 val codec = HashMap<String, HashMap<Int, String>>.encoder(
@@ -72,7 +72,7 @@ val codec = HashMap<String, HashMap<Int, String>>.encoder(
 val text = Json.encodeToString(value, codec)
 ```
 
-若 HashMap 按 M57 为已有 companion 声明条件接口实现，便可写：
+HashMap 已按 M57 为原 companion 声明两个条件接口，现在可直接写：
 
 ```scoop
 val text = Json.encodeToString(value)
@@ -96,9 +96,9 @@ val copy = Json.decodeFromString<HashMap<String, HashMap<Int, String>>>(text)
 
 这是两个条件实现块的四种结果组合，不是四份类型定义。E、D 同时成立时两块同时提供接口，没有唯一赢家或兜底分支。元素没有 public companion 时不满足对应条件，容器及其已有 companion 仍存在；未知条件则保持未知。
 
-方向独立有实际用途：请求 DTO 可能只能编码，响应 DTO 可能只能解码。不能因为响应没有 encoder 而拒绝 `List<Response>` 的解码，也不能要求只发送请求的应用补一个无用 decoder。
+方向独立有实际用途：请求 DTO 可能只能编码，响应 DTO 可能只能解码。不能因为响应没有 encoder 而拒绝 `Array<Response>` 的解码，也不能要求只发送请求的应用补一个无用 decoder。
 
-采用独立实现块后，以下未来泛型转发只需编码条件：
+采用独立实现块后，以下泛型转发只需编码条件：
 
 ```scoop
 fun <K, V> encodeMapDefault(value: HashMap<K, V>): String
@@ -114,13 +114,9 @@ fun <K, V> encodeMapDefault(value: HashMap<K, V>): String
 
 对 `Envelope<T>`、`Page<T>`、`Result<T, E>`，M57 允许按字段所需能力提供默认 codec，普通存储用途始终使用同一份数据定义。调用者也可继续传入显式元素策略，不需要把策略写进数据对象。
 
-但这里有一项必须同步实现的连接：当前[字段 codec 选择器](../../compiler/hir-lower/src/class/inheritance/coding/codecs.rs)优先选择 primary val 依赖、递归 this、可命名 nominal 的 companion，再组合 core 容器和 tuple。它的 `coding_companion` 目前不把裸类型参数 T 的已知 `T.Companion` bound 当作默认来源。
+M57 已将定义环境中成立的 `T.Companion` 投影接入[字段 codec 选择器](../../compiler/hir-lower/src/class/inheritance/coding/codecs.rs)，手写和自动派生都可使用条件接口中的已知事实。未知 T 仍不能在实例化时猜测 codec。
 
-因此，在 M57 实现块中声明 `T.Companion : ValueEncoder<T>` 后，**手写方法可以使用它；自动派生也想使用它，就必须补上对应的字段选择合同与 typed 投影引用**。否则会出现“手写 encode 合法，空的 ValueEncoder 实现却仍报缺少字段 codec”的断层。
-
-建议在语言规范 11.13.4 明确：字段为类型参数时，定义环境已有相应 companion bound，才可选择这个投影；未知 T 仍不能猜测。显式完整字段 codec 继续优先，原有合法 private／internal companion 访问不改成 public-only。实例化只替换已选投影，不重新搜索 codec。
-
-这个连接属于既有派生规则的实际扩展，不是要求另建自动注册表，也不应成为 HashMap 手写 helper 首个闭环的前置条件。[M57 第 8.2、12 节](../milestone57/DESIGN.md)已将它列入整体交付，实施时需要落实到这个具体入口。
+本轮新增核心容器默认接口时，进一步明确字段选择顺序：完整字段依赖、递归 this 优先；核心容器递归选择元素策略并调用显式工厂；其他名义类型再使用已证明的 companion。这样新增默认 Array／Option codec 不会覆盖用户已经注入的元素策略或递归 this。两个方向保持独立，ValueInspector 的既有规则不变。
 
 ### 3.4 单一数据定义与 companion
 
@@ -144,7 +140,7 @@ M57 已改为在原 companion 的 body 中分别声明 `override interface Value
 | tuple、Unit | 继续使用现有组合 helper 和 UnitEncoder／UnitDecoder | tuple 没有 companion，M57 不新增 tuple companion 或变长类型参数机制 |
 | Any、外部类型、无 public companion 的类型 | 显式 codec、包装或用户自己定义的类型仍可编码 | 不增加动态 registry，不允许消费 Cone 给外部类型或 companion 追加实现 |
 
-“嵌套容器自动工作”必须逐层成立。例如仅完成 HashMap 后，`HashMap<String, Array<User>>` 仍可能在 Array 的默认 companion 能力处中断；不能把嵌套 HashMap 的成功扩大成所有容器组合均已支持。
+“嵌套容器自动工作”必须逐层成立。本轮覆盖 `HashMap<String, Option<Array<Int>>>` 和泛型 DTO；Array、MutableArray、ArrayList、Option 已适配。LinkedHashMap、Set、Deque、Result 等未在本轮增加默认条件接口，继续使用其显式工厂；List／Map 接口也没有因具体容器适配而自动获得 companion codec。
 
 ## 4. M57 不会替 JSON 库完成的工作
 
@@ -152,7 +148,7 @@ M57 已改为在原 companion 的 body 中分别声明 `override interface Value
 
 当前[普通 map codec](../../sysroot/src/scoop.std/src/collections/map_codec.scoop)使用 `[[key,value], ...]`。即使 key 是 String，编码仍是 entry 数组。M57 默认 HashMap codec 按设计继续复用这个格式。
 
-JSON API 客户端经常需要 `{"name": value}`。建议在 JSON 所属层提供显式的 String-key object codec 或 JsonValue 对象构造入口；默认 generic Map 继续保存任意 key 的类型语义。
+JSON API 客户端经常需要 `{"name": value}`。本轮在 JSON 层提供 objectEncoder／objectDecoder 和 JsonValue 对象工厂／builder。encoder 接收 Map<String,V>，decoder 明确返回保持输入顺序的新 LinkedHashMap<String,V>；默认 generic Map 继续使用 entry 数组。
 
 M57 不提供整份类型特化或接口实现特化，也不支持 `K == String` 条件；不能再增加一个 String-key 的重叠实现来覆盖默认格式。也不应将任意 key.toString() 作为对象 key：可能碰撞，且不可逆。
 
@@ -168,16 +164,16 @@ M57 只衔接已有 codec 合成与条件环境，不替代 M47 的生成器／�
 
 M57 不改变 JSON 语法、字节读取、SSE／NDJSON 定界或工具参数增量。已知静态 codec 可以减少手工组合及部分临时策略对象，但 parser、字段索引、树表示和 I/O 仍须独立改进，不能预先声称有吞吐提升。
 
-## 5. JSON 库本身建议如何改进
+## 5. JSON 库适配与剩余工作
 
-### 5.1 第一优先：公开不可变 DOM 与简单入口
+### 5.1 本轮：公开不可变 DOM 与简单入口
 
-保留 JsonValue 的现有 class 和共享不可变节点，补以下普通能力，而不是直接公开内部可变 ArrayList：
+保留 JsonValue 的现有 class 和共享不可变节点，公开API如下；精确签名、异常和复杂度以 JSON 库规范为准，不公开内部可变 ArrayList：
 
-| API 能力 | 建议合同 |
+| API 能力 | 当前合同 |
 | --- | --- |
 | `Json.parse(text)`／`Json.stringify(value)` | 分别返回 JsonValue、直接渲染已合法的值；避免用户借助 identity codec 表达普通树操作 |
-| `JsonValue.kind` | 明确 null／boolean／number／string／array／object |
+| `JsonValue.kind: JsonValueKind` | 明确 null／boolean／number／string／array／object |
 | 对象读取与遍历 | key、成员顺序、contains、按 key 取得子值；缺失返回 None，存在的 JSON null 返回 Some(JsonValue) |
 | 数组读取与遍历 | Long 下标、大小、不可修改的视图或独立快照；不暴露底层可变 storage |
 | 标量读取 | 严格匹配类型；Long／ULong／Float／Double 复用现有范围和精度语义 |
@@ -189,11 +185,11 @@ M57 不改变 JSON 语法、字节读取、SSE／NDJSON 定界或工具参数增
 
 树保留 JSON 值、对象顺序和数值 token；仍不承诺保留原始空白、字符串转义拼写或签名所需的原始消息字节。应用需要原始字节时显式保存输入。
 
-最初可提供小型对象／数组 builder，完成时发布不可变结果；不需要 JSONPath、通用 patch 引擎、可变树和观察者体系作为前置。
+JsonObjectBuilder／JsonArrayBuilder 的 build 发布独立结构快照；继续 add 不改变旧值。对象重复 key 报错，合法子树共享。本轮不包含 JSONPath、patch 或可变 DOM。
 
-### 5.2 泛型 object codec 与常用组合
+### 5.2 本轮：泛型 object codec；其他组合保持显式
 
-JSON 的 String-key object codec 可以接收显式 `ValueEncoder<V>`／`ValueDecoder<V>`，同时用 M55 提供元素有默认 companion 时的便利入口。解码返回何种具体容器应在签名中写清，例如保持输入顺序的 LinkedHashMap。
+Json.objectEncoder 接收显式 ValueEncoder<V> 或使用 V.Companion，返回 ValueEncoder<Map<String,V>>；objectDecoder 独立接收 ValueDecoder<V> 或使用 V.Companion，返回 ValueDecoder<LinkedHashMap<String,V>>。字段路径、重复 key 和元素异常沿用普通 keyed 协议。
 
 这项能力既能服务工具 schema 和原生扩展字段，也能服务普通 Web API，不依赖 M57 或新增 core Map 协议。它应保持字段冲突报错，不能合并已知字段与扩展时静默覆盖。
 
@@ -208,12 +204,12 @@ JSON 的 String-key object codec 可以接收显式 `ValueEncoder<V>`／`ValueDe
 | parser 每读一个对象 key 都遍历之前的成员 | n 个字段的重复检查累计为二次量级 | 保留有序成员，增加一次建立的 key 索引 |
 | keyed encoder 新增字段时同样线性查重 | 大 schema／动态对象写出成本较高 | 使用相同的普通索引策略 |
 | keyed decoder 每次 required／optional 线性查找，keys 每次重新建列表 | 逐字段解码与复读重复做工作 | 不可变 record 共享索引和只读 key 视图 |
-| JsonValue 通过通用 encodeToString 先重建树再渲染 | 已有树又分配一棵同形树 | 优先提供直接 stringify；更深的节点复用优化须保持 writer 提交与重复字段合同 |
+| JsonValue 通过通用 encodeToString 先重建树再渲染 | 已有树又分配一棵同形树 | 本轮新增直接 stringify；通用 codec 路径仍遵守 writer 提交与重复字段合同 |
 | HTTP JSON request 先完整生成 String 和 byte array，再检查 maxBytes，并取得发送快照 | 上限限制了最终发送大小，未限制之前的完整物化 | 后续提供有界 UTF-8 写出入口，让构造阶段就能停止，并减少中间表示 |
 
 依据：[parser](../../sysroot/src/scoop.json/src/parser.scoop)、[encoding containers](../../sysroot/src/scoop.json/src/encoding_containers.scoop)、[decoding containers](../../sysroot/src/scoop.json/src/decoding_containers.scoop)、[JsonValue](../../sysroot/src/scoop.json/src/value.scoop)、[HTTP request body](../../sysroot/src/scoop.http.client/src/body/data.scoop)。以上是代码路径分析，尚无本轮性能基准。
 
-JSON 当前仅依赖 core；若为索引使用现有 HashMap／HashSet，可显式依赖只依赖 core 的 std，不需要新 runtime。应先评估真实依赖与构建成本，不在 JSON 内另造完整哈希容器。小对象也应测量，避免索引的固定成本抵消收益。
+JSON 本轮为 Map／LinkedHashMap 适配和 object builder 查重显式依赖 std。parser 和 keyed decoder 的索引仍待独立测量与实现，不在 JSON 内另造哈希容器。
 
 ### 5.4 UTF-8、流式与缺省设置
 
@@ -225,12 +221,12 @@ JSON 当前仅依赖 core；若为索引使用现有 HashMap／HashSet，可显�
 
 建议继续采用严格 JSON、重复 key 报错、无数字／字符串自动强制转换、默认紧凑输出。pretty printing 可以是明确的写出选项。HTTP 对网络 body 设置有限字节上限；JSON 的解析／遍历深度只针对实际实现的栈边界设计，不扩展为跨库通用预算体系。
 
-## 6. 对 M57 实施与验收的具体建议
+## 6. M57 已完成的验收与库组合回归
 
-M57 设计已列明 HashMap、本地／跨 Cone、嵌套查询、方向独立和显式 codec 保留；这些设计方向正确。序列化消费者还应推动以下几项具体验收：
+M57 的已完成范围见其进度记录；本轮库适配延续以下回归边界，不把已完成的语言能力写成未来计划：
 
 1. **四种能力组合**：encode-only DTO、decode-only DTO、两方向、无 companion；不仅验证 Int／String 两方向齐全的简单情况。
-2. **嵌套的真实边界**：嵌套 HashMap、Option／ArrayList 与普通 DTO；单独记录 Array／MutableArray 的支持路径，不把它们混入已完成声明。
+2. **嵌套的真实边界**：嵌套 HashMap、Option／ArrayList 与普通 DTO；Array／MutableArray 的默认能力属于本轮库适配，不能用历史 M57 结果代替其验收。
 3. **固定 companion 的状态**：接口条件与普通字段、构造和初始化独立；同一完整宿主跨 Cone 使用同一 singleton，关系查询不执行初始化。
 4. **有 companion bound 的泛型字段派生**：手写调用与自动派生一致；显式完整字段 codec 仍胜过默认来源。
 5. **运行期策略保持显式**：Comparator、自定义时间格式、field codec 覆盖、无默认 companion 的外部类型仍可使用旧路径。
@@ -238,18 +234,18 @@ M57 设计已列明 HashMap、本地／跨 Cone、嵌套查询、方向独立和
 
 两个实现块即可覆盖两种方向的组合。其他接口也可以独立增加，但不因语法已经可用就立即扩展 inspector、schema、hash 等全部能力；每项扩展应有当前消费者，共享 helper 只复用实际相同的算法。
 
-## 7. 推荐实施顺序
+## 7. 当前范围与后续顺序
 
-| 顺序 | 工作 | 依赖 |
-| --- | --- | --- |
-| 1 | JsonValue 公开 DOM、parse／stringify、值树默认 codec 重载、可运行 quickstart | 当前语言即可；先修订 JSON 的公共合同 |
-| 2 | String-key object codec、HTTP JSON 默认重载、有界 UTF-8 入口 | 当前 M55；分别修改所属库规范 |
-| 3 | 复用有序字段索引，消除 JsonValue 的普通输出重建 | 独立性能工作，以实际对象尺寸和调用结果验证 |
-| 4 | 随 M57 完成 HashMap 两个条件 codec 接口、四种能力组合和嵌套闭环 | M57 实现及标准库适配 |
-| 5 | 其他容器适配及泛型 DTO 条件 codec 派生衔接 | M57 组合验收；逐类型声明已支持范围 |
-| 按需求 | 增量 parser、流式字节读写、额外格式策略／schema 生成 | 独立的实际消费者与合同，不作为前几步的前置 |
+| 状态 | 工作 |
+| --- | --- |
+| M57 已完成 | HashMap 两个条件 codec、四种能力组合、泛型 DTO 字段投影和条件派生 |
+| 本轮实现 | Option／Array／MutableArray／ArrayList 默认 codec，保留显式元素依赖与递归 this |
+| 本轮实现 | JsonValue DOM、受检工厂和快照 builder、parse／stringify、值树默认重载 |
+| 本轮实现 | String-key object codec、HTTP JSON 默认重载和 quickstart |
+| 后续按实际测量 | parser／keyed decoder 字段索引、UTF-8／流式入口 |
+| 暂不实施 | 字段级 codec 定制、额外 enum wire 策略／schema 自动生成 |
 
-公共行为变更先落到语言规范 11.13、相关 std／HTTP 规范；M57 的类型语义按其第 12 节同步三份权威规范。JSON 细节可以随后迁到独立规范以便维护，但本次调研不改写当前正式语义。
+公共合同已分列于语言规范11.13、JSON库规范和HTTP client规范；实现选择的变化同步到编译器与产物规范。没有新的runtime ABI。
 
 ## 8. 依据与验证范围
 
@@ -261,15 +257,23 @@ M57 设计已列明 HashMap、本地／跨 Cone、嵌套查询、方向独立和
 - [M46 JsonValue](../../sysroot/src/scoop.json/tests/values/values/main.scoop)及[组合消费者](../../sysroot/src/scoop.json/tests/consumer/values-composition/main.scoop)：保存、复读、未知字段、字段冲突。
 - [容器组合](../../sysroot/src/scoop.json/tests/consumer/serialization-containers/main.scoop)：显式容器策略、路径、完整容器检查。
 - [M46 字段与默认值语义](../milestone46/SERIALIZE.md)：编码省略与解码 presence 的既有规则。
-- [M57 条件 interface 实现设计](../milestone57/DESIGN.md)：本报告所有未来能力推论的前提。
+- [M57 验收记录](../milestone57/PROGRESS.md)：已完成的语言能力与三目标验收范围。
 
-另在本机 `aarch64-apple-darwin` 用现有 `scoop build`／`scoopc` 和已准备的 sysroot，构建并运行了一个仓库外的独立消费者。四组断言全部通过：
+最初调研另在本机 `aarch64-apple-darwin` 用现有 `scoop build`／`scoopc` 和已准备的 sysroot，构建并运行了一个仓库外的独立消费者。四组断言全部通过：
 
 - M55 companion bound 的值树转换 helper，包含只编码、只解码的 DTO。
 - 由元素 companion 构造显式 Array encoder／decoder 的普通泛型工厂。
 - 嵌套 HashMap 的显式 codec 往返，确认 String key 仍使用 entry 数组 wire 形状。
 - JsonValue 保留超出 ULong 的数字，按已有容器 API 区分缺失 key 与显式 null。
 
-实验源码和构建日志保留在仓库外。这是当前能力的抽样运行，不是新 API 的正式 fixture 或性能基准。M57 尚未实现，其普通类型及 companion 的条件接口仅作设计推论，未声称通过编译或运行。
+最初调研的实验源码和日志保留在仓库外，仅说明当时的 helper 可用性。M57 现已完成，不再将其条件接口或派生衔接记为设计推论。
 
-本轮未修改编译器、core、std、JSON 或 HTTP 的实现，也未重跑这些库的全量或三平台验收。
+本轮于2026-10-24在`aarch64-apple-darwin`使用当前源码重建工具链并显式准备开发sysroot，完成以下验证：
+
+- `cargo fmt --all`与`cargo clippy --workspace --all-targets`通过；HIR lower单元测试 **2054项通过**。测试使用opt-level 1、debug 0，保留debug assertions和overflow checks，未设置RUST_MIN_STACK。
+- JSON Cone的release测试 **90项通过**，包含新增的11项：核心容器默认能力与独立方向、嵌套泛型DTO、显式元素依赖优先级、object codec、DOM类型／数值／错误路径和builder快照；既有递归、字段省略与Map entry格式回归同时通过。
+- HTTP client的release JSON定向测试 **4项通过**，包含新增的2项默认入口测试，覆盖仅编码／仅解码类型、UTF-8字节上限、响应一次消费、显式替换和原有错误传播。
+- 条件接口与companion JSON的正式CLI fixture **17项通过**，覆盖定义错误、条件不可用和预编译库消费。
+- [JSON quickstart](../../sysroot/src/scoop.json/README.md)的完整示例独立构建运行通过；JSON与HTTP client的`scoop doc --no-deps --deny-doc-warnings`生成通过。
+
+首次未优化的HIR测试在既有可见性用例上发生默认测试线程栈溢出；增加线程栈的单项探测通过，随后上述优化配置下全量通过。该失败与复验结果一并保留在仓库外日志中。本轮未运行其他平台或HTTP client的全部行为测试，不将历史M57三目标验收外推为本轮结果。

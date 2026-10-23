@@ -2424,7 +2424,7 @@ public annotation class Serialize(
 - 泛型目标如`Box<E>`可包含普通参数E，两个方向分别由显式`ValueEncoder<E>`、`ValueDecoder<E>`依赖提供字段能力，不要求E自身实现接口。companion可使用宿主参数并按9.1.3具体化，但不能等E具体化后再发现其codec。裸T没有可展开目标形状，不能仅凭声明`ValueEncoder<T>`或`ValueDecoder<T>`自动得到body。
 - 合法递归类型先建立合成方法签名，再生成body；值布局和单态化终止性继续遵守3.2。已有接口实现选择在定义处完成，具体化不重新选重载、default或字段codec依赖。
 
-核心Boolean、现有定宽整数、String、Char的companion分别实现具体的`ValueEncoder<Scalar>`与`ValueDecoder<Scalar>`；Unit使用普通object UnitEncoder与UnitDecoder。`Option<T>`、`Array<T>`、`MutableArray<T>`、`ArrayList<T>`及tuple的codec按11.13.4组合。容器的普通 companion 可按9.1.8显式增加条件接口；只有实际声明该关系的类型才提供对应默认能力，不自动迁移全部库类型。标量、Unit、容器和tuple数据值不因此获得编码/解码接口，容器的无bound用途不受影响。
+核心Boolean、现有定宽整数、String、Char的companion分别实现具体的`ValueEncoder<Scalar>`与`ValueDecoder<Scalar>`；Unit使用普通object UnitEncoder与UnitDecoder。`Option<T>`、`Array<T>`、`MutableArray<T>`、`ArrayList<T>`的普通companion分别按`T.Companion : ValueEncoder<T>`和`T.Companion : ValueDecoder<T>`实现本容器的两个codec接口。两个方向独立，保留原有显式encoder/decoder工厂、nullable／sequence表示和每次解码独立容器的规则。条件不成立不影响数据类型的普通使用；Array/MutableArray不改变intrinsic表示。字段中的核心容器及tuple仍按11.13.4组合，保留显式元素依赖和递归this。其他库类型只有实际声明条件接口后才提供对应默认能力。标量、Unit、容器和tuple数据值不因此获得编码/解码接口。
 
 List/MutableList没有唯一默认解码结果。核心库提供普通
 `fun <T> encodeList(values: List<T>, element: ValueEncoder<T>, encoder: Encoder): Unit`：
@@ -2548,7 +2548,7 @@ enum解码检查外层恰好一个key，未知variant失败；构造选中的var
 
 普通 JSON 库提供 `Json.encodeToString<T>(value: T, codec: ValueEncoder<T>): String`与`Json.decodeFromString<T>(text: String, codec: ValueDecoder<T>): T`两个入口。调用如`Json.encodeToString(value, User.Companion)`与`Json.decodeFromString(text, User.Companion)`，T按普通实参推断；两个显式 codec 入口保留；另提供 `encodeToString<T>(value: T): String where T.Companion : ValueEncoder<T>` 与 `decodeFromString<T>(text: String): T where T.Companion : ValueDecoder<T>` 普通泛型重载，分别显式转发 `T.Companion`。两个方向独立约束，codec 选择由静态类型与普通重载规则决定，不查询运行时数据类型，也不增加隐式参数。`ValueEncoder<T>`／`ValueDecoder<T>` 表示可复用的值策略，区别于格式侧 `Encoder`／`Decoder`；函数适配器分别命名为 `ValueEncoderFunction`／`ValueDecoderFunction`。JSON 实现先解析完整文档，检查语法、Unicode/转义、重复 key 和尾随内容，包括业务 codec 忽略的子树；解析后的输入节点由视图共享，不因复读重新解析或深拷贝。业务 codec 可以只读部分字段或返回常量，根入口不要求遍历或消费全部值。整数不经过 Double 转换，整数字段不接受带小数部分或指数部分的数字 token。record 已可覆盖对象形式，array 覆盖序列，不增加 Map 协议。格式错误抛带数据路径的 EncodingException/DecodingException；用户 codec、default 和 constructor 抛出的普通异常照常传播，不改写为 default 或空值。
 
-`scoop.json.JsonValue` 是公共不可变 class，只表示已合法解析或完整编码的 JSON 值。其构造器及内部节点不可由 Cone 外直接访问；不公开可变数组、未经检查的原始文本或节点修改入口。companion 以普通手写方法实现 ValueEncoder<JsonValue>／ValueDecoder<JsonValue>。Json 另提供普通泛型 encodeToValue(value, codec): JsonValue 和 decodeFromValue(value, codec): T；前者遵守同一根提交规则，后者以空串路径建立新的根视图，均不经文本中转。
+`scoop.json.JsonValue` 是公共不可变 class，只表示已合法解析、受检构造或完整编码的 JSON 值。其构造器及内部节点不可由 Cone 外直接访问；公开严格类型访问、对象／数组查询和快照遍历，以及受检工厂和发布独立快照的builder，不公开底层可变数组或节点修改入口。companion 以普通手写方法实现 ValueEncoder<JsonValue>／ValueDecoder<JsonValue>。Json 提供普通泛型 encodeToValue(value, codec): JsonValue 和 decodeFromValue(value, codec): T，以及分别要求`T.Companion : ValueEncoder<T>`／`ValueDecoder<T>`的无codec重载；前者遵守同一根提交规则，后者以空串路径建立新的根视图，均不经文本中转。`Json.parse(text)`直接返回值树，`Json.stringify(value)`直接渲染已有树。具体API、失败和快照合同见[JSON库规范](SCOOP-JSON-SPEC.md)。
 
 JsonValue 可从任意 JSON child 捕获，保存后仍可从原 child 重复 typed 解码；保存值不持有 decoder 游标。捕获和复读共享不可变节点，精确保留 JSON 类型、对象字段及保存顺序、数组顺序、字符串内容和合法数字 token，包括超出 ULong／Double 范围的数字；不承诺原始空白或字符串转义拼写。按受限数值 codec 读取仍遵守原有范围／精度规则。编码按节点形状使用共享 keyed／unkeyed／single-value 容器，Number 使用 JSON Cone 内部的精确 token 写入，仍服从重复字段、完成和提交检查。该 companion 仅接受 JSON Cone 自身的 encoder／decoder，其他格式入口抛带当前 path 的 EncodingException／DecodingException。原始 token 和树能力不进入 core 协议、IR 或 runtime ABI；已验证且不可变的节点不在出口重新完整解析或校验。
 
@@ -2560,8 +2560,8 @@ Float/Double的companion分别以普通core body实现`ValueEncoder<Float>`/`Val
 
 1. 当前codec class/struct的primary constructor中，以val保存且静态类型满足所需完整interface application的显式依赖。没有匹配才继续；多个匹配诊断歧义，不按参数名称或顺序任选。companion没有constructor，不扫描其任意property、Context或整个词法作用域寻找依赖。
 2. F与目标R相同则使用this，支持当前方向的递归调用。
-3. F是可明确命名的名义类型，且定义环境可证明其可见普通companion实现了所需的`ValueEncoder<F>`或`ValueDecoder<F>`，则使用该值；F是类型参数且环境已有相应public companion投影及接口条件时，也使用该已绑定投影。F为`Envelope<E>`等完整application时保留宿主实参并计入9.1.8条件关系；不向F的基类companion回退，仅有同名encode/decode/encoder/decoder方法也不构成conformance。
-4. F为核心Option/Array/MutableArray/ArrayList时，递归取得相应元素codec并调用完整宿主companion上预定义的普通encoder/decoder方法，例如`Array<E>.Companion.encoder(element)`。Unit使用UnitEncoder/UnitDecoder，tuple按元素递归组合普通codec。其余缺失情况报错，要求显式注入或手写body；不能在实例化时猜测裸类型参数的companion。
+3. F为核心Option/Array/MutableArray/ArrayList时，递归按本顺序取得元素codec，再调用完整宿主companion上预定义的普通encoder/decoder方法，例如`Array<E>.Companion.encoder(element)`。组合优先于本容器的默认companion，使已注入的元素codec及递归this继续生效；完整容器的显式依赖仍在第1步优先。Unit使用UnitEncoder/UnitDecoder，tuple按元素递归组合普通codec。
+4. F是可明确命名的其他名义类型，且定义环境可证明其可见普通companion实现了所需的`ValueEncoder<F>`或`ValueDecoder<F>`，则使用该值；F是类型参数且环境已有相应public companion投影及接口条件时，也使用该已绑定投影。F为`Envelope<E>`等完整application时保留宿主实参并计入9.1.8条件关系；不向F的基类companion回退，仅有同名encode/decode/encoder/decoder方法也不构成conformance。其余缺失情况报错，要求显式注入或手写body；不能在实例化时猜测裸类型参数的companion。
 
 同一字段类型可以复用同一依赖，不同字段需要不同策略时手写相应方法。两个不同binder在具体化后恰好相同不触发重新选择或新的歧义；body继续使用定义处选定的参数或投影。9.1.8实现块的合成正文使用该块的条件环境，未知参数仍不能在实例化时猜测codec。generic用户类型不按名约定自动调用companion.encoder/decoder；调用方显式组合其codec并传入需要它的provider。
 

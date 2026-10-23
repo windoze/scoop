@@ -1,14 +1,136 @@
 package scoop.json
 
 /**
- * An opaque JSON value tree for carrying a nested value without knowing its application type. Its
- * codec requires a JSON encoder or decoder and preserves JSON number tokens.
+ * An immutable JSON value tree. Accessors check the JSON kind without coercion, collection
+ * snapshots preserve order, and the codec preserves exact JSON number tokens.
  */
 public class JsonValue internal constructor(internal val node: JsonNode) {
+    /** The JSON kind of this value. */
+    public val kind: JsonValueKind get() = when (node) {
+        case JsonNode.Null -> JsonValueKind.Null
+        case JsonNode.BooleanValue(_) -> JsonValueKind.Boolean
+        case JsonNode.Number(_) -> JsonValueKind.Number
+        case JsonNode.Text(_) -> JsonValueKind.String
+        case JsonNode.Record(_) -> JsonValueKind.Object
+        case JsonNode.Sequence(_) -> JsonValueKind.Array
+    }
+
+    /** Object member or array element count; other kinds throw DecodingException. */
+    public val size: Long get() = when (node) {
+        case JsonNode.Record(members) -> members.size
+        case JsonNode.Sequence(elements) -> elements.size
+        else -> throw DecodingException("", "expected an object or array")
+    }
+
+    /** Reads a Boolean, rejecting every other JSON kind. */
+    public fun asBoolean(): Boolean = JsonDecoder(node, "").readBoolean()
+    /** Reads a String, rejecting every other JSON kind. */
+    public fun asString(): String = JsonDecoder(node, "").readString()
+    /** Reads an exact Long; fractions, exponents, and out-of-range integers fail. */
+    public fun asLong(): Long = JsonDecoder(node, "").readLong()
+    /** Reads an exact ULong; signs, fractions, exponents, and overflow are checked. */
+    public fun asULong(): ULong = JsonDecoder(node, "").readULong()
+    /** Rounds a JSON number directly to Float, rejecting overflow. */
+    public fun asFloat(): Float = JsonDecoder(node, "").readFloat()
+    /** Rounds a JSON number directly to Double, rejecting overflow. */
+    public fun asDouble(): Double = JsonDecoder(node, "").readDouble()
+    /** Returns the original number token without imposing a machine-number range. */
+    public fun asNumberToken(): String = when (node) {
+        case JsonNode.Number(text) -> text
+        else -> throw DecodingException("", "expected a number")
+    }
+
+    private fun objectMembers(): ArrayList<JsonMember> = when (node) {
+        case JsonNode.Record(members) -> members
+        else -> throw DecodingException("", "expected an object")
+    }
+
+    private fun arrayElements(): ArrayList<JsonNode> = when (node) {
+        case JsonNode.Sequence(elements) -> elements
+        else -> throw DecodingException("", "expected an array")
+    }
+
+    /** Looks up an object member in linear time. A present JSON null is Some, not None. */
+    public operator fun get(name: String): JsonValue? {
+        for (member in objectMembers()) {
+            if (member.name == name) { return Some(JsonValue(member.value)) }
+        }
+        return None
+    }
+
+    /** Tests object membership in linear time; non-object values throw DecodingException. */
+    public fun containsKey(name: String): Boolean {
+        for (member in objectMembers()) {
+            if (member.name == name) { return true }
+        }
+        return false
+    }
+
+    /** Reads an array element in constant time; invalid indices throw IndexOutOfBoundsException. */
+    public operator fun get(index: Long): JsonValue = JsonValue(arrayElements()[index])
+
+    /** Returns an independent array of object keys in stored order, in linear time. */
+    public fun keys(): Array<String> {
+        val result = ArrayList<String>()
+        for (member in objectMembers()) { result.add(member.name) }
+        return result.toArray()
+    }
+
+    /** Returns an independent member array in stored order, sharing immutable child nodes. */
+    public fun members(): Array<(String, JsonValue)> {
+        val result = ArrayList<(String, JsonValue)>()
+        for (member in objectMembers()) { result.add((member.name, JsonValue(member.value))) }
+        return result.toArray()
+    }
+
+    /** Returns an independent element array in index order, sharing immutable child nodes. */
+    public fun elements(): Array<JsonValue> {
+        val result = ArrayList<JsonValue>()
+        for (element in arrayElements()) { result.add(JsonValue(element)) }
+        return result.toArray()
+    }
+
     /**
      * The codec for embedding an opaque [JsonValue] in a JSON document.
      */
     public companion object : ValueEncoder<JsonValue>, ValueDecoder<JsonValue> {
+        /** Creates the JSON null value. */
+        public fun nullValue(): JsonValue = JsonValue(JsonNode.Null)
+        /** Creates a JSON Boolean. */
+        public fun fromBoolean(value: Boolean): JsonValue = JsonValue(JsonNode.BooleanValue(value))
+        /** Creates a JSON String without interpreting it as JSON source. */
+        public fun fromString(value: String): JsonValue = JsonValue(JsonNode.Text(value))
+        /** Creates an exact signed integer value. */
+        public fun fromLong(value: Long): JsonValue = JsonValue(JsonNode.Number(value.toString()))
+        /** Creates an exact unsigned integer value. */
+        public fun fromULong(value: ULong): JsonValue = JsonValue(JsonNode.Number(value.toString()))
+        /** Creates a finite Float value, preserving negative zero; non-finite values fail. */
+        public fun fromFloat(value: Float): JsonValue = Json.encodeToValue(value)
+        /** Creates a finite Double value, preserving negative zero; non-finite values fail. */
+        public fun fromDouble(value: Double): JsonValue = Json.encodeToValue(value)
+
+        /** Accepts exactly one JSON number token without whitespace, preserving its spelling. */
+        public fun fromNumberToken(text: String): JsonValue {
+            val parser = JsonParser(text)
+            val token = readJsonNumber(parser, "")
+            if (parser.peek() != None) { throw parser.error("", "unexpected input after the number") }
+            return JsonValue(JsonNode.Number(token))
+        }
+
+        /** Copies the element sequence while sharing immutable child nodes. */
+        public fun fromArray(elements: List<JsonValue>): JsonValue {
+            val nodes = ArrayList<JsonNode>()
+            for (element in elements) { nodes.add(element.node) }
+            return JsonValue(JsonNode.Sequence(nodes))
+        }
+
+        /** Copies members in input order; duplicate names throw EncodingException. */
+        public fun fromObject(members: List<(String, JsonValue)>): JsonValue {
+            val builder = JsonObjectBuilder()
+            for ((name, value) in members) { builder.add(name, value) }
+            return builder.build()
+        }
+
         /**
          * Copies the stored JSON tree into a JSON encoder. Other encoder implementations produce
          * [EncodingException].

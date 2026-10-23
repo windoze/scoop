@@ -1,5 +1,8 @@
 package scoop.json
 
+import scoop.collections.Map
+import scoop.collections.LinkedHashMap
+
 /**
  * JSON encoding and decoding through the ordinary [ValueEncoder] and [ValueDecoder] protocols.
  *
@@ -8,6 +11,12 @@ package scoop.json
  * [DecodingException] or [EncodingException].
  */
 public object Json {
+    /** Parses one complete, strict JSON document into an immutable value tree. */
+    public fun parse(text: String): JsonValue = JsonValue(JsonParser(text).parse())
+
+    /** Renders an existing value tree directly, preserving number tokens and member order. */
+    public fun stringify(value: JsonValue): String = renderJson(value.node)
+
     /**
      * Encodes one value as a complete JSON document. The companion overload requires the type
      * companion to implement [ValueEncoder]; the explicit overload uses the supplied codec.
@@ -34,7 +43,15 @@ public object Json {
      * trailing input, and a value incompatible with the codec fail with [DecodingException].
      */
     public fun <T> decodeFromString(text: String, codec: ValueDecoder<T>): T =
-        decodeFromValue(JsonValue(JsonParser(text).parse()), codec)
+        decodeFromValue(parse(text), codec)
+
+    /** Encodes a value tree using the value's companion codec. */
+    public fun <T> encodeToValue(value: T): JsonValue
+        where T.Companion : ValueEncoder<T> = encodeToValue(value, T.Companion)
+
+    /** Decodes a value tree as a new root using the requested type's companion codec. */
+    public fun <T> decodeFromValue(value: JsonValue): T
+        where T.Companion : ValueDecoder<T> = decodeFromValue(value, T.Companion)
 
     /**
      * Runs the codec into a JSON value tree that can be embedded in another JSON document without
@@ -52,6 +69,22 @@ public object Json {
      */
     public fun <T> decodeFromValue(value: JsonValue, codec: ValueDecoder<T>): T =
         codec.decode(JsonDecoder(value.node, ""))
+
+    /** Encodes String-key maps as JSON objects in map iteration order, using an explicit value codec. */
+    public fun <V> objectEncoder(codec: ValueEncoder<V>): ValueEncoder<Map<String, V>> =
+        JsonObjectEncoder<V>(codec)
+
+    /** Decodes JSON objects into independent insertion-ordered maps, using an explicit value codec. */
+    public fun <V> objectDecoder(codec: ValueDecoder<V>): ValueDecoder<LinkedHashMap<String, V>> =
+        JsonObjectDecoder<V>(codec)
+
+    /** Builds an object encoder using the value companion. */
+    public fun <V> objectEncoder(): ValueEncoder<Map<String, V>>
+        where V.Companion : ValueEncoder<V> = objectEncoder(V.Companion)
+
+    /** Builds an object decoder using the value companion. */
+    public fun <V> objectDecoder(): ValueDecoder<LinkedHashMap<String, V>>
+        where V.Companion : ValueDecoder<V> = objectDecoder(V.Companion)
 }
 
 internal enum JsonNode {

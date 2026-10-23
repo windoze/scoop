@@ -1,0 +1,101 @@
+package scoop.json.tests.consumer.default_container_codecs
+
+import scoop.collections.HashMap
+import scoop.json.*
+import scoop.test.*
+
+private struct WriteOnly(val value: Int) {
+    public companion object : ValueEncoder<WriteOnly> {
+        public override fun encode(value: WriteOnly, encoder: Encoder) { Int.encode(value.value, encoder) }
+    }
+}
+private struct ReadOnly(val value: Int) {
+    public companion object : ValueDecoder<ReadOnly> {
+        public override fun decode(decoder: Decoder): ReadOnly = ReadOnly(Int.decode(decoder))
+    }
+}
+private struct Plain(val value: Int)
+
+private fun <T> abilities(companion: Any, encode: Boolean, decode: Boolean) {
+    assertTrue((companion is ValueEncoder<T>) == encode)
+    assertTrue((companion is ValueDecoder<T>) == decode)
+}
+
+private struct Envelope<T>(val value: T) {
+    public companion object {
+        override interface ValueEncoder<Envelope<T>> where T.Companion : ValueEncoder<T> {}
+        override interface ValueDecoder<Envelope<T>> where T.Companion : ValueDecoder<T> {}
+    }
+}
+
+private struct Fields(val array: Array<Int>, val optional: Int?, val mutable: MutableArray<Int>, val list: ArrayList<Int>)
+private class FieldEncoder(private val element: ValueEncoder<Int>) : ValueEncoder<Fields>
+private class FieldDecoder(private val element: ValueDecoder<Int>) : ValueDecoder<Fields>
+
+@Test
+private class DefaultContainerCodecs {
+    @Test
+    fun nestedRootValuesAndGenericDtos() {
+        val values: Array<Int?> = [None, Some(2)]
+        assertEquals("[null,2]", Json.encodeToString(values))
+        assertTrue(Json.decodeFromString<Array<Int?>>("[null,2]")[1L] == Some(2))
+        val tree = Json.encodeToValue(Envelope(values))
+        val restored = Json.decodeFromValue<Envelope<Array<Int?>>>(tree)
+        assertTrue(restored.value[0L] == None && restored.value[1L] == Some(2))
+        val mutable = Json.decodeFromString<MutableArray<Int>>("[1,2]")
+        mutable[0L] = 3
+        assertEquals("[3,2]", Json.encodeToString(mutable))
+        val list = Json.decodeFromString<ArrayList<Array<Int>>>("[[1],[]]")
+        list.add([2, 3])
+        assertEquals("[[1],[],[2,3]]", Json.encodeToString(list))
+        assertTrue(Json.decodeFromString<Int?>("null") == None)
+        assertEquals("null", Json.encodeToString<Int?>(None))
+        val map = HashMap<String, Array<Int>?>()
+        map.put("values", Some([1, 2]))
+        val text = Json.encodeToString(map)
+        assertEquals("[[\"values\",[1,2]]]", text)
+        val restoredMap = Json.decodeFromString<HashMap<String, Array<Int>?>>(text)
+        val restoredEntry = restoredMap["values"]!!
+        assertEquals(2, restoredEntry!![1L])
+    }
+
+    @Test
+    fun directionsAndMissingCompanionsRemainIndependent() {
+        abilities<Array<WriteOnly>>(Array<WriteOnly>.Companion, true, false)
+        abilities<MutableArray<WriteOnly>>(MutableArray<WriteOnly>.Companion, true, false)
+        abilities<ArrayList<WriteOnly>>(ArrayList<WriteOnly>.Companion, true, false)
+        abilities<Option<WriteOnly>>(Option<WriteOnly>.Companion, true, false)
+        abilities<Array<ReadOnly>>(Array<ReadOnly>.Companion, false, true)
+        abilities<MutableArray<ReadOnly>>(MutableArray<ReadOnly>.Companion, false, true)
+        abilities<ArrayList<ReadOnly>>(ArrayList<ReadOnly>.Companion, false, true)
+        abilities<Option<ReadOnly>>(Option<ReadOnly>.Companion, false, true)
+        abilities<Array<Plain>>(Array<Plain>.Companion, false, false)
+        abilities<MutableArray<Plain>>(MutableArray<Plain>.Companion, false, false)
+        abilities<ArrayList<Plain>>(ArrayList<Plain>.Companion, false, false)
+        abilities<Option<Plain>>(Option<Plain>.Companion, false, false)
+        assertEquals("[7]", Json.encodeToString([WriteOnly(7)]))
+        assertEquals("7", Json.stringify(Json.encodeToValue<Option<WriteOnly>>(Some(WriteOnly(7)))))
+        assertEquals(7, Json.decodeFromValue<Option<ReadOnly>>(Json.parse("7"))!!.value)
+        assertEquals(7, Json.decodeFromString<ArrayList<ReadOnly>>("[7]")[0L].value)
+        val explicit = ValueEncoderFunction<Plain> { value, encoder -> Int.encode(value.value, encoder) }
+        assertEquals("[8]", Json.encodeToString([Plain(8)], Array<Plain>.encoder(explicit)))
+    }
+
+    @Test
+    fun injectedElementsStillOverrideAllCoreContainerDefaults() {
+        val encode = ValueEncoderFunction<Int> { value, encoder -> Int.encode(value + 10, encoder) }
+        val decode = ValueDecoderFunction<Int> { decoder -> Int.decode(decoder) - 10 }
+        val original = Json.decodeFromString("{\"array\":[1],\"optional\":2,\"mutable\":[3],\"list\":[4]}", FieldDecoder(Int.Companion))
+        val tree = Json.encodeToValue(original, FieldEncoder(encode))
+        assertEquals("{\"array\":[11],\"optional\":12,\"mutable\":[13],\"list\":[14]}", Json.stringify(tree))
+        val restored = Json.decodeFromValue(tree, FieldDecoder(decode))
+        assertEquals(1, restored.array[0L])
+        assertTrue(restored.optional == Some(2))
+        assertEquals(3, restored.mutable[0L])
+        assertEquals(4, restored.list[0L])
+        restored.mutable[0L] = 99
+        restored.list.add(5)
+        assertEquals(3, original.mutable[0L])
+        assertEquals(1L, original.list.size)
+    }
+}

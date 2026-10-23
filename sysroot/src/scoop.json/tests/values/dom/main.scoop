@@ -1,0 +1,120 @@
+package scoop.json.tests.values.dom
+
+import scoop.json.*
+import scoop.test.*
+
+@Test
+private class JsonDomTests {
+    @Test
+    fun kindsTraversalAndMissingVersusNull() {
+        val value = Json.parse("{\"b\":null,\"a\":[true,\"雪\",42]}")
+        assertTrue(value.kind == JsonValueKind.Object)
+        assertEquals(2L, value.size)
+        assertTrue(value.containsKey("b") && !value.containsKey("missing"))
+        assertTrue(when (value["missing"]) { case None -> true; case Some(_) -> false })
+        assertTrue(value["b"]!!.kind == JsonValueKind.Null)
+        assertEquals("b", value.keys()[0L])
+        assertEquals("a", value.members()[1L]._1)
+        val array = value["a"]!!
+        assertTrue(array.kind == JsonValueKind.Array)
+        assertEquals(3L, array.size)
+        assertTrue(array[0L].kind == JsonValueKind.Boolean && array[0L].asBoolean())
+        assertTrue(array[1L].kind == JsonValueKind.String)
+        assertEquals("雪", array.elements()[1L].asString())
+        assertTrue(array[2L].kind == JsonValueKind.Number)
+        assertEquals(42L, array[2L].asLong())
+        assertEquals("{\"b\":null,\"a\":[true,\"雪\",42]}", Json.stringify(value))
+    }
+
+    @Test
+    fun accessorsRejectWrongKindsAndBounds() {
+        val scalar = Json.parse("false")
+        assertFailsWith<DecodingException> { scalar["absent"] }
+        assertFailsWith<DecodingException> { scalar.containsKey("absent") }
+        assertFailsWith<DecodingException> { scalar.keys() }
+        assertFailsWith<DecodingException> { scalar.members() }
+        assertFailsWith<DecodingException> { scalar.elements() }
+        assertFailsWith<DecodingException> { scalar.size }
+        assertFailsWith<DecodingException> { scalar[0L] }
+        assertFailsWith<DecodingException> { scalar.asString() }
+        assertFailsWith<DecodingException> { scalar.asNumberToken() }
+        assertFailsWith<DecodingException> { Json.parse("\"true\"").asBoolean() }
+        assertFailsWith<IndexOutOfBoundsException> { Json.parse("[]")[0L] }
+        assertFailsWith<IndexOutOfBoundsException> { Json.parse("[1]")[-1L] }
+        val error = assertFailsWith<DecodingException> { Json.parse("{\"x\":null}")["x"]!!.asLong() }
+        assertEquals("", error.path)
+    }
+
+    @Test
+    fun exactNumberTokensAndNumericLimits() {
+        for (token in ["0", "-0", "1.25", "1E+400", "18446744073709551616", "-3e-500"]) {
+            val value = JsonValue.fromNumberToken(token)
+            assertEquals(token, value.asNumberToken())
+            assertEquals(token, Json.stringify(value))
+        }
+        for (token in ["", " 1", "1 ", "1\n", "+1", "01", "1.", "1e", "NaN", "null", "1,2", "[1]"]) {
+            assertFailsWith<DecodingException> { JsonValue.fromNumberToken(token) }
+        }
+        assertFailsWith<DecodingException> { Json.parse("1.0").asLong() }
+        assertFailsWith<DecodingException> { Json.parse("1e0").asULong() }
+        assertFailsWith<DecodingException> { Json.parse("-1").asULong() }
+        assertFailsWith<DecodingException> { Json.parse("18446744073709551616").asULong() }
+        assertFailsWith<DecodingException> { Json.parse("1e400").asDouble() }
+        assertFailsWith<DecodingException> { Json.parse("1e40").asFloat() }
+        assertEquals(-9223372036854775808L, JsonValue.fromLong(-9223372036854775808L).asLong())
+        assertEquals(18446744073709551615UL, JsonValue.fromULong(18446744073709551615UL).asULong())
+        val negativeZero: Double = -0.0
+        val negativeFloat: Float = -0.0
+        assertEquals(negativeZero.toBits(), JsonValue.fromDouble(negativeZero).asDouble().toBits())
+        assertEquals(negativeFloat.toBits(), JsonValue.fromFloat(negativeFloat).asFloat().toBits())
+        assertFailsWith<EncodingException> { JsonValue.fromDouble(1.0 / 0.0) }
+        assertFailsWith<EncodingException> { JsonValue.fromFloat(0.0 / 0.0) }
+    }
+
+    @Test
+    fun factoriesAndBuildersPublishIndependentSnapshots() {
+        val children = ArrayList<JsonValue>()
+        children.add(JsonValue.fromString("{\"x\":1}"))
+        val array = JsonValue.fromArray(children)
+        children.clear()
+        assertEquals("{\"x\":1}", array[0L].asString())
+        val builder = JsonArrayBuilder().add(JsonValue.nullValue())
+        val first = builder.build()
+        builder.add(JsonValue.fromBoolean(true))
+        assertEquals("[null]", Json.stringify(first))
+        assertEquals("[null,true]", Json.stringify(builder.build()))
+        val objectBuilder = JsonObjectBuilder().add("a/~", first)
+        val objectFirst = objectBuilder.build()
+        val duplicate = assertFailsWith<EncodingException> { objectBuilder.add("a/~", array) }
+        assertEquals("/a~1~0", duplicate.path)
+        objectBuilder.add("next", builder.build())
+        assertEquals("{\"a/~\":[null]}", Json.stringify(objectFirst))
+        assertEquals("{\"a/~\":[null],\"next\":[null,true]}", Json.stringify(objectBuilder.build()))
+        val members = ArrayList<(String, JsonValue)>()
+        members.add(("first", objectFirst))
+        val snapshot = JsonValue.fromObject(members)
+        members.clear()
+        assertEquals(1L, snapshot.size)
+        assertEquals(1L, snapshot["first"]!!.size)
+        assertFailsWith<EncodingException> { JsonValue.fromObject([("x", first), ("x", array)]) }
+        assertEquals("{}", Json.stringify(JsonObjectBuilder().build()))
+        assertEquals("[]", Json.stringify(JsonArrayBuilder().build()))
+    }
+
+    @Test
+    fun typedConversionAndSubtreeReusePreserveValuesAndErrors() {
+        val tree = Json.parse("{\"raw\":{\"n\":1e400},\"typed\":[1,2]}")
+        val output = JsonObjectBuilder().add("copy", tree["raw"]!!).add("typed", tree["typed"]!!).build()
+        assertEquals("{\"copy\":{\"n\":1e400},\"typed\":[1,2]}", Json.stringify(output))
+        assertEquals(2, Json.decodeFromValue<Array<Int>>(tree["typed"]!!)[1L])
+        val shifted = ValueEncoderFunction<Int> { value, encoder -> Int.encode(value + 10, encoder) }
+        assertEquals("11", Json.stringify(Json.encodeToValue(1, shifted)))
+        val reader = ValueDecoderFunction<Int> { decoder -> Int.decode(decoder) - 10 }
+        assertEquals(1, Json.decodeFromValue(Json.parse("11"), reader))
+        assertFailsWith<DecodingException> { Json.parse("{\"x\":1,\"x\":2}") }
+        assertFailsWith<DecodingException> { Json.parse("{} trailing") }
+        val failure = IllegalStateException(Some("custom codec failure"))
+        val failing = ValueDecoderFunction<Int> { _ -> throw failure }
+        assertSame(failure, assertFailsWith<IllegalStateException> { Json.decodeFromValue(tree, failing) })
+    }
+}

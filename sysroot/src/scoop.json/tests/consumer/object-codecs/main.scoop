@@ -1,0 +1,72 @@
+package scoop.json.tests.consumer.object_codecs
+
+import scoop.collections.*
+import scoop.json.*
+import scoop.test.*
+
+private struct EncodeOnly(val value: Int) {
+    public companion object : ValueEncoder<EncodeOnly> {
+        public override fun encode(value: EncodeOnly, encoder: Encoder) { Int.encode(value.value, encoder) }
+    }
+}
+private struct DecodeOnly(val value: Int) {
+    public companion object : ValueDecoder<DecodeOnly> {
+        public override fun decode(decoder: Decoder): DecodeOnly = DecodeOnly(Int.decode(decoder))
+    }
+}
+
+@Test
+private class JsonObjectCodecs {
+    @Test
+    fun stringMapsUseObjectsOnlyWhenTheAdapterIsSelected() {
+        val input = LinkedHashMap<String, Array<Int?>>()
+        input.put("z", [None, Some(2)])
+        input.put("a", [])
+        val text = Json.encodeToString(input, Json.objectEncoder<Array<Int?>>())
+        assertEquals("{\"z\":[null,2],\"a\":[]}", text)
+        val restored: LinkedHashMap<String, Array<Int?>> = Json.decodeFromString(text, Json.objectDecoder<Array<Int?>>())
+        assertTrue(restored["z"]!![0L] == None && restored["z"]!![1L] == Some(2))
+        assertEquals(text, Json.encodeToString(restored, Json.objectEncoder<Array<Int?>>()))
+        restored.put("next", [Some(3)])
+        assertEquals(2L, input.size)
+        val hash = HashMap<String, Int>()
+        hash.put("answer", 42)
+        assertEquals("{\"answer\":42}", Json.encodeToString(hash, Json.objectEncoder<Int>()))
+        assertEquals("[[\"answer\",42]]", Json.encodeToString(hash))
+        assertEquals(0L, Json.decodeFromString("{}", Json.objectDecoder<Int>()).size)
+    }
+
+    @Test
+    fun independentDirectionsExplicitCodecsAndDynamicValues() {
+        val values = HashMap<String, EncodeOnly>()
+        values.put("v", EncodeOnly(5))
+        assertEquals("{\"v\":5}", Json.encodeToString(values, Json.objectEncoder<EncodeOnly>()))
+        assertEquals(5, Json.decodeFromString("{\"v\":5}", Json.objectDecoder<DecodeOnly>())["v"]!!.value)
+        val shifted = ValueEncoderFunction<EncodeOnly> { value, encoder -> Int.encode(value.value + 10, encoder) }
+        assertEquals("{\"v\":15}", Json.encodeToString(values, Json.objectEncoder(shifted)))
+        val reader = ValueDecoderFunction<DecodeOnly> { decoder -> DecodeOnly(Int.decode(decoder) - 10) }
+        assertEquals(5, Json.decodeFromString("{\"v\":15}", Json.objectDecoder(reader))["v"]!!.value)
+        val raw = Json.decodeFromString("{\"huge\":1E+400,\"null\":null}", Json.objectDecoder<JsonValue>())
+        assertEquals("1E+400", raw["huge"]!!.asNumberToken())
+        assertTrue(raw["null"]!!.kind == JsonValueKind.Null)
+        assertEquals("{\"huge\":1E+400,\"null\":null}", Json.encodeToString(raw, Json.objectEncoder<JsonValue>()))
+    }
+
+    @Test
+    fun shapeDuplicatesAndValueFailuresKeepTheirPaths() {
+        val wrong = assertFailsWith<DecodingException> {
+            Json.decodeFromString("{\"a/~\":\"wrong\"}", Json.objectDecoder<Int>())
+        }
+        assertEquals("/a~1~0", wrong.path)
+        val duplicate = assertFailsWith<DecodingException> {
+            Json.decodeFromString("{\"a/~\":1,\"a/~\":2}", Json.objectDecoder<Int>())
+        }
+        assertEquals("/a~1~0", duplicate.path)
+        assertFailsWith<DecodingException> { Json.decodeFromString("[]", Json.objectDecoder<Int>()) }
+        val failure = IllegalStateException(Some("element failed"))
+        val failing = ValueDecoderFunction<Int> { _ -> throw failure }
+        assertSame(failure, assertFailsWith<IllegalStateException> {
+            Json.decodeFromString("{\"x\":1}", Json.objectDecoder(failing))
+        })
+    }
+}

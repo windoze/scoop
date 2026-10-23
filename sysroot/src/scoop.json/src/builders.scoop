@@ -1,0 +1,41 @@
+package scoop.json
+
+import scoop.collections.HashSet
+
+/** Builds JSON arrays. Each build publishes a snapshot unaffected by later additions. */
+public class JsonArrayBuilder public constructor() {
+    private val elements: ArrayList<JsonNode> = ArrayList<JsonNode>()
+
+    /** Appends an immutable child value and returns this builder. */
+    public fun add(value: JsonValue): JsonArrayBuilder {
+        elements.add(value.node)
+        return this
+    }
+
+    /** Copies the sequence structure in linear time, sharing immutable child nodes. */
+    public fun build(): JsonValue {
+        val snapshot = ArrayList<JsonNode>()
+        for (element in elements) { snapshot.add(element) }
+        return JsonValue(JsonNode.Sequence(snapshot))
+    }
+}
+
+/** Builds JSON objects in insertion order, rejecting duplicate names without replacing values. */
+public class JsonObjectBuilder public constructor() {
+    private val members: ArrayList<JsonMember> = ArrayList<JsonMember>()
+    private val names: HashSet<String> = HashSet<String>()
+
+    /** Adds one member and returns this builder; duplicate names throw EncodingException. */
+    public fun add(name: String, value: JsonValue): JsonObjectBuilder {
+        if (!names.add(name)) { throw EncodingException(childPath("", name), "duplicate object key") }
+        members.add(JsonMember(name, value.node))
+        return this
+    }
+
+    /** Copies the member structure in linear time, sharing immutable child nodes. */
+    public fun build(): JsonValue {
+        val snapshot = ArrayList<JsonMember>()
+        for (member in members) { snapshot.add(member) }
+        return JsonValue(JsonNode.Record(snapshot))
+    }
+}
