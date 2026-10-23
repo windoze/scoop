@@ -16,6 +16,7 @@ private fun check(ok: Boolean) {
 }
 
 fun main() {
+    check(conditionalDescriptions())
     check(inheritedCodecs())
     check(inheritedRelations())
     check(conditionalDefaults())

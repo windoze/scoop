@@ -44,10 +44,7 @@ impl Concretizer<'_> {
                 for declaration in relations.conditional {
                     // First establish the guard; its target can contain a
                     // companion projection whose existence is conditional.
-                    if self.concrete_conditional_parameters_hold(
-                        &declaration.parameters,
-                        &relations.arguments,
-                    ) {
+                    if self.concrete_interface_condition_holds(declaration, &relations.arguments) {
                         let interface =
                             self.lower_type(declaration.interface, &relations.arguments);
                         if self.concrete_subtype(interface, target) {

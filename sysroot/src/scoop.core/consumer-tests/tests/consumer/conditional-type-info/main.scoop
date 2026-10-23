@@ -1,0 +1,76 @@
+package test.core.tests.consumer.conditional_type_info
+
+import scoop.test.*
+
+fun classInfo(value: TypeDescription): ClassInfo = when (value.shape) {
+    case TypeShape.Class(shape) -> shape
+    else -> throw IllegalStateException()
+}
+
+fun label(annotations: Array<AnnotationInfo>): String = when (annotations[0L].arguments[0L].value) {
+    case AnnotationValue.String(value) -> value
+    else -> throw IllegalStateException()
+}
+
+@Test
+private class ConditionalTypeInfoTests {
+    @Test
+    fun directInterfacesAndPropertyOrder() {
+        val enabled = classInfo(typeInfo<Described<Int>>().describe())
+        val absent = classInfo(typeInfo<Described<Plain>>().describe())
+        assertEquals(1L, enabled.interfaces.size)
+        assertEquals(typeInfo<Read>().type, enabled.interfaces[0L].type)
+        assertEquals("read", label(enabled.interfaces[0L].annotations))
+        assertEquals(0L, absent.interfaces.size)
+        assertEquals(typeInfo<Base>().type, absent.base!!.type)
+        assertEquals(3L, enabled.properties.size)
+        assertEquals("value", enabled.properties[1L].name)
+        assertEquals("property", label(enabled.properties[1L].annotations))
+        assertEquals("getter", label(enabled.properties[1L].getter.annotations))
+        assertEquals("result", label(enabled.properties[1L].typeUse.annotations))
+        assertEquals(2L, absent.properties.size)
+        assertEquals(enabled.properties[2L].id, absent.properties[1L].id)
+        assertEquals(2L, absent.properties[1L].index)
+        assertEquals(2L, absent.storage.size)
+    }
+
+    @Test
+    fun valueTypesAndDisjointAnnotations() {
+        val value = when (typeInfo<Choice<Int>>().describe().shape) {
+            case TypeShape.Struct(shape) -> shape; else -> throw IllegalStateException()
+        }
+        val reference = when (typeInfo<Choice<Reference>>().describe().shape) {
+            case TypeShape.Struct(shape) -> shape; else -> throw IllegalStateException()
+        }
+        assertEquals(1L, value.interfaces.size)
+        assertEquals(1L, reference.interfaces.size)
+        assertEquals("value", label(value.interfaces[0L].annotations))
+        assertEquals("ref", label(reference.interfaces[0L].annotations))
+        assertEquals(1L, when (typeInfo<Flag<Int>>().describe().shape) {
+            case TypeShape.Enum(shape) -> shape.interfaces.size; else -> -1L
+        })
+        assertEquals(0L, when (typeInfo<Flag<Plain>>().describe().shape) {
+            case TypeShape.Enum(shape) -> shape.interfaces.size; else -> -1L
+        })
+    }
+
+    @Test
+    fun projectionAndCompanion() {
+        val available = classInfo(typeInfo<Projected<Available>>().describe())
+        val absent = classInfo(typeInfo<Projected<Plain>>().describe())
+        assertEquals(1L, available.interfaces.size)
+        assertEquals(1L, available.properties.size)
+        assertEquals(0L, absent.interfaces.size)
+        assertEquals(0L, absent.properties.size)
+        val enabled = when (companionDescription<Projected<Int>.Companion>().shape) {
+            case TypeShape.Object(shape) -> shape; else -> throw IllegalStateException()
+        }
+        val disabled = when (companionDescription<Projected<Plain>.Companion>().shape) {
+            case TypeShape.Object(shape) -> shape; else -> throw IllegalStateException()
+        }
+        assertEquals(1L, enabled.interfaces.size)
+        assertEquals(1L, enabled.properties.size)
+        assertEquals(0L, disabled.interfaces.size)
+        assertEquals(0L, disabled.properties.size)
+    }
+}

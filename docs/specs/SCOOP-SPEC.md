@@ -1735,6 +1735,8 @@ public fun <T> decodeFrom(decoder: Decoder, codec: ValueDecoder<T>): T =
 
 struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/property 和 constructor 参数分别保持声明序。`MemberName.Named(String)` 与 `Positional(Long)`、`VariantPayload.Unit/Named/Positional` 保留源码形状；tuple 元素只有索引和 `_1` 起的展示名，不伪造字段声明。ClassInfo.isFinal 保存普通 class 的 final 声明事实；class 的 base、interface 的 parents 不扁平化，object/companion 的宿主关系以 `Option<NominalRef>` 保存：泛型宿主是声明，不伪造某个具体实参。storage 的 Declared、Backing、Delegate、Outer、Capture、Generated 来源不混入 logical property 列表。
 
+普通 nominal 的 interfaces 先保存类型头中的直接接口，再按实现块声明序保存适用的直接条件接口；不展开这些接口的父接口或基类继承关系。条件 computed property 仅在条件成立时出现，保留原 PropertyRef、声明序号与注解；过滤不适用成员不改变其他声明的身份或序号。实现块本身不是注解目标，其接口类型使用及成员继续保留各自的注解。
+
 `FieldInfo` 与 `PropertyInfo` 保存 `typeUse`，`type` 是其只读便捷属性。`isOptionAtDeclaration` 从原成员完成绑定、展开 alias 后的类型取得，与 11.13 的默认字段规则复用同一事实；原声明 T 具体化为 Option<U> 时仍为 false，原声明 Option<T> 为 true。property 保存实际 getter/setter、被覆写 property 与 Stored/Computed/Delegated 类别，backing/delegate field 仍为独立实体。AccessorInfo.kind 只区分源码的 Storage、Constant、Body、Abstract；普通存储 accessor 在发布或分派时物化为函数体仍为 Storage，本地与跨 Cone 描述保持一致。
 
 `ConstructorInfo` 区分 Primary、Secondary、Variant，参数保存真实 ParameterRef、序号、typeUse、注解、hasDefault、isVararg 与 `ParameterMember.None/Field/Property`。字段和参数数组的位置不代表构造映射；公开描述不包含可执行 default，也不求值或伪造其结果。

@@ -127,6 +127,8 @@ struct Concretizer<'a> {
         HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::InterfaceId>,
     interface_families: HashMap<export::SourceNominalId, concrete::InterfaceFamilyId>,
     interface_type: HashMap<concrete::InterfaceId, concrete::TypeId>,
+    conditional_interface_results:
+        HashMap<(export::ConditionalInterfaceId, Vec<concrete::TypeId>), bool>,
     interface_slot_by_source: HashMap<
         (
             concrete::InterfaceId,
@@ -330,6 +332,7 @@ impl<'a> Concretizer<'a> {
             interface_by_key: HashMap::new(),
             interface_families,
             interface_type: HashMap::new(),
+            conditional_interface_results: HashMap::new(),
             interface_slot_by_source: HashMap::new(),
             virtual_method_by_source: HashMap::new(),
             classes: Arena::new(),

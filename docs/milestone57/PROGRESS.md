@@ -20,6 +20,7 @@
 | 继承、default、property 与效果组合 | 继承与 default 基本闭环已完成；其余组合待完成 | 条件继承、等价重列、域覆盖、abstract 义务、默认方法／属性及分派有本地／跨 Cone 验证 |
 | 导出、跨 Cone 与 ODR | 已覆盖继承、投影与 default；完整验收待完成 | 85 个泛型导入回归、条件记录 wire 往返／再次发布与双 consumer 原生链接运行通过 |
 | sealed 条件关系与穷尽性 | 已完成 | 6 项定向检查、42 个既有 sealed fixture、条件边界诊断、原生及跨 Cone 验证通过 |
+| 类型描述与文档 | TypeInfo 已完成；generic 文档待完成 | 具体接口、属性过滤及注解的本地／跨 Cone 验证通过，见第 13 节 |
 | 完整组合与 Linux 验收 | 待完成 | 尚无完整验收 |
 
 此表只在实际代码及对应验证完成后更新，不以规范已写入代替功能交付。
@@ -104,3 +105,10 @@
 - 完整 core consumer 的 46 项原生测试通过。JSON Cone 首轮 79 项中 77 项通过，两项新增 inspector 预期漏写泛型实参，修正后 3 项继承测试定向复验全部通过。编码、解码、inspector、companion、嵌套实参、generic 转发与方法引用均有原生覆盖。
 - 跨 Cone ODR 原链接与逆序重链接运行通过，包含 provider 生成的方法、consumer 继承合成、固定实参及两个 library consumer 共用的实例。14 个条件接口诊断 fixture 通过；额外导入检查确认未知条件和不成立条件不能调用生成成员。
 - 类型描述／文档的条件展示、其余效果组合、定向 GC 与 Linux 完整验收仍未完成。
+
+## 13. 具体类型描述与条件注解
+
+- TypeInfo 按原顺序追加适用的直接条件接口，基类关系保持独立；条件属性在替换类型前过滤，避免展开不存在的 companion。保留原 PropertyRef、声明序号、存储与构造关系，本地和导入属性均按源码顺序排列。
+- 接口表、成员具体化及描述按条件 id 与完整具体实参复用判定结果。实现块目标和 computed property／accessor 的注解进入既有 type-use／声明注解通道；互斥的同一接口目标保留各自注解，未增加产物字段或 runtime ABI。
+- workspace Clippy、49 项 M57／静态描述 HIR 回归及完整 core consumer 的 49 项原生测试通过。3 项新增原生测试覆盖 class／struct／enum／companion、条件真／假、投影、注解及过滤后的稳定序号，描述不执行测试中会抛异常的 getter。
+- ODR fixture 的原链接与逆序重链接均通过，验证导出的条件接口、property/getter/type-use 注解、泛型描述函数及 consumer 自行查询的一致结果。generic 文档展示、其余效果组合、定向 GC 与 Linux 完整验收继续保留为未完成项。

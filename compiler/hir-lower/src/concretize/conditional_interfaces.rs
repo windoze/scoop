@@ -50,7 +50,7 @@ impl Concretizer<'_> {
             .map(|&interface| self.lower_type(interface, substitution))
             .collect::<Vec<_>>();
         for declaration in declarations {
-            if self.concrete_conditional_parameters_hold(&declaration.parameters, substitution) {
+            if self.concrete_interface_condition_holds(declaration, substitution) {
                 let interface = self.lower_type(declaration.interface, substitution);
                 if !result.contains(&interface) {
                     result.push(interface);
@@ -76,7 +76,21 @@ impl Concretizer<'_> {
             .iter()
             .find(|declaration| declaration.id() == condition.declaration)
             .expect("a conformance references its original conditional declaration");
-        self.concrete_conditional_parameters_hold(&declaration.parameters, &arguments)
+        self.concrete_interface_condition_holds(declaration, &arguments)
+    }
+
+    pub(super) fn concrete_interface_condition_holds(
+        &mut self,
+        declaration: &export::ConditionalInterfaceDeclaration,
+        arguments: &[concrete::TypeId],
+    ) -> bool {
+        let key = (declaration.id(), arguments.to_vec());
+        if let Some(&result) = self.conditional_interface_results.get(&key) {
+            return result;
+        }
+        let result = self.concrete_conditional_parameters_hold(&declaration.parameters, arguments);
+        self.conditional_interface_results.insert(key, result);
+        result
     }
 
     pub(super) fn concrete_conditional_parameters_hold(

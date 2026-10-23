@@ -69,7 +69,7 @@ impl Concretizer<'_> {
     ) -> concrete::Expr {
         let element = self.metadata_element(result);
         let arguments = self.type_arguments(target);
-        let interfaces = shape
+        let mut interfaces = shape
             .interfaces(self.dependencies)
             .map(|interface| {
                 let ty = self.metadata_source_type(interface.source(), &arguments);
@@ -80,7 +80,23 @@ impl Concretizer<'_> {
                     origin,
                 )
             })
-            .collect();
+            .collect::<Vec<_>>();
+        for (index, declaration) in self
+            .source
+            .conditional_interfaces(shape.declaration())
+            .iter()
+            .enumerate()
+        {
+            if self.concrete_interface_condition_holds(declaration, &arguments) {
+                let ty = self.lower_type(declaration.interface, &arguments);
+                interfaces.push(self.metadata_type_use(
+                    ty,
+                    shape.conditional_interface_annotations(index, self.dependencies),
+                    element,
+                    origin,
+                ));
+            }
+        }
         self.metadata_array(result, interfaces, origin)
     }
 }
