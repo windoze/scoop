@@ -1,4 +1,10 @@
-# PCRE2 正则表达式库
+# 安装包布局与编辑器扩展
+
+完整构建入口为 `scripts/package_toolchain.py`。工具包现以安装根内容为归档顶层，可直接解压到 `~/.scoop`，不再包含额外版本目录。安装根新增 `VERSION`，记录发行版本、源码 revision 与宿主平台；`tooling/` 包含同次构建的 VS Code 扩展 VSIX。Darwin 包交付 Darwin/AArch64 资源，Linux 包交付 GNU／musl 两套资源；系统库默认从 `lib/<target-triple>/*.slib` 读取，空缓存及 debug 应用不会触发系统库重编。
+
+VS Code 扩展接入 `scoop-lsp`，提供诊断、补全、签名、导航、符号、引用、重命名与快速修复。默认启动 `~/.scoop/bin/scoop-lsp`；Tree-sitter 继续提供高亮、折叠和缩进。
+
+## PCRE2 正则表达式库
 
 新增普通 Cone `scoop.regex`，基于 PCRE2-8 10.49 提供编译模式、编号／命名捕获、惰性搜索、字面／模板／回调替换及分割。公开位置使用 Long Unicode 标量索引，结果为独立快照，Regex 使用 close/use 管理 native 生命周期。PCRE2 采用独立 C 静态库和可选 JIT，不增加 Rust staticlib；Darwin、GNU、musl 目标资源、头文件及 PCRE2/SLJIT 许可随包交付。用法见 `src/scoop.regex/README.md`。
 
@@ -10,7 +16,7 @@
 
 ## M54 统一 HTTP client 与配套基础库
 
-本期提供 Darwin/AArch64、Linux/GNU amd64 两类宿主工具包，覆盖 Darwin、GNU、musl 三个既有目标。宿主包包含 `scoop`、`scoopc`、`scoop-link`，以及 LLVM 22.1.8 的所需动态依赖。M47 延后，不附带 generator。
+本期提供 Darwin/AArch64、Linux/GNU amd64 两类宿主工具包，覆盖 Darwin、GNU、musl 三个既有目标。宿主包包含 `scoop`、`scoopc`、`scoop-link`、`scoop-lsp`，以及 LLVM 22.1.8 的所需动态依赖。M47 延后，不附带 generator。
 
 统一布局包含十七个内置 Cone 的源码、预编译产物、公开 C 头与 runtime 对象。本期新增 `scoop.http.client`、`scoop.idna`、`scoop.url`、`scoop.charset` 和单个 `scoop.compression` Cone。OpenSSL、nghttp2、文本、URL、压缩后端的静态库和 Linux libunwind 随目标资源交付；libuv、llhttp 与 Ryu 编入实际使用它们的 Cone／runtime。LLVM 原始源码归档、补丁和许可证另存于同版本的 `llvm-sources` 包。
 

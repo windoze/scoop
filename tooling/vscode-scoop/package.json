@@ -1,8 +1,8 @@
 {
   "name": "scoop-language-support",
   "displayName": "Scoop Language Support",
-  "description": "Tree-sitter highlighting, folding and indentation for Scoop",
-  "version": "0.1.0",
+  "description": "Scoop language server support with Tree-sitter highlighting, folding and indentation",
+  "version": "0.2.0",
   "publisher": "scoop",
   "private": true,
   "type": "module",
@@ -22,7 +22,9 @@
     "scoop",
     "tree-sitter",
     "syntax",
-    "highlighting"
+    "highlighting",
+    "lsp",
+    "completion"
   ],
   "main": "./dist/extension.cjs",
   "activationEvents": [
@@ -30,7 +32,8 @@
   ],
   "capabilities": {
     "untrustedWorkspaces": {
-      "supported": true
+      "supported": "limited",
+      "description": "Tree-sitter highlighting, folding and indentation are available. The language server runs in trusted workspaces."
     }
   },
   "contributes": {
@@ -128,7 +131,129 @@
           ]
         }
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "scoop.restartLanguageServer",
+        "title": "Scoop: Restart Language Server"
+      },
+      {
+        "command": "scoop.showLanguageServerOutput",
+        "title": "Scoop: Show Language Server Output"
+      }
+    ],
+    "configuration": {
+      "title": "Scoop",
+      "properties": {
+        "scoop.server.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable scoop-lsp in trusted workspaces.",
+          "scope": "window"
+        },
+        "scoop.server.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Path to scoop-lsp, or a command on PATH. Supports `~/`. When empty, try `~/.scoop/bin/scoop-lsp` and then PATH. The executable runs on the workspace host."
+        },
+        "scoop.target": {
+          "type": "string",
+          "default": "",
+          "description": "Target triple for analysis. Empty uses the server host target.",
+          "scope": "window"
+        },
+        "scoop.sysroot": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Sysroot for analysis. Empty uses `SCOOP_SYSROOT` or the server installation. Relative paths are resolved by scoop-lsp against the Cone root."
+        },
+        "scoop.purpose": {
+          "type": "string",
+          "enum": [
+            "production",
+            "test"
+          ],
+          "default": "production",
+          "description": "Analyze production sources or include the root Cone tests.",
+          "scope": "window"
+        },
+        "scoop.artifactSearchRoots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional precompiled dependency search directories, relative to the Cone root or absolute.",
+          "scope": "window"
+        },
+        "scoop.configurations": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Named analysis configurations. Empty discovers Cone roots from workspace folders and opened Scoop files. Each `rootUri` must be a file URI. Per-configuration settings override the shared analysis settings.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "rootUri"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Unique configuration name."
+              },
+              "rootUri": {
+                "type": "string",
+                "pattern": "^file:",
+                "description": "File URI of the root Cone directory."
+              },
+              "target": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sysroot": {
+                "type": "string",
+                "minLength": 1
+              },
+              "purpose": {
+                "type": "string",
+                "enum": [
+                  "production",
+                  "test"
+                ]
+              },
+              "artifactSearchRoots": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "scope": "window"
+        },
+        "scoop.activeConfiguration": {
+          "type": "string",
+          "default": "",
+          "description": "Name of the active analysis configuration. Empty lets the server select by file.",
+          "scope": "window"
+        },
+        "scoop.trace.server": {
+          "type": "string",
+          "enum": [
+            "messages",
+            "verbose"
+          ],
+          "default": "messages",
+          "description": "Trace LSP traffic in the Scoop LSP output channel.",
+          "scope": "window",
+          "markdownDescription": "LSP trace verbosity. Enable tracing by setting the Scoop LSP output channel log level to Trace (Developer: Set Log Level)."
+        }
+      }
+    }
   },
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -138,6 +263,7 @@
     "package": "vsce package --no-dependencies --skip-license"
   },
   "dependencies": {
+    "vscode-languageclient": "11.0.0",
     "web-tree-sitter": "0.27.1"
   },
   "devDependencies": {
@@ -146,5 +272,8 @@
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "4.0.0",
     "esbuild": "0.28.2"
-  }
+  },
+  "extensionKind": [
+    "workspace"
+  ]
 }

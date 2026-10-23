@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,6 +6,20 @@ import { runTests } from "@vscode/test-electron";
 import { build } from "esbuild";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const repository = path.resolve(root, "../..");
+const server = path.resolve(
+  process.env.SCOOP_TEST_LSP ??
+    path.join(
+      repository,
+      "target/release",
+      process.platform === "win32" ? "scoop-lsp.exe" : "scoop-lsp",
+    ),
+);
+const sysroot = path.resolve(
+  process.env.SCOOP_SYSROOT ?? path.join(repository, "sysroot"),
+);
+await access(server);
+await access(path.join(sysroot, "lib"));
 const extensionTestsPath = path.join(root, "out/test/integration.cjs");
 await build({
   entryPoints: [path.join(root, "test/host/integration.ts")],
@@ -19,7 +33,17 @@ await build({
 
 const temporary = await mkdtemp(path.join(os.tmpdir(), "scoop-vscode-test-"));
 const workspace = path.join(temporary, "workspace");
-await mkdir(workspace);
+await mkdir(path.join(workspace, ".vscode"), { recursive: true });
+await writeFile(
+  path.join(workspace, ".vscode/settings.json"),
+  JSON.stringify({
+    "scoop.server.enabled": false,
+    "scoop.server.path": server,
+    "scoop.sysroot": sysroot,
+    "scoop.trace.server": "verbose",
+  }),
+);
+let succeeded = false;
 try {
   await runTests({
     extensionDevelopmentPath: root,
@@ -33,11 +57,15 @@ try {
       "--extensions-dir",
       path.join(temporary, "extensions"),
       "--disable-extensions",
+      "--log",
+      "trace",
       "--disable-workspace-trust",
       "--skip-welcome",
       "--skip-release-notes",
     ],
   });
+  succeeded = true;
 } finally {
-  await rm(temporary, { recursive: true, force: true });
+  if (succeeded) await rm(temporary, { recursive: true, force: true });
+  else console.error(`Extension host test logs and workspace: ${temporary}`);
 }

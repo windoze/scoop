@@ -10,7 +10,7 @@ fn main() {
             return;
         }
         [argument] if argument == "--version" || argument == "-V" => {
-            println!("scoop-lsp {}", env!("CARGO_PKG_VERSION"));
+            println!("scoop-lsp {}", scoop_toolchain::VERSION);
             return;
         }
         _ => {

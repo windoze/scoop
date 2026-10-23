@@ -6,13 +6,15 @@ fixture 检查两者的一致性。
 - `tree-sitter-scoop/`：grammar、生成的 C parser，以及 `highlights.scm`、
   `folds.scm`、`indents.scm`。可以供其他 Tree-sitter 编辑器独立使用。
 - `vscode-scoop/`：使用 `web-tree-sitter` 和打包的 WASM，在本地扩展宿主中解析
-  `.scoop` 文档，提供高亮、折叠和缩进。
+  `.scoop` 文档，提供高亮、折叠和缩进；通过 `vscode-languageclient` 启动
+  `scoop-lsp --stdio`，接入编译器语言服务。
 
 ## 功能约定
 
 编辑器 parser 产生可恢复、可增量更新的语法树。类型检查、名称解析和正式编译诊断
 由编译器负责；这份 grammar 不作为编译 pipeline 的输入。未完成的源码仍可使用
-已识别部分的高亮、折叠和缩进。此次交付不包含 LSP。
+已识别部分的高亮、折叠和缩进。LSP 提供诊断、补全、签名、导航、符号、引用、
+重命名、选择范围和快速修复，不自动构建项目或准备 sysroot。
 
 高亮查询覆盖声明、类型、参数、成员访问、关键字、运算符、字面量、注解和注释。
 普通字符串中的 `$` 保持文本；只有 f-string 中的 `${...}` 解析成表达式。
@@ -48,4 +50,9 @@ npm run package
 
 最终 VSIX 位于 `vscode-scoop/`。扩展安装与调试说明见
 [扩展 README](vscode-scoop/README.md)。安装 VSIX 后使用扩展不需要 Node.js、
-WASI SDK、Scoop 编译器或外部 Tree-sitter 服务。
+WASI SDK 或外部 Tree-sitter 服务。语义功能需要 `scoop-lsp` 和已准备的 sysroot；
+默认发现 `~/.scoop/bin/scoop-lsp`，配置和测试准备见扩展 README。
+
+完整工具链发行由仓库根的 `python3 scripts/package_toolchain.py` 统一构建；该入口
+按同一 lockfile 安装 npm 依赖并生成 VSIX，放入安装包的 `tooling/`。无需预先手动
+构建扩展，安装包的使用者可直接安装 `~/.scoop/tooling/` 中的 VSIX。
