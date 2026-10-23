@@ -9,3 +9,5 @@ public fun increment(): Int {
 }
 public fun singleton(): Any = Box<Int>.Companion
 public fun plain(): Any = Box(Plain())
+
+public fun codec(): ValueEncoder<Envelope<Int>> = InheritedCodec<Int>()

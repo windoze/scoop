@@ -17,6 +17,7 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<(hir::TypeId, Vec<hir::TypeId>)> {
         let signature: DeclarationSignature = DeclarationSignature {
+            availability: None,
             owner_parameters: Vec::new(),
             callable_parameters: Vec::new(),
             value_parameters: Vec::new(),
@@ -25,6 +26,7 @@ impl Lowerer {
         let mapped = self.alias_constructor_signature(alias, &signature, explicit, span)?;
         let (mut session, environment) =
             self.declaration_applicability_session(DeclarationApplicabilityInput {
+                availability: mapped.signature.availability,
                 owner_parameters: &[],
                 callable_parameters: &mapped.signature.callable_parameters,
                 type_arguments: DeclarationTypeArguments::Callable {

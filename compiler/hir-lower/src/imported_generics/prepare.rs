@@ -138,6 +138,7 @@ impl Lowerer {
         let (no_gc_type_params, gc_free_pointee_requirements) =
             self.imported_body_predicates(body, &bindings)?;
         let signature = hir::ImportedGenericCallableSignature {
+            availability: self.import_member_guard(interface, &bindings)?,
             declaration: identity,
             signature: hir::CallableSignature::from_source_effects(
                 declaration.name().to_owned(),

@@ -309,6 +309,8 @@ HIR 按顺序完成宿主／成员收集、作用域与归属检查、投影存�
 
 Export HIR 保存宿主的完整条件接口集合、目标及继承关系、原 binder 条件、块内成员的适用性、真实 slot 映射和正常消费需要的 typed body／支持声明。普通成员及 constructor 表面保持原身份。private 支持声明不会因模板导出变成公开名称；可用关系不能按某个 consumer 的 import 或已用实参裁剪。
 
+继承义务触发既有 codec／inspector 合成时，生成成员保留原条件声明及代入后的完整基类 application。例如 `Base<Wrapper<T>>` 的条件仍作用于 `Wrapper<T>`，不能改写为 T 的上界。生成正文在该条件下检查，直接调用、成员引用、导入与具体化均沿用这份成员条件；不为继承合成创造第二份实现块或无条件兜底方法。
+
 泛型 body 保存已绑定的成员或接口 slot，以及使用时已证明的条件关系；未决条件用明确的类型化数据表示，不以缺失类型、空方法表或伪造无接口结论代替。查询缓存保留参数环境，块正文中的局部事实不能污染仅以完整 application 为键的具体结果。
 
 ### 10.3 LocalConcreteHir 与后续阶段
@@ -371,7 +373,7 @@ MIR、LIR、codegen、linker 和 runtime 消费确定结果，不重做条件证
 
 | 范围 | 代表性行为 |
 | --- | --- |
-| 普通类型 | class／struct／enum／object、条件真／假、无 where、实例方法与 computed property、两个接口叠加 |
+| 普通类型 | class／struct／enum／object、条件真／假、与类型头无条件接口组合、实例方法与 computed property、两个接口叠加 |
 | 泛型使用 | 有约束的转发、无条件字段／构造操作、同一完整类型从不同环境到达同一接口关系 |
 | Companion | K／V 投影、命名 companion、不同宿主实参、显式工厂与 singleton 状态保持 |
 | HashMap | encode-only、decode-only、双向、无默认 codec，嵌套容器和原 wire／重复 key 行为 |
@@ -383,7 +385,7 @@ MIR、LIR、codegen、linker 和 runtime 消费确定结果，不重做条件证
 
 每项编译错误规则有必要的代表性 expected-error fixture，定位到实现块、条件、冲突声明或使用点；按编译器规则去重，不为每个库复制一套 negative 用例。至少覆盖：
 
-- 错误声明位置、外置／跨 Cone 追加、重新打开类型、错误目标 kind、新 binder、空 where、负向 guard／requires、缺失投影存在事实及不可访问的参数 companion；
+- 错误声明位置、外置／跨 Cone 追加、重新打开类型、错误目标 kind、新 binder、缺少或空 where、负向 guard／requires、缺失投影存在事实及不可访问的参数 companion；
 - 块内非法存储／初始化／helper／泛型接口方法、缺失实现、错误签名／可见性／效果、同签名成员和 property 冲突；
 - 无条件与条件重复、等价 guard、Debug／Hash 交叉、替换后目标相同、alias 重叠；不能用更强块修复；
 - 泛型环境缺少条件、块条件泄漏、继承 override 缩小适用域、default 冲突、具体子类未兑现条件 abstract obligation；

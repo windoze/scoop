@@ -100,6 +100,11 @@ impl CallableDeclarationRecordV1 {
                 .validate_signature_semantics(receiver, authority)
                 .map_err(CallableInterfaceSemanticValidationError::Receiver)?;
         }
+        if let Some(availability) = &self.availability {
+            scope
+                .validate_signature_semantics(&availability.owner, authority)
+                .map_err(CallableInterfaceSemanticValidationError::Availability)?;
+        }
         for (index, parameter) in self.parameters.parameters().iter().enumerate() {
             scope
                 .validate_signature_semantics(parameter.value_type(), authority)

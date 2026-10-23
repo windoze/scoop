@@ -69,6 +69,14 @@ pub struct ConditionalInterfaceApplication {
     pub arguments: Vec<TypeId>,
 }
 
+/// A member's condition in its own binder domain. The original implementation
+/// may belong to a base application such as `Base<Wrapper<T>>`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ConditionalInterfaceGuard {
+    pub declaration: ConditionalInterfaceId,
+    pub owner: TypeId,
+}
+
 impl ConditionalInterfaceDeclaration {
     pub fn id(&self) -> ConditionalInterfaceId {
         self.key.id()
@@ -76,6 +84,32 @@ impl ConditionalInterfaceDeclaration {
 }
 
 impl Module {
+    pub fn conditional_guard_application(
+        &self,
+        guard: ConditionalInterfaceGuard,
+    ) -> ConditionalInterfaceApplication {
+        let (owner, arguments) = match self.types[guard.owner] {
+            Type::Class(id) => {
+                let application = &self.class_applications[id];
+                (application.template, &application.arguments)
+            }
+            Type::Struct(id) => {
+                let application = &self.struct_applications[id];
+                (application.template, &application.arguments)
+            }
+            Type::Enum(id) => {
+                let application = &self.enum_applications[id];
+                (application.template, &application.arguments)
+            }
+            _ => unreachable!("a member condition belongs to an ordinary nominal application"),
+        };
+        ConditionalInterfaceApplication {
+            declaration: guard.declaration,
+            owner,
+            arguments: arguments.clone(),
+        }
+    }
+
     pub fn conditional_interfaces(
         &self,
         owner: SourceNominalId,

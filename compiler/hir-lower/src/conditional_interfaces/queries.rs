@@ -4,18 +4,51 @@ use crate::call_resolution::applicability::{
 };
 
 impl Lowerer {
+    pub(crate) fn import_member_guard(
+        &mut self,
+        declaration: &hir::CallableDeclarationRecordV1,
+        bindings: &crate::imported_core::ImportedTypeBindings,
+    ) -> Result<Option<hir::ConditionalInterfaceGuard>, String> {
+        declaration
+            .availability()
+            .map(|guard| {
+                self.imported_signature_type_with_bindings(&guard.owner, bindings)
+                    .map(|owner| hir::ConditionalInterfaceGuard {
+                        declaration: guard.declaration,
+                        owner,
+                    })
+                    .map_err(|error| format!("cannot load member condition: {error:?}"))
+            })
+            .transpose()
+    }
+
     pub(crate) fn local_member_condition(
-        &self,
+        &mut self,
         function: hir::FunctionId,
         arguments: &[TypeId],
     ) -> Option<hir::ConditionalInterfaceApplication> {
-        let declaration = self.functions[function].method?.availability?;
-        let owner = self.function_owner[&function];
-        Some(hir::ConditionalInterfaceApplication {
-            declaration,
-            owner: self.nominal_identity(owner).declaration_id(),
-            arguments: arguments.to_vec(),
-        })
+        let guard = self.functions[function].method?.availability?;
+        let owner = self.instantiate_ty(guard.owner, arguments);
+        Some(
+            self.conditional_guard_application(hir::ConditionalInterfaceGuard {
+                declaration: guard.declaration,
+                owner,
+            }),
+        )
+    }
+
+    pub(crate) fn conditional_guard_application(
+        &self,
+        guard: hir::ConditionalInterfaceGuard,
+    ) -> hir::ConditionalInterfaceApplication {
+        let owner = self
+            .nominal_application(guard.owner)
+            .expect("a member condition retains its original nominal application");
+        hir::ConditionalInterfaceApplication {
+            declaration: guard.declaration,
+            owner: owner.template,
+            arguments: owner.arguments,
+        }
     }
 
     pub(crate) fn imported_member_condition(
@@ -23,18 +56,37 @@ impl Lowerer {
         declaration: &hir::CallableDeclarationRecordV1,
         receiver: TypeId,
     ) -> Option<hir::ConditionalInterfaceApplication> {
-        let condition = declaration.availability()?;
+        let condition = declaration.availability()?.clone();
         let hir::PublicDeclarationOwnerV1::Nominal(owner) = declaration.owner() else {
             unreachable!("a conditional member has a nominal owner")
         };
         let application = self
             .imported_member_owner_type(receiver, owner)
             .expect("an inherited method retains its original owner application");
-        Some(hir::ConditionalInterfaceApplication {
-            declaration: condition,
-            owner,
-            arguments: self.imported_owner_arguments(application).to_vec(),
-        })
+        let arguments = self.imported_owner_arguments(application).to_vec();
+        let depth = u32::from(!declaration.type_parameters().is_empty());
+        let bindings = arguments
+            .iter()
+            .enumerate()
+            .map(|(index, &ty)| {
+                (
+                    scoop_identity::SignatureTypeKey::Binder {
+                        depth,
+                        index: index as u32,
+                    },
+                    ty,
+                )
+            })
+            .collect();
+        let condition_owner = self
+            .imported_signature_type_with_bindings(&condition.owner, &bindings)
+            .expect("a checked member condition has a complete owner signature");
+        Some(
+            self.conditional_guard_application(hir::ConditionalInterfaceGuard {
+                declaration: condition.declaration,
+                owner: condition_owner,
+            }),
+        )
     }
 
     pub(crate) fn declaration_conditional_interfaces(
@@ -196,6 +248,7 @@ impl Lowerer {
         arguments: &[TypeId],
     ) -> bool {
         let (session, _) = self.declaration_applicability_session(DeclarationApplicabilityInput {
+            availability: None,
             owner_parameters: parameters,
             callable_parameters: &[],
             type_arguments: DeclarationTypeArguments::Callable {

@@ -49,7 +49,8 @@ impl Lowerer {
         let condition = self.functions[id]
             .method
             .and_then(|method| method.availability);
-        let interfaces = self.member_override_interfaces(owner, condition);
+        let interfaces =
+            self.member_override_interfaces(owner, condition.map(|guard| guard.declaration));
         if condition.is_some() && !self.conditional_member_has_slot(id, &interfaces) {
             self.error(
                 decl.name.span,

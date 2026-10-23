@@ -54,6 +54,7 @@ impl Lowerer {
             .inference_patterns(&input.signature.value_parameters);
         let (mut session, environment) =
             self.declaration_applicability_session(DeclarationApplicabilityInput {
+                availability: input.signature.availability,
                 owner_parameters: &input.signature.owner_parameters,
                 callable_parameters: &input.signature.callable_parameters,
                 type_arguments: input.type_arguments,

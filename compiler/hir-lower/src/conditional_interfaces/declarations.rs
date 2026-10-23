@@ -66,6 +66,10 @@ impl Lowerer {
             return;
         };
         let identity = key.id();
+        let availability = hir::ConditionalInterfaceGuard {
+            declaration: identity,
+            owner: self.owner_ty(owner),
+        };
         let resolved = hir::ConditionalInterfaceDeclaration {
             key,
             interface,
@@ -87,7 +91,7 @@ impl Lowerer {
                 .method
                 .as_mut()
                 .expect("implementation functions are methods")
-                .availability = Some(identity);
+                .availability = Some(availability);
         }
         for property in declaration.properties() {
             self.resolve_conditional_property(owner, identity, property);

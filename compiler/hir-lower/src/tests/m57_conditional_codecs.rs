@@ -1,5 +1,7 @@
 use super::*;
 
+mod inherited;
+
 const ENVELOPE: &str = r#"
 public struct Envelope<T>(val value: T) {
     public companion object {
@@ -32,7 +34,7 @@ fun main() {{}}
             .values()
             .find(|f| f.name == name)
             .unwrap();
-        let condition = function.method.unwrap().availability.unwrap();
+        let condition = function.method.unwrap().availability.unwrap().declaration;
         let owner = output
             .export
             .classes

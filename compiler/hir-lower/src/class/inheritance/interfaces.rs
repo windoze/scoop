@@ -20,7 +20,7 @@ enum InterfaceDefaultSelection {
 enum InterfaceImplementationContext {
     Unconditional,
     Declared(hir::ConditionalInterfaceId),
-    Inherited,
+    Inherited(hir::ConditionalInterfaceGuard),
 }
 
 impl Lowerer {
@@ -131,6 +131,21 @@ impl Lowerer {
                             .cloned()
                             .collect::<Vec<_>>();
                         if !self.conditional_parameters_hold(&parameters, &arguments) {
+                            return false;
+                        }
+                        if self.functions[candidate.function]
+                            .method
+                            .is_some_and(|method| {
+                                method
+                                    .availability
+                                    .is_some_and(|guard| guard.owner != method.owner)
+                            })
+                            && self
+                                .local_member_condition(candidate.function, &arguments)
+                                .is_some_and(|condition| {
+                                    !self.conditional_application_holds(&condition)
+                                })
+                        {
                             return false;
                         }
                         let signature =
@@ -261,18 +276,6 @@ impl Lowerer {
                         InterfaceDefaultSelection::Obligation(declaration) if abstract_class => {
                             self.conformance_target(&declaration, span)
                         }
-                        InterfaceDefaultSelection::Obligation(_)
-                            if matches!(context, InterfaceImplementationContext::Inherited) =>
-                        {
-                            self.report_interface_obligation(
-                                &mut reported_obligations,
-                                &member,
-                                span,
-                                host,
-                                true,
-                            );
-                            None
-                        }
                         InterfaceDefaultSelection::Obligation(_) => {
                             if let Some(function) = self
                                 .derive_missing_encoding(
@@ -298,12 +301,7 @@ impl Lowerer {
                                     )
                                 })
                             {
-                                if let InterfaceImplementationContext::Declared(condition) = context
-                                {
-                                    self.bind_synthesized_interface_condition(
-                                        function, owner, condition,
-                                    );
-                                }
+                                self.bind_synthesized_interface_condition(function, owner, context);
                                 candidates
                                     .push(crate::CallableCandidate::method(function, own_owner));
                                 Some(hir::InterfaceImplementationTarget::Method(

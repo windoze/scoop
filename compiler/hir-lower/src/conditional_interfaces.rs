@@ -88,13 +88,19 @@ impl Lowerer {
             .and_then(|method| method.availability)
         {
             None => self.owner_type_params(owner),
-            Some(condition) => self
-                .owner_conditional_interfaces(owner)
-                .iter()
-                .find(|declaration| declaration.id() == condition)
-                .expect("a conditional method retains its declaring implementation")
-                .parameters
-                .clone(),
+            Some(condition)
+                if self.functions[function]
+                    .method
+                    .is_some_and(|method| method.owner == condition.owner) =>
+            {
+                self.owner_conditional_interfaces(owner)
+                    .iter()
+                    .find(|declaration| declaration.id() == condition.declaration)
+                    .expect("a conditional method retains its declaring implementation")
+                    .parameters
+                    .clone()
+            }
+            Some(_) => self.owner_type_params(owner),
         }
     }
 }

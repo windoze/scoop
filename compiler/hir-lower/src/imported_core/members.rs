@@ -186,12 +186,8 @@ impl Lowerer {
                 .member_callable_candidates(owner, lookup)?
             {
                 let declaration = candidate.interface();
-                if let Some(condition) = declaration.availability()
-                    && !self.conditional_application_holds(&hir::ConditionalInterfaceApplication {
-                        declaration: condition,
-                        owner,
-                        arguments: self.imported_owner_arguments(ty).to_vec(),
-                    })
+                if let Some(condition) = self.imported_member_condition(declaration, ty)
+                    && !self.conditional_application_holds(&condition)
                 {
                     continue;
                 }

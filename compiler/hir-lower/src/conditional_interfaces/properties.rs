@@ -58,12 +58,16 @@ impl Lowerer {
             }
             Owner::Interface(_) => unreachable!("implementation owners are ordinary types"),
         }
+        let availability = hir::ConditionalInterfaceGuard {
+            declaration: condition,
+            owner: self.owner_ty(owner),
+        };
         for source in &self.property_accessor_sources[start..] {
             self.functions[source.function]
                 .method
                 .as_mut()
                 .expect("conditional accessors are methods")
-                .availability = Some(condition);
+                .availability = Some(availability);
         }
     }
 }

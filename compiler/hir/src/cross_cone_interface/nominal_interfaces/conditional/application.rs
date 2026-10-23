@@ -6,6 +6,18 @@ pub struct ConditionalInterfaceApplicationV1 {
     pub owner: SignatureTypeKey,
 }
 
+impl ConditionalInterfaceApplicationV1 {
+    pub fn owner_declaration(&self) -> Option<crate::SourceNominalId> {
+        match self.owner {
+            SignatureTypeKey::Nominal(id) => Some(crate::SourceNominalId::Concrete(id)),
+            SignatureTypeKey::NominalApplication { origin, .. } => {
+                Some(crate::SourceNominalId::GenericTemplate(origin))
+            }
+            _ => None,
+        }
+    }
+}
+
 impl WireEncode for ConditionalInterfaceApplicationV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
@@ -23,7 +35,7 @@ pub struct DecodedConditionalInterfaceApplicationV1 {
 }
 
 impl DecodedConditionalInterfaceApplicationV1 {
-    pub fn resolve<R: NominalInterfaceRecordResolver<E>, E>(
+    pub fn resolve<R: crate::SourceNominalIdResolver<E>, E>(
         self,
         resolver: &mut R,
     ) -> Result<ConditionalInterfaceApplicationV1, E> {

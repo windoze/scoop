@@ -27,10 +27,16 @@ impl Concretizer<'_> {
             .into_iter()
             .map(|argument| self.lower_type(argument, substitution))
             .collect::<Vec<_>>();
-        self.concrete_conditional_parameters_hold(
-            template.type_parameters.declarations(),
-            &arguments,
-        )
+        match template.availability {
+            Some(guard) => {
+                let condition = self.source.conditional_guard_application(guard);
+                self.concrete_implementation_applies(&condition, &arguments)
+            }
+            None => self.concrete_conditional_parameters_hold(
+                template.type_parameters.declarations(),
+                &arguments,
+            ),
+        }
     }
 
     pub(super) fn concrete_direct_interfaces(

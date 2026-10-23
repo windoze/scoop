@@ -125,7 +125,7 @@ impl CanonicalCallableInterfacesV1 {
             {
                 return Err(CallableDeclarationInventoryError::Availability {
                     declaration: record.declaration(),
-                    implementation: availability,
+                    implementation: availability.declaration,
                 });
             }
         }

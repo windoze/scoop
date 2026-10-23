@@ -211,16 +211,9 @@ impl Concretizer<'_> {
             .copied()
             .filter_map(|method| {
                 let function = &self.source.functions[method];
-                if function
-                    .method
-                    .is_some_and(|method| method.availability.is_some())
-                {
-                    let parameters = function
-                        .type_params()
-                        .into_iter()
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    if !self.concrete_conditional_parameters_hold(&parameters, &substitution) {
+                if let Some(guard) = function.method.and_then(|method| method.availability) {
+                    let condition = self.source.conditional_guard_application(guard);
+                    if !self.concrete_implementation_applies(&condition, &substitution) {
                         return None;
                     }
                 }

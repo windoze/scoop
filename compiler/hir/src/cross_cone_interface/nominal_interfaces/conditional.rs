@@ -56,16 +56,20 @@ impl ConditionalInterfaceRecordV1 {
 impl crate::NominalInterfaceRecordV1 {
     pub fn member_owner_parameters(
         &self,
-        availability: Option<ConditionalInterfaceId>,
+        availability: Option<&ConditionalInterfaceApplicationV1>,
     ) -> Option<&CanonicalBinderListV1> {
         match availability {
             None => Some(self.type_parameters()),
-            Some(id) => self
+            Some(condition) if condition.owner_declaration() == Some(self.declaration()) => self
                 .declaration_details()
                 .conditional_interfaces()
                 .iter()
-                .find(|implementation| implementation.id() == id)
+                .find(|implementation| implementation.id() == condition.declaration)
                 .map(ConditionalInterfaceRecordV1::parameters),
+            Some(condition) if condition.owner_declaration().is_some() => {
+                Some(self.type_parameters())
+            }
+            Some(_) => None,
         }
     }
 }

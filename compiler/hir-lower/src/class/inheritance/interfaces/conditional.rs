@@ -24,14 +24,21 @@ impl Lowerer {
             if self.conditional_application_is_impossible(&condition) {
                 continue;
             }
+            let guard = hir::ConditionalInterfaceGuard {
+                declaration: condition.declaration,
+                owner: self
+                    .apply_nominal_type(condition.owner, condition.arguments.clone())
+                    .expect("an inherited condition retains its original application"),
+            };
             let mut implementations =
                 self.with_conditional_interface_assumptions(&condition, |state| {
                     let context = relisted
                         .iter()
                         .find(|(_, target)| *target == interface)
-                        .map_or(InterfaceImplementationContext::Inherited, |(id, _)| {
-                            InterfaceImplementationContext::Declared(*id)
-                        });
+                        .map_or(
+                            InterfaceImplementationContext::Inherited(guard),
+                            |(id, _)| InterfaceImplementationContext::Declared(*id),
+                        );
                     state.collect_nominal_interface_implementations(
                         owner,
                         span,
@@ -87,8 +94,20 @@ impl Lowerer {
         &mut self,
         function: FunctionId,
         owner: Owner,
-        condition: hir::ConditionalInterfaceId,
+        context: InterfaceImplementationContext,
     ) {
+        let condition = match context {
+            InterfaceImplementationContext::Unconditional => return,
+            InterfaceImplementationContext::Inherited(guard) => {
+                self.functions[function]
+                    .method
+                    .as_mut()
+                    .expect("a synthesized implementation is a member")
+                    .availability = Some(guard);
+                return;
+            }
+            InterfaceImplementationContext::Declared(condition) => condition,
+        };
         let block = self
             .owner_conditional_interfaces(owner)
             .iter()
@@ -96,11 +115,15 @@ impl Lowerer {
             .expect("a synthesized implementation belongs to its original block");
         let parameters = block.parameters.clone();
         self.functions[function].span = block.span;
+        let availability = hir::ConditionalInterfaceGuard {
+            declaration: condition,
+            owner: self.owner_ty(owner),
+        };
         self.functions[function]
             .method
             .as_mut()
             .expect("a synthesized implementation is a member")
-            .availability = Some(condition);
+            .availability = Some(availability);
         self.signatures.get_mut(&function).unwrap().type_params = parameters.clone();
         match &mut self.functions[function].genericity {
             hir::FunctionGenericity::OwnerParameterizedMethod {

@@ -65,6 +65,7 @@ impl ConstructorReferenceDeclaration {
                 (
                     target,
                     DeclarationSignature {
+                        availability: None,
                         owner_parameters: source.owner_parameters,
                         callable_parameters: source.callable_parameters,
                         value_parameters: source

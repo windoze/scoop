@@ -74,10 +74,13 @@ impl Lowerer {
             self.set_primary_base(constructor, hir::BaseInitialization::Root);
             return;
         };
+        let parameters = self.owner_type_params(Owner::Object(object));
+        let previous_parameters = std::mem::replace(&mut self.type_params_in_scope, parameters);
         let specification = source.supertypes().iter().find(|specification| {
             self.resolve_type_ref(&specification.ty)
                 .is_some_and(|ty| self.types_equal(ty, base_ty))
         });
+        self.type_params_in_scope = previous_parameters;
         let Some(specification) = specification.cloned() else {
             return;
         };

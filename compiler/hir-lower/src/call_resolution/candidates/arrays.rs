@@ -77,6 +77,7 @@ impl Lowerer {
         NominalConstructorView {
             target,
             signature: crate::call_resolution::candidates::DeclarationSignature {
+                availability: None,
                 owner_parameters,
                 callable_parameters: Vec::new(),
                 value_parameters,

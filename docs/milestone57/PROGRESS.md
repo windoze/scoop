@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | 语法与普通类型条件接口 | 本 Cone 基础闭环已完成；where 必填且非空 | 5 个 parser 用例、M57 HIR 定向检查及正式 CLI 诊断通过；组合验证见下文 |
 | Companion、HashMap 与 Json 闭环 | 已完成 | 6 个 JSON Cone 原生用例覆盖四种能力组合、嵌套、显式工厂及重复 key 路径 |
-| 条件 codec 合成 | 已完成 | 2 个定向检查、24 个既有合成回归、完整 JSON Cone 76 项测试及跨 Cone 合成 codec 运行通过 |
+| 条件 codec 合成 | 本体与继承合成已完成 | 原有合成回归、JSON Cone 79 项及跨 Cone 合成 codec 验证已闭合，见第 6、12 节 |
 | 继承、default、property 与效果组合 | 继承与 default 基本闭环已完成；其余组合待完成 | 条件继承、等价重列、域覆盖、abstract 义务、默认方法／属性及分派有本地／跨 Cone 验证 |
 | 导出、跨 Cone 与 ODR | 已覆盖继承、投影与 default；完整验收待完成 | 85 个泛型导入回归、条件记录 wire 往返／再次发布与双 consumer 原生链接运行通过 |
 | sealed 条件关系与穷尽性 | 已完成 | 6 项定向检查、42 个既有 sealed fixture、条件边界诊断、原生及跨 Cone 验证通过 |
@@ -94,3 +94,13 @@
 - workspace Clippy、38 项 M57 定向检查、87 项跨 Cone 导入回归、97 项普通规则回归和 866 项 HIR 元数据测试通过。完整 core consumer 的 46 项原生测试与 ODR 原链接／逆序重链接通过。
 - 13 个条件接口诊断 fixture 和 42 个既有 sealed fixture 通过；后者首次仅有一个缺失示例从 Two 变为 One，两者均不被值比较分支覆盖，核对后更新该快照并定向复验通过。新增诊断覆盖未知条件漏分支、局部／匿名实现以及跨 package／Cone 实现。
 - 继承 codec 合成、类型描述／文档、其余效果组合及 Linux 完整验收仍未完成。
+
+## 12. 继承 codec／inspector 合成
+
+- 具体子类和自行继承 codec class 的 companion 可按原规则合成 encode／decode／inspect。生成成员保存原条件声明与完整基类 application，`Base<Wrapper<T>>` 的条件仍作用于 Wrapper<T>；不反向推断 T 的约束，也不把生成方法变成无条件成员。
+- 合成正文、直接调用、方法引用、导入及具体化使用同一条件。调用检查复用现有参数约束求解；已有本体实现块继续使用 B+C，继承合成保留实际宿主参数和独立的原基类条件。补齐 companion 基类构造检查的宿主参数作用域，遵守原有合法用法。
+- `cross-cone-interface/81` 的 callable field 12 改为完整条件 application，复用 conformance 的编码；签名引用与 binder 形状沿普通元数据规则检查，runtime ABI 不变。已显式准备 Darwin 的 21 个系统 Cone 与 runtime。
+- workspace Clippy、149 项 M57／导入／既有 codec 回归、866 项 HIR 元数据测试通过。格式升级的固定向量已按实际编码更新，17 项 profile 检查通过。
+- 完整 core consumer 的 46 项原生测试通过。JSON Cone 首轮 79 项中 77 项通过，两项新增 inspector 预期漏写泛型实参，修正后 3 项继承测试定向复验全部通过。编码、解码、inspector、companion、嵌套实参、generic 转发与方法引用均有原生覆盖。
+- 跨 Cone ODR 原链接与逆序重链接运行通过，包含 provider 生成的方法、consumer 继承合成、固定实参及两个 library consumer 共用的实例。14 个条件接口诊断 fixture 通过；额外导入检查确认未知条件和不成立条件不能调用生成成员。
+- 类型描述／文档的条件展示、其余效果组合、定向 GC 与 Linux 完整验收仍未完成。

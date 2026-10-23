@@ -113,6 +113,7 @@ impl Lowerer {
         };
         Ok(PreparedImportedGeneric {
             signature: hir::ImportedGenericCallableSignature {
+                availability: self.import_member_guard(declaration.interface(), &bindings)?,
                 declaration: identity,
                 signature: hir::CallableSignature::from_source_effects(
                     format!("{}.{member_name}", nominal.name()),

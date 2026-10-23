@@ -57,7 +57,8 @@ impl Lowerer {
             | hir::PropertyAccessorImplementation::AbstractSlot(function) => self.functions
                 [function]
                 .method
-                .and_then(|method| method.availability),
+                .and_then(|method| method.availability)
+                .map(|guard| guard.declaration),
             hir::PropertyAccessorImplementation::Storage
             | hir::PropertyAccessorImplementation::Constant => None,
         }

@@ -28,7 +28,7 @@ impl WireEncode for CallableDeclarationRecordV1 {
         for parameter in &self.context_parameters {
             parameter.encode(encoder)?;
         }
-        if let Some(availability) = self.availability {
+        if let Some(availability) = &self.availability {
             encoder.field(12)?;
             availability.encode(encoder)?;
         }
@@ -49,7 +49,7 @@ pub struct DecodedCallableDeclarationRecordV1 {
     visibility: DeclaredVisibilityV1,
     slots: DecodedCanonicalPersistentIdsV1<PersistentDispatchSlotId>,
     context_parameters: Vec<crate::DecodedSourceParameterShapeV1>,
-    availability: Option<crate::ConditionalInterfaceId>,
+    availability: Option<crate::DecodedConditionalInterfaceApplicationV1>,
 }
 
 impl DecodedCallableDeclarationRecordV1 {
@@ -92,6 +92,11 @@ impl DecodedCallableDeclarationRecordV1 {
             .effects
             .validate()
             .map_err(CallableInterfaceRecordResolutionError::Effects)?;
+        let availability = self
+            .availability
+            .map(|condition| condition.resolve(resolver))
+            .transpose()
+            .map_err(CallableInterfaceRecordResolutionError::Availability)?;
         CallableDeclarationRecordV1::try_new(
             declaration,
             owner,
@@ -115,7 +120,7 @@ impl DecodedCallableDeclarationRecordV1 {
                 })
                 .collect::<Result<_, _>>()?,
         )
-        .map(|record| record.with_availability(self.availability))
+        .map(|record| record.with_availability(availability))
         .map_err(CallableInterfaceRecordResolutionError::Record)
     }
 }
@@ -148,7 +153,7 @@ impl WireEncode for DecodedCallableDeclarationRecordV1 {
         for parameter in &self.context_parameters {
             parameter.encode(encoder)?;
         }
-        if let Some(availability) = self.availability {
+        if let Some(availability) = &self.availability {
             encoder.field(12)?;
             availability.encode(encoder)?;
         }
@@ -186,7 +191,7 @@ impl WireDecode for DecodedCallableDeclarationRecordV1 {
                 })
             })?,
             availability: if fields == 12 {
-                Some(decoder.field(12, crate::ConditionalInterfaceId::decode)?)
+                Some(decoder.field(12, crate::DecodedConditionalInterfaceApplicationV1::decode)?)
             } else {
                 None
             },

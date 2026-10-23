@@ -35,6 +35,7 @@ pub struct ImportedGenericCallableSignature {
     pub no_gc_type_params: Vec<crate::TypeParamId>,
     pub gc_free_pointee_requirements: Vec<crate::RequiresGcFreePointee>,
     pub receiver: Option<crate::TypeId>,
+    pub availability: Option<crate::ConditionalInterfaceGuard>,
     pub origin: crate::DefinitionOrigin,
 }
 

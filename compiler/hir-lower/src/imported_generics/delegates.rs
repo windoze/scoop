@@ -68,6 +68,7 @@ impl Lowerer {
             .map_err(|error| error.to_string())
         };
         let initializer_signature = hir::ImportedGenericCallableSignature {
+            availability: None,
             declaration: hir::ImportedCallableTemplateOrigin::Initialization {
                 template,
                 owner: owner(InitializationCallableRole::Initializer)?,

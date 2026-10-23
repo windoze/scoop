@@ -37,6 +37,7 @@ pub enum CallableInterfaceSemanticValidationError<E> {
     },
     TypeParameters(TypeParameterBinderSemanticValidationError<E>),
     Receiver(SignatureTypeSemanticError<E>),
+    Availability(SignatureTypeSemanticError<E>),
     Parameter {
         index: usize,
         error: SignatureTypeSemanticError<E>,
@@ -85,6 +86,9 @@ impl<E: fmt::Display> fmt::Display for CallableInterfaceSemanticValidationError<
                 write!(formatter, "invalid callable type parameters: {error}")
             }
             Self::Receiver(error) => write!(formatter, "invalid callable receiver: {error}"),
+            Self::Availability(error) => {
+                write!(formatter, "invalid callable condition owner: {error}")
+            }
             Self::Parameter { index, error } => {
                 write!(formatter, "invalid callable parameter {index}: {error}")
             }

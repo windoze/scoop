@@ -38,7 +38,7 @@ pub enum MethodModifier {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Method {
     pub owner: TypeId,
-    pub availability: Option<ConditionalInterfaceId>,
+    pub availability: Option<ConditionalInterfaceGuard>,
     pub modifier: MethodModifier,
     /// Complete source-level dispatch identity. Overrides share a typed
     /// virtual family; interface declarations name their exact member.

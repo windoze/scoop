@@ -50,6 +50,7 @@ impl Lowerer {
         NominalConstructorView {
             target,
             signature: DeclarationSignature {
+                availability: None,
                 owner_parameters,
                 callable_parameters: Vec::new(),
                 value_parameters: vec![ValueParameter {

@@ -16,27 +16,17 @@ impl Lowerer {
         else {
             return;
         };
-        let required = hir::ConditionalInterfaceApplication {
-            declaration: condition,
-            owner: self.nominal_identity(owner).declaration_id(),
-            arguments: self.owner_type_args(owner),
-        };
+        let required = self.conditional_guard_application(condition);
         // Coverage uses the derived type's domain, not the overriding body's
         // stronger assumptions. The latter must not prove its own coverage.
         let parameters = self.owner_type_params(owner);
         let saved = std::mem::replace(&mut self.type_params_in_scope, parameters);
         let mut inherited = Vec::new();
         for (function, arguments) in local {
-            let Some(owner @ Owner::Class(_)) = self.function_owner.get(function).copied() else {
+            let Some(Owner::Class(_)) = self.function_owner.get(function).copied() else {
                 continue;
             };
-            inherited.push(self.functions[*function].method.unwrap().availability.map(
-                |condition| hir::ConditionalInterfaceApplication {
-                    declaration: condition,
-                    owner: self.nominal_identity(owner).declaration_id(),
-                    arguments: arguments.clone(),
-                },
-            ));
+            inherited.push(self.local_member_condition(*function, arguments));
         }
         for method in imported {
             inherited

@@ -547,7 +547,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/80`、`cross-cone-type-semantics/30` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/81`、`cross-cone-type-semantics/30` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/16`、`cone-production/14`、`link-identity-closure/18`、`link-support/1` |
 
@@ -988,7 +988,7 @@ LIR 的 MaybeUninit 操作写入完整类型的独立 local place；零大小结
 
 Export HIR保留完整条件关系、成员适用性、投影绑定、继承及必要support body，不按某个consumer的import或已用实参裁剪接口集合。消费方、再次发布方和linker不能为外来owner追加实现。查询结果只有在相同参数事实下复用；完全具体的同一application保持唯一接口集合。实际编码改变时升级对应格式，IR/meta只承载数据与正常格式／引用检查，不重建语义查询器。
 
-M57 将 `cross-cone-interface` 升至 80。nominal declaration details 的可缺省 field 13 保存非空条件接口声明序列，每项保存 typed 条件声明 id、目标 signature key 和完整原宿主 binder 条件；缺省表示没有接口实现块记录。Parser 要求实现块具有非空 where，AST 直接保存必填条件；无条件接口沿用普通类型头的记录。field 14 保存检查后实际存在的条件 conformance，每项记录完整接口和原条件的完整宿主 application；继承重列沿用基类条件，空接口也保存关系，已证明不可能的继承义务不导出。消费方直接代入这些关系，不从实现块和基类重新推断重列或覆盖结果。callable declaration 的可缺省 field 12 引用成员所属条件声明，普通成员不携带该字段。dispatch selection role 增加 tag 3，保存接口 application 和条件声明的完整原宿主 application，区分互斥条件下的不同 slot 选择。这些记录使用既有签名、binder、实体引用和正文格式；读取时检查普通归属、引用与形状，不重放声明方的重叠或正文检查。旧产物须重建，其他 section 与 runtime ABI 保持不变。
+M57 将 `cross-cone-interface` 升至 81。nominal declaration details 的可缺省 field 13 保存非空条件接口声明序列，每项保存 typed 条件声明 id、目标 signature key 和完整原宿主 binder 条件；缺省表示没有接口实现块记录。Parser 要求实现块具有非空 where，AST 直接保存必填条件；无条件接口沿用普通类型头的记录。field 14 保存检查后实际存在的条件 conformance，每项记录完整接口和原条件的完整宿主 application；继承重列沿用基类条件，空接口也保存关系，已证明不可能的继承义务不导出。消费方直接代入这些关系，不从实现块和基类重新推断重列或覆盖结果。callable declaration 的可缺省 field 12 保存成员条件的原声明 id 与完整原宿主 application，复用条件 conformance 的 application 编码；普通成员不携带该字段。本体实现块的成员继续使用 B+C binder，继承合成成员使用其真实宿主的 binder 并单独携带代入后的基类条件，正文、调用和具体化均沿用此条件，不反向推断构造实参的内部参数约束。dispatch selection role 增加 tag 3，保存接口 application 和条件声明的完整原宿主 application，区分互斥条件下的不同 slot 选择。这些记录使用既有签名、binder、实体引用和正文格式；读取时检查普通归属、引用与形状，不重放声明方的重叠或正文检查。旧产物须重建，其他 section 与 runtime ABI 保持不变。
 
 具体化根据完整实参落实条件并填充普通itable／vtable输入；保留定义处选择的重载、default表达式和字段codec，仅替换已绑定投影与slot目标。进入LocalConcreteHir前必须消除待定条件，类型、调用与实现关系完整；后续stage不重放条件推导。宿主布局、构造、GC scan、companion初始化及ABI维持普通规则，不引入类型定义分支、赢家集合、dictionary或运行期条件选择。
 

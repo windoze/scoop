@@ -10,11 +10,13 @@ use super::constraints::{
 use crate::Lowerer;
 use crate::expr::ResolvedCallTypeArgument;
 
+mod conditions;
 mod references;
 pub(crate) use references::{CallableReferenceApplicabilityInput, ReferenceReceiver};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct DeclarationApplicabilityInput<'a> {
+    pub(crate) availability: Option<hir::ConditionalInterfaceGuard>,
     pub(crate) owner_parameters: &'a [hir::TypeParamDecl],
     pub(crate) callable_parameters: &'a [hir::TypeParamDecl],
     pub(crate) type_arguments: DeclarationTypeArguments<'a>,
@@ -44,10 +46,11 @@ pub(crate) struct NominalApplicabilityInput<'a> {
 
 impl Lowerer {
     pub(crate) fn declaration_applicability_session(
-        &self,
+        &mut self,
         input: DeclarationApplicabilityInput<'_>,
     ) -> (InferenceSession, super::constraints::InferenceEnvironmentId) {
         let DeclarationApplicabilityInput {
+            availability,
             owner_parameters,
             callable_parameters,
             type_arguments,
@@ -124,6 +127,9 @@ impl Lowerer {
             &mut session,
             owner_parameters.iter().chain(callable_parameters),
         );
+        if let Some(guard) = availability {
+            self.add_applied_member_condition(&mut session, guard);
+        }
         if let Some((expected, actual)) = bound_receiver {
             session.push(
                 Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected)),
@@ -143,7 +149,7 @@ impl Lowerer {
     }
 
     pub(crate) fn nominal_applicability_session(
-        &self,
+        &mut self,
         input: NominalApplicabilityInput<'_>,
     ) -> (InferenceSession, super::constraints::InferenceEnvironmentId) {
         let NominalApplicabilityInput {
@@ -156,6 +162,7 @@ impl Lowerer {
         debug_assert_eq!(argument_map.source_order.len(), argument_types.len());
         let (mut session, environment) =
             self.declaration_applicability_session(DeclarationApplicabilityInput {
+                availability: None,
                 owner_parameters: &view.signature.owner_parameters,
                 callable_parameters: &[],
                 type_arguments: DeclarationTypeArguments::Nominal {

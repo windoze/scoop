@@ -1,0 +1,19 @@
+package scoop.json.tests.consumer.conditional_inherited_codecs
+
+public struct Payload<T>(val value: T)
+public struct Wrapper<T>(val value: T) {
+    public companion object {
+        override interface ValueEncoder<Wrapper<T>> where T.Companion : ValueEncoder<T> {}
+        override interface ValueDecoder<Wrapper<T>> where T.Companion : ValueDecoder<T> {}
+        override interface ValueInspector<Wrapper<T>> where T.Companion : ValueInspector<T> {}
+    }
+}
+public abstract class Base<T> protected constructor() {
+    override interface ValueEncoder<Payload<T>> where T.Companion : ValueEncoder<T> {}
+    override interface ValueDecoder<Payload<T>> where T.Companion : ValueDecoder<T> {}
+    override interface ValueInspector<Payload<T>> where T.Companion : ValueInspector<T> {}
+}
+public class Derived<T> public constructor() : Base<T>()
+public class Constructed<T> public constructor() : Base<Wrapper<T>>()
+public struct Host<T>() { public companion object : Base<T>() }
+public struct Absent()

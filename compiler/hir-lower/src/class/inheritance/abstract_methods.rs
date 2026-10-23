@@ -94,14 +94,9 @@ impl Lowerer {
                         let method = self.functions[function]
                             .method
                             .expect("class member has method metadata");
-                        if let Some(condition) = method.availability
-                            && self.conditional_application_is_impossible(
-                                &hir::ConditionalInterfaceApplication {
-                                    declaration: condition,
-                                    owner: application.template,
-                                    arguments: application.arguments.clone(),
-                                },
-                            )
+                        if let Some(condition) =
+                            self.local_member_condition(function, &application.arguments)
+                            && self.conditional_application_is_impossible(&condition)
                         {
                             continue;
                         }
