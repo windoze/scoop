@@ -38,7 +38,9 @@ internal fun reject(status: UInt, detail: String): Nothing = throw HttpRejection
 /** An expected request rejection carrying the response selected by the application or extractor. */
 public class HttpRejection public constructor(
     /** The response to execute in the current request pipeline. */
-    public val result: HttpResult
+    public val result: HttpResult,
+    /** The original input failure, when this rejection was produced by a decoder. */
+    public val cause: Throwable? = None
 ) : Exception(Some("HTTP request rejected"))
 
 /** A suspending endpoint returning a response description. */

@@ -22,7 +22,7 @@ HttpContext 属于一次请求，保存 request、response、route、pathParams 
 
 无端点匹配时采用最长适用分组的 fallback，等长按静态片段优先；默认 404。404 和默认 405／OPTIONS 执行这个最长适用分组的 middleware，正常端点执行其注册分组及端点 middleware。全局 middleware 覆盖所有这些结果。route 只在路径端点选定后可见，fallback 没有虚构的端点模板。
 
-Query 复用 UrlQuery，普通 URI 的 `+` 保持加号。标量读取拒绝重复值；optional 只容许字段缺失，不把无等号或空字符串自动当作缺失。Path 参数缺失为程序错误，转换失败为 HttpRejection。DTO 与 body 提取的增量合同随后按所属功能补充。
+Query 复用 UrlQuery，普通 URI 的 `+` 保持加号。标量读取拒绝重复值；optional 只容许字段缺失，不把无等号或空字符串自动当作缺失。Path 参数缺失为程序错误，转换失败为 HttpRejection。DTO 提取遵守第 9 节，结构化 body 遵守第 4、8 节。
 
 ## 3. 管线与响应
 
@@ -102,6 +102,18 @@ text 可显式传入 Charset，也使用 part Content-Type 中声明的有效 ch
 
 保存文件由应用显式组合 AsyncFile、copyTo、createTempFile 和 moveFile。客户端 filename 不参与路径选择；需要失败不发布时，应用读取所有 part 及外层 EOF、关闭文件后才移动到选定目标，并在失败或取消时删除自己创建的临时文件。库不增加存储插件或后台清理服务。
 
-## 9. 分步交付与验证
+## 9. Query DTO 与静态提取适配器
+
+RequestQuery.decode(codec, options) 向现有 ValueDecoder 提供扁平 named record，另有使用 T.Companion 的泛型重载。不经过 JSON 或反射。QueryDecodeOptions.unknownFields 默认 QueryUnknownFields.Reject，可显式 Ignore。同名字段按严格 UTF-8 解码后的名称分组，保留首次出现顺序、每项顺序及从零开始的原 query 项位置；百分号只在 UrlQuery 中解码一次，普通 query 的加号仍为加号。点、方括号、逗号和 null 文本均无特殊含义。
+
+required 缺失报 400；optional 缺失返回 None，默认值及 Option 的组合由原 codec 决定。取得现有字段算访问，枚举 keys 不算；keyed.end 在 Reject 模式检查未访问字段。检查不关闭容器或消耗输入，成功或失败后都能继续读取，再次 end；标量可复读，每次 unkeyed 创建独立游标。入口不额外强制 codec 调用 end 或重放容器检查。
+
+字段允许标量或一层序列；标量要求恰好一项，序列按收到顺序交付，单项也可组成列表。name= 是空字符串，裸 name 在实际读取时为缺值，缺失字段不自动成为空列表。String 严格 UTF-8；Boolean 仅接受 true／false；整数复用十进制文本解析，有符号为 `[+-]?[0-9]+`，无符号为 `[+]?[0-9]+`。浮点复用按目标精度解析的有限十进制数，语法为 `[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?`；拒绝空白、非有限值及溢出，允许下溢与负零。未读取值不强制转换为文本。所有形状上的 isNull 均为 false；readNull、根标量／序列、嵌套 keyed／列表属于不支持的 codec 形状，抛 QueryCodecException，默认 500。
+
+输入错误在 decode 边界转为 HttpRejection 的 400 结果，保留原 DecodingException 为 cause。path 遵守语言规范 11.13.3 的 JSON Pointer，序列使用字段内索引；错误详情另带原 query 项位置。自定义 codec 抛出的其他异常照常传播；handler 随后抛出的 DecodingException 仍是业务失败，默认 500。HttpRejection 的可选 cause 只用于观察原异常，不改变结果选择。
+
+HttpExtractor<T> 是普通 `suspend (HttpContext) -> T`；adapt(extract, handle) 顺序等待提取并调用 `suspend (HttpContext, T) -> HttpResult`，失败不调用 handle。queryExtractor 的显式／companion 重载复用 query.decode；jsonExtractor 的对应重载复用 body.json，未指定 maxBytes 时采用该请求的 bufferedBodyLimit。多个来源由应用以普通 extractor 顺序组合；两次 body 提取仍受唯一消费权约束。不增加资源持有者、DI 或参数注入，Context 与流式响应仍在原请求管线和 middleware 作用域内执行。
+
+## 10. 分步交付与验证
 
 接入、超时与停机、SSE、multipart、WebSocket、压缩、文件和 DTO 的完整范围保持设计第 12～17 节，按完成的功能逐项扩充本规范。尚未实现的功能不公开占位 API。测试用所属 Cone 的 release 测试；只有 CLI／诊断／外部对端等必要边界使用 fixture。协议引擎的既有验证不在 server 重放。

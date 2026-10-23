@@ -875,9 +875,9 @@ staticFiles 只使用第 8 节已解码一次的路由片段：拒绝点片段�
 | 未知字段 | 默认 Reject；可显式 Ignore，keyed.end 检查实际未读取的字段 |
 | `a.b`、`a[0]`、逗号值 | 都是普通字段名或值，不形成嵌套记录、数组下标或隐式列表 |
 
-容器记录当前字段的实际读取情况；不会因为应用枚举了 keys 就把所有字段当作已消费。每个有值的字段 decoder 允许 codec 选择单值或序列，单值只有恰好一个项时成立；不能为读一个列表额外消耗 HTTP body。嵌套 keyed、嵌套列表和不受支持的 codec 形状属于服务端装配错误，使用独立的 QueryCodecException 并映射 500，不伪装成客户端 400。自定义标量 codec 可复用同一个文本 decoder，例如把一个字符串解析为业务 Identifier。
+容器记录由 required／optional 取得的字段；不会因为应用枚举了 keys 就把所有字段当作已访问。访问记录不消耗值，不影响 codec 对同一字段复读；入口不额外强制手写 codec 调用 end。每个有值的字段 decoder 允许 codec 选择单值或序列，单值只有恰好一个项时成立；不能为读一个列表额外消耗 HTTP body。嵌套 keyed、嵌套列表和不受支持的 codec 形状属于服务端装配错误，使用独立的 QueryCodecException 并映射 500，不伪装成客户端 400。自定义标量 codec 可复用同一个文本 decoder，例如把一个字符串解析为业务 Identifier。
 
-格式／数值／重复标量等提取失败包含 query 字段名与具体项位置，转换成 HttpRejection；内部仍保留原始 DecodingException 的路径。不把 handler 随后抛出的解码异常或任意业务异常一并归为输入错误。普通 decoder 对未知字段、optional 和 end 的规则在一个边界实现，不重复做一套 DTO 语义校验。
+格式／数值／重复标量等提取失败包含 query 字段名与具体项位置，转换成 HttpRejection；其可选 cause 保留原始 DecodingException 及 JSON Pointer 路径。不把 handler 随后抛出的解码异常或任意业务异常一并归为输入错误。普通 decoder 对未知字段、optional 和 end 的规则在一个边界实现，不重复做一套 DTO 语义校验。实际文本语法、字段访问与复读规则见 [server 规范第 9 节](../specs/SCOOP-HTTP-SERVER-SPEC.md#9-query-dto-与静态提取适配器)。
 
 **静态适配器。**使用函数类型和一个普通泛型函数即可，不为不同参数数量生成一族 Handler 接口：
 

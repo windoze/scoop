@@ -2505,11 +2505,11 @@ public interface SingleValueDecodingContainer {
 
 一个 Decoder 代表稳定的输入值及其 path。取得视图、成功读取、形状或数值错误、缺失字段和候选 codec 失败都不消耗或改变该值；保存的子入口仍可复读。keyed/unkeyed 在形状匹配时取得视图，不匹配时抛错且不阻止后续请求；singleValue 对任何合法值都可取得，实际读取再检查类型。isNull 对 null 返回 true，对其他合法值返回 false，不要求随后 readNull，也不改变后续读取；readNull 则要求值为 null。所有标量读取可重复，失败不污染后续读取。
 
-每次 unkeyed 请求建立从 0 开始的独立游标，同一个视图的引用共享游标。hasNext 只观察；element 成功取得当前子入口后恰好推进一位，耗尽时失败且不推进。子 codec 成败不再次推进父游标；重试同一元素使用保存的 child，重试整个序列重新取得视图。end 检查当前视图是否耗尽；失败不推进，之后仍可继续读取，成功可重复。keyed end 只承担本层必要检查，不关闭输入、不要求未知字段全部读取，成功可重复。复读不回滚 codec、default 或 constructor 已发生的副作用，也不自动选择或重试候选。
+每次 unkeyed 请求建立从 0 开始的独立游标，同一个视图的引用共享游标。hasNext 只观察；element 成功取得当前子入口后恰好推进一位，耗尽时失败且不推进。子 codec 成败不再次推进父游标；重试同一元素使用保存的 child，重试整个序列重新取得视图。end 检查当前视图是否耗尽；失败不推进，之后仍可继续读取，成功可重复。keyed end 只承担本层必要检查，不关闭输入，成功可重复。普通 JSON 后端允许跳过未知字段；具体格式可明确规定未知字段策略，例如 HTTP query 的 Reject／Ignore（见 [HTTP server 规范第 9 节](SCOOP-HTTP-SERVER-SPEC.md#9-query-dto-与静态提取适配器)）。这种字段访问记录不消耗输入或阻止子值复读。复读不回滚 codec、default 或 constructor 已发生的副作用，也不自动选择或重试候选。
 
 path表示输入/输出数据位置，采用从空串根开始的JSON Pointer segment形式：字段名中的`~`、`/`分别转义为`~0`、`~1`，序列使用十进制索引。它是普通String，便于核心codec及合成分支构造带位置的错误，不包含运行期类型描述。核心库的EncodingException/DecodingException是Exception子类，构造参数为`path: String, message: String`，公开只读path；message沿既有Exception的`Option<String>`表示。
 
-`optional(name)` 只在 key 不存在时返回 None；显式 null 仍返回 Some(Decoder)，之后按字段 codec 处理。required/optional 每次定位同一字段值，缺失的 required 在字段 path 报错，不记录已读状态。`keys` 始终列出本层全部输入 key，与读取次数和顺序无关；返回只读视图或独立快照，不允许修改输入或后续查询。keyed 读取不要求输入字段顺序与请求顺序相同；未知 key 可跳过但仍须是合法格式，输入的重复 key 必须失败。tuple 仍通过固定次数的 element 和 end 检查精确长度。
+`optional(name)` 只在 key 不存在时返回 None；显式 null 仍返回 Some(Decoder)，之后按字段 codec 处理。required/optional 每次定位同一字段值，缺失的 required 在字段 path 报错，不改变该值的读取机会；后端的未知字段检查可记录已取得的字段名。`keys` 始终列出本层全部输入 key，与读取次数和顺序无关；枚举不算字段访问，返回只读视图或独立快照，不允许修改输入或后续查询。keyed 读取不要求输入字段顺序与请求顺序相同；可跳过的未知 key 仍须符合所属格式。JSON 输入的重复 key 必须失败；允许重复项的格式可先将同名项分为一个字段值，由该格式定义标量／序列读取规则。tuple 仍通过固定次数的 element 和 end 检查精确长度。
 
 类型相关调用留在合成body及普通泛型helper中：`codec.encode(value, child)`与`codec.decode(child)`；codec分别是满足`ValueEncoder<F>`或`ValueDecoder<F>`的普通值，F是字段的完整静态类型。不要求interface方法级泛型、Any中间树、runtime SerialDescriptor或反射字段访问。JSON、二进制格式等由普通库实现这些interface；合成方法遵守同一容器协议。
 

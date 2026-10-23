@@ -11,9 +11,13 @@ import scoop.test.*
 @Test
 private class HttpServerConsumerTests {
     @Test
-    fun `published server runs a typed JSON route through public APIs`() {
+    fun `published server composes query and JSON extraction through public APIs`() {
         val routes = RouterBuilder()
-        routes.post("/hello/{id}", ::consumerHello)
+        routes.post("/hello/{id}", adapt(suspend { ctx ->
+            val query = queryExtractor<ConsumerQuery>()(ctx)
+            val name = jsonExtractor(String.Companion)(ctx)
+            (name, query)
+        }, ::consumerHello))
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { scope ->
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
@@ -22,7 +26,7 @@ private class HttpServerConsumerTests {
                 val stream = loop.connectTcp(address)
                 AsyncHttp1Connection.takeOwnershipAsClient(stream, scope).useAsync suspend { client ->
                     val request = HttpRequestHead(HttpVersion.Http11, "POST".toByteArray(),
-                        HttpRequestTarget.Http1("/hello/42".toByteArray()), [
+                        HttpRequestTarget.Http1("/hello/42?count=2".toByteArray()), [
                             HttpField("Host".toByteArray(), "localhost".toByteArray()),
                             HttpField("Content-Type".toByteArray(), "application/json".toByteArray())])
                     val bytes = "\"Ada\"".toByteArray()
@@ -41,7 +45,7 @@ private class HttpServerConsumerTests {
                             if (count == 0L) break
                             body.append(String.fromUtf8(buffer.readBytes(count)))
                         }
-                        assertEquals("\"42:Ada\"", body.toString())
+                        assertEquals("\"42:Ada:2\"", body.toString())
                     }
                 }
             }

@@ -9,8 +9,9 @@
 - 已完成阶段 C：H2 明文 prior knowledge／TLS ALPN、每流请求与取消、GOAWAY 排空、全局请求容量、首部／空闲时限和正常终结。
 - 已完成 D1：SseMessage、增量 SseEncoder、借用 SseSink、server SSE 结果与可选心跳；显式 gzip 的组合验证随 D4 完成。
 - 已完成 D2：form-data 单遍提取、严格元数据、part／文本／复制／discard 限制、请求内视图清理及显式文件保存；gzip multipart 组合随 D5 验证。
+- 已完成 D3：扁平 query DTO decoder、显式／companion codec、未知字段策略及静态 query／JSON extractor 适配。
 - 路由级 deadline 覆盖已完成，端点／middleware 可在提交前调用 HttpContext.setDeadline 调整或关闭本次请求总时限。
-- 后续仍需实现 D3～D7。服务端 mTLS／动态 SNI、HTTP/3 不在本次范围内。
+- 后续仍需实现 D4～D7。服务端 mTLS／动态 SNI、HTTP/3 不在本次范围内。
 - 每个功能验证后独立提交；本机采用定向 release Cone 测试，避免重复全量测试。
 - Linux 工作目录为 `nuc12:~/repos/scoop-http-server-work`；最终串行运行一组最小库验证，不跑完整套件或大规模性能测试。
 - 本机辅助工作及原始日志位于 `~/scoop-work/http-server`，所有命令的临时目录显式放在其 scratch 下，不使用系统 `/tmp`。
@@ -40,3 +41,5 @@
 - 已发布包含期限覆盖和 SSE 的 server 开发产物，独立 H2 consumer 1／1 定向 release 验证通过；通过公开 SSE／deadline／Last-Event-ID API 发送并由 SseSource 消费。清理已验证的底层测试目录与 9 个旧可执行缓存目录，保留当前 server／consumer 及编译缓存。
 - Multipart：新增 11／11 定向 release 测试通过，结构化提取 4／4 和 SSE 6／6 回归通过；API 文档检查通过。覆盖逐字节输入、重复附件／空值、原始元数据与严格文本、字符集、单次消费、旧流失效、局部及外层限制、截断、输入与 sink 错误分类；H1 分块／H2 的 32 KiB 以上上传证明外层 EOF 前不发布，reset 与实际文件写入失败均清理暂存文件。测试显式选取 scratch 或当前目录下的临时文件父目录，不使用系统临时目录回退；没有重跑全库或编译器套件。
 - Multipart 请求寿命收尾后复验 11／11、管线 8／8 通过；未消费的 body 也不能在请求结束后创建新视图。已发布 server 开发产物，独立 H2 consumer 1／1 release 验证通过，使用公开 multipart API 完成表单上传。
+- Query／extractor：新增 11／11 定向 release 测试及原结构化提取 4／4 回归通过，API 文档检查通过。覆盖默认值／Option／重复列表、名称解码与字面语义、未知字段和复读、数值精度／范围、输入错误路径及 cause、装配错误分类；提取失败不调用 handler，组合提取不重复消费 body，适配后仍保持 Context 与流式资源寿命。明确通用 Decoder 的格式专属未知字段策略，JSON 行为不变。
+- 已发布 D3 server 开发产物，独立 H1 consumer 1／1 release 测试通过，组合公开 query／JSON extractor 与泛型 adapt。新增生产文件均少于 75 行；清理 4 个已验证的旧可执行缓存，保留当前产物和编译缓存。

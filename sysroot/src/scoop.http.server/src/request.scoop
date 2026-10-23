@@ -37,6 +37,17 @@ public class RequestQuery internal constructor(
     /** The parsed query, preserving duplicate keys and absent versus empty values. */
     public val parameters: UrlQuery
 ) {
+    /** Decodes a flat named record with an explicit codec and unknown-field policy. */
+    public fun <T> decode(codec: ValueDecoder<T>, options: QueryDecodeOptions = QueryDecodeOptions()): T {
+        val record = QueryRecord(groupQuery(parameters), options)
+        try { return codec.decode(QueryDecoder(QueryNode.Record(record), "")) }
+        catch (error: DecodingException) { throw queryRejection(error, record.location(error.path)) }
+    }
+
+    /** Decodes a flat named record using the type's companion codec. */
+    public fun <T> decode(options: QueryDecodeOptions = QueryDecodeOptions()): T
+        where T.Companion : ValueDecoder<T> = decode(T.Companion, options)
+
     /** Returns every matching value in arrival order. */
     public fun getAll(name: String): List<String?> {
         try { return parameters.getAll(name) }

@@ -1,0 +1,56 @@
+package scoop.http.server
+
+import scoop.test.*
+
+private struct QueryNestedChild(val n: Int) {
+    public companion object : ValueDecoder<QueryNestedChild>
+}
+
+private struct QueryNestedRecord(val child: QueryNestedChild) {
+    public companion object : ValueDecoder<QueryNestedRecord>
+}
+
+@Test
+private class ServerQueryFailureTests {
+    @Test
+    fun `unsupported codec shapes are server errors instead of input rejections`() {
+        val errors = ArrayList<Throwable>()
+        val routes = RouterBuilder()
+        routes.get("/scalar", adapt(queryExtractor(Int.Companion), suspend { _, _ -> empty() }))
+        routes.get("/sequence", adapt(queryExtractor(Array<Int>.Companion.decoder(Int.Companion)), suspend { _, _ -> empty() }))
+        routes.get("/nested", adapt(queryExtractor<QueryNestedRecord>(), suspend { _, _ -> empty() }))
+        routes.get("/lists", adapt(queryExtractor(queryFieldCodec("v", Array<Array<Int>>.Companion.decoder(Array<Int>.Companion.decoder(Int.Companion)))),
+            suspend { _, _ -> empty() }))
+        routes.get("/null", adapt(queryExtractor(queryFieldCodec("v", UnitDecoder)), suspend { _, _ -> empty() }))
+        val app = routes.build(HttpApplicationOptions(onError = Some({ _, error -> errors.add(error) })))
+        val cases = [("/scalar?v=1", ""), ("/sequence?v=1", ""), ("/nested?child=x", "/child"),
+            ("/lists?v=1", "/v/0"), ("/null?v=null", "/v")]
+        for (item in cases) {
+            assertEquals(500U, exercise(app, item._1).status)
+            val error = errors[errors.size - 1L]
+            assertTrue(error is QueryCodecException)
+            assertEquals(item._2, (error as QueryCodecException).path)
+        }
+    }
+
+    @Test
+    fun `query input preserves its decoding cause while business and ordinary codec failures propagate`() {
+        val failure = DecodingException("/v", "invalid business identifier")
+        val codec = ValueDecoderFunction<String> { decoder ->
+            decoder.keyed().required("v")
+            throw failure
+        }
+        try { queryInput("v=input").decode(codec); throw IllegalStateException(Some("expected a rejection")) }
+        catch (error: HttpRejection) { assertSame(failure, error.cause!!); assertEquals(400U, error.result.status) }
+        val errors = ArrayList<Throwable>()
+        val routes = RouterBuilder()
+        routes.get("/business", adapt(queryExtractor(queryFieldCodec("v", String.Companion)), suspend { _, _ -> throw failure }))
+        val broken = IllegalStateException(Some("codec configuration failed"))
+        routes.get("/codec", adapt(queryExtractor(ValueDecoderFunction<Int> { _ -> throw broken }), suspend { _, _ -> empty() }))
+        val app = routes.build(HttpApplicationOptions(onError = Some({ _, error -> errors.add(error) })))
+        assertEquals(500U, exercise(app, "/business?v=ok").status)
+        assertSame(failure, errors[0L])
+        assertEquals(500U, exercise(app, "/codec").status)
+        assertSame(broken, errors[1L])
+    }
+}

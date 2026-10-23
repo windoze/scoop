@@ -1,0 +1,57 @@
+package scoop.http.server
+
+import scoop.text.*
+
+internal enum QueryNode { Record(QueryRecord), Field(QueryField), Item(QueryItem) }
+
+internal class QueryDecoder(private val node: QueryNode, public override val path: String)
+    : Decoder, SingleValueDecodingContainer {
+    public override fun keyed(): KeyedDecodingContainer = when (node) {
+        case QueryNode.Record(record) -> record
+        else -> throw QueryCodecException(path, "nested query records are not supported")
+    }
+
+    public override fun unkeyed(): UnkeyedDecodingContainer = when (node) {
+        case QueryNode.Field(field) -> QuerySequence(field)
+        else -> throw QueryCodecException(path, "only a query field can be a sequence")
+    }
+
+    public override fun singleValue(): SingleValueDecodingContainer = this
+    public override fun isNull(): Boolean = false
+    public override fun readNull() { throw QueryCodecException(path, "query has no null representation") }
+
+    public override fun readString(): String = when (node) {
+        case QueryNode.Field(field) -> {
+            if (field.items.size != 1L) throw DecodingException(path, "duplicate scalar query field")
+            field.items[0L].text(path)
+        }
+        case QueryNode.Item(item) -> item.text(path)
+        case QueryNode.Record(_) -> throw QueryCodecException(path, "query root must be a named record")
+    }
+
+    public override fun readBoolean(): Boolean = when (readString()) {
+        case "true" -> true
+        case "false" -> false
+        else -> throw DecodingException(path, "expected true or false")
+    }
+
+    public override fun readLong(): Long = readString().toLongOrNone()
+        ?: throw DecodingException(path, "expected an in-range signed decimal integer")
+
+    public override fun readULong(): ULong = readString().toULongOrNone()
+        ?: throw DecodingException(path, "expected an in-range unsigned decimal integer")
+
+    public override fun readFloat(): Float {
+        val value = readString().toFloatOrNone()
+            ?: throw DecodingException(path, "expected an in-range decimal Float")
+        if (!value.isFinite()) throw DecodingException(path, "expected a finite Float")
+        return value
+    }
+
+    public override fun readDouble(): Double {
+        val value = readString().toDoubleOrNone()
+            ?: throw DecodingException(path, "expected an in-range decimal Double")
+        if (!value.isFinite()) throw DecodingException(path, "expected a finite Double")
+        return value
+    }
+}

@@ -58,11 +58,12 @@ internal class Exchange(val context: HttpContext, val output: TestOutput, val fa
 }
 
 internal fun exercise(application: HttpApplication, path: String = "/", method: String = "GET",
-    input: Array<Byte> = [], output: TestOutput = TestOutput(), fields: List<HttpField> = ArrayList<HttpField>()): Exchange {
+    input: Array<Byte> = [], output: TestOutput = TestOutput(), fields: List<HttpField> = ArrayList<HttpField>(),
+    bufferedBodyLimit: Long = 2097152L): Exchange {
     val loop: EventLoop = LibuvEventLoop()
     return loop.runWithResult<Exchange> suspend { _ ->
         val head = HttpRequestHead(HttpVersion.Http11, method.toByteArray(), HttpRequestTarget.Http1(path.toByteArray()), fields)
-        val request = HttpRequest(head, HttpRequestBody(TestSource(input), fields = head.fields))
+        val request = HttpRequest(head, HttpRequestBody(TestSource(input), fields = head.fields, bufferedBodyLimit = bufferedBodyLimit))
         val address = SocketAddress(IpAddress.IPV4_LOOPBACK, 0)
         val info = HttpConnectionInfo(address, address, HttpProtocol.Http1)
         val result = RequestExecution()
