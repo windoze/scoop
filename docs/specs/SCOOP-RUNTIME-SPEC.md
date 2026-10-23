@@ -20,9 +20,9 @@ M42 的平台无关标准基础库按 [标准基础库规范](SCOOP-STDLIB-SPEC.
 
 managed reference 是对象起点的直接指针；对象可能移动。对象头固定为 16 bytes，依次包含 TypeDescriptor 指针与 GC 状态字，各占 8 bytes。null 仅用于允许空状态的内部存储，不能作为普通非空 Scoop 引用。
 
-普通 interface value 是 `{ object: managed pointer, itab: metadata pointer }`，size 16、alignment 8，offset 分别为 0、8；itab 为对象实际 TD 对应静态 exact interface 的 `ScoopItableEntryV1.slots`。class、Any、String、Array 和普通函数值仍为单字引用。空接口的合法 slot table 可以为 null，引用有效性只由 object 决定。身份比较、pin 和 handle 只使用 object；值转接口仍按既有语义装箱。
+普通 interface value 是 `{ object: managed pointer, itab: metadata pointer }`，size 16、alignment 8，offset 分别为 0、8；itab 指向对象实际类型对静态 exact interface 的完整 slots 视图。TD 目录的 `ScoopItableEntryV1.slots` 保存一个规范片段；从其他菱形路径投影得到的等价片段可以具有不同地址，但具有相同槽序、最终实现和调用 ABI，不能以 itab 地址判断接口值身份。class、Any、String、Array 和普通函数值仍为单字引用。空接口的合法 slot table 可以为 null，引用有效性只由 object 决定。身份比较、pin 和 handle 只使用 object；值转接口仍按既有语义装箱。
 
-转换在建立接口视图时取得目标 exact interface 的表，已知实际类型时可直接引用静态表；相同 exact interface 的复制保留两个分量。接口调用直接读取已有 itab 的 slot，隐藏 receiver 只传 object，其余参数／结果遵守完整 Scoop ABI。default、boxed value 和变型入口按实际 typed adapter 适配；普通 class 实现不为相同签名额外增加转发调用。
+转换在建立接口视图时取得目标 exact interface 的表。每个具体实现类型的子接口表完整内嵌同一类型的父接口表；单继承为完整前缀，多继承按声明序具有固定偏移，菱形保留父表完整片段。Child → 静态已知 Parent 直接复用或调整 itab，不扫描对象 TD 目录；TD 的父接口目录项复用内嵌片段。其物理槽及只读表符号遵循实现规范 2.9、所有构建 profile 使用同一 ABI。已知实际类型时可直接引用静态表；相同 exact interface 的复制保留两个分量。接口调用直接读取已有 itab 的 slot，隐藏 receiver 只传 object，其余参数／结果遵守完整 Scoop ABI。default、boxed value 和变型入口按实际 typed adapter 适配；普通 class 实现不为相同签名额外增加转发调用。
 
 GC 状态字的 pin bit 为 `UINT64_C(2)`（bit 1），release-ready bit 为 `UINT64_C(4)`（bit 2）；操作这些位时必须保留其他位。
 

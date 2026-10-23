@@ -268,6 +268,8 @@ pub struct InterfaceDef {
 
 #[derive(Debug, Clone)]
 pub struct InterfaceMethod {
+    /// Original declaration identity; names and erased signatures are not slots.
+    pub identity: scoop_identity::PersistentDispatchSlotId,
     pub name: String,
     pub gc_effect: GcEffect,
     pub parameters: Vec<Type>,

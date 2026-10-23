@@ -8,6 +8,7 @@ mod dispatch;
 mod flow;
 mod graph;
 mod inline;
+mod interface_views;
 mod intrinsics;
 mod poll_chunks;
 mod simplify;
@@ -18,6 +19,7 @@ pub struct MirOptimizationOptions {
     pub devirtualize: bool,
     pub inline: bool,
     pub allocation_elision: bool,
+    pub interface_views: bool,
     pub coroutine_elision: bool,
     pub poll_chunking: bool,
 }
@@ -27,6 +29,7 @@ impl MirOptimizationOptions {
         devirtualize: true,
         inline: true,
         allocation_elision: true,
+        interface_views: true,
         coroutine_elision: true,
         poll_chunking: true,
     };
@@ -101,6 +104,7 @@ fn run_with_intrinsics(
     if !options.devirtualize
         && !options.inline
         && !options.allocation_elision
+        && !options.interface_views
         && !options.poll_chunking
     {
         module.meta.local_values = registry.finish();
@@ -144,6 +148,14 @@ fn run_with_intrinsics(
                 &mut registry,
             )) {
                 *changed |= normalized;
+            }
+        }
+        if options.interface_views {
+            for (changed, reused) in changed
+                .iter_mut()
+                .zip(interface_views::run(module, &active))
+            {
+                *changed |= reused;
             }
         }
         if !changed.iter().any(|changed| *changed) {

@@ -357,7 +357,8 @@ pub enum Instruction {
     /// Pointer displacement by `element_offset * element_size`.  The offset
     /// remains either a source pointer index or the compiler-owned
     /// `PointerElementOffset` domain; the layout stride is a dedicated field
-    /// and never becomes a source integer value.
+    /// and never becomes a source integer value. Raw and metadata pointers
+    /// preserve their pointer kind; managed interior pointers are excluded.
     PtrOffset {
         out: TempId,
         pointer: Value,

@@ -9,6 +9,7 @@ mod data_borrow;
 mod expression;
 mod expression_support;
 mod floating;
+mod interface_tables;
 mod interfaces;
 mod maybe_uninit;
 mod objects;
@@ -102,6 +103,7 @@ fn integer_shift_op(operation: mir::IntegerShiftOperation) -> lir::IntegerShiftO
 #[allow(clippy::too_many_arguments)]
 pub(super) fn lower_function<'a>(
     context: &'a LoweringContext,
+    optimization: lir::OptimizationMode,
     producer: scoop_identity::ConeIdentity,
     module: &'a mir::Module,
     callable_body: lir::CallableBodyIdentity,
@@ -205,6 +207,7 @@ pub(super) fn lower_function<'a>(
         module,
         mir_locals: &function.body.locals,
         known_receiver: known_receiver_class.map(|class| (function.params[0].local, class)),
+        interface_tables: interface_tables::TableCache::new(optimization, address_taken.clone()),
         global_map,
         storage_globals,
         globals,
@@ -307,6 +310,7 @@ struct FunctionLowerer<'a> {
     mir_locals: &'a Arena<mir::Local>,
     /// An itable adapter belongs to one concrete receiver class.
     known_receiver: Option<(mir::LocalId, mir::ClassId)>,
+    interface_tables: interface_tables::TableCache,
     global_map: &'a HashMap<mir::StringConstId, lir::GlobalId>,
     storage_globals: &'a HashMap<mir::GlobalId, StorageGlobal>,
     /// Sink for ordinary globals such as trap-message C strings.
@@ -386,6 +390,7 @@ impl<'a> FunctionLowerer<'a> {
     fn enter(&mut self, block: lir::BlockId) {
         self.current = block;
         self.current_sealed = false;
+        self.interface_tables.clear();
     }
 
     fn push(&mut self, instruction: lir::Instruction) {

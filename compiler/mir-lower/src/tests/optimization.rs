@@ -4,6 +4,7 @@ mod boxing;
 mod closures;
 mod cold;
 mod copies;
+mod interface_views;
 mod intrinsics;
 mod iterations;
 mod poll_chunks;

@@ -1,0 +1,106 @@
+interface Parent { fun first(): Int; fun second(): Int }
+interface Child : Parent { fun own(): Int }
+interface Empty {}
+open class Base(val value: Int) : Child, Empty {
+    public override fun first(): Int = value
+    public override fun second(): Int = value + 1
+    public override fun own(): Int = value + 2
+}
+class Derived(value: Int) : Base(value) {
+    public override fun second(): Int = value + 10
+}
+struct Boxed(val value: Int) : Parent {
+    public override fun first(): Int = value
+    public override fun second(): Int = value + 1
+}
+class Holder(var value: Child)
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun parent(value: Parent): Int = value.first() + value.second()
+fun child(value: Child): Int = value.first() + value.second() + value.own()
+fun smartParent(value: Any): Int {
+    if (value is Parent) return value.first() + value.second()
+    return -1
+}
+fun smartChild(value: Any): Int {
+    if (value is Child) return value.first() + value.second() + value.own()
+    return -1
+}
+fun smartOpen(value: Any): Int {
+    if (value is Base) return value.first() + value.second()
+    return -1
+}
+fun smartFinal(value: Any): Int {
+    if (value is Derived) return value.first() + value.second()
+    return -1
+}
+
+fun changedLocal(first: Child, second: Child): Int {
+    var current = first
+    val old = current
+    val before = current.first() + current.second()
+    current = second
+    return before + old.first() + old.second() + current.first() + current.second()
+}
+fun changedView(first: Child, second: Child): Int {
+    var view: Parent = first
+    val old = view.first() + view.second()
+    view = second
+    return old + first.first() + first.second() + view.first() + view.second()
+}
+fun changedField(holder: Holder, second: Child): Int {
+    val old = holder.value.first()
+    holder.value = second
+    return old + holder.value.second()
+}
+fun changedLoop(first: Child, second: Child): Int {
+    var current = first
+    var total = 0
+    var index = 0
+    while (index < 4) {
+        total += current.first() + current.second()
+        current = second
+        index += 1
+    }
+    return total
+}
+fun fail(early: Boolean) { if (early) throw IllegalStateException() }
+fun exception(first: Child, second: Child, early: Boolean): Int {
+    var current = first
+    try {
+        val old = current.first() + current.second()
+        fail(early)
+        current = second
+        fail(old > 0)
+    } catch (error: IllegalStateException) {
+        return current.first() + current.second()
+    }
+    return -1
+}
+fun empty(value: Any): Boolean {
+    if (value is Empty) {
+        val saved: Empty = value
+        val erased: Any = saved
+        return erased === value && erased is Empty
+    }
+    return false
+}
+
+fun main() {
+    val first = Base(3)
+    val second = Derived(7)
+    check(parent(first) == 7 && child(first) == 12)
+    check(parent(second) == 24 && child(second) == 33)
+    check(smartParent(first) == 7 && smartParent(second) == 24)
+    check(smartChild(first) == 12 && smartChild(second) == 33)
+    check(smartOpen(second) == 24 && smartFinal(second) == 24)
+    check(smartParent(Boxed(4)) == 9 && smartChild(Boxed(4)) == -1)
+    check(smartParent("absent") == -1 && smartChild("absent") == -1)
+    check(changedLocal(first, second) == 38)
+    check(changedView(first, second) == 38)
+    check(changedField(Holder(first), second) == 20)
+    check(changedLoop(first, second) == 79)
+    check(exception(first, second, true) == 7 && exception(first, second, false) == 24)
+    check(empty(first) && empty(second) && !empty("absent"))
+    println("interface views preserve receivers and control flow")
+}

@@ -1282,6 +1282,8 @@ inner 可以使用直接外层 class 的类型参数与实例成员；它自己�
 
 #### 9.1.4 Interface default implementation
 
+接口继承保持同一实际对象对各 exact 父接口的实现语义：经不同菱形路径取得同一父接口视图，方法调用结果、override/default 选择及调用 ABI 一致。完整泛型 application 分别保留身份和契约；派发表片段共享不改变身份、装箱或访问规则。物理父表投影见实现规范 2.9 与运行时规范 2.1。
+
 - interface function有body时提供default，无body时形成abstract obligation；property按getter/setter slot分别判断。private interface member必须有body且只作词法helper，不进入itable、继承或override；
 - 对每个typed slot先选择class hierarchy中最近的实际方法声明；具体声明成为实现，抽象声明保留该声明的义务并压制接口default。没有class声明时，删除被更specific subinterface覆写的interface候选，唯一剩余default获胜，只剩abstract即保留实际抽象声明，多个互不相关default则必须显式override。getter/setter独立选target，但property整体仍满足9.1.1的type/mutability规则；
 - concrete class/object/value type不能留下abstract obligation；abstract class可以保留。itable entry显式指向class/value implementation、interface default或typed adjust thunk，不能按implements列表顺序选择；

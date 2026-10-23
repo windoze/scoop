@@ -29,6 +29,7 @@ impl CanonicalExactDispatchExportsV1 {
                 return Err(ExactDispatchTableError::Duplicate(pair[0].table()));
             }
         }
+        validate_layouts(&records)?;
         let expected = foundation.dispatch_tables();
         for record in &records {
             expected
@@ -90,4 +91,49 @@ impl CanonicalExactDispatchExportsV1 {
             .ok()
             .map(|index| &self.0.records[index])
     }
+}
+
+pub(super) fn validate_layouts(
+    records: &[ExactDispatchExportV1],
+) -> Result<(), ExactDispatchTableError> {
+    let find = |id| {
+        records
+            .binary_search_by_key(&id, ExactDispatchExportV1::table)
+            .ok()
+            .map(|index| &records[index])
+    };
+    for table in records {
+        let invalid = || ExactDispatchTableError::Layout(table.table());
+        let layout = table.layout();
+        let storage = find(layout.storage()).ok_or_else(invalid)?;
+        if storage.owner_exact() != table.owner_exact()
+            || storage.layout().storage() != storage.table()
+            || storage.layout().offset() != 0
+        {
+            return Err(invalid());
+        }
+        let start = layout.offset() as usize;
+        let end = start
+            .checked_add(layout.slots().len())
+            .ok_or_else(invalid)?;
+        if storage.layout().slots().get(start..end) != Some(layout.slots()) {
+            return Err(invalid());
+        }
+        if matches!(table.role(), ExactDispatchRoleV1::Vtable)
+            && layout != &crate::DispatchTableLayout::flat(table.table(), table.entries().len())
+        {
+            return Err(invalid());
+        }
+        for source in layout.slots() {
+            let origin = find(source.table).ok_or_else(invalid)?;
+            if origin.owner_exact() != table.owner_exact()
+                || origin.entries().get(source.method as usize).is_none()
+                || matches!(origin.role(), ExactDispatchRoleV1::Vtable)
+                    != matches!(table.role(), ExactDispatchRoleV1::Vtable)
+            {
+                return Err(invalid());
+            }
+        }
+    }
+    Ok(())
 }

@@ -36,22 +36,25 @@ pub(crate) fn apply_visibility(value: GlobalValue<'_>) {
 
 fn definition_owner(value: GlobalValue<'_>) -> Result<GlobalValue<'_>, CodegenError> {
     let mut raw = value.as_value_ref();
-    // These aliases are emitted by atom_boundaries: a direct owner or its end
-    // GEP. Preserve that exact relation when assigning the ELF section group.
+    // Boundaries may refer to a parent-table alias, which in turn projects a
+    // complete array. All of those views belong to the array's ELF section.
     unsafe {
-        if !LLVMIsAGlobalAlias(raw).is_null() {
-            raw = LLVMAliasGetAliasee(raw);
-        }
-        if !LLVMIsAConstantExpr(raw).is_null() {
-            match LLVMGetConstOpcode(raw) {
-                llvm_sys::LLVMOpcode::LLVMGetElementPtr | llvm_sys::LLVMOpcode::LLVMBitCast => {
-                    raw = LLVMGetOperand(raw, 0)
+        loop {
+            if !LLVMIsAGlobalAlias(raw).is_null() {
+                raw = LLVMAliasGetAliasee(raw);
+            } else if !LLVMIsAConstantExpr(raw).is_null() {
+                match LLVMGetConstOpcode(raw) {
+                    llvm_sys::LLVMOpcode::LLVMGetElementPtr | llvm_sys::LLVMOpcode::LLVMBitCast => {
+                        raw = LLVMGetOperand(raw, 0)
+                    }
+                    _ => {
+                        return Err(CodegenError(
+                            "ELF atom alias is not a direct owner/extent".into(),
+                        ));
+                    }
                 }
-                _ => {
-                    return Err(CodegenError(
-                        "ELF atom alias is not a direct owner/extent".into(),
-                    ));
-                }
+            } else {
+                break;
             }
         }
         if LLVMIsAGlobalObject(raw).is_null() {

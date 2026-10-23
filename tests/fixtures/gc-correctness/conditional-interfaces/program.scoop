@@ -1,5 +1,6 @@
 interface Text { public fun text(): String }
 interface Detailed : Text { public fun number(): Int }
+class DetailedHolder(var value: Detailed)
 class Node(val text: String, val next: Node?)
 
 struct Payload<T>(val node: Node, val value: T) {
@@ -48,10 +49,28 @@ suspend fun deferred(value: Detailed, gate: Gate): String {
 fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
 fun <T> erase(value: T): Any = value
 
+fun repeatedParentAcrossGc(holder: DetailedHolder): Int {
+    val value = holder.value
+    val first = value.text()
+    gcCollect()
+    check(value.text() == first)
+    return value.number()
+}
+
+fun repeatedSmartAcrossGc(value: Any): String {
+    if (value is Detailed) {
+        val first = value.text()
+        gcCollect()
+        return first + value.text()
+    }
+    throw IllegalStateException()
+}
+
 fun main() {
     val value = Payload(Node("moving ", Some(Node("payload", None))), 7)
     val boxed: Any = erase(value)
     val detailed: Detailed = boxed as Detailed
+    val holder = DetailedHolder(detailed)
     val text: Text = detailed
     val read = detailed::text
     val child: Base<Int> = Child(Node("class payload", None), 11)
@@ -63,6 +82,8 @@ fun main() {
     val done = Done()
     startCoroutine(suspend { deferred(detailed, gate) }, done)
     check(done.count == 0)
+    check(repeatedParentAcrossGc(holder) == 31)
+    check(repeatedSmartAcrossGc(holder.value) == "moving payloadmoving payload")
 
     gcCollect()
     check(boxed is Text && boxed is Detailed)

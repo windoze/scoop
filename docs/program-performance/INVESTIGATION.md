@@ -98,7 +98,7 @@ Java 稳态峰值需要充分预热后比较；启动和短命命令行程序则
 | 并发／增量 major、并发搬迁 | 尚未实现 | 并发 major 纳入主线；并发搬迁为更深层的独立设计 |
 | arena／region 扩容与归还 | M34 已交付 | 不重复排期；继续优化 metadata、稀疏图和归还成本 |
 | 24／32-byte HFA | 小值目标分类已有，Scoop 前置条件受限 | 在真实不可内联调用上重新评估，包含内部 ABI 和含引用聚合值 |
-| 父接口表缓存／String hash 缓存 | M62 控制实验未采用 | 父接口先消除重复转换与查表，见 §5.2.1，再评估改表布局；缓存方案按真实复用分布决策，不将一次负结果视为永久排除 |
+| 父接口表缓存／String hash 缓存 | M62 控制实验未采用 | 当前父接口优化采用完整父表内嵌及直接投影，并消除动态路径的重复查表，见 §5.2.1；其他缓存方案按真实复用分布决策，不将一次负结果视为永久排除 |
 | nursery 放大／HashMap 起点改掩码 | M62 未采用 | nursery 转向寿命策略；HashMap 转向探测算法、布局和检查消除 |
 | jump-threading 等额外 LLVM pass | M58 样本未形成稳定收益 | 在新的 Managed 根计划及真实负载上重评，不直接全局开启 |
 | 源码调试信息 | 仍不完整 | 补足采样和内联归因所需的信息；不是生成程序提速本身 |
@@ -128,6 +128,8 @@ Java 稳态峰值需要充分预热后比较；启动和短命命令行程序则
 
 ### 5.2.1 接口视图复用与 smart cast 成功路径
 
+本节数字是修改前的调研基线。当前实施已纳入完整父表内嵌及直接投影，设计、产物合同和验证见 [接口父表直接投影](INTERFACE-PROJECTION.md)；下面的历史查找次数不代表新实现。
+
 当前接口值保存 `{ object, itab }`。同一 exact interface 的复制保留这两个分量，调用直接读取已有 itab 的方法 slot。需要从 Child 取得 Parent 视图、且不知道具体 class 时，lowering 从 object 重新读取 TD，再调用 `scoop_rt_itable_lookup` 线性扫描该实际类型的 itable 目录；不是沿父接口链逐层寻找。该 helper 不缓存结果，现有 Child 视图也不保存其他接口的表。将转换后的 Parent 视图存入局部值后，其 itab 能正常复用；已知具体 class 的部分转换使用静态目录索引，无需线性扫描。
 
 smart cast 已有正确的路径类型收窄：命中分支中的引用读取变成 typed view／Retype，值类型读取使用必要的 Unbox，不为每次普通成员读取重复生成同一个 `is`。但是 `scoop_rt_is_instance` 只返回 Boolean，不返回已找到的接口表；目标为 interface 时，后续读取仍可能重新构造接口视图。每次读取产生的临时 receiver 目前也没有统一复用同一对象、同一目标接口的转换结果。
@@ -145,12 +147,12 @@ smart cast 已有正确的路径类型收窄：命中分支中的引用读取变
 
 同一探针中，`is Concrete` 收窄到 final class 后，两个方法被现有内联优化消除，成功分支化简为常量结果；`is Base` 收窄到 open class 后仍保留两个虚调用，派生类覆写生效。后者只知道 Base 的子类型约束，不能据此直接调用 Base 实现。因此现状是已有类型收窄与已知具体类型的优化，但缺少接口视图复用及类型检查结果与取表的联合优化，不能概括为“smart cast 分支完全没优化”。
 
-建议先做不依赖 PGO 的局部静态优化，再根据剩余热点评估表布局：
+当前不依赖 PGO 的实施顺序已调整为：
 
-1. 复用同一对象值、同一目标接口的转换结果；折叠仅用于再次转换的中间接口视图，避免 `Any → Child → Parent` 先查用不到的 Child 表。依据实际值与支配关系复用，不能跨可变 binding 的赋值误用旧结果。
+1. 已知 Child → Parent 通过完整内嵌父表直接投影，第一次转换就免查目录；继承调用直接使用 Child 表中的对应物理槽。动态路径按同一对象值、同一 exact interface 复用静态 itab，保留有用的 Child 视图和当前 managed 引用，不跨可变 binding 的赋值使用旧结果。
 2. 将接口类型检查与成功路径的视图建立结合，使命中时已经找到的表进入普通 typed 值并供后续使用；只执行 `is`、没有取表需求的路径保持合理成本。空接口的合法 slots 可以为 null，不能简单以 slots 非空代替“匹配成功”。涉及新 runtime 入口或返回形状时先修订相应合同。
 3. 继续利用 final class、确定的分配来源或已证明唯一的调用目标去虚化和内联；仅收窄到 interface／open class 时保留必要动态分派。
-4. 对上述消除后仍频繁发生的跨接口转换，再比较父表直接链接、查找目录改进或调用点缓存的收益与体积、常态成本。M62 未采用改表布局，不妨碍先完成这些重复工作消除。
+4. 测量完整内嵌的静态表、机器码和编译成本；确有明显膨胀时评估固定父表指针共享。对于仍需动态查找的非父接口转换，再评估目录和调用点缓存。M62 的历史实验不排除本轮布局优化。
 
 主要证据：[runtime 类型检查与查表](../../runtime/src/rt.c)、[接口视图构造与已知 class 快路](../../compiler/lir-lower/src/function/interfaces.rs)、[已有 itab 的方法分派](../../compiler/lir-lower/src/function/call/dispatch.rs)、[smart cast 读取](../../compiler/hir-lower/src/expr/smart_casts/reads.rs)、[MIR 已知类型读取](../../compiler/mir-lower/src/body/known_reads.rs)、[已知具体类型传播](../../compiler/mir-lower/src/optimization/flow.rs)。源码、原始 stage dump 与机器码留在仓库外，文档只记录检查范围和结论。
 
@@ -400,7 +402,7 @@ JIT 应保留为可研究的技术分支，而不是达到本目标的必选前�
 | 阶段 | 可交付内容 | 主要依赖 | 首要验收 |
 | --- | --- | --- | --- |
 | A：测量与归因基础 | 先交付可复现对照、CPU 归因、已有分配／GC 指标和相关优化诊断；逐步扩展跨语言基准 | 现有程序、benchmark 与成熟工具；无 PGO 依赖 | 找出并解释真实瓶颈，验证通用优化在普通 release 构建中的收益 |
-| B1：抽象消除 | 接口视图复用与 smart cast 成功路径、成员／构造器／EH 内联、class／iterator 标量替换、相应跨 Cone 正文 | 现有 typed 读取与 MIR 优化 | 重复接口查表消除；for／forEach、use、codec 等接近手写循环；对象分配与效果一致 |
+| B1：抽象消除 | 完整父表投影、接口视图复用与 smart cast 成功路径、成员／构造器／EH 内联、class／iterator 标量替换、相应跨 Cone 正文 | 现有 typed 读取与 MIR 优化 | 已知父接口首次查表及动态重复查表消除；for／forEach、use、codec 等接近手写循环；对象分配与效果一致 |
 | B2：数组内核 | BCE、别名／范围信息、有界托管内存循环、严格 SIMD | 现有 poll 分块；B1 暴露访问更有利 | 普通 Managed 数组接近相同算法 C／对手；跨块 GC 正确 |
 | B3：低成本 runtime／库 | 固定分配、屏障合并、metadata 精简；HashMap／String／bulk copy | 已定位热点 | CPU 与 RSS 双向收益、短帧尾延迟无显著退化 |
 | C1：跨过程与 PEA | 效果／逃逸摘要、containment、冷路径物化、调用点特化 | B1；CFG／EH 完整性 | 未内联 helper 和稀有逃逸不再迫使热路径分配 |

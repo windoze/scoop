@@ -77,8 +77,43 @@ impl FunctionLowerer<'_> {
             }
             _ => None,
         };
-        let table = self.interface_table(object, interface, known_class)?;
+        let projection = match operand.ty {
+            mir::Type::Interface(child) => self
+                .type_descriptors
+                .interface_layouts
+                .projection(child, interface),
+            _ => None,
+        };
+        let table = if self.module.interfaces[interface].methods.is_empty() {
+            lir::Value::NullPointer(lir::PointerKind::Metadata)
+        } else if let Some(offset) = projection {
+            let table = self.interface_component(value, 1);
+            self.project_interface_table(table, offset)
+        } else if let Some(table) = self.interface_tables.get(operand, interface) {
+            table
+        } else {
+            let table = self.interface_table(object, interface, known_class)?;
+            self.interface_tables.insert(operand, interface, table);
+            table
+        };
         Ok(self.make_aggregate(ty, vec![object, table]))
+    }
+
+    pub(super) fn project_interface_table(&mut self, table: lir::Value, offset: u32) -> lir::Value {
+        if offset == 0 {
+            return table;
+        }
+        let out = self.new_temp(lir::METADATA_PTR);
+        self.push(lir::Instruction::PtrOffset {
+            out,
+            pointer: table,
+            element_offset: lir::Value::MachineScalar(
+                lir::MachineScalarValue::PointerElementOffset(u64::from(offset)),
+            ),
+            element_size: std::num::NonZeroU64::new(8).unwrap(),
+            subtract: false,
+        });
+        lir::Value::Temp(out)
     }
 
     pub(super) fn interface_table(

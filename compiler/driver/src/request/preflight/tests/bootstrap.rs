@@ -313,6 +313,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let diagnostics =
         scoop_identity::ExactTypeDiagnosticCatalog::try_new(&identities, &coordinates).unwrap();
     let (real_lir, _) = machine::lower_selected_lir(
+        scoop_lir::OptimizationMode::Debug,
         &real_mir.strong,
         &real_mir.public,
         &scoop_lir::SelectedExternalLirSet::empty(scoop_identity::ConeIdentity::CORE),

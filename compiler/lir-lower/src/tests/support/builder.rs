@@ -215,6 +215,7 @@ impl Builder {
         let methods = methods
             .iter()
             .map(|method| mir::InterfaceMethod {
+                identity: test_interface_slot(name, method),
                 gc_effect: mir::GcEffect::Managed,
                 name: format!("{name}.{method}"),
                 parameters: Vec::new(),

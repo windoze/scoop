@@ -41,10 +41,10 @@ fn mir_foundation_v8_preserves_annotation_description_owners() {
 }
 
 #[test]
-fn lir_layout_abi_v16_preserves_inline_storage() {
+fn lir_layout_abi_v17_preserves_interface_table_projections() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        16,
+        17,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

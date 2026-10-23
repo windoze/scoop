@@ -1,4 +1,5 @@
 use super::*;
+mod interface_tables;
 use crate::shape_definitions::{
     EmittedStrongShapeDefinitionsV1, descriptor_definition, descriptor_diagnostic_atom,
     descriptor_itable_directory_atom, emit_dispatch_definition_v1,
@@ -135,25 +136,10 @@ fn emit_type_descriptor<'ctx>(
         (ptr.const_null().into(), 0)
     } else {
         let mut entries = Vec::with_capacity(descriptor.itables.len());
-        for record in &descriptor.itables {
+        let pointers = interface_tables::emit(emission, descriptor, shapes)?;
+        for (record, slots) in descriptor.itables.iter().zip(pointers) {
             let interface =
                 type_descriptor_global(record.interface(), type_globals)?.as_pointer_value();
-            let values = dispatch_values(
-                llvm,
-                record.slots(),
-                &module.functions,
-                &module.meta.external_callables,
-            )?;
-            let slots = emit_dispatch_definition_v1(
-                context,
-                llvm,
-                emission.surface,
-                record.identity_record().id(),
-                &values,
-                shapes,
-            )?
-            .runtime_pointer()
-            .unwrap_or_else(|| ptr.const_null());
             entries.push(context.const_struct(&[interface.into(), slots.into()], false));
         }
         let array = entry_ty.const_array(&entries);

@@ -96,7 +96,7 @@ fn build_descriptor_v2(
         itables.push(StrongTypeItableSemanticPlanV2::from_artifact(
             table,
             interface,
-            slots(module, exact_type, itable.slots())?,
+            slots(module, exact_type, itable.physical_slots())?,
         ));
     }
 

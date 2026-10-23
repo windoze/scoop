@@ -79,6 +79,7 @@ pub(super) fn lower(
     let diagnostics =
         scoop_identity::ExactTypeDiagnosticCatalog::try_new(&identities, &coordinates).unwrap();
     let (lir, _) = machine::lower_selected_lir(
+        scoop_lir::OptimizationMode::Debug,
         &mir.strong,
         &mir.public,
         &selected,

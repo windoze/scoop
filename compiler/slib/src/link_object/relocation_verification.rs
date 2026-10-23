@@ -248,36 +248,42 @@ pub fn verify_member_object_relocations_v1(
         let site_end = site_start
             .checked_add(u64::from(width_bytes))
             .ok_or(ObjectRelocationValidationError::RelocationSiteOverflow)?;
-        let containing_atom = definitions
+        let containing_atoms = definitions
             .definitions()
             .iter()
             .flat_map(|definition| definition.atoms())
-            .find(|atom| {
+            .filter(|atom| {
                 atom.section_ordinal() == section_ordinal
                     && atom.start() <= site_start
                     && site_end <= atom.end()
             })
-            .copied()
-            .ok_or(ObjectRelocationValidationError::OrphanRelocation {
+            .collect::<Vec<_>>();
+        if containing_atoms.is_empty() {
+            return Err(ObjectRelocationValidationError::OrphanRelocation {
                 section: relocation.containing_section_ordinal(),
                 offset: relocation.offset(),
                 width_bytes,
-            })?;
+            });
+        }
         let shape = resolve_shape(relocation.shape(), &definitions, &local_symbol_owners)?;
-        relocations_by_atom
-            .entry(containing_atom.atom())
-            .or_default()
-            .push(relocations.len());
-        relocations.push(VerifiedRelocationUseV1 {
-            member: definitions.member(),
-            containing_atom: containing_atom.atom(),
-            containing_atom_role: containing_atom.atom_role(),
-            section_role: definitions.sections().roles()[section_index],
-            offset_within_atom: site_start - containing_atom.start(),
-            width_bytes,
-            encoded_value: relocation.encoded_value(),
-            shape,
-        });
+        // A complete parent table aliases a slice of its child's immutable
+        // array. Each view consumes the relocation at its own relative offset.
+        for containing_atom in containing_atoms {
+            relocations_by_atom
+                .entry(containing_atom.atom())
+                .or_default()
+                .push(relocations.len());
+            relocations.push(VerifiedRelocationUseV1 {
+                member: definitions.member(),
+                containing_atom: containing_atom.atom(),
+                containing_atom_role: containing_atom.atom_role(),
+                section_role: definitions.sections().roles()[section_index],
+                offset_within_atom: site_start - containing_atom.start(),
+                width_bytes,
+                encoded_value: relocation.encoded_value(),
+                shape: shape.clone(),
+            });
+        }
     }
     Ok(VerifiedMemberObjectRelocationIndexV1 {
         definitions,

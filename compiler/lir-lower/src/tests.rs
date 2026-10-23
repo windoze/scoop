@@ -10,6 +10,8 @@ mod dependency_external;
 mod exact_callable_abi;
 mod exact_layouts;
 mod initialization;
+mod interface_layouts;
+mod interface_tables;
 mod native_storage;
 mod pointers;
 mod release;

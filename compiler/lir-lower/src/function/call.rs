@@ -43,11 +43,11 @@ impl<'a> FunctionLowerer<'a> {
             ),
             mir::CallTarget::Interface {
                 callee,
+                interface,
                 slot,
                 receiver,
-                ..
             } => self.lower_method_call(
-                MethodDispatch::Interface(*slot),
+                MethodDispatch::Interface(*interface, *slot),
                 *callee,
                 receiver,
                 &call.args,

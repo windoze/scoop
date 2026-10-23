@@ -4,6 +4,7 @@ class EchoUser : Echo<Value>
 class Local : Value { public override fun get(): Int = 13 }
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 fun main() {
+    projectionChecks()
     val first: Value = Derived()
     val second = make(22)
     check(first.doubled() == 22)

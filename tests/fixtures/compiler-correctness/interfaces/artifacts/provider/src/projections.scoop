@@ -1,0 +1,65 @@
+package dev.m34
+
+public interface Marker {}
+public interface RootView : Marker {
+    public fun amount(): Int
+    public fun label(): String = "root"
+}
+public interface LeftView : RootView {
+    public override fun label(): String = "left"
+    public fun left(): Int = amount() + 1
+}
+public interface RightView : RootView {
+    public fun right(): Int = amount() + 2
+}
+public interface DiamondView : LeftView, RightView { public fun own(): Int }
+
+public open class ProjectionBase public constructor(public val value: Int) : DiamondView {
+    public override fun amount(): Int = value
+    public override fun own(): Int = 100
+}
+public struct BoxedProjection(val value: Int) : DiamondView {
+    @NoGC public override fun amount(): Int = value
+    @NoGC public override fun own(): Int = 200
+}
+
+public fun rootView(value: DiamondView): RootView = value
+public fun leftView(value: DiamondView): LeftView = value
+public fun rightView(value: DiamondView): RightView = value
+public fun leftRoot(value: LeftView): RootView = value
+public fun rightRoot(value: RightView): RootView = value
+public fun markerView(value: DiamondView): Marker = value
+public fun inheritedCalls(value: DiamondView): Int = value.amount() + value.left() + value.right()
+public fun parentArgument(value: RootView): String = value.label()
+public fun boxedView(value: Int): DiamondView = BoxedProjection(value)
+public fun smartView(value: Any): Int {
+    if (value is DiamondView) {
+        val parent: RootView = value
+        gcCollect()
+        return parent.amount() + value.left() + value.right()
+    }
+    return -1
+}
+
+public interface GenericParent<T> {
+    public fun load(): T
+    public fun echo(value: T): T = value
+}
+public interface GenericChild<T> : GenericParent<T> { public fun tag(): Int = 7 }
+public struct GenericView<T>(val value: T) : GenericChild<T> {
+    public override fun load(): T = value
+}
+public struct Wide(val first: Long, val second: Long, val third: Long, val text: String)
+public fun <T> genericParent(value: GenericChild<T>): GenericParent<T> = value
+public fun <T> genericView(value: T): GenericChild<T> = GenericView<T>(value)
+public fun providerIntView(): GenericChild<Int> = GenericView<Int>(19)
+
+public interface ExactLabel<T> { public fun label(): Int = 31 }
+public interface BothLabels : ExactLabel<Int>, ExactLabel<String> {
+    public override fun label(): Int
+}
+public class MixedLabels public constructor() : BothLabels {
+    public override fun label(): Int = 31
+}
+public fun intLabels(value: BothLabels): ExactLabel<Int> = value
+public fun stringLabels(value: BothLabels): ExactLabel<String> = value

@@ -54,6 +54,39 @@ impl SelectedMembers {
                     Some(plan) => Some(plan.1.owner),
                     None if plans.len() == 1 => Some(plans[0].1.owner),
                     None => {
+                        if plans.iter().all(|plan| {
+                            plan.1.role == StrongDefinitionRole::DispatchTable
+                                && matches!(plan.1.owner, ObjectDefinitionPlanOwner::Odr { .. })
+                        }) {
+                            // Complete interface arrays and their parent aliases
+                            // share bytes and must be selected as one physical unit.
+                            let members = plans
+                                .iter()
+                                .map(|plan| {
+                                    let ObjectDefinitionPlanOwner::Odr { member } = plan.1.owner
+                                    else {
+                                        unreachable!("ODR dispatch group")
+                                    };
+                                    member
+                                })
+                                .collect::<Vec<_>>();
+                            let present = members
+                                .iter()
+                                .filter(|member| shared.contains(member))
+                                .count();
+                            if present == members.len() {
+                                continue;
+                            }
+                            if present != 0 {
+                                return Err(error(format!(
+                                    "Cone {cone}: shared interface table storage has inconsistent physical grouping"
+                                )));
+                            }
+                            shared.extend(members);
+                            result.members.insert((cone, member.member()));
+                            selected.extend(plans.iter().map(|plan| plan.0));
+                            continue;
+                        }
                         if plans.iter().any(|plan| {
                             matches!(plan.1.owner, ObjectDefinitionPlanOwner::Odr { .. })
                         }) {

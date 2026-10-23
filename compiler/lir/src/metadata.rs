@@ -95,6 +95,9 @@ pub struct DispatchEntry {
     pub callable: CallableRef,
 }
 
+mod interface_tables;
+pub use interface_tables::{DecodedDispatchTableLayout, DispatchSlotSource, DispatchTableLayout};
+
 /// Everything codegen needs to emit one `ScoopTypeDescriptor`
 /// global (see runtime/include/scoop_runtime_metadata_v1.h for the field order).
 #[derive(Debug)]
@@ -289,6 +292,8 @@ pub struct ItableRecord {
     materialization: MaterializationIdentity,
     interface: TypeDescriptorRef,
     slots: Vec<DispatchEntry>,
+    physical_slots: Vec<DispatchEntry>,
+    layout: DispatchTableLayout,
 }
 
 impl ItableRecord {
@@ -302,12 +307,34 @@ impl ItableRecord {
             scoop_identity::DispatchTableKey::itable(owner.exact_type(), interface_exact_type),
         )?;
         let materialization = owner.dispatch_table(identity.id())?;
+        let layout = DispatchTableLayout::flat(identity.id(), slots.len());
         Ok(Self {
             identity,
             materialization,
             interface,
+            physical_slots: slots.clone(),
+            layout,
             slots,
         })
+    }
+
+    pub fn with_layout(
+        mut self,
+        layout: DispatchTableLayout,
+        physical_slots: Vec<DispatchEntry>,
+    ) -> Self {
+        assert_eq!(layout.slots().len(), physical_slots.len());
+        self.layout = layout;
+        self.physical_slots = physical_slots;
+        self
+    }
+
+    pub const fn layout(&self) -> &DispatchTableLayout {
+        &self.layout
+    }
+
+    pub fn physical_slots(&self) -> &[DispatchEntry] {
+        &self.physical_slots
     }
 
     pub const fn identity_record(

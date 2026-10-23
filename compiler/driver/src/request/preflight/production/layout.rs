@@ -144,6 +144,7 @@ pub(super) fn assemble(
             .map_err(CurrentConeLirStageError::DiagnosticCatalog)
             .map_err(CurrentConeProductionFailure::Lir)?;
     let (lir, lir_public) = machine::lower_selected_lir(
+        request.optimization(),
         &mir.strong,
         &mir.public,
         &selected,

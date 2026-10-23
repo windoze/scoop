@@ -6,6 +6,7 @@ pub struct PreparedLir<'a, 'layout> {
     pub(crate) input: &'a mir::ConeMirInput,
     pub(super) selected_layout: Option<&'a lir::StrongProductionDependencySelectionV2<'layout>>,
     pub(super) context: LoweringContext,
+    pub(super) optimization: lir::OptimizationMode,
     pub(super) identity_roots: IdentityRoots<'a>,
     pub(super) external_type_descriptors: Arena<lir::ExternalTypeDescriptor>,
     pub(super) dependency_types: dependency_types::DependencyTypeDescriptors,
@@ -22,6 +23,12 @@ pub struct PreparedLir<'a, 'layout> {
 }
 
 impl PreparedLir<'_, '_> {
+    /// Select local code generation choices without changing layout or ABI.
+    pub fn with_optimization(mut self, optimization: lir::OptimizationMode) -> Self {
+        self.optimization = optimization;
+        self
+    }
+
     pub fn abi_input(&self) -> &lir::AbiPlanningInput {
         &self.planning
     }
@@ -107,6 +114,7 @@ pub fn prepare<'a, 'layout>(
         input,
         selected_layout,
         context,
+        optimization: lir::OptimizationMode::Debug,
         identity_roots,
         external_type_descriptors,
         dependency_types,

@@ -1,5 +1,6 @@
 mod arrays;
 mod functions;
+mod interfaces;
 mod shapes;
 pub(crate) use arrays::array_types;
 use shapes::*;
@@ -29,6 +30,7 @@ pub(crate) fn class_order(module: &mir::Module) -> StorageResult<Vec<mir::ClassI
 
 #[derive(Default)]
 pub(crate) struct TypeDescriptorRefs {
+    pub(crate) interface_layouts: super::interface_layouts::InterfaceLayouts,
     context: HashMap<mir::ContextStorageType, lir::TypeDescriptorRef>,
     classes: HashMap<mir::ClassId, lir::TypeDescriptorRef>,
     interfaces: HashMap<mir::InterfaceId, lir::TypeDescriptorRef>,
@@ -138,6 +140,7 @@ pub(crate) fn type_descriptors(
         .collect::<Vec<_>>();
     let mut descriptors = Arena::new();
     let mut refs = TypeDescriptorRefs {
+        interface_layouts: super::interface_layouts::InterfaceLayouts::new(module)?,
         boxed: dependencies.boxed,
         itable_interfaces: dependencies.itable_interfaces,
         ..TypeDescriptorRefs::default()

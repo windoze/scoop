@@ -77,6 +77,7 @@ impl DecodedExactDispatchExportV1 {
                 target,
                 role,
                 entries,
+                layout: self.semantic.layout.read(identities)?,
                 physical,
                 definition,
             },
@@ -103,6 +104,7 @@ impl DecodedCanonicalExactDispatchExportsV1 {
         {
             return Err(link_error("noncanonical dispatch table order"));
         }
+        crate::exact_dispatch::table::validate_layouts(&records).map_err(link_error)?;
         Ok(CanonicalExactDispatchExportsV1::from_saved(
             target,
             foundation.producer(),

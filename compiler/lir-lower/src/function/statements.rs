@@ -12,6 +12,7 @@ impl<'a> FunctionLowerer<'a> {
                 break;
             }
             self.lower_statement(statement)?;
+            self.interface_tables.written(statement);
         }
         Ok(())
     }

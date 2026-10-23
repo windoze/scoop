@@ -258,26 +258,14 @@ pub(crate) fn class_type_descriptor(
             .collect(),
     )
     .expect("validated class exact type must derive a vtable identity");
-    let mut itables: Vec<_> = def
-        .itables
-        .iter()
-        .filter_map(|record| {
-            let interface = refs.interfaces.get(&record.interface).copied()?;
-            lir::ItableRecord::new(
-                &identity,
-                exact_type_record(module, &mir::Type::Interface(record.interface)).id(),
-                interface,
-                record
-                    .slots
-                    .iter()
-                    .map(|slot| dispatch_entry(slot, local_functions, external_callables))
-                    .collect(),
-            )
-            .expect("validated class and interface exact types must derive an itable identity")
-            .into()
-        })
-        .collect();
-    itables.sort_unstable_by_key(|table| table.identity_record().key().interface());
+    let itables = super::interfaces::tables(
+        module,
+        id,
+        &identity,
+        refs,
+        local_functions,
+        external_callables,
+    )?;
     Ok(lir::TypeDescriptor {
         release_policy: match def.release_policy {
             mir::ReleasePolicy::None => lir::ReleasePolicy::None,

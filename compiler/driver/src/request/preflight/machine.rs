@@ -55,6 +55,7 @@ impl CurrentConeMachineHir<'_> {
 }
 
 pub(super) fn lower_selected_lir(
+    optimization: scoop_lir::OptimizationMode,
     strong: &scoop_mir::ConeMirInput,
     public: &scoop_mir::CrossConeMirBridgeSectionV1,
     selected_callables: &scoop_lir::SelectedExternalLirSet,
@@ -69,6 +70,7 @@ pub(super) fn lower_selected_lir(
     CurrentConeLirStageError,
 > {
     let lir = crate::lir_pipeline::lower_with_layout_dependencies(
+        optimization,
         strong,
         selected_callables,
         target,

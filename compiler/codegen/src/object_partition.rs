@@ -59,7 +59,25 @@ impl ScoopLirObjectPartitionV1 {
         let producer_units = ProducerUnitPartitionV1::from_foundation(foundation)
             .map_err(ScoopLirObjectPartitionError::ProducerUnits)?;
         let mut non_callable = Vec::new();
-        let mut independent = Vec::new();
+        let mut independent = BTreeMap::<ObjectDefinitionPlanId, Vec<_>>::new();
+        let table_storage = input
+            .module()
+            .meta
+            .type_descriptors
+            .iter()
+            .flat_map(|(_, descriptor)| &descriptor.itables)
+            .map(|table| (table.identity_record().id(), table.layout().storage()))
+            .collect::<BTreeMap<_, _>>();
+        let table_definitions = surface
+            .plans()
+            .iter()
+            .filter_map(|plan| match plan.owner().kind() {
+                StrongDefinitionEntityKind::DispatchTable(table) => {
+                    Some((table, plan.definition_plan()))
+                }
+                _ => None,
+            })
+            .collect::<BTreeMap<_, _>>();
         let mut callables = BTreeMap::<PersistentCallableBodyId, ObjectDefinitionPlanId>::new();
         let site_owners = input
             .module()
@@ -116,10 +134,18 @@ impl ScoopLirObjectPartitionV1 {
                 _ if plan.definition_role() == StrongDefinitionRole::ImageDescriptor
                     || plan.primary_symbol().linkage() == scoop_lir::LinkageClass::OdrWeak =>
                 {
-                    independent.push(ScoopLirObjectUnitSetV1 {
-                        kind: ScoopLirObjectKindV1::NonCallable,
-                        definition_plans: vec![*definition],
-                    });
+                    let group = match plan.owner().kind() {
+                        StrongDefinitionEntityKind::DispatchTable(table)
+                            if table_storage.contains_key(&table) =>
+                        {
+                            let storage = table_storage[&table];
+                            *table_definitions.get(&storage).ok_or(
+                                ScoopLirObjectPartitionError::MissingDispatchStorage(storage),
+                            )?
+                        }
+                        _ => *definition,
+                    };
+                    independent.entry(group).or_default().push(*definition);
                 }
                 _ => non_callable.push(*definition),
             }
@@ -131,7 +157,14 @@ impl ScoopLirObjectPartitionV1 {
                 definition_plans: non_callable,
             });
         }
-        objects.extend(independent);
+        objects.extend(
+            independent
+                .into_values()
+                .map(|definition_plans| ScoopLirObjectUnitSetV1 {
+                    kind: ScoopLirObjectKindV1::NonCallable,
+                    definition_plans,
+                }),
+        );
         objects.extend(callables.into_iter().map(|(body, definition)| {
             let mut definition_plans = vec![definition];
             definition_plans.extend(body_registrations.remove(&body).into_iter().flatten());
@@ -169,6 +202,7 @@ impl ScoopLirObjectPartitionV1 {
 pub enum ScoopLirObjectPartitionError {
     ProducerUnits(ProducerUnitPartitionError),
     MissingDefinition(ObjectDefinitionPlanId),
+    MissingDispatchStorage(scoop_lir::PersistentDispatchTableId),
     InvalidCallableDefinition(ObjectDefinitionPlanId),
     DuplicateCallableBody {
         body: PersistentCallableBodyId,

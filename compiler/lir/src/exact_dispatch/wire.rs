@@ -10,9 +10,9 @@ pub use read::{
 
 impl WireEncode for ExactDispatchExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(6)?;
         self.encode_semantic_fields(encoder)?;
-        encoder.field(5)?;
+        encoder.field(6)?;
         self.definition().encode(encoder)
     }
 }
@@ -162,12 +162,14 @@ impl ExactDispatchExportV1 {
         encoder.field(3)?;
         self.role().encode(encoder)?;
         encoder.field(4)?;
-        encode_array(encoder, self.entries())
+        encode_array(encoder, self.entries())?;
+        encoder.field(5)?;
+        self.layout().encode(encoder)
     }
 }
 impl WireEncode for ExactDispatchSemanticProjectionV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(5)?;
         self.0.encode_semantic_fields(encoder)
     }
 }

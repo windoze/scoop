@@ -36,6 +36,10 @@ impl Lowerer {
             &mut self.shell,
         );
         mir::InterfaceMethod {
+            identity: module
+                .dispatch_slot_identities
+                .interface_slot(interface, hir::InterfaceMethodSlot::from_raw(slot as u32))
+                .id(),
             name: format!("{}.{}", declaration.name, method.name),
             gc_effect: lower_gc_effect(method.attributes.gc_effect),
             parameters,

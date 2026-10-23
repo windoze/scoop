@@ -22,6 +22,7 @@ pub struct DecodedExactDispatchSemanticProjectionV1 {
     owner_exact: DecodedPersistentId<PersistentExactTypeId>,
     role: DecodedExactDispatchRoleV1,
     entries: Vec<DecodedExactDispatchEntryV1>,
+    layout: crate::DecodedDispatchTableLayout,
 }
 
 #[derive(Debug)]

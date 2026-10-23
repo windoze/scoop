@@ -222,7 +222,7 @@ fn build_itable(
         interface,
         slots: resolve_slots(
             exact_type,
-            itable.slots(),
+            itable.physical_slots(),
             inputs.functions,
             inputs.external_callables,
         )?,

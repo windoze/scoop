@@ -283,7 +283,7 @@ completion 与 resume 具有唯一获胜方，并明确 payload 的 release/acqu
 
 MIR metadata 保存源码声明到实际 callable、constructor、accessor、generated body 的映射，exact signature、GC effect、继承、dispatch、object/init 关系及 Strong/ODR 归属。它不定义目标布局；布局由 LIR metadata 提供。
 
-mir-lower 完成 concrete CFG、dispatch、closure／adapter 与协程执行 ABI 后，由独立优化模块按 2.19 有界交替执行 receiver 实际类型传播、唯一目标去虚拟化、按调用点选择的小函数内联、局部分配替换与常量／CFG 清理；driver 显式传入优化配置。scoop-mir 保持纯数据职责，program-link 不隐藏重编译或导入普通外部正文。
+mir-lower 完成 concrete CFG、dispatch、closure／adapter 与协程执行 ABI 后，由独立优化模块按 2.19 有界交替执行 receiver 实际类型传播、唯一目标去虚拟化、按调用点选择的小函数内联、局部分配替换、接口视图复用与常量／CFG 清理；driver 显式传入优化配置。scoop-mir 保持纯数据职责，program-link 不隐藏重编译或导入普通外部正文。
 
 release 默认启用 MIR 优化，debug 保留未优化的完整 MIR；两种模式的阶段 dump 分别记录实际输出，使用相同的实体身份与 ABI。私有 CoroutineDriver／CoroutineAdapter 属于实现正文，其实际身份与签名保留在 MIR foundation 和 Code 中，不进入供依赖消费的 Strong callable bridge；消除这些 helper 不改变依赖语义指纹。数据流在异常边合并可能抛出时的局部状态，不能只把 block 的最终状态交给 handler。实际表项或闭包 invoke／bridge 完整可用时才改写目标；外部目标使用已经选中的 callable 签名和引用。
 
@@ -549,7 +549,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
 | HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/81`、`cross-cone-type-semantics/30` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/16`、`cone-production/14`、`link-identity-closure/18`、`link-support/1` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/17`、`cone-production/14`、`link-identity-closure/18`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -915,11 +915,17 @@ ResolvedLinkPlan 使用 `scoop-resolved-link-plan-v3`，覆盖 root/依赖、Cod
 
 每个 slot 有原根声明、完整签名、访问域和 Abstract/Concrete/InterfaceDefault 的明确选择。class vtable 保留 base prefix，override 不改变 family 位置；Any 不预留 equals/hash/toString 槽。
 
-interface 槽序按直接父接口声明序继承，再追加当前声明；相同 exact application 的菱形路径去重，移除被原 typed override 覆盖的成员，保留其余相对顺序。getter/setter 独立，private helper 不占槽。实际类／值类型表项匹配原 slot 的参数、结果、execution 与 GC effect。
+interface 的逻辑方法序按直接父接口声明序继承，再追加当前声明；相同 exact application 的菱形路径去重，移除被原 typed override 覆盖的成员，保留其余相对顺序。getter/setter 独立，private helper 不占槽。实际类／值类型表项匹配原 slot 的参数、结果、execution 与 GC effect。逻辑方法序与下面的物理表位置分别保存，不能将去重后的方法集合当作完整父表。
+
+物理 interface 表按直接父接口声明序完整内嵌各父表，再追加不能复用已有物理槽的当前逻辑方法。单继承的完整父表是 offset 0 前缀；多继承使用编译期固定偏移，菱形保留每个父表内部的完整布局，不为去重删除重复片段。复用要求原 typed 方法身份、exact 声明实例和完整调用 ABI 一致；不同泛型 application 不因擦除后签名相同合并。override 的新槽不覆盖父表布局，内嵌父槽来自同一实际类型对父契约的最终实现，包括 default 和必要 adapter。
+
+一个实际类型仅为其最派生非空接口表分配完整数组；父表符号及 TD 目录项复用数组中的完整片段。同一父表有多个可用片段时，选择 exact interface identity 排序中的第一个最派生表及其按声明序首次出现的片段。各片段语义一致；选择不依赖 arena 编号、导入次序或优化 profile。空接口目录项和合法 null slots 保持。LIR 保存逻辑入口、物理槽来源、存储表及偏移，正常 typed native alias 表达只读父表片段；允许相应 dispatch atom 的包含式范围共享并保留各视图 relocation，其他 atom 的范围规则不变。数组及其所有父表视图必须属于同一个 native object member；ODR 表也按实际共享存储分组，不能将 alias 与所属数组拆开，ELF COMDAT 使用所属数组的 definition group。各 typed definition 身份保持独立，分组只约束物理发射。
+
+上述布局由所有构建 profile 共同遵守。`lir/cross-cone-layout-abi/17` 保存实际物理布局并与逻辑方法位置区分，退役 `/16` 产物及缓存重建；跨 Cone 从完整 exact 父关系和方法身份得到同一布局，不能继续消费旧槽 ABI。接口值、对象头、TD 字段和 GC scan 格式不变。设计及成本验证见 [接口父表直接投影](../program-performance/INTERFACE-PROJECTION.md)。
 
 itable 以实际 interface TD 为键，不要求跨 Cone 的全局槽编号。generic receiver 始终是完整 exact application，只沿声明中的 exact base/interface 关系分派。
 
-普通接口值保存 object 和对应 exact interface 的 itab。构造／转换时查询目标表一次，已知实际类型直接引用既有静态表，相同 exact 视图直接复制；`is`／`as` 的检查与表查询可合并，不重查同一事实。空接口以 entry 存在判断成功，不用合法 null slots 判失败。接口方法从 itab 直接取 slot，不再次查询 object TD。
+普通接口值保存 object 和对应 exact interface 的 itab。静态已知 Child 继承 Parent 时，第一次上转型就从已有 itab 按固定偏移得到父表，不读取对象 TD 的接口目录；单继承前缀直接复用指针。仅为调用继承方法时，直接读取 Child 表中对应真实方法与 ABI 的物理槽，不物化中间 Parent 值。赋值、传参、返回及 smartcast 后已有的 Child 视图共同使用这条路径。Any 首次取表、无父关系的接口转换和需恢复接口视图的 adapter 按各自语义处理；已知实际类型直接引用既有静态表，相同 exact 视图直接复制。`is`／`as` 继续使用既有类型检查协议；Boolean 检查结果不携带 itab，首次取表仍可独立执行。空接口以 entry 存在判断成功，不用合法 null slots 判失败。接口方法从 itab 直接取 slot，不再次查询 object TD。
 
 LIR 的 dispatch slot 显式保存单字 object receiver projection 和完整入口签名，普通接口参数／结果仍为双字。兼容 class 实现可直接作为 slot；需要完整接口 this 的 default／变型／装箱入口由已有 typed adapter 重建视图或复制 payload。去虚拟化与直接调用按实际 callee 的签名适配，不能只因都含 pointer 就混同 ABI。静态表和 adapter 继续使用正常 typed definition／reference、provider 和 ODR relocation。
 
@@ -1229,6 +1235,8 @@ FloatBinaryOperator 的算术 wire tags 1～5 不变；旧 IEEE predicates 的 6
 
 ### 2.19 优化与物理定义选择
 
+接口引用简化必须保留能够直接投影到目标父接口的已有 Child 视图；不得将其折回 Any 或其他单字来源后重新查表。表复用只保存静态 metadata SSA，不为避免查表延长对象副本的存活范围或新增 managed roots。
+
 debug 使用 Scoop machine O0 与 generated-C O0，release 使用 O2；两者均完成正确代码生成所需的 SSA/GC 转换。runtime build 配置独立，默认 O2。优化模式不改变源码语义、persistent entity identity、shared state 或对外 ABI，兼容的不同优化产物可以共同链接。
 
 Linux/amd64 的 managed 调用保留固定的 outgoing argument area，使运行时规范 3.2 的 `FP = SP + N - 8` 对每个 safepoint 都成立。LLVM 22.1 后端关闭 X86 call-frame size optimization，避免按值参数被改成调用点临时 push/pop；源码参数语义、calling convention 和其余 O2 优化保持。此设置在创建任何 target machine 前由 codegen 统一初始化。
@@ -1259,6 +1267,12 @@ MIR 内联按调用点代入已知实参、局部常量和可证明不可达分�
 
 普通 release MIR 优化交替执行去虚拟化、内联与局部化简，当前最多三轮；没有实际改写时提前结束，达到轮次上限不视为已收敛。内联使用同一阶段入口的稳定 callee 模板，跨轮保留原始成本、caller 累计增长与每个块的展开祖先，化简不返还增长额度。每轮新直接边进入当前调用图的递归判断，重复展开祖先仍保留调用。下一轮只重新分析实际改变的函数；本期不消费更新过的 callee 正文，因而不为其建立额外 caller 摘要或通用 pass 调度框架。所有改写仍先于最终 LIR roots 生成，调用实参的顺序、异常出口及 poll 责任保持。
 
+release 在同一迭代中折叠普通引用复制及多余的 Any 擦除。相同静态类型的副本可以关联同一来源；不同接口视图保留携带的表，class 收窄保留其静态类型，不能为折叠视图丢失 Child 的可投影表或 final class 的已知类型。清理已无读者的纯副本不增加新的 MIR local 或实体身份。
+
+该局部折叠只消费 MIR 中已经合法的转换，不重新执行 smart cast 流分析或把接口命中当作唯一实现。赋值使涉及旧存储的关联失效；取地址的局部存储、字段／全局／指针读取与函数适配不作为可替换的纯局部副本。每个基本块独立建立来源关系，不把转换移出类型检查的成功分支，也不跨循环入口、合流或异常入口假定旧结果仍可用。清理无读者的纯引用／接口视图时保留其来源的分配、内存读取、调用和异常检查。
+
+driver 向 lir-lower 显式传入当前优化模式。release 在单个 LIR 基本块内，为未取地址的同一 MIR 局部值、同一 exact interface 复用已经取得的 itab；赋值／调用结果写入使对应局部值的表缓存失效，进入其他 LIR 块即清空。复用结果只是 GC-free metadata SSA 值，普通调用与 GC 不改变该表；每次构造接口值仍从当前的 managed 引用取得 object，不能为缓存表额外延长一份对象副本的 GC 活跃范围。LIR lowering 内部产生的分支同样遵守块边界，不把分支内取得的表带出其支配范围。空接口的 null itab 仍是合法结果，遵守运行时规范 2.1。debug 不启用接口视图折叠或表复用，runtime 查表与类型检查 ABI 保持。
+
 同一迭代在内联／化简之后分析函数内分配来源并消除可替换的局部 box，再化简新暴露的分支。来源为本次正文中 typed 创建点的可能集合，普通局部复制与 Retype 传播并集；合并外来值时保留已有候选，取地址、返回、存储、身份观察及未内联调用均保守保留对象。候选和分析结果不持久化，不把 NoEscape 等同于可删除。
 
 首批替换要求创建点支配全部相关使用，所有引用使用都可改写，且来源唯一、没有外来值或未闭合的 EH。循环内创建的候选若有别名跨创建迭代存活则保留；按具体回边判断，不能因创建点位于某个外层循环就拒绝内层的重复使用。回边目标支配其来源，且创建块严格支配该目标时，创建位于该内层循环之前，该回边不代表新动态实例；其他回边继续保守检查别名 liveness。box 的 payload 在原创建点保存为普通 typed local 快照，保持求值顺序和完整值复制，以快照替换 exact payload 类型的拆箱，折叠由现有 boxed type／继承／itable 事实决定的类型检查，然后删除无用引用别名。普通 nominal 的 box 若由其他 Cone 提供，消费方 MIR 的本地 itable 集合不表示其完整接口闭包；不得将本地缺少表项折叠为 false，这类接口检查继续使用实际对象的运行期描述符。整型 enum 的非 exact 父整数拆箱暂保留；错误转换的失败路径不能因同位宽而消失。含引用 payload 继续经最终 LIR 精确 roots 保活与移动回写，身份、pin、地址及未知使用仍保留实际分配；不引入栈对象、重物化或新的 GC ABI。
@@ -1285,7 +1299,7 @@ release 在 roots 定稿前以 MemorySSA 消除跨无写入分支的重复加载
 
 GC 转换后每个 post-site managed use 必须来自正确更新的引用；invoke 的 normal/unwind 与 native transition 继续使用各自显式 root frames。不能在 root plan 定稿后增加未经描述的 safepoint、重复 site、外来 owner 或异常边。backend contract field 28 为 1，表示此最终根与发射合同。
 
-ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的机器码、EH、stackmap、callable/safepoint registration、关联常量与 Context cells 必须同选；独立 helper 可分别选择。shared TD、storage、cell 与初始化保持唯一，native linker 不得改变已确定选择。
+ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的机器码、EH、stackmap、callable/safepoint registration、关联常量与 Context cells 必须同选；独立 helper 可分别选择。共享同一完整接口数组的 dispatch definition 也必须同选，重复候选按这组实际物理 definitions 整组复用；不能将父表 alias 与其数组分别选自不同对象。shared TD、storage、cell 与初始化保持唯一，native linker 不得改变已确定选择。
 
 最终 image descriptors 和六张表由 program-link 从所选 records 生成，不改写输入 `.slib`。选择与实际内容进入 RuntimeImage、Code、Artifact 和 ResolvedLinkPlan 的对应摘要。
 
