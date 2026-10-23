@@ -695,13 +695,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 记录编译声明重复、跨 Cone 小函数内联、装箱与协程对象消除的候选边界；分块 poll 等合同变更需单独验证，不作为首版前置。实现按功能提交，先本机聚焦验证，再做 Linux 完整验收。
 - 2026-10-19 完成 A–D 实现与策略取舍，默认 nursery 保留 1 MiB；E／桌面后续候选完成调查。Linux Rust 4976 项、runner 50 项通过，GNU 全量 4220 项通过／33 项不适用，musl 合同组合 676／8；末轮单 worker 回写修正在三目标定向闭合。两端性能保留无明显收益和剩余回退，临时源码、工具、实验目录与远端 worktree 已恢复或清理。
 
-### M57 普通类型与 companion 的条件 interface 实现（实施中，[设计](milestone57/DESIGN.md)、[进度](milestone57/PROGRESS.md)）
+### M57 普通类型与 companion 的条件 interface 实现（已完成，[设计](milestone57/DESIGN.md)、[验收](milestone57/PROGRESS.md)）
 
-- 在普通类型或 companion 的 body 内声明 `override interface I<...> where ... { ... }`，复用宿主参数及已有关键字；首版支持正向名义／kind 条件与固定 `T.Companion` 投影。
+- 在普通类型或 companion 的 body 内声明 `override interface I<...> where ... { ... }`，where 必填且非空，复用宿主参数及已有关键字；首版支持正向名义／kind 条件与固定 `T.Companion` 投影。
 - 实现块与宿主必须同 Cone，首版只允许写在原始 body 内；消费方、扩展、再次发布方和链接阶段不能追加实现。不同接口可以叠加，同一完整接口的独立实现可能重叠时在定义处报错，不进行特化排序。
 - 首个闭环为 HashMap 默认序列化：同一 companion 分别按 K／V 的编码、解码能力实现两个接口，覆盖四种能力组合与嵌套容器；保留原集合定义、显式 codec 工厂和 wire 格式。
 - 类型、字段、构造器、基类和初始化只有原来一份；泛型使用在定义处证明接口／成员条件，具体化生成普通接口表。覆盖继承、default、条件 codec 合成、查询循环及跨 Cone 一致性；整份类型的偏特化、全特化和接口实现特化暂不做。
-- 先同步三份权威规范，再按功能实现、验证并提交；普通行为使用所属 Cone 测试，诊断及产物／链接／ABI 使用必要的 fixture 和专测。本机针对性验证后在 Linux 完整验收，已完成范围见进度记录。
+- 2026-10-23 完成按功能提交及三目标 M57 验收。Darwin／GNU 全量 CLI 分别 4,206／4,190 项通过、17／33 项目标不适用，含补跑与定向闭合；两端 Rust 全量、GNU 26 个库测试 Cone 和 musl 30 项专项通过。产物接口格式为 81，runtime ABI 不变，详细范围见验收记录。
 
 ### M58 短暂停 GC、局部分配消除与循环 poll 分块（设计与调研完成，待实施，[设计](milestone58/DESIGN.md)）
 

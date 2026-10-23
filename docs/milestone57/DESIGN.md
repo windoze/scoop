@@ -1,6 +1,6 @@
 # M57 设计：普通类型与 companion 的条件 interface 实现
 
-状态：实施中。更新：2026-10-23。本文件确定 M57 的语言方案、实现边界与验收范围，实际进度见 [PROGRESS.md](PROGRESS.md)，未完成项不计为已有能力。
+状态：已完成。更新：2026-10-23。本文件记录 M57 的语言方案、实现边界与验收范围，执行结果见 [PROGRESS.md](PROGRESS.md)。
 
 现行合同以[语言规范](../specs/SCOOP-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)为准。M57 在 [M55](../milestone55/DESIGN.md) 的参数约束、固定 companion 投影与定义处绑定基础上增加条件接口实现；按第 12 节先同步权威规范，再逐功能实施与验证。
 
@@ -407,4 +407,4 @@ MIR、LIR、codegen、linker 和 runtime 消费确定结果，不重做条件证
 
 正常 fixtures 和 Cone 测试使用 release；只有 IR、优化、ABI、跨产物或默认 profile 合同需要时才组合模式。GC stress 只用于定向 GC 正确性验证。测试复用预编译系统库与共享 Cone cache，不以删除源码／工具、复制完整 sysroot 或重复冷／热构建作为功能门槛。
 
-实现变更按仓库规定先格式化和 lint，再运行对应 Rust 测试、Cone 行为测试与必要正式 CLI 验收。原始日志留在仓库外，里程碑记录只保留验证范围、结果概要、失败闭合与实际限制；本设计改写不宣称上述未来用例已经执行。
+实现变更按仓库规定先格式化和 lint，再运行对应 Rust 测试、Cone 行为测试与必要正式 CLI 验收。原始日志留在仓库外，里程碑记录只保留验证范围、结果概要、失败闭合与实际限制；实际执行结果见 [PROGRESS.md](PROGRESS.md) 第 18 节。
