@@ -3,11 +3,9 @@ use crate::tests::m23_ordinary_core_only::support::trusted_core;
 use crate::tests::m23_ordinary_dependencies::support::{alias_expansions, project_dependency_text};
 use scoop_identity::ConeCoordinate;
 
-#[test]
-fn imported_constructors_and_variants_keep_parameter_origins_and_callable_values() {
+fn analyze_imported(provider: &str, text: &str) -> DeclarationAnalysis {
     let mut core = trusted_core();
     let coordinate = ConeCoordinate::new("test", "constructor-navigation", "1.0.0").unwrap();
-    let provider = "public class Box<T> public constructor(public val value: T)\npublic enum Event { Empty, Item(val value: Boolean) }";
     let (foundation, interface) = project_dependency_text(&core, &coordinate, provider, &[]);
     let aliases = alias_expansions(interface.type_aliases());
     let imported = core.import_dependency_foundation(&coordinate, &foundation, 198);
@@ -30,7 +28,6 @@ fn imported_constructors_and_variants_keep_parameter_origins_and_callable_values
         .import_core_inputs(&core.interface)
         .unwrap()
         .into();
-    let text = "import Box as Selected\nimport Event.Item as Make\nimport Event.Empty as Empty\ntypealias Events = Event\nfun editing(): Event { val first = Selected(value = true); val second = Selected(value = \"text\"); val factory: (Boolean) -> Box<Boolean> = ::Selected; val variant = Make(value = false); val copy = Make(value = true); val alias = Events.Empty; return Empty }";
     let parsed = scoop_parser::parse_recovering(text).unwrap();
     let source = scoop_parser::declaration_source(
         &parsed,
@@ -38,7 +35,15 @@ fn imported_constructors_and_variants_keep_parameter_origins_and_callable_values
         scoop_identity::SourceRole::Production,
         text,
     );
-    let mut analysis = analyze_declarations(&[source], &protocols, &world, &[], || false).unwrap();
+    analyze_declarations(&[source], &protocols, &world, &[], || false).unwrap()
+}
+
+#[test]
+fn imported_constructors_and_variants_keep_parameter_origins_and_callable_values() {
+    let coordinate = ConeCoordinate::new("test", "constructor-navigation", "1.0.0").unwrap();
+    let provider = "public class Box<T> public constructor(public val value: T)\npublic enum Event { Empty, Item(val value: Boolean) }";
+    let text = "import Box as Selected\nimport Event.Item as Make\nimport Event.Empty as Empty\ntypealias Events = Event\nfun editing(): Event { val first = Selected(value = true); val second = Selected(value = \"text\"); val factory: (Boolean) -> Box<Boolean> = ::Selected; val variant = Make(value = false); val copy = Make(value = true); val alias = Events.Empty; return Empty }";
+    let mut analysis = analyze_imported(provider, text);
     let references = references(&mut analysis);
     assert_eq!(references.len(), 7, "{references:?}");
     assert!(matches!(
@@ -88,5 +93,41 @@ fn imported_constructors_and_variants_keep_parameter_origins_and_callable_values
             .unwrap()
             .len(),
         1
+    );
+}
+
+#[test]
+fn imported_constructor_aliases_keep_source_names_and_exclude_delegation_keywords() {
+    let provider = "package api\npublic open class Box<T> public constructor(value: T)\npublic typealias Wrapped<T> = Box<T>";
+    let text = "import api.Box as Selected\nimport api.Wrapped as Another\nfun editing() { val direct = Selected(value = true); val alias = Another(value = true); val factory: (Boolean) -> Selected<Boolean> = ::Another }\nclass Derived : api.Box<Boolean> { constructor(): super(true) {} }";
+    let path = "src/constructors.scoop";
+    let mut analysis = analyze_imported(provider, text);
+    let references = references(&mut analysis);
+    assert_eq!(references.len(), 3);
+    assert!(
+        references
+            .iter()
+            .all(|reference| reference.target == references[0].target)
+    );
+    let index = analysis.reference_index(|| false).unwrap();
+    assert!(index.unavailable.is_empty(), "{:?}", index.unavailable);
+    let selected = index.targets_at(&at(path, text, "Selected\n", 8))[0];
+    let another = index.targets_at(&at(path, text, "Another\n", 7))[0];
+    assert_eq!(index.references_to(selected).count(), 3);
+    assert_eq!(index.references_to(another).count(), 3);
+    for needle in ["Another(value", "Another }"] {
+        assert_eq!(index.targets_at(&at(path, text, needle, 7)), &[another]);
+    }
+    let delegation = at(path, text, "super(true)", 5);
+    assert!(matches!(
+        index.targets_at(&delegation),
+        [Target::Callable(Identity::Constructor(_))]
+    ));
+    assert!(
+        !index
+            .occurrences()
+            .iter()
+            .any(|reference| reference.origin == delegation
+                && matches!(reference.target, Target::Type(_)))
     );
 }

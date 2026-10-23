@@ -16,6 +16,7 @@ impl Lowerer {
             .editing_body
             .as_mut()
             .expect("active construction query");
+        body.delegation_name = input.callee;
         if let Some(callee) = input.callee {
             body.callable_names.insert(callee, callee);
             body.callable_names.insert(span, callee);

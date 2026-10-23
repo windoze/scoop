@@ -98,7 +98,26 @@ impl ConstructorReferenceDeclaration {
         } else {
             generate(state, None)
         };
-        value.ok_or_else(|| "constructor reference adapter could not be typed".into())
+        let value =
+            value.ok_or_else(|| "constructor reference adapter could not be typed".to_owned())?;
+        match &self.candidate.source {
+            ConstructorReferenceSource::Local(source) => {
+                state.observe_nominal_constructor_name(
+                    span,
+                    *source,
+                    self.candidate.alias.as_ref(),
+                );
+            }
+            ConstructorReferenceSource::Imported(declaration) => {
+                state.observe_dependency_constructor_name(
+                    span,
+                    declaration.interface().declaration(),
+                    declaration.interface().owner(),
+                    self.candidate.alias.as_ref(),
+                );
+            }
+        }
+        Ok(value)
     }
 }
 

@@ -5,6 +5,7 @@ use hir::{
 };
 
 mod imported;
+mod names;
 mod signatures;
 
 fn references(analysis: &mut DeclarationAnalysis) -> Vec<hir::EditingCallableReference> {

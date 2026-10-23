@@ -14,6 +14,7 @@ from callable_values import check as check_callable_values
 from cancellation import check as check_cancellation
 from construction_bodies import check as check_construction_bodies
 from constructor_hovers import check as check_constructor_hovers
+from constructor_names import check as check_constructor_names
 from constructor_references import check as check_constructor_references
 from defaults import check as check_defaults
 from diagnostics import check as check_diagnostics
@@ -354,6 +355,7 @@ def main():
         check_documentation(peer, root)
         check_constructor_references(peer, root)
         check_constructor_hovers(peer, root)
+        check_constructor_names(peer, root)
         check_accessor_bodies(peer, root)
         check_runtime_initializers(peer, root)
         check_static_constants(peer, root)

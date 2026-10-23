@@ -3,6 +3,7 @@ use hir::{EditingCallee as C, ImportedCallableSource, SemanticConstructor as Con
 use scoop_identity::CallableTemplateOrigin;
 
 mod declarations;
+mod names;
 mod parameters;
 mod signatures;
 

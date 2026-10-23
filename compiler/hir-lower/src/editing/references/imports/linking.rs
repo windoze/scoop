@@ -76,6 +76,9 @@ impl ReferenceBuilder {
                     .collect::<Vec<_>>();
                 self.export_reference(target, &origin, &routes, &aliases);
                 if let Some(alias) = alias {
+                    if matches!(target, Target::Type(_)) {
+                        self.alias_constructor_names(alias, occurrences);
+                    }
                     self.record(Target::ImportAlias(alias), origin.clone(), false);
                 }
                 let exports = self
@@ -94,5 +97,27 @@ impl ReferenceBuilder {
             }
         }
         Ok(())
+    }
+
+    fn alias_constructor_names(&mut self, alias: hir::EditingImportAliasId, occurrences: &[usize]) {
+        let alias = &mut self.aliases[alias];
+        let mut targets = alias.targets.to_vec();
+        for &index in occurrences {
+            let occurrence = &mut self.occurrences[index];
+            if !matches!(
+                occurrence.target,
+                Target::Callable(hir::EditingCallableIdentity::Constructor(_))
+            ) {
+                continue;
+            }
+            if !occurrence.aliases.contains(&alias.origin) {
+                occurrence.aliases.push(alias.origin.clone());
+            }
+            if !targets.contains(&occurrence.target) {
+                targets.push(occurrence.target);
+            }
+        }
+        alias.targets =
+            hir::NonEmptyVec::from_vec(targets).expect("an alias retains its original type target");
     }
 }

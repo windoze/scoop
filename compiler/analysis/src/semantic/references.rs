@@ -59,6 +59,15 @@ impl SemanticSession {
             if let Some(span) = declaration_span.filter(|span| *span != origin.span) {
                 let declaration = SemanticSourceLocation { span, ..origin };
                 for target in index.targets_at(&declaration) {
+                    if matches!(
+                        target,
+                        Target::Callable(scoop_hir::EditingCallableIdentity::Constructor(_))
+                    ) && targets
+                        .iter()
+                        .any(|target| matches!(target, Target::Type(_)))
+                    {
+                        continue;
+                    }
                     if !targets.contains(target) {
                         targets.push(*target);
                     }

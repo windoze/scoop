@@ -101,15 +101,12 @@ impl Lowerer {
             return;
         }
         let body = self.editing_body.as_ref().expect("active query");
-        let Some(span) = body.callable_names.get(&span).copied().or_else(|| {
-            if matches!(target, hir::EditingCallee::Callable(_)) {
-                return None;
-            }
-            body.call_inputs
-                .get(&span)
-                .and_then(|input| input.callee)
-                .or_else(|| body.property_names.get(&span).copied())
-        }) else {
+        let span = if matches!(target, hir::EditingCallee::Callable(_)) {
+            body.callable_names.get(&span).copied()
+        } else {
+            self.editing_construction_name(span)
+        };
+        let Some(span) = span else {
             return;
         };
         let definition = self.editing_callee_origin(target);
@@ -126,6 +123,27 @@ impl Lowerer {
             target,
             definition,
         });
+    }
+
+    pub(in crate::editing) fn editing_construction_name(
+        &self,
+        span: ast::Span,
+    ) -> Option<ast::Span> {
+        let body = self.editing_body.as_ref()?;
+        body.callable_names.get(&span).copied().or_else(|| {
+            body.call_inputs
+                .get(&span)
+                .and_then(|input| input.callee)
+                .or_else(|| body.property_names.get(&span).copied())
+        })
+    }
+
+    pub(in crate::editing) fn editing_construction_type_name(
+        &self,
+        span: ast::Span,
+    ) -> Option<ast::Span> {
+        let name = self.editing_construction_name(span)?;
+        (self.editing_body.as_ref()?.delegation_name != Some(name)).then_some(name)
     }
 
     pub(in crate::editing) fn observe_completed_call(

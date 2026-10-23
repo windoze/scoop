@@ -10,7 +10,7 @@ def check(peer, root):
             "package reexportorigin\n"
             "public fun pick(value: Boolean): Boolean = value\n"
             "public fun other(value: Boolean): Boolean = value\n"
-            "public class Box\n"
+            "public class Box public constructor()\n"
         ),
         "facade/src/api.scoop": (
             "package reexportfacade\n"
@@ -27,14 +27,18 @@ def check(peer, root):
             "fun reexportUse(value: LocalBox): Boolean {\n"
             "    val first = /* 🌟 */ localChoice(true)\n"
             "    val factory: (Boolean) -> Boolean = ::localChoice\n"
+            "    val box = LocalBox()\n"
+            "    val boxFactory: () -> LocalBox = ::LocalBox\n"
             "    return alternate(first)\n"
             "}\n"
         ),
         "src/star.scoop": (
             "import reexportrelay.*\nfun reexportStar(): Boolean = visible(alternate(true))\n"
+            "fun reexportStarBox() { val box = VisibleBox() }\n"
         ),
         "src/package.scoop": (
             "package reexportrelay\nfun reexportPackage(): Boolean = visible(true)\n"
+            "fun reexportPackageBox() { val box = VisibleBox() }\n"
         ),
         "src/types.scoop": "fun reexportType(value: reexportrelay.VisibleBox): Boolean = true\n",
     }
@@ -130,6 +134,11 @@ def check(peer, root):
         location(facade, "as VisibleBox", "VisibleBox"),
         location(main, "VisibleBox as LocalBox", "VisibleBox"),
         location(main, "value: LocalBox", "LocalBox"),
+        location(main, "LocalBox()", "LocalBox"),
+        location(main, "() -> LocalBox", "LocalBox"),
+        location(main, "::LocalBox", "LocalBox"),
+        location("src/star.scoop", "VisibleBox()", "VisibleBox"),
+        location("src/package.scoop", "VisibleBox()", "VisibleBox"),
         location("src/types.scoop", "reexportrelay.VisibleBox", "VisibleBox"),
     }
 

@@ -163,6 +163,35 @@ impl EditingReferenceIndex {
             if !aliased.is_empty() {
                 at.retain(|target| !aliased.contains(target));
             }
+            if at.iter().any(|target| {
+                matches!(
+                    target,
+                    EditingReferenceTarget::Callable(EditingCallableIdentity::Constructor(_))
+                )
+            }) {
+                let named_alias = at.iter().any(|target| {
+                    matches!(
+                        target,
+                        EditingReferenceTarget::Type(crate::EditingTypeIdentity::Alias(_))
+                            | EditingReferenceTarget::ExportBinding(_)
+                    )
+                });
+                at.retain(|target| {
+                    if named_alias {
+                        !matches!(
+                            target,
+                            EditingReferenceTarget::Callable(EditingCallableIdentity::Constructor(
+                                _
+                            ))
+                        )
+                    } else {
+                        !matches!(
+                            target,
+                            EditingReferenceTarget::Type(crate::EditingTypeIdentity::Nominal(_))
+                        )
+                    }
+                });
+            }
         }
         Self {
             occurrences,
