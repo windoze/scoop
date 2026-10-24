@@ -1,0 +1,52 @@
+package scoop.llm.client
+
+import scoop.asyncio.*
+import scoop.http.HttpMediaType
+import scoop.http.SseLimits
+import scoop.http.asyncio.SseSource
+import scoop.json.Json
+
+internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, request: LlmRequest,
+    options: LlmCallOptions, timer: Job?) {
+    checkModelRequest(model.capabilities, request)
+    requireModelCapability(model.capabilities.streaming, "/stream")
+    val protocol = model.endpoint.provider.protocol
+    if (!(protocol is LlmSseProtocol)) throw LlmRequestException("/stream", "protocol does not support SSE generation")
+    val url = protocol.generationUrl(model.endpoint.baseUrl, model.id)
+    val bytes = Json.stringify(protocol.encodeRequest(model.id, request, true)).toByteArray()
+    val call = state.call
+    var retry = 0L
+    var backoff = options.retries.initialDelay
+    while (true) {
+        ensureActive()
+        val attempt = LlmAttemptState(call, retry + 1L)
+        state.lock.withLock { state.activeAttempt = Some(attempt) }
+        val rejection: LlmServiceException? = try {
+            val prepared = prepareLlmHttpRequest(call.client.http, model.endpoint, url, bytes, options, attempt)
+            call.client.http.withResponse(prepared) suspend { response ->
+                val rejected = readLlmRejection(response, model.endpoint, options, attempt)
+                if (llmPresent(rejected)) return@withResponse rejected
+                val media = HttpMediaType.parseFields(response.fields)
+                if (!llmPresent(media) || media!!.type != "text" || media!!.subtype != "event-stream")
+                    throw LlmStreamProtocolException(protocol.dialectId, "expected text/event-stream response")
+                val decoder = protocol.createStreamDecoder(request, state.retention)
+                SseSource(LlmLimitedSource(response.body, options.maxResponseBytes),
+                    SseLimits(options.maxResponseBytes, options.maxResponseBytes)).useAsync suspend { source ->
+                    ensureActive()
+                    state.opening.publish(LlmStream(state))
+                    consumeLlmStream(state, source, decoder, attempt, timer)
+                }
+                None
+            }
+        } finally {
+            state.lock.withLock { call.attempts.add(attempt.snapshot()); state.activeAttempt = None }
+        }
+        val error = rejection ?: return
+        if (!error.retryable || retry >= options.retries.maxRetries) throw error
+        ensureActive()
+        val delay = if (attempt.retryAfter > backoff) attempt.retryAfter else backoff
+        call.client.loop.sleep(delay)
+        retry += 1L
+        backoff = if (backoff > options.retries.maxDelay - backoff) options.retries.maxDelay else backoff + backoff
+    }
+}

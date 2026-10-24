@@ -1,0 +1,20 @@
+package scoop.llm.client
+
+import scoop.asyncio.AsyncByteSource
+import scoop.asyncio.ReadLimitException
+import scoop.platform.memory.NativeByteBuffer
+
+/** Bounds the current decoded HTTP body without accumulating it. The endpoint stays borrowed. */
+internal class LlmLimitedSource(val source: AsyncByteSource, val maxBytes: Long) : AsyncByteSource {
+    private var used = 0L
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (count < 0L) throw IllegalArgumentException(Some("negative transfer count"))
+        if (count > buffer.writableBytes) throw IndexOutOfBoundsException()
+        val remaining = maxBytes - used
+        val requested = if (count > remaining) remaining + 1L else count
+        val read = source.readInto(buffer, requested)
+        if (read > remaining) throw ReadLimitException(maxBytes)
+        used += read
+        return read
+    }
+}

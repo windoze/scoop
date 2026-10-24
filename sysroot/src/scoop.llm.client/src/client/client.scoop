@@ -33,6 +33,13 @@ public class LlmClient private constructor(internal val state: LlmClientState) :
     public suspend fun generate(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions()): LlmResult =
         generateLlm(state, model, request, options)
 
+    public suspend fun openStream(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions(),
+        retention: StreamRetention = EventsOnly): LlmStream = openLlmStream(state, model, request, options, retention)
+
+    public suspend fun <T> withStream(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions(),
+        retention: StreamRetention = EventsOnly, block: suspend (LlmStream) -> T): T =
+        openStream(model, request, options, retention).useAsync(block)
+
     public override suspend fun close() { closeLlmClient(state) }
 }
 

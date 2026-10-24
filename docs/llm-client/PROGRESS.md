@@ -26,7 +26,7 @@
 | 参数自由默认值的跨 Cone callable／协程归属 | 完成：本机 HIR 2055/2055；三库 Cone 回归两平台各 3/3 |
 | SSE 事件、保留策略与 Chat reducer | 完成：本机 110/110；Linux 新边界定向 1/1；DeepSeek 真实 SSE 与历史接续通过 |
 | 客户端原生／服务端工具的 capability | 待实施 |
-| 流式网络寿命、单消费者与文本读取视图 | 待实施 |
+| 流式网络寿命、单消费者与文本读取视图 | 完成：本机 130/130；Linux 仅网络定向 2/2；DeepSeek 与 OpenAI 代理实测通过 |
 | Responses、Messages、Gemini protocols 与 server-side tools | 待实施 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
@@ -57,3 +57,8 @@
 - 整体实现仍在进行；验证仅覆盖表中已交付项。后续仅记录通过范围、失败闭合和实际限制。
 
 - 流式生命周期验证发现：响应 body 尚未读取时取消当前 Job，useAsync 会再次从 close 收到同一个取消。HTTP 现按异常实例识别当前 Job 自身的取消，只省去重复主失败；其他 Job 的取消及真实清理失败仍交付。新增 3 项普通 Cone 回归，本机 HTTP 193/193，Linux 仅这 3 项通过，无编译器修改或 fixture。
+
+- 流式网络新增 18 项 Cone 用例：openStream／withStream 共用调用设置，EventsOnly 缺省按需读取，Result 显式保留，文本视图处理尾部 usage；覆盖单消费者、协议终止与真实清理的分离、不可变 metadata、失败／取消、完成回调、总截止和重试。HTTP 收尾修正后本机 128/128；Linux 仅按需读取与取消两项通过，不运行完整套件。
+- 代理的真实 SSE 先交付 choices=[]、id/model 为空、created=0 的无 usage 注释帧。按 Azure 文档及实际形状保留为 Native，不用它建立响应身份；真实 ID 变化仍失败，真实 created=0 仍保留。新增 2 项，最终本机 LLM 130/130。注释分支由本机单测和真实代理验证，未另跑 Linux 全套。
+- 高层流式入口已通过 DeepSeek 文本／最终 usage、reasoning／工具参数序列化并回传，以及代理 gpt-6.1-sol 的文本投影、最终 usage 和实际发送／接收／首文本时间戳。代理测试显式 effort=low；未查询模型列表、未使用失效的官方 OpenAI key。Anthropic 代理保留指定 databricks-claude-opus-5-5，随 Messages 实施验证。
+- 本机重新准备 23 个生产 Cone 和 runtime；Linux 仅发布变更的 HTTP 库并运行上述 5 项最小测试。原始日志及真实 API 测试继续放在仓库外，提交前按环境中的 key 值核对暂存差异；清理 target/debug/incremental 约 372 MiB，保留 release 工具。

@@ -1,0 +1,84 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class LlmStreamLifetimeTest {
+    @Test
+    fun `early close does not drain an unread response`() {
+        withStreamReply(streamReply) suspend { client, model ->
+            val finished = FinishedCalls()
+            val stream = client.openStream(model, sampleRequest,
+                LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) })), StreamRetention.Result)
+            stream.close()
+            stream.close()
+            assertTrue(stream.isClosed)
+            assertEquals(LlmCallOutcome.Cancelled, stream.metadata.outcome)
+            assertEquals(None, stream.metadata.attempts[0L].response.firstEventAt)
+            assertEquals(None, stream.metadata.attempts[0L].response.completedAt)
+            assertEquals(1L, finished.values.size)
+            expectLlmFailure<CancellationException> suspend { stream.next(); Unit }
+            expectLlmFailure<CancellationException> suspend { stream.result(); Unit }
+        }
+    }
+
+    @Test
+    fun `concurrent next is rejected and read cancellation awaits the completion callback`() {
+        withWaitingStream suspend { scope, client, model, _ ->
+            val entered = LlmGate()
+            val release = LlmGate()
+            val finished = FinishedCalls()
+            val stream = client.openStream(model, sampleRequest, LlmCallOptions(onFinished = Some(suspend { value ->
+                finished.record(value); entered.signal(); release.await()
+            })))
+            val reading = scope.launch suspend {
+                expectLlmFailure<CancellationException> suspend { stream.useAsync suspend { opened -> opened.next(); Unit } }
+                Unit
+            }
+            expectLlmFailure<IllegalStateException> suspend { stream.next(); Unit }
+            reading.cancel()
+            entered.await()
+            assertFalse(reading.isCompleted)
+            assertFalse(stream.isClosed)
+            release.signal()
+            reading.join()
+            assertTrue(stream.isClosed)
+            assertEquals(1L, finished.values.size)
+            assertEquals(LlmCallOutcome.Cancelled, stream.metadata.outcome)
+        }
+    }
+
+    @Test
+    fun `client close owns idle streams and waits for their callbacks`() {
+        withWaitingStream suspend { scope, client, model, _ ->
+            val entered = LlmGate()
+            val release = LlmGate()
+            val stream = client.openStream(model, sampleRequest, LlmCallOptions(onFinished = Some(suspend { _ ->
+                entered.signal(); release.await()
+            })))
+            val closing = scope.launch suspend { client.close() }
+            entered.await()
+            assertFalse(closing.isCompleted)
+            release.signal()
+            closing.join()
+            assertTrue(stream.isClosed)
+            assertEquals(LlmCallOutcome.Failed, stream.metadata.outcome)
+            expectLlmFailure<LlmClientClosedException> suspend { stream.close() }
+            stream.close()
+        }
+    }
+
+    @Test
+    fun `client close cleans up an already completed protocol successfully`() {
+        withStreamReply(streamReply) suspend { client, model ->
+            val stream = client.openStream(model, sampleRequest, retention = StreamRetention.Result)
+            drainStream(stream)
+            client.close()
+            assertTrue(stream.isClosed)
+            assertEquals("hello world", stream.result().text)
+            assertEquals(LlmCallOutcome.Completed, stream.metadata.outcome)
+        }
+    }
+}

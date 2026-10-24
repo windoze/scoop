@@ -1,0 +1,47 @@
+package scoop.llm.client
+
+import scoop.platform.concurrent.Mutex
+
+internal suspend fun openLlmStream(client: LlmClientState, model: LlmModel, request: LlmRequest,
+    options: LlmCallOptions, retention: StreamRetention): LlmStream {
+    val caller = currentJobOrNone()
+    return suspendCoroutine<LlmStream> { continuation ->
+        val opening = LlmStreamOpening(continuation)
+        startCoroutine<Unit>(suspend {
+            nonCancellableScope suspend { lifetime ->
+                val call = LlmCallState(client, lifetime.job)
+                val state = LlmStreamState(call, retention, opening)
+                context(call) {
+                    try { runLlmStream(state, caller, model, request, options) }
+                    finally { call.contextActive = false; removeLlmCall(client, state) }
+                }
+            }
+        }, opening)
+    }
+}
+
+/** The opening caller owns cancellation only until the stream has been handed over. */
+internal class LlmStreamOpening(continuation: Continuation<LlmStream>) : Continuation<Unit> {
+    private val lock = Mutex()
+    private var waiting: Continuation<LlmStream>? = Some(continuation)
+    var listener: Disposable? = None
+
+    fun publish(stream: LlmStream) {
+        val current = take()
+        current?.resume(stream)
+    }
+
+    fun fail(error: Throwable) {
+        val current = take()
+        current?.resumeWithException(error)
+    }
+
+    private fun take(): Continuation<LlmStream>? {
+        val current = lock.withLock { val value = waiting; waiting = None; value }
+        listener?.dispose()
+        return current
+    }
+
+    public override fun resume(value: Unit) { fail(IllegalStateException(Some("stream ended before opening"))) }
+    public override fun resumeWithException(exception: Throwable) { fail(exception) }
+}

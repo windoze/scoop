@@ -1,0 +1,71 @@
+package scoop.llm.client
+
+import scoop.asyncio.currentEventLoop
+
+internal fun checkLlmStreamLoop(state: LlmStreamState) {
+    if (currentEventLoop() !== state.call.client.loop) throw IllegalStateException(Some("LLM stream belongs to another event loop"))
+}
+
+internal suspend fun readLlmStream(state: LlmStreamState, mode: LlmStreamReader): LlmEvent? {
+    checkLlmStreamLoop(state)
+    state.lock.withLock {
+        if (state.reading) throw IllegalStateException(Some("concurrent LLM stream read"))
+        if (llmPresent(state.reader) && state.reader != Some(mode)) throw IllegalStateException(Some("cannot switch LLM stream reader"))
+        state.reader = Some(mode)
+        state.reading = true
+    }
+    val listener = currentJobOrNone()?.invokeOnCancellation { error -> state.cancel(error) }
+    try {
+        while (true) {
+            val event = suspendCoroutine<LlmEvent?> { continuation -> submitLlmStreamRead(state, continuation) }
+            ensureActive()
+            if (!llmPresent(event) || mode == LlmStreamReader.Raw) return event
+            when (event!!) { case TextDelta(_) -> return event; else -> continue }
+        }
+    } finally { listener?.dispose(); state.lock.withLock { state.reading = false } }
+}
+
+private fun submitLlmStreamRead(state: LlmStreamState, continuation: Continuation<LlmEvent?>) {
+    val result: (Boolean, Throwable?, CancellableContinuation<Unit>?) = state.lock.withLock {
+        if (state.closed) {
+            if (llmPresent(state.failure)) state.errorDelivered = true
+            (true, state.failure, None)
+        } else {
+            state.pending = Some(continuation)
+            val wake = state.wake
+            state.wake = None;
+            (false, None, wake)
+        }
+    }
+    val (closed, error, wake) = result
+    if (closed) {
+        when (error) { case Some(reason) -> continuation.resumeWithException(reason); case None -> continuation.resume(None) }
+    } else wake?.tryResume(Unit)
+}
+
+internal suspend fun closeLlmStream(state: LlmStreamState) {
+    checkLlmStreamLoop(state)
+    if (!state.lock.withLock { state.closed }) {
+        var contextCall = currentLlmCall()
+        while (llmPresent(contextCall)) {
+            val active = contextCall!!
+            if (active === state.call && active.contextActive)
+                throw IllegalStateException(Some("cannot await stream.close from its own generation or callback"))
+            contextCall = active.parentContext
+        }
+        state.stop(state.earlyClose)
+        suspendCoroutine<Unit> { continuation ->
+            val closed = state.lock.withLock {
+                if (state.closed) true else { state.closeWaiters.add(continuation); false }
+            }
+            if (closed) continuation.resume(Unit)
+        }
+    }
+    val error = state.lock.withLock {
+        if (state.errorDelivered) None else {
+            state.errorDelivered = true
+            state.failure
+        }
+    }
+    when (error) { case Some(reason) -> if (reason !== state.earlyClose) throw reason; case None -> {} }
+}

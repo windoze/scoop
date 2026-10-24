@@ -11,7 +11,7 @@ internal class LlmClientState(val loop: EventLoop, val http: HttpClient, val own
     var closed = false
     var ownerHold: Continuation<Unit>? = None
     var wake: Continuation<Unit>? = None
-    val calls = ArrayList<LlmCallState>()
+    val calls = ArrayList<LlmOwnedCall>()
     val closeWaiters = ArrayList<Continuation<Unit>>()
 }
 
@@ -84,7 +84,7 @@ internal suspend fun closeLlmClient(state: LlmClientState) {
     }
 }
 
-internal fun registerLlmCall(state: LlmClientState, call: LlmCallState) {
+internal fun registerLlmCall(state: LlmClientState, call: LlmOwnedCall) {
     if (currentEventLoop() !== state.loop) throw IllegalStateException(Some("LLM client belongs to another event loop"))
     state.lock.withLock {
         if (state.closing) throw LlmClientClosedException()
@@ -92,7 +92,7 @@ internal fun registerLlmCall(state: LlmClientState, call: LlmCallState) {
     }
 }
 
-internal fun removeLlmCall(state: LlmClientState, call: LlmCallState) {
+internal fun removeLlmCall(state: LlmClientState, call: LlmOwnedCall) {
     state.lock.withLock {
         var index = 0L
         while (index < state.calls.size) {

@@ -9,15 +9,34 @@ import scoop.time.TimeMark
 internal class LlmAttemptState(val call: LlmCallState, val number: Long) {
     private val lock = Mutex()
     private var observed: HttpAttemptMetrics? = None
-    var response: LlmResponse? = None
-    var completed: LlmTimePoint? = None
+    private var response: LlmResponse? = None
+    private var completed: LlmTimePoint? = None
+    private var firstEvent: LlmTimePoint? = None
+    private var firstOutput: LlmTimePoint? = None
+    private var firstText: LlmTimePoint? = None
+    private var streamResponseId: String? = None
+    private var streamUsage: LlmUsage = LlmUsage()
+    private var requestId: String? = None
     var retryAfter: Duration = Duration.ZERO
-    var requestId: String? = None
 
     fun observe(metrics: HttpAttemptMetrics) { lock.withLock { observed = Some(metrics) } }
+    fun identify(id: String?) { lock.withLock { requestId = id } }
+    fun complete(value: LlmResponse) { lock.withLock { response = Some(value); completed = Some(call.point()) } }
+    fun event(point: LlmTimePoint) { lock.withLock { if (!llmPresent(firstEvent)) firstEvent = Some(point); Unit } }
 
-    fun snapshot(): LlmAttemptMetadata {
-        val metrics = lock.withLock { observed }
+    fun update(point: LlmTimePoint, update: LlmStreamUpdate, decoder: LlmSseDecoder) {
+        lock.withLock {
+            streamResponseId = decoder.responseId
+            streamUsage = decoder.usage
+            if (update.hasOutput && !llmPresent(firstOutput)) firstOutput = Some(point)
+            if (update.hasText && !llmPresent(firstText)) firstText = Some(point)
+            if (decoder.isFinished) completed = Some(call.point())
+            Unit
+        }
+    }
+
+    fun snapshot(): LlmAttemptMetadata = lock.withLock {
+        val metrics = observed
         val sent = when (metrics) {
             case Some(value) -> observedPoint(value.requestHeadersAt, value.requestHeadersAtUtc)
             case None -> None
@@ -28,11 +47,12 @@ internal class LlmAttemptState(val call: LlmCallState, val number: Long) {
         }
         val hasOutput = when (response) { case Some(value) -> responseHasOutput(value); case None -> false }
         val hasText = when (response) { case Some(value) -> responseHasText(value); case None -> false }
-        return LlmAttemptMetadata(number, LlmRequestTiming(sent),
-            LlmResponseTiming(received = received, firstOutput = if (hasOutput) completed else None,
-                firstText = if (hasText) completed else None, completed = completed),
+        LlmAttemptMetadata(number, LlmRequestTiming(sent),
+            LlmResponseTiming(received = received, firstEvent = firstEvent,
+                firstOutput = if (llmPresent(firstOutput)) firstOutput else if (hasOutput) completed else None,
+                firstText = if (llmPresent(firstText)) firstText else if (hasText) completed else None, completed = completed),
             when (metrics) { case Some(value) -> value.status; case None -> None }, requestId,
-            when (response) { case Some(value) -> value.id; case None -> None }, response?.usage ?: LlmUsage())
+            when (response) { case Some(value) -> value.id; case None -> streamResponseId }, response?.usage ?: streamUsage)
     }
 
     private fun observedPoint(mark: TimeMark?, at: Instant?): LlmTimePoint? {

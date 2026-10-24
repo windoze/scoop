@@ -1,0 +1,66 @@
+package scoop.llm.client
+
+import scoop.platform.concurrent.Mutex
+
+internal enum LlmStreamReader { Raw, Text }
+
+internal class LlmStreamState(val call: LlmCallState, val retention: StreamRetention, val opening: LlmStreamOpening) : LlmOwnedCall {
+    public override val lifetime: Job get() = call.lifetime
+    val lock = Mutex()
+    var activeAttempt: LlmAttemptState? = None
+    var protocolFinished = false
+    var closeRequested = false
+    var closed = false
+    var reader: LlmStreamReader? = None
+    var reading = false
+    var pending: Continuation<LlmEvent?>? = None
+    var wake: CancellableContinuation<Unit>? = None
+    val closeWaiters = ArrayList<Continuation<Unit>>()
+    val earlyClose = CancellationException()
+    var retained: LlmResponse? = None
+    var failure: Throwable? = None
+    var errorDelivered = false
+    var finalMetadata: LlmCallMetadata? = None
+
+    fun metadata(): LlmCallMetadata = lock.withLock {
+        when (finalMetadata) { case Some(value) -> return@withLock value; case None -> {} }
+        val attempts = ArrayList<LlmAttemptMetadata>()
+        for (attempt in call.attempts) attempts.add(attempt)
+        when (activeAttempt) { case Some(attempt) -> attempts.add(attempt.snapshot()); case None -> {} }
+        LlmCallMetadata(call.id, call.startedAt, attempts.toArray())
+    }
+
+    public override fun stop(error: Throwable) {
+        val (finished, waiting) = lock.withLock {
+            closeRequested = true
+            val waiting = wake
+            wake = None;
+            (protocolFinished || closed, waiting)
+        }
+        if (!finished) call.stop(error)
+        waiting?.tryResume(Unit)
+    }
+
+    fun cancel(error: Throwable) {
+        call.stop(error)
+        stop(error)
+    }
+
+    fun deliver(event: LlmEvent?) {
+        val waiting = lock.withLock { val value = pending; pending = None; value }
+        waiting?.resume(event)
+    }
+
+    suspend fun awaitDemand(): Boolean {
+        suspendCancellableCoroutine<Unit> { continuation ->
+            val ready = lock.withLock {
+                if (closeRequested || llmPresent(pending)) true else { wake = Some(continuation); false }
+            }
+            if (ready) continuation.tryResume(Unit)
+        }
+        ensureActive()
+        return lock.withLock { !closeRequested }
+    }
+}
+
+internal fun <T> llmPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }

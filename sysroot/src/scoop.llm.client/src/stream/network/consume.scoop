@@ -1,0 +1,36 @@
+package scoop.llm.client
+
+import scoop.http.asyncio.SseSource
+
+internal suspend fun consumeLlmStream(state: LlmStreamState, source: SseSource, decoder: LlmSseDecoder,
+    attempt: LlmAttemptState, timer: Job?) {
+    var batch: Array<LlmEvent> = []
+    var offset = 0L
+    while (state.awaitDemand()) {
+        if (offset < batch.size) {
+            val event = batch[offset]
+            offset += 1L
+            if (offset == batch.size) { batch = []; offset = 0L }
+            state.deliver(Some(event))
+            continue
+        }
+        if (decoder.isFinished) { state.deliver(None); continue }
+        val event = source.next()
+        if (!llmPresent(event)) { decoder.endInput(); continue }
+        val point = state.call.point()
+        attempt.event(point)
+        val update = decoder.accept(event!!.event, event!!.data)
+        val retained = if (decoder.isFinished && state.retention == StreamRetention.Result) Some(decoder.response()) else None
+        state.lock.withLock {
+            attempt.update(point, update, decoder)
+            if (decoder.isFinished) {
+                state.protocolFinished = true
+                state.retained = retained
+            }
+            Unit
+        }
+        if (decoder.isFinished) timer?.cancel()
+        batch = update.events
+        offset = 0L
+    }
+}

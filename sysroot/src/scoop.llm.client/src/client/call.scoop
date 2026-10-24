@@ -7,7 +7,12 @@ import scoop.platform.time.SystemClock
 import scoop.time.Duration
 import scoop.uuid.Uuid
 
-internal class LlmCallState(val client: LlmClientState, val lifetime: Job) {
+internal interface LlmOwnedCall {
+    val lifetime: Job
+    fun stop(error: Throwable)
+}
+
+internal class LlmCallState(val client: LlmClientState, public override val lifetime: Job) : LlmOwnedCall {
     private val lock = Mutex()
     private var work: Job? = None
     private var stopReason: Throwable? = None
@@ -26,7 +31,7 @@ internal class LlmCallState(val client: LlmClientState, val lifetime: Job) {
         if (cancel) job.cancel()
     }
 
-    fun stop(error: Throwable) {
+    public override fun stop(error: Throwable) {
         val job: Job? = lock.withLock {
             if (settled) return@withLock None
             if (when (stopReason) { case None -> true; case Some(_) -> false }) stopReason = Some(error)
@@ -51,7 +56,7 @@ internal class LlmCallState(val client: LlmClientState, val lifetime: Job) {
 context(call: LlmCallState)
 private fun boundLlmCall(): LlmCallState = call
 
-private fun currentLlmCall(): LlmCallState? =
+internal fun currentLlmCall(): LlmCallState? =
     try { Some(boundLlmCall()) } catch (_: MissingContextException) { None }
 
 internal fun checkLlmCloseContext(client: LlmClientState) {

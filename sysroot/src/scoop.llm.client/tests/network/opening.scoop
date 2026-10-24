@@ -1,0 +1,108 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+private class StreamWaitingAuth : LlmAuth {
+    public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> {
+        currentEventLoop().sleep(Duration.seconds(60L))
+        return []
+    }
+}
+
+@Test
+private class LlmStreamOpeningTest {
+    @Test
+    fun `unsupported streaming fails before authentication and still reports completion`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val auth = RecordingAuth()
+                val finished = FinishedCalls()
+                val model = LlmEndpoint(Providers.openAiChat(), auth).model("m",
+                    Some(ModelCapabilities(streaming = Unsupported("disabled"))))
+                val error = expectLlmFailure<LlmRequestException> suspend {
+                    client.openStream(model, sampleRequest,
+                        LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+                assertEquals("/stream", error.path)
+                assertEquals(0L, auth.requests.size)
+                assertEquals(1L, finished.values.size)
+                assertEquals(0L, finished.values[0L].attempts.size)
+            }
+        }
+    }
+
+    @Test
+    fun `total timeout includes stream opening authentication`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val finished = FinishedCalls()
+                val model = LlmEndpoint(Providers.openAiChat(), StreamWaitingAuth()).model("m")
+                expectLlmFailure<LlmTimeoutException> suspend {
+                    client.openStream(model, sampleRequest, LlmCallOptions(timeouts = LlmTimeouts(total = Some(Duration.milliseconds(25L))),
+                        onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+                assertEquals(1L, finished.values.size)
+                assertEquals(None, finished.values[0L].attempts[0L].request.sentAt)
+            }
+        }
+    }
+
+    @Test
+    fun `streaming retries explicit service rejection before handing over the response`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val auth = RecordingAuth()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 429U, "{\"error\":{\"code\":\"rate_limit_exceeded\"}}")
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 200U, streamReply, streamFields)
+                }
+            }
+            withLlmClient suspend { client ->
+                val model = LlmEndpoint(endpoint.provider, auth, Some(endpoint.baseUrl)).model("m")
+                val stream = client.openStream(model, sampleRequest,
+                    LlmCallOptions(retries = LlmRetryOptions(initialDelay = Duration.ZERO)), StreamRetention.Result)
+                stream.useAsync suspend { opened -> drainStream(opened) }
+                assertEquals("hello world", stream.result().text)
+                assertEquals(2L, auth.requests.size)
+                assertLlmBytes(auth.requests[0L].body, auth.requests[1L].body)
+                assertEquals(2L, stream.metadata.attempts.size)
+                assertEquals(Some(429U), stream.metadata.attempts[0L].status)
+                assertEquals(None, stream.metadata.attempts[0L].response.firstEventAt)
+                assertEquals(Some(11L), stream.metadata.attempts[1L].usage.tokens.totalTokens)
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `wrong response media type fails during opening without parsing a success body`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 200U, sampleReply)
+                }
+            }
+            withLlmClient suspend { client ->
+                val finished = FinishedCalls()
+                expectLlmFailure<LlmStreamProtocolException> suspend {
+                    client.openStream(endpoint.model("m"), sampleRequest,
+                        LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+                assertEquals(1L, finished.values.size)
+                assertEquals(Some(200U), finished.values[0L].attempts[0L].status)
+                assertEquals(None, finished.values[0L].attempts[0L].response.completedAt)
+            }
+            serving.join()
+        }
+    }
+}

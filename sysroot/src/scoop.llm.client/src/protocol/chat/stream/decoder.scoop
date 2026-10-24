@@ -50,6 +50,11 @@ internal class ChatStreamDecoder public constructor(
             if (error) throw DecodingException("/error", "server reported a stream error")
         }
         val chunk = decodeChatValue<ChatStreamChunk>(value, "")
+        val hasUsage = when (chunk.usage) { case Some(_) -> true; case None -> false }
+        if (chunk.choices.size == 0L && chunk.id == Some("") && chunk.model == Some("") && chunk.created == Some(0L) && !hasUsage) {
+            update.native("chat.annotation", value)
+            return
+        }
         id = chatStreamIdentity(id, chunk.id, "/id")
         model = chatStreamIdentity(model, chunk.model, "/model")
         if (created != None && chunk.created != None && created != chunk.created)

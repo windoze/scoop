@@ -1,0 +1,62 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal val streamFields = [HttpField("Content-Type".toByteArray(), "text/event-stream".toByteArray())]
+internal val streamPrefix = "data: {\"id\":\"s-1\",\"choices\":[{\"index\":2,\"delta\":{\"role\":\"assistant\",\"content\":\"hello\"}}]}\n\n"
+internal val streamTail = "data: {\"choices\":[{\"index\":2,\"delta\":{\"content\":\" world\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":3,\"total_tokens\":11}}\n\ndata: [DONE]\n\n"
+internal val streamReply = streamPrefix + streamTail
+
+internal fun withStreamReply(body: String, block: suspend (LlmClient, LlmModel) -> Unit) {
+    withLlmServer suspend { _, scope, listener, endpoint ->
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                val value = Json.parse(String.fromUtf8(request.body.readAllBytes(4096L)))
+                assertTrue(value["stream"]!!.asBoolean())
+                assertTrue(value["stream_options"]!!["include_usage"]!!.asBoolean())
+                sendLlmReply(connection, 200U, body, streamFields)
+            }
+        }
+        withLlmClient suspend { client -> block(client, endpoint.model("m")) }
+        serving.join()
+    }
+}
+
+internal suspend fun drainStream(stream: LlmStream) {
+    while (true) { when (stream.next()) { case Some(_) -> continue; case None -> return } }
+}
+
+internal suspend fun writeStreamBody(output: AsyncByteSink, body: String) {
+    val bytes = body.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes); output.writeFully(buffer)
+    }
+    output.flush()
+}
+
+/** Sends headers and waits for the test to release a body, keeping the read observably pending. */
+internal fun withWaitingStream(block: suspend (CoroutineScope, LlmClient, LlmModel, LlmGate) -> Unit) {
+    withLlmServer suspend { _, scope, listener, endpoint ->
+        val release = LlmGate()
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                connection.receiveRequest()!!.body.readAllBytes(4096L)
+                connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U, Some("OK".toByteArray()), streamFields),
+                    Http1BodyFraming.Chunked).useAsync suspend { output ->
+                    output.flush()
+                    release.await()
+                }
+            }
+        }
+        try { withLlmClient suspend { client -> block(scope, client, endpoint.model("m"), release) } }
+        finally { release.signal() }
+        serving.join()
+    }
+}

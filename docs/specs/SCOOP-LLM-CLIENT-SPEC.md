@@ -227,8 +227,24 @@ ChatProtocol 实现该合同。ChatDialect.streamedReasoningField 指明可按�
 
 每个 chunk 的 choice index 必须非负且不重复，跨 chunk 的 id／model／created 若重复出现须一致。role 出现时只能为 assistant，未出现时按该输出协议的 assistant 角色构造历史。finish_reason 非 null 时完成该候选；此后不得再追加 delta，空 delta 的相同 finish_reason 可承载尾部 usage。未知停止原因保留 Other 并标为输出 Incomplete，不等同传输失败。
 
+兼容服务的无候选注释帧可以使用空 id／model、created=0 且不含 usage；这一完整组合不声明响应身份，作为 `chat.annotation` Native 事件完整保留，不设置 createdAt，也不视为有效输出或终止。普通生成帧的真实身份变化仍失败，真实响应明确报告的 created=0 仍是有效 Unix epoch。该形状依据 [Azure Prompt annotation message](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/content-streaming#prompt-annotation-message) 及实际代理响应；不因此宣称支持 Azure 的全部异步过滤／部署功能。
+
 OpenAI 的独立 usage-only chunk 和 DeepSeek 在最后一个 choice 同时报告的 usage 均被读取；计数是累计快照，已出现字段更新同字段，缺省／null 不擦除前值，嵌套明细按字段合并，不累加快照。usage 在正常 `[DONE]` 后标 Final，之前报告的快照保持 Partial；当前已观察候选均结束不能证明后续没有新候选或 usage。没有报告的计数仍为 None。只有 `[DONE]` 且至少一个候选、所有已观察候选均有 finish_reason 才正常终止；不能在某个 finish_reason 或普通 EOF 时提前成功。协议错误事件、根部 error、缺失终止或终止后继续输入明确失败，不进行自动恢复或重试。
 
 Native 事件保留无法通用解释的字段／事件及其位置；Result 将这些必要片段保存在新增的 `LlmResponse.nativeEvents = []`，不冒充服务端一次完整 JSON 响应（流式 response.native 为 None）。未知消息／工具 delta 无法无损归并到可回传消息时，该候选的 history 为 None；原始片段仍可读取，toInput 报 HistoryUnavailable，不静默丢掉可能影响回传的字段。已知 audio、reasoning 与工具字段按已声明规则构造历史。
 
 协议依据：[OpenAI streaming events](https://developers.openai.com/api/reference/resources/chat/subresources/completions/streaming-events)、[DeepSeek Chat](https://api-docs.deepseek.com/api/create-chat-completion/)、[DeepSeek thinking](https://api-docs.deepseek.com/guides/thinking_mode/)。网络流的拥有关系、单消费者与收尾按同一 client 寿命合同接入，不能在纯 decoder 中启动后台读取。
+
+## 11. 流式网络寿命与读取视图
+
+`client.openStream(model, request, options = LlmCallOptions(), retention = EventsOnly)` 返回 `LlmStream : AsyncCloseable`；`withStream` 使用相同参数加 suspend block，仅组合 openStream 与 useAsync，返回 block 的值。打开前检查 streaming capability；明确 Unsupported 或协议没有 SSE 合同时在认证／发送前失败，Unknown 不被当作不支持。成功响应必须为 text/event-stream；服务拒绝的认证、有限错误读取与重试沿第 9 节，取得成功响应后的任何读取／解析失败均不重试，也不 SSE reconnect。
+
+流属于 client 所在 EventLoop，并由 client 跟踪至实际清理和 onFinished 完成。打开过程受打开者取消控制；打开返回后由流的显式寿命接管。`next(): LlmEvent?` 的调用者取消会取消该生成，等待真实清理后保持 CancellationException。流只在消费者请求下一条事件时读取，允许 SSE parser 的有限缓冲和一个已解码事件批次；不后台预读完整输出。maxResponseBytes 约束读取的已解码 HTTP 正文字节（含 SSE framing 与有限 read-ahead），超限沿用 ReadLimitException；SSE 单行和事件数据的上限也使用该值，避免额外隐含的较小限制。
+
+`textDeltas()` 取得唯一的 `LlmTextStream` 读取视图，其 next 返回带位置的 LlmTextDelta。取得视图即选择文本入口；首次原始 next 选择原始入口，此后不能切换、重复取得视图或并发 next。文本入口驱动同一 reducer，过滤非普通文本事件但完整处理工具、usage、结束和错误。None 只表示正常协议终止；提前关闭、取消和失败不冒充 EOF。
+
+metadata 每次返回不可变 LlmCallMetadata 快照。首个 SSE 事件、首个有效输出和首个普通文本在实际处理该事件时采样，HTTP 发送／响应头仍取底层观测；无法观察的时间保持 None。正常协议终止记录 completed 与最终 usage，并停止 total 截止，随后消费者到显式关闭之间的等待不触发生成超时。此时 metadata 仍为 Active；实际资源清理后才记录 finished、最终 outcome 并调用一次 onFinished，包括打开失败。回调不能等待本流或所属 client 的 close。
+
+close 不自动消费剩余输出：未达终止时取消并等待收尾（outcome=Cancelled），已经终止时正常清理；重复关闭幂等。client.close 对已经终止的流正常清理，对未完成的流以 LlmClientClosedException 终止，并等待回调。读取失败由 next 交付后，useAsync 的 close 不重复交付同一失败；尚未交付的超时、拥有者关闭或回调失败由 close 交付。操作和回调都失败时以 ResourceUseException 保留两者。主动提前 close 自身不抛用于中止读取的 CancellationException。
+
+`result()` 为关闭后的纯读取，要求 Result 保留、协议正常终止、资源清理及回调成功，否则报告原失败或 LlmOutputException（Incomplete／ResultNotRetained）。所有模式关闭后仍可读取 metadata；block 内旧快照不被改写。关闭前不能取得伪造的最终结果。
