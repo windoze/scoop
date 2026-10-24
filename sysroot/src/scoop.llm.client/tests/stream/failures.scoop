@@ -11,7 +11,7 @@ private class ChatStreamFailureTest {
             val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
             decoder.accept("message", streamChunk("{\"content\":\"partial\"}"))
             when (terminal) {
-                case "eof" -> assertFailsWith<LlmStreamProtocolException> { decoder.endInput() }
+                case "eof" -> assertFailsWith<LlmStreamProtocolException> { decoder.endInput(); Unit }
                 case "done" -> assertFailsWith<LlmStreamProtocolException> { decoder.accept("message", "[DONE]"); Unit }
                 case "error" -> assertFailsWith<LlmStreamProtocolException> { decoder.accept("error", "failed"); Unit }
                 else -> assertFailsWith<LlmProtocolException> { decoder.accept("message", "{\"error\":{\"message\":\"failed\"}}"); Unit }

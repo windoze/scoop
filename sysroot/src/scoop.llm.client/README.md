@@ -94,6 +94,8 @@ client.withStream(model, request) suspend { stream ->
 
 `stream.metadata` 每次取得不可变快照：HTTP 实际发送／响应头、首个事件／输出／文本和协议完成点分别记录。收到协议终止后停止 total 截止；资源清理后记录 finished 并执行一次 onFinished，此后 result 才可用。maxResponseBytes 同时约束流式 HTTP 正文的已读取字节，包含 SSE framing 和有限读取缓冲；不累计整条事件日志。
 
+自定义 SSE decoder 的 `endInput()` 返回同样的 `LlmStreamUpdate`，可在 EOF 时交付最后的事件和 usage；成功返回时必须已经 `isFinished`。这些事件交付后才返回读取结束，最终结果、completed 时间和截止取消沿用正常事件的路径。EOF 本身不产生 firstEvent 时间。Chat、Messages、Responses 仍要求各自的显式终止事件，缺失时报告协议错误。
+
 同一个 protocol 的 `encodeRequest(modelId, request, stream = false)` 生成 wire JSON；它本身不执行网络请求。Chat 最小文本只发送 model 和 messages，默认不设置温度、reasoning、token 上限或输出格式；Messages 另有必需的 max_tokens 默认值。各 dialect 处理自身的媒体形式、生成参数、工具和历史，不按 model ID 切换字段。OpenAI Chat 的 Server(WebSearch) 映射请求级 web_search_options，无法表达的选项抛出带输入路径的 LlmRequestException。
 
 DeepSeek 不同模型的 topP 生效模式不同。缺省省略 topP 时不需要额外设置；显式使用时，通过 `Providers.deepSeekChat(DeepSeekTopPMode.Thinking)` 或 `NonThinking` 选择已知规则。缺省 Unknown 会拒绝显式 topP，避免接受一个实际被服务端忽略的设置；不根据模型名称自动猜测。

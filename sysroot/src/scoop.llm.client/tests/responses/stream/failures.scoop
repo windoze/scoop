@@ -8,7 +8,7 @@ private class ResponsesStreamFailureTest {
     @Test
     fun `Responses stream requires a terminal lifecycle and distinguishes protocol errors from failed results`() {
         val empty = responsesStream()
-        assertFailsWith<LlmStreamProtocolException> { empty.endInput() }
+        assertFailsWith<LlmStreamProtocolException> { empty.endInput(); Unit }
         assertFailsWith<LlmOutputException> { empty.response(); Unit }
         val error = responsesStream()
         assertEquals("/message", assertFailsWith<LlmProtocolException> {

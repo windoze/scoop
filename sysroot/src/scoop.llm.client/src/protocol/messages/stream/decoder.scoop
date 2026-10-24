@@ -84,11 +84,12 @@ internal class MessagesStreamDecoder public constructor(
         return blocks[index]
     }
 
-    public override fun endInput() {
+    public override fun endInput(): LlmStreamUpdate {
         if (!isFinished) {
             failed = true
             throw LlmStreamProtocolException(dialect.id, "Messages stream ended without message_stop")
         }
+        return LlmStreamUpdate([])
     }
 
     public override fun response(): LlmResponse {

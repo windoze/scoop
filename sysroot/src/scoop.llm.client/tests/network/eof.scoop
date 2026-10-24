@@ -1,0 +1,87 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.text.replace
+import scoop.time.Duration
+
+@Test
+private class LlmStreamEofTest {
+    @Test
+    fun `EOF delivers final usage retains results and stops the deadline before stream cleanup`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            withEofReply(streamReply.replace("data: [DONE]\n\n", ""), MockEofMode.Chat) suspend { client, model ->
+                val finished = FinishedCalls()
+                val stream = client.openStream(model, sampleRequest, LlmCallOptions(
+                    timeouts = LlmTimeouts(total = Some(Duration.seconds(1L))),
+                    onFinished = Some(suspend { value -> finished.record(value) })), retention)
+                val text = StringBuilder()
+                stream.useAsync suspend { opened ->
+                    var finalUsage = 0L
+                    while (true) {
+                        val event = opened.next() ?: break
+                        when (event) {
+                            case TextDelta(delta) -> text.append(delta.text)
+                            case Usage(value) -> {
+                                if (value.completeness == UsageCompleteness.Final) {
+                                    finalUsage += 1L
+                                    assertEquals(Some(11L), value.tokens.totalTokens)
+                                }
+                            }
+                            else -> continue
+                        }
+                    }
+                    assertEquals(1L, finalUsage)
+                    assertEquals("hello world", text.toString())
+                    assertEquals(0L, finished.values.size)
+                    val attempt = opened.metadata.attempts[0L]
+                    assertEquals(UsageCompleteness.Final, attempt.usage.completeness)
+                    assertTrue(attempt.response.completedAt != None && attempt.response.firstEventAt != None)
+                    currentEventLoop().sleep(Duration.milliseconds(1100L))
+                    assertFalse(opened.isClosed)
+                    assertEquals(LlmCallOutcome.Active, opened.metadata.outcome)
+                }
+                assertEquals(LlmCallOutcome.Completed, stream.metadata.outcome)
+                assertEquals(1L, finished.values.size)
+                if (retention == StreamRetention.Result) assertEquals("hello world", stream.result().text)
+                else expectLlmFailure<LlmOutputException> suspend { stream.result(); Unit }
+            }
+        }
+    }
+
+    @Test
+    fun `EOF completion does not fabricate a first model event or output timestamp`() {
+        withEofReply("", MockEofMode.Empty) suspend { client, model ->
+            val stream = client.openStream(model, sampleRequest, retention = StreamRetention.Result)
+            stream.useAsync suspend { opened ->
+                val event = opened.next() ?: fail()
+                when (event) { case Usage(value) -> assertEquals(UsageCompleteness.Final, value.completeness); else -> fail() }
+                assertFalse(when (opened.next()) { case Some(_) -> true; case None -> false })
+                val timing = opened.metadata.attempts[0L].response
+                assertEquals(None, timing.firstEventAt)
+                assertEquals(None, timing.firstOutputAt)
+                assertEquals(None, timing.firstTextAt)
+                assertTrue(timing.completedAt != None)
+            }
+            assertEquals(0L, stream.result().response.candidates.size)
+            assertEquals(LlmCallOutcome.Completed, stream.metadata.outcome)
+        }
+    }
+
+    @Test
+    fun `EOF failures preserve partial observations and unfinished decoders cannot loop on EOF`() {
+        for (mode in [MockEofMode.Chat, MockEofMode.Unfinished]) {
+            withEofReply(streamPrefix, mode) suspend { client, model ->
+                val stream = client.openStream(model, sampleRequest, retention = StreamRetention.Result)
+                expectLlmFailure<LlmStreamProtocolException> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+                assertEquals(LlmCallOutcome.Failed, stream.metadata.outcome)
+                val attempt = stream.metadata.attempts[0L]
+                assertEquals(None, attempt.response.completedAt)
+                assertTrue(attempt.response.firstTextAt != None)
+                assertEquals(UsageCompleteness.Partial, attempt.usage.completeness)
+                expectLlmFailure<LlmStreamProtocolException> suspend { stream.result(); Unit }
+            }
+        }
+    }
+}

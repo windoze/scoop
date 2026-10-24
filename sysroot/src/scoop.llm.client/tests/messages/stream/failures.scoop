@@ -10,7 +10,7 @@ private class MessagesStreamFailureTest {
         for (retention in [StreamRetention.Result, StreamRetention.EventsOnly]) {
             val eof = messagesStream(retention)
             messagesEvent(eof, "message_delta", "\"delta\":{\"stop_reason\":\"end_turn\"}")
-            assertFailsWith<LlmStreamProtocolException> { eof.endInput() }
+            assertFailsWith<LlmStreamProtocolException> { eof.endInput(); Unit }
             assertFalse(eof.isFinished)
             assertFailsWith<LlmOutputException> { eof.response(); Unit }
             val open = messagesStream(retention)

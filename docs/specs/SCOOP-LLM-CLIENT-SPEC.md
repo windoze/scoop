@@ -239,7 +239,7 @@ onFinished 在实际收尾后执行一次，成功、输入检查失败、服务
 
 `LlmSseProtocol` 扩展普通生成合同，增加 `streamUrl(baseUrl, modelId)` 与 `createStreamDecoder(request, retention = EventsOnly)`。streamUrl 缺省调用 generationUrl；普通与流式路径不同的协议显式覆写，传输层不按模型名或服务商猜测路由。普通生成只用 generationUrl，SSE 只用 streamUrl；认证接收选择后的最终 URL 和已编码正文，发送不再次改写地址。
 
-`LlmSseDecoder.accept(event, data)` 接收已经由 SSE parser 定界的事件，返回 `LlmStreamUpdate(events, hasOutput, hasText, isKeepAlive = false)`；不执行 I/O。isFinished、responseId、usage 提供当前事实，endInput 检查 EOF 是否正常，response() 仅在 Result 模式、正常终止且未失败时返回完整 LlmResponse。错误后 decoder 不继续接受数据，也不能读取伪造的成功结果。
+`LlmSseDecoder.accept(event, data)` 接收已经由 SSE parser 定界的事件，返回 `LlmStreamUpdate(events, hasOutput, hasText, isKeepAlive = false)`；不执行 I/O。isFinished、responseId、usage 提供当前事实。`endInput(): LlmStreamUpdate` 检查 EOF 并交付只在输入结束时确定的终止／usage 事件；正常返回必须已经 isFinished，否则传输层报告协议错误。要求显式终止事件的协议仍在缺少该事件时失败，已正常结束时返回空更新。response() 仅在 Result 模式、正常终止且未失败时返回完整 LlmResponse。错误后 decoder 不继续接受数据，也不能读取伪造的成功结果。
 
 `LlmEvent` 包括 TextDelta、ReasoningDelta、RefusalDelta、ToolInputDelta、ClientToolCall、ServerToolActivity、Citation、CandidateFinished、Usage 与 Native；Messages 的服务端活动与引用按第 14 节交付。LlmItemLocation 使用协议 candidate index 和候选内首次观察到的 item index；LlmTextDelta 另带 partIndex，Chat 的各个文本字段各占一个单 part item。事件和最终结果使用同一位置，不把多个候选拼接。ToolInputDelta 的 reference 在身份明确且能关联到请求中的客户端工具后才提供；它本身不保证完整输入可执行。完成调用复用普通 Chat 工具解释，无效／截断参数分别为 Invalid／Incomplete。
 
@@ -264,6 +264,8 @@ Native 事件保留无法通用解释的字段／事件及其位置；Result 将
 `textDeltas()` 取得唯一的 `LlmTextStream` 读取视图，其 next 返回带位置的 LlmTextDelta。取得视图即选择文本入口；首次原始 next 选择原始入口，此后不能切换、重复取得视图或并发 next。文本入口驱动同一 reducer，过滤非普通文本事件但完整处理工具、usage、结束和错误。None 只表示正常协议终止；提前关闭、取消和失败不冒充 EOF。
 
 metadata 每次返回不可变 LlmCallMetadata 快照。首个成功解释的非保活协议事件、首个有效输出和首个普通文本在实际处理该事件时采样，HTTP 发送／响应头仍取底层观测；无法观察的时间保持 None。正常协议终止记录 completed 与最终 usage，并停止 total 截止，随后消费者到显式关闭之间的等待不触发生成超时。此时 metadata 仍为 Active；实际资源清理后才记录 finished、最终 outcome 并调用一次 onFinished，包括打开失败。回调不能等待本流或所属 client 的 close。
+
+正常 EOF 的 endInput 更新经过同一事件交付、结果保留、usage／completed 采样和截止取消路径；先交付其事件，再返回读取结束。EOF 自身不是 SSE 模型事件，不设置 firstEvent。若 endInput 失败，保留已观察的部分用量和输出，不记录成功 completed，不取得完整结果，也不重试。
 
 close 不自动消费剩余输出：未达终止时取消并等待收尾（outcome=Cancelled），已经终止时正常清理；重复关闭幂等。client.close 对已经终止的流正常清理，对未完成的流以 LlmClientClosedException 终止，并等待回调。读取失败由 next 交付后，useAsync 的 close 不重复交付同一失败；尚未交付的超时、拥有者关闭或回调失败由 close 交付。操作和回调都失败时以 ResourceUseException 保留两者。主动提前 close 自身不抛用于中止读取的 CancellationException。
 

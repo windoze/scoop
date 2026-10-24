@@ -34,7 +34,7 @@ internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, re
                     SseLimits(options.maxResponseBytes, options.maxResponseBytes)).useAsync suspend { source ->
                     ensureActive()
                     state.opening.publish(LlmStream(state))
-                    consumeLlmStream(state, source, decoder, attempt, timer)
+                    consumeLlmStream(state, source, decoder, protocol.dialectId, attempt, timer)
                 }
                 None
             }

@@ -70,11 +70,12 @@ internal class ResponsesStreamDecoder public constructor(
         return item
     }
 
-    public override fun endInput() {
+    public override fun endInput(): LlmStreamUpdate {
         if (!isFinished) {
             failed = true
             throw LlmStreamProtocolException(dialect.id, "Responses stream ended without a terminal response")
         }
+        return LlmStreamUpdate([])
     }
 
     public override fun response(): LlmResponse {

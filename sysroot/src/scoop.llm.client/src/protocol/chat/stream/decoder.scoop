@@ -94,11 +94,12 @@ internal class ChatStreamDecoder public constructor(
         return true
     }
 
-    public override fun endInput() {
+    public override fun endInput(): LlmStreamUpdate {
         if (!isFinished) {
             failed = true
             throw LlmStreamProtocolException(dialect.id, "Chat stream ended without a complete terminal event")
         }
+        return LlmStreamUpdate([])
     }
 
     public override fun response(): LlmResponse {

@@ -19,7 +19,7 @@ public interface LlmSseDecoder {
     public val responseId: String?
     public val usage: LlmUsage
     public fun accept(event: String, data: String): LlmStreamUpdate
-    public fun endInput()
+    public fun endInput(): LlmStreamUpdate
     public fun response(): LlmResponse
 }
 

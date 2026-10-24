@@ -3,7 +3,7 @@ package scoop.llm.client
 import scoop.http.asyncio.SseSource
 
 internal suspend fun consumeLlmStream(state: LlmStreamState, source: SseSource, decoder: LlmSseDecoder,
-    attempt: LlmAttemptState, timer: Job?) {
+    dialect: DialectId, attempt: LlmAttemptState, timer: Job?) {
     var batch: Array<LlmEvent> = []
     var offset = 0L
     while (state.awaitDemand()) {
@@ -16,10 +16,17 @@ internal suspend fun consumeLlmStream(state: LlmStreamState, source: SseSource, 
         }
         if (decoder.isFinished) { state.deliver(None); continue }
         val event = source.next()
-        if (!llmPresent(event)) { decoder.endInput(); continue }
         val point = state.call.point()
-        val update = decoder.accept(event!!.event, event!!.data)
-        if (!update.isKeepAlive) attempt.event(point)
+        val update = when (event) {
+            case Some(value) -> decoder.accept(value.event, value.data)
+            case None -> {
+                val terminal = decoder.endInput()
+                if (!decoder.isFinished) throw LlmStreamProtocolException(dialect,
+                    "decoder did not finish at end of input")
+                terminal
+            }
+        }
+        if (llmPresent(event) && !update.isKeepAlive) attempt.event(point)
         val retained = if (decoder.isFinished && state.retention == StreamRetention.Result) Some(decoder.response()) else None
         state.lock.withLock {
             attempt.update(point, update, decoder)
