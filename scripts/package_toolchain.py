@@ -126,6 +126,9 @@ def assemble(root, targets, binaries, args, release, extension):
     for name in ("src", "include"):
         shutil.copytree(sysroot / name, root / name, ignore=shutil.ignore_patterns("target"))
     shutil.copytree(
+        sysroot / "commands", root / "commands", ignore=shutil.ignore_patterns(".gitkeep")
+    )
+    shutil.copytree(
         sysroot / "native/text_backend",
         root / "native/text_backend",
         ignore=shutil.ignore_patterns("target"),

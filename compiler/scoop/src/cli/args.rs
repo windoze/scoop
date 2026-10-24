@@ -11,15 +11,21 @@ pub(super) use forwarding::with_single_file_arguments;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_external;
+#[cfg(test)]
 mod tests_forwarding;
 
 #[derive(Parser)]
 #[command(
     name = "scoop",
     version = scoop_toolchain::VERSION,
-    about = "Build, test, run, and link Scoop programs"
+    about = "Build, test, run, and link Scoop programs",
+    after_help = "Other commands run <SYSROOT>/commands/scoop-<command> with all following arguments unchanged. Put Scoop options before an external command."
 )]
 pub(super) struct Cli {
+    /// Scoop installation root; defaults to SCOOP_SYSROOT or the installation directory.
+    #[arg(long, global = true)]
+    pub sysroot: Option<PathBuf>,
     /// Include runtime GC stress support, controlled by environment variables at run time.
     #[arg(long, global = true)]
     pub enable_gc_stress: bool,
@@ -44,6 +50,8 @@ pub(super) enum Command {
     Link(LinkArgs),
     /// Generate an offline API documentation site from manifest Cones.
     Doc(DocArgs),
+    #[command(external_subcommand)]
+    External(Vec<OsString>),
 }
 
 #[derive(Clone, Copy, Default, ValueEnum)]
@@ -59,8 +67,6 @@ pub(super) struct BuildOptions {
     pub root_input: Option<PathBuf>,
     #[arg(long)]
     pub target: Option<String>,
-    #[arg(long)]
-    pub sysroot: Option<PathBuf>,
     #[command(flatten)]
     pub native: NativeOptions,
     /// Compiler optimization and output profile; release enables optimized code.
@@ -173,8 +179,6 @@ pub(super) struct LinkArgs {
     #[arg(long)]
     pub cone_path: Vec<PathBuf>,
     #[arg(long)]
-    pub sysroot: Option<PathBuf>,
-    #[arg(long)]
     pub target: Option<String>,
     #[command(flatten)]
     pub native: NativeOptions,
@@ -224,7 +228,7 @@ impl From<LinkMode> for scoop_toolchain::LinkMode {
 impl Command {
     pub fn message_format(&self) -> MessageFormat {
         match self {
-            Self::New(_) => MessageFormat::Human,
+            Self::New(_) | Self::External(_) => MessageFormat::Human,
             Self::Build(args) => args.options.message_format,
             Self::Run(args) => args.options.message_format,
             Self::Test(args) => args.options.message_format,
