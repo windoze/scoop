@@ -169,4 +169,22 @@ OpenAiChatDialect 的标识为 (chat-completions, openai-chat)，DeepSeekChatDia
 
 两种 dialect 均从 prompt_tokens、completion_tokens、total_tokens 与 completion_tokens_details.reasoning_tokens 读取明确计数，缺失总量不自动补齐；audio_tokens 按输入／输出归属进入模态细项。OpenAI 从 prompt_tokens_details.cached_tokens 读取缓存输入，并在 inputTokens 与 cacheReadTokens 均已知时按其包含关系得到 nonCachedInputTokens。DeepSeek 优先读取 prompt_cache_hit_tokens、prompt_cache_miss_tokens；cached_tokens 是同义读缓存字段，两者并存时必须一致。出现的计数必须非负，缓存读数不得超过已知输入总数。不把 cache 或 reasoning 再加进总量，也不从文本长度猜 token。完整响应中的 usage 记录为 Final，未返回的计数仍为 None。
 
-协议依据：[OpenAI Chat](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)、[DeepSeek Chat](https://api-docs.deepseek.com/api/create-chat-completion/)、[DeepSeek thinking](https://api-docs.deepseek.com/guides/thinking_mode/)。这些是当前响应解释合同，尚不意味着生成、媒体请求、模型能力联动或流式协议已实现。
+协议依据：[OpenAI Chat](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)、[DeepSeek Chat](https://api-docs.deepseek.com/api/create-chat-completion/)、[DeepSeek thinking](https://api-docs.deepseek.com/guides/thinking_mode/)。请求编码见第 7 节；生成传输、模型能力联动与流式 reducer 继续按实施记录交付。
+
+## 7. Chat 请求编码
+
+`ChatProtocol.encodeRequest(modelId, request, stream = false)` 将公共请求编码为不可变 JSON object，不发网络请求。modelId 按原字符串传递，不用于选择协议或猜测能力；空 modelId 与没有消息的请求报告 LlmRequestException。system 内容在 input 前形成一条 system 消息；普通消息按 role 编码。最小调用只发送 model、messages，未提供的生成字段不补供应商默认值。stream 为 true 时发送 stream 和 include_usage，完整响应模式省略它们。模型 capability 的联动属于后续模型绑定入口。
+
+ChatDialect 增加 encodeOptions(request) 和 encodeContent(content, role, path)；前者处理生成选项及工具在请求根部的映射，后者处理当前 role 的内容。protocol 固定管理 model、messages 和流模式，不允许 dialect 选项覆盖它们。通用选项无法精确表达时在对应公共输入路径报错，不静默删除。OpenAI 的 maxOutputTokens 映射 max_completion_tokens，DeepSeek 映射 max_tokens；两者不以 model ID 改写字段。
+
+OpenAI 支持 User 的图片 bytes／http(s) URL、PDF bytes／本方言文件 ID、WAV／MP3 音频 bytes；音频 URL、图片文件 ID 和视频没有这套 Chat 通用映射。文件 ID 在 LlmFileReference.value 中为 JSON string。PDF bytes 以 data URL 放入 file.file_data，文件名仅用于 bytes；不下载远端文件。图片仅使用 JPEG、PNG、GIF、WebP。DeepSeek 的 User／Tool 支持这组图片的 bytes／URL／本方言文件 ID；文件 ID 编码为顶层 file_id 的 file part，不将其当成 PDF 支持。DeepSeek System／Assistant 仅接受无 part 扩展的文本，Developer 没有对应角色。OpenAI 非 User 消息只接受文本通用 part。Native part 必须属于当前 dialect 且为 object，按原值保留。
+
+普通单个无扩展 Text 编码为字符串，其他允许的内容序列编码为 parts；需要纯字符串的角色按顺序连接文本。MIME 使用现有 HttpMediaType 解析一次，当前映射要求不带参数的明确格式，不忽略无法表示的参数。不自动下载、转码、丢弃 part 或把 VideoFrames 转成无时间信息的图片。已知 DeepSeek 外部图片 URL 超过 8192 字符时报告错误。
+
+ClientFunction／ClientCustom 分别编码 function／custom 工具；DeepSeek 仅支持 function。function 名称在协议允许的 ASCII 字母、数字、下划线和横线范围内检查，OpenAI 上限 64、DeepSeek 上限 128；custom 名称不套用未经声明的 function 限制。同次调用 wire 名称不得重复。ToolChoice.Specific 按 ToolKey 找到精确 wire 工具，不用 key 替代 name。当前 Chat 没有已定义的 ClientNative 合同，不能假装成 function。ToolResult 使用原始 call ID 和 tool role；旧调用无需再次声明，其 dialect、context 和内容必须适合 Chat。Chat 没有通用 isError 标志，显式 isError = true 报错，由应用将实际错误内容作为结果提供。
+
+OpenAI 的 Server(WebSearch) 编码请求级 web_search_options，可映射 approximate location；它不伪装成客户端工具。该入口不支持通用 allowedDomains、excludedDomains 或 includeSources 控制，显式提供即报错。只允许一项搜索声明；选择 Auto，其他 ToolChoice 无法同时精确控制该搜索入口时失败。Server(Native) 仅接受本 dialect 的无版本 web_search 原生配置；DeepSeek Chat 不将独立 Search API 假装成内置工具。编码搜索请求不伪造服务端工具执行记录。
+
+DeepSeek reasoning 缺省按服务文档为开启；enabled 与 effort 冲突时拒绝。temperature 只在显式关闭 thinking 时可用，topP 只在 thinking 中且 0.95～1 范围内可精确表达；Required／Specific 也要求关闭 thinking。该规则来自方言，不通过模型名称推断。两种 dialect 的 reasoning budgetTokens 和 topK 无相应字段；OpenAI enabled = true 需要明确非 none 的 effort，不能替调用者选择强度。DeepSeek candidates = 1 可满足但不发送 n，其他数量失败；parallelToolCalls 的显式设置也失败。JSON Schema 只在 OpenAI 映射，DeepSeek JsonObject 使用同一 output 设置。
+
+request、message、part、tool 的 extensions 只合并到当前位置；Chat 客户端工具扩展位于 function／custom 定义对象，搜索工具扩展位于 web_search_options。扩展归属必须匹配，任何托管字段均不能覆盖，即使这次缺省没有生成该字段；保留的别名也不能旁路通用设置。错误 path 指向公共请求和扩展键，使用 JSON Pointer 转义。History 只接受同方言 assistant 消息且 context 为空，直接使用已投影的不可变 item；保留 DeepSeek 的全部 reasoning_content，不从展示文本重建。编码输入不修改保存的请求或历史。

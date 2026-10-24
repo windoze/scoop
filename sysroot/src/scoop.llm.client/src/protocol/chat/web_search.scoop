@@ -1,0 +1,40 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeChatWebSearch(tool: ServerTool, extensions: Array<DialectExtension>, dialect: DialectId, path: String): JsonValue {
+    val value = when (tool) {
+        case WebSearch(options) -> encodeChatSearchOptions(options, path + "/tool/options")
+        case Native(native) -> {
+            requireChatOwner(native.dialect, dialect, path + "/tool/dialect")
+            if (native.kind != "web_search" || native.version != None)
+                throw LlmRequestException(path + "/tool", "OpenAI Chat accepts the unversioned web_search native tool")
+            native.configuration
+        }
+    }
+    return mergeChatExtensions(value, extensions, dialect, ["user_location"], path)
+}
+
+private fun encodeChatSearchOptions(options: WebSearchOptions, path: String): JsonValue {
+    rejectChatSearchDomains(options.allowedDomains, path + "/allowedDomains")
+    rejectChatSearchDomains(options.excludedDomains, path + "/excludedDomains")
+    if (options.includeSources != None) throw LlmRequestException(path + "/includeSources", "Chat web search has no source-list control")
+    val result = JsonObjectBuilder()
+    when (options.location) {
+        case Some(location) -> {
+            val approximate = JsonObjectBuilder()
+            if (location.country != None) approximate.add("country", JsonValue.fromString(location.country!!))
+            if (location.region != None) approximate.add("region", JsonValue.fromString(location.region!!))
+            if (location.city != None) approximate.add("city", JsonValue.fromString(location.city!!))
+            if (location.timezone != None) approximate.add("timezone", JsonValue.fromString(location.timezone!!))
+            result.add("user_location", chatObject("approximate").add("approximate", approximate.build()).build())
+        }
+        case None -> return result.build()
+    }
+    return result.build()
+}
+
+private fun rejectChatSearchDomains(domains: Array<String>?, path: String): Unit = when (domains) {
+    case Some(_) -> throw LlmRequestException(path, "Chat web search has no domain filter")
+    case None -> Unit
+}

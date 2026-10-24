@@ -1,0 +1,40 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.replace
+
+internal fun chatObject(type: String): JsonObjectBuilder = JsonObjectBuilder().add("type", JsonValue.fromString(type))
+
+internal fun mergeChatExtensions(base: JsonValue, extensions: Array<DialectExtension>, dialect: DialectId,
+    managed: Array<String>, path: String): JsonValue {
+    val result = JsonObjectBuilder()
+    for ((name, value) in base.members()) result.add(name, value)
+    var index = 0L
+    for (extension in extensions) {
+        val extensionPath = path + "/extensions/" + index.toString()
+        if (extension.dialect != dialect) throw LlmRequestException(extensionPath + "/dialect", "extension belongs to another dialect")
+        for ((name, value) in extension.value.members()) {
+            val fieldPath = extensionPath + "/value/" + name.replace("~", "~0").replace("/", "~1")
+            for (reserved in managed) {
+                if (name == reserved) throw LlmRequestException(fieldPath, "extension cannot override a managed Chat field")
+            }
+            if (base.containsKey(name)) throw LlmRequestException(fieldPath, "extension conflicts with an encoded Chat field")
+            result.add(name, value)
+        }
+        index += 1L
+    }
+    return result.build()
+}
+
+internal fun requireChatOwner(owner: DialectId, dialect: DialectId, path: String) {
+    if (owner != dialect) throw LlmRequestException(path, "value belongs to another dialect")
+}
+
+internal fun requireChatName(name: String, maximum: Long, path: String) {
+    if (name.length == 0L || name.length > maximum) throw LlmRequestException(path, "Chat name has an invalid length")
+    for (character in name) {
+        if (!((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') ||
+            (character >= '0' && character <= '9') || character == '_' || character == '-'))
+            throw LlmRequestException(path, "Chat name must use ASCII letters, digits, underscores or hyphens")
+    }
+}

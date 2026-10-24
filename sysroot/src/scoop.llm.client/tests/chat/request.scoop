@@ -1,0 +1,84 @@
+package scoop.llm.client.tests.chat
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ChatRequestTest {
+    @Test
+    fun `minimal Chat call omits optional fields and does not interpret the model ID`() {
+        val request = LlmRequest([Message([Text("hello")])])
+        val body = ChatProtocol(OpenAiChatDialect()).encodeRequest("team/model:revision", request)
+        assertEquals(2L, body.size)
+        assertEquals("team/model:revision", body["model"]!!.asString())
+        val message = body["messages"]!![0L]
+        assertEquals("user", message["role"]!!.asString())
+        assertEquals("hello", message["content"]!!.asString())
+        val streamed = ChatProtocol(DeepSeekChatDialect()).encodeRequest("unknown-model", request, stream = true)
+        assertTrue(streamed["stream"]!!.asBoolean())
+        assertTrue(streamed["stream_options"]!!["include_usage"]!!.asBoolean())
+        assertFalse(streamed.containsKey("thinking"))
+        assertFalse(streamed.containsKey("max_tokens"))
+        assertEquals("/input", assertFailsWith<LlmRequestException> {
+            ChatProtocol(OpenAiChatDialect()).encodeRequest("model", LlmRequest([])); Unit
+        }.path)
+    }
+
+    @Test
+    fun `system messages and scoped extensions keep their exact wire positions`() {
+        val dialect = OpenAiChatDialect()
+        val request = LlmRequest([Message([Text("hello", [DialectExtension(dialect.id,
+            Json.parse("{\"prompt_cache_breakpoint\":{\"mode\":\"explicit\"}}"))])],
+            extensions = [DialectExtension(dialect.id, Json.parse("{\"name\":\"participant\"}"))])],
+            system = [Text("rules")], extensions = [DialectExtension(dialect.id, Json.parse("{\"prompt_cache_options\":{\"ttl\":\"30m\"}}"))])
+        val saved = Json.encodeToString(request)
+        val body = ChatProtocol(dialect).encodeRequest("model", request)
+        assertEquals("system", body["messages"]!![0L]["role"]!!.asString())
+        val message = body["messages"]!![1L]
+        assertEquals("participant", message["name"]!!.asString())
+        assertFalse(message.containsKey("prompt_cache_options"))
+        assertFalse(message.containsKey("prompt_cache_breakpoint"))
+        assertEquals("explicit", message["content"]!![0L]["prompt_cache_breakpoint"]!!["mode"]!!.asString())
+        assertEquals("30m", body["prompt_cache_options"]!!["ttl"]!!.asString())
+        assertEquals(saved, Json.encodeToString(request))
+    }
+
+    @Test
+    fun `extension ownership and reserved absent fields are checked before encoding`() {
+        val protocol = ChatProtocol(OpenAiChatDialect())
+        for (field in ["temperature", "max_tokens", "stream_options", "web_search_options"]) {
+            val extension = DialectExtension(protocol.dialect.id, JsonObjectBuilder().add(field, JsonValue.fromLong(0L)).build())
+            val request = LlmRequest([Message([Text("hello")])], extensions = [extension])
+            assertEquals("/extensions/0/value/" + field, assertFailsWith<LlmRequestException> { protocol.encodeRequest("m", request); Unit }.path)
+        }
+        val wrong = LlmRequest([Message([Text("hello", [DialectExtension(DeepSeekChatDialect().id, Json.parse("{}"))])])])
+        assertEquals("/input/0/content/0/extensions/0/dialect",
+            assertFailsWith<LlmRequestException> { protocol.encodeRequest("m", wrong); Unit }.path)
+        val managed = LlmRequest([Message([Text("hello")], extensions = [DialectExtension(protocol.dialect.id, Json.parse("{\"tool_calls\":[]}"))])])
+        assertEquals("/input/0/extensions/0/value/tool_calls",
+            assertFailsWith<LlmRequestException> { protocol.encodeRequest("m", managed); Unit }.path)
+    }
+
+    @Test
+    fun `saved DeepSeek response history and old tool references form the next request`() {
+        val protocol = ChatProtocol(DeepSeekChatDialect())
+        val request = LlmRequest([Message([Text("question")])], tools = [
+            ClientFunction(ToolKey("old"), "lookup", Json.parse("{}"))
+        ])
+        val response = protocol.decodeResponse(chatBody("{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":\"keep all of this\",\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]}", "tool_calls"), request)
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        val next = LlmRequest([Message([Text("question")]), restored.toInput()[0],
+            ToolResult(restored.clientToolCalls[0].reference, [Text("result")])], tools = [
+                ClientFunction(ToolKey("new"), "other", Json.parse("{}"))
+            ])
+        val messages = protocol.encodeRequest("model", next)["messages"]!!
+        assertEquals("keep all of this", messages[1L]["reasoning_content"]!!.asString())
+        assertEquals("call-1", messages[2L]["tool_call_id"]!!.asString())
+        assertEquals("result", messages[2L]["content"]!!.asString())
+        assertEquals("tool", messages[2L]["role"]!!.asString())
+        assertFalse(messages[1L].containsKey("usage"))
+        assertEquals("/input/1/history/dialect",
+            assertFailsWith<LlmRequestException> { ChatProtocol(OpenAiChatDialect()).encodeRequest("model", next); Unit }.path)
+    }
+}

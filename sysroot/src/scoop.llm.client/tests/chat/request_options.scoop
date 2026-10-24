@@ -1,0 +1,77 @@
+package scoop.llm.client.tests.chat
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+private fun encodeChatSettings(options: LlmGenerationOptions, dialect: ChatDialect = OpenAiChatDialect()): JsonValue =
+    ChatProtocol(dialect).encodeRequest("model", LlmRequest([Message([Text("hello")])], options = options))
+
+@Test
+private class ChatRequestOptionsTest {
+    @Test
+    fun `OpenAI options preserve explicit zero false empty stop and structured output`() {
+        val schema = Json.parse("{\"type\":\"object\",\"properties\":{\"count\":{\"type\":\"integer\"}}}")
+        val body = encodeChatSettings(LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0),
+            maxOutputTokens = Some(0L), candidates = Some(2L), stop = Some([]), parallelToolCalls = Some(false),
+            reasoning = Some(ReasoningOptions(effort = Some("low"))), output = JsonSchema(schema, strict = Some(false))))
+        assertEquals(0.0, body["temperature"]!!.asDouble())
+        assertEquals(0.0, body["top_p"]!!.asDouble())
+        assertEquals(0L, body["max_completion_tokens"]!!.asLong())
+        assertFalse(body.containsKey("max_tokens"))
+        assertEquals(0L, body["stop"]!!.size)
+        assertEquals(2L, body["n"]!!.asLong())
+        assertFalse(body["parallel_tool_calls"]!!.asBoolean())
+        assertEquals("low", body["reasoning_effort"]!!.asString())
+        val format = body["response_format"]!!["json_schema"]!!
+        assertEquals("response", format["name"]!!.asString())
+        assertFalse(format["strict"]!!.asBoolean())
+        assertEquals(Json.stringify(schema), Json.stringify(format["schema"]!!))
+        assertEquals("none", encodeChatSettings(LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false)))))["reasoning_effort"]!!.asString())
+    }
+
+    @Test
+    fun `DeepSeek thinking rules validate requested effects without guessing a model generation`() {
+        val dialect = DeepSeekChatDialect()
+        assertEquals("/options/temperature", assertFailsWith<LlmRequestException> {
+            encodeChatSettings(LlmGenerationOptions(temperature = Some(0.0)), dialect); Unit
+        }.path)
+        val disabled = encodeChatSettings(LlmGenerationOptions(temperature = Some(0.0), maxOutputTokens = Some(1L),
+            candidates = Some(1L), reasoning = Some(ReasoningOptions(enabled = Some(false))), output = JsonObject), dialect)
+        assertEquals("disabled", disabled["thinking"]!!["type"]!!.asString())
+        assertEquals(1L, disabled["max_tokens"]!!.asLong())
+        assertFalse(disabled.containsKey("n"))
+        assertFalse(disabled.containsKey("max_completion_tokens"))
+        assertEquals("json_object", disabled["response_format"]!!["type"]!!.asString())
+        val active = encodeChatSettings(LlmGenerationOptions(topP = Some(0.95)), dialect)
+        assertEquals(0.95, active["top_p"]!!.asDouble())
+        assertEquals("/options/topP", assertFailsWith<LlmRequestException> {
+            encodeChatSettings(LlmGenerationOptions(topP = Some(0.9)), dialect); Unit
+        }.path)
+        assertEquals("/options/reasoning/enabled", assertFailsWith<LlmRequestException> {
+            encodeChatSettings(LlmGenerationOptions(reasoning = Some(ReasoningOptions(Some(false), Some("high")))), dialect); Unit
+        }.path)
+    }
+
+    @Test
+    fun `unrepresentable generation settings fail at their public input paths`() {
+        assertEquals("/options/topK", assertFailsWith<LlmRequestException> {
+            encodeChatSettings(LlmGenerationOptions(topK = Some(1L))); Unit
+        }.path)
+        assertEquals("/options/reasoning/budgetTokens", assertFailsWith<LlmRequestException> {
+            encodeChatSettings(LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(8L))))); Unit
+        }.path)
+        assertEquals("/options/reasoning/enabled", assertFailsWith<LlmRequestException> {
+            encodeChatSettings(LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(true))))); Unit
+        }.path)
+        assertEquals("/options/candidates", assertFailsWith<LlmRequestException> {
+            encodeChatSettings(LlmGenerationOptions(candidates = Some(2L)), DeepSeekChatDialect()); Unit
+        }.path)
+        assertEquals("/options/parallelToolCalls", assertFailsWith<LlmRequestException> {
+            encodeChatSettings(LlmGenerationOptions(parallelToolCalls = Some(false)), DeepSeekChatDialect()); Unit
+        }.path)
+        assertEquals("/options/output", assertFailsWith<LlmRequestException> {
+            encodeChatSettings(LlmGenerationOptions(output = JsonSchema(Json.parse("{}"))), DeepSeekChatDialect()); Unit
+        }.path)
+    }
+}

@@ -1,0 +1,51 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeChatOptions(dialect: DialectId, request: LlmRequest, deepSeek: Boolean): JsonValue {
+    val options = request.options
+    val result = JsonObjectBuilder()
+    if (options.topK != None) throw LlmRequestException("/options/topK", "Chat has no top-k setting")
+    val thinking = encodeChatReasoning(result, options.reasoning, deepSeek)
+    if (options.temperature != None) {
+        val value = options.temperature!!
+        if (value < 0.0 || value > 2.0) throw LlmRequestException("/options/temperature", "Chat temperature must be between 0 and 2")
+        if (deepSeek && thinking) throw LlmRequestException("/options/temperature", "DeepSeek ignores temperature while thinking is enabled")
+        result.add("temperature", JsonValue.fromDouble(value))
+    }
+    if (options.topP != None) {
+        val value = options.topP!!
+        if (value < 0.0 || value > 1.0) throw LlmRequestException("/options/topP", "Chat top-p must be between 0 and 1")
+        if (deepSeek && (!thinking || value < 0.95)) throw LlmRequestException("/options/topP", "DeepSeek top-p requires thinking and a value from 0.95 to 1")
+        result.add("top_p", JsonValue.fromDouble(value))
+    }
+    if (options.maxOutputTokens != None) {
+        val value = options.maxOutputTokens!!
+        if (deepSeek && (value < 1L || value > 393216L)) throw LlmRequestException("/options/maxOutputTokens", "DeepSeek max_tokens must be from 1 to 393216")
+        result.add(if (deepSeek) "max_tokens" else "max_completion_tokens", JsonValue.fromLong(value))
+    }
+    if (options.candidates != None) {
+        if (deepSeek) {
+            if (options.candidates!! != 1L) throw LlmRequestException("/options/candidates", "DeepSeek Chat returns one candidate")
+        } else result.add("n", JsonValue.fromLong(options.candidates!!))
+    }
+    when (options.stop) {
+        case Some(values) -> {
+            if (values.size > (if (deepSeek) 16L else 4L)) throw LlmRequestException("/options/stop", "too many Chat stop sequences")
+            result.add("stop", Json.encodeToValue(values))
+        }
+        case None -> return finishChatOptions(result, dialect, request, deepSeek, thinking)
+    }
+    return finishChatOptions(result, dialect, request, deepSeek, thinking)
+}
+
+private fun finishChatOptions(result: JsonObjectBuilder, dialect: DialectId, request: LlmRequest,
+    deepSeek: Boolean, thinking: Boolean): JsonValue {
+    if (request.options.parallelToolCalls != None) {
+        if (deepSeek) throw LlmRequestException("/options/parallelToolCalls", "DeepSeek Chat has no parallel_tool_calls control")
+        result.add("parallel_tool_calls", JsonValue.fromBoolean(request.options.parallelToolCalls!!))
+    }
+    encodeChatOutputFormat(result, request.options.output, deepSeek)
+    encodeChatTools(result, dialect, request, deepSeek, thinking)
+    return result.build()
+}

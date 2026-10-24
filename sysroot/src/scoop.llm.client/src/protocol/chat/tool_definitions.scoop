@@ -1,0 +1,91 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeChatTools(result: JsonObjectBuilder, dialect: DialectId, request: LlmRequest,
+    deepSeek: Boolean, thinking: Boolean) {
+    val tools = ArrayList<JsonValue>()
+    val names = ArrayList<String>()
+    var search = false
+    var index = 0L
+    for (tool in request.tools) {
+        val path = "/tools/" + index.toString()
+        when (tool) {
+            case Server(_, definition, extensions) -> {
+                if (deepSeek) throw LlmRequestException(path, "DeepSeek Chat has no built-in server tool")
+                if (search) throw LlmRequestException(path, "Chat accepts only one web search declaration")
+                result.add("web_search_options", encodeChatWebSearch(definition, extensions, dialect, path))
+                search = true
+            }
+            else -> {
+                val (name, encoded) = encodeChatClientTool(tool, dialect, deepSeek, path)
+                for (previous in names) {
+                    if (previous == name) throw LlmRequestException(path + "/name", "duplicate Chat tool name")
+                }
+                names.add(name)
+                tools.add(encoded)
+            }
+        }
+        index += 1L
+    }
+    if (tools.size != 0L) result.add("tools", JsonValue.fromArray(tools))
+    encodeChatToolChoice(result, request, search, deepSeek && thinking)
+}
+
+private fun encodeChatClientTool(tool: ToolDefinition, dialect: DialectId, deepSeek: Boolean, path: String): (String, JsonValue) = when (tool) {
+    case ClientFunction(_, name, parameters, description, strict, extensions) -> {
+        requireChatName(name, if (deepSeek) 128L else 64L, path + "/name")
+        val value = JsonObjectBuilder().add("name", JsonValue.fromString(name)).add("parameters", parameters)
+        if (description.length != 0L) value.add("description", JsonValue.fromString(description))
+        if (strict != None) value.add("strict", JsonValue.fromBoolean(strict!!))
+        val function = mergeChatExtensions(value.build(), extensions, dialect, ["name", "parameters", "description", "strict"], path)
+        (name, chatObject("function").add("function", function).build())
+    }
+    case ClientCustom(_, name, format, description, extensions) -> {
+        if (deepSeek) throw LlmRequestException(path, "DeepSeek Chat only accepts function tools")
+        val value = JsonObjectBuilder().add("name", JsonValue.fromString(name))
+        if (description.length != 0L) value.add("description", JsonValue.fromString(description))
+        value.add("format", encodeChatCustomFormat(format, path + "/format"))
+        val custom = mergeChatExtensions(value.build(), extensions, dialect, ["name", "description", "format"], path)
+        (name, chatObject("custom").add("custom", custom).build())
+    }
+    else -> throw LlmRequestException(path, "this Chat dialect has no corresponding client-native tool")
+}
+
+private fun encodeChatCustomFormat(format: CustomToolFormat, path: String): JsonValue = when (format) {
+    case Text -> chatObject("text").build()
+    case Grammar(syntax, definition) -> {
+        if (syntax != "lark" && syntax != "regex") throw LlmRequestException(path + "/syntax", "Chat grammar syntax must be lark or regex")
+        val grammar = JsonObjectBuilder().add("syntax", JsonValue.fromString(syntax)).add("definition", JsonValue.fromString(definition)).build()
+        chatObject("grammar").add("grammar", grammar).build()
+    }
+}
+
+private fun encodeChatToolChoice(result: JsonObjectBuilder, request: LlmRequest, search: Boolean, thinking: Boolean): Unit = when (request.options.toolChoice) {
+    case Auto -> Unit
+    case None -> {
+        if (search) throw LlmRequestException("/options/toolChoice", "Chat tool choice cannot disable web_search_options")
+        result.add("tool_choice", JsonValue.fromString("none")); Unit
+    }
+    case Required -> {
+        if (search || thinking || request.tools.size == 0L) throw LlmRequestException("/options/toolChoice", "required tools cannot be expressed in this Chat request")
+        result.add("tool_choice", JsonValue.fromString("required")); Unit
+    }
+    case Specific(key) -> {
+        if (search || thinking) throw LlmRequestException("/options/toolChoice", "specific tools cannot be expressed in this Chat request")
+        result.add("tool_choice", selectedChatTool(request.tools, key)); Unit
+    }
+}
+
+private fun selectedChatTool(tools: Array<ToolDefinition>, key: ToolKey): JsonValue {
+    for (tool in tools) {
+        if (tool.key != key) continue
+        val (kind, name) = when (tool) {
+            case ClientFunction(_, name, _, _, _, _) -> ("function", name)
+            case ClientCustom(_, name, _, _, _) -> ("custom", name)
+            else -> throw LlmRequestException("/options/toolChoice", "Chat cannot select this tool kind")
+        }
+        return chatObject(kind).add(kind, JsonObjectBuilder().add("name", JsonValue.fromString(name)).build()).build()
+    }
+    throw LlmRequestException("/options/toolChoice", "selected Chat tool is missing")
+}

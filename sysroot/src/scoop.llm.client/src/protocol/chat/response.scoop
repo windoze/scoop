@@ -10,6 +10,9 @@ public class ChatProtocol public constructor(public val dialect: ChatDialect) {
             throw IllegalArgumentException(Some("Chat dialect belongs to another API protocol"))
     }
 
+    public fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean = false): JsonValue =
+        encodeChatRequest(dialect, modelId, request, stream)
+
     public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
         try {
             val body = decodeChatValue<ChatResponseBody>(value, "")

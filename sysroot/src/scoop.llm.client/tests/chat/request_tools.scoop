@@ -1,0 +1,81 @@
+package scoop.llm.client.tests.chat
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ChatRequestToolsTest {
+    @Test
+    fun `client tools preserve order and specific selection uses the wire name`() {
+        val request = LlmRequest([Message([Text("question")])], tools = [
+            ClientFunction(ToolKey("local"), "lookup", Json.parse("{}"), strict = Some(false)),
+            ClientCustom(ToolKey("code"), "run_code", Grammar("regex", "[a-z]+"))
+        ], options = LlmGenerationOptions(toolChoice = Specific(ToolKey("code"))))
+        val body = ChatProtocol(OpenAiChatDialect()).encodeRequest("model", request)
+        assertEquals("lookup", body["tools"]!![0L]["function"]!!["name"]!!.asString())
+        assertFalse(body["tools"]!![0L]["function"]!!["strict"]!!.asBoolean())
+        assertEquals("regex", body["tools"]!![1L]["custom"]!!["format"]!!["grammar"]!!["syntax"]!!.asString())
+        assertEquals("custom", body["tool_choice"]!!["type"]!!.asString())
+        assertEquals("run_code", body["tool_choice"]!!["custom"]!!["name"]!!.asString())
+    }
+
+    @Test
+    fun `DeepSeek tool choices follow the explicit thinking mode and reject custom tools`() {
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}"))]
+        val protocol = ChatProtocol(DeepSeekChatDialect())
+        val enabled = LlmRequest([Message([Text("question")])], tools = tools,
+            options = LlmGenerationOptions(toolChoice = Required))
+        assertEquals("/options/toolChoice", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", enabled); Unit }.path)
+        val disabled = LlmRequest(enabled.input, tools = tools, options = LlmGenerationOptions(
+            toolChoice = Specific(ToolKey("local")), reasoning = Some(ReasoningOptions(enabled = Some(false)))))
+        assertEquals("lookup", protocol.encodeRequest("model", disabled)["tool_choice"]!!["function"]!!["name"]!!.asString())
+        assertEquals("/tools/1", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", chatRequest()); Unit }.path)
+    }
+
+    @Test
+    fun `tool names and unsupported result semantics produce local diagnostics`() {
+        val protocol = ChatProtocol(OpenAiChatDialect())
+        val duplicate = LlmRequest([Message([Text("question")])], tools = [
+            ClientFunction(ToolKey("a"), "same", Json.parse("{}")), ClientCustom(ToolKey("b"), "same")
+        ])
+        assertEquals("/tools/1/name", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", duplicate); Unit }.path)
+        val invalid = LlmRequest(duplicate.input, tools = [ClientFunction(ToolKey("a"), "has space", Json.parse("{}"))])
+        assertEquals("/tools/0/name", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", invalid); Unit }.path)
+        val reference = ClientToolCallReference(protocol.dialect.id, ToolKey("old"), "call-1")
+        val error = LlmRequest([ToolResult(reference, [Text("failed")], isError = true)])
+        assertEquals("/input/0/isError", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", error); Unit }.path)
+        val native = LlmRequest(duplicate.input, tools = [ClientNative(ToolKey("shell"), NativeToolDefinition(protocol.dialect.id, "shell"))])
+        assertEquals("/tools/0", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", native); Unit }.path)
+    }
+
+    @Test
+    fun `server web search is encoded at the request root without a fake client function`() {
+        val dialect = OpenAiChatDialect()
+        val request = LlmRequest([Message([Text("search")])], tools = [Server(ToolKey("web"), WebSearch(
+            WebSearchOptions(location = Some(SearchLocation(country = Some("CN"), city = Some("Shanghai"))))),
+            extensions = [DialectExtension(dialect.id, Json.parse("{\"search_context_size\":\"low\"}"))])])
+        val body = ChatProtocol(dialect).encodeRequest("search-model", request)
+        assertFalse(body.containsKey("tools"))
+        assertFalse(body.containsKey("tool_choice"))
+        val search = body["web_search_options"]!!
+        assertEquals("low", search["search_context_size"]!!.asString())
+        assertEquals("approximate", search["user_location"]!!["type"]!!.asString())
+        assertEquals("Shanghai", search["user_location"]!!["approximate"]!!["city"]!!.asString())
+        val raw = Json.parse("{\"future\":1e400}")
+        val native = LlmRequest(request.input, tools = [Server(ToolKey("web"), Native(NativeToolDefinition(dialect.id, "web_search", raw)))])
+        assertEquals(Json.stringify(raw), Json.stringify(ChatProtocol(dialect).encodeRequest("model", native)["web_search_options"]!!))
+    }
+
+    @Test
+    fun `explicit unsupported search options and selections are not ignored`() {
+        val protocol = ChatProtocol(OpenAiChatDialect())
+        val request = LlmRequest([Message([Text("search")])], tools = [Server(ToolKey("web"),
+            WebSearch(WebSearchOptions(allowedDomains = Some([]))))])
+        assertEquals("/tools/0/tool/options/allowedDomains", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", request); Unit }.path)
+        val selected = LlmRequest(request.input, tools = [Server(ToolKey("web"), WebSearch())],
+            options = LlmGenerationOptions(toolChoice = Specific(ToolKey("web"))))
+        assertEquals("/options/toolChoice", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", selected); Unit }.path)
+        assertEquals("/tools/0", assertFailsWith<LlmRequestException> { ChatProtocol(DeepSeekChatDialect()).encodeRequest("model", selected); Unit }.path)
+    }
+}

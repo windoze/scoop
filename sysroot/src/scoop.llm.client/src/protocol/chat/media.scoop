@@ -1,0 +1,78 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun encodeChatImage(source: MediaSource, dialect: DialectId, deepSeek: Boolean, path: String): JsonValue {
+    val mime = chatMediaType(source, path)
+    if (mime != "image/jpeg" && mime != "image/png" && mime != "image/gif" && mime != "image/webp")
+        throw LlmRequestException(path + "/mimeType", "Chat image input requires JPEG, PNG, GIF or WebP")
+    return when (source) {
+        case Bytes(bytes, _) -> chatImageUrl(chatDataUrl(mime, bytes))
+        case Url(url, _) -> {
+            if (url.scheme != Some("http") && url.scheme != Some("https"))
+                throw LlmRequestException(path + "/url", "Chat image URL must use http or https")
+            val address = url.toString()
+            if (deepSeek && address.length > 8192L) throw LlmRequestException(path + "/url", "DeepSeek image URL exceeds 8192 characters")
+            chatImageUrl(address)
+        }
+        case FileReference(reference, _) -> {
+            if (!deepSeek) throw LlmRequestException(path, "OpenAI Chat image_url has no file ID form")
+            chatObject("file").add("file_id", chatFileId(reference, dialect, path + "/reference")).build()
+        }
+    }
+}
+
+internal fun encodeChatDocument(source: MediaSource, filename: String?, dialect: DialectId, path: String): JsonValue {
+    if (chatMediaType(source, path + "/source") != "application/pdf")
+        throw LlmRequestException(path + "/source/mimeType", "Chat document mapping requires PDF")
+    val file = JsonObjectBuilder()
+    when (source) {
+        case Bytes(bytes, _) -> {
+            file.add("file_data", JsonValue.fromString(chatDataUrl("application/pdf", bytes)))
+            if (filename != None) file.add("filename", JsonValue.fromString(filename!!))
+        }
+        case FileReference(reference, _) -> {
+            if (filename != None) throw LlmRequestException(path + "/filename", "Chat filename is only valid for inline file data")
+            file.add("file_id", chatFileId(reference, dialect, path + "/source/reference"))
+        }
+        case Url(_, _) -> throw LlmRequestException(path + "/source", "Chat file input has no URL form")
+    }
+    return chatObject("file").add("file", file.build()).build()
+}
+
+internal fun encodeChatAudio(source: MediaSource, path: String): JsonValue {
+    val mime = chatMediaType(source, path)
+    val format = when (mime) {
+        case "audio/wav" -> "wav"
+        case "audio/mpeg" -> "mp3"
+        else -> throw LlmRequestException(path + "/mimeType", "Chat input audio requires audio/wav or audio/mpeg")
+    }
+    val bytes = when (source) {
+        case Bytes(value, _) -> value
+        else -> throw LlmRequestException(path, "Chat input audio requires inline bytes")
+    }
+    val audio = JsonObjectBuilder().add("data", JsonValue.fromString(Base64.Default.encode(bytes)))
+        .add("format", JsonValue.fromString(format)).build()
+    return chatObject("input_audio").add("input_audio", audio).build()
+}
+
+private fun chatMediaType(source: MediaSource, path: String): String {
+    val mime = when (source) { case Bytes(_, value) -> value; case Url(_, value) -> value; case FileReference(_, value) -> value }
+    val parsed = HttpMediaType.parseOrNone(mime) ?: throw LlmRequestException(path + "/mimeType", "invalid media type")
+    if (parsed.parameters.size != 0L) throw LlmRequestException(path + "/mimeType", "Chat media mapping cannot express MIME parameters")
+    return parsed.type + "/" + parsed.subtype
+}
+
+private fun chatDataUrl(mime: String, bytes: Array<Byte>): String = "data:" + mime + ";base64," + Base64.Default.encode(bytes)
+
+private fun chatImageUrl(url: String): JsonValue = chatObject("image_url")
+    .add("image_url", JsonObjectBuilder().add("url", JsonValue.fromString(url)).build()).build()
+
+private fun chatFileId(reference: LlmFileReference, dialect: DialectId, path: String): JsonValue {
+    requireChatOwner(reference.dialect, dialect, path + "/dialect")
+    if (reference.value.kind != JsonValueKind.String || reference.value.asString().length == 0L)
+        throw LlmRequestException(path + "/value", "Chat file reference must be a nonempty string ID")
+    return reference.value
+}
