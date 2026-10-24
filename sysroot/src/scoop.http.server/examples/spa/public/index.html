@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scoop HTTP server · SPA 示例</title>
+    <link rel="stylesheet" href="/assets/main.css" />
+    <script type="module" src="/assets/main.js"></script>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Scoop HTTP server</p>
+      <h1>一个可刷新的 SPA</h1>
+      <p>点击导航体验客户端跳转，再刷新页面验证服务端的入口文件回退。</p>
+      <nav aria-label="页面导航">
+        <a href="/" data-route>首页</a>
+        <a href="/settings/profile" data-route>个人设置</a>
+        <a href="/about" data-route>关于</a>
+      </nav>
+      <section aria-labelledby="page-title">
+        <p class="eyebrow">当前页面</p>
+        <h2 id="page-title">正在加载</h2>
+        <p id="page-description"></p>
+        <code id="page-path"></code>
+      </section>
+      <section aria-labelledby="api-title">
+        <h2 id="api-title">嵌套 API 路由</h2>
+        <p>请求 <code>/api/v1/users/42</code>，由 Scoop handler 返回结果。</p>
+        <button id="load-user" type="button">查询用户 42</button>
+        <output id="api-result" aria-live="polite">等待查询</output>
+      </section>
+      <p class="note">JS 和 CSS 来自 /assets；不存在的资源和 API 返回 404，不会落入 SPA。</p>
+      <noscript>此示例需要 JavaScript 执行客户端路由。</noscript>
+    </main>
+  </body>
+</html>

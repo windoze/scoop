@@ -55,7 +55,9 @@ routes.get("/{*path}", staticFiles(root, StaticFileOptions(
 
 完整合同见 [HTTP server 规范](../../../docs/specs/SCOOP-HTTP-SERVER-SPEC.md)，总体设计及验证范围见 [设计目录](../../../docs/http-server/DESIGN.md)与[实施记录](../../../docs/http-server/PROGRESS.md)。服务端 mTLS／动态 SNI、HTTP/3 与 H2 WebSocket 不在本库当前范围内。
 
-可运行的公开 API 示例保存在独立 [consumer-tests Cone](consumer-tests/Cone.toml)：
+可交互运行的程序见 [examples](examples/README.md)，包含简单启动、嵌套路由、query／JSON、SSE 和带完整前端资源的 SPA。
+
+公开 API 的自动化消费测试保存在独立 [consumer-tests Cone](consumer-tests/Cone.toml)：
 
 - [H1 typed query／JSON 与 gzip](consumer-tests/tests/application.scoop)
 - [H2、SSE 与 gzip multipart](consumer-tests/tests/http2.scoop)
