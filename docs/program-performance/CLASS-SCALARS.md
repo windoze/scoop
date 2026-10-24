@@ -2,6 +2,8 @@
 
 状态：已完成。基线为 `3b4ac86e8`，属于 B1 抽象消除；不依赖 PGO。普通 release 默认启用，沿用已有 allocation-elision 选项，不新增等级或 CLI 开关。
 
+下文记录首版交付；后续[异常区域中的局部分配消除](EXCEPTION-SCALARS.md)已扩展含 catch／finally 的调用方，正常与异常路径共同满足来源、支配和循环存活限制时也可替换字段。
+
 ## 已确认的问题
 
 基线的分配消除只登记 Box 与 ClosureAlloc。真实源码探针中的 Point 和 Cursor 构造器、字段访问器及游标方法已被内联，最终 MIR 仍保留每轮一次 ClassAlloc、普通字段读取与写入。Cursor 在外层每轮创建，内层循环更新 current；需要保留可变字段状态。

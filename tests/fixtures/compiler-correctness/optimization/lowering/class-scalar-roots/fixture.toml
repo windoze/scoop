@@ -1,19 +1,26 @@
 schema = 1
 name = "local-class-scalar-roots"
 root = "program.scoop"
-inputs = ["program.scoop"]
-tools = ["scoop"]
+inputs = ["program.scoop", "inspect.py"]
+tools = ["scoop", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["optimization", "class", "gc", "generic", "compiler-correctness"]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "--enable-gc-stress", "build", {each = "${link_args}"}, "${root}", "--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "--enable-gc-stress", "build", {each = "${link_args}"}, "${root}", "--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
+
+[[steps]]
+name = "inspect"
+argv = ["${python}", "${fixture}/inspect.py", "${work}/dump/${build.result.root.identity}/mir.txt"]
+exit = 0
+stdout = ""
+stderr = ""
 
 [[steps]]
 name = "moving"

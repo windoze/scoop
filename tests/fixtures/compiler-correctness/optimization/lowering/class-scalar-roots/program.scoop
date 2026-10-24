@@ -32,11 +32,88 @@ fun references(index: Long) {
     check(alias.value.nested._1.value == index + 2L)
 }
 
-fun construction(index: Long) {
-    val value = Constructed(Node(index), Node(index + 1L))
-    gcCollect()
-    check(value.first !== value.second)
-    check(value.first.value == index && value.second.value == index + 1L)
+fun construction(index: Long, failure: Throwable) {
+    try {
+        val value = Constructed(Node(index), Node(index + 1L))
+        gcCollect()
+        check(value.first !== value.second)
+        check(value.first.value == index && value.second.value == index + 1L)
+        throw failure
+    } catch (actual: Throwable) {
+        gcCollect()
+        check(actual === failure)
+    }
+}
+
+fun collectAndFail(failure: Throwable): Nothing {
+    try {
+        gcCollect()
+        throw failure
+    } finally {
+        gcCollect()
+    }
+}
+
+fun exceptionBox(value: Payload, failure: Throwable): Payload {
+    val boxed: Any = value
+    try {
+        collectAndFail(failure)
+    } catch (actual: Throwable) {
+        gcCollect()
+        check(actual === failure)
+        return boxed as Payload
+    }
+}
+
+fun exceptionReferences(index: Long, updated: Boolean, failure: Throwable) {
+    val first = Node(index)
+    val next = Node(index + 1L)
+    val holder = Holder(Payload(first, (next, "left" + "right"), first), first)
+    val before = holder.value
+    try {
+        gcCollect()
+        if (!updated) collectAndFail(failure)
+        holder.value = Payload(next, (first, "right" + "left"), next)
+        collectAndFail(failure)
+    } catch (actual: Throwable) {
+        gcCollect()
+        check(actual === failure)
+        val snapshot = exceptionBox(before, failure)
+        check(snapshot.node === first && snapshot.nested._1 === next)
+        check(snapshot.view === first && snapshot.nested._2 == "leftright")
+        val current = holder.value
+        if (updated) {
+            check(current.node === next && current.nested._1 === first)
+            check(current.view === next && current.nested._2 == "rightleft")
+        } else {
+            check(current.node === first && current.nested._1 === next)
+            check(current.view === first && current.nested._2 == "leftright")
+        }
+        check(current.view.read() == index + (if (updated) 1L else 0L))
+        check(holder.base === first && before.node.value == index)
+    }
+}
+
+fun exceptionReturn(index: Long, failure: Throwable): Node {
+    val holder = Holder(Node(index), Node(index + 1L))
+    try {
+        try {
+            throw failure
+        } finally {
+            holder.value = holder.base
+            gcCollect()
+        }
+    } catch (actual: Throwable) {
+        check(actual === failure)
+        val snapshot = holder.value
+        try {
+            return snapshot
+        } finally {
+            holder.value = Node(index + 2L)
+            gcCollect()
+            check(holder.value !== snapshot)
+        }
+    }
 }
 
 fun drain(values: ArrayList<Payload>): Long {
@@ -69,10 +146,14 @@ fun iteratorReferences() {
 }
 
 fun main() {
+    val failure = Exception(Some("scalar replacement"))
     var index = 0L
     while (index < 8L) {
         references(index)
-        construction(index)
+        construction(index, failure)
+        exceptionReferences(index, false, failure)
+        exceptionReferences(index, true, failure)
+        check(exceptionReturn(index, failure).value == index + 1L)
         iteratorReferences()
         index += 1L
     }

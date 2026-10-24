@@ -12,11 +12,22 @@ pub(in crate::optimization) struct ControlFlow {
     order: Vec<usize>,
     dominators: Vec<Option<usize>>,
     back_edges: Vec<(usize, usize)>,
+    completed: Vec<usize>,
 }
 
 impl ControlFlow {
     pub fn new(body: &mir::Body) -> Self {
-        let edges = graph::block_edges(body);
+        let mut edges = graph::block_edges(body);
+        let mut completed = (0..edges.len()).collect::<Vec<_>>();
+        for (id, block) in body.blocks.iter() {
+            if let Some(unwind) = block.unwind {
+                // An unwind may precede any statement in this block. Normal
+                // definitions dominate only successors of its completed node.
+                completed[index(id)] = edges.len();
+                edges[index(id)] = vec![index(unwind), edges.len()];
+                edges.push(graph::terminator_edges(&block.terminator).collect());
+            }
+        }
         let entry = index(body.entry);
         let (order, back_edges) = traversal(&edges, entry);
         let mut predecessors = vec![Vec::new(); edges.len()];
@@ -60,6 +71,7 @@ impl ControlFlow {
             order,
             dominators,
             back_edges,
+            completed,
         }
     }
 
@@ -67,14 +79,18 @@ impl ControlFlow {
         self.dominators[index(block)].is_some()
     }
 
+    pub fn block_dominates(&self, creation: usize, block: usize) -> bool {
+        self.node_dominates(creation, block)
+    }
+
     pub(super) fn dominates(&self, creation: Site, usage: Site) -> bool {
         if creation.block == usage.block {
             return creation.statement < usage.statement;
         }
-        self.block_dominates(index(creation.block), index(usage.block))
+        self.node_dominates(self.completed[index(creation.block)], index(usage.block))
     }
 
-    pub fn block_dominates(&self, creation: usize, mut block: usize) -> bool {
+    fn node_dominates(&self, creation: usize, mut block: usize) -> bool {
         if creation == block {
             return true;
         }
@@ -105,7 +121,7 @@ impl ControlFlow {
                 continue;
             }
             let used = &mut uses[index(id)];
-            let defined = &mut definitions[index(id)];
+            let defined = &mut definitions[self.completed[index(id)]];
             for statement in &block.statements {
                 mir::visit_statement_exprs(statement, &mut |expr| {
                     read_before_definition(expr, sources, defined, used);
@@ -137,18 +153,18 @@ impl ControlFlow {
         self.back_edges
             .iter()
             .flat_map(|&(from, target)| {
-                let natural = self.block_dominates(target, from);
+                let natural = self.node_dominates(target, from);
                 let cyclic = &cyclic;
                 live[target]
                     .iter()
                     .flat_map(|&local| &sources.locals[index(local)].candidates)
                     .copied()
                     .filter(move |&id| {
-                        let creation = index(sources.allocations[id].site.block);
+                        let creation = self.completed[index(sources.allocations[id].site.block)];
                         // An outer iteration may reuse one instance throughout
                         // an inner loop. Only its creation loop needs isolation.
                         let outside =
-                            natural && creation != target && self.block_dominates(creation, target);
+                            natural && creation != target && self.node_dominates(creation, target);
                         cyclic[creation] && !outside
                     })
             })

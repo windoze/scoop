@@ -35,10 +35,7 @@ pub(super) fn run(
         if !active[index(id)] {
             continue;
         }
-        if !supported(&module.functions[id]) {
-            if let Some(observer) = observer {
-                observation::record(module, id, None, observer, inliner);
-            }
+        if !has_candidate(&module.functions[id]) {
             continue;
         }
         let Some(owner) = inline::owner(module, id) else {
@@ -46,7 +43,7 @@ pub(super) fn run(
         };
         let plan = uses::Plan::new(module, &module.functions[id], observer.is_some());
         if let Some(observer) = observer {
-            observation::record(module, id, Some(&plan), observer, inliner);
+            observation::record(module, id, &plan, observer, inliner);
         }
         if plan.sources.allocations.is_empty() {
             continue;
@@ -60,22 +57,8 @@ pub(super) fn run(
     changed
 }
 
-fn supported(function: &mir::Function) -> bool {
-    let mut has_candidate = false;
+fn has_candidate(function: &mir::Function) -> bool {
     for (_, block) in function.body.blocks.iter() {
-        if block.unwind.is_some()
-            || matches!(
-                block.terminator,
-                mir::Terminator::Resume
-                    | mir::Terminator::Rethrow { .. }
-                    | mir::Terminator::Throw {
-                        unwind: Some(_),
-                        ..
-                    }
-            )
-        {
-            return false;
-        }
         for statement in &block.statements {
             match &statement.kind {
                 mir::StatementKind::ValDecl {
@@ -88,7 +71,7 @@ fn supported(function: &mir::Function) -> bool {
                             ..
                         },
                     ..
-                } => has_candidate = true,
+                } => return true,
                 mir::StatementKind::Assign {
                     value:
                         mir::Expr {
@@ -96,11 +79,10 @@ fn supported(function: &mir::Function) -> bool {
                             ..
                         },
                     ..
-                } => has_candidate = true,
-                mir::StatementKind::Eh(_) => return false,
+                } => return true,
                 _ => {}
             }
         }
     }
-    has_candidate
+    false
 }

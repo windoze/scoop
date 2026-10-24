@@ -27,10 +27,21 @@ for name in ("usingLease", "directLease"):
     elif name == "usingLease":
         assert "ClosureAlloc" in function and calls_use(function), name
 
+for name in ("guardedUse", "guardedDirect"):
+    function = body(name)
+    assert "landing_pad" in function and "throw " in function, name
+    if release:
+        for token in ("ClassAlloc", "ClosureAlloc", "ClosureCapture", "      call "):
+            assert token not in function, (name, token)
+    elif name == "guardedUse":
+        assert "ClosureAlloc" in function and calls_use(function), name
+
 if release:
     imported = body("importedGuarded")
     assert "landing_pad" not in imported and "      call " not in imported
-    assert not calls_use(body("cleanupFailure"))
+    cleanup = body("cleanupFailure")
+    assert not calls_use(cleanup)
+    assert "ClassAlloc" not in cleanup and "ClosureAlloc" not in cleanup
     retained = body("retainedReference")
     assert "ClosureAlloc" not in retained and not calls_use(retained)
     factory = next(function for function in functions if function[1] == "escapingPayload")

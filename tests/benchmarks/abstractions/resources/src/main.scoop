@@ -8,8 +8,14 @@ package dev.performance.resources
 @Unsafe fun main() {
     val count = benchCount().toLong()
     val kind = benchKind()
-    benchBegin()
-    val result = if (kind == 0) usingLease(count) else directLease(count)
+    val result = if (kind < 2) {
+        benchBegin()
+        if (kind == 0) usingLease(count) else directLease(count)
+    } else {
+        val failure = Exception(Some("guarded benchmark"))
+        benchBegin()
+        if (kind == 2) guardedUse(count, failure) else guardedDirect(count, failure)
+    }
     benchEnd()
     println(result)
 }

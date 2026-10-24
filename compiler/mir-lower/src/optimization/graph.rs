@@ -65,28 +65,30 @@ pub(super) fn block_edges(body: &mir::Body) -> Vec<Vec<usize>> {
             if let Some(unwind) = block.unwind {
                 targets.push(index(unwind));
             }
-            match &block.terminator {
-                mir::Terminator::Goto(target) => targets.push(index(*target)),
-                mir::Terminator::Branch {
-                    then_block,
-                    else_block,
-                    ..
-                } => {
-                    targets.push(index(*then_block));
-                    targets.push(index(*else_block));
-                }
-                mir::Terminator::Throw {
-                    unwind: Some(target),
-                    ..
-                }
-                | mir::Terminator::Rethrow {
-                    unwind: Some(target),
-                } => targets.push(index(*target)),
-                _ => {}
-            }
+            targets.extend(terminator_edges(&block.terminator));
             targets
         })
         .collect()
+}
+
+pub(super) fn terminator_edges(terminator: &mir::Terminator) -> impl Iterator<Item = usize> {
+    let targets = match terminator {
+        mir::Terminator::Goto(target)
+        | mir::Terminator::Throw {
+            unwind: Some(target),
+            ..
+        }
+        | mir::Terminator::Rethrow {
+            unwind: Some(target),
+        } => [Some(index(*target)), None],
+        mir::Terminator::Branch {
+            then_block,
+            else_block,
+            ..
+        } => [Some(index(*then_block)), Some(index(*else_block))],
+        _ => [None, None],
+    };
+    targets.into_iter().flatten()
 }
 
 pub(super) fn index<T>(id: la_arena::Idx<T>) -> usize {

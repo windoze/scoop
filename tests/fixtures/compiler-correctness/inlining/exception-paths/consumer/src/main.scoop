@@ -71,15 +71,16 @@ fun retainedReference(value: Int): Int {
 }
 
 fun main() {
+    val failure = Exception(Some("retained failure"))
     var count = 0L
     while (count <= 65L) {
         check(usingLease(count) == directLease(count))
+        check(guardedUse(count, failure) == guardedDirect(count, failure))
         count += 1L
     }
     check(importedGuarded(7) == 1108)
     check(importedGuarded(-9) == -508)
     check(opaqueGuarded(7) == 11)
-    val failure = Exception(Some("retained failure"))
     check(cleanupFailure(failure))
     check(bodyFailure(failure))
     check(unresolved(Lease(0L), { 19 }) == 19)

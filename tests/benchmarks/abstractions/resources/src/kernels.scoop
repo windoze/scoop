@@ -29,3 +29,41 @@ fun directLease(count: Long): Long {
     }
     return result.xor(lease.value)
 }
+
+fun guardedUse(count: Long, failure: Throwable): Long {
+    val lease = Lease(7L)
+    val failAt = count / 2L
+    var i = 0L
+    var result = 0L
+    while (i < count) {
+        val input = i
+        try {
+            result = result.xor(lease.use { current -> current.value.xor(input) })
+            if (i == failAt) throw failure
+        } catch (actual: Throwable) {
+            result = result.xor(lease.value)
+        }
+        i += 1L
+    }
+    return result.xor(lease.value)
+}
+
+fun guardedDirect(count: Long, failure: Throwable): Long {
+    val lease = Lease(7L)
+    val failAt = count / 2L
+    var i = 0L
+    var result = 0L
+    while (i < count) {
+        val input = i
+        try {
+            val value = lease.value.xor(input)
+            lease.dispose()
+            result = result.xor(value)
+            if (i == failAt) throw failure
+        } catch (actual: Throwable) {
+            result = result.xor(lease.value)
+        }
+        i += 1L
+    }
+    return result.xor(lease.value)
+}

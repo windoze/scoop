@@ -97,7 +97,6 @@ pub enum AllocationKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AllocationOutcome {
     Eliminated,
-    ExceptionFlow,
     ReleaseHook,
     Representation,
     AmbiguousSource,

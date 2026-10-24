@@ -1,6 +1,7 @@
 use super::*;
 
 mod control;
+mod exception_paths;
 mod inlining;
 mod retention;
 

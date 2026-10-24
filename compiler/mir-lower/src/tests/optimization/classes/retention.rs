@@ -58,7 +58,7 @@ fn merging_a_foreign_object_into_an_alias_keeps_both_field_states() {
 }
 
 #[test]
-fn release_hooks_and_unwind_regions_keep_real_allocations() {
+fn release_hooks_retain_allocations_while_unrelated_unwinds_do_not() {
     for hook in [false, true] {
         let (mut module, id) = sample(false);
         let body = &mut module.functions[id].body;
@@ -79,6 +79,6 @@ fn release_hooks_and_unwind_regions_keep_real_allocations() {
             body.blocks[body.entry].unwind = Some(unwind);
         }
         elide(&mut module);
-        assert_eq!(counts(&module.functions[id]).0, 1);
+        assert_eq!(counts(&module.functions[id]).0, usize::from(hook));
     }
 }

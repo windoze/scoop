@@ -78,13 +78,13 @@ fn allocation_reports_elision_escape_mixed_origin_and_exception_flow() {
                     unwind: None,
                 });
                 body.blocks[entry].unwind = Some(landing);
-                AllocationOutcome::ExceptionFlow
+                AllocationOutcome::Eliminated
             }
         };
         observe(&mut module, function, expected);
         assert_eq!(
             counts(&module.functions[function]).0,
-            usize::from(case != 0)
+            usize::from(case == 1 || case == 2)
         );
     }
 }

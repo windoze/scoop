@@ -16,6 +16,7 @@
 | [普通 class／局部游标字段替换](CLASS-SCALARS.md) | release 默认 | 创建与使用可分析、不逃逸且无 release hook；字段转为 typed locals，保留引用快照与 GC 语义。 |
 | [字段替换指导内联](ITERATOR-INLINING.md) | release 默认 | 可替换 class 只剩一个 receiver 调用时共同估价；继续遵守原内联成本与累计增长限制。 |
 | [调用点异常路径特化](EXCEPTION-PATHS.md) | release 默认 | exact receiver／closure 和已有完整正文证明异常边不可达后，按实际剩余正文选择内联；保留正常清理、真实异常、返回快照与精确 roots。未知效果和残余 EH 保留调用。 |
+| [异常区域中的局部分配消除](EXCEPTION-SCALARS.md) | release 默认 | box／closure／无 release hook 的 class 在正常和异常路径均满足来源、支配与循环存活证明时替换为 typed locals；保留真实 catch／finally、返回快照及异常出口 roots。 |
 | [有界整数／Boolean 数组初始化](ARRAY-INITIALIZATION.md) | release 默认 | initializer 展开后无调用／分配；64 次有界分块，合格的无 safepoint 内层交由 LLVM 向量化。 |
 | [数组边界检查消除与分块](ARRAY-BOUNDS.md) | release 默认 | 稳定上界、非负起点、唯一加一更新；直接范围证明或长度 guard，保留 checked 回退与短尾。 |
 | [循环范围指导数组访问内联](ARRAY-INLINING.md) | release 默认 | 用已证明的范围去掉候选正文中的不可达检查后计价；不提高全局阈值。 |

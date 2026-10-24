@@ -50,7 +50,6 @@ pub(super) fn allocation_kind(kind: AllocationKind) -> &'static str {
 pub(super) fn allocation(outcome: AllocationOutcome) -> Value {
     let reason = match outcome {
         AllocationOutcome::Eliminated => "eliminated",
-        AllocationOutcome::ExceptionFlow => "exception-flow",
         AllocationOutcome::ReleaseHook => "release-hook",
         AllocationOutcome::Representation => "class-representation",
         AllocationOutcome::AmbiguousSource => "ambiguous-source",

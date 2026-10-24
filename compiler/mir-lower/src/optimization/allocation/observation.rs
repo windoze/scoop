@@ -11,29 +11,26 @@ use mir::optimization_report::{
 pub(super) fn record(
     module: &mir::Module,
     function_id: mir::FunctionId,
-    plan: Option<&Plan>,
+    plan: &Plan,
     observer: &Observer<'_>,
     inliner: Option<&inline::Session>,
 ) {
     let outcomes = plan
-        .map(|plan| {
-            plan.sources
-                .allocations
-                .iter()
-                .map(|(id, allocation)| {
-                    let outcome = if plan.removable[index(id)] {
-                        AllocationOutcome::Eliminated
-                    } else {
-                        plan.reasons.as_ref().unwrap()[index(id)]
-                            .expect("retained candidates have a reason")
-                    };
-                    ((allocation.site.block, allocation.site.statement), outcome)
-                })
-                .collect::<HashMap<_, _>>()
+        .sources
+        .allocations
+        .iter()
+        .map(|(id, allocation)| {
+            let outcome = if plan.removable[index(id)] {
+                AllocationOutcome::Eliminated
+            } else {
+                plan.reasons.as_ref().unwrap()[index(id)]
+                    .expect("retained candidates have a reason")
+            };
+            ((allocation.site.block, allocation.site.statement), outcome)
         })
-        .unwrap_or_default();
+        .collect::<HashMap<_, _>>();
     for (block_id, block) in module.functions[function_id].body.blocks.iter() {
-        if plan.is_some_and(|plan| !plan.reachable(block_id)) {
+        if !plan.reachable(block_id) {
             continue;
         }
         for (statement, node) in block.statements.iter().enumerate() {
@@ -52,9 +49,7 @@ pub(super) fn record(
                 mir::ExprKind::ClassAlloc { .. } => (AllocationKind::Class, &expr.ty),
                 _ => continue,
             };
-            let outcome = if plan.is_none() {
-                AllocationOutcome::ExceptionFlow
-            } else if let Some(outcome) = outcomes.get(&(block_id, statement)) {
+            let outcome = if let Some(outcome) = outcomes.get(&(block_id, statement)) {
                 *outcome
             } else if let mir::ExprKind::ClassAlloc { class_id } = expr.kind {
                 if module.classes[class_id].release_policy != mir::ReleasePolicy::None {

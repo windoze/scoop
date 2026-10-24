@@ -80,7 +80,7 @@ fn taking_an_alias_address_before_assignment_blocks_replacement() {
 }
 
 #[test]
-fn unmatched_unbox_and_exception_regions_keep_the_allocation() {
+fn unmatched_unbox_retains_the_allocation_while_unrelated_unwinds_do_not() {
     for exception_region in [false, true] {
         let (mut module, id) = sample();
         let body = &mut module.functions[id].body;
@@ -102,6 +102,9 @@ fn unmatched_unbox_and_exception_regions_keep_the_allocation() {
                 .push(node(mir::StatementKind::Expr(extra)));
         }
         elide(&mut module);
-        assert_eq!(counts(&module.functions[id]).0, 1);
+        assert_eq!(
+            counts(&module.functions[id]).0,
+            usize::from(!exception_region)
+        );
     }
 }
