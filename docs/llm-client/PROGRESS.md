@@ -11,6 +11,7 @@
 | 架构、缺省用法与 Vercel AI SDK 对照 | 设计已整理 |
 | HTTP 请求级观察、发送／接收 UTC 与单调时间 | 完成：本机与 Linux GNU 各 189/189 通过 |
 | HTTP timeout 缺省读取与请求级覆盖组合 | 完成：本机与 Linux GNU 各 190/190 通过 |
+| HTTP 空闲响应取消的收尾去重 | 完成：本机 HTTP 193/193；Linux 仅新增 3/3 |
 | TokenUsage 公共计数数据与 companion codec | 完成：本机与 Linux GNU 各 5/5 通过 |
 | Unit companion codec 与显式访问 | 完成：本机与 Linux GNU 的 JSON Cone 各 94/94 通过 |
 | 输入／输出媒体与生成 capability 数据 | 完成：本机与 Linux GNU 各 18/18 通过 |
@@ -54,3 +55,5 @@
 - 生成接入前补齐 HTTP 的只读 defaultTimeouts；新增普通 Cone 用例验证借入者可保留网络／排池设置而单独更改响应头等待，后续普通调用仍使用原缺省。完整 HTTP Cone 两平台各 190 项通过。
 - Linux 验证使用 `~/repos/scoop-work/llm-client/checkout` 独立工作树；Unit 修复后已从相应源码重建 release 工具、23 个库及 runtime，保留 `~/repos/scoop` 中的未提交改动。旧 runtime 与新工具不匹配的启动失败在正式准备后重跑通过。
 - 整体实现仍在进行；验证仅覆盖表中已交付项。后续仅记录通过范围、失败闭合和实际限制。
+
+- 流式生命周期验证发现：响应 body 尚未读取时取消当前 Job，useAsync 会再次从 close 收到同一个取消。HTTP 现按异常实例识别当前 Job 自身的取消，只省去重复主失败；其他 Job 的取消及真实清理失败仍交付。新增 3 项普通 Cone 回归，本机 HTTP 193/193，Linux 仅这 3 项通过，无编译器修改或 fixture。

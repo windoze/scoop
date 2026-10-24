@@ -86,9 +86,20 @@ internal class ClientResponseInput(val call: ClientCall, val plan: ClientRespons
 }
 
 private fun reportClientResponseCloseFailure(call: ClientCall) {
+    observeClosingJobCancellation(call)
     val failure = if (call.lock.withLock { call.failureObserved }) unobservedClientCleanup(call)
         else clientCallFailure(call)
     if (clientPresent(failure)) throw failure!!
+}
+
+private fun observeClosingJobCancellation(call: ClientCall) {
+    val job = currentJobOrNone() ?: return
+    val cancellation = try { job.ensureActive(); return } catch (error: CancellationException) { error }
+    call.lock.withLock {
+        val primary = call.failure
+        if (clientPresent(primary) && primary!! === cancellation) call.failureObserved = true
+        Unit
+    }
 }
 
 private suspend fun awaitClientResponseClose(call: ClientCall) {
