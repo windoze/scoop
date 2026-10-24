@@ -403,7 +403,7 @@ LIR metadata 保存完整 value/instance/element layout、Scoop/C ABI、scan、T
 
 ### 2.5 Codegen 与对象合同
 
-GC 代码生成模块集中实现分配、完整托管写操作、发布与 poll 的快／慢路径。字段与数组 store、含引用聚合复制、数组构造／拼接、clone 及原子引用写入必须把实际写入和对应屏障放在同一操作中；通用发射器交付实际地址、值、类型／scan、内存序和必要的 safepoint 数据，不单独拼接写后屏障。批量构造／复制保留整段范围屏障，失败 CAS 不标脏，GC-free 写入不增加屏障。runtime 执行的 clone／boxing 等完整操作沿既有入口调用，内部写入遵守运行时规范 3.6。
+GC 代码生成模块集中实现分配、完整托管写操作、发布与 poll 的快／慢路径。字段与数组 store、含引用聚合复制、数组构造／拼接、clone 及原子引用写入必须把实际写入和对应屏障放在同一操作中；通用发射器交付实际地址、值、类型／scan、内存序和必要的 safepoint 数据，不单独拼接写后屏障。后续 LLVM 优化可按 2.19 合并完整有界内层中的等价 card store，仍须在下一次可能 GC 或发布前完成。批量构造／复制保留整段范围屏障，失败 CAS 不标脏，GC-free 写入不增加屏障。runtime 执行的 clone／boxing 等完整操作沿既有入口调用，内部写入遵守运行时规范 3.6。
 
 分配、单槽写入与 poll 的既有快路径仍静态内联，不为模块隔离增加外部热路调用或重复 TLS 查询；保持原内存序，地址计算、写入与屏障之间无 safepoint。根活跃度、statepoint relocation、异常控制流与调用 ABI 继续由原有模块负责。纯内部职责重组不改变共享布局、runtime ABI 或产物格式。
 
@@ -1338,6 +1338,10 @@ Managed release 标量优化后，仅对实际 LLVM CFG 为单入口、单 latch
 保留栈 volatile 重读的查询提升扩展只在 AArch64 release 默认启用；x86_64 的该类负载尚未取得稳定收益，继续排除含 volatile 的区域。普通引用循环沿用原有查询提升条件，该目标选择不改变布局、调用约定或 GC 语义。
 
 提升发生在唯一外来边上；外来前驱还有其他后继时创建专用 preheader 并更新 header phi，避免在未进入内层的路径查询 mapping。该变换复用既有有界区域与根槽分析，保留原 poll／恢复与 roots，metadata 不跨下一次 safepoint。引用循环仍不取得标量 SIMD 资格；不新增 LIR／`.slib` 字段、runtime ABI、堆布局或跨阶段重复的循环证明。
+
+上述 release 区域若已取得循环外不变的 mapping prefix，还可合并每轮必经的 card store。按实际 64-bit SSA 的加减、常数缩放和 GEP，以及 header phi 的固定加减回边，确认引用槽偏移每轮增量为 0、8 或 16 字节；不按循环名或额外标记推定。未知变化、截断／符号扩展后不能保持增量、条件执行、调用、同步、发布、提前退出和不合格 volatile 访存继续保留逐次标记。迭代次数直接复用本次区域分析的 1～64 常数，单次内层不做无收益的合并。
+
+合并在唯一正常退出边上执行，维护原后继 phi 的 incoming block 和值；零次循环、guard 失败、不满足相同条件的动态短尾及其他出口不经过该边。从最后一次实际引用槽偏移与固定总增量取得本块起止 card，覆盖中间所有实际触及的 cards，每个写入流最多发射三个 relaxed atomic store；允许端点重复，不额外标脏未触及的卡。原引用／元素写入及 volatile 重读保持位置和顺序，只把仅用于最终卡计算的纯地址运算移到该退出边，不额外提升普通根加载。该边先于原 poll／根恢复和发布，AS1 引用、metadata 与根的生命周期不跨新的 safepoint；全部 profile 的对象、接口、GC 与产物 ABI 保持，不增加 MIR／LIR 字段或引用 SIMD 资格。
 
 内层选择只授权尝试优化，不要求 LLVM 必须向量化；无法识别 reduction 等普通 missed-optimization remark 不作为编译错误，也不写入结构化 child 协议的 stderr。该局部 pass 运行期间忽略 LLVM remark，错误／警告仍按原诊断路径传递，结束后恢复原 context handler。
 

@@ -768,6 +768,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - [卡表幂等原子写入](program-performance/CARD-STORES.md)已交付：利用二值卡状态与 STW 清零，以 relaxed store 1 替代单槽和 runtime 范围屏障的 OR 1。三目标引用写入获益，GNU／musl 长复制与清零降低约 70%～82%；LIR、roots、脏卡计数及 ABI 保持，空间／编译成本与对照回退一并记录，作为所有 profile 与 runtime 的默认实现。
 - [有界引用循环页表查询提升](program-performance/CARD-REGIONS.md)已交付：数组基址定位 mapping，release 将每轮必经、目标稳定的查询移至完整块进入边，保留逐次 card store 和精确 roots。三目标普通引用复制内核降低约 45%～80%；后续[接口栈重取扩展](program-performance/INTERFACE-CARD-REGIONS.md)在 ARM64 release 继续覆盖接口复制／父投影／初始化，前两项再降低约 44%。x86 试验未取得稳定收益，保持原规则；空间、编译成本和对照回退均有记录，无新开关。
 - [接口 SSA 快照复用](program-performance/INTERFACE-VALUES.md)已交付：x86_64 release 在同一无 safepoint 直线区间复用刚写入的完整接口值，消除局部复制链，接口数组复制／父投影也因此满足原有页表查询提升条件。GNU／musl 内核降低约 36%～40%；ARM64 试验回退，最终产物保持基线相同字节。精确 roots、接口布局和 ABI 保持，成本、复测与未采纳试验已记录。
+- [有界引用循环卡标记合并](program-performance/CARD-BATCHES.md)已交付：每轮必经、固定槽步长的完整块在正常退出后统一标记，保留元素写入，先于下一次 poll／发布，每流最多三次卡写入。三目标复制与清零获益，GNU／musl 接口复制／父投影降低约 43%～47%；LIR、精确 roots、脏卡集合与 ABI 保持，text 增加约 0.03%，沿用 release 默认设置。初始化、求和及短路径回退和编译成本已记录，更广屏障合并继续独立测量。
 - 延续桌面短暂停与内存目标，按吞吐、应用尾延迟、RSS 和启动分别验收；调研不表示优化已实现或已完成跨语言性能比较。具体实施前先修订实际受影响的规范，不预先占用新的里程碑编号。
 
 ### 可恢复语法与 LSP（公共基础 A～E 已完成，扩展能力待排期）

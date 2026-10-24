@@ -5,6 +5,7 @@ use inkwell::llvm_sys::core::{LLVMReplaceMDNodeOperandWith, LLVMValueAsMetadata}
 use super::*;
 
 mod card_regions;
+mod edges;
 mod operations;
 mod region;
 mod remarks;

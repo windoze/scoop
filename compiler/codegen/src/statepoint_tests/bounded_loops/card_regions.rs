@@ -5,6 +5,9 @@ use inkwell::values::InstructionOpcode;
 #[path = "card_regions/stack_reads.rs"]
 mod stack_reads;
 
+#[path = "card_regions/batches.rs"]
+mod batches;
+
 fn query() -> String {
     let mut text = String::from(
         "  %array = load ptr addrspace(1), ptr %slot, align 8\n\

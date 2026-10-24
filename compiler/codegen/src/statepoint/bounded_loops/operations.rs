@@ -207,7 +207,7 @@ fn only_used_in(instruction: InstructionValue<'_>, blocks: &[BasicBlock<'_>]) ->
     true
 }
 
-fn user_instruction(value: AnyValueEnum<'_>) -> Option<InstructionValue<'_>> {
+pub(super) fn user_instruction(value: AnyValueEnum<'_>) -> Option<InstructionValue<'_>> {
     match value {
         AnyValueEnum::InstructionValue(value) => Some(value),
         _ => BasicValueEnum::try_from(value).ok()?.as_instruction_value(),

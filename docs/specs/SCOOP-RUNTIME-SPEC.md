@@ -467,7 +467,9 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 
 同一对象的全部存储属于同一个 region 或 large mapping。在单 basic block、对象引用不变且没有 safepoint、调用、原子访问或同步发布的连续普通字段写入之间，codegen 可复用已取得的 immutable base／cards；不同字段仍按实际地址分别计算 card，不假定相邻字段一定属于同一 card。已标记的同一引用槽再次写入可以省去重复 mark。跨任何上述边界必须丢弃复用状态；保留首次 acquire 查询及必要的 relaxed atomic store，不引入跨线程共享缓存或先读 dirty 的分支。
 
-数组元素写入可以从数组对象基址查询所属 mapping，再按实际元素引用槽计算 card。在实现规范 2.19 的常数有界、无 safepoint 内层中，若目标引用不变，且该查询在每轮所有路径上必经，可以把 acquire 页表与 immutable base／cards 加载移至进入内层的边上。进入边位于外层 poll／引用恢复之后；零次循环、未选择的分支和异常回退不执行新增查询。保留每次实际写入后的 card store；不得将 metadata 带过下一个 poll，或把有调用、同步、条件执行的查询或变化目标纳入该复用。
+数组元素写入可以从数组对象基址查询所属 mapping，再按实际元素引用槽计算 card。在实现规范 2.19 的常数有界、无 safepoint 内层中，若目标引用不变，且该查询在每轮所有路径上必经，可以把 acquire 页表与 immutable base／cards 加载移至进入内层的边上。进入边位于外层 poll／引用恢复之后；零次循环、未选择的分支和异常回退不执行新增查询。除下述卡标记合并外，保留每次实际写入后的 card store；不得将 metadata 带过下一个 poll，或把有调用、同步、条件执行的查询或变化目标纳入该复用。
+
+同一有界内层没有调用、发布、同步或提前退出，且某个引用槽写入每轮必经、地址在同一 mapping 中保持不变或按已知 8／16 字节步长递增时，可把对应 card store 合并到完成内层的唯一退出边。保留全部元素写入和 volatile 引用重读，退出边在原 poll／发布之前覆盖本块实际写入触及的全部 cards。当前 1～64 次范围每个写入流最多需要三个 relaxed atomic store；重复端点置脏是幂等的，但不能标记未被本块写入触及的 card。不将 card metadata 或裸引用地址带过 safepoint，不依赖对象是否年轻，不改变 roots、heap／接口布局或 ABI；旧产物的逐次标记与合并后的记录语义相同。
 
 用于接口重建的栈槽 volatile 引用重读不触发 GC 或线程同步；按实现规范 2.19 确认其地址仅来自当前函数入口的栈存储后，AArch64 release 可以在保留这些重读的情况下提升独立的 mapping 查询；x86_64 保留原区域选择规则。重读的次数、位置、相互顺序及移动 GC 后的 object／itab 重建保持，查询不能依赖被重读的值；该规则不允许提升 volatile 操作或跨过用户原子、同步、调用与不明地址的 volatile 访存。
 

@@ -1,16 +1,15 @@
-//! Hoist immutable mapping queries only across a bounded, non-synchronizing loop.
+//! Reuse mapping queries and combine marks in bounded, non-synchronizing loops.
 
 use std::collections::{HashMap, HashSet};
 
-use inkwell::llvm_sys::core::{LLVMGetNumSuccessors, LLVMGetSuccessor, LLVMSetSuccessor};
 use inkwell::targets::TargetMachine;
-use inkwell::values::PhiValue;
 
-use super::{operations, region::Region};
+use super::{edges, operations, region::Region};
 use crate::statepoint::{
-    AsValueRef, BasicBlock, BasicValue, CodegenError, InstructionOpcode, InstructionValue,
+    BasicBlock, BasicValue, CodegenError, InstructionOpcode, InstructionValue,
 };
 
+mod batches;
 mod query;
 mod stack_reads;
 
@@ -40,18 +39,17 @@ pub(super) fn prepare(
             plan.extend(pending);
         }
     }
-    if plan.is_empty() {
-        return Ok(());
+    if !plan.is_empty() {
+        let preheader = preheader(region)?;
+        let builder = region.header.get_context().create_builder();
+        builder.position_before(&preheader.get_terminator().expect("preheader terminates"));
+        for instruction in plan {
+            instruction.remove_from_basic_block();
+            builder.insert_instruction(&instruction, None);
+        }
+        region.predecessor = preheader;
     }
-    let preheader = preheader(region)?;
-    let builder = region.header.get_context().create_builder();
-    builder.position_before(&preheader.get_terminator().expect("preheader terminates"));
-    for instruction in plan {
-        instruction.remove_from_basic_block();
-        builder.insert_instruction(&instruction, None);
-    }
-    region.predecessor = preheader;
-    Ok(())
+    batches::coalesce(region, machine, &mandatory)
 }
 
 fn supported(instruction: InstructionValue<'_>, retain_stack_reloads: bool) -> bool {
@@ -180,48 +178,5 @@ fn preheader<'ctx>(region: &Region<'ctx>) -> Result<BasicBlock<'ctx>, CodegenErr
     if branch.get_num_operands() == 1 {
         return Ok(region.predecessor);
     }
-    let context = region.header.get_context();
-    let block = context.append_basic_block(
-        region.header.get_parent().expect("loop function"),
-        "card.preheader",
-    );
-    let builder = context.create_builder();
-    builder.position_at_end(block);
-    builder
-        .build_unconditional_branch(region.header)
-        .map_err(|error| CodegenError(format!("card preheader branch: {error}")))?;
-    // SAFETY: this is the live predecessor's branch; only its edge to this
-    // header changes. The header phis below receive the same incoming values.
-    unsafe {
-        for index in 0..LLVMGetNumSuccessors(branch.as_value_ref()) {
-            if LLVMGetSuccessor(branch.as_value_ref(), index) == region.header.as_mut_ptr() {
-                LLVMSetSuccessor(branch.as_value_ref(), index, block.as_mut_ptr());
-            }
-        }
-    }
-    let phis = region
-        .header
-        .get_instructions()
-        .take_while(|i| i.get_opcode() == InstructionOpcode::Phi)
-        .collect::<Vec<_>>();
-    for instruction in phis {
-        let old = PhiValue::try_from(instruction).expect("header phi");
-        builder.position_before(&instruction);
-        let new = builder
-            .build_phi(old.as_basic_value().get_type(), "card.incoming")
-            .map_err(|error| CodegenError(format!("card preheader phi: {error}")))?;
-        for (value, predecessor) in old.get_incomings() {
-            new.add_incoming(&[(
-                &value,
-                if predecessor == region.predecessor {
-                    block
-                } else {
-                    predecessor
-                },
-            )]);
-        }
-        instruction.replace_all_uses_with(&new.as_instruction());
-        instruction.erase_from_basic_block();
-    }
-    Ok(block)
+    edges::split(region.predecessor, region.header, "card.preheader")
 }

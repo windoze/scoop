@@ -11,6 +11,8 @@ pub(super) struct Region<'ctx> {
     pub header: BasicBlock<'ctx>,
     pub latch: BasicBlock<'ctx>,
     pub predecessor: BasicBlock<'ctx>,
+    pub exit: BasicBlock<'ctx>,
+    pub iterations: u64,
     pub blocks: Vec<BasicBlock<'ctx>>,
 }
 
@@ -57,15 +59,14 @@ pub(super) fn analyze(latch: BasicBlock<'_>) -> Option<Region<'_>> {
                 return None;
             }
         } else {
-            entry = (incoming.is_int_value()
-                && incoming
-                    .into_int_value()
-                    .get_zero_extended_constant()
-                    .is_some_and(|count| (1..=64).contains(&count)))
-            .then_some(predecessor);
+            let count = incoming
+                .is_int_value()
+                .then(|| incoming.into_int_value().get_zero_extended_constant())
+                .flatten()?;
+            entry = (1..=64).contains(&count).then_some((predecessor, count));
         }
     }
-    let predecessor = entry.filter(|_| backedge)?;
+    let (predecessor, iterations) = entry.filter(|_| backedge)?;
     let blocks = acyclic(header, latch, exit)?;
     if blocks.contains(&predecessor) {
         return None;
@@ -88,6 +89,8 @@ pub(super) fn analyze(latch: BasicBlock<'_>) -> Option<Region<'_>> {
         header,
         latch,
         predecessor,
+        exit,
+        iterations,
         blocks,
     })
 }
