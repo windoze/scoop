@@ -1,16 +1,24 @@
 package scoop.llm.client
 
 import scoop.json.*
+import scoop.url.Url
 
-/** Complete Interactions resources decoded without network or continuation side effects. */
-public class InteractionsProtocol public constructor(public val dialect: InteractionsDialect) {
-    public val dialectId: DialectId get() = dialect.id
+/** Interactions requests and complete resources, bound to one explicit dialect. */
+public class InteractionsProtocol public constructor(public val dialect: InteractionsDialect) : LlmGenerationProtocol {
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("interactions").build()
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue {
+        if (stream) throw LlmRequestException("/stream", "ordinary Interactions generation does not encode an SSE request")
+        return encodeInteractionsRequest(dialect, modelId, request)
+    }
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
     init {
         if (dialect.id.protocol != ApiProtocolId("interactions"))
             throw IllegalArgumentException(Some("Interactions dialect belongs to another API protocol"))
     }
 
-    public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
         try {
             if (value.kind == JsonValueKind.Object && llmPresent(value["error"]) && value["error"]!!.kind != JsonValueKind.Null)
                 throw DecodingException("/error", "Interactions returned an error response")

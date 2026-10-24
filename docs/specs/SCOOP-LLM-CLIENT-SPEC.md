@@ -441,7 +441,7 @@ EOF 后停止总截止、记录 completed 并保留最终结果；firstEvent 仍
 
 ## 21. Gemini Interactions 完整响应
 
-InteractionsProtocol 与 InteractionsDialect 分别解释有序 step 协议和服务方用量／错误。GeminiInteractionsDialect 使用 DialectId(ApiProtocolId("interactions"), "gemini-interactions")，与 generateContent 独立。decodeResponse(value, request) 是纯函数；本节先交付完整资源的解码，不提供尚未实现的网络或 SSE 入口。以官方 v1 的公共字段为依据，未知 step、content、annotation 与新增字段保留原文。
+InteractionsProtocol 与 InteractionsDialect 分别解释有序 step 协议和服务方用量／错误。GeminiInteractionsDialect 使用 DialectId(ApiProtocolId("interactions"), "gemini-interactions")，与 generateContent 独立。decodeResponse(value, request) 是不执行 I/O 的纯解码，普通请求与网络入口见第 22 节。以官方 v1 的公共字段为依据，未知 step、content、annotation 与新增字段保留原文。
 
 完整资源要求非空 id、status、steps，以及可解码为 Instant 的 created／updated；可选 object 出现时必须为 interaction。created 映射 LlmResponse.createdAt，updated 留在 native；这些服务时间不代替客户端发送／接收采样，不检查服务时间的先后关系。model 可缺失，agent 不冒充 model。根部 error 不是成功资源；资源自身 status=failed 则是可观察的模型失败，errors 保留原文。
 
@@ -458,3 +458,23 @@ usage.total_input_tokens 直接映射 inputTokens；total_output_tokens 与 tota
 completed、requires_action、failed、cancelled、incomplete 的 usage 为 Final；in_progress 与未知状态为 Partial。上述已知停止状态的 history.items 按顺序保存原始 steps（包括签名和未知字段），不把完整资源或 previous_interaction_id 当作历史项；进行中或未知状态不提供可追加历史。序列化往返不联网、不执行工具、不发起后续 interaction。请求构造、显式服务状态继续和 SSE 另行定义。
 
 协议依据：[Interactions v1 参考](https://ai.google.dev/api/interactions-api-v1)、[官方 OpenAPI](https://ai.google.dev/static/api/interactions-v1.openapi.json)、[Interactions 状态与历史](https://ai.google.dev/gemini-api/docs/interactions-overview?hl=en)、[token 用量](https://ai.google.dev/gemini-api/docs/tokens)。
+
+## 22. Gemini Interactions 请求与普通生成
+
+InteractionsProtocol 实现 LlmGenerationProtocol；Providers.geminiInteractions() 包装 GeminiInteractionsDialect，缺省 baseUrl 为 https://generativelanguage.googleapis.com/v1。生成地址在部署路径后追加 interactions，已有查询参数保留；modelId 原样置入正文，不添加 models/、不按名称选择协议或查询目录。认证沿用 LlmAuth.header("x-goog-api-key", key)，库不读取环境。generate 复用现有能力检查、调用寿命、响应限制和实际发送／接收时间戳。
+
+最小请求只包含 model 与 input。input 使用有序 step 数组，User／Assistant Message 分别为 user_input／model_output，内容使用 type 标记的 content；不合并独立消息。request.system 只接受文本并按顺序拼接为 system_instruction，省略时不发字段；消息中的 System／Developer 不能被移动到全局，明确报错。History 检查 dialect、无隐式 context、对象与非空 type 后原样追加 steps，签名及未知字段不重建。previous_interaction_id、store、background 通过本次 request.extensions 显式提供；不把 history 自动改成 ID 接续，不替应用保存或继承上一轮的配置。
+
+文本编码为 type=text；图片／文档／音频／视频 Bytes 编码 data 与 mime_type，Url 编码 uri 与 mime_type，不下载、不转码。FileReference 接受同 dialect 的原始媒体 content object，要求 type、uri 和 MIME 与当前内容一致，保留其他字段；不将引用中的 Base64 数据悄悄改为 URI 引用。Native content 要求同 dialect 的对象与非空 type。VideoFrames、单独的文档 filename 没有对应字段，显式请求报路径错误。Message、content、tool 和 ToolResult 的扩展分别作用于对应 wire object，不能覆盖其 type／内容／关联管理字段。
+
+当前 v1 generation_config 的公共映射为 max_output_tokens、stop_sequences、thinking_level 和 tool_choice；缺省省略整个配置。temperature、topP、topK、候选数、parallelToolCalls 与 reasoning.budgetTokens 没有对应开关，显式值不能静默忽略。reasoning.effort 接受 minimal／low／medium／high；enabled=true 需要显式 effort，enabled=false 没有精确的关闭表达，不能以 minimal 代替关闭。JsonObject／JsonSchema 映射 response_format 的 type=text、mime_type=application/json 及可选原始 schema；name 的缺省 response 不单独发送，非缺省 name、description、strict 显式提供时报错。
+
+ClientFunction 编码 type=function、name、description 和 parameters，不改写 JSON Schema；名称在本请求的函数集合内唯一，strict 无对应字段。ClientCustom／ClientNative 没有本协议已定义的客户端调用映射，拒绝而不伪装成函数。ToolChoice.Auto 省略；None／Required 分别为 none／any；Specific 为 allowed_tools.mode=any 和实际函数名数组。Required 需要至少一个函数；非 Auto 选择只控制函数，不用于包含服务端工具的混合请求。
+
+Server.WebSearch 编码 type=google_search；域名、位置和 includeSources 没有等价字段，显式选项报错。Server.Native 支持 google_search、code_execution、url_context、file_search、google_maps、mcp_server，其 configuration 的成员位于工具对象顶层，type 由 kind 管理。无 wire version，显式版本拒绝；单例工具不可重复，MCP 可以声明多个服务，已提供的 name 必须非空且不重复。server 工具与函数可在 Auto 模式共存，执行仍完全由服务端负责。
+
+ToolResult 编码 function_result，使用 reference 的实际非空 id 作为 call_id；context 存在时必须为同一 function_call 且 ID 一致。name 来自 context，缺省 context 时使用同 ToolKey 的当前 ClientFunction 声明，不用 ToolKey 替代 API 名称。result 按原顺序编码 text／image content 数组，空结果保持 []；其他模态明确拒绝，Native 需为同 dialect 的 text 或 image content。isError=true 才发送 is_error=true。多个并行结果保持独立 step，不执行工具也不自动生成下一轮。
+
+根部扩展可补充未管理的原生字段；generation_config 仅补充 seed、thinking_summaries、video_config 等未由通用选项管理的字段，不覆盖已有值，也不绕过已知公共参数的检查。response_format 扩展可以提供原生媒体格式对象或数组；其 type=text 项不得设置通用 API 管理的 mime_type／schema。如果通用选项已生成 JSON text format，则与扩展中的 text 配置合并，或作为独立 text format 加入媒体格式数组；没有通用 text 约束时保持原生对象／数组形状。媒体的原生配置不因公共 OutputFormat 缺省 Text 被删除。
+
+协议依据：[Interactions v1 OpenAPI](https://ai.google.dev/static/api/interactions-v1.openapi.json)、[有状态与无状态函数接续](https://ai.google.dev/gemini-api/docs/function-calling)、[结构化输出](https://ai.google.dev/gemini-api/docs/structured-output)。SSE 与后台资源操作不由普通生成隐式启动。

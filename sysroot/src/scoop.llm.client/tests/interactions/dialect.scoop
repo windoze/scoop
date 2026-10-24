@@ -26,6 +26,7 @@ private class InteractionsDialectTest {
 
 private class ForeignInteractionsDialect : InteractionsDialect {
     public override val id: DialectId = GeminiGenerateContentDialect().id
+    public override fun encodeOptions(request: LlmRequest): JsonValue = GeminiInteractionsDialect().encodeOptions(request)
     public override fun readUsage(value: JsonValue): TokenUsage = TokenUsage()
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
         LlmServiceException(id, status, body, truncated)

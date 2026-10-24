@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeInteractionsOptions(dialect: DialectId, request: LlmRequest): JsonValue {
+    val options = request.options
+    if (options.temperature != None) throw LlmRequestException("/options/temperature", "Interactions v1 has no temperature setting")
+    if (options.topP != None) throw LlmRequestException("/options/topP", "Interactions v1 has no topP setting")
+    if (options.topK != None) throw LlmRequestException("/options/topK", "Interactions v1 has no topK setting")
+    if (options.candidates != None) throw LlmRequestException("/options/candidates", "Interactions returns one resource per request")
+    if (options.parallelToolCalls != None) throw LlmRequestException("/options/parallelToolCalls", "Interactions has no parallel tool call switch")
+    val config = JsonObjectBuilder()
+    if (options.maxOutputTokens != None) config.add("max_output_tokens", JsonValue.fromLong(options.maxOutputTokens!!))
+    if (llmPresent(options.stop)) config.add("stop_sequences", Json.encodeToValue(options.stop!!))
+    encodeInteractionsThinking(config, options.reasoning)
+    val (tools, choice) = encodeInteractionsTools(dialect, request)
+    if (llmPresent(choice)) config.add("tool_choice", choice!!)
+    val result = JsonObjectBuilder()
+    val generation = config.build()
+    if (generation.size != 0L) result.add("generation_config", generation)
+    if (tools.size != 0L) result.add("tools", JsonValue.fromArray(tools))
+    val format = when (options.output) {
+        case Text -> return result.build()
+        case JsonObject -> llmTypedObject("text").add("mime_type", JsonValue.fromString("application/json")).build()
+        case JsonSchema(schema, name, description, strict) -> {
+            if (name != "response") throw LlmRequestException("/options/output/name", "Interactions has no separate schema name")
+            if (description != None) throw LlmRequestException("/options/output/description", "Interactions has no separate schema description")
+            if (strict != None) throw LlmRequestException("/options/output/strict", "Interactions has no schema strictness switch")
+            llmTypedObject("text").add("mime_type", JsonValue.fromString("application/json")).add("schema", schema).build()
+        }
+    }
+    return result.add("response_format", format).build()
+}
+
+private fun encodeInteractionsThinking(config: JsonObjectBuilder, reasoning: ReasoningOptions?) {
+    val value = reasoning ?: return
+    if (value.budgetTokens != None) throw LlmRequestException("/options/reasoning/budgetTokens", "Interactions uses a thinking level, not a token budget")
+    if (value.enabled == Some(false)) throw LlmRequestException("/options/reasoning/enabled", "minimal thinking is not an explicit disabled state")
+    if (value.enabled == Some(true) && value.effort == None)
+        throw LlmRequestException("/options/reasoning/enabled", "enabling reasoning requires an explicit thinking level")
+    val level = value.effort ?: return
+    if (level != "minimal" && level != "low" && level != "medium" && level != "high")
+        throw LlmRequestException("/options/reasoning/effort", "unsupported thinking level")
+    config.add("thinking_level", JsonValue.fromString(level))
+}

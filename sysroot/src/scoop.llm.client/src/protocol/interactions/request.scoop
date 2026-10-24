@@ -1,0 +1,63 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeInteractionsRequest(dialect: InteractionsDialect, model: String, request: LlmRequest): JsonValue {
+    if (model.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+    val input = ArrayList<JsonValue>()
+    var index = 0L
+    for (item in request.input) {
+        val path = "/input/" + index.toString()
+        when (item) {
+            case Message(content, role, extensions) -> {
+                val type = when (role) {
+                    case User -> "user_input"
+                    case Assistant -> "model_output"
+                    else -> throw LlmRequestException(path + "/role", "Interactions uses request.system for global instructions")
+                }
+                val value = llmTypedObject(type).add("content", encodeInteractionsContent(dialect.id, content, path + "/content")).build()
+                input.add(mergeLlmExtensions(value, extensions, dialect.id, ["type", "content"], path))
+            }
+            case ToolResult(call, content, isError, extensions) ->
+                input.add(encodeInteractionsToolResult(dialect.id, call, content, isError, extensions, request.tools, path))
+            case History(history) -> appendInteractionsHistory(input, history, dialect.id, path + "/history")
+        }
+        index += 1L
+    }
+    val body = JsonObjectBuilder().add("model", JsonValue.fromString(model)).add("input", JsonValue.fromArray(input))
+    if (request.system.size != 0L) body.add("system_instruction", JsonValue.fromString(interactionsSystemText(request.system)))
+    for ((name, value) in dialect.encodeOptions(request).members()) {
+        if (name == "model" || name == "agent" || name == "input" || name == "system_instruction" || name == "stream")
+            throw LlmRequestException("/options", "dialect options cannot override Interactions routing or stream mode")
+        body.add(name, value)
+    }
+    return mergeInteractionsExtensions(body.build(), request.extensions, dialect.id)
+}
+
+private fun appendInteractionsHistory(input: ArrayList<JsonValue>, history: LlmHistory, dialect: DialectId, path: String) {
+    requireLlmOwner(history.dialect, dialect, path + "/dialect")
+    if (llmPresent(history.context)) throw LlmRequestException(path + "/context", "Interactions history has no implicit server state")
+    var index = 0L
+    for (step in history.items) {
+        requireInteractionsNativeType(step, path + "/items/" + index.toString())
+        input.add(step)
+        index += 1L
+    }
+}
+
+private fun interactionsSystemText(parts: Array<ContentPart>): String {
+    val text = StringBuilder()
+    var index = 0L
+    for (part in parts) {
+        val path = "/system/" + index.toString()
+        when (part) {
+            case Text(value, extensions) -> {
+                if (extensions.size != 0L) throw LlmRequestException(path + "/extensions", "system instruction text has no content metadata")
+                text.append(value)
+            }
+            else -> throw LlmRequestException(path, "system instructions require text")
+        }
+        index += 1L
+    }
+    return text.toString()
+}

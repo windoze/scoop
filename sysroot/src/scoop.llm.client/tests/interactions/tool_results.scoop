@@ -1,0 +1,43 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsToolResultsTest {
+    @Test
+    fun `Interactions serialized function calls replay with signatures and independent parallel result steps`() {
+        val response = interactionsDecode(interactionsBody("[{\"type\":\"thought\",\"signature\":\"opaque\"}," +
+            "{\"type\":\"function_call\",\"id\":\"one\",\"name\":\"lookup\",\"arguments\":{}},{\"type\":\"function_call\",\"id\":\"two\",\"name\":\"lookup\",\"arguments\":{}}]", "requires_action"))
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        val request = LlmRequest([Message([Text("initial")]), saved.toInput()[0L],
+            ToolResult(saved.clientToolCalls[0L].reference, [Text("image"), Image(Bytes("x".toByteArray(), "image/png"))]),
+            ToolResult(saved.clientToolCalls[1L].reference, [], isError = true)])
+        val input = interactionsEncode(request)["input"]!!
+        assertEquals(6L, input.size)
+        assertEquals("opaque", input[1L]["signature"]!!.asString())
+        assertEquals("function_result", input[4L]["type"]!!.asString())
+        assertEquals("one", input[4L]["call_id"]!!.asString())
+        assertEquals("lookup", input[4L]["name"]!!.asString())
+        assertEquals(2L, input[4L]["result"]!!.size)
+        assertEquals("eA==", input[4L]["result"]!![1L]["data"]!!.asString())
+        assertFalse(input[4L].containsKey("is_error"))
+        assertTrue(input[5L]["is_error"]!!.asBoolean())
+        assertEquals(0L, input[5L]["result"]!!.size)
+    }
+
+    @Test
+    fun `Interactions function results require actual call identity and explicit representable content`() {
+        val call = ClientToolCallReference(interactionsDialect, ToolKey("local"), Some("c"))
+        val request = LlmRequest([ToolResult(call, [Text("ok")])], tools = interactionsRequest().tools)
+        assertEquals("lookup", interactionsEncode(request)["input"]!![0L]["name"]!!.asString())
+        assertInteractionsRequestFailure(LlmRequest(request.input), "/input/0/call/context")
+        assertInteractionsRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(interactionsDialect, ToolKey("x")), [])]), "/input/0/call/id")
+        val mismatch = ClientToolCallReference(interactionsDialect, ToolKey("local"), Some("c"), Some(Json.parse("{\"type\":\"function_call\",\"id\":\"other\",\"name\":\"lookup\"}")))
+        assertInteractionsRequestFailure(LlmRequest([ToolResult(mismatch, [])]), "/input/0/call/id")
+        assertInteractionsRequestFailure(LlmRequest([ToolResult(call, [Audio(Bytes([], "audio/wav"))])], tools = request.tools), "/input/0/content/0")
+        assertInteractionsRequestFailure(LlmRequest([ToolResult(call, [], extensions = interactionsExtension("{\"is_error\":true}"))], tools = request.tools), "/input/0/extensions/0/value/is_error")
+        assertInteractionsRequestFailure(LlmRequest([ToolResult(call, [Native(interactionsDialect, Json.parse("{\"type\":\"document\"}"))])], tools = request.tools), "/input/0/content/0")
+    }
+}

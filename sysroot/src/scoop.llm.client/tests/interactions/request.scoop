@@ -1,0 +1,57 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class InteractionsRequestTest {
+    @Test
+    fun `Interactions minimal generation preserves arbitrary model IDs and sends only model plus ordered input`() {
+        val request = LlmRequest([Message([Text("hello")])])
+        val value = interactionsEncode(request)
+        assertEquals(2L, value.size)
+        assertEquals("unlisted/model:version", value["model"]!!.asString())
+        assertEquals("user_input", value["input"]!![0L]["type"]!!.asString())
+        assertEquals("hello", value["input"]!![0L]["content"]!![0L]["text"]!!.asString())
+        assertFalse(value.containsKey("stream"))
+        assertFalse(value.containsKey("store"))
+        val endpoint = LlmEndpoint(Providers.geminiInteractions(), LlmAuth.header("x-goog-api-key", "mock-only"))
+        assertEquals("https://generativelanguage.googleapis.com/v1", endpoint.baseUrl.toString())
+        assertEquals("https://example.com/proxy/interactions?deployment=x", endpoint.provider.protocol.generationUrl(
+            Url.parse("https://example.com/proxy?deployment=x"), "any-model").toString())
+        assertEquals("/modelId", assertFailsWith<LlmRequestException> { interactionsEncode(request, ""); Unit }.path)
+        assertEquals("/stream", assertFailsWith<LlmRequestException> { InteractionsProtocol(GeminiInteractionsDialect()).encodeRequest("m", request, true); Unit }.path)
+    }
+
+    @Test
+    fun `Interactions messages system text native content and step history keep their exact positions`() {
+        val response = interactionsDecode(interactionsBody("[{\"type\":\"thought\",\"signature\":\"opaque\"},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"answer\"}]}]"))
+        val request = LlmRequest([Message([Text("question", interactionsExtension("{\"annotations\":[]}"))], extensions = interactionsExtension("{\"message_extra\":true}")),
+            response.toInput()[0L], Message([Native(interactionsDialect, Json.parse("{\"type\":\"future\",\"value\":1e400}"))], Assistant)],
+            system = [Text("system"), Text(" instructions")], extensions = interactionsExtension("{\"store\":false,\"previous_interaction_id\":\"previous\"}"))
+        val value = interactionsEncode(Json.decodeFromString<LlmRequest>(Json.encodeToString(request)))
+        assertEquals("system instructions", value["system_instruction"]!!.asString())
+        assertEquals(4L, value["input"]!!.size)
+        assertTrue(value["input"]!![0L]["message_extra"]!!.asBoolean())
+        assertEquals(0L, value["input"]!![0L]["content"]!![0L]["annotations"]!!.size)
+        assertEquals("opaque", value["input"]!![1L]["signature"]!!.asString())
+        assertEquals("model_output", value["input"]!![3L]["type"]!!.asString())
+        assertEquals("1e400", value["input"]!![3L]["content"]!![0L]["value"]!!.asNumberToken())
+        assertFalse(value["store"]!!.asBoolean())
+        assertEquals("previous", value["previous_interaction_id"]!!.asString())
+    }
+
+    @Test
+    fun `Interactions rejects misplaced roles and history ownership without rewriting input`() {
+        for (role in [LlmRole.System, LlmRole.Developer]) assertInteractionsRequestFailure(LlmRequest([Message([Text("x")], role)]), "/input/0/role")
+        assertInteractionsRequestFailure(LlmRequest([], system = [Native(interactionsDialect, Json.parse("{\"type\":\"text\",\"text\":\"x\"}"))]), "/system/0")
+        assertInteractionsRequestFailure(LlmRequest([], system = [Text("x", interactionsExtension("{}"))]), "/system/0/extensions")
+        assertInteractionsRequestFailure(LlmRequest([History(LlmHistory(GeminiGenerateContentDialect().id, []))]), "/input/0/history/dialect")
+        assertInteractionsRequestFailure(LlmRequest([History(LlmHistory(interactionsDialect, [], Some(Json.parse("{}"))))]), "/input/0/history/context")
+        assertInteractionsRequestFailure(LlmRequest([History(LlmHistory(interactionsDialect, [Json.parse("{\"responseId\":\"x\"}")]))]), "/input/0/history/items/0/type")
+        assertInteractionsRequestFailure(LlmRequest([Message([Native(interactionsDialect, Json.parse("[]"))])]), "/input/0/content/0/value")
+        assertInteractionsRequestFailure(LlmRequest([Message([Text("x", interactionsExtension("{\"data\":\"\"}"))])]), "/input/0/content/0/extensions/0/value/data")
+    }
+}

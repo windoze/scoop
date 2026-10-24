@@ -1,0 +1,42 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class InteractionsRequestMediaTest {
+    @Test
+    fun `Interactions encodes explicit media forms without downloads and accepts equivalent file MIME syntax`() {
+        val file = LlmFileReference(interactionsDialect, Json.parse("{\"type\":\"audio\",\"uri\":\"files/audio\",\"mime_type\":\"Audio/L16;RATE=24000\",\"sample_rate\":24000}"))
+        val request = LlmRequest([Message([Image(Bytes("img".toByteArray(), "image/png")),
+            Document(Url(Url.parse("https://example.com/paper.pdf"), "application/pdf")),
+            Audio(FileReference(file, "audio/l16;rate=24000")), Video(Bytes([0.toByte()], "video/mp4"))])])
+        val parts = interactionsEncode(request)["input"]!![0L]["content"]!!
+        assertEquals("aW1n", parts[0L]["data"]!!.asString())
+        assertEquals("document", parts[1L]["type"]!!.asString())
+        assertEquals("https://example.com/paper.pdf", parts[1L]["uri"]!!.asString())
+        assertEquals(Json.stringify(file.value), Json.stringify(parts[2L]))
+        assertEquals("AA==", parts[3L]["data"]!!.asString())
+        val response = interactionsDecode(interactionsBody("[{\"type\":\"model_output\",\"content\":[{\"type\":\"image\",\"uri\":\"files/generated\",\"mime_type\":\"image/png\",\"future\":1}]}]"))
+        when (response.candidate(0L).items[0L]) { case Message(output, _) -> when (output[0L]) {
+            case Media(_, source) -> assertEquals("files/generated", interactionsEncode(LlmRequest([Message([Image(source)])]))["input"]!![0L]["content"]!![0L]["uri"]!!.asString())
+            else -> fail()
+        }; else -> fail() }
+    }
+
+    @Test
+    fun `Interactions media rejects inconsistent references and unsupported explicit filename or frame forms`() {
+        assertInteractionsRequestFailure(LlmRequest([Message([Image(Bytes([], "audio/wav"))])]), "/input/0/content/0/source/mimeType")
+        assertInteractionsRequestFailure(LlmRequest([Message([Image(Bytes([], "invalid"))])]), "/input/0/content/0/source/mimeType")
+        assertInteractionsRequestFailure(LlmRequest([Message([Document(Bytes([], "application/pdf"), Some("paper.pdf"))])]), "/input/0/content/0/filename")
+        assertInteractionsRequestFailure(LlmRequest([Message([VideoFrames([])])]), "/input/0/content/0")
+        for ((value, path) in [("{\"type\":\"video\",\"uri\":\"files/x\",\"mime_type\":\"image/png\"}", "type"),
+            ("{\"type\":\"image\",\"uri\":\"\",\"mime_type\":\"image/png\"}", "uri"),
+            ("{\"type\":\"image\",\"uri\":\"files/x\",\"mime_type\":\"image/jpeg\"}", "mime_type"),
+            ("{\"type\":\"image\",\"uri\":\"files/x\",\"mime_type\":\"image/png\",\"data\":null}", "data")])
+            assertInteractionsRequestFailure(LlmRequest([Message([Image(FileReference(LlmFileReference(interactionsDialect, Json.parse(value)), "image/png"))])]),
+                "/input/0/content/0/source/reference/value/" + path)
+    }
+}

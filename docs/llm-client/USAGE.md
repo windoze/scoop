@@ -6,7 +6,7 @@
 
 ## 1. 共同的数据与调用入口
 
-下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。generate 与 openStream／withStream 已接入 Chat／Messages／Responses／Gemini generateContent；countTokens 仍为后续合同。
+下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。generate 与 openStream／withStream 已接入 Chat／Messages／Responses／Gemini generateContent，Interactions 已接入普通 generate；countTokens 仍为后续合同。
 
 ```scoop
 public class LlmRequest public constructor(
@@ -63,6 +63,8 @@ val model = LlmEndpoint(Providers.geminiGenerateContent(),
 ```
 
 两者都由应用提供 apiKey 和 modelId，继续使用下面相同的 `client.generate` 调用。
+
+使用 Interactions 时将 provider 换成 `Providers.geminiInteractions()`，其余调用不变。需要关闭服务端存储时，在同一个 request.extensions 中传入 `DialectExtension(GeminiInteractionsDialect().id, Json.parse("{\"store\":false}"))`；省略 store 时沿用服务端默认值。`result.toInput()` 保留原始 steps，`previous_interaction_id` 则由应用显式放入本次请求的扩展。
 
 ```scoop
 fun runHello(apiKey: String, modelId: String) {

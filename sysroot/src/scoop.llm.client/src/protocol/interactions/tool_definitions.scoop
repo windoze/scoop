@@ -1,0 +1,64 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeInteractionsTools(dialect: DialectId, request: LlmRequest): (Array<JsonValue>, JsonValue?) {
+    val result = ArrayList<JsonValue>()
+    val functions = ArrayList<String>()
+    val servers = ArrayList<String>()
+    val mcpNames = ArrayList<String>()
+    val selectedKey = when (request.options.toolChoice) { case Specific(key) -> Some(key); else -> None }
+    var selected: String? = None
+    var index = 0L
+    for (tool in request.tools) {
+        val path = "/tools/" + index.toString()
+        when (tool) {
+            case ClientFunction(key, name, parameters, description, strict, extensions) -> {
+                if (strict != None) throw LlmRequestException(path + "/strict", "Interactions functions have no strict setting")
+                for (previous in functions) if (previous == name) throw LlmRequestException(path + "/name", "duplicate function name")
+                functions.add(name)
+                if (selectedKey == Some(key)) selected = Some(name)
+                val value = llmTypedObject("function").add("name", JsonValue.fromString(name))
+                    .add("description", JsonValue.fromString(description)).add("parameters", parameters).build()
+                result.add(mergeLlmExtensions(value, extensions, dialect, ["type", "name", "description", "parameters", "strict"], path))
+            }
+            case Server(_, definition, extensions) -> {
+                val (kind, value) = encodeInteractionsServer(dialect, definition, extensions, path)
+                if (kind != "mcp_server") {
+                    for (previous in servers) if (previous == kind) throw LlmRequestException(path, "duplicate singleton server tool")
+                } else if (value.containsKey("name")) {
+                    val name = value["name"]!!
+                    if (name.kind != JsonValueKind.String || name.asString().length == 0L)
+                        throw LlmRequestException(path + "/tool/configuration/name", "MCP server name must not be empty")
+                    for (previous in mcpNames) if (previous == name.asString())
+                        throw LlmRequestException(path + "/tool/configuration/name", "duplicate MCP server name")
+                    mcpNames.add(name.asString())
+                }
+                servers.add(kind)
+                result.add(value)
+            }
+            else -> throw LlmRequestException(path, "Interactions requires functions or supported server tools")
+        }
+        index += 1L
+    }
+    val choice = interactionsToolChoice(request.options.toolChoice, functions.size, servers.size, selected)
+    return (result.toArray(), choice)
+}
+
+private fun interactionsToolChoice(choice: ToolChoice, functions: Long, servers: Long, selected: String?): JsonValue? {
+    if (choice == ToolChoice.Auto) return None
+    if (servers != 0L) throw LlmRequestException("/options/toolChoice", "function calling mode cannot control server tools")
+    return when (choice) {
+        case Auto -> None
+        case None -> Some(JsonValue.fromString("none"))
+        case Required -> {
+            if (functions == 0L) throw LlmRequestException("/options/toolChoice", "required tool choice needs functions")
+            Some(JsonValue.fromString("any"))
+        }
+        case Specific(_) -> {
+            if (selected == None) throw LlmRequestException("/options/toolChoice", "specific choice requires a function")
+            Some(JsonObjectBuilder().add("allowed_tools", JsonObjectBuilder().add("mode", JsonValue.fromString("any"))
+                .add("tools", Json.encodeToValue([selected!!])).build()).build())
+        }
+    }
+}
