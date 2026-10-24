@@ -1,0 +1,31 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun messagesStreamField(value: JsonValue, name: String, path: String): JsonValue =
+    value[name] ?: throw DecodingException(path + "/" + name, "missing Messages stream field")
+
+internal fun messagesStreamString(value: JsonValue, name: String, path: String): String =
+    decodeMessagesValue<String>(messagesStreamField(value, name, path), path + "/" + name)
+
+internal fun replaceMessagesField(value: JsonValue, name: String, field: JsonValue): JsonValue {
+    val result = JsonObjectBuilder()
+    for ((key, entry) in value.members()) if (key != name) result.add(key, entry)
+    return result.add(name, field).build()
+}
+
+internal class MessagesStreamStart public constructor(
+    public val type: String, public val role: String, public val content: Array<JsonValue>,
+    public val id: String? = None, public val model: String? = None,
+    @Serialize(rename = "stop_reason") public val stopReason: String? = None,
+    public val usage: JsonValue? = None
+) {
+    public companion object : ValueDecoder<MessagesStreamStart>
+}
+
+internal class MessagesStreamMessageDelta public constructor(
+    @Serialize(rename = "stop_reason") public val stopReason: String? = None,
+    @Serialize(rename = "stop_sequence") public val stopSequence: String? = None
+) {
+    public companion object : ValueDecoder<MessagesStreamMessageDelta>
+}

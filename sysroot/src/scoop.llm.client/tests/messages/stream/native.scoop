@@ -1,0 +1,47 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesStreamNativeTest {
+    @Test
+    fun `Messages unknown stream blocks preserve history when no unknown deltas change them`() {
+        val decoder = messagesStream()
+        messagesEvent(decoder, "future_event", "\"value\":1")
+        messagesStartBlock(decoder, 0L, "{\"type\":\"future_block\",\"payload\":[1,2]}")
+        messagesStopBlock(decoder, 0L)
+        messagesFinish(decoder)
+        assertEquals(2L, messagesHistory(decoder.response())["content"]!![0L]["payload"]!!.size)
+        assertEquals(1L, decoder.response().nativeEvents.size)
+        when (decoder.response().candidate(0L).items[0L]) { case Native(_, value) -> assertEquals("future_block", value["type"]!!.asString()); else -> fail() }
+    }
+
+    @Test
+    fun `Messages unknown deltas retain native fragments and make replay explicitly unavailable`() {
+        for (block in ["{\"type\":\"text\",\"text\":\"known\"}", "{\"type\":\"future_block\",\"payload\":1}"]) {
+            val decoder = messagesStream()
+            messagesStartBlock(decoder, 0L, block)
+            val update = messagesDelta(decoder, 0L, "{\"type\":\"future_delta\",\"value\":2}")
+            assertEquals(2L, update.events.size)
+            messagesStopBlock(decoder, 0L)
+            messagesFinish(decoder)
+            val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+            assertEquals(2L, saved.nativeEvents.size)
+            assertEquals(2L, saved.nativeEvents[1L].value["value"]!!.asLong())
+            assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { saved.toInput(); Unit }.reason)
+        }
+    }
+
+    @Test
+    fun `Messages default SSE event names use JSON type and mismatching explicit names fail`() {
+        val decoder = messagesStream()
+        decoder.accept("message", "{\"type\":\"ping\"}")
+        decoder.accept("", "{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"}}")
+        decoder.accept("message", "{\"type\":\"message_stop\"}")
+        assertTrue(decoder.isFinished)
+        val invalid = messagesStream()
+        assertEquals("/type", assertFailsWith<LlmProtocolException> { invalid.accept("ping", "{\"type\":\"message_stop\"}"); Unit }.path)
+    }
+}

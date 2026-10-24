@@ -1,0 +1,74 @@
+package scoop.llm.client.tests.messages
+
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesStreamFailureTest {
+    @Test
+    fun `Messages missing and repeated boundaries cannot produce a successful stream`() {
+        for (retention in [StreamRetention.Result, StreamRetention.EventsOnly]) {
+            val eof = messagesStream(retention)
+            messagesEvent(eof, "message_delta", "\"delta\":{\"stop_reason\":\"end_turn\"}")
+            assertFailsWith<LlmStreamProtocolException> { eof.endInput() }
+            assertFalse(eof.isFinished)
+            assertFailsWith<LlmOutputException> { eof.response(); Unit }
+            val open = messagesStream(retention)
+            messagesStartBlock(open, 0L, "{\"type\":\"text\",\"text\":\"x\"}")
+            assertEquals("/delta/stop_reason", assertFailsWith<LlmProtocolException> { messagesFinish(open); Unit }.path)
+            val repeat = messagesStream(retention)
+            messagesFinish(repeat)
+            assertFailsWith<LlmStreamProtocolException> { messagesEvent(repeat, "message_stop"); Unit }
+            assertFalse(repeat.isFinished)
+            val missing = messagesStream(retention)
+            assertFailsWith<LlmProtocolException> { messagesEvent(missing, "message_stop"); Unit }
+        }
+    }
+
+    @Test
+    fun `Messages block indices types and stop reason cannot change midstream`() {
+        for ((event, fields) in [("content_block_start", "\"index\":2,\"content_block\":{\"type\":\"text\",\"text\":\"x\"}"),
+            ("content_block_stop", "\"index\":-1"), ("content_block_delta", "\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"x\"}")]) {
+            val decoder = messagesStream()
+            assertEquals("/index", assertFailsWith<LlmProtocolException> { messagesEvent(decoder, event, fields); Unit }.path)
+        }
+        val types = messagesStream()
+        messagesStartBlock(types, 0L, "{\"type\":\"text\",\"text\":\"x\"}")
+        assertEquals("/delta/type", assertFailsWith<LlmProtocolException> { messagesDelta(types, 0L, "{\"type\":\"thinking_delta\",\"thinking\":\"x\"}"); Unit }.path)
+        val stopped = messagesStream()
+        messagesStartBlock(stopped, 0L, "{\"type\":\"text\",\"text\":\"x\"}")
+        messagesStopBlock(stopped, 0L)
+        assertFailsWith<LlmProtocolException> { messagesDelta(stopped, 0L, "{\"type\":\"text_delta\",\"text\":\"late\"}"); Unit }
+        val reason = messagesStream()
+        messagesEvent(reason, "message_delta", "\"delta\":{\"stop_reason\":\"end_turn\"}")
+        assertEquals("/delta/stop_reason", assertFailsWith<LlmProtocolException> { messagesFinish(reason, "tool_use"); Unit }.path)
+    }
+
+    @Test
+    fun `Messages streamed tool identity and server input failures are protocol errors`() {
+        val duplicate = messagesStream()
+        messagesStartBlock(duplicate, 0L, "{\"type\":\"tool_use\",\"id\":\"same\",\"name\":\"lookup\",\"input\":{}}")
+        assertEquals("/content_block/id", assertFailsWith<LlmProtocolException> {
+            messagesStartBlock(duplicate, 1L, "{\"type\":\"server_tool_use\",\"id\":\"same\",\"name\":\"web_search\",\"input\":{}}"); Unit
+        }.path)
+        val full = messagesStream()
+        messagesStartBlock(full, 0L, "{\"type\":\"tool_use\",\"id\":\"c\",\"name\":\"lookup\",\"input\":{\"x\":1}}")
+        assertFailsWith<LlmProtocolException> { messagesInputDelta(full, 0L, "{}"); Unit }
+        val server = messagesStream()
+        messagesStartBlock(server, 0L, "{\"type\":\"server_tool_use\",\"id\":\"s\",\"name\":\"web_search\",\"input\":{}}")
+        messagesInputDelta(server, 0L, "bad")
+        assertEquals("/content/0/input", assertFailsWith<LlmProtocolException> { messagesStopBlock(server, 0L); Unit }.path)
+    }
+
+    @Test
+    fun `Messages stream errors malformed JSON and starts have explicit failure paths`() {
+        val malformed = messagesStream()
+        assertFailsWith<LlmStreamProtocolException> { malformed.accept("ping", "{"); Unit }
+        val service = messagesStream()
+        assertFailsWith<LlmProtocolException> { messagesEvent(service, "error", "\"error\":{\"type\":\"overloaded_error\"}"); Unit }
+        val fresh = MessagesProtocol(AnthropicMessagesDialect()).createStreamDecoder(messagesRequest())
+        assertFailsWith<LlmProtocolException> { messagesEvent(fresh, "message_delta", "\"delta\":{}"); Unit }
+        val repeat = messagesStream()
+        assertEquals("/message", assertFailsWith<LlmProtocolException> { messagesEvent(repeat, "message_start", "\"message\":{}"); Unit }.path)
+    }
+}

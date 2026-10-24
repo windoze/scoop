@@ -5,7 +5,7 @@ import scoop.http.HttpField
 import scoop.url.Url
 
 /** Messages content blocks combined with one explicitly selected dialect. */
-public class MessagesProtocol public constructor(public val dialect: MessagesDialect) : LlmGenerationProtocol {
+public class MessagesProtocol public constructor(public val dialect: MessagesDialect) : LlmSseProtocol {
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationFields(): Array<HttpField> = dialect.requestFields()
     public override fun defaultMaxOutputTokens(): Long? = Some(dialect.defaultMaxOutputTokens)
@@ -14,6 +14,8 @@ public class MessagesProtocol public constructor(public val dialect: MessagesDia
         encodeMessagesRequest(dialect, modelId, request, stream)
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
         dialect.decodeError(status, body, truncated)
+    public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
+        MessagesStreamDecoder(dialect, request, retention)
     init {
         if (dialect.id.protocol != ApiProtocolId("messages"))
             throw IllegalArgumentException(Some("Messages dialect belongs to another API protocol"))

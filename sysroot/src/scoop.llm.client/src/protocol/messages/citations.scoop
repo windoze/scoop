@@ -9,13 +9,17 @@ internal fun readMessagesCitations(dialect: DialectId, values: Array<JsonValue>?
     var index = 0L
     for (entry in entries) {
         val itemPath = path + "/" + index.toString()
-        val kind = decodeMessagesValue<MessagesBlockType>(entry, itemPath).type
-        val source = if (kind == "web_search_result_location") readMessagesUrlSource(entry, itemPath)
-            else LlmSource(itemPath, LlmSourceLocation.Native(dialect, entry), native = Some(entry))
-        result.add(Citation(source))
+        result.add(readMessagesCitation(dialect, entry, itemPath))
         index += 1L
     }
     return result.toArray()
+}
+
+internal fun readMessagesCitation(dialect: DialectId, entry: JsonValue, path: String): Citation {
+    val kind = decodeMessagesValue<MessagesBlockType>(entry, path).type
+    val source = if (kind == "web_search_result_location") readMessagesUrlSource(entry, path)
+        else LlmSource(path, LlmSourceLocation.Native(dialect, entry), native = Some(entry))
+    return Citation(source)
 }
 
 internal fun readMessagesUrlSource(value: JsonValue, path: String): LlmSource {

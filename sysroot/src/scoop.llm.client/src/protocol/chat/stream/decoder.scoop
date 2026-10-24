@@ -25,7 +25,7 @@ internal class ChatStreamDecoder public constructor(
         try {
             if (failed || finished) throw LlmStreamProtocolException(dialect.id, "stream is no longer accepting events", Some(data))
             if (event == "error") throw LlmStreamProtocolException(dialect.id, "server reported a stream error", Some(data))
-            val update = ChatStreamBatch(dialect.id, retention, nativeEvents)
+            val update = LlmStreamBatch(dialect.id, retention, nativeEvents)
             if (event != "message" && event != "") {
                 val value = try { Json.parse(data) } catch (error: DecodingException) { JsonValue.fromString(data) }
                 update.native(event, value)
@@ -44,7 +44,7 @@ internal class ChatStreamDecoder public constructor(
         } catch (error: Throwable) { failed = true; throw error }
     }
 
-    private fun readChunk(value: JsonValue, update: ChatStreamBatch) {
+    private fun readChunk(value: JsonValue, update: LlmStreamBatch) {
         if (value.kind == JsonValueKind.Object) {
             val error = when (value["error"]) { case Some(field) -> field.kind != JsonValueKind.Null; case None -> false }
             if (error) throw DecodingException("/error", "server reported a stream error")
@@ -55,8 +55,8 @@ internal class ChatStreamDecoder public constructor(
             update.native("chat.annotation", value)
             return
         }
-        id = chatStreamIdentity(id, chunk.id, "/id")
-        model = chatStreamIdentity(model, chunk.model, "/model")
+        id = llmStreamIdentity(id, chunk.id, "/id")
+        model = llmStreamIdentity(model, chunk.model, "/model")
         if (created != None && chunk.created != None && created != chunk.created)
             throw DecodingException("/created", "stream creation time changed")
         if (chunk.created != None) created = chunk.created
@@ -70,11 +70,11 @@ internal class ChatStreamDecoder public constructor(
             candidate(choice.index).accept(choice, value["choices"]!![ordinal], update, path)
             ordinal += 1L
         }
-        val extra = chatStreamUnknown(value, ["choices", "id", "model", "created", "usage", "object"])
+        val extra = llmStreamUnknown(value, ["choices", "id", "model", "created", "usage", "object"])
         if (extra.size != 0L) update.native("chat.chunk", extra)
         val reported = chunk.usage ?: return
         val merged = when (currentUsage.native) {
-            case Some(previous) -> mergeChatStreamUsage(previous, reported)
+            case Some(previous) -> mergeLlmStreamUsage(previous, reported)
             case None -> reported
         }
         currentUsage = LlmUsage(dialect.readUsage(merged), Partial, Some(merged))

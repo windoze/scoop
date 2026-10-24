@@ -15,9 +15,9 @@ internal class ChatStreamAudio public constructor(public val location: LlmItemLo
     private var hasTranscript: Boolean = false
     public var historyAvailable: Boolean = true
 
-    public fun accept(raw: JsonValue, batch: ChatStreamBatch, path: String) {
+    public fun accept(raw: JsonValue, batch: LlmStreamBatch, path: String) {
         val fields = decodeChatValue<ChatStreamAudioFields>(raw, path)
-        id = chatStreamIdentity(id, fields.id, path + "/id")
+        id = llmStreamIdentity(id, fields.id, path + "/id")
         if (fields.expiresAt != None) expires = fields.expiresAt
         if (fields.data != None) {
             hasData = true
@@ -32,7 +32,7 @@ internal class ChatStreamAudio public constructor(public val location: LlmItemLo
             batch.observe(fields.transcript!!)
         }
         batch.native("chat.audio.delta", raw, Some(location), false)
-        val extra = chatStreamUnknown(raw, ["id", "data", "transcript", "expires_at"])
+        val extra = llmStreamUnknown(raw, ["id", "data", "transcript", "expires_at"])
         if (extra.size != 0L) {
             historyAvailable = false
             batch.native("chat.audio.unknown", extra, Some(location))
@@ -55,15 +55,15 @@ internal class ChatStreamLegacyFunction public constructor(public val location: 
     private val arguments: StringBuilder = StringBuilder()
     public var historyAvailable: Boolean = true
 
-    public fun accept(raw: JsonValue, batch: ChatStreamBatch, path: String) {
+    public fun accept(raw: JsonValue, batch: LlmStreamBatch, path: String) {
         val fields = decodeChatValue<ChatStreamFunctionFields>(raw, path)
-        name = chatStreamIdentity(name, fields.name, path + "/name")
+        name = llmStreamIdentity(name, fields.name, path + "/name")
         if (fields.arguments != None) {
             if (retention == StreamRetention.Result) arguments.append(fields.arguments!!)
             batch.observe(fields.arguments!!)
         }
         batch.native("chat.function_call.delta", raw, Some(location), false)
-        val extra = chatStreamUnknown(raw, ["name", "arguments"])
+        val extra = llmStreamUnknown(raw, ["name", "arguments"])
         if (extra.size != 0L) {
             historyAvailable = false
             batch.native("chat.function_call.unknown", extra, Some(location))

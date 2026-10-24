@@ -4,7 +4,7 @@ internal class ChatStreamText public constructor(
     public val field: String, public val location: LlmItemLocation, private val retention: StreamRetention
 ) {
     private val buffer: StringBuilder = StringBuilder()
-    public fun append(text: String, batch: ChatStreamBatch) {
+    public fun append(text: String, batch: LlmStreamBatch) {
         if (retention == StreamRetention.Result) buffer.append(text)
         val delta = LlmTextDelta(location, text)
         batch.events.add(when (field) {

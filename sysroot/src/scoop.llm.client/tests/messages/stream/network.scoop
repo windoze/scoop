@@ -1,0 +1,82 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+private fun messagesStreamReply(): String {
+    val events = [
+        "{\"type\":\"message_start\",\"message\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"messages-stream\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":5,\"cache_read_input_tokens\":3,\"cache_creation_input_tokens\":2,\"output_tokens\":1}}}",
+        "{\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"hello\"}}",
+        "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" world\"}}",
+        "{\"type\":\"content_block_stop\",\"index\":0}",
+        "{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":4}}",
+        "{\"type\":\"message_stop\"}"]
+    val body = StringBuilder()
+    for (event in events) body.append("event: " + Json.parse(event)["type"]!!.asString() + "\ndata: " + event + "\n\n")
+    return body.toString()
+}
+
+@Test
+private class MessagesStreamNetworkTest {
+    @Test
+    fun `Messages keepalive alone does not fabricate a first model event timestamp`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val endpoint = LlmEndpoint(Providers.anthropicMessages(), LlmAuth.none(), Some(original.baseUrl))
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(8192L)
+                    sendLlmReply(connection, 200U, "event: ping\ndata: {\"type\":\"ping\"}\n\n", streamFields)
+                }
+            }
+            withLlmClient suspend { client ->
+                val stream = client.openStream(endpoint.model("m"), sampleRequest)
+                expectLlmFailure<LlmStreamProtocolException> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+                val response = stream.metadata.attempts[0L].response
+                assertEquals(None, response.firstEventAt)
+                assertEquals(None, response.firstOutputAt)
+                assertEquals(None, response.completedAt)
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `Messages network SSE uses common text result usage and timing contracts`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val endpoint = LlmEndpoint(Providers.anthropicMessages(), LlmAuth.none(), Some(original.baseUrl))
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        val request = connection.receiveRequest()!!
+                        val body = Json.parse(String.fromUtf8(request.body.readAllBytes(8192L)))
+                        assertTrue(body["stream"]!!.asBoolean())
+                        assertFalse(body.containsKey("stream_options"))
+                        assertEquals(4096L, body["max_tokens"]!!.asLong())
+                        sendLlmReply(connection, 200U, messagesStreamReply(), streamFields)
+                    }
+                }
+                withLlmClient suspend { client ->
+                    val stream = client.openStream(endpoint.model("m"), sampleRequest, retention = retention)
+                    val text = StringBuilder()
+                    stream.useAsync suspend { opened ->
+                        val deltas = opened.textDeltas()
+                        while (true) { val delta = deltas.next() ?: break; text.append(delta.text) }
+                    }
+                    assertEquals("hello world", text.toString())
+                    assertEquals(LlmCallOutcome.Completed, stream.metadata.outcome)
+                    val attempt = stream.metadata.attempts[0L]
+                    assertEquals(UsageCompleteness.Final, attempt.usage.completeness)
+                    assertEquals(Some(14L), attempt.usage.tokens.totalTokens)
+                    assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+                    assertTrue(attempt.response.firstTextAt != None && attempt.response.completedAt != None)
+                    if (retention == StreamRetention.Result) assertEquals("hello world", stream.result().text)
+                    else expectLlmFailure<LlmOutputException> suspend { stream.result(); Unit }
+                }
+                serving.join()
+            }
+        }
+    }
+}

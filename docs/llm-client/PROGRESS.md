@@ -29,7 +29,8 @@
 | 流式网络寿命、单消费者与文本读取视图 | 完成：本机 130/130；Linux 仅网络定向 2/2；DeepSeek 与 OpenAI 代理实测通过 |
 | Messages 完整响应、服务端搜索活动与历史投影 | 完成：本机 161/161；Linux 仅搜索／客户端工具组合 1/1 |
 | Messages 请求、多模态与普通生成 | 完成：本机 176/176；Linux 仅普通生成 1/1；Anthropic 代理文本与工具回传 2/2 |
-| Responses、Messages、Gemini protocols 与 server-side tools | 待实施 |
+| Messages SSE、引用与服务端工具事件 | 完成：本机 193/193；Linux 仅流式网络 1/1；Anthropic 代理文本流与工具回传通过 |
+| Responses、Gemini protocols 与 server-side tools | 待实施 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -67,3 +68,5 @@
 - 原生与服务端工具能力新增 13 项 Cone 用例，覆盖 dialect／种类／版本精确匹配、客户端与服务端执行方隔离、配置字段和搜索选项、混用限制、codec 往返及发送前失败路径。Unknown 不阻止 adapter 可表达的请求，Supported 也不能启用 adapter 无法编码的功能。本机 143/143；Linux 仅版本精确查询和原生 web_search 请求两项通过；本机库产物已准备。
 - Messages 完整响应新增 18 项 Cone 用例，覆盖 thinking／redacted thinking 原文与签名保存、客户端 function／native 关联和执行资格、服务端搜索开始／结果／错误、上一轮调用结果、引用范围、精确 token 归一化、停止原因和错误路径。本机 161/161；Linux 仅搜索／引用与客户端调用组合 1/1；本机生产库已准备。纯 decoder 已交付，Messages 请求编码、网络与 SSE 尚未交付，不把本轮视为 Anthropic 代理实测。
 - Messages 普通生成新增 15 项 Cone 用例，覆盖显式 API 版本、固定请求头、默认上限的能力检查、多模态、thinking／schema 参数、函数／原生 toolset／服务端搜索、扩展冲突和历史接续。本机 176/176；nuc12 仅真实本地 HTTP 生成 1/1。本机生产库准备后，代理 databricks-claude-opus-5-5 的文本生成、工具调用序列化后回传共 2 项通过（3 次请求），同时断言 token 与实际发送／接收时间；使用显式 effort=low、无自动重试，不查询模型列表、不使用官方 OpenAI key。Messages SSE 留待下一功能提交。
+- Messages SSE 新增 17 项 Cone 用例，本机 193/193，nuc12 仅流式网络 1/1。覆盖交错 block、thinking 签名、引用、服务端搜索与客户端调用、累计 usage、未知片段、损坏／截断参数及结束顺序；客户端调用等待最终停止原因，ping 不占用首个模型事件时间。公共 stream batch 与 usage 合并由 Chat／Messages 共用；没有新增后台读取、自动工具循环或重试。
+- 生产库准备后，Anthropic 代理的文本流／最终 usage／实际时间戳，以及工具调用保存后接续均通过。首次工具流测试错误地要求 adaptive+low 必有 thinking block；按[官方逐轮选择合同](https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost)修正测试，仅重跑该工具用例并通过，没有修改库行为。thinking／签名回传由确定性的本地用例验证，不把本次未观察到的 thinking block 记为真实 API 覆盖。原始日志与测试程序仍在仓库外，未查询模型列表、未使用官方 OpenAI key。

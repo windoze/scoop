@@ -36,7 +36,7 @@ internal fun readMessagesBlocks(dialect: MessagesDialect, blocks: Array<JsonValu
     return items.toArray()
 }
 
-private fun readMessagesCall(value: JsonValue, path: String, server: Boolean,
+internal fun readMessagesCall(value: JsonValue, path: String, server: Boolean,
     calls: ArrayList<MessagesCallIdentity>): MessagesToolUse {
     val call = decodeMessagesValue<MessagesToolUse>(value, path)
     if (call.id.length == 0L) throw DecodingException(path + "/id", "empty Messages tool call ID")

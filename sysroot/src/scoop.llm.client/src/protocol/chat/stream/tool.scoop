@@ -11,10 +11,10 @@ internal class ChatStreamTool public constructor(public val index: Long, public 
     private val input: StringBuilder = StringBuilder()
     public var historyAvailable: Boolean = true
 
-    public fun accept(raw: JsonValue, dialect: DialectId, tools: Array<ToolDefinition>, batch: ChatStreamBatch, path: String) {
+    public fun accept(raw: JsonValue, dialect: DialectId, tools: Array<ToolDefinition>, batch: LlmStreamBatch, path: String) {
         val fields = decodeChatValue<ChatStreamToolFields>(raw, path)
-        id = chatStreamIdentity(id, fields.id, path + "/id")
-        kind = chatStreamIdentity(kind, fields.type, path + "/type")
+        id = llmStreamIdentity(id, fields.id, path + "/id")
+        kind = llmStreamIdentity(kind, fields.type, path + "/type")
         if (kind != None && inputKind != None && kind != inputKind)
             throw DecodingException(path + "/type", "tool kind disagrees with input")
         if (kind != None && kind != Some("function") && kind != Some("custom")) {
@@ -27,30 +27,30 @@ internal class ChatStreamTool public constructor(public val index: Long, public 
         unknown(raw, ["index", "id", "type", "function", "custom"], "chat.tool.delta", batch)
     }
 
-    private fun readFunction(raw: JsonValue?, dialect: DialectId, tools: Array<ToolDefinition>, batch: ChatStreamBatch, path: String) {
+    private fun readFunction(raw: JsonValue?, dialect: DialectId, tools: Array<ToolDefinition>, batch: LlmStreamBatch, path: String) {
         val present = raw ?: return
         selectInputKind("function", path)
         val value = decodeChatValue<ChatStreamFunctionFields>(present, path)
-        name = chatStreamIdentity(name, value.name, path + "/name")
+        name = llmStreamIdentity(name, value.name, path + "/name")
         append(value.arguments, dialect, tools, batch)
         unknown(present, ["name", "arguments"], "chat.tool.function", batch)
     }
 
-    private fun readCustom(raw: JsonValue?, dialect: DialectId, tools: Array<ToolDefinition>, batch: ChatStreamBatch, path: String) {
+    private fun readCustom(raw: JsonValue?, dialect: DialectId, tools: Array<ToolDefinition>, batch: LlmStreamBatch, path: String) {
         val present = raw ?: return
         selectInputKind("custom", path)
         val value = decodeChatValue<ChatStreamCustomFields>(present, path)
-        name = chatStreamIdentity(name, value.name, path + "/name")
+        name = llmStreamIdentity(name, value.name, path + "/name")
         append(value.input, dialect, tools, batch)
         unknown(present, ["name", "input"], "chat.tool.custom", batch)
     }
 
     private fun selectInputKind(value: String, path: String) {
-        inputKind = chatStreamIdentity(inputKind, Some(value), path)
+        inputKind = llmStreamIdentity(inputKind, Some(value), path)
         if (kind != None && kind != Some(value)) throw DecodingException(path, "tool kind disagrees with input")
     }
 
-    private fun append(fragment: String?, dialect: DialectId, tools: Array<ToolDefinition>, batch: ChatStreamBatch) {
+    private fun append(fragment: String?, dialect: DialectId, tools: Array<ToolDefinition>, batch: LlmStreamBatch) {
         val text = fragment ?: return
         input.append(text)
         var reference: ClientToolCallReference? = None
@@ -62,8 +62,8 @@ internal class ChatStreamTool public constructor(public val index: Long, public 
         batch.observe(text)
     }
 
-    private fun unknown(value: JsonValue, known: Array<String>, event: String, batch: ChatStreamBatch) {
-        val extra = chatStreamUnknown(value, known)
+    private fun unknown(value: JsonValue, known: Array<String>, event: String, batch: LlmStreamBatch) {
+        val extra = llmStreamUnknown(value, known)
         if (extra.size == 0L) return
         historyAvailable = false
         batch.native(event, extra, Some(location))

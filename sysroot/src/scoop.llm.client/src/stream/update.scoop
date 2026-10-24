@@ -4,13 +4,14 @@ import scoop.json.JsonObjectBuilder
 import scoop.json.JsonValue
 import scoop.json.JsonValueKind
 
-internal class ChatStreamBatch public constructor(
+internal class LlmStreamBatch public constructor(
     private val dialect: DialectId, private val retention: StreamRetention,
     private val retained: ArrayList<LlmNativeEvent>
 ) {
     public val events: ArrayList<LlmEvent> = ArrayList<LlmEvent>()
     public var hasOutput: Boolean = false
     public var hasText: Boolean = false
+    public var isKeepAlive: Boolean = false
 
     public fun observe(text: String, plain: Boolean = false) {
         if (text.length == 0L) return
@@ -24,16 +25,16 @@ internal class ChatStreamBatch public constructor(
         if (retain && retention == StreamRetention.Result) retained.add(entry)
     }
 
-    public fun build(): LlmStreamUpdate = LlmStreamUpdate(events.toArray(), hasOutput, hasText)
+    public fun build(): LlmStreamUpdate = LlmStreamUpdate(events.toArray(), hasOutput, hasText, isKeepAlive)
 }
 
-internal fun chatStreamIdentity(previous: String?, incoming: String?, path: String): String? {
+internal fun llmStreamIdentity(previous: String?, incoming: String?, path: String): String? {
     if (previous != None && incoming != None && previous != incoming)
         throw DecodingException(path, "stream identity changed")
     return if (incoming != None) incoming else previous
 }
 
-internal fun chatStreamUnknown(value: JsonValue, known: Array<String>): JsonValue {
+internal fun llmStreamUnknown(value: JsonValue, known: Array<String>): JsonValue {
     val result = JsonObjectBuilder()
     for ((name, field) in value.members()) {
         var recognized = false
@@ -44,14 +45,14 @@ internal fun chatStreamUnknown(value: JsonValue, known: Array<String>): JsonValu
 }
 
 /** Usage is a cumulative report. Missing or null fields never erase an earlier reported count. */
-internal fun mergeChatStreamUsage(previous: JsonValue, incoming: JsonValue): JsonValue {
+internal fun mergeLlmStreamUsage(previous: JsonValue, incoming: JsonValue): JsonValue {
     if (incoming.kind == JsonValueKind.Null) return previous
     if (previous.kind != JsonValueKind.Object || incoming.kind != JsonValueKind.Object) return incoming
     val result = JsonObjectBuilder()
     for ((name, value) in previous.members()) {
         val replacement = incoming[name]
         result.add(name, when (replacement) {
-            case Some(next) -> mergeChatStreamUsage(value, next)
+            case Some(next) -> mergeLlmStreamUsage(value, next)
             case None -> value
         })
     }

@@ -1,6 +1,6 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat 的普通／流式生成与 Anthropic Messages 普通生成，以及 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时；其他协议继续实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat 与 Anthropic Messages 的普通／流式生成，以及 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时；其他协议继续实施。
 
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 
@@ -56,11 +56,13 @@ val model = LlmEndpoint(Providers.anthropicMessages(), LlmAuth.bearer(apiKey)).m
 val result = client.generate(model, LlmRequest([Message([Text("你好")])]))
 ```
 
-Messages 支持图片、PDF、纯文本文档、function／原生工具及服务端 WebSearch。thinking、客户端调用、搜索活动和引用按 block 顺序保存；搜索开始与结果是共享同一服务器 ID 的两条活动。history 完整保留签名、加密搜索内容和未知字段，连续 ToolResult 合并为一条 user 消息。pause_turn 保持不完整状态，由应用决定下一步；搜索错误不会冒充整个 HTTP 请求失败。`MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(json, request)` 也可单独解释完整响应。当前 Messages 尚未实现 SSE，openStream 会在发送前明确失败。
+Messages 支持图片、PDF、纯文本文档、function／原生工具及服务端 WebSearch。thinking、客户端调用、搜索活动和引用按 block 顺序保存；搜索开始与结果是共享同一服务器 ID 的两条活动。history 完整保留签名、加密搜索内容和未知字段，连续 ToolResult 合并为一条 user 消息。pause_turn 保持不完整状态，由应用决定下一步；搜索错误不会冒充整个 HTTP 请求失败。`MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(json, request)` 也可单独解释完整响应，流式生成直接使用相同的 openStream／withStream。
 
 同一 ChatProtocol 的 `createStreamDecoder(request, retention = StreamRetention.EventsOnly)` 接收 SSE parser 已定界的 `accept(event, data)`，返回带候选／item 位置的文本、reasoning、工具参数、完成调用和 usage 事件。缺省不累计普通文本；`StreamRetention.Result` 才保留完整结果与历史。正常 `[DONE]` 后可调用 `response()`，在输入结束时使用 `endInput()` 检查缺失终止。候选的 finish_reason 不等同整个流结束，usage 尾块仍会处理；EOF、服务错误或终止后新增数据均不能产生成功结果。
 
 工具参数只有完成后才解释为可执行调用；无效或截断输入仍可观察。usage 是累计快照，只在正常 `[DONE]` 后标 Final，不把早到的候选结束当作总量已确定。未知片段保存在 Native 事件，Result 也通过 `nativeEvents` 保留必要片段；无法无损重建的消息不提供 history。这个 decoder 不执行网络 I/O；网络读取由 `LlmClient` 管理。
+
+MessagesProtocol 提供相同的 createStreamDecoder 入口，按 content block 的 index 归并文本、thinking、签名、工具输入和引用，交付独立的 Citation 与 ServerToolActivity 事件。客户端参数在 block_stop 后仍等待最终 stop_reason，再决定完整性与执行资格；message_delta 的 usage 继续合并，到 message_stop 才为 Final。ping 不占用首个模型事件时间。未知 block 可原样保留；不能归并的未知 delta 或损坏 JSON 参数使 history 明确不可用，不把不完整消息冒充可回传历史。
 
 流式调用沿用同一 model、request 和调用选项；最小文本入口使用缺省 EventsOnly，通过同一流的文本视图读取：
 
@@ -78,7 +80,7 @@ client.withStream(model, request) suspend { stream ->
 
 `stream.metadata` 每次取得不可变快照：HTTP 实际发送／响应头、首个事件／输出／文本和协议完成点分别记录。收到协议终止后停止 total 截止；资源清理后记录 finished 并执行一次 onFinished，此后 result 才可用。maxResponseBytes 同时约束流式 HTTP 正文的已读取字节，包含 SSE framing 和有限读取缓冲；不累计整条事件日志。
 
-同一个 protocol 的 `encodeRequest(modelId, request, stream = false)` 生成 wire JSON；它本身不执行网络请求。最小文本只发送 model 和 messages，默认不设置温度、reasoning、token 上限或输出格式。两种 dialect 处理各自的媒体形式、生成参数、工具和历史；不按 model ID 切换字段。OpenAI Chat 的 Server(WebSearch) 映射请求级 web_search_options，无法表达的选项抛出带输入路径的 LlmRequestException。
+同一个 protocol 的 `encodeRequest(modelId, request, stream = false)` 生成 wire JSON；它本身不执行网络请求。Chat 最小文本只发送 model 和 messages，默认不设置温度、reasoning、token 上限或输出格式；Messages 另有必需的 max_tokens 默认值。各 dialect 处理自身的媒体形式、生成参数、工具和历史，不按 model ID 切换字段。OpenAI Chat 的 Server(WebSearch) 映射请求级 web_search_options，无法表达的选项抛出带输入路径的 LlmRequestException。
 
 DeepSeek 不同模型的 topP 生效模式不同。缺省省略 topP 时不需要额外设置；显式使用时，通过 `Providers.deepSeekChat(DeepSeekTopPMode.Thinking)` 或 `NonThinking` 选择已知规则。缺省 Unknown 会拒绝显式 topP，避免接受一个实际被服务端忽略的设置；不根据模型名称自动猜测。
 

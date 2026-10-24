@@ -1,0 +1,67 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun startMessagesStream(state: MessagesStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    if (state.started) throw DecodingException("/message", "message already started")
+    val value = decodeMessagesValue<MessagesStreamStart>(raw, "/message")
+    if (value.type != "message") throw DecodingException("/message/type", "expected a Messages message")
+    if (value.role != "assistant") throw DecodingException("/message/role", "expected an assistant message")
+    if (value.content.size != 0L) throw DecodingException("/message/content", "stream starts with empty content")
+    if (value.stopReason != None) throw DecodingException("/message/stop_reason", "stream starts without a stop reason")
+    state.started = true
+    state.id = value.id
+    state.model = value.model
+    updateMessagesStreamUsage(state, value.usage, batch)
+    val extra = llmStreamUnknown(raw, ["type", "role", "content", "id", "model", "usage", "stop_reason", "stop_sequence"])
+    if (extra.size != 0L) batch.native("messages.message_start", extra)
+}
+
+internal fun updateMessagesStream(state: MessagesStreamDecoder, delta: JsonValue, usage: JsonValue?, batch: LlmStreamBatch) {
+    if (!state.started) throw DecodingException("/type", "message_delta before message_start")
+    val value = decodeMessagesValue<MessagesStreamMessageDelta>(delta, "/delta")
+    if (value.stopReason != None) {
+        if (state.reason != None && state.reason != value.stopReason)
+            throw DecodingException("/delta/stop_reason", "message stop reason changed")
+        if (state.reason == None) finishMessagesStream(state, value.stopReason!!, batch)
+    }
+    updateMessagesStreamUsage(state, usage, batch)
+    val extra = llmStreamUnknown(delta, ["stop_reason", "stop_sequence"])
+    if (extra.size != 0L) batch.native("messages.message_delta", extra)
+}
+
+private fun updateMessagesStreamUsage(state: MessagesStreamDecoder, value: JsonValue?, batch: LlmStreamBatch) {
+    val raw = value ?: return
+    if (raw.kind == JsonValueKind.Null) return
+    val merged = when (state.currentUsage.native) {
+        case Some(previous) -> mergeLlmStreamUsage(previous, raw)
+        case None -> raw
+    }
+    state.currentUsage = LlmUsage(state.dialect.readUsage(merged), Partial, Some(merged))
+    batch.events.add(LlmEvent.Usage(state.currentUsage))
+}
+
+private fun finishMessagesStream(state: MessagesStreamDecoder, reason: String, batch: LlmStreamBatch) {
+    for (block in state.blocks) if (!block.stopped) throw DecodingException("/delta/stop_reason", "message ended with an open content block")
+    val (completion, finish) = messagesCompletion(reason)
+    val items = ArrayList<LlmOutputItem>()
+    val content = ArrayList<JsonValue>()
+    var historyAvailable = true
+    for (block in state.blocks) {
+        block.finishClient(completion == LlmCompletion.Complete, batch)
+        if (state.retention == StreamRetention.Result) {
+            items.add(block.item!!)
+            content.add(block.wire!!)
+            if (!block.historyAvailable) historyAvailable = false
+        }
+    }
+    if (state.retention == StreamRetention.Result) {
+        val history = if (historyAvailable) Some(LlmHistory(state.dialect.id,
+            [state.dialect.historyMessage(messagesMessage("assistant", JsonValue.fromArray(content)), "")])) else None
+        state.candidate = Some(LlmCandidate(0L, items.toArray(), completion, finish, history))
+    }
+    state.blocks.clear()
+    state.calls.clear()
+    state.reason = Some(reason)
+    batch.events.add(LlmEvent.CandidateFinished(0L, completion, finish))
+}

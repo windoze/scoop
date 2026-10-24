@@ -44,7 +44,7 @@ private class MessagesGenerationTest {
     }
 
     @Test
-    fun `Messages default token limit and unavailable SSE fail before authentication`() {
+    fun `Messages default token limit fails before ordinary and stream authentication`() {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { _ ->
             withLlmClient suspend { client ->
@@ -58,8 +58,8 @@ private class MessagesGenerationTest {
                 assertEquals("/options/maxOutputTokens", failure.path)
                 assertEquals(0L, auth.requests.size)
                 assertEquals(0L, finished.values[0].attempts.size)
-                val stream = expectLlmFailure<LlmRequestException> suspend { client.openStream(endpoint.model("model"), sampleRequest); Unit }
-                assertEquals("/stream", stream.path)
+                val stream = expectLlmFailure<LlmRequestException> suspend { client.openStream(model, sampleRequest); Unit }
+                assertEquals("/options/maxOutputTokens", stream.path)
                 assertEquals(0L, auth.requests.size)
             }
         }

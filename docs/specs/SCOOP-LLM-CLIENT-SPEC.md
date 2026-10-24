@@ -233,9 +233,9 @@ onFinished 在实际收尾后执行一次，成功、输入检查失败、服务
 
 `StreamRetention.EventsOnly` 缺省只保留协议身份、未完成工具输入、当前 usage 及结束状态；普通文本／reasoning 不累计，完成的工具参数在交付事件后释放。`Result` 显式保留完整候选和可恢复历史，不保存已处理的完整事件日志。两种模式使用同一 decoder 和同一套检查。
 
-`LlmSseProtocol` 扩展普通生成合同，增加 `createStreamDecoder(request, retention = EventsOnly)`。`LlmSseDecoder.accept(event, data)` 接收已经由 SSE parser 定界的事件，返回 `LlmStreamUpdate(events, hasOutput, hasText)`；不执行 I/O。isFinished、responseId、usage 提供当前事实，endInput 检查 EOF 是否正常，response() 仅在 Result 模式、正常终止且未失败时返回完整 LlmResponse。错误后 decoder 不继续接受数据，也不能读取伪造的成功结果。
+`LlmSseProtocol` 扩展普通生成合同，增加 `createStreamDecoder(request, retention = EventsOnly)`。`LlmSseDecoder.accept(event, data)` 接收已经由 SSE parser 定界的事件，返回 `LlmStreamUpdate(events, hasOutput, hasText, isKeepAlive = false)`；不执行 I/O。isFinished、responseId、usage 提供当前事实，endInput 检查 EOF 是否正常，response() 仅在 Result 模式、正常终止且未失败时返回完整 LlmResponse。错误后 decoder 不继续接受数据，也不能读取伪造的成功结果。
 
-`LlmEvent` 包括 TextDelta、ReasoningDelta、RefusalDelta、ToolInputDelta、ClientToolCall、CandidateFinished、Usage 与 Native。LlmItemLocation 使用协议 candidate index 和候选内首次观察到的 item index；LlmTextDelta 另带 partIndex，Chat 的各个文本字段各占一个单 part item。事件和最终结果使用同一位置，不把多个候选拼接。ToolInputDelta 的 reference 在身份明确且能关联到请求中的客户端工具后才提供；它本身不保证完整输入可执行。完成调用复用普通 Chat 工具解释，无效／截断参数分别为 Invalid／Incomplete。
+`LlmEvent` 包括 TextDelta、ReasoningDelta、RefusalDelta、ToolInputDelta、ClientToolCall、ServerToolActivity、Citation、CandidateFinished、Usage 与 Native；Messages 的服务端活动与引用按第 14 节交付。LlmItemLocation 使用协议 candidate index 和候选内首次观察到的 item index；LlmTextDelta 另带 partIndex，Chat 的各个文本字段各占一个单 part item。事件和最终结果使用同一位置，不把多个候选拼接。ToolInputDelta 的 reference 在身份明确且能关联到请求中的客户端工具后才提供；它本身不保证完整输入可执行。完成调用复用普通 Chat 工具解释，无效／截断参数分别为 Invalid／Incomplete。
 
 ChatProtocol 实现该合同。ChatDialect.streamedReasoningField 指明可按字符串片段拼接的 reasoning 字段；OpenAI 为 None，DeepSeek 为 reasoning_content。content／refusal／reasoning 与 function.arguments／custom.input 按到达次序拼接；工具用 candidate＋tool index 分开关联，id、type 和 name 为不变身份，允许重复相同值，不允许中途替换。未知工具不得推断为客户端执行。audio.data 的每个 Base64 片段先解码为字节，再按顺序合并并编码到保留结果，不能直接拼接带 padding 的 Base64 字符串；transcript 拼接、id 保持不变、expires_at 保存实际终值。弃用 function_call 的名称与参数保留为原生内容。
 
@@ -257,7 +257,7 @@ Native 事件保留无法通用解释的字段／事件及其位置；Result 将
 
 `textDeltas()` 取得唯一的 `LlmTextStream` 读取视图，其 next 返回带位置的 LlmTextDelta。取得视图即选择文本入口；首次原始 next 选择原始入口，此后不能切换、重复取得视图或并发 next。文本入口驱动同一 reducer，过滤非普通文本事件但完整处理工具、usage、结束和错误。None 只表示正常协议终止；提前关闭、取消和失败不冒充 EOF。
 
-metadata 每次返回不可变 LlmCallMetadata 快照。首个 SSE 事件、首个有效输出和首个普通文本在实际处理该事件时采样，HTTP 发送／响应头仍取底层观测；无法观察的时间保持 None。正常协议终止记录 completed 与最终 usage，并停止 total 截止，随后消费者到显式关闭之间的等待不触发生成超时。此时 metadata 仍为 Active；实际资源清理后才记录 finished、最终 outcome 并调用一次 onFinished，包括打开失败。回调不能等待本流或所属 client 的 close。
+metadata 每次返回不可变 LlmCallMetadata 快照。首个成功解释的非保活协议事件、首个有效输出和首个普通文本在实际处理该事件时采样，HTTP 发送／响应头仍取底层观测；无法观察的时间保持 None。正常协议终止记录 completed 与最终 usage，并停止 total 截止，随后消费者到显式关闭之间的等待不触发生成超时。此时 metadata 仍为 Active；实际资源清理后才记录 finished、最终 outcome 并调用一次 onFinished，包括打开失败。回调不能等待本流或所属 client 的 close。
 
 close 不自动消费剩余输出：未达终止时取消并等待收尾（outcome=Cancelled），已经终止时正常清理；重复关闭幂等。client.close 对已经终止的流正常清理，对未完成的流以 LlmClientClosedException 终止，并等待回调。读取失败由 next 交付后，useAsync 的 close 不重复交付同一失败；尚未交付的超时、拥有者关闭或回调失败由 close 交付。操作和回调都失败时以 ResourceUseException 保留两者。主动提前 close 自身不抛用于中止读取的 CancellationException。
 
@@ -265,7 +265,7 @@ close 不自动消费剩余输出：未达终止时取消并等待收尾（outco
 
 ## 12. Messages 响应解释
 
-`MessagesProtocol(dialect: MessagesDialect)` 固定使用 ApiProtocolId("messages")，拒绝其他协议归属。`AnthropicMessagesDialect` 的身份为 DialectId(ApiProtocolId("messages"), "anthropic-messages")。本节规定纯 `decodeResponse(value, request)`；普通生成按第 13 节，SSE 随后续闭环接入。MessagesDialect 分别负责 readReasoning(block, path)、readUsage(usage)、historyMessage(message, path) 及 decodeError；不共享调用状态。
+`MessagesProtocol(dialect: MessagesDialect)` 固定使用 ApiProtocolId("messages")，拒绝其他协议归属。`AnthropicMessagesDialect` 的身份为 DialectId(ApiProtocolId("messages"), "anthropic-messages")。本节规定纯 `decodeResponse(value, request)`；普通生成按第 13 节，SSE 按第 14 节。MessagesDialect 分别负责 readReasoning(block, path)、readUsage(usage)、historyMessage(message, path) 及 decodeError；不共享调用状态。
 
 完整响应的 type 必须为 message、role 必须为 assistant，content 是有序 block 数组，stop_reason 必须为非 null 字符串。单个响应产生 index=0 的候选；缺失的 id、model、usage 保持未知，createdAt 不从本地时钟补造。已知 block 验证其必要字段，失败报告 LlmProtocolException 的 JSON Pointer 路径和完整原文；未知 block 保存为 Native。text 投影为一个 Message，thinking／redacted_thinking 投影为 Reasoning；普通文本视图不混入 reasoning。
 
@@ -285,7 +285,7 @@ Anthropic input_tokens 是非缓存输入；cache_read_input_tokens、cache_crea
 
 ## 13. Messages 请求与普通生成
 
-`Providers.anthropicMessages(version = V20261021, defaultMaxOutputTokens = 4096L)` 包装 MessagesProtocol 与 AnthropicMessagesDialect，缺省 base URL 为 https://api.anthropic.com/v1。`AnthropicMessagesVersion` 明确区分 V20230601 与 V20261021，决定 anthropic-version 及已知版本规则，不按模型 ID 推断。max_tokens 为必需字段；请求省略 maxOutputTokens 时使用非负的 dialect 缺省，显式值（含零）覆盖它。默认上限也要通过模型的已知 maxOutputTokens 检查，不静默缩小请求或改变模型绑定。当前完成普通 generate，openStream 仍在发送前报告该 adapter 没有 SSE 合同。
+`Providers.anthropicMessages(version = V20261021, defaultMaxOutputTokens = 4096L)` 包装 MessagesProtocol 与 AnthropicMessagesDialect，缺省 base URL 为 https://api.anthropic.com/v1。`AnthropicMessagesVersion` 明确区分 V20230601 与 V20261021，决定 anthropic-version 及已知版本规则，不按模型 ID 推断。max_tokens 为必需字段；请求省略 maxOutputTokens 时使用非负的 dialect 缺省，显式值（含零）覆盖它。默认上限也要通过模型的已知 maxOutputTokens 检查，不静默缩小请求或改变模型绑定。普通 generate 与第 14 节的 openStream 共用该默认值与能力检查。
 
 `LlmGenerationProtocol.generationFields()` 缺省返回空数组，defaultMaxOutputTokens() 缺省 None。前者提供该协议／方言的固定请求头，后者用于能力检查中的有效缺省上限。LlmEndpoint.fields 组合固定头与应用字段，应用不能重复固定头名称而造成版本与编码规则不一致；认证看到组合后的真实字段。Chat 的空头和省略上限行为保持不变。MessagesDialect 提供 requestFields、defaultMaxOutputTokens、encodeOptions 与 encodeContent 的协议专用合同；MessagesProtocol 在 base URL 后追加 messages，并复用公共 HTTP 调用、重试、计时和完成通知。
 
@@ -297,8 +297,22 @@ ClientFunction 映射 name、description、input_schema 与可选 strict，Clien
 
 WebSearch 将 allowedDomains／excludedDomains 映射 allowed_domains／blocked_domains，两者不得同时出现；location 映射带 type=approximate 的 user_location，必须至少提供一个字段。基础搜索固定返回来源结果，因此 includeSources=true 保持此行为，false 不能表达而报错。不能用扩展覆盖通用管理字段。Auto 缺省省略，None／Required／Specific 分别映射 none／any／tool；parallelToolCalls 通过 tool_choice.disable_parallel_tool_use 的反值精确表达，None 选择下不能同时设置并行开关。
 
-新版明确拒绝 temperature／topP／topK；旧版分别映射 temperature／top_p／top_k，温度和 topP 范围为 0～1。单候选允许 None／1，其他值失败。stop 保持显式数组。reasoning.enabled=true 且未指定预算时使用 adaptive；显式 budgetTokens 使用 enabled 并要求至少 1024 且小于有效 max_tokens，不能与 enabled=false 共存。effort 独立映射 output_config.effort；手工预算模式不能强制选择工具。模型是否接受某种 thinking 模式仍由其 capability／服务端决定。
+新版明确拒绝 temperature／topP／topK；旧版分别映射 temperature／top_p／top_k，温度和 topP 范围为 0～1。单候选允许 None／1，其他值失败。stop 保持显式数组。reasoning.enabled=true 且未指定预算时使用 adaptive；显式 budgetTokens 使用 enabled 并要求至少 1024 且小于有效 max_tokens，不能与 enabled=false 共存。effort 独立映射 output_config.effort；手工预算模式不能强制选择工具。模型是否接受某种 thinking 模式仍由其 capability／服务端决定。adaptive 不保证每轮出现 thinking block；模型没有返回时不补造，返回时完整保留，见 [thinking 的逐轮选择](https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost)。
 
 JsonSchema 映射 output_config.format 的 json_schema／schema；默认 name=response 无需线字段，其他名称和 description 没有对应位置；strict=true 由该格式自身保证，false 无法表达。JsonObject 没有等价开关。request、message、part、tool 的扩展只合并到各自位置，保留未知字段；已管理字段即使缺省省略也不能被扩展覆盖。Native content 是同方言原生 block，不触发媒体下载、转码或工具执行。
 
 协议依据：[API 版本迁移](https://platform.claude.com/docs/en/api/migration-2026-10-21)、[Messages 使用和媒体来源](https://platform.claude.com/docs/en/build-with-claude/working-with-messages)、[文件来源](https://platform.claude.com/docs/en/build-with-claude/files)、[工具定义](https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools)、[thinking](https://platform.claude.com/docs/en/build-with-claude/thinking)、[结构化输出](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)。
+
+## 14. Messages SSE
+
+MessagesProtocol 实现 LlmSseProtocol，沿用第 11 节的网络寿命、读取入口与保留策略。每个 SSE data 是含 type 的 JSON object；显式 event 名须与 type 相同，空名或默认 message 由 data.type 分派。message_start 只出现一次，其 message 必须为 assistant、content 为空、stop_reason 未定；ID、模型和初始 usage 取实际字段。content block 按从零递增的 index 建立稳定 item 位置；delta／stop 只能引用已开始而未结束的 block，允许不同 block 的事件交错。LlmStreamUpdate 增加 isKeepAlive=false；Messages ping 返回 true，传输层不以它采样 firstEvent。firstEvent 只记录成功解释的非保活事件，损坏 JSON 不冒充已解码的模型事件。
+
+text_delta、thinking_delta、signature_delta 分别拼接相应字段，签名保持不透明；citations_delta 逐项追加 citation。新增 LlmEvent.Citation(location, partIndex, citation) 与 ServerToolActivity(location, activity)，使引用与服务端活动在 EventsOnly 下也能读取。初始 block 内已有的文本与引用同样交付，签名／redacted thinking 通过 Native 事件可见。搜索调用与结果沿第 12 节分别交付共享 ID 的活动，不进入客户端工具执行列表。
+
+tool_use／server_tool_use 的 input_json_delta 拼接 partial_json；初始 input={} 是流式参数的占位起点，有 delta 时用拼接结果替换，而非与 `{}` 连接。非空初始 input 不得同时追加流式参数。客户端调用在 block_stop 后保留必要参数，直到 message_delta 给出最终 stop_reason 才交付 ClientToolCall，防止随后 max_tokens／pause_turn 被误报为可执行调用。有效 JSON object 沿普通响应规则解释，损坏 JSON 为 Invalid，非完整候选为 Incomplete；无效原文通过事件和 ClientToolInput 保存，不能伪造合法 history。服务端输入不能解释为 object 时按协议错误报告。
+
+message_delta 的 usage 是累计快照，与 message_start 按字段递归合并；未出现或 null 不擦除前值，不把快照相加。首次非 null stop_reason 要求所有 block 已结束；之后仅允许相同停止原因与尾部 usage／元数据。CandidateFinished 在该点交付，usage 仍为 Partial，只有 message_stop 才标 Final 并结束流。没有 block 的正常零输出响应也合法。重复 start／stop、停止原因变化、结束后内容、错误事件或缺失 message_stop 的 EOF 均失败，不自动重试或接续。
+
+EventsOnly 不累计普通文本、thinking、签名或已完成的服务端结果；仅保留当前块状态、待确定完成性的客户端输入、调用关联和 usage。Result 以同一 reducer 保存完整 item 和原生 history，正文与签名仅按协议规则重建；不保存已知文本 delta 的完整日志。未知事件／字段保持 Native；未知 block 无 delta 时可原样回传，无法归并的未知 delta 则使该候选 history 不可用，并保留其开始状态与片段以供读取。流式 LlmResponse.native 为 None，不把重建的消息冒充一次完整服务响应。
+
+协议依据：[Messages 流式事件](https://platform.claude.com/docs/en/build-with-claude/streaming)、[细粒度工具参数](https://platform.claude.com/docs/en/agents-and-tools/tool-use/fine-grained-tool-streaming)、[流式引用](https://platform.claude.com/docs/en/build-with-claude/citations)。

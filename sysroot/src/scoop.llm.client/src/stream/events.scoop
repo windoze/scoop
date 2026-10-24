@@ -39,6 +39,8 @@ public enum LlmEvent {
     RefusalDelta(val delta: LlmTextDelta),
     ToolInputDelta(val delta: LlmToolInputDelta),
     ClientToolCall(val location: LlmItemLocation, val call: scoop.llm.client.ClientToolCall),
+    ServerToolActivity(val location: LlmItemLocation, val activity: scoop.llm.client.ServerToolActivity),
+    Citation(val location: LlmItemLocation, val partIndex: Long, val citation: scoop.llm.client.Citation),
     CandidateFinished(val candidateIndex: Long, val completion: LlmCompletion, val reason: LlmFinishReason),
     Usage(val usage: LlmUsage),
     Native(val event: LlmNativeEvent)
@@ -48,7 +50,8 @@ public enum LlmEvent {
 
 /** Timing flags describe output in this update, not cumulative transcript contents. */
 public class LlmStreamUpdate public constructor(
-    public val events: Array<LlmEvent>, public val hasOutput: Boolean = false, public val hasText: Boolean = false
+    public val events: Array<LlmEvent>, public val hasOutput: Boolean = false, public val hasText: Boolean = false,
+    public val isKeepAlive: Boolean = false
 ) {
     public companion object : ValueEncoder<LlmStreamUpdate>, ValueDecoder<LlmStreamUpdate>
 }

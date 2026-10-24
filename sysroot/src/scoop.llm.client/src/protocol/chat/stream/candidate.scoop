@@ -26,7 +26,7 @@ internal class ChatStreamCandidate public constructor(
         return result
     }
 
-    public fun accept(choice: ChatStreamChoice, raw: JsonValue, batch: ChatStreamBatch, path: String) {
+    public fun accept(choice: ChatStreamChoice, raw: JsonValue, batch: LlmStreamBatch, path: String) {
         if (choice.delta.kind != JsonValueKind.Object) throw DecodingException(path + "/delta", "expected an object")
         if (finishReason != None) {
             if (choice.finishReason != finishReason || choice.delta.size != 0L)
@@ -34,7 +34,7 @@ internal class ChatStreamCandidate public constructor(
         } else {
             readDelta(choice.delta, batch, path + "/delta")
         }
-        val extra = chatStreamUnknown(raw, ["index", "delta", "finish_reason"])
+        val extra = llmStreamUnknown(raw, ["index", "delta", "finish_reason"])
         if (extra.size != 0L) {
             // Choice metadata does not participate in replay history.
             batch.native("chat.choice", JsonObjectBuilder().add("index", JsonValue.fromLong(index)).add("fields", extra).build())
@@ -42,7 +42,7 @@ internal class ChatStreamCandidate public constructor(
         if (finishReason == None && choice.finishReason != None) finishChatStreamCandidate(this, choice.finishReason!!, batch, path)
     }
 
-    private fun readDelta(delta: JsonValue, batch: ChatStreamBatch, path: String) {
+    private fun readDelta(delta: JsonValue, batch: LlmStreamBatch, path: String) {
         for ((field, value) in delta.members()) {
             if (field == "role") {
                 if (value.kind != JsonValueKind.Null && decodeChatValue<String>(value, path + "/role") != "assistant")
@@ -76,7 +76,7 @@ internal class ChatStreamCandidate public constructor(
         return value
     }
 
-    private fun readTools(raw: JsonValue, batch: ChatStreamBatch, path: String) {
+    private fun readTools(raw: JsonValue, batch: LlmStreamBatch, path: String) {
         val values = decodeChatValue<Array<JsonValue>>(raw, path)
         val indices = ArrayList<Long>()
         var ordinal = 0L

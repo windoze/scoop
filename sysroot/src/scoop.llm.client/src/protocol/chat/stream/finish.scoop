@@ -4,7 +4,7 @@ import scoop.json.JsonArrayBuilder
 import scoop.json.JsonObjectBuilder
 import scoop.json.JsonValue
 
-internal fun finishChatStreamCandidate(state: ChatStreamCandidate, reason: String, batch: ChatStreamBatch, path: String) {
+internal fun finishChatStreamCandidate(state: ChatStreamCandidate, reason: String, batch: LlmStreamBatch, path: String) {
     val finish = chatFinishReason(reason)
     val completion = if (state.refused) LlmCompletion.Refused else when (finish) {
         case Stop -> LlmCompletion.Complete
