@@ -88,6 +88,7 @@ enum Emit {
     Mir,
     Optimizations,
     Lir,
+    Symbols,
     All,
 }
 
@@ -184,6 +185,7 @@ fn build(
                 scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Optimizations)
             }
             Emit::Lir => scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Lir),
+            Emit::Symbols => scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Symbols),
             Emit::All => scoop_protocol::StageDumpSet::all(),
         }),
     };

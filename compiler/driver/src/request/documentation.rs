@@ -85,7 +85,8 @@ impl SingleConeOutput {
             && let StageDumpPolicy::Stages(stages) = emit
             && (stages.contains(StageDumpKind::Mir)
                 || stages.contains(StageDumpKind::Optimizations)
-                || stages.contains(StageDumpKind::Lir))
+                || stages.contains(StageDumpKind::Lir)
+                || stages.contains(StageDumpKind::Symbols))
         {
             return Err(SingleConeBuildRequestError::DocumentationMachineDump);
         }

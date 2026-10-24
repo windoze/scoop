@@ -94,6 +94,7 @@ fn documentation_requires_production_manifest_and_a_real_frontend_result() {
         StageDumpKindV1::Mir,
         StageDumpKindV1::Optimizations,
         StageDumpKindV1::Lir,
+        StageDumpKindV1::Symbols,
     ] {
         assert_eq!(
             build(documentation(), manifest(), dumps(stage)).unwrap_err(),

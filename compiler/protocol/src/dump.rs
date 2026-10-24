@@ -10,15 +10,17 @@ pub enum StageDumpKindV1 {
     Mir,
     Optimizations,
     Lir,
+    Symbols,
 }
 
 impl StageDumpKindV1 {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Ast,
         Self::Hir,
         Self::Mir,
         Self::Optimizations,
         Self::Lir,
+        Self::Symbols,
     ];
 
     pub const fn file_name(self) -> &'static str {
@@ -28,6 +30,7 @@ impl StageDumpKindV1 {
             Self::Mir => "mir.txt",
             Self::Optimizations => "optimizations.json",
             Self::Lir => "lir.txt",
+            Self::Symbols => "symbols.json",
         }
     }
 
@@ -38,6 +41,7 @@ impl StageDumpKindV1 {
             Self::Mir => 3,
             Self::Lir => 4,
             Self::Optimizations => 5,
+            Self::Symbols => 6,
         }
     }
 
@@ -48,6 +52,7 @@ impl StageDumpKindV1 {
             3 => Ok(Self::Mir),
             4 => Ok(Self::Lir),
             5 => Ok(Self::Optimizations),
+            6 => Ok(Self::Symbols),
             _ => Err(ProtocolValidationError::UnknownEnumTag {
                 kind: "stage dump",
                 tag,

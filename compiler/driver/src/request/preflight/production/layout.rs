@@ -7,8 +7,10 @@ use scoop_mir as mir;
 use scoop_slib as slib;
 
 mod errors;
+mod identities;
 mod imports;
 mod optimization_report;
+mod symbol_report;
 use LayoutProductionError as Error;
 pub use errors::LayoutProductionError;
 
@@ -217,6 +219,22 @@ pub(super) fn assemble(
         },
     ));
     if stop_after == Some(StageDumpKind::Lir) {
+        return Ok(ControlFlow::Break(()));
+    }
+    dump.extend(capture_stage_dump(
+        request.emit(),
+        StageDumpKind::Symbols,
+        || {
+            symbol_report::render(
+                mir.strong.foundation(),
+                lir.foundation(),
+                &foundation,
+                &identities,
+                &dependencies,
+            )
+        },
+    ));
+    if stop_after == Some(StageDumpKind::Symbols) {
         return Ok(ControlFlow::Break(()));
     }
     let input = scoop_lir_lower::LayoutAbiExportInputV1 {

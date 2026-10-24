@@ -1,6 +1,6 @@
 schema = 1
 name = "stage-observations"
-inputs = ["main.scoop", "state.py", "report.py"]
+inputs = ["main.scoop", "state.py", "report.py", "symbols.py"]
 tools = ["scoop", "scoopc", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cache", "dump", "driver"]
@@ -109,6 +109,27 @@ checks = [
 ]
 
 [[steps]]
+name = "symbols"
+argv = ["${scoop}", "build", "--release", "${work}/main.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "--emit", "symbols", "--dump-dir", "${work}/dumps"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${symbols.result.observations.child_invocations}", equals = ["${cold.result.root.identity}"]},
+  {actual = "${symbols.result.root.path}", equals = "${cold.result.root.path}"},
+  {file = "${work}/dumps/${cold.result.root.identity}/symbols.json", exists = true},
+]
+
+[[steps]]
+name = "symbol_contents"
+argv = ["${python}", "${fixture}/symbols.py", "${work}/dumps/${cold.result.root.identity}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
 name = "reuse"
 argv = ["${scoop}", "build", "--release", "${work}/main.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "--emit", "all", "--dump-dir", "${work}/reused"]
 exit = 0
@@ -118,6 +139,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${reuse.result.observations.child_invocations.length}", equals = 0},
+  {file = "${work}/reused/${cold.result.root.identity}/symbols.json", same_as = "${work}/dumps/${cold.result.root.identity}/symbols.json"},
   {file = "${work}/reused/${cold.result.root.identity}/lir.txt", same_as = "${work}/dumps/${cold.result.root.identity}/lir.txt"},
   {file = "${work}/reused/${cold.result.root.identity}/optimizations.json", same_as = "${work}/dumps/${cold.result.root.identity}/optimizations.json"},
 ]
@@ -155,6 +177,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${changed_warm.result.observations.child_invocations.length}", equals = 0},
+  {file = "${work}/changed-warm/${changed.result.root.identity}/symbols.json", same_as = "${work}/changed/${changed.result.root.identity}/symbols.json"},
   {file = "${work}/changed-warm/${changed.result.root.identity}/ast.txt", same_as = "${work}/changed/${changed.result.root.identity}/ast.txt"},
   {file = "${work}/changed-warm/${changed.result.root.identity}/optimizations.json", same_as = "${work}/changed/${changed.result.root.identity}/optimizations.json"},
 ]

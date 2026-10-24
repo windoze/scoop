@@ -210,7 +210,8 @@ impl ConeLirFoundation {
         self.odr_callable_bodies.get(&member).copied()
     }
 
-    pub(crate) fn callable_bodies(&self) -> &[super::CallableBodyRecord] {
+    /// Actual body identities already present in this producer, including private helpers.
+    pub fn callable_bodies(&self) -> &[super::CallableBodyRecord] {
         &self.canonical.callable_bodies
     }
 

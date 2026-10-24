@@ -12,7 +12,7 @@ pub(super) fn materialization(value: CallableMaterialization) -> Value {
     }})
 }
 
-fn template(value: CallableTemplateOwner) -> Value {
+pub(super) fn template(value: CallableTemplateOwner) -> Value {
     let (kind, id) = match value {
         CallableTemplateOwner::Function(id) => ("function", id.to_string()),
         CallableTemplateOwner::GenericFunction(id) => ("generic-function", id.to_string()),

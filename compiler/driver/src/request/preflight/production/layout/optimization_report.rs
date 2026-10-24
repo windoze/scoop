@@ -6,7 +6,7 @@ use scoop_mir as mir;
 use serde_json::{Value, json};
 
 mod decisions;
-mod identities;
+use super::identities;
 
 pub(super) fn render(
     module: &mir::Module,
