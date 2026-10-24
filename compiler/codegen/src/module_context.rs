@@ -3,6 +3,7 @@ use super::*;
 /// Module-level data function emission needs, bundled to keep
 /// signatures small.
 pub(crate) struct ModuleCtx<'a, 'ctx> {
+    pub(crate) reuse_interface_values: bool,
     pub(crate) managed_address_space: ManagedAddressSpace,
     pub(crate) functions: &'a [Function],
     pub(crate) structs: &'a StructDefs,

@@ -19,6 +19,7 @@ mod values;
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
         self.retain_field_barrier(instruction);
+        self.interface_values.retain(instruction);
         match instruction {
             Instruction::MaybeUninit {
                 out,

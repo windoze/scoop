@@ -33,9 +33,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         }
     }
 
-    /// Reconstruct a relocated interface from its canonical storage. A
-    /// volatile object load prevents aggregate forwarding from resurrecting
-    /// a pre-statepoint SSA value; immutable metadata needs no relocation.
+    /// Reuse a fresh interface snapshot, or reconstruct it from canonical
+    /// storage. A volatile object load prevents aggregate forwarding from
+    /// resurrecting a pre-statepoint value; metadata needs no relocation.
     pub(super) fn load_stored_value(
         &self,
         ty: &LirType,
@@ -43,6 +43,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         name: &str,
     ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
         if self.is_interface_storage(ty) {
+            let block = self
+                .builder
+                .get_insert_block()
+                .expect("interface load block");
+            if let Some(value) = self.interface_values.get(block, storage) {
+                return Ok(value);
+            }
             let object = self
                 .builder
                 .build_load(

@@ -84,6 +84,8 @@ tagged enum 的 managed 引用槽由各 variant 独占，inactive variant 的引
 
 接口的 value scan 只包含 offset 0；itab 不标记、不搬迁。struct、enum、数组、closure、Context、native region 和 coroutine frame 内的接口同样递归扫描这一 leaf，移动后保留原 itab。
 
+编译器可以按实现规范 2.5，在无 safepoint 且 canonical storage 不会被别名改写的直线区间内复用刚写入的接口 SSA 快照；快照不成为额外 GC root。跨调用、poll、分配、未知写入或控制流边界后，继续从原 storage 及精确 leaf 回写结果重建 object／itab，不能复用移动前的 aggregate SSA。
+
 扫描程序使用 `u64` word：
 
 | 种类 | word 表示 |

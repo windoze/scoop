@@ -4,6 +4,7 @@ mod abi_parts;
 mod call;
 mod gc;
 mod instruction;
+mod interface_values;
 mod local_storage;
 mod memory;
 mod roots;
@@ -56,6 +57,8 @@ struct FnEmitter<'a, 'ctx> {
     /// across arbitrary CFG joins instead of relying on a block-global SSA
     /// cache entry.
     root_storage: HashMap<scoop_lir::CallerRootSource, RootStorage<'ctx>>,
+    /// Fresh interface snapshots belong only to one straight-line segment.
+    interface_values: interface_values::StoredInterfaces<'ctx>,
     /// Sources used by each unwind successor, transposed from the complete
     /// per-invoke edge flags before LLVM block emission.
     unwind_root_sources: HashMap<scoop_lir::BlockId, Vec<scoop_lir::CallerRootSource>>,
@@ -306,6 +309,9 @@ pub(super) fn emit_function<'ctx>(
         allocas: HashMap::with_capacity(function.locals.len()),
         temps: HashMap::new(),
         root_storage: HashMap::new(),
+        interface_values: interface_values::StoredInterfaces::new(
+            module_ctx.reuse_interface_values,
+        ),
         unwind_root_sources,
         compiler_unwind_blocks,
         compiler_invoke_index: 0,
@@ -324,6 +330,7 @@ pub(super) fn emit_function<'ctx>(
     for (block_id, block) in function.blocks.iter() {
         emitter.current_block = block_id;
         emitter.field_barrier = None;
+        emitter.interface_values.clear();
         builder.position_at_end(blocks[arena_index(block_id)]);
         // Invoke is an LLVM terminator even though it
         // are LIR instructions: one must be the last instruction of its

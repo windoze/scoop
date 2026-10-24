@@ -250,6 +250,9 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         )?;
     }
     let module_ctx = ModuleCtx {
+        // Snapshot forwarding regressed AArch64 reference-copy kernels.
+        reuse_interface_values: profile.optimization() == scoop_lir::OptimizationMode::Release
+            && machine.get_target().get_name() == c"x86-64",
         managed_address_space,
         functions: &module.functions,
         structs: &module.structs,

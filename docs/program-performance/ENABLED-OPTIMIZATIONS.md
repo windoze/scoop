@@ -11,6 +11,7 @@
 | [完整父接口表内嵌与目录共享](INTERFACE-PROJECTION.md) | 所有 profile，统一布局／ABI | 单继承完整前缀、多继承固定偏移；目录复用内嵌片段，菱形保留完整父表。 |
 | [父接口直接投影与继承方法直接取槽](INTERFACE-PROJECTION.md) | 所有 profile | 已有 Child 视图且静态知道父关系；泛型按 exact 实例处理。首次 Any 取表等动态路径另行查询。 |
 | [smartcast 视图保留与块内 itab 复用](INTERFACE-PROJECTION.md) | release 默认 | 复用已取得的接口视图；动态表缓存仅保存 metadata，遵守局部值写入、取址与块边界的失效规则。 |
+| [接口 SSA 快照的直线区间复用](INTERFACE-VALUES.md) | x86_64 release 默认 | 复用刚写入 canonical storage 的完整接口值及接口 niche enum；调用、poll、别名操作和控制流边界结束复用。ARM64 保持原重读路径。 |
 | [接口检查与取表合并](INTERFACE-CHECKS.md) | release 默认 | 有非空接口视图消费者的 `is`／`as`／`as?`；普通控制流上复用成功检查，写入、非共同合流与异常入口使其失效。 |
 | [普通 class／局部游标字段替换](CLASS-SCALARS.md) | release 默认 | 创建与使用可分析、不逃逸且无 release hook；字段转为 typed locals，保留引用快照与 GC 语义。 |
 | [字段替换指导内联](ITERATOR-INLINING.md) | release 默认 | 可替换 class 只剩一个 receiver 调用时共同估价；继续遵守原内联成本与累计增长限制。 |

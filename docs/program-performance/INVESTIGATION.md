@@ -128,7 +128,7 @@ Java 稳态峰值需要充分预热后比较；启动和短命命令行程序则
 
 ### 5.2.1 接口视图复用与 smart cast 成功路径
 
-本节数字是修改前的调研基线。当前已完成[完整父表投影](INTERFACE-PROJECTION.md)及[接口检查与取表合并](INTERFACE-CHECKS.md)，设计、产物合同和验证见各交付记录；下面的历史查找次数不代表新实现。
+本节数字是修改前的调研基线。当前已完成[完整父表投影](INTERFACE-PROJECTION.md)、[接口检查与取表合并](INTERFACE-CHECKS.md)，以及 x86_64 release 的[接口 SSA 快照复用](INTERFACE-VALUES.md)。后者减少同一无 safepoint 直线区间的 object 重读，不改变查表或接口布局；ARM64 试验回退，保持原路径。设计、产物合同和验证见各交付记录；下面的历史查找次数不代表新实现。
 
 当前接口值保存 `{ object, itab }`。同一 exact interface 的复制保留这两个分量，调用直接读取已有 itab 的方法 slot。需要从 Child 取得 Parent 视图、且不知道具体 class 时，lowering 从 object 重新读取 TD，再调用 `scoop_rt_itable_lookup` 线性扫描该实际类型的 itable 目录；不是沿父接口链逐层寻找。该 helper 不缓存结果，现有 Child 视图也不保存其他接口的表。将转换后的 Parent 视图存入局部值后，其 itab 能正常复用；已知具体 class 的部分转换使用静态目录索引，无需线性扫描。
 
@@ -314,7 +314,7 @@ TLAB 已存在，但成功 bump 后仍有清零、对象头、精确大小、sta
 
 1. 证明目标处于本次无 safepoint 初始化区间、确属 young 且未发布时，消除不需要的代际屏障；release／large 等预晋升对象单独处理。
 2. 合并同 card 的写入、循环批量写入与范围屏障；遇到可能抛出或发布的边界，必须已登记此前写入。
-3. 扩展已交付的有界 metadata 查询提升，继续测量条件执行、多引用范围屏障及 x86 接口写入等未获稳定收益的路径；之后才评估对齐 region、分层索引、已分配地址区间等更便宜的地址到 card 映射。改变堆放置有碎片和地址空间成本。
+3. 扩展已交付的有界 metadata 查询提升，继续测量条件执行和多引用范围屏障。x86 接口复制／父投影已通过[局部 SSA 快照复用](INTERFACE-VALUES.md)消除内层 volatile 复制链，从而满足原有查询提升条件；ARM64 的相同试验及额外普通根读取提升均因回退未采纳。之后才评估对齐 region、分层索引、已分配地址区间等更便宜的地址到 card 映射。改变堆放置有碎片和地址空间成本。
 4. 按真实 young／dirty 集合或 bitmap 摘要缩小 minor 扫描范围，避免年轻工作量固定时暂停仍随稳定旧堆容量增长。
 
 以后并发标记的 SATB／增量更新屏障与 old-to-young barrier 是不同职责，消除规则必须分别成立。JDK 26 的双 card table 是减少并发争用的参考，不应在 Scoop 尚无对应并发消费者时照搬一套双表。[O8]
