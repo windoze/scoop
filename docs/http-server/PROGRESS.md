@@ -54,3 +54,4 @@
 - D6 条件求值底层：新增 evaluateHttpPreconditions，4／4 定向 release 测试和 API 文档检查通过。覆盖条件优先级、强／弱标签、无标签的表示存在性、方法适用性、秒精度和显式日期参考、重复标签字段与仅解析生效条件；无文件／缓存 I/O。
 - D6 server：新增 13／13 定向 release 测试通过；压缩 10／10、路由 6／6、管线 8／8、H2 生命周期 4／4、请求解压生命周期 1／1 回归通过。覆盖同一打开句柄的 metadata／读取、增长封顶与截短失败、HEAD／304 不读取、最终草稿条件、单 Range／416／回退、If-Range 强校验、已编码文件、原生路径字节、单次 URL 解码、显式目录索引和普通 symlink 语义。H1／H2 真实网络验证并发文件位置及取消背压传输；H2 已取消请求保留原始 stream 异常并正确记录 Cancelled。macOS 无法创建的非 UTF-8 文件名按实际 OS 错误映射，不假定所有文件系统都接受该名字。
 - D6 API 文档检查通过，发布 server 开发产物；独立文件 consumer 1／1 release 验证通过，消费公开 file／staticFiles 的范围与条件响应。新增生产文件最长 59 行；清理 5 个旧可执行缓存，保留当前 server／consumer 程序及编译缓存，未运行全量套件。
+- D7 握手底层：新增类型化 UnsupportedVersion 和 negotiateResponse，2／2 新测试及握手／协商／deflate 13／13 定向 release 回归通过，API 文档检查通过。合法不支持版本与缺失／重复／非法字段区分；构造一次 101 即保留实际协商数据，server 无需再次用客户端 accept 校验自产响应。会话接入仍在实施。

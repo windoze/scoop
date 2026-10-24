@@ -1,0 +1,49 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test
+private class WebSocketServerResponseTests {
+    @Test
+    fun `only otherwise valid unsupported numeric versions have a distinct failure kind`() {
+        val fields = wsSample().request.fields
+        for (version in ["0", "8", "25", "255"]) {
+            val error = assertFailsWith<WebSocketHandshakeException> {
+                WebSocketHandshake.parse(wsRequest(wsFields(fields, "Sec-WebSocket-Version", [version])))
+            }
+            assertEquals(WebSocketHandshakeFailureKind.UnsupportedVersion, error.kind)
+            assertEquals(Some("Sec-WebSocket-Version"), error.field)
+        }
+        for (version in ["", "013", "256", "300", "-1", "1a", "13, 13"]) {
+            val error = assertFailsWith<WebSocketHandshakeException> {
+                WebSocketHandshake.parse(wsRequest(wsFields(fields, "Sec-WebSocket-Version", [version])))
+            }
+            assertEquals(WebSocketHandshakeFailureKind.Malformed, error.kind)
+        }
+        val old = wsFields(fields, "Sec-WebSocket-Version", ["8"])
+        val error = assertFailsWith<WebSocketHandshakeException> {
+            WebSocketHandshake.parse(wsRequest(wsFields(old, "Sec-WebSocket-Key", ["invalid"])))
+        }
+        assertEquals(WebSocketHandshakeFailureKind.Malformed, error.kind)
+        assertFailsWith<HttpFieldParseException> {
+            WebSocketHandshake.parse(wsRequest(wsFields(old, "Content-Length", ["1"])))
+        }
+    }
+
+    @Test
+    fun `server response exposes the same selected negotiation without parsing its own output`() {
+        val plain = wsSample().negotiateResponse(Some("chat"), fields = [HttpField("Set-Cookie".toByteArray(), "a=b".toByteArray())])
+        assertEquals(101U, plain.head.status); assertEquals(Some("chat"), plain.negotiation.protocol)
+        assertTrue(when (plain.negotiation.deflate) { case None -> true; case Some(_) -> false })
+        assertEquals(1L, plain.head.fields.findAll("Set-Cookie".toByteArray()).size)
+        val offer = WebSocketDeflateOffer(serverNoContextTakeover = true, clientMaxWindowBits = WebSocketWindowBits.Limit(12))
+        val fields = wsFields(wsSample().request.fields, "Sec-WebSocket-Extensions", [String.fromUtf8(offer.toExtension().toByteArray())])
+        val handshake = WebSocketHandshake.parse(wsRequest(fields))
+        val selected = handshake.negotiateResponse(Some("chat"), Some(WebSocketDeflate(serverNoContextTakeover = true)))
+        assertEquals(12, selected.negotiation.deflate!!.clientWindowBits)
+        assertEquals(15, selected.negotiation.deflate!!.serverWindowBits)
+        assertTrue(selected.negotiation.deflate!!.serverNoContextTakeover)
+        assertEquals(Some("chat"), handshake.accept(selected.head).protocol)
+        assertFailsWith<WebSocketHandshakeException> { handshake.negotiateResponse(Some("unknown")) }
+    }
+}
