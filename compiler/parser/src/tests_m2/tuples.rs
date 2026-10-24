@@ -19,6 +19,31 @@ fn unit_identifier_is_the_unit_literal() {
 }
 
 #[test]
+fn explicit_unit_companion_access_preserves_the_type_qualifier() {
+    for source in ["Unit.Companion", "Unit . `Companion`", "Unit\n.Companion"] {
+        let Expr::FieldAccess(access) = init_expr(source) else {
+            panic!("expected companion access");
+        };
+        assert!(matches!(&*access.receiver, Expr::Var(name) if name.text == "Unit"));
+        assert!(matches!(&access.selector, FieldSelector::Name(name) if name.text == "Companion"));
+    }
+}
+
+#[test]
+fn ordinary_unit_members_and_parenthesized_values_keep_value_receivers() {
+    let Expr::MethodCall { receiver, .. } = init_expr("Unit.equals(())") else {
+        panic!("expected a Unit value method call");
+    };
+    assert!(matches!(&*receiver, Expr::UnitLiteral { .. }));
+    for source in ["().Companion", "(Unit).Companion", "Unit?.Companion"] {
+        let Expr::FieldAccess(access) = init_expr(source) else {
+            panic!("expected value field access");
+        };
+        assert!(matches!(&*access.receiver, Expr::UnitLiteral { .. }));
+    }
+}
+
+#[test]
 fn parens_around_one_expr_produce_no_node() {
     let Expr::Var(ident) = init_expr("(y)") else {
         panic!("expected the parenthesized expression itself");

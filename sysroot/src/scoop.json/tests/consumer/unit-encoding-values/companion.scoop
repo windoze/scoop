@@ -1,0 +1,61 @@
+package scoop.json.tests.consumer.unit_encoding_values
+
+import scoop.json.Json
+import scoop.test.*
+
+private enum UnitEnvelope<T> {
+    Present(T),
+    Missing
+
+    public companion object {
+        override interface ValueEncoder<UnitEnvelope<T>> where T.Companion : ValueEncoder<T> {}
+        override interface ValueDecoder<UnitEnvelope<T>> where T.Companion : ValueDecoder<T> {}
+    }
+}
+
+private fun <T> roundTripWithCompanion(value: T): T
+    where T.Companion : ValueEncoder<T>, T.Companion : ValueDecoder<T> =
+    Json.decodeFromString<T>(Json.encodeToString(value))
+
+@Test
+private class UnitCompanionTest {
+    @Test
+    fun `Unit default and explicit companion codecs retain null representation`() {
+        assertEquals("null", Json.encodeToString(Unit))
+        assertEquals(Unit, Json.decodeFromString<Unit>("null"))
+        assertEquals("null", Json.encodeToString((), Unit.Companion))
+        assertEquals(Unit, Json.decodeFromString("null", Unit.Companion))
+        assertEquals("null", Json.encodeToString(Unit, UnitEncoder))
+        assertEquals(Unit, Json.decodeFromString("null", UnitDecoder))
+    }
+
+    @Test
+    fun `conditional codecs accept Unit through generic and container boundaries`() {
+        assertEquals(Unit, roundTripWithCompanion(Unit))
+        val original: UnitEnvelope<Unit> = Present(Unit)
+        val restored = roundTripWithCompanion(original)
+        assertTrue(when (restored) { case Present(value) -> value == Unit; else -> false })
+        val sequence = roundTripWithCompanion<Array<Unit>>([Unit, Unit])
+        assertEquals(2L, sequence.size)
+        assertEquals(Unit, sequence[1L])
+        val missing: UnitEnvelope<Unit> = Missing
+        assertTrue(when (roundTripWithCompanion(missing)) { case Missing -> true; else -> false })
+    }
+
+    @Test
+    fun `companion conformance does not give the Unit data value codec interfaces`() {
+        val value: Any = Unit
+        val companion: Any = Unit.Companion
+        assertFalse(value is ValueEncoder<Unit>)
+        assertFalse(value is ValueDecoder<Unit>)
+        assertTrue(companion is ValueEncoder<Unit>)
+        assertTrue(companion is ValueDecoder<Unit>)
+    }
+
+    @Test
+    fun `Unit companion decoding rejects non-null JSON values`() {
+        for (text in ["true", "0", "{}", "[]", "\"unit\""]) {
+            assertFailsWith<DecodingException> { Json.decodeFromString<Unit>(text) }
+        }
+    }
+}
