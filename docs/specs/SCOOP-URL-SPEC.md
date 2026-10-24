@@ -55,6 +55,8 @@ builder 分开提供接收原文与接收已编码组件的入口：`appendPathS
 
 相对解析按标准移除真正的 `.`／`..` 路径段，`%2E` 是已编码数据，不作为点段。已构造且未改变的组件不在每次访问中重新完整解析；修改只检查新输入与组合后真正受影响的结构。
 
+`Url.Companion` 实现 `ValueEncoder<Url>` 与 `ValueDecoder<Url>`。编码写出 `toString()` 已保存的规范 ASCII URI，不重新解析、不拆成组件对象，也不使用面向展示的 IRI 或脱敏表示。解码只接受字符串并复用 `parseOrNone`：普通 URL 格式错误转换为当前 decoder path 的 DecodingException，后端运行错误继续传播。相对引用和非 HTTP scheme 同样可往返，不增加网络目标限制，不解析或访问引用的资源。userinfo、有序重复 query、缺失／空 query 与 fragment 按既有 URL 值语义保留。codec 不承诺保留输入的非规范拼写。
+
 ## 4. 资源名称与 HTTP 边界
 
 Location 可以是绝对、相对、仅 query 或仅 fragment 的引用，均由 `resolve` 处理。重定向是否允许该 scheme、是否跨 origin、是否转发认证由 client 决定；URL 库只返回规范值。解析不读取环境变量或当前目录，不自动从缺少 scheme 的 `example.com` 猜成 HTTPS。
