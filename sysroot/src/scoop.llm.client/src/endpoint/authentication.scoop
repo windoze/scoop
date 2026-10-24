@@ -16,7 +16,14 @@ public interface LlmAuth {
     public companion object {
         public fun none(): LlmAuth = NoLlmAuth()
         public fun bearer(token: String): LlmAuth = BearerLlmAuth(token)
+        public fun header(name: String, value: String): LlmAuth = HeaderLlmAuth(name, value)
     }
+}
+
+private class HeaderLlmAuth(name: String, value: String) : LlmAuth {
+    private val field: HttpField = HttpField(name.toByteArray(), value.toByteArray(), neverIndex = true)
+    init { if (value.length == 0L) throw IllegalArgumentException(Some("authentication header must not be empty")) }
+    public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> = [field]
 }
 
 private class NoLlmAuth : LlmAuth {

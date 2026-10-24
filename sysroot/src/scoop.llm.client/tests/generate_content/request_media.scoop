@@ -1,0 +1,43 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class GenerateContentRequestMediaTest {
+    @Test
+    fun `generateContent encodes inline and URI media without changing MIME parameters or opaque file metadata`() {
+        val dialect = GeminiGenerateContentDialect().id
+        val file = LlmFileReference(dialect, Json.parse("{\"fileUri\":\"gs://bucket/report\",\"mimeType\":\"application/pdf\",\"future\":true}"))
+        val body = encodeGenerateContent(LlmRequest([Message([
+            Image(Bytes([1.toByte(), 2.toByte()], "image/png")),
+            Audio(Bytes([], "audio/pcm;rate=24000")),
+            Video(MediaSource.Url(Url.parse("https://example.invalid/movie"), "video/mp4")),
+            Document(FileReference(file, "application/pdf"), Some("report.pdf")),
+            Native(dialect, Json.parse("{\"text\":\"native\",\"thoughtSignature\":\"opaque\"}"))])]))
+        val parts = body["contents"]!![0L]["parts"]!!
+        assertEquals("AQI=", parts[0L]["inlineData"]!!["data"]!!.asString())
+        assertEquals("audio/pcm;rate=24000", parts[1L]["inlineData"]!!["mimeType"]!!.asString())
+        assertEquals("https://example.invalid/movie", parts[2L]["fileData"]!!["fileUri"]!!.asString())
+        assertEquals("report.pdf", parts[3L]["fileData"]!!["displayName"]!!.asString())
+        assertTrue(parts[3L]["fileData"]!!["future"]!!.asBoolean())
+        assertEquals("opaque", parts[4L]["thoughtSignature"]!!.asString())
+    }
+
+    @Test
+    fun `generateContent media rejects incompatible kinds references and timestamped frames`() {
+        val own = GeminiGenerateContentDialect().id
+        val file = LlmFileReference(own, Json.parse("{\"fileUri\":\"files/x\",\"mimeType\":\"application/pdf\",\"displayName\":\"old.pdf\"}"))
+        for ((part, path) in [
+            (ContentPart.Image(Bytes([], "audio/wav")), "/source/mimeType"),
+            (ContentPart.Document(FileReference(file, "text/plain")), "/source/mimeType"),
+            (ContentPart.Document(FileReference(LlmFileReference(own, Json.parse("{\"fileUri\":\"files/x\",\"mimeType\":\"application/*\"}")), "application/pdf")), "/source/reference/value/mimeType"),
+            (ContentPart.Document(FileReference(file, "application/pdf"), Some("new.pdf")), "/source"),
+            (ContentPart.Audio(FileReference(LlmFileReference(OpenAiChatDialect().id, Json.parse("{}")), "audio/wav")), "/source/reference/dialect"),
+            (ContentPart.VideoFrames([]), ""),
+            (ContentPart.Native(own, Json.parse("false")), "/value")])
+            assertGenerateContentRequestFailure(LlmRequest([Message([part])]), "/input/0/content/0" + path)
+    }
+}

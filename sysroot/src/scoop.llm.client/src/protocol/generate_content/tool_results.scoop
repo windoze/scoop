@@ -1,0 +1,62 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeGenerateContentToolResult(dialect: DialectId, call: ClientToolCallReference, content: Array<ContentPart>,
+    isError: Boolean, extensions: Array<DialectExtension>, tools: Array<ToolDefinition>, path: String): JsonValue {
+    requireLlmOwner(call.dialect, dialect, path + "/call/dialect")
+    if (call.id == Some("")) throw LlmRequestException(path + "/call/id", "present call ID must not be empty")
+    val name = generateContentResultName(call, tools, path + "/call")
+    val text = ArrayList<String>()
+    val parts = ArrayList<JsonValue>()
+    var index = 0L
+    for (part in content) {
+        val partPath = path + "/content/" + index.toString()
+        when (part) {
+            case Text(value, values) -> {
+                if (values.size != 0L) throw LlmRequestException(partPath + "/extensions", "function response text has no per-part metadata")
+                text.add(value)
+            }
+            case Native(_, _) -> throw LlmRequestException(partPath, "function results require explicit text or inline media")
+            else -> {
+                val value = encodeGenerateContentPart(dialect, part, partPath)
+                if (!value.containsKey("inlineData")) throw LlmRequestException(partPath, "function response media requires inline bytes")
+                parts.add(value)
+            }
+        }
+        index += 1L
+    }
+    val output = if (text.size == 1L) JsonValue.fromString(text[0L]) else Json.encodeToValue(text.toArray())
+    val response = JsonObjectBuilder().add("name", JsonValue.fromString(name))
+        .add("response", JsonObjectBuilder().add(if (isError) "error" else "output", output).build())
+    if (call.id != None) response.add("id", JsonValue.fromString(call.id!!))
+    if (parts.size != 0L) response.add("parts", JsonValue.fromArray(parts))
+    return JsonObjectBuilder().add("functionResponse", mergeLlmExtensions(response.build(), extensions, dialect,
+        ["name", "id", "response", "parts"], path)).build()
+}
+
+private fun generateContentResultName(call: ClientToolCallReference, tools: Array<ToolDefinition>, path: String): String {
+    val name = when (call.context) {
+        case Some(context) -> {
+            try {
+                if (context.kind != JsonValueKind.Object) throw DecodingException(path + "/context", "call context requires a Part object")
+                val value = context["functionCall"] ?: throw DecodingException(path + "/context/functionCall", "call context requires functionCall")
+                val original = decodeGenerateContentValue<GenerateContentFunctionCall>(value, path + "/context/functionCall")
+                if (generateContentId(original.id) != call.id) throw LlmRequestException(path + "/id", "call ID differs from original functionCall")
+                original.name
+            } catch (error: DecodingException) {
+                throw LlmRequestException(error.path, error.message ?: "invalid function call context")
+            }
+        }
+        case None -> {
+            var found: String? = None
+            for (tool in tools) { when (tool) {
+                case ClientFunction(key, wireName, _, _, _, _) -> { if (key == call.toolKey) found = Some(wireName) }
+                else -> continue
+            } }
+            found ?: throw LlmRequestException(path + "/context", "function result needs original context or a matching function declaration")
+        }
+    }
+    requireGenerateContentFunctionName(name, path + "/context/functionCall/name")
+    return name
+}

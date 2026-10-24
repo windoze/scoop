@@ -1,0 +1,37 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeGenerateContentParts(dialect: DialectId, parts: Array<ContentPart>, path: String,
+    system: Boolean = false): JsonValue {
+    val result = ArrayList<JsonValue>()
+    var index = 0L
+    for (part in parts) {
+        val partPath = path + "/" + index.toString()
+        val isText = when (part) { case Text(_, _) -> true; else -> false }
+        if (system && !isText) throw LlmRequestException(partPath, "system instructions require text")
+        result.add(encodeGenerateContentPart(dialect, part, partPath))
+        index += 1L
+    }
+    if (result.size == 0L) throw LlmRequestException(path, "Content requires at least one part")
+    return JsonValue.fromArray(result)
+}
+
+internal fun encodeGenerateContentPart(dialect: DialectId, part: ContentPart, partPath: String): JsonValue {
+    val (value, extensions): (JsonValue, Array<DialectExtension>) = when (part) {
+        case Text(text, values) -> (JsonObjectBuilder().add("text", JsonValue.fromString(text)).build(), values)
+        case Image(source, values) -> (encodeGenerateContentMedia(dialect, source, "image", None, partPath + "/source"), values)
+        case Document(source, filename, values) -> (encodeGenerateContentMedia(dialect, source, "document", filename, partPath + "/source"), values)
+        case Audio(source, values) -> (encodeGenerateContentMedia(dialect, source, "audio", None, partPath + "/source"), values)
+        case Video(source, values) -> (encodeGenerateContentMedia(dialect, source, "video", None, partPath + "/source"), values)
+        case VideoFrames(_, _) -> throw LlmRequestException(partPath, "generateContent requires video media, not separate timestamped frames")
+        case Native(owner, raw) -> {
+            requireLlmOwner(owner, dialect, partPath + "/dialect")
+            if (raw.kind != JsonValueKind.Object) throw LlmRequestException(partPath + "/value", "native Part must be an object")
+            (raw, [])
+        }
+    }
+    return mergeLlmExtensions(value, extensions, dialect, ["text", "inlineData", "inline_data", "fileData", "file_data",
+        "functionCall", "function_call", "functionResponse", "function_response", "executableCode", "executable_code",
+        "codeExecutionResult", "code_execution_result", "toolCall", "tool_call", "toolResponse", "tool_response"], partPath)
+}

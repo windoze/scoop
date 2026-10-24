@@ -1,0 +1,54 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class GenerateContentToolResultsTest {
+    @Test
+    fun `generateContent replays signed parallel calls and groups restored results without inventing IDs`() {
+        val request = generateContentRequest()
+        val wire = generateContentBody("[{\"functionCall\":{\"name\":\"lookup\",\"args\":{}},\"thoughtSignature\":\"sig\"},{\"functionCall\":{\"name\":\"lookup\",\"id\":\"second\"}}]")
+        val result = Json.decodeFromString<LlmResponse>(Json.encodeToString(generateContentDecode(wire)))
+        val calls = result.clientToolCalls
+        val next = LlmRequest([request.input[0L], result.toInput()[0L], ToolResult(calls[0L].reference, [Text("a"), Text("b")]),
+            ToolResult(calls[1L].reference, [Text("failure")], true)], tools = request.tools)
+        val body = encodeGenerateContent(Json.decodeFromString<LlmRequest>(Json.encodeToString(next)))
+        val contents = body["contents"]!!
+        assertEquals(3L, contents.size)
+        assertEquals(Json.stringify(wire["candidates"]!![0L]["content"]!!), Json.stringify(contents[1L]))
+        assertEquals("user", contents[2L]["role"]!!.asString())
+        val parts = contents[2L]["parts"]!!
+        assertEquals(2L, parts.size)
+        assertFalse(parts[0L]["functionResponse"]!!.containsKey("id"))
+        assertEquals("lookup", parts[0L]["functionResponse"]!!["name"]!!.asString())
+        assertEquals("[\"a\",\"b\"]", Json.stringify(parts[0L]["functionResponse"]!!["response"]!!["output"]!!))
+        assertEquals("second", parts[1L]["functionResponse"]!!["id"]!!.asString())
+        assertEquals("failure", parts[1L]["functionResponse"]!!["response"]!!["error"]!!.asString())
+    }
+
+    @Test
+    fun `generateContent tool results resolve explicit definitions and keep inline media with an empty output`() {
+        val reference = ClientToolCallReference(GeminiGenerateContentDialect().id, ToolKey("local"))
+        val body = encodeGenerateContent(LlmRequest([ToolResult(reference, [Image(Bytes([1.toByte()], "image/png"))],
+            extensions = generateContentExtension("{\"willContinue\":false}"))], tools = generateContentRequest().tools))
+        val response = body["contents"]!![0L]["parts"]!![0L]["functionResponse"]!!
+        assertEquals("lookup", response["name"]!!.asString())
+        assertEquals(0L, response["response"]!!["output"]!!.size)
+        assertEquals("AQ==", response["parts"]!![0L]["inlineData"]!!["data"]!!.asString())
+        assertFalse(response["willContinue"]!!.asBoolean())
+    }
+
+    @Test
+    fun `generateContent tool results reject changed call identity missing context and implicit media downloads`() {
+        val own = GeminiGenerateContentDialect().id
+        val call = generateContentDecode(generateContentBody("[{\"functionCall\":{\"name\":\"lookup\",\"id\":\"original\"}}]")).clientToolCalls[0L].reference
+        assertGenerateContentRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(own, call.toolKey, Some("changed"), call.context), [])]), "/input/0/call/id")
+        assertGenerateContentRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(own, call.toolKey), [])]), "/input/0/call/context")
+        assertGenerateContentRequestFailure(LlmRequest([ToolResult(call, [Text("before"), Image(MediaSource.Url(Url.parse("https://example.invalid/image"), "image/png"))])]), "/input/0/content/1")
+        assertGenerateContentRequestFailure(LlmRequest([ToolResult(call, [Text("before"), Image(Bytes([], "audio/wav"))])]), "/input/0/content/1/source/mimeType")
+        assertGenerateContentRequestFailure(LlmRequest([ToolResult(call, [], extensions = generateContentExtension("{\"id\":\"override\"}"))]), "/input/0/extensions/0/value/id")
+    }
+}

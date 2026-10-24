@@ -1,15 +1,22 @@
 package scoop.llm.client
 
 import scoop.json.*
+import scoop.url.Url
 
-/** Pure decoding of complete generateContent responses and their replayable content. */
-public class GenerateContentProtocol public constructor(public val dialect: GenerateContentDialect) {
+/** generateContent requests and complete responses, bound to one explicit dialect. */
+public class GenerateContentProtocol public constructor(public val dialect: GenerateContentDialect) : LlmGenerationProtocol {
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = generateContentUrl(baseUrl, modelId)
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
+        encodeGenerateContentRequest(dialect, modelId, request)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
     init {
         if (dialect.id.protocol != ApiProtocolId("generate-content"))
             throw IllegalArgumentException(Some("generateContent dialect belongs to another API protocol"))
     }
 
-    public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
         try {
             val body = decodeGenerateContentValue<GenerateContentResponseBody>(value, "")
             val error = value["error"]

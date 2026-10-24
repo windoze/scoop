@@ -1,0 +1,39 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentRequestExtensionsTest {
+    @Test
+    fun `generateContent merges nested native settings without dropping typed options`() {
+        val body = encodeGenerateContent(LlmRequest([Message([Text("q")])], tools = generateContentRequest().tools,
+            options = LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("low"))), toolChoice = Required, output = JsonObject),
+            extensions = generateContentExtension("{\"generationConfig\":{\"thinkingConfig\":{\"includeThoughts\":false},\"responseFormat\":{\"audio\":{\"sampleRate\":24000}},\"seed\":0},\"toolConfig\":{\"includeServerSideToolInvocations\":true}}")))
+        val config = body["generationConfig"]!!
+        assertEquals("LOW", config["thinkingConfig"]!!["thinkingLevel"]!!.asString())
+        assertFalse(config["thinkingConfig"]!!["includeThoughts"]!!.asBoolean())
+        assertEquals("APPLICATION_JSON", config["responseFormat"]!!["text"]!!["mimeType"]!!.asString())
+        assertEquals(24000L, config["responseFormat"]!!["audio"]!!["sampleRate"]!!.asLong())
+        assertEquals(0L, config["seed"]!!.asLong())
+        assertEquals("ANY", body["toolConfig"]!!["functionCallingConfig"]!!["mode"]!!.asString())
+        assertTrue(body["toolConfig"]!!["includeServerSideToolInvocations"]!!.asBoolean())
+    }
+
+    @Test
+    fun `generateContent extensions cannot override omitted controls aliases or content variants`() {
+        for ((value, path) in [
+            ("{\"contents\":[]}", "contents"),
+            ("{\"generation_config\":{}}", "generation_config"),
+            ("{\"generationConfig\":false}", "generationConfig"),
+            ("{\"generationConfig\":{\"top_p\":0}}", "generationConfig/top_p"),
+            ("{\"generationConfig\":{\"_response_json_schema\":{}}}", "generationConfig/_response_json_schema"),
+            ("{\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1}}}", "generationConfig/thinkingConfig/thinkingBudget"),
+            ("{\"generationConfig\":{\"responseFormat\":{\"text\":{\"schema\":{}}}}}", "generationConfig/responseFormat/text/schema"),
+            ("{\"toolConfig\":{\"functionCallingConfig\":{}}}", "toolConfig/functionCallingConfig")])
+            assertGenerateContentRequestFailure(LlmRequest([Message([Text("q")])], extensions = generateContentExtension(value)), "/extensions/0/value/" + path)
+        assertGenerateContentRequestFailure(LlmRequest([Message([Text("q", generateContentExtension("{\"file_data\":{}}"))])]),
+            "/input/0/content/0/extensions/0/value/file_data")
+    }
+}

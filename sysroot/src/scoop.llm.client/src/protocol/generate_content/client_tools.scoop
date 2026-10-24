@@ -2,7 +2,7 @@ package scoop.llm.client
 
 import scoop.json.*
 
-private class GenerateContentFunctionCall public constructor(public val name: String, public val id: String? = None,
+internal class GenerateContentFunctionCall public constructor(public val name: String, public val id: String? = None,
     public val args: JsonValue? = None) {
     public companion object : ValueDecoder<GenerateContentFunctionCall>
 }

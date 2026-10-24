@@ -375,7 +375,7 @@ EventsOnly 只保存关联、文本／引用的已交付位置、usage 和结束
 
 ## 18. Gemini generateContent 完整响应
 
-GenerateContentProtocol 与 GenerateContentDialect 分别负责 contents／parts／candidates 的线格式和服务方解释；GeminiGenerateContentDialect 的标识为 DialectId(ApiProtocolId("generate-content"), "gemini-generate-content")。本节先提供纯 decodeResponse(value, request)，不把 Interactions 的 step 或签名字段当作 generateContent part，也不在请求编码实现前提供生成 provider。
+GenerateContentProtocol 与 GenerateContentDialect 分别负责 contents／parts／candidates 的线格式和服务方解释；GeminiGenerateContentDialect 的标识为 DialectId(ApiProtocolId("generate-content"), "gemini-generate-content")。decodeResponse(value, request) 是不执行 I/O 的纯解码，不把 Interactions 的 step 或签名字段当作 generateContent part。请求编码与普通生成见第 19 节。
 
 candidates 按 wire 顺序保存，index 缺省为协议的 0，不能用数组位置替代缺失的 index；负值和重复索引报错。没有候选时不伪造候选，promptFeedback、modelStatus 等信息保留在 response.native。responseId／modelVersion 映射 id／model，未报告的 createdAt 保持 None。content.role 可省略或为空，显式非 model 角色拒绝；content 与所有 parts、thoughtSignature、未知字段完整保留在 history 中。CONTINUATION 的 token 留在原文，候选为 Incomplete／Pause，history 不可用，因为继续该响应要求重复最初的输入，而不能追加部分输出。
 
@@ -396,3 +396,25 @@ usageMetadata 的 inputTokens 是 promptTokenCount 与 toolUsePromptTokenCount �
 promptTokensDetails 与 toolUsePromptTokensDetails 均存在时，按模态合并为输入明细；candidatesTokensDetails 提供已报告的输出明细。cacheTokensDetails 是输入子集，仅保留原文，不再次加入通用模态总数。未知模态使用 Other，全部原生计数及未归一化明细保留在 usage.native。
 
 协议依据：[generateContent API](https://ai.google.dev/api/generate-content)。参考 [Vercel Google usage 映射](https://github.com/vercel/ai/blob/main/packages/google/src/convert-google-usage.ts)的输入／工具与输出／思考拆分；本库仍保留未报告计数的 None，不自动继续请求或累加多次调用。
+
+## 19. Gemini generateContent 请求与普通生成
+
+GenerateContentProtocol 实现 LlmGenerationProtocol；Providers.geminiGenerateContent() 固定组合 GeminiGenerateContentDialect，缺省部署为 https://generativelanguage.googleapis.com/v1beta。简短模型 ID 前加 models，含斜线的 ID 按显式资源路径逐段编码，末段追加 :generateContent；保留部署前缀和查询，不查询模型目录。模型只参与 URL，不重复放入正文。普通与流式请求正文相同；SSE reducer 交付前不实现 LlmSseProtocol。
+
+最小正文只有 contents。User／Assistant 分别编码 user／model；request.system 编码只含文本的 systemInstruction，消息内 System／Developer 角色不能无声移动到全局。消息与 part 保持顺序，不跨历史项合并。历史检查 dialect 及 Content／parts 的基本形状后直接回传整个对象，保留未知字段与 thoughtSignature；不填补签名、不自动追加 CONTINUATION 的部分结果。
+
+图片、文档、音频与视频 Bytes 映射 inlineData，URL 映射 fileData；保留完整 MIME 参数，不下载或转码。FileReference 使用同 dialect 的原始 fileData object，校验 fileUri 及显式 MIME 一致性；文档 filename 对应 displayName，已有且不同的名称拒绝覆盖。普通媒体的 MIME 与其内容种类必须一致；VideoFrames 没有等价的生成请求表达，显式报告路径错误。Native part 原样发送并检查归属及对象形状。ContentPart 扩展只影响对应 part；不能写入其他内容变体的管理字段。
+
+采样、候选数、上限、停止序列置于 generationConfig，未指定时省略整个对象。temperature 范围 0～2，topP 范围 0～1，stop 最多 5 项；模型级限制仍由 capability 表达，不按模型名启用或删除选项。reasoning.budgetTokens 映射 thinkingBudget；effort 仅接受 minimal／low／medium／high 并映射相应大写 thinkingLevel，两者互斥。enabled=false 映射预算 0；enabled=true 需要明确的正预算或 effort，不能被解释为 includeThoughts。JsonObject／JsonSchema 使用 responseFormat.text 的 APPLICATION_JSON 和可选原始 schema；独立 name／description／strict 没有等价字段，显式非缺省值拒绝。
+
+ClientFunction 编码 parametersJsonSchema，保留参数 schema，不转换为旧 OpenAPI Schema。多个函数名必须唯一；每个声明独立占一个 tools 项，扩展位于该 FunctionDeclaration。协议没有 per-function strict、parallelToolCalls 或 custom tool 格式，显式请求报错。ToolChoice.Auto 省略；None／Required／Specific 分别映射 functionCallingConfig 的 NONE／ANY／ANY+allowedFunctionNames；它们只适用于函数声明，不能借此控制服务端工具，混入服务端工具时非 Auto 选择拒绝。ClientNative 需另有已实现的调用／结果映射，本节不伪装成普通函数。
+
+Server.WebSearch 映射 googleSearch，WebSearchOptions 中不能等价表达的显式域名、位置和来源开关报错；Server.Native 支持 codeExecution、googleSearch、googleSearchRetrieval、urlContext、fileSearch、googleMaps、mcpServers，其 configuration 为该工具字段的对象内容，mcpServers 单项转换为数组元素。执行方保持 server，重复单例种类报错，mcpServers 可重复声明。显式版本无对应字段，拒绝而不丢弃。请求扩展 toolConfig.includeServerSideToolInvocations 可显式要求返回服务端执行过程，不因工具声明自动开启。
+
+ToolResult 使用 reference.context 中原始 functionCall.name，缺省 context 时可从当前 ClientFunction 的 ToolKey 解析；不把 ToolKey 作为 wire name。存在的 context ID 与 reference ID 必须一致，缺省 ID 保持省略。连续 ToolResult 组成一个 user Content 的多个 functionResponse part，以表达并行调用的整组结果。文本结果按原顺序置入 response.output，isError=true 使用 response.error；只有一个文本时用字符串，多个时用字符串数组，空结果用空数组。Bytes 媒体作为 functionResponse.parts.inlineData；没有协议对应形式的 URL、文件引用或 Native 内容明确拒绝，不下载、不把任意内容转成成功说明。ToolResult 扩展位于 functionResponse，不得覆盖 name／id／response／parts。
+
+请求扩展在原位置合并。generationConfig、thinkingConfig、responseFormat、responseFormat.text 与 toolConfig 只允许补充未被通用 API 管理的字段；即使通用值省略，也不能用扩展绕过其校验。对未知扩展不推测语义。根部的 contents／systemInstruction／tools／model／stream 保留为管理字段。
+
+LlmAuth.header(name, value) 表达固定认证头；它与 bearer 一样不读取环境，不进入可序列化请求或响应。Gemini 应用显式提供 x-goog-api-key。普通生成复用现有调用寿命、能力检查、实际 UTC 时间戳、错误正文边界和重试；Google error.status 作为服务错误 code，完整原文保留，仅 503／UNAVAILABLE 标记可重试，RESOURCE_EXHAUSTED 不被猜成短时限流。
+
+协议依据：[generateContent](https://ai.google.dev/api/generate-content)、[ToolConfig](https://ai.google.dev/api/caching#ToolConfig)、[API key 请求头](https://ai.google.dev/gemini-api/docs/api-key)。借鉴 [Vercel Google 消息映射](https://github.com/vercel/ai/blob/main/packages/google/src/convert-to-google-messages.ts)中的有序 part 与 functionResponse 组织，保持本库的原生历史和显式媒体形式。

@@ -1,0 +1,55 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentToolRequestsTest {
+    @Test
+    fun `generateContent function schema names and tool choice use the function declaration protocol`() {
+        val schema = Json.parse("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"integer\"}},\"additionalProperties\":false}")
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("local"), "team.lookup:v1", schema, "lookup",
+            extensions = generateContentExtension("{\"responseJsonSchema\":{\"type\":\"object\"}}"))]
+        for ((choice, mode) in [(ToolChoice.None, "NONE"), (ToolChoice.Required, "ANY"), (ToolChoice.Specific(ToolKey("local")), "ANY")]) {
+            val body = encodeGenerateContent(LlmRequest([Message([Text("q")])], tools = tools, options = LlmGenerationOptions(toolChoice = choice)))
+            val function = body["tools"]!![0L]["functionDeclarations"]!![0L]
+            assertEquals("team.lookup:v1", function["name"]!!.asString())
+            assertEquals(Json.stringify(schema), Json.stringify(function["parametersJsonSchema"]!!))
+            assertEquals("object", function["responseJsonSchema"]!!["type"]!!.asString())
+            val config = body["toolConfig"]!!["functionCallingConfig"]!!
+            assertEquals(mode, config["mode"]!!.asString())
+            when (choice) { case Specific(_) -> assertEquals("team.lookup:v1", config["allowedFunctionNames"]!![0L].asString()); else -> assertFalse(config.containsKey("allowedFunctionNames")) }
+        }
+    }
+
+    @Test
+    fun `generateContent mixes server tools with client functions without requesting client execution`() {
+        val own = GeminiGenerateContentDialect().id
+        val tools: Array<ToolDefinition> = [generateContentRequest().tools[0L], Server(ToolKey("search"), WebSearch()),
+            Server(ToolKey("code"), Native(NativeToolDefinition(own, "codeExecution"))),
+            Server(ToolKey("files"), Native(NativeToolDefinition(own, "fileSearch", Json.parse("{\"fileSearchStoreNames\":[\"fileSearchStores/a\"]}")))),
+            Server(ToolKey("mcp"), Native(NativeToolDefinition(own, "mcpServers", Json.parse("{\"name\":\"remote\",\"streamableHttpTransport\":{\"url\":\"https://example.invalid/mcp\"}}"))))]
+        val body = encodeGenerateContent(LlmRequest([Message([Text("q")])], tools = tools))
+        assertFalse(body.containsKey("toolConfig"))
+        assertEquals(5L, body["tools"]!!.size)
+        assertEquals(0L, body["tools"]!![1L]["googleSearch"]!!.size)
+        assertEquals(0L, body["tools"]!![2L]["codeExecution"]!!.size)
+        assertEquals("fileSearchStores/a", body["tools"]!![3L]["fileSearch"]!!["fileSearchStoreNames"]!![0L].asString())
+        assertEquals("remote", body["tools"]!![4L]["mcpServers"]!![0L]["name"]!!.asString())
+        assertGenerateContentRequestFailure(LlmRequest([Message([Text("q")])], tools = tools, options = LlmGenerationOptions(toolChoice = None)), "/options/toolChoice")
+    }
+
+    @Test
+    fun `generateContent rejects ambiguous declarations server filters versions and execution mismatches`() {
+        val own = GeminiGenerateContentDialect().id
+        val question: Array<LlmInputItem> = [Message([Text("q")])]
+        assertGenerateContentRequestFailure(LlmRequest(question, tools = [generateContentRequest().tools[0L],
+            ClientFunction(ToolKey("other"), "lookup", Json.parse("{}"))]), "/tools/1/name")
+        assertGenerateContentRequestFailure(LlmRequest(question, tools = [ClientFunction(ToolKey("f"), "f", Json.parse("{}"), strict = Some(true))]), "/tools/0/strict")
+        assertGenerateContentRequestFailure(LlmRequest(question, tools = [Server(ToolKey("s"), WebSearch(WebSearchOptions(allowedDomains = Some([]))))]), "/tools/0/tool/options/allowedDomains")
+        assertGenerateContentRequestFailure(LlmRequest(question, tools = [Server(ToolKey("s"), Native(NativeToolDefinition(own, "codeExecution", version = Some("v1"))))]), "/tools/0/tool/version")
+        assertGenerateContentRequestFailure(LlmRequest(question, tools = [ClientNative(ToolKey("code"), NativeToolDefinition(own, "codeExecution"))]), "/tools/0")
+        assertGenerateContentRequestFailure(LlmRequest(question, tools = [Server(ToolKey("a"), WebSearch()), Server(ToolKey("b"), WebSearch())]), "/tools/1")
+    }
+}

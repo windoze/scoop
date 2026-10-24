@@ -1,0 +1,47 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.replace
+
+internal fun mergeGenerateContentExtensions(base: JsonValue, extensions: Array<DialectExtension>, dialect: DialectId): JsonValue {
+    var result = base
+    var index = 0L
+    for (extension in extensions) {
+        val path = "/extensions/" + index.toString()
+        requireLlmOwner(extension.dialect, dialect, path + "/dialect")
+        result = mergeGenerateContentConfig(result, extension.value, "request", path + "/value")
+        index += 1L
+    }
+    return result
+}
+
+/** Only these protocol containers accept nested additions; unknown values are not traversed. */
+private fun mergeGenerateContentConfig(base: JsonValue, extension: JsonValue, scope: String, path: String): JsonValue {
+    if (extension.kind != JsonValueKind.Object) throw LlmRequestException(path, "configuration extension must be an object")
+    val managed: Array<String> = when (scope) {
+        case "request" -> ["model", "stream", "contents", "systemInstruction", "system_instruction", "tools", "generation_config", "tool_config"]
+        case "generationConfig" -> ["temperature", "topP", "top_p", "topK", "top_k", "candidateCount", "candidate_count",
+            "maxOutputTokens", "max_output_tokens", "stopSequences", "stop_sequences", "thinking_config", "response_format",
+            "responseMimeType", "response_mime_type", "responseSchema", "response_schema", "responseJsonSchema", "response_json_schema", "_responseJsonSchema", "_response_json_schema"]
+        case "thinkingConfig" -> ["thinkingBudget", "thinking_budget", "thinkingLevel", "thinking_level"]
+        case "text" -> ["mimeType", "mime_type", "schema"]
+        case "toolConfig" -> ["functionCallingConfig", "function_calling_config"]
+        else -> []
+    }
+    val result = JsonObjectBuilder()
+    for ((name, value) in base.members()) if (!extension.containsKey(name)) result.add(name, value)
+    for ((name, value) in extension.members()) {
+        val fieldPath = path + "/" + name.replace("~", "~0").replace("/", "~1")
+        for (reserved in managed) if (name == reserved)
+            throw LlmRequestException(fieldPath, "extension cannot override a managed protocol field")
+        val nested = (scope == "request" && (name == "generationConfig" || name == "toolConfig")) ||
+            (scope == "generationConfig" && (name == "thinkingConfig" || name == "responseFormat")) ||
+            (scope == "responseFormat" && name == "text")
+        if (nested) result.add(name, mergeGenerateContentConfig(base[name] ?: JsonObjectBuilder().build(), value, name, fieldPath))
+        else {
+            if (base.containsKey(name)) throw LlmRequestException(fieldPath, "extension conflicts with an encoded protocol field")
+            result.add(name, value)
+        }
+    }
+    return result.build()
+}

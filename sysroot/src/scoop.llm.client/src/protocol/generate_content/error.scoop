@@ -1,0 +1,11 @@
+package scoop.llm.client
+
+import scoop.json.JsonValueKind
+
+internal fun readGeminiServiceError(dialect: DialectId, status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
+    val value = parseLlmServiceError(body, truncated)
+    val error = when (value) { case Some(root) -> if (root.kind == JsonValueKind.Object) root["error"] else None; case None -> None }
+    val code = llmServiceErrorString(error, "status")
+    return LlmServiceException(dialect, status, body, truncated, code, value, status == 503U && code == Some("UNAVAILABLE"),
+        llmServiceErrorString(error, "message") ?: "Gemini service rejected the request")
+}
