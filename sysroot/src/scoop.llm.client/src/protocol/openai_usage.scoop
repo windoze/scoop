@@ -1,0 +1,14 @@
+package scoop.llm.client
+
+/** Read and write counts are disjoint input categories, not additions to the input total. */
+internal fun openAiOrdinaryInputTokens(input: Long?, read: Long?, write: Long?, path: String): Long? {
+    if (read != None && read!! < 0L) throw DecodingException(path + "/cached_tokens", "token count must not be negative")
+    if (write != None && write!! < 0L) throw DecodingException(path + "/cache_write_tokens", "token count must not be negative")
+    val total = input ?: return None
+    if (read != None && read!! > total) throw DecodingException(path, "cache read tokens exceed input tokens")
+    if (write != None && write!! > total) throw DecodingException(path, "cache write tokens exceed input tokens")
+    if (read == None || write == None) return None
+    val remaining = total - read!!
+    if (write!! > remaining) throw DecodingException(path, "cache read and write tokens exceed input tokens")
+    return Some(remaining - write!!)
+}

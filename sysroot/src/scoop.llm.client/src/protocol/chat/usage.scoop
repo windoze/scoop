@@ -33,6 +33,16 @@ private class ChatCompletionTokenDetails public constructor(
     public companion object : ValueDecoder<ChatCompletionTokenDetails>
 }
 
+private class OpenAiChatCacheWrite public constructor(
+    @Serialize(rename = "prompt_tokens_details") public val details: OpenAiChatCacheWriteDetails? = None
+) {
+    public companion object : ValueDecoder<OpenAiChatCacheWrite>
+}
+
+private class OpenAiChatCacheWriteDetails public constructor(@Serialize(rename = "cache_write_tokens") public val written: Long? = None) {
+    public companion object : ValueDecoder<OpenAiChatCacheWriteDetails>
+}
+
 internal fun readChatUsage(value: JsonValue, deepSeek: Boolean): TokenUsage {
     val fields = decodeChatValue<ChatUsageFields>(value, "/usage")
     val input = checkedChatCount(fields.prompt, "prompt_tokens")
@@ -49,8 +59,12 @@ internal fun readChatUsage(value: JsonValue, deepSeek: Boolean): TokenUsage {
     val cacheRead = if (hit != None) hit else cached
     if (input != None && cacheRead != None && cacheRead!! > input!!)
         throw DecodingException("/usage", "cache read tokens exceed input tokens")
+    val cacheWrite = if (deepSeek) None else when (decodeChatValue<OpenAiChatCacheWrite>(value, "/usage").details) {
+        case Some(details) -> details.written
+        case None -> None
+    }
     val nonCached = if (deepSeek) checkedChatCount(cache.cacheMiss, "prompt_cache_miss_tokens")
-        else if (input != None && cacheRead != None) Some(input!! - cacheRead!!) else None
+        else openAiOrdinaryInputTokens(input, cacheRead, cacheWrite, "/usage/prompt_tokens_details")
     val reasoning = when (fields.completionDetails) {
         case Some(details) -> checkedChatCount(details.reasoning, "completion_tokens_details/reasoning_tokens")
         case None -> None
@@ -66,7 +80,7 @@ internal fun readChatUsage(value: JsonValue, deepSeek: Boolean): TokenUsage {
     val modality = ArrayList<ModalityTokenUsage>()
     appendChatAudioCount(modality, TokenDirection.Input, inputAudio, "prompt_tokens_details/audio_tokens")
     appendChatAudioCount(modality, TokenDirection.Output, outputAudio, "completion_tokens_details/audio_tokens")
-    return TokenUsage(input, nonCached, output, total, cacheRead, reasoningTokens = reasoning, modality = modality.toArray())
+    return TokenUsage(input, nonCached, output, total, cacheRead, cacheWrite, reasoningTokens = reasoning, modality = modality.toArray())
 }
 
 private fun appendChatAudioCount(result: ArrayList<ModalityTokenUsage>, direction: TokenDirection, count: Long?, path: String) {

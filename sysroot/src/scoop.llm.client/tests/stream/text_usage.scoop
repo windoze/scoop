@@ -43,18 +43,20 @@ private class ChatStreamTextTest {
     @Test
     fun `OpenAI usage tails merge cumulative fields without summing or clearing missing details`() {
         val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
-        decoder.accept("message", streamChunk("{\"content\":\"ok\"}", usage = Some("{\"prompt_tokens\":10,\"completion_tokens\":1,\"prompt_tokens_details\":{\"cached_tokens\":3},\"completion_tokens_details\":{\"reasoning_tokens\":2}}")))
+        decoder.accept("message", streamChunk("{\"content\":\"ok\"}", usage = Some("{\"prompt_tokens\":10,\"completion_tokens\":1,\"prompt_tokens_details\":{\"cached_tokens\":3,\"cache_write_tokens\":1},\"completion_tokens_details\":{\"reasoning_tokens\":2}}")))
         assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
         decoder.accept("message", streamChunk("{}", Some("stop")))
         assertFalse(decoder.isFinished)
-        val tail = decoder.accept("message", "{\"choices\":[],\"usage\":{\"completion_tokens\":4,\"total_tokens\":14,\"prompt_tokens\":null,\"completion_tokens_details\":{\"reasoning_tokens\":null,\"audio_tokens\":1}}}")
+        val tail = decoder.accept("message", "{\"choices\":[],\"usage\":{\"completion_tokens\":4,\"total_tokens\":14,\"prompt_tokens\":null,\"prompt_tokens_details\":{\"cached_tokens\":null,\"cache_write_tokens\":2},\"completion_tokens_details\":{\"reasoning_tokens\":null,\"audio_tokens\":1}}}")
         assertFalse(tail.hasOutput)
         assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
         decoder.accept("message", "[DONE]")
         val usage = decoder.response().usage
         assertEquals(UsageCompleteness.Final, usage.completeness)
         assertEquals(Some(10L), usage.tokens.inputTokens)
-        assertEquals(Some(7L), usage.tokens.nonCachedInputTokens)
+        assertEquals(Some(5L), usage.tokens.nonCachedInputTokens)
+        assertEquals(Some(3L), usage.tokens.cacheReadTokens)
+        assertEquals(Some(2L), usage.tokens.cacheWriteTokens)
         assertEquals(Some(4L), usage.tokens.outputTokens)
         assertEquals(Some(14L), usage.tokens.totalTokens)
         assertEquals(Some(2L), usage.tokens.reasoningTokens)

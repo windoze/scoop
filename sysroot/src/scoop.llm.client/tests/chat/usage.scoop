@@ -13,7 +13,7 @@ private class ChatUsageTest {
             chatBody("{\"role\":\"assistant\",\"content\":\"ok\"}", usage = Some(raw)), chatRequest())
         val usage = result.usage.tokens
         assertEquals(Some(9007199254740993L), usage.inputTokens)
-        assertEquals(Some(9007199254740983L), usage.nonCachedInputTokens)
+        assertEquals(None, usage.nonCachedInputTokens)
         assertEquals(Some(10L), usage.cacheReadTokens)
         assertEquals(Some(12L), usage.outputTokens)
         assertEquals(Some(7L), usage.reasoningTokens)
@@ -31,10 +31,11 @@ private class ChatUsageTest {
     fun `DeepSeek cache aliases keep the reported noncached count and missing fields unknown`() {
         val protocol = ChatProtocol(DeepSeekChatDialect())
         val body = chatBody("{\"role\":\"assistant\",\"content\":\"ok\"}", usage = Some(
-            "{\"prompt_tokens\":100,\"prompt_cache_hit_tokens\":60,\"prompt_cache_miss_tokens\":40,\"prompt_tokens_details\":{\"cached_tokens\":60},\"completion_tokens\":8,\"total_tokens\":108}"))
+            "{\"prompt_tokens\":100,\"prompt_cache_hit_tokens\":60,\"prompt_cache_miss_tokens\":40,\"prompt_tokens_details\":{\"cached_tokens\":60,\"cache_write_tokens\":\"unowned field\"},\"completion_tokens\":8,\"total_tokens\":108}"))
         val usage = protocol.decodeResponse(body, chatRequest()).usage.tokens
         assertEquals(Some(60L), usage.cacheReadTokens)
         assertEquals(Some(40L), usage.nonCachedInputTokens)
+        assertEquals(None, usage.cacheWriteTokens)
         assertEquals(Some(108L), usage.totalTokens)
         val partial = protocol.decodeResponse(chatBody("{\"role\":\"assistant\"}", usage = Some(
             "{\"prompt_tokens\":100,\"prompt_tokens_details\":{\"cached_tokens\":60}}")), chatRequest()).usage
