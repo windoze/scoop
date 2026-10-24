@@ -79,7 +79,7 @@ impl Session {
         let callers = templates
             .iter()
             .map(|(id, function)| CallerState {
-                remaining: (costs[index(id)].size / 2 + 96).min(384),
+                remaining: (costs[index(id)].size / 2 + 128).min(384),
                 ancestry: vec![vec![Target::Local(id)]; function.body.blocks.len()],
             })
             .collect();

@@ -139,7 +139,24 @@ fn a_cold_failure_branch_does_not_hide_a_small_normal_path() {
 
 #[test]
 fn cold_paths_still_count_toward_actual_code_growth() {
-    let mut module = guarded(16, true);
-    optimize(&mut module);
+    let mut module = guarded(24, true);
+    let report = crate::optimization::run_observed(&mut module, MirOptimizationOptions::RELEASE);
+    assert_mir_foundation_projection(&module);
     assert!(has_checked_call(&module));
+    let scope = module
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == "scope")
+        .unwrap()
+        .0;
+    assert!(report.events.iter().any(|event| {
+        event.site.function == scope
+            && matches!(
+                event.decision,
+                mir::optimization_report::OptimizationDecision::Inline {
+                    outcome: mir::optimization_report::InlineOutcome::CallerGrowth,
+                    ..
+                }
+            )
+    }));
 }

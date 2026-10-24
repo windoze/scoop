@@ -72,7 +72,26 @@ fun expanded(input: Int): Int {
     value = step(value)
     return value
 }
+fun scramble(value: Long): Long {
+    var state = value.xor(value.shl(13L)).and(4294967295L)
+    state = state.xor(state.shr(17L))
+    return state.xor(state.shl(5L)).and(4294967295L)
+}
+fun traverse(count: Long): Long {
+    val values = ArrayList<Long>(16L)
+    var index = 0L
+    while (index < 16L) { values.add(index); index += 1L }
+    var state = 7L
+    index = 0L
+    while (index < count) {
+        for (value in values) state = scramble(state.xor(value + index))
+        index += 1L
+    }
+    return state
+}
 fun main() {
     check(expanded(10) == 394)
+    check(traverse(0L) == 7L)
+    check(traverse(100L) == 2254931208L)
     println("inlined growth")
 }
