@@ -1381,6 +1381,8 @@ release 还可对上述常数有界区域中的小型引用读取内层作四倍
 
 条件 poll 在 LIR 保存慢路径 site 与完整 live set，仅实际慢路径产生 statepoint／stackmap；合流连接更新引用，NoGC 不新增 poll。内联、去虚拟化及 CFG 改写均先于最终 roots 定稿，后端不靠完整 runtime poll 调用维持普通循环的检查。
 
+codegen 按运行时规范 3.5 区分 poll 的共享同步读取与所属线程读取：全局 epoch／phase 使用 LLVM acquire，本线程 mode／observed epoch 使用 monotonic（对应 C relaxed）。Full 与 EntryActivation、全部构建 profile 使用同一规则；读取仍位于原 poll，TLS 地址复用、条件慢边、状态点与 roots 不变。此选择不弱化 runtime 向收集者发布状态及 native 返回握手的内存序，也不增加或改变 callable 参数。
+
 依据语言规范 1.2，编译器可以假定普通非原子访问不存在数据竞争，不为竞争场景提供单字或逐字段不撕裂的保证。普通字段、数组元素、全局存储和聚合值复制无需为此改用 LLVM `unordered` 原子 load/store、增加发布屏障或限制访问的机器指令粒度；显式同步原语以及 runtime/GC 内部同步的契约仍须保持。
 
 最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。普通优化后保留逻辑根身份，标明包含可移动对象的 base phi/select；RS4GC 完成真实下降后，注册元数据直接使用其实际 gc.relocate 引用的不同 derived SSA 值数量，随后执行机器发射和原 stackmap 格式／根合同检查。多个逻辑 leaf 可以对应同一 SSA 值；已知 null／不可移动常量通常不产生 relocation pair，但不能仅按已折叠的逻辑恢复标记提前推算物理根数：共享后继或循环仍可能使原动态 SSA 值跨站点存活。该计数消费实际下降结果，不添加独立的指针活跃性分析或 RS4GC 策略复核器。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。

@@ -49,7 +49,8 @@ _Static_assert(sizeof(ScoopGcAllocationCounters) == 32 &&
 
 extern _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
 
-/* One view of the registered thread's actual mode and acknowledged epoch. */
+/* Only the owning thread writes this state. Generated owner reads may be
+ * relaxed; collectors retain acquire/seq_cst reads of other threads. */
 typedef struct ScoopPollState {
     _Atomic(uint32_t) mode;
     _Atomic(uint64_t) observed_gc_epoch;

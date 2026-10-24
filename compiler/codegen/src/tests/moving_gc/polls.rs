@@ -17,6 +17,11 @@ fn check(kind: scoop_lir::ManagedPollKind) {
     } else {
         1
     };
+    let acquire = if kind == scoop_lir::ManagedPollKind::Full {
+        2
+    } else {
+        0
+    };
     let mut module = qualification::stackmap_qualification_module();
     for function in &mut module.functions {
         let Instruction::ManagedPoll { site } =
@@ -81,7 +86,18 @@ fn check(kind: scoop_lir::ManagedPollKind) {
                 .collect::<Vec<_>>()
                 .join("\n");
             assert_eq!(entry_ir.matches("load atomic").count(), loads, "{entry_ir}");
-            assert_eq!(entry_ir.matches("acquire").count(), loads, "{entry_ir}");
+            assert_eq!(entry_ir.matches("acquire").count(), acquire, "{entry_ir}");
+            assert_eq!(
+                entry_ir.matches("monotonic").count(),
+                loads - acquire,
+                "{entry_ir}"
+            );
+            for line in entry_ir.lines().filter(|line| line.contains("load atomic")) {
+                let shared = line.contains("@scoop_thread_gc_epoch")
+                    || line.contains("@scoop_thread_world_phase");
+                assert_eq!(line.contains("acquire"), shared, "{line}");
+                assert_eq!(line.contains("monotonic"), !shared, "{line}");
+            }
             assert!(entry_ir.contains("icmp eq i32 %poll_mode, 1"), "{entry_ir}");
             assert!(!entry_ir.contains("_source"), "{entry_ir}");
             assert!(

@@ -66,7 +66,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let builder = self.builder;
         if kind == scoop_lir::ManagedPollKind::EntryActivation {
             let state = self.poll_state()?;
-            let mode = self.poll_atomic_load(context.i32_type(), state, "poll_mode")?;
+            let mode = self.poll_atomic_load(
+                context.i32_type(),
+                state,
+                "poll_mode",
+                AtomicOrdering::Monotonic,
+            )?;
             return builder
                 .build_int_compare(
                     IntPredicate::EQ,
@@ -84,11 +89,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             i64_ty,
             self.poll_global(Symbol::GcEpoch, i64_ty.into()),
             "poll_epoch",
+            AtomicOrdering::Acquire,
         )?;
         let phase = self.poll_atomic_load(
             i32_ty,
             self.poll_global(Symbol::WorldPhase, i32_ty.into()),
             "poll_phase",
+            AtomicOrdering::Acquire,
         )?;
         let state = self.poll_state()?;
         let state_ty = context.struct_type(&[i32_ty.into(), i64_ty.into()], false);
@@ -98,8 +105,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let observed_slot = builder
             .build_struct_gep(state_ty, state, 1, "poll_observed_slot")
             .map_err(poll_error)?;
-        let mode = self.poll_atomic_load(i32_ty, mode_slot, "poll_mode")?;
-        let observed = self.poll_atomic_load(i64_ty, observed_slot, "poll_observed")?;
+        let mode =
+            self.poll_atomic_load(i32_ty, mode_slot, "poll_mode", AtomicOrdering::Monotonic)?;
+        let observed = self.poll_atomic_load(
+            i64_ty,
+            observed_slot,
+            "poll_observed",
+            AtomicOrdering::Monotonic,
+        )?;
         let running = builder
             .build_int_compare(
                 IntPredicate::EQ,
@@ -165,6 +178,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         ty: inkwell::types::IntType<'ctx>,
         pointer: PointerValue<'ctx>,
         name: &str,
+        ordering: AtomicOrdering,
     ) -> Result<IntValue<'ctx>, CodegenError> {
         let value = self
             .builder
@@ -174,7 +188,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .as_instruction_value()
             .expect("atomic load is an instruction");
         instruction
-            .set_atomic_ordering(AtomicOrdering::Acquire)
+            .set_atomic_ordering(ordering)
             .map_err(poll_error)?;
         instruction
             .set_alignment(ty.get_bit_width() / 8)

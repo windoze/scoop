@@ -242,7 +242,7 @@ GC 对代码质量的影响还包括保存／重载引用、寄存器压力和�
 
 这些工作可与 §6.3 分开实现。主要验收是实际 spill/reload、栈帧、root slots 和运行性能，以及另一个 mutator 请求 GC 时的响应；并非简单追求最少 stackmap 记录。
 
-已先交付 [Darwin 的镜像内绑定](LOCAL-SYMBOLS.md)：最终链接移除 Scoop 的动态导出、weak binding 和适用的直接调用 stub，已有相容库可直接重链接。代表零次循环进程降低约 47%，表和 stackmap 大小保持，稳态对照及回退分别记录。完整 poll 仍有四次 acquire load，函数入口 TLS 获取与 runtime 启动登记尚未改变；后两项保持近期优先级。
+已先交付 [Darwin 的镜像内绑定](LOCAL-SYMBOLS.md)：最终链接移除 Scoop 的动态导出、weak binding 和适用的直接调用 stub，已有相容库可直接重链接。代表零次循环进程降低约 47%，表和 stackmap 大小保持，稳态对照及回退分别记录。随后[poll 本线程读取](POLL-OWNER-READS.md)按真实单写者关系使用 relaxed，保留全局 acquire 和 runtime 发布／返回握手；ARM64 完整 poll 从四条 ldar 降为两条，不改变 roots 或 ABI。函数入口 TLS 获取与 runtime 启动登记仍是近期优先项，不能把本线程内存序调整报告为 TLS 已消除。
 
 ## 7. 测量基础设施、PGO 与发布优化
 

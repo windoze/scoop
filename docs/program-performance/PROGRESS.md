@@ -13,6 +13,7 @@
 
 ## 当前进展
 
+- 已完成[poll 的本线程 relaxed 读取](POLL-OWNER-READS.md)：按实际单写者关系保留共享 acquire，降低本线程 mode／epoch 的读取强度；ARM64 Full poll 4→2 条 ldar，叶入口改为 ldr，TLS 仍保留。三个目标 18 个 GC variant、96 个进程通过，机器码／元数据与小范围复测完成；没有把 Linux 字节相同内核的时间波动算作优化收益，所有 profile 默认采用。
 - 已完成[普通内联增长额度调整](INLINE-GROWTH.md)：统一将初始常数 96 调为 128，总上限 384、执行成本与跨轮累计保持；真实 ArrayList.get 已内联，底层检查／数组 helper 继续按成本选择。三目标遍历内核减少约 16%～24%，代码增加 32～64 B，编译变化 −0.44%～+2.29%；66 项 MIR 与定向 CLI／GC、优化快照通过，release 默认启用。
 - 已完成[跨 Cone 普通成员内联](MEMBER-INLINING.md)：普通方法、getter 与显式 default 复用同一正文结构和成本选择，保留 receiver、访问器身份及未知分派；没有按函数名称特判。三目标用户方法／getter 内核降低约 47%～73%，代码仅增加 64～80 B，core 正文增加约 22～24 KB；89 项 HIR 与 12 个 ABI／GC variant 通过，保留 GNU 标量首轮波动与定向复测。沿用 release 默认能力；后续增长额度调整见上项，poll／TLS、native bridge 与启动登记继续处理。
 - 已完成 [Darwin 的 Scoop 符号镜像内绑定](LOCAL-SYMBOLS.md)：同一预编译输入的 21,643 个 Scoop 动态导出、9,462 条 weak binding 和 310 处直接调用 stub 消失；零次循环进程中位数降低 46.60%，程序缩小 16.84%，ArrayList 内核降低 2.30%。定向 ABI／跨 Cone／GC 通过，记录稳态回退和最终链接成本；内联、poll／TLS 与 runtime 启动登记继续优先推进。

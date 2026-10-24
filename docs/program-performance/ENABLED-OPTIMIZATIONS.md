@@ -8,6 +8,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [poll 的本线程 relaxed 读取](POLL-OWNER-READS.md) | 新编译器生成的所有 profile 默认 | 全局 epoch／phase 保持 acquire，只有所属线程写入的 mode／observed epoch 使用 relaxed；ARM64 Full poll 从 4 条 ldar 降为 2 条，TLS、慢边、roots 与 runtime 跨线程握手保持。 |
 | [普通内联增长额度调整](INLINE-GROWTH.md) | release 默认 | 初始额度为 `min(size / 2 + 128, 384)`，统一适用于本地、泛型及跨 Cone 正文；执行成本、总上限、深度与跨轮累计限制保持，同步 suspend 阶段不变。 |
 | [跨 Cone 普通方法与 getter 内联](MEMBER-INLINING.md) | release 默认；提供方需导出合格小正文 | 按完整签名与通用 HIR／MIR 成本选择，保留 receiver 与 typed accessor identity；泛型沿既有具体化路径，未知动态调用及缺少正文的旧库保留入口。 |
 | [Scoop 符号在镜像内绑定](LOCAL-SYMBOLS.md) | Darwin 最终链接默认，所有 profile | 从动态导出移除 Scoop 持久符号，直接绑定 callable 与 metadata；已有相容 `.slib` 可重链接，普通 native C 导出保留。 |

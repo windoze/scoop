@@ -373,7 +373,9 @@ managed 函数入口和循环回边，包括 continue 回边，提供 safepoint�
 
 poll 正常路径内联原子读取 world phase、GC epoch／本线程 observed epoch 并条件分支，不取 world lock、不广播、不建立 runtime anchor，也不无条件物化该 poll 的显式 roots。慢路径才调用协调入口、发布 anchor 和执行 relocation；慢路径更新值与快路径原值在合流后连接。原子检查不能被提升出循环。MANAGED_PENDING 首次入口必须经有锁激活；NativeSafe 返回、callback 和 NativeBorrowed 仍遵守各自握手。
 
-编译器读取的私有 ABI 为 TLS 指针 `scoop_rt_poll_state`，指向 size 16／align 8 的 `{ atomic u32 mode @0; atomic u64 observed_gc_epoch @8; }`；padding 不参与读写。它直接引用注册线程状态中的同一组字段，attach 时设置、detach 时清空，不复制另一套线程状态。全局 `scoop_thread_world_phase` 为 atomic u32／align 4，`scoop_thread_gc_epoch` 为 atomic u64／align 8。普通 Full poll 依次以 acquire 读取 epoch、phase、当前 mode 和 observed epoch；仅当 phase 为 RUNNING（0）、mode 为 MANAGED（1）且 epoch 一致时走快路径。其他情况调用 `scoop_rt_safepoint`，由现有线程协议处理 pending 激活、park 与 observed epoch 更新。
+编译器读取的私有 ABI 为 TLS 指针 `scoop_rt_poll_state`，指向 size 16／align 8 的 `{ atomic u32 mode @0; atomic u64 observed_gc_epoch @8; }`；padding 不参与读写。它直接引用注册线程状态中的同一组字段，attach 时设置、detach 时清空，不复制另一套线程状态。全局 `scoop_thread_world_phase` 为 atomic u32／align 4，`scoop_thread_gc_epoch` 为 atomic u64／align 8。普通 Full poll 依次以 acquire 读取全局 epoch、phase，以 relaxed 读取本线程 mode、observed epoch；仅当 phase 为 RUNNING（0）、mode 为 MANAGED（1）且 epoch 一致时走快路径。EntryActivation 的本线程 mode 读取同样为 relaxed。其他情况调用 `scoop_rt_safepoint`，由现有线程协议处理 pending 激活、park 与 observed epoch 更新。
+
+线程只写自己的 poll state，包括 attach／detach、pending 激活、park、native 转换、初始化等待、收集者模式和进程终止。收集者读取其他线程的状态，不代写其 mode 或 observed epoch；各线程 publication 的 release／seq_cst 写入及跨线程 acquire／seq_cst 读取保持原协议。生成代码对所属线程的读取不承担跨线程发布的 acquire 职责，依赖同线程先行写入与原子一致性；仍使用原子读取，不能改为普通非原子访问。该内存序选择适用于全部 profile；旧产物的较强 acquire 读取与其兼容，不改变状态布局、TLS、生存期或 runtime ABI。
 
 线程状态地址在单次 managed 函数调用期间稳定，TLS 指针读取可在函数入口执行一次并复用；epoch、phase、mode 与 observed epoch 的原子读取仍在每个 poll 位置执行，不能随该地址一起提升。
 
