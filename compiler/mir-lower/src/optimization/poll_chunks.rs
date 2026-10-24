@@ -53,14 +53,16 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
             let Some(head) = header::analyze(module, function, target.header(), &incoming) else {
                 continue;
             };
-            let (mut counted, mut projected, guards) = if let Some(counted) =
+            // A checked failure is now an ordinary side exit. Fold proven
+            // checks before accepting that region, so it can still vectorize.
+            let (mut counted, mut projected, guards) = if let Some(projection) =
+                checks::project(module, function, target.header(), &head, &incoming)
+            {
+                (projection.counted, Some(projection.body), projection.guards)
+            } else if let Some(counted) =
                 recognize::counted(module, function, target.header(), &head, &incoming)
             {
                 (counted, None, Vec::new())
-            } else if let Some(projection) =
-                checks::project(module, function, target.header(), &head)
-            {
-                (projection.counted, Some(projection.body), projection.guards)
             } else {
                 continue;
             };

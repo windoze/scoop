@@ -116,8 +116,8 @@ fn branch_snapshots_meet_before_the_common_unit_step() {
 }
 
 #[test]
-fn divergent_snapshots_bypassed_updates_inner_cycles_and_early_exits_keep_polls() {
-    for variant in 1..5 {
+fn divergent_snapshots_bypassed_updates_and_inner_cycles_keep_polls() {
+    for variant in 1..4 {
         let (mut module, id) = diamond(variant);
         let before = format!("{:?}", module.functions[id].body);
         chunk(&mut module);
@@ -127,4 +127,36 @@ fn divergent_snapshots_bypassed_updates_inner_cycles_and_early_exits_keep_polls(
             "variant {variant}"
         );
     }
+}
+
+#[test]
+fn early_exit_keeps_its_original_code_and_skips_the_latch() {
+    let (mut module, id) = diamond(4);
+    let function = &module.functions[id];
+    let header = function.body.loop_header_polls[0].header();
+    let mir::Terminator::Branch {
+        then_block: inner, ..
+    } = function.body.blocks[header].terminator
+    else {
+        unreachable!()
+    };
+    let mir::Terminator::Branch {
+        else_block: exit, ..
+    } = function.body.blocks[inner].terminator
+    else {
+        unreachable!()
+    };
+    let original = format!("{:?}", function.body.blocks[exit]);
+    chunk(&mut module);
+    let body = &module.functions[id].body;
+    assert_eq!(format!("{:?}", body.blocks[exit]), original);
+    let full = body.blocks.iter().find(|(_, block)| {
+        block.name.starts_with("poll.full.")
+            && matches!(block.terminator, mir::Terminator::Branch { else_block, .. } if else_block == exit)
+    });
+    assert!(
+        full.is_some(),
+        "the copied branch must reach the shared exit"
+    );
+    assert_eq!(body.loop_header_polls.len(), 1);
 }

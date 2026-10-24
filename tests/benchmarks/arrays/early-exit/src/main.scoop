@@ -1,0 +1,60 @@
+package dev.performance
+
+@Extern(lib = "m34_interfaces", name = "bench_kind") fun benchKind(): Int
+@Extern(lib = "m34_interfaces", name = "bench_count") fun benchCount(): Int
+@Extern(lib = "m34_interfaces", name = "bench_begin") fun benchBegin(): Unit
+@Extern(lib = "m34_interfaces", name = "bench_end") fun benchEnd(): Unit
+
+@NoGC fun control(count: Long): Long {
+    var i = 0L
+    var state = 7L
+    while (i < count) {
+        state = state.xor(state.shl(13L)).and(4294967295L)
+        state = state.xor(state.shr(17L))
+        state = state.xor(state.shl(5L)).and(4294967295L)
+        i += 1L
+    }
+    return state
+}
+
+@Unsafe fun exercise(count: Long, mode: Int): Long {
+    val values = Array<Long>(count) { i -> i * 2L + 1L }
+    val negative = Array<Long>(count) { i -> if (i == count - 1L) -314159L else i + 1L }
+    val left = Array<Int>(count) { i -> i.toInt() + 3 }
+    val right = Array<Int>(count) { i -> if (i == count - 1L) -1 else i.toInt() + 3 }
+    val source = MutableArray<Int>(count) { i -> i.toInt() + 3 }
+    val target = MutableArray<Int>(count) { _ -> -7 }
+    val doubles = Array<Double>(count) { i -> if (i == count - 1L) -42.0 else if (i % 3L == 0L) 9007199254740992.0 else if (i % 3L == 1L) 1.0 else -9007199254740992.0 }
+    val rounds = if (count < 256L || mode == 2) 1000000L else 128L
+    val needle = if (mode == 1) -1L else if (mode == 2) 1L else if (mode == 3) count / 2L * 2L + 1L else count * 2L - 1L
+    var round = 0L
+    var result = 0L
+    var real = 0.0
+    benchBegin()
+    while (round < rounds) {
+        if (mode < 4) result += findIndex(values, needle)
+        else if (mode == 4) result += findValue(negative, 0L)
+        else if (mode == 5) result += firstMismatch(left, right)
+        else if (mode == 6) result += copyUntil(source, target, count.toInt() + 2)
+        else if (mode == 7) real += prefixDouble(doubles, -42.0)
+        else if (mode == 8) {
+            val found = findObject(negative, 0L)
+            result += found.index + found.value + found.source[0L]
+        } else if (mode == 9) result += straightSum(values)
+        else result += firstMismatch(left, left)
+        round += 1L
+    }
+    benchEnd()
+    return result + real.toBits() + target[0L].toLong() + target[count - 1L].toLong()
+}
+
+@Unsafe fun main() {
+    val count = benchCount().toLong()
+    val mode = benchKind()
+    if (mode == 10) {
+        benchBegin()
+        val result = control(count * 128L)
+        benchEnd()
+        println(result)
+    } else println(exercise(count, mode))
+}

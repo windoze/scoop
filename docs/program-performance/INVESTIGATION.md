@@ -34,7 +34,7 @@
 | 语言表示 | struct／enum／tuple 按值，泛型单态化，引用／指针 Option niche，值元素数组连续存储 | 对象头 16 bytes；interface 16 bytes；含引用 enum 变体使用独占槽；这些表示有真实内存成本 |
 | MIR 优化 | 去虚化、内联、局部 box／closure／class 字段替换交替执行，最多三轮；局部对象与循环范围可指导内联，intrinsic 另有必要归一化 | 不是通用跨过程分析；分配消除仍受 EH、跨调用及逃逸限制；没有冷路径物化 |
 | 跨 Cone 优化 | 泛型具体化；M62 发布并消费部分普通顶层小函数的可移植 HIR 正文 | 普通正文导入范围受限，不等于任意成员、构造器、循环、Context、EH、suspend 都能跨库展开 |
-| LLVM | SROA、范围约束、SCCP、GVN、memcpyopt、DSE 等；NoGc 有循环和向量优化；有界 Managed 内层支持整数／Boolean／严格浮点数组及无环条件正文 | 数组初始化及单位步长 checked 访问已打通；提前退出、一般 CFG／循环变换、有序归约 SIMD、引用元素和未展开调用仍有限制 |
+| LLVM | SROA、范围约束、SCCP、GVN、memcpyopt、DSE 等；NoGc 有循环和向量优化；有界 Managed 内层支持整数／Boolean／严格浮点数组、无环条件正文及共享提前退出 | 数组初始化及单位步长 checked 访问已打通；一般 CFG／循环变换、搜索和有序归约 SIMD、引用元素和未展开调用仍有限制 |
 | GC 集成 | AS1 non-integral pointer，精确根，RS4GC，条件 poll，只在慢路径物化 poll roots | site 与逻辑恢复标记较早限制变换；机器 tail duplication 关闭；这限制了默认 O2/O3 能直接复用的范围 |
 | 物理产物 | 逐 callable LLVM module／对象，Strong／ODR 选择，已有私有 closure 支持裁剪 | LLVM 通常看不到其他 callable 的定义；尚无全程序优化、PGO 或 ThinLTO 路线 |
 | 调用 | 小于等于 16 bytes 的 GC-free 聚合值可按目标直接传递；接口拆成 object／itab | 24-byte V3 仍间接传递；含引用聚合值仍间接；真实动态函数视图还可能经过 Any bridge |
@@ -88,7 +88,7 @@ Java 稳态峰值需要充分预热后比较；启动和短命命令行程序则
 | 自动内联、去虚化 | 已有本地／泛型及有限跨库实现 | 扩展到 EH、成员、构造器及全程序／profile 类型反馈 |
 | managed allocation 消除 | 已有局部 box／closure、class／游标字段替换，以及最后一个 receiver 调用的联合内联估价 | 继续处理未命中的创建／调用、containment、跨调用和部分逃逸 |
 | coroutine frame elision | 已有同步正文内联和尾转交 | 继续处理实际挂起协议及未消除的立即完成路径 |
-| bounds-check elimination | 已有路径约束、单位步长数组循环及无环条件区域证明，动态长度关系使用 guard／原 checked 路径 | 继续处理未展开调用、提前退出和更广索引关系 |
+| bounds-check elimination | 已有路径约束、单位步长数组循环及无环条件区域证明，动态长度关系使用 guard／原 checked 路径 | 继续处理未展开调用、多回边和更广索引关系 |
 | 激进 unroll／SIMD | NoGc 已有；Managed 已支持有界整数／严格浮点 SSA、标量数组初始化与合格 checked 访问 | 继续扩展一般内存循环、有序归约 SIMD 和目标特化 |
 | 跨 callable module 重组、LTO／ThinLTO | 尚未建立 | 单独设计全程序优化和后端物理产物生成顺序 |
 | 测量与归因基础设施 | 已有专项 benchmark、GC 统计、可复现对照及按需 MIR 决策报告；CPU／调用栈归因仍需补足 | 提前独立交付，先支持瓶颈定位、回退解释和通用静态优化；按实际需要补充测量能力 |
@@ -190,6 +190,8 @@ smart cast 已有正确的路径类型收窄：命中分支中的引用读取变
 [严格浮点数组循环](FLOAT-ARRAYS.md)已继续覆盖 Float／Double 初始化、逐元素变换、复制、转换与顺序求和。三目标实际逐元素 SIMD 保持舍入与禁止融合的语义，求和保留原累加顺序；长数组收益、短数组回退、编译和空间成本均已记录。一般 CFG、引用／聚合元素及有序归约 SIMD 仍须后续处理。
 
 [含条件分支的数组循环](CONDITIONAL-ARRAYS.md)进一步覆盖单入口、单 latch 的无环正文，合流只保留共同的位置事实。三目标条件求和、变换、部分写入和初始化获益；浮点限幅与掩码求和仍是标量有界内层。测量同时捕获并闭合了 x86 直线求和的布局回退：使用 LLVM 的最内层 32 字节优先入口对齐，保留短路径和提前退出对照的成本。该结果也说明测量须追踪实际内联副本，不能仅凭独立函数或 LIR 不变推断运行成本不变。
+
+[数组搜索与提前退出循环](EARLY-EXIT-ARRAYS.md)进一步把唯一 latch 的继续迭代区域与共享出口分开，保留首次命中、出口快照、异常前缀和退出后的 GC。三目标长内核耗时降低 16.16%～74.32%，首项命中和短路径的额外成本单独保留；沿用 release 默认有界标量内层，搜索 SIMD、一般 CFG 和未知调用仍待后续。
 
 普通 Managed 代码中的整数／浮点数组遍历、拷贝、变换、搜索和聚合继续按以下路线推进：
 

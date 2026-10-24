@@ -1,6 +1,7 @@
 use super::*;
 
 mod conditional;
+mod exits;
 
 fn sample(kind: hir::IntegerKind, snapshot: bool) -> (mir::Module, mir::FunctionId) {
     let mut h = Harness::new();
@@ -274,7 +275,7 @@ fn linear_inline_blocks_merge_without_sharing_assigned_temporaries() {
 }
 
 #[test]
-fn externally_read_temporary_keeps_original_linear_loop() {
+fn normal_exit_reads_the_shared_last_iteration_temporary() {
     let (mut module, id) = sample(hir::IntegerKind::SIGNED_64, false);
     let function = &mut module.functions[id];
     let header = function.body.loop_header_polls[0].header();
@@ -298,9 +299,24 @@ fn externally_read_temporary_keeps_original_linear_loop() {
             *value = mir::Expr::local(saved, mir::Type::Integer(mir::IntegerKind::SIGNED_64));
         }
     }
-    let before = format!("{:?}", function.body);
     chunk(&mut module);
-    assert_eq!(format!("{:?}", module.functions[id].body), before);
+    let body = &module.functions[id].body;
+    assert!(
+        body.blocks
+            .iter()
+            .any(|(_, block)| block.name.starts_with("poll.full."))
+    );
+    assert_eq!(
+        body.locals
+            .iter()
+            .filter(|(_, local)| local.name.ends_with("saved"))
+            .count(),
+        1
+    );
+    let definitions = body.blocks.iter().flat_map(|(_, block)| &block.statements).filter(|statement| {
+        matches!(statement.kind, mir::StatementKind::ValDecl { local, .. } if local == saved)
+    }).count();
+    assert_eq!(definitions, 2);
 }
 
 #[test]

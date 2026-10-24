@@ -18,6 +18,7 @@ pub(super) fn project(
     function: &mir::Function,
     target: mir::BlockId,
     head: &header::Header,
+    incoming: &[Vec<mir::BlockId>],
 ) -> Option<Projection> {
     let mut state = facts::State::new(head);
     for &id in &head.chain {
@@ -25,26 +26,18 @@ pub(super) fn project(
             state.statement(statement);
         }
     }
-    let order = region::order(&function.body, head.inner, &[target, head.exit])?;
+    let region = region::iteration(&function.body, target, head, incoming)?;
+    let members = region.blocks.iter().copied().collect::<BTreeSet<_>>();
     let mut states = BTreeMap::from([(head.inner, state)]);
     let mut branches = Vec::new();
     let mut guards = BTreeSet::new();
     let mut array_access = false;
-    for current in order {
+    for current in region.blocks {
         let Some(mut state) = states.remove(&current) else {
             continue;
         };
-        if head.chain.contains(&current)
-            || function
-                .body
-                .loop_header_polls
-                .iter()
-                .any(|poll| poll.header() == current)
-        {
-            return None;
-        }
         let block = &function.body.blocks[current];
-        if block.unwind.is_some() || !operations::supported(module, block, true) {
+        if !operations::supported(module, block, true) {
             return None;
         }
         for statement in &block.statements {
@@ -73,10 +66,7 @@ pub(super) fn project(
         };
         guards.extend(&state.guards);
         for next in next {
-            if next == head.exit {
-                return None;
-            }
-            if next != target {
+            if members.contains(&next) {
                 facts::propagate(&mut states, next, &state);
             }
         }

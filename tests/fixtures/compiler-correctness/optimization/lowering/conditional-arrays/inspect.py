@@ -23,7 +23,7 @@ for name in (*expected, "firstNegative", "readSnapshot", "earlyUpdate"):
         continue
     assert match, name
     body = match.group()
-    optimized = release and name not in ("firstNegative", "readSnapshot")
+    optimized = release
     assert ("poll.full." in body) == optimized, name
     assert body.count("<loop-header-poll>") == 1, name
     if not optimized:
@@ -44,4 +44,7 @@ for name in (*expected, "firstNegative", "readSnapshot", "earlyUpdate"):
         for destination in map(int, re.findall(r"bb(\d+)", target[1])):
             if destination not in full:
                 exits.append(destination)
-    assert exits == [header], (name, exits)
+    if name in ("firstNegative", "readSnapshot"):
+        assert header in exits and len(set(exits)) >= 2, (name, exits)
+    else:
+        assert exits == [header], (name, exits)

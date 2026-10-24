@@ -1,14 +1,81 @@
 //! Acyclic iteration bodies with a single entry and latch.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use super::{linear, mir};
+use super::{header::Header, linear, mir};
 use crate::optimization::graph::index;
 
 pub(super) struct Region {
     pub entry: mir::BlockId,
     pub latch: mir::BlockId,
     pub blocks: Vec<mir::BlockId>,
+}
+
+/// Keep only paths that can complete another iteration. Exit code stays shared
+/// with the original body, including calls, allocation and exception handling.
+pub(super) fn iteration(
+    body: &mir::Body,
+    header: mir::BlockId,
+    head: &Header,
+    incoming: &[Vec<mir::BlockId>],
+) -> Option<Region> {
+    let latch = *incoming[index(header)]
+        .iter()
+        .find(|&&block| block != head.preheader)?;
+    if !matches!(body.blocks[latch].terminator, mir::Terminator::Goto(next) if next == header)
+        || incoming[index(head.inner)] != [*head.chain.last()?]
+    {
+        return None;
+    }
+    let mut members = BTreeSet::new();
+    let mut pending = vec![latch];
+    while let Some(id) = pending.pop() {
+        if head.chain.contains(&id) || !members.insert(id) {
+            continue;
+        }
+        let block = &body.blocks[id];
+        if id == body.entry
+            || id == head.exit
+            || !head.invariants.dominates(header, id)
+            || block.unwind.is_some()
+            || body
+                .loop_header_polls
+                .iter()
+                .any(|poll| poll.header() == id)
+        {
+            return None;
+        }
+        pending.extend(&incoming[index(id)]);
+    }
+    if !members.contains(&head.inner) {
+        return None;
+    }
+    let mut stops = BTreeSet::from([header]);
+    for &id in &members {
+        if incoming[index(id)].iter().any(|predecessor| {
+            !members.contains(predecessor)
+                && !(id == head.inner && head.chain.last() == Some(predecessor))
+        }) {
+            return None;
+        }
+        for next in successors(&body.blocks[id].terminator)? {
+            if head.chain.contains(&next) && !(id == latch && next == header) {
+                return None;
+            }
+            if !members.contains(&next) {
+                stops.insert(next);
+            }
+        }
+    }
+    let blocks = order(body, head.inner, &stops.into_iter().collect::<Vec<_>>())?;
+    if blocks.len() != members.len() {
+        return None;
+    }
+    Some(Region {
+        entry: head.inner,
+        latch,
+        blocks,
+    })
 }
 
 impl Region {
