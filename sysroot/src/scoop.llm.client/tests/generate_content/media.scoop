@@ -1,0 +1,58 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentMediaTest {
+    @Test
+    fun `generateContent media preserves inline bytes MIME parameters and provider file references`() {
+        val parts = "[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"AP8=\"}}," +
+            "{\"inlineData\":{\"mimeType\":\"audio/pcm;rate=24000\",\"data\":\"_w\"},\"audioTranscription\":{\"text\":\"spoken\"}}," +
+            "{\"inlineData\":{\"mimeType\":\"video/mp4\",\"data\":\"AQI=\"}}," +
+            "{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"gs://bucket/report.pdf\",\"displayName\":\"report\"}}]"
+        val response = generateContentDecode(generateContentBody(parts))
+        assertEquals("", response.text)
+        when (response.candidate(0L).items[0]) {
+            case Message(content, _) -> {
+                assertEquals(4L, content.size)
+                when (content[0]) {
+                    case Media(kind, source) -> {
+                        assertEquals(OutputMediaKind.Image, kind)
+                        when (source) { case Bytes(bytes, _) -> assertEquals((-1).toByte(), bytes[1]); else -> fail() }
+                    }
+                    else -> fail()
+                }
+                when (content[1]) {
+                    case Media(kind, source) -> {
+                        assertEquals(OutputMediaKind.Audio, kind)
+                        when (source) { case Bytes(bytes, mime) -> { assertEquals((-1).toByte(), bytes[0]); assertEquals("audio/pcm;rate=24000", mime) }; else -> fail() }
+                    }
+                    else -> fail()
+                }
+                when (content[2]) { case Media(kind, _) -> assertEquals(OutputMediaKind.Video, kind); else -> fail() }
+                when (content[3]) {
+                    case Media(kind, source) -> {
+                        assertEquals(OutputMediaKind.Document, kind)
+                        when (source) { case FileReference(file, _) -> assertEquals("report", file.value["displayName"]!!.asString()); else -> fail() }
+                    }
+                    else -> fail()
+                }
+            }
+            else -> fail()
+        }
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(Json.stringify(Json.parse(parts)), Json.stringify(generateContentHistory(restored)["parts"]!!))
+    }
+
+    @Test
+    fun `generateContent unknown and untyped media remain native without guessing a file kind`() {
+        val response = generateContentDecode(generateContentBody("[{\"inlineData\":{\"mimeType\":\"application/x-custom\",\"data\":\"AQ==\"}}," +
+            "{\"fileData\":{\"fileUri\":\"files/opaque\"}}]"))
+        when (response.candidate(0L).items[0]) {
+            case Message(content, _) -> for (part in content) { when (part) { case Native(_, _) -> assertTrue(true); else -> fail() } }
+            else -> fail()
+        }
+    }
+}

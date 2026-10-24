@@ -1,0 +1,77 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentUsageTest {
+    @Test
+    fun `generateContent accounts for tool prompts thinking cache and modality without adding subsets twice`() {
+        val usage = "{\"promptTokenCount\":100,\"toolUsePromptTokenCount\":5,\"candidatesTokenCount\":10,\"thoughtsTokenCount\":3," +
+            "\"totalTokenCount\":118,\"cachedContentTokenCount\":40,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":60},{\"modality\":\"IMAGE\",\"tokenCount\":40}]," +
+            "\"toolUsePromptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}],\"cacheTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":40}]," +
+            "\"candidatesTokensDetails\":[{\"modality\":\"AUDIO\",\"tokenCount\":8},{\"modality\":\"NEW\",\"tokenCount\":2}]}"
+        val response = generateContentDecode(generateContentBody("[]", usage = Some(usage)))
+        val tokens = response.usage.tokens
+        assertEquals(Some(105L), tokens.inputTokens)
+        assertEquals(Some(65L), tokens.nonCachedInputTokens)
+        assertEquals(Some(13L), tokens.outputTokens)
+        assertEquals(Some(118L), tokens.totalTokens)
+        assertEquals(Some(40L), tokens.cacheReadTokens)
+        assertEquals(None, tokens.cacheWriteTokens)
+        assertEquals(Some(3L), tokens.reasoningTokens)
+        assertEquals(4L, tokens.modality.size)
+        assertEquals(65L, tokens.modality[0].tokens)
+        assertEquals(TokenDirection.Input, tokens.modality[1].direction)
+        assertEquals(TokenModality.Image, tokens.modality[1].modality)
+        assertEquals(TokenDirection.Output, tokens.modality[2].direction)
+        assertEquals(TokenModality.Other("NEW"), tokens.modality[3].modality)
+        assertEquals(Json.stringify(Json.parse(usage)), Json.stringify(response.usage.native!!))
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(Some(105L), saved.usage.tokens.inputTokens)
+    }
+
+    @Test
+    fun `generateContent uses reported totals to recover aggregate counts without filling missing details`() {
+        val input = generateContentDecode(generateContentBody("[]", usage = Some("{\"promptTokenCount\":100,\"candidatesTokenCount\":7,\"thoughtsTokenCount\":3,\"totalTokenCount\":110}"))).usage.tokens
+        assertEquals(Some(100L), input.inputTokens)
+        assertEquals(Some(10L), input.outputTokens)
+        assertEquals(None, input.cacheReadTokens)
+        val output = generateContentDecode(generateContentBody("[]", usage = Some("{\"promptTokenCount\":100,\"toolUsePromptTokenCount\":3,\"totalTokenCount\":117}"))).usage.tokens
+        assertEquals(Some(14L), output.outputTokens)
+        assertEquals(None, output.reasoningTokens)
+        val large = generateContentDecode(generateContentBody("[]", usage = Some("{\"promptTokenCount\":9007199254740993,\"toolUsePromptTokenCount\":0}"))).usage.tokens
+        assertEquals(Some(9007199254740993L), large.inputTokens)
+        assertEquals(None, large.totalTokens)
+    }
+
+    @Test
+    fun `generateContent missing counts remain unknown while explicit zero counts remain zero`() {
+        for (usage in ["{}", "{\"promptTokenCount\":10,\"candidatesTokenCount\":2}", "{\"promptTokenCount\":null}"]) {
+            val response = generateContentDecode(generateContentBody("[]", usage = Some(usage)))
+            assertEquals(None, response.usage.tokens.inputTokens)
+            assertEquals(None, response.usage.tokens.outputTokens)
+            assertEquals(UsageCompleteness.Final, response.usage.completeness)
+        }
+        val zero = generateContentDecode(generateContentBody("[]", usage = Some("{\"promptTokenCount\":0,\"toolUsePromptTokenCount\":0,\"candidatesTokenCount\":0,\"thoughtsTokenCount\":0,\"cachedContentTokenCount\":0}"))).usage.tokens
+        assertEquals(Some(0L), zero.inputTokens)
+        assertEquals(Some(0L), zero.outputTokens)
+        assertEquals(Some(0L), zero.nonCachedInputTokens)
+        assertEquals(None, zero.totalTokens)
+        val partial = generateContentDecode(generateContentBody("[]", usage = Some("{\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":10}]}")))
+        assertEquals(0L, partial.usage.tokens.modality.size)
+        assertTrue(partial.usage.native!!.containsKey("promptTokensDetails"))
+    }
+
+    @Test
+    fun `generateContent rejects negative overflowing and inconsistent token components with paths`() {
+        for ((usage, field) in [("{\"thoughtsTokenCount\":-1}", "thoughtsTokenCount"),
+            ("{\"promptTokenCount\":9223372036854775807,\"toolUsePromptTokenCount\":1}", "toolUsePromptTokenCount"),
+            ("{\"promptTokenCount\":5,\"cachedContentTokenCount\":6}", "cachedContentTokenCount"),
+            ("{\"promptTokenCount\":20,\"candidatesTokenCount\":1,\"thoughtsTokenCount\":1,\"totalTokenCount\":10}", "promptTokenCount"),
+            ("{\"cacheTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":-1}]}", "cacheTokensDetails/0/tokenCount")]) {
+            assertGenerateContentFailure(generateContentBody("[]", usage = Some(usage)), "/usageMetadata/" + field)
+        }
+    }
+}

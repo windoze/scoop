@@ -1,0 +1,43 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class GenerateContentFunctionCall public constructor(public val name: String, public val id: String? = None,
+    public val args: JsonValue? = None) {
+    public companion object : ValueDecoder<GenerateContentFunctionCall>
+}
+
+internal fun readGenerateContentCall(dialect: DialectId, raw: JsonValue, tools: Array<ToolDefinition>, complete: Boolean,
+    ids: ArrayList<String>, path: String): LlmOutputItem {
+    val call = decodeGenerateContentValue<GenerateContentFunctionCall>(raw["functionCall"]!!, path + "/functionCall")
+    if (call.name.length == 0L) throw DecodingException(path + "/functionCall/name", "function name must not be empty")
+    val id = generateContentId(call.id)
+    if (id != None) {
+        for (previous in ids) {
+            if (previous == id!!) throw DecodingException(path + "/functionCall/id", "duplicate function call ID")
+        }
+        ids.add(id!!)
+    }
+    val key = resolveGenerateContentFunction(tools, call.name) ?: return LlmOutputItem.Native(dialect, raw)
+    val arguments = call.args ?: JsonObjectBuilder().build()
+    val text = Json.stringify(arguments)
+    val input = if (!complete) ClientToolInput.Incomplete(text)
+        else if (arguments.kind != JsonValueKind.Object) ClientToolInput.Invalid(text, "function arguments must be an object")
+        else ClientToolInput.JsonArguments(JsonToolArguments(text))
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, id, Some(raw)), input))
+}
+
+private fun resolveGenerateContentFunction(tools: Array<ToolDefinition>, name: String): ToolKey? {
+    var found: ToolKey? = None
+    for (tool in tools) {
+        when (tool) {
+            case ClientFunction(key, wireName, _, _, _, _) -> {
+                if (wireName != name) continue
+                if (found != None) return None
+                found = Some(key)
+            }
+            else -> continue
+        }
+    }
+    return found
+}

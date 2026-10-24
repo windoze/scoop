@@ -1,0 +1,66 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class GenerateContentUsageFields public constructor(
+    public val promptTokenCount: Long? = None,
+    public val toolUsePromptTokenCount: Long? = None,
+    public val candidatesTokenCount: Long? = None,
+    public val thoughtsTokenCount: Long? = None,
+    public val totalTokenCount: Long? = None,
+    public val cachedContentTokenCount: Long? = None,
+    public val promptTokensDetails: Array<GenerateContentTokenDetail>? = None,
+    public val toolUsePromptTokensDetails: Array<GenerateContentTokenDetail>? = None,
+    public val candidatesTokensDetails: Array<GenerateContentTokenDetail>? = None,
+    public val cacheTokensDetails: Array<GenerateContentTokenDetail>? = None
+) {
+    public companion object : ValueDecoder<GenerateContentUsageFields>
+}
+
+internal fun readGenerateContentUsage(value: JsonValue): TokenUsage {
+    val fields = decodeGenerateContentValue<GenerateContentUsageFields>(value, "/usageMetadata")
+    val prompt = checkedGenerateContentCount(fields.promptTokenCount, "/usageMetadata/promptTokenCount")
+    val tool = checkedGenerateContentCount(fields.toolUsePromptTokenCount, "/usageMetadata/toolUsePromptTokenCount")
+    val candidates = checkedGenerateContentCount(fields.candidatesTokenCount, "/usageMetadata/candidatesTokenCount")
+    val thoughts = checkedGenerateContentCount(fields.thoughtsTokenCount, "/usageMetadata/thoughtsTokenCount")
+    val total = checkedGenerateContentCount(fields.totalTokenCount, "/usageMetadata/totalTokenCount")
+    val cached = checkedGenerateContentCount(fields.cachedContentTokenCount, "/usageMetadata/cachedContentTokenCount")
+    var input = generateContentTokenSum(prompt, tool, "/usageMetadata/toolUsePromptTokenCount")
+    var output = generateContentTokenSum(candidates, thoughts, "/usageMetadata/thoughtsTokenCount")
+    if (input == None) {
+        input = generateContentTokenDifference(total, output, "/usageMetadata/totalTokenCount")
+        requireGenerateContentTokenPart(input, prompt, "promptTokenCount")
+        requireGenerateContentTokenPart(input, tool, "toolUsePromptTokenCount")
+    }
+    if (output == None) {
+        output = generateContentTokenDifference(total, input, "/usageMetadata/totalTokenCount")
+        requireGenerateContentTokenPart(output, candidates, "candidatesTokenCount")
+        requireGenerateContentTokenPart(output, thoughts, "thoughtsTokenCount")
+    }
+    requireGenerateContentTokenPart(prompt, cached, "cachedContentTokenCount")
+    val ordinary = generateContentTokenDifference(input, cached, "/usageMetadata/cachedContentTokenCount")
+    return TokenUsage(input, ordinary, output, total, cached, reasoningTokens = thoughts,
+        modality = readGenerateContentModality(fields))
+}
+
+internal fun checkedGenerateContentCount(value: Long?, path: String): Long? {
+    if (value != None && value!! < 0L) throw DecodingException(path, "token count must not be negative")
+    return value
+}
+
+internal fun generateContentTokenSum(first: Long?, second: Long?, path: String): Long? {
+    if (first == None || second == None) return None
+    if (first!! > Long.MAX_VALUE - second!!) throw DecodingException(path, "token sum exceeds Long")
+    return Some(first!! + second!!)
+}
+
+private fun generateContentTokenDifference(total: Long?, part: Long?, path: String): Long? {
+    if (total == None || part == None) return None
+    if (part!! > total!!) throw DecodingException(path, "token component exceeds its total")
+    return Some(total!! - part!!)
+}
+
+private fun requireGenerateContentTokenPart(total: Long?, part: Long?, name: String) {
+    if (total != None && part != None && part!! > total!!)
+        throw DecodingException("/usageMetadata/" + name, "token component exceeds its normalized total")
+}

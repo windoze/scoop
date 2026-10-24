@@ -1,0 +1,67 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentResponseTest {
+    @Test
+    fun `generateContent groups adjacent text and reasoning while preserving signed empty and unknown parts`() {
+        val parts = "[{\"text\":\"think\",\"thought\":true,\"thoughtSignature\":\"first\"}," +
+            "{\"text\":\"\",\"thought\":true,\"thoughtSignature\":\"tail\"},{\"text\":\"{\\\"count\\\":\"}," +
+            "{\"text\":\"7}\",\"thoughtSignature\":\"answer\"},{\"thoughtSignature\":\"opaque\",\"future\":1e400}]"
+        val body = generateContentBody(parts)
+        val response = generateContentDecode(body)
+        assertEquals("{\"count\":7}", response.text)
+        assertEquals(7L, response.decodeOutput<GenerateContentCount>().count)
+        assertEquals(Some("r"), response.id)
+        assertEquals(Some("model"), response.model)
+        assertEquals(None, response.createdAt)
+        assertEquals(3L, response.candidate(0L).items.size)
+        when (response.candidate(0L).items[0]) {
+            case Reasoning(content, _) -> assertEquals(2L, content.size)
+            else -> fail()
+        }
+        when (response.candidate(0L).items[2]) { case Native(_, value) -> assertEquals("opaque", value["thoughtSignature"]!!.asString()); else -> fail() }
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(Json.stringify(body["candidates"]!![0]["content"]!!), Json.stringify(generateContentHistory(saved)))
+    }
+
+    @Test
+    fun `generateContent retains candidate order and protocol default index without inventing blocked candidates`() {
+        val body = Json.parse("{\"candidates\":[{\"index\":4,\"content\":{\"parts\":[{\"text\":\"four\"}]},\"finishReason\":\"STOP\"}," +
+            "{\"content\":{\"role\":\"\",\"parts\":[{\"text\":\"zero\"}]},\"finishReason\":\"STOP\"}]}")
+        val response = generateContentDecode(body)
+        assertEquals("four", response.text)
+        assertEquals("zero", response.candidate(0L).text)
+        assertEquals(LlmOutputFailure.AmbiguousCandidate, assertFailsWith<LlmOutputException> { response.toInput(); Unit }.reason)
+        val blocked = Json.parse("{\"promptFeedback\":{\"blockReason\":\"SAFETY\"},\"modelStatus\":{\"modelStage\":\"STABLE\"}}")
+        val empty = generateContentDecode(blocked)
+        assertEquals(0L, empty.candidates.size)
+        assertEquals("", empty.text)
+        assertEquals(UsageCompleteness.Final, empty.usage.completeness)
+        assertEquals(Json.stringify(blocked), Json.stringify(empty.native!!))
+    }
+
+    @Test
+    fun `generateContent finish states guard client execution and continuation cannot replay partial output`() {
+        val parts = "[{\"functionCall\":{\"name\":\"lookup\",\"args\":{}}}]"
+        for ((finish, completion) in [("MAX_TOKENS", LlmCompletion.Incomplete), ("SAFETY", LlmCompletion.Refused),
+            ("RECITATION", LlmCompletion.Refused), ("ESCALATION", LlmCompletion.Refused), ("PUP_LIMITED_DISABLED", LlmCompletion.Refused),
+            ("MALFORMED_FUNCTION_CALL", LlmCompletion.Failed),
+            ("MISSING_THOUGHT_SIGNATURE", LlmCompletion.Failed), ("FUTURE", LlmCompletion.Incomplete),
+            ("CONTINUATION", LlmCompletion.Incomplete), ("FINISH_REASON_UNSPECIFIED", LlmCompletion.Incomplete)]) {
+            val result = generateContentDecode(generateContentBody(parts, finish, ",\"continuationToken\":\"opaque\""))
+            assertEquals(completion, result.candidate(0L).completion)
+            assertEquals(0L, result.clientToolCalls.size)
+            if (finish == "CONTINUATION") {
+                assertEquals(LlmFinishReason.Pause, result.candidate(0L).finishReason)
+                assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { result.toInput(); Unit }.reason)
+            }
+        }
+        val unfinished = generateContentDecode(Json.parse("{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"partial\"}]}}]}"))
+        assertEquals(LlmFinishReason.Unknown, unfinished.candidate(0L).finishReason)
+        assertEquals(LlmCompletion.Incomplete, unfinished.candidate(0L).completion)
+    }
+}

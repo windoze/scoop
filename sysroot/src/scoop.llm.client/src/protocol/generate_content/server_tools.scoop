@@ -1,0 +1,78 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readGenerateContentServerPart(dialect: DialectId, raw: JsonValue, field: String,
+    tools: Array<ToolDefinition>, path: String): LlmOutputItem {
+    val value = raw[field]!!
+    val fieldPath = path + "/" + field
+    if (field == "executableCode") {
+        val code = decodeGenerateContentValue<GenerateContentCode>(value, fieldPath)
+        return LlmOutputItem.ServerToolActivity(ServerToolActivity(CodeExecution, InProgress,
+            resolveGenerateContentServer(tools, dialect, "codeExecution"), generateContentId(code.id), Some(value), native = Some(raw)))
+    }
+    if (field == "codeExecutionResult") {
+        val result = decodeGenerateContentValue<GenerateContentCodeResult>(value, fieldPath)
+        val status: ServerToolStatus = when (result.outcome) {
+            case "OUTCOME_OK" -> Completed
+            case "OUTCOME_FAILED" -> Failed
+            case "OUTCOME_DEADLINE_EXCEEDED" -> Failed
+            else -> Unknown
+        }
+        val output: Array<OutputPart> = when (result.output) { case Some(text) -> [OutputPart.Text(text)]; case None -> [] }
+        return LlmOutputItem.ServerToolActivity(ServerToolActivity(CodeExecution, status,
+            resolveGenerateContentServer(tools, dialect, "codeExecution"), generateContentId(result.id), result = output, native = Some(raw)))
+    }
+    val call = decodeGenerateContentValue<GenerateContentServerCall>(value, fieldPath)
+    val (kind, name) = generateContentServerKind(call.toolType)
+    val key = when (name) { case Some(value) -> resolveGenerateContentServer(tools, dialect, value); case None -> None }
+    val arguments = if (field == "toolCall") call.args else call.response
+    if (llmPresent(arguments) && arguments!!.kind != JsonValueKind.Object)
+        throw DecodingException(fieldPath + (if (field == "toolCall") "/args" else "/response"), "server tool data must be an object")
+    val result: Array<OutputPart> = if (field == "toolResponse" && llmPresent(arguments)) [OutputPart.Native(dialect, arguments!!)] else []
+    return LlmOutputItem.ServerToolActivity(ServerToolActivity(kind,
+        if (field == "toolCall") ServerToolStatus.InProgress else ServerToolStatus.Unknown,
+        key, generateContentId(call.id),
+        if (field == "toolCall") arguments else None, result, native = Some(raw)))
+}
+
+internal fun resolveGenerateContentServer(tools: Array<ToolDefinition>, dialect: DialectId, name: String): ToolKey? {
+    var found: ToolKey? = None
+    for (tool in tools) {
+        val matches = when (tool) {
+            case Server(_, definition, _) -> when (definition) {
+                case WebSearch(_) -> name == "googleSearch"
+                case Native(value) -> value.dialect == dialect && value.kind == name
+            }
+            else -> false
+        }
+        if (matches) {
+            if (found != None) return None
+            found = Some(tool.key)
+        }
+    }
+    return found
+}
+
+private fun generateContentServerKind(type: String): (ServerToolKind, String?) = when (type) {
+    case "GOOGLE_SEARCH_WEB" -> (ServerToolKind.WebSearch, Some("googleSearch"))
+    case "GOOGLE_SEARCH_IMAGE" -> (ServerToolKind.Native, Some("googleSearch"))
+    case "URL_CONTEXT" -> (ServerToolKind.WebFetch, Some("urlContext"))
+    case "FILE_SEARCH" -> (ServerToolKind.FileSearch, Some("fileSearch"))
+    case "GOOGLE_MAPS" -> (ServerToolKind.Native, Some("googleMaps"))
+    else -> (ServerToolKind.Native, None)
+}
+
+private class GenerateContentCode public constructor(public val language: String, public val code: String, public val id: String? = None) {
+    public companion object : ValueDecoder<GenerateContentCode>
+}
+
+private class GenerateContentCodeResult public constructor(public val outcome: String, public val id: String? = None,
+    public val output: String? = None) {
+    public companion object : ValueDecoder<GenerateContentCodeResult>
+}
+
+private class GenerateContentServerCall public constructor(public val toolType: String, public val id: String? = None,
+    public val args: JsonValue? = None, public val response: JsonValue? = None) {
+    public companion object : ValueDecoder<GenerateContentServerCall>
+}

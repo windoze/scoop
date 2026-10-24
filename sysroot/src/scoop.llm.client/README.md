@@ -10,6 +10,8 @@ Responses 的最小请求只发送 model 和 input，生成参数缺省省略。
 
 `ClientToolCallReference.id` 是可选的服务端 ID，缺失时保持 `None`，不使用工具名或生成的字符串代替。应用回传工具结果时直接复用 reference；Chat、Messages 和 Responses 仍要求非空 ID，并在请求编码时检查。已保存的字符串 ID 可直接恢复，原生 context 与 ID 是否存在无关。
 
+`GenerateContentProtocol(GeminiGenerateContentDialect()).decodeResponse(wire, request)` 提供 Gemini generateContent 的纯响应解码：保留多候选、文本／thought／媒体顺序、完整签名历史、无 ID 的函数调用、服务端执行与 grounding 引用。引用范围使用明确的 UTF-8 字节单位；usage 分开统计工具输入与思考输出，未报告的明细保持未知。CONTINUATION 的部分结果保留原生 token，但不提供可直接追加的 history。该协议的请求编码、普通生成与 SSE 尚在实施。
+
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 
 ```scoop

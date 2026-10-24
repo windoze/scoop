@@ -1,0 +1,42 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+private class GenerateContentSourceFields public constructor(public val web: JsonValue? = None, public val image: JsonValue? = None,
+    public val retrievedContext: JsonValue? = None, public val maps: JsonValue? = None) {
+    public companion object : ValueDecoder<GenerateContentSourceFields>
+}
+
+private class GenerateContentSourceLink public constructor(public val uri: String? = None, public val sourceUri: String? = None,
+    public val title: String? = None) {
+    public companion object : ValueDecoder<GenerateContentSourceLink>
+}
+
+internal fun readGenerateContentSource(dialect: DialectId, raw: JsonValue, path: String): (LlmSource, Boolean) {
+    val fields = decodeGenerateContentValue<GenerateContentSourceFields>(raw, path)
+    var selected: JsonValue? = None
+    var kind = ""
+    for ((name, value) in [("web", fields.web), ("image", fields.image), ("retrievedContext", fields.retrievedContext), ("maps", fields.maps)]) {
+        if (!llmPresent(value)) continue
+        if (llmPresent(selected)) throw DecodingException(path + "/" + name, "grounding chunk has multiple source kinds")
+        selected = value
+        kind = name
+    }
+    val value = selected ?: return (LlmSource(path, LlmSourceLocation.Native(dialect, raw), native = Some(raw)), false)
+    val link = decodeGenerateContentValue<GenerateContentSourceLink>(value, path + "/" + kind)
+    val uri = if (kind == "image") link.sourceUri else link.uri
+    val location = if (uri == None || kind == "retrievedContext") LlmSourceLocation.Native(dialect, raw) else {
+        val url = Url.parseOrNone(uri!!) ?: throw DecodingException(path + "/" + kind + (if (kind == "image") "/sourceUri" else "/uri"), "invalid source URI")
+        LlmSourceLocation.Url(url)
+    }
+    return (LlmSource(path, location, link.title, Some(raw)), kind == "web")
+}
+
+internal fun generateContentCitationRange(start: Long?, end: Long?, text: String, path: String): TextRange? {
+    val first = start ?: 0L
+    if (first < 0L) throw DecodingException(path + "/startIndex", "citation start must not be negative")
+    val last = end ?: return None
+    if (last < first || last > text.toByteArray().size) throw DecodingException(path + "/endIndex", "citation range is outside its text part")
+    return Some(TextRange(first, last, Utf8Bytes))
+}

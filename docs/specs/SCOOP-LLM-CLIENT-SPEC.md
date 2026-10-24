@@ -370,3 +370,27 @@ response.completed、response.incomplete、response.failed 是终止事件，其
 EventsOnly 只保存关联、文本／引用的已交付位置、usage 和结束状态，不累计普通文本、reasoning、工具参数或已完成 item；处理终止事件时临时读取其完整 response。Result 保存完成 item 与必要 Native 片段，终止后生成 LlmResponse，native 为 None。两种模式共用检查与事件投影。usage 按已有累计快照规则合并，终止时标 Final，缺失项不补零；响应身份、UTC 与本地采样时间保持各自语义。
 
 协议依据：[Responses streaming events](https://developers.openai.com/api/reference/resources/responses/streaming-events)、[Streaming responses](https://developers.openai.com/api/docs/guides/streaming-responses)。
+
+## 18. Gemini generateContent 完整响应
+
+GenerateContentProtocol 与 GenerateContentDialect 分别负责 contents／parts／candidates 的线格式和服务方解释；GeminiGenerateContentDialect 的标识为 DialectId(ApiProtocolId("generate-content"), "gemini-generate-content")。本节先提供纯 decodeResponse(value, request)，不把 Interactions 的 step 或签名字段当作 generateContent part，也不在请求编码实现前提供生成 provider。
+
+candidates 按 wire 顺序保存，index 缺省为协议的 0，不能用数组位置替代缺失的 index；负值和重复索引报错。没有候选时不伪造候选，promptFeedback、modelStatus 等信息保留在 response.native。responseId／modelVersion 映射 id／model，未报告的 createdAt 保持 None。content.role 可省略或为空，显式非 model 角色拒绝；content 与所有 parts、thoughtSignature、未知字段完整保留在 history 中。CONTINUATION 的 token 留在原文，候选为 Incomplete／Pause，history 不可用，因为继续该响应要求重复最初的输入，而不能追加部分输出。
+
+STOP 表示 Complete，存在已关联的客户端调用时 finishReason 为 ToolCalls，否则 Stop；MAX_TOKENS 为 Incomplete／Length。安全、屏蔽、recitation、ESCALATION 与 PUP_LIMITED_DISABLED 停止为 Refused／ContentFilter；畸形调用、缺失签名及协议报告的生成失败为 Failed／Other。未报告或未指定的原因是 Incomplete／Unknown，其他原因保留 Other 并保持 Incomplete。完成状态在解释工具输入之前确定，未完成、拒绝和失败结果中的调用不进入可执行视图。
+
+part 的已知 data 字段互斥；同时存在多个非 null 字段时报字段路径错误。相邻的普通文本／媒体组成同一 Message，相邻的 thought 内容组成同一 Reasoning，跨工具和未知 part 时保持原有顺序。thoughtSignature 本身不代表可展示的 reasoning，也不能因 text 为空而丢失。只有 thought=true 才进入 Reasoning；其中的原生调用不成为客户端可执行操作。未知 part 及签名单独出现的 part 保留 Native。
+
+inlineData 解码 Base64 并按明确 MIME 分类为图片、音频、视频或 PDF／文本类文档；fileData 保留为本 dialect 的文件引用，不能自动下载、读取或猜测未报告的 MIME。其他媒体类型保持 Native。原始 MIME 参数、displayName、转写及媒体元数据仍可从 history／native 读取。
+
+functionCall 只按 name 唯一关联本次请求的 ClientFunction；未声明或歧义调用保持 Native。id 是可选的，缺失／null／空字符串表示未提供服务器标识；非空 ID 在同一候选内不能重复，None 不参与去重。context 保存整个原始 part，包括签名和函数名。省略 args 表示无参数，按协议解释为空对象；显式非对象参数为 Invalid。完整对象参数为 JsonArguments，非 Complete 候选使用 Incomplete。functionResponse 是已有结果，保留 Native，不再次发起客户端执行。
+
+executableCode／codeExecutionResult 是服务端代码执行活动，不能暴露为待执行函数；代码为 action，结果按明确 outcome 映射 Completed／Failed／Unknown。toolCall／toolResponse 同样为服务端活动，依 toolType 区分 WebSearch、WebFetch、FileSearch 或 Native；没有明确结果状态时使用 Unknown。所有服务器 ID 均按实际值保存，不从工具名或位置生成。只有能唯一关联到相应 Server 声明时设置 toolKey，ClientFunction 的同名声明不参与关联。
+
+groundingMetadata 中的实际 web 查询、搜索入口或 web 来源可形成一条 WebSearch 活动；仅声明搜索工具不产生活动。来源表和 groundingSupports 按原索引关联，searchEntryPoint 原文留给应用展示。segment.partIndex 缺省为 0，startIndex 缺省为 0；明确 endIndex 时以 UTF-8 字节的左闭右开 TextRange 连接到对应文本 part，不改用字符下标。缺失范围保持 None，非法来源／part 索引和越界范围报路径错误。非文本 grounding 及其他来源元数据仍保留原文。citationMetadata 只有在唯一 content part 为文本时投影到该 part；无法确定归属时保留 Native，不把引用任意放到第一段文本。
+
+usageMetadata 的 inputTokens 是 promptTokenCount 与 toolUsePromptTokenCount 之和，outputTokens 是 candidatesTokenCount 与 thoughtsTokenCount 之和；求和仅在两项均有报告时进行。已知 totalTokenCount 和其中一侧完整总数时，可按协议总数公式计算另一侧，但不据此填入未报告的明细。cacheReadTokens 对应 cachedContentTokenCount，nonCachedInputTokens 仅在完整 input 与 cacheRead 均已知时相减；cacheWriteTokens 保持 None。reasoningTokens 保留 thoughtsTokenCount，totalTokens 直接保留 totalTokenCount。所有实际计数检查非负与必要的加减溢出，缺失字段不补零；完整 HTTP 响应的 usage 为 Final，即使模型结果并不完整。
+
+promptTokensDetails 与 toolUsePromptTokensDetails 均存在时，按模态合并为输入明细；candidatesTokensDetails 提供已报告的输出明细。cacheTokensDetails 是输入子集，仅保留原文，不再次加入通用模态总数。未知模态使用 Other，全部原生计数及未归一化明细保留在 usage.native。
+
+协议依据：[generateContent API](https://ai.google.dev/api/generate-content)。参考 [Vercel Google usage 映射](https://github.com/vercel/ai/blob/main/packages/google/src/convert-google-usage.ts)的输入／工具与输出／思考拆分；本库仍保留未报告计数的 None，不自动继续请求或累加多次调用。

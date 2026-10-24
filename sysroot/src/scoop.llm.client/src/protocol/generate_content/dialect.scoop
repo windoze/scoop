@@ -1,0 +1,14 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Provider accounting within the generateContent wire protocol. */
+public interface GenerateContentDialect {
+    public val id: DialectId
+    public fun readUsage(value: JsonValue): TokenUsage
+}
+
+public class GeminiGenerateContentDialect public constructor() : GenerateContentDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("generate-content"), "gemini-generate-content")
+    public override fun readUsage(value: JsonValue): TokenUsage = readGenerateContentUsage(value)
+}
