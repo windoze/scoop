@@ -41,27 +41,8 @@ impl<'a> CallRanges<'a> {
         let (head, shape) = self
             .loops
             .iter()
-            .find(|(_, shape)| shape.body_chain.contains(&site.0))?;
-        let mut state = State::new(head);
-        for &id in &shape.header_chain {
-            for statement in &self.caller.body.blocks[id].statements {
-                state.statement(statement);
-            }
-        }
-        for &id in &shape.body_chain {
-            let statements = &self.caller.body.blocks[id].statements;
-            let prefix = if id == site.0 {
-                site.1
-            } else {
-                statements.len()
-            };
-            for statement in &statements[..prefix] {
-                state.statement(statement);
-            }
-            if id == site.0 {
-                break;
-            }
-        }
+            .find(|(_, shape)| shape.body.blocks.contains(&site.0))?;
+        let mut state = State::before(self.caller, head, &shape.body.blocks, site)?;
         specialize(module, callee, blocks, state.bind(callee, &call.args))
     }
 }

@@ -3,25 +3,34 @@
 use inkwell::values::{AnyValueEnum, BasicValueEnum};
 use inkwell::{AddressSpace, AtomicOrdering};
 
-use super::{BasicBlock, BasicValue, InstructionOpcode, InstructionValue, PointerValue};
+use super::{
+    BasicBlock, BasicValue, InstructionOpcode, InstructionValue, PointerValue, region::Region,
+};
 
-pub(super) fn prepare(block: BasicBlock<'_>, predecessor: BasicBlock<'_>) -> bool {
-    let loads = block
-        .get_instructions()
-        .filter(|instruction| root_load(*instruction, block))
+pub(super) fn prepare(region: &Region<'_>) -> bool {
+    let loads = region
+        .blocks
+        .iter()
+        .flat_map(|block| block.get_instructions())
+        .filter(|instruction| root_load(*instruction, &region.blocks))
         .collect::<Vec<_>>();
-    let branch = block.get_terminator().expect("bounded loop has a branch");
-    if !block.get_instructions().all(|instruction| {
-        instruction == branch
-            || loads.contains(&instruction)
-            || supported(instruction, block, &loads)
-    }) {
+    if !region
+        .blocks
+        .iter()
+        .flat_map(|block| block.get_instructions())
+        .all(|instruction| {
+            instruction.get_opcode() == InstructionOpcode::Br
+                || loads.contains(&instruction)
+                || supported(instruction, &region.blocks, &loads)
+        })
+    {
         return false;
     }
     if !loads.is_empty() {
-        let builder = block.get_context().create_builder();
+        let builder = region.header.get_context().create_builder();
         builder.position_before(
-            &predecessor
+            &region
+                .predecessor
                 .get_terminator()
                 .expect("loop predecessor terminates"),
         );
@@ -35,19 +44,19 @@ pub(super) fn prepare(block: BasicBlock<'_>, predecessor: BasicBlock<'_>) -> boo
 
 fn supported(
     instruction: InstructionValue<'_>,
-    block: BasicBlock<'_>,
+    blocks: &[BasicBlock<'_>],
     loads: &[InstructionValue<'_>],
 ) -> bool {
     match instruction.get_opcode() {
         InstructionOpcode::GetElementPtr => {
-            only_used_in(instruction, block)
+            only_used_in(instruction, blocks)
                 && PointerValue::try_from(instruction)
-                    .is_ok_and(|pointer| derived(pointer, block, loads))
+                    .is_ok_and(|pointer| derived(pointer, blocks, loads))
         }
         InstructionOpcode::Load => {
             (instruction.get_type().is_int_type() || instruction.get_type().is_float_type())
                 && ordinary(instruction)
-                && address(instruction, 0).is_some_and(|pointer| derived(pointer, block, loads))
+                && address(instruction, 0).is_some_and(|pointer| derived(pointer, blocks, loads))
         }
         InstructionOpcode::Store => {
             instruction
@@ -55,7 +64,7 @@ fn supported(
                 .and_then(|operand| operand.value())
                 .is_some_and(scalar)
                 && ordinary(instruction)
-                && address(instruction, 1).is_some_and(|pointer| derived(pointer, block, loads))
+                && address(instruction, 1).is_some_and(|pointer| derived(pointer, blocks, loads))
         }
         InstructionOpcode::Phi
         | InstructionOpcode::Add
@@ -109,7 +118,7 @@ fn address(instruction: InstructionValue<'_>, index: u32) -> Option<PointerValue
 
 fn derived(
     mut pointer: PointerValue<'_>,
-    block: BasicBlock<'_>,
+    blocks: &[BasicBlock<'_>],
     loads: &[InstructionValue<'_>],
 ) -> bool {
     loop {
@@ -119,7 +128,11 @@ fn derived(
         let Some(instruction) = pointer.as_instruction_value() else {
             return true;
         };
-        if instruction.get_parent() != Some(block) || loads.contains(&instruction) {
+        if !instruction
+            .get_parent()
+            .is_some_and(|parent| blocks.contains(&parent))
+            || loads.contains(&instruction)
+        {
             return true;
         }
         if instruction.get_opcode() != InstructionOpcode::GetElementPtr
@@ -138,12 +151,12 @@ fn derived(
     }
 }
 
-fn root_load(instruction: InstructionValue<'_>, block: BasicBlock<'_>) -> bool {
+fn root_load(instruction: InstructionValue<'_>, blocks: &[BasicBlock<'_>]) -> bool {
     if instruction.get_opcode() != InstructionOpcode::Load
         || !ordinary(instruction)
         || !PointerValue::try_from(instruction)
             .is_ok_and(|value| value.get_type().get_address_space() == AddressSpace::from(1))
-        || !only_used_in(instruction, block)
+        || !only_used_in(instruction, blocks)
     {
         return false;
     }
@@ -152,8 +165,9 @@ fn root_load(instruction: InstructionValue<'_>, block: BasicBlock<'_>) -> bool {
     };
     if slot.get_opcode() != InstructionOpcode::Alloca
         || slot.get_parent()
-            != block
+            != instruction
                 .get_parent()
+                .and_then(|block| block.get_parent())
                 .and_then(|function| function.get_first_basic_block())
     {
         return false;
@@ -170,18 +184,23 @@ fn root_load(instruction: InstructionValue<'_>, block: BasicBlock<'_>) -> bool {
             InstructionOpcode::Store
                 if address(user, 1) == Some(slot_value)
                     && address(user, 0) != Some(slot_value)
-                    && user.get_parent() != Some(block) => {}
+                    && !user
+                        .get_parent()
+                        .is_some_and(|parent| blocks.contains(&parent)) => {}
             _ => return false,
         }
     }
     true
 }
 
-fn only_used_in(instruction: InstructionValue<'_>, block: BasicBlock<'_>) -> bool {
+fn only_used_in(instruction: InstructionValue<'_>, blocks: &[BasicBlock<'_>]) -> bool {
     let mut next = instruction.get_first_use();
     while let Some(usage) = next {
         next = usage.get_next_use();
-        if user_instruction(usage.get_user()).and_then(|user| user.get_parent()) != Some(block) {
+        if !user_instruction(usage.get_user())
+            .and_then(|user| user.get_parent())
+            .is_some_and(|parent| blocks.contains(&parent))
+        {
             return false;
         }
     }

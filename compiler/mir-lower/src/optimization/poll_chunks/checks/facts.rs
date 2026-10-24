@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::super::{
     header::Header,
-    mir,
+    mir, region,
     values::{Length, defined_local, definition, integer},
 };
 
@@ -12,6 +12,7 @@ use super::super::{
 pub(in crate::optimization::poll_chunks) enum Value {
     Unknown,
     Index,
+    NextIndex,
     Bound,
     Integer(i128),
     Boolean(bool),
@@ -19,6 +20,7 @@ pub(in crate::optimization::poll_chunks) enum Value {
     Length(Length),
 }
 
+#[derive(Clone)]
 pub(in crate::optimization::poll_chunks) struct State<'a> {
     head: &'a Header,
     values: BTreeMap<mir::LocalId, Value>,
@@ -32,6 +34,59 @@ impl<'a> State<'a> {
             values: BTreeMap::from([(head.index, Value::Index)]),
             guards: BTreeSet::new(),
         }
+    }
+
+    /// Merge both syntactic paths when proving induction or selecting an inline.
+    /// Only checked-path projection may discard a branch using range guards.
+    pub fn before(
+        function: &mir::Function,
+        head: &'a Header,
+        blocks: &[mir::BlockId],
+        site: (mir::BlockId, usize),
+    ) -> Option<Self> {
+        let mut entry = Self::new(head);
+        for &block in &head.chain {
+            for statement in &function.body.blocks[block].statements {
+                entry.statement(statement);
+            }
+        }
+        let mut states = BTreeMap::from([(*blocks.first()?, entry)]);
+        for &id in blocks {
+            let mut state = states.remove(&id)?;
+            let block = &function.body.blocks[id];
+            let prefix = if id == site.0 {
+                site.1
+            } else {
+                block.statements.len()
+            };
+            for statement in &block.statements[..prefix] {
+                state.statement(statement);
+            }
+            if id == site.0 {
+                return Some(state);
+            }
+            for next in region::successors(&block.terminator)? {
+                propagate(&mut states, next, &state);
+            }
+        }
+        None
+    }
+
+    fn merge(&mut self, other: &Self) {
+        let keys = self
+            .values
+            .keys()
+            .chain(other.values.keys())
+            .copied()
+            .collect::<BTreeSet<_>>();
+        for local in keys {
+            let value = match (self.values.get(&local), other.values.get(&local)) {
+                (Some(lhs), Some(rhs)) if lhs == rhs => *lhs,
+                _ => Value::Unknown,
+            };
+            self.values.insert(local, value);
+        }
+        self.guards.extend(&other.guards);
     }
 
     pub fn statement(&mut self, statement: &mir::Statement) {
@@ -84,6 +139,20 @@ impl<'a> State<'a> {
             }
             mir::ExprKind::IntegerLiteral(_) => Value::Integer(integer(expression).unwrap()),
             mir::ExprKind::BoolLiteral(value) => Value::Boolean(*value),
+            mir::ExprKind::IntegerBinary {
+                operation,
+                lhs,
+                rhs,
+            } if operation.kind() == self.head.kind
+                && operation.operator() == mir::IntegerBinaryOperator::Add =>
+            {
+                if self.expression(lhs) == Value::Index && self.expression(rhs) == Value::Integer(1)
+                {
+                    Value::NextIndex
+                } else {
+                    Value::Unknown
+                }
+            }
             mir::ExprKind::ArrayLen { operand, .. } => match self.expression(operand) {
                 Value::Array(array) => Value::Length(array),
                 _ => Value::Unknown,
@@ -163,5 +232,18 @@ impl<'a> State<'a> {
         if self.head.invariants.length(&self.head.bound) != Some(array) {
             self.guards.insert(array);
         }
+    }
+}
+
+pub(in crate::optimization::poll_chunks) fn propagate<'a>(
+    states: &mut BTreeMap<mir::BlockId, State<'a>>,
+    block: mir::BlockId,
+    state: &State<'a>,
+) {
+    match states.entry(block) {
+        std::collections::btree_map::Entry::Vacant(entry) => {
+            entry.insert(state.clone());
+        }
+        std::collections::btree_map::Entry::Occupied(mut entry) => entry.get_mut().merge(state),
     }
 }

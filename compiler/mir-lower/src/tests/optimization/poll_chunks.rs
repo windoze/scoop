@@ -1,5 +1,7 @@
 use super::*;
 
+mod conditional;
+
 fn sample(kind: hir::IntegerKind, snapshot: bool) -> (mir::Module, mir::FunctionId) {
     let mut h = Harness::new();
     let ty = h.integer(kind);

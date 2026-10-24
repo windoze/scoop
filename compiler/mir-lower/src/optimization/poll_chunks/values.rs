@@ -30,6 +30,7 @@ impl Length {
 pub(super) struct Invariants {
     available: BTreeSet<mir::LocalId>,
     aliases: BTreeMap<mir::LocalId, mir::Expr>,
+    control: ControlFlow,
 }
 
 impl Invariants {
@@ -96,7 +97,16 @@ impl Invariants {
                 }
             }
         }
-        Self { available, aliases }
+        Self {
+            available,
+            aliases,
+            control,
+        }
+    }
+
+    pub fn dominates(&self, definition: mir::BlockId, block: mir::BlockId) -> bool {
+        self.control
+            .block_dominates(index(definition), index(block))
     }
 
     pub fn contains(&self, local: mir::LocalId) -> bool {

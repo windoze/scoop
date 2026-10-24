@@ -1,0 +1,67 @@
+package dev.performance
+
+@Extern(lib = "m34_interfaces", name = "bench_kind") fun benchKind(): Int
+@Extern(lib = "m34_interfaces", name = "bench_count") fun benchCount(): Int
+@Extern(lib = "m34_interfaces", name = "bench_begin") fun benchBegin(): Unit
+@Extern(lib = "m34_interfaces", name = "bench_end") fun benchEnd(): Unit
+
+@NoGC fun control(count: Long): Long {
+    var i = 0L
+    var state = 7L
+    while (i < count) {
+        state = state.xor(state.shl(13L)).and(4294967295L)
+        state = state.xor(state.shr(17L))
+        state = state.xor(state.shl(5L)).and(4294967295L)
+        i += 1L
+    }
+    return state
+}
+
+@Unsafe fun exercise(count: Long, mode: Int): Long {
+    val source = MutableArray<Int>(count) { i -> (i.toInt() * 1664525 + 1013904223).and(-2) }
+    val target = MutableArray<Int>(count) { _ -> -1 }
+    val other = MutableArray<Int>(count) { _ -> -2 }
+    val longs = Array<Long>(count) { i -> (i.toInt() * 1664525 + 1013904223).and(-2).toLong() }
+    val search = Array<Long>(count) { i -> if (i == count - 1L) -1L else i }
+    val floats = MutableArray<Float>(count) { i -> (i.and(255L) - 128L).toFloat() * 0.25f }
+    val floatTarget = MutableArray<Float>(count) { _ -> 0f }
+    val doubles = MutableArray<Double>(count) { i -> (i.and(255L) - 128L).toDouble() * 0.25 }
+    val doubleTarget = MutableArray<Double>(count) { _ -> 0.0 }
+    val numbers = Array<Double>(count) { i -> (i.and(1023L) - 512L).toDouble() * 0.25 }
+    val mask = Array<Boolean>(count) { i -> (i.toInt() * 1664525 + 1013904223).and(0x40000000) != 0 }
+    val rounds = if (count < 256L) 100000L else 128L
+    val threshold = if (mode == 11 || mode == 13) 2147483647L else if (mode == 12 || mode == 14) -2147483648L else 0L
+    var round = 0L
+    var result = 0L
+    var real = 0.0
+    benchBegin()
+    while (round < rounds) {
+        if (mode == 0 || mode == 11 || mode == 12) result += sumSelected(longs, threshold)
+        else if (mode == 1 || mode == 13 || mode == 14) transform(source, target, threshold.toInt())
+        else if (mode == 2) retainPositive(source, target)
+        else if (mode == 3) clampFloat(floats, floatTarget, -1f, 1f)
+        else if (mode == 4) clampDouble(doubles, doubleTarget, -1.0, 1.0)
+        else if (mode == 5) real += sumMasked(numbers, mask)
+        else if (mode == 6) partition(source, target, other)
+        else if (mode == 7) {
+            val created = generatedConditional(count, round.toInt() + 1)
+            result += created[0L].toLong() + created[count - 1L].toLong()
+        } else if (mode == 8) result += firstNegative(search)
+        else if (mode == 10) result += straightSum(longs)
+        else transform(source, source, 0)
+        round += 1L
+    }
+    benchEnd()
+    return result + real.toBits() + source[count - 1L].toLong() + target[0L].toLong() + other[count - 1L].toLong() + floatTarget[0L].toBits().toLong() + doubleTarget[count - 1L].toBits()
+}
+
+@Unsafe fun main() {
+    val count = benchCount().toLong()
+    val mode = benchKind()
+    if (mode == 9) {
+        benchBegin()
+        val result = control(count * 128L)
+        benchEnd()
+        println(result)
+    } else println(exercise(count, mode))
+}

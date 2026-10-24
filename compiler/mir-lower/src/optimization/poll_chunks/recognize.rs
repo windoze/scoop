@@ -1,8 +1,10 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use super::{
-    CHUNK, Loop, header, linear, mir, operations,
-    values::{defined_local, definition, integer, resolve},
+    CHUNK, Loop,
+    checks::facts::{State, Value},
+    header, mir, operations, region,
+    values::{defined_local, definition, integer},
 };
 use crate::optimization::graph::index;
 
@@ -15,7 +17,8 @@ pub(super) fn counted(
 ) -> Option<Loop> {
     let counted = shape(function, header, head, incoming)?;
     if counted
-        .body_chain
+        .body
+        .blocks
         .iter()
         .any(|id| !operations::supported(module, &function.body.blocks[*id], true))
         || integer(head.invariants.resolve(&counted.bound))
@@ -34,55 +37,63 @@ pub(super) fn shape(
     incoming: &[Vec<mir::BlockId>],
 ) -> Option<Loop> {
     let body = &function.body;
-    let header_chain = &head.chain;
-    let header_locals = &head.locals;
-    let (inner, exit, preheader, iv, kind) =
-        (head.inner, head.exit, head.preheader, head.index, head.kind);
-    let bound = &head.bound;
-    let body_chain = linear::chain(body, inner, header, incoming)?;
-    let last = *body_chain.last()?;
-    if body_chain.contains(&exit)
-        || body_chain.iter().any(|id| {
-            body.loop_header_polls
+    let blocks = region::order(body, head.inner, &[header])?;
+    let members = blocks.iter().copied().collect::<BTreeSet<_>>();
+    let mut latch = None;
+    for &id in &blocks {
+        let block = &body.blocks[id];
+        if id == body.entry
+            || id == head.exit
+            || head.chain.contains(&id)
+            || block.unwind.is_some()
+            || body
+                .loop_header_polls
                 .iter()
-                .any(|poll| poll.header() == *id)
-        })
-        || incoming[index(inner)] != [*header_chain.last()?]
-        || !matches!(body.blocks[last].terminator, mir::Terminator::Goto(target) if target == header)
-        || last == preheader
-        || !incoming[index(header)].contains(&last)
-    {
+                .any(|poll| poll.header() == id)
+            || incoming[index(id)].iter().any(|predecessor| {
+                !members.contains(predecessor)
+                    && !(id == head.inner && head.chain.last() == Some(predecessor))
+            })
+        {
+            return None;
+        }
+        if matches!(block.terminator, mir::Terminator::Goto(next) if next == header) {
+            if latch.replace(id).is_some() {
+                return None;
+            }
+        } else if region::successors(&block.terminator)?
+            .iter()
+            .any(|next| !members.contains(next))
+        {
+            return None;
+        }
+    }
+    let latch = latch?;
+    if incoming[index(head.inner)] != [*head.chain.last()?] || latch == head.preheader {
         return None;
     }
-    let mut temporaries = BTreeSet::new();
-    let mut reassigned = BTreeSet::new();
-    for local in body_chain
+    let mut temporaries = blocks
         .iter()
         .flat_map(|id| &body.blocks[*id].statements)
         .filter_map(defined_local)
-    {
-        if !temporaries.insert(local) {
-            reassigned.insert(local);
-        }
-    }
+        .collect::<BTreeSet<_>>();
     for param in &function.params {
         temporaries.remove(&param.local);
-        if header_locals.contains(&param.local) {
+        if head.locals.contains(&param.local) {
             return None;
         }
     }
     let mut writes = Vec::new();
     for (id, candidate) in body.blocks.iter() {
-        for statement in &candidate.statements {
-            let local = defined_local(statement);
-            if let Some(local) = local {
-                if !body_chain.contains(&id) {
+        for (position, statement) in candidate.statements.iter().enumerate() {
+            if let Some(local) = defined_local(statement) {
+                if !members.contains(&id) {
                     temporaries.remove(&local);
                 }
-                if local == iv {
-                    writes.push((id, statement));
+                if local == head.index {
+                    writes.push((id, position));
                 }
-                if !header_chain.contains(&id) && header_locals.contains(&local) {
+                if !head.chain.contains(&id) && head.locals.contains(&local) {
                     return None;
                 }
             }
@@ -92,10 +103,10 @@ pub(super) fn shape(
     for (id, candidate) in body.blocks.iter() {
         mir::visit_block_exprs(candidate, &mut |expr| {
             if matches!(expr.kind, mir::ExprKind::Local(local)
-                if (!body_chain.contains(&id) && temporaries.contains(&local))
-                    || (!header_chain.contains(&id) && header_locals.contains(&local)))
+                if (!members.contains(&id) && temporaries.contains(&local))
+                    || (!head.chain.contains(&id) && head.locals.contains(&local)))
                 || matches!(expr.kind, mir::ExprKind::AddressOf { local, .. }
-                    if local == iv || header_locals.contains(&local) || temporaries.contains(&local))
+                    if local == head.index || head.locals.contains(&local) || temporaries.contains(&local))
             {
                 valid = false;
             }
@@ -104,62 +115,33 @@ pub(super) fn shape(
     if !valid || writes.len() != 2 {
         return None;
     }
-    let initial = writes
-        .iter()
-        .find_map(|(id, statement)| (*id == preheader).then_some(*statement))?;
-    let (_, init) = definition(initial)?;
+    let initial = writes.iter().find(|(id, _)| *id == head.preheader)?;
+    let (_, init) = definition(&body.blocks[initial.0].statements[initial.1])?;
     let start = integer(init)?;
     if start < 0 {
         return None;
     }
-    let update = writes
-        .iter()
-        .find_map(|(id, statement)| body_chain.contains(id).then_some(*statement))?;
-    let mut aliases = BTreeMap::new();
-    for statement in body_chain
-        .iter()
-        .flat_map(|id| &body.blocks[*id].statements)
-    {
-        let Some((local, value)) = definition(statement) else {
-            if let Some(local) = defined_local(statement) {
-                aliases.remove(&local);
-            }
-            continue;
-        };
-        if std::ptr::eq(statement, update) {
-            let mir::ExprKind::IntegerBinary {
-                operation,
-                lhs,
-                rhs,
-            } = &resolve(value, &aliases).kind
-            else {
-                return None;
-            };
-            if operation.kind() != kind
-                || operation.operator() != mir::IntegerBinaryOperator::Add
-                || !matches!(resolve(lhs, &aliases).kind, mir::ExprKind::Local(local) if local == iv)
-                || integer(resolve(rhs, &aliases)) != Some(1)
-            {
-                return None;
-            }
-            break;
-        }
-        // Earlier expressions read the old value of a reassigned local.
-        if temporaries.contains(&local) && !reassigned.contains(&local) {
-            aliases.insert(local, resolve(value, &aliases).clone());
-        } else {
-            aliases.remove(&local);
-        }
+    let update = *writes.iter().find(|(id, _)| members.contains(id))?;
+    if !head.invariants.dominates(update.0, latch) {
+        return None;
+    }
+    let mut state = State::before(function, head, &blocks, update)?;
+    let (_, value) = definition(&body.blocks[update.0].statements[update.1])?;
+    if state.expression(value) != Value::NextIndex {
+        return None;
     }
     Some(Loop {
         header,
-        body: inner,
-        index: iv,
-        bound: bound.clone(),
-        kind,
+        body: region::Region {
+            entry: head.inner,
+            latch,
+            blocks,
+        },
+        index: head.index,
+        bound: head.bound.clone(),
+        kind: head.kind,
         start,
-        header_chain: header_chain.clone(),
-        body_chain,
+        header_chain: head.chain.clone(),
         temporaries,
     })
 }

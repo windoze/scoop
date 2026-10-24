@@ -14,6 +14,7 @@ mod inlining;
 mod linear;
 mod operations;
 mod recognize;
+mod region;
 mod values;
 
 pub(super) use inlining::CallRanges;
@@ -22,13 +23,12 @@ const CHUNK: u32 = 64;
 
 struct Loop {
     header: mir::BlockId,
-    body: mir::BlockId,
+    body: region::Region,
     index: mir::LocalId,
     bound: mir::Expr,
     kind: mir::IntegerKind,
     start: i128,
     header_chain: Vec<mir::BlockId>,
-    body_chain: Vec<mir::BlockId>,
     temporaries: BTreeSet<mir::LocalId>,
 }
 
@@ -53,7 +53,7 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
             let Some(head) = header::analyze(module, function, target.header(), &incoming) else {
                 continue;
             };
-            let (counted, mut projected, guards) = if let Some(counted) =
+            let (mut counted, mut projected, guards) = if let Some(counted) =
                 recognize::counted(module, function, target.header(), &head, &incoming)
             {
                 (counted, None, Vec::new())
@@ -72,11 +72,21 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
             }
             linear::merge(&mut function.body, &counted.header_chain);
             let source = if let Some(mut body) = projected {
-                linear::merge(&mut body, &counted.body_chain);
-                body.blocks[counted.body].clone()
+                counted.body.merge(&mut body);
+                counted
+                    .body
+                    .blocks
+                    .iter()
+                    .map(|&id| (id, body.blocks[id].clone()))
+                    .collect()
             } else {
-                linear::merge(&mut function.body, &counted.body_chain);
-                function.body.blocks[counted.body].clone()
+                counted.body.merge(&mut function.body);
+                counted
+                    .body
+                    .blocks
+                    .iter()
+                    .map(|&id| (id, function.body.blocks[id].clone()))
+                    .collect()
             };
             let counter = function.body.locals.alloc(mir::Local {
                 name: format!("$poll.remaining.{}", function.body.locals.len()),
@@ -90,7 +100,15 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
                 StructuralDefinitionSiteRole::SyntheticValue,
                 SyntheticLocalRole::Temporary,
             );
-            let full = copy::body(function, source, &counted.temporaries, registry, owner, id);
+            let full = copy::body(
+                function,
+                &counted.body,
+                source,
+                &counted.temporaries,
+                registry,
+                owner,
+                id,
+            );
             expand(&mut function.body, counted, counter, full, &guards);
         }
     }
@@ -100,7 +118,7 @@ fn expand(
     body: &mut mir::Body,
     counted: Loop,
     counter: mir::LocalId,
-    full: mir::BlockId,
+    full: region::Region,
     guards: &[values::Length],
 ) {
     let Loop {
@@ -112,8 +130,10 @@ fn expand(
         ..
     } = counted;
     let ty = mir::Type::Integer(kind);
-    let span = body.blocks[full]
-        .statements
+    let span = full
+        .blocks
+        .iter()
+        .flat_map(|&block| &body.blocks[block].statements)
         .last()
         .expect("counted loop updates its index")
         .span;
@@ -141,7 +161,7 @@ fn expand(
             },
             span,
         }],
-        terminator: mir::Terminator::Goto(full),
+        terminator: mir::Terminator::Goto(full.entry),
         unwind: None,
     });
     let mut full_entry = clamp;
@@ -159,7 +179,7 @@ fn expand(
                     length.expression(),
                 ),
                 then_block: full_entry,
-                else_block: inner,
+                else_block: inner.entry,
             },
             unwind: None,
         });
@@ -183,7 +203,7 @@ fn expand(
                 constant(CHUNK),
             ),
             then_block: full_entry,
-            else_block: inner,
+            else_block: inner.entry,
         },
         unwind: None,
     });
@@ -192,7 +212,7 @@ fn expand(
     };
     *then_block = chunk;
     for inner in std::iter::once(full).chain(guards.is_empty().then_some(inner)) {
-        body.blocks[inner].statements.push(mir::Statement {
+        body.blocks[inner.latch].statements.push(mir::Statement {
             kind: mir::StatementKind::Assign {
                 local: counter,
                 value: mir::Expr::integer_binary(
@@ -203,9 +223,9 @@ fn expand(
             },
             span,
         });
-        body.blocks[inner].terminator = mir::Terminator::Branch {
+        body.blocks[inner.latch].terminator = mir::Terminator::Branch {
             cond: compare(mir::IntegerComparisonOperator::NotEqual, constant(0)),
-            then_block: inner,
+            then_block: inner.entry,
             else_block: header,
         };
     }

@@ -1,8 +1,8 @@
-//! Project only a path whose branches follow from the counted-loop range.
+//! Fold checked branches while preserving acyclic data-dependent control flow.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use super::{Loop, header, linear, mir, operations, recognize, values::Length};
+use super::{Loop, header, linear, mir, operations, recognize, region, values::Length};
 use crate::optimization::graph::{block_edges, index};
 
 pub(super) mod facts;
@@ -25,13 +25,16 @@ pub(super) fn project(
             state.statement(statement);
         }
     }
-    let mut seen = head.chain.iter().copied().collect::<BTreeSet<_>>();
+    let order = region::order(&function.body, head.inner, &[target, head.exit])?;
+    let mut states = BTreeMap::from([(head.inner, state)]);
     let mut branches = Vec::new();
-    let mut current = head.inner;
+    let mut guards = BTreeSet::new();
     let mut array_access = false;
-    loop {
-        if !seen.insert(current)
-            || current == head.exit
+    for current in order {
+        let Some(mut state) = states.remove(&current) else {
+            continue;
+        };
+        if head.chain.contains(&current)
             || function
                 .body
                 .loop_header_polls
@@ -51,29 +54,36 @@ pub(super) fn project(
             });
             state.statement(statement);
         }
-        current = match &block.terminator {
-            mir::Terminator::Goto(next) => *next,
+        let next = match &block.terminator {
+            mir::Terminator::Goto(next) => vec![*next],
             mir::Terminator::Branch {
                 cond,
                 then_block,
                 else_block,
             } => {
-                let facts::Value::Boolean(value) = state.expression(cond) else {
-                    return None;
-                };
-                let next = if value { *then_block } else { *else_block };
-                branches.push((current, next));
-                next
+                if let facts::Value::Boolean(value) = state.expression(cond) {
+                    let next = if value { *then_block } else { *else_block };
+                    branches.push((current, next));
+                    vec![next]
+                } else {
+                    region::successors(&block.terminator)?
+                }
             }
             _ => return None,
         };
-        if current == target {
-            break;
+        guards.extend(&state.guards);
+        for next in next {
+            if next == head.exit {
+                return None;
+            }
+            if next != target {
+                facts::propagate(&mut states, next, &state);
+            }
         }
     }
     if !array_access
         || branches.is_empty()
-        || (!state.guards.is_empty() && head.kind != mir::IntegerKind::SIGNED_64)
+        || (!guards.is_empty() && head.kind != mir::IntegerKind::SIGNED_64)
     {
         return None;
     }
@@ -88,7 +98,7 @@ pub(super) fn project(
     Some(Projection {
         counted,
         body: projected.body,
-        guards: state.guards.into_iter().collect(),
+        guards: guards.into_iter().collect(),
     })
 }
 
