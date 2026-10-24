@@ -13,6 +13,6 @@ public class LlmProvider public constructor(
 public object Providers {
     public fun openAiChat(): LlmProvider = LlmProvider("openai-chat", ChatProtocol(OpenAiChatDialect()),
         Some(Url.parse("https://api.openai.com/v1")))
-    public fun deepSeekChat(): LlmProvider = LlmProvider("deepseek-chat", ChatProtocol(DeepSeekChatDialect()),
+    public fun deepSeekChat(topPMode: DeepSeekTopPMode = Unknown): LlmProvider = LlmProvider("deepseek-chat", ChatProtocol(DeepSeekChatDialect(topPMode)),
         Some(Url.parse("https://api.deepseek.com")))
 }

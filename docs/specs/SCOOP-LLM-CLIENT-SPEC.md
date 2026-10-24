@@ -185,7 +185,7 @@ ClientFunction／ClientCustom 分别编码 function／custom 工具；DeepSeek �
 
 OpenAI 的 Server(WebSearch) 编码请求级 web_search_options，可映射 approximate location；它不伪装成客户端工具。该入口不支持通用 allowedDomains、excludedDomains 或 includeSources 控制，显式提供即报错。只允许一项搜索声明；选择 Auto，其他 ToolChoice 无法同时精确控制该搜索入口时失败。Server(Native) 仅接受本 dialect 的无版本 web_search 原生配置；DeepSeek Chat 不将独立 Search API 假装成内置工具。编码搜索请求不伪造服务端工具执行记录。
 
-DeepSeek reasoning 缺省按服务文档为开启；enabled 与 effort 冲突时拒绝。temperature 只在显式关闭 thinking 时可用，topP 只在 thinking 中且 0.95～1 范围内可精确表达；Required／Specific 也要求关闭 thinking。该规则来自方言，不通过模型名称推断。两种 dialect 的 reasoning budgetTokens 和 topK 无相应字段；OpenAI enabled = true 需要明确非 none 的 effort，不能替调用者选择强度。DeepSeek candidates = 1 可满足但不发送 n，其他数量失败；parallelToolCalls 的显式设置也失败。JSON Schema 只在 OpenAI 映射，DeepSeek JsonObject 使用同一 output 设置。
+DeepSeek reasoning 缺省按服务文档为开启；enabled 与 effort 冲突时拒绝。temperature 只在显式关闭 thinking 时可用，Required／Specific 也要求关闭 thinking。topP 的生效模式必须显式配置：`DeepSeekChatDialect(topPMode = DeepSeekTopPMode.Unknown)` 与 `Providers.deepSeekChat(topPMode = Unknown)` 缺省不猜模型行为，显式请求 topP 时报告路径错误；Thinking 模式允许 thinking 中的 0.95～1，NonThinking 模式允许关闭 thinking 时的 (0, 1]。当前官方文档分别为 deepseek-flash 和 deepseek-v4-pro 声明这两种行为；模式由应用的模型资料明确选择，不按 model ID 切换。未提供 topP 时无须配置模式。两种 dialect 的 reasoning budgetTokens 和 topK 无相应字段；OpenAI enabled = true 需要明确非 none 的 effort，不能替调用者选择强度。DeepSeek candidates = 1 可满足但不发送 n，其他数量失败；parallelToolCalls 的显式设置也失败。JSON Schema 只在 OpenAI 映射，DeepSeek JsonObject 使用同一 output 设置。
 
 request、message、part、tool 的 extensions 只合并到当前位置；Chat 客户端工具扩展位于 function／custom 定义对象，搜索工具扩展位于 web_search_options。扩展归属必须匹配，任何托管字段均不能覆盖，即使这次缺省没有生成该字段；保留的别名也不能旁路通用设置。错误 path 指向公共请求和扩展键，使用 JSON Pointer 转义。History 只接受同方言 assistant 消息且 context 为空，直接使用已投影的不可变 item；保留 DeepSeek 的全部 reasoning_content，不从展示文本重建。编码输入不修改保存的请求或历史。
 

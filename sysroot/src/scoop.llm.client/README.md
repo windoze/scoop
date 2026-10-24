@@ -51,6 +51,8 @@ Message 默认 User，system／tools／extensions 默认空，生成参数默认
 
 同一个 protocol 的 `encodeRequest(modelId, request, stream = false)` 生成 wire JSON；它本身不执行网络请求。最小文本只发送 model 和 messages，默认不设置温度、reasoning、token 上限或输出格式。两种 dialect 处理各自的媒体形式、生成参数、工具和历史；不按 model ID 切换字段。OpenAI Chat 的 Server(WebSearch) 映射请求级 web_search_options，无法表达的选项抛出带输入路径的 LlmRequestException。
 
+DeepSeek 不同模型的 topP 生效模式不同。缺省省略 topP 时不需要额外设置；显式使用时，通过 `Providers.deepSeekChat(DeepSeekTopPMode.Thinking)` 或 `NonThinking` 选择已知规则。缺省 Unknown 会拒绝显式 topP，避免接受一个实际被服务端忽略的设置；不根据模型名称自动猜测。
+
 ```scoop
 val protocol = ChatProtocol(DeepSeekChatDialect())
 val request = LlmRequest([Message([Text("你好")])])

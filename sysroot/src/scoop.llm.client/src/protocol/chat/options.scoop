@@ -2,7 +2,8 @@ package scoop.llm.client
 
 import scoop.json.*
 
-internal fun encodeChatOptions(dialect: DialectId, request: LlmRequest, deepSeek: Boolean): JsonValue {
+internal fun encodeChatOptions(dialect: DialectId, request: LlmRequest, deepSeek: Boolean,
+    topPMode: DeepSeekTopPMode = Unknown): JsonValue {
     val options = request.options
     val result = JsonObjectBuilder()
     if (options.topK != None) throw LlmRequestException("/options/topK", "Chat has no top-k setting")
@@ -16,7 +17,7 @@ internal fun encodeChatOptions(dialect: DialectId, request: LlmRequest, deepSeek
     if (options.topP != None) {
         val value = options.topP!!
         if (value < 0.0 || value > 1.0) throw LlmRequestException("/options/topP", "Chat top-p must be between 0 and 1")
-        if (deepSeek && (!thinking || value < 0.95)) throw LlmRequestException("/options/topP", "DeepSeek top-p requires thinking and a value from 0.95 to 1")
+        if (deepSeek) checkDeepSeekTopP(topPMode, thinking, value)
         result.add("top_p", JsonValue.fromDouble(value))
     }
     if (options.maxOutputTokens != None) {
@@ -37,6 +38,18 @@ internal fun encodeChatOptions(dialect: DialectId, request: LlmRequest, deepSeek
         case None -> return finishChatOptions(result, dialect, request, deepSeek, thinking)
     }
     return finishChatOptions(result, dialect, request, deepSeek, thinking)
+}
+
+private fun checkDeepSeekTopP(mode: DeepSeekTopPMode, thinking: Boolean, value: Double): Unit = when (mode) {
+    case Unknown -> throw LlmRequestException("/options/topP", "select the model's DeepSeek top-p mode explicitly")
+    case Thinking -> {
+        if (!thinking || value < 0.95) throw LlmRequestException("/options/topP", "configured top-p requires thinking and a value from 0.95 to 1")
+        Unit
+    }
+    case NonThinking -> {
+        if (thinking || value <= 0.0) throw LlmRequestException("/options/topP", "configured top-p requires non-thinking mode and a value above 0")
+        Unit
+    }
 }
 
 private fun finishChatOptions(result: JsonObjectBuilder, dialect: DialectId, request: LlmRequest,

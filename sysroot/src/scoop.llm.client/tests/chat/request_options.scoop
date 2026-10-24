@@ -32,7 +32,7 @@ private class ChatRequestOptionsTest {
 
     @Test
     fun `DeepSeek thinking rules validate requested effects without guessing a model generation`() {
-        val dialect = DeepSeekChatDialect()
+        val dialect = DeepSeekChatDialect(DeepSeekTopPMode.Thinking)
         assertEquals("/options/temperature", assertFailsWith<LlmRequestException> {
             encodeChatSettings(LlmGenerationOptions(temperature = Some(0.0)), dialect); Unit
         }.path)

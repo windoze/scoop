@@ -25,11 +25,14 @@ public class OpenAiChatDialect : ChatDialect {
     public override fun historyMessage(message: JsonValue, path: String): JsonValue = projectChatMessage(message, path)
 }
 
-public class DeepSeekChatDialect : ChatDialect {
+/** The configured model's effective top-p mode, never inferred from its identifier. */
+public enum DeepSeekTopPMode { Unknown, Thinking, NonThinking }
+
+public class DeepSeekChatDialect public constructor(public val topPMode: DeepSeekTopPMode = Unknown) : ChatDialect {
     public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "deepseek-chat")
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
         decodeChatError(id, status, body, truncated, true)
-    public override fun encodeOptions(request: LlmRequest): JsonValue = encodeChatOptions(id, request, true)
+    public override fun encodeOptions(request: LlmRequest): JsonValue = encodeChatOptions(id, request, true, topPMode)
     public override fun encodeContent(content: Array<ContentPart>, role: String, path: String): JsonValue =
         encodeChatContent(id, content, role, true, path)
     public override fun readReasoning(message: JsonValue, path: String): Array<OutputPart> {
