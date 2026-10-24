@@ -200,6 +200,8 @@ H2 请求取消通过 stream close／RST_STREAM，其他请求继续；H1 取消
 
 HttpClientConfig.timeouts 使用 HttpTimeoutOptions；调用层的 total／poolAcquire／responseHeaders 默认均为 None，建连阶段默认见 §7.2。HttpCallOptions.timeouts 为 None 时继承，Some 时完整替换该次配置。所有时长均为 None 或非负值，零表示进入对应阶段即到期。配置解释不增加其他尚未实现阶段的占位选项。
 
+`client.defaultTimeouts: HttpTimeoutOptions` 只读公开创建 client 时的不可变 timeout 配置，关闭后仍可读取。上层协议需要覆盖部分等待阶段时，可据此构造完整的每次调用配置，保留其余已选值；该读取不改变 client、不读取某次请求的覆盖值，也不引入隐式合并或另一套连接池。
+
 total 从 execute 登记本次调用开始计时，直到上传、响应消费及协议资源清理完成；交付最终头部、暂不读取 body 和来源关闭中的等待均不重置它。poolAcquire 从登记池等待开始，到已有连接的流／消息容量或新连接名额预留成功时停止，不把随后建连计入池等待。responseHeaders 从请求头提交完成开始，到最终头部到达时停止；并行上传、Continue 等待和信息响应回调占用同一截止，1xx 不延长它。
 
 HttpTimeoutException 的 phase 使用 HttpTimeoutPhase.Total／PoolAcquire／ResponseHeaders，limit 为该阶段配置的时长，elapsed 为选择超时结果时的单调时钟经过量。requestBodyBytes、encodedResponseBodyBytes、responseBodyBytes 保存当时已由正文 I/O 返回确认的累计进度：分别为交给 HTTP 的请求表示字节、HTTP 交给解码输入的响应表示字节和正文视图读出的字节。它们不包括 HTTP 定界／TLS 字节或尚未由在途操作确认的进度，达到 Long 上界时饱和。
