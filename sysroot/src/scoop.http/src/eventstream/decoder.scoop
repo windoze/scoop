@@ -1,0 +1,81 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+
+/** An incremental AWS EventStream decoder with one pending message and no network I/O. */
+public class AwsEventStreamDecoder public constructor() : Closeable {
+    private val state = AwsEventStreamState()
+    private val busy = AtomicBoolean(false)
+    private var closed = false
+    private var parseFailure: Throwable? = None
+
+    public val isClosed: Boolean get() = closed
+    public val isFinished: Boolean get() = state.ended && !state.hasPending
+    public val failure: Throwable? get() = parseFailure
+
+    /** Consumes a prefix, stopping immediately after one complete message. */
+    public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long = withUse {
+        requireOpen()
+        if (state.ended) throw IllegalStateException(Some("EventStream input has ended"))
+        if (count < 0L) throw IllegalArgumentException(Some("negative EventStream input count"))
+        if (count > buffer.readableBytes) throw IndexOutOfBoundsException()
+        var consumed = 0L
+        try {
+            while (consumed < count && !state.hasPending) {
+                val part = if (count - consumed < state.needed) count - consumed else state.needed
+                state.read(buffer, part)
+                consumed += part
+            }
+        } catch (error: Throwable) { fail(error); throw error }
+        consumed
+    }
+
+    /** Removes the single verified message, or returns None when more input is required. */
+    public fun nextMessage(): AwsEventStreamMessage? = withUse {
+        requireOpen()
+        val result = state.pending
+        state.pending = None
+        result
+    }
+
+    /** Ends input only at a complete frame boundary; partial frames are errors. */
+    public fun endInput() {
+        withUse {
+            requireOpen()
+            if (state.offset != 0L) {
+                val error = AwsEventStreamException(UnexpectedEof, state.offset, "truncated EventStream message")
+                fail(error)
+                throw error
+            }
+            state.ended = true
+            Unit
+        }
+    }
+
+    public override fun close() {
+        withUse {
+            if (!closed) {
+                closed = true
+                state.discard()
+                state.pending = None
+            }
+            Unit
+        }
+    }
+
+    private fun fail(error: Throwable) {
+        parseFailure = Some(error)
+        state.discard()
+    }
+
+    private fun requireOpen() {
+        if (closed) throw IllegalStateException(Some("EventStream decoder is closed"))
+        when (parseFailure) { case Some(_) -> throw IllegalStateException(Some("EventStream decoder has failed")); case None -> {} }
+    }
+
+    private fun <T> withUse(block: () -> T): T {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("EventStream decoder is already in use"))
+        try { return block() }
+        finally { busy.store(false) }
+    }
+}

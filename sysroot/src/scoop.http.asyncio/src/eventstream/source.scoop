@@ -1,0 +1,49 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.AwsEventStreamDecoder
+import scoop.http.AwsEventStreamMessage
+import scoop.platform.memory.NativeByteBuffer
+
+/** A demand-driven AWS EventStream reader over a borrowed source by default. */
+public class AwsEventStreamSource private constructor(private val reader: AwsEventStreamReader) : AsyncCloseable {
+    public constructor(source: AsyncByteSource, bufferSize: Long = 8192L)
+        : this(createAwsEventStreamReader(source, None, bufferSize)) {}
+
+    public companion object {
+        /** Transfers endpoint cleanup responsibility only after construction succeeds. */
+        public fun <T> takeOwnership(source: T, bufferSize: Long = 8192L): AwsEventStreamSource
+            where T : AsyncByteSource, T : AsyncCloseable =
+            AwsEventStreamSource(createAwsEventStreamReader(source, Some<AsyncCloseable>(source), bufferSize))
+    }
+
+    public val isFinished: Boolean get() = reader.decoder.isFinished
+    public val isClosed: Boolean get() = reader.io.isClosed
+    public val failure: Throwable? get() = reader.io.failure
+
+    /** Reads through a verified message or clean EOF, preserving backpressure. */
+    public suspend fun next(): AwsEventStreamMessage? = reader.next()
+
+    /** Stops in-flight reads before releasing buffers and any owned endpoint. */
+    public override suspend fun close() { reader.io.close() }
+}
+
+private fun createAwsEventStreamReader(source: AsyncByteSource, owner: AsyncCloseable?, bufferSize: Long): AwsEventStreamReader {
+    val loop = currentEventLoop()
+    val job = httpJob(loop, true)
+    if (bufferSize <= 0L) throw IllegalArgumentException(Some("EventStream buffer size must be positive"))
+    val decoder = AwsEventStreamDecoder()
+    val input = try { NativeByteBuffer.allocate(bufferSize) }
+        catch (error: Throwable) {
+            val failure = messageCleanup(Some(error)) { decoder.close() }
+            throw failure!!
+        }
+    try {
+        job.ensureActive()
+        return AwsEventStreamReader(source, owner, loop, decoder, input)
+    } catch (error: Throwable) {
+        var failure = messageCleanup(Some(error)) { input.close() }
+        failure = messageCleanup(failure) { decoder.close() }
+        throw failure!!
+    }
+}

@@ -231,6 +231,8 @@ H1／H2 异步连接须支持请求写入与响应头读取同时推进，暴露
 
 [HTTP 消息工具规范](SCOOP-HTTP-MESSAGE-SPEC.md)属于本规范的 M54 补充，规定字段参数、日期、认证／缓存字段、Cookie／PSL、multipart、CONNECT 辅助、SSE 与 HTTP/1.1 WebSocket 的公共合同。普通消息数据与内存 parser 位于 scoop.http，相应异步流适配位于 scoop.http.asyncio。
 
+[AWS EventStream 接收规范](SCOOP-HTTP-EVENTSTREAM-SPEC.md)补充同一 body 上的二进制消息读取，为 ConverseStream 提供帧边界、typed headers 与 CRC32 校验。内存 decoder 位于 scoop.http，借用／接管 source 位于 scoop.http.asyncio；校验复用已有 zlib-ng，服务事件含义留在调用方。
+
 基础 HTTP Cone 按实际使用增加 url、charset 与 crypto 的普通依赖，仍不依赖 asyncio、TLS 或 socket。异步 HTTP Cone 增加 compression 依赖，用于 WebSocket 消息压缩；由于 compression 在一个 Cone 内交付异步适配，基础 HTTP 引擎不反向依赖它。HTTP client 只组合这些公开能力。
 
 这些新增能力分别验收后才作为 client 前置条件完成；M53 的历史验收不被改写为 M54 已通过。HTTP/2 WebSocket、Extended CONNECT 与 HTTP/3 明确留待后续。

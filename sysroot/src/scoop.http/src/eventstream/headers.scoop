@@ -1,0 +1,49 @@
+package scoop.http
+
+import scoop.bytes.*
+import scoop.collections.HashSet
+import scoop.time.Instant
+import scoop.uuid.Uuid as Guid
+
+internal fun readAwsEventStreamHeaders(bytes: Array<Byte>): Array<AwsEventStreamHeader> {
+    val reader = ByteArrayReader(bytes)
+    val headers = ArrayList<AwsEventStreamHeader>()
+    val names = HashSet<String>()
+    try {
+        while (reader.remaining != 0L) {
+            val start = reader.position
+            val length = reader.readUInt8().toLong()
+            if (length == 0L) throw AwsEventStreamException(Header, 12L + start, "EventStream header name must not be empty")
+            val name = readAwsEventStreamText(reader, length)
+            if (!names.add(name)) throw AwsEventStreamException(Header, 12L + start, "duplicate EventStream header name")
+            headers.add(AwsEventStreamHeader(name, readAwsEventStreamHeaderValue(reader)))
+        }
+    } catch (_: IndexOutOfBoundsException) {
+        throw AwsEventStreamException(Header, 12L + reader.position, "truncated EventStream header")
+    }
+    return headers.toArray()
+}
+
+private fun readAwsEventStreamHeaderValue(reader: ByteArrayReader): AwsEventStreamHeaderValue {
+    val position = reader.position
+    return when (reader.readUInt8().toInt()) {
+        case 0 -> Bool(true)
+        case 1 -> Bool(false)
+        case 2 -> Int8(reader.readInt8())
+        case 3 -> Int16(reader.readInt16(ByteOrder.BigEndian))
+        case 4 -> Int32(reader.readInt32(ByteOrder.BigEndian))
+        case 5 -> Int64(reader.readInt64(ByteOrder.BigEndian))
+        case 6 -> Bytes(reader.readBytes(reader.readUInt16(ByteOrder.BigEndian).toLong()))
+        case 7 -> Text(readAwsEventStreamText(reader, reader.readUInt16(ByteOrder.BigEndian).toLong()))
+        case 8 -> Timestamp(Instant.fromEpochMilliseconds(reader.readInt64(ByteOrder.BigEndian)))
+        case 9 -> Uuid(Guid.fromByteArray(reader.readBytes(16L)))
+        else -> throw AwsEventStreamException(Header, 12L + position, "unknown EventStream header type")
+    }
+}
+
+private fun readAwsEventStreamText(reader: ByteArrayReader, count: Long): String {
+    val position = reader.position
+    val bytes = reader.readBytes(count)
+    try { return String.fromUtf8(bytes) }
+    catch (_: CharacterCodingException) { throw AwsEventStreamException(Header, 12L + position, "invalid UTF-8 in EventStream header") }
+}

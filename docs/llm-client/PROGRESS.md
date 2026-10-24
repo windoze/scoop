@@ -45,6 +45,7 @@
 | Gemini Interactions SSE | 完成：本机 Interactions 定向 55/55；Linux 仅 SSE mock 1/1；独立消费者通过 |
 | Bedrock Converse 完整响应 | 完成：本机 Converse 定向 18/18；Linux 仅搜索／引用／客户端调用组合 1/1；独立消费者通过 |
 | Bedrock Converse 请求与普通生成 | 完成：本机 Converse 定向 34/34；Linux 仅普通生成 mock 1/1；独立消费者通过 |
+| HTTP AWS EventStream 解码与异步 source | 完成：本机 HTTP 9/9、异步 6/6；Linux 仅固定向量与并发关闭各 1/1 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -105,3 +106,5 @@
 - Converse 完整响应新增 18 项 Cone 用例，覆盖有序内容、reasoning 签名与原始历史、客户端／服务端工具归属、引用、媒体、精确缓存计数和错误路径。连续文本合并到同一 Message，使 wire 分块后的 JSON 可由缺省 decodeOutput 读取；连续引用块关联前一文本。音频 Opus／PCM 缺少容器或采样配置时保持 Native。本机 18/18；nuc12 仅搜索／引用／客户端工具与序列化组合 1/1；生产库构建和外部消费者通过，13 个真实 API 用例默认忽略。本步没有真实 API 请求、编译器修改或 fixture；清理空闲 target/debug/incremental 约 187 MiB。
 
 - Converse 普通生成新增 16 项 Cone 用例，覆盖显式部署与模型路径、最小请求、推理／schema 参数、媒体和原生扩展、函数／系统工具、实际调用 ID 与签名历史回传、错误重试资格及 HTTP 时间戳。可选 type=null 与缺省在响应和结果回传中保持同一客户端归属。本机 Converse 定向 34/34；nuc12 仅一个生成 mock 1/1；生产库与跨 Cone 缺省入口通过，默认消费者仍为 1 通过、13 个真实 API 用例忽略。本轮没有真实 API 请求、编译器修改或 fixture；清理空闲 target/debug/incremental 约 186 MiB。EventStream 与内置 SigV4 继续实施。
+
+- ConverseStream 所需的 AWS EventStream 底层读取已先行补齐。HTTP 内存 decoder 使用已有 zlib-ng 校验 CRC，保留全部 header 类型及原始 payload，按实际字节增长缓冲并提供单消息背压；异步 source 复用 MessageIo 的借用／接管、取消与关闭合同。本机 HTTP 9/9、异步 6/6；nuc12 仅固定向量与并发关闭各 1/1。生产库及受影响的依赖库已更新，跨 Cone 消费者 2 通过、13 个真实 API 用例默认忽略。初次消费者构建报告旧下游产物的依赖指纹过期，按依赖顺序重建后通过。没有真实 API 请求、编译器修改或 fixture；提交前凭据检查通过，清理空闲 target/debug/incremental 约 186 MiB。ConverseStream 的业务事件聚合继续实施。
