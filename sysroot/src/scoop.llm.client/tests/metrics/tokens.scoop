@@ -6,6 +6,18 @@ import scoop.test.*
 @Test
 private class TokenUsageTest {
     @Test
+    fun `omitted fields use the declared defaults without inventing zero counts`() {
+        val usage = Json.decodeFromString<TokenUsage>("{}")
+        assertEquals(None, usage.inputTokens)
+        assertEquals(None, usage.totalTokens)
+        assertEquals(None, usage.cacheReadTokens)
+        assertEquals(0L, usage.modality.size)
+        val encoded = Json.encodeToValue(usage)
+        assertEquals(1L, encoded.size)
+        assertEquals("modality", encoded.keys()[0L])
+    }
+
+    @Test
     fun `unknown counts and known zero survive serialization distinctly`() {
         val original = TokenUsage(inputTokens = Some(0L), cacheReadTokens = Some(0L))
         val restored = Json.decodeFromString<TokenUsage>(Json.encodeToString(original))
