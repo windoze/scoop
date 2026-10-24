@@ -1,0 +1,70 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.time.Instant
+
+/** The result of evaluating origin request preconditions for a selected representation. */
+public enum HttpPreconditionResult {
+    /** Continue the ordinary representation operation, including any later range selection. */
+    Proceed,
+    /** A GET or HEAD validator permits a 304 response without representation content. */
+    NotModified,
+    /** An applicable precondition requires a 412 response. */
+    PreconditionFailed
+}
+
+/**
+ * Evaluates validators in HTTP precedence order after normal request checks. The reference is
+ * explicit for obsolete HTTP dates. Invalid tag syntax throws; unusable dates are ignored.
+ */
+public fun evaluateHttpPreconditions(method: String, fields: List<HttpField>, exists: Boolean,
+    entityTag: HttpEntityTag?, lastModified: Instant?, reference: Instant): HttpPreconditionResult {
+    if (method == "CONNECT" || method == "OPTIONS" || method == "TRACE") return HttpPreconditionResult.Proceed
+    val matching = requestTagCondition(fields, "If-Match")
+    if (conditionPresent(matching)) {
+        if (!matchesRequestTags(matching!!, exists, entityTag, true)) return HttpPreconditionResult.PreconditionFailed
+    } else if (exists && conditionPresent(lastModified)) {
+        val date = requestConditionDate(fields, "If-Unmodified-Since", reference)
+        if (conditionPresent(date) && lastModified!!.epochSeconds > date!!.epochSeconds) return HttpPreconditionResult.PreconditionFailed
+    }
+    val unchanged = requestTagCondition(fields, "If-None-Match")
+    val retrieval = method == "GET" || method == "HEAD"
+    if (conditionPresent(unchanged)) {
+        if (matchesRequestTags(unchanged!!, exists, entityTag, false))
+            return if (retrieval) HttpPreconditionResult.NotModified else HttpPreconditionResult.PreconditionFailed
+    } else if (retrieval && exists && conditionPresent(lastModified)) {
+        val date = requestConditionDate(fields, "If-Modified-Since", reference)
+        if (conditionPresent(date) && lastModified!!.epochSeconds <= date!!.epochSeconds) return HttpPreconditionResult.NotModified
+    }
+    return HttpPreconditionResult.Proceed
+}
+
+private fun matchesRequestTags(condition: HttpEntityTagCondition, exists: Boolean, tag: HttpEntityTag?, strong: Boolean): Boolean {
+    if (!exists) return false
+    if (condition.isWildcard) return true
+    if (!conditionPresent(tag)) return false
+    for (candidate in condition.tags) {
+        if (if (strong) candidate.stronglyMatches(tag!!) else candidate.weaklyMatches(tag!!)) return true
+    }
+    return false
+}
+
+private fun requestTagCondition(fields: List<HttpField>, name: String): HttpEntityTagCondition? {
+    val selected = fields.findAll(name.toByteArray())
+    if (selected.size == 0L) return None
+    val value = ByteArrayBuilder()
+    var first = true
+    for (field in selected) {
+        if (!first) value.append(", ".toByteArray())
+        value.append(field.value)
+        first = false
+    }
+    return Some(HttpEntityTagCondition.parse(value.toByteArray(), name))
+}
+
+private fun requestConditionDate(fields: List<HttpField>, name: String, reference: Instant): Instant? {
+    val selected = fields.findAll(name.toByteArray())
+    return if (selected.size == 1L) HttpDate.parseOrNone(selected[0L].value, reference) else None
+}
+
+private fun <T> conditionPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }

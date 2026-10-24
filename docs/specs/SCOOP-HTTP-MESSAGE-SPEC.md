@@ -153,6 +153,14 @@ quality(coding) 返回实际编码的可接受质量：明确条目覆盖星号�
 
 select(candidates) 从调用方提供的有序实际编码列表中返回规范名称或 None；零质量绝不选择，最高质量优先，同质量按候选次序。显式 identity 参与质量比较，隐式 identity 仅作为允许时的回退；缺少字段时优先选候选中的 identity，否则选第一个候选。候选列表可不含 identity，工具不自行增加调用方没有提供的表示。工具不决定 406、媒体类型、小正文阈值或编码选项，这些属于 server 表示选择策略。
 
+### 1.15 条件请求求值
+
+`evaluateHttpPreconditions(method, fields, exists, entityTag, lastModified, reference)` 是无 I/O 的 origin 条件求值工具，返回 HttpPreconditionResult.Proceed、NotModified 或 PreconditionFailed。调用方先完成认证、路径／表示选择及通常的请求检查，只在原结果可以成功处理所选表示时调用；工具不把不存在或不可读文件等错误改成缓存响应。method 使用原始大小写；CONNECT、OPTIONS、TRACE 不评估这些条件。当前表示是否存在由 exists 明确给出，不以有没有 ETag 代替。
+
+按 RFC 9110 §13.2 顺序评估：先 If-Match（强比较），缺少时才评估 If-Unmodified-Since；再 If-None-Match（弱比较），缺少且方法为 GET／HEAD 时才评估 If-Modified-Since。标签星号只匹配存在的表示；无标签不能匹配显式标签列表。If-Match／If-Unmodified-Since 失败返回 PreconditionFailed；If-None-Match 命中在 GET／HEAD 返回 NotModified，其他表示操作返回 PreconditionFailed；If-Modified-Since 未修改返回 NotModified。工具不推断某个状态变更此前已成功。
+
+同名标签字段以逗号和 SP 按到达顺序组合，复用 HttpEntityTagCondition；语法错误抛 HttpFieldParseException，偏移相对于组合后的字节。只有实际轮到评估的条件才解析，前置条件已决定结果或被标签条件覆盖的日期不另行评估。日期字段不存在、多于一行或语法无效时忽略；无已知修改时间也忽略日期条件。HttpDate 的旧年份规则使用显式 reference；修改时间按 epochSeconds 与 HTTP 秒精度比较。Range／If-Range 留给表示的范围选择阶段，不由此工具读取内容或决定区间。
+
 ## 2. Cookie 与公共后缀
 
 Cookie parser 接收单个 Set-Cookie 字段，按 RFC 6265 及现代 SameSite／前缀规则返回名称、值、Domain、Path、Expires、Max-Age、Secure、HttpOnly、SameSite 和未知属性。Cookie 请求字段的组装独立处理，不把多个 Set-Cookie 用逗号连接。域名使用 url／idna 的同一规范值。

@@ -50,3 +50,4 @@
 - 已发布 HTTP／HTTP asyncio／HTTP client／server 开发产物，独立 H1 consumer 1／1 release 验证通过，组合 typed extractor 与 gzip 输出；只使用公开字段工具和解压流。新生产文件均不足 60 行。清理 5 个旧可执行缓存及已验证的 HTTP 测试产物，target 约 11 GiB。准备／打包脚本已按根 Cone 清单自动发现 server，无需新增发布机制。
 - D5：新增 13／13 定向 release 测试通过；multipart 11／11、结构化提取 4／4、管线 8／8、H1 网络 4／4 回归通过，API 文档检查通过。覆盖四种编码、重复字段与双层反序、raw 选择、未变换长度、原 head 保真、编码／解码／聚合及中间层／窗口上限、连续 member／frame、空输入／截断／尾随／checksum、原始 I/O 分类和延迟 EOF。H1 编码链与声明长度拒绝均先于 Continue；H2 慢上传 reset 等待清理且不影响其他流。H1／H2 gzip multipart 在尾部校验前不发布文件，checksum 失败删除暂存文件。
 - 已发布 D5 server 开发产物，独立 H2 consumer 1／1 release 测试及 API 文档检查通过，以公开请求解压和 multipart API 消费 gzip 上传。新增生产文件最长 81 行；清理 6 个旧可执行缓存，保留当前 server／consumer 和编译缓存，未运行全量套件。
+- D6 条件求值底层：新增 evaluateHttpPreconditions，4／4 定向 release 测试和 API 文档检查通过。覆盖条件优先级、强／弱标签、无标签的表示存在性、方法适用性、秒精度和显式日期参考、重复标签字段与仅解析生效条件；无文件／缓存 I/O。文件响应与范围交付仍待接入。

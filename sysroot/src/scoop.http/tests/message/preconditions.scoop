@@ -1,0 +1,79 @@
+package scoop.http
+
+import scoop.test.*
+import scoop.time.Instant
+
+private fun conditionalField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+
+private fun precondition(fields: List<HttpField>, method: String = "GET", exists: Boolean = true,
+    tag: HttpEntityTag? = Some(HttpEntityTag.parse("\"v1\"")),
+    modified: Instant? = Some(Instant.parse("2026-10-24T00:00:00.123Z"))): HttpPreconditionResult =
+    evaluateHttpPreconditions(method, fields, exists, tag, modified, Instant.parse("2026-10-24T01:00:00Z"))
+
+@Test
+private class HttpPreconditionTests {
+    @Test
+    fun `condition order favors lost update checks and tags suppress their date fallback`() {
+        val before = "Fri, 23 Oct 2026 00:00:00 GMT"
+        val after = "Sun, 25 Oct 2026 00:00:00 GMT"
+        assertEquals(HttpPreconditionResult.PreconditionFailed, precondition([
+            conditionalField("If-Match", "\"different\""), conditionalField("If-None-Match", "*")]))
+        assertEquals(HttpPreconditionResult.NotModified, precondition([
+            conditionalField("If-Match", "\"v1\""), conditionalField("If-Unmodified-Since", before),
+            conditionalField("If-None-Match", "W/\"v1\"")]))
+        assertEquals(HttpPreconditionResult.PreconditionFailed, precondition([
+            conditionalField("If-Unmodified-Since", before), conditionalField("If-None-Match", "*")]))
+        assertEquals(HttpPreconditionResult.Proceed, precondition([
+            conditionalField("If-None-Match", "\"different\""), conditionalField("If-Modified-Since", after)]))
+        assertEquals(HttpPreconditionResult.NotModified, precondition([
+            conditionalField("If-Unmodified-Since", after), conditionalField("If-Modified-Since", after)]))
+    }
+
+    @Test
+    fun `strong weak wildcard and absent validators use the selected representation existence`() {
+        assertEquals(HttpPreconditionResult.PreconditionFailed, precondition([conditionalField("If-Match", "W/\"v1\"")]))
+        for (method in ["GET", "HEAD"]) assertEquals(HttpPreconditionResult.NotModified,
+            precondition([conditionalField("If-None-Match", "W/\"v1\"")], method))
+        assertEquals(HttpPreconditionResult.PreconditionFailed, precondition([conditionalField("If-None-Match", "\"v1\"")], "PUT"))
+        assertEquals(HttpPreconditionResult.PreconditionFailed,
+            precondition([conditionalField("If-Match", "\"v1\"")], tag = Some(HttpEntityTag.parse("W/\"v1\""))))
+        assertEquals(HttpPreconditionResult.Proceed, precondition([conditionalField("If-Match", "*")], tag = None))
+        assertEquals(HttpPreconditionResult.NotModified, precondition([conditionalField("If-None-Match", "*")], tag = None))
+        assertEquals(HttpPreconditionResult.PreconditionFailed, precondition([conditionalField("If-Match", "*")], exists = false))
+        assertEquals(HttpPreconditionResult.Proceed, precondition([conditionalField("If-None-Match", "*")], exists = false))
+        assertEquals(HttpPreconditionResult.PreconditionFailed, precondition([conditionalField("If-Match", "\"v1\"")], tag = None))
+    }
+
+    @Test
+    fun `dates compare seconds ignore unusable values and respect method applicability`() {
+        val same = "Sat, 24 Oct 2026 00:00:00 GMT"
+        assertEquals(HttpPreconditionResult.NotModified, precondition([conditionalField("If-Modified-Since", same)]))
+        assertEquals(HttpPreconditionResult.Proceed, precondition([conditionalField("If-Unmodified-Since", same)]))
+        assertEquals(HttpPreconditionResult.Proceed, precondition([conditionalField("If-Modified-Since", same)], "POST"))
+        assertEquals(HttpPreconditionResult.Proceed, precondition([conditionalField("If-Modified-Since", same)], modified = None))
+        assertEquals(HttpPreconditionResult.Proceed, precondition([conditionalField("If-Modified-Since", same)], exists = false))
+        for (name in ["If-Modified-Since", "If-Unmodified-Since"]) {
+            assertEquals(HttpPreconditionResult.Proceed, precondition([conditionalField(name, "invalid date")]))
+            assertEquals(HttpPreconditionResult.Proceed, precondition([conditionalField(name, same), conditionalField(name, same)]))
+        }
+        for (method in ["CONNECT", "OPTIONS", "TRACE"]) assertEquals(HttpPreconditionResult.Proceed,
+            precondition([conditionalField("If-Match", "invalid")], method))
+        assertEquals(HttpPreconditionResult.NotModified,
+            precondition([conditionalField("If-Modified-Since", "Saturday, 24-Oct-76 00:00:00 GMT")]))
+    }
+
+    @Test
+    fun `repeated tag lines combine and only evaluated malformed conditions throw`() {
+        assertEquals(HttpPreconditionResult.NotModified, precondition([
+            conditionalField("If-None-Match", "\"different,opaque\""), conditionalField("if-none-match", "W/\"v1\"")]))
+        val error = assertFailsWith<HttpFieldParseException> { precondition([
+            conditionalField("If-Match", "*"), conditionalField("If-Match", "\"v1\"")]) }
+        assertEquals("If-Match", error.field)
+        assertEquals(1L, error.byteOffset)
+        assertFailsWith<HttpFieldParseException> { precondition([conditionalField("If-None-Match", "unquoted")]) }
+        assertEquals(HttpPreconditionResult.PreconditionFailed, precondition([
+            conditionalField("If-Match", "\"different\""), conditionalField("If-None-Match", "unquoted")]))
+        assertEquals(HttpPreconditionResult.PreconditionFailed, precondition([conditionalField("If-Match", "")]))
+        assertEquals(HttpPreconditionResult.Proceed, precondition([conditionalField("If-None-Match", "")]))
+    }
+}
