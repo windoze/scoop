@@ -30,7 +30,7 @@ internal fun appendChatToolCalls(items: ArrayList<LlmOutputItem>, dialect: Diale
     for (value in values) {
         val itemPath = path + "/" + index.toString()
         val item = readChatToolCall(dialect, value, tools, complete, itemPath)
-        val id = when (item) { case ClientToolCall(call) -> Some(call.reference.id); else -> None }
+        val id = when (item) { case ClientToolCall(call) -> call.reference.id; else -> None }
         if (id != None) {
             for (previous in ids) {
                 if (previous == id!!) throw DecodingException(itemPath + "/id", "duplicate tool call ID")
@@ -47,24 +47,26 @@ private fun readChatToolCall(dialect: DialectId, value: JsonValue, tools: Array<
     return when (kind) {
         case "function" -> {
             val call = decodeChatValue<ChatFunctionCall>(value, path)
+            if (call.id.length == 0L) throw DecodingException(path + "/id", "empty Chat tool call ID")
             val key = resolveChatToolKey(tools, call.function.name, false)
             when (key) {
                 case Some(toolKey) -> {
                     val input = if (!complete) ClientToolInput.Incomplete(call.function.arguments)
                         else try { ClientToolInput.JsonArguments(JsonToolArguments(call.function.arguments)) }
                         catch (error: DecodingException) { ClientToolInput.Invalid(call.function.arguments, error.message ?: "invalid JSON arguments") }
-                    LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, toolKey, call.id), input))
+                    LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, toolKey, Some(call.id)), input))
                 }
                 case None -> LlmOutputItem.Native(dialect, value)
             }
         }
         case "custom" -> {
             val call = decodeChatValue<ChatCustomCall>(value, path)
+            if (call.id.length == 0L) throw DecodingException(path + "/id", "empty Chat tool call ID")
             val key = resolveChatToolKey(tools, call.custom.name, true)
             when (key) {
                 case Some(toolKey) -> {
                     val input = if (complete) ClientToolInput.Text(call.custom.input) else ClientToolInput.Incomplete(call.custom.input)
-                    LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, toolKey, call.id), input))
+                    LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, toolKey, Some(call.id)), input))
                 }
                 case None -> LlmOutputItem.Native(dialect, value)
             }

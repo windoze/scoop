@@ -14,7 +14,7 @@ private class ResponsesStreamToolTest {
             val fragment = responsesAt(decoder, "response.function_call_arguments.delta", 0L, "item", "\"delta\":\"{\\\"count\\\":2}\"")
             when (fragment.events[0L]) {
                 case ToolInputDelta(delta) -> {
-                    assertEquals("call", delta.reference!!.id)
+                    assertEquals(Some("call"), delta.reference!!.id)
                     assertEquals(ToolKey("count"), delta.reference!!.toolKey)
                     assertEquals(0L, delta.location.itemIndex)
                 }
@@ -73,6 +73,6 @@ private class ResponsesStreamToolTest {
         assertEquals(2L, calls.size)
         when (calls[0L].input) { case Text(text) -> assertEquals("opaque text", text); else -> fail() }
         when (calls[1L].input) { case Native(value) -> assertEquals("a", value["path"]!!.asString()); else -> fail() }
-        assertEquals("p", calls[1L].reference.id)
+        assertEquals(Some("p"), calls[1L].reference.id)
     }
 }

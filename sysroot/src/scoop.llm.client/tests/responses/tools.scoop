@@ -15,14 +15,14 @@ private class ResponsesToolTest {
         assertEquals(2L, result.clientToolCalls.size)
         val first = result.clientToolCalls[0]
         assertEquals(ToolKey("function"), first.toolKey)
-        assertEquals("call-a", first.reference.id)
+        assertEquals(Some("call-a"), first.reference.id)
         assertEquals("call-b", first.reference.context!!["id"]!!.asString())
         assertEquals(9007199254740993L, first.decodeArguments<ResponsesCount>().count)
         when (result.clientToolCalls[1].input) { case Text(text) -> assertEquals("print(1)\n", text); else -> fail() }
         assertEquals("direct", result.clientToolCalls[1].reference.context!!["caller"]!!["type"]!!.asString())
         assertEquals(Json.encodeToString(LlmFinishReason.ToolCalls), Json.encodeToString(result.candidate(0L).finishReason))
         val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(result))
-        assertEquals("call-a", restored.clientToolCalls[0].reference.id)
+        assertEquals(Some("call-a"), restored.clientToolCalls[0].reference.id)
         assertEquals(9007199254740993L, restored.clientToolCalls[0].decodeArguments<ResponsesCount>().count)
         assertEquals("call-b", responsesHistory(restored)[1]["call_id"]!!.asString())
     }

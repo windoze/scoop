@@ -6,7 +6,7 @@ import scoop.json.JsonValue
 public class ClientToolCallReference public constructor(
     public val dialect: DialectId,
     public val toolKey: ToolKey,
-    public val id: String,
+    public val id: String? = None,
     public val context: JsonValue? = None
 ) {
     public companion object : ValueEncoder<ClientToolCallReference>, ValueDecoder<ClientToolCallReference>

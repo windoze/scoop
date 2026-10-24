@@ -27,7 +27,7 @@ private class ResponsesNativeToolTest {
         when (result.clientToolCalls[1].input) { case Native(value) -> assertEquals("opaque diff", value["diff"]!!.asString()); else -> fail() }
         when (result.clientToolCalls[2].input) { case Native(value) -> assertEquals("pwd", value["command"]!![0].asString()); else -> fail() }
         val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(result))
-        assertEquals("c1", restored.clientToolCalls[0].reference.id)
+        assertEquals(Some("c1"), restored.clientToolCalls[0].reference.id)
         assertEquals("i1", restored.clientToolCalls[0].reference.context!!["id"]!!.asString())
     }
 

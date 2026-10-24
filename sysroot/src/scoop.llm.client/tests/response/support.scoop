@@ -9,7 +9,7 @@ internal fun textCandidate(index: Long, text: String, completion: LlmCompletion 
     LlmCandidate(index, [Message([Text(text)])], completion, Stop)
 
 internal fun toolReference(id: String): ClientToolCallReference =
-    ClientToolCallReference(responseDialect(), ToolKey("local"), id)
+    ClientToolCallReference(responseDialect(), ToolKey("local"), Some(id))
 
 internal fun jsonArguments(text: String): ClientToolInput = JsonArguments(JsonToolArguments(text))
 

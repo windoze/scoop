@@ -42,7 +42,7 @@ private class ChatRequestToolsTest {
         assertEquals("/tools/1/name", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", duplicate); Unit }.path)
         val invalid = LlmRequest(duplicate.input, tools = [ClientFunction(ToolKey("a"), "has space", Json.parse("{}"))])
         assertEquals("/tools/0/name", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", invalid); Unit }.path)
-        val reference = ClientToolCallReference(protocol.dialect.id, ToolKey("old"), "call-1")
+        val reference = ClientToolCallReference(protocol.dialect.id, ToolKey("old"), Some("call-1"))
         val error = LlmRequest([ToolResult(reference, [Text("failed")], isError = true)])
         assertEquals("/input/0/isError", assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", error); Unit }.path)
         val native = LlmRequest(duplicate.input, tools = [ClientNative(ToolKey("shell"), NativeToolDefinition(protocol.dialect.id, "shell"))])

@@ -12,7 +12,7 @@ private class ChatToolsTest {
         val result = ChatProtocol(OpenAiChatDialect()).decodeResponse(chatBody(message, "tool_calls"), chatRequest())
         assertEquals(2L, result.clientToolCalls.size)
         assertEquals(ToolKey("lookup"), result.clientToolCalls[0].toolKey)
-        assertEquals("f1", result.clientToolCalls[0].reference.id)
+        assertEquals(Some("f1"), result.clientToolCalls[0].reference.id)
         assertEquals(7L, result.clientToolCalls[0].decodeArguments<ChatCount>().count)
         assertEquals(ToolKey("program"), result.clientToolCalls[1].toolKey)
         when (result.clientToolCalls[1].input) {

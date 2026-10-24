@@ -36,7 +36,7 @@ private class ChatRequestMediaTest {
         assertEquals("file-pdf", document[0L]["file"]!!["file_id"]!!.asString())
         val deepSeek = DeepSeekChatDialect()
         val image = LlmFileReference(deepSeek.id, JsonValue.fromString("file-api-image"))
-        val call = ClientToolCallReference(deepSeek.id, ToolKey("old"), "call-old")
+        val call = ClientToolCallReference(deepSeek.id, ToolKey("old"), Some("call-old"))
         val body = ChatProtocol(deepSeek).encodeRequest("model", LlmRequest([
             ToolResult(call, [Image(MediaSource.FileReference(image, "image/png"))])
         ]))

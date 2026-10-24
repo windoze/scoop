@@ -8,6 +8,8 @@ Responses 使用 `Providers.openAiResponses()` 创建同样的 endpoint／model�
 
 Responses 的最小请求只发送 model 和 input，生成参数缺省省略。request.system 编码为文本 instructions；需要缓存断点等内容块扩展时，在 input 中显式使用 System message。工具结果沿用解码所得的 reference，其 context 保留实际调用类型和所需标识；函数、custom、computer、local shell、shell 与 apply_patch 分别编码自己的结果形状，应用负责执行并提交结果。
 
+`ClientToolCallReference.id` 是可选的服务端 ID，缺失时保持 `None`，不使用工具名或生成的字符串代替。应用回传工具结果时直接复用 reference；Chat、Messages 和 Responses 仍要求非空 ID，并在请求编码时检查。已保存的字符串 ID 可直接恢复，原生 context 与 ID 是否存在无关。
+
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 
 ```scoop

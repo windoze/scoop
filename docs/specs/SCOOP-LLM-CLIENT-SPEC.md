@@ -96,7 +96,9 @@ TokenUsage 不根据字段名猜测供应商原生口径，不自动求和、补
 
 `VideoFrame(source, offset)` 使用非负 Duration 表示帧相对视频起点的位置；负偏移在构造时失败。帧顺序按输入保存，不自动排序、提取或补帧。
 
-LlmRole 为 User、Assistant、System、Developer。system 数组与消息中的 role 均由 protocol 明确映射；库不依据模型名重写角色。`LlmInputItem.ToolResult(call, content, isError = false, extensions = [])` 表示应用执行后的结果；`ClientToolCallReference(dialect, toolKey, id, context = None)` 保存方言、请求内工具引用、服务器 call ID 和必要原生上下文。历史中的旧调用不要求在本次 tools 中重新声明；回传合法性由协议检查。
+LlmRole 为 User、Assistant、System、Developer。system 数组与消息中的 role 均由 protocol 明确映射；库不依据模型名重写角色。`LlmInputItem.ToolResult(call, content, isError = false, extensions = [])` 表示应用执行后的结果；`ClientToolCallReference(dialect, toolKey, id: String? = None, context = None)` 保存方言、请求内工具引用、可选的服务器 call ID 和必要原生上下文。None 表示协议未提供 ID，不能以工具名、数组下标或新生成的字符串代替。是否必须有 ID 由具体协议规定；Chat、Messages、Responses 的工具结果仍要求非空 ID，在编码前给出 /input/{index}/call/id 错误。历史中的旧调用不要求在本次 tools 中重新声明；回传合法性由协议检查。
+
+保存格式中的非空 id 继续编码为 JSON string，既有记录可直接解码；None 默认省略 id，缺失或 null 解码为 None，context 不因 ID 缺失而丢弃。工具输入是否可执行依据已完成的协议解释，不能把公共 ID 的 None 自动等同输入不完整。此差异有实际协议依据：[Gemini FunctionCall.id 是可选字段](https://ai.google.dev/api/generate-content#FunctionCall)。
 
 `LlmHistory(dialect, items, context = None)` 保存已经为回传选出的有序原生 item 和必要上下文；`LlmInputItem.History(history)` 将其加入请求。它不保存另一份可独立修改的通用文本视图。普通数据构造不保证跨方言兼容，协议解释和结果 toInput 投影随相应 adapter 实现。完整响应正文不能未经投影直接冒充 history items。
 
@@ -175,7 +177,7 @@ LlmResponse、候选、输出、工具输入、来源和历史提供 companion c
 
 `decodeResponse(value, request)` 读取非流式 Chat 的 choices，每项必须有 index、message 和非 null 的 finish_reason；message.role 必须为 assistant。id、model、created 与 usage 未提供时保持未知。原始整个响应保存在 LlmResponse.native。每个候选按 Reasoning、Message、工具调用的稳定次序投影；Chat 完整响应没有这些字段之间的生成时序，该次序不冒充时间记录。缺少 content、refusal 和 reasoning 时不伪造文本。
 
-function 工具调用按本次请求中唯一的同名 ClientFunction 关联 ToolKey，custom 调用按唯一同名 ClientCustom 关联。未知类型、未声明／无法唯一关联的工具调用保留为 Native，不进入可执行列表，不根据名称猜成服务端或客户端执行。合法外层调用中的 arguments 无效 JSON／非 object 保存为 Invalid；输出被截断、拒绝或停止状态未知时保留 Incomplete，即使已返回的参数恰好可解析也不进入待执行列表。同一候选内已关联的客户端调用 ID 必须唯一。其他外层类型、必填字段或数值错误抛 LlmProtocolException，保存 dialect、path、message 与原始响应。弃用的 function_call 无法提供现代工具 call ID，保留 Native，不伪造 ID。
+function 工具调用按本次请求中唯一的同名 ClientFunction 关联 ToolKey，custom 调用按唯一同名 ClientCustom 关联。未知类型、未声明／无法唯一关联的工具调用保留为 Native，不进入可执行列表，不根据名称猜成服务端或客户端执行。合法外层调用中的 arguments 无效 JSON／非 object 保存为 Invalid；输出被截断、拒绝或停止状态未知时保留 Incomplete，即使已返回的参数恰好可解析也不进入待执行列表。已知 function／custom 调用的 ID 必须非空，同一候选内已关联的客户端调用 ID 必须唯一。其他外层类型、必填字段或数值错误抛 LlmProtocolException，保存 dialect、path、message 与原始响应。弃用的 function_call 无法提供现代工具 call ID，保留 Native，不伪造 ID。
 
 stop 与 tool_calls／function_call 表示完整的该轮模型输出；length 表示 Incomplete；content_filter 在没有明确 refusal 时同样为 Incomplete；明确 refusal 为 Refused。未知停止原因使用 Other(raw) 并保守标记 Incomplete，不能据此返回结构化成功。每个候选的 history 只包含 assistant 消息；不包含 choices 包装、logprobs、usage 或服务器响应时间。
 

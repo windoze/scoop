@@ -17,10 +17,10 @@ internal fun encodeChatRequest(dialect: ChatDialect, model: String, request: Llm
             case ToolResult(call, content, isError, extensions) -> {
                 requireLlmOwner(call.dialect, dialect.id, path + "/call/dialect")
                 requireChatNoContext(call.context, path + "/call/context")
-                if (call.id.length == 0L) throw LlmRequestException(path + "/call/id", "Chat tool call ID must not be empty")
+                val callId = requireLlmToolCallId(call.id, path + "/call/id")
                 if (isError) throw LlmRequestException(path + "/isError", "Chat has no tool-result error flag")
                 val body = JsonObjectBuilder().add("role", JsonValue.fromString("tool"))
-                    .add("tool_call_id", JsonValue.fromString(call.id))
+                    .add("tool_call_id", JsonValue.fromString(callId))
                     .add("content", dialect.encodeContent(content, "tool", path + "/content")).build()
                 messages.add(mergeLlmExtensions(body, extensions, dialect.id, chatMessageFields(), path))
             }

@@ -10,7 +10,7 @@ internal fun readMessagesClientCall(dialect: DialectId, call: MessagesToolUse, r
         else if (call.input.kind != JsonValueKind.Object) ClientToolInput.Invalid(arguments, "tool input must be a JSON object")
         else if (binding.native) ClientToolInput.Native(call.input)
         else ClientToolInput.JsonArguments(JsonToolArguments(arguments))
-    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, binding.key, call.id, Some(raw)), input))
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, binding.key, Some(call.id), Some(raw)), input))
 }
 
 internal class MessagesToolBinding public constructor(val key: ToolKey, val native: Boolean)

@@ -12,8 +12,8 @@ internal fun encodeMessagesRequest(dialect: MessagesDialect, model: String, requ
         when (item) {
             case ToolResult(call, content, isError, extensions) -> {
                 requireLlmOwner(call.dialect, dialect.id, path + "/call/dialect")
-                if (call.id.length == 0L) throw LlmRequestException(path + "/call/id", "Messages tool call ID must not be empty")
-                val block = llmTypedObject("tool_result").add("tool_use_id", JsonValue.fromString(call.id))
+                val callId = requireLlmToolCallId(call.id, path + "/call/id")
+                val block = llmTypedObject("tool_result").add("tool_use_id", JsonValue.fromString(callId))
                     .add("content", dialect.encodeContent(content, "user", path + "/content"))
                     .add("is_error", JsonValue.fromBoolean(isError)).build()
                 results.add(mergeLlmExtensions(block, extensions, dialect.id, ["type", "tool_use_id", "content", "is_error"], path))

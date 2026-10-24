@@ -17,7 +17,7 @@ private class MessagesClientToolTest {
         assertEquals(2L, response.clientToolCalls.size)
         val first = response.clientToolCalls[0]
         assertEquals(ToolKey("lookup"), first.toolKey)
-        assertEquals("call1", first.reference.id)
+        assertEquals(Some("call1"), first.reference.id)
         assertEquals(9007199254740993L, first.decodeArguments<MessagesCount>().count)
         assertEquals("direct", first.reference.context!!["caller"]!!["type"]!!.asString())
         when (response.clientToolCalls[1].input) {

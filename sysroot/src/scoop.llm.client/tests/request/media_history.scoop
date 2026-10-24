@@ -47,7 +47,7 @@ private class MediaHistoryRequestTest {
         val dialect = exampleDialect()
         val raw = Json.parse("{\"role\":\"assistant\",\"reasoning_content\":\"preserved\",\"future\":9007199254740993}")
         val history = LlmHistory(dialect, [raw, Json.parse("{\"id\":\"second\"}")], Some(Json.parse("{\"response_id\":\"r1\"}")))
-        val call = ClientToolCallReference(dialect, ToolKey("old-tool"), "call-1", Some(Json.parse("{\"signature\":\"opaque\"}")))
+        val call = ClientToolCallReference(dialect, ToolKey("old-tool"), Some("call-1"), Some(Json.parse("{\"signature\":\"opaque\"}")))
         val request = LlmRequest([History(history), ToolResult(call, [Text("failed")], isError = true), Message([Text("continue")])])
         val restored = Json.decodeFromString<LlmRequest>(Json.encodeToString(request))
         assertEquals(0L, restored.tools.size)
@@ -62,7 +62,7 @@ private class MediaHistoryRequestTest {
         }
         when (restored.input[1]) {
             case ToolResult(reference, _, isError, _) -> {
-                assertEquals("call-1", reference.id)
+                assertEquals(Some("call-1"), reference.id)
                 assertEquals(ToolKey("old-tool"), reference.toolKey)
                 assertEquals("opaque", reference.context!!["signature"]!!.asString())
                 assertTrue(isError)

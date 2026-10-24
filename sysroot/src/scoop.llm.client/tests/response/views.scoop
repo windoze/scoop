@@ -20,7 +20,7 @@ private class ResponseViewsTest {
         ], Complete, Stop)])
         assertEquals("onetwothree", response.text)
         assertEquals(1L, response.clientToolCalls.size)
-        assertEquals("call-1", response.clientToolCalls[0].reference.id)
+        assertEquals(Some("call-1"), response.clientToolCalls[0].reference.id)
         assertEquals(9007199254740993L, valid.decodeArguments<CountOutput>().count)
         assertEquals(1L, response.serverToolActivities.size)
         assertEquals(ServerToolKind.WebSearch, response.serverToolActivities[0].kind)

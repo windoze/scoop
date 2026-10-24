@@ -33,7 +33,7 @@ internal fun readResponsesNativeClientCall(dialect: DialectId, entry: ResponsesO
     val input = readResponsesNativeInput(entry.raw, entry.kind, path)
     val key = resolveResponsesNativeTool(tools, dialect, aliases, false) ?: return LlmOutputItem.Native(dialect, entry.raw)
     val arguments = if (complete) ClientToolInput.Native(input) else ClientToolInput.Incomplete(Json.stringify(input))
-    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, entry.callId!!, Some(entry.raw)), arguments))
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, entry.callId, Some(entry.raw)), arguments))
 }
 
 private fun readResponsesNativeInput(value: JsonValue, kind: String, path: String): JsonValue {

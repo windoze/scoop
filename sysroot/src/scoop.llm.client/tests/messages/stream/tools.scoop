@@ -12,7 +12,7 @@ private class MessagesStreamToolTest {
             val decoder = messagesStream(retention, [messagesStreamFunction()])
             messagesStartBlock(decoder, 0L, "{\"type\":\"tool_use\",\"id\":\"c1\",\"name\":\"lookup\",\"input\":{},\"caller\":{\"type\":\"direct\"}}")
             val fragment = messagesInputDelta(decoder, 0L, "{\"count\":")
-            when (fragment.events[0L]) { case ToolInputDelta(value) -> assertEquals("c1", value.reference!!.id); else -> fail() }
+            when (fragment.events[0L]) { case ToolInputDelta(value) -> assertEquals(Some("c1"), value.reference!!.id); else -> fail() }
             messagesInputDelta(decoder, 0L, "2}")
             assertEquals(0L, messagesStopBlock(decoder, 0L).events.size)
             val final = messagesFinish(decoder, "tool_use")

@@ -31,4 +31,15 @@ private class ChatErrorsTest {
         val malformed = "{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":{}}}]}"
         expectChatFailure(chatBody(malformed, "tool_calls"), "/choices/0/message/tool_calls/0/function/arguments")
     }
+
+    @Test
+    fun `Chat function and custom calls require nonempty IDs even when undeclared`() {
+        for (fields in ["\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}",
+            "\"type\":\"custom\",\"custom\":{\"name\":\"undeclared\",\"input\":\"program\"}"]) {
+            for (id in ["", "\"id\":\"\","]) {
+                val message = "{\"role\":\"assistant\",\"tool_calls\":[{" + id + fields + "}]}"
+                expectChatFailure(chatBody(message, "tool_calls"), "/choices/0/message/tool_calls/0/id")
+            }
+        }
+    }
 }

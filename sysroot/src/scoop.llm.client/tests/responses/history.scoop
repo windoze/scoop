@@ -69,8 +69,8 @@ private class ResponsesHistoryTest {
     fun `Responses result encoding rejects missing mismatched or foreign call context`() {
         val dialect = OpenAiResponsesDialect().id
         val call = resultReference(dialect, "function_call", "i", "c")
-        assertResponsesRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(dialect, ToolKey("t"), "c"), [Text("ok")])]), "/input/0/call/context")
-        assertResponsesRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(dialect, call.toolKey, "other", call.context), [Text("ok")])]), "/input/0/call/context/call_id")
+        assertResponsesRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(dialect, ToolKey("t"), Some("c")), [Text("ok")])]), "/input/0/call/context")
+        assertResponsesRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(dialect, call.toolKey, Some("other"), call.context), [Text("ok")])]), "/input/0/call/context/call_id")
         assertResponsesRequestFailure(LlmRequest([ToolResult(resultReference(OpenAiChatDialect().id, "function_call", "i", "c"), [Text("ok")])]), "/input/0/call/dialect")
         assertResponsesRequestFailure(LlmRequest([ToolResult(call, [Text("error")], isError = true)]), "/input/0/isError")
         assertResponsesRequestFailure(LlmRequest([ToolResult(resultReference(dialect, "computer_call", "i", "c"), [Text("ok")])]), "/input/0/content/0")
@@ -80,4 +80,4 @@ private class ResponsesHistoryTest {
 }
 
 private fun resultReference(dialect: DialectId, type: String, item: String, call: String, extra: String = ""): ClientToolCallReference =
-    ClientToolCallReference(dialect, ToolKey("tool"), call, Some(Json.parse("{\"type\":\"" + type + "\",\"id\":\"" + item + "\",\"call_id\":\"" + call + "\"" + extra + "}")))
+    ClientToolCallReference(dialect, ToolKey("tool"), Some(call), Some(Json.parse("{\"type\":\"" + type + "\",\"id\":\"" + item + "\",\"call_id\":\"" + call + "\"" + extra + "}")))

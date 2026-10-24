@@ -22,7 +22,7 @@ internal class MessagesStreamTool public constructor(
         else {
             val binding = resolveMessagesTool(tools, dialect, call.name, false, call.toolsetName)
             val reference = when (binding) {
-                case Some(value) -> Some(ClientToolCallReference(dialect, value.key, call.id, Some(initial)))
+                case Some(value) -> Some(ClientToolCallReference(dialect, value.key, Some(call.id), Some(initial)))
                 case None -> None
             }
             batch.events.add(LlmEvent.ToolInputDelta(LlmToolInputDelta(location, fragment, reference)))
@@ -50,7 +50,7 @@ internal class MessagesStreamTool public constructor(
             ?: return LlmOutputItem.Native(dialect, JsonObjectBuilder().add("block", initial)
                 .add("invalid_input", JsonValue.fromString(rawInput)).build())
         val input = if (complete) ClientToolInput.Invalid(rawInput, "tool input is not valid JSON") else ClientToolInput.Incomplete(rawInput)
-        return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, binding.key, call.id, Some(initial)), input))
+        return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, binding.key, Some(call.id), Some(initial)), input))
     }
 
     public fun release() { input.clear() }

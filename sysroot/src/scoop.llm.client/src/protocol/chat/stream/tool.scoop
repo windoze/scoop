@@ -56,7 +56,7 @@ internal class ChatStreamTool public constructor(public val index: Long, public 
         var reference: ClientToolCallReference? = None
         if (id != None && name != None && kind != None) {
             val key = resolveChatToolKey(tools, name!!, kind == Some("custom"))
-            if (key != None) reference = Some(ClientToolCallReference(dialect, key!!, id!!))
+            if (key != None) reference = Some(ClientToolCallReference(dialect, key!!, id))
         }
         batch.events.add(LlmEvent.ToolInputDelta(LlmToolInputDelta(location, text, reference)))
         batch.observe(text)

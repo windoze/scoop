@@ -5,10 +5,10 @@ import scoop.json.*
 internal fun encodeResponsesToolResult(dialect: ResponsesDialect, call: ClientToolCallReference, content: Array<ContentPart>,
     isError: Boolean, extensions: Array<DialectExtension>, path: String): JsonValue {
     requireLlmOwner(call.dialect, dialect.id, path + "/call/dialect")
-    if (call.id.length == 0L) throw LlmRequestException(path + "/call/id", "Responses tool call ID must not be empty")
+    val callId = requireLlmToolCallId(call.id, path + "/call/id")
     val context = call.context ?: throw LlmRequestException(path + "/call/context", "Responses tool results require the original call context")
     val fields = readResponsesResultContext(context, path + "/call/context")
-    if (fields.callId != call.id) throw LlmRequestException(path + "/call/context/call_id", "tool result context belongs to another call")
+    if (fields.callId != callId) throw LlmRequestException(path + "/call/context/call_id", "tool result context belongs to another call")
     if (isError && fields.type != "apply_patch_call") throw LlmRequestException(path + "/isError", "this Responses tool result has no error flag")
     val (type, output) = when (fields.type) {
         case "function_call" -> ("function_call_output", dialect.encodeContent(content, path + "/content"))
@@ -28,7 +28,7 @@ internal fun encodeResponsesToolResult(dialect: ResponsesDialect, call: ClientTo
         val id = fields.id ?: throw LlmRequestException(path + "/call/context/id", "local shell result requires the original item ID")
         if (id.length == 0L) throw LlmRequestException(path + "/call/context/id", "local shell item ID must not be empty")
         result.add("id", JsonValue.fromString(id))
-    } else result.add("call_id", JsonValue.fromString(call.id))
+    } else result.add("call_id", JsonValue.fromString(callId))
     if (fields.type == "apply_patch_call") result.add("status", JsonValue.fromString(if (isError) "failed" else "completed"))
     if (fields.type != "computer_call" && fields.type != "local_shell_call") {
         val caller = context["caller"]

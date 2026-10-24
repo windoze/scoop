@@ -19,7 +19,7 @@ internal fun readResponsesClientCall(dialect: DialectId, entry: ResponsesOutputE
         else if (custom) ClientToolInput.Text(arguments)
         else try { ClientToolInput.JsonArguments(JsonToolArguments(arguments)) }
         catch (error: DecodingException) { ClientToolInput.Invalid(arguments, error.message ?: "invalid JSON arguments") }
-    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, entry.callId!!, Some(entry.raw)), input))
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, entry.callId, Some(entry.raw)), input))
 }
 
 private fun resolveResponsesNamedTool(tools: Array<ToolDefinition>, name: String, custom: Boolean, namespace: String?): ToolKey? {

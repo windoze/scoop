@@ -24,14 +24,14 @@ private class ChatStreamToolTest {
         when (completed.events[0L]) {
             case ClientToolCall(location, call) -> {
                 assertEquals(0L, location.itemIndex)
-                assertEquals("a", call.reference.id)
+                assertEquals(Some("a"), call.reference.id)
                 assertTrue(call.isExecutable)
             }
             else -> fail()
         }
         val response = decoder.response()
         assertEquals(2L, response.clientToolCalls.size)
-        assertEquals("b", response.clientToolCalls[1L].reference.id)
+        assertEquals(Some("b"), response.clientToolCalls[1L].reference.id)
         when (response.clientToolCalls[1L].input) {
             case Text(text) -> assertEquals("print(1)", text)
             else -> fail()

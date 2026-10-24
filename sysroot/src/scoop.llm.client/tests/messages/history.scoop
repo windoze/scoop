@@ -39,6 +39,6 @@ private class MessagesHistoryRequestTest {
         assertMessagesRequestFailure(LlmRequest([History(LlmHistory(foreign, []))]), "/input/0/history/dialect")
         assertMessagesRequestFailure(LlmRequest([History(LlmHistory(own, [], Some(Json.parse("{}"))))]), "/input/0/history/context")
         assertMessagesRequestFailure(LlmRequest([History(LlmHistory(own, [Json.parse("{\"role\":\"user\",\"content\":[]}")]))]), "/input/0/history/items/0/role")
-        assertMessagesRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(foreign, ToolKey("old"), "id"), [Text("result")])]), "/input/0/call/dialect")
+        assertMessagesRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(foreign, ToolKey("old"), Some("id")), [Text("result")])]), "/input/0/call/dialect")
     }
 }
