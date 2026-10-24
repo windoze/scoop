@@ -10,6 +10,7 @@ mod expression;
 mod expression_support;
 mod floating;
 mod interface_checks;
+mod interface_queries;
 mod interface_tables;
 mod interfaces;
 mod maybe_uninit;
@@ -192,7 +193,7 @@ pub(super) fn lower_function<'a>(
         });
         block_map.insert(mir_id, lir_id);
     }
-    let entry = block_map[&function.body.entry];
+    let mut entry = block_map[&function.body.entry];
     let loop_header_polls = function
         .body
         .loop_header_polls
@@ -209,6 +210,7 @@ pub(super) fn lower_function<'a>(
         mir_locals: &function.body.locals,
         known_receiver: known_receiver_class.map(|class| (function.params[0].local, class)),
         interface_tables: interface_tables::TableCache::new(optimization, address_taken.clone()),
+        interface_queries: interface_queries::QueryCache::default(),
         global_map,
         storage_globals,
         globals,
@@ -244,6 +246,9 @@ pub(super) fn lower_function<'a>(
         exception_slots: None,
         caught_exception: None,
     };
+    if optimization == lir::OptimizationMode::Release {
+        entry = lowerer.prepare_interface_queries(function, &address_taken, entry)?;
+    }
     for (index, param) in function.params.iter().enumerate() {
         if address_taken.contains(&param.local) {
             let local = lowerer.local_slot(param.local);
@@ -330,6 +335,7 @@ struct FunctionLowerer<'a> {
     /// An itable adapter belongs to one concrete receiver class.
     known_receiver: Option<(mir::LocalId, mir::ClassId)>,
     interface_tables: interface_tables::TableCache,
+    interface_queries: interface_queries::QueryCache,
     global_map: &'a HashMap<mir::StringConstId, lir::GlobalId>,
     storage_globals: &'a HashMap<mir::GlobalId, StorageGlobal>,
     /// Sink for ordinary globals such as trap-message C strings.

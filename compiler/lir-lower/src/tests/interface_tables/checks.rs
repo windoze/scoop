@@ -1,6 +1,7 @@
 use super::*;
 
 mod control;
+mod loops;
 mod temporaries;
 
 fn guarded(negated: bool) -> (mir::Module, mir::FunctionId, mir::BlockId) {

@@ -311,13 +311,20 @@ impl<'a> FunctionLowerer<'a> {
             mir::ExprKind::Unbox(operand) => self.lower_unbox(operand, ty)?,
             // `scoop_rt_is_instance(obj, td)` (runtime spec 2.3).
             mir::ExprKind::IsInstance { operand, check_ty } => {
-                let object = self.lower_expr(operand)?;
-                let object = self.reference_object(object, &operand.ty);
-                let td = self.td_ref(check_ty);
-                self.emit_plain_call(
-                    LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::IsInstance),
-                    vec![object, td],
-                )?
+                if let mir::Type::Interface(interface) = **check_ty
+                    && self.interface_queries.get(operand, interface).is_some()
+                {
+                    let entry = self.interface_entry(operand, interface)?;
+                    self.interface_entry_condition(entry, false)
+                } else {
+                    let object = self.lower_expr(operand)?;
+                    let object = self.reference_object(object, &operand.ty);
+                    let td = self.td_ref(check_ty);
+                    self.emit_plain_call(
+                        LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::IsInstance),
+                        vec![object, td],
+                    )?
+                }
             }
             // mir-lower expands `as` / `as?` into runtime checks plus
             // Option wrapping; the node never reaches LIR.

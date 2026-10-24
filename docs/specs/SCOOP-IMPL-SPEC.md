@@ -1318,9 +1318,13 @@ release 在同一迭代中折叠普通引用复制及多余的 Any 擦除。相�
 
 driver 向 lir-lower 显式传入当前优化模式。release 在单个 LIR 基本块内，为未取地址的同一 MIR 局部值、同一 exact interface 复用已经取得的 itab；赋值／调用结果写入使对应局部值的表缓存失效，进入其他 LIR 块即清空。复用结果只是 GC-free metadata SSA 值，普通调用与 GC 不改变该表；每次构造接口值仍从当前的 managed 引用取得 object，不能为缓存表额外延长一份对象副本的 GC 活跃范围。LIR lowering 内部产生的分支同样遵守块边界，不把分支内取得的表带出其支配范围。空接口的 null itab 仍是合法结果，遵守运行时规范 2.1。debug 不启用接口视图折叠或表复用，既有 `itable_lookup` 与 `is_instance` 入口签名保持。
 
-release 的 LIR lowering 对接口条件分支及其否定形式分析成功路径。只有后续实际构造非空接口视图、来源是未取地址的同一局部值时，才将该检查改为 `scoop_rt_itable_find` 并保存静态 entry 指针。source 写入使对应事实失效；合流只保留所有可达普通前驱共有的同一次成功检查，循环按固定点处理，异常入口不继承这些事实。数据流不重新执行语言 smartcast 检查，不合并不同查询的结果或引入对象副本。普通调用及其正常继续路径可以复用已证明的 metadata；异常路径和新对象值继续走自己的检查。成功后按需加载 entry 的 slots，再复用既有父表投影及块内 itab 缓存。没有后续视图需求的 Boolean 检查、空接口检查和 debug 保持原入口。运行时规范 2.1 定义新查询，runtime ABI contract 升至 15，NoGC runtime wire tag 25 表示 ITableFind；metadata ABI 9 和父表布局 capability 17 保持。
+release 的 LIR lowering 对接口条件分支及其否定形式分析成功路径。只有后续实际构造非空接口视图、来源是未取地址的同一局部值时，才将该检查改为 `scoop_rt_itable_find` 并保存静态 entry 指针。source 写入使对应事实失效；合流只保留所有可达普通前驱共有的同一次成功检查，循环按固定点处理，异常入口不继承这些事实。数据流不重新执行语言 smartcast 检查，不合并不同查询的结果或引入对象副本。普通调用及其正常继续路径可以复用已证明的 metadata；异常路径和新对象值继续走自己的检查。成功后按需加载 entry 的 slots，再复用既有父表投影及块内 itab 缓存。对于不满足下述循环复用条件的检查，没有后续视图需求的 Boolean 和空接口保持原入口；debug 也保持原入口。运行时规范 2.1 定义新查询，runtime ABI contract 升至 15，NoGC runtime wire tag 25 表示 ITableFind；metadata ABI 9 和父表布局 capability 17 保持。
 
 同块 Boolean 局部副本可以连接原接口检查与条件分支，包括否定运算引入的临时值；查询仍在原检查求值位置执行一次，保留所有 Boolean 使用。只有参与该链的 Boolean 存储未取地址、且受检对象从检查到分支未被重新赋值时才复用；不把原对象检查延后到分支位置。
+
+release 对可能在循环中重复执行的 exact interface 检查，可进一步复用同一函数调用内稳定局部值的查询结果。来源限于未取地址且未被写入的参数，或只有一个写入点、该写入点不在任何正常／异常控制流环中的非空引用局部值。按实际 CFG 判断是否重复执行，不改写 MIR 已记录的 loop poll 责任；循环中创建或重赋的来源、字段／全局／指针读取保持原查询。仅当至少一个同源同接口的检查位于控制流环中时建立复用状态，普通单次检查不增加状态。
+
+每个合格的局部值／exact interface 组合保存 GC-free entry 指针与独立的已初始化 Boolean。函数入口只初始化状态，在第一次实际到达原检查求值点时调用 `itable_find`，随后复用成功或失败结果；零次循环、未进入的条件和检查前的异常不提前执行查询。该规则也适用于没有视图消费者的 Boolean 检查与空接口检查，区分未初始化、null entry 未命中和非 null entry／null slots 的空接口命中。成功后的视图继续消费同一 entry 和既有父表投影；每次仍从当前 managed 引用取得 object，不保存对象副本或延长 GC roots。稳定来源的 metadata 可跨普通调用、移动 GC 和 catch 复用；这不扩大前述一般成功路径事实的异常传播规则。debug 保持原路径，接口布局、跨 Cone／`.slib` 格式和 runtime ABI 不变，不增加全局或 runtime 缓存。
 
 同一迭代在内联／化简之后分析函数内分配来源并消除可替换的局部 box，再化简新暴露的分支。来源为本次正文中 typed 创建点的可能集合，普通局部复制与 Retype 传播并集；合并外来值时保留已有候选，取地址、返回、存储、身份观察及未内联调用均保守保留对象。候选和分析结果不持久化，不把 NoEscape 等同于可删除。
 

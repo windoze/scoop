@@ -779,6 +779,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - [分配 context 首次使用复用](program-performance/ALLOCATION-CONTEXT.md)已交付：ARM64 release 复用调用内稳定的 TLAB context 地址，保留 GC／refill 后的状态重读和异常路径。16／24 B 阶段再降低约 16.5%／15.6%，text 缩小约 0.19%；x86 宽对象试验回退，最终 GNU／musl 产物保持基线相同字节。三目标定向验证、零／单次路径和编译成本已记录，ABI 16 与对象／根布局保持，无新公开开关。
 - [确定初始化前尾部清零消除](program-performance/ALLOCATION-ZEROING.md)已交付：在直线初始化路径中缩短单次清零，保留对象头、引用槽、padding、发布与 roots；release 默认接受 ARM64 ≤128 B、x86 ≤64 B。三目标 24／48 B 阶段降低约 3.4%～17.5%，ARM64 128 B 降低约 26.4%；较大 x86 试验未形成稳定收益，保持原指令。text 不增加，编译、对照回退和定向验证已记录，统一 ABI 16 与产物格式保持。
 - [动态接口目录测量](program-performance/INTERFACE-DIRECTORY.md)已补齐：真实装箱／集合／短目录等 9 种负载在三目标验证，O2 边界测试覆盖 0～17 项。四种循环展开存在短目录或 smartcast 回退，本轮未采纳，保留原 runtime 查询和全部父表投影能力；测量入口及取舍已登记。
+- [循环中稳定来源的查询复用](program-performance/INTERFACE-QUERY-REUSE.md)已交付：release 对参数或所有 CFG 环外单次定义的局部引用，首次实际检查后复用 exact interface 的命中／未命中 entry；含 Boolean、空接口和稳定来源的异常继续路径，不增加对象副本、roots 或 ABI。三目标主要目录负载降低约 13%～87%，静态／编译成本和短目录、布局敏感回退均已记录。
 - 延续桌面短暂停与内存目标，按吞吐、应用尾延迟、RSS 和启动分别验收；调研不表示优化已实现或已完成跨语言性能比较。具体实施前先修订实际受影响的规范，不预先占用新的里程碑编号。
 
 ### 可恢复语法与 LSP（公共基础 A～E 已完成，扩展能力待排期）

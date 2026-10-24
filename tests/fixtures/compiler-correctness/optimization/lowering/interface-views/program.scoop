@@ -127,6 +127,47 @@ fun tryParent(value: Any): Int {
     }
 }
 
+fun repeatedChecks(value: Any, count: Int): Int {
+    var total = 0
+    var index = 0
+    while (index < count) {
+        if (value is Child) total += value.first()
+        if (value is Empty) total += 100
+        if (value is Generic<Int>) total += value.get()
+        if (value is Generic<String>) total += 1000
+        index += 1
+    }
+    return total
+}
+fun changingChecks(first: Any, second: Any, count: Int): Int {
+    var value = first
+    var total = 0
+    var index = 0
+    while (index < count) {
+        val source = value
+        if (source is Child) total += source.first()
+        value = if (index % 2 == 0) second else first
+        index += 1
+    }
+    return total
+}
+fun repeatedCasts(value: Any, count: Int): Int {
+    var total = 0
+    var index = 0
+    while (index < count) {
+        try {
+            val view = value as Parent
+            total += view.first()
+        } catch (error: ClassCastException) { total -= 1 }
+        when (value as? Parent) {
+            case Some(view) -> total += view.second()
+            case None -> total -= 2
+        }
+        index += 1
+    }
+    return total
+}
+
 fun main() {
     val first = Base(3)
     val second = Derived(7)
@@ -149,6 +190,15 @@ fun main() {
     check(guardedTry(second, false) == 24 && guardedTry(second, true) == 9)
     check(guardedTry("absent", false) == -1)
     check(castParent(Boxed(4)) == 9 && tryParent(second) == 24 && tryParent("absent") == -1)
+    check(repeatedChecks(first, 0) == 0 && repeatedChecks(first, 1) == 103)
+    check(repeatedChecks(first, 5) == 515 && repeatedChecks(second, 5) == 535)
+    check(repeatedChecks(Boxed(4), 5) == 0 && repeatedChecks("absent", 5) == 0)
+    check(repeatedChecks(GenericValue<Int>(23), 5) == 115)
+    check(repeatedChecks(GenericValue<String>("other"), 5) == 5000)
+    check(changingChecks(first, "absent", 4) == 6 && changingChecks(first, second, 4) == 20)
+    check(repeatedCasts("absent", 0) == 0 && repeatedCasts("absent", 4) == -12)
+    check(repeatedCasts(first, 4) == 28 && repeatedCasts(second, 4) == 96)
+    check(repeatedCasts(Boxed(4), 4) == 36)
     var failed = false
     try { castParent("absent") } catch (error: ClassCastException) { failed = true }
     check(failed)

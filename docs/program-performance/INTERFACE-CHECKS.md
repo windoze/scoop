@@ -2,6 +2,8 @@
 
 状态：实现与定向验证完成，release 默认启用。接续已交付的父表直接投影，以 `a3d3b0bb1` 为性能基线。
 
+后续已加入[循环中稳定来源的查询复用](INTERFACE-QUERY-REUSE.md)：满足该条件的 Boolean／空接口检查和稳定来源的 catch 路径也可复用首次查询。本篇记录此前检查／取表合并的独立设计与测量，循环中的当前行为及成本以该后续记录为准。
+
 ## 当前问题与选择
 
 父表投影已经使 Child 的继承调用免查表，但 Any 的接口 smartcast 仍先用 `is_instance` 判断，再用 `itable_lookup` 建立视图。两者都会扫描实际类型的接口目录。当前 `smartParent`／`smartChild` 基准每轮各有一次类型检查和一次取表。

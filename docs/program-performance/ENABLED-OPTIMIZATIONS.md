@@ -13,6 +13,7 @@
 | [smartcast 视图保留与块内 itab 复用](INTERFACE-PROJECTION.md) | release 默认 | 复用已取得的接口视图；动态表缓存仅保存 metadata，遵守局部值写入、取址与块边界的失效规则。 |
 | [接口 SSA 快照的直线区间复用](INTERFACE-VALUES.md) | x86_64 release 默认 | 复用刚写入 canonical storage 的完整接口值及接口 niche enum；调用、poll、别名操作和控制流边界结束复用。ARM64 保持原重读路径。 |
 | [接口检查与取表合并](INTERFACE-CHECKS.md) | release 默认 | 有非空接口视图消费者的 `is`／`as`／`as?`；普通控制流上复用成功检查，写入、非共同合流与异常入口使其失效。 |
+| [循环中稳定来源的接口查询复用](INTERFACE-QUERY-REUSE.md) | release 默认 | 未取址、未写入的参数或所有 CFG 环外单次定义的局部引用；首次实际查询后复用 exact interface 的成功／失败 entry，含 Boolean 与空接口，不增加对象副本或 GC roots。 |
 | [普通 class／局部游标字段替换](CLASS-SCALARS.md) | release 默认 | 创建与使用可分析、不逃逸且无 release hook；字段转为 typed locals，保留引用快照与 GC 语义。 |
 | [字段替换指导内联](ITERATOR-INLINING.md) | release 默认 | 可替换 class 只剩一个 receiver 调用时共同估价；继续遵守原内联成本与累计增长限制。 |
 | [调用点异常路径特化](EXCEPTION-PATHS.md) | release 默认 | exact receiver／closure 和已有完整正文证明异常边不可达后，按实际剩余正文选择内联；保留正常清理、真实异常、返回快照与精确 roots。未知效果和残余 EH 保留调用。 |

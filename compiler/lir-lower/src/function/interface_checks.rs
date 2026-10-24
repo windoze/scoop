@@ -69,7 +69,12 @@ impl Plan {
         let mut storage = HashMap::new();
         // Keep local allocation deterministic even when CFG block order is arbitrary.
         for (id, _) in body.blocks.iter().filter(|(id, _)| used.contains(id)) {
-            storage.insert(id, lowerer.new_hidden_local(lir::METADATA_PTR)?);
+            let entry = if let Some(query) = lowerer.interface_queries.source(checks[&id].source) {
+                query.entry
+            } else {
+                lowerer.new_hidden_local(lir::METADATA_PTR)?
+            };
+            storage.insert(id, entry);
         }
         let mut entries = HashMap::new();
         for (id, facts) in &mut incoming {
@@ -146,35 +151,13 @@ impl FunctionLowerer<'_> {
     ) -> StorageResult<lir::Value> {
         let (operand, interface, negated) =
             condition(condition_expr).expect("planned interface guard");
-        let value = self.lower_expr(operand)?;
-        let object = self.reference_object(value, &operand.ty);
-        let descriptor = self.load_at_offset(
-            object,
-            self.context.object_type_descriptor_offset(),
-            lir::METADATA_PTR,
-        );
-        let entry = self.emit_plain_call(
-            LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::ITableFind),
-            vec![
-                lir::Value::Temp(descriptor),
-                self.td_ref(&mir::Type::Interface(interface)),
-            ],
-        )?;
-        self.push(lir::Instruction::Store {
-            local: slot,
-            value: entry,
-        });
-        let result = self.new_temp(lir::LirType::I1);
-        self.push(lir::Instruction::BinOp {
-            out: result,
-            op: if negated {
-                lir::BinOp::Eq
-            } else {
-                lir::BinOp::Ne
-            },
-            lhs: entry,
-            rhs: lir::Value::NullPointer(lir::PointerKind::Metadata),
-        });
-        Ok(lir::Value::Temp(result))
+        let entry = self.interface_entry(operand, interface)?;
+        if entry != lir::Value::Local(slot) {
+            self.push(lir::Instruction::Store {
+                local: slot,
+                value: entry,
+            });
+        }
+        Ok(self.interface_entry_condition(entry, negated))
     }
 }
