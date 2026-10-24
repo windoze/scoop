@@ -1,0 +1,66 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeConverseTools(dialect: ConverseDialect, request: LlmRequest): JsonValue? {
+    val values = ArrayList<JsonValue>()
+    val names = ArrayList<String>()
+    val selectedKey = when (request.options.toolChoice) { case Specific(key) -> Some(key); else -> None }
+    var selected: String? = None
+    var servers = false
+    var index = 0L
+    for (tool in request.tools) {
+        val path = "/tools/" + index.toString()
+        val (name, value) = when (tool) {
+            case ClientFunction(key, name, parameters, description, strict, extensions) -> {
+                requireConverseToolName(name, path + "/name")
+                if (selectedKey == Some(key)) selected = Some(name)
+                val specification = JsonObjectBuilder().add("name", JsonValue.fromString(name))
+                    .add("inputSchema", JsonObjectBuilder().add("json", parameters).build())
+                if (description.length != 0L) specification.add("description", JsonValue.fromString(description))
+                if (strict != None) specification.add("strict", JsonValue.fromBoolean(strict!!))
+                (name, JsonObjectBuilder().add("toolSpec", mergeLlmExtensions(specification.build(), extensions, dialect.id,
+                    ["name", "inputSchema", "description", "strict"], path)).build())
+            }
+            case Server(_, definition, extensions) -> {
+                servers = true
+                encodeConverseServer(dialect, definition, extensions, path)
+            }
+            else -> throw LlmRequestException(path, "Converse requires functions or system tools")
+        }
+        for (previous in names) if (previous == name) throw LlmRequestException(path, "duplicate Converse tool name")
+        names.add(name)
+        values.add(value)
+        index += 1L
+    }
+    val choice = converseToolChoice(request.options.toolChoice, values.size, servers, selected)
+    if (values.size == 0L) return None
+    val config = JsonObjectBuilder().add("tools", JsonValue.fromArray(values))
+    if (llmPresent(choice)) config.add("toolChoice", choice!!)
+    return Some(config.build())
+}
+
+internal fun requireConverseToolName(name: String, path: String) {
+    if (name.length == 0L || name.length > 64L) throw LlmRequestException(path, "tool name must contain 1 to 64 ASCII characters")
+    for (value in name.toByteArray()) {
+        if (!((value >= 65 && value <= 90) || (value >= 97 && value <= 122) || (value >= 48 && value <= 57) || value == 95 || value == 45))
+            throw LlmRequestException(path, "tool name permits ASCII letters, digits, underscores and hyphens")
+    }
+}
+
+private fun converseToolChoice(choice: ToolChoice, size: Long, servers: Boolean, selected: String?): JsonValue? {
+    if (choice == ToolChoice.Auto || (choice == ToolChoice.None && size == 0L)) return None
+    if (servers) throw LlmRequestException("/options/toolChoice", "Converse explicit tool choice requires only client functions")
+    return when (choice) {
+        case Auto -> None
+        case None -> throw LlmRequestException("/options/toolChoice", "Converse has no none choice for declared tools")
+        case Required -> {
+            if (size == 0L) throw LlmRequestException("/options/toolChoice", "required tool choice needs functions")
+            Some(JsonObjectBuilder().add("any", JsonObjectBuilder().build()).build())
+        }
+        case Specific(_) -> {
+            if (selected == None) throw LlmRequestException("/options/toolChoice", "specific choice requires a client function")
+            Some(JsonObjectBuilder().add("tool", JsonObjectBuilder().add("name", JsonValue.fromString(selected!!)).build()).build())
+        }
+    }
+}

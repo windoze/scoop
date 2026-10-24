@@ -11,6 +11,7 @@ public class LlmProvider public constructor(
 
 /** Common combinations and deployment defaults, without a model-name router. */
 public object Providers {
+    public fun bedrockConverse(): LlmProvider = LlmProvider("bedrock-converse", ConverseProtocol(BedrockConverseDialect()))
     public fun geminiInteractions(): LlmProvider = LlmProvider("gemini-interactions",
         InteractionsProtocol(GeminiInteractionsDialect()), Some(Url.parse("https://generativelanguage.googleapis.com/v1")))
     public fun geminiGenerateContent(): LlmProvider = LlmProvider("gemini-generate-content",

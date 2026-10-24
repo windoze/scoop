@@ -1,0 +1,40 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.replace
+
+internal fun mergeConverseExtensions(base: JsonValue, extensions: Array<DialectExtension>, dialect: DialectId): JsonValue {
+    var result = base
+    var index = 0L
+    for (extension in extensions) {
+        val path = "/extensions/" + index.toString()
+        requireLlmOwner(extension.dialect, dialect, path + "/dialect")
+        result = mergeConverseConfig(result, extension.value, "request", path + "/value")
+        index += 1L
+    }
+    return result
+}
+
+private fun mergeConverseConfig(base: JsonValue, extension: JsonValue, scope: String, path: String): JsonValue {
+    if (extension.kind != JsonValueKind.Object) throw LlmRequestException(path, "Converse configuration must be an object")
+    val managed: Array<String> = when (scope) {
+        case "request" -> ["model", "modelId", "stream", "messages", "system"]
+        case "inferenceConfig" -> ["maxTokens", "temperature", "topP", "stopSequences"]
+        case "outputConfig" -> ["textFormat", "effort"]
+        case "toolConfig" -> ["tools", "toolChoice"]
+        else -> []
+    }
+    val result = JsonObjectBuilder()
+    for ((name, value) in base.members()) if (!extension.containsKey(name)) result.add(name, value)
+    for ((name, value) in extension.members()) {
+        val fieldPath = path + "/" + name.replace("~", "~0").replace("/", "~1")
+        for (field in managed) if (name == field) throw LlmRequestException(fieldPath, "extension cannot override a managed Converse field")
+        if (scope == "request" && (name == "inferenceConfig" || name == "outputConfig" || name == "toolConfig"))
+            result.add(name, mergeConverseConfig(base[name] ?: JsonObjectBuilder().build(), value, name, fieldPath))
+        else {
+            if (base.containsKey(name)) throw LlmRequestException(fieldPath, "extension conflicts with an encoded Converse field")
+            result.add(name, value)
+        }
+    }
+    return result.build()
+}

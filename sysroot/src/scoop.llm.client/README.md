@@ -22,7 +22,7 @@ Interactions 的独立 step 格式保留 thought.signature、媒体、服务端�
 
 Interactions SSE 沿用 `openStream`／`withStream` 和缺省 EventsOnly，显式 Result 才保留最终结果。stream=true 与 alt=sse 由协议编码；有序 step 绑定文本、媒体、引用、工具和签名。step.stop 不开放客户端工具执行，只有最终 requires_action 决定待执行调用；interaction.completed 冻结 usage。最终资源可以省略服务时间，缺失值不会替换成客户端发送／接收时刻；未知增量保留 Native，无法完整重建时不提供可追加历史。
 
-Bedrock Converse 当前提供纯响应入口 `ConverseProtocol(BedrockConverseDialect()).decodeResponse(json, request)`，请求与 EventStream 继续实施。响应保存有序内容、reasoning 签名、媒体、引用、实际调用 ID 与原始消息历史；系统工具与客户端函数分别读取，不自动执行。源文档位置保持引用元数据，不转换成输出文本范围。usage 的普通输入、缓存读与缓存写全部已知时才计算总输入，服务端 latencyMs 只留在原文，不代替客户端时间戳。
+Bedrock Converse 通过 `Providers.bedrockConverse()` 接入同一个 `generate` 入口。部署地址、模型 ID 和认证显式配置，provider 不猜 region；API key 使用 `LlmAuth.bearer`。最小请求仅有 messages，模型 ID 保持 URL 中的一个路径段；推理参数、结构化输出、函数和系统工具各用协议原生字段。原始历史与连续工具结果可直接保存后接续，媒体 Bytes／S3 引用不触发隐式下载。EventStream 与内置 SigV4 继续实施。纯响应入口 `ConverseProtocol(BedrockConverseDialect()).decodeResponse(json, request)` 同样可用。响应保存有序内容、reasoning 签名、媒体、引用、实际调用 ID 与原始消息历史；系统工具与客户端函数分别读取，不自动执行。源文档位置保持引用元数据，不转换成输出文本范围。usage 的普通输入、缓存读与缓存写全部已知时才计算总输入，服务端 latencyMs 只留在原文，不代替客户端时间戳。
 
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 

@@ -1,0 +1,64 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeConverseContent(dialect: DialectId, parts: Array<ContentPart>, path: String, role: String): JsonValue {
+    val values = ArrayList<JsonValue>()
+    var document = false
+    var text = false
+    var index = 0L
+    for (part in parts) {
+        val partPath = path + "/" + index.toString()
+        val value = encodeConversePart(dialect, part, partPath)
+        val (kind, _) = converseInputUnion(value, partPath)
+        if ((kind == "image" || kind == "document") && role != "user")
+            throw LlmRequestException(partPath, "Converse images and documents require a user message")
+        if (kind == "document") document = true
+        if (kind == "text") text = true
+        values.add(value)
+        index += 1L
+    }
+    if (document && !text) throw LlmRequestException(path, "a document message also requires text content")
+    return JsonValue.fromArray(values)
+}
+
+internal fun encodeConversePart(dialect: DialectId, part: ContentPart, path: String): JsonValue = when (part) {
+    case Text(text, extensions) -> {
+        if (extensions.size != 0L) throw LlmRequestException(path + "/extensions", "Converse text has no content metadata")
+        JsonObjectBuilder().add("text", JsonValue.fromString(text)).build()
+    }
+    case Image(source, extensions) -> encodeConverseMedia(dialect, source, "image", None, extensions, path)
+    case Document(source, filename, extensions) -> encodeConverseMedia(dialect, source, "document", filename, extensions, path)
+    case Audio(source, extensions) -> encodeConverseMedia(dialect, source, "audio", None, extensions, path)
+    case Video(source, extensions) -> encodeConverseMedia(dialect, source, "video", None, extensions, path)
+    case VideoFrames(_, _) -> throw LlmRequestException(path, "Converse video requires media rather than timestamped frames")
+    case Native(owner, value) -> {
+        requireLlmOwner(owner, dialect, path + "/dialect")
+        converseInputUnion(value, path + "/value")
+        value
+    }
+}
+
+internal fun encodeConverseSystem(dialect: DialectId, parts: Array<ContentPart>): JsonValue {
+    val values = ArrayList<JsonValue>()
+    var index = 0L
+    for (part in parts) {
+        val path = "/system/" + index.toString()
+        when (part) {
+            case Text(text, _) -> {
+                if (text.length == 0L) throw LlmRequestException(path + "/text", "system text must not be empty")
+                values.add(encodeConversePart(dialect, part, path))
+            }
+            case Native(_, _) -> values.add(encodeConversePart(dialect, part, path))
+            else -> throw LlmRequestException(path, "Converse system content requires text or native system content")
+        }
+        index += 1L
+    }
+    return JsonValue.fromArray(values)
+}
+
+internal fun converseInputUnion(value: JsonValue, path: String): (String, JsonValue) {
+    if (value.kind != JsonValueKind.Object || value.size != 1L)
+        throw LlmRequestException(path, "Converse tagged union requires exactly one member")
+    return value.members()[0L]
+}

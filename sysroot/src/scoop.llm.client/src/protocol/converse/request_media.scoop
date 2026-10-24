@@ -1,0 +1,71 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+import scoop.text.startsWith
+
+internal fun encodeConverseMedia(dialect: DialectId, source: MediaSource, kind: String, filename: String?,
+    extensions: Array<DialectExtension>, path: String): JsonValue {
+    val mime = when (source) { case Bytes(_, value) -> value; case Url(_, value) -> value; case FileReference(_, value) -> value }
+    val type = HttpMediaType.parseOrNone(mime) ?: throw LlmRequestException(path + "/source/mimeType", "invalid media type")
+    if (type.parameters.size != 0L) throw LlmRequestException(path + "/source/mimeType", "Converse format cannot express MIME parameters")
+    val normalized = type.type + "/" + type.subtype
+    val format = converseInputFormat(kind, normalized) ?: throw LlmRequestException(path + "/source/mimeType", "unsupported Converse media format")
+    val payload = when (source) {
+        case Bytes(bytes, _) -> JsonObjectBuilder().add("format", JsonValue.fromString(format))
+            .add("source", JsonObjectBuilder().add("bytes", JsonValue.fromString(Base64.Default.encode(bytes))).build()).build()
+        case Url(url, _) -> {
+            if (url.scheme != Some("s3") || !url.toString().startsWith("s3://"))
+                throw LlmRequestException(path + "/source/url", "Converse media URL must be an S3 URI")
+            JsonObjectBuilder().add("format", JsonValue.fromString(format)).add("source", JsonObjectBuilder()
+                .add("s3Location", JsonObjectBuilder().add("uri", JsonValue.fromString(url.toString())).build()).build()).build()
+        }
+        case FileReference(reference, _) -> converseInputFile(reference, dialect, kind, normalized, path + "/source/reference")
+    }
+    val named = if (kind == "document") converseDocumentName(payload, filename, path + "/filename") else payload
+    return JsonObjectBuilder().add(kind, mergeLlmExtensions(named, extensions, dialect, ["format", "source", "name"], path)).build()
+}
+
+private fun converseInputFormat(kind: String, mime: String): String? {
+    val formats: Array<String> = when (kind) {
+        case "image" -> ["png", "jpeg", "gif", "webp"]
+        case "document" -> ["pdf", "csv", "doc", "docx", "xls", "xlsx", "html", "txt", "md"]
+        case "audio" -> ["mpeg", "wav", "aac", "flac", "mp4", "ogg", "mkv", "webm"]
+        case "video" -> ["mkv", "mov", "mp4", "webm", "flv", "mpeg", "wmv", "three_gp"]
+        else -> []
+    }
+    for (format in formats) if (converseMediaMime(kind, format) == Some(mime)) return Some(format)
+    return None
+}
+
+private fun converseInputFile(reference: LlmFileReference, dialect: DialectId, kind: String, mime: String, path: String): JsonValue {
+    requireLlmOwner(reference.dialect, dialect, path + "/dialect")
+    val fieldPath = path + "/value"
+    val (originalKind, value) = converseInputUnion(reference.value, fieldPath)
+    if (originalKind != kind) throw LlmRequestException(fieldPath, "file reference media kind differs from content")
+    if (value.kind != JsonValueKind.Object) throw LlmRequestException(fieldPath + "/" + kind, "media payload must be an object")
+    val mediaPath = fieldPath + "/" + kind
+    val format = value["format"] ?: throw LlmRequestException(mediaPath + "/format", "file reference requires format")
+    if (format.kind != JsonValueKind.String || converseMediaMime(kind, format.asString()) != Some(mime))
+        throw LlmRequestException(mediaPath + "/format", "file reference format differs from its MIME type")
+    val source = value["source"] ?: throw LlmRequestException(mediaPath + "/source", "file reference requires source")
+    val (sourceKind, location) = converseInputUnion(source, mediaPath + "/source")
+    if (sourceKind != "s3Location" || location.kind != JsonValueKind.Object)
+        throw LlmRequestException(mediaPath + "/source", "file reference requires S3 location")
+    val uri = location["uri"] ?: throw LlmRequestException(mediaPath + "/source/s3Location/uri", "missing S3 URI")
+    if (uri.kind != JsonValueKind.String || !uri.asString().startsWith("s3://"))
+        throw LlmRequestException(mediaPath + "/source/s3Location/uri", "expected S3 URI")
+    return value
+}
+
+private fun converseDocumentName(value: JsonValue, filename: String?, path: String): JsonValue {
+    val original = value["name"]
+    if (filename == None && llmPresent(original) && original!!.kind != JsonValueKind.String)
+        throw LlmRequestException(path, "document name must be a string")
+    val name = filename ?: (if (llmPresent(original)) original!!.asString() else "document")
+    if (name.length == 0L || name.length > 200L) throw LlmRequestException(path, "document name must contain 1 to 200 characters")
+    val result = JsonObjectBuilder()
+    for ((field, item) in value.members()) if (field != "name") result.add(field, item)
+    return result.add("name", JsonValue.fromString(name)).build()
+}

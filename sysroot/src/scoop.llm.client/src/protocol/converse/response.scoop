@@ -1,16 +1,28 @@
 package scoop.llm.client
 
 import scoop.json.*
+import scoop.url.Url
 
-/** Pure Converse response decoding, bound to an explicit service dialect. */
-public class ConverseProtocol public constructor(public val dialect: ConverseDialect) {
-    public val dialectId: DialectId get() = dialect.id
+/** Converse requests and complete responses, bound to an explicit service dialect. */
+public class ConverseProtocol public constructor(public val dialect: ConverseDialect) : LlmGenerationProtocol {
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url {
+        if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+        return baseUrl.toBuilder().appendPathSegment("model").appendPathSegment(modelId).appendPathSegment("converse").build()
+    }
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue {
+        if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+        if (stream) throw LlmRequestException("/stream", "Converse streaming requires AWS EventStream transport")
+        return encodeConverseRequest(dialect, request)
+    }
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
     init {
         if (dialect.id.protocol != ApiProtocolId("converse"))
             throw IllegalArgumentException(Some("Converse dialect belongs to another API protocol"))
     }
 
-    public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
         try {
             val body = decodeConverseValue<ConverseBody>(value, "")
             converseNonempty(body.stopReason, "/stopReason")

@@ -9,7 +9,7 @@ internal fun resolveConverseTool(tools: Array<ToolDefinition>, dialect: Converse
         val wireName = when (tool) {
             case ClientFunction(_, value, _, _, _, _) -> if (server) None else Some(value)
             case Server(_, definition, _) -> if (!server) None else when (definition) {
-                case WebSearch(_) -> if (dialect.serverToolKind(name) == ServerToolKind.WebSearch) Some(name) else None
+                case WebSearch(_) -> dialect.webSearchToolName()
                 case Native(value) -> converseSystemToolName(value, dialect.id)
             }
             else -> None

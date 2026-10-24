@@ -1,0 +1,27 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeConverseServer(dialect: ConverseDialect, tool: ServerTool, extensions: Array<DialectExtension>, path: String): (String, JsonValue) {
+    val configuration = when (tool) {
+        case WebSearch(options) -> {
+            val name = dialect.webSearchToolName() ?: throw LlmRequestException(path + "/tool", "dialect has no web search system tool")
+            val at = path + "/tool/options/"
+            if (llmPresent(options.allowedDomains)) throw LlmRequestException(at + "allowedDomains", "system search has no domain allowlist")
+            if (llmPresent(options.excludedDomains)) throw LlmRequestException(at + "excludedDomains", "system search has no domain blocklist")
+            if (llmPresent(options.location)) throw LlmRequestException(at + "location", "system search has no location option")
+            if (options.includeSources != None) throw LlmRequestException(at + "includeSources", "system search has no source inclusion switch")
+            JsonObjectBuilder().add("name", JsonValue.fromString(name)).build()
+        }
+        case Native(native) -> {
+            requireLlmOwner(native.dialect, dialect.id, path + "/tool/dialect")
+            if (native.kind != "systemTool") throw LlmRequestException(path + "/tool/kind", "Converse server tool requires systemTool")
+            if (native.version != None) throw LlmRequestException(path + "/tool/version", "Converse system tools have no version field")
+            native.configuration
+        }
+    }
+    val name = configuration["name"] ?: throw LlmRequestException(path + "/tool/configuration/name", "missing system tool name")
+    if (name.kind != JsonValueKind.String) throw LlmRequestException(path + "/tool/configuration/name", "system tool name must be a string")
+    requireConverseToolName(name.asString(), path + "/tool/configuration/name")
+    return (name.asString(), JsonObjectBuilder().add("systemTool", mergeLlmExtensions(configuration, extensions, dialect.id, ["name"], path)).build())
+}

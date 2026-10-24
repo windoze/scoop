@@ -21,5 +21,8 @@ private class ConverseDialectTest {
 
 private class ForeignConverseDialect : ConverseDialect {
     public override val id: DialectId = GeminiInteractionsDialect().id
+    public override fun encodeOptions(request: LlmRequest): JsonValue = BedrockConverseDialect().encodeOptions(request)
     public override fun readUsage(value: JsonValue): TokenUsage = TokenUsage()
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        BedrockConverseDialect().decodeError(status, body, truncated)
 }

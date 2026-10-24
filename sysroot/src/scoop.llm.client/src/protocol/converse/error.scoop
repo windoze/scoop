@@ -1,0 +1,18 @@
+package scoop.llm.client
+
+import scoop.json.JsonValueKind
+import scoop.text.endsWith
+
+internal fun decodeConverseError(dialect: DialectId, status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
+    val value = parseLlmServiceError(body, truncated)
+    val code = llmServiceErrorString(value, "__type")
+    val parsed = when (value) {
+        case Some(raw) -> raw.kind == JsonValueKind.Object && (!raw.containsKey("__type") || code != None)
+        case None -> false
+    }
+    val expected = if (status == 429U) "ThrottlingException" else if (status == 503U) "ServiceUnavailableException" else ""
+    val retryable = parsed && expected.length != 0L &&
+        (code == None || code == Some(expected) || code!!.endsWith("#" + expected))
+    return LlmServiceException(dialect, status, body, truncated, code, value, retryable,
+        llmServiceErrorString(value, "message") ?: "Converse service rejected the request")
+}

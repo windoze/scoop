@@ -1,0 +1,69 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeConverseOptions(request: LlmRequest): JsonValue {
+    val options = request.options
+    val result = JsonObjectBuilder()
+    val inference = JsonObjectBuilder()
+    addConverseSampling(inference, "temperature", options.temperature, "/options/temperature")
+    addConverseSampling(inference, "topP", options.topP, "/options/topP")
+    if (options.maxOutputTokens != None) {
+        if (options.maxOutputTokens!! < 1L) throw LlmRequestException("/options/maxOutputTokens", "Converse maxTokens must be positive")
+        inference.add("maxTokens", JsonValue.fromLong(options.maxOutputTokens!!))
+    }
+    if (llmPresent(options.stop)) {
+        if (options.stop!!.size > 2500L) throw LlmRequestException("/options/stop", "Converse accepts at most 2500 stop sequences")
+        var index = 0L
+        for (value in options.stop!!) {
+            if (value.length == 0L) throw LlmRequestException("/options/stop/" + index.toString(), "stop sequence must not be empty")
+            index += 1L
+        }
+        inference.add("stopSequences", Json.encodeToValue(options.stop!!))
+    }
+    if (options.candidates != None && options.candidates != Some(1L)) throw LlmRequestException("/options/candidates", "Converse returns one candidate")
+    if (options.topK != None) throw LlmRequestException("/options/topK", "Converse has no common topK setting")
+    if (options.parallelToolCalls != None) throw LlmRequestException("/options/parallelToolCalls", "Converse has no parallel tool call switch")
+    val output = JsonObjectBuilder()
+    when (options.reasoning) {
+        case Some(reasoning) -> {
+            if (reasoning.enabled != None) throw LlmRequestException("/options/reasoning/enabled", "Converse thinking activation is model-specific")
+            if (reasoning.budgetTokens != None) throw LlmRequestException("/options/reasoning/budgetTokens", "Converse thinking budget is model-specific")
+            if (reasoning.effort != None) {
+                val effort = reasoning.effort!!
+                if (effort != "low" && effort != "medium" && effort != "high" && effort != "xhigh" && effort != "max")
+                    throw LlmRequestException("/options/reasoning/effort", "unsupported Converse effort")
+                output.add("effort", JsonValue.fromString(effort))
+            }
+        }
+        case None -> return finishConverseOptions(result, inference, output, options.output)
+    }
+    return finishConverseOptions(result, inference, output, options.output)
+}
+
+private fun addConverseSampling(result: JsonObjectBuilder, name: String, value: Double?, path: String) {
+    val setting = value ?: return
+    if (setting < 0.0 || setting > 1.0) throw LlmRequestException(path, "Converse sampling value must be between 0 and 1")
+    result.add(name, JsonValue.fromDouble(setting))
+}
+
+private fun finishConverseOptions(result: JsonObjectBuilder, inference: JsonObjectBuilder, output: JsonObjectBuilder, format: OutputFormat): JsonValue {
+    when (format) {
+        case Text -> return converseOptionObjects(result, inference.build(), output.build())
+        case JsonObject -> throw LlmRequestException("/options/output", "Converse JSON output requires a schema")
+        case JsonSchema(schema, name, description, strict) -> {
+            if (strict == Some(false)) throw LlmRequestException("/options/output/strict", "Converse schema output is always strict")
+            val definition = JsonObjectBuilder().add("schema", JsonValue.fromString(Json.stringify(schema))).add("name", JsonValue.fromString(name))
+            if (description != None) definition.add("description", JsonValue.fromString(description!!))
+            output.add("textFormat", llmTypedObject("json_schema").add("structure",
+                JsonObjectBuilder().add("jsonSchema", definition.build()).build()).build())
+        }
+    }
+    return converseOptionObjects(result, inference.build(), output.build())
+}
+
+private fun converseOptionObjects(result: JsonObjectBuilder, inference: JsonValue, output: JsonValue): JsonValue {
+    if (inference.size != 0L) result.add("inferenceConfig", inference)
+    if (output.size != 0L) result.add("outputConfig", output)
+    return result.build()
+}

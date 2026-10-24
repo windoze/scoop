@@ -1,0 +1,61 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseOptionsTest {
+    @Test
+    fun `Converse inference output schema and model extensions compose without inventing defaults`() {
+        val schema = Json.parse("{\"type\":\"object\",\"additionalProperties\":false,\"future\":1e400}")
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(1.0), maxOutputTokens = Some(1L), candidates = Some(1L), stop = Some([]),
+            reasoning = Some(ReasoningOptions(effort = Some("low"))), output = JsonSchema(schema, "answer", Some(""), Some(true)))
+        val value = converseEncode(LlmRequest([], options = options, extensions = converseExtension(
+            "{\"additionalModelRequestFields\":{\"thinking\":{\"type\":\"adaptive\"}},\"inferenceConfig\":{\"future\":false},\"outputConfig\":{\"extra\":0}}")))
+        val inference = value["inferenceConfig"]!!
+        assertEquals(0.0, inference["temperature"]!!.asDouble())
+        assertEquals(1.0, inference["topP"]!!.asDouble())
+        assertEquals(1L, inference["maxTokens"]!!.asLong())
+        assertEquals(0L, inference["stopSequences"]!!.size)
+        assertFalse(inference["future"]!!.asBoolean())
+        assertEquals("low", value["outputConfig"]!!["effort"]!!.asString())
+        val format = value["outputConfig"]!!["textFormat"]!!
+        assertEquals("json_schema", format["type"]!!.asString())
+        val definition = format["structure"]!!["jsonSchema"]!!
+        assertEquals(Json.stringify(schema), definition["schema"]!!.asString())
+        assertEquals("answer", definition["name"]!!.asString())
+        assertEquals("", definition["description"]!!.asString())
+        assertFalse(definition.containsKey("strict"))
+        assertEquals("adaptive", value["additionalModelRequestFields"]!!["thinking"]!!["type"]!!.asString())
+        assertEquals(1L, converseEncode(LlmRequest([], options = LlmGenerationOptions(reasoning = Some(ReasoningOptions())))).size)
+    }
+
+    @Test
+    fun `Converse explicit unsupported controls and protocol limits report their input paths`() {
+        for ((options, path) in [(LlmGenerationOptions(temperature = Some(1.01)), "temperature"), (LlmGenerationOptions(topP = Some(-0.1)), "topP"),
+            (LlmGenerationOptions(maxOutputTokens = Some(0L)), "maxOutputTokens"), (LlmGenerationOptions(candidates = Some(2L)), "candidates"),
+            (LlmGenerationOptions(stop = Some(["ok", ""])), "stop/1"), (LlmGenerationOptions(topK = Some(0L)), "topK"),
+            (LlmGenerationOptions(parallelToolCalls = Some(false)), "parallelToolCalls"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false)))), "reasoning/enabled"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(0L)))), "reasoning/budgetTokens"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("none")))), "reasoning/effort"),
+            (LlmGenerationOptions(output = JsonObject), "output"),
+            (LlmGenerationOptions(output = JsonSchema(Json.parse("{}"), strict = Some(false))), "output/strict")])
+            assertConverseRequestFailure(LlmRequest([], options = options), "/options/" + path)
+        val stop = ArrayList<String>()
+        while (stop.size < 2501L) stop.add("stop")
+        assertConverseRequestFailure(LlmRequest([], options = LlmGenerationOptions(stop = Some(stop.toArray()))), "/options/stop")
+    }
+
+    @Test
+    fun `Converse extensions cannot replace public controls or routing even when those fields are omitted`() {
+        for ((raw, path) in [("{\"modelId\":\"other\"}", "modelId"), ("{\"stream\":true}", "stream"), ("{\"messages\":[]}", "messages"),
+            ("{\"inferenceConfig\":{\"temperature\":0}}", "inferenceConfig/temperature"),
+            ("{\"outputConfig\":{\"effort\":\"high\"}}", "outputConfig/effort"), ("{\"toolConfig\":{\"tools\":[]}}", "toolConfig/tools"),
+            ("{\"outputConfig\":null}", "outputConfig")])
+            assertConverseRequestFailure(LlmRequest([], extensions = converseExtension(raw)), "/extensions/0/value/" + path)
+        assertConverseRequestFailure(LlmRequest([Message([Text("x")], extensions = converseExtension("{\"role\":\"assistant\"}"))]), "/input/0/extensions/0/value/role")
+        assertConverseRequestFailure(LlmRequest([], extensions = [DialectExtension(GeminiInteractionsDialect().id, Json.parse("{}"))]), "/extensions/0/dialect")
+    }
+}

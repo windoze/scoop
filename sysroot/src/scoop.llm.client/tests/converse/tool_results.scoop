@@ -1,0 +1,48 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseToolResultsTest {
+    @Test
+    fun `Converse saved client calls replay signatures and batch only consecutive results under actual IDs`() {
+        val response = converseDecode(converseBody("[{\"reasoningContent\":{\"reasoningText\":{\"text\":\"thought\",\"signature\":\"opaque\"}}}," +
+            "{\"toolUse\":{\"toolUseId\":\"one\",\"name\":\"lookup\",\"input\":{}}},{\"toolUse\":{\"toolUseId\":\"two\",\"name\":\"lookup\",\"input\":{},\"type\":null}}]", "tool_use"))
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        val first = saved.clientToolCalls[0L].reference
+        val second = saved.clientToolCalls[1L].reference
+        val request = LlmRequest([Message([Text("question")]), saved.toInput()[0L],
+            ToolResult(first, [Text("image"), Image(Bytes("x".toByteArray(), "image/png")), Native(converseDialect, Json.parse("{\"json\":{\"value\":1e400}}"))]),
+            ToolResult(second, [], isError = true, extensions = converseExtension("{\"future\":true}")), Message([Text("follow up")]),
+            ToolResult(ClientToolCallReference(converseDialect, ToolKey("old"), Some("prior-turn")), [Text("late result")])])
+        val messages = converseEncode(request)["messages"]!!
+        assertEquals(5L, messages.size)
+        assertEquals("opaque", messages[1L]["content"]!![0L]["reasoningContent"]!!["reasoningText"]!!["signature"]!!.asString())
+        assertEquals("user", messages[2L]["role"]!!.asString())
+        val results = messages[2L]["content"]!!
+        assertEquals(2L, results.size)
+        assertEquals("one", results[0L]["toolResult"]!!["toolUseId"]!!.asString())
+        assertEquals("two", results[1L]["toolResult"]!!["toolUseId"]!!.asString())
+        assertEquals("success", results[0L]["toolResult"]!!["status"]!!.asString())
+        assertEquals("eA==", results[0L]["toolResult"]!!["content"]!![1L]["image"]!!["source"]!!["bytes"]!!.asString())
+        assertEquals("1e400", results[0L]["toolResult"]!!["content"]!![2L]["json"]!!["value"]!!.asNumberToken())
+        assertEquals("error", results[1L]["toolResult"]!!["status"]!!.asString())
+        assertTrue(results[1L]["toolResult"]!!["future"]!!.asBoolean())
+        assertEquals("prior-turn", messages[4L]["content"]!![0L]["toolResult"]!!["toolUseId"]!!.asString())
+    }
+
+    @Test
+    fun `Converse tool results reject mismatched identity server ownership unsupported content and overridden status`() {
+        val call = ClientToolCallReference(converseDialect, ToolKey("old"), Some("c"))
+        for (id in [None, Some("")]) assertConverseRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(converseDialect, ToolKey("old"), id), [])]), "/input/0/call/id")
+        for ((raw, path) in [("{\"toolUse\":{\"toolUseId\":\"other\",\"name\":\"lookup\",\"input\":{}}}", "id"),
+            ("{\"toolUse\":{\"toolUseId\":\"c\",\"type\":\"server_tool_use\"}}", "context"),
+            ("{\"toolResult\":{\"toolUseId\":\"c\"}}", "context")])
+            assertConverseRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(converseDialect, ToolKey("old"), Some("c"), Some(Json.parse(raw))), [])]), "/input/0/call/" + path)
+        assertConverseRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(GeminiInteractionsDialect().id, ToolKey("x"), Some("c")), [])]), "/input/0/call/dialect")
+        assertConverseRequestFailure(LlmRequest([ToolResult(call, [Audio(Bytes([], "audio/wav"))])]), "/input/0/content/0")
+        assertConverseRequestFailure(LlmRequest([ToolResult(call, [], extensions = converseExtension("{\"status\":\"success\"}"))]), "/input/0/extensions/0/value/status")
+    }
+}

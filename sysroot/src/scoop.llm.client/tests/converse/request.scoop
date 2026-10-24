@@ -1,0 +1,55 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class ConverseRequestTest {
+    @Test
+    fun `Converse defaults send only messages and preserve the model as one deployment path segment`() {
+        val request = LlmRequest([Message([Text("hello")])])
+        val body = converseEncode(request)
+        assertEquals(1L, body.size)
+        assertEquals("user", body["messages"]!![0L]["role"]!!.asString())
+        assertEquals("hello", body["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
+        val provider = Providers.bedrockConverse()
+        assertEquals(converseDialect, provider.protocol.dialectId)
+        assertEquals("https://example.com/proxy/model/arn%3Aaws%3Abedrock%3Ax%3A0%3Amodel%2Fid%3Av1/converse?deployment=x",
+            provider.protocol.generationUrl(Url.parse("https://example.com/proxy?deployment=x"), "arn:aws:bedrock:x:0:model/id:v1").toString())
+        assertFailsWith<IllegalArgumentException> { val endpoint = LlmEndpoint(provider, LlmAuth.none()); Unit }
+        assertEquals("/modelId", assertFailsWith<LlmRequestException> { converseEncode(request, ""); Unit }.path)
+        assertEquals("/stream", assertFailsWith<LlmRequestException> { provider.protocol.encodeRequest("m", request, true); Unit }.path)
+    }
+
+    @Test
+    fun `Converse system native unions and saved assistant history retain order signatures and unknown fields`() {
+        val response = converseDecode(converseBody("[{\"reasoningContent\":{\"reasoningText\":{\"text\":\"thought\",\"signature\":\"opaque\"}}},{\"future\":1e400},{\"text\":\"answer\"}]"))
+        val request = LlmRequest([Message([Text("question")], extensions = converseExtension("{\"future\":false}")),
+            response.toInput()[0L], Message([Native(converseDialect, Json.parse("{\"cachePoint\":{\"type\":\"default\"}}"))], Assistant)],
+            system = [Text("instructions"), Native(converseDialect, Json.parse("{\"cachePoint\":{\"type\":\"default\"}}"))])
+        val value = converseEncode(Json.decodeFromString<LlmRequest>(Json.encodeToString(request)))
+        assertEquals(3L, value["messages"]!!.size)
+        assertFalse(value["messages"]!![0L]["future"]!!.asBoolean())
+        val content = value["messages"]!![1L]["content"]!!
+        assertEquals("opaque", content[0L]["reasoningContent"]!!["reasoningText"]!!["signature"]!!.asString())
+        assertEquals("1e400", content[1L]["future"]!!.asNumberToken())
+        assertEquals("assistant", value["messages"]!![2L]["role"]!!.asString())
+        assertEquals("instructions", value["system"]!![0L]["text"]!!.asString())
+        assertEquals("default", value["system"]!![1L]["cachePoint"]!!["type"]!!.asString())
+    }
+
+    @Test
+    fun `Converse rejects misplaced roles and ambiguous content without rewriting history or system messages`() {
+        for (role in [LlmRole.System, LlmRole.Developer]) assertConverseRequestFailure(LlmRequest([Message([Text("x")], role)]), "/input/0/role")
+        assertConverseRequestFailure(LlmRequest([], system = [Text("")]), "/system/0/text")
+        assertConverseRequestFailure(LlmRequest([], system = [Image(Bytes([], "image/png"))]), "/system/0")
+        assertConverseRequestFailure(LlmRequest([Message([Text("x", converseExtension("{}"))])]), "/input/0/content/0/extensions")
+        assertConverseRequestFailure(LlmRequest([Message([Native(converseDialect, Json.parse("{\"text\":\"x\",\"future\":true}"))])]), "/input/0/content/0/value")
+        assertConverseRequestFailure(LlmRequest([History(LlmHistory(GeminiInteractionsDialect().id, []))]), "/input/0/history/dialect")
+        assertConverseRequestFailure(LlmRequest([History(LlmHistory(converseDialect, [], Some(Json.parse("{}"))))]), "/input/0/history/context")
+        for ((raw, path) in [("{\"role\":\"user\",\"content\":[]}", "role"), ("{\"role\":\"assistant\",\"content\":{}}", "content")])
+            assertConverseRequestFailure(LlmRequest([History(LlmHistory(converseDialect, [Json.parse(raw)]))]), "/input/0/history/items/0/" + path)
+    }
+}
