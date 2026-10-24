@@ -5,6 +5,7 @@ mod classes;
 mod closures;
 mod cold;
 mod copies;
+mod exception_paths;
 mod interface_views;
 mod intrinsics;
 mod iterations;

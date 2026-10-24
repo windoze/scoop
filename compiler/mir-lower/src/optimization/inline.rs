@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use la_arena::Arena;
 use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
@@ -14,12 +16,13 @@ use mir::optimization_report::{InlineOutcome, OptimizationDecision, Optimization
 
 mod class_fields;
 mod clone;
+mod exception_paths;
 mod policy;
 mod selection;
 mod suspend;
 pub(super) use suspend::run as inline_synchronous_coroutines;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Target {
     Local(mir::FunctionId),
     Imported(mir::ExternalCallableUseId),
@@ -44,7 +47,8 @@ struct Choice {
 pub(super) struct Session {
     templates: Arena<mir::Function>,
     protocol: Vec<bool>,
-    supported: Vec<bool>,
+    executable: Vec<bool>,
+    exceptional: HashSet<Target>,
     costs: Vec<policy::Cost>,
     callers: Vec<CallerState>,
     required: super::intrinsics::Entries,
@@ -81,9 +85,23 @@ impl Session {
             .collect();
         Self {
             protocol: policy::protocol_entries(module),
-            supported: templates
+            executable: templates
                 .iter()
-                .map(|(_, function)| policy::supported(function))
+                .map(|(_, function)| policy::executable(function))
+                .collect(),
+            exceptional: templates
+                .iter()
+                .map(|(id, function)| (Target::Local(id), function))
+                .chain(
+                    imported
+                        .functions
+                        .iter()
+                        .map(|(id, function)| (Target::Imported(*id), function)),
+                )
+                .filter_map(|(target, function)| {
+                    (!policy::supported_blocks(function.body.blocks.iter().map(|(_, b)| b)))
+                        .then_some(target)
+                })
                 .collect(),
             templates,
             costs,
@@ -98,6 +116,8 @@ impl Session {
     pub(super) fn run(
         &mut self,
         module: &mut mir::Module,
+        selected: &mir::SelectedExternalMirSet,
+        dispatch: &crate::imported_bodies::IntrinsicDispatch,
         active: &[bool],
         registry: &mut LocalValueRegistry,
         observer: Option<&Observer<'_>>,
@@ -105,7 +125,7 @@ impl Session {
         // Devirtualization can reveal cycles that were absent in earlier rounds.
         let recursive = policy::recursive(module);
         let exclusions = self
-            .supported
+            .executable
             .iter()
             .enumerate()
             .map(|(id, supported)| {
@@ -171,7 +191,10 @@ impl Session {
             };
             let context = Context {
                 module,
+                selected,
+                dispatch,
                 templates: &self.templates,
+                exceptional: &self.exceptional,
                 exclusions: &exclusions,
                 costs: &self.costs,
                 required: &self.required,
@@ -191,11 +214,13 @@ impl Session {
     pub(super) fn run_required(
         &mut self,
         module: &mut mir::Module,
+        selected: &mir::SelectedExternalMirSet,
+        dispatch: &crate::imported_bodies::IntrinsicDispatch,
         active: &[bool],
         registry: &mut LocalValueRegistry,
     ) -> Vec<bool> {
         let ordinary = std::mem::replace(&mut self.ordinary, false);
-        let changed = self.run(module, active, registry, None);
+        let changed = self.run(module, selected, dispatch, active, registry, None);
         self.ordinary = ordinary;
         changed
     }
@@ -214,7 +239,10 @@ impl Session {
 
 struct Context<'a, 'report> {
     module: &'a mir::Module,
+    selected: &'a mir::SelectedExternalMirSet,
+    dispatch: &'a crate::imported_bodies::IntrinsicDispatch,
     templates: &'a Arena<mir::Function>,
+    exceptional: &'a HashSet<Target>,
     exclusions: &'a [Option<InlineOutcome>],
     costs: &'a [policy::Cost],
     required: &'a super::intrinsics::Entries,
@@ -231,7 +259,7 @@ impl Context<'_, '_> {
         }
         if let mir::CallTarget::Direct(mir::Callee::External(id)) = call.target {
             return match self.imported.functions.get(&id) {
-                Some(function) if policy::supported(function) => Ok(Target::Imported(id)),
+                Some(function) if policy::executable(function) => Ok(Target::Imported(id)),
                 Some(_) => Err(InlineOutcome::UnsupportedBody),
                 None => Err(InlineOutcome::NoBody),
             };

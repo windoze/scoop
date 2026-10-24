@@ -97,7 +97,7 @@ pub(super) fn normalize(
     let mut changed = vec![false; module.functions.len()];
     loop {
         let dispatched = super::devirtualize(module, selected, &active, Some(required), dispatch);
-        let expanded = expansion.run_required(module, &active, registry);
+        let expanded = expansion.run_required(module, selected, dispatch, &active, registry);
         for (i, active) in active.iter_mut().enumerate() {
             *active = dispatched[i] || expanded[i];
             changed[i] |= *active;

@@ -2,7 +2,10 @@
 
 use std::cell::OnceCell;
 
-use super::{Choice, Context, Target, class_fields, flow, graph, index, mir, policy, simplify};
+use super::{
+    Choice, Context, Target, class_fields, exception_paths, flow, graph, index, mir, policy,
+    simplify,
+};
 use crate::optimization::allocation::InlineReceivers;
 use crate::optimization::poll_chunks::CallRanges;
 use mir::optimization_report::{
@@ -24,6 +27,8 @@ impl Context<'_, '_> {
         let mut choices = Vec::new();
         let receivers = OnceCell::new();
         let ranges = OnceCell::new();
+        let mut exceptions =
+            exception_paths::Effects::new(self.module, self.selected, self.dispatch, self.imported);
         for (block_id, block) in function.body.blocks.iter() {
             if self.ordinary && ancestry[index(block_id)].len() > 6 {
                 self.observe_skipped_block(
@@ -97,6 +102,20 @@ impl Context<'_, '_> {
                                 .collect::<Vec<_>>();
                             let source = self.template(callee);
                             let mut blocks = simplify::blocks(self.module, source, &arguments);
+                            if self.exceptional.contains(&callee)
+                                && !policy::supported_blocks(blocks.iter().map(|(_, b)| b))
+                            {
+                                let specialized = self
+                                    .ordinary
+                                    .then(|| exceptions.specialize(source, &arguments, blocks))
+                                    .flatten();
+                                let Some(specialized) = specialized else {
+                                    record(InlineOutcome::UnsupportedBody, None);
+                                    analysis.statement(statement, &mut state);
+                                    continue;
+                                };
+                                blocks = specialized;
+                            }
                             let cost = policy::blocks_cost(
                                 &self.module.structs,
                                 blocks.iter().map(|(id, block)| (*id, block)),

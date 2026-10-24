@@ -63,11 +63,18 @@ pub(super) fn protocol_entries(module: &mir::Module) -> Vec<bool> {
 }
 
 pub(super) fn supported(function: &mir::Function) -> bool {
+    executable(function) && supported_blocks(function.body.blocks.iter().map(|(_, b)| b))
+}
+
+pub(super) fn executable(function: &mir::Function) -> bool {
+    function.body.blocks.iter().any(|(_, block)| {
+        !block.statements.is_empty() || !matches!(block.terminator, mir::Terminator::Unreachable)
+    })
+}
+
+pub(super) fn supported_blocks<'a>(blocks: impl Iterator<Item = &'a mir::BasicBlock>) -> bool {
     let mut supported = true;
-    let mut executable = false;
-    for (_, block) in function.body.blocks.iter() {
-        executable |= !block.statements.is_empty()
-            || !matches!(block.terminator, mir::Terminator::Unreachable);
+    for block in blocks {
         supported &= !matches!(
             block.terminator,
             mir::Terminator::Resume | mir::Terminator::Rethrow { .. }
@@ -80,7 +87,7 @@ pub(super) fn supported(function: &mir::Function) -> bool {
             supported &= !matches!(expression.kind, mir::ExprKind::CaughtException);
         });
     }
-    supported && executable
+    supported
 }
 
 mod cost;

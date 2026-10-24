@@ -161,6 +161,8 @@ fn run_with_intrinsics(
         {
             for (changed, inlined) in changed.iter_mut().zip(inliner.run(
                 module,
+                selected,
+                &dispatch,
                 &active,
                 &mut registry,
                 observer.as_ref(),
@@ -257,7 +259,7 @@ fn devirtualize(
                         }
                     };
                     if let Some(receiver) = call.target.receiver()
-                        && let Some((target, receiver_ty, unbox)) = dispatch::resolve(
+                        && let Some(replacement) = dispatch::direct_call(
                             module,
                             selected,
                             dispatch,
@@ -266,9 +268,10 @@ fn devirtualize(
                             analysis.expression(receiver, &state).actual,
                         )
                     {
-                        if required
-                            .is_some_and(|required| !required.contains(module, target.into()))
-                        {
+                        let mir::CallTarget::Direct(target) = replacement.target else {
+                            unreachable!("dispatch resolution produces a direct call")
+                        };
+                        if required.is_some_and(|required| !required.contains(module, target)) {
                             analysis.statement(statement, &mut state);
                             continue;
                         }
@@ -276,30 +279,7 @@ fn devirtualize(
                             function: function_id,
                             block: block_id,
                             statement: statement_index,
-                            call: {
-                                let receiver = if unbox {
-                                    mir::Expr::new(
-                                        receiver_ty,
-                                        mir::ExprKind::Unbox(Box::new(receiver.clone())),
-                                    )
-                                } else if receiver.ty == receiver_ty {
-                                    receiver.clone()
-                                } else {
-                                    mir::Expr::new(
-                                        receiver_ty.clone(),
-                                        mir::ExprKind::Retype {
-                                            operand: Box::new(receiver.clone()),
-                                            ty: Box::new(receiver_ty),
-                                        },
-                                    )
-                                };
-                                mir::Call {
-                                    target: mir::CallTarget::Direct(target.into()),
-                                    args: std::iter::once(receiver)
-                                        .chain(call.args.iter().cloned())
-                                        .collect(),
-                                }
-                            },
+                            call: replacement,
                         });
                     }
                 }

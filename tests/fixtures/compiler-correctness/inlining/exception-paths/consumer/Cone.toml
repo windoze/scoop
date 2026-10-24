@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.performance"
+name = "exception-consumer"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.performance:exception-provider" = "0.1.0"
