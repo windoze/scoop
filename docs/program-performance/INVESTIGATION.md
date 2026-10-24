@@ -32,9 +32,9 @@
 | 层次 | 已有能力 | 本次核实的剩余问题 |
 | --- | --- | --- |
 | 语言表示 | struct／enum／tuple 按值，泛型单态化，引用／指针 Option niche，值元素数组连续存储 | 对象头 16 bytes；interface 16 bytes；含引用 enum 变体使用独占槽；这些表示有真实内存成本 |
-| MIR 优化 | 去虚化、内联、局部 box／closure 消除交替执行，最多三轮；intrinsic 另有必要归一化 | 不是通用跨过程分析；分配消除只登记 Box／ClosureAlloc；带 EH 的函数被整体排除；没有 class 字段替换和冷路径物化 |
+| MIR 优化 | 去虚化、内联、局部 box／closure／class 字段替换交替执行，最多三轮；局部对象与循环范围可指导内联，intrinsic 另有必要归一化 | 不是通用跨过程分析；分配消除仍受 EH、跨调用及逃逸限制；没有冷路径物化 |
 | 跨 Cone 优化 | 泛型具体化；M62 发布并消费部分普通顶层小函数的可移植 HIR 正文 | 普通正文导入范围受限，不等于任意成员、构造器、循环、Context、EH、suspend 都能跨库展开 |
-| LLVM | SROA、范围约束、SCCP、GVN、memcpyopt、DSE 等；NoGc 有循环和向量优化；有界 Managed 内层支持整数／Boolean 数组 | 数组初始化及单位步长 checked 访问已打通；一般 CFG／循环变换、浮点、引用元素和未展开调用仍有限制 |
+| LLVM | SROA、范围约束、SCCP、GVN、memcpyopt、DSE 等；NoGc 有循环和向量优化；有界 Managed 内层支持整数／Boolean／严格浮点数组 | 数组初始化及单位步长 checked 访问已打通；一般 CFG／循环变换、有序归约 SIMD、引用元素和未展开调用仍有限制 |
 | GC 集成 | AS1 non-integral pointer，精确根，RS4GC，条件 poll，只在慢路径物化 poll roots | site 与逻辑恢复标记较早限制变换；机器 tail duplication 关闭；这限制了默认 O2/O3 能直接复用的范围 |
 | 物理产物 | 逐 callable LLVM module／对象，Strong／ODR 选择，已有私有 closure 支持裁剪 | LLVM 通常看不到其他 callable 的定义；尚无全程序优化、PGO 或 ThinLTO 路线 |
 | 调用 | 小于等于 16 bytes 的 GC-free 聚合值可按目标直接传递；接口拆成 object／itab | 24-byte V3 仍间接传递；含引用聚合值仍间接；真实动态函数视图还可能经过 Any bridge |
@@ -89,7 +89,7 @@ Java 稳态峰值需要充分预热后比较；启动和短命命令行程序则
 | managed allocation 消除 | 已有局部 box／closure、class／游标字段替换，以及最后一个 receiver 调用的联合内联估价 | 继续处理未命中的创建／调用、containment、跨调用和部分逃逸 |
 | coroutine frame elision | 已有同步正文内联和尾转交 | 继续处理实际挂起协议及未消除的立即完成路径 |
 | bounds-check elimination | 已有路径约束与单位步长数组循环证明，动态长度关系使用 guard／原 checked 路径 | 继续处理未展开调用、复杂条件和更广索引关系 |
-| 激进 unroll／SIMD | NoGc 已有；Managed 已支持有界整数 SSA、标量数组初始化与合格 checked 访问 | 继续扩展一般内存循环、严格浮点和目标特化 |
+| 激进 unroll／SIMD | NoGc 已有；Managed 已支持有界整数／严格浮点 SSA、标量数组初始化与合格 checked 访问 | 继续扩展一般内存循环、有序归约 SIMD 和目标特化 |
 | 跨 callable module 重组、LTO／ThinLTO | 尚未建立 | 单独设计全程序优化和后端物理产物生成顺序 |
 | 测量与归因基础设施 | 已有专项 benchmark、GC 统计、可复现对照及按需 MIR 决策报告；CPU／调用栈归因仍需补足 | 提前独立交付，先支持瓶颈定位、回退解释和通用静态优化；按实际需要补充测量能力 |
 | PGO | 尚未建立 | 后续独立排期；先选有实测依据的内联／去虚化／布局消费者，再按需要扩充分配寿命反馈 |
@@ -187,7 +187,9 @@ smart cast 已有正确的路径类型收窄：命中分支中的引用读取变
 
 已交付[有界整数／Boolean 数组初始化](ARRAY-INITIALIZATION.md)及[普通数组访问的边界检查与分块](ARRAY-BOUNDS.md)：同一稳定数组长度提供静态证明，显式 count／其他数组通过长度 guard 进入 64 次完整块；条件失败仍执行原 checked 正文。复用支配分析覆盖内联到外层循环的访问，保持异常前缀和 poll／roots，三目标普通读取、变换和复制已获益；短循环回退与编译／空间成本一并记录。[循环范围指导内联](ARRAY-INLINING.md)继续利用同一证明，在选择时实际去掉不可达分支再计价，已闭合综合求和 getter 因增长额度保留的缺口，没有提高全局阈值。更广的容器访问、复杂条件与跨过程范围仍须分别处理，以下路线继续适用。
 
-第一组目标应是普通 Managed 代码中的整数／浮点数组遍历、拷贝、变换、搜索和聚合：
+[严格浮点数组循环](FLOAT-ARRAYS.md)已继续覆盖 Float／Double 初始化、逐元素变换、复制、转换与顺序求和。三目标实际逐元素 SIMD 保持舍入与禁止融合的语义，求和保留原累加顺序；长数组收益、短数组回退、编译和空间成本均已记录。一般 CFG、引用／聚合元素及有序归约 SIMD 仍须后续处理。
+
+普通 Managed 代码中的整数／浮点数组遍历、拷贝、变换、搜索和聚合继续按以下路线推进：
 
 1. 展开数组／容器的实际 getter/setter，传播不变 length、backing 与归纳变量范围。
 2. 对可证明合法的访问消除逐元素检查；存在动态边界时用 guard 选择优化循环，不满足 guard 就执行保留原行为的循环。
@@ -201,7 +203,7 @@ smart cast 已有正确的路径类型收窄：命中分支中的引用读取变
 
 ### 6.2 整数、严格浮点与 CPU 特化
 
-Scoop 整数 wrapping 语义不能因优化被添加不成立的 `nsw/nuw`；除零、`MIN / -1` 和 shift masking 保持。严格浮点逐元素 SIMD 通常可行，但任意重结合 reduction 和自动 FMA 会改变结果；优先 LLVM 可支持的有序 reduction，以及保留每元素舍入次数的并行运算。[O12]
+Scoop 整数 wrapping 语义不能因优化被添加不成立的 `nsw/nuw`；除零、`MIN / -1` 和 shift masking 保持。严格浮点逐元素 SIMD 已由[浮点数组优化](FLOAT-ARRAYS.md)交付；任意重结合 reduction 和自动 FMA 会改变结果，LLVM 22.1 的 vectorize hint 隐含重排许可也已显式关闭。后续继续评估 LLVM 可支持的有序 reduction，以及保留每元素舍入次数的并行运算。[O12]
 
 如实际数值库需要显式 FMA、向量类型或允许重结合的操作，再设计清楚的库 API 和语义，不能将全局 fast-math 作为达到性能目标的捷径。
 

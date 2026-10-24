@@ -10,7 +10,7 @@ pub(super) fn supported(module: &mir::Module, block: &mir::BasicBlock, arrays: b
             mir::StatementKind::ValDecl { .. }
             | mir::StatementKind::Assign { .. }
             | mir::StatementKind::Expr(_) => false,
-            mir::StatementKind::ArraySet { value, .. } => !arrays || !scalar(&value.ty),
+            mir::StatementKind::ArraySet { value, .. } => !arrays || !scalar(module, &value.ty),
             _ => true,
         })
     {
@@ -19,7 +19,7 @@ pub(super) fn supported(module: &mir::Module, block: &mir::BasicBlock, arrays: b
     let mut supported = true;
     mir::visit_block_exprs(block, &mut |expr| {
         let operation = match &expr.kind {
-            mir::ExprKind::ArrayGet { .. } => arrays && scalar(&expr.ty),
+            mir::ExprKind::ArrayGet { .. } => arrays && scalar(module, &expr.ty),
             mir::ExprKind::ArrayLen { .. } => true,
             mir::ExprKind::IntegerLiteral(_)
             | mir::ExprKind::BoolLiteral(_)
@@ -31,6 +31,10 @@ pub(super) fn supported(module: &mir::Module, block: &mir::BasicBlock, arrays: b
             | mir::ExprKind::IntegerCompareTo { .. }
             | mir::ExprKind::IntegerShift { .. }
             | mir::ExprKind::IntegerConversion { .. }
+            | mir::ExprKind::FloatLiteral(_)
+            | mir::ExprKind::FloatUnary { .. }
+            | mir::ExprKind::FloatBinary { .. }
+            | mir::ExprKind::FloatConversion { .. }
             | mir::ExprKind::Unary { .. }
             | mir::ExprKind::Binary {
                 op: mir::BinOp::BoolEq | mir::BinOp::BoolNe,
@@ -38,14 +42,23 @@ pub(super) fn supported(module: &mir::Module, block: &mir::BasicBlock, arrays: b
             } => true,
             _ => false,
         };
-        let ty = scalar(&expr.ty) || expr.ty == mir::Type::Unit || scalar_array(module, &expr.ty);
+        let ty = scalar(module, &expr.ty)
+            || expr.ty == mir::Type::Unit
+            || scalar_array(module, &expr.ty);
         supported &= operation && ty;
     });
     supported
 }
 
-fn scalar(ty: &mir::Type) -> bool {
-    matches!(ty, mir::Type::Integer(_) | mir::Type::Boolean)
+fn scalar(module: &mir::Module, ty: &mir::Type) -> bool {
+    match ty {
+        mir::Type::Integer(_) | mir::Type::Boolean => true,
+        mir::Type::Struct(id) => matches!(
+            module.structs[*id].representation,
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Float(_))
+        ),
+        _ => false,
+    }
 }
 
 fn scalar_array(module: &mir::Module, ty: &mir::Type) -> bool {
@@ -56,7 +69,7 @@ fn scalar_array(module: &mir::Module, ty: &mir::Type) -> bool {
         mir::ClassRepresentation::Intrinsic(
             mir::IntrinsicClassRepresentation::Array { element }
             | mir::IntrinsicClassRepresentation::MutableArray { element },
-        ) => scalar(element),
+        ) => scalar(module, element),
         _ => false,
     }
 }

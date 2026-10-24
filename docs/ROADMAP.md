@@ -760,6 +760,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - [实施记录](program-performance/PROGRESS.md)记录各项交付、必要验证和后续工作；已交付预构建程序的可复现 A/B 测量、[完整父接口表投影与视图复用](program-performance/INTERFACE-PROJECTION.md)、[接口检查与取表合并](program-performance/INTERFACE-CHECKS.md)、[普通 class／局部游标字段替换](program-performance/CLASS-SCALARS.md)，以及[字段替换指导内联](program-performance/ITERATOR-INLINING.md)和[按需 MIR 优化决策报告](program-performance/OPTIMIZATION-REPORT.md)。真实 ArrayList 反复遍历的 iterator 分配已消除；Darwin／Linux GNU／musl 的定向正确性、生成代码及性能对照完成，未命中边界、实测对照回退、编译与空间成本一并保留。后续按改动选择必要验证组，继续完善归因并改进已定位的静态优化热点。
 - 已交付[有界整数／Boolean 数组初始化](program-performance/ARRAY-INITIALIZATION.md)及[普通数组边界检查与分块](program-performance/ARRAY-BOUNDS.md)：稳定长度与归纳变量直接证明，动态长度关系用 guard 选择完整块并保留原 checked 路径，覆盖真实内联的读取／变换／复制。三目标正确性、移动 GC、大数组收益、动态短数组回退与编译／空间成本已测量；更广的容器访问、复杂条件与元素类型仍待后续。
 - [循环范围指导内联](program-performance/ARRAY-INLINING.md)已闭合综合求和 getter 的增长额度缺口：复用范围证明，实际去除不可达检查后计价，在不提高阈值的条件下形成无调用内层。三目标运行收益、短任务及布局敏感回退、编译与空间成本已记录；更广容器与跨过程范围仍待后续。
+- [严格浮点数组循环](program-performance/FLOAT-ARRAYS.md)已交付：Float／Double 复用范围证明和有界分块，逐元素运算保留精度与舍入次数，顺序求和保持原累加顺序；显式关闭 LLVM 向量化 hint 的隐含重排许可。三目标定向正确性、移动 GC、长数组收益、单元素回退及编译／空间成本已记录，有限范围沿用 release 默认能力。
 - 延续桌面短暂停与内存目标，按吞吐、应用尾延迟、RSS 和启动分别验收；调研不表示优化已实现或已完成跨语言性能比较。具体实施前先修订实际受影响的规范，不预先占用新的里程碑编号。
 
 ### 可恢复语法与 LSP（公共基础 A～E 已完成，扩展能力待排期）

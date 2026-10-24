@@ -1,0 +1,72 @@
+package dev.performance
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun checkCount(count: Long) {
+    val floats = generatedFloat(count, 0.5f)
+    val doubles = generatedDouble(count, 0.5)
+    transformFloat(floats, floats, 2f, 1f)
+    transformDouble(doubles, doubles, 2.0, 1.0)
+    copyFloat(floats, floats)
+    copyDouble(doubles, doubles)
+    var i = 0L
+    var total = 0.0
+    while (i < count) {
+        val expected = i.and(1023L).toDouble() * 0.5 + 2.0
+        check(floats[i].toBits() == expected.toFloat().toBits())
+        check(doubles[i].toBits() == expected.toBits())
+        total += expected
+        i += 1L
+    }
+    check(sumFloat(floats).toBits() == total.toFloat().toBits())
+    check(sumDouble(doubles).toBits() == total.toBits())
+}
+
+fun checkOrder(count: Long) {
+    val floats = MutableArray<Float>(count) { i ->
+        if (i % 3L == 0L) 16777216f else if (i % 3L == 1L) 1f else -16777216f
+    }
+    val doubles = MutableArray<Double>(count) { i ->
+        if (i % 3L == 0L) 9007199254740992.0 else if (i % 3L == 1L) 1.0 else -9007199254740992.0
+    }
+    val expectedFloat = if (count % 3L == 0L) 0f else 16777216f
+    val expectedDouble = if (count % 3L == 0L) 0.0 else 9007199254740992.0
+    check(sumFloat(floats).toBits() == expectedFloat.toBits())
+    check(sumDouble(doubles).toBits() == expectedDouble.toBits())
+}
+
+fun checkRounding() {
+    val floats = MutableArray<Float>(129L) { _ -> Float.fromBits(0x3f800001) }
+    val doubles = MutableArray<Double>(129L) { _ -> Double.fromBits(0x3ff0000000000001L) }
+    transformFloat(floats, floats, Float.fromBits(0x3f7ffffe), -1f)
+    transformDouble(doubles, doubles, Double.fromBits(0x3feffffffffffffeL), -1.0)
+    var i = 0L
+    while (i < 129L) {
+        // A fused multiply-add produces a nonzero value for both precisions.
+        check(floats[i].toBits() == 0)
+        check(doubles[i].toBits() == 0L)
+        i += 1L
+    }
+    val precise = MutableArray<Double>(129L) { index ->
+        if (index % 4L == 0L) Double.MAX_VALUE
+        else if (index % 4L == 1L) -0.0
+        else if (index % 4L == 2L) Double.MIN_VALUE
+        else 1.000000059604644775390625
+    }
+    narrow(precise, floats)
+    val expected = [0x7f800000, -2147483648, 0, 0x3f800000]
+    i = 0L
+    while (i < 129L) { check(floats[i].toBits() == expected[i % 4L]); i += 1L }
+}
+
+fun main() {
+    for (count in [0L, 1L, 63L, 64L, 65L, 129L, 1025L]) {
+        checkCount(count)
+        checkOrder(count)
+    }
+    checkRounding()
+    checkBits()
+    checkDivision()
+    checkPrefix()
+    println("strict floating arrays preserve rounding, bits and failing prefixes")
+}

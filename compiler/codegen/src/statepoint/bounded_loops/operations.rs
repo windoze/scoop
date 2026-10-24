@@ -45,7 +45,7 @@ fn supported(
                     .is_ok_and(|pointer| derived(pointer, block, loads))
         }
         InstructionOpcode::Load => {
-            instruction.get_type().is_int_type()
+            (instruction.get_type().is_int_type() || instruction.get_type().is_float_type())
                 && ordinary(instruction)
                 && address(instruction, 0).is_some_and(|pointer| derived(pointer, block, loads))
         }
@@ -53,7 +53,7 @@ fn supported(
             instruction
                 .get_operand(0)
                 .and_then(|operand| operand.value())
-                .is_some_and(|value| value.is_int_value())
+                .is_some_and(scalar)
                 && ordinary(instruction)
                 && address(instruction, 1).is_some_and(|pointer| derived(pointer, block, loads))
         }
@@ -71,16 +71,30 @@ fn supported(
         | InstructionOpcode::SExt
         | InstructionOpcode::ZExt
         | InstructionOpcode::ICmp
+        | InstructionOpcode::FAdd
+        | InstructionOpcode::FSub
+        | InstructionOpcode::FMul
+        | InstructionOpcode::FDiv
+        | InstructionOpcode::FRem
+        | InstructionOpcode::FNeg
+        | InstructionOpcode::FCmp
+        | InstructionOpcode::SIToFP
+        | InstructionOpcode::UIToFP
+        | InstructionOpcode::FPTrunc
+        | InstructionOpcode::FPExt
+        | InstructionOpcode::BitCast
         | InstructionOpcode::Select => {
-            instruction.get_type().is_int_type()
+            (instruction.get_type().is_int_type() || instruction.get_type().is_float_type())
                 && instruction.get_operands().all(|operand| {
-                    operand.is_some_and(|operand| {
-                        operand.value().is_some_and(|value| value.is_int_value())
-                    })
+                    operand.is_some_and(|operand| operand.value().is_some_and(scalar))
                 })
         }
         _ => false,
     }
+}
+
+fn scalar(value: BasicValueEnum<'_>) -> bool {
+    value.is_int_value() || value.is_float_value()
 }
 
 fn ordinary(instruction: InstructionValue<'_>) -> bool {

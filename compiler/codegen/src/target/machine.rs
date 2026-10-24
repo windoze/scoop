@@ -1,4 +1,4 @@
-//! Machine options that preserve the managed stack-map contract.
+//! LLVM options that preserve Scoop's GC and arithmetic contracts.
 
 use std::sync::Once;
 
@@ -12,11 +12,14 @@ pub(super) fn initialize_options() {
         // placement can copy a STATEPOINT after the site plan is finalized.
         // LLVM 22.1 does not preserve noduplicate on that machine instruction,
         // so keep the shared tail and its single return PC in both passes.
+        // A vectorization hint must not implicitly authorize FP reassociation.
+        // LLVM otherwise reorders reductions even without fast-math flags.
         let arguments = [
             c"scoop-codegen".as_ptr(),
             c"--no-x86-call-frame-opt".as_ptr(),
             c"--disable-tail-duplicate".as_ptr(),
             c"--tail-dup-placement=false".as_ptr(),
+            c"--hints-allow-reordering=false".as_ptr(),
         ];
         // SAFETY: the constant argument strings and pointer array remain valid
         // for the call. Initialization runs once before any target machine.

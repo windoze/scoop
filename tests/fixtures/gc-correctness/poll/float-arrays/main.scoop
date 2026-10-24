@@ -1,0 +1,63 @@
+package dev.performance
+
+@Extern(lib = "m34_poll_threads", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+@Extern(name = "usleep") fun pause(microseconds: UInt): Int
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun exercise(worker: Int): Int {
+    val count = 2049L + worker.toLong()
+    var round = 0L
+    while (round < 64L) {
+        val seed = (worker.toLong() * 64L + round).toDouble()
+        val floats = generatedFloat(count, seed.toFloat())
+        val doubles = generatedDouble(count, seed)
+        val converted = MutableArray<Float>(count) { _ -> 0f }
+        transformFloat(floats, floats, 2f, -seed.toFloat())
+        transformDouble(doubles, doubles, 3.0, -seed)
+        narrow(doubles, converted)
+        var i = 0L
+        var total = 0.0
+        while (i < count) {
+            val value = i.and(1023L).toDouble()
+            check(floats[i].toDouble() == value * 0.5 + seed)
+            check(converted[i].toDouble() == value * 0.75 + seed * 2.0)
+            total += value * 0.75 + seed * 2.0
+            i += 1L
+        }
+        check(sumDouble(doubles) == total && sumFloat(converted).toDouble() == total)
+        round += 1L
+    }
+    return worker
+}
+
+@Unsafe fun main() {
+    val ready = AtomicInt(0)
+    val finished = AtomicInt(0)
+    val start = AtomicBoolean(false)
+    val action: (Int) -> Int = { worker ->
+        if (worker == 0) {
+            while (ready.load(MemoryOrder.Acquire) < 2) {}
+            gcCollect()
+            start.store(true, MemoryOrder.Release)
+            while (finished.load(MemoryOrder.Acquire) < 2) {
+                gcCollect()
+                // Allow mutators to run between collection requests.
+                @Unsafe { pause(100u) }
+            }
+            0
+        } else {
+            ready.fetchAdd(1, MemoryOrder.Release)
+            while (!start.load(MemoryOrder.Acquire)) {}
+            try { exercise(worker) }
+            finally { finished.fetchAdd(1, MemoryOrder.Release) }
+        }
+    }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try {
+        check(workers(callback.function, callback.context, 0, 3) == 3)
+        check(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
+    } finally { releaseForeignCallback(callback) }
+    println("strict floating arrays survive concurrent collection")
+}
