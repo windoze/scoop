@@ -12,7 +12,7 @@ internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, re
     checkModelRequest(model.capabilities, request, protocol.defaultMaxOutputTokens())
     requireModelCapability(model.capabilities.streaming, "/stream")
     if (!(protocol is LlmSseProtocol)) throw LlmRequestException("/stream", "protocol does not support SSE generation")
-    val url = protocol.generationUrl(model.endpoint.baseUrl, model.id)
+    val url = protocol.streamUrl(model.endpoint.baseUrl, model.id)
     val bytes = Json.stringify(protocol.encodeRequest(model.id, request, true)).toByteArray()
     val call = state.call
     var retry = 0L

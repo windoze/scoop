@@ -237,7 +237,9 @@ onFinished 在实际收尾后执行一次，成功、输入检查失败、服务
 
 `StreamRetention.EventsOnly` 缺省只保留协议身份、未完成工具输入、当前 usage 及结束状态；普通文本／reasoning 不累计，完成的工具参数在交付事件后释放。`Result` 显式保留完整候选和可恢复历史，不保存已处理的完整事件日志。两种模式使用同一 decoder 和同一套检查。
 
-`LlmSseProtocol` 扩展普通生成合同，增加 `createStreamDecoder(request, retention = EventsOnly)`。`LlmSseDecoder.accept(event, data)` 接收已经由 SSE parser 定界的事件，返回 `LlmStreamUpdate(events, hasOutput, hasText, isKeepAlive = false)`；不执行 I/O。isFinished、responseId、usage 提供当前事实，endInput 检查 EOF 是否正常，response() 仅在 Result 模式、正常终止且未失败时返回完整 LlmResponse。错误后 decoder 不继续接受数据，也不能读取伪造的成功结果。
+`LlmSseProtocol` 扩展普通生成合同，增加 `streamUrl(baseUrl, modelId)` 与 `createStreamDecoder(request, retention = EventsOnly)`。streamUrl 缺省调用 generationUrl；普通与流式路径不同的协议显式覆写，传输层不按模型名或服务商猜测路由。普通生成只用 generationUrl，SSE 只用 streamUrl；认证接收选择后的最终 URL 和已编码正文，发送不再次改写地址。
+
+`LlmSseDecoder.accept(event, data)` 接收已经由 SSE parser 定界的事件，返回 `LlmStreamUpdate(events, hasOutput, hasText, isKeepAlive = false)`；不执行 I/O。isFinished、responseId、usage 提供当前事实，endInput 检查 EOF 是否正常，response() 仅在 Result 模式、正常终止且未失败时返回完整 LlmResponse。错误后 decoder 不继续接受数据，也不能读取伪造的成功结果。
 
 `LlmEvent` 包括 TextDelta、ReasoningDelta、RefusalDelta、ToolInputDelta、ClientToolCall、ServerToolActivity、Citation、CandidateFinished、Usage 与 Native；Messages 的服务端活动与引用按第 14 节交付。LlmItemLocation 使用协议 candidate index 和候选内首次观察到的 item index；LlmTextDelta 另带 partIndex，Chat 的各个文本字段各占一个单 part item。事件和最终结果使用同一位置，不把多个候选拼接。ToolInputDelta 的 reference 在身份明确且能关联到请求中的客户端工具后才提供；它本身不保证完整输入可执行。完成调用复用普通 Chat 工具解释，无效／截断参数分别为 Invalid／Incomplete。
 

@@ -36,7 +36,8 @@
 | Responses SSE、原生快照与服务端工具事件 | 完成：本机 244/244，末次 Responses 定向 48/48；Linux 仅 SSE mock 1/1；代理文本流与工具接续通过 |
 | 工具调用的可选服务端 ID | 完成：本机 247/247；Linux 仅 codec 1/1；独立消费者 1 通过、13 个真实 API 用例忽略 |
 | Gemini generateContent 完整响应 | 完成：本机 265/265；Linux 仅签名／工具／引用组合 1/1；独立消费者通过 |
-| Gemini generateContent 请求／SSE 与 Interactions | 待实施；流式接入先补协议层的独立 URL 选择 |
+| 独立的普通／SSE 协议地址 | 完成：本机 267/267；Linux 仅实际地址与认证组合 1/1 |
+| Gemini generateContent 请求／SSE 与 Interactions | 待实施 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -84,3 +85,4 @@
 - Responses 代理文本流、最终 usage／时间戳，以及流式工具调用保存后接续共 2 项通过（3 次请求）；仍只用指定 gpt-6.1-sol、显式 effort=low 和零重试。仓库外的 13 项真实 API 用例全部标记 @Ignore；默认运行已验证 1 项无网络消费者通过、13 项忽略。缺少环境配置的精确选用报告 SKIPPED，直接 --ignored 执行也会先拒绝缺失／空配置。普通 Cone 网络覆盖全部采用本地 mock。生产库已更新；清理 target/debug/incremental 约 372 MiB，保留 release 工具。
 - Gemini 的 functionCall.id 可以省略，公共 ClientToolCallReference 现以 None 准确保存这一状态；旧字符串 ID、显式 null 和原生 context 的 codec 兼容。Chat／Messages／Responses 在编码结果时仍要求非空 ID，Chat 完整调用也拒绝空标识。新增 3 项 Cone 测试并迁移已有断言，本机 247/247；nuc12 仅 codec 1/1。生产库与独立消费者已验证，默认仍为 1 通过、13 个真实用例忽略；缺少 key／endpoint 直接 SKIPPED。本次没有真实 API 请求、编译器修改或 fixture。
 - Gemini generateContent 完整响应新增 18 项纯 decoder 测试，覆盖多候选、文本／thought／媒体顺序、签名与未知原文、无 ID 和并行函数调用、服务端代码／搜索、UTF-8 字节引用、完成状态及精确 usage。输入包含实际工具提示计数，输出包含思考计数；缺失明细保持未知，已知总数可按协议公式归一化。CONTINUATION 不提供可直接追加的部分历史。本机 265/265；nuc12 仅签名／工具／引用组合 1/1；本机生产库和跨 Cone 公共 API 已验证，默认消费者仍为 1 通过、13 个真实 API 用例忽略。初次编译中的测试字符串和空数组类型标注已修正，没有编译器或 fixture 变更，没有真实 Gemini 请求。清理 target/debug/incremental 约 372 MiB，保留 release 工具。
+- LlmSseProtocol 增加 streamUrl，缺省委托 generationUrl；SSE 传输用选择后的最终 URL 认证并发送。新增 2 项 Cone 测试，覆盖现有协议缺省与普通／SSE 分路的实际 HTTP 地址、认证 URL 和正文字节。本机 267/267，nuc12 仅分路组合 1/1，没有真实 API 请求或编译器变更。

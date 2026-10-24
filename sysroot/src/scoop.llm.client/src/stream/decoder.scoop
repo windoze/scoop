@@ -1,5 +1,7 @@
 package scoop.llm.client
 
+import scoop.url.Url
+
 public enum StreamRetention {
     EventsOnly, Result
     public companion object : ValueEncoder<StreamRetention>, ValueDecoder<StreamRetention>
@@ -7,6 +9,7 @@ public enum StreamRetention {
 
 /** SSE framing is owned by the transport; a decoder consumes complete data fields without I/O. */
 public interface LlmSseProtocol : LlmGenerationProtocol {
+    public fun streamUrl(baseUrl: Url, modelId: String): Url = generationUrl(baseUrl, modelId)
     public fun createStreamDecoder(request: LlmRequest, retention: StreamRetention = EventsOnly): LlmSseDecoder
 }
 
