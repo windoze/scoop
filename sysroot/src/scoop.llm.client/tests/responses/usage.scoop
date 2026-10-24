@@ -1,0 +1,37 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesUsageTest {
+    @Test
+    fun `Responses usage preserves reported totals and disjoint cache and reasoning subsets`() {
+        val raw = "{\"input_tokens\":9007199254740993,\"output_tokens\":12,\"total_tokens\":9007199254741005,\"input_tokens_details\":{\"cached_tokens\":10,\"cache_write_tokens\":3,\"cache_write_tokens_details\":{\"ttl_1h\":3}},\"output_tokens_details\":{\"reasoning_tokens\":7}}"
+        val result = ResponsesProtocol(OpenAiResponsesDialect()).decodeResponse(responsesBody("[]", usage = Some(raw)), responsesRequest())
+        val usage = result.usage.tokens
+        assertEquals(Some(9007199254740993L), usage.inputTokens)
+        assertEquals(Some(9007199254740980L), usage.nonCachedInputTokens)
+        assertEquals(Some(10L), usage.cacheReadTokens)
+        assertEquals(Some(3L), usage.cacheWriteTokens)
+        assertEquals(Some(7L), usage.reasoningTokens)
+        assertEquals(Some(12L), usage.outputTokens)
+        assertEquals(Some(9007199254741005L), usage.totalTokens)
+        assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(result.usage.native!!))
+    }
+
+    @Test
+    fun `Responses usage keeps unknown counts absent and rejects invalid count fields`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val usage = protocol.decodeResponse(responsesBody("[]", usage = Some("{\"input_tokens\":100,\"output_tokens\":0,\"input_tokens_details\":{\"cached_tokens\":60}}")), responsesRequest()).usage
+        assertEquals(None, usage.tokens.nonCachedInputTokens)
+        assertEquals(None, usage.tokens.cacheWriteTokens)
+        assertEquals(None, usage.tokens.totalTokens)
+        assertEquals(Some(0L), usage.tokens.outputTokens)
+        assertResponsesFailure(responsesBody("[]", usage = Some("{\"input_tokens\":-1}")), "/usage/input_tokens")
+        assertResponsesFailure(responsesBody("[]", usage = Some("{\"output_tokens_details\":{\"reasoning_tokens\":-1}}")), "/usage/output_tokens_details/reasoning_tokens")
+        assertResponsesFailure(responsesBody("[]", usage = Some("{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":2,\"cache_write_tokens\":2}}")), "/usage/input_tokens_details")
+        assertResponsesFailure(responsesBody("[]", usage = Some("{\"total_tokens\":1.5}")), "/usage/total_tokens")
+    }
+}

@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesNativeToolTest {
+    @Test
+    fun `Responses native client tools preserve actions pending checks and patch operations`() {
+        val dialect = OpenAiResponsesDialect()
+        val tools: Array<ToolDefinition> = [ClientNative(ToolKey("computer"), NativeToolDefinition(dialect.id, "computer")),
+            ClientNative(ToolKey("patch"), NativeToolDefinition(dialect.id, "apply_patch")),
+            ClientNative(ToolKey("terminal"), NativeToolDefinition(dialect.id, "local_shell"))]
+        val output = "[{\"type\":\"computer_call\",\"id\":\"i1\",\"call_id\":\"c1\",\"status\":\"completed\",\"actions\":[{\"type\":\"click\",\"x\":1,\"y\":2}],\"pending_safety_checks\":[{\"id\":\"check\",\"code\":\"untrusted_content\"}]}," +
+            "{\"type\":\"apply_patch_call\",\"id\":\"i2\",\"call_id\":\"c2\",\"operation\":{\"type\":\"update_file\",\"path\":\"a\",\"diff\":\"opaque diff\"}}," +
+            "{\"type\":\"local_shell_call\",\"id\":\"i3\",\"call_id\":\"c3\",\"action\":{\"type\":\"exec\",\"command\":[\"pwd\"],\"env\":{}}}]"
+        val result = ResponsesProtocol(dialect).decodeResponse(responsesBody(output), responsesRequest(tools))
+        assertEquals(3L, result.clientToolCalls.size)
+        when (result.clientToolCalls[0].input) {
+            case Native(value) -> {
+                assertEquals(1L, value["actions"]!!.size)
+                assertEquals("check", value["pending_safety_checks"]!![0]["id"]!!.asString())
+            }
+            else -> fail()
+        }
+        when (result.clientToolCalls[1].input) { case Native(value) -> assertEquals("opaque diff", value["diff"]!!.asString()); else -> fail() }
+        when (result.clientToolCalls[2].input) { case Native(value) -> assertEquals("pwd", value["command"]!![0].asString()); else -> fail() }
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(result))
+        assertEquals("c1", restored.clientToolCalls[0].reference.id)
+        assertEquals("i1", restored.clientToolCalls[0].reference.context!!["id"]!!.asString())
+    }
+
+    @Test
+    fun `Responses shell execution location determines client server or native projection`() {
+        val dialect = OpenAiResponsesDialect()
+        val tools: Array<ToolDefinition> = [ClientNative(ToolKey("local"), NativeToolDefinition(dialect.id, "shell")),
+            Server(ToolKey("remote"), Native(NativeToolDefinition(dialect.id, "shell")))]
+        val output = "[{\"type\":\"shell_call\",\"id\":\"a\",\"call_id\":\"ca\",\"environment\":{\"type\":\"local\"},\"action\":{\"commands\":[\"pwd\"]}}," +
+            "{\"type\":\"shell_call\",\"id\":\"b\",\"call_id\":\"cb\",\"status\":\"completed\",\"environment\":{\"type\":\"container_reference\",\"container_id\":\"ctr\"},\"action\":{\"commands\":[\"pwd\"]}}," +
+            "{\"type\":\"shell_call\",\"id\":\"c\",\"call_id\":\"cc\",\"environment\":null,\"action\":{\"commands\":[\"pwd\"]}}]"
+        val result = ResponsesProtocol(dialect).decodeResponse(responsesBody(output), responsesRequest(tools))
+        assertEquals(1L, result.clientToolCalls.size)
+        assertEquals(ToolKey("local"), result.clientToolCalls[0].toolKey)
+        assertEquals(1L, result.serverToolActivities.size)
+        assertEquals(Some(ToolKey("remote")), result.serverToolActivities[0].toolKey)
+        assertEquals(Some("b"), result.serverToolActivities[0].id)
+        assertEquals(ServerToolKind.CodeExecution, result.serverToolActivities[0].kind)
+        when (result.candidate(0L).items[2]) { case Native(_, raw) -> assertEquals("cc", raw["call_id"]!!.asString()); else -> fail() }
+    }
+
+    @Test
+    fun `Responses native tool validation rejects missing actions and conflicting computer forms`() {
+        assertResponsesFailure(responsesBody("[{\"type\":\"computer_call\",\"call_id\":\"c\",\"pending_safety_checks\":[]}]"), "/output/0/action")
+        assertResponsesFailure(responsesBody("[{\"type\":\"computer_call\",\"call_id\":\"c\",\"action\":{\"type\":\"screenshot\"},\"actions\":[],\"pending_safety_checks\":[]}]"), "/output/0")
+        assertResponsesFailure(responsesBody("[{\"type\":\"computer_call\",\"call_id\":\"c\",\"action\":{\"type\":\"screenshot\"}}]"), "/output/0/pending_safety_checks")
+        assertResponsesFailure(responsesBody("[{\"type\":\"apply_patch_call\",\"call_id\":\"c\",\"operation\":[]}]"), "/output/0/operation")
+        assertResponsesFailure(responsesBody("[{\"type\":\"local_shell_call\",\"call_id\":\"c\"}]"), "/output/0/action")
+    }
+}

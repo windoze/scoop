@@ -1,0 +1,57 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesCompletionTest {
+    @Test
+    fun `Responses failure cancellation pending and missing status remain model outcomes`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        for (status in [Some("failed"), Some("cancelled"), Some("in_progress"), Some("queued"), Some("future"), None]) {
+            val body = responsesBody("[]", status)
+            val result = protocol.decodeResponse(body, responsesRequest())
+            assertEquals(if (status == Some("failed")) LlmCompletion.Failed else LlmCompletion.Incomplete, result.candidate(0L).completion)
+            assertEquals(if (status == Some("failed") || status == Some("cancelled")) UsageCompleteness.Final else UsageCompleteness.Partial,
+                result.usage.completeness)
+            assertEquals(Json.stringify(body), Json.stringify(result.native!!))
+        }
+        val failed = Json.parse("{\"object\":\"response\",\"output\":[],\"status\":\"failed\",\"error\":{\"code\":\"server_error\",\"message\":\"failure\"}}")
+        assertEquals("server_error", protocol.decodeResponse(failed, responsesRequest()).native!!["error"]!!["code"]!!.asString())
+    }
+
+    @Test
+    fun `Responses incomplete reasons remain distinct and prevent executable tool calls`() {
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("count"), "count", Json.parse("{}"))]
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        for ((reason, finish) in [("max_output_tokens", LlmFinishReason.Length), ("max_messages", LlmFinishReason.Length),
+            ("content_filter", LlmFinishReason.ContentFilter), ("steered", LlmFinishReason.Pause), ("future", LlmFinishReason.Other("future"))]) {
+            val result = protocol.decodeResponse(responsesBody("[" + responsesCall("{}") + "]", Some("incomplete"), reason = Some(reason)), responsesRequest(tools))
+            assertEquals(LlmCompletion.Incomplete, result.candidate(0L).completion)
+            assertEquals(Json.encodeToString(finish), Json.encodeToString(result.candidate(0L).finishReason))
+            assertEquals(0L, result.clientToolCalls.size)
+            assertEquals(UsageCompleteness.Final, result.usage.completeness)
+            when (result.candidate(0L).items[0]) { case ClientToolCall(call) -> assertFalse(call.isExecutable); else -> fail() }
+        }
+    }
+
+    @Test
+    fun `Responses item completion and refusal override an otherwise completed tool round`() {
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("count"), "count", Json.parse("{}"))]
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        for (status in ["in_progress", "incomplete", "future"]) {
+            val result = protocol.decodeResponse(responsesBody("[" + responsesCall("{}", status = Some(status)) + "]"), responsesRequest(tools))
+            assertEquals(LlmCompletion.Incomplete, result.candidate(0L).completion)
+            assertEquals(0L, result.clientToolCalls.size)
+        }
+        val refusal = ", {\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"refusal\",\"refusal\":\"cannot\"}]}]"
+        val result = protocol.decodeResponse(responsesBody("[" + responsesCall("{}") + refusal), responsesRequest(tools))
+        assertEquals(LlmCompletion.Refused, result.candidate(0L).completion)
+        assertEquals("", result.text)
+        assertEquals(0L, result.clientToolCalls.size)
+        assertFailsWith<LlmOutputException> { result.decodeOutput<ResponsesCount>(); Unit }
+        val failed = protocol.decodeResponse(responsesBody("[" + responsesCall("{}") + refusal, Some("failed")), responsesRequest(tools))
+        assertEquals(LlmCompletion.Failed, failed.candidate(0L).completion)
+    }
+}

@@ -1,0 +1,59 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+internal fun readResponsesMessage(dialect: DialectId, value: JsonValue, id: String?, path: String): LlmOutputItem {
+    val message = decodeResponsesValue<ResponsesMessage>(value, path)
+    if (message.role != "assistant") throw DecodingException(path + "/role", "expected an assistant output message")
+    val parts = ArrayList<OutputPart>()
+    var index = 0L
+    for (part in message.content) {
+        val partPath = path + "/content/" + index.toString()
+        val kind = decodeResponsesValue<ResponsesItemFields>(part, partPath).type
+        when (kind) {
+            case "output_text" -> {
+                val text = decodeResponsesValue<ResponsesText>(part, partPath)
+                parts.add(OutputPart.Text(text.text, readResponsesCitations(dialect, text.annotations, partPath + "/annotations")))
+            }
+            case "refusal" -> parts.add(OutputPart.Refusal(decodeResponsesValue<ResponsesRefusal>(part, partPath).refusal))
+            else -> parts.add(OutputPart.Native(dialect, part))
+        }
+        index += 1L
+    }
+    return LlmOutputItem.Message(parts.toArray(), id)
+}
+
+internal fun readResponsesReasoning(dialect: DialectId, value: JsonValue, path: String): Array<OutputPart> {
+    val reasoning = decodeResponsesValue<ResponsesReasoning>(value, path)
+    val result = ArrayList<OutputPart>()
+    appendResponsesReasoning(result, dialect, reasoning.summary, "summary_text", path + "/summary")
+    when (reasoning.content) {
+        case Some(content) -> appendResponsesReasoning(result, dialect, content, "reasoning_text", path + "/content")
+        case None -> return result.toArray()
+    }
+    return result.toArray()
+}
+
+private fun appendResponsesReasoning(result: ArrayList<OutputPart>, dialect: DialectId, values: Array<JsonValue>,
+    knownType: String, path: String) {
+    var index = 0L
+    for (value in values) {
+        val partPath = path + "/" + index.toString()
+        val kind = decodeResponsesValue<ResponsesItemFields>(value, partPath).type
+        if (kind == knownType) result.add(OutputPart.Text(decodeResponsesValue<ResponsesText>(value, partPath).text))
+        else result.add(OutputPart.Native(dialect, value))
+        index += 1L
+    }
+}
+
+internal fun responsesHasRefusal(items: Array<LlmOutputItem>): Boolean {
+    for (item in items) {
+        when (item) {
+            case Message(content, _) -> for (part in content) {
+                when (part) { case Refusal(_) -> return true; else -> continue }
+            }
+            else -> continue
+        }
+    }
+    return false
+}

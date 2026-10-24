@@ -1,0 +1,30 @@
+package scoop.llm.client.tests.responses
+
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesErrorTest {
+    @Test
+    fun `Responses HTTP rejection preserves native detail and only retries explicit rate limits`() {
+        val dialect = OpenAiResponsesDialect()
+        for ((status, code, retryable) in [(429U, "rate_limit_exceeded", true), (429U, "insufficient_quota", false),
+            (400U, "rate_limit_exceeded", false), (500U, "server_error", false)]) {
+            val raw = "{\"error\":{\"code\":\"" + code + "\",\"message\":\"failure\"},\"request_id\":\"req\"}"
+            val error = dialect.decodeError(status, raw.toByteArray(), false)
+            assertEquals(retryable, error.retryable)
+            assertEquals(Some(code), error.code)
+            assertEquals(Some("failure"), error.message)
+            assertEquals(status, error.status)
+            assertEquals(raw, String.fromUtf8(error.body))
+            assertEquals("req", error.native!!["request_id"]!!.asString())
+        }
+        for ((raw, truncated) in [("not JSON", false), ("{\"error\":{\"code\":\"rate_limit_exceeded\"}}", true), ("{\"error\":false}", false)]) {
+            val error = dialect.decodeError(429U, raw.toByteArray(), truncated)
+            assertEquals(None, error.code)
+            assertFalse(error.retryable)
+            assertEquals(raw, String.fromUtf8(error.body))
+            assertEquals(truncated, error.truncated)
+        }
+    }
+}

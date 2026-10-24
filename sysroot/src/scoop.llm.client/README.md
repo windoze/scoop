@@ -2,6 +2,8 @@
 
 LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat 与 Anthropic Messages 的普通／流式生成，以及 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时；其他协议继续实施。
 
+Responses 已提供 `ResponsesProtocol(OpenAiResponsesDialect()).decodeResponse(raw, request)`，保留有序 item、reasoning、消息 phase、工具 call ID、服务端搜索与引用；`toInput()` 返回可序列化的原始 output items。usage 区分缓存读、写与普通输入，缺失字段保持未知。当前这是纯响应解码入口；Responses 的请求编码、provider 生成与 SSE 继续实施。
+
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 
 ```scoop

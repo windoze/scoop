@@ -1,0 +1,79 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readResponsesServerItem(dialect: DialectId, entry: ResponsesOutputEntry, tools: Array<ToolDefinition>,
+    path: String): LlmOutputItem {
+    val (kind, toolKind, resultField) = when (entry.kind) {
+        case "web_search_call" -> (ServerToolKind.WebSearch, "web_search", "")
+        case "file_search_call" -> (ServerToolKind.FileSearch, "file_search", "results")
+        case "code_interpreter_call" -> (ServerToolKind.CodeExecution, "code_interpreter", "outputs")
+        case "image_generation_call" -> (ServerToolKind.ImageGeneration, "image_generation", "result")
+        case "shell_call" -> {
+            if (responsesShellEnvironment(entry.raw, path) != Some("container_reference")) return LlmOutputItem.Native(dialect, entry.raw)
+            (ServerToolKind.CodeExecution, "shell", "")
+        }
+        else -> return LlmOutputItem.Native(dialect, entry.raw)
+    }
+    val fields = decodeResponsesValue<ResponsesServerFields>(entry.raw, path)
+    val status: ServerToolStatus = when (fields.status) {
+        case Some("completed") -> Completed
+        case Some("failed") -> Failed
+        case Some("in_progress") -> InProgress
+        case Some("searching") -> InProgress
+        case Some("interpreting") -> InProgress
+        else -> Unknown
+    }
+    val key = if (toolKind == "web_search") resolveResponsesSearch(tools, dialect)
+        else resolveResponsesNativeTool(tools, dialect, [toolKind], true)
+    val sources: Array<LlmSource> = if (toolKind == "web_search") responsesSearchSources(dialect, fields.action, path + "/action") else []
+    val result: Array<OutputPart> = if (resultField.length == 0L) [] else when (entry.raw[resultField]) {
+        case Some(value) -> if (value.kind == JsonValueKind.Null) [] else [OutputPart.Native(dialect, value)]
+        case None -> []
+    }
+    return LlmOutputItem.ServerToolActivity(ServerToolActivity(kind, status, key, entry.id, fields.action,
+        result, sources, Some(entry.raw)))
+}
+
+private class ResponsesServerFields public constructor(public val status: String? = None, public val action: JsonValue? = None) {
+    public companion object : ValueDecoder<ResponsesServerFields>
+}
+
+private fun resolveResponsesSearch(tools: Array<ToolDefinition>, dialect: DialectId): ToolKey? {
+    var found: ToolKey? = None
+    for (tool in tools) {
+        val matches = when (tool) {
+            case Server(_, definition, _) -> when (definition) {
+                case WebSearch(_) -> true
+                case Native(native) -> native.dialect == dialect && (native.kind == "web_search" || native.kind == "web_search_2025_08_26" ||
+                    native.kind == "web_search_preview" || native.kind == "web_search_preview_2025_03_11")
+            }
+            else -> false
+        }
+        if (!matches) continue
+        if (found != None) return None
+        found = Some(tool.key)
+    }
+    return found
+}
+
+private fun responsesSearchSources(dialect: DialectId, action: JsonValue?, path: String): Array<LlmSource> {
+    val value = action ?: return []
+    val kind = decodeResponsesValue<ResponsesItemFields>(value, path).type
+    if (kind != "search") return []
+    val fields = decodeResponsesValue<ResponsesSearchSources>(value, path)
+    val result = ArrayList<LlmSource>()
+    var index = 0L
+    for (source in fields.sources) {
+        val sourcePath = path + "/sources/" + index.toString()
+        val sourceKind = decodeResponsesValue<ResponsesItemFields>(source, sourcePath).type
+        result.add(if (sourceKind == "url") readResponsesUrlSource(source, sourcePath)
+            else LlmSource(sourcePath, LlmSourceLocation.Native(dialect, source), native = Some(source)))
+        index += 1L
+    }
+    return result.toArray()
+}
+
+private class ResponsesSearchSources public constructor(public val sources: Array<JsonValue> = []) {
+    public companion object : ValueDecoder<ResponsesSearchSources>
+}

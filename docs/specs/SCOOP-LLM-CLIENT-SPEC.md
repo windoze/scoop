@@ -316,3 +316,23 @@ message_delta 的 usage 是累计快照，与 message_start 按字段递归合�
 EventsOnly 不累计普通文本、thinking、签名或已完成的服务端结果；仅保留当前块状态、待确定完成性的客户端输入、调用关联和 usage。Result 以同一 reducer 保存完整 item 和原生 history，正文与签名仅按协议规则重建；不保存已知文本 delta 的完整日志。未知事件／字段保持 Native；未知 block 无 delta 时可原样回传，无法归并的未知 delta 则使该候选 history 不可用，并保留其开始状态与片段以供读取。流式 LlmResponse.native 为 None，不把重建的消息冒充一次完整服务响应。
 
 协议依据：[Messages 流式事件](https://platform.claude.com/docs/en/build-with-claude/streaming)、[细粒度工具参数](https://platform.claude.com/docs/en/agents-and-tools/tool-use/fine-grained-tool-streaming)、[流式引用](https://platform.claude.com/docs/en/build-with-claude/citations)。
+
+## 15. Responses 完整响应解释
+
+ResponsesProtocol 接受 ResponsesDialect；OpenAiResponsesDialect 的标识为 (responses, openai-responses)。decodeResponse 接受 object=response 的正文，将 output 的实际顺序投影到唯一的 candidate 0；不把多条 message 合并成一条，不从顶层 output_text 反推内容。message 的 role 必须为 assistant，output_text 与 refusal 分别进入 Text／Refusal，reasoning 的 summary_text 与 reasoning_text 进入 Reasoning。未知 item／content 以 Native 保存。id、model、created_at 只取服务端返回值；created_at=0 有效，不填入本地发送或接收时间。
+
+history 保存完整、原序的 output items，包含 message.phase、reasoning.encrypted_content、未知字段及工具上下文，不带响应外壳或原请求，不自动生成 previous_response_id。encrypted_content 是不透明数据，不能解析、校验或重写。原始 response 和 usage 分别保存在 native，JSON 数字保持既有精度。普通响应解码不创建流式事件。
+
+status=completed 表示该轮完整；failed 为 Failed；incomplete、cancelled、queued、in_progress、未知或缺失状态为 Incomplete。incomplete_details.reason 的 max_output_tokens／max_messages 映射 Length，content_filter 映射 ContentFilter，steered 映射 Pause，其余值保留 Other，缺失为 Unknown。message、reasoning 和客户端调用显式返回非 completed 的 item status 时，即使根状态 completed 也不能当作完整结果；服务端工具自身失败不把随后正常完成的模型回答改成失败。refusal 单独投影为 Refused，并使同轮所有客户端调用失去执行资格；根 failed 优先保留 Failed。只有 completed、failed、cancelled、incomplete 根状态的 usage 为 Final，其余为 Partial；缺失 token 仍是未知。
+
+output item 的 id 与客户端调用的 call_id 是不同标识空间，各自非空、各自不得在同轮调用中重复；工具结果 item 可以引用先前的 call_id，不参与调用声明去重。function_call、custom_tool_call 只唯一关联到请求中对应类别、对应名称的工具，带 namespace 的调用不能误配到无 namespace 的同名工具；无法关联时保留 Native。ClientToolCallReference.id 使用 call_id，context 保存完整原始 item，保留 item id、caller、namespace 等字段。完整 function arguments 必须是有效 JSON 对象，custom input 是原文；无效或未完成参数仍可观察但不进入可执行列表。
+
+computer_call、local_shell_call、apply_patch_call 与明确 environment.type=local 的 shell_call，可唯一关联同 dialect 的 ClientNative 声明。computer 的单 action 与批量 actions 互斥，pending_safety_checks 与全部动作原样交给应用，库不执行动作或自动确认；其他原生输入分别保留 action／operation 对象。明确 container_reference 的 shell_call 归为服务端活动，环境缺失或未知时保留 Native，不推断为本地命令。
+
+web_search_call、file_search_call、code_interpreter_call、image_generation_call 和容器 shell 分别投影为相应的 ServerToolActivity；服务端工具保持服务端执行方，不成为 ClientToolCall。活动保留真实 item id、status、action、结果与 native。WebSearch 关联请求中的通用搜索或同 dialect 的原生搜索声明；有多个匹配时不猜 toolKey。search action 的 sources 单独投影为来源，open_page／find_in_page 等动作仍保留原文。未知状态为 Unknown，不伪造完成或失败。
+
+output_text.annotations 的 URL 引用与普通 file 引用分别投影为 Url／File 来源；容器文件和未知引用保留 Native 来源。官方文档未明确公共 TextRange 所需的 Unicode 单位及半开端点约定，故此处 range=None，原始索引保存在 source.native；file 的 index 不解释成字符范围。来源 ID 不冒充工具调用 ID，不自行下载来源内容。
+
+usage 读取 input_tokens、output_tokens、total_tokens，以及 input_tokens_details 中的 cached_tokens／cache_write_tokens 和 output_tokens_details.reasoning_tokens。计数使用非负 Long，不从缺失的 total_tokens 推导总量；缓存读写与普通输入按第 6 节相同的 OpenAI 合同归一化，reasoning 是输出子集，不能再次加到总量。HTTP 拒绝保留状态、正文和原生错误；只有 HTTP 429 且 error.code=rate_limit_exceeded 可重试，额度不足或未知服务错误不取得重试资格。成功 HTTP 中的 failed response 是模型结果，不转成传输重试。
+
+本节交付完整 response 解码；请求、网络与 SSE 按后续章节实施，不提供抛出占位错误的生成入口。协议依据：[Responses create](https://developers.openai.com/api/reference/resources/responses/methods/create)、[Web search](https://developers.openai.com/api/docs/guides/tools-web-search)、[Computer use](https://developers.openai.com/api/docs/guides/tools-computer-use-integration)、[缓存读写统计](https://developers.openai.com/api/docs/guides/prompt-caching)。
