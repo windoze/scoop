@@ -758,6 +758,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。PGO 为后续独立专项，在代表负载、成熟消费者和反馈原型净收益成立后排期；测量与全程序优化／ThinLTO 均不以 PGO 为前置。
 - 优化按长期、分批试验和交付推进：成本低且收益比较稳定的方案可直接纳入 release 默认设置；成本过高或收益不稳定的方案通过独立开关或等级决定是否启用、启用哪一级。默认值随实测结果调整，保留默认与调优配置的对照。
 - [已采纳优化与开启条件](program-performance/ENABLED-OPTIMIZATIONS.md)简要列出各项方案的默认 profile、适用条件及实际开关，后续采纳与策略变更时同步维护。
+- [Darwin 的 Scoop 符号镜像内绑定](program-performance/LOCAL-SYMBOLS.md)已交付：所有 profile 的最终链接移除 Scoop 动态导出、weak binding 和直接调用 stub，相容预编译库可直接重链接。代表程序缩小 16.84%，零次循环进程降低 46.60%；跨 Cone／GC、稳态回退与链接成本已验证。成员内联、内联选择、poll／TLS 和 runtime 启动登记继续优先推进。
 - [函数级 CPU 采样归因](program-performance/CPU-PROFILING.md)已交付：所有 profile 可按需输出 symbols，复用当前及已加载依赖的正文身份；sample／perf 与 LLVM 处理实际符号、同址别名和主镜像 PC。三目标程序产物不变，声明与执行位置的区别、编译／空间成本和采样扰动已记录；指令行表、内联栈与 PGO 继续按实际消费者推进。
 - [实施记录](program-performance/PROGRESS.md)记录各项交付、必要验证和后续工作；已交付预构建程序的可复现 A/B 测量、[完整父接口表投影与视图复用](program-performance/INTERFACE-PROJECTION.md)、[接口检查与取表合并](program-performance/INTERFACE-CHECKS.md)、[普通 class／局部游标字段替换](program-performance/CLASS-SCALARS.md)，以及[字段替换指导内联](program-performance/ITERATOR-INLINING.md)和[按需 MIR 优化决策报告](program-performance/OPTIMIZATION-REPORT.md)。真实 ArrayList 反复遍历的 iterator 分配已消除；Darwin／Linux GNU／musl 的定向正确性、生成代码及性能对照完成，未命中边界、实测对照回退、编译与空间成本一并保留。后续按改动选择必要验证组，继续完善归因并改进已定位的静态优化热点。
 - 已交付[有界整数／Boolean 数组初始化](program-performance/ARRAY-INITIALIZATION.md)及[普通数组边界检查与分块](program-performance/ARRAY-BOUNDS.md)：稳定长度与归纳变量直接证明，动态长度关系用 guard 选择完整块并保留原 checked 路径，覆盖真实内联的读取／变换／复制。三目标正确性、移动 GC、大数组收益、动态短数组回退与编译／空间成本已测量；更广的容器访问、复杂条件与元素类型仍待后续。
