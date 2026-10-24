@@ -1,0 +1,35 @@
+package scoop.http.server
+
+import scoop.platform.fs.Path
+import scoop.text.lowercaseAscii
+
+internal fun fileContentType(path: Path): String {
+    val name = path.fileName
+    if (!present(name)) return "application/octet-stream"
+    val bytes = name!!.toByteArray()
+    var dot = -1L
+    var index = 0L
+    for (value in bytes) { if (value == 46) dot = index; index += 1L }
+    if (dot < 0L) return "application/octet-stream"
+    val start = dot + 1L
+    val suffix = Array<Byte>(bytes.size - start) { offset -> bytes[start + offset] }
+    for (value in suffix) if (value < 0) return "application/octet-stream"
+    return when (String.fromUtf8(suffix).lowercaseAscii()) {
+        case "html" -> "text/html; charset=utf-8"
+        case "htm" -> "text/html; charset=utf-8"
+        case "txt" -> "text/plain; charset=utf-8"
+        case "css" -> "text/css; charset=utf-8"
+        case "js" -> "text/javascript; charset=utf-8"
+        case "json" -> "application/json"
+        case "xml" -> "application/xml"
+        case "svg" -> "image/svg+xml"
+        case "png" -> "image/png"
+        case "jpg" -> "image/jpeg"
+        case "jpeg" -> "image/jpeg"
+        case "gif" -> "image/gif"
+        case "webp" -> "image/webp"
+        case "pdf" -> "application/pdf"
+        case "wasm" -> "application/wasm"
+        else -> "application/octet-stream"
+    }
+}

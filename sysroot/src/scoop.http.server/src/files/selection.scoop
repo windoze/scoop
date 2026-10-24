@@ -1,0 +1,50 @@
+package scoop.http.server
+
+import scoop.asyncio.AsyncFile
+import scoop.http.*
+import scoop.time.Instant
+
+internal fun prepareFileResponse(ctx: HttpContext, source: AsyncFile, options: FileResponseOptions, size: Long,
+    reference: Instant, initial: HttpResponseDraft, minimal: Boolean): ResponsePlan {
+    val draft = HttpResponseDraft(initial.status, initial.fields)
+    val method = ctx.request.method
+    val representation = httpResponseAllowsContent(HttpResponseHead(ctx.request.head.version, draft.status),
+        if (method == "HEAD") "GET".toByteArray() else ctx.request.head.method)
+    if (!minimal && representation && !acceptsResponseRepresentation(requestAcceptEncoding(ctx), draft.fields))
+        return prepareResponse(ctx, empty(406U), HttpResponseDraft(406U, unacceptableFields(draft.fields)), minimal, false)
+    val declared = parseHttpContentLength(draft.fields)
+    if (representation && present(declared) && declared!! != size)
+        throw IllegalArgumentException(Some("Content-Length does not match file size"))
+    var offset = 0L
+    var length = size
+    if (draft.status == 200U) {
+        val (tag, modified) = fileResponseValidators(draft.fields, reference)
+        val condition = try { evaluateHttpPreconditions(method, ctx.request.head.fields, true, tag, modified, reference) }
+            catch (error: HttpFieldParseException) { throw HttpRejection(text("invalid request precondition", 400U), Some<Throwable>(error)) }
+        if (condition != HttpPreconditionResult.Proceed) {
+            draft.status = if (condition == HttpPreconditionResult.NotModified) 304U else 412U
+            removeFileContentFields(draft)
+            return prepareResponse(ctx, empty(draft.status), draft, minimal, false)
+        }
+        if (method == "GET" && size > 0L) {
+            val range = fileRequestRange(ctx.request.head.fields, tag, modified, options.lastModifiedIsStrong, reference)
+            if (present(range)) {
+                val resolved = range!!.resolve(size)
+                if (!resolved.isSatisfiable) {
+                    draft.status = 416U
+                    removeFileContentFields(draft)
+                    draft.set(HttpContentRange.unsatisfied(size).toHttpField())
+                    return prepareResponse(ctx, empty(416U), draft, minimal, false)
+                }
+                val selected = resolved.ranges[0L]
+                offset = selected.first; length = selected.length
+                draft.status = 206U
+                draft.set(HttpContentRange(selected, Some(size)).toHttpField())
+                draft.set(field("Content-Length", length.toString()))
+            }
+        }
+    }
+    val start = offset; val count = length
+    val body = HttpBody.Stream(HttpStreamBody(suspend { writer -> copyResponseFile(source, start, count, options.bufferSize, writer) }, Some(length)))
+    return prepareResponse(ctx, HttpResult(draft.status, draft.fields, body, false), draft, minimal, false)
+}

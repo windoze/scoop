@@ -5,7 +5,8 @@ import scoop.http.*
 internal class ResponsePlan(val head: HttpResponseHead, val body: HttpBody, val allowsContent: Boolean,
     val originalLength: Long?, val framingLength: Long?, val encoding: ResponseEncoding?)
 
-internal fun prepareResponse(ctx: HttpContext, result: HttpResult, initial: HttpResponseDraft, minimal: Boolean): ResponsePlan {
+internal fun prepareResponse(ctx: HttpContext, result: HttpResult, initial: HttpResponseDraft, minimal: Boolean,
+    negotiateCompression: Boolean = true): ResponsePlan {
     if (initial.status < 200U || initial.status > 599U) throw IllegalArgumentException(Some("invalid final response status"))
     var draft = HttpResponseDraft(initial.status, initial.fields)
     var body = result.body
@@ -19,7 +20,9 @@ internal fun prepareResponse(ctx: HttpContext, result: HttpResult, initial: Http
         if (present(length) && length!! != declared!!) throw IllegalArgumentException(Some("Content-Length does not match response body"))
         length = declared
     }
-    val encoding: ResponseEncoding? = when (selectResponseCompression(ctx, draft, result.allowCompression, length, representation, minimal)) {
+    val choice = if (negotiateCompression) selectResponseCompression(ctx, draft, result.allowCompression, length, representation, minimal)
+        else ResponseCompressionChoice.Identity
+    val encoding: ResponseEncoding? = when (choice) {
         case ResponseCompressionChoice.Identity -> None
         case ResponseCompressionChoice.Encoded(value) -> {
             draft = HttpResponseDraft(draft.status, compressedFields(draft.fields))

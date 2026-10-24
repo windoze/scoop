@@ -10,7 +10,7 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.*
 import scoop.test.*
 
-private suspend fun consumerResponseText(source: AsyncByteSource): String {
+internal suspend fun consumerResponseText(source: AsyncByteSource): String {
     val result = ByteArrayBuilder()
     NativeByteBuffer.allocate(32L).use suspend { buffer ->
         while (true) {

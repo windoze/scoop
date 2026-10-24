@@ -6,24 +6,14 @@ internal enum ResponseCompressionChoice { Identity, Encoded(ResponseEncoding), U
 
 internal fun selectResponseCompression(ctx: HttpContext, draft: HttpResponseDraft, allow: Boolean,
     length: Long?, representation: Boolean, minimal: Boolean): ResponseCompressionChoice {
-    if (minimal || !representation || ctx.invalidAcceptEncoding || !present(ctx.compressionOptions))
+    if (minimal || !representation || present(ctx.acceptEncodingFailure) || !present(ctx.compressionOptions))
         return ResponseCompressionChoice.Identity
     val options = ctx.compressionOptions!!
-    if (!present(ctx.acceptEncoding)) {
-        try { ctx.acceptEncoding = Some(HttpAcceptEncoding.parseFields(ctx.request.head.fields)) }
-        catch (error: HttpFieldParseException) {
-            ctx.invalidAcceptEncoding = true
-            throw HttpRejection(text("invalid Accept-Encoding", 400U), Some<Throwable>(error))
-        }
-    }
-    val accepted = ctx.acceptEncoding!!
+    val accepted = requestAcceptEncoding(ctx)
     mergeEncodingVary(draft)
     val fields = draft.fields
     if (fields.findAll("Content-Encoding".toByteArray()).size != 0L) {
-        val codings = parseHttpTokenFields(fields, "Content-Encoding")
-        if (codings.size == 0L && accepted.quality("identity") == 0) return ResponseCompressionChoice.Unacceptable
-        for (coding in codings) if (accepted.quality(coding) == 0) return ResponseCompressionChoice.Unacceptable
-        return ResponseCompressionChoice.Identity
+        return if (acceptsResponseRepresentation(accepted, fields)) ResponseCompressionChoice.Identity else ResponseCompressionChoice.Unacceptable
     }
     if (!accepted.isPresent) return ResponseCompressionChoice.Identity
     val eligible = allow && draft.status != 206U && fields.findAll("Content-Range".toByteArray()).size == 0L &&
@@ -45,3 +35,20 @@ internal fun selectResponseCompression(ctx: HttpContext, draft: HttpResponseDraf
 
 private fun identityChoice(accepted: HttpAcceptEncoding): ResponseCompressionChoice =
     if (accepted.quality("identity") != 0) ResponseCompressionChoice.Identity else ResponseCompressionChoice.Unacceptable
+
+internal fun requestAcceptEncoding(ctx: HttpContext): HttpAcceptEncoding {
+    if (!present(ctx.acceptEncoding) && !present(ctx.acceptEncodingFailure)) {
+        try { ctx.acceptEncoding = Some(HttpAcceptEncoding.parseFields(ctx.request.head.fields)) }
+        catch (error: HttpFieldParseException) { ctx.acceptEncodingFailure = Some(error) }
+    }
+    if (present(ctx.acceptEncodingFailure))
+        throw HttpRejection(text("invalid Accept-Encoding", 400U), Some<Throwable>(ctx.acceptEncodingFailure!!))
+    return ctx.acceptEncoding!!
+}
+
+internal fun acceptsResponseRepresentation(accepted: HttpAcceptEncoding, fields: Array<HttpField>): Boolean {
+    val codings = parseHttpTokenFields(fields, "Content-Encoding")
+    if (codings.size == 0L) return accepted.quality("identity") != 0
+    for (coding in codings) if (accepted.quality(coding) == 0) return false
+    return true
+}

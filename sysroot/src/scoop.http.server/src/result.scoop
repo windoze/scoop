@@ -10,7 +10,9 @@ public enum HttpBody {
     /** An immutable byte snapshot. */
     Bytes(Array<Byte>),
     /** A producer executed once inside the request pipeline. */
-    Stream(HttpStreamBody)
+    Stream(HttpStreamBody),
+    /** A file opened and closed by the response executor, including for metadata-only results. */
+    File(HttpFileBody)
 }
 
 /** A suspending producer and its optional original-content length and final trailers. */
@@ -82,4 +84,5 @@ internal fun bodyLength(body: HttpBody): Long? = when (body) {
     case HttpBody.Empty -> Some(0L)
     case HttpBody.Bytes(value) -> Some(value.size)
     case HttpBody.Stream(value) -> value.length
+    case HttpBody.File(_) -> None
 }

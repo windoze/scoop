@@ -5,7 +5,7 @@ import scoop.http.HttpRequestTarget
 import scoop.text.*
 import scoop.url.*
 
-internal class PathSegment(val encoded: String, val decoded: Array<Byte>)
+internal class PathSegment(val encoded: String, val decoded: Array<Byte>, val tail: Array<PathSegment>? = None)
 internal enum TargetKind { Path, Star, Connect }
 internal class RequestTarget(val kind: TargetKind, val path: String, val segments: Array<PathSegment>, val query: UrlQuery)
 
@@ -51,6 +51,9 @@ public class PathParameters internal constructor(private val names: Array<String
     public fun text(name: String): String = inputText(bytes(name), "path parameter " + name)
     /** Reads a required signed decimal integer or rejects the request with 400. */
     public fun long(name: String): Long = text(name).toLongOrNone() ?: reject(400U, "invalid path integer " + name)
+
+    internal fun tailSegments(name: String): Array<PathSegment> =
+        find(name).tail ?: throw IllegalStateException(Some("static files require a terminal wildcard parameter"))
 }
 
 internal fun pathTail(parts: Array<PathSegment>, start: Long): PathSegment {
@@ -63,5 +66,5 @@ internal fun pathTail(parts: Array<PathSegment>, start: Long): PathSegment {
         decoded.append(parts[index].decoded)
         index += 1L
     }
-    return PathSegment(encoded.toString(), decoded.toByteArray())
+    return PathSegment(encoded.toString(), decoded.toByteArray(), Some(Array<PathSegment>(parts.size - start) { offset -> parts[start + offset] }))
 }

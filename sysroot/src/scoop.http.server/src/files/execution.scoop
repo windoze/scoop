@@ -1,0 +1,59 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.fs.*
+import scoop.platform.io.UnexpectedEofException
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+import scoop.platform.time.SystemClock
+
+internal suspend fun executeFileResponse(ctx: HttpContext, result: HttpResult, description: HttpFileBody, minimal: Boolean) {
+    val path = responseFileInput<Path> suspend { selectedResponseFile(description) }
+    val opened = responseFileInput<AsyncFile> suspend { currentEventLoop().openFile(path) }
+    opened.useAsync suspend { source ->
+        val metadata = responseFileInput<FileMetadata> suspend { source.metadata() }
+        if (metadata.kind != FileKind.Regular) reject(404U, "file not found")
+        val now = SystemClock.now()
+        val initial = fileResponseFields(result, path, description.options, metadata, now)
+        val draft = ctx.response.prepare(initial, minimal)
+        val plan = prepareFileResponse(ctx, source, description.options, metadata.size, now, draft, minimal)
+        executeResponse(ctx, plan)
+    }
+}
+
+private suspend fun selectedResponseFile(description: HttpFileBody): Path {
+    if (!present(description.indexDocument) && !description.directoryRequired) return description.path
+    val metadata = currentEventLoop().metadata(description.path)
+    if (description.directoryRequired && metadata.kind != FileKind.Directory) reject(404U, "directory not found")
+    if (metadata.kind != FileKind.Directory) return description.path
+    val index = description.indexDocument ?: reject(404U, "directory index is disabled")
+    return description.path.resolve(Path.fromString(index))
+}
+
+private suspend fun <T> responseFileInput(block: suspend () -> T): T {
+    try { return block() }
+    catch (error: PlatformException) {
+        val status = when (error.kind) {
+            case PlatformErrorKind.NotFound -> 404U
+            case PlatformErrorKind.NotDirectory -> 404U
+            case PlatformErrorKind.PermissionDenied -> 403U
+            else -> throw error
+        }
+        throw HttpRejection(text(if (status == 404U) "file not found" else "file access denied", status), Some<Throwable>(error))
+    }
+}
+
+internal suspend fun copyResponseFile(source: AsyncFile, offset: Long, length: Long, bufferSize: Long, writer: HttpBodyWriter) {
+    if (offset != 0L) source.seek(offset)
+    NativeByteBuffer.allocate(bufferSize).use suspend { buffer ->
+        var remaining = length
+        while (remaining > 0L) {
+            buffer.clear()
+            val count = source.readInto(buffer, if (remaining < bufferSize) remaining else bufferSize)
+            if (count == 0L) throw UnexpectedEofException()
+            writer.writeFully(buffer, count)
+            remaining -= count
+        }
+    }
+}

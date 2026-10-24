@@ -26,6 +26,7 @@ private suspend fun sendResponseBody(ctx: HttpContext, plan: ResponsePlan, write
             case HttpBody.Empty -> writer.flush()
             case HttpBody.Bytes(value) -> writer.writeAll(value)
             case HttpBody.Stream(value) -> value.produce(writer)
+            case HttpBody.File(_) -> throw IllegalStateException(Some("file response was not prepared by its executor"))
         }
         writer.complete()
         if (present(compressor)) { compressor!!.finish(); wire.complete() }

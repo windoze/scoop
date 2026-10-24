@@ -29,7 +29,7 @@ public class HttpContext internal constructor(
     internal var encodedResponseBytes: Long = 0L
     internal var compressionOptions: ResponseCompressionOptions? = None
     internal var acceptEncoding: HttpAcceptEncoding? = None
-    internal var invalidAcceptEncoding: Boolean = false
+    internal var acceptEncodingFailure: HttpFieldParseException? = None
 
     /** The selected endpoint metadata, absent before routing and for fallback results. */
     public val route: HttpRouteInfo? get() = selectedRoute
@@ -51,8 +51,13 @@ public class HttpContext internal constructor(
         if (!responding.compareAndSet(false, true)) throw IllegalStateException(Some("response is already executing"))
         try {
             requestJob.ensureActive()
-            val draft = response.prepare(result, minimal)
-            executeResponse(this, prepareResponse(this, result, draft, minimal))
+            when (result.body) {
+                case HttpBody.File(value) -> executeFileResponse(this, result, value, minimal)
+                else -> {
+                    val draft = response.prepare(result, minimal)
+                    executeResponse(this, prepareResponse(this, result, draft, minimal))
+                }
+            }
         } catch (error: Throwable) {
             response.releasePreparation()
             throw error

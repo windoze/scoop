@@ -70,7 +70,7 @@ onRequestCompleted 在响应、请求子任务和输入收尾结束后接收不�
 
 ## 6. H2 请求与排空
 
-每个 H2 stream 在独立的请求 coroutineScope 中执行，拥有自己的 HttpContext 和 Job。共享协议驱动与 TLS 属于连接；请求异常、deadline 或对端 RST_STREAM 只取消对应请求。StreamFailure 通知映射到已登记的请求 Job；登记后读取一次 stream.failure 衔接提前到达的失败。通知仅修改框架状态和通知内部等待，不在协议锁内运行应用 handler。请求清理后移除登记；无需转移底层 stream 的接受 Job。
+每个 H2 stream 在独立的请求 coroutineScope 中执行，拥有自己的 HttpContext 和 Job。共享协议驱动与 TLS 属于连接；请求异常、deadline 或对端 RST_STREAM 只取消对应请求。StreamFailure 通知映射到已登记的请求 Job；登记后读取一次 stream.failure 衔接提前到达的失败。通知仅修改框架状态和通知内部等待，不在协议锁内运行应用 handler。请求清理后移除登记；无需转移底层 stream 的接受 Job。终止通知与正在进行的 I/O 可能使请求直接收到原始 stream 异常：若请求已被取消且最终失败就是该 stream 的终止异常，完成类别为 Cancelled，failure 仍保留原异常；独立业务或清理失败不因此改成取消。
 
 H2 的接收选项默认明确选择 Http2InvalidRegularField.RejectStream，Http2Limits 与 Http2Settings 直接复用既有类型，可显式覆盖。全局 maxActiveRequests 在启动业务任务前占用，直到资源与完成通知收尾后释放；超容量只关闭对应 stream，不建立拒绝任务队列。正常响应使用 HEADERS／DATA／END_STREAM 和独立 trailer，不写 Transfer-Encoding。100-continue 仍在首次实际 body 读取前按需发出。正常双向完成不追加 CANCEL；提前响应先完成输出，再放弃尚未消费的输入。
 
@@ -142,6 +142,24 @@ requestBodyLimit 继续统计 HTTP 去定界后的实际编码输入，setLimit 
 
 完整 JSON 聚合、multipart 外层 EOF 均须完成解码尾部校验；读取部分明文不表示上传成功。管线及请求子任务结束后，框架先使读取入口失效，关闭 multipart 本地视图，再从外到内关闭解码器，最后按协议收尾输入；每层借用上游，不提前关闭会阻止错误响应的连接。清理尝试覆盖所有已创建层，保留真实清理失败；早退不自动 drain 或补完压缩输入。提交后的输入失败仅中止实际连接／stream。
 
-## 12. 分步交付与验证
+## 12. 文件响应与静态路径
+
+file(path, FileResponseOptions) 创建 HttpBody.File(HttpFileBody)，仅保存不可变路径与选项，不打开文件。FileResponseOptions 可显式指定 contentType、entityTag、contentEncoding、lastModifiedIsStrong，bufferSize 默认 8192 且须为正；媒体类型必须合法，编码须为实际 token。默认媒体类型来自有限扩展名表，未知为 application/octet-stream；不读正文猜格式，不探测预压缩旁文件。显式编码文件的路径、长度、标签均针对其实际表示，应用选择多种变体时自行设置 Vary。
+
+响应执行器先打开 AsyncFile，从同一句柄读取 metadata，随后把媒体类型、准确长度、Last-Modified、可选 ETag／Content-Encoding 交给通常的 beforeCommit。Last-Modified 截到秒且不晚于当前系统时钟；不从大小和 mtime 伪造强 ETag，也不读取文件求摘要。只能发送普通文件；目录在没有显式首页选项时为 404。打开／选择中的 NotFound、NotDirectory 为 404，PermissionDenied 为 403；其他 I/O、内存、取消和清理失败保留实际原因。文件关闭覆盖成功、HEAD、304、412、416、406、回调失败和错误替换，不把打开的句柄交给可能被丢弃的 handler 返回值。
+
+文件表示始终禁用动态压缩。最终草稿中的实际 Content-Encoding 必须被请求 Accept-Encoding 接受，未编码表示按 identity 判断；缺失 Accept-Encoding 允许显式编码文件。不可接受时使用空 406，非法请求协商字段为 400。此选择只执行一次，其后的 304／412／416 不重新协商；已知无效的 Accept-Encoding 不在错误响应重放解析。
+
+只在最终草稿状态为 200 时运行条件与范围选择。条件使用消息工具规范 1.15，对草稿最终 ETag／Last-Modified 求值；非法请求标签为 400，重复／非法响应验证器为程序错误。文件存在／可读检查在条件之前。普通 middleware 的条件头不因此自动适用于其他结果。304／412 使用空正文，保留 ETag、Last-Modified、Vary、缓存及其他非正文头，移除正文类型、编码、范围、长度、摘要和 trailer 声明；304 不生成 Content-Length，412 长度为零。
+
+条件通过后，仅状态 200 的 GET 考虑 Range；HEAD 忽略 Range 并保持完整文件长度。默认生成 Accept-Ranges: bytes。单个可满足 bytes 区间为 206，设置准确 Content-Range 和区间长度；不可满足为带 `bytes */完整长度` 的空 416。空文件、未知单位、非法值、重复 Range 行或多区间均忽略 Range，发送完整 200。If-Range 只在存在可用的单区间时解释；单个强标签必须强匹配，弱标签／非法／重复值回退完整响应。日期须精确等于所选 Last-Modified，且应用明确设置 lastModifiedIsStrong=true；普通文件 metadata 默认没有这种保证。这里不使用日期的小于等于比较。
+
+GET 提交后用同一句柄 seek 并有限复制，不超过准备时选定的区间；短读继续，提前 EOF 中止，增长不扩大发送范围。应用需要稳定文件时采用不可变文件或原子替换发布；框架不加文件锁或重复内容复核。HEAD／304 等无正文结果不执行文件读取。
+
+staticFiles(root, StaticFileOptions) 是显式挂到末尾通配路由的 handler。pathParameter 默认 `path`，必须对应通配参数；root／首页路由需要另行注册。StaticFileOptions.fileOptions 传给文件结果；indexDocument 默认 None，显式启用时须为一个合法固定文件名。首页选择使用一次正常路径 metadata 判断目录，再打开实际文件并从其句柄取最终 metadata；无目录列表、递归首页或自动路由发现。
+
+路径从已解码的原始片段逐段构造，保留非 UTF-8 文件名，不从已拼接的解码尾串重新切分或再次百分号解码。拒绝中间空片段、点／点点、NUL、斜线／反斜线和驱动器前缀，输入无效为 400。末尾空片段只表示必须是目录，显式首页才可产生文件结果，否则为 404。路径拼接不检查 owner、权限位、inode、canonical path 或 symlink 来源；链接遵守普通 OS 语义，不承诺 root 是隔离沙箱。
+
+## 13. 分步交付与验证
 
 接入、超时与停机、SSE、multipart、WebSocket、压缩、文件和 DTO 的完整范围保持设计第 12～17 节，按完成的功能逐项扩充本规范。尚未实现的功能不公开占位 API。测试用所属 Cone 的 release 测试；只有 CLI／诊断／外部对端等必要边界使用 fixture。协议引擎的既有验证不在 server 重放。

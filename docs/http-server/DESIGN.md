@@ -825,7 +825,7 @@ Content-Encoding 的 token 语法复用 parseHttpTokenFields；gzip、deflate、
 
 ### 15.6 静态文件、Range 与条件请求
 
-**结果与挂载。**提供拟议 `file(path, options): HttpResult`，内部为 HttpBody.File；另提供 `staticFiles(root, options): HttpHandler`，供应用显式挂到一个末尾通配路由。Router 不自动发现目录、注册资源或扫描文件，目录列表和默认首页均默认关闭。默认首页只在应用明确配置固定名称后尝试；文件媒体类型使用显式配置或有限的扩展名表，未知类型为 application/octet-stream，不读内容猜格式。
+**结果与挂载。**提供 `file(path, FileResponseOptions): HttpResult`，内部为 HttpBody.File；另提供 `staticFiles(root, StaticFileOptions): HttpHandler`，供应用显式挂到一个末尾通配路由。StaticFileOptions.pathParameter 默认为 `path`，indexDocument 默认 None，fileOptions 保存表示选项；完整合同见 [server 规范第 12 节](../specs/SCOOP-HTTP-SERVER-SPEC.md#12-文件响应与静态路径)。Router 不自动发现目录、注册资源或扫描文件，目录列表和默认首页均默认关闭。默认首页只在应用明确配置固定名称后尝试；文件媒体类型使用显式配置或有限的扩展名表，未知类型为 application/octet-stream，不读内容猜格式。
 
 file 构造只保存 Path 和不可变选项。响应执行时打开 AsyncFile，随后从同一句柄读取 metadata 并准备表示长度、Last-Modified 和区间；GET 在提交头后有限复制，HEAD 只获取必要元数据不读正文，304／412／416 和所有失败路径都关闭该句柄。不会在 handler 返回前打开文件、把其关闭责任藏进一个可能被丢弃的 producer。缺失文件映射 404，普通访问拒绝可映射 403，其他文件错误走真实服务端失败；不把所有 OS 错误伪装成 404。
 
@@ -833,13 +833,13 @@ staticFiles 只使用第 8 节已解码一次的路由片段：拒绝点片段�
 
 **表示与验证器。**首个交付默认发送 identity 文件并禁用其动态响应压缩，保证 Range、长度和验证器针对同一份字节。应用也可显式提供已编码文件路径及对应 Content-Encoding；其长度和强标签针对该实际编码文件，发送前须通过同一 Accept-Encoding 工具确认可接受。不自动探测 `.gz`／`.br` 旁文件，不运行时生成或缓存压缩副本。应用选择多个变体时明确合并 Vary。
 
-默认生成 Last-Modified，精度按 HTTP 日期截到秒；默认不凭大小和 mtime 构造强 ETag，也不每次读取全文件求摘要。应用可通过选项提供与当前表示一致的 HttpEntityTag，负责在内容变化时更新。没有可靠标签时就只使用已有时间元数据，不承诺一个并不存在的强验证器。文件可能被其他进程修改；本库不锁文件、不做来源审计或重复内容复核。发送期间截短导致长度不足时中止，增长时最多发送准备时确定的范围；需稳定表示的应用使用不可变文件或原子替换发布。
+默认生成 Last-Modified，精度按 HTTP 日期截到秒且不晚于当前系统时钟；默认不凭大小和 mtime 构造强 ETag，也不每次读取全文件求摘要。应用可通过选项提供与当前表示一致的 HttpEntityTag，负责在内容变化时更新。没有可靠标签时就只使用已有时间元数据，不承诺一个并不存在的强验证器。文件可能被其他进程修改；本库不锁文件、不做来源审计或重复内容复核。发送期间截短导致长度不足时中止，增长时最多发送准备时确定的范围；需稳定表示的应用使用不可变文件或原子替换发布。
 
 **条件判断。**先完成路由、认证和文件存在／可读等正常检查，再对本次选定表示评估；不会让条件头把本应返回的 403／404 改成 304。新增的小型条件求值 helper 放在 scoop.http，只接收方法、当前表示是否存在、可选 ETag／修改时间和请求字段，返回继续／未修改／前置条件失败，不读取文件或缓存。
 
 求值顺序固定为 If-Match；仅在没有 If-Match 时判断 If-Unmodified-Since；然后 If-None-Match；仅在没有 If-None-Match 且方法为 GET／HEAD 时判断 If-Modified-Since。标签匹配复用既有强／弱比较，星号按表示是否存在判断，不以“有没有 ETag”代替。失败产生 412，GET／HEAD 的未修改产生 304；其他方法的 If-None-Match 命中为 412。日期无效按 HTTP 规则忽略，格式非法的标签列表按本库提取策略返回 400。日期接收参考时间显式来自请求处理时钟。规范顺序见 [RFC 9110 §13.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2)。
 
-只有结果仍为 200 的 GET 才继续考虑 Range；HEAD 忽略 Range，仍执行条件判断。If-Range 的强标签必须与所选表示强匹配，弱标签不满足；日期须能作为该表示的强验证器且精确相等，不使用“小于等于”。普通文件 metadata 不能保证同一秒内没有变化时不把其时间升级为强验证器；此类日期 If-Range 回退完整 200。不存在 Range 时忽略 If-Range。
+只有结果仍为 200 的 GET 才继续考虑 Range；HEAD 忽略 Range，仍执行条件判断。If-Range 的强标签必须与所选表示强匹配，弱标签不满足；日期须能作为该表示的强验证器且精确相等，不使用“小于等于”。FileResponseOptions.lastModifiedIsStrong 默认 false，只有应用能保证时间满足强验证器条件时才显式开启；普通文件 metadata 不提供这种保证，日期 If-Range 回退完整 200。不存在 Range 时忽略 If-Range。
 
 **首个区间交付。**
 
