@@ -214,3 +214,21 @@ LlmRetryOptions 的 maxRetries 缺省 2，初始退避 100 毫秒，上限 30 �
 每次尝试保存独立 LlmAttemptMetadata，未到发送点的尝试没有 sentAt。请求与最终响应头时间直接使用 HTTP 观察快照；1xx 不充当 receivedAt。完整响应解析后采样 completed；有非空输出时同时取得该完整响应的 firstOutput，普通文本非空时取得 firstText；不声称这些非流式采样是服务端逐 token 生成时刻。底层未提供 UTC 首字节／body 完成点时保持 None，不以回调执行时间冒充。
 
 onFinished 在实际收尾后执行一次，成功、输入检查失败、服务拒绝、超时、调用者取消和关闭均得到独立快照；取消保持 CancellationException。回调在不受原取消阻断的收尾作用域中执行，不运行在共享 HTTP 驱动内。回调失败照常向调用者报告；已有操作失败时使用 ResourceUseException 保留两者，metadata 中的 outcome 仍描述已完成的生成／收尾事实。失败不返回伪造 LlmResult，已观察的时间与用量通过回调取得。
+
+## 10. SSE 解码与 Chat 增量状态
+
+`StreamRetention.EventsOnly` 缺省只保留协议身份、未完成工具输入、当前 usage 及结束状态；普通文本／reasoning 不累计，完成的工具参数在交付事件后释放。`Result` 显式保留完整候选和可恢复历史，不保存已处理的完整事件日志。两种模式使用同一 decoder 和同一套检查。
+
+`LlmSseProtocol` 扩展普通生成合同，增加 `createStreamDecoder(request, retention = EventsOnly)`。`LlmSseDecoder.accept(event, data)` 接收已经由 SSE parser 定界的事件，返回 `LlmStreamUpdate(events, hasOutput, hasText)`；不执行 I/O。isFinished、responseId、usage 提供当前事实，endInput 检查 EOF 是否正常，response() 仅在 Result 模式、正常终止且未失败时返回完整 LlmResponse。错误后 decoder 不继续接受数据，也不能读取伪造的成功结果。
+
+`LlmEvent` 包括 TextDelta、ReasoningDelta、RefusalDelta、ToolInputDelta、ClientToolCall、CandidateFinished、Usage 与 Native。LlmItemLocation 使用协议 candidate index 和候选内首次观察到的 item index；LlmTextDelta 另带 partIndex，Chat 的各个文本字段各占一个单 part item。事件和最终结果使用同一位置，不把多个候选拼接。ToolInputDelta 的 reference 在身份明确且能关联到请求中的客户端工具后才提供；它本身不保证完整输入可执行。完成调用复用普通 Chat 工具解释，无效／截断参数分别为 Invalid／Incomplete。
+
+ChatProtocol 实现该合同。ChatDialect.streamedReasoningField 指明可按字符串片段拼接的 reasoning 字段；OpenAI 为 None，DeepSeek 为 reasoning_content。content／refusal／reasoning 与 function.arguments／custom.input 按到达次序拼接；工具用 candidate＋tool index 分开关联，id、type 和 name 为不变身份，允许重复相同值，不允许中途替换。未知工具不得推断为客户端执行。audio.data 的每个 Base64 片段先解码为字节，再按顺序合并并编码到保留结果，不能直接拼接带 padding 的 Base64 字符串；transcript 拼接、id 保持不变、expires_at 保存实际终值。弃用 function_call 的名称与参数保留为原生内容。
+
+每个 chunk 的 choice index 必须非负且不重复，跨 chunk 的 id／model／created 若重复出现须一致。role 出现时只能为 assistant，未出现时按该输出协议的 assistant 角色构造历史。finish_reason 非 null 时完成该候选；此后不得再追加 delta，空 delta 的相同 finish_reason 可承载尾部 usage。未知停止原因保留 Other 并标为输出 Incomplete，不等同传输失败。
+
+OpenAI 的独立 usage-only chunk 和 DeepSeek 在最后一个 choice 同时报告的 usage 均被读取；计数是累计快照，已出现字段更新同字段，缺省／null 不擦除前值，嵌套明细按字段合并，不累加快照。usage 在正常 `[DONE]` 后标 Final，之前报告的快照保持 Partial；当前已观察候选均结束不能证明后续没有新候选或 usage。没有报告的计数仍为 None。只有 `[DONE]` 且至少一个候选、所有已观察候选均有 finish_reason 才正常终止；不能在某个 finish_reason 或普通 EOF 时提前成功。协议错误事件、根部 error、缺失终止或终止后继续输入明确失败，不进行自动恢复或重试。
+
+Native 事件保留无法通用解释的字段／事件及其位置；Result 将这些必要片段保存在新增的 `LlmResponse.nativeEvents = []`，不冒充服务端一次完整 JSON 响应（流式 response.native 为 None）。未知消息／工具 delta 无法无损归并到可回传消息时，该候选的 history 为 None；原始片段仍可读取，toInput 报 HistoryUnavailable，不静默丢掉可能影响回传的字段。已知 audio、reasoning 与工具字段按已声明规则构造历史。
+
+协议依据：[OpenAI streaming events](https://developers.openai.com/api/reference/resources/chat/subresources/completions/streaming-events)、[DeepSeek Chat](https://api-docs.deepseek.com/api/create-chat-completion/)、[DeepSeek thinking](https://api-docs.deepseek.com/guides/thinking_mode/)。网络流的拥有关系、单消费者与收尾按同一 client 寿命合同接入，不能在纯 decoder 中启动后台读取。

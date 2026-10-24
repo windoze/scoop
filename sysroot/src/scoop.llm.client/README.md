@@ -1,6 +1,6 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat 的普通生成、provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时；流式和其他协议继续实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat 的普通生成、SSE 增量解码、provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时；流式网络入口和其他协议继续实施。
 
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 
@@ -48,6 +48,10 @@ Message 默认 User，system／tools／extensions 默认空，生成参数默认
 `LlmResponse` 保留候选和有序输出；text 只展示普通文本，clientToolCalls 只返回输入完整且具有协议形状的客户端调用。`decodeOutput<T>()` 使用 companion decoder，拒绝、不完整输出、候选／文本消息歧义均明确报错。多候选按服务器 index 选择，消息按 items 下标选择。`toInput()` 读取已保存的原生历史，不用展示文本替换 reasoning 或工具关联。
 
 `ChatProtocol(OpenAiChatDialect())` 与 `ChatProtocol(DeepSeekChatDialect())` 的 `decodeResponse(json, request)` 解释完整 Chat 响应。DeepSeek reasoning 单独展示并完整进入历史；音频历史仅回传 ID。原始响应、未知字段和不能关联的工具调用保持可读。模型生成的无效 JSON 参数保存为 Invalid；截断输出中的调用保存为 Incomplete；两者均不进入待执行视图。外层格式错误使用带字段路径和原始正文的 LlmProtocolException。
+
+同一 ChatProtocol 的 `createStreamDecoder(request, retention = StreamRetention.EventsOnly)` 接收 SSE parser 已定界的 `accept(event, data)`，返回带候选／item 位置的文本、reasoning、工具参数、完成调用和 usage 事件。缺省不累计普通文本；`StreamRetention.Result` 才保留完整结果与历史。正常 `[DONE]` 后可调用 `response()`，在输入结束时使用 `endInput()` 检查缺失终止。候选的 finish_reason 不等同整个流结束，usage 尾块仍会处理；EOF、服务错误或终止后新增数据均不能产生成功结果。
+
+工具参数只有完成后才解释为可执行调用；无效或截断输入仍可观察。usage 是累计快照，只在正常 `[DONE]` 后标 Final，不把早到的候选结束当作总量已确定。未知片段保存在 Native 事件，Result 也通过 `nativeEvents` 保留必要片段；无法无损重建的消息不提供 history。这个 decoder 不执行网络 I/O；`LlmClient` 的流式网络寿命与消费入口继续实施。
 
 同一个 protocol 的 `encodeRequest(modelId, request, stream = false)` 生成 wire JSON；它本身不执行网络请求。最小文本只发送 model 和 messages，默认不设置温度、reasoning、token 上限或输出格式。两种 dialect 处理各自的媒体形式、生成参数、工具和历史；不按 model ID 切换字段。OpenAI Chat 的 Server(WebSearch) 映射请求级 web_search_options，无法表达的选项抛出带输入路径的 LlmRequestException。
 

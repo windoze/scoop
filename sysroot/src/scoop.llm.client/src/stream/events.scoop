@@ -1,0 +1,54 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Stable positions shared by stream events and retained candidate items. */
+public class LlmItemLocation public constructor(public val candidateIndex: Long, public val itemIndex: Long) {
+    init {
+        if (candidateIndex < 0L || itemIndex < 0L) throw IllegalArgumentException(Some("negative stream item location"))
+    }
+    public companion object : ValueEncoder<LlmItemLocation>, ValueDecoder<LlmItemLocation>
+}
+
+public class LlmTextDelta public constructor(
+    public val location: LlmItemLocation, public val text: String, public val partIndex: Long = 0L
+) {
+    init { if (partIndex < 0L) throw IllegalArgumentException(Some("negative stream part index")) }
+    public companion object : ValueEncoder<LlmTextDelta>, ValueDecoder<LlmTextDelta>
+}
+
+/** A fragment may precede the identity needed to associate it with a requested tool. */
+public class LlmToolInputDelta public constructor(
+    public val location: LlmItemLocation, public val text: String,
+    public val reference: ClientToolCallReference? = None
+) {
+    public companion object : ValueEncoder<LlmToolInputDelta>, ValueDecoder<LlmToolInputDelta>
+}
+
+public class LlmNativeEvent public constructor(
+    public val dialect: DialectId, public val event: String, public val value: JsonValue,
+    public val location: LlmItemLocation? = None
+) {
+    public companion object : ValueEncoder<LlmNativeEvent>, ValueDecoder<LlmNativeEvent>
+}
+
+/** Delivery does not execute tools or combine different candidates. */
+public enum LlmEvent {
+    TextDelta(val delta: LlmTextDelta),
+    ReasoningDelta(val delta: LlmTextDelta),
+    RefusalDelta(val delta: LlmTextDelta),
+    ToolInputDelta(val delta: LlmToolInputDelta),
+    ClientToolCall(val location: LlmItemLocation, val call: scoop.llm.client.ClientToolCall),
+    CandidateFinished(val candidateIndex: Long, val completion: LlmCompletion, val reason: LlmFinishReason),
+    Usage(val usage: LlmUsage),
+    Native(val event: LlmNativeEvent)
+
+    public companion object : ValueEncoder<LlmEvent>, ValueDecoder<LlmEvent>
+}
+
+/** Timing flags describe output in this update, not cumulative transcript contents. */
+public class LlmStreamUpdate public constructor(
+    public val events: Array<LlmEvent>, public val hasOutput: Boolean = false, public val hasText: Boolean = false
+) {
+    public companion object : ValueEncoder<LlmStreamUpdate>, ValueDecoder<LlmStreamUpdate>
+}

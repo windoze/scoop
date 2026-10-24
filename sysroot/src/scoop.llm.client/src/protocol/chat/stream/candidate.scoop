@@ -1,0 +1,116 @@
+package scoop.llm.client
+
+import scoop.json.JsonObjectBuilder
+import scoop.json.JsonValue
+import scoop.json.JsonValueKind
+
+internal enum ChatStreamPart {
+    Text(ChatStreamText), Tool(ChatStreamTool), Audio(ChatStreamAudio),
+    Function(ChatStreamLegacyFunction), Native(JsonValue)
+}
+
+internal class ChatStreamCandidate public constructor(
+    public val dialect: ChatDialect, public val request: LlmRequest,
+    public val retention: StreamRetention, public val index: Long
+) {
+    public val parts: ArrayList<ChatStreamPart> = ArrayList<ChatStreamPart>()
+    public var finishReason: String? = None
+    public var result: LlmCandidate? = None
+    public var historyAvailable: Boolean = true
+    public var refused: Boolean = false
+    private var nextItem: Long = 0L
+
+    private fun location(): LlmItemLocation {
+        val result = LlmItemLocation(index, nextItem)
+        nextItem += 1L
+        return result
+    }
+
+    public fun accept(choice: ChatStreamChoice, raw: JsonValue, batch: ChatStreamBatch, path: String) {
+        if (choice.delta.kind != JsonValueKind.Object) throw DecodingException(path + "/delta", "expected an object")
+        if (finishReason != None) {
+            if (choice.finishReason != finishReason || choice.delta.size != 0L)
+                throw DecodingException(path, "candidate received data after its finish reason")
+        } else {
+            readDelta(choice.delta, batch, path + "/delta")
+        }
+        val extra = chatStreamUnknown(raw, ["index", "delta", "finish_reason"])
+        if (extra.size != 0L) {
+            // Choice metadata does not participate in replay history.
+            batch.native("chat.choice", JsonObjectBuilder().add("index", JsonValue.fromLong(index)).add("fields", extra).build())
+        }
+        if (finishReason == None && choice.finishReason != None) finishChatStreamCandidate(this, choice.finishReason!!, batch, path)
+    }
+
+    private fun readDelta(delta: JsonValue, batch: ChatStreamBatch, path: String) {
+        for ((field, value) in delta.members()) {
+            if (field == "role") {
+                if (value.kind != JsonValueKind.Null && decodeChatValue<String>(value, path + "/role") != "assistant")
+                    throw DecodingException(path + "/role", "expected an assistant role")
+            } else if (field == "content" || field == "refusal" || Some(field) == dialect.streamedReasoningField) {
+                if (value.kind == JsonValueKind.Null) continue
+                val text = decodeChatValue<String>(value, path + "/" + field)
+                textPart(field).append(text, batch)
+                if (field == "refusal") refused = true
+            } else if (field == "tool_calls") {
+                if (value.kind != JsonValueKind.Null) readTools(value, batch, path + "/tool_calls")
+            } else if (field == "audio") {
+                if (value.kind != JsonValueKind.Null) audioPart().accept(value, batch, path + "/audio")
+            } else if (field == "function_call") {
+                if (value.kind != JsonValueKind.Null) functionPart().accept(value, batch, path + "/function_call")
+            } else {
+                historyAvailable = false
+                val extra = JsonObjectBuilder().add(field, value).build()
+                batch.native("chat.delta", extra, Some(location()))
+                if (retention == StreamRetention.Result) parts.add(ChatStreamPart.Native(extra))
+            }
+        }
+    }
+
+    private fun textPart(field: String): ChatStreamText {
+        for (part in parts) {
+            when (part) { case Text(value) -> { if (value.field == field) return value }; else -> continue }
+        }
+        val value = ChatStreamText(field, location(), retention)
+        parts.add(ChatStreamPart.Text(value))
+        return value
+    }
+
+    private fun readTools(raw: JsonValue, batch: ChatStreamBatch, path: String) {
+        val values = decodeChatValue<Array<JsonValue>>(raw, path)
+        val indices = ArrayList<Long>()
+        var ordinal = 0L
+        for (value in values) {
+            val itemPath = path + "/" + ordinal.toString()
+            val fields = decodeChatValue<ChatStreamToolFields>(value, itemPath)
+            if (fields.index < 0L) throw DecodingException(itemPath + "/index", "negative tool index")
+            for (index in indices) { if (index == fields.index) throw DecodingException(itemPath + "/index", "duplicate tool index") }
+            indices.add(fields.index)
+            toolPart(fields.index).accept(value, dialect.id, request.tools, batch, itemPath)
+            ordinal += 1L
+        }
+    }
+
+    private fun toolPart(index: Long): ChatStreamTool {
+        for (part in parts) {
+            when (part) { case Tool(value) -> { if (value.index == index) return value }; else -> continue }
+        }
+        val value = ChatStreamTool(index, location())
+        parts.add(ChatStreamPart.Tool(value))
+        return value
+    }
+
+    private fun audioPart(): ChatStreamAudio {
+        for (part in parts) { when (part) { case Audio(value) -> return value; else -> continue } }
+        val value = ChatStreamAudio(location(), retention)
+        parts.add(ChatStreamPart.Audio(value))
+        return value
+    }
+
+    private fun functionPart(): ChatStreamLegacyFunction {
+        for (part in parts) { when (part) { case Function(value) -> return value; else -> continue } }
+        val value = ChatStreamLegacyFunction(location(), retention)
+        parts.add(ChatStreamPart.Function(value))
+        return value
+    }
+}

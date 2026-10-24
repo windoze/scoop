@@ -4,7 +4,7 @@
 
 ## 功能闭环
 
-每项先明确规范，再实现、执行所属 Cone 的 `scoop.test`，本机通过后在 `nuc12:~/repos/scoop-work/llm-client/checkout` 专用工作树验证 Linux，完成后单独提交。发现底层缺口先在所属库补齐，不在 LLM client 绕过。
+每项先明确规范，再实现、执行所属 Cone 的 `scoop.test`，本机通过后在 `nuc12:~/repos/scoop-work/llm-client/checkout` 专用工作树做最小定向验证，完成后单独提交。按当前要求，Linux 不运行完整套件。发现底层缺口先在所属库或编译器补齐，不在 LLM client 绕过。
 
 | 功能 | 状态 |
 | --- | --- |
@@ -22,8 +22,10 @@
 | Provider／model 绑定、能力检查、Chat 普通生成与实际计时 | 完成：本机与 Linux GNU 各 93/93 通过 |
 | Client 调用寿命、超时、重试与完成回调 | 完成：包含在两平台各 93 项普通生成验收中 |
 | DeepSeek 按模型资料显式选择 topP 生效模式 | 完成：本机与 Linux GNU 各 95/95 通过 |
+| 参数自由默认值的跨 Cone callable／协程归属 | 完成：本机 HIR 2055/2055；三库 Cone 回归两平台各 3/3 |
+| SSE 事件、保留策略与 Chat reducer | 完成：本机 110/110；Linux 新边界定向 1/1；DeepSeek 真实 SSE 与历史接续通过 |
 | 客户端原生／服务端工具的 capability | 待实施 |
-| 流式单消费者／保留策略与 Chat reducer | 待实施 |
+| 流式网络寿命、单消费者与文本读取视图 | 待实施 |
 | Responses、Messages、Gemini protocols 与 server-side tools | 待实施 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
@@ -33,7 +35,7 @@
 
 - Capability 实施触发 Unit companion 的 core／parser 缺口，已先行修复。Parser 共 691 项与 HIR 定向用例通过；JSON Cone 两平台各 94 项通过，其中新增 4 项覆盖 companion、条件泛型、容器和错误输入。不引入 fixture。
 - HIR 定向用例使用既有 opt-level 1／debug 0 配置，保留调试断言和溢出检查，未调整线程栈；无优化测试进程曾栈溢出，切换到该配置后通过。release 定向运行也通过。
-- 测试使用真实本地协议服务及普通 Cone 测试，不依赖付费模型调用。
+- 常规测试使用真实本地协议服务及普通 Cone 测试，不依赖付费模型调用。用户授权的真实 API 验证单独运行，凭据仅由环境读取，调用程序与经过脱敏的日志均位于仓库外。
 - 临时文件和原始日志放在仓库外的 `../scoop-work/llm-client/`，运行命令设置该目录下的 `TMPDIR`；不使用 `/tmp`。
 - 在没有构建进程时清理不再需要的 `target` 产物，保留仍需复用的工具与 sysroot。
 - TokenUsage 已验证缺失字段恢复缺省、未知／零值、缓存与 reasoning 分项、大整数、模态细项及构造边界，已准备 Darwin／Linux GNU 库产物。供应商归一化与流式 usage 聚合随协议实现交付。
@@ -45,6 +47,9 @@
 - Chat 请求编码新增 16 项测试，完整 LLM Cone 两平台各 75 项通过。覆盖缺省省略、显式零／false／空数组、按位置扩展、管理字段冲突、媒体格式与文件归属、DeepSeek thinking 约束、工具选择、请求级搜索及保存后的历史接续。OpenAI Chat 搜索声明映射 web_search_options；不能表达的显式选项报告输入路径，不伪造搜索活动。
 - 普通生成新增 18 项外部 package 消费者测试，完整 LLM Cone 两平台各 93 项通过。覆盖 provider 缺省／显式部署、认证字节、能力与媒体限制、完整结果保存、实际 UTC 采样、多候选计时、重试／Retry-After、错误正文边界、取消／关闭／回调寿命及双重失败。服务拒绝先作为尝试结果完成 HTTP 清理，再判断重试；认证抛出的同名异常不取得重试资格。错误正文读取的可写缓冲区遗漏已修正并重跑通过。两平台库产物已正式准备；本轮未修改编译器，不运行 fixture。
 - 核对 DeepSeek 文档后修正 topP 的模型差异：显式 Thinking／NonThinking 模式检查各自的 reasoning 状态与区间，Unknown 不猜模型规则；省略 topP 的最小入口保持原样。新增 2 项与既有边界测试共同验证，完整 LLM Cone 两平台各 95 项通过。
+- Chat SSE 新增 15 项测试，覆盖多候选与 item 顺序、reasoning／refusal、usage 尾块及累计合并、工具片段与执行资格、音频字节合并、原生事件保存、终止与错误边界。EventsOnly 不累计普通文本，Result 保存完整结果与可恢复历史；usage 只在正常 DONE 后标 Final。本机完整 LLM Cone 110/110 通过，Linux 最后仅补跑新增的候选／usage 边界 1/1。
+- 外部消费者调用 HttpCallOptions 的默认 suspend lambda 时发现重复 Strong 协程 helper，已先提交编译器修复 `7cf770f54`。默认值 helper 使用原声明的已有 application／ODR 上下文，捕获值保留原词法身份。完整 HIR 2055/2055 与三库真实构建／运行通过；Linux 只运行这组三项回归，不增加 fixture。
+- 真实 API 验证已通过 DeepSeek 普通生成、SSE 文本与最终 usage、reasoning／工具参数保存并回传后的下一轮；OpenAI 兼容代理的 `gpt-6.1-sol` 在显式 effort=low 下通过普通生成、usage 和实际时间戳断言。服务明确拒绝的 effort=none 已在测试配置中改正，不按模型名改写库行为。未将任何密钥写入源码或提交。
 - HTTP 新增 9 个用例，覆盖请求／client observer 共存与去重、共享 H1／H2 连接、信息／最终响应头、重试与重定向、缓存、发送前失败、关闭保护、SSE 与 WebSocket。完整所属 Cone 测试在两平台各通过 189 个用例。连接级首字节采样保持原配置，发送／接收 UTC 采样独立可用。
 - 生成接入前补齐 HTTP 的只读 defaultTimeouts；新增普通 Cone 用例验证借入者可保留网络／排池设置而单独更改响应头等待，后续普通调用仍使用原缺省。完整 HTTP Cone 两平台各 190 项通过。
 - Linux 验证使用 `~/repos/scoop-work/llm-client/checkout` 独立工作树；Unit 修复后已从相应源码重建 release 工具、23 个库及 runtime，保留 `~/repos/scoop` 中的未提交改动。旧 runtime 与新工具不匹配的启动失败在正式准备后重跑通过。

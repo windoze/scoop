@@ -1,0 +1,43 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+internal class ChatStreamChunk public constructor(
+    public val choices: Array<ChatStreamChoice>, public val id: String? = None,
+    public val model: String? = None, public val created: Long? = None, public val usage: JsonValue? = None
+) {
+    public companion object : ValueDecoder<ChatStreamChunk>
+}
+
+internal class ChatStreamChoice public constructor(
+    public val index: Long, public val delta: JsonValue,
+    @Serialize(rename = "finish_reason") public val finishReason: String? = None
+) {
+    public companion object : ValueDecoder<ChatStreamChoice>
+}
+
+internal class ChatStreamToolFields public constructor(
+    public val index: Long, public val id: String? = None, public val type: String? = None,
+    public val function: JsonValue? = None, public val custom: JsonValue? = None
+) {
+    public companion object : ValueDecoder<ChatStreamToolFields>
+}
+
+internal class ChatStreamFunctionFields public constructor(
+    public val name: String? = None, public val arguments: String? = None
+) {
+    public companion object : ValueDecoder<ChatStreamFunctionFields>
+}
+
+internal class ChatStreamCustomFields public constructor(
+    public val name: String? = None, public val input: String? = None
+) {
+    public companion object : ValueDecoder<ChatStreamCustomFields>
+}
+
+internal class ChatStreamAudioFields public constructor(
+    public val id: String? = None, public val data: String? = None, public val transcript: String? = None,
+    @Serialize(rename = "expires_at") public val expiresAt: Long? = None
+) {
+    public companion object : ValueDecoder<ChatStreamAudioFields>
+}

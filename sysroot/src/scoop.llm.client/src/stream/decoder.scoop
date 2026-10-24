@@ -1,0 +1,26 @@
+package scoop.llm.client
+
+public enum StreamRetention {
+    EventsOnly, Result
+    public companion object : ValueEncoder<StreamRetention>, ValueDecoder<StreamRetention>
+}
+
+/** SSE framing is owned by the transport; a decoder consumes complete data fields without I/O. */
+public interface LlmSseProtocol : LlmGenerationProtocol {
+    public fun createStreamDecoder(request: LlmRequest, retention: StreamRetention = EventsOnly): LlmSseDecoder
+}
+
+/** One call's single-consumer protocol state. A failed decoder cannot produce a successful result. */
+public interface LlmSseDecoder {
+    public val isFinished: Boolean
+    public val responseId: String?
+    public val usage: LlmUsage
+    public fun accept(event: String, data: String): LlmStreamUpdate
+    public fun endInput()
+    public fun response(): LlmResponse
+}
+
+/** Framing-level errors can preserve text that is not a JSON value. */
+public class LlmStreamProtocolException public constructor(
+    public val dialect: DialectId, message: String, public val data: String? = None
+) : Exception(Some(message))

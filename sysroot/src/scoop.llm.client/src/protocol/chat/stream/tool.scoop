@@ -1,0 +1,86 @@
+package scoop.llm.client
+
+import scoop.json.JsonObjectBuilder
+import scoop.json.JsonValue
+
+internal class ChatStreamTool public constructor(public val index: Long, public val location: LlmItemLocation) {
+    private var id: String? = None
+    private var kind: String? = None
+    private var inputKind: String? = None
+    private var name: String? = None
+    private val input: StringBuilder = StringBuilder()
+    public var historyAvailable: Boolean = true
+
+    public fun accept(raw: JsonValue, dialect: DialectId, tools: Array<ToolDefinition>, batch: ChatStreamBatch, path: String) {
+        val fields = decodeChatValue<ChatStreamToolFields>(raw, path)
+        id = chatStreamIdentity(id, fields.id, path + "/id")
+        kind = chatStreamIdentity(kind, fields.type, path + "/type")
+        if (kind != None && inputKind != None && kind != inputKind)
+            throw DecodingException(path + "/type", "tool kind disagrees with input")
+        if (kind != None && kind != Some("function") && kind != Some("custom")) {
+            historyAvailable = false
+            batch.native("chat.tool.delta", raw, Some(location))
+            return
+        }
+        readFunction(fields.function, dialect, tools, batch, path + "/function")
+        readCustom(fields.custom, dialect, tools, batch, path + "/custom")
+        unknown(raw, ["index", "id", "type", "function", "custom"], "chat.tool.delta", batch)
+    }
+
+    private fun readFunction(raw: JsonValue?, dialect: DialectId, tools: Array<ToolDefinition>, batch: ChatStreamBatch, path: String) {
+        val present = raw ?: return
+        selectInputKind("function", path)
+        val value = decodeChatValue<ChatStreamFunctionFields>(present, path)
+        name = chatStreamIdentity(name, value.name, path + "/name")
+        append(value.arguments, dialect, tools, batch)
+        unknown(present, ["name", "arguments"], "chat.tool.function", batch)
+    }
+
+    private fun readCustom(raw: JsonValue?, dialect: DialectId, tools: Array<ToolDefinition>, batch: ChatStreamBatch, path: String) {
+        val present = raw ?: return
+        selectInputKind("custom", path)
+        val value = decodeChatValue<ChatStreamCustomFields>(present, path)
+        name = chatStreamIdentity(name, value.name, path + "/name")
+        append(value.input, dialect, tools, batch)
+        unknown(present, ["name", "input"], "chat.tool.custom", batch)
+    }
+
+    private fun selectInputKind(value: String, path: String) {
+        inputKind = chatStreamIdentity(inputKind, Some(value), path)
+        if (kind != None && kind != Some(value)) throw DecodingException(path, "tool kind disagrees with input")
+    }
+
+    private fun append(fragment: String?, dialect: DialectId, tools: Array<ToolDefinition>, batch: ChatStreamBatch) {
+        val text = fragment ?: return
+        input.append(text)
+        var reference: ClientToolCallReference? = None
+        if (id != None && name != None && kind != None) {
+            val key = resolveChatToolKey(tools, name!!, kind == Some("custom"))
+            if (key != None) reference = Some(ClientToolCallReference(dialect, key!!, id!!))
+        }
+        batch.events.add(LlmEvent.ToolInputDelta(LlmToolInputDelta(location, text, reference)))
+        batch.observe(text)
+    }
+
+    private fun unknown(value: JsonValue, known: Array<String>, event: String, batch: ChatStreamBatch) {
+        val extra = chatStreamUnknown(value, known)
+        if (extra.size == 0L) return
+        historyAvailable = false
+        batch.native(event, extra, Some(location))
+    }
+
+    public fun wire(path: String): JsonValue {
+        val type = kind ?: throw DecodingException(path + "/type", "tool call ended without a type")
+        val result = JsonObjectBuilder().add("type", JsonValue.fromString(type))
+        if (id != None) result.add("id", JsonValue.fromString(id!!))
+        if (type == "function" || type == "custom") {
+            if (id == None) throw DecodingException(path + "/id", "tool call ended without an ID")
+            val toolName = name ?: throw DecodingException(path + "/" + type + "/name", "tool call ended without a name")
+            result.add(type, JsonObjectBuilder().add("name", JsonValue.fromString(toolName))
+                .add(if (type == "function") "arguments" else "input", JsonValue.fromString(input.toString())).build())
+        }
+        return result.build()
+    }
+
+    public fun release() { input.clear() }
+}

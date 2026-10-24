@@ -1,0 +1,24 @@
+package scoop.llm.client
+
+internal class ChatStreamText public constructor(
+    public val field: String, public val location: LlmItemLocation, private val retention: StreamRetention
+) {
+    private val buffer: StringBuilder = StringBuilder()
+    public fun append(text: String, batch: ChatStreamBatch) {
+        if (retention == StreamRetention.Result) buffer.append(text)
+        val delta = LlmTextDelta(location, text)
+        batch.events.add(when (field) {
+            case "content" -> LlmEvent.TextDelta(delta)
+            case "refusal" -> LlmEvent.RefusalDelta(delta)
+            else -> LlmEvent.ReasoningDelta(delta)
+        })
+        batch.observe(text, field == "content")
+    }
+    public fun text(): String = buffer.toString()
+    public fun item(): LlmOutputItem = when (field) {
+        case "content" -> LlmOutputItem.Message([OutputPart.Text(text())])
+        case "refusal" -> LlmOutputItem.Message([OutputPart.Refusal(text())])
+        else -> LlmOutputItem.Reasoning([OutputPart.Text(text())])
+    }
+    public fun release() { buffer.clear() }
+}

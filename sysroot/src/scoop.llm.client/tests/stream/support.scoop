@@ -1,0 +1,30 @@
+package scoop.llm.client.tests.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.fail
+
+internal fun streamRequest(): LlmRequest = LlmRequest([Message([Text("question")])], tools = [
+    ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}")),
+    ClientCustom(ToolKey("program"), "program")
+])
+
+internal fun streamChunk(delta: String, finish: String? = None, index: Long = 0L, usage: String? = None): String {
+    val choice = JsonObjectBuilder().add("index", JsonValue.fromLong(index)).add("delta", Json.parse(delta))
+    if (finish != None) choice.add("finish_reason", JsonValue.fromString(finish!!))
+    val result = JsonObjectBuilder().add("choices", JsonValue.fromArray([choice.build()]))
+    if (usage != None) result.add("usage", Json.parse(usage!!))
+    return Json.stringify(result.build())
+}
+
+internal fun streamHistory(response: LlmResponse, index: Long = 0L): JsonValue = when (response.toInput(Some(index))[0L]) {
+    case History(value) -> value.items[0L]
+    else -> fail(Some("expected history"))
+}
+
+internal fun finishStream(decoder: LlmSseDecoder, reason: String = "stop"): LlmStreamUpdate {
+    val update = decoder.accept("message", streamChunk("{}", Some(reason)))
+    decoder.accept("message", "[DONE]")
+    decoder.endInput()
+    return update
+}

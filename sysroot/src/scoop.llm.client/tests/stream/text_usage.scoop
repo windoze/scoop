@@ -1,0 +1,104 @@
+package scoop.llm.client.tests.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class ChatStreamTextTest {
+    @Test
+    fun `text events and retained items keep candidate and observation order`() {
+        val decoder = ChatProtocol(DeepSeekChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+        val role = decoder.accept("message", "{\"id\":\"r1\",\"model\":\"m\",\"created\":42,\"choices\":[{\"index\":3,\"delta\":{\"role\":\"assistant\",\"content\":\"\"}}]}")
+        assertFalse(role.hasOutput)
+        assertFalse(role.hasText)
+        val reasoning = decoder.accept("message", streamChunk("{\"reasoning_content\":\"think\"}", index = 3L))
+        assertTrue(reasoning.hasOutput)
+        assertFalse(reasoning.hasText)
+        when (reasoning.events[0L]) {
+            case ReasoningDelta(delta) -> { assertEquals(3L, delta.location.candidateIndex); assertEquals(1L, delta.location.itemIndex) }
+            else -> fail()
+        }
+        decoder.accept("message", streamChunk("{\"content\":\"other\"}", Some("stop"), 7L))
+        val text = decoder.accept("message", streamChunk("{\"content\":\"hi\",\"reasoning_content\":\" more\"}", Some("stop"), 3L))
+        assertTrue(text.hasText)
+        decoder.accept("message", "[DONE]")
+        decoder.endInput()
+        val response = decoder.response()
+        assertEquals(Some("r1"), response.id)
+        assertEquals(Some("m"), response.model)
+        assertEquals(Some(Instant.fromEpochSeconds(42L)), response.createdAt)
+        assertEquals("hi", response.text)
+        assertEquals("other", response.candidate(7L).text)
+        assertEquals("think more", streamHistory(response, 3L)["reasoning_content"]!!.asString())
+        assertTrue(when (response.native) { case None -> true; case Some(_) -> false })
+        assertEquals(0L, response.nativeEvents.size)
+        assertEquals("hi", Json.decodeFromString<LlmResponse>(Json.encodeToString(response)).text)
+        val restored = Json.decodeFromString<LlmStreamUpdate>(Json.encodeToString(reasoning))
+        assertTrue(restored.hasOutput)
+        assertFalse(restored.hasText)
+    }
+
+    @Test
+    fun `OpenAI usage tails merge cumulative fields without summing or clearing missing details`() {
+        val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+        decoder.accept("message", streamChunk("{\"content\":\"ok\"}", usage = Some("{\"prompt_tokens\":10,\"completion_tokens\":1,\"prompt_tokens_details\":{\"cached_tokens\":3},\"completion_tokens_details\":{\"reasoning_tokens\":2}}")))
+        assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
+        decoder.accept("message", streamChunk("{}", Some("stop")))
+        assertFalse(decoder.isFinished)
+        val tail = decoder.accept("message", "{\"choices\":[],\"usage\":{\"completion_tokens\":4,\"total_tokens\":14,\"prompt_tokens\":null,\"completion_tokens_details\":{\"reasoning_tokens\":null,\"audio_tokens\":1}}}")
+        assertFalse(tail.hasOutput)
+        assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
+        decoder.accept("message", "[DONE]")
+        val usage = decoder.response().usage
+        assertEquals(UsageCompleteness.Final, usage.completeness)
+        assertEquals(Some(10L), usage.tokens.inputTokens)
+        assertEquals(Some(7L), usage.tokens.nonCachedInputTokens)
+        assertEquals(Some(4L), usage.tokens.outputTokens)
+        assertEquals(Some(14L), usage.tokens.totalTokens)
+        assertEquals(Some(2L), usage.tokens.reasoningTokens)
+        assertEquals(1L, usage.tokens.modality.size)
+    }
+
+    @Test
+    fun `candidate finish does not finalize usage before later candidates arrive`() {
+        val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest())
+        decoder.accept("message", streamChunk("{\"content\":\"first\"}", Some("stop"),
+            usage = Some("{\"completion_tokens\":1}")))
+        assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
+        decoder.accept("message", streamChunk("{\"content\":\"second\"}", index = 1L,
+            usage = Some("{\"completion_tokens\":2}")))
+        assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
+        decoder.accept("message", streamChunk("{}", Some("stop"), 1L))
+        decoder.accept("message", "[DONE]")
+        assertEquals(UsageCompleteness.Final, decoder.usage.completeness)
+        assertEquals(Some(2L), decoder.usage.tokens.outputTokens)
+    }
+
+    @Test
+    fun `DeepSeek final choice usage and default event-only retention use the same decoder`() {
+        val decoder = ChatProtocol(DeepSeekChatDialect()).createStreamDecoder(streamRequest())
+        val last = decoder.accept("message", streamChunk("{\"content\":\"answer\"}", Some("stop"),
+            usage = Some("{\"prompt_tokens\":8,\"prompt_cache_hit_tokens\":5,\"prompt_cache_miss_tokens\":3,\"completion_tokens\":2}")))
+        assertTrue(last.hasText)
+        assertEquals(Some(5L), decoder.usage.tokens.cacheReadTokens)
+        assertEquals(Some(3L), decoder.usage.tokens.nonCachedInputTokens)
+        assertEquals(None, decoder.usage.tokens.totalTokens)
+        decoder.accept("message", "[DONE]")
+        decoder.endInput()
+        assertEquals(LlmOutputFailure.ResultNotRetained, assertFailsWith<LlmOutputException> { decoder.response(); Unit }.reason)
+    }
+
+    @Test
+    fun `refusal and truncation remain model outcomes after a successful transport end`() {
+        for ((delta, finish, completion) in [("{\"refusal\":\"cannot\"}", "stop", LlmCompletion.Refused),
+            ("{\"content\":\"partial\"}", "length", LlmCompletion.Incomplete),
+            ("{}", "aborted", LlmCompletion.Incomplete)]) {
+            val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+            decoder.accept("message", streamChunk(delta, Some(finish)))
+            decoder.accept("message", "[DONE]")
+            assertEquals(completion, decoder.response().candidate(0L).completion)
+        }
+    }
+}

@@ -5,7 +5,7 @@ import scoop.time.Instant
 import scoop.url.Url
 
 /** Chat Completions wire structure combined with one explicitly selected dialect. */
-public class ChatProtocol public constructor(public val dialect: ChatDialect) : LlmGenerationProtocol {
+public class ChatProtocol public constructor(public val dialect: ChatDialect) : LlmSseProtocol {
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationUrl(baseUrl: Url, modelId: String): Url =
         baseUrl.toBuilder().appendPathSegment("chat").appendPathSegment("completions").build()
@@ -18,6 +18,9 @@ public class ChatProtocol public constructor(public val dialect: ChatDialect) : 
 
     public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
         encodeChatRequest(dialect, modelId, request, stream)
+
+    public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
+        ChatStreamDecoder(dialect, request, retention)
 
     public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
         try {
@@ -76,7 +79,7 @@ private fun finishChatCandidate(dialect: ChatDialect, choice: ChatChoiceBody, me
     catch (error: IllegalArgumentException) { throw DecodingException(path + "/index", error.message ?: "invalid candidate index") }
 }
 
-private fun chatFinishReason(value: String): LlmFinishReason = when (value) {
+internal fun chatFinishReason(value: String): LlmFinishReason = when (value) {
     case "stop" -> Stop
     case "length" -> Length
     case "tool_calls" -> ToolCalls

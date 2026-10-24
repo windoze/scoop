@@ -2,7 +2,7 @@ package scoop.llm.client
 
 public enum LlmOutputFailure {
     MissingCandidate, AmbiguousCandidate, MissingOutput, AmbiguousOutput,
-    InvalidSelection, Refused, Incomplete, HistoryUnavailable, WrongToolInput
+    InvalidSelection, Refused, Incomplete, HistoryUnavailable, WrongToolInput, ResultNotRetained
 }
 
 /** A result selection or completeness failure; the caller still owns the original result. */

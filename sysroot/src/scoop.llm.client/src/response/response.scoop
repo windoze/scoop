@@ -12,7 +12,8 @@ public class LlmResponse public constructor(
     public val model: String? = None,
     public val createdAt: Instant? = None,
     public val usage: LlmUsage = LlmUsage(),
-    public val native: JsonValue? = None
+    public val native: JsonValue? = None,
+    public val nativeEvents: Array<LlmNativeEvent> = []
 ) {
     init {
         var index = 0L

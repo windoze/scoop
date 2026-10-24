@@ -73,7 +73,7 @@ private fun readChatToolCall(dialect: DialectId, value: JsonValue, tools: Array<
     }
 }
 
-private fun resolveChatToolKey(tools: Array<ToolDefinition>, name: String, custom: Boolean): ToolKey? {
+internal fun resolveChatToolKey(tools: Array<ToolDefinition>, name: String, custom: Boolean): ToolKey? {
     var found: ToolKey? = None
     for (tool in tools) {
         val matches = when (tool) {
