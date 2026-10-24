@@ -6,6 +6,7 @@ use scoop::{BuildFailure, BuildFailurePhase};
 mod args;
 mod commands;
 mod doc;
+mod external;
 mod native;
 mod new;
 mod presentation;
@@ -54,7 +55,7 @@ pub(super) fn main() -> ExitCode {
         ));
         return ExitCode::FAILURE;
     }
-    match commands::execute(cli.command, cli.enable_gc_stress, &reporter) {
+    match commands::execute(cli.command, cli.sysroot, cli.enable_gc_stress, &reporter) {
         Ok(None) => {
             scoop_process::finish_interruption();
             ExitCode::SUCCESS

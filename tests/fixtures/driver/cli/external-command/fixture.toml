@@ -1,0 +1,103 @@
+schema = 1
+name = "cli-external-command"
+root = "probe.c"
+inputs = ["probe.c", "scoop-script"]
+tools = ["scoop", "cc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["cli", "native", "signal", "driver"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {mkdir = {path = "${work}/selected root/commands"}},
+  {copy = {from = "${fixture}/scoop-script", to = "${work}/environment/commands/scoop-probe"}},
+  {chmod = {path = "${work}/environment/commands/scoop-probe", mode = "755"}},
+  {copy = {from = "${fixture}/scoop-script", to = "${work}/selected root/commands/scoop-script"}},
+  {chmod = {path = "${work}/selected root/commands/scoop-script", mode = "755"}},
+  {copy = {from = "${fixture}/scoop-script", to = "${work}/selected root/commands/scoop-disabled"}},
+  {chmod = {path = "${work}/selected root/commands/scoop-disabled", mode = "644"}},
+  {copy = {from = "${scoop}", to = "${work}/installation/bin/scoop"}},
+  {copy = {from = "${fixture}/scoop-script", to = "${work}/installation/commands/scoop-script"}},
+  {chmod = {path = "${work}/installation/commands/scoop-script", mode = "755"}},
+]
+
+[[steps]]
+name = "compile"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "${root}", "-o", "${work}/selected root/commands/scoop-probe"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "forward"
+argv = ["${scoop}", "--enable-gc-stress", "--sysroot", "selected root", "probe", "--help", "", "two words", "--", "--sysroot", "child-root", "--enable-gc-stress", {hex = "ff"}]
+env = {SCOOP_SYSROOT = "${work}/environment", CLI_PAYLOAD = "inherited value"}
+stdin = "stdin bytes\n"
+exit = 0
+stdout = "argv0=${work}/selected root/commands/scoop-probe\ncwd=${work}\nenv=inherited value\narg1=2d2d68656c70\narg2=\narg3=74776f20776f726473\narg4=2d2d\narg5=2d2d737973726f6f74\narg6=6368696c642d726f6f74\narg7=2d2d656e61626c652d67632d737472657373\narg8=ff\nstdin bytes\n"
+stderr = "command stderr\n"
+
+[[steps]]
+name = "environment"
+argv = ["${scoop}", "probe", "--version", "--sysroot=child-root"]
+env = {SCOOP_SYSROOT = "${work}/environment"}
+exit = 0
+stdout = "<--version>\n<--sysroot=child-root>\n"
+stderr = ""
+
+[[steps]]
+name = "script"
+argv = ["${scoop}", "--sysroot=${work}/selected root", "script", "--", "$(literal)"]
+exit = 0
+stdout = "<-->\n<$(literal)>\n"
+stderr = ""
+
+[[steps]]
+name = "installation"
+argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/installation/bin/scoop", "script", "installed"]
+exit = 0
+stdout = "<installed>\n"
+stderr = ""
+
+[[steps]]
+name = "empty_arguments"
+argv = ["${scoop}", "--sysroot", "${work}/selected root", "probe"]
+env = {CLI_PAYLOAD = "no arguments"}
+exit = 0
+stdout = "argv0=${work}/selected root/commands/scoop-probe\ncwd=${work}\nenv=no arguments\n"
+stderr = "command stderr\n"
+
+[[steps]]
+name = "exit37"
+argv = ["${scoop}", "--sysroot", "${work}/selected root", "probe", "exit"]
+exit = 37
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "signal"
+argv = ["${scoop}", "--sysroot", "${work}/selected root", "probe", "signal"]
+signal = "SIGTERM"
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "missing"
+argv = ["${scoop}", "--sysroot", "${work}/selected root", "missing"]
+exit = 1
+stdout = ""
+stderr = "error[SCOOP_COMMAND_START]: cannot run external command ${work}/selected root/commands/scoop-missing: No such file or directory (os error 2)\n"
+
+[[steps]]
+name = "not_executable"
+argv = ["${scoop}", "--sysroot", "${work}/selected root", "disabled"]
+exit = 1
+stdout = ""
+stderr = "error[SCOOP_COMMAND_START]: cannot run external command ${work}/selected root/commands/scoop-disabled: Permission denied (os error 13)\n"
+
+[[steps]]
+name = "invalid_name"
+argv = ["${scoop}", "--sysroot", "${work}/selected root", "path/command"]
+exit = 1
+stdout = ""
+stderr = "error[SCOOP_CLI_CONFIG]: external command name must be a single file name\n"

@@ -687,7 +687,7 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 开发 sysroot 准备、发行组装、安装及打包属于仓库维护脚本，不进入 `scoop` 命令或 driver。脚本调用普通 Cone 构建与已有 runtime 编译库；日常命令只消费选定的 sysroot 和显式指定的构建输入。
 
-`scripts/package_toolchain.py` 是完整安装包的单一构建入口，负责 LLVM 输入准备、宿主命令、该宿主支持的全部目标 native／`.slib`／runtime、内置库文档和 VS Code 扩展。Darwin/AArch64 包包含 `aarch64-apple-darwin`，Linux/GNU amd64 包同时包含 `x86_64-unknown-linux-gnu` 与 `x86_64-unknown-linux-musl`。工具包归档直接以安装根内容为顶层，不包裹版本目录或额外的 `.scoop`／`sysroot` 目录，可用 `tar -xJf <archive> -C ~/.scoop` 安装。完整布局包含 `bin`、`lib/<canonical-target-triple>`、`include`、`src`、`vendor`、`native`、`libexec`、`docs`、`share` 和 `tooling`；扩展以可直接安装的 VSIX 放在 `tooling`，由同一入口按 npm lockfile 构建。安装根的纯文本 `VERSION` 记录发行版本、源码 revision 和宿主平台，与工具构建及发行清单共用本次参数，只用于查看安装版本。默认 LLVM 输入缺失时由维护脚本取得固定版本的上游归档并解包；显式输入路径失败照常报错。全部组件准备成功后才组装并发布归档。
+`scripts/package_toolchain.py` 是完整安装包的单一构建入口，负责 LLVM 输入准备、宿主命令、该宿主支持的全部目标 native／`.slib`／runtime、内置库文档和 VS Code 扩展。Darwin/AArch64 包包含 `aarch64-apple-darwin`，Linux/GNU amd64 包同时包含 `x86_64-unknown-linux-gnu` 与 `x86_64-unknown-linux-musl`。工具包归档直接以安装根内容为顶层，不包裹版本目录或额外的 `.scoop`／`sysroot` 目录，可用 `tar -xJf <archive> -C ~/.scoop` 安装。完整布局包含 `bin`、`commands`、`lib/<canonical-target-triple>`、`include`、`src`、`vendor`、`native`、`libexec`、`docs`、`share` 和 `tooling`；`commands` 即使为空也进入归档，存在内容时按原目录复制并保留可执行权限，仓库保留空目录的 `.gitkeep` 不进入发行包；扩展以可直接安装的 VSIX 放在 `tooling`，由同一入口按 npm lockfile 构建。安装根的纯文本 `VERSION` 记录发行版本、源码 revision 和宿主平台，与工具构建及发行清单共用本次参数，只用于查看安装版本。默认 LLVM 输入缺失时由维护脚本取得固定版本的上游归档并解包；显式输入路径失败照常报错。全部组件准备成功后才组装并发布归档。
 
 宿主包将 `scoop`、`scoopc`、`scoop-link` 和 `scoop-lsp` 放在 `bin`，四个命令共用发行版本与源码 revision；实际使用的 LLVM 动态库及非系统传递依赖放在 `libexec/llvm/lib`。Darwin 通过相对 rpath 和 dylib install name 加载；Linux 的每层私有依赖使用相对 `$ORIGIN` RUNPATH。组装脚本从实际动态依赖取得需要复制的库并修改加载路径，不在日常命令启动时重扫这些文件。版本、源码 revision、目标部署配置、Cone coordinate 和 native 版本写入 `share/scoop/toolchain.toml` 供说明；不把清单作为认证或逐文件验证输入。宿主和 LLVM 源码归档由手工脚本生成，不加入常规测试或 CI 的前置步骤。
 
@@ -696,11 +696,14 @@ scoop new <path> --group group [--name name] [--kind executable|library] [--vers
 scoop build [root-input]
 scoop run [root-input] [-- program-arg...]
 scoop run file.scoop [runner-option...] [program-arg...]
+scoop [--sysroot path] <external-command> [arg...]
 scoop link --root-slib root.slib --runtime-objects index [--dependency-slib dep.slib]... [-o output]
 scoopc build <Cone-root-or-Cone.toml-or-file.scoop> [--direct-slib direct.slib]... [--support-slib support.slib]... --out-slib current.slib
 ```
 
 低层 `scoop-link` 使用相同的普通产物链接合同。build/run 省略 root 时使用调用者 cwd 的 Cone.toml，不向父目录搜索；`run -- args` 也使用该默认 root。低层 scoopc 的输入必需。
+
+`scoop` 优先解析内置子命令；其余子命令名称必须是单个文件名，并直接执行所选 `<SYSROOT>/commands/scoop-<名称>`。目标可以是任意宿主可执行程序（包括带解释器声明的脚本），不经过 shell 解释或 PATH 搜索。子命令名称之后的全部参数原样传递，包含选项、`--`、空字符串及宿主原始参数字节；`scoop` 自身的选项必须放在外部子命令之前。`--sysroot` 采用本节既有的显式参数、`SCOOP_SYSROOT`、安装根优先顺序，对内置子命令仍可放在子命令前后。外部程序继承 cwd、环境和标准输入输出，正常退出码与信号终止状态由 `scoop` 传回；程序缺失、不可执行或启动失败按实际路径报告，不触发编译、链接或工具探测。
 
 `scoop new` 创建普通 manifest Cone，group 必需，name 默认取目标目录名，kind 默认 executable，version 默认 0.1.0，package 默认 group；名称、版本与 package 使用现有 coordinate 和源码名称规则，显式 package 必须为 group 本身或其子包。生成 package 时按名称段转义连字符或关键字。固定模板包含 Cone.toml、executable 的 src/main.scoop 或 library 的 src/lib.scoop；默认还包含 tests/basic.scoop 及 scoop.test 测试依赖，`--no-tests` 同时省略两者。生产依赖沿用 manifest 的默认 core 规则，library 不生成 main。所有参数先验证，再创建目标目录；目标必须不存在，普通文件、空目录、非空目录均拒绝覆盖。父目录可按实际需要创建，I/O 失败按原路径报告；此命令不构建、不下载模板，也不读取 sysroot 或构建缓存。 `new` 的 CLI 参数校验可对内存中的 package 声明调用现有 parser，以复用转义标识符和关键字规则；它不读取或解析项目源码。构建编排库继续通过 scoopc 执行源码编译，不调用 HIR/MIR/LIR lowering 或 codegen 实现。
 

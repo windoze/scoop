@@ -13,20 +13,23 @@ use super::presentation::Reporter;
 
 pub(super) fn execute(
     command: Command,
+    sysroot: Option<PathBuf>,
     enable_gc_stress: bool,
     reporter: &Reporter,
 ) -> BuildResult<Option<ExitStatus>> {
     match command {
+        Command::External(args) => super::external::execute(&args, sysroot).map(Some),
         Command::New(args) => {
             super::new::execute(args)?;
             Ok(None)
         }
         Command::Doc(args) => {
-            super::doc::execute(args, reporter)?;
+            super::doc::execute(args, sysroot, reporter)?;
             Ok(None)
         }
         Command::Build(args) => {
-            let mut request = build_request(args.options, args.output, false, enable_gc_stress)?;
+            let mut request =
+                build_request(args.options, sysroot, args.output, false, enable_gc_stress)?;
             if let (Some(emit), Some(directory)) = (args.emit, args.dump_dir) {
                 request.dumps = Some(BuildDumpRequest {
                     stages: emit.stages(),
@@ -41,7 +44,7 @@ pub(super) fn execute(
             Ok(None)
         }
         Command::Run(args) => {
-            let request = build_request(args.options, None, true, enable_gc_stress)?;
+            let request = build_request(args.options, sysroot, None, true, enable_gc_stress)?;
             let cwd = request.cwd.clone();
             let result = scoop::build(request)?;
             reporter.built(&result).map_err(config)?;
@@ -56,6 +59,7 @@ pub(super) fn execute(
         Command::Test(args) => {
             let mut request = build_request(
                 args.options,
+                sysroot,
                 None,
                 !args.no_run && !args.list,
                 enable_gc_stress,
@@ -106,7 +110,7 @@ pub(super) fn execute(
             let cwd = std::env::current_dir().map_err(config)?;
             let sysroot = absolute(
                 &cwd,
-                scoop_toolchain::configured_sysroot_root(args.sysroot).map_err(config)?,
+                scoop_toolchain::configured_sysroot_root(sysroot).map_err(config)?,
             )?;
             let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
             let request = scoop::LinkRequest {
@@ -139,6 +143,7 @@ pub(super) fn execute(
 
 fn build_request(
     args: BuildOptions,
+    sysroot: Option<PathBuf>,
     output: Option<PathBuf>,
     require_executable: bool,
     enable_gc_stress: bool,
@@ -168,7 +173,7 @@ fn build_request(
     let cache = scoop_toolchain::configured_cache_root(args.cache_dir).map_err(config)?;
     let sysroot = absolute(
         &cwd,
-        scoop_toolchain::configured_sysroot_root(args.sysroot).map_err(config)?,
+        scoop_toolchain::configured_sysroot_root(sysroot).map_err(config)?,
     )?;
     let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
     let mut graph = scoop::BuildGraphRequest::new(

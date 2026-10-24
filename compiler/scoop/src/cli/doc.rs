@@ -18,8 +18,6 @@ pub(super) struct DocArgs {
     #[arg(long)]
     pub target: Option<String>,
     #[arg(long)]
-    pub sysroot: Option<PathBuf>,
-    #[arg(long)]
     pub scoopc: Option<PathBuf>,
     #[arg(long)]
     pub cache_dir: Option<PathBuf>,
@@ -50,7 +48,11 @@ pub(super) struct DocArgs {
     pub message_format: MessageFormat,
 }
 
-pub(super) fn execute(args: DocArgs, reporter: &Reporter) -> scoop::BuildResult<()> {
+pub(super) fn execute(
+    args: DocArgs,
+    sysroot: Option<PathBuf>,
+    reporter: &Reporter,
+) -> scoop::BuildResult<()> {
     let cwd = std::env::current_dir().map_err(config)?;
     let roots = if args.roots.is_empty() {
         vec![PathBuf::from("Cone.toml")]
@@ -107,7 +109,7 @@ pub(super) fn execute(args: DocArgs, reporter: &Reporter) -> scoop::BuildResult<
         target,
         sysroot: TrustedSysrootRoot::new(absolute(
             &cwd,
-            scoop_toolchain::configured_sysroot_root(args.sysroot).map_err(config)?,
+            scoop_toolchain::configured_sysroot_root(sysroot).map_err(config)?,
         )?)
         .map_err(config)?,
         cache: ArtifactCacheRoot::new(absolute(
