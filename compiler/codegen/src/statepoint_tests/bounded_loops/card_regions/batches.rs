@@ -73,6 +73,32 @@ fn marks(function: FunctionValue<'_>, expected: usize, batched: bool) {
 }
 
 #[test]
+fn reads_after_redundant_store_removal_keep_the_current_card_exit() {
+    // DSE can remove a redundant element store while retaining its card mark.
+    let source = strided(super::source(), 8)
+        .replace(
+            "store ptr addrspace(1) %array, ptr addrspace(1) %element, align 8",
+            "",
+        )
+        .replace(
+            "%scaled = mul i32 %i, 1664525",
+            "%read_element = getelementptr ptr addrspace(1), ptr addrspace(1) %array, i64 64\n\
+             %node = load ptr addrspace(1), ptr addrspace(1) %read_element, align 8\n\
+             %value = load i32, ptr addrspace(1) %node, align 4\n\
+             %scaled = mul i32 %value, 1664525",
+        );
+    validate_managed(&source, |ir| {
+        assert!(
+            ir.lines().any(|line| line.contains(" = add ")
+                && line.contains(" i32 ")
+                && line.ends_with(", -4")),
+            "{ir}"
+        );
+        assert_eq!(ir.matches("store atomic i8 1").count(), 2, "{ir}");
+    });
+}
+
+#[test]
 fn constant_strides_finish_on_the_normal_exit_before_the_outer_poll() {
     let source = strided(super::source(), 8);
     let two_streams = source.replace(

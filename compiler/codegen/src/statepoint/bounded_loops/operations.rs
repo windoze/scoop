@@ -42,7 +42,7 @@ pub(super) fn prepare(region: &Region<'_>) -> bool {
     true
 }
 
-fn supported(
+pub(super) fn supported(
     instruction: InstructionValue<'_>,
     blocks: &[BasicBlock<'_>],
     loads: &[InstructionValue<'_>],
@@ -193,7 +193,7 @@ pub(super) fn root_load(instruction: InstructionValue<'_>, blocks: &[BasicBlock<
     true
 }
 
-fn only_used_in(instruction: InstructionValue<'_>, blocks: &[BasicBlock<'_>]) -> bool {
+pub(super) fn only_used_in(instruction: InstructionValue<'_>, blocks: &[BasicBlock<'_>]) -> bool {
     let mut next = instruction.get_first_use();
     while let Some(usage) = next {
         next = usage.get_next_use();

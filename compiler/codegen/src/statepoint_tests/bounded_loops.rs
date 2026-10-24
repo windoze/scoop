@@ -9,6 +9,9 @@ mod conditional;
 #[path = "bounded_loops/card_regions.rs"]
 mod card_regions;
 
+#[path = "bounded_loops/reference_reads.rs"]
+mod reference_reads;
+
 #[test]
 fn bounded_integer_inner_vectorizes_without_copying_outer_sites_or_root_restores() {
     vectorized(include_str!("bounded_loops.ll"), None, "mul <");
@@ -114,6 +117,13 @@ fn vectorized(source: &str, arrays: Option<&str>, arithmetic: &str) {
 }
 
 fn validate(source: &str, inspect: impl Fn(&str)) {
+    validate_managed(source, |ir| {
+        assert!(!ir.contains("ptrtoint"), "{ir}");
+        inspect(ir);
+    });
+}
+
+fn validate_managed(source: &str, inspect: impl Fn(&str)) {
     for selection in [
         scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1,
@@ -163,7 +173,6 @@ fn validate(source: &str, inspect: impl Fn(&str)) {
             "{ir}"
         );
         assert!(ir.contains("gc.relocate.p1"), "{ir}");
-        assert!(!ir.contains("ptrtoint"), "{ir}");
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("bounded.o");
         machine

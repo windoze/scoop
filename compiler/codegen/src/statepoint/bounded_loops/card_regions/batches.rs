@@ -18,7 +18,7 @@ struct Batch<'ctx> {
 }
 
 pub(super) fn coalesce<'ctx>(
-    region: &Region<'ctx>,
+    region: &mut Region<'ctx>,
     machine: &TargetMachine,
     mandatory: &HashSet<BasicBlock<'ctx>>,
 ) -> Result<(), CodegenError> {
@@ -37,6 +37,7 @@ pub(super) fn coalesce<'ctx>(
         return Ok(());
     }
     let exit = edges::split(region.latch, region.exit, "card.exit")?;
+    region.exit = exit;
     let builder = region.header.get_context().create_builder();
     builder.position_before(&exit.get_terminator().expect("card exit terminates"));
     for batch in &batches {
