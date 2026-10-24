@@ -1,18 +1,22 @@
 //! Partially unroll small read-only reference kernels without extending roots.
 
-use inkwell::AddressSpace;
+use inkwell::{AddressSpace, IntPredicate};
 
 use super::{InstructionOpcode, PointerValue, operations, region::Region};
 
 pub(super) const FACTOR: u64 = 4;
 
 pub(super) fn selected(region: &Region<'_>) -> bool {
-    if region.blocks.len() != 1 || region.iterations < FACTOR || region.iterations % FACTOR != 0 {
+    if region.blocks.len() > 4 || region.iterations < FACTOR || region.iterations % FACTOR != 0 {
         return false;
     }
     let mut reference_read = false;
     let mut size = 0;
-    for instruction in region.header.get_instructions() {
+    for instruction in region
+        .blocks
+        .iter()
+        .flat_map(|block| block.get_instructions())
+    {
         if !matches!(
             instruction.get_opcode(),
             InstructionOpcode::Phi | InstructionOpcode::Br
@@ -25,6 +29,20 @@ pub(super) fn selected(region: &Region<'_>) -> bool {
         let supported = match instruction.get_opcode() {
             InstructionOpcode::Br => true,
             InstructionOpcode::Store => false,
+            InstructionOpcode::ICmp
+                if matches!(
+                    instruction.get_icmp_predicate(),
+                    Some(IntPredicate::EQ | IntPredicate::NE)
+                ) && instruction.get_operands().all(|operand| {
+                    operand.is_some_and(|operand| {
+                        operand.value().is_some_and(|value| {
+                            value.is_pointer_value() && managed(value.into_pointer_value())
+                        })
+                    })
+                }) =>
+            {
+                true
+            }
             InstructionOpcode::GetElementPtr => {
                 PointerValue::try_from(instruction).is_ok_and(managed)
                     && operations::only_used_in(instruction, &region.blocks)

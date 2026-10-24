@@ -15,6 +15,33 @@ fn kernel() -> String {
     source
 }
 
+fn conditional() -> String {
+    let mut source = kernel().replace(", %inner]", ", %latch]");
+    let begin = source.find("%value =").unwrap();
+    let end = source.find("  %next =").unwrap();
+    source.replace_range(
+        begin..end,
+        "%present = icmp ne ptr addrspace(1) %node, null\n\
+         br i1 %present, label %some, label %latch\n\
+         some:\n\
+         %value = load i32, ptr addrspace(1) %node, align 4\n\
+         br label %latch\n\
+         latch:\n\
+         %item = phi i32 [0, %inner], [%value, %some]\n\
+         %accumulated = add i32 %sum, %item\n",
+    );
+    source
+}
+
+#[test]
+fn conditional_reference_reads_keep_null_checks_and_outer_root_sites() {
+    validate(&conditional(), |ir| {
+        assert_eq!(ir.matches("load i32, ptr addrspace(1)").count(), 5, "{ir}");
+        assert_eq!(ir.matches(", null").count(), 4, "{ir}");
+        assert!(!ir.contains("load <") && !ir.contains("phi <"), "{ir}");
+    });
+}
+
 #[test]
 fn reference_read_unrolling_preserves_outer_sites_and_relocated_roots() {
     for count in [4, 8, 64] {
@@ -30,35 +57,46 @@ fn reference_read_unrolling_preserves_outer_sites_and_relocated_roots() {
 
 #[test]
 fn reference_reads_do_not_relax_float_reduction_order() {
-    let source = kernel()
-        .replace("define i32 @f", "define double @f")
-        .replace("%initial = phi i32 [0,", "%initial = phi double [0.0,")
-        .replace("%sum = phi i32", "%sum = phi double")
-        .replace(
-            "load i32, ptr addrspace(1)",
-            "load double, ptr addrspace(1)",
-        )
-        .replace("%accumulated = add i32", "%accumulated = fadd double")
-        .replace("%result = add i32", "%result = fadd double")
-        .replace("ret i32 %result", "ret double %result");
-    validate(&source, |ir| {
-        assert_eq!(ir.matches("fadd double").count(), 5, "{ir}");
-        let additions = ir
-            .lines()
-            .filter(|line| line.contains("fadd double"))
-            .take(4)
-            .collect::<Vec<_>>();
-        for pair in additions.windows(2) {
-            let previous = pair[0].split('=').next().unwrap().trim();
-            assert!(pair[1].contains(&format!("{previous},")), "{ir}");
-        }
-    });
+    for source in [kernel(), conditional()] {
+        let source = source
+            .replace("define i32 @f", "define double @f")
+            .replace("%initial = phi i32 [0,", "%initial = phi double [0.0,")
+            .replace("%sum = phi i32", "%sum = phi double")
+            .replace("%item = phi i32 [0,", "%item = phi double [0.0,")
+            .replace(
+                "load i32, ptr addrspace(1)",
+                "load double, ptr addrspace(1)",
+            )
+            .replace("%accumulated = add i32", "%accumulated = fadd double")
+            .replace("%result = add i32", "%result = fadd double")
+            .replace("ret i32 %result", "ret double %result");
+        validate(&source, |ir| {
+            assert_eq!(ir.matches("fadd double").count(), 5, "{ir}");
+            let additions = ir
+                .lines()
+                .filter(|line| line.contains("fadd double"))
+                .take(4)
+                .collect::<Vec<_>>();
+            for pair in additions.windows(2) {
+                let previous = pair[0].split('=').next().unwrap().trim();
+                assert!(pair[1].contains(&format!("{previous},")), "{ir}");
+            }
+        });
+    }
 }
 
 #[test]
 fn reference_unrolling_rejects_writes_effects_and_nondivisible_counts() {
     let source = kernel();
     for source in [
+        conditional().replace(
+            "%value = load i32",
+            "store i32 %i, ptr addrspace(1) %node, align 4\n  %value = load i32",
+        ),
+        conditional().replace(
+            "%value = load i32",
+            "call void @tick()\n  %value = load i32",
+        ),
         source.replace("[64, %chunk]", "[2, %chunk]"),
         source.replace("[64, %chunk]", "[5, %chunk]"),
         source.replace("[64, %chunk]", "[65, %chunk]"),

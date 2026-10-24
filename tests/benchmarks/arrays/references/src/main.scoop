@@ -5,6 +5,8 @@ package dev.performance
 @Extern(lib = "m34_interfaces", name = "bench_begin") fun benchBegin(): Unit
 @Extern(lib = "m34_interfaces", name = "bench_end") fun benchEnd(): Unit
 
+class PresenceState(var value: Long)
+
 @NoGC fun control(count: Long): Long {
     var i = 0L
     var state = 7L
@@ -36,7 +38,14 @@ package dev.performance
     val alternate: (Long) -> Long = { value -> value + second.value }
     val functions = Array<(Long) -> Long>(count) { i -> if (i.and(1L) == 0L) action else alternate }
     val functionTarget = MutableArray<(Long) -> Long>(count) { _ -> action }
-    val optional = Array<Node?>(count) { i -> if (i.and(1L) == 0L) Some(first) else None }
+    val randomState = PresenceState(7L)
+    val optional = Array<Node?>(count) { i ->
+        val present = if (mode == 16) false else if (mode == 17) true else if (mode == 18) {
+            randomState.value = (randomState.value * 1664525L + 1013904223L).and(4294967295L)
+            randomState.value.and(2147483648L) == 0L
+        } else i.and(1L) == 0L
+        if (present) Some(first) else None
+    }
     val optionalTarget = MutableArray<Node?>(count) { _ -> None }
     val wrapped = MutableArray<MaybeUninit<Node>>(count) { _ -> MaybeUninit<Node>.initialized(first) }
     val integers = Array<Long>(count) { i -> i }
@@ -53,7 +62,7 @@ package dev.performance
         else if (mode == 4) projectInterfaces(children, interfaceTarget)
         else if (mode == 5) copyStrings(strings, stringTarget)
         else if (mode == 6) copyFunctions(functions, functionTarget)
-        else if (mode == 7) result += sumOptional(optional)
+        else if (mode == 7 || mode == 16 || mode == 17 || mode == 18) result += sumOptional(optional)
         else if (mode == 8) copyOptional(optional, optionalTarget)
         else if (mode == 9) clearWrapped(wrapped)
         else if (mode == 10) {
