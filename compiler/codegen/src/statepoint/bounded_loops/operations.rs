@@ -106,12 +106,12 @@ fn scalar(value: BasicValueEnum<'_>) -> bool {
     value.is_int_value() || value.is_float_value()
 }
 
-fn ordinary(instruction: InstructionValue<'_>) -> bool {
+pub(super) fn ordinary(instruction: InstructionValue<'_>) -> bool {
     instruction.get_volatile() == Ok(false)
         && instruction.get_atomic_ordering() == Ok(AtomicOrdering::NotAtomic)
 }
 
-fn address(instruction: InstructionValue<'_>, index: u32) -> Option<PointerValue<'_>> {
+pub(super) fn address(instruction: InstructionValue<'_>, index: u32) -> Option<PointerValue<'_>> {
     let value = instruction.get_operand(index)?.value()?;
     value.is_pointer_value().then(|| value.into_pointer_value())
 }
@@ -151,7 +151,7 @@ fn derived(
     }
 }
 
-fn root_load(instruction: InstructionValue<'_>, blocks: &[BasicBlock<'_>]) -> bool {
+pub(super) fn root_load(instruction: InstructionValue<'_>, blocks: &[BasicBlock<'_>]) -> bool {
     if instruction.get_opcode() != InstructionOpcode::Load
         || !ordinary(instruction)
         || !PointerValue::try_from(instruction)

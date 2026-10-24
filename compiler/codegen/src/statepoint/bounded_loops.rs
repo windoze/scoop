@@ -4,6 +4,7 @@ use inkwell::llvm_sys::core::{LLVMReplaceMDNodeOperandWith, LLVMValueAsMetadata}
 
 use super::*;
 
+mod card_regions;
 mod operations;
 mod region;
 mod remarks;
@@ -15,9 +16,10 @@ pub(super) fn optimize(
     let context = function.get_type().get_context();
     let mut selected = false;
     for latch in function.get_basic_blocks() {
-        let Some(region) = region::analyze(latch) else {
+        let Some(mut region) = region::analyze(latch) else {
             continue;
         };
+        card_regions::prepare(&mut region)?;
         if !operations::prepare(&region) {
             continue;
         }

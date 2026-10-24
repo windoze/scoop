@@ -6,6 +6,9 @@ use scoop_lir::OptimizationMode;
 #[path = "bounded_loops/conditional.rs"]
 mod conditional;
 
+#[path = "bounded_loops/card_regions.rs"]
+mod card_regions;
+
 #[test]
 fn bounded_integer_inner_vectorizes_without_copying_outer_sites_or_root_restores() {
     vectorized(include_str!("bounded_loops.ll"), None, "mul <");

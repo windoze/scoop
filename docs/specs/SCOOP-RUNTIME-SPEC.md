@@ -465,6 +465,8 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 
 同一对象的全部存储属于同一个 region 或 large mapping。在单 basic block、对象引用不变且没有 safepoint、调用、原子访问或同步发布的连续普通字段写入之间，codegen 可复用已取得的 immutable base／cards；不同字段仍按实际地址分别计算 card，不假定相邻字段一定属于同一 card。已标记的同一引用槽再次写入可以省去重复 mark。跨任何上述边界必须丢弃复用状态；保留首次 acquire 查询及必要的 relaxed atomic store，不引入跨线程共享缓存或先读 dirty 的分支。
 
+数组元素写入可以从数组对象基址查询所属 mapping，再按实际元素引用槽计算 card。在实现规范 2.19 的常数有界、无 safepoint 内层中，若目标引用不变，且该查询在每轮所有路径上必经，可以把 acquire 页表与 immutable base／cards 加载移至进入内层的边上。进入边位于外层 poll／引用恢复之后；零次循环、未选择的分支和异常回退不执行新增查询。保留每次实际写入后的 card store；不得将 metadata 带过下一个 poll，或把有调用、同步、条件执行的查询或变化目标纳入该复用。
+
 该要求适用于字段、数组、含引用 aggregate copy、构造、clone、Context 和 Scoop ABI native 写入。发生过可能 GC 的操作后，不能仅凭“刚分配”省略屏障；native root 或 pin 不替代 old→young 引用记录。
 
 runtime 内的装箱与数组克隆使用包含实际 memcpy 和必要范围屏障的完整复制操作。该操作保持静态内联，不为 GC-free 复制增加外部调用，也不在复制和屏障之间引入 safepoint；native 调用者继续遵守上述公开写屏障合同。

@@ -766,6 +766,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - [数组搜索与提前退出循环](program-performance/EARLY-EXIT-ARRAYS.md)已交付：只复制继续迭代的自然循环区域，原出口共享本轮值及其副作用，保留首次命中、异常前缀与 GC。三目标长内核获得收益，首项／短路径回退、实际内联代码、空间与编译成本已核对；沿用 release 默认能力，搜索 SIMD 和更广循环变换继续独立推进。
 - [引用数组范围证明与有界循环](program-performance/REFERENCE-ARRAYS.md)已交付：读取、复制、可空值、MaybeUninit 和静态父表投影进入已有有界内层，保留原写屏障与精确 roots。三目标读取／搜索获益，Darwin 写入获益，x86 带屏障写入基本持平；旧数组持有年轻对象、并发 moving／minor、短路径及编译／空间成本已定向核对。重复卡标记、bulk barrier 和引用 SIMD 继续独立测量。
 - [卡表幂等原子写入](program-performance/CARD-STORES.md)已交付：利用二值卡状态与 STW 清零，以 relaxed store 1 替代单槽和 runtime 范围屏障的 OR 1。三目标引用写入获益，GNU／musl 长复制与清零降低约 70%～82%；LIR、roots、脏卡计数及 ABI 保持，空间／编译成本与对照回退一并记录，作为所有 profile 与 runtime 的默认实现。
+- [有界引用循环页表查询提升](program-performance/CARD-REGIONS.md)已交付：数组基址定位 mapping，release 将每轮必经、目标稳定的查询移至完整块进入边，保留逐次 card store 和精确 roots。三目标普通引用复制内核降低约 45%～80%，text 与根 `.slib` 略减；接口 volatile 路径未命中、对照回退及编译成本均已记录，无新开关。
 - 延续桌面短暂停与内存目标，按吞吐、应用尾延迟、RSS 和启动分别验收；调研不表示优化已实现或已完成跨语言性能比较。具体实施前先修订实际受影响的规范，不预先占用新的里程碑编号。
 
 ### 可恢复语法与 LSP（公共基础 A～E 已完成，扩展能力待排期）

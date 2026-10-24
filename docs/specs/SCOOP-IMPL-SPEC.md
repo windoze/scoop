@@ -429,6 +429,8 @@ managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 re
 
 单槽和 runtime 范围屏障对实际覆盖的每个 card 字节使用 relaxed atomic store 1，消费运行时规范 3.6 的二值状态与 STW 清零合同。省去原子读改写不移动写后屏障、不提前标记未写范围，也不改变用户原子操作的内存序。所有 profile 使用相同表示，既有 OR 1 产物仍兼容；对象、roots、runtime ABI 与 `.slib` 格式保持。
 
+ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping，实际 card 地址仍取被写入的元素引用槽；一个对象的全部存储属于同一 mapping。多引用值继续使用原范围屏障，不按元素大小推定相邻槽属于同一卡。release 可以按 2.19 提升有界内层中的不变页表查询；其他 profile 与未命中路径保持原位置的完整操作。
+
 普通 HeapStore 的局部屏障复用只保留当前 LLVM block 内一个未改变的 LIR 对象引用及其 region prefix；精确相同的字段槽可复用已完成的 mark，其他字段只复用查询。block 切换、local 写入、调用（含 NoGc）、poll、原子访问、发布和未列入无副作用允许集合的指令使缓存失效。数组／范围复制及 AtomicRef 继续使用各自原有屏障，不改变成功／失败 CAS 的标记条件，也不按静态字段距离猜测 card 身份。
 
 每个实际物理定义都有 typed owner、role、linkage、symbol 和精确 section range。引用使用 typed target 与真实 relocation；跨对象 external 声明不能变成可缺失的 weak reference。Strong 属于原定义 Cone，ODR 使用其稳定 member identity。
@@ -1325,6 +1327,10 @@ Managed release 标量优化后，仅对实际 LLVM CFG 为单入口、单 latch
 浮点分块与内层向量化不增加 fast-math／reassoc／contract 等假设，保留 subnormal、NaN、Infinity、signed zero、实际精度及每个元素的舍入次数；独立乘加不能融合。LLVM 22.1 的启用向量化 hint 默认还可许可浮点重排，因此 codegen 在统一初始化时设置 `hints-allow-reordering=false`；仅不写 fast-math 标记不足以保证此合同。循环携带的浮点归约保持源程序累加顺序，只有 LLVM 能保持该顺序的有序向量归约才可使用，否则保留标量归约。需要实际 LLVM call 的操作继续不取得内层向量化资格；普通 typed 浮点操作的 NoGC 后备仍按 2.18 处理。此能力复用已有内联范围、边界检查、分块与基址恢复路径，不新增根、数组表示或产物 ABI。
 
 上述内层选择前可以把其普通 AS1 基址加载移到唯一外来前驱的终结指令之前：来源必须是函数入口的不逃逸 alloca，所有使用均为直接 load／store，内层不写该槽，也不存在取地址、atomic／volatile 加载或其他不合格操作。该位置位于进入内层之前的 poll／恢复之后；只移动普通加载，不移动 volatile 根恢复、逻辑根标记、site 或数组元素访问。提升后的 SSA 基址只供无 safepoint 的内层使用，返回外层后仍沿原 roots 重取，不把根槽操作交给向量化。
+
+同一实际有界区域分析也服务引用写入的 mapping 查询提升。只有去除回边后无环、无其他退出且每条路径到达唯一 latch 的 1～64 次内层可以参与；区域不得含调用、volatile、用户原子操作、同步或未知 effect。按 runtime PageMap 的实际数据引用与四级加载链识别查询，不按块／临时值名称或额外证明标记识别。查询及所需的 immutable region prefix 加载必须支配 latch，地址计算仅依赖循环外值或上述稳定根槽的普通加载。只提升这些加载及其必要的纯地址运算，不提升元素访存、card store、用户状态或其他 mutable metadata。
+
+提升发生在唯一外来边上；外来前驱还有其他后继时创建专用 preheader 并更新 header phi，避免在未进入内层的路径查询 mapping。该变换复用既有有界区域与根槽分析，保留原 poll／恢复与 roots，metadata 不跨下一次 safepoint。引用循环仍不取得标量 SIMD 资格；不新增 LIR／`.slib` 字段、runtime ABI、堆布局或跨阶段重复的循环证明。
 
 内层选择只授权尝试优化，不要求 LLVM 必须向量化；无法识别 reduction 等普通 missed-optimization remark 不作为编译错误，也不写入结构化 child 协议的 stderr。该局部 pass 运行期间忽略 LLVM remark，错误／警告仍按原诊断路径传递，结束后恢复原 context handler。
 

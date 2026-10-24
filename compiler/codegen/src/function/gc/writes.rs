@@ -1,10 +1,11 @@
 use super::*;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    /// Store a complete value (including aggregates) and record its reference range.
+    /// Store a complete array element and record its reference range.
     /// No safepoint may occur between the caller's address calculation and completion.
-    pub(in crate::function) fn heap_store(
+    pub(in crate::function) fn heap_array_element_store(
         &self,
+        array: PointerValue<'ctx>,
         address: PointerValue<'ctx>,
         value: BasicValueEnum<'ctx>,
         ty: &LirType,
@@ -12,7 +13,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         self.builder
             .build_store(address, value)
             .map_err(|error| CodegenError(format!("heap value store: {error}")))?;
-        self.heap_value_barrier(address, ty)
+        let mut references = Vec::new();
+        self.heap_reference_offsets(ty, 0, &mut references)?;
+        references.sort_unstable();
+        if let [offset] = references.as_slice() {
+            // An array, including all of its elements, occupies one mapping.
+            let region = self.card_region(array)?;
+            let slot = self.byte_gep(address, *offset, "barrier_start")?;
+            self.mark_card_in_region(slot, region)
+        } else {
+            self.heap_reference_barrier(address, &references)
+        }
     }
 
     pub(in crate::function) fn publish_release_ready(
