@@ -52,6 +52,10 @@ HttpRequestBody.json 使用显式 ValueDecoder 或 T.Companion；只接受 appli
 
 HttpServer.takeOwnership(listener, application, scope, options) 检查选项和当前／父 Job，在父 scope 中登记自己的所有者后接管 listener。登记前失败仍由调用方清理；登记后失败由 server 清理。返回表示接受循环已建立。application 和可共享的 TlsServerContext 由调用方持有，不随 server 自动关闭。一个连接的握手、业务和清理失败在连接边界隔离；不取消其他连接。
 
+HttpServer.listen(application, scope, port=8080, host=IpAddress.IPV4_LOOPBACK, options=HttpServerOptions()) 在当前 EventLoop 上创建 TCP listener，再沿同一 takeOwnership 流程启动；创建的 listener 在任何启动失败时都由此入口关闭。host 可显式选择其他 IPv4／IPv6 地址，port=0 由 OS 选择端口；HttpServer.localAddress 保存实际监听地址，关闭后仍可读取。需要 backlog、reuseAddress 等底层选项时，仍可自行创建 listener 后接管。
+
+同名 listen(scope, port=8080, host=IpAddress.IPV4_LOOPBACK, options=HttpServerOptions(), applicationOptions=HttpApplicationOptions(), configure) 重载接收末尾的普通 `(RouterBuilder) -> Unit` 回调；先同步配置并 build，再调用上述 application 重载。配置异常不创建 listener。两种入口都返回同一 HttpServer，继续使用原有 awaitTermination／shutdownGracefully／close；scope 必须显式提供，EventLoop 的创建、run 和清理沿 asyncio 现有合同，不增加另一套 runner 或隐式事件循环。
+
 明文默认 H1；allowCleartextHttp2 显式启用 prior-knowledge 探测，保留探测前缀后交给对应协议连接。TLS 在每条连接的独立任务完成握手，ALPN 支持 http/1.1 和 h2；allowTlsHttp2 可关闭 H2，allowHttp1Fallback 控制无 ALPN 的 H1 回退。证书／私钥及 ALPN 来自应用提供的 TlsServerContext；协商结果必须属于已启用协议。h2c Upgrade 不在当前接入范围。
 
 每条 H1 连接顺序处理请求，每条请求进入独立 coroutineScope，创建独立 HttpContext、body 和 requestId。HttpConnectionInfo 提供只读本地／对端地址、协议与 TLS 信息；不把 X-Forwarded-* 当成已验证地址。已完成请求的业务 Context 不泄漏到下一条请求。HEAD 和无内容状态继续由协议层定界，未知长度 H1.1 为 chunked、H1.0 为 EOF。响应写出后才放弃未消费的输入；未读完时强制 Connection: close，不自动 drain 上传。

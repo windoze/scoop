@@ -1,0 +1,85 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.text.contains
+
+@Test
+private class ServerListenTests {
+    @Test
+    fun `listen accepts an existing application and exposes its actual address through shutdown`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> text("listening") })
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val server = HttpServer.listen(routes.build(), scope, port = 0)
+            val address = server.localAddress
+            try {
+                assertEquals(IpAddress.IPV4_LOOPBACK, address.address)
+                assertTrue(address.port > 0)
+                networkClient(address, scope).useAsync suspend { client -> assertEquals("listening", requestText(client)) }
+                server.shutdownGracefully()
+                server.awaitTermination()
+                assertTrue(server.isClosed)
+                assertEquals(address, server.localAddress)
+            } finally { server.close() }
+        }
+    }
+
+    @Test
+    fun `route configuration overload forwards application and transport options before freezing`() {
+        val builders = ArrayList<RouterBuilder>()
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val server = HttpServer.listen(scope, port = 0,
+                options = HttpServerOptions(requestBodyLimit = Some(3L)),
+                applicationOptions = HttpApplicationOptions(errorMapper = suspend { _, _ -> text("mapped", 503U) })) { routes ->
+                builders.add(routes)
+                routes.get("/", suspend { _ -> text("ready") })
+                routes.get("/failure", suspend { _ -> throw IllegalStateException() })
+                routes.post("/body", suspend { ctx -> text(ctx.request.body.text()) })
+            }
+            server.useAsync suspend { _ ->
+                expectState { builders[0L].get("/late", suspend { _ -> text("late") }) }
+                networkClient(server.localAddress, scope).useAsync suspend { client ->
+                    assertEquals("ready", requestText(client))
+                    client.sendRequest(networkRequest("/failure")).finish()
+                    val mapped = client.receiveResponse()
+                    assertEquals(503U, mapped.head.status); assertEquals("mapped", networkText(mapped.body))
+                }
+                currentEventLoop().connectTcp(server.localAddress).useAsync suspend { peer ->
+                    networkWrite(peer, "POST /body HTTP/1.1\r\nHost: localhost\r\nContent-Length: 4\r\nConnection: close\r\n\r\nbody")
+                    val response = networkText(peer)
+                    assertTrue(response.contains("413"))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `configuration fails before binding and failed ownership releases the new listener`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val reserved = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val address = reserved.localAddress
+            val failure = IllegalStateException(Some("configuration failed"))
+            try {
+                var caught: Throwable? = None
+                try { HttpServer.listen(scope, port = address.port) { _ -> throw failure } }
+                catch (error: Throwable) { caught = Some(error) }
+                assertTrue(present(caught) && caught!! === failure)
+            } finally { reserved.close() }
+            val ended = coroutineScope<CoroutineScope> suspend { child -> child }
+            var rejected = false
+            try { HttpServer.listen(RouterBuilder().build(), ended, port = address.port) }
+            catch (_: IllegalStateException) { rejected = true }
+            assertTrue(rejected)
+            HttpServer.listen(scope, port = address.port) { routes ->
+                routes.get("/", suspend { _ -> text("rebound") })
+            }.useAsync suspend { server ->
+                networkClient(server.localAddress, scope).useAsync suspend { client -> assertEquals("rebound", requestText(client)) }
+            }
+        }
+    }
+}

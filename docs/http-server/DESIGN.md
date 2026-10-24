@@ -129,22 +129,32 @@ HttpNext 已绑定当前请求，调用者不传另一个 HttpContext。它不�
 
 不公开泛型 ServiceProvider、GetService<T>()、自动控制器扫描或注解路由。
 
-启动使用一个明确接管所有权的入口。拟议签名如下，仅展示 API 表面：
+启动入口直接位于 HttpServer 上，复用同一所有者和接受循环。签名概览如下：
 
 ~~~scoop
 HttpServer.takeOwnership(
     listener: AsyncTcpListener,
     application: HttpApplication,
     scope: CoroutineScope,
-    options: HttpServerOptions
+    options: HttpServerOptions = HttpServerOptions()
 ): HttpServer
+
+HttpServer.listen(application: HttpApplication, scope: CoroutineScope,
+    port: Int = 8080, host: IpAddress = IpAddress.IPV4_LOOPBACK,
+    options: HttpServerOptions = HttpServerOptions()): HttpServer
+
+HttpServer.listen(scope: CoroutineScope, port: Int = 8080,
+    host: IpAddress = IpAddress.IPV4_LOOPBACK,
+    options: HttpServerOptions = HttpServerOptions(),
+    applicationOptions: HttpApplicationOptions = HttpApplicationOptions(),
+    configure: (RouterBuilder) -> Unit): HttpServer
 
 server.awaitTermination(): Unit
 server.shutdownGracefully(grace: Duration): Unit
 server.close(): Unit
 ~~~
 
-上述四个操作均声明 suspend。工厂完成配置检查、活动 Job 检查并成功登记 server 所有者之后接管 listener；登记前失败由调用方负责，登记后失败由工厂收尾。返回表示接受循环已建立。
+上述操作均声明 suspend。takeOwnership 完成配置检查、活动 Job 检查并成功登记 server 所有者之后接管 listener；登记前失败由调用方负责，登记后失败由工厂收尾。listen 使用当前 EventLoop 创建 listener 后调用同一接管入口，创建后的启动失败始终关闭该 listener。configure 重载在监听前同步配置并冻结 RouterBuilder；已有 HttpApplication 可以直接传给另一个重载。返回表示接受循环已建立，localAddress 提供实际地址，包括 port=0 时 OS 分配的端口。EventLoop 的创建、run 与清理保持 asyncio 现状；不增加独立应用包装或隐式事件循环。
 
 只由工厂启动一次接受循环，不再另设一个容易与它重复启动的 run()。awaitTermination 只等待；shutdownGracefully 停止接入并等待已有请求；close 是强制本地关闭。调用方持有的数据库、HttpClient、配置对象不会因为被 handler 捕获就转交给 server 关闭。
 
