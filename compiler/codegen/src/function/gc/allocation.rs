@@ -6,11 +6,9 @@ use super::*;
 const REGULAR_MANAGED_OBJECT_MAX_SIZE: u64 = 32768 - 128;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    /// Managed allocation fast path. Block-sized objects are bumped directly
-    /// from the current thread's public two-pointer allocation context. A
-    /// failed bump calls the collecting slow path; a successful bump calls a
-    /// GC-leaf helper that clears the object, initializes its header, and
-    /// atomically records the object start.
+    /// Bump through the thread's shared TLAB view. Small constant allocations
+    /// with known layouts finish inline in release; other bumps use the GC-leaf
+    /// helper. Failed bumps retain the collecting slow path and its roots.
     pub(in crate::function) fn managed_alloc(
         &mut self,
         out: TempId,
@@ -24,9 +22,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.function.symbol()
             )));
         };
+        let layout = self.known_allocation_layout(*descriptor);
         let descriptor = self.value(*descriptor)?.into_pointer_value();
         let requested_size = self.value(*requested_size)?.into_int_value();
-        let object = self.managed_alloc_value(descriptor, requested_size, safepoint, live)?;
+        let object =
+            self.managed_alloc_value(descriptor, requested_size, layout, safepoint, live)?;
         self.temps.insert(out, object.into());
         Ok(())
     }
@@ -35,6 +35,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &mut self,
         descriptor: PointerValue<'ctx>,
         requested_size: IntValue<'ctx>,
+        layout: Option<AllocationLayout>,
         safepoint: scoop_lir::SafepointId,
         live: MaterializedStatepointLive<'ctx>,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
@@ -44,27 +45,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let managed_ptr = managed_ptr_ty(context, self.managed_address_space);
         let i64_ty = context.i64_type();
 
-        let metadata = crate::runtime_metadata_v1::RuntimeMetadataV1Types::new(context);
-        let shape = builder
-            .build_struct_gep(
-                metadata.type_descriptor(),
-                descriptor,
-                1,
-                "allocation_shape",
-            )
-            .map_err(|error| CodegenError(format!("allocation descriptor shape: {error}")))?;
-        let alignment_slot = builder
-            .build_struct_gep(
-                metadata.type_instance_shape(),
-                shape,
-                3,
-                "allocation_alignment_ptr",
-            )
-            .map_err(|error| CodegenError(format!("allocation descriptor alignment: {error}")))?;
-        let alignment = builder
-            .build_load(i64_ty, alignment_slot, "allocation_alignment")
-            .map_err(|error| CodegenError(format!("load allocation alignment: {error}")))?
-            .into_int_value();
+        let layout = layout.filter(|_| self.inline_small_allocations);
+        let (alignment, nursery_eligible) = self.allocation_parameters(descriptor, layout)?;
         let alignment_mask = builder
             .build_int_sub(
                 alignment,
@@ -113,7 +95,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             )
             .map_err(|error| CodegenError(format!("load allocation context: {error}")))?
             .into_pointer_value();
-        let allocation_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
+        let allocation_ty = super::allocation_metadata::allocation_context_type(context);
         let cursor_slot = builder
             .build_struct_gep(allocation_ty, allocation_context, 0, "tlab_cursor_slot")
             .map_err(|error| CodegenError(format!("address TLAB cursor: {error}")))?;
@@ -161,21 +143,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let within_limit = builder
             .build_int_compare(IntPredicate::ULE, next_int, limit_int, "alloc_within_tlab")
             .map_err(|error| CodegenError(format!("check TLAB limit: {error}")))?;
-        let hook_slot = builder
-            .build_struct_gep(
-                metadata.type_descriptor(),
-                descriptor,
-                11,
-                "allocation_hook_ptr",
-            )
-            .map_err(|error| CodegenError(format!("allocation release hook: {error}")))?;
-        let hook = builder
-            .build_load(ptr, hook_slot, "allocation_hook")
-            .map_err(|error| CodegenError(format!("load allocation release hook: {error}")))?
-            .into_pointer_value();
-        let nursery_eligible = builder
-            .build_is_null(hook, "allocation_nursery_eligible")
-            .map_err(|error| CodegenError(format!("allocation generation: {error}")))?;
         let fast = builder
             .build_and(has_tlab, is_regular, "alloc_has_regular_tlab")
             .and_then(|condition| {
@@ -207,27 +174,24 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         builder
             .build_store(cursor_slot, next)
             .map_err(|error| CodegenError(format!("publish TLAB cursor: {error}")))?;
-        let finish = self.runtime_fn(
-            scoop_lir::RuntimeAbiSymbolV1::FinishTlabAllocation.logical_symbol(),
-            context
-                .void_type()
-                .fn_type(&[managed_ptr.into(), ptr.into(), i64_ty.into()], false),
-        );
-        finish.add_attribute(
-            AttributeLoc::Function,
-            context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
-        );
-        finish.add_attribute(
-            AttributeLoc::Function,
-            context.create_string_attribute("gc-leaf-function", ""),
-        );
-        builder
-            .build_call(
-                finish,
-                &[object.into(), descriptor.into(), aligned_size.into()],
-                "",
-            )
-            .map_err(|error| CodegenError(format!("finish TLAB allocation: {error}")))?;
+        if layout.is_some_and(|layout| layout.nursery_eligible)
+            && requested_size
+                .get_zero_extended_constant()
+                .is_some_and(|size| (16..=128).contains(&size))
+        {
+            self.finish_inline_allocation(
+                allocation_context,
+                object,
+                descriptor,
+                aligned_size,
+                index,
+            )?;
+        } else {
+            self.finish_allocation_call(object, descriptor, aligned_size)?;
+        }
+        let fast_end = builder
+            .get_insert_block()
+            .expect("allocation completion has an active block");
         builder
             .build_unconditional_branch(continue_block)
             .map_err(|error| CodegenError(format!("leave TLAB fast path: {error}")))?;
@@ -263,7 +227,43 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let phi = builder
             .build_phi(managed_ptr, "managed_object")
             .map_err(|error| CodegenError(format!("merge allocation result: {error}")))?;
-        phi.add_incoming(&[(&object, fast_block), (&slow_object, slow_block)]);
+        phi.add_incoming(&[(&object, fast_end), (&slow_object, slow_block)]);
         Ok(phi.as_basic_value().into_pointer_value())
+    }
+
+    fn finish_allocation_call(
+        &self,
+        object: PointerValue<'ctx>,
+        descriptor: PointerValue<'ctx>,
+        aligned_size: IntValue<'ctx>,
+    ) -> Result<(), CodegenError> {
+        let context = self.context;
+        let finish = self.runtime_fn(
+            scoop_lir::RuntimeAbiSymbolV1::FinishTlabAllocation.logical_symbol(),
+            context.void_type().fn_type(
+                &[
+                    managed_ptr_ty(context, self.managed_address_space).into(),
+                    ptr_ty(context).into(),
+                    context.i64_type().into(),
+                ],
+                false,
+            ),
+        );
+        finish.add_attribute(
+            AttributeLoc::Function,
+            context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+        );
+        finish.add_attribute(
+            AttributeLoc::Function,
+            context.create_string_attribute("gc-leaf-function", ""),
+        );
+        self.builder
+            .build_call(
+                finish,
+                &[object.into(), descriptor.into(), aligned_size.into()],
+                "",
+            )
+            .map_err(|error| CodegenError(format!("finish TLAB allocation: {error}")))?;
+        Ok(())
     }
 }

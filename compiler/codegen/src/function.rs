@@ -14,6 +14,7 @@ mod roots;
 struct FnEmitter<'a, 'ctx> {
     context: &'ctx Context,
     managed_address_space: ManagedAddressSpace,
+    inline_small_allocations: bool,
     llvm: &'a LlvmModule<'ctx>,
     builder: &'a inkwell::builder::Builder<'ctx>,
     function: &'a Function,
@@ -42,6 +43,7 @@ struct FnEmitter<'a, 'ctx> {
     /// `ArrayTypeId`.
     arrays: &'a Arena<ArrayType>,
     array_tds: &'a BTreeMap<ArrayTypeId, GlobalValue<'ctx>>,
+    type_descriptors: &'a Arena<scoop_lir::TypeDescriptor>,
     type_tds: &'a BTreeMap<scoop_lir::TypeDescriptorId, GlobalValue<'ctx>>,
     external_type_tds: &'a BTreeMap<scoop_lir::ExternalTypeDescriptorId, GlobalValue<'ctx>>,
     root_scans: Vec<PointerValue<'ctx>>,
@@ -278,6 +280,7 @@ pub(super) fn emit_function<'ctx>(
     let mut emitter = FnEmitter {
         context,
         managed_address_space: module_ctx.managed_address_space,
+        inline_small_allocations: module_ctx.inline_small_allocations,
         llvm,
         builder,
         function,
@@ -300,6 +303,7 @@ pub(super) fn emit_function<'ctx>(
         initialization_units: module_ctx.initialization_units,
         arrays: module_ctx.arrays,
         array_tds: module_ctx.array_tds,
+        type_descriptors: module_ctx.type_descriptors,
         type_tds: module_ctx.type_tds,
         external_type_tds: module_ctx.external_type_tds,
         root_scans,

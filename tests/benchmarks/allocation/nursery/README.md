@@ -9,7 +9,10 @@
 | 2 | 64 个 Long 的数组，含初始化和首尾读取 | 1000000 |
 | 3 | 带空 release hook 的 24 字节 class，走共享旧代分配 | 1000000 |
 | 4 | 没有循环内分配的整数对照 | 20000000 |
+| 5 | 16 字节空 class | 20000000 |
+| 6 | 128 字节 class，含内嵌 struct 字段 | 10000000 |
+| 7 | 136 字节 class，紧邻小型完成内联上限的对照 | 10000000 |
 
-复用 `../../interfaces/phases.c`，以 C11／O2 编译为 `libm34_interfaces.a`，再用 `scoop build --release --library-path DIR` 构建此 Cone。`SCOOP_BENCH_COUNT` 是迭代次数，支持零和短输入。stderr 第一行记录计时区间墙钟和 CPU，stdout 为每轮结果的 XOR；模式 0／3／4 的结果相同，模式 1 每轮为 `4 * i + 6`，模式 2 为 `2 * i + 63`。
+复用 `../../interfaces/phases.c`，以 C11／O2 编译为 `libm34_interfaces.a`，再用 `scoop build --release --library-path DIR` 构建此 Cone。`SCOOP_BENCH_COUNT` 是迭代次数，支持零和短输入。stderr 第一行记录计时区间墙钟和 CPU，stdout 为每轮结果的 XOR；模式 0／3／4／5／6／7 的结果相同，模式 1 每轮为 `4 * i + 6`，模式 2 为 `2 * i + 63`。
 
-使用同一编译器、相同程序和预编译系统 Cone，以 `--runtime-root DIR` 分别链接旧／新 runtime；不要让基线误用候选 sysroot runtime。通过 [compare.py](../../compare.py) 交替执行相同模式、次数和 `SCOOP_GC_WORKERS=1`，七对计时、预热一对；`--gc-stats` 单独运行并核对分配、收集和晋升数据。计时不包含构建，启动和输出成本由进程测量另行记录。
+只比较 runtime 时使用同一编译器、相同程序和预编译系统 Cone，以 `--runtime-root DIR` 分别链接旧／新 runtime。比较生成代码或 ABI 变更时，双方编译相同程序，各用其配套工具、预编译系统 Cone 和 runtime；不要让基线误用候选 sysroot runtime。通过 [compare.py](../../compare.py) 交替执行相同模式、次数和 `SCOOP_GC_WORKERS=1`，七对计时、预热一对；`--gc-stats` 单独运行并核对分配、收集和晋升数据。计时不包含构建，启动和输出成本由进程测量另行记录。

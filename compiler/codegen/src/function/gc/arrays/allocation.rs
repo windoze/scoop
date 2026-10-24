@@ -62,6 +62,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let array = self.managed_alloc_value(
                     td,
                     context.i64_type().const_int(total, false),
+                    Some(AllocationLayout::array(&layout)),
                     safepoint,
                     live,
                 )?;

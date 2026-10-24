@@ -9,6 +9,8 @@
 #include "heap_internal.h"
 #include "allocation_metadata.h"
 
+_Static_assert(GC_BLOCK_SIZE == 32768 && GC_LINE_SIZE == 128 && sizeof(uint64_t) == 8,
+               "generated TLAB metadata geometry drifted");
 _Static_assert(GC_LINE_SIZE % SCOOP_MAXIMUM_MANAGED_ALIGNMENT == 0,
                "GC line starts must satisfy every managed alignment");
 _Static_assert(GC_REGULAR_MAX / sizeof(uint64_t) <= UINT16_MAX,
@@ -75,8 +77,13 @@ static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
     block->generation = SCOOP_GC_YOUNG;
     scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;
     mutator->allocation_block = block;
-    mutator->allocation.cursor = (char *)block_base(block) + GC_LINE_SIZE;
-    mutator->allocation.limit = (char *)block_base(block) + GC_BLOCK_SIZE;
+    ScoopAllocationContext *allocation = &mutator->allocation;
+    allocation->block_start = block_base(block);
+    allocation->size_units = block->size_units;
+    allocation->starts = block->starts;
+    allocation->line_occupied = block->line_occupied;
+    allocation->limit = allocation->block_start + GC_BLOCK_SIZE;
+    allocation->cursor = allocation->block_start + GC_LINE_SIZE;
     unlock_heap();
     return REFILL_READY;
 }

@@ -1,4 +1,8 @@
 class Node(val value: Int)
+class Empty()
+struct Words(val a: Long, val b: Long, val c: Long, val d: Long)
+class Wide(val node: Node, val value: Long, val left: Words, val middle: Words, val right: Words)
+class Beyond(val node: Node, val value: Long, val left: Words, val middle: Words, val right: Words, val tail: Long)
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun fill(values: MutableArray<Node?>) {
@@ -12,6 +16,35 @@ fun fill(values: MutableArray<Node?>) {
 fun clearEven(values: MutableArray<Node?>) {
     var index = 0L
     while (index < values.size) { values[index] = None; index += 2L }
+}
+
+fun checkAllocationBoundaries() {
+    val wide = MutableArray<Wide?>(257L) { _ -> None }
+    val beyond = MutableArray<Beyond?>(257L) { _ -> None }
+    val empty = MutableArray<Any?>(257L) { _ -> None }
+    val boxed = MutableArray<Any?>(257L) { _ -> None }
+    var index = 0L
+    while (index < wide.size) {
+        val words = Words(index, index + 1L, index + 2L, index + 3L)
+        wide[index] = Some(Wide(Node(index.toInt()), index, words, words, words))
+        beyond[index] = Some(Beyond(Node(index.toInt()), index, words, words, words, index + 4L))
+        empty[index] = Some(Empty())
+        boxed[index] = Some(index)
+        index += 1L
+    }
+    gcCollect()
+    index = 0L
+    while (index < wide.size) {
+        val small = wide[index]!!
+        val large = beyond[index]!!
+        check(small.node.value == index.toInt() && small.value == index)
+        check(small.left.a == index && small.middle.c == index + 2L && small.right.d == index + 3L)
+        check(large.node.value == index.toInt() && large.value == index)
+        check(large.left.a == index && large.middle.c == index + 2L && large.right.d == index + 3L)
+        check(large.tail == index + 4L && empty[index]!! is Empty)
+        check((boxed[index]!! as Long) == index)
+        index += 1L
+    }
 }
 
 fun main() {
@@ -32,5 +65,6 @@ fun main() {
         index += 1L
     }
     check(sum == 1024)
+    checkAllocationBoundaries()
     println("allocation counters")
 }

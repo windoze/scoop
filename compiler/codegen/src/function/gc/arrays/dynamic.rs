@@ -33,8 +33,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let bytes = self.checked_array_allocation_size(&layout, count, *overflow_message)?;
         let safepoint = self.safepoint_id(*safepoint);
         let live = self.materialize_statepoint_live(live, safepoint)?;
-        let array =
-            self.managed_alloc_value(descriptor.as_pointer_value(), bytes, safepoint, live)?;
+        let array = self.managed_alloc_value(
+            descriptor.as_pointer_value(),
+            bytes,
+            Some(AllocationLayout::array(&layout)),
+            safepoint,
+            live,
+        )?;
         let size = self.byte_gep(array, 16, "array_size")?;
         self.builder
             .build_store(size, count)

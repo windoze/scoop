@@ -253,6 +253,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         // Snapshot forwarding regressed AArch64 reference-copy kernels.
         reuse_interface_values: profile.optimization() == scoop_lir::OptimizationMode::Release
             && machine.get_target().get_name() == c"x86-64",
+        inline_small_allocations: profile.optimization() == scoop_lir::OptimizationMode::Release,
         managed_address_space,
         functions: &module.functions,
         structs: &module.structs,
@@ -269,6 +270,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         initialization_units: &initialization_units,
         arrays: &module.meta.arrays,
         array_tds: &array_tds,
+        type_descriptors: &module.meta.type_descriptors,
         type_tds: &type_tds,
         external_type_tds: &external_type_tds,
         target_data: &target_data,

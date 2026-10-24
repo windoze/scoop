@@ -4,6 +4,8 @@
 use super::*;
 
 mod allocation;
+mod allocation_layout;
+mod allocation_metadata;
 mod arrays;
 mod atomics;
 mod barrier;
@@ -12,4 +14,5 @@ mod fields;
 mod poll;
 mod writes;
 
+use allocation_layout::AllocationLayout;
 pub(in crate::function) use fields::FieldBarrierCache;

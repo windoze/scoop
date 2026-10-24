@@ -4,6 +4,7 @@ use super::*;
 /// signatures small.
 pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) reuse_interface_values: bool,
+    pub(crate) inline_small_allocations: bool,
     pub(crate) managed_address_space: ManagedAddressSpace,
     pub(crate) functions: &'a [Function],
     pub(crate) structs: &'a StructDefs,
@@ -21,6 +22,7 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
         &'a BTreeMap<scoop_lir::InitializationUnitId, GlobalValue<'ctx>>,
     pub(crate) arrays: &'a Arena<ArrayType>,
     pub(crate) array_tds: &'a BTreeMap<ArrayTypeId, GlobalValue<'ctx>>,
+    pub(crate) type_descriptors: &'a Arena<scoop_lir::TypeDescriptor>,
     pub(crate) type_tds: &'a BTreeMap<scoop_lir::TypeDescriptorId, GlobalValue<'ctx>>,
     pub(crate) external_type_tds:
         &'a BTreeMap<scoop_lir::ExternalTypeDescriptorId, GlobalValue<'ctx>>,

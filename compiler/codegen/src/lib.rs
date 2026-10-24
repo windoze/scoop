@@ -13,8 +13,9 @@
 //! Every heap object carries the 16-byte header `{ td, gc_word }`; class
 //! fields start at byte 16, boxed payload and array size live at 16, and
 //! array elements start at `align_up(24, element_align)`. M13 allocation
-//! sites inline the per-thread TLAB bump and use a GC-leaf finish helper;
-//! only the slow path is a safepoint.
+//! sites inline the per-thread TLAB bump. Release completes small constant
+//! allocations with known layouts inline; other bumps use a GC-leaf finish
+//! helper. Only the slow path is a safepoint.
 //!
 //! M15 LIR already contains every entry/back-edge poll, image-unique
 //! `SafepointId`, and protocol-specific root plan. Managed pointers become

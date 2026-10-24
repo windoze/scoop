@@ -140,6 +140,12 @@ int main(void) {
     // Generated bumps must preserve earlier starts in the same bitmap word.
     void *dense[64];
     ScoopAllocationContext *allocation = scoop_rt_allocation_context;
+    ScoopGcBlockMeta *allocation_block = pointer_block(second);
+    assert(allocation->block_start == block_base(allocation_block));
+    assert(allocation->size_units == allocation_block->size_units);
+    assert(allocation->starts == allocation_block->starts);
+    assert(allocation->line_occupied == allocation_block->line_occupied);
+    assert(allocation->counters != NULL);
     for (size_t index = 0; index < 64; index++) {
         dense[index] = scoop_heap_bump(&allocation->cursor, allocation->limit, sizes[0], 8);
         assert(dense[index] != NULL);

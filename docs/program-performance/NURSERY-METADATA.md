@@ -42,4 +42,4 @@
 
 冷构建单独调用既有 runtime builder，含正常工具探测、依赖预处理和 C 编译，预热一对后五对 AB／BA；三目标基线墙钟中位数约 4.42／4.04／4.15 s。没有修改 Scoop 编译 pipeline，没有增加对象或 block 元数据字段、GC roots。原始日志、采样、机器码和逐次报告保留于两机忽略的 `tmp/program-performance/tlab-allocation`。
 
-本项作为所有 profile 使用的新版 runtime 默认实现，无独立开关或等级，已进入[简略清单](ENABLED-OPTIMIZATIONS.md)。完整分配完成内联、清零与构造合并、已清零 TLAB 和批量登记继续分别测量；本项的单写者证明不适用于共享块或新增的并发写入者。
+本项作为所有 profile 使用的新版 runtime 默认实现，无独立开关或等级，已进入[简略清单](ENABLED-OPTIMIZATIONS.md)。后续已交付受限的[小型分配完成内联](TLAB-COMPLETION.md)；清零与构造合并、已清零 TLAB 和批量登记继续分别测量。本项的单写者证明不适用于共享块或新增的并发写入者。

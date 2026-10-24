@@ -39,7 +39,7 @@
 | 物理产物 | 逐 callable LLVM module／对象，Strong／ODR 选择，已有私有 closure 支持裁剪 | LLVM 通常看不到其他 callable 的定义；尚无全程序优化、PGO 或 ThinLTO 路线 |
 | 调用 | 小于等于 16 bytes 的 GC-free 聚合值可按目标直接传递；接口拆成 object／itab | 24-byte V3 仍间接传递；含引用聚合值仍间接；真实动态函数视图还可能经过 Any bridge |
 | 协程 | 无 site 的同步路径、状态机前同步内联、尾部 completion 转交 | 真挂起路径和未能消除的同步完成路径仍有 frame／adapter；跨库、EH 和更一般的生命周期尚未优化 |
-| 分配与收集 | TLAB，1 MiB nursery，首次存活晋升，可扩展 region，STW 并行 mark/update，整块年轻区退役 | bump 后仍调用完成 helper；plan/copy/reclaim 仍串行；没有 survivor、并发 major；屏障、side metadata 和扫描局部性仍有成本 |
+| 分配与收集 | TLAB，release 合格小型常量分配完成内联，1 MiB nursery，首次存活晋升，可扩展 region，STW 并行 mark/update，整块年轻区退役 | 动态／更大／未知布局分配仍调用完成 helper；plan/copy/reclaim 仍串行；没有 survivor、并发 major；屏障、side metadata 和扫描局部性仍有成本 |
 | 标准库 | 连续值容器、String 字节读取／clone 的部分 IR 快路、预编译系统库 | HashMap 逐槽线性探测；String 字符长度／随机字符读取扫描 UTF-8；集合访问、扩容、回调和迭代器仍可继续优化 |
 
 主要代码证据：
@@ -305,9 +305,11 @@ PGO 不要求自研所有 profiling 工具，也不要求每一种优化重新�
 
 TLAB 已存在，成功 bump 后仍承担清零、对象头、精确大小、starts／line metadata 和统计更新。根据每分配的指令、原子操作和 cache miss 测量逐项推进。
 
-已交付的[nursery 独占块登记](NURSERY-METADATA.md)先处理采样定位的元数据成本：复用已保留范围，保持原子性和 release 发布，用单写者 load／OR／store 替代年轻块位图读改写；共享旧代保持原路径。三目标小／宽对象分配区间降低约 28%～53%，所有 profile 的新版 runtime 默认采用。后续方案仍独立测量：
+已交付的[nursery 独占块登记](NURSERY-METADATA.md)先处理采样定位的元数据成本：复用已保留范围，保持原子性和 release 发布，用单写者 load／OR／store 替代年轻块位图读改写；共享旧代保持原路径。三目标小／宽对象分配区间降低约 28%～53%，所有 profile 的新版 runtime 默认采用。
 
-- 固定大小／已知 TD 分配专门化，消除重复的动态 shape 读取、分支和通用 helper；选择少量高频尺寸或在调用点展开，控制 text 增长。Go 1.27 的尺寸专门化说明这是正常且仍有收益的方向。[O3]
+后续已交付[已知布局特化与小型分配完成内联](TLAB-COMPLETION.md)：release 从完整 LIR 布局复用 alignment／release policy，16～128 B 合格常量分配内联完成。三目标 16／24／48 B 阶段再降低约 42%～59%，text 增加约 4.4%～8.0%；GNU 数组回退与 musl 编译成本单列。统一 ABI 16，缺少事实、动态或更大请求保留原路径。进一步方案仍独立测量：
+
+- 扩展已知布局特化的实际覆盖面、减少每次分配最初的 TLS 读取；更大／动态请求是否适合展开，应单独测量调用与 text 成本。Go 1.27 的尺寸专门化是参考，不预先采用多级尺寸框架。[O3]
 - 合并清零与构造写入、采用已清零 TLAB 或批量初始化；必须满足对象被 GC 观察前引用槽有效、payload／padding 和 MaybeUninit 的现有语义。不是无条件取消 zeroing。
 - 同一无 safepoint 区间的分配／计数／登记可研究合并，但并发查询、对象发布、pin 和 native 访问依赖的事实必须在所需边界成立。不能直接把现有原子字段改成非原子。
 - 将大对象清零／复制与后续首次触页一起测量。无界操作不能伪装成 GCLeaf；需要响应优化时研究分块与部分初始化期间的精确扫描。
