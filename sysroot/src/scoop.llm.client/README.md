@@ -1,6 +1,31 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。目前落地的是公共请求／响应、Chat 编解码、结构化解码、计时快照、token 用量与 capability 数据；生成、provider 和流式入口仍在实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat 的普通生成、provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时；流式和其他协议继续实施。
+
+最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
+
+```scoop
+import scoop.asyncio.*
+import scoop.llm.client.*
+
+fun runHello(apiKey: String, modelId: String) {
+    val model = LlmEndpoint(Providers.deepSeekChat(), LlmAuth.bearer(apiKey)).model(modelId)
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        withLlmClient suspend { client ->
+            val result = client.generate(model, LlmRequest([Message([Text("你好")])]))
+            println(result.text)
+            println(result.response.usage.tokens.totalTokens)
+            println(result.metadata.attempts[0L].request.sentAt)
+            println(result.metadata.attempts[0L].response.receivedAt)
+        }
+    }
+}
+```
+
+`LlmClient.open(scope)` 可复用于多个调用；传入 `Some(http)` 时借用已有 HTTP client。关闭会取消并等待本 client 的调用及完成回调，只关闭自己创建的 HTTP client。`LlmCallOptions.onFinished` 在成功、失败和取消后各执行一次，可保存失败尝试的 metadata；从本次生成或回调中等待自身 client 关闭会报错。
+
+LLM 响应头和读取空闲时间缺省 300 秒，写入空闲时间 60 秒，总时限缺省关闭；网络／排池超时从 HTTP client 继承。缺省最多重试两次，仅适用于 dialect 明确识别的服务拒绝；每次重新认证并保留独立时间和 usage。普通 HTTP 重试、重定向、Cookie、缓存及 origin 自动认证在该请求上关闭，连接池、TLS、代理与既有 observer 继续复用。
 
 最小请求的写法直接使用消息和设置的缺省值；添加服务端搜索或结构化输出仍使用同一个请求类型：
 
@@ -18,7 +43,7 @@ val saved = Json.encodeToString(search)
 val restored = Json.decodeFromString<LlmRequest>(saved)
 ```
 
-Message 默认 User，system／tools／extensions 默认空，生成参数默认省略。工具区分 ClientFunction、ClientCustom、ClientNative 与 Server；供应商规定格式的工具也可能需要应用执行。请求级、消息级、内容块级与工具级的扩展各自带 DialectId，作用于当前位置。保存格式保留原生 JSON 和媒体来源；实际协议编码、能力检查与服务端工具执行观察随后续 adapter 交付。
+Message 默认 User，system／tools／extensions 默认空，生成参数默认省略。工具区分 ClientFunction、ClientCustom、ClientNative 与 Server；供应商规定格式的工具也可能需要应用执行。请求级、消息级、内容块级与工具级的扩展各自带 DialectId，作用于当前位置。保存格式保留原生 JSON 和媒体来源；服务端工具执行观察随相应 adapter 交付。
 
 `LlmResponse` 保留候选和有序输出；text 只展示普通文本，clientToolCalls 只返回输入完整且具有协议形状的客户端调用。`decodeOutput<T>()` 使用 companion decoder，拒绝、不完整输出、候选／文本消息歧义均明确报错。多候选按服务器 index 选择，消息按 items 下标选择。`toInput()` 读取已保存的原生历史，不用展示文本替换 reasoning 或工具关联。
 
@@ -34,7 +59,7 @@ val wire = protocol.encodeRequest("application-supplied-model-id", request)
 // val response = protocol.decodeResponse(responseBody, request)
 ```
 
-`LlmCallMetadata` 可独立保存失败或取消记录；`LlmResult` 只组合已收尾成功的调用与模型响应。各次尝试分别保存 request.sentAt、response.receivedAt 等 UTC 视图及单调时间偏移，耗时不受实时钟回拨影响。计数缺失或耗时为零时速率为 None；这些数据构造器不读取时钟，实际采样由传输接入完成。
+`LlmCallMetadata` 可独立保存失败或取消记录；`LlmResult` 只组合已收尾成功的调用与模型响应。各次尝试分别保存 request.sentAt、response.receivedAt 等 UTC 视图及单调时间偏移，耗时不受实时钟回拨影响。发送和接收时间来自实际 HTTP 采样，信息响应不算最终接收；普通生成的 firstOutput／firstText 是完整响应解析后的观察时间。未提供的 body 完成／首字节 UTC 与 token 计数保留 None，耗时为零时不伪造速率。
 
 `TokenUsage` 保存总量、非缓存输入、缓存读写、reasoning 与模态细项。未报告的计数缺省为 None，已知为零使用 Some(0L)。缓存和 reasoning 分项不自动加入总量，缺失的 totalTokens 也不会被补成一个看似完整的数字。
 
@@ -67,6 +92,6 @@ val pngUrl = capabilities.input.forMedia(Image, MediaFormat("image/png", Url))
 val restored = Json.decodeFromString<ModelCapabilities>(Json.encodeToString(capabilities))
 ```
 
-MIME 参数也参与格式匹配；支持音频 `rate=24000` 不自动表示支持其他采样率。缺失上限使用 None，已知零上限仍保留。当前 capability API 负责描述、查询和保存；与实际请求、模型绑定及 dialect 规则的联动随生成入口实现。
+MIME 参数也参与格式匹配；支持音频 `rate=24000` 不自动表示支持其他采样率。缺失上限使用 None，已知零上限仍保留。生成入口会拒绝已知不支持的输入和显式控制，并检查可观察的媒体字节数、数量及生成上限。Unknown 继续交给 adapter／服务端判断，不联网下载媒体或猜测隐藏 token 数。
 
 以上是函数内的调用片段；应用直接使用 JSON 时也应声明 `scoop:scoop.json` 依赖。Codec 使用现有 companion 的缺省实现，Long 大整数在保存与恢复时保持精确。正式合同见 [LLM client 规范](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md)。

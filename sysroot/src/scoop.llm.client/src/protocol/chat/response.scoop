@@ -2,18 +2,24 @@ package scoop.llm.client
 
 import scoop.json.JsonValue
 import scoop.time.Instant
+import scoop.url.Url
 
 /** Chat Completions wire structure combined with one explicitly selected dialect. */
-public class ChatProtocol public constructor(public val dialect: ChatDialect) {
+public class ChatProtocol public constructor(public val dialect: ChatDialect) : LlmGenerationProtocol {
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url =
+        baseUrl.toBuilder().appendPathSegment("chat").appendPathSegment("completions").build()
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
     init {
         if (dialect.id.protocol != ApiProtocolId("chat-completions"))
             throw IllegalArgumentException(Some("Chat dialect belongs to another API protocol"))
     }
 
-    public fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean = false): JsonValue =
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
         encodeChatRequest(dialect, modelId, request, stream)
 
-    public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
         try {
             val body = decodeChatValue<ChatResponseBody>(value, "")
             val candidates = ArrayList<LlmCandidate>()

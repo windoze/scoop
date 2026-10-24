@@ -1,12 +1,12 @@
 # LLM client 使用示例与缺省参数
 
-日期：2026-10-24。状态：基于[架构设计](DESIGN.md)的 API 草案，用调用代码检查接口负担；生成入口仍在实施，以下完整调用不是已通过编译的 quickstart。已交付的数据 API 见[实施记录](PROGRESS.md)。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
+日期：2026-10-24。本文结合已实现的 Chat 普通生成与后续 API 草案检查接口负担；Chat 的可用入口见[库说明](../../sysroot/src/scoop.llm.client/README.md)，验证范围见[实施记录](PROGRESS.md)。流式、Responses、token 预计数、缓存寿命与费用扩展仍为设计示例，不代表已通过验收。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
 
 简单调用和完整调用共用 `generate(model, request, options = LlmCallOptions())`。不再保留先前草稿中的 `generate(model, prompt = ...)` 重载，也不增加 `generateText`、`SimpleClient` 或自动选择模型的入口。简单形态直接来自 request、消息和 options 的缺省字段。
 
 ## 1. 共同的数据与调用入口
 
-下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。后面的完整生成和结果接口仍为实施草案。
+下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。普通 generate 已接入 Chat，openStream／withStream／countTokens 仍为后续合同。
 
 ```scoop
 public class LlmRequest public constructor(
@@ -74,7 +74,7 @@ fun runHello(apiKey: String, modelId: String) {
 }
 ```
 
-这里省略了官方 URL、user role、system、tools、生成选项和调用选项。时间戳与实际 usage 已在 `result.metadata` 中，无需开启另一种“高级模式”。`result.text` 是主 candidate 的普通文本视图；工具、reasoning、媒体、停止状态和其他候选仍保留在完整结果中，空文本不代表生成失败。
+这里省略了官方 URL、user role、system、tools、生成选项和调用选项。时间戳与各次尝试的 usage 在 `result.metadata` 中，最终响应用量在 `result.response.usage`，不需要开启额外模式。`result.text` 是主 candidate 的普通文本视图；工具、reasoning、媒体、停止状态和其他候选仍保留在完整结果中，空文本不代表生成失败。
 
 应用已有 EventLoop 时，直接在其中复用 client；上面的 loop 只展示程序边界，不会在每次 generate 内创建。`endpoint.model(id)` 不发网络请求；缺少准确能力资料的项为 Unknown。
 
@@ -269,32 +269,26 @@ suspend fun inspectUsage(client: LlmClient, model: LlmModel) {
         Message([Text("简述这次请求的处理过程。")])
     ]))
     val metadata = result.metadata
-    println(metadata.timings.totalDuration)
+    println(metadata.totalDuration)
     for (attempt in metadata.attempts) {
         println(attempt.request.sentAt)
         println(attempt.response.receivedAt)
         println(attempt.response.firstOutputAt)
     }
-    println(metadata.usage.tokens.inputTokens)
-    println(metadata.usage.tokens.nonCachedInputTokens)
-    println(metadata.usage.tokens.outputTokens)
-    println(metadata.usage.tokens.cacheReadTokens)
-    println(metadata.usage.tokens.reasoningTokens)
-    for (observation in metadata.cacheObservations) {
-        println(Json.encodeToString(observation))
-    }
-    when (metadata.billing) {
-        case Some(info) -> println(Json.encodeToString(info))
-        case None -> println("Billing information unavailable")
-    }
+    val usage = result.response.usage.tokens
+    println(usage.inputTokens)
+    println(usage.nonCachedInputTokens)
+    println(usage.outputTokens)
+    println(usage.cacheReadTokens)
+    println(usage.reasoningTokens)
     val savedMetadata = Json.encodeToString(metadata)
     println(savedMetadata)
 }
 ```
 
-`attempt.request`／`attempt.response` 是该次尝试的时间记录；未观察到的时间和计数为 Option，打印 None 表示未知。`usage.tokens` 是归一化 `TokenUsage`，累计快照已被 reducer 正确合并；原生 usage、完整性和各次尝试用量仍可取得。
+`attempt.request`／`attempt.response` 是该次尝试的时间记录；未观察到的时间和计数为 Option，打印 None 表示未知。`result.response.usage` 保存最终响应的归一化用量、原生 usage 与完整性；各次尝试用量单独保留，不自动汇总重试。
 
-`cacheObservations` 保存实际读写、缓存范围、TTL 起算／刷新规则和有依据的寿命估计。应用保存这些信息和时间戳后再判断缓存窗口，不能在拿到 result 时直接执行“当前时间＋TTL”。估计、最短保留期和服务端报告的到期时间仍是不同数据，不提供一个掩盖不确定性的 `isCacheValid` Boolean。
+后续的 `cacheObservations` 设计保存实际读写、缓存范围、TTL 起算／刷新规则和有依据的寿命估计。应用保存这些信息和时间戳后再判断缓存窗口，不能在拿到 result 时直接执行“当前时间＋TTL”。估计、最短保留期和服务端报告的到期时间仍是不同数据，不提供一个掩盖不确定性的 `isCacheValid` Boolean。
 
 调用前计数必须显式选择方法。下面的 Server 表示调用所选 adapter 的服务端计数接口；模型入口没有该接口时报告不支持，不静默退化为字符数：
 

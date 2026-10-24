@@ -1,0 +1,15 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** A rejected HTTP operation, retaining a bounded body even when it is not valid JSON or UTF-8. */
+public class LlmServiceException public constructor(
+    public val dialect: DialectId,
+    public val status: UInt,
+    public val body: Array<Byte>,
+    public val truncated: Boolean,
+    public val code: String? = None,
+    public val native: JsonValue? = None,
+    public val retryable: Boolean = false,
+    message: String = "LLM service rejected the request"
+) : Exception(Some(message))

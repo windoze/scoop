@@ -324,7 +324,7 @@ Metadata 保留逻辑 call ID、各次尝试编号及已知的服务端 request�
 
 这些是客户端观察到的耗时，包含相应网络、服务端工具和背压影响，不等同于模型纯推理时间。流式 chunk 可能包含多个 token，firstOutput 不声称是逐 token 的精确 TTFT。若提供平均输出速率，明确使用 `final outputTokens / responseLatency` 的端到端口径；计数缺失、响应不完整或分母为零时不提供该速率。
 
-当前 [HTTP 可观察性合同](../specs/SCOOP-HTTP-CLIENT-SPEC.md#112-可观察性与错误)已有 TimeMark 阶段快照，但 observer 是 client 级，且未在每个采样点公开 UTC 时间。LLM 实施需要在 HTTP 所属规范先补窄的请求级采样与结果 metadata 合同：在实际事件产生处采集 wall／monotonic 时间，并与现有 client observer 共存，使借入共享 HttpClient 的调用也能取得自身数据。晚些执行的用户回调不能用当前时钟冒充事件发生时刻；`onAttempt` 位于排池前，不能充当 sentAt。不为计时复制连接池或替换调用者的 observer。
+[HTTP 可观察性合同](../specs/SCOOP-HTTP-CLIENT-SPEC.md#112-可观察性与错误)已补请求级 observer、发送／最终响应头 UTC 与对应 TimeMark；它与原 client observer 共存，使借入共享 HttpClient 的调用也能取得自身数据。晚些执行的用户回调不能用当前时钟冒充事件发生时刻；`onAttempt` 位于排池前，不能充当 sentAt。底层尚未提供的首字节 UTC／body 完成点保留缺失，不为计时复制连接池或替换调用者的 observer。
 
 ### 6.3 Token 统计与显式计数
 

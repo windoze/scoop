@@ -1,0 +1,66 @@
+package scoop.llm.client
+
+internal fun checkModelRequest(capabilities: ModelCapabilities, request: LlmRequest) {
+    checkModelInput(capabilities.input, request)
+    val options = request.options
+    if (options.temperature != None) requireModelCapability(capabilities.sampling.temperature, "/options/temperature")
+    if (options.topP != None) requireModelCapability(capabilities.sampling.topP, "/options/topP")
+    if (options.topK != None) requireModelCapability(capabilities.sampling.topK, "/options/topK")
+    val hasStop = when (options.stop) { case Some(_) -> true; case None -> false }
+    if (hasStop) requireModelCapability(capabilities.sampling.stop, "/options/stop")
+    checkModelOutput(capabilities, options)
+    if (options.parallelToolCalls != None) requireModelCapability(capabilities.parallelToolCalls, "/options/parallelToolCalls")
+    if (options.candidates != None && options.candidates!! > 1L) requireModelCapability(capabilities.multipleCandidates, "/options/candidates")
+    checkModelLimit(options.candidates, capabilities.limits.maxCandidates, "/options/candidates")
+    checkModelLimit(options.maxOutputTokens, capabilities.limits.maxOutputTokens, "/options/maxOutputTokens")
+    var index = 0L
+    for (tool in request.tools) {
+        val path = "/tools/" + index.toString()
+        index += 1L
+        when (tool) {
+            case ClientFunction(_, _, _, _, _, _) -> requireModelCapability(capabilities.functionTools, path)
+            case ClientCustom(_, _, _, _, _) -> requireModelCapability(capabilities.customTools, path)
+            else -> continue
+        }
+    }
+    checkModelToolChoice(capabilities.toolChoice, options.toolChoice, request.tools.size != 0L)
+    checkModelReasoning(capabilities.reasoning, options.reasoning)
+}
+
+internal fun <T> requireModelCapability(capability: Capability<T>, path: String): Unit = when (capability) {
+    case Unsupported(reason) -> throw LlmRequestException(path, reason)
+    else -> Unit
+}
+
+private fun checkModelLimit(requested: Long?, maximum: Long?, path: String) {
+    if (requested != None && maximum != None && requested!! > maximum!!)
+        throw LlmRequestException(path, "requested value exceeds the model limit")
+}
+
+private fun checkModelOutput(capabilities: ModelCapabilities, options: LlmGenerationOptions): Unit = when (options.output) {
+    case Text -> Unit
+    case JsonObject -> {
+        requireModelCapability(capabilities.output.text, "/options/output")
+        requireModelCapability(capabilities.structuredOutput.jsonObject, "/options/output")
+    }
+    case JsonSchema(_, _, _, strict) -> {
+        requireModelCapability(capabilities.output.text, "/options/output")
+        requireModelCapability(capabilities.structuredOutput.jsonSchema, "/options/output")
+        if (strict == Some(true)) requireModelCapability(capabilities.structuredOutput.strictJsonSchema, "/options/output/strict")
+        Unit
+    }
+}
+
+private fun checkModelToolChoice(capabilities: ToolChoiceCapabilities, choice: ToolChoice, hasTools: Boolean): Unit = when (choice) {
+    case Auto -> { if (hasTools) requireModelCapability(capabilities.auto, "/options/toolChoice"); Unit }
+    case None -> requireModelCapability(capabilities.none, "/options/toolChoice")
+    case Required -> requireModelCapability(capabilities.required, "/options/toolChoice")
+    case Specific(_) -> requireModelCapability(capabilities.specific, "/options/toolChoice")
+}
+
+private fun checkModelReasoning(capabilities: ReasoningCapabilities, reasoning: ReasoningOptions?) {
+    val options = reasoning ?: return
+    if (options.enabled != None) requireModelCapability(capabilities.enable, "/options/reasoning/enabled")
+    if (options.effort != None) requireModelCapability(capabilities.effort, "/options/reasoning/effort")
+    if (options.budgetTokens != None) requireModelCapability(capabilities.budgetTokens, "/options/reasoning/budgetTokens")
+}

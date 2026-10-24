@@ -1,0 +1,30 @@
+package scoop.llm.client
+
+import scoop.http.HttpField
+import scoop.url.Url
+
+/** The immutable representation authenticated for this attempt and then sent without re-encoding. */
+public class LlmAuthRequest public constructor(
+    public val method: String,
+    public val url: Url,
+    public val fields: Array<HttpField>,
+    public val body: Array<Byte>
+)
+
+public interface LlmAuth {
+    public suspend fun fields(request: LlmAuthRequest): Array<HttpField>
+    public companion object {
+        public fun none(): LlmAuth = NoLlmAuth()
+        public fun bearer(token: String): LlmAuth = BearerLlmAuth(token)
+    }
+}
+
+private class NoLlmAuth : LlmAuth {
+    public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> = []
+}
+
+private class BearerLlmAuth(token: String) : LlmAuth {
+    private val field: HttpField = HttpField("Authorization".toByteArray(), ("Bearer " + token).toByteArray())
+    init { if (token.length == 0L) throw IllegalArgumentException(Some("bearer token must not be empty")) }
+    public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> = [field]
+}

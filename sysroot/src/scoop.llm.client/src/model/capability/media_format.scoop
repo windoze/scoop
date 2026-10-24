@@ -16,7 +16,7 @@ public class MediaFormat public constructor(
     public val mimeType: String,
     public val form: MediaForm
 ) {
-    @Serialize(ignore = true) private val parsed: HttpMediaType = checkedMediaType(mimeType)
+    @Serialize(ignore = true) internal val parsed: HttpMediaType = checkedMediaType(mimeType)
 
     /** Matches MIME syntax equivalences without discarding parameters or their exact values. */
     public fun matches(other: MediaFormat): Boolean {

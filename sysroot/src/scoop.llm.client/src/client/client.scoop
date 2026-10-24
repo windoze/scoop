@@ -1,0 +1,41 @@
+package scoop.llm.client
+
+import scoop.asyncio.*
+import scoop.http.client.HttpClient
+
+/** A reusable generation client with explicit ownership of calls and optional HTTP transport. */
+public class LlmClient private constructor(internal val state: LlmClientState) : AsyncCloseable {
+    public companion object {
+        public suspend fun open(scope: CoroutineScope, httpClient: HttpClient? = None): LlmClient {
+            scope.job.ensureActive()
+            ensureActive()
+            val http = httpClient ?: HttpClient.open(scope)
+            val owned = when (httpClient) { case None -> true; case Some(_) -> false }
+            val state = LlmClientState(currentEventLoop(), http, owned)
+            try {
+                startLlmOwner(state, scope)
+                scope.job.ensureActive()
+                ensureActive()
+                if (!state.lock.withLock { state.adopted }) throw LlmClientClosedException()
+                return LlmClient(state)
+            } catch (error: Throwable) {
+                try {
+                    if (state.lock.withLock { state.adopted }) closeLlmClient(state)
+                    else if (owned) http.close()
+                } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+                throw error
+            }
+        }
+    }
+
+    public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+
+    public suspend fun generate(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions()): LlmResult =
+        generateLlm(state, model, request, options)
+
+    public override suspend fun close() { closeLlmClient(state) }
+}
+
+/** The same client and request API with scoped opening and cleanup. */
+public suspend fun <T> withLlmClient(httpClient: HttpClient? = None, block: suspend (LlmClient) -> T): T =
+    coroutineScope suspend { scope -> LlmClient.open(scope, httpClient).useAsync(block) }

@@ -1,0 +1,83 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class LlmBindingTest {
+    @Test
+    fun `provider defaults and explicit deployments do not infer protocols from model IDs`() {
+        val provider = Providers.deepSeekChat()
+        val endpoint = LlmEndpoint(provider, LlmAuth.bearer("key"))
+        assertEquals("https://api.deepseek.com", endpoint.baseUrl.toString())
+        assertEquals(DeepSeekChatDialect().id, endpoint.provider.protocol.dialectId)
+        val first = endpoint.model("new/model:version")
+        val second = LlmEndpoint(Providers.openAiChat(), LlmAuth.none()).model(first.id)
+        assertFalse(first.endpoint.provider.protocol.dialectId == second.endpoint.provider.protocol.dialectId)
+        assertEquals("https://api.openai.com/v1/chat/completions", second.endpoint.provider.protocol.generationUrl(
+            second.endpoint.baseUrl, second.id).toString())
+        assertFailsWith<IllegalArgumentException> { val invalid = endpoint.model(""); Unit }
+        assertFailsWith<IllegalArgumentException> {
+            val invalid = LlmEndpoint(provider, LlmAuth.none(), Some(Url.parse("https://example.test/v1#fragment"))); Unit
+        }
+        assertFailsWith<IllegalArgumentException> {
+            val invalid = LlmEndpoint(LlmProvider("custom", ChatProtocol(OpenAiChatDialect())), LlmAuth.none()); Unit
+        }
+    }
+
+    @Test
+    fun `known capability failures finish before authentication and keep precise paths`() {
+        val cases: Array<(ModelCapabilities, LlmRequest, String)> = [
+            (ModelCapabilities(input = InputCapabilities(text = Unsupported("text disabled"))), sampleRequest, "/input/0/content/0"),
+            (ModelCapabilities(sampling = SamplingCapabilities(temperature = Unsupported("fixed"))),
+                LlmRequest(sampleRequest.input, options = LlmGenerationOptions(temperature = Some(0.0))), "/options/temperature"),
+            (ModelCapabilities(parallelToolCalls = Unsupported("no control")),
+                LlmRequest(sampleRequest.input, options = LlmGenerationOptions(parallelToolCalls = Some(false))), "/options/parallelToolCalls"),
+            (ModelCapabilities(limits = ModelLimits(maxOutputTokens = Some(5L))),
+                LlmRequest(sampleRequest.input, options = LlmGenerationOptions(maxOutputTokens = Some(6L))), "/options/maxOutputTokens"),
+            (ModelCapabilities(input = InputCapabilities(pdf = Unsupported("no PDF"))),
+                LlmRequest([Message([Document(MediaSource.Bytes([1.toByte()], "application/pdf"))])]), "/input/0/content/0/source")
+        ]
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                for ((capabilities, request, path) in cases) {
+                    val auth = RecordingAuth()
+                    val model = LlmEndpoint(Providers.openAiChat(), auth).model("arbitrary", Some(capabilities))
+                    val finished = FinishedCalls()
+                    val error = expectLlmFailure<LlmRequestException> suspend {
+                        client.generate(model, request, LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                    assertEquals(path, error.path)
+                    assertEquals(0L, auth.requests.size)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(0L, finished.values[0L].attempts.size)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0L].outcome)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `model media limits apply to known bytes and request counts across messages`() {
+        val formats = MediaCapabilities([MediaFormatCapability(MediaFormat("image/png", MediaForm.Bytes),
+            Supported(MediaLimits(maxBytesPerItem = Some(2L), maxItemsPerRequest = Some(1L))))])
+        val capabilities = ModelCapabilities(input = InputCapabilities(image = Supported(formats)))
+        val small = ContentPart.Image(MediaSource.Bytes([1.toByte()], "image/png"))
+        val large = ContentPart.Image(MediaSource.Bytes([1.toByte(), 2.toByte(), 3.toByte()], "image/png"))
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val auth = RecordingAuth()
+                val model = LlmEndpoint(Providers.openAiChat(), auth).model("m", Some(capabilities))
+                for (request in [LlmRequest([Message([large])]), LlmRequest([Message([small]), Message([small])])]) {
+                    val error = expectLlmFailure<LlmRequestException> suspend { client.generate(model, request); Unit }
+                    assertEquals("/input/0/content/0/source", error.path)
+                }
+                assertEquals(0L, auth.requests.size)
+            }
+        }
+    }
+}

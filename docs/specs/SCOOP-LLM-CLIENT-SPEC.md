@@ -188,3 +188,29 @@ OpenAI 的 Server(WebSearch) 编码请求级 web_search_options，可映射 appr
 DeepSeek reasoning 缺省按服务文档为开启；enabled 与 effort 冲突时拒绝。temperature 只在显式关闭 thinking 时可用，topP 只在 thinking 中且 0.95～1 范围内可精确表达；Required／Specific 也要求关闭 thinking。该规则来自方言，不通过模型名称推断。两种 dialect 的 reasoning budgetTokens 和 topK 无相应字段；OpenAI enabled = true 需要明确非 none 的 effort，不能替调用者选择强度。DeepSeek candidates = 1 可满足但不发送 n，其他数量失败；parallelToolCalls 的显式设置也失败。JSON Schema 只在 OpenAI 映射，DeepSeek JsonObject 使用同一 output 设置。
 
 request、message、part、tool 的 extensions 只合并到当前位置；Chat 客户端工具扩展位于 function／custom 定义对象，搜索工具扩展位于 web_search_options。扩展归属必须匹配，任何托管字段均不能覆盖，即使这次缺省没有生成该字段；保留的别名也不能旁路通用设置。错误 path 指向公共请求和扩展键，使用 JSON Pointer 转义。History 只接受同方言 assistant 消息且 context 为空，直接使用已投影的不可变 item；保留 DeepSeek 的全部 reasoning_content，不从展示文本重建。编码输入不修改保存的请求或历史。
+
+## 8. Provider、部署与模型绑定
+
+`LlmGenerationProtocol` 描述普通 HTTP JSON 生成：dialectId、generationUrl(baseUrl, modelId)、encodeRequest(modelId, request, stream)、decodeResponse(value, request) 与 decodeError(status, body, truncated)。ChatProtocol 实现该合同并固定其 ChatDialect。接口没有实时会话或尚无实现的操作占位；流式 reducer 随相应独立合同补充。
+
+`LlmProvider(name, protocol, defaultBaseUrl = None)` 固定一个协议／方言组合。`Providers.openAiChat()` 与 deepSeekChat() 分别提供已实现的两个组合及官方 URL 缺省。`LlmEndpoint(provider, authentication, baseUrl = None, fields = [])` 绑定部署；缺少官方缺省又未传 URL 时构造失败。URL 必须是绝对 http(s) 地址且无 fragment，Chat 路径在现有 base path 后追加 chat/completions，保留 query；不把 base path 当成要被替换的文件名。
+
+`endpoint.model(id, capabilities = None)` 创建不可变 LlmModel，保存 endpoint、原始 model ID 与能力；省略的能力使用 ModelCapabilities()，不联网查询目录。空 ID 失败，斜杠／冒号按模型数据保留，不解析年代或切换协议。相同 model ID 在不同 endpoint／provider 中形成独立绑定。认证、client 和模型绑定不提供消息 codec，不把密钥随历史保存。
+
+`LlmAuth` 的 suspend fields(request: LlmAuthRequest) 返回本次认证字段。LlmAuthRequest 是最终 POST 的 method、Url、现有字段与不可变 body 字节；认证每次尝试重新调用，签名和发送共享同一 body。LlmAuth.none() 不增加字段，bearer(token) 产生 Authorization；自定义认证实现同一公开接口。认证字段不得与 endpoint 的同名字段重复，字段合法性复用 HttpField；不自动读取环境变量或替换借入 HTTP client 的身份。最终发送前的 HTTP 自定义 hook 仍由 HTTP 调用者负责，不把用户代码视为隐式签名保证。
+
+## 9. 普通生成与调用寿命
+
+`LlmClient.open(scope, httpClient = None)` 是 suspend 工厂，绑定当前 EventLoop 与给定活动 CoroutineScope。未传 HTTP client 时创建并拥有一个，传入时借用；close 取消并等待本 client 的调用及完成回调，关闭拥有的 HTTP client，保留借入者。重复关闭幂等，并发关闭等待同一轮收尾；从本 client 的生成／认证／完成回调中等待自身 close 明确失败。取消 owner scope 也启动相同收尾，不以 GC 替代网络资源关闭。
+
+`withLlmClient(httpClient = None, block)` 只组合 open、useAsync 与 coroutineScope。`generate(model, request, options = LlmCallOptions())` 进行一次模型生成，返回 LlmResult；不运行工具、不建立 Agent 循环。它先记录调用开始，再检查已知模型能力和当前 adapter 能否表达请求。明确 Unsupported 的输入／控制在对应公共请求路径失败；Unknown 交给 adapter／服务端判断。可直接观察的媒体字节数及请求内数量遵守已知上限，不读取媒体来猜页数、分辨率或 token 数；Native 与原生 history 不伪装成已验证的通用模态。
+
+LlmCallOptions 保存 timeouts、retries、maxResponseBytes（缺省 64 MiB）、maxErrorBytes（缺省 64 KiB）与可选 suspend onFinished(metadata)。两个大小上限只约束当前响应的实际内存读取，不构成通用资源预算。成功 JSON 使用严格 UTF-8 及现有 Json decoder；非 2xx 读取有限错误前缀并保存截断事实，随后关闭响应，不无界 drain。错误正文不要求合法 JSON。
+
+LlmTimeouts 的 responseHeaders／readIdle 缺省 300 秒、writeIdle 缺省 60 秒、total 缺省 None；各项 None 明确关闭。排池、DNS、TCP、TLS 与代理握手继承 http.defaultTimeouts 的相应值。total 覆盖准备、认证、重试等待与生成，超时以 LlmTimeoutException 报告并等待真实清理。普通 HTTP 重试、redirect、Cookie、HTTP cache 与 origin 自动认证显式关闭；代理、TLS、连接池与原 observer 保留。
+
+LlmRetryOptions 的 maxRetries 缺省 2，初始退避 100 毫秒，上限 30 秒；只重试实际非 2xx 响应经 dialect 明确判断为服务拒绝且关闭成功的结果，不重试连接结果不明、格式错误、取消或已经取得成功响应后的读失败。认证和 HTTP 用户回调抛出的异常不因类型为 LlmServiceException 就触发生成重试。退避采用指数增长，Retry-After 使用 HTTP 库解析；不会早于服务器要求的时刻重试。Chat 当前将 DeepSeek 的 429／503 和 OpenAI 明确 rate_limit_exceeded 的 429 归为可重试；quota 错误与未知服务错误不根据 5xx 类别猜测可重试。
+
+每次尝试保存独立 LlmAttemptMetadata，未到发送点的尝试没有 sentAt。请求与最终响应头时间直接使用 HTTP 观察快照；1xx 不充当 receivedAt。完整响应解析后采样 completed；有非空输出时同时取得该完整响应的 firstOutput，普通文本非空时取得 firstText；不声称这些非流式采样是服务端逐 token 生成时刻。底层未提供 UTC 首字节／body 完成点时保持 None，不以回调执行时间冒充。
+
+onFinished 在实际收尾后执行一次，成功、输入检查失败、服务拒绝、超时、调用者取消和关闭均得到独立快照；取消保持 CancellationException。回调在不受原取消阻断的收尾作用域中执行，不运行在共享 HTTP 驱动内。回调失败照常向调用者报告；已有操作失败时使用 ResourceUseException 保留两者，metadata 中的 outcome 仍描述已完成的生成／收尾事实。失败不返回伪造 LlmResult，已观察的时间与用量通过回调取得。

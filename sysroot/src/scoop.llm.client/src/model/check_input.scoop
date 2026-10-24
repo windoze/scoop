@@ -1,0 +1,83 @@
+package scoop.llm.client
+
+import scoop.http.HttpFieldParseException
+
+private class LlmMediaCheck(val kind: InputMediaKind, val format: MediaFormat, val bytes: Long?, val path: String)
+
+internal fun checkModelInput(capabilities: InputCapabilities, request: LlmRequest) {
+    val media = ArrayList<LlmMediaCheck>()
+    collectModelInput(capabilities, request.system, "/system", media)
+    var index = 0L
+    for (item in request.input) {
+        val path = "/input/" + index.toString() + "/content"
+        index += 1L
+        when (item) {
+            case Message(content, _, _) -> collectModelInput(capabilities, content, path, media)
+            case ToolResult(_, content, _, _) -> collectModelInput(capabilities, content, path, media)
+            case History(_) -> continue
+        }
+    }
+    val counts = MutableArray<Long>(6L) { 0L }
+    for (item in media) { val slot = mediaKindSlot(item.kind); counts[slot] = counts[slot] + 1L }
+    for (item in media) {
+        val support = capabilities.forMedia(item.kind, item.format)
+        val limits = when (support) {
+            case Supported(value) -> value
+            case Unsupported(reason) -> throw LlmRequestException(item.path, reason)
+            case Unknown -> continue
+        }
+        checkMediaLimits(item, counts[mediaKindSlot(item.kind)], limits)
+    }
+}
+
+private fun collectModelInput(capabilities: InputCapabilities, content: Array<ContentPart>, path: String, media: ArrayList<LlmMediaCheck>) {
+    var index = 0L
+    for (part in content) {
+        val partPath = path + "/" + index.toString()
+        index += 1L
+        when (part) {
+            case Text(_, _) -> requireModelCapability(capabilities.text, partPath)
+            case Image(source, _) -> media.add(modelMediaCheck(Image, source, partPath + "/source"))
+            case Document(source, _, _) -> media.add(modelMediaCheck(Document, source, partPath + "/source"))
+            case Audio(source, _) -> media.add(modelMediaCheck(Audio, source, partPath + "/source"))
+            case Video(source, _) -> media.add(modelMediaCheck(Video, source, partPath + "/source"))
+            case VideoFrames(frames, _) -> {
+                var frameIndex = 0L
+                for (frame in frames) {
+                    media.add(modelMediaCheck(VideoFrames, frame.source, partPath + "/frames/" + frameIndex.toString() + "/source"))
+                    frameIndex += 1L
+                }
+            }
+            case Native(_, _) -> continue
+        }
+    }
+}
+
+private fun modelMediaCheck(kind: InputMediaKind, source: MediaSource, path: String): LlmMediaCheck {
+    val (mime, form, bytes): (String, MediaForm, Long?) = when (source) {
+        case Bytes(data, mime) -> (mime, MediaForm.Bytes, Some(data.size))
+        case Url(_, mime) -> (mime, MediaForm.Url, None)
+        case FileReference(_, mime) -> (mime, MediaForm.FileReference, None)
+    }
+    val format = try { MediaFormat(mime, form) }
+        catch (error: HttpFieldParseException) { throw LlmRequestException(path + "/mimeType", error.message ?: "invalid media type") }
+        catch (error: IllegalArgumentException) { throw LlmRequestException(path + "/mimeType", error.message ?: "invalid media type") }
+    val selected = if (kind == InputMediaKind.Document && format.parsed.type == "application" && format.parsed.subtype == "pdf") InputMediaKind.Pdf else kind
+    return LlmMediaCheck(selected, format, bytes, path)
+}
+
+private fun checkMediaLimits(item: LlmMediaCheck, count: Long, limits: MediaLimits) {
+    if (item.bytes != None && limits.maxBytesPerItem != None && item.bytes!! > limits.maxBytesPerItem!!)
+        throw LlmRequestException(item.path, "media bytes exceed the model limit")
+    if (limits.maxItemsPerRequest != None && count > limits.maxItemsPerRequest!!)
+        throw LlmRequestException(item.path, "media item count exceeds the model limit")
+}
+
+private fun mediaKindSlot(kind: InputMediaKind): Long = when (kind) {
+    case Image -> 0L
+    case Pdf -> 1L
+    case Audio -> 2L
+    case Video -> 3L
+    case VideoFrames -> 4L
+    case Document -> 5L
+}

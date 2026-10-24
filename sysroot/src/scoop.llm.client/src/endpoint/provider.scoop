@@ -1,0 +1,18 @@
+package scoop.llm.client
+
+import scoop.url.Url
+
+/** A named, fixed protocol/dialect combination; credentials belong to the endpoint. */
+public class LlmProvider public constructor(
+    public val name: String,
+    public val protocol: LlmGenerationProtocol,
+    public val defaultBaseUrl: Url? = None
+)
+
+/** Common combinations and deployment defaults, without a model-name router. */
+public object Providers {
+    public fun openAiChat(): LlmProvider = LlmProvider("openai-chat", ChatProtocol(OpenAiChatDialect()),
+        Some(Url.parse("https://api.openai.com/v1")))
+    public fun deepSeekChat(): LlmProvider = LlmProvider("deepseek-chat", ChatProtocol(DeepSeekChatDialect()),
+        Some(Url.parse("https://api.deepseek.com")))
+}

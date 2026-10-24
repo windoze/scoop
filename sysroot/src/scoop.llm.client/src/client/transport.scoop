@@ -1,0 +1,84 @@
+package scoop.llm.client
+
+import scoop.http.*
+import scoop.http.client.*
+import scoop.json.JsonValue
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.time.SystemClock
+import scoop.time.Duration
+import scoop.url.Url
+
+internal enum LlmAttemptResult { Success(LlmResponse), Rejected(LlmServiceException) }
+
+internal suspend fun executeLlmAttempt(http: HttpClient, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
+    request: LlmRequest, options: LlmCallOptions, attempt: LlmAttemptState): LlmAttemptResult {
+    val body = RequestBody.fromByteArray(bytes, Some(HttpMediaType.parse("application/json")))
+    val prepared = HttpRequest.post(url, body, endpoint.fields)
+    val authentication = awaitLlmAuth(endpoint, prepared, bytes)
+    val base = http.defaultTimeouts
+    val timeouts = HttpTimeoutOptions(total = None, poolAcquire = base.poolAcquire, responseHeaders = options.timeouts.responseHeaders,
+        resolve = base.resolve, connect = base.connect, tlsHandshake = base.tlsHandshake, readIdle = options.timeouts.readIdle,
+        writeIdle = options.timeouts.writeIdle, proxyHandshake = base.proxyHandshake)
+    val httpOptions = HttpCallOptions(timeouts = Some(timeouts), redirects = Some(HttpRedirectOptions(enabled = false)),
+        retries = Some(HttpRetryOptions(maxRetries = 0L)), authentication = Some(HttpAuthenticationOptions()),
+        useCookies = false, cacheMode = HttpCacheMode.Bypass,
+        observer = Some(HttpObserver(suspend { event -> attempt.observe(event.metrics) })))
+    ensureActive()
+    return http.withResponse(HttpRequest.post(url, body, authentication, httpOptions)) suspend { response ->
+        attempt.requestId = when (singleLlmField(response.fields, "x-request-id")) {
+            case Some(value) -> String.fromUtf8OrNone(value)
+            case None -> None
+        }
+        if (response.status < 200U || response.status >= 300U) {
+            attempt.retryAfter = llmRetryAfter(response.fields)
+            val (prefix, truncated) = readLlmError(response.body, options.maxErrorBytes)
+            return@withResponse LlmAttemptResult.Rejected(endpoint.provider.protocol.decodeError(response.status, prefix, truncated))
+        }
+        val parsed = response.body.json<JsonValue>(options.maxResponseBytes)
+        val decoded = endpoint.provider.protocol.decodeResponse(parsed, request)
+        attempt.response = Some(decoded)
+        attempt.completed = Some(attempt.call.point())
+        LlmAttemptResult.Success(decoded)
+    }
+}
+
+private fun singleLlmField(fields: Array<HttpField>, name: String): Array<Byte>? {
+    val matching = fields.findAll(name.toByteArray())
+    return if (matching.size == 1L) Some(matching[0L].value) else None
+}
+
+private fun llmRetryAfter(fields: Array<HttpField>): Duration {
+    val value = singleLlmField(fields, "Retry-After") ?: return Duration.ZERO
+    val now = SystemClock.now()
+    return HttpRetryAfter.parseOrNone(value, now)?.delayFrom(now) ?: Duration.ZERO
+}
+
+private suspend fun awaitLlmAuth(endpoint: LlmEndpoint, request: HttpRequest, bytes: Array<Byte>): Array<HttpField> {
+    val fields = ArrayList<HttpField>()
+    for (field in request.fields) fields.add(field)
+    val added = endpoint.authentication.fields(LlmAuthRequest(request.method, request.url, request.fields, bytes))
+    for (field in added) {
+        for (existing in fields) {
+            if (existing.hasName(field.name)) throw IllegalArgumentException(Some("LLM authentication field duplicates a request field"))
+        }
+        fields.add(field)
+    }
+    return fields.toArray()
+}
+
+private suspend fun readLlmError(body: HttpResponseBody, maxBytes: Long): (Array<Byte>, Boolean) {
+    val buffer = NativeByteBuffer.allocate()
+    try {
+        while (buffer.readableBytes < maxBytes) {
+            val remaining = maxBytes - buffer.readableBytes
+            val amount = if (remaining < 8192L) remaining else 8192L
+            buffer.ensureWritable(amount)
+            if (body.readInto(buffer, amount) == 0L)
+                return (buffer.readBytes(buffer.readableBytes), false)
+        }
+        val size = buffer.readableBytes
+        buffer.ensureWritable(1L)
+        val extra = body.readInto(buffer, 1L)
+        return (buffer.readBytes(size), extra != 0L)
+    } finally { buffer.close() }
+}

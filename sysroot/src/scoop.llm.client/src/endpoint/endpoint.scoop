@@ -1,0 +1,31 @@
+package scoop.llm.client
+
+import scoop.http.HttpField
+import scoop.url.Url
+
+/** One deployment and authentication choice, reusable across independent model bindings. */
+public class LlmEndpoint public constructor(
+    public val provider: LlmProvider,
+    public val authentication: LlmAuth,
+    baseUrl: Url? = None,
+    public val fields: Array<HttpField> = []
+) {
+    public val baseUrl: Url = baseUrl ?: (provider.defaultBaseUrl ?: throw IllegalArgumentException(Some("provider has no default base URL")))
+    init {
+        if (this.baseUrl.scheme != Some("http") && this.baseUrl.scheme != Some("https"))
+            throw IllegalArgumentException(Some("LLM endpoint requires an absolute http or https URL"))
+        this.baseUrl.httpOrigin()
+        if (this.baseUrl.encodedFragment != None) throw IllegalArgumentException(Some("LLM endpoint URL must not contain a fragment"))
+    }
+    public fun model(id: String, capabilities: ModelCapabilities? = None): LlmModel =
+        LlmModel(this, id, capabilities ?: ModelCapabilities())
+}
+
+/** Model identity and capability facts at one endpoint, without credentials in serializable data. */
+public class LlmModel internal constructor(
+    public val endpoint: LlmEndpoint,
+    public val id: String,
+    public val capabilities: ModelCapabilities
+) {
+    init { if (id.length == 0L) throw IllegalArgumentException(Some("model ID must not be empty")) }
+}

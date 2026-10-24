@@ -1,0 +1,142 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.HttpField
+import scoop.http.client.HttpClient
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+private class WaitingAuth : LlmAuth {
+    val entered = LlmGate()
+    public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> {
+        entered.signal()
+        currentEventLoop().sleep(Duration.seconds(60L))
+        return []
+    }
+}
+
+@Test
+private class LlmLifetimeTest {
+    @Test
+    fun `total timeout includes authentication and reports an unsent attempt`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val auth = WaitingAuth()
+                val model = LlmEndpoint(Providers.openAiChat(), auth).model("m")
+                val finished = FinishedCalls()
+                val limit = Duration.milliseconds(25L)
+                val error = expectLlmFailure<LlmTimeoutException> suspend {
+                    client.generate(model, sampleRequest, LlmCallOptions(timeouts = LlmTimeouts(total = Some(limit)),
+                        onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+                assertEquals(limit, error.limit)
+                assertTrue(error.elapsed >= limit)
+                assertEquals(1L, finished.values.size)
+                assertEquals(LlmCallOutcome.Failed, finished.values[0L].outcome)
+                val attempt = finished.values[0L].attempts[0L]
+                assertEquals(None, attempt.request.sentAt)
+                assertEquals(None, attempt.response.receivedAt)
+            }
+        }
+    }
+
+    @Test
+    fun `already cancelled callers still receive one finish notification`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val finished = FinishedCalls()
+                val auth = RecordingAuth()
+                expectLlmFailure<CancellationException> suspend {
+                    coroutineScope suspend { scope ->
+                        scope.job.cancel()
+                        expectLlmFailure<CancellationException> suspend {
+                            client.generate(LlmEndpoint(Providers.openAiChat(), auth).model("m"), sampleRequest,
+                                LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                        }
+                        Unit
+                    }
+                }
+                assertEquals(1L, finished.values.size)
+                assertEquals(LlmCallOutcome.Cancelled, finished.values[0L].outcome)
+                assertEquals(0L, auth.requests.size)
+            }
+        }
+    }
+
+    @Test
+    fun `close cancels active calls waits for callbacks and preserves borrowed HTTP`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            HttpClient.open(scope).useAsync suspend { http ->
+                val client = LlmClient.open(scope, Some(http))
+                val auth = WaitingAuth()
+                val entered = LlmGate()
+                val release = LlmGate()
+                val finished = FinishedCalls()
+                val request = scope.launch suspend {
+                    expectLlmFailure<LlmClientClosedException> suspend {
+                        client.generate(LlmEndpoint(Providers.openAiChat(), auth).model("m"), sampleRequest,
+                            LlmCallOptions(onFinished = Some(suspend { metadata ->
+                                finished.record(metadata); entered.signal(); release.await()
+                            }))); Unit
+                    }
+                    Unit
+                }
+                auth.entered.await()
+                val closing = scope.launch suspend { client.close() }
+                entered.await()
+                assertFalse(closing.isCompleted)
+                assertFalse(client.isClosed)
+                release.signal()
+                closing.join(); request.join()
+                assertTrue(client.isClosed)
+                assertFalse(http.isClosed)
+                assertEquals(1L, finished.values.size)
+                assertEquals(LlmCallOutcome.Failed, finished.values[0L].outcome)
+                client.close()
+            }
+        }
+    }
+
+    @Test
+    fun `completion callback cannot await its own client and both failures remain visible`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val finished = FinishedCalls()
+                val model = LlmEndpoint(Providers.openAiChat(), LlmAuth.none()).model("m",
+                    Some(ModelCapabilities(input = InputCapabilities(text = Unsupported("no text")))))
+                val error = expectLlmFailure<ResourceUseException> suspend {
+                    client.generate(model, sampleRequest, LlmCallOptions(onFinished = Some(suspend { metadata ->
+                        finished.record(metadata); client.close()
+                    }))); Unit
+                }
+                assertTrue(error.primaryFailure is LlmRequestException)
+                assertTrue(error.cleanupFailure is IllegalStateException)
+                assertEquals(1L, finished.values.size)
+                assertFalse(client.isClosed)
+            }
+        }
+    }
+
+    @Test
+    fun `owner cancellation closes the LLM client while leaving borrowed transport usable`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            HttpClient.open(scope).useAsync suspend { http ->
+                val saved = ArrayList<LlmClient>()
+                expectLlmFailure<CancellationException> suspend {
+                    coroutineScope suspend { owner ->
+                        saved.add(LlmClient.open(owner, Some(http)))
+                        owner.job.cancel()
+                    }
+                }
+                assertTrue(saved[0L].isClosed)
+                assertFalse(http.isClosed)
+            }
+        }
+    }
+}
