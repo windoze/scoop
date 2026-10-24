@@ -34,7 +34,7 @@
 | 语言表示 | struct／enum／tuple 按值，泛型单态化，引用／指针 Option niche，值元素数组连续存储 | 对象头 16 bytes；interface 16 bytes；含引用 enum 变体使用独占槽；这些表示有真实内存成本 |
 | MIR 优化 | 去虚化、内联、局部 box／closure／class 字段替换交替执行，最多三轮；局部对象与循环范围可指导内联，intrinsic 另有必要归一化 | 不是通用跨过程分析；分配消除仍受 EH、跨调用及逃逸限制；没有冷路径物化 |
 | 跨 Cone 优化 | 泛型具体化；M62 发布并消费部分普通顶层小函数的可移植 HIR 正文 | 普通正文导入范围受限，不等于任意成员、构造器、循环、Context、EH、suspend 都能跨库展开 |
-| LLVM | SROA、范围约束、SCCP、GVN、memcpyopt、DSE 等；NoGc 有循环和向量优化；有界 Managed 内层支持整数／Boolean／严格浮点数组、无环条件正文及共享提前退出 | 数组初始化及单位步长 checked 访问已打通；一般 CFG／循环变换、搜索和有序归约 SIMD、引用元素和未展开调用仍有限制 |
+| LLVM | SROA、范围约束、SCCP、GVN、memcpyopt、DSE 等；NoGc 有循环和向量优化；有界 Managed 内层支持标量／引用及对应 wrapper 数组、无环条件正文与共享提前退出 | 数组初始化及单位步长 checked 访问已打通；一般 CFG／循环变换、搜索和有序归约 SIMD、一般聚合及未展开调用仍有限制，引用写屏障保持 |
 | GC 集成 | AS1 non-integral pointer，精确根，RS4GC，条件 poll，只在慢路径物化 poll roots | site 与逻辑恢复标记较早限制变换；机器 tail duplication 关闭；这限制了默认 O2/O3 能直接复用的范围 |
 | 物理产物 | 逐 callable LLVM module／对象，Strong／ODR 选择，已有私有 closure 支持裁剪 | LLVM 通常看不到其他 callable 的定义；尚无全程序优化、PGO 或 ThinLTO 路线 |
 | 调用 | 小于等于 16 bytes 的 GC-free 聚合值可按目标直接传递；接口拆成 object／itab | 24-byte V3 仍间接传递；含引用聚合值仍间接；真实动态函数视图还可能经过 Any bridge |
@@ -193,13 +193,15 @@ smart cast 已有正确的路径类型收窄：命中分支中的引用读取变
 
 [数组搜索与提前退出循环](EARLY-EXIT-ARRAYS.md)进一步把唯一 latch 的继续迭代区域与共享出口分开，保留首次命中、出口快照、异常前缀和退出后的 GC。三目标长内核耗时降低 16.16%～74.32%，首项命中和短路径的额外成本单独保留；沿用 release 默认有界标量内层，搜索 SIMD、一般 CFG 和未知调用仍待后续。
 
+[引用数组](REFERENCE-ARRAYS.md)继续覆盖 class／interface／String／函数引用、可空引用和相应 MaybeUninit 的读取、复制、初始化与静态父表投影。三目标字段读取、身份搜索和可空引用读取获益；Darwin 写入获益，GNU／musl 带屏障写入基本持平。原有写屏障保持，旧数组唯一持有年轻对象及并发移动验证通过；当前结果为重复卡标记和 bulk barrier 提供了具体测量对象，不能把引用分块等同于批量屏障或引用 SIMD。
+
 普通 Managed 代码中的整数／浮点数组遍历、拷贝、变换、搜索和聚合继续按以下路线推进：
 
 1. 展开数组／容器的实际 getter/setter，传播不变 length、backing 与归纳变量范围。
 2. 对可证明合法的访问消除逐元素检查；存在动态边界时用 guard 选择优化循环，不满足 guard 就执行保留原行为的循环。
 3. 把循环分为含正常 poll 的外层和有界内层；每次外层 poll 后重新取得更新后的对象基址，derived pointer 只在无 safepoint 的内层使用。
 4. 在内层启用 LICM、load/store 消除、向量化、适量 unroll、memcpy/memmove/fill 等惯用形式识别；保留尾块和重叠复制语义。
-5. 再扩展嵌套循环、简单分支、多个数组、引用写入和 bulk barrier。
+5. 继续扩展嵌套循环、更广索引与聚合，并独立测量重复卡标记消除和 bulk barrier。
 
 边界检查不能随意提前抛异常。例如原循环会先写入前几个元素再越界，预检若直接抛错会改变可观察状态；guard＋原循环 fallback 能保持这一顺序。零次循环不能因优化而读取数组或执行原本不会触发的检查。
 

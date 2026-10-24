@@ -20,5 +20,9 @@ for name in ["generatedLong", "generatedInt", "generatedBoolean"]:
     assert function.count("<loop-header-poll>") == 1, name
     assert function.count("      array_set ") == (2 if release else 1), name
 
-for name in ["shortArray", "writePrefix", "exceptional", "referenceArray"]:
+function = body("writePrefix")
+assert ("poll.full." in function) == release
+assert ("poll.bounds." in function) == release
+
+for name in ["shortArray", "exceptional", "referenceArray"]:
     assert "poll.full." not in body(name), name

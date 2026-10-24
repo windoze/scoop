@@ -1,0 +1,90 @@
+package dev.performance
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun exercise(count: Long) {
+    val first = Node(7L)
+    val second = Node(11L)
+    val child: ChildToken<Long> = first
+    val boxed: ChildToken<Long> = Boxed(19L)
+    val parent: Token<Long> = first
+    val empty: Empty = first
+    val nodes = Array<Node>(count) { i -> if (i.and(1L) == 0L) first else second }
+    val target = fillNodes(count, first, first)
+    val views = Array<Token<Long>>(count) { i -> if (i.and(1L) == 0L) parent else boxed }
+    val children = Array<ChildToken<Long>>(count) { i -> if (i.and(1L) == 0L) child else boxed }
+    val viewTarget = fillInterfaces(count, parent, parent)
+    val empties = MutableArray<Empty>(count) { _ -> empty }
+    val anyValues = Array<Any>(count) { i -> if (i.and(1L) == 0L) first else 42L }
+    val anyTarget = MutableArray<Any>(count) { _ -> first }
+    val optional = Array<Node?>(count) { i -> if (i.and(1L) == 0L) Some(first) else None }
+    val optionTarget = MutableArray<Node?>(count) { _ -> None }
+    val optionalViews = Array<Token<Long>?>(count) { i -> if (i.and(1L) == 0L) Some(boxed) else None }
+    val nullableTarget = MutableArray<Token<Long>?>(count) { _ -> None }
+    val choices = Array<Choice>(count) { i -> if (i.and(1L) == 0L) Choice.Present(first) else Choice.Missing }
+    val choiceTarget = MutableArray<Choice>(count) { _ -> Choice.Missing }
+    val text = "reference-" + count.toString()
+    val strings = Array<String>(count) { _ -> text }
+    val stringTarget = MutableArray<String>(count) { _ -> "" }
+    val action: (Long) -> Long = { value -> value + first.value }
+    val identity: (Long) -> Long = { value -> value }
+    val functions = Array<(Long) -> Long>(count) { _ -> action }
+    val functionTarget = MutableArray<(Long) -> Long>(count) { _ -> identity }
+    val wrapped = MutableArray<MaybeUninit<Node>>(count) { _ -> MaybeUninit<Node>.initialized(second) }
+    copyNodes(nodes, target)
+    copyAliased(target, target)
+    copyInterfaces(views, viewTarget)
+    projectInterfaces(children, viewTarget)
+    copyAny(anyValues, anyTarget)
+    copyOptional(optional, optionTarget)
+    copyNullableViews(optionalViews, nullableTarget)
+    copyChoice(choices, choiceTarget)
+    copyStrings(strings, stringTarget)
+    copyFunctions(functions, functionTarget)
+    check(wrappedSum(wrapped) == count * 11L)
+    clearWrapped(wrapped)
+    check(emptyStorage(count).size == count)
+    check(sumNodes(nodes) == ((count + 1L) / 2L) * 7L + (count / 2L) * 11L)
+    check(sumOptional(optional) == ((count + 1L) / 2L) * 7L)
+    check(findNode(nodes, first) == (if (count == 0L) -1L else 0L))
+    check(findNode(nodes, Node(7L)) == -1L)
+    gcCollect()
+    var i = 0L
+    while (i < count) {
+        val even = i.and(1L) == 0L
+        check(target[i] === (if (even) first else second))
+        check(viewTarget[i].number() == (if (even) 7L else 19L))
+        check(if (even) anyTarget[i] === first else (anyTarget[i] as Long) == 42L)
+        check(when (optionTarget[i]) { case None -> !even; case Some(value) -> even && value === first })
+        check(when (nullableTarget[i]) { case None -> !even; case Some(value) -> even && value.number() == 19L })
+        check(when (choiceTarget[i]) { case Choice.Missing -> !even; case Choice.Present(value) -> even && value === first })
+        check(stringTarget[i] == text && functionTarget[i](3L) == 10L)
+        i += 1L
+    }
+    projectFinal(nodes, viewTarget)
+    if (count > 0L) check(viewTarget[count - 1L].number() == nodes[count - 1L].value)
+    projectEmpty(nodes, empties)
+    if (count > 0L) check(empties[0L] === first)
+}
+
+fun main() {
+    for (size in [0L, 1L, 63L, 64L, 65L, 129L, 1025L]) exercise(size)
+    val first = Node(3L)
+    val last = Node(5L)
+    val source = Array<Node>(129L) { i -> if (i == 64L) last else first }
+    val target = MutableArray<Node>(64L) { _ -> last }
+    check(copyUntil(source, target, last) === last)
+    check(target[63L] === first)
+    var caught = false
+    try { copyNodes(source, target) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && target[0L] === first && target[63L] === first)
+    val openValues = Array<OpenNode>(65L) { _ -> OpenNode(31L) }
+    val views = fillInterfaces(65L, first, first)
+    projectOpen(openValues, views)
+    check(invokeElements(views) == 65L * 31L)
+    val pairs = Array<Pair>(65L) { _ -> Pair(first, last) }
+    val pairTarget = MutableArray<Pair>(65L) { _ -> Pair(last, first) }
+    copyPairs(pairs, pairTarget)
+    check(pairTarget[64L].first === first && pairTarget[64L].second === last)
+    println("reference arrays preserve views, wrappers and checked prefixes")
+}
