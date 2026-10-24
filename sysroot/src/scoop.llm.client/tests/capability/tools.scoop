@@ -1,0 +1,85 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.test.*
+
+@Test
+private class NativeToolCapabilityTest {
+    @Test
+    fun `empty tool descriptions remain unknown independently of function support`() {
+        val model = Json.decodeFromString<ModelCapabilities>("{}")
+        val dialect = OpenAiChatDialect().id
+        assertTrue(isUnknownCapability(model.clientNativeTools))
+        assertTrue(isUnknownCapability(model.forClientNativeTool(dialect, "shell")))
+        assertTrue(isUnknownCapability(model.serverTools.webSearch))
+        assertTrue(isUnknownCapability(model.serverTools.forNativeTool(dialect, "web_search")))
+        assertTrue(isUnknownCapability(model.mixedTools.clientAndServer))
+        assertTrue(isUnknownCapability(model.mixedTools.multipleServerTools))
+        val empty = NativeToolConfigurationCapabilities()
+        assertTrue(isUnknownCapability(empty.forField("size")))
+        val known = ModelCapabilities(functionTools = Supported(Unit), clientNativeTools = Supported(NativeToolCapabilities()))
+        assertTrue(isUnknownCapability(known.forClientNativeTool(dialect, "shell")))
+        assertTrue(isUnknownCapability(known.serverTools.webSearch))
+    }
+
+    @Test
+    fun `native kind version protocol dialect and execution ownership are exact`() {
+        val dialect = OpenAiChatDialect().id
+        val table = NativeToolCapabilities([
+            NativeToolCapability(dialect, "shell", Supported(NativeToolConfigurationCapabilities())),
+            NativeToolCapability(dialect, "shell", Unsupported("disabled revision"), Some("v1"))
+        ])
+        val model = ModelCapabilities(clientNativeTools = Supported(table),
+            serverTools = ServerToolCapabilities(nativeTools = Unsupported("server execution disabled")))
+        val restored = Json.decodeFromString<ModelCapabilities>(Json.encodeToString(model))
+        assertEquals(0L, supportedDetails(restored.forClientNativeTool(dialect, "shell")).fields.size)
+        assertEquals("disabled revision", unsupportedReason(restored.forClientNativeTool(dialect, "shell", Some("v1"))))
+        assertTrue(isUnknownCapability(restored.forClientNativeTool(dialect, "shell", Some("v2"))))
+        assertTrue(isUnknownCapability(restored.forClientNativeTool(dialect, "shell", Some(""))))
+        assertTrue(isUnknownCapability(restored.forClientNativeTool(dialect, "Shell")))
+        assertTrue(isUnknownCapability(restored.forClientNativeTool(DialectId(dialect.protocol, "other"), "shell")))
+        assertTrue(isUnknownCapability(restored.forClientNativeTool(DialectId(ApiProtocolId("other"), dialect.value), "shell")))
+        assertEquals("server execution disabled", unsupportedReason(restored.serverTools.forNativeTool(dialect, "shell")))
+    }
+
+    @Test
+    fun `native field details and search options survive the nested model codec`() {
+        val dialect = OpenAiChatDialect().id
+        val config = NativeToolConfigurationCapabilities([
+            NativeToolFieldCapability("size", Unsupported("fixed")), NativeToolFieldCapability("sources", Supported(Unit))
+        ])
+        val model = ModelCapabilities(serverTools = ServerToolCapabilities(
+            webSearch = Supported(WebSearchCapabilities(allowedDomains = Unsupported("no filter"), includeSources = Supported(Unit),
+                location = Supported(SearchLocationCapabilities(city = Supported(Unit), timezone = Unsupported("no timezone"))))),
+            nativeTools = Supported(NativeToolCapabilities([NativeToolCapability(dialect, "web_search", Supported(config))]))),
+            mixedTools = MixedToolCapabilities(clientAndServer = Unsupported("separate requests"), multipleServerTools = Supported(Unit)))
+        val restored = Json.decodeFromString<ModelCapabilities>(Json.encodeToString(model))
+        val native = supportedDetails(restored.serverTools.forNativeTool(dialect, "web_search"))
+        assertEquals("fixed", unsupportedReason(native.forField("size")))
+        assertEquals(Unit, supportedDetails(native.forField("sources")))
+        assertTrue(isUnknownCapability(native.forField("Size")))
+        val search = supportedDetails(restored.serverTools.webSearch)
+        assertEquals("no filter", unsupportedReason(search.allowedDomains))
+        assertTrue(isUnknownCapability(search.excludedDomains))
+        assertEquals(Unit, supportedDetails(search.includeSources))
+        assertEquals(Unit, supportedDetails(supportedDetails(search.location).city))
+        assertTrue(isUnknownCapability(supportedDetails(search.location).country))
+        assertEquals("no timezone", unsupportedReason(supportedDetails(search.location).timezone))
+        assertEquals("separate requests", unsupportedReason(restored.mixedTools.clientAndServer))
+        assertEquals(Unit, supportedDetails(restored.mixedTools.multipleServerTools))
+    }
+
+    @Test
+    fun `duplicate native signatures and fields fail both construction and decoding`() {
+        val tool = NativeToolCapability(OpenAiChatDialect().id, "web_search", Unknown)
+        val field = NativeToolFieldCapability("size", Unknown)
+        assertFailsWith<IllegalArgumentException> { val invalid = NativeToolCapabilities([tool, tool]); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = NativeToolConfigurationCapabilities([field, field]); Unit }
+        assertFailsWith<IllegalArgumentException> {
+            Json.decodeFromString<NativeToolCapabilities>("{\"tools\":" + Json.encodeToString([tool, tool]) + "}"); Unit
+        }
+        assertFailsWith<IllegalArgumentException> {
+            Json.decodeFromString<NativeToolConfigurationCapabilities>("{\"fields\":" + Json.encodeToString([field, field]) + "}"); Unit
+        }
+    }
+}

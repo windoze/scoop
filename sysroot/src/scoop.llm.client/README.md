@@ -117,3 +117,15 @@ val restored = Json.decodeFromString<ModelCapabilities>(Json.encodeToString(capa
 MIME 参数也参与格式匹配；支持音频 `rate=24000` 不自动表示支持其他采样率。缺失上限使用 None，已知零上限仍保留。生成入口会拒绝已知不支持的输入和显式控制，并检查可观察的媒体字节数、数量及生成上限。Unknown 继续交给 adapter／服务端判断，不联网下载媒体或猜测隐藏 token 数。
 
 以上是函数内的调用片段；应用直接使用 JSON 时也应声明 `scoop:scoop.json` 依赖。Codec 使用现有 companion 的缺省实现，Long 大整数在保存与恢复时保持精确。正式合同见 [LLM client 规范](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md)。
+
+原生工具与服务端工具也有独立的能力描述；已知 WebSearch 可用但具体选项未知时，只需要填写工具本身：
+
+```scoop
+val capabilities = ModelCapabilities(
+    serverTools = ServerToolCapabilities(webSearch = Supported(WebSearchCapabilities())),
+    mixedTools = MixedToolCapabilities(clientAndServer = Unsupported("Use separate requests"))
+)
+val model = endpoint.model(modelId, Some(capabilities))
+```
+
+`clientNativeTools` 与 `serverTools.nativeTools` 各自保存精确的 dialect／kind／version 表，分别通过 `forClientNativeTool` 和 `serverTools.forNativeTool` 查询。version=None 只表示未显式选择版本；没有列出的版本或配置字段仍为 Unknown。原生配置的字段支持、WebSearch 的域名／地域／来源选项、客户端与服务端混用限制都会在 generate 和 openStream 的同一请求检查中生效，报错保留输入路径。显式空集合、false 和 null 不被当成省略；能力 Supported 也不自动填入请求选项或启用 adapter 无法表达的功能。

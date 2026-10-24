@@ -1,0 +1,67 @@
+package scoop.llm.client
+
+/** Availability of one explicit top-level native configuration field, independent of its value. */
+public class NativeToolFieldCapability public constructor(public val name: String, public val support: Capability<Unit>) {
+    public companion object : ValueEncoder<NativeToolFieldCapability>, ValueDecoder<NativeToolFieldCapability>
+}
+
+/** Exact field facts; value constraints and nested configuration semantics belong to the dialect. */
+public class NativeToolConfigurationCapabilities public constructor(public val fields: Array<NativeToolFieldCapability> = []) {
+    init {
+        var index = 0L
+        for (field in fields) {
+            var previous = 0L
+            while (previous < index) {
+                if (fields[previous].name == field.name) throw IllegalArgumentException(Some("duplicate native tool capability field"))
+                previous += 1L
+            }
+            index += 1L
+        }
+    }
+
+    public fun forField(name: String): Capability<Unit> {
+        for (field in fields) if (field.name == name) return field.support
+        return Unknown
+    }
+
+    public companion object : ValueEncoder<NativeToolConfigurationCapabilities>, ValueDecoder<NativeToolConfigurationCapabilities>
+}
+
+/** A fact about one dialect, native kind, and exact explicit or default version. */
+public class NativeToolCapability public constructor(
+    public val dialect: DialectId, public val kind: String,
+    public val support: Capability<NativeToolConfigurationCapabilities>, public val version: String? = None
+) {
+    public companion object : ValueEncoder<NativeToolCapability>, ValueDecoder<NativeToolCapability>
+}
+
+/** Unlisted combinations remain unknown; None selects the dialect default, not every version. */
+public class NativeToolCapabilities public constructor(public val tools: Array<NativeToolCapability> = []) {
+    init {
+        var index = 0L
+        for (tool in tools) {
+            var previous = 0L
+            while (previous < index) {
+                val other = tools[previous]
+                if (other.dialect == tool.dialect && other.kind == tool.kind && other.version == tool.version)
+                    throw IllegalArgumentException(Some("duplicate native tool capability"))
+                previous += 1L
+            }
+            index += 1L
+        }
+    }
+
+    public fun forTool(dialect: DialectId, kind: String, version: String? = None): Capability<NativeToolConfigurationCapabilities> {
+        for (tool in tools) if (tool.dialect == dialect && tool.kind == kind && tool.version == version) return tool.support
+        return Unknown
+    }
+
+    public companion object : ValueEncoder<NativeToolCapabilities>, ValueDecoder<NativeToolCapabilities>
+}
+
+internal fun nativeToolCapability(capability: Capability<NativeToolCapabilities>, dialect: DialectId, kind: String,
+    version: String?): Capability<NativeToolConfigurationCapabilities> = when (capability) {
+    case Supported(details) -> details.forTool(dialect, kind, version)
+    case Unsupported(reason) -> Unsupported(reason)
+    case Unknown -> Unknown
+}

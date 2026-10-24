@@ -1,0 +1,40 @@
+package scoop.llm.client
+
+/** Location hints are independently configurable; absent hints stay absent. */
+public class SearchLocationCapabilities public constructor(
+    public val country: Capability<Unit> = Unknown,
+    public val region: Capability<Unit> = Unknown,
+    public val city: Capability<Unit> = Unknown,
+    public val timezone: Capability<Unit> = Unknown
+) {
+    public companion object : ValueEncoder<SearchLocationCapabilities>, ValueDecoder<SearchLocationCapabilities>
+}
+
+/** Availability of the common search options in this model's bound dialect mapping. */
+public class WebSearchCapabilities public constructor(
+    public val allowedDomains: Capability<Unit> = Unknown,
+    public val excludedDomains: Capability<Unit> = Unknown,
+    public val location: Capability<SearchLocationCapabilities> = Unknown,
+    public val includeSources: Capability<Unit> = Unknown
+) {
+    public companion object : ValueEncoder<WebSearchCapabilities>, ValueDecoder<WebSearchCapabilities>
+}
+
+/** Server execution has its own facts and does not inherit client tool support. */
+public class ServerToolCapabilities public constructor(
+    public val webSearch: Capability<WebSearchCapabilities> = Unknown,
+    public val nativeTools: Capability<NativeToolCapabilities> = Unknown
+) {
+    public fun forNativeTool(dialect: DialectId, kind: String, version: String? = None): Capability<NativeToolConfigurationCapabilities> =
+        nativeToolCapability(nativeTools, dialect, kind, version)
+
+    public companion object : ValueEncoder<ServerToolCapabilities>, ValueDecoder<ServerToolCapabilities>
+}
+
+/** General mixing restrictions; dialect rules still apply to the concrete tool and mode combination. */
+public class MixedToolCapabilities public constructor(
+    public val clientAndServer: Capability<Unit> = Unknown,
+    public val multipleServerTools: Capability<Unit> = Unknown
+) {
+    public companion object : ValueEncoder<MixedToolCapabilities>, ValueDecoder<MixedToolCapabilities>
+}

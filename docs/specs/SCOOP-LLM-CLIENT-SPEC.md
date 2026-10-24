@@ -62,7 +62,21 @@ TokenUsage 不根据字段名猜测供应商原生口径，不自动求和、补
 
 `ModelLimits(contextWindowTokens, maxInputTokens, maxOutputTokens, maxCandidates)` 均为 Long?，缺省 None，出现时必须非负；不同计量口径不相加，也不依据其中一项补齐其他项。
 
-以上类型均可使用 companion codec 保存和恢复，构造检查同样适用于解码。服务端工具种类与版本、客户端原生工具、组合约束及 token 计数入口随各自公共工具／操作合同定义；不能由 functionTools 推断。当前数据描述不提前查询模型目录，也不建立通用规则 DSL。
+以上类型均可使用 companion codec 保存和恢复，构造检查同样适用于解码。token 计数入口随其操作合同定义；不能由响应 usage 推断。当前数据描述不提前查询模型目录，也不建立通用规则 DSL。
+
+### 2.3 原生工具、服务端工具与混用
+
+`ModelCapabilities.clientNativeTools: Capability<NativeToolCapabilities> = Unknown` 描述供应商定义、应用执行的工具。`NativeToolCapabilities(tools = [])` 的每项 `NativeToolCapability(dialect, kind, support, version = None)` 保存精确 dialect／kind／version 的 `Capability<NativeToolConfigurationCapabilities>`。`forTool(dialect, kind, version = None)` 查询完整组合；字符串按原值区分大小写，未列项为 Unknown。version=None 表示请求未显式选择版本、由当前 dialect 选择缺省，不覆盖任意显式版本。重复组合在构造及解码时拒绝，不依赖 support 是否相同。
+
+`NativeToolConfigurationCapabilities(fields = [])` 保存 `NativeToolFieldCapability(name, support: Capability<Unit>)`，`forField(name)` 描述原生 configuration 的一个顶层 JSON 成员是否可显式提供。成员名精确匹配，重复名称拒绝，未列成员 Unknown。它不解释成员值、嵌套对象或任意约束表达式；值域、必要字段及具体组合由 dialect 的普通编码检查承担。Unsupported 成员即使值为 null／false／零／空集合也不能发送。扩展仍按原有作用位置由 dialect 解释，不假定所有扩展字段都属于 configuration。
+
+`ServerToolCapabilities(webSearch = Unknown, nativeTools = Unknown)` 通过 `ModelCapabilities.serverTools = ServerToolCapabilities()` 提供服务端工具信息。webSearch 是 `Capability<WebSearchCapabilities>`，nativeTools 是 `Capability<NativeToolCapabilities>`，其 `forNativeTool(dialect, kind, version = None)` 使用同一精确查询。`ModelCapabilities.forClientNativeTool` 查询客户端原生表。父项 Unsupported 向下保留原因，Unknown 向下保持 Unknown，父项 Supported 不会补齐未列项。两种执行方、通用 WebSearch 表示及原生工具表示分别描述，不按相似名称互相推断；它们也不继承 functionTools／customTools。通用 WebSearch 的支持信息针对当前绑定的 dialect 所选映射，显式原生版本由 Native 表描述。
+
+`WebSearchCapabilities` 分别保存 allowedDomains、excludedDomains、includeSources 的 `Capability<Unit>`，以及 location 的 `Capability<SearchLocationCapabilities>`，全部缺省 Unknown。SearchLocationCapabilities 的 country／region／city／timezone 同样独立。提供空域名数组、false 或空 SearchLocation 仍是显式请求，按相应能力检查；省略的选项不检查，也不因能力 Supported 自动填入选项。
+
+`ModelCapabilities.mixedTools = MixedToolCapabilities()` 分别描述 clientAndServer 与 multipleServerTools，均缺省 `Capability<Unit>.Unknown`。前者约束同一请求同时声明至少一个客户端工具和一个服务端工具；后者约束声明多个服务端工具，包括同种类的多个实例，不表示工具实际并发执行。该组描述一般混用限制；Supported 不保证任意种类、选项或生成模式的具体组合都成立，实际 dialect 继续检查已掌握的约束。
+
+普通和流式入口复用这些请求检查：原生配置失败报告 `/tools/<index>/tool/configuration/<escaped-name>`，WebSearch 选项报告 `/tools/<index>/tool/options/...`，混用限制报告 `/tools`；工具整体不支持报告对应 `/tools/<index>`。能力检查只拒绝明确 Unsupported，Unknown 继续交给 adapter／服务端。全部类型提供普通 companion codec；仅保存数据，不保存查询回调或注册插件。
 
 ## 3. 公共请求数据
 

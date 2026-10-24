@@ -13,16 +13,7 @@ internal fun checkModelRequest(capabilities: ModelCapabilities, request: LlmRequ
     if (options.candidates != None && options.candidates!! > 1L) requireModelCapability(capabilities.multipleCandidates, "/options/candidates")
     checkModelLimit(options.candidates, capabilities.limits.maxCandidates, "/options/candidates")
     checkModelLimit(options.maxOutputTokens, capabilities.limits.maxOutputTokens, "/options/maxOutputTokens")
-    var index = 0L
-    for (tool in request.tools) {
-        val path = "/tools/" + index.toString()
-        index += 1L
-        when (tool) {
-            case ClientFunction(_, _, _, _, _, _) -> requireModelCapability(capabilities.functionTools, path)
-            case ClientCustom(_, _, _, _, _) -> requireModelCapability(capabilities.customTools, path)
-            else -> continue
-        }
-    }
+    checkModelTools(capabilities, request.tools)
     checkModelToolChoice(capabilities.toolChoice, options.toolChoice, request.tools.size != 0L)
     checkModelReasoning(capabilities.reasoning, options.reasoning)
 }

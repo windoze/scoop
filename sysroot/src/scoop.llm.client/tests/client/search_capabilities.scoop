@@ -1,0 +1,77 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class WebSearchCapabilityTest {
+    @Test
+    fun `explicit empty false and nested location options honor their independent support`() {
+        val cases: Array<(WebSearchCapabilities, WebSearchOptions, String)> = [
+            (WebSearchCapabilities(allowedDomains = Unsupported("disabled")), WebSearchOptions(allowedDomains = Some([])), "allowedDomains"),
+            (WebSearchCapabilities(excludedDomains = Unsupported("disabled")), WebSearchOptions(excludedDomains = Some([])), "excludedDomains"),
+            (WebSearchCapabilities(includeSources = Unsupported("disabled")), WebSearchOptions(includeSources = Some(false)), "includeSources"),
+            (WebSearchCapabilities(location = Unsupported("disabled")), WebSearchOptions(location = Some(SearchLocation())), "location"),
+            (WebSearchCapabilities(location = Supported(SearchLocationCapabilities(country = Unsupported("disabled")))),
+                WebSearchOptions(location = Some(SearchLocation(country = Some("")))), "location/country"),
+            (WebSearchCapabilities(location = Supported(SearchLocationCapabilities(city = Unsupported("disabled")))),
+                WebSearchOptions(location = Some(SearchLocation(city = Some("city")))), "location/city"),
+            (WebSearchCapabilities(location = Supported(SearchLocationCapabilities(region = Unsupported("disabled")))),
+                WebSearchOptions(location = Some(SearchLocation(region = Some("region")))), "location/region"),
+            (WebSearchCapabilities(location = Supported(SearchLocationCapabilities(timezone = Unsupported("disabled")))),
+                WebSearchOptions(location = Some(SearchLocation(timezone = Some("UTC")))), "location/timezone")
+        ]
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                assertToolCapabilityFailure(client, ModelCapabilities(serverTools = ServerToolCapabilities(webSearch = Unsupported("disabled"))),
+                    [Server(ToolKey("web"), WebSearch())], "/tools/0")
+                for ((capability, options, field) in cases) {
+                    assertToolCapabilityFailure(client, ModelCapabilities(serverTools = ServerToolCapabilities(webSearch = Supported(capability))),
+                        [Server(ToolKey("web"), WebSearch(options))], "/tools/0/tool/options/" + field)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `declared support cannot enable an option or native tool the adapter cannot encode`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                assertToolCapabilityFailure(client, ModelCapabilities(serverTools = ServerToolCapabilities(
+                    webSearch = Supported(WebSearchCapabilities(allowedDomains = Supported(Unit))))),
+                    [Server(ToolKey("web"), WebSearch(WebSearchOptions(allowedDomains = Some([]))))], "/tools/0/tool/options/allowedDomains")
+                val dialect = OpenAiChatDialect().id
+                assertToolCapabilityFailure(client, ModelCapabilities(clientNativeTools = Supported(NativeToolCapabilities([
+                    NativeToolCapability(dialect, "shell", Supported(NativeToolConfigurationCapabilities()))
+                ]))), [ClientNative(ToolKey("local"), NativeToolDefinition(dialect, "shell"))], "/tools/0")
+                assertToolCapabilityFailure(client, ModelCapabilities(mixedTools = MixedToolCapabilities(multipleServerTools = Supported(Unit))),
+                    [Server(ToolKey("first"), WebSearch()), Server(ToolKey("second"), WebSearch())], "/tools/1")
+            }
+        }
+    }
+
+    @Test
+    fun `streaming uses the same tool capability checks before opening a transport`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val auth = RecordingAuth()
+                val model = LlmEndpoint(Providers.openAiChat(), auth).model("m", Some(ModelCapabilities(
+                    serverTools = ServerToolCapabilities(webSearch = Unsupported("search disabled")))))
+                val finished = FinishedCalls()
+                val error = expectLlmFailure<LlmRequestException> suspend {
+                    client.openStream(model, LlmRequest(sampleRequest.input, tools = [Server(ToolKey("web"), WebSearch())]),
+                        LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+                assertEquals("/tools/0", error.path)
+                assertEquals(Some("search disabled"), error.message)
+                assertEquals(0L, auth.requests.size)
+                assertEquals(1L, finished.values.size)
+                assertEquals(0L, finished.values[0L].attempts.size)
+            }
+        }
+    }
+}

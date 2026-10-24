@@ -1,0 +1,73 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun withToolCapabilityReply(capabilities: ModelCapabilities, tools: Array<ToolDefinition>, check: (JsonValue) -> Unit) {
+    withLlmServer suspend { _, scope, listener, endpoint ->
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                val body = Json.parse(String.fromUtf8(request.body.readAllBytes(8192L)))
+                check(body)
+                sendLlmReply(connection, 200U, sampleReply)
+            }
+        }
+        withLlmClient suspend { client ->
+            val restored = Json.decodeFromString<ModelCapabilities>(Json.encodeToString(capabilities))
+            val result = client.generate(endpoint.model("m", Some(restored)), LlmRequest(sampleRequest.input, tools = tools))
+            assertEquals("hello", result.text)
+        }
+        serving.join()
+    }
+}
+
+@Test
+private class ToolCapabilityNetworkTest {
+    @Test
+    fun `server native support passes unknown configuration fields without inheriting client restrictions`() {
+        val dialect = OpenAiChatDialect().id
+        val capabilities = ModelCapabilities(functionTools = Unsupported("no client functions"), clientNativeTools = Unsupported("no client native tools"),
+            serverTools = ServerToolCapabilities(nativeTools = Supported(NativeToolCapabilities([
+                NativeToolCapability(dialect, "web_search", Supported(NativeToolConfigurationCapabilities([
+                    NativeToolFieldCapability("unused", Unsupported("not configurable"))
+                ])))
+            ]))))
+        val native = NativeToolDefinition(dialect, "web_search", Json.parse("{\"search_context_size\":\"low\"}"))
+        withToolCapabilityReply(capabilities, [Server(ToolKey("web"), Native(native))]) { body ->
+            assertEquals("low", body["web_search_options"]!!["search_context_size"]!!.asString())
+            assertFalse(body.containsKey("tools"))
+        }
+    }
+
+    @Test
+    fun `omitted unsupported search options remain absent while an unknown city hint is sent`() {
+        val capabilities = ModelCapabilities(serverTools = ServerToolCapabilities(webSearch = Supported(WebSearchCapabilities(
+            allowedDomains = Unsupported("no filter"), includeSources = Supported(Unit),
+            location = Supported(SearchLocationCapabilities(country = Unsupported("no country"))))), nativeTools = Unsupported("no native tools")))
+        val options = WebSearchOptions(location = Some(SearchLocation(city = Some("city"))))
+        withToolCapabilityReply(capabilities, [Server(ToolKey("web"), WebSearch(options))]) { body ->
+            val search = body["web_search_options"]!!
+            assertEquals(1L, search.size)
+            val location = search["user_location"]!!["approximate"]!!
+            assertEquals(1L, location.size)
+            assertEquals("city", location["city"]!!.asString())
+        }
+    }
+
+    @Test
+    fun `unknown mixing permits an expressible request without claiming model support`() {
+        val capabilities = ModelCapabilities(functionTools = Supported(Unit),
+            serverTools = ServerToolCapabilities(webSearch = Supported(WebSearchCapabilities())))
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}")),
+            Server(ToolKey("web"), WebSearch())]
+        withToolCapabilityReply(capabilities, tools) { body ->
+            assertEquals(1L, body["tools"]!!.size)
+            assertEquals("lookup", body["tools"]!![0L]["function"]!!["name"]!!.asString())
+            assertEquals(0L, body["web_search_options"]!!.size)
+        }
+    }
+}

@@ -1,0 +1,17 @@
+package scoop.llm.client
+
+internal fun checkModelWebSearch(capability: Capability<WebSearchCapabilities>, options: WebSearchOptions, path: String) {
+    requireModelCapability(capability, path)
+    val details = when (capability) { case Supported(value) -> value; else -> return }
+    val optionsPath = path + "/tool/options"
+    if (llmPresent(options.allowedDomains)) requireModelCapability(details.allowedDomains, optionsPath + "/allowedDomains")
+    if (llmPresent(options.excludedDomains)) requireModelCapability(details.excludedDomains, optionsPath + "/excludedDomains")
+    if (options.includeSources != None) requireModelCapability(details.includeSources, optionsPath + "/includeSources")
+    val location = options.location ?: return
+    requireModelCapability(details.location, optionsPath + "/location")
+    val fields = when (details.location) { case Supported(value) -> value; else -> return }
+    if (location.country != None) requireModelCapability(fields.country, optionsPath + "/location/country")
+    if (location.region != None) requireModelCapability(fields.region, optionsPath + "/location/region")
+    if (location.city != None) requireModelCapability(fields.city, optionsPath + "/location/city")
+    if (location.timezone != None) requireModelCapability(fields.timezone, optionsPath + "/location/timezone")
+}

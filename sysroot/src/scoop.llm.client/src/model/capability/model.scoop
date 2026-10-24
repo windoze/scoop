@@ -33,7 +33,13 @@ public class ModelCapabilities public constructor(
     public val multipleCandidates: Capability<Unit> = Unknown,
     public val continuation: Capability<Unit> = Unknown,
     public val background: Capability<Unit> = Unknown,
-    public val limits: ModelLimits = ModelLimits()
+    public val limits: ModelLimits = ModelLimits(),
+    public val clientNativeTools: Capability<NativeToolCapabilities> = Unknown,
+    public val serverTools: ServerToolCapabilities = ServerToolCapabilities(),
+    public val mixedTools: MixedToolCapabilities = MixedToolCapabilities()
 ) {
+    public fun forClientNativeTool(dialect: DialectId, kind: String, version: String? = None): Capability<NativeToolConfigurationCapabilities> =
+        nativeToolCapability(clientNativeTools, dialect, kind, version)
+
     public companion object : ValueEncoder<ModelCapabilities>, ValueDecoder<ModelCapabilities>
 }

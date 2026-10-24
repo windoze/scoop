@@ -25,7 +25,7 @@
 | DeepSeek 按模型资料显式选择 topP 生效模式 | 完成：本机与 Linux GNU 各 95/95 通过 |
 | 参数自由默认值的跨 Cone callable／协程归属 | 完成：本机 HIR 2055/2055；三库 Cone 回归两平台各 3/3 |
 | SSE 事件、保留策略与 Chat reducer | 完成：本机 110/110；Linux 新边界定向 1/1；DeepSeek 真实 SSE 与历史接续通过 |
-| 客户端原生／服务端工具的 capability | 待实施 |
+| 客户端原生／服务端工具的 capability | 完成：本机 143/143；Linux 仅精确匹配与原生请求 2/2 |
 | 流式网络寿命、单消费者与文本读取视图 | 完成：本机 130/130；Linux 仅网络定向 2/2；DeepSeek 与 OpenAI 代理实测通过 |
 | Responses、Messages、Gemini protocols 与 server-side tools | 待实施 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
@@ -62,3 +62,4 @@
 - 代理的真实 SSE 先交付 choices=[]、id/model 为空、created=0 的无 usage 注释帧。按 Azure 文档及实际形状保留为 Native，不用它建立响应身份；真实 ID 变化仍失败，真实 created=0 仍保留。新增 2 项，最终本机 LLM 130/130。注释分支由本机单测和真实代理验证，未另跑 Linux 全套。
 - 高层流式入口已通过 DeepSeek 文本／最终 usage、reasoning／工具参数序列化并回传，以及代理 gpt-6.1-sol 的文本投影、最终 usage 和实际发送／接收／首文本时间戳。代理测试显式 effort=low；未查询模型列表、未使用失效的官方 OpenAI key。Anthropic 代理保留指定 databricks-claude-opus-5-5，随 Messages 实施验证。
 - 本机重新准备 23 个生产 Cone 和 runtime；Linux 仅发布变更的 HTTP 库并运行上述 5 项最小测试。原始日志及真实 API 测试继续放在仓库外，提交前按环境中的 key 值核对暂存差异；清理 target/debug/incremental 约 372 MiB，保留 release 工具。
+- 原生与服务端工具能力新增 13 项 Cone 用例，覆盖 dialect／种类／版本精确匹配、客户端与服务端执行方隔离、配置字段和搜索选项、混用限制、codec 往返及发送前失败路径。Unknown 不阻止 adapter 可表达的请求，Supported 也不能启用 adapter 无法编码的功能。本机 143/143；Linux 仅版本精确查询和原生 web_search 请求两项通过；本机库产物已准备。

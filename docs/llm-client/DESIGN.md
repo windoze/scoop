@@ -163,6 +163,8 @@ DeepSeek Chat 复用 Chat Completions 的基础结构，但需要自己的 diale
 | `background` | 服务端生成任务的显式提交、查询与取消 |
 | `tokenCounting` | 分别描述服务端计数接口与本地 tokenizer 的适用范围；不与响应 usage 混为一谈 |
 
+工具能力的数据合同见[库规范 §2.3](../specs/SCOOP-LLM-CLIENT-SPEC.md#23-原生工具服务端工具与混用)：原生工具按 dialect、种类和明确／缺省版本精确查询，配置字段提供独立的支持状态；WebSearch 的选项与地域字段分别描述。mixedTools 分别表达客户端与服务端共存、多个服务端声明的一般限制，具体工具与生成模式的组合继续由 dialect 检查。缺省描述中的未列项始终为 Unknown。
+
 Context window、输入／输出 token 上限等作为已知的模型限制描述。时间戳与调用计时是公共 client 能力，不以模型 capability 为开关；usage 是否完整由服务端实际返回决定，计费信息走第 6.5 节的可选 dialect 扩展。能力支持不自动启用相应选项，例如支持 reasoning 不等于每次显式发送 reasoning 设置。
 
 ### 3.4 有效能力与请求检查
