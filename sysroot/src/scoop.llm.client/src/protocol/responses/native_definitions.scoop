@@ -1,0 +1,34 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.startsWith
+
+internal fun encodeResponsesNativeTool(tool: NativeToolDefinition, extensions: Array<DialectExtension>, dialect: DialectId,
+    server: Boolean, path: String): JsonValue {
+    val toolPath = path + "/tool"
+    requireLlmOwner(tool.dialect, dialect, toolPath + "/dialect")
+    if (tool.kind.length == 0L) throw LlmRequestException(toolPath + "/kind", "Responses native tool type must not be empty")
+    if (tool.version == Some("")) throw LlmRequestException(toolPath + "/version", "Responses native tool version must not be empty")
+    val opposite: Array<String> = if (server) ["computer", "local_shell", "apply_patch", "namespace"]
+        else ["web_search", "file_search", "code_interpreter", "image_generation", "mcp", "tool_search", "programmatic_tool_calling"]
+    for (family in opposite) {
+        if (tool.kind == family || tool.kind.startsWith(family + "_"))
+            throw LlmRequestException(toolPath + "/kind", "native tool belongs to the other execution side")
+    }
+    if (tool.kind == "shell") requireResponsesShellOwner(tool.configuration, server, toolPath + "/configuration/environment")
+    if (tool.configuration.containsKey("type")) throw LlmRequestException(toolPath + "/configuration/type", "native configuration cannot override its type")
+    val type = tool.kind + (if (tool.version != None) "_" + tool.version!! else "")
+    val result = llmTypedObject(type)
+    for ((name, value) in tool.configuration.members()) result.add(name, value)
+    return mergeLlmExtensions(result.build(), extensions, dialect, ["type"], path)
+}
+
+private fun requireResponsesShellOwner(configuration: JsonValue, server: Boolean, path: String) {
+    val environment = configuration["environment"] ?: throw LlmRequestException(path, "shell execution requires an explicit environment")
+    if (environment.kind != JsonValueKind.Object) throw LlmRequestException(path, "shell environment must be an object")
+    val type = environment["type"] ?: throw LlmRequestException(path + "/type", "missing shell environment type")
+    if (type.kind != JsonValueKind.String) throw LlmRequestException(path + "/type", "shell environment type must be a string")
+    val kind = type.asString()
+    if (if (server) kind != "container_auto" && kind != "container_reference" else kind != "local")
+        throw LlmRequestException(path + "/type", "shell environment does not match the declared execution side")
+}

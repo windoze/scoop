@@ -32,7 +32,8 @@
 | Messages SSE、引用与服务端工具事件 | 完成：本机 193/193；Linux 仅流式网络 1/1；Anthropic 代理文本流与工具回传通过 |
 | OpenAI 缓存读写与普通输入统计 | 完成：本机 196/196；Linux 仅精确整数与读写拆分 1/1 |
 | Responses 完整响应、工具活动与原生历史 | 完成：本机 216/216；Linux 仅搜索／引用／客户端调用组合 1/1 |
-| Responses 请求／流式、Gemini protocols 与 server-side tools | 待实施 |
+| Responses 请求、多模态与普通生成 | 完成：本机 230/230；Linux 仅生成 1/1；两平台跨 Cone 构造器各 1/1；代理文本与工具回传通过 |
+| Responses 流式、Gemini protocols 与 server-side tools | 待实施 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -74,3 +75,4 @@
 - 生产库准备后，Anthropic 代理的文本流／最终 usage／实际时间戳，以及工具调用保存后接续均通过。首次工具流测试错误地要求 adaptive+low 必有 thinking block；按[官方逐轮选择合同](https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost)修正测试，仅重跑该工具用例并通过，没有修改库行为。thinking／签名回传由确定性的本地用例验证，不把本次未观察到的 thinking block 记为真实 API 覆盖。原始日志与测试程序仍在仓库外，未查询模型列表、未使用官方 OpenAI key。
 - OpenAI Chat 按当前官方口径区分缓存读、写和普通输入；仅在三项所需计数齐全时相减，缺失写入量保持未知。新增 3 项并扩充既有 SSE／DeepSeek 用例，覆盖显式零、大整数、读写交叠、累计写入量替换及 dialect 字段隔离。本机 196/196，nuc12 仅精确计数 1/1；本机生产库已准备。未新增真实 API 请求，无编译器或 fixture 变更。
 - Responses 完整响应新增 20 项 Cone 用例：有序消息／reasoning／phase／未知原文、独立 item ID 与 call ID、函数／custom／原生客户端工具、服务端搜索／引用／容器 shell、模型完成状态与 usage。参数无效、截断或拒绝时不进入可执行调用列表；未明确单位的引用索引保留原文，不猜 TextRange。本机 216/216，nuc12 仅搜索与客户端工具组合 1/1；本机生产库已准备。此步为纯响应解码，没有真实 Responses API 调用；请求与 SSE 继续实施。清理 target/debug/incremental 约 372 MiB，保留 release 工具。
+- Responses 普通生成新增 14 项 Cone 用例，覆盖最小参数、媒体、reasoning／结构化输出、函数／custom／原生与服务端工具、工具结果关联、序列化后的历史接续和实际 HTTP 计时。本机 230/230，nuc12 仅普通生成 1/1。独立消费者发现 OpenAiChatDialect／OpenAiResponsesDialect 的无参构造器遗漏 public，已修正声明并在两平台各验证 1 项跨 Cone 调用；没有编译器变更或 fixture。生产库已更新，代理 gpt-6.1-sol 的文本生成和工具保存后接续共 2 项通过（3 次请求），均检查 usage 与实际时间戳，显式 effort=low、无自动重试。未查询模型列表、未使用官方 OpenAI key。Linux 外部测试目录首次漏传 src，补齐后通过；未运行 Linux 完整套件。

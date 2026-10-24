@@ -2,16 +2,22 @@ package scoop.llm.client
 
 import scoop.json.JsonValue
 import scoop.time.Instant
+import scoop.url.Url
 
 /** Ordered Responses output combined with one explicitly selected dialect. */
-public class ResponsesProtocol public constructor(public val dialect: ResponsesDialect) {
-    public val dialectId: DialectId get() = dialect.id
+public class ResponsesProtocol public constructor(public val dialect: ResponsesDialect) : LlmGenerationProtocol {
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("responses").build()
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
+        encodeResponsesRequest(dialect, modelId, request, stream)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
     init {
         if (dialect.id.protocol != ApiProtocolId("responses"))
             throw IllegalArgumentException(Some("Responses dialect belongs to another API protocol"))
     }
 
-    public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
         try {
             val body = decodeResponsesValue<ResponsesBody>(value, "")
             if (body.objectType != "response") throw DecodingException("/object", "expected a Responses response")

@@ -1,0 +1,32 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeResponsesScreenshot(dialect: DialectId, content: Array<ContentPart>, path: String): JsonValue {
+    if (content.size != 1L) throw LlmRequestException(path, "computer output requires one screenshot")
+    return when (content[0]) {
+        case Image(source, extensions) -> mergeLlmExtensions(encodeResponsesImage(source, dialect, "computer_screenshot", path + "/0/source"),
+            extensions, dialect, ["type", "image_url", "file_id"], path + "/0")
+        case Native(owner, value) -> {
+            requireLlmOwner(owner, dialect, path + "/0/dialect")
+            if (value.kind != JsonValueKind.Object) throw LlmRequestException(path + "/0/value", "native screenshot must be an object")
+            val type = value["type"] ?: throw LlmRequestException(path + "/0/value/type", "missing screenshot type")
+            if (type.kind != JsonValueKind.String || type.asString() != "computer_screenshot")
+                throw LlmRequestException(path + "/0/value/type", "expected computer_screenshot")
+            value
+        }
+        else -> throw LlmRequestException(path + "/0", "computer output requires an image or native screenshot")
+    }
+}
+
+internal fun responsesShellOutput(dialect: DialectId, content: Array<ContentPart>, path: String): JsonValue {
+    if (content.size != 1L) throw LlmRequestException(path, "shell output requires one native result array")
+    return when (content[0]) {
+        case Native(owner, value) -> {
+            requireLlmOwner(owner, dialect, path + "/0/dialect")
+            if (value.kind != JsonValueKind.Array) throw LlmRequestException(path + "/0/value", "shell output must be an array")
+            value
+        }
+        else -> throw LlmRequestException(path + "/0", "shell output requires native stdout stderr and outcomes")
+    }
+}

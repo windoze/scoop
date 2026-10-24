@@ -14,7 +14,7 @@ public interface ChatDialect {
     public fun historyMessage(message: JsonValue, path: String): JsonValue
 }
 
-public class OpenAiChatDialect : ChatDialect {
+public class OpenAiChatDialect public constructor() : ChatDialect {
     public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "openai-chat")
     public override val streamedReasoningField: String? = None
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =

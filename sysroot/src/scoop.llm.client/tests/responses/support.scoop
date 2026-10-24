@@ -38,3 +38,8 @@ internal fun assertResponsesFailure(body: JsonValue, path: String) {
 internal class ResponsesCount public constructor(val count: Long) {
     public companion object : ValueDecoder<ResponsesCount>
 }
+
+internal fun assertResponsesRequestFailure(request: LlmRequest, path: String) {
+    val error = assertFailsWith<LlmRequestException> { ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("model", request); Unit }
+    assertEquals(path, error.path)
+}

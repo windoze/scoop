@@ -55,6 +55,7 @@ private class ResponsesNativeToolTest {
         assertResponsesFailure(responsesBody("[{\"type\":\"computer_call\",\"call_id\":\"c\",\"action\":{\"type\":\"screenshot\"},\"actions\":[],\"pending_safety_checks\":[]}]"), "/output/0")
         assertResponsesFailure(responsesBody("[{\"type\":\"computer_call\",\"call_id\":\"c\",\"action\":{\"type\":\"screenshot\"}}]"), "/output/0/pending_safety_checks")
         assertResponsesFailure(responsesBody("[{\"type\":\"apply_patch_call\",\"call_id\":\"c\",\"operation\":[]}]"), "/output/0/operation")
-        assertResponsesFailure(responsesBody("[{\"type\":\"local_shell_call\",\"call_id\":\"c\"}]"), "/output/0/action")
+        assertResponsesFailure(responsesBody("[{\"type\":\"local_shell_call\",\"id\":\"i\",\"call_id\":\"c\"}]"), "/output/0/action")
+        assertResponsesFailure(responsesBody("[{\"type\":\"local_shell_call\",\"call_id\":\"c\",\"action\":{}}]"), "/output/0/id")
     }
 }

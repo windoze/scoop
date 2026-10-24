@@ -1,0 +1,45 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesOptionsTest {
+    @Test
+    fun `Responses explicit zero false reasoning and output schema use their native option fields`() {
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0), maxOutputTokens = Some(0L), candidates = Some(1L),
+            parallelToolCalls = Some(false), toolChoice = None, reasoning = Some(ReasoningOptions(enabled = Some(false))),
+            output = JsonSchema(Json.parse("{\"type\":\"object\"}"), "answer", Some(""), Some(false)))
+        val body = ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("m", LlmRequest(responsesRequest().input, options = options))
+        assertEquals(0.0, body["temperature"]!!.asDouble())
+        assertEquals(0.0, body["top_p"]!!.asDouble())
+        assertEquals(0L, body["max_output_tokens"]!!.asLong())
+        assertFalse(body["parallel_tool_calls"]!!.asBoolean())
+        assertFalse(body.containsKey("n"))
+        assertEquals("none", body["tool_choice"]!!.asString())
+        assertEquals("none", body["reasoning"]!!["effort"]!!.asString())
+        val format = body["text"]!!["format"]!!
+        assertEquals("json_schema", format["type"]!!.asString())
+        assertEquals("answer", format["name"]!!.asString())
+        assertEquals("", format["description"]!!.asString())
+        assertFalse(format["strict"]!!.asBoolean())
+        assertEquals("object", format["schema"]!!["type"]!!.asString())
+        val low = ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("m", LlmRequest([], options = LlmGenerationOptions(
+            reasoning = Some(ReasoningOptions(enabled = Some(true), effort = Some("low"))), output = JsonObject)))
+        assertEquals("low", low["reasoning"]!!["effort"]!!.asString())
+        assertEquals("json_object", low["text"]!!["format"]!!["type"]!!.asString())
+    }
+
+    @Test
+    fun `Responses unsupported controls and contradictory reasoning are rejected with paths`() {
+        for ((options, path) in [(LlmGenerationOptions(topK = Some(0L)), "/options/topK"),
+            (LlmGenerationOptions(stop = Some([])), "/options/stop"), (LlmGenerationOptions(candidates = Some(2L)), "/options/candidates"),
+            (LlmGenerationOptions(temperature = Some(2.1)), "/options/temperature"), (LlmGenerationOptions(topP = Some(-0.1)), "/options/topP"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(true)))), "/options/reasoning/enabled"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false), effort = Some("low")))), "/options/reasoning/enabled"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("unknown")))), "/options/reasoning/effort"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(100L)))), "/options/reasoning/budgetTokens")])
+            assertResponsesRequestFailure(LlmRequest([], options = options), path)
+    }
+}

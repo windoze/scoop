@@ -205,6 +205,8 @@ request、message、part、tool 的 extensions 只合并到当前位置；Chat �
 
 ## 8. Provider、部署与模型绑定
 
+内置 protocol 与 dialect 的普通构造器公开可用，包括 OpenAiChatDialect() 与 OpenAiResponsesDialect()；独立 Cone 可直接组合适配器或读取 dialect.id，不必先创建 provider。构造器可见性遵守语言规范 9.1.5 的显式声明规则，不从 public class 自动继承。
+
 `LlmGenerationProtocol` 描述普通 HTTP JSON 生成：dialectId、generationUrl(baseUrl, modelId)、encodeRequest(modelId, request, stream)、decodeResponse(value, request) 与 decodeError(status, body, truncated)。ChatProtocol 实现该合同并固定其 ChatDialect。接口没有实时会话或尚无实现的操作占位；流式 reducer 随相应独立合同补充。
 
 `LlmProvider(name, protocol, defaultBaseUrl = None)` 固定一个协议／方言组合。`Providers.openAiChat()` 与 deepSeekChat() 分别提供已实现的两个组合及官方 URL 缺省。`LlmEndpoint(provider, authentication, baseUrl = None, fields = [])` 绑定部署；缺少官方缺省又未传 URL 时构造失败。URL 必须是绝对 http(s) 地址且无 fragment，Chat 路径在现有 base path 后追加 chat/completions，保留 query；不把 base path 当成要被替换的文件名。
@@ -327,7 +329,7 @@ status=completed 表示该轮完整；failed 为 Failed；incomplete、cancelled
 
 output item 的 id 与客户端调用的 call_id 是不同标识空间，各自非空、各自不得在同轮调用中重复；工具结果 item 可以引用先前的 call_id，不参与调用声明去重。function_call、custom_tool_call 只唯一关联到请求中对应类别、对应名称的工具，带 namespace 的调用不能误配到无 namespace 的同名工具；无法关联时保留 Native。ClientToolCallReference.id 使用 call_id，context 保存完整原始 item，保留 item id、caller、namespace 等字段。完整 function arguments 必须是有效 JSON 对象，custom input 是原文；无效或未完成参数仍可观察但不进入可执行列表。
 
-computer_call、local_shell_call、apply_patch_call 与明确 environment.type=local 的 shell_call，可唯一关联同 dialect 的 ClientNative 声明。computer 的单 action 与批量 actions 互斥，pending_safety_checks 与全部动作原样交给应用，库不执行动作或自动确认；其他原生输入分别保留 action／operation 对象。明确 container_reference 的 shell_call 归为服务端活动，环境缺失或未知时保留 Native，不推断为本地命令。
+computer_call、local_shell_call、apply_patch_call 与明确 environment.type=local 的 shell_call，可唯一关联同 dialect 的 ClientNative 声明。local_shell_call 必须返回用于结果关联的 item id。computer 的单 action 与批量 actions 互斥，pending_safety_checks 与全部动作原样交给应用，库不执行动作或自动确认；其他原生输入分别保留 action／operation 对象。明确 container_reference 的 shell_call 归为服务端活动，环境缺失或未知时保留 Native，不推断为本地命令。
 
 web_search_call、file_search_call、code_interpreter_call、image_generation_call 和容器 shell 分别投影为相应的 ServerToolActivity；服务端工具保持服务端执行方，不成为 ClientToolCall。活动保留真实 item id、status、action、结果与 native。WebSearch 关联请求中的通用搜索或同 dialect 的原生搜索声明；有多个匹配时不猜 toolKey。search action 的 sources 单独投影为来源，open_page／find_in_page 等动作仍保留原文。未知状态为 Unknown，不伪造完成或失败。
 
@@ -336,3 +338,19 @@ output_text.annotations 的 URL 引用与普通 file 引用分别投影为 Url�
 usage 读取 input_tokens、output_tokens、total_tokens，以及 input_tokens_details 中的 cached_tokens／cache_write_tokens 和 output_tokens_details.reasoning_tokens。计数使用非负 Long，不从缺失的 total_tokens 推导总量；缓存读写与普通输入按第 6 节相同的 OpenAI 合同归一化，reasoning 是输出子集，不能再次加到总量。HTTP 拒绝保留状态、正文和原生错误；只有 HTTP 429 且 error.code=rate_limit_exceeded 可重试，额度不足或未知服务错误不取得重试资格。成功 HTTP 中的 failed response 是模型结果，不转成传输重试。
 
 本节交付完整 response 解码；请求、网络与 SSE 按后续章节实施，不提供抛出占位错误的生成入口。协议依据：[Responses create](https://developers.openai.com/api/reference/resources/responses/methods/create)、[Web search](https://developers.openai.com/api/docs/guides/tools-web-search)、[Computer use](https://developers.openai.com/api/docs/guides/tools-computer-use-integration)、[缓存读写统计](https://developers.openai.com/api/docs/guides/prompt-caching)。
+
+## 16. Responses 请求与普通生成
+
+Providers.openAiResponses() 固定组合 ResponsesProtocol 与 OpenAiResponsesDialect，部署缺省为 https://api.openai.com/v1；generationUrl 在部署 URL 后追加 responses，保留既有前缀与查询。认证、模型 ID、capability、调用寿命、重试和计时沿第 8～9 节，不查询模型目录、不按模型名推断或切换 protocol。最小请求只编码 model 和 input；默认不设置温度、reasoning、输出上限、存储或输出格式。
+
+input 依次编码新 Message、显式 ToolResult 与原始 History。User／Assistant／System／Developer 保留角色；单一且无扩展的 Text 可使用字符串，其余内容为 input_text／input_image／input_file 数组。request.system 映射文本 instructions，多段文本直接连接；需要内容块扩展的 system 使用输入中的 System message，不把扩展静默丢弃。History 必须属于同 dialect，items 逐项保持原样，不重新编码 phase、reasoning 或服务端工具；单独的 history.context 不映射到隐式 conversation 或 previous_response_id。
+
+图片支持 JPEG、PNG、GIF、WebP 的内联 bytes、http(s) URL 和本 dialect 文件 ID，分别编码 data URL／image_url／file_id。Document 编码 input_file，保留显式 MIME 的 data URL、file_url 或 file_id；filename 仅应用于内联文件。媒体输入不自动联网下载或上传，无法表达的 MIME 参数、音频、视频和有时间戳的视频帧报告输入路径。未知原生内容必须属于同 dialect，按原值保留。
+
+temperature 范围 0～2、topP 范围 0～1，显式零值保留；maxOutputTokens 映射 max_output_tokens，candidates 只接受 1，topK 和 stop 没有对应字段而拒绝。reasoning.effort 显式映射到同名嵌套字段；enabled=false 可表达为 effort=none，enabled=true 需要显式非 none effort，enabled 与 effort 不得矛盾，budgetTokens 不映射。JsonObject／JsonSchema 进入 text.format，名称、schema、description、strict 按原值编码，Text 缺省省略。具体模型支持哪些值由 capability 和服务端决定，不猜模型规则。
+
+ClientFunction 和 ClientCustom 使用 Responses 平铺的 function／custom 工具格式，保留调用方给出的 schema、strict、文本或 grammar 格式；同名客户端工具在编码时拒绝。ClientNative／Server.Native 保留配置与显式版本，type 由声明的 kind／version 决定；已知的执行方不允许互换。shell 必须明确 local 或 container_auto／container_reference 环境以确定执行方。通用 WebSearch 映射 web_search，支持 allowedDomains、location 和 includeSources；excludedDomains 无对应字段而拒绝。includeSources 控制根 include 中的 web_search_call.action.sources，false 编码空 include，缺省省略。工具选择 Auto 缺省省略，其余通过同一 ToolChoice 编码，不为搜索另设入口。
+
+工具结果使用 reference.context 中保留的实际调用类型与关联信息，不能只把 item id 当成 call_id。function／custom 输出可为文本、图片或文件内容，保留 caller、name、namespace；isError 无通用 wire 字段而拒绝。computer 输出为显式截图，安全检查确认只接受应用提供的扩展，不自动回填 pending_safety_checks。local_shell 使用原调用 item id 和文本输出，shell 使用 call_id 及原生 output 数组，apply_patch 使用 call_id、文本 output 与由 isError 决定的 completed／failed 状态；其他原生调用不猜结果形状。所有工具结果都由应用提交，库不执行工具或自行继续下一轮。
+
+request／message／part／tool 的扩展在各自位置合并，同 dialect 归属检查及已管理字段冲突规则沿第 3、7 节；已省略的管理字段也不能被覆盖。stream=true 仅影响 wire 编码；SSE 网络能力由单独实现的 LlmSseProtocol 提供。本节先交付普通生成，不用普通 HTTP 结果冒充流式结果。

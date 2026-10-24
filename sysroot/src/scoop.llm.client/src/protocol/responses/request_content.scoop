@@ -1,0 +1,51 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeResponsesContent(dialect: DialectId, content: Array<ContentPart>, path: String): JsonValue {
+    if (content.size == 1L) {
+        val plain = when (content[0]) { case Text(text, extensions) -> if (extensions.size == 0L) Some(text) else None; else -> None }
+        if (plain != None) return JsonValue.fromString(plain!!)
+    }
+    val parts = ArrayList<JsonValue>()
+    var index = 0L
+    for (part in content) {
+        parts.add(encodeResponsesPart(dialect, part, path + "/" + index.toString()))
+        index += 1L
+    }
+    return JsonValue.fromArray(parts)
+}
+
+private fun encodeResponsesPart(dialect: DialectId, part: ContentPart, path: String): JsonValue {
+    val (value, extensions) = when (part) {
+        case Text(text, extensions) -> (llmTypedObject("input_text").add("text", JsonValue.fromString(text)).build(), extensions)
+        case Image(source, extensions) -> (encodeResponsesImage(source, dialect, "input_image", path + "/source"), extensions)
+        case Document(source, filename, extensions) -> (encodeResponsesDocument(source, filename, dialect, path), extensions)
+        case Audio(_, _) -> throw LlmRequestException(path, "Responses has no generic audio content mapping")
+        case Video(_, _) -> throw LlmRequestException(path, "Responses has no generic video content mapping")
+        case VideoFrames(_, _) -> throw LlmRequestException(path, "Responses has no timestamped video-frame mapping")
+        case Native(owner, value) -> {
+            requireLlmOwner(owner, dialect, path + "/dialect")
+            if (value.kind != JsonValueKind.Object) throw LlmRequestException(path + "/value", "native Responses content must be an object")
+            return value
+        }
+    }
+    return mergeLlmExtensions(value, extensions, dialect, ["type", "text", "image_url", "file_id", "file_url", "file_data", "filename"], path)
+}
+
+internal fun responsesPlainText(content: Array<ContentPart>, path: String): String {
+    val text = StringBuilder()
+    var index = 0L
+    for (part in content) {
+        val partPath = path + "/" + index.toString()
+        when (part) {
+            case Text(value, extensions) -> {
+                if (extensions.size != 0L) throw LlmRequestException(partPath + "/extensions", "plain text has no content-part extension position")
+                text.append(value)
+            }
+            else -> throw LlmRequestException(partPath, "this Responses field requires plain text")
+        }
+        index += 1L
+    }
+    return text.toString()
+}

@@ -1,0 +1,85 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeResponsesTools(result: JsonObjectBuilder, dialect: DialectId, request: LlmRequest) {
+    val tools = ArrayList<JsonValue>()
+    val names = ArrayList<String>()
+    val selectedKey = when (request.options.toolChoice) { case Specific(key) -> Some(key); else -> None }
+    var selected: JsonValue? = None
+    var sources: Boolean? = None
+    var index = 0L
+    for (tool in request.tools) {
+        val path = "/tools/" + index.toString()
+        val wire = encodeResponsesTool(tool, dialect, path)
+        val name = when (tool) { case ClientFunction(_, value, _, _, _, _) -> Some(value); case ClientCustom(_, value, _, _, _) -> Some(value); else -> None }
+        if (name != None) {
+            for (previous in names) if (previous == name!!) throw LlmRequestException(path + "/name", "duplicate Responses client tool name")
+            names.add(name!!)
+        }
+        if (selectedKey == Some(tool.key)) selected = Some(responsesSelectedTool(wire))
+        sources = responsesSearchInclusion(tool, sources, path)
+        tools.add(wire)
+        index += 1L
+    }
+    if (tools.size != 0L) result.add("tools", JsonValue.fromArray(tools))
+    if (sources != None) {
+        val include: Array<String> = if (sources!!) ["web_search_call.action.sources"] else []
+        result.add("include", Json.encodeToValue(include))
+    }
+    when (request.options.toolChoice) {
+        case Auto -> return
+        case None -> result.add("tool_choice", JsonValue.fromString("none"))
+        case Required -> {
+            if (tools.size == 0L) throw LlmRequestException("/options/toolChoice", "required tool choice needs tools")
+            result.add("tool_choice", JsonValue.fromString("required"))
+        }
+        case Specific(_) -> result.add("tool_choice", selected ?: throw LlmRequestException("/options/toolChoice", "selected Responses tool is missing"))
+    }
+}
+
+private fun encodeResponsesTool(tool: ToolDefinition, dialect: DialectId, path: String): JsonValue = when (tool) {
+    case ClientFunction(_, name, parameters, description, strict, extensions) -> {
+        requireLlmToolName(name, 64L, path + "/name")
+        val value = llmTypedObject("function").add("name", JsonValue.fromString(name)).add("parameters", parameters)
+        if (description.length != 0L) value.add("description", JsonValue.fromString(description))
+        if (strict != None) value.add("strict", JsonValue.fromBoolean(strict!!))
+        mergeLlmExtensions(value.build(), extensions, dialect, ["type", "name", "parameters", "description", "strict"], path)
+    }
+    case ClientCustom(_, name, format, description, extensions) -> {
+        requireLlmToolName(name, 64L, path + "/name")
+        val value = llmTypedObject("custom").add("name", JsonValue.fromString(name))
+        if (description.length != 0L) value.add("description", JsonValue.fromString(description))
+        when (format) {
+            case Text -> value.add("format", llmTypedObject("text").build())
+            case Grammar(syntax, definition) -> {
+                if (syntax != "lark" && syntax != "regex") throw LlmRequestException(path + "/format/syntax", "grammar syntax must be lark or regex")
+                value.add("format", llmTypedObject("grammar").add("syntax", JsonValue.fromString(syntax)).add("definition", JsonValue.fromString(definition)).build())
+            }
+        }
+        mergeLlmExtensions(value.build(), extensions, dialect, ["type", "name", "description", "format"], path)
+    }
+    case ClientNative(_, native, extensions) -> encodeResponsesNativeTool(native, extensions, dialect, false, path)
+    case Server(_, definition, extensions) -> when (definition) {
+        case WebSearch(options) -> encodeResponsesWebSearch(options, extensions, dialect, path)
+        case Native(native) -> encodeResponsesNativeTool(native, extensions, dialect, true, path)
+    }
+}
+
+private fun responsesSelectedTool(tool: JsonValue): JsonValue {
+    val type = tool["type"]!!.asString()
+    if (type == "namespace") throw LlmRequestException("/options/toolChoice", "selecting a namespace requires an explicit member name")
+    val choice = llmTypedObject(type)
+    for (name in ["name", "server_label"]) { when (tool[name]) { case Some(value) -> choice.add(name, value); case None -> continue } }
+    val value = choice.build()
+    if (type == "function" || type == "custom") return value
+    return llmTypedObject("allowed_tools").add("mode", JsonValue.fromString("required"))
+        .add("tools", JsonValue.fromArray([value])).build()
+}
+
+private fun responsesSearchInclusion(tool: ToolDefinition, previous: Boolean?, path: String): Boolean? {
+    val next = when (tool) { case Server(_, definition, _) -> when (definition) { case WebSearch(options) -> options.includeSources; else -> None }; else -> None }
+    if (next != None && previous != None && next != previous)
+        throw LlmRequestException(path + "/tool/options/includeSources", "source inclusion is shared by Responses search tools")
+    return if (next != None) next else previous
+}

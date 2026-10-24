@@ -1,0 +1,42 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class ResponsesMediaTest {
+    @Test
+    fun `Responses image and file bytes URLs and owned file IDs keep their wire forms`() {
+        val dialect = OpenAiResponsesDialect().id
+        val imageFile = LlmFileReference(dialect, JsonValue.fromString("image-file"))
+        val pdfFile = LlmFileReference(dialect, JsonValue.fromString("pdf-file"))
+        val request = LlmRequest([Message([Image(Bytes([1.toByte(), 2.toByte()], "image/png")), Image(MediaSource.Url(Url.parse("https://example.com/image"), "image/webp")),
+            Image(FileReference(imageFile, "image/jpeg")), Document(Bytes([3.toByte()], "application/pdf"), Some("a.pdf")),
+            Document(MediaSource.Url(Url.parse("https://example.com/doc"), "application/pdf")), Document(FileReference(pdfFile, "application/pdf")),
+            Native(dialect, Json.parse("{\"type\":\"future_input\",\"data\":1e400}"))])])
+        val body = ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("m", request)
+        val parts = body["input"]!![0]["content"]!!
+        assertEquals("data:image/png;base64,AQI=", parts[0]["image_url"]!!.asString())
+        assertEquals("https://example.com/image", parts[1]["image_url"]!!.asString())
+        assertEquals("image-file", parts[2]["file_id"]!!.asString())
+        assertEquals("data:application/pdf;base64,Aw==", parts[3]["file_data"]!!.asString())
+        assertEquals("a.pdf", parts[3]["filename"]!!.asString())
+        assertEquals("https://example.com/doc", parts[4]["file_url"]!!.asString())
+        assertEquals("pdf-file", parts[5]["file_id"]!!.asString())
+        assertEquals("1e400", parts[6]["data"]!!.asNumberToken())
+    }
+
+    @Test
+    fun `Responses unsupported media mappings and foreign file references keep input paths`() {
+        assertResponsesRequestFailure(LlmRequest([Message([Image(Bytes([], "image/svg+xml"))])]), "/input/0/content/0/source/mimeType")
+        assertResponsesRequestFailure(LlmRequest([Message([Image(Bytes([], "image/png; x=y"))])]), "/input/0/content/0/source/mimeType")
+        assertResponsesRequestFailure(LlmRequest([Message([Image(MediaSource.Url(Url.parse("file:///a"), "image/png"))])]), "/input/0/content/0/source/url")
+        val foreign = LlmFileReference(OpenAiChatDialect().id, JsonValue.fromString("f"))
+        assertResponsesRequestFailure(LlmRequest([Message([Document(FileReference(foreign, "application/pdf"))])]), "/input/0/content/0/source/reference/dialect")
+        assertResponsesRequestFailure(LlmRequest([Message([Audio(Bytes([], "audio/wav"))])]), "/input/0/content/0")
+        assertResponsesRequestFailure(LlmRequest([Message([Video(Bytes([], "video/mp4"))])]), "/input/0/content/0")
+        assertResponsesRequestFailure(LlmRequest([Message([Document(MediaSource.Url(Url.parse("https://example.com/a"), "application/pdf"), Some("a.pdf"))])]), "/input/0/content/0/filename")
+    }
+}

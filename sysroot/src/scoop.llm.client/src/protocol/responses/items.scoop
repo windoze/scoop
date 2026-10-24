@@ -14,6 +14,8 @@ internal fun responsesOutputEntries(output: Array<JsonValue>): Array<ResponsesOu
         val path = "/output/" + index.toString()
         val fields = decodeResponsesValue<ResponsesItemFields>(raw, path)
         responsesUniqueId(itemIds, fields.id, path + "/id")
+        if (fields.type == "local_shell_call" && fields.id == None)
+            throw DecodingException(path + "/id", "local shell result requires the original item ID")
         val client = responsesIsClientItem(fields.type, raw, path)
         val callId = if (client || fields.type == "shell_call")
             Some(decodeResponsesValue<ResponsesCallId>(raw, path).callId) else None
