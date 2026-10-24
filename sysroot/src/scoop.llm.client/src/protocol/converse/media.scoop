@@ -1,0 +1,38 @@
+package scoop.llm.client
+
+import scoop.io.encoding.Base64
+import scoop.json.*
+import scoop.text.startsWith
+import scoop.url.Url
+
+private class ConverseMediaFields public constructor(public val source: JsonValue, public val format: String? = None,
+    public val error: JsonValue? = None) {
+    public companion object : ValueDecoder<ConverseMediaFields>
+}
+
+private class ConverseS3Location public constructor(public val uri: String, public val bucketOwner: String? = None) {
+    public companion object : ValueDecoder<ConverseS3Location>
+}
+
+internal fun readConverseMedia(dialect: DialectId, raw: JsonValue, kind: String, path: String): OutputPart {
+    val fields = decodeConverseValue<ConverseMediaFields>(raw[kind]!!, path)
+    if (kind != "document" && fields.format == None) throw DecodingException(path + "/format", "missing media format")
+    val (sourceKind, content) = converseUnion(fields.source, path + "/source")
+    val mime = converseMediaMime(kind, fields.format ?: "")
+    val media: OutputMediaKind = when (kind) { case "image" -> Image; case "audio" -> Audio; case "video" -> Video; else -> Document }
+    if (sourceKind == "bytes") {
+        val encoded = decodeConverseValue<String>(content, path + "/source/bytes")
+        if (mime == None || llmPresent(fields.error)) return OutputPart.Native(dialect, raw)
+        val bytes = Base64.Default.withPadding(Base64.PaddingOption.Optional).decodeOrNone(encoded)
+            ?: throw DecodingException(path + "/source/bytes", "invalid Base64 media")
+        return OutputPart.Media(media, MediaSource.Bytes(bytes, mime!!))
+    }
+    if (sourceKind == "s3Location") {
+        val location = decodeConverseValue<ConverseS3Location>(content, path + "/source/s3Location")
+        if (!location.uri.startsWith("s3://") || !llmPresent(Url.parseOrNone(location.uri)))
+            throw DecodingException(path + "/source/s3Location/uri", "expected an S3 object URI")
+        if (mime != None && !llmPresent(fields.error)) return OutputPart.Media(media, MediaSource.FileReference(LlmFileReference(dialect, raw), mime!!))
+    } else if (sourceKind == "text" && kind == "document") decodeConverseValue<String>(content, path + "/source/text")
+    else if (sourceKind == "content" && kind == "document") decodeConverseValue<Array<JsonValue>>(content, path + "/source/content")
+    return OutputPart.Native(dialect, raw)
+}

@@ -43,6 +43,7 @@
 | Gemini Interactions 完整响应 | 完成：本机 325/325；Linux 仅搜索／引用／函数组合 1/1；独立消费者通过 |
 | Gemini Interactions 请求与普通生成 | 完成：本机 Interactions 定向 36/36；Linux 仅普通生成 mock 1/1；独立消费者通过 |
 | Gemini Interactions SSE | 完成：本机 Interactions 定向 55/55；Linux 仅 SSE mock 1/1；独立消费者通过 |
+| Bedrock Converse 完整响应 | 完成：本机 Converse 定向 18/18；Linux 仅搜索／引用／客户端调用组合 1/1；独立消费者通过 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -99,3 +100,5 @@
 - Interactions 普通生成新增 15 项 Cone 测试，覆盖 v1 缺省部署与最小正文、媒体、公共与原生选项组合、函数和服务端工具、签名历史及并行结果接续。本机 Interactions 定向 36/36；nuc12 仅一个普通生成 mock 通过，验证请求正文、认证、usage 与实际时间戳。生产库和跨 Cone 默认入口通过；默认消费者 1 通过、13 个真实 API 用例忽略。没有真实 API 请求、编译器修改或 fixture。
 
 - Interactions SSE 新增 19 项 Cone 测试，覆盖交错步骤、thought 签名、文本／媒体／引用增量、工具参数与执行资格、累计 usage、最终快照及错误边界。快照中的服务端结果照常交付完成活动；未知 delta 无完整快照时不生成不实历史。EventsOnly 不累计普通正文，Result 复用已解码媒体和引用。本机 Interactions 定向 55/55；nuc12 仅 SSE mock 1/1，验证实际地址、正文、usage、历史与时间戳。生产库和独立消费者通过，13 个真实 API 用例默认忽略；没有真实 API 请求、编译器修改或 fixture。清理 target/debug/incremental 约 373 MiB，保留 release 工具。
+
+- Converse 完整响应新增 18 项 Cone 用例，覆盖有序内容、reasoning 签名与原始历史、客户端／服务端工具归属、引用、媒体、精确缓存计数和错误路径。连续文本合并到同一 Message，使 wire 分块后的 JSON 可由缺省 decodeOutput 读取；连续引用块关联前一文本。音频 Opus／PCM 缺少容器或采样配置时保持 Native。本机 18/18；nuc12 仅搜索／引用／客户端工具与序列化组合 1/1；生产库构建和外部消费者通过，13 个真实 API 用例默认忽略。本步没有真实 API 请求、编译器修改或 fixture；清理空闲 target/debug/incremental 约 187 MiB。

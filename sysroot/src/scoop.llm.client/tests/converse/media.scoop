@@ -1,0 +1,62 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseMediaTest {
+    @Test
+    fun `Converse inline media and S3 references preserve formats bytes and provider context`() {
+        for ((type, format, mime, kind) in [("image", "png", "image/png", OutputMediaKind.Image),
+            ("audio", "wav", "audio/wav", OutputMediaKind.Audio), ("video", "mp4", "video/mp4", OutputMediaKind.Video),
+            ("document", "pdf", "application/pdf", OutputMediaKind.Document)]) {
+            val content = "[{\"" + type + "\":{\"format\":\"" + format + "\",\"name\":\"Sample\",\"source\":{\"bytes\":\"SGk=\"}}}," +
+                "{\"" + type + "\":{\"format\":\"" + format + "\",\"name\":\"Sample\",\"source\":{\"s3Location\":{\"uri\":\"s3://bucket/object\",\"bucketOwner\":\"123456789012\"}},\"future\":1e400}}]"
+            val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(converseDecode(converseBody(content))))
+            when (converseMediaPart(response, 0L)) { case Media(actual, source) -> {
+                assertEquals(kind, actual)
+                when (source) { case Bytes(bytes, value) -> { assertEquals("Hi", String.fromUtf8(bytes)); assertEquals(mime, value) }; else -> fail() }
+            }; else -> fail() }
+            when (converseMediaPart(response, 1L)) { case Media(actual, source) -> {
+                assertEquals(kind, actual)
+                when (source) { case FileReference(reference, value) -> {
+                    assertEquals(converseDialect, reference.dialect)
+                    assertEquals(mime, value)
+                    assertEquals("1e400", reference.value[type]!!["future"]!!.asNumberToken())
+                    assertEquals("123456789012", reference.value[type]!!["source"]!!["s3Location"]!!["bucketOwner"]!!.asString())
+                }; else -> fail() }
+            }; else -> fail() }
+        }
+    }
+
+    @Test
+    fun `Converse unknown formats PCM native documents and media errors remain observable without guessing`() {
+        val response = converseDecode(converseBody("[{\"audio\":{\"format\":\"pcm\",\"source\":{\"bytes\":\"AAE=\"}}}," +
+            "{\"document\":{\"name\":\"Paper\",\"source\":{\"bytes\":\"AAE=\"}}}," +
+            "{\"document\":{\"format\":\"txt\",\"name\":\"Paper\",\"source\":{\"text\":\"document text\"}}}," +
+            "{\"image\":{\"format\":\"future\",\"source\":{\"bytes\":\"AAE=\"}}}," +
+            "{\"audio\":{\"format\":\"wav\",\"source\":{\"bytes\":\"\"},\"error\":{\"message\":\"failed\"}}}," +
+            "{\"document\":{\"format\":\"txt\",\"name\":\"Paper\",\"source\":{\"content\":[{\"text\":\"source\"}]}}}," +
+            "{\"audio\":{\"format\":\"opus\",\"source\":{\"bytes\":\"AAE=\"}}}]"))
+        var index = 0L
+        while (index < 7L) { when (converseMediaPart(response, index)) { case Native(_, _) -> assertTrue(true); else -> fail() }; index += 1L }
+        assertEquals("", response.text)
+        assertEquals(7L, converseHistory(response)["content"]!!.size)
+    }
+
+    @Test
+    fun `Converse malformed media source unions Base64 and S3 references expose data paths`() {
+        for ((value, path) in [("{\"image\":{\"source\":{\"bytes\":\"\"}}}", "image/format"),
+            ("{\"audio\":{\"format\":\"wav\",\"source\":{\"bytes\":\"%%%\"}}}", "audio/source/bytes"),
+            ("{\"video\":{\"format\":\"mp4\",\"source\":{\"bytes\":\"\",\"s3Location\":{\"uri\":\"s3://bucket/x\"}}}}", "video/source"),
+            ("{\"image\":{\"format\":\"png\",\"source\":{\"s3Location\":{\"uri\":\"https://example.test/file\"}}}}", "image/source/s3Location/uri"),
+            ("{\"document\":{\"source\":{\"text\":3}}}", "document/source/text")])
+            assertConverseFailure(converseBody("[" + value + "]"), "/output/message/content/0/" + path)
+    }
+}
+
+private fun converseMediaPart(response: LlmResponse, index: Long): OutputPart = when (response.candidate(0L).items[index]) {
+    case Message(parts, _) -> parts[0L]
+    else -> fail()
+}

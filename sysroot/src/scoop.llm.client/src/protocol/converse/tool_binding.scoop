@@ -1,0 +1,40 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.json.JsonValueKind
+
+internal fun resolveConverseTool(tools: Array<ToolDefinition>, dialect: ConverseDialect, name: String, server: Boolean): ToolKey? {
+    var found: ToolKey? = None
+    for (tool in tools) {
+        val wireName = when (tool) {
+            case ClientFunction(_, value, _, _, _, _) -> if (server) None else Some(value)
+            case Server(_, definition, _) -> if (!server) None else when (definition) {
+                case WebSearch(_) -> if (dialect.serverToolKind(name) == ServerToolKind.WebSearch) Some(name) else None
+                case Native(value) -> converseSystemToolName(value, dialect.id)
+            }
+            else -> None
+        }
+        if (wireName != Some(name)) continue
+        if (found != None) return None
+        found = Some(tool.key)
+    }
+    return found
+}
+
+private fun converseSystemToolName(tool: NativeToolDefinition, dialect: DialectId): String? {
+    if (tool.dialect != dialect || tool.kind != "systemTool" || tool.version != None) return None
+    val value = tool.configuration["name"] ?: return None
+    return if (value.kind == JsonValueKind.String) Some(value.asString()) else None
+}
+
+internal fun readConverseClientCall(dialect: ConverseDialect, entry: ConverseEntry, entries: Array<ConverseEntry>,
+    tools: Array<ToolDefinition>, stopReason: String): LlmOutputItem {
+    val call = entry.call!!
+    if (call.type != None || converseHasResult(entries, call.toolUseId)) return LlmOutputItem.Native(dialect.id, entry.raw)
+    val key = resolveConverseTool(tools, dialect, call.name, false) ?: return LlmOutputItem.Native(dialect.id, entry.raw)
+    val text = Json.stringify(call.input)
+    val input = if (stopReason != "tool_use") ClientToolInput.Incomplete(text)
+        else if (call.input.kind != JsonValueKind.Object) ClientToolInput.Invalid(text, "tool input must be a JSON object")
+        else ClientToolInput.JsonArguments(JsonToolArguments(text))
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect.id, key, Some(call.toolUseId), Some(entry.raw)), input))
+}

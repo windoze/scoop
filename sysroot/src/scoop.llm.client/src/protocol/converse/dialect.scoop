@@ -1,0 +1,25 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Service-specific accounting and system tools within the Converse protocol. */
+public interface ConverseDialect {
+    public val id: DialectId
+    public fun readUsage(value: JsonValue): TokenUsage
+    public fun serverToolKind(name: String): ServerToolKind = ServerToolKind.Native
+    public fun serverResultName(type: String): String? = None
+}
+
+public class BedrockConverseDialect public constructor() : ConverseDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("converse"), "bedrock-converse")
+    public override fun readUsage(value: JsonValue): TokenUsage = readConverseUsage(value)
+    public override fun serverToolKind(name: String): ServerToolKind = when (name) {
+        case "nova_grounding" -> WebSearch
+        case "nova_code_interpreter" -> CodeExecution
+        else -> Native
+    }
+    public override fun serverResultName(type: String): String? = when (type) {
+        case "nova_code_interpreter_result" -> Some("nova_code_interpreter")
+        else -> None
+    }
+}

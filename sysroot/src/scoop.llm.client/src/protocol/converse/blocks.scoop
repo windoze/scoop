@@ -1,0 +1,63 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readConverseBlocks(dialect: ConverseDialect, entries: Array<ConverseEntry>, tools: Array<ToolDefinition>,
+    stopReason: String): Array<LlmOutputItem> {
+    val items = ArrayList<LlmOutputItem>()
+    for (entry in entries) {
+        val path = entry.path + "/" + entry.kind
+        when (entry.kind) {
+            case "text" -> appendConverseText(items, decodeConverseValue<String>(entry.value, path))
+            case "reasoningContent" -> items.add(LlmOutputItem.Reasoning(readConverseReasoning(dialect.id, entry.value, path)))
+            case "citationsContent" -> readConverseCitedBlock(dialect.id, entry, items)
+            case "image" -> items.add(LlmOutputItem.Message([readConverseMedia(dialect.id, entry.raw, "image", path)]))
+            case "audio" -> items.add(LlmOutputItem.Message([readConverseMedia(dialect.id, entry.raw, "audio", path)]))
+            case "video" -> items.add(LlmOutputItem.Message([readConverseMedia(dialect.id, entry.raw, "video", path)]))
+            case "document" -> items.add(LlmOutputItem.Message([readConverseMedia(dialect.id, entry.raw, "document", path)]))
+            case "toolUse" -> {
+                val call = entry.call!!
+                if (call.type == Some("server_tool_use")) items.add(LlmOutputItem.ServerToolActivity(ServerToolActivity(
+                    dialect.serverToolKind(call.name), InProgress, resolveConverseTool(tools, dialect, call.name, true),
+                    Some(call.toolUseId), Some(call.input), native = Some(entry.raw))))
+                else items.add(readConverseClientCall(dialect, entry, entries, tools, stopReason))
+            }
+            case "toolResult" -> items.add(readConverseServerResult(dialect, entry, entries, tools))
+            else -> items.add(LlmOutputItem.Native(dialect.id, entry.raw))
+        }
+    }
+    return items.toArray()
+}
+
+private fun appendConverseText(items: ArrayList<LlmOutputItem>, text: String) {
+    if (items.size > 0L) when (items[items.size - 1L]) {
+        case Message(parts, id) -> {
+            val content = ArrayList<OutputPart>()
+            var onlyText = true
+            for (part in parts) {
+                when (part) { case Text(_, _) -> content.add(part); else -> onlyText = false }
+            }
+            if (onlyText) {
+                content.add(OutputPart.Text(text))
+                items[items.size - 1L] = LlmOutputItem.Message(content.toArray(), id)
+                return
+            }
+        }
+        else -> return items.add(LlmOutputItem.Message([OutputPart.Text(text)]))
+    }
+    items.add(LlmOutputItem.Message([OutputPart.Text(text)]))
+}
+
+private class ConverseReasoningText public constructor(public val text: String, public val signature: String? = None) {
+    public companion object : ValueDecoder<ConverseReasoningText>
+}
+
+private fun readConverseReasoning(dialect: DialectId, value: JsonValue, path: String): Array<OutputPart> {
+    val (kind, content) = converseUnion(value, path)
+    if (kind == "reasoningText") {
+        val fields = decodeConverseValue<ConverseReasoningText>(content, path + "/reasoningText")
+        return [OutputPart.Text(fields.text), OutputPart.Native(dialect, value)]
+    }
+    if (kind == "redactedContent") decodeConverseValue<String>(content, path + "/redactedContent")
+    return [OutputPart.Native(dialect, value)]
+}

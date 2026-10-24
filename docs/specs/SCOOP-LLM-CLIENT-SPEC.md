@@ -497,3 +497,23 @@ usage 可来自 status_update.usage、step.stop.usage、step.delta.metadata.tota
 interaction.completed 可携带最终 steps；按步骤身份合并快照并交付尚未看到的文本、引用或工具内容，不重复已经交付的文本和引用。原始 steps 数组另外作为 lifecycle.steps Native 快照事件交付，媒体等原生内容可据此读取最终状态；重建 history 已保存最终步骤，不再为该快照另存一份 nativeEvents。只在快照中出现的服务端 result 同样交付 Completed／Failed 活动。没有 steps 时从已结束且可完整重建的步骤生成 history。最终状态沿用完整响应的 completion／finishReason 规则；未知状态保留 Incomplete 与 Partial usage，不提供可追加历史。完成事件后传输可结束，尾随 event:done / data:[DONE] 是可忽略哨兵；提前 DONE、error 或 EOF 都不能产生成功结果。结果保留模式才提供 response()，且保留原生历史和未知事件。
 
 协议依据：[官方流式指南](https://ai.google.dev/gemini-api/docs/streaming)、[Interactions v1 OpenAPI](https://ai.google.dev/static/api/interactions-v1.openapi.json)。不自动执行工具、轮询后台资源或消费 continuation_token。
+
+## 24. Bedrock Converse 完整响应
+
+ConverseProtocol(dialect) 提供不执行 I/O 的 decodeResponse(value, request)。ConverseDialect 解释服务方 usage 与系统工具种类；BedrockConverseDialect 使用 DialectId(ApiProtocolId("converse"), "bedrock-converse")。本节交付完整 JSON 响应的读取，不把 ConverseStream 的 AWS 二进制 EventStream 当作 SSE；请求、部署和认证在各自实施时定义。
+
+output 是 tagged union，message 的 role 必须为 assistant，content 按顺序投影为候选 0 的 items。连续文本 block 保持为同一 Message 中的多个文本 part，使一段完整 JSON 不因 wire 分块而在 decodeOutput 中成为歧义消息；reasoning、媒体和工具仍保持各自位置。content、reasoningContent、媒体 source 等 union 必须恰有一个成员；未知成员作为 Native 保留，不能与已知成员同时解释。根部、消息及结构体中的未知字段保留原文。响应没有公开的模型名、响应 ID 或创建时间字段，不从请求、HTTP 时间或 metrics.latencyMs 补造；metrics 与 additionalModelResponseFields 保存在 native。
+
+text 是普通文本；reasoningText.text 是 Reasoning，签名及 redactedContent 保留原文，与整个消息一起保存到 history。图片、音频、视频、文档的已知 format 映射 MIME；bytes 解码 Base64，s3Location 保存同 dialect 的原始媒体 block 作为 FileReference，不下载。格式未知、文档格式缺失、原生文档 text／content、音频或图片 error 等无法无歧义投影的内容保留 Native。PCM 缺少位深／采样率、Opus 缺少容器约定时保持 Native，不猜通用 MIME；audio/opus 是 RTP payload 类型，不能用它替代 Ogg Opus 文件的 audio/ogg，见 [RFC 7845](https://www.rfc-editor.org/rfc/rfc7845.html#section-9)。
+
+toolUse 的真实 toolUseId／name 必须非空，同一响应中的调用 ID 不得重复。没有 type 的调用只能与唯一同名 ClientFunction 关联；type=server_tool_use 则是 ServerToolActivity，未知 type 不进入可执行视图。只有 stopReason=tool_use、尚未收到结果且 input 为 JSON object 的客户端调用可执行；非 object 保留 Invalid，其他停止状态保留 Incomplete，未知或歧义绑定保留 Native。toolResult 使用实际 ID 关联，不能把已完成的调用再次执行；客户端结果保持 Native。服务端结果可以只引用此前调用，已知结果类型不得关联到本响应中不同执行方或不同名称的调用。
+
+Bedrock 的 nova_grounding 映射 WebSearch，nova_code_interpreter 映射 CodeExecution，其他系统工具保持 Native 种类。Server.WebSearch 与 nova_grounding 绑定；Server.Native 通过同 dialect 的 kind=systemTool、configuration.name 精确绑定。结果名称只按明确的服务约定解释，例如 nova_code_interpreter_result；没有当前调用和已知类型时不猜所属工具。结果 status=success／error 分别映射 Completed／Failed，缺失或未知 status 为 Unknown。服务端结果中的 text、媒体、JSON 和搜索来源按原顺序保留，只有实际调用／结果才形成活动，不因工具声明或普通引用虚构搜索执行。
+
+citationsContent.content 中的生成文本与该 block 的 citations 关联。一个或多个连续的单独 citationsContent 紧邻普通文本时，将引用连接到前一文本块，并保留每个原始引用 block；无法确定归属时保持 Native。web.url 形成 URL 来源，其他来源位置及 sourceContent 保留原文；源文档的字符／页／chunk 范围不冒充生成文本的 TextRange，range 保持 None。来源 ID 使用响应内字段位置，与工具调用 ID 独立。
+
+end_turn／stop_sequence 映射 Complete／Stop，tool_use 为 Complete／ToolCalls，max_tokens／model_context_window_exceeded 为 Incomplete／Length，guardrail_intervened／content_filtered 为 Refused／ContentFilter，malformed_model_output／malformed_tool_use 为 Failed。未知停止原因保留 Incomplete／Other。已知停止原因提供完整消息的原生 history；未知停止原因或未知 output union 不提供可追加 history。序列化与读取历史不执行工具、不发起下一次请求。
+
+usage.inputTokens 为 nonCachedInputTokens；它与 cacheReadInputTokens、cacheWriteInputTokens 均已知时相加得到公共 inputTokens。缺失 cache 字段不补零，totalTokens 保留服务端报告，不反推缺失细项；outputTokens 包含实际输出，未报告 reasoning 计数时保持 None。cacheDetails 是按 TTL 拆分的写入明细，保留原文、不重复相加。所有读取的计数使用非负 Long，求和检查溢出；已知停止原因的 usage 为 Final，未知原因是 Partial。服务计时、计数与客户端发送／接收时间各自保持含义。
+
+协议依据：[Converse](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html)、[ContentBlock union](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ContentBlock.html)、[缓存计数公式](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html)、[系统工具的调用与结果](https://docs.aws.amazon.com/nova/latest/userguide/tool-built-in.html)、[引用与生成文本](https://docs.aws.amazon.com/nova/latest/userguide/grounding.html)。参考 [Vercel usage 归一化](https://github.com/vercel/ai/blob/main/packages/amazon-bedrock/src/convert-amazon-bedrock-usage.ts)，但不将缺失 cache 计数补为零。

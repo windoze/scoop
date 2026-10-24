@@ -1,0 +1,40 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class ConverseEntry public constructor(val kind: String, val raw: JsonValue, val value: JsonValue, val path: String,
+    val call: ConverseToolUse? = None, val result: ConverseToolResult? = None)
+
+internal fun readConverseEntries(values: Array<JsonValue>): Array<ConverseEntry> {
+    val entries = ArrayList<ConverseEntry>()
+    val callIds = ArrayList<String>()
+    var index = 0L
+    for (raw in values) {
+        val path = "/output/message/content/" + index.toString()
+        val (kind, value) = converseUnion(raw, path)
+        var call: ConverseToolUse? = None
+        var result: ConverseToolResult? = None
+        if (kind == "toolUse") {
+            val parsed = decodeConverseValue<ConverseToolUse>(value, path + "/toolUse")
+            converseNonempty(parsed.toolUseId, path + "/toolUse/toolUseId")
+            converseNonempty(parsed.name, path + "/toolUse/name")
+            for (id in callIds) if (id == parsed.toolUseId) throw DecodingException(path + "/toolUse/toolUseId", "duplicate Converse tool call ID")
+            callIds.add(parsed.toolUseId)
+            call = Some(parsed)
+        } else if (kind == "toolResult") {
+            val parsed = decodeConverseValue<ConverseToolResult>(value, path + "/toolResult")
+            converseNonempty(parsed.toolUseId, path + "/toolResult/toolUseId")
+            result = Some(parsed)
+        }
+        entries.add(ConverseEntry(kind, raw, value, path, call, result))
+        index += 1L
+    }
+    return entries.toArray()
+}
+
+internal fun converseHasResult(entries: Array<ConverseEntry>, id: String): Boolean {
+    for (entry in entries) {
+        when (entry.result) { case Some(result) -> { if (result.toolUseId == id) return true }; case None -> continue }
+    }
+    return false
+}

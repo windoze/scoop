@@ -1,0 +1,53 @@
+package scoop.llm.client
+
+/** Only formats whose MIME type is determined by the protocol are projected. */
+internal fun converseMediaMime(kind: String, format: String): String? {
+    if (kind == "image") return when (format) {
+        case "png" -> Some("image/png")
+        case "jpeg" -> Some("image/jpeg")
+        case "gif" -> Some("image/gif")
+        case "webp" -> Some("image/webp")
+        else -> None
+    }
+    if (kind == "document") return when (format) {
+        case "pdf" -> Some("application/pdf")
+        case "csv" -> Some("text/csv")
+        case "doc" -> Some("application/msword")
+        case "docx" -> Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        case "xls" -> Some("application/vnd.ms-excel")
+        case "xlsx" -> Some("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        case "html" -> Some("text/html")
+        case "txt" -> Some("text/plain")
+        case "md" -> Some("text/markdown")
+        else -> None
+    }
+    if (kind == "video") return when (format) {
+        case "mkv" -> Some("video/x-matroska")
+        case "mov" -> Some("video/quicktime")
+        case "mp4" -> Some("video/mp4")
+        case "webm" -> Some("video/webm")
+        case "flv" -> Some("video/x-flv")
+        case "mpeg" -> Some("video/mpeg")
+        case "mpg" -> Some("video/mpeg")
+        case "wmv" -> Some("video/x-ms-wmv")
+        case "three_gp" -> Some("video/3gpp")
+        else -> None
+    }
+    if (kind == "audio") return when (format) {
+        case "mp3" -> Some("audio/mpeg")
+        case "mpeg" -> Some("audio/mpeg")
+        case "mpga" -> Some("audio/mpeg")
+        case "wav" -> Some("audio/wav")
+        case "aac" -> Some("audio/aac")
+        case "x-aac" -> Some("audio/aac")
+        case "flac" -> Some("audio/flac")
+        case "mp4" -> Some("audio/mp4")
+        case "m4a" -> Some("audio/mp4")
+        case "ogg" -> Some("audio/ogg")
+        case "mkv" -> Some("audio/x-matroska")
+        case "mka" -> Some("audio/x-matroska")
+        case "webm" -> Some("audio/webm")
+        else -> None
+    }
+    return None
+}

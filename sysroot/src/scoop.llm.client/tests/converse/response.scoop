@@ -1,0 +1,74 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseResponseTest {
+    @Test
+    fun `Converse ordered reasoning signatures text and unknown blocks survive saved history`() {
+        val raw = converseReplace(converseBody("[{\"reasoningContent\":{\"reasoningText\":{\"text\":\"consider\",\"signature\":\"opaque\",\"future\":1e400}}}," +
+            "{\"reasoningContent\":{\"redactedContent\":\"AAE=\"}},{\"text\":\"{\\\"count\\\":\"},{\"text\":\"7}\"}," +
+            "{\"futureBlock\":{\"value\":9007199254740993}}]"), "metrics", Some(Json.parse("{\"latencyMs\":9000}")))
+        val response = converseDecode(raw)
+        assertEquals("{\"count\":7}", response.text)
+        assertEquals(7L, response.decodeOutput<ConverseAnswer>().count)
+        assertEquals(None, response.id)
+        assertEquals(None, response.model)
+        assertEquals(None, response.createdAt)
+        assertEquals(4L, response.candidate(0L).items.size)
+        when (response.candidate(0L).items[0L]) {
+            case Reasoning(parts, _) -> {
+                when (parts[0L]) { case Text(value, _) -> assertEquals("consider", value); else -> fail() }
+                when (parts[1L]) { case Native(_, value) -> assertEquals("opaque", value["reasoningText"]!!["signature"]!!.asString()); else -> fail() }
+            }
+            else -> fail()
+        }
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(Json.stringify(raw["output"]!!["message"]!!), Json.stringify(converseHistory(saved)))
+        assertEquals(Json.stringify(raw), Json.stringify(saved.native!!))
+        assertEquals("9007199254740993", converseHistory(saved)["content"]!![4L]["futureBlock"]!!["value"]!!.asNumberToken())
+    }
+
+    @Test
+    fun `Converse stop reasons distinguish completion refusal malformed output and future states`() {
+        for ((reason, completion, finish) in [("end_turn", LlmCompletion.Complete, LlmFinishReason.Stop),
+            ("stop_sequence", LlmCompletion.Complete, LlmFinishReason.Stop), ("tool_use", LlmCompletion.Complete, LlmFinishReason.ToolCalls),
+            ("max_tokens", LlmCompletion.Incomplete, LlmFinishReason.Length), ("model_context_window_exceeded", LlmCompletion.Incomplete, LlmFinishReason.Length),
+            ("guardrail_intervened", LlmCompletion.Refused, LlmFinishReason.ContentFilter), ("content_filtered", LlmCompletion.Refused, LlmFinishReason.ContentFilter),
+            ("malformed_model_output", LlmCompletion.Failed, LlmFinishReason.Other("malformed_model_output")),
+            ("malformed_tool_use", LlmCompletion.Failed, LlmFinishReason.Other("malformed_tool_use")),
+            ("future", LlmCompletion.Incomplete, LlmFinishReason.Other("future"))]) {
+            val response = converseDecode(converseBody("[{\"text\":\"partial\"}]", reason))
+            assertEquals(completion, response.candidate(0L).completion)
+            assertEquals(finish, response.candidate(0L).finishReason)
+            assertEquals(if (reason == "future") UsageCompleteness.Partial else UsageCompleteness.Final, response.usage.completeness)
+            if (reason == "future") assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { response.toInput(); Unit }.reason)
+            else assertEquals("partial", converseHistory(response)["content"]!![0L]["text"]!!.asString())
+        }
+    }
+
+    @Test
+    fun `Converse preserves a future output union without manufacturing replay messages`() {
+        val value = converseReplace(converseBody("[]"), "output", Some(Json.parse("{\"future\":{\"opaque\":1e400}}")))
+        val response = converseDecode(value)
+        when (response.candidate(0L).items[0L]) { case Native(owner, raw) -> { assertEquals(converseDialect, owner); assertTrue(raw.containsKey("future")) }; else -> fail() }
+        assertEquals("", response.text)
+        assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { response.toInput(); Unit }.reason)
+    }
+
+    @Test
+    fun `Converse malformed known fields and ambiguous unions report their original paths`() {
+        val base = converseBody("[]")
+        assertConverseFailure(converseReplace(base, "output", None), "/output")
+        assertConverseFailure(converseReplace(base, "stopReason", Some(JsonValue.fromString(""))), "/stopReason")
+        assertConverseFailure(converseReplace(base, "output", Some(Json.parse("{\"message\":{\"role\":\"user\",\"content\":[]}}"))), "/output/message/role")
+        assertConverseFailure(converseReplace(base, "output", Some(Json.parse("{\"message\":{},\"future\":{}}"))), "/output")
+        assertConverseFailure(converseBody("[{}]"), "/output/message/content/0")
+        assertConverseFailure(converseBody("[{\"text\":\"x\",\"future\":{}}]"), "/output/message/content/0")
+        assertConverseFailure(converseBody("[{\"text\":5}]"), "/output/message/content/0/text")
+        assertConverseFailure(converseBody("[{\"reasoningContent\":{\"reasoningText\":{\"text\":\"x\",\"signature\":5}}}]"), "/output/message/content/0/reasoningContent/reasoningText/signature")
+        assertConverseFailure(converseBody("[{\"reasoningContent\":{\"redactedContent\":3}}]"), "/output/message/content/0/reasoningContent/redactedContent")
+    }
+}
