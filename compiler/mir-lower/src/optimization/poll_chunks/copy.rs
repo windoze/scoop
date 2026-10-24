@@ -7,13 +7,12 @@ use super::{LocalValueRegistry, mir};
 /// Duplicate the selected body, keeping loop-carried source locals.
 pub(super) fn body(
     function: &mut mir::Function,
-    source: mir::BlockId,
+    mut block: mir::BasicBlock,
     temporaries: &BTreeSet<mir::LocalId>,
     registry: &mut LocalValueRegistry,
     owner: CallableMaterialization,
     id: mir::FunctionId,
 ) -> mir::BlockId {
-    let mut block = function.body.blocks[source].clone();
     let mut locals = BTreeMap::new();
     for &local in temporaries {
         let mut definition = function.body.locals[local].clone();

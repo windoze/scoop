@@ -7,7 +7,7 @@ use super::{
     origins::{AllocationId, Site, Sources, defined_local},
 };
 
-pub(super) struct ControlFlow {
+pub(in crate::optimization) struct ControlFlow {
     edges: Vec<Vec<usize>>,
     order: Vec<usize>,
     dominators: Vec<Option<usize>>,
@@ -67,14 +67,14 @@ impl ControlFlow {
         self.dominators[index(block)].is_some()
     }
 
-    pub fn dominates(&self, creation: Site, usage: Site) -> bool {
+    pub(super) fn dominates(&self, creation: Site, usage: Site) -> bool {
         if creation.block == usage.block {
             return creation.statement < usage.statement;
         }
         self.block_dominates(index(creation.block), index(usage.block))
     }
 
-    fn block_dominates(&self, creation: usize, mut block: usize) -> bool {
+    pub fn block_dominates(&self, creation: usize, mut block: usize) -> bool {
         if creation == block {
             return true;
         }
@@ -90,7 +90,11 @@ impl ControlFlow {
         false
     }
 
-    pub fn loop_carried(&self, body: &mir::Body, sources: &Sources) -> BTreeSet<AllocationId> {
+    pub(super) fn loop_carried(
+        &self,
+        body: &mir::Body,
+        sources: &Sources,
+    ) -> BTreeSet<AllocationId> {
         if self.back_edges.is_empty() {
             return BTreeSet::new();
         }

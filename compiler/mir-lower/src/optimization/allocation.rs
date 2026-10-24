@@ -14,6 +14,7 @@ mod rewrite;
 mod storage;
 mod uses;
 
+pub(super) use control::ControlFlow;
 pub(super) use inlining::InlineReceivers;
 pub(super) use origins::{defined_local, is_class_field, local_alias, statement_alias};
 

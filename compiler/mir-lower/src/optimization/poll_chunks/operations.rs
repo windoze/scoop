@@ -20,7 +20,7 @@ pub(super) fn supported(module: &mir::Module, block: &mir::BasicBlock, arrays: b
     mir::visit_block_exprs(block, &mut |expr| {
         let operation = match &expr.kind {
             mir::ExprKind::ArrayGet { .. } => arrays && scalar(&expr.ty),
-            mir::ExprKind::ArrayLen { .. } => arrays,
+            mir::ExprKind::ArrayLen { .. } => true,
             mir::ExprKind::IntegerLiteral(_)
             | mir::ExprKind::BoolLiteral(_)
             | mir::ExprKind::UnitLiteral
@@ -38,9 +38,7 @@ pub(super) fn supported(module: &mir::Module, block: &mir::BasicBlock, arrays: b
             } => true,
             _ => false,
         };
-        let ty = scalar(&expr.ty)
-            || expr.ty == mir::Type::Unit
-            || (arrays && scalar_array(module, &expr.ty));
+        let ty = scalar(&expr.ty) || expr.ty == mir::Type::Unit || scalar_array(module, &expr.ty);
         supported &= operation && ty;
     });
     supported
