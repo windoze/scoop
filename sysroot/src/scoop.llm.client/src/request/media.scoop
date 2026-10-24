@@ -1,0 +1,57 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.time.Duration
+import scoop.url.Url as ResourceUrl
+
+/** Opaque file identity and service context interpreted only by the owning dialect. */
+public class LlmFileReference public constructor(public val dialect: DialectId, public val value: JsonValue) {
+    public companion object : ValueEncoder<LlmFileReference>, ValueDecoder<LlmFileReference>
+}
+
+/** Delivery forms remain explicit; constructing or decoding a source performs no I/O. */
+public enum MediaSource {
+    Bytes(val bytes: Array<Byte>, val mimeType: String),
+    Url(val url: ResourceUrl, val mimeType: String),
+    FileReference(val reference: LlmFileReference, val mimeType: String)
+
+    public companion object : ValueEncoder<MediaSource>, ValueDecoder<MediaSource>
+}
+
+/** One supplied video frame at a nonnegative offset, without implicit extraction or sorting. */
+public class VideoFrame public constructor(public val source: MediaSource, public val offset: Duration) {
+    init {
+        if (offset < Duration.ZERO) throw IllegalArgumentException(Some("video frame offset must not be negative"))
+    }
+    public companion object : ValueEncoder<VideoFrame>, ValueDecoder<VideoFrame>
+}
+
+/** Ordered input content. Native content has one explicit owner rather than merged overlays. */
+public enum ContentPart {
+    Text(val text: String, val extensions: Array<DialectExtension> = []),
+    Image(val source: MediaSource, val extensions: Array<DialectExtension> = []),
+    Document(val source: MediaSource, val filename: String? = None, val extensions: Array<DialectExtension> = []),
+    Audio(val source: MediaSource, val extensions: Array<DialectExtension> = []),
+    Video(val source: MediaSource, val extensions: Array<DialectExtension> = []),
+    VideoFrames(val frames: Array<VideoFrame>, val extensions: Array<DialectExtension> = []),
+    Native(val dialect: DialectId, val value: JsonValue)
+
+    public companion object : ValueEncoder<ContentPart>, ValueDecoder<ContentPart>
+}
+
+internal fun checkContentExtensions(content: Array<ContentPart>, path: String) {
+    var index = 0L
+    for (part in content) {
+        val extensions: Array<DialectExtension> = when (part) {
+            case Text(_, values) -> values
+            case Image(_, values) -> values
+            case Document(_, _, values) -> values
+            case Audio(_, values) -> values
+            case Video(_, values) -> values
+            case VideoFrames(_, values) -> values
+            case Native(_, _) -> []
+        }
+        checkDialectExtensions(extensions, path + "/" + index.toString() + "/extensions")
+        index += 1L
+    }
+}

@@ -1,0 +1,35 @@
+package scoop.llm.client
+
+/** Reusable immutable input. Sending the same value never mutates it with call-specific metadata. */
+public class LlmRequest public constructor(
+    public val input: Array<LlmInputItem>,
+    public val system: Array<ContentPart> = [],
+    public val tools: Array<ToolDefinition> = [],
+    public val options: LlmGenerationOptions = LlmGenerationOptions(),
+    public val extensions: Array<DialectExtension> = []
+) {
+    init {
+        checkDialectExtensions(extensions, "/extensions")
+        checkContentExtensions(system, "/system")
+        var index = 0L
+        for (item in input) {
+            checkInputExtensions(item, "/input/" + index.toString())
+            index += 1L
+        }
+        checkRequestTools(tools, options.toolChoice)
+    }
+
+    public companion object : ValueEncoder<LlmRequest>, ValueDecoder<LlmRequest>
+}
+
+private fun checkInputExtensions(item: LlmInputItem, path: String): Unit = when (item) {
+    case Message(content, _, values) -> {
+        checkDialectExtensions(values, path + "/extensions")
+        checkContentExtensions(content, path + "/content")
+    }
+    case ToolResult(_, content, _, values) -> {
+        checkDialectExtensions(values, path + "/extensions")
+        checkContentExtensions(content, path + "/content")
+    }
+    case History(_) -> Unit
+}

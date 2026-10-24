@@ -1,0 +1,82 @@
+package scoop.llm.client.tests.request
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun exampleDialect(): DialectId = DialectId(ApiProtocolId("chat"), "example")
+internal fun exampleExtension(): DialectExtension = DialectExtension(exampleDialect(), Json.parse("{\"cache\":true}"))
+
+@Test
+private class RequestExtensionsTest {
+    @Test
+    fun `the same dialect can attach different options at different positions`() {
+        val dialect = exampleDialect()
+        val part = DialectExtension(dialect, Json.parse("{\"cache\":{\"ttl\":300}}"))
+        val message = DialectExtension(dialect, Json.parse("{\"name\":\"context\"}"))
+        val request = LlmRequest([Message([Text("context", extensions = [part])], extensions = [message])],
+            extensions = [DialectExtension(dialect, Json.parse("{\"mode\":\"thinking\"}"))])
+        val restored = Json.decodeFromString<LlmRequest>(Json.encodeToString(request))
+        assertEquals("thinking", restored.extensions[0].value["mode"]!!.asString())
+        when (restored.input[0]) {
+            case Message(content, _, values) -> {
+                assertEquals("context", values[0].value["name"]!!.asString())
+                assertFalse(values[0].value.containsKey("mode"))
+                when (content[0]) {
+                    case Text(_, extensions) -> {
+                        assertEquals(300L, extensions[0].value["cache"]!!["ttl"]!!.asLong())
+                        assertFalse(extensions[0].value.containsKey("name"))
+                    }
+                    else -> fail(Some("expected text"))
+                }
+            }
+            else -> fail(Some("expected message"))
+        }
+    }
+
+    @Test
+    fun `duplicate extensions report the exact request message or part position`() {
+        val extension = exampleExtension()
+        val requestError = assertFailsWith<LlmRequestException> {
+            val value = LlmRequest([], extensions = [extension, extension]); Unit
+        }
+        assertEquals("/extensions/1", requestError.path)
+        val messageError = assertFailsWith<LlmRequestException> {
+            val value = LlmRequest([Message([], extensions = [extension, extension])]); Unit
+        }
+        assertEquals("/input/0/extensions/1", messageError.path)
+        val partError = assertFailsWith<LlmRequestException> {
+            val value = LlmRequest([Message([Text("x", extensions = [extension, extension])])]); Unit
+        }
+        assertEquals("/input/0/content/0/extensions/1", partError.path)
+        val systemError = assertFailsWith<LlmRequestException> {
+            val value = LlmRequest([], system = [Text("x", extensions = [extension, extension])]); Unit
+        }
+        assertEquals("/system/0/extensions/1", systemError.path)
+    }
+
+    @Test
+    fun `protocol identity is part of extension ownership and codecs preserve it`() {
+        val first = exampleExtension()
+        val second = DialectExtension(DialectId(ApiProtocolId("messages"), first.dialect.value), first.value)
+        val request = LlmRequest([], extensions = [first, second])
+        val restored = Json.decodeFromString<LlmRequest>(Json.encodeToString(request))
+        assertEquals(first.dialect, restored.extensions[0].dialect)
+        assertEquals(second.dialect, restored.extensions[1].dialect)
+        assertTrue(restored.extensions[0].dialect != restored.extensions[1].dialect)
+    }
+
+    @Test
+    fun `extension values must be objects on construction and decoding`() {
+        for (source in ["null", "1", "[]", "\"x\""]) {
+            assertFailsWith<IllegalArgumentException> {
+                val value = DialectExtension(exampleDialect(), Json.parse(source)); Unit
+            }
+        }
+        assertFailsWith<LlmRequestException> {
+            val extension = Json.encodeToString(exampleExtension())
+            val value = Json.decodeFromString<LlmRequest>("{\"input\":[],\"extensions\":[" + extension + "," + extension + "]}")
+            Unit
+        }
+    }
+}

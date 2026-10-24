@@ -1,0 +1,80 @@
+package scoop.llm.client.tests.request
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class MediaHistoryRequestTest {
+    @Test
+    fun `mixed media preserves bytes URLs references filenames and frame offsets`() {
+        val image: MediaSource = Bytes([0, 1, 127, -1], "image/png")
+        val url: MediaSource = MediaSource.Url(Url.parse("https://example.test/a?q=1&q=2#"), "video/mp4")
+        val file = LlmFileReference(exampleDialect(), Json.parse("{\"file_id\":\"file-1\",\"tenant\":\"team-a\"}"))
+        val request = LlmRequest([Message([
+            Text("compare"), Image(image),
+            Document(FileReference(file, "application/pdf"), filename = Some("材料.pdf")),
+            Audio(Bytes([1, 2], "audio/pcm;rate=24000")), Video(url),
+            VideoFrames([VideoFrame(image, Duration.nanoseconds(9007199254740993L))]),
+            Native(exampleDialect(), Json.parse("{\"type\":\"new_media\",\"payload\":1e+400}"))
+        ])])
+        val saved = Json.encodeToString(request)
+        val restored = Json.decodeFromString<LlmRequest>(saved)
+        assertEquals(saved, Json.encodeToString(restored))
+        when (restored.input[0]) {
+            case Message(content, _, _) -> {
+                assertEquals(7L, content.size)
+                when (content[1]) {
+                    case Image(source, _) -> when (source) {
+                        case Bytes(bytes, mime) -> { assertEquals((-1).toByte(), bytes[3]); assertEquals("image/png", mime) }
+                        else -> fail(Some("expected inline bytes"))
+                    }
+                    else -> fail(Some("expected image"))
+                }
+                when (content[5]) {
+                    case VideoFrames(frames, _) -> assertEquals(Duration.nanoseconds(9007199254740993L), frames[0].offset)
+                    else -> fail(Some("expected frames"))
+                }
+            }
+            else -> fail(Some("expected message"))
+        }
+    }
+
+    @Test
+    fun `native history and old tool references retain order and opaque context`() {
+        val dialect = exampleDialect()
+        val raw = Json.parse("{\"role\":\"assistant\",\"reasoning_content\":\"preserved\",\"future\":9007199254740993}")
+        val history = LlmHistory(dialect, [raw, Json.parse("{\"id\":\"second\"}")], Some(Json.parse("{\"response_id\":\"r1\"}")))
+        val call = ClientToolCallReference(dialect, ToolKey("old-tool"), "call-1", Some(Json.parse("{\"signature\":\"opaque\"}")))
+        val request = LlmRequest([History(history), ToolResult(call, [Text("failed")], isError = true), Message([Text("continue")])])
+        val restored = Json.decodeFromString<LlmRequest>(Json.encodeToString(request))
+        assertEquals(0L, restored.tools.size)
+        when (restored.input[0]) {
+            case History(value) -> {
+                assertEquals(dialect, value.dialect)
+                assertEquals(Json.stringify(raw), Json.stringify(value.items[0]))
+                assertEquals("second", value.items[1]["id"]!!.asString())
+                assertEquals("r1", value.context!!["response_id"]!!.asString())
+            }
+            else -> fail(Some("expected history"))
+        }
+        when (restored.input[1]) {
+            case ToolResult(reference, _, isError, _) -> {
+                assertEquals("call-1", reference.id)
+                assertEquals(ToolKey("old-tool"), reference.toolKey)
+                assertEquals("opaque", reference.context!!["signature"]!!.asString())
+                assertTrue(isError)
+            }
+            else -> fail(Some("expected tool result"))
+        }
+    }
+
+    @Test
+    fun `negative video offsets fail before sending any request`() {
+        assertFailsWith<IllegalArgumentException> {
+            val value = VideoFrame(MediaSource.Bytes([], "image/png"), Duration.nanoseconds(-1L)); Unit
+        }
+    }
+}

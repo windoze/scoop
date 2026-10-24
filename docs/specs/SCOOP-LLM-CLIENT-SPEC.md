@@ -63,3 +63,50 @@ TokenUsage 不根据字段名猜测供应商原生口径，不自动求和、补
 `ModelLimits(contextWindowTokens, maxInputTokens, maxOutputTokens, maxCandidates)` 均为 Long?，缺省 None，出现时必须非负；不同计量口径不相加，也不依据其中一项补齐其他项。
 
 以上类型均可使用 companion codec 保存和恢复，构造检查同样适用于解码。服务端工具种类与版本、客户端原生工具、组合约束及 token 计数入口随各自公共工具／操作合同定义；不能由 functionTools 推断。当前数据描述不提前查询模型目录，也不建立通用规则 DSL。
+
+## 3. 公共请求数据
+
+`LlmRequest(input, system = [], tools = [], options = LlmGenerationOptions(), extensions = [])` 为不可变请求快照。input 必填，普通消息使用 `LlmInputItem.Message(content, role = LlmRole.User, extensions = [])`；同一个入口用于最小文本、多模态和工具请求。请求不保存 endpoint、model、认证或本次调用的时间戳，也不隐藏查询／下载／执行操作。
+
+### 3.1 归属与按位置扩展
+
+`ApiProtocolId(value)` 标识一种线协议，`DialectId(protocol, value)` 标识该协议内的方言。两者按字段值比较；字符串为不拆分、不改写的公开语义标识，实际 adapter 提供其身份，不通过供应商展示名或 endpoint 域名推断。创建标识本身不会注册或创建适配器。
+
+`DialectExtension(dialect, value)` 的 value 必须为不可变 JSON object，非对象在构造时抛 IllegalArgumentException。request、Message、ContentPart 和 ToolDefinition 各自的 extensions 缺省空数组。同一个位置不能重复同一 DialectId；不同位置可分别使用同一归属，不继承或合并其字段。构造 LlmRequest 时检查这些局部重复，报告 `LlmRequestException(path, message)`，path 是请求模型中的 JSON Pointer 形式位置。实际位置是否适用、归属是否匹配当前 adapter，以及与管理字段的冲突，留给绑定后的一次协议请求检查；此处不猜测未知扩展键的语义。
+
+### 3.2 内容与历史输入
+
+`ContentPart` 提供 Text(text)、Image(source)、Document(source, filename = None)、Audio(source)、Video(source)、VideoFrames(frames) 和 Native(dialect, value)。前六者均有缺省为空的 extensions。Native 为所选方言明确规定的原生内容，其 value 由 adapter 解释，不与通用内容字段进行隐式覆盖。
+
+`MediaSource` 区分 Bytes(bytes, mimeType)、Url(url, mimeType)、FileReference(reference, mimeType)。bytes 是不可变数组，url 使用 Url 值；`LlmFileReference(dialect, value)` 保留方言拥有的文件 ID／URI 及必要原生服务上下文。文件引用不意味着已经上传或支持该媒体；保存／恢复不下载资源、不转码、不把 URL 自动转成 bytes。MIME、媒体种类与形式的组合由实际请求归一化检查一次，不能只凭构造了一个 MediaSource 宣称可发送。
+
+`VideoFrame(source, offset)` 使用非负 Duration 表示帧相对视频起点的位置；负偏移在构造时失败。帧顺序按输入保存，不自动排序、提取或补帧。
+
+LlmRole 为 User、Assistant、System、Developer。system 数组与消息中的 role 均由 protocol 明确映射；库不依据模型名重写角色。`LlmInputItem.ToolResult(call, content, isError = false, extensions = [])` 表示应用执行后的结果；`ClientToolCallReference(dialect, toolKey, id, context = None)` 保存方言、请求内工具引用、服务器 call ID 和必要原生上下文。历史中的旧调用不要求在本次 tools 中重新声明；回传合法性由协议检查。
+
+`LlmHistory(dialect, items, context = None)` 保存已经为回传选出的有序原生 item 和必要上下文；`LlmInputItem.History(history)` 将其加入请求。它不保存另一份可独立修改的通用文本视图。普通数据构造不保证跨方言兼容，协议解释和结果 toInput 投影随相应 adapter 实现。完整响应正文不能未经投影直接冒充 history items。
+
+### 3.3 工具声明
+
+ToolKey(value) 是请求内的本地引用，按值比较，不能用来替代服务器 call ID。`ToolDefinition` 的四个变体如下，各自的 extensions 缺省空数组，顺序按请求数组保存：
+
+| 变体 | 字段与执行方 |
+| --- | --- |
+| ClientFunction | key、name、parameters、description（缺省空串）、strict（缺省 None）；应用执行，parameters 为 JSON Schema object |
+| ClientCustom | key、name、format（缺省 Text）、description（缺省空串）；应用执行，CustomToolFormat.Grammar(syntax, definition) 保存供应商支持的语法合同 |
+| ClientNative | key、NativeToolDefinition；格式由供应商定义，应用执行 |
+| Server | key、ServerTool；服务端执行 |
+
+`NativeToolDefinition(dialect, kind, configuration = {}, version = None)` 保存原生种类、配置和显式版本；configuration 必须为 object，执行方仍由所属 ToolDefinition 变体与实际协议确定。`ServerTool` 首先提供 WebSearch(options = WebSearchOptions()) 与 Native(tool)，后续通用工具按真实协议映射扩展，其他种类可由明确的 Native 描述承载。
+
+WebSearchOptions 的 allowedDomains、excludedDomains 为 Array<String>?，location 为 SearchLocation?，includeSources 为 Boolean?，均缺省 None。None 表示未指定，显式空集合或 false 不被改写成 None。SearchLocation 保存可选 country、region、city、timezone，不猜测地域。选项只表达请求意图；adapter 必须能精确映射，不能静默删除不支持的域名限制或把地域换成另一口径。
+
+ToolChoice 为 Auto、None、Required、Specific(ToolKey)，缺省 Auto。构造请求时拒绝重复／空 ToolKey、空客户端工具 name、非对象的 function parameters，以及 Specific 指向本次 tools 之外的 key。不同工具可具有相同展示／API name；实际 wire 命名冲突由 adapter 检查。Required 不表示每个工具都要调用。库不接收工具 execute 回调，也不自动执行工具或启动下一轮生成。
+
+### 3.4 生成设置与保存
+
+LlmGenerationOptions 的 temperature、topP 为 Double?；topK、maxOutputTokens、candidates 为 Long?；stop 为 Array<String>?；parallelToolCalls 为 Boolean?，均缺省 None。Double 必须有限，整数必须非负，已填写的 candidates 必须大于零；各模型的范围、空 stop 的含义及功能组合由具体 adapter／capability 判断。不设跨模型的固定温度范围，不自动补采样参数。
+
+reasoning 为 ReasoningOptions?，其中 enabled、effort、budgetTokens 均可缺失；预算为非负 Long，effort 按原字符串保留，具体允许值由 dialect 定义。output 缺省 OutputFormat.Text，另外有 JsonObject 和 JsonSchema(schema, name = "response", description = None, strict = None)。schema 必须为 object；名称与 schema 子集按所选协议检查，不从 ValueDecoder 反推 schema。
+
+所有上述请求数据提供 companion JSON codec，普通 record／enum 使用语言缺省合成；缺失字段按声明恢复默认值，None 与显式 false／零／空集合保持区别。JsonValue 保留数字 token、字段顺序和未知字段。构造检查同样适用于解码；协议 wire 编码另外实现，不把公共 enum 的保存格式直接发送给供应商。

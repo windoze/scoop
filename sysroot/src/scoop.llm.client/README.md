@@ -1,6 +1,24 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。目前落地的是公共 token 用量与 capability 数据；生成、provider 和流式入口仍在实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。目前落地的是公共请求、token 用量与 capability 数据；生成、provider 和流式入口仍在实施。
+
+最小请求的写法直接使用消息和设置的缺省值；添加服务端搜索或结构化输出仍使用同一个请求类型：
+
+```scoop
+import scoop.json.Json
+import scoop.llm.client.*
+
+val request = LlmRequest([Message([Text("用一句话解释值类型。")])])
+val search = LlmRequest(
+    input = request.input,
+    tools = [Server(ToolKey("web"), WebSearch())],
+    options = LlmGenerationOptions(maxOutputTokens = Some(1024L))
+)
+val saved = Json.encodeToString(search)
+val restored = Json.decodeFromString<LlmRequest>(saved)
+```
+
+Message 默认 User，system／tools／extensions 默认空，生成参数默认省略。工具区分 ClientFunction、ClientCustom、ClientNative 与 Server；供应商规定格式的工具也可能需要应用执行。请求级、消息级、内容块级与工具级的扩展各自带 DialectId，作用于当前位置。保存格式保留原生 JSON 和媒体来源；实际协议编码、能力检查与服务端工具执行观察随后续 adapter 交付。
 
 `TokenUsage` 保存总量、非缓存输入、缓存读写、reasoning 与模态细项。未报告的计数缺省为 None，已知为零使用 Some(0L)。缓存和 reasoning 分项不自动加入总量，缺失的 totalTokens 也不会被补成一个看似完整的数字。
 

@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.json.JsonValueKind
+
+/** A wire protocol's semantic identity, independent of a deployment or commercial provider. */
+public struct ApiProtocolId(val value: String) : Equals<ApiProtocolId> {
+    public override operator fun equals(other: ApiProtocolId): Boolean = value == other.value
+    public companion object : ValueEncoder<ApiProtocolId>, ValueDecoder<ApiProtocolId>
+}
+
+/** A dialect is identified within its protocol, not by a configurable endpoint display name. */
+public struct DialectId(val protocol: ApiProtocolId, val value: String) : Equals<DialectId> {
+    public override operator fun equals(other: DialectId): Boolean =
+        protocol == other.protocol && value == other.value
+    public companion object : ValueEncoder<DialectId>, ValueDecoder<DialectId>
+}
+
+/** Options attached to one request, message, content part, or tool definition. */
+public class DialectExtension public constructor(public val dialect: DialectId, public val value: JsonValue) {
+    init { requireJsonObject(value, "dialect extension") }
+    public companion object : ValueEncoder<DialectExtension>, ValueDecoder<DialectExtension>
+}
+
+/** A malformed common request, with a location independent of a provider's wire encoding. */
+public class LlmRequestException public constructor(public val path: String, message: String)
+    : Exception(Some(message))
+
+internal fun requireJsonObject(value: JsonValue, description: String) {
+    if (value.kind != JsonValueKind.Object)
+        throw IllegalArgumentException(Some(description + " must be a JSON object"))
+}
+
+internal fun checkDialectExtensions(values: Array<DialectExtension>, path: String) {
+    var index = 0L
+    while (index < values.size) {
+        var previous = 0L
+        while (previous < index) {
+            if (values[previous].dialect == values[index].dialect)
+                throw LlmRequestException(path + "/" + index.toString(), "duplicate dialect extension at this location")
+            previous += 1L
+        }
+        index += 1L
+    }
+}

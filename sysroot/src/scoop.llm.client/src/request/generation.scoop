@@ -1,0 +1,58 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Server-side output constraints, separate from the application's local decoder. */
+public enum OutputFormat {
+    Text,
+    JsonObject,
+    JsonSchema(val schema: JsonValue, val name: String = "response", val description: String? = None,
+        val strict: Boolean? = None)
+
+    public companion object : ValueEncoder<OutputFormat>, ValueDecoder<OutputFormat>
+}
+
+/** Explicit reasoning controls; no setting is enabled merely by being supported. */
+public class ReasoningOptions public constructor(
+    public val enabled: Boolean? = None,
+    public val effort: String? = None,
+    public val budgetTokens: Long? = None
+) {
+    init { requireNonnegativeLimit(budgetTokens, "reasoning budgetTokens") }
+    public companion object : ValueEncoder<ReasoningOptions>, ValueDecoder<ReasoningOptions>
+}
+
+/** One set of generation options, with no implicit inheritance from clients or models. */
+public class LlmGenerationOptions public constructor(
+    public val temperature: Double? = None,
+    public val topP: Double? = None,
+    public val topK: Long? = None,
+    public val maxOutputTokens: Long? = None,
+    public val candidates: Long? = None,
+    public val stop: Array<String>? = None,
+    public val parallelToolCalls: Boolean? = None,
+    public val toolChoice: ToolChoice = ToolChoice.Auto,
+    public val reasoning: ReasoningOptions? = None,
+    public val output: OutputFormat = Text
+) {
+    init {
+        checkFiniteSetting(temperature, "temperature")
+        checkFiniteSetting(topP, "topP")
+        requireNonnegativeLimit(topK, "topK")
+        requireNonnegativeLimit(maxOutputTokens, "maxOutputTokens")
+        if (candidates != None && candidates!! <= 0L)
+            throw IllegalArgumentException(Some("candidates must be positive"))
+        checkOutputFormat(output)
+    }
+    public companion object : ValueEncoder<LlmGenerationOptions>, ValueDecoder<LlmGenerationOptions>
+}
+
+private fun checkOutputFormat(output: OutputFormat): Unit = when (output) {
+    case JsonSchema(schema, _, _, _) -> requireJsonObject(schema, "output schema")
+    else -> Unit
+}
+
+private fun checkFiniteSetting(value: Double?, name: String) {
+    if (value != None && !value!!.isFinite())
+        throw IllegalArgumentException(Some(name + " must be finite"))
+}

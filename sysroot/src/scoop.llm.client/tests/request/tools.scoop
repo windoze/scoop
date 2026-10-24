@@ -1,0 +1,76 @@
+package scoop.llm.client.tests.request
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class RequestToolsTest {
+    @Test
+    fun `function custom client-native and server tools share one ordered request`() {
+        val tools: Array<ToolDefinition> = [
+            ClientFunction(ToolKey("local"), "lookup", Json.parse("{\"type\":\"object\"}")),
+            ClientCustom(ToolKey("custom"), "lookup", Grammar("lark", "start: WORD")),
+            ClientNative(ToolKey("shell"), NativeToolDefinition(exampleDialect(), "shell", version = Some("v1"))),
+            Server(ToolKey("web"), WebSearch(WebSearchOptions(allowedDomains = Some(["example.test"]),
+                excludedDomains = Some([]), location = Some(SearchLocation(city = Some("杭州"))), includeSources = Some(false))))
+        ]
+        val request = LlmRequest([Message([Text("look up")])], tools = tools,
+            options = LlmGenerationOptions(toolChoice = Specific(ToolKey("web"))))
+        val restored = Json.decodeFromString<LlmRequest>(Json.encodeToString(request))
+        assertEquals(4L, restored.tools.size)
+        var index = 0L
+        while (index < tools.size) { assertEquals(tools[index].key, restored.tools[index].key); index += 1L }
+        when (restored.tools[2]) {
+            case ClientNative(_, tool, _) -> { assertEquals("shell", tool.kind); assertEquals(Some("v1"), tool.version) }
+            else -> fail(Some("native client tool changed executor"))
+        }
+        when (restored.tools[3]) {
+            case Server(_, tool, _) -> when (tool) {
+                case WebSearch(options) -> {
+                    assertEquals("example.test", options.allowedDomains!![0])
+                    assertEquals(0L, options.excludedDomains!!.size)
+                    assertEquals(Some("杭州"), options.location!!.city)
+                    assertEquals(None, options.location!!.country)
+                    assertEquals(Some(false), options.includeSources)
+                }
+                else -> fail(Some("expected web search"))
+            }
+            else -> fail(Some("expected server tool"))
+        }
+    }
+
+    @Test
+    fun `tool keys and explicit selections are checked independently of wire names`() {
+        val tool: ToolDefinition = Server(ToolKey("web"), WebSearch())
+        assertEquals("/tools/1/key", assertFailsWith<LlmRequestException> {
+            val value = LlmRequest([], tools = [tool, tool]); Unit
+        }.path)
+        assertEquals("/options/toolChoice", assertFailsWith<LlmRequestException> {
+            val value = LlmRequest([], tools = [tool], options = LlmGenerationOptions(toolChoice = Specific(ToolKey("missing")))); Unit
+        }.path)
+        assertEquals("/tools/0/key", assertFailsWith<LlmRequestException> {
+            val value = LlmRequest([], tools = [Server(ToolKey(""), WebSearch())]); Unit
+        }.path)
+        assertEquals("/tools/0/name", assertFailsWith<LlmRequestException> {
+            val value = LlmRequest([], tools = [ClientCustom(ToolKey("x"), "")]); Unit
+        }.path)
+        assertEquals("/tools/0/parameters", assertFailsWith<LlmRequestException> {
+            val value = LlmRequest([], tools = [ClientFunction(ToolKey("x"), "f", Json.parse("[]"))]); Unit
+        }.path)
+    }
+
+    @Test
+    fun `native tool configuration and scoped tool extensions preserve their ownership`() {
+        val native = NativeToolDefinition(exampleDialect(), "search_v2", Json.parse("{\"limit\":9007199254740993}"))
+        val request = LlmRequest([], tools = [Server(ToolKey("remote"), Native(native), extensions = [exampleExtension()])])
+        assertEquals(Json.encodeToString(request), Json.encodeToString(Json.decodeFromString<LlmRequest>(Json.encodeToString(request))))
+        assertEquals("/tools/0/extensions/1", assertFailsWith<LlmRequestException> {
+            val extension = exampleExtension()
+            val value = LlmRequest([], tools = [Server(ToolKey("remote"), Native(native), extensions = [extension, extension])]); Unit
+        }.path)
+        assertFailsWith<IllegalArgumentException> {
+            val value = NativeToolDefinition(exampleDialect(), "search_v2", Json.parse("null")); Unit
+        }
+    }
+}

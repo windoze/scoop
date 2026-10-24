@@ -6,15 +6,15 @@
 
 ## 1. 共同的数据与调用入口
 
-下列是本轮具体化的请求声明；历史、工具结果和完整 content union 仍按架构文档定义。
+下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。后面的完整生成和结果接口仍为实施草案。
 
 ```scoop
-struct LlmRequest(
-    val input: Array<LlmInputItem>,
-    val system: Array<ContentPart> = [],
-    val tools: Array<ToolDefinition> = [],
-    val options: LlmGenerationOptions = LlmGenerationOptions(),
-    val extensions: Array<DialectExtension> = []
+public class LlmRequest public constructor(
+    public val input: Array<LlmInputItem>,
+    public val system: Array<ContentPart> = [],
+    public val tools: Array<ToolDefinition> = [],
+    public val options: LlmGenerationOptions = LlmGenerationOptions(),
+    public val extensions: Array<DialectExtension> = []
 )
 ```
 
