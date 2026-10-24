@@ -1,0 +1,18 @@
+package scoop.llm.client
+
+import scoop.test.fail
+
+internal fun <T> supportedDetails(capability: Capability<T>): T = when (capability) {
+    case Supported(details) -> details
+    else -> fail(Some("expected a supported capability"))
+}
+
+internal fun <T> isUnknownCapability(capability: Capability<T>): Boolean = when (capability) {
+    case Unknown -> true
+    else -> false
+}
+
+internal fun <T> unsupportedReason(capability: Capability<T>): String = when (capability) {
+    case Unsupported(reason) -> reason
+    else -> fail(Some("expected an unsupported capability"))
+}

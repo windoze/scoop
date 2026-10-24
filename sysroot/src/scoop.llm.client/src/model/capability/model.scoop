@@ -1,0 +1,39 @@
+package scoop.llm.client
+
+/** A model's independent bounds. Missing bounds are not derived from other fields. */
+public class ModelLimits public constructor(
+    public val contextWindowTokens: Long? = None,
+    public val maxInputTokens: Long? = None,
+    public val maxOutputTokens: Long? = None,
+    public val maxCandidates: Long? = None
+) {
+    init {
+        requireNonnegativeLimit(contextWindowTokens, "contextWindowTokens")
+        requireNonnegativeLimit(maxInputTokens, "maxInputTokens")
+        requireNonnegativeLimit(maxOutputTokens, "maxOutputTokens")
+        requireNonnegativeLimit(maxCandidates, "maxCandidates")
+    }
+
+    public companion object : ValueEncoder<ModelLimits>, ValueDecoder<ModelLimits>
+}
+
+/** Explicit knowledge for one model at one provider and deployment; defaults are unknown. */
+public class ModelCapabilities public constructor(
+    public val input: InputCapabilities = InputCapabilities(),
+    public val output: OutputCapabilities = OutputCapabilities(),
+    public val streaming: Capability<Unit> = Unknown,
+    public val realtime: Capability<Unit> = Unknown,
+    public val functionTools: Capability<Unit> = Unknown,
+    public val customTools: Capability<Unit> = Unknown,
+    public val parallelToolCalls: Capability<Unit> = Unknown,
+    public val toolChoice: ToolChoiceCapabilities = ToolChoiceCapabilities(),
+    public val sampling: SamplingCapabilities = SamplingCapabilities(),
+    public val structuredOutput: StructuredOutputCapabilities = StructuredOutputCapabilities(),
+    public val reasoning: ReasoningCapabilities = ReasoningCapabilities(),
+    public val multipleCandidates: Capability<Unit> = Unknown,
+    public val continuation: Capability<Unit> = Unknown,
+    public val background: Capability<Unit> = Unknown,
+    public val limits: ModelLimits = ModelLimits()
+) {
+    public companion object : ValueEncoder<ModelCapabilities>, ValueDecoder<ModelCapabilities>
+}

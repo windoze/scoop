@@ -1,0 +1,51 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.test.*
+
+@Test
+private class CapabilityLimitsTest {
+    @Test
+    fun `known zero and large limits survive without filling unknown values`() {
+        val original = MediaLimits(maxBytesPerItem = Some(9007199254740993L), maxItemsPerRequest = Some(0L),
+            maxDurationMillisecondsPerItem = Some(120000L), maxWidthPixels = Some(4096L))
+        val limits = Json.decodeFromString<MediaLimits>(Json.encodeToString(original))
+        assertEquals(Some(9007199254740993L), limits.maxBytesPerItem)
+        assertEquals(Some(0L), limits.maxItemsPerRequest)
+        assertEquals(Some(120000L), limits.maxDurationMillisecondsPerItem)
+        assertEquals(Some(4096L), limits.maxWidthPixels)
+        assertEquals(None, limits.maxPagesPerItem)
+        assertEquals(None, limits.maxHeightPixels)
+        val model = Json.decodeFromString<ModelLimits>("{\"maxOutputTokens\":0}")
+        assertEquals(Some(0L), model.maxOutputTokens)
+        assertEquals(None, model.contextWindowTokens)
+        assertEquals(None, model.maxInputTokens)
+        assertEquals(None, model.maxCandidates)
+    }
+
+    @Test
+    fun `negative media bounds are rejected through the constructor and decoder`() {
+        assertFailsWith<IllegalArgumentException> { val invalid = MediaLimits(maxBytesPerItem = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = MediaLimits(maxItemsPerRequest = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = MediaLimits(maxPagesPerItem = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = MediaLimits(maxDurationMillisecondsPerItem = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = MediaLimits(maxWidthPixels = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = MediaLimits(maxHeightPixels = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> {
+            val invalid = Json.decodeFromString<MediaLimits>("{\"maxBytesPerItem\":-1}")
+            Unit
+        }
+    }
+
+    @Test
+    fun `negative model bounds are rejected without inventing relationships`() {
+        assertFailsWith<IllegalArgumentException> { val invalid = ModelLimits(contextWindowTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = ModelLimits(maxInputTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = ModelLimits(maxOutputTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = ModelLimits(maxCandidates = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> {
+            val invalid = Json.decodeFromString<ModelCapabilities>("{\"limits\":{\"maxCandidates\":-1}}")
+            Unit
+        }
+    }
+}

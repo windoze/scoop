@@ -1,0 +1,22 @@
+package scoop.llm.client
+
+/** Knowledge about one capability of a model at a particular protocol and deployment. */
+public enum Capability<T> {
+    /** The capability is available with the given details. */
+    Supported(T),
+    /** The capability is known to be unavailable for the stated reason. */
+    Unsupported(String),
+    /** No sufficient information is available. */
+    Unknown
+
+    /** Standard enum codecs, independently available when the payload supports them. */
+    public companion object {
+        override interface ValueEncoder<Capability<T>> where T.Companion : ValueEncoder<T> {}
+        override interface ValueDecoder<Capability<T>> where T.Companion : ValueDecoder<T> {}
+    }
+}
+
+internal fun requireNonnegativeLimit(value: Long?, name: String) {
+    val count = value ?: return
+    if (count < 0L) throw IllegalArgumentException(Some(name + " must be nonnegative"))
+}
