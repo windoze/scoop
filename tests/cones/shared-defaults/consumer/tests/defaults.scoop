@@ -1,0 +1,36 @@
+package shared.consumer.tests
+
+import scoop.asyncio.*
+import scoop.test.*
+import shared.defaults.*
+import shared.bridge.*
+
+@Test
+private class SharedDefaultTest {
+    @Test
+    fun `three Cones share constructor default suspend helpers`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            assertEquals(2, localHandler().action(1))
+            assertEquals(3, bridgeHandler().action(2))
+            assertEquals(4, Handler().action(3))
+        }
+    }
+
+    @Test
+    fun `nested default callables retain independent captured values`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            assertEquals(11, localNested()(1))
+            assertEquals(22, bridgeNested()(2))
+            assertEquals(33, nested(30)(3))
+        }
+    }
+
+    @Test
+    fun `default function references preserve the provider target`() {
+        assertEquals(2, localReference()(1))
+        assertEquals(3, bridgeReference()(2))
+        assertEquals(4, reference()(3))
+    }
+}
