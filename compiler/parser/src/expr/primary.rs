@@ -102,10 +102,17 @@ impl Parser {
             }
             TokenKind::Ident(text) | TokenKind::EscapedIdent(text) => {
                 self.pos += 1;
-                // `Unit` is an ordinary identifier; in expression position
-                // it denotes the unit value (spec section 4.3).
+                // Preserve the type qualifier for explicit companion access;
+                // all other expression uses denote the Unit value (spec 4.3).
                 if text == "Unit" {
-                    return Ok(Expr::UnitLiteral { span: token.span });
+                    let explicit_companion = matches!(self.peek().kind, TokenKind::Dot)
+                        && self.tokens.get(self.pos + 1).is_some_and(|token| {
+                            matches!(&token.kind, TokenKind::Ident(name) | TokenKind::EscapedIdent(name)
+                                if name == "Companion")
+                        });
+                    if !explicit_companion {
+                        return Ok(Expr::UnitLiteral { span: token.span });
+                    }
                 }
                 let ident = Ident {
                     text,
