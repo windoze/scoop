@@ -1,0 +1,26 @@
+package scoop.llm.client
+
+import scoop.json.JsonObjectBuilder
+import scoop.json.JsonValue
+import scoop.json.JsonValueKind
+
+internal fun projectChatMessage(message: JsonValue, path: String): JsonValue {
+    val result = JsonObjectBuilder()
+    for ((name, value) in message.members()) {
+        if (name == "annotations") continue
+        if (name == "audio" && value.kind != JsonValueKind.Null) {
+            val audio = decodeChatValue<ChatAudioReference>(value, path + "/audio")
+            result.add(name, JsonObjectBuilder().add("id", JsonValue.fromString(audio.id)).build())
+        } else result.add(name, value)
+    }
+    return result.build()
+}
+
+private class ChatAudioReference public constructor(public val id: String) {
+    public companion object : ValueDecoder<ChatAudioReference>
+}
+
+internal fun appendChatNativeField(items: ArrayList<LlmOutputItem>, dialect: DialectId, name: String, value: JsonValue?) {
+    val present = value ?: return
+    items.add(LlmOutputItem.Native(dialect, JsonObjectBuilder().add(name, present).build()))
+}

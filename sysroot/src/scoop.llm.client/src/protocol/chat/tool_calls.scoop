@@ -1,0 +1,90 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+private class ChatToolKind public constructor(public val type: String) {
+    public companion object : ValueDecoder<ChatToolKind>
+}
+
+private class ChatFunctionCall public constructor(public val id: String, public val function: ChatFunctionArguments) {
+    public companion object : ValueDecoder<ChatFunctionCall>
+}
+
+private class ChatFunctionArguments public constructor(public val name: String, public val arguments: String) {
+    public companion object : ValueDecoder<ChatFunctionArguments>
+}
+
+private class ChatCustomCall public constructor(public val id: String, public val custom: ChatCustomInput) {
+    public companion object : ValueDecoder<ChatCustomCall>
+}
+
+private class ChatCustomInput public constructor(public val name: String, public val input: String) {
+    public companion object : ValueDecoder<ChatCustomInput>
+}
+
+internal fun appendChatToolCalls(items: ArrayList<LlmOutputItem>, dialect: DialectId, calls: Array<JsonValue>?,
+    tools: Array<ToolDefinition>, complete: Boolean, path: String) {
+    val values = calls ?: return
+    val ids = ArrayList<String>()
+    var index = 0L
+    for (value in values) {
+        val itemPath = path + "/" + index.toString()
+        val item = readChatToolCall(dialect, value, tools, complete, itemPath)
+        val id = when (item) { case ClientToolCall(call) -> Some(call.reference.id); else -> None }
+        if (id != None) {
+            for (previous in ids) {
+                if (previous == id!!) throw DecodingException(itemPath + "/id", "duplicate tool call ID")
+            }
+            ids.add(id!!)
+        }
+        items.add(item)
+        index += 1L
+    }
+}
+
+private fun readChatToolCall(dialect: DialectId, value: JsonValue, tools: Array<ToolDefinition>, complete: Boolean, path: String): LlmOutputItem {
+    val kind = decodeChatValue<ChatToolKind>(value, path).type
+    return when (kind) {
+        case "function" -> {
+            val call = decodeChatValue<ChatFunctionCall>(value, path)
+            val key = resolveChatToolKey(tools, call.function.name, false)
+            when (key) {
+                case Some(toolKey) -> {
+                    val input = if (!complete) ClientToolInput.Incomplete(call.function.arguments)
+                        else try { ClientToolInput.JsonArguments(JsonToolArguments(call.function.arguments)) }
+                        catch (error: DecodingException) { ClientToolInput.Invalid(call.function.arguments, error.message ?: "invalid JSON arguments") }
+                    LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, toolKey, call.id), input))
+                }
+                case None -> LlmOutputItem.Native(dialect, value)
+            }
+        }
+        case "custom" -> {
+            val call = decodeChatValue<ChatCustomCall>(value, path)
+            val key = resolveChatToolKey(tools, call.custom.name, true)
+            when (key) {
+                case Some(toolKey) -> {
+                    val input = if (complete) ClientToolInput.Text(call.custom.input) else ClientToolInput.Incomplete(call.custom.input)
+                    LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, toolKey, call.id), input))
+                }
+                case None -> LlmOutputItem.Native(dialect, value)
+            }
+        }
+        else -> LlmOutputItem.Native(dialect, value)
+    }
+}
+
+private fun resolveChatToolKey(tools: Array<ToolDefinition>, name: String, custom: Boolean): ToolKey? {
+    var found: ToolKey? = None
+    for (tool in tools) {
+        val matches = when (tool) {
+            case ClientFunction(_, wireName, _, _, _, _) -> !custom && wireName == name
+            case ClientCustom(_, wireName, _, _, _) -> custom && wireName == name
+            else -> false
+        }
+        if (matches) {
+            if (found != None) return None
+            found = Some(tool.key)
+        }
+    }
+    return found
+}

@@ -1,0 +1,62 @@
+package scoop.llm.client.tests.chat
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ChatUsageTest {
+    @Test
+    fun `OpenAI usage preserves integer totals and separates cache reasoning and audio subsets`() {
+        val raw = "{\"prompt_tokens\":9007199254740993,\"completion_tokens\":12,\"prompt_tokens_details\":{\"cached_tokens\":10,\"audio_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":7,\"audio_tokens\":2,\"future\":99},\"prompt_cache_hit_tokens\":\"unowned field\"}"
+        val result = ChatProtocol(OpenAiChatDialect()).decodeResponse(
+            chatBody("{\"role\":\"assistant\",\"content\":\"ok\"}", usage = Some(raw)), chatRequest())
+        val usage = result.usage.tokens
+        assertEquals(Some(9007199254740993L), usage.inputTokens)
+        assertEquals(Some(9007199254740983L), usage.nonCachedInputTokens)
+        assertEquals(Some(10L), usage.cacheReadTokens)
+        assertEquals(Some(12L), usage.outputTokens)
+        assertEquals(Some(7L), usage.reasoningTokens)
+        assertEquals(None, usage.totalTokens)
+        assertEquals(None, usage.cacheWriteTokens)
+        assertEquals(2L, usage.modality.size)
+        assertEquals(TokenDirection.Input, usage.modality[0].direction)
+        assertEquals(0L, usage.modality[0].tokens)
+        assertEquals(TokenDirection.Output, usage.modality[1].direction)
+        assertEquals(2L, usage.modality[1].tokens)
+        assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(result.usage.native!!))
+    }
+
+    @Test
+    fun `DeepSeek cache aliases keep the reported noncached count and missing fields unknown`() {
+        val protocol = ChatProtocol(DeepSeekChatDialect())
+        val body = chatBody("{\"role\":\"assistant\",\"content\":\"ok\"}", usage = Some(
+            "{\"prompt_tokens\":100,\"prompt_cache_hit_tokens\":60,\"prompt_cache_miss_tokens\":40,\"prompt_tokens_details\":{\"cached_tokens\":60},\"completion_tokens\":8,\"total_tokens\":108}"))
+        val usage = protocol.decodeResponse(body, chatRequest()).usage.tokens
+        assertEquals(Some(60L), usage.cacheReadTokens)
+        assertEquals(Some(40L), usage.nonCachedInputTokens)
+        assertEquals(Some(108L), usage.totalTokens)
+        val partial = protocol.decodeResponse(chatBody("{\"role\":\"assistant\"}", usage = Some(
+            "{\"prompt_tokens\":100,\"prompt_tokens_details\":{\"cached_tokens\":60}}")), chatRequest()).usage
+        assertEquals(Some(60L), partial.tokens.cacheReadTokens)
+        assertEquals(None, partial.tokens.nonCachedInputTokens)
+        assertEquals(None, partial.tokens.outputTokens)
+        assertEquals(UsageCompleteness.Final, partial.completeness)
+    }
+
+    @Test
+    fun `malformed usage has an exact path and conflicting cache aliases are rejected`() {
+        val protocol = ChatProtocol(DeepSeekChatDialect())
+        val negative = chatBody("{\"role\":\"assistant\"}", usage = Some("{\"completion_tokens_details\":{\"reasoning_tokens\":-1}}"))
+        assertEquals("/usage/completion_tokens_details/reasoning_tokens",
+            assertFailsWith<LlmProtocolException> { protocol.decodeResponse(negative, chatRequest()); Unit }.path)
+        val conflict = chatBody("{\"role\":\"assistant\"}", usage = Some("{\"prompt_cache_hit_tokens\":2,\"prompt_tokens_details\":{\"cached_tokens\":3}}"))
+        assertEquals("/usage/prompt_cache_hit_tokens",
+            assertFailsWith<LlmProtocolException> { protocol.decodeResponse(conflict, chatRequest()); Unit }.path)
+        val invalid = chatBody("{\"role\":\"assistant\"}", usage = Some("{\"prompt_tokens\":2,\"prompt_cache_hit_tokens\":3}"))
+        assertEquals("/usage", assertFailsWith<LlmProtocolException> { protocol.decodeResponse(invalid, chatRequest()); Unit }.path)
+        val wrongType = chatBody("{\"role\":\"assistant\"}", usage = Some("{\"total_tokens\":1.5}"))
+        assertEquals("/usage/total_tokens",
+            assertFailsWith<LlmProtocolException> { protocol.decodeResponse(wrongType, chatRequest()); Unit }.path)
+    }
+}

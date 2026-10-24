@@ -1,0 +1,47 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.json.JsonValue
+
+internal class ChatResponseBody public constructor(
+    public val choices: Array<ChatChoiceBody>,
+    public val id: String? = None,
+    public val model: String? = None,
+    public val created: Long? = None,
+    public val usage: JsonValue? = None
+) {
+    public companion object : ValueDecoder<ChatResponseBody>
+}
+
+internal class ChatChoiceBody public constructor(
+    public val index: Long,
+    public val message: JsonValue,
+    @Serialize(rename = "finish_reason") public val finishReason: String
+) {
+    public companion object : ValueDecoder<ChatChoiceBody>
+}
+
+internal class ChatMessageBody public constructor(
+    public val role: String,
+    public val content: String? = None,
+    public val refusal: String? = None,
+    @Serialize(rename = "tool_calls") public val toolCalls: Array<JsonValue>? = None,
+    public val audio: JsonValue? = None,
+    public val annotations: JsonValue? = None,
+    @Serialize(rename = "function_call") public val functionCall: JsonValue? = None
+) {
+    public companion object : ValueDecoder<ChatMessageBody>
+}
+
+internal fun <T> decodeChatValue(value: JsonValue, path: String): T where T.Companion : ValueDecoder<T> {
+    try { return Json.decodeFromValue<T>(value) }
+    catch (error: DecodingException) { throw DecodingException(path + error.path, error.message ?: "invalid Chat response field") }
+}
+
+/** Malformed protocol data retains its source body and field path for caller diagnostics. */
+public class LlmProtocolException public constructor(
+    public val dialect: DialectId,
+    public val path: String,
+    message: String,
+    public val native: JsonValue
+) : Exception(Some(message))

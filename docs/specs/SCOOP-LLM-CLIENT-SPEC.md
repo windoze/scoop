@@ -154,3 +154,19 @@ LlmResponse、候选、输出、工具输入、来源和历史提供 companion c
 `LlmCallMetadata(callId, startedAt, attempts = [], finished = None, outcome = Active)` 保存逻辑调用及尝试序列。LlmCallOutcome 为 Active、Completed、Failed、Cancelled；已结束时须有 finished，Active 时不得有 finished。尝试编号递增，不能覆盖或重排已有尝试。finishedAt 与 totalDuration 是 finished 的只读视图。调用前失败可有空 attempts；这里不根据 outcome 伪造响应完成或缺失 usage，也不把重试用量直接相加成最终响应用量。
 
 `LlmResult(response, metadata)` 组合完整响应和已收尾调用记录，metadata.outcome 必须为 Completed。它提供相同的 text、clientToolCalls、serverToolActivities、toInput 与 decodeOutput 便利入口并提供 companion codec。失败／取消的 metadata 可独立保存；网络执行层负责实际采样与完成通知，这些数据构造器不读取时钟、不发起请求。
+
+## 6. Chat 响应解释
+
+`ChatProtocol(dialect: ChatDialect)` 固定使用 ApiProtocolId("chat-completions")，拒绝与该协议不符的 dialect.id。ChatDialect 的响应合同包含 readReasoning(message, path)、readUsage(usage) 与 historyMessage(message, path)；输入为已经解析的不可变 JsonValue，返回明确的输出内容、TokenUsage 或单个可回传消息，不接受 Any，也不执行网络操作。path 用于保留嵌套字段的诊断位置。请求映射与流式入口随各自实现补充。
+
+`decodeResponse(value, request)` 读取非流式 Chat 的 choices，每项必须有 index、message 和非 null 的 finish_reason；message.role 必须为 assistant。id、model、created 与 usage 未提供时保持未知。原始整个响应保存在 LlmResponse.native。每个候选按 Reasoning、Message、工具调用的稳定次序投影；Chat 完整响应没有这些字段之间的生成时序，该次序不冒充时间记录。缺少 content、refusal 和 reasoning 时不伪造文本。
+
+function 工具调用按本次请求中唯一的同名 ClientFunction 关联 ToolKey，custom 调用按唯一同名 ClientCustom 关联。未知类型、未声明／无法唯一关联的工具调用保留为 Native，不进入可执行列表，不根据名称猜成服务端或客户端执行。合法外层调用中的 arguments 无效 JSON／非 object 保存为 Invalid；输出被截断、拒绝或停止状态未知时保留 Incomplete，即使已返回的参数恰好可解析也不进入待执行列表。同一候选内已关联的客户端调用 ID 必须唯一。其他外层类型、必填字段或数值错误抛 LlmProtocolException，保存 dialect、path、message 与原始响应。弃用的 function_call 无法提供现代工具 call ID，保留 Native，不伪造 ID。
+
+stop 与 tool_calls／function_call 表示完整的该轮模型输出；length 表示 Incomplete；content_filter 在没有明确 refusal 时同样为 Incomplete；明确 refusal 为 Refused。未知停止原因使用 Other(raw) 并保守标记 Incomplete，不能据此返回结构化成功。每个候选的 history 只包含 assistant 消息；不包含 choices 包装、logprobs、usage 或服务器响应时间。
+
+OpenAiChatDialect 的标识为 (chat-completions, openai-chat)，DeepSeekChatDialect 为 (chat-completions, deepseek-chat)。两者保留消息中的未知字段，去掉已知仅供输出的 annotations；audio 回传只保留其 id，不回传 data、transcript 或 expires_at。原始音频、annotations 与弃用 function_call 仍保留为 Native 输出与完整原生响应。DeepSeek 将 reasoning_content 单独投影为 Reasoning，并在 history 中完整保留，即使该轮没有实际调用工具；后续请求编码按是否携带 tools 应用回传规则。OpenAI 不把未知的 reasoning_content 猜成其已声明的 reasoning 输出。
+
+两种 dialect 均从 prompt_tokens、completion_tokens、total_tokens 与 completion_tokens_details.reasoning_tokens 读取明确计数，缺失总量不自动补齐；audio_tokens 按输入／输出归属进入模态细项。OpenAI 从 prompt_tokens_details.cached_tokens 读取缓存输入，并在 inputTokens 与 cacheReadTokens 均已知时按其包含关系得到 nonCachedInputTokens。DeepSeek 优先读取 prompt_cache_hit_tokens、prompt_cache_miss_tokens；cached_tokens 是同义读缓存字段，两者并存时必须一致。出现的计数必须非负，缓存读数不得超过已知输入总数。不把 cache 或 reasoning 再加进总量，也不从文本长度猜 token。完整响应中的 usage 记录为 Final，未返回的计数仍为 None。
+
+协议依据：[OpenAI Chat](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)、[DeepSeek Chat](https://api-docs.deepseek.com/api/create-chat-completion/)、[DeepSeek thinking](https://api-docs.deepseek.com/guides/thinking_mode/)。这些是当前响应解释合同，尚不意味着生成、媒体请求、模型能力联动或流式协议已实现。

@@ -1,0 +1,34 @@
+package scoop.llm.client.tests.chat
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+private fun expectChatFailure(body: JsonValue, path: String) {
+    val dialect = OpenAiChatDialect()
+    val error = assertFailsWith<LlmProtocolException> { ChatProtocol(dialect).decodeResponse(body, chatRequest()); Unit }
+    assertEquals(dialect.id, error.dialect)
+    assertEquals(path, error.path)
+    assertEquals(Json.stringify(body), Json.stringify(error.native))
+}
+
+@Test
+private class ChatErrorsTest {
+    @Test
+    fun `outer response errors report nested paths and preserve the wire body`() {
+        expectChatFailure(chatBody("{\"role\":\"user\",\"content\":\"wrong role\"}"), "/choices/0/message/role")
+        expectChatFailure(chatBody("{\"role\":\"assistant\",\"content\":7}"), "/choices/0/message/content")
+        expectChatFailure(chatBody("{\"role\":\"assistant\",\"audio\":{\"id\":7}}"), "/choices/0/message/audio/id")
+        expectChatFailure(Json.parse("{\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\"},\"finish_reason\":null}]}"), "/choices/0/finish_reason")
+        expectChatFailure(Json.parse("{\"choices\":[{\"index\":-1,\"message\":{\"role\":\"assistant\"},\"finish_reason\":\"stop\"}]}"), "/choices/0/index")
+    }
+
+    @Test
+    fun `duplicate candidate and client call IDs cannot create ambiguous associations`() {
+        expectChatFailure(Json.parse("{\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\"},\"finish_reason\":\"stop\"},{\"index\":0,\"message\":{\"role\":\"assistant\"},\"finish_reason\":\"stop\"}]}"), "/choices")
+        val duplicate = "{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"same\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}},{\"id\":\"same\",\"type\":\"custom\",\"custom\":{\"name\":\"program\",\"input\":\"print(1)\"}}]}"
+        expectChatFailure(chatBody(duplicate, "tool_calls"), "/choices/0/message/tool_calls/1/id")
+        val malformed = "{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":{}}}]}"
+        expectChatFailure(chatBody(malformed, "tool_calls"), "/choices/0/message/tool_calls/0/function/arguments")
+    }
+}

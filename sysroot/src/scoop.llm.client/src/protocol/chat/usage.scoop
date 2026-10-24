@@ -1,0 +1,80 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+private class ChatUsageFields public constructor(
+    @Serialize(rename = "prompt_tokens") public val prompt: Long? = None,
+    @Serialize(rename = "completion_tokens") public val completion: Long? = None,
+    @Serialize(rename = "total_tokens") public val total: Long? = None,
+    @Serialize(rename = "prompt_tokens_details") public val promptDetails: ChatPromptTokenDetails? = None,
+    @Serialize(rename = "completion_tokens_details") public val completionDetails: ChatCompletionTokenDetails? = None
+) {
+    public companion object : ValueDecoder<ChatUsageFields>
+}
+
+private class DeepSeekCacheFields public constructor(
+    @Serialize(rename = "prompt_cache_hit_tokens") public val cacheHit: Long? = None,
+    @Serialize(rename = "prompt_cache_miss_tokens") public val cacheMiss: Long? = None
+) {
+    public companion object : ValueDecoder<DeepSeekCacheFields>
+}
+
+private class ChatPromptTokenDetails public constructor(
+    @Serialize(rename = "cached_tokens") public val cached: Long? = None,
+    @Serialize(rename = "audio_tokens") public val audio: Long? = None
+) {
+    public companion object : ValueDecoder<ChatPromptTokenDetails>
+}
+
+private class ChatCompletionTokenDetails public constructor(
+    @Serialize(rename = "reasoning_tokens") public val reasoning: Long? = None,
+    @Serialize(rename = "audio_tokens") public val audio: Long? = None
+) {
+    public companion object : ValueDecoder<ChatCompletionTokenDetails>
+}
+
+internal fun readChatUsage(value: JsonValue, deepSeek: Boolean): TokenUsage {
+    val fields = decodeChatValue<ChatUsageFields>(value, "/usage")
+    val input = checkedChatCount(fields.prompt, "prompt_tokens")
+    val output = checkedChatCount(fields.completion, "completion_tokens")
+    val total = checkedChatCount(fields.total, "total_tokens")
+    val cached = when (fields.promptDetails) {
+        case Some(details) -> checkedChatCount(details.cached, "prompt_tokens_details/cached_tokens")
+        case None -> None
+    }
+    val cache = if (deepSeek) decodeChatValue<DeepSeekCacheFields>(value, "/usage") else DeepSeekCacheFields()
+    val hit = checkedChatCount(cache.cacheHit, "prompt_cache_hit_tokens")
+    if (deepSeek && hit != None && cached != None && hit!! != cached!!)
+        throw DecodingException("/usage/prompt_cache_hit_tokens", "cache read aliases disagree")
+    val cacheRead = if (hit != None) hit else cached
+    if (input != None && cacheRead != None && cacheRead!! > input!!)
+        throw DecodingException("/usage", "cache read tokens exceed input tokens")
+    val nonCached = if (deepSeek) checkedChatCount(cache.cacheMiss, "prompt_cache_miss_tokens")
+        else if (input != None && cacheRead != None) Some(input!! - cacheRead!!) else None
+    val reasoning = when (fields.completionDetails) {
+        case Some(details) -> checkedChatCount(details.reasoning, "completion_tokens_details/reasoning_tokens")
+        case None -> None
+    }
+    val inputAudio = when (fields.promptDetails) {
+        case Some(details) -> details.audio
+        case None -> None
+    }
+    val outputAudio = when (fields.completionDetails) {
+        case Some(details) -> details.audio
+        case None -> None
+    }
+    val modality = ArrayList<ModalityTokenUsage>()
+    appendChatAudioCount(modality, TokenDirection.Input, inputAudio, "prompt_tokens_details/audio_tokens")
+    appendChatAudioCount(modality, TokenDirection.Output, outputAudio, "completion_tokens_details/audio_tokens")
+    return TokenUsage(input, nonCached, output, total, cacheRead, reasoningTokens = reasoning, modality = modality.toArray())
+}
+
+private fun appendChatAudioCount(result: ArrayList<ModalityTokenUsage>, direction: TokenDirection, count: Long?, path: String) {
+    val value = checkedChatCount(count, path) ?: return
+    result.add(ModalityTokenUsage(direction, TokenModality.Audio, value))
+}
+
+private fun checkedChatCount(value: Long?, path: String): Long? {
+    if (value != None && value!! < 0L) throw DecodingException("/usage/" + path, "token count must not be negative")
+    return value
+}

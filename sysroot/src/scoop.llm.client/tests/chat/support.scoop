@@ -1,0 +1,27 @@
+package scoop.llm.client.tests.chat
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.fail
+
+internal fun chatBody(message: String, finish: String = "stop", usage: String? = None): JsonValue {
+    val choice = JsonObjectBuilder().add("index", JsonValue.fromLong(0L))
+        .add("message", Json.parse(message)).add("finish_reason", JsonValue.fromString(finish)).build()
+    val result = JsonObjectBuilder().add("choices", JsonValue.fromArray([choice]))
+    if (usage != None) result.add("usage", Json.parse(usage!!))
+    return result.build()
+}
+
+internal fun chatRequest(): LlmRequest = LlmRequest([Message([Text("question")])], tools = [
+    ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}")),
+    ClientCustom(ToolKey("program"), "program")
+])
+
+internal fun chatHistory(response: LlmResponse): JsonValue = when (response.toInput()[0]) {
+    case History(history) -> history.items[0]
+    else -> fail(Some("expected protocol history"))
+}
+
+internal class ChatCount public constructor(public val count: Long) {
+    public companion object : ValueDecoder<ChatCount>
+}

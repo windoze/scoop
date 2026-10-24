@@ -1,0 +1,32 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Protocol-specific response interpretation; state belongs to each call, not the dialect. */
+public interface ChatDialect {
+    public val id: DialectId
+    public fun readReasoning(message: JsonValue, path: String): Array<OutputPart>
+    public fun readUsage(usage: JsonValue): TokenUsage
+    public fun historyMessage(message: JsonValue, path: String): JsonValue
+}
+
+public class OpenAiChatDialect : ChatDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "openai-chat")
+    public override fun readReasoning(message: JsonValue, path: String): Array<OutputPart> = []
+    public override fun readUsage(usage: JsonValue): TokenUsage = readChatUsage(usage, false)
+    public override fun historyMessage(message: JsonValue, path: String): JsonValue = projectChatMessage(message, path)
+}
+
+public class DeepSeekChatDialect : ChatDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "deepseek-chat")
+    public override fun readReasoning(message: JsonValue, path: String): Array<OutputPart> {
+        val fields = decodeChatValue<ChatReasoningField>(message, path)
+        return when (fields.reasoningContent) { case Some(text) -> [OutputPart.Text(text)]; case None -> [] }
+    }
+    public override fun readUsage(usage: JsonValue): TokenUsage = readChatUsage(usage, true)
+    public override fun historyMessage(message: JsonValue, path: String): JsonValue = projectChatMessage(message, path)
+}
+
+private class ChatReasoningField public constructor(@Serialize(rename = "reasoning_content") public val reasoningContent: String? = None) {
+    public companion object : ValueDecoder<ChatReasoningField>
+}
