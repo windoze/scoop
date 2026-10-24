@@ -15,12 +15,14 @@ struct FnEmitter<'a, 'ctx> {
     context: &'ctx Context,
     managed_address_space: ManagedAddressSpace,
     optimize_allocations: bool,
+    allocation_initialization_limit: u64,
     reuse_allocation_context: bool,
     llvm: &'a LlvmModule<'ctx>,
     builder: &'a inkwell::builder::Builder<'ctx>,
     function: &'a Function,
     llvm_function: inkwell::values::FunctionValue<'ctx>,
     current_block: scoop_lir::BlockId,
+    current_instruction: usize,
     /// Entry block; enum temporaries are alloca'd here (see
     /// `entry_alloca`).
     entry_block: inkwell::basic_block::BasicBlock<'ctx>,
@@ -74,6 +76,8 @@ struct FnEmitter<'a, 'ctx> {
     cached_poll_state: Option<PointerValue<'ctx>>,
     /// Lazily initialized AS0 context address; its mutable fields are not cached.
     allocation_context_slot: Option<PointerValue<'ctx>>,
+    /// Collected only when a small allocation has an initialization candidate.
+    allocation_addressed_locals: Option<HashSet<scoop_lir::LocalId>>,
     /// One ordinary field-write region, never retained across control flow or
     /// operations that can change the reference or publish/collect heap state.
     field_barrier: Option<gc::FieldBarrierCache<'ctx>>,
@@ -284,12 +288,14 @@ pub(super) fn emit_function<'ctx>(
         context,
         managed_address_space: module_ctx.managed_address_space,
         optimize_allocations: module_ctx.optimize_allocations,
+        allocation_initialization_limit: module_ctx.allocation_initialization_limit,
         reuse_allocation_context: module_ctx.reuse_allocation_context,
         llvm,
         builder,
         function,
         llvm_function,
         current_block: function.entry,
+        current_instruction: 0,
         entry_block: blocks[arena_index(function.entry)],
         llvm_blocks: &blocks,
         functions: module_ctx.functions,
@@ -326,6 +332,7 @@ pub(super) fn emit_function<'ctx>(
         allocation_index: 0,
         cached_poll_state: None,
         allocation_context_slot: None,
+        allocation_addressed_locals: None,
         field_barrier: None,
         array_size_trap_blocks: HashMap::new(),
     };
@@ -349,6 +356,7 @@ pub(super) fn emit_function<'ctx>(
         // the first of its block (LLVM requires the landingpad first).
         let mut invoke_terminated = false;
         for (index, instruction) in block.instructions.iter().enumerate() {
+            emitter.current_instruction = index;
             let is_invoke = matches!(instruction, Instruction::Invoke { .. });
             if is_invoke && index + 1 != block.instructions.len() {
                 return Err(CodegenError(format!(

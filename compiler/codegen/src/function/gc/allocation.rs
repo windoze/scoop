@@ -25,8 +25,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let layout = self.known_allocation_layout(*descriptor);
         let descriptor = self.value(*descriptor)?.into_pointer_value();
         let requested_size = self.value(*requested_size)?.into_int_value();
-        let object =
-            self.managed_alloc_value(descriptor, requested_size, layout, safepoint, live)?;
+        let object = self.managed_alloc_value(
+            descriptor,
+            requested_size,
+            layout,
+            safepoint,
+            live,
+            Some(out),
+        )?;
         self.temps.insert(out, object.into());
         Ok(())
     }
@@ -38,6 +44,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         layout: Option<AllocationLayout>,
         safepoint: scoop_lir::SafepointId,
         live: MaterializedStatepointLive<'ctx>,
+        initialization_result: Option<TempId>,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
         let context = self.context;
         let builder = self.builder;
@@ -172,11 +179,20 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .get_zero_extended_constant()
                 .is_some_and(|size| (16..=128).contains(&size))
         {
+            let clear_size = if let Some(out) = initialization_result {
+                let size = aligned_size
+                    .get_zero_extended_constant()
+                    .expect("the small allocation has constant size and alignment");
+                i64_ty.const_int(self.initialization_clear_size(out, size)?, false)
+            } else {
+                aligned_size
+            };
             self.finish_inline_allocation(
                 allocation_context,
                 object,
                 descriptor,
                 aligned_size,
+                clear_size,
                 index,
             )?;
         } else {

@@ -1,6 +1,8 @@
 use super::*;
 use inkwell::values::AnyValue;
 
+mod initialization;
+
 fn allocation_ir(
     size: u64,
     dynamic: bool,

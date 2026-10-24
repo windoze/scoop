@@ -46,4 +46,4 @@ GNU／musl 另在 nuc12 i7-12700H／LLVM 22.1.2、CPU 4 上按相同协议试验
 | 编译 CPU | +2.09% | +0.27% | −2.12% |
 | 编译峰值 RSS | −1.06% | 约不变 | 约不变 |
 
-编译成本以最终工具独立测量，保留预编译资源，只清根 Cone 产物；一对预热后五对 AB／BA，Linux 固定 CPU 4，包含编译与链接。ARM64 静态类型／接口表和 stackmap 大小不变，EH frame 缩小 8 B。小幅编译和对照波动不作为额外优化收益。更广的线程视图共享、减少 helper 内部 TLS、清零合并与批量登记仍需独立测量；本项不构成跨语言综合性能结论。原始日志与试验产物保留在两机忽略的 `tmp/program-performance/allocation-context/`。
+编译成本以最终工具独立测量，保留预编译资源，只清根 Cone 产物；一对预热后五对 AB／BA，Linux 固定 CPU 4，包含编译与链接。ARM64 静态类型／接口表和 stackmap 大小不变，EH frame 缩小 8 B。小幅编译和对照波动不作为额外优化收益。后续已交付受限的[初始化尾部清零消除](ALLOCATION-ZEROING.md)；更广的线程视图共享、减少 helper 内部 TLS、其他清零合并与批量登记仍需独立测量。本项不构成跨语言综合性能结论，原始日志与试验产物保留在两机忽略的 `tmp/program-performance/allocation-context/`。

@@ -65,6 +65,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     Some(AllocationLayout::array(&layout)),
                     safepoint,
                     live,
+                    None,
                 )?;
                 let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
                 builder

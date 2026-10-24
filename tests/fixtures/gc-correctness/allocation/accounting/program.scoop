@@ -64,6 +64,47 @@ fun checkAllocationAcrossCatch(values: MutableArray<Node?>, fail: Boolean) {
     check(values[0L]!!.value == 43)
 }
 
+struct Padded(val flag: Byte, val value: Long)
+class Initialized<T>(val node: Node?, val tag: Byte, val value: T) {
+    init { gcCollect() }
+}
+class Interrupted(val head: Long, fail: Boolean) {
+    init {
+        gcCollect()
+        if (fail) { throw IllegalStateException() }
+    }
+    val tail: Node = Node(head.toInt())
+}
+
+fun checkInitializationStorage() {
+    val kept = MutableArray<Any?>(5L) { _ -> None }
+    kept[0L] = Some(Initialized<Long>(Some(Node(71)), 1.toByte(), 72L))
+    kept[1L] = Some(Initialized<Padded>(None, 2.toByte(), Padded(3.toByte(), 73L)))
+    kept[2L] = Some(Initialized<Node>(Some(Node(74)), 4.toByte(), Node(75)))
+    val words = Words(76L, 77L, 78L, 79L)
+    kept[3L] = Some(Initialized<Words>(None, 5.toByte(), words))
+    try {
+        kept[4L] = Some(Interrupted(80L, true))
+        check(false)
+    } catch (error: IllegalStateException) {
+        check(when (kept[4L]) { case None -> true; case Some(value) -> false })
+    }
+    kept[4L] = Some(Interrupted(81L, false))
+    gcCollect()
+    val scalar = kept[0L]!! as Initialized<Long>
+    val padded = kept[1L]!! as Initialized<Padded>
+    val rooted = kept[2L]!! as Initialized<Node>
+    val aggregate = kept[3L]!! as Initialized<Words>
+    val interrupted = kept[4L]!! as Interrupted
+    check(scalar.node!!.value == 71 && scalar.tag == 1.toByte() && scalar.value == 72L)
+    check(when (padded.node) { case None -> true; case Some(value) -> false })
+    check(padded.tag == 2.toByte())
+    check(padded.value.flag == 3.toByte() && padded.value.value == 73L)
+    check(rooted.node!!.value == 74 && rooted.value.value == 75)
+    check(aggregate.value.a == 76L && aggregate.value.d == 79L)
+    check(interrupted.head == 81L && interrupted.tail.value == 81)
+}
+
 fun main() {
     val values = MutableArray<Node?>(64L) { index -> None }
     gcCollect()
@@ -87,5 +128,6 @@ fun main() {
     gcCollect()
     checkAllocationAcrossCatch(caught, false)
     checkAllocationAcrossCatch(caught, true)
+    checkInitializationStorage()
     println("allocation counters")
 }

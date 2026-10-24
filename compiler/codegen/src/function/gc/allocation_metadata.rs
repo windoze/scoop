@@ -13,13 +13,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         object: PointerValue<'ctx>,
         descriptor: PointerValue<'ctx>,
         size: IntValue<'ctx>,
+        clear_size: IntValue<'ctx>,
         index: u32,
     ) -> Result<(), CodegenError> {
         let builder = self.builder;
         let i64_ty = self.context.i64_type();
         let constant = |value| i64_ty.const_int(value, false);
         builder
-            .build_memset(object, 8, self.context.i8_type().const_zero(), size)
+            .build_memset(object, 8, self.context.i8_type().const_zero(), clear_size)
             .map_err(allocation_error)?;
         builder
             .build_store(object, descriptor)

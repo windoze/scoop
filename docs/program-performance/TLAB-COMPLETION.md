@@ -48,4 +48,4 @@ runtime ABI contract 从 15 升至 **16**，metadata ABI 仍为 9，spec 与兼�
 
 编译成本独立测量：保留预编译 core／runtime，只清根 Cone 产物，一对预热后五对 AB／BA，包含正常编译与链接，不代表整套 sysroot 重建成本。静态接口表和类型常量没有增长；stackmap 减少 384 B，GNU／musl 对应 metadata section 同样缩小 384 B，EH frame 变化 −8／+824／+824 B。运行 RSS 中位数 Darwin 增加 0～96 KiB，Linux 普通负载不变，旧代模式降低 96／68 KiB；不把小幅波动解释为内存优化。
 
-当前选择以 128 B 上限和完整布局条件控制展开成本。16／24／48 B 的分配收益跨三目标稳定，支持受限的 release 默认策略；代码段增长、GNU 数组回退和 musl 编译墙钟增长均保留为实际成本。其后已交付 ARM64 的[分配 context 首次使用复用](ALLOCATION-CONTEXT.md)；更大或动态分配、清零与构造合并、已清零 TLAB 及批量登记继续独立设计和测量。这是 Scoop 自身 A/B 结果，不构成对 Go／Java／Kotlin Native 综合性能的结论。原始日志、逐次结果、IR 与机器码保留在两机忽略的 `tmp/program-performance/tlab-inline/`。
+当前选择以 128 B 上限和完整布局条件控制展开成本。16／24／48 B 的分配收益跨三目标稳定，支持受限的 release 默认策略；代码段增长、GNU 数组回退和 musl 编译墙钟增长均保留为实际成本。其后已交付 ARM64 的[分配 context 首次使用复用](ALLOCATION-CONTEXT.md)与受限的[初始化尾部清零消除](ALLOCATION-ZEROING.md)；更大或动态分配、其他清零合并、已清零 TLAB 及批量登记继续独立设计和测量。这是 Scoop 自身 A/B 结果，不构成对 Go／Java／Kotlin Native 综合性能的结论。原始日志、逐次结果、IR 与机器码保留在两机忽略的 `tmp/program-performance/tlab-inline/`。

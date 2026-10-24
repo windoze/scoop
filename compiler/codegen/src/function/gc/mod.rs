@@ -5,6 +5,7 @@ use super::*;
 
 mod allocation;
 mod allocation_context;
+mod allocation_initialization;
 mod allocation_layout;
 mod allocation_metadata;
 mod arrays;

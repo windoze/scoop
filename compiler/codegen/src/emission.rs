@@ -254,6 +254,12 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         reuse_interface_values: profile.optimization() == scoop_lir::OptimizationMode::Release
             && machine.get_target().get_name() == c"x86-64",
         optimize_allocations: profile.optimization() == scoop_lir::OptimizationMode::Release,
+        // Larger x86 initialization regions had unstable register-allocation costs.
+        allocation_initialization_limit: if machine.get_target().get_name() == c"aarch64" {
+            128
+        } else {
+            64
+        },
         // The extra live register and cache check regressed x86 wide allocations.
         reuse_allocation_context: profile.optimization() == scoop_lir::OptimizationMode::Release
             && machine.get_target().get_name() == c"aarch64",

@@ -311,6 +311,8 @@ LIR 以完整操作表达托管分配、字段／数组写入、值复制、原�
 
 codegen 的 release 小型常量分配按运行时规范 3.1 直接完成 TLAB 登记，使用统一的七指针 context 与四项 atomic u64 计数视图。复用输入的完整本地 TD／typed array layout，跨物理对象分区保留已确定的 alignment 与 release-policy；外部 TD 缺少事实时保留原加载与完成入口，不扩充跨 Cone 格式。内联只在大小合格、布局已知、确定无 release hook 的成功分配分支内发射，不增加 LIR 操作、持久证明、managed 引用或根。line 位图跨字分支合流后，分配结果按实际快路径出口与原慢路径出口构造 phi，慢路径 safepoint／relocation 保持。debug 与未命中的分配使用相同 ABI 下的既有完成入口。
 
+codegen 对上述小型普通对象分配可分析结果之后的确定初始化路径，按运行时规范 3.1 缩短清零范围；ARM64 的对象上限为 128 bytes，x86 为 64 bytes。x86 更大对象的试验出现寄存器分配变化与不稳定收益，暂保留完整清零，不扩大默认范围。分析只消费当前 LIR 的 typed store、局部副本、无条件 CFG 边与既有值布局：只将完整覆盖、无引用、无 padding 的字段存储计入已覆盖字节，取其连续尾部，清零前缀至少保留 16-byte 对象头。局部被重新赋值时更新别名，取址局部不参与；有界对象范围之外的写入不提供覆盖事实。未知操作、可观察操作及循环回边结束分析，未证明部分按原样清零。原字段写入与快／慢分配合流保持，不增加持久 LIR／`.slib` 字段、runtime 分支、对象字段或 GC roots；跨 Cone 内联后按同一规则消费完整正文，未内联调用结束分析。
+
 ARM64 release 的 TLAB context 地址在每次函数调用内按首次使用取得并复用。codegen 用入口初始化的非逃逸 AS0 局部槽表达空缓存，各实际分配点只在缓存为空时读取 TLS；交由既有 LLVM 标量优化提升为 SSA，不把取址无条件移到只含失败／异常分配的函数入口。若已有常量资格、大小或溢出条件直接否定 TLAB 路径，则先选择原 collecting slow path，不取得 context。首次 TLS load 使用 volatile 约束执行位置，避免 LLVM 将条件取址变成无条件取址加 select；这不是线程同步，缓存和 context 字段仍按各自普通／原子访问规则处理。缓存跨普通调用、GC、refill、异常处理和同步 callback 保留，依据运行时规范 3.1 的 attachment 生命周期；各分配点继续加载当前 cursor、limit 与块元数据，不复用这些可变内容。x86 试验收益不足以抵消宽对象路径回退，沿用逐次读取；debug 也不建立该缓存。统一 runtime ABI 与 LIR／跨 Cone 格式保持。
 
 `ManagedPoll` 表示运行时规范 3.2 的条件 poll，携带唯一慢路径 site 与完整 live set。codegen 发射 acquire 检查和快／慢分支，只在慢分支物化该站点的 managed leaves、调用协调入口并回写 relocation；后续使用通过普通 canonical storage／SSA 合流取得快路径原值或慢路径新值。入口 pending 的 mode 检查属于同一操作，不能仅按 world phase 删除首次激活。TLS 与全局数据引用使用闭合 runtime ABI 目录中的普通数据合同。
