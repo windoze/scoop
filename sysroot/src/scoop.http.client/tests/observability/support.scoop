@@ -1,0 +1,30 @@
+package scoop.http.client
+
+import scoop.test.*
+
+internal class RequestObservationLog {
+    val events: ArrayList<HttpCallEvent> = ArrayList<HttpCallEvent>()
+    val observer: HttpObserver get() = HttpObserver(suspend { event -> events.add(event) })
+
+    fun ofKind(kind: HttpCallEventKind): Array<HttpCallEvent> {
+        val result = ArrayList<HttpCallEvent>()
+        for (event in events) if (event.kind == kind) result.add(event)
+        return result.toArray()
+    }
+
+    fun completed(): HttpAttemptMetrics {
+        val completed = ofKind(HttpCallEventKind.Completed)
+        assertEquals(1L, completed.size)
+        return completed[0L].metrics
+    }
+}
+
+internal fun checkRequestObservation(metrics: HttpAttemptMetrics) {
+    assertTrue(metrics.requestHeadersAtUtc != None)
+    assertTrue(metrics.finalResponseHeadersAtUtc != None)
+    assertTrue(metrics.finishedAtUtc != None)
+    assertTrue(metrics.requestHeadersAt!! >= metrics.startedAt)
+    assertTrue(metrics.finalResponseHeadersAt!! >= metrics.requestHeadersAt!!)
+    assertTrue(metrics.finishedAt!! >= metrics.finalResponseHeadersAt!!)
+    assertEquals(metrics.responseHeadersAtUtc, metrics.finalResponseHeadersAtUtc)
+}

@@ -3,13 +3,17 @@ package scoop.http.client
 import scoop.http.HttpResponseHead
 import scoop.http.HttpVersion
 import scoop.platform.time.MonotonicTimeSource
+import scoop.platform.time.SystemClock
+import scoop.time.Instant
 import scoop.time.TimeMark
 
 internal class ClientObservation(sequence: ClientRequestSequence) {
     val number: Long = sequence.attemptNumber
     val reason: HttpAttemptReason = sequence.attemptReason
     val startedAt: TimeMark = MonotonicTimeSource.markNow()
+    val startedAtUtc: Instant = SystemClock.now()
     var finishedAt: TimeMark? = None
+    var finishedAtUtc: Instant? = None
     var queue: HttpPhaseTiming? = None
     var resolve: HttpPhaseTiming? = None
     var connect: HttpPhaseTiming? = None
@@ -17,7 +21,11 @@ internal class ClientObservation(sequence: ClientRequestSequence) {
     var proxyHandshake: HttpPhaseTiming? = None
     var originTls: HttpPhaseTiming? = None
     var requestHeadersAt: TimeMark? = None
+    var requestHeadersAtUtc: Instant? = None
     var responseHeadersAt: TimeMark? = None
+    var responseHeadersAtUtc: Instant? = None
+    var finalResponseHeadersAt: TimeMark? = None
+    var finalResponseHeadersAtUtc: Instant? = None
     var firstResponseByteAt: TimeMark? = None
     var version: HttpVersion? = None
     var connectionReused: Boolean? = None
@@ -33,14 +41,24 @@ internal fun clientMetrics(call: ClientCall): HttpAttemptMetrics? {
 internal fun observeClientRequestHeaders(call: ClientCall, version: HttpVersion) {
     val observation = call.observation ?: return
     val now = MonotonicTimeSource.markNow()
-    call.lock.withLock { observation.requestHeadersAt = Some(now); observation.version = Some(version) }
+    val utc = SystemClock.now()
+    call.lock.withLock {
+        observation.requestHeadersAt = Some(now); observation.requestHeadersAtUtc = Some(utc)
+        observation.version = Some(version)
+    }
 }
 
 internal fun observeClientResponseHeaders(call: ClientCall, head: HttpResponseHead, fromCache: Boolean = false) {
     val observation = call.observation ?: return
     val now = MonotonicTimeSource.markNow()
+    val utc = SystemClock.now()
     call.lock.withLock {
         observation.responseHeadersAt = Some(now); observation.status = Some(head.status)
+        observation.responseHeadersAtUtc = Some(utc)
+        if (!fromCache && (head.status >= 200U || head.status == 101U)) {
+            observation.finalResponseHeadersAt = Some(now)
+            observation.finalResponseHeadersAtUtc = Some(utc)
+        }
         if (!fromCache) observation.version = Some(head.version)
         Unit
     }
@@ -58,8 +76,10 @@ internal fun observeClientFirstByte(call: ClientCall, at: TimeMark?) {
 internal fun finishClientObservation(call: ClientCall) {
     val observation = call.observation ?: return
     val now = MonotonicTimeSource.markNow()
+    val utc = SystemClock.now()
     call.lock.withLock {
         observation.finishedAt = Some(now)
+        observation.finishedAtUtc = Some(utc)
         observation.queue = finishClientPhase(observation.queue, now)
         observation.resolve = finishClientPhase(observation.resolve, now)
         observation.connect = finishClientPhase(observation.connect, now)

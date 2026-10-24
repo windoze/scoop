@@ -33,7 +33,7 @@ internal fun clientResumeRequest(config: HttpClientConfig, original: HttpRequest
         decoding = Some(HttpDecodingOptions(HttpContentDecoding.Raw, decoding.bufferSize, decoding.maxWindowBytes)),
         timeouts = options.timeouts, onInformational = options.onInformational, redirects = options.redirects,
         retries = options.retries, authentication = options.authentication, proxy = options.proxy,
-        useCookies = options.useCookies, cookieContext = options.cookieContext, cacheMode = HttpCacheMode.Bypass)
+        useCookies = options.useCookies, cookieContext = options.cookieContext, cacheMode = HttpCacheMode.Bypass, observer = options.observer)
     return HttpRequest(original.url, "GET", fields, original.body, prepared)
 }
 

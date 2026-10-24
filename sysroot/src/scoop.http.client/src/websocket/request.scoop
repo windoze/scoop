@@ -77,4 +77,4 @@ internal fun clientWebSocketOptions(options: HttpCallOptions): HttpCallOptions =
     HttpCallOptions(decoding = options.decoding, timeouts = options.timeouts, onInformational = options.onInformational,
         redirects = options.redirects, retries = options.retries, authentication = options.authentication,
         proxy = options.proxy, useCookies = options.useCookies, cookieContext = options.cookieContext,
-        cacheMode = HttpCacheMode.Bypass)
+        cacheMode = HttpCacheMode.Bypass, observer = options.observer)

@@ -5,14 +5,22 @@ private class ClientObserverCallback(val call: ClientCall) { var active: Boolean
 internal suspend fun emitClientEvent(call: ClientCall, kind: HttpCallEventKind) {
     val observation = call.observation ?: return
     if (kind != HttpCallEventKind.Completed) requireClientCall(call)
-    val observer = call.client.config.observer!!
+    val observer = call.sequence.observer
+    val clientObserver = call.client.config.observer
     val metrics = call.lock.withLock {
         if (observation.stopped) None else Some(HttpAttemptMetrics(call, observation))
     } ?: return
     val event = HttpCallEvent(kind, call.sequence.info!!, metrics,
         if (kind == HttpCallEventKind.Completed) clientCallFailure(call) else None)
     val active = ClientObserverCallback(call)
-    try { context(active) { observer.onEvent(event) } }
+    try {
+        context(active) {
+            if (clientPresent(observer)) observer!!.onEvent(event)
+            if (clientPresent(clientObserver) && (!clientPresent(observer) || clientObserver!! !== observer!!))
+                clientObserver!!.onEvent(event)
+            Unit
+        }
+    }
     catch (error: Throwable) {
         if (error is CancellationException && (currentJobOrNone()?.isCancelled ?: false)) throw error
         call.lock.withLock { observation.stopped = true }
@@ -44,7 +52,6 @@ private fun activeClientObserverCallback(): ClientCall? {
 }
 
 internal fun checkClientObserverClose(client: ClientState) {
-    if (!clientPresent(client.config.observer)) return
     val call = activeClientObserverCallback()
     if (clientPresent(call) && call!!.client === client)
         throw IllegalStateException(Some("cannot await client.close from its active observer"))
