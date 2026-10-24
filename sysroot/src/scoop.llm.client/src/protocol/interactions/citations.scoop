@@ -1,0 +1,51 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+internal fun readInteractionsCitations(dialect: DialectId, values: Array<JsonValue>, text: String, path: String): Array<Citation> {
+    val result = ArrayList<Citation>()
+    val bytes = text.toByteArray().size
+    var index = 0L
+    for (raw in values) {
+        val itemPath = path + "/" + index.toString()
+        val type = decodeInteractionsValue<InteractionsType>(raw, itemPath).type
+        if (type != "url_citation" && type != "file_citation" && type != "place_citation") {
+            result.add(Citation(LlmSource(itemPath, LlmSourceLocation.Native(dialect, raw), native = Some(raw))))
+        } else {
+            val fields = decodeInteractionsValue<InteractionsCitationFields>(raw, itemPath)
+            var location: LlmSourceLocation = Native(dialect, raw)
+            if (type == "file_citation") {
+                if (fields.documentUri != None) {
+                    interactionsNonempty(fields.documentUri, itemPath + "/document_uri")
+                    location = LlmSourceLocation.File(LlmFileReference(dialect, raw))
+                }
+            } else if (fields.url != None) {
+                interactionsNonempty(fields.url, itemPath + "/url")
+                location = LlmSourceLocation.Url(Url.parseOrNone(fields.url!!) ?: throw DecodingException(itemPath + "/url", "invalid citation URL"))
+            }
+            val title = if (type == "file_citation") fields.fileName else if (type == "place_citation") fields.name else fields.title
+            result.add(Citation(LlmSource(itemPath, location, title, Some(raw)),
+                interactionsCitationRange(fields.start, fields.end, bytes, itemPath)))
+        }
+        index += 1L
+    }
+    return result.toArray()
+}
+
+private fun interactionsCitationRange(start: Long?, end: Long?, bytes: Long, path: String): TextRange? {
+    val first = start ?: 0L
+    if (first < 0L || first > bytes) throw DecodingException(path + "/start_index", "citation start is out of bounds")
+    val last = end ?: return None
+    if (last < first || last > bytes) throw DecodingException(path + "/end_index", "citation end is out of bounds")
+    return Some(TextRange(first, last, Utf8Bytes))
+}
+
+private class InteractionsCitationFields public constructor(public val url: String? = None, public val title: String? = None,
+    public val name: String? = None,
+    @Serialize(rename = "document_uri") public val documentUri: String? = None,
+    @Serialize(rename = "file_name") public val fileName: String? = None,
+    @Serialize(rename = "start_index") public val start: Long? = None,
+    @Serialize(rename = "end_index") public val end: Long? = None) {
+    public companion object : ValueDecoder<InteractionsCitationFields>
+}

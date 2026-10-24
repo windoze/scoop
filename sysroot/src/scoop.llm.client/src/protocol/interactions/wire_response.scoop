@@ -1,0 +1,38 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.time.Instant
+
+internal class InteractionsBody public constructor(public val id: String, public val status: String,
+    public val steps: Array<JsonValue>, public val created: Instant, public val updated: Instant,
+    @Serialize(rename = "object") public val objectType: String? = None,
+    public val model: String? = None, public val usage: JsonValue? = None) {
+    public companion object : ValueDecoder<InteractionsBody>
+}
+
+internal class InteractionsType public constructor(public val type: String) {
+    public companion object : ValueDecoder<InteractionsType>
+}
+
+internal class InteractionsCallFields public constructor(public val id: String, public val name: String? = None,
+    public val arguments: JsonValue? = None,
+    @Serialize(rename = "server_name") public val serverName: String? = None,
+    @Serialize(rename = "search_type") public val searchType: String? = None) {
+    public companion object : ValueDecoder<InteractionsCallFields>
+}
+
+internal class InteractionsResultFields public constructor(@Serialize(rename = "call_id") public val callId: String,
+    public val result: JsonValue? = None, @Serialize(rename = "is_error") public val isError: Boolean = false,
+    public val name: String? = None, @Serialize(rename = "server_name") public val serverName: String? = None) {
+    public companion object : ValueDecoder<InteractionsResultFields>
+}
+
+internal fun <T> decodeInteractionsValue(value: JsonValue, path: String): T where T.Companion : ValueDecoder<T> {
+    try { return Json.decodeFromValue<T>(value) }
+    catch (error: DecodingException) { throw DecodingException(path + error.path, error.message ?: "invalid Interactions field") }
+}
+
+internal fun interactionsNonempty(value: String?, path: String): String {
+    if (value == None || value == Some("")) throw DecodingException(path, "expected a nonempty string")
+    return value!!
+}

@@ -1,0 +1,47 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readInteractionsMessage(dialect: DialectId, raw: JsonValue, path: String): Array<OutputPart> {
+    val fields = decodeInteractionsValue<InteractionsMessageFields>(raw, path)
+    return readInteractionsContent(dialect, fields.content ?: [], path + "/content")
+}
+
+internal fun readInteractionsThought(dialect: DialectId, raw: JsonValue, path: String): Array<OutputPart> {
+    val fields = decodeInteractionsValue<InteractionsThoughtFields>(raw, path)
+    val parts = ArrayList<OutputPart>()
+    for (part in readInteractionsContent(dialect, fields.summary ?: [], path + "/summary")) parts.add(part)
+    if (fields.signature != None)
+        parts.add(OutputPart.Native(dialect, JsonObjectBuilder().add("signature", JsonValue.fromString(fields.signature!!)).build()))
+    return parts.toArray()
+}
+
+internal fun readInteractionsContent(dialect: DialectId, values: Array<JsonValue>, path: String): Array<OutputPart> {
+    val parts = ArrayList<OutputPart>()
+    var index = 0L
+    for (raw in values) {
+        val partPath = path + "/" + index.toString()
+        val type = decodeInteractionsValue<InteractionsType>(raw, partPath).type
+        if (type == "text") {
+            val text = decodeInteractionsValue<InteractionsTextFields>(raw, partPath)
+            parts.add(OutputPart.Text(text.text, readInteractionsCitations(dialect, text.annotations ?: [], text.text, partPath + "/annotations")))
+        } else if (type == "image" || type == "audio" || type == "video" || type == "document") {
+            parts.add(readInteractionsMedia(dialect, raw, type, partPath))
+        } else parts.add(OutputPart.Native(dialect, raw))
+        index += 1L
+    }
+    return parts.toArray()
+}
+
+private class InteractionsMessageFields public constructor(public val content: Array<JsonValue>? = None) {
+    public companion object : ValueDecoder<InteractionsMessageFields>
+}
+
+private class InteractionsThoughtFields public constructor(public val summary: Array<JsonValue>? = None,
+    public val signature: String? = None) {
+    public companion object : ValueDecoder<InteractionsThoughtFields>
+}
+
+private class InteractionsTextFields public constructor(public val text: String, public val annotations: Array<JsonValue>? = None) {
+    public companion object : ValueDecoder<InteractionsTextFields>
+}

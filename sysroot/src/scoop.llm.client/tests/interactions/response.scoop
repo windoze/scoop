@@ -1,0 +1,81 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class InteractionsResponseTest {
+    @Test
+    fun `Interactions keeps ordered thoughts signatures text and native steps in serialized history`() {
+        val raw = interactionsBody("[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"question\"}]}," +
+            "{\"type\":\"thought\",\"summary\":[{\"type\":\"text\",\"text\":\"reason\"}],\"signature\":\"opaque\",\"future\":1e400}," +
+            "{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"count\\\":\"},{\"type\":\"text\",\"text\":\"7}\"}]}," +
+            "{\"type\":\"future_step\",\"data\":9007199254740993}]")
+        val response = interactionsDecode(raw)
+        assertEquals("{\"count\":7}", response.text)
+        assertEquals(7L, response.decodeOutput<InteractionsCount>().count)
+        assertEquals(Some("interaction-1"), response.id)
+        assertEquals(None, response.model)
+        assertEquals(Some(Instant.parse("2026-10-25T20:34:56.123456789+08:00")), response.createdAt)
+        assertEquals(4L, response.candidate(0L).items.size)
+        when (response.candidate(0L).items[1L]) {
+            case Reasoning(parts, _) -> {
+                assertEquals(2L, parts.size)
+                when (parts[1L]) { case Native(owner, value) -> { assertEquals(interactionsDialect, owner); assertEquals("opaque", value["signature"]!!.asString()) }; else -> fail() }
+            }
+            else -> fail()
+        }
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(Json.stringify(raw["steps"]!!), Json.stringify(JsonValue.fromArray(interactionsHistory(saved))))
+        assertEquals(Json.stringify(raw), Json.stringify(saved.native!!))
+    }
+
+    @Test
+    fun `Interactions status distinguishes waiting actions failed resources and unfinished history`() {
+        for ((status, terminal) in [("completed", true), ("requires_action", true), ("failed", true), ("cancelled", true),
+            ("incomplete", true), ("in_progress", false), ("future", false)]) {
+            val raw = interactionsReplace(interactionsBody("[]", status), "errors", Some(Json.parse("[{\"code\":\"fault\",\"message\":\"detail\"}]")))
+            val response = interactionsDecode(raw)
+            assertEquals(if (terminal) UsageCompleteness.Final else UsageCompleteness.Partial, response.usage.completeness)
+            val expected = if (status == "completed") LlmCompletion.Complete else if (status == "failed") LlmCompletion.Failed else LlmCompletion.Incomplete
+            assertEquals(expected, response.candidate(0L).completion)
+            assertEquals(0L, response.clientToolCalls.size)
+            if (terminal) assertEquals(0L, interactionsHistory(response).size)
+            else assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { response.toInput(); Unit }.reason)
+            if (status == "requires_action") assertEquals(LlmFinishReason.Pause, response.candidate(0L).finishReason)
+            if (status == "incomplete") assertEquals(LlmFinishReason.Other(status), response.candidate(0L).finishReason)
+            assertTrue(response.native!!.containsKey("errors"))
+        }
+    }
+
+    @Test
+    fun `Interactions preserves empty signed thoughts unknown content and service time rollback`() {
+        val raw = interactionsReplace(interactionsBody("[{\"type\":\"thought\",\"signature\":\"\"},{\"type\":\"model_output\",\"content\":[{\"type\":\"future_media\",\"data\":1e400}]}]"),
+            "updated", Some(JsonValue.fromString("2026-10-24T00:00:00Z")))
+        val response = interactionsDecode(raw)
+        assertEquals("", response.text)
+        when (response.candidate(0L).items[0L]) { case Reasoning(parts, _) -> assertEquals(1L, parts.size); else -> fail() }
+        when (response.candidate(0L).items[1L]) { case Message(parts, _) -> when (parts[0L]) {
+            case Native(_, value) -> assertEquals("1e400", value["data"]!!.asNumberToken()); else -> fail()
+        }; else -> fail() }
+        assertEquals(2L, interactionsHistory(response).size)
+    }
+
+    @Test
+    fun `Interactions resource shape and malformed known fields fail with source paths`() {
+        val base = interactionsBody("[]")
+        for ((name, value) in [("id", JsonValue.fromString("")), ("status", JsonValue.fromString("")),
+            ("object", JsonValue.fromString("response")), ("created", JsonValue.fromString("yesterday")),
+            ("updated", JsonValue.fromLong(1L)), ("steps", JsonValue.fromString("steps"))])
+            assertInteractionsFailure(interactionsReplace(base, name, Some(value)), "/" + name)
+        for (name in ["id", "status", "steps", "created", "updated"])
+            assertInteractionsFailure(interactionsReplace(base, name, None), "/" + name)
+        assertInteractionsFailure(Json.parse("{\"error\":{\"code\":\"unavailable\"}}"), "/error")
+        assertInteractionsFailure(interactionsBody("[{}]"), "/steps/0/type")
+        assertInteractionsFailure(interactionsBody("[{\"type\":\"thought\",\"signature\":5}]"), "/steps/0/signature")
+        assertInteractionsFailure(interactionsBody("[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":null}]}]"), "/steps/0/content/0/text")
+        assertEquals(1L, interactionsDecode(interactionsReplace(base, "object", None)).candidates.size)
+    }
+}

@@ -1,0 +1,21 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+/** Service interpretation within the Interactions step protocol. */
+public interface InteractionsDialect {
+    public val id: DialectId
+    public fun readUsage(value: JsonValue): TokenUsage
+    public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
+}
+
+public class GeminiInteractionsDialect public constructor() : InteractionsDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("interactions"), "gemini-interactions")
+    public override fun readUsage(value: JsonValue): TokenUsage = readInteractionsUsage(value)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
+        val value = parseLlmServiceError(body, truncated)
+        val error = when (value) { case Some(root) -> if (root.kind == JsonValueKind.Object) root["error"] else None; case None -> None }
+        return LlmServiceException(id, status, body, truncated, llmServiceErrorString(error, "code"), value,
+            message = llmServiceErrorString(error, "message") ?: "Interactions service rejected the request")
+    }
+}

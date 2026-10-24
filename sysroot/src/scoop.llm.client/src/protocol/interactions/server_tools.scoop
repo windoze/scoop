@@ -1,0 +1,59 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readInteractionsServerStep(dialect: DialectId, entry: InteractionsStep, entries: Array<InteractionsStep>,
+    tools: Array<ToolDefinition>): LlmOutputItem {
+    val type = entry.toolType!!
+    if (llmPresent(entry.call)) {
+        val call = entry.call!!
+        if (type == "google_search" || type == "url_context" || type == "code_execution" || type == "mcp_server") {
+            if (!llmPresent(call.arguments) || call.arguments!!.kind != JsonValueKind.Object)
+                throw DecodingException(entry.path + "/arguments", "expected server tool arguments object")
+        }
+        if (type == "mcp_server") {
+            interactionsNonempty(call.name, entry.path + "/name")
+            interactionsNonempty(call.serverName, entry.path + "/server_name")
+        }
+        val kind = interactionsServerKind(type, call.searchType, true)
+        val key = resolveInteractionsServer(tools, dialect, type, call.serverName, kind)
+        return LlmOutputItem.ServerToolActivity(ServerToolActivity(kind, InProgress, key, Some(call.id),
+            call.arguments, native = Some(entry.raw)))
+    }
+    val result = entry.result!!
+    val original = interactionsFindCall(entries, result.callId)
+    val searchType = when (original) { case Some(step) -> step.call!!.searchType; case None -> None }
+    val serverName = if (result.serverName != None) result.serverName
+        else when (original) { case Some(step) -> step.call!!.serverName; case None -> None }
+    val kind = interactionsServerKind(type, searchType, llmPresent(original))
+    val key = resolveInteractionsServer(tools, dialect, type, serverName, kind)
+    val parts = readInteractionsServerResult(dialect, entry)
+    return LlmOutputItem.ServerToolActivity(ServerToolActivity(kind, if (result.isError) ServerToolStatus.Failed else ServerToolStatus.Completed,
+        key, Some(result.callId), result = parts, native = Some(entry.raw)))
+}
+
+private fun readInteractionsServerResult(dialect: DialectId, entry: InteractionsStep): Array<OutputPart> {
+    val type = entry.toolType!!
+    val value = entry.result!!.result
+    if (type == "file_search" || type == "processing")
+        return when (value) { case Some(raw) -> [OutputPart.Native(dialect, raw)]; case None -> [] }
+    val raw = value ?: throw DecodingException(entry.path + "/result", "missing server tool result")
+    if (type == "code_execution") {
+        if (raw.kind != JsonValueKind.String) throw DecodingException(entry.path + "/result", "expected code execution result text")
+        return [OutputPart.Text(raw.asString())]
+    }
+    if (type == "mcp_server") {
+        if (raw.kind == JsonValueKind.String) return [OutputPart.Text(raw.asString())]
+        if (raw.kind == JsonValueKind.Array) return readInteractionsContent(dialect, raw.elements(), entry.path + "/result")
+        if (raw.kind != JsonValueKind.Object) throw DecodingException(entry.path + "/result", "expected MCP result text, content or object")
+    } else if (raw.kind != JsonValueKind.Array) throw DecodingException(entry.path + "/result", "expected server tool results array")
+    return [OutputPart.Native(dialect, raw)]
+}
+
+private fun interactionsServerKind(type: String, searchType: String?, knownCall: Boolean): ServerToolKind = when (type) {
+    case "google_search" -> if (knownCall && (searchType == None || searchType == Some("web_search"))) WebSearch else Native
+    case "url_context" -> WebFetch
+    case "file_search" -> FileSearch
+    case "code_execution" -> CodeExecution
+    else -> Native
+}

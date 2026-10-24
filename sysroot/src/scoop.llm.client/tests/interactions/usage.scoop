@@ -1,0 +1,72 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsUsageTest {
+    @Test
+    fun `Interactions usage includes reasoning output and cache reads without double counting tool prompts`() {
+        val raw = "{\"total_input_tokens\":100,\"total_output_tokens\":20,\"total_thought_tokens\":5,\"total_tokens\":125," +
+            "\"total_cached_tokens\":40,\"total_tool_use_tokens\":50," +
+            "\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":60},{\"modality\":\"image\",\"tokens\":40}]," +
+            "\"output_tokens_by_modality\":[{\"modality\":\"audio\",\"tokens\":20},{\"modality\":\"future\",\"tokens\":0}]," +
+            "\"cached_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":40}],\"tool_use_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":50}]}"
+        val response = interactionsDecode(interactionsBody("[]", usage = Some(raw)))
+        val tokens = response.usage.tokens
+        assertEquals(Some(100L), tokens.inputTokens)
+        assertEquals(Some(60L), tokens.nonCachedInputTokens)
+        assertEquals(Some(25L), tokens.outputTokens)
+        assertEquals(Some(125L), tokens.totalTokens)
+        assertEquals(Some(5L), tokens.reasoningTokens)
+        assertEquals(None, tokens.cacheWriteTokens)
+        assertEquals(4L, tokens.modality.size)
+        assertEquals(TokenDirection.Input, tokens.modality[0L].direction)
+        assertEquals(60L, tokens.modality[0L].tokens)
+        assertEquals(TokenModality.Image, tokens.modality[1L].modality)
+        assertEquals(TokenDirection.Output, tokens.modality[2L].direction)
+        assertEquals(TokenModality.Other("future"), tokens.modality[3L].modality)
+        assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(response.usage.native!!))
+    }
+
+    @Test
+    fun `Interactions absent counts and incomplete modality details remain unknown instead of zero`() {
+        for (usage in ["{}", "{\"total_tokens\":10}", "{\"total_output_tokens\":2}", "{\"total_thought_tokens\":3}"]) {
+            val tokens = interactionsDecode(interactionsBody("[]", usage = Some(usage))).usage.tokens
+            assertEquals(None, tokens.inputTokens)
+            assertEquals(None, tokens.outputTokens)
+            assertEquals(None, tokens.cacheReadTokens)
+        }
+        val zero = interactionsDecode(interactionsBody("[]", usage = Some("{\"total_input_tokens\":0,\"total_output_tokens\":0,\"total_thought_tokens\":0,\"total_cached_tokens\":0}"))).usage.tokens
+        assertEquals(Some(0L), zero.inputTokens)
+        assertEquals(Some(0L), zero.outputTokens)
+        assertEquals(Some(0L), zero.nonCachedInputTokens)
+        assertEquals(None, zero.totalTokens)
+        val partial = interactionsDecode(interactionsBody("[]", usage = Some("{\"input_tokens_by_modality\":[{}, {\"modality\":\"image\"},{\"tokens\":1}, {\"modality\":\"text\",\"tokens\":0}]}"))).usage.tokens
+        assertEquals(1L, partial.modality.size)
+        assertEquals(0L, partial.modality[0L].tokens)
+    }
+
+    @Test
+    fun `Interactions exact large counts survive serialization and provider totals are not reverse inferred`() {
+        val result = interactionsDecode(interactionsBody("[]", usage = Some("{\"total_input_tokens\":9007199254740993,\"total_output_tokens\":2,\"total_tokens\":9007199254741000}")))
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(result))
+        assertEquals(Some(9007199254740993L), saved.usage.tokens.inputTokens)
+        assertEquals(Some(9007199254741000L), saved.usage.tokens.totalTokens)
+        assertEquals(None, saved.usage.tokens.outputTokens)
+        assertEquals(None, saved.usage.tokens.reasoningTokens)
+    }
+
+    @Test
+    fun `Interactions invalid counts and overflow expose precise accounting paths`() {
+        for ((usage, path) in [("{\"total_input_tokens\":-1}", "total_input_tokens"),
+            ("{\"total_tool_use_tokens\":-1}", "total_tool_use_tokens"),
+            ("{\"total_output_tokens\":9223372036854775807,\"total_thought_tokens\":1}", "total_thought_tokens"),
+            ("{\"total_input_tokens\":1,\"total_cached_tokens\":2}", "total_cached_tokens"),
+            ("{\"total_output_tokens\":1.5}", "total_output_tokens"),
+            ("{\"cached_tokens_by_modality\":[{\"tokens\":-1}]}", "cached_tokens_by_modality/0/tokens"),
+            ("{\"tool_use_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":-1}]}", "tool_use_tokens_by_modality/0/tokens")])
+            assertInteractionsFailure(interactionsBody("[]", usage = Some(usage)), "/usage/" + path)
+    }
+}

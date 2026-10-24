@@ -1,0 +1,99 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsServerToolsTest {
+    @Test
+    fun `Interactions search citation signature and client function preserve their separate execution roles`() {
+        val raw = interactionsBody("[{\"type\":\"thought\",\"signature\":\"thinking-signature\"}," +
+            "{\"type\":\"google_search_call\",\"id\":\"s\",\"arguments\":{\"queries\":[\"topic\"]},\"search_type\":\"web_search\",\"signature\":\"call-signature\"}," +
+            "{\"type\":\"google_search_result\",\"call_id\":\"s\",\"result\":[{\"search_suggestions\":\"<span>suggestion</span>\"}],\"signature\":\"result-signature\"}," +
+            "{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"中😀a\",\"annotations\":[{\"type\":\"url_citation\",\"url\":\"https://example.com/source\",\"title\":\"Source\",\"start_index\":3,\"end_index\":7}]}]}," +
+            "{\"type\":\"function_call\",\"id\":\"c\",\"name\":\"lookup\",\"arguments\":{\"count\":8}}]", "requires_action")
+        val request = LlmRequest([], tools = [interactionsRequest().tools[0L], Server(ToolKey("web"), WebSearch())])
+        val result = Json.decodeFromString<LlmResponse>(Json.encodeToString(interactionsDecode(raw, request)))
+        assertEquals("中😀a", result.text)
+        assertEquals(1L, result.clientToolCalls.size)
+        assertEquals(8L, result.clientToolCalls[0L].decodeArguments<InteractionsCount>().count)
+        assertEquals(2L, result.serverToolActivities.size)
+        val call = result.serverToolActivities[0L]
+        val response = result.serverToolActivities[1L]
+        assertEquals(ServerToolKind.WebSearch, call.kind)
+        assertEquals(ServerToolStatus.InProgress, call.status)
+        assertEquals(ServerToolStatus.Completed, response.status)
+        assertEquals(Some("s"), response.id)
+        assertEquals(Some(ToolKey("web")), response.toolKey)
+        assertEquals(0L, response.sources.size)
+        assertEquals("<span>suggestion</span>", response.native!!["result"]!![0L]["search_suggestions"]!!.asString())
+        when (result.candidate(0L).items[3L]) { case Message(parts, _) -> when (parts[0L]) {
+            case Text(_, citations) -> {
+                assertEquals(1L, citations.size)
+                assertEquals(3L, citations[0L].range!!.start)
+                assertEquals(7L, citations[0L].range!!.end)
+                assertEquals(TextRangeUnit.Utf8Bytes, citations[0L].range!!.unit)
+            }; else -> fail()
+        }; else -> fail() }
+        assertEquals(Json.stringify(raw["steps"]!!), Json.stringify(JsonValue.fromArray(interactionsHistory(result))))
+    }
+
+    @Test
+    fun `Interactions native server tools keep results and errors without exposing client calls`() {
+        val request = LlmRequest([], tools = [Server(ToolKey("code"), Native(NativeToolDefinition(interactionsDialect, "code_execution"))),
+            Server(ToolKey("files"), Native(NativeToolDefinition(interactionsDialect, "file_search")))])
+        val raw = interactionsBody("[{\"type\":\"code_execution_call\",\"id\":\"code\",\"arguments\":{\"code\":\"print(1)\"}}," +
+            "{\"type\":\"code_execution_result\",\"call_id\":\"code\",\"result\":\"error\",\"is_error\":true}," +
+            "{\"type\":\"file_search_call\",\"id\":\"f\"},{\"type\":\"file_search_result\",\"call_id\":\"f\"}," +
+            "{\"type\":\"url_context_result\",\"call_id\":\"prior\",\"result\":[{\"url\":\"https://example.com\",\"status\":\"success\"}]}," +
+            "{\"type\":\"google_maps_call\",\"id\":\"map\"},{\"type\":\"google_maps_result\",\"call_id\":\"map\",\"result\":[]}," +
+            "{\"type\":\"processing_call\",\"id\":\"p\"},{\"type\":\"processing_result\",\"call_id\":\"p\"}]")
+        val response = interactionsDecode(raw, request)
+        assertEquals(0L, response.clientToolCalls.size)
+        assertEquals("", response.text)
+        assertEquals(9L, response.serverToolActivities.size)
+        assertEquals(ServerToolStatus.Failed, response.serverToolActivities[1L].status)
+        assertEquals(Some(ToolKey("files")), response.serverToolActivities[3L].toolKey)
+        assertEquals(ServerToolKind.WebFetch, response.serverToolActivities[4L].kind)
+        assertEquals(Some("prior"), response.serverToolActivities[4L].id)
+        assertEquals(ServerToolKind.Native, response.serverToolActivities[5L].kind)
+        assertEquals(LlmCompletion.Complete, response.candidate(0L).completion)
+    }
+
+    @Test
+    fun `Interactions MCP selects the server name while image search keeps native ownership`() {
+        val request = LlmRequest([], tools = [interactionsRequest().tools[0L],
+            Server(ToolKey("one"), Native(NativeToolDefinition(interactionsDialect, "mcp_server", Json.parse("{\"name\":\"one\"}")))),
+            Server(ToolKey("two"), Native(NativeToolDefinition(interactionsDialect, "mcp_server", Json.parse("{\"name\":\"two\"}")))),
+            Server(ToolKey("web"), WebSearch())])
+        val raw = interactionsBody("[{\"type\":\"mcp_server_tool_call\",\"id\":\"m\",\"server_name\":\"two\",\"name\":\"lookup\",\"arguments\":{}}," +
+            "{\"type\":\"mcp_server_tool_result\",\"call_id\":\"m\",\"result\":[{\"type\":\"text\",\"text\":\"server result\"}]}," +
+            "{\"type\":\"google_search_call\",\"id\":\"image\",\"search_type\":\"image_search\",\"arguments\":{}}," +
+            "{\"type\":\"google_search_result\",\"call_id\":\"image\",\"result\":[]}," +
+            "{\"type\":\"google_search_result\",\"call_id\":\"previous\",\"result\":[]}]", "requires_action")
+        val response = interactionsDecode(raw, request)
+        assertEquals(0L, response.clientToolCalls.size)
+        assertEquals(LlmFinishReason.Pause, response.candidate(0L).finishReason)
+        assertEquals(Some(ToolKey("two")), response.serverToolActivities[0L].toolKey)
+        assertEquals(Some(ToolKey("two")), response.serverToolActivities[1L].toolKey)
+        for (index in [2L, 3L, 4L]) {
+            assertEquals(ServerToolKind.Native, response.serverToolActivities[index].kind)
+            assertEquals(None, response.serverToolActivities[index].toolKey)
+        }
+        when (response.serverToolActivities[1L].result[0L]) { case Text(text, _) -> assertEquals("server result", text); else -> fail() }
+    }
+
+    @Test
+    fun `Interactions server failures and mismatched result kinds report the offending field`() {
+        for ((entry, path) in [("{\"type\":\"google_search_call\",\"id\":\"s\"}", "arguments"),
+            ("{\"type\":\"mcp_server_tool_call\",\"id\":\"m\",\"name\":\"lookup\",\"arguments\":{}}", "server_name"),
+            ("{\"type\":\"code_execution_result\",\"call_id\":\"c\",\"result\":[]}", "result"),
+            ("{\"type\":\"google_search_result\",\"call_id\":\"c\",\"result\":{}}", "result")])
+            assertInteractionsFailure(interactionsBody("[" + entry + "]"), "/steps/0/" + path)
+        assertInteractionsFailure(interactionsBody("[{\"type\":\"file_search_call\",\"id\":\"f\"}," +
+            "{\"type\":\"google_search_result\",\"call_id\":\"f\",\"result\":[]}]"), "/steps/1/call_id")
+        assertInteractionsFailure(interactionsBody("[{\"type\":\"mcp_server_tool_call\",\"id\":\"m\",\"server_name\":\"one\",\"name\":\"lookup\",\"arguments\":{}}," +
+            "{\"type\":\"mcp_server_tool_result\",\"call_id\":\"m\",\"server_name\":\"two\",\"result\":\"ok\"}]"), "/steps/1/server_name")
+    }
+}

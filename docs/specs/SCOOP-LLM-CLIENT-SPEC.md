@@ -438,3 +438,23 @@ groundingChunks 按到达次序追加，groundingChunkIndices 引用整个候选
 EOF 后停止总截止、记录 completed 并保留最终结果；firstEvent 仍来自实际 SSE 数据，清理及回调后才可读取 result。CONTINUATION 保留原生 token 和 Incomplete／Pause，不自动发起后续请求。EventsOnly 与 Result 使用同样的语义检查，不因保留策略改变工具执行资格或错误结果。
 
 协议依据：[generateContent 流与 grounding](https://ai.google.dev/api/generate-content)、[签名回传边界](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-signatures)、[Google SDK 流式历史](https://github.com/googleapis/js-genai/blob/main/src/chats.ts)、[FunctionCall 的 Gemini／Vertex 差异](https://googleapis.github.io/js-genai/release_docs/interfaces/types.FunctionCall.html)。参考 [Vercel Google SSE](https://github.com/vercel/ai/blob/main/packages/google/src/google-language-model.ts)的 EOF 收尾与 usage 处理，但保留多候选、未知计数和显式继续请求的合同。
+
+## 21. Gemini Interactions 完整响应
+
+InteractionsProtocol 与 InteractionsDialect 分别解释有序 step 协议和服务方用量／错误。GeminiInteractionsDialect 使用 DialectId(ApiProtocolId("interactions"), "gemini-interactions")，与 generateContent 独立。decodeResponse(value, request) 是纯函数；本节先交付完整资源的解码，不提供尚未实现的网络或 SSE 入口。以官方 v1 的公共字段为依据，未知 step、content、annotation 与新增字段保留原文。
+
+完整资源要求非空 id、status、steps，以及可解码为 Instant 的 created／updated；可选 object 出现时必须为 interaction。created 映射 LlmResponse.createdAt，updated 留在 native；这些服务时间不代替客户端发送／接收采样，不检查服务时间的先后关系。model 可缺失，agent 不冒充 model。根部 error 不是成功资源；资源自身 status=failed 则是可观察的模型失败，errors 保留原文。
+
+一个资源映射 index=0 的候选，items 与 steps 顺序一致。model_output 的 content 为 Message，thought 的 summary 为 Reasoning；thought.signature 保留为 Reasoning 中的 Native 元数据，并原样进入历史。user_input 与 function_result 保留 Native，不显示成模型回答。已知文本的 annotations 形成 Citation；未知 content 保留 OutputPart.Native。image／audio／video／document 的 data 使用 Base64 字节和明确 MIME，uri 使用当前 dialect 的 FileReference 并保存完整原生 content；无 MIME、缺少媒体内容或同时给出 data／uri 而不能无歧义投影时保留 Native，不猜格式、不下载资源。
+
+completed 映射 Complete／Stop。requires_action 且存在尚未收到 function_result 的函数调用时映射 Complete／ToolCalls；只有这时、请求中存在唯一同名 ClientFunction 且 arguments 为 object，调用才进入可执行视图。其 reference 使用实际非空 id，并在 context 保存整个 function_call。参数非 object 保存为 Invalid，进行中／失败／截断状态保存为 Incomplete；无法唯一关联的调用保留 Native。已经有结果的调用及 completed 资源中的调用只保留 Native，不能再次执行。没有待回传函数的 requires_action 映射 Incomplete／Pause。failed 映射 Failed；incomplete、cancelled、in_progress 与未知状态映射 Incomplete，并保留具体状态为 Other，不把所有 incomplete 猜成输出上限。一次资源内已知调用的 ID 不得重复；客户端结果只与 function_call 关联，不能消费同 ID 的服务端调用。
+
+google_search、url_context、file_search、code_execution、google_maps、mcp_server_tool、processing 的 call／result step 映射 ServerToolActivity，保持服务端执行方。call 为 InProgress，result 为 Completed 或显式 is_error=true 时的 Failed；id／call_id 保存真实关联。Google Search 的 image_search 使用 Native 种类，不能当作普通网页搜索；缺少本次 call 的搜索 result 也不猜搜索种类。MCP 以 server_name 匹配本请求的 Server.Native(mcp_server) 配置，不能因工具 name 相同就关联到 ClientFunction。能唯一定位时填 toolKey，否则保持 None；结果可以引用以前资源中的调用，不要求本资源重新包含 call。已在本资源出现的调用与结果种类必须一致，显式提供的工具／MCP 服务名称也不能相互冲突。服务端搜索的 HTML 建议与签名留在 native，不把它们拼进普通文本或解析成虚构来源。
+
+url_citation／place_citation 的可用 URL 映射来源地址；file_citation 的 document_uri 映射当前 dialect 的文件引用，其他来源信息留在 native。已知引用的 start_index／end_index 表示 UTF-8 字节半开区间；省略 start 时按协议零值处理，仅有 start 而无 end 时不猜结束值。已报告范围必须非负、有序且不超出所属文本的字节长度。未知 annotation 不猜范围单位，保留 Native 来源。
+
+usage.total_input_tokens 直接映射 inputTokens；total_output_tokens 与 total_thought_tokens 均已知时相加为包含 reasoning 的 outputTokens，后者同时是 reasoningTokens。total_tokens 保留报告值，不用它反推缺失明细；total_cached_tokens 为 cacheReadTokens，input 与 cacheRead 均已知时可相减得到 nonCachedInputTokens。total_tool_use_tokens 及其模态明细留在 native，不推断它们与输入总数互斥，不重复相加；缓存写入保持未知。输入／输出模态只映射有明确 modality 和 tokens 的条目，缺失条目字段不补零；缓存和工具细项不重复计入公共模态。已报告计数使用非负 Long，和的溢出及缓存超过输入均报字段路径错误。
+
+completed、requires_action、failed、cancelled、incomplete 的 usage 为 Final；in_progress 与未知状态为 Partial。上述已知停止状态的 history.items 按顺序保存原始 steps（包括签名和未知字段），不把完整资源或 previous_interaction_id 当作历史项；进行中或未知状态不提供可追加历史。序列化往返不联网、不执行工具、不发起后续 interaction。请求构造、显式服务状态继续和 SSE 另行定义。
+
+协议依据：[Interactions v1 参考](https://ai.google.dev/api/interactions-api-v1)、[官方 OpenAPI](https://ai.google.dev/static/api/interactions-v1.openapi.json)、[Interactions 状态与历史](https://ai.google.dev/gemini-api/docs/interactions-overview?hl=en)、[token 用量](https://ai.google.dev/gemini-api/docs/tokens)。

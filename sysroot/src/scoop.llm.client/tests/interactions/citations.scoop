@@ -1,0 +1,47 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsCitationsTest {
+    @Test
+    fun `Interactions citation kinds retain their sources and only known byte ranges become public ranges`() {
+        val annotations = "[{\"type\":\"url_citation\",\"url\":\"https://example.com\",\"end_index\":3}," +
+            "{\"type\":\"file_citation\",\"document_uri\":\"files/paper\",\"file_name\":\"paper.pdf\",\"page_number\":2,\"start_index\":3,\"end_index\":8}," +
+            "{\"type\":\"place_citation\",\"place_id\":\"places/x\",\"name\":\"Place\",\"url\":\"https://example.com/place\",\"start_index\":8}," +
+            "{\"type\":\"file_citation\",\"source\":\"opaque\"}," +
+            "{\"type\":\"future_annotation\",\"start_index\":100,\"end_index\":200}]"
+        val response = interactionsDecode(interactionsBody("[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"中😀a\",\"annotations\":" + annotations + "}]}]"))
+        when (response.candidate(0L).items[0L]) { case Message(parts, _) -> when (parts[0L]) {
+            case Text(_, values) -> {
+                assertEquals(5L, values.size)
+                assertEquals(0L, values[0L].range!!.start)
+                assertEquals(3L, values[0L].range!!.end)
+                when (values[1L].source.location) {
+                    case File(file) -> { assertEquals(interactionsDialect, file.dialect); assertEquals("files/paper", file.value["document_uri"]!!.asString()) }
+                    else -> fail()
+                }
+                assertEquals(Some("paper.pdf"), values[1L].source.title)
+                assertEquals(Some("Place"), values[2L].source.title)
+                assertTrue(!presentInteractionsRange(values[2L]))
+                assertTrue(!presentInteractionsRange(values[4L]))
+                when (values[3L].source.location) { case Native(owner, _) -> assertEquals(interactionsDialect, owner); else -> fail() }
+            }; else -> fail()
+        }; else -> fail() }
+    }
+
+    @Test
+    fun `Interactions citation bounds use UTF8 bytes and reject invalid or inverted reported ranges`() {
+        for ((fields, path) in [("\"start_index\":-1,\"end_index\":2", "start_index"),
+            ("\"start_index\":9", "start_index"), ("\"start_index\":7,\"end_index\":3", "end_index"),
+            ("\"end_index\":9", "end_index"), ("\"url\":\"\"", "url")]) {
+            val annotation = "{\"type\":\"url_citation\"," + fields + "}"
+            assertInteractionsFailure(interactionsBody("[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"中😀a\",\"annotations\":[" + annotation + "]}]}]"),
+                "/steps/0/content/0/annotations/0/" + path)
+        }
+    }
+}
+
+private fun presentInteractionsRange(value: Citation): Boolean = when (value.range) { case Some(_) -> true; case None -> false }

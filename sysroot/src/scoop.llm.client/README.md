@@ -16,6 +16,8 @@ generateContent 引用使用 UTF-8 字节范围；usage 分开统计工具输入
 
 Gemini SSE 使用 :streamGenerateContent?alt=sse，正文沿用普通请求。finishReason 完成一个候选，EOF 才冻结整次调用的 usage；缺失停止原因的截断流仍失败。空文本签名、原始 Content 历史、累计 grounding 来源和尾部引用均保留，EventsOnly 不累计普通文本。函数调用等停止原因明确后才确定执行资格；Vertex 的 partialArgs 扩展保留 Native，不当作完整的 Gemini 函数调用。
 
+`InteractionsProtocol(GeminiInteractionsDialect()).decodeResponse(json, request)` 提供 Interactions 完整资源的纯解码。独立的 step 格式保留 thought.signature、媒体、服务端工具、UTF-8 引用及原始 steps 历史；只有 requires_action 中未收到结果的完整函数调用进入待执行视图。进行中资源不提供可追加历史，服务时间不代替实际调用计时。缺失 token 保持未知，工具提示细项不重复加入输入总量；Interactions 请求与 SSE 仍在实施。
+
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 
 ```scoop

@@ -1,0 +1,72 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readInteractionsUsage(value: JsonValue): TokenUsage {
+    val fields = decodeInteractionsValue<InteractionsUsageFields>(value, "/usage")
+    val input = interactionsCount(fields.input, "total_input_tokens")
+    val output = interactionsCount(fields.output, "total_output_tokens")
+    val thought = interactionsCount(fields.thought, "total_thought_tokens")
+    val cached = interactionsCount(fields.cached, "total_cached_tokens")
+    val total = interactionsCount(fields.total, "total_tokens")
+    interactionsCount(fields.tool, "total_tool_use_tokens")
+    var generated: Long? = None
+    if (output != None && thought != None) {
+        if (output!! > Long.MAX_VALUE - thought!!) throw DecodingException("/usage/total_thought_tokens", "output token sum exceeds Long")
+        generated = Some(output!! + thought!!)
+    }
+    var ordinary: Long? = None
+    if (input != None && cached != None) {
+        if (cached!! > input!!) throw DecodingException("/usage/total_cached_tokens", "cached tokens exceed input tokens")
+        ordinary = Some(input!! - cached!!)
+    }
+    val modality = ArrayList<ModalityTokenUsage>()
+    readInteractionsModality(fields.inputModality, "input_tokens_by_modality", Input, modality, true)
+    readInteractionsModality(fields.outputModality, "output_tokens_by_modality", Output, modality, true)
+    readInteractionsModality(fields.cachedModality, "cached_tokens_by_modality", Input, modality, false)
+    readInteractionsModality(fields.toolModality, "tool_use_tokens_by_modality", Input, modality, false)
+    return TokenUsage(input, ordinary, generated, total, cached, reasoningTokens = thought, modality = modality.toArray())
+}
+
+private fun interactionsCount(value: Long?, path: String): Long? {
+    if (value != None && value!! < 0L) throw DecodingException("/usage/" + path, "token count must not be negative")
+    return value
+}
+
+private fun readInteractionsModality(values: Array<InteractionsModalityFields>?, path: String, direction: TokenDirection,
+    output: ArrayList<ModalityTokenUsage>, include: Boolean) {
+    var index = 0L
+    for (value in values ?: []) {
+        val count = interactionsCount(value.tokens, path + "/" + index.toString() + "/tokens")
+        if (include && value.modality != None && count != None) {
+            val modality: TokenModality = when (value.modality!!) {
+                case "text" -> Text
+                case "image" -> Image
+                case "audio" -> Audio
+                case "video" -> Video
+                case "document" -> Document
+                else -> Other(value.modality!!)
+            }
+            output.add(ModalityTokenUsage(direction, modality, count!!))
+        }
+        index += 1L
+    }
+}
+
+private class InteractionsModalityFields public constructor(public val modality: String? = None, public val tokens: Long? = None) {
+    public companion object : ValueDecoder<InteractionsModalityFields>
+}
+
+private class InteractionsUsageFields public constructor(
+    @Serialize(rename = "total_input_tokens") public val input: Long? = None,
+    @Serialize(rename = "total_output_tokens") public val output: Long? = None,
+    @Serialize(rename = "total_thought_tokens") public val thought: Long? = None,
+    @Serialize(rename = "total_cached_tokens") public val cached: Long? = None,
+    @Serialize(rename = "total_tool_use_tokens") public val tool: Long? = None,
+    @Serialize(rename = "total_tokens") public val total: Long? = None,
+    @Serialize(rename = "input_tokens_by_modality") public val inputModality: Array<InteractionsModalityFields>? = None,
+    @Serialize(rename = "output_tokens_by_modality") public val outputModality: Array<InteractionsModalityFields>? = None,
+    @Serialize(rename = "cached_tokens_by_modality") public val cachedModality: Array<InteractionsModalityFields>? = None,
+    @Serialize(rename = "tool_use_tokens_by_modality") public val toolModality: Array<InteractionsModalityFields>? = None) {
+    public companion object : ValueDecoder<InteractionsUsageFields>
+}

@@ -1,0 +1,52 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+/** Complete Interactions resources decoded without network or continuation side effects. */
+public class InteractionsProtocol public constructor(public val dialect: InteractionsDialect) {
+    public val dialectId: DialectId get() = dialect.id
+    init {
+        if (dialect.id.protocol != ApiProtocolId("interactions"))
+            throw IllegalArgumentException(Some("Interactions dialect belongs to another API protocol"))
+    }
+
+    public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+        try {
+            if (value.kind == JsonValueKind.Object && llmPresent(value["error"]) && value["error"]!!.kind != JsonValueKind.Null)
+                throw DecodingException("/error", "Interactions returned an error response")
+            val body = decodeInteractionsValue<InteractionsBody>(value, "")
+            interactionsNonempty(Some(body.id), "/id")
+            interactionsNonempty(Some(body.status), "/status")
+            if (body.objectType != None && body.objectType != Some("interaction"))
+                throw DecodingException("/object", "expected an interaction resource")
+            val entries = readInteractionsSteps(body.steps)
+            var pending = false
+            for (entry in entries) if (entry.type == "function_call" && !interactionsHasResult(entries, entry.call!!.id)) pending = true
+            val (completion, reason) = interactionsCompletion(body.status, pending)
+            val output = ArrayList<LlmOutputItem>()
+            for (entry in entries) output.add(readInteractionsStep(dialect.id, entry, entries, request.tools, body.status))
+            val terminal = interactionsTerminal(body.status)
+            val history = if (terminal) Some(LlmHistory(dialect.id, body.steps)) else None
+            val candidate = LlmCandidate(0L, output.toArray(), completion, reason, history)
+            val state: UsageCompleteness = if (terminal) Final else Partial
+            val usage = when (body.usage) {
+                case Some(raw) -> LlmUsage(dialect.readUsage(raw), state, Some(raw))
+                case None -> LlmUsage(completeness = state)
+            }
+            return LlmResponse(dialect.id, [candidate], Some(body.id), body.model, Some(body.created), usage, Some(value))
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Interactions response", value)
+        }
+    }
+}
+
+internal fun interactionsTerminal(status: String): Boolean = status == "completed" || status == "requires_action" ||
+    status == "failed" || status == "cancelled" || status == "incomplete"
+
+private fun interactionsCompletion(status: String, pending: Boolean): (LlmCompletion, LlmFinishReason) = when (status) {
+    case "completed" -> (LlmCompletion.Complete, LlmFinishReason.Stop)
+    case "requires_action" -> if (pending) (LlmCompletion.Complete, LlmFinishReason.ToolCalls)
+        else (LlmCompletion.Incomplete, LlmFinishReason.Pause)
+    case "failed" -> (LlmCompletion.Failed, LlmFinishReason.Other(status))
+    else -> (LlmCompletion.Incomplete, LlmFinishReason.Other(status))
+}

@@ -1,0 +1,93 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.endsWith
+
+internal class InteractionsStep public constructor(public val raw: JsonValue, public val type: String, public val path: String,
+    public val toolType: String? = None, public val call: InteractionsCallFields? = None,
+    public val result: InteractionsResultFields? = None)
+
+internal fun readInteractionsSteps(values: Array<JsonValue>): Array<InteractionsStep> {
+    val entries = ArrayList<InteractionsStep>()
+    var index = 0L
+    for (raw in values) {
+        val path = "/steps/" + index.toString()
+        val type = decodeInteractionsValue<InteractionsType>(raw, path).type
+        val toolType = if (type == "function_call" || type == "function_result") Some("function") else interactionsServerType(type)
+        var call: InteractionsCallFields? = None
+        var result: InteractionsResultFields? = None
+        if (toolType != None) {
+            if (type.endsWith("_call")) {
+                val fields = decodeInteractionsValue<InteractionsCallFields>(raw, path)
+                interactionsNonempty(Some(fields.id), path + "/id")
+                for (previous in entries) if (llmPresent(previous.call) && previous.call!!.id == fields.id)
+                    throw DecodingException(path + "/id", "duplicate Interactions tool call ID")
+                call = Some(fields)
+            } else {
+                val fields = decodeInteractionsValue<InteractionsResultFields>(raw, path)
+                interactionsNonempty(Some(fields.callId), path + "/call_id")
+                result = Some(fields)
+            }
+        }
+        entries.add(InteractionsStep(raw, type, path, toolType, call, result))
+        index += 1L
+    }
+    val all = entries.toArray()
+    for (entry in all) {
+        if (!llmPresent(entry.result)) continue
+        val call = interactionsFindCall(all, entry.result!!.callId)
+        if (llmPresent(call) && call!!.toolType != entry.toolType)
+            throw DecodingException(entry.path + "/call_id", "tool result refers to a different kind of call")
+        if (llmPresent(call)) {
+            val original = call!!.call!!
+            val result = entry.result!!
+            if (result.name != None && original.name != None && result.name != original.name)
+                throw DecodingException(entry.path + "/name", "tool result name differs from its call")
+            if (result.serverName != None && original.serverName != None && result.serverName != original.serverName)
+                throw DecodingException(entry.path + "/server_name", "MCP result server differs from its call")
+        }
+    }
+    return all
+}
+
+internal fun interactionsFindCall(entries: Array<InteractionsStep>, id: String): InteractionsStep? {
+    for (entry in entries) if (llmPresent(entry.call) && entry.call!!.id == id) return Some(entry)
+    return None
+}
+
+internal fun interactionsHasResult(entries: Array<InteractionsStep>, id: String): Boolean {
+    for (entry in entries) if (entry.type == "function_result" && entry.result!!.callId == id) return true
+    return false
+}
+
+internal fun readInteractionsStep(dialect: DialectId, entry: InteractionsStep, entries: Array<InteractionsStep>,
+    tools: Array<ToolDefinition>, status: String): LlmOutputItem = when (entry.type) {
+    case "model_output" -> LlmOutputItem.Message(readInteractionsMessage(dialect, entry.raw, entry.path))
+    case "thought" -> LlmOutputItem.Reasoning(readInteractionsThought(dialect, entry.raw, entry.path))
+    case "function_call" -> readInteractionsClientCall(dialect, entry, tools, status,
+        interactionsHasResult(entries, entry.call!!.id))
+    case "function_result" -> {
+        readInteractionsFunctionResult(entry)
+        LlmOutputItem.Native(dialect, entry.raw)
+    }
+    else -> if (entry.toolType != None) readInteractionsServerStep(dialect, entry, entries, tools)
+        else LlmOutputItem.Native(dialect, entry.raw)
+}
+
+internal fun interactionsServerType(type: String): String? = when (type) {
+    case "google_search_call" -> Some("google_search")
+    case "google_search_result" -> Some("google_search")
+    case "url_context_call" -> Some("url_context")
+    case "url_context_result" -> Some("url_context")
+    case "file_search_call" -> Some("file_search")
+    case "file_search_result" -> Some("file_search")
+    case "code_execution_call" -> Some("code_execution")
+    case "code_execution_result" -> Some("code_execution")
+    case "google_maps_call" -> Some("google_maps")
+    case "google_maps_result" -> Some("google_maps")
+    case "mcp_server_tool_call" -> Some("mcp_server")
+    case "mcp_server_tool_result" -> Some("mcp_server")
+    case "processing_call" -> Some("processing")
+    case "processing_result" -> Some("processing")
+    else -> None
+}
