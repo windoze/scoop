@@ -19,7 +19,7 @@ pub(super) fn optimize(
         let Some(mut region) = region::analyze(latch) else {
             continue;
         };
-        card_regions::prepare(&mut region)?;
+        card_regions::prepare(&mut region, machine)?;
         if !operations::prepare(&region) {
             continue;
         }

@@ -2,6 +2,9 @@ use super::*;
 use inkwell::AtomicOrdering;
 use inkwell::values::InstructionOpcode;
 
+#[path = "card_regions/stack_reads.rs"]
+mod stack_reads;
+
 fn query() -> String {
     let mut text = String::from(
         "  %array = load ptr addrspace(1), ptr %slot, align 8\n\
@@ -72,6 +75,11 @@ fn assert_queries(function: inkwell::values::FunctionValue<'_>, outside: bool) {
             if instruction.get_opcode() == InstructionOpcode::Load
                 && instruction.get_atomic_ordering() == Ok(AtomicOrdering::Acquire)
                 && instruction.get_type().is_pointer_type()
+                && instruction
+                    .get_type()
+                    .into_pointer_type()
+                    .get_address_space()
+                    == inkwell::AddressSpace::default()
             {
                 loads += 1;
                 let name = block.get_name().to_str().unwrap();
@@ -101,47 +109,53 @@ fn page_queries_move_to_the_taken_entry_edge_and_keep_moving_roots() {
         scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1,
         scoop_target_data::LINUX_X86_64_MUSL_LLVM_22_1,
     ] {
-        let profile = ValidatedBackendProfile::for_selection(selection)
-            .unwrap()
-            .with_optimization(OptimizationMode::Release);
-        let machine = profile.create_target_machine().unwrap();
-        let context = Context::create();
-        let llvm = parse(&context, &source());
-        llvm.set_triple(&machine.get_triple());
-        llvm.set_data_layout(&machine.get_target_data().get_data_layout());
-        let mut expected = manifest(Some((7, one_root())));
-        expected.sites.insert(
-            8,
-            ExpectedSite {
-                function: "f".into(),
-                block: "outer".into(),
-                statepoint: one_root(),
-            },
-        );
-        let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
-        assert_eq!(plan.site_count(), 2);
-        assert_eq!(plan.root_count(7), Some(1));
-        assert_eq!(plan.root_count(8), Some(1));
-        llvm.run_passes(
-            "function(verify<safepoint-ir>),verify",
-            &machine,
-            PassBuilderOptions::create(),
-        )
-        .unwrap();
-        assert_queries(llvm.get_function("f").unwrap(), true);
-        let ir = llvm.print_to_string().to_string();
-        assert_eq!(
-            ir.matches("store volatile ptr addrspace(1)").count(),
-            2,
-            "{ir}"
-        );
-        assert!(!ir.contains("llvm.loop.vectorize.enable"), "{ir}");
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("cards.o");
-        machine
-            .write_to_file(&llvm, FileType::Object, &path)
+        for (source, reloads) in [(source(), 0), (stack_reads::source(), 2)] {
+            let profile = ValidatedBackendProfile::for_selection(selection)
+                .unwrap()
+                .with_optimization(OptimizationMode::Release);
+            let machine = profile.create_target_machine().unwrap();
+            let context = Context::create();
+            let llvm = parse(&context, &source);
+            llvm.set_triple(&machine.get_triple());
+            llvm.set_data_layout(&machine.get_target_data().get_data_layout());
+            let mut expected = manifest(Some((7, one_root())));
+            expected.sites.insert(
+                8,
+                ExpectedSite {
+                    function: "f".into(),
+                    block: "outer".into(),
+                    statepoint: one_root(),
+                },
+            );
+            let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
+            assert_eq!(plan.site_count(), 2);
+            assert_eq!(plan.root_count(7), Some(1));
+            assert_eq!(plan.root_count(8), Some(1));
+            llvm.run_passes(
+                "function(verify<safepoint-ir>),verify",
+                &machine,
+                PassBuilderOptions::create(),
+            )
             .unwrap();
-        assert_machine_site_count(&path, 2);
+            assert_queries(
+                llvm.get_function("f").unwrap(),
+                reloads == 0 || selection == scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
+            );
+            stack_reads::assert_retained(llvm.get_function("f").unwrap(), reloads);
+            let ir = llvm.print_to_string().to_string();
+            assert_eq!(
+                ir.matches("store volatile ptr addrspace(1)").count(),
+                2,
+                "{ir}"
+            );
+            assert!(!ir.contains("llvm.loop.vectorize.enable"), "{ir}");
+            let directory = tempfile::tempdir().unwrap();
+            let path = directory.path().join("cards.o");
+            machine
+                .write_to_file(&llvm, FileType::Object, &path)
+                .unwrap();
+            assert_machine_site_count(&path, 2);
+        }
     }
 }
 

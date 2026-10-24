@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use inkwell::llvm_sys::core::{LLVMGetNumSuccessors, LLVMGetSuccessor, LLVMSetSuccessor};
+use inkwell::targets::TargetMachine;
 use inkwell::values::PhiValue;
 
 use super::{operations, region::Region};
@@ -11,13 +12,20 @@ use crate::statepoint::{
 };
 
 mod query;
+mod stack_reads;
 
-pub(super) fn prepare(region: &mut Region<'_>) -> Result<(), CodegenError> {
+pub(super) fn prepare(
+    region: &mut Region<'_>,
+    machine: &TargetMachine,
+) -> Result<(), CodegenError> {
+    // Only AArch64 showed a stable gain from moving queries past stack reloads.
+    // Ordinary reference loops keep the existing target-independent selection.
+    let retain_stack_reloads = machine.get_target().get_name() == c"aarch64";
     if !region
         .blocks
         .iter()
         .flat_map(|b| b.get_instructions())
-        .all(supported)
+        .all(|instruction| supported(instruction, retain_stack_reloads))
     {
         return Ok(());
     }
@@ -46,10 +54,12 @@ pub(super) fn prepare(region: &mut Region<'_>) -> Result<(), CodegenError> {
     Ok(())
 }
 
-fn supported(instruction: InstructionValue<'_>) -> bool {
+fn supported(instruction: InstructionValue<'_>, retain_stack_reloads: bool) -> bool {
     match instruction.get_opcode() {
         InstructionOpcode::Load => {
-            operations::ordinary(instruction) || query::page_load(instruction)
+            operations::ordinary(instruction)
+                || query::page_load(instruction)
+                || (retain_stack_reloads && stack_reads::retained_load(instruction))
         }
         InstructionOpcode::Store => {
             operations::ordinary(instruction) || query::card_store(instruction)

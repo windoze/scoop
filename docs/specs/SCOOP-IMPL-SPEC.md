@@ -1328,7 +1328,9 @@ Managed release 标量优化后，仅对实际 LLVM CFG 为单入口、单 latch
 
 上述内层选择前可以把其普通 AS1 基址加载移到唯一外来前驱的终结指令之前：来源必须是函数入口的不逃逸 alloca，所有使用均为直接 load／store，内层不写该槽，也不存在取地址、atomic／volatile 加载或其他不合格操作。该位置位于进入内层之前的 poll／恢复之后；只移动普通加载，不移动 volatile 根恢复、逻辑根标记、site 或数组元素访问。提升后的 SSA 基址只供无 safepoint 的内层使用，返回外层后仍沿原 roots 重取，不把根槽操作交给向量化。
 
-同一实际有界区域分析也服务引用写入的 mapping 查询提升。只有去除回边后无环、无其他退出且每条路径到达唯一 latch 的 1～64 次内层可以参与；区域不得含调用、volatile、用户原子操作、同步或未知 effect。按 runtime PageMap 的实际数据引用与四级加载链识别查询，不按块／临时值名称或额外证明标记识别。查询及所需的 immutable region prefix 加载必须支配 latch，地址计算仅依赖循环外值或上述稳定根槽的普通加载。只提升这些加载及其必要的纯地址运算，不提升元素访存、card store、用户状态或其他 mutable metadata。
+同一实际有界区域分析也服务引用写入的 mapping 查询提升。只有去除回边后无环、无其他退出且每条路径到达唯一 latch 的 1～64 次内层可以参与；区域不得含调用、用户原子操作、同步或未知 effect。volatile 访存仅允许保留在原位置的非原子 AS1 引用重读，且地址必须来自当前函数入口的 alloca，可经常量 GEP、仅在这些栈地址间选择的 select／phi；参数、堆、全局或不明确的地址以及 volatile store 仍排除。这些栈重读维持次数和彼此顺序，不代表 safepoint 或同步，不能作为待提升查询的输入。按 runtime PageMap 的实际数据引用与四级加载链识别查询，不按块／临时值名称或额外证明标记识别。查询及所需的 immutable region prefix 加载必须支配 latch，地址计算仅依赖循环外值或上述稳定根槽的普通加载。只提升这些加载及其必要的纯地址运算，不提升元素访存、card store、用户状态或其他 mutable metadata。
+
+保留栈 volatile 重读的查询提升扩展只在 AArch64 release 默认启用；x86_64 的该类负载尚未取得稳定收益，继续排除含 volatile 的区域。普通引用循环沿用原有查询提升条件，该目标选择不改变布局、调用约定或 GC 语义。
 
 提升发生在唯一外来边上；外来前驱还有其他后继时创建专用 preheader 并更新 header phi，避免在未进入内层的路径查询 mapping。该变换复用既有有界区域与根槽分析，保留原 poll／恢复与 roots，metadata 不跨下一次 safepoint。引用循环仍不取得标量 SIMD 资格；不新增 LIR／`.slib` 字段、runtime ABI、堆布局或跨阶段重复的循环证明。
 

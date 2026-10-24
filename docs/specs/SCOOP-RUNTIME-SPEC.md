@@ -467,6 +467,8 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 
 数组元素写入可以从数组对象基址查询所属 mapping，再按实际元素引用槽计算 card。在实现规范 2.19 的常数有界、无 safepoint 内层中，若目标引用不变，且该查询在每轮所有路径上必经，可以把 acquire 页表与 immutable base／cards 加载移至进入内层的边上。进入边位于外层 poll／引用恢复之后；零次循环、未选择的分支和异常回退不执行新增查询。保留每次实际写入后的 card store；不得将 metadata 带过下一个 poll，或把有调用、同步、条件执行的查询或变化目标纳入该复用。
 
+用于接口重建的栈槽 volatile 引用重读不触发 GC 或线程同步；按实现规范 2.19 确认其地址仅来自当前函数入口的栈存储后，AArch64 release 可以在保留这些重读的情况下提升独立的 mapping 查询；x86_64 保留原区域选择规则。重读的次数、位置、相互顺序及移动 GC 后的 object／itab 重建保持，查询不能依赖被重读的值；该规则不允许提升 volatile 操作或跨过用户原子、同步、调用与不明地址的 volatile 访存。
+
 该要求适用于字段、数组、含引用 aggregate copy、构造、clone、Context 和 Scoop ABI native 写入。发生过可能 GC 的操作后，不能仅凭“刚分配”省略屏障；native root 或 pin 不替代 old→young 引用记录。
 
 runtime 内的装箱与数组克隆使用包含实际 memcpy 和必要范围屏障的完整复制操作。该操作保持静态内联，不为 GC-free 复制增加外部调用，也不在复制和屏障之间引入 safepoint；native 调用者继续遵守上述公开写屏障合同。

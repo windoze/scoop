@@ -143,9 +143,15 @@ fn integer(instruction: InstructionValue<'_>, index: u32) -> Option<IntValue<'_>
 }
 
 fn decrement(instruction: InstructionValue<'_>) -> Option<IntValue<'_>> {
+    let opcode = instruction.get_opcode();
+    // Other integer-producing instructions can have non-basic operands,
+    // including the statepoint token consumed by gc.result.
+    if !matches!(opcode, InstructionOpcode::Sub | InstructionOpcode::Add) {
+        return None;
+    }
     let lhs = integer(instruction, 0)?;
     let rhs = integer(instruction, 1)?;
-    match instruction.get_opcode() {
+    match opcode {
         InstructionOpcode::Sub if rhs.get_zero_extended_constant() == Some(1) => Some(lhs),
         InstructionOpcode::Add if rhs.get_sign_extended_constant() == Some(-1) => Some(lhs),
         _ => None,

@@ -222,3 +222,39 @@ fn variable_count_and_unsafe_memory_effects_do_not_enable_managed_vectorization(
         );
     }
 }
+
+#[test]
+fn call_results_with_token_operands_are_not_countdown_updates() {
+    let source = r#"
+declare i32 @next_count()
+declare token @llvm.experimental.gc.statepoint.p0(i64 immarg, i32 immarg, ptr, i32 immarg, i32 immarg, ...)
+declare i32 @llvm.experimental.gc.result.i32(token)
+define i32 @f() gc "statepoint-example" {
+entry:
+  br label %loop
+loop:
+  %count = phi i32 [64, %entry], [%value, %loop]
+  %token = call token (i64, i32, ptr, i32, i32, ...) @llvm.experimental.gc.statepoint.p0(i64 7, i32 0, ptr elementtype(i32 ()) @next_count, i32 0, i32 0, i32 0, i32 0)
+  %value = call i32 @llvm.experimental.gc.result.i32(token %token)
+  %again = icmp ne i32 %value, 0
+  br i1 %again, label %loop, label %exit
+exit:
+  ret i32 %value
+}
+"#;
+    for source in [
+        source.to_owned(),
+        source.replace("icmp ne i32 %value, 0", "icmp ne i32 %count, 1"),
+    ] {
+        let context = Context::create();
+        let llvm = parse(&context, &source);
+        llvm.verify().unwrap();
+        let before = llvm.print_to_string().to_string();
+        let machine = ValidatedBackendProfile::darwin_aarch64_for_test()
+            .create_target_machine()
+            .unwrap();
+        crate::statepoint::bounded_loops::optimize(llvm.get_function("f").unwrap(), &machine)
+            .unwrap();
+        assert_eq!(before, llvm.print_to_string().to_string());
+    }
+}

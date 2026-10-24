@@ -310,11 +310,11 @@ TLAB 已存在，但成功 bump 后仍有清零、对象头、精确大小、sta
 
 ### 8.2 写屏障、remembered set 与页映射
 
-当前屏障使用四级 page map 的 acquire 查询和 card 标记，M56 已有单 block 内的有限复用。后续已交付[幂等原子写入](CARD-STORES.md)：利用二值卡状态与 STW 清零，将单槽及 runtime 范围标记的 atomic OR 1 改为 relaxed store 1。三目标引用写入获益，GNU／musl 长复制与清零降低约 70%～82%。其后[有界引用循环查询提升](CARD-REGIONS.md)将必经、目标不变的查询移到完整块进入边，普通引用复制再降低约 45%～80%；含 volatile 接口视图等未命中路径仍查询。两项均保持 LIR、roots 与脏卡计数，编译、空间成本和对照回退单独记录。进一步方向是：
+当前屏障使用四级 page map 的 acquire 查询和 card 标记，M56 已有单 block 内的有限复用。后续已交付[幂等原子写入](CARD-STORES.md)：利用二值卡状态与 STW 清零，将单槽及 runtime 范围标记的 atomic OR 1 改为 relaxed store 1。三目标引用写入获益，GNU／musl 长复制与清零降低约 70%～82%。其后[有界引用循环查询提升](CARD-REGIONS.md)将必经、目标不变的查询移到完整块进入边，普通引用复制再降低约 45%～80%；[接口栈重取扩展](INTERFACE-CARD-REGIONS.md)在保留 volatile object 重读的条件下，让 ARM64 接口复制／父投影再降低约 44%。x86 扩展试验未稳定获益，保留原区域选择。已交付能力保持 LIR、roots 与脏卡计数，编译、空间成本和对照回退单独记录。进一步方向是：
 
 1. 证明目标处于本次无 safepoint 初始化区间、确属 young 且未发布时，消除不需要的代际屏障；release／large 等预晋升对象单独处理。
 2. 合并同 card 的写入、循环批量写入与范围屏障；遇到可能抛出或发布的边界，必须已登记此前写入。
-3. 扩展已交付的有界 metadata 查询提升，继续处理接口视图的 volatile 重取与其他真实未命中路径；之后才评估对齐 region、分层索引、已分配地址区间等更便宜的地址到 card 映射。改变堆放置有碎片和地址空间成本。
+3. 扩展已交付的有界 metadata 查询提升，继续测量条件执行、多引用范围屏障及 x86 接口写入等未获稳定收益的路径；之后才评估对齐 region、分层索引、已分配地址区间等更便宜的地址到 card 映射。改变堆放置有碎片和地址空间成本。
 4. 按真实 young／dirty 集合或 bitmap 摘要缩小 minor 扫描范围，避免年轻工作量固定时暂停仍随稳定旧堆容量增长。
 
 以后并发标记的 SATB／增量更新屏障与 old-to-young barrier 是不同职责，消除规则必须分别成立。JDK 26 的双 card table 是减少并发争用的参考，不应在 Scoop 尚无对应并发消费者时照搬一套双表。[O8]

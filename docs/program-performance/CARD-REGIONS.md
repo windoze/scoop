@@ -2,6 +2,8 @@
 
 本项接续[卡表幂等原子写入](CARD-STORES.md)，以 `6f5637f26` 为基线。单引用数组写入从数组对象基址定位 mapping；release 在合格的有界内层中，将四级页表及 immutable base／cards 查询移到进入边。每次实际写入后的 card store 仍保留。
 
+下文保留首批实现与测量。后续[接口栈重取扩展](INTERFACE-CARD-REGIONS.md)已在 ARM64 release 允许保留栈 volatile 重读并提升独立查询，覆盖此前未命中的接口复制、投影与初始化；x86 试验未获稳定收益，保留本篇的区域选择规则。
+
 ## 依据与实现
 
 一个数组对象的全部存储属于同一个 region 或 large mapping，即使元素跨越 64 KiB，也不需要逐个元素重新确定 mapping。ArraySet 的单引用槽屏障因此用已有数组基址查询，再按实际被写引用槽的地址计算 card；多引用元素继续使用原范围屏障。数组大小、元素表示与 runtime ABI 不变，所有 profile 采用同一基址规则。
