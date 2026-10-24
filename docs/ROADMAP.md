@@ -758,6 +758,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。PGO 为后续独立专项，在代表负载、成熟消费者和反馈原型净收益成立后排期；测量与全程序优化／ThinLTO 均不以 PGO 为前置。
 - 优化按长期、分批试验和交付推进：成本低且收益比较稳定的方案可直接纳入 release 默认设置；成本过高或收益不稳定的方案通过独立开关或等级决定是否启用、启用哪一级。默认值随实测结果调整，保留默认与调优配置的对照。
 - [实施记录](program-performance/PROGRESS.md)记录各项交付、必要验证和后续工作；已交付预构建程序的可复现 A/B 测量、[完整父接口表投影与视图复用](program-performance/INTERFACE-PROJECTION.md)、[接口检查与取表合并](program-performance/INTERFACE-CHECKS.md)、[普通 class／局部游标字段替换](program-performance/CLASS-SCALARS.md)，以及[字段替换指导内联](program-performance/ITERATOR-INLINING.md)和[按需 MIR 优化决策报告](program-performance/OPTIMIZATION-REPORT.md)。真实 ArrayList 反复遍历的 iterator 分配已消除；Darwin／Linux GNU／musl 的定向正确性、生成代码及性能对照完成，未命中边界、实测对照回退、编译与空间成本一并保留。后续按改动选择必要验证组，继续完善归因并改进已定位的静态优化热点。
+- 已交付[有界整数／Boolean 数组初始化](program-performance/ARRAY-INITIALIZATION.md)：在既有 poll 分块中支持直线 CFG 与标量数组操作，保持 GC／ABI 合同，交由 LLVM 优化无 safepoint 的内层。三目标的大数组收益、动态短数组回退和编译／空间增量已测量；一般 BCE 与更广的数组内核仍待后续。
 - 延续桌面短暂停与内存目标，按吞吐、应用尾延迟、RSS 和启动分别验收；调研不表示优化已实现或已完成跨语言性能比较。具体实施前先修订实际受影响的规范，不预先占用新的里程碑编号。
 
 ### 可恢复语法与 LSP（公共基础 A～E 已完成，扩展能力待排期）

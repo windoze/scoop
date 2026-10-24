@@ -34,7 +34,7 @@
 | 语言表示 | struct／enum／tuple 按值，泛型单态化，引用／指针 Option niche，值元素数组连续存储 | 对象头 16 bytes；interface 16 bytes；含引用 enum 变体使用独占槽；这些表示有真实内存成本 |
 | MIR 优化 | 去虚化、内联、局部 box／closure 消除交替执行，最多三轮；intrinsic 另有必要归一化 | 不是通用跨过程分析；分配消除只登记 Box／ClosureAlloc；带 EH 的函数被整体排除；没有 class 字段替换和冷路径物化 |
 | 跨 Cone 优化 | 泛型具体化；M62 发布并消费部分普通顶层小函数的可移植 HIR 正文 | 普通正文导入范围受限，不等于任意成员、构造器、循环、Context、EH、suspend 都能跨库展开 |
-| LLVM | SROA、范围约束、SCCP、GVN、memcpyopt、DSE 等；NoGc 有循环和向量优化 | Managed 管线禁止许多 CFG／循环变换；当前分块 SIMD 只接受整数 SSA 内层，不接受 load/store、浮点、调用 |
+| LLVM | SROA、范围约束、SCCP、GVN、memcpyopt、DSE 等；NoGc 有循环和向量优化；有界 Managed 内层支持整数／Boolean 数组 | Managed 管线仍限制一般 CFG／循环变换；数组初始化已打通，普通 checked 访问、浮点、引用元素和调用仍需后续处理 |
 | GC 集成 | AS1 non-integral pointer，精确根，RS4GC，条件 poll，只在慢路径物化 poll roots | site 与逻辑恢复标记较早限制变换；机器 tail duplication 关闭；这限制了默认 O2/O3 能直接复用的范围 |
 | 物理产物 | 逐 callable LLVM module／对象，Strong／ODR 选择，已有私有 closure 支持裁剪 | LLVM 通常看不到其他 callable 的定义；尚无全程序优化、PGO 或 ThinLTO 路线 |
 | 调用 | 小于等于 16 bytes 的 GC-free 聚合值可按目标直接传递；接口拆成 object／itab | 24-byte V3 仍间接传递；含引用聚合值仍间接；真实动态函数视图还可能经过 Any bridge |
@@ -89,7 +89,7 @@ Java 稳态峰值需要充分预热后比较；启动和短命命令行程序则
 | managed allocation 消除 | 已有局部 box／closure、class／游标字段替换，以及最后一个 receiver 调用的联合内联估价 | 继续处理未命中的创建／调用、containment、跨调用和部分逃逸 |
 | coroutine frame elision | 已有同步正文内联和尾转交 | 继续处理实际挂起协议及未消除的立即完成路径 |
 | bounds-check elimination | 已有路径约束化简，通用循环能力未闭合 | 作为托管数组优化的核心项目 |
-| 激进 unroll／SIMD | NoGc 已有；Managed 只有窄范围整数内层 | 扩展内存循环、严格浮点和目标特化 |
+| 激进 unroll／SIMD | NoGc 已有；Managed 已支持有界整数 SSA 和整数／Boolean 数组内层 | 继续扩展有检查的内存循环、严格浮点和目标特化 |
 | 跨 callable module 重组、LTO／ThinLTO | 尚未建立 | 单独设计全程序优化和后端物理产物生成顺序 |
 | 测量与归因基础设施 | 已有专项 benchmark、GC 统计、可复现对照及按需 MIR 决策报告；CPU／调用栈归因仍需补足 | 提前独立交付，先支持瓶颈定位、回退解释和通用静态优化；按实际需要补充测量能力 |
 | PGO | 尚未建立 | 后续独立排期；先选有实测依据的内联／去虚化／布局消费者，再按需要扩充分配寿命反馈 |
@@ -184,6 +184,8 @@ smart cast 已有正确的路径类型收窄：命中分支中的引用读取变
 ## 6. 托管内存循环与 GC 根计划
 
 ### 6.1 先打通普通数组循环
+
+已交付[有界整数／Boolean 数组初始化](ARRAY-INITIALIZATION.md)：合并内联后的直线 CFG，在索引合法性已成立的初始化中复用 64 次分块，保留原 poll／roots，并对合格内层请求 SIMD。三目标大数组获益，动态单元素数组的小幅回退、代码与编译成本一并记录；没有提高全局内联阈值，也未完成一般边界检查消除。后续按以下路径扩展普通数组遍历。
 
 第一组目标应是普通 Managed 代码中的整数／浮点数组遍历、拷贝、变换、搜索和聚合：
 

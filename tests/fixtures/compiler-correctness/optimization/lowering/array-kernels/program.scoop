@@ -1,0 +1,65 @@
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun generatedLong(count: Long, seed: Long): MutableArray<Long> =
+    MutableArray<Long>(count) { index -> index * 1664525L + seed }
+
+fun generatedInt(count: Long): Array<Int> =
+    Array<Int>(count) { index -> index.toInt() * 1664525 + 2147483647 }
+
+fun generatedBoolean(count: Long): Array<Boolean> =
+    Array<Boolean>(count) { index -> index.and(3L) == 1L }
+
+fun shortArray(): Array<Long> = Array<Long>(3L) { index -> index + 1L }
+
+fun writePrefix(values: MutableArray<Long>, count: Long) {
+    var index = 0L
+    while (index < count) { values[index] = index + 3L; index += 1L }
+}
+
+class Counter(var value: Long)
+class Node(val value: Long)
+
+fun exceptional(count: Long, counter: Counter): Array<Long> = Array<Long>(count) { index ->
+    counter.value += 1L
+    if (index == 2L) throw IllegalArgumentException()
+    index
+}
+
+fun referenceArray(count: Long): Array<Node> = Array<Node>(count) { index -> Node(index) }
+
+fun main() {
+    val sizes = [0L, 1L, 63L, 64L, 65L, 127L, 128L, 129L, 1025L]
+    for (size in sizes) {
+        val longs = generatedLong(size, 9223372036854775800L)
+        val ints = generatedInt(size)
+        val booleans = generatedBoolean(size)
+        check(longs.size == size && ints.size == size && booleans.size == size)
+        gcCollect()
+        var index = 0L
+        while (index < size) {
+            check(longs[index] == index * 1664525L + 9223372036854775800L)
+            check(ints[index] == index.toInt() * 1664525 + 2147483647)
+            check(booleans[index] == (index.and(3L) == 1L))
+            index += 1L
+        }
+    }
+    check(shortArray()[2L] == 3L)
+    val values = generatedLong(65L, 0L)
+    writePrefix(values, -1L)
+    check(values[1L] == 1664525L)
+    var caught = false
+    try { writePrefix(values, 67L) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && values[0L] == 3L && values[64L] == 67L)
+    val counter = Counter(0L)
+    check(exceptional(0L, counter).size == 0L && counter.value == 0L)
+    caught = false
+    try { exceptional(-1L, counter) } catch (error: IllegalArgumentException) { caught = true }
+    check(caught && counter.value == 0L)
+    caught = false
+    try { exceptional(129L, counter) } catch (error: IllegalArgumentException) { caught = true }
+    check(caught && counter.value == 3L)
+    val references = referenceArray(129L)
+    gcCollect()
+    check(references[64L].value == 64L && references[128L].value == 128L)
+    println("bounded array kernels preserve values, tails and exceptional prefixes")
+}

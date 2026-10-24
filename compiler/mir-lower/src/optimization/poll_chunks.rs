@@ -1,4 +1,6 @@
-//! Strip mine scalar counted loops before safepoints and roots acquire identity.
+//! Strip mine bounded scalar kernels before safepoints and roots acquire identity.
+
+use std::collections::BTreeSet;
 
 use scoop_identity::{StructuralDefinitionSiteRole, SyntheticLocalRole};
 
@@ -6,6 +8,8 @@ use super::{inline, mir};
 use crate::local_values::LocalValueRegistry;
 
 mod copy;
+mod linear;
+mod operations;
 mod recognize;
 
 const CHUNK: u32 = 64;
@@ -16,6 +20,9 @@ struct Loop {
     index: mir::LocalId,
     bound: mir::Expr,
     kind: mir::IntegerKind,
+    header_chain: Vec<mir::BlockId>,
+    body_chain: Vec<mir::BlockId>,
+    temporaries: BTreeSet<mir::LocalId>,
 }
 
 pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
@@ -28,15 +35,19 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
         let Some(owner) = inline::owner(module, id) else {
             continue;
         };
-        let function = &mut module.functions[id];
+        let function = &module.functions[id];
         if function.gc_effect != mir::GcEffect::Managed {
             continue;
         }
         let headers = function.body.loop_header_polls.clone();
         for target in headers {
-            let Some(counted) = recognize::counted(function, target.header()) else {
+            let Some(counted) = recognize::counted(module, &module.functions[id], target.header())
+            else {
                 continue;
             };
+            let function = &mut module.functions[id];
+            linear::merge(&mut function.body, &counted.header_chain);
+            linear::merge(&mut function.body, &counted.body_chain);
             let counter = function.body.locals.alloc(mir::Local {
                 name: format!("$poll.remaining.{}", function.body.locals.len()),
                 ty: mir::Type::Integer(counted.kind),
@@ -49,7 +60,14 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
                 StructuralDefinitionSiteRole::SyntheticValue,
                 SyntheticLocalRole::Temporary,
             );
-            let full = copy::body(function, counted.body, registry, owner, id);
+            let full = copy::body(
+                function,
+                counted.body,
+                &counted.temporaries,
+                registry,
+                owner,
+                id,
+            );
             expand(&mut function.body, counted, counter, full);
         }
     }
@@ -62,6 +80,7 @@ fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId, full: mir:
         index,
         bound,
         kind,
+        ..
     } = counted;
     let ty = mir::Type::Integer(kind);
     let span = body.blocks[inner]

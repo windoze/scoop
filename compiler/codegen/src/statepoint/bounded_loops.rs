@@ -1,4 +1,4 @@
-//! Select only actual bounded, integer-only inner loops in Managed functions.
+//! Select actual bounded scalar kernels in Managed functions.
 
 use inkwell::IntPredicate;
 use inkwell::llvm_sys::core::{LLVMReplaceMDNodeOperandWith, LLVMValueAsMetadata};
@@ -6,6 +6,7 @@ use inkwell::values::{IntValue, PhiValue};
 
 use super::*;
 
+mod operations;
 mod remarks;
 
 pub(super) fn optimize(
@@ -15,7 +16,10 @@ pub(super) fn optimize(
     let context = function.get_type().get_context();
     let mut selected = false;
     for block in function.get_basic_blocks() {
-        if !bounded(block) {
+        let Some(predecessor) = bounded(block) else {
+            continue;
+        };
+        if !operations::prepare(block, predecessor) {
             continue;
         }
         let enable = context.metadata_node(&[
@@ -60,36 +64,27 @@ pub(super) fn optimize(
     Ok(())
 }
 
-fn bounded(block: BasicBlock<'_>) -> bool {
-    let Some(branch) = block.get_terminator() else {
-        return false;
-    };
+fn bounded(block: BasicBlock<'_>) -> Option<BasicBlock<'_>> {
+    let branch = block.get_terminator()?;
     if branch.get_opcode() != InstructionOpcode::Br || branch.get_num_operands() != 3 {
-        return false;
+        return None;
     }
-    let Some(condition) = integer(branch, 0).and_then(|value| value.as_instruction_value()) else {
-        return false;
-    };
+    let condition = integer(branch, 0).and_then(|value| value.as_instruction_value())?;
     // LLVM's branch operands store the false successor before the true one.
     let again = match condition.get_icmp_predicate() {
         Some(IntPredicate::NE) => branch.get_operand(2).and_then(|operand| operand.block()),
         Some(IntPredicate::EQ) => branch.get_operand(1).and_then(|operand| operand.block()),
-        _ => return false,
+        _ => return None,
     };
     let exit = match condition.get_icmp_predicate() {
         Some(IntPredicate::NE) => branch.get_operand(1).and_then(|operand| operand.block()),
         _ => branch.get_operand(2).and_then(|operand| operand.block()),
     };
     if again != Some(block) || exit == Some(block) {
-        return false;
+        return None;
     }
-    let Some(value) = integer(condition, 0).and_then(|value| value.as_instruction_value()) else {
-        return false;
-    };
-    let Some(compare) = integer(condition, 1).and_then(|value| value.get_zero_extended_constant())
-    else {
-        return false;
-    };
+    let value = integer(condition, 0).and_then(|value| value.as_instruction_value())?;
+    let compare = integer(condition, 1).and_then(|value| value.get_zero_extended_constant())?;
     let phi = if compare == 0 {
         decrement(value)
             .and_then(|value| value.as_instruction_value())
@@ -99,13 +94,11 @@ fn bounded(block: BasicBlock<'_>) -> bool {
     } else {
         None
     };
-    let Some(phi) = phi else {
-        return false;
-    };
+    let phi = phi?;
     if phi.as_instruction().get_parent() != Some(block) || phi.count_incoming() != 2 {
-        return false;
+        return None;
     }
-    let mut entry = false;
+    let mut entry = None;
     let mut backedge = false;
     for (incoming, predecessor) in phi.get_incomings() {
         if predecessor == block {
@@ -114,47 +107,18 @@ fn bounded(block: BasicBlock<'_>) -> bool {
                 .and_then(decrement)
                 .is_some_and(|counter| counter.as_basic_value_enum() == phi.as_basic_value());
             if compare == 0 && incoming.as_instruction_value() != Some(value) {
-                return false;
+                return None;
             }
         } else {
-            entry = incoming.is_int_value()
+            entry = (incoming.is_int_value()
                 && incoming
                     .into_int_value()
                     .get_zero_extended_constant()
-                    .is_some_and(|count| (1..=64).contains(&count));
+                    .is_some_and(|count| (1..=64).contains(&count)))
+            .then_some(predecessor);
         }
     }
-    entry
-        && backedge
-        && block.get_instructions().all(|instruction| {
-            if instruction == branch {
-                return true;
-            }
-            instruction.get_type().is_int_type()
-                && instruction.get_operands().all(|operand| {
-                    operand.is_some_and(|operand| {
-                        operand.value().is_some_and(|value| value.is_int_value())
-                    })
-                })
-                && matches!(
-                    instruction.get_opcode(),
-                    InstructionOpcode::Phi
-                        | InstructionOpcode::Add
-                        | InstructionOpcode::Sub
-                        | InstructionOpcode::Mul
-                        | InstructionOpcode::And
-                        | InstructionOpcode::Or
-                        | InstructionOpcode::Xor
-                        | InstructionOpcode::Shl
-                        | InstructionOpcode::LShr
-                        | InstructionOpcode::AShr
-                        | InstructionOpcode::Trunc
-                        | InstructionOpcode::SExt
-                        | InstructionOpcode::ZExt
-                        | InstructionOpcode::ICmp
-                        | InstructionOpcode::Select
-                )
-        })
+    entry.filter(|_| backedge)
 }
 
 fn integer(instruction: InstructionValue<'_>, index: u32) -> Option<IntValue<'_>> {

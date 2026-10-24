@@ -1,37 +1,36 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{CallableMaterialization, StructuralDefinitionSiteRole, SyntheticLocalRole};
 
 use super::{LocalValueRegistry, mir};
 
-/// Duplicate only the selected pure body, keeping loop-carried source locals.
+/// Duplicate the selected body, keeping loop-carried source locals.
 pub(super) fn body(
     function: &mut mir::Function,
     source: mir::BlockId,
+    temporaries: &BTreeSet<mir::LocalId>,
     registry: &mut LocalValueRegistry,
     owner: CallableMaterialization,
     id: mir::FunctionId,
 ) -> mir::BlockId {
     let mut block = function.body.blocks[source].clone();
     let mut locals = BTreeMap::new();
-    for statement in &block.statements {
-        if let mir::StatementKind::ValDecl { local, .. } = statement.kind {
-            let mut definition = function.body.locals[local].clone();
-            definition.name = format!(
-                "$poll.full.{}.{}",
-                function.body.blocks.len(),
-                definition.name
-            );
-            let copy = function.body.locals.alloc(definition);
-            locals.insert(local, copy);
-            registry.record_generated_local(
-                id,
-                copy,
-                owner,
-                StructuralDefinitionSiteRole::SyntheticValue,
-                SyntheticLocalRole::Temporary,
-            );
-        }
+    for &local in temporaries {
+        let mut definition = function.body.locals[local].clone();
+        definition.name = format!(
+            "$poll.full.{}.{}",
+            function.body.blocks.len(),
+            definition.name
+        );
+        let copy = function.body.locals.alloc(definition);
+        locals.insert(local, copy);
+        registry.record_generated_local(
+            id,
+            copy,
+            owner,
+            StructuralDefinitionSiteRole::SyntheticValue,
+            SyntheticLocalRole::Temporary,
+        );
     }
     mir::visit_block_exprs_mut(&mut block, &mut |expression| {
         if let mir::ExprKind::Local(local) = &mut expression.kind {

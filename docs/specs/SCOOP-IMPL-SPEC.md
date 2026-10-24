@@ -1301,11 +1301,13 @@ release 的 LIR lowering 对接口条件分支及其否定形式分析成功路�
 
 LIR 准备阶段依据最终 MIR 的实际引用选择普通 closure 的私有物理支持。只将环境关联的生成 invoke／bridge 作为可省略 callable，普通源码定义、初始化、入口、dispatch、callback 和协程协议入口仍是发射根。由这些根的正文沿本地调用、ClosureAlloc／ClosureCapture 与环境支持关系传播；直接引用某个 helper 或同 class 的其他实例均保留对应支持。没有外部根的 helper 相互引用不使自身存活。未选环境不发射其 TD、对象／值 layout、scan 和私有 callable；仍被实际类型检查或其他环境使用的函数签名 TD 保留。首版保留 suspend closure 支持，不扩大为任意定义的全程序 DCE。选择仅为 lir-lower 的本次私有状态，MIR 身份、签名和完整语义目录保持，不增加产物字段、重建语义校验或改变对外导出合同。
 
-release 在普通 MIR 优化迭代结束后、LIR poll／roots 生成前，可以对 Managed 的单 header／单 body 计数循环分块。首版只接受独立前驱中初始化的非负 Int／Long 归纳变量、稳定参数或整数常量上界、严格小于条件及每轮唯一的加一更新；header 仅含条件的纯局部临时值，body 仅含整数／布尔局部运算。调用、非局部访问、取地址、EH、多回边／出口及嵌套循环保留原形。已知不超过 64 次的短循环保留原形。
+release 在普通 MIR 优化迭代结束后、LIR poll／roots 生成前，可以对 Managed 的计数循环分块。接受独立前驱中初始化的非负 Int／Long 归纳变量、稳定参数或整数常量上界、严格小于条件及每轮唯一的加一更新。header 与 body 各自可以由只有唯一前驱的无条件跳转块组成；选择成功后合并各自的直线路径，保留语句次序、源码范围和原 header 的 poll。header 仅含条件的纯局部临时值；body 可含整数／布尔局部运算，以及整数／Boolean 元素的 MIR ArrayGet／ArraySet 和 ArrayLen。归纳变量更新只沿正文中单次定义的私有临时值解释别名，不用重赋后的值改写先前表达式的快照含义。数组操作沿既有 MIR 的索引合法性前提，不删除尚存的 bounds check 或把错误路径移到循环前。调用、分配、异常分支、其他非局部访问、取地址、引用／聚合元素操作、EH、多回边／出口及嵌套循环保留原形。已知不超过 64 次的短循环保留原形。
 
-原 header 和入口的 poll 责任保持；进入 body 前在已成立的 `0 <= i < n` 条件下计算 `remaining = n - i`。remaining 至少为 64 时进入常数 64 次的完整块，否则进入剩余次数的标量块；两条路径均以独立 typed 倒计数约束，非零继续内层，零返回原 header。完整块复制纯 body，并为内部 ValDecl 重分配 caller local 身份；body 内临时值被外部读取时保留原循环。原 i 加一仍在 body 中执行。该结构避免 `i + 64` 溢出，末块、零次及负上界保持原退出行为；不增加持久 IR 字段或 runtime ABI。
+原 header 和入口的 poll 责任保持；进入 body 前在已成立的 `0 <= i < n` 条件下计算 `remaining = n - i`。remaining 至少为 64 时进入常数 64 次的完整块，否则进入剩余次数的标量块；两条路径均以独立 typed 倒计数约束，非零继续内层，零返回原 header。完整块复制有限 body，并为内部临时定义重分配 caller local 身份；body 内临时值被外部读取时保留原循环。原 i 加一仍在 body 中执行。该结构避免 `i + 64` 溢出，末块、零次及负上界保持原退出行为。数组基址沿普通 managed 引用与 roots 处理，在外层 poll 后重新取得；不固定对象地址，不引入跨 safepoint 保存的裸元素指针，不扩大原有对象的可观察存活。按长度构造保留原分配、初始化次序及失败不发布结果的语义（语言规范 10.6）；不增加持久 IR 字段或 runtime ABI。
 
-Managed release 标量优化后，仅对实际 LLVM CFG 为单块自循环、倒计数 phi 的唯一外来初值是 1～64 常量、回边恰好减一并在零终止、且正文全为整数 SSA 运算的内层请求向量化。调用、load／store、原子、EH、浮点和不明确的倒计数均排除；不能只检查 metadata 或名称。合格函数只追加 loop-simplify、LCSSA、仅显式选中循环的 loop-vectorize 和 InstCombine／ADCE，不开放一般循环复制／移动管线；普通 NoGc 管线与函数的 Managed effect 保持。metadata 只传递本次结构分析的选择，不能为外层 poll 或剩余标量块取得优化资格。最终 roots 与 RS4GC 仍在其后执行。
+Managed release 标量优化后，仅对实际 LLVM CFG 为单块自循环、倒计数 phi 的唯一外来初值是 1～64 常量、回边恰好减一并在零终止的内层请求向量化。正文只允许整数 SSA 运算，以及从循环外 AS1 基址经 GEP 形成的整数／Boolean load／store；这些访存不能为 volatile 或 atomic，不读写 managed 引用或 root slot。调用、其他内存操作、指针合流／地址空间转换、原子、EH、浮点和不明确的倒计数均排除；不能只检查 metadata 或名称。合格函数只追加 loop-simplify、LCSSA、仅显式选中循环的 loop-vectorize 和 InstCombine／ADCE，不开放一般循环复制／移动管线；普通 NoGc 管线与函数的 Managed effect 保持。metadata 只传递本次结构分析的选择，不能为外层 poll 或剩余标量块取得优化资格。最终 roots 与 RS4GC 仍在其后执行。
+
+上述内层选择前可以把其普通 AS1 基址加载移到唯一外来前驱的终结指令之前：来源必须是函数入口的不逃逸 alloca，所有使用均为直接 load／store，内层不写该槽，也不存在取地址、atomic／volatile 加载或其他不合格操作。该位置位于进入内层之前的 poll／恢复之后；只移动普通加载，不移动 volatile 根恢复、逻辑根标记、site 或数组元素访问。提升后的 SSA 基址只供无 safepoint 的内层使用，返回外层后仍沿原 roots 重取，不把根槽操作交给向量化。
 
 内层选择只授权尝试优化，不要求 LLVM 必须向量化；无法识别 reduction 等普通 missed-optimization remark 不作为编译错误，也不写入结构化 child 协议的 stderr。该局部 pass 运行期间忽略 LLVM remark，错误／警告仍按原诊断路径传递，结束后恢复原 context handler。
 

@@ -351,7 +351,7 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 GC 私有 helper 的目标相关内联选择由平台层提供，通用 GC 不直接使用架构宏选择调用方式。各目标共用同一算法与必要检查；内联选择不改变对象表示、函数 ABI、forwarding 规则或公开配置项，其性能依据按目标分别验证。
 
-managed 函数入口和循环回边，包括 continue 回边，提供 safepoint。编译器可将无调用、分配、异常和非局部访问的简单计数循环分块：原循环 header 保留 poll，生成的内层由实际 CFG 中的常数上限倒计数约束，最多执行 64 次后返回外层 poll。该选择不承诺墙钟暂停上界，不改变任意其他循环或 continue 的 poll 责任。managed references 在 LLVM ABI 中使用 address space 1；跨 safepoint 存活的引用必须由 stackmap 或显式 compiler root frame 描述。
+managed 函数入口和循环回边，包括 continue 回边，提供 safepoint。编译器可将无调用、分配或异常的简单计数循环分块：正文包含局部整数／Boolean 计算，或索引合法性已在 MIR 保证的整数／Boolean 数组元素读写和长度读取（实现规范 2.19）。原循环 header 保留 poll，生成的内层由实际 CFG 中的常数上限倒计数约束，最多执行 64 次后返回外层 poll。数组的 managed 基址在外层 poll 后取得，内层不新增握手、引用写屏障或跨 safepoint 的裸地址。该选择不承诺墙钟暂停上界，不改变任意其他循环或 continue 的 poll 责任。managed references 在 LLVM ABI 中使用 address space 1；跨 safepoint 存活的引用必须由 stackmap 或显式 compiler root frame 描述。
 
 短小的 Managed 叶函数可仅在入口检查线程激活：正常返回的无环直线路径（可含内联产生的跳转块）、最多 64 条标量／固定大小值操作、字段读取及终结指令，每个值复制不超过 64 字节，无调用、分配、循环、异常或 native／全局存储访问。已处于 MANAGED 的线程直接执行有限正文并返回到 caller 的正常握手路径；其他 mode 仍走完整协调慢路径，保留 MANAGED_PENDING 首次有锁激活与所有 live roots／relocation。此选择不改变 callable 的 Managed effect，不向 caller 传播免 poll 资格；循环、普通调用及 gateway 的既有 poll 不变，不承诺墙钟停止上界。
 

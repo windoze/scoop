@@ -1,62 +1,72 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{CHUNK, Loop, mir};
-use crate::optimization::graph::{block_edges, index};
+use super::{CHUNK, Loop, linear, mir, operations};
+use crate::optimization::graph::index;
 
-pub(super) fn counted(function: &mir::Function, header: mir::BlockId) -> Option<Loop> {
+pub(super) fn counted(
+    module: &mir::Module,
+    function: &mir::Function,
+    header: mir::BlockId,
+) -> Option<Loop> {
     let body = &function.body;
-    let head = &body.blocks[header];
+    if header == body.entry {
+        return None;
+    }
+    let incoming = linear::predecessors(body);
+    let header_chain = linear::chain(body, header, header, &incoming)?;
     let mir::Terminator::Branch {
         cond,
         then_block: inner,
         else_block: exit,
-    } = &head.terminator
+    } = &body.blocks[*header_chain.last()?].terminator
     else {
         return None;
     };
-    if header == *inner || inner == exit || head.unwind.is_some() {
+    if header_chain.contains(inner) || header_chain.contains(exit) || inner == exit {
         return None;
     }
     let inner = *inner;
-    let block = &body.blocks[inner];
-    if !matches!(block.terminator, mir::Terminator::Goto(target) if target == header)
-        || block.unwind.is_some()
-        || !pure(head)
-        || !pure(block)
+    let body_chain = linear::chain(body, inner, header, &incoming)?;
+    let last = *body_chain.last()?;
+    if body_chain.contains(exit)
+        || body_chain.iter().any(|id| {
+            body.loop_header_polls
+                .iter()
+                .any(|poll| poll.header() == *id)
+        })
+        || incoming[index(inner)] != [*header_chain.last()?]
+        || !matches!(body.blocks[last].terminator, mir::Terminator::Goto(target) if target == header)
+        || header_chain
+            .iter()
+            .any(|id| !operations::supported(module, &body.blocks[*id], false))
+        || body_chain
+            .iter()
+            .any(|id| !operations::supported(module, &body.blocks[*id], true))
     {
         return None;
     }
-    let edges = block_edges(body);
-    let predecessors = |target| {
-        edges
-            .iter()
-            .enumerate()
-            .filter_map(|(from, edges)| edges.contains(&index(target)).then_some(from))
-            .collect::<Vec<_>>()
-    };
-    if predecessors(inner) != [index(header)] || body.entry == header || body.entry == inner {
+    if incoming[index(header)].len() != 2 {
         return None;
     }
-    let incoming = predecessors(header);
-    if incoming.len() != 2 {
-        return None;
-    }
-    let preheader = body
-        .blocks
+    let preheader = incoming[index(header)]
         .iter()
-        .find_map(|(id, _)| (id != inner && incoming.contains(&index(id))).then_some(id))?;
+        .copied()
+        .find(|id| *id != last)?;
     if !matches!(body.blocks[preheader].terminator, mir::Terminator::Goto(target) if target == header)
     {
         return None;
     }
     let mut aliases = BTreeMap::new();
     let mut header_locals = BTreeSet::new();
-    for statement in &head.statements {
-        let mir::StatementKind::ValDecl { local, init } = &statement.kind else {
+    for statement in header_chain
+        .iter()
+        .flat_map(|id| &body.blocks[*id].statements)
+    {
+        let (local, value) = definition(statement)?;
+        if !header_locals.insert(local) {
             return None;
-        };
-        header_locals.insert(*local);
-        aliases.insert(*local, resolve(init, &aliases).clone());
+        }
+        aliases.insert(local, resolve(value, &aliases).clone());
     }
     let mir::ExprKind::IntegerCompare {
         operation,
@@ -95,43 +105,63 @@ pub(super) fn counted(function: &mir::Function, header: mir::BlockId) -> Option<
         mir::ExprKind::IntegerLiteral(_) => None,
         _ => return None,
     };
-    let mut valid = true;
-    let body_locals = block
-        .statements
+    let mut temporaries = BTreeSet::new();
+    let mut reassigned = BTreeSet::new();
+    for local in body_chain
         .iter()
-        .filter_map(|statement| match statement.kind {
-            mir::StatementKind::ValDecl { local, .. } => Some(local),
-            _ => None,
-        })
-        .collect::<BTreeSet<_>>();
+        .flat_map(|id| &body.blocks[*id].statements)
+        .filter_map(definition)
+        .map(|(local, _)| local)
+    {
+        if !temporaries.insert(local) {
+            reassigned.insert(local);
+        }
+    }
+    for param in &function.params {
+        temporaries.remove(&param.local);
+        if header_locals.contains(&param.local) {
+            return None;
+        }
+    }
     let mut writes = Vec::new();
     for (id, candidate) in body.blocks.iter() {
-        mir::visit_block_exprs(candidate, &mut |expr| {
-            if id != inner
-                && matches!(expr.kind, mir::ExprKind::Local(local) if body_locals.contains(&local))
-            {
-                valid = false;
+        for statement in &candidate.statements {
+            let local = definition(statement)
+                .map(|(local, _)| local)
+                .or(match &statement.kind {
+                    mir::StatementKind::Call(mir::CallEffect::Value { destination, .. }) => {
+                        Some(*destination)
+                    }
+                    _ => None,
+                });
+            if let Some(local) = local {
+                if !body_chain.contains(&id) {
+                    temporaries.remove(&local);
+                }
+                if local == iv {
+                    writes.push((id, statement));
+                }
+                if Some(local) == bound_local
+                    || (!header_chain.contains(&id) && header_locals.contains(&local))
+                {
+                    return None;
+                }
             }
-            if matches!(expr.kind, mir::ExprKind::AddressOf { local, .. } if local == iv || Some(local) == bound_local)
-                || (id != header
-                    && matches!(expr.kind, mir::ExprKind::Local(local) if header_locals.contains(&local)))
+        }
+    }
+    let mut valid = true;
+    for (id, candidate) in body.blocks.iter() {
+        mir::visit_block_exprs(candidate, &mut |expr| {
+            if matches!(expr.kind, mir::ExprKind::Local(local)
+                if (!body_chain.contains(&id) && temporaries.contains(&local))
+                    || (!header_chain.contains(&id) && header_locals.contains(&local)))
+                || matches!(expr.kind, mir::ExprKind::AddressOf { local, .. }
+                    if local == iv || Some(local) == bound_local
+                        || header_locals.contains(&local) || temporaries.contains(&local))
             {
                 valid = false;
             }
         });
-        for statement in &candidate.statements {
-            if let Some((local, _)) = definition(statement) {
-                if local == iv {
-                    writes.push((id, statement));
-                }
-                if Some(local) == bound_local {
-                    valid = false;
-                }
-            } else if matches!(&statement.kind, mir::StatementKind::Call(mir::CallEffect::Value { destination, .. }) if *destination == iv || Some(*destination) == bound_local)
-            {
-                valid = false;
-            }
-        }
     }
     if !valid || writes.len() != 2 {
         return None;
@@ -140,7 +170,6 @@ pub(super) fn counted(function: &mir::Function, header: mir::BlockId) -> Option<
         .iter()
         .find_map(|(id, statement)| (*id == preheader).then_some(*statement))?;
     let (_, init) = definition(initial)?;
-    // The independently entered preheader assigns the initial nonnegative value.
     let start = integer(init)?;
     if start < 0 || integer(rhs).is_some_and(|end| end - start <= i128::from(CHUNK)) {
         return None;
@@ -148,9 +177,12 @@ pub(super) fn counted(function: &mir::Function, header: mir::BlockId) -> Option<
     let bound = rhs.clone();
     let update = writes
         .iter()
-        .find_map(|(id, statement)| (*id == inner).then_some(*statement))?;
+        .find_map(|(id, statement)| body_chain.contains(id).then_some(*statement))?;
     aliases.clear();
-    for statement in &block.statements {
+    for statement in body_chain
+        .iter()
+        .flat_map(|id| &body.blocks[*id].statements)
+    {
         let Some((local, value)) = definition(statement) else {
             continue;
         };
@@ -159,7 +191,7 @@ pub(super) fn counted(function: &mir::Function, header: mir::BlockId) -> Option<
                 operation,
                 lhs,
                 rhs,
-            } = &value.kind
+            } = &resolve(value, &aliases).kind
             else {
                 return None;
             };
@@ -172,11 +204,10 @@ pub(super) fn counted(function: &mir::Function, header: mir::BlockId) -> Option<
             }
             break;
         }
-        if matches!(statement.kind, mir::StatementKind::ValDecl { .. }) {
+        // Earlier expressions read the old value of a reassigned local.
+        if temporaries.contains(&local) && !reassigned.contains(&local) {
             aliases.insert(local, resolve(value, &aliases).clone());
         } else {
-            // Mutable aliases require snapshots; this narrow recognizer does
-            // not infer an index update through an earlier mutable assignment.
             aliases.remove(&local);
         }
     }
@@ -186,6 +217,9 @@ pub(super) fn counted(function: &mir::Function, header: mir::BlockId) -> Option<
         index: iv,
         bound,
         kind,
+        header_chain,
+        body_chain,
+        temporaries,
     })
 }
 
@@ -213,42 +247,4 @@ fn definition(statement: &mir::Statement) -> Option<(mir::LocalId, &mir::Expr)> 
         mir::StatementKind::Assign { local, value } => Some((*local, value)),
         _ => None,
     }
-}
-
-fn pure(block: &mir::BasicBlock) -> bool {
-    if block.statements.iter().any(|statement| {
-        !matches!(
-            statement.kind,
-            mir::StatementKind::ValDecl { .. }
-                | mir::StatementKind::Assign { .. }
-                | mir::StatementKind::Expr(_)
-        )
-    }) {
-        return false;
-    }
-    let mut pure = true;
-    mir::visit_block_exprs(block, &mut |expr| {
-        pure &= matches!(
-            expr.kind,
-            mir::ExprKind::IntegerLiteral(_)
-                | mir::ExprKind::BoolLiteral(_)
-                | mir::ExprKind::UnitLiteral
-                | mir::ExprKind::Local(_)
-                | mir::ExprKind::IntegerUnary { .. }
-                | mir::ExprKind::IntegerBinary { .. }
-                | mir::ExprKind::IntegerCompare { .. }
-                | mir::ExprKind::IntegerCompareTo { .. }
-                | mir::ExprKind::IntegerShift { .. }
-                | mir::ExprKind::IntegerConversion { .. }
-                | mir::ExprKind::Unary { .. }
-                | mir::ExprKind::Binary {
-                    op: mir::BinOp::BoolEq | mir::BinOp::BoolNe,
-                    ..
-                }
-        ) && matches!(
-            expr.ty,
-            mir::Type::Integer(_) | mir::Type::Boolean | mir::Type::Unit
-        );
-    });
-    pure
 }
