@@ -20,6 +20,9 @@ kind = "library"
 
 [native]
 include = [
+    {path = "../../lib/aarch64-apple-darwin/include", when = {os = "darwin"}},
+    {path = "../../lib/x86_64-unknown-linux-gnu/include", when = {env = "gnu"}},
+    {path = "../../lib/x86_64-unknown-linux-musl/include", when = {env = "musl"}},
     "../../vendor/publicsuffix",
     "../../vendor/llhttp/include",
     {path = "../../lib/aarch64-apple-darwin/nghttp2/include", when = {os = "darwin"}},
@@ -35,6 +38,13 @@ c_flags = [
 [[native.libraries]]
 name = "nghttp2"
 kind = "static"
+
+[[native.libraries]]
+name = "z-ng"
+kind = "static"
+
+[[native.sources]]
+path = "native/eventstream.c"
 
 [[native.sources]]
 path = "../../vendor/llhttp/src/api.c"

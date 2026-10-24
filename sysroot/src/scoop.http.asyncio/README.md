@@ -2,6 +2,8 @@
 
 普通 `AsyncByteStream`／`AsyncCloseable` 上的 HTTP 传输。调用者先完成 TCP 连接、TLS 握手和 ALPN 选择，再通过 `takeOwnershipAsClient`／`takeOwnershipAsServer` 交付传输和负责连接生命周期的 `CoroutineScope`。
 
+`AwsEventStreamSource(source, bufferSize = 8192)` 从已有 body 读取校验后的 AWS 二进制消息。默认借用输入，takeOwnership 显式接管；next 驱动读取，close 不排空剩余正文，并等待实际在途读取结束后释放资源。header 保留类型，payload 保留原始字节，业务事件由上层解释；见 [EventStream 接收规范](../../../docs/specs/SCOOP-HTTP-EVENTSTREAM-SPEC.md)。
+
 `AsyncHttp1Connection.sendRequest`／`sendResponse` 返回 writer，显式选择 Empty、Length、Chunked 或响应 Eof 定界，用 `writeFrom` 写入实际前缀，最后调用 `finish`；即使空 body 也需要 finish。接收头与 `AsyncHttp1Body` 一同交付，body 完成后可取得独立 trailer。信息响应逐条返回；服务端按请求顺序关联响应，HEAD、CONNECT 与 Upgrade 由内存编解码器处理。
 
 同一方向只允许一个操作。未完成的 body 不能被下一条消息替换；提前关闭或取消 body 会关闭连接，不自动 drain。`close` 等待底层 I/O 和本地状态结束，支持取消后的 finally、并发等待与后续幂等调用。输入等待不借用调用者 buffer，已接受的发送前缀在失败时不回滚。

@@ -1,0 +1,40 @@
+package scoop.http
+
+import scoop.text.hexToByteArray
+
+// The all-headers and empty-message vectors match the official Smithy SDK vectors.
+// Other fixed vectors use an independent Python zlib CRC32 calculation.
+
+internal val awsAllHeaders = ("000000cc000000af0fae64ca0a6576656e742d74797065040000a00c0c636f6e74656e742d747970650700106170706c69636174696f6e2f" +
+    "6a736f6e0a626f6f6c2066616c73650109626f6f6c207472756500046279746502cf08627974652062756606001449276d2061206c697474" +
+    "6c6520746561706f74210974696d657374616d70080000000000845fed05696e74313603002a05696e7436340500000000028757b2047575" +
+    "6964090102030405060708090a0b0c0d0e0f107b27666f6f273a27626172277daba5f10c").hexToByteArray()
+
+internal val awsEmptyMessage = ("000000100000000005c248eb7d98c8ff").hexToByteArray()
+
+internal val awsBoundaryHeaders = ("0000004c0000003a3e2db393026938028003693136038000036933320480000000036936340580000000000000000474696d6508ffffffff" +
+    "ffffffff0141070000016106000000ff7db4804d").hexToByteArray()
+
+internal val awsDuplicateName = ("00000017000000072986015801610201016100e8bb01b0").hexToByteArray()
+
+internal val awsEmptyName = ("0000001200000002910c7aa700007bc1361e").hexToByteArray()
+
+internal val awsBadNameUtf8 = ("0000001300000003db6b638101ff00f0bcd8a8").hexToByteArray()
+
+internal val awsBadValueUtf8 = ("000000160000000663e1187e0161070001ff2b628ead").hexToByteArray()
+
+internal val awsUnknownType = ("0000001300000003db6b638101610affab9622").hexToByteArray()
+
+internal val awsTruncatedName = ("0000001200000002910c7aa7026173420552").hexToByteArray()
+
+internal val awsTruncatedLong = ("0000001400000004f72f2a3201610500f8ba7db2").hexToByteArray()
+
+internal val awsTruncatedStringLength = ("0000001400000004f72f2a32016107ffe78ef0bd").hexToByteArray()
+
+internal val awsShortLength = ("0000000f00000000e77248b8").hexToByteArray()
+
+internal val awsLongHeaders = ("000000100000000172c5787d").hexToByteArray()
+
+internal val awsHugeLength = ("ffffffff00000000ffffffff").hexToByteArray()
+
+internal val awsUnicodeHeaders = "0000001e0000000e5d4adb8d03e99baa070007f09f9880e99baa96867a79".hexToByteArray()
