@@ -1,0 +1,48 @@
+package scoop.llm.client
+
+/** The direction to which a reported modality token count belongs. */
+public enum TokenDirection {
+    /** Tokens representing request input. */
+    Input,
+    /** Tokens representing generated output. */
+    Output
+
+    /** Standard enum codecs for saved usage snapshots. */
+    public companion object : ValueEncoder<TokenDirection>, ValueDecoder<TokenDirection>
+}
+
+/** A modality named by the provider's token accounting. */
+public enum TokenModality {
+    /** Text tokens. */
+    Text,
+    /** Image tokens. */
+    Image,
+    /** Audio tokens. */
+    Audio,
+    /** Video tokens. */
+    Video,
+    /** Document tokens. */
+    Document,
+    /** A provider-reported modality outside the common names. */
+    Other(String)
+
+    /** Standard enum codecs preserving provider-reported names. */
+    public companion object : ValueEncoder<TokenModality>, ValueDecoder<TokenModality>
+}
+
+/** One reported modality breakdown with an explicit direction and nonnegative token count. */
+public class ModalityTokenUsage public constructor(
+    /** Whether this breakdown describes input or output. */
+    public val direction: TokenDirection,
+    /** The modality described by the provider. */
+    public val modality: TokenModality,
+    /** The token count in this breakdown. */
+    public val tokens: Long
+) {
+    init {
+        if (tokens < 0L) throw IllegalArgumentException(Some("modality tokens must be nonnegative"))
+    }
+
+    /** Standard record codecs retaining direction, modality, and the exact integer count. */
+    public companion object : ValueEncoder<ModalityTokenUsage>, ValueDecoder<ModalityTokenUsage>
+}

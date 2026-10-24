@@ -1,6 +1,6 @@
 # LLM client 架构设计
 
-日期：2026-10-24。状态：架构设计，尚未实施。本文确定 `scoop.llm.client` 的协议、方言、provider、模型能力、服务端工具、计时与 token 统计边界；计费信息作为 dialect 的可选扩展。协议覆盖调查见 [INVESTIGATION.md](INVESTIGATION.md)，传输细节见 [HTTP client 评审](HTTP-CLIENT-REVIEW.md)，具体调用与缺省参数见[使用示例](USAGE.md)。相关架构表述以本文为准，正式 API 签名在实现前写入库规范。
+日期：2026-10-24。状态：实施中，已交付范围见[实施记录](PROGRESS.md)。本文确定 `scoop.llm.client` 的协议、方言、provider、模型能力、服务端工具、计时与 token 统计边界；计费信息作为 dialect 的可选扩展。协议覆盖调查见 [INVESTIGATION.md](INVESTIGATION.md)，传输细节见 [HTTP client 评审](HTTP-CLIENT-REVIEW.md)，具体调用与缺省参数见[使用示例](USAGE.md)。相关架构表述以本文为准，正式 API 合同在实现前写入[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md)。
 
 本库负责一次生成或显式会话的请求、响应、流、取消和协议数据回传。模型选择、自动切换、工具执行、Agent 循环和会话存储由应用承担。所有实现使用普通 Scoop Cone、现有序列化和 HTTP 能力，不改变语言、编译 pipeline 或 runtime。
 

@@ -1,6 +1,6 @@
 # LLM client 使用示例与缺省参数
 
-日期：2026-10-24。状态：基于[架构设计](DESIGN.md)的 API 草案，用调用代码检查接口负担；`scoop.llm.client` 尚未实现，以下代码不是已通过编译的 quickstart。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
+日期：2026-10-24。状态：基于[架构设计](DESIGN.md)的 API 草案，用调用代码检查接口负担；生成入口仍在实施，以下完整调用不是已通过编译的 quickstart。已交付的数据 API 见[实施记录](PROGRESS.md)。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
 
 简单调用和完整调用共用 `generate(model, request, options = LlmCallOptions())`。不再保留先前草稿中的 `generate(model, prompt = ...)` 重载，也不增加 `generateText`、`SimpleClient` 或自动选择模型的入口。简单形态直接来自 request、消息和 options 的缺省字段。
 

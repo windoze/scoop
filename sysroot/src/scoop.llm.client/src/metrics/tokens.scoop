@@ -1,0 +1,42 @@
+package scoop.llm.client
+
+/**
+ * Immutable normalized token counts. None means unreported; zero is an explicitly known count.
+ * Cache and reasoning details are subsets, never additional totals to sum automatically.
+ */
+public class TokenUsage public constructor(
+    /** Total input tokens, including cache portions whose inclusion is known. */
+    public val inputTokens: Long? = None,
+    /** Input tokens known not to have used the input cache. */
+    public val nonCachedInputTokens: Long? = None,
+    /** Total output tokens, including reasoning whose inclusion is known. */
+    public val outputTokens: Long? = None,
+    /** Reported or explicitly normalized total tokens; never inferred by this constructor. */
+    public val totalTokens: Long? = None,
+    /** Tokens read from the input cache. */
+    public val cacheReadTokens: Long? = None,
+    /** Tokens written to the input cache. */
+    public val cacheWriteTokens: Long? = None,
+    /** Reasoning tokens included in the output count. */
+    public val reasoningTokens: Long? = None,
+    /** Reported modality breakdowns, not additional tokens to add to the totals. */
+    public val modality: Array<ModalityTokenUsage> = []
+) {
+    init {
+        requireTokenCount(inputTokens, "inputTokens")
+        requireTokenCount(nonCachedInputTokens, "nonCachedInputTokens")
+        requireTokenCount(outputTokens, "outputTokens")
+        requireTokenCount(totalTokens, "totalTokens")
+        requireTokenCount(cacheReadTokens, "cacheReadTokens")
+        requireTokenCount(cacheWriteTokens, "cacheWriteTokens")
+        requireTokenCount(reasoningTokens, "reasoningTokens")
+    }
+
+    /** Standard record codecs synthesized from the immutable constructor fields. */
+    public companion object : ValueEncoder<TokenUsage>, ValueDecoder<TokenUsage>
+}
+
+private fun requireTokenCount(value: Long?, name: String) {
+    val count = value ?: return
+    if (count < 0L) throw IllegalArgumentException(Some(name + " must be nonnegative"))
+}
