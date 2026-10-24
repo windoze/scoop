@@ -42,6 +42,7 @@ mod requests;
 mod sealed;
 mod selection;
 mod shared_closures;
+mod shared_default_contexts;
 mod shared_defaults;
 mod shared_singletons;
 mod source_calls;

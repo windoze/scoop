@@ -1097,6 +1097,8 @@ Export HIR 保存模板的已解析正文、原 binder、默认值、局部 call
 
 普通参数自由定义由原 Cone 提供，即使签名含已闭合 generic application 也仍是该 Strong 定义。泛型和 structural application 的机器实体由实际需要它的 Cone 物化，并保持程序内共享身份。
 
+默认实参在调用方展开，其中的词法 callable 及其 closure／协程辅助实体按原默认值所属 callable application 共享。参数自由默认值也使用原声明、NoOwner、NoCallableArguments 的已有 application key；该上下文只归属实际展开的默认值实体，不把原普通函数或构造器改成 ODR 定义。嵌套 callable 继承实际词法父上下文，本地展开与跨 Cone 展开必须产生相同身份。捕获的参数和默认值局部变量保留其原词法 owner，调用方求值仍有独立 storage。仅建立共享上下文不产生所属 callable 的机器正文。
+
 SpecializationKey 是四分支 CBOR sum：Nominal=1 `{origin generic type, nonempty exact arguments}`、Callable=2 `{application}`、DelegatedProperty=3 `{origin extension property, nonempty receiver arguments}`、StructuralType=4 `{exact type}`。`OdrGroupId = H("scoop-odr-v1", key)`。
 
 OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("scoop-odr-member-v1", key)`。role tags 为 CallableBody=1、GeneratedNominal=2、Layout=3、ScanProgram=4、TypeDescriptor=5、DispatchTable=6、DispatchAdapter=7、StaticStorage=8、ImmortalObject=9、InitializationCell=10、RegistrationRecord=12、DiagnosticBytes=13、AddressTakenConstant=14、ObjectSupport=15、ReleaseHook=16；11 保留不用。

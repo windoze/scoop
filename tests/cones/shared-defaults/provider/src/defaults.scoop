@@ -1,0 +1,25 @@
+package shared.defaults
+
+import scoop.asyncio.currentEventLoop
+import scoop.time.Duration
+
+public class Handler public constructor(
+    public val action: suspend (Int) -> Int = suspend { value ->
+        currentEventLoop().sleep(Duration.milliseconds(1L))
+        value + 1
+    }
+)
+
+public fun nested(seed: Int, action: suspend (Int) -> Int = suspend { value ->
+    fun add(input: Int): Int = seed + input
+    val inner: (Int) -> Int = { input -> add(input) }
+    currentEventLoop().sleep(Duration.milliseconds(1L))
+    inner(value)
+}): suspend (Int) -> Int = action
+
+public fun increment(value: Int): Int = value + 1
+public fun reference(action: (Int) -> Int = ::increment): (Int) -> Int = action
+
+public fun localHandler(): Handler = Handler()
+public fun localNested(): suspend (Int) -> Int = nested(10)
+public fun localReference(): (Int) -> Int = reference()

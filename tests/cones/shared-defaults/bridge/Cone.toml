@@ -1,0 +1,11 @@
+schema = 1
+
+[cone]
+group = "shared"
+name = "shared-default-bridge"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"shared:shared-default-provider" = { version = "0.1.0", path = "../provider" }
