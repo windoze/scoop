@@ -1,0 +1,41 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeMessagesContent(dialect: DialectId, content: Array<ContentPart>, role: String,
+    version: AnthropicMessagesVersion, path: String): JsonValue {
+    val blocks = ArrayList<JsonValue>()
+    var index = 0L
+    for (part in content) {
+        val partPath = path + "/" + index.toString()
+        blocks.add(encodeMessagesPart(dialect, part, role, version, partPath))
+        index += 1L
+    }
+    return JsonValue.fromArray(blocks)
+}
+
+private fun encodeMessagesPart(dialect: DialectId, part: ContentPart, role: String,
+    version: AnthropicMessagesVersion, path: String): JsonValue {
+    val (value, extensions) = when (part) {
+        case Text(text, extensions) -> (llmTypedObject("text").add("text", JsonValue.fromString(text)).build(), extensions)
+        case Image(source, extensions) -> {
+            if (role == "system") throw LlmRequestException(path, "Messages system content requires text")
+            (llmTypedObject("image").add("source", encodeMessagesMedia(source, dialect, false, path + "/source")).build(), extensions)
+        }
+        case Document(source, filename, extensions) -> {
+            if (role == "system" || (role == "assistant" && version == V20261021))
+                throw LlmRequestException(path, "Messages documents are not allowed in this role and API version")
+            if (filename != None) throw LlmRequestException(path + "/filename", "Messages has no document filename field; configure title as a part extension")
+            (llmTypedObject("document").add("source", encodeMessagesMedia(source, dialect, true, path + "/source")).build(), extensions)
+        }
+        case Audio(_, _) -> throw LlmRequestException(path, "Messages has no generic audio content mapping")
+        case Video(_, _) -> throw LlmRequestException(path, "Messages has no generic video content mapping")
+        case VideoFrames(_, _) -> throw LlmRequestException(path, "Messages has no timestamped video-frame mapping")
+        case Native(owner, value) -> {
+            requireLlmOwner(owner, dialect, path + "/dialect")
+            if (value.kind != JsonValueKind.Object) throw LlmRequestException(path + "/value", "native Messages content must be an object")
+            return value
+        }
+    }
+    return mergeLlmExtensions(value, extensions, dialect, ["type", "text", "source"], path)
+}

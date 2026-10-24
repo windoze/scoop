@@ -1,6 +1,6 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat 的普通／流式生成、SSE 增量解码、provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时；其他协议继续实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat 的普通／流式生成与 Anthropic Messages 普通生成，以及 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时；其他协议继续实施。
 
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 
@@ -49,7 +49,14 @@ Message 默认 User，system／tools／extensions 默认空，生成参数默认
 
 `ChatProtocol(OpenAiChatDialect())` 与 `ChatProtocol(DeepSeekChatDialect())` 的 `decodeResponse(json, request)` 解释完整 Chat 响应。DeepSeek reasoning 单独展示并完整进入历史；音频历史仅回传 ID。原始响应、未知字段和不能关联的工具调用保持可读。模型生成的无效 JSON 参数保存为 Invalid；截断输出中的调用保存为 Incomplete；两者均不进入待执行视图。外层格式错误使用带字段路径和原始正文的 LlmProtocolException。
 
-`MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(json, request)` 已提供完整 Messages 响应的纯解释。它按原始 block 顺序保留文本、thinking、客户端调用、服务端搜索活动和引用；搜索开始与结果是共享同一服务器 ID 的两条活动。history 完整保留签名、加密搜索内容和未知字段。pause_turn 保持不完整状态，由应用决定下一步；搜索错误不会冒充整个 HTTP 请求失败。此入口尚未接入 Messages provider／网络生成，后续沿用同一 client API。
+`Providers.anthropicMessages()` 使用 Messages protocol、Anthropic dialect、API 版本 2026-10-21 和 4096 的默认输出上限。请求显式 maxOutputTokens 覆盖该上限，模型已知能力也会检查默认值；需要旧协议版本时显式使用 `version = AnthropicMessagesVersion.V20230601`。新版本已移除 temperature／topP／topK。部署地址通过同一个 endpoint 的 baseUrl 参数设置，模型 ID 原样发送：
+
+```scoop
+val model = LlmEndpoint(Providers.anthropicMessages(), LlmAuth.bearer(apiKey)).model(modelId)
+val result = client.generate(model, LlmRequest([Message([Text("你好")])]))
+```
+
+Messages 支持图片、PDF、纯文本文档、function／原生工具及服务端 WebSearch。thinking、客户端调用、搜索活动和引用按 block 顺序保存；搜索开始与结果是共享同一服务器 ID 的两条活动。history 完整保留签名、加密搜索内容和未知字段，连续 ToolResult 合并为一条 user 消息。pause_turn 保持不完整状态，由应用决定下一步；搜索错误不会冒充整个 HTTP 请求失败。`MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(json, request)` 也可单独解释完整响应。当前 Messages 尚未实现 SSE，openStream 会在发送前明确失败。
 
 同一 ChatProtocol 的 `createStreamDecoder(request, retention = StreamRetention.EventsOnly)` 接收 SSE parser 已定界的 `accept(event, data)`，返回带候选／item 位置的文本、reasoning、工具参数、完成调用和 usage 事件。缺省不累计普通文本；`StreamRetention.Result` 才保留完整结果与历史。正常 `[DONE]` 后可调用 `response()`，在输入结束时使用 `endInput()` 检查缺失终止。候选的 finish_reason 不等同整个流结束，usage 尾块仍会处理；EOF、服务错误或终止后新增数据均不能产生成功结果。
 

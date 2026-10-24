@@ -19,7 +19,7 @@ internal fun encodeChatImage(source: MediaSource, dialect: DialectId, deepSeek: 
         }
         case FileReference(reference, _) -> {
             if (!deepSeek) throw LlmRequestException(path, "OpenAI Chat image_url has no file ID form")
-            chatObject("file").add("file_id", chatFileId(reference, dialect, path + "/reference")).build()
+            llmTypedObject("file").add("file_id", chatFileId(reference, dialect, path + "/reference")).build()
         }
     }
 }
@@ -39,7 +39,7 @@ internal fun encodeChatDocument(source: MediaSource, filename: String?, dialect:
         }
         case Url(_, _) -> throw LlmRequestException(path + "/source", "Chat file input has no URL form")
     }
-    return chatObject("file").add("file", file.build()).build()
+    return llmTypedObject("file").add("file", file.build()).build()
 }
 
 internal fun encodeChatAudio(source: MediaSource, path: String): JsonValue {
@@ -55,7 +55,7 @@ internal fun encodeChatAudio(source: MediaSource, path: String): JsonValue {
     }
     val audio = JsonObjectBuilder().add("data", JsonValue.fromString(Base64.Default.encode(bytes)))
         .add("format", JsonValue.fromString(format)).build()
-    return chatObject("input_audio").add("input_audio", audio).build()
+    return llmTypedObject("input_audio").add("input_audio", audio).build()
 }
 
 private fun chatMediaType(source: MediaSource, path: String): String {
@@ -67,11 +67,11 @@ private fun chatMediaType(source: MediaSource, path: String): String {
 
 private fun chatDataUrl(mime: String, bytes: Array<Byte>): String = "data:" + mime + ";base64," + Base64.Default.encode(bytes)
 
-private fun chatImageUrl(url: String): JsonValue = chatObject("image_url")
+private fun chatImageUrl(url: String): JsonValue = llmTypedObject("image_url")
     .add("image_url", JsonObjectBuilder().add("url", JsonValue.fromString(url)).build()).build()
 
 private fun chatFileId(reference: LlmFileReference, dialect: DialectId, path: String): JsonValue {
-    requireChatOwner(reference.dialect, dialect, path + "/dialect")
+    requireLlmOwner(reference.dialect, dialect, path + "/dialect")
     if (reference.value.kind != JsonValueKind.String || reference.value.asString().length == 0L)
         throw LlmRequestException(path + "/value", "Chat file reference must be a nonempty string ID")
     return reference.value

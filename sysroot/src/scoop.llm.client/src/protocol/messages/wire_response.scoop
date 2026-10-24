@@ -23,7 +23,8 @@ internal class MessagesTextBlock public constructor(public val text: String, pub
     public companion object : ValueDecoder<MessagesTextBlock>
 }
 
-internal class MessagesToolUse public constructor(public val id: String, public val name: String, public val input: JsonValue) {
+internal class MessagesToolUse public constructor(public val id: String, public val name: String, public val input: JsonValue,
+    @Serialize(rename = "toolset_name") public val toolsetName: String? = None) {
     public companion object : ValueDecoder<MessagesToolUse>
 }
 

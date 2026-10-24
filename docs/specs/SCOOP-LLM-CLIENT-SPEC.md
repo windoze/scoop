@@ -265,13 +265,13 @@ close 不自动消费剩余输出：未达终止时取消并等待收尾（outco
 
 ## 12. Messages 响应解释
 
-`MessagesProtocol(dialect: MessagesDialect)` 固定使用 ApiProtocolId("messages")，拒绝其他协议归属。`AnthropicMessagesDialect` 的身份为 DialectId(ApiProtocolId("messages"), "anthropic-messages")。本节交付纯 `decodeResponse(value, request)`；请求编码、provider 工厂和 SSE 随各自闭环接入，不宣称该纯 decoder 已能发起网络调用。MessagesDialect 分别负责 readReasoning(block, path)、readUsage(usage)、historyMessage(message, path) 及 decodeError；不共享调用状态。
+`MessagesProtocol(dialect: MessagesDialect)` 固定使用 ApiProtocolId("messages")，拒绝其他协议归属。`AnthropicMessagesDialect` 的身份为 DialectId(ApiProtocolId("messages"), "anthropic-messages")。本节规定纯 `decodeResponse(value, request)`；普通生成按第 13 节，SSE 随后续闭环接入。MessagesDialect 分别负责 readReasoning(block, path)、readUsage(usage)、historyMessage(message, path) 及 decodeError；不共享调用状态。
 
 完整响应的 type 必须为 message、role 必须为 assistant，content 是有序 block 数组，stop_reason 必须为非 null 字符串。单个响应产生 index=0 的候选；缺失的 id、model、usage 保持未知，createdAt 不从本地时钟补造。已知 block 验证其必要字段，失败报告 LlmProtocolException 的 JSON Pointer 路径和完整原文；未知 block 保存为 Native。text 投影为一个 Message，thinking／redacted_thinking 投影为 Reasoning；普通文本视图不混入 reasoning。
 
 history 仅选取 role 和未经重建的 content，不携带顶层 id、usage、stop_reason 等响应元数据。完整保留 thinking.signature、redacted_thinking.data、工具输入、搜索的 encrypted_content／encrypted_index、citations 及未知 block／字段。库不解析或验证签名，不过滤空 thinking，不按模型名裁剪历史。序列化后的 toInput 使用同一份历史。依据：[thinking 回传](https://platform.claude.com/docs/en/build-with-claude/thinking)、[web search 回传](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool)。
 
-tool_use 按 name 唯一关联本次 ClientFunction，或同方言 ClientNative 的 configuration.name；不匹配 ClientCustom 或 Server。无法唯一关联时保留 Native。function 输入从原生 JSON object 生成 JsonToolArguments，native 客户端输入保存为 Native object；非 object 为 Invalid，生成不完整时为 Incomplete，均不可执行。call reference.context 保存该调用原始 block，以保留 caller 等原生关联。客户端和服务端调用 ID 不能在同一响应中重复；ID 来自服务器，不从工具名称或 block 下标生成。
+tool_use 按 name 唯一关联本次 ClientFunction，或同方言 ClientNative 的 configuration.name；带 toolset_name 的成员按第 13 节关联无 name 的原生 toolset。不匹配 ClientCustom 或 Server，无法唯一关联时保留 Native。function 输入从原生 JSON object 生成 JsonToolArguments，native 客户端输入保存为 Native object；非 object 为 Invalid，生成不完整时为 Incomplete，均不可执行。call reference.context 保存该调用原始 block，以保留 caller 等原生关联。客户端和服务端调用 ID 不能在同一响应中重复；ID 来自服务器，不从工具名称或 block 下标生成。
 
 server_tool_use 独立产生 ServerToolActivity，绝不进入客户端执行列表。WebSearch 的 use block 为 InProgress，后续 web_search_tool_result 产生相同服务器 ID 的 Completed／Failed 活动；两项分别保留原始 block 位置，不把后来的结果搬到较早的位置。成功的空结果数组仍为 Completed，已知错误 object 为 Failed，未知结果 object 保持 Unknown。结果可以属于前一轮的服务端调用，此时不要求本响应中已有 use block，也不补造调用；能从当前响应确定名称时才关联请求 ToolKey。其他服务端 use 保留 Native kind 和原文；尚无通用结果解释的 block 保留 Native。依据：[server tool 生命周期](https://platform.claude.com/docs/en/agents-and-tools/tool-use/server-tools)。
 
@@ -282,3 +282,23 @@ end_turn／stop_sequence 映射 Stop，tool_use 映射 ToolCalls，均为 Comple
 Anthropic input_tokens 是非缓存输入；cache_read_input_tokens、cache_creation_input_tokens 为独立输入部分。三项都报告时才相加得到 inputTokens，再与已知 output_tokens 相加得到 totalTokens；缺失项不补零。output_tokens_details.thinking_tokens 归为 reasoningTokens；缓存 TTL 明细、服务端搜索次数和其他非 token 资料留在 usage.native。所有计数必须为非负 Long，归一化求和检查溢出。usage.Final 表示报告终结，不表示每项已知。依据：[缓存计数口径](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)、[Messages API](https://platform.claude.com/docs/en/api/messages/create)。
 
 错误正文保留有界 bytes、解析成功的 native、error.type 与 error.message；截断或非 JSON 正文仍可报告 HTTP 失败。只有 HTTP 429／529 且对应 rate_limit_error／overloaded_error 才取得可重试资格，实际重试仍受第 9 节限制。HTTP 200 内的搜索失败是服务端工具结果，不是整个请求的 HTTP 错误。
+
+## 13. Messages 请求与普通生成
+
+`Providers.anthropicMessages(version = V20261021, defaultMaxOutputTokens = 4096L)` 包装 MessagesProtocol 与 AnthropicMessagesDialect，缺省 base URL 为 https://api.anthropic.com/v1。`AnthropicMessagesVersion` 明确区分 V20230601 与 V20261021，决定 anthropic-version 及已知版本规则，不按模型 ID 推断。max_tokens 为必需字段；请求省略 maxOutputTokens 时使用非负的 dialect 缺省，显式值（含零）覆盖它。默认上限也要通过模型的已知 maxOutputTokens 检查，不静默缩小请求或改变模型绑定。当前完成普通 generate，openStream 仍在发送前报告该 adapter 没有 SSE 合同。
+
+`LlmGenerationProtocol.generationFields()` 缺省返回空数组，defaultMaxOutputTokens() 缺省 None。前者提供该协议／方言的固定请求头，后者用于能力检查中的有效缺省上限。LlmEndpoint.fields 组合固定头与应用字段，应用不能重复固定头名称而造成版本与编码规则不一致；认证看到组合后的真实字段。Chat 的空头和省略上限行为保持不变。MessagesDialect 提供 requestFields、defaultMaxOutputTokens、encodeOptions 与 encodeContent 的协议专用合同；MessagesProtocol 在 base URL 后追加 messages，并复用公共 HTTP 调用、重试、计时和完成通知。
+
+顶层 system 保存为 text block 数组；input 的 User／Assistant 映射同名 role，System 保持原位置的 system role，Developer 没有映射。带内容的 System 不能是首条消息；初始指令使用 request.system。并非所有模型支持中途 system／assistant prefill，Unknown 不按模型名猜测。普通内容支持文本、JPEG／PNG／GIF／WebP 图片的 bytes／HTTP URL／同方言文件 ID，以及 PDF 的相应来源；text/plain 文档支持 UTF-8 bytes。system 只接受文本，直接 assistant 文档在新版失败；音频、视频和带时间戳的视频帧没有该协议的通用映射。Document.filename 不冒充供应商 title；需要标题时使用该 content part 的 title 扩展。
+
+ToolResult 编为 user 消息中的 tool_result block，使用原始 call ID、content 和显式 is_error；连续 ToolResult 合并到同一 user 内容数组以保留并行工具结果。block 的扩展仍留在 block，不提升到 user 消息。旧调用不要求本轮重新声明工具。Messages call reference.context 保存的原始调用供应用读取；tool_result 线协议只需要其 ID，不把整个调用 context 发回结果字段。History 只接受同方言的 assistant 消息，保留原始 content；独立 history.context 没有隐式映射。
+
+ClientFunction 映射 name、description、input_schema 与可选 strict，ClientCustom 没有对应映射。NativeToolDefinition 的 kind 加可选 `_version` 构成原生 type，configuration 中的 name 若出现须为非空字符串且不能覆盖 type；客户端／服务端归属保持显式。相同 wire name 的工具在发送前失败。无 name 的原生 toolset 也可发送，但 Specific(ToolKey) 不能代替其成员选择；响应的 toolset_name 与同方言、无 name 的 ClientNative.kind 唯一匹配时关联其 key，成员 name 留在调用 context，不与同名 ClientFunction 混淆。未知原生种类可按该显式表示发送，但已知 bash／text_editor／computer／browser／memory 不能声明为服务端，已知 web_search／web_fetch／code_execution／tool_search 不能声明为客户端。显式版本不被替换；通用 WebSearch 固定使用基础 web_search_20250305，其他版本使用 Native 声明。
+
+WebSearch 将 allowedDomains／excludedDomains 映射 allowed_domains／blocked_domains，两者不得同时出现；location 映射带 type=approximate 的 user_location，必须至少提供一个字段。基础搜索固定返回来源结果，因此 includeSources=true 保持此行为，false 不能表达而报错。不能用扩展覆盖通用管理字段。Auto 缺省省略，None／Required／Specific 分别映射 none／any／tool；parallelToolCalls 通过 tool_choice.disable_parallel_tool_use 的反值精确表达，None 选择下不能同时设置并行开关。
+
+新版明确拒绝 temperature／topP／topK；旧版分别映射 temperature／top_p／top_k，温度和 topP 范围为 0～1。单候选允许 None／1，其他值失败。stop 保持显式数组。reasoning.enabled=true 且未指定预算时使用 adaptive；显式 budgetTokens 使用 enabled 并要求至少 1024 且小于有效 max_tokens，不能与 enabled=false 共存。effort 独立映射 output_config.effort；手工预算模式不能强制选择工具。模型是否接受某种 thinking 模式仍由其 capability／服务端决定。
+
+JsonSchema 映射 output_config.format 的 json_schema／schema；默认 name=response 无需线字段，其他名称和 description 没有对应位置；strict=true 由该格式自身保证，false 无法表达。JsonObject 没有等价开关。request、message、part、tool 的扩展只合并到各自位置，保留未知字段；已管理字段即使缺省省略也不能被扩展覆盖。Native content 是同方言原生 block，不触发媒体下载、转码或工具执行。
+
+协议依据：[API 版本迁移](https://platform.claude.com/docs/en/api/migration-2026-10-21)、[Messages 使用和媒体来源](https://platform.claude.com/docs/en/build-with-claude/working-with-messages)、[文件来源](https://platform.claude.com/docs/en/build-with-claude/files)、[工具定义](https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools)、[thinking](https://platform.claude.com/docs/en/build-with-claude/thinking)、[结构化输出](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)。

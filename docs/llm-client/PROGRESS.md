@@ -28,6 +28,7 @@
 | 客户端原生／服务端工具的 capability | 完成：本机 143/143；Linux 仅精确匹配与原生请求 2/2 |
 | 流式网络寿命、单消费者与文本读取视图 | 完成：本机 130/130；Linux 仅网络定向 2/2；DeepSeek 与 OpenAI 代理实测通过 |
 | Messages 完整响应、服务端搜索活动与历史投影 | 完成：本机 161/161；Linux 仅搜索／客户端工具组合 1/1 |
+| Messages 请求、多模态与普通生成 | 完成：本机 176/176；Linux 仅普通生成 1/1；Anthropic 代理文本与工具回传 2/2 |
 | Responses、Messages、Gemini protocols 与 server-side tools | 待实施 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
@@ -65,3 +66,4 @@
 - 本机重新准备 23 个生产 Cone 和 runtime；Linux 仅发布变更的 HTTP 库并运行上述 5 项最小测试。原始日志及真实 API 测试继续放在仓库外，提交前按环境中的 key 值核对暂存差异；清理 target/debug/incremental 约 372 MiB，保留 release 工具。
 - 原生与服务端工具能力新增 13 项 Cone 用例，覆盖 dialect／种类／版本精确匹配、客户端与服务端执行方隔离、配置字段和搜索选项、混用限制、codec 往返及发送前失败路径。Unknown 不阻止 adapter 可表达的请求，Supported 也不能启用 adapter 无法编码的功能。本机 143/143；Linux 仅版本精确查询和原生 web_search 请求两项通过；本机库产物已准备。
 - Messages 完整响应新增 18 项 Cone 用例，覆盖 thinking／redacted thinking 原文与签名保存、客户端 function／native 关联和执行资格、服务端搜索开始／结果／错误、上一轮调用结果、引用范围、精确 token 归一化、停止原因和错误路径。本机 161/161；Linux 仅搜索／引用与客户端调用组合 1/1；本机生产库已准备。纯 decoder 已交付，Messages 请求编码、网络与 SSE 尚未交付，不把本轮视为 Anthropic 代理实测。
+- Messages 普通生成新增 15 项 Cone 用例，覆盖显式 API 版本、固定请求头、默认上限的能力检查、多模态、thinking／schema 参数、函数／原生 toolset／服务端搜索、扩展冲突和历史接续。本机 176/176；nuc12 仅真实本地 HTTP 生成 1/1。本机生产库准备后，代理 databricks-claude-opus-5-5 的文本生成、工具调用序列化后回传共 2 项通过（3 次请求），同时断言 token 与实际发送／接收时间；使用显式 effort=low、无自动重试，不查询模型列表、不使用官方 OpenAI key。Messages SSE 留待下一功能提交。

@@ -1,11 +1,14 @@
 package scoop.llm.client
 
 import scoop.json.JsonValue
+import scoop.http.HttpField
 import scoop.url.Url
 
 /** Ordinary HTTP JSON generation. Streaming and persistent sessions have separate contracts. */
 public interface LlmGenerationProtocol {
     public val dialectId: DialectId
+    public fun generationFields(): Array<HttpField> = []
+    public fun defaultMaxOutputTokens(): Long? = None
     public fun generationUrl(baseUrl: Url, modelId: String): Url
     public fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean = false): JsonValue
     public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse

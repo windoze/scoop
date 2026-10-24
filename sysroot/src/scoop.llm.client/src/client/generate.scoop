@@ -56,8 +56,8 @@ private suspend fun runLlmCall(call: LlmCallState, caller: Job?, model: LlmModel
 }
 
 private suspend fun performLlmGeneration(call: LlmCallState, model: LlmModel, request: LlmRequest, options: LlmCallOptions): LlmResponse {
-    checkModelRequest(model.capabilities, request)
     val protocol = model.endpoint.provider.protocol
+    checkModelRequest(model.capabilities, request, protocol.defaultMaxOutputTokens())
     val url = protocol.generationUrl(model.endpoint.baseUrl, model.id)
     val bytes = Json.stringify(protocol.encodeRequest(model.id, request)).toByteArray()
     var retry = 0L

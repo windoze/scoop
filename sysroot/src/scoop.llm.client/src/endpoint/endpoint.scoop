@@ -1,6 +1,7 @@
 package scoop.llm.client
 
 import scoop.http.HttpField
+import scoop.http.hasName
 import scoop.url.Url
 
 /** One deployment and authentication choice, reusable across independent model bindings. */
@@ -8,8 +9,9 @@ public class LlmEndpoint public constructor(
     public val provider: LlmProvider,
     public val authentication: LlmAuth,
     baseUrl: Url? = None,
-    public val fields: Array<HttpField> = []
+    fields: Array<HttpField> = []
 ) {
+    public val fields: Array<HttpField> = bindLlmFields(provider.protocol.generationFields(), fields)
     public val baseUrl: Url = baseUrl ?: (provider.defaultBaseUrl ?: throw IllegalArgumentException(Some("provider has no default base URL")))
     init {
         if (this.baseUrl.scheme != Some("http") && this.baseUrl.scheme != Some("https"))
@@ -19,6 +21,18 @@ public class LlmEndpoint public constructor(
     }
     public fun model(id: String, capabilities: ModelCapabilities? = None): LlmModel =
         LlmModel(this, id, capabilities ?: ModelCapabilities())
+}
+
+private fun bindLlmFields(protocol: Array<HttpField>, configured: Array<HttpField>): Array<HttpField> {
+    val fields = ArrayList<HttpField>()
+    for (field in protocol) fields.add(field)
+    for (field in configured) {
+        for (fixed in protocol) {
+            if (fixed.hasName(field.name)) throw IllegalArgumentException(Some("endpoint field duplicates a protocol field"))
+        }
+        fields.add(field)
+    }
+    return fields.toArray()
 }
 
 /** Model identity and capability facts at one endpoint, without credentials in serializable data. */

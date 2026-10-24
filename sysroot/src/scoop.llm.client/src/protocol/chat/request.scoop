@@ -15,14 +15,14 @@ internal fun encodeChatRequest(dialect: ChatDialect, model: String, request: Llm
                 messages.add(encodeChatMessage(dialect, wireRole, content, extensions, path, path + "/content"))
             }
             case ToolResult(call, content, isError, extensions) -> {
-                requireChatOwner(call.dialect, dialect.id, path + "/call/dialect")
+                requireLlmOwner(call.dialect, dialect.id, path + "/call/dialect")
                 requireChatNoContext(call.context, path + "/call/context")
                 if (call.id.length == 0L) throw LlmRequestException(path + "/call/id", "Chat tool call ID must not be empty")
                 if (isError) throw LlmRequestException(path + "/isError", "Chat has no tool-result error flag")
                 val body = JsonObjectBuilder().add("role", JsonValue.fromString("tool"))
                     .add("tool_call_id", JsonValue.fromString(call.id))
                     .add("content", dialect.encodeContent(content, "tool", path + "/content")).build()
-                messages.add(mergeChatExtensions(body, extensions, dialect.id, chatMessageFields(), path))
+                messages.add(mergeLlmExtensions(body, extensions, dialect.id, chatMessageFields(), path))
             }
             case History(history) -> appendChatHistory(messages, history, dialect.id, path + "/history")
         }
@@ -40,7 +40,7 @@ internal fun encodeChatRequest(dialect: ChatDialect, model: String, request: Llm
         result.add("stream", JsonValue.fromBoolean(true))
         result.add("stream_options", JsonObjectBuilder().add("include_usage", JsonValue.fromBoolean(true)).build())
     }
-    return mergeChatExtensions(result.build(), request.extensions, dialect.id, [
+    return mergeLlmExtensions(result.build(), request.extensions, dialect.id, [
         "model", "messages", "stream", "stream_options", "tools", "tool_choice", "functions", "function_call",
         "temperature", "top_p", "top_k", "n", "max_tokens", "max_completion_tokens", "stop", "parallel_tool_calls",
         "reasoning_effort", "thinking", "response_format", "web_search_options"
@@ -51,13 +51,13 @@ private fun encodeChatMessage(dialect: ChatDialect, role: String, content: Array
     extensions: Array<DialectExtension>, path: String, contentPath: String): JsonValue {
     val message = JsonObjectBuilder().add("role", JsonValue.fromString(role))
         .add("content", dialect.encodeContent(content, role, contentPath)).build()
-    return mergeChatExtensions(message, extensions, dialect.id, chatMessageFields(), path)
+    return mergeLlmExtensions(message, extensions, dialect.id, chatMessageFields(), path)
 }
 
 private fun chatMessageFields(): Array<String> = ["role", "content", "tool_calls", "tool_call_id", "function_call", "reasoning_content"]
 
 private fun appendChatHistory(messages: ArrayList<JsonValue>, history: LlmHistory, dialect: DialectId, path: String) {
-    requireChatOwner(history.dialect, dialect, path + "/dialect")
+    requireLlmOwner(history.dialect, dialect, path + "/dialect")
     requireChatNoContext(history.context, path + "/context")
     var index = 0L
     for (message in history.items) {

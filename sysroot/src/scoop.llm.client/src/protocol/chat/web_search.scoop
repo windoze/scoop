@@ -6,13 +6,13 @@ internal fun encodeChatWebSearch(tool: ServerTool, extensions: Array<DialectExte
     val value = when (tool) {
         case WebSearch(options) -> encodeChatSearchOptions(options, path + "/tool/options")
         case Native(native) -> {
-            requireChatOwner(native.dialect, dialect, path + "/tool/dialect")
+            requireLlmOwner(native.dialect, dialect, path + "/tool/dialect")
             if (native.kind != "web_search" || native.version != None)
                 throw LlmRequestException(path + "/tool", "OpenAI Chat accepts the unversioned web_search native tool")
             native.configuration
         }
     }
-    return mergeChatExtensions(value, extensions, dialect, ["user_location"], path)
+    return mergeLlmExtensions(value, extensions, dialect, ["user_location"], path)
 }
 
 private fun encodeChatSearchOptions(options: WebSearchOptions, path: String): JsonValue {
@@ -27,7 +27,7 @@ private fun encodeChatSearchOptions(options: WebSearchOptions, path: String): Js
             if (location.region != None) approximate.add("region", JsonValue.fromString(location.region!!))
             if (location.city != None) approximate.add("city", JsonValue.fromString(location.city!!))
             if (location.timezone != None) approximate.add("timezone", JsonValue.fromString(location.timezone!!))
-            result.add("user_location", chatObject("approximate").add("approximate", approximate.build()).build())
+            result.add("user_location", llmTypedObject("approximate").add("approximate", approximate.build()).build())
         }
         case None -> return result.build()
     }

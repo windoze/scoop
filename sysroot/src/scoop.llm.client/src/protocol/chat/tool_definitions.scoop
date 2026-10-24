@@ -34,30 +34,30 @@ internal fun encodeChatTools(result: JsonObjectBuilder, dialect: DialectId, requ
 
 private fun encodeChatClientTool(tool: ToolDefinition, dialect: DialectId, deepSeek: Boolean, path: String): (String, JsonValue) = when (tool) {
     case ClientFunction(_, name, parameters, description, strict, extensions) -> {
-        requireChatName(name, if (deepSeek) 128L else 64L, path + "/name")
+        requireLlmToolName(name, if (deepSeek) 128L else 64L, path + "/name")
         val value = JsonObjectBuilder().add("name", JsonValue.fromString(name)).add("parameters", parameters)
         if (description.length != 0L) value.add("description", JsonValue.fromString(description))
         if (strict != None) value.add("strict", JsonValue.fromBoolean(strict!!))
-        val function = mergeChatExtensions(value.build(), extensions, dialect, ["name", "parameters", "description", "strict"], path)
-        (name, chatObject("function").add("function", function).build())
+        val function = mergeLlmExtensions(value.build(), extensions, dialect, ["name", "parameters", "description", "strict"], path)
+        (name, llmTypedObject("function").add("function", function).build())
     }
     case ClientCustom(_, name, format, description, extensions) -> {
         if (deepSeek) throw LlmRequestException(path, "DeepSeek Chat only accepts function tools")
         val value = JsonObjectBuilder().add("name", JsonValue.fromString(name))
         if (description.length != 0L) value.add("description", JsonValue.fromString(description))
         value.add("format", encodeChatCustomFormat(format, path + "/format"))
-        val custom = mergeChatExtensions(value.build(), extensions, dialect, ["name", "description", "format"], path)
-        (name, chatObject("custom").add("custom", custom).build())
+        val custom = mergeLlmExtensions(value.build(), extensions, dialect, ["name", "description", "format"], path)
+        (name, llmTypedObject("custom").add("custom", custom).build())
     }
     else -> throw LlmRequestException(path, "this Chat dialect has no corresponding client-native tool")
 }
 
 private fun encodeChatCustomFormat(format: CustomToolFormat, path: String): JsonValue = when (format) {
-    case Text -> chatObject("text").build()
+    case Text -> llmTypedObject("text").build()
     case Grammar(syntax, definition) -> {
         if (syntax != "lark" && syntax != "regex") throw LlmRequestException(path + "/syntax", "Chat grammar syntax must be lark or regex")
         val grammar = JsonObjectBuilder().add("syntax", JsonValue.fromString(syntax)).add("definition", JsonValue.fromString(definition)).build()
-        chatObject("grammar").add("grammar", grammar).build()
+        llmTypedObject("grammar").add("grammar", grammar).build()
     }
 }
 
@@ -85,7 +85,7 @@ private fun selectedChatTool(tools: Array<ToolDefinition>, key: ToolKey): JsonVa
             case ClientCustom(_, name, _, _, _) -> ("custom", name)
             else -> throw LlmRequestException("/options/toolChoice", "Chat cannot select this tool kind")
         }
-        return chatObject(kind).add(kind, JsonObjectBuilder().add("name", JsonValue.fromString(name)).build()).build()
+        return llmTypedObject(kind).add(kind, JsonObjectBuilder().add("name", JsonValue.fromString(name)).build()).build()
     }
     throw LlmRequestException("/options/toolChoice", "selected Chat tool is missing")
 }

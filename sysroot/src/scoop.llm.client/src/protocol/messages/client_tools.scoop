@@ -4,7 +4,7 @@ import scoop.json.*
 
 internal fun readMessagesClientCall(dialect: DialectId, call: MessagesToolUse, raw: JsonValue,
     tools: Array<ToolDefinition>, complete: Boolean): LlmOutputItem {
-    val binding = resolveMessagesTool(tools, dialect, call.name, false) ?: return LlmOutputItem.Native(dialect, raw)
+    val binding = resolveMessagesTool(tools, dialect, call.name, false, call.toolsetName) ?: return LlmOutputItem.Native(dialect, raw)
     val arguments = Json.stringify(call.input)
     val input = if (!complete) ClientToolInput.Incomplete(arguments)
         else if (call.input.kind != JsonValueKind.Object) ClientToolInput.Invalid(arguments, "tool input must be a JSON object")
@@ -15,12 +15,15 @@ internal fun readMessagesClientCall(dialect: DialectId, call: MessagesToolUse, r
 
 internal class MessagesToolBinding public constructor(val key: ToolKey, val native: Boolean)
 
-internal fun resolveMessagesTool(tools: Array<ToolDefinition>, dialect: DialectId, name: String, server: Boolean): MessagesToolBinding? {
+internal fun resolveMessagesTool(tools: Array<ToolDefinition>, dialect: DialectId, name: String, server: Boolean,
+    toolset: String? = None): MessagesToolBinding? {
     var found: MessagesToolBinding? = None
     for (tool in tools) {
         val wireName = when (tool) {
-            case ClientFunction(_, value, _, _, _, _) -> if (!server) Some(value) else None
-            case ClientNative(_, definition, _) -> if (!server) messagesNativeToolName(definition, dialect) else None
+            case ClientFunction(_, value, _, _, _, _) -> if (!server && toolset == None) Some(value) else None
+            case ClientNative(_, definition, _) -> if (server) None else if (toolset != None) {
+                if (definition.dialect == dialect && definition.kind == toolset!! && !definition.configuration.containsKey("name")) Some(name) else None
+            } else messagesNativeToolName(definition, dialect)
             case Server(_, definition, _) -> if (server) when (definition) {
                 case WebSearch(_) -> Some("web_search")
                 case Native(native) -> messagesNativeToolName(native, dialect)

@@ -1,6 +1,6 @@
 package scoop.llm.client
 
-internal fun checkModelRequest(capabilities: ModelCapabilities, request: LlmRequest) {
+internal fun checkModelRequest(capabilities: ModelCapabilities, request: LlmRequest, defaultMaxOutputTokens: Long? = None) {
     checkModelInput(capabilities.input, request)
     val options = request.options
     if (options.temperature != None) requireModelCapability(capabilities.sampling.temperature, "/options/temperature")
@@ -12,7 +12,8 @@ internal fun checkModelRequest(capabilities: ModelCapabilities, request: LlmRequ
     if (options.parallelToolCalls != None) requireModelCapability(capabilities.parallelToolCalls, "/options/parallelToolCalls")
     if (options.candidates != None && options.candidates!! > 1L) requireModelCapability(capabilities.multipleCandidates, "/options/candidates")
     checkModelLimit(options.candidates, capabilities.limits.maxCandidates, "/options/candidates")
-    checkModelLimit(options.maxOutputTokens, capabilities.limits.maxOutputTokens, "/options/maxOutputTokens")
+    checkModelLimit(if (options.maxOutputTokens != None) options.maxOutputTokens else defaultMaxOutputTokens,
+        capabilities.limits.maxOutputTokens, "/options/maxOutputTokens")
     checkModelTools(capabilities, request.tools)
     checkModelToolChoice(capabilities.toolChoice, options.toolChoice, request.tools.size != 0L)
     checkModelReasoning(capabilities.reasoning, options.reasoning)

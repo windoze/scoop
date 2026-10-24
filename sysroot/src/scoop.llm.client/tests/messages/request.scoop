@@ -1,0 +1,65 @@
+package scoop.llm.client.tests.messages
+
+import scoop.http.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+internal fun assertMessagesRequestFailure(request: LlmRequest, path: String, version: AnthropicMessagesVersion = V20261021) {
+    val error = assertFailsWith<LlmRequestException> { MessagesProtocol(AnthropicMessagesDialect(version)).encodeRequest("model", request); Unit }
+    assertEquals(path, error.path)
+}
+
+@Test
+private class MessagesRequestTest {
+    @Test
+    fun `Messages minimum request uses the provider defaults without model routing`() {
+        val endpoint = LlmEndpoint(Providers.anthropicMessages(), LlmAuth.none())
+        val protocol = endpoint.provider.protocol
+        assertEquals("https://api.anthropic.com/v1", endpoint.baseUrl.toString())
+        assertEquals("2026-10-21", String.fromUtf8(endpoint.fields.findAll("Anthropic-Version".toByteArray())[0L].value))
+        assertEquals("https://proxy.test/prefix/messages?deployment=x", protocol.generationUrl(Url.parse("https://proxy.test/prefix?deployment=x"), "team/model:v").toString())
+        val body = protocol.encodeRequest("team/model:v", messagesRequest())
+        assertEquals(3L, body.size)
+        assertEquals("team/model:v", body["model"]!!.asString())
+        assertEquals(4096L, body["max_tokens"]!!.asLong())
+        assertEquals("user", body["messages"]!![0L]["role"]!!.asString())
+        assertEquals("question", body["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
+        val legacy = LlmEndpoint(Providers.anthropicMessages(V20230601, 128L), LlmAuth.none())
+        assertEquals("2023-06-01", String.fromUtf8(legacy.fields[0L].value))
+        assertEquals(128L, legacy.provider.protocol.encodeRequest("model", messagesRequest())["max_tokens"]!!.asLong())
+        assertFailsWith<IllegalArgumentException> {
+            val invalid = LlmEndpoint(Providers.anthropicMessages(), LlmAuth.none(), fields = [HttpField("Anthropic-Version".toByteArray(), "2023-06-01".toByteArray())]); Unit
+        }
+    }
+
+    @Test
+    fun `Messages extensions stay at the request message content and tool positions`() {
+        val dialect = AnthropicMessagesDialect()
+        val cache = DialectExtension(dialect.id, Json.parse("{\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}"))
+        val request = LlmRequest([Message([Text("hello", [cache])], extensions = [DialectExtension(dialect.id, Json.parse("{\"future_message\":false}"))]),
+            Message([Text("later instruction")], System)], system = [Text("initial", [cache])],
+            tools = [ClientFunction(ToolKey("tool"), "tool", Json.parse("{}"), extensions = [cache])],
+            extensions = [DialectExtension(dialect.id, Json.parse("{\"metadata\":{\"user_id\":\"opaque\"}}"))])
+        val body = MessagesProtocol(dialect).encodeRequest("model", request)
+        assertEquals("1h", body["system"]!![0L]["cache_control"]!!["ttl"]!!.asString())
+        assertFalse(body["messages"]!![0L]["future_message"]!!.asBoolean())
+        assertTrue(body["messages"]!![0L]["content"]!![0L].containsKey("cache_control"))
+        assertEquals("system", body["messages"]!![1L]["role"]!!.asString())
+        assertTrue(body["tools"]!![0L].containsKey("cache_control"))
+        assertFalse(body.containsKey("cache_control"))
+        assertEquals("opaque", body["metadata"]!!["user_id"]!!.asString())
+    }
+
+    @Test
+    fun `Messages explicit fields cannot be overwritten and unsupported roles keep paths`() {
+        val dialect = AnthropicMessagesDialect().id
+        assertMessagesRequestFailure(LlmRequest([], system = [Text("only system")]), "/input")
+        assertMessagesRequestFailure(LlmRequest([Message([Text("system")], System)]), "/input/0/role")
+        assertMessagesRequestFailure(LlmRequest([Message([Text("developer")], Developer)]), "/input/0/role")
+        assertMessagesRequestFailure(LlmRequest(messagesRequest().input, extensions = [DialectExtension(dialect, Json.parse("{\"temperature\":null}"))]), "/extensions/0/value/temperature")
+        assertMessagesRequestFailure(LlmRequest([Message([Text("text", [DialectExtension(dialect, Json.parse("{\"source\":null}"))])])]), "/input/0/content/0/extensions/0/value/source")
+        assertMessagesRequestFailure(LlmRequest(messagesRequest().input, extensions = [DialectExtension(OpenAiChatDialect().id, Json.parse("{}"))]), "/extensions/0/dialect")
+    }
+}

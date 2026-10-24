@@ -1,16 +1,25 @@
 package scoop.llm.client
 
 import scoop.json.JsonValue
+import scoop.http.HttpField
+import scoop.url.Url
 
 /** Messages content blocks combined with one explicitly selected dialect. */
-public class MessagesProtocol public constructor(public val dialect: MessagesDialect) {
-    public val dialectId: DialectId get() = dialect.id
+public class MessagesProtocol public constructor(public val dialect: MessagesDialect) : LlmGenerationProtocol {
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationFields(): Array<HttpField> = dialect.requestFields()
+    public override fun defaultMaxOutputTokens(): Long? = Some(dialect.defaultMaxOutputTokens)
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("messages").build()
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
+        encodeMessagesRequest(dialect, modelId, request, stream)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
     init {
         if (dialect.id.protocol != ApiProtocolId("messages"))
             throw IllegalArgumentException(Some("Messages dialect belongs to another API protocol"))
     }
 
-    public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
         try {
             val body = decodeMessagesValue<MessagesResponseBody>(value, "")
             if (body.type != "message") throw DecodingException("/type", "expected a Messages response")

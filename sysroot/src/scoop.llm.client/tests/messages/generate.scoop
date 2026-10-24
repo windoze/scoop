@@ -1,0 +1,67 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.messages.messagesBody
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class MessagesGenerationTest {
+    @Test
+    fun `Messages ordinary generation binds version authentication default limit usage and actual timestamps`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val endpoint = LlmEndpoint(Providers.anthropicMessages(defaultMaxOutputTokens = 256L), auth,
+                Some(Url.parse(original.baseUrl.toString() + "/deployment?scope=one")))
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                    assertEquals("/v1/deployment/messages?scope=one", target)
+                    assertEquals("2026-10-21", String.fromUtf8(request.head.fields.findAll("anthropic-version".toByteArray())[0L].value))
+                    assertEquals("Bearer attempt-1", String.fromUtf8(request.head.fields.findAll("authorization".toByteArray())[0L].value))
+                    val body = Json.parse(String.fromUtf8(request.body.readAllBytes(8192L)))
+                    assertEquals(256L, body["max_tokens"]!!.asLong())
+                    assertEquals("proxy/model:v", body["model"]!!.asString())
+                    sendLlmReply(connection, 200U, Json.stringify(messagesBody("[{\"type\":\"text\",\"text\":\"hello\"}]", usage =
+                        Some("{\"input_tokens\":5,\"cache_read_input_tokens\":4,\"cache_creation_input_tokens\":3,\"output_tokens\":2}"))))
+                }
+            }
+            withLlmClient suspend { client ->
+                val result = client.generate(endpoint.model("proxy/model:v"), sampleRequest)
+                assertEquals("hello", result.text)
+                assertEquals(Some(14L), result.response.usage.tokens.totalTokens)
+                assertTrue(result.metadata.attempts[0].request.sentAt != None)
+                assertTrue(result.metadata.attempts[0].response.receivedAt != None)
+                assertEquals("2026-10-21", String.fromUtf8(auth.requests[0].fields.findAll("anthropic-version".toByteArray())[0L].value))
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `Messages default token limit and unavailable SSE fail before authentication`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val auth = RecordingAuth()
+                val endpoint = LlmEndpoint(Providers.anthropicMessages(), auth)
+                val model = endpoint.model("model", Some(ModelCapabilities(limits = ModelLimits(maxOutputTokens = Some(128L)))))
+                val finished = FinishedCalls()
+                val failure = expectLlmFailure<LlmRequestException> suspend {
+                    client.generate(model, sampleRequest, LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+                assertEquals("/options/maxOutputTokens", failure.path)
+                assertEquals(0L, auth.requests.size)
+                assertEquals(0L, finished.values[0].attempts.size)
+                val stream = expectLlmFailure<LlmRequestException> suspend { client.openStream(endpoint.model("model"), sampleRequest); Unit }
+                assertEquals("/stream", stream.path)
+                assertEquals(0L, auth.requests.size)
+            }
+        }
+    }
+}
