@@ -1,0 +1,14 @@
+//! dep: scoop:scoop.platform:0.1.0
+
+import scoop.platform.concurrent.Thread
+
+fun main() {
+    val count = AtomicInt(0)
+    Thread.start {
+        for (index in 1..1000) count.fetchAdd(1)
+    }.use { worker ->
+        for (index in 1..1000) count.fetchAdd(1)
+        worker.join()
+    }
+    println(count.load())
+}

@@ -1,0 +1,15 @@
+//! dep: scoop:scoop.regex:0.1.0
+
+import scoop.regex.*
+
+fun main() {
+    Regex("""(?<key>[a-z]+)=(?<value>[^;]+)""").use { pattern ->
+        for (match in pattern.findAll("name=Scoop;target=native")) {
+            println(f"${match.groups["key"]!!.value}: ${match.groups["value"]!!.value}")
+        }
+    }
+    Regex("""[0-9]{4}-[0-9]{2}-[0-9]{2}""").use { pattern ->
+        println(pattern.matches("2026-10-24"))
+        println(pattern.matches("date=2026-10-24"))
+    }
+}

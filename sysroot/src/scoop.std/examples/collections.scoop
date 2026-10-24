@@ -1,0 +1,15 @@
+import scoop.collections.*
+
+fun main() {
+    val scores = listOf<Int>(8, 3, 9, 3, 6)
+    val passing = scores.filter { score -> score >= 6 }.sorted()
+    println(passing.joinToString(", "))
+
+    val counts = LinkedHashMap<String, Int>()
+    for (word in listOf<String>("red", "blue", "red")) {
+        counts[word] = (counts[word] ?: 0) + 1
+    }
+    for ((word, count) in counts) {
+        println(f"${word}=${count}")
+    }
+}

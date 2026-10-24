@@ -1,0 +1,23 @@
+//! dep: scoop:scoop.readline:0.1.0
+
+import scoop.readline.*
+import scoop.readline.history.MemoryHistory
+
+fun main() {
+    val history = MemoryHistory()
+    val editor = Editor(history = history)
+    editor.hinter = HistoryHinter()
+    println("Enter text, or :quit to exit. Up recalls history; Ctrl+D exits.")
+    while (true) {
+        try {
+            val line = editor.readLine("scoop> ")
+            if (line == ":quit") break
+            history.add(line)
+            println(f"You entered: ${line}")
+        } catch (_: ReadlineEofException) {
+            break
+        } catch (_: ReadlineInterruptedException) {
+            println("Input cancelled")
+        }
+    }
+}

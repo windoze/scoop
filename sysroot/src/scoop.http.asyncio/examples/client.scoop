@@ -1,0 +1,29 @@
+//! dep: scoop:scoop.asyncio:0.1.0
+//! dep: scoop:scoop.http:0.1.0
+//! dep: scoop:scoop.http.asyncio:0.1.0
+//! dep: scoop:scoop.platform:0.1.0
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.net.*
+import scoop.text.toInt
+
+fun main(args: Array<String>) {
+    val port = if (args.size > 1L) args[1L].toInt() else 8081
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val socket = loop.connectTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port))
+        AsyncHttp1Connection.takeOwnershipAsClient(socket, scope).useAsync suspend { connection ->
+            val request = HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(),
+                HttpRequestTarget.Http1("/".toByteArray()), [
+                    HttpField("Host".toByteArray(), f"localhost:${port}".toByteArray())
+                ])
+            // Empty bodies also need an explicit finish.
+            connection.sendRequest(request).finish()
+            val incoming = connection.receiveResponse()
+            println(incoming.head.status)
+            println(String.fromUtf8(incoming.body.readAllBytes(1024L)))
+        }
+    }
+}

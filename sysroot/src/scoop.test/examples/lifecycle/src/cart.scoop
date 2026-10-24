@@ -1,0 +1,7 @@
+package examples.testing
+
+public class Cart {
+    public val items: ArrayList<String> = ArrayList<String>()
+    public fun add(item: String) { items.add(item) }
+    public fun clear() { items.clear() }
+}

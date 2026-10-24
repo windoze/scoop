@@ -1,0 +1,16 @@
+//! dep: scoop:scoop.json:0.1.0
+
+import scoop.json.*
+
+struct User(val name: String, val scores: Array<Int>, val note: String? = None) {
+    public companion object : ValueEncoder<User>, ValueDecoder<User>
+}
+
+fun main() {
+    val original = User("Ada", [7, 9])
+    val text = Json.encodeToString(original)
+    println(text)
+    val decoded = Json.decodeFromString<User>(text)
+    println(f"${decoded.name}: ${decoded.scores[1L]}")
+    println(decoded.note ?: "no note")
+}

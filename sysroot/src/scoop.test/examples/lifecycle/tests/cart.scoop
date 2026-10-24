@@ -1,0 +1,31 @@
+package examples.testing
+
+import scoop.test.*
+
+@Test
+private class CartTests {
+    private val cart: Cart = Cart()
+
+    @BeforeTest
+    fun prepare() {
+        assertEquals(0L, cart.items.size)
+        cart.add("Scoop")
+    }
+
+    @AfterTest
+    fun cleanup() {
+        cart.clear()
+        assertEquals(0L, cart.items.size)
+    }
+
+    @Test
+    fun `setup provides the first item`() {
+        assertEquals("Scoop", cart.items[0L])
+    }
+
+    @Test
+    fun `each test starts with its own cart`() {
+        cart.add("Native")
+        assertEquals(2L, cart.items.size)
+    }
+}

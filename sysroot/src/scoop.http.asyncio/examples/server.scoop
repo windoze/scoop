@@ -1,0 +1,36 @@
+//! dep: scoop:scoop.asyncio:0.1.0
+//! dep: scoop:scoop.http:0.1.0
+//! dep: scoop:scoop.http.asyncio:0.1.0
+//! dep: scoop:scoop.platform:0.1.0
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.text.toInt
+
+fun main(args: Array<String>) {
+    val port = if (args.size > 1L) args[1L].toInt() else 8081
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port)).useAsync suspend { listener ->
+            println(f"Listening on ${listener.localAddress.toString()}")
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val incoming = connection.receiveRequest() ?: return@useAsync
+                println(String.fromUtf8(incoming.head.method))
+                incoming.body.readAllBytes(1024L)
+                val body = "Hello, HTTP/1!".toByteArray()
+                val head = HttpResponseHead(HttpVersion.Http11, 200U, fields = [
+                    HttpField("Content-Type".toByteArray(), "text/plain; charset=utf-8".toByteArray())
+                ])
+                val writer = connection.sendResponse(head, Http1BodyFraming.Length(body.size))
+                NativeByteBuffer.allocate(body.size).use suspend { buffer ->
+                    buffer.writeBytes(body)
+                    writer.writeFully(buffer)
+                }
+                writer.finish()
+            }
+        }
+    }
+}

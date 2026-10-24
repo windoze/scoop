@@ -26,6 +26,8 @@ cd sysroot/src/scoop.http.server/examples
 
 事件循环仍由程序显式创建，`listen` 沿用调用方的 loop 和 scope。
 
+全部内置库示例见 [sysroot 示例索引](../../../README.md)。也可使用 [HTTP client 示例](../../scoop.http.client/examples/README.md)调用这里的 hello 和 JSON 服务。
+
 ## 简单启动
 
 ```sh

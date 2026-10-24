@@ -1,0 +1,32 @@
+//! dep: scoop:scoop.asyncio:0.1.0
+//! dep: scoop:scoop.platform:0.1.0
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+
+fun main() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val echo = scope.launch suspend {
+                listener.accept().useAsync suspend { stream ->
+                    stream.copyTo(stream, 1024L)
+                    stream.shutdownOutput()
+                }
+            }
+            loop.connectTcp(listener.localAddress).useAsync suspend { stream ->
+                NativeByteBuffer.allocate(64L).use suspend { buffer ->
+                    val message = "Hello over TCP!".toByteArray()
+                    buffer.writeBytes(message)
+                    stream.writeFully(buffer)
+                    stream.shutdownOutput()
+                    buffer.clear()
+                    stream.readFully(buffer, message.size)
+                    println(String.fromUtf8(buffer.readBytes(message.size)))
+                }
+            }
+            echo.join()
+        }
+    }
+}

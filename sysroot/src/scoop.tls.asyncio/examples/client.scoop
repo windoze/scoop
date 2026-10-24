@@ -1,0 +1,30 @@
+//! dep: scoop:scoop.asyncio:0.1.0
+//! dep: scoop:scoop.platform:0.1.0
+//! dep: scoop:scoop.tls:0.1.0
+//! dep: scoop:scoop.tls.asyncio:0.1.0
+
+import scoop.asyncio.*
+import scoop.platform.fs.Path
+import scoop.platform.net.*
+import scoop.text.toInt
+import scoop.tls.*
+import scoop.tls.asyncio.*
+
+fun main(args: Array<String>): Int {
+    if (args.size < 2L) {
+        println("Usage: client CA.pem [PORT]")
+        return 2
+    }
+    val port = if (args.size > 2L) args[2L].toInt() else 8444
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        openTlsClientContext(Path.fromString(args[1L])).use suspend { context ->
+            val transport = loop.connectTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port))
+            AsyncTlsStream.takeOwnershipAsClient(transport, context, TlsPeerName.Dns("localhost")).useAsync suspend { stream ->
+                print(String.fromUtf8(stream.readAllBytes(4096L)))
+                stream.shutdownGracefully()
+            }
+        }
+    }
+    return 0
+}

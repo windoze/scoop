@@ -1,0 +1,14 @@
+import scoop.datetime.LocalDate
+import scoop.time.Duration
+
+fun main() {
+    val start = LocalDate(2024, 1, 31)
+    val next = start.plusMonths(1L)
+    println(next.toString())
+    println(next.plusDays(1L).toString())
+    println(start.daysUntil(next))
+
+    val elapsed = Duration.minutes(2L) + Duration.seconds(30L)
+    println(elapsed.toString())
+    println(elapsed.inWholeSeconds)
+}

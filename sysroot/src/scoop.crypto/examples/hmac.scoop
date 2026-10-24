@@ -1,0 +1,14 @@
+//! dep: scoop:scoop.crypto:0.1.0
+
+import scoop.crypto.*
+import scoop.text.toHexString
+
+fun main() {
+    SecretKey.fromBytes(secureRandomBytes(32L)).use { key ->
+        val message = "order=42".toByteArray()
+        val tag = hmac(DigestAlgorithm.Sha256, key, message)
+        println(tag.toHexString())
+        println(verifyHmac(DigestAlgorithm.Sha256, key, message, tag))
+        println(verifyHmac(DigestAlgorithm.Sha256, key, "order=43".toByteArray(), tag))
+    }
+}

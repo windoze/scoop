@@ -1,0 +1,23 @@
+//! dep: scoop:scoop.asyncio:0.1.0
+//! dep: scoop:scoop.terminal:0.1.0
+//! dep: scoop:scoop.terminal.asyncio:0.1.0
+
+import scoop.asyncio.*
+import scoop.terminal.Print
+import scoop.terminal.asyncio.*
+import scoop.time.Duration
+
+fun main() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        AsyncTerminalSession.open(loop).useAsync suspend { terminal ->
+            val size = terminal.size()
+            terminal.execute(Print(f"Terminal: ${size.columns}x${size.rows}\r\n"))
+            for (step in 1..3) {
+                terminal.execute(Print(f"\rCountdown: ${4 - step}"))
+                loop.sleep(Duration.milliseconds(300L))
+            }
+            terminal.execute(Print("\rCountdown: done\r\n"))
+        }
+    }
+}

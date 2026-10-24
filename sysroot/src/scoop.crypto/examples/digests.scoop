@@ -1,0 +1,13 @@
+//! dep: scoop:scoop.crypto:0.1.0
+
+import scoop.crypto.*
+import scoop.text.toHexString
+
+fun main() {
+    println(digest(DigestAlgorithm.Sha256, "abc".toByteArray()).toHexString())
+    Digest(DigestAlgorithm.Sha256).use { state ->
+        state.update("a".toByteArray())
+        state.update("bc".toByteArray())
+        println(state.finish().toHexString())
+    }
+}

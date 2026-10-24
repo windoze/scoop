@@ -1,0 +1,25 @@
+//! dep: scoop:scoop.platform:0.1.0
+//! dep: scoop:scoop.tls:0.1.0
+
+import scoop.platform.fs.Path
+import scoop.platform.io.*
+import scoop.platform.net.*
+import scoop.text.toInt
+import scoop.tls.*
+
+fun main(args: Array<String>): Int {
+    if (args.size < 2L) {
+        println("Usage: client CA.pem [PORT]")
+        return 2
+    }
+    val port = if (args.size > 2L) args[2L].toInt() else 8443
+    TlsClientContext.fromCaFile(Path.fromString(args[1L])).use { context ->
+        val transport = TcpStream.connect(SocketAddress(IpAddress.IPV4_LOOPBACK, port))
+        TlsStream.takeOwnershipAsClient(transport, context, TlsPeerName.Dns("localhost")).use { stream ->
+            // The CA and expected hostname are both checked during the handshake.
+            print(stream.readText())
+            stream.shutdownGracefully()
+        }
+    }
+    return 0
+}

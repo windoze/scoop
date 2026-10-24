@@ -1,0 +1,26 @@
+//! dep: scoop:scoop.http:0.1.0
+//! dep: scoop:scoop.platform:0.1.0
+
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+fun main() {
+    val wire = "id: 7\nevent: update\ndata: first line\ndata: second line\n\n".toByteArray()
+    SseDecoder().use { decoder ->
+        NativeByteBuffer.allocate(wire.size).use { buffer ->
+            buffer.writeBytes(wire)
+            while (buffer.readableBytes > 0L) {
+                // Feed small fragments to demonstrate incremental parsing.
+                decoder.receive(buffer, if (buffer.readableBytes < 3L) buffer.readableBytes else 3L)
+                when (val event = decoder.nextEvent()) {
+                    case Some(value) -> {
+                        println(f"${value.event} #${value.lastEventId}")
+                        println(value.data)
+                    }
+                    case None -> continue
+                }
+            }
+            decoder.endInput()
+        }
+    }
+}

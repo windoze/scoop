@@ -1,0 +1,17 @@
+//! dep: scoop:scoop.platform:0.1.0
+//! dep: scoop:scoop.terminal:0.1.0
+
+import scoop.platform.io.standardOutput
+import scoop.terminal.*
+import scoop.terminal.style.*
+
+fun main() {
+    val heading = ContentStyle(foregroundColor = Some(Color.Green))
+        .withAttribute(Attribute.Bold)
+    standardOutput.execute(
+        heading.apply("Scoop terminal"),
+        Print("\n"),
+        ContentStyle(foregroundColor = Some(Color.Blue)).apply("Styled text"),
+        Print("\nPlain text again\n")
+    )
+}

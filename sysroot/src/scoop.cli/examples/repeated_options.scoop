@@ -1,0 +1,38 @@
+//! dep: scoop:scoop.cli:0.1.0
+
+import scoop.cli.*
+
+enum Mode {
+    Fast, Thorough
+    companion object : ValueDecoder<Mode>
+}
+
+struct Options(
+    @CliOption(names = ["--include", "-I"], help = "Repeat to add another directory")
+    val include: Array<String> = [],
+    @CliOption(names = ["--mode"], defaultText = "Fast") val mode: Mode = Mode.Fast,
+    @CliOption(names = ["--output", "-o"]) val output: String? = None
+) {
+    companion object : ValueDecoder<Options>
+}
+
+fun main(args: Array<String>): Int {
+    val schema = Cli.schema(typeInfo<Options>(), CliConfig("options", "Decode repeated and optional values"))
+    try {
+        when (CliParser(schema, Options.Companion).parseCommandLine(args)) {
+            case CliResult.HelpRequested -> print(schema.help())
+            case CliResult.Parsed(options) -> {
+                for (directory in options.include) println(f"include=${directory}")
+                println(when (options.mode) {
+                    case Mode.Fast -> "mode=Fast"
+                    case Mode.Thorough -> "mode=Thorough"
+                })
+                println(f"output=${options.output ?: "stdout"}")
+            }
+        }
+    } catch (error: DecodingException) {
+        println(error.message ?: "invalid arguments")
+        return 2
+    }
+    return 0
+}

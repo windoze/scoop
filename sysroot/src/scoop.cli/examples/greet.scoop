@@ -1,0 +1,34 @@
+//! dep: scoop:scoop.cli:0.1.0
+
+import scoop.cli.*
+
+struct Options(
+    @CliArgument(position = 0L, help = "Name to greet") val name: String,
+    @CliOption(names = ["--count", "-n"], defaultText = "1") val count: Int = 1,
+    @CliFlag(names = ["--excited", "-e"]) val excited: Boolean = false
+) {
+    companion object : ValueDecoder<Options>
+}
+
+fun main(args: Array<String>): Int {
+    val schema = Cli.schema(typeInfo<Options>(), CliConfig("greet", "Print a greeting"))
+    try {
+        when (CliParser(schema, Options.Companion).parseCommandLine(args)) {
+            case CliResult.HelpRequested -> print(schema.help())
+            case CliResult.Parsed(options) -> {
+                if (options.count < 1) {
+                    println("count must be positive")
+                    return 2
+                }
+                val ending = if (options.excited) "!" else "."
+                for (index in 1..options.count) {
+                    println(f"Hello, ${options.name}${ending}")
+                }
+            }
+        }
+    } catch (error: DecodingException) {
+        println(error.message ?: "invalid arguments")
+        return 2
+    }
+    return 0
+}
