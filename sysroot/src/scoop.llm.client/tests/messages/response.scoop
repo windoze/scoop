@@ -1,0 +1,85 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesResponseTest {
+    @Test
+    fun `Messages structured output and history retain exact data without response metadata`() {
+        val body = Json.parse("{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"m1\",\"model\":\"deployment\",\"stop_reason\":\"end_turn\",\"future\":1e400," +
+            "\"content\":[{\"type\":\"text\",\"text\":\"{\\\"count\\\":9007199254740993}\",\"future_block\":1e400}]}")
+        val response = MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(body, messagesRequest())
+        assertEquals(9007199254740993L, response.decodeOutput<MessagesCount>().count)
+        assertEquals(Some("m1"), response.id)
+        assertEquals(Some("deployment"), response.model)
+        assertEquals(None, response.createdAt)
+        assertEquals(LlmCompletion.Complete, response.candidate(0L).completion)
+        assertEquals(UsageCompleteness.Final, response.usage.completeness)
+        assertEquals(None, response.usage.tokens.inputTokens)
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(Json.stringify(body), Json.stringify(restored.native!!))
+        val history = messagesHistory(restored)
+        assertEquals(2L, history.size)
+        assertEquals("assistant", history["role"]!!.asString())
+        assertEquals(Json.stringify(body["content"]!!), Json.stringify(history["content"]!!))
+        assertEquals(9007199254740993L, restored.decodeOutput<MessagesCount>().count)
+    }
+
+    @Test
+    fun `empty thinking signatures redactions and unknown blocks retain their original order`() {
+        val content = "[{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"opaque-sig\",\"future\":false}," +
+            "{\"type\":\"redacted_thinking\",\"data\":\"opaque-data\"},{\"type\":\"text\",\"text\":\"answer\"}," +
+            "{\"type\":\"future_output\",\"payload\":1e400},{\"type\":\"thinking\",\"thinking\":\"later\",\"signature\":\"sig2\"}]"
+        val response = MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(messagesBody(content), messagesRequest())
+        assertEquals("answer", response.text)
+        assertEquals(5L, response.candidate(0L).items.size)
+        when (response.candidate(0L).items[0]) {
+            case Reasoning(parts, _) -> when (parts[0]) { case Text(text, _) -> assertEquals("", text); else -> fail() }
+            else -> fail()
+        }
+        when (response.candidate(0L).items[1]) {
+            case Reasoning(parts, _) -> when (parts[0]) { case Native(_, value) -> assertEquals("opaque-data", value["data"]!!.asString()); else -> fail() }
+            else -> fail()
+        }
+        when (response.candidate(0L).items[3]) {
+            case Native(_, value) -> assertEquals("1e400", value["payload"]!!.asNumberToken())
+            else -> fail()
+        }
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(Json.stringify(Json.parse(content)), Json.stringify(messagesHistory(restored)["content"]!!))
+    }
+
+    @Test
+    fun `Messages refusal pause truncation and unknown reasons never become structured success`() {
+        val protocol = MessagesProtocol(AnthropicMessagesDialect())
+        for (reason in ["refusal", "pause_turn", "max_tokens", "model_context_window_exceeded", "future_stop"]) {
+            val response = protocol.decodeResponse(messagesBody("[{\"type\":\"text\",\"text\":\"{\\\"count\\\":1}\"}]", reason), messagesRequest())
+            assertEquals(if (reason == "refusal") LlmCompletion.Refused else LlmCompletion.Incomplete, response.candidate(0L).completion)
+            assertFailsWith<LlmOutputException> { response.decodeOutput<MessagesCount>(); Unit }
+            val expected: LlmFinishReason = when (reason) {
+                case "refusal" -> Refusal
+                case "pause_turn" -> Pause
+                case "max_tokens" -> Length
+                case "model_context_window_exceeded" -> Length
+                else -> Other(reason)
+            }
+            assertEquals(Json.encodeToString(expected), Json.encodeToString(response.candidate(0L).finishReason))
+        }
+        val stopped = protocol.decodeResponse(messagesBody("[]", "stop_sequence"), messagesRequest())
+        assertEquals(LlmCompletion.Complete, stopped.candidate(0L).completion)
+        assertEquals("", stopped.text)
+    }
+
+    @Test
+    fun `Messages malformed envelopes and known blocks report exact field paths`() {
+        assertMessagesFailure(Json.parse("{\"type\":\"other\",\"role\":\"assistant\",\"content\":[],\"stop_reason\":\"end_turn\"}"), "/type")
+        assertMessagesFailure(Json.parse("{\"type\":\"message\",\"role\":\"user\",\"content\":[],\"stop_reason\":\"end_turn\"}"), "/role")
+        assertMessagesFailure(Json.parse("{\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"stop_reason\":null}"), "/stop_reason")
+        assertMessagesFailure(messagesBody("[{}]"), "/content/0/type")
+        assertMessagesFailure(messagesBody("[{\"type\":\"text\",\"text\":5}]"), "/content/0/text")
+        assertMessagesFailure(messagesBody("[{\"type\":\"thinking\",\"thinking\":\"text\"}]"), "/content/0/signature")
+        assertMessagesFailure(messagesBody("[{\"type\":\"redacted_thinking\",\"data\":null}]"), "/content/0/data")
+    }
+}

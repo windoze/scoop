@@ -49,6 +49,8 @@ Message 默认 User，system／tools／extensions 默认空，生成参数默认
 
 `ChatProtocol(OpenAiChatDialect())` 与 `ChatProtocol(DeepSeekChatDialect())` 的 `decodeResponse(json, request)` 解释完整 Chat 响应。DeepSeek reasoning 单独展示并完整进入历史；音频历史仅回传 ID。原始响应、未知字段和不能关联的工具调用保持可读。模型生成的无效 JSON 参数保存为 Invalid；截断输出中的调用保存为 Incomplete；两者均不进入待执行视图。外层格式错误使用带字段路径和原始正文的 LlmProtocolException。
 
+`MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(json, request)` 已提供完整 Messages 响应的纯解释。它按原始 block 顺序保留文本、thinking、客户端调用、服务端搜索活动和引用；搜索开始与结果是共享同一服务器 ID 的两条活动。history 完整保留签名、加密搜索内容和未知字段。pause_turn 保持不完整状态，由应用决定下一步；搜索错误不会冒充整个 HTTP 请求失败。此入口尚未接入 Messages provider／网络生成，后续沿用同一 client API。
+
 同一 ChatProtocol 的 `createStreamDecoder(request, retention = StreamRetention.EventsOnly)` 接收 SSE parser 已定界的 `accept(event, data)`，返回带候选／item 位置的文本、reasoning、工具参数、完成调用和 usage 事件。缺省不累计普通文本；`StreamRetention.Result` 才保留完整结果与历史。正常 `[DONE]` 后可调用 `response()`，在输入结束时使用 `endInput()` 检查缺失终止。候选的 finish_reason 不等同整个流结束，usage 尾块仍会处理；EOF、服务错误或终止后新增数据均不能产生成功结果。
 
 工具参数只有完成后才解释为可执行调用；无效或截断输入仍可观察。usage 是累计快照，只在正常 `[DONE]` 后标 Final，不把早到的候选结束当作总量已确定。未知片段保存在 Native 事件，Result 也通过 `nativeEvents` 保留必要片段；无法无损重建的消息不提供 history。这个 decoder 不执行网络 I/O；网络读取由 `LlmClient` 管理。
@@ -84,6 +86,8 @@ val wire = protocol.encodeRequest("application-supplied-model-id", request)
 `LlmCallMetadata` 可独立保存失败或取消记录；`LlmResult` 只组合已收尾成功的调用与模型响应。各次尝试分别保存 request.sentAt、response.receivedAt 等 UTC 视图及单调时间偏移，耗时不受实时钟回拨影响。发送和接收时间来自实际 HTTP 采样，信息响应不算最终接收；普通生成的 firstOutput／firstText 是完整响应解析后的观察时间。未提供的 body 完成／首字节 UTC 与 token 计数保留 None，耗时为零时不伪造速率。
 
 `TokenUsage` 保存总量、非缓存输入、缓存读写、reasoning 与模态细项。未报告的计数缺省为 None，已知为零使用 Some(0L)。缓存和 reasoning 分项不自动加入总量，缺失的 totalTokens 也不会被补成一个看似完整的数字。
+
+具体 dialect 按供应商明确的口径归一化：Anthropic 的 input_tokens 仅表示非缓存部分；三个输入部分齐全时才相加，再与已知 output_tokens 计算 totalTokens。缺失缓存细项时保留未知总量，搜索次数和 TTL 明细保留在 usage.native。
 
 ```scoop
 import scoop.json.Json

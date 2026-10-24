@@ -1,0 +1,39 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.json.JsonValue
+
+internal class MessagesResponseBody public constructor(
+    public val type: String,
+    public val role: String,
+    public val content: Array<JsonValue>,
+    @Serialize(rename = "stop_reason") public val stopReason: String,
+    public val id: String? = None,
+    public val model: String? = None,
+    public val usage: JsonValue? = None
+) {
+    public companion object : ValueDecoder<MessagesResponseBody>
+}
+
+internal class MessagesBlockType public constructor(public val type: String) {
+    public companion object : ValueDecoder<MessagesBlockType>
+}
+
+internal class MessagesTextBlock public constructor(public val text: String, public val citations: Array<JsonValue>? = None) {
+    public companion object : ValueDecoder<MessagesTextBlock>
+}
+
+internal class MessagesToolUse public constructor(public val id: String, public val name: String, public val input: JsonValue) {
+    public companion object : ValueDecoder<MessagesToolUse>
+}
+
+internal class MessagesSearchResult public constructor(
+    @Serialize(rename = "tool_use_id") public val toolUseId: String, public val content: JsonValue
+) {
+    public companion object : ValueDecoder<MessagesSearchResult>
+}
+
+internal fun <T> decodeMessagesValue(value: JsonValue, path: String): T where T.Companion : ValueDecoder<T> {
+    try { return Json.decodeFromValue<T>(value) }
+    catch (error: DecodingException) { throw DecodingException(path + error.path, error.message ?: "invalid Messages field") }
+}

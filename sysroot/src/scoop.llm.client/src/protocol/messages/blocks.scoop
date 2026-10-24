@@ -1,0 +1,48 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+internal class MessagesCallIdentity public constructor(val id: String, val name: String, val server: Boolean)
+
+internal fun readMessagesBlocks(dialect: MessagesDialect, blocks: Array<JsonValue>, tools: Array<ToolDefinition>,
+    complete: Boolean): Array<LlmOutputItem> {
+    val items = ArrayList<LlmOutputItem>()
+    val calls = ArrayList<MessagesCallIdentity>()
+    var index = 0L
+    for (block in blocks) {
+        val path = "/content/" + index.toString()
+        val kind = decodeMessagesValue<MessagesBlockType>(block, path).type
+        when (kind) {
+            case "text" -> {
+                val text = decodeMessagesValue<MessagesTextBlock>(block, path)
+                items.add(LlmOutputItem.Message([OutputPart.Text(text.text, readMessagesCitations(dialect.id, text.citations, path + "/citations"))]))
+            }
+            case "thinking" -> items.add(LlmOutputItem.Reasoning(dialect.readReasoning(block, path)))
+            case "redacted_thinking" -> items.add(LlmOutputItem.Reasoning(dialect.readReasoning(block, path)))
+            case "tool_use" -> {
+                val call = readMessagesCall(block, path, false, calls)
+                items.add(readMessagesClientCall(dialect.id, call, block, tools, complete))
+            }
+            case "server_tool_use" -> {
+                val call = readMessagesCall(block, path, true, calls)
+                items.add(LlmOutputItem.ServerToolActivity(readMessagesServerCall(dialect.id, call, block, tools, path)))
+            }
+            case "web_search_tool_result" -> items.add(LlmOutputItem.ServerToolActivity(
+                readMessagesSearchResult(dialect.id, block, tools, calls, path)))
+            else -> items.add(LlmOutputItem.Native(dialect.id, block))
+        }
+        index += 1L
+    }
+    return items.toArray()
+}
+
+private fun readMessagesCall(value: JsonValue, path: String, server: Boolean,
+    calls: ArrayList<MessagesCallIdentity>): MessagesToolUse {
+    val call = decodeMessagesValue<MessagesToolUse>(value, path)
+    if (call.id.length == 0L) throw DecodingException(path + "/id", "empty Messages tool call ID")
+    for (previous in calls) {
+        if (previous.id == call.id) throw DecodingException(path + "/id", "duplicate Messages tool call ID")
+    }
+    calls.add(MessagesCallIdentity(call.id, call.name, server))
+    return call
+}

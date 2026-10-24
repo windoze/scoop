@@ -1,0 +1,42 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readMessagesClientCall(dialect: DialectId, call: MessagesToolUse, raw: JsonValue,
+    tools: Array<ToolDefinition>, complete: Boolean): LlmOutputItem {
+    val binding = resolveMessagesTool(tools, dialect, call.name, false) ?: return LlmOutputItem.Native(dialect, raw)
+    val arguments = Json.stringify(call.input)
+    val input = if (!complete) ClientToolInput.Incomplete(arguments)
+        else if (call.input.kind != JsonValueKind.Object) ClientToolInput.Invalid(arguments, "tool input must be a JSON object")
+        else if (binding.native) ClientToolInput.Native(call.input)
+        else ClientToolInput.JsonArguments(JsonToolArguments(arguments))
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, binding.key, call.id, Some(raw)), input))
+}
+
+internal class MessagesToolBinding public constructor(val key: ToolKey, val native: Boolean)
+
+internal fun resolveMessagesTool(tools: Array<ToolDefinition>, dialect: DialectId, name: String, server: Boolean): MessagesToolBinding? {
+    var found: MessagesToolBinding? = None
+    for (tool in tools) {
+        val wireName = when (tool) {
+            case ClientFunction(_, value, _, _, _, _) -> if (!server) Some(value) else None
+            case ClientNative(_, definition, _) -> if (!server) messagesNativeToolName(definition, dialect) else None
+            case Server(_, definition, _) -> if (server) when (definition) {
+                case WebSearch(_) -> Some("web_search")
+                case Native(native) -> messagesNativeToolName(native, dialect)
+            } else None
+            else -> None
+        }
+        if (wireName != Some(name)) continue
+        if (llmPresent(found)) return None
+        val native = when (tool) { case ClientNative(_, _, _) -> true; else -> false }
+        found = Some(MessagesToolBinding(tool.key, native))
+    }
+    return found
+}
+
+private fun messagesNativeToolName(tool: NativeToolDefinition, dialect: DialectId): String? {
+    if (tool.dialect != dialect) return None
+    val name = tool.configuration["name"] ?: return None
+    return if (name.kind == JsonValueKind.String) Some(name.asString()) else None
+}

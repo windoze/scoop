@@ -37,11 +37,3 @@ internal fun <T> decodeChatValue(value: JsonValue, path: String): T where T.Comp
     try { return Json.decodeFromValue<T>(value) }
     catch (error: DecodingException) { throw DecodingException(path + error.path, error.message ?: "invalid Chat response field") }
 }
-
-/** Malformed protocol data retains its source body and field path for caller diagnostics. */
-public class LlmProtocolException public constructor(
-    public val dialect: DialectId,
-    public val path: String,
-    message: String,
-    public val native: JsonValue
-) : Exception(Some(message))

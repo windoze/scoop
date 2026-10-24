@@ -262,3 +262,23 @@ metadata 每次返回不可变 LlmCallMetadata 快照。首个 SSE 事件、首�
 close 不自动消费剩余输出：未达终止时取消并等待收尾（outcome=Cancelled），已经终止时正常清理；重复关闭幂等。client.close 对已经终止的流正常清理，对未完成的流以 LlmClientClosedException 终止，并等待回调。读取失败由 next 交付后，useAsync 的 close 不重复交付同一失败；尚未交付的超时、拥有者关闭或回调失败由 close 交付。操作和回调都失败时以 ResourceUseException 保留两者。主动提前 close 自身不抛用于中止读取的 CancellationException。
 
 `result()` 为关闭后的纯读取，要求 Result 保留、协议正常终止、资源清理及回调成功，否则报告原失败或 LlmOutputException（Incomplete／ResultNotRetained）。所有模式关闭后仍可读取 metadata；block 内旧快照不被改写。关闭前不能取得伪造的最终结果。
+
+## 12. Messages 响应解释
+
+`MessagesProtocol(dialect: MessagesDialect)` 固定使用 ApiProtocolId("messages")，拒绝其他协议归属。`AnthropicMessagesDialect` 的身份为 DialectId(ApiProtocolId("messages"), "anthropic-messages")。本节交付纯 `decodeResponse(value, request)`；请求编码、provider 工厂和 SSE 随各自闭环接入，不宣称该纯 decoder 已能发起网络调用。MessagesDialect 分别负责 readReasoning(block, path)、readUsage(usage)、historyMessage(message, path) 及 decodeError；不共享调用状态。
+
+完整响应的 type 必须为 message、role 必须为 assistant，content 是有序 block 数组，stop_reason 必须为非 null 字符串。单个响应产生 index=0 的候选；缺失的 id、model、usage 保持未知，createdAt 不从本地时钟补造。已知 block 验证其必要字段，失败报告 LlmProtocolException 的 JSON Pointer 路径和完整原文；未知 block 保存为 Native。text 投影为一个 Message，thinking／redacted_thinking 投影为 Reasoning；普通文本视图不混入 reasoning。
+
+history 仅选取 role 和未经重建的 content，不携带顶层 id、usage、stop_reason 等响应元数据。完整保留 thinking.signature、redacted_thinking.data、工具输入、搜索的 encrypted_content／encrypted_index、citations 及未知 block／字段。库不解析或验证签名，不过滤空 thinking，不按模型名裁剪历史。序列化后的 toInput 使用同一份历史。依据：[thinking 回传](https://platform.claude.com/docs/en/build-with-claude/thinking)、[web search 回传](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool)。
+
+tool_use 按 name 唯一关联本次 ClientFunction，或同方言 ClientNative 的 configuration.name；不匹配 ClientCustom 或 Server。无法唯一关联时保留 Native。function 输入从原生 JSON object 生成 JsonToolArguments，native 客户端输入保存为 Native object；非 object 为 Invalid，生成不完整时为 Incomplete，均不可执行。call reference.context 保存该调用原始 block，以保留 caller 等原生关联。客户端和服务端调用 ID 不能在同一响应中重复；ID 来自服务器，不从工具名称或 block 下标生成。
+
+server_tool_use 独立产生 ServerToolActivity，绝不进入客户端执行列表。WebSearch 的 use block 为 InProgress，后续 web_search_tool_result 产生相同服务器 ID 的 Completed／Failed 活动；两项分别保留原始 block 位置，不把后来的结果搬到较早的位置。成功的空结果数组仍为 Completed，已知错误 object 为 Failed，未知结果 object 保持 Unknown。结果可以属于前一轮的服务端调用，此时不要求本响应中已有 use block，也不补造调用；能从当前响应确定名称时才关联请求 ToolKey。其他服务端 use 保留 Native kind 和原文；尚无通用结果解释的 block 保留 Native。依据：[server tool 生命周期](https://platform.claude.com/docs/en/agents-and-tools/tool-use/server-tools)。
+
+web search 来源和文本中的 web_search_result_location 引用提供 URL、可选 title 与原文；没有原生来源 ID 时以响应内字段路径作为来源表 ID，不能用作工具调用 ID。其他引用保存 Native 来源。Citation.range 保持 None：document 的字符／页码范围指向源文档，不是生成文本中的范围，不得误填为 TextRange。搜索活动、来源和引用可通过普通响应 codec 保存。
+
+end_turn／stop_sequence 映射 Stop，tool_use 映射 ToolCalls，均为 Complete；max_tokens 和 model_context_window_exceeded 为 Length／Incomplete；pause_turn 为 Pause／Incomplete；refusal 为 Refusal／Refused；未知值为 Other(raw)／Incomplete。任何暂停、拒绝或截断都不自动继续或重试。依据：[停止原因](https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons)。
+
+Anthropic input_tokens 是非缓存输入；cache_read_input_tokens、cache_creation_input_tokens 为独立输入部分。三项都报告时才相加得到 inputTokens，再与已知 output_tokens 相加得到 totalTokens；缺失项不补零。output_tokens_details.thinking_tokens 归为 reasoningTokens；缓存 TTL 明细、服务端搜索次数和其他非 token 资料留在 usage.native。所有计数必须为非负 Long，归一化求和检查溢出。usage.Final 表示报告终结，不表示每项已知。依据：[缓存计数口径](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)、[Messages API](https://platform.claude.com/docs/en/api/messages/create)。
+
+错误正文保留有界 bytes、解析成功的 native、error.type 与 error.message；截断或非 JSON 正文仍可报告 HTTP 失败。只有 HTTP 429／529 且对应 rate_limit_error／overloaded_error 才取得可重试资格，实际重试仍受第 9 节限制。HTTP 200 内的搜索失败是服务端工具结果，不是整个请求的 HTTP 错误。

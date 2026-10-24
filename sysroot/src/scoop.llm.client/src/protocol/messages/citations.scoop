@@ -1,0 +1,29 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.url.Url
+
+internal fun readMessagesCitations(dialect: DialectId, values: Array<JsonValue>?, path: String): Array<Citation> {
+    val entries = values ?: return []
+    val result = ArrayList<Citation>()
+    var index = 0L
+    for (entry in entries) {
+        val itemPath = path + "/" + index.toString()
+        val kind = decodeMessagesValue<MessagesBlockType>(entry, itemPath).type
+        val source = if (kind == "web_search_result_location") readMessagesUrlSource(entry, itemPath)
+            else LlmSource(itemPath, LlmSourceLocation.Native(dialect, entry), native = Some(entry))
+        result.add(Citation(source))
+        index += 1L
+    }
+    return result.toArray()
+}
+
+internal fun readMessagesUrlSource(value: JsonValue, path: String): LlmSource {
+    val fields = decodeMessagesValue<MessagesUrlSource>(value, path)
+    val url = Url.parseOrNone(fields.url) ?: throw DecodingException(path + "/url", "invalid source URL")
+    return LlmSource(path, LlmSourceLocation.Url(url), fields.title, Some(value))
+}
+
+private class MessagesUrlSource public constructor(public val url: String, public val title: String? = None) {
+    public companion object : ValueDecoder<MessagesUrlSource>
+}

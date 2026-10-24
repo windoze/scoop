@@ -1,0 +1,11 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Malformed protocol data retains its source body and field path for caller diagnostics. */
+public class LlmProtocolException public constructor(
+    public val dialect: DialectId,
+    public val path: String,
+    message: String,
+    public val native: JsonValue
+) : Exception(Some(message))

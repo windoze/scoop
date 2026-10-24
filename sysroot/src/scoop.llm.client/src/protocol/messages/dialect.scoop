@@ -1,0 +1,52 @@
+package scoop.llm.client
+
+import scoop.json.JsonObjectBuilder
+import scoop.json.JsonValue
+import scoop.json.JsonValueKind
+
+/** Messages-specific interpretation, with all per-response state owned by the decoder. */
+public interface MessagesDialect {
+    public val id: DialectId
+    public fun readReasoning(block: JsonValue, path: String): Array<OutputPart>
+    public fun readUsage(usage: JsonValue): TokenUsage
+    public fun historyMessage(message: JsonValue, path: String): JsonValue
+    public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
+}
+
+public class AnthropicMessagesDialect : MessagesDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("messages"), "anthropic-messages")
+
+    public override fun readReasoning(block: JsonValue, path: String): Array<OutputPart> {
+        val kind = decodeMessagesValue<MessagesBlockType>(block, path).type
+        if (kind == "thinking") {
+            val thinking = decodeMessagesValue<MessagesThinkingBlock>(block, path)
+            return [OutputPart.Text(thinking.thinking)]
+        }
+        if (kind != "redacted_thinking") throw DecodingException(path + "/type", "expected a Messages reasoning block")
+        decodeMessagesValue<MessagesRedactedBlock>(block, path)
+        return [OutputPart.Native(id, block)]
+    }
+
+    public override fun readUsage(usage: JsonValue): TokenUsage = readMessagesUsage(usage)
+
+    public override fun historyMessage(message: JsonValue, path: String): JsonValue =
+        JsonObjectBuilder().add("role", JsonValue.fromString("assistant"))
+            .add("content", message["content"] ?: throw DecodingException(path + "/content", "missing Messages content")).build()
+
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
+        val value = parseLlmServiceError(body, truncated)
+        val error = when (value) { case Some(root) -> if (root.kind == JsonValueKind.Object) root["error"] else None; case None -> None }
+        val code = llmServiceErrorString(error, "type")
+        val retryable = (status == 429U && code == Some("rate_limit_error")) || (status == 529U && code == Some("overloaded_error"))
+        return LlmServiceException(id, status, body, truncated, code, value, retryable,
+            llmServiceErrorString(error, "message") ?: "Messages service rejected the request")
+    }
+}
+
+private class MessagesThinkingBlock public constructor(public val thinking: String, public val signature: String) {
+    public companion object : ValueDecoder<MessagesThinkingBlock>
+}
+
+private class MessagesRedactedBlock public constructor(public val data: String) {
+    public companion object : ValueDecoder<MessagesRedactedBlock>
+}

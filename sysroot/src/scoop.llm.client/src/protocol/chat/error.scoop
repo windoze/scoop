@@ -3,24 +3,10 @@ package scoop.llm.client
 import scoop.json.*
 
 internal fun decodeChatError(dialect: DialectId, status: UInt, body: Array<Byte>, truncated: Boolean, deepSeek: Boolean): LlmServiceException {
-    val value = parseChatError(body, truncated)
+    val value = parseLlmServiceError(body, truncated)
     val error = when (value) { case Some(root) -> if (root.kind == JsonValueKind.Object) root["error"] else None; case None -> None }
-    val code = chatErrorString(error, "code")
-    val message = chatErrorString(error, "message") ?: "Chat service rejected the request"
+    val code = llmServiceErrorString(error, "code")
+    val message = llmServiceErrorString(error, "message") ?: "Chat service rejected the request"
     val retryable = if (deepSeek) status == 429U || status == 503U else status == 429U && code == Some("rate_limit_exceeded")
     return LlmServiceException(dialect, status, body, truncated, code, value, retryable, message)
-}
-
-private fun parseChatError(body: Array<Byte>, truncated: Boolean): JsonValue? {
-    if (truncated) return None
-    try { return Some(Json.parse(String.fromUtf8(body))) }
-    catch (_: CharacterCodingException) { return None }
-    catch (_: DecodingException) { return None }
-}
-
-private fun chatErrorString(error: JsonValue?, field: String): String? {
-    val value = error ?: return None
-    if (value.kind != JsonValueKind.Object) return None
-    val member = value[field] ?: return None
-    return if (member.kind == JsonValueKind.String) Some(member.asString()) else None
 }

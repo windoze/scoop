@@ -1,0 +1,36 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesErrorTest {
+    @Test
+    fun `Messages service retry classification requires both HTTP status and native error type`() {
+        val dialect = AnthropicMessagesDialect()
+        for ((status, code, retryable) in [(429U, "rate_limit_error", true), (529U, "overloaded_error", true),
+            (400U, "rate_limit_error", false), (500U, "api_error", false), (429U, "authentication_error", false)]) {
+            val raw = "{\"type\":\"error\",\"error\":{\"type\":\"" + code + "\",\"message\":\"failure\"},\"request_id\":\"req\"}"
+            val error = dialect.decodeError(status, raw.toByteArray(), false)
+            assertEquals(retryable, error.retryable)
+            assertEquals(Some(code), error.code)
+            assertEquals(Some("failure"), error.message)
+            assertEquals(status, error.status)
+            assertEquals(raw, String.fromUtf8(error.body))
+            assertEquals("req", error.native!!["request_id"]!!.asString())
+        }
+    }
+
+    @Test
+    fun `Messages non-JSON and truncated rejection bodies do not lose HTTP failures`() {
+        val dialect = AnthropicMessagesDialect()
+        for ((raw, truncated) in [("not JSON", false), ("{\"error\":{\"type\":\"rate_limit_error\"}}", true), ("{\"error\":false}", false)]) {
+            val error = dialect.decodeError(429U, raw.toByteArray(), truncated)
+            assertEquals(None, error.code)
+            assertFalse(error.retryable)
+            assertEquals(raw, String.fromUtf8(error.body))
+            assertEquals(truncated, error.truncated)
+        }
+    }
+}

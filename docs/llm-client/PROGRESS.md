@@ -27,6 +27,7 @@
 | SSE 事件、保留策略与 Chat reducer | 完成：本机 110/110；Linux 新边界定向 1/1；DeepSeek 真实 SSE 与历史接续通过 |
 | 客户端原生／服务端工具的 capability | 完成：本机 143/143；Linux 仅精确匹配与原生请求 2/2 |
 | 流式网络寿命、单消费者与文本读取视图 | 完成：本机 130/130；Linux 仅网络定向 2/2；DeepSeek 与 OpenAI 代理实测通过 |
+| Messages 完整响应、服务端搜索活动与历史投影 | 完成：本机 161/161；Linux 仅搜索／客户端工具组合 1/1 |
 | Responses、Messages、Gemini protocols 与 server-side tools | 待实施 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
@@ -63,3 +64,4 @@
 - 高层流式入口已通过 DeepSeek 文本／最终 usage、reasoning／工具参数序列化并回传，以及代理 gpt-6.1-sol 的文本投影、最终 usage 和实际发送／接收／首文本时间戳。代理测试显式 effort=low；未查询模型列表、未使用失效的官方 OpenAI key。Anthropic 代理保留指定 databricks-claude-opus-5-5，随 Messages 实施验证。
 - 本机重新准备 23 个生产 Cone 和 runtime；Linux 仅发布变更的 HTTP 库并运行上述 5 项最小测试。原始日志及真实 API 测试继续放在仓库外，提交前按环境中的 key 值核对暂存差异；清理 target/debug/incremental 约 372 MiB，保留 release 工具。
 - 原生与服务端工具能力新增 13 项 Cone 用例，覆盖 dialect／种类／版本精确匹配、客户端与服务端执行方隔离、配置字段和搜索选项、混用限制、codec 往返及发送前失败路径。Unknown 不阻止 adapter 可表达的请求，Supported 也不能启用 adapter 无法编码的功能。本机 143/143；Linux 仅版本精确查询和原生 web_search 请求两项通过；本机库产物已准备。
+- Messages 完整响应新增 18 项 Cone 用例，覆盖 thinking／redacted thinking 原文与签名保存、客户端 function／native 关联和执行资格、服务端搜索开始／结果／错误、上一轮调用结果、引用范围、精确 token 归一化、停止原因和错误路径。本机 161/161；Linux 仅搜索／引用与客户端调用组合 1/1；本机生产库已准备。纯 decoder 已交付，Messages 请求编码、网络与 SSE 尚未交付，不把本轮视为 Anthropic 代理实测。

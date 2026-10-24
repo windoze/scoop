@@ -1,6 +1,6 @@
 # LLM client 使用示例与缺省参数
 
-日期：2026-10-24。本文结合已实现的 Chat 普通生成与后续 API 草案检查接口负担；Chat 的可用入口见[库说明](../../sysroot/src/scoop.llm.client/README.md)，验证范围见[实施记录](PROGRESS.md)。流式、Responses、token 预计数、缓存寿命与费用扩展仍为设计示例，不代表已通过验收。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
+日期：2026-10-25。本文结合已实现的 Chat 普通／流式生成与后续 API 草案检查接口负担；可用入口见[库说明](../../sysroot/src/scoop.llm.client/README.md)，验证范围见[实施记录](PROGRESS.md)。Responses、token 预计数、缓存寿命与费用扩展仍为设计示例，不代表已通过验收；Messages 当前仅提供完整响应 decoder。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
 
 简单调用和完整调用共用 `generate(model, request, options = LlmCallOptions())`。不再保留先前草稿中的 `generate(model, prompt = ...)` 重载，也不增加 `generateText`、`SimpleClient` 或自动选择模型的入口。简单形态直接来自 request、消息和 options 的缺省字段。
 

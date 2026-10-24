@@ -1,0 +1,78 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesClientToolTest {
+    @Test
+    fun `Messages function and native client calls preserve JSON numbers and caller context`() {
+        val dialect = AnthropicMessagesDialect()
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}")),
+            ClientNative(ToolKey("terminal"), NativeToolDefinition(dialect.id, "bash", Json.parse("{\"name\":\"bash\"}"), Some("20250124")))]
+        val body = messagesBody("[{\"type\":\"tool_use\",\"id\":\"call1\",\"name\":\"lookup\",\"input\":{\"count\":9007199254740993},\"caller\":{\"type\":\"direct\"}}," +
+            "{\"type\":\"tool_use\",\"id\":\"call2\",\"name\":\"bash\",\"input\":{\"command\":\"pwd\"}}]", "tool_use")
+        val response = MessagesProtocol(dialect).decodeResponse(body, messagesRequest(tools))
+        assertEquals(2L, response.clientToolCalls.size)
+        val first = response.clientToolCalls[0]
+        assertEquals(ToolKey("lookup"), first.toolKey)
+        assertEquals("call1", first.reference.id)
+        assertEquals(9007199254740993L, first.decodeArguments<MessagesCount>().count)
+        assertEquals("direct", first.reference.context!!["caller"]!!["type"]!!.asString())
+        when (response.clientToolCalls[1].input) {
+            case Native(value) -> assertEquals("pwd", value["command"]!!.asString())
+            else -> fail()
+        }
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(9007199254740993L, restored.clientToolCalls[0].decodeArguments<MessagesCount>().count)
+        assertEquals(Json.stringify(body["content"]!!), Json.stringify(messagesHistory(restored)["content"]!!))
+    }
+
+    @Test
+    fun `Messages association does not cross execution ownership or guess unknown names`() {
+        val dialect = AnthropicMessagesDialect()
+        val body = messagesBody("[{\"type\":\"tool_use\",\"id\":\"call\",\"name\":\"same\",\"input\":{}}]", "tool_use")
+        val function: ToolDefinition = ClientFunction(ToolKey("one"), "same", Json.parse("{}"))
+        val alternatives: Array<Array<ToolDefinition>> = [[],
+            [Server(ToolKey("server"), Native(NativeToolDefinition(dialect.id, "web_search", Json.parse("{\"name\":\"same\"}"))))],
+            [ClientCustom(ToolKey("custom"), "same")],
+            [ClientNative(ToolKey("foreign"), NativeToolDefinition(OpenAiChatDialect().id, "bash", Json.parse("{\"name\":\"same\"}")))],
+            [function, ClientFunction(ToolKey("two"), "same", Json.parse("{}"))]]
+        for (tools in alternatives) {
+            val response = MessagesProtocol(dialect).decodeResponse(body, messagesRequest(tools))
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidate(0L).items[0]) { case Native(_, value) -> assertEquals("same", value["name"]!!.asString()); else -> fail() }
+        }
+    }
+
+    @Test
+    fun `Messages invalid or unfinished client inputs remain visible but cannot execute`() {
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("key"), "tool", Json.parse("{}"))]
+        val protocol = MessagesProtocol(AnthropicMessagesDialect())
+        for (reason in ["end_turn", "max_tokens", "refusal", "pause_turn", "future"]) {
+            val input = if (reason == "end_turn") "[]" else "{\"ok\":true}"
+            val response = protocol.decodeResponse(messagesBody("[{\"type\":\"tool_use\",\"id\":\"call\",\"name\":\"tool\",\"input\":" + input + "}]", reason), messagesRequest(tools))
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidate(0L).items[0]) {
+                case ClientToolCall(call) -> {
+                    assertFalse(call.isExecutable)
+                    when (call.input) {
+                        case Invalid(_, _) -> assertEquals("end_turn", reason)
+                        case Incomplete(raw) -> assertEquals("{\"ok\":true}", raw)
+                        else -> fail()
+                    }
+                }
+                else -> fail()
+            }
+        }
+    }
+
+    @Test
+    fun `Messages rejects duplicate call identity across client and server execution`() {
+        assertMessagesFailure(messagesBody("[{\"type\":\"tool_use\",\"id\":\"id\",\"name\":\"unknown\",\"input\":{}}," +
+            "{\"type\":\"server_tool_use\",\"id\":\"id\",\"name\":\"web_search\",\"input\":{}}]"), "/content/1/id")
+        assertMessagesFailure(messagesBody("[{\"type\":\"tool_use\",\"id\":\"\",\"name\":\"tool\",\"input\":{}}]"), "/content/0/id")
+        assertMessagesFailure(messagesBody("[{\"type\":\"tool_use\",\"id\":\"id\",\"name\":\"tool\"}]"), "/content/0/input")
+    }
+}
