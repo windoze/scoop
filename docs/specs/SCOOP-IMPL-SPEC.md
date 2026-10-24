@@ -311,6 +311,8 @@ LIR 以完整操作表达托管分配、字段／数组写入、值复制、原�
 
 codegen 的 release 小型常量分配按运行时规范 3.1 直接完成 TLAB 登记，使用统一的七指针 context 与四项 atomic u64 计数视图。复用输入的完整本地 TD／typed array layout，跨物理对象分区保留已确定的 alignment 与 release-policy；外部 TD 缺少事实时保留原加载与完成入口，不扩充跨 Cone 格式。内联只在大小合格、布局已知、确定无 release hook 的成功分配分支内发射，不增加 LIR 操作、持久证明、managed 引用或根。line 位图跨字分支合流后，分配结果按实际快路径出口与原慢路径出口构造 phi，慢路径 safepoint／relocation 保持。debug 与未命中的分配使用相同 ABI 下的既有完成入口。
 
+ARM64 release 的 TLAB context 地址在每次函数调用内按首次使用取得并复用。codegen 用入口初始化的非逃逸 AS0 局部槽表达空缓存，各实际分配点只在缓存为空时读取 TLS；交由既有 LLVM 标量优化提升为 SSA，不把取址无条件移到只含失败／异常分配的函数入口。若已有常量资格、大小或溢出条件直接否定 TLAB 路径，则先选择原 collecting slow path，不取得 context。首次 TLS load 使用 volatile 约束执行位置，避免 LLVM 将条件取址变成无条件取址加 select；这不是线程同步，缓存和 context 字段仍按各自普通／原子访问规则处理。缓存跨普通调用、GC、refill、异常处理和同步 callback 保留，依据运行时规范 3.1 的 attachment 生命周期；各分配点继续加载当前 cursor、limit 与块元数据，不复用这些可变内容。x86 试验收益不足以抵消宽对象路径回退，沿用逐次读取；debug 也不建立该缓存。统一 runtime ABI 与 LIR／跨 Cone 格式保持。
+
 `ManagedPoll` 表示运行时规范 3.2 的条件 poll，携带唯一慢路径 site 与完整 live set。codegen 发射 acquire 检查和快／慢分支，只在慢分支物化该站点的 managed leaves、调用协调入口并回写 relocation；后续使用通过普通 canonical storage／SSA 合流取得快路径原值或慢路径新值。入口 pending 的 mode 检查属于同一操作，不能仅按 world phase 删除首次激活。TLS 与全局数据引用使用闭合 runtime ABI 目录中的普通数据合同。
 
 LIR lowering 在最终 CFG 上按运行时规范 3.2 选择有界叶函数的 `EntryActivation` 入口模式；其快路径仅 acquire 读取 mode 并判断 MANAGED，其他模式保留相同的完整慢路径与根计划。普通 `Full` poll 继续读取 epoch、phase、mode 与 observed epoch。资格由明确的操作集合、无环直线路径和小值复制决定，不依赖源函数名称或调用方推测；codegen 消费该模式，不再重做资格分析。

@@ -4,7 +4,8 @@ use super::*;
 /// signatures small.
 pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) reuse_interface_values: bool,
-    pub(crate) inline_small_allocations: bool,
+    pub(crate) optimize_allocations: bool,
+    pub(crate) reuse_allocation_context: bool,
     pub(crate) managed_address_space: ManagedAddressSpace,
     pub(crate) functions: &'a [Function],
     pub(crate) structs: &'a StructDefs,

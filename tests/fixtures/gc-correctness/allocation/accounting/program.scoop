@@ -47,6 +47,23 @@ fun checkAllocationBoundaries() {
     }
 }
 
+fun checkAllocationAcrossCatch(values: MutableArray<Node?>, fail: Boolean) {
+    try {
+        if (fail) {
+            values[0L] = Some(Node(41))
+            gcCollect()
+            throw IllegalStateException()
+        }
+    } catch (error: IllegalStateException) {
+        values[1L] = Some(Node(42))
+        gcCollect()
+        check(values[0L]!!.value == 41 && values[1L]!!.value == 42)
+    }
+    values[0L] = Some(Node(43))
+    gcCollect()
+    check(values[0L]!!.value == 43)
+}
+
 fun main() {
     val values = MutableArray<Node?>(64L) { index -> None }
     gcCollect()
@@ -66,5 +83,9 @@ fun main() {
     }
     check(sum == 1024)
     checkAllocationBoundaries()
+    val caught = MutableArray<Node?>(2L) { _ -> None }
+    gcCollect()
+    checkAllocationAcrossCatch(caught, false)
+    checkAllocationAcrossCatch(caught, true)
     println("allocation counters")
 }

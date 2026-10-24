@@ -14,7 +14,8 @@ mod roots;
 struct FnEmitter<'a, 'ctx> {
     context: &'ctx Context,
     managed_address_space: ManagedAddressSpace,
-    inline_small_allocations: bool,
+    optimize_allocations: bool,
+    reuse_allocation_context: bool,
     llvm: &'a LlvmModule<'ctx>,
     builder: &'a inkwell::builder::Builder<'ctx>,
     function: &'a Function,
@@ -71,6 +72,8 @@ struct FnEmitter<'a, 'ctx> {
     allocation_index: u32,
     /// The attached thread address stays stable throughout this invocation.
     cached_poll_state: Option<PointerValue<'ctx>>,
+    /// Lazily initialized AS0 context address; its mutable fields are not cached.
+    allocation_context_slot: Option<PointerValue<'ctx>>,
     /// One ordinary field-write region, never retained across control flow or
     /// operations that can change the reference or publish/collect heap state.
     field_barrier: Option<gc::FieldBarrierCache<'ctx>>,
@@ -280,7 +283,8 @@ pub(super) fn emit_function<'ctx>(
     let mut emitter = FnEmitter {
         context,
         managed_address_space: module_ctx.managed_address_space,
-        inline_small_allocations: module_ctx.inline_small_allocations,
+        optimize_allocations: module_ctx.optimize_allocations,
+        reuse_allocation_context: module_ctx.reuse_allocation_context,
         llvm,
         builder,
         function,
@@ -321,6 +325,7 @@ pub(super) fn emit_function<'ctx>(
         compiler_invoke_index: 0,
         allocation_index: 0,
         cached_poll_state: None,
+        allocation_context_slot: None,
         field_barrier: None,
         array_size_trap_blocks: HashMap::new(),
     };

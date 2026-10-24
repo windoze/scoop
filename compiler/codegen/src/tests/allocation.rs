@@ -1,4 +1,5 @@
 use super::*;
+use inkwell::values::AnyValue;
 
 fn allocation_ir(
     size: u64,
@@ -140,6 +141,84 @@ fn debug_large_dynamic_and_unknown_allocations_keep_the_shared_finish_entry() {
         if !known_descriptor || mode == scoop_lir::OptimizationMode::Debug {
             assert!(ir.contains("allocation_alignment = load"), "{ir}");
             assert!(ir.contains("allocation_hook = load"), "{ir}");
+        }
+    }
+}
+
+#[test]
+fn statically_large_allocations_do_not_cache_a_tlab_context() {
+    let ir = allocation_ir(32768, false, true, scoop_lir::OptimizationMode::Release);
+    assert!(ir.contains("@scoop_runtime_alloc_slow"), "{ir}");
+    if host_target_machine().unwrap().get_target().get_name() == c"aarch64" {
+        assert!(!ir.contains("@scoop_rt_allocation_context"), "{ir}");
+    }
+    assert!(!ir.contains("allocation_context_cache"), "{ir}");
+}
+
+#[test]
+fn allocation_context_reuse_does_not_load_tls_on_the_no_allocation_path() {
+    let mut module = heap_module();
+    let function = &mut module.functions[1];
+    function.signature = plain_scoop_signature(vec![LirType::I1], LirType::Void);
+    let skip = function.blocks.alloc(BasicBlock {
+        name: "skip_allocation".into(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return { value: None },
+    });
+    function.entry = function.blocks.alloc(BasicBlock {
+        name: "allocation_guard".into(),
+        instructions: Vec::new(),
+        terminator: Terminator::CondBr {
+            cond: Value::Param(0),
+            then_block: function.entry,
+            else_block: skip,
+        },
+    });
+    let symbol = function.symbol().to_owned();
+    for mode in [
+        scoop_lir::OptimizationMode::Debug,
+        scoop_lir::OptimizationMode::Release,
+    ] {
+        let context = Context::create();
+        let machine = host_target_machine().unwrap();
+        let reuse_context = mode == scoop_lir::OptimizationMode::Release
+            && machine.get_target().get_name() == c"aarch64";
+        let llvm = emit_llvm_module(
+            &context,
+            &module,
+            &machine,
+            host_profile().with_optimization(mode),
+        )
+        .unwrap();
+        llvm.verify().unwrap();
+        let body = llvm.get_function(&symbol).unwrap();
+        for block in body.get_basic_blocks() {
+            if matches!(
+                block.get_name().to_str().unwrap(),
+                "allocation_guard" | "skip_allocation"
+            ) {
+                assert!(block.get_instructions().all(|instruction| {
+                    !instruction
+                        .print_to_string()
+                        .to_string()
+                        .contains("@scoop_rt_allocation_context")
+                }));
+            }
+        }
+        let ir = body.print_to_string().to_string();
+        if reuse_context {
+            assert!(
+                ir.contains("store ptr null, ptr %allocation_context_cache"),
+                "{ir}"
+            );
+            assert!(ir.contains("allocation_context_value = phi ptr"), "{ir}");
+            assert!(ir.contains("alloc.context.load.0"), "{ir}");
+            assert!(
+                ir.contains("allocation_context = load volatile ptr"),
+                "{ir}"
+            );
+        } else {
+            assert!(!ir.contains("allocation_context_cache"), "{ir}");
         }
     }
 }

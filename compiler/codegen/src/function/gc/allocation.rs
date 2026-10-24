@@ -45,7 +45,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let managed_ptr = managed_ptr_ty(context, self.managed_address_space);
         let i64_ty = context.i64_type();
 
-        let layout = layout.filter(|_| self.inline_small_allocations);
+        let layout = layout.filter(|_| self.optimize_allocations);
         let (alignment, nursery_eligible) = self.allocation_parameters(descriptor, layout)?;
         let alignment_mask = builder
             .build_int_sub(
@@ -76,25 +76,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_int_add(requested_size, alignment_mask, "alloc_size_plus_align")
             .and_then(|size| builder.build_and(size, inverse_mask, "alloc_size"))
             .map_err(|error| CodegenError(format!("allocation size alignment: {error}")))?;
+        if self.reuse_allocation_context
+            && ([nursery_eligible, size_valid]
+                .into_iter()
+                .any(|condition| condition.get_zero_extended_constant() == Some(0))
+                || aligned_size
+                    .get_zero_extended_constant()
+                    .is_some_and(|size| size > REGULAR_MANAGED_OBJECT_MAX_SIZE))
+        {
+            return self.slow_allocation(descriptor, requested_size, safepoint, live);
+        }
 
-        let allocation_context_symbol =
-            scoop_lir::RuntimeAbiSymbolV1::AllocationContext.logical_symbol();
-        let allocation_global = self
-            .llvm
-            .get_global(allocation_context_symbol)
-            .unwrap_or_else(|| {
-                let global = self.llvm.add_global(ptr, None, allocation_context_symbol);
-                global.set_thread_local(true);
-                global
-            });
-        let allocation_context = builder
-            .build_load(
-                ptr,
-                allocation_global.as_pointer_value(),
-                "allocation_context",
-            )
-            .map_err(|error| CodegenError(format!("load allocation context: {error}")))?
-            .into_pointer_value();
+        let allocation_context = self.allocation_context()?;
         let allocation_ty = super::allocation_metadata::allocation_context_type(context);
         let cursor_slot = builder
             .build_struct_gep(allocation_ty, allocation_context, 0, "tlab_cursor_slot")
@@ -197,15 +190,38 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|error| CodegenError(format!("leave TLAB fast path: {error}")))?;
 
         builder.position_at_end(slow_block);
+        let slow_object = self.slow_allocation(descriptor, requested_size, safepoint, live)?;
+        builder
+            .build_unconditional_branch(continue_block)
+            .map_err(|error| CodegenError(format!("leave allocation slow path: {error}")))?;
+
+        builder.position_at_end(continue_block);
+        let phi = builder
+            .build_phi(managed_ptr, "managed_object")
+            .map_err(|error| CodegenError(format!("merge allocation result: {error}")))?;
+        phi.add_incoming(&[(&object, fast_end), (&slow_object, slow_block)]);
+        Ok(phi.as_basic_value().into_pointer_value())
+    }
+
+    fn slow_allocation(
+        &mut self,
+        descriptor: PointerValue<'ctx>,
+        requested_size: IntValue<'ctx>,
+        safepoint: scoop_lir::SafepointId,
+        live: MaterializedStatepointLive<'ctx>,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        let context = self.context;
         let slow = self.runtime_fn(
             scoop_lir::RuntimeAbiSymbolV1::AllocateSlow.logical_symbol(),
-            managed_ptr.fn_type(&[ptr.into(), i64_ty.into()], false),
+            managed_ptr_ty(context, self.managed_address_space)
+                .fn_type(&[ptr_ty(context).into(), context.i64_type().into()], false),
         );
         slow.add_attribute(
             AttributeLoc::Function,
             context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
         );
-        let slow_call = builder
+        let slow_call = self
+            .builder
             .build_call(
                 slow,
                 &[descriptor.into(), requested_size.into()],
@@ -219,16 +235,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .expect("allocation slow path returns an object")
             .into_pointer_value();
         self.restore_statepoint_live(live, safepoint)?;
-        builder
-            .build_unconditional_branch(continue_block)
-            .map_err(|error| CodegenError(format!("leave allocation slow path: {error}")))?;
-
-        builder.position_at_end(continue_block);
-        let phi = builder
-            .build_phi(managed_ptr, "managed_object")
-            .map_err(|error| CodegenError(format!("merge allocation result: {error}")))?;
-        phi.add_incoming(&[(&object, fast_end), (&slow_object, slow_block)]);
-        Ok(phi.as_basic_value().into_pointer_value())
+        Ok(slow_object)
     }
 
     fn finish_allocation_call(
