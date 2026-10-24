@@ -1,0 +1,87 @@
+package scoop.http.server
+
+import scoop.compression.*
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class ServerCompressionFieldTests {
+    @Test
+    fun `representation selection follows beforeCommit and transforms validators digests and trailers`() {
+        val routes = RouterBuilder()
+        routes.use(responseCompression(ResponseCompressionOptions(minimumBytes = 0L)))
+        routes.get("/", suspend { ctx ->
+            ctx.response.beforeCommit { draft ->
+                draft.set(field("Content-Type", "text/plain"))
+                draft.set(field("Content-Length", "5"))
+                draft.add(field("Vary", "Accept, Accept-Encoding"))
+            }
+            HttpResult(200U, [field("Vary", "accept, X-Test"), field("ETag", "\"plain\""),
+                field("Content-MD5", "old"), field("Digest", "old"), field("Content-Digest", "old"), field("Repr-Digest", "old"),
+                field("Trailer", "Content-Digest, ETag, X-Done")], HttpBody.Stream(HttpStreamBody(suspend { writer ->
+                    writer.writeText("hello")
+                }, length = Some(5L), trailers = Some({ [field("ETag", "\"plain\""), field("Content-Digest", "old"), field("X-Done", "yes")] }))))
+        })
+        val result = exercise(routes.build(), fields = [field("Accept-Encoding", "gzip")])
+        assertEquals("hello", decodedResponse(result))
+        assertEquals("W/\"plain\"", result.output.header("ETag"))
+        assertEquals("accept, x-test, accept-encoding", result.output.header("Vary"))
+        assertEquals(None, parseHttpContentLength(result.output.head!!.fields))
+        assertEquals("etag, x-done", result.output.header("Trailer"))
+        val headers = RequestHeaders(result.output.head!!.fields)
+        for (name in ["Content-MD5", "Digest", "Content-Digest", "Repr-Digest"]) assertEquals(None, headers.getSingle(name))
+        val trailers = RequestHeaders(result.output.trailers)
+        assertEquals(Some("W/\"plain\""), trailers.getSingle("ETag"))
+        assertEquals(None, trailers.getSingle("Content-Digest"))
+        assertEquals(Some("yes"), trailers.getSingle("X-Done"))
+        val weak = compressionExercise(HttpResult(200U, [field("Content-Type", "text/plain"), field("ETag", "W/\"weak\""),
+            field("Vary", "*")], HttpBody.Bytes("hello".toByteArray())))
+        assertEquals("W/\"weak\"", weak.output.header("ETag"))
+        assertEquals("*", weak.output.header("Vary"))
+    }
+
+    @Test
+    fun `HEAD selects representation metadata while bodyless statuses skip negotiation`() {
+        val produced = TestCounter()
+        val result = stream("text/plain", suspend { writer -> produced.value += 1; writer.writeText("hello") }, length = Some(5L))
+        val head = compressionExercise(result, method = "HEAD")
+        assertEquals(Some("gzip"), responseEncoding(head))
+        assertEquals(None, parseHttpContentLength(head.output.head!!.fields))
+        assertEquals(0, produced.value)
+        assertEquals(0L, head.context.encodedResponseBytes)
+        assertEquals("", head.text())
+        assertEquals(Some(5L), parseHttpContentLength(compressionExercise(result, Some(""), method = "HEAD").output.head!!.fields))
+        for (status in [204U, 205U, 304U]) {
+            val noBody = compressionExercise(HttpResult(status, [field("Content-Encoding", "br"), field("ETag", "\"selected\"")]), Some("gzip;q=bad"))
+            assertEquals(status, noBody.status)
+            assertEquals(Some("br"), responseEncoding(noBody))
+            assertEquals("\"selected\"", noBody.output.header("ETag"))
+            assertEquals("", noBody.text())
+        }
+    }
+
+    @Test
+    fun `disabled range media and already encoded representations still respect acceptance`() {
+        val plain = "hello".toByteArray()
+        val encoded = compress(plain, CompressionOptions.Gzip(GzipOptions()))
+        val fixed = HttpResult(200U, [field("Content-Type", "text/plain"), field("Content-Encoding", "gzip"), field("ETag", "\"encoded\"")], HttpBody.Bytes(encoded))
+        val accepted = compressionExercise(fixed)
+        assertEquals("hello", decodedResponse(accepted))
+        assertEquals(encoded.size, accepted.context.responseBytes)
+        assertEquals(encoded.size, accepted.context.encodedResponseBytes)
+        assertEquals(Some(encoded.size), parseHttpContentLength(accepted.output.head!!.fields))
+        assertEquals("\"encoded\"", accepted.output.header("ETag"))
+        assertEquals(406U, compressionExercise(fixed, Some("identity")).status)
+        for (result in [HttpResult(200U, [field("Content-Type", "text/plain")], HttpBody.Bytes(plain), false),
+            HttpResult(200U, [field("Content-Type", "text/plain"), field("Cache-Control", "no-transform")], HttpBody.Bytes(plain)),
+            HttpResult(206U, [field("Content-Type", "text/plain"), field("Content-Range", "bytes 0-4/10")], HttpBody.Bytes(plain)),
+            bytes(plain, "image/png")]) {
+            assertEquals(None, responseEncoding(compressionExercise(result)))
+            val rejected = compressionExercise(result, Some("gzip, identity;q=0"))
+            assertEquals(406U, rejected.status)
+            assertEquals("", rejected.text())
+            for (name in ["Content-Type", "Content-Encoding", "Content-Range", "ETag"])
+                assertEquals(None, RequestHeaders(rejected.output.head!!.fields).getSingle(name))
+        }
+    }
+}

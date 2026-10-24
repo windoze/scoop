@@ -1,0 +1,57 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+
+/** An incremental encoder for one SSE message or comment block, with bounded output state. */
+public class SseEncoder private constructor(private val output: SseOutput) : Closeable {
+    /** Retains an already validated message and begins before its first output byte. */
+    public constructor(message: SseMessage) : this(SseOutput(sseMessageFields(message))) {}
+
+    /** Constructs comment encoders without creating a dispatched data event. */
+    public companion object {
+        /** Encodes each normalized text line as a comment, followed by a blank line. */
+        public fun comment(text: String): SseEncoder =
+            SseEncoder(SseOutput([SseOutputField(": ".toByteArray(), text)]))
+    }
+
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private var closed: Boolean = false
+    private var failed: Boolean = false
+
+    /** Whether every byte of the complete block has been written. */
+    public val isFinished: Boolean get() = output.finished
+    /** Whether local state has been explicitly released. */
+    public val isClosed: Boolean get() = closed
+
+    /** Writes a bounded prefix, allowing a short output even inside a UTF-8 scalar. */
+    public fun writeInto(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Long = withUse {
+        if (closed || failed) throw IllegalStateException(Some("SSE encoder is closed or failed"))
+        if (count < 0L) throw IllegalArgumentException(Some("negative SSE output count"))
+        if (count > buffer.writableBytes) throw IndexOutOfBoundsException()
+        if (count == 0L || output.finished) return@withUse 0L
+        @Unsafe {
+            val borrow = buffer.borrowWritable(count)
+            var written = 0L
+            try {
+                val pointer = borrow.pointer()!!
+                while (written < count) {
+                    val value = output.nextByte()
+                    if (value == None) break
+                    pointer.store(written, value!!)
+                    written += 1L
+                }
+                return@withUse written
+            } catch (error: Throwable) { failed = true; throw error }
+            finally { borrow.complete(written) }
+        }
+    }
+
+    /** Drops retained text without emitting bytes or closing the caller's buffer. */
+    public override fun close() { withUse { closed = true; output.close() } }
+
+    private fun <T> withUse(block: () -> T): T {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("SSE encoder is already in use"))
+        try { return block() }
+        finally { busy.store(false) }
+    }
+}

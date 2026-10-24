@@ -1,0 +1,35 @@
+package scoop.http.server
+
+import scoop.http.*
+
+internal fun parseServerWebSocket(ctx: HttpContext): WebSocketHandshake {
+    try { return WebSocketHandshake.parse(ctx.request.head) }
+    catch (error: WebSocketHandshakeException) {
+        val response = if (error.kind == WebSocketHandshakeFailureKind.UnsupportedVersion)
+            empty(426U, [field("Sec-WebSocket-Version", "13")]) else text("Invalid WebSocket handshake", 400U)
+        throw HttpRejection(response, Some(error))
+    } catch (error: HttpFieldParseException) { throw HttpRejection(text("Invalid WebSocket fields", 400U), Some(error)) }
+}
+
+internal fun selectWebSocketProtocol(handshake: WebSocketHandshake, options: WebSocketOptions): String? {
+    for (preferred in options.protocols) for (offered in handshake.protocols)
+        if (preferred == offered) return Some(preferred)
+    if (options.requireProtocol) reject(400U, "No acceptable WebSocket subprotocol")
+    return None
+}
+
+internal fun selectWebSocketDeflate(handshake: WebSocketHandshake, options: WebSocketOptions): WebSocketDeflate? {
+    if (!present(options.deflate)) return None
+    for (extension in handshake.extensions) {
+        val offer = WebSocketDeflateOffer.parseOrNone(extension)
+        if (present(offer) && offer!!.accepts(options.deflate!!)) return options.deflate
+    }
+    return None
+}
+
+internal fun requireWebSocketDraft(draft: HttpResponseDraft) {
+    if (draft.status != 101U) throw IllegalStateException(Some("WebSocket response status must remain 101"))
+    for (name in ["Trailer", "Content-Encoding", "Content-Range"])
+        if (draft.fields.findAll(name.toByteArray()).size > 0L)
+            throw IllegalArgumentException(Some("WebSocket response cannot contain " + name))
+}

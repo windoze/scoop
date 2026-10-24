@@ -1,0 +1,40 @@
+package scoop.http.server
+
+import scoop.test.*
+import scoop.text.contains
+import scoop.url.UrlQuery
+
+internal fun queryInput(value: String): RequestQuery = RequestQuery(UrlQuery.parse(value))
+
+internal fun <T> queryFieldCodec(name: String, value: ValueDecoder<T>): ValueDecoder<T> =
+    ValueDecoderFunction<T> { decoder ->
+        val record = decoder.keyed()
+        val result = value.decode(record.required(name))
+        record.end()
+        result
+    }
+
+internal fun <T> expectQueryError(input: String, codec: ValueDecoder<T>, path: String, location: String = "") {
+    try { queryInput(input).decode(codec) }
+    catch (error: HttpRejection) {
+        assertEquals(400U, error.result.status)
+        assertTrue(error.cause!! is DecodingException)
+        val cause = error.cause!! as DecodingException
+        assertEquals(path, cause.path)
+        when (error.result.body) {
+            case HttpBody.Bytes(value) -> {
+                assertTrue(String.fromUtf8(value).contains(path))
+                assertTrue(String.fromUtf8(value).contains(location))
+            }
+            else -> throw IllegalStateException(Some("expected a text rejection"))
+        }
+        return
+    }
+    throw IllegalStateException(Some("expected a query input rejection"))
+}
+
+internal fun expectQueryDecoding(path: String, block: () -> Unit) {
+    try { block() }
+    catch (error: DecodingException) { assertEquals(path, error.path); return }
+    throw IllegalStateException(Some("expected a decoding failure"))
+}

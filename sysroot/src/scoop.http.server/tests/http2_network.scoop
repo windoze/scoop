@@ -1,0 +1,95 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+
+private class H2RequestMarker(val name: String)
+context(marker: H2RequestMarker, ctx: HttpContext)
+private fun h2RequestIdentity(): String = marker.name + ":" + ctx.pathParams.text("name")
+
+@Test private class ServerHttp2NetworkTests {
+    @Test fun `concurrent streams isolate context and cleartext probing preserves HTTP1 fallback`() {
+        val entered = ServerTestGate(); val release = ServerTestGate()
+        val completed = ServerTestCompletions(2L)
+        val routes = RouterBuilder()
+        routes.use(suspend { ctx, next ->
+            context(H2RequestMarker("outer")) {
+                next()
+                assertEquals("outer:" + ctx.pathParams.text("name"), h2RequestIdentity())
+            }
+        })
+        routes.get("/{name}", suspend { ctx ->
+            val name = ctx.pathParams.text("name")
+            context(H2RequestMarker(name)) {
+                if (name == "slow") { entered.signal(); release.await() }
+                assertEquals(name + ":" + name, h2RequestIdentity())
+            }
+            text(name)
+        })
+        val options = HttpServerOptions(allowCleartextHttp2 = true, onRequestCompleted = Some({ value -> completed.receive(value) }))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            h2ServerClient(address, scope).useAsync suspend { client ->
+                val slow = client.openRequest(h2ServerRequest("/slow"))
+                entered.await()
+                try { assertEquals("fast", h2ServerText(client, "/fast")) }
+                finally { release.signal() }
+                assertEquals(200U, slow.receiveResponse().status)
+                assertEquals("slow", networkText(slow))
+                completed.ready.await()
+                val snapshots = completed.snapshot()
+                assertTrue(snapshots[0L].requestId != snapshots[1L].requestId)
+            }
+            networkClient(address, scope).useAsync suspend { client -> assertEquals("h1", requestText(client, "/h1")) }
+        })
+    }
+
+    @Test fun `normal completion has no cancel and HEAD skips producers and trailers`() {
+        val calls = TestCounter()
+        val notices = ServerH2Notices()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ ->
+            stream("text/plain", suspend { writer -> calls.value += 1; writer.writeText("abc") }, length = Some(3L),
+                trailers = Some({ [field("x-tail", "done")] }))
+        })
+        routes.get("/empty", suspend { _ -> empty(204U) })
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, _, address ->
+            h2ServerClient(address, scope, notices).useAsync suspend { client ->
+                val first = client.openRequest(h2ServerRequest())
+                val head = first.receiveResponse()
+                assertTrue(!present(RequestHeaders(head.fields).getSingleBytes("transfer-encoding")))
+                assertEquals("abc", networkText(first))
+                assertEquals("done", RequestHeaders(first.trailers!!).getSingle("x-tail")!!)
+                val second = client.openRequest(h2ServerRequest(method = "HEAD"))
+                assertEquals("3", RequestHeaders(second.receiveResponse().fields).getSingle("content-length")!!)
+                assertEquals("", networkText(second))
+                val third = client.openRequest(h2ServerRequest("/empty"))
+                assertEquals(204U, third.receiveResponse().status)
+                assertEquals("", networkText(third))
+                assertEquals(1, calls.value)
+                for (event in notices.snapshot()) when (event) {
+                    case StreamClosed(_, code) -> assertEquals(0U, code)
+                    else -> {}
+                }
+            }
+        })
+    }
+
+    @Test fun `H2 continue waits for body selection and unknown expectations reject without it`() {
+        val routes = RouterBuilder()
+        routes.post("/", suspend { ctx -> text(ctx.request.body.text()) })
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, _, address ->
+            h2ServerClient(address, scope).useAsync suspend { client ->
+                val upload = client.openRequest(h2ServerRequest(method = "POST", fields = [field("expect", "100-continue")]), false)
+                assertEquals(100U, upload.receiveResponse().status)
+                networkWrite(upload, "hello"); upload.finish()
+                assertEquals(200U, upload.receiveResponse().status)
+                assertEquals("hello", networkText(upload))
+                val rejected = client.openRequest(h2ServerRequest(method = "POST", fields = [field("expect", "other")]))
+                assertEquals(417U, rejected.receiveResponse().status)
+                networkText(rejected)
+            }
+        })
+    }
+}

@@ -1,0 +1,13 @@
+package scoop.http.server
+
+import scoop.time.Duration
+
+internal suspend fun runSseHeartbeat(writer: SseWriter, interval: Duration) {
+    while (!writer.stopped) {
+        var due = false
+        try {
+            serverDeadline<Unit>(Some(writer.remainingIdle(interval)), "SSE heartbeat", suspend { writer.changes.await() })
+        } catch (_: HttpServerTimeoutException) { due = true }
+        if (due && !writer.stopped) writer.heartbeat(interval)
+    }
+}

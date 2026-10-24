@@ -1,0 +1,35 @@
+package scoop.http.server
+
+import scoop.http.*
+
+/** Bounded form-data parsing and per-part consumption options. */
+public class RequestMultipartOptions public constructor(
+    /** Existing header, part-count, boundary-padding and decoder chunk limits. */
+    public val limits: MultipartLimits = MultipartLimits(),
+    /** Maximum bytes collected by a text helper, in addition to its explicit limit. */
+    public val maxFieldBytes: Long = 65536L,
+    /** Maximum actual body bytes consumed from any one part through all entry points. */
+    public val maxPartBytes: Long = 8388608L,
+    /** Maximum input prefetch per decoder read. */
+    public val bufferSize: Long = 8192L
+) {
+    init {
+        if (maxFieldBytes < 0L || maxPartBytes < 0L || bufferSize <= 0L)
+            throw IllegalArgumentException(Some("invalid request multipart limits"))
+    }
+}
+
+internal fun requestMultipartBoundary(fields: Array<HttpField>): MultipartBoundary {
+    try {
+        val media = HttpMediaType.parseFields(fields) ?: reject(415U, "missing request Content-Type")
+        if (media.type != "multipart" || media.subtype != "form-data") reject(415U, "expected multipart/form-data")
+        try { return MultipartBoundary.fromMediaType(media) }
+        catch (_: IllegalArgumentException) { reject(400U, "invalid multipart boundary") }
+    } catch (_: HttpFieldParseException) { reject(400U, "invalid multipart Content-Type") }
+}
+
+internal suspend fun <T> multipartInput(block: suspend () -> T): T {
+    try { return block() }
+    catch (_: MultipartParseException) { reject(400U, "invalid multipart request body") }
+    catch (_: MultipartLimitException) { reject(413U, "multipart request exceeds parser limits") }
+}

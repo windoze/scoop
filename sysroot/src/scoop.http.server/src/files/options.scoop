@@ -1,0 +1,60 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.platform.fs.Path
+
+/** Metadata and bounded copying for one explicitly selected file representation. */
+public class FileResponseOptions public constructor(
+    /** Explicit media type; None uses the resolved file's extension. */
+    public val contentType: String? = None,
+    /** An application-maintained tag for these exact representation bytes. */
+    public val entityTag: HttpEntityTag? = None,
+    /** Actual content coding of a pre-encoded file; None means identity. */
+    public val contentEncoding: String? = None,
+    /** Whether the application guarantees Last-Modified is a strong validator. */
+    public val lastModifiedIsStrong: Boolean = false,
+    /** Maximum bytes read and copied per iteration. */
+    public val bufferSize: Long = 8192L
+) {
+    init {
+        if (bufferSize <= 0L) throw IllegalArgumentException(Some("invalid file response buffer size"))
+        if (present(contentType)) {
+            try { HttpMediaType.parse(contentType!!) }
+            catch (_: HttpFieldParseException) { throw IllegalArgumentException(Some("invalid file response media type")) }
+        }
+        if (present(contentEncoding) && (!isHttpToken(contentEncoding!!) || contentEncoding!! == "*"))
+            throw IllegalArgumentException(Some("invalid file content coding"))
+    }
+}
+
+/** A deferred file description, without an open handle or acquired resource. */
+public class HttpFileBody internal constructor(
+    /** The application-selected native path. */
+    public val path: Path,
+    /** Metadata and copying options for this representation. */
+    public val options: FileResponseOptions,
+    internal val indexDocument: String? = None,
+    internal val directoryRequired: Boolean = false,
+    internal val fallbackFile: Path? = None
+)
+
+/** Describes a file to open, inspect, send and close during response execution. */
+public fun file(path: Path, options: FileResponseOptions = FileResponseOptions()): HttpResult =
+    HttpResult(body = HttpBody.File(HttpFileBody(path, options)), allowCompression = false)
+
+/** Explicit wildcard mapping, directory indexes and an optional missing-file response. */
+public class StaticFileOptions public constructor(
+    /** Name of the route's terminal wildcard parameter. */
+    public val pathParameter: String = "path",
+    /** A fixed index filename, attempted only for directories; None disables indexes. */
+    public val indexDocument: String? = None,
+    /** Options shared by the files served by this handler. */
+    public val fileOptions: FileResponseOptions = FileResponseOptions(),
+    /** File to serve once for missing GET/HEAD paths; relative paths use the process working directory. */
+    public val fallbackFile: Path? = None
+) {
+    init {
+        if (pathParameter.length == 0L || (present(indexDocument) && !validStaticFileName(indexDocument!!.toByteArray())))
+            throw IllegalArgumentException(Some("invalid static file mapping options"))
+    }
+}

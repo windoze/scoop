@@ -5,19 +5,31 @@ import scoop.text.lowercaseAscii
 /**
  * Tests parsed Expect fields for the 100-continue expectation.
  */
-public fun httpExpectsContinue(fields: List<HttpField>): Boolean {
+public fun httpExpectsContinue(fields: List<HttpField>): Boolean = parseHttpExpectations(fields).continueRequested
+
+/** The standard Continue signal and presence of other syntactically valid expectations. */
+public struct HttpExpectations(
+    /** Whether at least one unqualified 100-continue expectation is present. */
+    val continueRequested: Boolean,
+    /** Whether at least one expectation requires an unsupported extension. */
+    val hasUnsupported: Boolean
+)
+
+/** Parses every Expect field once, retaining both recognized and unknown expectation facts. */
+public fun parseHttpExpectations(fields: List<HttpField>): HttpExpectations {
     var found = false
+    var unsupported = false
     for (field in fields.findAll("Expect".toByteArray())) {
         val reader = HttpFieldReader("Expect", field.value)
         reader.skipOws()
         while (!reader.ended) {
             if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
-            if (readHttpExpectation(reader)) found = true
+            if (readHttpExpectation(reader)) found = true else unsupported = true
             reader.skipOws()
             if (!reader.ended) { reader.expect(44); reader.skipOws() }
         }
     }
-    return found
+    return HttpExpectations(found, unsupported)
 }
 
 private fun readHttpExpectation(reader: HttpFieldReader): Boolean {

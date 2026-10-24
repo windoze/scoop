@@ -1,0 +1,53 @@
+package scoop.tests.http.server.consumer
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.server.*
+import scoop.platform.env.*
+import scoop.platform.fs.*
+import scoop.test.*
+
+@Test
+private class HttpServerStartupSpaConsumerTests {
+    @Test
+    fun `published listen overload composes nested routes and explicit SPA fallback`() {
+        val parent = when (environmentVariable("TMPDIR")) { case Some(value) -> Path.fromOsString(value); case None -> currentDirectory() }
+        val directory = createTempDirectory(Some(parent), "scoop-spa-consumer-")
+        try {
+            val entry = directory.resolve(Path.fromString("index.html")); entry.writeText("app shell")
+            val assets = directory.resolve(Path.fromString("assets")); assets.createDirectory()
+            assets.resolve(Path.fromString("main.js")).writeText("asset")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                HttpServer.listen(scope, port = 0) { routes ->
+                    routes.get("/", suspend { _ -> file(entry) })
+                    routes.group("/api") { api ->
+                        api.group("/v1") { version ->
+                            version.get("/users/{id}", suspend { ctx -> text("user:" + ctx.pathParams.text("id")) })
+                        }
+                        api.get("/{*path}", suspend { _ -> text("API missing", 404U) })
+                    }
+                    routes.get("/assets/{*path}", staticFiles(assets))
+                    routes.get("/{*path}", staticFiles(directory, StaticFileOptions(
+                        indexDocument = Some("index.html"), fallbackFile = Some(entry))))
+                }.useAsync suspend { server ->
+                    AsyncHttp1Connection.takeOwnershipAsClient(loop.connectTcp(server.localAddress), scope).useAsync suspend { client ->
+                        for ((path, status, body) in [("/", 200U, "app shell"), ("/settings/profile", 200U, "app shell"),
+                            ("/assets/main.js", 200U, "asset"), ("/assets/missing.js", 404U, "file not found"),
+                            ("/api/v1/users/42", 200U, "user:42"), ("/api/missing", 404U, "API missing")]) {
+                            val request = HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(),
+                                HttpRequestTarget.Http1(path.toByteArray()), [HttpField("Host".toByteArray(), "localhost".toByteArray())])
+                            client.sendRequest(request).finish()
+                            val response = client.receiveResponse()
+                            assertEquals(status, response.head.status)
+                            assertEquals(body, consumerResponseText(response.body))
+                        }
+                    }
+                    server.shutdownGracefully()
+                    server.awaitTermination()
+                }
+            }
+        } finally { directory.deleteRecursively() }
+    }
+}

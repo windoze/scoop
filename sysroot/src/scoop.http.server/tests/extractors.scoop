@@ -1,0 +1,100 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+private struct ExtractorPage(val page: Int = 1) {
+    public companion object : ValueDecoder<ExtractorPage>
+}
+
+private class ExtractorMarker(val events: StringBuilder) { var active: Boolean = true }
+
+context(marker: ExtractorMarker, bound: HttpContext)
+private suspend fun extractedStream(ctx: HttpContext, page: ExtractorPage): HttpResult {
+    assertSame(bound, ctx)
+    currentEventLoop().sleep(Duration.milliseconds(1))
+    marker.events.append("handler,")
+    return stream("text/plain", suspend { output ->
+        currentEventLoop().sleep(Duration.milliseconds(1))
+        assertTrue(marker.active)
+        assertFalse(ctx.requestJob.isCompleted)
+        marker.events.append("stream,")
+        output.writeText(page.page.toString() + ":" + bound.requestId)
+    })
+}
+
+@Test
+private class ServerExtractorTests {
+    @Test
+    fun `query and JSON extractor overloads are typed and failures skip the handler`() {
+        val invoked = TestCounter()
+        val routes = RouterBuilder()
+        routes.get("/companion", adapt(queryExtractor<ExtractorPage>(), suspend { _, value ->
+            invoked.value += 1; text(value.page.toString())
+        }))
+        routes.get("/explicit", adapt(queryExtractor(ExtractorPage.Companion, QueryDecodeOptions(QueryUnknownFields.Ignore)),
+            suspend { _, value -> text(value.page.toString()) }))
+        routes.post("/json", adapt(jsonExtractor<ExtractorPage>(), suspend { _, value -> text(value.page.toString()) }))
+        routes.post("/limited", adapt(jsonExtractor(Int.Companion, Some(2L)), suspend { _, value -> text(value.toString()) }))
+        val app = routes.build()
+        assertEquals("1", exercise(app, "/companion").text())
+        assertEquals("2", exercise(app, "/explicit?page=2&ignored=yes").text())
+        assertEquals(400U, exercise(app, "/companion?page=bad").status)
+        assertEquals(1, invoked.value)
+        val fields = [field("Content-Type", "application/json")]
+        assertEquals("4", exercise(app, "/json", "POST", "{\"page\":4}".toByteArray(), fields = fields).text())
+        assertEquals(400U, exercise(app, "/json", "POST", "{\"page\":true}".toByteArray(), fields = fields).status)
+        assertEquals(413U, exercise(app, "/limited", "POST", "123".toByteArray(), fields = fields).status)
+        assertEquals("12", exercise(app, "/limited", "POST", "12".toByteArray(), fields = fields).text())
+        assertEquals(413U, exercise(app, "/json", "POST", "{\"page\":4}".toByteArray(), fields = fields, bufferedBodyLimit = 2L).status)
+        expectArgument { jsonExtractor<Int>(Some(-1L)) }
+    }
+
+    @Test
+    fun `composed extraction validates query first and preserves single body consumption`() {
+        val handled = TestCounter()
+        val extract: HttpExtractor<(Int, Int)> = suspend { ctx ->
+            val page = ctx.request.query.decode<ExtractorPage>()
+            val body = ctx.request.body.json<Int>()
+            (page.page, body)
+        }
+        val routes = RouterBuilder()
+        routes.post("/", adapt(extract, suspend { _, value ->
+            handled.value += 1; text((value._1 + value._2).toString())
+        }))
+        routes.post("/twice", adapt(suspend { ctx ->
+            jsonExtractor<Int>()(ctx)
+            jsonExtractor<Int>()(ctx)
+        }, suspend { _, value -> text(value.toString()) }))
+        val app = routes.build()
+        val fields = [field("Content-Type", "application/json")]
+        assertEquals("7", exercise(app, "/?page=2", "POST", "5".toByteArray(), fields = fields).text())
+        val invalid = exercise(app, "/?page=bad", "POST", "5".toByteArray(), fields = fields)
+        assertEquals(400U, invalid.status)
+        assertEquals(0L, invalid.context.request.body.receivedBytes)
+        assertEquals(1, handled.value)
+        assertEquals(500U, exercise(app, "/twice", "POST", "5".toByteArray(), fields = fields).status)
+    }
+
+    @Test
+    fun `adapted streams stay inside business context and middleware resource lifetime`() {
+        val events = StringBuilder()
+        val marker = ExtractorMarker(events)
+        val handler = adapt(queryExtractor<ExtractorPage>(), ::extractedStream)
+        val routes = RouterBuilder()
+        routes.use(suspend { _, next ->
+            events.append("open,")
+            try { context(marker) { next() } }
+            finally { marker.active = false; events.append("close") }
+        })
+        routes.get("/", handler)
+        val response = exercise(routes.build(), "/?page=3")
+        assertEquals("3:test-request", response.text())
+        assertEquals("open,handler,stream,close", events.toString())
+        assertTrue(response.context.requestJob.isCompleted)
+        val missing = RouterBuilder()
+        missing.get("/", handler)
+        assertEquals(500U, exercise(missing.build()).status)
+    }
+}

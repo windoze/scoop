@@ -1,0 +1,33 @@
+package scoop.http
+
+/** Distinguishes malformed handshakes from an otherwise valid unsupported request version. */
+public enum WebSocketHandshakeFailureKind {
+    /** Invalid handshake fields, protocol conditions or response negotiation. */
+    Malformed,
+    /** An otherwise valid request advertises a version other than 13. */
+    UnsupportedVersion
+}
+
+/** A handshake failure with its portable kind and optional field context. */
+public class WebSocketHandshakeException public constructor(
+    /** The protocol failure explanation. */
+    public val detail: String,
+    /** The handshake field involved, when known. */
+    public val field: String? = None,
+    /** The failure category; ordinary handshake failures are malformed. */
+    public val kind: WebSocketHandshakeFailureKind = WebSocketHandshakeFailureKind.Malformed
+) : Exception(Some("WebSocket handshake: " + detail))
+
+internal fun requireWebSocketVersionSyntax(value: String) {
+    val bytes = value.toByteArray()
+    var number = 0
+    if (bytes.size == 0L || bytes.size > 3L || (bytes.size > 1L && bytes[0L] == 48.toByte()))
+        throw WebSocketHandshakeException("invalid WebSocket version", Some("Sec-WebSocket-Version"))
+    for (byte in bytes) {
+        val digit = byte.toUByte().toInt() - 48
+        if (digit < 0 || digit > 9)
+            throw WebSocketHandshakeException("invalid WebSocket version", Some("Sec-WebSocket-Version"))
+        number = number * 10 + digit
+    }
+    if (number > 255) throw WebSocketHandshakeException("invalid WebSocket version", Some("Sec-WebSocket-Version"))
+}

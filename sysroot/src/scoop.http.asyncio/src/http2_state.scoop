@@ -11,6 +11,10 @@ import scoop.time.TimeMark
  * terminates the connection.
  */
 public enum Http2Notice {
+    /** A server recognized the start of an initial request head, before complete decoding. */
+    RequestHeadStarted(Int),
+    /** A complete request head entered the server's bounded accept queue. */
+    RequestHeadReceived(Int),
     /**
      * Received or acknowledged peer SETTINGS entries.
      */

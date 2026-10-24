@@ -1,0 +1,53 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.net.SocketAddress
+import scoop.test.*
+
+internal fun serverWebSocketRequest(path: String = "/", version: String = "13", method: String = "GET",
+    fields: List<HttpField> = ArrayList<HttpField>()): HttpRequestHead {
+    val headers = ArrayList<HttpField>()
+    for (value in [field("Upgrade", "websocket"), field("Connection", "Upgrade"),
+        field("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ=="), field("Sec-WebSocket-Version", version)]) headers.add(value)
+    for (value in fields) headers.add(value)
+    return networkRequest(path, method, headers)
+}
+
+internal suspend fun serverWebSocketClient(address: SocketAddress, scope: CoroutineScope,
+    request: HttpRequestHead = serverWebSocketRequest(), options: WebSocketSessionOptions = WebSocketSessionOptions()): AsyncWebSocketSession {
+    val client = networkClient(address, scope)
+    try { return upgradeServerTestClient(client, scope, request, options) }
+    finally { client.close() }
+}
+
+internal suspend fun upgradeServerTestClient(client: AsyncHttp1Connection, scope: CoroutineScope,
+    request: HttpRequestHead, options: WebSocketSessionOptions = WebSocketSessionOptions()): AsyncWebSocketSession {
+    val handshake = WebSocketHandshake.parse(request)
+    client.sendRequest(request).finish()
+    val response = client.receiveResponse()
+    assertEquals(101U, response.head.status)
+    val negotiated = handshake.accept(response.head)
+    val transport = client.takeTransport()
+    try { return AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client, options, negotiated.deflate) }
+    catch (error: Throwable) { transport.close(); throw error }
+}
+
+internal class ServerWebSocketCompletions(private val expected: Long = 1L) {
+    private val lock: ServerLock = ServerLock()
+    private val values: ArrayList<HttpWebSocketCompletion> = ArrayList<HttpWebSocketCompletion>()
+    val ready: ServerTestGate = ServerTestGate()
+    fun receive(value: HttpWebSocketCompletion) {
+        if (lock.withLock { values.add(value); values.size >= expected }) ready.signal()
+    }
+    fun snapshot(): Array<HttpWebSocketCompletion> = lock.withLock { values.toArray() }
+}
+
+internal suspend fun websocketStatus(address: SocketAddress, scope: CoroutineScope, request: HttpRequestHead): HttpResponseHead =
+    networkClient(address, scope).useAsync suspend { client ->
+        client.sendRequest(request).finish()
+        val response = client.receiveResponse()
+        networkText(response.body)
+        response.head
+    }

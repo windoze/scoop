@@ -1,0 +1,81 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.MultipartSource
+
+internal class RequestBodyState(source: AsyncByteSource, limit: Long?, private val fields: Array<HttpField>) {
+    private val lock: ServerLock = ServerLock()
+    private val input: RequestBodySource = RequestBodySource(source, limit)
+    private var selected: RequestBodySource? = None
+    private var ended: Boolean = false
+    private var policy: RequestDecompressionOptions? = None
+    private var decoded: RequestDecompressionSource? = None
+    private var multipartView: RequestMultipart? = None
+    private var selectedView: HttpRequestBodyView? = None
+    val view: HttpRequestBodyView? get() = lock.withLock { selectedView }
+    val receivedBytes: Long get() = input.receivedBytes
+    val deliveredBytes: Long get() = if (present(selected)) selected!!.deliveredBytes else 0L
+    val isComplete: Boolean get() = present(selected) && selected!!.completed.load()
+
+    fun configure(options: RequestDecompressionOptions) { lock.withLock { requireSelection(); policy = Some(options) } }
+    fun setLimit(maxBytes: Long?) {
+        if (present(maxBytes) && maxBytes!! < 0L) throw IllegalArgumentException(Some("negative request body limit"))
+        lock.withLock { requireSelection(); input.limit = maxBytes }
+    }
+
+    fun open(raw: Boolean, structured: Boolean = false): AsyncByteSource = lock.withLock { select(raw, structured) }
+
+    fun multipart(boundary: MultipartBoundary, options: RequestMultipartOptions): RequestMultipart = lock.withLock {
+        val reader = RequestMultipart(MultipartSource(select(false, true), boundary, options.limits, options.bufferSize), options)
+        multipartView = Some(reader)
+        reader
+    }
+
+    private fun select(raw: Boolean, structured: Boolean): RequestBodySource {
+        requireSelection()
+        val length = try { parseHttpContentLength(fields) }
+            catch (_: HttpFieldParseException) { reject(400U, "invalid request Content-Length") }
+        if (present(length) && present(input.limit) && length!! > input.limit!!)
+            reject(413U, "request body exceeds input limit")
+        var codings: Array<RequestContentCoding> = []
+        var chosen = input
+        if (!raw && present(policy)) {
+            val options = policy!!
+            codings = requestContentCodings(fields, options)
+            if (codings.size == 0L) chosen = RequestBodySource(input, options.decodedBodyLimit, "request body exceeds decoded limit")
+            else {
+                val decoder = RequestDecompressionSource(input, codings, options)
+                decoded = Some(decoder)
+                chosen = RequestBodySource(decoder, None)
+            }
+        } else if (structured) requireIdentityContent(fields)
+        val names = ArrayList<String>()
+        for (coding in codings) names.add(coding.name)
+        selectedView = Some(HttpRequestBodyView(names.toArray(), if (codings.size == 0L) length else None))
+        selected = Some(chosen)
+        return chosen
+    }
+
+    private fun requireSelection() {
+        if (ended) throw IllegalStateException(Some("request body is no longer active"))
+        if (present(selected)) throw IllegalStateException(Some("request body already has a consumer"))
+    }
+
+    suspend fun close() {
+        val views = lock.withLock {
+            ended = true
+            if (present(selected)) selected!!.invalidate()
+            val result = (multipartView, decoded)
+            multipartView = None; decoded = None
+            result
+        }
+        var failure: Throwable? = None
+        try { if (present(views._1)) views._1!!.close() }
+        catch (error: Throwable) { failure = Some(error) }
+        try { if (present(views._2)) views._2!!.close() }
+        catch (error: Throwable) { failure = Some(if (present(failure)) ResourceUseException(failure!!, error) else error) }
+        input.invalidate()
+        if (present(failure)) throw failure!!
+    }
+}

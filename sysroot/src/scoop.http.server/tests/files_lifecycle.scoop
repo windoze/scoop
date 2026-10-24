@@ -1,0 +1,109 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.fs.*
+import scoop.platform.io.UnexpectedEofException
+import scoop.test.*
+
+@Test
+private class ServerFileLifecycleTests {
+    @Test
+    fun `metadata and data use one handle while growth is capped and truncation aborts`() {
+        UploadTestDirectory().use { directory ->
+            val path = directory.child("file.txt"); path.writeText("original")
+            val moved = directory.child("old.txt")
+            val original = fileExchange(path, configure = { ctx -> ctx.response.beforeCommit { _ ->
+                path.moveTo(moved); path.writeText("replacement contents")
+            } })
+            assertEquals("original", original.text()); assertEquals("8", original.output.header("Content-Length"))
+            path.writeText("short")
+            val grown = fileExchange(path, configure = { ctx -> ctx.response.beforeCommit { _ -> path.writeText(" extra", append = true) } })
+            assertEquals("short", grown.text()); assertEquals("5", grown.output.header("Content-Length"))
+            path.writeText("abcdef")
+            val truncated = fileExchange(path, configure = { ctx -> ctx.response.beforeCommit { _ -> path.writeText("") } })
+            assertEquals(200U, truncated.status)
+            assertTrue(truncated.failure!! is UnexpectedEofException)
+            assertEquals(0, truncated.output.finishes); assertEquals(1, truncated.output.aborts)
+        }
+    }
+
+    @Test
+    fun `HEAD and 304 do not read truncated content and callback failure replaces the file response`() {
+        UploadTestDirectory().use { directory ->
+            val path = directory.child("file.txt")
+            for (head in [false, true]) {
+                path.writeText("abcdef")
+                val fields: Array<HttpField> = if (head) [] else [field("If-None-Match", "*")]
+                val result = fileExchange(path, fields, if (head) "HEAD" else "GET",
+                    configure = { ctx -> ctx.response.beforeCommit { _ -> path.writeText("") } })
+                assertEquals(if (head) 200U else 304U, result.status)
+                assertEquals("", result.text()); assertFalse(present(result.failure))
+                if (head) assertEquals("6", result.output.header("Content-Length"))
+            }
+            path.writeText("abcdef")
+            val error = IllegalStateException(Some("callback failed"))
+            val failed = fileExchange(path, configure = { ctx -> ctx.response.beforeCommit { _ -> throw error } })
+            assertEquals(500U, failed.status); assertEquals(1, failed.output.finishes)
+            assertEquals("abcdef", fileExchange(path).text())
+        }
+    }
+
+    @Test
+    fun `H1 and H2 serve exact ranges while concurrent H2 files use independent positions`() {
+        UploadTestDirectory().use { directory ->
+            val path = directory.child("file.txt"); path.writeText("0123456789")
+            val routes = RouterBuilder(); routes.get("/", suspend { _ -> file(path, FileResponseOptions(bufferSize = 2L)) })
+            withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, _, address ->
+                networkClient(address, scope).useAsync suspend { client ->
+                    client.sendRequest(networkRequest(fields = [field("Range", "bytes=2-4")])).finish()
+                    val response = client.receiveResponse()
+                    assertEquals(206U, response.head.status); assertEquals("234", networkText(response.body))
+                    assertTrue(client.isReusable)
+                }
+                h2ServerClient(address, scope).useAsync suspend { client ->
+                    val first = client.openRequest(h2ServerRequest(fields = [field("Range", "bytes=0-2")]))
+                    val second = client.openRequest(h2ServerRequest(fields = [field("Range", "bytes=7-")]))
+                    assertEquals(206U, first.receiveResponse().status); assertEquals(206U, second.receiveResponse().status)
+                    assertEquals("789", networkText(second)); assertEquals("012", networkText(first))
+                }
+            })
+        }
+    }
+
+    @Test
+    fun `cancelling a window blocked file response ends its request without stopping another file`() {
+        UploadTestDirectory().use { directory ->
+            val path = directory.child("file.txt"); path.writeText("abcdefghijklmnopqrstuvwxyz")
+            val completed = ServerTestCompletions(2L)
+            val routes = RouterBuilder(); routes.get("/{name}", suspend { _ -> file(path, FileResponseOptions(bufferSize = 4L)) })
+            val options = HttpServerOptions(allowCleartextHttp2 = true, http2Limits = Http2Limits(maxPendingBodyBytes = 4L),
+                onRequestCompleted = Some(completed::receive))
+            withServer(routes.build(), options, suspend { scope, _, address ->
+                AsyncHttp2Connection.takeOwnershipAsClient(currentEventLoop().connectTcp(address), scope,
+                    settings = Http2Settings(initialWindowSize = 4U)).useAsync suspend { client ->
+                    val slow = client.openRequest(h2ServerRequest("/slow"))
+                    assertEquals(200U, slow.receiveResponse().status)
+                    val fast = client.openRequest(h2ServerRequest("/fast", fields = [field("Range", "bytes=0-1")]))
+                    assertEquals(206U, fast.receiveResponse().status); assertEquals("ab", networkText(fast))
+                    slow.close(); completed.ready.await()
+                    var cancelled = false
+                    for (record in completed.snapshot()) if (record.status == Some(200U)) {
+                        cancelled = true
+                        assertEquals(HttpRequestOutcome.Cancelled, record.outcome, Some(fileFailureDetail(record.failure)))
+                        assertTrue(record.responseBytes < 26L)
+                    }
+                    assertTrue(cancelled); assertFalse(client.isClosed)
+                }
+            })
+        }
+    }
+}
+
+private fun fileFailureDetail(failure: Throwable?): String = when (failure) {
+    case None -> "request completed without a failure"
+    case Some(error) -> if (error is ResourceUseException)
+        fileFailureDetail(Some(error.primaryFailure)) + "; cleanup: " + fileFailureDetail(Some(error.cleanupFailure))
+        else if (error is Exception) error.message ?: "failure without a message" else "non-Exception throwable"
+}

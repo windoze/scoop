@@ -1,0 +1,9 @@
+package scoop.http
+
+/** A generated server upgrade response and the negotiation already checked while constructing it. */
+public class WebSocketServerResponse internal constructor(
+    /** The generated HTTP/1.1 101 response, including extra application fields. */
+    public val head: HttpResponseHead,
+    /** The selected protocol and compression settings for the established session. */
+    public val negotiation: WebSocketNegotiation
+)

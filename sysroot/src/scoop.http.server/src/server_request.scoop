@@ -1,0 +1,58 @@
+package scoop.http.server
+
+import scoop.http.asyncio.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.TimeMark
+
+internal class RequestExecution {
+    var context: HttpContext? = None
+    var failure: Throwable? = None
+}
+
+internal suspend fun executeHttp1Request(state: ServerState, entry: ServerConnection,
+    connection: AsyncHttp1Connection, incoming: Http1IncomingRequest, requestId: String) {
+    val started = MonotonicTimeSource.markNow()
+    val result = RequestExecution()
+    val output = Http1ResponseOutput(state, entry, connection, incoming)
+    val expectations = RequestExpectations(incoming.head.fields)
+    val source = Http1RequestInput(connection, incoming, output, expectations)
+    val body = HttpRequestBody(source, state.options.requestBodyLimit, incoming.head.fields, state.options.bufferedBodyLimit)
+    val request = HttpRequest(incoming.head, body, expectations)
+    try {
+        executeRequestPipeline(state.application, request, output, requestId, entry.info, state.options.requestDeadline, result)
+    } catch (error: Throwable) { result.failure = Some(error) }
+    finally {
+        closeRequestViews(result)
+        try { incoming.body.close() }
+        catch (cleanup: Throwable) {
+            result.failure = Some(if (present(result.failure)) ResourceUseException(result.failure!!, cleanup) else cleanup)
+        }
+        completeServerRequest(state, result, started)
+    }
+    if (present(result.failure)) throw result.failure!!
+}
+
+internal suspend fun closeRequestViews(result: RequestExecution) {
+    if (!present(result.context)) return
+    try { result.context!!.request.body.closeView() }
+    catch (cleanup: Throwable) {
+        result.failure = Some(if (present(result.failure)) ResourceUseException(result.failure!!, cleanup) else cleanup)
+    }
+}
+
+internal fun completeServerRequest(state: ServerState, result: RequestExecution, started: TimeMark, cancelledByStream: Boolean = false) {
+    if (!present(result.context) || !present(state.options.onRequestCompleted)) return
+    val ctx = result.context!!
+    val error = result.failure
+    val outcome = if (!present(error)) {
+        if (ctx.response.status == Some(101U)) HttpRequestOutcome.Upgraded else HttpRequestOutcome.Completed
+    }
+        else if (error!! is CancellationException || error!! is HttpServerTimeoutException || cancelledByStream) HttpRequestOutcome.Cancelled
+        else HttpRequestOutcome.Failed
+    val received = ctx.request.body.receivedBytes
+    val snapshot = HttpRequestCompletion(ctx.requestId, ctx.route, ctx.request.method, ctx.response.status,
+        MonotonicTimeSource.markNow() - started, received, ctx.request.body.deliveredBytes,
+        ctx.responseBytes, ctx.encodedResponseBytes, outcome, error)
+    try { state.options.onRequestCompleted!!(snapshot) }
+    catch (_: Throwable) { return }
+}

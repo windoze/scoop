@@ -1,0 +1,82 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+
+private fun sseFailureText(error: Throwable?): String = when (error) {
+    case None -> "no failure"
+    case Some(value) -> if (value is ResourceUseException)
+        sseFailureText(Some(value.primaryFailure)) + "; cleanup: " + sseFailureText(Some(value.cleanupFailure))
+        else if (value is Exception) value.message ?: "unnamed exception" else "throwable"
+}
+
+@Test private class ServerSseLifecycleTests {
+    @Test fun `reset deadline and shutdown cancel subscriptions and join producer cleanup`() {
+        for (action in ["reset", "deadline", "shutdown"]) {
+            val cleaning = ServerTestGate(); val release = ServerTestGate(); val never = ServerTestGate()
+            val completed = ServerTestCompletions(if (action == "shutdown") 1L else 2L)
+            val routes = RouterBuilder()
+            routes.get("/events", suspend { _ -> sse(SseOptions(Some(Duration.milliseconds(10))), suspend { _ ->
+                try { never.await() }
+                finally { nonCancellableScope<Unit> suspend { _ -> cleaning.signal(); release.await() } }
+            }) })
+            routes.get("/ok", suspend { _ -> text("ok") })
+            val options = HttpServerOptions(allowCleartextHttp2 = true,
+                requestDeadline = if (action == "deadline") Some(Duration.milliseconds(100)) else None,
+                onRequestCompleted = Some(completed::receive))
+            withServer(routes.build(), options, suspend { scope, server, address ->
+                h2ServerClient(address, scope).useAsync suspend { client ->
+                    val events = client.openRequest(h2ServerRequest("/events"))
+                    assertEquals(200U, events.receiveResponse().status)
+                    assertEquals(": \n\n", readNetworkText(events, 4L))
+                    val stopping: Job? = if (action == "shutdown") Some(scope.launch suspend { server.close() }) else None
+                    try {
+                        if (action == "reset") events.close()
+                        cleaning.await()
+                        assertEquals(0L, completed.snapshot().size)
+                        if (present(stopping)) assertFalse(stopping!!.isCompleted)
+                        else assertEquals("ok", h2ServerText(client, "/ok"))
+                    } finally { release.signal() }
+                    if (present(stopping)) stopping!!.join()
+                    completed.ready.await()
+                    var matched = 0
+                    for (result in completed.snapshot()) if (result.route!!.template == "/events") {
+                        matched += 1
+                        assertEquals(HttpRequestOutcome.Cancelled, result.outcome, Some(action + ": " + sseFailureText(result.failure)))
+                        if (action == "deadline") assertTrue(result.failure!! is HttpServerTimeoutException)
+                    }
+                    assertEquals(1, matched)
+                }
+            })
+        }
+    }
+
+    @Test fun `concurrent application sends fail without interrupting the active event`() {
+        val entered = ServerTestGate(); val release = ServerTestGate(); val first = AtomicBoolean(true)
+        val output = TestOutput()
+        output.beforeWrite = Some(suspend {
+            if (first.compareAndSet(true, false)) { entered.signal(); release.await() }
+        })
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> sse(produce = suspend { events ->
+            coroutineScope<Unit> suspend { scope ->
+                val sending = scope.launch suspend { events.send(SseMessage(Some("kept"))) }
+                try {
+                    entered.await()
+                    var rejected = false
+                    try { events.comment("overlap") }
+                    catch (_: IllegalStateException) { rejected = true }
+                    assertTrue(rejected)
+                } finally { release.signal() }
+                sending.join()
+                events.comment("after")
+            }
+        }) })
+        val response = exercise(routes.build(), output = output)
+        assertEquals("data: kept\n\n: after\n\n", response.text())
+        assertEquals(0, output.aborts)
+        assertEquals(1, output.finishes)
+    }
+}

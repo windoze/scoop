@@ -1,0 +1,68 @@
+package scoop.http.server
+
+import scoop.platform.fs.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class ServerFileStaticTests {
+    @Test
+    fun `static paths use original decoded segments and native names without a second URL decode`() {
+        UploadTestDirectory().use { directory ->
+            directory.child("%2e%2e").writeText("literal percent name")
+            val nativeName: Array<Byte> = [255.toByte(), 46.toByte(), 116.toByte(), 120.toByte(), 116.toByte()]
+            val native = directory.path.resolve(Path.fromOsString(OsString.fromByteArray(nativeName)))
+            val supportsNativeName = try { native.writeText("native bytes"); true }
+                catch (error: PlatformException) {
+                    if (error.kind != PlatformErrorKind.Other && error.kind != PlatformErrorKind.InvalidInput) throw error
+                    false
+                }
+            val routes = RouterBuilder(); routes.get("/s/{*path}", staticFiles(directory.path))
+            val app = routes.build()
+            assertEquals("literal percent name", exercise(app, "/s/%252e%252e").text())
+            val nativeResult = exercise(app, "/s/%FF.txt?download=1")
+            assertEquals(255.toByte(), nativeResult.context.pathParams.bytes("path")[0L])
+            if (supportsNativeName) assertEquals("native bytes", nativeResult.text())
+            else assertTrue(nativeResult.status == 404U || nativeResult.status == 500U)
+            for (path in ["/s/../outside", "/s/%2e%2e/outside", "/s/.", "/s/a%2fb", "/s/a%5cb", "/s/a%00b",
+                "/s/C%3Afile", "/s/a//b"])
+                assertEquals(400U, exercise(app, path).status)
+            assertEquals(404U, exercise(app, "/s/").status)
+            assertEquals(404U, exercise(app, "/s/missing").status)
+        }
+    }
+
+    @Test
+    fun `directory indexes are explicit and filesystem links retain ordinary OS semantics`() {
+        UploadTestDirectory().use { directory ->
+            UploadTestDirectory().use { outside ->
+                val child = directory.child("docs"); child.createDirectory()
+                child.resolve(Path.fromString("index.html")).writeText("index")
+                val target = outside.child("linked.txt"); target.writeText("linked content")
+                directory.child("link.txt").createSymbolicLink(target)
+                val routes = RouterBuilder()
+                routes.get("/default/{*path}", staticFiles(directory.path))
+                routes.get("/index/{*asset}", staticFiles(directory.path, StaticFileOptions("asset", Some("index.html"))))
+                val app = routes.build()
+                assertEquals(404U, exercise(app, "/default/docs").status)
+                assertEquals(404U, exercise(app, "/default/docs/").status)
+                for (path in ["/index/docs", "/index/docs/"]) {
+                    val result = exercise(app, path)
+                    assertEquals("index", result.text()); assertEquals("text/html; charset=utf-8", result.output.header("Content-Type"))
+                }
+                assertEquals(404U, exercise(app, "/index/docs/index.html/").status)
+                assertEquals("linked content", exercise(app, "/default/link.txt").text())
+            }
+        }
+    }
+
+    @Test
+    fun `invalid configured indexes and non wildcard mappings fail as application mistakes`() {
+        for (index in ["", ".", "..", "../index", "/index", "a\\b", "C:index"]) expectArgument { StaticFileOptions(indexDocument = Some(index)) }
+        expectArgument { StaticFileOptions(pathParameter = "") }
+        UploadTestDirectory().use { directory ->
+            val routes = RouterBuilder(); routes.get("/s/{path}", staticFiles(directory.path))
+            assertEquals(500U, exercise(routes.build(), "/s/file").status)
+        }
+    }
+}

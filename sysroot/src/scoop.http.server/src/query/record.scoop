@@ -1,0 +1,61 @@
+package scoop.http.server
+
+import scoop.collections.LinkedHashMap
+import scoop.collections.toList
+
+internal class QueryRecord(private val fields: LinkedHashMap<String, QueryField>,
+    private val options: QueryDecodeOptions) : KeyedDecodingContainer {
+    public override val keys: List<String> get() = fields.keys.toList()
+
+    public override fun optional(name: String): Decoder? {
+        val field = fields[name]
+        if (!present(field)) return None
+        field!!.accessed = true
+        return Some<Decoder>(QueryDecoder(QueryNode.Field(field!!), field!!.path))
+    }
+
+    public override fun required(name: String): Decoder = optional(name)
+        ?: throw DecodingException(queryPath(name), "missing required query field")
+
+    public override fun end() {
+        if (options.unknownFields == QueryUnknownFields.Ignore) return
+        for (entry in fields) if (!entry.value.accessed)
+            throw DecodingException(entry.value.path, "unknown query field")
+    }
+
+    fun location(path: String): String {
+        for (entry in fields) {
+            val field = entry.value
+            if (field.path == path) {
+                val result = StringBuilder().append("query items ")
+                for (index in 0L until field.items.size) {
+                    if (index != 0L) result.append(", ")
+                    result.append(field.items[index].position.toString())
+                }
+                return result.toString()
+            }
+            for (index in 0L until field.items.size) {
+                if (path == field.path + "/" + index.toString())
+                    return "query item " + field.items[index].position.toString()
+            }
+        }
+        return ""
+    }
+}
+
+internal class QuerySequence(private val field: QueryField) : UnkeyedDecodingContainer {
+    private var cursor: Long = 0L
+    public override val hasNext: Boolean get() = cursor < field.items.size
+
+    public override fun element(): Decoder {
+        val path = field.path + "/" + cursor.toString()
+        if (!hasNext) throw DecodingException(path, "missing query element")
+        val result = QueryDecoder(QueryNode.Item(field.items[cursor]), path)
+        cursor += 1L
+        return result
+    }
+
+    public override fun end() {
+        if (hasNext) throw DecodingException(field.path, "extra query elements")
+    }
+}

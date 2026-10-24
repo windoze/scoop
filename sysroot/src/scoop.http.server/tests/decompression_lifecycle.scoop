@@ -1,0 +1,49 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.compression.asyncio.AsyncCompressionSink
+import scoop.test.*
+
+@Test
+private class ServerDecompressionLifecycleTests {
+    @Test
+    fun `slow gzip upload exposes flushed plaintext and H2 reset waits for cleanup without blocking peers`() {
+        val read = ServerTestGate(); val cleaning = ServerTestGate(); val release = ServerTestGate()
+        val completed = ServerTestCompletions(2L)
+        val routes = RouterBuilder()
+        routes.use(requestDecompression(RequestDecompressionOptions(bufferSize = 7L)))
+        routes.post("/slow", suspend { ctx ->
+            val source = ctx.request.body.openStream()
+            try {
+                assertEquals("part", readNetworkText(source, 4L)); read.signal()
+                text(networkText(source))
+            } finally { nonCancellableScope<Unit> suspend { _ -> cleaning.signal(); release.await() } }
+        })
+        routes.get("/fast", suspend { _ -> text("ok") })
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true, onRequestCompleted = Some(completed::receive)),
+            suspend { scope, _, address ->
+                h2ServerClient(address, scope).useAsync suspend { client ->
+                    val slow = client.openRequest(h2ServerRequest("/slow", "POST", requestEncodedFields()), false)
+                    AsyncCompressionSink(slow, CompressionOptions.Gzip(GzipOptions()), 7L).useAsync suspend { encoder ->
+                        networkWrite(encoder, "part"); encoder.flush(); read.await()
+                        assertEquals("ok", h2ServerText(client, "/fast"))
+                        try {
+                            slow.close(); cleaning.await()
+                            for (record in completed.snapshot()) assertEquals("/fast", record.route!!.template)
+                        } finally { release.signal() }
+                    }
+                    completed.ready.await()
+                    var found = false
+                    for (record in completed.snapshot()) if (record.route!!.template == "/slow") {
+                        found = true
+                        assertEquals(HttpRequestOutcome.Cancelled, record.outcome)
+                        assertEquals(4L, record.deliveredBytes)
+                        assertTrue(record.receivedBytes > 4L)
+                    }
+                    assertTrue(found)
+                    assertFalse(client.isClosed)
+                }
+            })
+    }
+}

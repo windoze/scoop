@@ -1,0 +1,86 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #1d2b3a;
+  background: #f4f7fa;
+  line-height: 1.6;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 46rem;
+  margin: 3rem auto;
+  padding: 0 1.5rem;
+}
+
+h1,
+h2 {
+  line-height: 1.2;
+}
+
+.eyebrow {
+  color: #526b83;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.75rem 0;
+}
+
+nav a,
+button {
+  display: inline-block;
+  padding: 0.6rem 1rem;
+  border: 1px solid #b8c9d9;
+  border-radius: 0.5rem;
+  background: white;
+  color: #164b7b;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+nav a[aria-current="page"],
+button {
+  background: #164b7b;
+  border-color: #164b7b;
+  color: white;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid #c66a09;
+  outline-offset: 3px;
+}
+
+section {
+  margin: 1rem 0;
+  padding: 1.5rem;
+  border: 1px solid #dce4eb;
+  border-radius: 0.75rem;
+  background: white;
+}
+
+section h2 {
+  margin-top: 0;
+}
+
+code {
+  overflow-wrap: anywhere;
+}
+
+output {
+  display: block;
+  margin-top: 1rem;
+}
+
+.note {
+  color: #526b83;
+  font-size: 0.9rem;
+}

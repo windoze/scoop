@@ -1,0 +1,151 @@
+package scoop.http.server
+
+internal class GroupPlan(val middleware: Array<HttpMiddleware>, val fallback: HttpHandler, val names: Array<String>)
+internal class RoutePlan(val info: HttpRouteInfo, val handler: HttpHandler, val middleware: Array<HttpMiddleware>, val names: Array<String>)
+internal class StaticEdge(val bytes: Array<Byte>, val node: RouteNode)
+
+internal class RouteNode {
+    val literals: ArrayList<StaticEdge> = ArrayList<StaticEdge>()
+    var parameter: RouteNode? = None
+    var tail: RouteNode? = None
+    var group: GroupPlan? = None
+    val endpoints: ArrayList<RoutePlan> = ArrayList<RoutePlan>()
+}
+
+internal fun routeNode(root: RouteNode, pattern: RoutePattern): RouteNode {
+    var node = root
+    for (part in pattern.parts) {
+        when (part) {
+            case RoutePart.Literal(bytes) -> {
+                var selected: RouteNode? = None
+                for (edge in node.literals) if (sameBytes(edge.bytes, bytes)) selected = Some(edge.node)
+                if (!present(selected)) {
+                    selected = Some(RouteNode())
+                    node.literals.add(StaticEdge(bytes, selected!!))
+                }
+                node = selected!!
+            }
+            case RoutePart.Parameter -> {
+                if (!present(node.parameter)) node.parameter = Some(RouteNode())
+                node = node.parameter!!
+            }
+            case RoutePart.Tail -> {
+                if (!present(node.tail)) node.tail = Some(RouteNode())
+                node = node.tail!!
+            }
+        }
+    }
+    return node
+}
+
+internal fun groupPlan(group: GroupConfig): GroupPlan {
+    val chain = ArrayList<GroupConfig>()
+    var current: GroupConfig? = Some(group)
+    var fallback: HttpHandler? = None
+    while (present(current)) {
+        val value = current!!
+        if (!present(fallback)) fallback = value.fallback
+        if (present(value.parent)) chain.add(value)
+        current = value.parent
+    }
+    val middleware = ArrayList<HttpMiddleware>()
+    var index = chain.size
+    while (index > 0L) {
+        index -= 1L
+        for (value in chain[index].middleware) middleware.add(value)
+    }
+    val names = if (group.prefix == "") ArrayList<String>().toArray() else routePattern(group.prefix, true).names
+    return GroupPlan(middleware.toArray(), fallback ?: suspend { _ -> text("Not Found", 404U) }, names)
+}
+
+internal fun buildApplication(config: RouterConfig, options: HttpApplicationOptions): HttpApplication {
+    val root = RouteNode()
+    root.group = Some(groupPlan(config.root))
+    for (group in config.groups) {
+        val node = routeNode(root, routePattern(group.prefix, true))
+        if (present(node.group)) throw IllegalArgumentException(Some("duplicate route group shape"))
+        node.group = Some(groupPlan(group))
+    }
+    val methods = ArrayList<String>()
+    for (route in config.routes) {
+        val node = routeNode(root, route.pattern)
+        for (existing in node.endpoints) {
+            if (existing.info.method == route.method) throw IllegalArgumentException(Some("duplicate method and route shape"))
+        }
+        val middleware = ArrayList<HttpMiddleware>()
+        for (value in groupPlan(route.group).middleware) middleware.add(value)
+        for (value in route.middleware) middleware.add(value)
+        node.endpoints.add(RoutePlan(HttpRouteInfo(route.pattern.path, route.method), route.handler,
+            middleware.toArray(), route.pattern.names))
+        addMethod(methods, route.method)
+    }
+    includeImplicitMethods(methods)
+    return HttpApplication(root, config.root.middleware.toArray(), methods.toArray(), options)
+}
+
+internal class ResourceMatch(val node: RouteNode, val values: Array<PathSegment>)
+
+internal fun matchResource(node: RouteNode, parts: Array<PathSegment>, index: Long,
+    values: ArrayList<PathSegment>): ResourceMatch? {
+    if (index == parts.size) return if (node.endpoints.size == 0L) None else Some(ResourceMatch(node, values.toArray()))
+    for (edge in node.literals) {
+        if (sameBytes(edge.bytes, parts[index].decoded)) {
+            val found = matchResource(edge.node, parts, index + 1L, values)
+            if (present(found)) return found
+        }
+    }
+    if (present(node.parameter) && parts[index].decoded.size != 0L) {
+        values.add(parts[index])
+        val found = matchResource(node.parameter!!, parts, index + 1L, values)
+        values.removeAt(values.size - 1L)
+        if (present(found)) return found
+    }
+    if (present(node.tail)) {
+        val suffix = pathTail(parts, index)
+        if (suffix.encoded.length != 0L) {
+            values.add(suffix)
+            val found = matchResource(node.tail!!, parts, parts.size, values)
+            values.removeAt(values.size - 1L)
+            if (present(found)) return found
+        }
+    }
+    return None
+}
+
+internal class GroupMatch(val group: GroupPlan, val values: Array<PathSegment>, val depth: Long)
+
+internal fun matchGroup(node: RouteNode, parts: Array<PathSegment>, index: Long,
+    values: ArrayList<PathSegment>, inherited: GroupMatch): GroupMatch {
+    var best = if (!present(node.group)) inherited else GroupMatch(node.group!!, values.toArray(), index)
+    if (index == parts.size) return best
+    for (edge in node.literals) {
+        if (sameBytes(edge.bytes, parts[index].decoded)) {
+            val candidate = matchGroup(edge.node, parts, index + 1L, values, best)
+            if (candidate.depth > best.depth) best = candidate
+        }
+    }
+    if (present(node.parameter) && parts[index].decoded.size != 0L) {
+        values.add(parts[index])
+        val candidate = matchGroup(node.parameter!!, parts, index + 1L, values, inherited)
+        values.removeAt(values.size - 1L)
+        if (candidate.depth > best.depth) best = candidate
+    }
+    return best
+}
+
+internal fun addMethod(methods: ArrayList<String>, method: String) {
+    var index = 0L
+    while (index < methods.size) {
+        if (methods[index] == method) return
+        if (method < methods[index]) break
+        index += 1L
+    }
+    methods.add(index, method)
+}
+
+internal fun includeImplicitMethods(methods: ArrayList<String>) {
+    var get = false
+    for (method in methods) if (method == "GET") get = true
+    if (get) addMethod(methods, "HEAD")
+    addMethod(methods, "OPTIONS")
+}

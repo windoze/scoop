@@ -1,0 +1,80 @@
+package scoop.http
+
+/** One normalized content-coding preference, after resolving duplicate entries. */
+public class HttpEncodingPreference internal constructor(
+    /** The lowercase coding token, including identity or the wildcard. */
+    public val coding: String,
+    /** The quality in thousandths, between zero and one thousand inclusive. */
+    public val quality: Int
+)
+
+/** Parsed content-coding preferences with explicit identity and wildcard rules. */
+public class HttpAcceptEncoding internal constructor(
+    /** Unique coding preferences in first-occurrence order; duplicates use the lowest quality. */
+    public val preferences: Array<HttpEncodingPreference>,
+    /** Original field values in their received order. */
+    public val originalValues: Array<Array<Byte>>
+) {
+    /** Whether a field was present, including a field whose value was empty. */
+    public val isPresent: Boolean get() = originalValues.size != 0L
+
+    /** Returns the acceptable quality of an actual coding token; wildcard is not an actual coding. */
+    public fun quality(coding: String): Int = qualityOf(checkedContentCoding(coding))
+
+    /** Selects from ordered actual codings, using implicit identity only as a fallback. */
+    public fun select(candidates: List<String>): String? {
+        var best: String? = None
+        var bestQuality = 0
+        var identity: String? = None
+        val implicitIdentity = explicitQuality("identity") == None
+        for (candidate in candidates) {
+            val name = checkedContentCoding(candidate)
+            val quality = qualityOf(name)
+            if (name == "identity" && quality > 0) {
+                identity = Some(name)
+                if (implicitIdentity) continue
+            }
+            if (quality > bestQuality) { best = Some(name); bestQuality = quality }
+        }
+        if (!isPresent && identity != None) return identity
+        return if (best != None) best else identity
+    }
+
+    private fun explicitQuality(name: String): Int? {
+        for (preference in preferences) if (preference.coding == name) return Some(preference.quality)
+        return None
+    }
+
+    private fun qualityOf(name: String): Int {
+        if (!isPresent) return 1000
+        val exact = explicitQuality(name)
+        if (exact != None) return exact!!
+        val wildcard = explicitQuality("*")
+        if (name == "identity") return if (wildcard == Some(0)) 0 else 1000
+        return wildcard ?: 0
+    }
+
+    /** Parsing of received Accept-Encoding fields. */
+    public companion object {
+        /** Parses a complete byte field value, retaining the original bytes. */
+        public fun parse(value: List<Byte>): HttpAcceptEncoding =
+            parseFields([HttpField("Accept-Encoding".toByteArray(), value)])
+        /** Parses a complete String field value as UTF-8 bytes. */
+        public fun parse(value: String): HttpAcceptEncoding = parse(value.toByteArray())
+        /** Returns None only for malformed field syntax. */
+        public fun parseOrNone(value: List<Byte>): HttpAcceptEncoding? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        /** Returns None only for malformed field syntax. */
+        public fun parseOrNone(value: String): HttpAcceptEncoding? = parseOrNone(value.toByteArray())
+        /** Combines all matching fields and distinguishes no field from an empty field. */
+        public fun parseFields(fields: List<HttpField>): HttpAcceptEncoding = readAcceptEncoding(fields)
+    }
+}
+
+private fun checkedContentCoding(value: String): String {
+    val result = httpNormalizedToken(value)
+    if (result == "*") throw IllegalArgumentException(Some("expected an actual content coding"))
+    return result
+}

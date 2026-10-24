@@ -5,6 +5,8 @@ package scoop.http
  * separately through the session.
  */
 public enum Http2Event {
+    /** A server began decoding a new request header block, before the head is complete. */
+    RequestHeadStarted(Int),
     /**
      * A stream ID and its initial request head.
      */
@@ -82,6 +84,7 @@ internal fun http2EventSettings(bytes: Array<Byte>): Array<Http2Setting> =
         case 10 -> Http2Event.IgnoredField(info.streamId, httpEventFields(event)[0L])
         case 11 -> Http2Event.Failure(http2Failure("send HTTP/2 frame", info.code, String.fromUtf8(httpBytes(httpEventBytes(event, 0))),
             info.streamId, if (info.streamId == 0) HttpFailureScope.Connection else HttpFailureScope.Stream))
+        case 12 -> Http2Event.RequestHeadStarted(info.streamId)
         else -> throw IllegalStateException(Some("invalid native HTTP/2 event"))
     }
 }

@@ -1,0 +1,39 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.time.TimeMark
+
+internal suspend fun <T> serveHttp1(state: ServerState, entry: ServerConnection, transport: T, scope: CoroutineScope, started: TimeMark)
+    where T : AsyncByteStream, T : AsyncCloseable {
+    val options = state.options
+    val connection = AsyncHttp1Connection.takeOwnershipAsServer(transport, scope,
+        options.http1Receive, options.http1Limits, HttpIoTimeoutOptions(options.bodyReadIdle, options.responseWriteIdle))
+    var failure: Throwable? = None
+    try {
+        try {
+            var first = true
+            while (state.running() && !connection.isClosed) {
+                val timeout = if (first) remainingServerTime(options.firstRequestHeadTimeout, started) else options.keepAliveIdleTimeout
+                val incoming = serverDeadline<Http1IncomingRequest?>(timeout, "HTTP/1 request head", suspend { connection.receiveRequest() })
+                first = false
+                if (!present(incoming)) break
+                val requestId = state.beginRequest(entry)
+                if (!present(requestId)) break
+                try { executeHttp1Request(state, entry, connection, incoming!!, requestId!!) }
+                finally { state.endRequest(entry) }
+                if (!connection.isReusable) break
+            }
+        } catch (error: Throwable) { failure = Some(error); throw error }
+        finally { closeServerResource(state, connection, failure) }
+        val upgraded = state.lock.withLock { entry.webSocket }
+        if (present(upgraded)) runServerWebSocket(state, upgraded!!)
+    } catch (error: Throwable) {
+        failure = Some(error)
+        throw error
+    } finally {
+        finishServerWebSocket(state, entry, failure)
+    }
+}
+

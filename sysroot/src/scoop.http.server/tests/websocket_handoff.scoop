@@ -1,0 +1,72 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class ServerWebSocketHandoffTests {
+    @Test
+    fun `draining after 101 before HTTP cleanup skips session work and closes the pending transport`() {
+        val cleaning = ServerTestGate(); val release = ServerTestGate(); val called = TestCounter()
+        val http = ServerTestCompletions(); val completed = ServerWebSocketCompletions()
+        val routes = RouterBuilder()
+        routes.use(suspend { _, next -> next(); cleaning.signal(); release.await() })
+        routes.get("/", suspend { _ -> webSocket(onSession = suspend { _, _ -> called.value += 1 }) })
+        val options = HttpServerOptions(onRequestCompleted = Some(http::receive), onWebSocketCompleted = Some(completed::receive))
+        withServer(routes.build(), options, suspend { scope, server, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(serverWebSocketRequest()).finish()
+                assertEquals(101U, client.receiveResponse().head.status); cleaning.await()
+                assertEquals(0, called.value); assertEquals(0L, http.snapshot().size)
+                val stopping = scope.async<Unit> suspend { server.shutdownGracefully(Duration.seconds(1)) }
+                assertTrue(server.isDraining); release.signal()
+                client.takeTransport().useAsync suspend { transport -> assertEquals("", networkText(transport)) }
+                stopping.await(); completed.ready.await()
+                assertEquals(0, called.value); assertEquals(HttpRequestOutcome.Upgraded, http.snapshot()[0L].outcome)
+                assertEquals(HttpWebSocketOutcome.Cancelled, completed.snapshot()[0L].outcome)
+            }
+        })
+    }
+
+    @Test
+    fun `HTTP middleware cleanup failure after upgrade closes without starting the session`() {
+        val failure = IllegalStateException(Some("HTTP cleanup failed")); val called = TestCounter()
+        val http = ServerTestCompletions(); val completed = ServerWebSocketCompletions()
+        val routes = RouterBuilder()
+        routes.use(suspend { _, next -> next(); throw failure })
+        routes.get("/", suspend { _ -> webSocket(onSession = suspend { _, _ -> called.value += 1 }) })
+        val options = HttpServerOptions(onRequestCompleted = Some(http::receive), onWebSocketCompleted = Some(completed::receive))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(serverWebSocketRequest()).finish()
+                assertEquals(101U, client.receiveResponse().head.status)
+                client.takeTransport().useAsync suspend { transport -> assertEquals("", networkText(transport)) }
+                completed.ready.await()
+                assertEquals(0, called.value); assertEquals(HttpRequestOutcome.Failed, http.snapshot()[0L].outcome)
+                assertEquals(HttpWebSocketOutcome.Failed, completed.snapshot()[0L].outcome)
+                assertSame(failure, completed.snapshot()[0L].failure!!)
+            }
+        })
+    }
+
+    @Test
+    fun `drain before reservation returns 503 and never records an upgraded session`() {
+        val entered = ServerTestGate(); val release = ServerTestGate(); val calls = TestCounter()
+        val completed = ServerWebSocketCompletions()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ ->
+            entered.signal(); release.await(); webSocket(onSession = suspend { _, _ -> calls.value += 1 })
+        })
+        withServer(routes.build(), HttpServerOptions(onWebSocketCompleted = Some(completed::receive)), suspend { scope, server, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(serverWebSocketRequest()).finish(); entered.await()
+                val stopping = scope.async<Unit> suspend { server.shutdownGracefully(Duration.seconds(1)) }
+                assertTrue(server.isDraining); release.signal()
+                val response = client.receiveResponse(); assertEquals(503U, response.head.status); networkText(response.body)
+                stopping.await(); assertEquals(0, calls.value); assertEquals(0L, completed.snapshot().size)
+            }
+        })
+    }
+}

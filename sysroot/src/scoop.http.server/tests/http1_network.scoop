@@ -1,0 +1,131 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+
+private class NetworkPrincipal(val name: String)
+
+context(principal: NetworkPrincipal)
+private suspend fun networkIdentity(ctx: HttpContext): HttpResult =
+    text(principal.name + ":" + (ctx.request.cookies.getSingle("session") ?: "none"))
+
+@Test
+private class ServerHttp1NetworkTests {
+    @Test
+    fun `keep alive requests isolate Context cookies and completion snapshots`() {
+        val completed = ServerTestCompletions(2L)
+        val routes = RouterBuilder()
+        routes.use(suspend { ctx, next ->
+            context(NetworkPrincipal(ctx.request.headers.getSingle("X-User") ?: "anonymous")) { next() }
+        })
+        routes.get("/", ::networkIdentity)
+        withServer(routes.build(), HttpServerOptions(onRequestCompleted = Some(completed::receive)), suspend { scope, _, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(networkRequest(fields = [field("X-User", "one"), field("Cookie", "session=first")])).finish()
+                assertEquals("one:first", networkText(client.receiveResponse().body))
+                client.sendRequest(networkRequest()).finish()
+                assertEquals("anonymous:none", networkText(client.receiveResponse().body))
+                completed.ready.await()
+                val records = completed.snapshot()
+                assertEquals(2L, records.size)
+                assertFalse(records[0L].requestId == records[1L].requestId)
+                assertEquals(HttpRequestOutcome.Completed, records[1L].outcome)
+                assertEquals(14L, records[1L].responseBytes)
+                assertTrue(client.isReusable)
+            }
+        })
+    }
+
+    @Test
+    fun `HEAD and trailers use correct HTTP1 framing and HTTP10 streams finish at EOF`() {
+        val produced = TestCounter()
+        val routes = RouterBuilder()
+        routes.get("/known", suspend { _ -> stream("text/plain", suspend { writer ->
+            produced.value += 1; writer.writeText("hello")
+        }, length = Some(5L), trailers = Some({ [field("X-End", "yes")] })) })
+        routes.get("/eof", suspend { _ -> stream("text/plain", suspend { writer -> writer.writeText("eof") }) })
+        withServer(routes.build(), block = suspend { scope, _, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(networkRequest("/known", "HEAD")).finish()
+                val head = client.receiveResponse()
+                assertEquals("", networkText(head.body))
+                assertEquals(Some(5L), parseHttpContentLength(head.head.fields))
+                assertEquals(0, produced.value)
+                client.sendRequest(networkRequest("/known")).finish()
+                val get = client.receiveResponse()
+                assertEquals("hello", networkText(get.body))
+                assertEquals("yes", String.fromUtf8(get.body.trailers!![0L].value))
+                assertEquals(None, parseHttpContentLength(get.head.fields))
+                assertEquals(1, produced.value)
+            }
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(networkRequest("/eof", version = HttpVersion.Http10)).finish()
+                val response = client.receiveResponse()
+                assertEquals(HttpVersion.Http10, response.head.version)
+                assertEquals("eof", networkText(response.body))
+                assertFalse(client.isReusable)
+            }
+        })
+    }
+
+    @Test
+    fun `Continue is sent only on body consumption and rejected uploads close after the final response`() {
+        val called = TestCounter()
+        val routes = RouterBuilder()
+        routes.post("/echo", suspend { ctx -> called.value += 1; text(ctx.request.body.text()) })
+        routes.post("/deny", suspend { _ -> text("denied", 403U) })
+        withServer(routes.build(), block = suspend { scope, _, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                val upload = client.sendRequest(networkRequest("/echo", "POST", [field("Expect", "100-continue")]), Http1BodyFraming.Length(4L))
+                val interim = client.receiveResponse()
+                assertEquals(100U, interim.head.status)
+                assertEquals("", networkText(interim.body))
+                networkWrite(upload, "body"); upload.finish()
+                assertEquals("body", networkText(client.receiveResponse().body))
+                assertTrue(client.isReusable)
+            }
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(networkRequest("/deny", "POST", [field("Expect", "100-continue")]), Http1BodyFraming.Length(99999L))
+                val rejected = client.receiveResponse()
+                assertEquals(403U, rejected.head.status)
+                assertEquals("denied", networkText(rejected.body))
+                assertFalse(client.isReusable)
+            }
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(networkRequest("/echo", "POST", [field("Expect", "extension=\"a,b\"")]), Http1BodyFraming.Length(4L))
+                val rejected = client.receiveResponse()
+                assertEquals(417U, rejected.head.status)
+                networkText(rejected.body)
+            }
+            assertEquals(1, called.value)
+        })
+    }
+
+    @Test
+    fun `stream failure preserves submitted status and terminates incomplete output`() {
+        val completed = ServerTestCompletions()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> stream("text/plain", suspend { writer ->
+            writer.writeText("prefix")
+            throw IllegalArgumentException(Some("producer failed"))
+        }) })
+        withServer(routes.build(), HttpServerOptions(onRequestCompleted = Some(completed::receive)), suspend { scope, _, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(networkRequest()).finish()
+                val response = client.receiveResponse()
+                assertEquals(200U, response.head.status)
+                var failed = false
+                try { networkText(response.body) }
+                catch (_: Throwable) { failed = true }
+                assertTrue(failed)
+                completed.ready.await()
+                val record = completed.snapshot()[0L]
+                assertEquals(HttpRequestOutcome.Failed, record.outcome)
+                assertEquals(Some(200U), record.status)
+                assertEquals(6L, record.responseBytes)
+            }
+        })
+    }
+}

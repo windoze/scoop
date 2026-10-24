@@ -8,11 +8,17 @@ VS Code 扩展接入 `scoop-lsp`，提供诊断、补全、签名、导航、符
 
 新增普通 Cone `scoop.regex`，基于 PCRE2-8 10.49 提供编译模式、编号／命名捕获、惰性搜索、字面／模板／回调替换及分割。公开位置使用 Long Unicode 标量索引，结果为独立快照，Regex 使用 close/use 管理 native 生命周期。PCRE2 采用独立 C 静态库和可选 JIT，不增加 Rust staticlib；Darwin、GNU、musl 目标资源、头文件及 PCRE2/SLJIT 许可随包交付。用法见 `src/scoop.regex/README.md`。
 
+## HTTP server 库
+
+新增纯 Scoop 的 `scoop.http.server`，提供显式路由、请求 Context、middleware、结果执行及 H1／H2／TLS 接入。公开便利能力包括 SSE、multipart 上传、query DTO 与静态 extractor、协商响应压缩、有限请求解压、条件文件／单 Range 响应，以及 HTTP/1.1 WebSocket／WSS 和 permessage-deflate。请求与会话沿结构化任务完成取消、排空及资源清理；WebSocket 在 HTTP 管线清理后启动独立会话。服务端 mTLS／动态 SNI、HTTP/3 和 H2 WebSocket 不在本次范围。
+
+该 Cone 由现有准备、打包与文档流程自动发现，源码与目标 `.slib` 随正常系统库布局提供。入口和公开 API consumer 见 `src/scoop.http.server/README.md`；本次跨平台验证范围见仓库内的 `docs/http-server/PROGRESS.md`。
+
 ## M60 API 文档与内置库文档交付
 
 新增 `scoop doc`，支持多 Cone、完整类型检查、声明与类型链接、继承／扩展导航、静态搜索及按输入变化复用。源代码直接嵌入 HTML；`.slib` 不增加完整源码或注释正文。渲染输入缺少源码文本时省略对应的源码展示和链接。
 
-发行包的十九个生产内置 Cone 统一提供声明说明，包含此前新增的 `scoop.terminal` 和 `scoop.terminal.asyncio`。打包流程用配套工具为各发行目标生成文档，并在全部生成成功后归档。安装根的 `docs/index.html` 可进入 Darwin 或 GNU／musl 的完整离线站点。
+发行包的所有生产内置 Cone 统一提供声明说明，包含此前新增的 `scoop.terminal` 和 `scoop.terminal.asyncio`。打包流程用配套工具为各发行目标生成文档，并在全部生成成功后归档。安装根的 `docs/index.html` 可进入 Darwin 或 GNU／musl 的完整离线站点。
 
 ## M54 统一 HTTP client 与配套基础库
 

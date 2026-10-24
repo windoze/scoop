@@ -1,0 +1,166 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+
+private class RequestMarker(val value: String)
+private class DraftHolder { var draft: HttpResponseDraft? = None }
+
+context(marker: RequestMarker, ctx: HttpContext)
+private suspend fun boundResponse(): HttpResult {
+    currentEventLoop().sleep(Duration.milliseconds(1))
+    return stream("text/plain", suspend { output ->
+        currentEventLoop().sleep(Duration.milliseconds(1))
+        output.writeText(marker.value + ":" + ctx.requestId)
+    })
+}
+
+context(marker: RequestMarker)
+private suspend fun mappedResponse(ctx: HttpContext, error: Throwable): HttpResult = text(marker.value, 503U)
+
+@Test
+private class ServerPipelineTests {
+    @Test
+    fun `next waits for streaming work within the request context and resource scope`() {
+        val order = StringBuilder()
+        val routes = RouterBuilder()
+        routes.use(suspend { _, next ->
+            order.append("before,")
+            context(RequestMarker("bound")) { next() }
+            order.append("after")
+        })
+        routes.get("/", suspend { _ -> boundResponse() })
+        val exchange = exercise(routes.build())
+        assertEquals("bound:test-request", exchange.text())
+        assertEquals("before,after", order.toString())
+        assertTrue(exchange.context.response.isFinished)
+        assertEquals(1, exchange.output.finishes)
+    }
+
+    @Test
+    fun `errors map inside installed context while missing context is a server error`() {
+        val routes = RouterBuilder()
+        routes.use(suspend { _, next -> context(RequestMarker("mapped")) { next() } })
+        routes.get("/", suspend { _ -> throw IllegalArgumentException(Some("business failure")) })
+        val exchange = exercise(routes.build(HttpApplicationOptions(errorMapper = ::mappedResponse)))
+        assertEquals(503U, exchange.status)
+        assertEquals("mapped", exchange.text())
+        val missing = RouterBuilder()
+        missing.get("/", suspend { _ -> boundResponse() })
+        assertEquals(500U, exercise(missing.build()).status)
+    }
+
+    @Test
+    fun `early rejection and silent middleware have distinct outcomes`() {
+        val invoked = TestCounter()
+        val rejected = RouterBuilder()
+        rejected.use(suspend { ctx, _ -> ctx.respond(text("denied", 403U)) })
+        rejected.get("/", suspend { _ -> invoked.value += 1; empty() })
+        assertEquals(403U, exercise(rejected.build()).status)
+        assertEquals(0, invoked.value)
+        val silent = RouterBuilder()
+        silent.use(suspend { _, _ -> invoked.value += 1 })
+        silent.get("/", suspend { _ -> empty() })
+        assertEquals(500U, exercise(silent.build()).status)
+    }
+
+    @Test
+    fun `duplicate next does not send a second response and observer failure does not replace it`() {
+        val failures = TestCounter()
+        val routes = RouterBuilder()
+        routes.use(suspend { _, next -> next(); next() })
+        routes.get("/", suspend { _ -> text("once") })
+        val options = HttpApplicationOptions(onError = Some({ _, _ ->
+            failures.value += 1
+            throw IllegalArgumentException(Some("observer failed"))
+        }))
+        val exchange = exercise(routes.build(options))
+        assertEquals("once", exchange.text())
+        assertEquals(1, exchange.output.starts)
+        assertEquals(1, failures.value)
+        assertTrue(exchange.failure!! is IllegalStateException)
+    }
+
+    @Test
+    fun `header edits preserve Set-Cookie and callback failure never replays callbacks`() {
+        val calls = TestCounter()
+        val holder = DraftHolder()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { ctx ->
+            ctx.response.add(field("Set-Cookie", "one=1"))
+            ctx.response.add(field("Set-Cookie", "two=2"))
+            ctx.response.set(field("X-Value", "middle"))
+            ctx.response.beforeCommit { draft ->
+                calls.value += 1
+                holder.draft = Some(draft)
+                draft.set(field("x-value", "last"))
+            }
+            HttpResult(200U, [field("X-Value", "first")])
+        })
+        val response = exercise(routes.build())
+        assertEquals("last", response.output.header("X-Value"))
+        assertEquals(2L, response.output.head!!.fields.findAll("Set-Cookie".toByteArray()).size)
+        expectState { response.context.response.add(field("Late", "bad")) }
+        expectState { holder.draft!!.set(field("Late", "bad")) }
+        val bad = RouterBuilder()
+        bad.get("/", suspend { ctx ->
+            ctx.response.beforeCommit { _ -> calls.value += 1; throw IllegalArgumentException(Some("callback failed")) }
+            ctx.response.beforeCommit { _ -> calls.value += 100 }
+            text("never")
+        })
+        assertEquals(500U, exercise(bad.build()).status)
+        assertEquals(2, calls.value)
+    }
+
+    @Test
+    fun `HEAD skips producer and trailers while retaining known representation length`() {
+        val invoked = TestCounter()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> stream("text/plain", suspend { output ->
+            invoked.value += 1
+            output.writeText("hello")
+        }, length = Some(5L), trailers = Some({ invoked.value += 10; [field("X-End", "done")] })) })
+        val app = routes.build()
+        val head = exercise(app, method = "HEAD")
+        assertEquals("", head.text())
+        assertEquals("5", head.output.header("Content-Length"))
+        assertEquals(0, invoked.value)
+        val get = exercise(app)
+        assertEquals("hello", get.text())
+        assertEquals(1L, get.output.trailers.size)
+        assertEquals(11, invoked.value)
+    }
+
+    @Test
+    fun `output and length failures abort without another final response`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> text("body") })
+        val output = TestOutput()
+        val failure = IllegalArgumentException(Some("write failed"))
+        output.writeFailure = Some(failure)
+        val broken = exercise(routes.build(), output = output)
+        assertSame(failure, broken.failure!!)
+        assertEquals(1, output.starts)
+        assertEquals(1, output.aborts)
+        val short = RouterBuilder()
+        short.get("/", suspend { _ -> stream("text/plain", suspend { writer -> writer.writeText("x") }, length = Some(3L)) })
+        val truncated = exercise(short.build())
+        assertTrue(truncated.failure!! is IllegalStateException)
+        assertEquals(0, truncated.output.finishes)
+        assertEquals(1, truncated.output.aborts)
+    }
+
+    @Test
+    fun `body aggregation and one consumer are enforced independently`() {
+        val routes = RouterBuilder()
+        routes.post("/small", suspend { ctx -> text(ctx.request.body.text(3L)) })
+        routes.post("/twice", suspend { ctx -> ctx.request.body.bytes(); text(ctx.request.body.text()) })
+        val app = routes.build()
+        assertEquals("abc", exercise(app, "/small", "POST", "abc".toByteArray()).text())
+        assertEquals(413U, exercise(app, "/small", "POST", "abcd".toByteArray()).status)
+        assertEquals(400U, exercise(app, "/small", "POST", [(-1).toByte()]).status)
+        assertEquals(500U, exercise(app, "/twice", "POST", "abc".toByteArray()).status)
+    }
+}

@@ -1,0 +1,49 @@
+package scoop.http.server
+
+import scoop.compression.CompressionFormat
+
+/** Request content coding policy, installed before choosing a body consumer. */
+public class RequestDecompressionOptions public constructor(
+    allowedFormats: List<CompressionFormat> = [CompressionFormat.Gzip, CompressionFormat.Zlib,
+        CompressionFormat.Brotli, CompressionFormat.Zstd],
+    /** Maximum number of actual coding layers; identity does not count. */
+    public val maxLayers: Long = 2L,
+    /** Maximum output of each decoding layer, including the final plaintext view. */
+    public val decodedBodyLimit: Long? = Some(8388608L),
+    /** Maximum zstd window; no window option is passed to other formats. */
+    public val maxWindowBytes: Long? = Some(8388608L),
+    /** Bounded input buffering for each decoder. */
+    public val bufferSize: Long = 8192L
+) {
+    /** A snapshot of the permitted wire formats. */
+    public val allowedFormats: Array<CompressionFormat> = allowedFormats.toArray()
+    init {
+        if (maxLayers < 0L || bufferSize <= 0L || (present(decodedBodyLimit) && decodedBodyLimit!! < 0L) ||
+            (present(maxWindowBytes) && maxWindowBytes!! <= 0L))
+            throw IllegalArgumentException(Some("invalid request decompression bounds"))
+        val seen = ArrayList<CompressionFormat>()
+        for (format in allowedFormats) {
+            if (format == CompressionFormat.RawDeflate)
+                throw IllegalArgumentException(Some("HTTP deflate requires the zlib wrapper"))
+            for (previous in seen) if (previous == format)
+                throw IllegalArgumentException(Some("duplicate request content coding"))
+            seen.add(format)
+        }
+    }
+}
+
+/** Configures the downstream request body without reading input or sending 100 Continue. */
+public fun requestDecompression(options: RequestDecompressionOptions = RequestDecompressionOptions()): HttpMiddleware =
+    suspend { ctx, next ->
+        ctx.requestJob.ensureActive()
+        ctx.request.body.configureDecoding(options)
+        next()
+    }
+
+/** Facts about the selected body view; the original request head remains unchanged. */
+public class HttpRequestBodyView internal constructor(
+    /** Removed coding names in original field order, excluding identity. */
+    public val decodedEncodings: Array<String>,
+    /** Original Content-Length for an unchanged view; None after actual decoding. */
+    public val contentLength: Long?
+)

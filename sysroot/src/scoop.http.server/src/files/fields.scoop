@@ -1,0 +1,32 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.platform.fs.*
+import scoop.time.Instant
+
+internal fun fileResponseFields(result: HttpResult, path: Path, options: FileResponseOptions,
+    metadata: FileMetadata, now: Instant): HttpResult {
+    val draft = HttpResponseDraft(result.status, result.fields)
+    val modified = if (metadata.modifiedAt > now) now else metadata.modifiedAt
+    draft.set(field("Last-Modified", HttpDate.format(modified)))
+    draft.set(field("Content-Length", metadata.size.toString()))
+    draft.set(field("Content-Type", options.contentType ?: fileContentType(path)))
+    draft.set(field("Accept-Ranges", "bytes"))
+    if (present(options.entityTag)) draft.set(options.entityTag!!.toHttpField())
+    if (present(options.contentEncoding)) draft.set(field("Content-Encoding", options.contentEncoding!!))
+    return HttpResult(draft.status, draft.fields, result.body, false)
+}
+
+internal fun fileResponseValidators(fields: Array<HttpField>, reference: Instant): (HttpEntityTag?, Instant?) {
+    val tags = fields.findAll("ETag".toByteArray())
+    val dates = fields.findAll("Last-Modified".toByteArray())
+    if (tags.size > 1L || dates.size > 1L) throw IllegalArgumentException(Some("duplicate file response validator"))
+    val tag = if (tags.size == 0L) None else Some(HttpEntityTag.parse(tags[0L].value))
+    val date = if (dates.size == 0L) None else Some(HttpDate.parse(dates[0L].value, reference))
+    return (tag, date)
+}
+
+internal fun removeFileContentFields(draft: HttpResponseDraft) {
+    for (name in ["Content-Type", "Content-Encoding", "Content-Length", "Content-Range", "Content-MD5", "Digest",
+        "Content-Digest", "Repr-Digest", "Trailer"]) draft.remove(name)
+}

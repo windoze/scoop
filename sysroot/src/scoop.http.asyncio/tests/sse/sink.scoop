@@ -1,0 +1,80 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+
+@Test private class SseSinkTests {
+    @Test fun `bounded encoding handles short writes and flushes only when requested`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val endpoint = MessageTestSink()
+            assertFailsWith<IllegalArgumentException> { SseSink(endpoint, 0L) }
+            val sink = SseSink(endpoint, 3L)
+            sink.useAsync suspend { output ->
+                output.send(SseMessage(Some("中\r\nnext"), id = Some("42")))
+                output.comment("alive")
+                assertEquals(0, endpoint.flushes)
+                output.flush()
+                assertEquals(1, endpoint.flushes)
+                assertTrue(endpoint.maxRequested <= 3L)
+                assertEquals("id: 42\ndata: 中\ndata: next\n\n: alive\n\n", String.fromUtf8(endpoint.bytes.toArray()))
+            }
+            assertTrue(sink.isClosed)
+            assertEquals(0, endpoint.closes)
+        }
+    }
+
+    @Test fun `sink failure retains its original cause and malformed progress is rejected`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val endpoint = MessageTestSink()
+            endpoint.failAfter = Some(2L)
+            SseSink(endpoint).useAsync suspend { sink ->
+                expectMessageFailure<TransportFailure> suspend { sink.send(SseMessage(Some("value"))) }
+                assertTrue(sink.failure!! is TransportFailure)
+                expectMessageFailure<IllegalStateException> suspend { sink.send(SseMessage(Some("retry"))) }
+                assertEquals(2L, endpoint.bytes.size)
+            }
+            for (bad in [1, 2, 3, 4]) {
+                val wrong = MessageTestSink(); wrong.badProgress = bad
+                SseSink(wrong, 4L).useAsync suspend { sink ->
+                    expectMessageFailure<IllegalStateException> suspend { sink.send(SseMessage(Some("value"))) }
+                    assertTrue(present(sink.failure))
+                }
+            }
+            val flushing = MessageTestSink(); flushing.failFlush = true
+            SseSink(flushing).useAsync suspend { sink ->
+                expectMessageFailure<TransportFailure> suspend { sink.flush() }
+                assertTrue(sink.failure!! is TransportFailure)
+            }
+        }
+    }
+
+    @Test fun `close cancels and joins a real borrowed buffer while concurrent sends fail early`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val pending = PendingMessageSink('d'.code.toByte()); pending.pause = true
+            val sink = SseSink(pending, 4L)
+            val sending = scope.launch suspend {
+                expectMessageFailure<CancellationException> suspend { sink.send(SseMessage(Some("waiting"))) }
+                ensureActive()
+            }
+            try {
+                assertTrue(pending.running)
+                expectMessageFailure<IllegalStateException> suspend { sink.comment("overlap") }
+                assertFalse(present(sink.failure))
+                val first = scope.launch suspend { sink.close() }
+                val second = scope.launch suspend { sink.close() }
+                assertFalse(sending.isCompleted || first.isCompleted || second.isCompleted)
+                assertTrue(pending.job!!.isCancelled)
+                assertFalse(pending.buffer!!.isClosed)
+                pending.complete()
+                sending.join(); first.join(); second.join()
+                assertTrue(sink.isClosed && pending.buffer!!.isClosed)
+                assertEquals(0, pending.closes)
+                assertFalse(sending.isCancelled)
+            } finally { if (pending.running) pending.complete(); sink.close() }
+        }
+    }
+}

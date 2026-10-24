@@ -1,0 +1,137 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.charset.Charset
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class ServerMultipartPartTests {
+    @Test fun `ordered repeated parts preserve names filenames and exact text without retaining an open decoder`() {
+        val holder = RequestMultipartHolder()
+        val routes = RouterBuilder()
+        routes.post("/", suspend { ctx ->
+            val reader = ctx.request.body.multipart(RequestMultipartOptions(bufferSize = 1L))
+            holder.value = Some(reader)
+            val first = reader.nextPart()!!
+            assertEquals("item", first.name)
+            assertEquals("../a%2Fb", first.filename!!)
+            assertEquals("one", first.text())
+            val second = reader.nextPart()!!
+            assertEquals("item", second.name)
+            assertEquals("", second.filename!!)
+            assertEquals("", second.text())
+            val third = reader.nextPart()!!
+            assertEquals("", third.name)
+            assertFalse(present(third.filenameBytes))
+            assertEquals("尾", third.text())
+            assertFalse(present(reader.nextPart()))
+            assertTrue(reader.isFinished && ctx.request.body.isComplete)
+            expectState { ctx.request.body.openStream() }
+            text("done")
+        })
+        routes.post("/ignore", suspend { _ -> empty() })
+        val body = requestMultipartBytes([
+            (MultipartPartHead.formData("item", Some("../a%2Fb")), "one".toByteArray()),
+            (MultipartPartHead.formData("item", Some("")), []),
+            (MultipartPartHead.formData(""), "尾".toByteArray())
+        ], "epilogue")
+        val app = routes.build()
+        assertEquals("done", exercise(app, method = "POST", input = body, fields = requestMultipartFields()).text())
+        assertTrue(holder.value!!.isClosed)
+        val ignored = exercise(app, "/ignore", "POST", body, fields = requestMultipartFields())
+        expectState { ignored.context.request.body.multipart() }
+        expectState { ignored.context.request.body.openStream() }
+        expectState { ignored.context.request.body.setLimit(None) }
+    }
+
+    @Test fun `iteration requires EOF discard shares counts and a retired stream cannot be read`() {
+        val routes = RouterBuilder()
+        routes.post("/", suspend { ctx ->
+            ctx.request.body.multipart().useAsync suspend { reader ->
+                val first = reader.nextPart()!!
+                val input = first.openStream()
+                NativeByteBuffer.allocate(2L).use suspend { buffer ->
+                    input.readFully(buffer)
+                    assertEquals("ab", String.fromUtf8(buffer.readBytes(2L)))
+                    expectMultipartState suspend { reader.nextPart(); Unit }
+                    expectMultipartState suspend { first.text(); Unit }
+                    assertEquals(2L, first.discard(2L))
+                    val second = reader.nextPart()!!
+                    expectMultipartState suspend { input.readInto(buffer, 1L); Unit }
+                    assertEquals(3L, second.discard(3L))
+                    assertFalse(present(reader.nextPart()))
+                }
+            }
+            text("done")
+        })
+        routes.post("/abandon", suspend { ctx ->
+            val reader = ctx.request.body.multipart()
+            val part = reader.nextPart()!!
+            part.close()
+            assertTrue(reader.isClosed)
+            expectMultipartState suspend { reader.nextPart(); Unit }
+            empty()
+        })
+        val body = requestMultipartBytes([(MultipartPartHead.formData("one"), "abcd".toByteArray()),
+            (MultipartPartHead.formData("two"), "xyz".toByteArray())])
+        val app = routes.build()
+        assertEquals("done", exercise(app, method = "POST", input = body, fields = requestMultipartFields()).text())
+        assertEquals(204U, exercise(app, "/abandon", "POST", body, fields = requestMultipartFields()).status)
+    }
+
+    @Test fun `declared and explicit charsets agree while field names and metadata stay strict`() {
+        val routes = RouterBuilder()
+        routes.post("/{mode}", suspend { ctx ->
+            ctx.request.body.multipart().useAsync suspend { reader ->
+                val part = reader.nextPart()!!
+                val result = if (ctx.pathParams.text("mode") == "conflict") part.text(charset = Some(Charset.Utf8))
+                    else part.text()
+                text(result)
+            }
+        })
+        val app = routes.build()
+        val latin = requestMultipartBytes([(MultipartPartHead.formData("value", contentType = Some(HttpMediaType.parse("text/plain; charset=latin1"))), [(-23).toByte()])])
+        assertEquals("é", exercise(app, "/normal", "POST", latin, fields = requestMultipartFields()).text())
+        assertEquals(400U, exercise(app, "/conflict", "POST", latin, fields = requestMultipartFields()).status)
+        val invalid = requestMultipartBytes([(MultipartPartHead.formData("value"), [(-1).toByte()])])
+        assertEquals(400U, exercise(app, "/normal", "POST", invalid, fields = requestMultipartFields()).status)
+        val noBytes: Array<Byte> = []
+        val unsupported = requestMultipartBytes([(MultipartPartHead.formData("value", contentType = Some(HttpMediaType.parse("text/plain; charset=unavailable"))), noBytes)])
+        assertEquals(415U, exercise(app, "/normal", "POST", unsupported, fields = requestMultipartFields()).status)
+        for (head in [MultipartPartHead(), MultipartPartHead([field("Content-Disposition", "attachment; name=x")]),
+            MultipartPartHead([field("Content-Disposition", "form-data")]),
+            MultipartPartHead([field("Content-Disposition", "form-data; name=one; name=two")])]) {
+            val body = requestMultipartBytes([(head, noBytes)])
+            assertEquals(400U, exercise(app, "/normal", "POST", body, fields = requestMultipartFields()).status)
+        }
+    }
+
+    @Test fun `raw metadata remains available and a charset field does not implicitly reconfigure later text`() {
+        val routes = RouterBuilder()
+        routes.post("/{mode}", suspend { ctx ->
+            val reader = ctx.request.body.multipart()
+            val part = reader.nextPart()!!
+            val mode = ctx.pathParams.text("mode")
+            if (mode == "charset") {
+                assertEquals("_charset_", part.name)
+                assertEquals("latin1", part.text())
+                return@post text(reader.nextPart()!!.text())
+            }
+            text(if (mode == "bytes") part.nameBytes[0L].toString() + ":" + part.filenameBytes!![0L].toString()
+                else if (mode == "name") part.name else part.filename!!)
+        })
+        val app = routes.build()
+        val head = MultipartPartHead([HttpContentDisposition("form-data", [
+            HttpParameter("name", [(-1).toByte()], true), HttpParameter("filename", [(-1).toByte()], true)
+        ]).toHttpField()])
+        val noBytes: Array<Byte> = []
+        val raw = requestMultipartBytes([(head, noBytes)])
+        assertEquals("-1:-1", exercise(app, "/bytes", "POST", raw, fields = requestMultipartFields()).text())
+        assertEquals(400U, exercise(app, "/name", "POST", raw, fields = requestMultipartFields()).status)
+        assertEquals(400U, exercise(app, "/filename", "POST", raw, fields = requestMultipartFields()).status)
+        val charset = requestMultipartBytes([(MultipartPartHead.formData("_charset_"), "latin1".toByteArray()),
+            (MultipartPartHead.formData("value"), [(-23).toByte()])])
+        assertEquals(400U, exercise(app, "/charset", "POST", charset, fields = requestMultipartFields()).status)
+    }
+}

@@ -1,0 +1,67 @@
+package scoop.http.server
+
+import scoop.asyncio.AsyncByteSource
+import scoop.http.HttpField
+import scoop.json.Json
+import scoop.url.*
+
+/** A request body with one explicit consumption path and bounded input and decoding. */
+public class HttpRequestBody internal constructor(source: AsyncByteSource, limit: Long? = Some(8388608L),
+    private val fields: Array<HttpField> = [],
+    /** The server-configured default limit used by aggregate helpers. */
+    public val bufferedBodyLimit: Long = 2097152L) {
+    private val state: RequestBodyState = RequestBodyState(source, limit, fields)
+    internal val receivedBytes: Long get() = state.receivedBytes
+    internal val deliveredBytes: Long get() = state.deliveredBytes
+
+    /** Whether the selected source has reached its normal, validated EOF. */
+    public val isComplete: Boolean get() = state.isComplete
+    /** Selected decoding and length facts, or None before a consumer is chosen. */
+    public val view: HttpRequestBodyView? get() = state.view
+
+    /** Claims the body once, applying an installed request decoding policy. */
+    public fun openStream(): AsyncByteSource = state.open(false)
+    /** Claims the encoded body once, bypassing any installed content decoding. */
+    public fun openRawStream(): AsyncByteSource = state.open(true)
+
+    /** Selects one lazy form-data reader, whose local resources also belong to this request. */
+    public fun multipart(options: RequestMultipartOptions = RequestMultipartOptions()): RequestMultipart =
+        state.multipart(requestMultipartBoundary(fields), options)
+
+    internal suspend fun closeView() { state.close() }
+    internal fun configureDecoding(options: RequestDecompressionOptions) { state.configure(options) }
+
+    /** Overrides the encoded input limit before selecting a consumption path; None disables it. */
+    public fun setLimit(maxBytes: Long?) { state.setLimit(maxBytes) }
+
+    /** Reads one complete body into a bounded independent snapshot. */
+    public suspend fun bytes(maxBytes: Long = bufferedBodyLimit): Array<Byte> = aggregate(maxBytes, false)
+
+    private suspend fun aggregate(maxBytes: Long, structured: Boolean): Array<Byte> {
+        if (maxBytes < 0L) throw IllegalArgumentException(Some("negative aggregate body limit"))
+        return aggregateRequestBody(state.open(false, structured), maxBytes)
+    }
+
+    /** Reads a complete, bounded, strictly UTF-8 request body. */
+    public suspend fun text(maxBytes: Long = bufferedBodyLimit): String = inputText(bytes(maxBytes), "request body")
+
+    /** Decodes one bounded UTF-8 JSON body using an explicit codec. */
+    public suspend fun <T> json(codec: ValueDecoder<T>, maxBytes: Long = bufferedBodyLimit): T {
+        requireStructuredMedia(fields, true)
+        val value = inputText(aggregate(maxBytes, true), "request body")
+        try { return Json.decodeFromString(value, codec) }
+        catch (_: DecodingException) { reject(400U, "invalid JSON request body") }
+    }
+
+    /** Decodes one bounded JSON body using the type's companion codec. */
+    public suspend fun <T> json(maxBytes: Long = bufferedBodyLimit): T
+        where T.Companion : ValueDecoder<T> = json(T.Companion, maxBytes)
+
+    /** Decodes a bounded form body, where plus represents a space. */
+    public suspend fun form(maxBytes: Long = bufferedBodyLimit): RequestQuery {
+        requireStructuredMedia(fields, false)
+        val value = inputText(aggregate(maxBytes, true), "request body")
+        try { return RequestQuery(FormUrlEncoded.parse(value)) }
+        catch (_: UrlParseException) { reject(400U, "invalid form request body") }
+    }
+}

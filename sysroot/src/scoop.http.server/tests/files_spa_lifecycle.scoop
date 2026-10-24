@@ -1,0 +1,70 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.fs.*
+import scoop.platform.io.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class ServerSpaLifecycleTests {
+    @Test
+    fun `selected fallback keeps one handle and committed source failures never replace it`() {
+        UploadTestDirectory().use { directory ->
+            val entry = directory.child("shell.html"); entry.writeText("original shell")
+            val asset = directory.child("asset.txt"); asset.writeText("original asset")
+            val routes = RouterBuilder()
+            routes.use(suspend { ctx, next ->
+                ctx.response.beforeCommit { _ ->
+                    if (ctx.pathParams.text("path") == "settings") {
+                        entry.moveTo(directory.child("old.html")); entry.writeText("replacement")
+                    } else asset.writeText("")
+                }
+                next()
+            })
+            routes.get("/{*path}", staticFiles(directory.path, StaticFileOptions(fallbackFile = Some(entry))))
+            val application = routes.build()
+            val fallback = exercise(application, "/settings")
+            assertEquals("original shell", fallback.text())
+            assertEquals("14", fallback.output.header("Content-Length"))
+            val truncated = exercise(application, "/asset.txt")
+            assertEquals(200U, truncated.status); assertEquals("", truncated.text())
+            assertTrue(truncated.failure!! is UnexpectedEofException)
+            assertEquals(1, truncated.output.starts); assertEquals(1, truncated.output.aborts)
+        }
+    }
+
+    @Test
+    fun `permission and other filesystem errors retain their failures instead of serving the shell`() {
+        UploadTestDirectory().use { directory ->
+            val entry = directory.child("shell.html"); entry.writeText("shell")
+            val denied = directory.child("private.txt")
+            File.open(denied, OpenOptions(read = false, write = true, createNew = true, mode = 0)).use { file -> file.writeText("private") }
+            val permissionEnforced = try { File.open(denied).use { _ -> false } }
+                catch (error: PlatformException) { if (error.kind != PlatformErrorKind.PermissionDenied) throw error; true }
+            val cycle = directory.child("cycle"); cycle.createSymbolicLink(cycle)
+            val routes = RouterBuilder()
+            routes.get("/{*path}", staticFiles(directory.path, StaticFileOptions(fallbackFile = Some(entry))))
+            val application = routes.build()
+            assertEquals(if (permissionEnforced) 403U else 200U, exercise(application, "/private.txt").status)
+            assertEquals(500U, exercise(application, "/cycle").status)
+        }
+    }
+
+    @Test
+    fun `H1 and H2 send fallback representations and preserve range semantics`() {
+        UploadTestDirectory().use { directory ->
+            val entry = directory.child("shell.html"); entry.writeText("0123456789")
+            val routes = RouterBuilder()
+            routes.get("/{*path}", staticFiles(directory.path, StaticFileOptions(fallbackFile = Some(entry))))
+            withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, _, address ->
+                networkClient(address, scope).useAsync suspend { client -> assertEquals("0123456789", requestText(client, "/settings/profile")) }
+                h2ServerClient(address, scope).useAsync suspend { client ->
+                    val request = client.openRequest(h2ServerRequest("/settings/profile", fields = [field("Range", "bytes=6-")]))
+                    assertEquals(206U, request.receiveResponse().status); assertEquals("6789", networkText(request))
+                }
+            })
+        }
+    }
+}

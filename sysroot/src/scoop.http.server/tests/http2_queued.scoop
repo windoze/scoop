@@ -1,0 +1,85 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.http.asyncio.HttpTransport
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.time.Duration
+
+private fun queuedH2Prefix(client: Http2Session): Array<Byte> {
+    for (path in ["/one", "/two", "/three"]) client.submitRequest(h2ServerRequest(path))
+    val bytes = ByteArrayBuilder()
+    NativeByteBuffer.allocate(4096L).use { buffer ->
+        while (true) {
+            buffer.clear()
+            val count = client.takeOutput(buffer)
+            if (count == 0L) break
+            bytes.append(buffer.readBytes(count))
+        }
+    }
+    return bytes.toByteArray()
+}
+
+@Test private class ServerHttp2QueuedTests {
+    @Test fun `GOAWAY still dispatches complete requests already queued before the first handler`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            serverDeadline<Unit>(Some(Duration.seconds(5)), "queued H2 test", suspend {
+                coroutineScope<Unit> suspend { scope ->
+                    val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+                    listener.useAsync suspend { _ ->
+                        loop.connectTcp(listener.localAddress).useAsync suspend { peer ->
+                            val raw = listener.accept()
+                            val entered = ServerTestGate(); val draining = ServerTestGate()
+                            val visits = TestCounter()
+                            val routes = RouterBuilder()
+                            routes.get("/{name}", suspend { ctx ->
+                                if (ctx.pathParams.text("name") == "one") { entered.signal(); draining.await() }
+                                visits.value += 1
+                                text("kept")
+                            })
+                            val state = ServerState(listener, routes.build(), HttpServerOptions(), loop)
+                            val entry = ServerConnection(raw)
+                            entry.info = HttpConnectionInfo(raw.localAddress, raw.peerAddress, HttpProtocol.Http2)
+                            assertTrue(state.register(entry))
+                            Http2Session.client().use suspend { client ->
+                                val transport = HttpTransport.takeOwnershipWithPrefix(raw, queuedH2Prefix(client))
+                                scope.launch suspend { entered.await(); state.stopAccepting(); draining.signal() }
+                                val serving = scope.async<Unit> suspend {
+                                    coroutineScope<Unit> suspend { connectionScope ->
+                                        entry.job = Some(connectionScope.job)
+                                        serveHttp2(state, entry, transport, connectionScope, MonotonicTimeSource.markNow())
+                                    }
+                                }
+                                NativeByteBuffer.allocate(4096L).use suspend { input ->
+                                    while (true) {
+                                        input.clear()
+                                        if (peer.readInto(input, input.writableBytes) == 0L) break
+                                        client.receive(input)
+                                    }
+                                }
+                                serving.await()
+                                assertEquals(3, visits.value)
+                                assertEquals(0L, state.requests)
+                                var responses = 0L
+                                while (true) {
+                                    val event = client.nextEvent()
+                                    if (!present(event)) break
+                                    when (event!!) {
+                                        case Response(_, head) -> { assertEquals(200U, head.status); responses += 1L }
+                                        else -> {}
+                                    }
+                                }
+                                assertEquals(3L, responses)
+                            }
+                        }
+                    }
+                }
+            })
+        }
+    }
+}

@@ -1,0 +1,43 @@
+package scoop.http.server
+
+import scoop.compression.*
+import scoop.http.*
+import scoop.text.lowercaseAscii
+
+internal class RequestContentCoding(val name: String, val format: CompressionFormat)
+
+internal fun requestContentCodings(fields: Array<HttpField>, options: RequestDecompressionOptions): Array<RequestContentCoding> {
+    val result = ArrayList<RequestContentCoding>()
+    try {
+        for (token in parseHttpTokenFields(fields, "Content-Encoding")) {
+            val name = token.lowercaseAscii()
+            if (name == "identity") continue
+            val format = when (name) {
+                case "gzip" -> CompressionFormat.Gzip
+                case "deflate" -> CompressionFormat.Zlib
+                case "br" -> CompressionFormat.Brotli
+                case "zstd" -> CompressionFormat.Zstd
+                else -> reject(415U, "unsupported request content encoding")
+            }
+            var allowed = false
+            for (candidate in options.allowedFormats) if (format == candidate) allowed = true
+            if (!allowed) reject(415U, "disabled request content encoding")
+            if (result.size >= options.maxLayers) reject(415U, "too many request content coding layers")
+            result.add(RequestContentCoding(name, format))
+        }
+    } catch (_: HttpFieldParseException) { reject(400U, "invalid request content encoding") }
+    return result.toArray()
+}
+
+internal fun requestCodingFailure(error: CompressionException): Nothing {
+    val status = when (error.kind) {
+        case CompressionFailureKind.InvalidData -> 400U
+        case CompressionFailureKind.Truncated -> 400U
+        case CompressionFailureKind.OutputLimit -> 413U
+        case CompressionFailureKind.WindowLimit -> 413U
+        case CompressionFailureKind.DictionaryRequired -> 415U
+        case CompressionFailureKind.DictionaryMismatch -> 415U
+        case CompressionFailureKind.Backend -> throw error
+    }
+    throw HttpRejection(text("invalid encoded request body", status), Some<Throwable>(error))
+}

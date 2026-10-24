@@ -1,0 +1,32 @@
+package scoop.http.server
+
+import scoop.platform.fs.Path
+import scoop.platform.system.OsString
+
+/** Maps a terminal wildcard's once-decoded segments onto an application-selected root. */
+public fun staticFiles(root: Path, options: StaticFileOptions = StaticFileOptions()): HttpHandler = suspend { ctx ->
+    val parts = ctx.pathParams.tailSegments(options.pathParameter)
+    var path = root
+    var directory = false
+    var index = 0L
+    for (part in parts) {
+        index += 1L
+        if (part.decoded.size == 0L && index == parts.size) directory = true
+        else {
+            if (!validStaticFileName(part.decoded)) reject(400U, "invalid static file path segment")
+            path = path.resolve(Path.fromOsString(OsString.fromByteArray(part.decoded)))
+        }
+    }
+    val fallback = if (ctx.request.method == "GET" || ctx.request.method == "HEAD") options.fallbackFile else None
+    HttpResult(body = HttpBody.File(HttpFileBody(path, options.fileOptions, options.indexDocument, directory, fallback)),
+        allowCompression = false)
+}
+
+internal fun validStaticFileName(bytes: Array<Byte>): Boolean {
+    if (bytes.size == 0L) return false
+    if (bytes[0L] == 46 && (bytes.size == 1L || (bytes.size == 2L && bytes[1L] == 46))) return false
+    if (bytes.size >= 2L && bytes[1L] == 58 &&
+        ((bytes[0L] >= 65 && bytes[0L] <= 90) || (bytes[0L] >= 97 && bytes[0L] <= 122))) return false
+    for (value in bytes) if (value == 0 || value == 47 || value == 92) return false
+    return true
+}

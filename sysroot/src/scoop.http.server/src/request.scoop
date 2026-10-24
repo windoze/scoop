@@ -1,0 +1,75 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.text.*
+import scoop.url.*
+
+/** The immutable protocol request head with lazily parsed application input. */
+public class HttpRequest internal constructor(
+    /** The original protocol head; fields retain order, repetition and byte values. */
+    public val head: HttpRequestHead,
+    /** The single-consumer request body. */
+    public val body: HttpRequestBody,
+    internal val expectations: RequestExpectations = RequestExpectations(head.fields)
+) {
+    private var parsed: RequestTarget? = None
+    /** The exact, case-sensitive HTTP method token. */
+    public val method: String = inputText(head.method, "method")
+    /** The original encoded path, excluding query; special targets retain their own shape. */
+    public val path: String get() = target().path
+    /** Ordered query access using URI, rather than form, plus semantics. */
+    public val query: RequestQuery get() = RequestQuery(target().query)
+    /** Byte-preserving access to the original request fields. */
+    public val headers: RequestHeaders = RequestHeaders(head.fields)
+    /** Lazily parsed request cookies, unaffected by response mutations. */
+    public val cookies: RequestCookies = RequestCookies(head.fields)
+    /** The optional SSE resume identifier; duplicates and malformed UTF-8 are rejected. */
+    public val lastEventId: String? get() = headers.getSingle("Last-Event-ID")
+
+    internal fun target(): RequestTarget {
+        if (!present(parsed)) parsed = Some(requestTarget(head.target, method))
+        return parsed!!
+    }
+}
+
+/** Ordered query fields with strict single-value conversion helpers. */
+public class RequestQuery internal constructor(
+    /** The parsed query, preserving duplicate keys and absent versus empty values. */
+    public val parameters: UrlQuery
+) {
+    /** Decodes a flat named record with an explicit codec and unknown-field policy. */
+    public fun <T> decode(codec: ValueDecoder<T>, options: QueryDecodeOptions = QueryDecodeOptions()): T {
+        val record = QueryRecord(groupQuery(parameters), options)
+        try { return codec.decode(QueryDecoder(QueryNode.Record(record), "")) }
+        catch (error: DecodingException) { throw queryRejection(error, record.location(error.path)) }
+    }
+
+    /** Decodes a flat named record using the type's companion codec. */
+    public fun <T> decode(options: QueryDecodeOptions = QueryDecodeOptions()): T
+        where T.Companion : ValueDecoder<T> = decode(T.Companion, options)
+
+    /** Returns every matching value in arrival order. */
+    public fun getAll(name: String): List<String?> {
+        try { return parameters.getAll(name) }
+        catch (_: UrlParseException) { reject(400U, "query field must be UTF-8: " + name) }
+    }
+
+    /** Returns None only when the key is absent; duplicate or valueless fields are rejected. */
+    public fun optionalText(name: String): String? {
+        val values = getAll(name)
+        if (values.size == 0L) return None
+        if (values.size != 1L) reject(400U, "duplicate query field: " + name)
+        if (values[0L] == None) reject(400U, "missing query value: " + name)
+        return values[0L]
+    }
+
+    /** Requires exactly one text value. */
+    public fun requiredText(name: String): String = optionalText(name) ?: reject(400U, "missing query field: " + name)
+    /** Reads one optional signed decimal integer, rejecting invalid present input. */
+    public fun optionalLong(name: String): Long? = when (optionalText(name)) {
+        case None -> None
+        case Some(value) -> Some(value.toLongOrNone() ?: reject(400U, "invalid query integer: " + name))
+    }
+    /** Reads one required signed decimal integer. */
+    public fun requiredLong(name: String): Long = optionalLong(name) ?: reject(400U, "missing query field: " + name)
+}

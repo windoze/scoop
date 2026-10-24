@@ -1,0 +1,37 @@
+package scoop.http.server
+
+import scoop.platform.time.MonotonicTimeSource
+
+internal suspend fun finishServerWebSocket(state: ServerState, entry: ServerConnection, failure: Throwable?) {
+    val current = state.lock.withLock { entry.webSocket }
+    if (!present(current)) return
+    val value = current!!
+    var error = failure
+    var cleanupFailure: Throwable? = None
+    try {
+        if (!present(value.session) && present(value.pending)) value.pending!!.transport.close()
+    } catch (cleanup: Throwable) {
+        cleanupFailure = Some(cleanup)
+        error = Some(if (present(error)) ResourceUseException(error!!, cleanup) else cleanup)
+    } finally {
+        releaseWebSocket(state, entry)
+        if (value.upgraded) observeWebSocketCompletion(state, value, error)
+    }
+    if (present(cleanupFailure)) {
+        state.recordFailure(cleanupFailure!!)
+        throw error!!
+    }
+}
+
+private fun observeWebSocketCompletion(state: ServerState, value: ServerWebSocket, error: Throwable?) {
+    if (!present(state.options.onWebSocketCompleted)) return
+    val session = value.session
+    val outcome = if (present(error)) {
+        if (error!! is CancellationException || error!! is HttpServerTimeoutException)
+            HttpWebSocketOutcome.Cancelled else HttpWebSocketOutcome.Failed
+    } else if (value.draining.load()) HttpWebSocketOutcome.Cancelled else HttpWebSocketOutcome.Completed
+    val snapshot = HttpWebSocketCompletion(value.context, MonotonicTimeSource.markNow() - value.started,
+        if (present(session)) session!!.peerClose else None, if (present(session)) session!!.sentClose else None, outcome, error)
+    try { state.options.onWebSocketCompleted!!(snapshot) }
+    catch (_: Throwable) { return }
+}

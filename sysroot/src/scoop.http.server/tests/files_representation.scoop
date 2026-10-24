@@ -1,0 +1,88 @@
+package scoop.http.server
+
+import scoop.compression.*
+import scoop.http.*
+import scoop.platform.fs.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class ServerFileRepresentationTests {
+    @Test
+    fun `files are deferred and GET HEAD and empty responses expose actual metadata`() {
+        UploadTestDirectory().use { directory ->
+            val path = directory.child("hello.TXT")
+            path.writeText("hello")
+            val get = fileExchange(path, options = FileResponseOptions(bufferSize = 2L))
+            assertEquals("hello", get.text())
+            assertEquals("text/plain; charset=utf-8", get.output.header("Content-Type"))
+            assertEquals("5", get.output.header("Content-Length"))
+            assertEquals("bytes", get.output.header("Accept-Ranges"))
+            assertFalse(present(RequestHeaders(get.output.head!!.fields).getSingle("ETag")))
+            val modified = HttpDate.parse(get.output.header("Last-Modified"), path.metadata().modifiedAt)
+            assertEquals(path.metadata().modifiedAt.epochSeconds, modified.epochSeconds)
+            val head = fileExchange(path, method = "HEAD")
+            assertEquals("", head.text()); assertEquals("5", head.output.header("Content-Length"))
+            val emptyPath = directory.child("empty.unknown"); emptyPath.writeText("")
+            val empty = fileExchange(emptyPath, [field("Range", "bytes=0-")])
+            assertEquals(200U, empty.status); assertEquals("", empty.text())
+            assertEquals("0", empty.output.header("Content-Length"))
+            assertEquals("application/octet-stream", empty.output.header("Content-Type"))
+            val missing = file(directory.child("missing"))
+            assertTrue(when (missing.body) { case HttpBody.File(_) -> true; else -> false })
+            assertEquals(404U, fileExchange(directory.child("missing"), [field("If-None-Match", "*")]).status)
+            assertEquals(404U, fileExchange(directory.path).status)
+            assertEquals(404U, fileExchange(path.resolve(Path.fromString("child"))).status)
+        }
+    }
+
+    @Test
+    fun `preencoded files negotiate their real representation and bypass installed dynamic compression`() {
+        UploadTestDirectory().use { directory ->
+            val path = directory.child("body.gz")
+            val encoded = requestGzip("file contents".toByteArray()); path.writeAllBytes(encoded)
+            val options = FileResponseOptions(contentType = Some("text/plain"), contentEncoding = Some("gzip"),
+                entityTag = Some(HttpEntityTag.parse("\"gzip-v1\"")))
+            val routes = RouterBuilder()
+            routes.use(responseCompression(ResponseCompressionOptions(minimumBytes = 0L)))
+            routes.get("/", suspend { ctx -> ctx.response.set(HttpVary(["Accept-Encoding"]).toHttpField()); file(path, options) })
+            val app = routes.build()
+            val get = exercise(app, fields = [field("Accept-Encoding", "gzip")])
+            assertEquals(200U, get.status); assertEquals("gzip", get.output.header("Content-Encoding"))
+            assertEquals("gzip-v1", String.fromUtf8(HttpEntityTag.parse(get.output.header("ETag")).opaque))
+            assertFalse(HttpEntityTag.parse(get.output.header("ETag")).isWeak)
+            assertEquals(encoded.size.toString(), get.output.header("Content-Length"))
+            assertEquals("file contents", String.fromUtf8(decompress(get.output.data.toByteArray(), DecompressionOptions(CompressionFormat.Gzip))))
+            assertEquals(200U, exercise(app).status)
+            val rejected = exercise(app, fields = [field("Accept-Encoding", "identity")])
+            assertEquals(406U, rejected.status); assertEquals("", rejected.text())
+            assertFalse(present(RequestHeaders(rejected.output.head!!.fields).getSingle("Content-Encoding")))
+            assertEquals(400U, exercise(app, fields = [field("Accept-Encoding", "gzip;q=broken")]).status)
+            val head = exercise(app, method = "HEAD", fields = [field("Accept-Encoding", "gzip")])
+            assertEquals(encoded.size.toString(), head.output.header("Content-Length")); assertEquals("", head.text())
+            val partial = exercise(app, fields = [field("Accept-Encoding", "gzip"), field("Range", "bytes=1-3")])
+            assertEquals(206U, partial.status)
+            for (index in 0L..<3L) assertEquals(encoded[index + 1L], partial.output.data.toByteArray()[index])
+            val plain = directory.child("plain.txt"); plain.writeText("identity file")
+            assertEquals(406U, fileExchange(plain, [field("Accept-Encoding", "gzip,identity;q=0")]).status)
+        }
+    }
+
+    @Test
+    fun `file option errors are configuration failures and actual denied access maps separately`() {
+        expectArgument { FileResponseOptions(bufferSize = 0L) }
+        expectArgument { FileResponseOptions(contentType = Some("not media")) }
+        expectArgument { FileResponseOptions(contentEncoding = Some("gzip,br")) }
+        expectArgument { FileResponseOptions(contentEncoding = Some("*")) }
+        UploadTestDirectory().use { directory ->
+            val denied = directory.child("denied")
+            denied.createDirectory(0)
+            try {
+                val missing = denied.resolve(Path.fromString("missing"))
+                val expected = try { missing.metadata(); 200U }
+                    catch (error: PlatformException) { if (error.kind == PlatformErrorKind.PermissionDenied) 403U else 404U }
+                assertEquals(expected, fileExchange(missing, [field("If-None-Match", "*")]).status)
+            } finally { denied.delete() }
+        }
+    }
+}

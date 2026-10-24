@@ -1,0 +1,44 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class RequestBodySource(private val source: AsyncByteSource, var limit: Long?,
+    private val limitMessage: String = "request body exceeds input limit") : AsyncByteSource {
+    val completed: AtomicBoolean = AtomicBoolean(false)
+    private val retired: AtomicBoolean = AtomicBoolean(false)
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private var received: Long = 0L
+    private var delivered: Long = 0L
+    val receivedBytes: Long get() = received
+    val deliveredBytes: Long get() = delivered
+    private var failure: Throwable? = None
+
+    fun invalidate() { retired.store(true) }
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (count < 0L || count > buffer.writableBytes) throw IndexOutOfBoundsException()
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("concurrent request body reads"))
+        try {
+            ensureActive()
+            if (retired.load()) throw IoClosedException()
+            if (present(failure)) throw failure!!
+            if (count == 0L || completed.load()) return 0L
+            val remaining = if (!present(limit)) Long.MAX_VALUE - received else limit!! - received
+            val requested = if (remaining < count) remaining + 1L else count
+            val before = buffer.readableBytes
+            val progress = source.readInto(buffer, requested)
+            if (progress < 0L || progress > requested || buffer.readableBytes - before != progress)
+                throw IllegalStateException(Some("invalid request source progress"))
+            if (progress > Long.MAX_VALUE - received) throw ArithmeticException()
+            received += progress
+            if (progress > remaining) reject(413U, limitMessage)
+            delivered = received
+            if (progress == 0L) completed.store(true)
+            return progress
+        } catch (error: Throwable) {
+            failure = Some(error)
+            throw error
+        } finally { busy.store(false) }
+    }
+}

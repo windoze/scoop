@@ -1,0 +1,165 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class ServerLifecycleTests {
+    @Test
+    fun `graceful shutdown lets the active response and middleware cleanup complete`() {
+        val entered = ServerTestGate()
+        val release = ServerTestGate()
+        val cleaned = TestCounter()
+        val routes = RouterBuilder()
+        routes.use(suspend { _, next -> try { next() } finally { cleaned.value += 1 } })
+        routes.get("/", suspend { _ -> entered.signal(); release.await(); text("completed") })
+        withServer(routes.build(), block = suspend { scope, server, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(networkRequest()).finish()
+                entered.await()
+                val stopping = scope.async<Unit> suspend { server.shutdownGracefully(Duration.seconds(1)) }
+                assertTrue(server.isDraining)
+                assertFalse(server.isClosed)
+                release.signal()
+                assertEquals("completed", networkText(client.receiveResponse().body))
+                stopping.await()
+                server.awaitTermination()
+                assertTrue(server.isClosed)
+                assertEquals(1, cleaned.value)
+            }
+        })
+    }
+
+    @Test
+    fun `expired grace cancels pending application work and concurrent close waits for cleanup`() {
+        val entered = ServerTestGate()
+        val never = ServerTestGate()
+        val cleaned = TestCounter()
+        val completed = ServerTestCompletions()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ ->
+            try { entered.signal(); never.await(); text("unreachable") }
+            finally { cleaned.value += 1 }
+        })
+        withServer(routes.build(), HttpServerOptions(onRequestCompleted = Some(completed::receive)), suspend { scope, server, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(networkRequest()).finish()
+                entered.await()
+                server.shutdownGracefully(Duration.milliseconds(5))
+                val one = scope.async<Unit> suspend { server.close() }
+                val two = scope.async<Unit> suspend { server.close() }
+                one.await(); two.await()
+                completed.ready.await()
+                assertEquals(1, cleaned.value)
+                assertTrue(server.isClosed)
+                assertEquals(HttpRequestOutcome.Cancelled, completed.snapshot()[0L].outcome)
+            }
+        })
+    }
+
+    @Test
+    fun `concurrent forced close joins suspended request cleanup`() {
+        val entered = ServerTestGate()
+        val never = ServerTestGate()
+        val cleaning = ServerTestGate()
+        val release = ServerTestGate()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ ->
+            try { entered.signal(); never.await(); text("unreachable") }
+            finally {
+                nonCancellableScope<Unit> suspend { _ -> cleaning.signal(); release.await() }
+            }
+        })
+        withServer(routes.build(), block = suspend { scope, server, address ->
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(networkRequest()).finish()
+                entered.await()
+                val first = scope.async<Unit> suspend { server.close() }
+                try {
+                    cleaning.await()
+                    val second = scope.async<Unit> suspend { server.close() }
+                    assertFalse(first.isCompleted)
+                    assertFalse(second.isCompleted)
+                    assertFalse(server.isClosed)
+                    release.signal()
+                    second.await()
+                } finally { release.signal() }
+                first.await()
+                assertTrue(server.isClosed)
+            }
+        })
+    }
+
+    @Test
+    fun `request deadlines isolate cancellation and capacity rejects without running another handler`() {
+        val entered = ServerTestGate()
+        val never = ServerTestGate()
+        val completed = ServerTestCompletions()
+        val invoked = TestCounter()
+        val routes = RouterBuilder()
+        routes.get("/slow", suspend { _ -> entered.signal(); never.await(); text("unreachable") })
+        routes.get("/fast", suspend { _ -> invoked.value += 1; text("ok") })
+        val options = HttpServerOptions(maxActiveRequests = 1L, requestDeadline = Some(Duration.milliseconds(80)),
+            onRequestCompleted = Some(completed::receive))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            networkClient(address, scope).useAsync suspend { slow ->
+                slow.sendRequest(networkRequest("/slow")).finish()
+                entered.await()
+                networkClient(address, scope).useAsync suspend { overloaded ->
+                    var rejected = false
+                    try { requestText(overloaded, "/fast") }
+                    catch (_: Throwable) { rejected = true }
+                    assertTrue(rejected)
+                }
+                assertEquals(0, invoked.value)
+                completed.ready.await()
+                assertEquals(HttpRequestOutcome.Cancelled, completed.snapshot()[0L].outcome)
+                networkClient(address, scope).useAsync suspend { recovered -> assertEquals("ok", requestText(recovered, "/fast")) }
+                assertEquals(1, invoked.value)
+            }
+        })
+    }
+
+    @Test
+    fun `header deadline and connection capacity include idle TCP connections`() {
+        val timedOut = ServerTestGate()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> text("ok") })
+        val options = HttpServerOptions(maxConnections = 1L, firstRequestHeadTimeout = Some(Duration.milliseconds(80)),
+            onConnectionError = Some({ _, error -> if (error is HttpServerTimeoutException) timedOut.signal() }))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            currentEventLoop().connectTcp(address).useAsync suspend { idle ->
+                networkWrite(idle, "GET / HTTP/1.1\r\nHo")
+                networkClient(address, scope).useAsync suspend { overloaded ->
+                    var rejected = false
+                    try { requestText(overloaded) }
+                    catch (_: Throwable) { rejected = true }
+                    assertTrue(rejected)
+                }
+                timedOut.await()
+            }
+            networkClient(address, scope).useAsync suspend { recovered -> assertEquals("ok", requestText(recovered)) }
+        })
+    }
+
+    @Test
+    fun `route body limit overrides precede consumption and aggregate limits remain separate`() {
+        val routes = RouterBuilder()
+        routes.post("/default", suspend { ctx -> text(ctx.request.body.text()) })
+        routes.post("/larger", suspend { ctx -> ctx.request.body.setLimit(Some(8L)); text(ctx.request.body.text(8L)) })
+        val options = HttpServerOptions(requestBodyLimit = Some(3L), bufferedBodyLimit = 2L)
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            for ((path, expected) in [("/default", 413U), ("/larger", 200U)]) {
+                networkClient(address, scope).useAsync suspend { client ->
+                    val writer = client.sendRequest(networkRequest(path, "POST"), Http1BodyFraming.Length(4L))
+                    networkWrite(writer, "data"); writer.finish()
+                    val response = client.receiveResponse()
+                    assertEquals(expected, response.head.status)
+                    networkText(response.body)
+                }
+            }
+        })
+    }
+}

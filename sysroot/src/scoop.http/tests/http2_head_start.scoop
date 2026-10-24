@@ -1,0 +1,77 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+private fun starts2(events: List<Http2Event>, streamId: Int): Long {
+    var count = 0L
+    for (event in events) when (event) {
+        case RequestHeadStarted(id) -> { if (id == streamId) count += 1L }
+        else -> {}
+    }
+    return count
+}
+
+@Test private class Http2RequestHeadStartTests {
+    @Test fun `a complete frame header starts one request before HPACK and continuation finish`() {
+        Http2Session.server().use { server ->
+            receive2(server, clientPreface2())
+            val block = headerBlock2(rawRequestFields2())
+            val first = frame2(1, 1, 1, Array<Byte>(4L) { index -> block[index] })
+            NativeByteBuffer.allocate(first.size).use { buffer ->
+                buffer.writeBytes(first)
+                server.receive(buffer, 8L)
+                assertEquals(0L, starts2(events2(server), 1))
+                server.receive(buffer, 1L)
+                val started = events2(server)
+                assertEquals(1L, starts2(started, 1))
+                assertEquals(0L, requests2(started).size)
+                server.receive(buffer)
+                assertEquals(0L, requests2(events2(server)).size)
+            }
+            receive2(server, frame2(9, 4, 1, Array<Byte>(block.size - 4L) { index -> block[index + 4L] }))
+            val completed = events2(server)
+            assertEquals(0L, starts2(completed, 1))
+            assertEquals(1L, requests2(completed).size)
+        }
+    }
+
+    @Test fun `response and trailer heads do not start another request`() {
+        withHttp2 { client, server ->
+            val id = client.submitRequest(request2("POST"), false)
+            drive2(client, server)
+            assertEquals(1L, starts2(events2(server), id))
+            client.finish(id, [HttpField("x-done".toByteArray(), "yes".toByteArray())])
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 204U))
+            drive2(client, server)
+            assertEquals(0L, starts2(events2(server), id))
+            assertEquals(0L, starts2(events2(client), id))
+        }
+    }
+
+    @Test fun `invalid request heads are observed before the actual stream refusal`() {
+        Http2Session.server().use { server ->
+            receive2(server, clientPreface2())
+            val fields = rawRequestFields2([HttpField("connection".toByteArray(), "close".toByteArray())])
+            receive2(server, frame2(1, 5, 1, headerBlock2(fields)))
+            output2(server)
+            val events = events2(server)
+            assertEquals(1L, starts2(events, 1))
+            assertEquals(0L, requests2(events).size)
+            assertTrue(closed2(events, 1, 1U))
+        }
+    }
+
+    @Test fun `a late trailer after reset does not start a phantom request head`() {
+        Http2Session.server().use { server ->
+            receive2(server, clientPreface2())
+            receive2(server, frame2(1, 4, 1, headerBlock2(rawRequestFields2())))
+            assertEquals(1L, starts2(events2(server), 1))
+            server.reset(1); output2(server); events2(server)
+            receive2(server, frame2(1, 5, 1, headerBlock2([HttpField("x-tail".toByteArray(), "late".toByteArray())])))
+            assertEquals(0L, starts2(events2(server), 1))
+            receive2(server, frame2(1, 5, 3, headerBlock2(rawRequestFields2())))
+            assertEquals(1L, requests2(events2(server)).size)
+        }
+    }
+}

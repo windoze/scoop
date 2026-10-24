@@ -1,0 +1,55 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.tls.asyncio.AsyncTlsStream
+import scoop.platform.time.MonotonicTimeSource
+
+internal suspend fun runServerConnection(state: ServerState, entry: ServerConnection) {
+    try {
+        coroutineScope<Unit> suspend { scope ->
+            val stop = state.lock.withLock {
+                entry.job = Some(scope.job)
+                state.phase != ServerPhase.Running
+            }
+            if (stop) { scope.job.cancel(); scope.job.ensureActive() }
+            if (present(state.options.tls)) {
+                val tls = serverDeadline<AsyncTlsStream>(state.options.tlsHandshakeTimeout, "TLS handshake", suspend {
+                    AsyncTlsStream.takeOwnershipAsServer(entry.transport, state.options.tls!!)
+                })
+                var failure: Throwable? = None
+                try {
+                    val info = tls.connectionInfo
+                    val alpn: List<Byte>? = when (info.alpn) { case None -> None; case Some(value) -> Some(value) }
+                    val allowed = if (state.options.allowTlsHttp2) [HttpProtocol.Http1, HttpProtocol.Http2] else [HttpProtocol.Http1]
+                    val protocol = selectHttpAlpn(alpn, allowed, state.options.allowHttp1Fallback)
+                    entry.info = HttpConnectionInfo(entry.transport.localAddress, entry.transport.peerAddress, protocol, Some(info))
+                    serveSelectedHttp(state, entry, tls, scope, protocol, MonotonicTimeSource.markNow())
+                } catch (error: Throwable) { failure = Some(error); throw error }
+                finally { closeServerResource(state, tls, failure) }
+            } else serveCleartextHttp(state, entry, scope)
+        }
+    } catch (error: Throwable) {
+        if (!(error is CancellationException)) observeConnectionFailure(state, entry.info, error)
+    } finally {
+        try { entry.transport.close() }
+        catch (error: Throwable) { observeConnectionFailure(state, entry.info, error); state.recordFailure(error) }
+        state.unregister(entry)
+    }
+}
+
+private fun observeConnectionFailure(state: ServerState, info: HttpConnectionInfo, error: Throwable) {
+    if (!present(state.options.onConnectionError)) return
+    try { state.options.onConnectionError!!(info, error) }
+    catch (_: Throwable) { return }
+}
+
+internal suspend fun closeServerResource(state: ServerState, resource: AsyncCloseable, primary: Throwable?) {
+    try { resource.close() }
+    catch (cleanup: Throwable) {
+        state.recordFailure(cleanup)
+        if (present(primary)) throw ResourceUseException(primary!!, cleanup)
+        throw cleanup
+    }
+}

@@ -1,0 +1,72 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test private class ServerHttp2ShutdownTests {
+    @Test fun `an empty connection sends GOAWAY before graceful close and concurrent shutdown joins it`() {
+        val notices = ServerH2Notices()
+        val routes = RouterBuilder()
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, server, address ->
+            h2ServerClient(address, scope, notices).useAsync suspend { _ ->
+                notices.settings.await()
+                val one = scope.async<Unit> suspend { server.shutdownGracefully(Duration.seconds(1)) }
+                val two = scope.async<Unit> suspend { server.shutdownGracefully(Duration.seconds(1)) }
+                notices.goAway.await()
+                one.await(); two.await()
+                assertTrue(server.isClosed)
+                var count = 0L
+                for (event in notices.snapshot()) when (event) {
+                    case GoAway(last, code, _, _) -> { assertEquals(0, last); assertEquals(0U, code); count += 1L }
+                    else -> {}
+                }
+                assertEquals(1L, count)
+            }
+        })
+    }
+
+    @Test fun `a client GOAWAY leaves accepted application work alive until its response completes`() {
+        val entered = ServerTestGate(); val release = ServerTestGate()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> entered.signal(); release.await(); text("kept") })
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, _, address ->
+            h2ServerClient(address, scope).useAsync suspend { client ->
+                val pending = client.openRequest(h2ServerRequest()); entered.await()
+                client.goAway()
+                release.signal()
+                assertEquals(200U, pending.receiveResponse().status)
+                assertEquals("kept", networkText(pending))
+            }
+        })
+    }
+
+    @Test fun `forced close cancels application waits and joins cleanup without beginning GOAWAY`() {
+        val entered = ServerTestGate(); val cleaning = ServerTestGate(); val release = ServerTestGate()
+        val never = ServerTestGate(); val notices = ServerH2Notices()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ ->
+            try { entered.signal(); never.await(); text("late") }
+            finally { nonCancellableScope<Unit> suspend { _ -> cleaning.signal(); release.await() } }
+        })
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, server, address ->
+            h2ServerClient(address, scope, notices).useAsync suspend { client ->
+                try {
+                    client.openRequest(h2ServerRequest()); entered.await()
+                    val one = scope.async<Unit> suspend { server.close() }
+                    cleaning.await()
+                    val two = scope.async<Unit> suspend { server.close() }
+                    assertFalse(one.isCompleted || two.isCompleted || server.isClosed)
+                    release.signal(); one.await(); two.await()
+                    assertTrue(server.isClosed)
+                    for (event in notices.snapshot()) when (event) {
+                        case GoAway(_, _, _, _) -> fail(Some("forced close started GOAWAY"))
+                        else -> {}
+                    }
+                } finally { release.signal() }
+            }
+        })
+    }
+}

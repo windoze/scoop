@@ -1,0 +1,145 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.platform.net.*
+import scoop.time.Duration
+
+/** Owns an accept loop, its connections and their structured request tasks. */
+public class HttpServer private constructor(private val state: ServerState) : AsyncCloseable {
+    /** Explicit listener-ownership construction. */
+    public companion object {
+        /** Binds on the current event loop and starts this application in the supplied scope. */
+        public suspend fun listen(application: HttpApplication, scope: CoroutineScope, port: Int = 8080,
+            host: IpAddress = IpAddress.IPV4_LOOPBACK, options: HttpServerOptions = HttpServerOptions()): HttpServer {
+            val listener = currentEventLoop().listenTcp(SocketAddress(host, port))
+            try { return takeOwnership(listener, application, scope, options) }
+            catch (error: Throwable) {
+                try { nonCancellableScope<Unit> suspend { _ -> listener.close() } }
+                catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+                throw error
+            }
+        }
+
+        /** Configures and freezes routes before binding, using the same server and lifecycle. */
+        public suspend fun listen(scope: CoroutineScope, port: Int = 8080,
+            host: IpAddress = IpAddress.IPV4_LOOPBACK, options: HttpServerOptions = HttpServerOptions(),
+            applicationOptions: HttpApplicationOptions = HttpApplicationOptions(),
+            configure: (RouterBuilder) -> Unit): HttpServer {
+            val routes = RouterBuilder()
+            configure(routes)
+            return listen(routes.build(applicationOptions), scope, port, host, options)
+        }
+
+        /** Takes the listener after registering the server owner in the supplied active scope. */
+        public suspend fun takeOwnership(listener: AsyncTcpListener, application: HttpApplication,
+            scope: CoroutineScope, options: HttpServerOptions = HttpServerOptions()): HttpServer {
+            val loop = currentEventLoop()
+            val caller = currentJobOrNone() ?: throw IllegalStateException(Some("HTTP server requires a Job"))
+            caller.ensureActive()
+            scope.job.ensureActive()
+            if (scope.job.isCompleted) throw IllegalStateException(Some("HTTP server scope is closed"))
+            val state = ServerState(listener, application, options, loop)
+            val server = HttpServer(state)
+            try {
+                scope.launch suspend {
+                    val owner = currentJobOrNone()!!
+                    state.lock.withLock { state.owner = Some(owner) }
+                    runServer(state)
+                }
+                if (!state.lock.withLock { present(state.owner) }) {
+                    caller.ensureActive(); scope.job.ensureActive()
+                    throw IllegalStateException(Some("HTTP server owner was not registered"))
+                }
+                caller.ensureActive()
+                state.reportFailure()
+                return server
+            } catch (error: Throwable) {
+                if (state.lock.withLock { present(state.owner) }) {
+                    try { server.close() }
+                    catch (cleanup: Throwable) { if (cleanup !== error) throw ResourceUseException(error, cleanup) }
+                }
+                throw error
+            }
+        }
+    }
+
+    /** The bound address snapshot, including an OS-selected port; remains available after closing. */
+    public val localAddress: SocketAddress = state.listener.localAddress
+
+    /** Whether the server has stopped accepting new connections. */
+    public val isDraining: Boolean get() = state.lock.withLock { state.phase != ServerPhase.Running }
+    /** Whether all server-owned work and local resource cleanup has ended. */
+    public val isClosed: Boolean get() = state.lock.withLock { state.phase == ServerPhase.Closed }
+
+    /** Waits without initiating shutdown, then reports any server-owner failure. */
+    public suspend fun awaitTermination() {
+        requireLoop()
+        state.owner!!.join()
+        state.reportFailure()
+    }
+
+    /** Stops accepting and drains using the configured natural-drain period. */
+    public suspend fun shutdownGracefully() { shutdownGracefully(state.options.gracefulShutdownTimeout) }
+
+    /** Stops accepting and allows active requests to finish within an explicit natural-drain period. */
+    public suspend fun shutdownGracefully(grace: Duration) {
+        requireServerDuration(Some(grace))
+        requireLoop()
+        var failure: Throwable? = None
+        try {
+            try {
+                serverDeadline<Unit>(Some(grace), "graceful shutdown", suspend {
+                    state.stopAccepting()
+                    state.listener.close()
+                    state.owner!!.join()
+                })
+            }
+            catch (_: HttpServerTimeoutException) { state.owner!!.cancel() }
+        } catch (error: Throwable) { failure = Some(error); state.owner!!.cancel() }
+        finally { nonCancellableScope<Unit> suspend { _ -> state.owner!!.join() } }
+        if (present(failure)) throw failure!!
+        state.reportFailure()
+    }
+
+    /** Cancels owned work immediately and waits for actual local cleanup. */
+    public override suspend fun close() {
+        requireLoop()
+        state.stopAccepting(false)
+        state.owner!!.cancel()
+        nonCancellableScope<Unit> suspend { _ -> state.owner!!.join() }
+        state.reportFailure()
+    }
+
+    private fun requireLoop() {
+        if (currentEventLoop() !== state.loop || !present(currentJobOrNone()))
+            throw IllegalStateException(Some("HTTP server operation requires its event loop and a Job"))
+    }
+}
+
+internal suspend fun runServer(state: ServerState) {
+    try {
+        coroutineScope<Unit> suspend { scope ->
+            try {
+                while (state.running()) {
+                    val transport = state.listener.accept()
+                    val connection = ServerConnection(transport)
+                    if (!state.register(connection)) { transport.close(); continue }
+                    try { scope.launch suspend { runServerConnection(state, connection) } }
+                    catch (error: Throwable) { state.unregister(connection); transport.close(); throw error }
+                    if (!state.lock.withLock { present(connection.job) }) {
+                        state.unregister(connection)
+                        transport.close()
+                    }
+                }
+            } catch (error: Throwable) {
+                if (state.running()) throw error
+            }
+        }
+    } catch (error: Throwable) {
+        if (!(error is CancellationException)) state.recordFailure(error)
+    } finally {
+        try { state.listener.close() }
+        catch (error: Throwable) { state.recordFailure(error) }
+        state.lock.withLock { state.phase = ServerPhase.Closed }
+    }
+}

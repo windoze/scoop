@@ -1,0 +1,86 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test
+private class HttpAcceptEncodingTests {
+    @Test
+    fun `encoding weights retain field order and resolve duplicates with their lowest quality`() {
+        val value = HttpAcceptEncoding.parseFields([
+            HttpField("Accept-Encoding".toByteArray(), " GZip ; Q=0.8, br;q=1., ,unknown;q=0.001".toByteArray()),
+            HttpField("accept-encoding".toByteArray(), "gzip;q=0.2, BR;q=0.9, gzip;q=0.6".toByteArray()),
+            HttpField("Other".toByteArray(), "ignored".toByteArray())])
+        assertTrue(value.isPresent)
+        assertEquals(3L, value.preferences.size)
+        assertEquals("gzip", value.preferences[0L].coding)
+        assertEquals(200, value.preferences[0L].quality)
+        assertEquals("br", value.preferences[1L].coding)
+        assertEquals(900, value.quality("BR"))
+        assertEquals(1, value.quality("unknown"))
+        assertEquals(0, value.quality("zstd"))
+        assertEquals(2L, value.originalValues.size)
+        assertEquals("gzip;q=0.2, BR;q=0.9, gzip;q=0.6", String.fromUtf8(value.originalValues[1L]))
+        for ((text, quality) in [("0", 0), ("0.", 0), ("0.1", 100), ("0.01", 10), ("0.001", 1),
+            ("1", 1000), ("1.", 1000), ("1.0", 1000), ("1.000", 1000)])
+            assertEquals(quality, HttpAcceptEncoding.parse("gzip;q=" + text).quality("gzip"))
+    }
+
+    @Test
+    fun `missing and empty fields have distinct acceptance and deterministic identity selection`() {
+        val absent = HttpAcceptEncoding.parseFields(ArrayList<HttpField>())
+        assertFalse(absent.isPresent)
+        assertEquals(1000, absent.quality("gzip"))
+        assertEquals(1000, absent.quality("unknown"))
+        assertEquals(Some("identity"), absent.select(["gzip", "identity"]))
+        assertEquals(Some("gzip"), absent.select(["gzip", "br"]))
+        assertEquals(None, absent.select(ArrayList<String>()))
+        for (text in ["", " \t", " ,, \t,"]) {
+            val empty = HttpAcceptEncoding.parse(text)
+            assertTrue(empty.isPresent)
+            assertEquals(0, empty.quality("gzip"))
+            assertEquals(1000, empty.quality("identity"))
+            assertEquals(Some("identity"), empty.select(["gzip", "IDENTITY"]))
+            assertEquals(None, empty.select(["gzip"]))
+        }
+        assertEquals(Some("gzip"), HttpAcceptEncoding.parseFields([
+            HttpField("Accept-Encoding".toByteArray(), "".toByteArray()),
+            HttpField("Accept-Encoding".toByteArray(), "gzip".toByteArray())]).select(["gzip", "identity"]))
+    }
+
+    @Test
+    fun `wildcards explicit identity and candidate order determine the acceptable representation`() {
+        for ((input, expected) in [("gzip;q=0.1", Some("gzip")), ("gzip;q=0, br;q=0", Some("identity")),
+            ("identity;q=0.9, gzip;q=0.1", Some("identity")), ("identity;q=0.1, gzip;q=0.9", Some("gzip")),
+            ("*;q=0", None), ("*;q=0, gzip;q=0.5", Some("gzip")), ("*;q=0, identity;q=0.1", Some("identity")),
+            ("gzip;q=0, br;q=0, *;q=1", Some("identity")), ("gzip;q=0.9, br;q=1", Some("br")),
+            ("unknown;q=1, identity;q=0", None), ("*;q=0.2", Some("br"))])
+            assertEquals(expected, HttpAcceptEncoding.parse(input).select(["br", "gzip", "identity"]), Some(input))
+        assertEquals(Some("gzip"), HttpAcceptEncoding.parse("gzip, br, identity").select(["gzip", "br", "identity"]))
+        assertEquals(Some("identity"), HttpAcceptEncoding.parse("gzip, identity").select(["identity", "gzip"]))
+        assertEquals(Some("gzip"), HttpAcceptEncoding.parse("gzip").select(["identity", "gzip"]))
+        assertEquals(0, HttpAcceptEncoding.parse("*;q=0, identity;q=0.5, IDENTITY;q=0").quality("identity"))
+        for (candidate in ["", "*", "g zip", "é", "gzip,br"]) {
+            assertFailsWith<IllegalArgumentException> { HttpAcceptEncoding.parse("").quality(candidate) }
+            assertFailsWith<IllegalArgumentException> { HttpAcceptEncoding.parse("").select([candidate]) }
+        }
+    }
+
+    @Test
+    fun `malformed weights fail at their original byte offset without hiding earlier success`() {
+        for (bad in ["gzip;q=", "gzip;q=2", "gzip;q=-1", "gzip;q=.5", "gzip;q=01", "gzip;q=1.001", "gzip;q=0.0000",
+            "gzip;q=0e0", "gzip;q=\"1\"", "gzip;q =1", "gzip;q= 1", "gzip;q=1;q=0", "gzip;p=1", "gzip;",
+            "gzip br", "gzip/other", "\"gzip\"", "gzip,é", "gzip\r", "gzip;q=0.1\n"]) {
+            val error = assertFailsWith<HttpFieldParseException> { HttpAcceptEncoding.parse(bad) }
+            assertEquals("Accept-Encoding", error.field)
+            assertTrue(when (HttpAcceptEncoding.parseOrNone(bad)) { case None -> true; case Some(_) -> false })
+        }
+        for ((bad, offset) in [("br;q=2", 5L), ("gzip;q=0.1234", 12L), ("gzip;q=1.01", 10L), ("gzip;Q =1", 6L)]) {
+            val error = assertFailsWith<HttpFieldParseException> { HttpAcceptEncoding.parseFields([
+                HttpField("Accept-Encoding".toByteArray(), "gzip".toByteArray()),
+                HttpField("accept-encoding".toByteArray(), bad.toByteArray())]) }
+            assertEquals(offset, error.byteOffset, Some(bad))
+        }
+        val invalid: Array<Byte> = [(-1).toByte()]
+        assertFailsWith<HttpFieldParseException> { HttpAcceptEncoding.parse(invalid) }
+    }
+}

@@ -1,0 +1,110 @@
+package scoop.http.server
+
+import scoop.test.*
+import scoop.url.UrlQuery
+
+private struct QueryPage(val page: Int = 1, val filter: String? = None,
+    @Serialize(rename = "tag") val tags: Array<String> = [], val enabled: Boolean = false) {
+    public companion object : ValueDecoder<QueryPage>
+}
+
+private struct OptionalTags(val tag: Array<String>?) {
+    public companion object : ValueDecoder<OptionalTags>
+}
+
+@Test
+private class ServerQueryRecordTests {
+    @Test
+    fun `flat DTOs use companion codecs defaults optional values and ordered repeated fields`() {
+        val defaults = queryInput("").decode<QueryPage>()
+        assertEquals(1, defaults.page)
+        assertEquals(None, defaults.filter)
+        assertEquals(0L, defaults.tags.size)
+        assertFalse(defaults.enabled)
+        val value = queryInput("tag=first&page=2&tag=second&filter=null&enabled=true").decode(QueryPage.Companion)
+        assertEquals(2, value.page)
+        assertEquals(Some("null"), value.filter)
+        assertEquals(2L, value.tags.size)
+        assertEquals("first", value.tags[0L])
+        assertEquals("second", value.tags[1L])
+        assertTrue(value.enabled)
+        assertEquals(1L, queryInput("tag=").decode<QueryPage>().tags.size)
+        assertEquals("", queryInput("tag=").decode<QueryPage>().tags[0L])
+        assertFalse(present(queryInput("").decode<OptionalTags>().tag))
+        val optional = queryInput("tag=x&tag=y").decode<OptionalTags>().tag!!
+        assertEquals("y", optional[1L])
+        expectQueryError("page=1&%70age=2", QueryPage.Companion, "/page", "query items 0, 1")
+        expectQueryError("tag=x&filter=ok&tag", QueryPage.Companion, "/tag/1", "query item 2")
+        expectQueryError("filter", QueryPage.Companion, "/filter", "query items 0")
+    }
+
+    @Test
+    fun `query decoding is byte strict decodes once and keeps names and values literal`() {
+        val chinese = queryFieldCodec("名", Array<String>.Companion.decoder(String.Companion))
+        val names = queryInput("%E5%90%8D=first&名=second").decode(chinese)
+        assertEquals(2L, names.size)
+        assertEquals("second", names[1L])
+        for (name in ["a.b", "a[0]", "a/~"]) {
+            val source = UrlQuery().add(name, Some("a+b,%20,null"))
+            assertEquals("a+b,%20,null", RequestQuery(UrlQuery.parse(source.toString())).decode(queryFieldCodec(name, String.Companion)))
+        }
+        assertEquals("+ %20", queryInput("v=+%20%2520").decode(queryFieldCodec("v", String.Companion)))
+        expectQueryError("v=%FF", queryFieldCodec("v", String.Companion), "/v", "query items 0")
+        expectQueryError("%FF=x", QueryPage.Companion, "", "query item 0")
+        expectQueryError("a%2F~=x&a%2F~=y", queryFieldCodec("a/~", String.Companion), "/a~1~0", "query items 0, 1")
+        val routes = RouterBuilder()
+        routes.get("/", adapt(queryExtractor<QueryPage>(), suspend { _, _ -> empty() }))
+        assertEquals(400U, exercise(routes.build(), "/?page=%Q0").status)
+    }
+
+    @Test
+    fun `unknown fields are checked at end and enumeration does not consume them`() {
+        expectQueryError("extra=x", QueryPage.Companion, "/extra", "query items 0")
+        assertEquals(1, queryInput("extra=%FF").decode<QueryPage>(QueryDecodeOptions(QueryUnknownFields.Ignore)).page)
+        val codec = ValueDecoderFunction<String> { decoder ->
+            assertFalse(decoder.singleValue().isNull())
+            val record = decoder.keyed()
+            assertEquals(2L, record.keys.size)
+            assertEquals("second", record.keys[0L])
+            expectQueryDecoding("/second") { record.end() }
+            expectQueryDecoding("/missing") { record.required("missing") }
+            val first = record.required("first")
+            assertEquals("one", String.Companion.decode(first))
+            assertEquals("one", String.Companion.decode(first))
+            expectQueryDecoding("/second") { record.end() }
+            val second = record.optional("second")!!
+            assertEquals("two", String.Companion.decode(second))
+            record.end()
+            record.end()
+            assertEquals(2L, record.keys.size)
+            String.Companion.decode(record.required("first"))
+        }
+        assertEquals("one", queryInput("second=two&first=one").decode(codec))
+    }
+
+    @Test
+    fun `failed scalar reads preserve the field and each sequence has its own cursor`() {
+        val codec = ValueDecoderFunction<Long> { decoder ->
+            val record = decoder.keyed()
+            val field = record.required("n")
+            assertFalse(field.singleValue().isNull())
+            expectQueryDecoding("/n") { field.singleValue().readLong() }
+            val first = field.unkeyed()
+            val child = first.element()
+            expectQueryDecoding("/n/0") { child.singleValue().readBoolean() }
+            assertEquals(1L, child.singleValue().readLong())
+            val other = field.unkeyed()
+            assertEquals(1L, other.element().singleValue().readLong())
+            expectQueryDecoding("/n") { first.end() }
+            val result = first.element().singleValue().readLong()
+            first.end()
+            first.end()
+            expectQueryDecoding("/n/2") { first.element() }
+            assertEquals(2L, other.element().singleValue().readLong())
+            other.end()
+            record.end()
+            result
+        }
+        assertEquals(2L, queryInput("n=1&n=2").decode(codec))
+    }
+}

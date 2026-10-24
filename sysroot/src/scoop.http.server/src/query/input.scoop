@@ -1,0 +1,71 @@
+package scoop.http.server
+
+import scoop.collections.LinkedHashMap
+import scoop.url.UrlQuery
+
+/** Controls fields that the query record codec does not access. */
+public enum QueryUnknownFields {
+    /** Reject unaccessed fields when the keyed container ends. */
+    Reject,
+    /** Permit the codec to ignore additional fields. */
+    Ignore
+}
+
+/** Options for decoding a flat query record. */
+public class QueryDecodeOptions public constructor(
+    /** Unknown fields are rejected by default. */
+    public val unknownFields: QueryUnknownFields = QueryUnknownFields.Reject
+)
+
+/** Reports a codec shape that cannot be represented by a flat query record. */
+public class QueryCodecException public constructor(
+    /** The JSON Pointer path at which the unsupported shape was requested. */
+    public val path: String, message: String
+) : Exception(Some(message))
+
+internal class QueryItem(private val bytes: Array<Byte>?, val position: Long) {
+    private var decoded: String? = None
+    fun text(path: String): String {
+        if (!present(bytes)) throw DecodingException(path, "missing query value")
+        if (!present(decoded)) decoded = Some(String.fromUtf8OrNone(bytes!!)
+            ?: throw DecodingException(path, "query value must be UTF-8"))
+        return decoded!!
+    }
+}
+
+internal class QueryField(val path: String) {
+    val items: ArrayList<QueryItem> = ArrayList<QueryItem>()
+    var accessed: Boolean = false
+}
+
+internal fun groupQuery(parameters: UrlQuery): LinkedHashMap<String, QueryField> {
+    val fields = LinkedHashMap<String, QueryField>()
+    for (position in 0L until parameters.entries.size) {
+        val entry = parameters.entries[position]
+        val name = String.fromUtf8OrNone(entry.nameBytes) ?: throw queryRejection(
+            DecodingException("", "query name must be UTF-8"), "query item " + position.toString())
+        val existing = fields[name]
+        val field = if (present(existing)) existing!! else QueryField(queryPath(name))
+        if (!present(existing)) fields.put(name, field)
+        field.items.add(QueryItem(entry.valueBytes, position))
+    }
+    return fields
+}
+
+internal fun queryPath(name: String): String {
+    val result = StringBuilder().append("/")
+    for (character in name) {
+        when (character) {
+            case '~' -> result.append("~0")
+            case '/' -> result.append("~1")
+            else -> result.append(character)
+        }
+    }
+    return result.toString()
+}
+
+internal fun queryRejection(error: DecodingException, location: String): HttpRejection {
+    val source = if (location.length == 0L) "" else " (" + location + ")"
+    return HttpRejection(text("invalid query " + error.path + source + ": " +
+        (error.message ?: "decoding failed"), 400U), Some<Throwable>(error))
+}
