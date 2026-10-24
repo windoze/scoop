@@ -19,7 +19,8 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes) {
         size_t first = offset >> GC_CARD_SHIFT;
         size_t last = (offset + part - 1) >> GC_CARD_SHIFT;
         for (size_t card = first; card <= last; card++) {
-            (void)__atomic_fetch_or(&region->cards[card], 1, __ATOMIC_RELAXED);
+            /* The collector clears binary card states only while mutators are stopped. */
+            __atomic_store_n(&region->cards[card], 1, __ATOMIC_RELAXED);
         }
         address += part;
         bytes -= part;

@@ -96,14 +96,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let slot =
             unsafe { builder.build_gep(context.i8_type(), region.cards, &[card], "card_ptr") }
                 .map_err(card_error)?;
+        // Cards have only clean/dirty states. Clearing happens after mutators
+        // stop, so concurrent stores of 1 need no read-modify-write operation.
         builder
-            .build_atomicrmw(
-                AtomicRMWBinOp::Or,
-                slot,
-                context.i8_type().const_int(1, false),
-                AtomicOrdering::Monotonic,
-            )
-            .map_err(card_error)?;
+            .build_store(slot, context.i8_type().const_int(1, false))
+            .map_err(card_error)?
+            .set_atomic_ordering(AtomicOrdering::Monotonic)
+            .map_err(|error| CodegenError(format!("card mark atomic store: {error}")))?;
         Ok(())
     }
 }

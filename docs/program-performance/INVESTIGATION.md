@@ -310,7 +310,7 @@ TLAB 已存在，但成功 bump 后仍有清零、对象头、精确大小、sta
 
 ### 8.2 写屏障、remembered set 与页映射
 
-当前屏障使用四级 page map 的 acquire 查询和 card atomic OR，M56 已有单 block 内的有限复用。进一步方向是：
+当前屏障使用四级 page map 的 acquire 查询和 card 标记，M56 已有单 block 内的有限复用。后续已交付[幂等原子写入](CARD-STORES.md)：利用二值卡状态与 STW 清零，将单槽及 runtime 范围标记的 atomic OR 1 改为 relaxed store 1。三目标引用写入获益，GNU／musl 长复制与清零降低约 70%～82%，LIR、roots 与脏卡计数保持；编译、空间成本和对照回退单独记录。进一步方向是：
 
 1. 证明目标处于本次无 safepoint 初始化区间、确属 young 且未发布时，消除不需要的代际屏障；release／large 等预晋升对象单独处理。
 2. 合并同 card 的写入、循环批量写入与范围屏障；遇到可能抛出或发布的边界，必须已登记此前写入。
