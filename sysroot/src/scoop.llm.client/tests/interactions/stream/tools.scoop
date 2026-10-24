@@ -1,0 +1,81 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsStreamToolsTest {
+    @Test
+    fun `Interactions SSE parallel functions wait for final status and replay with exact IDs and signatures`() {
+        val decoder = interactionsStream()
+        interactionsBegin(decoder)
+        interactionsStart(decoder, 0L, "{\"type\":\"thought\",\"signature\":\"signed\"}")
+        interactionsStop(decoder, 0L)
+        interactionsStart(decoder, 1L, "{\"type\":\"function_call\",\"id\":\"a\",\"name\":\"lookup\",\"arguments\":{}}")
+        interactionsStart(decoder, 2L, "{\"type\":\"function_call\",\"id\":\"b\",\"name\":\"lookup\",\"arguments\":{}}")
+        interactionsArguments(decoder, 1L, "{\"count\":")
+        interactionsArguments(decoder, 2L, "{\"count\":2}")
+        interactionsArguments(decoder, 1L, "9007199254740993}")
+        for (event in interactionsStop(decoder, 1L).events) when (event) { case ClientToolCall(_, _) -> fail(); else -> continue }
+        interactionsStop(decoder, 2L)
+        interactionsEvent(decoder, "interaction.status_update", "{\"interaction_id\":\"stream\",\"status\":\"requires_action\"}")
+        assertFalse(decoder.isFinished)
+        val final = interactionsEnd(decoder, "requires_action")
+        var calls = 0L
+        for (event in final.events) when (event) { case ClientToolCall(location, call) -> {
+            assertTrue(call.isExecutable); assertEquals(calls + 1L, location.itemIndex); calls += 1L
+        }; else -> continue }
+        assertEquals(2L, calls)
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+        assertEquals(9007199254740993L, response.clientToolCalls[0L].decodeArguments<InteractionsCount>().count)
+        assertEquals(2L, response.clientToolCalls[1L].decodeArguments<InteractionsCount>().count)
+        val input = ArrayList<LlmInputItem>()
+        for (item in response.toInput()) input.add(item)
+        for (call in response.clientToolCalls) input.add(ToolResult(call.reference, [Text("ok")]))
+        val next = interactionsEncode(LlmRequest(input.toArray()))["input"]!!
+        assertEquals("signed", next[0L]["signature"]!!.asString())
+        assertEquals("a", next[3L]["call_id"]!!.asString())
+        assertEquals("b", next[4L]["call_id"]!!.asString())
+    }
+
+    @Test
+    fun `Interactions SSE invalid incomplete and unknown function input never becomes executable`() {
+        for ((text, status, unknown) in [("{", "requires_action", false), ("[]", "requires_action", false),
+            ("{}", "failed", false), ("{}", "requires_action", true)]) {
+            val decoder = interactionsStream()
+            interactionsBegin(decoder)
+            interactionsStart(decoder, 0L, "{\"type\":\"function_call\",\"id\":\"c\",\"name\":\"lookup\",\"arguments\":{}}")
+            interactionsArguments(decoder, 0L, text)
+            if (unknown) interactionsDelta(decoder, 0L, "{\"type\":\"future_arguments\",\"data\":\"more\"}")
+            interactionsStop(decoder, 0L)
+            interactionsEnd(decoder, status)
+            assertEquals(0L, decoder.response().clientToolCalls.size)
+            when (decoder.response().candidate(0L).items[0L]) { case ClientToolCall(call) -> {
+                assertFalse(call.isExecutable)
+                when (call.input) { case Invalid(raw, _) -> assertEquals(text, raw); case Incomplete(raw) -> assertEquals(text, raw); else -> fail() }
+            }; else -> fail() }
+            if (text == "{" || unknown) assertEquals(LlmOutputFailure.HistoryUnavailable,
+                assertFailsWith<LlmOutputException> { decoder.response().toInput(); Unit }.reason)
+        }
+    }
+
+    @Test
+    fun `Interactions SSE answered or completed functions remain native and final snapshots can finish arguments`() {
+        for (answered in [false, true]) {
+            val decoder = interactionsStream()
+            interactionsBegin(decoder)
+            interactionsStart(decoder, 0L, "{\"type\":\"function_call\",\"id\":\"c\",\"name\":\"lookup\",\"arguments\":{}}")
+            interactionsArguments(decoder, 0L, "{\"count\":")
+            if (answered) {
+                interactionsStart(decoder, 1L, "{\"type\":\"function_result\",\"call_id\":\"c\",\"result\":\"ok\"}")
+                interactionsStop(decoder, 1L)
+            }
+            val steps = "[{\"type\":\"function_call\",\"id\":\"c\",\"name\":\"lookup\",\"arguments\":{\"count\":7}}" +
+                (if (answered) ",{\"type\":\"function_result\",\"call_id\":\"c\",\"result\":\"ok\"}" else "") + "]"
+            interactionsEnd(decoder, if (answered) "requires_action" else "completed", "{\"steps\":" + steps + "}")
+            assertEquals(0L, decoder.response().clientToolCalls.size)
+            assertEquals(7L, interactionsHistory(decoder.response())[0L]["arguments"]!!["count"]!!.asLong())
+        }
+    }
+}

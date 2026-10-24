@@ -1,0 +1,44 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsStreamCitationsTest {
+    @Test
+    fun `Interactions SSE late citations use accumulated UTF8 bytes in both retention modes`() {
+        for (retention in [StreamRetention.Result, StreamRetention.EventsOnly]) {
+            val decoder = interactionsStream(retention)
+            interactionsBegin(decoder)
+            interactionsStart(decoder, 0L, "{\"type\":\"model_output\"}")
+            interactionsDelta(decoder, 0L, "{\"type\":\"text\",\"text\":\"你\"}")
+            interactionsDelta(decoder, 0L, "{\"type\":\"text_annotation_delta\",\"annotations\":[{\"type\":\"url_citation\",\"url\":\"https://example.test/source\",\"start_index\":0,\"end_index\":6}]}")
+            interactionsDelta(decoder, 0L, "{\"type\":\"text\",\"text\":\"好\"}")
+            val stop = interactionsStop(decoder, 0L)
+            var count = 0L
+            for (event in stop.events) when (event) { case Citation(location, part, value) -> {
+                assertEquals(0L, location.itemIndex); assertEquals(0L, part)
+                assertEquals(6L, value.range!!.end); assertEquals(TextRangeUnit.Utf8Bytes, value.range!!.unit)
+                count += 1L
+            }; else -> continue }
+            assertEquals(1L, count)
+            interactionsEnd(decoder)
+        }
+    }
+
+    @Test
+    fun `Interactions SSE invalid citation bounds fail and final snapshots do not repeat citations`() {
+        val invalid = interactionsStream(EventsOnly)
+        interactionsBegin(invalid)
+        interactionsStart(invalid, 0L, "{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"a\",\"annotations\":[{\"type\":\"url_citation\",\"end_index\":2}]}]}")
+        assertEquals("/steps/0/content/0/annotations/0/end_index", assertFailsWith<LlmProtocolException> { interactionsStop(invalid, 0L); Unit }.path)
+        val decoder = interactionsStream()
+        interactionsBegin(decoder)
+        val step = "{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"a\",\"annotations\":[{\"type\":\"url_citation\",\"end_index\":1}]}]}"
+        interactionsStart(decoder, 0L, step)
+        assertEquals(1L, interactionsStop(decoder, 0L).events.size)
+        for (event in interactionsEnd(decoder, extra = "{\"steps\":[" + step + "]}").events)
+            when (event) { case Citation(_, _, _) -> fail(); else -> continue }
+    }
+}

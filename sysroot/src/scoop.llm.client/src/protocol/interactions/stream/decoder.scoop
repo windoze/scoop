@@ -1,0 +1,83 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.time.Instant
+
+internal class InteractionsStreamDecoder public constructor(
+    public val protocol: InteractionsProtocol, public val request: LlmRequest, public val retention: StreamRetention
+) : LlmSseDecoder {
+    public val dialect: InteractionsDialect get() = protocol.dialect
+    public val steps = ArrayList<InteractionsStreamStep>()
+    public val nativeEvents = ArrayList<LlmNativeEvent>()
+    public var started = false
+    public var finished = false
+    public var id: String? = None
+    public var model: String? = None
+    public var created: Instant? = None
+    public var currentUsage = LlmUsage()
+    public var result: LlmResponse? = None
+    private var failed = false
+    private var sentinel = false
+
+    public override val isFinished: Boolean get() = finished && !failed
+    public override val responseId: String? get() = id
+    public override val usage: LlmUsage get() = currentUsage
+
+    public override fun accept(event: String, data: String): LlmStreamUpdate {
+        try {
+            if (!failed && finished && !sentinel && data == "[DONE]" && (event == "" || event == "message" || event == "done")) {
+                sentinel = true
+                return LlmStreamUpdate([], isKeepAlive = true)
+            }
+            if (finished || failed) throw LlmStreamProtocolException(dialect.id, "stream is no longer accepting events", Some(data))
+            if (data == "[DONE]") throw LlmStreamProtocolException(dialect.id, "DONE arrived before interaction.completed", Some(data))
+            val raw = try { Json.parse(data) }
+                catch (_: DecodingException) { throw LlmStreamProtocolException(dialect.id, "invalid stream JSON", Some(data)) }
+            val batch = LlmStreamBatch(dialect.id, retention, nativeEvents)
+            try {
+                val header = decodeInteractionsValue<InteractionsStreamHeader>(raw, "")
+                interactionsNonempty(Some(header.type), "/event_type")
+                if (event != "" && event != "message" && event != header.type)
+                    throw DecodingException("/event_type", "SSE event name disagrees with Interactions event type")
+                val known = dispatchInteractionsStream(this, header.type, raw, batch)
+                val extra = llmStreamUnknown(raw, known)
+                if (extra.size != 0L) {
+                    val location = if (known.size != 0L && raw.containsKey("index")) Some(LlmItemLocation(0L, interactionsStreamIndex(raw))) else None
+                    batch.native(header.type, extra, location)
+                }
+            } catch (error: DecodingException) {
+                throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Interactions stream", raw)
+            }
+            return batch.build()
+        } catch (error: Throwable) { failed = true; throw error }
+    }
+
+    public fun activeStep(raw: JsonValue): InteractionsStreamStep {
+        requireStarted()
+        val index = interactionsStreamIndex(raw)
+        if (index >= steps.size) throw DecodingException("/index", "step has not started")
+        val step = steps[index]
+        if (step.done) throw DecodingException("/index", "step already ended")
+        return step
+    }
+
+    public fun requireStarted() {
+        if (!started) throw DecodingException("/event_type", "event arrived before interaction.created")
+    }
+
+    public override fun endInput(): LlmStreamUpdate {
+        if (!isFinished) {
+            failed = true
+            throw LlmStreamProtocolException(dialect.id, "Interactions stream ended without interaction.completed")
+        }
+        return LlmStreamUpdate([])
+    }
+
+    public override fun response(): LlmResponse {
+        if (!isFinished) throw LlmOutputException(Incomplete, "stream has not finished successfully")
+        if (retention != StreamRetention.Result) throw LlmOutputException(ResultNotRetained, "stream result was not retained")
+        val value = result!!
+        return LlmResponse(value.dialect, value.candidates, value.id, value.model, value.createdAt, value.usage,
+            nativeEvents = nativeEvents.toArray())
+    }
+}

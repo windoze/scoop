@@ -12,24 +12,10 @@ internal fun readInteractionsSteps(values: Array<JsonValue>): Array<Interactions
     var index = 0L
     for (raw in values) {
         val path = "/steps/" + index.toString()
-        val type = decodeInteractionsValue<InteractionsType>(raw, path).type
-        val toolType = if (type == "function_call" || type == "function_result") Some("function") else interactionsServerType(type)
-        var call: InteractionsCallFields? = None
-        var result: InteractionsResultFields? = None
-        if (toolType != None) {
-            if (type.endsWith("_call")) {
-                val fields = decodeInteractionsValue<InteractionsCallFields>(raw, path)
-                interactionsNonempty(Some(fields.id), path + "/id")
-                for (previous in entries) if (llmPresent(previous.call) && previous.call!!.id == fields.id)
-                    throw DecodingException(path + "/id", "duplicate Interactions tool call ID")
-                call = Some(fields)
-            } else {
-                val fields = decodeInteractionsValue<InteractionsResultFields>(raw, path)
-                interactionsNonempty(Some(fields.callId), path + "/call_id")
-                result = Some(fields)
-            }
-        }
-        entries.add(InteractionsStep(raw, type, path, toolType, call, result))
+        val entry = readInteractionsStepFields(raw, path)
+        if (llmPresent(entry.call)) for (previous in entries) if (llmPresent(previous.call) && previous.call!!.id == entry.call!!.id)
+            throw DecodingException(path + "/id", "duplicate Interactions tool call ID")
+        entries.add(entry)
         index += 1L
     }
     val all = entries.toArray()
@@ -90,4 +76,24 @@ internal fun interactionsServerType(type: String): String? = when (type) {
     case "processing_call" -> Some("processing")
     case "processing_result" -> Some("processing")
     else -> None
+}
+
+internal fun readInteractionsStepFields(raw: JsonValue, path: String): InteractionsStep {
+    val type = decodeInteractionsValue<InteractionsType>(raw, path).type
+    interactionsNonempty(Some(type), path + "/type")
+    val toolType = if (type == "function_call" || type == "function_result") Some("function") else interactionsServerType(type)
+    var call: InteractionsCallFields? = None
+    var result: InteractionsResultFields? = None
+    if (toolType != None) {
+        if (type.endsWith("_call")) {
+            val fields = decodeInteractionsValue<InteractionsCallFields>(raw, path)
+            interactionsNonempty(Some(fields.id), path + "/id")
+            call = Some(fields)
+        } else {
+            val fields = decodeInteractionsValue<InteractionsResultFields>(raw, path)
+            interactionsNonempty(Some(fields.callId), path + "/call_id")
+            result = Some(fields)
+        }
+    }
+    return InteractionsStep(raw, type, path, toolType, call, result)
 }

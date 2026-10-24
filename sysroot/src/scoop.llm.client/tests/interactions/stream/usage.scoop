@@ -1,0 +1,47 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class InteractionsStreamUsageTest {
+    @Test
+    fun `Interactions SSE merges cumulative usage from every documented level without adding step usage`() {
+        val decoder = interactionsStream()
+        interactionsEvent(decoder, "interaction.created", "{\"interaction\":{\"id\":\"stream\",\"status\":\"in_progress\",\"created\":\"2026-10-25T00:00:00Z\"}}")
+        interactionsEvent(decoder, "interaction.status_update", "{\"interaction_id\":\"stream\",\"status\":\"in_progress\",\"continuation_token\":\"opaque\",\"usage\":{\"total_input_tokens\":100,\"total_cached_tokens\":40}}")
+        interactionsStart(decoder, 0L, "{\"type\":\"model_output\"}")
+        interactionsEvent(decoder, "step.delta", "{\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"ok\"},\"metadata\":{\"total_usage\":{\"total_output_tokens\":2},\"future\":7}}")
+        interactionsEvent(decoder, "step.stop", "{\"index\":0,\"usage\":{\"total_output_tokens\":3,\"total_thought_tokens\":5,\"total_tool_use_tokens\":50},\"step_usage\":{\"total_tokens\":999}}")
+        assertEquals(Some(8L), decoder.usage.tokens.outputTokens)
+        assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
+        interactionsEvent(decoder, "interaction.status_update", "{\"interaction_id\":\"stream\",\"status\":\"completed\"}")
+        assertFalse(decoder.isFinished)
+        interactionsEnd(decoder, extra = "{\"usage\":{\"total_tokens\":108,\"total_output_tokens\":null},\"updated\":\"2026-10-24T00:00:00Z\"}")
+        val result = decoder.response()
+        assertEquals(Some(100L), result.usage.tokens.inputTokens)
+        assertEquals(Some(60L), result.usage.tokens.nonCachedInputTokens)
+        assertEquals(Some(8L), result.usage.tokens.outputTokens)
+        assertEquals(Some(108L), result.usage.tokens.totalTokens)
+        assertEquals(UsageCompleteness.Final, result.usage.completeness)
+        assertEquals(Some(Instant.parse("2026-10-25T00:00:00Z")), result.createdAt)
+        var checkpoints = 0L
+        for (event in result.nativeEvents) if (event.value.kind == JsonValueKind.Object && event.value.containsKey("continuation_token")) checkpoints += 1L
+        assertEquals(1L, checkpoints)
+    }
+
+    @Test
+    fun `Interactions SSE preserves unknown final states and missing token counts without creating history`() {
+        val decoder = interactionsStream()
+        interactionsBegin(decoder)
+        interactionsEnd(decoder, "future_terminal", "{\"usage\":{\"total_tokens\":9007199254740993}}")
+        assertTrue(decoder.isFinished)
+        assertEquals(Some(9007199254740993L), decoder.usage.tokens.totalTokens)
+        assertEquals(None, decoder.usage.tokens.inputTokens)
+        assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
+        assertEquals(LlmCompletion.Incomplete, decoder.response().candidate(0L).completion)
+        assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { decoder.response().toInput(); Unit }.reason)
+    }
+}

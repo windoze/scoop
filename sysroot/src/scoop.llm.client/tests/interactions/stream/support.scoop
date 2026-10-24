@@ -1,0 +1,40 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+
+internal fun interactionsStream(retention: StreamRetention = Result, request: LlmRequest = interactionsRequest()): LlmSseDecoder =
+    InteractionsProtocol(GeminiInteractionsDialect()).createStreamDecoder(request, retention)
+
+internal fun interactionsEvent(decoder: LlmSseDecoder, type: String, fields: String): LlmStreamUpdate {
+    val raw = interactionsReplace(Json.parse(fields), "event_type", Some(JsonValue.fromString(type)))
+    return decoder.accept(type, Json.stringify(raw))
+}
+
+internal fun interactionsBegin(decoder: LlmSseDecoder): LlmStreamUpdate =
+    interactionsEvent(decoder, "interaction.created", "{\"interaction\":{\"id\":\"stream\",\"status\":\"in_progress\"}}")
+
+internal fun interactionsStart(decoder: LlmSseDecoder, index: Long, raw: String): LlmStreamUpdate =
+    interactionsEvent(decoder, "step.start", "{\"index\":" + index.toString() + ",\"step\":" + raw + "}")
+
+internal fun interactionsDelta(decoder: LlmSseDecoder, index: Long, raw: String): LlmStreamUpdate =
+    interactionsEvent(decoder, "step.delta", "{\"index\":" + index.toString() + ",\"delta\":" + raw + "}")
+
+internal fun interactionsStop(decoder: LlmSseDecoder, index: Long): LlmStreamUpdate =
+    interactionsEvent(decoder, "step.stop", "{\"index\":" + index.toString() + "}")
+
+internal fun interactionsEnd(decoder: LlmSseDecoder, status: String = "completed", extra: String = "{}"): LlmStreamUpdate {
+    var body = interactionsReplace(Json.parse(extra), "id", Some(JsonValue.fromString("stream")))
+    body = interactionsReplace(body, "status", Some(JsonValue.fromString(status)))
+    return interactionsEvent(decoder, "interaction.completed", Json.stringify(JsonObjectBuilder().add("interaction", body).build()))
+}
+
+internal fun interactionsText(update: LlmStreamUpdate): String {
+    val result = StringBuilder()
+    for (event in update.events) when (event) { case TextDelta(delta) -> result.append(delta.text); else -> continue }
+    return result.toString()
+}
+
+internal fun interactionsArguments(decoder: LlmSseDecoder, index: Long, text: String): LlmStreamUpdate =
+    interactionsDelta(decoder, index, Json.stringify(JsonObjectBuilder().add("type", JsonValue.fromString("arguments_delta"))
+        .add("arguments", JsonValue.fromString(text)).build()))

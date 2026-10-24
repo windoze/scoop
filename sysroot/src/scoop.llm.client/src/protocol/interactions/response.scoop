@@ -4,13 +4,17 @@ import scoop.json.*
 import scoop.url.Url
 
 /** Interactions requests and complete resources, bound to one explicit dialect. */
-public class InteractionsProtocol public constructor(public val dialect: InteractionsDialect) : LlmGenerationProtocol {
+public class InteractionsProtocol public constructor(public val dialect: InteractionsDialect) : LlmSseProtocol {
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("interactions").build()
     public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue {
-        if (stream) throw LlmRequestException("/stream", "ordinary Interactions generation does not encode an SSE request")
-        return encodeInteractionsRequest(dialect, modelId, request)
+        val body = encodeInteractionsRequest(dialect, modelId, request)
+        return if (stream) replaceInteractionsField(body, "stream", JsonValue.fromBoolean(true)) else body
     }
+    public override fun streamUrl(baseUrl: Url, modelId: String): Url =
+        generationUrl(baseUrl, modelId).toBuilder().setQueryParameters(baseUrl.queryParameters().set("alt", Some("sse"))).build()
+    public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
+        InteractionsStreamDecoder(this, request, retention)
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
         dialect.decodeError(status, body, truncated)
     init {
@@ -51,7 +55,7 @@ public class InteractionsProtocol public constructor(public val dialect: Interac
 internal fun interactionsTerminal(status: String): Boolean = status == "completed" || status == "requires_action" ||
     status == "failed" || status == "cancelled" || status == "incomplete"
 
-private fun interactionsCompletion(status: String, pending: Boolean): (LlmCompletion, LlmFinishReason) = when (status) {
+internal fun interactionsCompletion(status: String, pending: Boolean): (LlmCompletion, LlmFinishReason) = when (status) {
     case "completed" -> (LlmCompletion.Complete, LlmFinishReason.Stop)
     case "requires_action" -> if (pending) (LlmCompletion.Complete, LlmFinishReason.ToolCalls)
         else (LlmCompletion.Incomplete, LlmFinishReason.Pause)

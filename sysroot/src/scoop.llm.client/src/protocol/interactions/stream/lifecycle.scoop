@@ -1,0 +1,53 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun acceptInteractionsLifecycle(state: InteractionsStreamDecoder, type: String, raw: JsonValue, batch: LlmStreamBatch) {
+    val body = decodeInteractionsValue<InteractionsStreamResource>(raw, "/interaction")
+    interactionsNonempty(Some(body.id), "/interaction/id")
+    interactionsNonempty(Some(body.status), "/interaction/status")
+    if (body.objectType != None && body.objectType != Some("interaction"))
+        throw DecodingException("/interaction/object", "expected an interaction resource")
+    val terminal = type == "interaction.completed"
+    if (!terminal) {
+        if (state.started) throw DecodingException("/event_type", "interaction already started")
+        if (interactionsTerminal(body.status)) throw DecodingException("/interaction/status", "created event contains a terminal interaction")
+        state.started = true
+    } else {
+        state.requireStarted()
+        if (body.status == "in_progress") throw DecodingException("/interaction/status", "completed event contains an in-progress interaction")
+    }
+    state.id = llmStreamIdentity(state.id, Some(body.id), "/interaction/id")
+    state.model = llmStreamIdentity(state.model, body.model, "/interaction/model")
+    if (body.created != None) {
+        if (state.created != None && state.created != body.created) throw DecodingException("/interaction/created", "interaction creation time changed")
+        state.created = body.created
+    }
+    updateInteractionsStreamUsage(state, body.usage, batch, !terminal)
+    val extra = llmStreamUnknown(raw, ["id", "status", "model", "created", "steps", "usage"])
+    if (extra.size != 0L) batch.native(type + ".interaction", extra)
+    if (llmPresent(body.steps)) {
+        val values = body.steps!!
+        if (values.size < state.steps.size) throw DecodingException("/interaction/steps", "snapshot lost an observed step")
+        var index = 0L
+        for (value in values) {
+            val step = if (index == state.steps.size) addInteractionsStreamStep(state, value, batch) else state.steps[index]
+            val ended = step.done
+            step.snapshot(value, batch, true)
+            if (!ended || !step.serverEmitted) emitInteractionsServer(state, step, batch)
+            index += 1L
+        }
+        batch.native(type + ".steps", JsonValue.fromArray(values), retain = false)
+    }
+    if (terminal) finishInteractionsStream(state, body.status, batch)
+}
+
+internal fun updateInteractionsStreamUsage(state: InteractionsStreamDecoder, raw: JsonValue?, batch: LlmStreamBatch, emit: Boolean = true) {
+    if (!llmPresent(raw) || raw!!.kind == JsonValueKind.Null) return
+    val merged = when (state.currentUsage.native) {
+        case Some(previous) -> mergeLlmStreamUsage(previous, raw!!)
+        case None -> raw!!
+    }
+    state.currentUsage = LlmUsage(state.dialect.readUsage(merged), Partial, Some(merged))
+    if (emit) batch.events.add(LlmEvent.Usage(state.currentUsage))
+}

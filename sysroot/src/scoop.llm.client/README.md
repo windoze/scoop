@@ -1,6 +1,6 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat、Anthropic Messages、OpenAI Responses 与 Gemini generateContent 的普通／流式生成，以及 Gemini Interactions 的普通生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat、Anthropic Messages、OpenAI Responses、Gemini generateContent 与 Interactions 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
 
 普通 Cone 测试只使用纯 decoder 或回环地址上的 HTTP／SSE mock，回复由测试指定，不连接供应商。仓库外的真实 API 验证用例统一标记 `@Ignore`，默认跳过；独立运行器只有在显式选择一个用例且其所需 key／endpoint 环境变量齐备时才启用 `--ignored`，缺少配置报告 SKIPPED，不发请求。凭据只从环境读取，日志脱敏。
 
@@ -16,9 +16,11 @@ generateContent 引用使用 UTF-8 字节范围；usage 分开统计工具输入
 
 Gemini SSE 使用 :streamGenerateContent?alt=sse，正文沿用普通请求。finishReason 完成一个候选，EOF 才冻结整次调用的 usage；缺失停止原因的截断流仍失败。空文本签名、原始 Content 历史、累计 grounding 来源和尾部引用均保留，EventsOnly 不累计普通文本。函数调用等停止原因明确后才确定执行资格；Vertex 的 partialArgs 扩展保留 Native，不当作完整的 Gemini 函数调用。
 
-Interactions 普通生成使用 `Providers.geminiInteractions()`，缺省部署为 Google v1，同样通过 endpoint／model／generate 调用；`InteractionsProtocol(GeminiInteractionsDialect())` 提供纯 encodeRequest／decodeResponse。最小请求只有 model 和有序 input steps，不自动选择模型、保存配置或继续调用。媒体、函数结果、签名历史与服务端工具均使用 Interactions 自身的字段；普通请求的 options 缺省省略。
+Interactions 普通生成使用 `Providers.geminiInteractions()`，缺省部署为 Google v1，同样通过 endpoint／model／generate 调用；`InteractionsProtocol(GeminiInteractionsDialect())` 提供纯 encodeRequest／decodeResponse／createStreamDecoder。最小请求只有 model 和有序 input steps，不自动选择模型、保存配置或继续调用。媒体、函数结果、签名历史与服务端工具均使用 Interactions 自身的字段；普通请求的 options 缺省省略。
 
-Interactions 的独立 step 格式保留 thought.signature、媒体、服务端工具、UTF-8 引用及原始 steps 历史；只有 requires_action 中未收到结果的完整函数调用进入待执行视图。进行中资源不提供可追加历史，服务时间不代替实际调用计时。缺失 token 保持未知，工具提示细项不重复加入输入总量。request.extensions 可显式配置 store／previous_interaction_id、generation_config 的原生选项，以及与公共 JSON 输出约束组合的媒体 response_format；SSE 与后台资源操作继续实施。
+Interactions 的独立 step 格式保留 thought.signature、媒体、服务端工具、UTF-8 引用及原始 steps 历史；只有 requires_action 中未收到结果的完整函数调用进入待执行视图。进行中资源不提供可追加历史，服务时间不代替实际调用计时。缺失 token 保持未知，工具提示细项不重复加入输入总量。request.extensions 可显式配置 store／previous_interaction_id、generation_config 的原生选项，以及与公共 JSON 输出约束组合的媒体 response_format；后台资源操作继续实施。
+
+Interactions SSE 沿用 `openStream`／`withStream` 和缺省 EventsOnly，显式 Result 才保留最终结果。stream=true 与 alt=sse 由协议编码；有序 step 绑定文本、媒体、引用、工具和签名。step.stop 不开放客户端工具执行，只有最终 requires_action 决定待执行调用；interaction.completed 冻结 usage。最终资源可以省略服务时间，缺失值不会替换成客户端发送／接收时刻；未知增量保留 Native，无法完整重建时不提供可追加历史。
 
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 

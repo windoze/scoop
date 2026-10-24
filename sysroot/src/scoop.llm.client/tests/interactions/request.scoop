@@ -22,7 +22,7 @@ private class InteractionsRequestTest {
         assertEquals("https://example.com/proxy/interactions?deployment=x", endpoint.provider.protocol.generationUrl(
             Url.parse("https://example.com/proxy?deployment=x"), "any-model").toString())
         assertEquals("/modelId", assertFailsWith<LlmRequestException> { interactionsEncode(request, ""); Unit }.path)
-        assertEquals("/stream", assertFailsWith<LlmRequestException> { InteractionsProtocol(GeminiInteractionsDialect()).encodeRequest("m", request, true); Unit }.path)
+        assertTrue(InteractionsProtocol(GeminiInteractionsDialect()).encodeRequest("m", request, true)["stream"]!!.asBoolean())
     }
 
     @Test

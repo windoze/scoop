@@ -42,7 +42,7 @@
 | Gemini generateContent SSE | 完成：本机 303/303，末次 Gemini 定向 52/52；Linux 仅 SSE mock 1/1；独立消费者通过 |
 | Gemini Interactions 完整响应 | 完成：本机 325/325；Linux 仅搜索／引用／函数组合 1/1；独立消费者通过 |
 | Gemini Interactions 请求与普通生成 | 完成：本机 Interactions 定向 36/36；Linux 仅普通生成 mock 1/1；独立消费者通过 |
-| Gemini Interactions SSE | 实施中 |
+| Gemini Interactions SSE | 完成：本机 Interactions 定向 55/55；Linux 仅 SSE mock 1/1；独立消费者通过 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -97,3 +97,5 @@
 - Interactions 完整资源新增 21 项纯 decoder 测试，覆盖有序 steps、thought 签名、媒体与未知内容、客户端函数执行资格、服务端工具与 MCP 归属、UTF-8 引用、服务时间和精确 usage。已完成或已收到结果的函数不进入待执行视图；进行中与未知状态不提供可追加历史，工具提示细项保留原文而不重复加入输入。按现有语言规则修正 Base64 导入与构造表达式测试写法后，本机 325/325；nuc12 仅搜索／引用／函数组合 1/1。生产库及跨 Cone 消费者通过，默认仍为 1 通过、13 个真实 API 用例忽略。本轮没有真实 API 请求、编译器修改或 fixture。
 
 - Interactions 普通生成新增 15 项 Cone 测试，覆盖 v1 缺省部署与最小正文、媒体、公共与原生选项组合、函数和服务端工具、签名历史及并行结果接续。本机 Interactions 定向 36/36；nuc12 仅一个普通生成 mock 通过，验证请求正文、认证、usage 与实际时间戳。生产库和跨 Cone 默认入口通过；默认消费者 1 通过、13 个真实 API 用例忽略。没有真实 API 请求、编译器修改或 fixture。
+
+- Interactions SSE 新增 19 项 Cone 测试，覆盖交错步骤、thought 签名、文本／媒体／引用增量、工具参数与执行资格、累计 usage、最终快照及错误边界。快照中的服务端结果照常交付完成活动；未知 delta 无完整快照时不生成不实历史。EventsOnly 不累计普通正文，Result 复用已解码媒体和引用。本机 Interactions 定向 55/55；nuc12 仅 SSE mock 1/1，验证实际地址、正文、usage、历史与时间戳。生产库和独立消费者通过，13 个真实 API 用例默认忽略；没有真实 API 请求、编译器修改或 fixture。清理 target/debug/incremental 约 373 MiB，保留 release 工具。

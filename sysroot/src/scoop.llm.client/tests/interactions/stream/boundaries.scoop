@@ -1,0 +1,47 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsStreamBoundariesTest {
+    @Test
+    fun `Interactions SSE incomplete final snapshots cannot replace unknown content or tool data`() {
+        for (kind in ["model_output", "thought", "function_call", "google_search_call", "function_result"]) {
+            val decoder = interactionsStream()
+            interactionsBegin(decoder)
+            val initial = if (kind == "function_call") "{\"type\":\"function_call\",\"id\":\"f\",\"name\":\"lookup\",\"arguments\":{}}"
+                else if (kind == "google_search_call") "{\"type\":\"google_search_call\",\"id\":\"s\",\"arguments\":{\"queries\":[]}}"
+                else if (kind == "function_result") "{\"type\":\"function_result\",\"call_id\":\"old\",\"result\":\"ok\"}"
+                else "{\"type\":\"" + kind + "\"}"
+            interactionsStart(decoder, 0L, initial)
+            interactionsDelta(decoder, 0L, "{\"type\":\"future\",\"data\":\"opaque\"}")
+            interactionsStop(decoder, 0L)
+            interactionsEnd(decoder, "requires_action", "{\"steps\":[{\"type\":\"" + kind + "\"}]}")
+            assertEquals(0L, decoder.response().clientToolCalls.size)
+            assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { decoder.response().toInput(); Unit }.reason)
+        }
+    }
+
+    @Test
+    fun `Interactions SSE retains empty summary arrays and native step metadata locations`() {
+        val decoder = interactionsStream()
+        interactionsBegin(decoder)
+        interactionsStart(decoder, 0L, "{\"type\":\"thought\",\"summary\":[],\"signature\":\"\"}")
+        interactionsEvent(decoder, "step.stop", "{\"index\":0,\"event_id\":\"opaque-id\",\"step_usage\":{\"total_tokens\":3}}")
+        interactionsEnd(decoder)
+        val history = interactionsHistory(decoder.response())
+        assertEquals(0L, history[0L]["summary"]!!.size)
+        assertEquals("", history[0L]["signature"]!!.asString())
+        var found = false
+        for (event in decoder.response().nativeEvents) {
+            if (!event.value.containsKey("step_usage")) continue
+            found = true
+            assertEquals(0L, event.location!!.candidateIndex)
+            assertEquals(0L, event.location!!.itemIndex)
+            assertEquals("opaque-id", event.value["event_id"]!!.asString())
+        }
+        assertTrue(found)
+    }
+}

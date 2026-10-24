@@ -3,17 +3,17 @@ package scoop.llm.client
 import scoop.json.*
 
 internal fun readInteractionsServerStep(dialect: DialectId, entry: InteractionsStep, entries: Array<InteractionsStep>,
-    tools: Array<ToolDefinition>): LlmOutputItem {
+    tools: Array<ToolDefinition>, partial: Boolean = false): LlmOutputItem {
     val type = entry.toolType!!
     if (llmPresent(entry.call)) {
         val call = entry.call!!
         if (type == "google_search" || type == "url_context" || type == "code_execution" || type == "mcp_server") {
-            if (!llmPresent(call.arguments) || call.arguments!!.kind != JsonValueKind.Object)
+            if ((!partial && !llmPresent(call.arguments)) || (llmPresent(call.arguments) && call.arguments!!.kind != JsonValueKind.Object))
                 throw DecodingException(entry.path + "/arguments", "expected server tool arguments object")
         }
         if (type == "mcp_server") {
-            interactionsNonempty(call.name, entry.path + "/name")
-            interactionsNonempty(call.serverName, entry.path + "/server_name")
+            if (!partial || call.name != None) interactionsNonempty(call.name, entry.path + "/name")
+            if (!partial || call.serverName != None) interactionsNonempty(call.serverName, entry.path + "/server_name")
         }
         val kind = interactionsServerKind(type, call.searchType, true)
         val key = resolveInteractionsServer(tools, dialect, type, call.serverName, kind)
@@ -27,15 +27,15 @@ internal fun readInteractionsServerStep(dialect: DialectId, entry: InteractionsS
         else when (original) { case Some(step) -> step.call!!.serverName; case None -> None }
     val kind = interactionsServerKind(type, searchType, llmPresent(original))
     val key = resolveInteractionsServer(tools, dialect, type, serverName, kind)
-    val parts = readInteractionsServerResult(dialect, entry)
+    val parts = readInteractionsServerResult(dialect, entry, partial)
     return LlmOutputItem.ServerToolActivity(ServerToolActivity(kind, if (result.isError) ServerToolStatus.Failed else ServerToolStatus.Completed,
         key, Some(result.callId), result = parts, native = Some(entry.raw)))
 }
 
-private fun readInteractionsServerResult(dialect: DialectId, entry: InteractionsStep): Array<OutputPart> {
+private fun readInteractionsServerResult(dialect: DialectId, entry: InteractionsStep, partial: Boolean): Array<OutputPart> {
     val type = entry.toolType!!
     val value = entry.result!!.result
-    if (type == "file_search" || type == "processing")
+    if (type == "file_search" || type == "processing" || (partial && !llmPresent(value)))
         return when (value) { case Some(raw) -> [OutputPart.Native(dialect, raw)]; case None -> [] }
     val raw = value ?: throw DecodingException(entry.path + "/result", "missing server tool result")
     if (type == "code_execution") {

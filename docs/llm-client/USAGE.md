@@ -6,7 +6,7 @@
 
 ## 1. 共同的数据与调用入口
 
-下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。generate 与 openStream／withStream 已接入 Chat／Messages／Responses／Gemini generateContent，Interactions 已接入普通 generate；countTokens 仍为后续合同。
+下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。generate 与 openStream／withStream 已接入 Chat／Messages／Responses／Gemini generateContent／Interactions；countTokens 仍为后续合同。
 
 ```scoop
 public class LlmRequest public constructor(

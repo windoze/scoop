@@ -478,3 +478,22 @@ ToolResult 编码 function_result，使用 reference 的实际非空 id 作为 c
 根部扩展可补充未管理的原生字段；generation_config 仅补充 seed、thinking_summaries、video_config 等未由通用选项管理的字段，不覆盖已有值，也不绕过已知公共参数的检查。response_format 扩展可以提供原生媒体格式对象或数组；其 type=text 项不得设置通用 API 管理的 mime_type／schema。如果通用选项已生成 JSON text format，则与扩展中的 text 配置合并，或作为独立 text format 加入媒体格式数组；没有通用 text 约束时保持原生对象／数组形状。媒体的原生配置不因公共 OutputFormat 缺省 Text 被删除。
 
 协议依据：[Interactions v1 OpenAPI](https://ai.google.dev/static/api/interactions-v1.openapi.json)、[有状态与无状态函数接续](https://ai.google.dev/gemini-api/docs/function-calling)、[结构化输出](https://ai.google.dev/gemini-api/docs/structured-output)。SSE 与后台资源操作不由普通生成隐式启动。
+
+
+## 23. Gemini Interactions SSE
+
+InteractionsProtocol 实现 LlmSseProtocol，普通调用的缺省正文不变；流式调用显式添加 stream=true，地址在 interactions 查询中设置 alt=sse，保留部署路径和其他查询。createStreamDecoder(request, retention=EventsOnly) 与其余协议共用 openStream／withStream、寿命与实际时间采样。
+
+按 event_type 分派 interaction.created、interaction.status_update、step.start／delta／stop、interaction.completed 和 error。非空 SSE event 名必须与 event_type 一致；event_id 是不透明恢复标记，保留原文，不解释为递增序号，不自动重连或继续。created 建立唯一 interaction 身份；created 中已提供的 steps 作为初始完整快照；后续步骤索引按首次出现顺序连续，已开始的不同步骤可以交错。重复开始、未开始就增量、结束后再增量、身份变化及未结束步骤缺失最终快照均报告协议错误。未知事件和未知 delta 保留 Native；没有可解释的最终 step 快照时，未知 delta 不产生可回传的重建历史；只含 type 等元数据的快照不能恢复未知文本、签名、工具参数或结果。
+
+一个 step 对应一个 candidate 0 的 item，location 与最终 items 保持一致。model_output 的连续 text delta 合并到当前文本 part，切换媒体／其他内容后开始新 part；thought_summary 的 content 按协议作为新的 summary part，thought_signature 保存到所属 thought。签名不进入可见文本，空签名与只有签名的步骤仍保留。图片、音频、视频和文档 delta 作为各自原生 content 交付，不按 Base64 字符串拼接多个独立媒体内容。text_annotation_delta 关联该步骤最近的文本 part，保留原始注释，在步骤结束时按已收到文本的 UTF-8 字节数验证并交付 Citation；不为未知引用猜单位。EventsOnly 仅保留位置、长度及待完成关联所需数据，不累计普通文本或媒体正文。Result 复用处理增量时已经解码的媒体和引用，不在组装最终输出时重做相同验证。
+
+function_call 的 start 提供 ID 与 name，arguments_delta 的字符串按序累积；start.arguments 是初始快照，有增量时由完整增量字符串取代，不能把空对象前缀拼到参数 JSON 前。step.stop 只结束参数传输；interaction.completed 的 requires_action 才决定完整且未被 function_result 回答的函数是否可执行。损坏 JSON／非对象参数分别保留 Invalid，未完成或失败状态保留 Incomplete，不调用客户端工具。原始参数无法表示为合法 step JSON 时不提供重建 history，原始片段仍由事件保存。
+
+服务端工具的 call／result 保持各自 step 与实际调用 ID，使用同一工具归属解析。start 与已知 delta 可以只含部分字段；有参数时验证其形状，缺少结果的停止步骤保留无结果的服务端活动与原文，不虚构返回内容。结构化 arguments 更新已提供的成员，result 的数组／字符串增量分别按序追加／拼接，其他字段为当前快照；签名、原生字段、MCP server_name 与搜索类型均保留，服务端活动不会变为客户端调用。
+
+usage 可来自 status_update.usage、step.stop.usage、step.delta.metadata.total_usage 或 lifecycle.interaction.usage，均为累积快照，后续已提供字段替换前值，缺失字段不清零。step_usage 仅作为单步原文，不累加到请求总量。interaction.completed 冻结已知停止状态的 Final usage；它自身可省略 created／updated／model／steps，客户端不补造服务时间。已提供 created 必须保持同一 Instant，updated 只验证格式而不要求时钟递增。status_update 的终止状态和裸 [DONE] 都不能替代 interaction.completed。
+
+interaction.completed 可携带最终 steps；按步骤身份合并快照并交付尚未看到的文本、引用或工具内容，不重复已经交付的文本和引用。原始 steps 数组另外作为 lifecycle.steps Native 快照事件交付，媒体等原生内容可据此读取最终状态；重建 history 已保存最终步骤，不再为该快照另存一份 nativeEvents。只在快照中出现的服务端 result 同样交付 Completed／Failed 活动。没有 steps 时从已结束且可完整重建的步骤生成 history。最终状态沿用完整响应的 completion／finishReason 规则；未知状态保留 Incomplete 与 Partial usage，不提供可追加历史。完成事件后传输可结束，尾随 event:done / data:[DONE] 是可忽略哨兵；提前 DONE、error 或 EOF 都不能产生成功结果。结果保留模式才提供 response()，且保留原生历史和未知事件。
+
+协议依据：[官方流式指南](https://ai.google.dev/gemini-api/docs/streaming)、[Interactions v1 OpenAPI](https://ai.google.dev/static/api/interactions-v1.openapi.json)。不自动执行工具、轮询后台资源或消费 continuation_token。

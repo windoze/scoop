@@ -4,8 +4,11 @@ import scoop.json.*
 import scoop.url.Url
 
 internal fun readInteractionsCitations(dialect: DialectId, values: Array<JsonValue>, text: String, path: String): Array<Citation> {
+    return readInteractionsCitationsBytes(dialect, values, text.toByteArray().size, path)
+}
+
+internal fun readInteractionsCitationsBytes(dialect: DialectId, values: Array<JsonValue>, bytes: Long, path: String): Array<Citation> {
     val result = ArrayList<Citation>()
-    val bytes = text.toByteArray().size
     var index = 0L
     for (raw in values) {
         val itemPath = path + "/" + index.toString()
