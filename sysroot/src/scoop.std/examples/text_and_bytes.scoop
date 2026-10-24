@@ -1,0 +1,17 @@
+import scoop.bytes.*
+import scoop.io.encoding.Base64
+import scoop.text.*
+
+fun main() {
+    val text = "  Scoop  ".trim()
+    val encoded = Base64.Default.encode(text.toByteArray())
+    println(encoded)
+    println(String.fromUtf8(Base64.Default.decode(encoded)))
+
+    val packet = ByteArrayBuilder()
+    packet.writeUInt16(513U, ByteOrder.BigEndian)
+    packet.append("OK".toByteArray())
+    println(packet.toByteArray().toHexString())
+    println("123".toIntOrNone() ?: 0)
+    println("invalid".toIntOrNone() ?: 0)
+}

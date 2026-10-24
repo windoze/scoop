@@ -1,0 +1,26 @@
+//! dep: scoop:scoop.terminal:0.1.0
+
+import scoop.terminal.event.*
+import scoop.terminal.protocol.*
+import scoop.time.Duration
+
+fun main() {
+    val parser = InputParser()
+    parser.feed("a\u001b[A".toByteArray(), Duration.ZERO)
+    parser.feed("\u001b".toByteArray(), Duration.milliseconds(1L))
+    parser.advance(Duration.milliseconds(60L))
+    parser.finish()
+    while (true) {
+        val item = parser.next() ?: break
+        when (item) {
+            case InputItem.User(Event.Key(key)) -> println(when (key.code) {
+                case KeyCode.Char(character) -> f"character=${character}"
+                case KeyCode.Up -> "up"
+                case KeyCode.Esc -> "escape"
+                else -> "other key"
+            })
+            case InputItem.Invalid(detail) -> println(detail)
+            else -> println("other terminal event")
+        }
+    }
+}

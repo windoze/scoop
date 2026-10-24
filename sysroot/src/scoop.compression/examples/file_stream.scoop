@@ -1,0 +1,31 @@
+//! dep: scoop:scoop.compression:0.1.0
+//! dep: scoop:scoop.platform:0.1.0
+
+import scoop.compression.*
+import scoop.platform.fs.*
+import scoop.platform.io.*
+
+fun main() {
+    val directory = createTempDirectory(prefix = "scoop-compression-")
+    try {
+        val sourcePath = directory.resolve(Path.fromString("message.txt"))
+        val archivePath = directory.resolve(Path.fromString("message.gz"))
+        sourcePath.writeText("A file compressed through streams.\n")
+        val writing = OpenOptions(read = false, write = true, create = true, truncate = true)
+        File.open(sourcePath).use { source ->
+            File.open(archivePath, writing).use { destination ->
+                CompressionSink(destination, CompressionOptions.Gzip(GzipOptions())).use { sink ->
+                    source.copyTo(sink, 8192L)
+                    sink.finish()
+                }
+            }
+        }
+        File.open(archivePath).use { source ->
+            DecompressionSource(source, DecompressionOptions(CompressionFormat.Gzip)).use { decoded ->
+                print(decoded.readText())
+            }
+        }
+    } finally {
+        directory.deleteRecursively()
+    }
+}

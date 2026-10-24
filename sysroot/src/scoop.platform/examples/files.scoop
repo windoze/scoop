@@ -1,0 +1,19 @@
+//! dep: scoop:scoop.platform:0.1.0
+
+import scoop.platform.fs.*
+
+fun main() {
+    val directory = createTempDirectory(prefix = "scoop-example-")
+    try {
+        val file = directory.resolve(Path.fromString("notes.txt"))
+        file.writeText("Hello, Scoop!\n")
+        file.writeText("Second line\n", append = true)
+        print(file.readText())
+        println(f"bytes=${file.metadata().size}")
+        directory.entries().use { entries ->
+            for (entry in entries) println(entry.name.display())
+        }
+    } finally {
+        directory.deleteRecursively()
+    }
+}

@@ -1,0 +1,18 @@
+//! dep: scoop:scoop.charset:0.1.0
+
+import scoop.charset.*
+import scoop.text.toHexString
+
+fun main() {
+    val bytes = Charset.Gbk.encode("中文")
+    println(bytes.toHexString())
+    println(Charset.Gbk.decode(bytes))
+    println(Charset.forName("windows-1252").decode([0x63, 0x61, 0x66, 0xe9.toByte()]))
+
+    try {
+        Charset.Ascii.encode("café")
+    } catch (_: CharsetException) {
+        println("Strict ASCII rejects unrepresentable characters")
+    }
+    println(Charset.Ascii.decode(Charset.Ascii.encodeLossy("café")))
+}

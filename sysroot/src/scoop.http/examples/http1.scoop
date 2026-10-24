@@ -1,0 +1,38 @@
+//! dep: scoop:scoop.http:0.1.0
+//! dep: scoop:scoop.platform:0.1.0
+
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+fun main() {
+    val wire = "POST /greet HTTP/1.1\r\nHost: localhost\r\nContent-Length: 5\r\n\r\nScoop".toByteArray()
+    Http1Decoder.server().use { decoder ->
+        NativeByteBuffer.allocate(wire.size).use { input ->
+            input.writeBytes(wire)
+            while (input.readableBytes > 0L) {
+                decoder.receive(input)
+                while (true) {
+                    val event = decoder.nextEvent() ?: break
+                    when (event) {
+                        case Request(head) -> println(String.fromUtf8(head.method))
+                        case Data(bytes) -> println(String.fromUtf8(bytes))
+                        case Trailers(fields) -> {
+                            for (field in fields) {
+                                println(f"${String.fromUtf8(field.name)}: ${String.fromUtf8(field.value)}")
+                            }
+                        }
+                        case End(_) -> println("Request complete")
+                        else -> throw IllegalStateException(Some("unexpected request event"))
+                    }
+                }
+            }
+            decoder.endInput()
+        }
+    }
+
+    Http1Encoder(HttpRole.Server).use { encoder ->
+        val head = HttpResponseHead(HttpVersion.Http11, 204U)
+        print(String.fromUtf8(encoder.beginResponse(head, "POST".toByteArray())))
+        print(String.fromUtf8(encoder.finish()))
+    }
+}

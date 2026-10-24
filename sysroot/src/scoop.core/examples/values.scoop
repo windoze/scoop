@@ -1,0 +1,22 @@
+struct Point(val x: Int, val y: Int)
+
+enum Lookup {
+    Found(Point),
+    Missing
+}
+
+fun describe(result: Lookup): String = when (result) {
+    case Lookup.Found(Point(x, y)) -> f"point=(${x}, ${y})"
+    case Lookup.Missing -> "point missing"
+}
+
+fun main() {
+    println(describe(Lookup.Found(Point(3, 4))))
+    println(describe(Lookup.Missing))
+
+    val nickname: String? = Some("Ada")
+    val absent: String? = None
+    println(nickname ?: "guest")
+    println(absent ?: "guest")
+    println(nickname?.length ?: 0L)
+}

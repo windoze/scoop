@@ -1,0 +1,18 @@
+//! dep: scoop:scoop.url:0.1.0
+
+import scoop.url.*
+
+fun main() {
+    val base = Url.parse("https://bücher.example/guides/start/")
+    val page = base.resolve("../语言?q=scoop#intro")
+    println(page.toString())
+    println(page.toIriString())
+    println(page.httpRequestTarget())
+
+    val edited = Url.parse("https://example.com/api")
+        .toBuilder()
+        .appendPathSegment("a/b")
+        .setQueryParameters(UrlQuery().add("q", Some("x+y")))
+        .build()
+    println(edited.toString())
+}

@@ -1,0 +1,14 @@
+//! dep: scoop:scoop.regex:0.1.0
+
+import scoop.regex.*
+
+fun main() {
+    Regex("""(?<key>[a-z]+)=(?<value>[0-9]+)""").use { pattern ->
+        val input = "width=80 height=24"
+        println(pattern.replaceTemplate(input, "${key}: ${value}"))
+        println(pattern.replace(input, "$1"))
+    }
+    Regex("""\s*,\s*""").use { delimiter ->
+        for (word in delimiter.split("red, green,blue")) println(word)
+    }
+}

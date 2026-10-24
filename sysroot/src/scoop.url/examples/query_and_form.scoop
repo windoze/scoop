@@ -1,0 +1,16 @@
+//! dep: scoop:scoop.url:0.1.0
+
+import scoop.url.*
+
+fun main() {
+    val query = UrlQuery.parse("tag=scoop&tag=native&flag&empty=")
+    for (entry in query.entries) {
+        println(f"${entry.name}=${entry.value ?: "<no value>"}")
+    }
+
+    val parameters = UrlQuery().add("q", Some("a b+c"))
+    println(parameters.toString())
+    val form = FormUrlEncoded.encode(parameters)
+    println(form)
+    println(FormUrlEncoded.parse(form).entries[0L].value!!)
+}

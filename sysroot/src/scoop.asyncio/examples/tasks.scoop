@@ -1,0 +1,30 @@
+//! dep: scoop:scoop.asyncio:0.1.0
+
+import scoop.asyncio.*
+import scoop.time.Duration
+
+fun main() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val first = scope.async<Int> suspend {
+            loop.sleep(Duration.milliseconds(20L))
+            20
+        }
+        val second = scope.async<Int> suspend {
+            loop.sleep(Duration.milliseconds(10L))
+            22
+        }
+        println(first.await() + second.await())
+
+        val pending = scope.launch suspend {
+            try {
+                loop.sleep(Duration.seconds(60L))
+            } finally {
+                println("Cancelled task cleaned up")
+            }
+        }
+        loop.sleep(Duration.milliseconds(1L))
+        pending.cancel()
+        pending.join()
+    }
+}

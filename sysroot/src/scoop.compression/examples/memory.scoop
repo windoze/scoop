@@ -1,0 +1,16 @@
+//! dep: scoop:scoop.compression:0.1.0
+
+import scoop.compression.*
+
+fun main() {
+    val original = "Hello, compressed Scoop!".toByteArray()
+    val zstd = compress(original)
+    println(String.fromUtf8(decompress(zstd)))
+
+    val gzip = compress(original, CompressionOptions.Gzip(GzipOptions()))
+    val restored = decompress(gzip, DecompressionOptions(
+        format = CompressionFormat.Gzip,
+        maxOutputBytes = Some(1024L)
+    ))
+    println(String.fromUtf8(restored))
+}

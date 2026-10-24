@@ -1,0 +1,34 @@
+//! dep: scoop:scoop.crypto:0.1.0
+//! dep: scoop:scoop.platform:0.1.0
+//! dep: scoop:scoop.tls:0.1.0
+
+import scoop.crypto.PrivateKey
+import scoop.crypto.x509.Certificate
+import scoop.platform.fs.*
+import scoop.platform.io.*
+import scoop.platform.net.*
+import scoop.text.toInt
+import scoop.tls.*
+
+fun main(args: Array<String>): Int {
+    if (args.size < 3L) {
+        println("Usage: server CERT.pem KEY.pem [PORT]")
+        return 2
+    }
+    val port = if (args.size > 3L) args[3L].toInt() else 8443
+    Certificate.fromPem(Path.fromString(args[1L]).readText()).use { certificate ->
+        PrivateKey.fromPem(Path.fromString(args[2L]).readText()).use { key ->
+            TlsServerContext([certificate], key).use { context ->
+                TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, port)).use { listener ->
+                    println(f"Listening on ${listener.localAddress().toString()}")
+                    TlsStream.takeOwnershipAsServer(listener.accept(), context).use { stream ->
+                        stream.writeAllBytes("Hello over TLS!\n".toByteArray())
+                        stream.flush()
+                        stream.shutdownGracefully()
+                    }
+                }
+            }
+        }
+    }
+    return 0
+}

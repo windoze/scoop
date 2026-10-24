@@ -1,0 +1,13 @@
+//! dep: scoop:scoop.idna:0.1.0
+
+import scoop.idna.*
+
+fun main() {
+    val encoded = Punycode.encode("bücher")
+    println(encoded)
+    println(Punycode.decode(encoded))
+
+    // Punycode transforms text; IDNA additionally validates domain labels.
+    println(Punycode.encode("a_b"))
+    println(Idna.toAsciiOrNone("a_b.example") ?: "invalid domain")
+}

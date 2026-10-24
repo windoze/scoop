@@ -1,0 +1,11 @@
+//! dep: scoop:scoop.idna:0.1.0
+
+import scoop.idna.*
+
+fun main() {
+    val name = Idna.parse("bücher.example")
+    println(name.ascii)
+    println(name.unicode)
+    println(Idna.toUnicode("xn--fiqs8s.example"))
+    println(Idna.toAsciiOrNone("a_b.example") ?: "invalid domain")
+}

@@ -1,0 +1,30 @@
+//! dep: scoop:scoop.asyncio:0.1.0
+//! dep: scoop:scoop.terminal:0.1.0
+//! dep: scoop:scoop.terminal.asyncio:0.1.0
+
+import scoop.asyncio.*
+import scoop.terminal.Print
+import scoop.terminal.asyncio.*
+import scoop.terminal.event.*
+
+fun main() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        AsyncTerminalSession.open(loop).useAsync suspend { terminal ->
+            terminal.withRawMode suspend {
+                terminal.execute(Print("Press keys; Escape exits.\r\n"))
+                while (true) {
+                    when (val event = terminal.read()) {
+                        case Event.Key(key) -> when (key.code) {
+                            case KeyCode.Esc -> break
+                            case KeyCode.Char(character) -> terminal.execute(Print(f"key=${character}\r\n"))
+                            else -> terminal.execute(Print("special key\r\n"))
+                        }
+                        case Event.Resize(columns, rows) -> terminal.execute(Print(f"size=${columns}x${rows}\r\n"))
+                        else -> terminal.execute(Print("terminal event\r\n"))
+                    }
+                }
+            }
+        }
+    }
+}

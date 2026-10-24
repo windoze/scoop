@@ -1,0 +1,20 @@
+//! dep: scoop:scoop.json:0.1.0
+
+import scoop.json.*
+
+fun main() {
+    val input = Json.parse("""{"name":"Scoop","count":3,"note":null}""")
+    println(input["name"]!!.asString())
+    println(input["count"]!!.asNumberToken())
+    println(when (input["missing"]) {
+        case Some(_) -> false
+        case None -> true
+    })
+    println(input["note"]!!.kind == JsonValueKind.Null)
+
+    val output = JsonObjectBuilder()
+        .add("original", input)
+        .add("items", JsonArrayBuilder().add(JsonValue.nullValue()).build())
+        .build()
+    println(Json.stringify(output))
+}

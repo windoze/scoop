@@ -1,0 +1,20 @@
+//! dep: scoop:scoop.readline:0.1.0
+
+import scoop.readline.*
+import scoop.readline.history.MemoryHistory
+
+fun main() {
+    val editor = Editor(Config(editMode = EditMode.Vi), MemoryHistory())
+    editor.completer = FilenameCompleter()
+    editor.validator = MatchingBracketValidator()
+    println("Enter balanced brackets; unfinished input continues on the next line.")
+    println("Vi editing is enabled. Tab completes filenames; Ctrl+D exits.")
+    try {
+        val text = editor.readLine("input> ")
+        println(f"Accepted:\n${text}")
+    } catch (_: ReadlineEofException) {
+        println("End of input")
+    } catch (_: ReadlineInterruptedException) {
+        println("Input cancelled")
+    }
+}

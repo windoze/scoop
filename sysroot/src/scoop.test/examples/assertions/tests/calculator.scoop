@@ -1,0 +1,18 @@
+package examples.testing
+
+import scoop.test.*
+
+@Test
+private class CalculatorTests {
+    @Test
+    fun `division returns a value`() {
+        assertEquals(6, divide(42, 7))
+        assertTrue(divide(42, 7) > 0)
+    }
+
+    @Test
+    fun `zero count reports the reason`() {
+        val error = assertFailsWith<IllegalArgumentException> { divide(42, 0) }
+        assertEquals(Some("count must not be zero"), error.message)
+    }
+}
