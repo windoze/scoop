@@ -186,7 +186,9 @@ extern ScoopGcHeapState scoop_gc_heap_state;
 _Noreturn void scoop_heap_fatal(const char *message);
 void scoop_heap_lock(void);
 void scoop_heap_unlock(void);
-void *scoop_heap_block_base(const ScoopGcBlockMeta *block);
+static inline void *scoop_heap_block_base(const ScoopGcBlockMeta *block) {
+    return (void *)(block->region->base + (size_t)block->index * GC_BLOCK_SIZE);
+}
 size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block);
 bool scoop_heap_active_head(const ScoopGcBlockMeta *block);
 void scoop_heap_require_ready(void);

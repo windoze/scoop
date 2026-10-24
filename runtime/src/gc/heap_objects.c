@@ -5,6 +5,7 @@
 
 #include "gc_internal.h"
 #include "heap_internal.h"
+#include "allocation_metadata.h"
 
 static size_t object_word_index(ScoopGcBlockMeta *block, const void *object) {
     uintptr_t offset = (uintptr_t)object - (uintptr_t)block_base(block);
@@ -98,22 +99,7 @@ void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_siz
          (UINT64_C(1) << (word % 64))) != 0) {
         heap_fatal("small object overlaps invalid storage");
     }
-    block->size_units[word] = (uint16_t)(exact_size / sizeof(uint64_t));
-    size_t last_line = (size_t)((address + exact_size - 1 - base) / GC_LINE_SIZE);
-    for (; line <= last_line; line++) {
-        (void)__atomic_fetch_or(&block->line_occupied[line / 64], UINT64_C(1) << (line % 64),
-                                __ATOMIC_RELAXED);
-        if (marked) {
-            bit_set(block->line_live, line);
-        }
-    }
-    if (marked) {
-        bit_set(block->marks, word);
-        block->live_bytes += exact_size;
-        block->movable_live_bytes += exact_size;
-    }
-    (void)__atomic_fetch_or(&block->starts[word / 64], UINT64_C(1) << (word % 64),
-                            __ATOMIC_RELEASE);
+    scoop_heap_record_small_metadata(block, object, exact_size, marked, false);
 }
 
 void publish_large_object(ScoopGcBlockMeta *block, bool marked) {

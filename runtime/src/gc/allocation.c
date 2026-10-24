@@ -7,6 +7,7 @@
 #include "../gc_binding/object.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
+#include "allocation_metadata.h"
 
 _Static_assert(GC_LINE_SIZE % SCOOP_MAXIMUM_MANAGED_ALIGNMENT == 0,
                "GC line starts must satisfy every managed alignment");
@@ -210,13 +211,18 @@ static void record_allocation(ScoopGcMutator *mutator, size_t size, bool nursery
 }
 
 static void initialize_small_allocation(ScoopGcMutator *mutator, ScoopGcBlockMeta *block,
-                                        void *object, const ScoopTypeDescriptor *td, size_t size) {
+                                        void *object, const ScoopTypeDescriptor *td, size_t size,
+                                        bool nursery) {
     memset(object, 0, size);
     ScoopObjectHeader *header = object;
     scoop_gc_set_object_type(object, td);
     header->gc_word = 0;
-    record_small_object(block, object, size, false);
-    record_allocation(mutator, size, block->generation == SCOOP_GC_YOUNG);
+    if (nursery) {
+        scoop_heap_record_small_metadata(block, object, size, false, true);
+    } else {
+        record_small_object(block, object, size, false);
+    }
+    record_allocation(mutator, size, nursery);
 }
 
 static void finish_small_allocation(ScoopGcMutator *mutator, void *object,
@@ -230,13 +236,14 @@ static void finish_small_allocation(ScoopGcMutator *mutator, void *object,
         (uintptr_t)object % scoop_gc_type_alignment(td) != 0 || block == NULL) {
         heap_fatal("invalid inline TLAB allocation");
     }
-    initialize_small_allocation(mutator, block, object, td, size);
+    initialize_small_allocation(mutator, block, object, td, size,
+                                block->generation == SCOOP_GC_YOUNG);
 }
 
 void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td, size_t size) {
     /* Generated code has already aligned and bounded this nursery bump. */
     ScoopGcMutator *mutator = scoop_gc_current_mutator();
-    initialize_small_allocation(mutator, mutator->allocation_block, object, td, size);
+    initialize_small_allocation(mutator, mutator->allocation_block, object, td, size, true);
 }
 
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {

@@ -303,7 +303,9 @@ PGO 不要求自研所有 profiling 工具，也不要求每一种优化重新�
 
 ### 8.1 让分配接近必要的写入成本
 
-TLAB 已存在，但成功 bump 后仍有清零、对象头、精确大小、starts／line metadata 和统计更新。建议测量每分配的指令、原子操作和 cache miss，再逐项推进：
+TLAB 已存在，成功 bump 后仍承担清零、对象头、精确大小、starts／line metadata 和统计更新。根据每分配的指令、原子操作和 cache miss 测量逐项推进。
+
+已交付的[nursery 独占块登记](NURSERY-METADATA.md)先处理采样定位的元数据成本：复用已保留范围，保持原子性和 release 发布，用单写者 load／OR／store 替代年轻块位图读改写；共享旧代保持原路径。三目标小／宽对象分配区间降低约 28%～53%，所有 profile 的新版 runtime 默认采用。后续方案仍独立测量：
 
 - 固定大小／已知 TD 分配专门化，消除重复的动态 shape 读取、分支和通用 helper；选择少量高频尺寸或在调用点展开，控制 text 增长。Go 1.27 的尺寸专门化说明这是正常且仍有收益的方向。[O3]
 - 合并清零与构造写入、采用已清零 TLAB 或批量初始化；必须满足对象被 GC 观察前引用槽有效、payload／padding 和 MaybeUninit 的现有语义。不是无条件取消 zeroing。

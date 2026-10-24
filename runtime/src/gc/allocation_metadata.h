@@ -1,0 +1,41 @@
+#ifndef SCOOP_GC_ALLOCATION_METADATA_H
+#define SCOOP_GC_ALLOCATION_METADATA_H
+
+#include "heap_internal.h"
+
+static inline void scoop_heap_publish_allocation_bits(uint64_t *word, uint64_t mask, int order,
+                                                      bool owned) {
+    if (owned) {
+        uint64_t previous = __atomic_load_n(word, __ATOMIC_RELAXED);
+        __atomic_store_n(word, previous | mask, order);
+    } else {
+        (void)__atomic_fetch_or(word, mask, order);
+    }
+}
+
+/* The caller has reserved a valid, aligned small-object range. Only a fresh
+ * nursery allocation has a single mutator writer until the next collection. */
+static inline void scoop_heap_record_small_metadata(ScoopGcBlockMeta *block, void *object,
+                                                    size_t size, bool marked, bool owned) {
+    size_t offset = (uintptr_t)object - (uintptr_t)scoop_heap_block_base(block);
+    size_t word = offset / sizeof(uint64_t);
+    size_t first = offset / GC_LINE_SIZE;
+    size_t last = (offset + size - 1) / GC_LINE_SIZE;
+    block->size_units[word] = (uint16_t)(size / sizeof(uint64_t));
+    for (size_t line = first; line <= last; line++) {
+        scoop_heap_publish_allocation_bits(&block->line_occupied[line / 64],
+                                           UINT64_C(1) << (line % 64), __ATOMIC_RELAXED, owned);
+        if (marked) {
+            scoop_heap_bit_set(block->line_live, line);
+        }
+    }
+    if (marked) {
+        scoop_heap_bit_set(block->marks, word);
+        block->live_bytes += size;
+        block->movable_live_bytes += size;
+    }
+    scoop_heap_publish_allocation_bits(&block->starts[word / 64], UINT64_C(1) << (word % 64),
+                                       __ATOMIC_RELEASE, owned);
+}
+
+#endif

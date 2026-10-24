@@ -331,7 +331,9 @@ managed 分配返回直接对象指针，普通小对象分配摊还 O(1)，不�
 
 generated code 所需的 TLAB cursor／limit、对象头状态位和 poll／card 数据布局是明确的共享快路径合同。Immix 的普通对象阈值与 TLAB 资格判断归 GC 分配实现及对应 codegen GC 模块，不能向通用 LIR 泄漏算法策略；当前阈值保持一个 32 KiB block 扣除首个 128-byte line。模块整理不改变布局、位值、登记顺序或快路径调用成本。
 
-生成代码成功 bump 后的完成入口接收已经按 TD 对齐的普通对象大小，复用当前 mutator 的 nursery block；此前已确认有效 TLAB、大小不溢出且在 limit 内，以及 TD 无 release hook，moving stress 不提供可用 TLAB。完成入口不重复规格化大小、判断分配资格或查找 block；它仍清零全部对象字节、设置对象头、登记精确大小，并按原 relaxed line bitmap／release starts 次序发布，更新线程原子计数。此入口不经过 safepoint；动态 runtime 分配入口仍执行其输入与布局检查。
+生成代码成功 bump 后的完成入口接收已经按 TD 对齐的普通对象大小，复用当前 mutator 的 nursery block；此前已确认有效 TLAB、大小不溢出且在 limit 内，以及 TD 无 release hook，moving stress 不提供可用 TLAB。完成入口不重复规格化大小、判断分配资格、查找 block 或重查已保留范围的对象起点；它仍清零全部对象字节、设置对象头、登记精确大小，并按原 relaxed line bitmap／release starts 次序发布，更新线程原子计数。此入口不经过 safepoint；动态 runtime 分配入口仍执行其输入与布局检查。
+
+普通 nursery 分配块在 mutator 运行期间只有其所属线程写入对象起点与 occupied-line 位图；moving stress 的独立年轻块也由本次分配线程独占初始化。成功保留范围后不经过 safepoint 即可完成登记；年轻块的元数据发布复用已确认的大小、对齐、空闲与块种类，不在登记函数内再次核对。位图更新复用这项单写者关系：用 relaxed atomic load 取得旧字，再按 OR 后的完整字执行 occupied-line 的 relaxed atomic store 和 starts 的 release atomic store。已发布的其他位必须保留；其他线程的对象查询继续使用 acquire starts 读取。晋升、退役、重新分配和清零均在原 STW／分配区失效协议下完成。共享旧代分配块仍使用原子读改写，collector 的标记与复制沿原路径；不能把 nursery 的单写者性质扩展到共享块或任何新增的并发写入者。该选择不改变 TLAB、对象、metadata 布局或统计 ABI，所有 profile 遵守相同合同。
 
 每个已 attach 的线程持有一个 GC 管理的 mutator 状态，包含 TLAB、block 所有权及独立对齐的分配计数；线程业务只保存该状态的引用，通过具体生命周期操作创建、绑定、失效和 detach。generated code 仍使用原 TLAB TLS 指针，GC 分配沿该指针取得同一 mutator，不增加另一份 TLS 或线程目录。统计在既有 world／registry 保护下汇总现存 mutator 与已退出总账，detach 在从目录移除前完成归并，collection 在稳定目录下使所有分配范围失效。
 

@@ -33,10 +33,6 @@ void unlock_heap(void) {
 void scoop_gc_heap_lock(void) { lock_heap(); }
 void scoop_gc_heap_unlock(void) { unlock_heap(); }
 
-void *block_base(const ScoopGcBlockMeta *block) {
-    return (void *)(block->region->base + (size_t)block->index * GC_BLOCK_SIZE);
-}
-
 size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block) {
     return block->region->large ? block->region->size : GC_BLOCK_SIZE;
 }

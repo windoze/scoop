@@ -26,6 +26,7 @@
 | [数组搜索与提前退出循环](EARLY-EXIT-ARRAYS.md) | release 默认 | 只复制继续迭代的区域，共享 return／break／失败出口；保留首次命中、异常前缀与本轮值。 |
 | [引用数组范围证明与有界循环](REFERENCE-ARRAYS.md) | release 默认 | 单字引用、双字 interface、相应可空值与 MaybeUninit；保留写屏障和精确 roots，尚未开放引用 SIMD。 |
 | [卡表置脏的幂等原子写入](CARD-STORES.md) | 所有 profile 与 runtime 默认 | 二值 card 使用 relaxed atomic store 1，省去原子读改写，清零仅在 STW；合格 release 循环可按卡标记合并规则处理。 |
+| [nursery 独占块的分配登记](NURSERY-METADATA.md) | 使用新版 runtime，所有 profile 默认 | 已保留的年轻块范围直接登记，以原子 load／OR／store 保留已有位；共享旧代仍用原子读改写，保留完整清零与发布顺序。 |
 | [有界引用循环的页表查询提升](CARD-REGIONS.md)，含[接口栈重取扩展](INTERFACE-CARD-REGIONS.md) | release 默认；保留接口栈重取的扩展仅 ARM64；数组基址定位规则适用于所有 profile | 常数有界、目标不变且查询每轮必经，保留原 roots。ARM64 可保留已确认来自本函数栈槽的 volatile 引用重读，同时提升独立查询；x86 仍排除含 volatile 的区域。 |
 | [有界引用循环的卡标记合并](CARD-BATCHES.md) | release 默认 | 无 safepoint、2～64 次、每轮必经且槽步长为 0／8／16 字节；退出后、下次 poll 前每流最多 3 次卡标记，保留全部元素写入和精确 roots。 |
 | [有界引用读取的四倍部分展开](REFERENCE-UNROLL.md)，含[条件读取扩展](CONDITIONAL-REFERENCE-UNROLL.md) | release 默认 | 最多四个无环块、同一 latch、4～64 次且可被四整除、最多 24 条正文指令的只读内层；保留空值分支、浮点顺序、poll、短尾与精确 roots，不扩大引用 SIMD。 |
