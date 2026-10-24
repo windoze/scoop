@@ -1,6 +1,6 @@
 # HTTP client API 评审：日常入口与 LLM 消费
 
-日期：2026-10-21。范围：当前规范、公开 API、实现与已有 fixture 的静态检查。本次没有修改 HTTP 实现或重新执行网络验收；历史完成状态以 [M54 进度](../milestone54/PROGRESS.md)为准。LLM 总体方案见[调研文档](INVESTIGATION.md)。
+日期：2026-10-21。JSON 入口、架构与计时需求同步：2026-10-24。范围：规范、公开 API、实现与已有测试的静态检查。本次没有修改 HTTP 实现或重新执行网络验收；历史完成状态以 [M54 进度](../milestone54/PROGRESS.md)为准。LLM 总体方案见[调研文档](INVESTIGATION.md)与[架构设计](DESIGN.md)。
 
 ## 1. 总体判断
 
@@ -66,7 +66,7 @@ withHttpClient suspend { client ->
 
 ### 4.1 SSE 支持 POST，但简易入口丢失握手失败正文
 
-`openSse` 接受完整 HttpRequest，会保留 method、body、认证与调用 options。已有 [SSE fixture](../../tests/fixtures/m54-client-sse/consumer/src/network.scoop)包含 POST、单次 body、重连和压缩组合。无需新增一个独立的“LLM POST SSE transport”。
+`openSse` 接受完整 HttpRequest，会保留 method、body、认证与调用 options。已有 [SSE fixture](../../tests/fixtures/libraries/client-sse/consumer/src/network.scoop)包含 POST、单次 body、重连和压缩组合。无需新增一个独立的“LLM POST SSE transport”。
 
 问题在错误入口：[openClientSseResponse](../../sysroot/src/scoop.http.client/src/sse/response.scoop)调用 `requireSuccess`，[openClientSse](../../sysroot/src/scoop.http.client/src/sse/operation.scoop)在失败时关闭响应；[HttpStatusException](../../sysroot/src/scoop.http.client/src/response.scoop)只有 head 与 URL。LLM 调用者因此取不到 `{"error": ...}` 中的详细 code、message 或 retry 信息。
 
@@ -123,9 +123,17 @@ client.postJson(url, value, requestCodec, responseCodec, limits = ..., options =
 
 这些是待设计签名。它们应复用 execute／withResponse，完整消费后返回普通值并关闭响应；公开写明非 2xx 如何报告，以及 body 上限作用于解码后的实际字节。原有 execute／withResponse 保留给需要 status、headers、stream 和自定义错误处理的调用者。
 
-现有 `Json` 已通过 M55 支持 companion codec 缺省，但 [RequestBody.fromJson](../../sysroot/src/scoop.http.client/src/body/body.scoop)与 [HttpResponseBody.json](../../sysroot/src/scoop.http.client/src/response/body.scoop)仍要求显式 codec。可以依照相同的 `T.Companion : ValueEncoder<T>`／`ValueDecoder<T>` 条件添加便利重载，不增加反射。
+现有 `Json` 已通过 M55 支持 companion codec 缺省；[RequestBody.fromJson](../../sysroot/src/scoop.http.client/src/body/body.scoop)与 [HttpResponseBody.json](../../sysroot/src/scoop.http.client/src/response/body.scoop)也已提供分别要求 `T.Companion : ValueEncoder<T>`／`ValueDecoder<T>` 的默认重载，保留显式 codec 和必填 maxBytes。它们可直接服务 LLM 的稳定 DTO；上面的 getText／getJson／postJson 组合入口仍是独立建议。
 
 [HttpField](../../sysroot/src/scoop.http/src/model.scoop)当前使用字节输入，这对底层 HTTP 合理。高层可提供明确 UTF-8 的字符串字段构造，减少每次 `.toByteArray()`，但保留重复 header 的有序列表，不能把公共 header API 简化成丢重复项的 Map。
+
+### 4.7 LLM 时间戳需要请求级采样合同
+
+[HttpAttemptMetrics](../../sysroot/src/scoop.http.client/src/observability/api.scoop) 已有发送头、接收头、首字节与阶段 TimeMark，但仅在 client 配置 observer 时采集；HttpResponse.metrics 也可能为 None。现有 ResponseHeaders 覆盖信息响应和最终响应，最近一次头部时间不能混同于第一次模型输出。[规范 §11.2](../specs/SCOOP-HTTP-CLIENT-SPEC.md#112-可观察性与错误)
+
+LLM 需要为每次 request／response 保留 UTC 时间戳，并在共享、借入 HttpClient 时得到自己的尝试数据。因此实施时应先在 HTTP 规范增加窄的每调用采样选项与 metadata 暴露方式：在事件产生处采集 Instant／同源 TimeMark，区分最终响应头和 1xx，沿尝试保存至失败或关闭，并与已有 client observer 共存。不要求所有普通 HTTP 请求默认开启观察。
+
+`onAttempt` 发生在排池之前，不能用作 sentAt；用户回调执行时的 Clock.now 也不能冒充原事件时间。不能为获得时间戳重建连接池或覆盖借入 client 的 observer。模型首个事件／输出、usage、缓存 TTL 解释和计费信息留在 LLM 层，HTTP 不承担 token 或模型计费语义。
 
 ## 5. 对缺省值的具体建议
 
@@ -147,7 +155,8 @@ client.postJson(url, value, requestCodec, responseCodec, limits = ..., options =
 | --- | --- | --- |
 | 高 | LLM 禁止默认跨站 redirect；保留 provider 错误正文；明确重试只有一层负责 | 是，属于 LLM 行为合同；现有 HTTP 已有可用组合路径 |
 | 高 | 确认 SSE 大行／事件上限，按多模态接口配置 | 是，完整多模态流所需 |
-| 高 | JSON 便利 codec 和 HTTP quickstart 的默认值说明 | 不阻塞协议编码，但应与新库一起改善日常使用 |
+| 高 | 请求级 wall／monotonic 时间采样与尝试 metadata | 是，精确到既定提交／接收边界的时间戳需要此合同；旧 client observer 不能直接视为已满足 |
+| 已有基础 | JSON／HTTP companion codec 默认重载 | 已可直接使用；LLM quickstart 仍需说明自身的等待、错误和流式选项 |
 | 中 | getText／getJson／postJson 等有限缓冲便利函数 | 否，显著改善易用性 |
 | 中 | SSE 已有响应适配、明确的自定义敏感字段转发规则 | 否，有手工组合方案 |
 | 按真实需要 | 请求级最终签名 hook、不可变配置派生方法 | 有对应认证／配置消费者后实施 |
