@@ -1,0 +1,66 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.http.asyncio.*
+
+internal suspend fun runServerWebSocket(state: ServerState, value: ServerWebSocket) {
+    if (!state.lock.withLock { state.phase == ServerPhase.Running }) { value.requestDrain(); return }
+    val pending = value.pending ?: throw IllegalStateException(Some("upgraded transport was not handed off"))
+    var failure: Throwable? = None
+    try {
+        coroutineScope<Unit> suspend { scope ->
+            val session = AsyncWebSocketSession.takeOwnership(pending.transport, scope, HttpRole.Server,
+                value.body.options.session, pending.negotiation.deflate)
+            value.session = Some(session)
+            try {
+                if (!state.lock.withLock { state.phase == ServerPhase.Running }) value.requestDrain()
+                if (value.draining.load()) session.shutdownGracefully(WebSocketClose(Some(1001U)))
+                else runWebSocketWork(value, session, scope)
+            } finally { session.close() }
+        }
+    } catch (error: Throwable) { failure = Some(error) }
+    val work = value.failure
+    if (present(work) && present(failure) && work!! !== failure!!) throw ResourceUseException(work!!, failure!!)
+    if (present(work)) throw work!!
+    if (present(failure)) throw failure!!
+    if (present(value.session) && present(value.session!!.failure)) throw value.session!!.failure!!
+}
+
+private suspend fun runWebSocketWork(value: ServerWebSocket, session: AsyncWebSocketSession, scope: CoroutineScope) {
+    val business = scope.launch suspend { runWebSocketBusiness(value, session, scope.job) }
+    val drain = scope.launch suspend {
+        try {
+            if (!value.draining.load()) value.changed.await()
+            if (value.draining.load() && !session.isClosed) session.shutdownGracefully(WebSocketClose(Some(1001U)))
+        } catch (error: Throwable) {
+            if (!(error is CancellationException)) value.recordFailure(error)
+        }
+    }
+    try { session.awaitClosed() }
+    finally {
+        value.stoppingWork.store(true)
+        business.cancel(); drain.cancel()
+    }
+}
+
+private suspend fun runWebSocketBusiness(value: ServerWebSocket, session: AsyncWebSocketSession, owner: Job) {
+    try { value.body.onSession(value.context, session) }
+    catch (error: Throwable) {
+        if (internalWebSocketStop(value, session, owner, error)) return
+        value.recordFailure(error)
+    }
+    if (session.isClosed) return
+    try {
+        if (currentJobOrNone()!!.isCancelled) session.close()
+        else session.shutdownGracefully(WebSocketClose(Some(if (present(value.failure)) 1011U else 1000U)))
+    } catch (error: Throwable) {
+        if (!internalWebSocketStop(value, session, owner, error)) value.recordFailure(error)
+    }
+}
+
+private fun internalWebSocketStop(value: ServerWebSocket, session: AsyncWebSocketSession, owner: Job, error: Throwable): Boolean {
+    if (error is CancellationException) return value.stoppingWork.load() || owner.isCancelled
+    if (error is WebSocketSessionException && present(session.peerClose))
+        return error.kind == WebSocketFailureKind.Closed || error.kind == WebSocketFailureKind.InterruptedMessage
+    return false
+}

@@ -1,0 +1,62 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class ServerWebSocketPrefixTests {
+    @Test
+    fun `a first masked frame in the upgrade input batch survives the HTTP handoff`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> webSocket(onSession = suspend { _, session ->
+            assertEquals("hi", session.receive()!!.readText())
+            session.sendText("preserved")
+        }) })
+        withServer(routes.build(), block = suspend { scope, _, address ->
+            currentEventLoop().connectTcp(address).useAsync suspend { raw ->
+                val request = serverWebSocketRequest()
+                val wire = Http1Encoder(HttpRole.Client).use { encoder ->
+                    val bytes = encoder.beginRequest(request, Http1BodyFraming.Empty)
+                    encoder.finish()
+                    ByteArrayBuilder().append(bytes).append([129.toByte(), 130.toByte(), 1.toByte(), 2.toByte(),
+                        3.toByte(), 4.toByte(), 105.toByte(), 107.toByte()]).toByteArray()
+                }
+                NativeByteBuffer.allocate(wire.size).use suspend { buffer -> buffer.writeBytes(wire); raw.writeFully(buffer) }
+                val (head, prefix) = readWebSocketTestUpgrade(raw)
+                WebSocketHandshake.parse(request).accept(head)
+                val transport = HttpTransport.takeOwnershipWithPrefix(raw, prefix)
+                AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client).useAsync suspend { session ->
+                    assertEquals("preserved", session.receive()!!.readText()); session.awaitClosed()
+                    assertEquals(Some(1000U), session.peerClose!!.code)
+                }
+            }
+        })
+    }
+}
+
+private suspend fun readWebSocketTestUpgrade(source: AsyncByteSource): (HttpResponseHead, Array<Byte>) =
+    Http1Decoder.client().use suspend { decoder ->
+        decoder.expectResponse("GET".toByteArray())
+        NativeByteBuffer.allocate(1024L).use suspend { buffer ->
+            var response: HttpResponseHead? = None
+            while (true) {
+                when (decoder.nextEvent()) {
+                    case Some(Http1Event.Response(head)) -> response = Some(head)
+                    case Some(Http1Event.Trailers(fields)) -> assertEquals(0L, fields.size)
+                    case Some(Http1Event.End(_)) -> return@use (response!!, buffer.readBytes(buffer.readableBytes))
+                    case Some(_) -> fail(Some("unexpected upgrade body event"))
+                    case None -> {
+                        if (buffer.readableBytes == 0L) {
+                            buffer.clear()
+                            assertTrue(source.readInto(buffer, buffer.writableBytes) > 0L)
+                        }
+                        assertTrue(decoder.receive(buffer) > 0L)
+                    }
+                }
+            }
+        }
+    }

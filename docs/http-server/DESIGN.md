@@ -2,7 +2,7 @@
 
 日期：2026-10-24
 
-状态：仓库内总体设计，正在分步实现；已交付范围见[实施记录](PROGRESS.md)，具体公共 API 合同见 [server 规范](../specs/SCOOP-HTTP-SERVER-SPEC.md)。
+状态：阶段 A～D7 已实现；交付与验证范围见[实施记录](PROGRESS.md)，具体公共 API 合同见 [server 规范](../specs/SCOOP-HTTP-SERVER-SPEC.md)。
 
 范围：在现有 Scoop HTTP、异步 I/O、TLS 和 Context 能力上建立应用层 HTTP server 库。本文不要求改编译器，不引入反射或通用 DI 容器。
 
@@ -746,11 +746,11 @@ SSE 属于活动 HTTP 请求，参与同一排空和 deadline。WebSocket 成功
 
 ### 15.3 H1 WebSocket 升级与会话
 
-**落点与 API。**提供拟议 `webSocket(options, onSession): HttpResult` 升级结果，onSession 为 `suspend (WebSocketContext, AsyncWebSocketSession) -> Unit`。WebSocketContext 只保存 requestId、route 模板、连接只读信息和实际选定子协议等会话快照。需要 principal／tenant 时由 handler 先复制业务值并在会话函数中显式绑定；不传入可继续写 HTTP 的 HttpContext。
+**落点与 API。**提供 `webSocket(options, onSession): HttpResult` 升级结果，onSession 为 `suspend (WebSocketContext, AsyncWebSocketSession) -> Unit`。WebSocketContext 只保存 requestId、route 模板、连接只读信息和实际选定子协议等会话快照。需要 principal／tenant 时由 handler 先复制业务值并在会话函数中显式绑定；不传入可继续写 HTTP 的 HttpContext。
 
-使用原有 WebSocketHandshake.parse／response、H1 takeTransport 及 AsyncWebSocketSession.takeOwnership，不在 server 重写握手或帧引擎。普通请求仍走路由和认证；只有端点明确返回升级结果才进入此分支。可在 GET handler 发现 HEAD 时返回普通结果；HEAD 的 GET 回退绝不执行升级，若仍返回升级结果则按方法拒绝，给出 405 和仅允许实际升级方法的 Allow。
+使用 WebSocketHandshake.parse／negotiateResponse、H1 takeTransport 及 AsyncWebSocketSession.takeOwnership，不在 server 重写握手或帧引擎。普通请求仍走路由和认证；只有端点明确返回升级结果才进入此分支。可在 GET handler 发现 HEAD 时返回普通结果；HEAD 的 GET 回退绝不执行升级，若仍返回升级结果则按方法拒绝，给出 405 和仅允许实际升级方法的 Allow。
 
-options 包含有序的子协议选择、是否要求选中子协议、显式 Origin 判定、既有 WebSocketSessionOptions 和可选 permessage-deflate 策略。Origin 默认不另作限制；浏览器会话站点应在端点配置允许来源，它不替代凭据验证。缺少 Origin 和非法 Origin 的处理必须由该策略明确，不能把缺失头当作已经可信。默认不启用压缩，启用时只选择已有后端可实际支持的提议；不接受任意扩展插件。
+options 包含有序的子协议选择、是否要求选中子协议、显式 Origin 判定、既有 WebSocketSessionOptions 和可选 permessage-deflate 策略。Origin 默认不另作限制；浏览器会话站点应在端点配置允许来源，它不替代凭据验证。缺少 Origin 和非法 Origin 的处理必须由该策略明确，不能把缺失头当作已经可信。实际 originAllowed 接收全部原始 Origin 字段，缺失为一个空列表；策略自行区分重复、非法与允许值。默认不启用压缩，启用时只选择已有后端可实际支持的提议；不接受任意扩展插件。
 
 **握手与所有权按下列顺序完成。**
 
@@ -761,7 +761,7 @@ options 包含有序的子协议选择、是否要求选中子协议、显式 Or
 5. 由创建于请求 Context 之外的连接任务，在 HTTP 管线退出后建立独立会话子作用域，调用 AsyncWebSocketSession.takeOwnership，再执行 onSession。工厂接管前失败由连接所有者关闭 transport，接管后由 session 负责；任何路径都释放预留名额。禁止从仍绑定请求 Context 的任务直接 launch 会话，以免继承已经关闭的请求对象。
 6. HTTP 收尾失败或停机在第 3～5 步获胜时，不启动业务会话，关闭已拥有的 transport 并完成登记清理。会话开始和排空检查使用同一登记边界，不出现 server 不知道的已升级连接。
 
-每个握手 helper 的结果在所属边界复用；只有追加字段可能改变了实际输出时才验证新增冲突，不完整重放已解析的握手。额外来源依据为 [RFC 6455 服务端握手](https://www.rfc-editor.org/rfc/rfc6455.html#section-4.2)，传输接管沿[现有异步会话规范](../specs/SCOOP-HTTP-WEBSOCKET-ASYNC-SPEC.md)。
+具体 API 见 [server 规范第 13 节](../specs/SCOOP-HTTP-SERVER-SPEC.md#13-h1-websocket-升级与会话)。negotiateResponse 同时返回响应与已检查的协商数据，不再用客户端 accept 重验自产输出。每个握手 helper 的结果在所属边界复用；只有追加字段可能改变了实际输出时才验证新增冲突，不完整重放已解析的握手。额外来源依据为 [RFC 6455 服务端握手](https://www.rfc-editor.org/rfc/rfc6455.html#section-4.2)，传输接管沿[现有异步会话规范](../specs/SCOOP-HTTP-WEBSOCKET-ASYNC-SPEC.md)。
 
 **会话完成。**onSession 正常返回时发起 1000 Close 并等待有限关闭；应用失败在传输允许时发 1011，server 排空发 1001，底层协议失败继续保留其原始 close code。不能发送 Close 时直接本地 close。对端主动关闭使用 awaitClosed 观察并取消仍等待外部服务的会话业务子任务；内部正常结束取消与业务真实异常分开。关闭观察在业务子任务外执行，避免来源发送或会话任务等待自身关闭。
 
@@ -961,7 +961,7 @@ B 可以先完成 H1 纵向闭环；C 完成后，D1～D6 中协议无关的能�
 - `scoop.http.server`：基础 router／pipeline／request／response／server；增量按 sse、multipart、websocket、compression、files、extract 模块组织。SSE、文件和压缩不会各自复制一套响应执行器。
 - `scoop.compression`、`scoop.asyncio`、core：复用其现有合同；HTTP 策略不进入压缩器、文件系统库或 runtime。
 
-以上阶段是实现建议，不占用或改写仓库既有里程碑编号。本次只交付 `docs/http-server/DESIGN.md` 的完整设计，不修改语言语义、runtime 契约或已发布库行为。
+以上阶段是实现建议，不占用或改写仓库既有里程碑编号。实际交付与定向验证记录见 [PROGRESS.md](PROGRESS.md)，已实现的公共行为以对应库规范为准。
 
 ## 17. 测试与性能验证
 

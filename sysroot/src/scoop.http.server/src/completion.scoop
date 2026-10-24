@@ -21,6 +21,8 @@ public class HttpConnectionInfo internal constructor(
 public enum HttpRequestOutcome {
     /** The pipeline and resource cleanup completed normally. */
     Completed,
+    /** An explicit protocol upgrade completed its HTTP pipeline and cleanup. */
+    Upgraded,
     /** Cooperative request cancellation, including deadline expiration. */
     Cancelled,
     /** An unrecovered pipeline or cleanup error. */

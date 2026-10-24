@@ -1,0 +1,41 @@
+package scoop.http.server
+
+import scoop.collections.HashSet
+import scoop.http.*
+import scoop.http.asyncio.*
+
+/** Explicit HTTP/1 upgrade policy and independent session configuration. */
+public class WebSocketOptions public constructor(
+    protocols: List<String> = ArrayList<String>(),
+    /** Rejects an upgrade when none of the configured protocols was offered. */
+    public val requireProtocol: Boolean = false,
+    /** Receives every original Origin field; absence, duplicates and invalid values remain explicit. */
+    public val originAllowed: (List<HttpField>) -> Boolean = { _ -> true },
+    /** Bounded frame buffers and the finite WebSocket close deadline. */
+    public val session: WebSocketSessionOptions = WebSocketSessionOptions(),
+    /** Optional compression response policy; unmatched offers leave compression disabled. */
+    public val deflate: WebSocketDeflate? = None
+) {
+    /** Case-sensitive subprotocol tokens in server preference order. */
+    public val protocols: Array<String> = protocols.toArray()
+    init {
+        val seen = HashSet<String>()
+        for (protocol in this.protocols) if (!isHttpToken(protocol) || !seen.add(protocol))
+            throw IllegalArgumentException(Some("invalid or duplicate WebSocket subprotocol"))
+        if (present(deflate) && deflate!!.serverMaxWindowBits == Some(8))
+            throw IllegalArgumentException(Some("WebSocket server compression requires window bits 9 through 15"))
+    }
+}
+
+/** Deferred upgrade policy and a callback that acquires its own session resources. */
+public class HttpWebSocketBody internal constructor(
+    /** The endpoint's explicit negotiation and session options. */
+    public val options: WebSocketOptions,
+    /** Runs after HTTP cleanup, outside the request Context and deadline. */
+    public val onSession: suspend (WebSocketContext, AsyncWebSocketSession) -> Unit
+)
+
+/** Requests an HTTP/1.1 upgrade; the session callback starts only after the HTTP pipeline exits. */
+public fun webSocket(options: WebSocketOptions = WebSocketOptions(),
+    onSession: suspend (WebSocketContext, AsyncWebSocketSession) -> Unit): HttpResult =
+    HttpResult(101U, body = HttpBody.WebSocket(HttpWebSocketBody(options, onSession)), allowCompression = false)

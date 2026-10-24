@@ -1,0 +1,61 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class ServerWebSocketShutdownTests {
+    @Test
+    fun `graceful server drain sends 1001 and waits for session work to finish`() {
+        val entered = ServerTestGate(); val never = ServerTestGate(); val cleaned = TestCounter()
+        val completed = ServerWebSocketCompletions()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> webSocket(onSession = suspend { _, _ ->
+            try { entered.signal(); never.await() } finally { cleaned.value += 1 }
+        }) })
+        withServer(routes.build(), HttpServerOptions(onWebSocketCompleted = Some(completed::receive)), suspend { scope, server, address ->
+            serverWebSocketClient(address, scope).useAsync suspend { session ->
+                entered.await(); server.shutdownGracefully(Duration.seconds(1)); session.awaitClosed()
+                assertEquals(Some(1001U), session.peerClose!!.code)
+                assertEquals(1, cleaned.value); assertTrue(server.isClosed)
+                val result = completed.snapshot()[0L]
+                assertEquals(HttpWebSocketOutcome.Cancelled, result.outcome)
+                assertEquals(Some(1001U), result.sentClose!!.code); assertFalse(present(result.failure))
+            }
+        })
+    }
+
+    @Test
+    fun `forced close and expired grace join actual suspended session cleanup`() {
+        for (graceful in [false, true]) {
+            val entered = ServerTestGate(); val never = ServerTestGate(); val cleaning = ServerTestGate(); val release = ServerTestGate()
+            val completed = ServerWebSocketCompletions()
+            val routes = RouterBuilder()
+            routes.get("/", suspend { _ -> webSocket(onSession = suspend { _, _ ->
+                try { entered.signal(); never.await() }
+                finally { nonCancellableScope<Unit> suspend { _ -> cleaning.signal(); release.await() } }
+            }) })
+            withServer(routes.build(), HttpServerOptions(onWebSocketCompleted = Some(completed::receive)), suspend { scope, server, address ->
+                networkClient(address, scope).useAsync suspend { client ->
+                    client.sendRequest(serverWebSocketRequest()).finish()
+                    assertEquals(101U, client.receiveResponse().head.status); entered.await()
+                    client.takeTransport().useAsync suspend { _ ->
+                        val first = scope.async<Unit> suspend {
+                            if (graceful) server.shutdownGracefully(Duration.milliseconds(5)) else server.close()
+                        }
+                        try {
+                            cleaning.await()
+                            val second = scope.async<Unit> suspend { server.close() }
+                            assertFalse(first.isCompleted); assertFalse(second.isCompleted); assertFalse(server.isClosed)
+                            assertEquals(0L, completed.snapshot().size); release.signal(); second.await()
+                        } finally { release.signal() }
+                        first.await(); assertTrue(server.isClosed)
+                        assertEquals(HttpWebSocketOutcome.Cancelled, completed.snapshot()[0L].outcome)
+                    }
+                }
+            })
+        }
+    }
+}

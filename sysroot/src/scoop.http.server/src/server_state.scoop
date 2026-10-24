@@ -9,6 +9,7 @@ internal class ServerConnection(val transport: AsyncTcpStream) {
     var job: Job? = None
     var active: Long = 0L
     var http2: ServerHttp2? = None
+    var webSocket: ServerWebSocket? = None
     var info: HttpConnectionInfo = HttpConnectionInfo(transport.localAddress, transport.peerAddress, HttpProtocol.Http1)
 }
 
@@ -20,6 +21,7 @@ internal class ServerState(val listener: AsyncTcpListener, val application: Http
     var failure: Throwable? = None
     val connections: ArrayList<ServerConnection> = ArrayList<ServerConnection>()
     var requests: Long = 0L
+    var webSockets: Long = 0L
     private var nextId: ULong = 0UL
 
     fun running(): Boolean = lock.withLock { phase == ServerPhase.Running }
@@ -61,7 +63,9 @@ internal class ServerState(val listener: AsyncTcpListener, val application: Http
             if (graceful) for (connection in connections) {
                 val http2 = connection.http2
                 val job = connection.job
-                if (present(http2)) pending.add { http2!!.requestDrain() }
+                val webSocket = connection.webSocket
+                if (present(webSocket)) pending.add { webSocket!!.requestDrain() }
+                else if (present(http2)) pending.add { http2!!.requestDrain() }
                 else if (connection.active == 0L && present(job)) pending.add { job!!.cancel() }
             }
             pending.toArray()

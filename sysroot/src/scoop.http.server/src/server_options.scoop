@@ -18,6 +18,8 @@ public class HttpServerOptions public constructor(
     public val maxConnections: Long = 1024L,
     /** Maximum concurrent application requests, including response execution and cleanup. */
     public val maxActiveRequests: Long = 256L,
+    /** Maximum reserved or active upgraded sessions, held until their cleanup ends. */
+    public val maxWebSocketSessions: Long = maxConnections,
     /** Default maximum body input bytes, or None for no total input limit. */
     public val requestBodyLimit: Long? = Some(8388608L),
     /** Default maximum bytes collected by aggregate body helpers. */
@@ -50,11 +52,13 @@ public class HttpServerOptions public constructor(
     public val http2Settings: Http2Settings = Http2Settings(),
     /** Observes a completed request snapshot after its resources have been released. */
     public val onRequestCompleted: ((HttpRequestCompletion) -> Unit)? = None,
+    /** Observes an upgraded session only after business work and transport cleanup have ended. */
+    public val onWebSocketCompleted: ((HttpWebSocketCompletion) -> Unit)? = None,
     /** Observes isolated connection failures without controlling another connection. */
     public val onConnectionError: ((HttpConnectionInfo, Throwable) -> Unit)? = None
 ) {
     init {
-        if (maxConnections <= 0L || maxActiveRequests <= 0L || bufferedBodyLimit < 0L)
+        if (maxConnections <= 0L || maxActiveRequests <= 0L || maxWebSocketSessions <= 0L || bufferedBodyLimit < 0L)
             throw IllegalArgumentException(Some("invalid HTTP server capacity"))
         if (present(requestBodyLimit) && requestBodyLimit!! < 0L)
             throw IllegalArgumentException(Some("negative request body limit"))

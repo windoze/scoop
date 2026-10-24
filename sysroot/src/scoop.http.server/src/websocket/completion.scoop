@@ -1,0 +1,42 @@
+package scoop.http.server
+
+import scoop.http.WebSocketClose
+import scoop.time.Duration
+
+/** Immutable upgrade facts without an HTTP request, response or request-scoped resource. */
+public class WebSocketContext internal constructor(
+    /** The identifier of the completed upgrade request. */
+    public val requestId: String,
+    /** The selected endpoint metadata. */
+    public val route: HttpRouteInfo?,
+    /** The underlying connection's immutable protocol and TLS facts. */
+    public val connection: HttpConnectionInfo,
+    /** The actually selected subprotocol, or None. */
+    public val protocol: String?
+)
+
+/** A WebSocket connection's outcome after all local cleanup has completed. */
+public enum HttpWebSocketOutcome {
+    /** Business work and session cleanup ended without failure. */
+    Completed,
+    /** Server drain or cooperative cancellation ended the session. */
+    Cancelled,
+    /** Application, protocol, transport or cleanup failed. */
+    Failed
+}
+
+/** Final facts for an upgraded connection, including handoffs stopped before business work starts. */
+public class HttpWebSocketCompletion internal constructor(
+    /** The independent upgrade snapshot. */
+    public val context: WebSocketContext,
+    /** Time from upgrade reservation through actual session and transport cleanup. */
+    public val elapsed: Duration,
+    /** The peer Close frame, if received. */
+    public val peerClose: WebSocketClose?,
+    /** The local Close frame, if sent. */
+    public val sentClose: WebSocketClose?,
+    /** The final lifecycle outcome. */
+    public val outcome: HttpWebSocketOutcome,
+    /** The original terminal failure, absent for clean completion or graceful drain. */
+    public val failure: Throwable?
+)

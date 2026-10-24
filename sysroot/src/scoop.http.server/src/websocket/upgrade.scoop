@@ -1,0 +1,37 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.http.asyncio.*
+
+internal suspend fun executeWebSocketResponse(ctx: HttpContext, result: HttpResult, body: HttpWebSocketBody, minimal: Boolean) {
+    if (ctx.request.method != "GET") throw HttpRejection(empty(405U, [field("Allow", "GET")]))
+    if (ctx.request.head.version != HttpVersion.Http11 || !(ctx.output is Http1ResponseOutput))
+        reject(400U, "WebSocket requires HTTP/1.1")
+    val output = ctx.output as Http1ResponseOutput
+    val handshake = parseServerWebSocket(ctx)
+    if (!output.incoming.body.isComplete) reject(400U, "WebSocket request body is incomplete")
+    if (!body.options.originAllowed(ctx.request.head.fields.findAll("Origin".toByteArray())))
+        reject(403U, "WebSocket origin rejected")
+    val protocol = selectWebSocketProtocol(handshake, body.options)
+    val deflate = selectWebSocketDeflate(handshake, body.options)
+    val snapshot = WebSocketContext(ctx.requestId, ctx.route, ctx.connection, protocol)
+    val value = ServerWebSocket(snapshot, body)
+    reserveWebSocket(output.state, output.entry, value)
+    try {
+        val draft = ctx.response.prepare(result, minimal)
+        requireWebSocketDraft(draft)
+        val response = handshake.negotiateResponse(protocol, deflate, draft.fields)
+        if (!output.state.running()) reject(503U, "HTTP server is draining")
+        ctx.response.commit(101U)
+        if (!output.started.compareAndSet(false, true)) throw IllegalStateException(Some("HTTP/1 response already started"))
+        val writer = output.connection.sendResponse(response.head, Http1BodyFraming.Empty)
+        writer.finish(); writer.flush()
+        value.upgraded = true
+        val transport = output.connection.takeTransport()
+        value.pending = Some(PendingWebSocket(transport, response.negotiation))
+        ctx.response.finish()
+    } catch (error: Throwable) {
+        if (!value.upgraded) releaseWebSocket(output.state, output.entry)
+        throw error
+    }
+}

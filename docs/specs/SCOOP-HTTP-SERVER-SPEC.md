@@ -1,6 +1,6 @@
 # Scoop HTTP server 库规范
 
-状态：按[设计](../http-server/DESIGN.md)分步实施，已完成范围与验证记录见[进度](../http-server/PROGRESS.md)。本文规定普通 Cone `scoop:scoop.http.server:0.1.0` 的应用层合同。协议与异步传输继续遵守 [HTTP 规范](SCOOP-HTTP-SPEC.md)，不增加编译器或 runtime 特例。
+状态：[设计](../http-server/DESIGN.md)阶段 A～D7 已实现，验证范围见[实施记录](../http-server/PROGRESS.md)。本文规定普通 Cone `scoop:scoop.http.server:0.1.0` 的应用层合同。协议与异步传输继续遵守 [HTTP 规范](SCOOP-HTTP-SPEC.md)，不增加编译器或 runtime 特例。
 
 ## 1. 请求分派与依赖
 
@@ -160,6 +160,22 @@ staticFiles(root, StaticFileOptions) 是显式挂到末尾通配路由的 handle
 
 路径从已解码的原始片段逐段构造，保留非 UTF-8 文件名，不从已拼接的解码尾串重新切分或再次百分号解码。拒绝中间空片段、点／点点、NUL、斜线／反斜线和驱动器前缀，输入无效为 400。末尾空片段只表示必须是目录，显式首页才可产生文件结果，否则为 404。路径拼接不检查 owner、权限位、inode、canonical path 或 symlink 来源；链接遵守普通 OS 语义，不承诺 root 是隔离沙箱。
 
-## 13. 分步交付与验证
+## 13. H1 WebSocket 升级与会话
+
+webSocket(WebSocketOptions, onSession) 创建明确的 HttpBody.WebSocket 结果，状态必须为 101；普通结果仍只接受 200～599。onSession 为 suspend (WebSocketContext, AsyncWebSocketSession) -> Unit。WebSocketContext 仅保存 requestId、route、connection 和实际选定的 protocol，不保存 HttpContext 或其资源。业务值由 handler 复制后显式捕获／绑定；会话自行取得其资源。HTTP 完成结果新增 Upgraded，成功 101 的耗时到 HTTP 清理结束为止。
+
+WebSocketOptions 的 protocols 保存有序、区分大小写、无重复的 token；按服务端顺序选择首个客户端提议，requireProtocol 默认 false，为 true 且未匹配时拒绝 400。originAllowed 接收原始 Origin 字段列表，缺失为空列表，重复或非文本值也原样交给策略；默认返回 true，不推断来源可信。应用显式处理缺失与非法值，返回 false 为 403，策略抛出的业务异常保持普通错误映射。session 为既有 WebSocketSessionOptions；deflate 默认 None，显式配置时选择首个满足该响应参数的有效提议，无匹配则不启用。当前压缩后端不支持发送窗口 8，配置在构造时拒绝，不等到 101 后失败；接收窗口沿原异步会话合同。
+
+只有实际 H1.1 GET 且输入 body 已定界完成才能升级。HEAD 的 GET 回退若仍返回升级结果，产生 405、Allow: GET，绝不启动会话；其他非 GET 同样拒绝。H1.0／H2 的该结果为 400；普通 CONNECT 仍按第 2 节处理，不新增 H2 Extended CONNECT。WebSocketHandshake.parse 只调用一次；格式失败为 400，类型化 UnsupportedVersion 为 426、Sec-WebSocket-Version: 13，保留原异常 cause。
+
+HttpServerOptions.maxWebSocketSessions 为正且默认跟随 maxConnections，限制活动和已预留会话；没有额外等待队列。握手通过后在 server 状态锁内检查 Running 并预留名额；容量已满或排空为 503。普通响应字段与 beforeCommit 正常执行，草稿仍须为 101；握手保留字段、body 定界、Trailer／Content-Encoding 等冲突报程序错误。随后调用 negotiateResponse 一次生成实际响应及协商数据。再确认可交接，提交 101、finish／flush 后 takeTransport，保存完整预读后缀；提交后失败不能发送第二个 HTTP 响应，失败与取消释放预留名额。
+
+已交接的 transport 立即属于原连接登记；H1 wrapper 不再拥有它。HTTP 管线、middleware、请求子任务和请求 body 视图先结束，记录请求完成并释放请求名额。连接任务在请求 Context 之外建立独立会话作用域，再调用 AsyncWebSocketSession.takeOwnership；HTTP deadline 不延长到会话。若 HTTP 清理失败或排空已经获胜，关闭待开始 transport，不调用 onSession。开始检查和排空沿同一个 server 登记锁，maxConnections 持续占用到实际会话结束。
+
+会话业务任务与关闭观察任务分离：正常返回以 1000 有限关闭，独立业务失败在传输允许时以 1011 关闭，排空以 1001 关闭；并发关闭保留底层首次 Close。awaitClosed 在业务任务外等待，peer Close／协议失败结束会话后取消仍等待外部工作的业务任务，并等待其真实清理。内部为完成观察而发出的取消不伪造业务失败；普通协议／I/O／应用错误保持原原因。强制 close 取消整个连接，会话沿底层取消合同关闭；宽限期届满同样等待实际资源收尾。
+
+onWebSocketCompleted 非挂起观察 HttpWebSocketCompletion，包含独立 context 快照、耗时、peerClose、sentClose、Completed／Cancelled／Failed outcome 及原始 failure。在业务、会话和 transport 真正结束后调用，观察器失败不替换主失败。已发送 101 但 HTTP 清理／交接期排空失败同样产生会话终态快照；未升级的普通拒绝只产生 HTTP 完成通知。会话名额在所有路径释放，单条会话的失败不结束其他连接。
+
+## 14. 分步交付与验证
 
 接入、超时与停机、SSE、multipart、WebSocket、压缩、文件和 DTO 的完整范围保持设计第 12～17 节，按完成的功能逐项扩充本规范。尚未实现的功能不公开占位 API。测试用所属 Cone 的 release 测试；只有 CLI／诊断／外部对端等必要边界使用 fixture。协议引擎的既有验证不在 server 重放。

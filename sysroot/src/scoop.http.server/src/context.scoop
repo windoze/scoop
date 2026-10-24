@@ -53,6 +53,7 @@ public class HttpContext internal constructor(
             requestJob.ensureActive()
             when (result.body) {
                 case HttpBody.File(value) -> executeFileResponse(this, result, value, minimal)
+                case HttpBody.WebSocket(value) -> executeWebSocketResponse(this, result, value, minimal)
                 else -> {
                     val draft = response.prepare(result, minimal)
                     executeResponse(this, prepareResponse(this, result, draft, minimal))

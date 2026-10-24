@@ -1,0 +1,89 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+
+private class WebSocketPrincipal(val name: String)
+context(principal: WebSocketPrincipal)
+private fun webSocketPrincipalName(): String = principal.name
+context(ctx: HttpContext)
+private fun webSocketHttpRequestId(): String = ctx.requestId
+
+@Test
+private class ServerWebSocketLifecycleTests {
+    @Test
+    fun `HTTP cleanup and completion precede a session without request Context or deadline`() {
+        val cleaned = TestCounter(); val http = ServerTestCompletions(); val completed = ServerWebSocketCompletions()
+        val routes = RouterBuilder()
+        routes.use(suspend { _, next ->
+            context(WebSocketPrincipal("alice")) { try { next() } finally { cleaned.value += 1 } }
+        })
+        routes.get("/", suspend { ctx ->
+            val principal = webSocketPrincipalName(); val id = ctx.requestId
+            webSocket(onSession = suspend { info, session ->
+                assertEquals(1, cleaned.value); assertEquals(1L, http.snapshot().size)
+                assertEquals(HttpRequestOutcome.Upgraded, http.snapshot()[0L].outcome)
+                assertEquals(id, info.requestId); assertEquals("/", info.route!!.template)
+                assertFailsWith<MissingContextException> { webSocketHttpRequestId() }
+                assertFailsWith<MissingContextException> { webSocketPrincipalName() }
+                currentEventLoop().sleep(Duration.milliseconds(140))
+                session.sendText(principal)
+            })
+        })
+        val options = HttpServerOptions(requestDeadline = Some(Duration.milliseconds(100)),
+            onRequestCompleted = Some(http::receive), onWebSocketCompleted = Some(completed::receive))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            serverWebSocketClient(address, scope).useAsync suspend { session ->
+                assertEquals("alice", session.receive()!!.readText()); session.awaitClosed()
+                completed.ready.await()
+                assertEquals(HttpWebSocketOutcome.Completed, completed.snapshot()[0L].outcome)
+                assertFalse(present(completed.snapshot()[0L].failure))
+            }
+        })
+    }
+
+    @Test
+    fun `peer closure cancels external work and completion waits for its suspended cleanup`() {
+        val entered = ServerTestGate(); val never = ServerTestGate(); val cleaning = ServerTestGate(); val release = ServerTestGate()
+        val completed = ServerWebSocketCompletions()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> webSocket(onSession = suspend { _, _ ->
+            try { entered.signal(); never.await() }
+            finally { nonCancellableScope<Unit> suspend { _ -> cleaning.signal(); release.await() } }
+        }) })
+        withServer(routes.build(), HttpServerOptions(onWebSocketCompleted = Some(completed::receive)), suspend { scope, _, address ->
+            serverWebSocketClient(address, scope).useAsync suspend { session ->
+                entered.await()
+                try {
+                    session.shutdownGracefully(WebSocketClose(Some(1000U), "peer finished"))
+                    cleaning.await(); assertEquals(0L, completed.snapshot().size)
+                } finally { release.signal() }
+                completed.ready.await()
+                val result = completed.snapshot()[0L]
+                assertEquals(HttpWebSocketOutcome.Completed, result.outcome)
+                assertEquals("peer finished", result.peerClose!!.reason)
+                assertFalse(present(result.failure))
+            }
+        })
+    }
+
+    @Test
+    fun `application failure sends 1011 preserves its cause and leaves other connections usable`() {
+        val failure = IllegalStateException(Some("session application failure"))
+        val completed = ServerWebSocketCompletions()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> webSocket(onSession = suspend { _, _ -> throw failure }) })
+        routes.get("/health", suspend { _ -> text("healthy") })
+        withServer(routes.build(), HttpServerOptions(onWebSocketCompleted = Some(completed::receive)), suspend { scope, _, address ->
+            serverWebSocketClient(address, scope).useAsync suspend { session ->
+                session.awaitClosed(); completed.ready.await()
+                assertEquals(Some(1011U), session.peerClose!!.code)
+                val result = completed.snapshot()[0L]
+                assertEquals(HttpWebSocketOutcome.Failed, result.outcome); assertSame(failure, result.failure!!)
+            }
+            networkClient(address, scope).useAsync suspend { client -> assertEquals("healthy", requestText(client, "/health")) }
+        })
+    }
+}

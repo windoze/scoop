@@ -13,7 +13,7 @@ internal suspend fun executeHttp1Request(state: ServerState, entry: ServerConnec
     connection: AsyncHttp1Connection, incoming: Http1IncomingRequest, requestId: String) {
     val started = MonotonicTimeSource.markNow()
     val result = RequestExecution()
-    val output = Http1ResponseOutput(state, connection, incoming)
+    val output = Http1ResponseOutput(state, entry, connection, incoming)
     val expectations = RequestExpectations(incoming.head.fields)
     val source = Http1RequestInput(connection, incoming, output, expectations)
     val body = HttpRequestBody(source, state.options.requestBodyLimit, incoming.head.fields, state.options.bufferedBodyLimit)
@@ -44,7 +44,9 @@ internal fun completeServerRequest(state: ServerState, result: RequestExecution,
     if (!present(result.context) || !present(state.options.onRequestCompleted)) return
     val ctx = result.context!!
     val error = result.failure
-    val outcome = if (!present(error)) HttpRequestOutcome.Completed
+    val outcome = if (!present(error)) {
+        if (ctx.response.status == Some(101U)) HttpRequestOutcome.Upgraded else HttpRequestOutcome.Completed
+    }
         else if (error!! is CancellationException || error!! is HttpServerTimeoutException || cancelledByStream) HttpRequestOutcome.Cancelled
         else HttpRequestOutcome.Failed
     val received = ctx.request.body.receivedBytes

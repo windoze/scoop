@@ -14,9 +14,10 @@
 - 已完成 D5：请求解压策略、反向编码链、raw／decoded 唯一消费、各层实际输出限制、尾部校验与请求收尾。
 - 路由级 deadline 覆盖已完成，端点／middleware 可在提交前调用 HttpContext.setDeadline 调整或关闭本次请求总时限。
 - 已完成 D6：延迟文件结果、原生字节静态路径、条件短路、单区间与同句柄有限发送。
-- 后续仍需实现 D7。服务端 mTLS／动态 SNI、HTTP/3 不在本次范围内。
+- 已完成 D7：H1／WSS 明确升级、前缀交接、独立会话、子协议／Origin／deflate、容量、关闭与排空。
+- 阶段 A～D7 已实现。服务端 mTLS／动态 SNI、HTTP/3 与 H2 WebSocket 不在本次范围内。
 - 每个功能验证后独立提交；本机采用定向 release Cone 测试，避免重复全量测试。
-- Linux 工作目录为 `nuc12:~/repos/scoop-http-server-work`；最终串行运行一组最小库验证，不跑完整套件或大规模性能测试。
+- Linux 工作目录为 `nuc12:~/repos/scoop-http-server-work`；已串行运行一组最小库验证，未跑完整套件或大规模性能测试。
 - 本机辅助工作及原始日志位于 `~/scoop-work/http-server`，所有命令的临时目录显式放在其 scratch 下，不使用系统 `/tmp`。
 - 2026-10-24 清理旧 `target/fixture-cache` 和 `target/debug/incremental`，保留 release 命令及开发 sysroot。
 - H1 验证后清理未使用的 `target/debug` 和已验证的 HTTP 消息测试产物，`target` 降至约 5 GiB；保留当前 server cache、release 命令和预编译 sysroot。
@@ -36,7 +37,7 @@
 - H2 API 文档检查通过，源码按协议选择、活动状态、观测等待、请求与 I/O 拆分；新增生产文件均不足 100 行。HTTP／HTTP asyncio／HTTP client／server 开发产物已更新。
 - 独立预编译 consumer 的 H1／H2 2／2 release 测试通过；H2 经公开选项接入、执行流式响应并完成优雅停机；强制关闭调整后重新发布，H2 consumer 定向复验 1／1 通过。
 - 清理已验证的底层 HTTP／HTTP asyncio 测试产物及旧可执行缓存约 1.8 GiB，保留 release 工具、当前 server／consumer 程序和编译缓存。
-- Linux 尚未验证；在完整库功能就绪后串行运行最小验证集合。
+- Linux 最小验证记录见本记录末尾；没有运行完整库／编译器套件或性能测试。
 
 - SSE 发送底层：HTTP 编码器 4／4、异步 sink 3／3 定向 release 测试通过，两个 Cone 的 API 文档检查通过。覆盖标准字节向量、逐字节 UTF-8、多行与空值、ID／retry／注释、短写、flush、原始失败及关闭等待真实 buffer borrow；不重复全量协议测试。
 - 请求期限覆盖：新增 3 个用例，连同 H2 deadline、H1 生命周期和管线共 20／20 定向 release 测试通过；API 文档检查通过。验证 H1／H2 延长或关闭默认时限、从原始起点启用期限、等待取消清理及 H2 流隔离，不重跑完整库套件。
@@ -54,4 +55,7 @@
 - D6 条件求值底层：新增 evaluateHttpPreconditions，4／4 定向 release 测试和 API 文档检查通过。覆盖条件优先级、强／弱标签、无标签的表示存在性、方法适用性、秒精度和显式日期参考、重复标签字段与仅解析生效条件；无文件／缓存 I/O。
 - D6 server：新增 13／13 定向 release 测试通过；压缩 10／10、路由 6／6、管线 8／8、H2 生命周期 4／4、请求解压生命周期 1／1 回归通过。覆盖同一打开句柄的 metadata／读取、增长封顶与截短失败、HEAD／304 不读取、最终草稿条件、单 Range／416／回退、If-Range 强校验、已编码文件、原生路径字节、单次 URL 解码、显式目录索引和普通 symlink 语义。H1／H2 真实网络验证并发文件位置及取消背压传输；H2 已取消请求保留原始 stream 异常并正确记录 Cancelled。macOS 无法创建的非 UTF-8 文件名按实际 OS 错误映射，不假定所有文件系统都接受该名字。
 - D6 API 文档检查通过，发布 server 开发产物；独立文件 consumer 1／1 release 验证通过，消费公开 file／staticFiles 的范围与条件响应。新增生产文件最长 59 行；清理 5 个旧可执行缓存，保留当前 server／consumer 程序及编译缓存，未运行全量套件。
-- D7 握手底层：新增类型化 UnsupportedVersion 和 negotiateResponse，2／2 新测试及握手／协商／deflate 13／13 定向 release 回归通过，API 文档检查通过。合法不支持版本与缺失／重复／非法字段区分；构造一次 101 即保留实际协商数据，server 无需再次用客户端 accept 校验自产响应。会话接入仍在实施。
+- D7 握手底层：新增类型化 UnsupportedVersion 和 negotiateResponse，2／2 新测试及握手／协商／deflate 13／13 定向 release 回归通过，API 文档检查通过。合法不支持版本与缺失／重复／非法字段区分；构造一次 101 即保留实际协商数据，server 无需再次用客户端 accept 校验自产响应。
+- D7 server：17／17 定向 release 测试通过；管线 8／8、H1 网络 4／4、原生命周期 6／6、TLS 2／2、H2 生命周期 4／4、H2 停机 3／3 回归通过。覆盖配置／握手拒绝、Origin、子协议偏好、Cookie／beforeCommit、保留字段冲突、真实同批首帧前缀、WSS、碎片化压缩双向消息与 ping、会话容量／请求名额释放。独立会话不继承 HttpContext／业务 Context／请求 deadline，HTTP 清理先于业务；peer Close 取消外部等待，1011 保留业务原因，1001 排空，强制 close／宽限届满及交接期竞争均等待真实清理。
+- D7 API 文档检查与预编译发布通过，新增生产文件最长 66 行。macOS 独立 consumer 的 H1／H2／文件 3／3 通过，WebSocket consumer 改为等待服务端完成通知后停机，定向复验 1／1 通过；不把客户端完成等同于服务端已清理。清理 31 个旧的大型编译条目、6 个旧可执行缓存和已验证的 HTTP 测试目录，target 从约 15 GiB 降至 8.3 GiB，保留当前 server／consumer、release 工具与近期编译缓存。
+- Linux/GNU：在 `nuc12:~/repos/scoop-http-server-work` 复用既有宿主工具和目标基础资源，独立构建本次 HTTP／HTTP asyncio／server 库，server 与 consumer API 文档检查通过。串行运行 H1 提取／gzip、H2 SSE／gzip multipart、文件条件／范围、认证与协商压缩 WebSocket 共 4／4 consumer 测试通过；完成通知时序修正后的 WebSocket 单项复验 1／1 通过。没有修改原仓库的正在开发内容；只验证本次库的最小消费闭环，不运行完整套件或大规模性能测试。本次未运行 musl 目标或完整发行打包。

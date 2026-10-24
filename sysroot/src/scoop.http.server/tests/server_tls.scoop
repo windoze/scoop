@@ -11,7 +11,7 @@ import scoop.time.Duration
 import scoop.tls.*
 import scoop.tls.asyncio.*
 
-private fun testServerTls(protocol: String = "http/1.1"): TlsServerContext = Certificate.fromPem(serverPem()).use { leaf ->
+internal fun testServerTls(protocol: String = "http/1.1"): TlsServerContext = Certificate.fromPem(serverPem()).use { leaf ->
     Certificate.fromPem(intermediatePem()).use { intermediate ->
         PrivateKey.fromPem(serverKeyPem()).use { key ->
             TlsServerContext([leaf, intermediate], key, TlsOptions(alpn = [protocol.toByteArray()]))
@@ -19,7 +19,7 @@ private fun testServerTls(protocol: String = "http/1.1"): TlsServerContext = Cer
     }
 }
 
-private fun testClientTls(alpn: Boolean, protocol: String = "http/1.1"): TlsClientContext = Certificate.fromPem(rootPem()).use { root ->
+internal fun testClientTls(alpn: Boolean, protocol: String = "http/1.1"): TlsClientContext = Certificate.fromPem(rootPem()).use { root ->
     TrustStore.fromCertificates([root]).use { store ->
         TlsClientContext(store, TlsOptions(alpn = if (alpn) [protocol.toByteArray()] else Array<Array<Byte>>(0L) { _ -> [] }))
     }

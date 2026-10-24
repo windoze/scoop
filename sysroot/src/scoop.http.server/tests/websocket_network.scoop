@@ -1,0 +1,86 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.tls.TlsPeerName
+import scoop.tls.asyncio.AsyncTlsStream
+
+@Test
+private class ServerWebSocketNetworkTests {
+    @Test
+    fun `fragmented bidirectional messages ping and deflate use the negotiated session`() {
+        val options = WebSocketSessionOptions(inputBufferBytes = 17L, outgoingFrameBytes = 19L,
+            incomingLimits = WebSocketFrameLimits(dataChunkBytes = 13L))
+        val deflate = WebSocketDeflate(serverNoContextTakeover = true, clientNoContextTakeover = true)
+        val payload = String.fromUtf8(Array<Byte>(32768L) { index -> (97L + index % 23L).toByte() })
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> webSocket(WebSocketOptions(session = options, deflate = Some(deflate)), suspend { _, session ->
+            assertTrue(present(session.deflate))
+            assertEquals(payload, session.receive()!!.readText())
+            session.sendText(payload)
+            assertEquals("plain", session.receive()!!.readText())
+            session.sendText("plain", compress = false)
+        }) })
+        val offer = WebSocketDeflateOffer(clientNoContextTakeover = true, clientMaxWindowBits = WebSocketWindowBits.Any)
+        withServer(routes.build(), block = suspend { scope, _, address ->
+            val request = serverWebSocketRequest(fields = [offer.toExtension().toHttpField()])
+            serverWebSocketClient(address, scope, request, options).useAsync suspend { session ->
+                assertTrue(present(session.deflate))
+                session.ping("ping".toByteArray())
+                session.sendText(payload)
+                assertEquals(payload, session.receive()!!.readText())
+                session.sendText("plain", compress = false)
+                assertEquals("plain", session.receive()!!.readText()); session.awaitClosed()
+                assertEquals(Some(1000U), session.peerClose!!.code)
+            }
+        })
+    }
+
+    @Test
+    fun `unmatched compression offers fall back and WSS preserves negotiated TLS information`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> webSocket(WebSocketOptions(deflate = Some(WebSocketDeflate())), suspend { info, session ->
+            assertTrue(present(info.connection.tls)); assertEquals(HttpProtocol.Http1, info.connection.protocol)
+            assertFalse(present(session.deflate)); session.sendText("secure websocket")
+        }) })
+        testServerTls().use { serverTls ->
+            testClientTls(true).use { clientTls ->
+                withServer(routes.build(), HttpServerOptions(tls = Some(serverTls)), suspend { scope, _, address ->
+                    val raw = currentEventLoop().connectTcp(address)
+                    val tls = AsyncTlsStream.takeOwnershipAsClient(raw, clientTls, TlsPeerName.Dns("localhost"))
+                    AsyncHttp1Connection.takeOwnershipAsClient(tls, scope).useAsync suspend { client ->
+                        val offer = WebSocketDeflateOffer(serverMaxWindowBits = Some(8))
+                        val request = serverWebSocketRequest(fields = [offer.toExtension().toHttpField()])
+                        upgradeServerTestClient(client, scope, request).useAsync suspend { session ->
+                            assertFalse(present(session.deflate))
+                            assertEquals("secure websocket", session.receive()!!.readText()); session.awaitClosed()
+                        }
+                    }
+                })
+            }
+        }
+    }
+
+    @Test
+    fun `session capacity includes upgraded connections while HTTP request capacity is released`() {
+        val entered = ServerTestGate(); val never = ServerTestGate()
+        val completed = ServerWebSocketCompletions()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> webSocket(onSession = suspend { _, _ -> entered.signal(); never.await() }) })
+        routes.get("/health", suspend { _ -> text("healthy") })
+        val options = HttpServerOptions(maxWebSocketSessions = 1L, maxActiveRequests = 1L,
+            onWebSocketCompleted = Some(completed::receive))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            serverWebSocketClient(address, scope).useAsync suspend { first ->
+                entered.await()
+                assertEquals(503U, websocketStatus(address, scope, serverWebSocketRequest()).status)
+                networkClient(address, scope).useAsync suspend { client -> assertEquals("healthy", requestText(client, "/health")) }
+                first.shutdownGracefully(); completed.ready.await()
+                serverWebSocketClient(address, scope).useAsync suspend { second -> second.shutdownGracefully() }
+            }
+        })
+    }
+}

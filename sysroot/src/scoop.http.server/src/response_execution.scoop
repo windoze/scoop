@@ -27,6 +27,7 @@ private suspend fun sendResponseBody(ctx: HttpContext, plan: ResponsePlan, write
             case HttpBody.Bytes(value) -> writer.writeAll(value)
             case HttpBody.Stream(value) -> value.produce(writer)
             case HttpBody.File(_) -> throw IllegalStateException(Some("file response was not prepared by its executor"))
+            case HttpBody.WebSocket(_) -> throw IllegalStateException(Some("upgrade response was not prepared by its executor"))
         }
         writer.complete()
         if (present(compressor)) { compressor!!.finish(); wire.complete() }

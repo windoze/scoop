@@ -19,8 +19,8 @@ internal class RequestExpectations(private val fields: Array<HttpField>) {
     }
 }
 
-internal class Http1ResponseOutput(private val state: ServerState, private val connection: AsyncHttp1Connection,
-    private val incoming: Http1IncomingRequest) : ResponseOutput {
+internal class Http1ResponseOutput(val state: ServerState, val entry: ServerConnection,
+    val connection: AsyncHttp1Connection, val incoming: Http1IncomingRequest) : ResponseOutput {
     val started: AtomicBoolean = AtomicBoolean(false)
     private var writer: AsyncHttp1Writer? = None
 
