@@ -12,6 +12,7 @@ import scoop.url.Url
 internal val sampleRequest = LlmRequest([Message([Text("hello 世界")])])
 internal val sampleReply = "{\"id\":\"answer-1\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":3,\"total_tokens\":11}}"
 
+/** A loopback protocol mock with test-supplied replies; it never contacts a provider. */
 internal fun withLlmServer(block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, LlmEndpoint) -> Unit) {
     val loop: EventLoop = LibuvEventLoop()
     loop.run suspend { scope ->

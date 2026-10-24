@@ -1,0 +1,63 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.endsWith
+import scoop.text.startsWith
+
+internal fun acceptResponsesTool(item: ResponsesStreamItem, type: String, raw: JsonValue, batch: LlmStreamBatch) {
+    val custom = type.startsWith("response.custom_tool_call_input.")
+    if (item.kind != (if (custom) "custom_tool_call" else "function_call"))
+        throw DecodingException("/type", "tool input belongs to another output kind")
+    if (item.inputDone) throw DecodingException("/type", "tool input already ended")
+    val text = responsesStreamString(raw, if (type.endsWith(".delta")) "delta" else if (custom) "input" else "arguments")
+    if (type.endsWith(".delta")) emitResponsesToolInput(item, text, batch)
+    else { finishResponsesToolInput(item, text, batch); item.inputDone = true }
+}
+
+internal fun snapshotResponsesTool(item: ResponsesStreamItem, raw: JsonValue, batch: LlmStreamBatch) {
+    val text = responsesStreamString(raw, if (item.kind == "custom_tool_call") "input" else "arguments")
+    finishResponsesToolInput(item, text, batch)
+    batch.hasOutput = true
+}
+
+private fun finishResponsesToolInput(item: ResponsesStreamItem, text: String, batch: LlmStreamBatch) {
+    if (text.length < item.inputLength) throw DecodingException("/item", "final tool input is shorter than delivered input")
+    if (text.length > item.inputLength) emitResponsesToolInput(item, text.slice(item.inputLength, text.length), batch)
+}
+
+private fun emitResponsesToolInput(item: ResponsesStreamItem, text: String, batch: LlmStreamBatch) {
+    val field = if (item.kind == "custom_tool_call") "input" else "arguments"
+    val raw = replaceResponsesField(item.identity, field, JsonValue.fromString(""))
+    val entry = ResponsesOutputEntry(raw, item.kind, Some(item.id), Some(responsesStreamString(raw, "call_id")), true, None)
+    val call = readResponsesClientCall(item.dialect.id, entry, item.tools, false, item.path)
+    val reference = when (call) { case ClientToolCall(value) -> Some(value.reference); else -> None }
+    batch.events.add(LlmEvent.ToolInputDelta(LlmToolInputDelta(item.location, text, reference)))
+    batch.observe(text)
+    item.inputLength += text.length
+}
+
+internal fun emitResponsesServerSnapshot(item: ResponsesStreamItem, raw: JsonValue, batch: LlmStreamBatch, event: String) {
+    if (responsesIsClientItem(item.kind, raw, item.path)) { batch.hasOutput = true; return }
+    val entry = ResponsesOutputEntry(raw, item.kind, Some(item.id), None, false, None)
+    when (readResponsesServerItem(item.dialect.id, entry, item.tools, item.path)) {
+        case ServerToolActivity(activity) -> batch.events.add(LlmEvent.ServerToolActivity(item.location, activity))
+        else -> batch.native(event, raw, Some(item.location), false)
+    }
+    batch.hasOutput = true
+}
+
+internal fun acceptResponsesServerProgress(state: ResponsesStreamDecoder, type: String, raw: JsonValue, batch: LlmStreamBatch): Boolean {
+    val families = ["web_search_call", "file_search_call", "code_interpreter_call", "image_generation_call"]
+    for (kind in families) {
+        val prefix = "response." + kind + "."
+        if (!type.startsWith(prefix)) continue
+        val suffix = type.slice(prefix.length, type.length)
+        if (suffix != "in_progress" && suffix != "searching" && suffix != "interpreting" && suffix != "generating" && suffix != "completed") return false
+        val item = state.item(raw)
+        if (item.kind != kind) throw DecodingException("/type", "server progress belongs to another output kind")
+        val status = if (suffix == "generating") "in_progress" else suffix
+        emitResponsesServerSnapshot(item, replaceResponsesField(item.identity, "status", JsonValue.fromString(status)), batch, type)
+        return true
+    }
+    return false
+}

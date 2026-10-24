@@ -1,8 +1,10 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat 与 Anthropic Messages 的普通／流式生成、OpenAI Responses 普通生成，以及 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时；其他协议继续实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat、Anthropic Messages 与 OpenAI Responses 的普通／流式生成，以及 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时；其他协议继续实施。
 
-Responses 使用 `Providers.openAiResponses()` 创建同样的 endpoint／model，再调用 `client.generate`。`ResponsesProtocol(OpenAiResponsesDialect())` 也提供 encodeRequest／decodeResponse，保留有序 item、reasoning、消息 phase、工具 call ID、服务端搜索与引用；`toInput()` 返回可序列化的原始 output items。usage 区分缓存读、写与普通输入，缺失字段保持未知。Responses SSE 继续实施。
+普通 Cone 测试只使用纯 decoder 或回环地址上的 HTTP／SSE mock，回复由测试指定，不连接供应商。仓库外的真实 API 验证用例统一标记 `@Ignore`，默认跳过；独立运行器只有在显式选择一个用例且其所需 key／endpoint 环境变量齐备时才启用 `--ignored`，缺少配置报告 SKIPPED，不发请求。凭据只从环境读取，日志脱敏。
+
+Responses 使用 `Providers.openAiResponses()` 创建同样的 endpoint／model，再调用 `client.generate` 或 `client.openStream`。`ResponsesProtocol(OpenAiResponsesDialect())` 也提供 encodeRequest／decodeResponse，保留有序 item、reasoning、消息 phase、工具 call ID、服务端搜索与引用；`toInput()` 返回可序列化的原始 output items。usage 区分缓存读、写与普通输入，缺失字段保持未知。
 
 Responses 的最小请求只发送 model 和 input，生成参数缺省省略。request.system 编码为文本 instructions；需要缓存断点等内容块扩展时，在 input 中显式使用 System message。工具结果沿用解码所得的 reference，其 context 保留实际调用类型和所需标识；函数、custom、computer、local shell、shell 与 apply_patch 分别编码自己的结果形状，应用负责执行并提交结果。
 
@@ -67,6 +69,8 @@ Messages 支持图片、PDF、纯文本文档、function／原生工具及服务
 工具参数只有完成后才解释为可执行调用；无效或截断输入仍可观察。usage 是累计快照，只在正常 `[DONE]` 后标 Final，不把早到的候选结束当作总量已确定。未知片段保存在 Native 事件，Result 也通过 `nativeEvents` 保留必要片段；无法无损重建的消息不提供 history。这个 decoder 不执行网络 I/O；网络读取由 `LlmClient` 管理。
 
 MessagesProtocol 提供相同的 createStreamDecoder 入口，按 content block 的 index 归并文本、thinking、签名、工具输入和引用，交付独立的 Citation 与 ServerToolActivity 事件。客户端参数在 block_stop 后仍等待最终 stop_reason，再决定完整性与执行资格；message_delta 的 usage 继续合并，到 message_stop 才为 Final。ping 不占用首个模型事件时间。未知 block 可原样保留；不能归并的未知 delta 或损坏 JSON 参数使 history 明确不可用，不把不完整消息冒充可回传历史。
+
+ResponsesProtocol 同样提供 createStreamDecoder。文本、reasoning、工具输入、服务端活动与引用按 output_index／item_id 关联；done 快照不会重复交付已有文本，客户端调用等整轮终止后才确定执行资格。Result 保存完整 item 快照，尤其 reasoning 的 encrypted_content 与工具 context；EventsOnly 只记录已交付位置。response.completed／incomplete／failed 才结束流并冻结 usage，普通 EOF 与 error 事件仍报错；failed 是模型结果，可保存其不完整输出。未知片段保留 Native，最终完整快照用于恢复 history。
 
 流式调用沿用同一 model、request 和调用选项；最小文本入口使用缺省 EventsOnly，通过同一流的文本视图读取：
 

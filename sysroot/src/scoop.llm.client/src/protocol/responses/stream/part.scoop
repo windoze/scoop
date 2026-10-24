@@ -1,0 +1,67 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+/** Only delivered positions are retained; snapshots supply final content. */
+internal class ResponsesStreamPart public constructor(
+    public val channel: String, public val index: Long, public val kind: String, public val publicIndex: Long
+) {
+    public var length: Long = 0L
+    public var annotations: Long = 0L
+    public var textDone: Boolean = false
+    public var done: Boolean = false
+
+    public fun emit(item: ResponsesStreamItem, text: String, batch: LlmStreamBatch) {
+        if (text.length == 0L) return
+        val delta = LlmTextDelta(item.location, text, publicIndex)
+        val event = if (item.kind == "reasoning") LlmEvent.ReasoningDelta(delta)
+            else if (kind == "refusal") LlmEvent.RefusalDelta(delta) else LlmEvent.TextDelta(delta)
+        batch.events.add(event)
+        batch.observe(text, item.kind == "message" && kind == "output_text")
+        length += text.length
+    }
+
+    public fun snapshot(item: ResponsesStreamItem, raw: JsonValue, batch: LlmStreamBatch) {
+        if (kind == "output_text" || kind == "refusal" || kind == "summary_text" || kind == "reasoning_text") {
+            val text = responsesStreamString(raw, if (kind == "refusal") "refusal" else "text")
+            if (text.length < length) throw DecodingException("/part", "final text is shorter than delivered text")
+            if (text.length > length) emit(item, text.slice(length, text.length), batch)
+        } else if (length == 0L) {
+            batch.native("response.content_part", raw, Some(item.location), false)
+            length = 1L
+            batch.hasOutput = true
+        }
+        when (raw["annotations"]) {
+            case Some(value) -> if (value.kind != JsonValueKind.Null) {
+                val entries = decodeResponsesValue<Array<JsonValue>>(value, "/part/annotations")
+                if (entries.size < annotations) throw DecodingException("/part/annotations", "final citations lost an observed annotation")
+                while (annotations < entries.size) citation(item, entries[annotations], batch)
+            }
+            case None -> return
+        }
+    }
+
+    public fun citation(item: ResponsesStreamItem, raw: JsonValue, batch: LlmStreamBatch) {
+        val path = item.path + "/content/" + index.toString() + "/annotations/" + annotations.toString()
+        if (raw.kind == JsonValueKind.Null) batch.native("response.output_text.annotation.added", raw, Some(item.location))
+        else batch.events.add(LlmEvent.Citation(item.location, publicIndex, readResponsesCitation(item.dialect.id, raw, path)))
+        annotations += 1L
+    }
+}
+
+internal fun snapshotResponsesParts(item: ResponsesStreamItem, raw: JsonValue, batch: LlmStreamBatch) {
+    val channels: Array<String> = if (item.kind == "reasoning") ["summary", "content"] else ["content"]
+    for (channel in channels) {
+        val value = raw[channel]
+        val entries: Array<JsonValue> = if (!llmPresent(value) || value!!.kind == JsonValueKind.Null) []
+            else decodeResponsesValue<Array<JsonValue>>(value!!, item.path + "/" + channel)
+        var index = 0L
+        for (entry in entries) {
+            val kind = responsesStreamString(entry, "type")
+            item.part(channel, index, kind, true).snapshot(item, entry, batch)
+            index += 1L
+        }
+        for (part in item.parts) if (part.channel == channel && part.index >= entries.size)
+            throw DecodingException(item.path + "/" + channel, "snapshot lost an observed content part")
+    }
+}

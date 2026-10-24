@@ -33,7 +33,8 @@
 | OpenAI 缓存读写与普通输入统计 | 完成：本机 196/196；Linux 仅精确整数与读写拆分 1/1 |
 | Responses 完整响应、工具活动与原生历史 | 完成：本机 216/216；Linux 仅搜索／引用／客户端调用组合 1/1 |
 | Responses 请求、多模态与普通生成 | 完成：本机 230/230；Linux 仅生成 1/1；两平台跨 Cone 构造器各 1/1；代理文本与工具回传通过 |
-| Responses 流式、Gemini protocols 与 server-side tools | 待实施 |
+| Responses SSE、原生快照与服务端工具事件 | 完成：本机 244/244，末次 Responses 定向 48/48；Linux 仅 SSE mock 1/1；代理文本流与工具接续通过 |
+| Gemini protocols 与 server-side tools | 待实施 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -42,7 +43,8 @@
 
 - Capability 实施触发 Unit companion 的 core／parser 缺口，已先行修复。Parser 共 691 项与 HIR 定向用例通过；JSON Cone 两平台各 94 项通过，其中新增 4 项覆盖 companion、条件泛型、容器和错误输入。不引入 fixture。
 - HIR 定向用例使用既有 opt-level 1／debug 0 配置，保留调试断言和溢出检查，未调整线程栈；无优化测试进程曾栈溢出，切换到该配置后通过。release 定向运行也通过。
-- 常规测试使用真实本地协议服务及普通 Cone 测试，不依赖付费模型调用。用户授权的真实 API 验证单独运行，凭据仅由环境读取，调用程序与经过脱敏的日志均位于仓库外。
+- 常规测试使用本地 HTTP／SSE mock 及普通 Cone 测试，不连接外部供应商。用户授权的真实 API 验证单独运行，凭据仅由环境读取，调用程序与经过脱敏的日志均位于仓库外。
+- 普通网络用例使用回环地址上的协议 mock，响应由测试提供；不连接外部供应商。仓库外的真实 API 用例统一标记 @Ignore，默认跳过；运行器要求精确选择一个用例，并在启用 --ignored 前检查对应 key／endpoint，缺少配置直接报告 SKIPPED。官方 OpenAI key 不在测试配置中使用。
 - 临时文件和原始日志放在仓库外的 `../scoop-work/llm-client/`，运行命令设置该目录下的 `TMPDIR`；不使用 `/tmp`。
 - 在没有构建进程时清理不再需要的 `target` 产物，保留仍需复用的工具与 sysroot。
 - TokenUsage 已验证缺失字段恢复缺省、未知／零值、缓存与 reasoning 分项、大整数、模态细项及构造边界，已准备 Darwin／Linux GNU 库产物。供应商归一化与流式 usage 聚合随协议实现交付。
@@ -76,3 +78,5 @@
 - OpenAI Chat 按当前官方口径区分缓存读、写和普通输入；仅在三项所需计数齐全时相减，缺失写入量保持未知。新增 3 项并扩充既有 SSE／DeepSeek 用例，覆盖显式零、大整数、读写交叠、累计写入量替换及 dialect 字段隔离。本机 196/196，nuc12 仅精确计数 1/1；本机生产库已准备。未新增真实 API 请求，无编译器或 fixture 变更。
 - Responses 完整响应新增 20 项 Cone 用例：有序消息／reasoning／phase／未知原文、独立 item ID 与 call ID、函数／custom／原生客户端工具、服务端搜索／引用／容器 shell、模型完成状态与 usage。参数无效、截断或拒绝时不进入可执行调用列表；未明确单位的引用索引保留原文，不猜 TextRange。本机 216/216，nuc12 仅搜索与客户端工具组合 1/1；本机生产库已准备。此步为纯响应解码，没有真实 Responses API 调用；请求与 SSE 继续实施。清理 target/debug/incremental 约 372 MiB，保留 release 工具。
 - Responses 普通生成新增 14 项 Cone 用例，覆盖最小参数、媒体、reasoning／结构化输出、函数／custom／原生与服务端工具、工具结果关联、序列化后的历史接续和实际 HTTP 计时。本机 230/230，nuc12 仅普通生成 1/1。独立消费者发现 OpenAiChatDialect／OpenAiResponsesDialect 的无参构造器遗漏 public，已修正声明并在两平台各验证 1 项跨 Cone 调用；没有编译器变更或 fixture。生产库已更新，代理 gpt-6.1-sol 的文本生成和工具保存后接续共 2 项通过（3 次请求），均检查 usage 与实际时间戳，显式 effort=low、无自动重试。未查询模型列表、未使用官方 OpenAI key。Linux 外部测试目录首次漏传 src，补齐后通过；未运行 Linux 完整套件。
+- Responses SSE 新增 14 项 Cone 用例，覆盖 Unicode 文本快照去重、交错 reasoning／工具、最终 encrypted_content、引用与搜索活动、原生字段位置、累计 usage、终止和失败边界。本机完整 Cone 244/244；最后补齐可选身份的 null／缺省等价及原生字段合并后，Responses 定向 48/48。nuc12 只运行一个 SSE mock 用例并通过。初次编译中的 Unit 语句及 Option 断言写法已修正，没有修改编译器或使用 fixture。
+- Responses 代理文本流、最终 usage／时间戳，以及流式工具调用保存后接续共 2 项通过（3 次请求）；仍只用指定 gpt-6.1-sol、显式 effort=low 和零重试。仓库外的 13 项真实 API 用例全部标记 @Ignore；默认运行已验证 1 项无网络消费者通过、13 项忽略。缺少环境配置的精确选用报告 SKIPPED，直接 --ignored 执行也会先拒绝缺失／空配置。普通 Cone 网络覆盖全部采用本地 mock。生产库已更新；清理 target/debug/incremental 约 372 MiB，保留 release 工具。

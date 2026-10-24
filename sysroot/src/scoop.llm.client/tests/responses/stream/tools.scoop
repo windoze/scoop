@@ -1,0 +1,78 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesStreamToolTest {
+    @Test
+    fun `Responses stream tool fragments use call IDs and wait for the final candidate`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            val decoder = responsesStream(retention, [responsesStreamFunction()])
+            responsesItem(decoder, 0L, responsesCall(""))
+            val fragment = responsesAt(decoder, "response.function_call_arguments.delta", 0L, "item", "\"delta\":\"{\\\"count\\\":2}\"")
+            when (fragment.events[0L]) {
+                case ToolInputDelta(delta) -> {
+                    assertEquals("call", delta.reference!!.id)
+                    assertEquals(ToolKey("count"), delta.reference!!.toolKey)
+                    assertEquals(0L, delta.location.itemIndex)
+                }
+                else -> fail()
+            }
+            responsesAt(decoder, "response.function_call_arguments.done", 0L, "item", "\"arguments\":\"{\\\"count\\\":2}\"")
+            val final = responsesCall("{\"count\":2}", status = Some("completed"))
+            assertEquals(0L, responsesEventCalls(responsesItem(decoder, 0L, final, true)).size)
+            assertFalse(decoder.isFinished)
+            val calls = responsesEventCalls(responsesFinish(decoder, "[" + final + "]"))
+            assertEquals(1L, calls.size)
+            assertTrue(calls[0L].isExecutable)
+            assertEquals(2L, calls[0L].decodeArguments<ResponsesCount>().count)
+            assertEquals("item", calls[0L].reference.context!!["id"]!!.asString())
+            if (retention == StreamRetention.Result) {
+                val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+                val input = ArrayList<LlmInputItem>()
+                input.add(saved.toInput()[0L])
+                input.add(ToolResult(saved.clientToolCalls[0L].reference, [Text("done")]))
+                val wire = ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("m", LlmRequest(input.toArray()))
+                assertEquals("call", wire["input"]!![1L]["call_id"]!!.asString())
+            }
+        }
+    }
+
+    @Test
+    fun `Responses malformed incomplete failed and refused stream calls remain unexecutable`() {
+        for ((arguments, status, refused) in [("{", "completed", false), ("[]", "completed", false),
+            ("{}", "incomplete", false), ("{}", "failed", false), ("{}", "completed", true)]) {
+            val decoder = responsesStream(tools = [responsesStreamFunction()])
+            val call = responsesCall(arguments)
+            responsesItem(decoder, 0L, call)
+            responsesItem(decoder, 0L, call, true)
+            val refusal = ", {\"type\":\"message\",\"id\":\"no\",\"role\":\"assistant\",\"content\":[{\"type\":\"refusal\",\"refusal\":\"no\"}]}"
+            val calls = responsesEventCalls(responsesFinish(decoder, "[" + call + (if (refused) refusal else "") + "]", status))
+            assertEquals(1L, calls.size)
+            assertFalse(calls[0L].isExecutable)
+            assertEquals(0L, decoder.response().clientToolCalls.size)
+            if (refused) assertEquals(LlmCompletion.Refused, decoder.response().candidate(0L).completion)
+        }
+    }
+
+    @Test
+    fun `Responses custom and native client calls preserve their distinct input and context`() {
+        val owner = OpenAiResponsesDialect().id
+        val tools: Array<ToolDefinition> = [ClientCustom(ToolKey("edit"), "edit"),
+            ClientNative(ToolKey("patch"), NativeToolDefinition(owner, "apply_patch", Json.parse("{}")))]
+        val decoder = responsesStream(tools = tools)
+        responsesItem(decoder, 0L, "{\"type\":\"custom_tool_call\",\"id\":\"custom\",\"call_id\":\"c\",\"name\":\"edit\",\"input\":\"\"}")
+        responsesAt(decoder, "response.custom_tool_call_input.delta", 0L, "custom", "\"delta\":\"opaque text\"")
+        val custom = "{\"type\":\"custom_tool_call\",\"id\":\"custom\",\"call_id\":\"c\",\"name\":\"edit\",\"input\":\"opaque text\"}"
+        val native = "{\"type\":\"apply_patch_call\",\"id\":\"patch\",\"call_id\":\"p\",\"operation\":{\"type\":\"delete_file\",\"path\":\"a\"}}"
+        responsesItem(decoder, 0L, custom, true)
+        responsesItem(decoder, 1L, native)
+        val calls = responsesEventCalls(responsesFinish(decoder, "[" + custom + "," + native + "]"))
+        assertEquals(2L, calls.size)
+        when (calls[0L].input) { case Text(text) -> assertEquals("opaque text", text); else -> fail() }
+        when (calls[1L].input) { case Native(value) -> assertEquals("a", value["path"]!!.asString()); else -> fail() }
+        assertEquals("p", calls[1L].reference.id)
+    }
+}

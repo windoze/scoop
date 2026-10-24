@@ -354,3 +354,17 @@ ClientFunction 和 ClientCustom 使用 Responses 平铺的 function／custom 工
 工具结果使用 reference.context 中保留的实际调用类型与关联信息，不能只把 item id 当成 call_id。function／custom 输出可为文本、图片或文件内容，保留 caller、name、namespace；isError 无通用 wire 字段而拒绝。computer 输出为显式截图，安全检查确认只接受应用提供的扩展，不自动回填 pending_safety_checks。local_shell 使用原调用 item id 和文本输出，shell 使用 call_id 及原生 output 数组，apply_patch 使用 call_id、文本 output 与由 isError 决定的 completed／failed 状态；其他原生调用不猜结果形状。所有工具结果都由应用提交，库不执行工具或自行继续下一轮。
 
 request／message／part／tool 的扩展在各自位置合并，同 dialect 归属检查及已管理字段冲突规则沿第 3、7 节；已省略的管理字段也不能被覆盖。stream=true 仅影响 wire 编码；SSE 网络能力由单独实现的 LlmSseProtocol 提供。本节先交付普通生成，不用普通 HTTP 结果冒充流式结果。
+
+## 17. Responses SSE
+
+ResponsesProtocol 实现 LlmSseProtocol，使用第 11 节的同一网络入口、读取寿命和计时。SSE event 名为空或 message 时由 JSON type 分派，显式名称必须一致。response.created 建立响应身份；后续 queued／in_progress 更新实际元数据和累计 usage。存在的 sequence_number 必须为非负、严格递增的整数，但不要求连续，也不制造缺失序号。item 的 output_index 按从零递增的位置建立；后续事件同时检查 item_id，item ID 与工具 call_id 保持独立。
+
+文本、拒绝、reasoning summary／content、函数／custom 参数分别交付相应 delta。content／summary part 按各自索引关联；同一 reasoning item 的通用 partIndex 使用首次观察顺序，最终展示 parts 使用相同顺序，原生 history 仍保持协议字段顺序。done 是完整快照，不再次交付已观察的文本；尚未通过 delta 报告的尾部文本可以从快照交付。已结束的 part／item 不接受新的 delta。引用按 annotation_index 交付一次，保留原始索引，不推测 TextRange 单位。
+
+服务端搜索、文件搜索、代码执行、图像生成等进度及完成 item 交付 ServerToolActivity，无法通用解释的事件（包括媒体／工具原生片段）保持 Native。客户端调用等到 response.completed／incomplete／failed 的最终候选状态明确后才交付；只有完整且未拒绝的调用可以执行，参数解释沿第 15 节。output_item.done 并不保证整轮完成，也不提前冻结 usage。
+
+response.completed、response.incomplete、response.failed 是终止事件，其 response.status 必须与类型一致；failed 是失败的模型结果，error 事件是流协议失败。只收到 item done 或普通 EOF 不构成终止，不依赖 Chat 的 [DONE]。终止 response 的完整 output 提供最终数据；已观察 item 的身份与顺序不得改变。Result 优先保留 output_item.done 的完整 item，尤其 encrypted_content；尚未结束的 item 使用终止快照，支持被截断的结果。完整快照使未知 delta 不必通过猜测合并来恢复 history。
+
+EventsOnly 只保存关联、文本／引用的已交付位置、usage 和结束状态，不累计普通文本、reasoning、工具参数或已完成 item；处理终止事件时临时读取其完整 response。Result 保存完成 item 与必要 Native 片段，终止后生成 LlmResponse，native 为 None。两种模式共用检查与事件投影。usage 按已有累计快照规则合并，终止时标 Final，缺失项不补零；响应身份、UTC 与本地采样时间保持各自语义。
+
+协议依据：[Responses streaming events](https://developers.openai.com/api/reference/resources/responses/streaming-events)、[Streaming responses](https://developers.openai.com/api/docs/guides/streaming-responses)。

@@ -9,18 +9,22 @@ internal fun readResponsesCitations(dialect: DialectId, values: Array<JsonValue>
     var index = 0L
     for (entry in entries) {
         val itemPath = path + "/" + index.toString()
-        val kind = decodeResponsesValue<ResponsesItemFields>(entry, itemPath).type
-        val source = when (kind) {
-            case "url_citation" -> readResponsesUrlSource(entry, itemPath)
-            case "file_citation" -> readResponsesFileSource(dialect, entry, itemPath)
-            case "file_path" -> readResponsesFileSource(dialect, entry, itemPath)
-            else -> LlmSource(itemPath, LlmSourceLocation.Native(dialect, entry), native = Some(entry))
-        }
-        // The wire indices do not specify one of the public TextRange units or a half-open convention.
-        result.add(Citation(source))
+        result.add(readResponsesCitation(dialect, entry, itemPath))
         index += 1L
     }
     return result.toArray()
+}
+
+internal fun readResponsesCitation(dialect: DialectId, entry: JsonValue, path: String): Citation {
+    val kind = decodeResponsesValue<ResponsesItemFields>(entry, path).type
+    val source = when (kind) {
+        case "url_citation" -> readResponsesUrlSource(entry, path)
+        case "file_citation" -> readResponsesFileSource(dialect, entry, path)
+        case "file_path" -> readResponsesFileSource(dialect, entry, path)
+        else -> LlmSource(path, LlmSourceLocation.Native(dialect, entry), native = Some(entry))
+    }
+    // The wire indices do not specify a public TextRange unit or a half-open convention.
+    return Citation(source)
 }
 
 internal fun readResponsesUrlSource(value: JsonValue, path: String): LlmSource {

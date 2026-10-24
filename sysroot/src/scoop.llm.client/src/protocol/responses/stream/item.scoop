@@ -1,0 +1,74 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class ResponsesStreamItem public constructor(
+    public val index: Long, public val identity: JsonValue, public val dialect: ResponsesDialect,
+    public val tools: Array<ToolDefinition>, public val retain: Boolean
+) {
+    public val id: String = responsesStreamString(identity, "id")
+    public val kind: String = responsesStreamString(identity, "type")
+    public val location: LlmItemLocation = LlmItemLocation(0L, index)
+    public val path: String = "/output/" + index.toString()
+    public val parts: ArrayList<ResponsesStreamPart> = ArrayList<ResponsesStreamPart>()
+    public var done: Boolean = false
+    public var wire: JsonValue? = None
+    public var inputLength: Long = 0L
+    public var inputDone: Boolean = false
+
+    init { if (id.length == 0L) throw DecodingException("/item/id", "empty output item ID") }
+
+    public fun checkIdentity(raw: JsonValue) {
+        for ((name, previous) in identity.members()) {
+            if (name == "environment") {
+                if (responsesShellEnvironment(identity, path) != responsesShellEnvironment(raw, path))
+                    throw DecodingException("/item/environment", "shell execution side changed")
+                continue
+            }
+            val next = raw[name] ?: throw DecodingException("/item/" + name, "stream item identity disappeared")
+            if (Json.stringify(previous) != Json.stringify(next))
+                throw DecodingException("/item/" + name, "stream item identity changed")
+        }
+    }
+
+    public fun part(channel: String, index: Long, kind: String, create: Boolean): ResponsesStreamPart {
+        var count = 0L
+        for (part in parts) {
+            if (part.channel != channel) continue
+            if (part.index == index) {
+                if (kind != "" && part.kind != kind) throw DecodingException("/part/type", "stream part type changed")
+                return part
+            }
+            count += 1L
+        }
+        if (!create || index != count) throw DecodingException("/part", "content part has not started at the next index")
+        val part = ResponsesStreamPart(channel, index, kind, parts.size)
+        parts.add(part)
+        return part
+    }
+
+    public fun snapshot(raw: JsonValue, batch: LlmStreamBatch, final: Boolean) {
+        checkIdentity(raw)
+        if (kind == "message" || kind == "reasoning") snapshotResponsesParts(this, raw, batch)
+        else if (kind == "function_call" || kind == "custom_tool_call") snapshotResponsesTool(this, raw, batch)
+        else emitResponsesServerSnapshot(this, raw, batch, if (final) "response.output_item.done" else "response.output_item.added")
+        if (final) {
+            done = true
+            if (retain) wire = Some(raw)
+            if (kind == "message" || kind == "reasoning") {
+                val extra = llmStreamUnknown(raw, ["type", "id", "status", "role", "content", "summary"])
+                if (extra.size != 0L) batch.native("response.output_item.done", extra, Some(location), false)
+            }
+        }
+    }
+}
+
+internal fun addResponsesStreamItem(state: ResponsesStreamDecoder, raw: JsonValue, batch: LlmStreamBatch): ResponsesStreamItem {
+    if (!state.started) throw DecodingException("/type", "output event before response.created")
+    val identity = responsesStreamIdentity(raw)
+    val item = ResponsesStreamItem(state.items.size, identity, state.dialect, state.request.tools, state.retention == StreamRetention.Result)
+    for (previous in state.items) if (previous.id == item.id) throw DecodingException("/item/id", "duplicate output item ID")
+    state.items.add(item)
+    item.snapshot(raw, batch, false)
+    return item
+}

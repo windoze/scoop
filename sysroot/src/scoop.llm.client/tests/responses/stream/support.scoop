@@ -1,0 +1,45 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+
+internal fun responsesEvent(decoder: LlmSseDecoder, type: String, fields: String = ""): LlmStreamUpdate =
+    decoder.accept(type, "{\"type\":\"" + type + "\"" + (if (fields.length == 0L) "" else "," + fields) + "}")
+
+internal fun responsesStream(retention: StreamRetention = StreamRetention.Result, tools: Array<ToolDefinition> = []): LlmSseDecoder {
+    val decoder = ResponsesProtocol(OpenAiResponsesDialect()).createStreamDecoder(responsesRequest(tools), retention)
+    responsesEvent(decoder, "response.created", "\"response\":{\"object\":\"response\",\"id\":\"r\",\"model\":\"actual\",\"created_at\":0,\"status\":\"in_progress\",\"output\":[]}")
+    return decoder
+}
+
+internal fun responsesItem(decoder: LlmSseDecoder, index: Long, value: String, done: Boolean = false): LlmStreamUpdate =
+    responsesEvent(decoder, if (done) "response.output_item.done" else "response.output_item.added",
+        "\"output_index\":" + index.toString() + ",\"item\":" + value)
+
+internal fun responsesAt(decoder: LlmSseDecoder, type: String, index: Long, id: String, fields: String): LlmStreamUpdate =
+    responsesEvent(decoder, type, "\"output_index\":" + index.toString() + ",\"item_id\":\"" + id + "\"," + fields)
+
+internal fun responsesFinish(decoder: LlmSseDecoder, output: String, status: String = "completed", usage: String? = None): LlmStreamUpdate {
+    val update = responsesEvent(decoder, "response." + status, "\"response\":" + Json.stringify(responsesBody(output, Some(status), usage)))
+    decoder.endInput()
+    return update
+}
+
+internal fun responsesMessage(text: String, id: String = "m"): String =
+    "{\"type\":\"message\",\"id\":\"" + id + "\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":" + Json.stringify(JsonValue.fromString(text)) + ",\"annotations\":[]}]}"
+
+internal val responsesEmptyMessage: String = "{\"type\":\"message\",\"id\":\"m\",\"role\":\"assistant\",\"content\":[]}"
+
+internal fun responsesStreamFunction(): ToolDefinition = ClientFunction(ToolKey("count"), "count", Json.parse("{\"type\":\"object\"}"))
+
+internal fun responsesEventText(update: LlmStreamUpdate): String {
+    val result = StringBuilder()
+    for (event in update.events) when (event) { case TextDelta(delta) -> result.append(delta.text); else -> continue }
+    return result.toString()
+}
+
+internal fun responsesEventCalls(update: LlmStreamUpdate): Array<ClientToolCall> {
+    val result = ArrayList<ClientToolCall>()
+    for (event in update.events) when (event) { case ClientToolCall(_, call) -> result.add(call); else -> continue }
+    return result.toArray()
+}
