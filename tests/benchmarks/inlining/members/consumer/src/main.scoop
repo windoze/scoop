@@ -1,0 +1,88 @@
+package dev.performance.memberbench.runner
+
+import dev.performance.memberbench.*
+
+@GCLeaf @Extern(lib = "m34_interfaces", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "m34_interfaces", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "m34_interfaces", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "m34_interfaces", name = "bench_end") fun end()
+
+public fun valueMember(mixer: Mixer, count: Int): Long {
+    var state = 7L
+    var index = 0
+    while (index < count) {
+        state = mixer.apply(state)
+        index += 1
+    }
+    return state
+}
+
+public fun referenceMember(mixer: Bias, count: Int): Long {
+    var state = 7L
+    var index = 0
+    while (index < count) {
+        state = mixer.apply(state)
+        index += 1
+    }
+    return state
+}
+
+public fun accessor(mixer: Bias, count: Int): Long {
+    var state = 7L
+    var index = 0
+    while (index < count) {
+        state = (state + mixer.amount).xor(state.shl(13L)).and(4294967295L)
+        index += 1
+    }
+    return state
+}
+
+public fun primitive(count: Int): Long {
+    var state = 7L
+    var index = 0
+    while (index < count) {
+        state = state.hash()
+        index += 1
+    }
+    return state
+}
+
+public fun dynamicMember(mixer: Combiner, count: Int): Long {
+    var state = 7L
+    var index = 0
+    while (index < count) {
+        state = mixer.apply(state)
+        index += 1
+    }
+    return state
+}
+
+public fun scalar(salt: Long, count: Int): Long {
+    var state = 7L
+    var index = 0
+    while (index < count) {
+        state = (state + salt).xor(state.shl(13L)).and(4294967295L)
+        index += 1
+    }
+    return state
+}
+
+fun main() {
+    @Unsafe {
+        val iterations = count()
+        val mode = kind()
+        val mixer = Mixer(17L)
+        val bias = Bias(17L)
+        begin()
+        val result = when (mode) {
+            case 0 -> valueMember(mixer, iterations)
+            case 1 -> referenceMember(bias, iterations)
+            case 2 -> accessor(bias, iterations)
+            case 3 -> primitive(iterations)
+            case 4 -> dynamicMember(bias, iterations)
+            else -> scalar(17L, iterations)
+        }
+        end()
+        println(result)
+    }
+}

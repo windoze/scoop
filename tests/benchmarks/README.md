@@ -40,6 +40,8 @@ M34 的专项用例包括 [接口调用与转换](interfaces/README.md)、[纯�
 
 [资源作用域基准](abstractions/resources/README.md)对照 `Disposable.use` 和直接写法，测量闭包、正常清理、字段副作用及最后读取的完整成本；复用阶段计时与 A/B 工具，GC 诊断单独运行。
 
+[跨 Cone 普通成员基准](inlining/members/README.md)覆盖用户定义的值方法、引用方法、getter 和 primitive hash，并保留未知接口调用及直接标量循环作对照；检查正文选择、稳态调用成本和产物大小。
+
 [真实短命对象分配](allocation/nursery/README.md)对照 16～136 字节对象、数组、带 release hook 的共享旧代对象与无分配循环，显式发布对象以保留实际分配；既可对照 runtime，也可使用配套工具与 sysroot 对照生成代码。
 
 这些普通 Scoop 程序分别覆盖 primitive 循环、aggregate/enum、短命小/中对象、标量与引用数组、长寿旧图的少量写入，以及 String/List/泛型组合。输出用于确认工作负载确实完成，不以耗时阈值作为正确性条件。

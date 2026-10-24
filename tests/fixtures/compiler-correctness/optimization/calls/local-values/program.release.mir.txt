@@ -292,12 +292,11 @@ Module
         UnitLiteral
   fun println @fn4(value: Int) -> Unit
     bb0 entry
-      call $dependency.local.2: String = external3 direct
-        Type Int
-        Local value
+      goto bb2
+    bb1 inline.cont.1
       call external4 direct
         Type String
-        Local $dependency.local.2
+        Local $inline.1.$call.1
       val $dependency.local.4: String
         Type String
         StringConst @str1
@@ -307,6 +306,19 @@ Module
       return
         Type Unit
         UnitLiteral
+    bb2 inline.1.entry
+      val $inline.1.$dependency.local.2: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local value
+      call $inline.1.$call.1: String = external7 direct
+        Type Long
+        Local $inline.1.$dependency.local.2
+      assign $inline.1.result
+        Type String
+        Local $inline.1.$call.1
+      goto bb1
   instance mi0 function=@fn4 <- println
   str @str0 "illegal state"
   str @str1 "\n"

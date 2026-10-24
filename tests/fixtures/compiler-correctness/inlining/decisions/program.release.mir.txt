@@ -156,7 +156,7 @@ Module
       val $dependency.receiver: Int
         Type Int
         Local index
-      branch bb3 bb2
+      branch bb8 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -187,42 +187,6 @@ Module
       val $inline.4.value: Int
         Type Int
         Local $parameter.value
-      goto bb5
-    bb4 inline.cont.4
-      val $dependency.argument.0: Int
-        Type Int
-        Local $inline.4.result
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      assign result
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $old.1: Int
-        Type Int
-        Local index
-      val $dependency.receiver: Int
-        Type Int
-        Local $old.1
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.parameter.other: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      assign index
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          IntegerLiteral Int value=1 bits=0x00000001
-      goto bb1
-    bb5 inline.4.entry
       val $inline.4.$dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
@@ -301,7 +265,216 @@ Module
           Local $inline.4.e
           Type Int
           IntegerLiteral Int value=2 bits=0x00000002
-      goto bb4
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.4.result
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $old.1: Int
+        Type Int
+        Local index
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign index
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      assign $poll.remaining.35
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $poll.remaining.35
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      branch bb3 bb1
+        Type Boolean
+        IntegerCompare not-equal operands=Int result=Boolean
+          Type Int
+          Local $poll.remaining.35
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+    bb4 inline.cont.4
+      unreachable
+    bb5 inline.4.entry
+      unreachable
+    bb6 poll.full.6
+      val $poll.full.6.$old.0: Int
+        Type Int
+        Local result
+      val $poll.full.6.$dependency.receiver: Int
+        Type Int
+        Local $poll.full.6.$old.0
+      val $poll.full.6.$argument.0: Int
+        Type Int
+        Local index
+      val $poll.full.6.$parameter.value: Int
+        Type Int
+        Local $poll.full.6.$argument.0
+      val $poll.full.6.$inline.4.value: Int
+        Type Int
+        Local $poll.full.6.$parameter.value
+      val $poll.full.6.$inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $poll.full.6.$inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $poll.full.6.$inline.4.a: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $poll.full.6.$inline.4.value
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $poll.full.6.$inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $poll.full.6.$inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $poll.full.6.$inline.4.b: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $poll.full.6.$inline.4.a
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      val $poll.full.6.$inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $poll.full.6.$inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $poll.full.6.$inline.4.c: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $poll.full.6.$inline.4.b
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $poll.full.6.$inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $poll.full.6.$inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $poll.full.6.$inline.4.d: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $poll.full.6.$inline.4.c
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+      val $poll.full.6.$inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $poll.full.6.$inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $poll.full.6.$inline.4.e: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $poll.full.6.$inline.4.d
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $poll.full.6.$inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $poll.full.6.$inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $poll.full.6.$inline.4.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $poll.full.6.$inline.4.e
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $poll.full.6.$dependency.argument.0: Int
+        Type Int
+        Local $poll.full.6.$inline.4.result
+      val $poll.full.6.$dependency.parameter.other: Int
+        Type Int
+        Local $poll.full.6.$dependency.argument.0
+      assign result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $poll.full.6.$dependency.receiver
+          Type Int
+          Local $poll.full.6.$dependency.parameter.other
+      val $poll.full.6.$old.1: Int
+        Type Int
+        Local index
+      val $poll.full.6.$dependency.receiver: Int
+        Type Int
+        Local $poll.full.6.$old.1
+      val $poll.full.6.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $poll.full.6.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign index
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $poll.full.6.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      assign $poll.remaining.35
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $poll.remaining.35
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      branch bb6 bb1
+        Type Boolean
+        IntegerCompare not-equal operands=Int result=Boolean
+          Type Int
+          Local $poll.remaining.35
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+    bb7 poll.clamp.7
+      assign $poll.remaining.35
+        Type Int
+        IntegerLiteral Int value=64 bits=0x00000040
+      goto bb6
+    bb8 poll.chunk.8
+      var $poll.remaining.35: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local count
+          Type Int
+          Local index
+      branch bb7 bb3
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Int result=Boolean
+          Type Int
+          Local $poll.remaining.35
+          Type Int
+          IntegerLiteral Int value=64 bits=0x00000040
   fun calculate @fn4(value: Int, checked: Boolean) -> Int
     bb0 entry
       branch bb1 bb2
@@ -1656,12 +1829,11 @@ Module
       goto bb63
   fun println @fn23(value: String) -> Unit
     bb0 entry
-      call $dependency.local.2: String = external3 direct
-        Type String
-        Local value
+      goto bb2
+    bb1 inline.cont.1
       call external4 direct
         Type String
-        Local $dependency.local.2
+        Local value
       val $dependency.local.4: String
         Type String
         StringConst @str2
@@ -1671,6 +1843,11 @@ Module
       return
         Type Unit
         UnitLiteral
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type String
+        Local value
+      goto bb1
   instance mi0 function=@fn23 <- println
   str @str0 "illegal state"
   str @str1 "inlined decisions"

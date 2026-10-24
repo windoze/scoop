@@ -61,6 +61,7 @@ pub enum ImportedCallableTemplateOrigin {
     Generic(scoop_identity::PersistentGenericFunctionId),
     Intrinsic(scoop_identity::PersistentFunctionId),
     Inline(scoop_identity::PersistentFunctionId),
+    InlineAccessor(scoop_identity::PersistentPropertyAccessorId),
     ExtensionAccessor(scoop_identity::PersistentPropertyAccessorId),
     Initialization {
         template: crate::ImportedGenericDelegateTemplateId,
@@ -98,7 +99,9 @@ impl ImportedCallableTemplateOrigin {
             Self::Intrinsic(id) | Self::Inline(id) => {
                 scoop_identity::CallableTemplateOrigin::Function(*id)
             }
-            Self::ExtensionAccessor(id) => scoop_identity::CallableTemplateOrigin::Accessor(*id),
+            Self::ExtensionAccessor(id) | Self::InlineAccessor(id) => {
+                scoop_identity::CallableTemplateOrigin::Accessor(*id)
+            }
             Self::Initialization { .. } | Self::Closure { .. } => {
                 panic!("initialization helpers and closures have generated identities")
             }

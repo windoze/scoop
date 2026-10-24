@@ -18,14 +18,20 @@ impl Lowerer {
         {
             return Err("dependency callable body does not match its declaration header".into());
         }
-        let nominal = match &identity {
-            hir::ImportedCallableTemplateOrigin::Nominal { owner, .. } => self
-                .dependencies
-                .as_ref()
-                .and_then(|dependencies| dependencies.nominal_declaration(*owner))
-                .cloned(),
+        let nominal_owner = match &identity {
+            hir::ImportedCallableTemplateOrigin::Nominal { owner, .. } => Some(*owner),
+            hir::ImportedCallableTemplateOrigin::Inline(_)
+            | hir::ImportedCallableTemplateOrigin::InlineAccessor(_) => {
+                interface.owner().nominal_owner()
+            }
             _ => None,
         };
+        let nominal = nominal_owner.and_then(|owner| {
+            self.dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.nominal_declaration(owner))
+                .cloned()
+        });
         let extension = match &identity {
             hir::ImportedCallableTemplateOrigin::ExtensionAccessor(accessor) => self
                 .dependencies
