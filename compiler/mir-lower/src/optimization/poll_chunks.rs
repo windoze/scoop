@@ -10,10 +10,13 @@ use crate::local_values::LocalValueRegistry;
 mod checks;
 mod copy;
 mod header;
+mod inlining;
 mod linear;
 mod operations;
 mod recognize;
 mod values;
+
+pub(super) use inlining::CallRanges;
 
 const CHUNK: u32 = 64;
 
@@ -23,6 +26,7 @@ struct Loop {
     index: mir::LocalId,
     bound: mir::Expr,
     kind: mir::IntegerKind,
+    start: i128,
     header_chain: Vec<mir::BlockId>,
     body_chain: Vec<mir::BlockId>,
     temporaries: BTreeSet<mir::LocalId>,

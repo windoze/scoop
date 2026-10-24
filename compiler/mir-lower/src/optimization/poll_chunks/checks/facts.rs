@@ -5,11 +5,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::super::{
     header::Header,
     mir,
-    values::{Length, definition, integer},
+    values::{Length, defined_local, definition, integer},
 };
 
 #[derive(Clone, Copy, Eq, PartialEq)]
-pub(super) enum Value {
+pub(in crate::optimization::poll_chunks) enum Value {
     Unknown,
     Index,
     Bound,
@@ -19,7 +19,7 @@ pub(super) enum Value {
     Length(Length),
 }
 
-pub(super) struct State<'a> {
+pub(in crate::optimization::poll_chunks) struct State<'a> {
     head: &'a Header,
     values: BTreeMap<mir::LocalId, Value>,
     pub guards: BTreeSet<Length>,
@@ -38,6 +38,27 @@ impl<'a> State<'a> {
         if let Some((local, expression)) = definition(statement) {
             let value = self.expression(expression);
             self.values.insert(local, value);
+        } else if let Some(local) = defined_local(statement) {
+            self.values.insert(local, Value::Unknown);
+        }
+    }
+
+    pub fn bind(&mut self, callee: &mir::Function, arguments: &[mir::Expr]) -> Self {
+        // Every callee local shadows caller ids, including unknown values.
+        // Length identities remain analysis-only and never enter callee IR.
+        let mut values = callee
+            .body
+            .locals
+            .iter()
+            .map(|(local, _)| (local, Value::Unknown))
+            .collect::<BTreeMap<_, _>>();
+        for (parameter, argument) in callee.params.iter().zip(arguments) {
+            values.insert(parameter.local, self.expression(argument));
+        }
+        Self {
+            head: self.head,
+            values,
+            guards: self.guards.clone(),
         }
     }
 

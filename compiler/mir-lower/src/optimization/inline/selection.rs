@@ -4,6 +4,7 @@ use std::cell::OnceCell;
 
 use super::{Choice, Context, Target, class_fields, flow, graph, index, mir, policy, simplify};
 use crate::optimization::allocation::InlineReceivers;
+use crate::optimization::poll_chunks::CallRanges;
 use mir::optimization_report::{
     InlineCost, InlineEstimate, InlineOutcome, InlineProjection, OptimizationDecision,
     OptimizationSite,
@@ -22,6 +23,7 @@ impl Context<'_, '_> {
         let in_loop = graph::cyclic_nodes(&graph::block_edges(&function.body));
         let mut choices = Vec::new();
         let receivers = OnceCell::new();
+        let ranges = OnceCell::new();
         for (block_id, block) in function.body.blocks.iter() {
             if self.ordinary && ancestry[index(block_id)].len() > 6 {
                 self.observe_skipped_block(
@@ -94,7 +96,7 @@ impl Context<'_, '_> {
                                 .map(|argument| analysis.expression(argument, &state))
                                 .collect::<Vec<_>>();
                             let source = self.template(callee);
-                            let blocks = simplify::blocks(self.module, source, &arguments);
+                            let mut blocks = simplify::blocks(self.module, source, &arguments);
                             let cost = policy::blocks_cost(
                                 &self.module.structs,
                                 blocks.iter().map(|(id, block)| (*id, block)),
@@ -123,7 +125,30 @@ impl Context<'_, '_> {
                                         }),
                                 }
                             };
-                            let ordinary = assess(cost);
+                            let mut ordinary = assess(cost);
+                            if !self.required(callee)
+                                && !accepted(ordinary)
+                                && in_loop[index(block_id)]
+                                && has_array_access(&blocks)
+                                && let Some(specialized) = ranges
+                                    .get_or_init(|| CallRanges::new(self.module, function))
+                                    .blocks(
+                                        self.module,
+                                        (block_id, statement_index),
+                                        call,
+                                        source,
+                                        &blocks,
+                                    )
+                            {
+                                ordinary = assess(
+                                    policy::blocks_cost(
+                                        &self.module.structs,
+                                        specialized.iter().map(|(id, block)| (*id, block)),
+                                    )
+                                    .with_parameters(&self.module.structs, source),
+                                );
+                                blocks = specialized;
+                            }
                             let mut projection = InlineProjection::NotAttempted;
                             let (selected, outcome) = if self.required(callee) {
                                 (Some(ordinary), InlineOutcome::Required)
@@ -234,6 +259,19 @@ impl Context<'_, '_> {
 fn accepted(cost: InlineCost) -> bool {
     cost.execution_limit
         .is_some_and(|limit| cost.execution <= limit)
+}
+
+fn has_array_access(blocks: &[(mir::BlockId, mir::BasicBlock)]) -> bool {
+    blocks.iter().any(|(_, block)| {
+        let mut found = block
+            .statements
+            .iter()
+            .any(|statement| matches!(statement.kind, mir::StatementKind::ArraySet { .. }));
+        mir::visit_block_exprs(block, &mut |expr| {
+            found |= matches!(expr.kind, mir::ExprKind::ArrayGet { .. });
+        });
+        found
+    })
 }
 
 fn rejected(cost: InlineCost) -> InlineOutcome {

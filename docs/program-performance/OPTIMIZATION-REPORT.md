@@ -24,6 +24,8 @@ target/release/scoop build tests/fixtures/driver/stage-observations/main.scoop \
 
 内联的 execution、size、growth 是既有 MIR 策略权重，不是实测 CPU 时间。`execution_limit = null` 表示此前的增长检查已拒绝，或必需展开绕过了该检查；`class_projection` 区分未尝试、证明不足和实际估价。分配消除报告复用已有来源／循环／支配／使用计数，不增加另一套逃逸分析。`rounds`／`converged` 描述原有局部优化主循环；首批逐项事件只覆盖内联与分配消除，不覆盖前置必需 intrinsic 规范化、后置 poll chunking 或 LLVM passes。
 
+后续的[循环范围指导内联](ARRAY-INLINING.md)将已证明不可达的数组检查直接从候选正文中删除，`ordinary` 因而反映实际保留的正文成本，`original` 继续保存模板成本。该使用者复用现有 schema 和观察点，不为报告重跑范围分析；同一调用先拒绝、在后续普通化简暴露范围后接受时，两次实际决策都会保留。
+
 ## 真实消费者
 
 [classes.scoop](../../tests/benchmarks/allocation/classes.scoop) 的三个目标均产生 189 条事件，报告文件 197,523 bytes。`lists` 中 `ListIterator<Long>.next()` 的原始成本为 71；参数简化后的普通成本为 67，需增长 61，而 caller 仅剩 27。与字段替换共同估价后，执行／体积成本为 29，执行阈值为 44，增长 23，因此报告 `inlined-with-class-fields`。接收者为精确 `ListIterator<Long>`、返回值为 `Option<Long>`；来源正确关联到 core 的 `src/iteration.scoop`，独立于显示名 `next`。

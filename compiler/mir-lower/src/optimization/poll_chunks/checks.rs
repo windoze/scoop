@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use super::{Loop, header, linear, mir, operations, recognize, values::Length};
 use crate::optimization::graph::{block_edges, index};
 
-mod facts;
+pub(super) mod facts;
 
 pub(super) struct Projection {
     pub counted: Loop,

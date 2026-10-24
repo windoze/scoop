@@ -1,0 +1,62 @@
+package dev.performance
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun savedIndex(values: Array<Long>): Long {
+    var i = 0L
+    var result = 0L
+    while (i < values.size) {
+        val saved = i
+        i += 1L
+        result += values[saved]
+    }
+    return result
+}
+
+fun updatedIndex(values: MutableArray<Long>) {
+    var i = 0L
+    while (i < values.size) {
+        val saved = i
+        i += 1L
+        values[saved] = values[i]
+    }
+}
+
+fun shorterArray(values: Array<Long>, target: MutableArray<Long>) {
+    var i = 0L
+    while (i < values.size) { target[i] = values[i]; i += 1L }
+}
+
+fun changedBound(values: MutableArray<Long>, count: Long) {
+    var bound = count
+    var i = 0L
+    while (i < bound) {
+        values[i] = i + 9L
+        bound = values.size + 1L
+        i += 1L
+    }
+}
+
+fun main() {
+    for (count in [1L, 63L, 64L, 65L, 129L, 1025L]) {
+        val rounds = if (count < 256L) 100000L else 128L
+        val expected = (count * (count - 1L) / 2L * 1664525L + count * 7L) * rounds
+        val last = ((count - 1L).toInt() * 1664525 + 7).toLong()
+        check(exercise(count, 0) == expected + 7L + last - 1L)
+        val values = Array<Long>(count) { i -> i + 1L }
+        check(savedIndex(values) == count * (count + 1L) / 2L)
+    }
+    check(savedIndex(Array<Long>(0L) { _ -> 1L }) == 0L)
+    val values = MutableArray<Long>(65L) { i -> i }
+    var caught = false
+    try { updatedIndex(values) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && values[0L] == 1L && values[63L] == 64L && values[64L] == 64L)
+    val source = Array<Long>(129L) { i -> i + 1L }
+    caught = false
+    try { shorterArray(source, values) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && values[0L] == 1L && values[64L] == 65L)
+    caught = false
+    try { changedBound(values, 1L) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && values[0L] == 9L && values[64L] == 73L)
+    println("array inline ranges preserve snapshots and failing prefixes")
+}

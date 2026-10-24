@@ -2,12 +2,32 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::{
     CHUNK, Loop, header, linear, mir, operations,
-    values::{definition, integer, resolve},
+    values::{defined_local, definition, integer, resolve},
 };
 use crate::optimization::graph::index;
 
 pub(super) fn counted(
     module: &mir::Module,
+    function: &mir::Function,
+    header: mir::BlockId,
+    head: &header::Header,
+    incoming: &[Vec<mir::BlockId>],
+) -> Option<Loop> {
+    let counted = shape(function, header, head, incoming)?;
+    if counted
+        .body_chain
+        .iter()
+        .any(|id| !operations::supported(module, &function.body.blocks[*id], true))
+        || integer(head.invariants.resolve(&counted.bound))
+            .is_some_and(|end| end - counted.start <= i128::from(CHUNK))
+    {
+        return None;
+    }
+    Some(counted)
+}
+
+/// Establish induction independently of whether the body may contain calls.
+pub(super) fn shape(
     function: &mir::Function,
     header: mir::BlockId,
     head: &header::Header,
@@ -31,9 +51,6 @@ pub(super) fn counted(
         || !matches!(body.blocks[last].terminator, mir::Terminator::Goto(target) if target == header)
         || last == preheader
         || !incoming[index(header)].contains(&last)
-        || body_chain
-            .iter()
-            .any(|id| !operations::supported(module, &body.blocks[*id], true))
     {
         return None;
     }
@@ -42,8 +59,7 @@ pub(super) fn counted(
     for local in body_chain
         .iter()
         .flat_map(|id| &body.blocks[*id].statements)
-        .filter_map(definition)
-        .map(|(local, _)| local)
+        .filter_map(defined_local)
     {
         if !temporaries.insert(local) {
             reassigned.insert(local);
@@ -58,14 +74,7 @@ pub(super) fn counted(
     let mut writes = Vec::new();
     for (id, candidate) in body.blocks.iter() {
         for statement in &candidate.statements {
-            let local = definition(statement)
-                .map(|(local, _)| local)
-                .or(match &statement.kind {
-                    mir::StatementKind::Call(mir::CallEffect::Value { destination, .. }) => {
-                        Some(*destination)
-                    }
-                    _ => None,
-                });
+            let local = defined_local(statement);
             if let Some(local) = local {
                 if !body_chain.contains(&id) {
                     temporaries.remove(&local);
@@ -100,10 +109,7 @@ pub(super) fn counted(
         .find_map(|(id, statement)| (*id == preheader).then_some(*statement))?;
     let (_, init) = definition(initial)?;
     let start = integer(init)?;
-    if start < 0
-        || integer(head.invariants.resolve(bound))
-            .is_some_and(|end| end - start <= i128::from(CHUNK))
-    {
+    if start < 0 {
         return None;
     }
     let update = writes
@@ -115,6 +121,9 @@ pub(super) fn counted(
         .flat_map(|id| &body.blocks[*id].statements)
     {
         let Some((local, value)) = definition(statement) else {
+            if let Some(local) = defined_local(statement) {
+                aliases.remove(&local);
+            }
             continue;
         };
         if std::ptr::eq(statement, update) {
@@ -148,6 +157,7 @@ pub(super) fn counted(
         index: iv,
         bound: bound.clone(),
         kind,
+        start,
         header_chain: header_chain.clone(),
         body_chain,
         temporaries,
