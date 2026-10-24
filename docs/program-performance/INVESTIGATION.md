@@ -154,6 +154,8 @@ smart cast 已有正确的路径类型收窄：命中分支中的引用读取变
 3. 继续利用 final class、确定的分配来源或已证明唯一的调用目标去虚化和内联；仅收窄到 interface／open class 时保留必要动态分派。
 4. 测量完整内嵌的静态表、机器码和编译成本；确有明显膨胀时评估固定父表指针共享。对于仍需动态查找的非父接口转换，再评估目录和调用点缓存。M62 的历史实验不排除本轮布局优化。
 
+后续[动态目录测量](INTERFACE-DIRECTORY.md)已核对真实目录规模及静态索引顺序，并增加装箱、集合、命中位置和未命中对照。四种扫描展开在中后段获得收益，但短目录／既有 smartcast 有明显回退，当前未采纳；保留原扫描及全部父表投影能力。后续方案复用这些测量载体，不以静态目录数量替代运行时频度。
+
 主要证据：[runtime 类型检查与查表](../../runtime/src/rt.c)、[接口视图构造与已知 class 快路](../../compiler/lir-lower/src/function/interfaces.rs)、[已有 itab 的方法分派](../../compiler/lir-lower/src/function/call/dispatch.rs)、[smart cast 读取](../../compiler/hir-lower/src/expr/smart_casts/reads.rs)、[MIR 已知类型读取](../../compiler/mir-lower/src/body/known_reads.rs)、[已知具体类型传播](../../compiler/mir-lower/src/optimization/flow.rs)。源码、原始 stage dump 与机器码留在仓库外，文档只记录检查范围和结论。
 
 ### 5.3 从局部 box 消除走向 class 标量替换与部分逃逸分析

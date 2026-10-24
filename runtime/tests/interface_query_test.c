@@ -15,6 +15,28 @@ static const ScoopTypeDescriptor implemented = {
     .itables = entries, .itable_count = sizeof entries / sizeof entries[0]};
 static const ScoopTypeDescriptor absent = {0};
 
+static void query_length_boundaries(void) {
+    ScoopTypeDescriptor interfaces[18] = {0};
+    ScoopItableEntryV1 tables[17];
+    for (size_t i = 0; i < 17; i++) {
+        tables[i].interface = &interfaces[i];
+        tables[i].slots = i % 3 == 0 ? NULL : slots;
+    }
+    for (size_t count = 0; count <= 17; count++) {
+        const ScoopTypeDescriptor descriptor = {
+            .itables = tables, .itable_count = count};
+        const ScoopObjectHeader object = {.td = &descriptor};
+        for (size_t i = 0; i < 18; i++) {
+            const ScoopItableEntryV1 *expected = i < count ? &tables[i] : NULL;
+            assert(scoop_rt_itable_find(&descriptor, &interfaces[i]) == expected);
+            assert(scoop_rt_is_instance(&object, &interfaces[i]) == (i < count));
+            if (expected != NULL) {
+                assert(scoop_rt_itable_lookup(&descriptor, &interfaces[i]) == expected->slots);
+            }
+        }
+    }
+}
+
 int main(void) {
     const ScoopObjectHeader object = {.td = &implemented};
     assert(scoop_rt_itable_find(&implemented, &parent) == &entries[0]);
@@ -30,6 +52,7 @@ int main(void) {
         assert(scoop_rt_itable_lookup(&implemented, entries[i].interface) == entries[i].slots);
     }
     assert(!scoop_rt_is_instance(&object, &generic_string));
+    query_length_boundaries();
     puts("interface queries preserve empty and exact entries");
     return 0;
 }

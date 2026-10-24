@@ -10,7 +10,7 @@ fn interface_queries_return_distinct_empty_and_exact_entries() {
         "runtime/tests/interface_query_test.c",
         false,
         false,
-        &[runtime.to_str().expect("runtime source path")],
+        &["-O2", runtime.to_str().expect("runtime source path")],
     );
     assert!(
         output.status.success(),

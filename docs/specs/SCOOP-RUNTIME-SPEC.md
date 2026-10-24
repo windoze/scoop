@@ -26,6 +26,8 @@ managed reference 是对象起点的直接指针；对象可能移动。对象�
 
 `scoop_rt_itable_find(object_td, interface_td)` 是 NoGC、无异常的查询入口，两个参数均为有效的静态 metadata 指针，目标必须是 exact interface。它查询实际对象 TD 的完整接口目录，返回匹配的 `const ScoopItableEntryV1 *`；缺失返回 null。匹配空接口时返回非 null entry，entry 的 slots 仍可为 null。返回指针只引用不可变 metadata，不引用对象，不成为 GC root，可在对象移动后继续用于同一对象值。编译器可用 entry 是否为 null 完成接口 `is`／`as` 的检查，并在成功路径加载该 entry 的 slots，避免再查目录；源码 Boolean 及失败／异常语义不变。其他类型关系继续使用 `scoop_rt_is_instance`，保证存在表的未检查转换继续可用 `scoop_rt_itable_lookup`。
 
+动态查询按 TD 指针身份逐项比较目录项，不以 diagnostic name、slots 地址或不完整的泛型类型代替。读取任何项前必须保证其下标小于 `itable_count`；空目录不解引用 itables，短目录也不能读取目录外的项。find、lookup 和完整类型关系中的接口查询共用此规则。查询不重排静态目录，也不保存 runtime 缓存；所有 profile 使用同一目录与调用 ABI。
+
 GC 状态字的 pin bit 为 `UINT64_C(2)`（bit 1），release-ready bit 为 `UINT64_C(4)`（bit 2）；操作这些位时必须保留其他位。
 
 class 的基类对象布局是派生对象的完整前缀，包括基类尾部 padding；派生字段不得复用该 padding。构造最派生对象时只分配一次，整个构造期间对象头都指向最派生 exact type 的 TypeDescriptor，不随基类构造改变。

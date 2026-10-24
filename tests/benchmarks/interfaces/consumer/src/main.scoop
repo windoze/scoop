@@ -15,7 +15,27 @@ fun main() {
         val reader: Reader = cell
         val child = ChildCell(17U)
         val projection = ProjectionCell(17U)
+        val number: Any = 17
+        val empty = NoInterfaces()
+        val values = ArrayList<Int>()
+        values.add(17)
         begin()
+        if (selected >= 9) {
+            val value = when (selected) {
+                case 9 -> numericHash(number, iterations)
+                case 10 -> numericAdd(number, iterations).toLong()
+                case 11 -> numericMultiply(number, iterations).toLong()
+                case 12 -> numericMiss(number, iterations)
+                case 13 -> numericHash(empty, iterations)
+                case 14 -> numericHash(cell, iterations)
+                case 15 -> collectionSize(values, iterations)
+                case 16 -> numericBoolean(number, iterations).toLong()
+                else -> mixedHash(number, cell, iterations)
+            }
+            end()
+            println(value)
+            return
+        }
         val value = when (selected) {
             case 0 -> known(cell, iterations)
             case 1 -> unknown(reader, iterations)

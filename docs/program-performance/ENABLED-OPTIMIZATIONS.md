@@ -37,6 +37,8 @@
 
 低成本且收益稳定的方案优先进入 release 默认设置；需要独立开关或等级的方案，在采纳时补充准确选项、默认值、等级含义和适用条件。所有 profile 继续遵守相同的语言、对象、GC 与产物 ABI 契约。PGO、更广范围的屏障合并和 bulk barrier 仍在后续工作中，不计入本表已采纳项。
 
+[动态接口目录循环展开](INTERFACE-DIRECTORY.md)已作定向测量，因短目录与 smartcast 回退暂未采纳；当前仍使用原逐项查询。
+
 ## 测量与诊断
 
 这些能力按需使用，不改变优化的开启状态。
@@ -44,5 +46,6 @@
 | 已交付能力 | 开启方式 | 作用 |
 | --- | --- | --- |
 | [预构建程序 A/B 测量](../../tests/benchmarks/README.md) | 手动运行 `python3 tests/benchmarks/compare.py`；GC 诊断加 `--gc-stats` | 交错运行相同输入，核对输出并记录墙钟、CPU、RSS；GC 诊断与普通计时分别测量。 |
+| [动态接口目录专项负载](INTERFACE-DIRECTORY.md) | 按 [interfaces 构建说明](../../tests/benchmarks/interfaces/README.md)手动构建；`SCOOP_BENCH_KIND` 取 9～17，`SCOOP_BENCH_COUNT` 指定次数，再用 `compare.py` 对照 | 区分真实装箱／集合目录、命中位置、泛型及短目录未命中、Boolean 和混合查询；保持原静态投影对照。 |
 | [MIR 优化决策报告](OPTIMIZATION-REPORT.md) | `scoop build --release --emit optimizations --dump-dir DIR`；`--emit all` 也包含 | 输出实际内联／分配消除的成本与原因；未请求时不保存逐项事件。 |
 | [函数级 CPU 采样归因](CPU-PROFILING.md) | 所有 profile 按需 `--emit symbols --dump-dir DIR`；`--emit all` 也包含；手动使用 sample／perf 和 `symbolize.py` | 关联当前及已加载依赖的真实正文、实例和声明；可用 `--binary` 解析实际别名及 sample 地址。不生成指令行表或 PGO 输入。 |

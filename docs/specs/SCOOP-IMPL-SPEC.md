@@ -958,6 +958,8 @@ interface 的逻辑方法序按直接父接口声明序继承，再追加当前�
 
 itable 以实际 interface TD 为键，不要求跨 Cone 的全局槽编号。generic receiver 始终是完整 exact application，只沿声明中的 exact base/interface 关系分派。
 
+实际类型的 TD 接口目录按 persistent exact interface identity 确定顺序；已知具体类型使用的目录索引及跨 Cone 保存的 dispatch 记录遵循同一顺序。该顺序不是 runtime type ID 的数值顺序，runtime 不能据此直接作二分查找。目录读取边界遵循运行时规范 2.1；逻辑目录顺序与内嵌父表的物理槽顺序分别保存。
+
 普通接口值保存 object 和对应 exact interface 的 itab。静态已知 Child 继承 Parent 时，第一次上转型就从已有 itab 按固定偏移得到父表，不读取对象 TD 的接口目录；单继承前缀直接复用指针。仅为调用继承方法时，直接读取 Child 表中对应真实方法与 ABI 的物理槽，不物化中间 Parent 值。赋值、传参、返回及 smartcast 后已有的 Child 视图共同使用这条路径。Any 首次取表、无父关系的接口转换和需恢复接口视图的 adapter 按各自语义处理；已知实际类型直接引用既有静态表，相同 exact 视图直接复制。`is`／`as` 的接口检查可按 2.19 使用返回目录项的查询完成，并复用该次查询的 slots；源码 Boolean 结果不携带 itab。其他检查继续使用既有类型关系入口。空接口以 entry 存在判断成功，不用合法 null slots 判失败。接口方法从 itab 直接取 slot，不再次查询 object TD。
 
 LIR 的 dispatch slot 显式保存单字 object receiver projection 和完整入口签名，普通接口参数／结果仍为双字。兼容 class 实现可直接作为 slot；需要完整接口 this 的 default／变型／装箱入口由已有 typed adapter 重建视图或复制 payload。去虚拟化与直接调用按实际 callee 的签名适配，不能只因都含 pointer 就混同 ABI。静态表和 adapter 继续使用正常 typed definition／reference、provider 和 ODR relocation。
