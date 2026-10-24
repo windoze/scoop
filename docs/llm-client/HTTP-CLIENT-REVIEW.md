@@ -1,6 +1,6 @@
 # HTTP client API 评审：日常入口与 LLM 消费
 
-日期：2026-10-21。JSON 入口、架构与计时需求同步：2026-10-24。范围：规范、公开 API、实现与已有测试的静态检查。本次没有修改 HTTP 实现或重新执行网络验收；历史完成状态以 [M54 进度](../milestone54/PROGRESS.md)为准。LLM 总体方案见[调研文档](INVESTIGATION.md)与[架构设计](DESIGN.md)。
+日期：2026-10-21。JSON 入口、架构与计时需求同步：2026-10-24。范围：规范、公开 API、实现与已有测试的评审；请求级观测与 UTC 时间戳已按 §4.7 补入实现，当前验证范围见 [LLM client 实施记录](PROGRESS.md)。其余历史完成状态以 [M54 进度](../milestone54/PROGRESS.md)为准。LLM 总体方案见[调研文档](INVESTIGATION.md)与[架构设计](DESIGN.md)。
 
 ## 1. 总体判断
 
@@ -129,9 +129,9 @@ client.postJson(url, value, requestCodec, responseCodec, limits = ..., options =
 
 ### 4.7 LLM 时间戳需要请求级采样合同
 
-[HttpAttemptMetrics](../../sysroot/src/scoop.http.client/src/observability/api.scoop) 已有发送头、接收头、首字节与阶段 TimeMark，但仅在 client 配置 observer 时采集；HttpResponse.metrics 也可能为 None。现有 ResponseHeaders 覆盖信息响应和最终响应，最近一次头部时间不能混同于第一次模型输出。[规范 §11.2](../specs/SCOOP-HTTP-CLIENT-SPEC.md#112-可观察性与错误)
+[HttpAttemptMetrics](../../sysroot/src/scoop.http.client/src/observability/api.scoop) 保留发送头、接收头、首字节与阶段 TimeMark，并增加 startedAtUtc、finishedAtUtc、requestHeadersAtUtc、responseHeadersAtUtc 及 finalResponseHeadersAt／finalResponseHeadersAtUtc。最终响应字段仅记录网络最终响应头，信息响应与纯缓存命中保持 None；最近一次头部时间仍不能混同于第一次模型输出。[规范 §11.2](../specs/SCOOP-HTTP-CLIENT-SPEC.md#112-可观察性与错误)
 
-LLM 需要为每次 request／response 保留 UTC 时间戳，并在共享、借入 HttpClient 时得到自己的尝试数据。因此实施时应先在 HTTP 规范增加窄的每调用采样选项与 metadata 暴露方式：在事件产生处采集 Instant／同源 TimeMark，区分最终响应头和 1xx，沿尝试保存至失败或关闭，并与已有 client observer 共存。不要求所有普通 HTTP 请求默认开启观察。
+共享、借入 HttpClient 的调用通过 HttpCallOptions.observer 取得自己的尝试数据，与 client observer 共存。Instant／同源 TimeMark 在事件产生处相邻采集，沿尝试保留至失败或关闭；旧快照不可变，response.metrics 在关闭后仍可读取新快照。两处都未配置时保持观察关闭。连接级首字节采样继续由 client 配置决定，请求级观察不切换共享连接的采样策略。
 
 `onAttempt` 发生在排池之前，不能用作 sentAt；用户回调执行时的 Clock.now 也不能冒充原事件时间。不能为获得时间戳重建连接池或覆盖借入 client 的 observer。模型首个事件／输出、usage、缓存 TTL 解释和计费信息留在 LLM 层，HTTP 不承担 token 或模型计费语义。
 
@@ -155,7 +155,7 @@ LLM 需要为每次 request／response 保留 UTC 时间戳，并在共享、借
 | --- | --- | --- |
 | 高 | LLM 禁止默认跨站 redirect；保留 provider 错误正文；明确重试只有一层负责 | 是，属于 LLM 行为合同；现有 HTTP 已有可用组合路径 |
 | 高 | 确认 SSE 大行／事件上限，按多模态接口配置 | 是，完整多模态流所需 |
-| 高 | 请求级 wall／monotonic 时间采样与尝试 metadata | 是，精确到既定提交／接收边界的时间戳需要此合同；旧 client observer 不能直接视为已满足 |
+| 已补齐 | 请求级 wall／monotonic 时间采样与尝试 metadata | HttpCallOptions.observer 与 client observer 共存，保留尝试的 UTC／单调时间及最终网络响应头边界 |
 | 已有基础 | JSON／HTTP companion codec 默认重载 | 已可直接使用；LLM quickstart 仍需说明自身的等待、错误和流式选项 |
 | 中 | getText／getJson／postJson 等有限缓冲便利函数 | 否，显著改善易用性 |
 | 中 | SSE 已有响应适配、明确的自定义敏感字段转发规则 | 否，有手工组合方案 |

@@ -9,7 +9,7 @@
 | 功能 | 状态 |
 | --- | --- |
 | 架构、缺省用法与 Vercel AI SDK 对照 | 设计已整理 |
-| HTTP 请求级观察、发送／接收 UTC 与单调时间 | 本机 189/189 通过，Linux 验证中 |
+| HTTP 请求级观察、发送／接收 UTC 与单调时间 | 完成：本机与 Linux GNU 各 189/189 通过 |
 | TokenUsage 公共计数数据与 companion codec | 完成：本机与 Linux GNU 各 4/4 通过 |
 | 公共请求／响应、capability、工具、扩展、错误与历史 codec | 待实施 |
 | Client 寿命、流式单消费者／保留策略与结构化输出 | 待实施 |
@@ -26,4 +26,6 @@
 - 临时文件和原始日志放在仓库外的 `../scoop-work/llm-client/`，运行命令设置该目录下的 `TMPDIR`；不使用 `/tmp`。
 - 在没有构建进程时清理不再需要的 `target` 产物，保留仍需复用的工具与 sysroot。
 - TokenUsage 已验证未知／零值、缓存与 reasoning 分项、大整数、模态细项及构造边界，已准备 Darwin／Linux GNU 库产物。供应商归一化与流式 usage 聚合随协议实现交付。
+- HTTP 新增 9 个用例，覆盖请求／client observer 共存与去重、共享 H1／H2 连接、信息／最终响应头、重试与重定向、缓存、发送前失败、关闭保护、SSE 与 WebSocket。完整所属 Cone 测试在两平台各通过 189 个用例。连接级首字节采样保持原配置，发送／接收 UTC 采样独立可用。
+- Linux 验证使用 `~/repos/scoop-work/llm-client/checkout` 独立工作树与既有 release 工具，保留 `~/repos/scoop` 中的未提交改动。
 - 整体实现仍在进行；验证仅覆盖表中已交付项。后续仅记录通过范围、失败闭合和实际限制。

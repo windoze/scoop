@@ -484,7 +484,9 @@ onAttempt 返回本轮额外字段，适合签名或时间戳；每次后续尝�
 
 ### 11.2 可观察性与错误
 
-HttpClientConfig.observer 是可选的 HttpObserver；其构造参数为 `suspend (HttpCallEvent) -> Unit`。未配置时不分配观察状态，不启用协议首字节采样，也不额外读取观察时钟。观察器只在 client 配置，连接是否采样不随复用者切换。普通 HTTP、SSE 与下载使用相同调用事件；WebSocket 只观察 HTTP 握手，成功升级后的消息不计入握手事件或字节。
+HttpClientConfig.observer 与 HttpCallOptions.observer 是可选的 HttpObserver；其构造参数为 `suspend (HttpCallEvent) -> Unit`。请求级 observer 附加到该逻辑请求的全部尝试，不替换 client observer，也不改变连接池归属。两个 observer 接收同一不可变事件，先调用请求级，再调用 client 级；同一对象同时配置在两处时只调用一次。任一回调失败沿下文的观察器失败规则处理，不继续调用该事件的后续 observer。重定向、SSE 重连、续传和 WebSocket 握手构造请求时保留 observer。
+
+两处都未配置时不分配调用观察状态，也不额外读取调用观察时钟。连接级协议首字节采样仍只由 client observer 配置启用，连接是否采样不随复用者切换；仅请求级 observer 不要求为已有连接补采首字节，其 firstResponseByteAt 可以为 None。请求提交、响应头及各调用阶段的时间与连接级首字节采样独立。普通 HTTP、SSE 与下载使用相同调用事件；WebSocket 只观察 HTTP 握手，成功升级后的消息不计入握手事件或字节。
 
 每个逻辑请求拥有一个不可变 HttpCallInfo 对象，保存最初的 method、脱敏 urlDisplay 和 startedAt；同一重定向／重试／认证循环的事件引用同一对象，以对象身份区分并发请求。应用链直接返回其他调用的结果时，只有实际执行的调用产生尝试事件。SSE 的显式重连及续传的新 Range 请求分别有自己的 HttpCallInfo。每个 HttpCallEvent 包含 kind、call、不可变 HttpAttemptMetrics 快照和可选 failure。HttpCallEventKind 为 AttemptStarted、ConnectionAcquired、RequestHeaders、RequestProgress、ResponseHeaders、ResponseProgress、Completed。
 
@@ -493,6 +495,8 @@ AttemptStarted 在已登记的尝试进入准备步骤前交付；ConnectionAcqu
 HttpAttemptMetrics 固定保存本次 number、reason、method、urlDisplay、startedAt、可选 finishedAt，以及 queue、resolve、connect、proxyTls、proxyHandshake、originTls。各阶段为可选 HttpPhaseTiming(startedAt, finishedAt)：None 表示未进入该阶段，结束尚未发生时 finishedAt 为 None。queue 从实际排池开始，到取得拨号名额／既有连接 lease 或退出等待结束；首次拨号等待后的 lease 交付不覆盖原结束时间。DNS 与候选 TCP 连接时间由 asyncio 的实际阶段通知采集，直接 IP 连接只产生 connect；代理与目标 TLS 分开记录，CONNECT／SOCKS 协商另记 proxyHandshake。复用连接不复制前一次调用的 DNS、连接或 TLS 时间。
 
 快照同时公开 requestHeadersAt、responseHeadersAt、firstResponseByteAt、可选 version、connectionReused、status 与 cacheStatus。响应头时间和 status 指向最近一次实际响应头；304 再验证仍保留线上的 304，缓存命中则记录缓存响应的状态且没有本次协商 version。firstResponseByteAt 使用 HTTP 协议库确认的首个归属输入时间，包含信息响应；H1 的部分头部失败仍保留已确认时间，H2 不把控制帧或其他流的活动算给本流。HTTP／TLS 定界、压缩和平台时钟精度决定其观测边界，不声称是网络包的硬件时间。
+
+HttpAttemptMetrics 还提供 startedAtUtc、finishedAtUtc、requestHeadersAtUtc、responseHeadersAtUtc，以及 finalResponseHeadersAt／finalResponseHeadersAtUtc。Utc 字段是 SystemClock 产生的 Instant，与对应 MonotonicTimeSource 的 TimeMark 在上述事件产生处相邻采集，发生在任何 observer 回调之前；不使用回调开始或返回时间代替协议边界。startedAtUtc 必有，其余按对应里程碑是否发生为 Option。finalResponseHeadersAt 只记录网络最终响应头（含 101 升级与 304），信息响应和纯缓存命中保持 None；responseHeadersAt／responseHeadersAtUtc 仍记录最近一次头部事件。发送前失败时 requestHeadersAt／requestHeadersAtUtc 为 None，重试各自保存本次时间，失败和关闭后的快照继续可读。UTC 时钟可能回拨，耗时只用同源 TimeMark 求差，不能由两个 Instant 推断单调时长。
 
 requestBodyBytes、encodedResponseBodyBytes、responseBodyBytes 分别是实际交给 HTTP 层的请求表示字节、移除 HTTP 定界后的响应表示字节、解码后的响应字节，排除 HTTP／TLS 控制开销；失败操作已经确认的部分进度仍计入。三个计数与超时诊断一致，沿同一逻辑请求的尝试累计，不在重定向／重试时清零。HttpResponse.metrics 和 HttpWebSocketSession.metrics 返回本次尝试的当前不可变快照；未开启观察时为 None，WebSocket 指标只涵盖握手。
 

@@ -25,4 +25,4 @@ internal fun redirectedClientOptions(options: HttpCallOptions): HttpCallOptions 
     HttpCallOptions(duplex = false, expectContinue = false, continueWait = options.continueWait,
         decoding = options.decoding, timeouts = options.timeouts, onInformational = options.onInformational,
         redirects = options.redirects, retries = options.retries, authentication = options.authentication, proxy = options.proxy,
-        useCookies = options.useCookies, cookieContext = options.cookieContext, cacheMode = options.cacheMode)
+        useCookies = options.useCookies, cookieContext = options.cookieContext, cacheMode = options.cacheMode, observer = options.observer)
