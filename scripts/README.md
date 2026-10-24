@@ -74,6 +74,7 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
 ~/.scoop/
   VERSION
   bin/                 scoop、scoopc、scoop-link、scoop-lsp
+  commands/            外部子命令 scoop-<command>（可为空）
   lib/<target-triple>/  *.slib、native 库／头文件、runtime、runtime-stress
   include/             公开 Scoop C 头文件
   src/                 全部内置 Cone 源码
@@ -86,6 +87,8 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
 ```
 
 `~/.scoop/bin/scoop` 默认使用相邻的 `~/.scoop/lib/<target-triple>/*.slib`，不因 debug profile 或空缓存重编系统库。显式 `--sysroot`／`SCOOP_SYSROOT` 和 source locator 仍按原有规则生效。安装及 VSIX 使用步骤见[随包说明](distribution/README.md)。
+
+`sysroot/commands` 整目录进入安装包，保留程序的可执行权限；空目录也保留，`.gitkeep` 不打包。`scoop [--sysroot path] somecommand <args>` 直接执行所选安装根的 `commands/scoop-somecommand`，后续参数全部原样交给该程序。
 
 脚本读取宿主命令的实际动态依赖，将所需非系统库复制到 `libexec/llvm/lib`，为实际引用这些私有库的 Darwin 文件设置相对加载路径。目标资源和许可说明按实际组件收集；归档在完整写入后才替换同名文件。安装方法、系统开发环境要求及升级说明随包放在 `share/scoop`。
 
