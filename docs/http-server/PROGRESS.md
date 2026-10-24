@@ -15,6 +15,7 @@
 - 路由级 deadline 覆盖已完成，端点／middleware 可在提交前调用 HttpContext.setDeadline 调整或关闭本次请求总时限。
 - 已完成 D6：延迟文件结果、原生字节静态路径、条件短路、单区间与同句柄有限发送。
 - 已完成 D7：H1／WSS 明确升级、前缀交接、独立会话、子协议／Origin／deflate、容量、关闭与排空。
+- 已补齐启动与 SPA：HttpServer.listen 的 application／路由配置重载提供默认地址与端口，沿用现有所有者和事件循环；staticFiles 可显式选择缺失 GET／HEAD 的 fallback 文件，嵌套参数分组与 middleware／fallback 继承已补组合验证。
 - 阶段 A～D7 已实现。服务端 mTLS／动态 SNI、HTTP/3 与 H2 WebSocket 不在本次范围内。
 - 每个功能验证后独立提交；本机采用定向 release Cone 测试，避免重复全量测试。
 - Linux 工作目录为 `nuc12:~/repos/scoop-http-server-work`；已串行运行一组最小库验证，未跑完整套件或大规模性能测试。
@@ -59,3 +60,4 @@
 - D7 server：17／17 定向 release 测试通过；管线 8／8、H1 网络 4／4、原生命周期 6／6、TLS 2／2、H2 生命周期 4／4、H2 停机 3／3 回归通过。覆盖配置／握手拒绝、Origin、子协议偏好、Cookie／beforeCommit、保留字段冲突、真实同批首帧前缀、WSS、碎片化压缩双向消息与 ping、会话容量／请求名额释放。独立会话不继承 HttpContext／业务 Context／请求 deadline，HTTP 清理先于业务；peer Close 取消外部等待，1011 保留业务原因，1001 排空，强制 close／宽限届满及交接期竞争均等待真实清理。
 - D7 API 文档检查与预编译发布通过，新增生产文件最长 66 行。macOS 独立 consumer 的 H1／H2／文件 3／3 通过，WebSocket consumer 改为等待服务端完成通知后停机，定向复验 1／1 通过；不把客户端完成等同于服务端已清理。清理 31 个旧的大型编译条目、6 个旧可执行缓存和已验证的 HTTP 测试目录，target 从约 15 GiB 降至 8.3 GiB，保留当前 server／consumer、release 工具与近期编译缓存。
 - Linux/GNU：在 `nuc12:~/repos/scoop-http-server-work` 复用既有宿主工具和目标基础资源，独立构建本次 HTTP／HTTP asyncio／server 库，server 与 consumer API 文档检查通过。串行运行 H1 提取／gzip、H2 SSE／gzip multipart、文件条件／范围、认证与协商压缩 WebSocket 共 4／4 consumer 测试通过；完成通知时序修正后的 WebSocket 单项复验 1／1 通过。没有修改原仓库的正在开发内容；只验证本次库的最小消费闭环，不运行完整套件或大规模性能测试。本次未运行 musl 目标或完整发行打包。
+- 启动与 SPA 补齐：新增 11／11 本机 release 测试及 35／35 相关回归通过，覆盖两种 listen 重载、选项透传、配置先于监听、启动失败释放端口、实际地址与停机、嵌套参数和分组继承，以及 SPA 文件选择／错误分类／同句柄读取／HEAD／条件／Range／H1／H2。server 和 consumer API 文档检查通过。已发布本机及 Linux/GNU server 库，独立 consumer 在 macOS、nuc12 各 1／1 通过，以公开 API 组合简化启动、嵌套 API、静态资源 404 与 SPA 深层路径；Linux 串行运行该单项，没有重跑完整套件或性能测试。

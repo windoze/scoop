@@ -9,8 +9,7 @@ import scoop.platform.system.*
 import scoop.platform.time.SystemClock
 
 internal suspend fun executeFileResponse(ctx: HttpContext, result: HttpResult, description: HttpFileBody, minimal: Boolean) {
-    val path = responseFileInput<Path> suspend { selectedResponseFile(description) }
-    val opened = responseFileInput<AsyncFile> suspend { currentEventLoop().openFile(path) }
+    val (path, opened) = responseFileInput<(Path, AsyncFile)> suspend { openResponseFile(description) }
     opened.useAsync suspend { source ->
         val metadata = responseFileInput<FileMetadata> suspend { source.metadata() }
         if (metadata.kind != FileKind.Regular) reject(404U, "file not found")
@@ -20,6 +19,18 @@ internal suspend fun executeFileResponse(ctx: HttpContext, result: HttpResult, d
         val plan = prepareFileResponse(ctx, source, description.options, metadata.size, now, draft, minimal)
         executeResponse(ctx, plan)
     }
+}
+
+private suspend fun openResponseFile(description: HttpFileBody): (Path, AsyncFile) {
+    try {
+        val path = selectedResponseFile(description)
+        return (path, currentEventLoop().openFile(path))
+    } catch (error: PlatformException) {
+        if (!present(description.fallbackFile) ||
+            (error.kind != PlatformErrorKind.NotFound && error.kind != PlatformErrorKind.NotDirectory)) throw error
+    }
+    val fallback = description.fallbackFile!!
+    return (fallback, currentEventLoop().openFile(fallback))
 }
 
 private suspend fun selectedResponseFile(description: HttpFileBody): Path {

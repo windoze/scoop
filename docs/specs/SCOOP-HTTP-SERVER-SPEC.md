@@ -162,6 +162,10 @@ GET 提交后用同一句柄 seek 并有限复制，不超过准备时选定的�
 
 staticFiles(root, StaticFileOptions) 是显式挂到末尾通配路由的 handler。pathParameter 默认 `path`，必须对应通配参数；root／首页路由需要另行注册。StaticFileOptions.fileOptions 传给文件结果；indexDocument 默认 None，显式启用时须为一个合法固定文件名。首页选择使用一次正常路径 metadata 判断目录，再打开实际文件并从其句柄取最终 metadata；无目录列表、递归首页或自动路由发现。
 
+StaticFileOptions.fallbackFile 默认 None；显式 Path 与 file(path) 一样是应用选定的路径，相对路径以进程当前目录为基准，需要挂载根中的文件时传入 root.resolve(...)。GET／HEAD 在选择路径或打开原文件／目录首页时遇到 NotFound／NotDirectory，才尝试打开 fallbackFile 一次，供 SPA 客户端路由返回指定入口文件。没有启用首页的现有目录仍为 404；非法路径、权限拒绝、其他 I/O 错误、已打开文件的 metadata／读取失败和响应提交失败不触发 fallback。fallback 自身失败沿原文件错误规则返回，不递归重试；其他方法不使用 fallback。
+
+fallback 在提交前选择实际文件，随后复用同一文件响应执行器，fileOptions 也适用于 fallback。媒体类型、长度、修改时间、条件请求、HEAD 和 Range 均针对所选文件，beforeCommit 只执行一次。它不会重新路由，也不触发 RouterBuilder／RouteGroup 的未匹配路径 fallback。作用范围由注册的静态路由决定，不猜测扩展名或 Accept；需保留缺失资源的 404 时，将资源挂到更具体且没有 fallbackFile 的静态路由。挂载根的空后缀仍显式注册 file(fallbackFile)，不改变末尾通配的匹配规则。
+
 路径从已解码的原始片段逐段构造，保留非 UTF-8 文件名，不从已拼接的解码尾串重新切分或再次百分号解码。拒绝中间空片段、点／点点、NUL、斜线／反斜线和驱动器前缀，输入无效为 400。末尾空片段只表示必须是目录，显式首页才可产生文件结果，否则为 404。路径拼接不检查 owner、权限位、inode、canonical path 或 symlink 来源；链接遵守普通 OS 语义，不承诺 root 是隔离沙箱。
 
 ## 13. H1 WebSocket 升级与会话

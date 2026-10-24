@@ -17,7 +17,9 @@ public fun staticFiles(root: Path, options: StaticFileOptions = StaticFileOption
             path = path.resolve(Path.fromOsString(OsString.fromByteArray(part.decoded)))
         }
     }
-    HttpResult(body = HttpBody.File(HttpFileBody(path, options.fileOptions, options.indexDocument, directory)), allowCompression = false)
+    val fallback = if (ctx.request.method == "GET" || ctx.request.method == "HEAD") options.fallbackFile else None
+    HttpResult(body = HttpBody.File(HttpFileBody(path, options.fileOptions, options.indexDocument, directory, fallback)),
+        allowCompression = false)
 }
 
 internal fun validStaticFileName(bytes: Array<Byte>): Boolean {
