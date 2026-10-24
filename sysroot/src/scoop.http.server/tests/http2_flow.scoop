@@ -1,0 +1,27 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+
+@Test private class ServerHttp2FlowTests {
+    @Test fun `a window-blocked response does not prevent another request or subsequent WINDOW_UPDATE`() {
+        val routes = RouterBuilder()
+        routes.get("/slow", suspend { _ -> stream("application/octet-stream", suspend { writer ->
+            writer.writeAll(Array<Byte>(128L) { _ -> 120.toByte() })
+        }, length = Some(128L)) })
+        routes.get("/fast", suspend { _ -> text("ok") })
+        val options = HttpServerOptions(allowCleartextHttp2 = true, http2Limits = Http2Limits(maxPendingBodyBytes = 16L))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            val raw = currentEventLoop().connectTcp(address)
+            AsyncHttp2Connection.takeOwnershipAsClient(raw, scope, settings = Http2Settings(initialWindowSize = 16U)).useAsync suspend { client ->
+                val slow = client.openRequest(h2ServerRequest("/slow"))
+                assertEquals(200U, slow.receiveResponse().status)
+                assertEquals("ok", h2ServerText(client, "/fast"))
+                assertEquals(128L, networkText(slow).toByteArray().size)
+                assertFalse(client.isClosed)
+            }
+        })
+    }
+}

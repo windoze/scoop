@@ -1,0 +1,97 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.env.*
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal class UploadTestDirectory : Disposable {
+    val parent: Path = when (environmentVariable("TMPDIR")) {
+        case Some(value) -> Path.fromOsString(value)
+        case None -> currentDirectory()
+    }
+    val path: Path = createTempDirectory(Some(parent), "scoop-upload-")
+    fun child(name: String): Path = path.resolve(Path.fromString(name))
+    public override fun dispose() { path.deleteRecursively() }
+}
+
+internal suspend fun deleteUnpublishedUpload(path: Path, published: Boolean) {
+    if (!published) nonCancellableScope<Unit> suspend { _ -> currentEventLoop().deleteFile(path) }
+}
+
+private suspend fun sendMultipartFiles(sink: AsyncByteSink, data: Array<Byte>) {
+    MultipartSink(sink, MultipartBoundary("test-boundary")).useAsync suspend { output ->
+        val note = output.beginPart(MultipartPartHead.formData("note"))
+        networkWrite(note, "metadata"); note.finish()
+        for (bytes in [data, "tail".toByteArray()]) {
+            val part = output.beginPart(MultipartPartHead.formData("file", Some("../untrusted.txt")))
+            NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); part.writeFully(buffer) }
+            part.finish()
+        }
+        output.finish()
+    }
+}
+
+private suspend fun saveMultipartFiles(ctx: HttpContext, directory: Path, destination: Path, partsRead: ServerTestGate): HttpResult {
+    val loop = currentEventLoop()
+    val staging = loop.createTempFile(Some(directory))
+    var published = false
+    try {
+        val total = staging.useAsync suspend { file ->
+            ctx.request.body.multipart().useAsync suspend { reader ->
+                var total = 0L
+                var files = 0
+                while (true) {
+                    val part = reader.nextPart()
+                    if (!present(part)) break
+                    if (part!!.name == "note") assertEquals("metadata", part!!.text())
+                    else {
+                        assertEquals("../untrusted.txt", part!!.filename!!)
+                        total += part!!.copyTo(file.file, 65536L)
+                        files += 1
+                        if (files == 2) partsRead.signal()
+                    }
+                }
+                assertTrue(reader.isFinished)
+                total
+            }
+        }
+        loop.moveFile(staging.path, destination)
+        published = true
+        return text("saved:" + total.toString())
+    } finally { deleteUnpublishedUpload(staging.path, published) }
+}
+
+@Test private class ServerMultipartFileTests {
+    @Test fun `H1 chunked and H2 uploads publish repeated attachments only after outer EOF`() {
+        for (h2 in [false, true]) UploadTestDirectory().use { directory ->
+            val destination = directory.child("application-selected.bin")
+            val partsRead = ServerTestGate()
+            val data = Array<Byte>(32769L) { index -> (index % 26L + 65L).toByte() }
+            val routes = RouterBuilder()
+            routes.post("/", suspend { ctx -> saveMultipartFiles(ctx, directory.path, destination, partsRead) })
+            withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, _, address ->
+                if (h2) h2ServerClient(address, scope).useAsync suspend { client ->
+                    val upload = client.openRequest(h2ServerRequest(method = "POST", fields = requestMultipartFields()), false)
+                    sendMultipartFiles(upload, data)
+                    partsRead.await(); assertFalse(destination.exists())
+                    upload.finish()
+                    assertEquals(200U, upload.receiveResponse().status)
+                    assertEquals("saved:32773", networkText(upload))
+                } else networkClient(address, scope).useAsync suspend { client ->
+                    val upload = client.sendRequest(networkRequest(method = "POST", fields = requestMultipartFields()), Http1BodyFraming.Chunked)
+                    sendMultipartFiles(upload, data)
+                    partsRead.await(); assertFalse(destination.exists())
+                    upload.finish()
+                    val response = client.receiveResponse()
+                    assertEquals(200U, response.head.status)
+                    assertEquals("saved:32773", networkText(response.body))
+                }
+                assertEquals(String.fromUtf8(data) + "tail", destination.readText())
+            })
+        }
+    }
+}

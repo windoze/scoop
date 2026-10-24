@@ -1,5 +1,7 @@
 # Scoop HTTP 库规范
 
+应用层路由、请求 Context、middleware 与结果执行属于独立的 [HTTP server 库](SCOOP-HTTP-SERVER-SPEC.md)，不进入本协议引擎。
+
 版本：M53 已实施基线，含 M54 修订；扩展方法已实现，其余补充按 [M54 进度](../milestone54/PROGRESS.md)记录。既有实现见 [M53 设计](../milestone53/DESIGN.md)，新增范围见 [M54 设计](../milestone54/DESIGN.md)与第 9 节。本规范使用[库 API 风格](SCOOP-API-STYLE.md)、[异步 I/O](SCOOP-ASYNCIO-SPEC.md)和 [TLS](SCOOP-TLS-SPEC.md)的既有合同，不改变语言语义、runtime ABI 或编译阶段职责。
 
 ## 1. 分层与后端
@@ -85,6 +87,8 @@ Http2Session 的 client／server 工厂固定角色、接收选项、本地限�
 
 submitRequest／submitResponse 的 endStream 表示头部后立即结束发送；需要 body 或 trailer 时设为 false，随后 writeBody／finish。信息响应不结束流，必须显式使用 endStream=false。writeBody 只接受每流待发送容量内的前缀；返回零表示等待实际输出或窗口进展。finish 表示没有更多 DATA，可附独立 trailer。接收端通过 Request／Response／Data／Trailers／End 事件区分阶段，End 前没有 trailer 时也交付空 Trailers。StreamClosed 保存实际 HTTP/2 错误码，GoAway 另保存方向、最后 stream ID 与调试字节；不能把正常单向 End 等同于整个流关闭。
 
+`Http2Event.RequestHeadStarted(streamId)` 仅在后端确认开始接收新的初始请求首部块时交付，在完整的 HPACK／CONTINUATION 首部块之前可观察；同一块的 CONTINUATION 不重复开始，响应及 trailer 不产生此事件。该事件只表示后端已识别开始，不表示请求合法或已接受。成功以 Request 结束，拒绝／失败以实际 StreamClosed 或连接终止结束；部分 9 字节帧头尚未被后端识别时不提前报告。实现复用 nghttp2 的请求首部块开始回调，不另外解析输入；尚未读完的 padding／priority 前缀可能延后此观测。后端忽略的已关闭流 HEADERS 不开始新的请求首部计时。
+
 请求 HEADERS 已排队但尚未发送时，对端 GOAWAY 可以使后端拒绝打开该流。nghttp2 随后的实际 StreamClosed(REFUSED_STREAM) 是该次拒绝的终止结果；包装层不先将同一次 START_STREAM_NOT_ALLOWED 未发送回调重复报告为 Failure。该流的待发正文与 trailer 随关闭释放，已接受的其他流仍可完成；其他发送错误保留其实际 Failure，不一律解释成请求未处理。
 
 收到 GOAWAY 且现有流均结束后，nghttp2 可以丢弃尚未发出的 SETTINGS ACK，并以 SESSION_CLOSING 报告该帧未发送。此正常收尾不产生新的 Failure，已经接收的 GOAWAY、响应、正文和流结束事件仍然有效；其他帧及其他错误码继续按实际发送失败处理。
@@ -164,6 +168,8 @@ AsyncHttp2Connection 的 client／server 所有权工厂接收相同的 HTTP/2 o
 HTTP/2 客户端及 upgraded-client 工厂同样可选 captureTimings（默认 false）。开启后 AsyncHttp2Stream.firstResponseByteAt 保存第一次由 receiveWithProgress 确认归属到该流的输入观测 TimeMark，尚无该流输入或未开启时为 None；这个值包含可能的信息响应，后续最终响应不重置。帧头尚未完整归属时不预先填入时间，其他流和连接控制帧不能填入本流的值。共享驱动只更新固定的流状态，不在此调用挂起 observer。两种协议未开启采样时沿原接收路径运行。
 
 HTTP/2 的 upgraded 所有权工厂另外接收已完成 HTTP/1 请求的方法与协商 SETTINGS，upgradedStream 交付关联的 stream 1；服务端这一流的请求输入已经完成。goAway 提交并发送协议结束通知，关闭仍由独立的 close 负责；停止接收新请求且已无排队请求时 acceptRequest 返回 None。SETTINGS、忽略字段、流关闭、GOAWAY 和后端失败通过 Http2Notice 回调交付，回调在 native 返回后、锁外执行，不可挂起；回调抛出异常会结束连接。
+
+服务端异步层转发 `Http2Notice.RequestHeadStarted(streamId)`；当完整请求已进入有界交付队列时另发 `RequestHeadReceived(streamId)`，排队拒绝不发后者。两者与流故障／关闭通知保持事件顺序，并在 acceptRequest 恢复之前交付相应的已入队通知。高层可据此结合自身活动请求状态管理首部总时限与真正空闲，不用其他流流量或控制帧刷新首部计时，也不轮询底层私有状态。
 
 `AsyncHttp2Connection.isDraining` 是本地已提交或已收到 GOAWAY 的只读状态快照，在对应通知之前更新；它不表示已有流都已结束，也不替代 isClosed。仍开放但已经 draining 的连接在 openRequest 提交新流之前抛出 Http2ConnectionDrainingException，不分配 stream ID 或发出新请求。已经提交的流继续按 GOAWAY 的最后 stream ID 和实际流事件完成；对端明确未处理的流保留 REFUSED_STREAM 的原始错误码，不把任意连接失败解释成未处理。
 

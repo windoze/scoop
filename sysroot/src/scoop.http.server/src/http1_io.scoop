@@ -1,0 +1,68 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class RequestExpectations(private val fields: Array<HttpField>) {
+    private val lock: ServerLock = ServerLock()
+    private var parsed: HttpExpectations? = None
+
+    fun requireSupported(): Boolean = lock.withLock {
+        if (!present(parsed)) {
+            try { parsed = Some(parseHttpExpectations(fields)) }
+            catch (_: HttpFieldParseException) { reject(400U, "invalid Expect field") }
+        }
+        if (parsed!!.hasUnsupported) reject(417U, "unsupported expectation")
+        parsed!!.continueRequested
+    }
+}
+
+internal class Http1ResponseOutput(val state: ServerState, val entry: ServerConnection,
+    val connection: AsyncHttp1Connection, val incoming: Http1IncomingRequest) : ResponseOutput {
+    val started: AtomicBoolean = AtomicBoolean(false)
+    private var writer: AsyncHttp1Writer? = None
+
+    public override suspend fun begin(head: HttpResponseHead, length: Long?): AsyncByteSink {
+        if (!started.compareAndSet(false, true)) throw IllegalStateException(Some("HTTP/1 response already started"))
+        val fields = ArrayList<HttpField>()
+        val closing = !incoming.body.isComplete || !state.running()
+        for (value in head.fields) if (!closing || !value.hasName("Connection".toByteArray())) fields.add(value)
+        if (closing) fields.add(field("Connection", "close"))
+        val content = httpResponseAllowsContent(head, incoming.head.method)
+        val framing = if (!content) Http1BodyFraming.Empty
+            else if (present(length)) Http1BodyFraming.Length(length!!)
+            else if (head.version == HttpVersion.Http10) Http1BodyFraming.Eof else Http1BodyFraming.Chunked
+        val reason: List<Byte>? = when (head.reason) { case None -> None; case Some(value) -> Some(value) }
+        val output = connection.sendResponse(HttpResponseHead(head.version, head.status, reason, fields), framing)
+        writer = Some(output)
+        return output
+    }
+
+    public override suspend fun finish(trailers: List<HttpField>) {
+        writer!!.finish(trailers)
+        if (!connection.isClosed) writer!!.flush()
+    }
+
+    public override suspend fun abort() { connection.close() }
+}
+
+internal class Http1RequestInput(private val connection: AsyncHttp1Connection,
+    private val incoming: Http1IncomingRequest, private val output: Http1ResponseOutput,
+    private val expectations: RequestExpectations) : AsyncByteSource {
+    private var readStarted: Boolean = false
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (count > 0L && !readStarted) {
+            readStarted = true
+            if (!incoming.body.isComplete && expectations.requireSupported() && incoming.head.version == HttpVersion.Http11) {
+                if (output.started.load()) throw IllegalStateException(Some("cannot send Continue after the final response"))
+                val continuing = connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 100U))
+                continuing.finish()
+                continuing.flush()
+            }
+        }
+        return incoming.body.readInto(buffer, count)
+    }
+}

@@ -1,0 +1,77 @@
+package scoop.http.server
+
+import scoop.http.SseMessage
+import scoop.http.asyncio.SseSink
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.*
+
+/** A borrowed, serial event writer, valid only during its SSE producer. */
+public class SseWriter internal constructor(private val sink: SseSink) {
+    private val applicationBusy: AtomicBoolean = AtomicBoolean(false)
+    private val outputBusy: AtomicBoolean = AtomicBoolean(false)
+    private val active: AtomicBoolean = AtomicBoolean(true)
+    private val available: ServerSignal = ServerSignal()
+    private val lock: ServerLock = ServerLock()
+    private var lastOutput: TimeMark = MonotonicTimeSource.markNow()
+    internal val changes: ServerSignal = ServerSignal()
+    internal val stopped: Boolean get() = !active.load()
+
+    /** Sends one complete event and, by default, flushes it before returning. */
+    public suspend fun send(message: SseMessage, flush: Boolean = true) {
+        write(suspend { sink.send(message); if (flush) sink.flush() })
+    }
+
+    /** Sends one complete comment and, by default, flushes it before returning. */
+    public suspend fun comment(text: String, flush: Boolean = true) {
+        write(suspend { sink.comment(text); if (flush) sink.flush() })
+    }
+
+    /** Flushes previously batched events without ending the response. */
+    public suspend fun flush() { write(suspend { sink.flush() }) }
+
+    private suspend fun write(block: suspend () -> Unit) {
+        if (!applicationBusy.compareAndSet(false, true)) throw IllegalStateException(Some("concurrent SSE sends"))
+        var acquired = false
+        try {
+            ensureActive()
+            requireActive()
+            while (!outputBusy.compareAndSet(false, true)) available.await()
+            acquired = true
+            requireActive()
+            block()
+            recordOutput()
+        } finally {
+            if (acquired) releaseOutput()
+            applicationBusy.store(false)
+        }
+    }
+
+    private fun requireActive() {
+        if (!active.load()) throw IllegalStateException(Some("SSE producer has ended"))
+    }
+
+    private fun recordOutput() {
+        lock.withLock { lastOutput = MonotonicTimeSource.markNow() }
+        changes.signal()
+    }
+
+    private fun releaseOutput() { outputBusy.store(false); available.signal() }
+
+    internal fun remainingIdle(interval: Duration): Duration {
+        if (applicationBusy.load() || outputBusy.load()) return interval
+        return lock.withLock { remainingServerTime(Some(interval), lastOutput)!! }
+    }
+
+    internal suspend fun heartbeat(interval: Duration) {
+        if (stopped || applicationBusy.load() || !outputBusy.compareAndSet(false, true)) return
+        try {
+            val due = lock.withLock { remainingServerTime(Some(interval), lastOutput)!! == Duration.ZERO }
+            if (stopped || !due) return
+            sink.comment("")
+            sink.flush()
+            recordOutput()
+        } finally { releaseOutput() }
+    }
+
+    internal fun invalidate() { active.store(false); changes.signal() }
+}

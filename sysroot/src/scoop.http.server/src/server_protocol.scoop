@@ -1,0 +1,52 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.http.asyncio.HttpTransport
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.*
+
+internal fun remainingServerTime(limit: Duration?, started: TimeMark): Duration? {
+    if (!present(limit)) return None
+    val remaining = limit!! - (MonotonicTimeSource.markNow() - started)
+    return Some(if (remaining > Duration.ZERO) remaining else Duration.ZERO)
+}
+
+internal suspend fun serveCleartextHttp(state: ServerState, entry: ServerConnection, scope: CoroutineScope) {
+    val started = MonotonicTimeSource.markNow()
+    if (!state.options.allowCleartextHttp2) {
+        serveHttp1(state, entry, entry.transport, scope, started)
+        return
+    }
+    val (protocol, prefix) = serverDeadline<(HttpProtocol, Array<Byte>)>(state.options.firstRequestHeadTimeout,
+        "cleartext protocol", suspend { probeServerHttp(entry.transport) })
+    val transport = HttpTransport.takeOwnershipWithPrefix(entry.transport, prefix)
+    var failure: Throwable? = None
+    try {
+        entry.info = HttpConnectionInfo(entry.transport.localAddress, entry.transport.peerAddress, protocol)
+        serveSelectedHttp(state, entry, transport, scope, protocol, started)
+    } catch (error: Throwable) { failure = Some(error); throw error }
+    finally { closeServerResource(state, transport, failure) }
+}
+
+internal suspend fun <T> serveSelectedHttp(state: ServerState, entry: ServerConnection, transport: T,
+    scope: CoroutineScope, protocol: HttpProtocol, started: TimeMark) where T : AsyncByteStream, T : AsyncCloseable {
+    when (protocol) {
+        case Http1 -> serveHttp1(state, entry, transport, scope, started)
+        case Http2 -> serveHttp2(state, entry, transport, scope, started)
+    }
+}
+
+private suspend fun probeServerHttp(transport: AsyncTcpStream): (HttpProtocol, Array<Byte>) =
+    NativeByteBuffer.allocate(1024L).use suspend { input ->
+        val probe = HttpCleartextProbe([HttpProtocol.Http1, HttpProtocol.Http2])
+        while (!present(probe.protocol)) {
+            input.clear()
+            if (transport.readInto(input, input.writableBytes) == 0L) probe.endInput()
+            else probe.receive(input)
+        }
+        val prefix = ByteArrayBuilder().append(probe.prefix).append(input.readBytes(input.readableBytes)).toByteArray()
+        (probe.protocol!!, prefix)
+    }

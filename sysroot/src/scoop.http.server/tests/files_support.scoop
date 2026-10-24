@@ -1,0 +1,12 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.platform.fs.Path
+
+internal fun fileExchange(path: Path, fields: List<HttpField> = ArrayList<HttpField>(), method: String = "GET",
+    options: FileResponseOptions = FileResponseOptions(), configure: (HttpContext) -> Unit = { _ -> Unit },
+    output: TestOutput = TestOutput()): Exchange {
+    val routes = RouterBuilder()
+    routes.get("/", suspend { ctx -> configure(ctx); file(path, options) })
+    return exercise(routes.build(), method = method, fields = fields, output = output)
+}

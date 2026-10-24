@@ -1,0 +1,53 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test private class ServerSseHeartbeatTests {
+    @Test fun `backpressure coalesces heartbeats at event boundaries and normal return joins an active heartbeat`() {
+        val firstSent = ServerTestGate(); val sendSecond = ServerTestGate(); val secondSent = ServerTestGate()
+        val finish = ServerTestGate(); val returned = ServerTestGate(); val completed = ServerTestCompletions()
+        val notices = ServerH2Notices()
+        val data = "abcdefghijklmnopqrstuvwxyz0123456789"
+        val firstBlock = "data: " + data + "\n\n"
+        val secondBlock = "data: second\n\n"
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> sse(SseOptions(Some(Duration.milliseconds(20))), suspend { events ->
+            events.send(SseMessage(Some(data))); firstSent.signal()
+            sendSecond.await(); events.send(SseMessage(Some("second"))); secondSent.signal()
+            finish.await(); returned.signal()
+        }) })
+        val options = HttpServerOptions(allowCleartextHttp2 = true, http2Limits = Http2Limits(maxPendingBodyBytes = 1L),
+            onRequestCompleted = Some(completed::receive))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            val raw = currentEventLoop().connectTcp(address)
+            AsyncHttp2Connection.takeOwnershipAsClient(raw, scope, settings = Http2Settings(initialWindowSize = 1U),
+                onEvent = { event -> notices.receive(event) }).useAsync suspend { client ->
+                val stream = client.openRequest(h2ServerRequest())
+                assertEquals(200U, stream.receiveResponse().status)
+                assertEquals("d", readNetworkText(stream, 1L))
+                currentEventLoop().sleep(Duration.milliseconds(70))
+                assertEquals(firstBlock.slice(1L, firstBlock.length), readNetworkText(stream, firstBlock.byteLength - 1L))
+                firstSent.await()
+                assertEquals(":", readNetworkText(stream, 1L))
+                sendSecond.signal()
+                assertEquals(" \n\n" + secondBlock, readNetworkText(stream, 3L + secondBlock.byteLength))
+                secondSent.await()
+                assertEquals(":", readNetworkText(stream, 1L))
+                finish.signal(); returned.await()
+                assertEquals(0L, completed.snapshot().size)
+                assertEquals(" \n\n", networkText(stream))
+                completed.ready.await()
+                assertEquals(HttpRequestOutcome.Completed, completed.snapshot()[0L].outcome)
+                assertFalse(present(stream.failure))
+                for (event in notices.snapshot()) when (event) {
+                    case StreamClosed(_, code) -> assertEquals(0U, code)
+                    else -> {}
+                }
+            }
+        })
+    }
+}

@@ -1,0 +1,33 @@
+package scoop.http.server
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal fun requestMultipartBytes(parts: List<(MultipartPartHead, Array<Byte>)>, epilogue: String = ""): Array<Byte> {
+    val result = ByteArrayBuilder()
+    MultipartEncoder(MultipartBoundary("test-boundary")).use { encoder ->
+        for ((head, data) in parts) {
+            result.append(encoder.beginPart(head))
+            NativeByteBuffer.allocate(data.size).use { buffer ->
+                buffer.writeBytes(data)
+                result.append(encoder.writeBody(buffer))
+            }
+            result.append(encoder.endPart())
+        }
+        result.append(encoder.finish())
+    }
+    return result.append(epilogue.toByteArray()).toByteArray()
+}
+
+internal fun requestMultipartFields(): Array<HttpField> =
+    [field("Content-Type", "multipart/form-data; boundary=test-boundary")]
+
+internal suspend fun expectMultipartState(block: suspend () -> Unit) {
+    var rejected = false
+    try { block() }
+    catch (_: IllegalStateException) { rejected = true }
+    if (!rejected) throw IllegalStateException(Some("expected multipart state rejection"))
+}
+
+internal class RequestMultipartHolder { var value: RequestMultipart? = None }

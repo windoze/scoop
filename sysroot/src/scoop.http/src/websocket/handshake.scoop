@@ -6,21 +6,6 @@ import scoop.io.encoding.Base64
 import scoop.url.Url
 
 /**
- * A malformed or incompatible WebSocket upgrade handshake, optionally identifying the affected
- * field.
- */
-public class WebSocketHandshakeException public constructor(
-    /**
-     * The protocol failure explanation.
-     */
-    public val detail: String,
-    /**
-     * The handshake field involved, when known.
-     */
-    public val field: String? = None)
-    : Exception(Some("WebSocket handshake: " + detail))
-
-/**
  * The accepted optional subprotocol and permessage-deflate parameters.
  */
 public class WebSocketNegotiation internal constructor(
@@ -66,7 +51,11 @@ public class WebSocketHandshake internal constructor(
      * selection.
      */
     public fun response(protocol: String? = None, deflate: WebSocketDeflate? = None,
-        fields: List<HttpField> = emptyList<HttpField>()): HttpResponseHead = webSocketResponse(this, protocol, deflate, fields)
+        fields: List<HttpField> = emptyList<HttpField>()): HttpResponseHead = negotiateResponse(protocol, deflate, fields).head
+
+    /** Constructs the response and retains its checked negotiation for the server session. */
+    public fun negotiateResponse(protocol: String? = None, deflate: WebSocketDeflate? = None,
+        fields: List<HttpField> = emptyList<HttpField>()): WebSocketServerResponse = webSocketResponse(this, protocol, deflate, fields)
 
     /**
      * Creation and validation of HTTP/1 WebSocket upgrade requests.

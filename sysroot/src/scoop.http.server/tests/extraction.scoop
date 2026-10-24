@@ -1,0 +1,85 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.test.*
+import scoop.text.contains
+
+@Test
+private class ServerExtractionTests {
+    @Test
+    fun `request headers preserve duplicates and validate only requested text`() {
+        val routes = RouterBuilder()
+        routes.get("/all", suspend { ctx -> text(ctx.request.headers.getAll("X-Value")[1L]) })
+        routes.get("/one", suspend { ctx -> text(ctx.request.headers.getSingle("X-Value") ?: "absent") })
+        val app = routes.build()
+        val fields = [field("X-Value", "one"), field("x-value", "two")]
+        assertEquals("two", exercise(app, "/all", fields = fields).text())
+        assertEquals(400U, exercise(app, "/one", fields = fields).status)
+        assertEquals("absent", exercise(app, "/one").text())
+        assertEquals(400U, exercise(app, "/one", fields = [HttpField("X-Value".toByteArray(), [(-1).toByte()])]).status)
+    }
+
+    @Test
+    fun `cookies preserve duplicate input and response expiry does not mutate it`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { ctx ->
+            ctx.response.cookies.append(HttpSetCookie(HttpCookiePair("fresh", "yes")))
+            ctx.response.cookies.delete("session", "/account", Some("example.test"))
+            text(ctx.request.cookies.getSingle("session") ?: "missing")
+        })
+        routes.get("/all", suspend { ctx -> text(ctx.request.cookies.getAll("session")[1L]) })
+        val app = routes.build()
+        val received = [field("Cookie", "session=original")]
+        val result = exercise(app, fields = received)
+        assertEquals("original", result.text())
+        val sent = result.output.head!!.fields.findAll("Set-Cookie".toByteArray())
+        assertEquals(2L, sent.size)
+        assertTrue(String.fromUtf8(sent[1L].value).contains("Path=/account"))
+        assertEquals(Some(0L), HttpSetCookie.parse(sent[1L].value).maxAgeSeconds)
+        assertEquals("original", result.context.request.cookies.getSingle("session")!!)
+        val duplicate = [field("Cookie", "session=one"), field("Cookie", "session=two")]
+        assertEquals(400U, exercise(app, fields = duplicate).status)
+        assertEquals("two", exercise(app, "/all", fields = duplicate).text())
+        expectArgument { result.context.response.cookies.delete("session", "relative", None) }
+    }
+
+    @Test
+    fun `JSON validates media and converts only input decoding failures`() {
+        val routes = RouterBuilder()
+        routes.post("/", suspend { ctx -> json(ctx.request.body.json<Int>() + 1) })
+        routes.post("/explicit", suspend { ctx -> json(ctx.request.body.json(Int.Companion), Int.Companion) })
+        routes.post("/business", suspend { _ -> throw DecodingException("", "business bug") })
+        val app = routes.build()
+        val media = [field("Content-Type", "Application/Problem+Json; charset=\"UTF-8\"")]
+        assertEquals("42", exercise(app, method = "POST", input = "41".toByteArray(), fields = media).text())
+        assertEquals("41", exercise(app, "/explicit", "POST", "41".toByteArray(), fields = media).text())
+        assertEquals(400U, exercise(app, method = "POST", input = "true".toByteArray(), fields = media).status)
+        assertEquals(400U, exercise(app, method = "POST", input = "1 2".toByteArray(), fields = media).status)
+        assertEquals(415U, exercise(app, method = "POST", input = "1".toByteArray()).status)
+        assertEquals(415U, exercise(app, method = "POST", fields = [field("Content-Type", "text/plain")]).status)
+        assertEquals(415U, exercise(app, method = "POST", fields = [field("Content-Type", "application/json; charset=latin1")]).status)
+        assertEquals(400U, exercise(app, method = "POST", fields = [media[0L], media[0L]]).status)
+        assertEquals(500U, exercise(app, "/business", "POST").status)
+    }
+
+    @Test
+    fun `form uses form escaping and structured encoding rejection leaves raw access available`() {
+        val routes = RouterBuilder()
+        routes.post("/form", suspend { ctx -> text(ctx.request.body.form().requiredText("value")) })
+        routes.post("/raw", suspend { ctx -> text(ctx.request.body.text()) })
+        routes.post("/json", suspend { ctx ->
+            try { ctx.request.body.json<Int>(); text("unexpected") }
+            catch (error: HttpRejection) { text(ctx.request.body.text(), error.result.status) }
+        })
+        val app = routes.build()
+        val media = [field("Content-Type", "application/x-www-form-urlencoded")]
+        assertEquals("a b+c", exercise(app, "/form", "POST", "value=a+b%2Bc".toByteArray(), fields = media).text())
+        assertEquals(400U, exercise(app, "/form", "POST", "value=%q0".toByteArray(), fields = media).status)
+        assertEquals(400U, exercise(app, "/form", "POST", "value=a&value=b".toByteArray(), fields = media).status)
+        val encoded = [field("Content-Type", "application/json"), field("Content-Encoding", "gzip")]
+        assertEquals("raw", exercise(app, "/raw", "POST", "raw".toByteArray(), fields = encoded).text())
+        val rejected = exercise(app, "/json", "POST", "untouched".toByteArray(), fields = encoded)
+        assertEquals(415U, rejected.status)
+        assertEquals("untouched", rejected.text())
+    }
+}

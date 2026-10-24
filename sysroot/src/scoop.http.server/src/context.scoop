@@ -1,0 +1,74 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.time.Duration
+
+/** One request's explicit context; it is also bound by exact type while its pipeline executes. */
+public class HttpContext internal constructor(
+    /** The original request and its single-consumer body. */
+    public val request: HttpRequest,
+    internal val output: ResponseOutput,
+    /** A server-generated identifier, independent of untrusted incoming fields. */
+    public val requestId: String,
+    /** The structured job that owns this request's work. */
+    public val requestJob: Job,
+    /** Immutable socket and negotiated protocol facts for this request. */
+    public val connection: HttpConnectionInfo,
+    private val deadline: RequestDeadline
+) {
+    /** Pending response mutations and submitted response state. */
+    public val response: HttpResponse = HttpResponse()
+    private val responding: AtomicBoolean = AtomicBoolean(false)
+    private val aborting: AtomicBoolean = AtomicBoolean(false)
+    internal var selectedRoute: HttpRouteInfo? = None
+    internal var parameters: PathParameters = PathParameters([], [])
+    internal var mappedFailure: Boolean = false
+    internal var observedFailure: Throwable? = None
+    internal var responseBytes: Long = 0L
+    internal var encodedResponseBytes: Long = 0L
+    internal var compressionOptions: ResponseCompressionOptions? = None
+    internal var acceptEncoding: HttpAcceptEncoding? = None
+    internal var acceptEncodingFailure: HttpFieldParseException? = None
+
+    /** The selected endpoint metadata, absent before routing and for fallback results. */
+    public val route: HttpRouteInfo? get() = selectedRoute
+    /** Captured parameters for the selected endpoint or fallback group. */
+    public val pathParams: PathParameters get() = parameters
+
+    /** Overrides the total time since pipeline entry, before commit; None disables this deadline. */
+    public fun setDeadline(duration: Duration?) {
+        requestJob.ensureActive()
+        if (requestJob.isCompleted || response.isCommitted || response.isAborted)
+            throw IllegalStateException(Some("request deadline can only change before response commit"))
+        deadline.set(duration)
+    }
+
+    /** Executes a final response, waiting for its producer and protocol completion. */
+    public suspend fun respond(result: HttpResult) { sendResult(result, false) }
+
+    internal suspend fun sendResult(result: HttpResult, minimal: Boolean) {
+        if (!responding.compareAndSet(false, true)) throw IllegalStateException(Some("response is already executing"))
+        try {
+            requestJob.ensureActive()
+            when (result.body) {
+                case HttpBody.File(value) -> executeFileResponse(this, result, value, minimal)
+                case HttpBody.WebSocket(value) -> executeWebSocketResponse(this, result, value, minimal)
+                else -> {
+                    val draft = response.prepare(result, minimal)
+                    executeResponse(this, prepareResponse(this, result, draft, minimal))
+                }
+            }
+        } catch (error: Throwable) {
+            response.releasePreparation()
+            throw error
+        } finally { responding.store(false) }
+    }
+
+    internal suspend fun abort() {
+        if (aborting.compareAndSet(false, true)) {
+            if (!response.isFinished) response.abort()
+            output.abort()
+        }
+    }
+}

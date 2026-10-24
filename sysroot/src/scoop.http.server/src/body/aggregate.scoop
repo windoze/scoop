@@ -1,0 +1,21 @@
+package scoop.http.server
+
+import scoop.asyncio.AsyncByteSource
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+internal suspend fun aggregateRequestBody(source: AsyncByteSource, maxBytes: Long): Array<Byte> =
+    NativeByteBuffer.allocate(8192L).use suspend { buffer ->
+        val result = ByteArrayBuilder()
+        var total = 0L
+        while (true) {
+            buffer.clear()
+            val remaining = maxBytes - total
+            val count = source.readInto(buffer, if (remaining < 8192L) remaining + 1L else 8192L)
+            if (count == 0L) break
+            if (count > remaining) reject(413U, "request body exceeds aggregation limit")
+            result.append(buffer.readBytes(count))
+            total += count
+        }
+        result.toByteArray()
+    }

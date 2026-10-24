@@ -1,0 +1,50 @@
+package scoop.http.server
+
+import scoop.collections.HashSet
+import scoop.http.*
+import scoop.text.lowercaseAscii
+
+internal fun mergeEncodingVary(draft: HttpResponseDraft) {
+    val vary = HttpVary.parseFields(draft.fields)
+    if (vary.isWildcard) return
+    val names = ArrayList<String>()
+    val seen = HashSet<String>()
+    for (name in vary.names) if (seen.add(name)) names.add(name)
+    if (seen.add("accept-encoding")) names.add("accept-encoding")
+    draft.set(HttpVary(names).toHttpField())
+}
+
+internal fun compressedFields(fields: List<HttpField>): Array<HttpField> {
+    val result = ArrayList<HttpField>()
+    var tagSeen = false
+    for (value in fields) {
+        val name = String.fromUtf8(value.name).lowercaseAscii()
+        if (compressionDigestField(name)) continue
+        if (name == "etag") {
+            if (tagSeen) throw IllegalArgumentException(Some("multiple response entity tags"))
+            tagSeen = true
+            val tag = HttpEntityTag.parse(value.value)
+            result.add(if (tag.isWeak) value else HttpEntityTag(tag.opaque, true).toHttpField())
+        } else if (name != "trailer") result.add(value)
+    }
+    val declarations = parseHttpTokenFields(fields, "Trailer")
+    if (declarations.size != 0L) {
+        val retained = ArrayList<String>()
+        for (name in declarations) if (!compressionDigestField(name)) retained.add(name)
+        if (retained.size != 0L) result.add(HttpTrailerDeclaration(retained).toHttpField())
+    }
+    return result.toArray()
+}
+
+private fun compressionDigestField(name: String): Boolean = name == "content-md5" || name == "digest" ||
+    name == "content-digest" || name == "repr-digest"
+
+internal fun unacceptableFields(fields: List<HttpField>): Array<HttpField> {
+    val result = ArrayList<HttpField>()
+    for (value in fields) {
+        val name = String.fromUtf8(value.name).lowercaseAscii()
+        if (!compressionDigestField(name) && name != "content-type" && name != "content-encoding" && name != "content-length" &&
+            name != "content-range" && name != "etag" && name != "last-modified" && name != "trailer") result.add(value)
+    }
+    return result.toArray()
+}

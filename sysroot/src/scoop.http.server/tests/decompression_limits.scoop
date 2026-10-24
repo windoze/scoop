@@ -1,0 +1,51 @@
+package scoop.http.server
+
+import scoop.compression.*
+import scoop.test.*
+import scoop.text.hexToByteArray
+
+@Test
+private class ServerDecompressionLimitTests {
+    @Test
+    fun `encoded decoded and aggregation bounds remain independent and permit exact EOF`() {
+        val data = Array<Byte>(4096L) { _ -> 65.toByte() }
+        val encoded = requestGzip(data)
+        val exact = RequestDecompressionOptions(decodedBodyLimit = Some(data.size), bufferSize = 7L)
+        val good = decompressionExercise(encoded, options = exact, limit = Some(encoded.size), aggregateLimit = data.size)
+        assertEquals(200U, good.status)
+        assertEquals(encoded.size, good.context.request.body.receivedBytes)
+        assertEquals(data.size, good.context.request.body.deliveredBytes)
+        val raw = decompressionExercise(encoded, options = exact, limit = Some(encoded.size - 1L))
+        assertEquals(413U, raw.status)
+        assertEquals(encoded.size, raw.context.request.body.receivedBytes)
+        assertEquals(413U, decompressionExercise(encoded,
+            options = RequestDecompressionOptions(decodedBodyLimit = Some(data.size - 1L)), limit = None).status)
+        assertEquals(413U, decompressionExercise(encoded, options = exact, aggregateLimit = data.size - 1L).status)
+        assertEquals(413U, decompressionExercise(encoded,
+            options = RequestDecompressionOptions(decodedBodyLimit = None, maxWindowBytes = None), limit = None, aggregateLimit = 3L).status)
+        assertEquals(413U, decompressionExercise("ab".toByteArray(), "identity",
+            RequestDecompressionOptions(decodedBodyLimit = Some(1L))).status)
+        assertEquals(200U, decompressionExercise("ab".toByteArray(), "identity",
+            RequestDecompressionOptions(decodedBodyLimit = Some(2L))).status)
+    }
+
+    @Test
+    fun `intermediate coding output is bounded even when final plaintext is empty`() {
+        val inner = requestGzip("".toByteArray())
+        val outer = requestGzip(inner)
+        assertTrue(inner.size > 10L)
+        assertEquals(413U, decompressionExercise(outer, "gzip,gzip",
+            RequestDecompressionOptions(decodedBodyLimit = Some(10L))).status)
+        val good = decompressionExercise(outer, "gzip,gzip", RequestDecompressionOptions(decodedBodyLimit = Some(inner.size)))
+        assertEquals(200U, good.status); assertEquals("", good.text())
+        assertEquals(0L, good.context.request.body.deliveredBytes)
+    }
+
+    @Test
+    fun `zstd window rejection is separate from output and does not affect gzip`() {
+        val vector = "28b52ffd045869000048656c6c6f2c2053636f6f70211d5bd446".hexToByteArray()
+        val options = RequestDecompressionOptions(decodedBodyLimit = Some(100L), maxWindowBytes = Some(1024L))
+        assertEquals(413U, decompressionExercise(vector, "zstd", options).status)
+        assertEquals("ok", decompressionExercise(requestGzip("ok".toByteArray()), options = options).text())
+    }
+}

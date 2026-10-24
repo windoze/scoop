@@ -1,0 +1,49 @@
+package scoop.http.server
+
+import scoop.asyncio.useAsync
+import scoop.http.asyncio.SseSink
+import scoop.time.Duration
+
+/** SSE endpoint behavior; application replay and subscription state remain external. */
+public class SseOptions public constructor(
+    /** Idle interval for flushed comment heartbeats; None disables them. */
+    public val heartbeatInterval: Duration? = None,
+    /** Whether the installed response compression policy may encode this event stream. */
+    public val allowCompression: Boolean = false
+) {
+    init {
+        if (present(heartbeatInterval) && heartbeatInterval!! <= Duration.ZERO)
+            throw IllegalArgumentException(Some("SSE heartbeat interval must be positive"))
+    }
+}
+
+/** Builds an SSE stream that flushes its headers before running the producer. */
+public fun sse(options: SseOptions = SseOptions(), produce: suspend (SseWriter) -> Unit): HttpResult =
+    HttpResult(200U, [field("Content-Type", "text/event-stream; charset=utf-8"), field("Cache-Control", "no-cache")],
+        HttpBody.Stream(HttpStreamBody(suspend { body -> produceSse(body, options, produce) })), options.allowCompression)
+
+private suspend fun produceSse(body: HttpBodyWriter, options: SseOptions, produce: suspend (SseWriter) -> Unit) {
+    SseSink(body).useAsync suspend { sink ->
+        val writer = SseWriter(sink)
+        try {
+            writer.flush()
+            coroutineScope<Unit> suspend { scope ->
+                val heartbeat: Job? = when (options.heartbeatInterval) {
+                    case None -> None
+                    case Some(interval) -> Some(scope.launch suspend { runSseHeartbeat(writer, interval) })
+                }
+                var completed = false
+                try {
+                    coroutineScope<Unit> suspend { _ -> produce(writer) }
+                    completed = true
+                } finally {
+                    writer.invalidate()
+                    if (present(heartbeat)) {
+                        if (!completed) heartbeat!!.cancel()
+                        nonCancellableScope<Unit> suspend { _ -> heartbeat!!.join() }
+                    }
+                }
+            }
+        } finally { writer.invalidate() }
+    }
+}

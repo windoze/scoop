@@ -1,0 +1,118 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.fs.*
+import scoop.test.*
+
+private class UploadPathHolder { var value: Path? = None }
+
+@Test private class ServerMultipartFailureTests {
+    @Test fun `metadata rejection precedes Continue and reads no upload body`() {
+        val completed = ServerTestCompletions(4L)
+        val routes = RouterBuilder()
+        routes.post("/", suspend { ctx -> ctx.request.body.multipart(); empty() })
+        withServer(routes.build(), HttpServerOptions(onRequestCompleted = Some(completed::receive)), suspend { scope, _, address ->
+            val valid = field("Content-Type", "multipart/form-data; boundary=test-boundary")
+            val cases: Array<(Array<HttpField>, UInt)> = [
+                ([field("Content-Type", "multipart/form-data")], 400U),
+                ([field("Content-Type", "text/plain")], 415U),
+                ([valid, field("Content-Encoding", "gzip")], 415U),
+                ([valid, valid], 400U)
+            ]
+            for ((fields, status) in cases) networkClient(address, scope).useAsync suspend { client ->
+                val all = ArrayList<HttpField>()
+                for (value in fields) all.add(value)
+                all.add(field("Expect", "100-continue"))
+                client.sendRequest(networkRequest(method = "POST", fields = all), Http1BodyFraming.Length(99999L))
+                val response = client.receiveResponse()
+                assertEquals(status, response.head.status)
+                networkText(response.body)
+                assertFalse(client.isReusable)
+            }
+            completed.ready.await()
+            for (value in completed.snapshot()) assertEquals(0L, value.receivedBytes)
+        })
+    }
+
+    @Test fun `HTTP2 reset removes a staged upload and preserves another request`() {
+        val directory = UploadTestDirectory()
+        try {
+            val staged = UploadPathHolder(); val copying = ServerTestGate(); val cleaned = ServerTestGate()
+            val destination = directory.child("published.bin")
+            val completed = ServerTestCompletions(2L)
+            val routes = RouterBuilder()
+            routes.post("/upload", suspend { ctx ->
+                val loop = currentEventLoop()
+                val temporary = loop.createTempFile(Some(directory.path))
+                staged.value = Some(temporary.path)
+                var published = false
+                try {
+                    temporary.useAsync suspend { file ->
+                        ctx.request.body.multipart().useAsync suspend { reader ->
+                            val part = reader.nextPart()!!
+                            copying.signal()
+                            part.copyTo(file.file, 65536L)
+                            assertFalse(present(reader.nextPart()))
+                        }
+                    }
+                    loop.moveFile(temporary.path, destination)
+                    published = true
+                    text("saved")
+                } finally {
+                    deleteUnpublishedUpload(temporary.path, published)
+                    cleaned.signal()
+                }
+            })
+            routes.get("/ok", suspend { _ -> text("ok") })
+            withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true, onRequestCompleted = Some(completed::receive)),
+                suspend { scope, _, address ->
+                    h2ServerClient(address, scope).useAsync suspend { client ->
+                        val upload = client.openRequest(h2ServerRequest("/upload", "POST", requestMultipartFields()), false)
+                        MultipartSink(upload, MultipartBoundary("test-boundary")).useAsync suspend { writer ->
+                            val part = writer.beginPart(MultipartPartHead.formData("file", Some("input.bin")))
+                            networkWrite(part, "partial body")
+                            copying.await(); upload.close(); cleaned.await()
+                        }
+                        assertFalse(staged.value!!.exists() || destination.exists())
+                        assertEquals("ok", h2ServerText(client, "/ok"))
+                        completed.ready.await()
+                        for (value in completed.snapshot()) if (value.route!!.template == "/upload")
+                            assertEquals(HttpRequestOutcome.Cancelled, value.outcome)
+                    }
+                })
+        } finally { directory.dispose() }
+    }
+
+    @Test fun `an actual file write failure leaves neither a published file nor its staging file`() {
+        val directory = UploadTestDirectory()
+        try {
+            val staged = UploadPathHolder()
+            val destination = directory.child("published.bin")
+            val routes = RouterBuilder()
+            routes.post("/", suspend { ctx ->
+                val loop = currentEventLoop()
+                val temporary = loop.createTempFile(Some(directory.path))
+                staged.value = Some(temporary.path)
+                var published = false
+                try {
+                    temporary.useAsync suspend { file ->
+                        loop.openFile(file.path).useAsync suspend { readOnly ->
+                            ctx.request.body.multipart().useAsync suspend { reader ->
+                                reader.nextPart()!!.copyTo(readOnly, 65536L)
+                                assertFalse(present(reader.nextPart()))
+                            }
+                        }
+                    }
+                    loop.moveFile(temporary.path, destination)
+                    published = true
+                    text("saved")
+                } finally { deleteUnpublishedUpload(temporary.path, published) }
+            })
+            val body = requestMultipartBytes([(MultipartPartHead.formData("file"), "data".toByteArray())])
+            assertEquals(500U, exercise(routes.build(), method = "POST", input = body, fields = requestMultipartFields()).status)
+            assertFalse(staged.value!!.exists() || destination.exists())
+        } finally { directory.dispose() }
+    }
+}

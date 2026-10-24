@@ -1,0 +1,39 @@
+package scoop.http
+
+/** One outbound SSE block; absent fields differ from explicitly empty fields. */
+public class SseMessage public constructor(
+    /** Optional event data, with line endings normalized during encoding. */
+    public val data: String? = None,
+    /** Optional event type, without line separators. */
+    public val event: String? = None,
+    /** Optional event ID; an empty value clears the receiver's ID. */
+    public val id: String? = None,
+    /** Optional nonnegative reconnect hint in milliseconds. */
+    public val retryMilliseconds: Long? = None
+) {
+    init {
+        when (event) { case Some(value) -> requireSseLine(value, false); case None -> {} }
+        when (id) { case Some(value) -> requireSseLine(value, true); case None -> {} }
+        if (retryMilliseconds != None && retryMilliseconds!! < 0L)
+            throw IllegalArgumentException(Some("negative SSE retry interval"))
+    }
+}
+
+private fun requireSseLine(text: String, id: Boolean) {
+    for (value in text) if (value == '\r' || value == '\n' || (id && value == '\u0000'))
+        throw IllegalArgumentException(Some("invalid SSE field value"))
+}
+
+internal class SseOutputField(val prefix: Array<Byte>, val value: String)
+
+internal fun sseMessageFields(message: SseMessage): Array<SseOutputField> {
+    val fields = ArrayList<SseOutputField>()
+    when (message.id) { case Some(value) -> fields.add(SseOutputField("id: ".toByteArray(), value)); case None -> {} }
+    when (message.event) { case Some(value) -> fields.add(SseOutputField("event: ".toByteArray(), value)); case None -> {} }
+    when (message.retryMilliseconds) {
+        case Some(value) -> fields.add(SseOutputField("retry: ".toByteArray(), value.toString()))
+        case None -> {}
+    }
+    when (message.data) { case Some(value) -> fields.add(SseOutputField("data: ".toByteArray(), value)); case None -> {} }
+    return fields.toArray()
+}

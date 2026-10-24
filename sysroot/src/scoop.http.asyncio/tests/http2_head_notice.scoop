@@ -1,0 +1,34 @@
+package scoop.http.asyncio
+
+import scoop.http.*
+import scoop.test.*
+
+@Test private class Http2RequestHeadNoticeTests {
+    @Test fun `request head notifications precede accept delivery and do not include trailers`() {
+        withHttp2 suspend { _, pair ->
+            val stream = pair.client.openRequest(request2("POST"), false)
+            val incoming = pair.server.acceptRequest()!!
+            var starts = 0L
+            var received = 0L
+            for (event in pair.serverEvents.snapshot()) when (event) {
+                case RequestHeadStarted(id) -> { assertEquals(stream.id, id); starts += 1L }
+                case RequestHeadReceived(id) -> {
+                    assertEquals(stream.id, id); assertEquals(1L, starts); received += 1L
+                }
+                else -> {}
+            }
+            assertEquals(1L, received)
+            stream.finish([HttpField("x-done".toByteArray(), "yes".toByteArray())])
+            receiveBytes(incoming.stream)
+            incoming.stream.sendResponse(response2(204U))
+            assertEquals(204U, stream.receiveResponse().status)
+            var total = 0L
+            for (event in pair.serverEvents.snapshot()) when (event) {
+                case RequestHeadStarted(_) -> total += 1L
+                case RequestHeadReceived(_) -> total += 1L
+                else -> {}
+            }
+            assertEquals(2L, total)
+        }
+    }
+}

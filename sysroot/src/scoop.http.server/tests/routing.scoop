@@ -1,0 +1,138 @@
+package scoop.http.server
+
+import scoop.test.*
+
+@Test
+private class ServerRoutingTests {
+    @Test
+    fun `resource priority precedes method selection and supports static dead end fallback`() {
+        val routes = RouterBuilder()
+        routes.get("/users/me", suspend { _ -> text("static") })
+        routes.post("/users/{id}", suspend { ctx -> text(ctx.pathParams.text("id")) })
+        routes.get("/users/fixed/more", suspend { _ -> text("long") })
+        routes.get("/users/{id}/edit", suspend { ctx -> text(ctx.pathParams.text("id")) })
+        val app = routes.build()
+        assertEquals("static", exercise(app, "/users/me").text())
+        val method = exercise(app, "/users/me", "POST")
+        assertEquals(405U, method.status)
+        assertEquals("GET, HEAD, OPTIONS", method.output.header("Allow"))
+        assertEquals("fixed", exercise(app, "/users/fixed/edit").text())
+        assertEquals("other", exercise(app, "/users/other", "POST").text())
+    }
+
+    @Test
+    fun `tails slashes encoded separators and one decoding preserve path structure`() {
+        val routes = RouterBuilder()
+        routes.get("/files/{*rest}", suspend { ctx -> text(ctx.pathParams.text("rest")) })
+        routes.get("/value/{id}", suspend { ctx -> text(ctx.pathParams.text("id")) })
+        routes.get("/slash", suspend { _ -> text("plain") })
+        routes.get("/slash/", suspend { _ -> text("trailing") })
+        val app = routes.build()
+        assertEquals("a/b", exercise(app, "/files/a/b").text())
+        assertEquals(404U, exercise(app, "/files/").status)
+        assertEquals("a/b", exercise(app, "/value/a%2Fb").text())
+        assertEquals(404U, exercise(app, "/value/a/b").status)
+        assertEquals("%2F", exercise(app, "/value/%252F").text())
+        assertEquals(400U, exercise(app, "/value/%FF").status)
+        assertEquals(400U, exercise(app, "/value/%xy").status)
+        assertEquals("plain", exercise(app, "/slash").text())
+        assertEquals("trailing", exercise(app, "/slash/").text())
+        assertEquals("..", exercise(app, "/value/..").text())
+    }
+
+    @Test
+    fun `same shaped methods retain their own parameter names and builders freeze`() {
+        val routes = RouterBuilder()
+        routes.get("/{id}", suspend { ctx -> text(ctx.pathParams.text("id")) })
+        routes.post("/{name}", suspend { ctx -> text(ctx.pathParams.text("name")) })
+        val app = routes.build()
+        assertEquals("one", exercise(app, "/one").text())
+        assertEquals("two", exercise(app, "/two", "POST").text())
+        expectState { routes.get("/later", suspend { _ -> empty() }) }
+        expectState { routes.build() }
+        val duplicate = RouterBuilder()
+        duplicate.get("/{id}", suspend { _ -> empty() })
+        duplicate.get("/{name}", suspend { _ -> empty() })
+        expectArgument { duplicate.build() }
+        expectArgument { RouterBuilder().get("/{*rest}/end", suspend { _ -> empty() }) }
+        expectArgument { RouterBuilder().get("/{id}/{id}", suspend { _ -> empty() }) }
+        expectArgument { RouterBuilder().route("bad method", "/", suspend { _ -> empty() }) }
+    }
+
+    @Test
+    fun `group fallback and method rejection keep global and group middleware`() {
+        val order = StringBuilder()
+        val routes = RouterBuilder()
+        routes.use(suspend { _, next -> order.append("A"); next(); order.append("a") })
+        routes.fallback(suspend { _ -> text("root", 404U) })
+        routes.group("/api") { group ->
+            group.use(suspend { _, next -> order.append("B"); next(); order.append("b") })
+            group.fallback(suspend { _ -> text("api", 404U) })
+            group.get("/ready", suspend { _ -> text("ready") })
+            group.group("/v1") { nested ->
+                nested.use(suspend { _, next -> order.append("C"); next(); order.append("c") })
+                nested.fallback(suspend { _ -> text("v1", 404U) })
+            }
+        }
+        val app = routes.build()
+        assertEquals("v1", exercise(app, "/api/v1/missing").text())
+        assertEquals("ABCcba", order.toString())
+        assertEquals(405U, exercise(app, "/api/ready", "POST").status)
+        assertEquals("ABCcbaABba", order.toString())
+        assertEquals("root", exercise(app, "/outside").text())
+    }
+
+    @Test
+    fun `nested parameter groups combine endpoint paths middleware and inherited fallbacks`() {
+        val order = StringBuilder()
+        val routes = RouterBuilder()
+        routes.use(suspend { _, next -> order.append("A"); next(); order.append("a") })
+        routes.group("/api/{tenant}") { tenant ->
+            tenant.use(suspend { _, next -> order.append("B"); next(); order.append("b") })
+            tenant.fallback(suspend { ctx -> text("missing:" + ctx.pathParams.text("tenant"), 404U) })
+            tenant.group("/v1") { version ->
+                version.use(suspend { _, next -> order.append("C"); next(); order.append("c") })
+                version.get("/users/{id}", suspend { ctx -> text(ctx.pathParams.text("tenant") + ":" + ctx.pathParams.text("id")) })
+            }
+        }
+        val app = routes.build()
+        assertEquals("acme:42", exercise(app, "/api/acme/v1/users/42").text())
+        assertEquals("ABCcba", order.toString())
+        assertEquals("missing:acme", exercise(app, "/api/acme/v1/unknown").text())
+        assertEquals("ABCcbaABCcba", order.toString())
+        assertEquals(404U, exercise(app, "/api/acme/v2/users/42").status)
+        assertEquals("ABCcbaABCcbaABba", order.toString())
+    }
+
+    @Test
+    fun `implicit explicit and server wide method handling are stable`() {
+        val routes = RouterBuilder()
+        routes.post("/write", suspend { _ -> text("post") })
+        routes.get("/read", suspend { _ -> text("get") })
+        routes.head("/read", suspend { _ -> HttpResult(202U) })
+        routes.options("/write", suspend { _ -> empty(200U) })
+        val app = routes.build()
+        assertEquals(202U, exercise(app, "/read", "HEAD").status)
+        assertEquals(200U, exercise(app, "/write", "OPTIONS").status)
+        assertEquals("GET, HEAD, OPTIONS, POST", exercise(app, "*", "OPTIONS").output.header("Allow"))
+        assertEquals(400U, exercise(app, "*", "GET").status)
+        assertEquals(501U, exercise(app, "example.com:443", "CONNECT").status)
+        assertEquals(400U, exercise(app, "http://example.com/read").status)
+        assertEquals(405U, exercise(app, "/read", "get").status)
+    }
+
+    @Test
+    fun `query preserves plus empty and duplicate values independently of route selection`() {
+        val routes = RouterBuilder()
+        routes.get("/query", suspend { ctx -> text(ctx.request.query.requiredText("q")) })
+        routes.get("/page", suspend { ctx -> text((ctx.request.query.optionalLong("page") ?: 1L).toString()) })
+        val app = routes.build()
+        assertEquals("a+b", exercise(app, "/query?q=a+b").text())
+        assertEquals("", exercise(app, "/query?q=").text())
+        assertEquals(400U, exercise(app, "/query?q").status)
+        assertEquals(400U, exercise(app, "/query?q=a&q=b").status)
+        assertEquals("1", exercise(app, "/page").text())
+        assertEquals("2", exercise(app, "/page?page=2").text())
+        assertEquals(400U, exercise(app, "/page?page=").status)
+    }
+}

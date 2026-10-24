@@ -1,0 +1,67 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.io.WriteZeroException
+import scoop.platform.memory.NativeByteBuffer
+
+/** Serial SSE output over a borrowed sink; closing releases only local resources. */
+public class SseSink private constructor(private val writer: AsyncSseWriter) : AsyncCloseable {
+    /** Creates a bounded output adapter on the current event loop without writing bytes. */
+    public constructor(sink: AsyncByteSink, bufferSize: Long = 8192L) : this(createSseWriter(sink, bufferSize)) {}
+
+    /** Whether local cleanup has completed. */
+    public val isClosed: Boolean get() = writer.io.isClosed
+    /** The original terminal write or flush failure, when one occurred. */
+    public val failure: Throwable? get() = writer.io.failure
+
+    /** Sends a complete block with backpressure, without implicitly flushing. */
+    public suspend fun send(message: SseMessage) {
+        SseEncoder(message).use suspend { encoder -> writer.send(encoder) }
+    }
+
+    /** Sends a complete comment block, without implicitly flushing. */
+    public suspend fun comment(text: String) {
+        SseEncoder.comment(text).use suspend { encoder -> writer.send(encoder) }
+    }
+
+    /** Flushes the borrowed downstream sink without ending its HTTP body. */
+    public suspend fun flush() { writer.io.run({}) suspend { sink -> sink.flush() } }
+
+    /** Cancels and joins in-flight output before releasing the local buffer. */
+    public override suspend fun close() { writer.io.close() }
+}
+
+internal class AsyncSseWriter(sink: AsyncByteSink, loop: EventLoop, private val buffer: NativeByteBuffer) {
+    val io: MessageIo<AsyncByteSink> = MessageIo<AsyncByteSink>(sink, None, loop) { buffer.close() }
+
+    suspend fun send(encoder: SseEncoder) {
+        io.run({}) suspend { sink ->
+            while (!encoder.isFinished) {
+                ensureActive()
+                buffer.clear()
+                encoder.writeInto(buffer)
+                while (buffer.readableBytes > 0L) {
+                    ensureActive()
+                    val requested = buffer.readableBytes
+                    val beforeRead = buffer.readPosition
+                    val beforeWrite = buffer.writePosition
+                    val written = sink.writeFrom(buffer, requested)
+                    httpProgress(written, requested)
+                    if (buffer.readPosition - beforeRead != written || buffer.writePosition != beforeWrite)
+                        throw IllegalStateException(Some("inconsistent SSE sink progress"))
+                    if (written == 0L) throw WriteZeroException()
+                }
+            }
+        }
+    }
+}
+
+private fun createSseWriter(sink: AsyncByteSink, bufferSize: Long): AsyncSseWriter {
+    val loop = currentEventLoop()
+    val job = httpJob(loop, true)
+    if (bufferSize <= 0L) throw IllegalArgumentException(Some("SSE buffer size must be positive"))
+    val buffer = NativeByteBuffer.allocate(bufferSize)
+    try { job.ensureActive(); return AsyncSseWriter(sink, loop, buffer) }
+    catch (error: Throwable) { buffer.close(); throw error }
+}

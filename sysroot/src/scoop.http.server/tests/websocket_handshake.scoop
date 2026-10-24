@@ -1,0 +1,129 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+
+@Test
+private class ServerWebSocketHandshakeTests {
+    @Test
+    fun `upgrade configuration is checked before a result can send 101`() {
+        expectArgument { WebSocketOptions(protocols = ["chat", "chat"]) }
+        expectArgument { WebSocketOptions(protocols = ["two words"]) }
+        expectArgument { WebSocketOptions(deflate = Some(WebSocketDeflate(serverMaxWindowBits = Some(8)))) }
+        expectArgument { HttpServerOptions(maxWebSocketSessions = 0L) }
+        expectArgument { empty(101U) }
+        val body = webSocket(onSession = suspend { _, _ -> Unit }).body
+        expectArgument { HttpResult(200U, body = body) }
+        assertEquals(7L, HttpServerOptions(maxConnections = 7L).maxWebSocketSessions)
+    }
+
+    @Test
+    fun `method version body and unsupported protocol errors stay ordinary HTTP responses`() {
+        val calls = TestCounter()
+        val handler: HttpHandler = suspend { _ -> webSocket(onSession = suspend { _, _ -> calls.value += 1 }) }
+        val routes = RouterBuilder(); routes.get("/", handler); routes.post("/", handler)
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, _, address ->
+            for (method in ["HEAD", "POST"]) {
+                val response = websocketStatus(address, scope, serverWebSocketRequest(method = method))
+                assertEquals(405U, response.status)
+                assertEquals("GET", String.fromUtf8(response.fields.findAll("Allow".toByteArray())[0L].value))
+            }
+            val old = websocketStatus(address, scope, serverWebSocketRequest(version = "8"))
+            assertEquals(426U, old.status)
+            assertEquals("13", String.fromUtf8(old.fields.findAll("Sec-WebSocket-Version".toByteArray())[0L].value))
+            for (version in ["013", "no", "256"]) assertEquals(400U,
+                websocketStatus(address, scope, serverWebSocketRequest(version = version)).status)
+            val request = serverWebSocketRequest()
+            val h10 = HttpRequestHead(HttpVersion.Http10, request.method, request.target, request.fields)
+            assertEquals(400U, websocketStatus(address, scope, h10).status)
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(serverWebSocketRequest(fields = [field("Content-Length", "1"), field("Expect", "100-continue")]),
+                    Http1BodyFraming.Length(1L))
+                val response = client.receiveResponse()
+                assertEquals(400U, response.head.status); networkText(response.body)
+            }
+            h2ServerClient(address, scope).useAsync suspend { client ->
+                val stream = client.openRequest(h2ServerRequest())
+                assertEquals(400U, stream.receiveResponse().status); networkText(stream)
+            }
+            assertEquals(0, calls.value)
+        })
+    }
+
+    @Test
+    fun `authentication and explicit raw Origin policy reject without beginning a session`() {
+        val calls = TestCounter(); val origins = TestCounter()
+        val routes = RouterBuilder()
+        routes.use(suspend { ctx, next ->
+            if (ctx.request.headers.getSingle("Authorization") != Some("allowed")) ctx.respond(empty(401U)) else next()
+        })
+        val options = WebSocketOptions(originAllowed = { fields ->
+            origins.value += 1
+            fields.size == 1L && sameBytes(fields[0L].value, "https://allowed.example".toByteArray())
+        })
+        routes.get("/", suspend { _ -> webSocket(options, suspend { _, _ -> calls.value += 1 }) })
+        withServer(routes.build(), block = suspend { scope, _, address ->
+            assertEquals(401U, websocketStatus(address, scope, serverWebSocketRequest()).status)
+            assertEquals(0, origins.value)
+            val auth = field("Authorization", "allowed")
+            for (fields in [[auth], [auth, field("Origin", "null")],
+                [auth, field("Origin", "https://allowed.example"), field("Origin", "https://allowed.example")],
+                [auth, HttpField("Origin".toByteArray(), [255.toByte()])]]) {
+                assertEquals(403U, websocketStatus(address, scope, serverWebSocketRequest(fields = fields)).status)
+            }
+            assertEquals(4, origins.value); assertEquals(0, calls.value)
+        })
+    }
+
+    @Test
+    fun `protocol preference cookies and beforeCommit participate in the one upgrade response`() {
+        val routes = RouterBuilder()
+        val options = WebSocketOptions(protocols = ["server-first", "client-first"], requireProtocol = true)
+        routes.get("/", suspend { ctx ->
+            ctx.response.add(field("Set-Cookie", "session=yes"))
+            ctx.response.beforeCommit { draft -> draft.add(field("X-Handshake", "checked")) }
+            webSocket(options, suspend { info, session -> session.sendText(info.protocol!!) })
+        })
+        withServer(routes.build(), block = suspend { scope, _, address ->
+            assertEquals(400U, websocketStatus(address, scope, serverWebSocketRequest()).status)
+            val request = serverWebSocketRequest(fields = [field("Sec-WebSocket-Protocol", "client-first, server-first")])
+            networkClient(address, scope).useAsync suspend { client ->
+                client.sendRequest(request).finish()
+                val response = client.receiveResponse()
+                assertEquals(101U, response.head.status)
+                assertEquals("session=yes", String.fromUtf8(response.head.fields.findAll("Set-Cookie".toByteArray())[0L].value))
+                assertEquals("checked", String.fromUtf8(response.head.fields.findAll("X-Handshake".toByteArray())[0L].value))
+                val negotiated = WebSocketHandshake.parse(request).accept(response.head)
+                assertEquals(Some("server-first"), negotiated.protocol)
+                AsyncWebSocketSession.takeOwnership(client.takeTransport(), scope, HttpRole.Client).useAsync suspend { session ->
+                    assertEquals("server-first", session.receive()!!.readText()); session.awaitClosed()
+                    assertEquals(Some(1000U), session.peerClose!!.code)
+                }
+            }
+        })
+    }
+
+    @Test
+    fun `conflicting response mutations fail before switching and release reserved capacity`() {
+        val calls = TestCounter()
+        val routes = RouterBuilder()
+        routes.get("/{field}", suspend { ctx ->
+            val name = ctx.pathParams.text("field")
+            ctx.response.beforeCommit { draft ->
+                if (name == "status") draft.status = 200U else draft.set(field(name, "invalid"))
+            }
+            webSocket(onSession = suspend { _, _ -> calls.value += 1 })
+        })
+        routes.get("/", suspend { _ -> webSocket(onSession = suspend { _, session -> session.sendText("ok") }) })
+        withServer(routes.build(), HttpServerOptions(maxWebSocketSessions = 1L), suspend { scope, _, address ->
+            for (name in ["Connection", "Upgrade", "Sec-WebSocket-Accept", "Content-Length", "Transfer-Encoding", "Trailer", "Content-Encoding", "status"])
+                assertEquals(500U, websocketStatus(address, scope, serverWebSocketRequest("/" + name)).status)
+            serverWebSocketClient(address, scope).useAsync suspend { session ->
+                assertEquals("ok", session.receive()!!.readText()); session.awaitClosed()
+            }
+            assertEquals(0, calls.value)
+        })
+    }
+}

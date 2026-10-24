@@ -1,0 +1,93 @@
+package scoop.http.server
+
+import scoop.http.HttpField
+import scoop.json.Json
+
+/** The response body; streams acquire and release their own resources during execution. */
+public enum HttpBody {
+    /** No response content. */
+    Empty,
+    /** An immutable byte snapshot. */
+    Bytes(Array<Byte>),
+    /** A producer executed once inside the request pipeline. */
+    Stream(HttpStreamBody),
+    /** A file opened and closed by the response executor, including for metadata-only results. */
+    File(HttpFileBody),
+    /** An explicit HTTP/1 upgrade whose session starts after request cleanup. */
+    WebSocket(HttpWebSocketBody)
+}
+
+/** A suspending producer and its optional original-content length and final trailers. */
+public class HttpStreamBody public constructor(
+    /** The producer, invoked only when the request and status permit content. */
+    public val produce: suspend (HttpBodyWriter) -> Unit,
+    /** The exact original-content length, if known without executing the producer. */
+    public val length: Long? = None,
+    /** Trailers collected after successful production; never called for HEAD. */
+    public val trailers: (() -> List<HttpField>)? = None
+) {
+    init {
+        if (present(length) && length!! < 0L) throw IllegalArgumentException(Some("negative response length"))
+    }
+}
+
+/** An immutable ordinary response description; it does not own an already-open source. */
+public class HttpResult public constructor(
+    /** The final response status, 200 through 599 or 101 for an explicit WebSocket upgrade. */
+    public val status: UInt = 200U,
+    fields: List<HttpField> = ArrayList<HttpField>(),
+    /** The response content, executed within the request scope. */
+    public val body: HttpBody = HttpBody.Empty,
+    /** Whether an installed compression policy may dynamically transform this representation. */
+    public val allowCompression: Boolean = true
+) {
+    /** Ordered response fields, including independently preserved Set-Cookie entries. */
+    public val fields: Array<HttpField> = fields.toArray()
+
+    init {
+        val upgrading = when (body) { case HttpBody.WebSocket(_) -> true; else -> false }
+        if (if (upgrading) status != 101U else status < 200U || status > 599U)
+            throw IllegalArgumentException(Some("invalid final response status"))
+    }
+}
+
+/** Builds an empty response with the supplied final status and fields. */
+public fun empty(status: UInt = 204U, fields: List<HttpField> = ArrayList<HttpField>()): HttpResult =
+    HttpResult(status, fields)
+
+/** Copies bytes into a response with an explicit media type. */
+public fun bytes(value: List<Byte>, contentType: String = "application/octet-stream", status: UInt = 200U): HttpResult =
+    HttpResult(status, [field("Content-Type", contentType)], HttpBody.Bytes(value.toArray()))
+
+/** Builds a UTF-8 text response. */
+public fun text(value: String, status: UInt = 200U): HttpResult =
+    bytes(value.toByteArray(), "text/plain; charset=utf-8", status)
+
+/** Encodes a JSON response using an explicit codec. */
+public fun <T> json(value: T, codec: ValueEncoder<T>, status: UInt = 200U): HttpResult =
+    bytes(Json.encodeToString(value, codec).toByteArray(), "application/json", status)
+
+/** Encodes a JSON response using the type's companion codec. */
+public fun <T> json(value: T, status: UInt = 200U): HttpResult
+    where T.Companion : ValueEncoder<T> = json(value, T.Companion, status)
+
+/** Builds a redirect without acquiring any response resource. */
+public fun redirect(location: String, status: UInt = 303U): HttpResult {
+    if (status != 301U && status != 302U && status != 303U && status != 307U && status != 308U)
+        throw IllegalArgumentException(Some("invalid redirect status"))
+    return empty(status, [field("Location", location)])
+}
+
+/** Builds a streaming response whose producer remains inside all enclosing middleware scopes. */
+public fun stream(contentType: String, produce: suspend (HttpBodyWriter) -> Unit,
+    length: Long? = None, status: UInt = 200U,
+    trailers: (() -> List<HttpField>)? = None): HttpResult =
+    HttpResult(status, [field("Content-Type", contentType)], HttpBody.Stream(HttpStreamBody(produce, length, trailers)))
+
+internal fun bodyLength(body: HttpBody): Long? = when (body) {
+    case HttpBody.Empty -> Some(0L)
+    case HttpBody.Bytes(value) -> Some(value.size)
+    case HttpBody.Stream(value) -> value.length
+    case HttpBody.File(_) -> None
+    case HttpBody.WebSocket(_) -> None
+}

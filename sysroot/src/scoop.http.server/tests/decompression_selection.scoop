@@ -1,0 +1,104 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class ServerDecompressionSelectionTests {
+    @Test
+    fun `all HTTP codings feed JSON and reverse ordered layers preserve original fields`() {
+        val routes = RouterBuilder()
+        routes.use(requestDecompression(RequestDecompressionOptions(bufferSize = 1L)))
+        routes.post("/", suspend { ctx -> json(ctx.request.body.json<Int>() + 1) })
+        routes.post("/form", suspend { ctx -> text(ctx.request.body.form().requiredText("name")) })
+        val app = routes.build()
+        val formats = [("gzip", CompressionOptions.Gzip(GzipOptions())), ("deflate", CompressionOptions.Zlib(DeflateOptions())),
+            ("br", CompressionOptions.Brotli(BrotliOptions())), ("zstd", CompressionOptions.Zstd(ZstdOptions()))]
+        for ((coding, option) in formats) {
+            val encoded = compress("41".toByteArray(), option)
+            val result = exercise(app, method = "POST", input = encoded, fields = requestEncodedFields(coding, "application/json"))
+            assertEquals("42", result.text())
+            assertTrue(result.context.request.body.isComplete)
+            assertEquals(encoded.size, result.context.request.body.receivedBytes)
+            assertEquals(2L, result.context.request.body.deliveredBytes)
+            assertEquals(None, result.context.request.body.view!!.contentLength)
+            assertEquals(coding, result.context.request.body.view!!.decodedEncodings[0L])
+        }
+        val encoded = compress(requestGzip("41".toByteArray()), CompressionOptions.Brotli(BrotliOptions()))
+        val fields = [field("Content-Encoding", "GZip, identity"), field("Content-Encoding", "br"),
+            field("Content-Type", "application/json"), field("Content-Length", encoded.size.toString())]
+        val result = exercise(app, method = "POST", input = encoded, fields = fields)
+        assertEquals("42", result.text())
+        val view = result.context.request.body.view!!
+        assertEquals(2L, view.decodedEncodings.size)
+        assertEquals("gzip", view.decodedEncodings[0L]); assertEquals("br", view.decodedEncodings[1L])
+        assertEquals(None, view.contentLength)
+        assertEquals(Some(encoded.size), parseHttpContentLength(result.context.request.head.fields))
+        assertEquals("GZip, identity", result.context.request.headers.getAll("Content-Encoding")[0L])
+        assertEquals("a b+c", exercise(app, "/form", "POST", requestGzip("name=a+b%2Bc".toByteArray()),
+            fields = requestEncodedFields(media = "application/x-www-form-urlencoded")).text())
+    }
+
+    @Test
+    fun `raw and decoded views share one claim and rejected metadata leaves raw access available`() {
+        val routes = RouterBuilder()
+        routes.use(requestDecompression())
+        routes.post("/raw", suspend { ctx ->
+            assertFalse(present(ctx.request.body.view))
+            val source = ctx.request.body.openRawStream()
+            expectState { ctx.request.body.openStream() }
+            expectState { ctx.request.body.configureDecoding(RequestDecompressionOptions()) }
+            expectState { ctx.request.body.setLimit(None) }
+            text(networkText(source))
+        })
+        routes.post("/decoded", suspend { ctx ->
+            val source = ctx.request.body.openStream()
+            expectState { ctx.request.body.openRawStream() }
+            text(networkText(source))
+        })
+        routes.post("/recover", suspend { ctx ->
+            try { ctx.request.body.openStream(); text("unexpected") }
+            catch (error: HttpRejection) { text(networkText(ctx.request.body.openRawStream()), error.result.status) }
+        })
+        val app = routes.build()
+        val raw = exercise(app, "/raw", "POST", "raw".toByteArray(), fields =
+            [field("Content-Encoding", "not even valid"), field("Content-Length", "3")])
+        assertEquals("raw", raw.text())
+        assertEquals(Some(3L), raw.context.request.body.view!!.contentLength)
+        assertEquals(0L, raw.context.request.body.view!!.decodedEncodings.size)
+        expectState { raw.context.request.body.openRawStream() }
+        val identity = exercise(app, "/decoded", "POST", "same".toByteArray(), fields =
+            [field("Content-Encoding", "identity"), field("Content-Length", "4")])
+        assertEquals("same", identity.text())
+        assertEquals(Some(4L), identity.context.request.body.view!!.contentLength)
+        for ((coding, status) in [("gzip;level=1", 400U), ("unknown", 415U), ("gzip,br,zstd", 415U)]) {
+            val rejected = exercise(app, "/recover", "POST", "untouched".toByteArray(), fields = requestEncodedFields(coding))
+            assertEquals(status, rejected.status); assertEquals("untouched", rejected.text())
+        }
+    }
+
+    @Test
+    fun `options snapshot formats and nested policies can change only before selection`() {
+        expectArgument { RequestDecompressionOptions(maxLayers = -1L) }
+        expectArgument { RequestDecompressionOptions(decodedBodyLimit = Some(-1L)) }
+        expectArgument { RequestDecompressionOptions(maxWindowBytes = Some(0L)) }
+        expectArgument { RequestDecompressionOptions(bufferSize = 0L) }
+        expectArgument { RequestDecompressionOptions([CompressionFormat.RawDeflate]) }
+        expectArgument { RequestDecompressionOptions([CompressionFormat.Gzip, CompressionFormat.Gzip]) }
+        val formats = ArrayList<CompressionFormat>(); formats.add(CompressionFormat.Gzip)
+        val options = RequestDecompressionOptions(formats)
+        formats.clear()
+        assertEquals(1L, options.allowedFormats.size)
+        assertEquals(415U, decompressionExercise("".toByteArray(), "br", options).status)
+        assertEquals(415U, decompressionExercise("".toByteArray(), options = RequestDecompressionOptions(maxLayers = 0L)).status)
+        val routes = RouterBuilder()
+        routes.use(requestDecompression(RequestDecompressionOptions(decodedBodyLimit = Some(0L))))
+        routes.use(requestDecompression(options))
+        routes.post("/", suspend { ctx -> text(ctx.request.body.text()) })
+        val result = exercise(routes.build(), method = "POST", input = requestGzip("ok".toByteArray()), fields = requestEncodedFields())
+        assertEquals("ok", result.text())
+        expectState { result.context.request.body.configureDecoding(options) }
+    }
+}

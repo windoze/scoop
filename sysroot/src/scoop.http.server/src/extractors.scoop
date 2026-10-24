@@ -1,0 +1,26 @@
+package scoop.http.server
+
+/** A suspending, statically typed extraction step inside the existing request scope. */
+public typealias HttpExtractor<T> = suspend (HttpContext) -> T
+
+/** Extracts once, then invokes the handler only after extraction succeeds. */
+public fun <T> adapt(extract: HttpExtractor<T>, handle: suspend (HttpContext, T) -> HttpResult): HttpHandler =
+    suspend { ctx -> val value = extract(ctx); handle(ctx, value) }
+
+/** Builds a query extraction step using an explicit record codec. */
+public fun <T> queryExtractor(codec: ValueDecoder<T>, options: QueryDecodeOptions = QueryDecodeOptions()): HttpExtractor<T> =
+    suspend { ctx -> ctx.request.query.decode(codec, options) }
+
+/** Builds a query extraction step using the type's companion record codec. */
+public fun <T> queryExtractor(options: QueryDecodeOptions = QueryDecodeOptions()): HttpExtractor<T>
+    where T.Companion : ValueDecoder<T> = queryExtractor(T.Companion, options)
+
+/** Builds a JSON extraction step using an explicit codec and optional aggregation limit. */
+public fun <T> jsonExtractor(codec: ValueDecoder<T>, maxBytes: Long? = None): HttpExtractor<T> {
+    if (present(maxBytes) && maxBytes!! < 0L) throw IllegalArgumentException(Some("negative aggregate body limit"))
+    return suspend { ctx -> ctx.request.body.json(codec, maxBytes ?: ctx.request.body.bufferedBodyLimit) }
+}
+
+/** Builds a JSON extraction step using the type's companion codec. */
+public fun <T> jsonExtractor(maxBytes: Long? = None): HttpExtractor<T>
+    where T.Companion : ValueDecoder<T> = jsonExtractor(T.Companion, maxBytes)

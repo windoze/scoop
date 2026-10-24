@@ -58,8 +58,8 @@ internal fun parseWebSocketHandshake(request: HttpRequestHead): WebSocketHandsha
     val validKey = when (Base64.Default.decodeOrNone(key)) { case Some(bytes) -> bytes.size == 16L; case None -> false }
     if (!validKey)
         throw WebSocketHandshakeException("key must encode exactly 16 bytes", Some("Sec-WebSocket-Key"))
-    if (webSocketSingleField(fields, "Sec-WebSocket-Version", true)!! != "13")
-        throw WebSocketHandshakeException("only WebSocket version 13 is supported", Some("Sec-WebSocket-Version"))
+    val version = webSocketSingleField(fields, "Sec-WebSocket-Version", true)!!
+    requireWebSocketVersionSyntax(version)
     if (fields.findAll("Transfer-Encoding".toByteArray()).size != 0L)
         throw WebSocketHandshakeException("upgrade request cannot use Transfer-Encoding", Some("Transfer-Encoding"))
     val length = webSocketSingleField(fields, "Content-Length", false)
@@ -70,5 +70,9 @@ internal fun parseWebSocketHandshake(request: HttpRequestHead): WebSocketHandsha
         }
         case None -> {}
     }
-    return WebSocketHandshake(request, key, readWebSocketProtocols(fields), WebSocketExtension.parseFields(fields))
+    val protocols = readWebSocketProtocols(fields)
+    val extensions = WebSocketExtension.parseFields(fields)
+    if (version != "13") throw WebSocketHandshakeException("only WebSocket version 13 is supported",
+        Some("Sec-WebSocket-Version"), WebSocketHandshakeFailureKind.UnsupportedVersion)
+    return WebSocketHandshake(request, key, protocols, extensions)
 }

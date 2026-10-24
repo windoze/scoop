@@ -1,0 +1,105 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.platform.fs.*
+import scoop.test.*
+
+@Test
+private class ServerSpaTests {
+    @Test
+    fun `SPA fallback serves deep links while explicit assets APIs and route fallbacks keep their scope`() {
+        UploadTestDirectory().use { directory ->
+            val entry = directory.child("shell.html"); entry.writeText("app shell")
+            directory.child("main.js").writeText("asset")
+            val routes = RouterBuilder()
+            routes.fallback(suspend { _ -> text("root missing", 404U) })
+            routes.get("/app", suspend { _ -> file(entry) })
+            routes.group("/app") { app ->
+                app.get("/", suspend { _ -> file(entry) })
+                app.get("/{*path}", staticFiles(directory.path, StaticFileOptions(fallbackFile = Some(entry))))
+                app.get("/assets/{*path}", staticFiles(directory.path))
+                app.group("/api") { api ->
+                    api.get("/status", suspend { _ -> text("ok") })
+                    api.get("/{*path}", suspend { _ -> text("API missing", 404U) })
+                }
+            }
+            val application = routes.build()
+            for (path in ["/app", "/app/", "/app/settings/profile?tab=one", "/app/missing.js"]) {
+                val result = exercise(application, path)
+                assertEquals(200U, result.status); assertEquals("app shell", result.text())
+                assertEquals("text/html; charset=utf-8", result.output.header("Content-Type"))
+            }
+            assertEquals("asset", exercise(application, "/app/main.js").text())
+            assertEquals("asset", exercise(application, "/app/assets/main.js").text())
+            assertEquals(404U, exercise(application, "/app/assets/missing.js").status)
+            assertEquals("ok", exercise(application, "/app/api/status").text())
+            assertEquals("API missing", exercise(application, "/app/api/unknown").text())
+            assertEquals("root missing", exercise(application, "/outside").text())
+        }
+    }
+
+    @Test
+    fun `directory index selection precedes fallback and disabled indexes remain explicit`() {
+        UploadTestDirectory().use { directory ->
+            val entry = directory.child("shell.html"); entry.writeText("shell")
+            val docs = directory.child("docs"); docs.createDirectory()
+            docs.resolve(Path.fromString("index.html")).writeText("docs index")
+            directory.child("empty").createDirectory()
+            directory.child("plain.txt").writeText("plain")
+            val routes = RouterBuilder()
+            routes.get("/index/{*path}", staticFiles(directory.path,
+                StaticFileOptions(indexDocument = Some("index.html"), fallbackFile = Some(entry))))
+            routes.get("/plain/{*path}", staticFiles(directory.path, StaticFileOptions(fallbackFile = Some(entry))))
+            val application = routes.build()
+            for (path in ["/index/docs", "/index/docs/"]) assertEquals("docs index", exercise(application, path).text())
+            for (path in ["/index/empty", "/index/empty/", "/index/missing/deep", "/index/plain.txt/child"])
+                assertEquals("shell", exercise(application, path).text())
+            for (path in ["/plain/docs", "/plain/docs/", "/index/plain.txt/"])
+                assertEquals(404U, exercise(application, path).status)
+        }
+    }
+
+    @Test
+    fun `fallback is limited to valid GET and HEAD paths and never retries a missing fallback`() {
+        UploadTestDirectory().use { directory ->
+            val entry = directory.child("shell.html"); entry.writeText("shell")
+            val handler = staticFiles(directory.path, StaticFileOptions(fallbackFile = Some(entry)))
+            val routes = RouterBuilder()
+            routes.get("/app/{*path}", handler); routes.post("/app/{*path}", handler)
+            routes.get("/missing/{*path}", staticFiles(directory.path, StaticFileOptions(fallbackFile = Some(directory.child("absent.html")))))
+            val application = routes.build()
+            for (path in ["/app/%2e%2e/secret", "/app/a%2fb", "/app/a//b"])
+                assertEquals(400U, exercise(application, path).status)
+            assertEquals(404U, exercise(application, "/app/client-route", "POST").status)
+            assertEquals(404U, exercise(application, "/missing/client-route").status)
+        }
+    }
+
+    @Test
+    fun `fallback uses the selected file for MIME HEAD range and conditional metadata once`() {
+        UploadTestDirectory().use { directory ->
+            val entry = directory.child("shell.html"); entry.writeText("0123456789")
+            val callbacks = TestCounter()
+            val routes = RouterBuilder()
+            routes.use(suspend { ctx, next ->
+                ctx.response.beforeCommit { _ -> callbacks.value += 1 }
+                next()
+            })
+            routes.get("/{*path}", staticFiles(directory.path, StaticFileOptions(
+                fileOptions = FileResponseOptions(entityTag = Some(HttpEntityTag.parse("\"shell-v1\""))), fallbackFile = Some(entry))))
+            val application = routes.build()
+            val full = exercise(application, "/settings")
+            assertEquals("0123456789", full.text()); assertEquals("10", full.output.header("Content-Length"))
+            assertEquals("text/html; charset=utf-8", full.output.header("Content-Type"))
+            val head = exercise(application, "/settings", "HEAD", fields = [field("Range", "bytes=2-4")])
+            assertEquals(200U, head.status); assertEquals("", head.text()); assertEquals("10", head.output.header("Content-Length"))
+            val range = exercise(application, "/settings", fields = [field("Range", "bytes=2-4")])
+            assertEquals(206U, range.status); assertEquals("234", range.text())
+            assertEquals("bytes 2-4/10", range.output.header("Content-Range"))
+            val cached = exercise(application, "/settings", fields = [field("If-None-Match", "\"shell-v1\"")])
+            assertEquals(304U, cached.status); assertEquals("", cached.text())
+            assertEquals(full.output.header("Last-Modified"), cached.output.header("Last-Modified"))
+            assertEquals(4, callbacks.value)
+        }
+    }
+}

@@ -1,0 +1,41 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.compression.asyncio.AsyncCompressionSink
+import scoop.http.HttpField
+
+internal suspend fun executeResponse(ctx: HttpContext, plan: ResponsePlan) {
+    ctx.response.commit(plan.head.status)
+    val sink = ctx.output.begin(plan.head, plan.framingLength)
+    val wireLength = if (!plan.allowsContent) Some(0L) else if (present(plan.encoding)) None else plan.originalLength
+    val wire = HttpBodyWriter(sink, wireLength)
+    try {
+        if (plan.allowsContent && present(plan.encoding)) {
+            val selected = plan.encoding!!
+            AsyncCompressionSink(wire, selected.options, selected.bufferSize).useAsync suspend { compressor ->
+                sendResponseBody(ctx, plan, HttpBodyWriter(compressor, plan.originalLength), wire, Some(compressor))
+            }
+        } else sendResponseBody(ctx, plan, wire, wire, None)
+    } finally { wire.invalidate(); ctx.encodedResponseBytes = wire.writtenBytes }
+}
+
+private suspend fun sendResponseBody(ctx: HttpContext, plan: ResponsePlan, writer: HttpBodyWriter,
+    wire: HttpBodyWriter, compressor: AsyncCompressionSink?) {
+    try {
+        if (plan.allowsContent) when (plan.body) {
+            case HttpBody.Empty -> writer.flush()
+            case HttpBody.Bytes(value) -> writer.writeAll(value)
+            case HttpBody.Stream(value) -> value.produce(writer)
+            case HttpBody.File(_) -> throw IllegalStateException(Some("file response was not prepared by its executor"))
+            case HttpBody.WebSocket(_) -> throw IllegalStateException(Some("upgrade response was not prepared by its executor"))
+        }
+        writer.complete()
+        if (present(compressor)) { compressor!!.finish(); wire.complete() }
+        val trailers: List<HttpField> = if (plan.allowsContent) when (plan.body) {
+            case HttpBody.Stream(value) -> if (present(value.trailers)) value.trailers!!() else ArrayList<HttpField>()
+            else -> ArrayList<HttpField>()
+        } else ArrayList<HttpField>()
+        ctx.output.finish(if (present(compressor)) compressedFields(trailers) else trailers)
+        ctx.response.finish()
+    } finally { writer.invalidate(); ctx.responseBytes = writer.writtenBytes }
+}

@@ -1,0 +1,13 @@
+package scoop.tests.http.server.consumer
+
+import scoop.http.*
+import scoop.http.server.*
+
+internal struct ConsumerQuery(val count: Int = 1) {
+    public companion object : ValueDecoder<ConsumerQuery>
+}
+
+internal suspend fun consumerHello(ctx: HttpContext, value: (String, ConsumerQuery)): HttpResult {
+    ctx.response.cookies.append(HttpSetCookie(HttpCookiePair("visited", "yes")))
+    return json(ctx.pathParams.long("id").toString() + ":" + value._1 + ":" + value._2.count.toString())
+}

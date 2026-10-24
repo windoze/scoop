@@ -1,0 +1,21 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.time.Instant
+
+internal fun fileRequestRange(fields: Array<HttpField>, tag: HttpEntityTag?, modified: Instant?,
+    dateIsStrong: Boolean, reference: Instant): HttpRange? {
+    val ranges = fields.findAll("Range".toByteArray())
+    if (ranges.size != 1L) return None
+    val range = HttpRange.parseOrNone(ranges[0L].value)
+    if (!present(range) || range!!.ranges.size != 1L) return None
+    val conditions = fields.findAll("If-Range".toByteArray())
+    if (conditions.size == 0L) return range
+    if (conditions.size != 1L) return None
+    val value = conditions[0L].value
+    val expected = HttpEntityTag.parseOrNone(value)
+    if (present(expected)) return if (present(tag) && expected!!.stronglyMatches(tag!!)) range else None
+    if (!dateIsStrong || !present(modified)) return None
+    val date = HttpDate.parseOrNone(value, reference)
+    return if (present(date) && date!!.epochSeconds == modified!!.epochSeconds) range else None
+}

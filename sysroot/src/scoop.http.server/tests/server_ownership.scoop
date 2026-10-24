@@ -1,0 +1,45 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.text.contains
+
+@Test
+private class ServerOwnershipTests {
+    @Test
+    fun `registration failure leaves the listener available to its caller`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> text("owned") })
+        val app = routes.build()
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val ended = coroutineScope<CoroutineScope> suspend { child -> child }
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val address = listener.localAddress
+            var rejected = false
+            try { HttpServer.takeOwnership(listener, app, ended) }
+            catch (_: IllegalStateException) { rejected = true }
+            assertTrue(rejected)
+            val server = HttpServer.takeOwnership(listener, app, scope)
+            try {
+                networkClient(address, scope).useAsync suspend { client -> assertEquals("owned", requestText(client)) }
+            } finally { server.close() }
+        }
+    }
+
+    @Test
+    fun `a peer half close still permits its final HTTP response`() {
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ -> text("half-closed") })
+        withServer(routes.build(), block = suspend { _, _, address ->
+            currentEventLoop().connectTcp(address).useAsync suspend { peer ->
+                networkWrite(peer, "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+                peer.shutdownOutput()
+                val wire = networkText(peer)
+                assertTrue(wire.contains("HTTP/1.1 200"))
+                assertTrue(wire.contains("half-closed"))
+            }
+        })
+    }
+}

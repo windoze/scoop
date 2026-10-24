@@ -1,0 +1,67 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.compression.asyncio.AsyncDecompressionSource
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class ServerCompressionNetworkTests {
+    @Test
+    fun `H1 and H2 expose a compressed flush before stream and SSE producers finish`() {
+        for (h2 in [false, true]) for (mode in ["stream", "sse", "plain-sse"]) {
+            val start = ServerTestGate(); val finish = ServerTestGate(); val finished = AtomicBoolean(false)
+            val completed = ServerTestCompletions()
+            val first = if (mode == "stream") "first\n" else "data: first\n\n"
+            val last = if (mode == "stream") "last\n" else "data: last\n\n"
+            val response = if (mode == "stream") stream("text/plain", suspend { output ->
+                start.await(); output.writeText(first); output.flush()
+                finish.await(); output.writeText(last); finished.store(true)
+            }) else sse(SseOptions(allowCompression = mode == "sse"), suspend { events ->
+                start.await(); events.send(SseMessage(Some("first")))
+                finish.await(); events.send(SseMessage(Some("last"))); finished.store(true)
+            })
+            val routes = RouterBuilder()
+            routes.use(responseCompression())
+            routes.get("/", suspend { _ -> response })
+            withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true, onRequestCompleted = Some(completed::receive)),
+                suspend { scope, _, address ->
+                    val consume: suspend (AsyncByteSource) -> Unit = suspend { source ->
+                        start.signal()
+                        assertEquals(first, readNetworkText(source, first.byteLength))
+                        assertFalse(finished.load())
+                        finish.signal()
+                        assertEquals(last, networkText(source))
+                    }
+                    val receive: suspend (HttpResponseHead, AsyncByteSource) -> Unit = suspend { head, body ->
+                        assertEquals(200U, head.status)
+                        assertEquals(None, parseHttpContentLength(head.fields))
+                        val headers = RequestHeaders(head.fields)
+                        assertEquals(if (h2) None else Some("chunked"), headers.getSingle("Transfer-Encoding"))
+                        if (mode == "plain-sse") {
+                            assertEquals(None, headers.getSingle("Content-Encoding"))
+                            consume(body)
+                        } else {
+                            assertEquals(Some("gzip"), headers.getSingle("Content-Encoding"))
+                            AsyncDecompressionSource(body, DecompressionOptions(CompressionFormat.Gzip), 7L).useAsync suspend { decoded -> consume(decoded) }
+                        }
+                    }
+                    if (h2) h2ServerClient(address, scope).useAsync suspend { client ->
+                        val response = client.openRequest(h2ServerRequest(fields = [field("Accept-Encoding", "gzip")]))
+                        receive(response.receiveResponse(), response)
+                    } else networkClient(address, scope).useAsync suspend { client ->
+                        client.sendRequest(networkRequest(fields = [field("Accept-Encoding", "gzip")])).finish()
+                        val response = client.receiveResponse()
+                        receive(response.head, response.body)
+                    }
+                    completed.ready.await()
+                    val result = completed.snapshot()[0L]
+                    assertEquals(HttpRequestOutcome.Completed, result.outcome)
+                    assertEquals(first.byteLength + last.byteLength, result.responseBytes)
+                    assertTrue(result.encodedResponseBytes > 0L)
+                    if (mode == "plain-sse") assertEquals(result.responseBytes, result.encodedResponseBytes)
+                })
+        }
+    }
+}

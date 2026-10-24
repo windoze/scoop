@@ -16,6 +16,7 @@
 | `HttpAuthChallenge`、`HttpCredentials`、`HttpAuthenticationInfo` | 多 challenge、quoted 参数、token68、请求凭据和 Digest 完成参数；不获取凭据或执行密码计算 |
 | `HttpRetryAfter` | delta-seconds 或 HTTP-date，解析与实际等待分开 |
 | `HttpAge`、`HttpVary` | 缓存 Age 的饱和秒数及接收首值规则；Vary 的有序字段名、空项和通配符，不计算 freshness 或选择缓存条目 |
+| `HttpAcceptEncoding` | 内容编码 token、质量值与 identity／星号协商；不启动压缩器或读取正文 |
 | `HttpLocation` | 单值 URI-reference、相对解析与重定向 fragment 继承；不决定是否跟随或允许哪个 scheme |
 
 参数名大小写、重复值处理和扩展编码按字段所属 RFC 固定，不能用一个逗号 split 处理全部字段。扩展参数先在本层拆出 charset／language／百分号字节，再交给 URL 百分号 codec 与 charset 转换；优先满足 RFC 8187 的 UTF-8，历史 ISO-8859-1 兼容须显式记录。建议文件名只作为元数据，操作系统 Path 选择由调用者负责。
@@ -118,6 +119,8 @@ challenge 和 credentials 共用同一个字节语法实现。参数值使用 to
 
 缺少 Expect、只有空项或只有未知 expectation 时返回 false。`100-continue=value` 是带值的其他 expectation，不作为标准 Continue 信号。即使此前已经找到有效 100-continue，后续非法结构仍报 HttpFieldParseException，field 为 Expect，byteOffset 相对发生错误的那条原始字段值。工具不启动 producer、不查询时钟，也不决定何时发送 body；这些等待行为由 client 组合。
 
+`parseHttpExpectations(fields): HttpExpectations` 以同一遍解析同时返回 continueRequested 和 hasUnsupported，供服务端区分没有要求与不能满足的要求。空列表项不属于未知要求；不带值的 100-continue 设前者，其他合法项设后者；两个标志可同时为 true。httpExpectsContinue 复用此结果的 continueRequested，不另行扫描或改变既有错误位置。是否返回 417、何时发送 100 由服务端管线决定。
+
 ### 1.11 Trailer 声明与发送限制
 
 `HttpTrailerDeclaration(names)` 表示发送方预先声明的 trailer 名称，复制输入、按 ASCII 小写规范化，并按首次出现顺序去重；名称必须为普通 HTTP token。空声明合法，toHttpField 生成 Trailer 字段，contains 按 HTTP 名称规则查询。接收的 Trailer 字段仍用 parseHttpTokenFields 读取，不以发送声明的限制丢弃原始接收信息。
@@ -139,6 +142,24 @@ requireDeclared(fields) 只检查本次实际 trailer 的名称均在声明内�
 `parseFields(fields)` 在没有 Location 时返回 None，多条同名字段报 HttpFieldParseException，即使相同也不合并；逗号是 URI 中可用的字节，不作为列表分隔。字段格式错误保留 Location 名称与原始字节偏移，URL 格式错误作为 cause；parseOrNone 只吸收字段格式异常。
 
 `resolve(base: Url)` 调用 base.resolve(reference)。按 RFC 9110 §10.2.2，reference 没有 fragment 时继承 base 的 fragment，显式空 fragment 则覆盖而不继承；其他解析行为沿用 URL 库。不在此处限制 http／https、检查降级或跟随次数，也不执行请求。
+
+### 1.14 Accept-Encoding
+
+HttpAcceptEncoding.parse／parseOrNone 接收单个字节或 String 值；parseFields 合并全部同名字段。originalValues 保留每条原始值，isPresent 区分没有字段与存在空字段。preferences 按编码 token 首次出现顺序保存规范小写 coding 与 0～1000 的整数 quality；未知编码保留，重复编码包括跨行重复采用最低质量值。格式规则依据 [RFC 9110 §12.5.3](https://www.rfc-editor.org/rfc/rfc9110.html#section-12.5.3) 与 [§12.4.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-12.4.2)，最低值为本库明确选择的重复消歧规则。
+
+列表允许 OWS、逗号空项和空字段；编码必须为非空 ASCII token。每项只有可选的 q 参数，名称不区分大小写，值默认为 1。q 只接受 0／1 以及可选小数点和至多三位小数，1 后只能有零；允许 0.／1.，拒绝引号、符号、前导额外数字、指数、非 ASCII、未知／重复参数及等号两侧空白。分号两侧可有 OWS。非法输入为 HttpFieldParseException，field 为 Accept-Encoding，byteOffset 相对于发生错误的原始字段值；parseOrNone 只吸收该格式异常。
+
+quality(coding) 返回实际编码的可接受质量：明确条目覆盖星号；无字段时任何编码为 1000；存在字段但未列出且没有星号的编码为 0。identity 未明确列出时为 1000，只有星号质量为零才默认排除它。存在空字段只允许 identity。查询参数必须是实际编码 token，不能是星号。
+
+select(candidates) 从调用方提供的有序实际编码列表中返回规范名称或 None；零质量绝不选择，最高质量优先，同质量按候选次序。显式 identity 参与质量比较，隐式 identity 仅作为允许时的回退；缺少字段时优先选候选中的 identity，否则选第一个候选。候选列表可不含 identity，工具不自行增加调用方没有提供的表示。工具不决定 406、媒体类型、小正文阈值或编码选项，这些属于 server 表示选择策略。
+
+### 1.15 条件请求求值
+
+`evaluateHttpPreconditions(method, fields, exists, entityTag, lastModified, reference)` 是无 I/O 的 origin 条件求值工具，返回 HttpPreconditionResult.Proceed、NotModified 或 PreconditionFailed。调用方先完成认证、路径／表示选择及通常的请求检查，只在原结果可以成功处理所选表示时调用；工具不把不存在或不可读文件等错误改成缓存响应。method 使用原始大小写；CONNECT、OPTIONS、TRACE 不评估这些条件。当前表示是否存在由 exists 明确给出，不以有没有 ETag 代替。
+
+按 RFC 9110 §13.2 顺序评估：先 If-Match（强比较），缺少时才评估 If-Unmodified-Since；再 If-None-Match（弱比较），缺少且方法为 GET／HEAD 时才评估 If-Modified-Since。标签星号只匹配存在的表示；无标签不能匹配显式标签列表。If-Match／If-Unmodified-Since 失败返回 PreconditionFailed；If-None-Match 命中在 GET／HEAD 返回 NotModified，其他表示操作返回 PreconditionFailed；If-Modified-Since 未修改返回 NotModified。工具不推断某个状态变更此前已成功。
+
+同名标签字段以逗号和 SP 按到达顺序组合，复用 HttpEntityTagCondition；语法错误抛 HttpFieldParseException，偏移相对于组合后的字节。只有实际轮到评估的条件才解析，前置条件已决定结果或被标签条件覆盖的日期不另行评估。日期字段不存在、多于一行或语法无效时忽略；无已知修改时间也忽略日期条件。HttpDate 的旧年份规则使用显式 reference；修改时间按 epochSeconds 与 HTTP 秒精度比较。Range／If-Range 留给表示的范围选择阶段，不由此工具读取内容或决定区间。
 
 ## 2. Cookie 与公共后缀
 
@@ -247,6 +268,16 @@ CR、LF 与 CRLF 可以跨任意输入边界。UTF-8 的 CR／LF 字节不会出
 isFinished、isClosed、lastEventId、retryMilliseconds 和 failure 公开已有状态；前两者区分正常 EOF 与本地关闭，metadata 在关闭后仍可读。解析或实际读取失败／取消后保存 failure，不能继续推进；参数、错误 loop、登记前取消或同向并发失败不损坏尚未启动的流。下层 I/O 异常保留原类型，SSE 解析失败保留具体异常，已消费事件不回滚。
 
 每次 next 的实际 I/O 使用结构化子作用域。close 先拒绝新读取并取消该操作，等待它及原生 buffer borrow 真正结束，再释放 decoder／buffer 和关闭所接管端点；借用模式不关闭 source。并发 close 等待同一次收尾，后续幂等，取消的 finally 仍可完成；正文与清理同时失败由 useAsync 保留为 ResourceUseException。关闭解除端点、Job 和等待 continuation 的引用，不自动读取剩余正文、不重连、不执行用户回调。HTTP/1 未完成 body 的放弃、HTTP/2 单流取消继续由下层 HTTP body 的原有合同处理。
+
+### 5.3 增量发送与借用 sink
+
+`SseMessage(data = None, event = None, id = None, retryMilliseconds = None)` 保存待发送字段，区别于接收时已经派发的 SseEvent。data 允许任意 Unicode 文本，CRLF／CR 编码为 LF；每个逻辑行单独输出 data 字段，保留末尾空行。None 不输出字段，Some("") 输出空字段。event 拒绝 CR／LF，id 另外拒绝 NUL；空 id 明确清除客户端 ID。retry 必须非负，零合法。字段在构造时校验，不等到部分发送后再拒绝。
+
+`SseEncoder(message)` 增量输出一条消息；`SseEncoder.comment(text)` 增量输出一个注释块，注释也规范化行尾并保留空行。`writeInto(buffer, count = buffer.writableBytes)` 返回实际写入字节数，输出固定 UTF-8、LF、不写 BOM。消息按 id、event、retry、data 顺序编码，每行使用字段名加冒号和一个 SP；注释每行以冒号和一个 SP 开头。块末尾输出空行。可以在任意字节处短输出，包括多字节字符内部；编码器只保留原始文本、当前位置及一个标量的至多 4 字节，不复制整条消息为另一个完整字节数组或预先切分所有行。
+
+编码器串行使用；负 count 或超过 writableBytes 报参数／边界错误且不推进，零容量不推进。isFinished 仅在完整块的最后字节已写入后为 true，随后 writeInto 返回零；isClosed 区分显式关闭。close 幂等释放保留的文本，不补发字节或关闭调用者 buffer；关闭后不能继续输出。实际推进失败后不能继续使用该编码器。
+
+`SseSink(sink, bufferSize = 8192)` 借用 AsyncByteSink，使用一个正容量本地输出缓冲。send(message)、comment(text) 完整发送对应块，处理短写并保留背压；flush 单独穿透下游，send／comment 不隐式 flush，也不结束 HTTP body。构造和操作遵守当前 EventLoop／Job 合同；同一 sink 至多一个应用发送或 flush，状态／参数／并发检查在开始前完成。实际写入／flush 失败或取消保存 failure，后续推进失败；原异常不改写为 SSE 格式错误。close 拒绝新操作、取消并等待实际在途操作，再释放本地缓冲；不关闭所借用的下游。isClosed 与 failure 可观察已有状态。
 
 ## 6. HTTP/1.1 WebSocket
 

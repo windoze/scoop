@@ -1,0 +1,58 @@
+package scoop.http.server
+
+import scoop.collections.HashSet
+import scoop.compression.*
+import scoop.http.HttpMediaType
+import scoop.text.endsWith
+
+/** Response coding preferences and the conditions for dynamic compression. */
+public class ResponseCompressionOptions public constructor(
+    encodings: List<CompressionOptions> = [CompressionOptions.Gzip(GzipOptions())],
+    /** Known smaller representations prefer identity when it is acceptable. */
+    public val minimumBytes: Long = 1024L,
+    /** The bounded output buffer used by the asynchronous compressor. */
+    public val bufferSize: Long = 8192L,
+    /** Selects compressible media types without reading the body. */
+    public val shouldCompress: (HttpMediaType) -> Boolean = { media ->
+        media.type == "text" || (media.type == "application" && (media.subtype == "json" || media.subtype == "xml")) ||
+            media.subtype.endsWith("+json") || media.subtype.endsWith("+xml")
+    }
+) {
+    /** A snapshot of the configured algorithms in server preference order. */
+    public val encodings: Array<CompressionOptions> = encodings.toArray()
+    internal val choices: Array<ResponseEncoding> = responseEncodings(encodings, bufferSize)
+    init {
+        if (minimumBytes < 0L || bufferSize <= 0L) throw IllegalArgumentException(Some("invalid response compression bounds"))
+    }
+}
+
+internal class ResponseEncoding(val name: String, val options: CompressionOptions, val bufferSize: Long)
+
+private fun responseEncodings(options: List<CompressionOptions>, bufferSize: Long): Array<ResponseEncoding> {
+    val names = HashSet<String>()
+    val choices = ArrayList<ResponseEncoding>()
+    for (option in options) {
+        val name = when (option.format) {
+            case CompressionFormat.Gzip -> "gzip"
+            case CompressionFormat.Zlib -> "deflate"
+            case CompressionFormat.Brotli -> "br"
+            case CompressionFormat.Zstd -> "zstd"
+            case CompressionFormat.RawDeflate -> throw IllegalArgumentException(Some("HTTP deflate requires the zlib wrapper"))
+        }
+        if (!names.add(name)) throw IllegalArgumentException(Some("duplicate response content coding"))
+        choices.add(ResponseEncoding(name, option, bufferSize))
+    }
+    return choices.toArray()
+}
+
+/** Installs compression for the full downstream response, restoring an enclosing policy on exit. */
+public fun responseCompression(options: ResponseCompressionOptions = ResponseCompressionOptions()): HttpMiddleware =
+    suspend { ctx, next ->
+        ctx.requestJob.ensureActive()
+        if (ctx.response.isCommitted || ctx.response.isAborted)
+            throw IllegalStateException(Some("response compression must be installed before commit"))
+        val previous = ctx.compressionOptions
+        ctx.compressionOptions = Some(options)
+        try { next() }
+        finally { ctx.compressionOptions = previous }
+    }

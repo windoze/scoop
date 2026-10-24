@@ -16,7 +16,9 @@ protocols 保存按偏好排列、区分大小写、非空且不重复的 ASCII 
 
 `response(protocol = None, deflate = None, fields = 空列表)` 为服务端生成合法 101；所选协议／压缩必须满足同一请求的校验规则，输出同一 Accept 算法及明确的 Upgrade／Connection 字段。额外字段遵守同样的保留字段规则。该工具不替服务端选择路由、权限、Origin 或认证策略。
 
-字段语法错误使用 HttpFieldParseException，保留字段与字节位置；握手条件和协商不匹配使用 WebSocketHandshakeException，保存 detail 与可用的 field。普通构造参数错误使用 IllegalArgumentException。握手值不持有网络资源，失败不关闭调用者传输。
+`negotiateResponse(protocol = None, deflate = None, fields = 空列表): WebSocketServerResponse` 同时返回本次生成的 head 和 negotiation。与 response 共用一次构造／选择边界；服务端直接把 negotiation 交给异步会话，不再用客户端 accept 重验自己刚生成且未变化的响应。response 复用该结果的 head，原有调用不变。
+
+字段语法错误使用 HttpFieldParseException，保留字段与字节位置；握手条件和协商不匹配使用 WebSocketHandshakeException，保存 detail、可用的 field 和默认 Malformed 的 kind（WebSocketHandshakeFailureKind）。请求 Version 单值必须是 0～255 的十进制整数，不允许前导零；缺失、重复、格式错误仍是 Malformed。只有其余握手字段有效而该版本不是 13 时，kind 为 UnsupportedVersion，供服务端明确返回 426 和 Sec-WebSocket-Version: 13，不解析异常文本。普通构造参数错误使用 IllegalArgumentException。握手值不持有网络资源，失败不关闭调用者传输。
 
 ## 2. 扩展字段与 permessage-deflate
 

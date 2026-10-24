@@ -1,0 +1,74 @@
+package scoop.http.server
+
+import scoop.compression.*
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class ServerCompressionSelectionTests {
+    @Test
+    fun `negotiation respects absent empty weighted and excluded identity representations`() {
+        val value = text("hello")
+        val cases: Array<(String?, String?)> = [(None, None), (Some(""), None), (Some("gzip"), Some("gzip")),
+            (Some("GZIP;q=0.2, identity;q=0.9"), None), (Some("gzip;q=0, *;q=1"), None),
+            (Some("gzip;q=0.5, GZIP;q=0"), None), (Some("*;q=0.5"), Some("gzip")), (Some("unknown"), None)]
+        for ((accept, encoding) in cases) {
+            val result = compressionExercise(value, accept)
+            assertEquals(200U, result.status)
+            assertEquals(encoding, responseEncoding(result))
+            assertEquals("hello", decodedResponse(result))
+            assertTrue(HttpVary.parseFields(result.output.head!!.fields).contains("Accept-Encoding"))
+        }
+        val rejected = compressionExercise(value, Some("gzip;q=0, identity;q=0"))
+        assertEquals(406U, rejected.status)
+        assertEquals("", rejected.text())
+        assertEquals(None, responseEncoding(rejected))
+        assertEquals(0L, rejected.context.responseBytes)
+        assertEquals(0L, rejected.context.encodedResponseBytes)
+        assertEquals(400U, compressionExercise(value, Some("gzip;q=invalid")).status)
+        assertEquals(None, responseEncoding(compressionExercise(value, Some("gzip;q=invalid"))))
+        assertEquals(None, responseEncoding(compressionExercise(value, options = ResponseCompressionOptions())))
+        assertEquals(Some("gzip"), responseEncoding(compressionExercise(value, Some("gzip, identity;q=0"), ResponseCompressionOptions())))
+        assertEquals("42", decodedResponse(compressionExercise(json(42))))
+    }
+
+    @Test
+    fun `every configured HTTP format preserves bytes and reports separate output counts`() {
+        val data = String.fromChars(Array<Char>(4096L) { _ -> 'a' })
+        val encodings = [("gzip", CompressionOptions.Gzip(GzipOptions())), ("deflate", CompressionOptions.Zlib(DeflateOptions())),
+            ("br", CompressionOptions.Brotli(BrotliOptions())), ("zstd", CompressionOptions.Zstd(ZstdOptions()))]
+        for ((name, encoding) in encodings) {
+            val output = TestOutput()
+            output.writeLimit = 1L
+            val result = compressionExercise(text(data), Some(name), ResponseCompressionOptions([encoding], bufferSize = 7L), output = output)
+            assertEquals(Some(name), responseEncoding(result))
+            assertEquals(data, decodedResponse(result))
+            assertEquals(None, parseHttpContentLength(result.output.head!!.fields))
+            assertEquals(data.byteLength, result.context.responseBytes)
+            assertEquals(result.output.data.toByteArray().size, result.context.encodedResponseBytes)
+            assertTrue(result.context.encodedResponseBytes < result.context.responseBytes)
+            assertEquals(1, output.finishes)
+        }
+    }
+
+    @Test
+    fun `nested policies override preferences and restore the enclosing policy after sending`() {
+        expectArgument { ResponseCompressionOptions(minimumBytes = -1L) }
+        expectArgument { ResponseCompressionOptions(bufferSize = 0L) }
+        expectArgument { ResponseCompressionOptions([CompressionOptions.RawDeflate(DeflateOptions())]) }
+        expectArgument { ResponseCompressionOptions([CompressionOptions.Gzip(GzipOptions()), CompressionOptions.Gzip(GzipOptions())]) }
+        val outer = ResponseCompressionOptions([CompressionOptions.Brotli(BrotliOptions())], minimumBytes = 0L)
+        val inner = ResponseCompressionOptions(minimumBytes = 0L)
+        val routes = RouterBuilder()
+        routes.use(responseCompression(outer))
+        routes.use(suspend { ctx, next -> next(); assertSame(outer, ctx.compressionOptions!!) })
+        routes.route("GET", "/inner", suspend { _ -> text("inside") }, [responseCompression(inner)])
+        routes.get("/outer", suspend { _ -> text("outside") })
+        val app = routes.build()
+        val fields = [field("Accept-Encoding", "br, gzip")]
+        val inside = exercise(app, "/inner", fields = fields)
+        assertEquals(Some("gzip"), responseEncoding(inside))
+        assertFalse(present(inside.context.compressionOptions))
+        assertEquals(Some("br"), responseEncoding(exercise(app, "/outer", fields = fields)))
+    }
+}

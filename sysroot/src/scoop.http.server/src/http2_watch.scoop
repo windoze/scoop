@@ -1,0 +1,24 @@
+package scoop.http.server
+
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.time.Duration
+
+internal suspend fun watchServerHttp2(activity: ServerHttp2, connection: AsyncHttp2Connection, owner: Job) {
+    try {
+        while (true) {
+            if (activity.takeDrainRequest() && !connection.isDraining) connection.goAway()
+            if (connection.isDraining) return
+            val deadline = activity.nextDeadline()
+            try {
+                val remaining: Duration? = when (deadline) { case None -> None; case Some(value) -> Some(value.remaining()) }
+                serverDeadline<Unit>(remaining, "HTTP/2 connection wait", suspend { activity.changes.await() })
+            } catch (_: HttpServerTimeoutException) {
+                val current = activity.nextDeadline()
+                if (present(current) && current!!.remaining() == Duration.ZERO)
+                    throw HttpServerTimeoutException(current!!.operation, current!!.limit)
+            }
+        }
+    } catch (error: Throwable) {
+        if (!(error is CancellationException)) { activity.fail(error); owner.cancel() }
+    }
+}

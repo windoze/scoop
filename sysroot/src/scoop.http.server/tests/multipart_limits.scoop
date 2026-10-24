@@ -1,0 +1,90 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+
+@Test private class ServerMultipartLimitTests {
+    @Test fun `part limits apply to stream text copy and partial-read discard with exact limits accepted`() {
+        val routes = RouterBuilder()
+        routes.post("/{mode}", suspend { ctx ->
+            ctx.request.body.multipart(RequestMultipartOptions(maxPartBytes = 3L)).useAsync suspend { reader ->
+                val part = reader.nextPart()!!
+                when (ctx.pathParams.text("mode")) {
+                    case "stream" -> networkText(part.openStream())
+                    case "text" -> part.text()
+                    case "copy" -> {
+                        val sink = TestOutput()
+                        assertEquals(3L, part.copyTo(sink, 100L))
+                        assertEquals("abc", sink.text())
+                        assertEquals(0, sink.flushes)
+                    }
+                    case "discard" -> part.discard(100L)
+                    case "partial" -> { readNetworkText(part.openStream(), 2L); part.discard(100L) }
+                    else -> fail(Some("unknown consumption mode"))
+                }
+                assertFalse(present(reader.nextPart()))
+            }
+            empty()
+        })
+        val app = routes.build()
+        for (mode in ["stream", "text", "copy", "discard", "partial"]) for (content in ["abc", "abcd"]) {
+            val body = requestMultipartBytes([(MultipartPartHead.formData("value"), content.toByteArray())])
+            assertEquals(if (content == "abc") 204U else 413U,
+                exercise(app, "/" + mode, "POST", body, fields = requestMultipartFields()).status, Some(mode + ":" + content))
+        }
+    }
+
+    @Test fun `aggregation copy discard and parser limits are independent and failures release local state`() {
+        val holder = RequestMultipartHolder()
+        val body = requestMultipartBytes([(MultipartPartHead.formData("value"), "abc".toByteArray())])
+        val routes = RouterBuilder()
+        routes.post("/{mode}", suspend { ctx ->
+            val mode = ctx.pathParams.text("mode")
+            if (mode == "outer") ctx.request.body.setLimit(Some(body.size - 1L))
+            val options = if (mode == "headers") RequestMultipartOptions(limits = MultipartLimits(maxFields = 0L))
+                else RequestMultipartOptions(maxFieldBytes = 2L)
+            val reader = ctx.request.body.multipart(options)
+            holder.value = Some(reader)
+            val part = reader.nextPart()!!
+            when (mode) {
+                case "field" -> part.text(100L)
+                case "explicit" -> part.text(1L)
+                case "copy" -> part.copyTo(TestOutput(), 1L)
+                case "discard" -> part.discard(1L)
+                else -> fail(Some("parser limit did not reject"))
+            }
+            empty()
+        })
+        val app = routes.build()
+        for (mode in ["field", "explicit", "copy", "discard", "headers", "outer"]) {
+            assertEquals(413U, exercise(app, "/" + mode, "POST", body, fields = requestMultipartFields()).status)
+            assertTrue(holder.value!!.isClosed)
+        }
+    }
+
+    @Test fun `truncated input is a client rejection but a sink error keeps its application meaning`() {
+        val sink = TestOutput()
+        sink.writeFailure = Some(MultipartParseException(0L, "application sink failure"))
+        val routes = RouterBuilder()
+        routes.post("/read", suspend { ctx ->
+            ctx.request.body.multipart().useAsync suspend { reader ->
+                while (true) {
+                    val part = reader.nextPart()
+                    if (!present(part)) break
+                    part!!.discard(100L)
+                }
+            }
+            empty()
+        })
+        routes.post("/copy", suspend { ctx ->
+            ctx.request.body.multipart().useAsync suspend { reader -> reader.nextPart()!!.copyTo(sink, 100L); Unit }
+            empty()
+        })
+        val app = routes.build()
+        val truncated = "--test-boundary\r\nContent-Disposition: form-data; name=x\r\n\r\nunfinished".toByteArray()
+        assertEquals(400U, exercise(app, "/read", "POST", truncated, fields = requestMultipartFields()).status)
+        val valid = requestMultipartBytes([(MultipartPartHead.formData("value"), "abc".toByteArray())])
+        assertEquals(500U, exercise(app, "/copy", "POST", valid, fields = requestMultipartFields()).status)
+    }
+}

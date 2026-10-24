@@ -23,18 +23,23 @@ internal fun acceptWebSocketResponse(handshake: WebSocketHandshake, response: Ht
 }
 
 internal fun webSocketResponse(handshake: WebSocketHandshake, protocol: String?, deflate: WebSocketDeflate?,
-    fields: List<HttpField>): HttpResponseHead {
+    fields: List<HttpField>): WebSocketServerResponse {
     checkWebSocketProtocol(handshake, protocol)
+    val negotiated = when (deflate) {
+        case Some(value) -> Some(matchWebSocketDeflate(handshake, value))
+        case None -> None
+    }
     val headers = webSocketExtraFields(fields)
     headers.add(webSocketField("Upgrade", "websocket"))
     headers.add(webSocketField("Connection", "Upgrade"))
     headers.add(webSocketField("Sec-WebSocket-Accept", webSocketAccept(handshake.key)))
     when (protocol) { case Some(value) -> headers.add(webSocketField("Sec-WebSocket-Protocol", value)); case None -> {} }
     when (deflate) {
-        case Some(value) -> { matchWebSocketDeflate(handshake, value); headers.add(value.toExtension().toHttpField()) }
+        case Some(value) -> headers.add(value.toExtension().toHttpField())
         case None -> {}
     }
-    return HttpResponseHead(HttpVersion.Http11, 101U, Some<List<Byte>>("Switching Protocols".toByteArray()), headers)
+    val head = HttpResponseHead(HttpVersion.Http11, 101U, Some<List<Byte>>("Switching Protocols".toByteArray()), headers)
+    return WebSocketServerResponse(head, WebSocketNegotiation(protocol, negotiated))
 }
 
 private fun checkWebSocketProtocol(handshake: WebSocketHandshake, selected: String?) {

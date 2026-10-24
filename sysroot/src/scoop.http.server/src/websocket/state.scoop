@@ -1,0 +1,46 @@
+package scoop.http.server
+
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.TimeMark
+
+internal class PendingWebSocket(val transport: HttpTransport, val negotiation: WebSocketNegotiation)
+
+internal class ServerWebSocket(val context: WebSocketContext, val body: HttpWebSocketBody) {
+    val started: TimeMark = MonotonicTimeSource.markNow()
+    val draining: AtomicBoolean = AtomicBoolean(false)
+    val stoppingWork: AtomicBoolean = AtomicBoolean(false)
+    val changed: ServerSignal = ServerSignal()
+    var upgraded: Boolean = false
+    var pending: PendingWebSocket? = None
+    var session: AsyncWebSocketSession? = None
+    private val lock: ServerLock = ServerLock()
+    private var workFailure: Throwable? = None
+    val failure: Throwable? get() = lock.withLock { workFailure }
+
+    fun requestDrain() { draining.store(true); changed.signal() }
+
+    fun recordFailure(error: Throwable) {
+        lock.withLock {
+            if (!present(workFailure)) workFailure = Some(error)
+            else if (workFailure!! !== error) workFailure = Some(ResourceUseException(workFailure!!, error))
+            Unit
+        }
+    }
+}
+
+internal fun reserveWebSocket(state: ServerState, entry: ServerConnection, value: ServerWebSocket) {
+    val accepted = state.lock.withLock {
+        if (state.phase != ServerPhase.Running || state.webSockets >= state.options.maxWebSocketSessions) false
+        else { state.webSockets += 1L; entry.webSocket = Some(value); true }
+    }
+    if (!accepted) reject(503U, "WebSocket session capacity unavailable")
+}
+
+internal fun releaseWebSocket(state: ServerState, entry: ServerConnection) {
+    state.lock.withLock {
+        if (present(entry.webSocket)) { entry.webSocket = None; state.webSockets -= 1L }
+        Unit
+    }
+}

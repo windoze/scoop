@@ -1,0 +1,36 @@
+//! dep: scoop:scoop.asyncio:0.1.0
+//! dep: scoop:scoop.http.server:0.1.0
+
+import scoop.asyncio.*
+import scoop.http.server.*
+
+private struct GreetingQuery(val name: String = "world") {
+    public companion object : ValueDecoder<GreetingQuery>
+}
+
+private struct GreetingInput(val name: String) {
+    public companion object : ValueDecoder<GreetingInput>
+}
+
+private struct GreetingOutput(val message: String) {
+    public companion object : ValueEncoder<GreetingOutput>
+}
+
+fun main() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        HttpServer.listen(scope) { routes ->
+            routes.get("/greet", suspend { ctx ->
+                val query = ctx.request.query.decode<GreetingQuery>()
+                json(GreetingOutput("Hello, " + query.name + "!"))
+            })
+            routes.post("/greet", suspend { ctx ->
+                val input = ctx.request.body.json<GreetingInput>()
+                json(GreetingOutput("Hello, " + input.name + "!"))
+            })
+        }.useAsync suspend { server ->
+            println("Listening at http://" + server.localAddress.toString())
+            server.awaitTermination()
+        }
+    }
+}

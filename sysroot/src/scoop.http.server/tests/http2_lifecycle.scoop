@@ -1,0 +1,116 @@
+package scoop.http.server
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test private class ServerHttp2LifecycleTests {
+    @Test fun `peer reset cancels external work and a producer failure leaves another stream usable`() {
+        val entered = ServerTestGate(); val cleaned = ServerTestGate(); val never = ServerTestGate()
+        val routes = RouterBuilder()
+        routes.get("/wait", suspend { _ ->
+            try { entered.signal(); never.await(); text("late") }
+            finally { cleaned.signal() }
+        })
+        routes.get("/broken", suspend { _ -> stream("text/plain", suspend { writer ->
+            writer.writeText("prefix"); writer.flush()
+            throw IllegalStateException(Some("producer failed"))
+        }) })
+        routes.get("/ok", suspend { _ -> text("kept") })
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, _, address ->
+            h2ServerClient(address, scope).useAsync suspend { client ->
+                val waiting = client.openRequest(h2ServerRequest("/wait"))
+                entered.await(); waiting.close(); cleaned.await()
+                assertEquals("kept", h2ServerText(client, "/ok"))
+                val broken = client.openRequest(h2ServerRequest("/broken"))
+                var failed = false
+                try { broken.receiveResponse(); networkText(broken) }
+                catch (_: HttpException) { failed = true }
+                assertTrue(failed)
+                assertEquals("kept", h2ServerText(client, "/ok"))
+                assertFalse(scope.job.isCancelled || client.isClosed)
+            }
+        })
+    }
+
+    @Test fun `GOAWAY drains concurrent accepted requests before the connection owner closes`() {
+        val first = ServerTestGate(); val second = ServerTestGate(); val release = ServerTestGate()
+        val notices = ServerH2Notices()
+        val routes = RouterBuilder()
+        routes.get("/{name}", suspend { ctx ->
+            val name = ctx.pathParams.text("name")
+            if (name == "first") first.signal() else second.signal()
+            release.await()
+            text(name)
+        })
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, server, address ->
+            h2ServerClient(address, scope, notices).useAsync suspend { client ->
+                val one = client.openRequest(h2ServerRequest("/first")); first.await()
+                val two = client.openRequest(h2ServerRequest("/second")); second.await()
+                val stopping = scope.launch suspend { server.shutdownGracefully(Duration.seconds(2)) }
+                notices.goAway.await()
+                assertTrue(server.isDraining && !server.isClosed)
+                var boundary = 0
+                for (event in notices.snapshot()) when (event) {
+                    case GoAway(last, code, _, local) -> { assertFalse(local); assertEquals(0U, code); boundary = last }
+                    else -> {}
+                }
+                assertTrue(boundary >= two.id)
+                release.signal()
+                assertEquals(200U, one.receiveResponse().status)
+                assertEquals("first", networkText(one))
+                assertEquals(200U, two.receiveResponse().status)
+                assertEquals("second", networkText(two))
+                stopping.join()
+                assertTrue(server.isClosed)
+            }
+        })
+    }
+
+    @Test fun `request capacity rejects only an excess stream and is released after cleanup`() {
+        val entered = ServerTestGate(); val release = ServerTestGate()
+        val finished = ServerTestCompletions()
+        val routes = RouterBuilder()
+        routes.get("/wait", suspend { _ -> entered.signal(); release.await(); text("first") })
+        routes.get("/ok", suspend { _ -> text("next") })
+        val options = HttpServerOptions(allowCleartextHttp2 = true, maxActiveRequests = 1L,
+            onRequestCompleted = Some({ value -> finished.receive(value) }))
+        withServer(routes.build(), options, suspend { scope, _, address ->
+            h2ServerClient(address, scope).useAsync suspend { client ->
+                val first = client.openRequest(h2ServerRequest("/wait")); entered.await()
+                val excess = client.openRequest(h2ServerRequest("/ok"))
+                var rejected = false
+                try { excess.receiveResponse() }
+                catch (_: HttpException) { rejected = true }
+                assertTrue(rejected)
+                release.signal()
+                first.receiveResponse(); assertEquals("first", networkText(first)); finished.ready.await()
+                assertEquals("next", h2ServerText(client, "/ok"))
+            }
+        })
+    }
+
+    @Test fun `expired graceful drain cancels requests and waits for suspended cleanup`() {
+        val entered = ServerTestGate(); val cleaning = ServerTestGate(); val release = ServerTestGate()
+        val never = ServerTestGate()
+        val routes = RouterBuilder()
+        routes.get("/", suspend { _ ->
+            try { entered.signal(); never.await(); text("late") }
+            finally { nonCancellableScope<Unit> suspend { _ -> cleaning.signal(); release.await() } }
+        })
+        withServer(routes.build(), HttpServerOptions(allowCleartextHttp2 = true), suspend { scope, server, address ->
+            h2ServerClient(address, scope).useAsync suspend { client ->
+                try {
+                    client.openRequest(h2ServerRequest()); entered.await()
+                    val stopping = scope.launch suspend { server.shutdownGracefully(Duration.milliseconds(20)) }
+                    cleaning.await()
+                    assertFalse(server.isClosed || stopping.isCompleted)
+                    release.signal(); stopping.join()
+                    assertTrue(server.isClosed)
+                } finally { release.signal() }
+            }
+        })
+    }
+}
