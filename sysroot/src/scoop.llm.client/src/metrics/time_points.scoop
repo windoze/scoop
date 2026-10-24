@@ -1,0 +1,50 @@
+package scoop.llm.client
+
+import scoop.time.Duration
+import scoop.time.Instant
+
+/** Persistable wall time and monotonic offset from this call's start, never a live TimeMark. */
+public class LlmTimePoint public constructor(public val at: Instant, public val elapsed: Duration) {
+    init {
+        if (elapsed < Duration.ZERO) throw IllegalArgumentException(Some("call time offset must not be negative"))
+    }
+    public companion object : ValueEncoder<LlmTimePoint>, ValueDecoder<LlmTimePoint>
+}
+
+public class LlmRequestTiming public constructor(
+    public val sent: LlmTimePoint? = None,
+    public val bodyCompleted: LlmTimePoint? = None
+) {
+    public val sentAt: Instant? get() = pointInstant(sent)
+    public val bodyCompletedAt: Instant? get() = pointInstant(bodyCompleted)
+    public companion object : ValueEncoder<LlmRequestTiming>, ValueDecoder<LlmRequestTiming>
+}
+
+public class LlmResponseTiming public constructor(
+    public val received: LlmTimePoint? = None,
+    public val firstResponseByte: LlmTimePoint? = None,
+    public val firstEvent: LlmTimePoint? = None,
+    public val firstOutput: LlmTimePoint? = None,
+    public val firstText: LlmTimePoint? = None,
+    public val completed: LlmTimePoint? = None
+) {
+    public val receivedAt: Instant? get() = pointInstant(received)
+    public val firstResponseByteAt: Instant? get() = pointInstant(firstResponseByte)
+    public val firstEventAt: Instant? get() = pointInstant(firstEvent)
+    public val firstOutputAt: Instant? get() = pointInstant(firstOutput)
+    public val firstTextAt: Instant? get() = pointInstant(firstText)
+    public val completedAt: Instant? get() = pointInstant(completed)
+    public companion object : ValueEncoder<LlmResponseTiming>, ValueDecoder<LlmResponseTiming>
+}
+
+internal fun pointInstant(point: LlmTimePoint?): Instant? = when (point) {
+    case Some(value) -> Some(value.at)
+    case None -> None
+}
+
+internal fun pointDuration(start: LlmTimePoint?, end: LlmTimePoint?): Duration? {
+    val from = start ?: return None
+    val to = end ?: return None
+    if (to.elapsed < from.elapsed) throw IllegalArgumentException(Some("response time offset precedes request send"))
+    return Some(to.elapsed - from.elapsed)
+}

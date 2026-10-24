@@ -1,0 +1,18 @@
+package scoop.llm.client.tests.response
+
+import scoop.json.Json
+import scoop.llm.client.*
+
+internal fun responseDialect(): DialectId = DialectId(ApiProtocolId("chat-completions"), "test")
+
+internal fun textCandidate(index: Long, text: String, completion: LlmCompletion = Complete): LlmCandidate =
+    LlmCandidate(index, [Message([Text(text)])], completion, Stop)
+
+internal fun toolReference(id: String): ClientToolCallReference =
+    ClientToolCallReference(responseDialect(), ToolKey("local"), id)
+
+internal fun jsonArguments(text: String): ClientToolInput = JsonArguments(JsonToolArguments(text))
+
+internal class CountOutput public constructor(public val count: Long) {
+    public companion object : ValueEncoder<CountOutput>, ValueDecoder<CountOutput>
+}

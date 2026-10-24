@@ -1,0 +1,23 @@
+package scoop.llm.client
+
+/** A response whose local call has completed cleanup, without any retained transport resource. */
+public class LlmResult public constructor(public val response: LlmResponse, public val metadata: LlmCallMetadata) {
+    init {
+        if (metadata.outcome != LlmCallOutcome.Completed)
+            throw IllegalArgumentException(Some("generation result requires a completed call"))
+    }
+
+    public val text: String get() = response.text
+    public val clientToolCalls: Array<ClientToolCall> get() = response.clientToolCalls
+    public val serverToolActivities: Array<ServerToolActivity> get() = response.serverToolActivities
+
+    public fun toInput(candidateIndex: Long? = None): Array<LlmInputItem> = response.toInput(candidateIndex)
+
+    public fun <T> decodeOutput(codec: ValueDecoder<T>, candidateIndex: Long? = None, itemIndex: Long? = None): T =
+        response.decodeOutput(codec, candidateIndex, itemIndex)
+
+    public fun <T> decodeOutput(candidateIndex: Long? = None, itemIndex: Long? = None): T
+        where T.Companion : ValueDecoder<T> = decodeOutput(T.Companion, candidateIndex, itemIndex)
+
+    public companion object : ValueEncoder<LlmResult>, ValueDecoder<LlmResult>
+}

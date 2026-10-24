@@ -1,0 +1,62 @@
+package scoop.llm.client
+
+public enum LlmOutputFailure {
+    MissingCandidate, AmbiguousCandidate, MissingOutput, AmbiguousOutput,
+    InvalidSelection, Refused, Incomplete, HistoryUnavailable, WrongToolInput
+}
+
+/** A result selection or completeness failure; the caller still owns the original result. */
+public class LlmOutputException public constructor(public val reason: LlmOutputFailure, message: String)
+    : Exception(Some(message))
+
+internal fun structuredOutputText(candidate: LlmCandidate, selected: Long?): String {
+    if (candidate.completion == LlmCompletion.Refused || candidateHasRefusal(candidate))
+        throw LlmOutputException(Refused, "candidate contains a refusal")
+    if (candidate.completion != LlmCompletion.Complete)
+        throw LlmOutputException(Incomplete, "candidate output is not complete")
+    if (selected != None) {
+        if (selected!! < 0L || selected!! >= candidate.items.size)
+            throw LlmOutputException(InvalidSelection, "output item index is out of range")
+        return when (candidate.items[selected!!]) {
+            case Message(content, _) -> messageOutputText(content) ?:
+                throw LlmOutputException(MissingOutput, "selected message contains no text")
+            else -> throw LlmOutputException(InvalidSelection, "selected output item is not a message")
+        }
+    }
+    var found: String? = None
+    for (item in candidate.items) {
+        when (item) {
+            case Message(content, _) -> {
+                val text = messageOutputText(content) ?: continue
+                if (found != None) throw LlmOutputException(AmbiguousOutput, "select one output message explicitly")
+                found = Some(text)
+            }
+            else -> continue
+        }
+    }
+    return found ?: throw LlmOutputException(MissingOutput, "candidate contains no output message")
+}
+
+private fun messageOutputText(content: Array<OutputPart>): String? {
+    val result = StringBuilder()
+    var found = false
+    for (part in content) {
+        when (part) {
+            case Text(text, _) -> { result.append(text); found = true }
+            else -> continue
+        }
+    }
+    return if (found) Some(result.toString()) else None
+}
+
+private fun candidateHasRefusal(candidate: LlmCandidate): Boolean {
+    for (item in candidate.items) {
+        when (item) {
+            case Message(content, _) -> for (part in content) {
+                when (part) { case Refusal(_) -> return true; else -> continue }
+            }
+            else -> continue
+        }
+    }
+    return false
+}

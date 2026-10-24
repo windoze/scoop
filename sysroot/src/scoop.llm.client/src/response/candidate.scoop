@@ -1,0 +1,48 @@
+package scoop.llm.client
+
+/** One candidate retains its own output and replay history; candidates are never concatenated. */
+public class LlmCandidate public constructor(
+    public val index: Long,
+    public val items: Array<LlmOutputItem>,
+    public val completion: LlmCompletion,
+    public val finishReason: LlmFinishReason,
+    public val history: LlmHistory? = None
+) {
+    init {
+        if (index < 0L) throw IllegalArgumentException(Some("candidate index must not be negative"))
+    }
+
+    public val text: String get() {
+        val result = StringBuilder()
+        for (item in items) {
+            when (item) {
+                case Message(content, _) -> for (part in content) {
+                    when (part) { case Text(value, _) -> result.append(value); else -> continue }
+                }
+                else -> continue
+            }
+        }
+        return result.toString()
+    }
+
+    public val clientToolCalls: Array<ClientToolCall> get() {
+        val result = ArrayList<ClientToolCall>()
+        for (item in items) {
+            when (item) {
+                case ClientToolCall(call) -> { if (call.isExecutable) result.add(call) }
+                else -> continue
+            }
+        }
+        return result.toArray()
+    }
+
+    public val serverToolActivities: Array<ServerToolActivity> get() {
+        val result = ArrayList<ServerToolActivity>()
+        for (item in items) {
+            when (item) { case ServerToolActivity(activity) -> result.add(activity); else -> continue }
+        }
+        return result.toArray()
+    }
+
+    public companion object : ValueEncoder<LlmCandidate>, ValueDecoder<LlmCandidate>
+}

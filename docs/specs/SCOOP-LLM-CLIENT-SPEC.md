@@ -110,3 +110,47 @@ LlmGenerationOptions 的 temperature、topP 为 Double?；topK、maxOutputTokens
 reasoning 为 ReasoningOptions?，其中 enabled、effort、budgetTokens 均可缺失；预算为非负 Long，effort 按原字符串保留，具体允许值由 dialect 定义。output 缺省 OutputFormat.Text，另外有 JsonObject 和 JsonSchema(schema, name = "response", description = None, strict = None)。schema 必须为 object；名称与 schema 子集按所选协议检查，不从 ValueDecoder 反推 schema。
 
 所有上述请求数据提供 companion JSON codec，普通 record／enum 使用语言缺省合成；缺失字段按声明恢复默认值，None 与显式 false／零／空集合保持区别。JsonValue 保留数字 token、字段顺序和未知字段。构造检查同样适用于解码；协议 wire 编码另外实现，不把公共 enum 的保存格式直接发送给供应商。
+
+## 4. 响应、读取视图与历史投影
+
+`LlmResponse(dialect, candidates, id = None, model = None, createdAt = None, usage = LlmUsage(), native = None)` 保存一次模型响应。createdAt 是供应商明确报告的时间，不充当本地接收时间。candidates 保留协议提供的顺序，每个 `LlmCandidate(index, items, completion, finishReason, history = None)` 保存非负、响应内唯一的 index、有序输出、生成完整性、停止原因和可回传历史。LlmCompletion 为 Complete、Incomplete、Refused、Failed；协议响应已读完与模型生成完整是不同事实。
+
+LlmFinishReason 为 Stop、Length、ToolCalls、ContentFilter、Refusal、Pause、Other(raw)、Unknown。Unknown 不被当作 Stop，未知原生原因使用 Other 保存。非流式及流式 reducer 共用这些最终数据；构造器不会根据有无文本推断成功。
+
+### 4.1 有序输出和工具输入
+
+LlmOutputItem 分为 Message(content, id = None)、Reasoning(content, id = None)、ClientToolCall(call)、ServerToolActivity(activity)、Native(dialect, value)。Message 与 Reasoning 的内容为 `Array<OutputPart>`，其变体包括 Text(text, citations = [])、Refusal(text)、Media(kind, source) 和 Native(dialect, value)。普通文本视图只读取 Message 中的 Text，保持 item／part 顺序；不拼入 reasoning、拒绝说明、工具参数或 Native 内容。
+
+`ClientToolCall(reference, input)` 的 reference 使用第 3 节的 ClientToolCallReference。ClientToolInput 分为 JsonArguments(arguments)、Text(text)、Native(value)、Incomplete(rawText)、Invalid(rawText, reason)。`JsonToolArguments(rawText)` 在构造时解析一次并要求 object，其只读 value 保存解析结果；codec 只保存原文，恢复时从原文重建缓存，不能独立修改两份表示。协议适配器在参数完整时构造它；模型生成的 JSON 无效或不是 object 时保留 Invalid，不把整个外层响应当作格式错误。Incomplete 和 Invalid 的 isExecutable 为 false，其余变体只有在 adapter 确认输入的协议形状后构造，应用仍须验证业务 DTO。
+
+call.decodeArguments<T>(codec) 只接受 JsonArguments，使用 Json.decodeFromValue；companion 缺省重载遵守同一合同。其他输入变体抛 LlmOutputException，JSON DTO 解码失败保留原 DecodingException。库不修复 JSON、不补齐缺失参数、不执行工具。
+
+`ServerToolActivity(kind, status = Unknown, toolKey = None, id = None, action = None, result = [], sources = [], native = None)` 保存已观察到的服务端活动。ServerToolKind 为 WebSearch、WebFetch、FileSearch、CodeExecution、ImageGeneration、Native；状态为 Unknown、InProgress、Completed、Failed。缺失 id 不用 ToolKey 或数组位置伪造，缺失 action／结果不意味着失败。服务端活动始终不进入客户端待执行列表。
+
+### 4.2 来源与引用
+
+`LlmSource(id, location, title = None, native = None)` 保存来源，location 使用 LlmSourceLocation.Url(Url)、File(LlmFileReference)、Native(dialect, value)。来源 id 是来源表的引用，不是工具 call ID。`Citation(source, range = None)` 将来源连接到实际文本块；`TextRange(start, end, unit)` 为非负的左闭右开范围，end 不得小于 start。TextRangeUnit 明确区分 Utf8Bytes、Utf16CodeUnits、UnicodeScalars，适配器不得未经换算更换单位。范围未知时保持 None，不伪造覆盖整段文本的区间。
+
+### 4.3 候选选择、结构化解码和保存
+
+response.text、clientToolCalls、serverToolActivities 是首个候选的只读便利视图；没有候选时分别为空串／空数组。响应保留完整 candidates；客户端调用视图只返回 isExecutable 的调用。`candidate(index)` 按协议 index 查找，缺失时报告 LlmOutputException，不将 index 当作数组下标。
+
+response.toInput(candidateIndex = None) 选定一个候选，仅返回其 LlmHistory，不从通用读取视图重建或混合 raw。未指定 index 时必须恰有一个候选；history 缺失时明确报错。返回的 History 不携带 usage、时间戳或 HTTP metadata。同方言历史能否在具体请求模式下回传，由 adapter 编码时检查；原始未知字段、reasoning、签名和工具关联保留在 history 中。
+
+response.decodeOutput<T>(codec, candidateIndex = None, itemIndex = None) 选择一个候选和一个包含 Text 的 Message，将其中 Text 按顺序连接后严格解析 JSON，再调用 codec。候选不唯一、文本消息不唯一、选择越界／类型不符、拒绝、输出不完整或缺失均抛 LlmOutputException；无效 JSON 和 DTO 解码失败保持 DecodingException。itemIndex 指候选 items 的数组位置。自动选择跳过没有 Text 的消息，显式选择这类消息则报告 MissingOutput。不得拼接多个候选或多个 Message，也不自动去掉 Markdown 围栏或补全 JSON。候选消息中存在 Refusal 时不把该候选的其他文字当作结构化成功。companion 缺省重载不改变选择与错误语义。
+
+LlmResponse、候选、输出、工具输入、来源和历史提供 companion codec。序列化保存不可变数据及其归属，不保存 adapter、连接或执行函数；生成协议的历史投影负责选择可回传字段，toInput 始终使用该投影结果。输出视图没有修改接口，不存在编辑通用文本后自动与旧原生历史合并的行为。
+
+## 5. 用量与计时快照
+
+`LlmUsage(tokens = TokenUsage(), completeness = Partial, native = None)` 保存一次响应的 token 统计、Partial／Final 完整性和原生用量。Final 表示该次报告已终结，不表示每个计数都已知；None 不因此变成零。响应整体用量不复制到每个 candidate。
+
+`LlmTimePoint(at, elapsed)` 同时保存 UTC Instant 与相对本次逻辑调用起点的非负 Duration。elapsed 来自同一单调时钟；at 可因校时回拨，二者不互相推导。它可保存／恢复，但不恢复为当前进程的 TimeMark。
+
+`LlmRequestTiming(sent = None, bodyCompleted = None)` 与 `LlmResponseTiming(received = None, firstResponseByte = None, firstEvent = None, firstOutput = None, firstText = None, completed = None)` 保存观察点，并分别提供 sentAt／bodyCompletedAt 与 receivedAt／firstResponseByteAt／firstEventAt／firstOutputAt／firstTextAt／completedAt 的 Instant? 视图。未观察到或底层没有提供的采样保持 None。
+
+`LlmAttemptMetadata(number, request = ..., response = ..., status = None, requestId = None, responseId = None, usage = LlmUsage())` 的 number 从 1 开始。timeToHeaders、timeToFirstOutput、timeToFirstText、responseLatency 仅使用同一尝试的 sent 与相应响应点的 elapsed 差；缺失任一端点时为 None，相应响应点早于 sent 时构造失败，UTC 先后不作为检查条件。outputTokensPerSecond 仅在响应完成、outputTokens 已知且 responseLatency 为正时返回端到端平均速率，否则 None。
+
+`LlmCallMetadata(callId, startedAt, attempts = [], finished = None, outcome = Active)` 保存逻辑调用及尝试序列。LlmCallOutcome 为 Active、Completed、Failed、Cancelled；已结束时须有 finished，Active 时不得有 finished。尝试编号递增，不能覆盖或重排已有尝试。finishedAt 与 totalDuration 是 finished 的只读视图。调用前失败可有空 attempts；这里不根据 outcome 伪造响应完成或缺失 usage，也不把重试用量直接相加成最终响应用量。
+
+`LlmResult(response, metadata)` 组合完整响应和已收尾调用记录，metadata.outcome 必须为 Completed。它提供相同的 text、clientToolCalls、serverToolActivities、toInput 与 decodeOutput 便利入口并提供 companion codec。失败／取消的 metadata 可独立保存；网络执行层负责实际采样与完成通知，这些数据构造器不读取时钟、不发起请求。

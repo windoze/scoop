@@ -1,0 +1,34 @@
+package scoop.llm.client
+
+import scoop.time.Duration
+import scoop.time.Instant
+
+public enum LlmCallOutcome {
+    Active, Completed, Failed, Cancelled
+    public companion object : ValueEncoder<LlmCallOutcome>, ValueDecoder<LlmCallOutcome>
+}
+
+/** One logical call, with immutable snapshots for each observed attempt. */
+public class LlmCallMetadata public constructor(
+    public val callId: String,
+    public val startedAt: Instant,
+    public val attempts: Array<LlmAttemptMetadata> = [],
+    public val finished: LlmTimePoint? = None,
+    public val outcome: LlmCallOutcome = Active
+) {
+    init {
+        val hasFinish = when (finished) { case Some(_) -> true; case None -> false }
+        if ((outcome == LlmCallOutcome.Active) == hasFinish)
+            throw IllegalArgumentException(Some("call outcome and finish observation disagree"))
+        var previous = 0L
+        for (attempt in attempts) {
+            if (attempt.number <= previous) throw IllegalArgumentException(Some("attempt numbers must be increasing"))
+            previous = attempt.number
+        }
+    }
+
+    public val finishedAt: Instant? get() = pointInstant(finished)
+    public val totalDuration: Duration? get() = when (finished) { case Some(value) -> Some(value.elapsed); case None -> None }
+
+    public companion object : ValueEncoder<LlmCallMetadata>, ValueDecoder<LlmCallMetadata>
+}

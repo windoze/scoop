@@ -1,0 +1,35 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Model completion differs from successful transport completion. */
+public enum LlmCompletion {
+    Complete, Incomplete, Refused, Failed
+    public companion object : ValueEncoder<LlmCompletion>, ValueDecoder<LlmCompletion>
+}
+
+public enum LlmFinishReason {
+    Stop, Length, ToolCalls, ContentFilter, Refusal, Pause, Other(String), Unknown
+    public companion object : ValueEncoder<LlmFinishReason>, ValueDecoder<LlmFinishReason>
+}
+
+/** Output content does not inherit request options and is not automatically replayed as input. */
+public enum OutputPart {
+    Text(val text: String, val citations: Array<Citation> = []),
+    Refusal(val text: String),
+    Media(val kind: OutputMediaKind, val source: MediaSource),
+    Native(val dialect: DialectId, val value: JsonValue)
+
+    public companion object : ValueEncoder<OutputPart>, ValueDecoder<OutputPart>
+}
+
+/** Ordered observable output; server activity and reasoning never become client tool calls. */
+public enum LlmOutputItem {
+    Message(val content: Array<OutputPart>, val id: String? = None),
+    Reasoning(val content: Array<OutputPart>, val id: String? = None),
+    ClientToolCall(val call: scoop.llm.client.ClientToolCall),
+    ServerToolActivity(val activity: scoop.llm.client.ServerToolActivity),
+    Native(val dialect: DialectId, val value: JsonValue)
+
+    public companion object : ValueEncoder<LlmOutputItem>, ValueDecoder<LlmOutputItem>
+}

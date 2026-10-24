@@ -15,7 +15,8 @@
 | 输入／输出媒体与生成 capability 数据 | 完成：本机与 Linux GNU 各 18/18 通过 |
 | Url companion codec | 完成：本机与 Linux GNU 的 URL Cone 各 19/19 通过 |
 | 公共请求、四类工具声明、按位置扩展与历史数据 codec | 完成：本机与 Linux GNU 各 32/32 通过 |
-| 公共响应、工具 capability、协议错误与历史投影 | 待实施 |
+| 公共响应、结构化解码、历史读取与计时快照数据 | 完成：本机与 Linux GNU 各 46/46 通过 |
+| 工具 capability、协议错误与实际历史投影 | 待实施 |
 | Client 寿命、流式单消费者／保留策略与结构化输出 | 待实施 |
 | Chat protocol、基础与 DeepSeek dialect、工具历史回传 | 待实施 |
 | Responses、Messages、Gemini protocols 与 server-side tools | 待实施 |
@@ -34,6 +35,7 @@
 - Capability 新增 13 项测试，覆盖三态、缺省 Unknown、MIME／传递形式精确组合、参数与重复组合、输入／输出和媒体种类的独立性、生成控制、已知零／未知上限及 codec 往返。当前负责数据描述与查询，请求校验和工具种类能力仍随后续实现。
 - 媒体请求需要保存 Url，已在 URL 库补 companion codec；新增 5 项测试覆盖规范 URI、相对／非网络引用、Unicode、缺失／空组件与带路径的解码失败。复用现有解析器，不执行网络 I/O。
 - 请求模型新增 14 项外部 package 消费者测试，覆盖缺省 User、显式零／false／空集合、结构化输出 schema、扩展作用位置与重复诊断、媒体／视频帧、原生历史与旧工具引用、四类工具及精确选择。两平台各 32 项通过；目前验证数据与保存合同，实际协议编码、capability 联动和输出 toInput 仍待实现。
+- 响应与计时新增 14 项测试，完整 LLM Cone 两平台各 46 项通过。覆盖有序读取视图、工具参数只保留一份可保存原文、多候选／多文本消息选择、拒绝和不完整输出、原生历史读取、引用单位、失败记录、分次重试及 wall clock 回拨。当前 toInput 读取已经投影的历史；协议投影、实时采样和生成调用随后接入。
 - HTTP 新增 9 个用例，覆盖请求／client observer 共存与去重、共享 H1／H2 连接、信息／最终响应头、重试与重定向、缓存、发送前失败、关闭保护、SSE 与 WebSocket。完整所属 Cone 测试在两平台各通过 189 个用例。连接级首字节采样保持原配置，发送／接收 UTC 采样独立可用。
 - Linux 验证使用 `~/repos/scoop-work/llm-client/checkout` 独立工作树；Unit 修复后已从相应源码重建 release 工具、23 个库及 runtime，保留 `~/repos/scoop` 中的未提交改动。旧 runtime 与新工具不匹配的启动失败在正式准备后重跑通过。
 - 整体实现仍在进行；验证仅覆盖表中已交付项。后续仅记录通过范围、失败闭合和实际限制。
