@@ -1,0 +1,83 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentStreamFailureTest {
+    @Test
+    fun `Gemini SSE checks response identities duplicate indices roles and terminal boundaries`() {
+        assertGeminiStreamFailure("{\"candidates\":[{\"index\":-1}]}", "/candidates/0/index")
+        assertGeminiStreamFailure("{\"candidates\":[{},{}]}", "/candidates/1/index")
+        assertGeminiStreamFailure("{\"candidates\":[{\"content\":{\"role\":\"user\"}}]}", "/candidates/0/content/role")
+        assertGeminiStreamFailure("{\"error\":{\"message\":\"failed\"}}", "/error")
+        assertGeminiStreamFailure(geminiChunk("[{\"text\":\"hi\",\"functionCall\":{\"name\":\"lookup\"}}]"), "/candidates/0/content/parts/0/functionCall")
+        assertGeminiStreamFailure(geminiChunk("[{\"functionCall\":{\"name\":\"lookup\",\"id\":\"same\"}},{\"functionCall\":{\"name\":\"lookup\",\"id\":\"same\"}}]"), "/candidates/0/content/parts/1/functionCall/id")
+        for (field in ["responseId", "modelVersion"]) {
+            val stream = geminiStream()
+            stream.accept("message", "{\"" + field + "\":\"one\"}")
+            val error = assertFailsWith<LlmProtocolException> { stream.accept("message", "{\"" + field + "\":\"two\"}"); Unit }
+            assertEquals("/" + field, error.path)
+        }
+        val ended = geminiStream()
+        geminiAccept(ended, "[]", finish = Some("STOP"))
+        assertFailsWith<LlmProtocolException> { geminiAccept(ended, "[{\"text\":\"late\"}]"); Unit }
+        assertFailsWith<LlmStreamProtocolException> { ended.endInput(); Unit }
+    }
+
+    @Test
+    fun `Gemini SSE rejects empty truncated malformed and post EOF streams`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            val empty = geminiStream(retention)
+            assertFailsWith<LlmStreamProtocolException> { empty.endInput(); Unit }
+            for (reason in [None, Some(""), Some("FINISH_REASON_UNSPECIFIED")]) {
+                val partial = geminiStream(retention)
+                geminiAccept(partial, "[{\"text\":\"partial\"}]", finish = reason)
+                assertFailsWith<LlmStreamProtocolException> { partial.endInput(); Unit }
+                assertEquals(UsageCompleteness.Partial, partial.usage.completeness)
+                assertFalse(partial.isFinished)
+            }
+            val malformed = geminiStream(retention)
+            assertFailsWith<LlmStreamProtocolException> { malformed.accept("message", "{"); Unit }
+            val done = geminiStream(retention)
+            geminiAccept(done, "[]", finish = Some("STOP"))
+            done.endInput()
+            assertFailsWith<LlmStreamProtocolException> { done.accept("message", "{}"); Unit }
+            assertFalse(done.isFinished)
+        }
+    }
+
+    @Test
+    fun `Gemini SSE prompt blocking is a completed empty response and unknown events cannot finish a stream`() {
+        val stream = geminiStream()
+        stream.accept("message", "{\"promptFeedback\":{\"blockReason\":\"SAFETY\"},\"usageMetadata\":{\"promptTokenCount\":8}}")
+        assertFalse(stream.isFinished)
+        stream.endInput()
+        assertEquals(0L, stream.response().candidates.size)
+        assertEquals(UsageCompleteness.Final, stream.usage.completeness)
+        assertEquals(None, stream.usage.tokens.outputTokens)
+        val unknown = geminiStream()
+        val event = unknown.accept("future", "{\"opaque\":true}")
+        assertFalse(event.hasOutput || event.hasText)
+        when (event.events[0L]) { case Native(value) -> assertEquals("future", value.event); else -> fail() }
+        assertFailsWith<LlmStreamProtocolException> { unknown.endInput(); Unit }
+        assertGeminiStreamFailure("{\"promptFeedback\":{\"blockReason\":\"SAFETY\"},\"candidates\":[{}]}", "/promptFeedback/blockReason")
+    }
+
+    @Test
+    fun `Gemini SSE cumulative usage keeps missing counts unknown and freezes only at EOF`() {
+        val stream = geminiStream()
+        stream.accept("message", "{\"responseId\":\"r\",\"modelVersion\":\"m\",\"usageMetadata\":{\"promptTokenCount\":9007199254740993,\"toolUsePromptTokenCount\":0,\"cachedContentTokenCount\":2,\"candidatesTokenCount\":0}}")
+        assertEquals(Some(9007199254740993L), stream.usage.tokens.inputTokens)
+        assertEquals(None, stream.usage.tokens.outputTokens)
+        geminiAccept(stream, "[]", finish = Some("STOP"))
+        stream.accept("message", "{\"responseId\":null,\"usageMetadata\":{\"promptTokenCount\":null,\"candidatesTokenCount\":3,\"thoughtsTokenCount\":2,\"totalTokenCount\":9007199254740998}}")
+        assertEquals(UsageCompleteness.Partial, stream.usage.completeness)
+        assertEquals(Some(5L), stream.usage.tokens.outputTokens)
+        assertEquals(Some(9007199254740991L), stream.usage.tokens.nonCachedInputTokens)
+        stream.endInput()
+        assertEquals(Some("r"), stream.responseId)
+        assertEquals(Some(9007199254740998L), stream.usage.tokens.totalTokens)
+        assertEquals(UsageCompleteness.Final, stream.response().usage.completeness)
+    }
+}

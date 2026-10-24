@@ -401,7 +401,7 @@ promptTokensDetails 与 toolUsePromptTokensDetails 均存在时，按模态合�
 
 ## 19. Gemini generateContent 请求与普通生成
 
-GenerateContentProtocol 实现 LlmGenerationProtocol；Providers.geminiGenerateContent() 固定组合 GeminiGenerateContentDialect，缺省部署为 https://generativelanguage.googleapis.com/v1beta。简短模型 ID 前加 models，含斜线的 ID 按显式资源路径逐段编码，末段追加 :generateContent；保留部署前缀和查询，不查询模型目录。模型只参与 URL，不重复放入正文。普通与流式请求正文相同；SSE reducer 交付前不实现 LlmSseProtocol。
+GenerateContentProtocol 实现 LlmSseProtocol；Providers.geminiGenerateContent() 固定组合 GeminiGenerateContentDialect，缺省部署为 https://generativelanguage.googleapis.com/v1beta。简短模型 ID 前加 models，含斜线的 ID 按显式资源路径逐段编码，末段追加 :generateContent；保留部署前缀和查询，不查询模型目录。模型只参与 URL，不重复放入正文。普通与流式请求正文相同；SSE 规则见第 20 节。
 
 最小正文只有 contents。User／Assistant 分别编码 user／model；request.system 编码只含文本的 systemInstruction，消息内 System／Developer 角色不能无声移动到全局。消息与 part 保持顺序，不跨历史项合并。历史检查 dialect 及 Content／parts 的基本形状后直接回传整个对象，保留未知字段与 thoughtSignature；不填补签名、不自动追加 CONTINUATION 的部分结果。
 
@@ -420,3 +420,21 @@ ToolResult 使用 reference.context 中原始 functionCall.name，缺省 context
 LlmAuth.header(name, value) 表达固定认证头；它与 bearer 一样不读取环境，不进入可序列化请求或响应。Gemini 应用显式提供 x-goog-api-key。普通生成复用现有调用寿命、能力检查、实际 UTC 时间戳、错误正文边界和重试；Google error.status 作为服务错误 code，完整原文保留，仅 503／UNAVAILABLE 标记可重试，RESOURCE_EXHAUSTED 不被猜成短时限流。
 
 协议依据：[generateContent](https://ai.google.dev/api/generate-content)、[ToolConfig](https://ai.google.dev/api/caching#ToolConfig)、[API key 请求头](https://ai.google.dev/gemini-api/docs/api-key)。借鉴 [Vercel Google 消息映射](https://github.com/vercel/ai/blob/main/packages/google/src/convert-to-google-messages.ts)中的有序 part 与 functionResponse 组织，保持本库的原生历史和显式媒体形式。
+
+## 20. Gemini generateContent SSE
+
+streamUrl 使用同样的模型资源路径，操作为 :streamGenerateContent；将 alt 查询设为 sse，其他部署查询保留。普通入口继续使用 :generateContent。请求正文相同，不加入 stream 字段；认证观察最终 SSE URL。createStreamDecoder 及客户端读取、保留与收尾均使用第 10、11 节的公共入口。
+
+每个 message 数据是一个 GenerateContentResponse。候选按实际 index 独立归并，单块内重复／负索引拒绝；responseId／modelVersion 只接受一致的非空身份。显式 content.role 必须为 model 或空。根部 error 或 SSE error 失败；未知事件／字段保留 Native。不同候选的输出不能拼接到同一位置。
+
+跨块相邻且 thought 状态相同的纯 text 片段可合并为一个展示 part；同一 Content 中的不同 part、带签名或其他元数据的 part 保持独立边界。相邻普通文本／媒体组成 Message，相邻 thought 内容组成 Reasoning，遵循第 18 节的分组；事件的 itemIndex／partIndex 与保留结果一致。空文本中的 thoughtSignature 仍保留；只含签名不算有效文本或首输出，也不单独创建另一条 Message。媒体与服务端工具使用第 18 节的解释，媒体通过 Native 事件交付原始 part 和 partIndex，并在 Result 中保留媒体输出。含 part 的原始 Content 按收到的顺序保存在 history.items，只有空 parts 的结束壳不生成一条空历史消息；不把展示文本拼接结果用于回传。CONTINUATION 与不能解释的增量函数参数不提供 history。
+
+Gemini functionCall 的参数在一个 part 中完整提供，ToolInputDelta 交付其 JSON 原文；ClientToolCall 等候选 finishReason 后再确定执行资格。缺失 ID 保持 None，不生成本地 ID 冒充服务器标识；不同调用按位置区分。服务端代码执行、搜索等活动直接交付 ServerToolActivity。partialArgs／willContinue 属于 Vertex 的增量合同，本 Gemini 解释器将带这些非 null 字段的 functionCall 保留 Native，不把省略 args 猜成完整的空对象调用；完整响应同样遵守此规则。
+
+groundingChunks 按到达次序追加，groundingChunkIndices 引用整个候选流的累计来源表；不以最新块覆盖旧来源。搜索活动按实际观察交付，不因声明工具生成事件。引用等 EOF 后按完整的展示 part、UTF-8 字节长度和来源表验证并交付 Citation；EventsOnly 只保留必要位置／字节数和未决引用，不累计普通文本。citationMetadata 仅在唯一展示 part 为文本时连接到该 part，否则保留 Native。Result 中的引用与事件位置一致。
+
+非空、非 FINISH_REASON_UNSPECIFIED 的 finishReason 完成对应候选并交付一次 CandidateFinished；重复相同值可以携带尾部 metadata，已结束候选不能再增加内容。usageMetadata 是累计快照，沿第 10 节合并实际报告字段，始终在 EOF 前保持 Partial。只有干净 EOF、至少一个候选且所有候选都已结束，或服务明确报告 promptFeedback.blockReason 且没有候选时，endInput 才正常结束并交付最终 Usage。无候选的拦截不伪造候选。空流、缺少停止原因、冲突身份、非法 JSON 与半途网络中断均失败；不能仅因读取结束就把截断结果当作完整结果。
+
+EOF 后停止总截止、记录 completed 并保留最终结果；firstEvent 仍来自实际 SSE 数据，清理及回调后才可读取 result。CONTINUATION 保留原生 token 和 Incomplete／Pause，不自动发起后续请求。EventsOnly 与 Result 使用同样的语义检查，不因保留策略改变工具执行资格或错误结果。
+
+协议依据：[generateContent 流与 grounding](https://ai.google.dev/api/generate-content)、[签名回传边界](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-signatures)、[Google SDK 流式历史](https://github.com/googleapis/js-genai/blob/main/src/chats.ts)、[FunctionCall 的 Gemini／Vertex 差异](https://googleapis.github.io/js-genai/release_docs/interfaces/types.FunctionCall.html)。参考 [Vercel Google SSE](https://github.com/vercel/ai/blob/main/packages/google/src/google-language-model.ts)的 EOF 收尾与 usage 处理，但保留多候选、未知计数和显式继续请求的合同。

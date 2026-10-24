@@ -9,6 +9,7 @@ internal class GenerateContentFunctionCall public constructor(public val name: S
 
 internal fun readGenerateContentCall(dialect: DialectId, raw: JsonValue, tools: Array<ToolDefinition>, complete: Boolean,
     ids: ArrayList<String>, path: String): LlmOutputItem {
+    if (generateContentPartialCall(raw)) return LlmOutputItem.Native(dialect, raw)
     val call = decodeGenerateContentValue<GenerateContentFunctionCall>(raw["functionCall"]!!, path + "/functionCall")
     if (call.name.length == 0L) throw DecodingException(path + "/functionCall/name", "function name must not be empty")
     val id = generateContentId(call.id)
@@ -25,6 +26,16 @@ internal fun readGenerateContentCall(dialect: DialectId, raw: JsonValue, tools: 
         else if (arguments.kind != JsonValueKind.Object) ClientToolInput.Invalid(text, "function arguments must be an object")
         else ClientToolInput.JsonArguments(JsonToolArguments(text))
     return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, id, Some(raw)), input))
+}
+
+internal fun generateContentPartialCall(raw: JsonValue): Boolean {
+    val call = raw["functionCall"] ?: return false
+    if (call.kind != JsonValueKind.Object) return false
+    for (name in ["partialArgs", "willContinue"]) {
+        val value = call[name]
+        if (llmPresent(value) && value!!.kind != JsonValueKind.Null) return true
+    }
+    return false
 }
 
 private fun resolveGenerateContentFunction(tools: Array<ToolDefinition>, name: String): ToolKey? {

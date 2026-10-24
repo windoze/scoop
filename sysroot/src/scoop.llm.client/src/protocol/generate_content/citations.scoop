@@ -3,11 +3,11 @@ package scoop.llm.client
 import scoop.json.*
 import scoop.url.Url
 
-private class GenerateContentCitationMetadata public constructor(public val citationSources: Array<JsonValue>? = None) {
+internal class GenerateContentCitationMetadata public constructor(public val citationSources: Array<JsonValue>? = None) {
     public companion object : ValueDecoder<GenerateContentCitationMetadata>
 }
 
-private class GenerateContentCitationSource public constructor(public val uri: String? = None, public val startIndex: Long? = None,
+internal class GenerateContentCitationSource public constructor(public val uri: String? = None, public val startIndex: Long? = None,
     public val endIndex: Long? = None) {
     public companion object : ValueDecoder<GenerateContentCitationSource>
 }

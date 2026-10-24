@@ -3,10 +3,13 @@ package scoop.llm.client
 import scoop.json.*
 import scoop.url.Url
 
-/** generateContent requests and complete responses, bound to one explicit dialect. */
-public class GenerateContentProtocol public constructor(public val dialect: GenerateContentDialect) : LlmGenerationProtocol {
+/** generateContent requests, complete responses and SSE, bound to one explicit dialect. */
+public class GenerateContentProtocol public constructor(public val dialect: GenerateContentDialect) : LlmSseProtocol {
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationUrl(baseUrl: Url, modelId: String): Url = generateContentUrl(baseUrl, modelId)
+    public override fun streamUrl(baseUrl: Url, modelId: String): Url = generateContentUrl(baseUrl, modelId, true)
+    public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
+        GenerateContentStreamDecoder(dialect, request, retention)
     public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
         encodeGenerateContentRequest(dialect, modelId, request)
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
@@ -67,7 +70,9 @@ private fun readGenerateContentCandidate(dialect: DialectId, fields: GenerateCon
     appendGenerateContentGrounding(items, dialect, grounding, tools)
     var hasCalls = false
     for (item in items) { when (item) { case ClientToolCall(_) -> hasCalls = true; else -> continue } }
-    val history = if (fields.finishReason == Some("CONTINUATION")) None else when (fields.content) {
+    var historyAvailable = fields.finishReason != Some("CONTINUATION")
+    for (part in parts) if (part.kind == Some("functionCall") && generateContentPartialCall(part.raw)) historyAvailable = false
+    val history = if (!historyAvailable) None else when (fields.content) {
         case Some(raw) -> Some(LlmHistory(dialect, [raw]))
         case None -> None
     }

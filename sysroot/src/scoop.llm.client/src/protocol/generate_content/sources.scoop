@@ -33,10 +33,13 @@ internal fun readGenerateContentSource(dialect: DialectId, raw: JsonValue, path:
     return (LlmSource(path, location, link.title, Some(raw)), kind == "web")
 }
 
-internal fun generateContentCitationRange(start: Long?, end: Long?, text: String, path: String): TextRange? {
+internal fun generateContentCitationRange(start: Long?, end: Long?, text: String, path: String): TextRange? =
+    generateContentCitationRangeBytes(start, end, text.toByteArray().size, path)
+
+internal fun generateContentCitationRangeBytes(start: Long?, end: Long?, bytes: Long, path: String): TextRange? {
     val first = start ?: 0L
     if (first < 0L) throw DecodingException(path + "/startIndex", "citation start must not be negative")
     val last = end ?: return None
-    if (last < first || last > text.toByteArray().size) throw DecodingException(path + "/endIndex", "citation range is outside its text part")
+    if (last < first || last > bytes) throw DecodingException(path + "/endIndex", "citation range is outside its text part")
     return Some(TextRange(first, last, Utf8Bytes))
 }

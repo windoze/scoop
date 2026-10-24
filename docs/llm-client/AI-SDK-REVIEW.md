@@ -77,3 +77,11 @@ V4 response timestamp 的合同是供应商返回的响应生成开始时间，�
 这些比较依据 [V4 model 接口](https://github.com/vercel/ai/blob/e729d588b3291e22cfcd6cba32b6dcf7778ef21c/packages/provider/src/language-model/v4/language-model-v4.ts)、[streamText 设置](https://github.com/vercel/ai/blob/e729d588b3291e22cfcd6cba32b6dcf7778ef21c/packages/ai/src/generate-text/stream-text.ts#L330)、[生成参数参考](https://ai-sdk.dev/docs/reference/ai-sdk-core/generate-text)。它们不是要求实现 provider registry、middleware 链、UI 协议或 Agent runtime 的依据。
 
 本轮落到设计中的增量是 ClientNative、按位置的 dialect extensions、单消费者文本投影、结构化输出示例和非缓存输入统计。正式 API 与实现仍按原实施顺序推进。
+
+## 8. Gemini SSE 实施时的补充对照
+
+2026-10-25 核对当前 [Google adapter](https://github.com/vercel/ai/blob/main/packages/google/src/google-language-model.ts)：其 streamGenerateContent 使用独立 URL 和 alt=sse，并在流的 flush 中交付最终 usage。Scoop 将这个需要落实到公共 endInput 更新合同，EOF 的结束事件、计时和结果保留沿用同一条网络处理路径；不为 Gemini 另建读取入口。
+
+这个 adapter 的首候选处理、缺失调用 ID 时生成 ID，以及 CONTINUATION 的自动继续不直接移植。Scoop 保留实际候选 index 和可选服务器 ID，继续请求由应用显式决定；usage 也保留未报告计数的 None。纯文本与媒体按普通响应分组，使同一回答的多个 part 不影响默认结构化解码。
+
+签名即使附着在空文本上也需要保存。历史按 [Google SDK 的流式 Content 顺序](https://github.com/googleapis/js-genai/blob/main/src/chats.ts)保存，不用展示文本的拼接替代；[官方签名规则](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-signatures)要求保持签名 part 的边界。[FunctionCall 文档](https://googleapis.github.io/js-genai/release_docs/interfaces/types.FunctionCall.html)将 partialArgs／willContinue 标为 Vertex 扩展，因此当前 Gemini 解释器保留这些原文，不把未完成参数误判为无参数调用。

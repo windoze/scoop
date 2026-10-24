@@ -12,18 +12,18 @@ internal class GenerateContentGrounding public constructor(
     public val native: JsonValue? = None
 )
 
-private class GenerateContentGroundingFields public constructor(public val groundingChunks: Array<JsonValue>? = None,
+internal class GenerateContentGroundingFields public constructor(public val groundingChunks: Array<JsonValue>? = None,
     public val groundingSupports: Array<JsonValue>? = None, public val webSearchQueries: Array<String>? = None,
     public val searchEntryPoint: JsonValue? = None) {
     public companion object : ValueDecoder<GenerateContentGroundingFields>
 }
 
-private class GenerateContentSupport public constructor(public val groundingChunkIndices: Array<Long>? = None,
+internal class GenerateContentSupport public constructor(public val groundingChunkIndices: Array<Long>? = None,
     public val segment: GenerateContentSegment? = None) {
     public companion object : ValueDecoder<GenerateContentSupport>
 }
 
-private class GenerateContentSegment public constructor(public val partIndex: Long? = None,
+internal class GenerateContentSegment public constructor(public val partIndex: Long? = None,
     public val startIndex: Long? = None, public val endIndex: Long? = None) {
     public companion object : ValueDecoder<GenerateContentSegment>
 }

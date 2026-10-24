@@ -1,0 +1,36 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun geminiStream(retention: StreamRetention = StreamRetention.Result, request: LlmRequest = generateContentRequest()): LlmSseDecoder =
+    GenerateContentProtocol(GeminiGenerateContentDialect()).createStreamDecoder(request, retention)
+
+internal fun geminiChunk(parts: String, index: Long = 0L, finish: String? = None, extra: String = ""): String =
+    "{\"candidates\":[{\"index\":" + index.toString() + ",\"content\":{\"role\":\"model\",\"parts\":" + parts + "}" +
+        (if (finish == None) "" else ",\"finishReason\":\"" + finish!! + "\"") + extra + "}]}"
+
+internal fun geminiAccept(decoder: LlmSseDecoder, parts: String, index: Long = 0L, finish: String? = None, extra: String = ""): LlmStreamUpdate =
+    decoder.accept("message", geminiChunk(parts, index, finish, extra))
+
+internal fun geminiCallCount(events: Array<LlmEvent>): Long {
+    var result = 0L
+    for (event in events) { when (event) { case ClientToolCall(_, _) -> result += 1L; else -> continue } }
+    return result
+}
+
+internal fun geminiHistoryItems(response: LlmResponse, index: Long? = None): Array<JsonValue> = when (response.toInput(index)[0L]) {
+    case History(history) -> history.items
+    else -> fail()
+}
+
+internal fun assertGeminiStreamFailure(body: String, path: String) {
+    for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+        val stream = geminiStream(retention)
+        val error = assertFailsWith<LlmProtocolException> { stream.accept("message", body); Unit }
+        assertEquals(path, error.path)
+        assertFalse(stream.isFinished)
+        assertFailsWith<LlmStreamProtocolException> { stream.endInput(); Unit }
+    }
+}

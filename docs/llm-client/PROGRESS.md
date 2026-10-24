@@ -39,7 +39,8 @@
 | 独立的普通／SSE 协议地址 | 完成：本机 267/267；Linux 仅实际地址与认证组合 1/1 |
 | Gemini generateContent 请求与普通生成 | 完成：本机 285/285，末次 Gemini 定向 35/35；Linux 仅普通生成 mock 1/1；独立消费者通过 |
 | SSE 在 EOF 时的结束更新与调用收尾 | 完成：本机 288/288；Linux 仅 EOF 收尾组合 1/1；独立消费者通过 |
-| Gemini generateContent SSE 与 Interactions | 实施中 |
+| Gemini generateContent SSE | 完成：本机 303/303，末次 Gemini 定向 52/52；Linux 仅 SSE mock 1/1；独立消费者通过 |
+| Gemini Interactions | 实施中 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -90,3 +91,4 @@
 - LlmSseProtocol 增加 streamUrl，缺省委托 generationUrl；SSE 传输用选择后的最终 URL 认证并发送。新增 2 项 Cone 测试，覆盖现有协议缺省与普通／SSE 分路的实际 HTTP 地址、认证 URL 和正文字节。本机 267/267，nuc12 仅分路组合 1/1，没有真实 API 请求或编译器变更。
 - Gemini generateContent 普通生成新增 18 项 Cone 测试，覆盖最小正文、资源路径、媒体与原生文件、嵌套扩展、reasoning／结构化输出、函数与服务端工具、签名历史和无 ID 的并行结果接续。LlmAuth.header 提供固定认证头，provider 使用同一 endpoint／model／generate 入口。本机完整 285/285；补齐文件 MIME 与字段别名边界后，Gemini 定向 35/35；nuc12 仅普通生成 mock 1/1。生产库与独立消费者均通过，默认 1 项无网络测试通过、13 项真实 API 用例忽略。测试中的索引换行语法已修正，没有编译器或 fixture 变更，没有真实 Gemini 请求。提交前凭据检查通过，清理约 372 MiB 的本机增量产物；SSE 与 Interactions 继续实施。
 - SSE 的 endInput 现返回结束更新，网络层统一交付其事件、最终 usage 与保留结果，记录 completed 并停止总截止；EOF 自身不产生 firstEvent。Chat／Messages／Responses 继续要求显式终止。新增 3 项本地 mock 测试，本机 288/288，nuc12 只运行 EOF 收尾组合 1/1；生产库及独立消费者通过，默认仍为 1 通过、13 个真实 API 用例忽略。测试中的 when 分支和可变局部捕获已按现有语言规则修正，没有编译器或 fixture 变更，没有真实 API 请求。
+- Gemini SSE 新增 16 项 Cone 用例，覆盖多候选、带签名的分片历史、按 part 定位的文本／媒体、函数调用完成资格、服务端工具、累积搜索来源与 UTF-8 引用、最终用量及实际网络时间戳。本机完整 303/303；补齐相邻显示内容分组和结构化输出后，Gemini 定向 52/52。nuc12 仅 SSE mock 1/1；生产库及独立消费者通过，默认仍为 1 通过、13 个真实 API 用例忽略。Vertex 的 partialArgs／willContinue 形状保留 Native，不误作完整函数调用。初次编译中的 Unit 语句已修正，没有编译器或 fixture 变更，没有真实 Gemini 请求；清理约 372 MiB 的本机增量产物。

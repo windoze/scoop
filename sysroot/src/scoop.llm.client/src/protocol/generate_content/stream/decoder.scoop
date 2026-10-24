@@ -1,0 +1,107 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class GenerateContentStreamDecoder public constructor(
+    public val dialect: GenerateContentDialect, public val request: LlmRequest, public val retention: StreamRetention
+) : LlmSseDecoder {
+    private val candidates = ArrayList<GenerateContentStreamCandidate>()
+    private val nativeEvents = ArrayList<LlmNativeEvent>()
+    private var id: String? = None
+    private var model: String? = None
+    private var currentUsage = LlmUsage()
+    private var blocked = false
+    private var finished = false
+    private var failed = false
+
+    public override val isFinished: Boolean get() = finished && !failed
+    public override val responseId: String? get() = id
+    public override val usage: LlmUsage get() = currentUsage
+
+    public override fun accept(event: String, data: String): LlmStreamUpdate {
+        try {
+            if (finished || failed) throw LlmStreamProtocolException(dialect.id, "stream is no longer accepting events", Some(data))
+            val raw = try { Json.parse(data) }
+                catch (error: DecodingException) { throw LlmStreamProtocolException(dialect.id, "invalid stream JSON", Some(data)) }
+            val batch = LlmStreamBatch(dialect.id, retention, nativeEvents)
+            try {
+                if (event == "error") throw DecodingException("/error", "server reported a stream error")
+                if (event != "" && event != "message") batch.native(event, raw)
+                else acceptResponse(raw, batch)
+            } catch (error: DecodingException) {
+                throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid generateContent stream", raw)
+            }
+            return batch.build()
+        } catch (error: Throwable) { failed = true; throw error }
+    }
+
+    private fun acceptResponse(raw: JsonValue, batch: LlmStreamBatch) {
+        val fields = decodeGenerateContentValue<GenerateContentResponseBody>(raw, "")
+        if (llmPresent(raw["error"]) && raw["error"]!!.kind != JsonValueKind.Null)
+            throw DecodingException("/error", "server reported a stream error")
+        id = llmStreamIdentity(id, generateContentId(fields.responseId), "/responseId")
+        model = llmStreamIdentity(model, generateContentId(fields.modelVersion), "/modelVersion")
+        val feedbackRaw = raw["promptFeedback"]
+        if (llmPresent(feedbackRaw) && feedbackRaw!!.kind != JsonValueKind.Null) {
+            val feedback = decodeGenerateContentValue<GenerateContentStreamFeedback>(feedbackRaw!!, "/promptFeedback")
+            if (feedback.blockReason != None && feedback.blockReason != Some("") && feedback.blockReason != Some("BLOCK_REASON_UNSPECIFIED"))
+                blocked = true
+        }
+        val seen = ArrayList<Long>()
+        var position = 0L
+        for (value in fields.candidates ?: []) {
+            val path = "/candidates/" + position.toString()
+            val candidate = decodeGenerateContentValue<GenerateContentCandidateBody>(value, path)
+            val index = candidate.index ?: 0L
+            if (index < 0L) throw DecodingException(path + "/index", "candidate index must not be negative")
+            for (previous in seen) if (previous == index) throw DecodingException(path + "/index", "duplicate candidate index")
+            seen.add(index)
+            findCandidate(index).accept(value, candidate, path, batch)
+            position += 1L
+        }
+        if (blocked && candidates.size != 0L) throw DecodingException("/promptFeedback/blockReason", "blocked prompt also returned candidates")
+        if (llmPresent(fields.usageMetadata)) {
+            val value = fields.usageMetadata!!
+            val merged = when (currentUsage.native) { case Some(previous) -> mergeLlmStreamUsage(previous, value); case None -> value }
+            currentUsage = LlmUsage(dialect.readUsage(merged), Partial, Some(merged))
+            batch.events.add(LlmEvent.Usage(currentUsage))
+        }
+        val extra = llmStreamUnknown(raw, ["candidates", "responseId", "modelVersion", "usageMetadata"])
+        if (extra.size != 0L) batch.native("generate-content.response", extra)
+    }
+
+    private fun findCandidate(index: Long): GenerateContentStreamCandidate {
+        for (candidate in candidates) if (candidate.index == index) return candidate
+        val value = GenerateContentStreamCandidate(index, dialect.id, request.tools, retention == StreamRetention.Result)
+        candidates.add(value)
+        return value
+    }
+
+    public override fun endInput(): LlmStreamUpdate {
+        try {
+            if (failed) throw LlmStreamProtocolException(dialect.id, "stream has failed")
+            if (finished) return LlmStreamUpdate([])
+            if (candidates.size == 0L && !blocked) throw LlmStreamProtocolException(dialect.id, "stream ended without candidates or prompt blocking")
+            for (candidate in candidates) if (candidate.reason == None)
+                throw LlmStreamProtocolException(dialect.id, "stream ended before a candidate finish reason")
+            val batch = LlmStreamBatch(dialect.id, retention, nativeEvents)
+            for (candidate in candidates) candidate.endInput(batch)
+            currentUsage = LlmUsage(currentUsage.tokens, Final, currentUsage.native)
+            batch.events.add(LlmEvent.Usage(currentUsage))
+            finished = true
+            return batch.build()
+        } catch (error: Throwable) { failed = true; throw error }
+    }
+
+    public override fun response(): LlmResponse {
+        if (!isFinished) throw LlmOutputException(Incomplete, "stream has not finished successfully")
+        if (retention != StreamRetention.Result) throw LlmOutputException(ResultNotRetained, "stream result was not retained")
+        val values = ArrayList<LlmCandidate>()
+        for (candidate in candidates) values.add(candidate.result())
+        return LlmResponse(dialect.id, values.toArray(), id, model, usage = currentUsage, nativeEvents = nativeEvents.toArray())
+    }
+}
+
+private class GenerateContentStreamFeedback public constructor(public val blockReason: String? = None) {
+    public companion object : ValueDecoder<GenerateContentStreamFeedback>
+}

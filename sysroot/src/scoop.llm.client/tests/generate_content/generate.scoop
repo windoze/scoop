@@ -45,13 +45,14 @@ private class GenerateContentNetworkTest {
     }
 
     @Test
-    fun `generateContent rejected capabilities fail before auth and streams require a real SSE adapter`() {
+    fun `generateContent rejected capabilities fail before auth in ordinary and streaming calls`() {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { _ ->
             withLlmClient suspend { client ->
                 val auth = RecordingAuth()
                 val endpoint = LlmEndpoint(Providers.geminiGenerateContent(), auth)
-                val model = endpoint.model("m", Some(ModelCapabilities(sampling = SamplingCapabilities(temperature = Unsupported("removed")))))
+                val model = endpoint.model("m", Some(ModelCapabilities(sampling = SamplingCapabilities(temperature = Unsupported("removed")),
+                    streaming = Unsupported("disabled"))))
                 val error = expectLlmFailure<LlmRequestException> suspend {
                     client.generate(model, LlmRequest(sampleRequest.input, options = LlmGenerationOptions(temperature = Some(0.5)))); Unit
                 }
