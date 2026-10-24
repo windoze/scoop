@@ -10,6 +10,7 @@
 | --- | --- |
 | 架构、缺省用法与 Vercel AI SDK 对照 | 设计已整理 |
 | HTTP 请求级观察、发送／接收 UTC 与单调时间 | 完成：本机与 Linux GNU 各 189/189 通过 |
+| HTTP timeout 缺省读取与请求级覆盖组合 | 完成：本机与 Linux GNU 各 190/190 通过 |
 | TokenUsage 公共计数数据与 companion codec | 完成：本机与 Linux GNU 各 5/5 通过 |
 | Unit companion codec 与显式访问 | 完成：本机与 Linux GNU 的 JSON Cone 各 94/94 通过 |
 | 输入／输出媒体与生成 capability 数据 | 完成：本机与 Linux GNU 各 18/18 通过 |
@@ -41,5 +42,6 @@
 - Chat 响应解释新增 13 项测试，完整 LLM Cone 两平台各 59 项通过。覆盖 DeepSeek reasoning 历史、音频 ID 投影、function／custom 调用、无效与截断参数、未知原生活动、多候选、带路径错误及两种缓存口径；请求编码、生成传输和流式 reducer 继续实施。
 - Chat 请求编码新增 16 项测试，完整 LLM Cone 两平台各 75 项通过。覆盖缺省省略、显式零／false／空数组、按位置扩展、管理字段冲突、媒体格式与文件归属、DeepSeek thinking 约束、工具选择、请求级搜索及保存后的历史接续。OpenAI Chat 搜索声明映射 web_search_options；不能表达的显式选项报告输入路径，不伪造搜索活动。
 - HTTP 新增 9 个用例，覆盖请求／client observer 共存与去重、共享 H1／H2 连接、信息／最终响应头、重试与重定向、缓存、发送前失败、关闭保护、SSE 与 WebSocket。完整所属 Cone 测试在两平台各通过 189 个用例。连接级首字节采样保持原配置，发送／接收 UTC 采样独立可用。
+- 生成接入前补齐 HTTP 的只读 defaultTimeouts；新增普通 Cone 用例验证借入者可保留网络／排池设置而单独更改响应头等待，后续普通调用仍使用原缺省。完整 HTTP Cone 两平台各 190 项通过。
 - Linux 验证使用 `~/repos/scoop-work/llm-client/checkout` 独立工作树；Unit 修复后已从相应源码重建 release 工具、23 个库及 runtime，保留 `~/repos/scoop` 中的未提交改动。旧 runtime 与新工具不匹配的启动失败在正式准备后重跑通过。
 - 整体实现仍在进行；验证仅覆盖表中已交付项。后续仅记录通过范围、失败闭合和实际限制。
