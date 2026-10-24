@@ -97,7 +97,7 @@ def publish_files(source, destination, files, record):
     print(f"Prepared {destination}", flush=True)
 
 
-def runtime(args, work, environment, native, enable_gc_stress=False):
+def runtime(args, work, environment, native, enable_gc_stress=False, enable_startup_stats=False):
     command = [
         "cargo",
         "run",
@@ -121,15 +121,22 @@ def runtime(args, work, environment, native, enable_gc_stress=False):
     ]
     if enable_gc_stress:
         command.append("--enable-gc-stress")
+    if enable_startup_stats:
+        command.append("--enable-startup-stats")
     result = subprocess.run(command, env=environment, check=True, stdout=subprocess.PIPE)
     output = json.loads(result.stdout)
     source = Path(os.fsdecode(bytes(output["root"])))
     files = [Path(os.fsdecode(bytes(path))) for path in output["files"]]
+    variant = "runtime"
+    if enable_gc_stress:
+        variant += "-stress"
+    if enable_startup_stats:
+        variant += "-startup-stats"
     publish_files(
         source,
-        args.sysroot / "lib" / args.target / ("runtime-stress" if enable_gc_stress else "runtime"),
+        args.sysroot / "lib" / args.target / variant,
         files,
-        work / ("runtime-stress.json" if enable_gc_stress else "runtime.json"),
+        work / f"{variant}.json",
     )
 
 
@@ -199,8 +206,9 @@ def main():
             env=environment,
             check=True,
         )
-    runtime(args, work, environment, native)
-    runtime(args, work, environment, native, enable_gc_stress=True)
+    for enable_gc_stress in (False, True):
+        for enable_startup_stats in (False, True):
+            runtime(args, work, environment, native, enable_gc_stress, enable_startup_stats)
     print(f"Prepared {len(order)} Cones and runtime for {args.target}")
 
 

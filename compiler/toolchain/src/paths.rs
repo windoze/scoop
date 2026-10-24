@@ -90,12 +90,14 @@ pub fn default_runtime_index(
     sysroot: &Path,
     target: scoop_lir::LirTargetProfile,
     enable_gc_stress: bool,
+    enable_startup_stats: bool,
 ) -> PathBuf {
     target_library_root(sysroot, target)
-        .join(if enable_gc_stress {
-            "runtime-stress"
-        } else {
-            "runtime"
+        .join(match (enable_gc_stress, enable_startup_stats) {
+            (false, false) => "runtime",
+            (true, false) => "runtime-stress",
+            (false, true) => "runtime-startup-stats",
+            (true, true) => "runtime-stress-startup-stats",
         })
         .join("index.cbor")
 }

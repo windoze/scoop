@@ -122,23 +122,27 @@ fn forwarding_preserves_non_utf8_arguments_and_attached_option_values() {
 }
 
 #[test]
-fn global_stress_option_keeps_runner_forwarding_boundaries() {
-    for arguments in [
-        vec!["scoop", "--enable-gc-stress", "run", "file.scoop", "Alice"],
-        vec!["scoop", "run", "--enable-gc-stress", "file.scoop", "Alice"],
-        vec!["scoop", "run", "file.scoop", "--enable-gc-stress", "Alice"],
-    ] {
-        let cli = parse(&arguments).unwrap();
-        assert!(cli.enable_gc_stress);
+fn global_diagnostic_options_keep_runner_forwarding_boundaries() {
+    for option in ["--enable-gc-stress", "--enable-startup-stats"] {
+        for arguments in [
+            vec!["scoop", option, "run", "file.scoop", "Alice"],
+            vec!["scoop", "run", option, "file.scoop", "Alice"],
+            vec!["scoop", "run", "file.scoop", option, "Alice"],
+        ] {
+            let cli = parse(&arguments).unwrap();
+            assert_eq!(cli.enable_gc_stress, option == "--enable-gc-stress");
+            assert_eq!(cli.enable_startup_stats, option == "--enable-startup-stats");
+            let Command::Run(run) = cli.command else {
+                panic!("expected run")
+            };
+            assert_eq!(run.program_args, ["Alice"]);
+        }
+        let cli = parse(&["scoop", "run", "file.scoop", "Alice", option]).unwrap();
+        assert!(!cli.enable_gc_stress);
+        assert!(!cli.enable_startup_stats);
         let Command::Run(run) = cli.command else {
             panic!("expected run")
         };
-        assert_eq!(run.program_args, ["Alice"]);
+        assert_eq!(run.program_args, ["Alice", option]);
     }
-    let cli = parse(&["scoop", "run", "file.scoop", "Alice", "--enable-gc-stress"]).unwrap();
-    assert!(!cli.enable_gc_stress);
-    let Command::Run(run) = cli.command else {
-        panic!("expected run")
-    };
-    assert_eq!(run.program_args, ["Alice", "--enable-gc-stress"]);
 }

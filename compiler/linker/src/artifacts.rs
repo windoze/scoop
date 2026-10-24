@@ -15,6 +15,7 @@ pub struct ArtifactLinkRequest {
     pub dependency_slibs: Vec<PathBuf>,
     pub runtime_index: Option<PathBuf>,
     pub enable_gc_stress: bool,
+    pub enable_startup_stats: bool,
     pub target: String,
     pub c_toolchain: scoop_toolchain::CToolchainOptions,
     pub final_link: scoop_toolchain::FinalLinkOptions,
@@ -51,6 +52,7 @@ impl ArtifactLinkRequest {
                     &sysroot,
                     target.lir_target(),
                     self.enable_gc_stress,
+                    self.enable_startup_stats,
                 )
             }
         };
@@ -60,6 +62,7 @@ impl ArtifactLinkRequest {
             profile.startup_toolchain().profile(),
         )?;
         runtime.require_gc_stress(self.enable_gc_stress)?;
+        runtime.require_startup_stats(self.enable_startup_stats)?;
         link_program(
             &closure,
             &runtime,

@@ -153,3 +153,13 @@ without repeating the immortal registration lookup. Stress-capable runtimes
 (`SCOOP_ENABLE_GC_STRESS=1`) and explicit heap-verification builds retain that
 diagnostic lookup, independently of application debug/release profiles. Heap
 object-start checks and image-registration, pin and handle checks still apply.
+
+Startup timing is a separate compile-time option: `scoop --enable-startup-stats`
+selects a runtime built with `SCOOP_ENABLE_STARTUP_STATS=1`. It reports one
+`scoop_startup` JSON record on stderr after eager initialization and before the
+root gateway. The record includes seven non-overlapping phase durations and
+counts from the existing registration indices. It excludes the native loader,
+managed argument construction, main, shutdown, and reporting time. Default
+runtimes preprocess out all startup timing, reporting, diagnostic strings and
+dedicated count access; environment variables cannot enable them. The option is
+independent of debug/release and GC stress, and also applies to `scoop-link`.

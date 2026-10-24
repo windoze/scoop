@@ -758,6 +758,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。PGO 为后续独立专项，在代表负载、成熟消费者和反馈原型净收益成立后排期；测量与全程序优化／ThinLTO 均不以 PGO 为前置。
 - 优化按长期、分批试验和交付推进：成本低且收益比较稳定的方案可直接纳入 release 默认设置；成本过高或收益不稳定的方案通过独立开关或等级决定是否启用、启用哪一级。默认值随实测结果调整，保留默认与调优配置的对照。
 - [已采纳优化与开启条件](program-performance/ENABLED-OPTIMIZATIONS.md)简要列出各项方案的默认 profile、适用条件及实际开关，后续采纳与策略变更时同步维护。
+- [启动阶段测量](program-performance/STARTUP-STATS.md)已通过 `--enable-startup-stats` 提供；默认预处理排除全部新增计时和报告，三目标默认程序的代码段与无测量基线逐字节相同。统计记录七阶段与已有索引数量，开关只改变 runtime／最终链接，作为注册与 stackmap 优化的指导，不提前引入 PGO。
 - [poll 本线程读取](program-performance/POLL-OWNER-READS.md)按实际单写者关系使用 relaxed，共享 epoch／phase 与 runtime 发布握手保持；ARM64 Full poll 4→2 条 ldar，三目标 GC 定向验证通过，所有 profile 默认。TLS resolver 与启动登记仍需单独优化。
 - [普通内联增长额度](program-performance/INLINE-GROWTH.md)已统一调整初始常数 96→128，保留总上限与执行阈值；ArrayList.get 调用消失，三目标遍历减少约 16%～24%，代码增加 32～64 B，release 默认。按实际成本保留其他 helper，未采纳增长回收试验。
 - [跨 Cone 普通方法与 getter 内联](program-performance/MEMBER-INLINING.md)已交付：相同的 HIR 结构和 MIR 成本选择，保留完整 receiver、typed accessor identity 与动态分派边界；三目标用户成员循环降低约 47%～73%，正文、代码与编译成本很小，release 默认启用。反向 profile、异常、泛型、装箱、GC roots 和旧库回退通过。

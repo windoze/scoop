@@ -48,8 +48,11 @@
 
 这些能力按需使用，不改变优化的开启状态。
 
+诊断／测量插桩以显式生成开关为边界；关闭时不得进入最终程序，不能以运行时分支代替代码排除。
+
 | 已交付能力 | 开启方式 | 作用 |
 | --- | --- | --- |
+| [启动阶段测量](STARTUP-STATS.md) | `scoop build/run/test/link --enable-startup-stats` 或 `scoop-link --enable-startup-stats`；所有 profile 默认不编入 | 七个启动阶段和已有索引计数；关闭时预处理排除计时、报告、诊断字符串与专用计数访问。切换只改变 runtime／最终链接，GC stress 可独立组合。 |
 | [预构建程序 A/B 测量](../../tests/benchmarks/README.md) | 手动运行 `python3 tests/benchmarks/compare.py`；GC 诊断加 `--gc-stats` | 交错运行相同输入，核对输出并记录墙钟、CPU、RSS；GC 诊断与普通计时分别测量。 |
 | [跨 Cone 普通成员专项负载](../../tests/benchmarks/inlining/members/README.md) | 按说明构建 provider／consumer；`SCOOP_BENCH_KIND` 取 0～5，`SCOOP_BENCH_COUNT` 指定次数 | 用户 struct／class 方法、getter、primitive hash、未知接口与标量对照，复用已有 phase 计时及 A/B 工具。 |
 | [动态接口目录专项负载](INTERFACE-DIRECTORY.md) | 按 [interfaces 构建说明](../../tests/benchmarks/interfaces/README.md)手动构建；`SCOOP_BENCH_KIND` 取 9～17，`SCOOP_BENCH_COUNT` 指定次数，再用 `compare.py` 对照 | 区分真实装箱／集合目录、命中位置、泛型及短目录未命中、Boolean 和混合查询；保持原静态投影对照。 |

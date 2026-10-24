@@ -70,6 +70,9 @@ ScoopImageRegistry *scoop_image_collect(const ScoopPlatformMetadataImages *loade
                                         const ScoopRootEntryDescriptorV1 *root);
 void scoop_image_registry_dispose(ScoopImageRegistry *registry);
 void scoop_image_validate_code_and_types(ScoopImageRegistry *registry);
+#if defined(SCOOP_ENABLE_STARTUP_STATS) && SCOOP_ENABLE_STARTUP_STATS
+size_t scoop_image_scan_program_count(const ScoopImageRegistry *registry);
+#endif
 const ScoopTypeRegistrationDescriptorV1 *scoop_image_type(const ScoopImageRegistry *registry,
                                                           const ScoopTypeDescriptor *td);
 void scoop_image_validate_storage_and_units(ScoopImageRegistry *registry);

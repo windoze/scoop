@@ -729,6 +729,10 @@ C FFI 使用目标真实 float/double ABI。数值操作遵守语言规范 11.2.
 
 启动先保存 2.8 的原始 argc/argv，建立运行时基础状态并验证全部 image/registration，再建立 GC、主线程与可执行 managed boundary。任何 managed initializer、Context 分配、argv 的 managed 构造或 main 之前必须完成相应登记；C coordinator 不提前构造未登记的 String 或 Array。
 
+`--enable-startup-stats` 显式请求编入启动诊断，默认不编入；该构建开关独立于 profile 和 GC stress。runtime 的 C 生产配置以 `SCOOP_ENABLE_STARTUP_STATS=0/1` 控制预处理，关闭时不得生成计时、阶段状态、报告、诊断字符串和专用计数访问，也不能通过环境变量重新启用。编入后，每次启动在 `scoop_rt_run_program` 取得 platform／加载镜像范围前开始单调墙钟计时，在 eager 初始化完成、调用 root gateway 之前向 stderr 写一行 JSON：`scoop_startup:1`、`total_ns`、`phases_ns` 和 `counts`。七个互不重叠的阶段为 `loaded_images`、`collect_records`、`code_and_types`、`storage_and_units`、`stackmaps`、`runtime_init`、`eager_init`；阶段纳秒数之和等于 total。runtime_init 包含 String 绑定检查、registry 发布、线程／callback／GC 初始化与主线程 attach。时间不包含 runtime 入口之前的 dyld／CRT、root gateway 内的参数构造、main、shutdown 或诊断输出本身；前置阶段失败时不伪造完整启动记录。
+
+counts 直接读取本次已建立索引的数量：Cone `images`、有元数据的物理 `loaded_images`、`types`、`callables`、`safepoints`、合并后的 `stackmap_records`、不同地址的 `scan_programs`、`static_storages`、`static_roots`、`immortals`、`initialization_units`、`eager_units` 与 `context_keys`。不为诊断重新遍历或验证图；未编入时不存在这些诊断访问，正常登记所需索引保持原职责。该记录只供测量，既不是编译输入也不是 PGO profile，不参与程序合法性、对象／GC 布局或 ABI；进程总启动时间仍由外部测量。计时开启的运行须单独评估观测开销，不能与关闭诊断的吞吐样本混用。
+
 native C／C++ 的标准初始化／析构由目标 CRT／适用的 C++ 运行库负责；发生在 Scoop runtime 建立之前或 shutdown 完成之后的 native 初始化／析构不得调用 managed 代码或进入 Scoop runtime。它们不替代 Scoop 的 initialization unit、release hook 或 shutdown，也不由 Scoop 补调；立即终止进程的路径不保证执行 native 析构。C 源码的初始化／析构及 libc 退出清理接口不要求启用 C++ 模式，输入和链接合同见实现规范 2.8。
 
 eager 初始化遵守语言规范 12.3：依赖 Cone 先于 dependent，互不依赖的 ready Cone 按 canonical coordinate byte order，Cone 内按 PersistentInitializationUnitId bytes。普通 ensure 可以因显式依赖提前初始化目标；lazy unit 不进入 eager loop。

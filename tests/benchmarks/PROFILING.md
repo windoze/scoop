@@ -89,3 +89,25 @@ python3 tests/benchmarks/symbolize.py \
 采样与普通 A/B 计时分别运行。先核对输出，再用相同程序和输入比较开启／关闭采样的
 扰动；训练输入、反馈编译与 PGO 消费者不属于这个工作流。函数热点定位后，可用平台
 反汇编工具或 `perf annotate` 检查具体指令；没有行表时只报告有证据的函数／指令范围。
+
+## 启动阶段测量
+
+显式构建带启动诊断的程序：
+
+```sh
+scoop build program.scoop --release --enable-startup-stats \
+  -o "$PWD/tmp/profile/program-startup"
+tmp/profile/program-startup > tmp/profile/stdout.txt 2> tmp/profile/startup.jsonl
+```
+
+每次启动在 eager 初始化之后、root gateway 之前输出一行 `scoop_startup:1` JSON。
+`phases_ns` 分为 `loaded_images`、`collect_records`、`code_and_types`、
+`storage_and_units`、`stackmaps`、`runtime_init`、`eager_init`，七项之和等于
+`total_ns`；`counts` 直接取自已有注册索引，不额外遍历。应用自己的 stderr
+可能出现在记录前后，按 JSON 的 `scoop_startup` 字段选择记录。
+
+该时钟不含进入 runtime 前的 dyld／CRT、managed 参数构造、main、shutdown
+及报告输出；完整进程耗时继续用 `compare.py` 外测，dyld 使用系统工具单独归因。
+开启与关闭统计必须分别构建，再测量观测开销。默认产物在预处理阶段排除这套
+计时、报告、诊断字符串和专用计数访问，不能通过环境变量启用。切换开关只改变
+runtime 与最终链接，保留 Scoop Cone 的编译缓存；所有 profile 遵守同一规则。

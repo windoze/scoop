@@ -29,6 +29,9 @@ pub(super) struct Cli {
     /// Include runtime GC stress support, controlled by environment variables at run time.
     #[arg(long, global = true)]
     pub enable_gc_stress: bool,
+    /// Include startup timing and metadata-count diagnostics in the linked runtime.
+    #[arg(long, global = true)]
+    pub enable_startup_stats: bool,
     #[command(subcommand)]
     pub command: Command,
 }

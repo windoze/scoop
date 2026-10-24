@@ -45,6 +45,7 @@ pub struct RuntimeBuildConfiguration {
     pub compiler_inputs: Digest256,
     pub flags: Vec<String>,
     pub enable_gc_stress: bool,
+    pub enable_startup_stats: bool,
 }
 
 #[derive(Debug)]
@@ -212,6 +213,15 @@ impl RuntimeObjectSet {
             return Err(error(format!(
                 "runtime GC stress support is {}, but --enable-gc-stress is {}",
                 self.configuration.enable_gc_stress, enabled
+            )));
+        }
+        Ok(())
+    }
+    pub fn require_startup_stats(&self, enabled: bool) -> Result<(), LinkError> {
+        if self.configuration.enable_startup_stats != enabled {
+            return Err(error(format!(
+                "runtime startup statistics support is {}, but --enable-startup-stats is {}",
+                self.configuration.enable_startup_stats, enabled
             )));
         }
         Ok(())

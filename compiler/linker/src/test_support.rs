@@ -76,6 +76,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
     let target = ResolvedTargetProfile::resolve(triple).unwrap();
     let runtime_build = build_runtime(RuntimeBuildRequest {
         enable_gc_stress: false,
+        enable_startup_stats: false,
         target: &target,
         runtime_root: &workspace.join("runtime"),
         vendor_root: &workspace.join("sysroot/vendor"),

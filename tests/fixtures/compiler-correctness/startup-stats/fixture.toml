@@ -1,0 +1,98 @@
+schema = 1
+name = "startup-stats"
+inputs = ["program.scoop", "probe.py"]
+tools = ["scoop", "scoop-link", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["runtime", "diagnostics", "compiler-correctness"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "ordinary"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/ordinary", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "stats"
+argv = ["${scoop}", "--enable-startup-stats", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/stats", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${stats.result.root.artifact_fingerprint}", equals = "${ordinary.result.root.artifact_fingerprint}"},
+    {actual = "${stats.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${stats.result.link_plan_fingerprint}", not_equals = "${ordinary.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "combined"
+argv = ["${scoop}", "build", "--enable-startup-stats", "--enable-gc-stress", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/combined", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${combined.result.root.artifact_fingerprint}", equals = "${ordinary.result.root.artifact_fingerprint}"},
+    {actual = "${combined.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${combined.result.link_plan_fingerprint}", not_equals = "${stats.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "ordinary_again"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/ordinary-again", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${ordinary_again.result.root.artifact_fingerprint}", equals = "${ordinary.result.root.artifact_fingerprint}"},
+    {actual = "${ordinary_again.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${ordinary_again.result.link_plan_fingerprint}", equals = "${ordinary.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "link_stats"
+argv = ["${scoop}", "link", "--enable-startup-stats", "--root-slib", "${ordinary.result.root.path}", {each = "${ordinary.result.dependencies}", field = "path", prefix = "--dependency-slib"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/linked", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${link_stats.result.link_plan_fingerprint}", equals = "${stats.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "low_link_stats"
+argv = ["${scoop-link}", "--enable-startup-stats", "--root-slib", "${ordinary.result.root.path}", {each = "${ordinary.result.dependencies}", field = "path", prefix = "--dep-slib"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/low-linked"]
+exit = 0
+stdout = "link-plan ${stats.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "reject_missing_support"
+argv = ["${scoop-link}", "--enable-startup-stats", "--root-slib", "${ordinary.result.root.path}", {each = "${ordinary.result.dependencies}", field = "path", prefix = "--dep-slib"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--runtime-objects", "${ordinary.result.runtime_index}", "--cache-dir", "${cache}", "-o", "${work}/rejected"]
+exit = 1
+stdout = ""
+stderr = "scoop-link: runtime startup statistics support is false, but --enable-startup-stats is true\n"
+checks = [{file = "${work}/rejected", exists = false}]
+
+[[steps]]
+name = "reject_unrequested_support"
+argv = ["${scoop-link}", "--root-slib", "${ordinary.result.root.path}", {each = "${ordinary.result.dependencies}", field = "path", prefix = "--dep-slib"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--runtime-objects", "${stats.result.runtime_index}", "--cache-dir", "${cache}", "-o", "${work}/rejected"]
+exit = 1
+stdout = ""
+stderr = "scoop-link: runtime startup statistics support is true, but --enable-startup-stats is false\n"
+checks = [{file = "${work}/rejected", exists = false}]
+
+[[steps]]
+name = "diagnostics"
+argv = ["${python}", "${fixture}/probe.py", "${ordinary.result.output}", "${ordinary_again.result.output}", "${stats.result.output}", "${combined.result.output}", "${link_stats.result.output}", "${work}/low-linked"]
+exit = 0
+stdout = "startup metrics passed\n"
+stderr = ""

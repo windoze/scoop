@@ -1,0 +1,12 @@
+fun initialize(): Int {
+    eprintln("startup eager")
+    return 7
+}
+
+val initialized = initialize()
+
+fun main(arguments: Array<String>): Int {
+    eprintln("startup main")
+    println(initialized)
+    return if (arguments.size == 1L) 0 else 7
+}

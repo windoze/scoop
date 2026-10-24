@@ -88,6 +88,7 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
             &request.final_link,
             &vendor_root,
             request.enable_gc_stress,
+            request.enable_startup_stats,
         )?;
         let linked = executable::get(executable::Request {
             graph: &graph,
@@ -129,6 +130,7 @@ fn runtime_input(
     final_link: &scoop_toolchain::FinalLinkOptions,
     vendor_root: &Path,
     enable_gc_stress: bool,
+    enable_startup_stats: bool,
 ) -> BuildResult<(RuntimeObjectSet, PathBuf)> {
     let failure = |error| {
         BuildFailure::tool(
@@ -147,6 +149,9 @@ fn runtime_input(
             .map_err(|error| failure(error.to_string()).at_host(index))?;
             objects
                 .require_gc_stress(enable_gc_stress)
+                .map_err(|error| failure(error.to_string()))?;
+            objects
+                .require_startup_stats(enable_startup_stats)
                 .map_err(|error| failure(error.to_string()))?;
             Ok((objects, index.clone()))
         }
@@ -170,6 +175,7 @@ fn runtime_input(
                 cache_root: cache,
                 optimization: Default::default(),
                 enable_gc_stress,
+                enable_startup_stats,
                 unwind_prefix: unwind.as_deref(),
             })
             .map_err(|error| failure(error.to_string()))?;
