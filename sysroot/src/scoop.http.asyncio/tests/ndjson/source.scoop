@@ -1,0 +1,71 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class NdjsonSourceTests {
+    @Test
+    fun `NDJSON source preserves split records empty lines and the final tail without closing borrowed input`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val input = MessageTestSource("雪\r\n\nfinal".toByteArray(), 1L)
+            val source = NdjsonSource(input, bufferSize = 3L)
+            assertEquals(0, input.reads)
+            source.useAsync suspend { stream ->
+                assertEquals(Some("雪"), stream.next())
+                assertEquals(5L, input.position)
+                assertEquals(Some(""), stream.next())
+                assertEquals(Some("final"), stream.next())
+                assertTrue(stream.isFinished)
+                val reads = input.reads
+                assertEquals(None, stream.next())
+                assertEquals(reads, input.reads)
+            }
+            assertTrue(source.isClosed)
+            assertEquals(0, input.closes)
+            input.close()
+        }
+    }
+
+    @Test
+    fun `NDJSON owning source bounds prefetch and early close does not drain further records`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val input = MessageTestSource("a\nbbbbbbb\n".toByteArray(), 100L)
+            val source = NdjsonSource.takeOwnership(input, bufferSize = 3L)
+            assertEquals(Some("a"), source.next())
+            assertEquals(3L, input.position)
+            val reads = input.reads
+            source.close(); source.close()
+            assertEquals(reads, input.reads)
+            assertEquals(1, input.closes)
+            assertFalse(source.isFinished)
+            expectMessageFailure<IoClosedException> suspend { source.next() }
+        }
+    }
+
+    @Test
+    fun `NDJSON framing IO and cleanup failures keep their original types and end further reads`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val input = MessageTestSource("too long\n".toByteArray())
+            val source = NdjsonSource.takeOwnership(input, maxRecordBytes = 2L)
+            val error = expectMessageFailure<NdjsonFramingException> suspend { source.next() }
+            assertEquals(NdjsonFramingErrorKind.RecordBytes, error.kind)
+            assertTrue(source.failure!! === error)
+            expectMessageFailure<IllegalStateException> suspend { source.next() }
+            source.close()
+            assertEquals(1, input.closes)
+            val broken = MessageTestSource([])
+            broken.failRead = true; broken.failClose = true
+            val failed = NdjsonSource.takeOwnership(broken)
+            val combined = expectMessageFailure<ResourceUseException> suspend { failed.useAsync suspend { stream -> stream.next() } }
+            assertTrue(combined.primaryFailure is TransportFailure)
+            assertTrue(combined.cleanupFailure is CleanupFailure)
+            assertTrue(failed.failure!! is TransportFailure)
+            assertEquals(1, broken.closes)
+        }
+    }
+}

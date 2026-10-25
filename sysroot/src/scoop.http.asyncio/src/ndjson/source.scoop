@@ -1,0 +1,47 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.NdjsonDecoder
+import scoop.platform.memory.NativeByteBuffer
+
+/** A demand-driven NDJSON record reader that borrows its input by default. */
+public class NdjsonSource private constructor(private val reader: NdjsonReader) : AsyncCloseable {
+    public constructor(source: AsyncByteSource, maxRecordBytes: Long = 1048576L, bufferSize: Long = 8192L)
+        : this(createNdjsonReader(source, None, maxRecordBytes, bufferSize)) {}
+
+    public companion object {
+        /** Transfers cleanup responsibility only after successful construction. */
+        public fun <T> takeOwnership(source: T, maxRecordBytes: Long = 1048576L, bufferSize: Long = 8192L): NdjsonSource
+            where T : AsyncByteSource, T : AsyncCloseable =
+            NdjsonSource(createNdjsonReader(source, Some<AsyncCloseable>(source), maxRecordBytes, bufferSize))
+    }
+
+    public val isFinished: Boolean get() = reader.decoder.isFinished
+    public val isClosed: Boolean get() = reader.io.isClosed
+    public val failure: Throwable? get() = reader.io.failure
+
+    /** Reads one record or clean EOF, without parsing JSON or discarding empty lines. */
+    public suspend fun next(): String? = reader.next()
+
+    public override suspend fun close() { reader.io.close() }
+}
+
+private fun createNdjsonReader(source: AsyncByteSource, owner: AsyncCloseable?, maximum: Long, bufferSize: Long): NdjsonReader {
+    val loop = currentEventLoop()
+    val job = httpJob(loop, true)
+    if (bufferSize <= 0L) throw IllegalArgumentException(Some("NDJSON buffer size must be positive"))
+    val decoder = NdjsonDecoder(maximum)
+    val input = try { NativeByteBuffer.allocate(bufferSize) }
+        catch (error: Throwable) {
+            val failure = messageCleanup(Some(error)) { decoder.close() }
+            throw failure!!
+        }
+    try {
+        job.ensureActive()
+        return NdjsonReader(source, owner, loop, decoder, input)
+    } catch (error: Throwable) {
+        var failure = messageCleanup(Some(error)) { input.close() }
+        failure = messageCleanup(failure) { decoder.close() }
+        throw failure!!
+    }
+}

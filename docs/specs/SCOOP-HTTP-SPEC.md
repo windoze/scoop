@@ -233,6 +233,8 @@ H1／H2 异步连接须支持请求写入与响应头读取同时推进，暴露
 
 [AWS EventStream 接收规范](SCOOP-HTTP-EVENTSTREAM-SPEC.md)补充同一 body 上的二进制消息读取，为 ConverseStream 提供帧边界、typed headers 与 CRC32 校验。内存 decoder 位于 scoop.http，借用／接管 source 位于 scoop.http.asyncio；校验复用已有 zlib-ng，服务事件含义留在调用方。
 
+[NDJSON 接收规范](SCOOP-HTTP-NDJSON-SPEC.md)补充逐行 UTF-8 记录定界，为 Ollama 原生流提供 LF／CRLF 分块、单记录背压和借用／接管 source；JSON 与服务事件仍由调用方解释。
+
 基础 HTTP Cone 按实际使用增加 url、charset 与 crypto 的普通依赖，仍不依赖 asyncio、TLS 或 socket。异步 HTTP Cone 增加 compression 依赖，用于 WebSocket 消息压缩；由于 compression 在一个 Cone 内交付异步适配，基础 HTTP 引擎不反向依赖它。HTTP client 只组合这些公开能力。
 
 这些新增能力分别验收后才作为 client 前置条件完成；M53 的历史验收不被改写为 M54 已通过。HTTP/2 WebSocket、Extended CONNECT 与 HTTP/3 明确留待后续。

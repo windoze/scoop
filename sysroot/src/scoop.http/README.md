@@ -4,6 +4,8 @@
 
 `AwsEventStreamDecoder` 读取 HTTP body 内的 AWS 二进制 EventStream，使用 receive／nextMessage／endInput，与 SSE 各有明确的 wire 格式。解码器验证帧长、前缀与消息 CRC，保留 typed headers 和原始 payload，最多保留一条待交付消息。异步 source 位于 scoop.http.asyncio，合同见 [EventStream 接收规范](../../../docs/specs/SCOOP-HTTP-EVENTSTREAM-SPEC.md)。
 
+`NdjsonDecoder(maxRecordBytes = 1048576)` 按 LF／CRLF 定界严格 UTF-8 记录，使用 receive／nextRecord／endInput；保留空行和未改写的 JSON 文本，最多保留一条待交付记录，允许 EOF 交付最后一条非空尾行。该层不解析 JSON，具体消息由上层解释；见 [NDJSON 接收规范](../../../docs/specs/SCOOP-HTTP-NDJSON-SPEC.md)。
+
 HTTP/1 的 Http1Decoder.client／server 提供 receive、nextEvent、endInput。客户端先用 expectResponse 按顺序登记请求方法；HEAD、信息响应、CONNECT 和 101 才能正确关联。解析到切换边界后，buffer 中保留未消费后缀；服务端拒绝候选升级时可调用 resumeHttp1。
 
 Http1Encoder 固定客户端／服务端角色，以 beginRequest／beginResponse、writeBody、finish 生成字节。body 定界显式选择 Empty、Length、Chunked 或响应 Eof；每个 begin 都需要 finish。mustClose 和 isSwitched 告诉调用者该连接的后续处理要求，编码器不隐含发送或关闭传输。
