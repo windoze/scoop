@@ -11,6 +11,8 @@ mod intrinsics;
 mod iterations;
 mod observations;
 mod poll_chunks;
+mod priority;
+mod value_calls;
 
 fn optimize(module: &mut mir::Module) {
     let selected = mir::SelectedExternalMirSet::empty(module.cone);

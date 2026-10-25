@@ -1,12 +1,13 @@
-//! Select call sites in stable order and retain cumulative caller growth.
+//! Spend cumulative caller growth on deeper loops before colder call sites.
 
 use std::cell::OnceCell;
+use std::cmp::Reverse;
 
 use super::{
     Choice, Context, Target, class_fields, exception_paths, flow, graph, index, mir, policy,
     simplify,
 };
-use crate::optimization::allocation::InlineReceivers;
+use crate::optimization::allocation::{ControlFlow, InlineReceivers};
 use crate::optimization::poll_chunks::CallRanges;
 use mir::optimization_report::{
     InlineCost, InlineEstimate, InlineOutcome, InlineProjection, OptimizationDecision,
@@ -24,12 +25,26 @@ impl Context<'_, '_> {
         let analysis = flow::Analysis::new(self.module, function);
         let incoming = analysis.solve();
         let in_loop = graph::cyclic_nodes(&graph::block_edges(&function.body));
+        let mut order = function
+            .body
+            .blocks
+            .iter()
+            .map(|(id, _)| id)
+            .collect::<Vec<_>>();
+        if self.ordinary && in_loop.iter().any(|&cyclic| cyclic) {
+            let mut depths = ControlFlow::new(&function.body).loop_depths();
+            for (depth, &cyclic) in depths.iter_mut().zip(&in_loop) {
+                *depth = (*depth).max(usize::from(cyclic));
+            }
+            order.sort_by_key(|&id| Reverse(depths[index(id)]));
+        }
         let mut choices = Vec::new();
         let receivers = OnceCell::new();
         let ranges = OnceCell::new();
         let mut exceptions =
             exception_paths::Effects::new(self.module, self.selected, self.dispatch, self.imported);
-        for (block_id, block) in function.body.blocks.iter() {
+        'blocks: for block_id in order {
+            let block = &function.body.blocks[block_id];
             if self.ordinary && ancestry[index(block_id)].len() > 6 {
                 self.observe_skipped_block(
                     function_id,
@@ -45,10 +60,16 @@ impl Context<'_, '_> {
             };
             for (statement_index, statement) in block.statements.iter().enumerate() {
                 if self.ordinary && *remaining == 0 && self.observer.is_none() {
-                    return choices;
+                    break 'blocks;
                 }
                 if let mir::StatementKind::Call(effect) = &statement.kind {
-                    let call = crate::optimization::call(effect);
+                    let resolved = self
+                        .ordinary
+                        .then(|| exceptions.resolve(function, effect, &analysis, &state))
+                        .flatten();
+                    let call = resolved
+                        .as_ref()
+                        .unwrap_or_else(|| crate::optimization::call(effect));
                     let record = |outcome, estimate| {
                         if let Some(observer) = self.observer {
                             observer.record(
@@ -227,6 +248,7 @@ impl Context<'_, '_> {
                                     block: block_id,
                                     statement: statement_index,
                                     callee,
+                                    call: call.clone(),
                                     blocks,
                                 });
                             }
@@ -238,6 +260,8 @@ impl Context<'_, '_> {
                 analysis.statement(statement, &mut state);
             }
         }
+        // Applying independent choices still follows their original positions.
+        choices.sort_unstable_by_key(|choice| (index(choice.block), choice.statement));
         choices
     }
 

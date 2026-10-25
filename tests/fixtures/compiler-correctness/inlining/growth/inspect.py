@@ -26,3 +26,33 @@ else:
     )
     assert not re.search(rf"call .*@fn{getter}\b", body)
     assert "MaybeUninit.AssumeInit" in body
+
+    dispatch = re.search(r"(?ms)^  fun dispatch .*?(?=^  fun |\Z)", mir).group()
+    assert "interface Score[" in dispatch
+    helpers = [
+        function
+        for function in functions
+        if function["name"] in ("next", "get")
+        and function["parameters"]
+        and function["parameters"][0].get("name") in ("ListIterator<Score>", "ArrayList<Score>")
+    ]
+    assert {(function["parameters"][0]["name"], function["name"]) for function in helpers} == {
+        ("ListIterator<Score>", "next"),
+        ("ArrayList<Score>", "get"),
+    }
+    for function in helpers:
+        assert not re.search(rf"call .*@fn{function['id']}\b", dispatch)
+
+    rotate = next(f["id"] for f in functions if f["name"] == "Vector.rotate")
+    caller = next(f["id"] for f in functions if f["name"] == "rotations")
+    rotations = re.search(r"(?ms)^  fun rotations .*?(?=^  fun |\Z)", mir).group()
+    assert not re.search(rf"call .*@fn{rotate}\b", rotations)
+    assert any(
+        event["pass"] == "inline"
+        and event["site"]["function"] == caller
+        and event["target"] == {"kind": "direct", "callee": {"kind": "function", "id": rotate}}
+        and event["outcome"] == "inlined"
+        and event["estimate"]["in_loop"]
+        and event["estimate"]["ordinary"]["execution"] > 40
+        for event in report["events"]
+    )

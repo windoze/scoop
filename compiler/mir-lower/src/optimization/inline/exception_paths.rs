@@ -119,7 +119,7 @@ impl<'a> Effects<'a> {
         }
     }
 
-    fn resolve(
+    pub(super) fn resolve(
         &self,
         function: &mir::Function,
         effect: &mir::CallEffect,

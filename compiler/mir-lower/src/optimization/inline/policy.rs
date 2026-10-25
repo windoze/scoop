@@ -112,15 +112,19 @@ pub(super) fn execution_limit(
         && function.body.blocks.iter().any(|(_, block)| block.statements.iter().any(|statement| {
             matches!(&statement.kind, mir::StatementKind::Call(effect) if !matches!(super::super::call(effect).target, mir::CallTarget::Direct(_)))
         }));
-    let value_copy = function
+    let parameter_copies = function
         .params
         .iter()
-        .any(|parameter| copy_cost(structs, &parameter.ty) > 0);
-    (20 + usize::from(in_loop) * 16
-        + usize::from(folds) * 12
-        + usize::from(receiver) * 8
-        + usize::from(value_copy) * 4)
-        .min(48)
+        .map(|parameter| copy_cost(structs, &parameter.ty))
+        .sum::<usize>();
+    let opportunities = usize::from(folds) * 12 + usize::from(receiver) * 8;
+    if in_loop {
+        // Account for independent value snapshots on both sides of the call.
+        let boundary = 6 + 2 * (parameter_copies + copy_cost(structs, &function.return_ty));
+        (12 + 4 * boundary + opportunities).min(72)
+    } else {
+        (20 + opportunities + usize::from(parameter_copies != 0) * 4).min(48)
+    }
 }
 
 fn copy_cost(structs: &la_arena::Arena<mir::StructDef>, ty: &mir::Type) -> usize {

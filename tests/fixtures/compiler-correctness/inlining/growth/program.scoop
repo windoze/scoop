@@ -89,9 +89,46 @@ fun traverse(count: Long): Long {
     }
     return state
 }
+interface Score { fun score(): Long }
+class Square(val value: Long) : Score { override fun score(): Long = value * value }
+class Product(val value: Long, val factor: Long) : Score {
+    override fun score(): Long = value * factor
+}
+fun dispatch(count: Long): Long {
+    val values = ArrayList<Score>()
+    var index = 0L
+    while (index < 16L) {
+        val kind = index % 4L
+        if (kind == 0L) values.add(Square(index))
+        else if (kind == 1L) values.add(Product(index, 3L))
+        else if (kind == 2L) values.add(Product(index, 5L))
+        else values.add(Product(index, 7L))
+        index += 1L
+    }
+    var total = 0L
+    index = 0L
+    while (index < count) {
+        for (value in values) total += value.score()
+        index += 1L
+    }
+    return total
+}
+struct Vector(val x: Double, val y: Double) {
+    fun rotate(other: Vector): Vector =
+        Vector(x * other.x - y * other.y, x * other.y + y * other.x)
+}
+fun rotations(initial: Vector, step: Vector, count: Long): Vector {
+    var result = initial
+    var index = 0L
+    while (index < count) { result = result.rotate(step); index += 1L }
+    return result
+}
 fun main() {
     check(expanded(10) == 394)
     check(traverse(0L) == 7L)
     check(traverse(100L) == 2254931208L)
+    check(dispatch(0L) == 0L && dispatch(100L) == 72000L)
+    val rotated = rotations(Vector(1.0, 0.0), Vector(0.0, 1.0), 5L)
+    check(rotated.x == 0.0 && rotated.y == 1.0)
     println("inlined growth")
 }

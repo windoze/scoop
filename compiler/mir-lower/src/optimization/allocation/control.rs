@@ -1,4 +1,4 @@
-//! Dominance and loop-carried aliases for value replacement, without SSA.
+//! Dominance, natural loop depth and loop-carried aliases without SSA.
 
 use std::collections::BTreeSet;
 
@@ -7,8 +7,12 @@ use super::{
     origins::{AllocationId, Site, Sources, defined_local},
 };
 
+#[cfg(test)]
+mod tests;
+
 pub(in crate::optimization) struct ControlFlow {
     edges: Vec<Vec<usize>>,
+    predecessors: Vec<Vec<usize>>,
     order: Vec<usize>,
     dominators: Vec<Option<usize>>,
     back_edges: Vec<(usize, usize)>,
@@ -68,6 +72,7 @@ impl ControlFlow {
         }
         Self {
             edges,
+            predecessors,
             order,
             dominators,
             back_edges,
@@ -81,6 +86,38 @@ impl ControlFlow {
 
     pub fn block_dominates(&self, creation: usize, block: usize) -> bool {
         self.node_dominates(creation, block)
+    }
+
+    pub fn loop_depths(&self) -> Vec<usize> {
+        let mut natural = self
+            .back_edges
+            .iter()
+            .copied()
+            .filter(|&(latch, header)| self.node_dominates(header, latch))
+            .collect::<Vec<_>>();
+        natural.sort_unstable_by_key(|&(_, header)| header);
+        let mut depths = vec![0; self.edges.len()];
+        let mut seen = vec![usize::MAX; self.edges.len()];
+        let mut pending = Vec::new();
+        for (latch, header) in natural {
+            // Merge latches with the same header, including self loops.
+            if seen[header] != header {
+                seen[header] = header;
+                depths[header] += 1;
+            }
+            pending.push(latch);
+            while let Some(block) = pending.pop() {
+                if seen[block] == header {
+                    continue;
+                }
+                seen[block] = header;
+                depths[block] += 1;
+                pending.extend(self.predecessors[block].iter().copied());
+            }
+        }
+        // Completed EH nodes belong to the analysis, not the original body.
+        depths.truncate(self.completed.len());
+        depths
     }
 
     pub(super) fn dominates(&self, creation: Site, usage: Site) -> bool {

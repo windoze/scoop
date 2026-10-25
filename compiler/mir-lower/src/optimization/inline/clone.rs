@@ -33,10 +33,11 @@ pub(super) fn apply(
     let mir::StatementKind::Call(effect) = statement.kind else {
         unreachable!("only a selected call is expanded")
     };
-    let (result, call) = match effect {
-        mir::CallEffect::Unit(call) => (None, call),
-        mir::CallEffect::Value { destination, call } => (Some(destination), call),
+    let result = match effect {
+        mir::CallEffect::Unit(_) => None,
+        mir::CallEffect::Value { destination, .. } => Some(destination),
     };
+    let call = choice.call;
     let continuation = caller.body.blocks.alloc(mir::BasicBlock {
         name: format!("inline.cont.{}", caller.body.blocks.len()),
         statements: tail,

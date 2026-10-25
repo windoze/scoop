@@ -56,10 +56,16 @@ pub(in crate::optimization) fn run(lowerer: &mut Lowerer) {
         ) {
             let site = calls[order].clone();
             let template = &templates[&callee];
+            let mir::StatementKind::Call(effect) =
+                &function.body.blocks[site.block].statements[site.statement].kind
+            else {
+                unreachable!("a selected call-site record identifies its CFG call");
+            };
             let choice = Choice {
                 block: site.block,
                 statement: site.statement,
                 callee: super::Target::Local(callee),
+                call: super::super::call(effect).clone(),
                 blocks: template
                     .function
                     .body

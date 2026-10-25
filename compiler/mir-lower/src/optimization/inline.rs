@@ -41,6 +41,7 @@ struct Choice {
     block: mir::BlockId,
     statement: usize,
     callee: Target,
+    call: mir::Call,
     blocks: Vec<(mir::BlockId, mir::BasicBlock)>,
 }
 
