@@ -77,10 +77,12 @@
 | Gemini 文件 API | 完成：上传、分页、读取、删除和已有 URI 登记；可选文件引用与完整原文可保存。Google 上传／读取／删除实测通过，登记仅 mock 验证 |
 | API protocol 基础合同与 Gemini Live 纯编解码 | 完成：本机新增 15/15、相关回归 23/23，nuc12 仅媒体／转写与工具往返 2/2；两平台生产库通过 |
 | Gemini Live 持久连接、setup 确认与消息计时 | 完成：本机新增 11/11、Responses 会话及共享回归 20/20，nuc12 仅对话与关闭组合 2/2；两平台生产库通过。Google free tier 一条短提示的音频响应实测通过；真实用例默认忽略 |
-| OpenAI Realtime 请求线协议 | 完成：本机新增 14/14，nuc12 仅媒体与函数／MCP 混用 2/2；两平台生产库通过。事件解码与会话连接继续实施 |
-| 既定协议与辅助 API 的剩余封装 | 待实施；仅实际请求／响应合同，不扩展到部署或平台管理 |
+| OpenAI Realtime 请求线协议 | 完成：本机新增 14/14，nuc12 仅媒体与函数／MCP 混用 2/2；两平台生产库通过 |
+| OpenAI Realtime 服务端事件与响应读取 | 完成：本机新增 12/12，nuc12 仅音频事件保存与函数／MCP 混合响应 2/2；两平台生产库通过 |
+| OpenAI Realtime 持久连接与消息计时 | 待实施；复用已有 WebSocket 寿命合同 |
+| OpenAI GPT-Live 独立协议与会话 | 待实施；保留其真实事件差异 |
 | 显式输入 token count：Gemini／Messages | 完成：本机定向 19/19、共享生成回归 7/7；Linux 仅网络组合 1/1；独立消费者 4 通过、13 个真实 API 用例忽略 |
-| 其他实时会话、跨协议组合与使用示例验收 | 待实施 |
+| 协议／方言矩阵、跨协议组合与使用示例验收 | 待完成；已声明功能逐项核对证据，真实互通与 mock 分开记录 |
 
 ## 验证与构建纪律
 
@@ -197,3 +199,5 @@
 - Gemini Live 增加 open／with 会话入口，打开时发送 setup 并等待确认，之后显式发送内容、实时媒体和工具结果；收发记录可保存实际 UTC 与单调时间。与 Responses 复用内部 WebSocket 认证、所有权及关闭逻辑，按官方 SDK 支持 Live 的文本和二进制 JSON；转写、完成标记、会话通知与附加信息继续原样交付。格式与 lint 通过后，本机 11 项新增及 20 项回归全部通过，nuc12 仅对话／工具／计时和关闭清理两项 2/2，两平台生产库通过。Google free tier 一次短提示收到音频与完成消息，真实用例 @Ignore 且要求显式 key／model。凭据扫描通过，清理闲置 Rust 增量产物约 186 MiB；无编译器修改或 fixture。
 
 - OpenAI Realtime 增加独立 provider、带 model query 的 WebSocket 地址和可保存的请求配置；显式发送 session、response、会话 item 与音频缓冲命令，支持函数及原生 MCP 工具。None 与清空值分开，音频提交不自动生成，assistant 音频不能伪装成可回传的 item.create。原生命令保持独立并原样传递。格式与 lint 通过，本机 14/14，nuc12 仅媒体和工具混用 2/2，两平台生产库通过；无编译器修改、fixture 或真实 API 请求。清理闲置 Rust 增量产物约 186 MiB；本步仅交付请求线协议。
+
+- OpenAI Realtime 增加独立事件解码，保留响应／item／part 的实际位置、原始音频字节、转写与原始消息；response.done 复用 LlmResponse 和 TokenUsage，只有成功响应中的完整且已关联函数调用进入可执行列表，MCP 保持服务端活动。含音频摘要的响应不伪造重放历史，附加信息原样保留。格式与 lint 通过，本机新增 12/12，nuc12 仅音频保存与混合工具响应 2/2，两平台生产库通过；凭据扫描通过，清理闲置 Rust 增量产物约 185 MiB。无编译器修改、fixture 或真实 API 请求。剩余主线明确为 Realtime 会话、GPT-Live 及最终协议组合／示例验收。

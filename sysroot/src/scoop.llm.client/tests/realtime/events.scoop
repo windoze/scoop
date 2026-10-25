@@ -1,0 +1,104 @@
+package scoop.llm.client.tests.realtime
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+private fun rtPosition(type: String, fields: String = "", response: String = "r"): String =
+    "{\"type\":\"" + type + "\",\"event_id\":\"e\",\"response_id\":\"" + response +
+        "\",\"item_id\":\"i\",\"output_index\":2,\"content_index\":3" + fields + "}"
+
+@Test
+private class RealtimeEventsTest {
+    @Test
+    fun `Realtime text audio and transcript events retain distinct positions and save exact bytes`() {
+        val first = rtDecode(rtPosition("response.output_text.delta", ",\"delta\":\"hello\""))
+        when (first.event) { case TextDelta(position, text) -> {
+            assertEquals("r", position.item.responseId); assertEquals("i", position.item.itemId)
+            assertEquals(2UL, position.item.outputIndex); assertEquals(3UL, position.contentIndex); assertEquals("hello", text)
+        }; else -> fail() }
+        val audio = rtDecode(rtPosition("response.output_audio.delta", ",\"delta\":\"AP8=\"", "other"))
+        val saved = Json.decodeFromString<RealtimeMessage>(Json.encodeToString(audio))
+        when (saved.event) { case AudioDelta(position, bytes) -> {
+            assertEquals("other", position.item.responseId); assertEquals(2L, bytes.size); assertEquals((-1).toByte(), bytes[1])
+        }; else -> fail() }
+        assertEquals(Json.stringify(audio.native), Json.stringify(saved.native))
+        assertEquals(Some("e"), saved.eventId)
+        when (rtDecode(rtPosition("response.output_audio_transcript.delta", ",\"delta\":\"spoken\"")).event) {
+            case TranscriptDelta(_, text) -> assertEquals("spoken", text); else -> fail()
+        }
+        when (rtDecode(rtPosition("response.output_audio_transcript.done", ",\"transcript\":\"spoken\"")).event) {
+            case TranscriptDone(_, text) -> assertEquals("spoken", text); else -> fail()
+        }
+        when (rtDecode(rtPosition("response.output_text.done", ",\"text\":\"hello\"")).event) { case TextDone(_, text) -> assertEquals("hello", text); else -> fail() }
+        when (rtDecode(rtPosition("response.output_audio.done")).event) { case AudioDone(position) -> assertEquals(3UL, position.contentIndex); else -> fail() }
+    }
+
+    @Test
+    fun `Realtime session item and content notifications expose raw objects without making tool calls executable`() {
+        val item = "{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":\"{}\",\"call_id\":\"c\",\"status\":\"completed\"}"
+        for (type in ["session.created", "session.updated"]) {
+            val message = rtDecode("{\"type\":\"" + type + "\",\"session\":{\"id\":\"s\",\"future\":[false,null]}}")
+            assertEquals(type, message.type)
+            when (message.event) { case SessionCreated(raw) -> assertEquals("s", raw["id"]!!.asString()); case SessionUpdated(raw) -> assertEquals("s", raw["id"]!!.asString()); else -> fail() }
+        }
+        for (type in ["conversation.item.added", "conversation.item.done", "conversation.item.retrieved", "conversation.item.created"]) {
+            when (rtDecode("{\"type\":\"" + type + "\",\"item\":" + item + "}").event) {
+                case ConversationItem(raw) -> assertEquals("c", raw["call_id"]!!.asString()); else -> fail()
+            }
+        }
+        when (rtDecode(rtPosition("response.output_item.added", ",\"item\":" + item)).event) {
+            case OutputItemAdded(id, index, raw) -> { assertEquals("r", id); assertEquals(2UL, index); assertEquals("c", raw["call_id"]!!.asString()) }; else -> fail()
+        }
+        when (rtDecode(rtPosition("response.output_item.done", ",\"item\":" + item)).event) { case OutputItemDone(_, _, _) -> {}; else -> fail() }
+        when (rtDecode(rtPosition("response.content_part.added", ",\"part\":{\"type\":\"output_audio\"}")).event) { case ContentPartAdded(_, raw) -> assertEquals("output_audio", raw["type"]!!.asString()); else -> fail() }
+        when (rtDecode(rtPosition("response.content_part.done", ",\"part\":{\"type\":\"output_audio\"}")).event) { case ContentPartDone(_, _) -> {}; else -> fail() }
+    }
+
+    @Test
+    fun `Realtime function and MCP parameter completion remain raw and server activity is distinct`() {
+        when (rtDecode(rtPosition("response.function_call_arguments.delta", ",\"call_id\":\"c\",\"delta\":\"{\"")).event) {
+            case FunctionArgumentsDelta(_, id, text) -> { assertEquals("c", id); assertEquals("{", text) }; else -> fail()
+        }
+        when (rtDecode(rtPosition("response.function_call_arguments.done", ",\"call_id\":\"c\",\"name\":\"lookup\",\"arguments\":\"{\"")).event) {
+            case FunctionArgumentsDone(_, id, name, text) -> { assertEquals("c", id); assertEquals("lookup", name); assertEquals("{", text) }; else -> fail()
+        }
+        when (rtDecode(rtPosition("response.mcp_call_arguments.delta", ",\"delta\":\"{\"")).event) { case McpArgumentsDelta(_, text) -> assertEquals("{", text); else -> fail() }
+        when (rtDecode(rtPosition("response.mcp_call_arguments.done", ",\"arguments\":\"{}\"")).event) { case McpArgumentsDone(_, text) -> assertEquals("{}", text); else -> fail() }
+        for ((suffix, status) in [("in_progress", ServerToolStatus.InProgress), ("completed", ServerToolStatus.Completed), ("failed", ServerToolStatus.Failed)]) {
+            for (prefix in ["response.mcp_call.", "mcp_list_tools."]) {
+                when (rtDecode("{\"type\":\"" + prefix + suffix + "\",\"item_id\":\"remote\"}").event) {
+                    case McpActivity(id, actual) -> { assertEquals("remote", id); assertEquals(status, actual) }; else -> fail()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Realtime recoverable errors and unknown supplemental fields remain raw through codecs`() {
+        for (raw in ["{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"event_id\":\"client-e\"}}",
+            "{\"type\":\"rate_limits.updated\",\"rate_limits\":false}", "{\"type\":\"input_audio_buffer.speech_started\",\"item_id\":\"u\",\"audio_start_ms\":0}",
+            "{\"type\":\"future_event\",\"payload\":[1,false,null]}"]) {
+            val message = rtDecode(raw)
+            val saved = Json.decodeFromString<RealtimeMessage>(Json.encodeToString(message))
+            assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(saved.native))
+            when (saved.event) { case Error(error) -> assertEquals("client-e", error["event_id"]!!.asString()); case Native(_) -> {}; else -> fail() }
+        }
+        for (extra in ["", ",\"billing\":false", ",\"billing\":[{},null],\"cacheExpiry\":17"]) {
+            val message = rtDecode(rtPosition("response.output_text.delta", ",\"delta\":\"ok\"" + extra))
+            when (message.event) { case TextDelta(_, text) -> assertEquals("ok", text); else -> fail() }
+        }
+    }
+
+    @Test
+    fun `Realtime validates interpreted fields and exact unsigned event positions`() {
+        rtDecodeFailure("[]", "")
+        rtDecodeFailure("{\"type\":\"\"}", "/type")
+        rtDecodeFailure("{\"type\":\"session.created\",\"session\":false}", "/session")
+        rtDecodeFailure(rtPosition("response.output_audio.delta", ",\"delta\":\"!\""), "/delta")
+        rtDecodeFailure(rtPosition("response.output_text.delta", ",\"delta\":1"), "/delta")
+        rtDecodeFailure("{\"type\":\"response.output_text.delta\",\"response_id\":\"r\",\"item_id\":\"i\",\"output_index\":-1,\"content_index\":0,\"delta\":\"x\"}", "/output_index")
+        val huge = rtDecode("{\"type\":\"response.output_audio.done\",\"response_id\":\"r\",\"item_id\":\"i\",\"output_index\":0,\"content_index\":18446744073709551615}")
+        when (huge.event) { case AudioDone(position) -> assertEquals(18446744073709551615UL, position.contentIndex); else -> fail() }
+    }
+}

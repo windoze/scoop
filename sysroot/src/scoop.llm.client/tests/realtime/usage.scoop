@@ -1,0 +1,52 @@
+package scoop.llm.client.tests.realtime
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class RealtimeUsageTest {
+    @Test
+    fun `Realtime response usage preserves exact totals cache subsets and reported modalities`() {
+        val usage = rtDone(extra = ",\"usage\":{\"input_tokens\":9007199254740993,\"output_tokens\":12,\"total_tokens\":9007199254741005," +
+            "\"input_token_details\":{\"cached_tokens\":5,\"text_tokens\":7,\"image_tokens\":2,\"audio_tokens\":3,\"cached_tokens_details\":[false]}," +
+            "\"output_token_details\":{\"text_tokens\":4,\"audio_tokens\":8},\"billing\":false}").usage
+        assertEquals(UsageCompleteness.Final, usage.completeness)
+        assertEquals(Some(9007199254740993L), usage.tokens.inputTokens)
+        assertEquals(Some(9007199254740988L), usage.tokens.nonCachedInputTokens)
+        assertEquals(Some(5L), usage.tokens.cacheReadTokens)
+        assertEquals(None, usage.tokens.cacheWriteTokens)
+        assertEquals(Some(9007199254741005L), usage.tokens.totalTokens)
+        assertEquals(5L, usage.tokens.modality.size)
+        assertEquals(TokenModality.Audio, usage.tokens.modality[1].modality)
+        assertEquals(TokenDirection.Output, usage.tokens.modality[4].direction)
+        assertEquals(Some(0L), rtDone(extra = ",\"usage\":{\"total_tokens\":0}").usage.tokens.totalTokens)
+        assertEquals(None, rtDone(extra = ",\"usage\":{\"input_tokens\":3,\"output_tokens\":4}").usage.tokens.totalTokens)
+        assertEquals(None, rtDone().usage.tokens.inputTokens)
+    }
+
+    @Test
+    fun `Realtime input transcription stays independent and duration usage is kept as supplied`() {
+        val delta = rtDecode("{\"type\":\"conversation.item.input_audio_transcription.delta\",\"item_id\":\"u\"}")
+        when (delta.event) { case InputTranscription(id, index, text, usage) -> {
+            assertEquals("u", id); assertEquals(None, index); assertEquals(None, text); assertEquals(UsageCompleteness.Partial, usage.completeness)
+        }; else -> fail() }
+        for (raw in ["{\"type\":\"tokens\",\"input_tokens\":13,\"output_tokens\":9,\"total_tokens\":22}",
+            "{\"type\":\"duration\",\"seconds\":0.5}", "{\"type\":\"future\",\"value\":[false]}"]) {
+            val message = rtDecode("{\"type\":\"conversation.item.input_audio_transcription.completed\",\"item_id\":\"u\",\"content_index\":0,\"transcript\":\"heard\",\"usage\":" + raw + "}")
+            when (message.event) { case InputTranscription(_, index, text, usage) -> {
+                assertEquals(Some(0UL), index); assertEquals(Some("heard"), text)
+                assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(usage.native!!))
+                assertEquals(if (Json.parse(raw)["type"]!!.asString() == "tokens") Some(22L) else None, usage.tokens.totalTokens)
+            }; else -> fail() }
+        }
+    }
+
+    @Test
+    fun `Realtime malformed token fields report their actual response or transcription path`() {
+        rtDecodeFailure("{\"type\":\"response.done\",\"response\":{\"usage\":{\"input_tokens\":-1}}}", "/response/usage/input_tokens")
+        rtDecodeFailure("{\"type\":\"response.done\",\"response\":{\"usage\":{\"output_tokens\":1.5}}}", "/response/usage/output_tokens")
+        rtDecodeFailure("{\"type\":\"response.done\",\"response\":{\"usage\":{\"input_tokens\":2,\"input_token_details\":{\"cached_tokens\":3}}}}", "/response/usage/input_token_details/cached_tokens")
+        rtDecodeFailure("{\"type\":\"conversation.item.input_audio_transcription.completed\",\"item_id\":\"u\",\"content_index\":0,\"transcript\":\"x\",\"usage\":{\"type\":\"tokens\",\"output_tokens\":-1}}", "/usage/output_tokens")
+    }
+}

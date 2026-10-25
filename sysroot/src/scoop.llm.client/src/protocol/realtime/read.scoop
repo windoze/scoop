@@ -1,0 +1,36 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun <T> readRealtimeValue(value: JsonValue, path: String): T where T.Companion : ValueDecoder<T> {
+    try { return Json.decodeFromValue<T>(value) }
+    catch (error: DecodingException) { throw DecodingException(path + error.path, error.message ?: "invalid Realtime field") }
+}
+
+internal fun realtimeField(value: JsonValue, name: String, path: String = ""): JsonValue {
+    if (value.kind != JsonValueKind.Object) throw DecodingException(path, "expected a Realtime object")
+    return value[name] ?: throw DecodingException(path + "/" + name, "missing Realtime field")
+}
+
+internal fun realtimeObject(value: JsonValue, name: String, path: String = ""): JsonValue {
+    val field = realtimeField(value, name, path)
+    if (field.kind != JsonValueKind.Object) throw DecodingException(path + "/" + name, "expected a Realtime object")
+    return field
+}
+
+internal fun realtimeString(value: JsonValue, name: String, path: String = ""): String =
+    readRealtimeValue<String>(realtimeField(value, name, path), path + "/" + name)
+
+internal fun realtimeOptionalString(value: JsonValue, name: String, path: String): String? {
+    val field = value[name] ?: return None
+    return readRealtimeValue<String?>(field, path + "/" + name)
+}
+
+internal fun realtimeIndex(value: JsonValue, name: String): ULong =
+    readRealtimeValue<ULong>(realtimeField(value, name), "/" + name)
+
+internal fun realtimeItemPosition(value: JsonValue): RealtimeItemPosition =
+    RealtimeItemPosition(realtimeString(value, "response_id"), realtimeString(value, "item_id"), realtimeIndex(value, "output_index"))
+
+internal fun realtimeContentPosition(value: JsonValue): RealtimeContentPosition =
+    RealtimeContentPosition(realtimeItemPosition(value), realtimeIndex(value, "content_index"))

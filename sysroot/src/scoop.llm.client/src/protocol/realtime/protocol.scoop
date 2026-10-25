@@ -58,6 +58,10 @@ public class RealtimeProtocol public constructor(public val dialect: RealtimeDia
         when (responseId) { case Some(id) -> command.add("response_id", JsonValue.fromString(requireRealtimeId(id, "/responseId"))); case None -> {} }
         return command.build()
     }
+    public fun decodeMessage(value: JsonValue, tools: Array<ToolDefinition> = []): RealtimeMessage {
+        try { return readRealtimeMessage(dialect, value, tools) }
+        catch (error: DecodingException) { throw LlmProtocolException(dialectId, error.path, error.message ?: "invalid Realtime event", value) }
+    }
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
         dialect.decodeError(status, body, truncated)
 }

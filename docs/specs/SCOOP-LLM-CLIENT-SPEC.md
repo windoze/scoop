@@ -946,7 +946,7 @@ Responses 与 Gemini Live 共用内部 WebSocket 所有权、升级认证／拒�
 
 Providers.openAiRealtime() 包装 RealtimeProtocol(OpenAiRealtimeDialect())，protocol ID 为 realtime，dialect ID 为 openai-realtime，缺省 baseUrl 为 https://api.openai.com/v1。webSocketUrl(baseUrl, modelId) 追加 realtime 路径，将 http／https 转为 ws／wss，以明确 modelId 设置唯一 model query，保留其他 query 与路径前缀。普通 generate／openStream 不接受该会话协议；不按模型名称切换 GPT-Live，也不自动增加旧版 beta header。
 
-本节交付纯请求编码与可保存的数据，不执行网络 I/O。RealtimeDialect 定义 session 配置、response 请求、输入编码与 HTTP 错误解释；RealtimeProtocol 定义各条客户端命令的包装与 ID 字段。事件解码、会话连接及实际消息时间由后续会话合同接入，不用普通单次生成方法占位。
+本节交付纯请求编码与可保存的数据，不执行网络 I/O。RealtimeDialect 定义 session 配置、response 请求、输入编码与 HTTP 错误解释；RealtimeProtocol 定义各条客户端命令的包装与 ID 字段。事件解码见 §53；会话连接及实际消息时间由后续会话合同接入，不用普通单次生成方法占位。
 
 完整原生命令使用独立的 RealtimeNativeCommand(dialect, value) 与 encodeNativeCommand，提供 companion codec。它只检查归属及非空 type 对象后原样返回，用于直接表达 MCP 指定子工具等没有通用选项的原生设置，不与通用命令做隐式覆盖，也不声称已检查其所有服务端语义。
 
@@ -963,3 +963,17 @@ ToolResult 编码 function_call_output，使用实际 call ID 和文本结果；
 encodeAudioAppend(bytes, eventId = None)、encodeAudioCommit(eventId = None)、encodeAudioClear(eventId = None) 分别对应 input_audio_buffer 命令；提交音频不附加 response.create。encodeItemRetrieve／encodeItemDelete 使用实际 itemId；encodeItemTruncate(itemId, audioEndMilliseconds: ULong, contentIndex: ULong = 0UL, eventId = None) 直接编码应用选择的截断位置，不推算播放进度。encodeResponseCancel(responseId = None, eventId = None) 保留对默认响应或明确响应的选择。可选 eventId 原样传递，不生成确认关联或重放机制。output_audio_buffer.clear 是 WebRTC／SIP 操作，不作为该 WebSocket 协议的命令。
 
 普通测试使用官方形状，覆盖最小命令、缺省与显式清空、工具混用、媒体／历史／工具结果、URL 与精确无符号数、扩展归属和错误路径；不连接官方 OpenAI，也不测试附加字段的内容准确性。依据：[客户端事件](https://developers.openai.com/api/reference/resources/realtime/client-events)、[WebSocket 连接](https://developers.openai.com/api/docs/guides/voice-websockets)、[会话与函数调用](https://developers.openai.com/api/docs/guides/realtime-conversations)。
+
+## 53. OpenAI Realtime 服务端事件
+
+RealtimeProtocol.decodeMessage(value, tools = []) 只解码一条完整 JSON 对象，返回可保存的 RealtimeMessage(dialect, type, eventId, event, native)。native 保存整条消息；未知事件、未知输出和服务商附加字段原样保留，不验证计费、速率、缓存或其他附加信息的内部形状。已解释的协议字段错误报告原始 JSON 路径与整条消息。RealtimeDialect.readUsage 提供该协议的 token 口径扩展。
+
+RealtimeEvent 区分 session.created／updated、response.created／done、输出 item／content part、文本与音频转写的 delta／done、音频 delta／done、函数与 MCP 参数 delta／done、MCP 执行状态、输入音频转写和 error。会话 item 的 added／done／retrieved 保留原始 item，原生通知通过 Native 交付。实际 responseId、itemId、outputIndex 与 contentIndex 分别使用 RealtimeItemPosition 和 RealtimeContentPosition 表达，索引为 ULong，不合并不同 response 的输出。音频 delta 只解码原始 Base64 字节，不猜测媒体格式；格式由连接／响应的实际配置决定。done 只表示该字段流结束，不能推断播放完成或连接结束。
+
+response.created 与 response.done 提供 LlmResponse 读取视图，保留 response 原文与各 output 顺序。只有 response.done 且 status=completed 的函数输出，才可能取得执行资格；还须关联调用方明确提供的函数声明、实际 call_id、完整参数对象与未标为不完整的 item。参数 done、output_item.done 与 conversation.item.done 均不独立产生可执行调用。未知函数或没有 call ID 的输出保持 Native；已关联但截断或无效的参数保留为 Incomplete／Invalid。服务器 MCP 调用只作为 ServerToolActivity，不进入客户端工具列表；审批、工具目录与未知服务端输出保持原文，不自动批准或执行。
+
+response.done 的 status=failed 映射 Failed，cancelled／incomplete／in_progress／未知或缺失状态映射 Incomplete；max_output_tokens 与 content_filter 映射已知结束原因，其他原因保持 Other 或 Unknown。已结束响应的 usage 标为 Final，即使没有用量也不填零；创建事件的 usage 为 Partial。响应文本仅来自 assistant 的 output_text；音频 transcript 保留在原生 content 与独立转写事件中，不冒充文本模态输出。response.done 不带原始音频，不重建音频；含 assistant output_audio 的响应没有可重放 History，其余完整原始 output 可作为同 dialect 历史读取。
+
+usage 的 input_tokens／output_tokens／total_tokens、input_token_details.cached_tokens 与文本／图片／音频模态细项按服务明确报告解释；cached 是 input 子集，普通输入可由两者相减。没有提供的计数保持 None，不从分项猜总数，不累计多个响应。缓存模态细项保持原文。输入转写的 usage 独立于 response；type=tokens 时读取 token，duration 或未知类型仅保存原文，不计算计费或将时长转换为 token。
+
+error 事件保留原始错误对象并正常交付，不能仅因服务端 error 消息就关闭连接或自动重试。本节不聚合响应、不维护播放／缓存／会话恢复状态，网络寿命与收发时间另由会话入口负责。普通 scoop.test 覆盖交错响应位置、文本与音频、取消／截断调用、MCP 与函数隔离、精确用量、保存、未知附加信息容忍及协议错误路径。依据：[服务端事件](https://developers.openai.com/api/reference/resources/realtime/server-events)、[会话与函数调用](https://developers.openai.com/api/docs/guides/realtime-conversations)。

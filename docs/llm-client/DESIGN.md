@@ -84,6 +84,8 @@ Protocol 实现请求和结果的 wire DTO、完整响应解码、流事件解�
 
 LlmProvider 持有共同的 LlmApiProtocol，只要求 dialect 身份、固定请求头、错误解码和可选辅助 API。LlmGenerationProtocol 在其上定义普通生成操作；会话协议无需提供假的单次生成方法。普通 generate／openStream 在认证前检查具体协议能力。Gemini Live 的 BidiGenerateContentProtocol 使用独立 setup／输入／工具响应／消息解码入口，同时复用 endpoint、model、ContentPart 和工具类型。GeminiLiveSession 打开时完成 setup 确认，之后显式收发；它与 ResponsesSession 共用内部 WebSocket 认证、所有权、消息采样和关闭实现，各自保留真实协议的初始化与帧格式。
 
+RealtimeProtocol 独立编码会话／响应／音频缓冲命令并解码服务端事件。事件保留实际响应与内容位置，response.done 复用 LlmResponse；只有成功终态中的完整函数调用进入可执行视图。音频、转写与文本分开，错误和未知通知原样交付，不以字段 done 推断响应成功或播放完成。
+
 ### 2.2 Dialect 维护服务差异
 
 | 差异 | Dialect 的处理位置 |

@@ -1,0 +1,95 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class RealtimeResponseFields public constructor(
+    public val id: String? = None, public val status: String? = None,
+    public val output: Array<JsonValue>? = None, public val usage: JsonValue? = None,
+    @Serialize(rename = "status_details") public val statusDetails: JsonValue? = None
+) {
+    public companion object : ValueDecoder<RealtimeResponseFields>
+}
+
+internal fun readRealtimeResponse(dialect: RealtimeDialect, value: JsonValue, tools: Array<ToolDefinition>, done: Boolean): LlmResponse {
+    val fields = readRealtimeValue<RealtimeResponseFields>(value, "/response")
+    val rawItems = fields.output ?: []
+    val items = ArrayList<LlmOutputItem>()
+    val callIds = ArrayList<String>()
+    var replayable = true
+    var index = 0L
+    val complete = done && fields.status == Some("completed")
+    for (raw in rawItems) {
+        val path = "/response/output/" + index.toString()
+        val type = realtimeString(raw, "type", path)
+        val item = when (type) {
+            case "message" -> {
+                val (message, audio) = readRealtimeOutputMessage(dialect.id, raw, path)
+                if (audio) replayable = false
+                message
+            }
+            case "function_call" -> readRealtimeFunction(dialect.id, raw, tools, complete, path)
+            case "mcp_call" -> readRealtimeMcp(dialect.id, raw, tools, path)
+            else -> LlmOutputItem.Native(dialect.id, raw)
+        }
+        when (item) {
+            case ClientToolCall(call) -> {
+                val id = call.reference.id!!
+                for (previous in callIds) if (previous == id) throw DecodingException(path + "/call_id", "duplicate Realtime function call ID")
+                callIds.add(id)
+            }
+            else -> {}
+        }
+        items.add(item); index += 1L
+    }
+    val (completion, reason) = realtimeCompletion(fields, done, callIds.size != 0L)
+    val history = if (replayable) Some(LlmHistory(dialect.id, rawItems)) else None
+    val state = if (done) UsageCompleteness.Final else UsageCompleteness.Partial
+    val usage = when (fields.usage) {
+        case Some(raw) -> {
+            val tokens = try { dialect.readUsage(raw) }
+                catch (error: DecodingException) { throw DecodingException("/response" + error.path, error.message ?: "invalid Realtime usage") }
+            LlmUsage(tokens, state, Some(raw))
+        }
+        case None -> LlmUsage(completeness = state)
+    }
+    return LlmResponse(dialect.id, [LlmCandidate(0L, items.toArray(), completion, reason, history)], fields.id, usage = usage, native = Some(value))
+}
+
+private fun readRealtimeOutputMessage(dialect: DialectId, value: JsonValue, path: String): (LlmOutputItem, Boolean) {
+    if (realtimeString(value, "role", path) != "assistant") return (LlmOutputItem.Native(dialect, value), false)
+    val parts = readRealtimeValue<Array<JsonValue>>(realtimeField(value, "content", path), path + "/content")
+    val result = ArrayList<OutputPart>()
+    var audio = false
+    var index = 0L
+    for (part in parts) {
+        val partPath = path + "/content/" + index.toString()
+        if (part.kind != JsonValueKind.Object) throw DecodingException(partPath, "expected Realtime content object")
+        val type = realtimeOptionalString(part, "type", partPath)
+        if (type == Some("output_text")) {
+            val text = realtimeOptionalString(part, "text", partPath)
+            result.add(when (text) { case Some(value) -> OutputPart.Text(value); case None -> OutputPart.Native(dialect, part) })
+        } else {
+            if (type == Some("output_audio")) audio = true
+            result.add(OutputPart.Native(dialect, part))
+        }
+        index += 1L
+    }
+    return (LlmOutputItem.Message(result.toArray(), realtimeOptionalString(value, "id", path)), audio)
+}
+
+private fun realtimeCompletion(fields: RealtimeResponseFields, done: Boolean, calls: Boolean): (LlmCompletion, LlmFinishReason) {
+    if (!done) return (LlmCompletion.Incomplete, LlmFinishReason.Unknown)
+    if (fields.status == Some("completed")) return (LlmCompletion.Complete, if (calls) LlmFinishReason.ToolCalls else LlmFinishReason.Stop)
+    if (fields.status == Some("failed")) return (LlmCompletion.Failed, LlmFinishReason.Other("failed"))
+    val detail = when (fields.statusDetails) {
+        case Some(raw) -> if (raw.kind == JsonValueKind.Object) realtimeOptionalString(raw, "reason", "/response/status_details") else None
+        case None -> None
+    }
+    val reason: LlmFinishReason = when (detail) {
+        case Some("max_output_tokens") -> Length
+        case Some("content_filter") -> ContentFilter
+        case Some(value) -> Other(value)
+        case None -> when (fields.status) { case Some(value) -> Other(value); case None -> Unknown }
+    }
+    return (LlmCompletion.Incomplete, reason)
+}

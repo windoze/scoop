@@ -18,3 +18,17 @@ internal fun rtFailure(path: String, block: () -> Unit) {
 internal fun rtItem(item: LlmInputItem): JsonValue = rtProtocol.encodeItemCreate(item)["item"]!!
 
 internal fun rtResponse(request: RealtimeResponseRequest): JsonValue = rtProtocol.encodeResponseCreate(request)["response"]!!
+
+internal fun rtDecode(raw: String): RealtimeMessage = rtProtocol.decodeMessage(Json.parse(raw), [rtFunction, rtMcp])
+
+internal fun rtDecodeFailure(raw: String, path: String) {
+    val error = assertFailsWith<LlmProtocolException> { rtDecode(raw); Unit }
+    assertEquals(path, error.path)
+    assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(error.native))
+}
+
+internal fun rtDone(output: String = "[]", status: String = "completed", extra: String = ""): LlmResponse =
+    when (rtDecode("{\"type\":\"response.done\",\"response\":{\"id\":\"r\",\"status\":\"" + status + "\",\"output\":" + output + extra + "}}").event) {
+        case ResponseDone(value) -> value
+        else -> fail()
+    }

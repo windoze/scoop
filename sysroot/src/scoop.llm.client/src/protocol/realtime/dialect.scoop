@@ -7,6 +7,7 @@ public interface RealtimeDialect {
     public fun encodeSession(configuration: RealtimeConfiguration, tools: Array<ToolDefinition>): JsonValue
     public fun encodeResponse(request: RealtimeResponseRequest, tools: Array<ToolDefinition>): JsonValue
     public fun encodeInput(input: Array<LlmInputItem>): Array<JsonValue>
+    public fun readUsage(value: JsonValue): TokenUsage
     public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
 }
 
@@ -24,6 +25,7 @@ public class OpenAiRealtimeDialect public constructor() : RealtimeDialect {
         return encodeRealtimeConfiguration(id, request.configuration, tools, body)
     }
     public override fun encodeInput(input: Array<LlmInputItem>): Array<JsonValue> = encodeRealtimeInput(id, input)
+    public override fun readUsage(value: JsonValue): TokenUsage = readRealtimeUsage(value)
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
         val value = parseLlmServiceError(body, truncated)
         val error = when (value) { case Some(root) -> if (root.kind == JsonValueKind.Object) root["error"] else None; case None -> None }

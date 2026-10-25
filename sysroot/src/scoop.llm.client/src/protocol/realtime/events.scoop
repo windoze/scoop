@@ -1,0 +1,69 @@
+package scoop.llm.client
+
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun readRealtimeMessage(dialect: RealtimeDialect, value: JsonValue, tools: Array<ToolDefinition>): RealtimeMessage {
+    val type = realtimeString(value, "type")
+    if (type.length == 0L) throw DecodingException("/type", "Realtime event type must not be empty")
+    val eventId = realtimeOptionalString(value, "event_id", "")
+    val event: RealtimeEvent = when (type) {
+        case "session.created" -> SessionCreated(realtimeObject(value, "session"))
+        case "session.updated" -> SessionUpdated(realtimeObject(value, "session"))
+        case "response.created" -> ResponseCreated(readRealtimeResponse(dialect, realtimeObject(value, "response"), tools, false))
+        case "response.done" -> ResponseDone(readRealtimeResponse(dialect, realtimeObject(value, "response"), tools, true))
+        case "conversation.item.added" -> ConversationItem(realtimeObject(value, "item"))
+        case "conversation.item.done" -> ConversationItem(realtimeObject(value, "item"))
+        case "conversation.item.retrieved" -> ConversationItem(realtimeObject(value, "item"))
+        case "conversation.item.created" -> ConversationItem(realtimeObject(value, "item"))
+        case "response.output_item.added" -> OutputItemAdded(realtimeString(value, "response_id"), realtimeIndex(value, "output_index"), realtimeObject(value, "item"))
+        case "response.output_item.done" -> OutputItemDone(realtimeString(value, "response_id"), realtimeIndex(value, "output_index"), realtimeObject(value, "item"))
+        case "response.content_part.added" -> ContentPartAdded(realtimeContentPosition(value), realtimeObject(value, "part"))
+        case "response.content_part.done" -> ContentPartDone(realtimeContentPosition(value), realtimeObject(value, "part"))
+        case "response.output_text.delta" -> TextDelta(realtimeContentPosition(value), realtimeString(value, "delta"))
+        case "response.output_text.done" -> TextDone(realtimeContentPosition(value), realtimeString(value, "text"))
+        case "response.output_audio_transcript.delta" -> TranscriptDelta(realtimeContentPosition(value), realtimeString(value, "delta"))
+        case "response.output_audio_transcript.done" -> TranscriptDone(realtimeContentPosition(value), realtimeString(value, "transcript"))
+        case "response.output_audio.delta" -> {
+            val position = realtimeContentPosition(value)
+            val bytes = Base64.Default.withPadding(Base64.PaddingOption.Optional).decodeOrNone(realtimeString(value, "delta"))
+                ?: throw DecodingException("/delta", "invalid Base64 audio")
+            AudioDelta(position, bytes)
+        }
+        case "response.output_audio.done" -> AudioDone(realtimeContentPosition(value))
+        case "response.function_call_arguments.delta" -> FunctionArgumentsDelta(realtimeItemPosition(value), realtimeString(value, "call_id"), realtimeString(value, "delta"))
+        case "response.function_call_arguments.done" -> FunctionArgumentsDone(realtimeItemPosition(value), realtimeString(value, "call_id"),
+            realtimeString(value, "name"), realtimeString(value, "arguments"))
+        case "response.mcp_call_arguments.delta" -> McpArgumentsDelta(realtimeItemPosition(value), realtimeString(value, "delta"))
+        case "response.mcp_call_arguments.done" -> McpArgumentsDone(realtimeItemPosition(value), realtimeString(value, "arguments"))
+        case "response.mcp_call.in_progress" -> McpActivity(realtimeString(value, "item_id"), ServerToolStatus.InProgress)
+        case "response.mcp_call.completed" -> McpActivity(realtimeString(value, "item_id"), ServerToolStatus.Completed)
+        case "response.mcp_call.failed" -> McpActivity(realtimeString(value, "item_id"), ServerToolStatus.Failed)
+        case "mcp_list_tools.in_progress" -> McpActivity(realtimeString(value, "item_id"), ServerToolStatus.InProgress)
+        case "mcp_list_tools.completed" -> McpActivity(realtimeString(value, "item_id"), ServerToolStatus.Completed)
+        case "mcp_list_tools.failed" -> McpActivity(realtimeString(value, "item_id"), ServerToolStatus.Failed)
+        case "conversation.item.input_audio_transcription.delta" -> realtimeTranscription(dialect, value, false)
+        case "conversation.item.input_audio_transcription.completed" -> realtimeTranscription(dialect, value, true)
+        case "error" -> Error(realtimeObject(value, "error"))
+        else -> Native(value)
+    }
+    return RealtimeMessage(dialect.id, type, eventId, event, value)
+}
+
+private fun realtimeTranscription(dialect: RealtimeDialect, value: JsonValue, complete: Boolean): RealtimeEvent {
+    val index = if (complete) Some(realtimeIndex(value, "content_index"))
+        else when (value["content_index"]) { case Some(raw) -> readRealtimeValue<ULong?>(raw, "/content_index"); case None -> None }
+    val text = if (complete) Some(realtimeString(value, "transcript")) else realtimeOptionalString(value, "delta", "")
+    val usage = value["usage"]
+    var tokens = TokenUsage()
+    when (usage) {
+        case Some(raw) -> {
+            val type = if (raw.kind == JsonValueKind.Object) raw["type"] else None
+            if (llmPresent(type) && type!!.kind == JsonValueKind.String && type!!.asString() == "tokens")
+                tokens = dialect.readUsage(raw)
+        }
+        case None -> {}
+    }
+    return RealtimeEvent.InputTranscription(realtimeString(value, "item_id"), index, text,
+        LlmUsage(tokens, if (complete) UsageCompleteness.Final else UsageCompleteness.Partial, usage))
+}

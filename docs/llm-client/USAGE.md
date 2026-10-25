@@ -399,7 +399,7 @@ suspend fun useGateway(
 }
 ```
 
-None 的语义按字段固定：`httpClient = None` 创建作用域内拥有的 HTTP client，Some 借入并复用；`baseUrl = None` 使用 provider 的部署缺省；`readIdle = None` 关闭这个阶段的 idle 截止。它们均不兼任“继承上一层设置”。借入 client 的 TLS、代理和连接池配置保留；LLM 的请求级等待、重试、redirect 等策略按调用选项明确设置，不能通过复制连接池或覆盖原 observer 实现。
+None 的语义按字段固定：`httpClient = None` 创建作用域内拥有的 HTTP client，Some 借入并复用；`baseUrl = None` 使用 provider 的 API 地址缺省；`readIdle = None` 关闭这个阶段的 idle 截止。它们均不兼任“继承上一层设置”。借入 client 的 TLS、代理和连接池配置保留；LLM 的请求级等待、重试、redirect 等策略按调用选项明确设置，不能通过复制连接池或覆盖原 observer 实现。
 
 若要使用 Chat protocol，显式改用 `Providers.openAiChat()` 创建另一个 endpoint／model 绑定。不能只替换 URL 后继续套用 Responses 的工具或原生历史；两个 provider 可以共享同一个 http。两个绑定的 capability 各自取得，未知模型不触发目录联网查询。
 
@@ -843,9 +843,9 @@ val restored = Json.decodeFromString<GeminiLiveMessage>(saved)
 
 message.event 区分内容、函数调用、取消和会话通知。内容同时保留音频、文本、reasoning 与三类转写；turnComplete 和 interactionStatus 分别读取。应用执行完整的客户端调用后，用收到的 reference 构造 `GeminiLiveToolResult(call.reference, responseObject)`，再交给 encodeToolResponse。responseObject 原样包含结果及需要的 scheduling 字段；库不运行工具或恢复连接。每条 usage 独立保存，缺失分量保持未知；native 保存完整服务端消息。
 
-### 7.14 OpenAI Realtime 的请求线协议
+### 7.14 OpenAI Realtime 的请求与事件线协议
 
-Realtime 使用自己的 provider。当前实现纯请求编码，以下例子产生 JSON 命令；服务端事件解码和持久会话继续接入。模型由连接 URL 指定，命令编码不会隐式连接或触发下一条命令。
+Realtime 使用自己的 provider。以下例子产生 JSON 命令并解码收到的事件；持久会话继续接入。模型由连接 URL 指定，命令编码不会隐式连接或触发下一条命令。
 
 ```scoop
 val endpoint = LlmEndpoint(Providers.openAiRealtime(), LlmAuth.bearer(apiKey))
@@ -878,12 +878,31 @@ val saved = Json.encodeToString(configuration)
 
 `RealtimeResponseRequest(input = Some([]), conversation = Some("none"))` 明确指定不使用历史且不写入默认对话；input=None 保留服务端会话上下文。函数结果使用既有 ToolResult 和实际 call ID；服务端 MCP 使用同 dialect 的 NativeToolDefinition。需要指定 MCP 子工具等完整原生命令时，使用独立的 RealtimeNativeCommand 与 encodeNativeCommand，内容原样保留。当前适配以官方文档与本地 mock 验证，没有使用失效的官方 OpenAI key。
 
+每条服务端消息可独立解码，tools 使用应用已声明的工具；不使用工具时自然省略该参数。文本、音频字节与转写分别交付，response.done 提供完整响应的读取视图：
+
+```scoop
+val message = protocol.decodeMessage(Json.parse(receivedJson), tools)
+when (message.event) {
+    case TextDelta(position, text) -> println(position.item.responseId + ": " + text)
+    case AudioDelta(_, bytes) -> println(bytes.size)
+    case ResponseDone(response) -> {
+        println(response.text)
+        println(response.clientToolCalls.size)
+        println(Json.encodeToString(response.usage))
+    }
+    else -> println(message.type)
+}
+val saved = Json.encodeToString(message)
+```
+
+参数 done 和 item done 不等于函数可执行；上例中的 `response.clientToolCalls` 只包含成功终态、完整参数和已关联声明的调用。MCP 留在 serverToolActivities 中。音频的 MIME 与采样率来自实际会话／响应配置，decoder 不猜格式、不拼接整段音频；输入转写的 usage 与响应 usage 分开。含音频的响应不提供可重放 History，因为 response.done 没有完整音频数据且 item.create 不接受 assistant 音频。`message.native` 保留完整事件，未知通知、附加信息和可恢复 error 仍可由应用读取。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |
 | --- | --- | --- |
 | Provider／认证／model ID | 必填；不选全局供应商、凭据或模型 | 选择另一绑定；无认证用 none |
-| Endpoint URL | 采用所选 provider 的已知部署缺省 | `baseUrl = Some(url)`；无缺省的 provider 必填 |
+| Endpoint URL | 采用所选 provider 的已知 API 地址缺省 | `baseUrl = Some(url)`；无缺省的 provider 必填 |
 | Model capabilities | 使用该入口的准确已知资料，其余 Unknown | `capabilities = Some(description)`；不改变 adapter 能否编码 |
 | Message role | 新输入为 User | 指定其他 role；模型原生历史用 toInput 保留 |
 | Request | input 必填；system、tools 为空 | 在同一 request 增加内容和工具 |

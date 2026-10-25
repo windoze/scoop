@@ -1,0 +1,62 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class RealtimeUsageFields public constructor(
+    @Serialize(rename = "input_tokens") public val input: Long? = None,
+    @Serialize(rename = "output_tokens") public val output: Long? = None,
+    @Serialize(rename = "total_tokens") public val total: Long? = None,
+    @Serialize(rename = "input_token_details") public val inputDetails: RealtimeInputTokenDetails? = None,
+    @Serialize(rename = "output_token_details") public val outputDetails: RealtimeOutputTokenDetails? = None
+) {
+    public companion object : ValueDecoder<RealtimeUsageFields>
+}
+
+private class RealtimeInputTokenDetails public constructor(
+    @Serialize(rename = "text_tokens") public val text: Long? = None,
+    @Serialize(rename = "audio_tokens") public val audio: Long? = None,
+    @Serialize(rename = "image_tokens") public val image: Long? = None,
+    @Serialize(rename = "cached_tokens") public val cached: Long? = None
+) {
+    public companion object : ValueDecoder<RealtimeInputTokenDetails>
+}
+
+private class RealtimeOutputTokenDetails public constructor(
+    @Serialize(rename = "text_tokens") public val text: Long? = None,
+    @Serialize(rename = "audio_tokens") public val audio: Long? = None
+) {
+    public companion object : ValueDecoder<RealtimeOutputTokenDetails>
+}
+
+internal fun readRealtimeUsage(value: JsonValue): TokenUsage {
+    val fields = readRealtimeValue<RealtimeUsageFields>(value, "/usage")
+    val input = realtimeCount(fields.input, "/usage/input_tokens")
+    val output = realtimeCount(fields.output, "/usage/output_tokens")
+    val total = realtimeCount(fields.total, "/usage/total_tokens")
+    val cached = when (fields.inputDetails) { case Some(details) -> realtimeCount(details.cached, "/usage/input_token_details/cached_tokens"); case None -> None }
+    val ordinary = if (input != None && cached != None) {
+        if (cached!! > input!!) throw DecodingException("/usage/input_token_details/cached_tokens", "cached tokens exceed input")
+        Some(input!! - cached!!)
+    } else None
+    val modality = ArrayList<ModalityTokenUsage>()
+    when (fields.inputDetails) { case Some(details) -> {
+        realtimeModality(modality, details.text, TokenDirection.Input, TokenModality.Text, "/usage/input_token_details/text_tokens")
+        realtimeModality(modality, details.audio, TokenDirection.Input, TokenModality.Audio, "/usage/input_token_details/audio_tokens")
+        realtimeModality(modality, details.image, TokenDirection.Input, TokenModality.Image, "/usage/input_token_details/image_tokens")
+    }; case None -> {} }
+    when (fields.outputDetails) { case Some(details) -> {
+        realtimeModality(modality, details.text, TokenDirection.Output, TokenModality.Text, "/usage/output_token_details/text_tokens")
+        realtimeModality(modality, details.audio, TokenDirection.Output, TokenModality.Audio, "/usage/output_token_details/audio_tokens")
+    }; case None -> {} }
+    return TokenUsage(input, ordinary, output, total, cached, modality = modality.toArray())
+}
+
+private fun realtimeCount(value: Long?, path: String): Long? {
+    if (value != None && value!! < 0L) throw DecodingException(path, "token count must not be negative")
+    return value
+}
+
+private fun realtimeModality(result: ArrayList<ModalityTokenUsage>, value: Long?, direction: TokenDirection, modality: TokenModality, path: String) {
+    val count = realtimeCount(value, path)
+    if (count != None) result.add(ModalityTokenUsage(direction, modality, count!!))
+}
