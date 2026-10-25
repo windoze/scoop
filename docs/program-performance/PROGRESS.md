@@ -14,9 +14,11 @@
 
 ## 当前进展
 
+- 已完成[普通 managed poll 与有界叶函数](ACTIVE-POLLS.md)：普通 Full poll 只读取全局 phase，省去 TLS／mode／epoch；既有有界叶函数省入口，root／初始化 gateway 保留有锁激活。三个目标的动态调用内核降低 16.52%／27.51%／39.52%，代码与静态记录均缩小，编译墙钟变化 −2.13%～+1.43%；对照波动、机器码与定向 GC／ABI 验证已记录。所有 profile 默认，无新增诊断代码或 ABI 改动。
+- 下一批以用户提供的 `/tmp/scoop-bench` 为实际负载：先去掉 minor GC 的全堆遍历／卡表工作，再评估 survivor 与晋升年龄；同步核实内部小成员的正文导出、循环内联优先级与实际调用成本，随后处理 callable／stackmap 的无用保留。输入副本与原始记录放在仓库 `tmp/program-performance/priority-review/`，不将测量设施改造另开为主线。
 - 已完成[启动 site 的 owner 验证合并](STARTUP-OWNER-JOIN.md)：首次 stackmap 合并时一次解析与验证，重复 ODR 复用结果，保留完整性与错误检查。两机 image 测试和三目标 6 个启动 variant 通过；默认最小／JSON 程序启动分别降低 Darwin 6.49%／7.14%、GNU 8.10%／7.92%、musl 2.65%／2.85%。完整文件和静态元数据大小不变，text 增加 16～128 B，相同 `.slib` 零编译子进程复用，全部 profile 默认启用；没有新增测量或 ABI 机制。
 - 已完成[编译期开关控制的启动测量](STARTUP-STATS.md)：`--enable-startup-stats` 独立于 profile／GC stress，默认预处理排除新增计时、报告、诊断字符串和专用计数访问。三目标 6 个 variant 通过，两个实际程序的默认完整代码段与无测量基线逐字节相同、文件大小相同；开启开销与阶段成本已记录，注册汇集、代码／类型与 stackmap 是后续实际热点。
-- 已完成[poll 的本线程 relaxed 读取](POLL-OWNER-READS.md)：按实际单写者关系保留共享 acquire，降低本线程 mode／epoch 的读取强度；ARM64 Full poll 4→2 条 ldar，叶入口改为 ldr，TLS 仍保留。三个目标 18 个 GC variant、96 个进程通过，机器码／元数据与小范围复测完成；没有把 Linux 字节相同内核的时间波动算作优化收益，所有 profile 默认采用。
+- 已完成[poll 的本线程 relaxed 读取](POLL-OWNER-READS.md)：按实际单写者关系保留共享 acquire，降低本线程 mode／epoch 的读取强度；当时 ARM64 Full poll 4→2 条 ldar，叶入口改为 ldr，TLS 保留，普通路径现已由上项进一步消除。三个目标 18 个 GC variant、96 个进程通过，机器码／元数据与小范围复测完成；没有把 Linux 字节相同内核的时间波动算作优化收益，Gateway 继续采用此读取规则。
 - 已完成[普通内联增长额度调整](INLINE-GROWTH.md)：统一将初始常数 96 调为 128，总上限 384、执行成本与跨轮累计保持；真实 ArrayList.get 已内联，底层检查／数组 helper 继续按成本选择。三目标遍历内核减少约 16%～24%，代码增加 32～64 B，编译变化 −0.44%～+2.29%；66 项 MIR 与定向 CLI／GC、优化快照通过，release 默认启用。
 - 已完成[跨 Cone 普通成员内联](MEMBER-INLINING.md)：普通方法、getter 与显式 default 复用同一正文结构和成本选择，保留 receiver、访问器身份及未知分派；没有按函数名称特判。三目标用户方法／getter 内核降低约 47%～73%，代码仅增加 64～80 B，core 正文增加约 22～24 KB；89 项 HIR 与 12 个 ABI／GC variant 通过，保留 GNU 标量首轮波动与定向复测。沿用 release 默认能力；后续增长额度调整见上项，poll／TLS、native bridge 与启动登记继续处理。
 - 已完成 [Darwin 的 Scoop 符号镜像内绑定](LOCAL-SYMBOLS.md)：同一预编译输入的 21,643 个 Scoop 动态导出、9,462 条 weak binding 和 310 处直接调用 stub 消失；零次循环进程中位数降低 46.60%，程序缩小 16.84%，ArrayList 内核降低 2.30%。定向 ABI／跨 Cone／GC 通过，记录稳态回退和最终链接成本；内联、poll／TLS 与 runtime 启动登记继续优先推进。

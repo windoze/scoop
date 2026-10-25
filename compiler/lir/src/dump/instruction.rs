@@ -518,7 +518,7 @@ pub(super) fn dump_instruction(
             "    poll{} managed-void-target{} sp{} live=[{}]\n",
             match site.kind {
                 ManagedPollKind::Full => "",
-                ManagedPollKind::EntryActivation => " activation",
+                ManagedPollKind::Gateway => " gateway",
             },
             site.target.into_raw(),
             safepoint_name(function, site.safepoint),

@@ -112,10 +112,21 @@ pub(super) fn complete_function(
 ) -> StorageResult<lir::Function> {
     fold_constant_branches(&mut lowered.function);
     prune_unreachable_blocks(&mut lowered);
-    let entry_kind = if leaf::eligible(context, &lowered.function, structs, enums)? {
-        lir::ManagedPollKind::EntryActivation
+    let entry_kind = if matches!(
+        lowered
+            .function
+            .callable_body
+            .identity_record()
+            .key()
+            .kind(),
+        scoop_identity::CallableBodyKeyKind::RootGateway { .. }
+            | scoop_identity::CallableBodyKeyKind::InitializationStartupGateway(_)
+    ) {
+        Some(lir::ManagedPollKind::Gateway)
+    } else if leaf::eligible(context, &lowered.function, structs, enums)? {
+        None
     } else {
-        lir::ManagedPollKind::Full
+        Some(lir::ManagedPollKind::Full)
     };
     insert_polls(
         &mut lowered.function,

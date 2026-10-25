@@ -5,23 +5,16 @@ use inkwell::values::AnyValue;
 fn conditional_polls_materialize_roots_only_on_the_slow_edge() {
     for kind in [
         scoop_lir::ManagedPollKind::Full,
-        scoop_lir::ManagedPollKind::EntryActivation,
+        scoop_lir::ManagedPollKind::Gateway,
     ] {
         check(kind);
     }
 }
 
 fn check(kind: scoop_lir::ManagedPollKind) {
-    let loads = if kind == scoop_lir::ManagedPollKind::Full {
-        4
-    } else {
-        1
-    };
-    let acquire = if kind == scoop_lir::ManagedPollKind::Full {
-        2
-    } else {
-        0
-    };
+    let gateway = kind == scoop_lir::ManagedPollKind::Gateway;
+    let loads = if gateway { 4 } else { 1 };
+    let acquire = if gateway { 2 } else { 1 };
     let mut module = qualification::stackmap_qualification_module();
     for function in &mut module.functions {
         let Instruction::ManagedPoll { site } =
@@ -71,7 +64,7 @@ fn check(kind: scoop_lir::ManagedPollKind) {
                 function_ir
                     .matches("load ptr, ptr @scoop_rt_poll_state")
                     .count(),
-                1,
+                usize::from(gateway),
                 "{function_ir}"
             );
             assert_eq!(
@@ -98,7 +91,22 @@ fn check(kind: scoop_lir::ManagedPollKind) {
                 assert_eq!(line.contains("acquire"), shared, "{line}");
                 assert_eq!(line.contains("monotonic"), !shared, "{line}");
             }
-            assert!(entry_ir.contains("icmp eq i32 %poll_mode, 1"), "{entry_ir}");
+            if gateway {
+                assert!(entry_ir.contains("icmp eq i32 %poll_mode, 1"), "{entry_ir}");
+            } else {
+                assert!(
+                    entry_ir.contains("icmp eq i32 %poll_phase, 0"),
+                    "{entry_ir}"
+                );
+                assert!(
+                    !function_ir.contains("@scoop_thread_gc_epoch"),
+                    "{function_ir}"
+                );
+                assert!(
+                    !function_ir.contains("@scoop_rt_poll_state"),
+                    "{function_ir}"
+                );
+            }
             assert!(!entry_ir.contains("_source"), "{entry_ir}");
             assert!(
                 !entry_ir.contains("call void @scoop_rt_safepoint"),

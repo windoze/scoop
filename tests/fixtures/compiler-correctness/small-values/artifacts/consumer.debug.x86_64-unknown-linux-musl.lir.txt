@@ -408,7 +408,7 @@ Module
     ret t1
   fun @scoop$1$cb$b64968c7a72fbcdee28aa509d881233b19d42e6e31122751c75e631d36a870e6(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
-    poll managed-void-target1 sp<managed-poll:0> live=[]
+    poll gateway managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
     br @success

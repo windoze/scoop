@@ -64,22 +64,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     ) -> Result<IntValue<'ctx>, CodegenError> {
         let context = self.context;
         let builder = self.builder;
-        if kind == scoop_lir::ManagedPollKind::EntryActivation {
-            let state = self.poll_state()?;
-            let mode = self.poll_atomic_load(
+        if kind == scoop_lir::ManagedPollKind::Full {
+            let phase = self.poll_atomic_load(
                 context.i32_type(),
-                state,
-                "poll_mode",
-                AtomicOrdering::Monotonic,
+                self.poll_global(Symbol::WorldPhase, context.i32_type().into()),
+                "poll_phase",
+                AtomicOrdering::Acquire,
             )?;
             return builder
                 .build_int_compare(
                     IntPredicate::EQ,
-                    mode,
+                    phase,
                     context
                         .i32_type()
-                        .const_int(scoop_lir::POLL_THREAD_MANAGED, false),
-                    "poll_managed",
+                        .const_int(scoop_lir::POLL_WORLD_RUNNING, false),
+                    "poll_running",
                 )
                 .map_err(poll_error);
         }

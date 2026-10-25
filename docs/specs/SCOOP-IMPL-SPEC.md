@@ -317,9 +317,9 @@ codegen 对上述小型普通对象分配可分析结果之后的确定初始化
 
 ARM64 release 的 TLAB context 地址在每次函数调用内按首次使用取得并复用。codegen 用入口初始化的非逃逸 AS0 局部槽表达空缓存，各实际分配点只在缓存为空时读取 TLS；交由既有 LLVM 标量优化提升为 SSA，不把取址无条件移到只含失败／异常分配的函数入口。若已有常量资格、大小或溢出条件直接否定 TLAB 路径，则先选择原 collecting slow path，不取得 context。首次 TLS load 使用 volatile 约束执行位置，避免 LLVM 将条件取址变成无条件取址加 select；这不是线程同步，缓存和 context 字段仍按各自普通／原子访问规则处理。缓存跨普通调用、GC、refill、异常处理和同步 callback 保留，依据运行时规范 3.1 的 attachment 生命周期；各分配点继续加载当前 cursor、limit 与块元数据，不复用这些可变内容。x86 试验收益不足以抵消宽对象路径回退，沿用逐次读取；debug 也不建立该缓存。统一 runtime ABI 与 LIR／跨 Cone 格式保持。
 
-`ManagedPoll` 表示运行时规范 3.2 的条件 poll，携带唯一慢路径 site 与完整 live set。codegen 发射 acquire 检查和快／慢分支，只在慢分支物化该站点的 managed leaves、调用协调入口并回写 relocation；后续使用通过普通 canonical storage／SSA 合流取得快路径原值或慢路径新值。入口 pending 的 mode 检查属于同一操作，不能仅按 world phase 删除首次激活。TLS 与全局数据引用使用闭合 runtime ABI 目录中的普通数据合同。
+`ManagedPoll` 表示运行时规范 3.2 的条件 poll，携带唯一慢路径 site 与完整 live set。codegen 发射 acquire 检查和快／慢分支，只在慢分支物化该站点的 managed leaves、调用协调入口并回写 relocation；后续使用通过普通 canonical storage／SSA 合流取得快路径原值或慢路径新值。Full 模式用于已激活的普通 managed 执行，只读取 world phase；Gateway 模式保留入口 pending 的 mode／epoch 检查，不能仅按 world phase 删除首次激活。TLS 与全局数据引用使用闭合 runtime ABI 目录中的普通数据合同。
 
-LIR lowering 在最终 CFG 上按运行时规范 3.2 选择有界叶函数的 `EntryActivation` 入口模式；其快路径仅 acquire 读取 mode 并判断 MANAGED，其他模式保留相同的完整慢路径与根计划。普通 `Full` poll 继续读取 epoch、phase、mode 与 observed epoch。资格由明确的操作集合、无环直线路径和小值复制决定，不依赖源函数名称或调用方推测；codegen 消费该模式，不再重做资格分析。
+LIR lowering 在最终 CFG 上按运行时规范 3.2 省去有界普通叶函数的入口 poll，普通入口与循环选 Full。root／initialization startup gateway 由已有的完整 callable body key 区分，入口始终选 Gateway；callback adapter 沿 runtime 已激活协议选择普通模式。叶函数资格由明确的操作集合、无环直线路径和小值复制决定，不依赖源函数名称或调用方推测；codegen 消费已选模式，不再重做资格分析。所有 profile 一致，缺少 poll 的合法 body 仍有 callable registration；既有 `.slib` 与 ABI 相容，不新增跨 Cone 效果承诺。
 
 driver 按“lir-lower 准备布局与逻辑签名 → codegen 规划目标 ABI → lir-lower 完成正文”的顺序编排，stage 之间只传递 LIR crate 定义的完整数据。准备结果与最终 Module 是不同类型；不得用缺失签名、默认 ABI 或完整 lowering 后丢弃正文重跑来实现准备。布局、scalar leaves、扫描信息与已选依赖 ABI 在准备时建立／映射一次并复用。聚合输入以 typed 字段引用共享已准备的存储节点；不按逻辑字节数展开大型 tagged payload，也不复制嵌套值布局。后端只为可能使用寄存器的聚合读取其标量叶子。
 
@@ -1385,7 +1385,7 @@ release 还可对上述常数有界区域中的小型引用读取内层作四倍
 
 条件 poll 在 LIR 保存慢路径 site 与完整 live set，仅实际慢路径产生 statepoint／stackmap；合流连接更新引用，NoGC 不新增 poll。内联、去虚拟化及 CFG 改写均先于最终 roots 定稿，后端不靠完整 runtime poll 调用维持普通循环的检查。
 
-codegen 按运行时规范 3.5 区分 poll 的共享同步读取与所属线程读取：全局 epoch／phase 使用 LLVM acquire，本线程 mode／observed epoch 使用 monotonic（对应 C relaxed）。Full 与 EntryActivation、全部构建 profile 使用同一规则；读取仍位于原 poll，TLS 地址复用、条件慢边、状态点与 roots 不变。此选择不弱化 runtime 向收集者发布状态及 native 返回握手的内存序，也不增加或改变 callable 参数。
+codegen 按运行时规范 3.2 的入口状态保证与 3.5 的线程握手生成 poll：普通 Full 仅以 LLVM acquire 读取全局 phase，不取得 TLS；Gateway 的全局 epoch／phase 使用 acquire，本线程 mode／observed epoch 使用 monotonic（对应 C relaxed）。有界普通叶函数可由 LIR lowering 省去入口 poll，Gateway 仍保留 pending 激活。全部构建 profile 使用同一规则；保留的读取仍位于原 poll，条件慢边、状态点与 roots 保持。此选择不弱化 runtime 向收集者发布状态及 native 返回握手的内存序，也不增加或改变 callable 参数。
 
 依据语言规范 1.2，编译器可以假定普通非原子访问不存在数据竞争，不为竞争场景提供单字或逐字段不撕裂的保证。普通字段、数组元素、全局存储和聚合值复制无需为此改用 LLVM `unordered` 原子 load/store、增加发布屏障或限制访问的机器指令粒度；显式同步原语以及 runtime/GC 内部同步的契约仍须保持。
 

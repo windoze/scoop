@@ -4,6 +4,10 @@
 
 2026-10-24 修订：将测量与归因基础设施前置为独立交付；PGO 保留为后续独立专项，按实际优化消费者与收益安排，不与全程序优化／ThinLTO 绑定排期。另以源码及本机 release 产物核对父接口查表和 smart cast 成功路径，见 §5.2.1；该检查不包含性能计时。
 
+2026-10-25 追加核对：用户提供 `/tmp/scoop-bench` 的实际负载。当前 minor GC 在开始、迁移选择、结束与卡表处理中仍遍历全堆，年轻对象首次存活即晋升，优先拆除这些随旧代规模增长的工作，再评估 survivor／年龄。内联已有冷抛出／陷阱路径的执行权重，但增长额度按固定顺序消费；提供的 Complex.times 报告是 execution 51 超过 limit 40，增长额度尚足，需分别处理循环选择顺序与调用成本估价。普通库正文导出的操作集合仍窄，需以 ModificationCounter／HashLocation 的实际缺失形式补齐通用支持。镜像登记表仍统一引用 callable／safepoint 记录，后续裁剪必须同步处理可达正文与其记录，保留动态分派、函数值与入口等真实引用。普通入口 TLS 已由[普通 poll 与有界叶函数](ACTIVE-POLLS.md)直接消除，无需新增线程参数或专用寄存器。
+
+用当前工具和已重编系统库复现后，Complex.times 仍是 51／40；strmap 报告中 ModificationCounter.snapshot／check／advance 和 HashLocation 构造器均为 `no-mir-body`。与用户保留的 `bin3` 作一次预热、五对交错对照，dispatch 为 2.325→1.829 s，values 为 0.224→0.183 s，输出一致；这是用户旧产物到当前完整构建的对照，不将其全部归因于某一项变更，也不表示上述内联缺口已经解决。原始记录在仓库 `tmp/program-performance/priority-review/`。
+
 本文对照语言、运行时、实现三份规范，核查实际优化代码、M31／M34／M56／M58／M62 的设计和测量，并查阅 Go、OpenJDK、Kotlin/Native、LLVM 的一手资料。本文没有新运行四种语言的对比基准；引用的 Scoop 时间都是既有实验，不能据此判定当前已经达到对手。下述方案为后续实施建议，不改变当前规范、公开 ABI 或默认构建配置。
 
 ## 1. 结论与目标
@@ -35,7 +39,7 @@
 | MIR 优化 | 去虚化、内联、局部 box／closure／class 字段替换交替执行，最多三轮；局部对象与循环范围可指导内联，intrinsic 另有必要归一化 | 不是通用跨过程分析；分配消除仍受 EH、跨调用及逃逸限制；没有冷路径物化 |
 | 跨 Cone 优化 | 泛型具体化；M62 发布并消费部分普通顶层小函数的可移植 HIR 正文 | 普通正文导入范围受限，不等于任意成员、构造器、循环、Context、EH、suspend 都能跨库展开 |
 | LLVM | SROA、范围约束、SCCP、GVN、memcpyopt、DSE 等；NoGc 有循环和向量优化；有界 Managed 内层支持标量／引用及对应 wrapper 数组、无环条件正文与共享提前退出 | 数组初始化及单位步长 checked 访问已打通；一般 CFG／循环变换、搜索和有序归约 SIMD、一般聚合及未展开调用仍有限制，引用写屏障保持 |
-| GC 集成 | AS1 non-integral pointer，精确根，RS4GC，条件 poll，只在慢路径物化 poll roots | site 与逻辑恢复标记较早限制变换；机器 tail duplication 关闭；这限制了默认 O2/O3 能直接复用的范围 |
+| GC 集成 | AS1 non-integral pointer，精确根，RS4GC；普通 poll 只读 phase，有界叶函数省入口，gateway 保留激活，只在慢路径物化 roots | site 与逻辑恢复标记较早限制变换；机器 tail duplication 关闭；这限制了默认 O2/O3 能直接复用的范围 |
 | 物理产物 | 逐 callable LLVM module／对象，Strong／ODR 选择，已有私有 closure 支持裁剪 | LLVM 通常看不到其他 callable 的定义；尚无全程序优化、PGO 或 ThinLTO 路线 |
 | 调用 | 小于等于 16 bytes 的 GC-free 聚合值可按目标直接传递；接口拆成 object／itab | 24-byte V3 仍间接传递；含引用聚合值仍间接；真实动态函数视图还可能经过 Any bridge |
 | 协程 | 无 site 的同步路径、状态机前同步内联、尾部 completion 转交 | 真挂起路径和未能消除的同步完成路径仍有 frame／adapter；跨库、EH 和更一般的生命周期尚未优化 |

@@ -91,15 +91,20 @@ pub(super) fn insert_polls(
     loop_header_polls: &[MappedLoopHeaderPollTarget],
     sites: &mut PendingSafepointSites,
     planned: &lir::ScoopAbiSignature,
-    entry_kind: lir::ManagedPollKind,
+    entry_kind: Option<lir::ManagedPollKind>,
 ) {
     if function.gc_effect == lir::GcEffect::NoGc {
         return;
     }
-    let mut poll_blocks = vec![false; function.blocks.len()];
-    poll_blocks[arena_index(function.entry)] = true;
+    let mut poll_blocks = vec![None; function.blocks.len()];
     for target in loop_header_polls {
-        poll_blocks[arena_index(target.block())] = true;
+        poll_blocks[arena_index(target.block())] = Some(lir::ManagedPollKind::Full);
+    }
+    if let Some(kind) = entry_kind {
+        poll_blocks[arena_index(function.entry)] = Some(kind);
+    }
+    if poll_blocks.iter().all(Option::is_none) {
+        return;
     }
     let signature = function
         .call_targets
@@ -119,9 +124,9 @@ pub(super) fn insert_polls(
             signature,
         });
     for (block_id, block) in function.blocks.iter_mut() {
-        if !poll_blocks[arena_index(block_id)] {
+        let Some(kind) = poll_blocks[arena_index(block_id)] else {
             continue;
-        }
+        };
         let insertion = usize::from(matches!(
             block.instructions.first(),
             Some(lir::Instruction::LandingPad { .. } | lir::Instruction::CleanupPad { .. })
@@ -130,11 +135,7 @@ pub(super) fn insert_polls(
             insertion,
             lir::Instruction::ManagedPoll {
                 site: lir::ManagedPollSite {
-                    kind: if block_id == function.entry {
-                        entry_kind
-                    } else {
-                        lir::ManagedPollKind::Full
-                    },
+                    kind,
                     target: poll_target,
                     safepoint: sites.allocate(lir::SafepointSiteRole::ManagedPoll),
                     live: lir::StatepointLiveSet::default(),

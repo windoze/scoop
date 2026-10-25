@@ -119,8 +119,10 @@ impl NativeBorrowedRootSet {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ManagedPollKind {
+    /// A full safepoint check in an already active managed segment.
     Full,
-    EntryActivation,
+    /// The root or initialization gateway may still need pending activation.
+    Gateway,
 }
 
 #[derive(Debug)]

@@ -760,7 +760,8 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - [已采纳优化与开启条件](program-performance/ENABLED-OPTIMIZATIONS.md)简要列出各项方案的默认 profile、适用条件及实际开关，后续采纳与策略变更时同步维护。
 - [启动阶段测量](program-performance/STARTUP-STATS.md)已通过 `--enable-startup-stats` 提供；默认预处理排除全部新增计时和报告，三目标默认程序的代码段与无测量基线逐字节相同。统计记录七阶段与已有索引数量，开关只改变 runtime／最终链接，作为注册与 stackmap 优化的指导，不提前引入 PGO。
 - [启动 owner 验证合并](program-performance/STARTUP-OWNER-JOIN.md)已按测量结果交付：首次 stackmap 合并时完成一次 owner 解析，重复 ODR 复用结果，全部必要检查仍在 managed 执行前完成。三个目标的代表启动降低约 2.7%～8.1%，完整文件与静态元数据不增长；全部 profile 默认，ABI 和预编译 Cone 保持。
-- [poll 本线程读取](program-performance/POLL-OWNER-READS.md)按实际单写者关系使用 relaxed，共享 epoch／phase 与 runtime 发布握手保持；ARM64 Full poll 4→2 条 ldar，三目标 GC 定向验证通过，所有 profile 默认。TLS resolver 与启动登记仍需单独优化。
+- [普通 managed poll 与有界叶函数](program-performance/ACTIVE-POLLS.md)已交付：普通 Full poll 仅一次 acquire 读取 phase，省去 TLS／mode／epoch，既有有界叶函数省入口；Gateway 保留首次激活及[本线程 relaxed 读取](program-performance/POLL-OWNER-READS.md)。三个目标动态调用内核降低约 16.5%／27.5%／39.5%，静态空间缩小，定向 GC／ABI 与编译成本已验证，所有 profile 默认。
+- 下一批优先依据实际 trees／strings／strmap 负载消除 minor GC 的全堆工作，再评估 survivor／晋升年龄；内联分别补齐循环优先级、调用成本估价和实际缺失的库正文形式。callable／stackmap 裁剪随后处理真实可达性与登记保留，避免把优化推进转成测量设施的扩建。
 - [普通内联增长额度](program-performance/INLINE-GROWTH.md)已统一调整初始常数 96→128，保留总上限与执行阈值；ArrayList.get 调用消失，三目标遍历减少约 16%～24%，代码增加 32～64 B，release 默认。按实际成本保留其他 helper，未采纳增长回收试验。
 - [跨 Cone 普通方法与 getter 内联](program-performance/MEMBER-INLINING.md)已交付：相同的 HIR 结构和 MIR 成本选择，保留完整 receiver、typed accessor identity 与动态分派边界；三目标用户成员循环降低约 47%～73%，正文、代码与编译成本很小，release 默认启用。反向 profile、异常、泛型、装箱、GC roots 和旧库回退通过。
 - [Darwin 的 Scoop 符号镜像内绑定](program-performance/LOCAL-SYMBOLS.md)已交付：所有 profile 的最终链接移除 Scoop 动态导出、weak binding 和直接调用 stub，相容预编译库可直接重链接。代表程序缩小 16.84%，零次循环进程降低 46.60%；跨 Cone／GC、稳态回退与链接成本已验证。成员内联、内联选择、poll／TLS 和 runtime 启动登记继续优先推进。

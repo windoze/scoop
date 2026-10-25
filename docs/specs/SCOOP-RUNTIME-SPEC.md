@@ -369,17 +369,19 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 GC 私有 helper 的目标相关内联选择由平台层提供，通用 GC 不直接使用架构宏选择调用方式。各目标共用同一算法与必要检查；内联选择不改变对象表示、函数 ABI、forwarding 规则或公开配置项，其性能依据按目标分别验证。
 
-managed 函数入口和循环回边，包括 continue 回边，提供 safepoint。编译器可将继续迭代区域内无调用、分配或异常的简单计数循环分块：正文包含局部整数／Boolean／严格浮点计算，或索引合法性已在 MIR 保证的固定表示数组值读写、普通字段读取、身份比较和长度读取（实现规范 2.19）。这些值包括单字引用、interface、相应 MaybeUninit 和单引用 payload 的可选值；写入保留 3.6 的完整屏障，初始化保留 2.4 的部分初始化扫描规则。正文可以含条件分支，但去除唯一回边后必须无环，所有继续迭代的路径到达同一 latch，不能绕过归纳变量与内层倒计数的更新。提前退出沿原 return、break 或检查失败出口执行；只在退出路径上的调用、分配、异常与清理保留原 safepoint／roots，不进入复制区域。原循环 header 保留 poll，生成的内层由实际 CFG 中的常数上限倒计数约束，最多执行 64 次后返回外层 poll。数组的 managed 基址在外层 poll 后取得，内层不新增握手或跨 safepoint 的裸地址；已有引用写屏障在原写入处完成，不能因为分块或“刚分配”而省略。该选择不承诺墙钟暂停上界，不改变任意其他循环或 continue 的 poll 责任。managed references 在 LLVM ABI 中使用 address space 1；跨 safepoint 存活的引用必须由 stackmap 或显式 compiler root frame 描述。
+managed 函数入口（下述有界叶函数除外）和循环回边，包括 continue 回边，提供 safepoint。编译器可将继续迭代区域内无调用、分配或异常的简单计数循环分块：正文包含局部整数／Boolean／严格浮点计算，或索引合法性已在 MIR 保证的固定表示数组值读写、普通字段读取、身份比较和长度读取（实现规范 2.19）。这些值包括单字引用、interface、相应 MaybeUninit 和单引用 payload 的可选值；写入保留 3.6 的完整屏障，初始化保留 2.4 的部分初始化扫描规则。正文可以含条件分支，但去除唯一回边后必须无环，所有继续迭代的路径到达同一 latch，不能绕过归纳变量与内层倒计数的更新。提前退出沿原 return、break 或检查失败出口执行；只在退出路径上的调用、分配、异常与清理保留原 safepoint／roots，不进入复制区域。原循环 header 保留 poll，生成的内层由实际 CFG 中的常数上限倒计数约束，最多执行 64 次后返回外层 poll。数组的 managed 基址在外层 poll 后取得，内层不新增握手或跨 safepoint 的裸地址；已有引用写屏障在原写入处完成，不能因为分块或“刚分配”而省略。该选择不承诺墙钟暂停上界，不改变任意其他循环或 continue 的 poll 责任。managed references 在 LLVM ABI 中使用 address space 1；跨 safepoint 存活的引用必须由 stackmap 或显式 compiler root frame 描述。
 
-短小的 Managed 叶函数可仅在入口检查线程激活：正常返回的无环直线路径（可含内联产生的跳转块）、最多 64 条标量／固定大小值操作、字段读取及终结指令，每个值复制不超过 64 字节，无调用、分配、循环、异常或 native／全局存储访问。已处于 MANAGED 的线程直接执行有限正文并返回到 caller 的正常握手路径；其他 mode 仍走完整协调慢路径，保留 MANAGED_PENDING 首次有锁激活与所有 live roots／relocation。此选择不改变 callable 的 Managed effect，不向 caller 传播免 poll 资格；循环、普通调用及 gateway 的既有 poll 不变，不承诺墙钟停止上界。
+普通 Managed body 从已激活的 MANAGED 状态进入。root／initialization startup gateway 是仅有的 MANAGED_PENDING 入口，必须先完成自身入口的有锁激活；callback 在 runtime 进入协议中先激活，native 返回完成原握手后才恢复 managed 执行。普通调用、动态分派与跨 Cone 调用沿用这个状态保证，不按函数名称或调用点是否可内联区分。
 
-poll 正常路径内联原子读取 world phase、GC epoch／本线程 observed epoch 并条件分支，不取 world lock、不广播、不建立 runtime anchor，也不无条件物化该 poll 的显式 roots。慢路径才调用协调入口、发布 anchor 和执行 relocation；慢路径更新值与快路径原值在合流后连接。原子检查不能被提升出循环。MANAGED_PENDING 首次入口必须经有锁激活；NativeSafe 返回、callback 和 NativeBorrowed 仍遵守各自握手。
+短小的普通 Managed 叶函数可省去入口 poll：正常返回的无环直线路径（可含内联产生的跳转块）、最多 64 条标量／固定大小值操作、字段读取及终结指令，每个值复制不超过 64 字节，无调用、分配、循环、异常或 native／全局存储访问。已激活的线程直接执行有限正文并返回 caller；此选择不改变 callable 的 Managed effect，不向 caller 传播免 poll 资格，不承诺墙钟停止上界。root／initialization gateway 无论正文是否短小都保留首次激活。
 
-编译器读取的私有 ABI 为 TLS 指针 `scoop_rt_poll_state`，指向 size 16／align 8 的 `{ atomic u32 mode @0; atomic u64 observed_gc_epoch @8; }`；padding 不参与读写。它直接引用注册线程状态中的同一组字段，attach 时设置、detach 时清空，不复制另一套线程状态。全局 `scoop_thread_world_phase` 为 atomic u32／align 4，`scoop_thread_gc_epoch` 为 atomic u64／align 8。普通 Full poll 依次以 acquire 读取全局 epoch、phase，以 relaxed 读取本线程 mode、observed epoch；仅当 phase 为 RUNNING（0）、mode 为 MANAGED（1）且 epoch 一致时走快路径。EntryActivation 的本线程 mode 读取同样为 relaxed。其他情况调用 `scoop_rt_safepoint`，由现有线程协议处理 pending 激活、park 与 observed epoch 更新。
+普通入口与循环中的 Full poll 只以 acquire 原子读取 world phase，RUNNING 时继续执行，不读取 TLS、mode 或 epoch。collector 在 STOPPING 后仍须等待该 MANAGED 线程停稳；若本次读取与停止请求交错，线程到后续真实 safepoint 才停下，不能在其执行期间扫描或移动对象。原子检查不能被提升出循环。正常路径不取 world lock、不广播、不建立 runtime anchor，也不无条件物化该 poll 的显式 roots；慢路径仍调用协调入口、发布 anchor、按原 phase／epoch 协议 park 并执行 relocation，合流连接快路径原值与慢路径新值。NativeSafe 返回、callback 和 NativeBorrowed 保留各自原握手。
+
+编译器读取的私有 ABI 为 TLS 指针 `scoop_rt_poll_state`，指向 size 16／align 8 的 `{ atomic u32 mode @0; atomic u64 observed_gc_epoch @8; }`；padding 不参与读写。它直接引用注册线程状态中的同一组字段，attach 时设置、detach 时清空，不复制另一套线程状态。全局 `scoop_thread_world_phase` 为 atomic u32／align 4，`scoop_thread_gc_epoch` 为 atomic u64／align 8。Gateway 入口 poll 保留完整检查：依次以 acquire 读取全局 epoch、phase，以 relaxed 读取本线程 mode、observed epoch；仅当 phase 为 RUNNING（0）、mode 为 MANAGED（1）且 epoch 一致时走快路径。MANAGED_PENDING 必须调用 `scoop_rt_safepoint`，由现有有锁协议激活。普通 Full poll 不取得该 TLS 视图；runtime 的 epoch 与 observed epoch 仍用于停稳确认。
 
 线程只写自己的 poll state，包括 attach／detach、pending 激活、park、native 转换、初始化等待、收集者模式和进程终止。收集者读取其他线程的状态，不代写其 mode 或 observed epoch；各线程 publication 的 release／seq_cst 写入及跨线程 acquire／seq_cst 读取保持原协议。生成代码对所属线程的读取不承担跨线程发布的 acquire 职责，依赖同线程先行写入与原子一致性；仍使用原子读取，不能改为普通非原子访问。该内存序选择适用于全部 profile；旧产物的较强 acquire 读取与其兼容，不改变状态布局、TLS、生存期或 runtime ABI。
 
-线程状态地址在单次 managed 函数调用期间稳定，TLS 指针读取可在函数入口执行一次并复用；epoch、phase、mode 与 observed epoch 的原子读取仍在每个 poll 位置执行，不能随该地址一起提升。
+线程状态地址在单次 managed 函数调用期间稳定；确实需要该视图的 Gateway poll 可复用地址，原子状态检查不能随地址一起提升。所有 profile 采用同一选择，较旧产物多余的 TLS／epoch／mode 检查仍兼容；不改变 runtime ABI、状态布局、GC roots 或握手协议。
 
 SSA 接口在 safepoint 后由更新的 AS1 object 与原 AS0 metadata 分量重建；内存接口只回写 object。不能把两个分量改成整数后依赖保守扫描。
 

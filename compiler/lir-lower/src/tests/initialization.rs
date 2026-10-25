@@ -188,6 +188,11 @@ fn initialization_display_name_survives_lir_lowering() {
         .expect("an eager initialization unit emits one startup gateway");
     assert_eq!(gateway.gc_effect, lir::GcEffect::Managed);
     assert!(matches!(
+        gateway.blocks[gateway.entry].instructions.first(),
+        Some(lir::Instruction::ManagedPoll { site })
+            if site.kind == lir::ManagedPollKind::Gateway
+    ));
+    assert!(matches!(
         gateway.signature.result(),
         lir::AbiReturn::Direct(_)
     ));
