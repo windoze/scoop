@@ -79,3 +79,5 @@ trees 的晋升量由约 1.242 GB 降到 1.102 GB，复制量由约 1.259 GB 降
 Darwin／GNU／musl 各通过 2 个正式 fixture、5 个变体、20 个进程：`nursery-block-reuse` 的 debug／release 与 minor stress，以及 `reference-array-roots` 的 moving／minor stress 和新增普通 survivor 运行。覆盖继承接口视图、装箱、引用／optional／String／closure 数组、MaybeUninit、native callback 与并发线程的精确根。四种预编译 runtime 配置均已更新，没有执行全量验收。
 
 初次 musl 整体 sysroot 准备在无关 libuv 输入处因所选工具链缺少 `linux/errqueue.h` 终止；本项改用既有 musl wrapper 明确构建四种 runtime 并复用所需库，随后 consumer 构建、上述 GC 验证与性能对照全部完成，未修改无关 native 库。
+
+功能提交后合并 `origin/main` 的 `b11f790e7`，runtime 与 codegen 无差异；合并点的共享默认值身份、派生比较来源及 Unit 语法／编码共 10 项前端检查通过。Unit 编码用例在默认 Rust 测试线程栈下溢出，使用 `RUST_MIN_STACK=16777216` 后通过，保留这一测试环境限制；未改生产配置或扩大为上游完整验收。
