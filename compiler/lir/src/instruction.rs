@@ -457,6 +457,14 @@ pub enum Instruction {
         safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
     },
+    StringCopy {
+        out: TempId,
+        source: crate::StringCopySource,
+        target: crate::StringCopyTarget,
+        overflow_message: GlobalId,
+        safepoint: SafepointSiteRef,
+        live: StatepointLiveSet,
+    },
     /// `array.size` (canonical source `Long`, represented by `I64`).
     ArrayLen {
         out: TempId,
@@ -595,6 +603,7 @@ impl Instruction {
             | Self::ArrayAlloc { safepoint, .. }
             | Self::ArrayAssembly { safepoint, .. }
             | Self::StringConcat { safepoint, .. }
+            | Self::StringCopy { safepoint, .. }
             | Self::ArrayClone { safepoint, .. }
             | Self::BoxValue { safepoint, .. } => {
                 Some((SafepointSiteRole::ManagedCall, *safepoint))

@@ -1,0 +1,20 @@
+schema = 1
+name = "string-copies-moving"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["gc", "strings", "gc-correctness"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "release", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MOVE = "1", SCOOP_GC_STRESS_MINOR = "1"}},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "--enable-gc-stress", "run", {each = "${link_args}"}, "${root}", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 0
+stdout = "String copies preserve moving roots and native ABI\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

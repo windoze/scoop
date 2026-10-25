@@ -7,6 +7,7 @@ impl<'a> FunctionLowerer<'a> {
         let ty = &expr.ty;
         Ok(match &expr.kind {
             mir::ExprKind::StringConcat(parts) => self.lower_string_concat(parts)?,
+            mir::ExprKind::StringCopy(operation) => self.lower_string_copy(operation, ty)?,
             mir::ExprKind::MaybeUninit { wrapper, operation } => {
                 self.lower_maybe_uninit(*wrapper, operation, ty)?
             }

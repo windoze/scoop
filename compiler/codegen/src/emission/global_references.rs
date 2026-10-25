@@ -123,6 +123,23 @@ impl GlobalReferences {
                 self.descriptor(*descriptor);
                 self.globals.insert(*overflow_message);
             }
+            Instruction::StringCopy {
+                source,
+                target,
+                overflow_message,
+                ..
+            } => {
+                if let scoop_lir::StringCopySource::Bytes { array_type, .. } = source {
+                    self.arrays.insert(*array_type);
+                }
+                match target {
+                    scoop_lir::StringCopyTarget::String(descriptor) => self.descriptor(*descriptor),
+                    scoop_lir::StringCopyTarget::Bytes(array_type) => {
+                        self.arrays.insert(*array_type);
+                    }
+                }
+                self.globals.insert(*overflow_message);
+            }
             Instruction::BoxValue { payload, .. } => self.descriptor(payload.descriptor()),
             Instruction::UnboxValue { result, .. } => self.descriptor(result.descriptor()),
             Instruction::ArrayAllocDynamic {

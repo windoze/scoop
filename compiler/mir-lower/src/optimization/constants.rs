@@ -2,11 +2,14 @@ use super::mir;
 
 mod strings;
 pub(super) use strings::call;
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Constant {
     Boolean(bool),
     Integer(mir::MirIntegerConstant),
+    Character { owner: mir::StructId, value: char },
     String(mir::StringConstId),
 }
 
@@ -17,6 +20,9 @@ impl Constant {
                 mir::Expr::new(mir::Type::Boolean, mir::ExprKind::BoolLiteral(value))
             }
             Self::Integer(value) => mir::Expr::integer(value),
+            Self::Character { owner, value } => {
+                mir::Expr::new(mir::Type::Struct(owner), mir::ExprKind::CharLiteral(value))
+            }
             Self::String(id) => mir::Expr::new(mir::Type::String, mir::ExprKind::StringConst(id)),
         }
     }
@@ -24,7 +30,7 @@ impl Constant {
     fn integer(self) -> Option<mir::MirIntegerConstant> {
         match self {
             Self::Integer(value) => Some(value),
-            Self::Boolean(_) | Self::String(_) => None,
+            Self::Boolean(_) | Self::Character { .. } | Self::String(_) => None,
         }
     }
 }
@@ -36,9 +42,28 @@ pub(super) fn evaluate(
 ) -> Option<Constant> {
     use mir::ExprKind as E;
     let integer = |expr: &mir::Expr| value(expr)?.integer();
+    let character = |value| {
+        let mir::Type::Struct(owner) = expression.ty else {
+            return None;
+        };
+        Some(Constant::Character { owner, value })
+    };
     Some(match &expression.kind {
         E::BoolLiteral(value) => Constant::Boolean(*value),
         E::IntegerLiteral(value) => Constant::Integer(*value),
+        E::CharLiteral(value) => character(*value)?,
+        E::CharCode(operand) => {
+            let Constant::Character {
+                value: character, ..
+            } = value(operand)?
+            else {
+                return None;
+            };
+            Constant::Integer(mir::MirIntegerConstant::Signed32(u32::from(character)))
+        }
+        E::CharFromCodeUnchecked(operand) => character(char::from_u32(
+            integer(operand)?.mathematical_value().try_into().ok()?,
+        )?)?,
         E::StringConst(id) => Constant::String(*id),
         E::Retype { operand, .. } if operand.ty == expression.ty => value(operand)?,
         E::Unary {

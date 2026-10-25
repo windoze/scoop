@@ -182,6 +182,22 @@ pub(super) fn annotate_root_plans(
                         context, &roots, function, structs, enums,
                     )?)
                 }
+                lir::Instruction::StringCopy { source, .. } => {
+                    // The copy consumes its relocated source after allocation,
+                    // including inputs with no later source-level uses.
+                    let mut roots = live.clone();
+                    include_managed_operands(
+                        context,
+                        &mut roots,
+                        source.operands(),
+                        function,
+                        structs,
+                        enums,
+                    )?;
+                    RootPlan::Statepoint(statepoint_live_set(
+                        context, &roots, function, structs, enums,
+                    )?)
+                }
                 lir::Instruction::Call { site } => match site {
                     lir::CallSite::Managed(_) => RootPlan::Statepoint(managed_call_live_set(
                         context,
@@ -284,6 +300,10 @@ pub(super) fn annotate_root_plans(
                         ..
                     }
                     | lir::Instruction::StringConcat {
+                        live: instruction_live,
+                        ..
+                    }
+                    | lir::Instruction::StringCopy {
                         live: instruction_live,
                         ..
                     }

@@ -52,6 +52,7 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
                 | Instruction::ArrayAlloc { live, .. }
                 | Instruction::ArrayAssembly { live, .. }
                 | Instruction::StringConcat { live, .. }
+                | Instruction::StringCopy { live, .. }
                 | Instruction::ArrayClone { live, .. } => {
                     sources.extend(live.as_slice().iter().map(|value| value.source));
                 }
@@ -138,6 +139,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::ArrayAlloc { out, .. }
         | Instruction::ArrayAssembly { out, .. }
         | Instruction::StringConcat { out, .. }
+        | Instruction::StringCopy { out, .. }
         | Instruction::PushPinFrame { out, .. }
         | Instruction::ArrayDataPointer { out, .. }
         | Instruction::StringDataPointer { out, .. }

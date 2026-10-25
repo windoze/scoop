@@ -684,6 +684,7 @@ pub enum ExprKind {
     StringConst(StringConstId),
     /// One allocation from already evaluated strings and merged UTF-8 literals.
     StringConcat(Vec<StringConcatPart>),
+    StringCopy(Box<crate::StringCopyOperation<Expr>>),
     IntegerLiteral(MirIntegerConstant),
     MachineScalarLiteral(MachineScalarValue),
     BoolLiteral(bool),

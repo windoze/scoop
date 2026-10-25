@@ -63,7 +63,3 @@ internal fun coreWriteDecimalPair(bytes: Ptr<Byte>, cursor: Long, value: UInt) {
     bytes.store(cursor, coreStringByteAt(pairs, index))
     bytes.store(cursor + 1L, coreStringByteAt(pairs, index + 1L))
 }
-
-@Unsafe
-@Extern(name = "scoop_rt_string_from_utf8_unchecked", abi = "scoop")
-internal fun coreStringCopyUtf8Unchecked(bytes: Ptr<Byte>, length: Long): String

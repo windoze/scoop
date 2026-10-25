@@ -4,11 +4,13 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 已完成 [String 字节复制与 Char 编码](STRING-COPIES.md)：真实 typed 复制复用分配／根计划，分配后重取源；普通 Char 编码、方法正文和标量常量事实按原调用点评分展开。三目标目标内核获益，strings 降低 16.10%～34.82%、strmap 降低 16.45%～22.76%，分配／GC 次数保持；动态程序 text 略小，常量探针增加约 0.7～1 KiB，编译墙钟增加 0.56%～1.72%。两机定向单测及三目标 core／moving／旧 extern ABI 验证通过。Linux dispatch 初测回退与固定 CPU 复核均保留，循环／根指令未变，尚不能排除 GNU 布局回退；没有按函数调整代码布局。release 默认，无新测量代码；初始化就绪与 Context 留待后续批次。
+
 - 接口 SSA 后续组合修复：最终根计划先删除 `unreachable` 前连续的末尾无用 relocation，使注册数量与机器准备一致；正常返回、native／EH 根保持。两机各 51 项 statepoint 定向测试及三目标四个系统库重建通过，所有 profile 生效，无额外 CFG 优化或新开关。
 
 - 接口数据流三个阶段已完成 [局部复制传播、根恢复精化与接口 SSA](INTERFACE-SSA.md)：死 direct 实参保留调用期间根，省去恢复 fake.use／写回；局部根槽复用普通标量优化，全部普通优化结束后拆分 aggregate，让 ret／store／后续实参实际消费 relocate。三目标定向 GC／ABI 验证通过，dispatch 快路径栈访存 ARM64 31→2、GNU／musl 24→3；完整对照耗时分别降低 49.80%／9.88%／12.07%，六程序均改善，前两阶段的回退仍保留。text 缩小、编译成本无明显增长；存储提升为 release 默认，晚期分解适用于所有 profile。lambdas／数组的旧汇编区间统计已按真实 CFG 回边纠正，没有用周期假设推算收益。
 
-- 已完成 [String 比较与短 hash](STRING-READS.md)：ordinary core 处理身份／长度与有界 FNV-1a，复用调用点常量事实；真实 typed 短常量比较生成有边界保护的读取。三目标定向语义、两 profile 的 IR／moving 与成本对照通过；ASCII 单独展开因混合 Unicode 回退未采纳。后续优先推进接口复制、根恢复与 SSA 重定位；字符串复制／Char 编码、初始化就绪与 Context 测量仍在 runtime 可见化的后续批次。
+- 已完成 [String 比较与短 hash](STRING-READS.md)：ordinary core 处理身份／长度与有界 FNV-1a，复用调用点常量事实；真实 typed 短常量比较生成有边界保护的读取。三目标定向语义、两 profile 的 IR／moving 与成本对照通过；ASCII 单独展开因混合 Unicode 回退未采纳。接口 SSA 与字符串复制／Char 编码已由上述后续批次完成，初始化就绪与 Context 测量继续按实际热点安排。
 
 ## 交付约定
 

@@ -19,6 +19,9 @@ use la_arena::{Arena, Idx};
 mod types;
 pub use types::*;
 
+mod string_copy;
+pub use string_copy::*;
+
 mod atomic;
 pub use atomic::*;
 

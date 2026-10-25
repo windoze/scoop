@@ -73,6 +73,7 @@ mod runtime_scans;
 mod scoop_abi;
 mod smoke;
 mod statepoints;
+mod string_copy;
 mod string_leaves;
 mod strong_shapes;
 mod utf8;

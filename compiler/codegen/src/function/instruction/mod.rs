@@ -14,6 +14,7 @@ mod heap;
 mod maybe_uninit;
 mod operators;
 mod pointers;
+mod string_copy;
 mod strings;
 mod values;
 
@@ -23,6 +24,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         self.interface_values.retain(instruction);
         match instruction {
             Instruction::StringConcat { .. } => self.emit_string_concat(instruction),
+            Instruction::StringCopy { .. } => self.emit_string_copy(instruction),
             Instruction::MaybeUninit {
                 out,
                 wrapper,

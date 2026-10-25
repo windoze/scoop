@@ -133,6 +133,7 @@ fn ordinary_target(target: CallableTarget) -> bool {
     matches!(
         target,
         CallableTarget::Local(Callable::Function(_))
+            | CallableTarget::Local(Callable::Method(_))
             | CallableTarget::Dependency(_)
             | CallableTarget::Application(_)
     )

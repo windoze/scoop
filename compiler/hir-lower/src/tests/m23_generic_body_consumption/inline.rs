@@ -1,6 +1,40 @@
 use super::*;
 
 #[test]
+fn ordinary_inline_bodies_follow_resolved_method_and_getter_applications() {
+    with_provider_consumer(
+        r#"
+        package dev.example.upstream
+        public struct Scalar(val bits: Int) {
+            public val unsigned: UInt get() = bits.toUInt()
+            public fun add(delta: UInt): UInt = unsigned + delta
+        }
+        public fun encode(value: Scalar): UInt = value.add(1u)
+        "#,
+        r#"
+        package dev.example.consumer
+        import dev.example.upstream.Scalar
+        import dev.example.upstream.encode
+        public fun result(value: Scalar): UInt = encode(value)
+        "#,
+        |output, _, _, _, _| {
+            let local = output.output().local.module();
+            assert_eq!(local.imported_inline_bodies.len(), 3);
+            assert!(local.imported_inline_bodies.values().any(|body| {
+                matches!(
+                    body.materialization.template(),
+                    scoop_identity::CallableTemplateOwner::Accessor(_)
+                )
+            }));
+            local
+                .visit_executable_expressions::<()>(|_| Ok(()))
+                .unwrap();
+        },
+    )
+    .unwrap_or_else(|errors| panic!("{errors:?}"));
+}
+
+#[test]
 fn ordinary_inline_bodies_follow_private_helpers_with_loops_and_stack_places() {
     with_provider_consumer(
         r#"

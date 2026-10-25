@@ -745,6 +745,8 @@ Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset
 
 编译器可以将普通 String 拼接链降低为一次 String 分配及按序复制，条件见实现规范 2.15。长度求和、24-byte 前缀及最终对齐必须保持 checked allocation 规则，不能 wrapping。结果复用既有 TLAB／collecting slow path；源 String 引用在 safepoint 中保活并接受移动回写，复制地址在分配后重取。结果为无引用 UTF-8 payload，不增加写屏障或对象字段；分配消除不承诺保留中间临时 String 的身份、GC 次数或内存耗尽时点。原二元 `scoop_rt_string_concat` 与 builder 的 join_parts 后备及 ABI 保留。
 
+实现规范 2.15 的 typed StringCopy 对稳定原生 UTF-8 区间、已定位的 String 字节范围和 exact Byte 数组生成分配、长度写入及 memcpy，也用于 String 到独立 Byte 数组的快照。复用实际 String TD 和数组布局，保留非负长度、范围及分配溢出规则；只复制给定字节数，不要求或添加 NUL。托管源在分配期间保活，源内部地址只从分配后的重定位引用取得；原生源的稳定性由 Unsafe 调用契约保证。结果初始化完成前不向用户发布，中间没有新的 safepoint。既有 `scoop_rt_string_from_utf8_unchecked`、`scoop_rt_string_slice_bytes`、`scoop_rt_string_from_bytes`、`scoop_rt_char_to_string` 的普通 extern ABI 保留，不能按符号拼写把普通 extern 调用改成该操作。
+
 integer Hash 与 compareTo 返回 Long。`==` / `!=` 执行编译器已选定的 operator equals；库相等经普通 `Equals<T>.equals` 调用同一 operator 契约，字符串化／哈希按实际 ToString／Hash 声明执行，不提供按 Any 或地址兜底。Equals 不增加 runtime 比较入口；浮点相等遵守语言规范 11.2.2，结构 operator 使用 compiler 生成的逐字段／variant 正文。Iterator、Range、List、ArrayList 和 StringBuilder 的公开行为由普通 core 接口规定，不增加容器专用 runtime ABI。
 
 ### 6.1 Float / Double

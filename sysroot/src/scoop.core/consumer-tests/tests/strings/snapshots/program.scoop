@@ -50,6 +50,10 @@ private fun exercise() {
     }
     val none = ArrayList<Char>()
     val noBytes = ArrayList<Byte>()
+    val emptyBytes = "".toByteArray()
+    if (emptyBytes === "".toByteArray() || "".toMutableByteArray().size != 0L) {
+        fail(Some("independent-empty-storage"))
+    }
     @Unsafe {
         if (String.fromChars(none) != "" || String.fromUtf8Unchecked(noBytes) != "" ||
             "".toCharArray().size != 0L || "".toByteArray().size != 0L) { fail(Some("empty")) }

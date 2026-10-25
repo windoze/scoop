@@ -7,6 +7,32 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::StringCopy {
+            out,
+            source,
+            target,
+            ..
+        } => {
+            let operands = source
+                .operands()
+                .map(value_name)
+                .collect::<Vec<_>>()
+                .join(", ");
+            let source = match source {
+                StringCopySource::Utf8 { .. } => "utf8",
+                StringCopySource::Slice { .. } => "slice",
+                StringCopySource::Bytes { .. } => "bytes",
+                StringCopySource::String(_) => "string",
+            };
+            let target = match target {
+                StringCopyTarget::String(_) => "string",
+                StringCopyTarget::Bytes(_) => "bytes",
+            };
+            buf.push_str(&format!(
+                "    t{} = string_copy {source} -> {target} {operands}\n",
+                out.into_raw()
+            ));
+        }
         Instruction::StringConcat { out, parts, .. } => {
             let parts = parts
                 .iter()

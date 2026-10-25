@@ -23,7 +23,7 @@ impl AllocationLayout {
         }
     }
 
-    pub(super) fn array(layout: &scoop_lir::ArrayLayoutV1) -> Self {
+    pub(in crate::function) fn array(layout: &scoop_lir::ArrayLayoutV1) -> Self {
         Self {
             alignment: layout.instance().instance_alignment(),
             nursery_eligible: true,

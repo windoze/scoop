@@ -1201,6 +1201,16 @@ release 在普通 MIR 内联与局部分配优化之后识别真实 `RuntimeFn::
 
 融合结果是编译器内部的 typed StringConcat 值操作，区分已求值 String 输入与直接 UTF-8 常量片段。LIR 携带实际 String TD、分配 safepoint 及输入 live set；codegen checked 累计长度，一次分配结果，写入 byte count 并按序复制。所有可能移动的输入在分配后从规范 root 重读，再计算 bytes 地址；长度可跨 safepoint 保留，内部指针不可。常量片段直接写入结果，不创建额外 immortal 对象或 managed root。此操作不进入 `.slib` 公共格式，不改变 String 布局、实体身份或旧二元 runtime ABI；debug 和 release 继续消费相同库合同。该局部融合不涉及 StringBuilder、插值格式化或 parts 存储。
 
+已知表示的字节复制使用真实 core intrinsic：`string_copy_utf8_unchecked(Ptr<Byte>, Long)`、`string_slice_bytes(String, Long, Long)`、`string_from_bytes(Array<Byte>)` 返回 String；`string_to_bytes(String)` 与 `string_to_mutable_bytes(String)` 分别返回 exact Array<Byte>／MutableArray<Byte>。第一项为 Unsafe，其指针在分配期间必须稳定、可读，长度非负且内容为合法 UTF-8；其余内部操作由调用的普通 core 正文保证 UTF-8 与范围前置条件。String intrinsic wire tags 4～8 按上述顺序追加，原 tags 1～3 不变；源码及跨 Cone 正文均按 typed 身份降低，不改变同名普通 extern 的语义。各 profile 使用同一 core 协议，配套 core 与依赖库按常规依赖更新重建；`.slib` 容器格式和外部 runtime ABI 不变。
+
+MIR 的 StringCopy 保存完整操作与按序求值的输入，LIR 携带实际目标 TD／数组布局、源表示和分配根计划。一次分配后设置长度，再复制精确字节数；无引用 payload 不需要写屏障。受托管的输入即使源码调用后已死，也必须保留至展开后的复制完成，并在可能 GC 的分配后使用重定位结果计算源地址。原生指针不充当 managed root。byte array 结果始终具有独立存储，不能返回 String 的内部视图；普通 List 输入仍先执行原有逐项快照，保留 getter 的次数、顺序与异常，不对任意 initializer 或 List 绕过调用。
+
+Char 的单标量 UTF-8 编码使用普通 core 正文与四字节 GC-free 局部缓冲，复用上述复制；零字节不是终止符。整数十进制编码复用同一稳定缓冲复制。调用点内联与常量传播决定编码正文是否展开，LLVM 按已知长度降低 memcpy；动态长复制保留共享 memcpy，不复制扫描算法。debug 使用普通分配后备，release 复用已有 TLAB／慢路径；复杂 from_chars、严格／lossy UTF-8 解码与标量索引定位继续共享原后备。
+
+普通正文对已解析的普通方法 application 与直接函数引用使用同一可移植调用合同；不能因为属性 getter 或方法以本地 method application 表示，就丢弃包含该调用的完整正文。沿既有引用记录保留 exact owner、receiver、参数和访问器身份，泛型替换仍由原具体化流程处理；正文可用性不代替 consumer 的调用点评分。
+
+Char 字面量、已知 Char 的 code 和合法常量的 unchecked 标量构造参与已有 MIR 常量事实及调用点评估。只折叠已知合法 Unicode 标量，不把非法 unchecked 输入变成另一标量；动态检查、分配与复制仍保留原有副作用。
+
 严格、可空和 lossy UTF-8 转换按语言规范 11.4 的实际 core 声明调用 runtime 后备。CharacterCodingException 是普通 core 异常，成功/失败结果通过完整 typed Scoop ABI 传递；不按方法短名增加编译器特判或新的异常角色。lossy 的 maximal subpart 与严格路径的 byteOffset 使用同一解码规则，生成代码不得用截断、locale 转码或忽略非法字节替代。字节借用、结果 String 与跨分配保存的 managed 输入遵守普通 roots、pin 与 relocation 合同。
 
 C 字符串接口由普通 core 代码组合：withCString 检查 NUL，复制到带终止符的 MutableArray<UInt8>，再通过语言规范 13.11 借用；fromCString 通过普通 C ABI 的 strlen 取得长度，复用严格 pointer 解码。strlen 按 GCLeaf 合同调用；没有独立的编译器 C 字符串类型、隐式编码转换或栈缓冲优化。

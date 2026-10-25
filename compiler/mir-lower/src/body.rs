@@ -18,6 +18,7 @@ mod patterns;
 mod release;
 mod statements;
 mod static_callbacks;
+mod strings;
 mod task_context;
 mod when;
 

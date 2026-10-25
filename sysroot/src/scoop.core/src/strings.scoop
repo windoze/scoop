@@ -89,18 +89,12 @@ public class String : Compare<String>, Add<String, String>, Equals<String>, ToSt
     /**
      * Copies the UTF-8 encoding into an immutable byte array without a NUL terminator.
      */
-    public fun toByteArray(): Array<Byte> {
-        val source = this
-        return Array<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
-    }
+    public fun toByteArray(): Array<Byte> = coreStringToBytes(this)
 
     /**
      * Copies the UTF-8 encoding into an independently mutable byte array.
      */
-    public fun toMutableByteArray(): MutableArray<Byte> {
-        val source = this
-        return MutableArray<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
-    }
+    public fun toMutableByteArray(): MutableArray<Byte> = coreStringToMutableBytes(this)
 
     /**
      * String construction and scalar encoding, decoding, and inspection operations.
@@ -213,11 +207,11 @@ internal fun coreStringCharacterAtByte(value: String, index: Long): Char
 @Intrinsic("string_byte_at")
 internal fun coreStringByteAt(value: String, index: Long): Byte
 
-@Extern(name = "scoop_rt_string_slice_bytes", abi = "scoop")
+@Intrinsic("string_slice_bytes")
 internal fun coreStringSliceBytes(value: String, start: Long, endExclusive: Long): String
 
 @Extern(name = "scoop_rt_string_from_chars", abi = "scoop")
 internal fun coreStringFromChars(value: Array<Char>): String
 
-@Extern(name = "scoop_rt_string_from_bytes", abi = "scoop")
+@Intrinsic("string_from_bytes")
 internal fun coreStringFromBytes(value: Array<Byte>): String

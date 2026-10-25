@@ -165,6 +165,9 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                     | scoop_lir::Instruction::StringConcat {
                         safepoint, live, ..
                     }
+                    | scoop_lir::Instruction::StringCopy {
+                        safepoint, live, ..
+                    }
                     | scoop_lir::Instruction::ArrayAssembly {
                         safepoint, live, ..
                     }
