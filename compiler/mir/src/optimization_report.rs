@@ -33,7 +33,7 @@ pub enum OptimizationDecision {
     Inline {
         target: CallTarget<()>,
         outcome: InlineOutcome,
-        estimate: Option<InlineEstimate>,
+        estimate: Option<Box<InlineEstimate>>,
     },
     Allocation {
         kind: AllocationKind,
@@ -47,7 +47,7 @@ pub enum InlineOutcome {
     Inlined,
     ClassFields,
     Required,
-    ExecutionCost,
+    Profitability,
     CallerGrowth,
     IndirectCall,
     NoBody,
@@ -65,19 +65,52 @@ pub enum InlineOutcome {
 pub struct InlineEstimate {
     pub original_execution: usize,
     pub original_size: usize,
+    pub baseline_execution: usize,
+    pub baseline_size: usize,
     pub ordinary: InlineCost,
     pub projection: InlineProjection,
     pub remaining_growth: usize,
     pub in_loop: bool,
+    pub heat: InlineHeat,
+    pub caller_size: usize,
+    pub constant_arguments: usize,
+    pub exact_arguments: usize,
+    pub result_used: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct InlineHeat {
+    pub source: InlineHeatSource,
+    pub loop_depth: usize,
+    pub numerator: usize,
+    pub denominator: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum InlineHeatSource {
+    Ordinary,
+    Loop,
+    ColdExit,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct InlineBenefit {
+    pub call: usize,
+    pub abi: usize,
+    pub simplification: usize,
+    pub projection: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct InlineCost {
     pub execution: usize,
     pub size: usize,
+    pub net_growth: usize,
     pub growth: usize,
-    /// None when an earlier growth check or mandatory expansion bypassed it.
-    pub execution_limit: Option<usize>,
+    pub complexity: usize,
+    pub benefit: InlineBenefit,
+    pub weighted_benefit: usize,
+    pub penalty: usize,
 }
 
 #[derive(Debug)]

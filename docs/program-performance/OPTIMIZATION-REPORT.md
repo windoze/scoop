@@ -6,7 +6,7 @@
 
 - `scoop build --emit optimizations --dump-dir DIR` 输出每个所选源码 Cone 的 `optimizations.json`；独立 `scoopc build --emit optimizations` 沿现有 emit 输出。`--emit all` 包含报告。
 - 沿用现有 dump 选择、cache、scope 与 observation-only 流水线。新增 stage tag 5，排序在 MIR 后、LIR 前；machine protocol 升至 15，既有 stage tag 保持。语言、runtime、接口表布局和 `.slib` 不变。
-- MIR crate 仅定义本机观察数据，mir-lower 在已有决策点按需填充，driver 复用当前 Cone 与已加载依赖的 HIR 声明来源渲染 JSON schema 1。报告不进入语义 Module 或 metadata，不引入新的跨 stage 实现依赖。
+- MIR crate 仅定义本机观察数据，mir-lower 在已有决策点按需填充，driver 复用当前 Cone 与已加载依赖的 HIR 声明来源渲染 JSON（当前 schema 2）。报告不进入语义 Module 或 metadata，不引入新的跨 stage 实现依赖。
 - 内联保留实际使用的成本与选择原因，包含普通估价和局部 class 字段替换的共同估价。分配消除复用已有合法性与使用分析；不为诊断重跑优化，不改任何阈值。
 - 保存实际迭代、观察坐标和内联来源；关联函数身份及已有声明来源。源位置缺失时明确缺失，观察坐标不等同于最终 MIR 地址。首批范围是普通 MIR 内联和局部分配消除，不声称已有 CPU 采样或 PGO。
 
@@ -22,7 +22,9 @@ target/release/scoop build tests/fixtures/driver/stage-observations/main.scoop \
 
 `functions`／`external_callables` 保存临时 MIR 引用对应的 materialization、implementation、精确参数／结果与可用的声明来源；同名泛型实例必须结合这些身份和签名区分。`events` 保存实际决策顺序、轮次、当时的 block／statement、span 和 `inline_path`。位置不是最终 MIR 的稳定地址，声明来源缺失时为 `null`。内联后的节点关联原正文；不会将 imported／inlined span 一律归到 caller 文件。
 
-内联的 execution、size、growth 是既有 MIR 策略权重，不是实测 CPU 时间。`execution_limit = null` 表示此前的增长检查已拒绝，或必需展开绕过了该检查；`class_projection` 区分未尝试、证明不足和实际估价。分配消除报告复用已有来源／循环／支配／使用计数，不增加另一套逃逸分析。`rounds`／`converged` 描述原有局部优化主循环；首批逐项事件只覆盖内联与分配消除，不覆盖前置必需 intrinsic 规范化、后置 poll chunking 或 LLVM passes。
+[调用点评分](CALL-SITE-INLINING.md)将报告升为 schema 2：`original` 保存原始模板成本，`baseline` 保存未知实参时的独立化简成本，`ordinary` 保存当前调用点的候选成本。`heat` 给出来源、循环深度及静态相对频次；同时记录 caller 规模、常量／exact type 实参数量和结果用途。`benefit` 分开记录调用边界、值 ABI、保留路径上的化简和已有字段替换证明的收益；`weighted_benefit` 与 `penalty` 直接对应接受／拒绝比较。`net_growth` 是预计净增长，`growth` 是至少一单位的累计计数，`complexity` 是分支及异常边权重；这些都不是机器周期或字节。旧 `execution_limit` 字段和 `execution-cost` 原因被移除，收益不足使用 `not-profitable`。
+
+`class_projection` 区分未尝试、证明不足和实际估价。分配消除报告复用已有来源／循环／支配／使用计数，不增加另一套逃逸分析。`rounds`／`converged` 描述普通局部优化主循环；逐项事件覆盖普通 MIR 内联与分配消除，不覆盖前置同步 suspend／必需 intrinsic 规范化、后置 poll chunking 或 LLVM passes。下面的首批测量保留其当时模型与 schema 1 的数值。
 
 后续的[循环范围指导内联](ARRAY-INLINING.md)将已证明不可达的数组检查直接从候选正文中删除，`ordinary` 因而反映实际保留的正文成本，`original` 继续保存模板成本。该使用者复用现有 schema 和观察点，不为报告重跑范围分析；同一调用先拒绝、在后续普通化简暴露范围后接受时，两次实际决策都会保留。
 

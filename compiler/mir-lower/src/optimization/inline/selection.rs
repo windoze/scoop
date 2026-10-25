@@ -2,12 +2,13 @@
 
 use std::cell::OnceCell;
 use std::cmp::Reverse;
+use std::collections::HashSet;
 
 use super::{
-    Choice, Context, Target, class_fields, exception_paths, flow, graph, index, mir, policy,
-    simplify,
+    Choice, Context, Target, class_fields, exception_paths, flow, index, mir, policy, simplify,
+    summary,
 };
-use crate::optimization::allocation::{ControlFlow, InlineReceivers};
+use crate::optimization::allocation::InlineReceivers;
 use crate::optimization::poll_chunks::CallRanges;
 use mir::optimization_report::{
     InlineCost, InlineEstimate, InlineOutcome, InlineProjection, OptimizationDecision,
@@ -20,30 +21,40 @@ impl Context<'_, '_> {
         function_id: mir::FunctionId,
         function: &mir::Function,
         ancestry: &[Vec<Target>],
-        remaining: &mut usize,
+        growth: &mut policy::Growth,
     ) -> Vec<Choice> {
         let analysis = flow::Analysis::new(self.module, function);
         let incoming = analysis.solve();
-        let in_loop = graph::cyclic_nodes(&graph::block_edges(&function.body));
+        let heats = policy::heats(&function.body);
+        let mut caller_size = policy::function_cost(&self.module.structs, function).size;
+        let mut reads = HashSet::new();
+        for (_, block) in function.body.blocks.iter() {
+            mir::visit_block_exprs(block, &mut |expr| {
+                if let mir::ExprKind::Local(local) | mir::ExprKind::AddressOf { local, .. } =
+                    expr.kind
+                {
+                    reads.insert(local);
+                }
+            });
+        }
         let mut order = function
             .body
             .blocks
             .iter()
             .map(|(id, _)| id)
             .collect::<Vec<_>>();
-        if self.ordinary && in_loop.iter().any(|&cyclic| cyclic) {
-            let mut depths = ControlFlow::new(&function.body).loop_depths();
-            for (depth, &cyclic) in depths.iter_mut().zip(&in_loop) {
-                *depth = (*depth).max(usize::from(cyclic));
-            }
-            order.sort_by_key(|&id| Reverse(depths[index(id)]));
+        if self.ordinary {
+            order.sort_by_key(|&id| {
+                let heat = heats[index(id)];
+                Reverse(heat.numerator * 8 / heat.denominator)
+            });
         }
         let mut choices = Vec::new();
         let receivers = OnceCell::new();
         let ranges = OnceCell::new();
         let mut exceptions =
             exception_paths::Effects::new(self.module, self.selected, self.dispatch, self.imported);
-        'blocks: for block_id in order {
+        for block_id in order {
             let block = &function.body.blocks[block_id];
             if self.ordinary && ancestry[index(block_id)].len() > 6 {
                 self.observe_skipped_block(
@@ -59,10 +70,18 @@ impl Context<'_, '_> {
                 continue;
             };
             for (statement_index, statement) in block.statements.iter().enumerate() {
-                if self.ordinary && *remaining == 0 && self.observer.is_none() {
-                    break 'blocks;
-                }
                 if let mir::StatementKind::Call(effect) = &statement.kind {
+                    let site = policy::Site {
+                        heat: heats[index(block_id)],
+                        caller_size,
+                        result_used: match effect {
+                            mir::CallEffect::Value { destination, .. } => {
+                                reads.contains(destination)
+                            }
+                            mir::CallEffect::Unit(_) => false,
+                        },
+                    };
+                    let remaining = growth.remaining(site.heat);
                     let resolved = self
                         .ordinary
                         .then(|| exceptions.resolve(function, effect, &analysis, &state))
@@ -101,7 +120,7 @@ impl Context<'_, '_> {
                             .is_some_and(|next| {
                                 matches!(next.kind, mir::StatementKind::PublishReleaseReady { .. })
                             });
-                    let target = if self.ordinary && *remaining == 0 {
+                    let target = if self.ordinary && remaining == 0 {
                         Err(InlineOutcome::GrowthExhausted)
                     } else if publishes_release {
                         Err(InlineOutcome::ReleasePublication)
@@ -122,7 +141,17 @@ impl Context<'_, '_> {
                                 .map(|argument| analysis.expression(argument, &state))
                                 .collect::<Vec<_>>();
                             let source = self.template(callee);
-                            let mut blocks = simplify::blocks(self.module, source, &arguments);
+                            let facts = self.summary(callee, &exceptions);
+                            let mut blocks = if facts.argument_sensitive(&arguments) {
+                                let blocks = simplify::blocks(self.module, source, &arguments);
+                                if facts.indirect_calls {
+                                    exceptions.resolve_calls(source, &arguments, blocks)
+                                } else {
+                                    blocks
+                                }
+                            } else {
+                                facts.blocks.clone()
+                            };
                             if self.exceptional.contains(&callee)
                                 && !policy::supported_blocks(blocks.iter().map(|(_, b)| b))
                             {
@@ -142,34 +171,21 @@ impl Context<'_, '_> {
                                 blocks.iter().map(|(id, block)| (*id, block)),
                             )
                             .with_parameters(&self.module.structs, source);
-                            let original = OnceCell::new();
-                            let assess = |cost: policy::Cost| {
-                                let growth = cost.size.saturating_sub(6).max(1);
-                                InlineCost {
-                                    execution: cost.execution,
-                                    size: cost.size,
-                                    growth,
-                                    execution_limit: (!self.required(callee)
-                                        && growth <= *remaining)
-                                        .then(|| {
-                                            policy::execution_limit(
-                                                &self.module.structs,
-                                                cost.execution,
-                                                original
-                                                    .get_or_init(|| self.cost(callee))
-                                                    .execution,
-                                                in_loop[index(block_id)],
-                                                &arguments,
-                                                source,
-                                            )
-                                        }),
-                                }
+                            let assess = |cost: policy::Cost, blocks: &[_], projection| {
+                                policy::assess(
+                                    facts,
+                                    cost,
+                                    summary::complexity(blocks),
+                                    facts.savings(&self.module.structs, blocks),
+                                    projection,
+                                    &site,
+                                )
                             };
-                            let mut ordinary = assess(cost);
+                            let mut ordinary = assess(cost, &blocks, 0);
                             if !self.required(callee)
-                                && !accepted(ordinary)
-                                && in_loop[index(block_id)]
-                                && has_array_access(&blocks)
+                                && !accepted(ordinary, remaining)
+                                && site.heat.loop_depth != 0
+                                && facts.array_access
                                 && let Some(specialized) = ranges
                                     .get_or_init(|| CallRanges::new(self.module, function))
                                     .blocks(
@@ -186,13 +202,15 @@ impl Context<'_, '_> {
                                         specialized.iter().map(|(id, block)| (*id, block)),
                                     )
                                     .with_parameters(&self.module.structs, source),
+                                    &specialized,
+                                    0,
                                 );
                                 blocks = specialized;
                             }
                             let mut projection = InlineProjection::NotAttempted;
                             let (selected, outcome) = if self.required(callee) {
                                 (Some(ordinary), InlineOutcome::Required)
-                            } else if accepted(ordinary) {
+                            } else if accepted(ordinary, remaining) {
                                 (Some(ordinary), InlineOutcome::Inlined)
                             } else if self.allocation_elision
                                 && source
@@ -213,36 +231,57 @@ impl Context<'_, '_> {
                                             receivers,
                                         )
                                     })
-                                    .map(assess);
+                                    .map(|cost| {
+                                        assess(
+                                            cost,
+                                            &blocks,
+                                            ordinary.execution.saturating_sub(cost.execution),
+                                        )
+                                    });
                                 projection = projected.map_or(
                                     InlineProjection::Unproven,
                                     InlineProjection::Estimated,
                                 );
-                                if let Some(cost) = projected.filter(|cost| accepted(*cost)) {
+                                if let Some(cost) =
+                                    projected.filter(|cost| accepted(*cost, remaining))
+                                {
                                     (Some(cost), InlineOutcome::ClassFields)
                                 } else {
-                                    (None, rejected(projected.unwrap_or(ordinary)))
+                                    (None, rejected(projected.unwrap_or(ordinary), remaining))
                                 }
                             } else {
-                                (None, rejected(ordinary))
+                                (None, rejected(ordinary, remaining))
                             };
                             if self.observer.is_some() {
-                                let original = original.get_or_init(|| self.cost(callee));
                                 record(
                                     outcome,
-                                    Some(InlineEstimate {
-                                        original_execution: original.execution,
-                                        original_size: original.size,
+                                    Some(Box::new(InlineEstimate {
+                                        original_execution: facts.original.execution,
+                                        original_size: facts.original.size,
+                                        baseline_execution: facts.baseline.execution,
+                                        baseline_size: facts.baseline.size,
                                         ordinary,
                                         projection,
-                                        remaining_growth: *remaining,
-                                        in_loop: in_loop[index(block_id)],
-                                    }),
+                                        remaining_growth: remaining,
+                                        in_loop: site.heat.loop_depth != 0,
+                                        heat: site.heat,
+                                        caller_size: site.caller_size,
+                                        result_used: site.result_used,
+                                        constant_arguments: arguments
+                                            .iter()
+                                            .filter(|a| a.constant.is_some())
+                                            .count(),
+                                        exact_arguments: arguments
+                                            .iter()
+                                            .filter(|a| a.actual != flow::ActualType::Unknown)
+                                            .count(),
+                                    })),
                                 );
                             }
                             if let Some(cost) = selected {
                                 if !self.required(callee) {
-                                    *remaining -= cost.growth;
+                                    growth.charge(cost.growth);
+                                    caller_size += cost.net_growth;
                                 }
                                 choices.push(Choice {
                                     block: block_id,
@@ -299,28 +338,14 @@ impl Context<'_, '_> {
     }
 }
 
-fn accepted(cost: InlineCost) -> bool {
-    cost.execution_limit
-        .is_some_and(|limit| cost.execution <= limit)
+fn accepted(cost: InlineCost, remaining: usize) -> bool {
+    cost.growth <= remaining && cost.weighted_benefit >= cost.penalty
 }
 
-fn has_array_access(blocks: &[(mir::BlockId, mir::BasicBlock)]) -> bool {
-    blocks.iter().any(|(_, block)| {
-        let mut found = block
-            .statements
-            .iter()
-            .any(|statement| matches!(statement.kind, mir::StatementKind::ArraySet { .. }));
-        mir::visit_block_exprs(block, &mut |expr| {
-            found |= matches!(expr.kind, mir::ExprKind::ArrayGet { .. });
-        });
-        found
-    })
-}
-
-fn rejected(cost: InlineCost) -> InlineOutcome {
-    if cost.execution_limit.is_none() {
+fn rejected(cost: InlineCost, remaining: usize) -> InlineOutcome {
+    if cost.growth > remaining {
         InlineOutcome::CallerGrowth
     } else {
-        InlineOutcome::ExecutionCost
+        InlineOutcome::Profitability
     }
 }

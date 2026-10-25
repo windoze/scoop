@@ -139,7 +139,7 @@ fn a_cold_failure_branch_does_not_hide_a_small_normal_path() {
 
 #[test]
 fn cold_paths_still_count_toward_actual_code_growth() {
-    let mut module = guarded(24, true);
+    let mut module = guarded(80, true);
     let report = crate::optimization::run_observed(&mut module, MirOptimizationOptions::RELEASE);
     assert_mir_foundation_projection(&module);
     assert!(has_checked_call(&module));

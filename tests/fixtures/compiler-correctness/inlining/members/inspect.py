@@ -39,18 +39,31 @@ report = json.loads(path.with_name("optimizations.json").read_text())
 external = {item["name"]: item["id"] for item in report["external_callables"]}
 assert re.search(r"^      call .*external\d+ direct", functions["secondaryKernel"], re.M)
 factory = functions["classConstructKernel"]
-assert f"external{external['makeCell']} direct" in factory
+assert (f"external{external['makeCell']} direct" in factory) != release
 if release:
+    assert "ClassAlloc Cell" in factory
     number = int(re.search(r" @fn(\d+)", factory)[1])
-    decisions = [item for item in report["events"] if item["site"]["function"] == number]
-    assert decisions and all(item["outcome"] == "execution-cost" for item in decisions)
+    decisions = [
+        item
+        for item in report["events"]
+        if item["site"]["function"] == number
+        and item.get("target")
+        == {"kind": "direct", "callee": {"kind": "external", "id": external["makeCell"]}}
+    ]
+    assert len(decisions) == 1 and decisions[0]["outcome"] == "inlined"
 validate = functions["validateKernel"]
 assert (f"external{external['Recorder.validate']} direct" in validate) != release
 assert "      call " in validate
 assert "  imported_immortal " in path.with_name("lir.txt").read_text()
 callback = functions["callbackSnapshotKernel"]
-for name in ("Recorder.snapshot", "Recorder.validate"):
-    assert (f"external{external[name]} direct" in callback) != release, name
+assert (f"external{external['Recorder.snapshot']} direct" in callback) != release
+assert f"external{external['Recorder.validate']} direct" in callback
+if release:
+    number = int(re.search(r" @fn(\d+)", callback)[1])
+    assert any(
+        item["site"]["function"] == number and item.get("outcome") == "not-profitable"
+        for item in report["events"]
+    )
 assert "      call " in callback
 
 primitive_calls = re.findall(

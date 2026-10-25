@@ -15,7 +15,10 @@ impl Concretizer<'_> {
                 ),
                 _ => continue,
             };
-            if !export::small_inline_body(&template.signature.signature, &template.implementation) {
+            if !export::portable_inline_body(
+                &template.signature.signature,
+                &template.implementation,
+            ) {
                 continue;
             }
             let Some((callable, _)) =

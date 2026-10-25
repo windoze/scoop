@@ -10,20 +10,21 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [调用点内联评分](CALL-SITE-INLINING.md) | release 默认；扩大跨 Cone 正文范围需重建 provider；诊断由 `--emit optimizations` 开启 | 缓存函数事实，按调用点静态热度、实参、结果用途和 caller 规模比较可消除开销与净增长；热循环可接受大正文，冷点可保留小正文。沿用递归、增长及 GC 限制，无试内联或新 runtime 代码。 |
 | [不可达 callable 与 stackmap 裁剪](CALLABLE-PRUNING.md) | 最终链接所有 profile 默认；配套 `link-identity-closure/19`，旧输入须重建 | 沿完整物理符号引用选择，函数代码、EH、stackmap、登记与私有数据同选；元数据保留起点由下一项进一步收紧，native archive 候选引用保守保留目标。无需新增 runtime／诊断代码或对象字段。 |
 | [类型／shape 元数据裁剪](TYPE-PRUNING.md) | 元数据生产与最终链接所有 profile 默认；沿用版本 19，旧粗分组库可直接重链接 | Strong TD 与同一 exact type 的登记合组，布局／scan／完整派发表独立划分；沿实际引用删除无入口类型及方法。静态存储、初始化、immortal 和必要登记保留；库体积与生产成本增加，consumer 构建、链接和启动受益。 |
 | [一个 survivor 阶段与密集块原地保留](SURVIVOR.md) | 普通 debug／release 默认关闭；`SCOOP_GC_SURVIVOR=1` 开启 | 最多占 nursery 四分之一；首次存活的密集块原地保留，稀疏对象按配额复制，下一轮晋升。减少中等寿命对象的提前晋升；长寿图的扫描成本须按负载衡量，stress／full-only 保持原策略。 |
 | [nursery 容量自适应](ADAPTIVE-NURSERY.md) | 普通 debug／release 默认，初始 1 MiB、上限 32 MiB；`SCOOP_GC_NURSERY_MAX_MIB=N` 调整上限，1 固定容量 | 按存活压力扩大、连续低存活时缩小，最近 full 的活跃堆决定基准；旧代压力独立。较高吞吐与内存、单次暂停的取舍见记录；stress／full-only 保持固定策略。 |
 | [固定分块的搬迁计划](ADAPTIVE-NURSERY.md) | 所有 profile 默认，无独立开关 | 每块 256 项，保留完整预留、复制和失败回退；消除连续数组倍增复制，每块增加 16 B 链接／计数，无新增对象字段、roots 或 ABI。 |
 | [minor 脏卡组清单](DIRTY-CARD-GROUPS.md) | 所有 profile 默认，配套 runtime ABI 17，旧产物须重建 | 每 64 张卡共用 16 B 节点，首次写入登记，STW 只枚举／清零脏组；原有批量卡标记保留完整登记。side metadata 约 0.049%，写屏障固定成本与真实程序回退见记录。 |
-| [小正文导出与跨 Cone 主值构造器内联](BODY-EXPORT.md) | release 默认；扩展成员正文需新版 provider，主值构造可消费既有角色 | 普通字段写入、值／构造表达式和 callable-owned 字符串沿用有界导出及统一成本选择；字符串引用 provider 原对象。secondary／class 初始化、缺少正文或成本不合格的调用保留，profile 间 ABI 一致。 |
-| [循环内联优先级与传值调用估价](LOOP-INLINING.md) | release 默认 | 更深循环优先使用累计增长；及时消费已知 receiver，复用完整调用适配；循环执行上限计入参数／返回值快照，最高 72。总增长、六层展开、非循环规则和完整冷分支体积限制保持。 |
+| [普通正文导出与跨 Cone 主值构造器内联](BODY-EXPORT.md) | release 默认；扩展成员正文需新版 provider，主值构造可消费既有角色 | 普通字段写入、值／构造表达式和 callable-owned 字符串沿用可移植结构选择；原 96 节点过滤由调用点评分项移除；字符串引用 provider 原对象。secondary／class 初始化、缺少正文或成本不合格的调用保留，profile 间 ABI 一致。 |
+| [循环内联优先级与传值调用估价](LOOP-INLINING.md) | release 默认 | 更深循环优先使用累计增长；及时消费已知 receiver，复用完整调用适配；参数／返回值快照参与估价；原执行上限由调用点收益评分替代。累计增长、六层展开和完整冷分支体积限制保持。 |
 | [minor 局部块遍历与连续清卡跳过](MINOR-BLOCKS.md) | 新版 runtime，所有 profile 默认 | minor 的准备、汇总、搬迁选择和收尾只枚举年轻块／新目标；可用 region 直接索引，连续清卡由 `memchr` 跳过。对象／TLAB／ABI 不变，保留可选 survivor 的年轻成员关系与所需卡。 |
 | [普通 poll 单次 phase 读取与有界叶函数省入口](ACTIVE-POLLS.md) | 新编译器生成的所有 profile 默认 | 普通 Managed poll 不读取 TLS／mode／epoch；既有有界叶函数省去入口 poll，效果仍为 Managed。root／初始化 gateway 保留首次激活，循环与慢边精确 roots 保持。 |
 | [启动 site 的 owner 验证合并](STARTUP-OWNER-JOIN.md) | 新版 runtime，所有 profile 默认 | 每个 site 在首次 stackmap 合并时只解析一次 owner；重复 ODR 记录复用验证结果，仍比较完整地址与 payload，全部对应关系在 managed 执行前完成。 |
 | [poll 的本线程 relaxed 读取](POLL-OWNER-READS.md) | Gateway 完整检查中，所有 profile 默认 | 全局 epoch／phase 保持 acquire，所属线程的 mode／observed epoch 使用 relaxed；普通 Full poll 已由上项进一步简化。runtime 跨线程发布与停稳协议保持。 |
-| [普通内联增长额度调整](INLINE-GROWTH.md) | release 默认 | 初始额度为 `min(size / 2 + 128, 384)`，统一适用于本地、泛型及跨 Cone 正文；总上限、深度与跨轮累计限制保持，同步 suspend 初始常数仍为 96；执行估价的后续调整见循环内联项。 |
-| [跨 Cone 普通方法与 getter 内联](MEMBER-INLINING.md) | release 默认；提供方需导出合格小正文 | 按完整签名与通用 HIR／MIR 成本选择，保留 receiver 与 typed accessor identity；泛型沿既有具体化路径，未知动态调用及缺少正文的旧库保留入口。 |
+| [普通内联增长额度调整](INLINE-GROWTH.md) | release 默认 | 基础额度为 `min(size / 2 + 128, 384)`，统一适用于本地、泛型及跨 Cone 正文；调用点评分按热度使用一／二／四倍上限，六层深度和跨轮累计保持，同步 suspend 基础常数仍为 96。 |
+| [跨 Cone 普通方法与 getter 内联](MEMBER-INLINING.md) | release 默认；提供方需导出合格可移植正文 | 按完整签名与通用 HIR／MIR 成本选择，保留 receiver 与 typed accessor identity；泛型沿既有具体化路径，未知动态调用及缺少正文的旧库保留入口。 |
 | [Scoop 符号在镜像内绑定](LOCAL-SYMBOLS.md) | Darwin 最终链接默认，所有 profile | 从动态导出移除 Scoop 持久符号，直接绑定 callable 与 metadata；已有相容 `.slib` 可重链接，普通 native C 导出保留。 |
 | [完整父接口表内嵌与目录共享](INTERFACE-PROJECTION.md) | 所有 profile，统一布局／ABI | 单继承完整前缀、多继承固定偏移；目录复用内嵌片段，菱形保留完整父表。 |
 | [父接口直接投影与继承方法直接取槽](INTERFACE-PROJECTION.md) | 所有 profile | 已有 Child 视图且静态知道父关系；泛型按 exact 实例处理。首次 Any 取表等动态路径另行查询。 |
@@ -37,7 +38,7 @@
 | [异常区域中的局部分配消除](EXCEPTION-SCALARS.md) | release 默认 | box／closure／无 release hook 的 class 在正常和异常路径均满足来源、支配与循环存活证明时替换为 typed locals；保留真实 catch／finally、返回快照及异常出口 roots。 |
 | [有界整数／Boolean 数组初始化](ARRAY-INITIALIZATION.md) | release 默认 | initializer 展开后无调用／分配；64 次有界分块，合格的无 safepoint 内层交由 LLVM 向量化。 |
 | [数组边界检查消除与分块](ARRAY-BOUNDS.md) | release 默认 | 稳定上界、非负起点、唯一加一更新；直接范围证明或长度 guard，保留 checked 回退与短尾。 |
-| [循环范围指导数组访问内联](ARRAY-INLINING.md) | release 默认 | 用已证明的范围去掉候选正文中的不可达检查后计价；不提高全局阈值。 |
+| [循环范围指导数组访问内联](ARRAY-INLINING.md) | release 默认 | 用已证明的范围去掉候选正文中的不可达检查后，参与统一调用点评分。 |
 | [严格浮点数组循环](FLOAT-ARRAYS.md) | release 默认 | Float／Double 访问与逐元素运算复用有界路径；顺序归约保留累加顺序，禁止隐含重排与融合。 |
 | [含条件分支的数组循环](CONDITIONAL-ARRAYS.md) | release 默认 | 单入口、单 latch、无环正文；合流保留共同事实，整数内层可向量化，严格浮点按实际合法性处理。 |
 | [x86 最内层循环入口对齐](CONDITIONAL-ARRAYS.md) | x86 后端默认，无独立 profile 开关 | 向 LLVM 设置 32 字节优先对齐，实际应用由后端决定；其他架构不受此 x86 设置影响。 |

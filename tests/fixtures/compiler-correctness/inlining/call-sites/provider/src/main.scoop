@@ -1,0 +1,33 @@
+package dev.performance.callsite.provider
+
+public fun mix(value: Long, extended: Boolean): Long {
+    if (!extended) return value + 1L
+    var mixed = value
+    mixed = (mixed * 33L) xor (mixed shr 7)
+    mixed = (mixed * 35L) xor (mixed shr 8)
+    mixed = (mixed * 37L) xor (mixed shr 9)
+    mixed = (mixed * 39L) xor (mixed shr 10)
+    mixed = (mixed * 41L) xor (mixed shr 11)
+    mixed = (mixed * 43L) xor (mixed shr 7)
+    mixed = (mixed * 45L) xor (mixed shr 8)
+    mixed = (mixed * 47L) xor (mixed shr 9)
+    mixed = (mixed * 49L) xor (mixed shr 10)
+    mixed = (mixed * 51L) xor (mixed shr 11)
+    mixed = (mixed * 53L) xor (mixed shr 7)
+    mixed = (mixed * 55L) xor (mixed shr 8)
+    mixed = (mixed * 57L) xor (mixed shr 9)
+    mixed = (mixed * 59L) xor (mixed shr 10)
+    mixed = (mixed * 61L) xor (mixed shr 11)
+    mixed = (mixed * 63L) xor (mixed shr 7)
+    mixed = (mixed * 65L) xor (mixed shr 8)
+    mixed = (mixed * 67L) xor (mixed shr 9)
+    mixed = (mixed * 69L) xor (mixed shr 10)
+    mixed = (mixed * 71L) xor (mixed shr 11)
+    mixed = (mixed * 73L) xor (mixed shr 7)
+    mixed = (mixed * 75L) xor (mixed shr 8)
+    mixed = (mixed * 77L) xor (mixed shr 9)
+    mixed = (mixed * 79L) xor (mixed shr 10)
+    return mixed
+}
+
+public fun tiny(value: Long): Long = (value * 3L) + 1L + value

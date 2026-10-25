@@ -64,7 +64,9 @@ pub(in crate::optimization::inline) fn adjusted_blocks_cost<'a>(
     cost
 }
 
-fn cold_blocks(blocks: &[(mir::BlockId, &mir::BasicBlock)]) -> HashSet<mir::BlockId> {
+pub(in crate::optimization::inline) fn cold_blocks(
+    blocks: &[(mir::BlockId, &mir::BasicBlock)],
+) -> HashSet<mir::BlockId> {
     let mut cold = HashSet::new();
     if !blocks
         .iter()
@@ -112,7 +114,10 @@ fn cold_blocks(blocks: &[(mir::BlockId, &mir::BasicBlock)]) -> HashSet<mir::Bloc
     cold
 }
 
-fn block_cost(structs: &la_arena::Arena<mir::StructDef>, block: &mir::BasicBlock) -> usize {
+pub(in crate::optimization::inline) fn block_cost(
+    structs: &la_arena::Arena<mir::StructDef>,
+    block: &mir::BasicBlock,
+) -> usize {
     let mut cost = usize::from(block.unwind.is_some()) * 4;
     for statement in &block.statements {
         cost += statement_cost(structs, statement);

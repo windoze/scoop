@@ -37,13 +37,13 @@ fn report_observes_real_projection_cost_without_changing_mir() {
         else {
             panic!("the receiver call was assessed");
         };
-        assert!(estimate.ordinary.execution > estimate.ordinary.execution_limit.unwrap());
+        assert!(estimate.ordinary.penalty > estimate.ordinary.weighted_benefit);
         if enabled {
             assert_eq!(*outcome, InlineOutcome::ClassFields);
             let InlineProjection::Estimated(cost) = estimate.projection else {
                 panic!("projection cost")
             };
-            assert!(cost.execution <= cost.execution_limit.unwrap());
+            assert!(cost.penalty <= cost.weighted_benefit);
             assert!(cost.growth <= estimate.remaining_growth);
             assert!(
                 report
@@ -59,7 +59,7 @@ fn report_observes_real_projection_cost_without_changing_mir() {
                         ))
             );
         } else {
-            assert_eq!(*outcome, InlineOutcome::ExecutionCost);
+            assert_eq!(*outcome, InlineOutcome::Profitability);
             assert!(matches!(
                 estimate.projection,
                 InlineProjection::NotAttempted

@@ -76,7 +76,7 @@ impl<'a> GenericBodyProducer<'a> {
                     &export.function_identities[function],
                     HirFunctionIdentity::Source(crate::HirSourceFunctionIdentity::Plain(_))
                         | HirFunctionIdentity::PropertyAccessor(_)
-                ) && crate::small_inline_body(
+                ) && crate::portable_inline_body(
                     &export.functions[function].signature,
                     &export.functions[function].kind,
                 )))

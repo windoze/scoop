@@ -1,7 +1,4 @@
-use super::super::{
-    flow::{ActualType, ValueFacts},
-    graph, mir,
-};
+use super::super::{graph, mir};
 
 pub(super) fn local_target(module: &mir::Module, call: &mir::Call) -> Option<mir::FunctionId> {
     match call.target {
@@ -91,43 +88,16 @@ pub(super) fn supported_blocks<'a>(blocks: impl Iterator<Item = &'a mir::BasicBl
 }
 
 mod cost;
+mod heat;
+mod score;
 pub(super) use cost::{
-    Cost, adjusted_blocks_cost, assignment_cost, blocks_cost, expression_cost, function_cost,
-    statement_cost, tree_cost,
+    Cost, adjusted_blocks_cost, assignment_cost, block_cost, blocks_cost, cold_blocks,
+    expression_cost, function_cost, statement_cost, tree_cost,
 };
+pub(super) use heat::heats;
+pub(super) use score::{Growth, Site, assess};
 
-pub(super) fn execution_limit(
-    structs: &la_arena::Arena<mir::StructDef>,
-    cost: usize,
-    original: usize,
-    in_loop: bool,
-    arguments: &[ValueFacts],
-    function: &mir::Function,
-) -> usize {
-    if cost <= 12 {
-        return 12;
-    }
-    let folds = cost < original && arguments.iter().any(|argument| argument.constant.is_some());
-    let receiver = arguments.iter().any(|argument| argument.actual != ActualType::Unknown)
-        && function.body.blocks.iter().any(|(_, block)| block.statements.iter().any(|statement| {
-            matches!(&statement.kind, mir::StatementKind::Call(effect) if !matches!(super::super::call(effect).target, mir::CallTarget::Direct(_)))
-        }));
-    let parameter_copies = function
-        .params
-        .iter()
-        .map(|parameter| copy_cost(structs, &parameter.ty))
-        .sum::<usize>();
-    let opportunities = usize::from(folds) * 12 + usize::from(receiver) * 8;
-    if in_loop {
-        // Account for independent value snapshots on both sides of the call.
-        let boundary = 6 + 2 * (parameter_copies + copy_cost(structs, &function.return_ty));
-        (12 + 4 * boundary + opportunities).min(72)
-    } else {
-        (20 + opportunities + usize::from(parameter_copies != 0) * 4).min(48)
-    }
-}
-
-fn copy_cost(structs: &la_arena::Arena<mir::StructDef>, ty: &mir::Type) -> usize {
+pub(super) fn copy_cost(structs: &la_arena::Arena<mir::StructDef>, ty: &mir::Type) -> usize {
     match ty {
         mir::Type::Struct(id)
             if matches!(

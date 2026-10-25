@@ -6,7 +6,7 @@ pub(super) fn inline(outcome: InlineOutcome) -> &'static str {
         InlineOutcome::Inlined => "inlined",
         InlineOutcome::ClassFields => "inlined-with-class-fields",
         InlineOutcome::Required => "required-expansion",
-        InlineOutcome::ExecutionCost => "execution-cost",
+        InlineOutcome::Profitability => "not-profitable",
         InlineOutcome::CallerGrowth => "caller-growth",
         InlineOutcome::IndirectCall => "indirect-call",
         InlineOutcome::NoBody => "no-mir-body",
@@ -24,6 +24,7 @@ pub(super) fn inline(outcome: InlineOutcome) -> &'static str {
 pub(super) fn estimate(estimate: &InlineEstimate) -> Value {
     json!({
         "original": {"execution": estimate.original_execution, "size": estimate.original_size},
+        "baseline": {"execution": estimate.baseline_execution, "size": estimate.baseline_size},
         "ordinary": cost(estimate.ordinary),
         "class_projection": match estimate.projection {
             InlineProjection::NotAttempted => json!({"status": "not-attempted"}),
@@ -31,12 +32,26 @@ pub(super) fn estimate(estimate: &InlineEstimate) -> Value {
             InlineProjection::Estimated(estimate) => json!({"status": "estimated", "cost": cost(estimate)}),
         },
         "remaining_growth": estimate.remaining_growth, "in_loop": estimate.in_loop,
+        "heat": {
+            "source": match estimate.heat.source {
+                InlineHeatSource::Ordinary => "ordinary",
+                InlineHeatSource::Loop => "loop",
+                InlineHeatSource::ColdExit => "cold-exit",
+            },
+            "loop_depth": estimate.heat.loop_depth,
+            "numerator": estimate.heat.numerator, "denominator": estimate.heat.denominator,
+        },
+        "caller_size": estimate.caller_size, "result_used": estimate.result_used,
+        "arguments": {"constant": estimate.constant_arguments, "exact_type": estimate.exact_arguments},
     })
 }
 
 fn cost(cost: InlineCost) -> Value {
-    json!({"execution": cost.execution, "size": cost.size, "growth": cost.growth,
-        "execution_limit": cost.execution_limit})
+    json!({"execution": cost.execution, "size": cost.size,
+        "growth": cost.growth, "net_growth": cost.net_growth, "complexity": cost.complexity,
+        "benefit": {"call": cost.benefit.call, "abi": cost.benefit.abi,
+            "simplification": cost.benefit.simplification, "projection": cost.benefit.projection},
+        "weighted_benefit": cost.weighted_benefit, "penalty": cost.penalty})
 }
 
 pub(super) fn allocation_kind(kind: AllocationKind) -> &'static str {

@@ -98,6 +98,42 @@ impl<'a> Effects<'a> {
         }
     }
 
+    pub(super) fn resolve_calls(
+        &self,
+        source: &mir::Function,
+        arguments: &[flow::ValueFacts],
+        mut blocks: Vec<(mir::BlockId, mir::BasicBlock)>,
+    ) -> Vec<(mir::BlockId, mir::BasicBlock)> {
+        if !blocks.iter().any(|(_, block)| {
+            block.statements.iter().any(|statement| {
+                matches!(&statement.kind, mir::StatementKind::Call(effect)
+                if !matches!(call(effect).target, mir::CallTarget::Direct(_)))
+            })
+        }) {
+            return blocks;
+        }
+        let analysis = flow::Analysis::new(self.module, source).with_arguments(arguments);
+        let incoming = analysis.solve();
+        for (id, block) in &mut blocks {
+            let Some(mut state) = incoming[graph::index(*id)].clone() else {
+                continue;
+            };
+            for statement in &mut block.statements {
+                if let mir::StatementKind::Call(effect) = &mut statement.kind
+                    && let Some(replacement) = self.resolve(source, effect, &analysis, &state)
+                {
+                    match effect {
+                        mir::CallEffect::Unit(call) | mir::CallEffect::Value { call, .. } => {
+                            *call = replacement
+                        }
+                    }
+                }
+                analysis.statement(statement, &mut state);
+            }
+        }
+        blocks
+    }
+
     fn target(&self, call: &mir::Call) -> Option<Target> {
         if let Some(function) = policy::local_target(self.module, call) {
             return Some(Target::Local(function));

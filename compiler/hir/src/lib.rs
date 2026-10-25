@@ -66,7 +66,7 @@ pub use initialization_dependencies::{HirInitializationUseError, HirPropertyInit
 
 mod inline_body;
 mod production;
-pub use inline_body::small_inline_body;
+pub use inline_body::portable_inline_body;
 pub use production::*;
 
 mod ids;

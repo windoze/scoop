@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::cell::OnceCell;
+use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
 use scoop_identity::{
@@ -19,6 +20,7 @@ mod clone;
 mod exception_paths;
 mod policy;
 mod selection;
+mod summary;
 mod suspend;
 pub(super) use suspend::run as inline_synchronous_coroutines;
 
@@ -50,7 +52,8 @@ pub(super) struct Session {
     protocol: Vec<bool>,
     executable: Vec<bool>,
     exceptional: HashSet<Target>,
-    costs: Vec<policy::Cost>,
+    summaries: Vec<OnceCell<summary::Summary>>,
+    imported_summaries: HashMap<mir::ExternalCallableUseId, OnceCell<summary::Summary>>,
     callers: Vec<CallerState>,
     required: super::intrinsics::Entries,
     ordinary: bool,
@@ -59,7 +62,7 @@ pub(super) struct Session {
 }
 
 struct CallerState {
-    remaining: usize,
+    growth: policy::Growth,
     ancestry: Vec<Vec<Target>>,
 }
 
@@ -80,7 +83,7 @@ impl Session {
         let callers = templates
             .iter()
             .map(|(id, function)| CallerState {
-                remaining: (costs[index(id)].size / 2 + 128).min(384),
+                growth: policy::Growth::new(costs[index(id)].size, 128),
                 ancestry: vec![vec![Target::Local(id)]; function.body.blocks.len()],
             })
             .collect();
@@ -104,8 +107,13 @@ impl Session {
                         .then_some(target)
                 })
                 .collect(),
+            summaries: (0..templates.len()).map(|_| OnceCell::new()).collect(),
+            imported_summaries: imported
+                .functions
+                .keys()
+                .map(|&id| (id, OnceCell::new()))
+                .collect(),
             templates,
-            costs,
             callers,
             required,
             ordinary,
@@ -197,7 +205,8 @@ impl Session {
                 templates: &self.templates,
                 exceptional: &self.exceptional,
                 exclusions: &exclusions,
-                costs: &self.costs,
+                summaries: &self.summaries,
+                imported_summaries: &self.imported_summaries,
                 required: &self.required,
                 ordinary: self.ordinary,
                 allocation_elision: self.allocation_elision,
@@ -245,7 +254,8 @@ struct Context<'a, 'report> {
     templates: &'a Arena<mir::Function>,
     exceptional: &'a HashSet<Target>,
     exclusions: &'a [Option<InlineOutcome>],
-    costs: &'a [policy::Cost],
+    summaries: &'a [OnceCell<summary::Summary>],
+    imported_summaries: &'a HashMap<mir::ExternalCallableUseId, OnceCell<summary::Summary>>,
     required: &'a super::intrinsics::Entries,
     ordinary: bool,
     allocation_elision: bool,
@@ -286,13 +296,12 @@ impl Context<'_, '_> {
         }
     }
 
-    fn cost(&self, target: Target) -> policy::Cost {
-        match target {
-            Target::Local(id) => self.costs[index(id)],
-            Target::Imported(id) => {
-                policy::function_cost(&self.module.structs, &self.imported.functions[&id])
-            }
-        }
+    fn summary(&self, target: Target, effects: &exception_paths::Effects<'_>) -> &summary::Summary {
+        let summary = match target {
+            Target::Local(id) => &self.summaries[index(id)],
+            Target::Imported(id) => &self.imported_summaries[&id],
+        };
+        summary.get_or_init(|| summary::Summary::new(self.module, self.template(target), effects))
     }
 
     fn optimize(
@@ -305,7 +314,7 @@ impl Context<'_, '_> {
         let mut function = self.module.functions[id].clone();
         let mut changed = false;
         loop {
-            let choices = self.choose(id, &function, &state.ancestry, &mut state.remaining);
+            let choices = self.choose(id, &function, &state.ancestry, &mut state.growth);
             if choices.is_empty() {
                 break;
             }

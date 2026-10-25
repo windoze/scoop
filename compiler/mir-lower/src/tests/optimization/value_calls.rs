@@ -2,7 +2,7 @@ use super::*;
 use mir::optimization_report::{InlineOutcome, OptimizationDecision};
 
 #[test]
-fn loop_execution_limit_accounts_for_value_parameters_and_results() {
+fn loop_score_accounts_for_value_parameters_and_results() {
     for parameter_count in [0, 2] {
         let mut h = Harness::new();
         let (unit, boolean, int) = (h.unit, h.boolean, h.int);
@@ -96,7 +96,7 @@ fn loop_execution_limit_accounts_for_value_parameters_and_results() {
                     outcome: InlineOutcome::Inlined, estimate: Some(estimate), ..
                 } if estimate.in_loop
                     && estimate.ordinary.execution > if parameter_count == 0 { 36 } else { 40 }
-                    && estimate.ordinary.execution <= estimate.ordinary.execution_limit.unwrap())
+                    && estimate.ordinary.penalty <= estimate.ordinary.weighted_benefit)
         }));
     }
 }

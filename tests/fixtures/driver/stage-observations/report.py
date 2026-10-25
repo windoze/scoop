@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 report = json.loads(Path(sys.argv[1]).read_text())
-assert report["schema"] == 1 and report["rounds"] > 0
+assert report["schema"] == 2 and report["rounds"] > 0
 assert report["passes"] == {"inline": True, "allocation-elision": True}
 functions = {f["id"]: f for f in report["functions"]}
 events = [
@@ -21,7 +21,7 @@ assert len(events) == 1, events
 event = events[0]
 assert event["outcome"] == "inlined"
 cost = event["estimate"]["ordinary"]
-assert cost["execution"] <= cost["execution_limit"]
+assert cost["penalty"] <= cost["weighted_benefit"]
 assert cost["growth"] <= event["estimate"]["remaining_growth"]
 callee = functions[event["target"]["callee"]["id"]]
 assert callee["declaration"]["source"]["path"]

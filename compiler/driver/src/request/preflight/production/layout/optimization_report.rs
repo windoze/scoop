@@ -54,7 +54,7 @@ pub(super) fn render(
             OptimizationDecision::Inline { target, outcome, estimate } => json!({
                 "pass": "inline", "outcome": decisions::inline(*outcome),
                 "target": target_info(module, target),
-                "estimate": estimate.as_ref().map(decisions::estimate),
+                "estimate": estimate.as_deref().map(decisions::estimate),
             }),
             OptimizationDecision::Allocation { kind, ty, outcome } => json!({
                 "pass": "allocation-elision", "kind": decisions::allocation_kind(*kind),
@@ -72,7 +72,7 @@ pub(super) fn render(
         value
     }).collect::<Vec<_>>();
     let value = json!({
-        "schema": 1, "cone": module.cone.to_string(),
+        "schema": 2, "cone": module.cone.to_string(),
         "passes": {"inline": report.inlining, "allocation-elision": report.allocation_elision},
         "rounds": report.rounds, "converged": report.converged,
         "functions": functions, "external_callables": externals,

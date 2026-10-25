@@ -4,59 +4,48 @@ use crate::*;
 
 /// Unsupported bodies keep their ordinary external entry. This is an
 /// optimization selection, not a restriction on valid source programs.
-pub fn small_inline_body(signature: &CallableSignature, kind: &FunctionKind) -> bool {
+pub fn portable_inline_body(signature: &CallableSignature, kind: &FunctionKind) -> bool {
     let FunctionKind::User(body) = kind else {
         return false;
     };
     if signature.is_suspend || !signature.context_parameters.is_empty() {
         return false;
     }
-    let mut remaining = 96usize;
-    statements(&body.statements, &mut remaining)
+    statements(&body.statements)
 }
 
-fn statements(body: &[Statement], remaining: &mut usize) -> bool {
-    body.iter().all(|statement| {
-        if !take(remaining) {
-            return false;
+fn statements(body: &[Statement]) -> bool {
+    body.iter().all(|statement| match &statement.kind {
+        StatementKind::Expr(value)
+        | StatementKind::Return { value }
+        | StatementKind::Throw(value) => expression(value),
+        StatementKind::ValDecl {
+            pattern: Pattern::Binding { .. } | Pattern::Wildcard,
+            init,
+        } => expression(init),
+        StatementKind::Assign {
+            target: AssignTarget::Local(_),
+            value,
+        } => expression(value),
+        StatementKind::Assign {
+            target: AssignTarget::Field { receiver, .. },
+            value,
+        } => expression(receiver) && expression(value),
+        StatementKind::If {
+            cond,
+            then_body,
+            else_body,
+        } => {
+            expression(cond)
+                && statements(then_body)
+                && else_body.as_ref().is_none_or(|body| statements(body))
         }
-        match &statement.kind {
-            StatementKind::Expr(value)
-            | StatementKind::Return { value }
-            | StatementKind::Throw(value) => expression(value, remaining),
-            StatementKind::ValDecl {
-                pattern: Pattern::Binding { .. } | Pattern::Wildcard,
-                init,
-            } => expression(init, remaining),
-            StatementKind::Assign {
-                target: AssignTarget::Local(_),
-                value,
-            } => expression(value, remaining),
-            StatementKind::Assign {
-                target: AssignTarget::Field { receiver, .. },
-                value,
-            } => expression(receiver, remaining) && expression(value, remaining),
-            StatementKind::If {
-                cond,
-                then_body,
-                else_body,
-            } => {
-                expression(cond, remaining)
-                    && statements(then_body, remaining)
-                    && else_body
-                        .as_ref()
-                        .is_none_or(|body| statements(body, remaining))
-            }
-            _ => false,
-        }
+        _ => false,
     })
 }
 
-fn expression(value: &Expr, remaining: &mut usize) -> bool {
+fn expression(value: &Expr) -> bool {
     use ExprKind as E;
-    if !take(remaining) {
-        return false;
-    }
     match &value.kind {
         E::Local(_)
         | E::IntegerLiteral(_)
@@ -74,20 +63,14 @@ fn expression(value: &Expr, remaining: &mut usize) -> bool {
         | E::StructInit { args: values, .. }
         | E::ClassInit { args: values, .. }
         | E::VariantConstruct { args: values, .. }
-        | E::StructConstruct { fields: values, .. } => {
-            values.iter().all(|value| expression(value, remaining))
-        }
+        | E::StructConstruct { fields: values, .. } => values.iter().all(expression),
         E::IntegerOperation(operation) => match operation {
-            IntegerExpression::Unary { operand, .. } => expression(operand, remaining),
-            IntegerExpression::Binary { lhs, rhs, .. } => {
-                expression(lhs, remaining) && expression(rhs, remaining)
-            }
+            IntegerExpression::Unary { operand, .. } => expression(operand),
+            IntegerExpression::Binary { lhs, rhs, .. } => expression(lhs) && expression(rhs),
         },
         E::Binary { lhs, rhs, .. }
         | E::FloatBinary { lhs, rhs, .. }
-        | E::PrimitiveBinary { lhs, rhs, .. } => {
-            expression(lhs, remaining) && expression(rhs, remaining)
-        }
+        | E::PrimitiveBinary { lhs, rhs, .. } => expression(lhs) && expression(rhs),
         E::Unary { operand, .. }
         | E::FloatUnary { operand, .. }
         | E::PrimitiveUnary { operand, .. }
@@ -98,10 +81,8 @@ fn expression(value: &Expr, remaining: &mut usize) -> bool {
         | E::SomeWrap(operand)
         | E::FieldAccess {
             receiver: operand, ..
-        } => expression(operand, remaining),
-        E::Call { callee, args, .. } => {
-            ordinary_target(*callee) && args.iter().all(|value| expression(value, remaining))
-        }
+        } => expression(operand),
+        E::Call { callee, args, .. } => ordinary_target(*callee) && args.iter().all(expression),
         E::MethodCall {
             receiver,
             args,
@@ -113,20 +94,10 @@ fn expression(value: &Expr, remaining: &mut usize) -> bool {
             callee,
         } => {
             matches!(callee, MethodCallee::Callable(target) if ordinary_target(*target))
-                && expression(receiver, remaining)
-                && args.iter().all(|value| expression(value, remaining))
+                && expression(receiver)
+                && args.iter().all(expression)
         }
         _ => false,
-    }
-}
-
-fn take(remaining: &mut usize) -> bool {
-    match remaining.checked_sub(1) {
-        Some(next) => {
-            *remaining = next;
-            true
-        }
-        None => false,
     }
 }
 
