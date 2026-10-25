@@ -20,7 +20,7 @@ static void enqueue_update_array(ScoopGcMarkWorker *owner, void *object, const u
     }
 }
 
-void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcHeapObjectVisitor serial_visitor,
+void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcLiveEntryVisitor serial_visitor,
                           void *context) {
     if (scoop_gc_marker.active_workers == 1) {
         /* Preserve the coordinator's direct callback without a per-object wrapper. */
@@ -45,10 +45,9 @@ void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcHeapObjectVisitor s
                     if (scan == NULL) {
                         continue;
                     }
-                    void *current = scoop_heap_claim_relocated_object(object);
-                    chunk->objects[first + offset] = current;
+                    scoop_heap_claim_current_object(object);
                     if (scoop_gc_scan_is_array(scan)) {
-                        enqueue_update_array(owner, current, scan);
+                        enqueue_update_array(owner, object, scan);
                     } else {
                         scans |= UINT64_C(1) << offset;
                     }

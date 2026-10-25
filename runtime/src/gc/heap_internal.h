@@ -257,7 +257,7 @@ ScoopGcBlockMeta *scoop_heap_activate_large_block(size_t exact_size, ScoopGcBloc
 bool scoop_heap_object_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
 /* False only outside the heap; invalid heap references fail in every build. */
 bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
-void *scoop_heap_claim_relocated_object(void *object);
+void scoop_heap_claim_current_object(void *object);
 bool scoop_gc_object_was_scanned_locked(const void *object);
 void scoop_heap_record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size,
                                     bool marked);

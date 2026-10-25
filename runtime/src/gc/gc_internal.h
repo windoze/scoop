@@ -10,6 +10,7 @@
 #include "stress.h"
 
 typedef void (*ScoopGcHeapObjectVisitor)(void *object, void *context);
+typedef void (*ScoopGcLiveEntryVisitor)(void **entry, void *context);
 
 typedef struct ScoopGcSurvivors {
     size_t capacity;
@@ -53,9 +54,9 @@ void scoop_gc_mark_begin(bool minor, size_t block_count);
 void scoop_gc_mark_roots(void);
 void scoop_gc_mark_remembered(void);
 uint64_t scoop_gc_mark_finish(bool minor);
-void scoop_gc_mark_visit_live(ScoopGcHeapObjectVisitor visitor, void *context);
+void scoop_gc_mark_visit_live(ScoopGcLiveEntryVisitor visitor, void *context);
 void scoop_gc_mark_dispose(void);
-void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcHeapObjectVisitor serial_visitor,
+void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcLiveEntryVisitor serial_visitor,
                           void *context);
 uint64_t scoop_gc_monotonic_ns(void);
 uint64_t scoop_gc_thread_cpu_ns(void);

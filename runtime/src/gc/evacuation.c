@@ -9,34 +9,30 @@
 #include "forwarding_internal.h"
 #endif
 
-void *scoop_heap_claim_relocated_object(void *object) {
+void scoop_heap_claim_current_object(void *object) {
+    if (!collection_active) {
+        heap_fatal("scan claimed outside collection");
+    }
     ScoopGcBlockMeta *block;
     size_t word_index;
     if (!object_meta(object, &block, &word_index)) {
         heap_fatal("scan claimed for a non-object address");
     }
-    void *current = scoop_heap_forward_object(object, block, word_index);
-    if (current != object) {
-        if (!object_meta(current, &block, &word_index)) {
-            heap_fatal("scan claimed for a non-object address");
-        }
-        if (!object_marked(block, word_index) ||
-            (block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !object_pinned(block, word_index))) {
-            heap_fatal("scan claimed for a non-current object");
-        }
+    if (!object_marked(block, word_index) ||
+        (block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !object_pinned(block, word_index))) {
+        heap_fatal("scan claimed for a non-current object");
     }
     if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
         if (block->large_scanned) {
             heap_fatal("marked object appeared twice in the retained live set");
         }
         block->large_scanned = true;
-        return current;
+        return;
     }
     if (bit_test(block->scanned, word_index)) {
         heap_fatal("marked object appeared twice in the retained live set");
     }
     bit_set(block->scanned, word_index);
-    return current;
 }
 
 bool scoop_gc_object_was_scanned_locked(const void *object) {

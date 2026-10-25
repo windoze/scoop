@@ -7,7 +7,7 @@
 #include "heap_internal.h"
 
 typedef struct PlannedMove {
-    void *source;
+    void **entry;
     void *destination;
     size_t size;
     size_t word;
@@ -150,11 +150,12 @@ static bool single_source_may_fit(void) {
     return false;
 }
 
-static void append_move(void *object, void *context) {
+static void append_move(void **entry, void *context) {
     MovingPlan *plan = context;
     if (!plan->reserved) {
         return;
     }
+    void *object = *entry;
     ScoopGcBlockMeta *block = pointer_block(object);
     size_t word = ((uintptr_t)object - (uintptr_t)block_base(block)) / sizeof(uint64_t);
     if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(block, word)) {
@@ -193,7 +194,7 @@ static void append_move(void *object, void *context) {
         plan->last = chunk;
     }
     plan->last->moves[plan->last->used++] =
-        (PlannedMove){object, destination, size, word, block, target};
+        (PlannedMove){entry, destination, size, word, block, target};
 }
 
 bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
@@ -255,7 +256,7 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
     for (PlannedMoveChunk *chunk = plan.first; chunk != NULL; chunk = chunk->next) {
         for (size_t index = 0; index < chunk->used; index++) {
             PlannedMove *move = &chunk->moves[index];
-            memcpy(move->destination, move->source, move->size);
+            memcpy(move->destination, *move->entry, move->size);
             scoop_gc_heap_state.copied_bytes += move->size;
             ScoopGcBlockMeta *source = move->source_block;
             if (move->size <= GC_REGULAR_MAX) {
@@ -265,6 +266,8 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
                 publish_large_object(move->target_block, true);
                 source->large_forwarding = move->destination;
             }
+            /* Mark tasks have finished; update tasks will only see current copies. */
+            *move->entry = move->destination;
             moved_objects++;
         }
     }

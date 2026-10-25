@@ -758,6 +758,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。PGO 为后续独立专项，在代表负载、成熟消费者和反馈原型净收益成立后排期；测量与全程序优化／ThinLTO 均不以 PGO 为前置。
 - 优化按长期、分批试验和交付推进：成本低且收益比较稳定的方案可直接纳入 release 默认设置；成本过高或收益不稳定的方案通过独立开关或等级决定是否启用、启用哪一级。默认值随实测结果调整，保留默认与调优配置的对照。
 - [已采纳优化与开启条件](program-performance/ENABLED-OPTIMIZATIONS.md)简要列出各项方案的默认 profile、适用条件及实际开关，后续采纳与策略变更时同步维护。
+- [搬迁时更新存活清单](program-performance/LIVE-SET-RELOCATION.md)已交付：复制后直接保留当前对象地址，引用回写减少一次元数据定位和 source forwarding，真实字段／roots 转发及 GC 契约保持。三目标 trees 降低约 14.0%／9.1%／3.0%，strmap 小幅退化一并记录；无新增计划或清单存储，完整程序不增长，构建成本持平。定向 GC、机器码和空间验证通过，所有 profile 默认，无 ABI 或测量代码变化。
 - [String 字符扫描 API](program-performance/STRING-API.md)已统一为 O(n) 的 `charLength`／`getCharAt(idx)` 与 O(1) 的 `byteLength`，移除旧 `length`／`get`／下标；三目标内置库和调用点迁移及定向行为／编译失败／表示 ABI 验证完成，对象结构保持。
 - [启动阶段测量](program-performance/STARTUP-STATS.md)已通过 `--enable-startup-stats` 提供；默认预处理排除全部新增计时和报告，三目标默认程序的代码段与无测量基线逐字节相同。统计记录七阶段与已有索引数量，开关只改变 runtime／最终链接，作为注册与 stackmap 优化的指导，不提前引入 PGO。
 - [启动 owner 验证合并](program-performance/STARTUP-OWNER-JOIN.md)已按测量结果交付：首次 stackmap 合并时完成一次 owner 解析，重复 ODR 复用结果，全部必要检查仍在 managed 执行前完成。三个目标的代表启动降低约 2.7%～8.1%，完整文件与静态元数据不增长；全部 profile 默认，ABI 和预编译 Cone 保持。

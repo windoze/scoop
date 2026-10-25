@@ -10,6 +10,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [搬迁时更新存活清单](LIVE-SET-RELOCATION.md) | 使用新版 runtime 重新链接，所有 profile 默认，无独立开关 | 复制时将稳定清单条目改为当前副本，引用回写省去 source forwarding 与重复元数据定位；计划项和清单不增大，真实字段／roots 仍正常转发，保留 pin、survivor 与预留失败语义。 |
 | [调用点内联评分](CALL-SITE-INLINING.md) | release 默认；扩大跨 Cone 正文范围需重建 provider；诊断由 `--emit optimizations` 开启 | 缓存函数事实，按调用点静态热度、实参、结果用途和 caller 规模比较可消除开销与净增长；热循环可接受大正文，冷点可保留小正文。沿用递归、增长及 GC 限制，无试内联或新 runtime 代码。 |
 | [不可达 callable 与 stackmap 裁剪](CALLABLE-PRUNING.md) | 最终链接所有 profile 默认；配套 `link-identity-closure/19`，旧输入须重建 | 沿完整物理符号引用选择，函数代码、EH、stackmap、登记与私有数据同选；元数据保留起点由下一项进一步收紧，native archive 候选引用保守保留目标。无需新增 runtime／诊断代码或对象字段。 |
 | [类型／shape 元数据裁剪](TYPE-PRUNING.md) | 元数据生产与最终链接所有 profile 默认；沿用版本 19，旧粗分组库可直接重链接 | Strong TD 与同一 exact type 的登记合组，布局／scan／完整派发表独立划分；沿实际引用删除无入口类型及方法。静态存储、初始化、immortal 和必要登记保留；库体积与生产成本增加，consumer 构建、链接和启动受益。 |

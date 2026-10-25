@@ -106,12 +106,12 @@ uint64_t scoop_gc_mark_finish(bool minor) {
     return marked;
 }
 
-void scoop_gc_mark_visit_live(ScoopGcHeapObjectVisitor visitor, void *context) {
+void scoop_gc_mark_visit_live(ScoopGcLiveEntryVisitor visitor, void *context) {
     for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
         for (ScoopGcLiveChunk *chunk = scoop_gc_marker.workers[index].live; chunk != NULL;
              chunk = chunk->next) {
             for (size_t entry = 0; entry < chunk->used; entry++) {
-                visitor(chunk->objects[entry], context);
+                visitor(&chunk->objects[entry], context);
             }
         }
     }

@@ -1,6 +1,25 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn retained_live_entries_are_current_before_reference_update() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "live_set_relocation_test",
+        "runtime/tests/live_set_relocation_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"live entries hold copied small, large and pointer-free objects before update; pins stay\n"
+    );
+}
+
+#[test]
 fn serial_and_parallel_markers_preserve_shared_graphs_and_repeated_collection() {
     let output = compile_and_run(
         &workspace_root(),

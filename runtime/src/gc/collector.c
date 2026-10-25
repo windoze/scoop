@@ -79,15 +79,16 @@ static void visit_dirty_object(void *object, uintptr_t begin, uintptr_t end, voi
     scoop_gc_scan_descriptor(object, scan, slot, context, begin, end);
 }
 
-static void relocate_live_object(void *object, void *context) {
+static void relocate_live_object(void **entry, void *context) {
+    void *object = *entry;
     const uint64_t *scan = scoop_gc_object_scan(object);
     if (scan == NULL) {
         return;
     }
-    void *current = scoop_heap_claim_relocated_object(object);
+    scoop_heap_claim_current_object(object);
     ScoopGcVisitContext *visit = context;
     ScoopGcSlotVisitor slot = visit->remember_survivors ? visit_survivor_slot : visit_managed_slot;
-    scoop_gc_scan_descriptor(current, scan, slot, context, 0, UINTPTR_MAX);
+    scoop_gc_scan_descriptor(object, scan, slot, context, 0, UINTPTR_MAX);
 }
 
 static void verify_heap_object(void *object, void *context) {
