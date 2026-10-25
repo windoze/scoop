@@ -14,6 +14,7 @@ mod heap;
 mod maybe_uninit;
 mod operators;
 mod pointers;
+mod strings;
 mod values;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
@@ -21,6 +22,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         self.retain_field_barrier(instruction);
         self.interface_values.retain(instruction);
         match instruction {
+            Instruction::StringConcat { .. } => self.emit_string_concat(instruction),
             Instruction::MaybeUninit {
                 out,
                 wrapper,

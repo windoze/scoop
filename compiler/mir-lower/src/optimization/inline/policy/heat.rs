@@ -4,7 +4,7 @@ use super::{cold_blocks, graph, mir};
 use crate::optimization::allocation::ControlFlow;
 use mir::optimization_report::{InlineHeat, InlineHeatSource};
 
-pub(in crate::optimization::inline) fn heats(body: &mir::Body) -> Vec<InlineHeat> {
+pub(in crate::optimization) fn heats(body: &mir::Body) -> Vec<InlineHeat> {
     let cyclic = graph::cyclic_nodes(&graph::block_edges(body));
     let mut depths = if cyclic.iter().any(|&cycle| cycle) {
         ControlFlow::new(body).loop_depths()

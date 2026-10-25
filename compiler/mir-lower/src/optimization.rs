@@ -13,6 +13,7 @@ mod intrinsics;
 mod observation;
 mod poll_chunks;
 mod simplify;
+mod strings;
 
 /// Producer choices; they do not change entity or ABI identity.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -206,6 +207,9 @@ fn run_with_intrinsics(
             break;
         }
         active = changed;
+    }
+    if options.allocation_elision {
+        strings::run(module);
     }
     if options.poll_chunking {
         poll_chunks::run(module, &mut registry);

@@ -180,6 +180,7 @@ pub(in crate::optimization::inline) fn expression_cost(expression: &mir::Expr) -
         | mir::ExprKind::ArrayAllocate { .. }
         | mir::ExprKind::ArrayLiteral { .. }
         | mir::ExprKind::ArrayAssembly { .. }
+        | mir::ExprKind::StringConcat(_)
         | mir::ExprKind::ArrayClone { .. }
         | mir::ExprKind::AtomicNew(_) => 12,
         mir::ExprKind::Context(_) | mir::ExprKind::Atomic(_) => 6,

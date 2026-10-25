@@ -448,6 +448,15 @@ pub enum Instruction {
         safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
     },
+    /// One fresh String, with its inputs rooted across allocation and copied in order.
+    StringConcat {
+        out: TempId,
+        parts: Vec<StringConcatPart>,
+        overflow_message: GlobalId,
+        descriptor: TypeDescriptorRef,
+        safepoint: SafepointSiteRef,
+        live: StatepointLiveSet,
+    },
     /// `array.size` (canonical source `Long`, represented by `I64`).
     ArrayLen {
         out: TempId,
@@ -585,6 +594,7 @@ impl Instruction {
             Self::ArrayAllocDynamic { safepoint, .. }
             | Self::ArrayAlloc { safepoint, .. }
             | Self::ArrayAssembly { safepoint, .. }
+            | Self::StringConcat { safepoint, .. }
             | Self::ArrayClone { safepoint, .. }
             | Self::BoxValue { safepoint, .. } => {
                 Some((SafepointSiteRole::ManagedCall, *safepoint))
@@ -598,6 +608,21 @@ impl Instruction {
 pub enum ArrayAssemblyPart {
     Element(Value),
     CopyArray(Value),
+}
+
+#[derive(Debug, Clone)]
+pub enum StringConcatPart {
+    Value(Value),
+    Literal(String),
+}
+
+impl StringConcatPart {
+    pub fn value(&self) -> Option<Value> {
+        match self {
+            Self::Value(value) => Some(*value),
+            Self::Literal(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

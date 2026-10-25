@@ -14,6 +14,7 @@
 
 ## 当前进展
 
+- 已完成[普通 String 拼接融合与热二元生成](STRING-CONCAT.md)：真实 MIR runtime 身份识别，常量合并、单用链一次分配，复用静态热度和 TLAB；共享中间结果及副作用边界保持。三目标热二元降低约 42%～62%，五段链降低约 83%～92%，十万次链减少 12.8 MB 分配。text 增加约 1 KB、完整文件缩小，冷编译变化 −2.95%～+2.25%；定向语义、IR／机器码和大小对象 moving 验证通过。release 默认，无 StringBuilder、布局、ABI 或测量代码变更。
 - 已完成[标量 core 正文与 Boolean 字符串常量](SCALAR-BODIES.md)：固定宽度 hash 与 Boolean equals／hash 进入普通正文，保留位型及原调用点评分；Boolean.toString 选择 immortal。三目标热内核消除标量调用，常量 hash 折叠；十万次 Boolean 字符串化减少 3.2 MB 分配、minor 3→0。text 增加 232～256 B、完整文件和 core 库缩小，consumer 编译增加 0.32%～2.05%；GNU 动态 hash 的初测小幅回退及固定 CPU 复核同时保留。三目标各 3 项 Cone 测试与成员内联／moving 专测通过，无 runtime、ABI 或测量代码变更。
 - 已完成[整数十进制格式化与 helper 正文](INTEGER-DECIMAL.md)：普通 core 向 20 B 栈缓冲区一次写入，按实际长度分配并复制；C 后备同步移除 printf。通用补齐循环／pointer 正文和递归 helper 消费，动态大正文共享、常量点按原评分展开。三目标四种转换耗时降低 19.62%～69.69%，strings／strmap 降低 9.36%～37.27%；分配／GC 计数保持。text 增加 512～1,984 B，四库增加 0.14%～2.27%，consumer 编译增加 1.10%～1.38%；两机 native／HIR 与三目标定向 Cone／跨 Cone／moving 验证通过。全 profile 算法一致，release 默认内联，无新 ABI 或测量代码。
 - 已完成[线程入口复用已校验状态](THREAD-STATE-REUSE.md)：18 处直接消费已有检查取得的线程状态，带 caller-root 的 native 进出 TLS 取址七次降至四次，保留全部检查和握手内存序。三目标 NativeSafe 每次调用降低 19.57%／3.41%／3.05%，Darwin／GNU strmap 降低 6.78%／3.44%，musl strmap 的 +1.40% 及其他短路径回退保留。两机定向 runtime 测试、三目标各 6 个正式变体通过；text 变化 −164～+64 B、完整文件和布局不变，runtime 冷构建变化 −1.52%～+0.65%。所有 profile 默认，无新 ABI 或诊断代码。

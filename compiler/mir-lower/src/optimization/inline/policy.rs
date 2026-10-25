@@ -94,7 +94,7 @@ pub(super) use cost::{
     Cost, adjusted_blocks_cost, assignment_cost, block_cost, blocks_cost, cold_blocks,
     expression_cost, function_cost, statement_cost, tree_cost,
 };
-pub(super) use heat::heats;
+pub(in crate::optimization) use heat::heats;
 pub(super) use score::{Growth, Site, assess};
 
 pub(super) fn copy_cost(structs: &la_arena::Arena<mir::StructDef>, ty: &mir::Type) -> usize {

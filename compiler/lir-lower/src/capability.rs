@@ -197,6 +197,7 @@ fn expression_requirement(
     expression: &mir::Expr,
 ) -> Option<StrongLirMaterializationRequirement> {
     match &expression.kind {
+        mir::ExprKind::StringConcat(_) => None,
         mir::ExprKind::DataBorrow(operation) => match operation.kind {
             mir::DataBorrowOperationKind::DataPointer(mir::BorrowDataSource::Array(class))
             | mir::DataBorrowOperationKind::Length(mir::BorrowDataSource::Array(class)) => {

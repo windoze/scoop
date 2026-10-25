@@ -43,6 +43,11 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
                 visit_expr(capture.value(), visitor);
             }
         }
+        ExprKind::StringConcat(parts) => {
+            for value in parts.iter().filter_map(StringConcatPart::value) {
+                visit_expr(value, visitor);
+            }
+        }
         ExprKind::ArrayAssembly { parts, .. } => {
             for part in parts {
                 match part {
@@ -204,6 +209,11 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         ExprKind::ClosureAlloc { captures, .. } => {
             for capture in captures {
                 visit_expr_mut(capture.value_mut(), visitor);
+            }
+        }
+        ExprKind::StringConcat(parts) => {
+            for value in parts.iter_mut().filter_map(StringConcatPart::value_mut) {
+                visit_expr_mut(value, visitor);
             }
         }
         ExprKind::ArrayAssembly { parts, .. } => {

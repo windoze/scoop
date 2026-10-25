@@ -72,6 +72,19 @@ pub(super) fn dump_expr(
         ExprKind::StringConst(id) => {
             out.push_str(&format!("{pad}StringConst {}\n", string_ref(*id)));
         }
+        ExprKind::StringConcat(parts) => {
+            out.push_str(&format!("{pad}StringConcat\n"));
+            for part in parts {
+                match part {
+                    StringConcatPart::Value(value) => {
+                        dump_expr(module, locals, value, indent + 1, out)
+                    }
+                    StringConcatPart::Literal(text) => {
+                        out.push_str(&format!("{pad}  Utf8 {text:?}\n"))
+                    }
+                }
+            }
+        }
         ExprKind::IntegerLiteral(value) => {
             let digits = usize::from(value.width().bytes()) * 2;
             out.push_str(&format!(

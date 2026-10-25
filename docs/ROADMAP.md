@@ -758,6 +758,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。PGO 为后续独立专项，在代表负载、成熟消费者和反馈原型净收益成立后排期；测量与全程序优化／ThinLTO 均不以 PGO 为前置。
 - 优化按长期、分批试验和交付推进：成本低且收益比较稳定的方案可直接纳入 release 默认设置；成本过高或收益不稳定的方案通过独立开关或等级决定是否启用、启用哪一级。默认值随实测结果调整，保留默认与调优配置的对照。
 - [已采纳优化与开启条件](program-performance/ENABLED-OPTIMIZATIONS.md)简要列出各项方案的默认 profile、适用条件及实际开关，后续采纳与策略变更时同步维护。
+- [普通 String 拼接生成路径](program-performance/STRING-CONCAT.md)已交付：MIR 融合单用链并合并短常量，热循环二元复用同一路径；一次分配并在 GC 后重取输入地址，保留共享结果、异常顺序和冷点后备。三目标定向测试、大小对象 moving、IR／机器码与成本对照通过；release 默认，布局及 ABI 不变，StringBuilder 不变。
 - [标量 core 正文与 Boolean 字符串常量](program-performance/SCALAR-BODIES.md)已交付：Boolean equals／hash 和整数 hash 使用普通正文，保持位宽／回绕结果，按调用点展开；Boolean.toString 选择已有 immutable String。三目标定向语义、GC、IR／机器码与成本对照通过，十万次字符串化减少 3.2 MB 分配；短动态内核的测量波动单独保留。全 profile 正文一致，release 默认，无新 ABI 或测量机制。
 - [整数十进制格式化与 helper 正文](program-performance/INTEGER-DECIMAL.md)已交付：专用八位分块算法进入普通 core，20 B 栈缓冲区一次写入，C 后备同步替换 printf；补齐跨 Cone 循环／pointer 和普通 helper 正文闭合，沿用调用点评分。三目标转换降低约 20%～70%，分配不变，代表程序体积与编译成本小幅增加；定向语义、GC、IR／机器码和对照完成。所有 profile 使用同一算法，release 默认展开，无新增 ABI 或测量代码。
 - [线程入口复用已校验状态](program-performance/THREAD-STATE-REUSE.md)已交付：同步入口消费 managed 检查返回的线程状态，native 边界 TLS 取址七次降至四次；三目标 NativeSafe 调用降低约 19.6%／3.4%／3.0%，完整文件、对象与线程布局保持，定向 GC／线程／异常验证通过。全部 profile 默认，实际程序回退和构建成本一并记录。

@@ -115,6 +115,14 @@ impl GlobalReferences {
             | Instruction::GlobalAddress { global, .. } => {
                 self.globals.insert(*global);
             }
+            Instruction::StringConcat {
+                descriptor,
+                overflow_message,
+                ..
+            } => {
+                self.descriptor(*descriptor);
+                self.globals.insert(*overflow_message);
+            }
             Instruction::BoxValue { payload, .. } => self.descriptor(payload.descriptor()),
             Instruction::UnboxValue { result, .. } => self.descriptor(result.descriptor()),
             Instruction::ArrayAllocDynamic {

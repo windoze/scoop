@@ -7,6 +7,20 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::StringConcat { out, parts, .. } => {
+            let parts = parts
+                .iter()
+                .map(|part| match part {
+                    StringConcatPart::Value(value) => value_name(*value),
+                    StringConcatPart::Literal(text) => format!("utf8 {text:?}"),
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            buf.push_str(&format!(
+                "    t{} = string_concat {parts}\n",
+                out.into_raw()
+            ));
+        }
         Instruction::MaybeUninit {
             out,
             wrapper,

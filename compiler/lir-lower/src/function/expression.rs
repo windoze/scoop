@@ -6,6 +6,7 @@ impl<'a> FunctionLowerer<'a> {
     pub(super) fn lower_expr(&mut self, expr: &mir::Expr) -> StorageResult<lir::Value> {
         let ty = &expr.ty;
         Ok(match &expr.kind {
+            mir::ExprKind::StringConcat(parts) => self.lower_string_concat(parts)?,
             mir::ExprKind::MaybeUninit { wrapper, operation } => {
                 self.lower_maybe_uninit(*wrapper, operation, ty)?
             }

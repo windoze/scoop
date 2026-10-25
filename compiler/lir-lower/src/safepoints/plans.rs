@@ -154,6 +154,20 @@ pub(super) fn annotate_root_plans(
                         context, &roots, function, structs, enums,
                     )?)
                 }
+                lir::Instruction::StringConcat { parts, .. } => {
+                    let mut roots = live.clone();
+                    include_managed_operands(
+                        context,
+                        &mut roots,
+                        parts.iter().filter_map(lir::StringConcatPart::value),
+                        function,
+                        structs,
+                        enums,
+                    )?;
+                    RootPlan::Statepoint(statepoint_live_set(
+                        context, &roots, function, structs, enums,
+                    )?)
+                }
                 lir::Instruction::ArrayClone { operand, .. } => {
                     let mut roots = live.clone();
                     include_managed_operands(
@@ -272,6 +286,10 @@ pub(super) fn annotate_root_plans(
                         ..
                     }
                     | lir::Instruction::ArrayAlloc {
+                        live: instruction_live,
+                        ..
+                    }
+                    | lir::Instruction::StringConcat {
                         live: instruction_live,
                         ..
                     }

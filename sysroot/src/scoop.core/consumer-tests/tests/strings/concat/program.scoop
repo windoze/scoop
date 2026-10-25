@@ -1,0 +1,50 @@
+package test.core.tests.strings.concat
+
+import scoop.test.*
+
+private fun decorate(left: String, right: String): String = left + " / " + "[" + right + "]"
+private fun nested(a: String, b: String, c: String): String = (a + b) + (c + "!")
+private fun constant(): String = "雪" + "🚀" + "\u0000"
+
+private class Trace {
+    var value = ""
+    fun part(text: String, stop: Boolean): String {
+        value = value + text
+        if (stop) { throw IllegalArgumentException() }
+        return text
+    }
+}
+
+@Test
+private class ConcatTests {
+    @Test
+    fun contentsAndSharing() {
+        val left = String.fromChars(['雪', '\u0000'])
+        val right = String.fromChars(['🚀', 'e', '\u0301'])
+        if (constant() != "雪🚀\u0000" || decorate(left, right) != "雪\u0000 / [🚀e\u0301]" ||
+            nested(left, "", right) != "雪\u0000🚀e\u0301!" ||
+            decorate("", "") != " / []") { fail(Some("content")) }
+        val shared = left + right
+        val result = shared + shared
+        if (result != "雪\u0000🚀e\u0301雪\u0000🚀e\u0301" || shared != left + right) {
+            fail(Some("shared intermediate"))
+        }
+        var changing = left
+        val before = changing + ":"
+        changing = right
+        if (before + changing + "!" != "雪\u0000:🚀e\u0301!") { fail(Some("snapshot")) }
+    }
+
+    @Test
+    fun orderAndFailure() {
+        val trace = Trace()
+        val result = trace.part("a", false) + trace.part("b", false) + trace.part("c", false)
+        if (trace.value != "abc" || result != "abc") { fail(Some("order")) }
+        trace.value = ""
+        var caught = false
+        try {
+            val unused = trace.part("a", false) + trace.part("b", true) + trace.part("c", false)
+        } catch (error: IllegalArgumentException) { caught = true }
+        if (!caught || trace.value != "ab") { fail(Some("exception prefix")) }
+    }
+}

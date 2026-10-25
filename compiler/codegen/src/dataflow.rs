@@ -117,6 +117,10 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
         Instruction::MakeAggregate { elements, .. } | Instruction::ArrayAlloc { elements, .. } => {
             elements.clone()
         }
+        Instruction::StringConcat { parts, .. } => parts
+            .iter()
+            .filter_map(scoop_lir::StringConcatPart::value)
+            .collect(),
         Instruction::ArrayAssembly { parts, .. } => parts
             .iter()
             .map(|part| match part {
@@ -231,6 +235,7 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::ArrayAllocDynamic { out, .. }
         | Instruction::ArrayAlloc { out, .. }
         | Instruction::ArrayAssembly { out, .. }
+        | Instruction::StringConcat { out, .. }
         | Instruction::PushPinFrame { out, .. }
         | Instruction::ArrayDataPointer { out, .. }
         | Instruction::StringDataPointer { out, .. }

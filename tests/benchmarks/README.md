@@ -32,6 +32,8 @@ TMPDIR="$PWD/tmp" python3 -m unittest discover -s tests/benchmarks/tests
 按需机器符号映射与 macOS `sample`／Linux `perf` 的使用见[函数级采样归因](PROFILING.md)。
 它保留原始采样含义，与普通 A/B 计时分别测量，不作为 PGO 编译输入。
 
+[普通字符串拼接](scalars/concat.scoop)复用 scalars 的显式 phases helper，四个模式为热二元、五段链、共享中间结果和全常量链；设置 `SCOOP_BENCH_KIND=0..3` 与 `SCOOP_BENCH_COUNT`。输入构造在计时外，GC 统计另行运行，IR 与机器码核对实际分配／复制；结果和边界见[拼接记录](../../docs/program-performance/STRING-CONCAT.md)。
+
 ## M31 性能用例
 
 M33 的真实 C FFI 调用与 collector 等待基准见 [ffi/README.md](ffi/README.md)。

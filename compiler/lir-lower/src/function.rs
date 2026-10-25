@@ -20,6 +20,7 @@ mod pointers;
 mod scalars;
 mod statements;
 mod storage;
+mod strings;
 mod task_context;
 
 use call::LoweredCallDestination;

@@ -7,6 +7,8 @@ use scoop_identity::{
 };
 
 use super::observation::Observer;
+pub(super) use policy::heats;
+
 use super::{
     flow,
     graph::{self, index},

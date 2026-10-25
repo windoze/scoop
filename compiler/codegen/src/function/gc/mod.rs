@@ -16,5 +16,5 @@ mod fields;
 mod poll;
 mod writes;
 
-use allocation_layout::AllocationLayout;
+pub(super) use allocation_layout::AllocationLayout;
 pub(in crate::function) use fields::FieldBarrierCache;

@@ -1185,6 +1185,10 @@ Char 为独立 nominal identity，常量和各层表示保存合法 Unicode scal
 
 String 的普通 getCharAt(idx) 方法和 charLength 属性按 Unicode scalar，byteLength 使用物理 UTF-8 byte count；String 不提供 get／下标运算或 length 别名。公开 API 从 core 真实声明导出并跨 Cone 消费，内部 UTF-8 表示、定位后备的 Option 结果、runtime 符号及调用 ABI 保持，异常边界见运行时规范第 6 章；List getter 仍为可抛出的普通 managed 调用。
 
+release 在普通 MIR 内联与局部分配优化之后识别真实 `RuntimeFn::StringConcat` 调用，融合同一基本块中单独使用的连续拼接。分析只穿过稳定局部值复制和常量准备；其他调用、可变存储写入、可能抛出或改变绑定的操作及控制流边界结束融合。中间结果及其别名必须具有唯一写入且只读一次，不能删除其他位置仍使用的结果。输入按原顺序各求值一次，保留共享输入与重复片段；融合不改变异常前的副作用前缀。首版最多展开八个片段，合并不超过 64 bytes 的相邻常量片段；更长的常量仍引用原 String。普通二元拼接只在静态热循环调用点或全部输入为短常量时使用同一生成路径；热度复用内联器的循环／冷出口分析，冷点及不合格链保留共享 runtime 后备。
+
+融合结果是编译器内部的 typed StringConcat 值操作，区分已求值 String 输入与直接 UTF-8 常量片段。LIR 携带实际 String TD、分配 safepoint 及输入 live set；codegen checked 累计长度，一次分配结果，写入 byte count 并按序复制。所有可能移动的输入在分配后从规范 root 重读，再计算 bytes 地址；长度可跨 safepoint 保留，内部指针不可。常量片段直接写入结果，不创建额外 immortal 对象或 managed root。此操作不进入 `.slib` 公共格式，不改变 String 布局、实体身份或旧二元 runtime ABI；debug 和 release 继续消费相同库合同。该局部融合不涉及 StringBuilder、插值格式化或 parts 存储。
+
 严格、可空和 lossy UTF-8 转换按语言规范 11.4 的实际 core 声明调用 runtime 后备。CharacterCodingException 是普通 core 异常，成功/失败结果通过完整 typed Scoop ABI 传递；不按方法短名增加编译器特判或新的异常角色。lossy 的 maximal subpart 与严格路径的 byteOffset 使用同一解码规则，生成代码不得用截断、locale 转码或忽略非法字节替代。字节借用、结果 String 与跨分配保存的 managed 输入遵守普通 roots、pin 与 relocation 合同。
 
 C 字符串接口由普通 core 代码组合：withCString 检查 NUL，复制到带终止符的 MutableArray<UInt8>，再通过语言规范 13.11 借用；fromCString 通过普通 C ABI 的 strlen 取得长度，复用严格 pointer 解码。strlen 按 GCLeaf 合同调用；没有独立的编译器 C 字符串类型、隐式编码转换或栈缓冲优化。

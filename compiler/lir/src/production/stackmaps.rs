@@ -205,6 +205,7 @@ fn stackmap_semantics(
         | Instruction::ArrayAllocDynamic { live, .. }
         | Instruction::ArrayAlloc { live, .. }
         | Instruction::ArrayAssembly { live, .. }
+        | Instruction::StringConcat { live, .. }
         | Instruction::ArrayClone { live, .. } => Some(live),
         Instruction::Invoke {
             site: crate::InvokeSite::Managed(_),
