@@ -73,6 +73,7 @@
 | Interactions GET SSE 与显式断点接续 | 完成：本机新增 8/8、共享流回归 5/5，nuc12 仅接续与取消清理 2/2；两平台生产库通过。Google 真实游标接续通过，共 4 次 API 请求；真实用例默认忽略，缺少配置直接跳过 |
 | OpenAI／DeepSeek／Anthropic／Gemini 显式模型查询 | 完成：本机新增 9/9、共享计数／流式回归 2/2，nuc12 仅分页／读取与取消清理 2/2；两平台生产库通过。Google 分页、单模型读取与两个 API 版本共 4 次只读请求通过；真实用例默认忽略 |
 | OpenRouter／Cohere／Ollama／Bedrock 模型查询 | 完成：本机新增 7 项与相关回归 17 项分批通过，nuc12 仅目录网络组合与 Cohere SSE 2/2；两平台生产库通过。支持原生路径、Ollama POST／verbose、可选服务端 ID 与独立 requestedId；真实互通未验证 |
+| OpenAI／Anthropic 文件 API | 完成：本机新增 11 项与共享调用回归 3 项分批通过，nuc12 仅完整文件操作与关闭下载 2/2；两平台生产库通过。普通测试均为本地 mock，真实互通待可用服务后补测 |
 | 既定协议与辅助 API 的剩余封装 | 待实施；仅实际请求／响应合同，不扩展到部署或平台管理 |
 | 显式输入 token count：Gemini／Messages | 完成：本机定向 19/19、共享生成回归 7/7；Linux 仅网络组合 1/1；独立消费者 4 通过、13 个真实 API 用例忽略 |
 | 其他实时会话、跨协议组合与使用示例验收 | 待实施 |
@@ -182,3 +183,5 @@
 - 显式模型查询接入 OpenAI、DeepSeek、Anthropic 与 Gemini，按具体 API 支持列表和单模型读取；DeepSeek 只提供文档公开的列表。分页使用原生 query，数量为 ULong，目录与模型附加字段原样保存，不影响生成或自动推导 capability。本机新增 9 项和共享回归 2 项分批通过；关闭测试改为等待客户端实际收到响应头后，重跑通过。nuc12 仅分页／读取与取消清理 2/2。Google 的 v1beta 分页与读取、v1 列表共 4 次只读请求通过，无生成；真实用例默认忽略，缺少配置直接跳过。两平台生产库、格式、lint 与凭据扫描通过，清理闲置 Rust 增量产物约 186 MiB；无编译器修改或 fixture。
 
 - 原生模型查询补齐 OpenRouter、Cohere、Ollama 与 Bedrock。Cohere 的地址前缀由生成与目录操作分别追加 v2/chat、v1/models；Ollama 使用 POST /show，服务端未提供的 ID 保持 None，requestedId 单独保存请求值。附加信息及完整响应包装原样保留，Bedrock 查询地址显式提供。本机新增 7 项及相关回归 17 项分批通过；初次重试 mock 错用不重试的 503，改为合同中的 429 后通过，库策略未改。nuc12 仅四服务目录网络组合与 Cohere SSE 两项通过；真实用例默认忽略已复验，本轮无真实 API 请求。两平台生产库、格式、lint 与凭据扫描通过，清理闲置 Rust 增量目录；没有编译器修改或 fixture，新增服务的真实互通尚未验证。
+
+- OpenAI Chat／Responses 与 Anthropic Messages 的文件上传、列表、元数据、下载和删除接入统一 client；复用 HTTP multipart、认证、重试与实际时间戳，文件引用可保存并用于后续生成，纯文本文件引用覆盖两个 Messages API 版本。服务端附加信息原样保留，下载和删除保留原始 bytes。本机新增 11 项及生成／计数／SSE 回归 3 项分批通过，nuc12 仅文件网络组合与关闭清理 2/2；两平台生产库、格式与 lint 通过。测试辅助代码的闭包捕获、语句与 204 mock 分帧已修正；无编译器修改、fixture 或真实服务请求，真实互通待补测。清理闲置 Rust 增量产物约 186 MiB。

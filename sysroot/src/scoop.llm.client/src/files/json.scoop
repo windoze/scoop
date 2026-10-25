@@ -1,0 +1,42 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+/** OpenAI and Anthropic share the file routes and id/data envelope, but not upload options. */
+internal class MultipartFileApi(val dialect: DialectId, val openAi: Boolean) : LlmFileApi {
+    public override fun listUrl(baseUrl: Url, query: UrlQuery): Url =
+        llmModelQueryUrl(baseUrl.toBuilder().appendPathSegment("files").build(), query)
+    public override fun retrieveUrl(baseUrl: Url, fileId: String): Url {
+        if (fileId.length == 0L) throw LlmRequestException("/fileId", "file ID must not be empty")
+        return baseUrl.toBuilder().appendPathSegment("files").appendPathSegment(fileId).build()
+    }
+    public override fun downloadUrl(baseUrl: Url, fileId: String): Url =
+        retrieveUrl(baseUrl, fileId).toBuilder().appendPathSegment("content").build()
+    public override fun encodeUpload(upload: LlmFileUpload): LlmFileUploadBody = encodeLlmFileUpload(dialect, upload, openAi)
+    public override fun decodeFile(value: JsonValue): LlmFileInfo = decodeEntry(value, "", value)
+    public override fun decodeList(value: JsonValue): LlmFilePage {
+        checkObject(value, "", value)
+        val data = value["data"]
+        if (!llmPresent(data) || data!!.kind != JsonValueKind.Array)
+            throw LlmProtocolException(dialect, "/data", "expected a file list array", value)
+        val entries = ArrayList<LlmFileInfo>()
+        var index = 0L
+        for (entry in data!!.elements()) {
+            entries.add(decodeEntry(entry, "/data/" + index.toString(), value))
+            index += 1L
+        }
+        return LlmFilePage(dialect, entries.toArray(), value)
+    }
+    private fun decodeEntry(value: JsonValue, path: String, native: JsonValue): LlmFileInfo {
+        checkObject(value, path, native)
+        val id = value["id"]
+        if (!llmPresent(id) || id!!.kind != JsonValueKind.String || id!!.asString().length == 0L)
+            throw LlmProtocolException(dialect, path + "/id", "expected a nonempty file identifier", native)
+        return LlmFileInfo(dialect, id!!.asString(), LlmFileReference(dialect, id!!), value)
+    }
+    private fun checkObject(value: JsonValue, path: String, native: JsonValue) {
+        if (value.kind != JsonValueKind.Object) throw LlmProtocolException(dialect, path, "expected a file response object", native)
+    }
+}

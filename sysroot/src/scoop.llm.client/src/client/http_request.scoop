@@ -5,8 +5,8 @@ import scoop.http.client.*
 import scoop.url.Url
 
 internal suspend fun prepareLlmHttpRequest(http: HttpClient, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
-    options: LlmCallOptions, attempt: LlmAttemptState, method: String = "POST"): HttpRequest {
-    val body = if (bytes.size == 0L) RequestBody.Empty else RequestBody.fromByteArray(bytes, Some(HttpMediaType.parse("application/json")))
+    options: LlmCallOptions, attempt: LlmAttemptState, method: String = "POST", contentType: String = "application/json"): HttpRequest {
+    val body = if (bytes.size == 0L) RequestBody.Empty else RequestBody.fromByteArray(bytes, Some(HttpMediaType.parse(contentType)))
     val prepared = HttpRequest(url, method, endpoint.fields, body)
     val authentication = awaitLlmAuth(endpoint, prepared, bytes)
     ensureActive()

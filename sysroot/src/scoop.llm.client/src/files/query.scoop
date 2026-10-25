@@ -1,0 +1,19 @@
+package scoop.llm.client
+
+import scoop.url.UrlQuery
+
+public fun openAiFilesQuery(limit: ULong? = None, after: String? = None, order: String? = None, purpose: String? = None): UrlQuery {
+    var query = UrlQuery()
+    when (limit) { case Some(value) -> query = query.add("limit", Some(value.toString())); case None -> {} }
+    when (after) { case Some(value) -> query = query.add("after", Some(value)); case None -> {} }
+    when (order) { case Some(value) -> query = query.add("order", Some(value)); case None -> {} }
+    when (purpose) { case Some(value) -> query = query.add("purpose", Some(value)); case None -> {} }
+    return query
+}
+
+public fun anthropicFilesQuery(limit: ULong? = None, page: String? = None): UrlQuery {
+    var query = UrlQuery()
+    when (limit) { case Some(value) -> query = query.add("limit", Some(value.toString())); case None -> {} }
+    when (page) { case Some(value) -> query = query.add("page", Some(value)); case None -> {} }
+    return query
+}

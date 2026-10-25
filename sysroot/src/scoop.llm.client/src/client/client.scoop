@@ -45,6 +45,25 @@ public class LlmClient private constructor(internal val state: LlmClientState) :
         options: LlmCallOptions = LlmCallOptions(), extensions: Array<DialectExtension> = []): LlmModelResult =
         retrieveLlmModel(state, endpoint, modelId, options, extensions)
 
+    public suspend fun uploadFile(endpoint: LlmEndpoint, upload: LlmFileUpload,
+        options: LlmCallOptions = LlmCallOptions()): LlmFileResult = uploadLlmFile(state, endpoint, upload, options)
+
+    public suspend fun listFiles(endpoint: LlmEndpoint, query: UrlQuery = UrlQuery(),
+        options: LlmCallOptions = LlmCallOptions()): LlmFileListResult = listLlmFiles(state, endpoint, query, options)
+
+    public suspend fun retrieveFile(endpoint: LlmEndpoint, fileId: String,
+        options: LlmCallOptions = LlmCallOptions()): LlmFileResult = retrieveLlmFile(state, endpoint, fileId, options)
+
+    public suspend fun downloadFile(endpoint: LlmEndpoint, fileId: String, options: LlmCallOptions = LlmCallOptions()): LlmFileContentResult {
+        val (bytes, metadata) = readLlmFileBytes(state, endpoint, fileId, options, false)
+        return LlmFileContentResult(endpoint.provider.protocol.dialectId, fileId, bytes, metadata)
+    }
+
+    public suspend fun deleteFile(endpoint: LlmEndpoint, fileId: String, options: LlmCallOptions = LlmCallOptions()): LlmFileDeletionResult {
+        val (native, metadata) = readLlmFileBytes(state, endpoint, fileId, options, true)
+        return LlmFileDeletionResult(endpoint.provider.protocol.dialectId, fileId, native, metadata)
+    }
+
     public suspend fun compactResponse(model: LlmModel, request: LlmRequest,
         options: LlmCallOptions = LlmCallOptions()): ResponsesCompactionResult = compactLlmResponse(state, model, request, options)
 

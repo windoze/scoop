@@ -1,0 +1,40 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+/** Explicit file operations for a dialect; generation never invokes these automatically. */
+public interface LlmFileApi {
+    public fun listUrl(baseUrl: Url, query: UrlQuery = UrlQuery()): Url
+    public fun uploadUrl(baseUrl: Url): Url = listUrl(baseUrl)
+    public fun retrieveUrl(baseUrl: Url, fileId: String): Url
+    public fun deleteUrl(baseUrl: Url, fileId: String): Url = retrieveUrl(baseUrl, fileId)
+    public fun downloadUrl(baseUrl: Url, fileId: String): Url
+    public fun encodeUpload(upload: LlmFileUpload): LlmFileUploadBody
+    public fun decodeFile(value: JsonValue): LlmFileInfo
+    public fun decodeList(value: JsonValue): LlmFilePage
+}
+
+/** Already available bytes; reading a local file is the caller's explicit operation. */
+public class LlmFileUpload public constructor(
+    public val filename: String, public val bytes: Array<Byte>,
+    public val mimeType: String = "application/octet-stream", public val extensions: Array<DialectExtension> = []
+) {
+    public companion object : ValueEncoder<LlmFileUpload>, ValueDecoder<LlmFileUpload>
+}
+
+/** The exact body and content type authenticated and reused across retry attempts. */
+public class LlmFileUploadBody public constructor(public val bytes: Array<Byte>, public val contentType: String)
+
+public class LlmFileInfo public constructor(
+    public val dialect: DialectId, public val id: String, public val reference: LlmFileReference, public val native: JsonValue
+) {
+    public companion object : ValueEncoder<LlmFileInfo>, ValueDecoder<LlmFileInfo>
+}
+
+public class LlmFilePage public constructor(
+    public val dialect: DialectId, public val files: Array<LlmFileInfo>, public val native: JsonValue
+) {
+    public companion object : ValueEncoder<LlmFilePage>, ValueDecoder<LlmFilePage>
+}

@@ -1,0 +1,67 @@
+package scoop.llm.client.tests.files
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.llm.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal class FileFormPart(val head: MultipartPartHead) {
+    val body = ByteArrayBuilder()
+    val disposition: HttpContentDisposition get() = HttpContentDisposition.parse(head.fields.findAll("Content-Disposition".toByteArray())[0].value)
+    val name: String get() = String.fromUtf8(disposition.parameter("name")!!.value)
+}
+
+private class FileFormCapture {
+    val parts = ArrayList<FileFormPart>()
+    var ended = false
+    fun drain(decoder: MultipartDecoder) {
+        while (true) {
+            when (decoder.nextEvent()) {
+                case None -> return
+                case Some(MultipartEvent.PartStarted(head)) -> parts.add(FileFormPart(head))
+                case Some(MultipartEvent.Data(data)) -> parts[parts.size - 1L].body.append(data)
+                case Some(MultipartEvent.PartEnded) -> {}
+                case Some(MultipartEvent.End) -> ended = true
+            }
+        }
+    }
+}
+
+internal fun readFileForm(bytes: Array<Byte>, contentType: String): Array<FileFormPart> {
+    val capture = FileFormCapture()
+    MultipartDecoder(MultipartBoundary.fromMediaType(HttpMediaType.parse(contentType))).use { decoder ->
+        NativeByteBuffer.allocate(bytes.size).use { buffer ->
+            buffer.writeBytes(bytes)
+            while (buffer.readableBytes != 0L) { decoder.receive(buffer); capture.drain(decoder) }
+        }
+        decoder.endInput()
+        capture.drain(decoder)
+    }
+    assertTrue(capture.ended)
+    return capture.parts.toArray()
+}
+
+internal suspend fun sendFileBytes(connection: AsyncHttp1Connection, bytes: Array<Byte>) {
+    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U, fields = [HttpField("Content-Type".toByteArray(),
+        "application/octet-stream".toByteArray())]), Http1BodyFraming.Length(bytes.size)).useAsync suspend { output ->
+        NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); output.writeFully(buffer) }
+        output.finish()
+    }
+}
+
+internal fun assertFileTiming(metadata: LlmCallMetadata) {
+    assertEquals(LlmCallOutcome.Completed, metadata.outcome)
+    assertTrue(metadata.finishedAt != None)
+    val attempt = metadata.attempts[metadata.attempts.size - 1L]
+    assertTrue(attempt.request.sentAt != None)
+    assertTrue(attempt.response.receivedAt != None)
+    assertTrue(attempt.response.completedAt != None)
+    assertTrue(attempt.response.completed!!.elapsed >= attempt.response.received!!.elapsed)
+    assertTrue(attempt.response.received!!.elapsed >= attempt.request.sent!!.elapsed)
+    assertEquals(None, attempt.responseId)
+    assertEquals(None, attempt.response.firstOutputAt)
+    assertEquals(None, attempt.usage.tokens.totalTokens)
+}

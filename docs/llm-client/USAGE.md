@@ -738,6 +738,38 @@ println(detail.requestedId)
 
 Ollama 详情没有服务端模型 ID，因此 detail.model.id 为 None。OpenRouter 单模型查询接受 author/slug（含 :free 等后缀），native 保留完整 data 包装。Bedrock 模型查询需要显式配置模型目录 API 的 endpoint，例如 https://bedrock.us-east-1.amazonaws.com，并使用对应的 SigV4 认证；库不改写既有 runtime URL。列表过滤参数用 UrlQuery 显式提供。
 
+### 7.12 显式上传、引用和读取文件
+
+OpenAI Chat／Responses 和 Anthropic Messages 使用同一个文件入口。以下函数接收应用已读入的 PDF bytes；模型仍由应用指定，文件操作不查询模型目录。
+
+```scoop
+suspend fun summarizePdf(endpoint: LlmEndpoint, modelId: String, pdf: Array<Byte>): LlmResult =
+    withLlmClient suspend { client ->
+        val uploaded = client.uploadFile(endpoint, LlmFileUpload("report.pdf", pdf, "application/pdf"))
+        try {
+            val document = Document(MediaSource.FileReference(uploaded.file.reference, "application/pdf"))
+            client.generate(endpoint.model(modelId), LlmRequest([Message([Text("概括这份报告。"), document])]))
+        } finally {
+            client.deleteFile(endpoint, uploaded.file.id)
+        }
+    }
+```
+
+文件引用和结果有 companion codec，保存后可在同 dialect 中继续使用。上传缺省 MIME 是 application/octet-stream；上例明确声明 PDF。OpenAI 的 purpose 缺省为 user_data，Anthropic 不发送 purpose。库只执行明确调用，例子里的删除由应用安排。
+
+```scoop
+val metadata = client.retrieveFile(endpoint, fileId)
+val page = client.listFiles(endpoint, openAiFilesQuery(limit = Some(10UL)))
+// Pass the service's actual cursor explicitly; native fields are preserved unchanged.
+val next = client.listFiles(endpoint, openAiFilesQuery(after = Some(page.page.native["last_id"]!!.asString())))
+val content = client.downloadFile(endpoint, generatedFileId)
+val bytes = content.bytes
+```
+
+Anthropic 的分页使用 `anthropicFilesQuery(limit = Some(10UL), page = Some(cursor))`，cursor 从 page.native 的 next_page 取得；上传的文件通常不能下载，生成文件可按实际服务合同读取。下载返回原始 bytes，不自动写本地路径或解析 JSON。所有文件调用都保留实际收发时间；服务端文件信息仍在 file.native／page.native，删除响应正文在 result.native。
+
+原生上传选项直接使用 upload.extensions：对象成员是 multipart 字段名，值为字符串。例如 Anthropic 的 `expires_in_seconds`，OpenAI 的 `expires_after[anchor]` 和 `expires_after[seconds]`；需要时明确传入，不由库计算。尚无文件 API 适配的 dialect 会在认证前报告请求错误。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |

@@ -299,7 +299,7 @@ Anthropic input_tokens 是非缓存输入；cache_read_input_tokens、cache_crea
 
 `LlmGenerationProtocol.generationFields()` 缺省返回空数组，defaultMaxOutputTokens() 缺省 None。前者提供该协议／方言的固定请求头，后者用于能力检查中的有效缺省上限。LlmEndpoint.fields 组合固定头与应用字段，应用不能重复固定头名称而造成版本与编码规则不一致；认证看到组合后的真实字段。Chat 的空头和省略上限行为保持不变。MessagesDialect 提供 requestFields、defaultMaxOutputTokens、encodeOptions 与 encodeContent 的协议专用合同；MessagesProtocol 在 base URL 后追加 messages，并复用公共 HTTP 调用、重试、计时和完成通知。
 
-顶层 system 保存为 text block 数组；input 的 User／Assistant 映射同名 role，System 保持原位置的 system role，Developer 没有映射。带内容的 System 不能是首条消息；初始指令使用 request.system。并非所有模型支持中途 system／assistant prefill，Unknown 不按模型名猜测。普通内容支持文本、JPEG／PNG／GIF／WebP 图片的 bytes／HTTP URL／同方言文件 ID，以及 PDF 的相应来源；text/plain 文档支持 UTF-8 bytes。system 只接受文本，直接 assistant 文档在新版失败；音频、视频和带时间戳的视频帧没有该协议的通用映射。Document.filename 不冒充供应商 title；需要标题时使用该 content part 的 title 扩展。
+顶层 system 保存为 text block 数组；input 的 User／Assistant 映射同名 role，System 保持原位置的 system role，Developer 没有映射。带内容的 System 不能是首条消息；初始指令使用 request.system。并非所有模型支持中途 system／assistant prefill，Unknown 不按模型名猜测。普通内容支持文本、JPEG／PNG／GIF／WebP 图片的 bytes／HTTP URL／同方言文件 ID，以及 PDF 的相应来源；text/plain 文档支持 UTF-8 bytes 或同方言文件 ID。system 只接受文本，直接 assistant 文档在新版失败；音频、视频和带时间戳的视频帧没有该协议的通用映射。Document.filename 不冒充供应商 title；需要标题时使用该 content part 的 title 扩展。
 
 ToolResult 编为 user 消息中的 tool_result block，使用原始 call ID、content 和显式 is_error；连续 ToolResult 合并到同一 user 内容数组以保留并行工具结果。block 的扩展仍留在 block，不提升到 user 消息。旧调用不要求本轮重新声明工具。Messages call reference.context 保存的原始调用供应用读取；tool_result 线协议只需要其 ID，不把整个调用 context 发回结果字段。History 只接受同方言的 assistant 消息，保留原始 content；独立 history.context 没有隐式映射。
 
@@ -867,3 +867,21 @@ Ollama 列表使用 GET /tags 和 models[].model；详情使用 POST /show，正
 Bedrock 查询使用 /foundation-models、modelSummaries[].modelId，以及 /foundation-models/{modelIdentifier}、modelDetails.modelId。modelIdentifier 可为实际 ID 或 ARN，整体作为单个 path segment 编码。调用方显式提供模型查询服务的 URL 和认证；不从 runtime 域名、地区或模型名称推导另一地址。所有查询过滤字段仍通过 UrlQuery 传入；不包含云资源创建、部署或账号管理。单模型 native 保留包括 modelDetails 的完整响应。
 
 依据：[OpenRouter 列表](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties)、[单模型](https://openrouter.ai/docs/api/api-reference/models/get-a-model-by-its-slug)、[Cohere 列表](https://docs.cohere.com/v2/reference/list-models)、[单模型](https://docs.cohere.com/v1/reference/get-model)、[Ollama 列表](https://docs.ollama.com/api/tags)、[详情](https://docs.ollama.com/api-reference/show-model-details)、[Bedrock 列表](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_ListFoundationModels.html)、[单模型](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_GetFoundationModel.html)。
+
+## 48. OpenAI 与 Anthropic 文件 API
+
+`LlmClient.uploadFile(endpoint, upload, options = LlmCallOptions())`、`listFiles(endpoint, query = UrlQuery(), options = LlmCallOptions())`、`retrieveFile(endpoint, fileId, options = LlmCallOptions())`、`downloadFile(endpoint, fileId, options = LlmCallOptions())` 和 `deleteFile(endpoint, fileId, options = LlmCallOptions())` 显式执行一次文件操作。它们服务于生成输入和生成文件的读取，不隐式上传媒体、轮询处理状态、自动翻页或清理服务端文件。
+
+`LlmFileUpload(filename, bytes, mimeType = "application/octet-stream", extensions = [])` 是可保存的内存上传数据，不包含本地路径或凭据。文件名和 MIME 由应用提供，不探测文件内容。`LlmGenerationProtocol.fileApi(): LlmFileApi?` 缺省 None；Chat、Responses、Messages protocol 委托具体 dialect，当前 OpenAI Chat／Responses 与 Anthropic Messages 提供文件操作。`LlmFileApi` 提供纯 URL 构造、上传编码及文件／列表解码；上传编码返回 `LlmFileUploadBody(bytes, contentType)`。未接入的 dialect 在认证前明确报错，不因兼容同一种生成协议而推定支持文件 API。
+
+三个 provider 使用相同路由：上传 POST /files、列表 GET /files、元数据 GET /files/{id}、删除 DELETE /files/{id}、内容 GET /files/{id}/content。ID 必须非空，作为单个原始 path segment 编码，保留 baseUrl 前缀和 query；列表 query 按 §46 的规则合并。Anthropic 继续使用 endpoint 的版本头，正式 Files API 不自动添加旧 beta 头。`openAiFilesQuery(limit: ULong? = None, after: String? = None, order: String? = None, purpose: String? = None)` 与 `anthropicFilesQuery(limit: ULong? = None, page: String? = None)` 仅构造原生 UrlQuery；其他过滤条件直接通过 UrlQuery 传入。
+
+上传复用 scoop.http 的 MultipartEncoder，file part 携带实际 filename、Content-Type 和原始 bytes。OpenAI 缺省增加 purpose=user_data；调用方可通过所属 dialect 的 extension 明确指定 purpose。upload.extensions 的对象成员是原始 multipart 字段名与字符串值，既不猜测嵌套结构，也不把 JSON 当成表单值。例如 OpenAI 的 `expires_after[anchor]`／`expires_after[seconds]` 和 Anthropic 的 `expires_in_seconds` 由应用显式提供。不能覆盖 file part，不能跨 dialect 或重复提供扩展。仅检查表单可编码性，不解释服务端附加信息或计算过期时间。
+
+上传只编码一次完整 multipart 正文；既有 HTTP 调用增加可选 contentType 参数，缺省仍为 application/json。认证回调看到最终 multipart Content-Type（含 boundary）及与实际发送完全相同的 bytes；明确服务拒绝后的重试复用相同 bytes／boundary 并重新认证。文件上传不允许 endpoint 的 Content-Type 覆盖编码器生成的值。读取和删除使用空正文；下载与删除响应按 maxResponseBytes 有界读取为原始 bytes，不要求 JSON 或 UTF-8。所有操作沿用现有超时、重试、取消、client／借入 HTTP 所有权和完成回调。
+
+`LlmFileInfo(dialect, id, reference, native)` 保存服务端实际 id、可直接交给同 dialect MediaSource.FileReference 的引用及完整 JSON；`LlmFilePage(dialect, files, native)` 保存有序 data 列表和完整分页响应。上传／读取返回 `LlmFileResult(file, metadata)`，列表返回 `LlmFileListResult(page, metadata)`。`LlmFileContentResult(dialect, requestedId, bytes, metadata)` 与 `LlmFileDeletionResult(dialect, requestedId, native, metadata)` 分别保存下载正文和删除原始正文。上述持久数据均提供 companion codec；请求 ID 不冒充服务端文件 ID。
+
+只验证必需 id、data 数组和 JSON 对象结构，HTTP 错误沿既有服务拒绝路径报告；filename、MIME、大小、状态、时间、downloadable、分页及供应商附加字段均保持原文，不因缺失或格式变化阻断文件引用与主线操作。下载能否成功由服务端决定，不以 cached metadata 推断。metadata 记录本次实际收发及完成时间，不把 file id 记为生成 responseId，也不合成 token usage。普通 scoop.test 用本地 mock 验证原始 multipart／认证、重试、保存后文件引用、分页、二进制内容、原始删除响应及取消清理；真实用例遵守默认忽略与环境配置要求。
+
+依据：[OpenAI Files](https://developers.openai.com/api/reference/resources/files/methods/create)、[OpenAI 分页](https://developers.openai.com/api/reference/resources/files/methods/list)、[Anthropic Files](https://platform.claude.com/docs/en/build-with-claude/files)、[Anthropic 分页](https://platform.claude.com/docs/en/api/http/files/list)、[Anthropic 下载](https://platform.claude.com/docs/en/api/files/download)。

@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.json.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.replace
+
+internal fun encodeLlmFileUpload(dialect: DialectId, upload: LlmFileUpload, openAi: Boolean): LlmFileUploadBody {
+    checkDialectExtensions(upload.extensions, "/upload/extensions")
+    val fields = mergeLlmExtensions(JsonObjectBuilder().build(), upload.extensions, dialect, ["file"], "/upload")
+    val mime = HttpMediaType.parseOrNone(upload.mimeType) ?: throw LlmRequestException("/upload/mimeType", "invalid file media type")
+    val parts = ArrayList<(MultipartPartHead, Array<Byte>)>()
+    parts.add((MultipartPartHead.formData("file", Some(upload.filename), Some(mime), Some(upload.bytes.size)), upload.bytes))
+    if (openAi && !fields.containsKey("purpose")) {
+        val bytes = "user_data".toByteArray()
+        parts.add((MultipartPartHead.formData("purpose", bodyLength = Some(bytes.size)), bytes))
+    }
+    for ((name, value) in fields.members()) {
+        if (value.kind != JsonValueKind.String)
+            throw LlmRequestException("/upload/extensions/0/value/" + name.replace("~", "~0").replace("/", "~1"),
+                "file form field requires a string value")
+        val bytes = value.asString().toByteArray()
+        parts.add((MultipartPartHead.formData(name, bodyLength = Some(bytes.size)), bytes))
+    }
+    val boundary = MultipartBoundary.generate()
+    val output = ByteArrayBuilder()
+    MultipartEncoder(boundary).use { encoder ->
+        NativeByteBuffer.allocate(8192L).use { buffer ->
+            for ((head, bytes) in parts) {
+                output.append(encoder.beginPart(head))
+                var offset = 0L
+                while (offset < bytes.size) {
+                    buffer.clear()
+                    val count = if (bytes.size - offset > 8192L) 8192L else bytes.size - offset
+                    buffer.writeBytes(bytes, offset, count)
+                    output.append(encoder.writeBody(buffer))
+                    offset += count
+                }
+                output.append(encoder.endPart())
+            }
+        }
+        output.append(encoder.finish())
+    }
+    return LlmFileUploadBody(output.toByteArray(), String.fromUtf8(boundary.toMediaType().toByteArray()))
+}

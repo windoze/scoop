@@ -1,0 +1,63 @@
+package scoop.llm.client
+
+import scoop.http.findAll
+import scoop.url.UrlQuery
+
+internal suspend fun uploadLlmFile(client: LlmClientState, endpoint: LlmEndpoint, upload: LlmFileUpload,
+    options: LlmCallOptions): LlmFileResult {
+    val (file, metadata) = executeLlmCall<LlmFileInfo>(client, options) suspend { call ->
+        val api = requireLlmFileApi(endpoint)
+        if (endpoint.fields.findAll("Content-Type".toByteArray()).size != 0L)
+            throw LlmRequestException("/endpoint/fields", "file upload supplies its own Content-Type")
+        val url = api.uploadUrl(endpoint.baseUrl)
+        val body = api.encodeUpload(upload)
+        performLlmJsonRequest<LlmFileInfo>(call, endpoint, url, body.bytes, options, contentType = body.contentType) { parsed, attempt ->
+            val decoded = api.decodeFile(parsed)
+            attempt.completeOperation()
+            decoded
+        }
+    }
+    return LlmFileResult(file, metadata)
+}
+
+internal suspend fun listLlmFiles(client: LlmClientState, endpoint: LlmEndpoint, query: UrlQuery,
+    options: LlmCallOptions): LlmFileListResult {
+    val (page, metadata) = executeLlmCall<LlmFilePage>(client, options) suspend { call ->
+        val api = requireLlmFileApi(endpoint)
+        performLlmJsonRequest<LlmFilePage>(call, endpoint, api.listUrl(endpoint.baseUrl, query), [], options, "GET") { parsed, attempt ->
+            val decoded = api.decodeList(parsed)
+            attempt.completeOperation()
+            decoded
+        }
+    }
+    return LlmFileListResult(page, metadata)
+}
+
+internal suspend fun retrieveLlmFile(client: LlmClientState, endpoint: LlmEndpoint, fileId: String,
+    options: LlmCallOptions): LlmFileResult {
+    val (file, metadata) = executeLlmCall<LlmFileInfo>(client, options) suspend { call ->
+        val api = requireLlmFileApi(endpoint)
+        performLlmJsonRequest<LlmFileInfo>(call, endpoint, api.retrieveUrl(endpoint.baseUrl, fileId), [], options, "GET") { parsed, attempt ->
+            val decoded = api.decodeFile(parsed)
+            attempt.completeOperation()
+            decoded
+        }
+    }
+    return LlmFileResult(file, metadata)
+}
+
+internal suspend fun readLlmFileBytes(client: LlmClientState, endpoint: LlmEndpoint, fileId: String,
+    options: LlmCallOptions, delete: Boolean): (Array<Byte>, LlmCallMetadata) {
+    return executeLlmCall<Array<Byte>>(client, options) suspend { call ->
+        val api = requireLlmFileApi(endpoint)
+        val url = if (delete) api.deleteUrl(endpoint.baseUrl, fileId) else api.downloadUrl(endpoint.baseUrl, fileId)
+        performLlmHttpRequest<Array<Byte>>(call, endpoint, url, [], options, if (delete) "DELETE" else "GET") suspend { response, attempt ->
+            val bytes = response.body.readAllBytes(options.maxResponseBytes)
+            attempt.completeOperation()
+            bytes
+        }
+    }
+}
+
+internal fun requireLlmFileApi(endpoint: LlmEndpoint): LlmFileApi = endpoint.provider.protocol.fileApi() ?:
+    throw LlmRequestException("/provider", "selected dialect has no file API")

@@ -1,0 +1,99 @@
+package scoop.llm.client.tests.files
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class FileNetworkTest {
+    @Test
+    fun `file operations share exact multipart authentication retry bytes explicit paging and actual timing`() {
+        for (provider in [Providers.openAiChat(), Providers.openAiResponses(), Providers.anthropicMessages()]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val anthropic = provider.protocol.dialectId == AnthropicMessagesDialect().id
+                val emptyDelete = provider.protocol.dialectId == OpenAiResponsesDialect().id
+                val auth = RecordingAuth()
+                val endpoint = LlmEndpoint(provider, auth, Some(Url.parse(original.baseUrl.toString() + "/gateway?tenant=one")))
+                val payload = [0.toByte(), 255.toByte(), 65.toByte()]
+                val fileJson = "{\"id\":\"file-1\",\"filename\":\"report.pdf\",\"extra\":{\"opaque\":true}}"
+                val deleteJson = if (emptyDelete) "" else if (anthropic) "{\"id\":\"file-1\",\"type\":\"file_deleted\"}"
+                    else "{\"id\":\"file-1\",\"object\":\"file\",\"deleted\":true}"
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        for (index in [0L, 1L, 2L, 3L, 4L, 5L, 6L]) {
+                            val request = connection.receiveRequest()!!
+                            val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                            val suffix = if (index == 2L || index == 6L) "/file-1" else if (index == 5L) "/generated/content" else ""
+                            val query = if (index == 3L) "&limit=1" else if (index == 4L) "&limit=1&" + (if (anthropic) "page=" else "after=") + "next%20%2F%3F" else ""
+                            assertEquals("/v1/gateway/files" + suffix + "?tenant=one" + query, target)
+                            assertEquals(if (index < 2L) "POST" else if (index == 6L) "DELETE" else "GET", String.fromUtf8(request.head.method))
+                            val bytes = request.body.readAllBytes(16384L)
+                            assertLlmBytes(auth.requests[index].body, bytes)
+                            assertEquals(target, auth.requests[index].url.httpRequestTarget())
+                            assertEquals("Bearer attempt-" + (index + 1L).toString(),
+                                String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0].value))
+                            if (anthropic) {
+                                assertEquals("2026-10-21", String.fromUtf8(request.head.fields.findAll("anthropic-version".toByteArray())[0].value))
+                                assertEquals(0L, request.head.fields.findAll("anthropic-beta".toByteArray()).size)
+                            }
+                            if (index < 2L) {
+                                val contentType = String.fromUtf8(request.head.fields.findAll("Content-Type".toByteArray())[0].value)
+                                assertEquals(contentType, String.fromUtf8(auth.requests[index].fields.findAll("Content-Type".toByteArray())[0].value))
+                                val parts = readFileForm(bytes, contentType)
+                                assertEquals("file", parts[0].name)
+                                assertLlmBytes(payload, parts[0].body.toByteArray())
+                                if (index == 1L) assertLlmBytes(auth.requests[0].body, bytes)
+                            } else {
+                                assertEquals(0L, bytes.size)
+                                assertEquals(0L, request.head.fields.findAll("Content-Type".toByteArray()).size)
+                            }
+                            if (index == 0L) sendLlmReply(connection, 429U, "{\"error\":{\"type\":\"rate_limit_error\",\"code\":\"rate_limit_exceeded\"}}")
+                            else if (index == 3L || index == 4L) sendLlmReply(connection, 200U,
+                                "{\"data\":[" + fileJson + "],\"" + (if (anthropic) "next_page" else "last_id") + "\":\"next /?\"}")
+                            else if (index == 5L) sendFileBytes(connection, payload)
+                            else if (index == 6L) {
+                                if (emptyDelete) connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 204U)).finish()
+                                else sendLlmReply(connection, 200U, deleteJson)
+                            }
+                            else sendLlmReply(connection, 200U, fileJson)
+                        }
+                    }
+                }
+                val finished = FinishedCalls()
+                withLlmClient suspend { client ->
+                    val options = LlmCallOptions(retries = LlmRetryOptions(maxRetries = 1L, initialDelay = Duration.ZERO),
+                        onFinished = Some(suspend { value -> finished.record(value) }))
+                    val uploaded = Json.decodeFromString<LlmFileResult>(Json.encodeToString(client.uploadFile(endpoint,
+                        LlmFileUpload("report.pdf", payload, "application/pdf"), options)))
+                    assertEquals("file-1", uploaded.file.id)
+                    assertEquals(fileJson, Json.stringify(uploaded.file.native))
+                    assertEquals(2L, uploaded.metadata.attempts.size)
+                    assertEquals(Some(429U), uploaded.metadata.attempts[0].status)
+                    val retrieved = client.retrieveFile(endpoint, uploaded.file.id, options)
+                    val first = client.listFiles(endpoint, if (anthropic) anthropicFilesQuery(Some(1UL)) else openAiFilesQuery(Some(1UL)), options)
+                    val cursor = first.page.native[if (anthropic) "next_page" else "last_id"]!!.asString()
+                    val next = Json.decodeFromString<LlmFileListResult>(Json.encodeToString(client.listFiles(endpoint,
+                        if (anthropic) anthropicFilesQuery(Some(1UL), Some(cursor)) else openAiFilesQuery(Some(1UL), Some(cursor)), options)))
+                    assertEquals(uploaded.file.id, next.page.files[0].id)
+                    val downloaded = Json.decodeFromString<LlmFileContentResult>(Json.encodeToString(client.downloadFile(endpoint, "generated", options)))
+                    assertLlmBytes(payload, downloaded.bytes)
+                    assertEquals("generated", downloaded.requestedId)
+                    val deleted = Json.decodeFromString<LlmFileDeletionResult>(Json.encodeToString(client.deleteFile(endpoint, uploaded.file.id, options)))
+                    assertEquals(deleteJson, String.fromUtf8(deleted.native))
+                    assertEquals(uploaded.file.id, deleted.requestedId)
+                    for (metadata in [uploaded.metadata, retrieved.metadata, first.metadata, next.metadata, downloaded.metadata, deleted.metadata])
+                        assertFileTiming(metadata)
+                }
+                serving.join()
+                assertEquals(7L, auth.requests.size)
+                assertEquals(6L, finished.values.size)
+            }
+        }
+    }
+}

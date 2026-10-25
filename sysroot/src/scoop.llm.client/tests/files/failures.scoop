@@ -1,0 +1,69 @@
+package scoop.llm.client.tests.files
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+
+@Test
+private class FileFailureTest {
+    @Test
+    fun `unsupported file APIs identifiers and multipart content type conflicts fail before authentication`() {
+        withLlmServer suspend { _, _, _, original ->
+            val auth = RecordingAuth()
+            withLlmClient suspend { client ->
+                for (operation in [0L, 1L, 2L, 3L, 4L, 5L, 6L]) {
+                    val endpoint = LlmEndpoint(if (operation < 5L) Providers.deepSeekChat() else Providers.openAiChat(), auth, Some(original.baseUrl),
+                        if (operation == 6L) [HttpField("Content-Type".toByteArray(), "application/json".toByteArray())] else [])
+                    val finished = FinishedCalls()
+                    val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))
+                    val error = expectLlmFailure<LlmRequestException> suspend {
+                        if (operation == 0L || operation == 6L) client.uploadFile(endpoint, LlmFileUpload("a", []), options)
+                        else if (operation == 1L) client.listFiles(endpoint, options = options)
+                        else if (operation == 2L || operation == 5L) client.retrieveFile(endpoint, "", options)
+                        else if (operation == 3L) client.downloadFile(endpoint, "file", options)
+                        else client.deleteFile(endpoint, "file", options)
+                        Unit
+                    }
+                    assertEquals(if (operation < 5L) "/provider" else if (operation == 5L) "/fileId" else "/endpoint/fields", error.path)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(0L, finished.values[0].attempts.size)
+                }
+            }
+            assertEquals(0L, auth.requests.size)
+        }
+    }
+
+    @Test
+    fun `file responses retain service errors and malformed core responses without speculative retries`() {
+        for (malformed in [false, true]) {
+            withLlmServer suspend { _, scope, listener, endpoint ->
+                val body = if (malformed) "{\"data\":[{}]}" else "{\"error\":{\"message\":\"file is not downloadable\"}}"
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(4096L)
+                        sendLlmReply(connection, if (malformed) 200U else 400U, body)
+                    }
+                }
+                val finished = FinishedCalls()
+                withLlmClient suspend { client ->
+                    val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))
+                    if (malformed) {
+                        val error = expectLlmFailure<LlmProtocolException> suspend { client.listFiles(endpoint, options = options); Unit }
+                        assertEquals("/data/0/id", error.path)
+                    } else {
+                        val error = expectLlmFailure<LlmServiceException> suspend { client.downloadFile(endpoint, "not-downloadable", options); Unit }
+                        assertLlmBytes(body.toByteArray(), error.body)
+                    }
+                }
+                serving.join()
+                assertEquals(1L, finished.values.size)
+                assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                assertEquals(1L, finished.values[0].attempts.size)
+                assertEquals(None, finished.values[0].attempts[0].response.completedAt)
+            }
+        }
+    }
+}

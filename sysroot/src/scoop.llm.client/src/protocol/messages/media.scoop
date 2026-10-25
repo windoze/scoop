@@ -22,13 +22,12 @@ internal fun encodeMessagesMedia(source: MediaSource, dialect: DialectId, docume
                 .add("data", JsonValue.fromString(data)).build()
         }
         case Url(url, _) -> {
-            if (type == "text/plain") throw LlmRequestException(path, "plain-text Messages document requires inline bytes")
+            if (type == "text/plain") throw LlmRequestException(path, "plain-text Messages document has no URL source mapping")
             if (url.scheme != Some("http") && url.scheme != Some("https"))
                 throw LlmRequestException(path + "/url", "Messages media URL must use http or https")
             llmTypedObject("url").add("url", JsonValue.fromString(url.toString())).build()
         }
         case FileReference(reference, _) -> {
-            if (type == "text/plain") throw LlmRequestException(path, "plain-text Messages document requires inline bytes")
             requireLlmOwner(reference.dialect, dialect, path + "/reference/dialect")
             if (reference.value.kind != JsonValueKind.String || reference.value.asString().length == 0L)
                 throw LlmRequestException(path + "/reference/value", "Messages file reference must be a nonempty string ID")

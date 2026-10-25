@@ -5,21 +5,21 @@ import scoop.http.client.HttpResponse
 import scoop.url.Url
 
 internal suspend fun <T> performLlmJsonRequest(call: LlmCallState, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
-    options: LlmCallOptions, method: String = "POST", decode: (JsonValue, LlmAttemptState) -> T): T {
-    return performLlmHttpRequest<T>(call, endpoint, url, bytes, options, method) suspend { response, attempt ->
+    options: LlmCallOptions, method: String = "POST", contentType: String = "application/json", decode: (JsonValue, LlmAttemptState) -> T): T {
+    return performLlmHttpRequest<T>(call, endpoint, url, bytes, options, method, contentType) suspend { response, attempt ->
         val parsed = response.body.json<JsonValue>(options.maxResponseBytes)
         decode(parsed, attempt)
     }
 }
 
 internal suspend fun <T> performLlmHttpRequest(call: LlmCallState, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
-    options: LlmCallOptions, method: String, decode: suspend (HttpResponse, LlmAttemptState) -> T): T {
+    options: LlmCallOptions, method: String, contentType: String = "application/json", decode: suspend (HttpResponse, LlmAttemptState) -> T): T {
     var retry = 0L
     var backoff = options.retries.initialDelay
     while (true) {
         ensureActive()
         val attempt = LlmAttemptState(call, retry + 1L)
-        val result = try { executeLlmAttempt<T>(call.client.http, endpoint, url, bytes, options, attempt, method, decode) }
+        val result = try { executeLlmAttempt<T>(call.client.http, endpoint, url, bytes, options, attempt, method, contentType, decode) }
         finally { call.attempts.add(attempt.snapshot()) }
         val rejection = when (result) { case Success(response) -> return response; case Rejected(error) -> error }
         if (!rejection.retryable || retry >= options.retries.maxRetries) throw rejection

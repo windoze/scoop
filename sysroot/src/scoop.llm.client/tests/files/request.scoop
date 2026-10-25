@@ -1,0 +1,77 @@
+package scoop.llm.client.tests.files
+
+import scoop.http.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.assertLlmBytes
+import scoop.test.*
+import scoop.url.*
+
+@Test
+private class FileRequestTest {
+    @Test
+    fun `file uploads use existing multipart encoding with binary bytes MIME filename and natural defaults`() {
+        val bytes = ArrayList<Byte>()
+        var index = 0L
+        while (index < 8205L) { bytes.add((index % 256L).toByte()); index += 1L }
+        val payload = bytes.toArray()
+        for (provider in [Providers.openAiChat(), Providers.openAiResponses(), Providers.anthropicMessages()]) {
+            val api = provider.protocol.fileApi()!!
+            val upload = Json.decodeFromString<LlmFileUpload>(Json.encodeToString(LlmFileUpload("报告\".pdf", payload, "application/pdf")))
+            val encoded = api.encodeUpload(upload)
+            val parts = readFileForm(encoded.bytes, encoded.contentType)
+            assertEquals("file", parts[0].name)
+            assertEquals("报告\".pdf", String.fromUtf8(parts[0].disposition.parameter("filename")!!.value))
+            assertEquals("application/pdf", String.fromUtf8(parts[0].head.fields.findAll("Content-Type".toByteArray())[0].value))
+            assertLlmBytes(payload, parts[0].body.toByteArray())
+            val anthropic = provider.protocol.dialectId == AnthropicMessagesDialect().id
+            assertEquals(if (anthropic) 1L else 2L, parts.size)
+            if (!anthropic) {
+                assertEquals("purpose", parts[1].name)
+                assertEquals("user_data", String.fromUtf8(parts[1].body.toByteArray()))
+            }
+        }
+    }
+
+    @Test
+    fun `file form extensions are explicit dialect fields and preserve empty string values`() {
+        val dialect = OpenAiResponsesDialect().id
+        val api = Providers.openAiResponses().protocol.fileApi()!!
+        val extension = DialectExtension(dialect, Json.parse("{\"purpose\":\"user_data\",\"expires_after[anchor]\":\"created_at\",\"expires_after[seconds]\":\"3600\",\"future\":\"\"}"))
+        val encoded = api.encodeUpload(LlmFileUpload("empty", [], extensions = [extension]))
+        val parts = readFileForm(encoded.bytes, encoded.contentType)
+        assertEquals(5L, parts.size)
+        assertEquals(0L, parts[0].body.toByteArray().size)
+        assertEquals("application/octet-stream", String.fromUtf8(parts[0].head.fields.findAll("Content-Type".toByteArray())[0].value))
+        assertEquals("expires_after[seconds]", parts[3].name)
+        assertEquals("3600", String.fromUtf8(parts[3].body.toByteArray()))
+        assertEquals(0L, parts[4].body.toByteArray().size)
+        for ((extensions, path) in [([DialectExtension(AnthropicMessagesDialect().id, Json.parse("{}"))], "/upload/extensions/0/dialect"),
+            ([extension, extension], "/upload/extensions/1"),
+            ([DialectExtension(dialect, Json.parse("{\"file\":\"replacement\"}"))], "/upload/extensions/0/value/file"),
+            ([DialectExtension(dialect, Json.parse("{\"future\":{}}"))], "/upload/extensions/0/value/future")]) {
+            val error = assertFailsWith<LlmRequestException> { api.encodeUpload(LlmFileUpload("a", [], extensions = extensions)) }
+            assertEquals(path, error.path)
+        }
+        assertEquals("/upload/mimeType", assertFailsWith<LlmRequestException> { api.encodeUpload(LlmFileUpload("a", [], "invalid")) }.path)
+    }
+
+    @Test
+    fun `file URLs preserve prefixes queries and encoded IDs without automatic paging`() {
+        val base = Url.parse("https://example.test/prefix/v1?tenant=one&limit=9")
+        for (provider in [Providers.openAiChat(), Providers.openAiResponses(), Providers.anthropicMessages()]) {
+            val api = provider.protocol.fileApi()!!
+            val query = UrlQuery().add("limit", Some("2")).add("ids[]", Some("a")).add("ids[]", Some("b")).add("empty", None)
+            assertEquals("/prefix/v1/files?tenant=one&limit=2&ids%5B%5D=a&ids%5B%5D=b&empty", api.listUrl(base, query).httpRequestTarget())
+            assertEquals("/prefix/v1/files/f%2F%3F%23%20x?tenant=one&limit=9", api.retrieveUrl(base, "f/?# x").httpRequestTarget())
+            assertEquals(api.retrieveUrl(base, "f").toString(), api.deleteUrl(base, "f").toString())
+            assertEquals("/prefix/v1/files/f/content?tenant=one&limit=9", api.downloadUrl(base, "f").httpRequestTarget())
+            assertEquals("/fileId", assertFailsWith<LlmRequestException> { api.retrieveUrl(base, "") }.path)
+        }
+        assertEquals("", openAiFilesQuery().toString())
+        assertEquals("limit=18446744073709551615&after=x&order=asc&purpose=user_data",
+            openAiFilesQuery(Some(ULong.MAX_VALUE), Some("x"), Some("asc"), Some("user_data")).toString())
+        assertEquals("", anthropicFilesQuery().toString())
+        assertEquals("limit=0&page=", anthropicFilesQuery(Some(0UL), Some("")).toString())
+    }
+}
