@@ -1,0 +1,41 @@
+package scoop.llm.client
+
+import scoop.asyncio.AsyncCloseable
+import scoop.http.client.HttpWebSocketSession
+import scoop.time.Instant
+import scoop.url.Url
+
+/** One endpoint connection with explicit duplex message operations and no implicit model loop. */
+public class ResponsesSession internal constructor(private val state: ResponsesSessionState,
+    internal val socket: HttpWebSocketSession, public val protocol: ResponsesProtocol,
+    public val handshake: LlmCallMetadata) : AsyncCloseable {
+    public val endpoint: LlmEndpoint get() = state.endpoint
+    public val id: String get() = state.call.id
+    public val startedAt: Instant get() = state.call.startedAt
+    public val url: Url get() = socket.url
+    public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    public val failure: Throwable? get() = state.lock.withLock { state.failure }
+
+    public suspend fun create(model: LlmModel, request: LlmRequest,
+        options: ResponsesWebSocketCreateOptions = ResponsesWebSocketCreateOptions()): ResponsesWebSocketSent {
+        checkResponsesSessionModel(state, model)
+        checkModelRequest(model.capabilities, request, protocol.defaultMaxOutputTokens())
+        requireModelCapability(model.capabilities.streaming, "/stream")
+        return sendResponsesSession(state, socket, protocol.encodeWebSocketCreate(model.id, request, options))
+    }
+
+    public suspend fun steer(model: LlmModel, previousResponseId: String, input: Array<LlmInputItem>): ResponsesWebSocketSent {
+        checkResponsesSessionModel(state, model)
+        checkModelRequest(model.capabilities, LlmRequest(input))
+        requireModelCapability(model.capabilities.realtime, "/realtime")
+        return sendResponsesSession(state, socket, protocol.encodeWebSocketSteer(previousResponseId, input))
+    }
+
+    public suspend fun receive(): ResponsesWebSocketReceived? = receiveResponsesSession(state, socket, protocol)
+    public override suspend fun close() { closeResponsesSession(state) }
+}
+
+private fun checkResponsesSessionModel(state: ResponsesSessionState, model: LlmModel) {
+    checkResponsesSessionLoop(state)
+    if (model.endpoint !== state.endpoint) throw LlmRequestException("/model", "model belongs to another endpoint")
+}

@@ -1,0 +1,43 @@
+package scoop.llm.client
+
+import scoop.asyncio.useAsync
+import scoop.http.client.HttpWebSocketOptions
+
+internal suspend fun runResponsesSession(state: ResponsesSessionState, caller: Job?, options: LlmCallOptions,
+    webSocketOptions: HttpWebSocketOptions) {
+    val call = state.call
+    var failure: Throwable? = None
+    state.opening.listener = caller?.invokeOnCancellation { error -> state.stop(error) }
+    try {
+        registerLlmCall(call.client, state)
+        coroutineScope suspend { scope ->
+            call.bind(scope.job)
+            ensureActive()
+            val protocol = state.endpoint.provider.protocol
+            if (!(protocol is ResponsesProtocol)) throw LlmRequestException("/provider", "endpoint does not use the Responses protocol")
+            val (socket, metadata) = openResponsesHandshake(call.client, state.endpoint, protocol, options, webSocketOptions)
+            socket.useAsync suspend { _ ->
+                ensureActive()
+                val monitor = scope.launch suspend {
+                    var error: Throwable? = None
+                    try { socket.awaitClosed(); error = socket.failure }
+                    catch (reason: Throwable) { error = Some(reason) }
+                    state.socketEnd(error)
+                }
+                state.opening.publish(ResponsesSession(state, socket, protocol, metadata))
+                state.awaitSocketEnd()
+                monitor.join()
+            }
+        }
+    } catch (error: Throwable) { failure = Some(error) }
+    finally { state.opening.listener?.dispose() }
+    val selected = call.finish(failure)
+    val finalFailure = when (selected) { case Some(error) -> if (error === state.earlyClose) None else selected; case None -> None }
+    val waiting = state.lock.withLock {
+        state.failure = finalFailure; state.closed = true; state.closing = true; state.wake = None
+        val waiting = state.closeWaiters.toArray(); state.closeWaiters.clear()
+        waiting
+    }
+    when (finalFailure) { case Some(error) -> state.opening.fail(error); case None -> {} }
+    for (waiter in waiting) waiter.resume(Unit)
+}

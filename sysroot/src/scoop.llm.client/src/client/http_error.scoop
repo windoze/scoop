@@ -8,16 +8,20 @@ import scoop.time.Duration
 
 internal suspend fun readLlmRejection(response: HttpResponse, endpoint: LlmEndpoint, options: LlmCallOptions,
     attempt: LlmAttemptState): LlmServiceException? {
-    val primaryId = singleLlmField(response.fields, "x-request-id")
-    val reportedId = if (llmPresent(primaryId)) primaryId else singleLlmField(response.fields, "request-id")
-    attempt.identify(when (reportedId) {
-        case Some(value) -> String.fromUtf8OrNone(value)
-        case None -> None
-    })
+    identifyLlmRequest(response.fields, attempt)
     if (response.status >= 200U && response.status < 300U) return None
     attempt.retryAfter = llmRetryAfter(response.fields)
     val (prefix, truncated) = readLlmError(response.body, options.maxErrorBytes)
     return Some(endpoint.provider.protocol.decodeError(response.status, prefix, truncated))
+}
+
+internal fun identifyLlmRequest(fields: Array<HttpField>, attempt: LlmAttemptState) {
+    val primaryId = singleLlmField(fields, "x-request-id")
+    val reportedId = if (llmPresent(primaryId)) primaryId else singleLlmField(fields, "request-id")
+    attempt.identify(when (reportedId) {
+        case Some(value) -> String.fromUtf8OrNone(value)
+        case None -> None
+    })
 }
 
 private fun singleLlmField(fields: Array<HttpField>, name: String): Array<Byte>? {

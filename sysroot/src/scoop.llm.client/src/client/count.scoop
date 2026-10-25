@@ -13,7 +13,7 @@ internal suspend fun countLlmTokens(client: LlmClientState, model: LlmModel, req
         val bytes = Json.stringify(counter.encodeRequest(model.id, request)).toByteArray()
         performLlmJsonRequest<TokenCount>(call, model.endpoint, url, bytes, options) { parsed, attempt ->
             val decoded = counter.decodeResponse(model.id, parsed)
-            attempt.completeCount()
+            attempt.completeOperation()
             decoded
         }
     }

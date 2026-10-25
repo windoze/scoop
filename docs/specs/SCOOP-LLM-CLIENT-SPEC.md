@@ -711,3 +711,21 @@ ResponsesStreamDecoder 作为公开的单响应聚合器，构造参数为 proto
 Steering 通知和 error 的作用范围由会话层处理；这组纯协议入口不会仅因收到通知而结束某个响应、自动创建后继、执行工具、重放请求或推断缓存状态。steered 仍是实际 incomplete／Pause 结果，后继 response.created 属于新的响应。纯编解码不伪造网络收发时间；网络会话的资源寿命与按实际消息采样由后续接入承担。
 
 依据：[WebSocket 模式](https://developers.openai.com/api/docs/guides/websocket-mode)、[连接入口](https://developers.openai.com/api/reference/resources/responses/methods/connect)、[steering](https://developers.openai.com/api/docs/guides/steering)与[事件定义](https://developers.openai.com/api/reference/typescript/resources/responses)。验证使用协议 JSON mock 和现有 Responses 聚合器；真实服务互通待凭据可用后补测。
+
+## 37. Responses WebSocket 网络会话
+
+LlmClient.openResponsesSession(endpoint, handshakeOptions = LlmCallOptions(), webSocketOptions = HttpWebSocketOptions()) 返回 AsyncCloseable 的 ResponsesSession；withResponsesSession 使用同一入口与 useAsync。endpoint 必须选择 ResponsesProtocol，连接固定其部署、dialect 与认证，同连接可以使用该 endpoint 创建的不同 LlmModel。没有 provider／模型目录查询或模型名路由。会话由 LlmClient 持有并随 client 关闭，借入的 HttpClient 仍归调用者所有。打开期间随打开调用者取消，交付后会话寿命由显式关闭、所属 client 或底层连接结束控制。
+
+握手为实际 HTTP GET，认证使用相应 http／https URL、最终显式 fields 和空 body；共用普通请求的认证冲突、错误正文、服务拒绝分类和重试规则。handshakeOptions 只作用于握手，包括总超时、响应头等待、失败正文上限与 onFinished；成功后的持久会话使用 webSocketOptions 的帧、消息、压缩和关闭设置。握手完成时交付独立的 LlmCallMetadata，保存在 session.handshake。认证或握手回调失败必须关闭已取得的连接。成功握手不生成模型输出、usage 或首文本时间，不能作为任何生成消息的收发时间。
+
+session.create(model, request, options = ResponsesWebSocketCreateOptions()) 使用 §36 的编码器，验证模型属于同一个 endpoint、模型输入及 streaming capability。session.steer(model, previousResponseId, input) 验证相同 endpoint、模型输入与 realtime capability，然后编码 steering；目标 response 与模型的关联由调用者提供，服务器判断该 response 的实际执行状态。两者使用同一消息发送路径，不自动补 previous_response_id、执行工具或重放消息。调用者串行发送消息；可同时进行一个发送和一个接收，同方向重叠操作在改变连接状态前报错。
+
+成功发送返回可保存的 ResponsesWebSocketSent(sessionId, command, timing: LlmRequestTiming)。command 是最终 JSON 消息，不包含握手认证。sent 在完整消息已编码、取得发送 writer 后、向传输提交首段内容前采样；bodyCompleted 在 writer.finish 成功后采样。该时间表示本地消息提交与完成，不能证明服务器接受或生成成功。发送失败沿原异常路径传播并结束连接，不推断是否可安全重发。
+
+session.receive() 按需接收一个完整文本消息，返回可保存的 ResponsesWebSocketReceived(sessionId, event: ResponsesWebSocketEvent, received: LlmTimePoint)，正常 WebSocket 结束返回 None。received 在完整消息从传输取出后、JSON 解码前采样；它不是 TCP 首字节时间。session.id 与 startedAt 标识这条连接的本地时间轴，所有消息时间点的 elapsed 相对于该会话起点，使用单调时钟；UTC 与 Duration 均可保存，不保存活动 TimeMark。每个收到的事件独立采样，握手时间不混入消息记录。
+
+接收循环按实际 streamId 和 response ID 将事件交付给各自的 ResponsesStreamDecoder，沿用 EventsOnly／Result、usage、工具和历史合同。同 lane 的显式队列、自动 steering 后继与控制事件保持服务器的实际顺序；receive 不把 error 自动归到某个正在运行或尚未开始的 create，也不伪造请求关联 ID。Error／Steering／Native 均作为原始事件交付，服务错误不自动关闭其他 lane。每个响应由其终止事件结束，连接 EOF 不能代替 decoder.endInput 的完整性判断。
+
+消息读写、JSON 语法或路由字段失败会结束会话，取消会等待底层清理；已交付给操作调用者的同一个失败不在 useAsync 的 close 中重复抛出。显式 close 可取消正在等待的操作并等待真实释放；client.close 同样等待其会话。握手回调中关闭本次仍在打开的 client 继续遵守已有自等待保护。协议校验、能力检查与同方向重入错误在消息 I/O 前失败，已经打开的会话仍可接受后续合法操作。会话不保存事件 replay，不启动消费全部模型输出的后台任务，不自动重连、恢复队列或判断缓存是否失效。
+
+验证使用本地 HTTP 升级与 WebSocket 服务端 mock，覆盖同连接交错响应、工具与历史、steering／错误通知、实际收发时间、认证重试、取消／关闭和握手失败清理；真实服务互通待凭据可用后补测。

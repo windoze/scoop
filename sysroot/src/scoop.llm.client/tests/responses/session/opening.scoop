@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.responses.session
+
+import scoop.asyncio.*
+import scoop.http.HttpField
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class ResponsesSessionOpeningTest {
+    @Test
+    fun `Responses session unsupported protocol fails before authentication`() {
+        LibuvEventLoop().run suspend { _ ->
+            withLlmClient suspend { client ->
+                val auth = RecordingAuth()
+                expectLlmFailure<LlmRequestException> suspend {
+                    client.openResponsesSession(LlmEndpoint(Providers.openAiChat(), auth, Some(Url.parse("http://127.0.0.1:1")))); Unit
+                }
+                assertEquals(0L, auth.requests.size)
+            }
+        }
+    }
+
+    @Test
+    fun `Responses session opening timeout and caller cancellation clean up authentication`() {
+        LibuvEventLoop().run suspend { scope ->
+            withLlmClient suspend { client ->
+                val finished = FinishedCalls()
+                expectLlmFailure<LlmTimeoutException> suspend {
+                    client.openResponsesSession(LlmEndpoint(Providers.openAiResponses(), SessionWaitingAuth(), Some(Url.parse("http://127.0.0.1:1"))),
+                        LlmCallOptions(timeouts = LlmTimeouts(total = Some(Duration.milliseconds(20L))),
+                            onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+                assertEquals(1L, finished.values.size)
+                assertEquals(None, finished.values[0L].attempts[0L].request.sentAt)
+                val auth = SessionWaitingAuth()
+                val opening = scope.launch suspend {
+                    expectLlmFailure<CancellationException> suspend {
+                        client.openResponsesSession(LlmEndpoint(Providers.openAiResponses(), auth, Some(Url.parse("http://127.0.0.1:1")))); Unit
+                    }
+                    Unit
+                }
+                auth.entered.await()
+                opening.cancel(); opening.join()
+                assertFalse(client.isClosed)
+            }
+        }
+    }
+}
+
+private class SessionWaitingAuth : LlmAuth {
+    val entered = LlmGate()
+    public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> {
+        entered.signal()
+        currentEventLoop().sleep(Duration.seconds(60L))
+        return []
+    }
+}

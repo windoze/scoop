@@ -1,0 +1,19 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Local submission and completion of one JSON command on a session's time axis. */
+public class ResponsesWebSocketSent public constructor(
+    public val sessionId: String, public val command: JsonValue, public val timing: LlmRequestTiming
+) {
+    public companion object : ValueEncoder<ResponsesWebSocketSent>, ValueDecoder<ResponsesWebSocketSent>
+}
+
+/** One complete incoming message, timestamped before protocol decoding on the same session axis. */
+public class ResponsesWebSocketReceived public constructor(
+    public val sessionId: String, public val event: ResponsesWebSocketEvent, public val received: LlmTimePoint
+) {
+    public companion object : ValueEncoder<ResponsesWebSocketReceived>, ValueDecoder<ResponsesWebSocketReceived>
+}
+
+public class ResponsesSessionClosedException public constructor() : Exception(Some("Responses session is closed"))

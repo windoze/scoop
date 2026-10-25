@@ -43,7 +43,7 @@
 
 ### 1.2 配置与调用形态
 
-以下为拟议调用形态，不是已存在的 API：
+共同调用入口直接使用 endpoint、model 和 request：
 
 ```scoop
 val endpoint = LlmEndpoint(
@@ -199,7 +199,7 @@ Server tool 不要求应用提供实现函数或伪造 function Schema。即使�
 
 ToolChoice 使用 Auto、None、Required、Specific(ToolKey)，其范围是本次声明的工具集合。Required 表示至少调用集合中的一个工具，不表示每个都调用；Specific 指定精确工具。协议不能表达所要求的选择或混合组合时失败，不将 Specific(Server) 改成普通函数调用。
 
-例如一次请求可以同时声明本地查询与服务端搜索，拟议数据形态为：
+例如一次请求可以同时声明本地查询与服务端搜索：
 
 ```text
 tools = [
@@ -307,9 +307,9 @@ ServerToolActivity 保存能够观察到的工具引用、调用／item 关联�
 | `response.completedAt` | 完整模型响应及协议要求的尾部数据已接收、解析；取消或截断时保持缺失 |
 | `finishedAt` | 本次调用成功、失败或取消后的实际收尾完成 |
 
-HTTP 的首字节时间另作 `firstResponseByteAt`，可能包含信息响应，与上述 firstEvent／firstOutput 不是同一个指标。普通 HTTP 的 receivedAt 也不是响应正文读完的时间。WebSocket 在请求消息提交和首个归属于该响应的协议消息处分别采样，不借用握手时间；多路响应按实际关联分别记录。
+HTTP 的首字节时间另作 `firstResponseByteAt`，可能包含信息响应，与上述 firstEvent／firstOutput 不是同一个指标。普通 HTTP 的 receivedAt 也不是响应正文读完的时间。WebSocket 在请求消息提交、发送完成和完整消息收取处分别采样，不借用握手时间。ResponsesSession 的发送与接收记录共用 session.id／startedAt 时间轴，可独立保存；应用按真实 streamId／response ID 关联事件和 decoder。服务端错误缺少明确的提交关联时保持原文，不猜测它属于哪个 create，也不合成首次响应时间。
 
-Metadata 保留逻辑 call ID、各次尝试编号及已知的服务端 request／response ID；最终 response 关联产生它的那次 request 时间戳。未发送就失败时 sentAt 缺失；重试后不能用第一次发送与最后一次响应拼成单次网络延迟。失败和取消保留已观察到的时间与 usage，通过 `LlmCallOptions.onFinished` 完成观察入口交付；每次逻辑调用在实际收尾后通知一次，包括打开流前失败，不为附加指标改写 CancellationException。流对象可读取当前快照，在作用域关闭后发布最终完成通知；generate 等待实际收尾后返回包含最终快照的结果，不需要存储每条 delta 的历史。
+HTTP 调用的 metadata 保留逻辑 call ID、各次尝试编号及已知的服务端 request／response ID；最终 response 关联产生它的那次 request 时间戳。未发送就失败时 sentAt 缺失；重试后不能用第一次发送与最后一次响应拼成单次网络延迟。失败和取消保留已观察到的时间与 usage，通过 `LlmCallOptions.onFinished` 完成观察入口交付；每次逻辑调用在实际收尾后通知一次，包括打开流前失败，不为附加指标改写 CancellationException。流对象可读取当前快照，在作用域关闭后发布最终完成通知；generate 等待实际收尾后返回包含最终快照的结果，不需要存储每条 delta 的历史。ResponsesSession 的握手 metadata 与消息记录分开，handshakeOptions.onFinished 只观察握手。
 
 `withStream` 保持普通作用域函数的返回值语义，block 内取得的快照不会在关闭后被隐式改写。选择 Result 保留模式的 `openStream` 在 `useAsync` 关闭后可通过 `result()` 读取完整结果及最终 metadata；该读取不执行 I/O，且要求协议完整与收尾成功。事件模式、提前退出或失败不能返回伪造的完整结果；所有模式在关闭后仍可读取已知 metadata。具体调用见[流式示例](USAGE.md#4-流式输出与完整结果)。
 

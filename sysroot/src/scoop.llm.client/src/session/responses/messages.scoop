@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.asyncio.useAsync
+import scoop.asyncio.writeFully
+import scoop.http.WebSocketMessageType
+import scoop.http.client.HttpWebSocketSession
+import scoop.json.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal suspend fun sendResponsesSession(state: ResponsesSessionState, socket: HttpWebSocketSession,
+    command: JsonValue): ResponsesWebSocketSent {
+    val bytes = Json.stringify(command).toByteArray()
+    beginResponsesSessionOperation(state, false)
+    val listener = currentJobOrNone()?.invokeOnCancellation { error -> state.stop(error) }
+    try {
+        return NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+            buffer.writeBytes(bytes)
+            socket.beginMessage(WebSocketMessageType.Text).useAsync suspend { writer ->
+                val sent = state.call.point()
+                writer.writeFully(buffer)
+                writer.finish()
+                ResponsesWebSocketSent(state.call.id, command, LlmRequestTiming(Some(sent), Some(state.call.point())))
+            }
+        }
+    } catch (error: Throwable) { failResponsesSessionOperation(state, error) }
+    finally { listener?.dispose(); state.lock.withLock { state.writing = false } }
+}
+
+internal suspend fun receiveResponsesSession(state: ResponsesSessionState, socket: HttpWebSocketSession,
+    protocol: ResponsesProtocol): ResponsesWebSocketReceived? {
+    if (!beginResponsesSessionOperation(state, true)) return None
+    val listener = currentJobOrNone()?.invokeOnCancellation { error -> state.stop(error) }
+    try {
+        val message = socket.receive()
+        if (!llmPresent(message)) { awaitResponsesSessionClosed(state); return None }
+        val data = message!!.useAsync suspend { current ->
+            if (current.type != WebSocketMessageType.Text)
+                throw LlmStreamProtocolException(protocol.dialectId, "Responses WebSocket requires text messages")
+            current.readText()
+        }
+        val received = state.call.point()
+        return Some(ResponsesWebSocketReceived(state.call.id, protocol.decodeWebSocketEvent(data), received))
+    } catch (error: Throwable) { failResponsesSessionOperation(state, error) }
+    finally { listener?.dispose(); state.lock.withLock { state.reading = false } }
+}

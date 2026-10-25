@@ -1,0 +1,55 @@
+package scoop.llm.client
+
+import scoop.asyncio.useAsync
+import scoop.http.client.*
+
+internal suspend fun openResponsesHandshake(client: LlmClientState, endpoint: LlmEndpoint, protocol: ResponsesProtocol,
+    options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions): (HttpWebSocketSession, LlmCallMetadata) {
+    val opened = ResponsesHandshakeSocket()
+    try {
+        return executeLlmCall<HttpWebSocketSession>(client, options) suspend { call ->
+            val socket = performResponsesHandshake(call, endpoint, protocol, options, webSocketOptions)
+            opened.value = Some(socket)
+            socket
+        }
+    } catch (error: Throwable) {
+        try { opened.value?.close() }
+        catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}
+
+private class ResponsesHandshakeSocket { var value: HttpWebSocketSession? = None }
+
+private suspend fun performResponsesHandshake(call: LlmCallState, endpoint: LlmEndpoint, protocol: ResponsesProtocol,
+    options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions): HttpWebSocketSession {
+    val url = protocol.webSocketUrl(endpoint.baseUrl)
+    val httpUrl = url.toBuilder().setScheme(Some(if (url.scheme == Some("ws")) "http" else "https")).build()
+    var retry = 0L
+    var backoff = options.retries.initialDelay
+    while (true) {
+        ensureActive()
+        val attempt = LlmAttemptState(call, retry + 1L)
+        val rejection = try {
+            val fields = awaitLlmAuth(endpoint, HttpRequest.get(httpUrl, endpoint.fields), [])
+            ensureActive()
+            val request = HttpWebSocketRequest(url, fields, llmHttpCallOptions(call.client.http, options, attempt))
+            when (call.client.http.openWebSocket(request, webSocketOptions)) {
+                case Opened(socket) -> {
+                    identifyLlmRequest(socket.head.fields, attempt)
+                    attempt.completeOperation()
+                    return socket
+                }
+                case Rejected(response, cause) -> response.useAsync suspend { _ ->
+                    if (response.status < 300U) throw cause
+                    readLlmRejection(response, endpoint, options, attempt)!!
+                }
+            }
+        } finally { call.attempts.add(attempt.snapshot()) }
+        if (!rejection.retryable || retry >= options.retries.maxRetries) throw rejection
+        ensureActive()
+        call.client.loop.sleep(if (attempt.retryAfter > backoff) attempt.retryAfter else backoff)
+        retry += 1L
+        backoff = if (backoff > options.retries.maxDelay - backoff) options.retries.maxDelay else backoff + backoff
+    }
+}

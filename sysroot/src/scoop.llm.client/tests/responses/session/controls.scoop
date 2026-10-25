@@ -1,0 +1,93 @@
+package scoop.llm.client.tests.responses.session
+
+import scoop.asyncio.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.llm.client.tests.responses.*
+import scoop.test.*
+
+@Test
+private class ResponsesSessionControlTest {
+    @Test
+    fun `Responses session request rejections and opaque control events preserve the connection`() {
+        withResponsesPeer(suspend { socket ->
+            assertEquals("model", wsCommand(socket)["model"]!!.asString())
+            for (extra in ["", ",\"service_extra\":null", ",\"service_extra\":[1,\"changed\"]"])
+                socket.sendText("{\"type\":\"error\",\"stream_id\":\"a\",\"error\":{\"code\":\"future\"}" + extra + "}")
+            socket.sendText("{\"type\":\"response.steer.pending\",\"stream_id\":\"a\",\"future\":false}")
+            socket.sendText("{\"type\":\"future.notice\"}")
+            assertEquals("model", wsCommand(socket)["model"]!!.asString())
+            socket.sendText("{\"type\":\"response.steer.failed\",\"error\":null}")
+        }) suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                client.withResponsesSession(endpoint) suspend { session ->
+                    val invalid = endpoint.model("bad", Some(ModelCapabilities(streaming = Unsupported("no stream"))))
+                    expectLlmFailure<LlmRequestException> suspend { session.create(invalid, responsesRequest()); Unit }
+                    val other = LlmEndpoint(endpoint.provider, LlmAuth.none(), Some(endpoint.baseUrl)).model("other")
+                    expectLlmFailure<LlmRequestException> suspend { session.create(other, responsesRequest()); Unit }
+                    val model = endpoint.model("model")
+                    session.create(model, responsesRequest())
+                    for (_ in 0L ..< 3L) assertEquals(ResponsesWebSocketEventKind.Error, wsRead(session).event.kind)
+                    assertEquals(ResponsesWebSocketEventKind.Steering, wsRead(session).event.kind)
+                    assertEquals(ResponsesWebSocketEventKind.Native, wsRead(session).event.kind)
+                    session.create(model, responsesRequest())
+                    assertEquals("response.steer.failed", wsRead(session).event.type)
+                    assertFalse(session.isClosed)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Responses session normal socket end does not complete a model response`() {
+        withResponsesPeer(suspend { socket ->
+            wsCommand(socket)
+            wsEmit(socket, responsesWsStart(ResponsesProtocol(OpenAiResponsesDialect()), None, "unfinished"))
+            socket.shutdownGracefully()
+        }) suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                client.withResponsesSession(endpoint) suspend { session ->
+                    val request = responsesRequest()
+                    session.create(endpoint.model("m"), request)
+                    val decoder = ResponsesStreamDecoder(session.protocol, request)
+                    decoder.accept(wsRead(session).event)
+                    assertTrue(when (session.receive()) { case None -> true; case Some(_) -> false })
+                    assertTrue(session.isClosed)
+                    assertFailsWith<LlmStreamProtocolException> { decoder.endInput(); Unit }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Responses session invalid JSON closes once and preserves the source`() {
+        withResponsesPeer(suspend { socket -> socket.sendText("{") }) suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                client.withResponsesSession(endpoint) suspend { session ->
+                    val error = expectLlmFailure<LlmStreamProtocolException> suspend { session.receive(); Unit }
+                    assertEquals(Some("{"), error.data)
+                    assertTrue(session.isClosed)
+                    assertTrue(session.failure!! === error)
+                    session.close()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Responses session rejects binary messages and waits for cleanup`() {
+        withResponsesPeer(suspend { socket -> socket.sendBinary("bad".toByteArray()) }) suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                client.withResponsesSession(endpoint) suspend { session ->
+                    val error = expectLlmFailure<Throwable> suspend { session.receive(); Unit }
+                    assertTrue(sessionPrimaryFailure(error) is LlmStreamProtocolException)
+                    assertTrue(session.isClosed)
+                    session.close()
+                }
+            }
+        }
+    }
+}
+
+private fun sessionPrimaryFailure(error: Throwable): Throwable =
+    if (error is ResourceUseException) sessionPrimaryFailure(error.primaryFailure) else error

@@ -2,6 +2,7 @@ package scoop.llm.client
 
 import scoop.asyncio.*
 import scoop.http.client.HttpClient
+import scoop.http.client.HttpWebSocketOptions
 
 /** A reusable generation client with explicit ownership of calls and optional HTTP transport. */
 public class LlmClient private constructor(internal val state: LlmClientState) : AsyncCloseable {
@@ -42,6 +43,14 @@ public class LlmClient private constructor(internal val state: LlmClientState) :
     public suspend fun <T> withStream(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions(),
         retention: StreamRetention = EventsOnly, block: suspend (LlmStream) -> T): T =
         openStream(model, request, options, retention).useAsync(block)
+
+    public suspend fun openResponsesSession(endpoint: LlmEndpoint, handshakeOptions: LlmCallOptions = LlmCallOptions(),
+        webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions()): ResponsesSession =
+        openResponsesSessionState(state, endpoint, handshakeOptions, webSocketOptions)
+
+    public suspend fun <T> withResponsesSession(endpoint: LlmEndpoint, handshakeOptions: LlmCallOptions = LlmCallOptions(),
+        webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions(), block: suspend (ResponsesSession) -> T): T =
+        openResponsesSession(endpoint, handshakeOptions, webSocketOptions).useAsync(block)
 
     public override suspend fun close() { closeLlmClient(state) }
 }

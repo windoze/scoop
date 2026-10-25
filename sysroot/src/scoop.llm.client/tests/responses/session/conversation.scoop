@@ -1,0 +1,58 @@
+package scoop.llm.client.tests.responses.session
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.responses.*
+import scoop.platform.time.SystemClock
+import scoop.test.*
+
+@Test
+private class ResponsesSessionConversationTest {
+    @Test
+    fun `Responses session mock multiplexes models steering tools and timestamped continuation`() {
+        withResponsesPeer(suspend { socket -> runResponsesConversationPeer(socket) }) suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                client.withResponsesSession(endpoint) suspend { session ->
+                    val modelA = endpoint.model("model-a"); val modelB = endpoint.model("model-b")
+                    val requestA = responsesRequest(); val requestB = responsesRequest([responsesStreamFunction()])
+                    val before = SystemClock.now()
+                    val sent = session.create(modelA, requestA, ResponsesWebSocketCreateOptions(Some("a")))
+                    val after = SystemClock.now()
+                    session.create(modelB, requestB)
+                    assertTrue(sent.timing.sentAt!! >= before && sent.timing.sentAt!! <= after)
+                    assertTrue(sent.timing.bodyCompleted!!.elapsed >= sent.timing.sent!!.elapsed)
+                    assertEquals(session.id, sent.sessionId)
+                    assertEquals(LlmCallOutcome.Completed, session.handshake.outcome)
+                    assertEquals(Some(101U), session.handshake.attempts[0L].status)
+                    assertEquals(None, session.handshake.attempts[0L].response.firstTextAt)
+                    val saved = Json.decodeFromString<ResponsesWebSocketSent>(Json.encodeToString(sent))
+                    assertEquals(sent.timing.sentAt, saved.timing.sentAt)
+                    val a = ResponsesStreamDecoder(session.protocol, requestA, StreamRetention.Result)
+                    val b = ResponsesStreamDecoder(session.protocol, requestB, StreamRetention.Result)
+                    a.accept(wsRead(session).event)
+                    val steer = session.steer(modelA, "response-a", [Message([Text("update")])])
+                    val accepted = wsRead(session)
+                    assertEquals(ResponsesWebSocketEventKind.Steering, accepted.event.kind)
+                    assertTrue(accepted.received.elapsed >= steer.timing.sent!!.elapsed)
+                    val restored = Json.decodeFromString<ResponsesWebSocketReceived>(Json.encodeToString(accepted))
+                    assertEquals(Json.stringify(accepted.event.native), Json.stringify(restored.event.native))
+                    assertEquals(session.id, restored.sessionId)
+                    b.accept(wsRead(session).event); b.accept(wsRead(session).event)
+                    a.accept(wsRead(session).event)
+                    assertEquals(LlmFinishReason.Pause, a.response().candidate(0L).finishReason)
+                    val successor = ResponsesStreamDecoder(session.protocol, requestA, StreamRetention.Result)
+                    successor.accept(wsRead(session).event); successor.accept(wsRead(session).event)
+                    assertEquals("updated", successor.response().text)
+                    assertEquals(Some(7L), successor.usage.tokens.totalTokens)
+                    val tool = Json.decodeFromString<LlmResponse>(Json.encodeToString(b.response()))
+                    val next = LlmRequest([tool.toInput()[0L], ToolResult(tool.clientToolCalls[0L].reference, [Text("2")])])
+                    session.create(modelB, next)
+                    val final = ResponsesStreamDecoder(session.protocol, next, StreamRetention.Result)
+                    final.accept(wsRead(session).event); final.accept(wsRead(session).event)
+                    assertEquals("done", final.response().text)
+                    assertFalse(session.isClosed)
+                }
+            }
+        }
+    }
+}

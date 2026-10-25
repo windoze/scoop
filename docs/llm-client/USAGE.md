@@ -510,7 +510,38 @@ when (event.kind) {
 }
 ```
 
-上例中的 modelId、responseId、receivedText 和 handleSessionEvent 由应用提供；普通 JSON codec 可保存事件和最终 LlmResponse。默认 EventsOnly 只交付增量，完整结果显式选择 Result。这里提供已实现的线协议入口；LlmClient 的持久连接管理、多路分发和实际消息收发计时继续接入，不将纯 JSON mock 通过记为网络会话或真实服务通过。
+上例中的 modelId、responseId、receivedText 和 handleSessionEvent 由应用提供；普通 JSON codec 可保存事件和最终 LlmResponse。默认 EventsOnly 只交付增量，完整结果显式选择 Result。纯协议入口不进行网络 I/O；持久连接使用下面的会话入口。
+
+### 7.5 Responses 持久连接与消息时间戳
+
+同一 endpoint 的多个模型和 lane 可以共用 ResponsesSession。最小会话使用现有参数的缺省值；model 和 request 与普通生成相同：
+
+```scoop
+withLlmClient suspend { client ->
+    client.withResponsesSession(model.endpoint) suspend { session ->
+        val sent = session.create(model, request)
+        println(sent.timing.sentAt)
+        val decoder = ResponsesStreamDecoder(session.protocol, request, StreamRetention.Result)
+        while (!decoder.isFinished) {
+            val received = session.receive() ?: break
+            println(received.received.at)
+            when (received.event.kind) {
+                case Response -> { decoder.accept(received.event); Unit }
+                case Error -> throw Exception(Some(Json.stringify(received.event.native)))
+                else -> println(Json.stringify(received.event.native))
+            }
+        }
+        decoder.endInput()
+        println(decoder.response().text)
+    }
+}
+```
+
+需要并行响应时，在 create 的 options 中设置 streamId，用一个接收循环按实际 streamId／response ID 分发到各自 decoder。发送方向保持串行，可与接收并行。运行中更新使用 `session.steer(model, responseId, input)`；accepted、pending、failed 等通知保留原文，自动后继使用新 decoder，工具结果由应用显式 create 回传。会话不会把一个通知当作当前响应的完成，也不会自动执行工具、重发输入或重连。
+
+create／steer 返回 ResponsesWebSocketSent，保存实际 command 和本地提交／完成时间；receive 返回 ResponsesWebSocketReceived，保存完整事件与完整消息取出后的时间。两者均有 companion codec，elapsed 使用同一个 session.id／startedAt 的单调时间轴，适合保存并按实际响应关联。握手有单独的 session.handshake，不能拿它的时间代替消息时间。handshakeOptions 的超时、重试和 onFinished 只管握手；帧、消息和关闭设置用现有 HttpWebSocketOptions。
+
+openResponsesSession 与 withResponsesSession 是同一个资源合同的两种写法。关闭 client 会取消并等待所属会话，借入 HttpClient 时保持其所有权；一次消息 I/O 的取消会结束该连接。服务端 Error 仍作为事件交付，其他 lane 可以继续；传输、JSON 或路由字段错误会结束连接并交付原异常。本地 mock 可验证这些行为，真实供应商互通在配置凭据后单独补测。
 
 ## 8. 缺省值与使用检查
 

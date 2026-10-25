@@ -9,19 +9,22 @@ internal suspend fun prepareLlmHttpRequest(http: HttpClient, endpoint: LlmEndpoi
     val body = RequestBody.fromByteArray(bytes, Some(HttpMediaType.parse("application/json")))
     val prepared = HttpRequest.post(url, body, endpoint.fields)
     val authentication = awaitLlmAuth(endpoint, prepared, bytes)
+    ensureActive()
+    return HttpRequest.post(url, body, authentication, llmHttpCallOptions(http, options, attempt))
+}
+
+internal fun llmHttpCallOptions(http: HttpClient, options: LlmCallOptions, attempt: LlmAttemptState): HttpCallOptions {
     val base = http.defaultTimeouts
     val timeouts = HttpTimeoutOptions(total = None, poolAcquire = base.poolAcquire, responseHeaders = options.timeouts.responseHeaders,
         resolve = base.resolve, connect = base.connect, tlsHandshake = base.tlsHandshake, readIdle = options.timeouts.readIdle,
         writeIdle = options.timeouts.writeIdle, proxyHandshake = base.proxyHandshake)
-    val httpOptions = HttpCallOptions(timeouts = Some(timeouts), redirects = Some(HttpRedirectOptions(enabled = false)),
+    return HttpCallOptions(timeouts = Some(timeouts), redirects = Some(HttpRedirectOptions(enabled = false)),
         retries = Some(HttpRetryOptions(maxRetries = 0L)), authentication = Some(HttpAuthenticationOptions()),
         useCookies = false, cacheMode = HttpCacheMode.Bypass,
         observer = Some(HttpObserver(suspend { event -> attempt.observe(event.metrics) })))
-    ensureActive()
-    return HttpRequest.post(url, body, authentication, httpOptions)
 }
 
-private suspend fun awaitLlmAuth(endpoint: LlmEndpoint, request: HttpRequest, bytes: Array<Byte>): Array<HttpField> {
+internal suspend fun awaitLlmAuth(endpoint: LlmEndpoint, request: HttpRequest, bytes: Array<Byte>): Array<HttpField> {
     val fields = ArrayList<HttpField>()
     for (field in request.fields) fields.add(field)
     val added = endpoint.authentication.fields(LlmAuthRequest(request.method, request.url, request.fields, bytes))
