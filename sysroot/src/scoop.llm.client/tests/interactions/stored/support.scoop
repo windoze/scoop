@@ -1,0 +1,30 @@
+package scoop.llm.client.tests.interactions.stored
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.interactions.*
+import scoop.test.*
+
+internal val storedInteractionSteps = "[" +
+    "{\"type\":\"thought\",\"summary\":[{\"type\":\"text\",\"text\":\"thinking\"}],\"signature\":\"opaque\"}," +
+    "{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ready\"}]}," +
+    "{\"type\":\"function_call\",\"id\":\"call-1\",\"name\":\"lookup\",\"arguments\":{}}]"
+
+internal fun storedInteractionBody(status: String, steps: String? = None): String {
+    val body = interactionsBody(steps ?: "[]", status, Some("{\"total_input_tokens\":8,\"total_output_tokens\":2,\"total_thought_tokens\":1,\"total_tokens\":11}"))
+    return Json.stringify(if (steps == None) interactionsReplace(body, "steps", None) else body)
+}
+
+internal fun assertInteractionOperationTiming(metadata: LlmCallMetadata, responseId: String? = Some("interaction-1")) {
+    assertEquals(LlmCallOutcome.Completed, metadata.outcome)
+    val attempt = metadata.attempts[metadata.attempts.size - 1L]
+    assertEquals(responseId, attempt.responseId)
+    assertTrue(attempt.request.sentAt != None)
+    assertTrue(attempt.response.receivedAt != None)
+    assertTrue(attempt.response.completedAt != None)
+    assertEquals(None, attempt.response.firstEventAt)
+    assertEquals(None, attempt.response.firstOutputAt)
+    assertEquals(None, attempt.response.firstTextAt)
+    assertEquals(None, attempt.usage.tokens.totalTokens)
+    assertEquals(None, attempt.outputTokensPerSecond)
+}

@@ -1,0 +1,43 @@
+package scoop.llm.client.tests.interactions.stored
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.interactions.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class StoredInteractionsDataTest {
+    @Test
+    fun `stored Interactions URLs encode opaque IDs and select snapshot query parameters`() {
+        val protocol = InteractionsProtocol(GeminiInteractionsDialect())
+        val base = Url.parse("https://example.test/gateway/v1?tenant=a%2Fb&flag&stream=true&last_event_id=old&alt=sse")
+        assertEquals("https://example.test/gateway/v1/interactions/id%20%2F%3F%23?tenant=a%2Fb&flag",
+            protocol.retrieveUrl(base, "id /?#").toString())
+        assertEquals("https://example.test/gateway/v1/interactions/%2E%2E/cancel?tenant=a%2Fb&flag",
+            protocol.cancelUrl(base, "..").toString())
+        assertEquals(protocol.retrieveUrl(base, "id").toString(), protocol.deleteUrl(base, "id").toString())
+        assertEquals("https://example.test/v1/interactions/id", protocol.retrieveUrl(Url.parse("https://example.test/v1"), "id").toString())
+        assertEquals("https://example.test/v1/interactions/id",
+            protocol.retrieveUrl(Url.parse("https://example.test/v1?stream=true&alt=sse"), "id").toString())
+        val error = assertFailsWith<LlmRequestException> { protocol.retrieveUrl(base, ""); Unit }
+        assertEquals("/interactionId", error.path)
+    }
+
+    @Test
+    fun `stored Interactions omitted steps preserve status without inventing empty history`() {
+        val missing: Array<JsonValue?> = [None, Some(JsonValue.nullValue())]
+        for (status in ["cancelled", "in_progress", "completed", "requires_action", "failed", "future"]) {
+            for (steps in missing) {
+                val raw = interactionsReplace(interactionsBody("[]", status), "steps", steps)
+                val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(interactionsDecode(raw)))
+                assertEquals(0L, response.candidate(0L).items.size)
+                assertTrue(when (response.candidate(0L).history) { case None -> true; else -> false })
+                assertEquals(Json.stringify(raw), Json.stringify(response.native!!))
+                assertEquals(0L, response.clientToolCalls.size)
+                assertFailsWith<LlmOutputException> { response.toInput(); Unit }
+            }
+        }
+        assertEquals(0L, interactionsHistory(interactionsDecode(interactionsBody("[]", "cancelled"))).size)
+    }
+}

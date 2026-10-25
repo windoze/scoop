@@ -70,7 +70,7 @@ private class InteractionsResponseTest {
             ("object", JsonValue.fromString("response")), ("created", JsonValue.fromString("yesterday")),
             ("updated", JsonValue.fromLong(1L)), ("steps", JsonValue.fromString("steps"))])
             assertInteractionsFailure(interactionsReplace(base, name, Some(value)), "/" + name)
-        for (name in ["id", "status", "steps", "created", "updated"])
+        for (name in ["id", "status", "created", "updated"])
             assertInteractionsFailure(interactionsReplace(base, name, None), "/" + name)
         assertInteractionsFailure(Json.parse("{\"error\":{\"code\":\"unavailable\"}}"), "/error")
         assertInteractionsFailure(interactionsBody("[{}]"), "/steps/0/type")

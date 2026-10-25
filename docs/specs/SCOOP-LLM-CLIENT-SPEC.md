@@ -445,7 +445,7 @@ EOF 后停止总截止、记录 completed 并保留最终结果；firstEvent 仍
 
 InteractionsProtocol 与 InteractionsDialect 分别解释有序 step 协议和服务方用量／错误。GeminiInteractionsDialect 使用 DialectId(ApiProtocolId("interactions"), "gemini-interactions")，与 generateContent 独立。decodeResponse(value, request) 是不执行 I/O 的纯解码，普通请求与网络入口见第 22 节。以官方 v1 的公共字段为依据，未知 step、content、annotation 与新增字段保留原文。
 
-完整资源要求非空 id、status、steps，以及可解码为 Instant 的 created／updated；可选 object 出现时必须为 interaction。created 映射 LlmResponse.createdAt，updated 留在 native；这些服务时间不代替客户端发送／接收采样，不检查服务时间的先后关系。model 可缺失，agent 不冒充 model。根部 error 不是成功资源；资源自身 status=failed 则是可观察的模型失败，errors 保留原文。
+完整资源要求非空 id、status，以及可解码为 Instant 的 created／updated；可选 object 出现时必须为 interaction。steps 出现时必须为数组；取消等状态快照可以省略 steps，此时可读 items 为空，history 保持 None，不把未返回的步骤冒充已知空历史。created 映射 LlmResponse.createdAt，updated 留在 native；这些服务时间不代替客户端发送／接收采样，不检查服务时间的先后关系。model 可缺失，agent 不冒充 model。根部 error 不是成功资源；资源自身 status=failed 则是可观察的模型失败，errors 保留原文。
 
 一个资源映射 index=0 的候选，items 与 steps 顺序一致。model_output 的 content 为 Message，thought 的 summary 为 Reasoning；thought.signature 保留为 Reasoning 中的 Native 元数据，并原样进入历史。user_input 与 function_result 保留 Native，不显示成模型回答。已知文本的 annotations 形成 Citation；未知 content 保留 OutputPart.Native。image／audio／video／document 的 data 使用 Base64 字节和明确 MIME，uri 使用当前 dialect 的 FileReference 并保存完整原生 content；无 MIME、缺少媒体内容或同时给出 data／uri 而不能无歧义投影时保留 Native，不猜格式、不下载资源。
 
@@ -457,7 +457,7 @@ url_citation／place_citation 的可用 URL 映射来源地址；file_citation �
 
 usage.total_input_tokens 直接映射 inputTokens；total_output_tokens 与 total_thought_tokens 均已知时相加为包含 reasoning 的 outputTokens，后者同时是 reasoningTokens。total_tokens 保留报告值，不用它反推缺失明细；total_cached_tokens 为 cacheReadTokens，input 与 cacheRead 均已知时可相减得到 nonCachedInputTokens。total_tool_use_tokens 及其模态明细留在 native，不推断它们与输入总数互斥，不重复相加；缓存写入保持未知。输入／输出模态只映射有明确 modality 和 tokens 的条目，缺失条目字段不补零；缓存和工具细项不重复计入公共模态。已报告计数使用非负 Long，和的溢出及缓存超过输入均报字段路径错误。
 
-completed、requires_action、failed、cancelled、incomplete 的 usage 为 Final；in_progress 与未知状态为 Partial。上述已知停止状态的 history.items 按顺序保存原始 steps（包括签名和未知字段），不把完整资源或 previous_interaction_id 当作历史项；进行中或未知状态不提供可追加历史。序列化往返不联网、不执行工具、不发起后续 interaction。请求构造、显式服务状态继续和 SSE 另行定义。
+completed、requires_action、failed、cancelled、incomplete 的 usage 为 Final；in_progress 与未知状态为 Partial。上述已知停止状态且返回 steps 数组时，history.items 按顺序保存原始 steps（包括签名和未知字段），不把完整资源或 previous_interaction_id 当作历史项；进行中、未知状态或 steps 缺失／null 时不提供可追加历史。序列化往返不联网、不执行工具、不发起后续 interaction。请求构造、显式服务状态继续和 SSE 另行定义。
 
 协议依据：[Interactions v1 参考](https://ai.google.dev/api/interactions-api-v1)、[官方 OpenAPI](https://ai.google.dev/static/api/interactions-v1.openapi.json)、[Interactions 状态与历史](https://ai.google.dev/gemini-api/docs/interactions-overview?hl=en)、[token 用量](https://ai.google.dev/gemini-api/docs/tokens)。
 
@@ -817,3 +817,15 @@ LlmEndpoint 只接收已有 API 的 baseUrl、headers 与认证，不包含部�
 `LlmAuth.bearer(token: suspend () -> String)` 与 `LlmAuth.header(name, value: suspend () -> String)` 是已有静态工厂的回调重载。每次实际尝试在最终 URL／body 确定后调用一次，构造 auth 或 model 时不调用；每次重试重新取得值。空值和非法 HTTP 字段仍报错，认证字段标记 neverIndex；异常与取消沿现有调用寿命传播，未发送不产生 sentAt。库不缓存或自动刷新 token、不执行登录或读取环境；回调负责取得可用凭据，需要请求签名时继续实现公开 LlmAuth 接口。
 
 普通 scoop.test 使用本地 mock 验证显式路径／query、原始模型名、工具历史与 SSE、动态认证及失败边界、实际收发时间。附加字段仅验证存在／缺失／形状变化不阻断核心结果；没有凭据时不请求真实服务。Azure URL 示例依据：[v1 API](https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle)、[旧版路径与认证](https://learn.microsoft.com/en-us/azure/foundry/openai/reference#rest-api-versioning)。
+
+## 44. Interactions 状态快照、取消与删除
+
+`LlmClient.retrieveInteraction(endpoint, interactionId, tools = [], options = LlmCallOptions())` 显式读取单个 JSON 状态快照；`cancelInteraction(endpoint, interactionId, tools = [], options = LlmCallOptions())` 请求取消已有后台 interaction。二者返回既有 LlmResult，由同一个 Interactions decoder 解释状态、输出、工具、usage 和原文。tools 仅用于本地关联，既不发送，也不从响应中的工具声明自动注册。模型 ID 不参与资源操作，不查询模型目录，不轮询或发起下一轮生成。
+
+`InteractionsProtocol.retrieveUrl`、`cancelUrl`、`deleteUrl` 提供纯路径构造。interactionId 必须非空，按单个原始 path segment 编码；分别使用 GET `/interactions/{id}`、POST `/interactions/{id}/cancel`、DELETE `/interactions/{id}`，均发送空正文。路径前缀、认证 query 和其他参数保留；这三个资源操作清除 baseUrl 上的 stream、last_event_id、alt，快照读取采用协议缺省的非流式 JSON 表示。协议选择或空 ID 错误在认证和 I/O 前报告。GET 的 SSE 与 last_event_id 接续是独立的流操作，不混入本节的快照返回值。
+
+`deleteInteraction(endpoint, interactionId, options = LlmCallOptions())` 返回 `InteractionsDeletionResult(native, metadata)`。该 API 成功时可以没有正文；native 保存实际收到的原始字节，空正文保留空数组，不强制 JSON 解码，也不合成 deleted=true、服务端 ID 或其他确认字段。返回类支持 companion codec。服务商附加信息只保留原值，不检查其内容或格式。
+
+操作复用现有 HTTP 清理、认证、dialect 服务错误／重试资格、取消、总截止及完成回调。读取／取消报告的历史 usage 只在 LlmResponse 中，不成为本次 attempt 的生成用量、首输出时间或输出速率；attempt 仅记录实际 HTTP 收发和完成时间，并保留返回资源的真实 ID。删除没有返回资源 ID，attempt.responseId 保持 None。失败、取消与 client.close 仍等待清理后完成一次回调，借入的 HttpClient 保持原所有权。
+
+普通 scoop.test 使用官方形状和 loopback HTTP mock 验证后台创建后的读取／取消／删除、可保存的工具历史、空正文和附加信息兼容、URL／method／认证字节、实际时间及失败清理。真实服务用例默认忽略，仅在凭据齐备时显式运行，实际覆盖见实施记录。依据：[Interactions v1 资源操作](https://ai.google.dev/api/interactions-api-v1#retrieving-an-interaction)、[官方 OpenAPI](https://ai.google.dev/static/api/interactions-v1.openapi.json)、[后台执行](https://ai.google.dev/gemini-api/docs/background-execution)。

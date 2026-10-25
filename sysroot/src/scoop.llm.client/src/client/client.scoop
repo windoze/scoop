@@ -52,6 +52,18 @@ public class LlmClient private constructor(internal val state: LlmClientState) :
         options: LlmCallOptions = LlmCallOptions()): ResponsesDeletionResult =
         deleteStoredLlmResponse(state, endpoint, responseId, options)
 
+    public suspend fun retrieveInteraction(endpoint: LlmEndpoint, interactionId: String, tools: Array<ToolDefinition> = [],
+        options: LlmCallOptions = LlmCallOptions()): LlmResult =
+        readStoredLlmInteraction(state, endpoint, interactionId, tools, options, false)
+
+    public suspend fun cancelInteraction(endpoint: LlmEndpoint, interactionId: String, tools: Array<ToolDefinition> = [],
+        options: LlmCallOptions = LlmCallOptions()): LlmResult =
+        readStoredLlmInteraction(state, endpoint, interactionId, tools, options, true)
+
+    public suspend fun deleteInteraction(endpoint: LlmEndpoint, interactionId: String,
+        options: LlmCallOptions = LlmCallOptions()): InteractionsDeletionResult =
+        deleteStoredLlmInteraction(state, endpoint, interactionId, options)
+
     public suspend fun openStream(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions(),
         retention: StreamRetention = EventsOnly): LlmStream = openLlmStream(state, model, request, options, retention)
 

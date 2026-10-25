@@ -1,0 +1,15 @@
+package scoop.llm.client
+
+import scoop.url.Url
+
+internal fun interactionsStoredUrl(baseUrl: Url, interactionId: String): Url {
+    if (interactionId.length == 0L) throw LlmRequestException("/interactionId", "interaction ID must not be empty")
+    val original = baseUrl.queryParameters()
+    val query = original.remove("stream").remove("last_event_id").remove("alt")
+    val builder = baseUrl.toBuilder().appendPathSegment("interactions").appendPathSegment(interactionId)
+    if (query.entries.size != original.entries.size) {
+        if (query.entries.size == 0L) builder.setEncodedQuery(None)
+        else builder.setQueryParameters(query)
+    }
+    return builder.build()
+}

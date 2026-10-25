@@ -4,7 +4,7 @@ import scoop.json.*
 import scoop.time.Instant
 
 internal class InteractionsBody public constructor(public val id: String, public val status: String,
-    public val steps: Array<JsonValue>, public val created: Instant, public val updated: Instant,
+    public val created: Instant, public val updated: Instant, public val steps: Array<JsonValue>? = None,
     @Serialize(rename = "object") public val objectType: String? = None,
     public val model: String? = None, public val usage: JsonValue? = None) {
     public companion object : ValueDecoder<InteractionsBody>

@@ -1,10 +1,19 @@
 package scoop.llm.client
 
 import scoop.json.JsonValue
+import scoop.http.client.HttpResponse
 import scoop.url.Url
 
 internal suspend fun <T> performLlmJsonRequest(call: LlmCallState, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
     options: LlmCallOptions, method: String = "POST", decode: (JsonValue, LlmAttemptState) -> T): T {
+    return performLlmHttpRequest<T>(call, endpoint, url, bytes, options, method) suspend { response, attempt ->
+        val parsed = response.body.json<JsonValue>(options.maxResponseBytes)
+        decode(parsed, attempt)
+    }
+}
+
+internal suspend fun <T> performLlmHttpRequest(call: LlmCallState, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
+    options: LlmCallOptions, method: String, decode: suspend (HttpResponse, LlmAttemptState) -> T): T {
     var retry = 0L
     var backoff = options.retries.initialDelay
     while (true) {

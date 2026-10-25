@@ -647,6 +647,26 @@ val result = client.generate(model, request)
 
 普通生成、SSE 和工具历史共用同一组入口，库不创建或选择云部署。应用提供访问 token 时，可把 authentication 换成 `LlmAuth.bearer(suspend { acquireAccessToken() })`；轮换 API key 同样可用 `LlmAuth.header("api-key", suspend { acquireApiKey() })`。回调每次尝试执行一次，凭据获取和刷新由应用负责，库不查找环境变量或登录账号。测试仅使用本地 mock，真实互通待可用凭据后补测。Azure 示例依据：[v1 文档](https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle)。
 
+### 7.9 Interactions 的读取、取消与删除
+
+已有 interaction ID 可直接读取状态快照；端点仍使用 `Providers.geminiInteractions()`，不需要再次提供模型名。需要关联客户端工具时显式传入原声明，缺省为空：
+
+```scoop
+val snapshot = client.retrieveInteraction(endpoint, interactionId, tools = request.tools)
+val saved = Json.encodeToString(snapshot)
+println(snapshot.response.usage.tokens.totalTokens)
+println(snapshot.metadata.attempts[0].response.receivedAt)
+
+// Cancel a running background interaction when the application requests it.
+val cancelled = client.cancelInteraction(endpoint, runningInteractionId)
+
+// Delete a stored interaction when the application no longer needs it.
+val deleted = client.deleteInteraction(endpoint, storedInteractionId)
+println(deleted.metadata.attempts[0].status)
+```
+
+读取和取消返回 LlmResult，可保存原始步骤并按已有工具／历史规则继续使用。取消快照可能没有 steps，此时 history 保持未知。历史 token 用量位于 response.usage，不作为本次查询的生成速率。删除返回 InteractionsDeletionResult，native 保存实际响应字节；成功的空正文保持空数组，不合成确认字段。调用选项仍为同一 LlmCallOptions，库不轮询、自动取消或删除；GET 的 SSE 与 last_event_id 接续另行实现。依据：[Interactions 资源操作](https://ai.google.dev/api/interactions-api-v1#retrieving-an-interaction)。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |

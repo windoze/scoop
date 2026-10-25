@@ -17,6 +17,10 @@ public class InteractionsProtocol public constructor(public val dialect: Interac
         InteractionsStreamDecoder(this, request, retention)
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
         dialect.decodeError(status, body, truncated)
+    public fun retrieveUrl(baseUrl: Url, interactionId: String): Url = interactionsStoredUrl(baseUrl, interactionId)
+    public fun cancelUrl(baseUrl: Url, interactionId: String): Url =
+        interactionsStoredUrl(baseUrl, interactionId).toBuilder().appendPathSegment("cancel").build()
+    public fun deleteUrl(baseUrl: Url, interactionId: String): Url = interactionsStoredUrl(baseUrl, interactionId)
     init {
         if (dialect.id.protocol != ApiProtocolId("interactions"))
             throw IllegalArgumentException(Some("Interactions dialect belongs to another API protocol"))
@@ -31,14 +35,14 @@ public class InteractionsProtocol public constructor(public val dialect: Interac
             interactionsNonempty(Some(body.status), "/status")
             if (body.objectType != None && body.objectType != Some("interaction"))
                 throw DecodingException("/object", "expected an interaction resource")
-            val entries = readInteractionsSteps(body.steps)
+            val entries = readInteractionsSteps(body.steps ?: [])
             var pending = false
             for (entry in entries) if (entry.type == "function_call" && !interactionsHasResult(entries, entry.call!!.id)) pending = true
             val (completion, reason) = interactionsCompletion(body.status, pending)
             val output = ArrayList<LlmOutputItem>()
             for (entry in entries) output.add(readInteractionsStep(dialect.id, entry, entries, request.tools, body.status))
             val terminal = interactionsTerminal(body.status)
-            val history = if (terminal) Some(LlmHistory(dialect.id, body.steps)) else None
+            val history = if (terminal && llmPresent(body.steps)) Some(LlmHistory(dialect.id, body.steps!!)) else None
             val candidate = LlmCandidate(0L, output.toArray(), completion, reason, history)
             val state: UsageCompleteness = if (terminal) Final else Partial
             val usage = when (body.usage) {

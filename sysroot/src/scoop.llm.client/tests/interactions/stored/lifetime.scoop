@@ -1,0 +1,52 @@
+package scoop.llm.client.tests.interactions.stored
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.HttpClient
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+
+@Test
+private class StoredInteractionsLifetimeTest {
+    @Test
+    fun `stored Interactions client close interrupts deletion body and completes cleanup once`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val started = LlmGate()
+            val release = LlmGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U, Some("OK".toByteArray())),
+                        Http1BodyFraming.Chunked).useAsync suspend { output ->
+                        output.flush()
+                        started.signal()
+                        release.await()
+                    }
+                }
+            }
+            try {
+                HttpClient.open(scope).useAsync suspend { http ->
+                    val client = LlmClient.open(scope, Some(http))
+                    val finished = FinishedCalls()
+                    val reading = scope.launch suspend {
+                        expectLlmFailure<LlmClientClosedException> suspend {
+                            client.deleteInteraction(LlmEndpoint(Providers.geminiInteractions(), LlmAuth.none(), Some(original.baseUrl)), "id",
+                                LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                        }
+                        Unit
+                    }
+                    started.await()
+                    client.close()
+                    reading.join()
+                    assertFalse(http.isClosed)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                    assertEquals(None, finished.values[0].attempts[0].response.completedAt)
+                }
+            } finally { release.signal() }
+            serving.join()
+        }
+    }
+}

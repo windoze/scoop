@@ -26,7 +26,9 @@ Gemini SSE 使用 :streamGenerateContent?alt=sse，正文沿用普通请求。fi
 
 Interactions 普通生成使用 `Providers.geminiInteractions()`，缺省部署为 Google v1，同样通过 endpoint／model／generate 调用；`InteractionsProtocol(GeminiInteractionsDialect())` 提供纯 encodeRequest／decodeResponse／createStreamDecoder。最小请求只有 model 和有序 input steps，不自动选择模型、保存配置或继续调用。媒体、函数结果、签名历史与服务端工具均使用 Interactions 自身的字段；普通请求的 options 缺省省略。
 
-Interactions 的独立 step 格式保留 thought.signature、媒体、服务端工具、UTF-8 引用及原始 steps 历史；只有 requires_action 中未收到结果的完整函数调用进入待执行视图。进行中资源不提供可追加历史，服务时间不代替实际调用计时。缺失 token 保持未知，工具提示细项不重复加入输入总量。request.extensions 可显式配置 store／previous_interaction_id、generation_config 的原生选项，以及与公共 JSON 输出约束组合的媒体 response_format；后台资源操作继续实施。
+Interactions 的独立 step 格式保留 thought.signature、媒体、服务端工具、UTF-8 引用及原始 steps 历史；只有 requires_action 中未收到结果的完整函数调用进入待执行视图。进行中资源不提供可追加历史，服务时间不代替实际调用计时。缺失 token 保持未知，工具提示细项不重复加入输入总量。request.extensions 可显式配置 store／previous_interaction_id、generation_config 的原生选项，以及与公共 JSON 输出约束组合的媒体 response_format。
+
+`client.retrieveInteraction(endpoint, id)`、`cancelInteraction` 和 `deleteInteraction` 显式操作已有资源。读取／取消返回 LlmResult，tools 缺省为空且只用于本地关联；缺失 steps 不产生伪造历史。删除返回 InteractionsDeletionResult，保存实际空正文或其他原始字节及 HTTP metadata。查询到的历史 usage 不成为本次操作的生成速率；见[使用示例](../../../docs/llm-client/USAGE.md#79-interactions-的读取取消与删除)。GET 的 SSE 与断点接续继续实施。
 
 Interactions SSE 沿用 `openStream`／`withStream` 和缺省 EventsOnly，显式 Result 才保留最终结果。stream=true 与 alt=sse 由协议编码；有序 step 绑定文本、媒体、引用、工具和签名。step.stop 不开放客户端工具执行，只有最终 requires_action 决定待执行调用；interaction.completed 冻结 usage。最终资源可以省略服务时间，缺失值不会替换成客户端发送／接收时刻；未知增量保留 Native，无法完整重建时不提供可追加历史。
 
