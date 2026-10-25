@@ -4,6 +4,8 @@
 
 所有 profile 默认启用，无独立开关。不改变函数 ABI、接口表布局、对象表示、runtime ABI 17 或 metadata ABI 9；没有新增运行时代码、诊断代码或 GC roots。
 
+后续的[类型／shape 元数据裁剪](TYPE-PRUNING.md)进一步收紧元数据保留起点；本页保留 callable 裁剪这一阶段的范围和测量结果。
+
 ## 选择范围
 
 - 保留现有非 callable 物理 member：root entry、类型／完整接口派发表、静态存储、immortal、初始化记录与 generated-C bridge。其真实引用作为函数可达性的起点，函数地址、default／override、release hook、callback、eager／lazy 初始化和跨 Cone 调用均沿普通符号关系处理。

@@ -78,6 +78,15 @@ impl ScoopLirObjectPartitionV1 {
                 _ => None,
             })
             .collect::<BTreeMap<_, _>>();
+        let type_definitions = surface
+            .plans()
+            .iter()
+            .filter(|plan| {
+                plan.definition_role() == StrongDefinitionRole::TypeDescriptor
+                    && plan.primary_symbol().linkage() != scoop_lir::LinkageClass::OdrWeak
+            })
+            .map(|plan| (plan.owner(), plan.definition_plan()))
+            .collect::<BTreeMap<_, _>>();
         let mut callables = BTreeMap::<PersistentCallableBodyId, ObjectDefinitionPlanId>::new();
         let site_owners = input
             .module()
@@ -131,10 +140,28 @@ impl ScoopLirObjectPartitionV1 {
                         .or_default()
                         .push(*definition);
                 }
-                _ if plan.definition_role() == StrongDefinitionRole::ImageDescriptor
-                    || plan.primary_symbol().linkage() == scoop_lir::LinkageClass::OdrWeak =>
+                _ if matches!(
+                    plan.definition_role(),
+                    StrongDefinitionRole::ImageDescriptor
+                        | StrongDefinitionRole::TypeDescriptor
+                        | StrongDefinitionRole::TypeRegistration
+                        | StrongDefinitionRole::Layout
+                        | StrongDefinitionRole::ScanProgram
+                        | StrongDefinitionRole::DispatchTable
+                        | StrongDefinitionRole::DispatchSlot
+                ) || plan.primary_symbol().linkage() == scoop_lir::LinkageClass::OdrWeak =>
                 {
                     let group = match plan.owner().kind() {
+                        StrongDefinitionEntityKind::ExactType(exact)
+                            if plan.definition_role() == StrongDefinitionRole::TypeRegistration
+                                && plan.primary_symbol().linkage()
+                                    != scoop_lir::LinkageClass::OdrWeak =>
+                        {
+                            // A live descriptor always needs its own registration.
+                            *type_definitions
+                                .get(&plan.owner())
+                                .ok_or(ScoopLirObjectPartitionError::MissingTypeDescriptor(exact))?
+                        }
                         StrongDefinitionEntityKind::DispatchTable(table)
                             if table_storage.contains_key(&table) =>
                         {
@@ -202,6 +229,7 @@ impl ScoopLirObjectPartitionV1 {
 pub enum ScoopLirObjectPartitionError {
     ProducerUnits(ProducerUnitPartitionError),
     MissingDefinition(ObjectDefinitionPlanId),
+    MissingTypeDescriptor(scoop_lir::PersistentExactTypeId),
     MissingDispatchStorage(scoop_lir::PersistentDispatchTableId),
     InvalidCallableDefinition(ObjectDefinitionPlanId),
     DuplicateCallableBody {

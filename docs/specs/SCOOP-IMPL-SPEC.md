@@ -1411,9 +1411,13 @@ GC 转换后每个 post-site managed use 必须来自正确更新的引用；inv
 
 ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的机器码、EH、stackmap、callable/safepoint registration、关联常量与 Context cells 必须同选；独立 helper 可分别选择。共享同一完整接口数组的 dispatch definition 也必须同选，重复候选按这组实际物理 definitions 整组复用；不能将父表 alias 与其数组分别选自不同对象。shared TD、storage、cell 与初始化保持唯一，native linker 不得改变已确定选择。
 
-program-link 在上述 ODR 选择之后，按已保存的逐物理 member 定义／引用关系裁剪不可达 callable，对全部 profile 默认生效。当前保留非 callable 的物理 member，包括 root entry、类型／派发表、静态存储、immortal、初始化记录和 generated-C bridge；这些 member 是遍历入口，不以最终 image 的完整候选 callable／safepoint 表作为入口。runtime 的引用及已声明 native 输入中对象的 Scoop 符号引用也作为入口；native archive 的候选引用保守保留对应 Scoop 定义，不因此提前抽取 archive member。沿实际机器符号引用传递保留完整 callable member，包含函数地址、动态派发表、release hook、callback、初始化与跨 Cone 调用。未到达的递归调用环可以整体删除；保留的类型表或初始化记录仍可能使只通过这些记录引用的函数留下。
+program-link 在上述 ODR 选择之后，按已保存的逐物理 member 定义／引用关系裁剪不可达 callable 与类型／shape 元数据，对全部 profile 默认生效。保留 root entry、静态存储及根登记、immortal 及登记、初始化 cell／登记和 generated-C bridge；这些 member 是遍历入口，不以候选 image 的完整登记表、类型或派发表本身作为入口。runtime 的引用、typed runtime data alias 的目标，以及已声明 native 输入中对象的 Scoop 符号引用也作为入口；native archive 的候选引用保守保留对应 Scoop 定义，不因此提前抽取 archive member。沿实际机器符号引用传递保留完整物理 member，包含函数地址、动态派发表、release hook、callback、初始化与跨 Cone 调用。未到达的类型和递归引用环可以整体删除；保留的初始化等记录仍可能使其引用的类型或函数留下。
 
-该选择复用 Link 输入中已有的符号与物理成员数据，不重新读取机器对象或重建语言调用图，不改变源码可见性、类型检查、native 声明合同和 ABI。只有完整 callable 物理 member 被删除；其代码、EH、stackmap、登记记录、私有常量与 Context cells 同时退出最终链接。类型／存储等非 callable 元数据的更细裁剪不属于本次选择。输入 `.slib` 继续保存可供其他 consumer 使用的完整候选，所有 profile 统一使用前述完整符号使用表及相同布局。
+每个保留的 TypeDescriptor 同时保留同一 exact type 的 TypeRegistration；这条登记关联由已读的 typed entity 与 definition role 建立，ODR 选择后关联实际保留的实现。TD 的父类型、接口、相关类型、布局、scan 和 callable 引用继续按实际符号闭合。不能仅删除仍存活 TD 的登记，不能按名称、布局相同或泛型声明合并不同 exact application。Link 输出直接携带已有定义记录的完整 typed entity，不重新进行语言语义查询。
+
+生产端将普通 Strong 的 TypeDescriptor 与同一 exact type 的 TypeRegistration 合为一个独立物理 member；两者本来就必须同选，不因分组额外保活其他类型。Layout、ScanProgram 和 dispatch 元数据按实际定义独立划分；同一完整接口数组及其父表 alias 必须继续同组。其余静态存储、初始化与 immortal 可保持既有组合。ODR 的独立数据划分及 callable 代码／EH／stackmap／登记／私有常量／Context cells 的同组规则保持。该物理划分适用于全部 profile，不改变静态表内部布局或公开 ABI；已有较粗物理分组的相容输入仍可消费，实际删除粒度以其已有 member 为准。
+
+该选择复用 Link 输入中已有的符号、实体与物理成员数据，不重新读取机器对象或重建语言调用图，不改变源码可见性、类型检查、native 声明合同和 ABI。不可达物理 member 的内容与登记一起退出最终链接；静态存储、初始化与 immortal 的进一步裁剪不属于本次选择。输入 `.slib` 继续保存可供其他 consumer 使用的完整候选，沿用 `link-identity-closure/19`，不新增 wire 字段；机器对象与实际分组变化正常进入原有内容指纹。所有 profile 统一使用前述完整符号使用表及相同布局。
 
 最终 image descriptors 和六张表由 program-link 从所选 records 生成，不改写输入 `.slib`。选择与实际内容进入 RuntimeImage、Code、Artifact 和 ResolvedLinkPlan 的对应摘要。
 

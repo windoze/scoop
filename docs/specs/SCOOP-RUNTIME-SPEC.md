@@ -38,7 +38,7 @@ class 的基类对象布局是派生对象的完整前缀，包括基类尾部 p
 
 ### 2.2 TypeDescriptor 与扫描描述
 
-每个 materialized exact type 具有唯一 TypeDescriptor；同一 ODR 类型在最终程序中具有同一地址。不同声明或不同泛型 application 不因名称、表示或布局相同而共享类型身份。
+最终程序中每个实际保留的 materialized exact type 具有唯一 TypeDescriptor 及完整类型登记；同一 ODR 类型在最终程序中具有同一地址。不可达的类型及其元数据可按实现规范 2.19 一起删除，但保留 TD 的父类型、接口、相关类型、布局和扫描引用仍须闭合。不同声明或不同泛型 application 不因名称、表示或布局相同而共享类型身份。
 
 TypeDescriptor 按以下顺序保存字段：
 
@@ -749,7 +749,7 @@ C FFI 使用目标真实 float/double ABI。数值操作遵守语言规范 11.2.
 
 启动先保存 2.8 的原始 argc/argv，建立运行时基础状态并验证全部 image/registration，再建立 GC、主线程与可执行 managed boundary。任何 managed initializer、Context 分配、argv 的 managed 构造或 main 之前必须完成相应登记；C coordinator 不提前构造未登记的 String 或 Array。
 
-实现规范 2.19 的最终链接选择可以删除不可达的完整 callable 物理成员；启动只登记实际保留的 callable／safepoint，删除成员的 stackmap 与记录同时缺席。保留代码仍须满足完整的 owner、site、frame 与精确根合同，不能仅为减少启动工作而丢弃仍可执行代码的记录。类型、静态根、immortal 和初始化记录沿现有合同保留；此选择不增加对象字段、GC roots 或 runtime 测量代码。
+实现规范 2.19 的最终链接选择可以删除不可达的完整 callable 和类型／shape 物理成员；启动只登记实际保留的类型、callable／safepoint，删除成员的 stackmap 与记录同时缺席。保留代码仍须满足完整的 owner、site、frame 与精确根合同，保留 TD 必须有同一 exact type 的登记，不能仅为减少启动工作而丢弃仍可执行代码或存活类型的记录。静态根、immortal 和初始化记录沿现有合同保留；此选择不增加对象字段、GC roots 或 runtime 测量代码。
 
 `--enable-startup-stats` 显式请求编入启动诊断，默认不编入；该构建开关独立于 profile 和 GC stress。runtime 的 C 生产配置以 `SCOOP_ENABLE_STARTUP_STATS=0/1` 控制预处理，关闭时不得生成计时、阶段状态、报告、诊断字符串和专用计数访问，也不能通过环境变量重新启用。编入后，每次启动在 `scoop_rt_run_program` 取得 platform／加载镜像范围前开始单调墙钟计时，在 eager 初始化完成、调用 root gateway 之前向 stderr 写一行 JSON：`scoop_startup:1`、`total_ns`、`phases_ns` 和 `counts`。七个互不重叠的阶段为 `loaded_images`、`collect_records`、`code_and_types`、`storage_and_units`、`stackmaps`、`runtime_init`、`eager_init`；阶段纳秒数之和等于 total。runtime_init 包含 String 绑定检查、registry 发布、线程／callback／GC 初始化与主线程 attach。时间不包含 runtime 入口之前的 dyld／CRT、root gateway 内的参数构造、main、shutdown 或诊断输出本身；前置阶段失败时不伪造完整启动记录。
 

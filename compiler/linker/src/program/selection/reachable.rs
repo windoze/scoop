@@ -1,6 +1,7 @@
 //! Follow saved physical references without making image tables liveness roots.
 
 use super::*;
+use scoop_identity::StrongDefinitionEntity;
 use scoop_slib::ProgramLinkMember;
 
 type Member = (ConeIdentity, SlibMemberId);
@@ -13,6 +14,8 @@ impl SelectedMembers {
     ) -> Result<(), LinkError> {
         let mut owners = BTreeMap::<&[u8], Member>::new();
         let mut references = BTreeMap::<Member, Vec<&[u8]>>::new();
+        let mut types = Vec::new();
+        let mut type_registrations = BTreeMap::<StrongDefinitionEntity, Member>::new();
         let mut pending = Vec::new();
         for (artifact, symbols) in closure.artifacts() {
             let cone = artifact.identity();
@@ -21,27 +24,50 @@ impl SelectedMembers {
                 if !self.contains(cone, member.member()) {
                     continue;
                 }
-                let callable = match member {
-                    ProgramLinkMember::Scoop { definitions, .. } => definitions
-                        .iter()
-                        .any(|id| plans[id].role == StrongDefinitionRole::CallableBody),
-                    ProgramLinkMember::Generated { .. } => false,
+                let root = match member {
+                    ProgramLinkMember::Scoop { definitions, .. } => {
+                        for id in definitions {
+                            let plan = &plans[id];
+                            match plan.role {
+                                StrongDefinitionRole::TypeDescriptor => {
+                                    types.push(((cone, member.member()), plan.entity));
+                                }
+                                StrongDefinitionRole::TypeRegistration => {
+                                    type_registrations.insert(plan.entity, (cone, member.member()));
+                                }
+                                _ => {}
+                            }
+                        }
+                        definitions.iter().any(|id| is_root(plans[id].role))
+                    }
+                    ProgramLinkMember::Generated { .. } => true,
                 };
-                if !callable {
-                    // Keep storage, dispatch, initialization and native bridges.
-                    // Their actual references retain the code they can invoke.
+                if root {
+                    // Keep observable storage, initialization and native bridges.
                     pending.push((cone, member.member()));
                 }
             }
             for definition in symbols.defined_symbols().owners() {
                 let member = (cone, definition.member());
-                if self.members.contains(&member)
-                    && let Some(previous) = owners.insert(definition.symbol(), member)
-                {
+                if !self.members.contains(&member) {
+                    continue;
+                }
+                if let Some(previous) = owners.insert(definition.symbol(), member) {
                     return Err(error(format!(
                         "multiple selected definitions for {}: {previous:?}, {member:?}",
                         String::from_utf8_lossy(definition.symbol())
                     )));
+                }
+                if symbols
+                    .link_support()
+                    .runtime_data_aliases()
+                    .iter()
+                    .any(|alias| {
+                        definition.owner() == LinkDefinitionOwnerV1::StrongDefinition(alias.owner())
+                    })
+                {
+                    // The startup glue creates this alias after member selection.
+                    pending.push(member);
                 }
             }
             for requirement in symbols.requirements() {
@@ -54,12 +80,26 @@ impl SelectedMembers {
                 }
             }
         }
+        let mut companions = BTreeMap::<Member, Vec<Member>>::new();
+        for (member, entity) in types {
+            let registration = type_registrations.get(&entity).ok_or_else(|| {
+                error(format!(
+                    "TypeDescriptor {entity:?} has no selected type registration"
+                ))
+            })?;
+            if member != *registration {
+                companions.entry(member).or_default().push(*registration);
+            }
+        }
         pending
             .extend(native_references.filter_map(|symbol| owners.get(symbol.as_bytes()).copied()));
         let mut reached = BTreeSet::new();
         while let Some(member) = pending.pop() {
             if !reached.insert(member) {
                 continue;
+            }
+            if let Some(registrations) = companions.get(&member) {
+                pending.extend(registrations);
             }
             if let Some(symbols) = references.get(&member) {
                 pending.extend(
@@ -81,11 +121,35 @@ impl SelectedMembers {
                         ..
                     } = member
                 {
-                    // Registrations are in the same physical member as the body.
+                    // Only selected registrations enter the final image tables.
                     definitions.extend(retained);
                 }
             }
         }
         Ok(())
+    }
+}
+
+fn is_root(role: StrongDefinitionRole) -> bool {
+    use StrongDefinitionRole::*;
+    match role {
+        StaticStorage
+        | RootRegistration
+        | ImmortalObject
+        | ImmortalRegistration
+        | InitializationCell
+        | InitializationRegistration
+        | GeneratedBridge
+        | RootEntryDescriptor => true,
+        CallableBody
+        | CallableRegistration
+        | SafepointRegistration
+        | TypeDescriptor
+        | TypeRegistration
+        | Layout
+        | ScanProgram
+        | DispatchTable
+        | DispatchSlot
+        | ImageDescriptor => false,
     }
 }
