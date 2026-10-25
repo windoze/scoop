@@ -991,3 +991,25 @@ openingOptions 的 total 包含升级与初始化确认，onFinished 仅在打�
 receive 按需读取一个文本 JSON 消息，正常关闭返回 None。已打开会话中的 error 正常交付；response.done、转写完成或服务端通知都不结束连接。共享 WebSocket 实现维持一读一写可并行、同方向重入失败、调用取消与真实读写／解码失败关闭连接、client 关闭等待所属会话，以及借入 HttpClient 的所有权不变。close 幂等，已交付失败不再次抛出；不增加后台消费、自动重连、自动生成或设备处理。
 
 普通 scoop.test 使用本地升级／WebSocket mock，覆盖缺省与显式初始化、工具回传、实际消息时间与保存、可恢复错误、配置拒绝、超时／取消与关闭。不可用的真实 Realtime 服务不阻塞这些验证，也不使用失效的官方 key。依据：[session.created／updated](https://developers.openai.com/api/reference/resources/realtime/server-events)、[客户端命令](https://developers.openai.com/api/reference/resources/realtime/client-events)。
+
+## 55. OpenAI GPT-Live 协议与会话
+
+Providers.openAiGptLive() 固定包装 GptLiveProtocol(OpenAiGptLiveDialect())，protocol ID 为 gpt-live，dialect ID 为 openai-gpt-live，缺省 baseUrl 为 https://api.openai.com/v1。WebSocket URL 追加 live/sessions 并转换 HTTP scheme，保留显式代理路径前缀及 query，但不增加 model query；model 仅在 session.start.session 中指定。它与 Realtime、Responses 是不同协议，普通 generate／openStream 不接受此入口。
+
+GptLiveSetup(instructions = None, input = [], extensions = []) 可保存。最小 session.start 只发送明确的 model；省略配置采用服务器缺省。初始 input 复用 LlmInputItem，但仅接受 Developer／User／Assistant 文本消息，每项恰好一个文本 part；System 及其他内容不能伪装为 Live 初始文本历史。消息和 part 扩展保留实际位置。audio、delegation、store、triggers 等原生启动配置通过所属 dialect 扩展提供，不能覆盖已管理的 model／instructions／input。session.update 只编码显式扩展，禁止设置启动后不可变的 model／instructions／input／audio／store；不推断当前服务器配置或自动确认更新。
+
+GptLiveProtocol 提供 session start／update、音频 append／mute／unmute、instructions／thinking／commentary append、response item create／create 和 session close 的纯编码。三个上下文 append 的 delegation_id 缺省明确编码 null，eventId 缺省省略，文本直接保留，不估算服务端的 token 限制。response.create 仅含该命令及可选 event_id，不混入普通 Responses 的请求字段。response.item.create 的嵌套 item 使用 OpenAI Responses 的内容、工具结果和历史合同，包含实际 call ID 与该嵌套 dialect 的归属；一次只能编码一个 item。
+
+OpenAiGptLiveDialect.responsesDelegation(modelId, tools = [], instructions = None, maxOutputTokens = None, parallelToolCalls = None, toolChoice = Auto, extensions = []) 构造原生 delegation 扩展。嵌套 tools 复用 OpenAI Responses 的客户端／服务端工具映射，extensions 归属该嵌套 Responses dialect，用于 reasoning、service_tier 等后端设置；数量使用 ULong。它仅构造配置，不调用后端、不执行工具，也不把前端模型的 capability 当作后端模型的能力。其他原生命令使用可保存的 GptLiveNativeCommand(dialect, value)，检查归属和非空 type 后原样编码，与通用命令分开。
+
+GptLiveMessage 保存 dialect、type、可选 eventId／clientEventId、事件读取视图及完整 native，提供 companion codec。事件分别读取 session started／updated／closed、原始音频 bytes、输入／输出转写、上下文追加确认、delegation 元数据和嵌套 response.event；其余事件及服务端附加信息原样交付。转写与确认保留服务器实际 start_ms／end_ms，delegation 保留 offset_ms；这些媒体时间是 Double 毫秒，与本地收发时刻分开。主连接的输出音频通常没有时间位置，缺失保持 None，不能补造 audio-done 或完整 turn。usage.updated 的音频时长、context_window 和最终 usage 仅保留原文，不作为 token 数、缓存有效性或计费计算输入。
+
+response.event 保留可选 delegation_id 与完整嵌套事件。该协议的 Responses 生命周期快照会清空 output，因此不把它交给要求完整快照的普通 Responses reducer，也不从空 output 推断没有工具或内容；应用按实际嵌套事件处理工具结果并显式发送 response.create。库不运行 delegation、Decision、Agent 或工具循环。协议定义的 error 保留原文；未知事件不改变连接状态。
+
+LlmClient.openGptLiveSession(model, setup = GptLiveSetup(), openingOptions = LlmCallOptions(), webSocketOptions = HttpWebSocketOptions()) 在认证前检查专用协议、realtime capability、显式文本输入及配置编码；升级后发送 session.start，等待 session.started。withGptLiveSession 使用相同参数加 useAsync。初始化错误、EOF、超时或取消先清理连接再返回；有效 error 使用 GptLiveSessionRejectedException，其 received 保存原文与实际接收时刻。会话公开 model、setup、protocol、opening、startSent、sessionStarted，以及共享连接的 id／startedAt／url／isClosed／failure。
+
+会话发送与纯协议入口一一对应，返回 GptLiveSent；receive 返回 GptLiveReceived 或正常关闭的 None。记录可保存实际发送／完成／接收的 UTC 与单调时间，sessionId 是本地调用 ID，服务器 session ID 保留在 sessionStarted 原文中。sendAudioAppend(bytes, mimeType, eventId = None) 要求调用者声明与服务器启动配置一致的 raw mono PCM16LE（16／24 kHz）、PCMU 或 PCMA（8 kHz）；编码为 Base64，不采集设备、转码、加容器或等待虚构的音频确认。显式 MIME 与已知 input.audio capability 在发送前检查，PCM bytes 必须为完整的 16 位 sample。
+
+sendSessionClose 只发送 API 的 session.close；应用需要确认完成时继续读取 session.closed。close 则按共享 WebSocket 合同释放本地连接，传输关闭本身不能当作服务器完成确认。其余寿命、并发、取消、借入 HTTP 与失败清理复用 §54；已打开会话中的有效 error 正常交付，不自动重连或重放。
+
+普通测试使用官方形状的纯协议和本地 WebSocket mock，验证启动顺序、音频与转写差异、工具结果及原生后端配置、计时与保存、错误／取消／关闭；没有可用的 GPT-Live 凭据时不发真实请求。依据：[Primary WebSocket](https://developers.openai.com/api/reference/resources/live/primary-websocket)、[Live conversations](https://developers.openai.com/api/docs/guides/live-conversations)、[Live delegation](https://developers.openai.com/api/docs/guides/live-delegation)。

@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+public class GptLiveSetup public constructor(
+    public val instructions: String? = None,
+    public val input: Array<LlmInputItem> = [],
+    public val extensions: Array<DialectExtension> = []
+) {
+    init { checkDialectExtensions(extensions, "/extensions") }
+    public companion object : ValueEncoder<GptLiveSetup>, ValueDecoder<GptLiveSetup>
+}
+
+/** A complete command, separate from mapped configuration and content. */
+public class GptLiveNativeCommand public constructor(public val dialect: DialectId, public val value: JsonValue) {
+    public companion object : ValueEncoder<GptLiveNativeCommand>, ValueDecoder<GptLiveNativeCommand>
+}
+
+public class GptLiveMessage public constructor(
+    public val dialect: DialectId,
+    public val type: String,
+    public val eventId: String?,
+    public val clientEventId: String?,
+    public val event: GptLiveEvent,
+    public val native: JsonValue
+) {
+    public companion object : ValueEncoder<GptLiveMessage>, ValueDecoder<GptLiveMessage>
+}
+
+/** Primary audio has no implied turn or playback completion boundary. */
+public enum GptLiveEvent {
+    SessionStarted(val session: JsonValue),
+    SessionUpdated(val session: JsonValue),
+    SessionClosed(val reason: String, val session: JsonValue),
+    AudioDelta(val bytes: Array<Byte>, val startMilliseconds: Double?, val endMilliseconds: Double?),
+    InputTranscript(val text: String, val startMilliseconds: Double, val endMilliseconds: Double),
+    OutputTranscript(val text: String, val startMilliseconds: Double, val endMilliseconds: Double),
+    ContextAppended(val startMilliseconds: Double, val endMilliseconds: Double),
+    DelegationCreated(val delegation: JsonValue, val offsetMilliseconds: Double),
+    ResponseEvent(val delegationId: String?, val event: JsonValue),
+    Error(val error: JsonValue),
+    Native(val value: JsonValue)
+
+    public companion object : ValueEncoder<GptLiveEvent>, ValueDecoder<GptLiveEvent>
+}

@@ -928,6 +928,54 @@ val saved = Json.encodeToString(message)
 
 参数 done 和 item done 不等于函数可执行；上例中的 `response.clientToolCalls` 只包含成功终态、完整参数和已关联声明的调用。MCP 留在 serverToolActivities 中。音频的 MIME 与采样率来自实际会话／响应配置，decoder 不猜格式、不拼接整段音频；输入转写的 usage 与响应 usage 分开。含音频的响应不提供可重放 History，因为 response.done 没有完整音频数据且 item.create 不接受 assistant 音频。`message.native` 保留完整事件，未知通知、附加信息和可恢复 error 仍可由应用读取。
 
+### 7.15 OpenAI GPT-Live
+
+GPT-Live 与 Realtime 使用不同 provider。打开时发送 session.start 并等待 session.started；最小配置只有显式模型 ID，音频格式等采用服务器缺省。pcm24kMonoBytes 是应用提供的 raw mono PCM16LE 音频：
+
+```scoop
+val endpoint = LlmEndpoint(Providers.openAiGptLive(), LlmAuth.bearer(apiKey))
+val model = endpoint.model(modelId)
+withLlmClient suspend { client ->
+    client.withGptLiveSession(model) suspend { session ->
+        val sent = session.sendAudioAppend(pcm24kMonoBytes, "audio/pcm;rate=24000")
+        val received = session.receive()
+        println(sent.timing.sentAt)
+        when (received) {
+            case Some(record) -> {
+                println(record.received.at)
+                when (record.message.event) {
+                    case OutputTranscript(text, _, _) -> println(text)
+                    else -> {}
+                }
+            }
+            case None -> {}
+        }
+    }
+}
+```
+
+连续交互使用同一 send／receive；一次 receive 仅表示一条事件，音频片段没有逐轮 audio-done。sendInstructionsAppend、sendThinkingAppend、sendCommentaryAppend 的 delegationId 缺省编码为 null，也可显式关联服务端提供的 ID。sendSessionClose 发送 API 关闭请求；需要完成确认时继续读取 SessionClosed。作用域退出或 close 则释放本地连接，不能替代服务端确认。
+
+服务端 Responses 后端的配置使用已有工具定义，前端和后端模型 ID 分别明确提供：
+
+```scoop
+val dialect = OpenAiGptLiveDialect()
+val tools: Array<ToolDefinition> = [
+    ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}")),
+    Server(ToolKey("search"), WebSearch())
+]
+val setup = GptLiveSetup(extensions = [
+    dialect.responsesDelegation(backendModelId, tools)
+])
+// Pass setup to the same openGptLiveSession / withGptLiveSession entry point.
+val protocol = GptLiveProtocol(dialect)
+val start = protocol.encodeSessionStart(frontendModelId, setup)
+```
+
+audio／voice／store 等其他原生配置使用该 dialect 的扩展；session.update 只修改 API 允许更新的设置。Responses 后端的 reasoning 等扩展归属 OpenAiResponsesDialect，response.item.create 的工具结果也复用该嵌套协议的 reference 和实际 call ID。response.event 保留原文及 delegation_id；它的生命周期快照会省略输出内容，不能直接当作普通 Responses 的完整终态结果。库不执行工具或 delegation。
+
+startSent、sessionStarted、GptLiveSent／GptLiveReceived 均可保存；消息 UTC 与 elapsed 使用同一会话起点。usage.updated 的音频时长、context_window 及附加信息保留原文，不换算 token、费用或缓存寿命。无可用 GPT-Live key 时使用本地 mock 验证，未用失效的官方 OpenAI key。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |

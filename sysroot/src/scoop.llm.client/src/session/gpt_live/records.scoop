@@ -1,0 +1,16 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+public class GptLiveSent public constructor(public val sessionId: String, public val command: JsonValue, public val timing: LlmRequestTiming) {
+    public companion object : ValueEncoder<GptLiveSent>, ValueDecoder<GptLiveSent>
+}
+
+public class GptLiveReceived public constructor(public val sessionId: String, public val message: GptLiveMessage, public val received: LlmTimePoint) {
+    public companion object : ValueEncoder<GptLiveReceived>, ValueDecoder<GptLiveReceived>
+}
+
+public class GptLiveSessionClosedException public constructor() : Exception(Some("GPT-Live session is closed"))
+
+public class GptLiveSessionRejectedException public constructor(public val received: GptLiveReceived) :
+    Exception(Some("GPT-Live session initialization was rejected"))

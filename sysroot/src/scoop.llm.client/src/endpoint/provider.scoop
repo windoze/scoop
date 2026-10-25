@@ -9,8 +9,10 @@ public class LlmProvider public constructor(
     public val defaultBaseUrl: Url? = None
 )
 
-/** Common combinations and deployment defaults, without a model-name router. */
+/** Common combinations and API addresses, without a model-name router. */
 public object Providers {
+    public fun openAiGptLive(): LlmProvider = LlmProvider("openai-gpt-live", GptLiveProtocol(OpenAiGptLiveDialect()),
+        Some(Url.parse("https://api.openai.com/v1")))
     public fun openAiRealtime(): LlmProvider = LlmProvider("openai-realtime", RealtimeProtocol(OpenAiRealtimeDialect()),
         Some(Url.parse("https://api.openai.com/v1")))
     public fun geminiLive(): LlmProvider = LlmProvider("gemini-live", BidiGenerateContentProtocol(GeminiLiveDialect()),

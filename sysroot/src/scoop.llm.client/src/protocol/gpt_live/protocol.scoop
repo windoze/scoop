@@ -1,0 +1,68 @@
+package scoop.llm.client
+
+import scoop.io.encoding.Base64
+import scoop.json.*
+import scoop.url.Url
+
+public class GptLiveProtocol public constructor(public val dialect: GptLiveDialect) : LlmApiProtocol {
+    public override val dialectId: DialectId get() = dialect.id
+    init {
+        if (dialect.id.protocol != ApiProtocolId("gpt-live"))
+            throw IllegalArgumentException(Some("GPT-Live dialect belongs to another API protocol"))
+    }
+    public fun webSocketUrl(baseUrl: Url): Url {
+        val scheme = when (baseUrl.scheme) { case Some("http") -> "ws"; case Some("https") -> "wss"
+            else -> throw LlmRequestException("/endpoint/baseUrl", "GPT-Live endpoint requires HTTP or HTTPS") }
+        return baseUrl.toBuilder().setScheme(Some(scheme)).appendPathSegment("live").appendPathSegment("sessions").build()
+    }
+    public fun encodeSessionStart(modelId: String, setup: GptLiveSetup = GptLiveSetup(), eventId: String? = None): JsonValue =
+        gptLiveCommand("session.start", eventId).add("session", dialect.encodeSetup(modelId, setup)).build()
+    public fun encodeSessionUpdate(extensions: Array<DialectExtension> = [], eventId: String? = None): JsonValue =
+        gptLiveCommand("session.update", eventId).add("session", dialect.encodeUpdate(extensions)).build()
+    public fun encodeAudioAppend(bytes: Array<Byte>, eventId: String? = None): JsonValue =
+        gptLiveCommand("session.input_audio.append", eventId).add("audio", JsonValue.fromString(Base64.Default.encode(bytes))).build()
+    public fun encodeAudioMute(eventId: String? = None): JsonValue = gptLiveCommand("session.input_audio.mute", eventId).build()
+    public fun encodeAudioUnmute(eventId: String? = None): JsonValue = gptLiveCommand("session.input_audio.unmute", eventId).build()
+    public fun encodeInstructionsAppend(content: String, delegationId: String? = None, eventId: String? = None): JsonValue =
+        gptLiveAppend("session.instructions.append", content, delegationId, eventId)
+    public fun encodeThinkingAppend(content: String, delegationId: String? = None, eventId: String? = None): JsonValue =
+        gptLiveAppend("session.thinking.append", content, delegationId, eventId)
+    public fun encodeCommentaryAppend(content: String, delegationId: String? = None, eventId: String? = None): JsonValue =
+        gptLiveAppend("session.commentary.append", content, delegationId, eventId)
+    public fun encodeResponseItemCreate(item: LlmInputItem, eventId: String? = None): JsonValue =
+        gptLiveCommand("response.item.create", eventId).add("item", dialect.encodeResponseItem(item)).build()
+    public fun encodeResponseCreate(eventId: String? = None): JsonValue = gptLiveCommand("response.create", eventId).build()
+    public fun encodeSessionClose(eventId: String? = None): JsonValue = gptLiveCommand("session.close", eventId).build()
+    public fun encodeNativeCommand(command: GptLiveNativeCommand): JsonValue {
+        requireLlmOwner(command.dialect, dialectId, "/dialect")
+        val value = command.value
+        if (value.kind != JsonValueKind.Object) throw LlmRequestException("/value", "native command requires an object")
+        val type = value["type"] ?: throw LlmRequestException("/value/type", "native command requires type")
+        if (type.kind != JsonValueKind.String) throw LlmRequestException("/value/type", "native command type must be a string")
+        requireGptLiveId(type.asString(), "/value/type")
+        return value
+    }
+    public fun decodeMessage(value: JsonValue): GptLiveMessage {
+        try { return readGptLiveMessage(dialectId, value) }
+        catch (error: DecodingException) { throw LlmProtocolException(dialectId, error.path, error.message ?: "invalid GPT-Live event", value) }
+    }
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
+}
+
+private fun gptLiveCommand(type: String, eventId: String?): JsonObjectBuilder {
+    val command = llmTypedObject(type)
+    if (eventId != None) command.add("event_id", JsonValue.fromString(eventId!!))
+    return command
+}
+
+private fun gptLiveAppend(type: String, content: String, delegationId: String?, eventId: String?): JsonValue {
+    if (delegationId != None) requireGptLiveId(delegationId!!, "/delegationId")
+    return gptLiveCommand(type, eventId).add("content", JsonValue.fromString(content))
+        .add("delegation_id", Json.encodeToValue(delegationId)).build()
+}
+
+internal fun requireGptLiveId(value: String, path: String): String {
+    if (value.length == 0L) throw LlmRequestException(path, "GPT-Live identifier must not be empty")
+    return value
+}

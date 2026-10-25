@@ -1,0 +1,51 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+public interface GptLiveDialect {
+    public val id: DialectId
+    public fun encodeSetup(modelId: String, setup: GptLiveSetup): JsonValue
+    public fun encodeUpdate(extensions: Array<DialectExtension>): JsonValue
+    public fun encodeResponseItem(item: LlmInputItem): JsonValue
+    public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
+}
+
+public class OpenAiGptLiveDialect public constructor() : GptLiveDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("gpt-live"), "openai-gpt-live")
+    public override fun encodeSetup(modelId: String, setup: GptLiveSetup): JsonValue = encodeGptLiveSetup(id, modelId, setup)
+    public override fun encodeUpdate(extensions: Array<DialectExtension>): JsonValue {
+        checkDialectExtensions(extensions, "/extensions")
+        return mergeLlmExtensions(JsonObjectBuilder().build(), extensions, id,
+            ["model", "instructions", "input", "audio", "store"], "")
+    }
+    public override fun encodeResponseItem(item: LlmInputItem): JsonValue {
+        val request = LlmRequest([item])
+        val input = encodeResponsesInput(OpenAiResponsesDialect(), request.input)
+        if (input.size != 1L) throw LlmRequestException("/item", "response.item.create requires exactly one Responses item")
+        return input[0]
+    }
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
+        val parsed = OpenAiResponsesDialect().decodeError(status, body, truncated)
+        return LlmServiceException(id, status, body, truncated, parsed.code, parsed.native, parsed.retryable,
+            parsed.message ?: "GPT-Live service rejected the request")
+    }
+
+    /** Encodes server-owned Responses settings; it does not run a backend or execute tools. */
+    public fun responsesDelegation(modelId: String, tools: Array<ToolDefinition> = [], instructions: String? = None,
+        maxOutputTokens: ULong? = None, parallelToolCalls: Boolean? = None, toolChoice: ToolChoice = ToolChoice.Auto,
+        extensions: Array<DialectExtension> = []): DialectExtension {
+        val nested = OpenAiResponsesDialect()
+        val request = LlmRequest([], tools = tools, options = LlmGenerationOptions(maxOutputTokens = maxOutputTokens,
+            parallelToolCalls = parallelToolCalls, toolChoice = toolChoice), extensions = extensions)
+        val backend = JsonObjectBuilder().add("model", JsonValue.fromString(requireGptLiveId(modelId, "/modelId")))
+        if (instructions != None) backend.add("instructions", JsonValue.fromString(instructions!!))
+        for ((name, value) in nested.encodeOptions(request).members()) {
+            if (name == "include") throw LlmRequestException("/tools", "Live Responses configuration has no include setting")
+            backend.add(name, value)
+        }
+        val settings = mergeLlmExtensions(backend.build(), extensions, nested.id,
+            ["model", "instructions", "tools", "tool_choice", "max_output_tokens", "parallel_tool_calls"], "")
+        return DialectExtension(id, JsonObjectBuilder().add("delegation",
+            llmTypedObject("responses").add("responses", settings).build()).build())
+    }
+}

@@ -1,0 +1,44 @@
+package scoop.llm.client
+
+import scoop.http.client.*
+import scoop.json.*
+
+internal suspend fun openGptLiveSessionState(client: LlmClientState, model: LlmModel, setup: GptLiveSetup,
+    options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions): GptLiveSession {
+    val prepared = GptLiveOpening()
+    val opened = openLlmWebSocket(client, model.endpoint, options, webSocketOptions, GptLiveSessionClosedException(), {
+        val protocol = model.endpoint.provider.protocol
+        if (!(protocol is GptLiveProtocol)) throw LlmRequestException("/provider", "endpoint does not use GPT-Live")
+        requireModelCapability(model.capabilities.realtime, "/realtime")
+        checkModelInput(model.capabilities.input, LlmRequest(setup.input))
+        if (setup.instructions != None) requireModelCapability(model.capabilities.input.text, "/setup/instructions")
+        prepared.command = Some(protocol.encodeSessionStart(model.id, setup))
+        prepared.protocol = Some(protocol)
+        protocol.webSocketUrl(model.endpoint.baseUrl)
+    }, suspend { call, socket ->
+        val protocol = prepared.protocol!!
+        val command = prepared.command!!
+        prepared.sent = Some(GptLiveSent(call.id, command, sendLlmWebSocketMessage(call, socket, command)))
+        val (message, received) = receiveLlmWebSocketMessage<GptLiveMessage>(call, socket, protocol.dialectId, false,
+            { data -> decodeGptLiveSessionMessage(protocol, data) })
+            ?: throw LlmStreamProtocolException(protocol.dialectId, "GPT-Live connection ended before session.started")
+        val result = GptLiveReceived(call.id, message, received)
+        if (message.type == "error") throw GptLiveSessionRejectedException(result)
+        if (message.type != "session.started") throw LlmProtocolException(protocol.dialectId, "/type", "expected initial session.started", message.native)
+        prepared.received = Some(result)
+    })
+    return GptLiveSession(opened.connection, model, setup, prepared.protocol!!, opened.metadata, prepared.sent!!, prepared.received!!)
+}
+
+private class GptLiveOpening {
+    var protocol: GptLiveProtocol? = None
+    var command: JsonValue? = None
+    var sent: GptLiveSent? = None
+    var received: GptLiveReceived? = None
+}
+
+internal fun decodeGptLiveSessionMessage(protocol: GptLiveProtocol, data: String): GptLiveMessage {
+    val raw = try { Json.parse(data) }
+        catch (_: DecodingException) { throw LlmStreamProtocolException(protocol.dialectId, "invalid GPT-Live JSON message", Some(data)) }
+    return protocol.decodeMessage(raw)
+}

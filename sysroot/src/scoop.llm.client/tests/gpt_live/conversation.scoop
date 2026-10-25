@@ -1,0 +1,101 @@
+package scoop.llm.client.tests.gpt_live
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.platform.time.SystemClock
+import scoop.test.*
+
+@Test
+private class GptLiveConversationTest {
+    @Test
+    fun defaultSessionExchangesAudioAndContextWithActualMessageTimes() {
+        withGptLivePeer(suspend { socket ->
+            val start = gptStart(socket)
+            assertEquals(1L, start["session"]!!.size)
+            val context = gptCommand(socket)
+            assertEquals("session.instructions.append", context["type"]!!.asString())
+            assertEquals(JsonValueKind.Null, context["delegation_id"]!!.kind)
+            val audio = gptCommand(socket)
+            assertEquals("session.input_audio.append", audio["type"]!!.asString())
+            assertEquals("AP8=", audio["audio"]!!.asString())
+            socket.sendText("{\"type\":\"session.instructions.appended\",\"client_event_id\":\"context\",\"start_ms\":0,\"end_ms\":0}")
+            socket.sendText("{\"type\":\"session.output_audio.delta\",\"delta\":\"AP8=\"}")
+            socket.sendText("{\"type\":\"session.output_transcript.delta\",\"delta\":\"hello\",\"start_ms\":0,\"end_ms\":20}")
+            socket.sendText("{\"type\":\"session.usage.updated\",\"usage\":false}")
+            assertEquals("session.close", gptCommand(socket)["type"]!!.asString())
+            socket.sendText("{\"type\":\"session.closed\",\"reason\":\"close_requested\",\"session\":{\"id\":\"server\"},\"usage\":{\"seconds\":0.02}}")
+            socket.shutdownGracefully()
+        }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                val before = SystemClock.now()
+                client.withGptLiveSession(endpoint.model("m")) suspend { session ->
+                    assertEquals(Some(101U), session.opening.attempts[0].status)
+                    assertEquals(None, session.opening.attempts[0].usage.tokens.totalTokens)
+                    assertEquals(session.id, session.startSent.sessionId)
+                    assertTrue(session.startSent.timing.sentAt!! >= before)
+                    assertTrue(session.sessionStarted.received.elapsed >= session.startSent.timing.bodyCompleted!!.elapsed)
+                    val sent = session.sendInstructionsAppend("Say hello", eventId = Some("context"))
+                    val savedSent = Json.decodeFromString<GptLiveSent>(Json.encodeToString(sent))
+                    assertEquals(sent.timing.sentAt, savedSent.timing.sentAt)
+                    session.sendAudioAppend([0.toByte(), (-1).toByte()], "audio/pcm;rate=24000")
+                    assertEquals(Some("context"), session.receive()!!.message.clientEventId)
+                    val received = session.receive()!!
+                    val saved = Json.decodeFromString<GptLiveReceived>(Json.encodeToString(received))
+                    assertEquals(session.id, saved.sessionId)
+                    assertEquals(received.received.at, saved.received.at)
+                    assertEquals(received.received.elapsed, saved.received.elapsed)
+                    assertTrue(saved.received.elapsed >= sent.timing.sent!!.elapsed)
+                    when (saved.message.event) { case AudioDelta(bytes, _, _) -> assertEquals(2L, bytes.size); else -> fail() }
+                    when (session.receive()!!.message.event) { case OutputTranscript(text, _, _) -> assertEquals("hello", text); else -> fail() }
+                    assertEquals("session.usage.updated", session.receive()!!.message.type)
+                    assertFalse(session.isClosed)
+                    session.sendSessionClose()
+                    when (session.receive()!!.message.event) { case SessionClosed(reason, _) -> assertEquals("close_requested", reason); else -> fail() }
+                    assertTrue(when (session.receive()) { case None -> true; else -> false })
+                    assertTrue(session.isClosed)
+                }
+            }
+        })
+    }
+
+    @Test
+    fun explicitBackendAndControlCommandsDoNotRunDelegationsOrInferCompletion() {
+        withGptLivePeer(suspend { socket ->
+            val start = gptStart(socket)
+            assertEquals(2L, start["session"]!!["delegation"]!!["responses"]!!["tools"]!!.size)
+            assertEquals("session.update", gptCommand(socket)["type"]!!.asString())
+            socket.sendText("{\"type\":\"session.updated\",\"session\":{\"id\":\"server\"}}")
+            socket.sendText("{\"type\":\"error\",\"error\":{\"message\":\"recoverable\"}}")
+            socket.sendText("{\"type\":\"response.event\",\"delegation_id\":\"d\",\"event\":{\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"call_id\":\"call\",\"name\":\"lookup\",\"arguments\":\"{}\",\"status\":\"completed\"}}}")
+            socket.sendText("{\"type\":\"response.event\",\"delegation_id\":\"d\",\"event\":{\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"output\":[]}}}")
+            val result = gptCommand(socket)
+            assertEquals("response.item.create", result["type"]!!.asString())
+            assertEquals("call", result["item"]!!["call_id"]!!.asString())
+            assertEquals(1L, gptCommand(socket).size)
+            for (expected in ["session.input_audio.mute", "session.input_audio.unmute", "session.thinking.append", "session.commentary.append", "future.command"])
+                assertEquals(expected, gptCommand(socket)["type"]!!.asString())
+        }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                val configuration = GptLiveSetup(extensions = [gptDialect.responsesDelegation("backend", [gptFunction, gptSearch])])
+                client.withGptLiveSession(endpoint.model("m"), configuration) suspend { session ->
+                    session.sendSessionUpdate([DialectExtension(gptDialect.id, Json.parse("{\"triggers\":[]}"))])
+                    assertEquals("session.updated", session.receive()!!.message.type)
+                    assertEquals("error", session.receive()!!.message.type)
+                    assertFalse(session.isClosed)
+                    val event = when (session.receive()!!.message.event) { case ResponseEvent(_, value) -> value; else -> fail() }
+                    val completed = when (session.receive()!!.message.event) { case ResponseEvent(_, value) -> value; else -> fail() }
+                    assertEquals("completed", completed["response"]!!["status"]!!.asString())
+                    val item = event["item"]!!
+                    val reference = ClientToolCallReference(OpenAiResponsesDialect().id, ToolKey("lookup"), Some(item["call_id"]!!.asString()), Some(item))
+                    session.sendResponseItemCreate(ToolResult(reference, [Text("application result")]))
+                    session.sendResponseCreate()
+                    session.sendAudioMute(); session.sendAudioUnmute()
+                    session.sendThinkingAppend("working", Some("client-delegation"))
+                    session.sendCommentaryAppend("ready")
+                    session.sendNativeCommand(GptLiveNativeCommand(gptDialect.id, Json.parse("{\"type\":\"future.command\"}")))
+                }
+            }
+        })
+    }
+}

@@ -1,0 +1,77 @@
+package scoop.llm.client.tests.gpt_live
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.assertLlmBytes
+import scoop.test.*
+
+@Test
+private class GptLiveEventsTest {
+    @Test
+    fun audioAndTranscriptsKeepSeparateMediaTimesWithoutCompletion() {
+        val audio = gptDecode("{\"type\":\"session.output_audio.delta\",\"delta\":\"AP8=\"}")
+        val saved = Json.decodeFromString<GptLiveMessage>(Json.encodeToString(audio))
+        when (saved.event) {
+            case AudioDelta(bytes, start, end) -> { assertLlmBytes([0.toByte(), (-1).toByte()], bytes); assertEquals(None, start); assertEquals(None, end) }
+            else -> fail()
+        }
+        assertEquals(None, saved.eventId)
+        val input = gptDecode("{\"type\":\"session.input_transcript.delta\",\"event_id\":\"input\",\"client_event_id\":\"sent\",\"delta\":\"hello\",\"start_ms\":1.5,\"end_ms\":2}")
+        assertEquals(Some("sent"), input.clientEventId)
+        when (input.event) { case InputTranscript(text, start, end) -> { assertEquals("hello", text); assertEquals(1.5, start); assertEquals(2.0, end) }; else -> fail() }
+        val output = gptDecode("{\"type\":\"session.output_transcript.delta\",\"delta\":\"world\",\"start_ms\":2,\"end_ms\":3}")
+        when (output.event) { case OutputTranscript(text, _, _) -> assertEquals("world", text); else -> fail() }
+        val ack = gptDecode("{\"type\":\"session.commentary.appended\",\"start_ms\":3,\"end_ms\":3}")
+        when (ack.event) { case ContextAppended(start, end) -> assertEquals(start, end); else -> fail() }
+    }
+
+    @Test
+    fun delegationAndForwardedResponsesRemainDistinctFromFullResponseSnapshots() {
+        val delegation = gptDecode("{\"type\":\"session.delegation.created\",\"offset_ms\":3600,\"delegation\":{\"id\":\"d\",\"type\":\"delegation\",\"target\":\"client\"}}")
+        when (delegation.event) {
+            case DelegationCreated(value, offset) -> { assertEquals("d", value["id"]!!.asString()); assertEquals(3600.0, offset); assertEquals(3L, value.size) }
+            else -> fail()
+        }
+        for (inner in ["{\"type\":\"response.output_text.delta\",\"delta\":\"answer\"}",
+            "{\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"status\":\"completed\",\"output\":[],\"usage\":{\"total_tokens\":9}}}"]) {
+            val message = gptDecode("{\"type\":\"response.event\",\"delegation_id\":\"d\",\"event\":" + inner + "}")
+            val saved = Json.decodeFromString<GptLiveMessage>(Json.encodeToString(message))
+            when (saved.event) {
+                case ResponseEvent(id, event) -> { assertEquals(Some("d"), id); assertEquals(Json.stringify(Json.parse(inner)), Json.stringify(event)) }
+                else -> fail()
+            }
+        }
+    }
+
+    @Test
+    fun usageAndAdditionalInformationStayRawAcrossMissingAndChangedShapes() {
+        for (extra in ["", ",\"usage\":null", ",\"usage\":false,\"context_window\":[1]", ",\"usage\":{\"seconds\":1.5},\"future\":{\"a\":1}"]) {
+            val raw = "{\"type\":\"session.usage.updated\"" + extra + "}"
+            val message = gptDecode(raw)
+            when (message.event) { case Native(value) -> assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(value)); else -> fail() }
+            val closed = gptDecode("{\"type\":\"session.closed\",\"reason\":\"close_requested\",\"session\":{\"id\":\"s\"}" + extra + "}")
+            when (closed.event) { case SessionClosed(reason, _) -> assertEquals("close_requested", reason); else -> fail() }
+        }
+        val unknown = gptDecode("{\"type\":\"future.notification\",\"future\":[null,false]}")
+        when (unknown.event) { case Native(_) -> {}; else -> fail() }
+    }
+
+    @Test
+    fun malformedCoreFieldsHavePathsWhileValidServerErrorsAreEvents() {
+        for ((raw, path) in [("{}", "/type"), ("{\"type\":\"session.started\",\"session\":false}", "/session"),
+            ("{\"type\":\"session.output_audio.delta\",\"delta\":\"!\"}", "/delta"),
+            ("{\"type\":\"session.input_transcript.delta\",\"delta\":\"x\",\"start_ms\":\"bad\",\"end_ms\":1}", "/start_ms"),
+            ("{\"type\":\"response.event\",\"event\":[]}", "/event")]) {
+            val error = assertFailsWith<LlmProtocolException> { gptDecode(raw); Unit }
+            assertEquals(path, error.path)
+            assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(error.native))
+        }
+        when (gptDecode("{\"type\":\"error\",\"error\":{\"message\":\"recoverable\",\"future\":false}}").event) {
+            case Error(error) -> assertEquals("recoverable", error["message"]!!.asString())
+            else -> fail()
+        }
+        val http = gptProtocol.decodeError(429U, "{\"error\":{\"code\":\"rate_limit_exceeded\"}}".toByteArray(), false)
+        assertTrue(http.retryable)
+        assertEquals(gptDialect.id, http.dialect)
+    }
+}

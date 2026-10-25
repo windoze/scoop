@@ -133,6 +133,14 @@ public class LlmClient private constructor(internal val state: LlmClientState) :
         openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions(),
         block: suspend (RealtimeSession) -> T): T = openRealtimeSession(model, configuration, openingOptions, webSocketOptions).useAsync(block)
 
+    public suspend fun openGptLiveSession(model: LlmModel, setup: GptLiveSetup = GptLiveSetup(),
+        openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions()): GptLiveSession =
+        openGptLiveSessionState(state, model, setup, openingOptions, webSocketOptions)
+
+    public suspend fun <T> withGptLiveSession(model: LlmModel, setup: GptLiveSetup = GptLiveSetup(),
+        openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions(),
+        block: suspend (GptLiveSession) -> T): T = openGptLiveSession(model, setup, openingOptions, webSocketOptions).useAsync(block)
+
     public override suspend fun close() { closeLlmClient(state) }
 }
 
