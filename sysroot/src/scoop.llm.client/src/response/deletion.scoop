@@ -1,0 +1,18 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** The server's deletion confirmation, including its unmodified response. */
+public class ResponsesDeletion public constructor(public val dialect: DialectId, public val id: String,
+    public val deleted: Boolean, public val native: JsonValue) {
+    public companion object : ValueEncoder<ResponsesDeletion>, ValueDecoder<ResponsesDeletion>
+}
+
+/** A deletion after HTTP resource cleanup, with this operation's actual timing. */
+public class ResponsesDeletionResult public constructor(public val deletion: ResponsesDeletion, public val metadata: LlmCallMetadata) {
+    init {
+        if (metadata.outcome != LlmCallOutcome.Completed)
+            throw IllegalArgumentException(Some("deletion result requires a completed call"))
+    }
+    public companion object : ValueEncoder<ResponsesDeletionResult>, ValueDecoder<ResponsesDeletionResult>
+}

@@ -1,0 +1,36 @@
+package scoop.llm.client
+
+internal suspend fun readStoredLlmResponse(client: LlmClientState, endpoint: LlmEndpoint, responseId: String,
+    tools: Array<ToolDefinition>, include: Array<String>, options: LlmCallOptions, cancel: Boolean): LlmResult {
+    val (response, metadata) = executeLlmCall<LlmResponse>(client, options) suspend { call ->
+        val protocol = storedResponsesProtocol(endpoint)
+        val url = if (cancel) protocol.cancelUrl(endpoint.baseUrl, responseId) else protocol.retrieveUrl(endpoint.baseUrl, responseId, include)
+        val context = LlmRequest([], tools = tools)
+        performLlmJsonRequest<LlmResponse>(call, endpoint, url, [], options, if (cancel) "POST" else "GET") { parsed, attempt ->
+            val decoded = protocol.decodeResponse(parsed, context)
+            attempt.completeOperation(decoded.id)
+            decoded
+        }
+    }
+    return LlmResult(response, metadata)
+}
+
+internal suspend fun deleteStoredLlmResponse(client: LlmClientState, endpoint: LlmEndpoint, responseId: String,
+    options: LlmCallOptions): ResponsesDeletionResult {
+    val (deletion, metadata) = executeLlmCall<ResponsesDeletion>(client, options) suspend { call ->
+        val protocol = storedResponsesProtocol(endpoint)
+        val url = protocol.deleteUrl(endpoint.baseUrl, responseId)
+        performLlmJsonRequest<ResponsesDeletion>(call, endpoint, url, [], options, "DELETE") { parsed, attempt ->
+            val decoded = protocol.decodeDeletion(parsed)
+            attempt.completeOperation(Some(decoded.id))
+            decoded
+        }
+    }
+    return ResponsesDeletionResult(deletion, metadata)
+}
+
+private fun storedResponsesProtocol(endpoint: LlmEndpoint): ResponsesProtocol {
+    val protocol = endpoint.provider.protocol
+    if (protocol is ResponsesProtocol) return protocol
+    throw LlmRequestException("/provider", "selected protocol has no stored Responses operations")
+}

@@ -22,7 +22,7 @@ internal class LlmAttemptState(val call: LlmCallState, val number: Long) {
     fun observe(metrics: HttpAttemptMetrics) { lock.withLock { observed = Some(metrics) } }
     fun identify(id: String?) { lock.withLock { requestId = id } }
     fun complete(value: LlmResponse) { lock.withLock { response = Some(value); completed = Some(call.point()) } }
-    fun completeOperation() { lock.withLock { completed = Some(call.point()) } }
+    fun completeOperation(responseId: String? = None) { lock.withLock { streamResponseId = responseId; completed = Some(call.point()) } }
     fun event(point: LlmTimePoint) { lock.withLock { if (!llmPresent(firstEvent)) firstEvent = Some(point); Unit } }
 
     fun update(point: LlmTimePoint, update: LlmStreamUpdate, decoder: LlmStreamDecoder) {

@@ -73,6 +73,8 @@ LLM 响应头和读取空闲时间缺省 300 秒，写入空闲时间 60 秒，�
 
 `client.countTokens(model, request)` 使用 Gemini GenerateContent 或 Anthropic Messages dialect 的服务端计数接口，返回独立的 `LlmTokenCountResult`。count 保存输入计数、方法、范围、估算性质及原文；metadata 沿用真实收发时间、HTTP 阶段、重试和完成回调。普通生成不自动预先计数，预估值不写入 response.usage。没有该接口或显式不支持的模型在认证前失败；未提供 tokenizer 实现，不增加空的本地模式。Messages 的不支持输入明确报错，Gemini 的 cachedInputTokens 只表示缓存输入规模。
 
+`client.retrieveResponse(endpoint, responseId)` 读取服务端 Responses 快照，`cancelResponse` 取消 background response，`deleteResponse` 删除存储的 response。读取与取消返回 LlmResult；tools 缺省为空，只用于本地关联；include 可显式请求加密 reasoning 等字段。删除的 ResponsesDeletionResult 保存实际确认与计时。三者使用原有 LlmCallOptions，不自动轮询或调度；历史 usage 不成为查询操作的生成速度。OpenAI Responses 提供这些操作，DeepSeek 在认证前拒绝；见 [使用示例](../../../docs/llm-client/USAGE.md#76-responses-的读取取消与删除)。
+
 最小请求的写法直接使用消息和设置的缺省值；添加服务端搜索或结构化输出仍使用同一个请求类型：
 
 ```scoop

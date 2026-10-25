@@ -1,0 +1,113 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class StoredResponsesNetworkTest {
+    @Test
+    fun `stored Responses mock creates retrieves cancels and deletes with actual auth timing and tool history`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val endpoint = LlmEndpoint(Providers.openAiResponses(), auth,
+                Some(Url.parse(original.baseUrl.toString() + "/deployment?api-version=v2")))
+            val wireMethods = ["POST", "GET", "GET", "GET", "POST", "DELETE"]
+            val wirePaths = ["/responses", "/responses/resp_actual", "/responses/resp_actual",
+                "/responses/resp_finished", "/responses/resp_actual/cancel", "/responses/resp_actual"]
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    var index = 0L
+                    while (index < wireMethods.size) {
+                        val request = connection.receiveRequest()!!
+                        val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        assertEquals(wireMethods[index], String.fromUtf8(request.head.method))
+                        assertEquals("/v1/deployment" + wirePaths[index] + "?api-version=v2" +
+                            (if (index == 3L) "&include%5B%5D=reasoning.encrypted_content" else ""), target)
+                        assertEquals("Bearer attempt-" + (index + 1L).toString(),
+                            String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0].value))
+                        val bytes = request.body.readAllBytes(8192L)
+                        if (index == 0L) {
+                            val body = Json.parse(String.fromUtf8(bytes))
+                            assertEquals("requested-model", body["model"]!!.asString())
+                            assertTrue(body["background"]!!.asBoolean())
+                        } else {
+                            assertEquals(0L, bytes.size)
+                            assertEquals(0L, request.head.fields.findAll("Content-Type".toByteArray()).size)
+                        }
+                        assertLlmBytes(bytes, auth.requests[index].body)
+                        assertEquals(wireMethods[index], auth.requests[index].method)
+                        val reply = when (index) {
+                            case 0L -> storedResponseBody("queued")
+                            case 1L -> "{\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"busy\"}}"
+                            case 2L -> storedResponseBody("in_progress")
+                            case 3L -> storedResponseBody("completed", storedResponseOutput, "resp_finished")
+                            case 4L -> storedResponseBody("cancelled", storedResponseOutput)
+                            else -> "{\"id\":\"resp_actual\",\"object\":\"response.deleted\",\"deleted\":true}"
+                        }
+                        sendLlmReply(connection, if (index == 1L) 429U else 200U, reply)
+                        index += 1L
+                    }
+                }
+            }
+            val observations = ArrayList<HttpAttemptMetrics>()
+            HttpClient.open(scope, HttpClientConfig(observer = Some(HttpObserver(suspend { event ->
+                if (event.kind == HttpCallEventKind.Completed) observations.add(event.metrics)
+            })))).useAsync suspend { http ->
+                val finished = FinishedCalls()
+                val options = LlmCallOptions(retries = LlmRetryOptions(initialDelay = Duration.ZERO),
+                    onFinished = Some(suspend { metadata -> finished.record(metadata) }))
+                withLlmClient(Some(http)) suspend { client ->
+                    val created = client.generate(endpoint.model("requested-model"), LlmRequest(sampleRequest.input,
+                        extensions = [DialectExtension(endpoint.provider.protocol.dialectId, Json.parse("{\"background\":true}"))]), options)
+                    assertEquals(LlmCompletion.Incomplete, created.response.candidate(0L).completion)
+                    val waiting = client.retrieveResponse(endpoint, created.response.id!!, options = options)
+                    assertEquals(LlmCompletion.Incomplete, waiting.response.candidate(0L).completion)
+                    assertEquals(UsageCompleteness.Partial, waiting.response.usage.completeness)
+                    assertEquals(2L, waiting.metadata.attempts.size)
+                    val ready = client.retrieveResponse(endpoint, "resp_finished", storedResponseTools,
+                        ["reasoning.encrypted_content"], options)
+                    val restored = Json.decodeFromString<LlmResult>(Json.encodeToString(ready))
+                    assertEquals("ready", restored.text)
+                    assertEquals(Some("actual-model"), restored.response.model)
+                    assertEquals(Some(11L), restored.response.usage.tokens.totalTokens)
+                    assertEquals(1L, restored.clientToolCalls.size)
+                    assertEquals(1L, restored.serverToolActivities.size)
+                    val input = ArrayList<LlmInputItem>()
+                    for (item in restored.toInput()) input.add(item)
+                    input.add(LlmInputItem.ToolResult(restored.clientToolCalls[0].reference, [Text("done")]))
+                    val replay = endpoint.provider.protocol.encodeRequest("next-model", LlmRequest(input.toArray()))
+                    assertEquals("opaque", replay["input"]!![0]["encrypted_content"]!!.asString())
+                    assertEquals("call", replay["input"]!![4]["call_id"]!!.asString())
+                    val cancelled = client.cancelResponse(endpoint, created.response.id!!, storedResponseTools, options)
+                    assertEquals(LlmCompletion.Incomplete, cancelled.response.candidate(0L).completion)
+                    assertEquals(UsageCompleteness.Final, cancelled.response.usage.completeness)
+                    assertEquals(0L, cancelled.clientToolCalls.size)
+                    assertEquals("ready", cancelled.text)
+                    val deleted = Json.decodeFromString<ResponsesDeletionResult>(
+                        Json.encodeToString(client.deleteResponse(endpoint, created.response.id!!, options)))
+                    assertTrue(deleted.deletion.deleted)
+                    assertStoredOperationTiming(ready.metadata, "resp_finished")
+                    for (metadata in [waiting.metadata, cancelled.metadata, deleted.metadata])
+                        assertStoredOperationTiming(metadata)
+                    assertEquals(5L, finished.values.size)
+                    var index = 0L
+                    for (metadata in finished.values) for (attempt in metadata.attempts) {
+                        assertEquals(observations[index].requestHeadersAtUtc, attempt.request.sentAt)
+                        assertEquals(observations[index].finalResponseHeadersAtUtc, attempt.response.receivedAt)
+                        index += 1L
+                    }
+                    assertEquals(6L, index)
+                }
+                assertFalse(http.isClosed)
+            }
+            serving.join()
+        }
+    }
+}

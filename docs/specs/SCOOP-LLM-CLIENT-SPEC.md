@@ -769,3 +769,17 @@ reasoning_details 的 text／summary 增量按连续块合并；不同 kind、�
 annotations 按实际数组增量保存，文件 annotations 随历史回传；未知形状原样交付，不验证服务附加信息内容。输出 images／audio 使用原生表示；音频分块按既有 Base64 规则累计，expires_at 只保留原值，缺少 ID 仍可交付结果，但不制造可回传的音频引用。ChatDialect.readNativeItems 选择完整响应的原生输出字段；canReplayMessage 缺省 true，在缺少音频引用时返回 false，普通及流式结果均不生成不完整的历史。HTTP 错误正文保留原文，限流／无可用服务的 429／503 可重试，已收到模型输出后不重放。token usage 使用 Chat 的实际计数，其他字段不进入公共计数或费用模型。
 
 验证采用官方形状的本地 HTTP／SSE mock，包含混合工具、完整历史保存和恢复、独立签名块、跨 candidate 交错、usage 尾块、错误与真实时间戳；真实服务另行补测。依据：[reasoning](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens)、[Chat API](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion)、[服务端工具](https://openrouter.ai/docs/guides/features/server-tools)、[WebSearch](https://openrouter.ai/docs/guides/features/server-tools/web-search)、[多模态](https://openrouter.ai/docs/guides/overview/multimodal/overview)及 [OpenRouter AI SDK reasoning 增量实现](https://github.com/OpenRouterTeam/ai-sdk-provider/blob/d8edda07b62de696d613ae0115823382465665cd/src/chat/index.ts)。
+
+## 40. Responses 服务端状态操作
+
+LlmClient.retrieveResponse(endpoint, responseId, tools = [], include = [], options = LlmCallOptions()) 显式读取已经创建的 response；cancelResponse(endpoint, responseId, tools = [], options = LlmCallOptions()) 显式取消 background response；deleteResponse(endpoint, responseId, options = LlmCallOptions()) 显式删除已存储的 response。三者使用同一 client 和 endpoint，不需要模型目录或重复提供 model ID，不执行轮询、任务调度或自动删除。background／store 继续通过已有的 Responses 请求扩展设置；服务端决定资源是否存在、可取消或可删除。
+
+ResponsesDialect.supportsStoredResponses 缺省 false，OpenAiResponsesDialect 为 true，DeepSeek 保持 false。该属性描述适配器提供的操作，与模型的生成能力分开。非 Responses protocol 或未实现存储操作的 dialect 在认证和 I/O 前报 LlmRequestException。responseId 非空，作为一个原始 URL path segment 编码；保留 endpoint 的部署路径和 query。retrieve 使用 GET /responses/{response_id}，include 按重复 include[] query 发送，非空时覆盖部署 query 中的同名 include／include[]，空数组沿用部署 query，值不设封闭枚举；cancel 使用 POST /responses/{response_id}/cancel；delete 使用 DELETE /responses/{response_id}。这些操作不发送 JSON body，认证看到实际 method、URL、fields 和空字节正文。读取入口返回单个 JSON 快照，不启动流或恢复事件。
+
+读取和取消返回既有 LlmResult，按同一 Responses decoder 解释文本、reasoning、客户端／服务端工具、终止状态、usage 与原始历史。tools 只用于本地关联，不发送给服务端，不把服务端返回的工具声明自动注册为客户端工具；缺省 [] 时未关联的调用仍保留 Native。queued／in_progress 保持 Incomplete 和 Partial usage；cancelled 保持 Incomplete 和 Final usage，不将取消冒充完整生成。原始错误及未知服务端附加字段继续保留，不校验计费或缓存等附加信息。
+
+删除确认使用 ResponsesDeletion(dialect, id, deleted, native)，保留实际布尔值与完整原文，不将 HTTP 成功等同 deleted=true；wire object 必须为 response.deleted。ResponsesDeletionResult(deletion, metadata) 在本地调用清理完成后返回，两种数据支持 companion codec。ResponsesProtocol 提供 retrieveUrl／cancelUrl／deleteUrl 及 decodeDeletion 纯入口，供相同协议的独立消费和本地 mock 使用。
+
+三种操作复用已有认证、服务拒绝重试、截止、调用方取消、client.close、回调与 HTTP 资源所有权。每个 attempt 的时间戳来自此次实际传输，completed 表示本次操作解析完成，responseId 仅取服务端实际 ID；查询／取消返回的历史 usage 只位于 LlmResponse，不填入此次 attempt 的生成用量、首个模型事件／输出／文本或输出速率。删除同样不产生生成用量。协议／解析错误不重试；HTTP 拒绝按既有 dialect 策略处理，每次重试重新认证。
+
+本地 scoop.test 使用官方形状与 loopback HTTP mock，覆盖创建 background 后读取／取消／删除、工具历史、方法与部署路径、重试认证、实际计时及失败／取消清理；普通用例不连接供应商。真实服务用例继续默认忽略，凭据可用后再补互通验证。依据：[读取 response](https://developers.openai.com/api/reference/resources/responses/methods/retrieve)、[取消 response](https://developers.openai.com/api/reference/resources/responses/methods/cancel)、[删除 response](https://developers.openai.com/api/reference/resources/responses/methods/delete)、[background 模式](https://developers.openai.com/api/docs/guides/background)。

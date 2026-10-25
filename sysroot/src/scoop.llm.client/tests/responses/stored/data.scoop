@@ -1,0 +1,50 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class StoredResponsesDataTest {
+    @Test
+    fun `stored Responses URLs preserve deployment and encode resource IDs and include values`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val base = Url.parse("https://example.test/deployment/v1?api-version=v2&include=old")
+        assertTrue(protocol.dialect.supportsStoredResponses)
+        assertFalse(DeepSeekResponsesDialect().supportsStoredResponses)
+        assertEquals("https://example.test/deployment/v1/responses/resp%20%2F%3F%23?api-version=v2&include=old",
+            protocol.retrieveUrl(base, "resp /?#").toString())
+        val url = protocol.retrieveUrl(base, "resp", ["reasoning.encrypted_content", "future & field"])
+        assertEquals("https://example.test/deployment/v1/responses/resp?api-version=v2&include%5B%5D=reasoning.encrypted_content&include%5B%5D=future%20%26%20field",
+            url.toString())
+        assertEquals("https://example.test/deployment/v1/responses/%2E%2E/cancel?api-version=v2&include=old",
+            protocol.cancelUrl(base, "..").toString())
+        assertEquals(protocol.retrieveUrl(base, "resp").toString(), protocol.deleteUrl(base, "resp").toString())
+        val failure = assertFailsWith<LlmRequestException> { protocol.deleteUrl(base, ""); Unit }
+        assertEquals("/responseId", failure.path)
+    }
+
+    @Test
+    fun `stored Responses deletion decodes actual confirmation and rejects malformed core fields`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        for (deleted in [false, true]) {
+            val body = Json.parse("{\"id\":\"resp_actual\",\"object\":\"response.deleted\",\"deleted\":" + deleted.toString() + "}")
+            val decoded = Json.decodeFromString<ResponsesDeletion>(Json.encodeToString(protocol.decodeDeletion(body)))
+            assertEquals(protocol.dialectId, decoded.dialect)
+            assertEquals("resp_actual", decoded.id)
+            assertEquals(deleted, decoded.deleted)
+            assertEquals(Json.stringify(body), Json.stringify(decoded.native))
+        }
+        for ((body, path) in [
+            ("{\"id\":\"resp\",\"object\":\"response\",\"deleted\":true}", "/object"),
+            ("{\"id\":\"\",\"object\":\"response.deleted\",\"deleted\":true}", "/id"),
+            ("{\"id\":\"resp\",\"object\":\"response.deleted\"}", "/deleted"),
+            ("{\"id\":\"resp\",\"object\":\"response.deleted\",\"deleted\":\"true\"}", "/deleted")]) {
+            val raw = Json.parse(body)
+            val error = assertFailsWith<LlmProtocolException> { protocol.decodeDeletion(raw); Unit }
+            assertEquals(path, error.path)
+            assertEquals(Json.stringify(raw), Json.stringify(error.native))
+        }
+    }
+}

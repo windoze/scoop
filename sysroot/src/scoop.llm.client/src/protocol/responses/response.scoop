@@ -15,6 +15,13 @@ public class ResponsesProtocol public constructor(public val dialect: ResponsesD
     public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
         ResponsesStreamDecoder(this, request, retention)
 
+    public fun retrieveUrl(baseUrl: Url, responseId: String, include: Array<String> = []): Url =
+        responsesRetrieveUrl(dialect, baseUrl, responseId, include)
+    public fun cancelUrl(baseUrl: Url, responseId: String): Url =
+        responsesStoredUrl(dialect, baseUrl, responseId).toBuilder().appendPathSegment("cancel").build()
+    public fun deleteUrl(baseUrl: Url, responseId: String): Url = responsesStoredUrl(dialect, baseUrl, responseId)
+    public fun decodeDeletion(value: JsonValue): ResponsesDeletion = readResponsesDeletion(dialect, value)
+
     public fun webSocketUrl(baseUrl: Url): Url {
         requireResponsesWebSocket(dialect)
         return responsesWebSocketUrl(baseUrl)

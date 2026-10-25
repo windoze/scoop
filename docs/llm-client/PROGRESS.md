@@ -62,6 +62,7 @@
 | Responses WebSocket 网络会话、消息计时与关闭 | 完成：本机新增 12 项分批通过、共享生成／SSE／计数回归 3/3；Linux 仅交错响应／工具接续与 client 关闭 2/2；两平台生产库通过；独立消费者 7 通过、13 个真实 API 用例忽略 |
 | DeepSeek Responses dialect、普通生成与 SSE | 完成：本机新增 10/10、共享 Responses 回归 5/5；Linux 仅生成→SSE 接续与 reasoning 回归 2/2；两平台生产库通过；独立消费者 8 通过、13 个真实 API 用例忽略 |
 | OpenRouter Chat dialect、结构化 reasoning 与服务端工具 | 完成：本机新增 13/13、共享 Chat 回归 4/4；Linux 仅生成→SSE 接续与 reasoning／签名交错 2/2；两平台生产库通过；独立消费者 9 通过、13 个真实 API 用例忽略 |
+| Responses 显式读取、取消与删除 | 完成：本机新增 7/7、共享 HTTP 生成／SSE／计数回归 3/3；Linux 仅状态操作组合与关闭清理 2/2；两平台生产库通过；独立消费者 10 通过、13 个真实 API 用例忽略 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | 显式输入 token count：Gemini／Messages | 完成：本机定向 19/19、共享生成回归 7/7；Linux 仅网络组合 1/1；独立消费者 4 通过、13 个真实 API 用例忽略 |
 | 其他实时会话、跨协议组合与使用示例验收 | 待实施 |
@@ -159,3 +160,5 @@
 - DeepSeek Responses 以独立 dialect／provider 复用 Responses 普通生成与 SSE，覆盖缺省 thinking、图片、函数／apply_patch／服务端搜索、原始 reasoning 及完整历史接续。新增 10 项本地 mock 全部通过，受影响的 OpenAI 参数／reasoning／WebSocket 回归 5/5；nuc12 仅生成→SSE 接续与共享 reasoning 两项 2/2。两平台生产库通过，跨 Cone 消费者 8 通过、13 个真实 API 用例默认忽略。格式、lint 与凭据检查通过，清理本机闲置 Rust 增量产物约 186 MiB。没有真实服务调用、编译器修改或 fixture，真实 DeepSeek Responses 互通待凭据可用后补测。
 
 - OpenRouter Chat 复用统一生成／SSE 入口，支持结构化 reasoning、晚到签名、原始历史、文件 annotations、混合函数／服务端搜索及多模态输入；原生附加信息保持原值，空输出不提前记录首输出时间。按官方文档与 AI SDK adapter 实现，本机新增 13/13、共享 Chat 回归 4/4；nuc12 仅生成后 SSE 接续和 reasoning／签名／候选交错两项 2/2。两平台生产库通过，跨 Cone 消费者 9 通过、13 个真实 API 用例默认忽略。格式、lint 与凭据检查通过，清理闲置 Rust 增量产物约 186 MiB；未修改编译器、未运行 fixture 或真实服务，真实 OpenRouter 互通待可用凭据后补测。
+
+- Responses 读取、取消与删除使用原有 client、认证、重试和 HTTP 寿命；查询结果的历史 usage 与本次操作计时分开，工具仅按调用方声明关联。按官方形状新增 7 项本地 mock 全部通过，共享生成／SSE／计数回归 3/3；nuc12 仅状态操作组合与关闭清理 2/2。两平台生产库、跨 Cone 消费者通过（10 项普通测试、13 项真实 API 用例默认忽略）。初次测试语句和空数组类型写法已修正，完成响应与取消响应使用不同 ID。格式、lint、凭据检查通过，清理闲置 Rust 增量产物约 186 MiB；无编译器修改、fixture 或真实服务调用，真实互通待可用凭据后补测。

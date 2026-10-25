@@ -7,8 +7,8 @@ import scoop.url.Url
 internal enum LlmAttemptResult<T> { Success(T), Rejected(LlmServiceException) }
 
 internal suspend fun <T> executeLlmAttempt(http: HttpClient, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
-    options: LlmCallOptions, attempt: LlmAttemptState, decode: (JsonValue, LlmAttemptState) -> T): LlmAttemptResult<T> {
-    val prepared = prepareLlmHttpRequest(http, endpoint, url, bytes, options, attempt)
+    options: LlmCallOptions, attempt: LlmAttemptState, method: String, decode: (JsonValue, LlmAttemptState) -> T): LlmAttemptResult<T> {
+    val prepared = prepareLlmHttpRequest(http, endpoint, url, bytes, options, attempt, method)
     ensureActive()
     return http.withResponse<LlmAttemptResult<T>>(prepared) suspend { response ->
         val rejection = readLlmRejection(response, endpoint, options, attempt)

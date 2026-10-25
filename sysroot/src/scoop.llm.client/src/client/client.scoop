@@ -37,6 +37,18 @@ public class LlmClient private constructor(internal val state: LlmClientState) :
     public suspend fun countTokens(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions()): LlmTokenCountResult =
         countLlmTokens(state, model, request, options)
 
+    public suspend fun retrieveResponse(endpoint: LlmEndpoint, responseId: String, tools: Array<ToolDefinition> = [],
+        include: Array<String> = [], options: LlmCallOptions = LlmCallOptions()): LlmResult =
+        readStoredLlmResponse(state, endpoint, responseId, tools, include, options, false)
+
+    public suspend fun cancelResponse(endpoint: LlmEndpoint, responseId: String, tools: Array<ToolDefinition> = [],
+        options: LlmCallOptions = LlmCallOptions()): LlmResult =
+        readStoredLlmResponse(state, endpoint, responseId, tools, [], options, true)
+
+    public suspend fun deleteResponse(endpoint: LlmEndpoint, responseId: String,
+        options: LlmCallOptions = LlmCallOptions()): ResponsesDeletionResult =
+        deleteStoredLlmResponse(state, endpoint, responseId, options)
+
     public suspend fun openStream(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions(),
         retention: StreamRetention = EventsOnly): LlmStream = openLlmStream(state, model, request, options, retention)
 

@@ -563,6 +563,37 @@ create／steer 返回 ResponsesWebSocketSent，保存实际 command 和本地提
 
 openResponsesSession 与 withResponsesSession 是同一个资源合同的两种写法。关闭 client 会取消并等待所属会话，借入 HttpClient 时保持其所有权；一次消息 I/O 的取消会结束该连接。服务端 Error 仍作为事件交付，其他 lane 可以继续；传输、JSON 或路由字段错误会结束连接并交付原异常。本地 mock 可验证这些行为，真实供应商互通在配置凭据后单独补测。
 
+### 7.6 Responses 的读取、取消与删除
+
+使用同一 client 和 endpoint 显式管理服务端 response，不需要再次指定模型。以下创建 background response，再读取一次当前快照：
+
+```scoop
+val created = client.generate(model, LlmRequest([Message([Text("分析这份材料")])],
+    extensions = [DialectExtension(model.endpoint.provider.protocol.dialectId,
+        Json.parse("{\"background\":true}"))]))
+val responseId = created.response.id!!
+val current = client.retrieveResponse(model.endpoint, responseId)
+println(current.text)
+```
+
+当前快照可能仍为 Incomplete；应用决定何时再次读取。需要关联客户端工具时，传入创建时的 tools；需要加密 reasoning 等字段时，显式设置 include。缺省不注册服务端返回的工具声明，未关联的调用保留原文：
+
+```scoop
+val current = client.retrieveResponse(model.endpoint, responseId, tools = request.tools,
+    include = ["reasoning.encrypted_content"])
+val saved = Json.encodeToString(current)
+```
+
+取消 background response 和删除已存储 response 是独立操作，调用方按需执行：
+
+```scoop
+val cancelled = client.cancelResponse(model.endpoint, responseId)
+val deleted = client.deleteResponse(model.endpoint, responseId)
+println(deleted.deletion.deleted)
+```
+
+读取和取消返回既有 LlmResult，可保存、读取工具或恢复原始历史。删除返回 ResponsesDeletionResult，保留服务端实际 id、deleted 和 native。metadata 记录这次操作的实际收发与完成时间；历史 usage 位于 response.usage，不按查询耗时计算模型生成速度。认证、重试、取消和 onFinished 继续使用 LlmCallOptions。OpenAI Responses dialect 提供这些操作；DeepSeek 的无状态 Responses 在认证前拒绝。测试使用本地 mock，真实服务互通待凭据可用后补测。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |
