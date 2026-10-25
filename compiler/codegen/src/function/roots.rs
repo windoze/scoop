@@ -76,9 +76,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     }
 
     /// Turn the complete LIR live set into an AS1 SSA value for each
-    /// managed leaf. The post-call stores in `restore_statepoint_live` are
-    /// deliberate uses: SROA exposes them to RS4GC, which rewrites each use to
-    /// the corresponding `gc.relocate` result.
+    /// managed leaf. Only leaves needed by a continuation receive deliberate
+    /// post-call uses; dead direct AS1 operands remain call-duration roots.
     pub(super) fn materialize_statepoint_live(
         &mut self,
         live: &scoop_lir::StatepointLiveSet,
@@ -163,6 +162,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     value: source_value,
                     source: item.source,
                     byte_offset: leaf.byte_offset,
+                    restore: item.restore,
                 });
             }
             let value = match llvm_ty {
@@ -207,6 +207,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         safepoint: scoop_lir::SafepointId,
     ) -> Result<(), CodegenError> {
         for leaf in live.leaves {
+            if !leaf.restore {
+                continue;
+            }
             statepoint::mark_root_identity(
                 self.context,
                 self.llvm,

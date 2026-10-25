@@ -724,6 +724,7 @@ fn loop_header_poll_carries_live_managed_root() {
     assert_eq!(live.len(), 1);
     assert_eq!(live[0].source, lir::CallerRootSource::Param(1));
     assert_eq!(live[0].ty, lir::MANAGED_PTR);
+    assert!(live[0].restore);
     assert_eq!(
         live[0].leaves.as_slice(),
         &[lir::ManagedLeafPath { byte_offset: 0 }]

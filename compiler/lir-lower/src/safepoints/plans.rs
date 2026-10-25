@@ -183,20 +183,14 @@ pub(super) fn annotate_root_plans(
                     )?)
                 }
                 lir::Instruction::Call { site } => match site {
-                    lir::CallSite::Managed(_) => {
-                        let mut roots = live.clone();
-                        include_managed_operands(
-                            context,
-                            &mut roots,
-                            site.args().iter().map(|argument| argument.logical_value()),
-                            function,
-                            structs,
-                            enums,
-                        )?;
-                        RootPlan::Statepoint(statepoint_live_set(
-                            context, &roots, function, structs, enums,
-                        )?)
-                    }
+                    lir::CallSite::Managed(_) => RootPlan::Statepoint(managed_call_live_set(
+                        context,
+                        &live,
+                        site.args(),
+                        function,
+                        structs,
+                        enums,
+                    )?),
                     lir::CallSite::NoGc(_)
                     | lir::CallSite::ReleaseScoop(_)
                     | lir::CallSite::NativeGcLeaf(_)

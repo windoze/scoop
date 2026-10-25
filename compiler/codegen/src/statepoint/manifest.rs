@@ -214,6 +214,7 @@ fn relocating_roots(live: &scoop_lir::StatepointLiveSet) -> ExpectedStatepoint {
     ExpectedStatepoint::Relocating(
         live.as_slice()
             .iter()
+            .filter(|value| value.restore)
             .flat_map(|value| {
                 value.leaves.as_slice().iter().map(|leaf| ExpectedRoot {
                     source: value.source,

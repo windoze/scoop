@@ -116,6 +116,7 @@ struct StatepointLiveLeaf<'ctx> {
     value: PointerValue<'ctx>,
     source: scoop_lir::CallerRootSource,
     byte_offset: u64,
+    restore: bool,
 }
 
 struct MaterializedStatepointLive<'ctx> {

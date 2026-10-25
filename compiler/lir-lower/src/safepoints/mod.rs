@@ -37,7 +37,7 @@ pub(crate) use layout::lir_size_align;
 use plans::*;
 use roots::{
     caller_roots, exceptional_root_set, include_managed_operands, live_value_ty,
-    statepoint_live_set,
+    managed_call_live_set, statepoint_live_set,
 };
 pub(crate) use scans::root_scan;
 

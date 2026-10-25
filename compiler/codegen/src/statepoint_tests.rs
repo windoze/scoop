@@ -23,6 +23,8 @@ mod constant_roots;
 mod copied_aggregate;
 #[path = "statepoint_tests/copies.rs"]
 mod copies;
+#[path = "statepoint_tests/dead_arguments.rs"]
+mod dead_arguments;
 #[path = "statepoint_tests/guarded_unwrap.rs"]
 mod guarded_unwrap;
 #[path = "statepoint_tests/interface_parts.rs"]
