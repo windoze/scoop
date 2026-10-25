@@ -1,6 +1,6 @@
 # Scoop LLM client 规范
 
-本库通过普通 `scoop.llm.client` Cone 实现。总体职责、协议覆盖和实施顺序见 [架构设计](../llm-client/DESIGN.md)与[实施记录](../llm-client/PROGRESS.md)。本规范随功能闭环补充正式数据与 API 合同；尚未落地的调用示例仍以[使用草案](../llm-client/USAGE.md)标明状态。
+本库通过普通 `scoop.llm.client` Cone 实现。总体职责、协议覆盖和实施顺序见 [架构设计](../llm-client/DESIGN.md)与[实施记录](../llm-client/PROGRESS.md)。本规范定义当前数据与 API 合同；具体调用见[使用示例](../llm-client/USAGE.md)，实现与验证范围见[覆盖矩阵](../llm-client/COVERAGE.md)。
 
 服务商附加信息（包括计费字段）全部保留在对应响应、usage 或事件的原生 JsonValue 中，由具体 dialect 按需提供只读访问。保留原始字段、数字 token、未知内容及缺失／null／零的区别，不推算或归一化这些信息，不为其增加公共数据模型、生成流程或统一扩展接口。缓存相关附加信息同样只保留原文，不推导 TTL、刷新规则、到期时间或有效性。实际 LLM 协议内容、token 统计与客户端计时仍按各自合同处理。
 

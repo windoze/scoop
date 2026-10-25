@@ -1,6 +1,6 @@
 # LLM client 使用示例与缺省参数
 
-日期：2026-10-25。本文结合已实现的 Chat／Messages／Responses／Gemini generateContent／Interactions 普通与流式生成及后续 API 草案检查接口负担；可用入口见[库说明](../../sysroot/src/scoop.llm.client/README.md)，验证范围见[实施记录](PROGRESS.md)。Converse 已接入同一个 generate／openStream 入口，流式使用 AWS EventStream；Gemini／Messages 的 token 预计数已接入，实际发送／接收时间戳与 token 用量均可读取。服务商附加信息直接保留原文，不设公共计费入口。Messages provider 缺省选择 API 版本 2026-10-21 和 4096 输出上限，沿用相同的 model／request／generate／openStream 入口；版本与默认上限均可显式设置。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
+更新：2026-10-26。本文展示已实现的普通生成、流式、持久会话和辅助 API；可用入口见[库说明](../../sysroot/src/scoop.llm.client/README.md)，验证范围见[实施记录](PROGRESS.md)。Converse 已接入同一个 generate／openStream 入口，流式使用 AWS EventStream；Gemini／Messages 的 token 预计数已接入，实际发送／接收时间戳与 token 用量均可读取。服务商附加信息直接保留原文，不设公共计费入口。Messages provider 缺省选择 API 版本 2026-10-21 和 4096 输出上限，沿用相同的 model／request／generate／openStream 入口；版本与默认上限均可显式设置。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
 
 简单调用和完整调用共用 `generate(model, request, options = LlmCallOptions())`。不再保留先前草稿中的 `generate(model, prompt = ...)` 重载，也不增加 `generateText`、`SimpleClient` 或自动选择模型的入口。简单形态直接来自 request、消息和 options 的缺省字段。
 
@@ -40,7 +40,7 @@ client.compactResponse(model, request, options = LlmCallOptions()) -> ResponsesC
 
 网络操作、client 创建和关闭都是 suspend；`withLlmClient`／`withStream` 的 block 是 suspend 函数。`withLlmClient` 只将 `open` 与既有 `useAsync` 的资源寿命组合起来，`withStream` 同理，不改变请求、缺省参数、错误或结果语义。
 
-Provider 的官方部署缺省值可供 endpoint 使用；`baseUrl = None` 表示采用该缺省。自定义 provider 没有部署缺省时必须传 URL，缺失在发送前报错。认证与 model ID 必须显式提供；本地无认证服务使用 `LlmAuth.none()`。库不查找环境变量、猜 API key 名称或选择默认模型。
+Provider 的官方 API 地址缺省值可供 endpoint 使用；`baseUrl = None` 表示采用该缺省。自定义 provider 没有地址缺省时必须传 URL，缺失在发送前报错。认证与 model ID 必须显式提供；本地无认证服务使用 `LlmAuth.none()`。库不查找环境变量、猜 API key 名称或选择默认模型。
 
 下面各段是独立示例，共用这些 imports；凭据、model ID、媒体字节和业务函数均由应用传入。模型是否支持示例组合由绑定的 capability 和实际 API 决定，示例名称不构成模型能力声明。
 
@@ -982,7 +982,7 @@ startSent、sessionStarted、GptLiveSent／GptLiveReceived 均可保存；消息
 | --- | --- | --- |
 | Provider／认证／model ID | 必填；不选全局供应商、凭据或模型 | 选择另一绑定；无认证用 none |
 | Endpoint URL | 采用所选 provider 的已知 API 地址缺省 | `baseUrl = Some(url)`；无缺省的 provider 必填 |
-| Model capabilities | 使用该入口的准确已知资料，其余 Unknown | `capabilities = Some(description)`；不改变 adapter 能否编码 |
+| Model capabilities | 省略描述时各项为 Unknown | `capabilities = Some(description)`；不改变 adapter 能否编码 |
 | Message role | 新输入为 User | 指定其他 role；模型原生历史用 toInput 保留 |
 | Request | input 必填；system、tools 为空 | 在同一 request 增加内容和工具 |
 | 方言扩展 | request／message／part／tool 的 extensions 分别为空 | 在有协议语义的位置显式填写，不作父子继承 |
@@ -998,4 +998,4 @@ startSent、sessionStarted、GptLiveSent／GptLiveReceived 均可保存；消息
 
 `onFinished` 是 `LlmCallOptions` 中可选的完成观察回调，generate 和流式使用相同合同：每次逻辑调用实际收尾后通知一次，成功、打开流失败、消费失败和取消均保留已知 metadata，不重包装 CancellationException。回调不在共享传输驱动中执行，不参与生成请求的序列化。
 
-这组例子收敛了四处设计：取消 prompt 重载；普通消息默认 User；生成参数只在 request 一处表达；流式完整结果在关闭后读取。认证、模型、工具业务函数仍要求明确提供，预计数通过显式调用触发。正式实施前将这些签名和生命周期边界写入库规范，再以真实 Cone 消费者验证。
+这组例子收敛了四处设计：取消 prompt 重载；普通消息默认 User；生成参数只在 request 一处表达；流式完整结果在关闭后读取。认证、模型、工具业务函数仍要求明确提供，预计数通过显式调用触发。这些签名和生命周期边界已写入库规范；代表组合由[共同入口示例测试](../../sysroot/src/scoop.llm.client/tests/examples/common_entry.scoop)及各协议测试覆盖，验证范围见[覆盖矩阵](COVERAGE.md)。

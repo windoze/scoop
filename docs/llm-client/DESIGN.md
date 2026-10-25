@@ -1,6 +1,6 @@
 # LLM client 架构设计
 
-日期：2026-10-24。状态：实施中，已交付范围见[实施记录](PROGRESS.md)。本文确定 `scoop.llm.client` 的协议、方言、provider、模型能力、服务端工具、计时与 token 统计边界；服务商附加信息原样保留并由具体 dialect 提供访问。协议覆盖调查见 [INVESTIGATION.md](INVESTIGATION.md)，传输细节见 [HTTP client 评审](HTTP-CLIENT-REVIEW.md)，具体调用与缺省参数见[使用示例](USAGE.md)。相关架构表述以本文为准，正式 API 合同在实现前写入[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md)。
+更新：2026-10-26。实现入口见[覆盖矩阵](COVERAGE.md)，分批验证见[实施记录](PROGRESS.md)。本文确定 `scoop.llm.client` 的协议、方言、provider、模型能力、服务端工具、计时与 token 统计边界；服务商附加信息原样保留并由具体 dialect 提供访问。协议覆盖调查见 [INVESTIGATION.md](INVESTIGATION.md)，传输细节见 [HTTP client 评审](HTTP-CLIENT-REVIEW.md)，具体调用与缺省参数见[使用示例](USAGE.md)。相关架构表述以本文为准，正式 API 合同在实现前写入[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md)。
 
 本库负责一次生成或显式会话的请求、响应、流、取消和协议数据回传。模型选择、自动切换、工具执行、Agent 循环和会话存储由应用承担。所有实现使用普通 Scoop Cone、现有序列化和 HTTP 能力，不改变语言、编译 pipeline 或 runtime。
 
@@ -38,13 +38,13 @@
 | `gemini-generate-content` | generateContent | Gemini generateContent |
 | `gemini-live` | BidiGenerateContent | Gemini Live |
 
-这些是命名与组合示例，不表示全部已实现。通用兼容入口也使用一个明确的基础 dialect；只有 URL 不同且语义相同的 API 入口复用 provider，不为每个域名复制适配器。
+这些是命名与组合示例，完整已实现入口见[覆盖矩阵](COVERAGE.md)。通用兼容入口也使用一个明确的基础 dialect；只有 URL 不同且语义相同的 API 入口复用 provider，不为每个域名复制适配器。
 
 同一供应商通过不同 protocol 提供模型时，暴露多个 provider。若某模型只支持 Responses，就只在相应入口声明支持；若同时支持 Chat 和 Responses，它可以同时出现在两个 provider 下，各自拥有不同的有效 capability。Provider 内部不得根据 model 名称、年代或失败响应自动改换 protocol。
 
 模型年代不作为 API 可用性的规则：OpenAI 官方迁移文档仍展示同一模型通过两种 API 调用，并说明两者的功能差异。模型与入口的具体兼容性由相应描述和服务器决定。[OpenAI 协议对比](https://developers.openai.com/api/docs/guides/migrate-to-responses)
 
-默认 model catalog 只是便利数据。未知模型 ID、第三方 provider 名称和自定义 endpoint 可直接使用；`listModels` 是显式操作，生成前不强制联网查询目录。模型 ID 按原字符串交给已选 protocol，只在协议规定将其放入 URL 时进行编码，不从斜杠、冒号或 ARN 推导其他配置。
+模型目录是显式查询得到的原生数据。未知模型 ID、第三方 provider 名称和自定义 endpoint 可直接使用；`listModels` 是显式操作，生成前不强制联网查询目录。模型 ID 按原字符串交给已选 protocol，只在协议规定将其放入 URL 时进行编码，不从斜杠、冒号或 ARN 推导其他配置。
 
 ### 1.2 配置与调用形态
 
@@ -133,9 +133,9 @@ DeepSeek Chat 复用 Chat Completions 的基础结构，但需要自己的 diale
 
 每项能力采用三个明确状态：`Supported(details)`、`Unsupported(reason)`、`Unknown`。Supported 表示已知可通过当前模型绑定使用该能力，details 保存必要格式和限制；Unknown 表示缺少信息，不能等同于不支持。
 
-能力属于“模型＋provider＋部署入口”，不是供应商品牌的单个 Boolean。例如同一个模型在 Chat 与 Responses 下的服务端工具、结构化输出和 continuation 可以不同；网关也可能只开放其中一部分。
+能力属于“模型＋provider＋API 入口”，不是供应商品牌的单个 Boolean。例如同一个模型在 Chat 与 Responses 下的服务端工具、结构化输出和 continuation 可以不同；网关也可能只开放其中一部分。
 
-能力描述按调用者显式配置、入口提供的描述、精确匹配的内置模型资料取得；显式配置可更新过时的目录信息。它不能使未实现的协议编码路径变成已实现，也不能覆盖适配器掌握的具体请求矛盾。没有准确资料时保持 Unknown，不按模型前缀猜测。
+能力描述由调用者显式提供；省略时各项为 Unknown。模型目录的原生资料可供应用制定描述，库不自动从目录或名称生成 capability。显式描述不能使协议无法编码的功能变得可用，也不能覆盖适配器掌握的具体请求矛盾。
 
 ### 3.2 输入与输出定义
 
@@ -237,7 +237,7 @@ toolChoice = Auto
 | ImageGeneration | 服务端生成或编辑图像 | 输入引用、尺寸／格式、预览与最终产物 |
 | Native | 已选 protocol／dialect 的其他工具 | 原生工具类型、配置 JsonValue 和原生结果 |
 
-这里定义共有语义，不要求第一轮实现所有种类。WebSearch 是首个需要多个供应商映射的完整例子。Native 配置仍由所选适配器处理其合法请求位置和事件，不靠全局注册表或运行期下载代码扩展。
+这里定义响应活动的共有语义。WebSearch 提供跨供应商的类型化请求选项；其他已接入的服务端工具通过 NativeToolDefinition 保留原生配置，由所选适配器编码并读取实际事件，不靠全局注册表或运行期下载代码扩展。
 
 `ServerTool.WebSearch(options)` 提供有明确定义的共同选项，例如域名允许／排除集合、地域和返回来源要求。字段默认省略，具体能力中分别说明支持情况；不能精确映射的显式选项报错。搜索次数、上下文大小等不等价的供应商参数留在类型化 provider 选项或按 dialect 归属的 JSON 扩展中，不能互相猜测换算。
 
@@ -382,7 +382,7 @@ Dialect 明确原生计数是总量还是子项。例如 Claude 的原生 input_
 
 ## 8. 模块与实施顺序
 
-初始使用一个 `scoop.llm.client` Cone。`model` 管公共输入／结果与 capability，`tools` 管工具声明／活动／引用，`metrics` 管调用时间与 usage 快照，`protocols` 管 wire DTO／codec／reducer，`dialects` 管对应协议的服务差异及原生附加信息访问，`providers` 管命名组合，`endpoint` 管 API 地址和认证组合。模块使用已有库接口，不另建 HTTP 栈或 Agent runtime。
+实现使用一个 `scoop.llm.client` Cone。request／response 保存公共内容、工具与结果，model 管 capability，metrics 管调用时间与 usage 快照，protocol 的各子目录保存线协议及相应 dialect，endpoint 管 provider、API 地址和认证组合。client 管调用，session 管持久会话，files／models／count 管辅助 API。模块使用已有库接口，不另建 HTTP 栈或 Agent runtime。
 
 | 顺序 | 交付内容 | 验收出口 |
 | --- | --- | --- |
@@ -391,7 +391,7 @@ Dialect 明确原生计数是总量还是子项。例如 Claude 的原生 input_
 | 3 | Responses、Messages 和 Gemini 的各自 provider，先实现 WebSearch | 客户端与服务端工具自然共存；活动、引用、usage 和原生历史保留 |
 | 4 | 按既定协议补实际 API 差异、服务端工具、辅助 API 与持久会话 | 每项声明能力有对应映射与测试；完成 API 封装后停止扩展范围 |
 
-模块边界为当前两个具体 dialect 和多个真实服务端工具形状服务，不先实现通用插件层、规则语言或全部供应商目录。新 protocol 可由普通公共适配接口实现；生成与实时会话使用各自合同，不在无关接口中堆放占位方法。
+模块边界为已接入的具体 dialect 和真实服务端工具形状服务，不先实现通用插件层、规则语言或全部供应商目录。新 protocol 可由普通公共适配接口实现；生成与实时会话使用各自合同，不在无关接口中堆放占位方法。
 
 ## 9. 必要验收
 

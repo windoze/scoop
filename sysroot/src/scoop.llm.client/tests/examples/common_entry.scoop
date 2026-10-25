@@ -1,0 +1,79 @@
+package scoop.llm.client.tests.examples
+
+import scoop.asyncio.*
+import scoop.http.HttpField
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.HttpClient
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.platform.time.SystemClock
+import scoop.test.*
+
+@Test
+private class CommonEntryExampleTest {
+    @Test
+    fun oneSavedRequestUsesThreeProtocolsWithSharedHttpAndExplicitHistoryOwnership() {
+        val cases = [
+            (Providers.openAiResponses(), "/v1/responses", "input",
+                "{\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":3,\"total_tokens\":8}}"),
+            (Providers.anthropicMessages(), "/v1/messages", "messages",
+                "{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}],\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":5,\"output_tokens\":3,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}}"),
+            (Providers.geminiGenerateContent(), "/v1/models/m:generateContent", "contents",
+                "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hello\",\"thoughtSignature\":\"signed\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":5,\"candidatesTokenCount\":3,\"totalTokenCount\":8}}")
+        ]
+        val tools: Array<ToolDefinition> = [
+            ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}")),
+            Server(ToolKey("search"), WebSearch())
+        ]
+        val original = LlmRequest([Message([Text("hello")])], tools = tools,
+            options = LlmGenerationOptions(maxOutputTokens = Some(64UL)))
+        val request = Json.decodeFromString<LlmRequest>(Json.encodeToString(original))
+        withLlmServer suspend { _, scope, listener, originalEndpoint ->
+            val serving = scope.launch suspend {
+                for ((_, route, inputField, reply) in cases) {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        val received = connection.receiveRequest()!!
+                        val target = when (received.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        assertEquals(route, target)
+                        val body = Json.parse(String.fromUtf8(received.body.readAllBytes(65536L)))
+                        assertEquals(1L, body[inputField]!!.size)
+                        assertTrue(body["tools"]!!.size > 0L)
+                        sendLlmReply(connection, 200U, reply, [HttpField("Connection".toByteArray(), "close".toByteArray())])
+                    }
+                }
+            }
+            HttpClient.open(scope).useAsync suspend { http ->
+                withLlmClient(Some(http)) suspend { client ->
+                    var previous: LlmResponse? = None
+                    for ((provider, _, _, _) in cases) {
+                        val auth = RecordingAuth()
+                        val model = LlmEndpoint(provider, auth, Some(originalEndpoint.baseUrl)).model("m")
+                        when (previous) {
+                            case Some(response) -> {
+                                expectLlmFailure<LlmRequestException> suspend { client.generate(model, LlmRequest(response.toInput())); Unit }
+                                assertEquals(0L, auth.requests.size)
+                            }
+                            case None -> {}
+                        }
+                        val before = SystemClock.now()
+                        val result = client.generate(model, request)
+                        assertEquals("hello", result.text)
+                        assertEquals(Some(8L), result.response.usage.tokens.totalTokens)
+                        assertEquals(1L, auth.requests.size)
+                        val attempt = result.metadata.attempts[0]
+                        assertTrue(attempt.request.sentAt!! >= before)
+                        assertTrue(attempt.response.receivedAt!! >= attempt.request.sentAt!!)
+                        val saved = Json.decodeFromString<LlmResult>(Json.encodeToString(result))
+                        assertEquals(result.text, saved.text)
+                        assertEquals(Json.encodeToString(result.toInput()), Json.encodeToString(saved.toInput()))
+                        assertEquals(attempt.response.receivedAt, saved.metadata.attempts[0].response.receivedAt)
+                        previous = Some(saved.response)
+                    }
+                }
+                assertFalse(http.isClosed)
+            }
+            serving.join()
+        }
+    }
+}

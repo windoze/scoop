@@ -1,6 +1,6 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek／OpenRouter Chat、Anthropic Messages、OpenAI／DeepSeek Responses、Gemini generateContent、Interactions、Bedrock Converse、Cohere Chat v2 与 Ollama Chat 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
+LLM client 按[架构设计](../../../docs/llm-client/DESIGN.md)封装 LLM API，完整入口与验证范围见[覆盖矩阵](../../../docs/llm-client/COVERAGE.md)。支持 OpenAI／DeepSeek／OpenRouter Chat、Anthropic Messages、OpenAI／DeepSeek Responses、Gemini generateContent、Interactions、Bedrock Converse、Cohere Chat v2 与 Ollama Chat 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。持久会话和辅助操作见下文。
 
 Gemini Live 通过 `Providers.geminiLive()` 绑定同一 endpoint／model，`openGeminiLiveSession`／`withGeminiLiveSession` 发送 setup 并等待确认后提供显式收发。setup 与后续消息记录实际时间戳，音频、文本、转写、工具取消、用量与原始通知均可保存；`BidiGenerateContentProtocol` 同时提供纯编解码。连续对话与工具执行由应用控制，见[Live 示例](../../../docs/llm-client/USAGE.md#713-gemini-live-的会话与纯协议入口)。
 
@@ -10,13 +10,13 @@ OpenAI GPT-Live 使用独立的 Providers.openAiGptLive() 与 openGptLiveSession
 
 OpenAI Chat／Responses 与 Anthropic Messages 的文件操作使用同一 client：uploadFile、listFiles、retrieveFile、downloadFile 和 deleteFile。Gemini generateContent／Interactions 共用上传、列表、读取与删除入口，并提供 registerFiles 登记已有 GCS URI。上传结果提供可保存的可选文件引用，服务端附加字段保留原文；用法见[文件 API 示例](../../../docs/llm-client/USAGE.md#712-显式上传引用和读取文件)。
 
-OpenRouter 使用 Providers.openRouterChat()，缺省部署 https://openrouter.ai/api/v1；模型 ID 由应用显式选择。普通生成和 SSE 保留 reasoning_details 的签名、加密块及完整历史，文件 annotations 可随 toInput 回传。客户端函数与 openrouter:web_search 服务端工具可以同时声明，模型没有报告执行活动时不从 usage 推断调用。图片／文件／音频／视频输入采用各自文档形状，输出图片与音频保持 Native；纯入口与范围见[规范第 39 节](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md#39-openrouter-chat-dialect)。当前以本地 mock 验证，真实互通待可用凭据后补测。
+OpenRouter 使用 Providers.openRouterChat()，缺省 API 地址 https://openrouter.ai/api/v1；模型 ID 由应用显式选择。普通生成和 SSE 保留 reasoning_details 的签名、加密块及完整历史，文件 annotations 可随 toInput 回传。客户端函数与 openrouter:web_search 服务端工具可以同时声明，模型没有报告执行活动时不从 usage 推断调用。图片／文件／音频／视频输入采用各自文档形状，输出图片与音频保持 Native；纯入口与范围见[规范第 39 节](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md#39-openrouter-chat-dialect)。当前以本地 mock 验证，真实互通待可用凭据后补测。
 
 普通 Cone 测试只使用纯 decoder 或回环地址上的 HTTP／SSE／EventStream／NDJSON／WebSocket mock，回复由测试指定，不连接供应商。真实 API 验证用例统一标记 `@Ignore`，默认跳过；Google 文件与 Live 用例位于 tests/live，其余已验证用例保存在仓库外。独立运行器只有在显式选择一个用例且其所需 key／endpoint／model 环境变量齐备时才启用 `--ignored`，缺少配置报告 SKIPPED，不发请求。凭据只从环境读取，日志脱敏。
 
 Responses 使用 `Providers.openAiResponses()` 创建同样的 endpoint／model，再调用 `client.generate` 或 `client.openStream`。`ResponsesProtocol(OpenAiResponsesDialect())` 也提供 encodeRequest／decodeResponse，保留有序 item、reasoning、消息 phase、工具 call ID、服务端搜索与引用；`toInput()` 返回可序列化的原始 output items。usage 区分缓存读、写与普通输入，缺失字段保持未知。
 
-`Providers.deepSeekResponses(topPMode = Unknown)` 复用 ResponsesProtocol，使用独立的 DeepSeekResponsesDialect 和 https://api.deepseek.com 部署缺省。generate／openStream 的调用不变；reasoning.content 不要求 OpenAI 的 summary，函数、apply_patch custom 和服务端搜索共用原始历史及工具结果表示。每轮携带完整历史和成对的调用／结果，previous_response_id 等服务端状态参数在发送前拒绝。显式 topP 使用与 DeepSeek Chat 相同的生效模式设置，省略时不需要额外配置。当前 DeepSeek 适配 HTTP／SSE，supportsWebSocket 为 false；纯入口、网络 mock 与使用边界见[规范第 38 节](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md#38-deepseek-responses-dialect)。
+`Providers.deepSeekResponses(topPMode = Unknown)` 复用 ResponsesProtocol，使用独立的 DeepSeekResponsesDialect 和 https://api.deepseek.com API 地址缺省。generate／openStream 的调用不变；reasoning.content 不要求 OpenAI 的 summary，函数、apply_patch custom 和服务端搜索共用原始历史及工具结果表示。每轮携带完整历史和成对的调用／结果，previous_response_id 等服务端状态参数在发送前拒绝。显式 topP 使用与 DeepSeek Chat 相同的生效模式设置，省略时不需要额外配置。当前 DeepSeek 适配 HTTP／SSE，supportsWebSocket 为 false；纯入口、网络 mock 与使用边界见[规范第 38 节](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md#38-deepseek-responses-dialect)。
 
 Responses 的最小请求只发送 model 和 input，生成参数缺省省略。request.system 编码为文本 instructions；需要缓存断点等内容块扩展时，在 input 中显式使用 System message。工具结果沿用解码所得的 reference，其 context 保留实际调用类型和所需标识；函数、custom、computer、local shell、shell 与 apply_patch 分别编码自己的结果形状，应用负责执行并提交结果。
 
@@ -32,7 +32,7 @@ generateContent 引用使用 UTF-8 字节范围；usage 分开统计工具输入
 
 Gemini SSE 使用 :streamGenerateContent?alt=sse，正文沿用普通请求。finishReason 完成一个候选，EOF 才冻结整次调用的 usage；缺失停止原因的截断流仍失败。空文本签名、原始 Content 历史、累计 grounding 来源和尾部引用均保留，EventsOnly 不累计普通文本。函数调用等停止原因明确后才确定执行资格；Vertex 的 partialArgs 扩展保留 Native，不当作完整的 Gemini 函数调用。
 
-Interactions 普通生成使用 `Providers.geminiInteractions()`，缺省部署为 Google v1，同样通过 endpoint／model／generate 调用；`InteractionsProtocol(GeminiInteractionsDialect())` 提供纯 encodeRequest／decodeResponse／createStreamDecoder。最小请求只有 model 和有序 input steps，不自动选择模型、保存配置或继续调用。媒体、函数结果、签名历史与服务端工具均使用 Interactions 自身的字段；普通请求的 options 缺省省略。
+Interactions 普通生成使用 `Providers.geminiInteractions()`，缺省 API 地址为 Google v1，同样通过 endpoint／model／generate 调用；`InteractionsProtocol(GeminiInteractionsDialect())` 提供纯 encodeRequest／decodeResponse／createStreamDecoder。最小请求只有 model 和有序 input steps，不自动选择模型、保存配置或继续调用。媒体、函数结果、签名历史与服务端工具均使用 Interactions 自身的字段；普通请求的 options 缺省省略。
 
 Interactions 的独立 step 格式保留 thought.signature、媒体、服务端工具、UTF-8 引用及原始 steps 历史；只有 requires_action 中未收到结果的完整函数调用进入待执行视图。进行中资源不提供可追加历史，服务时间不代替实际调用计时。缺失 token 保持未知，工具提示细项不重复加入输入总量。request.extensions 可显式配置 store／previous_interaction_id、generation_config 的原生选项，以及与公共 JSON 输出约束组合的媒体 response_format。
 
@@ -40,15 +40,15 @@ Interactions 的独立 step 格式保留 thought.signature、媒体、服务端�
 
 Interactions SSE 沿用 `openStream`／`withStream` 和缺省 EventsOnly，显式 Result 才保留最终结果。stream=true 与 alt=sse 由协议编码；有序 step 绑定文本、媒体、引用、工具和签名。step.stop 不开放客户端工具执行，只有最终 requires_action 决定待执行调用；interaction.completed 冻结 usage。最终资源可以省略服务时间，缺失值不会替换成客户端发送／接收时刻；未知增量保留 Native，无法完整重建时不提供可追加历史。
 
-Bedrock Converse 通过 `Providers.bedrockConverse()` 接入同一个 `generate` 入口。部署地址、模型 ID 和认证显式配置，provider 不猜 region；API key 使用 `LlmAuth.bearer`。最小请求仅有 messages，模型 ID 保持 URL 中的一个路径段；推理参数、结构化输出、函数和系统工具各用协议原生字段。原始历史与连续工具结果可直接保存后接续，媒体 Bytes／S3 引用不触发隐式下载。AWS 凭据使用 `LlmAuth.awsSigV4(region, credentials)`，credentials 是返回 `AwsSigV4Credentials` 的 suspend 函数，每次尝试重新读取；service 缺省 bedrock。签名覆盖实际 URL、headers 和 body，不查找环境凭据；普通和 EventStream 调用共用此入口。该认证按官方文档与本地 mock 验证，真实 AWS 互通待补。纯响应入口 `ConverseProtocol(BedrockConverseDialect()).decodeResponse(json, request)` 同样可用。响应保存有序内容、reasoning 签名、媒体、引用、实际调用 ID 与原始消息历史；系统工具与客户端函数分别读取，不自动执行。源文档位置保持引用元数据，不转换成输出文本范围。usage 的普通输入、缓存读与缓存写全部已知时才计算总输入，服务端 latencyMs 只留在原文，不代替客户端时间戳。
+Bedrock Converse 通过 `Providers.bedrockConverse()` 接入同一个 `generate` 入口。API 地址、模型 ID 和认证显式配置，provider 不猜 region；API key 使用 `LlmAuth.bearer`。最小请求仅有 messages，模型 ID 保持 URL 中的一个路径段；推理参数、结构化输出、函数和系统工具各用协议原生字段。原始历史与连续工具结果可直接保存后接续，媒体 Bytes／S3 引用不触发隐式下载。AWS 凭据使用 `LlmAuth.awsSigV4(region, credentials)`，credentials 是返回 `AwsSigV4Credentials` 的 suspend 函数，每次尝试重新读取；service 缺省 bedrock。签名覆盖实际 URL、headers 和 body，不查找环境凭据；普通和 EventStream 调用共用此入口。该认证按官方文档与本地 mock 验证，真实 AWS 互通待补。纯响应入口 `ConverseProtocol(BedrockConverseDialect()).decodeResponse(json, request)` 同样可用。响应保存有序内容、reasoning 签名、媒体、引用、实际调用 ID 与原始消息历史；系统工具与客户端函数分别读取，不自动执行。源文档位置保持引用元数据，不转换成输出文本范围。usage 的普通输入、缓存读与缓存写全部已知时才计算总输入，服务端 latencyMs 只留在原文，不代替客户端时间戳。
 
-Cohere Chat v2 使用 `Providers.cohereChat()` 和同一 endpoint／model／generate／openStream 入口，缺省部署为 https://api.cohere.com/v2，最小正文仅有 model 和 messages，流式自动增加 stream=true。文本、图片、thinking 控制、函数声明及原始历史按 v2 形状编码；RAG documents 通过请求扩展显式提供。函数 strict 统一映射全局 strict_tools，冲突值拒绝；Specific 只用于已仅声明目标函数的请求，不删除其他工具。工具结果复用原始 reference，普通错误作为应用提供的结果内容传入。
+Cohere Chat v2 使用 `Providers.cohereChat()` 和同一 endpoint／model／generate／openStream 入口，缺省 API 地址为 https://api.cohere.com，生成操作追加 v2/chat，最小正文仅有 model 和 messages，流式自动增加 stream=true。文本、图片、thinking 控制、函数声明及原始历史按 v2 形状编码；RAG documents 通过请求扩展显式提供。函数 strict 统一映射全局 strict_tools，冲突值拒绝；Specific 只用于已仅声明目标函数的请求，不删除其他工具。工具结果复用原始 reference，普通错误作为应用提供的结果内容传入。
 
 纯入口 `CohereChatProtocol(CohereChatDialect())` 同时提供 encodeRequest／decodeResponse。响应中的文本、thinking、tool_plan、引用和并行函数调用保持原有顺序；只有 TOOL_CALL 中完整且能关联声明的函数进入待执行视图。原始 assistant message 可保存后接续，未明确单位的引用位置保留原文，不猜测文本范围。usage.tokens 作为实际 token 统计，精确读取整数值的小数／指数写法；billed_units 留在 usage.native，不能替代实际 token 或金额。纯 decoder 不产生网络时间戳。
 
 Cohere SSE 也可通过 createStreamDecoder(request) 单独消费，缺省 EventsOnly 不累计普通正文，显式 Result 保存最终结果与原始历史。文本、thinking、plan、并行函数和晚到引用使用稳定 item／part 位置；函数参数在 message-end 确认 TOOL_CALL 后才进入执行视图。缺失 ID 保持 None，未知增量保留 Native 并阻止不完整历史回传；debug 仅作元数据，裸 EOF 不能冒充消息完成。网络调用沿用实际发送／接收时间、最终 usage 与关闭合同。
 
-Ollama 原生 Chat 使用 `Providers.ollamaChat()` 和相同的 endpoint／model／generate／openStream 入口，缺省部署为 http://localhost:11434/api；认证显式使用 none 或部署所需的方式。普通生成总是发送 stream=false，其他选项保持服务端缺省。图片使用内联 Bytes，文本编码为单个 content；推理档位按模型定义原样发送，公共采样设置可与 extensions.options 中的 seed 等原生设置组合。函数结果使用原始 reference 的真实名称与可选 ID，保存后仍可接续。
+Ollama 原生 Chat 使用 `Providers.ollamaChat()` 和相同的 endpoint／model／generate／openStream 入口，缺省 API 地址为 http://localhost:11434/api；认证显式使用 none 或部署所需的方式。普通生成总是发送 stream=false，其他选项保持服务端缺省。图片使用内联 Bytes，文本编码为单个 content；推理档位按模型定义原样发送，公共采样设置可与 extensions.options 中的 seed 等原生设置组合。函数结果使用原始 reference 的真实名称与可选 ID，保存后仍可接续。
 
 纯入口 `OllamaChatProtocol(OllamaChatDialect())` 同时提供 encodeRequest／decodeResponse。响应保存 thinking、普通文本、并行函数和原始 assistant 历史，未知消息字段保留 Native。工具 ID 可缺失，不用 index 生成 ID；只有 done=true、stop 且参数完整有效的声明函数进入待执行视图。空／未知停止原因保持未完成，load／unload 不生成 assistant 接续历史。输入总量包含缓存 token，只有明确报告缓存量时才计算普通输入；created_at 与原生 duration 是服务端数据，不冒充本地计时。
 
