@@ -7,7 +7,7 @@ public enum TokenCountMethod {
     public companion object : ValueEncoder<TokenCountMethod>, ValueDecoder<TokenCountMethod>
 }
 
-/** Submitted protocol input, excluding unreported server additions and future tool output. */
+/** Submitted protocol input, including references explicitly resolved by the count endpoint. */
 public enum TokenCountScope {
     RequestInput
     public companion object : ValueEncoder<TokenCountScope>, ValueDecoder<TokenCountScope>

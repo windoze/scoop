@@ -7,6 +7,7 @@ public interface ResponsesDialect {
     public val id: DialectId
     public val supportsWebSocket: Boolean
     public val supportsStoredResponses: Boolean get() = false
+    public fun tokenCounter(): LlmTokenCounter? = None
     public fun encodeOptions(request: LlmRequest): JsonValue
     public fun encodeContent(content: Array<ContentPart>, path: String, role: String? = None): JsonValue
     public fun readReasoning(item: JsonValue, path: String): Array<OutputPart>
@@ -19,6 +20,7 @@ public class OpenAiResponsesDialect public constructor() : ResponsesDialect {
     public override val id: DialectId = DialectId(ApiProtocolId("responses"), "openai-responses")
     public override val supportsWebSocket: Boolean = true
     public override val supportsStoredResponses: Boolean = true
+    public override fun tokenCounter(): LlmTokenCounter? = Some(ResponsesTokenCounter(this))
     public override fun encodeOptions(request: LlmRequest): JsonValue = encodeResponsesOptions(id, request)
     public override fun encodeContent(content: Array<ContentPart>, path: String, role: String?): JsonValue = encodeResponsesContent(id, content, path)
     public override fun readReasoning(item: JsonValue, path: String): Array<OutputPart> = readResponsesReasoning(id, item, path)

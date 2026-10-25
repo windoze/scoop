@@ -1,0 +1,68 @@
+package scoop.llm.client.tests.count
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class ResponsesCountRequestTest {
+    @Test
+    fun `Responses token count uses explicit dialect selection and minimal defaults`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val counter = protocol.tokenCounter()!!
+        val body = counter.encodeRequest("arbitrary/model:v1", LlmRequest([Message([Text("hello")])]))
+        assertEquals(2L, body.size)
+        assertEquals("arbitrary/model:v1", body["model"]!!.asString())
+        assertEquals("hello", body["input"]!![0]["content"]!!.asString())
+        assertEquals("https://example.test/deployment/v1/responses/input_tokens?api-version=v2",
+            counter.countUrl(Url.parse("https://example.test/deployment/v1?api-version=v2"), "arbitrary/model:v1").toString())
+        assertTrue(llmPresent(OpenAiResponsesDialect().tokenCounter()))
+        assertFalse(llmPresent(DeepSeekResponsesDialect().tokenCounter()))
+        assertFalse(llmPresent(Providers.deepSeekResponses().protocol.tokenCounter()))
+    }
+
+    @Test
+    fun `Responses token count preserves multimodal tool history and input controls while omitting generation controls`() {
+        val request = Json.decodeFromString<LlmRequest>(Json.encodeToString(responsesCountRequest()))
+        val body = Providers.openAiResponses().protocol.tokenCounter()!!.encodeRequest("model", request)
+        assertEquals("system", body["instructions"]!!.asString())
+        val input = body["input"]!!
+        assertEquals(4L, input.size)
+        val media = input[0]["content"]!!
+        assertEquals("data:image/png;base64,AQ==", media[0]["image_url"]!!.asString())
+        assertEquals("https://example.test/paper.pdf", media[1]["file_url"]!!.asString())
+        assertEquals("uploaded-pdf", media[2]["file_id"]!!.asString())
+        assertEquals("data:application/pdf;base64,Ag==", media[3]["file_data"]!!.asString())
+        assertEquals("inline.pdf", media[3]["filename"]!!.asString())
+        assertEquals("opaque", input[1]["encrypted_content"]!!.asString())
+        assertEquals("{\"metadata\":\"keep\",\"temperature\":1}", input[2]["arguments"]!!.asString())
+        assertEquals("{\"metadata\":\"tool output\"}", input[3]["output"]!!.asString())
+        assertEquals("call", input[3]["call_id"]!!.asString())
+        assertEquals("lookup", body["tools"]!![0]["name"]!!.asString())
+        assertEquals("string", body["tools"]!![0]["parameters"]!!["properties"]!!["metadata"]!!["type"]!!.asString())
+        assertEquals("web_search", body["tools"]!![1]["type"]!!.asString())
+        assertEquals("lookup", body["tool_choice"]!!["name"]!!.asString())
+        assertFalse(body["parallel_tool_calls"]!!.asBoolean())
+        assertEquals("low", body["reasoning"]!!["effort"]!!.asString())
+        assertEquals("json_schema", body["text"]!!["format"]!!["type"]!!.asString())
+        assertEquals("previous", body["previous_response_id"]!!.asString())
+        assertEquals("friendly", body["personality"]!!.asString())
+        assertEquals("disabled", body["truncation"]!!.asString())
+        for (name in ["temperature", "top_p", "max_output_tokens", "include", "background", "store", "metadata", "service_tier", "stream"])
+            assertFalse(body.containsKey(name))
+    }
+
+    @Test
+    fun `Responses token count preserves explicit conversation references and rejects unmapped root input`() {
+        val dialect = OpenAiResponsesDialect()
+        val counter = dialect.tokenCounter()!!
+        val conversation = LlmRequest([], extensions = [DialectExtension(dialect.id, Json.parse("{\"conversation\":{\"id\":\"conversation\"}}"))])
+        assertEquals("conversation", counter.encodeRequest("model", conversation)["conversation"]!!["id"]!!.asString())
+        for ((field, path) in [("prompt", "/prompt"), ("context_management", "/context_management"), ("future/input~", "/future~1input~0")]) {
+            val request = LlmRequest([], extensions = [DialectExtension(dialect.id, JsonObjectBuilder().add(field, Json.parse("{}")).build())])
+            val failure = assertFailsWith<LlmRequestException> { counter.encodeRequest("model", request); Unit }
+            assertEquals(path, failure.path)
+        }
+    }
+}

@@ -670,11 +670,11 @@ LlmHttpTiming(queue = None, resolve = None, connect = None, proxyTls = None, pro
 
 ## 34. 显式输入 token 计数
 
-LlmClient.countTokens(model, request, options = LlmCallOptions()) 返回 LlmTokenCountResult(count, metadata)。这是独立的服务器操作，不自动生成、不在 generate／openStream 前执行，也不以估算覆盖 response.usage。当前实际适配 Gemini GenerateContent 和 Anthropic Messages 的计数接口；不提供没有 tokenizer 实现的本地模式或字符数回退。ModelCapabilities.serverTokenCount 缺省 Unknown；显式 Unsupported 在认证前失败，Unknown 允许由已选 adapter 和服务器判断。
+LlmClient.countTokens(model, request, options = LlmCallOptions()) 返回 LlmTokenCountResult(count, metadata)。这是独立的服务器操作，不自动生成、不在 generate／openStream 前执行，也不以预计数覆盖 response.usage。当前适配 Gemini GenerateContent、Anthropic Messages 和 OpenAI Responses（§41）的计数接口；不提供没有 tokenizer 实现的本地模式或字符数回退。ModelCapabilities.serverTokenCount 缺省 Unknown；显式 Unsupported 在认证前失败，Unknown 允许由已选 adapter 和服务器判断。
 
-LlmGenerationProtocol.tokenCounter() 缺省 None；LlmTokenCounter 定义 countUrl、encodeRequest、decodeResponse 三个纯适配操作。Messages／GenerateContent protocol 将选择委托给 dialect 的同名可选方法。内置 dialect 提供实际 counter，自定义 dialect 缺省不继承另一个服务商的计数语义。没有 counter 在认证前报告 LlmRequestException。
+LlmGenerationProtocol.tokenCounter() 缺省 None；LlmTokenCounter 定义 countUrl、encodeRequest、decodeResponse 三个纯适配操作。Messages／GenerateContent／Responses protocol 将选择委托给 dialect 的同名可选方法。内置 dialect 提供实际 counter，自定义 dialect 缺省不继承另一个服务商的计数语义。没有 counter 在认证前报告 LlmRequestException。
 
-TokenCount 是可序列化的纯数据：dialect、请求的 model、可选 modelVersion、method=Server、scope=RequestInput、precision=Estimated、可选 inputTokens／cachedInputTokens、modality 和 native。TokenCountMethod 当前只有实际可用的 Server；TokenCountScope.RequestInput 表示提交给计数端点的完整输入表示，不保证覆盖服务端隐藏包装或未来工具输出。TokenCountPrecision 可为 Estimated 或 Exact；内置两个计数接口相对于后续生成均标为 Estimated。缺失计数和版本保持 None，明确零保留，非整数、负数和 Long 溢出拒绝。modality 只保存输入方向明细，不重复加到总数；cachedInputTokens 是计数时的缓存输入规模，不是一次生成的 cacheReadTokens／cacheWriteTokens。LlmTokenCountResult 仅接受 Completed metadata，并提供 companion codec。
+TokenCount 是可序列化的纯数据：dialect、请求的 model、可选 modelVersion、method=Server、scope=RequestInput、precision=Estimated、可选 inputTokens／cachedInputTokens、modality 和 native。TokenCountMethod 当前只有实际可用的 Server；TokenCountScope.RequestInput 表示提交给计数端点的完整输入表示，包括接口明确解析的输入引用，不保证覆盖未报告的服务端隐藏包装或未来工具输出。TokenCountPrecision 可为 Estimated 或 Exact；Gemini／Messages 相对于后续生成标为 Estimated，Responses 按该端点的明确合同标为 Exact。Exact 描述此次输入计数，不保证随后发生变化的历史、模型版本或工具执行仍有相同用量。缺失计数和版本保持 None，明确零保留，非整数、负数和 Long 溢出拒绝。modality 只保存输入方向明细，不重复加到总数；cachedInputTokens 是计数时的缓存输入规模，不是一次生成的 cacheReadTokens／cacheWriteTokens。LlmTokenCountResult 仅接受 Completed metadata，并提供 companion codec。
 
 计数与普通生成共用逻辑调用寿命、认证前模型检查、发送字节、错误分类、重试、取消、总超时、HTTP 观察和 onFinished。每次重试重新取得认证；只有真实服务拒绝具有既有重试资格。结果保存实际发送／收到响应／完成时间和 HTTP 阶段，失败或取消仍通过 onFinished 交付 metadata。计数不产生模型 firstEvent／firstOutput／firstText、responseId、输出速率或生成 usage。onFinished 仍在调用上下文内、完成资源收尾后恰好执行一次。
 
@@ -783,3 +783,15 @@ ResponsesDialect.supportsStoredResponses 缺省 false，OpenAiResponsesDialect �
 三种操作复用已有认证、服务拒绝重试、截止、调用方取消、client.close、回调与 HTTP 资源所有权。每个 attempt 的时间戳来自此次实际传输，completed 表示本次操作解析完成，responseId 仅取服务端实际 ID；查询／取消返回的历史 usage 只位于 LlmResponse，不填入此次 attempt 的生成用量、首个模型事件／输出／文本或输出速率。删除同样不产生生成用量。协议／解析错误不重试；HTTP 拒绝按既有 dialect 策略处理，每次重试重新认证。
 
 本地 scoop.test 使用官方形状与 loopback HTTP mock，覆盖创建 background 后读取／取消／删除、工具历史、方法与部署路径、重试认证、实际计时及失败／取消清理；普通用例不连接供应商。真实服务用例继续默认忽略，凭据可用后再补互通验证。依据：[读取 response](https://developers.openai.com/api/reference/resources/responses/methods/retrieve)、[取消 response](https://developers.openai.com/api/reference/resources/responses/methods/cancel)、[删除 response](https://developers.openai.com/api/reference/resources/responses/methods/delete)、[background 模式](https://developers.openai.com/api/docs/guides/background)。
+
+## 41. Responses 输入 token 计数
+
+OpenAiResponsesDialect.tokenCounter() 提供实际 Responses counter；ResponsesDialect 的缺省实现为 None，DeepSeek Responses 不继承 OpenAI 的计数入口。通过同一 LlmClient.countTokens(model, request) 调用，复用 §34 的能力检查、HTTP 寿命、认证、服务错误、重试与计时。地址为 endpoint 部署路径下的 POST /responses/input_tokens，保留 query，model ID 原样发送；不要求模型列表或预先生成 response。
+
+计数请求复用普通 Responses 的输入、工具与参数编码，保留 model、input、instructions、tools、tool_choice、parallel_tool_calls、reasoning、text、conversation、previous_response_id、personality、truncation。消息、system、图片、PDF 的内联数据／URL／同 dialect 文件引用、客户端／服务端工具、完整原始历史与工具结果保持同一 wire 表示；只选择根字段，不递归过滤工具参数或原生内容。显式 conversation／previous_response_id 交由服务端解析，不从本地补齐上下文或预测后续状态。
+
+temperature、top_p、max_output_tokens、include、background、store、metadata、service_tier、user、safety_identifier、prompt_cache_key、prompt_cache_retention、stream_options、top_logprobs、max_tool_calls 只控制生成、返回或服务处理，不属于该计数请求，按根字段省略。其余未映射的根字段（包括 prompt、context_management 或未来输入字段）报带 JSON Pointer 的 LlmRequestException，不能静默丢掉可能影响输入的设置。现有请求编码的归属、字段冲突和工具规则继续生效；这些规则不解释服务端返回的附加信息。
+
+响应 object 必须为 response.input_tokens，input_tokens 按 Long 读取并保留缺失／null、零和精确大整数；负数、非整数、溢出及非空 error 报 LlmProtocolException。TokenCount 使用 Server、RequestInput、Exact，native 保存完整响应；未报告的模型版本、缓存计数和分模态明细保持未知。额外响应字段缺失或改变形状不影响主线，不验证附加字段内容，不计算费用或缓存失效。实际生成的 usage 和此次调用 metadata 中的生成用量均不被改写。
+
+普通验证使用官方形状的纯编码／解码测试和 loopback HTTP mock，覆盖多模态、工具历史、输入参数选择、精确计数、重试认证、真实收发时间与失败路径。没有可用服务或 key 时不增加真实请求，真实互通另行补测。依据：[输入计数 API](https://developers.openai.com/api/reference/python/resources/responses/subresources/input_tokens/methods/count)、[计数范围](https://developers.openai.com/api/docs/guides/token-counting)。

@@ -6,7 +6,7 @@
 
 ## 1. 共同的数据与调用入口
 
-下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。generate 与 openStream／withStream 已接入 Chat／Messages／Responses／Gemini generateContent／Interactions／Converse／Cohere Chat v2；countTokens 已接入 Gemini GenerateContent 与 Anthropic Messages。
+下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。generate 与 openStream／withStream 已接入 Chat／Messages／Responses／Gemini generateContent／Interactions／Converse／Cohere Chat v2／Ollama Chat；countTokens 已接入 Gemini GenerateContent、Anthropic Messages 与 OpenAI Responses。
 
 ```scoop
 public class LlmRequest public constructor(
@@ -353,7 +353,17 @@ suspend fun countInput(client: LlmClient, model: LlmModel): LlmTokenCountResult 
 }
 ```
 
-返回的 count 保存 inputTokens、Server 方法、RequestInput 范围和 Estimated 性质；未报告的计数或模型版本保持 None。metadata 保存独立的调用时间和各次尝试。Gemini 提交完整 generateContentRequest；Messages 保留 system、工具、thinking、schema 和历史，对当前不接受的服务端工具及 URL／file 媒体在发送前报错。cachedInputTokens 表示计数时的缓存输入规模，不表示实际缓存命中。`countTokens` 不替应用发起后续 generate，也不覆盖响应报告的 usage；尚无实际本地 tokenizer，因此没有空的本地模式入口。
+返回的 count 保存 inputTokens、Server 方法和 RequestInput 范围；未报告的计数或模型版本保持 None。Gemini／Messages 标为 Estimated，OpenAI Responses 按端点合同标为 Exact；Exact 描述本次输入，不保证后续历史变化或工具执行的用量相同。metadata 保存独立的调用时间和各次尝试。Gemini 提交完整 generateContentRequest；Messages 保留 system、工具、thinking、schema 和历史，对当前不接受的服务端工具及 URL／file 媒体在发送前报错。cachedInputTokens 表示计数时的缓存输入规模，不表示实际缓存命中。`countTokens` 不替应用发起后续 generate，也不覆盖响应报告的 usage；尚无实际本地 tokenizer，因此没有空的本地模式入口。
+
+Responses 使用同一个入口，provider 选择自然决定计数协议：
+
+```scoop
+val model = LlmEndpoint(Providers.openAiResponses(), LlmAuth.bearer(apiKey)).model(modelId)
+val counted = client.countTokens(model, request)
+println(counted.count.inputTokens)
+```
+
+Responses 计数保留 system、多模态、工具、reasoning、输出 schema 和原始历史，也保留显式 conversation／previous_response_id；生成上限、采样、后台执行和存储等根设置被省略。未映射的输入字段会报路径错误，例如计数端点没有 prompt 模板参数，不能静默丢掉模板后只数剩余文字。DeepSeek Responses 没有此适配，会在认证前拒绝；真实服务互通待可用凭据后补测。
 
 服务商附加信息只保留原文。普通响应的 `response.native`、实际用量的 `usage.native` 及原生事件保存对应数据，由具体 dialect 按需访问。没有公共计费类型或配置，也不做内容校验、换算或估算。
 

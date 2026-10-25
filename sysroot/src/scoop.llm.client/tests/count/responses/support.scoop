@@ -1,0 +1,34 @@
+package scoop.llm.client.tests.count
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.responses.responsesBody
+import scoop.llm.client.tests.responses.responsesCall
+import scoop.url.Url
+
+internal fun responsesCountRequest(): LlmRequest {
+    val dialect = OpenAiResponsesDialect()
+    val tools: Array<ToolDefinition> = [
+        ClientFunction(ToolKey("function"), "lookup", Json.parse("{\"type\":\"object\",\"properties\":{\"metadata\":{\"type\":\"string\"}}}")),
+        Server(ToolKey("search"), WebSearch(WebSearchOptions(includeSources = Some(true))))]
+    val protocol = ResponsesProtocol(dialect)
+    val output = "[{\"type\":\"reasoning\",\"id\":\"reason\",\"summary\":[],\"encrypted_content\":\"opaque\"}," +
+        responsesCall("{\"metadata\":\"keep\",\"temperature\":1}", name = "lookup") + "]"
+    val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(
+        protocol.decodeResponse(responsesBody(output), LlmRequest([], tools = tools))))
+    val file = LlmFileReference(dialect.id, JsonValue.fromString("uploaded-pdf"))
+    val input = ArrayList<LlmInputItem>()
+    input.add(LlmInputItem.Message([Image(Bytes([1.toByte()], "image/png")),
+        Document(MediaSource.Url(Url.parse("https://example.test/paper.pdf"), "application/pdf")),
+        Document(FileReference(file, "application/pdf")), Document(Bytes([2.toByte()], "application/pdf"), Some("inline.pdf"))]))
+    for (item in response.toInput()) input.add(item)
+    input.add(LlmInputItem.ToolResult(response.clientToolCalls[0].reference, [Text("{\"metadata\":\"tool output\"}")]))
+    return LlmRequest(input.toArray(), system = [Text("system")], tools = tools,
+        options = LlmGenerationOptions(temperature = Some(0.4), topP = Some(0.9), maxOutputTokens = Some(64L),
+            parallelToolCalls = Some(false), toolChoice = Specific(ToolKey("function")),
+            reasoning = Some(ReasoningOptions(effort = Some("low"))),
+            output = JsonSchema(Json.parse("{\"type\":\"object\"}"), strict = Some(true))),
+        extensions = [DialectExtension(dialect.id, Json.parse(
+            "{\"previous_response_id\":\"previous\",\"personality\":\"friendly\",\"truncation\":\"disabled\"," +
+            "\"background\":true,\"store\":true,\"metadata\":{\"label\":\"client\"},\"service_tier\":\"default\"}"))])
+}

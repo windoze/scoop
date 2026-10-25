@@ -41,7 +41,7 @@ private class TokenCountDataTest {
         val custom = GenerateContentProtocol(CountlessGenerateContentDialect())
         assertFalse(llmPresent(custom.tokenCounter()))
         assertFalse(llmPresent(Providers.openAiChat().protocol.tokenCounter()))
-        assertFalse(llmPresent(Providers.openAiResponses().protocol.tokenCounter()))
+        assertFalse(llmPresent(Providers.deepSeekResponses().protocol.tokenCounter()))
     }
 }
 

@@ -71,7 +71,7 @@ LLM 响应头和读取空闲时间缺省 300 秒，写入空闲时间 60 秒，�
 
 `metadata.attempts` 中的 `http` 保存实际排池、DNS、TCP、代理和 TLS 阶段。LlmPhaseTiming 的 started／finished 是相对逻辑调用起点的单调偏移，duration 在阶段结束时可读；它们可通过现有 companion codec 保存。未经过的阶段保持 None，连接复用不会产生虚构的建连耗时，失败和取消仍保留已有阶段。平均输出速率只在 usage 为 Final 且完整响应耗时为正时提供。
 
-`client.countTokens(model, request)` 使用 Gemini GenerateContent 或 Anthropic Messages dialect 的服务端计数接口，返回独立的 `LlmTokenCountResult`。count 保存输入计数、方法、范围、估算性质及原文；metadata 沿用真实收发时间、HTTP 阶段、重试和完成回调。普通生成不自动预先计数，预估值不写入 response.usage。没有该接口或显式不支持的模型在认证前失败；未提供 tokenizer 实现，不增加空的本地模式。Messages 的不支持输入明确报错，Gemini 的 cachedInputTokens 只表示缓存输入规模。
+`client.countTokens(model, request)` 使用 Gemini GenerateContent、Anthropic Messages 或 OpenAI Responses dialect 的服务端计数接口，返回独立的 `LlmTokenCountResult`。count 保存输入计数、方法、范围、精确／估算性质及原文；Responses 标为 Exact，另两者为 Estimated。metadata 沿用真实收发时间、HTTP 阶段、重试和完成回调。普通生成不自动预先计数，预计数不写入 response.usage。没有该接口或显式不支持的模型在认证前失败；未提供 tokenizer 实现，不增加空的本地模式。Responses 保留输入、工具和显式历史引用，省略生成控制，未映射的根输入字段明确报错；DeepSeek Responses 不继承 OpenAI 的计数操作。Messages 的不支持输入明确报错，Gemini 的 cachedInputTokens 只表示缓存输入规模。
 
 `client.retrieveResponse(endpoint, responseId)` 读取服务端 Responses 快照，`cancelResponse` 取消 background response，`deleteResponse` 删除存储的 response。读取与取消返回 LlmResult；tools 缺省为空，只用于本地关联；include 可显式请求加密 reasoning 等字段。删除的 ResponsesDeletionResult 保存实际确认与计时。三者使用原有 LlmCallOptions，不自动轮询或调度；历史 usage 不成为查询操作的生成速度。OpenAI Responses 提供这些操作，DeepSeek 在认证前拒绝；见 [使用示例](../../../docs/llm-client/USAGE.md#76-responses-的读取取消与删除)。
 
