@@ -5,7 +5,7 @@ import scoop.json.JsonValue
 import scoop.json.JsonValueKind
 
 internal enum ChatStreamPart {
-    Text(ChatStreamText), Tool(ChatStreamTool), Audio(ChatStreamAudio),
+    Text(LlmStreamText), Tool(ChatStreamTool), Audio(ChatStreamAudio),
     Function(ChatStreamLegacyFunction), Native(JsonValue)
 }
 
@@ -67,11 +67,11 @@ internal class ChatStreamCandidate public constructor(
         }
     }
 
-    private fun textPart(field: String): ChatStreamText {
+    private fun textPart(field: String): LlmStreamText {
         for (part in parts) {
             when (part) { case Text(value) -> { if (value.field == field) return value }; else -> continue }
         }
-        val value = ChatStreamText(field, location(), retention)
+        val value = LlmStreamText(field, location(), retention)
         parts.add(ChatStreamPart.Text(value))
         return value
     }

@@ -22,6 +22,10 @@ public interface LlmEventStreamProtocol : LlmStreamProtocol {
     public fun createEventStreamDecoder(request: LlmRequest, retention: StreamRetention = EventsOnly): LlmEventStreamDecoder
 }
 
+public interface LlmNdjsonProtocol : LlmStreamProtocol {
+    public fun createNdjsonDecoder(request: LlmRequest, retention: StreamRetention = EventsOnly): LlmNdjsonDecoder
+}
+
 /** One call's single-consumer protocol state, independent of its wire framing. */
 public interface LlmStreamDecoder {
     public val isFinished: Boolean
@@ -37,6 +41,10 @@ public interface LlmSseDecoder : LlmStreamDecoder {
 
 public interface LlmEventStreamDecoder : LlmStreamDecoder {
     public fun accept(message: AwsEventStreamMessage): LlmStreamUpdate
+}
+
+public interface LlmNdjsonDecoder : LlmStreamDecoder {
+    public fun accept(record: String): LlmStreamUpdate
 }
 
 /** Framing-level errors can preserve text that is not a JSON value. */

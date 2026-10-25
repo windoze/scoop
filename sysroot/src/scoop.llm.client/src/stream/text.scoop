@@ -1,6 +1,6 @@
 package scoop.llm.client
 
-internal class ChatStreamText public constructor(
+internal class LlmStreamText public constructor(
     public val field: String, public val location: LlmItemLocation, private val retention: StreamRetention
 ) {
     private val buffer: StringBuilder = StringBuilder()

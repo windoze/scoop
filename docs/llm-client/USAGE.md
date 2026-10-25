@@ -442,7 +442,24 @@ text、decodeOutput、usage、clientToolCalls、toInput 和 companion codec 与�
 
 prompt_eval_count 包含缓存输入，只有实际报告缓存量时才计算普通输入。created_at 是服务端时间；usage.native 中的 duration 字段是服务端纳秒数据，纯解码不会生成客户端计时。空或未知 done_reason 保持未完成，load／unload 也不产生可直接追加的 assistant 历史。
 
-NDJSON 流继续实施。
+流式沿用 openStream／withStream，不需要单独的 Ollama client 或简易入口；同一 model 绑定自动选择 NDJSON，正文发送 stream=true。保留结果与其他协议一样显式选择 Result：
+
+```scoop
+suspend fun streamLocalModel(client: LlmClient, modelId: String): LlmResult {
+    val model = LlmEndpoint(Providers.ollamaChat(), LlmAuth.none()).model(modelId)
+    val stream = client.openStream(model, LlmRequest([Message([Text("你好")])]),
+        retention = StreamRetention.Result)
+    stream.useAsync suspend { opened ->
+        val text = opened.textDeltas()
+        while (true) { val delta = text.next() ?: break; print(delta.text) }
+    }
+    return stream.result()
+}
+```
+
+缺省 EventsOnly 不累积普通正文，但保留 usage 与计时。thinking、文本和工具拥有稳定的输出位置；工具记录按到达顺序追加，不以重复 index 合并，只有最终 stop 才开放完整函数输入。已有 NDJSON source 时可使用 createNdjsonDecoder(request)，其 retention 同样缺省 EventsOnly。
+
+累计 token 快照只替换已报告字段，不求和；created_at 可以逐条变化，最终 response.createdAt 保存终止记录的实际时间，与 request.sentAt／response.receivedAt 分开。EOF 未收到 done=true 时失败；未知消息增量保持 Native，不能确定完整内容时不提供可追加历史。空消息触发 load／unload 时，原生服务返回的单个 application/json 响应也使用相同入口与完成规则。
 
 ## 8. 缺省值与使用检查
 

@@ -29,5 +29,21 @@ internal suspend fun readLlmStreamResponse(protocol: LlmStreamProtocol, response
         }
         return
     }
+    if (protocol is LlmNdjsonProtocol) {
+        if (!llmPresent(media) || media!!.type != "application" || (media!!.subtype != "x-ndjson" && media!!.subtype != "json"))
+            throw LlmStreamProtocolException(protocol.dialectId, "expected application/x-ndjson or application/json response")
+        val decoder = protocol.createNdjsonDecoder(request, state.retention)
+        if (media!!.subtype == "json") {
+            val source = LlmJsonStreamRecord(response.body, options.maxResponseBytes)
+            consumeLlmStream<String>(state, decoder, protocol.dialectId, attempt, timer,
+                read = suspend { source.next() }, decode = { record -> decoder.accept(record) })
+            return
+        }
+        NdjsonSource(LlmLimitedSource(response.body, options.maxResponseBytes), maxRecordBytes = options.maxResponseBytes).useAsync suspend { source ->
+            consumeLlmStream<String>(state, decoder, protocol.dialectId, attempt, timer,
+                read = suspend { source.next() }, decode = { record -> decoder.accept(record) })
+        }
+        return
+    }
     throw LlmRequestException("/stream", "protocol has no supported stream framing")
 }

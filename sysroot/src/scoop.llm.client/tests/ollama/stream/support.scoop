@@ -1,0 +1,33 @@
+package scoop.llm.client.tests.ollama.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.ollama.*
+import scoop.test.*
+
+internal fun ollamaStream(retention: StreamRetention = StreamRetention.Result): LlmNdjsonDecoder =
+    OllamaChatProtocol(OllamaChatDialect()).createNdjsonDecoder(ollamaRequest(), retention)
+
+internal fun ollamaFrame(content: String = "", thinking: String? = None, calls: Array<JsonValue>? = None,
+    done: Boolean = false, reason: String? = None, extra: String = ""): String {
+    val message = JsonObjectBuilder().add("role", JsonValue.fromString("assistant")).add("content", JsonValue.fromString(content))
+    if (thinking != None) message.add("thinking", JsonValue.fromString(thinking!!))
+    when (calls) { case Some(values) -> message.add("tool_calls", JsonValue.fromArray(values)); case None -> {} }
+    val body = ollamaBody(content, reason, done, extra = extra)
+    return Json.stringify(ollamaReplace(body, "message", Some(message.build())))
+}
+
+internal fun ollamaEnd(stream: LlmNdjsonDecoder, reason: String? = Some("stop"), extra: String = ""): LlmStreamUpdate =
+    stream.accept(ollamaFrame(done = true, reason = reason, extra = extra))
+
+internal fun ollamaCallEvents(update: LlmStreamUpdate): Array<ClientToolCall> {
+    val result = ArrayList<ClientToolCall>()
+    for (event in update.events) when (event) { case ClientToolCall(_, call) -> result.add(call); else -> {} }
+    return result.toArray()
+}
+
+internal fun assertOllamaStreamFailure(stream: LlmNdjsonDecoder, value: String, path: String) {
+    assertEquals(path, assertFailsWith<LlmProtocolException> { stream.accept(value); Unit }.path)
+    assertFalse(stream.isFinished)
+    assertFailsWith<LlmOutputException> { stream.response(); Unit }
+}

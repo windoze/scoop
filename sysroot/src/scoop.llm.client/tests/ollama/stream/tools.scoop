@@ -1,0 +1,78 @@
+package scoop.llm.client.tests.ollama.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.ollama.*
+import scoop.test.*
+
+@Test
+private class OllamaStreamToolsTest {
+    @Test
+    fun `Ollama NDJSON parallel calls append whole JSON arguments without merging repeated indices or early execution`() {
+        val stream = OllamaStreamDecoder(OllamaChatDialect(), ollamaRequest(), StreamRetention.Result)
+        val first = stream.accept(ollamaFrame(thinking = Some("reason"), calls = Some([ollamaCall("{\"count\":9007199254740993}")])))
+        assertEquals(0L, ollamaCallEvents(first).size)
+        val parsed = pendingOllamaArguments(stream)
+        when (first.events[1L]) { case ToolInputDelta(delta) -> {
+            assertEquals(1L, delta.location.itemIndex); assertEquals(None, delta.reference!!.id)
+        }; else -> fail() }
+        stream.accept(ollamaFrame(calls = Some([ollamaCall("{}", id = Some("actual"))])))
+        val calls = ollamaCallEvents(ollamaEnd(stream))
+        assertEquals(2L, calls.size)
+        assertEquals(None, calls[0L].reference.id)
+        assertEquals(Some("actual"), calls[1L].reference.id)
+        when (calls[0L].input) { case JsonArguments(value) -> assertTrue(value === parsed); else -> fail() }
+        assertEquals(9007199254740993L, calls[0L].decodeArguments<OllamaCount>().count)
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(stream.response()))
+        val request = LlmRequest([response.toInput()[0L], ToolResult(response.clientToolCalls[0L].reference, [Text("one")]),
+            ToolResult(response.clientToolCalls[1L].reference, [Text("two")])])
+        val messages = ollamaEncode(Json.decodeFromString<LlmRequest>(Json.encodeToString(request)))["messages"]!!
+        assertEquals("reason", messages[0L]["thinking"]!!.asString())
+        assertEquals(2L, messages[0L]["tool_calls"]!!.size)
+        assertEquals(0L, messages[0L]["tool_calls"]!![1L]["function"]!!["index"]!!.asLong())
+        assertFalse(messages[1L].containsKey("tool_call_id"))
+        assertEquals("actual", messages[2L]["tool_call_id"]!!.asString())
+    }
+
+    @Test
+    fun `Ollama NDJSON invalid inputs and non-stop completion never yield executable functions`() {
+        for (reason in [Some("stop"), Some("length"), Some("load"), Some("unload"), Some("future"), None, Some("")]) {
+            val stream = ollamaStream()
+            stream.accept(ollamaFrame(calls = Some([ollamaCall("null"), ollamaCall("{}", id = Some("b"))])))
+            val events = ollamaCallEvents(ollamaEnd(stream, reason))
+            assertEquals(2L, events.size)
+            assertFalse(events[0L].isExecutable)
+            assertEquals(reason == Some("stop"), events[1L].isExecutable)
+            assertEquals(if (reason == Some("stop")) 1L else 0L, stream.response().clientToolCalls.size)
+            if (reason != Some("stop") && reason != Some("length"))
+                assertFailsWith<LlmOutputException> { stream.response().toInput(); Unit }
+        }
+    }
+
+    @Test
+    fun `Ollama NDJSON missing and unbound functions stay native without inventing server activities`() {
+        val stream = ollamaStream()
+        val calls = [ollamaCall(name = "unknown"), Json.parse("{\"function\":{\"name\":\"lookup\"}}")]
+        val update = stream.accept(ollamaFrame(calls = Some(calls)))
+        assertTrue(update.hasOutput); assertFalse(update.hasText)
+        assertEquals(0L, ollamaCallEvents(ollamaEnd(stream)).size)
+        assertEquals(0L, stream.response().clientToolCalls.size)
+        assertEquals(0L, stream.response().serverToolActivities.size)
+        assertEquals(2L, ollamaHistory(stream.response())["tool_calls"]!!.size)
+    }
+
+    @Test
+    fun `Ollama NDJSON actual call IDs are unique across records and invalid fields keep their paths`() {
+        val duplicate = ollamaStream()
+        duplicate.accept(ollamaFrame(calls = Some([ollamaCall(id = Some("same"))])))
+        assertOllamaStreamFailure(duplicate, ollamaFrame(calls = Some([ollamaCall(id = Some("same"))])), "/message/tool_calls/0/id")
+        for ((raw, path) in [("{\"function\":null}", "/function"), ("{\"function\":{\"name\":\"\"}}", "/function/name"),
+            ("{\"function\":{\"index\":-1}}", "/function/index")])
+            assertOllamaStreamFailure(ollamaStream(), ollamaFrame(calls = Some([Json.parse(raw)])), "/message/tool_calls/0" + path)
+    }
+}
+
+private fun pendingOllamaArguments(stream: OllamaStreamDecoder): JsonToolArguments = when (stream.tools[0L].item) {
+    case ClientToolCall(call) -> when (call.input) { case JsonArguments(value) -> value; else -> fail() }
+    else -> fail()
+}

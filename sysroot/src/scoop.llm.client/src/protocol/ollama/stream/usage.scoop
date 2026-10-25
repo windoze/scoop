@@ -1,0 +1,20 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun updateOllamaStreamUsage(state: OllamaStreamDecoder, raw: JsonValue, done: Boolean, reason: String?): Boolean {
+    val incoming = ollamaUsageRecord(raw)
+    state.metrics = mergeLlmStreamUsage(state.metrics, incoming)
+    val root = JsonObjectBuilder()
+    for ((name, value) in raw.members()) if (!state.metrics.containsKey(name)) root.add(name, value)
+    for ((name, value) in state.metrics.members()) root.add(name, value)
+    val tokens = state.dialect.readUsage(root.build())
+    val reported = incoming.size != 0L || done || tokens.inputTokens != None || tokens.outputTokens != None ||
+        tokens.totalTokens != None || tokens.nonCachedInputTokens != None || tokens.cacheReadTokens != None ||
+        tokens.cacheWriteTokens != None || tokens.reasoningTokens != None || tokens.modality.size != 0L
+    if (reported) {
+        state.currentUsage = LlmUsage(tokens, if (ollamaTerminal(done, reason)) Final else Partial,
+            if (state.metrics.size == 0L) None else Some(state.metrics))
+    }
+    return reported
+}

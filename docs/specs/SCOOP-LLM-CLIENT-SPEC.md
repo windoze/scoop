@@ -600,7 +600,7 @@ message-end 必须提供非空 finish_reason；COMPLETE、STOP_SEQUENCE、TOOL_C
 
 ## 30. Ollama Chat 完整响应
 
-OllamaChatProtocol(OllamaDialect) 提供 decodeResponse(value, request)，OllamaChatDialect 使用 ApiProtocolId("ollama-chat") 与同名 dialect。构造器拒绝不同 protocol 的 dialect。Ollama 原生 /api/chat 与 OpenAI 兼容入口采用不同 protocol；纯解码不执行网络、模型目录查询或环境读取。普通生成见 §31，NDJSON 接入在实现前另行规定。
+OllamaChatProtocol(OllamaDialect) 提供 decodeResponse(value, request)，OllamaChatDialect 使用 ApiProtocolId("ollama-chat") 与同名 dialect。构造器拒绝不同 protocol 的 dialect。Ollama 原生 /api/chat 与 OpenAI 兼容入口采用不同 protocol；纯解码不执行网络、模型目录查询或环境读取。普通生成见 §31，NDJSON 接入见 §32。
 
 完整响应要求非空 model、message object 和 done boolean。message.role 必须为 assistant，content 是允许空串的必需字符串；可选 thinking 作为 Reasoning，content 作为 Message，然后按 tool_calls 的数组顺序交付工具。message 的其余字段整体作为 Native 保留，包括没有 MIME 定义的 images，不猜测媒体格式。原始响应保存在 response.native。created_at 是可选的服务端 Instant，缺失／null 为 None，非法值报字段路径；它不产生客户端计时。原生协议没有响应 ID，response.id 保持 None，未知根字段 id 仍只是原文。
 
@@ -635,3 +635,23 @@ request extensions 合并到根对象；options 子对象可加入 seed、num_ct
 HTTP 错误保留原始 body、截断状态和可解析 JSON，以 error 字符串作为消息；只有完整解析出的 429 服务拒绝可按公共重试设置重试，不将普通 500／503、截断或无法辨认的 body 当成安全重放依据。普通生成继续记录本地请求发送／响应接收 UTC 和单调时长，服务端 created_at 与各 duration 留在各自数据位置。
 
 依据：[Chat API](https://docs.ollama.com/api/chat)、[原生请求、消息和 options 类型](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/api/types.go)、[服务端 ChatHandler](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/server/routes.go)。
+
+## 32. Ollama Chat NDJSON
+
+LlmNdjsonProtocol 扩展 LlmStreamProtocol，提供 createNdjsonDecoder(request, retention = EventsOnly)；LlmNdjsonDecoder 扩展 LlmStreamDecoder，accept(record: String) 消费一条已经定界的 UTF-8 JSON 文本。OllamaChatProtocol 实现该协议，与普通生成使用相同 chat URL 和显式 stream=true。网络层对 application/x-ndjson 使用 scoop.http.asyncio.NdjsonSource；application/json 则按既有正文限制读成单条完整 JSON 记录，允许正文内的排版换行，不当作多条 NDJSON。后者对应原生服务在空 messages 的 load／unload 路径直接返回 JSON 的行为。两种形式均复用同一 decoder、consumeLlmStream、计时、单消费者、取消和关闭合同，不另建流生命周期。
+
+每条记录按原生 ChatResponse 解码：model 非空且在一次流中不变，message.role=assistant，content 为字符串，done 为 boolean。thinking、tool_calls、created_at 等可选字段沿用完整响应的形状检查。非法 JSON 保留原始文本并报 LlmStreamProtocolException；已解析但错误的字段报带原值和路径的 LlmProtocolException；非 null error 在解释消息前失败。空行不是 keepalive，按非法 JSON 处理。
+
+content 与 thinking 是文本增量，分别产生 TextDelta 和 ReasoningDelta；同一字段的后续片段继续使用同一 item／part 位置。item 按首次建立的位置排序，不因后续片段移动；最初的空 content 不预占普通消息位置，终止时仍没有普通消息则补一个空 Message。明确的空 thinking 保留独立 reasoning 项，但不产生 firstOutput。EventsOnly 不积累普通文本，Result 保存完整文本、候选和原生接续历史。公共文本增量帮助类型由 Chat 和 Ollama 实际共用，不改动现有 Chat 语义。
+
+tool_calls 每条记录提供完整的调用记录，按到达顺序追加，不按 function.index 合并；实际非空 ID 在整次 assistant 消息内唯一，缺失 ID 保持 None。函数归属、缺失字段和 JSON 参数的解释复用完整响应，参数只构造一次 JsonToolArguments，不在终止时重新解码全部调用。到达时可发送 ToolInputDelta；可执行 ClientToolCall 要等待 done=true 且 done_reason=stop。其他停止原因的已识别调用使用 Incomplete，不把部分流当成完整输入；未知／未绑定的调用保持 Native。未声明服务器执行就不生成 ServerToolActivity。
+
+done=true 结束协议输入；stop、length、load、unload 以及空／缺失／未知原因的完成语义与 §30 相同，不以 done 本身保证模型输出完整。只有 stop／length 的 Result 可提供 assistant 历史，load／unload 不提供。普通 EOF 不能替代 done=true，失败后不能读取成功结果，结束后也不再接受新记录。末尾无换行的合法记录由底层定界器交付，仍必须满足上述终止规则。
+
+Result 的历史连接已出现的 content／thinking 字符串，并原样追加 tool_calls；缺失／null 的可选片段不产生虚构文本或调用，明确的空字符串／空调用数组仍可保存。未知消息字段作为 Native 输出与事件保留；无法确认其跨记录合并语义时令 history 不可用，不猜测覆盖或拼接。未知根字段作为 Native 事件保留，不影响已识别消息的接续。正常记录的整份已知 JSON 不作为事件日志反复保存，结束后释放中间聚合状态。
+
+根部 token 计数和服务端 duration 是累计报告，后续已报告值替换旧值而不相加，缺失／null 不抹去先前已报告值。OllamaDialect.readUsage 接收当前记录的根对象，其中这组指标按累计报告补齐；其他字段仍来自当前记录，以便 dialect 读取实际扩展。usage.native 只保存指标投影，不保存整份 message；只有已知终止原因才标 Final，未知原因保持 Partial。存在实际计数／指标或终止时交付 Usage 更新，缺失的初始计数继续为 None。
+
+created_at 可以随每条记录变化，不作为不变身份检查；response.createdAt 使用终止记录实际提供的可选时间。它与 duration 均不改写本地 request.sentAt、response.receivedAt、firstEvent、firstOutput、firstText 或完成时间。输出标记只反映本次记录中新到达的文本／reasoning／调用等内容，累计文本和使用量更新不会重复触发首次输出计时。
+
+依据：[NDJSON 流](https://docs.ollama.com/api/streaming)、[工具调用](https://docs.ollama.com/capabilities/tool-calling)、[按字段连接完整响应与逐帧服务时间](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/server/routes.go)。

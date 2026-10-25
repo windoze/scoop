@@ -1,0 +1,88 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.time.Instant
+
+internal class OllamaStreamDecoder(val dialect: OllamaDialect, val request: LlmRequest,
+    val retention: StreamRetention) : LlmNdjsonDecoder {
+    val slots = ArrayList<OllamaStreamSlot>()
+    val tools = ArrayList<OllamaStreamTool>()
+    val callIds = ArrayList<String>()
+    val nativeEvents = ArrayList<LlmNativeEvent>()
+    var text: LlmStreamText? = None
+    var thinking: LlmStreamText? = None
+    var itemCount = 0L
+    var callCount = 0L
+    var callsPresent = false
+    var historyAvailable = true
+    var metrics: JsonValue = JsonObjectBuilder().build()
+    var currentUsage = LlmUsage()
+    var candidate: LlmCandidate? = None
+    private var model: String? = None
+    private var createdAt: Instant? = None
+    private var finished = false
+    private var failed = false
+    val retain: Boolean get() = retention == StreamRetention.Result
+
+    public override val isFinished: Boolean get() = finished && !failed
+    public override val responseId: String? get() = None
+    public override val usage: LlmUsage get() = currentUsage
+
+    public override fun accept(record: String): LlmStreamUpdate {
+        try {
+            if (finished || failed) throw LlmStreamProtocolException(dialect.id, "stream is no longer accepting records", Some(record))
+            val raw = try { Json.parse(record) }
+                catch (error: DecodingException) { throw LlmStreamProtocolException(dialect.id, "invalid stream JSON", Some(record)) }
+            val batch = LlmStreamBatch(dialect.id, retention, nativeEvents)
+            try {
+                if (raw.kind == JsonValueKind.Object && llmPresent(raw["error"]) && raw["error"]!!.kind != JsonValueKind.Null)
+                    throw DecodingException("/error", "Ollama returned an error response")
+                val body = decodeOllamaValue<OllamaBody>(raw, "")
+                ollamaNonempty(body.model, "/model")
+                model = llmStreamIdentity(model, Some(body.model), "/model")
+                createdAt = body.createdAt
+                appendOllamaStreamMessage(this, body.message, batch)
+                val reported = updateOllamaStreamUsage(this, raw, body.done, body.doneReason)
+                val extra = llmStreamUnknown(raw, ["model", "message", "done", "done_reason", "created_at", "error",
+                    "prompt_eval_count", "prompt_eval_cached_count", "eval_count", "total_duration", "load_duration", "prompt_eval_duration", "eval_duration"])
+                if (extra.size != 0L) batch.native("ollama.response", extra)
+                if (body.done) {
+                    finishOllamaStream(this, body.doneReason, batch)
+                    finished = true
+                }
+                if (reported) batch.events.add(LlmEvent.Usage(currentUsage))
+            } catch (error: DecodingException) {
+                throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Ollama stream", raw)
+            }
+            return batch.build()
+        } catch (error: Throwable) { failed = true; release(); throw error }
+    }
+
+    fun location(): LlmItemLocation {
+        val result = LlmItemLocation(0L, itemCount)
+        itemCount += 1L
+        return result
+    }
+
+    fun release() {
+        text?.release(); thinking?.release()
+        text = None; thinking = None
+        slots.clear(); tools.clear(); callIds.clear()
+        metrics = JsonObjectBuilder().build()
+    }
+
+    public override fun endInput(): LlmStreamUpdate {
+        if (!isFinished) {
+            failed = true; release()
+            throw LlmStreamProtocolException(dialect.id, "Ollama stream ended without done=true")
+        }
+        return LlmStreamUpdate([])
+    }
+
+    public override fun response(): LlmResponse {
+        if (!isFinished) throw LlmOutputException(Incomplete, "stream has not finished successfully")
+        if (!retain) throw LlmOutputException(ResultNotRetained, "stream result was not retained")
+        return LlmResponse(dialect.id, [candidate!!], model = model, createdAt = createdAt,
+            usage = currentUsage, nativeEvents = nativeEvents.toArray())
+    }
+}

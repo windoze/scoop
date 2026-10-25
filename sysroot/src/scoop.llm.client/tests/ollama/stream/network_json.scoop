@@ -1,0 +1,59 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.test.*
+
+private val ollamaJsonFields = [HttpField("Content-Type".toByteArray(), "application/json".toByteArray())]
+
+@Test
+private class OllamaStreamJsonNetworkTest {
+    @Test
+    fun `Ollama NDJSON network accepts the native single JSON residency response without fabricating history`() {
+        for (reason in ["load", "unload"]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val endpoint = LlmEndpoint(Providers.ollamaChat(), LlmAuth.none(), Some(original.baseUrl))
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        val request = connection.receiveRequest()!!
+                        val sent = Json.parse(String.fromUtf8(request.body.readAllBytes(8192L)))
+                        assertTrue(sent["stream"]!!.asBoolean())
+                        assertEquals(0L, sent["messages"]!!.size)
+                        if (reason == "unload") assertEquals(0L, sent["keep_alive"]!!.asLong())
+                        val body = "{\n  \"model\": \"m\",\n  \"message\": {\"role\": \"assistant\", \"content\": \"\"},\n" +
+                            "  \"done\": true,\n  \"done_reason\": \"" + reason + "\"\n}"
+                        sendLlmReply(connection, 200U, body, ollamaJsonFields)
+                    }
+                }
+                withLlmClient suspend { client ->
+                    val request = LlmRequest([], extensions = if (reason == "unload")
+                        [DialectExtension(OllamaChatDialect().id, Json.parse("{\"keep_alive\":0}"))] else [])
+                    val stream = client.openStream(endpoint.model("m"), request, retention = StreamRetention.Result)
+                    stream.useAsync suspend { opened -> drainStream(opened) }
+                    val result = stream.result()
+                    assertEquals(LlmCallOutcome.Completed, result.metadata.outcome)
+                    assertEquals(LlmFinishReason.Other(reason), result.response.candidates[0L].finishReason)
+                    assertEquals(None, result.metadata.attempts[0L].response.firstOutputAt)
+                    assertFailsWith<LlmOutputException> { result.toInput(); Unit }
+                }
+                serving.join()
+            }
+        }
+    }
+
+    @Test
+    fun `Ollama NDJSON network single JSON error bodies still use decoder errors and the body limit`() {
+        for (limit in [5L, 8192L]) {
+            withOllamaStreamReply("{\n  \"error\": \"failed\"\n}", ollamaJsonFields) suspend { client, model ->
+                val stream = client.openStream(model, sampleRequest, LlmCallOptions(maxResponseBytes = limit))
+                val error = expectLlmFailure<Throwable> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+                assertTrue(if (limit == 5L) error is ReadLimitException else error is LlmProtocolException)
+                assertEquals(LlmCallOutcome.Failed, stream.metadata.outcome)
+                assertEquals(None, stream.metadata.attempts[0L].response.completedAt)
+            }
+        }
+    }
+}

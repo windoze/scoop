@@ -1,8 +1,8 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat、Anthropic Messages、OpenAI Responses、Gemini generateContent、Interactions 与 Bedrock Converse 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat、Anthropic Messages、OpenAI Responses、Gemini generateContent、Interactions、Bedrock Converse、Cohere Chat v2 与 Ollama Chat 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
 
-普通 Cone 测试只使用纯 decoder 或回环地址上的 HTTP／SSE／EventStream mock，回复由测试指定，不连接供应商。仓库外的真实 API 验证用例统一标记 `@Ignore`，默认跳过；独立运行器只有在显式选择一个用例且其所需 key／endpoint 环境变量齐备时才启用 `--ignored`，缺少配置报告 SKIPPED，不发请求。凭据只从环境读取，日志脱敏。
+普通 Cone 测试只使用纯 decoder 或回环地址上的 HTTP／SSE／EventStream／NDJSON mock，回复由测试指定，不连接供应商。仓库外的真实 API 验证用例统一标记 `@Ignore`，默认跳过；独立运行器只有在显式选择一个用例且其所需 key／endpoint 环境变量齐备时才启用 `--ignored`，缺少配置报告 SKIPPED，不发请求。凭据只从环境读取，日志脱敏。
 
 Responses 使用 `Providers.openAiResponses()` 创建同样的 endpoint／model，再调用 `client.generate` 或 `client.openStream`。`ResponsesProtocol(OpenAiResponsesDialect())` 也提供 encodeRequest／decodeResponse，保留有序 item、reasoning、消息 phase、工具 call ID、服务端搜索与引用；`toInput()` 返回可序列化的原始 output items。usage 区分缓存读、写与普通输入，缺失字段保持未知。
 
@@ -30,9 +30,11 @@ Cohere Chat v2 使用 `Providers.cohereChat()` 和同一 endpoint／model／gene
 
 Cohere SSE 也可通过 createStreamDecoder(request) 单独消费，缺省 EventsOnly 不累计普通正文，显式 Result 保存最终结果与原始历史。文本、thinking、plan、并行函数和晚到引用使用稳定 item／part 位置；函数参数在 message-end 确认 TOOL_CALL 后才进入执行视图。缺失 ID 保持 None，未知增量保留 Native 并阻止不完整历史回传；debug 仅作元数据，裸 EOF 不能冒充消息完成。网络调用沿用实际发送／接收时间、最终 usage 与关闭合同。
 
-Ollama 原生 Chat 使用 `Providers.ollamaChat()` 和相同的 endpoint／model／generate 入口，缺省部署为 http://localhost:11434/api；认证显式使用 none 或部署所需的方式。普通生成总是发送 stream=false，其他选项保持服务端缺省。图片使用内联 Bytes，文本编码为单个 content；推理档位按模型定义原样发送，公共采样设置可与 extensions.options 中的 seed 等原生设置组合。函数结果使用原始 reference 的真实名称与可选 ID，保存后仍可接续。NDJSON 流继续实施。
+Ollama 原生 Chat 使用 `Providers.ollamaChat()` 和相同的 endpoint／model／generate／openStream 入口，缺省部署为 http://localhost:11434/api；认证显式使用 none 或部署所需的方式。普通生成总是发送 stream=false，其他选项保持服务端缺省。图片使用内联 Bytes，文本编码为单个 content；推理档位按模型定义原样发送，公共采样设置可与 extensions.options 中的 seed 等原生设置组合。函数结果使用原始 reference 的真实名称与可选 ID，保存后仍可接续。
 
 纯入口 `OllamaChatProtocol(OllamaChatDialect())` 同时提供 encodeRequest／decodeResponse。响应保存 thinking、普通文本、并行函数和原始 assistant 历史，未知消息字段保留 Native。工具 ID 可缺失，不用 index 生成 ID；只有 done=true、stop 且参数完整有效的声明函数进入待执行视图。空／未知停止原因保持未完成，load／unload 不生成 assistant 接续历史。输入总量包含缓存 token，只有明确报告缓存量时才计算普通输入；created_at 与原生 duration 是服务端数据，不冒充本地计时。
+
+Ollama NDJSON 继续使用相同的流式保留与关闭合同，createNdjsonDecoder(request) 也缺省 EventsOnly。文本、thinking 和工具位置保持稳定，函数等最终 stop 才进入执行视图；累计 usage 替换已报告字段，缺失／null 不清除此前计数。终止记录的 created_at 与本地收发时间分开。空 messages 的 load／unload 若返回单个 application/json，也按同一 decoder 解释；未知消息变化不能推测合并时，保留 Native 并令历史不可用。
 
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 

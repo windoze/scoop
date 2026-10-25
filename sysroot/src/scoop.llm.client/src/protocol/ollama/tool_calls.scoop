@@ -11,8 +11,7 @@ private class OllamaFunction public constructor(public val name: String? = None,
 }
 
 internal fun appendOllamaCalls(items: ArrayList<LlmOutputItem>, dialect: DialectId, calls: Array<JsonValue>,
-    tools: Array<ToolDefinition>, complete: Boolean) {
-    val ids = ArrayList<String>()
+    tools: Array<ToolDefinition>, complete: Boolean, ids: ArrayList<String>) {
     var index = 0L
     for (raw in calls) {
         val path = "/message/tool_calls/" + index.toString()

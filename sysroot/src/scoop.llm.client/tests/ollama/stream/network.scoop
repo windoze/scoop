@@ -1,0 +1,80 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.ollama.*
+import scoop.llm.client.tests.ollama.stream.*
+import scoop.test.*
+import scoop.time.Instant
+import scoop.url.Url
+
+@Test
+private class OllamaStreamNetworkTest {
+    @Test
+    fun `Ollama NDJSON network mock verifies deployed route request tail usage history and actual timestamps`() {
+        val body = ollamaFrame(thinking = Some("reason"), extra = ",\"prompt_eval_count\":12,\"prompt_eval_cached_count\":8") + "\r\n" +
+            ollamaFrame("hello") + "\n" + ollamaFrame(" 世界", done = true, reason = Some("stop"),
+                extra = ",\"eval_count\":3,\"created_at\":\"2020-01-01T00:00:00Z\"")
+        withLlmServer suspend { _, scope, listener, original ->
+            val endpoint = LlmEndpoint(Providers.ollamaChat(), LlmAuth.none(), Some(Url.parse(original.baseUrl.toString() + "/ollama?deployment=test")))
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                    assertEquals("/v1/ollama/chat?deployment=test", target)
+                    assertEquals(0L, request.head.fields.findAll("Authorization".toByteArray()).size)
+                    val sent = Json.parse(String.fromUtf8(request.body.readAllBytes(8192L)))
+                    assertEquals(3L, sent.size); assertTrue(sent["stream"]!!.asBoolean())
+                    assertEquals("unlisted:model", sent["model"]!!.asString())
+                    sendLlmReply(connection, 200U, body, ollamaStreamFields)
+                }
+            }
+            withLlmClient suspend { client ->
+                val stream = client.openStream(endpoint.model("unlisted:model"), sampleRequest, retention = StreamRetention.Result)
+                val text = StringBuilder()
+                stream.useAsync suspend { opened ->
+                    val deltas = opened.textDeltas()
+                    while (true) { val delta = deltas.next() ?: break; text.append(delta.text) }
+                }
+                assertEquals("hello 世界", text.toString())
+                val result = Json.decodeFromString<LlmResult>(Json.encodeToString(stream.result()))
+                assertEquals("hello 世界", result.text)
+                assertEquals(LlmCallOutcome.Completed, result.metadata.outcome)
+                val attempt = result.metadata.attempts[0L]
+                assertEquals(None, attempt.responseId)
+                assertEquals(Some(15L), attempt.usage.tokens.totalTokens)
+                assertEquals(Some(4L), attempt.usage.tokens.nonCachedInputTokens)
+                assertEquals(UsageCompleteness.Final, attempt.usage.completeness)
+                assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+                assertTrue(attempt.response.firstTextAt != None && attempt.response.completedAt != None)
+                val serviceTime = Instant.parse("2020-01-01T00:00:00Z")
+                assertEquals(Some(serviceTime), result.response.createdAt)
+                assertTrue(attempt.response.receivedAt != Some(serviceTime))
+                val message = ollamaEncode(LlmRequest(result.toInput()))["messages"]!![0L]
+                assertEquals("hello 世界", message["content"]!!.asString())
+                assertEquals("reason", message["thinking"]!!.asString())
+            }
+            serving.join()
+        }
+    }
+}
+
+internal val ollamaStreamFields = [HttpField("Content-Type".toByteArray(), "application/x-ndjson; charset=utf-8".toByteArray())]
+
+internal fun withOllamaStreamReply(body: String, fields: Array<HttpField> = ollamaStreamFields,
+    block: suspend (LlmClient, LlmModel) -> Unit) {
+    withLlmServer suspend { _, scope, listener, original ->
+        val endpoint = LlmEndpoint(Providers.ollamaChat(), LlmAuth.none(), Some(original.baseUrl))
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                connection.receiveRequest()!!.body.readAllBytes(8192L)
+                sendLlmReply(connection, 200U, body, fields)
+            }
+        }
+        withLlmClient suspend { client -> block(client, endpoint.model("m")) }
+        serving.join()
+    }
+}

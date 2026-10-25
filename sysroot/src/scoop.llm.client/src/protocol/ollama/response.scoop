@@ -4,13 +4,15 @@ import scoop.json.*
 import scoop.url.Url
 
 /** Native Ollama Chat generation, interpreted with an explicitly selected dialect. */
-public class OllamaChatProtocol public constructor(public val dialect: OllamaDialect) : LlmGenerationProtocol {
+public class OllamaChatProtocol public constructor(public val dialect: OllamaDialect) : LlmNdjsonProtocol {
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("chat").build()
     public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
         encodeOllamaRequest(dialect, modelId, request, stream)
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
         dialect.decodeError(status, body, truncated)
+    public override fun createNdjsonDecoder(request: LlmRequest, retention: StreamRetention): LlmNdjsonDecoder =
+        OllamaStreamDecoder(dialect, request, retention)
     init {
         if (dialect.id.protocol != ApiProtocolId("ollama-chat"))
             throw IllegalArgumentException(Some("Ollama dialect belongs to another API protocol"))
@@ -27,7 +29,7 @@ public class OllamaChatProtocol public constructor(public val dialect: OllamaDia
             val calls = message.toolCalls ?: []
             val (completion, reason) = ollamaCompletion(body.done, body.doneReason, calls.size != 0L)
             val items = readOllamaContent(dialect.id, body.message, message)
-            appendOllamaCalls(items, dialect.id, calls, request.tools, body.done && body.doneReason == Some("stop"))
+            appendOllamaCalls(items, dialect.id, calls, request.tools, body.done && body.doneReason == Some("stop"), ArrayList<String>())
             val history = if (body.done && (body.doneReason == Some("stop") || body.doneReason == Some("length")))
                 Some(LlmHistory(dialect.id, [body.message])) else None
             val completeness: UsageCompleteness = if (ollamaTerminal(body.done, body.doneReason)) Final else Partial

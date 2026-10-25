@@ -1,0 +1,44 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.HttpField
+import scoop.llm.client.*
+import scoop.llm.client.tests.ollama.stream.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class OllamaStreamNetworkFailureTest {
+    @Test
+    fun `Ollama NDJSON network EOF service errors empty records and byte limits never complete or retry`() {
+        val partial = ollamaFrame("partial") + "\n"
+        for ((body, limit, kind) in [(partial, 8192L, "eof"), (partial + "{\"error\":\"failed\"}\n", 8192L, "service"),
+            (partial + "\n", 8192L, "empty"), (partial, 5L, "limit")]) {
+            withOllamaStreamReply(body) suspend { client, model ->
+                val options = LlmCallOptions(maxResponseBytes = limit, timeouts = LlmTimeouts(total = Some(Duration.seconds(2L))),
+                    retries = LlmRetryOptions(maxRetries = 1L))
+                val stream = client.openStream(model, sampleRequest, options, StreamRetention.Result)
+                val error = expectLlmFailure<Throwable> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+                assertTrue(when (kind) {
+                    case "limit" -> error is ReadLimitException
+                    case "service" -> error is LlmProtocolException
+                    else -> error is LlmStreamProtocolException
+                })
+                assertEquals(1L, stream.metadata.attempts.size)
+                assertEquals(LlmCallOutcome.Failed, stream.metadata.outcome)
+                assertEquals(None, stream.metadata.attempts[0L].response.completedAt)
+                expectLlmFailure<Throwable> suspend { stream.result(); Unit }
+            }
+        }
+    }
+
+    @Test
+    fun `Ollama NDJSON network requires the native response media type before publishing a stream`() {
+        val cases: Array<Array<HttpField>> = [streamFields, []]
+        for (fields in cases) {
+            withOllamaStreamReply(ollamaFrame(done = true, reason = Some("stop")), fields) suspend { client, model ->
+                expectLlmFailure<LlmStreamProtocolException> suspend { client.openStream(model, sampleRequest); Unit }
+            }
+        }
+    }
+}
