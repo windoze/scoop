@@ -7,15 +7,21 @@ pub(super) fn blocks(
     function: &mir::Function,
     arguments: &[flow::ValueFacts],
 ) -> Vec<(mir::BlockId, mir::BasicBlock)> {
-    fold_blocks(module, function, arguments).0
+    fold_blocks(module, function, arguments, false).0
 }
 
 fn fold_blocks(
     module: &mir::Module,
     function: &mir::Function,
     arguments: &[flow::ValueFacts],
+    current_copies: bool,
 ) -> (Vec<(mir::BlockId, mir::BasicBlock)>, bool) {
-    let analysis = flow::Analysis::new(module, function).with_arguments(arguments);
+    let analysis = if current_copies {
+        flow::Analysis::for_copies(module, function)
+    } else {
+        flow::Analysis::new(module, function)
+    }
+    .with_arguments(arguments);
     let incoming = analysis.solve();
     let mut blocks = Vec::new();
     let mut changed = false;
@@ -101,7 +107,9 @@ fn fold_blocks(
         block.statements.retain(|statement| {
             let unused_copy = matches!(statement.kind,
                 mir::StatementKind::ValDecl { local, init: mir::Expr { kind: mir::ExprKind::Local(_), .. } }
-                    if !read.contains(&local));
+                    if !read.contains(&local)) || (current_copies && matches!(statement.kind,
+                mir::StatementKind::Assign { local, value: mir::Expr { kind: mir::ExprKind::Local(_), .. } }
+                    if !read.contains(&local)));
             changed |= unused_copy;
             !unused_copy
         });
@@ -110,7 +118,29 @@ fn fold_blocks(
 }
 
 pub(super) fn body(module: &mir::Module, function: &mir::Function) -> (mir::Body, bool) {
-    let (blocks, mut changed) = fold_blocks(module, function, &[]);
+    rewrite_body(module, function, false)
+}
+
+pub(super) fn copies(module: &mut mir::Module) {
+    let changed = module
+        .functions
+        .iter()
+        .filter_map(|(id, function)| {
+            let (body, changed) = rewrite_body(module, function, true);
+            changed.then_some((id, body))
+        })
+        .collect::<Vec<_>>();
+    for (id, body) in changed {
+        module.functions[id].body = body;
+    }
+}
+
+fn rewrite_body(
+    module: &mir::Module,
+    function: &mir::Function,
+    current_copies: bool,
+) -> (mir::Body, bool) {
+    let (blocks, mut changed) = fold_blocks(module, function, &[], current_copies);
     let mut body = function.body.clone();
     let mut reachable = vec![false; body.blocks.len()];
     for (id, block) in blocks {

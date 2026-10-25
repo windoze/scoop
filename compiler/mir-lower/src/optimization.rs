@@ -214,6 +214,9 @@ fn run_with_intrinsics(
     if options.poll_chunking {
         poll_chunks::run(module, &mut registry);
     }
+    if options.inline {
+        simplify::copies(module);
+    }
     module.meta.local_values = registry.finish();
     if let Some(observer) = &observer {
         observer.finish(outcome);

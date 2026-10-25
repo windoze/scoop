@@ -1,0 +1,57 @@
+public interface Parent { public fun label(): String }
+public interface Child : Parent { public fun value(): Long }
+class Item(val text: String, val number: Long) : Child {
+    public override fun label(): String = text
+    public override fun value(): Long = number
+}
+public fun copied(first: Child, second: Child, choose: Boolean): Child {
+    var source = first
+    val a = source
+    val b = a
+    val c = b
+    source = second
+    val result = if (choose) c else source
+    gcCollect()
+    return result
+}
+public fun loopCopies(first: Child, second: Child, iterations: Long): Long {
+    var current = first
+    var total = 0L
+    var index = 0L
+    while (index < iterations) {
+        val snapshot = current
+        val alias = snapshot
+        current = if (index % 2L == 0L) second else first
+        gcCollect()
+        total += alias.value()
+        index += 1L
+    }
+    return total
+}
+public fun throughException(first: Child, second: Child): Child {
+    var source = first
+    val snapshot = source
+    try {
+        source = second
+        gcCollect()
+        throw IllegalStateException()
+    } catch (_: IllegalStateException) {
+        gcCollect()
+        return snapshot
+    }
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val first: Child = Item("first" + "", 7L)
+    val second: Child = Item("second" + "", 11L)
+    check(copied(first, second, true).label() == "first")
+    check(copied(first, second, false).label() == "second")
+    check(loopCopies(first, second, 8L) == 72L)
+    check(throughException(first, second).value() == 7L)
+    val values = Array<Child>(2L) { index -> if (index == 0L) first else second }
+    val copies = values.toMutableArray()
+    val parents = Array<Parent>(2L) { index -> copies[index] }
+    gcCollect()
+    check(parents[0L].label() == "first" && parents[1L].label() == "second")
+    println("interface snapshots survive relocation")
+}

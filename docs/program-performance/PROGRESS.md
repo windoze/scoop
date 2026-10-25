@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 接口数据流第一阶段已完成 [MIR 末尾复制传播](INTERFACE-SSA.md)：保持快照／取址／CFG 语义，三目标完成定向正确性和固定源码性能对照。ARM64 dispatch 热路少八条栈访存，耗时下降约 21%；lambdas 等回退保留，继续根恢复与 SSA 阶段，不以复制减少代替 GC 正确性。
+
 - 已完成 [String 比较与短 hash](STRING-READS.md)：ordinary core 处理身份／长度与有界 FNV-1a，复用调用点常量事实；真实 typed 短常量比较生成有边界保护的读取。三目标定向语义、两 profile 的 IR／moving 与成本对照通过；ASCII 单独展开因混合 Unicode 回退未采纳。后续优先推进接口复制、根恢复与 SSA 重定位；字符串复制／Char 编码、初始化就绪与 Context 测量仍在 runtime 可见化的后续批次。
 
 ## 交付约定

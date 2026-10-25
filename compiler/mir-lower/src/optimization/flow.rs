@@ -36,12 +36,21 @@ pub(super) struct Analysis<'a> {
     function: &'a mir::Function,
     addressed: HashSet<mir::LocalId>,
     stable: Vec<bool>,
+    current_copies: bool,
     initial: State,
     string_class: ActualType,
 }
 
 impl<'a> Analysis<'a> {
     pub fn new(module: &'a mir::Module, function: &'a mir::Function) -> Self {
+        Self::create(module, function, false)
+    }
+
+    pub fn for_copies(module: &'a mir::Module, function: &'a mir::Function) -> Self {
+        Self::create(module, function, true)
+    }
+
+    fn create(module: &'a mir::Module, function: &'a mir::Function, current_copies: bool) -> Self {
         let mut addressed = HashSet::new();
         for (_, block) in function.body.blocks.iter() {
             mir::visit_block_exprs(block, &mut |expression| {
@@ -53,7 +62,12 @@ impl<'a> Analysis<'a> {
         let mut analysis = Self {
             module,
             function,
-            stable: stability::locals(function, &addressed),
+            stable: if current_copies {
+                vec![true; function.body.locals.len()]
+            } else {
+                stability::locals(function, &addressed)
+            },
+            current_copies,
             addressed,
             initial: Vec::new(),
             string_class: module
@@ -195,6 +209,15 @@ impl<'a> Analysis<'a> {
     }
 
     fn assign(&self, local: mir::LocalId, value: ValueFacts, state: &mut State) {
+        // Copies retain their values, but no longer denote the new contents
+        // of a reassigned source. All aliases point directly at a representative.
+        if self.current_copies {
+            for facts in state.iter_mut() {
+                if facts.alias == Some(local) {
+                    facts.alias = None;
+                }
+            }
+        }
         state[local.into_raw().into_u32() as usize] = if self.addressed.contains(&local) {
             ValueFacts::UNKNOWN
         } else {

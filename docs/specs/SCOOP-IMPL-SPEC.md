@@ -437,6 +437,8 @@ codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；不在后端�
 
 codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM function，dispatch 携带对应分派数据；native transition 的准备分支一并取得 safepoint 与 roots，发射入口握手后保留退出所需的 roots、frame 与结果存储，不拆成需要彼此同步的可选参数，也不额外保存已消费且后续不再使用的状态。LLVM builder、对象及目标发射的实际失败继续走后端错误路径。
 
+release 在内联与有界循环选择完成后、最终 LIR 根计划之前，复用 MIR 数据流传播未取址局部的当前复制事实。扩展的复制事实只服务该末尾清理，不改变既有调用点内联与循环选择策略。每次局部定义后建立同类型别名；重赋撤销以该源为代表的别名，保留副本自身的值、常量与具体类型事实。合流只保留各已到达路径共同成立的事实，循环按既有固定点计算，不因定义位于循环中就统一排除。调用不能隐式改写未取址局部；有取址的源和目标不作为可替换代表。消除不再读取的纯局部复制时保持可变源的旧快照、异常路径及实际定义／使用关系，不按生成变量名识别，也不令两个可变局部共享槽。
+
 x86_64 release 代码生成可以复用同一实际 LLVM 基本块中刚写入接口 canonical storage 的完整 SSA 快照，包含接口 niche enum；不为同一快照的局部复制链反复生成 object 重读。写入仍更新原 storage，局部重赋只替换该槽的快照，此前复制的值保持独立。调用（包括 NoGc）、poll、分配、取址、原始写入、原子、异常及不明确操作结束复用区间；LIR 块切换和 LLVM 内部分支合流同样不得继承该快照。区间内只保留已知不触发 GC、不能通过别名修改 canonical storage 的值运算、普通局部写入和堆／数组访问。没有可用快照时继续按原协议从 canonical storage 重建接口，特别是 safepoint 后的 volatile object 重读。快照只服务当前无 safepoint 区间，不增加逻辑 live set、物理 root、跨块缓存或 `.slib` 字段。
 
 优化后的 AS1 根若通过 phi／select 合并 immortal 常量与动态对象，仍表示对象起点。codegen 在根准备处为不含派生地址的 managed phi／select 保留对象起点事实，并以 LLVM 22.1 的 `is_base_value` 标记传给 RS4GC。逻辑恢复标记在某条路径折叠为常量时，共享后继仍可能使用原合并值，因此该处理不只依赖恢复标记当前指向的 SSA；不能让常量分支被替换为 null base 而产生不符合当前 runtime 的 base／derived pair。纯常量选择仍不参与 relocation；typed 根恢复、base=derived 与实际 stackmap 数据生成保持。
