@@ -68,3 +68,12 @@ exit = 0
 stdout = "reference arrays retain young values and moving views\n"
 stderr = ""
 timeout = 60
+
+[[steps]]
+name = "survivor"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_SURVIVOR = "1", SCOOP_GC_NURSERY_MAX_MIB = "1"}
+exit = 0
+stdout = "reference arrays retain young values and moving views\n"
+stderr = ""
+timeout = 60

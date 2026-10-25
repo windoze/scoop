@@ -8,9 +8,15 @@
 typedef struct ScoopGcVisitContext {
     bool minor;
     bool verify;
+    bool remember_survivors;
 } ScoopGcVisitContext;
 
-static void visit_managed_slot(void **slot, void *raw_context) {
+static bool remains_young(const ScoopGcBlockMeta *block) {
+    return block->generation == SCOOP_GC_YOUNG && block->retained_young;
+}
+
+static inline __attribute__((always_inline)) void
+relocate_slot(void **slot, void *raw_context, bool remember_survivors) {
     ScoopGcVisitContext *context = raw_context;
     void *target = *slot;
     if (target == NULL) {
@@ -36,7 +42,23 @@ static void visit_managed_slot(void **slot, void *raw_context) {
         }
         *slot = current;
     }
+    if (remember_survivors) {
+        const ScoopGcBlockMeta *target_block = current == target ? block : pointer_block(current);
+        if (remains_young(target_block)) {
+            ScoopGcBlockMeta *owner = pointer_block(slot);
+            if (!remains_young(owner)) {
+                ScoopGcRegion *region = owner->region;
+                size_t card = ((uintptr_t)slot - region->base) >> GC_CARD_SHIFT;
+                __atomic_store_n(&region->cards[card], 2, __ATOMIC_RELAXED);
+                scoop_runtime_record_dirty_card_group(region, card);
+            }
+        }
+    }
 }
+
+static void visit_managed_slot(void **slot, void *context) { relocate_slot(slot, context, false); }
+
+static void visit_survivor_slot(void **slot, void *context) { relocate_slot(slot, context, true); }
 
 static void visit_root_region(void *base, const uint64_t *scan, void *context) {
     scoop_gc_scan_descriptor(base, scan, visit_managed_slot, context, 0, UINTPTR_MAX);
@@ -52,7 +74,9 @@ static void scan_roots(ScoopGcVisitContext *context) {
 
 static void visit_dirty_object(void *object, uintptr_t begin, uintptr_t end, void *context) {
     const uint64_t *scan = scoop_gc_object_scan(object);
-    scoop_gc_scan_descriptor(object, scan, visit_managed_slot, context, begin, end);
+    ScoopGcVisitContext *visit = context;
+    ScoopGcSlotVisitor slot = visit->remember_survivors ? visit_survivor_slot : visit_managed_slot;
+    scoop_gc_scan_descriptor(object, scan, slot, context, begin, end);
 }
 
 static void relocate_live_object(void *object, void *context) {
@@ -61,7 +85,9 @@ static void relocate_live_object(void *object, void *context) {
         return;
     }
     void *current = scoop_heap_claim_relocated_object(object);
-    scoop_gc_scan_descriptor(current, scan, visit_managed_slot, context, 0, UINTPTR_MAX);
+    ScoopGcVisitContext *visit = context;
+    ScoopGcSlotVisitor slot = visit->remember_survivors ? visit_survivor_slot : visit_managed_slot;
+    scoop_gc_scan_descriptor(current, scan, slot, context, 0, UINTPTR_MAX);
 }
 
 static void verify_heap_object(void *object, void *context) {
@@ -107,6 +133,7 @@ static bool collect(bool minor) {
     scoop_gc_set_pin_frames_locked(true);
     scoop_gc_retire_allocations();
     uint64_t marked_count;
+    ScoopGcSurvivors survivors;
     for (;;) {
         size_t block_count = scoop_gc_heap_begin_collection_locked(minor);
         scoop_gc_mark_begin(minor, block_count);
@@ -123,7 +150,7 @@ static bool collect(bool minor) {
         metrics->mark_ns += scoop_gc_monotonic_ns() - phase;
         phase = scoop_gc_monotonic_ns();
         uint64_t copied = metrics->copy_ns;
-        bool planned = scoop_gc_heap_plan_moving_locked(minor);
+        bool planned = scoop_gc_heap_plan_moving_locked(minor, &survivors);
         metrics->plan_ns += scoop_gc_monotonic_ns() - phase - (metrics->copy_ns - copied);
         if (planned || !minor) {
             break;
@@ -135,14 +162,18 @@ static bool collect(bool minor) {
         minor = false;
     }
 
-    if (moved_objects != 0) {
+    if (moved_objects != 0 || survivors.objects != 0) {
         uint64_t phase = scoop_gc_monotonic_ns();
         ScoopGcVisitContext relocate = {.minor = minor};
-        scan_roots(&relocate);
+        if (moved_objects != 0) {
+            scan_roots(&relocate);
+        }
+        relocate.remember_survivors = survivors.objects != 0;
         if (minor) {
             scoop_gc_scan_remembered(visit_dirty_object, &relocate, false);
         }
-        scoop_gc_update_live(visit_managed_slot, relocate_live_object, &relocate);
+        ScoopGcSlotVisitor slot = survivors.objects != 0 ? visit_survivor_slot : visit_managed_slot;
+        scoop_gc_update_live(slot, relocate_live_object, &relocate);
         metrics->update_ns += scoop_gc_monotonic_ns() - phase;
     }
     metrics->minor_collections += minor;
@@ -165,7 +196,7 @@ static bool collect(bool minor) {
     scoop_gc_mark_dispose();
     uint64_t phase = scoop_gc_monotonic_ns();
     uint64_t returned = metrics->vm_return_ns;
-    scoop_gc_heap_finish_collection_locked(marked_count, minor);
+    scoop_gc_heap_finish_collection_locked(marked_count, minor, &survivors);
     metrics->reclaim_ns += scoop_gc_monotonic_ns() - phase - (metrics->vm_return_ns - returned);
     scoop_gc_set_pin_frames_locked(false);
     record_pause(scoop_gc_monotonic_ns() - started, minor);

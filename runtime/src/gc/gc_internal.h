@@ -11,6 +11,12 @@
 
 typedef void (*ScoopGcHeapObjectVisitor)(void *object, void *context);
 
+typedef struct ScoopGcSurvivors {
+    size_t capacity;
+    uint64_t live_bytes;
+    uint64_t objects;
+} ScoopGcSurvivors;
+
 /* Arena-external side metadata and moving-heap operations. Every `_locked`
  * operation requires the heap lock acquired through this API. */
 void scoop_gc_heap_init(void);
@@ -26,12 +32,13 @@ size_t scoop_gc_object_size_locked(const void *object);
 bool scoop_gc_update_pin_locked(const void *object, bool pinned);
 bool scoop_gc_is_young_object_locked(const void *object);
 size_t scoop_gc_heap_begin_collection_locked(bool minor);
-bool scoop_gc_heap_plan_moving_locked(bool minor);
+bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors);
 #if SCOOP_ENABLE_GC_STRESS
 void scoop_gc_heap_verify_stress_moved_locked(void);
 #endif
 void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, void *context);
-void scoop_gc_heap_finish_collection_locked(uint64_t live_objects, bool minor);
+void scoop_gc_heap_finish_collection_locked(uint64_t live_objects, bool minor,
+                                             const ScoopGcSurvivors *survivors);
 
 void scoop_gc_visit_handles_locked(ScoopGcRootVisitor visitor);
 void scoop_gc_set_pin_frames_locked(bool pinned_now);

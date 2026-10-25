@@ -26,10 +26,41 @@ typedef struct PlannedMoveChunk {
 typedef struct MovingPlan {
     PlannedMoveChunk *first;
     PlannedMoveChunk *last;
+    ScoopGcBlockMeta *survivor_block;
+    char *survivor_cursor;
+    char *survivor_limit;
+    size_t survivor_capacity_limit;
+    ScoopGcSurvivors survivors;
     bool reuse_runs;
     bool allow_growth;
     bool reserved;
 } MovingPlan;
+
+static void *reserve_survivor(MovingPlan *plan, size_t size, size_t alignment,
+                              ScoopGcBlockMeta **target) {
+    void *object = scoop_heap_bump(&plan->survivor_cursor, plan->survivor_limit, size, alignment);
+    if (object == NULL) {
+        if (plan->survivors.capacity + GC_BLOCK_SIZE > plan->survivor_capacity_limit) {
+            return NULL;
+        }
+        ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_EVACUATION_TARGET, true);
+        if (block == NULL) {
+            return NULL;
+        }
+        block->generation = SCOOP_GC_YOUNG;
+        block->survivor = true;
+        block->retained_young = true;
+        plan->survivor_block = block;
+        plan->survivor_cursor = (char *)block_base(block) + GC_LINE_SIZE;
+        plan->survivor_limit = (char *)block_base(block) + GC_BLOCK_SIZE;
+        plan->survivors.capacity += GC_BLOCK_SIZE;
+        object = scoop_heap_bump(&plan->survivor_cursor, plan->survivor_limit, size, alignment);
+    }
+    *target = plan->survivor_block;
+    plan->survivors.live_bytes += size;
+    plan->survivors.objects++;
+    return object;
+}
 
 static void free_plan(PlannedMoveChunk *chunk) {
     while (chunk != NULL) {
@@ -75,6 +106,7 @@ static void rollback_reservations(bool minor) {
     }
     for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
          block = scoop_heap_next_collection_block(block, minor)) {
+        block->retained_young = false;
         if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
             block->state =
                 scoop_heap_block_has_pins(block) ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
@@ -126,14 +158,22 @@ static void append_move(void *object, void *context) {
     ScoopGcBlockMeta *block = pointer_block(object);
     size_t word = ((uintptr_t)object - (uintptr_t)block_base(block)) / sizeof(uint64_t);
     if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(block, word)) {
+        plan->survivors.objects += block->retained_young;
         return;
     }
     size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
                       ? block->exact_size
                       : (size_t)block->size_units[word] * sizeof(uint64_t);
     ScoopGcBlockMeta *target;
-    void *destination = reserve_target(size, scoop_gc_object_alignment(object), &target,
-                                       plan->reuse_runs, plan->allow_growth);
+    size_t alignment = scoop_gc_object_alignment(object);
+    void *destination = NULL;
+    if (plan->survivor_capacity_limit != 0 && !block->survivor &&
+        block->kind == SCOOP_BLOCK_KIND_SMALL) {
+        destination = reserve_survivor(plan, size, alignment, &target);
+    }
+    if (destination == NULL) {
+        destination = reserve_target(size, alignment, &target, plan->reuse_runs, plan->allow_growth);
+    }
     if (destination == NULL) {
         plan->reserved = false;
         return;
@@ -156,12 +196,19 @@ static void append_move(void *object, void *context) {
         (PlannedMove){object, destination, size, word, block, target};
 }
 
-bool scoop_gc_heap_plan_moving_locked(bool minor) {
+bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
+    *survivors = (ScoopGcSurvivors){0};
     if (!collection_active) {
         heap_fatal("evacuation planned outside collection");
     }
-    size_t source_regions = scoop_heap_select_evacuation_sources(minor);
     bool ordinary_full = !minor && !stress_move;
+    MovingPlan plan = {.reuse_runs = ordinary_full, .reserved = true};
+    if (minor && scoop_gc_heap_state.survivor_enabled && scoop_heap_adaptive_nursery_enabled()) {
+        plan.survivor_capacity_limit = scoop_gc_heap_state.nursery_capacity / 4;
+    }
+    size_t source_regions =
+        scoop_heap_select_evacuation_sources(minor, plan.survivor_capacity_limit, &plan.survivors);
+    plan.allow_growth = !ordinary_full || source_regions > 1;
     if (ordinary_full) {
         scoop_gc_heap_state.metrics.last_full_source_regions = 0;
         scoop_gc_heap_state.metrics.last_full_target_regions = 0;
@@ -176,9 +223,6 @@ bool scoop_gc_heap_plan_moving_locked(bool minor) {
     if (ordinary_full) {
         scoop_heap_prepare_evacuation_targets();
     }
-    MovingPlan plan = {.reuse_runs = ordinary_full,
-                       .allow_growth = !ordinary_full || source_regions > 1,
-                       .reserved = true};
     scoop_gc_mark_visit_live(append_move, &plan);
     size_t target_regions = 0;
     if (ordinary_full) {
@@ -226,5 +270,6 @@ bool scoop_gc_heap_plan_moving_locked(bool minor) {
     }
     scoop_gc_heap_state.metrics.copy_ns += scoop_gc_monotonic_ns() - copy_started;
     free_plan(plan.first);
+    *survivors = plan.survivors;
     return true;
 }

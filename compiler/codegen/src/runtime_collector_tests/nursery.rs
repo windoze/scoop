@@ -1,6 +1,28 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn survivor_lifetimes_and_remembered_edges_are_preserved() {
+    for flags in [vec!["-O2"], vec!["-O2", "-DSCOOP_TEST_SURVIVOR_PARALLEL"]] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "survivor_test",
+            "runtime/tests/survivor_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"survivor lifetimes, remembered edges, ages, pinning and counts are preserved\n"
+        );
+    }
+}
+
+#[test]
 fn adaptive_nursery_follows_graph_lifetimes_and_preserves_old_pressure() {
     for flags in [vec!["-O2"], vec!["-O2", "-DSCOOP_TEST_NURSERY_LIMIT"]] {
         let output = compile_and_run_with_flags(
@@ -145,21 +167,24 @@ fn minor_rewrites_callback_native_and_frozen_segment_roots() {
 
 #[test]
 fn concurrent_mutators_mark_the_same_old_card_during_minor_collection() {
-    let output = compile_and_run(
-        &workspace_root(),
-        "nursery_mutators_test",
-        "runtime/tests/nursery_mutators_test.c",
-        true,
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"concurrent nursery mutators preserve writes to the same old card\n"
-    );
+    for flags in [vec![], vec!["-O2", "-DSCOOP_TEST_SURVIVOR"]] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "nursery_mutators_test",
+            "runtime/tests/nursery_mutators_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"concurrent nursery mutators preserve writes to the same old card\n"
+        );
+    }
 }
 
 #[test]
@@ -240,19 +265,22 @@ fn pointer_free_large_cards_do_not_hide_required_remembered_references() {
 
 #[test]
 fn failed_promotion_reservation_falls_back_without_changing_the_graph() {
-    let output = compile_and_run(
-        &workspace_root(),
-        "nursery_fallback_test",
-        "runtime/tests/nursery_fallback_test.c",
-        true,
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"partial promotion reservation rolls back before full collection\n"
-    );
+    for flags in [vec![], vec!["-O2", "-DSCOOP_TEST_SURVIVOR"]] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "nursery_fallback_test",
+            "runtime/tests/nursery_fallback_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"partial promotion reservation rolls back before full collection\n"
+        );
+    }
 }

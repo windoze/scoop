@@ -60,6 +60,8 @@ python3 tests/benchmarks/measure.py --tools target/release \
 
 M31 使用 `--gc-stats --compare-full`：每个 profile 只构建一次，每轮交替运行默认 nursery 和 `SCOOP_GC_FULL_ONLY=1`，记录两组时间、实际 GC 计数及停顿分布。脚本清除继承的 GC stress 开关，检查两种模式输出一致、full-only 没有 minor，以及直方图与实际收集次数一致。分别运行 debug/release 得到四组控制；共同的 ABI、分配布局和必要 lowering 不计入 debug→release 因子。原有六个程序保持原输入，`old-graph-large` 将旧图增大八倍，`survivors` 另外覆盖高存活率、跨代引用和 pin。
 
+[survivor-cache.scoop](survivor-cache.scoop) 保留 8192 个最近创建的记录，连续替换八百万次，用于观察中等寿命对象的提前晋升、full 次数与内存占用，输出为 `127738132421632`。使用普通 release 构建，以 `compare.py --baseline-env SCOOP_GC_SURVIVOR=0 --candidate-env SCOOP_GC_SURVIVOR=1` 对照同一程序，GC 统计单独运行；不要把减少晋升直接等同于缩短耗时。长期保留对象的 `survivors`／trees 仍作为独立对照。
+
 ```sh
 python3 tests/benchmarks/measure.py --tools target/release \
   --sysroot sysroot --runtime runtime --work tmp/m31-benchmark-debug \

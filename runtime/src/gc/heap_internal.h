@@ -71,6 +71,8 @@ typedef struct ScoopGcBlockMeta {
         struct ScoopGcBlockMeta *next_collection;
     };
     uint16_t index;
+    bool survivor;
+    bool retained_young;
     ScoopGcBlockState state;
     ScoopGcBlockKind kind;
     ScoopGcGeneration generation;
@@ -149,6 +151,7 @@ typedef struct ScoopGcHeapState {
     bool stress_minor;
 #endif
     bool full_only;
+    bool survivor_enabled;
     bool print_metrics;
     bool collection_active;
     size_t nursery_bytes;
@@ -156,6 +159,7 @@ typedef struct ScoopGcHeapState {
     size_t nursery_limit;
     size_t nursery_floor;
     unsigned nursery_low_survival_collections;
+    uint64_t survivor_objects;
     ScoopGcMetrics metrics;
     uint64_t copied_bytes;
     uint64_t minor_pause_ns;
@@ -230,7 +234,7 @@ size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block);
 bool scoop_heap_active_head(const ScoopGcBlockMeta *block);
 void scoop_heap_require_ready(void);
 void scoop_heap_free_run_nodes(void);
-void scoop_heap_clear_dirty_card_groups(void);
+void scoop_heap_clear_dirty_card_groups(bool retain_survivors);
 static inline ScoopGcCardGroup *scoop_heap_next_dirty_card_group(ScoopGcCardGroup *group) {
     ScoopGcCardGroup *next = atomic_load_explicit(&group->next, memory_order_relaxed);
     return next == group ? NULL : next;
@@ -265,7 +269,9 @@ ScoopGcBlockMeta *scoop_heap_take_free_run(size_t size, char **cursor, char **li
 bool scoop_heap_object_pinned(const ScoopGcBlockMeta *block, size_t word);
 bool scoop_heap_object_marked(const ScoopGcBlockMeta *block, size_t word);
 bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block);
-size_t scoop_heap_select_evacuation_sources(bool minor);
+struct ScoopGcSurvivors;
+size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity,
+                                             struct ScoopGcSurvivors *survivors);
 void scoop_heap_prepare_evacuation_targets(void);
 void scoop_heap_finish_block(ScoopGcBlockMeta *block, bool stress);
 

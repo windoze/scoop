@@ -1,0 +1,17 @@
+// Keep a bounded set of recently allocated entries alive across minor collections.
+class Entry(val key: Long, val value: Long)
+
+fun main() {
+    val recent = MutableArray<Entry>(8192L) { i -> Entry(i, i * 3L) }
+    gcCollect()
+    var index = 0L
+    var sum = 0L
+    while (index < 8000000L) {
+        val slot = index % 8192L
+        val previous = recent[slot]
+        sum += previous.key + previous.value
+        recent[slot] = Entry(index, index * 3L)
+        index += 1L
+    }
+    println(sum + recent[0L].value)
+}

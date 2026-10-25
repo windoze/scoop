@@ -1,6 +1,7 @@
 /* Ordinary full collections compact sparse regions; stress/minor select blocks. */
 #include <stdlib.h>
 
+#include "gc_internal.h"
 #include "heap_internal.h"
 
 bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block) {
@@ -64,7 +65,8 @@ static size_t select_regions(void) {
     return count;
 }
 
-size_t scoop_heap_select_evacuation_sources(bool minor) {
+size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity,
+                                             ScoopGcSurvivors *survivors) {
     size_t regions = !minor && !stress_move ? select_regions() : 0;
     for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
          block = scoop_heap_next_collection_block(block, minor)) {
@@ -73,6 +75,16 @@ size_t scoop_heap_select_evacuation_sources(bool minor) {
         }
         bool selected = minor ? !scoop_heap_block_has_pins(block)
                               : stress_move || block->region->evacuation_source;
+        if (minor && selected && block->live_bytes >= GC_REGULAR_MAX / 2) {
+            if (block->survivor) {
+                selected = false;
+            } else if (survivors->capacity + GC_BLOCK_SIZE <= survivor_capacity) {
+                block->retained_young = true;
+                survivors->capacity += GC_BLOCK_SIZE;
+                survivors->live_bytes += block->live_bytes;
+                selected = false;
+            }
+        }
         if (selected) {
             select_block(block);
         }

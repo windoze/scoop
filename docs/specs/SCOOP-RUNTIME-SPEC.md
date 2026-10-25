@@ -357,7 +357,7 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 普通运行的 nursery 初始容量为 1 MiB，在 1 MiB 与配置上限之间自适应调整，按 32 KiB block 对齐；默认上限 32 MiB。`SCOOP_GC_NURSERY_MAX_MIB` 可设为正的十进制整数以指定 MiB 上限，数值必须能表示为目标 `size_t` 的字节数；1 表示固定 1 MiB 容量，更大上限允许吞吐与峰值内存之间的取舍，非法配置在 runtime 初始化时报错。它是按需分配的触发上限，调整数值不预先映射或触碰全部容量。每轮收尾复用本轮 nursery block 容量与实际年轻存活字节数，不增加对象年龄字段、逐对象统计或额外遍历。full 后以回收后活跃 block／large mapping 容量的一半作为后续容量基准，向上对齐到 block 并限制在配置上下限内；容量不足基准时直接提高。实际 nursery 使用达到当前容量的四分之三且存活至少四分之一时，容量至多扩大一倍。连续四轮低于十六分之一存活时至多缩小一半，不低于最近 full 确定的基准；中间存活率重置该计数。无年轻分配的显式 minor 不构成调整样本；full 仍可用新的存活堆更新基准。所有调整在原 STW／heap lock 内完成，refill 只读取当前容量，成功 TLAB bump 不增加操作。
 
-自适应运行下，full 的增长阈值针对已提交旧代容量，年轻 block 容量单独受 nursery 上限约束；分配旧代 block／large mapping 时将本次请求计入旧代压力。full 后阈值仍为回收后已提交容量的两倍，最低 16 MiB，溢出时饱和；minor 晋升超过旧代阈值会在随后分配慢路径触发 full，不能借扩容不断上调旧代阈值而推迟回收。显式 moving／minor stress 与 full-only 对照保留原固定触发策略，不采集自适应样本。该策略在普通 debug／release 默认一致，不改变对象、allocation context、runtime ABI、`.slib` 或预编译库合同；survivor／晋升年龄是独立的后续优化。
+自适应运行下，full 的增长阈值针对已提交旧代容量，年轻 block 容量单独受 nursery 上限约束；分配旧代 block／large mapping 时将本次请求计入旧代压力。full 后阈值仍为回收后已提交容量的两倍，最低 16 MiB，溢出时饱和；minor 晋升超过旧代阈值会在随后分配慢路径触发 full，不能借扩容不断上调旧代阈值而推迟回收。显式 moving／minor stress 与 full-only 对照保留原固定触发策略，不采集自适应样本。该策略在普通 debug／release 默认一致，不改变对象、allocation context、runtime ABI、`.slib` 或预编译库合同；survivor 阶段按 3.9 独立选择；自适应使用全部年轻存活字节，不能只用实际晋升量代表存活压力。
 
 堆由按需映射的普通 region 与独立大对象 mapping 构成；普通 region 初始策略为 16 MiB，内含 32 KiB block／128 B line，不限制总堆或单个大对象大小。先复用空闲 block／line 和保留 region，再扩容；超过旧 1 GiB 边界仍能继续分配。大对象按实际大小映射，记录原始 mapping base／length 和对齐后的范围，不遗失对齐前后页。所有 block、TLAB、forwarding 和 nursery 状态明确归属 region。
 
@@ -487,9 +487,9 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 
 每个 region／large mapping 有自己的 card storage。按地址 chunk 索引的稀疏 radix page map 覆盖目标 uintptr_t 范围，把地址映射到所属 metadata；不得在 mark／store 热路径线性遍历 region，也不保留单 arena 的预偏置 card-table 合同。新映射先完成 metadata／cards，再 release 发布索引；generated code 用 acquire 读取，内联完成普通单槽寻址和原子置脏，范围屏障逐段覆盖相交索引单元。不得跨 safepoint 缓存可回收 metadata 地址。
 
-当前 64-bit targets 以 64 KiB 为索引 chunk，使用四级、每级 12-bit 的 radix（地址位移依次为 52／40／28／16）。根 `scoop_gc_page_map` 为 4096 个原子指针，其余节点按实际地址分配；末级指向所属 region／large mapping。metadata 的 generated-code prefix 为 `{ uintptr_t base; size_t size; unsigned char *cards; ScoopGcCardGroup *card_groups; }`，偏移分别为 0／8／16／24。索引 load 为 acquire，metadata prefix 发布后不变，card index 为 `(address - base) >> 9`。每个 card 字节只表示 clean 0 或 dirty 1；mutator 以 relaxed atomic store 写入 1，多个线程对同一卡重复写入 1 不丢失脏状态。初始化在映射发布前清零，收集后的清零仅在所有 mutator 停稳且 collector 已完成相关扫描／更新的 STW 阶段执行。映射起点及长度按 chunk 对齐，额外映射的首尾页立即解除映射；large mapping 只向 chunk 大小取整，不向普通 region 大小取整。撤销后的空 radix 节点在同一 STW 阶段回收。
+当前 64-bit targets 以 64 KiB 为索引 chunk，使用四级、每级 12-bit 的 radix（地址位移依次为 52／40／28／16）。根 `scoop_gc_page_map` 为 4096 个原子指针，其余节点按实际地址分配；末级指向所属 region／large mapping。metadata 的 generated-code prefix 为 `{ uintptr_t base; size_t size; unsigned char *cards; ScoopGcCardGroup *card_groups; }`，偏移分别为 0／8／16／24。索引 load 为 acquire，metadata prefix 发布后不变，card index 为 `(address - base) >> 9`。mutator 运行期间每个 card 字节只表示 clean 0 或 dirty 1；mutator 以 relaxed atomic store 写入 1，多个线程对同一卡重复写入 1 不丢失脏状态。初始化在映射发布前清零，收集后的清零仅在所有 mutator 停稳且 collector 已完成相关扫描／更新的 STW 阶段执行。映射起点及长度按 chunk 对齐，额外映射的首尾页立即解除映射；large mapping 只向 chunk 大小取整，不向普通 region 大小取整。撤销后的空 radix 节点在同一 STW 阶段回收。
 
-每个卡组覆盖固定的 64 张卡，即 32 KiB 地址范围；普通 region 与 large mapping 使用同一表示。组节点为两个 native pointer：偏移 0 的 atomic `next` 和偏移 8 的不可变 owner region，大小 16、对齐 8。`next == null` 表示本轮尚未登记；非空表示登记中或已经登记。置脏后通过 NoGc 入口 `scoop_runtime_record_dirty_card_group(region, card_index)` 完成本组登记；生成代码可先 relaxed 读取 `next`，仅为空时调用该入口。首次线程 CAS 取得节点，再 release 发布到 heap 私有链；自指针结束链，其他写入者只需保留卡字节。登记没有分配、锁、TLS、park 或用户回调，必须在可能 GC／发布前完成。collector 在 STW 后 acquire 取得链，仅枚举这些组；每组内仍按 card 地址扫描。引用更新结束后清零本组 64 字节并重置链接，清空私有链先于 region 撤销。节点只保存 metadata 地址，不成为 managed root；所有 profile、native 范围写入与生成代码必须采用相同合同，不能混用仅置脏卡字节的旧 ABI 产物。
+每个卡组覆盖固定的 64 张卡，即 32 KiB 地址范围；普通 region 与 large mapping 使用同一表示。组节点为两个 native pointer：偏移 0 的 atomic `next` 和偏移 8 的不可变 owner region，大小 16、对齐 8。`next == null` 表示尚未登记；非空表示登记中、已经登记或从上一轮保留的 remembered 组。置脏后通过 NoGc 入口 `scoop_runtime_record_dirty_card_group(region, card_index)` 完成本组登记；生成代码可先 relaxed 读取 `next`，仅为空时调用该入口。首次线程 CAS 取得节点，再 release 发布到 heap 私有链；自指针结束链，其他写入者只需保留卡字节。登记没有分配、锁、TLS、park 或用户回调，必须在可能 GC／发布前完成。collector 在 STW 后 acquire 取得链，仅枚举这些组；每组内仍按 card 地址扫描。未保留 survivor 的收集在引用更新结束后清零本组 64 字节并重置链接，清空私有链先于 region 撤销。存在 survivor 时，引用更新把仍需记忆的 old→young 槽对应卡暂记为 2；这是只在 STW 内使用的 collector 状态。收尾只保留这些卡并恢复为 1，其他卡清零，按实际保留卡重建组链；后续 mutator 仍仅写 1。full 清空全部组后才撤销 region。节点只保存 metadata 地址，不成为 managed root；所有 profile、native 范围写入与生成代码必须采用相同合同，不能混用仅置脏卡字节的旧 ABI 产物。
 
 同一对象的全部存储属于同一个 region 或 large mapping。在单 basic block、对象引用不变且没有 safepoint、用户调用、原子访问或同步发布的连续普通字段写入之间，codegen 可复用已取得的 immutable base／cards；不同字段仍按实际地址分别计算 card，不假定相邻字段一定属于同一 card。已标记并登记的同一引用槽再次写入可以省去重复 mark。跨上述边界必须丢弃复用状态；保留首次 acquire 查询、必要的 relaxed card store 和卡组登记。卡组登记入口只操作该组和私有链，不使 mapping 或 managed 引用失效。
 
@@ -511,7 +511,7 @@ AtomicRef<I> 的原子槽仍只保存 object；返回引用的原子操作在无
 
 full collection 按回收收益选择低存活、无 pin 的 region 为 source，把对象集中到未选为 source 的目标 region；高存活／含 pin 区域继续原地复用 Immix line。普通 full 不强制搬迁，显式 moving stress 在目标空间足够时要求 eligible movement。pinned 对象不移动；移动不改变语言对象身份。
 
-首版普通 full 保留存活字节最多的普通 region 作为目标，其他存活量不超过 region 容量四分之一且无 pin 的非空 region 可选为 source。先使用非 source 的旧代空闲 line、空 block 和未使用 block；只有多个 source 可被腾空时才允许增加目标 region。预留完成后，新占用的空 region 数量（含已有空 region 和新映射）必须少于本批 source 数量，使含存活对象的 region 数量实际下降，避免在空闲缓存间往返复制。未取得实际集中收益或目标预留失败时保持非移动回收。该阈值是可调的收集策略，不属于产物 ABI。minor 仍以年轻 block 为晋升单位；显式 moving stress 以 eligible block 为单位验证对象搬迁，不采用普通 full 的收益筛选。
+首版普通 full 保留存活字节最多的普通 region 作为目标，其他存活量不超过 region 容量四分之一且无 pin 的非空 region 可选为 source。先使用非 source 的旧代空闲 line、空 block 和未使用 block；只有多个 source 可被腾空时才允许增加目标 region。预留完成后，新占用的空 region 数量（含已有空 region 和新映射）必须少于本批 source 数量，使含存活对象的 region 数量实际下降，避免在空闲缓存间往返复制。未取得实际集中收益或目标预留失败时保持非移动回收。该阈值是可调的收集策略，不属于产物 ABI。minor 按年轻 block 选择 source，存活对象按 3.9 进入 survivor 或旧代；显式 moving stress 以 eligible block 为单位验证对象搬迁，不采用普通 full 的收益筛选。
 
 普通 full 只有一个 source region 时，不能通过新占用空 region 获得上述集中收益。目标准备前可用本轮已累计的 region 存活字节计算必要容量上界：只计入非 source、非 large 且已有存活对象的 region，以其全部普通 block 的可用容量减去存活字节。若总上界仍小于 source 的存活量，取消本轮搬迁选择，直接进入正常非移动收尾，不提前扫描目标对象或执行 release。该上界忽略碎片、对齐和不可复用区间，只能否决不可能成功的尝试；通过检查仍须完成实际目标预留及必要回滚。
 
@@ -521,9 +521,9 @@ full collection 按回收收益选择低存活、无 pin 的 region 为 source�
 
 收集器的临时搬迁计划按固定 256 项的 native 分块顺序追加，每项保留原 source／destination、精确大小和所属 block；不反复倍增、复制整份连续数组。预留成功后按相同顺序复制，失败和成功出口都释放全部分块。分块仅存活于原 STW 搬迁阶段，不形成持久缓存、managed root 或新的对象布局，也不改变预留完成前不发布 forwarding／更新 roots 的合同。该表示适用于所有 profile 与 minor／full／stress，使扩大 nursery 不再放大连续计划数组的 native 分配峰值。
 
-在规划、预留回退和实际复制全部结束后，以本轮实际完成的搬迁数决定是否执行 relocation。搬迁数为零时跳过用于引用更新的 roots、remembered set 和存活对象扫描；非零时仍完整更新相关引用。minor 转 full 使用最终完成轮次的事实，不能复用上轮计数或按计时值判断。两条路径都完成必要统计、晋升、release、回收、清卡、nursery／TLAB 重置、临时 pin 解除及线程恢复。
+在规划、预留回退和实际复制全部结束后，以本轮实际完成的搬迁数决定是否更新 roots；零搬迁且没有 survivor 时还跳过 remembered set 与存活对象回写。原地保留 survivor 的 minor 即使没有复制，也须借 remembered set 与年轻存活对象扫描保留下一轮所需的卡；不为此重扫旧堆或新增 roots。非零搬迁仍完整更新相关引用。minor 转 full 使用最终完成轮次的事实，不能复用上轮计数或按计时值判断。各路径都完成必要统计、晋升、release、回收、清卡、nursery／TLAB 重置、临时 pin 解除及线程恢复。
 
-引用更新在本轮稳定的堆视图内，每次访问只解析一次目标对象的 block／word 位置，并复用该位置判断代际、mark、pin、source 和 forwarding；minor 的旧代目标保持原引用。最终地址与原槽值相同时不写回。需要扫描搬迁后的对象时，只有地址变化才独立解析目标副本的位置，保留对象起点、存活性、forwarding 和当前副本检查；位置不跨 metadata 退休边界保存，不建立持久地址缓存。
+引用更新在本轮稳定的堆视图内，每次访问先解析目标对象的 block／word 位置，并复用该位置判断代际、mark、pin、source 和 forwarding；minor 的旧代目标保持原引用。有 survivor 时，回写后按实际目标副本判断下一轮代际，仅对仍指向 survivor 的 heap 槽定位 owner 并保留卡；roots 不记卡，不增加用户引用存活范围。最终地址与原槽值相同时不写回。需要扫描搬迁后的对象时，只有地址变化才独立解析目标副本的位置，保留对象起点、存活性、forwarding 和当前副本检查；位置不跨 metadata 退休边界保存，不建立持久地址缓存。
 
 普通 runtime 的 mark 与引用更新遇到堆外引用时直接保留：合法的堆外 managed 对象已在映像登记边界验证为无可移动引用的 immortal，不必逐槽重复查询 immortal 地址表。该查询只承担非法堆外引用的诊断，在支持 GC stress 的 runtime（`SCOOP_ENABLE_GC_STRESS=1`）或显式堆验证构建（`SCOOP_GC_VERIFY_HEAP=1`）中保留，与应用 debug／release profile 无关。堆内地址仍须是当前有效的对象起点；映像登记及 pin／handle 等边界所需的检查保持不变。
 
@@ -551,7 +551,11 @@ release 是 best effort，不保证触发时间、对象间顺序、执行线程
 
 minor collection 处理年轻代，依据完整精确根与旧代脏区追踪年轻可达对象；其正常工作不遍历整个旧代图来弥补缺失屏障。full collection 处理两代；显式 `gc.collect()` 请求 full collection。
 
-年轻 block 在 refill／stress 分配取得块时加入 heap 私有清单；普通对象的 bump／登记不维护额外清单。minor 的标记准备、worker 计数汇总和搬迁 source 选择只枚举这份清单，收尾另处理本轮新建的 evacuation target。全部晋升或退役后清空两份清单；full 仍按全堆枚举，并在收尾结束这些临时成员关系。目标预留失败时只撤销本轮新建目标和选定 source，minor 转 full 前保持完整原图。活动年轻块／目标块与空闲块按互斥状态复用 side metadata 的链接；退役前取得后继，不能从已经交还空闲链的字段继续清单遍历。block 元数据大小及原热字段偏移保持，不增加对象头、roots、TLAB 或 generated-code prefix，也不改变产物 ABI。
+年轻 block 在 refill／stress 分配取得块时加入 heap 私有清单；普通对象的 bump／登记不维护额外清单。minor 的标记准备、worker 计数汇总和搬迁 source 选择只枚举这份清单，收尾另处理本轮新建的 evacuation target。晋升或退役其余年轻块后，把本轮原地保留或复制得到的 survivor 留在年轻清单中，并结束 target 成员关系；full 仍按全堆枚举，收尾晋升全部年轻存活对象并清空两份清单。目标预留失败时只撤销本轮新建目标和选定 source，minor 转 full 前保持完整原图。活动年轻块／目标块与空闲块按互斥状态复用 side metadata 的链接；退役前取得后继，不能从已经交还空闲链的字段继续清单遍历。block 元数据大小及原热字段偏移保持，不增加对象头、roots、TLAB 或 generated-code prefix，也不改变产物 ABI。
+
+普通运行提供一个可选 survivor 阶段：`SCOOP_GC_SURVIVOR=1` 开启，默认 0；其他值在初始化时报错。首次 minor 存活的普通无 pin 小对象可保留为一个阶段的 survivor，下一次 minor 晋升。每轮选择时，survivor 总 block 容量以本轮 nursery 容量的四分之一为上限；其容量计入下一轮 nursery 占用，收尾后的 nursery 容量仍按 3.1 调整。优先在原 source 选择遍历中保留存活字节不少于 block 可用容量一半的首次存活块，其他首次存活对象可复制到剩余配额内的同龄 survivor block，配额用完后直接晋升。代龄及本轮保留状态只占 block 私有 padding，survivor block 不混入新分配或旧代 free run，不增加对象头、逐对象年龄或分配快路径操作。已有 survivor block 达到同一密度时原地晋升，否则沿既有搬迁路径集中到旧代；含 pin 的 block 原地晋升，large／release-hook 对象仍预晋升。full、moving／minor stress 和 full-only 不保留 survivor。
+
+原年轻块的 generation 在 mark 与 relocation 期间保持，以私有保留标志区分下一轮年轻／旧代；source 的全部活对象完成预留后才发布任何复制或 forwarding，survivor 空间不足可改用旧代目标，整体预留失败撤销本轮保留标志并从原图转 full。借原 remembered 和存活对象回写补记旧对象及本轮晋升对象到 survivor 的卡，不重扫完整旧堆；原地保留的对象数复用本来就要访问的本轮年轻存活清单累计，不增加对象遍历。对象计数须从上轮已计年轻存活中扣除旧 survivor 数，再加入本轮实际年轻存活，避免重复计数；晋升量只包含进入旧代的字节。
 
 具有未使用 block 的普通 region 单独记录，分配／搬迁预留不为寻找一个可用 block 枚举所有已满 region；full 可以按原 source 排除规则选择并重建该清单。重建保持 region 目录的选择顺序，保留的空 region 如仍有未使用 block 则优先复用。大对象和带 release hook 的对象仍预晋升，minor 不产生需要归还的大对象 mapping，因而只在 full 收尾执行 region 回收／VM 归还枚举。卡表的扫描与清零按 3.6 仅枚举实际登记的卡组，可用 `memchr` 跳过组内连续清卡；minor 不为卡表或 full 专用的 region 标志枚举全部 region。每组仍只扫描已发布旧对象覆盖的真实脏卡。full 沿原全堆规则标记和回收，收尾同样先结束脏组成员关系再撤销 mapping。
 
@@ -559,7 +563,7 @@ remembered 枚举在读取大对象 mapping 的卡表前，使用已发布旧对
 
 minor 和 full 共享线程、root、pin、handle、Context、callback、冻结栈段及精确扫描契约。晋升或移动在原存储失效前更新全部相关引用；pin 暴露的地址不变。年轻区复用不能遗漏存活引用或 release hook，旧代死对象可以留到 full collection。
 
-普通 minor 在引用回写与必要验证完成后，可以整块退役全死或已完成搬迁的年轻 small block。搬迁 source 的选择已经排除含 pin 的 block；release-hook 对象预晋升，不进入年轻快速路径。先累计年轻存活 bytes 的晋升统计，再按既有 block 退役流程释放 forwarding、撤销活动状态并交还空闲链；不逐对象清理已经失效的源存储。block 再次激活时清空对象起点、大小、mark／pin／scan 和 line 元数据，不能让旧起点随复用重新可见。evacuation target 和仍含存活 pinned 对象的 block 正常收尾，moving stress 保留逐对象 poison 与 quarantine；full 的 release 处理不因此改变。
+普通 minor 在引用回写与必要验证完成后，可以整块退役全死或已完成搬迁的年轻 small block。搬迁 source 的选择已经排除含 pin 的 block；release-hook 对象预晋升，不进入年轻快速路径。累计原年轻存活字节并扣除本轮 survivor 字节得到实际晋升统计，再按既有 block 退役流程释放 forwarding、撤销活动状态并交还空闲链；不逐对象清理已经失效的源存储。block 再次激活时清空对象起点、大小、mark／pin／scan 和 line 元数据，不能让旧起点随复用重新可见。evacuation target 和仍含存活 pinned 对象的 block 正常收尾，moving stress 保留逐对象 poison 与 quarantine；full 的 release 处理不因此改变。
 
 分配压力可触发 minor 或 full；晋升空间不足时必须从完整对象图进入 full 或明确的分配失败出口。分代策略和容量不改变语言合法性、对象 ABI 或 FFI 保活义务。
 

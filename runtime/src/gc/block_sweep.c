@@ -126,7 +126,9 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
     if (SCOOP_ENABLE_GC_STRESS && stress) {
         return true;
     }
-    record_free_runs(block, block->line_occupied);
+    if (block->generation == SCOOP_GC_OLD) {
+        record_free_runs(block, block->line_occupied);
+    }
     return true;
 }
 

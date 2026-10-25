@@ -13,6 +13,8 @@ static void retire_metadata(ScoopGcBlockMeta *block, ScoopGcBlockState state) {
     block->state = state;
     block->kind = SCOOP_BLOCK_KIND_NONE;
     block->generation = SCOOP_GC_OLD;
+    block->survivor = false;
+    block->retained_young = false;
     block->exact_size = 0;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;

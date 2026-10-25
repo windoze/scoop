@@ -59,6 +59,13 @@ void scoop_gc_heap_init(void) {
     if (scoop_gc_heap_state.ready) {
         heap_fatal("heap initialized more than once");
     }
+    const char *survivor = getenv("SCOOP_GC_SURVIVOR");
+    if (survivor != NULL) {
+        if (strcmp(survivor, "0") != 0 && strcmp(survivor, "1") != 0) {
+            heap_fatal("SCOOP_GC_SURVIVOR must be 0 or 1");
+        }
+        scoop_gc_heap_state.survivor_enabled = strcmp(survivor, "1") == 0;
+    }
     const char *nursery = getenv("SCOOP_GC_NURSERY_MAX_MIB");
     if (nursery != NULL) {
         char *end;
@@ -215,6 +222,8 @@ ScoopGcBlockMeta *activate_small_block(ScoopGcBlockState state, bool allow_growt
     block->state = state;
     block->kind = SCOOP_BLOCK_KIND_SMALL;
     block->generation = SCOOP_GC_OLD;
+    block->survivor = false;
+    block->retained_young = false;
     block->exact_size = 0;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
@@ -237,6 +246,8 @@ ScoopGcBlockMeta *activate_large_block(size_t exact_size, ScoopGcBlockState stat
     block->state = state;
     block->kind = SCOOP_BLOCK_KIND_LARGE;
     block->generation = SCOOP_GC_OLD;
+    block->survivor = false;
+    block->retained_young = false;
     block->exact_size = exact_size;
     region->next_block = 1;
     committed_bytes += region->size;
