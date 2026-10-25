@@ -35,6 +35,7 @@ client.openStream(model, request, options = LlmCallOptions(),
 client.withStream(model, request, options = LlmCallOptions(),
                   retention = StreamRetention.EventsOnly, block) -> T
 client.countTokens(model, request, options = LlmCallOptions()) -> LlmTokenCountResult
+client.compactResponse(model, request, options = LlmCallOptions()) -> ResponsesCompactionResult
 ```
 
 网络操作、client 创建和关闭都是 suspend；`withLlmClient`／`withStream` 的 block 是 suspend 函数。`withLlmClient` 只将 `open` 与既有 `useAsync` 的资源寿命组合起来，`withStream` 同理，不改变请求、缺省参数、错误或结果语义。
@@ -603,6 +604,26 @@ println(deleted.deletion.deleted)
 ```
 
 读取和取消返回既有 LlmResult，可保存、读取工具或恢复原始历史。删除返回 ResponsesDeletionResult，保留服务端实际 id、deleted 和 native。metadata 记录这次操作的实际收发与完成时间；历史 usage 位于 response.usage，不按查询耗时计算模型生成速度。认证、重试、取消和 onFinished 继续使用 LlmCallOptions。OpenAI Responses dialect 提供这些操作；DeepSeek 的无状态 Responses 在认证前拒绝。测试使用本地 mock，真实服务互通待凭据可用后补测。
+
+### 7.7 Responses 的显式上下文压缩
+
+OpenAI Responses 的压缩使用同一个 model 和 request，缺省沿用 LlmCallOptions。应用决定调用时机；返回的整个窗口用于替换旧 input，保留的消息、媒体和不透明压缩项一起进入下一轮：
+
+```scoop
+val compacted = client.compactResponse(model, request)
+val saved = Json.encodeToString(compacted)
+val restored = Json.decodeFromString<ResponsesCompactionResult>(saved)
+val input = ArrayList<LlmInputItem>()
+for (item in restored.toInput()) input.add(item)
+input.add(Message([Text("继续上一项任务")]))
+val next = LlmRequest(input.toArray(), system = request.system,
+    tools = request.tools, options = request.options)
+val result = client.generate(model, next)
+```
+
+压缩只提交 input、system 和该端点支持的原生扩展；tools 和生成 options 留给下一次生成。toInput 保留完整 output，后续请求显式提供 instructions，也不将压缩操作的 id 用作 previous_response_id。compaction.usage 是本次压缩的 token 用量，metadata 保存本次实际收发、完成时间与重试；保留下来的旧文本不记为本次首字输出。附加信息在 native 中原样保留。
+
+ModelCapabilities.serverCompaction 缺省 Unknown；明确不支持会在认证前失败。是否实现该操作由已选 Responses dialect 决定，OpenAI 开启，DeepSeek Responses 不提供。纯适配入口为 ResponsesProtocol.compactUrl／encodeCompactionRequest／decodeCompaction。依据：[OpenAI 压缩文档](https://developers.openai.com/api/docs/guides/compaction)。
 
 ## 8. 缺省值与使用检查
 

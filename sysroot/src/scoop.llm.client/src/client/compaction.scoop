@@ -1,0 +1,22 @@
+package scoop.llm.client
+
+import scoop.json.Json
+
+internal suspend fun compactLlmResponse(client: LlmClientState, model: LlmModel, request: LlmRequest,
+    options: LlmCallOptions): ResponsesCompactionResult {
+    val (compaction, metadata) = executeLlmCall<ResponsesCompaction>(client, options) suspend { call ->
+        requireModelCapability(model.capabilities.serverCompaction, "/capabilities/serverCompaction")
+        val selected = model.endpoint.provider.protocol
+        val protocol = if (selected is ResponsesProtocol) selected else
+            throw LlmRequestException("/provider", "selected protocol has no Responses compaction operation")
+        val url = protocol.compactUrl(model.endpoint.baseUrl)
+        checkModelInput(model.capabilities.input, request)
+        val bytes = Json.stringify(protocol.encodeCompactionRequest(model.id, request)).toByteArray()
+        performLlmJsonRequest<ResponsesCompaction>(call, model.endpoint, url, bytes, options) { parsed, attempt ->
+            val decoded = protocol.decodeCompaction(parsed)
+            attempt.completeOperation(Some(decoded.id), decoded.usage)
+            decoded
+        }
+    }
+    return ResponsesCompactionResult(compaction, metadata)
+}

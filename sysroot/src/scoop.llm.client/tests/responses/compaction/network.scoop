@@ -1,0 +1,111 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.responses.compactedWindow
+import scoop.llm.client.tests.responses.compactionBody
+import scoop.llm.client.tests.responses.compactionRequest
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class ResponsesCompactionNetworkTest {
+    @Test
+    fun `Responses compaction mock retries records actual timing and usage then replaces the next input`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val endpoint = LlmEndpoint(Providers.openAiResponses(), auth,
+                Some(Url.parse(original.baseUrl.toString() + "/deployment?api-version=v2")))
+            val sent = ArrayList<Array<Byte>>()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (number in [1L, 2L, 3L]) {
+                        val request = connection.receiveRequest()!!
+                        val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        assertEquals("/v1/deployment/responses" + (if (number < 3L) "/compact" else "") + "?api-version=v2", target)
+                        assertEquals("POST", String.fromUtf8(request.head.method))
+                        assertEquals("Bearer attempt-" + number.toString(),
+                            String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0].value))
+                        val bytes = request.body.readAllBytes(8192L)
+                        sent.add(bytes)
+                        val body = Json.parse(String.fromUtf8(bytes))
+                        assertEquals("literal/model:v1", body["model"]!!.asString())
+                        if (number < 3L) {
+                            assertEquals("previous", body["previous_response_id"]!!.asString())
+                            assertEquals("opaque", body["input"]!![1]["encrypted_content"]!!.asString())
+                            assertEquals("function_call_output", body["input"]!![3]["type"]!!.asString())
+                            assertFalse(body.containsKey("tools"))
+                            assertFalse(body.containsKey("max_output_tokens"))
+                            if (number == 1L) sendLlmReply(connection, 429U, "{\"error\":{\"code\":\"rate_limit_exceeded\"}}")
+                            else sendLlmReply(connection, 200U, Json.stringify(compactionBody()),
+                                [HttpField("x-request-id".toByteArray(), "compact-http".toByteArray())])
+                        } else {
+                            assertEquals(3L, body["input"]!!.size)
+                            val window = Json.parse(compactedWindow)
+                            for (index in [0L, 1L]) assertEquals(Json.stringify(window[index]), Json.stringify(body["input"]!![index]))
+                            assertEquals("next question", body["input"]!![2]["content"]!!.asString())
+                            assertFalse(body.containsKey("previous_response_id"))
+                            sendLlmReply(connection, 200U, "{\"object\":\"response\",\"status\":\"completed\",\"output\":[" +
+                                "{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"continued\"}]}]}")
+                        }
+                    }
+                }
+            }
+            val observed = ArrayList<HttpAttemptMetrics>()
+            HttpClient.open(scope, HttpClientConfig(observer = Some(HttpObserver(suspend { event ->
+                if (event.kind == HttpCallEventKind.Completed) observed.add(event.metrics)
+            })))).useAsync suspend { http ->
+                val finished = FinishedCalls()
+                val capabilities = Json.decodeFromString<ModelCapabilities>(Json.encodeToString(ModelCapabilities(
+                    sampling = SamplingCapabilities(temperature = Unsupported("fixed")), functionTools = Unsupported("disabled"),
+                    multipleCandidates = Unsupported("one"), limits = ModelLimits(maxOutputTokens = Some(0UL)), serverCompaction = Supported(Unit))))
+                val model = endpoint.model("literal/model:v1", Some(capabilities))
+                withLlmClient(Some(http)) suspend { client ->
+                    val compacted = client.compactResponse(model, compactionRequest(),
+                        LlmCallOptions(retries = LlmRetryOptions(initialDelay = Duration.ZERO),
+                            onFinished = Some(suspend { value -> finished.record(value) })))
+                    val restored = Json.decodeFromString<ResponsesCompactionResult>(Json.encodeToString(compacted))
+                    assertEquals(1L, finished.values.size)
+                    assertSame(compacted.metadata, finished.values[0])
+                    assertEquals(2L, restored.metadata.attempts.size)
+                    for (index in [0L, 1L]) {
+                        assertLlmBytes(sent[index], auth.requests[index].body)
+                        val attempt = restored.metadata.attempts[index]
+                        assertEquals(observed[index].requestHeadersAtUtc, attempt.request.sentAt)
+                        assertEquals(observed[index].finalResponseHeadersAtUtc, attempt.response.receivedAt)
+                        assertEquals(None, attempt.response.firstEventAt)
+                        assertEquals(None, attempt.response.firstOutputAt)
+                        assertEquals(None, attempt.response.firstTextAt)
+                    }
+                    assertLlmBytes(sent[0], sent[1])
+                    val last = restored.metadata.attempts[1]
+                    assertEquals(Some("compact-http"), last.requestId)
+                    assertEquals(Some("compact-operation"), last.responseId)
+                    assertEquals(Some(100L), last.usage.tokens.inputTokens)
+                    assertEquals(Some(5L), last.usage.tokens.outputTokens)
+                    assertEquals(UsageCompleteness.Final, last.usage.completeness)
+                    assertTrue(last.outputTokensPerSecond != None)
+                    assertTrue(last.request.sentAt != None)
+                    assertTrue(last.response.receivedAt != None)
+                    assertTrue(last.response.completedAt != None)
+                    assertEquals(None, restored.metadata.attempts[0].response.completedAt)
+                    assertEquals(None, restored.metadata.attempts[0].usage.tokens.outputTokens)
+                    assertEquals(LlmCallOutcome.Completed, restored.metadata.outcome)
+                    val next = ArrayList<LlmInputItem>()
+                    for (item in restored.toInput()) next.add(item)
+                    next.add(Message([Text("next question")]))
+                    val result = client.generate(model, LlmRequest(next.toArray()))
+                    assertEquals("continued", result.text)
+                    assertEquals(3L, auth.requests.size)
+                }
+                assertFalse(http.isClosed)
+            }
+            serving.join()
+        }
+    }
+}

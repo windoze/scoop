@@ -23,6 +23,10 @@ public class ResponsesProtocol public constructor(public val dialect: ResponsesD
     public fun deleteUrl(baseUrl: Url, responseId: String): Url = responsesStoredUrl(dialect, baseUrl, responseId)
     public fun decodeDeletion(value: JsonValue): ResponsesDeletion = readResponsesDeletion(dialect, value)
 
+    public fun compactUrl(baseUrl: Url): Url = responsesCompactionUrl(dialect, baseUrl)
+    public fun encodeCompactionRequest(modelId: String, request: LlmRequest): JsonValue = encodeResponsesCompaction(dialect, modelId, request)
+    public fun decodeCompaction(value: JsonValue): ResponsesCompaction = readResponsesCompaction(dialect, value)
+
     public fun webSocketUrl(baseUrl: Url): Url {
         requireResponsesWebSocket(dialect)
         return responsesWebSocketUrl(baseUrl)

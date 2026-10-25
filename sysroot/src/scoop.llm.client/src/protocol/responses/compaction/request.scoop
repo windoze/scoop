@@ -1,0 +1,30 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.replace
+import scoop.url.Url
+
+internal fun requireResponsesCompaction(dialect: ResponsesDialect) {
+    if (!dialect.supportsCompaction) throw LlmRequestException("/provider", "selected dialect has no Responses compaction operation")
+}
+
+internal fun responsesCompactionUrl(dialect: ResponsesDialect, baseUrl: Url): Url {
+    requireResponsesCompaction(dialect)
+    return baseUrl.toBuilder().appendPathSegment("responses").appendPathSegment("compact").build()
+}
+
+internal fun encodeResponsesCompaction(dialect: ResponsesDialect, model: String, request: LlmRequest): JsonValue {
+    requireResponsesCompaction(dialect)
+    if (model.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+    val body = JsonObjectBuilder().add("model", JsonValue.fromString(model)).add("input", encodeResponsesInput(dialect, request.input))
+    if (request.system.size != 0L) body.add("instructions", JsonValue.fromString(responsesPlainText(request.system, "/system")))
+    val merged = mergeLlmExtensions(body.build(), request.extensions, dialect.id, ["model", "input", "instructions"], "")
+    for ((name, _) in merged.members()) {
+        var accepted = false
+        for (field in ["model", "input", "instructions", "previous_response_id", "prompt_cache_key", "prompt_cache_options",
+            "prompt_cache_retention", "service_tier"]) if (name == field) accepted = true
+        if (!accepted) throw LlmRequestException("/" + name.replace("~", "~0").replace("/", "~1"),
+            "Responses compaction does not support this request field")
+    }
+    return merged
+}

@@ -1,0 +1,77 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesCompactionFailureTest {
+    @Test
+    fun `Responses compaction capability protocol and input failures precede authentication`() {
+        withLlmServer suspend { _, _, _, original ->
+            val auth = RecordingAuth()
+            val endpoint = LlmEndpoint(Providers.openAiResponses(), auth, Some(original.baseUrl))
+            val unsupported = endpoint.model("model", Some(ModelCapabilities(serverCompaction = Unsupported("not available"))))
+            val inputDisabled = endpoint.model("model", Some(ModelCapabilities(input = InputCapabilities(text = Unsupported("disabled")))))
+            val misplaced = LlmRequest([], extensions = [DialectExtension(OpenAiResponsesDialect().id, Json.parse("{\"conversation\":\"saved\"}"))])
+            val cases: Array<(LlmModel, LlmRequest, String)> = [
+                (unsupported, sampleRequest, "/capabilities/serverCompaction"),
+                (LlmEndpoint(Providers.deepSeekResponses(), auth, Some(original.baseUrl)).model("model"), sampleRequest, "/provider"),
+                (LlmEndpoint(Providers.openAiChat(), auth, Some(original.baseUrl)).model("model"), sampleRequest, "/provider"),
+                (inputDisabled, sampleRequest, "/input/0/content/0"), (endpoint.model("model"), misplaced, "/conversation")
+            ]
+            withLlmClient suspend { client ->
+                for ((model, request, path) in cases) {
+                    val finished = FinishedCalls()
+                    val error = expectLlmFailure<LlmRequestException> suspend {
+                        client.compactResponse(model, request, LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                    assertEquals(path, error.path)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(0L, finished.values[0].attempts.size)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                }
+            }
+            assertEquals(0L, auth.requests.size)
+        }
+    }
+
+    @Test
+    fun `Responses compaction HTTP and malformed result failures finish once without replay`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val invalid = "{\"object\":\"response.compaction\",\"id\":\"c\",\"output\":[{}]}"
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 404U, "{\"error\":{\"code\":\"not_found\"}}")
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 200U, invalid)
+                }
+            }
+            val finished = FinishedCalls()
+            withLlmClient suspend { client ->
+                val model = LlmEndpoint(Providers.openAiResponses(), auth, Some(original.baseUrl)).model("model")
+                val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))
+                val missing = expectLlmFailure<LlmServiceException> suspend { client.compactResponse(model, sampleRequest, options); Unit }
+                assertEquals(404U, missing.status)
+                val malformed = expectLlmFailure<LlmProtocolException> suspend { client.compactResponse(model, sampleRequest, options); Unit }
+                assertEquals("/output/0/type", malformed.path)
+                assertEquals(invalid, Json.stringify(malformed.native))
+            }
+            assertEquals(2L, auth.requests.size)
+            assertEquals(2L, finished.values.size)
+            for (metadata in finished.values) {
+                assertEquals(LlmCallOutcome.Failed, metadata.outcome)
+                assertEquals(1L, metadata.attempts.size)
+                val attempt = metadata.attempts[0]
+                assertTrue(attempt.request.sentAt != None)
+                assertTrue(attempt.response.receivedAt != None)
+                assertEquals(None, attempt.response.completedAt)
+            }
+            serving.join()
+        }
+    }
+}

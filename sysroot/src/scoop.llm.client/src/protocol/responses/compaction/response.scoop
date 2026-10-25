@@ -1,0 +1,38 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.time.Instant
+
+internal fun readResponsesCompaction(dialect: ResponsesDialect, value: JsonValue): ResponsesCompaction {
+    requireResponsesCompaction(dialect)
+    try {
+        val body = decodeResponsesValue<ResponsesCompactionBody>(value, "")
+        if (body.objectType != "response.compaction") throw DecodingException("/object", "expected a Responses compaction")
+        if (body.id.length == 0L) throw DecodingException("/id", "compaction ID must not be empty")
+        val error = value["error"]
+        if (llmPresent(error) && error!!.kind != JsonValueKind.Null) throw DecodingException("/error", "compaction returned an error response")
+        var index = 0L
+        for (item in body.output) {
+            val path = "/output/" + index.toString()
+            if (item.kind != JsonValueKind.Object) throw DecodingException(path, "compaction output requires input objects")
+            val type = item["type"] ?: throw DecodingException(path + "/type", "missing compaction output item type")
+            if (type.kind != JsonValueKind.String || type.asString().length == 0L)
+                throw DecodingException(path + "/type", "compaction output item type must be a nonempty string")
+            index += 1L
+        }
+        val usage = when (body.usage) {
+            case Some(raw) -> LlmUsage(dialect.readUsage(raw), Final, Some(raw))
+            case None -> LlmUsage(completeness = Final)
+        }
+        val created = when (body.createdAt) { case Some(seconds) -> Some(Instant.fromEpochSeconds(seconds)); case None -> None }
+        return ResponsesCompaction(dialect.id, body.id, body.output, created, usage, Some(value))
+    } catch (error: DecodingException) {
+        throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Responses compaction", value)
+    }
+}
+
+private class ResponsesCompactionBody public constructor(@Serialize(rename = "object") public val objectType: String,
+    public val id: String, public val output: Array<JsonValue>, @Serialize(rename = "created_at") public val createdAt: Long? = None,
+    public val usage: JsonValue? = None) {
+    public companion object : ValueDecoder<ResponsesCompactionBody>
+}

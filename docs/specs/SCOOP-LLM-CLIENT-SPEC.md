@@ -795,3 +795,17 @@ temperature、top_p、max_output_tokens、include、background、store、metadat
 响应 object 必须为 response.input_tokens，input_tokens 按 Long 读取并保留缺失／null、零和精确大整数；负数、非整数、溢出及非空 error 报 LlmProtocolException。TokenCount 使用 Server、RequestInput、Exact，native 保存完整响应；未报告的模型版本、缓存计数和分模态明细保持未知。额外响应字段缺失或改变形状不影响主线，不验证附加字段内容，不计算费用或缓存失效。实际生成的 usage 和此次调用 metadata 中的生成用量均不被改写。
 
 普通验证使用官方形状的纯编码／解码测试和 loopback HTTP mock，覆盖多模态、工具历史、输入参数选择、精确计数、重试认证、真实收发时间与失败路径。没有可用服务或 key 时不增加真实请求，真实互通另行补测。依据：[输入计数 API](https://developers.openai.com/api/reference/python/resources/responses/subresources/input_tokens/methods/count)、[计数范围](https://developers.openai.com/api/docs/guides/token-counting)。
+
+## 42. Responses 显式上下文压缩
+
+`LlmClient.compactResponse(model, request, options = LlmCallOptions())` 返回 `ResponsesCompactionResult(compaction, metadata)`，调用部署路径下的 `POST /responses/compact`。应用显式决定调用时机及后续请求。`ResponsesDialect.supportsCompaction` 缺省 false，OpenAiResponsesDialect 开启；DeepSeek Responses 不继承此操作。`ModelCapabilities.serverCompaction: Capability<Unit>` 缺省 Unknown；明确 Unsupported 在认证前失败，Unknown 交给已选 dialect 和服务端。模型标识原样写入 body，不查询模型目录。
+
+`ResponsesProtocol.compactUrl`、`encodeCompactionRequest`、`decodeCompaction` 提供相同的纯适配入口。请求只使用 LlmRequest 的 input、system 和 extensions；复用普通 Responses 的消息、多模态、工具结果及原生历史编码。tools 与 options 是下一次生成的声明，不发送至压缩端点，也不据其检查生成能力；仍检查实际提交的 system／input 的输入能力。请求扩展允许 previous_response_id、prompt_cache_key、prompt_cache_options、prompt_cache_retention、service_tier，原值发送；model、input、instructions 由公共字段管理，其他根扩展报路径错误，不能悄悄丢掉 conversation 等输入来源。压缩入口不推导缓存策略或寿命。
+
+`ResponsesCompaction(dialect, id, output, createdAt = None, usage = LlmUsage(), native = None)` 是可序列化纯数据。响应 object 必须为 response.compaction，id 必须非空，output 必须为带非空 type 的对象数组；其中用户消息、compaction item 和未知 item 均完整保留，不解释或校验 opaque 内容。created_at 按服务端整数秒读取，缺失保持 None，零值保留。非空 error 与坏的核心字段报带原响应的 LlmProtocolException。usage 复用 dialect 的实际 token 统计并标为 Final，缺失计数保持未知；其余附加信息仅保存在 native，不验证内容或格式。
+
+compaction 与 result 的 `toInput()` 返回包含完整 output 的同 dialect LlmHistory，用于替换调用方之前的 input。保存／恢复后仍可接入普通生成，保留顺序、角色、图片／文件和 opaque item；不会自动追加旧窗口、丢弃项或发起下一轮。instructions 由调用方在后续请求中明确提供。返回的 compaction id 仅标识这次操作，不把它写入后续 previous_response_id。
+
+调用复用现有认证、服务拒绝重试、取消、截止、完成回调及借入 HTTP 的所有权。metadata 记录实际发送、接收和解析完成时间、服务端 request ID、compaction ID 与该操作报告的 usage；保留下来的旧消息不产生本次 firstEvent／firstOutput／firstText。最终输出吞吐仍按报告的 outputTokens 与实际本次延迟计算，缺失和零时长保持未知。ResponsesCompactionResult 仅接受 Completed metadata；其他既有显式操作的缺省 usage 不变。
+
+普通 scoop.test 覆盖编码、上下文替换与 codec、附加信息兼容、实际 HTTP 方法与部署路径、重试认证、时间和 usage、失败清理与能力检查。只使用官方形状及 loopback mock，真实互通在可用凭据具备后补测。依据：[compact API](https://developers.openai.com/api/reference/python/resources/responses/methods/compact)、[上下文压缩](https://developers.openai.com/api/docs/guides/compaction)。
