@@ -7,18 +7,12 @@ import scoop.http.client.HttpResponse
 
 internal suspend fun readLlmStreamResponse(protocol: LlmStreamProtocol, response: HttpResponse, request: LlmRequest,
     state: LlmStreamState, options: LlmCallOptions, attempt: LlmAttemptState, timer: Job?) {
-    val media = HttpMediaType.parseFields(response.fields)
     if (protocol is LlmSseProtocol) {
-        if (!llmPresent(media) || media!!.type != "text" || media!!.subtype != "event-stream")
-            throw LlmStreamProtocolException(protocol.dialectId, "expected text/event-stream response")
-        val decoder = protocol.createStreamDecoder(request, state.retention)
-        SseSource(LlmLimitedSource(response.body, options.maxResponseBytes),
-            SseLimits(options.maxResponseBytes, options.maxResponseBytes)).useAsync suspend { source ->
-            consumeLlmStream<SseEvent>(state, decoder, protocol.dialectId, attempt, timer,
-                read = suspend { source.next() }, decode = { event -> decoder.accept(event.event, event.data) })
-        }
+        readLlmSseResponse(protocol.createStreamDecoder(request, state.retention), protocol.dialectId,
+            response, state, options, attempt, timer)
         return
     }
+    val media = HttpMediaType.parseFields(response.fields)
     if (protocol is LlmEventStreamProtocol) {
         if (!llmPresent(media) || media!!.type != "application" || media!!.subtype != "vnd.amazon.eventstream")
             throw LlmStreamProtocolException(protocol.dialectId, "expected application/vnd.amazon.eventstream response")
@@ -46,4 +40,16 @@ internal suspend fun readLlmStreamResponse(protocol: LlmStreamProtocol, response
         return
     }
     throw LlmRequestException("/stream", "protocol has no supported stream framing")
+}
+
+internal suspend fun readLlmSseResponse(decoder: LlmSseDecoder, dialect: DialectId, response: HttpResponse,
+    state: LlmStreamState, options: LlmCallOptions, attempt: LlmAttemptState, timer: Job?) {
+    val media = HttpMediaType.parseFields(response.fields)
+    if (!llmPresent(media) || media!!.type != "text" || media!!.subtype != "event-stream")
+        throw LlmStreamProtocolException(dialect, "expected text/event-stream response")
+    SseSource(LlmLimitedSource(response.body, options.maxResponseBytes),
+        SseLimits(options.maxResponseBytes, options.maxResponseBytes)).useAsync suspend { source ->
+        consumeLlmStream<SseEvent>(state, decoder, dialect, attempt, timer,
+            read = suspend { source.next() }, decode = { event -> decoder.accept(event.event, event.data) })
+    }
 }

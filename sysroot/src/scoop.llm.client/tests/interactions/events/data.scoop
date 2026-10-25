@@ -1,0 +1,68 @@
+package scoop.llm.client.tests.interactions.events
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class InteractionsEventsDataTest {
+    @Test
+    fun `Interactions event URLs encode opaque cursors and replace stream query settings`() {
+        val protocol = InteractionsProtocol(GeminiInteractionsDialect())
+        val base = Url.parse("https://example.test/proxy/v1?tenant=a%2Fb&flag&stream=false&alt=json&last_event_id=old")
+        assertEquals("https://example.test/proxy/v1/interactions/id%20%2F%3F%23?tenant=a%2Fb&flag&stream=true&alt=sse&last_event_id=cursor%20%2F%3F%23",
+            protocol.retrieveStreamUrl(base, "id /?#", Some("cursor /?#")).toString())
+        assertEquals("https://example.test/proxy/v1/interactions/id?tenant=a%2Fb&flag&stream=true&alt=sse",
+            protocol.retrieveStreamUrl(base, "id").toString())
+        assertEquals("https://example.test/v1/interactions/%2E%2E?stream=true&alt=sse&last_event_id=",
+            protocol.retrieveStreamUrl(Url.parse("https://example.test/v1"), "..", Some("")).toString())
+    }
+
+    @Test
+    fun `Interactions raw events accept partial steps and preserve optional fields through codecs`() {
+        val decoder = InteractionsProtocol(GeminiInteractionsDialect()).createEventDecoder()
+        for (extra in ["", ",\"provider_info\":null,\"event_id\":null", ",\"provider_info\":[1,{\"new\":true}],\"event_id\":{\"future\":3}",
+            ",\"provider_info\":\"changed\",\"event_id\":\"cursor\""]) {
+            val raw = interactionEvent("step.delta", "{\"index\":7,\"delta\":{\"type\":\"text\",\"text\":\"tail\"}" + extra + "}")
+            val event = Json.decodeFromString<LlmNativeEvent>(Json.encodeToString(interactionNative(decoder.accept("message", raw))))
+            assertEquals("step.delta", event.event)
+            assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(event.value))
+        }
+        assertEquals(None, decoder.responseId)
+        interactionNative(decoder.accept("", interactionEvent("interaction.status_update", "{\"interaction_id\":\"reported\",\"status\":\"in_progress\"}")))
+        assertEquals(Some("reported"), decoder.responseId)
+        val unknown = interactionEvent("future.event", "{\"id\":\"unrelated\",\"usage\":{\"format\":\"changed\"}}")
+        assertEquals(unknown, Json.stringify(interactionNative(decoder.accept("future.event", unknown)).value))
+        assertEquals(Some("reported"), decoder.responseId)
+        interactionNative(decoder.accept("interaction.completed", interactionEvent("interaction.completed",
+            "{\"interaction\":{\"id\":\"reported\",\"status\":\"failed\",\"usage\":{\"total_tokens\":99}}}")))
+        assertTrue(decoder.isFinished)
+        assertEquals(None, decoder.usage.tokens.totalTokens)
+        assertTrue(decoder.accept("done", "[DONE]").isKeepAlive)
+        decoder.endInput()
+        assertEquals(LlmOutputFailure.ResultNotRetained, assertFailsWith<LlmOutputException> { decoder.response(); Unit }.reason)
+    }
+
+    @Test
+    fun `Interactions raw event decoding rejects incomplete or inconsistent framing and preserves errors`() {
+        val protocol = InteractionsProtocol(GeminiInteractionsDialect())
+        for ((name, raw, path) in [("step.delta", "{}", "/event_type"), ("step.delta", "{\"event_type\":\"\"}", "/event_type"),
+            ("step.stop", "{\"event_type\":\"step.delta\"}", "/event_type"),
+            ("error", "{\"event_type\":\"error\",\"error\":{\"message\":\"unavailable\"},\"extra\":[7]}", "/error")]) {
+            val decoder = protocol.createEventDecoder()
+            val error = assertFailsWith<LlmProtocolException> { decoder.accept(name, raw); Unit }
+            assertEquals(path, error.path)
+            assertEquals(raw, Json.stringify(error.native))
+            assertFalse(decoder.isFinished)
+            assertFailsWith<LlmStreamProtocolException> { decoder.endInput(); Unit }
+        }
+        for (data in ["[DONE]", "not-json"]) {
+            val decoder = protocol.createEventDecoder()
+            assertFailsWith<LlmStreamProtocolException> { decoder.accept("", data); Unit }
+        }
+        val decoder = protocol.createEventDecoder()
+        decoder.accept("step.delta", interactionEvent("step.delta", "{\"index\":2,\"delta\":{\"type\":\"text\",\"text\":\"tail\"}}"))
+        assertFailsWith<LlmStreamProtocolException> { decoder.endInput(); Unit }
+    }
+}

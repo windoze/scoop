@@ -665,7 +665,32 @@ val deleted = client.deleteInteraction(endpoint, storedInteractionId)
 println(deleted.metadata.attempts[0].status)
 ```
 
-读取和取消返回 LlmResult，可保存原始步骤并按已有工具／历史规则继续使用。取消快照可能没有 steps，此时 history 保持未知。历史 token 用量位于 response.usage，不作为本次查询的生成速率。删除返回 InteractionsDeletionResult，native 保存实际响应字节；成功的空正文保持空数组，不合成确认字段。调用选项仍为同一 LlmCallOptions，库不轮询、自动取消或删除；GET 的 SSE 与 last_event_id 接续另行实现。依据：[Interactions 资源操作](https://ai.google.dev/api/interactions-api-v1#retrieving-an-interaction)。
+读取和取消返回 LlmResult，可保存原始步骤并按已有工具／历史规则继续使用。取消快照可能没有 steps，此时 history 保持未知。历史 token 用量位于 response.usage，不作为本次查询的生成速率。删除返回 InteractionsDeletionResult，native 保存实际响应字节；成功的空正文保持空数组，不合成确认字段。调用选项仍为同一 LlmCallOptions，库不轮询、自动取消或删除；GET 的事件读取与接续见下一节。依据：[Interactions 资源操作](https://ai.google.dev/api/interactions-api-v1#retrieving-an-interaction)。
+
+### 7.10 Interactions 事件读取与显式接续
+
+缺省从头读取已有 interaction 的原始事件；传入 lastEventId 可从服务端游标之后继续。每次调用独立记录实际 HTTP 时间，游标只随已交付事件更新：
+
+```scoop
+// savedCursor is None for the first read, or the last cursor saved by the application.
+val stream = client.openInteractionEvents(endpoint, interactionId, lastEventId = savedCursor)
+try {
+    stream.useAsync suspend { opened ->
+        while (true) {
+            val event = opened.next() ?: break
+            println(Json.encodeToString(event))
+        }
+    }
+} finally {
+    // Available after cleanup, including an interruption; the application can save this cursor.
+    println(stream.lastEventId)
+    println(stream.metadata.attempts[0].response.receivedAt)
+}
+```
+
+`withInteractionEvents(endpoint, interactionId, lastEventId = savedCursor) suspend { stream -> ... }` 使用相同缺省值并按作用域关闭。流对象在失败后仍可读取 lastEventId，应用在自己的异常处理分支保存它。
+
+`LlmNativeEvent.value` 保留完整 JSON，包括 event_id、usage 与服务商扩展。接续可能从 step.delta 开始，因此流不提供缺少前缀的聚合结果，也不会自动重连。应用若已保存完整前缀，可把前后事件交给同一个 `InteractionsProtocol.createStreamDecoder(request, Result)`；纯原始事件读取使用 `createEventDecoder()`。GET 回放中的 usage 不计入本次请求的生成用量。
 
 ## 8. 缺省值与使用检查
 

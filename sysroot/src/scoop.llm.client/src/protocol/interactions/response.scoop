@@ -18,6 +18,9 @@ public class InteractionsProtocol public constructor(public val dialect: Interac
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
         dialect.decodeError(status, body, truncated)
     public fun retrieveUrl(baseUrl: Url, interactionId: String): Url = interactionsStoredUrl(baseUrl, interactionId)
+    public fun retrieveStreamUrl(baseUrl: Url, interactionId: String, lastEventId: String? = None): Url =
+        interactionsEventsUrl(baseUrl, interactionId, lastEventId)
+    public fun createEventDecoder(): LlmSseDecoder = InteractionsEventsDecoder(dialectId)
     public fun cancelUrl(baseUrl: Url, interactionId: String): Url =
         interactionsStoredUrl(baseUrl, interactionId).toBuilder().appendPathSegment("cancel").build()
     public fun deleteUrl(baseUrl: Url, interactionId: String): Url = interactionsStoredUrl(baseUrl, interactionId)

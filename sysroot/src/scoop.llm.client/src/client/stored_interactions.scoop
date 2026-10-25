@@ -29,7 +29,7 @@ internal suspend fun deleteStoredLlmInteraction(client: LlmClientState, endpoint
     return InteractionsDeletionResult(native, metadata)
 }
 
-private fun storedInteractionsProtocol(endpoint: LlmEndpoint): InteractionsProtocol {
+internal fun storedInteractionsProtocol(endpoint: LlmEndpoint): InteractionsProtocol {
     val protocol = endpoint.provider.protocol
     if (protocol is InteractionsProtocol) return protocol
     throw LlmRequestException("/provider", "selected protocol has no stored Interactions operations")

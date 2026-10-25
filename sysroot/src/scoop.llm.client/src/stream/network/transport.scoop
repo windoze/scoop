@@ -1,7 +1,9 @@
 package scoop.llm.client
 
 import scoop.asyncio.*
+import scoop.http.client.HttpResponse
 import scoop.json.Json
+import scoop.url.Url
 
 internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, request: LlmRequest,
     options: LlmCallOptions, timer: Job?) {
@@ -13,6 +15,13 @@ internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, re
         throw LlmRequestException("/stream", "protocol has no supported stream framing")
     val url = protocol.streamUrl(model.endpoint.baseUrl, model.id)
     val bytes = Json.stringify(protocol.encodeRequest(model.id, request, true)).toByteArray()
+    performLlmStreamRequest(state, model.endpoint, url, bytes, options, "POST") suspend { response, attempt ->
+        readLlmStreamResponse(protocol, response, request, state, options, attempt, timer)
+    }
+}
+
+internal suspend fun performLlmStreamRequest(state: LlmStreamState, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
+    options: LlmCallOptions, method: String, readResponse: suspend (HttpResponse, LlmAttemptState) -> Unit) {
     val call = state.call
     var retry = 0L
     var backoff = options.retries.initialDelay
@@ -21,11 +30,11 @@ internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, re
         val attempt = LlmAttemptState(call, retry + 1L)
         state.lock.withLock { state.activeAttempt = Some(attempt) }
         val rejection: LlmServiceException? = try {
-            val prepared = prepareLlmHttpRequest(call.client.http, model.endpoint, url, bytes, options, attempt)
+            val prepared = prepareLlmHttpRequest(call.client.http, endpoint, url, bytes, options, attempt, method)
             call.client.http.withResponse(prepared) suspend { response ->
-                val rejected = readLlmRejection(response, model.endpoint, options, attempt)
+                val rejected = readLlmRejection(response, endpoint, options, attempt)
                 if (llmPresent(rejected)) return@withResponse rejected
-                readLlmStreamResponse(protocol, response, request, state, options, attempt, timer)
+                readResponse(response, attempt)
                 None
             }
         } finally {

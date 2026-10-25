@@ -3,7 +3,8 @@ package scoop.llm.client
 import scoop.platform.time.MonotonicTimeSource
 import scoop.time.Duration
 
-internal suspend fun runLlmStream(state: LlmStreamState, caller: Job?, model: LlmModel, request: LlmRequest, options: LlmCallOptions) {
+internal suspend fun runLlmStream(state: LlmStreamState, caller: Job?, options: LlmCallOptions,
+    operation: suspend (LlmStreamState, Job?) -> Unit) {
     val call = state.call
     var failure: Throwable? = None
     state.opening.listener = caller?.invokeOnCancellation { error -> call.stop(error) }
@@ -20,7 +21,7 @@ internal suspend fun runLlmStream(state: LlmStreamState, caller: Job?, model: Ll
                 })
                 case None -> None
             }
-            try { performLlmStream(state, model, request, options, timer) }
+            try { operation(state, timer) }
             finally {
                 timer?.cancel()
                 nonCancellableScope suspend { _ -> timer?.join(); Unit }

@@ -829,3 +829,13 @@ LlmEndpoint 只接收已有 API 的 baseUrl、headers 与认证，不包含部�
 操作复用现有 HTTP 清理、认证、dialect 服务错误／重试资格、取消、总截止及完成回调。读取／取消报告的历史 usage 只在 LlmResponse 中，不成为本次 attempt 的生成用量、首输出时间或输出速率；attempt 仅记录实际 HTTP 收发和完成时间，并保留返回资源的真实 ID。删除没有返回资源 ID，attempt.responseId 保持 None。失败、取消与 client.close 仍等待清理后完成一次回调，借入的 HttpClient 保持原所有权。
 
 普通 scoop.test 使用官方形状和 loopback HTTP mock 验证后台创建后的读取／取消／删除、可保存的工具历史、空正文和附加信息兼容、URL／method／认证字节、实际时间及失败清理。真实服务用例默认忽略，仅在凭据齐备时显式运行，实际覆盖见实施记录。依据：[Interactions v1 资源操作](https://ai.google.dev/api/interactions-api-v1#retrieving-an-interaction)、[官方 OpenAPI](https://ai.google.dev/static/api/interactions-v1.openapi.json)、[后台执行](https://ai.google.dev/gemini-api/docs/background-execution)。
+
+## 45. Interactions 事件读取与显式接续
+
+`LlmClient.openInteractionEvents(endpoint, interactionId, lastEventId = None, options = LlmCallOptions())` 返回 `InteractionsEventStream`；`withInteractionEvents` 在相同参数后接受 suspend block，按现有 useAsync 规则关闭。流提供 `next(): LlmNativeEvent?`、`lastEventId`、`metadata`、`isClosed` 和 `close()`，使用既有单消费者、按需读取和 client 所有权合同。每次 next 返回一个完整原始 JSON 事件，event 为其 event_type，value 保留 event_id 及所有其他字段。游标初始为调用参数，只在事件交付后按字符串 event_id 更新；缺失、null 或其他形状保持原文且不改变游标。关闭或失败后仍可读取最后已交付游标。
+
+`InteractionsProtocol.retrieveStreamUrl(baseUrl, interactionId, lastEventId = None)` 在 §44 的资源路径上设置 `stream=true`、`alt=sse`，仅在 Some 时设置 last_event_id，保留其原始字符串并按 query 编码。GET 发送空正文，使用现有认证与明确服务拒绝的重试规则；协议和空 ID 错误在认证前报告。发生读错误后不自动重连，应用显式发起下一次调用，各次调用保留独立的实际收发时间。
+
+`InteractionsProtocol.createEventDecoder()` 提供不依赖 I/O 的原生事件解码器，复用 LlmSseDecoder。它验证 JSON 事件的非空 event_type 和 SSE 名称一致性，保留完整原值，允许从任意步骤中间开始；interaction.completed 结束读取，提前 EOF／DONE 和 error 事件报错。它不重建缺失的前缀，不聚合 LlmResponse，response() 报 ResultNotRetained。完整记录仍可由应用交给已有 createStreamDecoder 聚合，前缀和后缀需来自同一次 interaction，是否保存由应用决定。
+
+GET 的事件回放仅记录实际首事件和完成时间，不记录生成首输出／首文本、token 用量或速率；原始 usage 保留在事件里。attempt.responseId 只取服务端生命周期事件报告的 ID，不能由请求参数补造。服务端附加字段保持 as-is，不增加有效性或缓存失效判断。普通测试使用本地 mock 覆盖中断接续、序列化、单次关闭和核心错误边界；真实用例仍默认忽略。依据：[GET 参数](https://ai.google.dev/api/interactions-api-v1#retrieving-an-interaction)、[事件接续](https://ai.google.dev/gemini-api/docs/background-execution#streaming-pattern)。

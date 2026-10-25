@@ -3,7 +3,13 @@ package scoop.llm.client
 import scoop.platform.concurrent.Mutex
 
 internal suspend fun openLlmStream(client: LlmClientState, model: LlmModel, request: LlmRequest,
-    options: LlmCallOptions, retention: StreamRetention): LlmStream {
+    options: LlmCallOptions, retention: StreamRetention): LlmStream =
+    openLlmStreamOperation(client, options, retention) suspend { state, timer ->
+        performLlmStream(state, model, request, options, timer)
+    }
+
+internal suspend fun openLlmStreamOperation(client: LlmClientState, options: LlmCallOptions,
+    retention: StreamRetention, operation: suspend (LlmStreamState, Job?) -> Unit): LlmStream {
     val caller = currentJobOrNone()
     return suspendCoroutine<LlmStream> { continuation ->
         val opening = LlmStreamOpening(continuation)
@@ -12,7 +18,7 @@ internal suspend fun openLlmStream(client: LlmClientState, model: LlmModel, requ
                 val call = LlmCallState(client, lifetime.job)
                 val state = LlmStreamState(call, retention, opening)
                 context(call) {
-                    try { runLlmStream(state, caller, model, request, options) }
+                    try { runLlmStream(state, caller, options, operation) }
                     finally { call.contextActive = false; removeLlmCall(client, state) }
                 }
             }

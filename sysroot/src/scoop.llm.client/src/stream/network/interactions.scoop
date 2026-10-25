@@ -1,0 +1,37 @@
+package scoop.llm.client
+
+import scoop.asyncio.AsyncCloseable
+import scoop.platform.concurrent.Mutex
+
+/** A single consumer of original events, including streams resumed from an opaque cursor. */
+public class InteractionsEventStream internal constructor(private val stream: LlmStream, lastEventId: String?) : AsyncCloseable {
+    private val lock = Mutex()
+    private var cursor = lastEventId
+    public val lastEventId: String? get() = lock.withLock { cursor }
+    public val metadata: LlmCallMetadata get() = stream.metadata
+    public val isClosed: Boolean get() = stream.isClosed
+
+    public suspend fun next(): LlmNativeEvent? = when (stream.next()) {
+        case Some(Native(event)) -> {
+            val reported = interactionsEventString(event.value["event_id"])
+            if (reported != None) lock.withLock { cursor = reported }
+            Some(event)
+        }
+        case None -> None
+        else -> throw IllegalStateException(Some("invalid raw Interactions event projection"))
+    }
+
+    public override suspend fun close() { stream.close() }
+}
+
+internal suspend fun openLlmInteractionEvents(client: LlmClientState, endpoint: LlmEndpoint, interactionId: String,
+    lastEventId: String?, options: LlmCallOptions): InteractionsEventStream {
+    val stream = openLlmStreamOperation(client, options, StreamRetention.EventsOnly) suspend { state, timer ->
+        val protocol = storedInteractionsProtocol(endpoint)
+        val url = protocol.retrieveStreamUrl(endpoint.baseUrl, interactionId, lastEventId)
+        performLlmStreamRequest(state, endpoint, url, [], options, "GET") suspend { response, attempt ->
+            readLlmSseResponse(protocol.createEventDecoder(), protocol.dialectId, response, state, options, attempt, timer)
+        }
+    }
+    return InteractionsEventStream(stream, lastEventId)
+}
