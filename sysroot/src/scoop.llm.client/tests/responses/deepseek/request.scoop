@@ -44,7 +44,7 @@ private class DeepSeekResponsesRequestTest {
         assertEquals(0.95, thinking.encodeRequest("unknown-model", LlmRequest(dsRequest().input,
             options = LlmGenerationOptions(topP = Some(0.95))))["top_p"]!!.asDouble())
         val normal = ResponsesProtocol(DeepSeekResponsesDialect(DeepSeekTopPMode.NonThinking))
-        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.5), maxOutputTokens = Some(32L),
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.5), maxOutputTokens = Some(32UL),
             reasoning = Some(ReasoningOptions(enabled = Some(false))),
             output = JsonSchema(Json.parse("{\"type\":\"object\"}"), "answer", Some(""), Some(false)))
         val body = normal.encodeRequest("unknown-model", LlmRequest(dsRequest().input, options = options))
@@ -55,9 +55,9 @@ private class DeepSeekResponsesRequestTest {
         for ((invalid, path) in [(LlmGenerationOptions(temperature = Some(1.0)), "/options/temperature"),
             (LlmGenerationOptions(topP = Some(0.95)), "/options/topP"),
             (LlmGenerationOptions(parallelToolCalls = Some(false)), "/options/parallelToolCalls"),
-            (LlmGenerationOptions(topK = Some(1L)), "/options/topK"),
+            (LlmGenerationOptions(topK = Some(1UL)), "/options/topK"),
             (LlmGenerationOptions(stop = Some([])), "/options/stop"),
-            (LlmGenerationOptions(candidates = Some(2L)), "/options/candidates"),
+            (LlmGenerationOptions(candidates = Some(2UL)), "/options/candidates"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false), effort = Some("low")))), "/options/reasoning/enabled")])
             assertDsRequestFailure(LlmRequest(dsRequest().input, options = invalid), path)
         assertDsRequestFailure(LlmRequest(dsRequest().input, options = LlmGenerationOptions(topP = Some(0.94))), "/options/topP", thinking)

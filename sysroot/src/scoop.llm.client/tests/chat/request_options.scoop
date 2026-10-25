@@ -13,7 +13,7 @@ private class ChatRequestOptionsTest {
     fun `OpenAI options preserve explicit zero false empty stop and structured output`() {
         val schema = Json.parse("{\"type\":\"object\",\"properties\":{\"count\":{\"type\":\"integer\"}}}")
         val body = encodeChatSettings(LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0),
-            maxOutputTokens = Some(0L), candidates = Some(2L), stop = Some([]), parallelToolCalls = Some(false),
+            maxOutputTokens = Some(0UL), candidates = Some(2UL), stop = Some([]), parallelToolCalls = Some(false),
             reasoning = Some(ReasoningOptions(effort = Some("low"))), output = JsonSchema(schema, strict = Some(false))))
         assertEquals(0.0, body["temperature"]!!.asDouble())
         assertEquals(0.0, body["top_p"]!!.asDouble())
@@ -36,8 +36,8 @@ private class ChatRequestOptionsTest {
         assertEquals("/options/temperature", assertFailsWith<LlmRequestException> {
             encodeChatSettings(LlmGenerationOptions(temperature = Some(0.0)), dialect); Unit
         }.path)
-        val disabled = encodeChatSettings(LlmGenerationOptions(temperature = Some(0.0), maxOutputTokens = Some(1L),
-            candidates = Some(1L), reasoning = Some(ReasoningOptions(enabled = Some(false))), output = JsonObject), dialect)
+        val disabled = encodeChatSettings(LlmGenerationOptions(temperature = Some(0.0), maxOutputTokens = Some(1UL),
+            candidates = Some(1UL), reasoning = Some(ReasoningOptions(enabled = Some(false))), output = JsonObject), dialect)
         assertEquals("disabled", disabled["thinking"]!!["type"]!!.asString())
         assertEquals(1L, disabled["max_tokens"]!!.asLong())
         assertFalse(disabled.containsKey("n"))
@@ -56,16 +56,16 @@ private class ChatRequestOptionsTest {
     @Test
     fun `unrepresentable generation settings fail at their public input paths`() {
         assertEquals("/options/topK", assertFailsWith<LlmRequestException> {
-            encodeChatSettings(LlmGenerationOptions(topK = Some(1L))); Unit
+            encodeChatSettings(LlmGenerationOptions(topK = Some(1UL))); Unit
         }.path)
         assertEquals("/options/reasoning/budgetTokens", assertFailsWith<LlmRequestException> {
-            encodeChatSettings(LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(8L))))); Unit
+            encodeChatSettings(LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(8UL))))); Unit
         }.path)
         assertEquals("/options/reasoning/enabled", assertFailsWith<LlmRequestException> {
             encodeChatSettings(LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(true))))); Unit
         }.path)
         assertEquals("/options/candidates", assertFailsWith<LlmRequestException> {
-            encodeChatSettings(LlmGenerationOptions(candidates = Some(2L)), DeepSeekChatDialect()); Unit
+            encodeChatSettings(LlmGenerationOptions(candidates = Some(2UL)), DeepSeekChatDialect()); Unit
         }.path)
         assertEquals("/options/parallelToolCalls", assertFailsWith<LlmRequestException> {
             encodeChatSettings(LlmGenerationOptions(parallelToolCalls = Some(false)), DeepSeekChatDialect()); Unit

@@ -9,8 +9,8 @@ internal fun encodeConverseOptions(request: LlmRequest): JsonValue {
     addConverseSampling(inference, "temperature", options.temperature, "/options/temperature")
     addConverseSampling(inference, "topP", options.topP, "/options/topP")
     if (options.maxOutputTokens != None) {
-        if (options.maxOutputTokens!! < 1L) throw LlmRequestException("/options/maxOutputTokens", "Converse maxTokens must be positive")
-        inference.add("maxTokens", JsonValue.fromLong(options.maxOutputTokens!!))
+        if (options.maxOutputTokens!! < 1UL) throw LlmRequestException("/options/maxOutputTokens", "Converse maxTokens must be positive")
+        inference.add("maxTokens", JsonValue.fromULong(options.maxOutputTokens!!))
     }
     if (llmPresent(options.stop)) {
         if (options.stop!!.size > 2500L) throw LlmRequestException("/options/stop", "Converse accepts at most 2500 stop sequences")
@@ -21,7 +21,7 @@ internal fun encodeConverseOptions(request: LlmRequest): JsonValue {
         }
         inference.add("stopSequences", Json.encodeToValue(options.stop!!))
     }
-    if (options.candidates != None && options.candidates != Some(1L)) throw LlmRequestException("/options/candidates", "Converse returns one candidate")
+    if (options.candidates != None && options.candidates != Some(1UL)) throw LlmRequestException("/options/candidates", "Converse returns one candidate")
     if (options.topK != None) throw LlmRequestException("/options/topK", "Converse has no common topK setting")
     if (options.parallelToolCalls != None) throw LlmRequestException("/options/parallelToolCalls", "Converse has no parallel tool call switch")
     val output = JsonObjectBuilder()

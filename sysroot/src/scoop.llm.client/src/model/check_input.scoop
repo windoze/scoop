@@ -2,7 +2,7 @@ package scoop.llm.client
 
 import scoop.http.HttpFieldParseException
 
-private class LlmMediaCheck(val kind: InputMediaKind, val format: MediaFormat, val bytes: Long?, val path: String)
+private class LlmMediaCheck(val kind: InputMediaKind, val format: MediaFormat, val bytes: ULong?, val path: String)
 
 internal fun checkModelInput(capabilities: InputCapabilities, request: LlmRequest) {
     val media = ArrayList<LlmMediaCheck>()
@@ -54,8 +54,8 @@ private fun collectModelInput(capabilities: InputCapabilities, content: Array<Co
 }
 
 private fun modelMediaCheck(kind: InputMediaKind, source: MediaSource, path: String): LlmMediaCheck {
-    val (mime, form, bytes): (String, MediaForm, Long?) = when (source) {
-        case Bytes(data, mime) -> (mime, MediaForm.Bytes, Some(data.size))
+    val (mime, form, bytes): (String, MediaForm, ULong?) = when (source) {
+        case Bytes(data, mime) -> (mime, MediaForm.Bytes, Some(data.size.toULong()))
         case Url(_, mime) -> (mime, MediaForm.Url, None)
         case FileReference(_, mime) -> (mime, MediaForm.FileReference, None)
     }
@@ -69,7 +69,7 @@ private fun modelMediaCheck(kind: InputMediaKind, source: MediaSource, path: Str
 private fun checkMediaLimits(item: LlmMediaCheck, count: Long, limits: MediaLimits) {
     if (item.bytes != None && limits.maxBytesPerItem != None && item.bytes!! > limits.maxBytesPerItem!!)
         throw LlmRequestException(item.path, "media bytes exceed the model limit")
-    if (limits.maxItemsPerRequest != None && count > limits.maxItemsPerRequest!!)
+    if (limits.maxItemsPerRequest != None && count.toULong() > limits.maxItemsPerRequest!!)
         throw LlmRequestException(item.path, "media item count exceeds the model limit")
 }
 

@@ -8,7 +8,7 @@ import scoop.test.*
 private class ResponsesOptionsTest {
     @Test
     fun `Responses explicit zero false reasoning and output schema use their native option fields`() {
-        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0), maxOutputTokens = Some(0L), candidates = Some(1L),
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0), maxOutputTokens = Some(0UL), candidates = Some(1UL),
             parallelToolCalls = Some(false), toolChoice = None, reasoning = Some(ReasoningOptions(enabled = Some(false))),
             output = JsonSchema(Json.parse("{\"type\":\"object\"}"), "answer", Some(""), Some(false)))
         val body = ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("m", LlmRequest(responsesRequest().input, options = options))
@@ -33,13 +33,13 @@ private class ResponsesOptionsTest {
 
     @Test
     fun `Responses unsupported controls and contradictory reasoning are rejected with paths`() {
-        for ((options, path) in [(LlmGenerationOptions(topK = Some(0L)), "/options/topK"),
-            (LlmGenerationOptions(stop = Some([])), "/options/stop"), (LlmGenerationOptions(candidates = Some(2L)), "/options/candidates"),
+        for ((options, path) in [(LlmGenerationOptions(topK = Some(0UL)), "/options/topK"),
+            (LlmGenerationOptions(stop = Some([])), "/options/stop"), (LlmGenerationOptions(candidates = Some(2UL)), "/options/candidates"),
             (LlmGenerationOptions(temperature = Some(2.1)), "/options/temperature"), (LlmGenerationOptions(topP = Some(-0.1)), "/options/topP"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(true)))), "/options/reasoning/enabled"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false), effort = Some("low")))), "/options/reasoning/enabled"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("unknown")))), "/options/reasoning/effort"),
-            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(100L)))), "/options/reasoning/budgetTokens")])
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(100UL)))), "/options/reasoning/budgetTokens")])
             assertResponsesRequestFailure(LlmRequest([], options = options), path)
     }
 }

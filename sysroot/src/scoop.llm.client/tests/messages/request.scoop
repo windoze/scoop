@@ -26,7 +26,7 @@ private class MessagesRequestTest {
         assertEquals(4096L, body["max_tokens"]!!.asLong())
         assertEquals("user", body["messages"]!![0L]["role"]!!.asString())
         assertEquals("question", body["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
-        val legacy = LlmEndpoint(Providers.anthropicMessages(V20230601, 128L), LlmAuth.none())
+        val legacy = LlmEndpoint(Providers.anthropicMessages(V20230601, 128UL), LlmAuth.none())
         assertEquals("2023-06-01", String.fromUtf8(legacy.fields[0L].value))
         assertEquals(128L, legacy.provider.protocol.encodeRequest("model", messagesRequest())["max_tokens"]!!.asLong())
         assertFailsWith<IllegalArgumentException> {

@@ -4,7 +4,7 @@ import scoop.json.*
 
 internal fun encodeOpenRouterOptions(dialect: DialectId, request: LlmRequest): JsonValue {
     val options = request.options
-    if (options.candidates != None && options.candidates != Some(1L))
+    if (options.candidates != None && options.candidates != Some(1UL))
         throw LlmRequestException("/options/candidates", "OpenRouter Chat has no multiple-candidate request control")
     val result = JsonObjectBuilder()
     for ((name, setting, maximum) in [("temperature", options.temperature, 2.0), ("top_p", options.topP, 1.0)]) {
@@ -17,8 +17,8 @@ internal fun encodeOpenRouterOptions(dialect: DialectId, request: LlmRequest): J
             case None -> {}
         }
     }
-    if (options.topK != None) result.add("top_k", JsonValue.fromLong(options.topK!!))
-    if (options.maxOutputTokens != None) result.add("max_tokens", JsonValue.fromLong(options.maxOutputTokens!!))
+    if (options.topK != None) result.add("top_k", JsonValue.fromULong(options.topK!!))
+    if (options.maxOutputTokens != None) result.add("max_tokens", JsonValue.fromULong(options.maxOutputTokens!!))
     when (options.stop) { case Some(value) -> result.add("stop", Json.encodeToValue(value)); case None -> {} }
     if (options.parallelToolCalls != None) result.add("parallel_tool_calls", JsonValue.fromBoolean(options.parallelToolCalls!!))
     when (options.reasoning) { case Some(value) -> result.add("reasoning", encodeOpenRouterReasoning(value)); case None -> {} }
@@ -40,9 +40,9 @@ private fun encodeOpenRouterReasoning(options: ReasoningOptions): JsonValue {
         result.add("effort", JsonValue.fromString(effort))
     }
     if (options.budgetTokens != None) {
-        if (options.enabled == Some(false) && options.budgetTokens!! > 0L)
+        if (options.enabled == Some(false) && options.budgetTokens!! > 0UL)
             throw LlmRequestException("/options/reasoning/enabled", "disabled reasoning conflicts with a positive budget")
-        result.add("max_tokens", JsonValue.fromLong(options.budgetTokens!!))
+        result.add("max_tokens", JsonValue.fromULong(options.budgetTokens!!))
     }
     if (options.enabled != None) result.add("enabled", JsonValue.fromBoolean(options.enabled!!))
     return result.build()

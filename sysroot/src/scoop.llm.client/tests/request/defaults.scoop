@@ -39,11 +39,11 @@ private class RequestDefaultsTest {
             "{\"temperature\":0,\"maxOutputTokens\":0,\"parallelToolCalls\":false,\"stop\":[],\"reasoning\":{\"enabled\":false,\"budgetTokens\":0}}"
         )
         assertEquals(Some(0.0), options.temperature)
-        assertEquals(Some(0L), options.maxOutputTokens)
+        assertEquals(Some(0UL), options.maxOutputTokens)
         assertEquals(Some(false), options.parallelToolCalls)
         assertEquals(0L, options.stop!!.size)
         assertEquals(Some(false), options.reasoning!!.enabled)
-        assertEquals(Some(0L), options.reasoning!!.budgetTokens)
+        assertEquals(Some(0UL), options.reasoning!!.budgetTokens)
         assertEquals(None, options.reasoning!!.effort)
         val saved = Json.encodeToValue(options)
         assertFalse(saved.containsKey("topP"))
@@ -72,13 +72,9 @@ private class RequestDefaultsTest {
     fun `settings reject invalid numbers without inventing per-model sampling ranges`() {
         assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(temperature = Some(Double.POSITIVE_INFINITY)); Unit }
         assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(topP = Some(Double.NaN)); Unit }
-        assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(topK = Some(-1L)); Unit }
-        assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(maxOutputTokens = Some(-1L)); Unit }
-        assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(candidates = Some(0L)); Unit }
-        assertFailsWith<IllegalArgumentException> { val value = ReasoningOptions(budgetTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(candidates = Some(0UL)); Unit }
         assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(output = JsonSchema(Json.parse("[]"))); Unit }
-        assertFailsWith<IllegalArgumentException> { val value = Json.decodeFromString<LlmGenerationOptions>("{\"candidates\":-1}"); Unit }
-        val explicit = LlmGenerationOptions(temperature = Some(-2.0), topP = Some(3.0), candidates = Some(1L))
+        val explicit = LlmGenerationOptions(temperature = Some(-2.0), topP = Some(3.0), candidates = Some(1UL))
         assertEquals(Some(-2.0), explicit.temperature)
         assertEquals(Some(3.0), explicit.topP)
     }

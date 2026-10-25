@@ -11,8 +11,8 @@ private class GenerateContentOptionsTest {
     @Test
     fun `generateContent options preserve zero empty stop schema and explicit reasoning`() {
         val schema = Json.parse("{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}},\"required\":[\"n\"]}")
-        val config = generateContentSettings(LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0), topK = Some(0L),
-            maxOutputTokens = Some(0L), candidates = Some(2L), stop = Some([]), reasoning = Some(ReasoningOptions(enabled = Some(false))),
+        val config = generateContentSettings(LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0), topK = Some(0UL),
+            maxOutputTokens = Some(0UL), candidates = Some(2UL), stop = Some([]), reasoning = Some(ReasoningOptions(enabled = Some(false))),
             output = JsonSchema(schema)))["generationConfig"]!!
         assertEquals(0.0, config["temperature"]!!.asDouble())
         assertEquals(0.0, config["topP"]!!.asDouble())
@@ -25,7 +25,7 @@ private class GenerateContentOptionsTest {
         assertEquals(Json.stringify(schema), Json.stringify(config["responseFormat"]!!["text"]!!["schema"]!!))
         val level = generateContentSettings(LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("low")))))
         assertEquals("LOW", level["generationConfig"]!!["thinkingConfig"]!!["thinkingLevel"]!!.asString())
-        val budget = generateContentSettings(LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(17L)))))
+        val budget = generateContentSettings(LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(17UL)))))
         assertEquals(17L, budget["generationConfig"]!!["thinkingConfig"]!!["thinkingBudget"]!!.asLong())
         assertEquals("APPLICATION_JSON", generateContentSettings(LlmGenerationOptions(output = JsonObject))["generationConfig"]!!["responseFormat"]!!["text"]!!["mimeType"]!!.asString())
     }
@@ -39,7 +39,7 @@ private class GenerateContentOptionsTest {
             (LlmGenerationOptions(parallelToolCalls = Some(false)), "parallelToolCalls"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(true)))), "reasoning/enabled"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(Some(false), Some("low")))), "reasoning/enabled"),
-            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("low"), budgetTokens = Some(1L)))), "reasoning/budgetTokens"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("low"), budgetTokens = Some(1UL)))), "reasoning/budgetTokens"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("none")))), "reasoning/effort"),
             (LlmGenerationOptions(output = JsonSchema(Json.parse("{}"), name = "custom")), "output/name"),
             (LlmGenerationOptions(output = JsonSchema(Json.parse("{}"), strict = Some(false))), "output/strict")])

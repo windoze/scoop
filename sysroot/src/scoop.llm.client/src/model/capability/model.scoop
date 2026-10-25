@@ -2,18 +2,11 @@ package scoop.llm.client
 
 /** A model's independent bounds. Missing bounds are not derived from other fields. */
 public class ModelLimits public constructor(
-    public val contextWindowTokens: Long? = None,
-    public val maxInputTokens: Long? = None,
-    public val maxOutputTokens: Long? = None,
-    public val maxCandidates: Long? = None
+    public val contextWindowTokens: ULong? = None,
+    public val maxInputTokens: ULong? = None,
+    public val maxOutputTokens: ULong? = None,
+    public val maxCandidates: ULong? = None
 ) {
-    init {
-        requireNonnegativeLimit(contextWindowTokens, "contextWindowTokens")
-        requireNonnegativeLimit(maxInputTokens, "maxInputTokens")
-        requireNonnegativeLimit(maxOutputTokens, "maxOutputTokens")
-        requireNonnegativeLimit(maxCandidates, "maxCandidates")
-    }
-
     public companion object : ValueEncoder<ModelLimits>, ValueDecoder<ModelLimits>
 }
 

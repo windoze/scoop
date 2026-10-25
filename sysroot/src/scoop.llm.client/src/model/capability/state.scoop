@@ -15,8 +15,3 @@ public enum Capability<T> {
         override interface ValueDecoder<Capability<T>> where T.Companion : ValueDecoder<T> {}
     }
 }
-
-internal fun requireNonnegativeLimit(value: Long?, name: String) {
-    val count = value ?: return
-    if (count < 0L) throw IllegalArgumentException(Some(name + " must be nonnegative"))
-}

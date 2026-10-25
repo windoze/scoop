@@ -9,12 +9,12 @@ private class MediaCapabilityTest {
     @Test
     fun `format support never creates a MIME and representation cross product`() {
         val formats = MediaCapabilities([
-            MediaFormatCapability(MediaFormat("image/png", Bytes), Supported(MediaLimits(maxBytesPerItem = Some(1024L)))),
+            MediaFormatCapability(MediaFormat("image/png", Bytes), Supported(MediaLimits(maxBytesPerItem = Some(1024UL)))),
             MediaFormatCapability(MediaFormat("image/jpeg", Url), Supported(MediaLimits())),
             MediaFormatCapability(MediaFormat("image/png", FileReference), Unsupported("file IDs unavailable"))
         ])
         val input = InputCapabilities(image = Supported(formats), pdf = Unsupported("PDF input disabled"))
-        assertEquals(Some(1024L), supportedDetails(input.forMedia(Image, MediaFormat("IMAGE/PNG", Bytes))).maxBytesPerItem)
+        assertEquals(Some(1024UL), supportedDetails(input.forMedia(Image, MediaFormat("IMAGE/PNG", Bytes))).maxBytesPerItem)
         assertEquals(None, supportedDetails(input.forMedia(Image, MediaFormat("image/jpeg", Url))).maxBytesPerItem)
         assertTrue(isUnknownCapability(input.forMedia(Image, MediaFormat("image/png", Url))))
         assertTrue(isUnknownCapability(input.forMedia(Image, MediaFormat("image/jpeg", Bytes))))
@@ -64,7 +64,7 @@ private class MediaCapabilityTest {
     @Test
     fun `media kinds and directions stay independent after model serialization`() {
         val image = MediaCapabilities([MediaFormatCapability(MediaFormat("image/png", Bytes), Supported(MediaLimits()))])
-        val document = MediaCapabilities([MediaFormatCapability(MediaFormat("application/pdf", FileReference), Supported(MediaLimits(maxPagesPerItem = Some(100L))))])
+        val document = MediaCapabilities([MediaFormatCapability(MediaFormat("application/pdf", FileReference), Supported(MediaLimits(maxPagesPerItem = Some(100UL))))])
         val original = ModelCapabilities(
             input = InputCapabilities(image = Supported(image), videoFrames = Supported(image)),
             output = OutputCapabilities(document = Supported(document), audio = Unsupported("text output only"))
@@ -76,7 +76,7 @@ private class MediaCapabilityTest {
         assertTrue(isUnknownCapability(model.output.forMedia(Image, png)))
         assertEquals("text output only", unsupportedReason(model.output.forMedia(Audio, MediaFormat("audio/wav", Url))))
         val pdf = MediaFormat("application/pdf", FileReference)
-        assertEquals(Some(100L), supportedDetails(model.output.forMedia(Document, pdf)).maxPagesPerItem)
+        assertEquals(Some(100UL), supportedDetails(model.output.forMedia(Document, pdf)).maxPagesPerItem)
         assertTrue(isUnknownCapability(model.input.forMedia(Pdf, pdf)))
         assertTrue(isUnknownCapability(model.input.forMedia(Document, pdf)))
         assertTrue(isUnknownCapability(model.input.forMedia(Audio, MediaFormat("audio/wav", Bytes))))

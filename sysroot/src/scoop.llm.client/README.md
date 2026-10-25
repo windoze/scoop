@@ -85,7 +85,7 @@ val request = LlmRequest([Message([Text("用一句话解释值类型。")])])
 val search = LlmRequest(
     input = request.input,
     tools = [Server(ToolKey("web"), WebSearch())],
-    options = LlmGenerationOptions(maxOutputTokens = Some(1024L))
+    options = LlmGenerationOptions(maxOutputTokens = Some(1024UL))
 )
 val saved = Json.encodeToString(search)
 val restored = Json.decodeFromString<LlmRequest>(saved)
@@ -169,7 +169,7 @@ import scoop.llm.client.*
 
 val formats = MediaCapabilities([
     MediaFormatCapability(MediaFormat("image/png", Bytes),
-        Supported(MediaLimits(maxBytesPerItem = Some(1048576L)))),
+        Supported(MediaLimits(maxBytesPerItem = Some(1048576UL)))),
     MediaFormatCapability(MediaFormat("image/jpeg", Url), Supported(MediaLimits()))
 ])
 val capabilities = ModelCapabilities(
@@ -181,7 +181,7 @@ val pngUrl = capabilities.input.forMedia(Image, MediaFormat("image/png", Url))
 val restored = Json.decodeFromString<ModelCapabilities>(Json.encodeToString(capabilities))
 ```
 
-MIME 参数也参与格式匹配；支持音频 `rate=24000` 不自动表示支持其他采样率。缺失上限使用 None，已知零上限仍保留。生成入口会拒绝已知不支持的输入和显式控制，并检查可观察的媒体字节数、数量及生成上限。Unknown 继续交给 adapter／服务端判断，不联网下载媒体或猜测隐藏 token 数。
+MIME 参数也参与格式匹配；支持音频 `rate=24000` 不自动表示支持其他采样率。模型和媒体上限、topK、maxOutputTokens、candidates 与推理 budgetTokens 使用 `ULong`；缺失值使用 None，已知零上限仍保留。生成入口会拒绝已知不支持的输入和显式控制，并检查可观察的媒体字节数、数量及生成上限。Unknown 继续交给 adapter／服务端判断，不联网下载媒体或猜测隐藏 token 数。
 
 以上是函数内的调用片段；应用直接使用 JSON 时也应声明 `scoop:scoop.json` 依赖。Codec 使用现有 companion 的缺省实现，Long 大整数在保存与恢复时保持精确。正式合同见 [LLM client 规范](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md)。
 

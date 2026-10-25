@@ -9,7 +9,7 @@ public class MessagesProtocol public constructor(public val dialect: MessagesDia
     public override fun tokenCounter(): LlmTokenCounter? = dialect.tokenCounter()
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationFields(): Array<HttpField> = dialect.requestFields()
-    public override fun defaultMaxOutputTokens(): Long? = Some(dialect.defaultMaxOutputTokens)
+    public override fun defaultMaxOutputTokens(): ULong? = Some(dialect.defaultMaxOutputTokens)
     public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("messages").build()
     public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
         encodeMessagesRequest(dialect, modelId, request, stream, dialect.encodeOptions(request))

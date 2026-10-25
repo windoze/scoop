@@ -3,22 +3,13 @@ package scoop.llm.client
 /** Known upper bounds for one media kind and format. None leaves the corresponding limit unknown. */
 public class MediaLimits public constructor(
     /** Decoded content bytes per item, before wire encoding such as base64. */
-    public val maxBytesPerItem: Long? = None,
-    public val maxItemsPerRequest: Long? = None,
-    public val maxPagesPerItem: Long? = None,
-    public val maxDurationMillisecondsPerItem: Long? = None,
-    public val maxWidthPixels: Long? = None,
-    public val maxHeightPixels: Long? = None
+    public val maxBytesPerItem: ULong? = None,
+    public val maxItemsPerRequest: ULong? = None,
+    public val maxPagesPerItem: ULong? = None,
+    public val maxDurationMillisecondsPerItem: ULong? = None,
+    public val maxWidthPixels: ULong? = None,
+    public val maxHeightPixels: ULong? = None
 ) {
-    init {
-        requireNonnegativeLimit(maxBytesPerItem, "maxBytesPerItem")
-        requireNonnegativeLimit(maxItemsPerRequest, "maxItemsPerRequest")
-        requireNonnegativeLimit(maxPagesPerItem, "maxPagesPerItem")
-        requireNonnegativeLimit(maxDurationMillisecondsPerItem, "maxDurationMillisecondsPerItem")
-        requireNonnegativeLimit(maxWidthPixels, "maxWidthPixels")
-        requireNonnegativeLimit(maxHeightPixels, "maxHeightPixels")
-    }
-
     public companion object : ValueEncoder<MediaLimits>, ValueDecoder<MediaLimits>
 }
 

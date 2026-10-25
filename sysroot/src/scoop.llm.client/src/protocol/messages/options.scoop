@@ -5,8 +5,8 @@ import scoop.json.*
 internal fun encodeMessagesOptions(dialect: AnthropicMessagesDialect, request: LlmRequest): JsonValue {
     val options = request.options
     val maximum = options.maxOutputTokens ?: dialect.defaultMaxOutputTokens
-    val result = JsonObjectBuilder().add("max_tokens", JsonValue.fromLong(maximum))
-    if (options.candidates != None && options.candidates != Some(1L))
+    val result = JsonObjectBuilder().add("max_tokens", JsonValue.fromULong(maximum))
+    if (options.candidates != None && options.candidates != Some(1UL))
         throw LlmRequestException("/options/candidates", "Messages returns one candidate")
     if (dialect.version == V20261021) {
         if (options.temperature != None) throw LlmRequestException("/options/temperature", "API version 2026-10-21 removed temperature")
@@ -15,7 +15,7 @@ internal fun encodeMessagesOptions(dialect: AnthropicMessagesDialect, request: L
     } else {
         addMessagesSampling(result, "temperature", options.temperature, "/options/temperature")
         addMessagesSampling(result, "top_p", options.topP, "/options/topP")
-        if (options.topK != None) result.add("top_k", JsonValue.fromLong(options.topK!!))
+        if (options.topK != None) result.add("top_k", JsonValue.fromULong(options.topK!!))
     }
     if (llmPresent(options.stop)) result.add("stop_sequences", Json.encodeToValue(options.stop!!))
     appendMessagesInputOptions(result, dialect, request, Some(maximum))
@@ -23,7 +23,7 @@ internal fun encodeMessagesOptions(dialect: AnthropicMessagesDialect, request: L
 }
 
 internal fun appendMessagesInputOptions(result: JsonObjectBuilder, dialect: AnthropicMessagesDialect, request: LlmRequest,
-    maximum: Long?) {
+    maximum: ULong?) {
     val options = request.options
     val output = JsonObjectBuilder()
     val manualThinking = encodeMessagesReasoning(result, output, options.reasoning, maximum)
@@ -39,15 +39,15 @@ private fun addMessagesSampling(result: JsonObjectBuilder, name: String, value: 
     result.add(name, JsonValue.fromDouble(setting))
 }
 
-private fun encodeMessagesReasoning(result: JsonObjectBuilder, output: JsonObjectBuilder, reasoning: ReasoningOptions?, maximum: Long?): Boolean {
+private fun encodeMessagesReasoning(result: JsonObjectBuilder, output: JsonObjectBuilder, reasoning: ReasoningOptions?, maximum: ULong?): Boolean {
     val options = reasoning ?: return false
     if (options.effort != None) output.add("effort", JsonValue.fromString(options.effort!!))
     if (options.budgetTokens != None) {
         if (options.enabled == Some(false)) throw LlmRequestException("/options/reasoning/budgetTokens", "a thinking budget conflicts with disabled thinking")
         val budget = options.budgetTokens!!
-        if (budget < 1024L || (maximum != None && budget >= maximum!!))
+        if (budget < 1024UL || (maximum != None && budget >= maximum!!))
             throw LlmRequestException("/options/reasoning/budgetTokens", "manual thinking budget must be at least 1024 and below max_tokens")
-        result.add("thinking", llmTypedObject("enabled").add("budget_tokens", JsonValue.fromLong(budget)).build())
+        result.add("thinking", llmTypedObject("enabled").add("budget_tokens", JsonValue.fromULong(budget)).build())
         return true
     }
     if (options.enabled != None) result.add("thinking", llmTypedObject(if (options.enabled!!) "adaptive" else "disabled").build())

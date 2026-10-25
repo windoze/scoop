@@ -7,9 +7,9 @@ internal fun encodeGenerateContentOptions(request: LlmRequest): JsonValue {
     val result = JsonObjectBuilder()
     addGenerateContentSampling(result, "temperature", options.temperature, 2.0, "/options/temperature")
     addGenerateContentSampling(result, "topP", options.topP, 1.0, "/options/topP")
-    if (options.topK != None) result.add("topK", JsonValue.fromLong(options.topK!!))
-    if (options.maxOutputTokens != None) result.add("maxOutputTokens", JsonValue.fromLong(options.maxOutputTokens!!))
-    if (options.candidates != None) result.add("candidateCount", JsonValue.fromLong(options.candidates!!))
+    if (options.topK != None) result.add("topK", JsonValue.fromULong(options.topK!!))
+    if (options.maxOutputTokens != None) result.add("maxOutputTokens", JsonValue.fromULong(options.maxOutputTokens!!))
+    if (options.candidates != None) result.add("candidateCount", JsonValue.fromULong(options.candidates!!))
     if (llmPresent(options.stop)) {
         if (options.stop!!.size > 5L) throw LlmRequestException("/options/stop", "generateContent accepts at most five stop sequences")
         result.add("stopSequences", Json.encodeToValue(options.stop!!))
@@ -52,9 +52,9 @@ private fun generateContentThinking(reasoning: ReasoningOptions?): JsonValue {
         return result.add("thinkingLevel", JsonValue.fromString(level)).build()
     }
     if (options.budgetTokens != None) {
-        if (options.enabled != None && options.enabled!! != (options.budgetTokens!! > 0L))
+        if (options.enabled != None && options.enabled!! != (options.budgetTokens!! > 0UL))
             throw LlmRequestException("/options/reasoning/enabled", "thinking budget conflicts with enabled setting")
-        return result.add("thinkingBudget", JsonValue.fromLong(options.budgetTokens!!)).build()
+        return result.add("thinkingBudget", JsonValue.fromULong(options.budgetTokens!!)).build()
     }
     if (options.enabled == Some(true)) throw LlmRequestException("/options/reasoning/enabled", "enabling reasoning requires a budget or level")
     if (options.enabled == Some(false)) result.add("thinkingBudget", JsonValue.fromLong(0L))

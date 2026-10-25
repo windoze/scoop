@@ -47,7 +47,7 @@ private class MessagesToolRequestTest {
         val dialect = AnthropicMessagesDialect().id
         val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("tool"), "tool", Json.parse("{}"))]
         assertMessagesRequestFailure(LlmRequest(messagesRequest().input, tools = tools, options = LlmGenerationOptions(toolChoice = Required,
-            reasoning = Some(ReasoningOptions(budgetTokens = Some(1024L))))), "/options/toolChoice")
+            reasoning = Some(ReasoningOptions(budgetTokens = Some(1024UL))))), "/options/toolChoice")
         assertMessagesRequestFailure(LlmRequest(messagesRequest().input, tools = tools, options = LlmGenerationOptions(toolChoice = None,
             parallelToolCalls = Some(true))), "/options/parallelToolCalls")
         assertMessagesRequestFailure(messagesRequest([Server(ToolKey("web"), WebSearch(WebSearchOptions(allowedDomains = Some([]), excludedDomains = Some([]))))]), "/tools/0/tool/options/excludedDomains")

@@ -13,10 +13,10 @@ internal fun encodeOllamaOptions(dialect: DialectId, request: LlmRequest): JsonV
         if (options.topP!! < 0.0 || options.topP!! > 1.0) throw LlmRequestException("/options/topP", "Ollama top_p must be between zero and one")
         sampling.add("top_p", JsonValue.fromDouble(options.topP!!))
     }
-    if (options.topK != None) sampling.add("top_k", JsonValue.fromLong(options.topK!!))
-    if (options.maxOutputTokens != None) sampling.add("num_predict", JsonValue.fromLong(options.maxOutputTokens!!))
+    if (options.topK != None) sampling.add("top_k", JsonValue.fromULong(options.topK!!))
+    if (options.maxOutputTokens != None) sampling.add("num_predict", JsonValue.fromULong(options.maxOutputTokens!!))
     if (llmPresent(options.stop)) sampling.add("stop", Json.encodeToValue(options.stop!!))
-    if (options.candidates != None && options.candidates != Some(1L)) throw LlmRequestException("/options/candidates", "Ollama returns one candidate")
+    if (options.candidates != None && options.candidates != Some(1UL)) throw LlmRequestException("/options/candidates", "Ollama returns one candidate")
     if (options.parallelToolCalls != None) throw LlmRequestException("/options/parallelToolCalls", "Ollama has no parallel tool call switch")
     val result = JsonObjectBuilder()
     val nativeOptions = sampling.build()

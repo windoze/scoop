@@ -35,8 +35,8 @@ private class LlmBindingTest {
                 LlmRequest(sampleRequest.input, options = LlmGenerationOptions(temperature = Some(0.0))), "/options/temperature"),
             (ModelCapabilities(parallelToolCalls = Unsupported("no control")),
                 LlmRequest(sampleRequest.input, options = LlmGenerationOptions(parallelToolCalls = Some(false))), "/options/parallelToolCalls"),
-            (ModelCapabilities(limits = ModelLimits(maxOutputTokens = Some(5L))),
-                LlmRequest(sampleRequest.input, options = LlmGenerationOptions(maxOutputTokens = Some(6L))), "/options/maxOutputTokens"),
+            (ModelCapabilities(limits = ModelLimits(maxOutputTokens = Some(5UL))),
+                LlmRequest(sampleRequest.input, options = LlmGenerationOptions(maxOutputTokens = Some(6UL))), "/options/maxOutputTokens"),
             (ModelCapabilities(input = InputCapabilities(pdf = Unsupported("no PDF"))),
                 LlmRequest([Message([Document(MediaSource.Bytes([1.toByte()], "application/pdf"))])]), "/input/0/content/0/source")
         ]
@@ -63,7 +63,7 @@ private class LlmBindingTest {
     @Test
     fun `model media limits apply to known bytes and request counts across messages`() {
         val formats = MediaCapabilities([MediaFormatCapability(MediaFormat("image/png", MediaForm.Bytes),
-            Supported(MediaLimits(maxBytesPerItem = Some(2L), maxItemsPerRequest = Some(1L))))])
+            Supported(MediaLimits(maxBytesPerItem = Some(2UL), maxItemsPerRequest = Some(1UL))))])
         val capabilities = ModelCapabilities(input = InputCapabilities(image = Supported(formats)))
         val small = ContentPart.Image(MediaSource.Bytes([1.toByte()], "image/png"))
         val large = ContentPart.Image(MediaSource.Bytes([1.toByte(), 2.toByte(), 3.toByte()], "image/png"))

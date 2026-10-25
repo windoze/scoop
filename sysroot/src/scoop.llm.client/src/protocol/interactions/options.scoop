@@ -10,7 +10,7 @@ internal fun encodeInteractionsOptions(dialect: DialectId, request: LlmRequest):
     if (options.candidates != None) throw LlmRequestException("/options/candidates", "Interactions returns one resource per request")
     if (options.parallelToolCalls != None) throw LlmRequestException("/options/parallelToolCalls", "Interactions has no parallel tool call switch")
     val config = JsonObjectBuilder()
-    if (options.maxOutputTokens != None) config.add("max_output_tokens", JsonValue.fromLong(options.maxOutputTokens!!))
+    if (options.maxOutputTokens != None) config.add("max_output_tokens", JsonValue.fromULong(options.maxOutputTokens!!))
     if (llmPresent(options.stop)) config.add("stop_sequences", Json.encodeToValue(options.stop!!))
     encodeInteractionsThinking(config, options.reasoning)
     val (tools, choice) = encodeInteractionsTools(dialect, request)

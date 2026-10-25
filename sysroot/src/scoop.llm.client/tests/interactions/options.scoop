@@ -8,7 +8,7 @@ import scoop.test.*
 private class InteractionsOptionsTest {
     @Test
     fun `Interactions output constraints thinking and explicit zero or empty values use their native containers`() {
-        val options = LlmGenerationOptions(maxOutputTokens = Some(0L), stop = Some([]),
+        val options = LlmGenerationOptions(maxOutputTokens = Some(0UL), stop = Some([]),
             reasoning = Some(ReasoningOptions(effort = Some("low"))), output = JsonSchema(Json.parse("{\"type\":\"object\",\"future\":1e400}")))
         val value = interactionsEncode(LlmRequest([], options = options, extensions = interactionsExtension(
             "{\"generation_config\":{\"seed\":0,\"thinking_summaries\":\"none\"},\"background\":false}")))
@@ -27,9 +27,9 @@ private class InteractionsOptionsTest {
     @Test
     fun `Interactions unsupported controls are rejected even when their explicit values are zero or false`() {
         for ((options, path) in [(LlmGenerationOptions(temperature = Some(0.0)), "temperature"), (LlmGenerationOptions(topP = Some(0.0)), "topP"),
-            (LlmGenerationOptions(topK = Some(0L)), "topK"), (LlmGenerationOptions(candidates = Some(1L)), "candidates"),
+            (LlmGenerationOptions(topK = Some(0UL)), "topK"), (LlmGenerationOptions(candidates = Some(1UL)), "candidates"),
             (LlmGenerationOptions(parallelToolCalls = Some(false)), "parallelToolCalls"),
-            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(0L)))), "reasoning/budgetTokens"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(0UL)))), "reasoning/budgetTokens"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false)))), "reasoning/enabled"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(true)))), "reasoning/enabled"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("none")))), "reasoning/effort"),

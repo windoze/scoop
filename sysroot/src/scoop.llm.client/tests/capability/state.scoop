@@ -47,7 +47,7 @@ private class CapabilityStateTest {
                 supportedKeywords = Some(["type", "properties", "required"])
             ))),
             reasoning = ReasoningCapabilities(effort = Supported(Unit)),
-            limits = ModelLimits(maxInputTokens = Some(32768L), maxCandidates = Some(1L))
+            limits = ModelLimits(maxInputTokens = Some(32768UL), maxCandidates = Some(1UL))
         )
         val restored = Json.decodeFromString<ModelCapabilities>(Json.encodeToString(model))
         assertEquals(Unit, supportedDetails(restored.streaming))
@@ -67,8 +67,8 @@ private class CapabilityStateTest {
         assertEquals("properties", keywords[1L])
         assertTrue(isUnknownCapability(restored.reasoning.enable))
         assertTrue(isUnknownCapability(restored.reasoning.budgetTokens))
-        assertEquals(Some(32768L), restored.limits.maxInputTokens)
-        assertEquals(Some(1L), restored.limits.maxCandidates)
+        assertEquals(Some(32768UL), restored.limits.maxInputTokens)
+        assertEquals(Some(1UL), restored.limits.maxCandidates)
         assertEquals(None, restored.limits.contextWindowTokens)
     }
 

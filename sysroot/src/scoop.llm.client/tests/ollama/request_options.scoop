@@ -8,8 +8,8 @@ import scoop.test.*
 private class OllamaRequestOptionsTest {
     @Test
     fun `Ollama explicit zero sampling empty stops and model defined thinking levels survive serialization`() {
-        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0), topK = Some(0L),
-            maxOutputTokens = Some(0L), stop = Some([]), candidates = Some(1L), reasoning = Some(ReasoningOptions(effort = Some("MODEL_LEVEL"))))
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0), topK = Some(0UL),
+            maxOutputTokens = Some(0UL), stop = Some([]), candidates = Some(1UL), reasoning = Some(ReasoningOptions(effort = Some("MODEL_LEVEL"))))
         val request = Json.decodeFromString<LlmRequest>(Json.encodeToString(ollamaInput(options)))
         val body = ollamaEncode(request)
         val sampling = body["options"]!!
@@ -32,11 +32,11 @@ private class OllamaRequestOptionsTest {
             (LlmGenerationOptions(temperature = Some(-0.1)), "/options/temperature"),
             (LlmGenerationOptions(topP = Some(1.1)), "/options/topP"),
             (LlmGenerationOptions(topP = Some(-0.1)), "/options/topP"),
-            (LlmGenerationOptions(candidates = Some(2L)), "/options/candidates"),
+            (LlmGenerationOptions(candidates = Some(2UL)), "/options/candidates"),
             (LlmGenerationOptions(parallelToolCalls = Some(false)), "/options/parallelToolCalls"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("")))), "/options/reasoning/effort"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false), effort = Some("low")))), "/options/reasoning/effort"),
-            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(1L)))), "/options/reasoning/budgetTokens")]
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(1UL)))), "/options/reasoning/budgetTokens")]
         for ((options, path) in invalid) assertOllamaRequestFailure(ollamaInput(options), path)
     }
 

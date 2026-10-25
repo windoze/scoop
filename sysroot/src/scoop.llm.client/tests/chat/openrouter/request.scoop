@@ -30,9 +30,9 @@ private class OpenRouterRequestTest {
 
     @Test
     fun `OpenRouter Chat explicit controls encode without guessed model reasoning defaults`() {
-        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(1.0), topK = Some(0L),
-            maxOutputTokens = Some(32L), stop = Some([]), parallelToolCalls = Some(false), candidates = Some(1L),
-            reasoning = Some(ReasoningOptions(enabled = Some(true), budgetTokens = Some(16L))),
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(1.0), topK = Some(0UL),
+            maxOutputTokens = Some(32UL), stop = Some([]), parallelToolCalls = Some(false), candidates = Some(1UL),
+            reasoning = Some(ReasoningOptions(enabled = Some(true), budgetTokens = Some(16UL))),
             output = JsonSchema(Json.parse("{\"type\":\"object\"}"), "answer", strict = Some(false)))
         val wire = router.encodeRequest("model", LlmRequest(routerRequest().input, options = options))
         assertEquals(0L, wire["top_k"]!!.asLong())
@@ -42,10 +42,10 @@ private class OpenRouterRequestTest {
         assertEquals(16L, wire["reasoning"]!!["max_tokens"]!!.asLong())
         assertFalse(wire["response_format"]!!["json_schema"]!!["strict"]!!.asBoolean())
         for ((invalid, path) in [
-            (LlmGenerationOptions(candidates = Some(2L)), "/options/candidates"),
+            (LlmGenerationOptions(candidates = Some(2UL)), "/options/candidates"),
             (LlmGenerationOptions(temperature = Some(2.1)), "/options/temperature"),
             (LlmGenerationOptions(topP = Some(-0.1)), "/options/topP"),
-            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("high"), budgetTokens = Some(1L)))), "/options/reasoning"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("high"), budgetTokens = Some(1UL)))), "/options/reasoning"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false), effort = Some("low")))), "/options/reasoning/enabled")
         ]) assertRouterFailure(LlmRequest(routerRequest().input, options = invalid), path)
         assertRouterFailure(LlmRequest(routerRequest().input, options = options,

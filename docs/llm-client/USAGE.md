@@ -145,7 +145,7 @@ suspend fun compareDocument(
             Document(MediaSource.Bytes(pdfBytes, mimeType = "application/pdf"))
         ])],
         system = [Text("根据输入材料作答，并说明材料不足之处。")],
-        options = LlmGenerationOptions(maxOutputTokens = Some(1024L))
+        options = LlmGenerationOptions(maxOutputTokens = Some(1024UL))
     )
     return client.generate(model, request)
 }

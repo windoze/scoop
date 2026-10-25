@@ -22,13 +22,13 @@ internal fun encodeChatOptions(dialect: DialectId, request: LlmRequest, deepSeek
     }
     if (options.maxOutputTokens != None) {
         val value = options.maxOutputTokens!!
-        if (deepSeek && (value < 1L || value > 393216L)) throw LlmRequestException("/options/maxOutputTokens", "DeepSeek max_tokens must be from 1 to 393216")
-        result.add(if (deepSeek) "max_tokens" else "max_completion_tokens", JsonValue.fromLong(value))
+        if (deepSeek && (value < 1UL || value > 393216UL)) throw LlmRequestException("/options/maxOutputTokens", "DeepSeek max_tokens must be from 1 to 393216")
+        result.add(if (deepSeek) "max_tokens" else "max_completion_tokens", JsonValue.fromULong(value))
     }
     if (options.candidates != None) {
         if (deepSeek) {
-            if (options.candidates!! != 1L) throw LlmRequestException("/options/candidates", "DeepSeek Chat returns one candidate")
-        } else result.add("n", JsonValue.fromLong(options.candidates!!))
+            if (options.candidates!! != 1UL) throw LlmRequestException("/options/candidates", "DeepSeek Chat returns one candidate")
+        } else result.add("n", JsonValue.fromULong(options.candidates!!))
     }
     when (options.stop) {
         case Some(values) -> {

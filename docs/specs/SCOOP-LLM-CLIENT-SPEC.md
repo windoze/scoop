@@ -40,7 +40,7 @@ TokenUsage 不根据字段名猜测供应商原生口径，不自动求和、补
 
 `MediaFormatCapability(format, support)` 指定一个精确组合的 `Capability<MediaLimits>`。`MediaCapabilities(formats = [])` 保存这组事实；重复组合在构造时失败，即使两项状态相同。`forFormat(format)` 只返回匹配项；未列出的组合返回 Unknown。它不是白名单，也不把所有 MIME 与所有形式求笛卡尔积。上层能力为 Unsupported 或 Unknown 时，查询返回相应状态；上层 Supported 也不能让缺失组合变为 Supported。
 
-`MediaLimits` 的下列 Long? 字段缺省 None，表示未知上限；已知上限必须非负，零仍是明确上限：
+`MediaLimits` 的下列 ULong? 字段缺省 None，表示未知上限；非负性由类型表达，零仍是明确上限：
 
 | 字段 | 单位和范围 |
 | --- | --- |
@@ -62,7 +62,7 @@ TokenUsage 不根据字段名猜测供应商原生口径，不自动求和、补
 
 `StructuredOutputCapabilities` 分别描述 jsonObject、jsonSchema、strictJsonSchema。其中 strictJsonSchema 为 `Capability<Unit>`，jsonSchema 为 `Capability<JsonSchemaCapabilities>`；后者的 `dialect: String?` 可保存明确的 schema dialect URI，`supportedKeywords: Array<String>?` 可保存明确可用的关键字集合。None 是未知，Some([]) 是已知空集合。单个关键字存在不意味着任意 schema／工具组合有效，实际适配器仍按协议检查完整请求。`ReasoningCapabilities` 分别描述 enable、effort、budgetTokens 的可配置性；不表示模型一定返回 reasoning 文本。
 
-`ModelLimits(contextWindowTokens, maxInputTokens, maxOutputTokens, maxCandidates)` 均为 Long?，缺省 None，出现时必须非负；不同计量口径不相加，也不依据其中一项补齐其他项。
+`ModelLimits(contextWindowTokens, maxInputTokens, maxOutputTokens, maxCandidates)` 均为 ULong?，缺省 None，零和 ULong.MAX_VALUE 均可明确保存；不同计量口径不相加，也不依据其中一项补齐其他项。
 
 以上类型均可使用 companion codec 保存和恢复，构造检查同样适用于解码。token 计数入口随其操作合同定义；不能由响应 usage 推断。当前数据描述不提前查询模型目录，也不建立通用规则 DSL。
 
@@ -123,9 +123,9 @@ ToolChoice 为 Auto、None、Required、Specific(ToolKey)，缺省 Auto。构造
 
 ### 3.4 生成设置与保存
 
-LlmGenerationOptions 的 temperature、topP 为 Double?；topK、maxOutputTokens、candidates 为 Long?；stop 为 Array<String>?；parallelToolCalls 为 Boolean?，均缺省 None。Double 必须有限，整数必须非负，已填写的 candidates 必须大于零；各模型的范围、空 stop 的含义及功能组合由具体 adapter／capability 判断。不设跨模型的固定温度范围，不自动补采样参数。
+LlmGenerationOptions 的 temperature、topP 为 Double?；topK、maxOutputTokens、candidates 为 ULong?；stop 为 Array<String>?；parallelToolCalls 为 Boolean?，均缺省 None。Double 必须有限，整数的非负性由 ULong 表达，已填写的 candidates 必须大于零；各模型的范围、空 stop 的含义及功能组合由具体 adapter／capability 判断。不设跨模型的固定温度范围，不自动补采样参数。
 
-reasoning 为 ReasoningOptions?，其中 enabled、effort、budgetTokens 均可缺失；预算为非负 Long，effort 按原字符串保留，具体允许值由 dialect 定义。output 缺省 OutputFormat.Text，另外有 JsonObject 和 JsonSchema(schema, name = "response", description = None, strict = None)。schema 必须为 object；名称与 schema 子集按所选协议检查，不从 ValueDecoder 反推 schema。
+reasoning 为 ReasoningOptions?，其中 enabled、effort、budgetTokens 均可缺失；预算为 ULong，effort 按原字符串保留，具体允许值由 dialect 定义。output 缺省 OutputFormat.Text，另外有 JsonObject 和 JsonSchema(schema, name = "response", description = None, strict = None)。schema 必须为 object；名称与 schema 子集按所选协议检查，不从 ValueDecoder 反推 schema。
 
 所有上述请求数据提供 companion JSON codec，普通 record／enum 使用语言缺省合成；缺失字段按声明恢复默认值，None 与显式 false／零／空集合保持区别。JsonValue 保留数字 token、字段顺序和未知字段。构造检查同样适用于解码；协议 wire 编码另外实现，不把公共 enum 的保存格式直接发送给供应商。
 
@@ -295,7 +295,7 @@ Anthropic input_tokens 是非缓存输入；cache_read_input_tokens、cache_crea
 
 ## 13. Messages 请求与普通生成
 
-`Providers.anthropicMessages(version = V20261021, defaultMaxOutputTokens = 4096L)` 包装 MessagesProtocol 与 AnthropicMessagesDialect，缺省 base URL 为 https://api.anthropic.com/v1。`AnthropicMessagesVersion` 明确区分 V20230601 与 V20261021，决定 anthropic-version 及已知版本规则，不按模型 ID 推断。max_tokens 为必需字段；请求省略 maxOutputTokens 时使用非负的 dialect 缺省，显式值（含零）覆盖它。默认上限也要通过模型的已知 maxOutputTokens 检查，不静默缩小请求或改变模型绑定。普通 generate 与第 14 节的 openStream 共用该默认值与能力检查。
+`Providers.anthropicMessages(version = V20261021, defaultMaxOutputTokens = 4096UL)` 包装 MessagesProtocol 与 AnthropicMessagesDialect，缺省 base URL 为 https://api.anthropic.com/v1。`AnthropicMessagesVersion` 明确区分 V20230601 与 V20261021，决定 anthropic-version 及已知版本规则，不按模型 ID 推断。max_tokens 为必需字段；请求省略 maxOutputTokens 时使用 ULong 类型的 dialect 缺省，显式值（含零）覆盖它。LlmGenerationProtocol.defaultMaxOutputTokens() 返回 ULong?，默认上限也要通过模型的已知 maxOutputTokens 检查，不静默缩小请求或改变模型绑定。普通 generate 与第 14 节的 openStream 共用该默认值与能力检查。
 
 `LlmGenerationProtocol.generationFields()` 缺省返回空数组，defaultMaxOutputTokens() 缺省 None。前者提供该协议／方言的固定请求头，后者用于能力检查中的有效缺省上限。LlmEndpoint.fields 组合固定头与应用字段，应用不能重复固定头名称而造成版本与编码规则不一致；认证看到组合后的真实字段。Chat 的空头和省略上限行为保持不变。MessagesDialect 提供 requestFields、defaultMaxOutputTokens、encodeOptions 与 encodeContent 的协议专用合同；MessagesProtocol 在 base URL 后追加 messages，并复用公共 HTTP 调用、重试、计时和完成通知。
 

@@ -16,9 +16,8 @@ public enum OutputFormat {
 public class ReasoningOptions public constructor(
     public val enabled: Boolean? = None,
     public val effort: String? = None,
-    public val budgetTokens: Long? = None
+    public val budgetTokens: ULong? = None
 ) {
-    init { requireNonnegativeLimit(budgetTokens, "reasoning budgetTokens") }
     public companion object : ValueEncoder<ReasoningOptions>, ValueDecoder<ReasoningOptions>
 }
 
@@ -26,9 +25,9 @@ public class ReasoningOptions public constructor(
 public class LlmGenerationOptions public constructor(
     public val temperature: Double? = None,
     public val topP: Double? = None,
-    public val topK: Long? = None,
-    public val maxOutputTokens: Long? = None,
-    public val candidates: Long? = None,
+    public val topK: ULong? = None,
+    public val maxOutputTokens: ULong? = None,
+    public val candidates: ULong? = None,
     public val stop: Array<String>? = None,
     public val parallelToolCalls: Boolean? = None,
     public val toolChoice: ToolChoice = ToolChoice.Auto,
@@ -38,9 +37,7 @@ public class LlmGenerationOptions public constructor(
     init {
         checkFiniteSetting(temperature, "temperature")
         checkFiniteSetting(topP, "topP")
-        requireNonnegativeLimit(topK, "topK")
-        requireNonnegativeLimit(maxOutputTokens, "maxOutputTokens")
-        if (candidates != None && candidates!! <= 0L)
+        if (candidates != None && candidates!! == 0UL)
             throw IllegalArgumentException(Some("candidates must be positive"))
         checkOutputFormat(output)
     }

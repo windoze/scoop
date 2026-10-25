@@ -16,7 +16,7 @@ private class GenerateContentCountTest {
         val request = LlmRequest([History(LlmHistory(dialect.id, [history])), Message([Text("question"),
             Image(MediaSource.Bytes([1.toByte()], "image/png"))])], system = [Text("system")],
             tools = [ClientFunction(ToolKey("f"), "lookup", Json.parse("{\"type\":\"object\"}"))],
-            options = LlmGenerationOptions(maxOutputTokens = Some(32L), output = JsonObject),
+            options = LlmGenerationOptions(maxOutputTokens = Some(32UL), output = JsonObject),
             extensions = [DialectExtension(dialect.id, Json.parse("{\"cachedContent\":\"cachedContents/saved\",\"generationConfig\":{\"seed\":0}}"))])
         val counted = counter.encodeRequest("models/example", request)
         assertEquals(1L, counted.size)

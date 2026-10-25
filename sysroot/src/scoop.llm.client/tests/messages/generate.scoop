@@ -15,7 +15,7 @@ private class MessagesGenerationTest {
     fun `Messages ordinary generation binds version authentication default limit usage and actual timestamps`() {
         withLlmServer suspend { _, scope, listener, original ->
             val auth = RecordingAuth()
-            val endpoint = LlmEndpoint(Providers.anthropicMessages(defaultMaxOutputTokens = 256L), auth,
+            val endpoint = LlmEndpoint(Providers.anthropicMessages(defaultMaxOutputTokens = 256UL), auth,
                 Some(Url.parse(original.baseUrl.toString() + "/deployment?scope=one")))
             val serving = scope.launch suspend {
                 AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
@@ -50,7 +50,7 @@ private class MessagesGenerationTest {
             withLlmClient suspend { client ->
                 val auth = RecordingAuth()
                 val endpoint = LlmEndpoint(Providers.anthropicMessages(), auth)
-                val model = endpoint.model("model", Some(ModelCapabilities(limits = ModelLimits(maxOutputTokens = Some(128L)))))
+                val model = endpoint.model("model", Some(ModelCapabilities(limits = ModelLimits(maxOutputTokens = Some(128UL)))))
                 val finished = FinishedCalls()
                 val failure = expectLlmFailure<LlmRequestException> suspend {
                     client.generate(model, sampleRequest, LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit

@@ -24,7 +24,7 @@ internal fun responsesCountRequest(): LlmRequest {
     for (item in response.toInput()) input.add(item)
     input.add(LlmInputItem.ToolResult(response.clientToolCalls[0].reference, [Text("{\"metadata\":\"tool output\"}")]))
     return LlmRequest(input.toArray(), system = [Text("system")], tools = tools,
-        options = LlmGenerationOptions(temperature = Some(0.4), topP = Some(0.9), maxOutputTokens = Some(64L),
+        options = LlmGenerationOptions(temperature = Some(0.4), topP = Some(0.9), maxOutputTokens = Some(64UL),
             parallelToolCalls = Some(false), toolChoice = Specific(ToolKey("function")),
             reasoning = Some(ReasoningOptions(effort = Some("low"))),
             output = JsonSchema(Json.parse("{\"type\":\"object\"}"), strict = Some(true))),

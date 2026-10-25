@@ -9,7 +9,7 @@ private class ConverseOptionsTest {
     @Test
     fun `Converse inference output schema and model extensions compose without inventing defaults`() {
         val schema = Json.parse("{\"type\":\"object\",\"additionalProperties\":false,\"future\":1e400}")
-        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(1.0), maxOutputTokens = Some(1L), candidates = Some(1L), stop = Some([]),
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(1.0), maxOutputTokens = Some(1UL), candidates = Some(1UL), stop = Some([]),
             reasoning = Some(ReasoningOptions(effort = Some("low"))), output = JsonSchema(schema, "answer", Some(""), Some(true)))
         val value = converseEncode(LlmRequest([], options = options, extensions = converseExtension(
             "{\"additionalModelRequestFields\":{\"thinking\":{\"type\":\"adaptive\"}},\"inferenceConfig\":{\"future\":false},\"outputConfig\":{\"extra\":0}}")))
@@ -34,11 +34,11 @@ private class ConverseOptionsTest {
     @Test
     fun `Converse explicit unsupported controls and protocol limits report their input paths`() {
         for ((options, path) in [(LlmGenerationOptions(temperature = Some(1.01)), "temperature"), (LlmGenerationOptions(topP = Some(-0.1)), "topP"),
-            (LlmGenerationOptions(maxOutputTokens = Some(0L)), "maxOutputTokens"), (LlmGenerationOptions(candidates = Some(2L)), "candidates"),
-            (LlmGenerationOptions(stop = Some(["ok", ""])), "stop/1"), (LlmGenerationOptions(topK = Some(0L)), "topK"),
+            (LlmGenerationOptions(maxOutputTokens = Some(0UL)), "maxOutputTokens"), (LlmGenerationOptions(candidates = Some(2UL)), "candidates"),
+            (LlmGenerationOptions(stop = Some(["ok", ""])), "stop/1"), (LlmGenerationOptions(topK = Some(0UL)), "topK"),
             (LlmGenerationOptions(parallelToolCalls = Some(false)), "parallelToolCalls"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false)))), "reasoning/enabled"),
-            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(0L)))), "reasoning/budgetTokens"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(0UL)))), "reasoning/budgetTokens"),
             (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("none")))), "reasoning/effort"),
             (LlmGenerationOptions(output = JsonObject), "output"),
             (LlmGenerationOptions(output = JsonSchema(Json.parse("{}"), strict = Some(false))), "output/strict")])

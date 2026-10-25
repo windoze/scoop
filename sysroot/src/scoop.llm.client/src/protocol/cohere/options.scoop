@@ -14,18 +14,18 @@ internal fun encodeCohereOptions(dialect: DialectId, request: LlmRequest): JsonV
         result.add("p", JsonValue.fromDouble(options.topP!!))
     }
     if (options.topK != None) {
-        if (options.topK!! > 500L) throw LlmRequestException("/options/topK", "Cohere k must be between 0 and 500")
-        result.add("k", JsonValue.fromLong(options.topK!!))
+        if (options.topK!! > 500UL) throw LlmRequestException("/options/topK", "Cohere k must be between 0 and 500")
+        result.add("k", JsonValue.fromULong(options.topK!!))
     }
     if (options.maxOutputTokens != None) {
-        if (options.maxOutputTokens!! == 0L) throw LlmRequestException("/options/maxOutputTokens", "Cohere max_tokens must be positive")
-        result.add("max_tokens", JsonValue.fromLong(options.maxOutputTokens!!))
+        if (options.maxOutputTokens!! == 0UL) throw LlmRequestException("/options/maxOutputTokens", "Cohere max_tokens must be positive")
+        result.add("max_tokens", JsonValue.fromULong(options.maxOutputTokens!!))
     }
     if (llmPresent(options.stop)) {
         if (options.stop!!.size > 5L) throw LlmRequestException("/options/stop", "Cohere accepts at most five stop sequences")
         result.add("stop_sequences", Json.encodeToValue(options.stop!!))
     }
-    if (options.candidates != None && options.candidates != Some(1L)) throw LlmRequestException("/options/candidates", "Cohere returns one candidate")
+    if (options.candidates != None && options.candidates != Some(1UL)) throw LlmRequestException("/options/candidates", "Cohere returns one candidate")
     if (options.parallelToolCalls != None) throw LlmRequestException("/options/parallelToolCalls", "Cohere has no parallel tool call switch")
     encodeCohereReasoning(result, options.reasoning)
     encodeCohereOutput(result, options.output)
@@ -37,9 +37,9 @@ private fun encodeCohereReasoning(result: JsonObjectBuilder, reasoning: Reasonin
     val options = reasoning ?: return
     if (options.effort != None) throw LlmRequestException("/options/reasoning/effort", "Cohere has no thinking effort field")
     if (options.budgetTokens != None) {
-        if (options.enabled == Some(false) || options.budgetTokens!! == 0L)
+        if (options.enabled == Some(false) || options.budgetTokens!! == 0UL)
             throw LlmRequestException("/options/reasoning/budgetTokens", "a thinking budget must be positive and requires enabled thinking")
-        result.add("thinking", llmTypedObject("enabled").add("token_budget", JsonValue.fromLong(options.budgetTokens!!)).build())
+        result.add("thinking", llmTypedObject("enabled").add("token_budget", JsonValue.fromULong(options.budgetTokens!!)).build())
     } else if (options.enabled != None) result.add("thinking", llmTypedObject(if (options.enabled!!) "enabled" else "disabled").build())
 }
 

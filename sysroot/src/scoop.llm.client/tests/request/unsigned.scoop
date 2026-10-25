@@ -1,0 +1,76 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.test.*
+
+@Test
+private class UnsignedRequestTest {
+    @Test
+    fun `ULong request quantities survive codecs without a signed intermediate`() {
+        val original = LlmGenerationOptions(topK = Some(9223372036854775808UL), maxOutputTokens = Some(ULong.MAX_VALUE),
+            candidates = Some(1UL), reasoning = Some(ReasoningOptions(budgetTokens = Some(ULong.MAX_VALUE))))
+        val restored = Json.decodeFromString<LlmGenerationOptions>(Json.encodeToString(original))
+        assertEquals(original.topK, restored.topK)
+        assertEquals(original.maxOutputTokens, restored.maxOutputTokens)
+        assertEquals(original.candidates, restored.candidates)
+        assertEquals(original.reasoning!!.budgetTokens, restored.reasoning!!.budgetTokens)
+        for ((source, path) in [("{\"topK\":-1}", "/topK"), ("{\"maxOutputTokens\":18446744073709551616}", "/maxOutputTokens"),
+            ("{\"candidates\":-1}", "/candidates"), ("{\"reasoning\":{\"budgetTokens\":-1}}", "/reasoning/budgetTokens")]) {
+            val error = assertFailsWith<DecodingException> { val invalid = Json.decodeFromString<LlmGenerationOptions>(source); Unit }
+            assertEquals(path, error.path)
+        }
+    }
+
+    @Test
+    fun `ULong output limits use exact JSON numbers in every protocol`() {
+        val cases: Array<(LlmProvider, String, String)> = [
+            (Providers.openAiChat(), "", "max_completion_tokens"), (Providers.openRouterChat(), "", "max_tokens"),
+            (Providers.openAiResponses(), "", "max_output_tokens"), (Providers.deepSeekResponses(), "", "max_output_tokens"),
+            (Providers.anthropicMessages(), "", "max_tokens"),
+            (Providers.geminiGenerateContent(), "generationConfig", "maxOutputTokens"),
+            (Providers.geminiInteractions(), "generation_config", "max_output_tokens"),
+            (Providers.bedrockConverse(), "inferenceConfig", "maxTokens"), (Providers.cohereChat(), "", "max_tokens"),
+            (Providers.ollamaChat(), "options", "num_predict")
+        ]
+        val request = LlmRequest([Message([Text("hello")])], options = LlmGenerationOptions(maxOutputTokens = Some(ULong.MAX_VALUE)))
+        for ((provider, group, field) in cases) {
+            val body = provider.protocol.encodeRequest("model", request)
+            val config = if (group == "") body else body[group]!!
+            assertEquals("18446744073709551615", config[field]!!.asNumberToken())
+        }
+        val protocol = Providers.anthropicMessages(defaultMaxOutputTokens = ULong.MAX_VALUE).protocol
+        assertEquals(Some(ULong.MAX_VALUE), protocol.defaultMaxOutputTokens())
+        assertEquals(ULong.MAX_VALUE, protocol.encodeRequest("model", LlmRequest(request.input))["max_tokens"]!!.asULong())
+        val error = assertFailsWith<LlmRequestException> { Providers.deepSeekChat().protocol.encodeRequest("model", request); Unit }
+        assertEquals("/options/maxOutputTokens", error.path)
+    }
+
+    @Test
+    fun `ULong top k candidates and reasoning budgets encode without narrowing`() {
+        val options = LlmGenerationOptions(topK = Some(ULong.MAX_VALUE), candidates = Some(ULong.MAX_VALUE),
+            reasoning = Some(ReasoningOptions(budgetTokens = Some(ULong.MAX_VALUE))))
+        val request = LlmRequest([Message([Text("hello")])], options = options)
+        val config = Providers.geminiGenerateContent().protocol.encodeRequest("model", request)["generationConfig"]!!
+        assertEquals(ULong.MAX_VALUE, config["topK"]!!.asULong())
+        assertEquals(ULong.MAX_VALUE, config["candidateCount"]!!.asULong())
+        assertEquals(ULong.MAX_VALUE, config["thinkingConfig"]!!["thinkingBudget"]!!.asULong())
+        val messages = Providers.anthropicMessages().protocol.encodeRequest("model", LlmRequest(request.input,
+            options = LlmGenerationOptions(maxOutputTokens = Some(ULong.MAX_VALUE),
+                reasoning = Some(ReasoningOptions(budgetTokens = Some(9223372036854775808UL))))))
+        assertEquals(9223372036854775808UL, messages["thinking"]!!["budget_tokens"]!!.asULong())
+    }
+
+    @Test
+    fun `ULong model limits compare above the signed range and keep zero meaningful`() {
+        val request = LlmRequest([Message([Text("hello")])], options = LlmGenerationOptions(maxOutputTokens = Some(ULong.MAX_VALUE)))
+        checkModelRequest(ModelCapabilities(limits = ModelLimits(maxOutputTokens = Some(ULong.MAX_VALUE))), request)
+        for (maximum in [0UL, 9223372036854775808UL]) {
+            val error = assertFailsWith<LlmRequestException> {
+                checkModelRequest(ModelCapabilities(limits = ModelLimits(maxOutputTokens = Some(maximum))), request)
+            }
+            assertEquals("/options/maxOutputTokens", error.path)
+        }
+        checkModelRequest(ModelCapabilities(limits = ModelLimits(maxOutputTokens = Some(0UL))),
+            LlmRequest(request.input, options = LlmGenerationOptions(maxOutputTokens = Some(0UL))))
+    }
+}
