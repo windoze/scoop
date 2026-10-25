@@ -3,7 +3,12 @@ package scoop.llm.client
 import scoop.json.*
 
 internal fun encodeResponsesOptions(dialect: DialectId, request: LlmRequest): JsonValue {
-    val options = request.options
+    val result = encodeResponsesGenerationOptions(request.options)
+    encodeResponsesTools(result, dialect, request)
+    return result.build()
+}
+
+internal fun encodeResponsesGenerationOptions(options: LlmGenerationOptions, allowDefaultEnabled: Boolean = false): JsonObjectBuilder {
     if (options.topK != None) throw LlmRequestException("/options/topK", "Responses has no top-k setting")
     if (llmPresent(options.stop)) throw LlmRequestException("/options/stop", "Responses has no stop sequence setting")
     if (options.candidates != None && options.candidates != Some(1L))
@@ -13,11 +18,10 @@ internal fun encodeResponsesOptions(dialect: DialectId, request: LlmRequest): Js
     addResponsesSampling(result, "top_p", options.topP, 1.0, "/options/topP")
     if (options.maxOutputTokens != None) result.add("max_output_tokens", JsonValue.fromLong(options.maxOutputTokens!!))
     if (options.parallelToolCalls != None) result.add("parallel_tool_calls", JsonValue.fromBoolean(options.parallelToolCalls!!))
-    val effort = responsesReasoningEffort(options.reasoning)
+    val effort = responsesReasoningEffort(options.reasoning, allowDefaultEnabled)
     if (effort != None) result.add("reasoning", JsonObjectBuilder().add("effort", JsonValue.fromString(effort!!)).build())
     encodeResponsesOutputFormat(result, options.output)
-    encodeResponsesTools(result, dialect, request)
-    return result.build()
+    return result
 }
 
 private fun addResponsesSampling(result: JsonObjectBuilder, name: String, value: Double?, maximum: Double, path: String) {
@@ -26,7 +30,7 @@ private fun addResponsesSampling(result: JsonObjectBuilder, name: String, value:
     result.add(name, JsonValue.fromDouble(setting))
 }
 
-private fun responsesReasoningEffort(reasoning: ReasoningOptions?): String? {
+internal fun responsesReasoningEffort(reasoning: ReasoningOptions?, allowDefaultEnabled: Boolean = false): String? {
     val options = reasoning ?: return None
     if (options.budgetTokens != None) throw LlmRequestException("/options/reasoning/budgetTokens", "Responses has no reasoning token budget")
     val effort = options.effort
@@ -38,7 +42,8 @@ private fun responsesReasoningEffort(reasoning: ReasoningOptions?): String? {
             throw LlmRequestException("/options/reasoning/enabled", "reasoning enabled conflicts with effort")
         return effort
     }
-    if (options.enabled == Some(true)) throw LlmRequestException("/options/reasoning/enabled", "Responses needs an explicit effort to enable reasoning")
+    if (options.enabled == Some(true) && !allowDefaultEnabled)
+        throw LlmRequestException("/options/reasoning/enabled", "Responses needs an explicit effort to enable reasoning")
     return if (options.enabled == Some(false)) Some("none") else None
 }
 

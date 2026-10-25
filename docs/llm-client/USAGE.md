@@ -64,6 +64,16 @@ val model = LlmEndpoint(Providers.geminiGenerateContent(),
 
 两者都由应用提供 apiKey 和 modelId，继续使用下面相同的 `client.generate` 调用。
 
+DeepSeek 的 Responses 使用独立 provider，沿用同一个最小请求和流式入口：
+
+```scoop
+val model = LlmEndpoint(Providers.deepSeekResponses(), LlmAuth.bearer(apiKey)).model(modelId)
+val result = client.generate(model, LlmRequest([Message([Text("你好")])]))
+println(result.text)
+```
+
+其 reasoning、函数／apply_patch 调用和服务端搜索结果可以保存后通过 toInput 回传。后续请求带上完整历史及本轮客户端工具结果，不设置 previous_response_id。DeepSeek Responses 允许 User／Developer 的图片和工具结果图片，文件内容无对应映射；文档中会忽略的显式控制在编码时报告路径错误。只在显式 topP 时使用 `Providers.deepSeekResponses(DeepSeekTopPMode.Thinking)` 或 NonThinking；模型 ID 保持应用给出的原值。
+
 使用 Interactions 时将 provider 换成 `Providers.geminiInteractions()`，其余调用不变。需要关闭服务端存储时，在同一个 request.extensions 中传入 `DialectExtension(GeminiInteractionsDialect().id, Json.parse("{\"store\":false}"))`；省略 store 时沿用服务端默认值。`result.toInput()` 保留原始 steps，`previous_interaction_id` 则由应用显式放入本次请求的扩展。
 
 Converse 使用明确的部署地址与同一套调用；`baseUrl`、`apiKey` 和 `modelId` 都由应用配置提供。API key 认证采用 bearer，AWS 凭据使用下文的 `LlmAuth.awsSigV4`。模型 ID 可以是服务方支持的 ARN，库会将它完整编码为一个路径段。
@@ -514,7 +524,7 @@ when (event.kind) {
 
 ### 7.5 Responses 持久连接与消息时间戳
 
-同一 endpoint 的多个模型和 lane 可以共用 ResponsesSession。最小会话使用现有参数的缺省值；model 和 request 与普通生成相同：
+同一 endpoint 的多个模型和 lane 可以共用 ResponsesSession。以下使用 OpenAI Responses；dialect 的 supportsWebSocket 表明适配器是否提供会话操作，DeepSeek Responses 当前提供 HTTP／SSE。最小会话使用现有参数的缺省值；model 和 request 与普通生成相同：
 
 ```scoop
 withLlmClient suspend { client ->

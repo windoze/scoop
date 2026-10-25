@@ -1,10 +1,12 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat、Anthropic Messages、OpenAI Responses、Gemini generateContent、Interactions、Bedrock Converse、Cohere Chat v2 与 Ollama Chat 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat、Anthropic Messages、OpenAI／DeepSeek Responses、Gemini generateContent、Interactions、Bedrock Converse、Cohere Chat v2 与 Ollama Chat 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
 
 普通 Cone 测试只使用纯 decoder 或回环地址上的 HTTP／SSE／EventStream／NDJSON mock，回复由测试指定，不连接供应商。仓库外的真实 API 验证用例统一标记 `@Ignore`，默认跳过；独立运行器只有在显式选择一个用例且其所需 key／endpoint 环境变量齐备时才启用 `--ignored`，缺少配置报告 SKIPPED，不发请求。凭据只从环境读取，日志脱敏。
 
 Responses 使用 `Providers.openAiResponses()` 创建同样的 endpoint／model，再调用 `client.generate` 或 `client.openStream`。`ResponsesProtocol(OpenAiResponsesDialect())` 也提供 encodeRequest／decodeResponse，保留有序 item、reasoning、消息 phase、工具 call ID、服务端搜索与引用；`toInput()` 返回可序列化的原始 output items。usage 区分缓存读、写与普通输入，缺失字段保持未知。
+
+`Providers.deepSeekResponses(topPMode = Unknown)` 复用 ResponsesProtocol，使用独立的 DeepSeekResponsesDialect 和 https://api.deepseek.com 部署缺省。generate／openStream 的调用不变；reasoning.content 不要求 OpenAI 的 summary，函数、apply_patch custom 和服务端搜索共用原始历史及工具结果表示。每轮携带完整历史和成对的调用／结果，previous_response_id 等服务端状态参数在发送前拒绝。显式 topP 使用与 DeepSeek Chat 相同的生效模式设置，省略时不需要额外配置。当前 DeepSeek 适配 HTTP／SSE，supportsWebSocket 为 false；纯入口、网络 mock 与使用边界见[规范第 38 节](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md#38-deepseek-responses-dialect)。
 
 Responses 的最小请求只发送 model 和 input，生成参数缺省省略。request.system 编码为文本 instructions；需要缓存断点等内容块扩展时，在 input 中显式使用 System message。工具结果沿用解码所得的 reference，其 context 保留实际调用类型和所需标识；函数、custom、computer、local shell、shell 与 apply_patch 分别编码自己的结果形状，应用负责执行并提交结果。
 

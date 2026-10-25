@@ -5,8 +5,9 @@ import scoop.json.*
 /** Responses-specific interpretation; state belongs to each response or stream decoder. */
 public interface ResponsesDialect {
     public val id: DialectId
+    public val supportsWebSocket: Boolean
     public fun encodeOptions(request: LlmRequest): JsonValue
-    public fun encodeContent(content: Array<ContentPart>, path: String): JsonValue
+    public fun encodeContent(content: Array<ContentPart>, path: String, role: String? = None): JsonValue
     public fun readReasoning(item: JsonValue, path: String): Array<OutputPart>
     public fun readUsage(usage: JsonValue): TokenUsage
     public fun historyItems(items: Array<JsonValue>): Array<JsonValue>
@@ -15,8 +16,9 @@ public interface ResponsesDialect {
 
 public class OpenAiResponsesDialect public constructor() : ResponsesDialect {
     public override val id: DialectId = DialectId(ApiProtocolId("responses"), "openai-responses")
+    public override val supportsWebSocket: Boolean = true
     public override fun encodeOptions(request: LlmRequest): JsonValue = encodeResponsesOptions(id, request)
-    public override fun encodeContent(content: Array<ContentPart>, path: String): JsonValue = encodeResponsesContent(id, content, path)
+    public override fun encodeContent(content: Array<ContentPart>, path: String, role: String?): JsonValue = encodeResponsesContent(id, content, path)
     public override fun readReasoning(item: JsonValue, path: String): Array<OutputPart> = readResponsesReasoning(id, item, path)
     public override fun readUsage(usage: JsonValue): TokenUsage = readResponsesUsage(usage)
     public override fun historyItems(items: Array<JsonValue>): Array<JsonValue> = items

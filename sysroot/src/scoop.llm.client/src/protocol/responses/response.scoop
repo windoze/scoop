@@ -15,13 +15,19 @@ public class ResponsesProtocol public constructor(public val dialect: ResponsesD
     public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
         ResponsesStreamDecoder(this, request, retention)
 
-    public fun webSocketUrl(baseUrl: Url): Url = responsesWebSocketUrl(baseUrl)
+    public fun webSocketUrl(baseUrl: Url): Url {
+        requireResponsesWebSocket(dialect)
+        return responsesWebSocketUrl(baseUrl)
+    }
     public fun encodeWebSocketCreate(modelId: String, request: LlmRequest,
         options: ResponsesWebSocketCreateOptions = ResponsesWebSocketCreateOptions()): JsonValue =
         encodeResponsesWebSocketCreate(dialect, modelId, request, options)
     public fun encodeWebSocketSteer(previousResponseId: String, input: Array<LlmInputItem>): JsonValue =
         encodeResponsesWebSocketSteer(dialect, previousResponseId, input)
-    public fun decodeWebSocketEvent(data: String): ResponsesWebSocketEvent = readResponsesWebSocketEvent(dialect.id, data)
+    public fun decodeWebSocketEvent(data: String): ResponsesWebSocketEvent {
+        requireResponsesWebSocket(dialect)
+        return readResponsesWebSocketEvent(dialect.id, data)
+    }
     init {
         if (dialect.id.protocol != ApiProtocolId("responses"))
             throw IllegalArgumentException(Some("Responses dialect belongs to another API protocol"))

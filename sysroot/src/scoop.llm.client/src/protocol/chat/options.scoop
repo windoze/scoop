@@ -40,7 +40,7 @@ internal fun encodeChatOptions(dialect: DialectId, request: LlmRequest, deepSeek
     return finishChatOptions(result, dialect, request, deepSeek, thinking)
 }
 
-private fun checkDeepSeekTopP(mode: DeepSeekTopPMode, thinking: Boolean, value: Double): Unit = when (mode) {
+internal fun checkDeepSeekTopP(mode: DeepSeekTopPMode, thinking: Boolean, value: Double): Unit = when (mode) {
     case Unknown -> throw LlmRequestException("/options/topP", "select the model's DeepSeek top-p mode explicitly")
     case Thinking -> {
         if (!thinking || value < 0.95) throw LlmRequestException("/options/topP", "configured top-p requires thinking and a value from 0.95 to 1")

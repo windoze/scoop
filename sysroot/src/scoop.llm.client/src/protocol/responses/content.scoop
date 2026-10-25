@@ -23,10 +23,11 @@ internal fun readResponsesMessage(dialect: DialectId, value: JsonValue, id: Stri
     return LlmOutputItem.Message(parts.toArray(), id)
 }
 
-internal fun readResponsesReasoning(dialect: DialectId, value: JsonValue, path: String): Array<OutputPart> {
+internal fun readResponsesReasoning(dialect: DialectId, value: JsonValue, path: String, requireSummary: Boolean = true): Array<OutputPart> {
     val reasoning = decodeResponsesValue<ResponsesReasoning>(value, path)
+    val summary = reasoning.summary ?: if (requireSummary) throw DecodingException(path + "/summary", "missing reasoning summary") else []
     val result = ArrayList<OutputPart>()
-    appendResponsesReasoning(result, dialect, reasoning.summary, "summary_text", path + "/summary")
+    appendResponsesReasoning(result, dialect, summary, "summary_text", path + "/summary")
     when (reasoning.content) {
         case Some(content) -> appendResponsesReasoning(result, dialect, content, "reasoning_text", path + "/content")
         case None -> return result.toArray()

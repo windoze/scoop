@@ -1,0 +1,70 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+/** Check only the stateless call/output relationship; the shared encoder owns wire shape checks. */
+internal fun checkDeepSeekResponsesHistory(input: Array<LlmInputItem>) {
+    val calls = DeepSeekResponsesPairs()
+    var index = 0L
+    for (item in input) {
+        val path = "/input/" + index.toString()
+        when (item) {
+            case ToolResult(call, _, _, _) -> {
+                val context = call.context!!
+                val kind = context["type"]!!.asString()
+                if (kind != "function_call" && kind != "custom_tool_call")
+                    throw LlmRequestException(path + "/call/context/type", "DeepSeek Responses only accepts function or custom results")
+                calls.add(call.id!!, kind, path + "/call/id", true)
+            }
+            case History(history) -> {
+                var position = 0L
+                for (raw in history.items) {
+                    val itemPath = path + "/history/items/" + position.toString()
+                    val kind = raw["type"]!!.asString()
+                    if (kind == "item_reference") throw LlmRequestException(itemPath + "/type", "DeepSeek requires complete stateless history")
+                    if (kind == "function_call" || kind == "custom_tool_call" || kind == "function_call_output" || kind == "custom_tool_call_output") {
+                        val id = raw["call_id"]
+                        if (!llmPresent(id) || id!!.kind != JsonValueKind.String || id!!.asString().length == 0L)
+                            throw LlmRequestException(itemPath + "/call_id", "DeepSeek history requires a nonempty call ID")
+                        val output = kind == "function_call_output" || kind == "custom_tool_call_output"
+                        val category = if (kind == "function_call" || kind == "function_call_output") "function_call" else "custom_tool_call"
+                        calls.add(id!!.asString(), category, itemPath + "/call_id", output)
+                    }
+                    position += 1L
+                }
+            }
+            else -> {}
+        }
+        index += 1L
+    }
+    calls.finish()
+}
+
+private class DeepSeekResponsesPairEntry(val id: String, val kind: String, val path: String)
+
+private class DeepSeekResponsesPairs {
+    private val calls = ArrayList<DeepSeekResponsesPairEntry>()
+    private val outputs = ArrayList<DeepSeekResponsesPairEntry>()
+
+    fun add(id: String, kind: String, path: String, output: Boolean) {
+        val entries = if (output) outputs else calls
+        for (entry in entries) if (entry.id == id) throw LlmRequestException(path, "duplicate DeepSeek call or result ID")
+        entries.add(DeepSeekResponsesPairEntry(id, kind, path))
+    }
+
+    fun finish() {
+        for (call in calls) {
+            var found = false
+            for (output in outputs) if (output.id == call.id) {
+                if (output.kind != call.kind) throw LlmRequestException(output.path, "DeepSeek result belongs to another call kind")
+                found = true
+            }
+            if (!found) throw LlmRequestException(call.path, "DeepSeek stateless history requires this call's result")
+        }
+        for (output in outputs) {
+            var found = false
+            for (call in calls) if (call.id == output.id) found = true
+            if (!found) throw LlmRequestException(output.path, "DeepSeek stateless result requires its original call")
+        }
+    }
+}

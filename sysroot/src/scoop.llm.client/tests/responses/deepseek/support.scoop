@@ -1,0 +1,54 @@
+package scoop.llm.client.tests.responses.deepseek
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.responses.*
+import scoop.test.*
+
+internal val dsResponses = ResponsesProtocol(DeepSeekResponsesDialect())
+internal val dsReasoning = "{\"type\":\"reasoning\",\"id\":\"think\",\"status\":\"completed\",\"content\":[{\"type\":\"reasoning_text\",\"text\":\"consider\"}],\"service_extra\":[1,\"changed\"]}"
+internal val dsSearch = "{\"type\":\"web_search_call\",\"id\":\"search\",\"status\":\"completed\",\"action\":{\"type\":\"search\",\"query\":\"question\"},\"results\":[{\"opaque\":true}]}"
+internal val dsUsage = "{\"input_tokens\":12,\"output_tokens\":5,\"total_tokens\":17,\"input_tokens_details\":{\"cached_tokens\":4},\"output_tokens_details\":{\"reasoning_tokens\":3}}"
+
+internal fun dsRequest(tools: Array<ToolDefinition> = []): LlmRequest = LlmRequest([Message([Text("question")])], tools = tools)
+internal fun dsTools(): Array<ToolDefinition> = [responsesStreamFunction(), Server(ToolKey("search"), WebSearch())]
+internal fun dsOutput(): String = "[" + dsReasoning + "," + dsSearch + "," + responsesCall("{\"count\":2}", status = Some("completed")) + "]"
+internal fun dsBody(output: String, responseId: String = "ds-response"): JsonValue {
+    val value = JsonObjectBuilder()
+    for ((name, entry) in responsesBody(output, usage = Some(dsUsage)).members()) value.add(name, entry)
+    return value.add("id", JsonValue.fromString(responseId)).add("model", JsonValue.fromString("deployment/model"))
+        .add("created_at", JsonValue.fromLong(0L)).build()
+}
+
+internal fun assertDsRequestFailure(request: LlmRequest, path: String, protocol: ResponsesProtocol = dsResponses) {
+    val error = assertFailsWith<LlmRequestException> { protocol.encodeRequest("deployment/model", request); Unit }
+    assertEquals(path, error.path)
+}
+
+internal fun dsContinuation(original: LlmRequest, response: LlmResponse): LlmRequest {
+    val input = ArrayList<LlmInputItem>()
+    for (item in original.input) input.add(item)
+    for (item in response.toInput()) input.add(item)
+    for (call in response.clientToolCalls) input.add(LlmInputItem.ToolResult(call.reference, [Text("2")]))
+    return LlmRequest(input.toArray(), tools = original.tools)
+}
+
+internal fun dsSseEvents(): Array<String> {
+    val message = responsesMessage("answer")
+    return [
+        "{\"type\":\"response.created\",\"response\":{\"object\":\"response\",\"id\":\"stream\",\"model\":\"deployment/model\",\"created_at\":0,\"output\":[],\"status\":\"in_progress\"}}",
+        "{\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"reasoning\",\"id\":\"think\",\"content\":[]}}",
+        "{\"type\":\"response.reasoning_text.delta\",\"output_index\":0,\"item_id\":\"think\",\"content_index\":0,\"delta\":\"consider\"}",
+        "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":" + dsReasoning + "}",
+        "{\"type\":\"response.output_item.added\",\"output_index\":1,\"item\":" + responsesEmptyMessage + "}",
+        "{\"type\":\"response.content_part.added\",\"output_index\":1,\"item_id\":\"m\",\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"\"}}",
+        "{\"type\":\"response.output_text.delta\",\"output_index\":1,\"item_id\":\"m\",\"content_index\":0,\"delta\":\"answer\"}",
+        "{\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":" + message + "}",
+        "{\"type\":\"response.completed\",\"response\":" + Json.stringify(dsBody("[" + dsReasoning + "," + message + "]", "stream")) + "}"]
+}
+
+internal fun dsSseReply(): String {
+    val result = StringBuilder()
+    for (event in dsSseEvents()) result.append("event: " + Json.parse(event)["type"]!!.asString() + "\ndata: " + event + "\n\n")
+    return result.toString()
+}

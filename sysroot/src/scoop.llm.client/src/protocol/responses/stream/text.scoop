@@ -41,7 +41,7 @@ internal fun acceptResponsesText(item: ResponsesStreamItem, type: String, raw: J
 internal fun orderResponsesReasoning(item: ResponsesStreamItem, output: LlmOutputItem, raw: JsonValue): LlmOutputItem {
     if (item.kind != "reasoning") return output
     val content = when (output) { case Reasoning(parts, _) -> parts; else -> return output }
-    val summary = decodeResponsesValue<ResponsesReasoning>(raw, item.path).summary.size
+    val summary = decodeResponsesValue<ResponsesReasoning>(raw, item.path).summary?.size ?: 0L
     val result = ArrayList<OutputPart>()
     for (part in item.parts) {
         val index = if (part.channel == "summary") part.index else summary + part.index

@@ -26,6 +26,8 @@ public object Providers {
         Some(Url.parse("https://api.openai.com/v1")))
     public fun deepSeekChat(topPMode: DeepSeekTopPMode = Unknown): LlmProvider = LlmProvider("deepseek-chat", ChatProtocol(DeepSeekChatDialect(topPMode)),
         Some(Url.parse("https://api.deepseek.com")))
+    public fun deepSeekResponses(topPMode: DeepSeekTopPMode = Unknown): LlmProvider = LlmProvider("deepseek-responses",
+        ResponsesProtocol(DeepSeekResponsesDialect(topPMode)), Some(Url.parse("https://api.deepseek.com")))
     public fun anthropicMessages(version: AnthropicMessagesVersion = V20261021, defaultMaxOutputTokens: Long = 4096L): LlmProvider =
         LlmProvider("anthropic-messages", MessagesProtocol(AnthropicMessagesDialect(version, defaultMaxOutputTokens)),
             Some(Url.parse("https://api.anthropic.com/v1")))

@@ -729,3 +729,23 @@ session.receive() 按需接收一个完整文本消息，返回可保存的 Resp
 消息读写、JSON 语法或路由字段失败会结束会话，取消会等待底层清理；已交付给操作调用者的同一个失败不在 useAsync 的 close 中重复抛出。显式 close 可取消正在等待的操作并等待真实释放；client.close 同样等待其会话。握手回调中关闭本次仍在打开的 client 继续遵守已有自等待保护。协议校验、能力检查与同方向重入错误在消息 I/O 前失败，已经打开的会话仍可接受后续合法操作。会话不保存事件 replay，不启动消费全部模型输出的后台任务，不自动重连、恢复队列或判断缓存是否失效。
 
 验证使用本地 HTTP 升级与 WebSocket 服务端 mock，覆盖同连接交错响应、工具与历史、steering／错误通知、实际收发时间、认证重试、取消／关闭和握手失败清理；真实服务互通待凭据可用后补测。
+
+## 38. DeepSeek Responses dialect
+
+Providers.deepSeekResponses(topPMode = Unknown) 固定组合 ResponsesProtocol 与 DeepSeekResponsesDialect，标识为 (responses, deepseek-responses)，部署缺省 https://api.deepseek.com。使用既有 generate／openStream／withStream，模型 ID 原样发送，不查询目录或根据名称切换行为。topPMode 复用 DeepSeekTopPMode，只有显式 topP 才需要选择模型已知的生效模式。
+
+最小请求只发送 model 与 input；至少需要 input item 或 system。system 映射 instructions，角色按 Responses 编码；DeepSeek 将 developer 解释为 user。文本与 JPEG／PNG／GIF／WebP 图片使用既有字符串、data URL、http(s) URL 或同 dialect 文件 ID。图片只用于 User／Developer 和工具结果；System／Assistant 中的图片报路径错误。Document、Audio、Video 和 VideoFrames 没有此接口的映射而拒绝。ResponsesDialect.encodeContent 增加缺省 None 的 role 参数，普通消息传入实际角色，None 表示工具结果；OpenAI 保持已有行为。原生内容及各位置扩展继续保存归属、原文和冲突规则，明确不支持的 input_file 不因 Native 而获得映射。
+
+reasoning.effort 使用 none／low／high／max 及服务端接受的 minimal／medium／xhigh 别名，原值发送；enabled=false 映射 none，enabled=true 且无 effort 沿用该接口默认开启 thinking 的行为，不替用户选择推理档位。thinking 时显式 temperature 被拒绝；topP 按显式 topPMode 检查。parallelToolCalls 以及 topK／stop／多候选等无法表达的控制报错。text.format 的 JsonObject／JsonSchema 复用 Responses 映射，其他生成参数保持缺省省略。
+
+ClientFunction 使用平铺 function，名称遵守 DeepSeek 的非空、至多 128 字符及字符集规则，schema 原样发送。Responses 文档未定义 function strict 控制，显式 strict 拒绝，不借用 Chat beta 的合同。ClientCustom 仅映射名称 apply_patch 的 Text 输入；自定义 grammar 无对应控制而拒绝。WebSearch 和同 dialect 的原生 web_search 为服务端工具；通用搜索的域名、地域与 includeSources 选项没有已定义映射而拒绝，原生配置仍通过普通扩展传入。其他 ClientNative／Server.Native、显式原生版本不映射。服务端搜索的模型支持由模型能力描述，不能根据模型名猜测。
+
+Auto 省略 tool_choice，None／Required 使用同名字符串；Specific(function) 使用 type=function 与 name。Specific(custom／server) 只有本次声明仅包含该工具时才用 required 表达，不能删除其他声明来模拟。工具名称在请求中唯一；函数与 apply_patch custom 的实际输入、服务端搜索活动、引用及工具结果复用既有 Responses 解码与关联。
+
+此接口无服务端 conversation 状态。每轮显式携带完整历史；已保存 output items 保持原样，reasoning 的 content 及搜索结果不丢弃。输入中的 function／custom call 和对应 output 必须按实际非空 call_id 配对，声明和结果各自不得重复且类别匹配，不插入或执行缺失的结果。旧 response ID 和 item_reference 不能代替历史。已知不支持的 previous_response_id、conversation、store、background、metadata、include、prompt、truncation、service_tier、safety_identifier、prompt_cache_key、prompt_cache_retention、context_management、stream_options、max_tool_calls 在扩展中显式提供时也拒绝；其余扩展由服务端解释。
+
+DeepSeek reasoning 的 summary 缺失／null 合法，content 中的 reasoning_text 进入 Reasoning；OpenAI dialect 继续要求自己的 summary 字段。完整响应与 SSE 共用有序 item、reasoning channel 位置、客户端执行资格、服务端工具、usage 和历史聚合，缺少终止事件的 EOF 仍失败。input_tokens／output_tokens／total_tokens、cached_tokens 与 reasoning_tokens 沿既有 Responses 口径读取；缺失计数不补齐。服务时间与本地收发时间分开，其他服务端附加信息保持原文。
+
+HTTP 429／503 按 DeepSeek 的限流／过载拒绝策略重试，保留原始错误与正文，每次重新认证并采样；模型 failed 响应不重试。当前文档定义的 DeepSeek Responses 入口是 HTTP／SSE；ResponsesDialect.supportsWebSocket 表示该适配器是否实现 WebSocket 操作，OpenAI 为 true、DeepSeek 为 false，不支持时在认证或发送前报错。它描述适配器操作，与模型的 streaming／realtime capability 分开。
+
+验证使用官方响应形状和本地 HTTP／SSE mock，覆盖缺省请求、参数差异、图片、函数／custom／搜索组合、保存后完整历史回传、reasoning 流、usage 与实际计时；不依赖供应商服务或 key。依据：[DeepSeek Responses 兼容说明](https://api-docs.deepseek.com/guides/responses_api/)、[请求与响应参考](https://api-docs.deepseek.com/api/create-response/)、[工具调用](https://api-docs.deepseek.com/guides/tool_calls/)、[HTTP 错误码](https://api-docs.deepseek.com/quick_start/error_codes)。

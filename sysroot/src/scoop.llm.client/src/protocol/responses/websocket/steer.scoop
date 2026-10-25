@@ -3,6 +3,7 @@ package scoop.llm.client
 import scoop.json.*
 
 internal fun encodeResponsesWebSocketSteer(dialect: ResponsesDialect, previous: String, input: Array<LlmInputItem>): JsonValue {
+    requireResponsesWebSocket(dialect)
     if (previous.length == 0L) throw LlmRequestException("/previous_response_id", "steering requires a response ID")
     if (input.size == 0L) throw LlmRequestException("/input", "steering input must not be empty")
     val request = LlmRequest(input)

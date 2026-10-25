@@ -1,0 +1,31 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeDeepSeekResponsesContent(dialect: DialectId, content: Array<ContentPart>, path: String, role: String?): JsonValue {
+    var index = 0L
+    for (part in content) {
+        val itemPath = path + "/" + index.toString()
+        when (part) {
+            case Image(_, _) -> checkDeepSeekResponsesImageRole(role, path)
+            case Document(_, _, _) -> throw LlmRequestException(itemPath, "DeepSeek Responses does not accept file content")
+            case Native(_, value) -> {
+                if (value.kind == JsonValueKind.Object) {
+                    val type = value["type"]
+                    if (llmPresent(type) && type!!.kind == JsonValueKind.String) {
+                        if (type!!.asString() == "input_image") checkDeepSeekResponsesImageRole(role, path)
+                        if (type!!.asString() == "input_file") throw LlmRequestException(itemPath, "DeepSeek Responses does not accept file content")
+                    }
+                }
+            }
+            else -> {}
+        }
+        index += 1L
+    }
+    return encodeResponsesContent(dialect, content, path)
+}
+
+private fun checkDeepSeekResponsesImageRole(role: String?, path: String) {
+    if (role == Some("system") || role == Some("assistant"))
+        throw LlmRequestException(path, "DeepSeek Responses images require user, developer or tool output content")
+}

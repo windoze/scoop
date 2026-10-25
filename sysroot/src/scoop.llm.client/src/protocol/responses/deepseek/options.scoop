@@ -1,0 +1,36 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeDeepSeekResponsesOptions(dialect: DialectId, request: LlmRequest, topPMode: DeepSeekTopPMode): JsonValue {
+    if (request.input.size == 0L && request.system.size == 0L)
+        throw LlmRequestException("/input", "DeepSeek Responses requires input or instructions")
+    checkDeepSeekResponsesExtensions(request.extensions)
+    checkDeepSeekResponsesHistory(request.input)
+    val options = request.options
+    val thinking = when (options.reasoning) {
+        case Some(reasoning) -> reasoning.enabled != Some(false) && reasoning.effort != Some("none")
+        case None -> true
+    }
+    if (thinking && options.temperature != None)
+        throw LlmRequestException("/options/temperature", "DeepSeek ignores temperature while thinking is enabled")
+    when (options.topP) { case Some(value) -> checkDeepSeekTopP(topPMode, thinking, value); case None -> {} }
+    if (options.parallelToolCalls != None)
+        throw LlmRequestException("/options/parallelToolCalls", "DeepSeek Responses always permits parallel tools")
+    val result = encodeResponsesGenerationOptions(options, true)
+    encodeDeepSeekResponsesTools(result, dialect, request)
+    return result.build()
+}
+
+private fun checkDeepSeekResponsesExtensions(extensions: Array<DialectExtension>) {
+    var index = 0L
+    for (extension in extensions) {
+        for (name in ["previous_response_id", "conversation", "store", "background", "metadata", "include", "prompt",
+            "truncation", "service_tier", "safety_identifier", "prompt_cache_key", "prompt_cache_retention",
+            "context_management", "stream_options", "max_tool_calls"]) {
+            if (extension.value.containsKey(name)) throw LlmRequestException("/extensions/" + index.toString() + "/value/" + name,
+                "DeepSeek Responses does not implement this request field")
+        }
+        index += 1L
+    }
+}

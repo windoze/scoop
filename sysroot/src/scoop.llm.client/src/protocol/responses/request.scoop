@@ -28,7 +28,7 @@ internal fun encodeResponsesInput(dialect: ResponsesDialect, items: Array<LlmInp
             case Message(content, role, extensions) -> {
                 val wireRole = when (role) { case User -> "user"; case Assistant -> "assistant"; case System -> "system"; case Developer -> "developer" }
                 val message = llmTypedObject("message").add("role", JsonValue.fromString(wireRole))
-                    .add("content", dialect.encodeContent(content, path + "/content")).build()
+                    .add("content", dialect.encodeContent(content, path + "/content", Some(wireRole))).build()
                 input.add(mergeLlmExtensions(message, extensions, dialect.id, ["type", "role", "content"], path))
             }
             case ToolResult(call, content, isError, extensions) -> input.add(encodeResponsesToolResult(dialect, call, content, isError, extensions, path))

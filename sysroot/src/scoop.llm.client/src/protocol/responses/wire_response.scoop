@@ -40,7 +40,7 @@ internal class ResponsesRefusal public constructor(public val refusal: String) {
     public companion object : ValueDecoder<ResponsesRefusal>
 }
 
-internal class ResponsesReasoning public constructor(public val summary: Array<JsonValue>, public val content: Array<JsonValue>? = None) {
+internal class ResponsesReasoning public constructor(public val summary: Array<JsonValue>? = None, public val content: Array<JsonValue>? = None) {
     public companion object : ValueDecoder<ResponsesReasoning>
 }
 

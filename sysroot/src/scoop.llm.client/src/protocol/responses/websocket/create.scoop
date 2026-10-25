@@ -36,6 +36,7 @@ internal fun responsesWebSocketUrl(base: Url): Url {
 
 internal fun encodeResponsesWebSocketCreate(dialect: ResponsesDialect, model: String, request: LlmRequest,
     options: ResponsesWebSocketCreateOptions): JsonValue {
+    requireResponsesWebSocket(dialect)
     val body = encodeResponsesRequest(dialect, model, request, false)
     if (body.containsKey("background")) throw LlmRequestException("/background", "Responses WebSocket does not accept background")
     val result = llmTypedObject("response.create")
@@ -43,4 +44,8 @@ internal fun encodeResponsesWebSocketCreate(dialect: ResponsesDialect, model: St
     when (options.streamId) { case Some(value) -> result.add("stream_id", JsonValue.fromString(value)); case None -> {} }
     when (options.generate) { case Some(value) -> result.add("generate", JsonValue.fromBoolean(value)); case None -> {} }
     return result.build()
+}
+
+internal fun requireResponsesWebSocket(dialect: ResponsesDialect) {
+    if (!dialect.supportsWebSocket) throw LlmRequestException("/provider", "this Responses dialect does not implement WebSocket operations")
 }
