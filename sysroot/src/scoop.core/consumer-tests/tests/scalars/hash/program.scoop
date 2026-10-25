@@ -44,4 +44,17 @@ private class ScalarHashTests {
         assertTrue(false.equals(false))
         assertFalse(false.equals(true))
     }
+
+    @Test
+    fun booleanTextAcrossInterfaceAndCollection() {
+        val render: () -> String = true::toString
+        val values = Array<ToString>(2L) { index -> index == 0L }
+        val yes = values[0L].toString()
+        val no = values[1L].toString()
+        gcCollect()
+        assertEquals("true", yes)
+        assertEquals("false", no)
+        assertEquals("true", render())
+        assertEquals("false", false.toString())
+    }
 }

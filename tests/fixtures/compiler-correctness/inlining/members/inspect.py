@@ -26,6 +26,7 @@ for name in (
     "literalKernel",
     "pointerKernel",
     "loopKernel",
+    "hashLoopKernel",
 ):
     function = functions[name]
     if release:
@@ -76,8 +77,15 @@ assert "      call " in callback
 primitive_calls = re.findall(
     r"^      call .*external(\d+) direct", functions["primitiveKernel"], re.M
 )
-expected = "coreLongHash" if release else "Long.hash"
-assert primitive_calls == [str(external[expected])], (expected, primitive_calls)
+if release:
+    assert primitive_calls == [str(external["coreULongHash"])]
+    number = int(re.search(r" @fn(\d+)", functions["primitiveKernel"])[1])
+    assert any(
+        item["site"]["function"] == number and item.get("outcome") == "not-profitable"
+        for item in report["events"]
+    )
+else:
+    assert primitive_calls == [str(external["Long.hash"])], primitive_calls
 
 if release:
     assert "SafeIntegerDivRem" in functions["guardedKernel"]

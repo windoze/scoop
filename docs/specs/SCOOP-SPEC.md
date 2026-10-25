@@ -1944,7 +1944,9 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 
 除`div`/`rem`外，上述integer representation intrinsic均不分配、不抛异常，源码声明必须显式带`@NoGC`并登记为NoGc call target；`div`/`rem`因除零可能构造`ArithmeticException`，不得带`@NoGC`且登记为Managed。普通`toString`仍可分配并经普通typed Scoop-ABI core helper工作，不属于integer intrinsic operation集合。
 
-#### 11.2.1 `Char`
+#Boolean 的 `equals`／`hash` 与整数 hash 可以由普通 core 标量正文实现，不要求 native 调用；固定宽度转换与乘法继续遵守本节回绕规则。Boolean 的 `toString()` 返回内容为 `"true"`／`"false"` 的不可变 String，可直接选择已有字符串常量；不承诺每次新分配对象（11.4）。
+
+### 11.2.1 `Char`
 
 `Char` 是具有独立 nominal identity 的 intrinsic struct，表示一个 Unicode 标量值：U+0000..U+D7FF 或 U+E000..U+10FFFF。它不是 UTF-8 byte、UTF-16 code unit 或用户感知的 grapheme cluster。内存表示为 32 位无符号 scalar，GC-free；没有普通字段或公开 primary constructor，也不与 Int/UInt 隐式互转。
 

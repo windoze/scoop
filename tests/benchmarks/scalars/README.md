@@ -16,3 +16,5 @@ SCOOP_BENCH_KIND=1 SCOOP_BENCH_COUNT=2000000 tmp/scalar-bench/decimal
 ```
 
 跨目标时给 C 编译器和 Scoop 同时选择相应目标与 unwind 资源。比较前保存旧程序和 sysroot，固定输入，先预热，再交替运行新旧程序；阶段 JSON 输出到 stderr，校验和输出到 stdout。原始输出和逐次数据保存在仓库外。`SCOOP_GC_STATS=1` 应另行运行，用于比较分配字节和 collection 次数，不混入普通计时。
+
+`operations.scoop` 使用相同的 phases helper。模式 0 测动态 Long hash，1 测常量 ULong hash，2 测 Boolean equals 与 hash，3 测 Boolean 字符串化和结果长度。构建时将上例源码和输出名替换为 `operations`；计时建议五百万次以上，极短的无分配内核需要较长批次，Linux 可固定 CPU 后单独复核。
