@@ -139,6 +139,8 @@ runtime 后备入口的拆箱及数组克隆对源对象的检查在同一 heap 
 
 `scoop_rt_box_value(td, source_place)` 要求 source place 可读、地址稳定、满足该 TD 的 inline size/alignment。含引用的 source place 必须在入口握手前以同一 TD 的 nonempty inline scan 登记为链顶 RecursiveRegion root。分配或 GC 后从更新后的 place 复制，返回后按 LIFO 撤销 root。`scoop_rt_unbox_value(object, expected_td, destination)` 在 exact type 或上述整型枚举到父整数的合法解箱检查成功后，按值写入满足大小与对齐的 destination。
 
+release 的 typed BoxValue 可以直接消费已选 box 的完整实例布局，通过既有 TLAB／collecting slow path 分配，并在结果中复制原 payload（包含 padding）。首版只展开实例不超过 128 bytes 的 box，覆盖 ZST、GC-free 值及含引用小值；其他 box 和 debug 使用原后备。每次实际装箱仍产生独立身份，ZST 不构造 payload 存储。生成路径的源 place 由既有 LIR statepoint live set 保活并移动回写，分配后重读；它不进入 box C 入口，因而不建立仅为该入口检查所需的额外 RecursiveRegion frame。复制后按完整值扫描布局执行既有写屏障，不能假定慢路径结果必定年轻。对象头、对齐、清零、失败、TD 和 interface 语义保持，C 后备自己的 source-root 合同不变。
+
 生成代码的 typed unbox 可以直接读取有效、非 null managed 对象的 TD；与预期 boxed TD 相等时，按已确定的 payload offset／大小／对齐将完整字节（包含 padding）复制到独立 typed local，ZST 只完成类型检查而不读取 payload。该路径不分配或停顿，含引用值仍由后续普通根计划保活和恢复，不查询 heap size 或重放已确定的布局校验。TD 不相等时继续调用原 unbox leaf，保留整型 enum 到父整数的兼容解箱及原错误行为。C 入口仍履行自身合同；不能将原本需要的源码 null／cast 检查替换为无条件 payload load。
 
 ### 2.4 String 与数组

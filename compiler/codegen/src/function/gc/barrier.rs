@@ -1,7 +1,7 @@
 use super::*;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    pub(super) fn heap_value_barrier(
+    pub(in crate::function) fn heap_value_barrier(
         &self,
         address: PointerValue<'ctx>,
         ty: &LirType,

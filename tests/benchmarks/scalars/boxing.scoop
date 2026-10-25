@@ -1,0 +1,67 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+
+struct Empty()
+public class Node(val value: Long)
+struct References(val node: Node, val text: String, val value: Long)
+struct Wide(val first: (Long, Long, Long, Long, Long, Long, Long, Long),
+            val last: (Long, Long, Long, Long, Long, Long, Long, Long))
+
+public fun emptyBoxes(values: MutableArray<Any>, iterations: Int) {
+    var index = 0
+    while (index < iterations) {
+        values[index.and(255).toLong()] = Empty()
+        index += 1
+    }
+}
+public fun wordBoxes(values: MutableArray<Any>, iterations: Int) {
+    var index = 0
+    while (index < iterations) {
+        values[index.and(255).toLong()] = index.toLong()
+        index += 1
+    }
+}
+public fun referenceBoxes(values: MutableArray<Any>, node: Node, text: String, iterations: Int) {
+    var index = 0
+    while (index < iterations) {
+        values[index.and(255).toLong()] = References(node, text, index.toLong())
+        index += 1
+    }
+}
+public fun wideBoxes(values: MutableArray<Any>, iterations: Int) {
+    var index = 0
+    while (index < iterations) {
+        val value = index.toLong()
+        values[index.and(255).toLong()] = Wide(
+            (value, 1L, 2L, 3L, 4L, 5L, 6L, 7L),
+            (value, 9L, 10L, 11L, 12L, 13L, 14L, 15L))
+        index += 1
+    }
+}
+fun main() {
+    @Unsafe {
+        val iterations = count()
+        val mode = kind()
+        val values = MutableArray<Any>(256L) { _ -> Empty() }
+        val node = Node(42L)
+        val text = 123L.toString()
+        begin()
+        when (mode) {
+            case 0 -> emptyBoxes(values, iterations)
+            case 1 -> wordBoxes(values, iterations)
+            case 2 -> referenceBoxes(values, node, text, iterations)
+            else -> wideBoxes(values, iterations)
+        }
+        end()
+        val last = values[(iterations - 1).and(255).toLong()]
+        val result = when (mode) {
+            case 0 -> if (last is Empty) { 1L } else { 0L }
+            case 1 -> last as Long
+            case 2 -> (last as References).value + (last as References).node.value + (last as References).text.byteLength
+            else -> (last as Wide).last._1
+        }
+        println(result)
+    }
+}

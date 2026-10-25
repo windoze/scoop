@@ -34,6 +34,8 @@ TMPDIR="$PWD/tmp" python3 -m unittest discover -s tests/benchmarks/tests
 
 [普通字符串拼接](scalars/concat.scoop)复用 scalars 的显式 phases helper，四个模式为热二元、五段链、共享中间结果和全常量链；设置 `SCOOP_BENCH_KIND=0..3` 与 `SCOOP_BENCH_COUNT`。输入构造在计时外，GC 统计另行运行，IR 与机器码核对实际分配／复制；结果和边界见[拼接记录](../../docs/program-performance/STRING-CONCAT.md)。
 
+[实际装箱](scalars/boxing.scoop)用相同 helper 和选项，模式 0～3 分别为 ZST、Long、含引用小值和较大值；结果写入外部数组并在计时后读取，避免被非逃逸优化消除。GC 统计与正常运行分开，范围和结果见[装箱记录](../../docs/program-performance/BOX-ALLOCATION.md)。
+
 ## M31 性能用例
 
 M33 的真实 C FFI 调用与 collector 等待基准见 [ffi/README.md](ffi/README.md)。

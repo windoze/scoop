@@ -9,6 +9,13 @@ pub(in crate::function) struct AllocationLayout {
 }
 
 impl AllocationLayout {
+    pub(in crate::function) fn boxed(layout: scoop_lir::AbiNonZeroLayout) -> Self {
+        Self {
+            alignment: layout.alignment().get(),
+            nursery_eligible: true,
+        }
+    }
+
     pub(in crate::function) fn string() -> Self {
         Self {
             alignment: 8,
