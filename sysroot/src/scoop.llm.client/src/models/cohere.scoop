@@ -1,0 +1,27 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+internal class CohereModelCatalog(val dialect: DialectId) : LlmModelLookup {
+    public override fun listUrl(baseUrl: Url, query: UrlQuery): Url =
+        llmModelsUrl(baseUrl.toBuilder().appendPathSegment("v1").build(), query)
+    public override fun retrieveUrl(baseUrl: Url, modelId: String): Url =
+        llmModelUrl(baseUrl.toBuilder().appendPathSegment("v1").build(), modelId)
+    public override fun decodeList(value: JsonValue): LlmModelPage = decodeNamedLlmModelPage(dialect, value, "models", "name", false)
+    public override fun decodeModel(value: JsonValue): LlmModelInfo {
+        checkLlmModelResponse(dialect, value)
+        return LlmModelInfo(dialect, readLlmModelIdentifier(dialect, value, "name", "", value, false), value)
+    }
+}
+
+public fun cohereModelsQuery(pageSize: ULong? = None, pageToken: String? = None, endpoint: String? = None,
+    defaultOnly: Boolean? = None): UrlQuery {
+    var query = UrlQuery()
+    when (pageSize) { case Some(value) -> query = query.add("page_size", Some(value.toString())); case None -> {} }
+    when (pageToken) { case Some(value) -> query = query.add("page_token", Some(value)); case None -> {} }
+    when (endpoint) { case Some(value) -> query = query.add("endpoint", Some(value)); case None -> {} }
+    when (defaultOnly) { case Some(value) -> query = query.add("default_only", Some(value.toString())); case None -> {} }
+    return query
+}

@@ -11,8 +11,8 @@ private class CohereRequestTest {
     fun `Cohere generation defaults use the same provider endpoint and protocol without model discovery`() {
         val provider = Providers.cohereChat()
         assertEquals(cohereDialect, provider.protocol.dialectId)
-        assertEquals("https://api.cohere.com/v2", provider.defaultBaseUrl!!.toString())
-        assertEquals("https://example.com/proxy/chat?deployment=x", provider.protocol.generationUrl(Url.parse("https://example.com/proxy?deployment=x"), "unlisted:model").toString())
+        assertEquals("https://api.cohere.com", provider.defaultBaseUrl!!.toString())
+        assertEquals("https://example.com/proxy/v2/chat?deployment=x", provider.protocol.generationUrl(Url.parse("https://example.com/proxy?deployment=x"), "unlisted:model").toString())
         val model = LlmEndpoint(provider, LlmAuth.none()).model("unlisted:model")
         assertEquals("unlisted:model", model.id)
         val body = cohereEncode(cohereInput(), model.id)

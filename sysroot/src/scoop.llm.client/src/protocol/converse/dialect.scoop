@@ -4,6 +4,7 @@ import scoop.json.JsonValue
 
 /** Service-specific accounting and system tools within the Converse protocol. */
 public interface ConverseDialect {
+    public fun modelCatalog(): LlmModelCatalog? = None
     public val id: DialectId
     public fun encodeOptions(request: LlmRequest): JsonValue
     public fun readUsage(value: JsonValue): TokenUsage
@@ -14,6 +15,7 @@ public interface ConverseDialect {
 }
 
 public class BedrockConverseDialect public constructor() : ConverseDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(BedrockModelCatalog(id))
     public override val id: DialectId = DialectId(ApiProtocolId("converse"), "bedrock-converse")
     public override fun encodeOptions(request: LlmRequest): JsonValue = encodeConverseOptions(request)
     public override fun readUsage(value: JsonValue): TokenUsage = readConverseUsage(value)

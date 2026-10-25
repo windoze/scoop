@@ -19,15 +19,18 @@ public fun anthropicModelsQuery(limit: ULong? = None, afterId: String? = None, b
 }
 
 internal fun llmModelsUrl(baseUrl: Url, query: UrlQuery): Url {
-    val builder = baseUrl.toBuilder().appendPathSegment("models")
-    if (query.entries.size == 0L) return builder.build()
-    var combined = baseUrl.queryParameters()
+    return llmModelQueryUrl(baseUrl.toBuilder().appendPathSegment("models").build(), query)
+}
+
+internal fun llmModelQueryUrl(url: Url, query: UrlQuery): Url {
+    if (query.entries.size == 0L) return url
+    var combined = url.queryParameters()
     for (entry in query.entries) combined = combined.remove(entry.name)
     for (entry in query.entries) {
         val value: List<Byte>? = when (entry.valueBytes) { case Some(bytes) -> Some(bytes); case None -> None }
         combined = combined.addBytes(entry.nameBytes, value)
     }
-    return builder.setQueryParameters(combined).build()
+    return url.toBuilder().setQueryParameters(combined).build()
 }
 
 internal fun llmModelUrl(baseUrl: Url, modelId: String): Url {

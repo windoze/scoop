@@ -1,0 +1,64 @@
+package scoop.llm.client.tests.models
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class NativeModelDataTest {
+    @Test
+    fun `native model catalogs retain ordering identifiers and service metadata without capability inference`() {
+        for ((provider, field, idField) in [(Providers.openRouterChat(), "data", "id"),
+            (Providers.cohereChat(), "models", "name"), (Providers.ollamaChat(), "models", "model"),
+            (Providers.bedrockConverse(), "modelSummaries", "modelId")]) {
+            val catalog = modelCatalog(provider)
+            for (extra in ["", ",\"capabilities\":null,\"pricing\":null", ",\"capabilities\":7,\"pricing\":[\"changed\"]"]) {
+                val entry = "{\"" + idField + "\":\"org/model:variant\"" + extra + "}"
+                val raw = Json.parse("{\"" + field + "\":[" + entry + "," + entry + "],\"future\":1e400}")
+                val page = Json.decodeFromString<LlmModelPage>(Json.encodeToString(catalog.decodeList(raw)))
+                assertEquals(2L, page.models.size)
+                for (model in page.models) {
+                    assertEquals(Some("org/model:variant"), model.id)
+                    assertEquals(provider.protocol.dialectId, model.dialect)
+                    assertEquals(entry, Json.stringify(model.native))
+                }
+                assertEquals(Json.stringify(raw), Json.stringify(page.native))
+            }
+            assertEquals(0L, catalog.decodeList(Json.parse("{\"" + field + "\":[]}")).models.size)
+        }
+        val page = modelCatalog(Providers.cohereChat()).decodeList(Json.parse("{\"models\":[{}, {\"name\":null}]}"))
+        for (model in page.models) assertEquals(None, model.id)
+    }
+
+    @Test
+    fun `model lookup retains wrappers aliases and absent server identifiers through serialization`() {
+        for ((provider, raw, id) in [(Providers.openRouterChat(), "{\"data\":{\"id\":\"author/canonical\"},\"extra\":false}", Some("author/canonical")),
+            (Providers.bedrockConverse(), "{\"modelDetails\":{\"modelId\":\"provider.canonical\"},\"extra\":null}", Some("provider.canonical")),
+            (Providers.cohereChat(), "{\"name\":\"canonical\"}", Some("canonical")),
+            (Providers.cohereChat(), "{\"name\":null}", None), (Providers.ollamaChat(), "{}", None),
+            (Providers.ollamaChat(), "{\"details\":\"changed\",\"model_info\":[17],\"model\":\"extra\"}", None)]) {
+            val model = Json.decodeFromString<LlmModelInfo>(Json.encodeToString(modelLookup(provider).decodeModel(Json.parse(raw))))
+            assertEquals(id, model.id)
+            assertEquals(raw, Json.stringify(model.native))
+        }
+    }
+
+    @Test
+    fun `native model queries reject malformed protocol fields and preserve the complete failed response`() {
+        for ((provider, raw, listing, path) in [(Providers.openRouterChat(), "{\"data\":{}}", false, "/data/id"),
+            (Providers.bedrockConverse(), "{\"modelDetails\":null}", false, "/modelDetails"),
+            (Providers.cohereChat(), "{\"name\":7}", false, "/name"),
+            (Providers.cohereChat(), "{\"models\":[{\"name\":\"\"}]}", true, "/models/0/name"),
+            (Providers.ollamaChat(), "{\"models\":[{\"name\":\"display-only\"}]}", true, "/models/0/model"),
+            (Providers.bedrockConverse(), "{\"modelSummaries\":[null]}", true, "/modelSummaries/0"),
+            (Providers.ollamaChat(), "[]", false, ""), (Providers.ollamaChat(), "{\"error\":\"missing\"}", false, "/error")]) {
+            val catalog = modelLookup(provider)
+            val error = assertFailsWith<LlmProtocolException> {
+                if (listing) catalog.decodeList(Json.parse(raw)) else catalog.decodeModel(Json.parse(raw))
+                Unit
+            }
+            assertEquals(path, error.path)
+            assertEquals(raw, Json.stringify(error.native))
+        }
+    }
+}

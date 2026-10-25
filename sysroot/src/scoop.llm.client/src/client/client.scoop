@@ -42,7 +42,8 @@ public class LlmClient private constructor(internal val state: LlmClientState) :
         options: LlmCallOptions = LlmCallOptions()): LlmModelListResult = listLlmModels(state, endpoint, query, options)
 
     public suspend fun retrieveModel(endpoint: LlmEndpoint, modelId: String,
-        options: LlmCallOptions = LlmCallOptions()): LlmModelResult = retrieveLlmModel(state, endpoint, modelId, options)
+        options: LlmCallOptions = LlmCallOptions(), extensions: Array<DialectExtension> = []): LlmModelResult =
+        retrieveLlmModel(state, endpoint, modelId, options, extensions)
 
     public suspend fun compactResponse(model: LlmModel, request: LlmRequest,
         options: LlmCallOptions = LlmCallOptions()): ResponsesCompactionResult = compactLlmResponse(state, model, request, options)

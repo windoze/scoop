@@ -22,7 +22,7 @@ private class CohereGenerateTest {
                 AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
                     val request = connection.receiveRequest()!!
                     val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
-                    assertEquals("/v1/cohere/chat?deployment=test", target)
+                    assertEquals("/v1/cohere/v2/chat?deployment=test", target)
                     assertEquals("Bearer mock-only", String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0L].value))
                     val body = Json.parse(String.fromUtf8(request.body.readAllBytes(4096L)))
                     assertEquals(2L, body.size)

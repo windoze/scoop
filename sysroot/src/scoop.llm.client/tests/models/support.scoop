@@ -3,6 +3,16 @@ package scoop.llm.client.tests.models
 import scoop.json.*
 import scoop.llm.client.*
 import scoop.test.*
+import scoop.url.Url
+
+internal class CataloglessProtocol : LlmGenerationProtocol {
+    val delegate: LlmGenerationProtocol = ChatProtocol(OpenAiChatDialect())
+    public override val dialectId: DialectId get() = delegate.dialectId
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = delegate.generationUrl(baseUrl, modelId)
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue = delegate.encodeRequest(modelId, request, stream)
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse = delegate.decodeResponse(value, request)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException = delegate.decodeError(status, body, truncated)
+}
 
 internal fun modelCatalog(provider: LlmProvider): LlmModelCatalog = provider.protocol.modelCatalog() ?: fail()
 

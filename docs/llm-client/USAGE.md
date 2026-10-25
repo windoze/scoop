@@ -698,16 +698,16 @@ try {
 
 ```scoop
 val listed = client.listModels(endpoint)
-for (model in listed.page.models) println(model.id)
+for (model in listed.page.models) println(model.id ?: "(unnamed)")
 println(listed.page.native)
 println(listed.metadata.attempts[0].response.receivedAt)
 
 val info = client.retrieveModel(endpoint, "caller-model")
 val saved = Json.encodeToString(info)
-val model = endpoint.model(info.model.id)
+val model = endpoint.model(info.model.id ?: info.requestedId)
 ```
 
-OpenAI Chat／Responses、Anthropic Messages 和两个 Gemini provider 支持列表与单模型读取；两个 DeepSeek provider 目前只有文档公开的列表操作。代理未提供目录时，查询返回服务错误，仍可直接使用已知模型 ID 生成。
+OpenAI Chat／Responses、Anthropic Messages、两个 Gemini provider、OpenRouter、Cohere、Ollama 和 Bedrock 支持列表与单模型读取；两个 DeepSeek provider 目前只有文档公开的列表操作。代理未提供目录时，查询返回服务错误，仍可直接使用已知模型 ID 生成。model.id 只保存服务端实际提供的标识；协议允许缺失时为 None，requestedId 单独保存本次请求的值。
 
 分页沿用具体 API 的 query 和原始返回值。Gemini 的数量是 ULong，缺省省略；page token 保持原字符串：
 
@@ -724,6 +724,19 @@ when (first.page.native["nextPageToken"]) {
 ```
 
 Anthropic 使用 `anthropicModelsQuery(limit = Some(20UL), afterId = Some(lastId))` 或 beforeId；first_id、last_id、has_more 保留在 page.native。其他过滤参数可用既有 UrlQuery 添加，重复字段和空值保持原样。库不自动翻页或统一推断游标，模型原生能力字段也不自动变成当前生成入口的 capability。Gemini 的 models/ 资源名前缀由适配器去除以得到可绑定的 id，完整 name 保留在 model.native。
+
+Cohere 的 endpoint 使用 API 地址前缀，缺省 https://api.cohere.com，普通生成追加 v2/chat、模型查询追加 v1/models。自定义代理地址也传共同前缀；分页使用 `cohereModelsQuery(pageSize = Some(20UL), pageToken = Some(token), endpoint = Some("chat"))`，next_page_token 仍从 page.native 读取。Cohere 可省略 name，列表中对应条目的 id 保持 None。
+
+Ollama 的详情读取由适配器编码为 POST /show。默认只传模型名称，需要 verbose 时使用同一个入口的原生扩展：
+
+```scoop
+val detail = client.retrieveModel(ollamaEndpoint, "caller-model:tag",
+    extensions = [ollamaModelOptions(verbose = Some(true))])
+println(detail.model.native)
+println(detail.requestedId)
+```
+
+Ollama 详情没有服务端模型 ID，因此 detail.model.id 为 None。OpenRouter 单模型查询接受 author/slug（含 :free 等后缀），native 保留完整 data 包装。Bedrock 模型查询需要显式配置模型目录 API 的 endpoint，例如 https://bedrock.us-east-1.amazonaws.com，并使用对应的 SigV4 认证；库不改写既有 runtime URL。列表过滤参数用 UrlQuery 显式提供。
 
 ## 8. 缺省值与使用检查
 

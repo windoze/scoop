@@ -562,7 +562,7 @@ TokenUsage 使用 usage.tokens.input_tokens／output_tokens，cached_tokens 是�
 
 ## 28. Cohere Chat v2 请求与普通生成
 
-CohereChatProtocol 实现 LlmSseProtocol，CohereDialect 提供 encodeOptions(request) 与 decodeError。Providers.cohereChat() 包装 CohereChatDialect，缺省地址为 https://api.cohere.com/v2；generationUrl 在部署路径后追加 chat，保留查询。应用显式提供 LlmAuth.bearer 和模型 ID，不查模型目录、不读取环境。普通调用沿用 client.generate 的能力检查、寿命、usage 和实际时间戳；流式使用同一地址并添加 stream=true，接收合同见第 29 节。
+CohereChatProtocol 实现 LlmSseProtocol，CohereDialect 提供 encodeOptions(request) 与 decodeError。Providers.cohereChat() 包装 CohereChatDialect，缺省地址为 https://api.cohere.com；generationUrl 在 API 地址前缀后追加 v2/chat，保留查询。模型查询在同一前缀下使用 v1/models，版本属于具体操作路径，不改写调用方提供的地址。应用显式提供 LlmAuth.bearer 和模型 ID，不查模型目录、不读取环境。普通调用沿用 client.generate 的能力检查、寿命、usage 和实际时间戳；流式使用同一地址并添加 stream=true，接收合同见第 29 节。
 
 最小请求只发送 model、messages。request.system 作为首条 system 消息，显式 System／User／Assistant 消息保持原位，Developer 无对应 role 而拒绝。content 使用有序 block 数组，不合并不同消息。History 检查同 dialect、无额外 context、assistant role 后原样追加，包括 thinking、plan、citations 和未知字段。已有 tool_calls 不需要在接续请求重新声明工具。
 
@@ -842,14 +842,28 @@ GET 的事件回放仅记录实际首事件和完成时间，不记录生成首�
 
 ## 46. 显式模型目录查询
 
-`LlmClient.listModels(endpoint, query = UrlQuery(), options = LlmCallOptions())` 只读取一页，返回 `LlmModelListResult(page, metadata)`；`retrieveModel(endpoint, modelId, options = LlmCallOptions())` 读取单个模型，返回 `LlmModelResult(model, metadata)`。目录不参与 generate、模型绑定或 capability 检查，不自动翻页、选择模型、注册模型或缓存查询。代理没有目录入口时，显式查询照常报告服务错误，不影响生成。
+`LlmClient.listModels(endpoint, query = UrlQuery(), options = LlmCallOptions())` 只读取一页，返回 `LlmModelListResult(page, metadata)`；`retrieveModel(endpoint, modelId, options = LlmCallOptions(), extensions = [])` 读取单个模型，返回 `LlmModelResult(model, metadata, requestedId)`。目录不参与 generate、模型绑定或 capability 检查，不自动翻页、选择模型、注册模型或缓存查询。代理没有目录入口时，显式查询照常报告服务错误，不影响生成。
 
 `LlmGenerationProtocol.modelCatalog(): LlmModelCatalog?` 缺省 None，具体 protocol 委托 dialect 提供已支持的操作。LlmModelCatalog 提供纯 listUrl／decodeList；具有单模型 API 的目录同时实现 LlmModelLookup 的 retrieveUrl／decodeModel。此步接入 OpenAI Chat／Responses、DeepSeek Chat／Responses、Anthropic Messages、Gemini generateContent／Interactions。OpenAI、Anthropic 和 Gemini 支持单模型读取；DeepSeek 仅按已公布的模型列表 API 接入，不用下载整个目录模拟单模型读取。不支持的操作在认证和 I/O 前报 /provider 错误，并执行既有完成通知。
 
-`LlmModelInfo(dialect, id, native)` 保存可用于绑定的模型标识与完整模型 JSON；`LlmModelPage(dialect, models, native)` 保存有序列表和完整分页响应。四个数据类型均有 companion codec。OpenAI／DeepSeek／Anthropic 从 data 数组的 id 读取；Gemini 从 models 数组的 name 读取并去除协议定义的 models/ 前缀，native 保留原始资源名。Gemini 的缺省或 null models 表示空页。只验证模型标识及列表结构；名称、能力详情、上下文长度、分页字段及服务商附加信息保留原值，既不据此推断已选生成 API 的 capability，也不验证附加内容的准确性。
+`LlmModelInfo(dialect, id: String?, native)` 保存服务端提供的模型标识与完整模型 JSON；`LlmModelPage(dialect, models, native)` 保存有序列表和完整分页响应。四个数据类型均有 companion codec。OpenAI／DeepSeek／Anthropic 从 data 数组的必需 id 读取；Gemini 从 models 数组的必需 name 读取并去除协议定义的 models/ 前缀，native 保留原始资源名。Gemini 的缺省或 null models 表示空页。协议允许省略标识时 id 为 None，不从请求补造服务端身份；单模型结果的 requestedId 单独保留调用方提交的非空标识。只验证协议规定的模型标识及列表结构；名称、能力详情、上下文长度、分页字段及服务商附加信息保留原值，既不据此推断已选生成 API 的 capability，也不验证附加内容的准确性。
 
-查询与单模型读取使用 GET、空正文和当前 endpoint 的认证及版本 header，追加 /models 或 /models/{id}。模型 ID 必须非空并作为一个原始 path segment 编码；Gemini retrieve 也接受 models/ 前缀。保留 baseUrl 路径和 query，显式 query 按同名字段覆盖 baseUrl 的值，同时保留本次 query 的重复字段、空值和无值。没有 query 参数时不额外产生问号。不同分页字段不统一成猜测的 next cursor；调用方从 page.native 读取服务端原值并显式传入下一次 query。
+上述服务的查询与单模型读取使用 GET、空正文和当前 endpoint 的认证及版本 header，追加 /models 或 /models/{id}；其他服务的路径与方法见第 47 节。模型 ID 必须非空并作为一个原始 path segment 编码；Gemini retrieve 也接受 models/ 前缀。保留 baseUrl 路径和 query，显式 query 按同名字段覆盖 baseUrl 的值，同时保留本次 query 的重复字段、空值和无值。没有 query 参数时不额外产生问号。不同分页字段不统一成猜测的 next cursor；调用方从 page.native 读取服务端原值并显式传入下一次 query。
 
 `geminiModelsQuery(pageSize: ULong? = None, pageToken: String? = None)` 与 `anthropicModelsQuery(limit: ULong? = None, afterId: String? = None, beforeId: String? = None)` 仅构造既有 UrlQuery；缺省不发送参数，其他过滤参数可继续通过 UrlQuery 添加。数量按原无符号值发送，由 API 处理其自身上限，不建立本地配额体系。操作复用既有 HTTP、重试、超时、取消、借入所有权和完成回调；metadata 只记录实际操作计时，不合成生成 token 用量或 response ID。
 
 普通 scoop.test 使用官方响应形状与本地 mock 验证缺省入口、显式分页、原文 codec、URL／认证／实际时间、错误清理，以及目录失败不影响生成；真实查询默认忽略并要求显式配置。依据：[OpenAI list](https://developers.openai.com/api/reference/resources/models/methods/list)、[OpenAI retrieve](https://developers.openai.com/api/reference/resources/models/methods/retrieve)、[Anthropic Models](https://platform.claude.com/docs/en/api/models/list)、[Gemini Models](https://ai.google.dev/api/models)、[DeepSeek Models](https://api-docs.deepseek.com/api/list-models/)。
+
+## 47. 其他已接入服务的模型查询
+
+OpenRouter、Cohere、Ollama 和 Bedrock 的模型列表／详情使用相同 client 方法，具体 protocol 继续委托 dialect。LlmModelLookup 增加纯 retrieveRequest(baseUrl, modelId, extensions = [])，返回 LlmModelLookupRequest 的 Get(url) 或 Post(url, body)；缺省实现使用 retrieveUrl 并拒绝无映射的非空 extensions。Ollama 使用 Post，其他目录使用 Get。网络层按所选请求编码实际方法与正文，沿用认证、重试、计时和关闭，不执行模型加载、拉取、创建或删除。
+
+OpenRouter 列表使用 /models、data[].id；单模型使用 /model/{author}/{slug}、data.id。仅此 API 将 modelId 按唯一的 / 分隔成非空 author 与 slug，分别做 path segment 编码，保留版本后缀；不把这一规则应用到其他服务。单模型 native 保留包括 data 的完整响应。
+
+Cohere 使用 /v1/models 与 /v1/models/{model}，条目位于 models 数组，模型标识来自可选的 name。name 缺省或 null 时 id=None；提供时必须是非空字符串。cohereModelsQuery(pageSize: ULong? = None, pageToken: String? = None, endpoint: String? = None, defaultOnly: Boolean? = None) 只构造原生 query，缺省省略，服务端负责参数组合及限值；其他参数仍可通过 UrlQuery 传入。
+
+Ollama 列表使用 GET /tags 和 models[].model；详情使用 POST /show，正文仅默认携带 model，响应不提供标识，因此 model.id=None，requestedId 保持原请求值。ollamaModelOptions(verbose: Boolean? = None) 产生既有 DialectExtension，显式 true／false 均保留；其他原生选项可使用相同扩展，禁止覆盖 model。缺少附加字段、字段类型变化或新增字段不影响主线，详情响应仅要求 JSON object 且不能是 error 响应。
+
+Bedrock 查询使用 /foundation-models、modelSummaries[].modelId，以及 /foundation-models/{modelIdentifier}、modelDetails.modelId。modelIdentifier 可为实际 ID 或 ARN，整体作为单个 path segment 编码。调用方显式提供模型查询服务的 URL 和认证；不从 runtime 域名、地区或模型名称推导另一地址。所有查询过滤字段仍通过 UrlQuery 传入；不包含云资源创建、部署或账号管理。单模型 native 保留包括 modelDetails 的完整响应。
+
+依据：[OpenRouter 列表](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties)、[单模型](https://openrouter.ai/docs/api/api-reference/models/get-a-model-by-its-slug)、[Cohere 列表](https://docs.cohere.com/v2/reference/list-models)、[单模型](https://docs.cohere.com/v1/reference/get-model)、[Ollama 列表](https://docs.ollama.com/api/tags)、[详情](https://docs.ollama.com/api-reference/show-model-details)、[Bedrock 列表](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_ListFoundationModels.html)、[单模型](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_GetFoundationModel.html)。

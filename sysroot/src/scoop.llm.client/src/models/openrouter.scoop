@@ -1,0 +1,18 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.text.split
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+internal class OpenRouterModelCatalog(val dialect: DialectId) : LlmModelLookup {
+    public override fun listUrl(baseUrl: Url, query: UrlQuery): Url = llmModelsUrl(baseUrl, query)
+    public override fun retrieveUrl(baseUrl: Url, modelId: String): Url {
+        val parts = modelId.split("/")
+        if (parts.size != 2L || parts[0].length == 0L || parts[1].length == 0L)
+            throw LlmRequestException("/modelId", "OpenRouter model lookup requires author/slug")
+        return baseUrl.toBuilder().appendPathSegment("model").appendPathSegment(parts[0]).appendPathSegment(parts[1]).build()
+    }
+    public override fun decodeList(value: JsonValue): LlmModelPage = decodeLlmModelPage(dialect, value, false)
+    public override fun decodeModel(value: JsonValue): LlmModelInfo = decodeWrappedLlmModel(dialect, value, "data", "id")
+}

@@ -1,0 +1,31 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+internal class OllamaModelCatalog(val dialect: DialectId) : LlmModelLookup {
+    public override fun listUrl(baseUrl: Url, query: UrlQuery): Url =
+        llmModelQueryUrl(baseUrl.toBuilder().appendPathSegment("tags").build(), query)
+    public override fun retrieveUrl(baseUrl: Url, modelId: String): Url {
+        if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+        return baseUrl.toBuilder().appendPathSegment("show").build()
+    }
+    public override fun retrieveRequest(baseUrl: Url, modelId: String, extensions: Array<DialectExtension>): LlmModelLookupRequest {
+        val url = retrieveUrl(baseUrl, modelId)
+        checkDialectExtensions(extensions, "/extensions")
+        val body = JsonObjectBuilder().add("model", JsonValue.fromString(modelId)).build()
+        return LlmModelLookupRequest.Post(url, mergeLlmExtensions(body, extensions, dialect, ["model"], ""))
+    }
+    public override fun decodeList(value: JsonValue): LlmModelPage = decodeNamedLlmModelPage(dialect, value, "models", "model")
+    public override fun decodeModel(value: JsonValue): LlmModelInfo {
+        checkLlmModelResponse(dialect, value)
+        return LlmModelInfo(dialect, None, value)
+    }
+}
+
+public fun ollamaModelOptions(verbose: Boolean? = None): DialectExtension {
+    val value = JsonObjectBuilder()
+    when (verbose) { case Some(enabled) -> value.add("verbose", JsonValue.fromBoolean(enabled)); case None -> {} }
+    return DialectExtension(OllamaChatDialect().id, value.build())
+}

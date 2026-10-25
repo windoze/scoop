@@ -1,0 +1,16 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+internal class BedrockModelCatalog(val dialect: DialectId) : LlmModelLookup {
+    public override fun listUrl(baseUrl: Url, query: UrlQuery): Url =
+        llmModelQueryUrl(baseUrl.toBuilder().appendPathSegment("foundation-models").build(), query)
+    public override fun retrieveUrl(baseUrl: Url, modelId: String): Url {
+        if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+        return baseUrl.toBuilder().appendPathSegment("foundation-models").appendPathSegment(modelId).build()
+    }
+    public override fun decodeList(value: JsonValue): LlmModelPage = decodeNamedLlmModelPage(dialect, value, "modelSummaries", "modelId")
+    public override fun decodeModel(value: JsonValue): LlmModelInfo = decodeWrappedLlmModel(dialect, value, "modelDetails", "modelId")
+}

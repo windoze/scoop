@@ -13,10 +13,19 @@ public interface LlmModelCatalog {
 /** Only catalogs with a documented single-model operation implement this contract. */
 public interface LlmModelLookup : LlmModelCatalog {
     public fun retrieveUrl(baseUrl: Url, modelId: String): Url
+    public fun retrieveRequest(baseUrl: Url, modelId: String, extensions: Array<DialectExtension> = []): LlmModelLookupRequest {
+        if (extensions.size != 0L) throw LlmRequestException("/extensions", "model lookup has no request extension mapping")
+        return LlmModelLookupRequest.Get(retrieveUrl(baseUrl, modelId))
+    }
     public fun decodeModel(value: JsonValue): LlmModelInfo
 }
 
-public class LlmModelInfo public constructor(public val dialect: DialectId, public val id: String, public val native: JsonValue) {
+public enum LlmModelLookupRequest {
+    Get(val url: Url)
+    Post(val url: Url, val body: JsonValue)
+}
+
+public class LlmModelInfo public constructor(public val dialect: DialectId, public val id: String?, public val native: JsonValue) {
     public companion object : ValueEncoder<LlmModelInfo>, ValueDecoder<LlmModelInfo>
 }
 
@@ -30,6 +39,8 @@ public class LlmModelListResult public constructor(public val page: LlmModelPage
     public companion object : ValueEncoder<LlmModelListResult>, ValueDecoder<LlmModelListResult>
 }
 
-public class LlmModelResult public constructor(public val model: LlmModelInfo, public val metadata: LlmCallMetadata) {
+public class LlmModelResult public constructor(
+    public val model: LlmModelInfo, public val metadata: LlmCallMetadata, public val requestedId: String
+) {
     public companion object : ValueEncoder<LlmModelResult>, ValueDecoder<LlmModelResult>
 }

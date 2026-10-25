@@ -3,6 +3,7 @@ package scoop.llm.client
 import scoop.json.*
 
 public class OpenRouterChatDialect public constructor() : ChatDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(OpenRouterModelCatalog(id))
     public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "openrouter-chat")
     public override val streamedReasoningField: String? = None
     public override fun encodeOptions(request: LlmRequest): JsonValue = encodeOpenRouterOptions(id, request)

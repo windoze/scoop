@@ -5,6 +5,7 @@ import scoop.url.Url
 
 /** Converse requests, responses and EventStream generation, bound to an explicit service dialect. */
 public class ConverseProtocol public constructor(public val dialect: ConverseDialect) : LlmEventStreamProtocol {
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationUrl(baseUrl: Url, modelId: String): Url {
         if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")

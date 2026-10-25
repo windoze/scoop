@@ -15,9 +15,12 @@ private class ModelCatalogFailuresTest {
         withLlmServer suspend { _, _, _, original ->
             val auth = RecordingAuth()
             withLlmClient suspend { client ->
-                for ((provider, listing, id, path) in [(Providers.cohereChat(), true, "id", "/provider"),
+                for ((provider, listing, id, path) in [(LlmProvider("no-catalog", CataloglessProtocol()), true, "id", "/provider"),
                     (Providers.deepSeekChat(), false, "id", "/provider"), (Providers.openAiChat(), false, "", "/modelId"),
-                    (Providers.geminiGenerateContent(), false, "models/", "/modelId")]) {
+                    (Providers.geminiGenerateContent(), false, "models/", "/modelId"),
+                    (Providers.openRouterChat(), false, "unqualified", "/modelId"),
+                    (Providers.cohereChat(), false, "", "/modelId"), (Providers.ollamaChat(), false, "", "/modelId"),
+                    (Providers.bedrockConverse(), false, "", "/modelId")]) {
                     val endpoint = LlmEndpoint(provider, auth, Some(original.baseUrl))
                     val finished = FinishedCalls()
                     val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))

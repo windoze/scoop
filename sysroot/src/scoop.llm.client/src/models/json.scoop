@@ -55,5 +55,5 @@ internal fun decodeLlmModelInfo(dialect: DialectId, value: JsonValue, path: Stri
             throw LlmProtocolException(dialect, path + "/name", "expected models/{model} resource name", value)
         text = text.slice(7L, text.length)
     }
-    return LlmModelInfo(dialect, text, value)
+    return LlmModelInfo(dialect, Some(text), value)
 }
