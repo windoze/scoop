@@ -49,6 +49,8 @@
 | Bedrock ConverseStream 内容、工具与流式网络 | 完成：本机新增 23 项与共享 SSE EOF 回归 3 项通过；Linux 仅网络／工具／兼容性 3/3 |
 | JSON number 的显式精确 Long 转换 | 完成：本机新增 5/5；Linux 仅有符号边界／指数抵消组合 1/1 |
 | Cohere Chat v2 完整响应 | 完成：本机新增 19/19；Linux 仅 reasoning／引用／工具／usage／接续组合 1/1；独立消费者通过 |
+| Cohere Chat v2 请求与普通生成 | 完成：本机 Cohere 定向 34/34；Linux 仅普通生成 mock 1/1；独立消费者通过 |
+| Cohere Chat v2 SSE | 待实施 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -117,3 +119,5 @@
 - Cohere 的 number 计数触发 JSON 精确整数转换缺口，先补齐 JsonValue.asIntegralLong。该显式入口按合法数字原文转换小数／指数写法，保留超过 Double 精度的整数，拒绝非整数与溢出；原有 typed Long 规则不变。实现顺序遍历 token，不分配指数规模的缓冲。本机新增 5/5；nuc12 仅正负边界和长小数／指数抵消组合 1/1。两平台 JSON 与受影响的依赖库已更新，没有编译器修改或 fixture。
 
 - Cohere Chat v2 完整响应新增 19 项纯 decoder 测试，覆盖 text／thinking／plan、并行函数执行资格、引用来源、精确 token 与 billed_units 分离、错误路径和原始历史保存。本机 19/19；nuc12 仅 reasoning／引用／工具／usage／接续组合 1/1。生产库与跨 Cone 消费者通过，默认 2 项普通测试通过、13 项真实 API 用例忽略。引用范围没有已确认的 Unicode 单位，保持原文，不猜 TextRange。没有真实 API 请求、编译器修改或 fixture；格式化、lint 与提交前凭据检查通过。
+
+- Cohere 普通生成新增 15 项 Cone 测试，覆盖缺省部署与最小请求、图片、显式推理／JSON 参数、函数的全局 strict 设置、独立工具结果和原始历史回传。RAG 文档经请求扩展显式提供，不迁移消息内容；无法表达的工具选择与组合明确失败。本机 Cohere 定向 34/34；nuc12 仅一个生成 mock 1/1，检查路径、认证、精确 usage、历史与实际时间戳。生产库及跨 Cone 缺省入口通过，默认消费者 2 通过、13 个真实 API 用例忽略。没有真实 API 请求、编译器修改或 fixture；格式化、lint 与提交前凭据检查通过，清理本机闲置 target/debug/incremental 约 373 MiB。

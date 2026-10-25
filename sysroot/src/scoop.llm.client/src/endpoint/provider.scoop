@@ -11,6 +11,8 @@ public class LlmProvider public constructor(
 
 /** Common combinations and deployment defaults, without a model-name router. */
 public object Providers {
+    public fun cohereChat(): LlmProvider = LlmProvider("cohere-chat-v2", CohereChatProtocol(CohereChatDialect()),
+        Some(Url.parse("https://api.cohere.com/v2")))
     public fun bedrockConverse(): LlmProvider = LlmProvider("bedrock-converse", ConverseProtocol(BedrockConverseDialect()))
     public fun geminiInteractions(): LlmProvider = LlmProvider("gemini-interactions",
         InteractionsProtocol(GeminiInteractionsDialect()), Some(Url.parse("https://generativelanguage.googleapis.com/v1")))

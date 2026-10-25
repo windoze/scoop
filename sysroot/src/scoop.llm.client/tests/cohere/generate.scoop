@@ -1,0 +1,53 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.cohere.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class CohereGenerateTest {
+    @Test
+    fun `Cohere generation mock verifies deployed route bearer auth exact usage history and timestamps`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val endpoint = LlmEndpoint(Providers.cohereChat(), LlmAuth.bearer("mock-only"),
+                Some(Url.parse(original.baseUrl.toString() + "/cohere?deployment=test")))
+            val reply = cohereBody("[{\"type\":\"text\",\"text\":\"ok\"}]", usage = Some(
+                "{\"tokens\":{\"input_tokens\":12.0,\"output_tokens\":1e0},\"cached_tokens\":8,\"billed_units\":{\"input_tokens\":4}}"))
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                    assertEquals("/v1/cohere/chat?deployment=test", target)
+                    assertEquals("Bearer mock-only", String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0L].value))
+                    val body = Json.parse(String.fromUtf8(request.body.readAllBytes(4096L)))
+                    assertEquals(2L, body.size)
+                    assertEquals("unlisted:model", body["model"]!!.asString())
+                    assertEquals("hello 世界", body["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
+                    sendLlmReply(connection, 200U, Json.stringify(reply))
+                }
+            }
+            withLlmClient suspend { client ->
+                val result = client.generate(endpoint.model("unlisted:model"), sampleRequest)
+                assertEquals("ok", result.text)
+                assertEquals(Some(12L), result.response.usage.tokens.inputTokens)
+                assertEquals(Some(4L), result.response.usage.tokens.nonCachedInputTokens)
+                assertEquals(Some(13L), result.response.usage.tokens.totalTokens)
+                assertEquals(LlmCallOutcome.Completed, result.metadata.outcome)
+                assertEquals(1L, result.metadata.attempts.size)
+                val attempt = result.metadata.attempts[0L]
+                assertEquals(Some("reply"), attempt.responseId)
+                assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+                assertTrue(attempt.response.completedAt != None)
+                val saved = Json.decodeFromString<LlmResult>(Json.encodeToString(result))
+                assertEquals(result.metadata.startedAt, saved.metadata.startedAt)
+                assertEquals("assistant", cohereEncode(LlmRequest(saved.toInput()))["messages"]!![0L]["role"]!!.asString())
+            }
+            serving.join()
+        }
+    }
+}

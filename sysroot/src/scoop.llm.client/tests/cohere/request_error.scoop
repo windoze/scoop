@@ -1,0 +1,22 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class CohereRequestErrorTest {
+    @Test
+    fun `Cohere service errors retain raw bodies and only parsed rate limits can retry`() {
+        val protocol = CohereChatProtocol(CohereChatDialect())
+        val body = "{\"message\":\"rate limited\",\"future\":1e400}".toByteArray()
+        val error = protocol.decodeError(429U, body, false)
+        assertTrue(error.retryable)
+        assertEquals(Some("rate limited"), error.message)
+        assertEquals("1e400", error.native!!["future"]!!.asNumberToken())
+        assertEquals(String.fromUtf8(body), String.fromUtf8(error.body))
+        for (status in [400U, 401U, 498U, 500U, 503U]) assertFalse(protocol.decodeError(status, body, false).retryable)
+        assertFalse(protocol.decodeError(429U, body, true).retryable)
+        for (raw in ["not-json", "{}", "{\"message\":1}"]) assertFalse(protocol.decodeError(429U, raw.toByteArray(), false).retryable)
+    }
+}

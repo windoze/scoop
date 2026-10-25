@@ -1,0 +1,56 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeCohereOptions(dialect: DialectId, request: LlmRequest): JsonValue {
+    val options = request.options
+    val result = JsonObjectBuilder()
+    if (options.temperature != None) {
+        if (options.temperature!! < 0.0) throw LlmRequestException("/options/temperature", "Cohere temperature must be nonnegative")
+        result.add("temperature", JsonValue.fromDouble(options.temperature!!))
+    }
+    if (options.topP != None) {
+        if (options.topP!! < 0.01 || options.topP!! > 0.99) throw LlmRequestException("/options/topP", "Cohere p must be between 0.01 and 0.99")
+        result.add("p", JsonValue.fromDouble(options.topP!!))
+    }
+    if (options.topK != None) {
+        if (options.topK!! > 500L) throw LlmRequestException("/options/topK", "Cohere k must be between 0 and 500")
+        result.add("k", JsonValue.fromLong(options.topK!!))
+    }
+    if (options.maxOutputTokens != None) {
+        if (options.maxOutputTokens!! == 0L) throw LlmRequestException("/options/maxOutputTokens", "Cohere max_tokens must be positive")
+        result.add("max_tokens", JsonValue.fromLong(options.maxOutputTokens!!))
+    }
+    if (llmPresent(options.stop)) {
+        if (options.stop!!.size > 5L) throw LlmRequestException("/options/stop", "Cohere accepts at most five stop sequences")
+        result.add("stop_sequences", Json.encodeToValue(options.stop!!))
+    }
+    if (options.candidates != None && options.candidates != Some(1L)) throw LlmRequestException("/options/candidates", "Cohere returns one candidate")
+    if (options.parallelToolCalls != None) throw LlmRequestException("/options/parallelToolCalls", "Cohere has no parallel tool call switch")
+    encodeCohereReasoning(result, options.reasoning)
+    encodeCohereOutput(result, options.output)
+    encodeCohereTools(result, dialect, request)
+    return result.build()
+}
+
+private fun encodeCohereReasoning(result: JsonObjectBuilder, reasoning: ReasoningOptions?) {
+    val options = reasoning ?: return
+    if (options.effort != None) throw LlmRequestException("/options/reasoning/effort", "Cohere has no thinking effort field")
+    if (options.budgetTokens != None) {
+        if (options.enabled == Some(false) || options.budgetTokens!! == 0L)
+            throw LlmRequestException("/options/reasoning/budgetTokens", "a thinking budget must be positive and requires enabled thinking")
+        result.add("thinking", llmTypedObject("enabled").add("token_budget", JsonValue.fromLong(options.budgetTokens!!)).build())
+    } else if (options.enabled != None) result.add("thinking", llmTypedObject(if (options.enabled!!) "enabled" else "disabled").build())
+}
+
+private fun encodeCohereOutput(result: JsonObjectBuilder, format: OutputFormat): Unit = when (format) {
+    case Text -> Unit
+    case JsonObject -> { result.add("response_format", llmTypedObject("json_object").build()); Unit }
+    case JsonSchema(schema, name, description, strict) -> {
+        if (name != "response") throw LlmRequestException("/options/output/name", "Cohere has no output format name field")
+        if (description != None) throw LlmRequestException("/options/output/description", "Cohere has no output format description field")
+        if (strict == Some(false)) throw LlmRequestException("/options/output/strict", "Cohere JSON Schema output is always constrained")
+        result.add("response_format", llmTypedObject("json_object").add("json_schema", schema).build())
+        Unit
+    }
+}

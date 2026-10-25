@@ -1,0 +1,20 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun cohereEncode(request: LlmRequest, model: String = "application-model"): JsonValue =
+    CohereChatProtocol(CohereChatDialect()).encodeRequest(model, request)
+
+internal fun cohereInput(options: LlmGenerationOptions = LlmGenerationOptions()): LlmRequest =
+    LlmRequest([Message([Text("hello")])], options = options)
+
+internal fun cohereExtension(value: String): Array<DialectExtension> = [DialectExtension(cohereDialect, Json.parse(value))]
+
+internal fun assertCohereRequestFailure(request: LlmRequest, path: String) {
+    assertEquals(path, assertFailsWith<LlmRequestException> { cohereEncode(request); Unit }.path)
+}
+
+internal fun cohereFunction(key: String = "local", name: String = "lookup", strict: Boolean? = None): ToolDefinition =
+    ClientFunction(ToolKey(key), name, Json.parse("{\"type\":\"object\",\"properties\":{\"count\":{\"type\":\"integer\"}}}"), "Find a value", strict)

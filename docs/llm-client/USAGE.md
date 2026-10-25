@@ -369,9 +369,18 @@ None 的语义按字段固定：`httpClient = None` 创建作用域内拥有的 
 
 若要使用 Chat protocol，显式改用 `Providers.openAiChat()` 创建另一个 endpoint／model 绑定。不能只替换 URL 后继续套用 Responses 的工具或原生历史；两个 provider 可以共享同一个 http。两个绑定的 capability 各自取得，未知模型不触发目录联网查询。
 
-### 7.1 解码已有的 Cohere Chat v2 响应
+### 7.1 Cohere Chat v2 使用同一生成入口
 
-Cohere 当前提供完整响应的纯解码入口，请求编码和 SSE 继续实施。将原请求一并传入，函数调用才能绑定到应用声明的 ToolKey；返回值沿用相同的 text、usage、clientToolCalls、toInput 和 companion codec。
+Cohere 的普通生成只需更换 provider，缺省发送 model 和 messages；SSE 继续实施。图片 detail 属于图片扩展，RAG documents 属于请求扩展，不把某条消息的文档自动挪到全局。
+
+```scoop
+suspend fun askCohere(client: LlmClient, apiKey: String, modelId: String): LlmResult {
+    val model = LlmEndpoint(Providers.cohereChat(), LlmAuth.bearer(apiKey)).model(modelId)
+    return client.generate(model, LlmRequest([Message([Text("解释值类型。")])]))
+}
+```
+
+完整响应仍可单独解码。将原请求一并传入，函数调用才能绑定到应用声明的 ToolKey；返回值沿用相同的 text、usage、clientToolCalls、toInput 和 companion codec。
 
 ```scoop
 fun readCohereReply(body: String, request: LlmRequest): LlmResponse =

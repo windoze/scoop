@@ -40,5 +40,8 @@ private class CohereCompositionTest {
 
 private class ForeignCohereDialect : CohereDialect {
     public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "foreign")
+    public override fun encodeOptions(request: LlmRequest): JsonValue = JsonObjectBuilder().build()
     public override fun readUsage(value: JsonValue): TokenUsage = TokenUsage()
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        LlmServiceException(id, status, body, truncated)
 }

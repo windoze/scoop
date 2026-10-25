@@ -557,3 +557,23 @@ citations 的 content_index 指向原始 content 数组；TEXT_CONTENT、THINKIN
 TokenUsage 使用 usage.tokens.input_tokens／output_tokens，cached_tokens 是已包含在 input 内的缓存读。仅当 input 和 cached 都已知且 cached 不超过 input 时计算 nonCachedInputTokens；未报告缓存读不当作零。input 与 output 都已知时可精确相加得到 totalTokens，溢出明确失败。计数必须为非负、Long 范围内的整数值，允许精确的整数小数／指数写法，不经过 Double。cacheWrite 与 reasoning 细项没有报告时保持 None；billed_units 是另一种计费口径，只在 usage.native 中保留，不代替实际 token 计数或伪造金额。
 
 依据：[Chat v2](https://docs.cohere.com/v2/reference/chat)、[reasoning](https://docs.cohere.com/docs/reasoning)、[工具引用](https://docs.cohere.com/docs/tool-use-citations)、[计费与实际 token 的区别](https://docs.cohere.com/docs/how-does-cohere-pricing-work)，以及[官方 SDK 响应定义](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/v2/types/v2chat_response.py)和[引用定义](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/types/citation.py)。参考 [Vercel usage 映射](https://github.com/vercel/ai/blob/39aae5425e9f9a25acce413cc7e6823c2b5a73c5/packages/cohere/src/convert-cohere-usage.ts)，沿用本库对未知缓存计数与精确整数的合同。
+
+## 28. Cohere Chat v2 请求与普通生成
+
+CohereChatProtocol 实现 LlmGenerationProtocol，CohereDialect 增加 encodeOptions(request) 与 decodeError。Providers.cohereChat() 包装 CohereChatDialect，缺省地址为 https://api.cohere.com/v2；generationUrl 在部署路径后追加 chat，保留查询。应用显式提供 LlmAuth.bearer 和模型 ID，不查模型目录、不读取环境。普通调用沿用 client.generate 的能力检查、寿命、usage 和实际时间戳；纯 encodeRequest 可以生成 stream=true 正文，SSE 接收另行实现。
+
+最小请求只发送 model、messages。request.system 作为首条 system 消息，显式 System／User／Assistant 消息保持原位，Developer 无对应 role 而拒绝。content 使用有序 block 数组，不合并不同消息。History 检查同 dialect、无额外 context、assistant role 后原样追加，包括 thinking、plan、citations 和未知字段。已有 tool_calls 不需要在接续请求重新声明工具。
+
+Text 编码 type=text；User 的 Image 支持 JPEG／PNG／GIF／WebP 的 Bytes 和 HTTP(S) Url，Bytes 编码 data URL，不下载 URL 或改写媒体。图片扩展作用于 image_url 对象，可指定 detail，不能覆盖 url；Text 扩展位于 block。FileReference、音视频和普通 Document 没有同等消息映射，明确拒绝。RAG documents 是全局检索上下文，由 request.extensions 显式提供，不把某条消息的 Document 挪到全局。Native 保留同 dialect 的非空 type 对象；已知 image_url、thinking、document 分别只适用于 user、assistant、tool，未知原生种类保留交给服务解释。
+
+temperature 非负，topP 映射 p（0.01～0.99），topK 映射 k（0～500），maxOutputTokens 映射正数 max_tokens，stop 映射最多五项 stop_sequences；缺省全部省略，显式零或空数组在协议允许时保留。candidates 只接受缺省／1，parallelToolCalls 无开关。reasoning.enabled 映射 thinking.type=enabled／disabled，正数 budgetTokens 映射 token_budget 并启用 thinking；disabled 与预算冲突，effort 无对应字段。空 ReasoningOptions 不发送 thinking，不按模型名推断推理模式。
+
+JsonObject 与 JsonSchema 分别为 response_format 的 json_object 和带 json_schema 的 json_object。name 仅接受公共缺省 response，description 与 strict=false 无等价字段而拒绝；None／true 保持约束输出。response_format 与 tools／documents 参数不能组合，扩展加入 documents 后也检查此规则。库不追加 JSON 提示，应用在消息中明确要求 JSON。
+
+ClientFunction 映射 type=function 与 function.name／description／parameters，不改写 schema；函数名在本请求中唯一。函数扩展作用于 function 对象。strict 映射请求级 strict_tools：所有显式值必须一致，未指定的函数沿用此次请求的全局设置。Auto 省略 tool_choice，None 为 NONE，Required 为 REQUIRED 且需要工具。Specific 仅在请求已只声明目标函数时映射 REQUIRED；多工具集合不能原生指定单个函数，报告错误，不删除其他声明来模拟。ClientCustom、ClientNative 和 Server 没有 Chat v2 的已定义映射而拒绝；documents 或引用不构成服务端工具声明。
+
+ToolResult 使用实际非空 call ID，context 存在时必须是同 ID 的 function call。每个结果成为独立 tool 消息，content 支持 Text 和同 dialect Native（包括 document block），不替应用执行工具或包装任意文本为 JSON。isError=true 无对应标记而拒绝，实际错误可以由应用作为结果内容提供。消息扩展不能覆盖 role、content、tool_call_id、tool_calls、tool_plan 或 citations。
+
+根部扩展允许 documents、citation_options、seed、penalties、safety_mode 等未管理字段，不能覆盖路由、内容、工具、采样、thinking 或 response_format。已解析且含字符串 message 的 HTTP 429 服务拒绝可由现有策略重试；截断、非 JSON、其他状态保留错误与正文，不获得重试资格。
+
+依据：[Chat v2 参数](https://docs.cohere.com/v2/reference/chat)、[图片输入](https://docs.cohere.com/docs/image-inputs)、[thinking 定义](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/types/thinking.py)、[工具结果定义](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/types/tool_message_v2.py)。借鉴 [Vercel 的协议映射](https://github.com/vercel/ai/blob/39aae5425e9f9a25acce413cc7e6823c2b5a73c5/packages/cohere/src/cohere-chat-language-model.ts)，同时遵守本库对原始历史、声明集合和显式选项的合同。

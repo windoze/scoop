@@ -1,0 +1,65 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeCohereRequest(dialect: CohereDialect, model: String, request: LlmRequest, stream: Boolean): JsonValue {
+    if (model.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+    val messages = ArrayList<JsonValue>()
+    if (request.system.size != 0L) messages.add(encodeCohereMessage(dialect.id, "system", request.system, [], "/system", "/system"))
+    var index = 0L
+    for (item in request.input) {
+        val path = "/input/" + index.toString()
+        when (item) {
+            case Message(content, role, extensions) -> {
+                val name = when (role) {
+                    case User -> "user"
+                    case Assistant -> "assistant"
+                    case System -> "system"
+                    case Developer -> throw LlmRequestException(path + "/role", "Cohere has no developer message role")
+                }
+                messages.add(encodeCohereMessage(dialect.id, name, content, extensions, path, path + "/content"))
+            }
+            case History(history) -> appendCohereHistory(messages, history, dialect.id, path + "/history")
+            case ToolResult(call, content, isError, extensions) ->
+                messages.add(encodeCohereToolResult(dialect.id, call, content, isError, extensions, path))
+        }
+        index += 1L
+    }
+    if (messages.size == 0L) throw LlmRequestException("/input", "Cohere requires at least one message")
+    val body = JsonObjectBuilder().add("model", JsonValue.fromString(model)).add("messages", JsonValue.fromArray(messages))
+    for ((name, value) in dialect.encodeOptions(request).members()) {
+        if (name == "model" || name == "messages" || name == "stream")
+            throw LlmRequestException("/options", "dialect options cannot override Cohere routing, messages or stream mode")
+        body.add(name, value)
+    }
+    if (stream) body.add("stream", JsonValue.fromBoolean(true))
+    val result = mergeLlmExtensions(body.build(), request.extensions, dialect.id, ["model", "messages", "stream", "tools", "tool_choice",
+        "strict_tools", "temperature", "p", "k", "max_tokens", "stop_sequences", "thinking", "response_format"], "")
+    if (result.containsKey("response_format") && (result.containsKey("tools") || result.containsKey("documents")))
+        throw LlmRequestException("/options/output", "Cohere response_format cannot be combined with tools or documents")
+    return result
+}
+
+private fun encodeCohereMessage(dialect: DialectId, role: String, content: Array<ContentPart>,
+    extensions: Array<DialectExtension>, path: String, contentPath: String): JsonValue {
+    val message = JsonObjectBuilder().add("role", JsonValue.fromString(role))
+        .add("content", encodeCohereContent(dialect, content, role, contentPath)).build()
+    return mergeLlmExtensions(message, extensions, dialect, cohereMessageFields(), path)
+}
+
+internal fun cohereMessageFields(): Array<String> = ["role", "content", "tool_call_id", "tool_calls", "tool_plan", "citations"]
+
+private fun appendCohereHistory(messages: ArrayList<JsonValue>, history: LlmHistory, dialect: DialectId, path: String) {
+    requireLlmOwner(history.dialect, dialect, path + "/dialect")
+    if (llmPresent(history.context)) throw LlmRequestException(path + "/context", "Cohere history has no implicit server state")
+    var index = 0L
+    for (item in history.items) {
+        val itemPath = path + "/items/" + index.toString()
+        if (item.kind != JsonValueKind.Object) throw LlmRequestException(itemPath, "history requires assistant messages")
+        val role = item["role"] ?: throw LlmRequestException(itemPath + "/role", "missing history role")
+        if (role.kind != JsonValueKind.String || role.asString() != "assistant")
+            throw LlmRequestException(itemPath + "/role", "history requires assistant messages")
+        messages.add(item)
+        index += 1L
+    }
+}
