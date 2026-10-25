@@ -4,6 +4,8 @@ LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实�
 
 Gemini Live 通过 `Providers.geminiLive()` 绑定同一 endpoint／model，`openGeminiLiveSession`／`withGeminiLiveSession` 发送 setup 并等待确认后提供显式收发。setup 与后续消息记录实际时间戳，音频、文本、转写、工具取消、用量与原始通知均可保存；`BidiGenerateContentProtocol` 同时提供纯编解码。连续对话与工具执行由应用控制，见[Live 示例](../../../docs/llm-client/USAGE.md#713-gemini-live-的会话与纯协议入口)。
 
+OpenAI Realtime 的 `Providers.openAiRealtime()` 与 `RealtimeProtocol` 提供独立 URL、配置、输入、音频 buffer 和 response 命令编码；缺省省略与显式清空、函数／服务端 MCP、原生历史和 ULong 限制均可保存。当前交付请求线协议，服务端事件与会话连接继续接入，见[Realtime 示例](../../../docs/llm-client/USAGE.md#714-openai-realtime-的请求线协议)。
+
 OpenAI Chat／Responses 与 Anthropic Messages 的文件操作使用同一 client：uploadFile、listFiles、retrieveFile、downloadFile 和 deleteFile。Gemini generateContent／Interactions 共用上传、列表、读取与删除入口，并提供 registerFiles 登记已有 GCS URI。上传结果提供可保存的可选文件引用，服务端附加字段保留原文；用法见[文件 API 示例](../../../docs/llm-client/USAGE.md#712-显式上传引用和读取文件)。
 
 OpenRouter 使用 Providers.openRouterChat()，缺省部署 https://openrouter.ai/api/v1；模型 ID 由应用显式选择。普通生成和 SSE 保留 reasoning_details 的签名、加密块及完整历史，文件 annotations 可随 toInput 回传。客户端函数与 openrouter:web_search 服务端工具可以同时声明，模型没有报告执行活动时不从 usage 推断调用。图片／文件／音频／视频输入采用各自文档形状，输出图片与音频保持 Native；纯入口与范围见[规范第 39 节](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md#39-openrouter-chat-dialect)。当前以本地 mock 验证，真实互通待可用凭据后补测。

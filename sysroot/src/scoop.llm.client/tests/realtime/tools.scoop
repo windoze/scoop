@@ -1,0 +1,57 @@
+package scoop.llm.client.tests.realtime
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class RealtimeToolsTest {
+    @Test
+    fun `Realtime mixes functions and server MCP with explicit keys and patch tool context`() {
+        val tools: Array<ToolDefinition> = [rtFunction, rtMcp]
+        val body = rtProtocol.encodeSessionUpdate(RealtimeConfiguration(tools = Some(tools), toolChoice = Some(Specific(ToolKey("remote")))))["session"]!!
+        assertEquals(2L, body["tools"]!!.size)
+        assertEquals("function", body["tools"]!![0]["type"]!!.asString())
+        assertEquals("mcp", body["tools"]!![1]["type"]!!.asString())
+        assertEquals("docs", body["tool_choice"]!!["server_label"]!!.asString())
+        val selected = rtProtocol.encodeSessionUpdate(RealtimeConfiguration(toolChoice = Some(Specific(ToolKey("local")))), tools = tools)["session"]!!
+        assertFalse(selected.containsKey("tools"))
+        assertEquals("lookup", selected["tool_choice"]!!["name"]!!.asString())
+        val required = rtProtocol.encodeSessionUpdate(RealtimeConfiguration(toolChoice = Some(Required)))["session"]!!
+        assertEquals("required", required["tool_choice"]!!.asString())
+        assertFalse(required.containsKey("tools"))
+    }
+
+    @Test
+    fun `Realtime function results keep wire call IDs and do not require tool redeclaration`() {
+        val reference = ClientToolCallReference(rtDialect, ToolKey("not-a-wire-name"), Some("wire-id"),
+            Some(Json.parse("{\"type\":\"function_call\",\"call_id\":\"wire-id\",\"name\":\"lookup\",\"arguments\":\"{}\"}")))
+        val input = LlmInputItem.ToolResult(reference, [Text("{\"answer\":"), Text("42}")])
+        val restored = Json.decodeFromString<LlmInputItem>(Json.encodeToString(input))
+        val result = rtItem(restored)
+        assertEquals("function_call_output", result["type"]!!.asString())
+        assertEquals("wire-id", result["call_id"]!!.asString())
+        assertEquals("{\"answer\":42}", result["output"]!!.asString())
+        assertFalse(result.containsKey("name"))
+        val withoutContext = ClientToolCallReference(rtDialect, ToolKey("old"), Some("old-call"))
+        assertEquals("old-call", rtItem(ToolResult(withoutContext, []))["call_id"]!!.asString())
+        rtFailure("/input/0/isError") { rtItem(ToolResult(reference, [], true)); Unit }
+        rtFailure("/input/0/call/id") { rtItem(ToolResult(ClientToolCallReference(rtDialect, ToolKey("old")), [])); Unit }
+        rtFailure("/input/0/call/context/call_id") {
+            rtItem(ToolResult(ClientToolCallReference(rtDialect, ToolKey("old"), Some("other"), reference.context), [])); Unit
+        }
+    }
+
+    @Test
+    fun `Realtime rejects unmapped tool controls instead of replacing declarations`() {
+        val strict: ToolDefinition = ClientFunction(ToolKey("strict"), "f", Json.parse("{}"), strict = Some(false))
+        rtFailure("/tools/0/strict") { rtProtocol.encodeSessionUpdate(RealtimeConfiguration(tools = Some([strict]))); Unit }
+        rtFailure("/tools/0") { rtProtocol.encodeSessionUpdate(RealtimeConfiguration(tools = Some([ClientCustom(ToolKey("custom"), "f")]))); Unit }
+        rtFailure("/tools/0/tool") { rtProtocol.encodeSessionUpdate(RealtimeConfiguration(tools = Some([Server(ToolKey("search"), WebSearch())]))); Unit }
+        rtFailure("/toolChoice") { rtProtocol.encodeSessionUpdate(RealtimeConfiguration(toolChoice = Some(Specific(ToolKey("missing"))))); Unit }
+        val duplicate: ToolDefinition = ClientFunction(ToolKey("another"), "lookup", Json.parse("{}"))
+        rtFailure("/tools/1/name") { rtProtocol.encodeSessionUpdate(RealtimeConfiguration(tools = Some([rtFunction, duplicate]))); Unit }
+        val foreign: ToolDefinition = Server(ToolKey("remote"), Native(NativeToolDefinition(OpenAiResponsesDialect().id, "mcp", Json.parse("{\"server_label\":\"s\"}"))))
+        rtFailure("/tools/0/tool/dialect") { rtProtocol.encodeSessionUpdate(RealtimeConfiguration(tools = Some([foreign]))); Unit }
+    }
+}

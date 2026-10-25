@@ -1,0 +1,74 @@
+package scoop.llm.client
+
+import scoop.io.encoding.Base64
+import scoop.json.*
+import scoop.url.Url
+
+/** Pure Realtime commands; opening or sending them never implies a response.create. */
+public class RealtimeProtocol public constructor(public val dialect: RealtimeDialect) : LlmApiProtocol {
+    public override val dialectId: DialectId get() = dialect.id
+    init {
+        if (dialect.id.protocol != ApiProtocolId("realtime"))
+            throw IllegalArgumentException(Some("Realtime dialect belongs to another API protocol"))
+    }
+    public fun webSocketUrl(baseUrl: Url, modelId: String): Url {
+        requireRealtimeId(modelId, "/modelId")
+        val scheme = when (baseUrl.scheme) { case Some("http") -> "ws"; case Some("https") -> "wss"
+            else -> throw LlmRequestException("/endpoint/baseUrl", "Realtime endpoint requires HTTP or HTTPS") }
+        return baseUrl.toBuilder().setScheme(Some(scheme)).appendPathSegment("realtime")
+            .setQueryParameters(baseUrl.queryParameters().set("model", Some(modelId))).build()
+    }
+    public fun encodeSessionUpdate(configuration: RealtimeConfiguration = RealtimeConfiguration(), eventId: String? = None,
+        tools: Array<ToolDefinition> = []): JsonValue =
+        realtimeCommand("session.update", eventId).add("session", dialect.encodeSession(configuration, tools)).build()
+
+    public fun encodeResponseCreate(request: RealtimeResponseRequest = RealtimeResponseRequest(), eventId: String? = None,
+        tools: Array<ToolDefinition> = []): JsonValue {
+        val command = realtimeCommand("response.create", eventId)
+        val body = dialect.encodeResponse(request, tools)
+        if (body.size != 0L) command.add("response", body)
+        return command.build()
+    }
+    public fun encodeItemCreate(item: LlmInputItem, previousItemId: String? = None, eventId: String? = None): JsonValue {
+        val items = dialect.encodeInput([item])
+        if (items.size != 1L) throw LlmRequestException("/item", "item.create requires exactly one item")
+        checkRealtimeItemInsertion(items[0])
+        val command = realtimeCommand("conversation.item.create", eventId).add("item", items[0])
+        when (previousItemId) { case Some(id) -> command.add("previous_item_id", JsonValue.fromString(requireRealtimeId(id, "/previousItemId"))); case None -> {} }
+        return command.build()
+    }
+    public fun encodeAudioAppend(bytes: Array<Byte>, eventId: String? = None): JsonValue =
+        realtimeCommand("input_audio_buffer.append", eventId).add("audio", JsonValue.fromString(Base64.Default.encode(bytes))).build()
+    public fun encodeNativeCommand(command: RealtimeNativeCommand): JsonValue {
+        requireLlmOwner(command.dialect, dialectId, "/dialect")
+        realtimeRequestString(command.value, "type", "/value")
+        return command.value
+    }
+    public fun encodeAudioCommit(eventId: String? = None): JsonValue = realtimeCommand("input_audio_buffer.commit", eventId).build()
+    public fun encodeAudioClear(eventId: String? = None): JsonValue = realtimeCommand("input_audio_buffer.clear", eventId).build()
+    public fun encodeItemRetrieve(itemId: String, eventId: String? = None): JsonValue =
+        realtimeCommand("conversation.item.retrieve", eventId).add("item_id", JsonValue.fromString(requireRealtimeId(itemId, "/itemId"))).build()
+    public fun encodeItemDelete(itemId: String, eventId: String? = None): JsonValue =
+        realtimeCommand("conversation.item.delete", eventId).add("item_id", JsonValue.fromString(requireRealtimeId(itemId, "/itemId"))).build()
+    public fun encodeItemTruncate(itemId: String, audioEndMilliseconds: ULong, contentIndex: ULong = 0UL, eventId: String? = None): JsonValue =
+        realtimeCommand("conversation.item.truncate", eventId).add("item_id", JsonValue.fromString(requireRealtimeId(itemId, "/itemId")))
+            .add("audio_end_ms", Json.encodeToValue(audioEndMilliseconds)).add("content_index", Json.encodeToValue(contentIndex)).build()
+    public fun encodeResponseCancel(responseId: String? = None, eventId: String? = None): JsonValue {
+        val command = realtimeCommand("response.cancel", eventId)
+        when (responseId) { case Some(id) -> command.add("response_id", JsonValue.fromString(requireRealtimeId(id, "/responseId"))); case None -> {} }
+        return command.build()
+    }
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
+}
+
+private fun realtimeCommand(type: String, eventId: String?): JsonObjectBuilder {
+    val command = llmTypedObject(type)
+    if (eventId != None) command.add("event_id", JsonValue.fromString(eventId!!))
+    return command
+}
+
+internal fun requireRealtimeId(value: String, path: String): String {
+    if (value.length == 0L) throw LlmRequestException(path, "Realtime identifier must not be empty")
+    return value
+}

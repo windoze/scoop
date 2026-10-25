@@ -941,3 +941,25 @@ receive 按需交付一个完整消息，正常连接结束返回 None；turnCom
 Responses 与 Gemini Live 共用内部 WebSocket 所有权、升级认证／拒绝重试、收发采样、单读／单写和关闭实现。允许一读一写并行，同方向重入在改变连接前失败；请求编码和 capability 错误不关闭可用会话。实际消息读写、协议错误或调用方取消则结束会话并等待清理，已交付的失败不在 close 重复抛出。会话随所属 client 关闭，借入 HttpClient 的所有权不变。打开调用者取消只约束交付前，交付后由会话／client 的显式寿命控制；不设后台输出消费、自动重连或媒体设备操作。
 
 普通 scoop.test 用本地 HTTP 升级／WebSocket mock 验证 setup 确认、媒体／转写、工具往返、时间与保存、错误及关闭，并回归共享 Responses 会话。真实 Live 用例 @Ignore，仅在显式选择且 key、model 已配置时运行少量输入。依据：[初始化与消息合同](https://ai.google.dev/api/live#BidiGenerateContentSetup)、[官方 Python 初始化顺序](https://github.com/googleapis/python-genai/blob/main/google/genai/live.py)、[官方 JavaScript 消息帧解码](https://github.com/googleapis/js-genai/blob/main/src/live.ts)、[会话通知](https://ai.google.dev/gemini-api/docs/live-api/session-management)。
+
+## 52. OpenAI Realtime 请求线协议
+
+Providers.openAiRealtime() 包装 RealtimeProtocol(OpenAiRealtimeDialect())，protocol ID 为 realtime，dialect ID 为 openai-realtime，缺省 baseUrl 为 https://api.openai.com/v1。webSocketUrl(baseUrl, modelId) 追加 realtime 路径，将 http／https 转为 ws／wss，以明确 modelId 设置唯一 model query，保留其他 query 与路径前缀。普通 generate／openStream 不接受该会话协议；不按模型名称切换 GPT-Live，也不自动增加旧版 beta header。
+
+本节交付纯请求编码与可保存的数据，不执行网络 I/O。RealtimeDialect 定义 session 配置、response 请求、输入编码与 HTTP 错误解释；RealtimeProtocol 定义各条客户端命令的包装与 ID 字段。事件解码、会话连接及实际消息时间由后续会话合同接入，不用普通单次生成方法占位。
+
+完整原生命令使用独立的 RealtimeNativeCommand(dialect, value) 与 encodeNativeCommand，提供 companion codec。它只检查归属及非空 type 对象后原样返回，用于直接表达 MCP 指定子工具等没有通用选项的原生设置，不与通用命令做隐式覆盖，也不声称已检查其所有服务端语义。
+
+RealtimeConfiguration 的 instructions、tools、toolChoice、outputModality、maxOutputTokens、parallelToolCalls、reasoningEffort 均缺省 None，extensions 缺省空数组。None 表示本次没有设置，显式空 instructions／tools 与 false 原样编码。RealtimeOutputModality 是 Text 或 Audio；RealtimeTokenLimit 是 Limited(ULong) 或 Unlimited，后者编码原生 inf。所有数据提供 companion codec。音频格式／voice／VAD／转写、prompt、truncation 等原生配置由对应位置的 dialect extensions 传入，保留显式 null；不填造服务端缺省，不管理采集、播放或音频转码。
+
+encodeSessionUpdate(configuration = RealtimeConfiguration(), eventId = None, tools = []) 输出 session.update，session.type 固定为 realtime；model 由连接 URL 指定，不能通过扩展更换。RealtimeResponseRequest(configuration = RealtimeConfiguration(), input = None, conversation = None) 用于 encodeResponseCreate；最小命令只有 response.create，input=None 使用服务器会话上下文，Some([]) 明确指定空输入，conversation 原样传入。配置中的扩展作用于 session 或 response 内，不隐式继承到其他位置；type、model、input、conversation 与所有已管理配置字段即使未输出也不能被覆盖。
+
+工具复用 ToolDefinition 与 ToolChoice。客户端函数编码扁平 function 定义；strict、custom 和客户端原生工具没有此协议映射，显式请求报错。服务端工具支持同 dialect 的 Native(mcp) 声明，原生配置保留，具体服务调用由服务器执行；WebSearch 不能擅自替换为 MCP。tools=None 不改写已配置工具，Some([]) 明确清空；Specific 按配置内 tools 或调用方显式传入的 tools 上下文关联函数名或 MCP server_label，不将 ToolKey 当作 wire name。工具 key 与函数名不能重复；未找到明确关联时报路径错误。Required 可以作用于服务器已存在的工具，不要求每条命令重新声明。
+
+encodeItemCreate(item, previousItemId = None, eventId = None) 只产生一条 conversation.item.create，input item 使用既有 LlmInputItem；多条 History 不能塞入一次 item.create。encodeResponseCreate 的可选 input 按顺序展开同 dialect History。新消息的 User／System 文本编码 input_text，Assistant 文本编码 output_text；Developer 没有对应角色而报错。图片只接受 PNG／JPEG 的 Bytes，编码 data URI；音频 Bytes 只接受协议的 raw PCM／PCMU／PCMA 媒体类型，按原字节 Base64 编码，不擅自修改连接音频格式。调用方须让音频字节与 session 的格式配置一致。媒体 URL、文件引用、文档、视频和带时间戳帧没有通用映射，明确拒绝；原生 content 和 history 保留同 dialect 的完整对象。conversation.item.create 按官方限制拒绝 assistant 音频，不能删除音频后伪装成成功回传。
+
+ToolResult 编码 function_call_output，使用实际 call ID 和文本结果；已提供 context 时要求它是同 ID 的 function_call。结果没有独立 isError 标记，错误内容由应用显式放入文本，不能静默丢弃 isError=true。MCP approval 等原生 item 可通过同 dialect 的 History 显式提供，不自动批准或执行。
+
+encodeAudioAppend(bytes, eventId = None)、encodeAudioCommit(eventId = None)、encodeAudioClear(eventId = None) 分别对应 input_audio_buffer 命令；提交音频不附加 response.create。encodeItemRetrieve／encodeItemDelete 使用实际 itemId；encodeItemTruncate(itemId, audioEndMilliseconds: ULong, contentIndex: ULong = 0UL, eventId = None) 直接编码应用选择的截断位置，不推算播放进度。encodeResponseCancel(responseId = None, eventId = None) 保留对默认响应或明确响应的选择。可选 eventId 原样传递，不生成确认关联或重放机制。output_audio_buffer.clear 是 WebRTC／SIP 操作，不作为该 WebSocket 协议的命令。
+
+普通测试使用官方形状，覆盖最小命令、缺省与显式清空、工具混用、媒体／历史／工具结果、URL 与精确无符号数、扩展归属和错误路径；不连接官方 OpenAI，也不测试附加字段的内容准确性。依据：[客户端事件](https://developers.openai.com/api/reference/resources/realtime/client-events)、[WebSocket 连接](https://developers.openai.com/api/docs/guides/voice-websockets)、[会话与函数调用](https://developers.openai.com/api/docs/guides/realtime-conversations)。

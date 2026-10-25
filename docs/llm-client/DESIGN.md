@@ -29,6 +29,7 @@
 | --- | --- | --- |
 | `openai-chat` | Chat Completions | OpenAI Chat |
 | `openai-responses` | Responses | OpenAI Responses |
+| `openai-realtime` | Realtime | OpenAI Realtime |
 | `deepseek-chat` | Chat Completions | DeepSeek Chat |
 | `deepseek-responses` | Responses | DeepSeek Responses |
 | `anthropic-messages` | Messages | Anthropic Messages |

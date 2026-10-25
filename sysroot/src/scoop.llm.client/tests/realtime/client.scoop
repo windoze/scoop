@@ -1,0 +1,48 @@
+package scoop.llm.client.tests.realtime
+
+import scoop.asyncio.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+
+@Test
+private class RealtimeProviderTest {
+    @Test
+    fun `Realtime provider rejects ordinary generation before authentication`() {
+        LibuvEventLoop().run suspend { _ ->
+            withLlmClient suspend { client ->
+                val auth = RecordingAuth()
+                val model = LlmEndpoint(Providers.openAiRealtime(), auth).model("custom/realtime:model")
+                for (stream in [false, true]) {
+                    val finished = FinishedCalls()
+                    val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))
+                    val error = expectLlmFailure<LlmRequestException> suspend {
+                        if (stream) client.withStream(model, sampleRequest, options) suspend { _ -> fail() }
+                        else { client.generate(model, sampleRequest, options) }
+                        Unit
+                    }
+                    assertEquals(if (stream) "/stream" else "/provider", error.path)
+                    assertEquals(0L, auth.requests.size)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(0L, finished.values[0].attempts.size)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Realtime HTTP rejection retains raw content without promoting malformed errors to retryable`() {
+        val body = "{\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"later\"},\"extra\":[false,null]}"
+        val error = rtProtocol.decodeError(429U, body.toByteArray(), false)
+        assertEquals(rtDialect, error.dialect)
+        assertEquals(429U, error.status)
+        assertTrue(error.retryable)
+        assertEquals(body, String.fromUtf8(error.body))
+        assertEquals(Json.stringify(Json.parse(body)), Json.stringify(error.native!!))
+        for (raw in ["{", "{\"error\":null}", "{\"error\":{\"code\":\"insufficient_quota\"}}"])
+            assertFalse(rtProtocol.decodeError(429U, raw.toByteArray(), false).retryable)
+        assertFalse(rtProtocol.decodeError(429U, body.toByteArray(), true).retryable)
+    }
+}

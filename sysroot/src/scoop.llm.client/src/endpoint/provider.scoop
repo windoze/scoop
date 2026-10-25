@@ -11,6 +11,8 @@ public class LlmProvider public constructor(
 
 /** Common combinations and deployment defaults, without a model-name router. */
 public object Providers {
+    public fun openAiRealtime(): LlmProvider = LlmProvider("openai-realtime", RealtimeProtocol(OpenAiRealtimeDialect()),
+        Some(Url.parse("https://api.openai.com/v1")))
     public fun geminiLive(): LlmProvider = LlmProvider("gemini-live", BidiGenerateContentProtocol(GeminiLiveDialect()),
         Some(Url.parse("https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent")))
     public fun openRouterChat(): LlmProvider = LlmProvider("openrouter-chat", ChatProtocol(OpenRouterChatDialect()),

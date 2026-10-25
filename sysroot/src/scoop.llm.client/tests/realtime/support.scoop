@@ -1,0 +1,20 @@
+package scoop.llm.client.tests.realtime
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal val rtProtocol = RealtimeProtocol(OpenAiRealtimeDialect())
+internal val rtDialect = OpenAiRealtimeDialect().id
+internal val rtFunction: ToolDefinition = ClientFunction(ToolKey("local"), "lookup", Json.parse("{\"type\":\"object\"}"))
+internal val rtMcp: ToolDefinition = Server(ToolKey("remote"), Native(NativeToolDefinition(rtDialect, "mcp",
+    Json.parse("{\"server_label\":\"docs\",\"server_url\":\"https://example.test/mcp\",\"require_approval\":\"always\"}"))))
+
+internal fun rtFailure(path: String, block: () -> Unit) {
+    val error = assertFailsWith<LlmRequestException>(block = block)
+    assertEquals(path, error.path)
+}
+
+internal fun rtItem(item: LlmInputItem): JsonValue = rtProtocol.encodeItemCreate(item)["item"]!!
+
+internal fun rtResponse(request: RealtimeResponseRequest): JsonValue = rtProtocol.encodeResponseCreate(request)["response"]!!

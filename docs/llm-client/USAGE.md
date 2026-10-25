@@ -843,6 +843,41 @@ val restored = Json.decodeFromString<GeminiLiveMessage>(saved)
 
 message.event 区分内容、函数调用、取消和会话通知。内容同时保留音频、文本、reasoning 与三类转写；turnComplete 和 interactionStatus 分别读取。应用执行完整的客户端调用后，用收到的 reference 构造 `GeminiLiveToolResult(call.reference, responseObject)`，再交给 encodeToolResponse。responseObject 原样包含结果及需要的 scheduling 字段；库不运行工具或恢复连接。每条 usage 独立保存，缺失分量保持未知；native 保存完整服务端消息。
 
+### 7.14 OpenAI Realtime 的请求线协议
+
+Realtime 使用自己的 provider。当前实现纯请求编码，以下例子产生 JSON 命令；服务端事件解码和持久会话继续接入。模型由连接 URL 指定，命令编码不会隐式连接或触发下一条命令。
+
+```scoop
+val endpoint = LlmEndpoint(Providers.openAiRealtime(), LlmAuth.bearer(apiKey))
+val protocol = endpoint.provider.protocol
+if (!(protocol is RealtimeProtocol)) throw IllegalArgumentException()
+val url = protocol.webSocketUrl(endpoint.baseUrl, modelId)
+
+val item = protocol.encodeItemCreate(Message([Text("你好")]))
+val generate = protocol.encodeResponseCreate()
+val append = protocol.encodeAudioAppend(pcm24kBytes)
+val commit = protocol.encodeAudioCommit()
+```
+
+最小 response.create 只有 type。音频 append／commit 与 response.create 是三条不同命令，由应用决定何时发送。使用 session 更新或单次 response 覆盖时，配置共用同一个类型，None 表示没有设置；空字符串、空工具列表、false 和原生 null 均保留。
+
+```scoop
+val dialect = OpenAiRealtimeDialect().id
+val configuration = RealtimeConfiguration(
+    instructions = Some("回答简短。"),
+    tools = Some([ClientFunction(ToolKey("weather"), "weather", weatherSchema)]),
+    outputModality = Some(RealtimeOutputModality.Audio),
+    maxOutputTokens = Some(RealtimeTokenLimit.Unlimited),
+    extensions = [DialectExtension(dialect,
+        Json.parse("{\"audio\":{\"input\":{\"turn_detection\":null},\"output\":{\"voice\":\"alloy\"}}}"))]
+)
+val update = protocol.encodeSessionUpdate(configuration)
+val oneResponse = protocol.encodeResponseCreate(RealtimeResponseRequest(configuration))
+val saved = Json.encodeToString(configuration)
+```
+
+`RealtimeResponseRequest(input = Some([]), conversation = Some("none"))` 明确指定不使用历史且不写入默认对话；input=None 保留服务端会话上下文。函数结果使用既有 ToolResult 和实际 call ID；服务端 MCP 使用同 dialect 的 NativeToolDefinition。需要指定 MCP 子工具等完整原生命令时，使用独立的 RealtimeNativeCommand 与 encodeNativeCommand，内容原样保留。当前适配以官方文档与本地 mock 验证，没有使用失效的官方 OpenAI key。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |
