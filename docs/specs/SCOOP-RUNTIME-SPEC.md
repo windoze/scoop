@@ -315,6 +315,8 @@ stackmap 使用 LLVM v3 record。规范化内容依次为 `{format_version=3, si
 
 stackmap 范围可以包含多个完整 v3 blob，必须解析到范围末尾。registration 与 raw record 完整对应，return PC 使用实际原始地址，不作减指令宽度、邻近符号或范围猜测。不同完整 site key 不能复用 SafepointId 或 return PC；同一 ODR site 的重复记录只在 owner、最终地址和实际 location/live-out 等 payload 全等时合并；这一比较用于合并实际重复记录，不建立记录指纹的镜像。
 
+启动收集 site 时检查 ID、role、root count 并建立唯一的 site 索引；owner callable 的身份与归属只在该 site 的首条 raw record 合并时解析一次，同时检查 entry、root count 和目标 frame 布局。后续同一 ODR site 的 raw record 与已验证记录比较完整地址及规范化 payload，复用其 owner 与 frame 验证结果。所有 site 必须有 raw record，全部对应关系仍在任何 managed 执行前验证完毕；不增加持久的 owner 缓存或新的登记字段。此规则对全部 profile、预编译 Cone 和启动测量配置一致。
+
 不可变 metadata 与 stackmap 的段放置、relocation 和 RELRO 由目标工具链与 loader 处理，runtime 直接使用装载结果。native DSO 不构成 Scoop logical image。String 使用实际声明的唯一 TD，`scoop_td_String` 与其地址相同。运行期不新增或卸载 Cone，Scoop runtime 也不执行 managed global destructor；native C／C++ 初始化／析构边界见第 7 章。
 
 ## 3. GC 契约

@@ -115,6 +115,8 @@ ArrayList 遍历原先在第三轮将 getter 估为 execution 19、growth 13，c
 
 [启动阶段测量](STARTUP-STATS.md)已独立交付：通过 `--enable-startup-stats` 编入，默认产物预处理排除新增代码。三目标样本将主要 runtime 启动成本定位到注册汇集、代码／类型校验和 stackmap；后续按真实不可变关系复用验证结果，继续保留格式、引用、ABI 和 GC 必要检查。该能力不改变 `.slib` 或 PGO 排期。
 
+首项[启动 owner 验证合并](STARTUP-OWNER-JOIN.md)已消除 site 收集与 stackmap join 之间重复的完整身份查询，并让重复 ODR record 复用已验证 frame。三目标默认代表程序启动降低约 2.7%～8.1%，完整文件与元数据大小保持；全部 profile 默认启用，不增加 owner 缓存或新测量机制。其余注册汇集、stackmap 解析与调用入口 TLS 继续作为直接优化对象。
+
 将内存读写、参数捕获、返回别名、具体类型和可能挂起等事实用于真实优化消费者：
 
 - 非内联 helper 不保留参数时，调用方仍可继续分析局部对象；读取 getter 不修改 backing 时，重复 load 和检查可以消除。

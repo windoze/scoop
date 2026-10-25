@@ -14,6 +14,7 @@
 
 ## 当前进展
 
+- 已完成[启动 site 的 owner 验证合并](STARTUP-OWNER-JOIN.md)：首次 stackmap 合并时一次解析与验证，重复 ODR 复用结果，保留完整性与错误检查。两机 image 测试和三目标 6 个启动 variant 通过；默认最小／JSON 程序启动分别降低 Darwin 6.49%／7.14%、GNU 8.10%／7.92%、musl 2.65%／2.85%。完整文件和静态元数据大小不变，text 增加 16～128 B，相同 `.slib` 零编译子进程复用，全部 profile 默认启用；没有新增测量或 ABI 机制。
 - 已完成[编译期开关控制的启动测量](STARTUP-STATS.md)：`--enable-startup-stats` 独立于 profile／GC stress，默认预处理排除新增计时、报告、诊断字符串和专用计数访问。三目标 6 个 variant 通过，两个实际程序的默认完整代码段与无测量基线逐字节相同、文件大小相同；开启开销与阶段成本已记录，注册汇集、代码／类型与 stackmap 是后续实际热点。
 - 已完成[poll 的本线程 relaxed 读取](POLL-OWNER-READS.md)：按实际单写者关系保留共享 acquire，降低本线程 mode／epoch 的读取强度；ARM64 Full poll 4→2 条 ldar，叶入口改为 ldr，TLS 仍保留。三个目标 18 个 GC variant、96 个进程通过，机器码／元数据与小范围复测完成；没有把 Linux 字节相同内核的时间波动算作优化收益，所有 profile 默认采用。
 - 已完成[普通内联增长额度调整](INLINE-GROWTH.md)：统一将初始常数 96 调为 128，总上限 384、执行成本与跨轮累计保持；真实 ArrayList.get 已内联，底层检查／数组 helper 继续按成本选择。三目标遍历内核减少约 16%～24%，代码增加 32～64 B，编译变化 −0.44%～+2.29%；66 项 MIR 与定向 CLI／GC、优化快照通过，release 默认启用。

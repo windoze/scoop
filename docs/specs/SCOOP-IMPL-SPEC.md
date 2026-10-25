@@ -456,6 +456,8 @@ relocation 的 section、atom、offset 和 target 均属于本次实际对象。
 
 所有 Scoop body、NoGc body、managed adapter、root/init gateway 与 release hook 都有 callable registration。生成 C bridge/trampoline、runtime C 和 ordinary native producer 使用各自实际对象合同。实际保留的 safepoint 与其 owner、role、machine root count、stackmap 完整对应；无 safepoint 的 body 也可合法登记。
 
+runtime 按运行时规范 2.8 在首条 stackmap 合并时一次完成 site 的 owner 与 frame 验证，后续相同 ODR 记录复用结果；该启动优化不改变登记记录、`.slib`、ABI 或各 profile 的生产合同。
+
 body 的 EH、LSDA、unwind、stackmap、关联常量与私有 Context cells 属于该 body 的同一次物理选择。TD、scan、dispatch、static storage、初始化和六类 registration 满足运行时规范；release hook 为 raw C、nounwind、NoGC，无 managed transition 或 EH/safepoint。
 
 LLVM 在机器发射中由 switch 生成的引用查找表和跳转表同样属于该 callable 的关联常量。AddressTakenConstant／Singleton 描述需要装载期地址重定位的后端常量；ELF 的 .rodata 贡献另用 AddressTakenConstant／BackendReadOnlyData 描述，包含指向本函数代码的相对跳转表。BackendReadOnlyData 是 DefinitionAtomSubkey 的无 payload 变体（wire tag 10），不改变既有子键的编码。两个贡献均在机器发射后按实际对象保留或移除，表内引用沿用普通引用闭合及 fingerprint。ELF 同时识别普通段名及带当前 callable 实际符号后缀的 COMDAT 段名，不把其他函数、字符串或固定宽度 literal 段归入该贡献。Mach-O 的地址表放入只读 __DATA_CONST 段；ELF 分别使用 .data.rel.ro.scoop.constants 与 .rodata.scoop.constants，保留各自权限，并与 callable 一同进行 ODR 选择。它们不获得源码实体身份，不通过忽略 orphan relocation 或关闭 switch 优化绕过对象合同；固定宽度、无引用的数值 literal pool 保持原有按内容表示。

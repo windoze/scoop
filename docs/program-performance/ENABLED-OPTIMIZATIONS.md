@@ -8,6 +8,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [启动 site 的 owner 验证合并](STARTUP-OWNER-JOIN.md) | 新版 runtime，所有 profile 默认 | 每个 site 在首次 stackmap 合并时只解析一次 owner；重复 ODR 记录复用验证结果，仍比较完整地址与 payload，全部对应关系在 managed 执行前完成。 |
 | [poll 的本线程 relaxed 读取](POLL-OWNER-READS.md) | 新编译器生成的所有 profile 默认 | 全局 epoch／phase 保持 acquire，只有所属线程写入的 mode／observed epoch 使用 relaxed；ARM64 Full poll 从 4 条 ldar 降为 2 条，TLS、慢边、roots 与 runtime 跨线程握手保持。 |
 | [普通内联增长额度调整](INLINE-GROWTH.md) | release 默认 | 初始额度为 `min(size / 2 + 128, 384)`，统一适用于本地、泛型及跨 Cone 正文；执行成本、总上限、深度与跨轮累计限制保持，同步 suspend 阶段不变。 |
 | [跨 Cone 普通方法与 getter 内联](MEMBER-INLINING.md) | release 默认；提供方需导出合格小正文 | 按完整签名与通用 HIR／MIR 成本选择，保留 receiver 与 typed accessor identity；泛型沿既有具体化路径，未知动态调用及缺少正文的旧库保留入口。 |
