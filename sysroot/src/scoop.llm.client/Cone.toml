@@ -9,6 +9,7 @@ kind = "library"
 [dependencies]
 "scoop:scoop.asyncio" = "0.1.0"
 "scoop:scoop.core" = "0.1.0"
+"scoop:scoop.crypto" = "0.1.0"
 "scoop:scoop.http" = "0.1.0"
 "scoop:scoop.http.client" = "0.1.0"
 "scoop:scoop.http.asyncio" = "0.1.0"

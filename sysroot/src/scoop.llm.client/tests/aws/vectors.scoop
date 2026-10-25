@@ -1,0 +1,47 @@
+package scoop.llm.client
+
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Instant
+import scoop.url.Url
+
+// Public AWS test-suite credentials, not usable account credentials.
+internal val awsExampleCredentials = AwsSigV4Credentials("AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY")
+internal val awsExampleTime = Instant.parse("2015-08-30T12:36:00Z")
+
+internal fun awsTestField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+internal fun awsTestHeader(fields: List<HttpField>, name: String): String =
+    String.fromUtf8(fields.findAll(name.toByteArray())[0L].value)
+
+@Test
+private class AwsSigV4VectorTest {
+    @Test
+    fun `AWS SigV4 matches published basic query and normalized path vectors`() {
+        for ((path, expected) in [
+            ("/", "5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31"),
+            ("/?Param1=value2&Param1=value1", "5772eed61e12b33fae39ee5e7012498b51d56abc0abb7c60486157bd471c4694"),
+            ("//example//", "9a624bd73a37c9a373b5312afbebe7a714a789de108f0bdfe846570885f57e84")]) {
+            val request = LlmAuthRequest("GET", Url.parse("https://example.amazonaws.com" + path), [], [])
+            val fields = signAwsLlmRequest(request, awsExampleCredentials, "us-east-1", "service", awsExampleTime)
+            assertEquals("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, " +
+                "SignedHeaders=host;x-amz-date, Signature=" + expected, awsTestHeader(fields, "Authorization"))
+        }
+    }
+
+    @Test
+    fun `AWS SigV4 matches published duplicate header order and body vectors`() {
+        val repeated = ArrayList<HttpField>()
+        for (value in ["value4", "value1", "value3", "value2"]) repeated.add(awsTestField("My-Header1", value))
+        val get = LlmAuthRequest("GET", Url.parse("https://example.amazonaws.com"), repeated.toArray(), [])
+        val first = signAwsLlmRequest(get, awsExampleCredentials, "us-east-1", "service", awsExampleTime)
+        assertEquals("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, " +
+            "SignedHeaders=host;my-header1;x-amz-date, Signature=08c7e5a9acfcfeb3ab6b2185e75ce8b1deb5e634ec47601a50643f830c755c01",
+            awsTestHeader(first, "Authorization"))
+        val post = LlmAuthRequest("POST", get.url, [awsTestField("Content-Type", "application/x-www-form-urlencoded")],
+            "Param1=value1".toByteArray())
+        val second = signAwsLlmRequest(post, awsExampleCredentials, "us-east-1", "service", awsExampleTime)
+        assertEquals("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, " +
+            "SignedHeaders=content-type;host;x-amz-date, Signature=ff11897932ad3f4e8b18135d722051e5ac45fc38421b1da7b9d196a0fe09473a",
+            awsTestHeader(second, "Authorization"))
+    }
+}

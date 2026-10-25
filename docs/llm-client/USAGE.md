@@ -66,7 +66,7 @@ val model = LlmEndpoint(Providers.geminiGenerateContent(),
 
 使用 Interactions 时将 provider 换成 `Providers.geminiInteractions()`，其余调用不变。需要关闭服务端存储时，在同一个 request.extensions 中传入 `DialectExtension(GeminiInteractionsDialect().id, Json.parse("{\"store\":false}"))`；省略 store 时沿用服务端默认值。`result.toInput()` 保留原始 steps，`previous_interaction_id` 则由应用显式放入本次请求的扩展。
 
-Converse 使用明确的部署地址与同一套调用；`baseUrl`、`apiKey` 和 `modelId` 都由应用配置提供。API key 认证采用 bearer，SigV4 的内置实现仍待后续接入。模型 ID 可以是服务方支持的 ARN，库会将它完整编码为一个路径段。
+Converse 使用明确的部署地址与同一套调用；`baseUrl`、`apiKey` 和 `modelId` 都由应用配置提供。API key 认证采用 bearer，AWS 凭据使用下文的 `LlmAuth.awsSigV4`。模型 ID 可以是服务方支持的 ARN，库会将它完整编码为一个路径段。
 
 ```scoop
 val model = LlmEndpoint(Providers.bedrockConverse(),
@@ -463,6 +463,27 @@ suspend fun streamLocalModel(client: LlmClient, modelId: String): LlmResult {
 缺省 EventsOnly 不累积普通正文，但保留 usage 与计时。thinking、文本和工具拥有稳定的输出位置；工具记录按到达顺序追加，不以重复 index 合并，只有最终 stop 才开放完整函数输入。已有 NDJSON source 时可使用 createNdjsonDecoder(request)，其 retention 同样缺省 EventsOnly。
 
 累计 token 快照只替换已报告字段，不求和；created_at 可以逐条变化，最终 response.createdAt 保存终止记录的实际时间，与 request.sentAt／response.receivedAt 分开。EOF 未收到 done=true 时失败；未知消息增量保持 Native，不能确定完整内容时不提供可追加历史。空消息触发 load／unload 时，原生服务返回的单个 application/json 响应也使用相同入口与完成规则。
+
+### 7.3 Bedrock 的 SigV4 认证
+
+认证仍放在 endpoint，普通和流式调用使用相同的 model。凭据源由应用提供，每次尝试重新调用；静态凭据也可以用返回已持有值的普通 suspend lambda 提供。服务名缺省为 bedrock，区域与部署 URL 显式传入。
+
+```scoop
+suspend fun useBedrock(
+    client: LlmClient,
+    baseUrl: Url,
+    region: String,
+    modelId: String,
+    credentials: suspend () -> AwsSigV4Credentials
+): LlmResult {
+    val endpoint = LlmEndpoint(Providers.bedrockConverse(),
+        LlmAuth.awsSigV4(region, credentials), Some(baseUrl))
+    return client.generate(endpoint.model(modelId),
+        LlmRequest([Message([Text("Explain this API briefly.")])]))
+}
+```
+
+AwsSigV4Credentials 保存 accessKeyId、secretAccessKey 和缺省 None 的 sessionToken，不参与序列化。签名使用实际 URL、请求字段和 body，不再调用编码器；重试会重新取凭据和签名。持有 Bedrock API key 时直接使用既有 LlmAuth.bearer。签名在排池前完成，应用提供的 HTTP hook 不应随后添加签名所需的 AWS 字段。该入口按官方文档及本地 mock 验证，真实 AWS 互通尚待凭据就绪后验证。
 
 ## 8. 缺省值与使用检查
 

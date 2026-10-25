@@ -1,0 +1,68 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.llm.client.tests.converse.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+private class AwsMockCredentials {
+    var reads = 0L
+    fun next(): AwsSigV4Credentials {
+        reads += 1L
+        val number = reads.toString()
+        return AwsSigV4Credentials("mock-access-" + number, "mock-secret-" + number, Some("session-" + number))
+    }
+}
+
+@Test
+private class AwsSigV4NetworkTest {
+    @Test
+    fun `AWS SigV4 network mock verifies fresh retry credentials and actual Converse and EventStream bytes`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val credentials = AwsMockCredentials()
+            val auth = LlmAuth.awsSigV4("us-west-2", suspend { credentials.next() })
+            val endpoint = LlmEndpoint(Providers.bedrockConverse(), auth,
+                Some(Url.parse(original.baseUrl.toString() + "/proxy?a=last&z=%2B&a=first")),
+                [awsTestField("X-Amz-Extra", "  one\t  two  "), awsTestField("User-Agent", "mock-agent")])
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (number in [1L, 2L, 3L]) {
+                        val received = connection.receiveRequest()!!
+                        val body = received.body.readAllBytes(8192L)
+                        val fields = received.head.fields
+                        val target = when (received.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        val operation = if (number == 3L) "converse-stream" else "converse"
+                        assertEquals("/v1/proxy/model/unlisted%2Fmodel%3Aversion/" + operation + "?a=last&z=%2B&a=first", target)
+                        val timestamp = awsTestHeader(fields, "X-Amz-Date")
+                        assertEquals(16L, timestamp.length)
+                        assertEquals("session-" + number.toString(), awsTestHeader(fields, "X-Amz-Security-Token"))
+                        assertEquals(expectedAwsWireAuth(awsTestHeader(fields, "Host"), timestamp, number, number == 3L, body),
+                            awsTestHeader(fields, "Authorization"))
+                        assertEquals("hello 世界", Json.parse(String.fromUtf8(body))["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
+                        if (number == 1L) sendLlmReply(connection, 429U, "{\"__type\":\"ThrottlingException\"}")
+                        else if (number == 2L) sendLlmReply(connection, 200U, Json.stringify(converseBody("[{\"text\":\"ok\"}]")))
+                        else sendConverseStreamBytes(connection, converseStreamBody())
+                    }
+                }
+            }
+            withLlmClient suspend { client ->
+                val model = endpoint.model("unlisted/model:version")
+                val result = client.generate(model, sampleRequest, LlmCallOptions(retries = LlmRetryOptions(initialDelay = Duration.ZERO)))
+                assertEquals("ok", result.text)
+                assertEquals(2L, result.metadata.attempts.size)
+                for (attempt in result.metadata.attempts) assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+                val stream = client.openStream(model, sampleRequest, retention = StreamRetention.Result)
+                stream.useAsync suspend { opened -> drainStream(opened) }
+                assertEquals("hello 世界", stream.result().text)
+                assertEquals(Some(12L), stream.result().response.usage.tokens.totalTokens)
+                assertEquals(3L, credentials.reads)
+            }
+            serving.join()
+        }
+    }
+}

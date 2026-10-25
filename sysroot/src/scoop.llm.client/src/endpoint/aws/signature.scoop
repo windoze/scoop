@@ -1,0 +1,57 @@
+package scoop.llm.client
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.crypto.*
+import scoop.datetime.UtcOffset
+import scoop.http.*
+import scoop.text.*
+import scoop.time.Instant
+
+internal fun signAwsLlmRequest(request: LlmAuthRequest, credentials: AwsSigV4Credentials,
+    region: String, service: String, now: Instant): Array<HttpField> {
+    val payloadHash = awsSha256(request.body)
+    for (field in request.fields) {
+        if (field.hasName("Authorization".toByteArray()) || field.hasName("X-Amz-Date".toByteArray()) ||
+            field.hasName("X-Amz-Security-Token".toByteArray()))
+            throw IllegalArgumentException(Some("AWS authentication field duplicates a request field"))
+        if (field.hasName("X-Amz-Content-Sha256".toByteArray()) && String.fromUtf8(field.value).trim() != payloadHash)
+            throw IllegalArgumentException(Some("AWS payload hash does not match the request body"))
+    }
+    val timestamp = awsTimestamp(now)
+    val date = timestamp.slice(0L, 8L)
+    val added = ArrayList<HttpField>()
+    added.add(HttpField("X-Amz-Date".toByteArray(), timestamp.toByteArray()))
+    when (credentials.sessionToken) {
+        case Some(token) -> added.add(HttpField("X-Amz-Security-Token".toByteArray(), token.toByteArray(), neverIndex = true))
+        case None -> {}
+    }
+    val (headers, names) = awsCanonicalHeaders(request, added)
+    val canonical = ByteArrayBuilder()
+    canonical.append((request.method + "\n" + awsCanonicalPath(request.url.encodedPath) + "\n" +
+        awsCanonicalQuery(request.url.encodedQuery) + "\n").toByteArray())
+    canonical.append(headers).append(("\n" + names + "\n" + payloadHash).toByteArray())
+    val scope = date + "/" + region + "/" + service + "/aws4_request"
+    val message = "AWS4-HMAC-SHA256\n" + timestamp + "\n" + scope + "\n" + awsSha256(canonical.toByteArray())
+    val dated = awsHmac(("AWS4" + credentials.secretAccessKey).toByteArray(), date)
+    val regional = awsHmac(dated, region)
+    val serviceKey = awsHmac(regional, service)
+    val key = awsHmac(serviceKey, "aws4_request")
+    val signature = awsHmac(key, message).toHexString()
+    added.add(HttpField("Authorization".toByteArray(), ("AWS4-HMAC-SHA256 Credential=" + credentials.accessKeyId +
+        "/" + scope + ", SignedHeaders=" + names + ", Signature=" + signature).toByteArray(), neverIndex = true))
+    return added.toArray()
+}
+
+private fun awsSha256(bytes: Array<Byte>): String = digest(DigestAlgorithm.Sha256, bytes).toHexString()
+
+private fun awsHmac(bytes: Array<Byte>, text: String): Array<Byte> =
+    SecretKey.fromBytes(bytes).use { key -> hmac(DigestAlgorithm.Sha256, key, text.toByteArray()) }
+
+private fun awsTimestamp(now: Instant): String {
+    val date = now.toLocalDateTime(UtcOffset.ZERO)
+    if (date.year < 1 || date.year > 9999) throw IllegalArgumentException(Some("AWS signing year must be in 1..9999"))
+    return date.year.toString().padStart(4L, '0') + awsTwoDigits(date.monthNumber) + awsTwoDigits(date.dayOfMonth) +
+        "T" + awsTwoDigits(date.hour) + awsTwoDigits(date.minute) + awsTwoDigits(date.second) + "Z"
+}
+
+private fun awsTwoDigits(value: Int): String = value.toString().padStart(2L, '0')

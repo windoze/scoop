@@ -685,3 +685,13 @@ Gemini 使用所选模型资源的 :countTokens，正文为 generateContentReque
 Messages 使用 /messages/count_tokens，相同部署、认证和版本头。正文复用普通请求的 messages、system、工具和原始历史编码，保留 tools／tool_choice／thinking／output_config；不发送 max_tokens、stream、采样或停止参数。已有显式生成选项仍经过模型能力检查，但计数不会注入缺省输出上限来约束 thinking 预算；显式输出上限仍参与预算一致性检查。请求扩展只允许计数端点的 cache_control 和 speed 等已支持输入字段，不静默丢弃其他扩展。当前端点不接受 MCP connector、除 advisor 外的 server tool、图片／文档的 URL 或 file 来源，编码前后在实际协议结构上检查并报错；检查工具结果／文档内容等协议容器，不递归解释工具参数中的任意业务 JSON。base64 媒体和支持的文本内容照常计数，缺失 input_tokens 保持未知。cache_control 不代表此次操作执行了 prompt caching。
 
 依据：[Gemini countTokens](https://ai.google.dev/api/tokens)、[Messages count_tokens](https://platform.claude.com/docs/en/api/messages/count_tokens)、[Claude 计数范围与限制](https://platform.claude.com/docs/en/build-with-claude/token-counting)。普通验收仅使用纯 codec 与 loopback mock；真实 API 用例继续默认 Ignore，只有显式选择且配置对应凭据时才运行。
+
+## 35. AWS SigV4 请求认证
+
+LlmAuth.awsSigV4(region, credentials: suspend () -> AwsSigV4Credentials, service = "bedrock") 返回现有 LlmAuth 的实现。region 显式提供，service 缺省适用于 Bedrock Runtime；其他实际 AWS LLM 部署可显式指定其签名服务名。AwsSigV4Credentials(accessKeyId, secretAccessKey, sessionToken = None) 是一次凭据快照，不提供 codec，不进入模型、请求内容或调用 metadata。凭据源由应用提供，每次实际尝试调用一次，可挂起并返回更新后的临时凭据；库不自动查找环境、文件、实例角色或登录账号，不建立凭据缓存与刷新状态机。来源异常与取消沿既有认证路径传播，未提交时不产生发送时间戳。
+
+签名复用最终 LlmAuthRequest 的 method、URL、headers 和准确 body 字节，使用 scoop.crypto 的 SHA-256 与 HMAC；不重新编码请求。凭据取得后读取当前 UTC，生成 X-Amz-Date、可选 X-Amz-Security-Token 及 Authorization；敏感认证字段使用 neverIndex。Host 由最终 URL 按 HTTP client 相同的 authority 规则推导（包括显式端口），只参与签名，仍由 HTTP 传输生成。路径按 SigV4 的非 S3 规则规范化并再次编码路径段；query 使用最终 URL 中已编码的键和值排序，保留重复项与空值。header 名小写并排序，同名值按原顺序以逗号连接，去除首尾 SP／HTAB 并折叠中间空白，保留其余原始字节。传输生成或易变的 content-length、hop-by-hop、user-agent 和追踪字段不参与签名；其他显式字段包括 x-amz-* 参与签名。请求已有 Authorization、X-Amz-Date、X-Amz-Security-Token 时明确拒绝冲突；显式 X-Amz-Content-Sha256 必须与实际 body 摘要一致，不接受 UNSIGNED-PAYLOAD。
+
+普通生成、流式和已支持的显式操作共用认证入口，重试重新获取凭据并签名；一次响应的 EventStream 不改变请求签名方式。区域与服务名不从模型或 hostname 猜测；签名发生在排池前，不保证排队后签名仍未过期。调用者的 HTTP 扩展不应在签名后添加签名所需的 AWS 字段。此入口实现带完整 body 摘要的 SigV4 header 认证，不提供 presigned URL、SigV4a 或流式请求体签名；Bedrock API key 仍可用既有 bearer 入口。
+
+依据：[AWS SigV4](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-create-signed-request.html)、[Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html)、[官方 Bedrock Runtime 定义](https://github.com/boto/botocore/blob/fecd1e19cf8e1c04b66480397455e1458867bf6d/botocore/data/bedrock-runtime/2023-09-30/service-2.json)及[官方 SDK 签名实现与测试向量](https://github.com/boto/botocore/tree/fecd1e19cf8e1c04b66480397455e1458867bf6d/tests/unit/auth/aws4_testsuite)。使用固定向量和本地网络 mock 验证签名、路径／query、临时 token、重试、普通及 EventStream 调用；未使用真实 AWS 凭据，真实互通另行验证。

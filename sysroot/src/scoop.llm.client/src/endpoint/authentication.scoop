@@ -17,6 +17,8 @@ public interface LlmAuth {
         public fun none(): LlmAuth = NoLlmAuth()
         public fun bearer(token: String): LlmAuth = BearerLlmAuth(token)
         public fun header(name: String, value: String): LlmAuth = HeaderLlmAuth(name, value)
+        public fun awsSigV4(region: String, credentials: suspend () -> AwsSigV4Credentials,
+            service: String = "bedrock"): LlmAuth = AwsSigV4LlmAuth(region, credentials, service)
     }
 }
 

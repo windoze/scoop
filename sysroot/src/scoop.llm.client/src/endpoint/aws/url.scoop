@@ -1,0 +1,35 @@
+package scoop.llm.client
+
+import scoop.collections.*
+import scoop.comparisons.comparatorOf
+import scoop.text.*
+import scoop.url.PercentEncoding
+
+/** AWS non-S3 paths collapse empty/dot segments, then encode the already escaped segments. */
+internal fun awsCanonicalPath(path: String): String {
+    val segments = ArrayList<String>()
+    for (part in path.split('/')) {
+        if (part.length == 0L || part == ".") continue
+        if (part == "..") {
+            if (segments.size != 0L) segments.removeAt(segments.size - 1L)
+        } else segments.add(PercentEncoding.encode(part))
+    }
+    return "/" + segments.joinToString("/") + (if (path.endsWith("/") && segments.size != 0L) "/" else "")
+}
+
+/** The final URL already contains encoded query bytes; do not encode them a second time. */
+internal fun awsCanonicalQuery(query: String?): String {
+    if (query == None || query == Some("")) return ""
+    val pairs = ArrayList<(String, String)>()
+    for (part in query!!.split('&')) {
+        val equals = part.indexOf('=')
+        pairs.add(if (equals < 0L) (part, "") else (part.slice(0L, equals), part.slice(equals + 1L, part.length)))
+    }
+    val sorted = pairs.sortedWith(comparatorOf<(String, String)> { left, right ->
+        val (leftName, leftValue) = left
+        val (rightName, rightValue) = right
+        val names = leftName.compareTo(rightName)
+        if (names == 0L) leftValue.compareTo(rightValue) else names
+    })
+    return sorted.joinToString("&") { pair -> val (name, value) = pair; name + "=" + value }
+}

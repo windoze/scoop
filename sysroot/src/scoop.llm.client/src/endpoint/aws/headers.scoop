@@ -1,0 +1,53 @@
+package scoop.llm.client
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.collections.*
+import scoop.http.*
+import scoop.text.*
+
+internal fun awsCanonicalHeaders(request: LlmAuthRequest, added: List<HttpField>): (Array<Byte>, String) {
+    val fields = ArrayList<HttpField>()
+    for (field in request.fields) fields.add(field)
+    for (field in added) fields.add(field)
+    val names = ArrayList<String>()
+    names.add("host")
+    for (field in fields) {
+        val name = String.fromUtf8(field.name).lowercaseAscii()
+        if (name == "host") throw IllegalArgumentException(Some("AWS Host is derived from the request URL"))
+        if (!awsUnsignedHeader(name) && !names.contains(name)) names.add(name)
+    }
+    val sorted = names.sorted()
+    val output = ByteArrayBuilder()
+    for (name in sorted) {
+        output.append((name + ":").toByteArray())
+        if (name == "host") output.append(request.url.httpOrigin().authority(request.url.authority!!.port != None).toByteArray())
+        else {
+            var first = true
+            for (field in fields) {
+                if (!field.hasName(name.toByteArray())) continue
+                if (!first) output.append(44.toByte())
+                first = false
+                appendAwsHeaderValue(output, field.value)
+            }
+        }
+        output.append(10.toByte())
+    }
+    return (output.toByteArray(), sorted.joinToString(";"))
+}
+
+private fun appendAwsHeaderValue(output: ByteArrayBuilder, bytes: Array<Byte>) {
+    var started = false
+    var space = false
+    for (byte in bytes) {
+        if (byte == 32.toByte() || byte == 9.toByte()) { space = started; continue }
+        if (space) output.append(32.toByte())
+        output.append(byte)
+        started = true; space = false
+    }
+}
+
+private fun awsUnsignedHeader(name: String): Boolean =
+    name == "content-length" || name == "connection" || name == "expect" || name == "keep-alive" ||
+    name == "proxy-authenticate" || name == "proxy-authorization" || name == "te" || name == "trailer" ||
+    name == "transfer-encoding" || name == "upgrade" || name == "user-agent" || name == "x-amzn-trace-id" ||
+    name == "baggage" || name == "traceparent" || name == "tracestate"
