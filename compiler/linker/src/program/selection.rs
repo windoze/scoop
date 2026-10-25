@@ -5,6 +5,8 @@ use scoop_identity::{
     ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrMemberId, StrongDefinitionRole,
 };
 
+mod reachable;
+
 #[derive(Default)]
 pub(crate) struct SelectedMembers {
     members: BTreeSet<(ConeIdentity, SlibMemberId)>,
@@ -12,7 +14,10 @@ pub(crate) struct SelectedMembers {
 }
 
 impl SelectedMembers {
-    pub(super) fn new(closure: &ProgramLinkClosure) -> Result<Self, LinkError> {
+    pub(super) fn new<'a>(
+        closure: &ProgramLinkClosure,
+        native_references: impl Iterator<Item = &'a str>,
+    ) -> Result<Self, LinkError> {
         let mut result = Self::default();
         let mut shared = BTreeSet::<OdrMemberId>::new();
         let mut artifacts: Vec<_> = closure.artifacts().collect();
@@ -106,6 +111,7 @@ impl SelectedMembers {
                 selected.extend(plans.iter().map(|plan| plan.0));
             }
         }
+        result.retain_reachable(closure, native_references)?;
         Ok(result)
     }
 

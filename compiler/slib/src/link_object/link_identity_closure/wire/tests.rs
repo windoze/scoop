@@ -5,7 +5,6 @@ use crate::link_object::LinkIdentityClosureSectionV1;
 
 use crate::link_object::strong_relocation_closure::tests::verified_member_without_relocations;
 use crate::link_object::symbol_verification::tests::fixture_named;
-use crate::link_object::undefined_requirements::tests::empty_final_requirements_for_strong;
 use crate::link_object::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalScoopLirObjectUnitSetV1,
     verify_current_cone_strong_relocation_closure_v1,
@@ -44,7 +43,6 @@ fn closure() -> LinkIdentityClosureSectionV1 {
     let definition_id = definition.definition();
     let defined_symbols =
         CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap();
-    let undefined_symbols = empty_final_requirements_for_strong(strong);
 
     LinkIdentityClosureSectionV1 {
         materializations: vec![super::super::LinkObjectMaterializationV1::ScoopLir {
@@ -52,7 +50,7 @@ fn closure() -> LinkIdentityClosureSectionV1 {
             units: CanonicalScoopLirObjectUnitSetV1::new(vec![definition_id]).unwrap(),
         }],
         defined_symbols,
-        symbol_uses: super::super::symbol_uses(&undefined_symbols),
+        symbol_uses: super::super::symbol_uses(&strong),
     }
 }
 

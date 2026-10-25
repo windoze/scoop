@@ -577,7 +577,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
 | HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/81`、`cross-cone-type-semantics/30` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/17`、`cone-production/14`、`link-identity-closure/18`、`link-support/1` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/17`、`cone-production/14`、`link-identity-closure/19`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -601,7 +601,7 @@ production 与 Link metadata 保存消费方实际使用的 body/type/site ID、
 
 `cone-production/14` 仅保存字段 2 canonical definitions、5 registration production、6 image plan、7 entry plan。共用该生产投影的 `strong-production` section 编码升至 24；旧 Strong profile 仍不作为消费入口。registration production 仅保存字段 1 identities、6 static storages、7 initialization units；image plan 仅保存字段 4 symbol、6 support atoms，support atoms 仅保存字段 11 array-bounds message 和 12 array-size-overflow message。其余生产字段没有下游消费者，当前格式不编码也不解码这些副本。
 
-`link-identity-closure/18` 的字段 5 保存按 `(source member, symbol bytes)` 排序、去重的符号使用，每项仅有字段 1 member 和 2 symbol；完整 relocation 和 requirement 继续用于生产阶段的对象处理与 Code 指纹，不作为链接器不消费的副本落盘。defined symbol owner 中的 definition boundary 记录仅保存字段 1 member 和 3 owner，省略可由 atom ID、Start/End 和 target 原生符号规范化确定的字段 2 名称；普通符号继续保存三个字段及其实际名称。所有表具有明确排序与唯一性；不保存 producer 的绝对搜索路径。
+`link-identity-closure/19` 的字段 5 保存按 `(source member, symbol bytes)` 排序、去重的全部跨物理 member 符号使用，每项仅有字段 1 member 和 2 symbol。生产时直接投影已经解析的实际 relocation，包含同 Cone、跨 Cone callable／shape、ODR、generated-C、runtime 和 native 引用；不能只投影 legacy undefined requirement 子集而遗漏跨 Cone 使用。对象内部已经闭合的引用不重复保存。18 及以前版本的使用表不满足完整引用合同，最终链接需要重建这些输入，不从机器对象补扫。完整 relocation 和 requirement 继续用于生产阶段的对象处理与 Code 指纹，不作为链接器不消费的副本落盘。defined symbol owner 中的 definition boundary 记录仅保存字段 1 member 和 3 owner，省略可由 atom ID、Start/End 和 target 原生符号规范化确定的字段 2 名称；普通符号继续保存三个字段及其实际名称。所有表具有明确排序与唯一性；不保存 producer 的绝对搜索路径。该修正不改变机器对象、源码实体或 runtime ABI。
 
 executable entry 保存完整签名以及封闭的声明分支：生产入口引用源码 PersistentFunctionId，测试入口引用 PersistentGeneratedCallableId。测试入口的 generated key 由当前 ConeIdentity 与 TestEntry role 确定，不生成伪造的源码 main identity；两者均通过正常 Strong callable body、root gateway 和 failure-root 链接。HIR 完成入口选择并检查签名，后续 stage 传递实际声明、body 与签名，不重新按名称选择入口。
 
@@ -1410,6 +1410,10 @@ release 在 roots 定稿前以 MemorySSA 消除跨无写入分支的重复加载
 GC 转换后每个 post-site managed use 必须来自正确更新的引用；invoke 的 normal/unwind 与 native transition 继续使用各自显式 root frames。不能在 root plan 定稿后增加未经描述的 safepoint、重复 site、外来 owner 或异常边。backend contract field 28 为 1，表示此最终根与发射合同。
 
 ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的机器码、EH、stackmap、callable/safepoint registration、关联常量与 Context cells 必须同选；独立 helper 可分别选择。共享同一完整接口数组的 dispatch definition 也必须同选，重复候选按这组实际物理 definitions 整组复用；不能将父表 alias 与其数组分别选自不同对象。shared TD、storage、cell 与初始化保持唯一，native linker 不得改变已确定选择。
+
+program-link 在上述 ODR 选择之后，按已保存的逐物理 member 定义／引用关系裁剪不可达 callable，对全部 profile 默认生效。当前保留非 callable 的物理 member，包括 root entry、类型／派发表、静态存储、immortal、初始化记录和 generated-C bridge；这些 member 是遍历入口，不以最终 image 的完整候选 callable／safepoint 表作为入口。runtime 的引用及已声明 native 输入中对象的 Scoop 符号引用也作为入口；native archive 的候选引用保守保留对应 Scoop 定义，不因此提前抽取 archive member。沿实际机器符号引用传递保留完整 callable member，包含函数地址、动态派发表、release hook、callback、初始化与跨 Cone 调用。未到达的递归调用环可以整体删除；保留的类型表或初始化记录仍可能使只通过这些记录引用的函数留下。
+
+该选择复用 Link 输入中已有的符号与物理成员数据，不重新读取机器对象或重建语言调用图，不改变源码可见性、类型检查、native 声明合同和 ABI。只有完整 callable 物理 member 被删除；其代码、EH、stackmap、登记记录、私有常量与 Context cells 同时退出最终链接。类型／存储等非 callable 元数据的更细裁剪不属于本次选择。输入 `.slib` 继续保存可供其他 consumer 使用的完整候选，所有 profile 统一使用前述完整符号使用表及相同布局。
 
 最终 image descriptors 和六张表由 program-link 从所选 records 生成，不改写输入 `.slib`。选择与实际内容进入 RuntimeImage、Code、Artifact 和 ResolvedLinkPlan 的对应摘要。
 

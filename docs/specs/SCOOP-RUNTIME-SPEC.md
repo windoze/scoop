@@ -749,6 +749,8 @@ C FFI 使用目标真实 float/double ABI。数值操作遵守语言规范 11.2.
 
 启动先保存 2.8 的原始 argc/argv，建立运行时基础状态并验证全部 image/registration，再建立 GC、主线程与可执行 managed boundary。任何 managed initializer、Context 分配、argv 的 managed 构造或 main 之前必须完成相应登记；C coordinator 不提前构造未登记的 String 或 Array。
 
+实现规范 2.19 的最终链接选择可以删除不可达的完整 callable 物理成员；启动只登记实际保留的 callable／safepoint，删除成员的 stackmap 与记录同时缺席。保留代码仍须满足完整的 owner、site、frame 与精确根合同，不能仅为减少启动工作而丢弃仍可执行代码的记录。类型、静态根、immortal 和初始化记录沿现有合同保留；此选择不增加对象字段、GC roots 或 runtime 测量代码。
+
 `--enable-startup-stats` 显式请求编入启动诊断，默认不编入；该构建开关独立于 profile 和 GC stress。runtime 的 C 生产配置以 `SCOOP_ENABLE_STARTUP_STATS=0/1` 控制预处理，关闭时不得生成计时、阶段状态、报告、诊断字符串和专用计数访问，也不能通过环境变量重新启用。编入后，每次启动在 `scoop_rt_run_program` 取得 platform／加载镜像范围前开始单调墙钟计时，在 eager 初始化完成、调用 root gateway 之前向 stderr 写一行 JSON：`scoop_startup:1`、`total_ns`、`phases_ns` 和 `counts`。七个互不重叠的阶段为 `loaded_images`、`collect_records`、`code_and_types`、`storage_and_units`、`stackmaps`、`runtime_init`、`eager_init`；阶段纳秒数之和等于 total。runtime_init 包含 String 绑定检查、registry 发布、线程／callback／GC 初始化与主线程 attach。时间不包含 runtime 入口之前的 dyld／CRT、root gateway 内的参数构造、main、shutdown 或诊断输出本身；前置阶段失败时不伪造完整启动记录。
 
 counts 直接读取本次已建立索引的数量：Cone `images`、有元数据的物理 `loaded_images`、`types`、`callables`、`safepoints`、合并后的 `stackmap_records`、不同地址的 `scan_programs`、`static_storages`、`static_roots`、`immortals`、`initialization_units`、`eager_units` 与 `context_keys`。不为诊断重新遍历或验证图；未编入时不存在这些诊断访问，正常登记所需索引保持原职责。该记录只供测量，既不是编译输入也不是 PGO profile，不参与程序合法性、对象／GC 布局或 ABI；进程总启动时间仍由外部测量。计时开启的运行须单独评估观测开销，不能与关闭诊断的吞吐样本混用。

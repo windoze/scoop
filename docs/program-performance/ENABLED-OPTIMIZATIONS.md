@@ -10,6 +10,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [不可达 callable 与 stackmap 裁剪](CALLABLE-PRUNING.md) | 最终链接所有 profile 默认；配套 `link-identity-closure/19`，旧输入须重建 | 沿完整物理符号引用选择，函数代码、EH、stackmap、登记与私有数据同选；非 callable 元数据保留并作为引用起点，native archive 候选引用保守保留目标。无需新增 runtime／诊断代码或对象字段。 |
 | [一个 survivor 阶段与密集块原地保留](SURVIVOR.md) | 普通 debug／release 默认关闭；`SCOOP_GC_SURVIVOR=1` 开启 | 最多占 nursery 四分之一；首次存活的密集块原地保留，稀疏对象按配额复制，下一轮晋升。减少中等寿命对象的提前晋升；长寿图的扫描成本须按负载衡量，stress／full-only 保持原策略。 |
 | [nursery 容量自适应](ADAPTIVE-NURSERY.md) | 普通 debug／release 默认，初始 1 MiB、上限 32 MiB；`SCOOP_GC_NURSERY_MAX_MIB=N` 调整上限，1 固定容量 | 按存活压力扩大、连续低存活时缩小，最近 full 的活跃堆决定基准；旧代压力独立。较高吞吐与内存、单次暂停的取舍见记录；stress／full-only 保持固定策略。 |
 | [固定分块的搬迁计划](ADAPTIVE-NURSERY.md) | 所有 profile 默认，无独立开关 | 每块 256 项，保留完整预留、复制和失败回退；消除连续数组倍增复制，每块增加 16 B 链接／计数，无新增对象字段、roots 或 ABI。 |

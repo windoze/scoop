@@ -1,0 +1,17 @@
+package dev.pruning.consumer
+
+import dev.pruning.*
+
+fun initialize(): Int {
+    println("init")
+    return 0
+}
+
+val initialized = initialize()
+
+fun main() {
+    val child = make()
+    val parent: Parent = child
+    gcCollect()
+    println(parent.doubled() + initialized)
+}
