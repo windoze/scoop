@@ -1,0 +1,35 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.AwsEventStreamDecoder
+import scoop.http.AwsEventStreamMessage
+import scoop.platform.memory.NativeByteBuffer
+
+internal class AwsEventStreamReader(source: AsyncByteSource, owner: AsyncCloseable?, loop: EventLoop,
+    val decoder: AwsEventStreamDecoder, val input: NativeByteBuffer) {
+    val io: MessageIo<AsyncByteSource> = MessageIo<AsyncByteSource>(source, owner, loop) {
+        var failure = messageCleanup(None) { input.close() }
+        failure = messageCleanup(failure) { decoder.close() }
+        when (failure) { case Some(error) -> throw error; case None -> {} }
+    }
+
+    suspend fun next(): AwsEventStreamMessage? = io.run({}) suspend { source -> readNext(source) }
+
+    private suspend fun readNext(source: AsyncByteSource): AwsEventStreamMessage? {
+        while (true) {
+            ensureActive()
+            when (decoder.nextMessage()) { case Some(message) -> return Some(message); case None -> {} }
+            if (decoder.isFinished) return None
+            if (input.readableBytes > 0L) decoder.receive(input)
+            else {
+                input.clear()
+                val requested = input.writableBytes
+                val count = source.readInto(input, requested)
+                httpProgress(count, requested)
+                if (input.writePosition != count || input.readPosition != 0L)
+                    throw IllegalStateException(Some("inconsistent EventStream source progress"))
+                if (count == 0L) decoder.endInput()
+            }
+        }
+    }
+}

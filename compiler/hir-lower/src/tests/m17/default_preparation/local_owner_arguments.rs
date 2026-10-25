@@ -22,14 +22,23 @@ fn own_generic_arguments_keep_captures_from_a_non_generic_parent() {
     else {
         panic!("the local function has its own generic application");
     };
+    let CallableInstantiationOwner::EnclosingCallableApplication(parent) = module
+        .callable_applications
+        .get(application)
+        .unwrap()
+        .key()
+        .instantiation_owner()
+    else {
+        panic!("the default's local function inherits its shared parent application");
+    };
+    let parent = module.callable_applications.get(parent).unwrap();
     assert_eq!(
-        module
-            .callable_applications
-            .get(application)
-            .unwrap()
-            .key()
-            .instantiation_owner(),
+        parent.key().instantiation_owner(),
         CallableInstantiationOwner::NoOwner
+    );
+    assert!(
+        !parent.key().callable_arguments().has_arguments(),
+        "a parameter-free default uses the original parent's empty application"
     );
     for capture in &declaration.capture_parameters {
         assert_eq!(

@@ -1,0 +1,78 @@
+package scoop.json
+
+/** Interprets an already validated JSON number; no decimal expansion or floating point is needed. */
+internal fun readJsonIntegralLong(text: String): Long {
+    val source = text.iterator()
+    var current = source.next()
+    val negative = current == Some('-')
+    if (negative) current = source.next()
+    var index = if (negative) 1L else 0L
+    var digits = 0L
+    var whole = 0L
+    var fraction = false
+    var first = -1L
+    var last = -1L
+    var firstIndex = 0L
+    var lastIndex = 0L
+    var hasExponent = false
+    while (true) {
+        val character = when (current) { case Some(value) -> value; case None -> break }
+        if (character == 'e' || character == 'E') { hasExponent = true; break }
+        if (character == '.') fraction = true
+        else {
+            if (!fraction) whole += 1L
+            if (character != '0') {
+                if (first < 0L) { first = digits; firstIndex = index }
+                last = digits
+                lastIndex = index
+            }
+            digits += 1L
+        }
+        index += 1L
+        current = source.next()
+    }
+    if (first < 0L) return 0L
+    val significant = last - first + 1L
+    if (significant > 19L) throw integralLongError()
+    val bound = if (text.byteLength > Long.MAX_VALUE - 19L) Long.MAX_VALUE else text.byteLength + 19L
+    val exponent = if (hasExponent) readJsonIntegralExponent(source, bound) else 0L
+    val base = whole - first
+    if (exponent > 0L && base > Long.MAX_VALUE - exponent) throw integralLongError()
+    if (exponent < 0L && base < Long.MIN_VALUE - exponent) throw integralLongError()
+    val length = base + exponent
+    if (length < significant || length > 19L) throw integralLongError()
+    val limit = if (negative) 9223372036854775808UL else 9223372036854775807UL
+    var magnitude = 0UL
+    index = 0L
+    for (character in text) {
+        if (index > lastIndex) break
+        if (index >= firstIndex && character != '.')
+            magnitude = appendJsonIntegralDigit(magnitude, (character.code - 48).toULong(), limit)
+        index += 1L
+    }
+    for (_ in significant..<length) magnitude = appendJsonIntegralDigit(magnitude, 0UL, limit)
+    return if (negative) -magnitude.toLong() else magnitude.toLong()
+}
+
+private fun readJsonIntegralExponent(source: Iterator<Char>, limit: Long): Long {
+    var current = source.next()
+    val negative = current == Some('-')
+    if (negative || current == Some('+')) current = source.next()
+    // Beyond this magnitude, a nonzero mantissa cannot cancel the exponent into a Long.
+    var exponent = 0L
+    while (true) {
+        val character = when (current) { case Some(value) -> value; case None -> break }
+        val digit = (character.code - 48).toLong()
+        if (exponent > (limit - digit) / 10L) throw integralLongError()
+        exponent = exponent * 10L + digit
+        current = source.next()
+    }
+    return if (negative) -exponent else exponent
+}
+
+private fun appendJsonIntegralDigit(value: ULong, digit: ULong, limit: ULong): ULong {
+    if (value > (limit - digit) / 10UL) throw integralLongError()
+    return value * 10UL + digit
+}
+
+private fun integralLongError(): DecodingException = DecodingException("", "number is not an exact Long integer")

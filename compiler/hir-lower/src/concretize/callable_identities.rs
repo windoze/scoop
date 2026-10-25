@@ -14,6 +14,7 @@ mod constructors;
 mod defaults;
 mod functions;
 mod lexical;
+mod shared_context;
 
 #[derive(Clone, Eq, PartialEq)]
 struct LexicalSite {
@@ -226,12 +227,12 @@ impl<'a> CallableIdentityBuilder<'a> {
         let path = source.definition_path.clone();
         let (parent, enclosing) = match source.definition_root {
             export::CallableReferenceRoot::Source(root) => {
-                let enclosing = self.enclosing_materialization(None, root, &path, &arguments);
+                let enclosing = self.shared_lexical_materialization(None, root, &path, &arguments);
                 (self.lexical_parent(enclosing), enclosing)
             }
             export::CallableReferenceRoot::Persistent(parent) => (
                 parent,
-                self.imported_parent_materialization(parent.template(), &arguments),
+                self.imported_shared_parent(parent.template(), &arguments),
             ),
         };
         concrete::CallableReferenceIdentity::new(parent, path, enclosing.context())

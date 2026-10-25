@@ -1,0 +1,7 @@
+package scoop.http
+
+public enum NdjsonFramingErrorKind { RecordBytes, LineEnding }
+
+/** A record boundary failure at a zero-based byte offset within the current record. */
+public class NdjsonFramingException public constructor(public val kind: NdjsonFramingErrorKind,
+    public val offset: Long, message: String) : Exception(Some(message))

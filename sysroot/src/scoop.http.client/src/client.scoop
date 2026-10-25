@@ -53,6 +53,8 @@ public class HttpClient internal constructor(internal val state: ClientState) : 
      * Whether client shutdown has completed.
      */
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    /** Immutable timeout defaults, available to consumers composing a complete per-call override. */
+    public val defaultTimeouts: HttpTimeoutOptions get() = state.config.timeouts
     /**
      * Waits for final response headers and returns an owned response, including non-2xx statuses.
      * The call remains active through body and cleanup.

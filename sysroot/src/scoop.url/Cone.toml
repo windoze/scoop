@@ -9,6 +9,7 @@ kind = "library"
 "scoop:scoop.std" = "0.1.0"
 "scoop:scoop.idna" = "0.1.0"
 [test-dependencies]
+"scoop:scoop.json" = "0.1.0"
 "scoop:scoop.platform" = "0.1.0"
 "scoop:scoop.test" = "0.1.0"
 [native]

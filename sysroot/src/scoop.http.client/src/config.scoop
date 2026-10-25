@@ -228,7 +228,12 @@ public class HttpCallOptions public constructor(
     /**
      * The per-call cache policy.
      */
-    public val cacheMode: HttpCacheMode = HttpCacheMode.Default
+    public val cacheMode: HttpCacheMode = HttpCacheMode.Default,
+    /**
+     * Observes this call and all its attempts in addition to the client observer. The request
+     * observer runs first; the same observer object configured twice runs only once.
+     */
+    public val observer: HttpObserver? = None
 ) {
     init {
         if (continueWait < Duration.ZERO) throw IllegalArgumentException(Some("negative Continue wait duration"))

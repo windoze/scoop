@@ -68,6 +68,10 @@ builder 的 build 是快照，后续 add 不影响旧值，重复对象字段报
 Double；typed 数值访问仍检查范围。fromNumberToken 不接受前后空白，parse 可接受文档
 空白。字段名中的 `/` 和 `~` 在异常 path 中分别转义为 `~1` 和 `~0`。
 
+需要把 `12.0`、`1.2e1` 等整数值作为 Long 读取时，显式调用
+`Json.parse("1.2e1").asIntegralLong()`。转换直接处理十进制原文，拒绝非整数和溢出，
+不会因 Double 的精度或下溢而改变值；原有 asLong 和 typed Long 解码仍拒绝小数与指数写法。
+
 标准库 HashMap 默认仍使用 `[[key,value], ...]`。需要 JSON object 时显式选
 Json.objectEncoder／objectDecoder；编码接收 Map<String,V> 视图，解码返回新的
 LinkedHashMap<String,V> 并保持输入字段顺序。两工厂都接受显式元素 codec，可替换默认

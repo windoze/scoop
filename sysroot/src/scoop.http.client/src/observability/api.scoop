@@ -1,6 +1,7 @@
 package scoop.http.client
 
 import scoop.http.HttpVersion
+import scoop.time.Instant
 import scoop.time.TimeMark
 
 /**
@@ -30,7 +31,7 @@ public enum HttpCallEventKind {
          */
         RequestProgress,
         /**
-         * Final response headers were received.
+         * Informational, final, or cached response headers were received.
          */
         ResponseHeaders,
         /**
@@ -103,9 +104,17 @@ public class HttpAttemptMetrics internal constructor(call: ClientCall, observati
      */
     public val startedAt: TimeMark = observation.startedAt
     /**
+     * The wall-clock timestamp sampled at the start of this attempt.
+     */
+    public val startedAtUtc: Instant = observation.startedAtUtc
+    /**
      * The monotonic completion mark, or None while still active.
      */
     public val finishedAt: TimeMark? = observation.finishedAt
+    /**
+     * The wall-clock timestamp sampled at completion, or None while active.
+     */
+    public val finishedAtUtc: Instant? = observation.finishedAtUtc
     /**
      * Actual pool-capacity wait timing, when performed.
      */
@@ -135,11 +144,28 @@ public class HttpAttemptMetrics internal constructor(call: ClientCall, observati
      */
     public val requestHeadersAt: TimeMark? = observation.requestHeadersAt
     /**
-     * The recorded final-response-header milestone.
+     * The wall-clock timestamp sampled when request headers reached the protocol layer.
+     */
+    public val requestHeadersAtUtc: Instant? = observation.requestHeadersAtUtc
+    /**
+     * The most recent informational, final, or cached response-header milestone.
      */
     public val responseHeadersAt: TimeMark? = observation.responseHeadersAt
     /**
-     * The first recorded incoming-response-byte milestone.
+     * The wall-clock timestamp of the most recent response-header milestone.
+     */
+    public val responseHeadersAtUtc: Instant? = observation.responseHeadersAtUtc
+    /**
+     * The network final-response-header milestone, excluding informational and cached heads.
+     */
+    public val finalResponseHeadersAt: TimeMark? = observation.finalResponseHeadersAt
+    /**
+     * The wall-clock timestamp of the network final-response-header milestone.
+     */
+    public val finalResponseHeadersAtUtc: Instant? = observation.finalResponseHeadersAtUtc
+    /**
+     * The first recorded incoming-response-byte milestone. Protocol sampling requires a client
+     * observer; request-only observation can leave this None on a shared connection.
      */
     public val firstResponseByteAt: TimeMark? = observation.firstResponseByteAt
     /**
@@ -151,7 +177,7 @@ public class HttpAttemptMetrics internal constructor(call: ClientCall, observati
      */
     public val connectionReused: Boolean? = observation.connectionReused
     /**
-     * The final response status, once available.
+     * The most recent informational, final, or cached response status, once available.
      */
     public val status: UInt? = observation.status
     /**

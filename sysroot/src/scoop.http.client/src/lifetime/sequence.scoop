@@ -7,8 +7,10 @@ import scoop.time.TimeMark
 internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequest, startedAt: TimeMark? = None,
     val webSocket: HttpWebSocketOptions? = None) {
     val timeouts: HttpTimeoutOptions = request.options.timeouts ?: config.timeouts
+    val observer: HttpObserver? = request.options.observer
+    val observed: Boolean = clientPresent(observer) || clientPresent(config.observer)
     val started: TimeMark? = if (timeouts.total != None) Some(startedAt ?: MonotonicTimeSource.markNow()) else None
-    val info: HttpCallInfo? = if (clientPresent(config.observer))
+    val info: HttpCallInfo? = if (observed)
         Some(HttpCallInfo(request, started ?: startedAt ?: MonotonicTimeSource.markNow())) else None
     val redirects: HttpRedirectOptions = request.options.redirects ?: config.redirects
     val retries: HttpRetryOptions = request.options.retries ?: config.retries

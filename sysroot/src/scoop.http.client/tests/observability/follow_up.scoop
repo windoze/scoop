@@ -1,0 +1,93 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpRequestObservationFollowUpTest {
+    @Test
+    fun `redirect and retry timestamps belong to separate attempts of the same call`() {
+        clientTestTrust().use { trust ->
+            LibuvEventLoop().run suspend { scope ->
+                clientTestListen(currentEventLoop()).useAsync suspend { listener ->
+                    val serving = scope.launch suspend {
+                        for (index in 0L..<3L) {
+                            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                if (index == 0L) {
+                                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 303U,
+                                        fields = [HttpField("Location".toByteArray(), "/redirected".toByteArray()),
+                                            HttpField("Connection".toByteArray(), "close".toByteArray())]),
+                                        Http1BodyFraming.Length(0L)).finish()
+                                } else if (index == 1L) {
+                                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 503U,
+                                        fields = [HttpField("Connection".toByteArray(), "close".toByteArray())]),
+                                        Http1BodyFraming.Length(0L)).finish()
+                                } else sendClientTestText(connection, 200U, "ok")
+                            }
+                        }
+                    }
+                    val log = RequestObservationLog()
+                    val options = HttpCallOptions(observer = Some(log.observer),
+                        retries = Some(HttpRetryOptions(maxRetries = 1L, statuses = [503U],
+                            initialDelay = Duration.ZERO, jitter = false)))
+                    withHttpClient(clientTestConfig(trust)) suspend { client ->
+                        client.withResponse(HttpRequest.post(clientTestUrl(listener), RequestBody.Empty,
+                            options = options)) suspend { response -> assertEquals("ok", response.body.text(16L)) }
+                    }
+                    serving.join()
+                    val attempts = log.ofKind(HttpCallEventKind.Completed)
+                    assertEquals(3L, attempts.size)
+                    val reasons = [HttpAttemptReason.Initial, HttpAttemptReason.Redirect, HttpAttemptReason.Retry]
+                    val statuses = [303U, 503U, 200U]
+                    for (index in 0L..<3L) {
+                        assertSame(attempts[0L].call, attempts[index].call)
+                        val metrics = attempts[index].metrics
+                        assertEquals(index + 1L, metrics.number)
+                        assertTrue(reasons[index] == metrics.reason)
+                        assertEquals(Some(statuses[index]), metrics.status)
+                        checkRequestObservation(metrics)
+                        if (index > 0L) assertTrue(metrics.startedAt >= attempts[index - 1L].metrics.finishedAt!!)
+                    }
+                    assertEquals("POST", attempts[0L].metrics.method)
+                    assertEquals("GET", attempts[1L].metrics.method)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `SSE preserves the request observer through request preparation and close`() {
+        clientTestTrust().use { trust ->
+            LibuvEventLoop().run suspend { scope ->
+                clientTestListen(currentEventLoop()).useAsync suspend { listener ->
+                    val serving = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            connection.receiveRequest()!!.body.readAllBytes(0L)
+                            val body = "data: message\n\n"
+                            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U,
+                                fields = [HttpField("Content-Type".toByteArray(), "text/event-stream".toByteArray())]),
+                                Http1BodyFraming.Length(body.toByteArray().size)).useAsync suspend { output ->
+                                writeBodyText(output, body)
+                                output.finish()
+                            }
+                        }
+                    }
+                    val log = RequestObservationLog()
+                    withHttpClient(clientTestConfig(trust)) suspend { client ->
+                        client.withSse(HttpRequest.get(clientTestUrl(listener),
+                            options = HttpCallOptions(observer = Some(log.observer)))) suspend { events ->
+                            assertEquals("message", events.next()!!.data)
+                            assertFalse(clientPresent(events.next()))
+                        }
+                    }
+                    serving.join()
+                    checkRequestObservation(log.completed())
+                }
+            }
+        }
+    }
+}

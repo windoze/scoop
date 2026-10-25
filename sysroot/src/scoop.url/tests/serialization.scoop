@@ -1,0 +1,59 @@
+package scoop.url
+
+import scoop.json.Json
+import scoop.test.*
+
+private class SavedUrl public constructor(public val link: Url, public val optional: Url? = None) {
+    public companion object : ValueEncoder<SavedUrl>, ValueDecoder<SavedUrl>
+}
+
+@Test
+private class UrlSerializationTest {
+    @Test
+    fun `codec writes the canonical URI and preserves full value semantics`() {
+        val value = Url.parse("HTTPS://user:secret@EXAMPLE.COM/a%2fb?x=1&x=2&flag&empty=#")
+        val encoded = Json.encodeToString(value)
+        assertEquals(Json.encodeToString(value.toString()), encoded)
+        val restored = Json.decodeFromString<Url>(encoded)
+        assertEquals(value, restored)
+        assertEquals(Some("x=1&x=2&flag&empty="), restored.encodedQuery)
+        assertEquals(Some(""), restored.encodedFragment)
+        assertEquals(value.authority!!.encodedUserInfo, restored.authority!!.encodedUserInfo)
+    }
+
+    @Test
+    fun `relative references and non-network schemes remain ordinary URL values`() {
+        for (text in ["", "../image.png?", "#", "urn:example:resource", "data:text/plain,hello", "//example.com/path"]) {
+            val value = Url.parse(text)
+            assertEquals(value, Json.decodeFromString<Url>(Json.encodeToString(value)))
+        }
+    }
+
+    @Test
+    fun `Unicode URLs use the same normalized representation as parsing and building`() {
+        val value = Url.parse("https://例子.测试/文档?q=一#二")
+        val encoded = Json.encodeToValue(SavedUrl(value, Some(value.resolve("../图片?"))))
+        val restored = Json.decodeFromValue<SavedUrl>(encoded)
+        assertEquals(value, restored.link)
+        assertEquals(Some(value.resolve("../图片?")), restored.optional)
+        assertEquals(value.toString(), encoded["link"]!!.asString())
+    }
+
+    @Test
+    fun `missing optional URLs remain absent`() {
+        val value = Json.decodeFromString<SavedUrl>("{\"link\":\"image.png\"}")
+        assertEquals(None, value.optional)
+        assertEquals("{\"link\":\"image.png\"}", Json.encodeToString(value))
+    }
+
+    @Test
+    fun `wrong shapes and malformed URLs retain the decoder path`() {
+        for (text in ["42", "null", "{}", "[]", "\"https://example.com/%zz\"", "\"https://example.com/a b\""]) {
+            val error = assertFailsWith<DecodingException> {
+                val invalid = Json.decodeFromString<SavedUrl>("{\"link\":" + text + "}")
+                Unit
+            }
+            assertEquals("/link", error.path)
+        }
+    }
+}

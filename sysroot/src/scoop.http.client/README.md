@@ -66,6 +66,10 @@ fun main() {
 
 直接使用 HTTP、TLS、文件或其他库的类型时，在应用 manifest 中声明相应直接依赖。配置对象、参数及错误语义见 [HTTP client 规范](../../../docs/specs/SCOOP-HTTP-CLIENT-SPEC.md)。
 
+共享 client 的单次调用可以通过 `HttpCallOptions(observer = Some(observer))` 取得自己的事件；它与 client observer 共存，覆盖该调用的所有尝试。`event.metrics.requestHeadersAtUtc` 是实际提交请求头时采集的 `Instant`；`finalResponseHeadersAtUtc` 是网络最终响应头的时间，不受 103 等信息响应或回调延迟影响。缓存命中没有网络发送／接收时间。用对应的 `TimeMark` 求耗时，不用可能回拨的 UTC 时钟相减。
+
+`response.metrics` 在开启观察时提供不可变快照，关闭后仍可读取最终快照。失败在响应交付之前发生时，可从 observer 的 Completed 事件取得本次已发生的阶段；未发生的时间为 None。请求级观察不改变连接级首字节采样配置。具体组合见 [请求观测测试](tests/observability/request.scoop)。
+
 ## 取消与资源寿命
 
 网络、池、文件、退避及用户回调的等待可以挂起。取消会等待实际 I/O、借用、来源子任务和 `finally` 完成；HTTP/2 的单请求失败只终止该流，其他调用继续使用共享连接。用户的挂起回调不在共享 HTTP/2 驱动中执行。

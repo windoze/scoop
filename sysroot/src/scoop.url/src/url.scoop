@@ -132,7 +132,19 @@ public class Url internal constructor(
     /**
      * Strict URI/IRI parsing and parser-backend version information.
      */
-    public companion object {
+    public companion object : ValueEncoder<Url>, ValueDecoder<Url> {
+        /** Encodes the existing normalized ASCII URI, preserving all of its components. */
+        public override fun encode(value: Url, encoder: Encoder) {
+            encoder.singleValue().writeString(value.toString())
+        }
+
+        /** Decodes a URI reference without imposing network or scheme-specific restrictions. */
+        public override fun decode(decoder: Decoder): Url =
+            when (parseOrNone(decoder.singleValue().readString())) {
+                case Some(value) -> value
+                case None -> throw DecodingException(decoder.path, "invalid URL")
+            }
+
         /**
          * Parses a complete URI/IRI reference. Relative input stays relative; no scheme is
          * guessed.

@@ -1,0 +1,34 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.NdjsonDecoder
+import scoop.platform.memory.NativeByteBuffer
+
+internal class NdjsonReader(source: AsyncByteSource, owner: AsyncCloseable?, loop: EventLoop,
+    val decoder: NdjsonDecoder, val input: NativeByteBuffer) {
+    val io = MessageIo<AsyncByteSource>(source, owner, loop) {
+        var failure = messageCleanup(None) { input.close() }
+        failure = messageCleanup(failure) { decoder.close() }
+        when (failure) { case Some(error) -> throw error; case None -> {} }
+    }
+
+    suspend fun next(): String? = io.run({}) suspend { source -> readNext(source) }
+
+    private suspend fun readNext(source: AsyncByteSource): String? {
+        while (true) {
+            ensureActive()
+            when (decoder.nextRecord()) { case Some(record) -> return Some(record); case None -> {} }
+            if (decoder.isFinished) return None
+            if (input.readableBytes > 0L) decoder.receive(input)
+            else {
+                input.clear()
+                val requested = input.writableBytes
+                val count = source.readInto(input, requested)
+                httpProgress(count, requested)
+                if (input.writePosition != count || input.readPosition != 0L)
+                    throw IllegalStateException(Some("inconsistent NDJSON source progress"))
+                if (count == 0L) decoder.endInput()
+            }
+        }
+    }
+}
