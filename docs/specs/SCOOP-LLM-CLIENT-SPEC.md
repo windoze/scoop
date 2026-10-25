@@ -597,3 +597,21 @@ message-end 必须提供非空 finish_reason；COMPLETE、STOP_SEQUENCE、TOOL_C
 只有 message-end 完成整次流，content-end、tool-call-end、裸 [DONE] 或 EOF 都不能替代。EOF 未终止时失败，独立 error 事件失败；失败后不能读取成功结果。未知事件与未知增量保留 Native，debug 只作为元数据；无法解释为完整消息的变化使 history 不可用，已识别文本仍正常交付。已知 start 快照中的未知字段可以原样保存；不把未解释的 delta 合并成虚构的最终字段。结果不保存整条已知事件日志，结束后释放中间状态。
 
 依据：[SSE 接口](https://docs.cohere.com/v2/reference/chat-stream)、[事件说明](https://docs.cohere.com/docs/streaming)、[工具流示例及起始空字段](https://docs.cohere.com/docs/tool-use-streaming)、[官方流响应类型](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/v2/types/v2chat_stream_response.py)。参考 Vercel 的增量入口，保留本库的索引关联、最终执行资格、精确 usage 与可序列化 history 合同。
+
+## 30. Ollama Chat 完整响应
+
+OllamaChatProtocol(OllamaDialect) 提供纯 decodeResponse(value, request)，OllamaChatDialect 使用 ApiProtocolId("ollama-chat") 与同名 dialect。构造器拒绝不同 protocol 的 dialect。Ollama 原生 /api/chat 与 OpenAI 兼容入口采用不同 protocol；本节不增加隐式网络、模型目录查询或环境读取。请求编码与 NDJSON 接入在各自实现前另行规定。
+
+完整响应要求非空 model、message object 和 done boolean。message.role 必须为 assistant，content 是允许空串的必需字符串；可选 thinking 作为 Reasoning，content 作为 Message，然后按 tool_calls 的数组顺序交付工具。message 的其余字段整体作为 Native 保留，包括没有 MIME 定义的 images，不猜测媒体格式。原始响应保存在 response.native。created_at 是可选的服务端 Instant，缺失／null 为 None，非法值报字段路径；它不产生客户端计时。原生协议没有响应 ID，response.id 保持 None，未知根字段 id 仍只是原文。
+
+只有 done=true 且 done_reason=stop 表示完整模型输出；存在 tool_calls 时 finishReason 为 ToolCalls，否则为 Stop。length 表示 Incomplete／Length。load／unload 是完成的模型驻留操作，finishReason=Other，不能提供 assistant 接续历史或可执行调用。done=false、缺失／空的 done_reason 和未知原因均保持 Incomplete；缺失／空原因映射 Unknown，其余原文映射 Other。官方内部 ConnectionClosed 的 reason 字符串为空，因此不能以 done=true 或 HTTP 200 代替完整性判断。非 null error 字段表示服务端错误，在 /error 报 LlmProtocolException 并保留原文。
+
+done=true 且原因 stop／length 时，history 保存原始 assistant message，包含 thinking、工具、未知字段以及空／null／缺失的实际状态。其他情况不提供可追加历史。输出对象和 history 继续使用现有 companion codec，模型绑定和认证不进入保存内容。
+
+tool_calls 的每项要求 function object；其可选实际 id 非空且已提供 ID 不得重复，缺失／null ID 保持 None。function.index 只保留为原始位置元数据，已提供值必须非负，不把它合成调用 ID，也不以相同默认 index 合并不同调用。name 缺失／null、arguments 缺失、未绑定或存在多个同名声明时保持 Native；显式空 name 报错。只绑定 ClientFunction，不凭工具名称推断客户端原生工具或服务端执行。arguments 是原生 JSON 值，不是 JSON 文本字符串；完成 stop 下的对象产生 JsonArguments，null、数组、数值和字符串产生 Invalid，其他停止状态产生 Incomplete。缺失 arguments 不能补成 {}。reference.context 保留完整原始调用，包括真正的 ID／index／名称和精确参数。
+
+OllamaDialect.readUsage 接收原始响应根对象。prompt_eval_count 是包含缓存部分的输入总数，prompt_eval_cached_count 是其中的缓存读取量；仅两者都已报告时计算 nonCachedInputTokens，并检查缓存量不超过输入。eval_count 是包括生成 thinking 的输出总数，不另外添加 reasoning；两项总数齐备时以检查过溢出的 Long 加法得到 totalTokens。计数要求非负 JSON integer，缺失／null 保持 None，显式零保留。缓存写入量、独立 reasoning 计数与各模态明细不推测。已知终止原因且 done=true 时 usage 为 Final，否则为 Partial。
+
+usage.native 只投影实际出现的上述三个计数和 total_duration／load_duration／prompt_eval_duration／eval_duration，保留原值，不累计整份 message。duration 字段是服务端纳秒数据，本节不把它们改写为本地调用时长。未识别的根字段仍在 response.native；自定义 dialect 可从原始根对象读取自己的计数。
+
+依据：[Chat API](https://docs.ollama.com/api/chat)、[错误](https://docs.ollama.com/api/errors)、[Message／ToolCall／Metrics 类型](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/api/types.go)、[DoneReason 定义](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/llm/server.go)、[完整响应聚合与 load／unload](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/server/routes.go)。

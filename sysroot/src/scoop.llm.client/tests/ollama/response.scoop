@@ -1,0 +1,82 @@
+package scoop.llm.client.tests.ollama
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class OllamaResponseTest {
+    @Test
+    fun `Ollama keeps thinking text and native fields distinct in exact saved history`() {
+        val raw = ollamaBody("{\"count\":9007199254740993}", messageExtra = ",\"thinking\":\"reason 你🙂\",\"images\":[\"opaque\"],\"future\":1e400",
+            extra = ",\"created_at\":\"2026-10-25T00:01:02.123456789Z\",\"id\":\"not a protocol response ID\",\"remote_model\":\"upstream\"")
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(ollamaDecode(raw)))
+        assertEquals(None, response.id)
+        assertEquals(Some("local:model"), response.model)
+        assertEquals(Some(Instant.parse("2026-10-25T00:01:02.123456789Z")), response.createdAt)
+        assertEquals(9007199254740993L, response.decodeOutput<OllamaCount>().count)
+        when (response.candidates[0L].items[0L]) { case Reasoning(parts, _) -> when (parts[0L]) {
+            case Text(text, _) -> assertEquals("reason 你🙂", text)
+            else -> fail()
+        }; else -> fail() }
+        when (response.candidates[0L].items[2L]) { case Native(owner, value) -> {
+            assertEquals(ollamaDialect, owner); assertEquals("1e400", value["future"]!!.asNumberToken())
+            assertEquals("opaque", value["images"]!![0L].asString())
+        }; else -> fail() }
+        assertEquals(Json.stringify(raw["message"]!!), Json.stringify(ollamaHistory(response)))
+        assertEquals(Json.stringify(raw), Json.stringify(response.native!!))
+    }
+
+    @Test
+    fun `Ollama empty thinking differs from absent or null thinking without inventing service time`() {
+        for ((extra, size) in [("", 1L), (",\"thinking\":null", 1L), (",\"thinking\":\"\"", 2L)]) {
+            val raw = ollamaBody("", messageExtra = extra, extra = ",\"created_at\":null")
+            val response = ollamaDecode(raw)
+            assertEquals("", response.text)
+            assertEquals(None, response.createdAt)
+            assertEquals(size, response.candidates[0L].items.size)
+            assertEquals(Json.stringify(raw["message"]!!), Json.stringify(ollamaHistory(response)))
+        }
+    }
+
+    @Test
+    fun `Ollama completion requires a known terminal reason and distinguishes model residency operations`() {
+        for ((reason, done, completion, final, history) in [
+            (Some("stop"), true, LlmCompletion.Complete, true, true),
+            (Some("length"), true, LlmCompletion.Incomplete, true, true),
+            (Some("load"), true, LlmCompletion.Complete, true, false),
+            (Some("unload"), true, LlmCompletion.Complete, true, false),
+            (Some("future"), true, LlmCompletion.Incomplete, false, false),
+            (Some(""), true, LlmCompletion.Incomplete, false, false),
+            (None, true, LlmCompletion.Incomplete, false, false),
+            (Some("stop"), false, LlmCompletion.Incomplete, false, false)]) {
+            val response = ollamaDecode(ollamaBody("", reason, done))
+            assertEquals(completion, response.candidates[0L].completion)
+            assertEquals(if (final) UsageCompleteness.Final else UsageCompleteness.Partial, response.usage.completeness)
+            if (history) assertEquals(1L, response.toInput().size)
+            else assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { response.toInput(); Unit }.reason)
+            if (reason == None || reason == Some("")) assertEquals(LlmFinishReason.Unknown, response.candidates[0L].finishReason)
+            if (reason == Some("length")) assertEquals(LlmFinishReason.Length, response.candidates[0L].finishReason)
+        }
+        assertEquals(LlmFinishReason.Stop, ollamaDecode(ollamaBody()).candidates[0L].finishReason)
+        assertEquals(LlmFinishReason.Other("unload"), ollamaDecode(ollamaBody("", Some("unload"))).candidates[0L].finishReason)
+    }
+
+    @Test
+    fun `Ollama malformed response and assistant fields report their source paths`() {
+        val base = ollamaBody()
+        for (field in ["model", "message", "done"]) assertOllamaFailure(ollamaReplace(base, field, None), "/" + field)
+        for ((field, value) in [("model", "\"\""), ("done", "null"), ("done_reason", "1"), ("created_at", "\"yesterday\""), ("message", "[]")])
+            assertOllamaFailure(ollamaReplace(base, field, Some(Json.parse(value))), "/" + field)
+        for ((field, value) in [("role", Some(JsonValue.fromString("user"))), ("content", Some(Json.parse("null"))),
+            ("content", None), ("thinking", Some(JsonValue.fromLong(1L))), ("tool_calls", Some(Json.parse("{}")))])
+            assertOllamaFailure(ollamaReplace(base, "message", Some(ollamaReplace(base["message"]!!, field, value))), "/message/" + field)
+    }
+
+    @Test
+    fun `Ollama errors under a successful HTTP response remain protocol failures`() {
+        for (error in ["\"failed\"", "\"\"", "{}", "false"]) assertOllamaFailure(Json.parse("{\"error\":" + error + "}"), "/error")
+        assertEquals("answer", ollamaDecode(ollamaBody(extra = ",\"error\":null")).text)
+    }
+}

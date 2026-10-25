@@ -1,0 +1,42 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class OllamaUsageFields public constructor(
+    @Serialize(rename = "prompt_eval_count") public val input: Long? = None,
+    @Serialize(rename = "prompt_eval_cached_count") public val cached: Long? = None,
+    @Serialize(rename = "eval_count") public val output: Long? = None) {
+    public companion object : ValueDecoder<OllamaUsageFields>
+}
+
+internal fun readOllamaUsage(value: JsonValue): TokenUsage {
+    val fields = decodeOllamaValue<OllamaUsageFields>(value, "")
+    val input = ollamaTokenCount(fields.input, "/prompt_eval_count")
+    val cached = ollamaTokenCount(fields.cached, "/prompt_eval_cached_count")
+    val output = ollamaTokenCount(fields.output, "/eval_count")
+    var ordinary: Long? = None
+    if (input != None && cached != None) {
+        if (cached!! > input!!) throw DecodingException("/prompt_eval_cached_count", "cached tokens exceed input tokens")
+        ordinary = Some(input!! - cached!!)
+    }
+    var total: Long? = None
+    if (input != None && output != None) {
+        if (input!! > Long.MAX_VALUE - output!!) throw DecodingException("/eval_count", "token total exceeds Long")
+        total = Some(input!! + output!!)
+    }
+    return TokenUsage(input, ordinary, output, total, cached)
+}
+
+private fun ollamaTokenCount(value: Long?, path: String): Long? {
+    if (value != None && value!! < 0L) throw DecodingException(path, "token count must not be negative")
+    return value
+}
+
+internal fun ollamaUsageRecord(value: JsonValue): JsonValue {
+    val result = JsonObjectBuilder()
+    for (name in ["prompt_eval_count", "prompt_eval_cached_count", "eval_count", "total_duration", "load_duration",
+        "prompt_eval_duration", "eval_duration"]) {
+        when (value[name]) { case Some(field) -> result.add(name, field); case None -> {} }
+    }
+    return result.build()
+}

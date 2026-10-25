@@ -1,0 +1,80 @@
+package scoop.llm.client.tests.ollama
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class OllamaToolsTest {
+    @Test
+    fun `Ollama parallel functions preserve optional actual IDs and repeated function indices`() {
+        val calls = [ollamaCall("{\"count\":9007199254740993,\"raw\":1e400}"), ollamaCall("{\"count\":2}", id = Some("actual")),
+            ollamaReplace(ollamaCall("{}"), "id", Some(Json.parse("null")))]
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(ollamaCalls(calls)))
+        assertEquals(3L, response.clientToolCalls.size)
+        assertEquals(LlmFinishReason.ToolCalls, response.candidates[0L].finishReason)
+        assertEquals(None, response.clientToolCalls[0L].reference.id)
+        assertEquals(Some("actual"), response.clientToolCalls[1L].reference.id)
+        assertEquals(None, response.clientToolCalls[2L].reference.id)
+        assertEquals(9007199254740993L, response.clientToolCalls[0L].decodeArguments<OllamaCount>().count)
+        var index = 0L
+        for (call in response.clientToolCalls) {
+            assertEquals(ToolKey("local"), call.toolKey)
+            assertEquals(Json.stringify(calls[index]), Json.stringify(call.reference.context!!))
+            index += 1L
+        }
+    }
+
+    @Test
+    fun `Ollama distinguishes absent arguments from explicit invalid JSON values`() {
+        for (arguments in ["null", "[]", "42", "\"{}\""]) {
+            val response = ollamaCalls([ollamaCall(arguments)])
+            assertEquals(0L, response.clientToolCalls.size)
+            when (ollamaObservedCall(response).input) { case Invalid(raw, _) -> assertEquals(arguments, raw); else -> fail() }
+        }
+        val absent = Json.parse("{\"function\":{\"name\":\"lookup\"}}")
+        val response = ollamaCalls([absent])
+        assertEquals(0L, response.clientToolCalls.size)
+        when (response.candidates[0L].items[1L]) { case Native(_, raw) -> assertEquals(Json.stringify(absent), Json.stringify(raw)); else -> fail() }
+        assertTrue(ollamaCalls([ollamaCall()]).clientToolCalls[0L].isExecutable)
+    }
+
+    @Test
+    fun `Ollama unfinished truncated and residency responses never execute observed functions`() {
+        for ((reason, done) in [(Some("length"), true), (Some("load"), true), (Some("unload"), true),
+            (Some("future"), true), (Some(""), true), (None, true), (Some("stop"), false)]) {
+            val response = ollamaCalls([ollamaCall("{\"count\":7}")], reason, done)
+            assertEquals(0L, response.clientToolCalls.size)
+            when (ollamaObservedCall(response).input) { case Incomplete(raw) -> assertEquals("{\"count\":7}", raw); else -> fail() }
+            if (reason == Some("length")) assertEquals(1L, response.toInput().size)
+            else assertFailsWith<LlmOutputException> { response.toInput(); Unit }
+        }
+    }
+
+    @Test
+    fun `Ollama unbound ambiguous and missing names stay native without assuming server execution`() {
+        val native = NativeToolDefinition(ollamaDialect, "lookup", Json.parse("{}"))
+        val declarations: Array<Array<ToolDefinition>> = [[], [ClientNative(ToolKey("native"), native)], [Server(ToolKey("server"), Native(native))],
+            [ClientFunction(ToolKey("a"), "lookup", Json.parse("{}")), ClientFunction(ToolKey("b"), "lookup", Json.parse("{}"))]]
+        for (tools in declarations) {
+            val response = ollamaCalls([ollamaCall()], request = LlmRequest([], tools = tools))
+            assertEquals(0L, response.clientToolCalls.size); assertEquals(0L, response.serverToolActivities.size)
+            when (response.candidates[0L].items[1L]) { case Native(_, _) -> {}; else -> fail() }
+        }
+        for (function in ["{}", "{\"name\":null,\"arguments\":{}}"]) {
+            val response = ollamaCalls([Json.parse("{\"function\":" + function + "}")])
+            assertEquals(0L, response.clientToolCalls.size)
+        }
+    }
+
+    @Test
+    fun `Ollama malformed function identities and shapes fail at the actual field`() {
+        for ((call, path) in [("{}", "function"), ("{\"function\":null}", "function"),
+            ("{\"id\":\"\",\"function\":{}}", "id"), ("{\"id\":1,\"function\":{}}", "id"),
+            ("{\"function\":{\"name\":\"\"}}", "function/name"), ("{\"function\":{\"name\":3}}", "function/name"),
+            ("{\"function\":{\"index\":-1}}", "function/index"), ("{\"function\":{\"index\":0.5}}", "function/index")])
+            assertOllamaFailure(ollamaBody(messageExtra = ",\"tool_calls\":[" + call + "]"), "/message/tool_calls/0/" + path)
+        val duplicate = Json.stringify(JsonValue.fromArray([ollamaCall(id = Some("a")), ollamaCall(id = Some("a"))]))
+        assertOllamaFailure(ollamaBody(messageExtra = ",\"tool_calls\":" + duplicate), "/message/tool_calls/1/id")
+    }
+}

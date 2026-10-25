@@ -409,6 +409,19 @@ suspend fun streamCohere(client: LlmClient, apiKey: String, modelId: String): Ll
 
 工具参数可以交错到达，ClientToolCall 等到 message-end 的停止原因确认后交付；晚到引用不会移动已发出的 item／part 位置。createStreamDecoder(request) 也使用相同缺省 EventsOnly，供已有 SSE source 的调用者使用；它接收已定界的 event／data，不自行创建连接。
 
+### 7.2 Ollama 原生 Chat 的完整响应
+
+目前交付完整响应的纯解码入口；普通请求与 NDJSON 流继续实施。已有原生 /api/chat 响应可以直接转为相同的 LlmResponse，将原请求传入以关联应用声明的函数：
+
+```scoop
+fun readOllamaReply(body: String, request: LlmRequest): LlmResponse =
+    OllamaChatProtocol(OllamaChatDialect()).decodeResponse(Json.parse(body), request)
+```
+
+text、decodeOutput、usage、clientToolCalls、toInput 和 companion codec 与其他协议相同。thinking 保持独立，工具引用保留可选真实 ID 和原始 function 元数据；没有 ID 的调用不会获得编造的 ID。只有 done=true 且 stop 下完整、有效、能关联声明的函数才进入 clientToolCalls。
+
+prompt_eval_count 包含缓存输入，只有实际报告缓存量时才计算普通输入。created_at 是服务端时间；usage.native 中的 duration 字段是服务端纳秒数据，纯解码不会生成客户端计时。空或未知 done_reason 保持未完成，load／unload 也不产生可直接追加的 assistant 历史。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |
