@@ -1,0 +1,53 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class CohereCitationFields public constructor(public val start: Long? = None, public val end: Long? = None,
+    @Serialize(rename = "content_index") public val contentIndex: Long? = None,
+    public val type: String? = None, public val sources: Array<JsonValue>? = None) {
+    public companion object : ValueDecoder<CohereCitationFields>
+}
+
+internal fun attachCohereCitations(dialect: DialectId, values: Array<JsonValue>, blocks: ArrayList<CohereBlock>, contentSize: Long) {
+    var index = 0L
+    for (value in values) {
+        val path = "/message/citations/" + index.toString()
+        val fields = decodeCohereValue<CohereCitationFields>(value, path)
+        if (fields.start != None && fields.start!! < 0L) throw DecodingException(path + "/start", "negative citation start")
+        if (fields.end != None && fields.end!! < 0L) throw DecodingException(path + "/end", "negative citation end")
+        if (fields.start != None && fields.end != None && fields.end!! < fields.start!!)
+            throw DecodingException(path + "/end", "citation end precedes its start")
+        if (fields.contentIndex != None && (fields.contentIndex!! < 0L || fields.contentIndex!! >= contentSize))
+            throw DecodingException(path + "/content_index", "citation content index is out of bounds")
+        val kind = when (fields.type ?: "TEXT_CONTENT") {
+            case "TEXT_CONTENT" -> "text"
+            case "THINKING_CONTENT" -> "thinking"
+            case "PLAN" -> "plan"
+            else -> ""
+        }
+        val target = cohereCitationTarget(blocks, contentSize, kind, fields.contentIndex)
+        var sourceIndex = 0L
+        for (raw in fields.sources ?: []) {
+            val source = readCohereSource(dialect, raw, path + "/sources/" + sourceIndex.toString())
+            if (target != None) blocks[target!!].citations.add(Citation(source))
+            sourceIndex += 1L
+        }
+        index += 1L
+    }
+}
+
+private fun cohereCitationTarget(blocks: ArrayList<CohereBlock>, contentSize: Long, kind: String, contentIndex: Long?): Long? {
+    if (kind.length == 0L) return None
+    if (kind == "plan") return if (blocks.size > contentSize) Some(contentSize) else None
+    if (contentIndex != None) return if (blocks[contentIndex!!].kind == kind) contentIndex else None
+    var found: Long? = None
+    var index = 0L
+    for (block in blocks) {
+        if (block.kind == kind) {
+            if (found != None) return None
+            found = Some(index)
+        }
+        index += 1L
+    }
+    return found
+}

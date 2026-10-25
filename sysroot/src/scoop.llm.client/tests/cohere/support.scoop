@@ -1,0 +1,39 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal val cohereDialect: DialectId = CohereChatDialect().id
+
+internal fun cohereRequest(): LlmRequest = LlmRequest([], tools = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}"))])
+
+internal fun cohereBody(content: String = "[]", reason: String = "COMPLETE", extra: String = "", usage: String? = None): JsonValue =
+    Json.parse("{\"id\":\"reply\",\"finish_reason\":\"" + reason + "\",\"message\":{\"role\":\"assistant\",\"content\":" + content + extra + "}" +
+        (if (usage == None) "" else ",\"usage\":" + usage!!) + "}")
+
+internal fun cohereDecode(value: JsonValue, request: LlmRequest = cohereRequest()): LlmResponse =
+    CohereChatProtocol(CohereChatDialect()).decodeResponse(value, request)
+
+internal fun cohereHistory(response: LlmResponse): JsonValue = when (response.toInput()[0L]) {
+    case History(value) -> value.items[0L]
+    else -> fail()
+}
+
+internal fun cohereCall(id: String, arguments: String = "{}", name: String = "lookup"): JsonValue = JsonObjectBuilder()
+    .add("id", JsonValue.fromString(id)).add("type", JsonValue.fromString("function"))
+    .add("function", JsonObjectBuilder().add("name", JsonValue.fromString(name)).add("arguments", JsonValue.fromString(arguments)).build()).build()
+
+internal fun cohereCalls(values: Array<JsonValue>, reason: String = "TOOL_CALL", request: LlmRequest = cohereRequest()): LlmResponse =
+    cohereDecode(cohereBody(reason = reason, extra = ",\"tool_calls\":" + Json.stringify(JsonValue.fromArray(values))), request)
+
+internal fun assertCohereFailure(value: JsonValue, path: String) {
+    val error = assertFailsWith<LlmProtocolException> { cohereDecode(value); Unit }
+    assertEquals(path, error.path)
+    assertEquals(cohereDialect, error.dialect)
+    assertEquals(Json.stringify(value), Json.stringify(error.native))
+}
+
+internal class CohereAnswer public constructor(public val count: Long) {
+    public companion object : ValueDecoder<CohereAnswer>
+}

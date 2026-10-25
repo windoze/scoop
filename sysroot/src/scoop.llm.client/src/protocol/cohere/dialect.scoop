@@ -1,0 +1,14 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Service accounting within the independent Cohere Chat v2 wire protocol. */
+public interface CohereDialect {
+    public val id: DialectId
+    public fun readUsage(value: JsonValue): TokenUsage
+}
+
+public class CohereChatDialect public constructor() : CohereDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("cohere-chat-v2"), "cohere-chat-v2")
+    public override fun readUsage(value: JsonValue): TokenUsage = readCohereUsage(value)
+}

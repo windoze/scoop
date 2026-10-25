@@ -1,0 +1,50 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Complete Cohere Chat v2 responses, interpreted with an explicitly selected service dialect. */
+public class CohereChatProtocol public constructor(public val dialect: CohereDialect) {
+    public val dialectId: DialectId get() = dialect.id
+    init {
+        if (dialect.id.protocol != ApiProtocolId("cohere-chat-v2"))
+            throw IllegalArgumentException(Some("Cohere dialect belongs to another API protocol"))
+    }
+
+    public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+        try {
+            val body = decodeCohereValue<CohereBody>(value, "")
+            cohereNonempty(body.id, "/id")
+            cohereNonempty(body.finishReason, "/finish_reason")
+            val message = decodeCohereValue<CohereMessage>(body.message, "/message")
+            if (message.role != "assistant") throw DecodingException("/message/role", "expected an assistant message")
+            val items = readCohereContent(dialect.id, message)
+            appendCohereToolCalls(items, dialect.id, message.toolCalls ?: [], request.tools, body.finishReason)
+            val (completion, reason) = cohereCompletion(body.finishReason)
+            val replayable = cohereReplayable(body.finishReason)
+            val terminal = replayable || body.finishReason == "ERROR" || body.finishReason == "TIMEOUT"
+            val history = if (replayable) Some(LlmHistory(dialect.id, [body.message])) else None
+            val completeness: UsageCompleteness = if (terminal) Final else Partial
+            val usage = when (body.usage) {
+                case Some(raw) -> LlmUsage(dialect.readUsage(raw), completeness, Some(raw))
+                case None -> LlmUsage(completeness = completeness)
+            }
+            return LlmResponse(dialect.id, [LlmCandidate(0L, items.toArray(), completion, reason, history)],
+                id = Some(body.id), usage = usage, native = Some(value))
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Cohere response", value)
+        }
+    }
+}
+
+internal fun cohereReplayable(reason: String): Boolean = reason == "COMPLETE" || reason == "STOP_SEQUENCE" ||
+    reason == "TOOL_CALL" || reason == "MAX_TOKENS"
+
+internal fun cohereCompletion(reason: String): (LlmCompletion, LlmFinishReason) = when (reason) {
+    case "COMPLETE" -> (Complete, Stop)
+    case "STOP_SEQUENCE" -> (Complete, Stop)
+    case "TOOL_CALL" -> (Complete, ToolCalls)
+    case "MAX_TOKENS" -> (Incomplete, Length)
+    case "ERROR" -> (Failed, Other(reason))
+    case "TIMEOUT" -> (Failed, Other(reason))
+    else -> (Incomplete, Other(reason))
+}

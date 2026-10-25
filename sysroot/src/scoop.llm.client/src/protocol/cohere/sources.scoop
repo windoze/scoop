@@ -1,0 +1,32 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class CohereSourceFields public constructor(public val type: String, public val id: String? = None,
+    public val document: JsonValue? = None, @Serialize(rename = "tool_output") public val toolOutput: JsonValue? = None) {
+    public companion object : ValueDecoder<CohereSourceFields>
+}
+
+internal fun readCohereSource(dialect: DialectId, raw: JsonValue, path: String): LlmSource {
+    val fields = decodeCohereValue<CohereSourceFields>(raw, path)
+    cohereNonempty(fields.type, path + "/type")
+    when (fields.id) { case Some(id) -> cohereNonempty(id, path + "/id"); case None -> {} }
+    val content = when (fields.type) {
+        case "document" -> fields.document
+        case "tool" -> fields.toolOutput
+        else -> None
+    }
+    var title: String? = None
+    when (content) {
+        case Some(value) -> {
+            val key = if (fields.type == "document") "document" else "tool_output"
+            if (value.kind != JsonValueKind.Object) throw DecodingException(path + "/" + key, "expected a source object")
+            when (value["title"]) {
+                case Some(value) -> { if (value.kind == JsonValueKind.String) title = Some(value.asString()) }
+                case None -> {}
+            }
+        }
+        case None -> {}
+    }
+    return LlmSource(fields.id ?: path, LlmSourceLocation.Native(dialect, raw), title, Some(raw))
+}

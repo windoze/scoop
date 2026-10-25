@@ -1,0 +1,41 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class CohereUsageFields public constructor(public val tokens: CohereTokenFields? = None,
+    @Serialize(rename = "cached_tokens") public val cached: JsonValue? = None) {
+    public companion object : ValueDecoder<CohereUsageFields>
+}
+
+private class CohereTokenFields public constructor(
+    @Serialize(rename = "input_tokens") public val input: JsonValue? = None,
+    @Serialize(rename = "output_tokens") public val output: JsonValue? = None) {
+    public companion object : ValueDecoder<CohereTokenFields>
+}
+
+internal fun readCohereUsage(value: JsonValue): TokenUsage {
+    val fields = decodeCohereValue<CohereUsageFields>(value, "/usage")
+    val tokens = fields.tokens ?: CohereTokenFields()
+    val input = cohereTokenCount(tokens.input, "/usage/tokens/input_tokens")
+    val output = cohereTokenCount(tokens.output, "/usage/tokens/output_tokens")
+    val cached = cohereTokenCount(fields.cached, "/usage/cached_tokens")
+    var ordinary: Long? = None
+    if (input != None && cached != None) {
+        if (cached!! > input!!) throw DecodingException("/usage/cached_tokens", "cached tokens exceed input tokens")
+        ordinary = Some(input!! - cached!!)
+    }
+    var total: Long? = None
+    if (input != None && output != None) {
+        if (input!! > Long.MAX_VALUE - output!!) throw DecodingException("/usage/tokens", "token total exceeds Long")
+        total = Some(input!! + output!!)
+    }
+    return TokenUsage(input, ordinary, output, total, cached)
+}
+
+private fun cohereTokenCount(value: JsonValue?, path: String): Long? {
+    val raw = value ?: return None
+    val count = try { raw.asIntegralLong() }
+        catch (error: DecodingException) { throw DecodingException(path, error.message ?: "invalid token count") }
+    if (count < 0L) throw DecodingException(path, "token count must not be negative")
+    return Some(count)
+}

@@ -369,6 +369,17 @@ None 的语义按字段固定：`httpClient = None` 创建作用域内拥有的 
 
 若要使用 Chat protocol，显式改用 `Providers.openAiChat()` 创建另一个 endpoint／model 绑定。不能只替换 URL 后继续套用 Responses 的工具或原生历史；两个 provider 可以共享同一个 http。两个绑定的 capability 各自取得，未知模型不触发目录联网查询。
 
+### 7.1 解码已有的 Cohere Chat v2 响应
+
+Cohere 当前提供完整响应的纯解码入口，请求编码和 SSE 继续实施。将原请求一并传入，函数调用才能绑定到应用声明的 ToolKey；返回值沿用相同的 text、usage、clientToolCalls、toInput 和 companion codec。
+
+```scoop
+fun readCohereReply(body: String, request: LlmRequest): LlmResponse =
+    CohereChatProtocol(CohereChatDialect()).decodeResponse(Json.parse(body), request)
+```
+
+usage 读取实际 tokens，billed_units 另外保留在原生数据中。thinking 和 tool_plan 不混入 text；引用关联原始内容块，未定义单位的范围保留原文。这是纯 JSON 解码，不产生客户端发送／接收时间戳。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |

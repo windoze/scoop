@@ -1,0 +1,79 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class CohereContentTest {
+    @Test
+    fun `Cohere text thinking plan and unknown content retain order and native history`() {
+        val body = cohereBody("[{\"type\":\"thinking\",\"thinking\":\"reason\",\"signature\":\"opaque\"}," +
+            "{\"type\":\"text\",\"text\":\"你\"},{\"type\":\"text\",\"text\":\"🙂\"},{\"type\":\"plan\",\"value\":1e400}]",
+            extra = ",\"tool_plan\":\"plan\",\"extra\":{\"exact\":9007199254740993}")
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(cohereDecode(body)))
+        assertEquals("你🙂", response.text)
+        assertEquals(Some("reply"), response.id)
+        assertEquals(None, response.model)
+        assertTrue(when (response.createdAt) { case None -> true; else -> false })
+        val items = response.candidates[0L].items
+        assertEquals(4L, items.size)
+        when (items[0L]) { case Reasoning(parts, _) -> when (parts[0L]) { case Text(text, _) -> assertEquals("reason", text); else -> fail() }; else -> fail() }
+        when (items[1L]) { case Message(parts, _) -> assertEquals(2L, parts.size); else -> fail() }
+        when (items[2L]) { case Native(_, raw) -> assertEquals("1e400", raw["value"]!!.asNumberToken()); else -> fail() }
+        when (items[3L]) { case Reasoning(parts, _) -> when (parts[0L]) { case Text(text, _) -> assertEquals("plan", text); else -> fail() }; else -> fail() }
+        assertEquals(Json.stringify(body["message"]!!), Json.stringify(cohereHistory(response)))
+        assertEquals(Json.stringify(body), Json.stringify(response.native!!))
+    }
+
+    @Test
+    fun `Cohere consecutive text blocks form one structured output without reasoning or plan`() {
+        val response = cohereDecode(cohereBody("[{\"type\":\"thinking\",\"thinking\":\"not JSON\"}," +
+            "{\"type\":\"text\",\"text\":\"{\\\"count\\\":\"},{\"type\":\"text\",\"text\":\"9007199254740993}\"}]",
+            extra = ",\"tool_plan\":\"not JSON either\""))
+        assertEquals(9007199254740993L, response.decodeOutput<CohereAnswer>().count)
+        assertEquals("{\"count\":9007199254740993}", response.text)
+    }
+
+    @Test
+    fun `Cohere nullable content and empty plan keep their actual wire presence`() {
+        for (message in ["{\"role\":\"assistant\"}", "{\"role\":\"assistant\",\"content\":null,\"tool_plan\":null}",
+            "{\"role\":\"assistant\",\"content\":[],\"tool_plan\":\"\"}"]) {
+            val response = cohereDecode(Json.parse("{\"id\":\"reply\",\"finish_reason\":\"COMPLETE\",\"message\":" + message + "}"))
+            assertEquals("", response.text)
+            assertEquals(message, Json.stringify(cohereHistory(response)))
+            assertEquals(0L, response.clientToolCalls.size)
+            assertEquals(0L, response.serverToolActivities.size)
+        }
+        assertEquals(1L, cohereDecode(cohereBody(extra = ",\"tool_plan\":\"\"")).candidates[0L].items.size)
+    }
+
+    @Test
+    fun `Cohere finish reasons distinguish incomplete failed and unknown results`() {
+        for ((reason, completion, finish) in [("COMPLETE", LlmCompletion.Complete, LlmFinishReason.Stop),
+            ("STOP_SEQUENCE", LlmCompletion.Complete, LlmFinishReason.Stop), ("TOOL_CALL", LlmCompletion.Complete, LlmFinishReason.ToolCalls),
+            ("MAX_TOKENS", LlmCompletion.Incomplete, LlmFinishReason.Length), ("ERROR", LlmCompletion.Failed, LlmFinishReason.Other("ERROR")),
+            ("TIMEOUT", LlmCompletion.Failed, LlmFinishReason.Other("TIMEOUT")), ("future", LlmCompletion.Incomplete, LlmFinishReason.Other("future"))]) {
+            val response = cohereDecode(cohereBody("[{\"type\":\"text\",\"text\":\"{\\\"count\\\":1}\"}]", reason))
+            assertEquals(completion, response.candidates[0L].completion)
+            assertEquals(finish, response.candidates[0L].finishReason)
+            assertEquals(if (reason == "future") UsageCompleteness.Partial else UsageCompleteness.Final, response.usage.completeness)
+            if (reason == "ERROR" || reason == "TIMEOUT" || reason == "future")
+                assertFailsWith<LlmOutputException> { response.toInput(); Unit }
+            else assertEquals(1L, response.toInput().size)
+            if (completion != LlmCompletion.Complete) assertFailsWith<LlmOutputException> { response.decodeOutput<CohereAnswer>(); Unit }
+        }
+    }
+
+    @Test
+    fun `Cohere malformed response structure exposes the exact decoding path`() {
+        for ((text, path) in [("{}", "/id"), ("{\"id\":\"\",\"message\":{},\"finish_reason\":\"COMPLETE\"}", "/id"),
+            ("{\"id\":\"r\",\"message\":{},\"finish_reason\":\"\"}", "/finish_reason"),
+            ("{\"id\":\"r\",\"message\":{\"role\":\"user\"},\"finish_reason\":\"COMPLETE\"}", "/message/role")])
+            assertCohereFailure(Json.parse(text), path)
+        for ((content, path) in [("{}", "/message/content"), ("[{}]", "/message/content/0/type"),
+            ("[{\"type\":\"\"}]", "/message/content/0/type"), ("[{\"type\":\"text\"}]", "/message/content/0/text"),
+            ("[{\"type\":\"thinking\",\"thinking\":1}]", "/message/content/0/thinking")])
+            assertCohereFailure(cohereBody(content), path)
+    }
+}

@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class CohereUsageTest {
+    @Test
+    fun `Cohere uses exact reported tokens and cached input independently of billed units`() {
+        val usage = "{\"tokens\":{\"input_tokens\":9007199254740993.0,\"output_tokens\":7e0},\"cached_tokens\":3.0," +
+            "\"billed_units\":{\"input_tokens\":1,\"output_tokens\":2,\"search_units\":0.5},\"future\":1e400}"
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(cohereDecode(cohereBody(usage = Some(usage)))))
+        val counts = response.usage.tokens
+        assertEquals(Some(9007199254740993L), counts.inputTokens)
+        assertEquals(Some(9007199254740990L), counts.nonCachedInputTokens)
+        assertEquals(Some(7L), counts.outputTokens)
+        assertEquals(Some(9007199254741000L), counts.totalTokens)
+        assertEquals(Some(3L), counts.cacheReadTokens)
+        assertEquals(None, counts.cacheWriteTokens)
+        assertEquals(None, counts.reasoningTokens)
+        assertEquals(usage, Json.stringify(response.usage.native!!))
+    }
+
+    @Test
+    fun `Cohere absent counters remain unknown and explicit zero is retained`() {
+        val missing: Array<String?> = [None, Some("null"), Some("{}"), Some("{\"tokens\":null,\"cached_tokens\":null}"),
+            Some("{\"billed_units\":{\"input_tokens\":12,\"output_tokens\":3}}")]
+        for (usage in missing) {
+            val value = cohereDecode(cohereBody(usage = usage)).usage
+            assertEquals(UsageCompleteness.Final, value.completeness)
+            assertEquals(None, value.tokens.inputTokens)
+            assertEquals(None, value.tokens.outputTokens)
+            assertEquals(None, value.tokens.totalTokens)
+            assertEquals(None, value.tokens.nonCachedInputTokens)
+        }
+        val input = cohereDecode(cohereBody(usage = Some("{\"tokens\":{\"input_tokens\":12,\"output_tokens\":null}}"))).usage.tokens
+        assertEquals(Some(12L), input.inputTokens)
+        assertEquals(None, input.nonCachedInputTokens)
+        assertEquals(None, input.totalTokens)
+        val zero = CohereChatDialect().readUsage(Json.parse("{\"tokens\":{\"input_tokens\":0.0,\"output_tokens\":-0e9999},\"cached_tokens\":0}"))
+        assertEquals(Some(0L), zero.totalTokens)
+        assertEquals(Some(0L), zero.nonCachedInputTokens)
+        val cached = CohereChatDialect().readUsage(Json.parse("{\"cached_tokens\":5}"))
+        assertEquals(Some(5L), cached.cacheReadTokens)
+        assertEquals(None, cached.inputTokens)
+    }
+
+    @Test
+    fun `Cohere malformed fractional negative overflowing and inconsistent usage reports exact paths`() {
+        for ((usage, path) in [("[]", "/usage"), ("{\"tokens\":[]}", "/usage/tokens"),
+            ("{\"tokens\":{\"input_tokens\":\"12\"}}", "/usage/tokens/input_tokens"),
+            ("{\"tokens\":{\"input_tokens\":12.1}}", "/usage/tokens/input_tokens"),
+            ("{\"tokens\":{\"output_tokens\":-1}}", "/usage/tokens/output_tokens"),
+            ("{\"cached_tokens\":-1}", "/usage/cached_tokens"), ("{\"cached_tokens\":1e400}", "/usage/cached_tokens"),
+            ("{\"tokens\":{\"input_tokens\":3},\"cached_tokens\":4}", "/usage/cached_tokens"),
+            ("{\"tokens\":{\"input_tokens\":9223372036854775807,\"output_tokens\":1}}", "/usage/tokens")])
+            assertCohereFailure(cohereBody(usage = Some(usage)), path)
+    }
+}

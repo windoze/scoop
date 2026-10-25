@@ -539,3 +539,21 @@ request.extensions 可以补充 additionalModelRequestFields、guardrailConfig�
 ## 26. ConverseStream
 
 [ConverseStream 扩展规范](SCOOP-LLM-CONVERSE-STREAM-SPEC.md)规定 AWS EventStream 的业务事件解释、内容聚合、服务端工具与原生历史，复用第 10、11 节的流式入口、计时、保留及生命周期合同。
+
+## 27. Cohere Chat v2 完整响应
+
+CohereChatProtocol(dialect) 提供纯 decodeResponse(value, request)；CohereDialect 解释服务方 usage，CohereChatDialect 使用 DialectId(ApiProtocolId("cohere-chat-v2"), "cohere-chat-v2")。v2 的 message／content、tool_plan、citation 和 usage 形状独立于 OpenAI Chat；请求与 SSE 在各自闭环中接入同一生成入口。
+
+响应要求非空 id、finish_reason 和 assistant message。content 可省略或为 null；数组保持 wire 顺序，连续 text 块进入同一 Message 的多个 Text part，thinking 块成为 Reasoning，未知类型成为 Native。tool_plan 作为独立 Reasoning 放在 content 之后、tool_calls 之前，保留空字符串；普通 text 视图不包含 thinking 或 plan。原始响应、消息及未知字段原样保存；没有模型名或服务创建时间时不由请求或客户端时钟填充。
+
+COMPLETE／STOP_SEQUENCE 映射 Complete／Stop，TOOL_CALL 映射 Complete／ToolCalls，MAX_TOKENS 映射 Incomplete／Length，ERROR／TIMEOUT 映射 Failed／Other(raw)，其他原因映射 Incomplete／Other(raw)。已知终止原因的 usage 为 Final，未知原因保持 Partial。COMPLETE、STOP_SEQUENCE、TOOL_CALL 和 MAX_TOKENS 提供原始 assistant message 的 history；失败与未知停止原因不提供可追加历史。thinking、tool_plan、citations、函数参数原文及额外消息字段随 history 保存。
+
+tool_calls 的实际非空 ID 必须唯一。只有 type=function、name 和 arguments 已提供、请求中存在唯一同名 ClientFunction，且 finish_reason=TOOL_CALL 时才构造完整输入；无效 JSON 或非 object 参数为 Invalid，其他停止原因为 Incomplete。参数文本精确保存，不修复 JSON。缺失 function／name／arguments、未知类型或无法唯一绑定的调用保留 Native；显式空 name 和重复 ID 是协议错误。ClientCustom、ClientNative 与 Server 声明不参与函数绑定；document／tool 引用来源不意味着服务端执行，不生成 ServerToolActivity。
+
+citations 的 content_index 指向原始 content 数组；TEXT_CONTENT、THINKING_CONTENT 与 PLAN 分别关联 text、thinking 和 tool_plan。缺少类型按 TEXT_CONTENT 解释，缺少索引时只关联唯一的同类文本块；无法唯一关联或未知类型的引用保留 Native，不猜位置。索引越界、负 start／end、end 小于 start 报带路径错误；缺失一端仍保存原文。公开 v2 合同未明确字符范围的 Unicode 单位，Citation.range 保持 None，完整引用对象单独保留 Native，不把索引冒充 UTF-8／UTF-16／Unicode scalar 范围。
+
+每个 source 保留实际 id；缺少 id 时以该来源的 JSON 路径作为本响应来源表的局部标识，不把它解释为工具调用 ID。document 与 tool_output 都是应用定义对象，location 使用 Native 保存来源，不能根据其中任意 url 字段推断检索行为。来源对象中的实际字符串 title 可以作为显示标题；其余原文仍可读取。
+
+TokenUsage 使用 usage.tokens.input_tokens／output_tokens，cached_tokens 是已包含在 input 内的缓存读。仅当 input 和 cached 都已知且 cached 不超过 input 时计算 nonCachedInputTokens；未报告缓存读不当作零。input 与 output 都已知时可精确相加得到 totalTokens，溢出明确失败。计数必须为非负、Long 范围内的整数值，允许精确的整数小数／指数写法，不经过 Double。cacheWrite 与 reasoning 细项没有报告时保持 None；billed_units 是另一种计费口径，只在 usage.native 中保留，不代替实际 token 计数或伪造金额。
+
+依据：[Chat v2](https://docs.cohere.com/v2/reference/chat)、[reasoning](https://docs.cohere.com/docs/reasoning)、[工具引用](https://docs.cohere.com/docs/tool-use-citations)、[计费与实际 token 的区别](https://docs.cohere.com/docs/how-does-cohere-pricing-work)，以及[官方 SDK 响应定义](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/v2/types/v2chat_response.py)和[引用定义](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/types/citation.py)。参考 [Vercel usage 映射](https://github.com/vercel/ai/blob/39aae5425e9f9a25acce413cc7e6823c2b5a73c5/packages/cohere/src/convert-cohere-usage.ts)，沿用本库对未知缓存计数与精确整数的合同。

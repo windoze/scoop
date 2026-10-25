@@ -1,0 +1,28 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class CohereBody public constructor(public val id: String, public val message: JsonValue,
+    @Serialize(rename = "finish_reason") public val finishReason: String, public val usage: JsonValue? = None) {
+    public companion object : ValueDecoder<CohereBody>
+}
+
+internal class CohereMessage public constructor(public val role: String, public val content: Array<JsonValue>? = None,
+    @Serialize(rename = "tool_plan") public val toolPlan: String? = None,
+    @Serialize(rename = "tool_calls") public val toolCalls: Array<JsonValue>? = None,
+    public val citations: Array<JsonValue>? = None) {
+    public companion object : ValueDecoder<CohereMessage>
+}
+
+internal class CohereKind public constructor(public val type: String) {
+    public companion object : ValueDecoder<CohereKind>
+}
+
+internal fun <T> decodeCohereValue(value: JsonValue, path: String): T where T.Companion : ValueDecoder<T> {
+    try { return Json.decodeFromValue<T>(value) }
+    catch (error: DecodingException) { throw DecodingException(path + error.path, error.message ?: "invalid Cohere field") }
+}
+
+internal fun cohereNonempty(value: String, path: String) {
+    if (value.length == 0L) throw DecodingException(path, "expected a nonempty string")
+}
