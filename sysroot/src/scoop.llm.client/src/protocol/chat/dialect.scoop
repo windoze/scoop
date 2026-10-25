@@ -12,6 +12,9 @@ public interface ChatDialect {
     public fun readReasoning(message: JsonValue, path: String): Array<OutputPart>
     public fun readUsage(usage: JsonValue): TokenUsage
     public fun historyMessage(message: JsonValue, path: String): JsonValue
+    public fun canReplayMessage(message: JsonValue): Boolean = true
+    public fun readNativeItems(message: JsonValue, path: String): Array<LlmOutputItem> = chatNativeItems(id, message)
+    public fun createStreamField(field: String, location: LlmItemLocation, retention: StreamRetention): ChatStreamFieldDecoder? = None
 }
 
 public class OpenAiChatDialect public constructor() : ChatDialect {

@@ -4,10 +4,10 @@ import scoop.json.JsonObjectBuilder
 import scoop.json.JsonValue
 import scoop.json.JsonValueKind
 
-internal fun projectChatMessage(message: JsonValue, path: String): JsonValue {
+internal fun projectChatMessage(message: JsonValue, path: String, preserveAnnotations: Boolean = false): JsonValue {
     val result = JsonObjectBuilder()
     for ((name, value) in message.members()) {
-        if (name == "annotations") continue
+        if (name == "annotations" && !preserveAnnotations) continue
         if (name == "audio" && value.kind != JsonValueKind.Null) {
             val audio = decodeChatValue<ChatAudioReference>(value, path + "/audio")
             result.add(name, JsonObjectBuilder().add("id", JsonValue.fromString(audio.id)).build())
@@ -16,11 +16,19 @@ internal fun projectChatMessage(message: JsonValue, path: String): JsonValue {
     return result.build()
 }
 
+internal fun chatNativeItems(dialect: DialectId, message: JsonValue, images: Boolean = false): Array<LlmOutputItem> {
+    val items = ArrayList<LlmOutputItem>()
+    for (name in ["audio", "annotations", "function_call"]) appendChatNativeField(items, dialect, name, message[name])
+    if (images) appendChatNativeField(items, dialect, "images", message["images"])
+    return items.toArray()
+}
+
 private class ChatAudioReference public constructor(public val id: String) {
     public companion object : ValueDecoder<ChatAudioReference>
 }
 
 internal fun appendChatNativeField(items: ArrayList<LlmOutputItem>, dialect: DialectId, name: String, value: JsonValue?) {
     val present = value ?: return
+    if (present.kind == JsonValueKind.Null) return
     items.add(LlmOutputItem.Native(dialect, JsonObjectBuilder().add(name, present).build()))
 }

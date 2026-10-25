@@ -11,6 +11,8 @@ public class LlmProvider public constructor(
 
 /** Common combinations and deployment defaults, without a model-name router. */
 public object Providers {
+    public fun openRouterChat(): LlmProvider = LlmProvider("openrouter-chat", ChatProtocol(OpenRouterChatDialect()),
+        Some(Url.parse("https://openrouter.ai/api/v1")))
     public fun ollamaChat(): LlmProvider = LlmProvider("ollama-chat", OllamaChatProtocol(OllamaChatDialect()),
         Some(Url.parse("http://localhost:11434/api")))
     public fun cohereChat(): LlmProvider = LlmProvider("cohere-chat-v2", CohereChatProtocol(CohereChatDialect()),

@@ -1,0 +1,73 @@
+package scoop.llm.client.tests.chat.openrouter
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.chat.*
+import scoop.llm.client.tests.client.*
+import scoop.llm.client.tests.stream.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class OpenRouterNetworkTest {
+    @Test
+    fun `OpenRouter Chat mock retries generation then streams saved reasoning and tool history`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val endpoint = LlmEndpoint(Providers.openRouterChat(), auth, Some(original.baseUrl))
+            val request = routerRequest(routerTools())
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (attempt in [1L, 2L, 3L]) {
+                        val incoming = connection.receiveRequest()!!
+                        val target = when (incoming.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        assertEquals("/v1/chat/completions", target)
+                        assertEquals("Bearer attempt-" + attempt.toString(), String.fromUtf8(incoming.head.fields.findAll("Authorization".toByteArray())[0L].value))
+                        val body = Json.parse(String.fromUtf8(incoming.body.readAllBytes(16384L)))
+                        assertEquals("org/model", body["model"]!!.asString())
+                        if (attempt == 1L) sendLlmReply(connection, 503U, "{\"error\":{\"code\":503,\"message\":\"busy\",\"metadata\":{\"changed\":true}}}")
+                        else if (attempt == 2L) {
+                            assertFalse(body.containsKey("stream"))
+                            sendLlmReply(connection, 200U, Json.stringify(chatBody(routerMessage, "tool_calls", Some(routerUsage))))
+                        } else {
+                            assertTrue(body["stream"]!!.asBoolean())
+                            val history = body["messages"]!![1L]
+                            assertEquals(routerDetails, Json.stringify(history["reasoning_details"]!!))
+                            assertEquals(routerAnnotations, Json.stringify(history["annotations"]!!))
+                            assertEquals("call-1", body["messages"]!![2L]["tool_call_id"]!!.asString())
+                            val sse = "data: " + streamChunk("{\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"done\",\"signature\":\"sig\"}],\"content\":\"answer\"}", Some("stop")) +
+                                "\n\ndata: {\"choices\":[],\"usage\":" + routerUsage + "}\n\ndata: [DONE]\n\n"
+                            sendLlmReply(connection, 200U, sse, streamFields)
+                        }
+                    }
+                }
+            }
+            withLlmClient suspend { client ->
+                val model = endpoint.model("org/model")
+                val generated = client.generate(model, request, LlmCallOptions(retries = LlmRetryOptions(1L, Duration.ZERO, Duration.ZERO)))
+                assertEquals(2L, generated.metadata.attempts.size)
+                assertEquals(Some(503U), generated.metadata.attempts[0L].status)
+                val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(generated.response))
+                val stream = client.openStream(model, routerContinuation(request, saved), retention = StreamRetention.Result)
+                val text = StringBuilder()
+                stream.useAsync suspend { opened ->
+                    val deltas = opened.textDeltas()
+                    while (true) { val delta = deltas.next() ?: break; text.append(delta.text) }
+                }
+                assertEquals("answer", text.toString())
+                assertEquals("answer", stream.result().text)
+                assertEquals(3L, auth.requests.size)
+                val attempt = stream.metadata.attempts[0L]
+                assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+                assertTrue(attempt.response.firstOutputAt != None && attempt.response.firstTextAt != None)
+                assertEquals(Some(17L), attempt.usage.tokens.totalTokens)
+                assertEquals(UsageCompleteness.Final, attempt.usage.completeness)
+                assertEquals("sig", streamHistory(stream.result().response)["reasoning_details"]!![0L]["signature"]!!.asString())
+            }
+            serving.join()
+        }
+    }
+}

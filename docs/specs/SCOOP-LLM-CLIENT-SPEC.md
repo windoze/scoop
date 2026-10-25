@@ -749,3 +749,23 @@ DeepSeek reasoning 的 summary 缺失／null 合法，content 中的 reasoning_t
 HTTP 429／503 按 DeepSeek 的限流／过载拒绝策略重试，保留原始错误与正文，每次重新认证并采样；模型 failed 响应不重试。当前文档定义的 DeepSeek Responses 入口是 HTTP／SSE；ResponsesDialect.supportsWebSocket 表示该适配器是否实现 WebSocket 操作，OpenAI 为 true、DeepSeek 为 false，不支持时在认证或发送前报错。它描述适配器操作，与模型的 streaming／realtime capability 分开。
 
 验证使用官方响应形状和本地 HTTP／SSE mock，覆盖缺省请求、参数差异、图片、函数／custom／搜索组合、保存后完整历史回传、reasoning 流、usage 与实际计时；不依赖供应商服务或 key。依据：[DeepSeek Responses 兼容说明](https://api-docs.deepseek.com/guides/responses_api/)、[请求与响应参考](https://api-docs.deepseek.com/api/create-response/)、[工具调用](https://api-docs.deepseek.com/guides/tool_calls/)、[HTTP 错误码](https://api-docs.deepseek.com/quick_start/error_codes)。
+
+## 39. OpenRouter Chat dialect
+
+Providers.openRouterChat() 固定组合 ChatProtocol 与 OpenRouterChatDialect，标识 (chat-completions, openrouter-chat)，默认部署 https://openrouter.ai/api/v1。generate／openStream／withStream 的入口、缺省值、模型 ID 原样传递和能力检查不变。模型目录、路由、文件上传和 Agent 调度不隐式执行；服务方自己的附加字段保持原文。
+
+推理选项映射 reasoning.enabled／effort／max_tokens；effort 与 budgetTokens 不能同时提供，显式禁用不能同时要求正的推理预算或非 none effort。不按模型名选择推理模式或替用户估算预算。temperature／topP／topK／stop／maxOutputTokens／parallelToolCalls 使用对应 Chat 字段，输出上限使用 max_tokens；JsonObject／JsonSchema 使用 response_format。candidates 只接受 1，省略时沿用服务默认值。根扩展不能覆盖这些已有控制；没有设置通用 reasoning 时，可通过扩展提供完整原生 reasoning 对象；其他 routing／plugins 等选项仍通过原生扩展显式提供。
+
+客户端 function 与 openrouter:* 服务端工具共享 tools；前者使用既有函数声明和 call_id，后者的参数按原文发送，不进入客户端执行列表。WebSearch 映射 openrouter:web_search，allowedDomains／excludedDomains 与 location 放入 parameters；includeSources 无对应控制而拒绝。原生工具使用同 dialect、无显式 version 的配置；已知仅支持其他协议的 apply_patch／shell／bash／tool_search 不映射到 Chat。Specific(function) 使用具名函数；Specific(server) 只有声明中仅有该工具时才用 required 表达。没有文档对应形状的 ClientCustom／ClientNative 拒绝。服务端不报告逐次活动时，不从 usage 或 citations 生成工具活动。
+
+输入保留单段纯文本的字符串缺省；图片使用既有 image_url，PDF／其他文档使用 file.file_data 的 data URL 或 http(s) URL，音频使用带格式的 inline Base64，视频使用 video_url 的 data URL 或 http(s) URL。没有明确映射的文件引用、PCM 格式和带时间戳帧序列通过 Native 显式表达，不猜测格式或伪造文件 ID。文本／媒体／工具各位置的扩展继续遵守归属和字段冲突规则。
+
+完整响应优先将 reasoning_details 中 reasoning.text／reasoning.summary 投影为可读 Reasoning，encrypted 和未知块保留 Native；若没有非空 details，再读取 reasoning 或 reasoning_content。历史保存完整 assistant 消息，保留原始推理字段及 annotations（包括文件解析回传信息），不删除无签名文本，不补签名、reasoning_details 或结束原因。原生 tool-call 字段的执行资格仍以完整参数和实际结束状态为准。
+
+ChatDialect.createStreamField(field, location, retention) 提供每个 candidate 内的可选字段 decoder，缺省 None；现有 Chat 与 DeepSeek 行为不变。ChatStreamFieldDecoder.fields 列出共同处理的字段，一次 accept 收到本次完整 delta，每个 decoder 每个 delta 至多调用一次，返回既有 LlmStreamUpdate。finish 返回一个有序 output item、该字段组的 historyFields 与历史是否可重建；协议仍负责公共消息、工具、结束原因、usage 和位置。字段组不能覆盖公共 role／content／tool_calls 等字段。它用于当前 OpenRouter 的结构化 reasoning 与原生 annotations 等具体差异，不建立通用事件规则或插件系统。
+
+reasoning_details 的 text／summary 增量按连续块合并；不同 kind、实际 ID／index／format 或已完成的 text 签名开始新块，encrypted 和未知块各自保留，不按 index 排序或将其作为唯一身份。同一 delta 同时出现 details 与 reasoning 字符串时，可读视图优先 details，历史仍保留两者。签名可晚于正文；文本已开始不阻止继续交付 reasoning。显式空 details 保持空数组，未报告的字段不补出。未知块和额外字段经 Native 事件保留。EventsOnly 不累计正文／加密负载，Result 保存有序输出及可重放历史。
+
+annotations 按实际数组增量保存，文件 annotations 随历史回传；未知形状原样交付，不验证服务附加信息内容。输出 images／audio 使用原生表示；音频分块按既有 Base64 规则累计，expires_at 只保留原值，缺少 ID 仍可交付结果，但不制造可回传的音频引用。ChatDialect.readNativeItems 选择完整响应的原生输出字段；canReplayMessage 缺省 true，在缺少音频引用时返回 false，普通及流式结果均不生成不完整的历史。HTTP 错误正文保留原文，限流／无可用服务的 429／503 可重试，已收到模型输出后不重放。token usage 使用 Chat 的实际计数，其他字段不进入公共计数或费用模型。
+
+验证采用官方形状的本地 HTTP／SSE mock，包含混合工具、完整历史保存和恢复、独立签名块、跨 candidate 交错、usage 尾块、错误与真实时间戳；真实服务另行补测。依据：[reasoning](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens)、[Chat API](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion)、[服务端工具](https://openrouter.ai/docs/guides/features/server-tools)、[WebSearch](https://openrouter.ai/docs/guides/features/server-tools/web-search)、[多模态](https://openrouter.ai/docs/guides/overview/multimodal/overview)及 [OpenRouter AI SDK reasoning 增量实现](https://github.com/OpenRouterTeam/ai-sdk-provider/blob/d8edda07b62de696d613ae0115823382465665cd/src/chat/index.ts)。

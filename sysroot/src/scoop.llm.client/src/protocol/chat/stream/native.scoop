@@ -6,9 +6,10 @@ import scoop.json.JsonObjectBuilder
 import scoop.json.JsonValue
 
 /** Known native fields have explicit merge rules; unknown fields remain event fragments. */
-internal class ChatStreamAudio public constructor(public val location: LlmItemLocation, private val retention: StreamRetention) {
+internal class ChatStreamAudio public constructor(public val location: LlmItemLocation, private val retention: StreamRetention,
+    private val requireId: Boolean = true) {
     private var id: String? = None
-    private var expires: Long? = None
+    private var expires: JsonValue? = None
     private val data: ByteArrayBuilder = ByteArrayBuilder()
     private val transcript: StringBuilder = StringBuilder()
     private var hasData: Boolean = false
@@ -18,7 +19,7 @@ internal class ChatStreamAudio public constructor(public val location: LlmItemLo
     public fun accept(raw: JsonValue, batch: LlmStreamBatch, path: String) {
         val fields = decodeChatValue<ChatStreamAudioFields>(raw, path)
         id = llmStreamIdentity(id, fields.id, path + "/id")
-        if (fields.expiresAt != None) expires = fields.expiresAt
+        when (fields.expiresAt) { case Some(value) -> expires = Some(value); case None -> {} }
         if (fields.data != None) {
             hasData = true
             val bytes = Base64.Default.withPadding(Base64.PaddingOption.Optional).decodeOrNone(fields.data!!) ?:
@@ -40,11 +41,12 @@ internal class ChatStreamAudio public constructor(public val location: LlmItemLo
     }
 
     public fun wire(path: String): JsonValue {
-        val audioId = id ?: throw DecodingException(path + "/id", "audio ended without an ID")
-        val result = JsonObjectBuilder().add("id", JsonValue.fromString(audioId))
+        if (requireId && id == None) throw DecodingException(path + "/id", "audio ended without an ID")
+        val result = JsonObjectBuilder()
+        if (id != None) result.add("id", JsonValue.fromString(id!!))
         if (hasData) result.add("data", JsonValue.fromString(Base64.Default.encode(data.toByteArray())))
         if (hasTranscript) result.add("transcript", JsonValue.fromString(transcript.toString()))
-        if (expires != None) result.add("expires_at", JsonValue.fromLong(expires!!))
+        when (expires) { case Some(value) -> result.add("expires_at", value); case None -> {} }
         return result.build()
     }
     public fun release() { data.clear(); transcript.clear() }

@@ -1,0 +1,40 @@
+package scoop.llm.client.tests.chat.openrouter
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class OpenRouterToolsTest {
+    @Test
+    fun `OpenRouter Chat client functions and server search share the tools array`() {
+        val search: ToolDefinition = Server(ToolKey("search"), WebSearch(WebSearchOptions(allowedDomains = Some(["example.test"]),
+            excludedDomains = Some([]), location = Some(SearchLocation(country = Some("US"), city = Some("Chicago"))))))
+        val request = LlmRequest(routerRequest().input, tools = [routerTools()[0L], search],
+            options = LlmGenerationOptions(toolChoice = Specific(ToolKey("lookup"))))
+        val body = router.encodeRequest("model", request)
+        val tool = body["tools"]!![1L]
+        assertEquals("openrouter:web_search", tool["type"]!!.asString())
+        assertEquals("example.test", tool["parameters"]!!["allowed_domains"]!![0L].asString())
+        assertEquals("approximate", tool["parameters"]!!["user_location"]!!["type"]!!.asString())
+        assertEquals("Chicago", tool["parameters"]!!["user_location"]!!["city"]!!.asString())
+        assertEquals("lookup", body["tool_choice"]!!["function"]!!["name"]!!.asString())
+        assertFalse(body.containsKey("plugins"))
+        val sole = LlmRequest(routerRequest().input, tools = [search], options = LlmGenerationOptions(toolChoice = Specific(ToolKey("search"))))
+        assertEquals("required", router.encodeRequest("model", sole)["tool_choice"]!!.asString())
+        assertRouterFailure(LlmRequest(request.input, tools = request.tools,
+            options = LlmGenerationOptions(toolChoice = Specific(ToolKey("search")))), "/options/toolChoice")
+    }
+
+    @Test
+    fun `OpenRouter Chat native server tools retain parameters and reject unrelated wire forms`() {
+        val native = NativeToolDefinition(router.dialectId, "openrouter:web_search", Json.parse("{\"parameters\":{\"engine\":\"exa\",\"max_results\":2}}"))
+        val body = router.encodeRequest("model", routerRequest([Server(ToolKey("native"), ServerTool.Native(native))]))
+        assertEquals(2L, body["tools"]!![0L]["parameters"]!!["max_results"]!!.asLong())
+        assertRouterFailure(routerRequest([Server(ToolKey("search"), WebSearch(WebSearchOptions(includeSources = Some(true))))]),
+            "/tools/0/tool/options/includeSources")
+        assertRouterFailure(routerRequest([ClientCustom(ToolKey("custom"), "custom")]), "/tools/0")
+        assertRouterFailure(routerRequest([Server(ToolKey("shell"), ServerTool.Native(
+            NativeToolDefinition(router.dialectId, "openrouter:shell", Json.parse("{}"))))]), "/tools/0/tool/kind")
+    }
+}

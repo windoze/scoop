@@ -65,17 +65,16 @@ private fun readChatCandidate(dialect: ChatDialect, choice: ChatChoiceBody, requ
 
 private fun finishChatCandidate(dialect: ChatDialect, choice: ChatChoiceBody, message: ChatMessageBody,
     items: ArrayList<LlmOutputItem>, path: String): LlmCandidate {
-    appendChatNativeField(items, dialect.id, "audio", message.audio)
-    appendChatNativeField(items, dialect.id, "annotations", message.annotations)
-    appendChatNativeField(items, dialect.id, "function_call", message.functionCall)
+    for (item in dialect.readNativeItems(choice.message, path + "/message")) items.add(item)
     val reason = chatFinishReason(choice.finishReason)
     val completion = if (message.refusal != None) LlmCompletion.Refused else when (reason) {
         case Stop -> LlmCompletion.Complete
         case ToolCalls -> LlmCompletion.Complete
         else -> LlmCompletion.Incomplete
     }
-    val history = LlmHistory(dialect.id, [dialect.historyMessage(choice.message, path + "/message")])
-    try { return LlmCandidate(choice.index, items.toArray(), completion, reason, Some(history)) }
+    val history = if (dialect.canReplayMessage(choice.message))
+        Some(LlmHistory(dialect.id, [dialect.historyMessage(choice.message, path + "/message")])) else None
+    try { return LlmCandidate(choice.index, items.toArray(), completion, reason, history) }
     catch (error: IllegalArgumentException) { throw DecodingException(path + "/index", error.message ?: "invalid candidate index") }
 }
 

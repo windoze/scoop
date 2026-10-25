@@ -1,0 +1,38 @@
+package scoop.llm.client.tests.chat.openrouter
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal val router = ChatProtocol(OpenRouterChatDialect())
+internal val routerDetails = "[{\"type\":\"reasoning.text\",\"text\":\"consider\",\"signature\":\"signed\",\"index\":0},{\"type\":\"reasoning.encrypted\",\"data\":\"opaque\",\"index\":1}]"
+internal val routerAnnotations = "[{\"type\":\"file\",\"file\":{\"filename\":\"report.pdf\",\"content\":[{\"type\":\"text\",\"text\":\"parsed\"}]}}]"
+internal val routerCall = "{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"count\\\":2}\"}}"
+internal val routerMessage = "{\"role\":\"assistant\",\"content\":\"answer\",\"reasoning\":\"consider\",\"reasoning_details\":" +
+    routerDetails + ",\"annotations\":" + routerAnnotations + ",\"tool_calls\":[" + routerCall + "]}"
+internal val routerUsage = "{\"prompt_tokens\":12,\"completion_tokens\":5,\"total_tokens\":17,\"prompt_tokens_details\":{\"cached_tokens\":4},\"completion_tokens_details\":{\"reasoning_tokens\":3}}"
+
+internal fun routerRequest(tools: Array<ToolDefinition> = []): LlmRequest =
+    LlmRequest([Message([Text("question")])], tools = tools)
+internal fun routerTools(): Array<ToolDefinition> = [
+    ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}")),
+    Server(ToolKey("search"), WebSearch())
+]
+internal fun routerContinuation(request: LlmRequest, response: LlmResponse): LlmRequest {
+    val input = ArrayList<LlmInputItem>()
+    for (item in request.input) input.add(item)
+    for (item in response.toInput()) input.add(item)
+    for (call in response.clientToolCalls) input.add(ToolResult(call.reference, [Text("2")]))
+    return LlmRequest(input.toArray(), tools = request.tools)
+}
+internal fun assertRouterFailure(request: LlmRequest, path: String) {
+    assertEquals(path, assertFailsWith<LlmRequestException> { router.encodeRequest("model", request); Unit }.path)
+}
+internal fun routerReasoning(response: LlmResponse, candidate: Long = 0L): Array<OutputPart> {
+    for (item in response.candidate(candidate).items) when (item) {
+        case Reasoning(content, _) -> return content
+        else -> continue
+    }
+    fail(Some("expected reasoning"))
+}
+internal fun routerPartText(part: OutputPart): String = when (part) { case Text(text, _) -> text; else -> fail() }

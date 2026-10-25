@@ -26,6 +26,18 @@ internal class LlmStreamBatch public constructor(
     }
 
     public fun build(): LlmStreamUpdate = LlmStreamUpdate(events.toArray(), hasOutput, hasText, isKeepAlive)
+
+    public fun append(update: LlmStreamUpdate) {
+        for (event in update.events) {
+            events.add(event)
+            when (event) {
+                case Native(value) -> { if (retention == StreamRetention.Result) retained.add(value) }
+                else -> {}
+            }
+        }
+        if (update.hasOutput) hasOutput = true
+        if (update.hasText) hasText = true
+    }
 }
 
 internal fun llmStreamIdentity(previous: String?, incoming: String?, path: String): String? {

@@ -1,0 +1,31 @@
+package scoop.llm.client.tests.chat.openrouter
+
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class OpenRouterMediaTest {
+    @Test
+    fun `OpenRouter Chat mixed text image document audio and video use documented wire forms`() {
+        val request = LlmRequest([Message([
+            Text("compare"), Image(MediaSource.Bytes([1, 2], "image/png")),
+            Document(MediaSource.Url(Url.parse("https://example.test/report.pdf"), "application/pdf"), Some("report.pdf")),
+            Document(MediaSource.Bytes([1, 2], "text/plain")),
+            Audio(MediaSource.Bytes([1, 2], "audio/flac")),
+            Video(MediaSource.Bytes([1, 2], "video/mp4"))
+        ])])
+        val parts = router.encodeRequest("model", request)["messages"]!![0L]["content"]!!
+        assertEquals("compare", parts[0L]["text"]!!.asString())
+        assertEquals("data:image/png;base64,AQI=", parts[1L]["image_url"]!!["url"]!!.asString())
+        assertEquals("https://example.test/report.pdf", parts[2L]["file"]!!["file_data"]!!.asString())
+        assertEquals("report.pdf", parts[2L]["file"]!!["filename"]!!.asString())
+        assertEquals("data:text/plain;base64,AQI=", parts[3L]["file"]!!["file_data"]!!.asString())
+        assertEquals("flac", parts[4L]["input_audio"]!!["format"]!!.asString())
+        assertEquals("data:video/mp4;base64,AQI=", parts[5L]["video_url"]!!["url"]!!.asString())
+        assertRouterFailure(LlmRequest([Message([Audio(MediaSource.Bytes([], "audio/pcm"))])]), "/input/0/content/0/source/mimeType")
+        assertRouterFailure(LlmRequest([Message([VideoFrames([])])]), "/input/0/content/0")
+        assertRouterFailure(LlmRequest([Message([Audio(MediaSource.Url(Url.parse("https://example.test/a.wav"), "audio/wav"))])]),
+            "/input/0/content/0/source")
+    }
+}

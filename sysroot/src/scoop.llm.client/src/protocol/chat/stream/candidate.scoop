@@ -6,7 +6,7 @@ import scoop.json.JsonValueKind
 
 internal enum ChatStreamPart {
     Text(LlmStreamText), Tool(ChatStreamTool), Audio(ChatStreamAudio),
-    Function(ChatStreamLegacyFunction), Native(JsonValue)
+    Function(ChatStreamLegacyFunction), Dialect(ChatStreamFieldDecoder), Native(JsonValue)
 }
 
 internal class ChatStreamCandidate public constructor(
@@ -43,7 +43,20 @@ internal class ChatStreamCandidate public constructor(
     }
 
     private fun readDelta(delta: JsonValue, batch: LlmStreamBatch, path: String) {
+        val handled = ArrayList<String>()
         for ((field, value) in delta.members()) {
+            var consumed = false
+            for (name in handled) if (name == field) consumed = true
+            if (consumed) continue
+            val custom = dialectPart(field)
+            when (custom) {
+                case Some(value) -> {
+                    for (name in value.fields) handled.add(name)
+                    batch.append(value.accept(delta, path))
+                    continue
+                }
+                case None -> {}
+            }
             if (field == "role") {
                 if (value.kind != JsonValueKind.Null && decodeChatValue<String>(value, path + "/role") != "assistant")
                     throw DecodingException(path + "/role", "expected an assistant role")
@@ -65,6 +78,18 @@ internal class ChatStreamCandidate public constructor(
                 if (retention == StreamRetention.Result) parts.add(ChatStreamPart.Native(extra))
             }
         }
+    }
+
+    private fun dialectPart(field: String): ChatStreamFieldDecoder? {
+        for (part in parts) when (part) {
+            case Dialect(value) -> { if (chatFieldOwns(value, field)) return Some(value) }
+            else -> continue
+        }
+        val value = dialect.createStreamField(field, LlmItemLocation(index, nextItem), retention) ?: return None
+        if (!chatFieldOwns(value, field)) throw DecodingException("/delta/" + field, "dialect decoder does not own this field")
+        nextItem += 1L
+        parts.add(ChatStreamPart.Dialect(value))
+        return Some(value)
     }
 
     private fun textPart(field: String): LlmStreamText {

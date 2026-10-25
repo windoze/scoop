@@ -55,6 +55,16 @@ import scoop.url.Url
 
 ## 2. 最小文本调用
 
+OpenRouter Chat 使用相同的最小请求；modelId 原样传递，例如由应用配置选择组织／模型名称：
+
+```scoop
+val model = LlmEndpoint(Providers.openRouterChat(), LlmAuth.bearer(apiKey)).model(modelId)
+val result = client.generate(model, LlmRequest([Message([Text("你好")])]))
+println(result.text)
+```
+
+同一请求可以加入客户端函数和 WebSearch 服务端工具，搜索使用当前 openrouter:web_search 工具接口。reasoning_details、签名和文件 annotations 随 toInput 保存／回传；流式保存历史时设置 retention = StreamRetention.Result。只需改变 provider，不需要另一套简易调用 API。OpenRouter 的路由或完整原生 reasoning 配置可通过 DialectExtension(OpenRouterChatDialect().id, value) 提供，不能覆盖已经设置的通用字段。
+
 下面使用 DeepSeek；Gemini 普通生成仅更换同一个 endpoint 的参数：
 
 ```scoop

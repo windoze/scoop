@@ -61,6 +61,7 @@
 | Responses WebSocket 命令、事件与单响应聚合 | 完成：本机新增 10/10、共享 SSE 回归 2/2；Linux 仅交错 lane／工具／历史组合 1/1；两平台生产库通过；独立消费者 6 通过、13 个真实 API 用例忽略 |
 | Responses WebSocket 网络会话、消息计时与关闭 | 完成：本机新增 12 项分批通过、共享生成／SSE／计数回归 3/3；Linux 仅交错响应／工具接续与 client 关闭 2/2；两平台生产库通过；独立消费者 7 通过、13 个真实 API 用例忽略 |
 | DeepSeek Responses dialect、普通生成与 SSE | 完成：本机新增 10/10、共享 Responses 回归 5/5；Linux 仅生成→SSE 接续与 reasoning 回归 2/2；两平台生产库通过；独立消费者 8 通过、13 个真实 API 用例忽略 |
+| OpenRouter Chat dialect、结构化 reasoning 与服务端工具 | 完成：本机新增 13/13、共享 Chat 回归 4/4；Linux 仅生成→SSE 接续与 reasoning／签名交错 2/2；两平台生产库通过；独立消费者 9 通过、13 个真实 API 用例忽略 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | 显式输入 token count：Gemini／Messages | 完成：本机定向 19/19、共享生成回归 7/7；Linux 仅网络组合 1/1；独立消费者 4 通过、13 个真实 API 用例忽略 |
 | 其他实时会话、跨协议组合与使用示例验收 | 待实施 |
@@ -156,3 +157,5 @@
 - Responses 持久连接提供 openResponsesSession／withResponsesSession 及显式 create／steer／receive，同一 endpoint 的模型可共享连接；应用按实际 lane／response ID 交给既有 decoder。可保存的消息记录采样实际提交、完成和接收时间，握手 metadata 单独保留。会话随 client 关闭，借入 HTTP 的所有权不变。修正 429 mock 的连接关闭声明后，本机新增 12 项分批通过，共享生成／SSE／计数回归 3/3；nuc12 仅交错响应／工具接续与关闭组合 2/2。两平台生产库通过，跨 Cone 消费者 7 通过、13 个真实 API 用例忽略；格式、lint 与凭据检查通过，清理本机闲置 Rust 增量产物约 186 MiB。没有真实服务调用、编译器修改或 fixture，真实 WebSocket 互通待凭据可用后补测。
 
 - DeepSeek Responses 以独立 dialect／provider 复用 Responses 普通生成与 SSE，覆盖缺省 thinking、图片、函数／apply_patch／服务端搜索、原始 reasoning 及完整历史接续。新增 10 项本地 mock 全部通过，受影响的 OpenAI 参数／reasoning／WebSocket 回归 5/5；nuc12 仅生成→SSE 接续与共享 reasoning 两项 2/2。两平台生产库通过，跨 Cone 消费者 8 通过、13 个真实 API 用例默认忽略。格式、lint 与凭据检查通过，清理本机闲置 Rust 增量产物约 186 MiB。没有真实服务调用、编译器修改或 fixture，真实 DeepSeek Responses 互通待凭据可用后补测。
+
+- OpenRouter Chat 复用统一生成／SSE 入口，支持结构化 reasoning、晚到签名、原始历史、文件 annotations、混合函数／服务端搜索及多模态输入；原生附加信息保持原值，空输出不提前记录首输出时间。按官方文档与 AI SDK adapter 实现，本机新增 13/13、共享 Chat 回归 4/4；nuc12 仅生成后 SSE 接续和 reasoning／签名／候选交错两项 2/2。两平台生产库通过，跨 Cone 消费者 9 通过、13 个真实 API 用例默认忽略。格式、lint 与凭据检查通过，清理闲置 Rust 增量产物约 186 MiB；未修改编译器、未运行 fixture 或真实服务，真实 OpenRouter 互通待可用凭据后补测。

@@ -1,0 +1,39 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.startsWith
+
+internal fun encodeOpenRouterServer(dialect: DialectId, tool: ServerTool, extensions: Array<DialectExtension>, path: String): JsonValue {
+    val value = when (tool) {
+        case WebSearch(options) -> {
+            if (options.includeSources != None) throw LlmRequestException(path + "/tool/options/includeSources", "OpenRouter search has no source-list control")
+            val parameters = JsonObjectBuilder()
+            when (options.allowedDomains) { case Some(value) -> parameters.add("allowed_domains", Json.encodeToValue(value)); case None -> {} }
+            when (options.excludedDomains) { case Some(value) -> parameters.add("excluded_domains", Json.encodeToValue(value)); case None -> {} }
+            when (options.location) {
+                case Some(location) -> {
+                    val fields = llmTypedObject("approximate")
+                    if (location.country != None) fields.add("country", JsonValue.fromString(location.country!!))
+                    if (location.region != None) fields.add("region", JsonValue.fromString(location.region!!))
+                    if (location.city != None) fields.add("city", JsonValue.fromString(location.city!!))
+                    if (location.timezone != None) fields.add("timezone", JsonValue.fromString(location.timezone!!))
+                    parameters.add("user_location", fields.build())
+                }
+                case None -> {}
+            }
+            val search = llmTypedObject("openrouter:web_search")
+            val settings = parameters.build()
+            if (settings.size != 0L) search.add("parameters", settings)
+            search.build()
+        }
+        case Native(native) -> {
+            requireLlmOwner(native.dialect, dialect, path + "/tool/dialect")
+            if (!native.kind.startsWith("openrouter:") || native.kind == "openrouter:apply_patch" || native.kind == "openrouter:shell" ||
+                native.kind == "openrouter:bash" || native.kind == "openrouter:tool_search")
+                throw LlmRequestException(path + "/tool/kind", "this server tool has no OpenRouter Chat mapping")
+            if (native.version != None) throw LlmRequestException(path + "/tool/version", "OpenRouter tools have no separate version field")
+            mergeLlmExtensions(llmTypedObject(native.kind).build(), [DialectExtension(dialect, native.configuration)], dialect, ["type"], path + "/tool")
+        }
+    }
+    return mergeLlmExtensions(value, extensions, dialect, ["type"], path)
+}

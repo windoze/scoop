@@ -37,7 +37,7 @@ private fun encodeChatTextOnly(content: Array<ContentPart>, path: String): JsonV
     return JsonValue.fromString(text.toString())
 }
 
-private fun encodeChatPart(dialect: DialectId, part: ContentPart, role: String, deepSeek: Boolean, path: String): JsonValue {
+internal fun encodeChatPart(dialect: DialectId, part: ContentPart, role: String, deepSeek: Boolean, path: String): JsonValue {
     return when (part) {
         case Text(text, extensions) -> extendChatPart(llmTypedObject("text").add("text", JsonValue.fromString(text)).build(), extensions, dialect, path)
         case Image(source, extensions) -> {

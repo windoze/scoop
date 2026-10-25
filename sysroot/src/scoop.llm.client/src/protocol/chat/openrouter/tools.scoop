@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeOpenRouterTools(result: JsonObjectBuilder, dialect: DialectId, request: LlmRequest) {
+    val tools = ArrayList<JsonValue>(); val names = ArrayList<String>()
+    var selected: JsonValue? = None
+    val key = when (request.options.toolChoice) { case Specific(value) -> Some(value); else -> None }
+    var index = 0L
+    for (tool in request.tools) {
+        val path = "/tools/" + index.toString()
+        val wire = when (tool) {
+            case ClientFunction(_, name, parameters, description, strict, extensions) -> {
+                requireLlmToolName(name, 64L, path + "/name")
+                for (previous in names) if (previous == name) throw LlmRequestException(path + "/name", "duplicate function name")
+                names.add(name)
+                val function = JsonObjectBuilder().add("name", JsonValue.fromString(name)).add("parameters", parameters)
+                if (description.length != 0L) function.add("description", JsonValue.fromString(description))
+                if (strict != None) function.add("strict", JsonValue.fromBoolean(strict!!))
+                llmTypedObject("function").add("function", mergeLlmExtensions(function.build(), extensions, dialect,
+                    ["name", "parameters", "description", "strict"], path)).build()
+            }
+            case Server(_, definition, extensions) -> encodeOpenRouterServer(dialect, definition, extensions, path)
+            else -> throw LlmRequestException(path, "OpenRouter Chat maps function and server tools")
+        }
+        if (key == Some(tool.key)) selected = Some(wire)
+        tools.add(wire); index += 1L
+    }
+    if (tools.size != 0L) result.add("tools", JsonValue.fromArray(tools))
+    when (request.options.toolChoice) {
+        case Auto -> return
+        case None -> result.add("tool_choice", JsonValue.fromString("none"))
+        case Required -> {
+            if (tools.size == 0L) throw LlmRequestException("/options/toolChoice", "required tool choice needs tools")
+            result.add("tool_choice", JsonValue.fromString("required"))
+        }
+        case Specific(_) -> {
+            val value = selected ?: throw LlmRequestException("/options/toolChoice", "selected tool is missing")
+            if (value["type"]!!.asString() == "function") result.add("tool_choice", llmTypedObject("function")
+                .add("function", JsonObjectBuilder().add("name", value["function"]!!["name"]!!).build()).build())
+            else if (tools.size == 1L) result.add("tool_choice", JsonValue.fromString("required"))
+            else throw LlmRequestException("/options/toolChoice", "OpenRouter Chat has no named server-tool choice mapping")
+        }
+    }
+}

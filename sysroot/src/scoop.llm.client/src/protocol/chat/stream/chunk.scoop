@@ -37,7 +37,7 @@ internal class ChatStreamCustomFields public constructor(
 
 internal class ChatStreamAudioFields public constructor(
     public val id: String? = None, public val data: String? = None, public val transcript: String? = None,
-    @Serialize(rename = "expires_at") public val expiresAt: Long? = None
+    @Serialize(rename = "expires_at") public val expiresAt: JsonValue? = None
 ) {
     public companion object : ValueDecoder<ChatStreamAudioFields>
 }

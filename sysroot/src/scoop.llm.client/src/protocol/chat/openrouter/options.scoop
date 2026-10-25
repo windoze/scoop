@@ -1,0 +1,49 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeOpenRouterOptions(dialect: DialectId, request: LlmRequest): JsonValue {
+    val options = request.options
+    if (options.candidates != None && options.candidates != Some(1L))
+        throw LlmRequestException("/options/candidates", "OpenRouter Chat has no multiple-candidate request control")
+    val result = JsonObjectBuilder()
+    for ((name, setting, maximum) in [("temperature", options.temperature, 2.0), ("top_p", options.topP, 1.0)]) {
+        when (setting) {
+            case Some(value) -> {
+                if (value < 0.0 || value > maximum) throw LlmRequestException(
+                    if (name == "top_p") "/options/topP" else "/options/temperature", "sampling value is outside the API range")
+                result.add(name, JsonValue.fromDouble(value))
+            }
+            case None -> {}
+        }
+    }
+    if (options.topK != None) result.add("top_k", JsonValue.fromLong(options.topK!!))
+    if (options.maxOutputTokens != None) result.add("max_tokens", JsonValue.fromLong(options.maxOutputTokens!!))
+    when (options.stop) { case Some(value) -> result.add("stop", Json.encodeToValue(value)); case None -> {} }
+    if (options.parallelToolCalls != None) result.add("parallel_tool_calls", JsonValue.fromBoolean(options.parallelToolCalls!!))
+    when (options.reasoning) { case Some(value) -> result.add("reasoning", encodeOpenRouterReasoning(value)); case None -> {} }
+    encodeChatOutputFormat(result, options.output, false)
+    encodeOpenRouterTools(result, dialect, request)
+    return result.build()
+}
+
+private fun encodeOpenRouterReasoning(options: ReasoningOptions): JsonValue {
+    if (options.effort != None && options.budgetTokens != None)
+        throw LlmRequestException("/options/reasoning", "OpenRouter accepts either effort or a reasoning token budget")
+    val result = JsonObjectBuilder()
+    if (options.effort != None) {
+        val effort = options.effort!!
+        if (effort != "none" && effort != "minimal" && effort != "low" && effort != "medium" && effort != "high" && effort != "xhigh" && effort != "max")
+            throw LlmRequestException("/options/reasoning/effort", "unsupported reasoning effort")
+        if (options.enabled != None && options.enabled!! != (effort != "none"))
+            throw LlmRequestException("/options/reasoning/enabled", "reasoning enabled conflicts with effort")
+        result.add("effort", JsonValue.fromString(effort))
+    }
+    if (options.budgetTokens != None) {
+        if (options.enabled == Some(false) && options.budgetTokens!! > 0L)
+            throw LlmRequestException("/options/reasoning/enabled", "disabled reasoning conflicts with a positive budget")
+        result.add("max_tokens", JsonValue.fromLong(options.budgetTokens!!))
+    }
+    if (options.enabled != None) result.add("enabled", JsonValue.fromBoolean(options.enabled!!))
+    return result.build()
+}

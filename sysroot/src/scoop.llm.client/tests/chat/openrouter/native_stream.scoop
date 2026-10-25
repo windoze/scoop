@@ -1,0 +1,48 @@
+package scoop.llm.client.tests.chat.openrouter
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.stream.*
+import scoop.test.*
+
+@Test
+private class OpenRouterNativeStreamTest {
+    @Test
+    fun `OpenRouter Chat annotations and images remain native with replayable file annotations`() {
+        val decoder = router.createStreamDecoder(routerRequest(), StreamRetention.Result)
+        assertFalse(decoder.accept("message", streamChunk("{\"images\":[]}")).hasOutput)
+        decoder.accept("message", streamChunk("{\"annotations\":" + routerAnnotations + ",\"content\":\"answer\"}"))
+        decoder.accept("message", streamChunk("{\"annotations\":[{\"type\":\"future\",\"value\":false}],\"images\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AQ==\"}}]}"))
+        finishStream(decoder)
+        val response = decoder.response()
+        assertEquals("answer", response.text)
+        assertEquals(0L, response.serverToolActivities.size)
+        assertEquals(2L, streamHistory(response)["annotations"]!!.size)
+        assertEquals(1L, streamHistory(response)["images"]!!.size)
+        for (extra in ["null", "{\"changed\":[1]}"]) {
+            val changed = router.createStreamDecoder(routerRequest(), StreamRetention.Result)
+            changed.accept("message", streamChunk("{\"annotations\":" + extra + ",\"content\":\"ok\"}"))
+            finishStream(changed)
+            assertEquals("ok", changed.response().text)
+            assertEquals(extra, Json.stringify(streamHistory(changed.response())["annotations"]!!))
+        }
+    }
+
+    @Test
+    fun `OpenRouter Chat audio output permits a missing replay ID and merges binary chunks`() {
+        for (id in ["", "\"id\":\"audio-1\","]) {
+            val decoder = router.createStreamDecoder(routerRequest(), StreamRetention.Result)
+            decoder.accept("message", streamChunk("{\"audio\":{" + id + "\"data\":\"AQ==\",\"transcript\":\"hi\"}}"))
+            decoder.accept("message", streamChunk("{\"audio\":{\"data\":\"Ag==\",\"transcript\":\"!\",\"expires_at\":{\"changed\":true}}}"))
+            finishStream(decoder)
+            val response = decoder.response()
+            when (response.candidate(0L).items[0L]) {
+                case Native(_, raw) -> { assertEquals("AQI=", raw["audio"]!!["data"]!!.asString()); assertEquals("hi!", raw["audio"]!!["transcript"]!!.asString()) }
+                else -> fail()
+            }
+            if (id.length == 0L) assertEquals(LlmOutputFailure.HistoryUnavailable,
+                assertFailsWith<LlmOutputException> { response.toInput(); Unit }.reason)
+            else assertEquals("audio-1", streamHistory(response)["audio"]!!["id"]!!.asString())
+        }
+    }
+}

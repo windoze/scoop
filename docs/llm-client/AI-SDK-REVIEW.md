@@ -85,3 +85,9 @@ V4 response timestamp 的合同是供应商返回的响应生成开始时间，�
 这个 adapter 的首候选处理、缺失调用 ID 时生成 ID，以及 CONTINUATION 的自动继续不直接移植。Scoop 保留实际候选 index 和可选服务器 ID，继续请求由应用显式决定；usage 也保留未报告计数的 None。纯文本与媒体按普通响应分组，使同一回答的多个 part 不影响默认结构化解码。
 
 签名即使附着在空文本上也需要保存。历史按 [Google SDK 的流式 Content 顺序](https://github.com/googleapis/js-genai/blob/main/src/chats.ts)保存，不用展示文本的拼接替代；[官方签名规则](https://ai.google.dev/gemini-api/docs/generate-content/thinking#thought-signatures)要求保持签名 part 的边界。[FunctionCall 文档](https://googleapis.github.io/js-genai/release_docs/interfaces/types.FunctionCall.html)将 partialArgs／willContinue 标为 Vertex 扩展，因此当前 Gemini 解释器保留这些原文，不把未完成参数误判为无参数调用。
+
+## 9. OpenRouter Chat 实施时的补充对照
+
+OpenRouter 的 [AI SDK adapter](https://github.com/OpenRouterTeam/ai-sdk-provider/blob/d8edda07b62de696d613ae0115823382465665cd/src/chat/index.ts)为 reasoning_details 合并连续的 text／summary 块，保留独立 encrypted 块，并用签名区分已完成的文本块。Scoop 采用这些协议需要的规则，同时保留实际 ID、index、format 和出现顺序。它们属于 OpenRouter dialect 内的状态，共享 Chat 聚合器继续处理候选、函数调用和结束状态。
+
+按 [OpenRouter 的回传要求](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens)，保存完整推理历史；未知块和服务扩展保留 Native。展示文本已经开始后仍接受晚到的 reasoning／签名，不合成服务器未报告的 reasoning_details 或 finish_reason，也不为自动执行循环重写工具结束状态。简单调用仍由同一个 request 和 provider 的缺省设置产生。

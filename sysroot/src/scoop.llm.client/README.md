@@ -1,6 +1,8 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat、Anthropic Messages、OpenAI／DeepSeek Responses、Gemini generateContent、Interactions、Bedrock Converse、Cohere Chat v2 与 Ollama Chat 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek／OpenRouter Chat、Anthropic Messages、OpenAI／DeepSeek Responses、Gemini generateContent、Interactions、Bedrock Converse、Cohere Chat v2 与 Ollama Chat 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
+
+OpenRouter 使用 Providers.openRouterChat()，缺省部署 https://openrouter.ai/api/v1；模型 ID 由应用显式选择。普通生成和 SSE 保留 reasoning_details 的签名、加密块及完整历史，文件 annotations 可随 toInput 回传。客户端函数与 openrouter:web_search 服务端工具可以同时声明，模型没有报告执行活动时不从 usage 推断调用。图片／文件／音频／视频输入采用各自文档形状，输出图片与音频保持 Native；纯入口与范围见[规范第 39 节](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md#39-openrouter-chat-dialect)。当前以本地 mock 验证，真实互通待可用凭据后补测。
 
 普通 Cone 测试只使用纯 decoder 或回环地址上的 HTTP／SSE／EventStream／NDJSON mock，回复由测试指定，不连接供应商。仓库外的真实 API 验证用例统一标记 `@Ignore`，默认跳过；独立运行器只有在显式选择一个用例且其所需 key／endpoint 环境变量齐备时才启用 `--ignored`，缺少配置报告 SKIPPED，不发请求。凭据只从环境读取，日志脱敏。
 

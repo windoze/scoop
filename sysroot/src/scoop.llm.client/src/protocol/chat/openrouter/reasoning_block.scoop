@@ -1,0 +1,70 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+/** Consecutive text fragments share a part; signed and opaque blocks remain distinct. */
+internal class OpenRouterReasoningBlock public constructor(
+    public val kind: String?, public val partIndex: Long, private val retention: StreamRetention
+) {
+    private var identity: JsonValue = JsonObjectBuilder().build()
+    private var raw: JsonValue = JsonValue.nullValue()
+    private val text: StringBuilder = StringBuilder()
+    private var hasText: Boolean = false
+    private var signed: Boolean = false
+
+    public fun canAppend(incoming: JsonValue): Boolean {
+        if (signed || openRouterDetailField(kind) == None || kind != openRouterDetailKind(incoming)) return false
+        for (name in ["id", "index", "format"]) {
+            val previous = identity[name] ?: continue
+            val next = incoming[name] ?: continue
+            if (previous.kind != JsonValueKind.Null && next.kind != JsonValueKind.Null &&
+                Json.stringify(previous) != Json.stringify(next)) return false
+        }
+        return true
+    }
+
+    public fun accept(incoming: JsonValue, value: String?) {
+        if (value != None) {
+            hasText = true
+            if (retention == StreamRetention.Result) text.append(value!!)
+        }
+        if (incoming.kind == JsonValueKind.Object) {
+            val keys = JsonObjectBuilder()
+            for (name in ["id", "index", "format"]) {
+                val next = incoming[name]
+                val field = when (next) {
+                    case Some(value) -> if (value.kind != JsonValueKind.Null) Some(value) else identity[name]
+                    case None -> identity[name]
+                }
+                when (field) { case Some(value) -> keys.add(name, value); case None -> {} }
+            }
+            identity = keys.build()
+            val signature = incoming["signature"]
+            when (signature) {
+                case Some(value) -> {
+                    if (value.kind != JsonValueKind.Null && (value.kind != JsonValueKind.String || value.asString().length != 0L)) signed = true
+                }
+                case None -> {}
+            }
+        }
+        if (retention != StreamRetention.Result) return
+        if (raw.kind != JsonValueKind.Object || incoming.kind != JsonValueKind.Object) { raw = incoming; return }
+        val fields = JsonObjectBuilder()
+        for ((name, previous) in raw.members()) fields.add(name, incoming[name] ?: previous)
+        for ((name, next) in incoming.members()) if (!raw.containsKey(name)) fields.add(name, next)
+        raw = fields.build()
+    }
+
+    public fun wire(): JsonValue {
+        val field = openRouterDetailField(kind)
+        if (field == None || !hasText) return raw
+        val result = JsonObjectBuilder()
+        for ((name, value) in raw.members()) if (name != field!!) result.add(name, value)
+        return result.add(field!!, JsonValue.fromString(text.toString())).build()
+    }
+
+    public fun output(dialect: DialectId): OutputPart =
+        if (hasText) OutputPart.Text(text.toString()) else OutputPart.Native(dialect, wire())
+
+    public fun release() { text.clear(); raw = JsonValue.nullValue(); identity = JsonObjectBuilder().build() }
+}
