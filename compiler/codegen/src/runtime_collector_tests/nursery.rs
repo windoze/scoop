@@ -1,6 +1,28 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn adaptive_nursery_follows_graph_lifetimes_and_preserves_old_pressure() {
+    for flags in [vec!["-O2"], vec!["-O2", "-DSCOOP_TEST_NURSERY_LIMIT"]] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "adaptive_nursery_test",
+            "runtime/tests/adaptive_nursery_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"adaptive nursery grows with retained graphs and shrinks after their release\n"
+        );
+    }
+}
+
+#[test]
 fn dirty_card_groups_preserve_sparse_crossing_and_concurrent_writes() {
     let output = compile_and_run_with_flags(
         &workspace_root(),

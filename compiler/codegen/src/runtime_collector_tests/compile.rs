@@ -151,6 +151,7 @@ pub(super) fn compile_and_run_configuration(
         .env_remove("SCOOP_GC_STATS")
         .env_remove("SCOOP_GC_FULL_ONLY")
         .env_remove("SCOOP_GC_WORKERS")
+        .env_remove("SCOOP_GC_NURSERY_MAX_MIB")
         .output()
         .expect("run fake-platform moving collector test");
     std::fs::remove_file(&binary).ok();

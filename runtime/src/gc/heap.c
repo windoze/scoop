@@ -1,4 +1,5 @@
 /* Region-owned Immix blocks. All metadata lives outside managed mappings. */
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +11,9 @@
 ScoopGcHeapState scoop_gc_heap_state = {
     .lock = PTHREAD_MUTEX_INITIALIZER,
     .collection_threshold = GC_INITIAL_THRESHOLD,
+    .nursery_capacity = GC_NURSERY_MIN_CAPACITY,
+    .nursery_limit = GC_NURSERY_DEFAULT_MAX_CAPACITY,
+    .nursery_floor = GC_NURSERY_MIN_CAPACITY,
 };
 #define collection_threshold (scoop_gc_heap_state.collection_threshold)
 
@@ -54,6 +58,17 @@ void free_run_nodes(void) {
 void scoop_gc_heap_init(void) {
     if (scoop_gc_heap_state.ready) {
         heap_fatal("heap initialized more than once");
+    }
+    const char *nursery = getenv("SCOOP_GC_NURSERY_MAX_MIB");
+    if (nursery != NULL) {
+        char *end;
+        errno = 0;
+        unsigned long long mib = strtoull(nursery, &end, 10);
+        if (nursery[0] < '0' || nursery[0] > '9' || *end != '\0' || errno == ERANGE ||
+            mib == 0 || mib > SIZE_MAX / GC_NURSERY_MIN_CAPACITY) {
+            heap_fatal("SCOOP_GC_NURSERY_MAX_MIB must be a positive representable MiB count");
+        }
+        scoop_gc_heap_state.nursery_limit = (size_t)mib * GC_NURSERY_MIN_CAPACITY;
     }
 #if SCOOP_ENABLE_GC_STRESS
     const char *stress = getenv("SCOOP_GC_STRESS_MOVE");

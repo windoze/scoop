@@ -2,7 +2,7 @@
 
 本表记录本次[程序性能优化主线](PROGRESS.md)已采纳的方案，详细设计、验证、收益与成本见各项链接。后续采纳新方案或调整默认策略时同步更新。
 
-“release 默认”指编译该 Cone 时使用 `scoop build --release` 或 `scoop build --profile release`，并满足表中的适用条件；独立编译器使用 `scoopc build --profile release`。CLI 默认 profile 为 debug。目前下列优化没有各自独立的公开开关或用户可设等级，编译器内部选项不等于 CLI 参数。
+“release 默认”指编译该 Cone 时使用 `scoop build --release` 或 `scoop build --profile release`，并满足表中的适用条件；独立编译器使用 `scoopc build --profile release`。CLI 默认 profile 为 debug。除表中明确列出的运行时参数外，下列优化没有各自独立的公开开关或用户可设等级，编译器内部选项不等于 CLI 参数。
 
 相关 API 调整：[String 的字符扫描名称](STRING-API.md)在全部 profile 生效，无开关；`charLength`／`getCharAt` 保持 O(n)，`byteLength` 保持 O(1)，内部存储与算法保持。
 
@@ -10,6 +10,8 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [nursery 容量自适应](ADAPTIVE-NURSERY.md) | 普通 debug／release 默认，初始 1 MiB、上限 32 MiB；`SCOOP_GC_NURSERY_MAX_MIB=N` 调整上限，1 固定容量 | 按存活压力扩大、连续低存活时缩小，最近 full 的活跃堆决定基准；旧代压力独立。较高吞吐与内存、单次暂停的取舍见记录；stress／full-only 保持固定策略。 |
+| [固定分块的搬迁计划](ADAPTIVE-NURSERY.md) | 所有 profile 默认，无独立开关 | 每块 256 项，保留完整预留、复制和失败回退；消除连续数组倍增复制，每块增加 16 B 链接／计数，无新增对象字段、roots 或 ABI。 |
 | [minor 脏卡组清单](DIRTY-CARD-GROUPS.md) | 所有 profile 默认，配套 runtime ABI 17，旧产物须重建 | 每 64 张卡共用 16 B 节点，首次写入登记，STW 只枚举／清零脏组；原有批量卡标记保留完整登记。side metadata 约 0.049%，写屏障固定成本与真实程序回退见记录。 |
 | [小正文导出与跨 Cone 主值构造器内联](BODY-EXPORT.md) | release 默认；扩展成员正文需新版 provider，主值构造可消费既有角色 | 普通字段写入、值／构造表达式和 callable-owned 字符串沿用有界导出及统一成本选择；字符串引用 provider 原对象。secondary／class 初始化、缺少正文或成本不合格的调用保留，profile 间 ABI 一致。 |
 | [循环内联优先级与传值调用估价](LOOP-INLINING.md) | release 默认 | 更深循环优先使用累计增长；及时消费已知 receiver，复用完整调用适配；循环执行上限计入参数／返回值快照，最高 72。总增长、六层展开、非循环规则和完整冷分支体积限制保持。 |

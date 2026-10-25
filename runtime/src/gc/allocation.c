@@ -53,6 +53,14 @@ typedef enum RefillResult {
     REFILL_FULL,
 } RefillResult;
 
+static bool exceeds_old_threshold(size_t bytes) {
+    size_t occupied = committed_bytes;
+    if (scoop_heap_adaptive_nursery_enabled()) {
+        occupied -= scoop_gc_heap_state.nursery_bytes;
+    }
+    return occupied > collection_threshold || bytes > collection_threshold - occupied;
+}
+
 static void record_nursery_block(ScoopGcBlockMeta *block) {
     block->generation = SCOOP_GC_YOUNG;
     block->next_collection = scoop_gc_heap_state.young_blocks;
@@ -62,13 +70,14 @@ static void record_nursery_block(ScoopGcBlockMeta *block) {
 
 static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
     lock_heap();
-    size_t capacity = GC_NURSERY_CAPACITY;
+    size_t capacity = scoop_gc_heap_state.nursery_capacity;
 #if SCOOP_ENABLE_GC_STRESS
     if (scoop_gc_heap_state.stress_minor) {
         capacity = GC_BLOCK_SIZE;
     }
 #endif
-    if (!after_full && committed_bytes + GC_BLOCK_SIZE > collection_threshold) {
+    size_t old_request = scoop_heap_adaptive_nursery_enabled() ? 0 : GC_BLOCK_SIZE;
+    if (!after_full && exceeds_old_threshold(old_request)) {
         unlock_heap();
         return REFILL_FULL;
     }
@@ -131,8 +140,7 @@ static void *allocate_old(size_t size, size_t alignment) {
         if (object == NULL && scoop_heap_take_free_run(size, cursor, limit)) {
             object = scoop_heap_bump(cursor, *limit, size, alignment);
         }
-        if (object == NULL &&
-            (collected || committed_bytes + GC_BLOCK_SIZE <= collection_threshold)) {
+        if (object == NULL && (collected || !exceeds_old_threshold(GC_BLOCK_SIZE))) {
             ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
             if (block != NULL) {
                 *cursor = (char *)block_base(block) + GC_LINE_SIZE;
@@ -175,10 +183,7 @@ static void *allocate_large(size_t size, ScoopGcBlockMeta **allocated_block) {
     for (;;) {
         lock_heap();
         size_t span = scoop_heap_large_mapping_size(size);
-        bool threshold_exceeded =
-            !collected && span > collection_threshold - (committed_bytes < collection_threshold
-                                                             ? committed_bytes
-                                                             : collection_threshold);
+        bool threshold_exceeded = !collected && exceeds_old_threshold(span);
         ScoopGcBlockMeta *block =
             threshold_exceeded ? NULL : activate_large_block(size, SCOOP_BLOCK_MUTATOR);
         unlock_heap();

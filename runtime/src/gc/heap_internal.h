@@ -19,7 +19,8 @@
 #define GC_LINE_BITMAP_WORDS (GC_LINES_PER_BLOCK / 64)
 #define GC_REGULAR_MAX (GC_BLOCK_SIZE - GC_LINE_SIZE)
 #define GC_INITIAL_THRESHOLD ((size_t)16 << 20)
-#define GC_NURSERY_CAPACITY ((size_t)1 << 20)
+#define GC_NURSERY_MIN_CAPACITY ((size_t)1 << 20)
+#define GC_NURSERY_DEFAULT_MAX_CAPACITY ((size_t)32 << 20)
 #define GC_REGION_SIZE ((size_t)16 << 20)
 #define GC_REGION_BLOCKS (GC_REGION_SIZE / GC_BLOCK_SIZE)
 #define GC_CHUNK_SHIFT 16
@@ -151,6 +152,10 @@ typedef struct ScoopGcHeapState {
     bool print_metrics;
     bool collection_active;
     size_t nursery_bytes;
+    size_t nursery_capacity;
+    size_t nursery_limit;
+    size_t nursery_floor;
+    unsigned nursery_low_survival_collections;
     ScoopGcMetrics metrics;
     uint64_t copied_bytes;
     uint64_t minor_pause_ns;
@@ -168,6 +173,15 @@ typedef struct ScoopGcHeapState {
 } ScoopGcHeapState;
 
 extern ScoopGcHeapState scoop_gc_heap_state;
+
+static inline bool scoop_heap_adaptive_nursery_enabled(void) {
+#if SCOOP_ENABLE_GC_STRESS
+    if (scoop_gc_heap_state.stress_move || scoop_gc_heap_state.stress_minor) {
+        return false;
+    }
+#endif
+    return !scoop_gc_heap_state.full_only;
+}
 
 /* Short aliases are confined to the private heap implementation modules. */
 #define heap_lock (scoop_gc_heap_state.lock)
