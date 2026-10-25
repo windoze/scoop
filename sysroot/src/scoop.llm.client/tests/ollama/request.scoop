@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.ollama
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.json.*
 import scoop.llm.client.*
 import scoop.test.*
@@ -12,15 +14,15 @@ private class OllamaRequestTest {
         val provider = Providers.ollamaChat()
         assertEquals(ollamaDialect, provider.protocol.dialectId)
         assertEquals("http://localhost:11434/api", provider.defaultBaseUrl!!.toString())
-        assertEquals("http://localhost:11434/api/chat", provider.protocol.generationUrl(provider.defaultBaseUrl!!, "local:model").toString())
-        assertEquals("https://example.com/deploy/chat?route=x", provider.protocol.generationUrl(Url.parse("https://example.com/deploy?route=x"), "unknown").toString())
+        assertEquals("http://localhost:11434/api/chat", generationProtocol(provider).generationUrl(provider.defaultBaseUrl!!, "local:model").toString())
+        assertEquals("https://example.com/deploy/chat?route=x", generationProtocol(provider).generationUrl(Url.parse("https://example.com/deploy?route=x"), "unknown").toString())
         val model = LlmEndpoint(provider, LlmAuth.none()).model("local:model")
         val body = ollamaEncode(ollamaInput(), model.id)
         assertEquals(3L, body.size)
         assertEquals("local:model", body["model"]!!.asString())
         assertEquals("hello", body["messages"]!![0L]["content"]!!.asString())
         assertFalse(body["stream"]!!.asBoolean())
-        assertTrue(provider.protocol.encodeRequest(model.id, ollamaInput(), true)["stream"]!!.asBoolean())
+        assertTrue(generationProtocol(provider).encodeRequest(model.id, ollamaInput(), true)["stream"]!!.asBoolean())
         assertEquals(0L, ollamaEncode(LlmRequest([]))["messages"]!!.size)
         assertEquals("/modelId", assertFailsWith<LlmRequestException> { ollamaEncode(ollamaInput(), ""); Unit }.path)
     }

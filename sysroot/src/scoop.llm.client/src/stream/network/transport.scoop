@@ -8,9 +8,9 @@ import scoop.url.Url
 internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, request: LlmRequest,
     options: LlmCallOptions, timer: Job?) {
     val protocol = model.endpoint.provider.protocol
+    if (!(protocol is LlmStreamProtocol)) throw LlmRequestException("/stream", "protocol does not support streaming generation")
     checkModelRequest(model.capabilities, request, protocol.defaultMaxOutputTokens())
     requireModelCapability(model.capabilities.streaming, "/stream")
-    if (!(protocol is LlmStreamProtocol)) throw LlmRequestException("/stream", "protocol does not support streaming generation")
     if (!(protocol is LlmSseProtocol) && !(protocol is LlmEventStreamProtocol) && !(protocol is LlmNdjsonProtocol))
         throw LlmRequestException("/stream", "protocol has no supported stream framing")
     val url = protocol.streamUrl(model.endpoint.baseUrl, model.id)

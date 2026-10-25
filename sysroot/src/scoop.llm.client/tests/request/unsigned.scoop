@@ -1,5 +1,7 @@
 package scoop.llm.client
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.json.*
 import scoop.test.*
 
@@ -34,14 +36,14 @@ private class UnsignedRequestTest {
         ]
         val request = LlmRequest([Message([Text("hello")])], options = LlmGenerationOptions(maxOutputTokens = Some(ULong.MAX_VALUE)))
         for ((provider, group, field) in cases) {
-            val body = provider.protocol.encodeRequest("model", request)
+            val body = generationProtocol(provider).encodeRequest("model", request)
             val config = if (group == "") body else body[group]!!
             assertEquals("18446744073709551615", config[field]!!.asNumberToken())
         }
-        val protocol = Providers.anthropicMessages(defaultMaxOutputTokens = ULong.MAX_VALUE).protocol
+        val protocol = generationProtocol(Providers.anthropicMessages(defaultMaxOutputTokens = ULong.MAX_VALUE))
         assertEquals(Some(ULong.MAX_VALUE), protocol.defaultMaxOutputTokens())
         assertEquals(ULong.MAX_VALUE, protocol.encodeRequest("model", LlmRequest(request.input))["max_tokens"]!!.asULong())
-        val error = assertFailsWith<LlmRequestException> { Providers.deepSeekChat().protocol.encodeRequest("model", request); Unit }
+        val error = assertFailsWith<LlmRequestException> { generationProtocol(Providers.deepSeekChat()).encodeRequest("model", request); Unit }
         assertEquals("/options/maxOutputTokens", error.path)
     }
 
@@ -50,11 +52,11 @@ private class UnsignedRequestTest {
         val options = LlmGenerationOptions(topK = Some(ULong.MAX_VALUE), candidates = Some(ULong.MAX_VALUE),
             reasoning = Some(ReasoningOptions(budgetTokens = Some(ULong.MAX_VALUE))))
         val request = LlmRequest([Message([Text("hello")])], options = options)
-        val config = Providers.geminiGenerateContent().protocol.encodeRequest("model", request)["generationConfig"]!!
+        val config = generationProtocol(Providers.geminiGenerateContent()).encodeRequest("model", request)["generationConfig"]!!
         assertEquals(ULong.MAX_VALUE, config["topK"]!!.asULong())
         assertEquals(ULong.MAX_VALUE, config["candidateCount"]!!.asULong())
         assertEquals(ULong.MAX_VALUE, config["thinkingConfig"]!!["thinkingBudget"]!!.asULong())
-        val messages = Providers.anthropicMessages().protocol.encodeRequest("model", LlmRequest(request.input,
+        val messages = generationProtocol(Providers.anthropicMessages()).encodeRequest("model", LlmRequest(request.input,
             options = LlmGenerationOptions(maxOutputTokens = Some(ULong.MAX_VALUE),
                 reasoning = Some(ReasoningOptions(budgetTokens = Some(9223372036854775808UL))))))
         assertEquals(9223372036854775808UL, messages["thinking"]!!["budget_tokens"]!!.asULong())

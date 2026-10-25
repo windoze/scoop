@@ -1,0 +1,56 @@
+package scoop.llm.client.tests.geminilive
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GeminiLiveUsageTest {
+    @Test
+    fun `Gemini Live token reports keep explicit components modality and the original reported total`() {
+        val message = liveDecode("{\"usageMetadata\":{\"promptTokenCount\":100,\"toolUsePromptTokenCount\":5,\"responseTokenCount\":10," +
+            "\"thoughtsTokenCount\":3,\"totalTokenCount\":110,\"cachedContentTokenCount\":40," +
+            "\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":100}],\"toolUsePromptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}]," +
+            "\"responseTokensDetails\":[{\"modality\":\"AUDIO\",\"tokenCount\":8},{\"modality\":\"FUTURE\",\"tokenCount\":2}],\"vendor\":[false,null]}}")
+        val saved = Json.decodeFromString<GeminiLiveMessage>(Json.encodeToString(message))
+        val usage = saved.usage.tokens
+        assertEquals(Some(105L), usage.inputTokens)
+        assertEquals(Some(65L), usage.nonCachedInputTokens)
+        assertEquals(Some(13L), usage.outputTokens)
+        assertEquals(Some(110L), usage.totalTokens)
+        assertEquals(Some(3L), usage.reasoningTokens)
+        assertEquals(Some(40L), usage.cacheReadTokens)
+        assertEquals(3L, usage.modality.size)
+        assertEquals(105L, usage.modality[0].tokens)
+        assertEquals(TokenDirection.Input, usage.modality[0].direction)
+        assertEquals(TokenModality.Audio, usage.modality[1].modality)
+        assertEquals(TokenModality.Other("FUTURE"), usage.modality[2].modality)
+        assertEquals(UsageCompleteness.Partial, saved.usage.completeness)
+        assertEquals(Json.stringify(message.usage.native!!), Json.stringify(saved.usage.native!!))
+    }
+
+    @Test
+    fun `Gemini Live absent components remain unknown without total based or cross message inference`() {
+        for (raw in ["{}", "{\"usageMetadata\":null}", "{\"usageMetadata\":{\"promptTokenCount\":10,\"responseTokenCount\":2,\"totalTokenCount\":12}}"]) {
+            val usage = liveDecode(raw).usage.tokens
+            assertEquals(None, usage.inputTokens)
+            assertEquals(None, usage.outputTokens)
+        }
+        val zero = liveDecode("{\"usageMetadata\":{\"promptTokenCount\":0,\"toolUsePromptTokenCount\":0,\"responseTokenCount\":0,\"thoughtsTokenCount\":0,\"cachedContentTokenCount\":0}}").usage.tokens
+        assertEquals(Some(0L), zero.inputTokens)
+        assertEquals(Some(0L), zero.outputTokens)
+        assertEquals(Some(0L), zero.nonCachedInputTokens)
+        assertEquals(None, zero.totalTokens)
+        assertEquals(Some(9007199254740993L), liveDecode("{\"usageMetadata\":{\"promptTokenCount\":9007199254740993,\"toolUsePromptTokenCount\":0}}").usage.tokens.inputTokens)
+    }
+
+    @Test
+    fun `Gemini Live malformed token fields use their own response field paths`() {
+        for ((fields, path) in [("\"responseTokenCount\":-1", "/usageMetadata/responseTokenCount"),
+            ("\"responseTokenCount\":1.5", "/usageMetadata/responseTokenCount"),
+            ("\"responseTokenCount\":9223372036854775807,\"thoughtsTokenCount\":1", "/usageMetadata/thoughtsTokenCount"),
+            ("\"responseTokensDetails\":[{\"modality\":\"AUDIO\",\"tokenCount\":-1}]", "/usageMetadata/responseTokensDetails/0/tokenCount")]) {
+            liveFailure("{\"usageMetadata\":{" + fields + "}}", path)
+        }
+    }
+}

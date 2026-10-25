@@ -1,0 +1,34 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+public class GeminiLiveMessage public constructor(
+    public val dialect: DialectId, public val event: GeminiLiveEvent, public val native: JsonValue,
+    public val usage: LlmUsage = LlmUsage(), public val voiceActivity: JsonValue? = None
+) {
+    public companion object : ValueEncoder<GeminiLiveMessage>, ValueDecoder<GeminiLiveMessage>
+}
+
+public enum GeminiLiveEvent {
+    SetupComplete(val native: JsonValue), ServerContent(val content: GeminiLiveContent),
+    ToolCall(val items: Array<LlmOutputItem>, val native: JsonValue), ToolCallCancellation(val ids: Array<String>, val native: JsonValue),
+    GoAway(val native: JsonValue), SessionResumptionUpdate(val native: JsonValue), Native(val native: JsonValue)
+    public companion object : ValueEncoder<GeminiLiveEvent>, ValueDecoder<GeminiLiveEvent>
+}
+
+/** One wire message, without turn aggregation or inferred playback/session completion. */
+public class GeminiLiveContent public constructor(
+    public val items: Array<LlmOutputItem>, public val native: JsonValue,
+    public val generationComplete: Boolean? = None, public val turnComplete: Boolean? = None,
+    public val interrupted: Boolean? = None, public val waitingForInput: Boolean? = None,
+    public val interactionStatus: String? = None,
+    public val inputTranscription: GeminiLiveTranscription? = None,
+    public val interimInputTranscription: GeminiLiveTranscription? = None,
+    public val outputTranscription: GeminiLiveTranscription? = None
+) {
+    public companion object : ValueEncoder<GeminiLiveContent>, ValueDecoder<GeminiLiveContent>
+}
+
+public class GeminiLiveTranscription public constructor(public val text: String?, public val native: JsonValue) {
+    public companion object : ValueEncoder<GeminiLiveTranscription>, ValueDecoder<GeminiLiveTranscription>
+}

@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.chat.openrouter
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.json.*
 import scoop.llm.client.*
 import scoop.test.*
@@ -14,8 +16,8 @@ private class OpenRouterRequestTest {
         assertEquals(router.dialectId, provider.protocol.dialectId)
         assertEquals("https://openrouter.ai/api/v1", provider.defaultBaseUrl!!.toString())
         assertEquals("https://example.test/base/chat/completions?x=1",
-            provider.protocol.generationUrl(Url.parse("https://example.test/base?x=1"), "org/model").toString())
-        val minimal = provider.protocol.encodeRequest("org/model", routerRequest())
+            generationProtocol(provider).generationUrl(Url.parse("https://example.test/base?x=1"), "org/model").toString())
+        val minimal = generationProtocol(provider).encodeRequest("org/model", routerRequest())
         assertEquals(2L, minimal.size)
         assertEquals("org/model", minimal["model"]!!.asString())
         assertEquals("question", minimal["messages"]!![0L]["content"]!!.asString())

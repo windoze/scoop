@@ -5,12 +5,14 @@ import scoop.url.Url
 /** A named, fixed protocol/dialect combination; credentials belong to the endpoint. */
 public class LlmProvider public constructor(
     public val name: String,
-    public val protocol: LlmGenerationProtocol,
+    public val protocol: LlmApiProtocol,
     public val defaultBaseUrl: Url? = None
 )
 
 /** Common combinations and deployment defaults, without a model-name router. */
 public object Providers {
+    public fun geminiLive(): LlmProvider = LlmProvider("gemini-live", BidiGenerateContentProtocol(GeminiLiveDialect()),
+        Some(Url.parse("https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent")))
     public fun openRouterChat(): LlmProvider = LlmProvider("openrouter-chat", ChatProtocol(OpenRouterChatDialect()),
         Some(Url.parse("https://openrouter.ai/api/v1")))
     public fun ollamaChat(): LlmProvider = LlmProvider("ollama-chat", OllamaChatProtocol(OllamaChatDialect()),

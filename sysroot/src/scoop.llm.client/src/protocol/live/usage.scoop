@@ -1,0 +1,34 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class GeminiLiveUsageFields public constructor(
+    public val promptTokenCount: Long? = None, public val toolUsePromptTokenCount: Long? = None,
+    public val responseTokenCount: Long? = None, public val thoughtsTokenCount: Long? = None,
+    public val totalTokenCount: Long? = None, public val cachedContentTokenCount: Long? = None,
+    public val promptTokensDetails: Array<GenerateContentTokenDetail>? = None,
+    public val toolUsePromptTokensDetails: Array<GenerateContentTokenDetail>? = None,
+    public val responseTokensDetails: Array<GenerateContentTokenDetail>? = None,
+    public val cacheTokensDetails: Array<GenerateContentTokenDetail>? = None
+) {
+    public companion object : ValueDecoder<GeminiLiveUsageFields>
+}
+
+internal fun readGeminiLiveUsage(value: JsonValue): TokenUsage {
+    val fields = decodeGenerateContentValue<GeminiLiveUsageFields>(value, "/usageMetadata")
+    val prompt = checkedGenerateContentCount(fields.promptTokenCount, "/usageMetadata/promptTokenCount")
+    val tool = checkedGenerateContentCount(fields.toolUsePromptTokenCount, "/usageMetadata/toolUsePromptTokenCount")
+    val response = checkedGenerateContentCount(fields.responseTokenCount, "/usageMetadata/responseTokenCount")
+    val thoughts = checkedGenerateContentCount(fields.thoughtsTokenCount, "/usageMetadata/thoughtsTokenCount")
+    val total = checkedGenerateContentCount(fields.totalTokenCount, "/usageMetadata/totalTokenCount")
+    val cached = checkedGenerateContentCount(fields.cachedContentTokenCount, "/usageMetadata/cachedContentTokenCount")
+    val input = generateContentTokenSum(prompt, tool, "/usageMetadata/toolUsePromptTokenCount")
+    val output = generateContentTokenSum(response, thoughts, "/usageMetadata/thoughtsTokenCount")
+    val ordinary = if (input != None && cached != None) {
+        if (cached!! > input!!) throw DecodingException("/usageMetadata/cachedContentTokenCount", "cached tokens exceed input")
+        Some(input!! - cached!!)
+    } else None
+    return TokenUsage(input, ordinary, output, total, cached, reasoningTokens = thoughts,
+        modality = readGeminiModality(fields.promptTokensDetails, fields.toolUsePromptTokensDetails,
+            fields.responseTokensDetails, fields.cacheTokensDetails, "responseTokensDetails"))
+}

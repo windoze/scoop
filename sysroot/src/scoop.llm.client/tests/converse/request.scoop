@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.converse
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.json.*
 import scoop.llm.client.*
 import scoop.test.*
@@ -17,10 +19,10 @@ private class ConverseRequestTest {
         val provider = Providers.bedrockConverse()
         assertEquals(converseDialect, provider.protocol.dialectId)
         assertEquals("https://example.com/proxy/model/arn%3Aaws%3Abedrock%3Ax%3A0%3Amodel%2Fid%3Av1/converse?deployment=x",
-            provider.protocol.generationUrl(Url.parse("https://example.com/proxy?deployment=x"), "arn:aws:bedrock:x:0:model/id:v1").toString())
+            generationProtocol(provider).generationUrl(Url.parse("https://example.com/proxy?deployment=x"), "arn:aws:bedrock:x:0:model/id:v1").toString())
         assertFailsWith<IllegalArgumentException> { val endpoint = LlmEndpoint(provider, LlmAuth.none()); Unit }
         assertEquals("/modelId", assertFailsWith<LlmRequestException> { converseEncode(request, ""); Unit }.path)
-        assertEquals(Json.stringify(body), Json.stringify(provider.protocol.encodeRequest("m", request, true)))
+        assertEquals(Json.stringify(body), Json.stringify(generationProtocol(provider).encodeRequest("m", request, true)))
     }
 
     @Test

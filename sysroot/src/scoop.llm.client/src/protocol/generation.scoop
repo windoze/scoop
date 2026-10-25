@@ -5,15 +5,11 @@ import scoop.http.HttpField
 import scoop.url.Url
 
 /** Ordinary HTTP JSON generation. Streaming and persistent sessions have separate contracts. */
-public interface LlmGenerationProtocol {
-    public fun fileApi(): LlmFileApi? = None
-    public fun modelCatalog(): LlmModelCatalog? = None
-    public fun tokenCounter(): LlmTokenCounter? = None
-    public val dialectId: DialectId
+public interface LlmGenerationProtocol : LlmApiProtocol {
+    public override fun requestFields(): Array<HttpField> = generationFields()
     public fun generationFields(): Array<HttpField> = []
     public fun defaultMaxOutputTokens(): ULong? = None
     public fun generationUrl(baseUrl: Url, modelId: String): Url
     public fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean = false): JsonValue
     public fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse
-    public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
 }

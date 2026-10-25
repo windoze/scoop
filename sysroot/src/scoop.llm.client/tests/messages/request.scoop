@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.messages
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.http.*
 import scoop.json.*
 import scoop.llm.client.*
@@ -16,7 +18,7 @@ private class MessagesRequestTest {
     @Test
     fun `Messages minimum request uses the provider defaults without model routing`() {
         val endpoint = LlmEndpoint(Providers.anthropicMessages(), LlmAuth.none())
-        val protocol = endpoint.provider.protocol
+        val protocol = generationProtocol(endpoint.provider)
         assertEquals("https://api.anthropic.com/v1", endpoint.baseUrl.toString())
         assertEquals("2026-10-21", String.fromUtf8(endpoint.fields.findAll("Anthropic-Version".toByteArray())[0L].value))
         assertEquals("https://proxy.test/prefix/messages?deployment=x", protocol.generationUrl(Url.parse("https://proxy.test/prefix?deployment=x"), "team/model:v").toString())
@@ -28,7 +30,7 @@ private class MessagesRequestTest {
         assertEquals("question", body["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
         val legacy = LlmEndpoint(Providers.anthropicMessages(V20230601, 128UL), LlmAuth.none())
         assertEquals("2023-06-01", String.fromUtf8(legacy.fields[0L].value))
-        assertEquals(128L, legacy.provider.protocol.encodeRequest("model", messagesRequest())["max_tokens"]!!.asLong())
+        assertEquals(128L, generationProtocol(legacy.provider).encodeRequest("model", messagesRequest())["max_tokens"]!!.asLong())
         assertFailsWith<IllegalArgumentException> {
             val invalid = LlmEndpoint(Providers.anthropicMessages(), LlmAuth.none(), fields = [HttpField("Anthropic-Version".toByteArray(), "2023-06-01".toByteArray())]); Unit
         }

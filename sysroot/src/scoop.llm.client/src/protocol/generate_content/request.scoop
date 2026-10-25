@@ -4,14 +4,26 @@ import scoop.json.*
 
 internal fun encodeGenerateContentRequest(dialect: GenerateContentDialect, model: String, request: LlmRequest): JsonValue {
     if (model.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+    val contents = encodeGeminiContents(dialect.id, request.input, request.tools)
+    if (contents.size == 0L) throw LlmRequestException("/input", "generateContent requires conversation content")
+    val body = JsonObjectBuilder().add("contents", contents)
+    if (request.system.size != 0L) body.add("systemInstruction", JsonObjectBuilder()
+        .add("parts", encodeGenerateContentParts(dialect.id, request.system, "/system", true)).build())
+    val options = dialect.encodeOptions(request)
+    if (options.size != 0L) body.add("generationConfig", options)
+    encodeGenerateContentTools(body, dialect.id, request)
+    return mergeGenerateContentExtensions(body.build(), request.extensions, dialect.id)
+}
+
+internal fun encodeGeminiContents(dialect: DialectId, input: Array<LlmInputItem>, tools: Array<ToolDefinition>): JsonValue {
     val contents = ArrayList<JsonValue>()
     val results = ArrayList<JsonValue>()
     var index = 0L
-    for (item in request.input) {
+    for (item in input) {
         val path = "/input/" + index.toString()
         when (item) {
             case ToolResult(call, content, isError, extensions) ->
-                results.add(encodeGenerateContentToolResult(dialect.id, call, content, isError, extensions, request.tools, path))
+                results.add(encodeGenerateContentToolResult(dialect, call, content, isError, extensions, tools, path))
             case Message(content, role, extensions) -> {
                 flushGenerateContentResults(contents, results)
                 val name = when (role) {
@@ -20,25 +32,18 @@ internal fun encodeGenerateContentRequest(dialect: GenerateContentDialect, model
                     else -> throw LlmRequestException(path + "/role", "generateContent instructions belong to request.system")
                 }
                 val message = JsonObjectBuilder().add("role", JsonValue.fromString(name))
-                    .add("parts", encodeGenerateContentParts(dialect.id, content, path + "/content")).build()
-                contents.add(mergeLlmExtensions(message, extensions, dialect.id, ["role", "parts"], path))
+                    .add("parts", encodeGenerateContentParts(dialect, content, path + "/content")).build()
+                contents.add(mergeLlmExtensions(message, extensions, dialect, ["role", "parts"], path))
             }
             case History(history) -> {
                 flushGenerateContentResults(contents, results)
-                appendGenerateContentHistory(contents, history, dialect.id, path + "/history")
+                appendGenerateContentHistory(contents, history, dialect, path + "/history")
             }
         }
         index += 1L
     }
     flushGenerateContentResults(contents, results)
-    if (contents.size == 0L) throw LlmRequestException("/input", "generateContent requires conversation content")
-    val body = JsonObjectBuilder().add("contents", JsonValue.fromArray(contents))
-    if (request.system.size != 0L) body.add("systemInstruction", JsonObjectBuilder()
-        .add("parts", encodeGenerateContentParts(dialect.id, request.system, "/system", true)).build())
-    val options = dialect.encodeOptions(request)
-    if (options.size != 0L) body.add("generationConfig", options)
-    encodeGenerateContentTools(body, dialect.id, request)
-    return mergeGenerateContentExtensions(body.build(), request.extensions, dialect.id)
+    return JsonValue.fromArray(contents)
 }
 
 private fun flushGenerateContentResults(contents: ArrayList<JsonValue>, results: ArrayList<JsonValue>) {

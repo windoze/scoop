@@ -5,15 +5,22 @@ internal class GenerateContentTokenDetail public constructor(public val modality
 }
 
 internal fun readGenerateContentModality(fields: GenerateContentUsageFields): Array<ModalityTokenUsage> {
-    checkGenerateContentDetails(fields.promptTokensDetails, "promptTokensDetails")
-    checkGenerateContentDetails(fields.toolUsePromptTokensDetails, "toolUsePromptTokensDetails")
-    checkGenerateContentDetails(fields.candidatesTokensDetails, "candidatesTokensDetails")
-    checkGenerateContentDetails(fields.cacheTokensDetails, "cacheTokensDetails")
+    return readGeminiModality(fields.promptTokensDetails, fields.toolUsePromptTokensDetails,
+        fields.candidatesTokensDetails, fields.cacheTokensDetails, "candidatesTokensDetails")
+}
+
+internal fun readGeminiModality(promptTokensDetails: Array<GenerateContentTokenDetail>?,
+    toolUsePromptTokensDetails: Array<GenerateContentTokenDetail>?, candidatesTokensDetails: Array<GenerateContentTokenDetail>?,
+    cacheTokensDetails: Array<GenerateContentTokenDetail>?, outputName: String): Array<ModalityTokenUsage> {
+    checkGenerateContentDetails(promptTokensDetails, "promptTokensDetails")
+    checkGenerateContentDetails(toolUsePromptTokensDetails, "toolUsePromptTokensDetails")
+    checkGenerateContentDetails(candidatesTokensDetails, outputName)
+    checkGenerateContentDetails(cacheTokensDetails, "cacheTokensDetails")
     val result = ArrayList<ModalityTokenUsage>()
-    if (llmPresent(fields.promptTokensDetails) && llmPresent(fields.toolUsePromptTokensDetails)) {
+    if (llmPresent(promptTokensDetails) && llmPresent(toolUsePromptTokensDetails)) {
         val details = ArrayList<GenerateContentTokenDetail>()
-        for (item in fields.promptTokensDetails!!) details.add(item)
-        for (item in fields.toolUsePromptTokensDetails!!) details.add(item)
+        for (item in promptTokensDetails!!) details.add(item)
+        for (item in toolUsePromptTokensDetails!!) details.add(item)
         val names = ArrayList<String>()
         for (item in details) {
             var exists = false
@@ -28,7 +35,7 @@ internal fun readGenerateContentModality(fields: GenerateContentUsageFields): Ar
             result.add(ModalityTokenUsage(Input, generateContentModality(item.modality), count))
         }
     }
-    for (item in fields.candidatesTokensDetails ?: [])
+    for (item in candidatesTokensDetails ?: [])
         result.add(ModalityTokenUsage(Output, generateContentModality(item.modality), item.tokenCount))
     return result.toArray()
 }

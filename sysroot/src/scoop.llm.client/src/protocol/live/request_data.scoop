@@ -1,0 +1,31 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+public class GeminiLiveSetup public constructor(
+    public val system: Array<ContentPart> = [], public val tools: Array<ToolDefinition> = [],
+    public val options: LlmGenerationOptions = LlmGenerationOptions(), public val extensions: Array<DialectExtension> = []
+) {
+    public companion object : ValueEncoder<GeminiLiveSetup>, ValueDecoder<GeminiLiveSetup>
+}
+
+/** Bytes and their explicit wire MIME; no device access or media conversion. */
+public class GeminiLiveBlob public constructor(public val bytes: Array<Byte>, public val mimeType: String) {
+    public companion object : ValueEncoder<GeminiLiveBlob>, ValueDecoder<GeminiLiveBlob>
+}
+
+public class GeminiLiveInput public constructor(
+    public val text: String? = None, public val audio: GeminiLiveBlob? = None, public val video: GeminiLiveBlob? = None,
+    public val activityStart: Boolean = false, public val activityEnd: Boolean = false,
+    public val audioStreamEnd: Boolean? = None, public val extensions: Array<DialectExtension> = []
+) {
+    public companion object : ValueEncoder<GeminiLiveInput>, ValueDecoder<GeminiLiveInput>
+}
+
+/** A function response object, including API-native scheduling fields when supplied. */
+public class GeminiLiveToolResult public constructor(
+    public val call: ClientToolCallReference, public val response: JsonValue,
+    public val parts: Array<ContentPart> = [], public val extensions: Array<DialectExtension> = []
+) {
+    public companion object : ValueEncoder<GeminiLiveToolResult>, ValueDecoder<GeminiLiveToolResult>
+}

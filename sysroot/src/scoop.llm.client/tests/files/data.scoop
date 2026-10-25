@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.files
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.json.*
 import scoop.llm.client.*
 import scoop.test.*
@@ -17,7 +19,7 @@ private class FileDataTest {
                 assertEquals("file-1", file.id)
                 assertEquals(provider.protocol.dialectId, file.reference!!.dialect)
                 val request = LlmRequest([Message([Document(MediaSource.FileReference(file.reference!!, "application/pdf"))])])
-                val body = provider.protocol.encodeRequest("chosen-model", request)
+                val body = generationProtocol(provider).encodeRequest("chosen-model", request)
                 val protocol = provider.protocol.dialectId.protocol.value
                 val content = body[if (protocol == "responses") "input" else "messages"]!![0L]["content"]!![0L]
                 val value = if (protocol == "responses") content["file_id"]!! else if (protocol == "messages") content["source"]!!["file_id"]!!

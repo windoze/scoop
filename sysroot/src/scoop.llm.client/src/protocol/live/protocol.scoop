@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+public interface BidiGenerateContentDialect {
+    public val id: DialectId
+    public fun encodeSetup(modelId: String, setup: GeminiLiveSetup): JsonValue
+    public fun readUsage(value: JsonValue): TokenUsage
+    public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
+}
+
+public class GeminiLiveDialect public constructor() : BidiGenerateContentDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("bidi-generate-content"), "gemini-live")
+    public override fun encodeSetup(modelId: String, setup: GeminiLiveSetup): JsonValue = encodeGeminiLiveSetup(id, modelId, setup)
+    public override fun readUsage(value: JsonValue): TokenUsage = readGeminiLiveUsage(value)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        readGeminiServiceError(id, status, body, truncated)
+}
+
+/** Pure bidirectional protocol operations; no ordinary-generation methods or network ownership. */
+public class BidiGenerateContentProtocol public constructor(public val dialect: BidiGenerateContentDialect) : LlmApiProtocol {
+    public override val dialectId: DialectId get() = dialect.id
+    init {
+        if (dialect.id.protocol != ApiProtocolId("bidi-generate-content"))
+            throw IllegalArgumentException(Some("Live dialect belongs to another API protocol"))
+    }
+    public fun webSocketUrl(baseUrl: Url): Url {
+        val scheme = when (baseUrl.scheme) { case Some("http") -> "ws"; case Some("https") -> "wss"
+            else -> throw LlmRequestException("/endpoint/baseUrl", "Live endpoint requires an HTTP or HTTPS RPC URL") }
+        return baseUrl.toBuilder().setScheme(Some(scheme)).build()
+    }
+    public fun encodeSetup(modelId: String, setup: GeminiLiveSetup = GeminiLiveSetup()): JsonValue =
+        JsonObjectBuilder().add("setup", dialect.encodeSetup(modelId, setup)).build()
+    public fun encodeClientContent(input: Array<LlmInputItem>, turnComplete: Boolean = true): JsonValue =
+        encodeGeminiLiveContent(dialectId, input, turnComplete)
+    public fun encodeRealtimeInput(input: GeminiLiveInput): JsonValue = encodeGeminiLiveInput(dialectId, input)
+    public fun encodeToolResponse(results: Array<GeminiLiveToolResult>, tools: Array<ToolDefinition> = []): JsonValue =
+        encodeGeminiLiveToolResults(dialectId, results, tools)
+    public fun decodeMessage(value: JsonValue, tools: Array<ToolDefinition> = []): GeminiLiveMessage {
+        try { return readGeminiLiveMessage(dialect, value, tools) }
+        catch (error: DecodingException) { throw LlmProtocolException(dialectId, error.path, error.message ?: "invalid Live message", value) }
+    }
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
+}

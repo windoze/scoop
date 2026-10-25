@@ -1,0 +1,100 @@
+package scoop.llm.client.tests.geminilive
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GeminiLiveResponseTest {
+    @Test
+    fun `Gemini Live preserves simultaneous media text thoughts and independent transcription and status`() {
+        val raw = "{\"serverContent\":{\"modelTurn\":{\"role\":\"model\",\"parts\":[{\"text\":\"thought\",\"thought\":true,\"thoughtSignature\":\"s\"}," +
+            "{\"inlineData\":{\"mimeType\":\"audio/pcm;rate=24000\",\"data\":\"AP8=\"}},{\"text\":\"answer\"},{\"futurePart\":[false,null]}]}," +
+            "\"inputTranscription\":{\"text\":\"user\",\"finished\":true},\"interimInputTranscription\":{\"text\":\"partial\",\"offset\":\"1s\"}," +
+            "\"outputTranscription\":{\"text\":\"spoken\"},\"generationComplete\":false,\"turnComplete\":true,\"interrupted\":false,\"waitingForInput\":true,\"interactionStatus\":\"IN_PROGRESS\"}}"
+        val message = liveDecode(raw)
+        val saved = Json.decodeFromString<GeminiLiveMessage>(Json.encodeToString(message))
+        val content = when (saved.event) { case ServerContent(value) -> value; else -> fail() }
+        assertEquals(3L, content.items.size)
+        when (content.items[0]) { case Reasoning(parts, _) -> when (parts[0]) { case Text(text, _) -> assertEquals("thought", text); else -> fail() }; else -> fail() }
+        when (content.items[1]) {
+            case Message(parts, _) -> {
+                assertEquals(2L, parts.size)
+                when (parts[0]) { case Media(kind, source) -> {
+                    assertEquals(OutputMediaKind.Audio, kind)
+                    when (source) { case Bytes(bytes, mime) -> { assertEquals((-1).toByte(), bytes[1]); assertEquals("audio/pcm;rate=24000", mime) }; else -> fail() }
+                }; else -> fail() }
+                when (parts[1]) { case Text(text, _) -> assertEquals("answer", text); else -> fail() }
+            }
+            else -> fail()
+        }
+        when (content.items[2]) { case Native(_, value) -> assertTrue(value.containsKey("futurePart")); else -> fail() }
+        assertEquals(Some("user"), content.inputTranscription!!.text)
+        assertEquals(Some("partial"), content.interimInputTranscription!!.text)
+        assertEquals(Some("spoken"), content.outputTranscription!!.text)
+        assertEquals(Some(false), content.generationComplete)
+        assertEquals(Some(true), content.turnComplete)
+        assertEquals(Some(false), content.interrupted)
+        assertEquals(Some(true), content.waitingForInput)
+        assertEquals(Some("IN_PROGRESS"), content.interactionStatus)
+        assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(saved.native))
+    }
+
+    @Test
+    fun `Gemini Live search keeps cross message grounding raw and exposes actual server activity`() {
+        val content = liveContent("{\"serverContent\":{\"modelTurn\":{\"parts\":[{\"text\":\"tail\"}," +
+            "{\"executableCode\":{\"language\":\"PYTHON\",\"code\":\"search()\"}},{\"codeExecutionResult\":{\"outcome\":\"OUTCOME_OK\",\"output\":\"found\"}}]}," +
+            "\"groundingMetadata\":{\"groundingChunks\":[{\"web\":{\"uri\":\"https://example.test/source\",\"title\":\"source\"}}]," +
+            "\"webSearchQueries\":[\"question\"],\"groundingSupports\":[{\"segment\":{\"partIndex\":8,\"startIndex\":800,\"endIndex\":900},\"groundingChunkIndices\":[0]}]}," +
+            "\"urlContextMetadata\":{\"future\":[true,null]}}}")
+        assertEquals(4L, content.items.size)
+        when (content.items[0]) { case Message(parts, _) -> when (parts[0]) { case Text(_, citations) -> assertEquals(0L, citations.size); else -> fail() }; else -> fail() }
+        when (content.items[2]) { case ServerToolActivity(activity) -> assertEquals(ServerToolStatus.Completed, activity.status); else -> fail() }
+        when (content.items[3]) {
+            case ServerToolActivity(activity) -> {
+                assertEquals(ServerToolKind.WebSearch, activity.kind)
+                assertEquals(Some(ToolKey("search")), activity.toolKey)
+                assertEquals(1L, activity.sources.size)
+                assertEquals(900L, activity.native!!["groundingSupports"]!![0]["segment"]!!["endIndex"]!!.asLong())
+            }
+            else -> fail()
+        }
+        assertTrue(content.native.containsKey("urlContextMetadata"))
+    }
+
+    @Test
+    fun `Gemini Live control unknown and supplemental messages preserve original payloads through codecs`() {
+        for (raw in ["{\"setupComplete\":{}}", "{\"goAway\":{\"timeLeft\":\"10s\",\"future\":false}}",
+            "{\"sessionResumptionUpdate\":{\"newHandle\":\"opaque\",\"resumable\":true}}", "{\"newEvent\":[true,null]}",
+            "{\"usageMetadata\":{\"totalTokenCount\":0},\"voiceActivity\":{\"type\":\"ACTIVITY_START\",\"audioOffset\":\"0s\"}}"] ) {
+            val message = liveDecode(raw)
+            val restored = Json.decodeFromString<GeminiLiveMessage>(Json.encodeToString(message))
+            assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(restored.native))
+            assertEquals(Json.encodeToString(message.event), Json.encodeToString(restored.event))
+        }
+        when (liveDecode("{\"setupComplete\":{}}").event) { case SetupComplete(_) -> {}; else -> fail() }
+        when (liveDecode("{\"goAway\":{}}").event) { case GoAway(_) -> {}; else -> fail() }
+        when (liveDecode("{\"sessionResumptionUpdate\":{}}").event) { case SessionResumptionUpdate(_) -> {}; else -> fail() }
+        when (liveDecode("{\"future\":1}").event) { case Native(_) -> {}; else -> fail() }
+        for (extra in ["", ",\"billing\":{\"future\":1}", ",\"billing\":[false,null],\"cacheExpiry\":\"opaque\""]) {
+            val message = liveDecode("{\"serverContent\":{\"turnComplete\":true}" + extra + "}")
+            when (message.event) { case ServerContent(value) -> assertEquals(Some(true), value.turnComplete); else -> fail() }
+        }
+    }
+
+    @Test
+    fun `Gemini Live validates only recognized core message fields and retains unknown statuses`() {
+        liveFailure("[]", "")
+        liveFailure("{\"setupComplete\":{},\"serverContent\":{}}", "/serverContent")
+        liveFailure("{\"setupComplete\":false}", "/setupComplete")
+        liveFailure("{\"serverContent\":{\"turnComplete\":1}}", "/serverContent/turnComplete")
+        liveFailure("{\"serverContent\":{\"modelTurn\":{\"role\":\"user\"}}}", "/serverContent/modelTurn/role")
+        liveFailure("{\"serverContent\":{\"modelTurn\":{\"parts\":[{\"text\":1}]}}}", "/serverContent/modelTurn/parts/0/text")
+        liveFailure("{\"serverContent\":{\"inputTranscription\":{\"text\":1}}}", "/serverContent/inputTranscription/text")
+        val content = liveContent("{\"serverContent\":{\"interactionStatus\":\"FUTURE\",\"inputTranscription\":{},\"interrupted\":true}}")
+        assertEquals(Some("FUTURE"), content.interactionStatus)
+        assertEquals(None, content.inputTranscription!!.text)
+        assertEquals(None, content.turnComplete)
+        assertEquals(Some(true), content.interrupted)
+    }
+}

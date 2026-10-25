@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.models
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.json.*
 import scoop.llm.client.*
 import scoop.test.*
@@ -12,7 +14,7 @@ private class NativeModelRequestTest {
         val base = Url.parse("https://example.test/prefix?tenant=one&page_size=old")
         val cohere = modelLookup(Providers.cohereChat())
         assertEquals("https://api.cohere.com/v1/models", cohere.listUrl(Providers.cohereChat().defaultBaseUrl!!).toString())
-        assertEquals("https://api.cohere.com/v2/chat", Providers.cohereChat().protocol.generationUrl(Providers.cohereChat().defaultBaseUrl!!, "m").toString())
+        assertEquals("https://api.cohere.com/v2/chat", generationProtocol(Providers.cohereChat()).generationUrl(Providers.cohereChat().defaultBaseUrl!!, "m").toString())
         val query = cohereModelsQuery(Some(18446744073709551615UL), Some("token /?#"), Some("chat"), Some(false))
         assertEquals("https://example.test/prefix/v1/models?tenant=one&page_size=18446744073709551615&page_token=token%20%2F%3F%23&endpoint=chat&default_only=false",
             cohere.listUrl(base, query).toString())

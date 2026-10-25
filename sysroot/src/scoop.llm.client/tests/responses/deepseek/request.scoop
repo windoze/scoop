@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.responses.deepseek
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.json.*
 import scoop.llm.client.*
 import scoop.test.*
@@ -15,15 +17,15 @@ private class DeepSeekResponsesRequestTest {
         assertEquals(dsResponses.dialectId, provider.protocol.dialectId)
         assertTrue(provider.protocol is ResponsesProtocol)
         assertEquals("https://example.test/prefix/responses?deployment=x",
-            provider.protocol.generationUrl(Url.parse("https://example.test/prefix?deployment=x"), "arbitrary/model").toString())
-        val body = provider.protocol.encodeRequest("arbitrary/model", dsRequest())
+            generationProtocol(provider).generationUrl(Url.parse("https://example.test/prefix?deployment=x"), "arbitrary/model").toString())
+        val body = generationProtocol(provider).encodeRequest("arbitrary/model", dsRequest())
         assertEquals(2L, body.size)
         assertEquals("arbitrary/model", body["model"]!!.asString())
         assertEquals("question", body["input"]!![0L]["content"]!!.asString())
         val request = LlmRequest([Message([Text("developer")], Developer)], system = [Text("system")],
             extensions = [DialectExtension(dsResponses.dialectId, Json.parse("{\"top_logprobs\":0,\"future_option\":null}"))])
         val restored = Json.decodeFromString<LlmRequest>(Json.encodeToString(request))
-        val wire = provider.protocol.encodeRequest("arbitrary/model", restored, true)
+        val wire = generationProtocol(provider).encodeRequest("arbitrary/model", restored, true)
         assertTrue(wire["stream"]!!.asBoolean())
         assertEquals("developer", wire["input"]!![0L]["role"]!!.asString())
         assertEquals("system", wire["instructions"]!!.asString())

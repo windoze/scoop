@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.interactions
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.json.*
 import scoop.llm.client.*
 import scoop.test.*
@@ -19,7 +21,7 @@ private class InteractionsRequestTest {
         assertFalse(value.containsKey("store"))
         val endpoint = LlmEndpoint(Providers.geminiInteractions(), LlmAuth.header("x-goog-api-key", "mock-only"))
         assertEquals("https://generativelanguage.googleapis.com/v1", endpoint.baseUrl.toString())
-        assertEquals("https://example.com/proxy/interactions?deployment=x", endpoint.provider.protocol.generationUrl(
+        assertEquals("https://example.com/proxy/interactions?deployment=x", generationProtocol(endpoint.provider).generationUrl(
             Url.parse("https://example.com/proxy?deployment=x"), "any-model").toString())
         assertEquals("/modelId", assertFailsWith<LlmRequestException> { interactionsEncode(request, ""); Unit }.path)
         assertTrue(InteractionsProtocol(GeminiInteractionsDialect()).encodeRequest("m", request, true)["stream"]!!.asBoolean())

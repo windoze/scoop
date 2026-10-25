@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.interactions.stored
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.asyncio.*
 import scoop.http.*
 import scoop.http.asyncio.AsyncHttp1Connection
@@ -67,7 +69,7 @@ private class StoredInteractionsNetworkTest {
                     val input = ArrayList<LlmInputItem>()
                     for (item in restored.toInput()) input.add(item)
                     input.add(ToolResult(restored.clientToolCalls[0].reference, [Text("found")]))
-                    val replay = endpoint.provider.protocol.encodeRequest("next-model", LlmRequest(input.toArray(), tools = interactionsRequest().tools))
+                    val replay = generationProtocol(endpoint.provider).encodeRequest("next-model", LlmRequest(input.toArray(), tools = interactionsRequest().tools))
                     assertEquals("opaque", replay["input"]!![0]["signature"]!!.asString())
                     assertEquals("call-1", replay["input"]!![3]["call_id"]!!.asString())
                     val cancelled = client.cancelInteraction(endpoint, created.response.id!!, options = options)

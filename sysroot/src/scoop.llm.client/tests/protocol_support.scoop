@@ -1,0 +1,10 @@
+package scoop.llm.client.tests
+
+import scoop.llm.client.*
+import scoop.test.fail
+
+internal fun generationProtocol(provider: LlmProvider): LlmGenerationProtocol {
+    val protocol = provider.protocol
+    if (!(protocol is LlmGenerationProtocol)) fail(Some("expected generation protocol"))
+    return protocol
+}

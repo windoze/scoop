@@ -1,0 +1,66 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.replace
+
+internal fun readGeminiLiveMessage(dialect: BidiGenerateContentDialect, value: JsonValue,
+    tools: Array<ToolDefinition>): GeminiLiveMessage {
+    if (value.kind != JsonValueKind.Object) throw DecodingException("", "Live message must be an object")
+    var kind: String? = None
+    for (name in ["setupComplete", "serverContent", "toolCall", "toolCallCancellation", "goAway", "sessionResumptionUpdate"]) {
+        val field = value[name]
+        if (!llmPresent(field) || field!!.kind == JsonValueKind.Null) continue
+        if (kind != None) throw DecodingException("/" + name, "Live message contains multiple message types")
+        if (field!!.kind != JsonValueKind.Object) throw DecodingException("/" + name, "Live message payload must be an object")
+        kind = Some(name)
+    }
+    val event: GeminiLiveEvent = when (kind) {
+        case Some("setupComplete") -> SetupComplete(value["setupComplete"]!!)
+        case Some("serverContent") -> ServerContent(readGeminiLiveContent(dialect.id, value["serverContent"]!!, tools))
+        case Some("toolCall") -> ToolCall(readGeminiLiveCalls(dialect.id, value["toolCall"]!!, tools), value["toolCall"]!!)
+        case Some("toolCallCancellation") -> ToolCallCancellation(
+            decodeGenerateContentValue<GeminiLiveCancellation>(value["toolCallCancellation"]!!, "/toolCallCancellation").ids ?: [],
+            value["toolCallCancellation"]!!)
+        case Some("goAway") -> GoAway(value["goAway"]!!)
+        case Some("sessionResumptionUpdate") -> SessionResumptionUpdate(value["sessionResumptionUpdate"]!!)
+        else -> Native(value)
+    }
+    val usageValue = value["usageMetadata"]
+    val usage = if (llmPresent(usageValue) && usageValue!!.kind != JsonValueKind.Null)
+        LlmUsage(dialect.readUsage(usageValue!!), native = usageValue) else LlmUsage()
+    return GeminiLiveMessage(dialect.id, event, value, usage, value["voiceActivity"])
+}
+
+private class GeminiLiveCancellation public constructor(public val ids: Array<String>? = None) {
+    public companion object : ValueDecoder<GeminiLiveCancellation>
+}
+
+private class GeminiLiveCalls public constructor(public val functionCalls: Array<JsonValue>? = None) {
+    public companion object : ValueDecoder<GeminiLiveCalls>
+}
+
+private fun readGeminiLiveCalls(dialect: DialectId, value: JsonValue, tools: Array<ToolDefinition>): Array<LlmOutputItem> {
+    val calls = decodeGenerateContentValue<GeminiLiveCalls>(value, "/toolCall")
+    val result = ArrayList<LlmOutputItem>()
+    val ids = ArrayList<String>()
+    var index = 0L
+    for (call in calls.functionCalls ?: []) {
+        val raw = JsonObjectBuilder().add("functionCall", call).build()
+        val path = "/toolCall/functionCalls/" + index.toString()
+        try { result.add(geminiLiveCallable(dialect, readGenerateContentCall(dialect, raw, tools, true, ids, path), raw)) }
+        catch (error: DecodingException) {
+            // The shared reader sees a synthetic Part; expose only the actual wire path.
+            throw DecodingException(error.path.replace(path + "/functionCall", path), error.message ?: "invalid Live function call")
+        }
+        index += 1L
+    }
+    return result.toArray()
+}
+
+internal fun geminiLiveCallable(dialect: DialectId, item: LlmOutputItem, native: JsonValue): LlmOutputItem {
+    when (item) {
+        case ClientToolCall(call) -> { if (call.reference.id == None) return LlmOutputItem.Native(dialect, native) }
+        else -> {}
+    }
+    return item
+}

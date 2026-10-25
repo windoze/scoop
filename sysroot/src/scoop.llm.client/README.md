@@ -2,6 +2,8 @@
 
 LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek／OpenRouter Chat、Anthropic Messages、OpenAI／DeepSeek Responses、Gemini generateContent、Interactions、Bedrock Converse、Cohere Chat v2 与 Ollama Chat 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
 
+Gemini Live 通过 `Providers.geminiLive()` 绑定同一 endpoint／model，`BidiGenerateContentProtocol` 提供 setup、clientContent、realtimeInput、toolResponse 与消息解码。音频、文本、转写、工具取消、用量与原始通知可以序列化；不推断播放完成、会话空闲或自动执行工具。当前仅交付纯线协议，持久连接与消息计时继续接入；见[Live 示例](../../../docs/llm-client/USAGE.md#713-gemini-live-的纯协议入口)。
+
 OpenAI Chat／Responses 与 Anthropic Messages 的文件操作使用同一 client：uploadFile、listFiles、retrieveFile、downloadFile 和 deleteFile。Gemini generateContent／Interactions 共用上传、列表、读取与删除入口，并提供 registerFiles 登记已有 GCS URI。上传结果提供可保存的可选文件引用，服务端附加字段保留原文；用法见[文件 API 示例](../../../docs/llm-client/USAGE.md#712-显式上传引用和读取文件)。
 
 OpenRouter 使用 Providers.openRouterChat()，缺省部署 https://openrouter.ai/api/v1；模型 ID 由应用显式选择。普通生成和 SSE 保留 reasoning_details 的签名、加密块及完整历史，文件 annotations 可随 toInput 回传。客户端函数与 openrouter:web_search 服务端工具可以同时声明，模型没有报告执行活动时不从 usage 推断调用。图片／文件／音频／视频输入采用各自文档形状，输出图片与音频保持 Native；纯入口与范围见[规范第 39 节](../../../docs/specs/SCOOP-LLM-CLIENT-SPEC.md#39-openrouter-chat-dialect)。当前以本地 mock 验证，真实互通待可用凭据后补测。
@@ -30,7 +32,7 @@ Interactions 普通生成使用 `Providers.geminiInteractions()`，缺省部署�
 
 Interactions 的独立 step 格式保留 thought.signature、媒体、服务端工具、UTF-8 引用及原始 steps 历史；只有 requires_action 中未收到结果的完整函数调用进入待执行视图。进行中资源不提供可追加历史，服务时间不代替实际调用计时。缺失 token 保持未知，工具提示细项不重复加入输入总量。request.extensions 可显式配置 store／previous_interaction_id、generation_config 的原生选项，以及与公共 JSON 输出约束组合的媒体 response_format。
 
-`client.retrieveInteraction(endpoint, id)`、`cancelInteraction` 和 `deleteInteraction` 显式操作已有资源。读取／取消返回 LlmResult，tools 缺省为空且只用于本地关联；缺失 steps 不产生伪造历史。删除返回 InteractionsDeletionResult，保存实际空正文或其他原始字节及 HTTP metadata。查询到的历史 usage 不成为本次操作的生成速率；见[使用示例](../../../docs/llm-client/USAGE.md#79-interactions-的读取取消与删除)。GET 的 SSE 与断点接续继续实施。
+`client.retrieveInteraction(endpoint, id)`、`cancelInteraction` 和 `deleteInteraction` 显式操作已有资源。读取／取消返回 LlmResult，tools 缺省为空且只用于本地关联；缺失 steps 不产生伪造历史。删除返回 InteractionsDeletionResult，保存实际空正文或其他原始字节及 HTTP metadata。查询到的历史 usage 不成为本次操作的生成速率；见[使用示例](../../../docs/llm-client/USAGE.md#79-interactions-的读取取消与删除)。GET 事件流通过 openInteractionEvents／withInteractionEvents 显式读取，lastEventId 由实际交付事件更新；应用决定断点接续，不自动重连。
 
 Interactions SSE 沿用 `openStream`／`withStream` 和缺省 EventsOnly，显式 Result 才保留最终结果。stream=true 与 alt=sse 由协议编码；有序 step 绑定文本、媒体、引用、工具和签名。step.stop 不开放客户端工具执行，只有最终 requires_action 决定待执行调用；interaction.completed 冻结 usage。最终资源可以省略服务时间，缺失值不会替换成客户端发送／接收时刻；未知增量保留 Native，无法完整重建时不提供可追加历史。
 

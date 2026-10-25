@@ -1,0 +1,66 @@
+package scoop.llm.client.tests.geminilive
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GeminiLiveToolsTest {
+    @Test
+    fun `Gemini Live function response uses the received identity and keeps native scheduling and media`() {
+        val message = liveDecode("{\"toolCall\":{\"functionCalls\":[{\"id\":\"call-1\",\"name\":\"lookup\",\"args\":{\"count\":9007199254740993}}]}}")
+        val saved = Json.decodeFromString<GeminiLiveMessage>(Json.encodeToString(message))
+        val items = when (saved.event) { case ToolCall(items, _) -> items; else -> fail() }
+        val call = when (items[0]) { case ClientToolCall(value) -> value; else -> fail() }
+        assertEquals(Some("call-1"), call.reference.id)
+        assertEquals(ToolKey("local"), call.reference.toolKey)
+        when (call.input) { case JsonArguments(value) -> assertEquals(9007199254740993L, value.value["count"]!!.asLong()); else -> fail() }
+        val result = GeminiLiveToolResult(call.reference, Json.parse("{\"result\":7,\"scheduling\":\"WHEN_IDLE\",\"future\":false}"),
+            parts = [Image(MediaSource.Bytes([1.toByte()], "image/png"))],
+            extensions = [DialectExtension(liveDialect, Json.parse("{\"willContinue\":false}"))])
+        val restored = Json.decodeFromString<GeminiLiveToolResult>(Json.encodeToString(result))
+        val body = liveProtocol.encodeToolResponse([restored])["toolResponse"]!!["functionResponses"]!![0]
+        assertEquals("call-1", body["id"]!!.asString())
+        assertEquals("lookup", body["name"]!!.asString())
+        assertEquals("WHEN_IDLE", body["response"]!!["scheduling"]!!.asString())
+        assertFalse(body["response"]!!["future"]!!.asBoolean())
+        assertEquals("AQ==", body["parts"]!![0]["inlineData"]!!["data"]!!.asString())
+        assertFalse(body["willContinue"]!!.asBoolean())
+        val explicit = ClientToolCallReference(liveDialect, ToolKey("local"), Some("manual"))
+        val bound = liveProtocol.encodeToolResponse([GeminiLiveToolResult(explicit, Json.parse("{}"))], liveTools)
+        assertEquals("lookup", bound["toolResponse"]!!["functionResponses"]!![0]["name"]!!.asString())
+    }
+
+    @Test
+    fun `Gemini Live incomplete unbound missing ID and invalid function calls never become executable arguments`() {
+        val message = liveDecode("{\"toolCall\":{\"functionCalls\":[{\"name\":\"unknown\",\"id\":\"unknown\"}," +
+            "{\"name\":\"lookup\",\"id\":\"partial\",\"partialArgs\":[],\"willContinue\":true},{\"name\":\"lookup\"}," +
+            "{\"name\":\"lookup\",\"id\":\"invalid\",\"args\":[]}]}}")
+        when (message.event) {
+            case ToolCall(items, _) -> {
+                assertEquals(4L, items.size)
+                for (index in [0L, 1L, 2L]) { when (items[index]) { case Native(_, _) -> {}; else -> fail() } }
+                when (items[3]) { case ClientToolCall(call) -> when (call.input) { case Invalid(_, _) -> {}; else -> fail() }; else -> fail() }
+            }
+            else -> fail()
+        }
+        when (liveDecode("{\"toolCallCancellation\":{\"ids\":[\"partial\",\"invalid\"],\"reason\":{\"future\":true}}}").event) {
+            case ToolCallCancellation(ids, raw) -> { assertEquals(2L, ids.size); assertEquals("partial", ids[0]); assertTrue(raw.containsKey("reason")) }
+            else -> fail()
+        }
+    }
+
+    @Test
+    fun `Gemini Live function messages report real wire paths and reject invalid result identity`() {
+        liveFailure("{\"toolCall\":{\"functionCalls\":[{\"name\":\"\",\"id\":\"c\"}]}}", "/toolCall/functionCalls/0/name")
+        liveFailure("{\"toolCall\":{\"functionCalls\":[{\"name\":\"lookup\",\"id\":\"c\"},{\"name\":\"lookup\",\"id\":\"c\"}]}}", "/toolCall/functionCalls/1/id")
+        liveFailure("{\"toolCallCancellation\":{\"ids\":[1]}}", "/toolCallCancellation/ids/0")
+        val call = ClientToolCallReference(liveDialect, ToolKey("local"), Some("c"))
+        for ((result, path) in [(GeminiLiveToolResult(ClientToolCallReference(liveDialect, ToolKey("local")), Json.parse("{}")), "/results/0/call/id"),
+            (GeminiLiveToolResult(call, Json.parse("[]")), "/results/0/response"),
+            (GeminiLiveToolResult(call, Json.parse("{}"), parts = [Text("text")]), "/results/0/parts/0"),
+            (GeminiLiveToolResult(call, Json.parse("{}"), extensions = [DialectExtension(liveDialect, Json.parse("{\"id\":\"other\"}"))]), "/results/0/extensions/0/value/id")]) {
+            assertEquals(path, assertFailsWith<LlmRequestException> { liveProtocol.encodeToolResponse([result], liveTools); Unit }.path)
+        }
+    }
+}

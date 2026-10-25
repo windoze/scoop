@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.client
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.asyncio.*
 import scoop.llm.client.*
 import scoop.test.*
@@ -16,7 +18,7 @@ private class LlmBindingTest {
         val first = endpoint.model("new/model:version")
         val second = LlmEndpoint(Providers.openAiChat(), LlmAuth.none()).model(first.id)
         assertFalse(first.endpoint.provider.protocol.dialectId == second.endpoint.provider.protocol.dialectId)
-        assertEquals("https://api.openai.com/v1/chat/completions", second.endpoint.provider.protocol.generationUrl(
+        assertEquals("https://api.openai.com/v1/chat/completions", generationProtocol(second.endpoint.provider).generationUrl(
             second.endpoint.baseUrl, second.id).toString())
         assertFailsWith<IllegalArgumentException> { val invalid = endpoint.model(""); Unit }
         assertFailsWith<IllegalArgumentException> {

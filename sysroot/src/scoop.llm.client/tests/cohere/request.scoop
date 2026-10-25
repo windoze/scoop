@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.cohere
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.json.*
 import scoop.llm.client.*
 import scoop.test.*
@@ -12,7 +14,7 @@ private class CohereRequestTest {
         val provider = Providers.cohereChat()
         assertEquals(cohereDialect, provider.protocol.dialectId)
         assertEquals("https://api.cohere.com", provider.defaultBaseUrl!!.toString())
-        assertEquals("https://example.com/proxy/v2/chat?deployment=x", provider.protocol.generationUrl(Url.parse("https://example.com/proxy?deployment=x"), "unlisted:model").toString())
+        assertEquals("https://example.com/proxy/v2/chat?deployment=x", generationProtocol(provider).generationUrl(Url.parse("https://example.com/proxy?deployment=x"), "unlisted:model").toString())
         val model = LlmEndpoint(provider, LlmAuth.none()).model("unlisted:model")
         assertEquals("unlisted:model", model.id)
         val body = cohereEncode(cohereInput(), model.id)
@@ -20,7 +22,7 @@ private class CohereRequestTest {
         assertEquals("unlisted:model", body["model"]!!.asString())
         assertEquals("user", body["messages"]!![0L]["role"]!!.asString())
         assertEquals("hello", body["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
-        assertTrue(provider.protocol.encodeRequest("m", cohereInput(), true)["stream"]!!.asBoolean())
+        assertTrue(generationProtocol(provider).encodeRequest("m", cohereInput(), true)["stream"]!!.asBoolean())
         assertEquals("/modelId", assertFailsWith<LlmRequestException> { cohereEncode(cohereInput(), ""); Unit }.path)
         assertCohereRequestFailure(LlmRequest([]), "/input")
     }

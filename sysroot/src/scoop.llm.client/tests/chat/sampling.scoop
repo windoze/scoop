@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.chat
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.llm.client.*
 import scoop.test.*
 
@@ -7,7 +9,7 @@ import scoop.test.*
 private class DeepSeekSamplingTest {
     @Test
     fun `omitted top-p needs no model-specific assumption but explicit top-p does`() {
-        val protocol = Providers.deepSeekChat().protocol
+        val protocol = generationProtocol(Providers.deepSeekChat())
         val empty = LlmRequest([Message([Text("hello")])])
         assertFalse(protocol.encodeRequest("any-model", empty).containsKey("top_p"))
         val explicit = LlmRequest(empty.input, options = LlmGenerationOptions(topP = Some(0.95)))
@@ -20,7 +22,7 @@ private class DeepSeekSamplingTest {
 
     @Test
     fun `non-thinking top-p follows the explicit dialect profile without model-name routing`() {
-        val protocol = Providers.deepSeekChat(DeepSeekTopPMode.NonThinking).protocol
+        val protocol = generationProtocol(Providers.deepSeekChat(DeepSeekTopPMode.NonThinking))
         val input: Array<LlmInputItem> = [Message([Text("hello")])]
         val disabled = Some(ReasoningOptions(enabled = Some(false)))
         val accepted = LlmRequest(input, options = LlmGenerationOptions(topP = Some(0.5), reasoning = disabled))

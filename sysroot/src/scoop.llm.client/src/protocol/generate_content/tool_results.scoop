@@ -35,7 +35,7 @@ internal fun encodeGenerateContentToolResult(dialect: DialectId, call: ClientToo
         ["name", "id", "response", "parts"], path)).build()
 }
 
-private fun generateContentResultName(call: ClientToolCallReference, tools: Array<ToolDefinition>, path: String): String {
+internal fun generateContentResultName(call: ClientToolCallReference, tools: Array<ToolDefinition>, path: String): String {
     val name = when (call.context) {
         case Some(context) -> {
             try {

@@ -11,7 +11,7 @@ public class LlmEndpoint public constructor(
     baseUrl: Url? = None,
     fields: Array<HttpField> = []
 ) {
-    public val fields: Array<HttpField> = bindLlmFields(provider.protocol.generationFields(), fields)
+    public val fields: Array<HttpField> = bindLlmFields(provider.protocol.requestFields(), fields)
     public val baseUrl: Url = baseUrl ?: (provider.defaultBaseUrl ?: throw IllegalArgumentException(Some("provider has no default base URL")))
     init {
         if (this.baseUrl.scheme != Some("http") && this.baseUrl.scheme != Some("https"))

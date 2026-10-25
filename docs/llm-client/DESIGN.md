@@ -34,6 +34,7 @@
 | `anthropic-messages` | Messages | Anthropic Messages |
 | `gemini-interactions` | Gemini Interactions | Gemini Interactions |
 | `gemini-generate-content` | generateContent | Gemini generateContent |
+| `gemini-live` | BidiGenerateContent | Gemini Live |
 
 这些是命名与组合示例，不表示全部已实现。通用兼容入口也使用一个明确的基础 dialect；只有 URL 不同且语义相同的 API 入口复用 provider，不为每个域名复制适配器。
 
@@ -79,6 +80,8 @@ Protocol 实现请求和结果的 wire DTO、完整响应解码、流事件解�
 例如 Chat adapter 负责 `messages`／`choices`、delta 与尾部 usage；Responses adapter 负责有序 item、类型化事件和响应终止。两个入口共享媒体、错误等实际相同的 helper，但不把一种协议的 DTO 发送到另一种协议。
 
 普通完整响应和流式响应共用最终 item 的解释与归一化逻辑。流式状态留在每次调用的 reducer 中，不放在共享 provider 或 dialect 对象里；非流式响应无需先伪装成一串 delta。
+
+LlmProvider 持有共同的 LlmApiProtocol，只要求 dialect 身份、固定请求头、错误解码和可选辅助 API。LlmGenerationProtocol 在其上定义普通生成操作；会话协议无需提供假的单次生成方法。普通 generate／openStream 在认证前检查具体协议能力。Gemini Live 的 BidiGenerateContentProtocol 使用独立 setup／输入／工具响应／消息解码入口，同时复用 endpoint、model、ContentPart 和工具类型。
 
 ### 2.2 Dialect 维护服务差异
 

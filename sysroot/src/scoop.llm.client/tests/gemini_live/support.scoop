@@ -1,0 +1,25 @@
+package scoop.llm.client.tests.geminilive
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal val liveProtocol = BidiGenerateContentProtocol(GeminiLiveDialect())
+internal val liveDialect = GeminiLiveDialect().id
+internal val liveTools: Array<ToolDefinition> = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}")),
+    Server(ToolKey("search"), WebSearch())]
+
+internal fun liveDecode(text: String): GeminiLiveMessage = liveProtocol.decodeMessage(Json.parse(text), liveTools)
+
+internal fun liveContent(text: String): GeminiLiveContent = when (liveDecode(text).event) {
+    case ServerContent(value) -> value
+    else -> fail()
+}
+
+internal fun liveFailure(text: String, path: String) {
+    val raw = Json.parse(text)
+    val error = assertFailsWith<LlmProtocolException> { liveProtocol.decodeMessage(raw, liveTools); Unit }
+    assertEquals(path, error.path)
+    assertEquals(liveDialect, error.dialect)
+    assertEquals(Json.stringify(raw), Json.stringify(error.native))
+}

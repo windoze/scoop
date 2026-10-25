@@ -784,6 +784,41 @@ Gemini 上传扩展直接对应 file metadata 的 JSON 成员，displayName 来�
 
 Google 文件真实测试位于库 tests/live/google_files.scoop，默认 @Ignore，显式运行仍要求 GOOGLE_AI_API_KEY。它仅上传少量合成文本，读取后在 finally 中删除；普通文件测试均使用本地 mock。
 
+### 7.13 Gemini Live 的纯协议入口
+
+Gemini Live 使用独立 provider，与普通生成共用 endpoint／model／认证绑定。当前交付纯编解码；持久连接、setup 确认和消息收发时间戳继续接入。下面的命令是 JSON 数据，不会发请求。最小 setup 自然只含 model，无需另一套简易入口。
+
+```scoop
+val endpoint = LlmEndpoint(Providers.geminiLive(), LlmAuth.header("x-goog-api-key", apiKey))
+val model = endpoint.model(modelId)
+val protocol = endpoint.provider.protocol
+if (!(protocol is BidiGenerateContentProtocol)) throw IllegalArgumentException()
+
+val setup = protocol.encodeSetup(model.id)
+val text = protocol.encodeClientContent([Message([Text("你好")])])
+val audio = protocol.encodeRealtimeInput(GeminiLiveInput(
+    audio = Some(GeminiLiveBlob(pcmBytes, "audio/pcm;rate=16000"))
+))
+```
+
+音频响应等原生配置通过同一 setup 的 extensions 设置，不从模型名推断。客户端工具与服务端搜索仍使用已有 ToolDefinition：
+
+```scoop
+val dialect = GeminiLiveDialect().id
+val tools: Array<ToolDefinition> = [
+    ClientFunction(ToolKey("weather"), "weather", weatherSchema),
+    Server(ToolKey("search"), WebSearch())
+]
+val configuration = GeminiLiveSetup(tools = tools, extensions = [DialectExtension(dialect,
+    Json.parse("{\"generationConfig\":{\"responseModalities\":[\"AUDIO\"]},\"outputAudioTranscription\":{}}"))])
+val command = protocol.encodeSetup(model.id, configuration)
+val message = protocol.decodeMessage(receivedJson, tools)
+val saved = Json.encodeToString(message)
+val restored = Json.decodeFromString<GeminiLiveMessage>(saved)
+```
+
+message.event 区分内容、函数调用、取消和会话通知。内容同时保留音频、文本、reasoning 与三类转写；turnComplete 和 interactionStatus 分别读取。应用执行完整的客户端调用后，用收到的 reference 构造 `GeminiLiveToolResult(call.reference, responseObject)`，再交给 encodeToolResponse。responseObject 原样包含结果及需要的 scheduling 字段；库不运行工具或恢复连接。每条 usage 独立保存，缺失分量保持未知；native 保存完整服务端消息。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |

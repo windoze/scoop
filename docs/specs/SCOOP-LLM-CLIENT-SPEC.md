@@ -211,7 +211,7 @@ request、message、part、tool 的 extensions 只合并到当前位置；Chat �
 
 内置 protocol 与 dialect 的普通构造器公开可用，包括 OpenAiChatDialect() 与 OpenAiResponsesDialect()；独立 Cone 可直接组合适配器或读取 dialect.id，不必先创建 provider。构造器可见性遵守语言规范 9.1.5 的显式声明规则，不从 public class 自动继承。
 
-`LlmGenerationProtocol` 描述普通 HTTP JSON 生成：dialectId、generationUrl(baseUrl, modelId)、encodeRequest(modelId, request, stream)、decodeResponse(value, request) 与 decodeError(status, body, truncated)。ChatProtocol 实现该合同并固定其 ChatDialect。接口没有实时会话或尚无实现的操作占位；流式 reducer 随相应独立合同补充。
+`LlmGenerationProtocol` 继承共同的 LlmApiProtocol（§50），描述普通 HTTP JSON 生成：generationUrl(baseUrl, modelId)、encodeRequest(modelId, request, stream) 与 decodeResponse(value, request)；dialectId 与 decodeError(status, body, truncated) 由基础合同提供。ChatProtocol 实现该合同并固定其 ChatDialect。接口没有实时会话或尚无实现的操作占位；流式 reducer 随相应独立合同补充。
 
 `LlmProvider(name, protocol, defaultBaseUrl = None)` 固定一个协议／方言组合。`Providers.openAiChat()` 与 deepSeekChat() 分别提供已实现的两个组合及官方 URL 缺省。`LlmEndpoint(provider, authentication, baseUrl = None, fields = [])` 绑定已有 API 端点；缺少官方缺省又未传 URL 时构造失败。URL 必须是绝对 http(s) 地址且无 fragment。协议在现有 base path 后追加操作路径，保留 query；不把 base path 当成要被替换的文件名，不额外推导或管理云部署。
 
@@ -672,7 +672,7 @@ LlmHttpTiming(queue = None, resolve = None, connect = None, proxyTls = None, pro
 
 LlmClient.countTokens(model, request, options = LlmCallOptions()) 返回 LlmTokenCountResult(count, metadata)。这是独立的服务器操作，不自动生成、不在 generate／openStream 前执行，也不以预计数覆盖 response.usage。当前适配 Gemini GenerateContent、Anthropic Messages 和 OpenAI Responses（§41）的计数接口；不提供没有 tokenizer 实现的本地模式或字符数回退。ModelCapabilities.serverTokenCount 缺省 Unknown；显式 Unsupported 在认证前失败，Unknown 允许由已选 adapter 和服务器判断。
 
-LlmGenerationProtocol.tokenCounter() 缺省 None；LlmTokenCounter 定义 countUrl、encodeRequest、decodeResponse 三个纯适配操作。Messages／GenerateContent／Responses protocol 将选择委托给 dialect 的同名可选方法。内置 dialect 提供实际 counter，自定义 dialect 缺省不继承另一个服务商的计数语义。没有 counter 在认证前报告 LlmRequestException。
+LlmApiProtocol.tokenCounter() 缺省 None；LlmTokenCounter 定义 countUrl、encodeRequest、decodeResponse 三个纯适配操作。Messages／GenerateContent／Responses protocol 将选择委托给 dialect 的同名可选方法。内置 dialect 提供实际 counter，自定义 dialect 缺省不继承另一个服务商的计数语义。没有 counter 在认证前报告 LlmRequestException。
 
 TokenCount 是可序列化的纯数据：dialect、请求的 model、可选 modelVersion、method=Server、scope=RequestInput、precision=Estimated、可选 inputTokens／cachedInputTokens、modality 和 native。TokenCountMethod 当前只有实际可用的 Server；TokenCountScope.RequestInput 表示提交给计数端点的完整输入表示，包括接口明确解析的输入引用，不保证覆盖未报告的服务端隐藏包装或未来工具输出。TokenCountPrecision 可为 Estimated 或 Exact；Gemini／Messages 相对于后续生成标为 Estimated，Responses 按该端点的明确合同标为 Exact。Exact 描述此次输入计数，不保证随后发生变化的历史、模型版本或工具执行仍有相同用量。缺失计数和版本保持 None，明确零保留，非整数、负数和 Long 溢出拒绝。modality 只保存输入方向明细，不重复加到总数；cachedInputTokens 是计数时的缓存输入规模，不是一次生成的 cacheReadTokens／cacheWriteTokens。LlmTokenCountResult 仅接受 Completed metadata，并提供 companion codec。
 
@@ -844,7 +844,7 @@ GET 的事件回放仅记录实际首事件和完成时间，不记录生成首�
 
 `LlmClient.listModels(endpoint, query = UrlQuery(), options = LlmCallOptions())` 只读取一页，返回 `LlmModelListResult(page, metadata)`；`retrieveModel(endpoint, modelId, options = LlmCallOptions(), extensions = [])` 读取单个模型，返回 `LlmModelResult(model, metadata, requestedId)`。目录不参与 generate、模型绑定或 capability 检查，不自动翻页、选择模型、注册模型或缓存查询。代理没有目录入口时，显式查询照常报告服务错误，不影响生成。
 
-`LlmGenerationProtocol.modelCatalog(): LlmModelCatalog?` 缺省 None，具体 protocol 委托 dialect 提供已支持的操作。LlmModelCatalog 提供纯 listUrl／decodeList；具有单模型 API 的目录同时实现 LlmModelLookup 的 retrieveUrl／decodeModel。此步接入 OpenAI Chat／Responses、DeepSeek Chat／Responses、Anthropic Messages、Gemini generateContent／Interactions。OpenAI、Anthropic 和 Gemini 支持单模型读取；DeepSeek 仅按已公布的模型列表 API 接入，不用下载整个目录模拟单模型读取。不支持的操作在认证和 I/O 前报 /provider 错误，并执行既有完成通知。
+`LlmApiProtocol.modelCatalog(): LlmModelCatalog?` 缺省 None，具体 protocol 委托 dialect 提供已支持的操作。LlmModelCatalog 提供纯 listUrl／decodeList；具有单模型 API 的目录同时实现 LlmModelLookup 的 retrieveUrl／decodeModel。此步接入 OpenAI Chat／Responses、DeepSeek Chat／Responses、Anthropic Messages、Gemini generateContent／Interactions。OpenAI、Anthropic 和 Gemini 支持单模型读取；DeepSeek 仅按已公布的模型列表 API 接入，不用下载整个目录模拟单模型读取。不支持的操作在认证和 I/O 前报 /provider 错误，并执行既有完成通知。
 
 `LlmModelInfo(dialect, id: String?, native)` 保存服务端提供的模型标识与完整模型 JSON；`LlmModelPage(dialect, models, native)` 保存有序列表和完整分页响应。四个数据类型均有 companion codec。OpenAI／DeepSeek／Anthropic 从 data 数组的必需 id 读取；Gemini 从 models 数组的必需 name 读取并去除协议定义的 models/ 前缀，native 保留原始资源名。Gemini 的缺省或 null models 表示空页。协议允许省略标识时 id 为 None，不从请求补造服务端身份；单模型结果的 requestedId 单独保留调用方提交的非空标识。只验证协议规定的模型标识及列表结构；名称、能力详情、上下文长度、分页字段及服务商附加信息保留原值，既不据此推断已选生成 API 的 capability，也不验证附加内容的准确性。
 
@@ -872,7 +872,7 @@ Bedrock 查询使用 /foundation-models、modelSummaries[].modelId，以及 /fou
 
 `LlmClient.uploadFile(endpoint, upload, options = LlmCallOptions())`、`listFiles(endpoint, query = UrlQuery(), options = LlmCallOptions())`、`retrieveFile(endpoint, fileId, options = LlmCallOptions())`、`downloadFile(endpoint, fileId, options = LlmCallOptions())` 和 `deleteFile(endpoint, fileId, options = LlmCallOptions())` 显式执行一次文件操作。它们服务于生成输入和生成文件的读取，不隐式上传媒体、轮询处理状态、自动翻页或清理服务端文件。
 
-`LlmFileUpload(filename, bytes, mimeType = "application/octet-stream", extensions = [])` 是可保存的内存上传数据，不包含本地路径或凭据。文件名和 MIME 由应用提供，不探测文件内容。`LlmGenerationProtocol.fileApi(): LlmFileApi?` 缺省 None；Chat、Responses、Messages protocol 委托具体 dialect，当前 OpenAI Chat／Responses 与 Anthropic Messages 提供文件操作。`LlmFileApi` 提供纯 URL 构造、上传编码及文件／列表解码；上传编码返回 `LlmFileUploadBody(bytes, contentType)`。未接入的 dialect 在认证前明确报错，不因兼容同一种生成协议而推定支持文件 API。
+`LlmFileUpload(filename, bytes, mimeType = "application/octet-stream", extensions = [])` 是可保存的内存上传数据，不包含本地路径或凭据。文件名和 MIME 由应用提供，不探测文件内容。`LlmApiProtocol.fileApi(): LlmFileApi?` 缺省 None；Chat、Responses、Messages protocol 委托具体 dialect，当前 OpenAI Chat／Responses 与 Anthropic Messages 提供文件操作。`LlmFileApi` 提供纯 URL 构造、上传编码及文件／列表解码；上传编码返回 `LlmFileUploadBody(bytes, contentType)`。未接入的 dialect 在认证前明确报错，不因兼容同一种生成协议而推定支持文件 API。
 
 三个 provider 使用相同路由：上传 POST /files、列表 GET /files、元数据 GET /files/{id}、删除 DELETE /files/{id}、内容 GET /files/{id}/content。ID 必须非空，作为单个原始 path segment 编码，保留 baseUrl 前缀和 query；列表 query 按 §46 的规则合并。Anthropic 继续使用 endpoint 的版本头，正式 Files API 不自动添加旧 beta 头。`openAiFilesQuery(limit: ULong? = None, after: String? = None, order: String? = None, purpose: String? = None)` 与 `anthropicFilesQuery(limit: ULong? = None, page: String? = None)` 仅构造原生 UrlQuery；其他过滤条件直接通过 UrlQuery 传入。
 
@@ -901,3 +901,25 @@ LlmClient.registerFiles(endpoint, uris: Array<String>, options = LlmCallOptions(
 Gemini Files 没有公布按 file ID 下载已上传文件的操作，downloadFile 在认证前明确报错；服务端实际提供的 downloadUri 保持 native 原值，不从 name 拼造下载 URL，也不自动访问它。所有已接入操作复用现有认证、重试、时间戳、关闭和完成通知。普通测试使用本地 mock；真实验证默认忽略、要求 Google key，并只上传少量合成文本、读取和删除，不触发生成或自动处理状态轮询。
 
 依据：[v1 discovery](https://generativelanguage.googleapis.com/$discovery/rest?version=v1)、[v1beta discovery](https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta)、[Files API](https://ai.google.dev/api/files)、[文件输入](https://ai.google.dev/gemini-api/docs/files)、[Google multipart 上传格式](https://developers.google.com/android-publisher/upload#multipart-upload)。
+
+## 50. API protocol 基础合同与 Gemini Live 线协议
+
+`LlmApiProtocol` 只定义 dialectId、requestFields、decodeError 及可选 fileApi／modelCatalog／tokenCounter；LlmProvider.protocol 使用该基础合同。LlmGenerationProtocol 继承它并保留普通生成专用方法，requestFields 缺省委托已有 generationFields。Endpoint 的固定头改用 requestFields。普通 generate 在进入编码／认证前要求 LlmGenerationProtocol，openStream 要求已有 LlmStreamProtocol；错误仍通过同一完成通知返回。会话协议无需实现假的 generationUrl 或 decodeResponse。调用纯生成适配器时使用具体 protocol，或先以 is 检查 LlmGenerationProtocol。
+
+`Providers.geminiLive()` 包装 `BidiGenerateContentProtocol(GeminiLiveDialect())`，protocol ID 为 bidi-generate-content，dialect ID 为 gemini-live。缺省地址是完整 RPC 地址 https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent；webSocketUrl 只将 http／https 转为 ws／wss，保留调用方提供的完整路径和 query。其他 API 版本／受限连接地址由应用显式提供。模型名仅按该 API 要求在缺少 models/ 时加此前缀，不根据名称选择版本或能力。凭据仍由 LlmAuth 提供。
+
+本节交付纯协议入口：encodeSetup、encodeClientContent、encodeRealtimeInput、encodeToolResponse 与 decodeMessage；不执行网络 I/O，不产生本地收发时间或虚构会话完成状态。持久连接、setup 确认与消息计时随后接入 client 的会话合同。
+
+`GeminiLiveSetup(system = [], tools = [], options = LlmGenerationOptions(), extensions = [])` 可保存，缺省 setup 只含 model。配置复用现有 Gemini 的 Content、Tool、生成参数及按位置扩展编码；system 仅文本，工具使用已有 ToolDefinition。Live 没有停止序列、结构化输出或根 toolConfig 的映射，因此显式 stop、非 Text 输出与非 Auto toolChoice 报请求错误。responseModalities、speechConfig、realtimeInputConfig、sessionResumption 等 API 原生设置通过所属 dialect 的 extensions 明确提供，不按模型名称推断。扩展仍不能覆盖已管理字段；configuration 只用于 setup，不成为后续内容的隐式缺省。
+
+encodeClientContent(input, turnComplete = true) 编码 clientContent.turns 与明确的 turnComplete；input 使用已有消息及同 dialect 历史，复用 Gemini Content 编码，空 turns 允许显式结束输入。ToolResult 必须走 toolResponse，不能混入 clientContent。encodeRealtimeInput 接收可保存的 GeminiLiveInput：可选 text／audio／video、activityStart／activityEnd 标记、可选 audioStreamEnd 和 extensions。GeminiLiveBlob(bytes, mimeType) 保存原始媒体；audio 要求 audio MIME，video 是 image MIME 的单帧图像。发送按原 bytes 做 Base64，不采集设备、重采样、转码或安排帧率。未提供的字段省略，显式空文本／空 bytes 和 false 保留，不使用已弃用的 mediaChunks。
+
+`GeminiLiveToolResult(call, response, parts = [], extensions = [])` 复用 ClientToolCallReference，response 是调用方提供的 JSON 对象（包括原生 scheduling 等字段），parts 是明确的内联媒体。encodeToolResponse(results, tools = []) 产生 functionResponses；必须有实际非空 call ID，name 取原始 context 或明确匹配的工具声明，id／name／response／parts 不能由扩展覆盖。调用方决定执行、取消与回传，不自动运行工具或调度下一轮。
+
+`GeminiLiveMessage(dialect, event, native, usage = LlmUsage(), voiceActivity = None)` 与所有事件／内容类型提供 companion codec，完整 native 保留原始包装。GeminiLiveEvent 区分 SetupComplete、ServerContent、ToolCall、ToolCallCancellation、GoAway、SessionResumptionUpdate 与 Native；已知互斥消息不能同时出现，usage-only 或未知消息保留 Native。voiceActivity 可独立出现或与其他消息同现，按原值保留。
+
+GeminiLiveContent 保存同一消息内的全部有序文本、reasoning、媒体、服务端工具内容及明确的 generationComplete／turnComplete／interrupted／waitingForInput／interactionStatus。转写分别保留 input、interim input、output 的可选 text 和原文，不把转写合并到模型文本。generationComplete、turnComplete 与 IDLE 各自保留；不推断播放完成，也不以 turnComplete 自动认定整个 session 空闲。搜索来源与活动复用既有输出表示，跨消息的 grounding 位置留在 native，不伪造当前分块内的引用范围。
+
+独立 toolCall 消息按实际 id／name／args 生成已有客户端调用或原生未绑定内容；只有完整、已绑定且具有实际非空 ID 的调用进入可执行表示，缺少 ID 的调用和未知函数保留 Native，不自动注册。取消消息只返回实际 ids。goAway 与 resumption payload 原样交付，不自动恢复连接、保存会话或解释其有效期。每条 usageMetadata 独立保存为 Partial LlmUsage：inputTokens 仅在 promptTokenCount 与 toolUsePromptTokenCount 都已报告时合并，outputTokens 仅在 responseTokenCount 与 thoughtsTokenCount 都已报告时合并；缺失分量不假定为零。totalTokens 只取实际 totalTokenCount，不用它反推缺失分量或额外增加 reasoning／tool-use，也不在消息之间自动累加。cache 与 reasoning 分量、已知模态明细沿用现有 TokenUsage 表示，原始计数和其他信息均在 native。
+
+普通测试使用文档形状与本地 mock，覆盖配置／媒体／工具往返、所有消息分支、核心错误、原始附加信息兼容，以及会话 provider 不能误走普通生成。依据：[Live API](https://ai.google.dev/api/live)、[输入输出与完成语义](https://ai.google.dev/gemini-api/docs/live-api/capabilities)、[工具调用与搜索](https://ai.google.dev/gemini-api/docs/live-api/tools)。

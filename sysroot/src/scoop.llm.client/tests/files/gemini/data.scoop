@@ -1,5 +1,7 @@
 package scoop.llm.client.tests.files.gemini
 
+import scoop.llm.client.tests.generationProtocol
+
 import scoop.json.*
 import scoop.llm.client.*
 import scoop.test.*
@@ -20,7 +22,7 @@ private class GeminiFileDataTest {
             val ref = uploaded.reference!!
             val request = LlmRequest([Message([Image(FileReference(ref, "image/png")), Document(FileReference(ref, "application/pdf")),
                 Audio(FileReference(ref, "audio/wav")), Video(FileReference(ref, "video/mp4"))])])
-            val body = provider.protocol.encodeRequest("chosen-model", request)
+            val body = generationProtocol(provider).encodeRequest("chosen-model", request)
             val parts = if (interactions) body["input"]!![0L]["content"]!! else body["contents"]!![0L]["parts"]!!
             for ((index, kind, mime) in [(0L, "image", "image/png"), (1L, "document", "application/pdf"),
                 (2L, "audio", "audio/wav"), (3L, "video", "video/mp4")]) {
@@ -60,7 +62,7 @@ private class GeminiFileDataTest {
 
     @Test
     fun `Gemini Interactions URI references fill only absent kind and MIME fields`() {
-        val protocol = Providers.geminiInteractions().protocol
+        val protocol = generationProtocol(Providers.geminiInteractions())
         for (raw in ["{\"uri\":\"files/x\",\"future\":[]}", "{\"type\":\"image\",\"uri\":\"files/x\",\"future\":[]}",
             "{\"uri\":\"files/x\",\"mime_type\":\"IMAGE/PNG\",\"future\":[]}"]) {
             val reference = LlmFileReference(protocol.dialectId, Json.parse(raw))
