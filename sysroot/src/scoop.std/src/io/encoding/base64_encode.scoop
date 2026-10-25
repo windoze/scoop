@@ -19,10 +19,10 @@ internal fun encodeBase64(source: List<Byte>, urlSafe: Boolean, padding: Padding
         val first = source[position].toUByte().toInt()
         val second = if (available > 1L) source[position + 1L].toUByte().toInt() else 0
         val third = if (available > 2L) source[position + 2L].toUByte().toInt() else 0
-        output[target] = alphabet[(first / 4).toLong()]
-        output[target + 1L] = alphabet[((first % 4) * 16 + second / 16).toLong()]
-        if (available > 1L) output[target + 2L] = alphabet[((second % 16) * 4 + third / 64).toLong()]
-        if (available > 2L) output[target + 3L] = alphabet[(third % 64).toLong()]
+        output[target] = alphabet.getCharAt((first / 4).toLong())
+        output[target + 1L] = alphabet.getCharAt(((first % 4) * 16 + second / 16).toLong())
+        if (available > 1L) output[target + 2L] = alphabet.getCharAt(((second % 16) * 4 + third / 64).toLong())
+        if (available > 2L) output[target + 3L] = alphabet.getCharAt((third % 64).toLong())
         if (available <= 3L) break
         position += 3L
         target += 4L

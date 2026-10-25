@@ -1,16 +1,16 @@
 /** Immutable UTF-8 text. */
 @DocAlias("text")
 @Intrinsic("core_string")
-public class String : IndexGet<Long, Char>, Compare<String>, Add<String, String>, Equals<String>, ToString, Hash, Iterable<Char> {
+public class String : Compare<String>, Add<String, String>, Equals<String>, ToString, Hash, Iterable<Char> {
     /**
      * The UTF-8 byte count, available in constant time.
      */
     public val byteLength: Long get() = coreStringByteLength(this)
     /**
-     * The number of Unicode scalar values. Counting scans UTF-8 text; combining marks count
-     * separately.
+     * The number of Unicode scalar values, computed in O(byteLength) time by scanning UTF-8.
+     * Combining marks count separately.
      */
-    public val length: Long get() = coreStringLength(this)
+    public val charLength: Long get() = coreStringLength(this)
 
     /**
      * Compares text exactly, without Unicode normalization or case folding.
@@ -40,11 +40,12 @@ public class String : IndexGet<Long, Char>, Compare<String>, Add<String, String>
     public override fun hash(): Long = coreStringHash(this)
 
     /**
-     * Returns the Unicode scalar at a zero-based scalar index. An invalid index throws
-     * [IndexOutOfBoundsException].
+     * Returns the Unicode scalar at a zero-based scalar index by scanning from the beginning,
+     * taking O(byteLength) time in the worst case. An invalid index throws
+     * [IndexOutOfBoundsException]. Use iteration for a complete sequential traversal.
      */
-    public override operator fun get(index: Long): Char {
-        val value = coreStringGet(this, index)
+    public fun getCharAt(idx: Long): Char {
+        val value = coreStringGet(this, idx)
         if (value == None) { throw IndexOutOfBoundsException() }
         return value!!
     }
@@ -70,7 +71,7 @@ public class String : IndexGet<Long, Char>, Compare<String>, Add<String, String>
      */
     public fun toCharArray(): Array<Char> {
         val source = iterator()
-        return Array<Char>(length) { _ -> source.next()!! }
+        return Array<Char>(charLength) { _ -> source.next()!! }
     }
 
     /**
@@ -78,7 +79,7 @@ public class String : IndexGet<Long, Char>, Compare<String>, Add<String, String>
      */
     public fun toMutableCharArray(): MutableArray<Char> {
         val source = iterator()
-        return MutableArray<Char>(length) { _ -> source.next()!! }
+        return MutableArray<Char>(charLength) { _ -> source.next()!! }
     }
 
     /**

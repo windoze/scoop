@@ -14,6 +14,7 @@
 
 ## 当前进展
 
+- 已完成[String 字符扫描 API 调整](STRING-API.md)：`length` 改为 `charLength`，移除 `get`／下标与 `IndexGet`，增加普通 `getCharAt(idx)`；字符扫描保持 O(n)，`byteLength` 保持 O(1)，内部表示不变。三目标内置库及调用点迁移完成，本机 24 项、Linux 各 14 项 Cone 行为测试与定向编译失败／表示 ABI 验证通过。整组 core consumer 的既有 stackmap 构建问题已在旧基线复现，相关用例用显式测试源码清单验证，未扩大修复范围。
 - 已完成[minor 脏卡组清单](DIRTY-CARD-GROUPS.md)：首次置脏登记 32 KiB 组，remembered 枚举和清零不再空扫整个旧堆；runtime ABI 17，所有 profile 默认一致，原有卡标记合并保留。256 MiB 静默旧堆的 600 次 minor 在三目标由 15.01／14.17／39.88 ms 降到 2.21／3.63／6.99 ms，side metadata 约 0.049%；真实程序收益较小，GNU trees +4.60% 等回退、写入成本和编译／体积一并记录。46 项本机单测、Linux 定向 native／IR 及每目标 6 个正式变体通过，没有全量验收。
 - 已完成[小正文导出与跨 Cone 主值构造器内联](BODY-EXPORT.md)：通用导出字段写入、构造和 callable-owned 字符串，主值构造按已有角色建立普通优化正文。strmap 的快照／主值构造与部分检查调用消失，三目标用时降低约 4.94%／4.13%／3.13%；dispatch／values 的完整产物保持相同。代码仅增加 52～64 B，静态数据减少 728 B；consumer 编译变化 −2.50%～+2.54%，本机 std 导出编译 +1.98%。定向跨 Cone／快照／异常／GC 和 hash 测试通过，release 默认，成本不合格的 advance 等调用继续保留。
 - 已完成[循环内联优先级与传值调用估价](LOOP-INLINING.md)：更深循环优先使用原有累计增长，及时使用展开后的 exact receiver，并按参数／返回值快照估计循环调用价值。原始 dispatch 的 next／ArrayList.get 与迭代器分配消失，values 的 Complex.times 消失；三目标用时分别降低约 12.8%／29.9%／23.7% 和 33.9%／10.2%／11.5%。strmap 波动如实保留；代码不膨胀，编译墙钟变化 −1.49%～+1.70%。73 项相关单测及 24 个定向 variant 通过，release 默认，无 ABI 或诊断代码改动。

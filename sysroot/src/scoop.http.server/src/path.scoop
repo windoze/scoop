@@ -21,14 +21,14 @@ internal fun requestTarget(target: HttpRequestTarget, method: String): RequestTa
     val queryAt = encoded.indexOf('?')
     val path = if (queryAt < 0L) encoded else encoded.slice(0L, queryAt)
     try {
-        val query = if (queryAt < 0L) UrlQuery() else UrlQuery.parse(encoded.slice(queryAt + 1L, encoded.length))
+        val query = if (queryAt < 0L) UrlQuery() else UrlQuery.parse(encoded.slice(queryAt + 1L, encoded.charLength))
         return RequestTarget(TargetKind.Path, path, decodePath(path), query)
     } catch (_: UrlParseException) { reject(400U, "invalid request target encoding") }
 }
 
 internal fun decodePath(path: String): Array<PathSegment> {
     val result = ArrayList<PathSegment>()
-    for (part in path.slice(1L, path.length).split('/')) result.add(PathSegment(part, PercentEncoding.decode(part)))
+    for (part in path.slice(1L, path.charLength).split('/')) result.add(PathSegment(part, PercentEncoding.decode(part)))
     return result.toArray()
 }
 

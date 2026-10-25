@@ -28,15 +28,15 @@ import scoop.json.Json
     while (index < count) {
         val part = index.toString()
         builder.add(part)
-        expected += part.length
+        expected += part.charLength
         index += 1L
     }
     endPhase(1)
     beginPhase()
     val text = builder.build()
     endPhase(2)
-    check(text.length == expected)
-    return text.length
+    check(text.charLength == expected)
+    return text.charLength
 }
 
 @Unsafe fun jsonRoundTrip(count: Long): Long {
@@ -53,5 +53,5 @@ import scoop.json.Json
     val decoded = Json.decodeFromString(text, ArrayList<Int>.decoder(Int.Companion))
     endPhase(3)
     check(decoded.size == count && decoded[count - 1L] == (count - 1L).toInt())
-    return text.length + decoded.size
+    return text.charLength + decoded.size
 }

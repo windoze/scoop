@@ -58,7 +58,7 @@ internal suspend fun basicRespond(connection: AsyncHttp1Connection, status: UInt
     for (field in extra) fields.add(field)
     connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, Some("actual Basic response".toByteArray()), fields),
         Http1BodyFraming.Length(text.toByteArray().size)).useAsync suspend { output ->
-        if (text.length != 0L) basicWrite(output, text)
+        if (text.charLength != 0L) basicWrite(output, text)
         output.finish()
     }
 }

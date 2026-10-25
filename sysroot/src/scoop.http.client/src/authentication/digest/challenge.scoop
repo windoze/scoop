@@ -58,7 +58,7 @@ private fun digestChallengePaths(call: ClientCall, head: HttpResponseHead, scope
     try {
         val paths = ArrayList<String>()
         for (item in Charset.Iso8859_1.decode(domain!!.value).split(' ')) {
-            if (item.length == 0L) continue
+            if (item.charLength == 0L) continue
             for (character in item) if (character.code < 33 || character.code > 126) throw IllegalArgumentException()
             val reference = Url.parse(item)
             if ((!clientPresent(reference.scheme) && !item.startsWith('/')) || clientPresent(reference.encodedFragment))

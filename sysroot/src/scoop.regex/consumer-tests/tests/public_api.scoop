@@ -42,7 +42,7 @@ private class RegexConsumerTests {
                     val text = index.toString()
                     val match = regex.find("prefix:" + text)!!
                     assertEquals(text, match.groups["number"]!!.value)
-                    assertEquals(MatchRange(7L, 7L + text.length), match.range)
+                    assertEquals(MatchRange(7L, 7L + text.charLength), match.range)
                     assertEquals("prefix:X", regex.replace("prefix:" + text, "X"))
                 }
             }

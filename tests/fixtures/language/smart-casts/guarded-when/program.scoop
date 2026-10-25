@@ -1,5 +1,5 @@
 fun length(value: Any, flag: Boolean): Long {
     when (value) { !is String if flag -> return 0L; else -> {} }
-    return value.length
+    return value.charLength
 }
 fun main() {}

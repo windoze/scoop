@@ -7,7 +7,7 @@ fun digit(value: Char): Boolean = value >= '0' && value <= '9'
 fun letter(value: Char): Boolean = (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z')
 fun coordinatePart(value: String): Boolean {
     for (part in value.split('.')) {
-        if (part.length == 0L || part[0L] < 'a' || part[0L] > 'z') { return false }
+        if (part.charLength == 0L || part.getCharAt(0L) < 'a' || part.getCharAt(0L) > 'z') { return false }
         for (character in part) {
             if (!(character >= 'a' && character <= 'z') && !digit(character) && character != '-') { return false }
         }
@@ -23,7 +23,7 @@ fun version(value: String): Boolean {
     val numbers = release[0L].split('.')
     if (numbers.size != 3L) { return false }
     for (number in numbers) {
-        if (number.length == 0L || (number.length > 1L && number[0L] == '0')) { return false }
+        if (number.charLength == 0L || (number.charLength > 1L && number.getCharAt(0L) == '0')) { return false }
         for (character in number) { if (!digit(character)) { return false } }
         if (number.toULongOrNone() == None) { return false }
     }
@@ -31,18 +31,18 @@ fun version(value: String): Boolean {
 }
 fun versionIdentifiers(value: String, prerelease: Boolean): Boolean {
     for (part in value.split('.')) {
-        if (part.length == 0L) { return false }
+        if (part.charLength == 0L) { return false }
         var numeric = true
         for (character in part) {
             if (!letter(character) && !digit(character) && character != '-') { return false }
             if (!digit(character)) { numeric = false }
         }
-        if (prerelease && numeric && part.length > 1L && part[0L] == '0') { return false }
+        if (prerelease && numeric && part.charLength > 1L && part.getCharAt(0L) == '0') { return false }
     }
     return true
 }
 fun relativePath(value: String): Boolean {
-    if (value.length == 0L || value.startsWith('/')) { return false }
+    if (value.charLength == 0L || value.startsWith('/')) { return false }
     var depth = 0L
     for (part in value.split('/')) {
         if (part == "" || part == ".") { continue }
@@ -50,7 +50,7 @@ fun relativePath(value: String): Boolean {
             depth -= 1L
             if (depth < 0L) { return false }
         } else {
-            if (depth == 0L && part.length >= 2L && letter(part[0L]) && part[1L] == ':') { return false }
+            if (depth == 0L && part.charLength >= 2L && letter(part.getCharAt(0L)) && part.getCharAt(1L) == ':') { return false }
             depth += 1L
         }
     }
@@ -60,8 +60,8 @@ fun relativePath(value: String): Boolean {
     return true
 }
 fun libraryName(value: String): Boolean {
-    if (value.length == 0L || value.byteLength > 255L || value == "." || value == "..") { return false }
-    if (value[0L] == ' ' || value[value.length - 1L] == ' ') { return false }
+    if (value.charLength == 0L || value.byteLength > 255L || value == "." || value == "..") { return false }
+    if (value.getCharAt(0L) == ' ' || value.getCharAt(value.charLength - 1L) == ' ') { return false }
     for (character in value) {
         if (character.code < 32 || character.code == 127 || character == '/' || character == '\\') { return false }
     }

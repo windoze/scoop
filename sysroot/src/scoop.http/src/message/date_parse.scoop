@@ -14,7 +14,7 @@ internal fun parseHttpDate(reader: HttpFieldReader, reference: Instant, insensit
     val weekdayOffset = reader.position
     val weekday = reader.token()
     val comma = reader.peek() == 44
-    val longName = comma && weekday.length > 3L
+    val longName = comma && weekday.charLength > 3L
     val weekdayNumber = dateName(reader, weekday, if (longName) httpDateLongWeekdays else httpDateWeekdays,
         weekdayOffset, insensitive, "weekday")
     val parts = if (comma) commaDate(reader, longName, insensitive) else asctimeDate(reader, insensitive)

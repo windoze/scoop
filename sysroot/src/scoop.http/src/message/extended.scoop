@@ -41,7 +41,7 @@ internal fun decodeHttpExtended(parameter: HttpParameter, allowIso88591: Boolean
     if (first <= 0L) extendedFailure(parameter, 0L, "extended parameter requires charset and language separators")
     val rest = raw.substring(first + 1L)
     val relative = rest.indexOf('\'')
-    if (relative < 0L) extendedFailure(parameter, raw.length, "extended parameter has no value separator")
+    if (relative < 0L) extendedFailure(parameter, raw.charLength, "extended parameter has no value separator")
     val language = rest.substring(0L, relative)
     if (!httpLanguageTag(language)) extendedFailure(parameter, first + 1L, "invalid extended parameter language")
     val source = when (raw.substring(0L, first).lowercaseAscii()) {
@@ -73,8 +73,8 @@ internal fun decodeHttpExtended(parameter: HttpParameter, allowIso88591: Boolean
 private fun encodedByteOffset(encoded: String, offset: Long): Long {
     var position = 0L
     var decoded = 0L
-    while (position < encoded.length && decoded < offset) {
-        position += if (encoded[position] == '%') 3L else 1L
+    while (position < encoded.charLength && decoded < offset) {
+        position += if (encoded.getCharAt(position) == '%') 3L else 1L
         decoded += 1L
     }
     return position

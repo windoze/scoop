@@ -6,10 +6,10 @@ internal struct StyledGrapheme(val plain: String, val decoration: String)
 
 // Only SGR styling is invisible. User input controls remain visible text.
 private fun decorationEnd(text: String, start: Long): Long {
-    if (start + 2L >= text.length || text[start] != '\u001b' || text[start + 1L] != '[') return start
+    if (start + 2L >= text.charLength || text.getCharAt(start) != '\u001b' || text.getCharAt(start + 1L) != '[') return start
     var index = start + 2L
-    while (index < text.length) {
-        val character = text[index]
+    while (index < text.charLength) {
+        val character = text.getCharAt(index)
         if (character == 'm') return index + 1L
         if ((character < '0' || character > '9') && character != ';' && character != ':') return start
         index += 1L
@@ -20,10 +20,10 @@ private fun decorationEnd(text: String, start: Long): Long {
 internal fun stripDecoration(text: String): String {
     val result = StringBuilder()
     var index = 0L
-    while (index < text.length) {
+    while (index < text.charLength) {
         val end = decorationEnd(text, index)
         if (end > index) index = end
-        else { result.append(text[index]); index += 1L }
+        else { result.append(text.getCharAt(index)); index += 1L }
     }
     return result.toString()
 }
@@ -34,13 +34,13 @@ internal fun styledGraphemes(plain: String, styled: String): Array<StyledGraphem
     for (cluster in graphemes(plain)) {
         val decoration = StringBuilder()
         for (character in cluster) {
-            while (index < styled.length && styled[index] != character) {
+            while (index < styled.charLength && styled.getCharAt(index) != character) {
                 val end = decorationEnd(styled, index)
                 if (end == index) throw IllegalArgumentException(Some("highlighter changed visible text"))
                 decoration.append(styled.slice(index, end))
                 index = end
             }
-            if (index >= styled.length || styled[index] != character) {
+            if (index >= styled.charLength || styled.getCharAt(index) != character) {
                 throw IllegalArgumentException(Some("highlighter changed visible text"))
             }
             index += 1L
@@ -48,7 +48,7 @@ internal fun styledGraphemes(plain: String, styled: String): Array<StyledGraphem
         result.add(StyledGrapheme(cluster, decoration.toString()))
     }
     val trailing = StringBuilder()
-    while (index < styled.length) {
+    while (index < styled.charLength) {
         val end = decorationEnd(styled, index)
         if (end == index) throw IllegalArgumentException(Some("highlighter changed visible text"))
         trailing.append(styled.slice(index, end))

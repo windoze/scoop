@@ -83,8 +83,8 @@ public class PublicSuffixList internal constructor(
     }
 
     private fun lookupAscii(input: String, includePrivate: Boolean): PublicSuffixMatch {
-        val domain = if (input.endsWith(".")) input.slice(0L, input.length - 1L) else input
-        if (domain.length == 0L) throw IllegalArgumentException(Some("public suffix lookup requires a host name"))
+        val domain = if (input.endsWith(".")) input.slice(0L, input.charLength - 1L) else input
+        if (domain.charLength == 0L) throw IllegalArgumentException(Some("public suffix lookup requires a host name"))
         val labels = domain.split('.')
         var selected = labels.size - 1L
         var rule: String? = None
@@ -94,7 +94,7 @@ public class PublicSuffixList internal constructor(
         var suffix = ""
         var index = labels.size - 1L
         while (index >= 0L) {
-            suffix = labels[index] + (if (suffix.length == 0L) "" else "." + suffix)
+            suffix = labels[index] + (if (suffix.charLength == 0L) "" else "." + suffix)
             val flags = rules.getOrDefault(suffix, 0) and (if (includePrivate) 63 else 7)
             if ((flags and 36) != 0) { exception = index; exceptionPrivate = (flags and 4) == 0 }
             if ((flags and 9) != 0 && index <= selected) {

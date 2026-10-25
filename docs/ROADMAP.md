@@ -758,6 +758,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。PGO 为后续独立专项，在代表负载、成熟消费者和反馈原型净收益成立后排期；测量与全程序优化／ThinLTO 均不以 PGO 为前置。
 - 优化按长期、分批试验和交付推进：成本低且收益比较稳定的方案可直接纳入 release 默认设置；成本过高或收益不稳定的方案通过独立开关或等级决定是否启用、启用哪一级。默认值随实测结果调整，保留默认与调优配置的对照。
 - [已采纳优化与开启条件](program-performance/ENABLED-OPTIMIZATIONS.md)简要列出各项方案的默认 profile、适用条件及实际开关，后续采纳与策略变更时同步维护。
+- [String 字符扫描 API](program-performance/STRING-API.md)已统一为 O(n) 的 `charLength`／`getCharAt(idx)` 与 O(1) 的 `byteLength`，移除旧 `length`／`get`／下标；三目标内置库和调用点迁移及定向行为／编译失败／表示 ABI 验证完成，对象结构保持。
 - [启动阶段测量](program-performance/STARTUP-STATS.md)已通过 `--enable-startup-stats` 提供；默认预处理排除全部新增计时和报告，三目标默认程序的代码段与无测量基线逐字节相同。统计记录七阶段与已有索引数量，开关只改变 runtime／最终链接，作为注册与 stackmap 优化的指导，不提前引入 PGO。
 - [启动 owner 验证合并](program-performance/STARTUP-OWNER-JOIN.md)已按测量结果交付：首次 stackmap 合并时完成一次 owner 解析，重复 ODR 复用结果，全部必要检查仍在 managed 执行前完成。三个目标的代表启动降低约 2.7%～8.1%，完整文件与静态元数据不增长；全部 profile 默认，ABI 和预编译 Cone 保持。
 - [普通 managed poll 与有界叶函数](program-performance/ACTIVE-POLLS.md)已交付：普通 Full poll 仅一次 acquire 读取 phase，省去 TLS／mode／epoch，既有有界叶函数省入口；Gateway 保留首次激活及[本线程 relaxed 读取](program-performance/POLL-OWNER-READS.md)。三个目标动态调用内核降低约 16.5%／27.5%／39.5%，静态空间缩小，定向 GC／ABI 与编译成本已验证，所有 profile 默认。

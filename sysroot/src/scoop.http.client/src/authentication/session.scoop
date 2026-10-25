@@ -77,7 +77,7 @@ internal fun hasClientAuthorization(request: HttpRequest): Boolean {
 }
 
 internal fun clientAuthenticationPath(request: HttpRequest): String =
-    if (request.url.encodedPath.length == 0L) "/" else request.url.encodedPath
+    if (request.url.encodedPath.charLength == 0L) "/" else request.url.encodedPath
 
 internal fun clientAuthenticationDirectory(request: HttpRequest): String {
     val path = clientAuthenticationPath(request)

@@ -32,7 +32,7 @@ private fun exercise() {
     val large = String.fromChars(many)
     val roundTrip = large.toCharArray()
     gcCollect()
-    if (large.length != 120L || large.byteLength != 270L || roundTrip.size != many.size) {
+    if (large.charLength != 120L || large.byteLength != 270L || roundTrip.size != many.size) {
         fail(Some("many-size"))
     }
     for (index in 0L until many.size) {
@@ -43,7 +43,7 @@ private fun exercise() {
         val character = code.toChar()
         val one: Array<Char> = [character]
         val encoded = String.fromChars(one)
-        if (encoded.length != 1L || encoded[0L] != character ||
+        if (encoded.charLength != 1L || encoded.getCharAt(0L) != character ||
             encoded != character.toString() || encoded.toCharArray()[0L] != character) {
             fail(Some("unicode-boundary"))
         }

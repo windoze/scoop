@@ -11,11 +11,11 @@ internal fun foldedMatch(entry: String, term: String, prefix: Boolean): Long {
         val part = unicodeCasefold(character.toString())
         folded.append(part)
         var index = 0L
-        while (index < part.length) { offsets.add(offset); index += 1L }
+        while (index < part.charLength) { offsets.add(offset); index += 1L }
         offset += 1L
     }
     val query = unicodeCasefold(term)
     val position = folded.toString().indexOf(query)
     if (position < 0L || (prefix && position != 0L)) return -1L
-    return if (prefix) offsets[query.length - 1L] + 1L else offsets[position]
+    return if (prefix) offsets[query.charLength - 1L] + 1L else offsets[position]
 }

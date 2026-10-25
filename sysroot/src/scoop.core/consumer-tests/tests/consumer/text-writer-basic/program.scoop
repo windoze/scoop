@@ -14,7 +14,7 @@ private fun exerciseConsumer() {
     output.write("雪\u0000🚀")
     val first = writer.toString()
     check(first == "A雪\u0000🚀")
-    check(first.length == 4L)
+    check(first.charLength == 4L)
     check(writer.toString() == first)
     output.write("\n")
     gcCollect()

@@ -32,19 +32,19 @@ internal fun parsePublicSuffixList(text: String): PublicSuffixList {
     for (input in text.split('\n')) {
         number += 1L
         val line = input.trim()
-        if (line.length == 0L) continue
+        if (line.charLength == 0L) continue
         if (line.startsWith("//")) {
             if (line == "// ===BEGIN PRIVATE DOMAINS===") privateRules = true
             if (line == "// ===BEGIN ICANN DOMAINS===") privateRules = false
-            if (line.startsWith("// VERSION:")) version = Some(line.slice(11L, line.length).trim())
-            if (line.startsWith("// COMMIT:")) revision = Some(line.slice(10L, line.length).trim())
+            if (line.startsWith("// VERSION:")) version = Some(line.slice(11L, line.charLength).trim())
+            if (line.startsWith("// COMMIT:")) revision = Some(line.slice(10L, line.charLength).trim())
             continue
         }
         val token = line.substringBefore(' ').substringBefore('\t')
         val wildcard = token == "*" || token.startsWith("*.")
         val exception = token.startsWith("!")
-        val bare = if (token == "*") "" else if (wildcard) token.slice(2L, token.length)
-            else if (exception) token.slice(1L, token.length) else token
+        val bare = if (token == "*") "" else if (wildcard) token.slice(2L, token.charLength)
+            else if (exception) token.slice(1L, token.charLength) else token
         val name = if (token == "*") "" else publicSuffixRuleName(bare, number)
         if (exception && !name.contains('.')) throw PublicSuffixParseException(number, "exception requires at least two labels")
         val bit = (if (wildcard) 2 else if (exception) 4 else 1) shl (if (privateRules) 3 else 0)

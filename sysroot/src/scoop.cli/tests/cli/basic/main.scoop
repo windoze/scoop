@@ -115,7 +115,7 @@ private fun exercise() {
     schema.writeHelp(writer)
     equal(writer.toString(), help)
     check(contains(help, "Usage: serve") && contains(help, "--port, -p <Int>") && contains(help, "<Fast|Slow>"))
-    check(contains(help, "[default: 8080]") && contains(help, "<FILE> (required)  Input file") && help[help.length - 1L] == '\n')
+    check(contains(help, "[default: 8080]") && contains(help, "<FILE> (required)  Input file") && help.getCharAt(help.charLength - 1L) == '\n')
     check(!contains(help, "wire-port") && !contains(help, "ignored") && !contains(help, "fast-wire"))
     val failing = FailingHelp()
     try { schema.writeHelp(failing); throw IllegalArgumentException() }

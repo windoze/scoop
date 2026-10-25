@@ -59,13 +59,13 @@ public object AcceptAll : Validator {
 /** Suggests the newest matching history suffix when the cursor is at the end. */
 public class HistoryHinter public constructor() : Hinter {
     public override fun hint(line: String, cursor: Long, context: Context): Hint? {
-        if (line.byteLength == 0L || cursor != line.length || context.history.isEmpty) return None
+        if (line.byteLength == 0L || cursor != line.charLength || context.history.isEmpty) return None
         val start = if (context.historyIndex == context.history.size) context.historyIndex - 1L else context.historyIndex
         val found = context.history.startsWith(line, start, SearchDirection.Reverse)
         if (found == None) return None
         val entry = found!!.entry
-        if (found!!.position >= entry.length) return None
-        val suffix = entry.slice(found!!.position, entry.length)
+        if (found!!.position >= entry.charLength) return None
+        val suffix = entry.slice(found!!.position, entry.charLength)
         return Some(Hint(suffix, Some(suffix)))
     }
 }

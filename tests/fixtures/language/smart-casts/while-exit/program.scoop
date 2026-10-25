@@ -1,10 +1,10 @@
 fun length(value: Any): Long {
     while (value !is String) return 0L
-    return value.length
+    return value.charLength
 }
 fun main() {
     var value: Any = 42
     while (value !is String) value = "four"
-    println(value.length)
+    println(value.charLength)
     println(length("hello")); println(length(1))
 }

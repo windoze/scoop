@@ -22,7 +22,7 @@ private fun exerciseConsumer() {
     val array = MutableArray<String>(2L) { index -> "old" }
     write(array, 1L, "new")
     check(read(array, 1L) == "new")
-    val text: IndexGet<Long, Char> = "a中b"
+    val text: IndexGet<Long, Char> = "a中b".toCharArray()
     check(read(text, 1L) == '中')
     gcCollect()
     check(setter is IndexSet<String, Int> && elements.contains("two"))

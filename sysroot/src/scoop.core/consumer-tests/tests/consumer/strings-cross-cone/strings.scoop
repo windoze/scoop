@@ -5,7 +5,7 @@ import scoop.test.*
 public fun <T : List<Char>> encode(value: T, fallback: String = "empty"): String =
     if (value.size == 0L) { fallback } else { String.fromChars(value) }
 
-public fun middle(value: String, start: Long = 1L): String = value.slice(start, value.length)
+public fun middle(value: String, start: Long = 1L): String = value.slice(start, value.charLength)
 
 public fun walk(value: Iterable<Char>): Long {
     var count = 0L

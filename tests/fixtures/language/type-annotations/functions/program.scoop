@@ -1,10 +1,10 @@
 @Repeatable @Target([AnnotationTarget.Type])
 annotation class Mark(val n: Int)
 fun suspendShape(f: @Mark(1) suspend (@Mark(2) Int) -> @Mark(3) Int) = f
-fun (@Mark(4) String).sizePlus(n: @Mark(5) Int): @Mark(6) Int = this.length.toInt() + n
+fun (@Mark(4) String).sizePlus(n: @Mark(5) Int): @Mark(6) Int = this.charLength.toInt() + n
 fun main() {
     val add: @Mark(7) (@Mark(8) Int) -> @Mark(9) Int = { x: @Mark(10) Int -> x + 1 }
-    val receiver: @Mark(11) (@Mark(12) String).(@Mark(13) Int) -> @Mark(14) Int = fun String.(n: @Mark(15) Int): @Mark(16) Int { return this.length.toInt() + n }
+    val receiver: @Mark(11) (@Mark(12) String).(@Mark(13) Int) -> @Mark(14) Int = fun String.(n: @Mark(15) Int): @Mark(16) Int { return this.charLength.toInt() + n }
     println(add(41))
     println(receiver("xx", 40))
     println("xxx".sizePlus(39))

@@ -3,7 +3,7 @@ package scoop.text
 /**
  * Returns the half-open range of Unicode-scalar indices, rejecting invalid bounds.
  */
-public fun String.substring(startIndex: Long, endIndex: Long = this.length): String = slice(startIndex, endIndex)
+public fun String.substring(startIndex: Long, endIndex: Long = this.charLength): String = slice(startIndex, endIndex)
 
 /**
  * Returns text before the first literal delimiter, or missingDelimiterValue when absent.
@@ -18,7 +18,7 @@ public fun String.substringBefore(delimiter: String, missingDelimiterValue: Stri
  */
 public fun String.substringAfter(delimiter: String, missingDelimiterValue: String = this): String {
     val index = indexOf(delimiter)
-    return if (index < 0L) missingDelimiterValue else slice(index + delimiter.length, length)
+    return if (index < 0L) missingDelimiterValue else slice(index + delimiter.charLength, charLength)
 }
 
 /**
@@ -36,8 +36,8 @@ public fun String.substringAfter(delimiter: Char, missingDelimiterValue: String 
 /**
  * Removes a matching literal prefix; otherwise returns this string.
  */
-public fun String.removePrefix(prefix: String): String = if (startsWith(prefix)) slice(prefix.length, length) else this
+public fun String.removePrefix(prefix: String): String = if (startsWith(prefix)) slice(prefix.charLength, charLength) else this
 /**
  * Removes a matching literal suffix; otherwise returns this string.
  */
-public fun String.removeSuffix(suffix: String): String = if (endsWith(suffix)) slice(0L, length - suffix.length) else this
+public fun String.removeSuffix(suffix: String): String = if (endsWith(suffix)) slice(0L, charLength - suffix.charLength) else this

@@ -14,7 +14,7 @@ fun main() {
     val setter: IndexSet<Long, String> = mutable
     setter[0L] = "view"
     check(getter[0L] == "view")
-    val text: IndexGet<Long, Char> = "a中b"
+    val text: IndexGet<Long, Char> = "a中b".toCharArray()
     check(text[1L] == '中')
     check((immutable as Any) is IndexGet<Long, Int>)
     check((list as Any) is IndexSet<Long, Int>)

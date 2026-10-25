@@ -193,6 +193,6 @@ private fun EditingSession.changeCase(kind: Int) {
     if (start == end) return
     val text = line.slice(start, end)
     val replacement = if (kind > 0) unicodeUppercase(text) else if (kind < 0) unicodeLowercase(text)
-        else unicodeUppercase(text.slice(0L, 1L)) + unicodeLowercase(text.slice(1L, text.length))
+        else unicodeUppercase(text.slice(0L, 1L)) + unicodeLowercase(text.slice(1L, text.charLength))
     buffer.replace(start, end, replacement)
 }

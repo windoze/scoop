@@ -11,7 +11,7 @@ internal fun EditingSession.selectHistory(index: Long) {
     else {
         val entry = history.get(index)
         if (entry == None) { bellValue = true; return }
-        buffer.restore(BufferState(entry!!.entry, entry!!.entry.length))
+        buffer.restore(BufferState(entry!!.entry, entry!!.entry.charLength))
     }
     historyPosition = index
 }

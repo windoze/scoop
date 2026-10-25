@@ -36,7 +36,7 @@ private class HttpMediaTypeTests {
             val error = assertFailsWith<HttpFieldParseException> { HttpMediaType.parse(value) }
             assertEquals("Content-Type", error.field)
             assertEquals(offset, error.byteOffset)
-            assertTrue(error.detail.length > 0L)
+            assertTrue(error.detail.charLength > 0L)
             assertTrue(when (HttpMediaType.parseOrNone(value)) { case None -> true; else -> false })
         }
         for (value in ["text/html; x =a", "text/html; x", "text/html; x=", "text/html, application/json",

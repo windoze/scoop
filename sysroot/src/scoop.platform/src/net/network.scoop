@@ -58,7 +58,7 @@ public class IpNetwork public constructor(address: IpAddress,
         public fun parse(text: String): IpNetwork {
             val separator = text.indexOf('/')
             if (separator <= 0L) throw IllegalArgumentException(Some("CIDR requires an IP address and prefix length"))
-            val prefix = decimal(text.slice(separator + 1L, text.length))
+            val prefix = decimal(text.slice(separator + 1L, text.charLength))
             if (prefix > 128u) throw IllegalArgumentException(Some("CIDR prefix length is out of range"))
             return IpNetwork(IpAddress.parse(text.slice(0L, separator)), prefix.toInt())
         }

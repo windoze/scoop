@@ -40,7 +40,7 @@ fun main() {
         var invalid = false
         try {
             val unexpected = String.fromCString(nativeString(1))
-            expect(unexpected.length < 0L)
+            expect(unexpected.charLength < 0L)
         } catch (error: CharacterCodingException) {
             expect(error.byteOffset == 1L)
             invalid = true

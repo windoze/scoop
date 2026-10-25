@@ -18,5 +18,5 @@ fun main() {
     val absent: String? = None
     println(nickname ?: "guest")
     println(absent ?: "guest")
-    println(nickname?.length ?: 0L)
+    println(nickname?.charLength ?: 0L)
 }

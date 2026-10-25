@@ -14,7 +14,7 @@ var total: Count = 1
     @Mark("computed") @receiver:Mark("property receiver") val doubled: Count
         @Mark("direct getter") get() = value * 2
     @Mark("method") @receiver:Mark("method receiver") fun read(@Mark("increment") increment: Count): Count = value + increment
-    @Mark("secondary") constructor(@Mark("text") text: String): this(text.length.toInt(), 0) {}
+    @Mark("secondary") constructor(@Mark("text") text: String): this(text.charLength.toInt(), 0) {}
 }
 @Mark("struct") struct Pair(@Mark("first field") val first: Count, @param:Mark("second parameter") val second: Count) {
     @Mark("value property") val sum: Count get() = first + second

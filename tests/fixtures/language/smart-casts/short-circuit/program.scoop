@@ -1,10 +1,10 @@
 fun length(value: Any, flag: Boolean): Long {
     if (value !is String || if (flag) false else return -2L) return -1L
-    return value.length
+    return value.charLength
 }
 fun conjunction(value: Any, flag: Boolean): Long {
     if (!(value is String && if (flag) true else false)) return 0L
-    return value.length
+    return value.charLength
 }
 fun main() {
     println(length("hello", true)); println(length("hello", false)); println(length(42, true))

@@ -18,7 +18,7 @@ public class MemoryHistory public constructor(config: Config = Config()) : Histo
 
     public override fun add(line: String): Boolean {
         if (maxLength == 0L || line.byteLength == 0L) return false
-        if (ignoreSpace && line[0L].toString().isBlank()) return false
+        if (ignoreSpace && line.getCharAt(0L).toString().isBlank()) return false
         if (ignoreDuplicates && size > 0L && entries[size - 1L] == line) return false
         if (size == maxLength) entries.removeAt(0L)
         entries.add(line)
@@ -44,7 +44,7 @@ public class MemoryHistory public constructor(config: Config = Config()) : Histo
         while (index >= 0L && index < size) {
             val entry = entries[index]
             val position = if (!caseSensitive) foldedMatch(entry, term, prefix) else if (prefix) {
-                if (entry.startsWith(term)) term.length else -1L
+                if (entry.startsWith(term)) term.charLength else -1L
             } else entry.indexOf(term)
             if (position >= 0L) return Some(SearchResult(entry, index, position))
             index += if (direction == SearchDirection.Forward) 1L else -1L

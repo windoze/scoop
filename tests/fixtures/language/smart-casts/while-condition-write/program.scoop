@@ -1,5 +1,5 @@
 fun main() {
     var value: Any = "before"
     if (value !is String) return
-    while (value.length > 0L) value = 42
+    while (value.charLength > 0L) value = 42
 }

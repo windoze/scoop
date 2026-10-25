@@ -4,6 +4,8 @@
 
 “release 默认”指编译该 Cone 时使用 `scoop build --release` 或 `scoop build --profile release`，并满足表中的适用条件；独立编译器使用 `scoopc build --profile release`。CLI 默认 profile 为 debug。目前下列优化没有各自独立的公开开关或用户可设等级，编译器内部选项不等于 CLI 参数。
 
+相关 API 调整：[String 的字符扫描名称](STRING-API.md)在全部 profile 生效，无开关；`charLength`／`getCharAt` 保持 O(n)，`byteLength` 保持 O(1)，内部存储与算法保持。
+
 ## 程序优化
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |

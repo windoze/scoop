@@ -43,7 +43,7 @@ public class SocketAddress public constructor(
             if (separator < 1L) throw IllegalArgumentException(Some("invalid socket address"))
             val address = IpAddress.parse(text.slice(if (bracketed) 1L else 0L, separator))
             if (bracketed != (address.family == AddressFamily.Ipv6)) throw IllegalArgumentException(Some("IPv6 endpoint requires brackets"))
-            val port = decimal(text.slice(separator + (if (bracketed) 2L else 1L), text.length))
+            val port = decimal(text.slice(separator + (if (bracketed) 2L else 1L), text.charLength))
             if (port > 65535u) throw IllegalArgumentException(Some("port is outside 0..65535"))
             return SocketAddress(address, port.toInt())
         }

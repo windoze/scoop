@@ -11,14 +11,14 @@ internal fun routePattern(path: String, group: Boolean = false): RoutePattern {
         throw IllegalArgumentException(Some("route must be an absolute path without query or fragment"))
     val parts = ArrayList<RoutePart>()
     val names = ArrayList<String>()
-    val segments = path.slice(1L, path.length).split('/')
+    val segments = path.slice(1L, path.charLength).split('/')
     var index = 0L
     for (segment in segments) {
         if (segment.startsWith("{")) {
             if (!segment.endsWith("}")) throw IllegalArgumentException(Some("unterminated route parameter"))
             val tail = segment.startsWith("{*")
-            val name = segment.slice(if (tail) 2L else 1L, segment.length - 1L)
-            if (name.length == 0L || name.indexOf('{') >= 0L || name.indexOf('}') >= 0L || name.indexOf('*') >= 0L)
+            val name = segment.slice(if (tail) 2L else 1L, segment.charLength - 1L)
+            if (name.charLength == 0L || name.indexOf('{') >= 0L || name.indexOf('}') >= 0L || name.indexOf('*') >= 0L)
                 throw IllegalArgumentException(Some("invalid route parameter name"))
             for (existing in names) if (existing == name) throw IllegalArgumentException(Some("duplicate route parameter name"))
             if (tail && (group || index != segments.size - 1L)) throw IllegalArgumentException(Some("wildcard must end an endpoint path"))

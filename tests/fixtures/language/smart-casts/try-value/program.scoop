@@ -3,7 +3,7 @@ fun length(value: Any): Long {
     val result: Long = try {
         if (value !is String) return 0L
         number()
-    } catch (error: UnwrapException) { value.length }
+    } catch (error: UnwrapException) { value.charLength }
     return result
 }
 fun main() { println(length("value")); println(length(42)) }

@@ -37,7 +37,7 @@ public class Editor public constructor(
     }
 
     /** Creates the event-driven editor used by the terminal adapter. */
-    public fun start(initial: String = "", cursor: Long = initial.length): EditingSession {
+    public fun start(initial: String = "", cursor: Long = initial.charLength): EditingSession {
         val session = EditingSession(config, history, initial, cursor, completer, hinter, highlighter, validator)
         session.kills = killRing
         session.printer = printer
@@ -58,7 +58,7 @@ public class Editor public constructor(
     public fun unbindSequence(keys: Array<KeyEvent>): Boolean = removeBinding(bindings, keys)
 
     /** Reads a line, selecting terminal editing or redirected-stream input automatically. */
-    public fun readLine(prompt: String = "", initial: String = "", cursor: Long = initial.length): String {
+    public fun readLine(prompt: String = "", initial: String = "", cursor: Long = initial.charLength): String {
         if (active) throw IllegalStateException(Some("editor is already reading"))
         active = true
         try {

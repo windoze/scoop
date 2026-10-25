@@ -40,13 +40,13 @@ internal fun EditingSession.complete(backward: Boolean) {
 internal fun commonCompletionPrefix(candidates: Array<Candidate>): String {
     if (candidates.size == 0L) return ""
     val first = candidates[0L].replacement
-    var length = first.length
+    var length = first.charLength
     var index = 1L
     while (index < candidates.size) {
         val other = candidates[index].replacement
-        if (other.length < length) length = other.length
+        if (other.charLength < length) length = other.charLength
         var matched = 0L
-        while (matched < length && first[matched] == other[matched]) matched += 1L
+        while (matched < length && first.getCharAt(matched) == other.getCharAt(matched)) matched += 1L
         length = matched
         index += 1L
     }

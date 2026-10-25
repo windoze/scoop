@@ -596,7 +596,7 @@ when (s) {
 
 ```scoop
 when (val item = load()) {
-    is String if item.length > 0 -> println(item.length)
+    is String if item.charLength > 0 -> println(item.charLength)
     is String -> println("empty")
     else if canRetry() -> retry()
     else -> stop()
@@ -637,7 +637,7 @@ when {
 }
 
 when (val item = load()) {
-    is String -> println(item.length)
+    is String -> println(item.charLength)
     else -> println("other")
 }
 ```
@@ -1612,7 +1612,7 @@ Increment/Decrement 的递归上界使声明的结果符合 9.3.1 的 receiver �
 | `Component1<Result>` | `component1(): Result` |
 | `Component2<Result>` | `component2(): Result` |
 
-List<T> 继承 IndexGet<Long, T> 并保留自己的 override get；MutableList<T> 另继承 IndexSet<Long, T> 并保留 override set。Array<T>、MutableArray<T> 与 ArrayList<T> 通过原有 List/MutableList 关系获得 IndexGet；MutableArray<T> 另外显式实现 IndexSet<Long, T>；String 显式实现 IndexGet<Long, Char>。MutableArray 的公开 set 使用普通源码正文调用私有存储 intrinsic，与已有 arrayRead/get 分层相同。
+List<T> 继承 IndexGet<Long, T> 并保留自己的 override get；MutableList<T> 另继承 IndexSet<Long, T> 并保留 override set。Array<T>、MutableArray<T> 与 ArrayList<T> 通过原有 List/MutableList 关系获得 IndexGet；MutableArray<T> 另外显式实现 IndexSet<Long, T>。String 不实现 IndexGet，字符定位使用 11.4 的普通方法 getCharAt。MutableArray 的公开 set 使用普通源码正文调用私有存储 intrinsic，与已有 arrayRead/get 分层相同。
 
 其余表中接口由需要这些操作的用户类型显式实现。函数值、FunPtr、struct/tuple 的内建解构和只有同名方法的对象均不自动获得对应接口。Component1/2 为前两个位置提供独立约束，不改变 struct/tuple 的内建解构；class、interface 及有对应成员上界的泛型使用既有 componentN 决议。迭代能力继续由 11.8 的 Iterable<T>/Iterator<T> 表达，不增加平行迭代协议。标准接口覆盖这些固定签名；其他参数数量、component 位置以及 generic、suspend、unsafe、default、vararg 形式继续按 9.3.1～9.3.4 合法声明和调用，需要名义 bound 时可声明普通用户接口。接口列表不成为运算符可用性的前置条件。
 
@@ -2012,9 +2012,9 @@ String 是 immutable 引用类型，持有合法 UTF-8 编码的 Unicode 标量�
 
 | API | 语义 |
 | --- | --- |
-| `length: Long` | Unicode 标量值数量 |
-| `byteLength: Long` | UTF-8 字节数 |
-| `operator get(index: Long): Char` | 第 index 个标量值 |
+| `charLength: Long` | Unicode 标量值数量，O(byteLength) |
+| `byteLength: Long` | UTF-8 字节数，O(1) |
+| `getCharAt(idx: Long): Char` | 第 idx 个标量值，最坏 O(byteLength) |
 | `slice(start: Long, endExclusive: Long): String` | 按标量索引取半开区间 |
 | `iterator(): Iterator<Char>` | 按标量顺序迭代，普通 `Iterable<Char>` conformance |
 | `toCharArray(): Array<Char>` | 独立、只读的字符数组快照 |
@@ -2030,9 +2030,9 @@ String 是 immutable 引用类型，持有合法 UTF-8 编码的 Unicode 标量�
 | `String.withCString<R>(block: (Ptr<Int8>) -> R): R` | `@Unsafe` 的作用域 C 字符串副本，补结尾 NUL；原内容含 U+0000 时抛出 IllegalArgumentException |
 | `String.fromCString(pointer: Ptr<Int8>): String` | `@Unsafe`；读取到首个 NUL，按相同严格 UTF-8 规则复制为 String |
 
-`get` 要求 `0 <= index < length`，`slice` 要求 `0 <= start <= endExclusive <= length`，否则抛 `IndexOutOfBoundsException`。`slice(length, length)` 合法并返回空串。索引不接受隐式数值转换；所有上述计数与边界直接使用 Long。`"A雪😀".length == 3L`，其 byteLength 为 8L。组合字符分别计数，不执行 Unicode normalization，因此 `"e\u0301"` 与 `"\u00E9"` 不相等且长度不同。
+`getCharAt` 要求 `0 <= idx < charLength`，`slice` 要求 `0 <= start <= endExclusive <= charLength`，否则抛 `IndexOutOfBoundsException`。`slice(charLength, charLength)` 合法并返回空串。索引不接受隐式数值转换；所有上述计数与边界直接使用 Long。`"A雪😀".charLength == 3L`，其 byteLength 为 8L。组合字符分别计数，不执行 Unicode normalization，因此 `"e\u0301"` 与 `"\u00E9"` 不相等且字符数量不同。
 
-byteLength 为 O(1)；length 与索引定位为 O(byteLength)，完整顺序迭代为 O(byteLength)。String 实现 `Iterable<Char>`，不实现 `List<Char>`。
+byteLength 为 O(1)；charLength 与 getCharAt 的最坏时间为 O(byteLength)，完整顺序迭代为 O(byteLength)。String 实现 `Iterable<Char>`，不实现 `List<Char>` 或 `IndexGet<Long, Char>`；不提供旧 length 属性、get 方法或 `str[n]` 下标运算，以显式名称区分字符扫描与常数时间的字节计数。这是公开 API 的调整，不增加字符计数缓存或改变 String 的 UTF-8 对象表示。
 
 core 内部的 `string_byte_length(String): Long`、`string_byte_at(String, Long): Byte`、`string_character_at_byte(String, Long): Char` 是 13.1 的三个 top-level intrinsic 登记项，用于上述表示操作。字节访问要求有效索引，字符解码要求位于有效 UTF-8 标量起点；core 保证这些内部前置条件，索引越界仍按 runtime 内部错误终止。它们不增加公开 API，不标注 `@NoGC`：源码函数含 managed 引用，仍遵守 13.2；编译器内部可将有界表示读取实现为无 safepoint 的 load 或 runtime leaf。
 

@@ -1,14 +1,14 @@
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun badIndex(text: String, index: Long) {
-    try { text[index] }
+    try { text.getCharAt(index) }
     catch (error: IndexOutOfBoundsException) { return }
     throw IllegalStateException()
 }
 
 fun main() {
     val text = "A" + "雪🙂"
-    check(text[0L] == 'A' && text[1L] == '雪' && text[2L] == '🙂')
+    check(text.getCharAt(0L) == 'A' && text.getCharAt(1L) == '雪' && text.getCharAt(2L) == '🙂')
     badIndex(text, -1L)
     badIndex(text, 3L)
     badIndex("", 0L)
@@ -16,7 +16,7 @@ fun main() {
     val bytes: List<Byte> = [65.toByte(), 0xe9.toByte(), 0x9b.toByte(), 0xaa.toByte()]
     val decoded = String.fromUtf8(bytes)
     gcCollect()
-    check(decoded[1L] == '雪')
+    check(decoded.getCharAt(1L) == '雪')
     val invalid: List<Byte> = [0xff.toByte()]
     check(String.fromUtf8OrNone(invalid) == None)
     println("core string ABI")

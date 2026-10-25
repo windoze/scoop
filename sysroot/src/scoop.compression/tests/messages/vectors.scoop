@@ -60,7 +60,7 @@ private class DeflateMessageVectorTests {
                             assertEquals(text, String.fromUtf8(decodeDeflateMessage(decoder, encoded)))
                             if (index == 0) first = encoded.toHexString()
                             if (index == 1) {
-                                if (takeover) assertTrue(encoded.toHexString().length < first.length)
+                                if (takeover) assertTrue(encoded.toHexString().charLength < first.charLength)
                                 else assertEquals(first, encoded.toHexString())
                             }
                             if (index >= 2) assertEquals("00", encoded.toHexString())
@@ -90,7 +90,7 @@ private class DeflateMessageVectorTests {
         assertTrue(error.kind == CompressionFailureKind.OutputLimit)
         assertSame(error, decoder.failure!!)
         decoder.close(); decoder.close(); gcCollect()
-        assertTrue(error.detail.length > 0L)
+        assertTrue(error.detail.charLength > 0L)
         assertFailsWith<IllegalStateException> { decodeDeflateMessage(decoder, emptyList<Byte>()) }
     }
 }

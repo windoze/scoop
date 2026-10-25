@@ -144,7 +144,7 @@ public class Charset private constructor(
             val names = ArrayList<String>()
             @Unsafe {
                 for (name in charsetText(charsetNames(), "list charsets").split('\n')) {
-                    if (name.length > 0L) names.add(name)
+                    if (name.charLength > 0L) names.add(name)
                 }
             }
             return names.toArray()

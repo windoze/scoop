@@ -2,6 +2,6 @@ fun length(flag: Boolean): Long {
     var value: Any = "before"
     if (value !is String) return 0L
     if (flag) value = 42
-    return value.length
+    return value.charLength
 }
 fun main() {}

@@ -105,7 +105,7 @@ internal fun defaultUrlPort(scheme: String): Int = if (scheme == "https" || sche
 
 internal fun urlPort(text: String?): Int? {
     if (text == None) return None
-    if (text!!.length == 0L) urlError(UrlComponent.Port, "explicit port cannot be empty")
+    if (text!!.charLength == 0L) urlError(UrlComponent.Port, "explicit port cannot be empty")
     var value = 0
     for (character in text!!) {
         val digit = character.code - 48

@@ -9,7 +9,7 @@ fun checkFlags(values: Array<String>, decoder: Decoder) {
     while (index < values.size) {
         val flag = values[index]
         val child = sequence.element()
-        requireValid(flag.length > 1L && flag.startsWith('-'), child, "expected a compiler option")
+        requireValid(flag.charLength > 1L && flag.startsWith('-'), child, "expected a compiler option")
         for (character in flag) { requireValid(character != '\u0000', child, "invalid option") }
         requireValid(!managedFlag(flag), child, "driver-managed option")
         var include: String? = None
@@ -17,7 +17,7 @@ fun checkFlags(values: Array<String>, decoder: Decoder) {
             if (flag.startsWith(prefix)) { include = Some(prefix) }
         }
         if (include != None) {
-            var path = flag.substring(include!!.length)
+            var path = flag.substring(include!!.charLength)
             if (path == "") {
                 index += 1L
                 requireValid(index < values.size, child, "missing include path")
@@ -27,7 +27,7 @@ fun checkFlags(values: Array<String>, decoder: Decoder) {
         } else if (flag == "-D" || flag == "-U") {
             index += 1L
             requireValid(index < values.size, child, "missing macro value")
-            requireValid(values[index].length != 0L, sequence.element(), "empty macro value")
+            requireValid(values[index].charLength != 0L, sequence.element(), "empty macro value")
         }
         index += 1L
     }

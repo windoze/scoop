@@ -47,5 +47,5 @@ fun main() {
     factory(); { println("separate-block") }
     println(selected { 19 })
     println(overloaded(20) { it + 1 })
-    println(overloaded("abc") { it.length.toInt() })
+    println(overloaded("abc") { it.charLength.toInt() })
 }

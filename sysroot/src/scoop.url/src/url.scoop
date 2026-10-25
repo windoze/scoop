@@ -79,7 +79,7 @@ public class Url internal constructor(
      */
     public fun httpRequestTarget(): String {
         httpOrigin()
-        return (if (encodedPath.length == 0L) "/" else encodedPath) +
+        return (if (encodedPath.charLength == 0L) "/" else encodedPath) +
             (if (encodedQuery == None) "" else "?" + encodedQuery!!)
     }
 

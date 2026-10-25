@@ -143,7 +143,7 @@ runtime 后备入口的拆箱及数组克隆对源对象的检查在同一 heap 
 
 ### 2.4 String 与数组
 
-String 持有合法 UTF-8，允许 U+0000，无隐含结尾 NUL。byte length 位于 offset 16，bytes 从 offset 24 开始；length 不超过 `INT64_MAX`。分配大小为 `alignUp(24 + byte_length, 8)`。
+String 持有合法 UTF-8，允许 U+0000，无隐含结尾 NUL。byte length 位于 offset 16，bytes 从 offset 24 开始；字节数不超过 `INT64_MAX`。分配大小为 `alignUp(24 + byte_length, 8)`。语言规范 11.4 的 charLength／getCharAt API 沿用现有字符扫描与定位实现，不新增字段或缓存；byteLength 仍直接读取既有字节数。
 
 语言规范 11.4 的三个有界表示 intrinsic 可在活动 Managed 状态直接读取，或调用内部 NoGC runtime leaf：`scoop_rt_string_byte_length_leaf(String*) -> i64`、`scoop_rt_string_byte_at_leaf(String*, i64) -> i8`、`scoop_rt_string_character_at_byte_leaf(String*, i64) -> u32`。leaf 不分配、park、转入 native、回调或保留传入地址，返回前最多读取一个 UTF-8 标量；调用期间对象不会移动。byte-at 和 cursor 解码保留索引检查；有效 String／标量起点是内部解码前置条件。内部 leaf 使用独立符号并复用旧入口的同一表示实现，避免把原 Managed extern 符号的合同改成 NoGC。旧 native 符号与实现保留，普通显式 extern 声明仍遵守自身调用模式；不得按符号拼写把它改成 intrinsic。完整 length、hash、比较或查找不因这些有界入口而改变线程协调合同。
 

@@ -11,7 +11,7 @@ fun main() {
     println(f"Current first: ${names[0L]}")
 
     val text = "Scoop 中文"
-    println(f"scalars=${text.length}, bytes=${text.toByteArray().size}")
+    println(f"scalars=${text.charLength}, bytes=${text.toByteArray().size}")
     val builder = StringBuilder()
     for (number in 1..3) {
         builder.append(number.toString())
