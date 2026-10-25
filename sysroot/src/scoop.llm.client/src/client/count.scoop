@@ -9,7 +9,7 @@ internal suspend fun countLlmTokens(client: LlmClientState, model: LlmModel, req
         val counter = model.endpoint.provider.protocol.tokenCounter() ?:
             throw LlmRequestException("/provider", "selected dialect has no server token count operation")
         checkModelRequest(model.capabilities, request)
-        val url = counter.countUrl(model.endpoint.baseUrl, model.id)
+        val url = counter.countUrl(model.baseUrl, model.id)
         val bytes = Json.stringify(counter.encodeRequest(model.id, request)).toByteArray()
         performLlmJsonRequest<TokenCount>(call, model.endpoint, url, bytes, options) { parsed, attempt ->
             val decoded = counter.decodeResponse(model.id, parsed)

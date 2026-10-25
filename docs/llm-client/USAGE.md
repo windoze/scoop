@@ -625,6 +625,29 @@ val result = client.generate(model, next)
 
 ModelCapabilities.serverCompaction 缺省 Unknown；明确不支持会在认证前失败。是否实现该操作由已选 Responses dialect 决定，OpenAI 开启，DeepSeek Responses 不提供。纯适配入口为 ResponsesProtocol.compactUrl／encodeCompactionRequest／decodeCompaction。依据：[OpenAI 压缩文档](https://developers.openai.com/api/docs/guides/compaction)。
 
+### 7.8 Azure 的 v1 与旧版部署
+
+Azure v1 直接配置资源的 `/openai/v1` 地址，model ID 使用实际 deployment 名称。仍由 provider 显式选择 Responses 或 Chat，缺省 Direct 不追加 api-version：
+
+```scoop
+val endpoint = LlmEndpoint(Providers.openAiResponses(), LlmAuth.header("api-key", apiKey),
+    Some(Url.parse("https://resource.openai.azure.com/openai/v1")))
+val model = endpoint.model("deployment-name")
+val result = client.generate(model, LlmRequest([Message([Text("你好")])]))
+```
+
+旧版 Chat 把 model ID 用作 URL 中的 deployment 名称，资源 URL 与版本在 endpoint 配置一次，同一 endpoint 可以使用多个 deployment：
+
+```scoop
+val endpoint = LlmEndpoint(Providers.openAiChat(), LlmAuth.header("api-key", apiKey),
+    Some(Url.parse("https://resource.openai.azure.com")),
+    deployment = LlmDeployment.AzureOpenAiLegacy("2024-10-21"))
+val model = endpoint.model("deployment-name")
+val result = client.generate(model, request)
+```
+
+这里的普通生成、SSE 和工具历史继续共用同一组入口。旧版路由只适用于 ChatProtocol；不要再在 baseUrl 重复配置 api-version。应用提供 Entra token 时，可把 authentication 换成 `LlmAuth.bearer(suspend { acquireAccessToken() })`；轮换 API key 同样可用 `LlmAuth.header("api-key", suspend { acquireApiKey() })`。回调每次尝试执行一次，凭据获取和刷新由应用负责，库不查找环境变量或登录账号。测试仅使用本地 mock，真实 Azure 互通待可用凭据后补测。依据：[Azure v1 文档](https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle)。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |

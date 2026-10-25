@@ -1,0 +1,64 @@
+package scoop.llm.client.tests.deployment
+
+import scoop.asyncio.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class DeploymentAuthenticationTest {
+    @Test
+    fun `Azure deployment authentication callbacks are lazy and return fresh sensitive fields`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val fetched = DeploymentTokens()
+            val bearer = LlmAuth.bearer(suspend { fetched.next("token-") })
+            val header = LlmAuth.header("api-key", suspend { fetched.next("key-") })
+            assertEquals(0L, fetched.count)
+            val request = LlmAuthRequest("POST", Url.parse("https://example.test/openai/v1/responses"), [], [])
+            for ((auth, name, value) in [(bearer, "Authorization", "Bearer token-1"), (bearer, "Authorization", "Bearer token-2"),
+                (header, "api-key", "key-3"), (LlmAuth.bearer("static"), "Authorization", "Bearer static")]) {
+                val fields = auth.fields(request)
+                assertEquals(1L, fields.size)
+                assertEquals(name, String.fromUtf8(fields[0].name))
+                assertEquals(value, String.fromUtf8(fields[0].value))
+                assertTrue(fields[0].neverIndex)
+            }
+            assertEquals(3L, fetched.count)
+            for (auth in [LlmAuth.bearer(suspend { "" }), LlmAuth.header("api-key", suspend { "" })]) {
+                expectLlmFailure<IllegalArgumentException> suspend { auth.fields(request); Unit }
+            }
+        }
+    }
+
+    @Test
+    fun `Azure deployment token source failures and cancellation remain unsent calls`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val failed = FinishedCalls()
+                val sourceError = IllegalStateException(Some("token source failed"))
+                val failedModel = LlmEndpoint(Providers.openAiChat(), LlmAuth.bearer(suspend { throw sourceError })).model("m")
+                val thrown = expectLlmFailure<IllegalStateException> suspend {
+                    client.generate(failedModel, sampleRequest, LlmCallOptions(onFinished = Some(suspend { value -> failed.record(value) }))); Unit
+                }
+                assertSame(sourceError, thrown)
+                val timedOut = FinishedCalls()
+                val waiting = LlmAuth.bearer(suspend { currentEventLoop().sleep(Duration.seconds(60L)); "late" })
+                expectLlmFailure<LlmTimeoutException> suspend {
+                    client.generate(LlmEndpoint(Providers.openAiChat(), waiting).model("m"), sampleRequest,
+                        LlmCallOptions(timeouts = LlmTimeouts(total = Some(Duration.milliseconds(25L))),
+                            onFinished = Some(suspend { value -> timedOut.record(value) }))); Unit
+                }
+                for (finished in [failed, timedOut]) {
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(1L, finished.values[0].attempts.size)
+                    assertEquals(None, finished.values[0].attempts[0].request.sentAt)
+                    assertEquals(None, finished.values[0].attempts[0].response.receivedAt)
+                }
+            }
+        }
+    }
+}

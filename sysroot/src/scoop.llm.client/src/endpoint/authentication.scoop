@@ -16,7 +16,9 @@ public interface LlmAuth {
     public companion object {
         public fun none(): LlmAuth = NoLlmAuth()
         public fun bearer(token: String): LlmAuth = BearerLlmAuth(token)
+        public fun bearer(token: suspend () -> String): LlmAuth = CallbackHeaderLlmAuth("Authorization", token, "Bearer ")
         public fun header(name: String, value: String): LlmAuth = HeaderLlmAuth(name, value)
+        public fun header(name: String, value: suspend () -> String): LlmAuth = CallbackHeaderLlmAuth(name, value)
         public fun awsSigV4(region: String, credentials: suspend () -> AwsSigV4Credentials,
             service: String = "bedrock"): LlmAuth = AwsSigV4LlmAuth(region, credentials, service)
     }
@@ -33,7 +35,15 @@ private class NoLlmAuth : LlmAuth {
 }
 
 private class BearerLlmAuth(token: String) : LlmAuth {
-    private val field: HttpField = HttpField("Authorization".toByteArray(), ("Bearer " + token).toByteArray())
+    private val field: HttpField = HttpField("Authorization".toByteArray(), ("Bearer " + token).toByteArray(), neverIndex = true)
     init { if (token.length == 0L) throw IllegalArgumentException(Some("bearer token must not be empty")) }
     public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> = [field]
+}
+
+private class CallbackHeaderLlmAuth(val name: String, val value: suspend () -> String, val prefix: String = "") : LlmAuth {
+    public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> {
+        val token = value()
+        if (token.length == 0L) throw IllegalArgumentException(Some("authentication header must not be empty"))
+        return [HttpField(name.toByteArray(), (prefix + token).toByteArray(), neverIndex = true)]
+    }
 }

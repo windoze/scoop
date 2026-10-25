@@ -9,7 +9,8 @@ public class LlmEndpoint public constructor(
     public val provider: LlmProvider,
     public val authentication: LlmAuth,
     baseUrl: Url? = None,
-    fields: Array<HttpField> = []
+    fields: Array<HttpField> = [],
+    public val deployment: LlmDeployment = LlmDeployment.Direct
 ) {
     public val fields: Array<HttpField> = bindLlmFields(provider.protocol.generationFields(), fields)
     public val baseUrl: Url = baseUrl ?: (provider.defaultBaseUrl ?: throw IllegalArgumentException(Some("provider has no default base URL")))
@@ -18,6 +19,7 @@ public class LlmEndpoint public constructor(
             throw IllegalArgumentException(Some("LLM endpoint requires an absolute http or https URL"))
         this.baseUrl.httpOrigin()
         if (this.baseUrl.encodedFragment != None) throw IllegalArgumentException(Some("LLM endpoint URL must not contain a fragment"))
+        checkLlmDeployment(deployment, provider.protocol, this.baseUrl, llmPresent(baseUrl))
     }
     public fun model(id: String, capabilities: ModelCapabilities? = None): LlmModel =
         LlmModel(this, id, capabilities ?: ModelCapabilities())
@@ -41,5 +43,5 @@ public class LlmModel internal constructor(
     public val id: String,
     public val capabilities: ModelCapabilities
 ) {
-    init { if (id.length == 0L) throw IllegalArgumentException(Some("model ID must not be empty")) }
+    internal val baseUrl: Url = bindLlmModelBaseUrl(endpoint, id)
 }

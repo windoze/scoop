@@ -1,0 +1,81 @@
+package scoop.llm.client.tests.deployment
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.llm.client.tests.stream.streamChunk
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class AzureLegacyNetworkTest {
+    @Test
+    fun `Azure deployment legacy mock routes each model and continues saved tools through SSE`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val keys = DeploymentTokens()
+            val auth = DeploymentRecordingAuth(LlmAuth.header("api-key", suspend { keys.next("key-") }))
+            val endpoint = LlmEndpoint(Providers.openAiChat(), auth, Some(Url.parse(original.baseUrl.toString() + "/gateway?route=a%2Fb&flag")),
+                deployment = AzureOpenAiLegacy("2024-10-21"))
+            val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}"))]
+            val bodies = ArrayList<Array<Byte>>()
+            val targets = ArrayList<String>()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (number in [0L, 1L]) {
+                        val incoming = connection.receiveRequest()!!
+                        val target = when (incoming.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        targets.add(target)
+                        assertEquals("/v1/gateway/openai/deployments/" + (if (number == 0L) "primary%2Fdeployment%3Av1" else "backup.v2") +
+                            "/chat/completions?route=a%2Fb&flag&api-version=2024-10-21", target)
+                        assertEquals("key-" + (number + 1L).toString(), String.fromUtf8(incoming.head.fields.findAll("api-key".toByteArray())[0].value))
+                        val bytes = incoming.body.readAllBytes(8192L)
+                        bodies.add(bytes)
+                        val body = Json.parse(String.fromUtf8(bytes))
+                        assertEquals(if (number == 0L) "primary/deployment:v1" else "backup.v2", body["model"]!!.asString())
+                        if (number == 0L) sendLlmReply(connection, 200U,
+                            "{\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\",\"content_filter_results\":[]}],\"prompt_filter_results\":null}")
+                        else {
+                            assertTrue(body["stream"]!!.asBoolean())
+                            assertEquals("call-1", body["messages"]!![2]["tool_call_id"]!!.asString())
+                            val sse = "data: {\"choices\":[],\"prompt_filter_results\":{\"changed\":true}}\n\ndata: " +
+                                streamChunk("{\"content\":\"continued\"}", Some("stop")) +
+                                "\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":3,\"total_tokens\":11}}\n\ndata: [DONE]\n\n"
+                            sendLlmReply(connection, 200U, sse,
+                                [HttpField("Content-Type".toByteArray(), "text/event-stream".toByteArray())])
+                        }
+                    }
+                }
+            }
+            withLlmClient suspend { client ->
+                val request = LlmRequest(sampleRequest.input, tools = tools)
+                val result = client.generate(endpoint.model("primary/deployment:v1"), request)
+                val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(result.response))
+                val input = ArrayList<LlmInputItem>()
+                for (item in request.input) input.add(item)
+                for (item in saved.toInput()) input.add(item)
+                input.add(ToolResult(saved.clientToolCalls[0].reference, [Text("found")]))
+                val stream = client.openStream(endpoint.model("backup.v2"), LlmRequest(input.toArray(), tools = tools),
+                    retention = StreamRetention.Result)
+                val text = StringBuilder()
+                stream.useAsync suspend { opened ->
+                    val deltas = opened.textDeltas()
+                    while (true) { val delta = deltas.next() ?: break; text.append(delta.text) }
+                }
+                assertEquals("continued", text.toString())
+                assertEquals(Some(11L), stream.result().response.usage.tokens.totalTokens)
+                assertEquals(2L, keys.count)
+                for (index in [0L, 1L]) {
+                    assertEquals(targets[index], auth.requests[index].url.httpRequestTarget())
+                    assertLlmBytes(bodies[index], auth.requests[index].body)
+                }
+                val attempt = stream.metadata.attempts[0]
+                assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+                assertTrue(attempt.response.firstTextAt != None)
+            }
+            serving.join()
+        }
+    }
+}

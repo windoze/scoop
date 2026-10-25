@@ -62,6 +62,8 @@ withLlmClient suspend { client ->
 
 `endpoint.model(id)` 允许省略能力描述，此时未掌握的能力为 Unknown；显式描述使用 `capabilities = Some(description)`。Endpoint 未传 baseUrl 时采用 provider 的已知部署缺省，覆盖用 `baseUrl = Some(url)`；没有部署缺省的 provider 必须指定 URL。认证与 model ID 必填，不从环境中隐式查找凭据或选择模型。
 
+Endpoint 的 deployment 缺省为 `LlmDeployment.Direct`，按已配置 baseUrl 追加协议路径。Azure v1 直接配置 `/openai/v1`；旧版 Chat 显式选择 `AzureOpenAiLegacy(apiVersion)`，由 model ID 确定部署路径。两者共用原有 provider、生成和流式入口。认证的 bearer／header 可接收 suspend 凭据回调，每次实际尝试取得一次值，刷新与登录仍由应用负责；具体合同见[库规范 §43](../specs/SCOOP-LLM-CLIENT-SPEC.md#43-azure-部署与按尝试取得认证字段)。
+
 流式请求使用 `client.withStream(model, request) suspend { stream -> ... }`；需要关闭后读取完整结果时使用同参数的 `openStream` 加 `useAsync`，并显式设置 `retention = StreamRetention.Result`。`withLlmClient`／`withStream` 只组合资源寿命，不另设生成语义。切换 provider 必须由应用显式选择另一个 Model，原生历史是否可迁移按第 5 节处理。
 
 命名工厂提供常用组合与部署缺省值，公共构造入口仍允许用户提供自己的适配器。认证与连接池不按 provider 复制；多个 endpoint 可共享一个 HttpClient，借入资源的关闭责任沿用既有合同。

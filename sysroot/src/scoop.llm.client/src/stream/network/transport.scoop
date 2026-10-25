@@ -11,7 +11,7 @@ internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, re
     if (!(protocol is LlmStreamProtocol)) throw LlmRequestException("/stream", "protocol does not support streaming generation")
     if (!(protocol is LlmSseProtocol) && !(protocol is LlmEventStreamProtocol) && !(protocol is LlmNdjsonProtocol))
         throw LlmRequestException("/stream", "protocol has no supported stream framing")
-    val url = protocol.streamUrl(model.endpoint.baseUrl, model.id)
+    val url = protocol.streamUrl(model.baseUrl, model.id)
     val bytes = Json.stringify(protocol.encodeRequest(model.id, request, true)).toByteArray()
     val call = state.call
     var retry = 0L

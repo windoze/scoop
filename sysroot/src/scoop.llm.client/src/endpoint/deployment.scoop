@@ -1,0 +1,32 @@
+package scoop.llm.client
+
+import scoop.url.Url
+
+/** Deployment routing is independent of the provider's wire protocol and dialect. */
+public enum LlmDeployment {
+    Direct,
+    AzureOpenAiLegacy(val apiVersion: String)
+}
+
+internal fun checkLlmDeployment(deployment: LlmDeployment, protocol: LlmGenerationProtocol,
+    baseUrl: Url, explicitBaseUrl: Boolean): Unit = when (deployment) {
+    case Direct -> Unit
+    case AzureOpenAiLegacy(version) -> {
+        if (!explicitBaseUrl) throw IllegalArgumentException(Some("Azure legacy deployment requires an explicit resource base URL"))
+        if (!(protocol is ChatProtocol)) throw IllegalArgumentException(Some("Azure legacy deployment requires ChatProtocol"))
+        if (version.length == 0L) throw IllegalArgumentException(Some("Azure legacy deployment requires an API version"))
+        if (baseUrl.queryParameters().getAll("api-version").size != 0L)
+            throw IllegalArgumentException(Some("api-version belongs in the Azure legacy deployment setting"))
+        Unit
+    }
+}
+
+internal fun bindLlmModelBaseUrl(endpoint: LlmEndpoint, modelId: String): Url {
+    if (modelId.length == 0L) throw IllegalArgumentException(Some("model ID must not be empty"))
+    return when (endpoint.deployment) {
+        case Direct -> endpoint.baseUrl
+        case AzureOpenAiLegacy(version) -> endpoint.baseUrl.toBuilder()
+            .appendPathSegment("openai").appendPathSegment("deployments").appendPathSegment(modelId)
+            .setQueryParameters(endpoint.baseUrl.queryParameters().add("api-version", Some(version))).build()
+    }
+}

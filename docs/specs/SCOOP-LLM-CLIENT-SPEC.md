@@ -213,7 +213,7 @@ request、message、part、tool 的 extensions 只合并到当前位置；Chat �
 
 `LlmGenerationProtocol` 描述普通 HTTP JSON 生成：dialectId、generationUrl(baseUrl, modelId)、encodeRequest(modelId, request, stream)、decodeResponse(value, request) 与 decodeError(status, body, truncated)。ChatProtocol 实现该合同并固定其 ChatDialect。接口没有实时会话或尚无实现的操作占位；流式 reducer 随相应独立合同补充。
 
-`LlmProvider(name, protocol, defaultBaseUrl = None)` 固定一个协议／方言组合。`Providers.openAiChat()` 与 deepSeekChat() 分别提供已实现的两个组合及官方 URL 缺省。`LlmEndpoint(provider, authentication, baseUrl = None, fields = [])` 绑定部署；缺少官方缺省又未传 URL 时构造失败。URL 必须是绝对 http(s) 地址且无 fragment，Chat 路径在现有 base path 后追加 chat/completions，保留 query；不把 base path 当成要被替换的文件名。
+`LlmProvider(name, protocol, defaultBaseUrl = None)` 固定一个协议／方言组合。`Providers.openAiChat()` 与 deepSeekChat() 分别提供已实现的两个组合及官方 URL 缺省。`LlmEndpoint(provider, authentication, baseUrl = None, fields = [], deployment = LlmDeployment.Direct)` 绑定部署；缺少官方缺省又未传 URL 时构造失败。URL 必须是绝对 http(s) 地址且无 fragment。Direct 在现有 base path 后追加协议操作路径，保留 query；不把 base path 当成要被替换的文件名。模型相关的部署路径见 §43。
 
 `endpoint.model(id, capabilities = None)` 创建不可变 LlmModel，保存 endpoint、原始 model ID 与能力；省略的能力使用 ModelCapabilities()，不联网查询目录。空 ID 失败，斜杠／冒号按模型数据保留，不解析年代或切换协议。相同 model ID 在不同 endpoint／provider 中形成独立绑定。认证、client 和模型绑定不提供消息 codec，不把密钥随历史保存。
 
@@ -809,3 +809,13 @@ compaction 与 result 的 `toInput()` 返回包含完整 output 的同 dialect L
 调用复用现有认证、服务拒绝重试、取消、截止、完成回调及借入 HTTP 的所有权。metadata 记录实际发送、接收和解析完成时间、服务端 request ID、compaction ID 与该操作报告的 usage；保留下来的旧消息不产生本次 firstEvent／firstOutput／firstText。最终输出吞吐仍按报告的 outputTokens 与实际本次延迟计算，缺失和零时长保持未知。ResponsesCompactionResult 仅接受 Completed metadata；其他既有显式操作的缺省 usage 不变。
 
 普通 scoop.test 覆盖编码、上下文替换与 codec、附加信息兼容、实际 HTTP 方法与部署路径、重试认证、时间和 usage、失败清理与能力检查。只使用官方形状及 loopback mock，真实互通在可用凭据具备后补测。依据：[compact API](https://developers.openai.com/api/reference/python/resources/responses/methods/compact)、[上下文压缩](https://developers.openai.com/api/docs/guides/compaction)。
+
+## 43. Azure 部署与按尝试取得认证字段
+
+Azure v1 使用既有 LlmEndpoint、明确的 provider 与包含 `/openai/v1` 的 baseUrl；deployment 缺省 Direct。Chat 和 Responses 分别调用原协议路径，model ID 是实际 deployment 名称并原样保存在 JSON；不自动添加日期式 api-version、不查模型目录、不按地址切换 dialect。API key 使用 LlmAuth.header("api-key", key)，Entra token 使用 bearer，预览功能 header 由 endpoint.fields 显式提供。服务商过滤细节等附加字段继续保留原文，不解释其内容或有效性。
+
+`LlmDeployment.AzureOpenAiLegacy(apiVersion)` 表达旧版 Chat 的部署路由。endpoint 必须显式配置资源 baseUrl、非空 apiVersion 和 ChatProtocol；其他协议在构造时失败，不能把 Responses 放到旧版 Chat 的 deployment 路径。baseUrl 不得再包含 api-version，避免两处配置冲突。模型绑定时在资源路径后追加 openai/deployments 和完整 model ID 的单个转义路径段，追加 api-version 并保留其他 query；ChatProtocol 再追加 chat/completions，普通生成与 SSE 使用同一规则。model ID 在 body 中仍保留原值，同一 endpoint 可绑定多个 deployment。Direct 的 URL 与请求编码保持原行为；库不创建 Azure 专属 provider 或客户端。
+
+`LlmAuth.bearer(token: suspend () -> String)` 与 `LlmAuth.header(name, value: suspend () -> String)` 是已有静态工厂的回调重载。每次实际尝试在最终 URL／body 确定后调用一次，构造 auth 或 model 时不调用；每次重试重新取得值。空值和非法 HTTP 字段仍报错，认证字段标记 neverIndex；异常与取消沿现有调用寿命传播，未发送不产生 sentAt。库不缓存或自动刷新 token、不执行登录或读取环境；回调负责取得可用凭据，需要请求签名时继续实现公开 LlmAuth 接口。
+
+普通 scoop.test 使用本地 mock 验证 Azure v1 的 Chat／Responses、旧版 deployment 路由、原始模型名、工具历史与 SSE、动态认证及失败边界、实际收发时间。附加字段仅验证存在／缺失／形状变化不阻断核心结果；没有凭据时不请求真实 Azure。依据：[Azure v1](https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle)、[v1 Chat 参考](https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/azureopenai/chat)、[旧版路径与认证](https://learn.microsoft.com/en-us/azure/foundry/openai/reference#rest-api-versioning)。
