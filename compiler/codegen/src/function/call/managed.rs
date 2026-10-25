@@ -96,6 +96,23 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             return Ok(());
         }
 
+        if self.optimize_allocations
+            && invoke.is_none()
+            && let (
+                scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::NoGc(
+                    scoop_lir::NoGcRuntimeFunction::StringCompare,
+                )),
+                TypedCallResult::Direct { out, .. },
+            ) = (destination, &result)
+            && let Some(value) = self.short_string_compare(
+                call.args()[0].logical_value(),
+                call.args()[1].logical_value(),
+            )?
+        {
+            self.temps.insert(*out, value.into());
+            return Ok(());
+        }
+
         // Typed runtime identities select expansions; symbols are not inspected.
         if destination
             == scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::Managed(

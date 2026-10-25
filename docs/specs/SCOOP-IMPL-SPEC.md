@@ -1187,6 +1187,10 @@ Char 为独立 nominal identity，常量和各层表示保存合法 Unicode scal
 
 String 的普通 getCharAt(idx) 方法和 charLength 属性按 Unicode scalar，byteLength 使用物理 UTF-8 byte count；String 不提供 get／下标运算或 length 别名。公开 API 从 core 真实声明导出并跨 Cone 消费，内部 UTF-8 表示、定位后备的 Option 结果、runtime 符号及调用 ABI 保持，异常边界见运行时规范第 6 章；List getter 仍为可抛出的普通 managed 调用。
 
+String 相等的同引用、长度不等及空串判断使用普通 core 正文；剩余比较沿真实 string_compare_to intrinsic。短 hash 可使用有界普通正文，较长文本继续共享原 FNV-1a 后备，位宽、字节顺序与回绕结果保持。调用点常量事实保存实际 StringConstId，复用普通内联与控制流简化；只有真实 typed String 字节长度、合法定点字节读取和比较可按已知内容折叠，普通 extern 不参与。常量身份与 provider 归属保持，不能因文本相等推导对象身份相同，也不能因常量 id 不同推导身份不同。
+
+release 可对已知不超过八字节的常量比较生成有长度保护的定宽读取；只读取实际存在的字节，并按无符号 UTF-8 字节的字典序产生原比较结果。其他输入保留共享比较。StringCharacterAtByte 继续使用已有 NoGC leaf；单独 ASCII 展开须按代表性 ASCII／Unicode 调用点的实际收益选择，不能省略边界检查或改变原诊断。以上读取不增加 safepoint、roots 或跨 safepoint 内部指针；没有新增 intrinsic 身份、runtime 符号或产物格式。展开后的普通正文仍由已有调用点评分选择，不按 core 函数名强制内联。
+
 release 在普通 MIR 内联与局部分配优化之后识别真实 `RuntimeFn::StringConcat` 调用，融合同一基本块中单独使用的连续拼接。分析只穿过稳定局部值复制和常量准备；其他调用、可变存储写入、可能抛出或改变绑定的操作及控制流边界结束融合。中间结果及其别名必须具有唯一写入且只读一次，不能删除其他位置仍使用的结果。输入按原顺序各求值一次，保留共享输入与重复片段；融合不改变异常前的副作用前缀。首版最多展开八个片段，合并不超过 64 bytes 的相邻常量片段；更长的常量仍引用原 String。普通二元拼接只在静态热循环调用点或全部输入为短常量时使用同一生成路径；热度复用内联器的循环／冷出口分析，冷点及不合格链保留共享 runtime 后备。
 
 融合结果是编译器内部的 typed StringConcat 值操作，区分已求值 String 输入与直接 UTF-8 常量片段。LIR 携带实际 String TD、分配 safepoint 及输入 live set；codegen checked 累计长度，一次分配结果，写入 byte count 并按序复制。所有可能移动的输入在分配后从规范 root 重读，再计算 bytes 地址；长度可跨 safepoint 保留，内部指针不可。常量片段直接写入结果，不创建额外 immortal 对象或 managed root。此操作不进入 `.slib` 公共格式，不改变 String 布局、实体身份或旧二元 runtime ABI；debug 和 release 继续消费相同库合同。该局部融合不涉及 StringBuilder、插值格式化或 parts 存储。

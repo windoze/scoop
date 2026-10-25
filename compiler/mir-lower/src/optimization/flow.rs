@@ -172,12 +172,10 @@ impl<'a> Analysis<'a> {
             | mir::StatementKind::Assign { local, value } => {
                 self.assign(*local, self.expression(value, state), state);
             }
-            mir::StatementKind::Call(mir::CallEffect::Value { destination, .. }) => {
-                self.assign(
-                    *destination,
-                    self.static_facts(&self.function.body.locals[*destination].ty),
-                    state,
-                );
+            mir::StatementKind::Call(mir::CallEffect::Value { destination, call }) => {
+                let mut facts = self.static_facts(&self.function.body.locals[*destination].ty);
+                facts.constant = self.call_constant(call, state);
+                self.assign(*destination, facts, state);
             }
             mir::StatementKind::Expr(_)
             | mir::StatementKind::Call(mir::CallEffect::Unit(_))
@@ -188,6 +186,12 @@ impl<'a> Analysis<'a> {
             | mir::StatementKind::AtomicFieldStore { .. }
             | mir::StatementKind::Eh(_) => {}
         }
+    }
+
+    pub fn call_constant(&self, call: &mir::Call, state: &State) -> Option<Constant> {
+        constants::call(self.module, call, |operand| {
+            self.expression(operand, state).constant
+        })
     }
 
     fn assign(&self, local: mir::LocalId, value: ValueFacts, state: &mut State) {

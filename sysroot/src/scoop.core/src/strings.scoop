@@ -15,8 +15,12 @@ public class String : Compare<String>, Add<String, String>, Equals<String>, ToSt
     /**
      * Compares text exactly, without Unicode normalization or case folding.
      */
-    public override operator fun equals(other: String): Boolean = coreStringEquals(this, other)
-
+    public override operator fun equals(other: String): Boolean {
+        if (this === other) { return true }
+        val length = byteLength
+        if (length != other.byteLength) { return false }
+        return length == 0L || compareTo(other) == 0L
+    }
 
     /**
      * Concatenates the two immutable UTF-8 strings.
@@ -169,11 +173,27 @@ public class String : Compare<String>, Add<String, String>, Equals<String>, ToSt
     }
 }
 
-@Extern(name = "scoop_rt_string_eq", abi = "scoop")
-internal fun coreStringEquals(left: String, right: String): Boolean
-
 @Extern(name = "scoop_rt_string_hash", abi = "scoop")
-internal fun coreStringHash(value: String): Long
+private fun coreStringHashFallback(value: String): Long
+
+@NoGC
+private fun coreStringHashByte(hash: ULong, byte: Byte): ULong =
+    hash.xor(byte.toUByte().toULong()) * 1099511628211uL
+
+internal fun coreStringHash(value: String): Long {
+    val length = coreStringByteLength(value)
+    if (length > 8L) { return coreStringHashFallback(value) }
+    var hash = 1469598103934665603uL
+    if (length > 0L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 0L)) }
+    if (length > 1L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 1L)) }
+    if (length > 2L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 2L)) }
+    if (length > 3L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 3L)) }
+    if (length > 4L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 4L)) }
+    if (length > 5L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 5L)) }
+    if (length > 6L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 6L)) }
+    if (length > 7L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 7L)) }
+    return hash.toLong()
+}
 
 @Intrinsic("string_byte_length")
 internal fun coreStringByteLength(value: String): Long

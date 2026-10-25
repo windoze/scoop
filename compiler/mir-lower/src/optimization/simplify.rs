@@ -1,7 +1,7 @@
 use super::{constants::Constant, flow, graph::index, mir};
 use std::collections::HashSet;
 
-/// Fold only known scalar expressions; statements with effects are retained.
+/// Fold known values and total typed reads; statements with effects are retained.
 pub(super) fn blocks(
     module: &mir::Module,
     function: &mir::Function,
@@ -28,7 +28,9 @@ fn fold_blocks(
             mir::visit_statement_exprs_mut(statement, &mut |expression| {
                 if !matches!(
                     expression.kind,
-                    mir::ExprKind::BoolLiteral(_) | mir::ExprKind::IntegerLiteral(_)
+                    mir::ExprKind::BoolLiteral(_)
+                        | mir::ExprKind::IntegerLiteral(_)
+                        | mir::ExprKind::StringConst(_)
                 ) && let Some(value) = analysis.expression(expression, &state).constant
                 {
                     *expression = value.expression();
@@ -42,12 +44,24 @@ fn fold_blocks(
                     changed = true;
                 }
             });
+            if let mir::StatementKind::Call(mir::CallEffect::Value { destination, call }) =
+                &statement.kind
+                && let Some(value) = analysis.call_constant(call, &state)
+            {
+                statement.kind = mir::StatementKind::ValDecl {
+                    local: *destination,
+                    init: value.expression(),
+                };
+                changed = true;
+            }
             analysis.statement(statement, &mut state);
         }
         mir::visit_terminator_exprs_mut(&mut block.terminator, &mut |expression| {
             if !matches!(
                 expression.kind,
-                mir::ExprKind::BoolLiteral(_) | mir::ExprKind::IntegerLiteral(_)
+                mir::ExprKind::BoolLiteral(_)
+                    | mir::ExprKind::IntegerLiteral(_)
+                    | mir::ExprKind::StringConst(_)
             ) && let Some(value) = analysis.expression(expression, &state).constant
             {
                 *expression = value.expression();

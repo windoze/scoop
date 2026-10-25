@@ -1,9 +1,13 @@
 use super::mir;
 
+mod strings;
+pub(super) use strings::call;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Constant {
     Boolean(bool),
     Integer(mir::MirIntegerConstant),
+    String(mir::StringConstId),
 }
 
 impl Constant {
@@ -13,13 +17,14 @@ impl Constant {
                 mir::Expr::new(mir::Type::Boolean, mir::ExprKind::BoolLiteral(value))
             }
             Self::Integer(value) => mir::Expr::integer(value),
+            Self::String(id) => mir::Expr::new(mir::Type::String, mir::ExprKind::StringConst(id)),
         }
     }
 
     fn integer(self) -> Option<mir::MirIntegerConstant> {
         match self {
             Self::Integer(value) => Some(value),
-            Self::Boolean(_) => None,
+            Self::Boolean(_) | Self::String(_) => None,
         }
     }
 }
@@ -34,6 +39,7 @@ pub(super) fn evaluate(
     Some(match &expression.kind {
         E::BoolLiteral(value) => Constant::Boolean(*value),
         E::IntegerLiteral(value) => Constant::Integer(*value),
+        E::StringConst(id) => Constant::String(*id),
         E::Retype { operand, .. } if operand.ty == expression.ty => value(operand)?,
         E::Unary {
             op: mir::UnOp::BoolNot,

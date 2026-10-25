@@ -1,0 +1,23 @@
+public fun constantReads(): Long = "A\u0000é".byteLength + "é".compareTo("雪")
+public fun constantHash(): Long = "abc".hash()
+public fun shortCompare(value: String): Long = value.compareTo("a\u0000é")
+public fun reverseCompare(value: String): Long = "a\u0000é".compareTo(value)
+public fun emptyCompare(value: String): Long = value.compareTo("")
+public fun characters(value: String): Long {
+    var sum = 0L
+    for (character in value) { sum += character.code.toLong() }
+    return sum
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    check(constantReads() == 3L)
+    check(constantHash() == -2204510569963675907L)
+    val text = "a\u0000é" + ""
+    check(shortCompare(text) == 0L && reverseCompare(text) == 0L)
+    check(shortCompare("a") == -1L && reverseCompare("a") == 1L)
+    check(shortCompare("b\u0000é") == 1L && reverseCompare("b\u0000é") == -1L)
+    check(emptyCompare("") == 0L && emptyCompare(text) == 1L)
+    gcCollect()
+    check(characters("A\u0000é雪🙂") == 167510L)
+    println("String reads preserve text and identity")
+}

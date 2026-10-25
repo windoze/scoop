@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 已完成 [String 比较与短 hash](STRING-READS.md)：ordinary core 处理身份／长度与有界 FNV-1a，复用调用点常量事实；真实 typed 短常量比较生成有边界保护的读取。三目标定向语义、两 profile 的 IR／moving 与成本对照通过；ASCII 单独展开因混合 Unicode 回退未采纳。后续优先推进接口复制、根恢复与 SSA 重定位；字符串复制／Char 编码、初始化就绪与 Context 测量仍在 runtime 可见化的后续批次。
+
 ## 交付约定
 
 - 每项功能完成必要验证后单独提交、推送，再获取并合并 `origin/main` 的更新。实验实现留在本地或临时实验分支，只有形成可交付结论的实现进入推送分支。

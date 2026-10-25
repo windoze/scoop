@@ -758,6 +758,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。PGO 为后续独立专项，在代表负载、成熟消费者和反馈原型净收益成立后排期；测量与全程序优化／ThinLTO 均不以 PGO 为前置。
 - 优化按长期、分批试验和交付推进：成本低且收益比较稳定的方案可直接纳入 release 默认设置；成本过高或收益不稳定的方案通过独立开关或等级决定是否启用、启用哪一级。默认值随实测结果调整，保留默认与调优配置的对照。
 - [已采纳优化与开启条件](program-performance/ENABLED-OPTIMIZATIONS.md)简要列出各项方案的默认 profile、适用条件及实际开关，后续采纳与策略变更时同步维护。
+- [String 比较与短 hash](program-performance/STRING-READS.md)已交付：普通 core 的身份／长度判断与有界 hash，真实 typed 常量折叠及短常量比较；三目标语义、IR／moving 和性能成本对照通过，长文本与 UTF-8 解码继续共享后备。接口复制与重定位 SSA 为下一优先批次。
 - [已知小型 box 分配](program-performance/BOX-ALLOCATION.md)已交付：≤128 B 实例复用生成的 TLAB／慢路径，保持独立身份、完整 payload 和写屏障，省去 box C 检查与额外 region frame。三目标 IR、跨 Cone／packed／moving 和性能／成本对照通过；release 默认，较大 box 和 debug 保留后备，布局与 ABI 不变。
 - [普通 String 拼接生成路径](program-performance/STRING-CONCAT.md)已交付：MIR 融合单用链并合并短常量，热循环二元复用同一路径；一次分配并在 GC 后重取输入地址，保留共享结果、异常顺序和冷点后备。三目标定向测试、大小对象 moving、IR／机器码与成本对照通过；release 默认，布局及 ABI 不变，StringBuilder 不变。
 - [标量 core 正文与 Boolean 字符串常量](program-performance/SCALAR-BODIES.md)已交付：Boolean equals／hash 和整数 hash 使用普通正文，保持位宽／回绕结果，按调用点展开；Boolean.toString 选择已有 immutable String。三目标定向语义、GC、IR／机器码与成本对照通过，十万次字符串化减少 3.2 MB 分配；短动态内核的测量波动单独保留。全 profile 正文一致，release 默认，无新 ABI 或测量机制。
