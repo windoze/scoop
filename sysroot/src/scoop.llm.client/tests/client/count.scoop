@@ -64,7 +64,6 @@ private class TokenCountClientTest {
                             assertEquals(None, attempt.response.firstTextAt)
                             assertEquals(None, attempt.responseId)
                             assertEquals(None, attempt.usage.tokens.inputTokens)
-                            assertEquals(0L, attempt.cacheObservations.size)
                             assertEquals(None, attempt.outputTokensPerSecond)
                             index += 1L
                         }

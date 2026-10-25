@@ -12,7 +12,6 @@ private class CohereStreamUsageTest {
         assertEquals(Some(9007199254740995L), stream.usage.tokens.totalTokens)
         assertEquals(Some(3L), stream.usage.tokens.cacheReadTokens)
         assertEquals(UsageCompleteness.Final, stream.usage.completeness)
-        assertEquals(4L, stream.usage.native!!["billed_units"]!!["input_tokens"]!!.asLong())
         for (usage in ["null", "{}", "{\"tokens\":{\"input_tokens\":null,\"output_tokens\":0}}", "{\"billed_units\":{\"input_tokens\":8}}"]) {
             val empty = cohereStream(); cohereBegin(empty); cohereEnd(empty, extra = ",\"usage\":" + usage)
             assertEquals(None, empty.usage.tokens.totalTokens)

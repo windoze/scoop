@@ -1,6 +1,6 @@
 # LLM client 使用示例与缺省参数
 
-日期：2026-10-25。本文结合已实现的 Chat／Messages／Responses／Gemini generateContent／Interactions 普通与流式生成及后续 API 草案检查接口负担；可用入口见[库说明](../../sysroot/src/scoop.llm.client/README.md)，验证范围见[实施记录](PROGRESS.md)。Converse 已接入同一个 generate／openStream 入口，流式使用 AWS EventStream；Gemini／Messages 的 token 预计数已接入，缓存寿命与费用扩展仍为设计示例，不代表已通过验收。Messages provider 缺省选择 API 版本 2026-10-21 和 4096 输出上限，沿用相同的 model／request／generate／openStream 入口；版本与默认上限均可显式设置。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
+日期：2026-10-25。本文结合已实现的 Chat／Messages／Responses／Gemini generateContent／Interactions 普通与流式生成及后续 API 草案检查接口负担；可用入口见[库说明](../../sysroot/src/scoop.llm.client/README.md)，验证范围见[实施记录](PROGRESS.md)。Converse 已接入同一个 generate／openStream 入口，流式使用 AWS EventStream；Gemini／Messages 的 token 预计数已接入，实际发送／接收时间戳与 token 用量均可读取。服务商附加信息直接保留原文，不设公共计费入口。Messages provider 缺省选择 API 版本 2026-10-21 和 4096 输出上限，沿用相同的 model／request／generate／openStream 入口；版本与默认上限均可显式设置。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
 
 简单调用和完整调用共用 `generate(model, request, options = LlmCallOptions())`。不再保留先前草稿中的 `generate(model, prompt = ...)` 重载，也不增加 `generateText`、`SimpleClient` 或自动选择模型的入口。简单形态直接来自 request、消息和 options 的缺省字段。
 
@@ -290,7 +290,7 @@ Schema 由应用提供，companion codec 只负责本地解码，不从任意 co
 
 这段代码只继续一次，不隐藏 Agent 循环。没有客户端调用时保留原结果；第二次仍可能要求工具或服务器 continuation，调用者根据返回的状态决定下一步。解码或业务执行失败向调用者传播，示例没有将失败冒充工具成功结果。
 
-## 6. 时间戳、token、缓存观测和可选费用
+## 6. 时间戳与 token
 
 每个完整结果默认带 metadata；重试数据按尝试分别保留，不把第一次发送与最后一次响应拼接成一次网络耗时。
 
@@ -324,36 +324,7 @@ suspend fun inspectUsage(client: LlmClient, model: LlmModel) {
 
 `attempt.http` 直接保留 HTTP 层观察到的排池、DNS、连接、代理与 TLS 阶段。阶段的 started／finished 是相对调用起点的单调偏移，可以随 metadata 保存；duration 只在阶段结束时可用，失败或取消也可能结束一个阶段。复用连接时不会补造新建连接或 TLS 耗时；底层没有 UTC 的事件不使用当前时钟代替。outputTokensPerSecond 仅在用量为 Final 且响应耗时完整、非零时提供。
 
-`attempt.cacheObservations` 默认保存已报告的缓存读写量，缺少寿命资料时仍可读取事实。每个 report 区分实际范围、TTL 起算／刷新规则与服务端报告的到期时间；重复的流式 usage 不推迟首次观察时间，重试各自保存。读取第一条适用规则也使用同一个 API 的缺省参数：
-
-```scoop
-import scoop.time.Instant
-
-fun inspectCache(attempt: LlmAttemptMetadata, now: Instant) {
-    var index = 0L
-    for (observation in attempt.cacheObservations) {
-        println(observation.report.operation)
-        println(observation.report.tokens)
-        println(observation.report.scope)
-        when (attempt.estimateCacheLifetime(index)) {
-            case Some(estimate) -> {
-                println(estimate.lifetime.kind)
-                val (earliest, latest) = estimate.remainingAtInstant(now)
-                println(earliest)
-                println(latest)
-            }
-            case None -> println("没有足够信息估计寿命")
-        }
-        index += 1L
-    }
-}
-```
-
-第二个 lifetimeIndex 参数可选择同一报告的其他规则。估计保存发送与首次确认时刻，earliestAt／latestAt 是边界区间；remainingAtOffset 接收同一次调用中已记录的单调偏移，例如 response.completed 中的 elapsed，用于判断响应完成时的剩余量。上述 now 或跨进程恢复使用带校时不确定性的 remainingAtInstant。负数表示对应边界已经过去。应用判断时仍须读取 kind：MinimumReadPricing 只描述最低计费覆盖，MaximumRetention 也不是每次命中后重启的有效期。
-
-Messages 按服务端实际返回的 5 分钟／1 小时写入明细解释规则；只有聚合命中量时，scope 保持 Unknown，不把所有断点一起续期。OpenAI Chat／Responses 只解释请求中明确选择的已知缓存设置，不按模型名猜默认 TTL；12h 仅用于 Responses，其读取不会重新起算 12 小时。旧策略最长保留的起算规则未明确时保持 Unknown。缺失量不补零，明确零不推导续期，服务端到期时间不由本地估计填充。
-
-调用前计数显式调用所选 dialect 的服务端计数接口；模型入口没有该接口时报告不支持，不静默退化为字符数。直接使用现有 model、request 和调用设置：
+缓存相关附加信息保留在原生响应或 usage 中；库不估计 TTL 或判断缓存是否失效。请求／响应时间戳保持独立，应用可结合自己的信息使用。
 
 ```scoop
 suspend fun countInput(client: LlmClient, model: LlmModel): LlmTokenCountResult {
@@ -364,7 +335,7 @@ suspend fun countInput(client: LlmClient, model: LlmModel): LlmTokenCountResult 
 
 返回的 count 保存 inputTokens、Server 方法、RequestInput 范围和 Estimated 性质；未报告的计数或模型版本保持 None。metadata 保存独立的调用时间和各次尝试。Gemini 提交完整 generateContentRequest；Messages 保留 system、工具、thinking、schema 和历史，对当前不接受的服务端工具及 URL／file 媒体在发送前报错。cachedInputTokens 表示计数时的缓存输入规模，不表示实际缓存命中。`countTokens` 不替应用发起后续 generate，也不覆盖响应报告的 usage；尚无实际本地 tokenizer，因此没有空的本地模式入口。
 
-费用扩展在构造 dialect 的普通 provider 工厂中传入，然后沿完全相同的 endpoint、model、generate 路径使用。例如 `Providers.openAiResponses(billing = Some(billingExtension))` 将应用提供的 `BillingExtension` 交给其 Responses dialect；缺省为 None。扩展可持有显式价格快照，结果仍区分 ProviderReported 与 Estimated，不自动联网查询价格。
+服务商附加信息只保留原文。普通响应的 `response.native`、实际用量的 `usage.native` 及原生事件保存对应数据，由具体 dialect 按需访问。没有公共计费类型或配置，也不做内容校验、换算或估算。
 
 ## 7. 共享 HTTP、切换 protocol 和覆盖等待时间
 
@@ -512,7 +483,6 @@ suspend fun streamLocalModel(client: LlmClient, modelId: String): LlmResult {
 | 调用等待 | 响应头 300 秒、read idle 300 秒、write idle 60 秒、total None；排池／建连沿 HTTP 配置 | 传完整 `LlmCallOptions` 值；`LlmTimeouts` 未填字段采用自身缺省，None 明确关闭 |
 | 重试 | 至多两次明确可重试的服务拒绝；已输出、结果不明和取消不重试 | 调用选项显式改变策略，不叠加 HTTP 重试 |
 | 时间与 token | 默认采集关键时间戳、单调耗时和实际 usage；缺失不填零 | `onFinished` 观察失败／取消及实际收尾；预计数单独调用 |
-| 计费 | Dialect 扩展缺省 None | 工厂传 billing；结果注明来源、依据与完整性 |
 
 `onFinished` 是 `LlmCallOptions` 中可选的完成观察回调，generate 和流式使用相同合同：每次逻辑调用实际收尾后通知一次，成功、打开流失败、消费失败和取消均保留已知 metadata，不重包装 CancellationException。回调不在共享传输驱动中执行，不参与生成请求的序列化。
 

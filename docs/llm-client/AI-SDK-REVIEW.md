@@ -61,7 +61,7 @@ Scoop 增加 `nonCachedInputTokens`，只在原生报告或已知的完整、不
 
 SDK 已区分整次请求速率、输出阶段速率、step 与 response 耗时、首个输出；它的首输出包括 reasoning、工具输入和文件，验证了我们将 firstOutput 与 firstText 分开的必要性。不过固定源码的速率 helper 在计数未知或时长无效时返回 0，Scoop 保留 None，不把未知误报成零速率。[性能口径](https://github.com/vercel/ai/blob/e729d588b3291e22cfcd6cba32b6dcf7778ef21c/packages/ai/src/generate-text/step-result.ts#L60)、[速率计算](https://github.com/vercel/ai/blob/e729d588b3291e22cfcd6cba32b6dcf7778ef21c/packages/ai/src/generate-text/calculate-tokens-per-second.ts)
 
-V4 response timestamp 的合同是供应商返回的响应生成开始时间，不能替代客户端 sentAt／receivedAt，更不能统一当作缓存写入时刻。我们的 UTC／单调计时、每次尝试的时间戳和 dialect TTL 规则继续保留；计费也是独立可选扩展。[响应时间定义](https://github.com/vercel/ai/blob/e729d588b3291e22cfcd6cba32b6dcf7778ef21c/packages/provider/src/language-model/v4/language-model-v4-response-metadata.ts)
+V4 response timestamp 的合同是供应商返回的响应生成开始时间，不能替代客户端 sentAt／receivedAt，更不能统一当作缓存写入时刻。我们的 UTC／单调计时、每次尝试的时间戳继续保留；服务商附加信息仅保留原文，由具体 dialect 访问。[响应时间定义](https://github.com/vercel/ai/blob/e729d588b3291e22cfcd6cba32b6dcf7778ef21c/packages/provider/src/language-model/v4/language-model-v4-response-metadata.ts)
 
 ## 7. 保留现有边界的几项比较
 

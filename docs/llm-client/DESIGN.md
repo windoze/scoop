@@ -1,6 +1,6 @@
 # LLM client 架构设计
 
-日期：2026-10-24。状态：实施中，已交付范围见[实施记录](PROGRESS.md)。本文确定 `scoop.llm.client` 的协议、方言、provider、模型能力、服务端工具、计时与 token 统计边界；计费信息作为 dialect 的可选扩展。协议覆盖调查见 [INVESTIGATION.md](INVESTIGATION.md)，传输细节见 [HTTP client 评审](HTTP-CLIENT-REVIEW.md)，具体调用与缺省参数见[使用示例](USAGE.md)。相关架构表述以本文为准，正式 API 合同在实现前写入[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md)。
+日期：2026-10-24。状态：实施中，已交付范围见[实施记录](PROGRESS.md)。本文确定 `scoop.llm.client` 的协议、方言、provider、模型能力、服务端工具、计时与 token 统计边界；服务商附加信息原样保留并由具体 dialect 提供访问。协议覆盖调查见 [INVESTIGATION.md](INVESTIGATION.md)，传输细节见 [HTTP client 评审](HTTP-CLIENT-REVIEW.md)，具体调用与缺省参数见[使用示例](USAGE.md)。相关架构表述以本文为准，正式 API 合同在实现前写入[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md)。
 
 本库负责一次生成或显式会话的请求、响应、流、取消和协议数据回传。模型选择、自动切换、工具执行、Agent 循环和会话存储由应用承担。所有实现使用普通 Scoop Cone、现有序列化和 HTTP 能力，不改变语言、编译 pipeline 或 runtime。
 
@@ -86,7 +86,8 @@ Protocol 实现请求和结果的 wire DTO、完整响应解码、流事件解�
 | 工具 ID／名称限制及必要改写 | 调用与结果的同一显式关联映射 |
 | 服务端工具种类、版本和参数 | 服务端工具映射与 capability 描述 |
 | 错误正文、usage、停止原因的差异 | 响应解释和流式归一化 |
-| Token 计数口径、缓存寿命及可选计费信息 | usage 归一化、缓存时间解释及 billing 扩展；本地计时由公共 client 负责 |
+| Token 计数口径 | usage 归一化；本地计时由公共 client 负责 |
+| 服务商附加信息 | 原样保留在原生响应／usage／事件中，具体 dialect 提供只读访问 |
 
 Protocol 使用协议专属的 dialect 接口，例如 Chat adapter 接受 `ChatDialect`，Responses adapter 接受 `ResponsesDialect`；provider 工厂完成这一普通类型组合。不能仅凭两个任意字符串拼接出可工作的适配器，也不把所有差异塞进一个接受 `Any` 的通用 hook。
 
@@ -95,6 +96,8 @@ Protocol 使用协议专属的 dialect 接口，例如 Chat adapter 接受 `Chat
 扩展字段按 protocol／dialect 归属传入。它们与适配器管理的字段冲突时失败，包括本次因 None 而未输出的已知字段；不能靠扩展绕过通用选项和字段规则。完整 native request 入口明确使用独立的请求表示，不与通用请求进行隐式覆盖。
 
 `extensions: Array<DialectExtension> = []` 在 request、message、content part 和工具定义的适用位置分别提供。每项保存实际 dialect 归属与不可变 JsonValue；同一位置的同一归属不得重复。缓存断点、媒体细节等必须放在其协议要求的位置。它们不构成父子配置继承，不把 request 的扩展自动复制到 part，也不按展示名或网关域名猜测归属。常用扩展可由 dialect 的普通类型化函数构造，适配器一次检查实际位置、模式和字段冲突。
+
+服务商附加信息（包括计费字段）不是公共 LLM 数据模型的一部分。它们全部保留为原生 JsonValue，由具体 dialect 按需提供读取方法，不增加统一计费类型、接口、配置或生成处理步骤。缺失、null、零及形状变化均不能使主线功能失败；客户端不计算、估算或校验这些信息的内容。缓存相关附加信息也仅保留原文，不推导 TTL、刷新、到期时间或有效性。这些附加能力不作为 LLM API 主线的实现或验收前置条件。
 
 ### 2.3 DeepSeek Chat 示例
 
@@ -165,7 +168,7 @@ DeepSeek Chat 复用 Chat Completions 的基础结构，但需要自己的 diale
 
 工具能力的数据合同见[库规范 §2.3](../specs/SCOOP-LLM-CLIENT-SPEC.md#23-原生工具服务端工具与混用)：原生工具按 dialect、种类和明确／缺省版本精确查询，配置字段提供独立的支持状态；WebSearch 的选项与地域字段分别描述。mixedTools 分别表达客户端与服务端共存、多个服务端声明的一般限制，具体工具与生成模式的组合继续由 dialect 检查。缺省描述中的未列项始终为 Unknown。
 
-Context window、输入／输出 token 上限等作为已知的模型限制描述。时间戳与调用计时是公共 client 能力，不以模型 capability 为开关；usage 是否完整由服务端实际返回决定，计费信息走第 6.5 节的可选 dialect 扩展。能力支持不自动启用相应选项，例如支持 reasoning 不等于每次显式发送 reasoning 设置。
+Context window、输入／输出 token 上限等作为已知的模型限制描述。时间戳与调用计时是公共 client 能力，不以模型 capability 为开关；usage 是否完整由服务端实际返回决定，服务商附加信息按第 2.2 节原样保留。能力支持不自动启用相应选项，例如支持 reasoning 不等于每次显式发送 reasoning 设置。
 
 ### 3.4 有效能力与请求检查
 
@@ -263,7 +266,7 @@ ServerToolActivity 保存能够观察到的工具引用、调用／item 关联�
 
 同 protocol 不保证不同 dialect 的历史可以互用。跨 provider 时，普通文本等可等价内容可以重新编码；遇到不可迁移的签名、continuation、文件引用或服务端工具数据必须明确报告。不能仅凭展示名称、相同 JSON 字段或相同模型字符串判断兼容。
 
-消息与结果可以通过显式 JSON codec 保存和恢复，原生 JsonValue 不丢数字 token、字段及顺序。第 6 节的请求／响应时间戳、Duration、usage 和可选计费信息可作为独立 metadata 一同保存；它们不注入下一轮模型输入。能力描述和连接对象不随消息存储，认证信息也不进入其中。JSON 值保真不承诺原始空白和转义拼写；请求签名始终使用最终发送字节。
+消息与结果可以通过显式 JSON codec 保存和恢复，原生 JsonValue 不丢数字 token、字段及顺序。第 6 节的请求／响应时间戳、Duration 与 usage 可作为独立 metadata 一同保存；它们不注入下一轮模型输入。能力描述和连接对象不随消息存储，认证信息也不进入其中。JSON 值保真不承诺原始空白和转义拼写；请求签名始终使用最终发送字节。
 
 ### 5.2 复用当前序列化能力
 
@@ -284,7 +287,7 @@ ServerToolActivity 保存能够观察到的工具引用、调用／item 关联�
 
 `LlmGenerationOptions.output` 使用 Text、JsonObject 或 JsonSchema，缺省 Text 不强制发送额外 wire 选项。结构化输出继续使用同一 generate／流式路径，不增加 generateObject。Schema 约束服务端生成，结果的 `decodeOutput<T>(codec)` 或 companion 重载负责本地解码；多个候选或结构化 item 必须明确选择，refusal、缺失、不完整或无效 JSON 明确报告并保留原结果。部分 JSON 不补全成已完成 DTO。
 
-## 6. 计时、token 与计费扩展
+## 6. 计时与 token
 
 ### 6.1 Request 与 response 时间戳
 
@@ -338,7 +341,7 @@ Metadata 保留逻辑 call ID、各次尝试编号及已知的服务端 request�
 | `nonCachedInputTokens` | 明确未使用输入缓存的分项；仅在原生报告或完整、不重叠的计数口径下给出 |
 | `outputTokens` | 本次生成的总 token，包含按该 API 口径归属输出的 reasoning；不只计算可见文本 |
 | `totalTokens` | 同口径输入与输出之和；仅在所需项齐全且语义明确时推导 |
-| `cacheReadTokens`／`cacheWriteTokens` | 输入缓存的读取／写入细分，可按原生 TTL 等继续保留细项；不再次加到已包含它们的 inputTokens |
+| `cacheReadTokens`／`cacheWriteTokens` | 输入缓存的读取／写入计数；附加细项在 usage.native 中原样保留，不再次加到已包含它们的 inputTokens |
 | `reasoningTokens` | 输出中的 reasoning 细分，未报告时保持缺失，不从 reasoning 文本长度猜测 |
 | 模态细分 | 服务端提供的文本、图像、音频等 token 细项；只在包含关系已知时归一化 |
 
@@ -348,34 +351,6 @@ Dialect 明确原生计数是总量还是子项。例如 Claude 的原生 input_
 
 请求前的 `countTokens(model, request, options = LlmCallOptions())` 是显式操作，与 response usage 分开。当前通过所选 dialect 提供的服务端计数接口执行；没有实际 tokenizer 实现时不增加本地模式选择器。调用不在 generate 前偷偷联网或重复分词；结果保留方法、请求的模型与已报告版本、输入范围以及精确或估算的性质。计数针对实际 protocol／dialect 的输入表示，包括可计算的 system、工具 schema 和历史；媒体或隐藏包装无法计算的部分明确缺失。没有适用 tokenizer 时不默认用字符数冒充精确 token，也不承诺服务端预计数等于最终计费用量。预估值不能覆盖服务端报告值。
 
-### 6.4 用时间戳估计 prompt cache 有效期
-
-默认提供 request／response 时间戳与 cache usage 供应用判断。实际编码后的请求交给 dialect 的纯 `cacheObserver`，它将 usage 解释为 `CacheReport`；公共 client 在对应 attempt 中保存带本地观察点的 `CacheObservation`。报告区分实际读／写事实、已知的缓存资源／前缀范围、TTL 及起算／刷新规则，以及服务端明确返回的到期时间。只有总 cacheReadTokens 时，不猜测是哪一段历史命中，也不把整段会话的缓存一起续期。
-
-缓存时间估计必须保留以下区别：
-
-- TTL 从请求开始、写入或读取时刻起算，由具体服务规则决定；不能统一从 response.completedAt 起算。只有确认会刷新寿命的读取才更新对应缓存的估计。
-- 精确到期时间、最短保留期、最长保留期和典型驱逐时间是不同信息。服务端报告的时间保留来源；本地根据时间戳推导的结果标为 estimate，并保留依据与能确定的时间区间。
-- 缺少服务器采样时间时，sentAt 是请求起点的本地近似；receivedAt 或后续确认事件可帮助界定观测区间，不能当作精确的服务器写入时刻。`sentAt + TTL` 不等于已证明的到期时间。
-- 当前进程内优先以同源单调时间判断经过时长；跨进程恢复只能使用保存的 UTC 时间作估计，保留校时与跨机器时差的不确定性。
-- 时间窗口内不保证一定命中：前缀、模型、部署、缓存配置与服务端路由仍须相容。命中 token、计费覆盖和实际复用 KV／降低延迟也不能自动视为同一事实。
-
-例如，采用“从请求开始计 5 分钟”的规则时，10:00 发起、10:04 才收到确认的请求，保守估计的最早边界为 10:05。无法确定服务端实际起点时保留至 10:09 的边界区间，不能据此声称此刻还完整剩余 5 分钟。`attempt.estimateCacheLifetime` 保留规则与起点区间，同进程按单调偏移计算剩余量，UTC 边界从发送点投影；校时不会倒置区间。Claude 当前文档明确以处理该请求的起点计算 TTL。OpenAI 的最低计费覆盖期不保证 KV 复用或低延迟；内置解释只应用实际请求中明确选择的已知设置，不根据模型名猜默认策略。[Claude 缓存寿命](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)、[OpenAI 缓存寿命](https://developers.openai.com/api/docs/guides/prompt-caching)
-
-流式记录以报告的 key、计数和语义辨别更新，单独的 output token 变化、重复 usage 和终止事件不会刷新已有缓存观察时刻。快照不可变；失败和提前关闭仍保留已收到的事实。`countTokens` 的缓存输入规模不进入此路径。
-
-本库提供这些观测值与可选时间估计，不自动发送保活请求、重排历史或建立缓存调度器。Prompt cache 与 HTTP 响应缓存保持独立。
-
-### 6.5 Dialect 的可选计费扩展
-
-Dialect 可提供 `BillingInfo`，来源区分 ProviderReported 与 Estimated；未配置扩展或缺少依据时为缺失。扩展消费实际模型／部署、usage、缓存策略、服务等级和已提供的价格资料，返回金额、币种、覆盖范围及可解释的明细。计费不可用不影响生成、计时和 token 统计。
-
-金额和费率采用精确十进制表示，保留币种与单位，不使用二进制浮点累积金额。输入、输出、缓存读写、服务端工具和媒体等费用只按对应服务规则计算；推理 token 若已包含在输出计价中，不能再次加收。未知费用项保留未知，部分估算不能伪装成完整总价。
-
-Estimated 保留价格来源／版本或生效时间、模型与部署、计算依据和完整性；ProviderReported 保留服务端原始计费数据。网关价格可以与上游供应商不同，不能只按基础模型名称套价。重试费用分别关联对应尝试，来源不明的失败尝试不能记为免费，也不能重复累计流式 usage 快照。
-
-扩展使用服务端返回信息或显式提供的价格快照，不在普通生成中自动抓取价格。不增加跨供应商价格目录、预算控制、扣费或账单管理；这些由应用承担。
-
 ## 7. 一次请求的执行路径
 
 1. 应用选择 Model，构造输入、工具和选项；建立独立调用 metadata 并记录 startedAt，不进行隐式 provider 路由。
@@ -384,7 +359,7 @@ Estimated 保留价格来源／版本或生效时间、模型与部署、计算�
 4. Endpoint 确定实际 URL、query 与 body；取得凭据后对最终表示认证／签名。
 5. Client 执行 HTTP 请求，在实际提交和接收边界采集本次尝试的时间戳；先处理 status 与有限错误正文，再消费完整 JSON 或 framing 后的事件。
 6. 对应 reducer 更新原生 item 和结果，交付通用事件、服务端工具活动、引用与 usage，并记录首次输出及完整响应时刻。
-7. 到达协议终止状态时记录完整结果；generate 等待收尾后返回结果及最终 metadata，流式调用在作用域关闭后发布最终计时、usage 和可选缓存／计费信息。应用决定是否执行客户端工具、继续服务器状态或发起下一轮。
+7. 到达协议终止状态时记录完整结果；generate 等待收尾后返回结果及最终 metadata，流式调用在作用域关闭后发布最终计时、usage。应用决定是否执行客户端工具、继续服务器状态或发起下一轮。
 
 取消、关闭、背压、超时和有限重试沿原调研及 HTTP 合同。默认关闭生成请求的 redirect、通用 SSE reconnect、Cookie 和 HTTP cache；一次生成只有一层负责重试。只有事件消费者主动需要完整结果时才保留相应累积数据，不保存整条原始事件日志。
 
@@ -392,14 +367,14 @@ Estimated 保留价格来源／版本或生效时间、模型与部署、计算�
 
 ## 8. 模块与实施顺序
 
-初始使用一个 `scoop.llm.client` Cone。`model` 管公共输入／结果与 capability，`tools` 管工具声明／活动／引用，`metrics` 管调用时间与 usage 快照，`protocols` 管 wire DTO／codec／reducer，`dialects` 管对应协议的服务差异及可选缓存／计费解释，`providers` 管命名组合，`endpoint` 管部署和认证组合。模块使用已有库接口，不另建 HTTP 栈或 Agent runtime。
+初始使用一个 `scoop.llm.client` Cone。`model` 管公共输入／结果与 capability，`tools` 管工具声明／活动／引用，`metrics` 管调用时间与 usage 快照，`protocols` 管 wire DTO／codec／reducer，`dialects` 管对应协议的服务差异及原生附加信息访问，`providers` 管命名组合，`endpoint` 管部署和认证组合。模块使用已有库接口，不另建 HTTP 栈或 Agent runtime。
 
 | 顺序 | 交付内容 | 验收出口 |
 | --- | --- | --- |
 | 1 | 固定公共数据、capability、工具、错误与调用 metadata；补 HTTP 请求级时间采样合同 | 可编码请求、可解码结果；发送／接收时间可取得，未知能力与明确不支持有不同结果 |
 | 2 | Chat protocol、基础 dialect 和 DeepSeek Chat dialect | 同一基础协议的两种行为；工具两轮回传、计时与 token usage 闭环 |
 | 3 | Responses、Messages 和 Gemini 的各自 provider，先实现 WebSearch | 客户端与服务端工具自然共存；活动、引用、usage 和原生历史保留 |
-| 4 | 按协议矩阵补部署、其他服务端工具、显式 token count、缓存寿命与可选 billing 扩展、持久会话 | 每项声明能力有对应映射与测试，不以供应商品牌数量验收 |
+| 4 | 按协议矩阵补部署、其他服务端工具、显式 token count、持久会话 | 每项声明能力有对应映射与测试，不以供应商品牌数量验收 |
 
 模块边界为当前两个具体 dialect 和多个真实服务端工具形状服务，不先实现通用插件层、规则语言或全部供应商目录。新 protocol 可由普通公共适配接口实现；生成与实时会话使用各自合同，不在无关接口中堆放占位方法。
 
@@ -420,8 +395,7 @@ Estimated 保留价格来源／版本或生效时间、模型与部署、计算�
 | 结果完整性 | citation 定位、usage 尾块、停止／继续状态、未知事件、无终止 EOF；坏参数与坏外层协议区分 |
 | 计时与时间戳 | 排池不计成已发送、1xx 与最终响应头、长流、首次 reasoning／文本、并发复用请求、重试关联、未发送失败／取消、wall clock 回拨、metadata 保存与恢复 |
 | Token 计数 | 累计与 delta、usage-only 尾块、部分与缺失计数、cache／reasoning 重叠、多个 candidate、重试用量；预估与报告分开，未知 tokenizer 不伪造精确结果 |
-| 缓存时间 | 长响应消耗 TTL、读取是否续期、不同前缀／断点范围、最短保留与精确到期的区别、并发请求、跨进程时间估计；没有命中证据时不猜测续期 |
-| 计费扩展 | 原生金额与估算、币种／单位、价格版本、部分费用、缓存与工具计价、网关差异、重试和快照不重复收费；缺省扩展不阻塞生成 |
+| 服务商附加信息 | 缺失、出现或格式变化均不影响正文、流式输出和 token 统计；不测试其内容准确性或有效性 |
 | 传输组合 | 分块 framing、取消、提前退出、共享连接与借入 client 的寿命；签名和实际 body 一致 |
 
 JSON 与 HTTP 已覆盖的基础规则不在每个 provider 重复全量验收。针对各协议锁定必要的小型 wire 样例和可观察结果，服务端工具测试不要求真的联网搜索或执行付费模型调用。

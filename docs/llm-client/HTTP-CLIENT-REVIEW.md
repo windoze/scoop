@@ -133,7 +133,7 @@ client.postJson(url, value, requestCodec, responseCodec, limits = ..., options =
 
 共享、借入 HttpClient 的调用通过 HttpCallOptions.observer 取得自己的尝试数据，与 client observer 共存。Instant／同源 TimeMark 在事件产生处相邻采集，沿尝试保留至失败或关闭；旧快照不可变，response.metrics 在关闭后仍可读取新快照。两处都未配置时保持观察关闭。连接级首字节采样继续由 client 配置决定，请求级观察不切换共享连接的采样策略。
 
-`onAttempt` 发生在排池之前，不能用作 sentAt；用户回调执行时的 Clock.now 也不能冒充原事件时间。不能为获得时间戳重建连接池或覆盖借入 client 的 observer。模型首个事件／输出、usage、缓存 TTL 解释和计费信息留在 LLM 层，HTTP 不承担 token 或模型计费语义。
+`onAttempt` 发生在排池之前，不能用作 sentAt；用户回调执行时的 Clock.now 也不能冒充原事件时间。不能为获得时间戳重建连接池或覆盖借入 client 的 observer。模型首个事件／输出和 usage 留在 LLM 层，HTTP 不承担 token 语义。服务商附加信息保留在原生响应中，由具体 dialect 访问。
 
 ## 5. 对缺省值的具体建议
 

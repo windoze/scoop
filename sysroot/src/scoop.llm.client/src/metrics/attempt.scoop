@@ -11,8 +11,7 @@ public class LlmAttemptMetadata public constructor(
     public val requestId: String? = None,
     public val responseId: String? = None,
     public val usage: LlmUsage = LlmUsage(),
-    public val http: LlmHttpTiming = LlmHttpTiming(),
-    public val cacheObservations: Array<CacheObservation> = []
+    public val http: LlmHttpTiming = LlmHttpTiming()
 ) {
     @Serialize(ignore = true) public val timeToHeaders: Duration? = pointDuration(request.sent, response.received)
     @Serialize(ignore = true) public val timeToFirstOutput: Duration? = pointDuration(request.sent, response.firstOutput)
@@ -34,10 +33,4 @@ public class LlmAttemptMetadata public constructor(
     }
 
     public companion object : ValueEncoder<LlmAttemptMetadata>, ValueDecoder<LlmAttemptMetadata>
-
-    public fun estimateCacheLifetime(observationIndex: Long, lifetimeIndex: Long = 0L): CacheLifetimeEstimate? {
-        val observation = cacheObservations[observationIndex]
-        if (observation.report.lifetimes.size == 0L && lifetimeIndex == 0L) return None
-        return estimateLlmCacheLifetime(observation, request, lifetimeIndex)
-    }
 }

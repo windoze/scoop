@@ -7,7 +7,6 @@ import scoop.http.HttpField
 
 /** Messages-specific interpretation, with all per-response state owned by the decoder. */
 public interface MessagesDialect {
-    public fun cacheObserver(encodedRequest: JsonValue): LlmCacheObserver = DefaultCacheObserver(id)
     public fun tokenCounter(): LlmTokenCounter? = None
     public val id: DialectId
     public val defaultMaxOutputTokens: Long
@@ -27,7 +26,6 @@ public class AnthropicMessagesDialect public constructor(
     public override val defaultMaxOutputTokens: Long = 4096L
 ) : MessagesDialect {
     public override val id: DialectId = DialectId(ApiProtocolId("messages"), "anthropic-messages")
-    public override fun cacheObserver(encodedRequest: JsonValue): LlmCacheObserver = MessagesCacheObserver(id)
     public override fun tokenCounter(): LlmTokenCounter? = Some(MessagesTokenCounter(this))
     init { if (defaultMaxOutputTokens < 0L) throw IllegalArgumentException(Some("default max output tokens must be nonnegative")) }
 

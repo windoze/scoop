@@ -18,7 +18,7 @@ public enum TokenCountPrecision {
     public companion object : ValueEncoder<TokenCountPrecision>, ValueDecoder<TokenCountPrecision>
 }
 
-/** Preflight measurement, independent of generation usage or billing. */
+/** Preflight measurement, independent of generation usage. */
 public class TokenCount public constructor(
     public val dialect: DialectId,
     public val model: String,

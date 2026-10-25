@@ -1,0 +1,29 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.llm.client.tests.cohere.stream.*
+import scoop.test.*
+
+@Test
+private class CohereExtraInfoTest {
+    @Test
+    fun `Cohere service extras do not affect ordinary or streaming generation`() {
+        val variants: Array<String?> = [None, Some("null"), Some("0"), Some("\"changed\""),
+            Some("[false,\"future\"]"), Some("{\"input_tokens\":\"changed\",\"future\":{\"items\":[]}}")]
+        for (extra in variants) {
+            val usage = "{\"tokens\":{\"input_tokens\":12,\"output_tokens\":1}" +
+                (if (extra == None) "" else ",\"billed_units\":" + extra!!) + "}"
+            val response = cohereDecode(cohereBody("[{\"type\":\"text\",\"text\":\"ok\"}]", usage = Some(usage)))
+            val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+            assertEquals("ok", restored.text)
+            assertEquals(Some(13L), restored.usage.tokens.totalTokens)
+
+            val stream = cohereStream(); cohereBegin(stream)
+            cohereContent(stream, 0L, "ok"); cohereEnd(stream, extra = ",\"usage\":" + usage)
+            assertTrue(stream.isFinished)
+            assertEquals("ok", stream.response().text)
+            assertEquals(Some(13L), stream.usage.tokens.totalTokens)
+        }
+    }
+}

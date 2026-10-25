@@ -30,7 +30,7 @@
 | 生成相关资源 | 显式的文件上传／查询／删除、模型查询、服务端 token count、生成任务查询／取消，可作为独立 API 模块 |
 | 其他推理 API | embeddings、rerank、独立图像／语音／转写接口可以使用独立请求与结果类型接入同一传输；不塞入聊天消息模型 |
 
-以下工作由后续 Agent 层承担：模型选择和自动切换、工具调度与执行、循环调用模型、MCP client、文件或终端操作、会话数据库、上下文裁剪与摘要策略、记忆、RAG 检索和索引、权限交互、登录 UI、账号管理、跨供应商价格目录、预算／扣费／账单管理、TUI／GUI。单次调用的原生计费信息或费用估算可以作为 dialect 的可选扩展。
+以下工作由后续 Agent 层承担：模型选择和自动切换、工具调度与执行、循环调用模型、MCP client、文件或终端操作、会话数据库、上下文裁剪与摘要策略、记忆、RAG 检索和索引、权限交互、登录 UI、账号管理、跨供应商价格目录、预算／扣费／账单管理、TUI／GUI。服务商附加信息（包括计费字段）原样保留，由具体 dialect 提供访问，不进入公共模型或生成流程。
 
 调用模型提供的原生 compaction／background 接口属于 API 操作；决定何时压缩、替换哪些历史、是否继续轮询或启动下一轮属于调用者。托管 Agent 产品的运行、环境和任务管理不因共用某个端点而自动进入本库。
 
@@ -130,14 +130,14 @@ Responses 的 reasoning item、Claude thinking signature、Gemini thought signat
 - prompt cache 的控制参数、服务级别与网关路由参数属于对应 API 的请求能力，应能显式传入并保留。缓存断点的选择、自动插入与历史重排属于上层策略；不能为了统一接口而删除调用者已经配置的缓存信息。
 - usage 保存原生数据与可解释的规范化计数：input、output、total、cache read/write、reasoning、各模态、服务端工具使用等。未知计数用缺失值，不能填零。
 - 区分累计快照与增量。Claude 的流式 usage 是累计值；最终 usage 不应与前面快照累加。不同 provider 的 cached／reasoning 计数归属也不能用同一公式猜测。[A1][G2]
-- 保留原始停止原因、模型实际返回名称、请求 ID、HTTP status／headers 和 warnings。调用计时、请求／响应时间戳与 token 统计属于公共能力；计费信息由 dialect 可选扩展提供，保留报告／估算的区别，不建立通用预算引擎。
+- 保留原始停止原因、模型实际返回名称、请求 ID、HTTP status／headers 和 warnings。调用计时、请求／响应时间戳与 token 统计属于公共能力；服务商附加信息原样保留，由具体 dialect 按需读取。
 - 请求前的 token count 是显式操作，区分服务端计数和本地 tokenizer，保留覆盖范围与精确／估算性质；不能用预估覆盖响应 usage，也不在 generate 前隐式联网计数。
 
-### 4.4 时间戳、缓存估计与计费信息
+### 4.4 请求与响应时间戳
 
 每次调用及其重试保存独立 metadata，为 request 标记 sentAt，为 response 标记 receivedAt，并记录首次事件／输出／文本、完整响应及实际收尾时刻。UTC Instant 用于保存和跨请求关联，同源单调时间用于计算耗时；流式响应头到达、内容完成和资源关闭是不同边界。同一 LlmRequest 并发复用时不互相覆盖时间戳。
 
-这些数据结合 cache read／write usage 和 dialect 提供的 TTL 起算／刷新规则，可用于估计缓存有效时间。不能统一使用“响应完成＋TTL”，也不能把缓存最低保留期、精确到期时间和实际 KV 命中视为相同事实。ProviderReported 与 Estimated 计费信息分别保留来源、币种、精确十进制金额及完整性。详细定义见[架构设计第 6 节](DESIGN.md#6-计时token-与计费扩展)。
+缓存相关附加信息只原样保留，不解释寿命、推导失效或判断有效性。应用可使用原始信息与实际时间戳处理自己的需求；这不增加公共缓存模型或调用步骤。计时合同见[架构设计第 6 节](DESIGN.md#6-计时与-token)。
 
 ## 5. 流式协议与寿命
 
@@ -263,7 +263,6 @@ withLlmClient suspend { client ->
 | 多模态流事件 | 必须可覆盖当前 SSE 的 64 KiB 行上限；可从 16 MiB 的实际行／事件上限评估，按媒体接口的真实尺寸决定 |
 | 日志 | 默认不记录 prompt、媒体、认证、URL query 或完整响应；保留请求 ID、状态、耗时与 usage 的观察入口 |
 | 计时与 token | 默认采集关键时间戳与实际 usage，不保留逐 delta 日志；缺失计数不填零，预计数显式调用 |
-| 计费信息 | Dialect 可选扩展；未配置时保持缺失，使用服务端报告或显式价格快照，不自动查询价格 |
 
 LLM 若管理重试，应在对应 HTTP 请求上关闭重复的 HTTP 重试，避免嵌套放大。现有 HTTP 内部有 H2 “未被处理”的安全重试分类；若后续要复用这类事实，应使用具体的类型化合同，不能靠错误字符串判断。对于无法确认发送状态的传输失败，默认返回给调用者。
 
@@ -308,7 +307,7 @@ OpenCode 网站仍说明使用 AI SDK 与 Models.dev，并提供自定义 provid
 | 1. 规范与公共合同 | 固定 protocol／dialect／provider、capability、消息／事件／错误、服务端工具与调用 metadata；复用 JSON／HTTP 入口并补窄的时间采样合同 | 可编码请求与解码结果；发送／接收时间可取得，以 Chat 和 DeepSeek dialect 验证具体差异 |
 | 2. 主流生成闭环 | Chat、Responses、Messages、Gemini 两种 API；文本、多模态、客户端工具、服务端 WebSearch、reasoning、完整与流式结果 | 应用提供工具结果的两轮请求；服务端工具活动与引用；保留原生历史并继续生成 |
 | 3. 部署与协议扩展 | Bedrock、Cohere、Ollama、NDJSON／EventStream、Azure／Vertex、网关与常见方言、灵活认证 | 任意 endpoint＋model 可配置；签名／刷新和真实流式错误闭环 |
-| 4. 持久会话与辅助 API | Responses WS、Realtime／Live、文件与 token count 等模型 API、缓存寿命及可选 billing 扩展；独立推理接口按其类型接入 | 双向会话取消与关闭、媒体事件、显式 continuation／任务操作、缓存与费用解释 |
+| 4. 持久会话与辅助 API | Responses WS、Realtime／Live、文件与 token count 等模型 API；独立推理接口按其类型接入 | 双向会话取消与关闭、媒体事件、显式 continuation／任务操作 |
 | 5. 兼容与文档验收 | 协议／方言矩阵、组合 Cone 测试、必要的外部进程 fixture、三目标消费者、可运行 quickstart 和扩展示例 | 每项已声明能力有实际证据，未验证服务明确标注 |
 
 正式实施前先更新相关 spec，再写实现。具体拆分与首个闭环见[架构设计第 8 节](DESIGN.md#8-模块与实施顺序)。HTTP、JSON 或 TLS 的公共合同变化落到所属规范，不用 LLM 专用绕行掩盖底层缺口；通用 HTTP 便利函数不作为生成闭环的前置要求。
@@ -320,7 +319,7 @@ OpenCode 网站仍说明使用 AI SDK 与 Models.dev，并提供自定义 provid
 - UTF-8／JSON／SSE／NDJSON／EventStream 在任意字节边界拆分；多个 frame 合并读取；AWS 错 CRC、长度和提前 EOF。
 - 多个工具参数交错、缺失／延后到达的 ID、错误 JSON、custom tool 文本、完成前取消；不把未完成输入交付成可执行调用。
 - usage-only 尾块、累计 usage、空 choices／content、refusal、200 中的 error、缺少终止标记、未知可忽略事件及未知必要内容。
-- 请求／响应时间戳、wall clock 回拨、重试关联与并发复用、长流占用缓存 TTL、读取是否刷新、计数缺失／重复累计、服务端报告与本地预估、可选计费的部分与未知费用。
+- 请求／响应时间戳、wall clock 回拨、重试关联与并发复用、计数缺失／重复累计、token 预计数与实际 usage 的区分，以及服务商附加信息缺失或格式变化时主线仍可用。
 - 两个自定义 provider 名称、同一模型字符串在两个端点、同一服务 URL 的 Chat／Responses 分别绑定两个 provider、含路径前缀的 base URL、带斜杠／冒号的模型 ID、无目录也可调用。
 - 同一模型在不同 provider 下的 capability、PDF 与图像的区别、媒体格式／输入方式、模式与工具组合限制；服务端工具未执行、多次活动、工具级失败和引用，且不进入客户端执行列表。
 - Bearer、自定义 header、无认证、query、异步到期刷新、并发刷新合并、取消刷新、JSON 401 无标准挑战、签名 body 与实际发送字节相同。

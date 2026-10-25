@@ -4,12 +4,12 @@ import scoop.json.JsonValue
 import scoop.url.Url
 
 internal suspend fun <T> performLlmJsonRequest(call: LlmCallState, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
-    options: LlmCallOptions, cacheObserver: LlmCacheObserver? = None, decode: (JsonValue, LlmAttemptState) -> T): T {
+    options: LlmCallOptions, decode: (JsonValue, LlmAttemptState) -> T): T {
     var retry = 0L
     var backoff = options.retries.initialDelay
     while (true) {
         ensureActive()
-        val attempt = LlmAttemptState(call, retry + 1L, cacheObserver)
+        val attempt = LlmAttemptState(call, retry + 1L)
         val result = try { executeLlmAttempt<T>(call.client.http, endpoint, url, bytes, options, attempt, decode) }
         finally { call.attempts.add(attempt.snapshot()) }
         val rejection = when (result) { case Success(response) -> return response; case Rejected(error) -> error }

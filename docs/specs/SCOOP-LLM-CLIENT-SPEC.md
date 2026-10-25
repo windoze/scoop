@@ -2,6 +2,8 @@
 
 本库通过普通 `scoop.llm.client` Cone 实现。总体职责、协议覆盖和实施顺序见 [架构设计](../llm-client/DESIGN.md)与[实施记录](../llm-client/PROGRESS.md)。本规范随功能闭环补充正式数据与 API 合同；尚未落地的调用示例仍以[使用草案](../llm-client/USAGE.md)标明状态。
 
+服务商附加信息（包括计费字段）全部保留在对应响应、usage 或事件的原生 JsonValue 中，由具体 dialect 按需提供只读访问。保留原始字段、数字 token、未知内容及缺失／null／零的区别，不推算或归一化这些信息，不为其增加公共数据模型、生成流程或统一扩展接口。缓存相关附加信息同样只保留原文，不推导 TTL、刷新规则、到期时间或有效性。实际 LLM 协议内容、token 统计与客户端计时仍按各自合同处理。
+
 ## 1. 公共 token 用量
 
 `TokenUsage` 是不可变的归一化计数快照。以下构造参数均为 `Long?`，缺省 None：
@@ -554,7 +556,7 @@ citations 的 content_index 指向原始 content 数组；TEXT_CONTENT、THINKIN
 
 每个 source 保留实际 id；缺少 id 时以该来源的 JSON 路径作为本响应来源表的局部标识，不把它解释为工具调用 ID。document 与 tool_output 都是应用定义对象，location 使用 Native 保存来源，不能根据其中任意 url 字段推断检索行为。来源对象中的实际字符串 title 可以作为显示标题；其余原文仍可读取。
 
-TokenUsage 使用 usage.tokens.input_tokens／output_tokens，cached_tokens 是已包含在 input 内的缓存读。仅当 input 和 cached 都已知且 cached 不超过 input 时计算 nonCachedInputTokens；未报告缓存读不当作零。input 与 output 都已知时可精确相加得到 totalTokens，溢出明确失败。计数必须为非负、Long 范围内的整数值，允许精确的整数小数／指数写法，不经过 Double。cacheWrite 与 reasoning 细项没有报告时保持 None；billed_units 是另一种计费口径，只在 usage.native 中保留，不代替实际 token 计数或伪造金额。
+TokenUsage 使用 usage.tokens.input_tokens／output_tokens，cached_tokens 是已包含在 input 内的缓存读。仅当 input 和 cached 都已知且 cached 不超过 input 时计算 nonCachedInputTokens；未报告缓存读不当作零。input 与 output 都已知时可精确相加得到 totalTokens，溢出明确失败。计数必须为非负、Long 范围内的整数值，允许精确的整数小数／指数写法，不经过 Double。cacheWrite 与 reasoning 细项没有报告时保持 None；billed_units 是另一种计费口径，只在 usage.native 中原样保留，不代替实际 token 计数或伪造金额。
 
 依据：[Chat v2](https://docs.cohere.com/v2/reference/chat)、[reasoning](https://docs.cohere.com/docs/reasoning)、[工具引用](https://docs.cohere.com/docs/tool-use-citations)、[计费与实际 token 的区别](https://docs.cohere.com/docs/how-does-cohere-pricing-work)，以及[官方 SDK 响应定义](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/v2/types/v2chat_response.py)和[引用定义](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/types/citation.py)。参考 [Vercel usage 映射](https://github.com/vercel/ai/blob/39aae5425e9f9a25acce413cc7e6823c2b5a73c5/packages/cohere/src/convert-cohere-usage.ts)，沿用本库对未知缓存计数与精确整数的合同。
 
@@ -683,21 +685,3 @@ Gemini 使用所选模型资源的 :countTokens，正文为 generateContentReque
 Messages 使用 /messages/count_tokens，相同部署、认证和版本头。正文复用普通请求的 messages、system、工具和原始历史编码，保留 tools／tool_choice／thinking／output_config；不发送 max_tokens、stream、采样或停止参数。已有显式生成选项仍经过模型能力检查，但计数不会注入缺省输出上限来约束 thinking 预算；显式输出上限仍参与预算一致性检查。请求扩展只允许计数端点的 cache_control 和 speed 等已支持输入字段，不静默丢弃其他扩展。当前端点不接受 MCP connector、除 advisor 外的 server tool、图片／文档的 URL 或 file 来源，编码前后在实际协议结构上检查并报错；检查工具结果／文档内容等协议容器，不递归解释工具参数中的任意业务 JSON。base64 媒体和支持的文本内容照常计数，缺失 input_tokens 保持未知。cache_control 不代表此次操作执行了 prompt caching。
 
 依据：[Gemini countTokens](https://ai.google.dev/api/tokens)、[Messages count_tokens](https://platform.claude.com/docs/en/api/messages/count_tokens)、[Claude 计数范围与限制](https://platform.claude.com/docs/en/build-with-claude/token-counting)。普通验收仅使用纯 codec 与 loopback mock；真实 API 用例继续默认 Ignore，只有显式选择且配置对应凭据时才运行。
-
-## 35. 缓存观察与寿命估计
-
-LlmAttemptMetadata 在既有参数之后增加 cacheObservations: Array<CacheObservation> = []。CacheObservation(report: CacheReport, observed: LlmTimePoint) 将 dialect 的纯报告与本次调用实际观察时刻分开；companion codec 保存二者，旧 metadata 缺省恢复空数组。CacheReport 包含非空 key、dialect、operation（Read／Write）、可选非负 tokens、scope（Unknown／Prefix(path)／Resource(name)）、lifetimes、可选 refreshesLifetime 和 reportedExpiresAt。scope 只表达已知的实际范围；请求中出现断点、key 或资源名称本身不证明总计数对应那个范围。reportedExpiresAt 只保存服务端明确报告的时间，不由 TTL 填充。
-
-CacheLifetime(duration, kind, anchor, upperDuration = None) 保存服务规则，duration 非负，可选 upperDuration 不早于 duration。kind 区分 Expiration、MinimumRetention、MinimumReadPricing、MaximumRetention、TypicalRetention；anchor 区分 RequestStart、Read、Write、Unknown。区间可表达典型保留范围；最低计费覆盖不保证实际 KV 复用或延迟，最长保留也不是从每次命中重新起算的有效期。所有数据提供 companion codec。cacheObservations 是缓存事实及其寿命解释，不能再次加到 TokenUsage 的输入总量中；不自动合并不同尝试、流式快照或不同范围。
-
-LlmGenerationProtocol.cacheObserver(encodedRequest) 在编码后、认证前准备一个纯 LlmCacheObserver；observe(usage) 返回 CacheReport 数组。缺省 observer 只投影已经归一化的缓存读写量，未报告量不创建虚构记录，明确零保留，不猜 TTL。Chat／Responses／Messages protocol 将准备委托给 dialect 的同名可选实现；自定义 dialect 缺省仍为上述未知寿命行为。输入是实际提交的 JSON，observer 只保留所需缓存设置，不重编码、不复制完整 prompt、不修改请求。countTokens 不使用此观察路径。
-
-普通生成与所有流式 framing 共用同一记录逻辑。只有 usage 对象更新时才重新解释；同一 key、计数、范围、规则及服务端到期时间的重复报告保留最初 observed，不能把终止标记、尾部 output token 或重复累计报告当成缓存续期。计数或语义变化时保存新观察时刻。每个快照不可变，重试的观察独立；提前关闭和失败保留已经收到的缓存事实。observer 在状态锁之外运行，事实与对应 usage 在同一次状态更新中发布。
-
-attempt.estimateCacheLifetime(observationIndex, lifetimeIndex = 0) 在 tokens 为已知正数、发送及确认时刻存在、起算规则与此次 Read／Write 相符时返回 CacheLifetimeEstimate，否则为 None。Unknown anchor 不估计，Read 不为从 Write 起算的最长保留期制造新的写入时间。估计保存 CacheLifetime 和实际发送／报告观察点；真实服务器起点未知，以这两个客户端观察点表达起点区间。earliestAt／latestAt 是预计边界区间，不是服务端到期承诺；RequestStart 也不直接使用响应完成时间加 TTL。UTC 投影以发送点为基准，加上同源单调偏移差，避免校时使区间倒置。remainingAtOffset(elapsed) 使用同一次调用的单调偏移，remainingAtInstant(now) 是跨进程恢复后的 UTC 估计，二者返回带符号的下／上界 Duration tuple，过期不钳成零。表示范围溢出时不提供估计，不令实际生成失败。没有 isCacheValid、自动续期请求或缓存管理器。
-
-Anthropic Messages 从实际 cache_read_input_tokens／cache_creation_input_tokens 生成观察。完整且与写入总量相符的 cache_creation.ephemeral_5m_input_tokens／ephemeral_1h_input_tokens 分项分别解释为从请求起点计算的 5 分钟／1 小时寿命；不重复保留同一写入总量。缺失或不能完整解释的分项保留聚合事实和至少 5 分钟的规则，原始 usage 继续保存。命中会刷新寿命，但只有总命中量时无法区分 5 分钟与 1 小时的实际缓存条目，使用 MinimumRetention 的 5 分钟界限，scope 保持 Unknown，不把整个请求的所有断点一起续期。可识别的详细写入使用 Expiration；出现未知 TTL 桶时不套用已知最低寿命。
-
-OpenAI Chat／Responses 不根据模型 ID 猜保留策略。只有实际请求明确使用已知 prompt_cache_options 或内容块上的 prompt_cache_breakpoint 时解释新缓存合同；只遍历协议定义的消息内容／工具结果内容，不把函数 arguments 内的业务 JSON 当成断点。30m 适用于两个协议，12h 仅适用于 Responses；不把新缓存设置与旧 prompt_cache_retention 叠加解释。写入按已选择 TTL 的最低值给出 MinimumReadPricing，不能按总写入量分摊多个断点；只有全部所选 TTL 均为 30m 时解释已报告读取的 30 分钟刷新下界，不把 12h 读取变成新的 12 小时写入。旧 prompt_cache_retention 的 in_memory／24h 保留典型与最长规则；最长保留的起算点未明确，保持 Unknown，不能据此推导每次读写后的到期时间。未知设置保持原文和已知计数，不猜规则，也不影响生成。其他内置 dialect 缺省只保留缓存计数事实。
-
-依据：[Claude 缓存起算、刷新与 TTL 明细](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)、[OpenAI 的最低计费覆盖与保留策略](https://developers.openai.com/api/docs/guides/prompt-caching)。测试覆盖长响应占用寿命、时钟回拨、未知与零、混合 TTL、流式重复报告／取消、重试隔离及 codec；普通测试仅用纯数据或 loopback mock。
