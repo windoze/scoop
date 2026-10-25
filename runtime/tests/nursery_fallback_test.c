@@ -29,7 +29,7 @@ int main(void) {
     // Fill the current region with real old blocks, leave one target block,
     // then fail the next OS mapping. No production allocation budget is used.
     scoop_gc_heap_lock();
-    while (scoop_gc_heap_state.allocation_region->next_block < GC_REGION_BLOCKS - 1) {
+    while (scoop_gc_heap_state.available_regions->next_block < GC_REGION_BLOCKS - 1) {
         assert(scoop_heap_activate_small_block(SCOOP_BLOCK_MUTATOR, true) != NULL);
     }
     scoop_test_vm_fail_mappings = true;

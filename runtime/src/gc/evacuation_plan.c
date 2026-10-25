@@ -52,22 +52,27 @@ static void *reserve_target(size_t size, size_t alignment, ScoopGcBlockMeta **bl
     return object;
 }
 
-static void rollback_reservations(void) {
-    for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
-         block = scoop_heap_next_block(block)) {
-        if (block->state == SCOOP_BLOCK_EVACUATION_TARGET) {
-            scoop_heap_release_block(block);
-        } else if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
+static void rollback_reservations(bool minor) {
+    while (scoop_gc_heap_state.evacuation_targets != NULL) {
+        ScoopGcBlockMeta *block = scoop_gc_heap_state.evacuation_targets;
+        scoop_gc_heap_state.evacuation_targets = block->next_collection;
+        scoop_heap_release_block(block);
+    }
+    for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
+         block = scoop_heap_next_collection_block(block, minor)) {
+        if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
             block->state =
                 scoop_heap_block_has_pins(block) ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
             free(block->forwarding);
             block->forwarding = NULL;
         }
     }
-    for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
-         region = region->next) {
-        region->evacuation_source = false;
-        region->evacuation_destination = false;
+    if (!minor) {
+        for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
+             region = region->next) {
+            region->evacuation_source = false;
+            region->evacuation_destination = false;
+        }
     }
     evacuation_block = NULL;
     evacuation_cursor = evacuation_limit = NULL;
@@ -147,7 +152,7 @@ bool scoop_gc_heap_plan_moving_locked(bool minor) {
         return true;
     }
     if (ordinary_full && source_regions == 1 && !single_source_may_fit()) {
-        rollback_reservations();
+        rollback_reservations(minor);
         return false;
     }
     if (ordinary_full) {
@@ -172,7 +177,7 @@ bool scoop_gc_heap_plan_moving_locked(bool minor) {
     }
     if (!plan.reserved) {
         free(plan.moves);
-        rollback_reservations();
+        rollback_reservations(minor);
         if (stress_move) {
             heap_fatal("stress heap exhausted during evacuation reservation");
         }

@@ -66,14 +66,13 @@ static size_t select_regions(void) {
 
 size_t scoop_heap_select_evacuation_sources(bool minor) {
     size_t regions = !minor && !stress_move ? select_regions() : 0;
-    for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
-         block = scoop_heap_next_block(block)) {
+    for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
+         block = scoop_heap_next_collection_block(block, minor)) {
         if (!active_head(block) || block->movable_live_bytes == 0) {
             continue;
         }
-        bool selected =
-            minor ? block->generation == SCOOP_GC_YOUNG && !scoop_heap_block_has_pins(block)
-                  : stress_move || block->region->evacuation_source;
+        bool selected = minor ? !scoop_heap_block_has_pins(block)
+                              : stress_move || block->region->evacuation_source;
         if (selected) {
             select_block(block);
         }

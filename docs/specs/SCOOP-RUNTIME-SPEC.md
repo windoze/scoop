@@ -543,6 +543,10 @@ release 是 best effort，不保证触发时间、对象间顺序、执行线程
 
 minor collection 处理年轻代，依据完整精确根与旧代脏区追踪年轻可达对象；其正常工作不遍历整个旧代图来弥补缺失屏障。full collection 处理两代；显式 `gc.collect()` 请求 full collection。
 
+年轻 block 在 refill／stress 分配取得块时加入 heap 私有清单；普通对象的 bump／登记不维护额外清单。minor 的标记准备、worker 计数汇总和搬迁 source 选择只枚举这份清单，收尾另处理本轮新建的 evacuation target。全部晋升或退役后清空两份清单；full 仍按全堆枚举，并在收尾结束这些临时成员关系。目标预留失败时只撤销本轮新建目标和选定 source，minor 转 full 前保持完整原图。活动年轻块／目标块与空闲块按互斥状态复用 side metadata 的链接；退役前取得后继，不能从已经交还空闲链的字段继续清单遍历。block 元数据大小及原热字段偏移保持，不增加对象头、roots、TLAB 或 generated-code prefix，也不改变产物 ABI。
+
+具有未使用 block 的普通 region 单独记录，分配／搬迁预留不为寻找一个可用 block 枚举所有已满 region；full 可以按原 source 排除规则选择并重建该清单。重建保持 region 目录的选择顺序，保留的空 region 如仍有未使用 block 则优先复用。大对象和带 release hook 的对象仍预晋升，minor 不产生需要归还的大对象 mapping，因而只在 full 收尾执行 region 回收／VM 归还枚举。卡表的扫描与清零继续遵守 3.6；collector 可利用卡字节仅为 0／1 的约定批量跳过连续清卡区段，脏卡仍按地址顺序处理，扫描范围和写屏障不变。上述 block 清单与清卡跳过并未消除 region／卡表自身的枚举成本。
+
 remembered 枚举在读取大对象 mapping 的卡表前，使用已发布旧对象的既有 TD 判断是否含引用；`object_scan == null` 时整份卡表无需遍历。mark 与 relocation 复用这一枚举规则；真正含引用的大对象仍按脏卡扫描和回写。无引用对象自身仍由正常 roots／mark 保活，并参加统计、搬迁与回收；此优化不改变卡表分配、写屏障或收尾清零，也不重新验证静态 TD。
 
 minor 和 full 共享线程、root、pin、handle、Context、callback、冻结栈段及精确扫描契约。晋升或移动在原存储失效前更新全部相关引用；pin 暴露的地址不变。年轻区复用不能遗漏存活引用或 release hook，旧代死对象可以留到 full collection。

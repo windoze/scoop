@@ -4,7 +4,7 @@
 
 2026-10-24 修订：将测量与归因基础设施前置为独立交付；PGO 保留为后续独立专项，按实际优化消费者与收益安排，不与全程序优化／ThinLTO 绑定排期。另以源码及本机 release 产物核对父接口查表和 smart cast 成功路径，见 §5.2.1；该检查不包含性能计时。
 
-2026-10-25 追加核对：用户提供 `/tmp/scoop-bench` 的实际负载。当前 minor GC 在开始、迁移选择、结束与卡表处理中仍遍历全堆，年轻对象首次存活即晋升，优先拆除这些随旧代规模增长的工作，再评估 survivor／年龄。内联已有冷抛出／陷阱路径的执行权重，但增长额度按固定顺序消费；提供的 Complex.times 报告是 execution 51 超过 limit 40，增长额度尚足，需分别处理循环选择顺序与调用成本估价。普通库正文导出的操作集合仍窄，需以 ModificationCounter／HashLocation 的实际缺失形式补齐通用支持。镜像登记表仍统一引用 callable／safepoint 记录，后续裁剪必须同步处理可达正文与其记录，保留动态分派、函数值与入口等真实引用。普通入口 TLS 已由[普通 poll 与有界叶函数](ACTIVE-POLLS.md)直接消除，无需新增线程参数或专用寄存器。
+2026-10-25 追加核对：用户提供 `/tmp/scoop-bench` 的实际负载。minor GC 的开始、标记计数汇总、迁移选择与收尾现已改为[年轻块／新目标清单](MINOR-BLOCKS.md)，可用 region 直接索引，连续清卡批量跳过；卡表枚举与清零仍有随旧堆规模增长的工作，年轻对象也仍首次存活即晋升，后续继续处理脏区枚举和 survivor／年龄。内联已有冷抛出／陷阱路径的执行权重，但增长额度按固定顺序消费；提供的 Complex.times 报告是 execution 51 超过 limit 40，增长额度尚足，需分别处理循环选择顺序与调用成本估价。普通库正文导出的操作集合仍窄，需以 ModificationCounter／HashLocation 的实际缺失形式补齐通用支持。镜像登记表仍统一引用 callable／safepoint 记录，后续裁剪必须同步处理可达正文与其记录，保留动态分派、函数值与入口等真实引用。普通入口 TLS 已由[普通 poll 与有界叶函数](ACTIVE-POLLS.md)直接消除，无需新增线程参数或专用寄存器。
 
 用当前工具和已重编系统库复现后，Complex.times 仍是 51／40；strmap 报告中 ModificationCounter.snapshot／check／advance 和 HashLocation 构造器均为 `no-mir-body`。与用户保留的 `bin3` 作一次预热、五对交错对照，dispatch 为 2.325→1.829 s，values 为 0.224→0.183 s，输出一致；这是用户旧产物到当前完整构建的对照，不将其全部归因于某一项变更，也不表示上述内联缺口已经解决。原始记录在仓库 `tmp/program-performance/priority-review/`。
 

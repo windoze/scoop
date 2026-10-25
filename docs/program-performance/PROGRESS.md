@@ -14,8 +14,9 @@
 
 ## 当前进展
 
+- 已完成[minor 局部块遍历与连续清卡跳过](MINOR-BLOCKS.md)：准备、计数汇总、搬迁选择和收尾只枚举年轻块／新目标，可用 region 直接索引；`memchr` 跳过连续清卡。用户原始 trees 在 Darwin／GNU／musl 耗时降低 7.94%／12.01%／11.76%，strings／strmap 的小幅变化和 Darwin 回退如实保留。block 元数据保持 144 B，仅每个 region 增加 8 B、全局增加 16 B；三目标定向 GC、默认 sysroot 消费及空间／构建成本已核对。所有 profile 默认，无新诊断代码或 ABI 改动。
 - 已完成[普通 managed poll 与有界叶函数](ACTIVE-POLLS.md)：普通 Full poll 只读取全局 phase，省去 TLS／mode／epoch；既有有界叶函数省入口，root／初始化 gateway 保留有锁激活。三个目标的动态调用内核降低 16.52%／27.51%／39.52%，代码与静态记录均缩小，编译墙钟变化 −2.13%～+1.43%；对照波动、机器码与定向 GC／ABI 验证已记录。所有 profile 默认，无新增诊断代码或 ABI 改动。
-- 下一批以用户提供的 `/tmp/scoop-bench` 为实际负载：先去掉 minor GC 的全堆遍历／卡表工作，再评估 survivor 与晋升年龄；同步核实内部小成员的正文导出、循环内联优先级与实际调用成本，随后处理 callable／stackmap 的无用保留。输入副本与原始记录放在仓库 `tmp/program-performance/priority-review/`，不将测量设施改造另开为主线。
+- 下一批继续处理 minor 的脏区枚举／清零及 survivor 与晋升年龄；同步补齐内部小成员的正文导出、循环内联优先级与实际调用成本，随后处理 callable／stackmap 的无用保留。用户 `/tmp/scoop-bench` 的输入副本与原始记录放在仓库 `tmp/program-performance/priority-review/`，不将测量设施改造另开为主线。
 - 已完成[启动 site 的 owner 验证合并](STARTUP-OWNER-JOIN.md)：首次 stackmap 合并时一次解析与验证，重复 ODR 复用结果，保留完整性与错误检查。两机 image 测试和三目标 6 个启动 variant 通过；默认最小／JSON 程序启动分别降低 Darwin 6.49%／7.14%、GNU 8.10%／7.92%、musl 2.65%／2.85%。完整文件和静态元数据大小不变，text 增加 16～128 B，相同 `.slib` 零编译子进程复用，全部 profile 默认启用；没有新增测量或 ABI 机制。
 - 已完成[编译期开关控制的启动测量](STARTUP-STATS.md)：`--enable-startup-stats` 独立于 profile／GC stress，默认预处理排除新增计时、报告、诊断字符串和专用计数访问。三目标 6 个 variant 通过，两个实际程序的默认完整代码段与无测量基线逐字节相同、文件大小相同；开启开销与阶段成本已记录，注册汇集、代码／类型与 stackmap 是后续实际热点。
 - 已完成[poll 的本线程 relaxed 读取](POLL-OWNER-READS.md)：按实际单写者关系保留共享 acquire，降低本线程 mode／epoch 的读取强度；当时 ARM64 Full poll 4→2 条 ldar，叶入口改为 ldr，TLS 保留，普通路径现已由上项进一步消除。三个目标 18 个 GC variant、96 个进程通过，机器码／元数据与小范围复测完成；没有把 Linux 字节相同内核的时间波动算作优化收益，Gateway 继续采用此读取规则。

@@ -71,6 +71,10 @@ ScoopGcRegion *scoop_heap_region_create(size_t size, bool large) {
     }
     region->next = scoop_gc_heap_state.regions;
     scoop_gc_heap_state.regions = region;
+    if (!large) {
+        region->next_available = scoop_gc_heap_state.available_regions;
+        scoop_gc_heap_state.available_regions = region;
+    }
     scoop_heap_page_map_publish(region);
     scoop_gc_heap_state.metrics.region_mappings++;
     return region;

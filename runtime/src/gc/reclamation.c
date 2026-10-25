@@ -5,6 +5,20 @@
 #include "gc_internal.h"
 #include "heap_internal.h"
 
+static void finish_block(ScoopGcBlockMeta *block, bool minor) {
+    if (block->generation == SCOOP_GC_YOUNG) {
+        scoop_gc_heap_state.metrics.promoted_bytes += block->live_bytes;
+        if (minor && block->kind == SCOOP_BLOCK_KIND_SMALL &&
+            (block->live_bytes == 0 || block->state == SCOOP_BLOCK_EVACUATION_SOURCE)) {
+            /* Minor sources are unpinned and fully updated; activation resets metadata. */
+            scoop_heap_release_block(block);
+            return;
+        }
+    }
+    block->generation = SCOOP_GC_OLD;
+    scoop_heap_finish_block(block, stress_move);
+}
+
 void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor) {
     if (!collection_active) {
         heap_fatal("heap collection finished without begin");
@@ -19,30 +33,31 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor) {
     } else {
         free_run_nodes();
     }
-    for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
-         block = scoop_heap_next_block(block)) {
-        if (!active_head(block) || (minor && block->generation == SCOOP_GC_OLD &&
-                                    block->state != SCOOP_BLOCK_EVACUATION_TARGET)) {
-            continue;
+    for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;) {
+        /* Retirement reuses the link for the free list. */
+        ScoopGcBlockMeta *next = scoop_heap_next_collection_block(block, minor);
+        if (active_head(block)) {
+            finish_block(block, minor);
         }
-        if (block->generation == SCOOP_GC_YOUNG) {
-            scoop_gc_heap_state.metrics.promoted_bytes += block->live_bytes;
-            if (minor && !stress_move && block->kind == SCOOP_BLOCK_KIND_SMALL &&
-                (block->live_bytes == 0 || block->state == SCOOP_BLOCK_EVACUATION_SOURCE)) {
-                /* Sources are unpinned and fully updated; activation resets metadata. */
-                scoop_heap_release_block(block);
-                continue;
-            }
-        }
-        block->generation = SCOOP_GC_OLD;
-        scoop_heap_finish_block(block, stress_move);
+        block = next;
     }
+    if (minor) {
+        while (scoop_gc_heap_state.evacuation_targets != NULL) {
+            ScoopGcBlockMeta *block = scoop_gc_heap_state.evacuation_targets;
+            scoop_gc_heap_state.evacuation_targets = block->next_collection;
+            finish_block(block, true);
+        }
+    }
+    scoop_gc_heap_state.young_blocks = NULL;
+    scoop_gc_heap_state.evacuation_targets = NULL;
     evacuation_block = NULL;
     evacuation_cursor = NULL;
     evacuation_limit = NULL;
-    uint64_t vm_started = scoop_gc_monotonic_ns();
-    scoop_heap_reclaim_regions(!minor && !stress_move);
-    scoop_gc_heap_state.metrics.vm_return_ns += scoop_gc_monotonic_ns() - vm_started;
+    if (!minor) {
+        uint64_t vm_started = scoop_gc_monotonic_ns();
+        scoop_heap_reclaim_regions(!stress_move);
+        scoop_gc_heap_state.metrics.vm_return_ns += scoop_gc_monotonic_ns() - vm_started;
+    }
     for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
          region = region->next) {
         memset(region->cards, 0, region->size >> GC_CARD_SHIFT);

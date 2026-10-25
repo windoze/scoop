@@ -53,6 +53,13 @@ typedef enum RefillResult {
     REFILL_FULL,
 } RefillResult;
 
+static void record_nursery_block(ScoopGcBlockMeta *block) {
+    block->generation = SCOOP_GC_YOUNG;
+    block->next_collection = scoop_gc_heap_state.young_blocks;
+    scoop_gc_heap_state.young_blocks = block;
+    scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;
+}
+
 static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
     lock_heap();
     size_t capacity = GC_NURSERY_CAPACITY;
@@ -74,8 +81,7 @@ static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
         unlock_heap();
         return REFILL_FULL;
     }
-    block->generation = SCOOP_GC_YOUNG;
-    scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;
+    record_nursery_block(block);
     mutator->allocation_block = block;
     ScoopAllocationContext *allocation = &mutator->allocation;
     allocation->block_start = block_base(block);
@@ -150,8 +156,7 @@ static void *allocate_small_stress(size_t size, bool pretenured) {
     lock_heap();
     ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
     if (block != NULL && !pretenured) {
-        block->generation = SCOOP_GC_YOUNG;
-        scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;
+        record_nursery_block(block);
     }
     unlock_heap();
     if (block == NULL) {

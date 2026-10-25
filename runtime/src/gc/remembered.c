@@ -1,4 +1,6 @@
 /* Enumerate only old objects intersecting dirty cards, including prior starts. */
+#include <string.h>
+
 #include "../gc_binding/object.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
@@ -29,9 +31,14 @@ static void scan_region(ScoopGcRegion *region, ScoopGcObjectRangeVisitor visitor
         }
     }
     size_t bytes = region->large ? region->size : (size_t)region->next_block * GC_BLOCK_SIZE;
-    for (size_t card = 0; card < (bytes >> GC_CARD_SHIFT); card++) {
+    size_t count = bytes >> GC_CARD_SHIFT;
+    for (size_t card = 0; card < count; card++) {
         if (region->cards[card] == 0) {
-            continue;
+            const unsigned char *dirty = memchr(region->cards + card, 1, count - card);
+            if (dirty == NULL) {
+                break;
+            }
+            card = (size_t)(dirty - region->cards);
         }
         uintptr_t begin = region->base + (card << GC_CARD_SHIFT);
         uintptr_t end = begin + ((uintptr_t)1 << GC_CARD_SHIFT);

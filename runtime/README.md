@@ -96,6 +96,13 @@ same STW interval. `SCOOP_GC_STRESS_MINOR=1` reduces nursery capacity to one blo
 while retaining the ordinary allocation and remembered-set paths. Full moving
 stress takes precedence if both switches are set.
 
+Nursery refill records young blocks in a private heap list. Minor mark setup,
+block-count aggregation, source selection and retirement use that list and the
+newly reserved targets instead of enumerating old blocks. Available regions are
+indexed separately, and region reclamation runs only after full collection.
+Remembered-card scanning and clearing still use the region directory; scanning
+uses `memchr` to skip contiguous clean cards without changing dirty-card order.
+
 Ordinary regions grow on demand and contain 32 KiB blocks with 128-byte lines.
 Large objects use independent mappings rounded to 64 KiB, including objects
 larger than the former 1 GiB arena. Alignment padding is unmapped immediately;

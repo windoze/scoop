@@ -56,7 +56,11 @@ typedef struct ScoopGcRegion ScoopGcRegion;
 
 typedef struct ScoopGcBlockMeta {
     ScoopGcRegion *region;
-    struct ScoopGcBlockMeta *next_free;
+    union {
+        struct ScoopGcBlockMeta *next_free;
+        /* Active young blocks and newly reserved targets are never on the free list. */
+        struct ScoopGcBlockMeta *next_collection;
+    };
     uint16_t index;
     ScoopGcBlockState state;
     ScoopGcBlockKind kind;
@@ -94,6 +98,7 @@ struct ScoopGcRegion {
     bool evacuation_source;
     bool evacuation_destination;
     size_t collection_live_bytes;
+    ScoopGcRegion *next_available;
 };
 
 _Static_assert(sizeof(uintptr_t) == 8 && GC_CHUNK_SHIFT + 4 * GC_RADIX_BITS == 64,
@@ -112,7 +117,7 @@ typedef struct ScoopGcFreeRun {
 typedef struct ScoopGcHeapState {
     pthread_mutex_t lock;
     ScoopGcRegion *regions;
-    ScoopGcRegion *allocation_region;
+    ScoopGcRegion *available_regions;
     ScoopGcBlockMeta *free_blocks;
     ScoopGcFreeRun *free_runs;
     size_t committed_bytes;
@@ -142,6 +147,8 @@ typedef struct ScoopGcHeapState {
     char *evacuation_cursor;
     char *evacuation_limit;
     uint64_t moved_objects;
+    ScoopGcBlockMeta *young_blocks;
+    ScoopGcBlockMeta *evacuation_targets;
 } ScoopGcHeapState;
 
 extern ScoopGcHeapState scoop_gc_heap_state;
@@ -195,6 +202,13 @@ void scoop_heap_require_ready(void);
 void scoop_heap_free_run_nodes(void);
 ScoopGcBlockMeta *scoop_heap_first_block(void);
 ScoopGcBlockMeta *scoop_heap_next_block(const ScoopGcBlockMeta *block);
+static inline ScoopGcBlockMeta *scoop_heap_first_collection_block(bool minor) {
+    return minor ? scoop_gc_heap_state.young_blocks : scoop_heap_first_block();
+}
+static inline ScoopGcBlockMeta *scoop_heap_next_collection_block(const ScoopGcBlockMeta *block,
+                                                               bool minor) {
+    return minor ? block->next_collection : scoop_heap_next_block(block);
+}
 ScoopGcBlockMeta *scoop_heap_pointer_block(const void *pointer);
 bool scoop_heap_bit_test(const uint64_t *bits, size_t index);
 void scoop_heap_bit_set(uint64_t *bits, size_t index);

@@ -8,6 +8,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [minor 局部块遍历与连续清卡跳过](MINOR-BLOCKS.md) | 新版 runtime，所有 profile 默认 | minor 的准备、汇总、搬迁选择和收尾只枚举年轻块／新目标；可用 region 直接索引，连续清卡由 `memchr` 跳过。对象／TLAB／ABI 不变；卡表自身的遍历与清零仍保留，尚无 survivor。 |
 | [普通 poll 单次 phase 读取与有界叶函数省入口](ACTIVE-POLLS.md) | 新编译器生成的所有 profile 默认 | 普通 Managed poll 不读取 TLS／mode／epoch；既有有界叶函数省去入口 poll，效果仍为 Managed。root／初始化 gateway 保留首次激活，循环与慢边精确 roots 保持。 |
 | [启动 site 的 owner 验证合并](STARTUP-OWNER-JOIN.md) | 新版 runtime，所有 profile 默认 | 每个 site 在首次 stackmap 合并时只解析一次 owner；重复 ODR 记录复用验证结果，仍比较完整地址与 payload，全部对应关系在 managed 执行前完成。 |
 | [poll 的本线程 relaxed 读取](POLL-OWNER-READS.md) | Gateway 完整检查中，所有 profile 默认 | 全局 epoch／phase 保持 acquire，所属线程的 mode／observed epoch 使用 relaxed；普通 Full poll 已由上项进一步简化。runtime 跨线程发布与停稳协议保持。 |

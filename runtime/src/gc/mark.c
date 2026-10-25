@@ -92,9 +92,9 @@ uint64_t scoop_gc_mark_finish(bool minor) {
         metrics->worker_cpu_ns[index] += worker->cpu_ns;
         metrics->worker_marked_objects[index] += worker->marked;
     }
-    for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
-         block = scoop_heap_next_block(block)) {
-        if (!active_head(block) || (minor && block->generation != SCOOP_GC_YOUNG)) {
+    for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
+         block = scoop_heap_next_collection_block(block, minor)) {
+        if (!active_head(block)) {
             continue;
         }
         for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {

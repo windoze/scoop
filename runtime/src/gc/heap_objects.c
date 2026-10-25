@@ -171,9 +171,9 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
     evacuation_limit = NULL;
     moved_objects = 0;
     size_t mark_blocks = 0;
-    for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
-         block = scoop_heap_next_block(block)) {
-        if (!active_head(block) || (minor && block->generation == SCOOP_GC_OLD)) {
+    for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
+         block = scoop_heap_next_collection_block(block, minor)) {
+        if (!active_head(block)) {
             continue;
         }
         if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE ||

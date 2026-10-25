@@ -159,6 +159,25 @@ fn retired_nursery_blocks_reset_metadata_and_preserve_promoted_graphs() {
 }
 
 #[test]
+fn nursery_block_indexes_follow_promotion_reuse_and_full_reclamation() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "nursery_block_index_test",
+        "runtime/tests/nursery_block_index_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"young and available-region indexes survive promotion, pin, reuse and full reclamation\n"
+    );
+}
+
+#[test]
 fn pointer_free_large_cards_do_not_hide_required_remembered_references() {
     let output = compile_and_run(
         &workspace_root(),
