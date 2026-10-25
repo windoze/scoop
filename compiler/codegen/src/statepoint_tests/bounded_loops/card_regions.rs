@@ -34,14 +34,16 @@ fn query() -> String {
          %offset = sub i64 %written, %base\n\
          %card_index = lshr i64 %offset, 9\n\
          %card = getelementptr i8, ptr %cards, i64 %card_index\n\
-         store atomic i8 1, ptr %card monotonic, align 1\n",
+         store atomic i8 1, ptr %card monotonic, align 1\n\
+         call void @scoop_runtime_record_dirty_card_group(ptr %page3, i64 %card_index)\n",
     );
     text
 }
 
 fn source() -> String {
     format!(
-        "@scoop_gc_page_map = external global [4096 x ptr]\n{}",
+        "@scoop_gc_page_map = external global [4096 x ptr]\n\
+         declare void @scoop_runtime_record_dirty_card_group(ptr, i64) nounwind \"gc-leaf-function\"\n{}",
         include_str!("../bounded_loops.ll").replace("  %scaled =", &(query() + "  %scaled ="))
     )
 }

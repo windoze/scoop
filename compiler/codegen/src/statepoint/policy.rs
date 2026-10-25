@@ -86,6 +86,7 @@ pub(crate) fn optimize(
             finish_managed_optimization(function, machine)?;
         }
     }
+    crate::gc_card_groups::inline_fast_paths(module, machine)?;
     finalization::finalize(module, expected, profile)
 }
 

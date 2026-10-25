@@ -127,6 +127,18 @@ pub(super) fn card_store(instruction: InstructionValue<'_>) -> bool {
         && address(cards, 0).is_some_and(|pointer| prefix_offset(pointer) == Some(16))
 }
 
+pub(super) fn cards_region(cards: PointerValue<'_>) -> Option<PointerValue<'_>> {
+    let load = cards.as_instruction_value()?;
+    if load.get_opcode() != InstructionOpcode::Load || !ordinary(load) {
+        return None;
+    }
+    let slot = address(load, 0)?;
+    if prefix_offset(slot) != Some(16) {
+        return None;
+    }
+    address(slot.as_instruction_value()?, 0)
+}
+
 fn integer(instruction: InstructionValue<'_>, index: u32) -> Option<u64> {
     let value = instruction.get_operand(index)?.value()?;
     value

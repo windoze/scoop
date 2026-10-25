@@ -3,6 +3,7 @@ use super::*;
 
 #[derive(Clone, Copy)]
 pub(super) struct CardRegion<'ctx> {
+    mapping: PointerValue<'ctx>,
     base: IntValue<'ctx>,
     cards: PointerValue<'ctx>,
 }
@@ -66,7 +67,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_load(ptr, cards_slot, "region_cards")
             .map_err(card_error)?
             .into_pointer_value();
-        Ok(CardRegion { base, cards })
+        Ok(CardRegion {
+            mapping: node,
+            base,
+            cards,
+        })
     }
 
     pub(super) fn mark_card_in_region(
@@ -103,6 +108,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(card_error)?
             .set_atomic_ordering(AtomicOrdering::Monotonic)
             .map_err(|error| CodegenError(format!("card mark atomic store: {error}")))?;
+        let record = self.gc_leaf_fn(
+            scoop_lir::RuntimeAbiSymbolV1::RecordDirtyCardGroup.logical_symbol(),
+            context
+                .void_type()
+                .fn_type(&[ptr_ty(context).into(), i64_ty.into()], false),
+        );
+        record.add_attribute(
+            AttributeLoc::Function,
+            context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+        );
+        builder
+            .build_call(record, &[region.mapping.into(), card.into()], "")
+            .map_err(card_error)?;
         Ok(())
     }
 }

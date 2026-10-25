@@ -67,7 +67,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 16,
+                1 => 17,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -92,6 +92,7 @@ pub enum RuntimeAbiSymbolV1 {
     GcEpoch,
     PageMap,
     WriteBarrier,
+    RecordDirtyCardGroup,
     FinishTlabAllocation,
     AllocateSlow,
     BeginCatch,
@@ -116,7 +117,7 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 68] = [
+    pub const ALL: [Self; 69] = [
         Self::PollState,
         Self::WorldPhase,
         Self::GcEpoch,
@@ -190,6 +191,7 @@ impl RuntimeAbiSymbolV1 {
         Self::AllocationContext,
         Self::PageMap,
         Self::WriteBarrier,
+        Self::RecordDirtyCardGroup,
         Self::FinishTlabAllocation,
         Self::AllocateSlow,
         Self::BeginCatch,
@@ -330,6 +332,7 @@ impl RuntimeAbiSymbolV1 {
             Self::GcEpoch => "scoop_thread_gc_epoch",
             Self::PageMap => "scoop_gc_page_map",
             Self::WriteBarrier => "scoop_rt_gc_write_barrier",
+            Self::RecordDirtyCardGroup => "scoop_runtime_record_dirty_card_group",
             Self::FinishTlabAllocation => "scoop_runtime_finish_tlab_alloc",
             Self::AllocateSlow => "scoop_runtime_alloc_slow",
             Self::BeginCatch => "scoop_rt_begin_catch",
@@ -382,6 +385,7 @@ impl RuntimeAbiSymbolV1 {
             Self::CallbackState => 24,
             Self::CallbackInvoke => 25,
             Self::WriteBarrier => 26,
+            Self::RecordDirtyCardGroup => 33,
             Self::PushPinFrame => 27,
             Self::PopPinFrame => 28,
             Self::PollState => 29,
@@ -797,10 +801,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_current_metadata_layout() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3011002010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3011102010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "807c0c2056e5b153b1884aa23f2745ca60c8a15a67005009c18df5968052003f"
+            "29650bf77c2b4c4ce13ffc076c0739e0a9637f236de24c66b03dcb7e89f5b01a"
         );
     }
 
@@ -896,7 +900,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "9223933dab540fb9578c15eb6dc71922c8dfbdb70a80981777412899bc3bf291"
+            "d7e159ef389b1b4a48656655b4bf9fbef8717489165006a408be5f3cf7ca6b56"
         );
         assert!(
             registry
@@ -952,7 +956,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "dc6a93a9bf9b494cfa744b72922faf9374ea31f75f4756e68fe0b33d3f6f5267"
+            "c7459e678ef2823a3391bad85e0813ca64e85efbf2bff999f756e444f5e81552"
         );
     }
 

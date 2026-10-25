@@ -1,6 +1,5 @@
 /* Post-verification object retirement, ordinary reuse and stress quarantine. */
 #include <stdatomic.h>
-#include <string.h>
 
 #include "gc_internal.h"
 #include "heap_internal.h"
@@ -53,16 +52,16 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor) {
     evacuation_block = NULL;
     evacuation_cursor = NULL;
     evacuation_limit = NULL;
+    scoop_heap_clear_dirty_card_groups();
     if (!minor) {
         uint64_t vm_started = scoop_gc_monotonic_ns();
         scoop_heap_reclaim_regions(!stress_move);
         scoop_gc_heap_state.metrics.vm_return_ns += scoop_gc_monotonic_ns() - vm_started;
-    }
-    for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
-         region = region->next) {
-        memset(region->cards, 0, region->size >> GC_CARD_SHIFT);
-        region->evacuation_source = false;
-        region->evacuation_destination = false;
+        for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
+             region = region->next) {
+            region->evacuation_source = false;
+            region->evacuation_destination = false;
+        }
     }
     scoop_gc_heap_state.nursery_bytes = 0;
     scoop_gc_heap_state.collected_live_objects = object_count;

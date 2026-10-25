@@ -8,6 +8,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [minor 脏卡组清单](DIRTY-CARD-GROUPS.md) | 所有 profile 默认，配套 runtime ABI 17，旧产物须重建 | 每 64 张卡共用 16 B 节点，首次写入登记，STW 只枚举／清零脏组；原有批量卡标记保留完整登记。side metadata 约 0.049%，写屏障固定成本与真实程序回退见记录。 |
 | [小正文导出与跨 Cone 主值构造器内联](BODY-EXPORT.md) | release 默认；扩展成员正文需新版 provider，主值构造可消费既有角色 | 普通字段写入、值／构造表达式和 callable-owned 字符串沿用有界导出及统一成本选择；字符串引用 provider 原对象。secondary／class 初始化、缺少正文或成本不合格的调用保留，profile 间 ABI 一致。 |
 | [循环内联优先级与传值调用估价](LOOP-INLINING.md) | release 默认 | 更深循环优先使用累计增长；及时消费已知 receiver，复用完整调用适配；循环执行上限计入参数／返回值快照，最高 72。总增长、六层展开、非循环规则和完整冷分支体积限制保持。 |
 | [minor 局部块遍历与连续清卡跳过](MINOR-BLOCKS.md) | 新版 runtime，所有 profile 默认 | minor 的准备、汇总、搬迁选择和收尾只枚举年轻块／新目标；可用 region 直接索引，连续清卡由 `memchr` 跳过。对象／TLAB／ABI 不变；卡表自身的遍历与清零仍保留，尚无 survivor。 |

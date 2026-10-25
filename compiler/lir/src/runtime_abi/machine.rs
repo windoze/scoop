@@ -108,7 +108,7 @@ impl RuntimeAbiSymbolV1 {
                 mutable: true,
             },
             Self::AllocateSlow => managed(&[P, I(64)], P),
-            Self::WriteBarrier => leaf(&[P, I(64)], V),
+            Self::WriteBarrier | Self::RecordDirtyCardGroup => leaf(&[P, I(64)], V),
             Self::ArrayClone => managed(&[P, P, P], P),
             Self::PushPinFrame => leaf(&[P, P], V),
             Self::PopPinFrame => leaf(&[P], V),

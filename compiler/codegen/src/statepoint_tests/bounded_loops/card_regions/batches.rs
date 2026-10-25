@@ -25,18 +25,32 @@ fn strided(source: String, stride: u64) -> String {
         )
 }
 
-fn marks(function: FunctionValue<'_>, expected: usize, batched: bool) {
+fn marks(function: FunctionValue<'_>, expected: usize, batched: bool, guarded: bool) {
     let mut count = 0;
+    let mut records = 0;
     for block in function.get_basic_blocks() {
         for instruction in block.get_instructions() {
+            if crate::gc_card_groups::record(instruction).is_some() {
+                records += 1;
+                if !guarded {
+                    assert_eq!(
+                        block.get_name().to_str().unwrap().starts_with("card.exit"),
+                        batched
+                    );
+                }
+            }
             if instruction.get_opcode() == InstructionOpcode::Store
                 && instruction.get_atomic_ordering() == Ok(AtomicOrdering::Monotonic)
             {
                 count += 1;
-                assert_eq!(
-                    block.get_name().to_str().unwrap().starts_with("card.exit"),
-                    batched
-                );
+                // Inlining a guard splits the exit after each mark. The first
+                // mark remains at the original exit; pre-guard checks cover all.
+                if !guarded || count == 1 {
+                    assert_eq!(
+                        block.get_name().to_str().unwrap().starts_with("card.exit"),
+                        batched
+                    );
+                }
                 if batched {
                     let address = instruction
                         .get_operand(1)
@@ -70,6 +84,7 @@ fn marks(function: FunctionValue<'_>, expected: usize, batched: bool) {
         }
     }
     assert_eq!(count, expected);
+    assert_eq!(records, expected);
 }
 
 #[test]
@@ -110,6 +125,7 @@ fn constant_strides_finish_on_the_normal_exit_before_the_outer_poll() {
          %other_index = lshr i64 %other_offset, 9\n\
          %other_card = getelementptr i8, ptr %cards, i64 %other_index\n\
          store atomic i8 1, ptr %other_card monotonic, align 1\n\
+         call void @scoop_runtime_record_dirty_card_group(ptr %page3, i64 %other_index)\n\
          %scaled =",
     );
     let conditional = source
@@ -150,7 +166,7 @@ fn constant_strides_finish_on_the_normal_exit_before_the_outer_poll() {
         let function = llvm.get_function("f").unwrap();
         crate::statepoint::bounded_loops::optimize(function, &machine).unwrap();
         llvm.verify().unwrap();
-        marks(function, count, true);
+        marks(function, count, true, false);
         let exit = function
             .get_basic_blocks()
             .into_iter()
@@ -213,7 +229,7 @@ fn uncertain_addresses_and_incomplete_or_synchronizing_loops_keep_each_mark() {
         let function = llvm.get_function("f").unwrap();
         crate::statepoint::bounded_loops::optimize(function, &machine).unwrap();
         llvm.verify().unwrap();
-        marks(function, 1, false);
+        marks(function, 1, false, false);
     }
 }
 
@@ -258,7 +274,22 @@ fn batched_cards_keep_moving_roots_and_actual_stack_reloads_on_each_target() {
                 llvm.get_function("f").unwrap(),
                 if batched { 3 } else { 1 },
                 batched,
+                true,
             );
+            assert!(llvm.get_function("scoop.card_group.fast").is_none());
+            let guards = llvm
+                .get_function("f")
+                .unwrap()
+                .get_basic_blocks()
+                .iter()
+                .flat_map(|block| block.get_instructions())
+                .filter(|instruction| {
+                    instruction.get_opcode() == InstructionOpcode::Load
+                        && instruction.get_type().is_pointer_type()
+                        && instruction.get_atomic_ordering() == Ok(AtomicOrdering::Monotonic)
+                })
+                .count();
+            assert_eq!(guards, if batched { 3 } else { 1 });
             stack_reads::assert_retained(llvm.get_function("f").unwrap(), reloads);
             let directory = tempfile::tempdir().unwrap();
             let path = directory.path().join("batches.o");

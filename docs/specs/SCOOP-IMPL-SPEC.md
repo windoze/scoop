@@ -443,7 +443,9 @@ LLVM 优化、RS4GC 与对象发射使用前一步的成功结果，生产路径
 
 managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
 
-单槽和 runtime 范围屏障对实际覆盖的每个 card 字节使用 relaxed atomic store 1，消费运行时规范 3.6 的二值状态与 STW 清零合同。省去原子读改写不移动写后屏障、不提前标记未写范围，也不改变用户原子操作的内存序。所有 profile 使用相同表示，既有 OR 1 产物仍兼容；对象、roots、runtime ABI 与 `.slib` 格式保持。
+单槽和 runtime 范围屏障对实际覆盖的每个 card 字节使用 relaxed atomic store 1，并按运行时规范 3.6 登记其 64-card 组。新增 NoGc runtime 入口 `RecordDirtyCardGroup`（tag 33），完整 C 签名为 `(region metadata pointer, UInt64 card index) -> void`；只操作组链接和 heap 私有链，不读写 managed storage、不分配、不取 TLS 或 park。生成代码先表达完整登记调用，release 的既有有界循环变换将与每个 card store 对应的登记一起移到正常出口；只有这项 compiler-owned 屏障调用可通过该变换，不推广到一般 NoGc／native 调用。完成普通优化后，使用临时内部 LLVM helper 与标准 always-inliner 展开登记状态的 relaxed 读取，已登记时跳过真实 runtime 调用；临时 helper 不成为 Scoop callable 或最终机器入口。所有 profile 都生成完整卡组登记与快速检查，原精确 roots、poll 和用户内存序保持。
+
+该共享快路径使用统一 runtime ABI contract 17，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物没有卡组登记，必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
 
 ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping，实际 card 地址仍取被写入的元素引用槽；一个对象的全部存储属于同一 mapping。多引用值继续使用原范围屏障，不按元素大小推定相邻槽属于同一卡。release 可以按 2.19 提升有界内层中的不变页表查询；其他 profile 与未命中路径保持原位置的完整操作。
 
@@ -611,7 +613,7 @@ Export HIR 的当前目标测试目录按语言规范 16.4 保留 typed class／
 
 测试用途产物在可选 manifest section `org.scoop-lang.manifest/test-directory/1` 中保存该目录的展示投影：容器限定名、用例方法名与完整显示名、各自的 Cone-relative 源码路径及一基行列、忽略原因。目录按前端顺序嵌套保存容器与用例，不通过解析显示名恢复关系；可执行调用仍使用 HIR 中的 typed 引用。该 section 不参与 Compile／Link 的语义要求，受普通 ArtifactFingerprint 覆盖；生产产物不写入，测试产物即使无容器也写入空目录。manifest summary 在读取边界解码并复用该投影，缓存命中不重新发现测试或加载完整 HIR。
 
-入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 16、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card 合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
+入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 17、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card 合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equals<T>.equals` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；该 slot 使用源码显式声明的 operator 实现，不按结构比较补齐接口，也不保存 Equals 专用的 core protocol 或条件接口规则。
 
@@ -1159,7 +1161,7 @@ OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("
 
 ### 2.14 Runtime image 与初始化
 
-runtime metadata ABI 9、runtime ABI contract 16 的字段与启动协议由运行时规范 2.7、2.8 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
+runtime metadata ABI 9、runtime ABI contract 17 的字段与启动协议由运行时规范 2.7、2.8 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
 
 image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
 

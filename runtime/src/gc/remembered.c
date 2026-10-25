@@ -21,18 +21,23 @@ static size_t previous_start(const ScoopGcBlockMeta *block, size_t word) {
     }
 }
 
-static void scan_region(ScoopGcRegion *region, ScoopGcObjectRangeVisitor visitor, void *context,
-                        bool count_cards) {
+static void scan_group(ScoopGcCardGroup *group, ScoopGcObjectRangeVisitor visitor, void *context,
+                       bool count_cards) {
+    ScoopGcRegion *region = group->region;
+    size_t index = (size_t)(group - region->card_groups);
+    ScoopGcBlockMeta *block = &region->blocks[region->large ? 0 : index];
+    if (!active_head(block) || block->generation != SCOOP_GC_OLD) {
+        return;
+    }
     if (region->large) {
-        const ScoopGcBlockMeta *head = &region->blocks[0];
-        if (!active_head(head) || head->generation != SCOOP_GC_OLD || !head->large_published ||
-            scoop_gc_object_scan((const char *)block_base(head) + GC_LINE_SIZE) == NULL) {
+        if (!block->large_published ||
+            scoop_gc_object_scan((const char *)block_base(block) + GC_LINE_SIZE) == NULL) {
             return;
         }
     }
-    size_t bytes = region->large ? region->size : (size_t)region->next_block * GC_BLOCK_SIZE;
-    size_t count = bytes >> GC_CARD_SHIFT;
-    for (size_t card = 0; card < count; card++) {
+    size_t first_card = index * GC_CARDS_PER_GROUP;
+    size_t count = first_card + GC_CARDS_PER_GROUP;
+    for (size_t card = first_card; card < count; card++) {
         if (region->cards[card] == 0) {
             const unsigned char *dirty = memchr(region->cards + card, 1, count - card);
             if (dirty == NULL) {
@@ -42,11 +47,6 @@ static void scan_region(ScoopGcRegion *region, ScoopGcObjectRangeVisitor visitor
         }
         uintptr_t begin = region->base + (card << GC_CARD_SHIFT);
         uintptr_t end = begin + ((uintptr_t)1 << GC_CARD_SHIFT);
-        size_t index = region->large ? 0 : (begin - region->base) / GC_BLOCK_SIZE;
-        ScoopGcBlockMeta *block = &region->blocks[index];
-        if (!active_head(block) || block->generation != SCOOP_GC_OLD) {
-            continue;
-        }
         if (count_cards) {
             scoop_gc_heap_state.metrics.dirty_cards++;
         }
@@ -71,8 +71,10 @@ static void scan_region(ScoopGcRegion *region, ScoopGcObjectRangeVisitor visitor
 }
 
 void scoop_gc_scan_remembered(ScoopGcObjectRangeVisitor visitor, void *context, bool count_cards) {
-    for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
-         region = region->next) {
-        scan_region(region, visitor, context, count_cards);
+    ScoopGcCardGroup *first =
+        atomic_load_explicit(&scoop_gc_heap_state.dirty_card_groups, memory_order_acquire);
+    for (ScoopGcCardGroup *group = first; group != NULL;
+         group = scoop_heap_next_dirty_card_group(group)) {
+        scan_group(group, visitor, context, count_cards);
     }
 }

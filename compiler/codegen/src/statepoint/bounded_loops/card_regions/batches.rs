@@ -14,6 +14,7 @@ struct Batch<'ctx> {
     slot: InstructionValue<'ctx>,
     index: InstructionValue<'ctx>,
     cards: PointerValue<'ctx>,
+    record: crate::gc_card_groups::Record<'ctx>,
     span: u64,
 }
 
@@ -26,12 +27,26 @@ pub(super) fn coalesce<'ctx>(
         return Ok(());
     }
     let mut offsets = offsets::Offsets::new(region, machine.get_target_data());
+    let mut records = region
+        .blocks
+        .iter()
+        .flat_map(|block| block.get_instructions())
+        .filter_map(crate::gc_card_groups::record)
+        .filter(|record| {
+            record
+                .instruction
+                .get_parent()
+                .is_some_and(|block| mandatory.contains(&block))
+        })
+        .collect::<Vec<_>>();
     let batches = region
         .blocks
         .iter()
         .flat_map(|block| block.get_instructions())
         .filter(|instruction| query::card_store(*instruction))
-        .filter_map(|instruction| Batch::analyze(instruction, region, mandatory, &mut offsets))
+        .filter_map(|instruction| {
+            Batch::analyze(instruction, region, mandatory, &mut offsets, &mut records)
+        })
         .collect::<Vec<_>>();
     if batches.is_empty() {
         return Ok(());
@@ -42,6 +57,7 @@ pub(super) fn coalesce<'ctx>(
     builder.position_before(&exit.get_terminator().expect("card exit terminates"));
     for batch in &batches {
         batch.emit(&builder)?;
+        batch.record.instruction.erase_from_basic_block();
         batch.mark.erase_from_basic_block();
     }
     // Remove only the old address tail. Other stores can still share a query.
@@ -72,6 +88,7 @@ impl<'ctx> Batch<'ctx> {
         region: &Region<'ctx>,
         mandatory: &HashSet<BasicBlock<'ctx>>,
         offsets: &mut offsets::Offsets<'_, 'ctx>,
+        records: &mut Vec<crate::gc_card_groups::Record<'ctx>>,
     ) -> Option<Self> {
         if !mark
             .get_parent()
@@ -111,11 +128,16 @@ impl<'ctx> Batch<'ctx> {
         if !matches!(stride, 0 | 8 | 16) {
             return None;
         }
+        let mapping = query::cards_region(cards)?;
+        let position = records.iter().position(|record| {
+            record.region == mapping && record.card.as_instruction_value() == Some(index)
+        })?;
         Some(Self {
             mark,
             slot,
             index,
             cards,
+            record: records.swap_remove(position),
             span: stride * (region.iterations - 1),
         })
     }
@@ -169,7 +191,15 @@ impl<'ctx> Batch<'ctx> {
             .build_store(slot, byte.const_int(1, false))
             .map_err(error)?
             .set_atomic_ordering(AtomicOrdering::Monotonic)
-            .map_err(|error| CodegenError(format!("batched card store: {error}")))
+            .map_err(|error| CodegenError(format!("batched card store: {error}")))?;
+        builder
+            .build_call(
+                self.record.callee,
+                &[self.record.region.into(), index.into()],
+                "",
+            )
+            .map_err(error)?;
+        Ok(())
     }
 }
 

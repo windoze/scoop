@@ -1,6 +1,26 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn dirty_card_groups_preserve_sparse_crossing_and_concurrent_writes() {
+    let output = compile_and_run_with_flags(
+        &workspace_root(),
+        "dirty_card_groups_test",
+        "runtime/tests/dirty_card_groups_test.c",
+        true,
+        &["-O2"],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"dirty card groups preserve sparse, crossing and concurrent writes through collection\n"
+    );
+}
+
+#[test]
 fn zero_move_collections_skip_update_without_skipping_heap_work() {
     for verify in [false, true] {
         let output = compile_and_run_with_flags(

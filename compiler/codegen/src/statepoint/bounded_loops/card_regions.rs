@@ -54,6 +54,7 @@ pub(super) fn prepare(
 
 fn supported(instruction: InstructionValue<'_>, retain_stack_reloads: bool) -> bool {
     match instruction.get_opcode() {
+        InstructionOpcode::Call => crate::gc_card_groups::record(instruction).is_some(),
         InstructionOpcode::Load => {
             operations::ordinary(instruction)
                 || query::page_load(instruction)

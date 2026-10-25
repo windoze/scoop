@@ -78,6 +78,7 @@ mod elf_llvm;
 mod elf_object;
 mod emission;
 mod function;
+mod gc_card_groups;
 mod generated_c_atom_boundaries;
 mod llvm_types;
 mod machine_types;

@@ -27,6 +27,8 @@
 #define GC_RADIX_BITS 12
 #define GC_RADIX_ENTRIES ((size_t)1 << GC_RADIX_BITS)
 #define GC_CARD_SHIFT 9
+#define GC_CARD_GROUP_SHIFT 6
+#define GC_CARDS_PER_GROUP ((size_t)1 << GC_CARD_GROUP_SHIFT)
 #define GC_PIN_BIT UINT64_C(2)
 #define GC_RELEASE_READY_BIT UINT64_C(4)
 #define GC_POISON_BYTE ((unsigned char)0xA5)
@@ -53,6 +55,12 @@ typedef enum ScoopGcGeneration {
 } ScoopGcGeneration;
 
 typedef struct ScoopGcRegion ScoopGcRegion;
+
+typedef struct ScoopGcCardGroup {
+    /* Null until claimed; a self link terminates the published dirty list. */
+    _Atomic(struct ScoopGcCardGroup *) next;
+    ScoopGcRegion *region;
+} ScoopGcCardGroup;
 
 typedef struct ScoopGcBlockMeta {
     ScoopGcRegion *region;
@@ -90,6 +98,7 @@ struct ScoopGcRegion {
     uintptr_t base;
     size_t size;
     unsigned char *cards;
+    ScoopGcCardGroup *card_groups;
     ScoopGcRegion *next;
     ScoopGcBlockMeta *blocks;
     uint16_t next_block;
@@ -104,8 +113,14 @@ struct ScoopGcRegion {
 _Static_assert(sizeof(uintptr_t) == 8 && GC_CHUNK_SHIFT + 4 * GC_RADIX_BITS == 64,
                "page map must cover every target address bit");
 _Static_assert(offsetof(ScoopGcRegion, base) == 0 && offsetof(ScoopGcRegion, size) == 8 &&
-                   offsetof(ScoopGcRegion, cards) == 16,
+                   offsetof(ScoopGcRegion, cards) == 16 &&
+                   offsetof(ScoopGcRegion, card_groups) == 24,
                "generated region metadata prefix drifted");
+_Static_assert(sizeof(ScoopGcCardGroup) == 16 && offsetof(ScoopGcCardGroup, next) == 0 &&
+                   offsetof(ScoopGcCardGroup, region) == 8 && _Alignof(ScoopGcCardGroup) == 8,
+               "generated card group layout drifted");
+_Static_assert(GC_CARDS_PER_GROUP << GC_CARD_SHIFT == GC_BLOCK_SIZE,
+               "one dirty card group covers one ordinary block");
 
 typedef struct ScoopGcFreeRun {
     struct ScoopGcFreeRun *next;
@@ -149,6 +164,7 @@ typedef struct ScoopGcHeapState {
     uint64_t moved_objects;
     ScoopGcBlockMeta *young_blocks;
     ScoopGcBlockMeta *evacuation_targets;
+    _Atomic(ScoopGcCardGroup *) dirty_card_groups;
 } ScoopGcHeapState;
 
 extern ScoopGcHeapState scoop_gc_heap_state;
@@ -200,13 +216,18 @@ size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block);
 bool scoop_heap_active_head(const ScoopGcBlockMeta *block);
 void scoop_heap_require_ready(void);
 void scoop_heap_free_run_nodes(void);
+void scoop_heap_clear_dirty_card_groups(void);
+static inline ScoopGcCardGroup *scoop_heap_next_dirty_card_group(ScoopGcCardGroup *group) {
+    ScoopGcCardGroup *next = atomic_load_explicit(&group->next, memory_order_relaxed);
+    return next == group ? NULL : next;
+}
 ScoopGcBlockMeta *scoop_heap_first_block(void);
 ScoopGcBlockMeta *scoop_heap_next_block(const ScoopGcBlockMeta *block);
 static inline ScoopGcBlockMeta *scoop_heap_first_collection_block(bool minor) {
     return minor ? scoop_gc_heap_state.young_blocks : scoop_heap_first_block();
 }
 static inline ScoopGcBlockMeta *scoop_heap_next_collection_block(const ScoopGcBlockMeta *block,
-                                                               bool minor) {
+                                                                 bool minor) {
     return minor ? block->next_collection : scoop_heap_next_block(block);
 }
 ScoopGcBlockMeta *scoop_heap_pointer_block(const void *pointer);
