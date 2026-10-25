@@ -6,6 +6,7 @@ import scoop.url.Url
 
 /** Ordered Responses output combined with one explicitly selected dialect. */
 public class ResponsesProtocol public constructor(public val dialect: ResponsesDialect) : LlmSseProtocol {
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
     public override val dialectId: DialectId get() = dialect.id
     public override fun tokenCounter(): LlmTokenCounter? = dialect.tokenCounter()
     public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("responses").build()

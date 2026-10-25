@@ -692,6 +692,39 @@ try {
 
 `LlmNativeEvent.value` 保留完整 JSON，包括 event_id、usage 与服务商扩展。接续可能从 step.delta 开始，因此流不提供缺少前缀的聚合结果，也不会自动重连。应用若已保存完整前缀，可把前后事件交给同一个 `InteractionsProtocol.createStreamDecoder(request, Result)`；纯原始事件读取使用 `createEventDecoder()`。GET 回放中的 usage 不计入本次请求的生成用量。
 
+### 7.11 显式查询模型目录
+
+最小查询只需要 endpoint。列表返回一页，目录原文和实际查询时间均可保存；查询不会自动修改已有绑定的 capability，也不成为生成前提：
+
+```scoop
+val listed = client.listModels(endpoint)
+for (model in listed.page.models) println(model.id)
+println(listed.page.native)
+println(listed.metadata.attempts[0].response.receivedAt)
+
+val info = client.retrieveModel(endpoint, "caller-model")
+val saved = Json.encodeToString(info)
+val model = endpoint.model(info.model.id)
+```
+
+OpenAI Chat／Responses、Anthropic Messages 和两个 Gemini provider 支持列表与单模型读取；两个 DeepSeek provider 目前只有文档公开的列表操作。代理未提供目录时，查询返回服务错误，仍可直接使用已知模型 ID 生成。
+
+分页沿用具体 API 的 query 和原始返回值。Gemini 的数量是 ULong，缺省省略；page token 保持原字符串：
+
+```scoop
+val first = client.listModels(geminiEndpoint, geminiModelsQuery(pageSize = Some(20UL)))
+when (first.page.native["nextPageToken"]) {
+    case Some(token) -> {
+        val next = client.listModels(geminiEndpoint,
+            geminiModelsQuery(pageSize = Some(20UL), pageToken = Some(token.asString())))
+        println(next.page.models.size)
+    }
+    case None -> {}
+}
+```
+
+Anthropic 使用 `anthropicModelsQuery(limit = Some(20UL), afterId = Some(lastId))` 或 beforeId；first_id、last_id、has_more 保留在 page.native。其他过滤参数可用既有 UrlQuery 添加，重复字段和空值保持原样。库不自动翻页或统一推断游标，模型原生能力字段也不自动变成当前生成入口的 capability。Gemini 的 models/ 资源名前缀由适配器去除以得到可绑定的 id，完整 name 保留在 model.native。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |

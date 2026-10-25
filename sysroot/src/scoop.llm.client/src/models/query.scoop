@@ -1,0 +1,36 @@
+package scoop.llm.client
+
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+public fun geminiModelsQuery(pageSize: ULong? = None, pageToken: String? = None): UrlQuery {
+    var query = UrlQuery()
+    when (pageSize) { case Some(value) -> query = query.add("pageSize", Some(value.toString())); case None -> {} }
+    when (pageToken) { case Some(value) -> query = query.add("pageToken", Some(value)); case None -> {} }
+    return query
+}
+
+public fun anthropicModelsQuery(limit: ULong? = None, afterId: String? = None, beforeId: String? = None): UrlQuery {
+    var query = UrlQuery()
+    when (limit) { case Some(value) -> query = query.add("limit", Some(value.toString())); case None -> {} }
+    when (afterId) { case Some(value) -> query = query.add("after_id", Some(value)); case None -> {} }
+    when (beforeId) { case Some(value) -> query = query.add("before_id", Some(value)); case None -> {} }
+    return query
+}
+
+internal fun llmModelsUrl(baseUrl: Url, query: UrlQuery): Url {
+    val builder = baseUrl.toBuilder().appendPathSegment("models")
+    if (query.entries.size == 0L) return builder.build()
+    var combined = baseUrl.queryParameters()
+    for (entry in query.entries) combined = combined.remove(entry.name)
+    for (entry in query.entries) {
+        val value: List<Byte>? = when (entry.valueBytes) { case Some(bytes) -> Some(bytes); case None -> None }
+        combined = combined.addBytes(entry.nameBytes, value)
+    }
+    return builder.setQueryParameters(combined).build()
+}
+
+internal fun llmModelUrl(baseUrl: Url, modelId: String): Url {
+    if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+    return baseUrl.toBuilder().appendPathSegment("models").appendPathSegment(modelId).build()
+}

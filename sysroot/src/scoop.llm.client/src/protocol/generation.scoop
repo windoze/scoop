@@ -6,6 +6,7 @@ import scoop.url.Url
 
 /** Ordinary HTTP JSON generation. Streaming and persistent sessions have separate contracts. */
 public interface LlmGenerationProtocol {
+    public fun modelCatalog(): LlmModelCatalog? = None
     public fun tokenCounter(): LlmTokenCounter? = None
     public val dialectId: DialectId
     public fun generationFields(): Array<HttpField> = []

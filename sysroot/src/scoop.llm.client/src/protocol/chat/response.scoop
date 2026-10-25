@@ -6,6 +6,7 @@ import scoop.url.Url
 
 /** Chat Completions wire structure combined with one explicitly selected dialect. */
 public class ChatProtocol public constructor(public val dialect: ChatDialect) : LlmSseProtocol {
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationUrl(baseUrl: Url, modelId: String): Url =
         baseUrl.toBuilder().appendPathSegment("chat").appendPathSegment("completions").build()

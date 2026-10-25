@@ -4,6 +4,7 @@ import scoop.json.JsonValue
 
 /** Protocol-specific response interpretation; state belongs to each call, not the dialect. */
 public interface ChatDialect {
+    public fun modelCatalog(): LlmModelCatalog? = None
     public val id: DialectId
     public val streamedReasoningField: String?
     public fun encodeOptions(request: LlmRequest): JsonValue
@@ -18,6 +19,7 @@ public interface ChatDialect {
 }
 
 public class OpenAiChatDialect public constructor() : ChatDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(JsonModelLookup(id))
     public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "openai-chat")
     public override val streamedReasoningField: String? = None
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
@@ -34,6 +36,7 @@ public class OpenAiChatDialect public constructor() : ChatDialect {
 public enum DeepSeekTopPMode { Unknown, Thinking, NonThinking }
 
 public class DeepSeekChatDialect public constructor(public val topPMode: DeepSeekTopPMode = Unknown) : ChatDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(JsonModelCatalog(id))
     public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "deepseek-chat")
     public override val streamedReasoningField: String? = Some("reasoning_content")
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =

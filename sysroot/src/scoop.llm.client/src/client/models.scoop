@@ -1,0 +1,34 @@
+package scoop.llm.client
+
+import scoop.url.UrlQuery
+
+internal suspend fun listLlmModels(client: LlmClientState, endpoint: LlmEndpoint, query: UrlQuery,
+    options: LlmCallOptions): LlmModelListResult {
+    val (page, metadata) = executeLlmCall<LlmModelPage>(client, options) suspend { call ->
+        val catalog = endpoint.provider.protocol.modelCatalog() ?:
+            throw LlmRequestException("/provider", "selected dialect has no model catalog operation")
+        val url = catalog.listUrl(endpoint.baseUrl, query)
+        performLlmJsonRequest<LlmModelPage>(call, endpoint, url, [], options, "GET") { parsed, attempt ->
+            val decoded = catalog.decodeList(parsed)
+            attempt.completeOperation()
+            decoded
+        }
+    }
+    return LlmModelListResult(page, metadata)
+}
+
+internal suspend fun retrieveLlmModel(client: LlmClientState, endpoint: LlmEndpoint, modelId: String,
+    options: LlmCallOptions): LlmModelResult {
+    val (model, metadata) = executeLlmCall<LlmModelInfo>(client, options) suspend { call ->
+        val catalog = endpoint.provider.protocol.modelCatalog() ?:
+            throw LlmRequestException("/provider", "selected dialect has no model catalog operation")
+        if (!(catalog is LlmModelLookup)) throw LlmRequestException("/provider", "selected dialect has no single-model operation")
+        val url = catalog.retrieveUrl(endpoint.baseUrl, modelId)
+        performLlmJsonRequest<LlmModelInfo>(call, endpoint, url, [], options, "GET") { parsed, attempt ->
+            val decoded = catalog.decodeModel(parsed)
+            attempt.completeOperation()
+            decoded
+        }
+    }
+    return LlmModelResult(model, metadata)
+}

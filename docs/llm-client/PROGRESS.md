@@ -71,6 +71,7 @@
 | 显式 API 端点与回调认证 | 完成：移除部署抽象和自动路由，直接使用显式 URL／query；保留按尝试取得凭据的回调。所属 Cone 的 4 项测试通过本机生产库消费者验证，nuc12 仅历史／SSE 网络 mock 1/1；两平台生产库、格式与 lint 通过 |
 | Interactions 状态快照、取消与删除 | 完成：本机新增 8/8、相关回归 6/6，nuc12 仅网络组合 1/1；两平台生产库、格式与 lint 通过。Google free tier 的 gemini-3.5-flash-lite 生成／读取／删除实测通过，取消仍为 mock 覆盖 |
 | Interactions GET SSE 与显式断点接续 | 完成：本机新增 8/8、共享流回归 5/5，nuc12 仅接续与取消清理 2/2；两平台生产库通过。Google 真实游标接续通过，共 4 次 API 请求；真实用例默认忽略，缺少配置直接跳过 |
+| OpenAI／DeepSeek／Anthropic／Gemini 显式模型查询 | 完成：本机新增 9/9、共享计数／流式回归 2/2，nuc12 仅分页／读取与取消清理 2/2；两平台生产库通过。Google 分页、单模型读取与两个 API 版本共 4 次只读请求通过；真实用例默认忽略 |
 | 既定协议与辅助 API 的剩余封装 | 待实施；仅实际请求／响应合同，不扩展到部署或平台管理 |
 | 显式输入 token count：Gemini／Messages | 完成：本机定向 19/19、共享生成回归 7/7；Linux 仅网络组合 1/1；独立消费者 4 通过、13 个真实 API 用例忽略 |
 | 其他实时会话、跨协议组合与使用示例验收 | 待实施 |
@@ -176,3 +177,5 @@
 - Interactions 资源操作通过生产库消费者验证，普通用例均使用本地 mock。修正无 query 地址多出的问号和 mock 的 204 定界后，新增 8 项全部通过，相关响应／调用回归 6 项已通过；nuc12 仅一个网络组合用例。真实用例默认忽略，缺少 GOOGLE_AI_API_KEY／GOOGLE_AI_MODEL 时运行器在编译和 I/O 前报告 SKIPPED。显式采用已有环境代理后，按服务端的新用户提示将测试模型由 gemini-2.5-flash-lite 换为 gemini-3.5-flash-lite；一次短生成、一次读取、一次删除通过，并验证实际时间与历史 usage 分离。取消仅 mock，GET SSE 接续继续实施。未改编译器或运行 fixture，密钥与原始日志未入库。
 
 - Interactions GET 事件流复用现有 HTTP／SSE 寿命，保留完整原文与已交付游标；显式接续可从步骤中间开始，回放 usage 不计为新生成。修正 mock 缺少 Connection: close 后，本机新增 8 项及共享回归 5 项分批通过；外部消费者清单统一为 Cone.toml 后，nuc12 仅接续与取消清理 2 项通过。Google gemini-3.5-flash-lite 的短后台生成、首段事件读取、真实游标接续和删除共 4 次请求通过；默认忽略与缺少配置跳过均已验证。两平台生产库、格式、lint 和凭据扫描通过，清理闲置 Rust 增量产物约 186 MiB；无编译器修改或 fixture。
+
+- 显式模型查询接入 OpenAI、DeepSeek、Anthropic 与 Gemini，按具体 API 支持列表和单模型读取；DeepSeek 只提供文档公开的列表。分页使用原生 query，数量为 ULong，目录与模型附加字段原样保存，不影响生成或自动推导 capability。本机新增 9 项和共享回归 2 项分批通过；关闭测试改为等待客户端实际收到响应头后，重跑通过。nuc12 仅分页／读取与取消清理 2/2。Google 的 v1beta 分页与读取、v1 列表共 4 次只读请求通过，无生成；真实用例默认忽略，缺少配置直接跳过。两平台生产库、格式、lint 与凭据扫描通过，清理闲置 Rust 增量产物约 186 MiB；无编译器修改或 fixture。

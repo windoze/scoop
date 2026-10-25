@@ -839,3 +839,17 @@ LlmEndpoint 只接收已有 API 的 baseUrl、headers 与认证，不包含部�
 `InteractionsProtocol.createEventDecoder()` 提供不依赖 I/O 的原生事件解码器，复用 LlmSseDecoder。它验证 JSON 事件的非空 event_type 和 SSE 名称一致性，保留完整原值，允许从任意步骤中间开始；interaction.completed 结束读取，提前 EOF／DONE 和 error 事件报错。它不重建缺失的前缀，不聚合 LlmResponse，response() 报 ResultNotRetained。完整记录仍可由应用交给已有 createStreamDecoder 聚合，前缀和后缀需来自同一次 interaction，是否保存由应用决定。
 
 GET 的事件回放仅记录实际首事件和完成时间，不记录生成首输出／首文本、token 用量或速率；原始 usage 保留在事件里。attempt.responseId 只取服务端生命周期事件报告的 ID，不能由请求参数补造。服务端附加字段保持 as-is，不增加有效性或缓存失效判断。普通测试使用本地 mock 覆盖中断接续、序列化、单次关闭和核心错误边界；真实用例仍默认忽略。依据：[GET 参数](https://ai.google.dev/api/interactions-api-v1#retrieving-an-interaction)、[事件接续](https://ai.google.dev/gemini-api/docs/background-execution#streaming-pattern)。
+
+## 46. 显式模型目录查询
+
+`LlmClient.listModels(endpoint, query = UrlQuery(), options = LlmCallOptions())` 只读取一页，返回 `LlmModelListResult(page, metadata)`；`retrieveModel(endpoint, modelId, options = LlmCallOptions())` 读取单个模型，返回 `LlmModelResult(model, metadata)`。目录不参与 generate、模型绑定或 capability 检查，不自动翻页、选择模型、注册模型或缓存查询。代理没有目录入口时，显式查询照常报告服务错误，不影响生成。
+
+`LlmGenerationProtocol.modelCatalog(): LlmModelCatalog?` 缺省 None，具体 protocol 委托 dialect 提供已支持的操作。LlmModelCatalog 提供纯 listUrl／decodeList；具有单模型 API 的目录同时实现 LlmModelLookup 的 retrieveUrl／decodeModel。此步接入 OpenAI Chat／Responses、DeepSeek Chat／Responses、Anthropic Messages、Gemini generateContent／Interactions。OpenAI、Anthropic 和 Gemini 支持单模型读取；DeepSeek 仅按已公布的模型列表 API 接入，不用下载整个目录模拟单模型读取。不支持的操作在认证和 I/O 前报 /provider 错误，并执行既有完成通知。
+
+`LlmModelInfo(dialect, id, native)` 保存可用于绑定的模型标识与完整模型 JSON；`LlmModelPage(dialect, models, native)` 保存有序列表和完整分页响应。四个数据类型均有 companion codec。OpenAI／DeepSeek／Anthropic 从 data 数组的 id 读取；Gemini 从 models 数组的 name 读取并去除协议定义的 models/ 前缀，native 保留原始资源名。Gemini 的缺省或 null models 表示空页。只验证模型标识及列表结构；名称、能力详情、上下文长度、分页字段及服务商附加信息保留原值，既不据此推断已选生成 API 的 capability，也不验证附加内容的准确性。
+
+查询与单模型读取使用 GET、空正文和当前 endpoint 的认证及版本 header，追加 /models 或 /models/{id}。模型 ID 必须非空并作为一个原始 path segment 编码；Gemini retrieve 也接受 models/ 前缀。保留 baseUrl 路径和 query，显式 query 按同名字段覆盖 baseUrl 的值，同时保留本次 query 的重复字段、空值和无值。没有 query 参数时不额外产生问号。不同分页字段不统一成猜测的 next cursor；调用方从 page.native 读取服务端原值并显式传入下一次 query。
+
+`geminiModelsQuery(pageSize: ULong? = None, pageToken: String? = None)` 与 `anthropicModelsQuery(limit: ULong? = None, afterId: String? = None, beforeId: String? = None)` 仅构造既有 UrlQuery；缺省不发送参数，其他过滤参数可继续通过 UrlQuery 添加。数量按原无符号值发送，由 API 处理其自身上限，不建立本地配额体系。操作复用既有 HTTP、重试、超时、取消、借入所有权和完成回调；metadata 只记录实际操作计时，不合成生成 token 用量或 response ID。
+
+普通 scoop.test 使用官方响应形状与本地 mock 验证缺省入口、显式分页、原文 codec、URL／认证／实际时间、错误清理，以及目录失败不影响生成；真实查询默认忽略并要求显式配置。依据：[OpenAI list](https://developers.openai.com/api/reference/resources/models/methods/list)、[OpenAI retrieve](https://developers.openai.com/api/reference/resources/models/methods/retrieve)、[Anthropic Models](https://platform.claude.com/docs/en/api/models/list)、[Gemini Models](https://ai.google.dev/api/models)、[DeepSeek Models](https://api-docs.deepseek.com/api/list-models/)。

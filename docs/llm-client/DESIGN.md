@@ -371,7 +371,7 @@ Dialect 明确原生计数是总量还是子项。例如 Claude 的原生 input_
 
 ## 8. 模块与实施顺序
 
-初始使用一个 `scoop.llm.client` Cone。`model` 管公共输入／结果与 capability，`tools` 管工具声明／活动／引用，`metrics` 管调用时间与 usage 快照，`protocols` 管 wire DTO／codec／reducer，`dialects` 管对应协议的服务差异及原生附加信息访问，`providers` 管命名组合，`endpoint` 管部署和认证组合。模块使用已有库接口，不另建 HTTP 栈或 Agent runtime。
+初始使用一个 `scoop.llm.client` Cone。`model` 管公共输入／结果与 capability，`tools` 管工具声明／活动／引用，`metrics` 管调用时间与 usage 快照，`protocols` 管 wire DTO／codec／reducer，`dialects` 管对应协议的服务差异及原生附加信息访问，`providers` 管命名组合，`endpoint` 管 API 地址和认证组合。模块使用已有库接口，不另建 HTTP 栈或 Agent runtime。
 
 | 顺序 | 交付内容 | 验收出口 |
 | --- | --- | --- |

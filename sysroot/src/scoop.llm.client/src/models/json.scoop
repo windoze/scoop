@@ -1,0 +1,59 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.startsWith
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+/** The common id/data representation used by OpenAI, Anthropic and DeepSeek model catalogs. */
+internal class JsonModelCatalog(val dialect: DialectId) : LlmModelCatalog {
+    public override fun listUrl(baseUrl: Url, query: UrlQuery): Url = llmModelsUrl(baseUrl, query)
+    public override fun decodeList(value: JsonValue): LlmModelPage = decodeLlmModelPage(dialect, value, false)
+}
+
+internal class JsonModelLookup(val dialect: DialectId) : LlmModelLookup {
+    public override fun listUrl(baseUrl: Url, query: UrlQuery): Url = llmModelsUrl(baseUrl, query)
+    public override fun retrieveUrl(baseUrl: Url, modelId: String): Url = llmModelUrl(baseUrl, modelId)
+    public override fun decodeList(value: JsonValue): LlmModelPage = decodeLlmModelPage(dialect, value, false)
+    public override fun decodeModel(value: JsonValue): LlmModelInfo = decodeLlmModelInfo(dialect, value, "", false)
+}
+
+internal fun decodeLlmModelPage(dialect: DialectId, value: JsonValue, gemini: Boolean): LlmModelPage {
+    val field = if (gemini) "models" else "data"
+    val path = "/" + field
+    if (value.kind != JsonValueKind.Object) throw LlmProtocolException(dialect, "", "expected a model list object", value)
+    val error = value["error"]
+    if (llmPresent(error) && error!!.kind != JsonValueKind.Null)
+        throw LlmProtocolException(dialect, "/error", "model catalog returned an error response", value)
+    val entries = value[field]
+    val models = ArrayList<LlmModelInfo>()
+    if (!llmPresent(entries) || entries!!.kind == JsonValueKind.Null) {
+        if (!gemini) throw LlmProtocolException(dialect, path, "missing model list", value)
+    } else {
+        if (entries!!.kind != JsonValueKind.Array) throw LlmProtocolException(dialect, path, "expected a model list array", value)
+        var index = 0L
+        for (entry in entries!!.elements()) {
+            try { models.add(decodeLlmModelInfo(dialect, entry, path + "/" + index.toString(), gemini)) }
+            catch (error: LlmProtocolException) {
+                throw LlmProtocolException(dialect, error.path, error.message ?: "invalid model entry", value)
+            }
+            index += 1L
+        }
+    }
+    return LlmModelPage(dialect, models.toArray(), value)
+}
+
+internal fun decodeLlmModelInfo(dialect: DialectId, value: JsonValue, path: String, gemini: Boolean): LlmModelInfo {
+    if (value.kind != JsonValueKind.Object) throw LlmProtocolException(dialect, path, "expected a model object", value)
+    val field = if (gemini) "name" else "id"
+    val id = value[field]
+    if (!llmPresent(id) || id!!.kind != JsonValueKind.String || id!!.asString().length == 0L)
+        throw LlmProtocolException(dialect, path + "/" + field, "expected a nonempty model identifier", value)
+    var text = id!!.asString()
+    if (gemini) {
+        if (!text.startsWith("models/") || text.length == 7L)
+            throw LlmProtocolException(dialect, path + "/name", "expected models/{model} resource name", value)
+        text = text.slice(7L, text.length)
+    }
+    return LlmModelInfo(dialect, text, value)
+}

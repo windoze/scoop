@@ -6,6 +6,7 @@ import scoop.url.Url
 
 /** Messages content blocks combined with one explicitly selected dialect. */
 public class MessagesProtocol public constructor(public val dialect: MessagesDialect) : LlmSseProtocol {
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
     public override fun tokenCounter(): LlmTokenCounter? = dialect.tokenCounter()
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationFields(): Array<HttpField> = dialect.requestFields()

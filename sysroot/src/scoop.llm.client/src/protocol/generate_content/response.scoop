@@ -5,6 +5,7 @@ import scoop.url.Url
 
 /** generateContent requests, complete responses and SSE, bound to one explicit dialect. */
 public class GenerateContentProtocol public constructor(public val dialect: GenerateContentDialect) : LlmSseProtocol {
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
     public override fun tokenCounter(): LlmTokenCounter? = dialect.tokenCounter()
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationUrl(baseUrl: Url, modelId: String): Url = generateContentUrl(baseUrl, modelId)

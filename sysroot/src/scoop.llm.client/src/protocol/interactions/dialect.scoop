@@ -4,6 +4,7 @@ import scoop.json.*
 
 /** Service interpretation within the Interactions step protocol. */
 public interface InteractionsDialect {
+    public fun modelCatalog(): LlmModelCatalog? = None
     public val id: DialectId
     public fun encodeOptions(request: LlmRequest): JsonValue
     public fun readUsage(value: JsonValue): TokenUsage
@@ -11,6 +12,7 @@ public interface InteractionsDialect {
 }
 
 public class GeminiInteractionsDialect public constructor() : InteractionsDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(GeminiModelCatalog(id))
     public override val id: DialectId = DialectId(ApiProtocolId("interactions"), "gemini-interactions")
     public override fun encodeOptions(request: LlmRequest): JsonValue = encodeInteractionsOptions(id, request)
     public override fun readUsage(value: JsonValue): TokenUsage = readInteractionsUsage(value)

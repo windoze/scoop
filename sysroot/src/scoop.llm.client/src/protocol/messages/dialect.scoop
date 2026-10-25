@@ -7,6 +7,7 @@ import scoop.http.HttpField
 
 /** Messages-specific interpretation, with all per-response state owned by the decoder. */
 public interface MessagesDialect {
+    public fun modelCatalog(): LlmModelCatalog? = None
     public fun tokenCounter(): LlmTokenCounter? = None
     public val id: DialectId
     public val defaultMaxOutputTokens: ULong
@@ -25,6 +26,7 @@ public class AnthropicMessagesDialect public constructor(
     public val version: AnthropicMessagesVersion = V20261021,
     public override val defaultMaxOutputTokens: ULong = 4096UL
 ) : MessagesDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(JsonModelLookup(id))
     public override val id: DialectId = DialectId(ApiProtocolId("messages"), "anthropic-messages")
     public override fun tokenCounter(): LlmTokenCounter? = Some(MessagesTokenCounter(this))
 

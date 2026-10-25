@@ -4,6 +4,7 @@ import scoop.json.JsonValue
 
 /** Provider options and accounting within the generateContent wire protocol. */
 public interface GenerateContentDialect {
+    public fun modelCatalog(): LlmModelCatalog? = None
     public fun tokenCounter(): LlmTokenCounter? = None
     public val id: DialectId
     public fun encodeOptions(request: LlmRequest): JsonValue
@@ -12,6 +13,7 @@ public interface GenerateContentDialect {
 }
 
 public class GeminiGenerateContentDialect public constructor() : GenerateContentDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(GeminiModelCatalog(id))
     public override val id: DialectId = DialectId(ApiProtocolId("generate-content"), "gemini-generate-content")
     public override fun tokenCounter(): LlmTokenCounter? = Some(GenerateContentTokenCounter(this))
     public override fun encodeOptions(request: LlmRequest): JsonValue = encodeGenerateContentOptions(request)

@@ -4,6 +4,7 @@ import scoop.json.*
 
 /** Responses-specific interpretation; state belongs to each response or stream decoder. */
 public interface ResponsesDialect {
+    public fun modelCatalog(): LlmModelCatalog? = None
     public val id: DialectId
     public val supportsWebSocket: Boolean
     public val supportsStoredResponses: Boolean get() = false
@@ -18,6 +19,7 @@ public interface ResponsesDialect {
 }
 
 public class OpenAiResponsesDialect public constructor() : ResponsesDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(JsonModelLookup(id))
     public override val id: DialectId = DialectId(ApiProtocolId("responses"), "openai-responses")
     public override val supportsWebSocket: Boolean = true
     public override val supportsStoredResponses: Boolean = true

@@ -1,0 +1,26 @@
+package scoop.llm.client.tests.models
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun modelCatalog(provider: LlmProvider): LlmModelCatalog = provider.protocol.modelCatalog() ?: fail()
+
+internal fun modelLookup(provider: LlmProvider): LlmModelLookup {
+    val catalog = modelCatalog(provider)
+    if (catalog is LlmModelLookup) return catalog
+    fail()
+}
+
+internal fun assertModelQueryTiming(metadata: LlmCallMetadata) {
+    assertEquals(LlmCallOutcome.Completed, metadata.outcome)
+    val attempt = metadata.attempts[metadata.attempts.size - 1L]
+    assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+    assertTrue(attempt.response.completedAt != None)
+    assertEquals(None, attempt.responseId)
+    assertEquals(None, attempt.response.firstEventAt)
+    assertEquals(None, attempt.response.firstOutputAt)
+    assertEquals(None, attempt.response.firstTextAt)
+    assertEquals(None, attempt.usage.tokens.totalTokens)
+    assertEquals(None, attempt.outputTokensPerSecond)
+}
