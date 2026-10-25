@@ -44,5 +44,8 @@ private class OllamaCompositionTest {
 
 private class OllamaTestDialect public constructor(protocol: ApiProtocolId) : OllamaDialect {
     public override val id: DialectId = DialectId(protocol, "custom")
+    public override fun encodeOptions(request: LlmRequest): JsonValue = OllamaChatDialect().encodeOptions(request)
     public override fun readUsage(response: JsonValue): TokenUsage = TokenUsage(inputTokens = Some(response["custom_input"]!!.asLong()))
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        OllamaChatDialect().decodeError(status, body, truncated)
 }

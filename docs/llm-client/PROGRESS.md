@@ -52,6 +52,7 @@
 | Cohere Chat v2 请求与普通生成 | 完成：本机 Cohere 定向 34/34；Linux 仅普通生成 mock 1/1；独立消费者通过 |
 | Cohere Chat v2 SSE | 完成：本机 Cohere 定向 53/53 与起始 null 边界 1/1；Linux 仅网络／工具接续 2/2；独立消费者通过 |
 | Ollama Chat 完整响应 | 完成：本机新增 15/15；Linux 仅 thinking／并行工具／缓存与接续组合 1/1；独立消费者通过 |
+| Ollama Chat 请求与普通生成 | 完成：本机 Ollama 定向 31/31；Linux 仅普通生成 mock 1/1；独立消费者通过 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -126,3 +127,5 @@
 - Cohere SSE 新增 19 项 Cone 用例，覆盖交错内容与函数、thinking／plan、晚到引用的稳定位置、精确参数与 usage、原生历史保存、失败与终止边界。EventsOnly 不累计普通正文，函数执行资格在 message-end 确认；完整响应和流式复用引用及参数处理。本机 Cohere 定向 53/53；补齐官方允许的起始 delta／message=null 后，仅复验受影响用例 1/1。nuc12 仅网络 mock 与工具接续 2/2；生产库和跨 Cone 缺省入口通过，默认消费者 2 通过、13 个真实 API 用例忽略。初次编译中的测试 API 写法已修正；没有真实 API 请求、编译器修改或 fixture。格式化、lint 与提交前凭据检查通过，清理本机闲置 target/debug/incremental 约 186 MiB。
 
 - Ollama Chat 完整响应新增 15 项纯 decoder 用例，覆盖 thinking、空文本、并行函数与可选实际 ID、JSON 参数、停止状态、原始历史、服务时间和精确缓存计数。缺失／空停止原因保持未完成，load／unload 不产生可执行调用或 assistant 历史。本机 15/15；nuc12 仅 thinking／工具／缓存／序列化接续组合 1/1；生产库及跨 Cone 消费者通过，默认 2 项普通测试通过、13 项真实 API 用例忽略。没有真实 API 请求、编译器修改或 fixture；格式化、lint 与提交前凭据检查通过，清理本机闲置 target/debug/incremental 约 186 MiB。普通生成和 NDJSON 继续实施。
+
+- Ollama 普通生成新增 16 项 Cone 用例，覆盖缺省部署、显式 stream=false、图片、模型定义的推理档位、原生 options 合并、函数与可选 ID 的结果回传、原始历史和实际 HTTP 时间戳。本机 Ollama 定向 31/31；nuc12 仅普通生成 mock 1/1；生产库与跨 Cone 缺省入口通过，默认消费者 2 通过、13 个真实 API 用例忽略。没有真实 API 请求、编译器修改或 fixture；格式化、lint 与提交前凭据检查通过，清理本机闲置 target/debug/incremental 约 186 MiB。NDJSON 定界与流式接入继续实施。

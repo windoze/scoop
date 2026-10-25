@@ -1,0 +1,45 @@
+package scoop.llm.client.tests.ollama
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class OllamaRequestErrorTest {
+    @Test
+    fun `Ollama service errors retain raw bodies and only parsed rate limits are replayable`() {
+        val protocol = OllamaChatProtocol(OllamaChatDialect())
+        val body = "{\"error\":\"rate limited\",\"future\":1e400}".toByteArray()
+        val error = protocol.decodeError(429U, body, false)
+        assertTrue(error.retryable)
+        assertEquals(Some("rate limited"), error.message)
+        assertEquals("1e400", error.native!!["future"]!!.asNumberToken())
+        assertEquals(String.fromUtf8(body), String.fromUtf8(error.body))
+        for (status in [400U, 401U, 404U, 500U, 503U]) assertFalse(protocol.decodeError(status, body, false).retryable)
+        assertFalse(protocol.decodeError(429U, body, true).retryable)
+        for (raw in ["not-json", "{}", "{\"error\":1}"]) assertFalse(protocol.decodeError(429U, raw.toByteArray(), false).retryable)
+    }
+
+    @Test
+    fun `Ollama custom dialect options remain authoritative and cannot replace protocol routing`() {
+        val protocol = OllamaChatProtocol(OllamaOptionsDialect(Json.parse("{\"options\":{\"seed\":7},\"keep_alive\":\"5m\"}")))
+        val request = LlmRequest([], extensions = ollamaExtension("{\"options\":{\"num_ctx\":2048}}"))
+        val body = protocol.encodeRequest("m", request)
+        assertEquals(7L, body["options"]!!["seed"]!!.asLong())
+        assertEquals(2048L, body["options"]!!["num_ctx"]!!.asLong())
+        for ((extra, path) in [("{\"options\":{\"seed\":0}}", "/extensions/0/value/options/seed"), ("{\"keep_alive\":0}", "/extensions/0/value/keep_alive")])
+            assertEquals(path, assertFailsWith<LlmRequestException> { protocol.encodeRequest("m", LlmRequest([], extensions = ollamaExtension(extra))); Unit }.path)
+        for (field in ["model", "messages", "stream"]) {
+            val invalid = OllamaChatProtocol(OllamaOptionsDialect(Json.parse("{\"" + field + "\":null}")))
+            assertEquals("/options", assertFailsWith<LlmRequestException> { invalid.encodeRequest("m", LlmRequest([])); Unit }.path)
+        }
+    }
+}
+
+private class OllamaOptionsDialect public constructor(private val options: JsonValue) : OllamaDialect {
+    public override val id: DialectId = ollamaDialect
+    public override fun encodeOptions(request: LlmRequest): JsonValue = options
+    public override fun readUsage(response: JsonValue): TokenUsage = OllamaChatDialect().readUsage(response)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        OllamaChatDialect().decodeError(status, body, truncated)
+}

@@ -1,0 +1,54 @@
+package scoop.llm.client.tests.ollama
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class OllamaRequestOptionsTest {
+    @Test
+    fun `Ollama explicit zero sampling empty stops and model defined thinking levels survive serialization`() {
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0), topK = Some(0L),
+            maxOutputTokens = Some(0L), stop = Some([]), candidates = Some(1L), reasoning = Some(ReasoningOptions(effort = Some("MODEL_LEVEL"))))
+        val request = Json.decodeFromString<LlmRequest>(Json.encodeToString(ollamaInput(options)))
+        val body = ollamaEncode(request)
+        val sampling = body["options"]!!
+        assertEquals(5L, sampling.size)
+        assertEquals(0.0, sampling["temperature"]!!.asDouble())
+        assertEquals(0.0, sampling["top_p"]!!.asDouble())
+        assertEquals(0L, sampling["top_k"]!!.asLong())
+        assertEquals(0L, sampling["num_predict"]!!.asLong())
+        assertEquals(0L, sampling["stop"]!!.size)
+        assertEquals("MODEL_LEVEL", body["think"]!!.asString())
+        assertFalse(body.containsKey("candidates"))
+        for (enabled in [true, false]) assertEquals(enabled,
+            ollamaEncode(ollamaInput(LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(enabled))))))["think"]!!.asBoolean())
+        assertFalse(ollamaEncode(ollamaInput(LlmGenerationOptions(reasoning = Some(ReasoningOptions())))).containsKey("think"))
+    }
+
+    @Test
+    fun `Ollama unsupported or conflicting controls fail instead of silently changing the requested behavior`() {
+        val invalid = [
+            (LlmGenerationOptions(temperature = Some(-0.1)), "/options/temperature"),
+            (LlmGenerationOptions(topP = Some(1.1)), "/options/topP"),
+            (LlmGenerationOptions(topP = Some(-0.1)), "/options/topP"),
+            (LlmGenerationOptions(candidates = Some(2L)), "/options/candidates"),
+            (LlmGenerationOptions(parallelToolCalls = Some(false)), "/options/parallelToolCalls"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("")))), "/options/reasoning/effort"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false), effort = Some("low")))), "/options/reasoning/effort"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(1L)))), "/options/reasoning/budgetTokens")]
+        for ((options, path) in invalid) assertOllamaRequestFailure(ollamaInput(options), path)
+    }
+
+    @Test
+    fun `Ollama output schema is a native schema value without invented name or strict switches`() {
+        assertEquals("json", ollamaEncode(ollamaInput(LlmGenerationOptions(output = JsonObject)))["format"]!!.asString())
+        val schema = Json.parse("{\"type\":\"object\",\"properties\":{\"count\":{\"const\":9007199254740993}}}")
+        val body = ollamaEncode(ollamaInput(LlmGenerationOptions(output = JsonSchema(schema, strict = Some(true)))))
+        assertEquals(Json.stringify(schema), Json.stringify(body["format"]!!))
+        for ((format, path) in [(OutputFormat.JsonSchema(schema, name = "custom"), "/options/output/name"),
+            (OutputFormat.JsonSchema(schema, description = Some("help")), "/options/output/description"),
+            (OutputFormat.JsonSchema(schema, strict = Some(false)), "/options/output/strict")])
+            assertOllamaRequestFailure(ollamaInput(LlmGenerationOptions(output = format)), path)
+    }
+}

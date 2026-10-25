@@ -1,0 +1,43 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun encodeOllamaContent(message: JsonObjectBuilder, dialect: DialectId, parts: Array<ContentPart>, path: String) {
+    val text = StringBuilder()
+    val images = ArrayList<JsonValue>()
+    var index = 0L
+    for (part in parts) {
+        val partPath = path + "/" + index.toString()
+        when (part) {
+            case Text(value, extensions) -> {
+                if (extensions.size != 0L) throw LlmRequestException(partPath + "/extensions", "Ollama text has no per-part metadata")
+                text.append(value)
+            }
+            case Image(source, extensions) -> {
+                if (extensions.size != 0L) throw LlmRequestException(partPath + "/extensions", "Ollama images have no per-image metadata")
+                images.add(encodeOllamaImage(source, partPath + "/source"))
+            }
+            case Native(owner, value) -> {
+                requireLlmOwner(owner, dialect, partPath + "/dialect")
+                if (value.kind != JsonValueKind.String) throw LlmRequestException(partPath + "/value", "native Ollama content must be a string")
+                text.append(value.asString())
+            }
+            else -> throw LlmRequestException(partPath, "Ollama chat content requires text or inline images")
+        }
+        index += 1L
+    }
+    message.add("content", JsonValue.fromString(text.toString()))
+    if (images.size != 0L) message.add("images", JsonValue.fromArray(images))
+}
+
+private fun encodeOllamaImage(source: MediaSource, path: String): JsonValue = when (source) {
+    case Bytes(bytes, rawMime) -> {
+        val mime = HttpMediaType.parseOrNone(rawMime) ?: throw LlmRequestException(path + "/mimeType", "invalid image media type")
+        if (mime.type != "image" || mime.subtype == "*" || mime.parameters.size != 0L)
+            throw LlmRequestException(path + "/mimeType", "Ollama images require a concrete image MIME type without parameters")
+        JsonValue.fromString(Base64.Default.encode(bytes))
+    }
+    else -> throw LlmRequestException(path, "Ollama images require inline bytes")
+}

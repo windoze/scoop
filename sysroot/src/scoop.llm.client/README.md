@@ -30,7 +30,9 @@ Cohere Chat v2 使用 `Providers.cohereChat()` 和同一 endpoint／model／gene
 
 Cohere SSE 也可通过 createStreamDecoder(request) 单独消费，缺省 EventsOnly 不累计普通正文，显式 Result 保存最终结果与原始历史。文本、thinking、plan、并行函数和晚到引用使用稳定 item／part 位置；函数参数在 message-end 确认 TOOL_CALL 后才进入执行视图。缺失 ID 保持 None，未知增量保留 Native 并阻止不完整历史回传；debug 仅作元数据，裸 EOF 不能冒充消息完成。网络调用沿用实际发送／接收时间、最终 usage 与关闭合同。
 
-Ollama 原生 Chat 的纯入口 `OllamaChatProtocol(OllamaChatDialect()).decodeResponse(json, request)` 保存 thinking、普通文本、并行函数和原始 assistant 历史，未知消息字段保留 Native。工具 ID 可缺失，不用 index 生成 ID；只有 done=true、stop 且参数完整有效的声明函数进入待执行视图。空／未知停止原因保持未完成，load／unload 不生成 assistant 接续历史。输入总量包含缓存 token，只有明确报告缓存量时才计算普通输入；created_at 与原生 duration 是服务端数据，不冒充本地计时。普通请求与 NDJSON 流继续实施。
+Ollama 原生 Chat 使用 `Providers.ollamaChat()` 和相同的 endpoint／model／generate 入口，缺省部署为 http://localhost:11434/api；认证显式使用 none 或部署所需的方式。普通生成总是发送 stream=false，其他选项保持服务端缺省。图片使用内联 Bytes，文本编码为单个 content；推理档位按模型定义原样发送，公共采样设置可与 extensions.options 中的 seed 等原生设置组合。函数结果使用原始 reference 的真实名称与可选 ID，保存后仍可接续。NDJSON 流继续实施。
+
+纯入口 `OllamaChatProtocol(OllamaChatDialect())` 同时提供 encodeRequest／decodeResponse。响应保存 thinking、普通文本、并行函数和原始 assistant 历史，未知消息字段保留 Native。工具 ID 可缺失，不用 index 生成 ID；只有 done=true、stop 且参数完整有效的声明函数进入待执行视图。空／未知停止原因保持未完成，load／unload 不生成 assistant 接续历史。输入总量包含缓存 token，只有明确报告缓存量时才计算普通输入；created_at 与原生 duration 是服务端数据，不冒充本地计时。
 
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 

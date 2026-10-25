@@ -2,13 +2,18 @@ package scoop.llm.client
 
 import scoop.json.JsonValue
 
-/** Service accounting for the native Ollama Chat protocol, whose metrics live at the root. */
+/** Service options and accounting for the native Ollama Chat protocol. */
 public interface OllamaDialect {
     public val id: DialectId
+    public fun encodeOptions(request: LlmRequest): JsonValue
     public fun readUsage(response: JsonValue): TokenUsage
+    public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
 }
 
 public class OllamaChatDialect public constructor() : OllamaDialect {
     public override val id: DialectId = DialectId(ApiProtocolId("ollama-chat"), "ollama-chat")
+    public override fun encodeOptions(request: LlmRequest): JsonValue = encodeOllamaOptions(id, request)
     public override fun readUsage(response: JsonValue): TokenUsage = readOllamaUsage(response)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        decodeOllamaError(id, status, body, truncated)
 }

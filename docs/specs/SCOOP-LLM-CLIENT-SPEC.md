@@ -600,7 +600,7 @@ message-end 必须提供非空 finish_reason；COMPLETE、STOP_SEQUENCE、TOOL_C
 
 ## 30. Ollama Chat 完整响应
 
-OllamaChatProtocol(OllamaDialect) 提供纯 decodeResponse(value, request)，OllamaChatDialect 使用 ApiProtocolId("ollama-chat") 与同名 dialect。构造器拒绝不同 protocol 的 dialect。Ollama 原生 /api/chat 与 OpenAI 兼容入口采用不同 protocol；本节不增加隐式网络、模型目录查询或环境读取。请求编码与 NDJSON 接入在各自实现前另行规定。
+OllamaChatProtocol(OllamaDialect) 提供 decodeResponse(value, request)，OllamaChatDialect 使用 ApiProtocolId("ollama-chat") 与同名 dialect。构造器拒绝不同 protocol 的 dialect。Ollama 原生 /api/chat 与 OpenAI 兼容入口采用不同 protocol；纯解码不执行网络、模型目录查询或环境读取。普通生成见 §31，NDJSON 接入在实现前另行规定。
 
 完整响应要求非空 model、message object 和 done boolean。message.role 必须为 assistant，content 是允许空串的必需字符串；可选 thinking 作为 Reasoning，content 作为 Message，然后按 tool_calls 的数组顺序交付工具。message 的其余字段整体作为 Native 保留，包括没有 MIME 定义的 images，不猜测媒体格式。原始响应保存在 response.native。created_at 是可选的服务端 Instant，缺失／null 为 None，非法值报字段路径；它不产生客户端计时。原生协议没有响应 ID，response.id 保持 None，未知根字段 id 仍只是原文。
 
@@ -615,3 +615,23 @@ OllamaDialect.readUsage 接收原始响应根对象。prompt_eval_count 是包�
 usage.native 只投影实际出现的上述三个计数和 total_duration／load_duration／prompt_eval_duration／eval_duration，保留原值，不累计整份 message。duration 字段是服务端纳秒数据，本节不把它们改写为本地调用时长。未识别的根字段仍在 response.native；自定义 dialect 可从原始根对象读取自己的计数。
 
 依据：[Chat API](https://docs.ollama.com/api/chat)、[错误](https://docs.ollama.com/api/errors)、[Message／ToolCall／Metrics 类型](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/api/types.go)、[DoneReason 定义](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/llm/server.go)、[完整响应聚合与 load／unload](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/server/routes.go)。
+
+## 31. Ollama Chat 请求与普通生成
+
+OllamaChatProtocol 实现 LlmGenerationProtocol；OllamaDialect 同时负责 encodeOptions(request) 和 decodeError(status, body, truncated)。Providers.ollamaChat() 只是该 protocol／dialect 的命名组合，缺省 base URL 为 http://localhost:11434/api。generationUrl 追加 chat 路径，保留部署 query；认证和模型 ID 仍显式提供。与其他 provider 共用 endpoint.model、LlmRequest、client.generate 和计时合同，不读环境、不探测服务、不查询模型目录。
+
+正文要求非空 model，并按序编码 messages；普通请求始终带 stream=false，流式请求带 stream=true，因为 Ollama 的服务端缺省是流式。空 messages 有合法的模型加载／卸载含义，允许发送。非空 request.system 作为首个 system 消息；普通 Message 支持 User、Assistant、System，Developer 无对应角色而报请求路径。
+
+Message.content 是单个字符串：按序连接 Text 和同属 dialect 的 Native JSON string；每个 Image 进入同一消息独立的 images 数组，保持图片顺序，不伪造文本中的图片占位。图片只接受 Bytes 和无参数的具体 image MIME，使用标准 Base64；URL／FileReference 不执行隐式读取或下载。Document／Audio／Video／VideoFrames 没有原生 chat 消息映射而报错。content 和图片字符串无 per-part metadata 位置，非空 part extensions 报错。消息 extensions 合并到消息对象，保留 thinking 等显式原生字段，但不可覆盖 role、content、images、tool_calls、tool_name、tool_call_id。history 要求相同 dialect、无隐式 context、assistant 消息，原样重放 thinking、实际调用 ID、JSON 参数和未知字段，不重建为公共文本。
+
+ClientFunction 编码成 type=function 与 function.name／description／parameters；空 description 省略，JSON Schema 保留精确原值。wire name 不得重复；其他工具种类、显式 strict、parallelToolCalls 和非 Auto toolChoice 均无对应字段而报错，不通过删除工具来模拟选择。函数 extensions 位于 function object，不能覆盖 type、name、description、parameters、strict。
+
+ToolResult 编码为 role=tool、tool_name、content 和可选 images；真实 call.id 存在时才发送 tool_call_id，绝不使用 ToolKey 或 function.index 代替。名称优先取 reference.context.function.name，校验原 context 中可选 id 与 reference.id 一致；无 context 时使用本次相同 ToolKey 的 ClientFunction 声明，缺少来源则失败。显式空 ID／空名称、错误的 context 形状、不同 dialect 均失败。isError=true 没有独立 wire 字段而拒绝；应用可在文本中提供服务需要的错误内容。结果 extensions 同样位于消息对象并服从管理字段限制。
+
+temperature、topP、topK、maxOutputTokens、stop 分别进入 options.temperature／top_p／top_k／num_predict／stop；缺省不发送 options，不注入模型默认采样值或输出上限，显式零和空 stop 数组保留。temperature 非负，topP 在 0 到 1 之间，其他范围沿用公共构造器。candidates 只接受缺省或 1，不发送候选字段。reasoning.enabled 映射 think boolean，effort 映射非空、原样的模型自定义 think string；effort 与 enabled=false 冲突，budgetTokens 无对应字段而拒绝。没有推理选项时省略 think。Text 省略 format，JsonObject 使用字符串 json，JsonSchema 使用 schema 本体；无额外 name／description 位置，strict=false 无法表示非约束 schema 而拒绝。
+
+request extensions 合并到根对象；options 子对象可加入 seed、num_ctx 等原生字段，并与公共采样字段组合。model、messages、stream、tools、think、format 以及 options 中的公共管理字段即使未发送也不能被扩展覆盖；自定义 dialect 已编码的字段同样不可被覆盖。keep_alive、runner、truncate 等其余字段保留显式原值，不自动设置。自定义 dialect 的 encodeOptions 不得覆盖 model、messages、stream。
+
+HTTP 错误保留原始 body、截断状态和可解析 JSON，以 error 字符串作为消息；只有完整解析出的 429 服务拒绝可按公共重试设置重试，不将普通 500／503、截断或无法辨认的 body 当成安全重放依据。普通生成继续记录本地请求发送／响应接收 UTC 和单调时长，服务端 created_at 与各 duration 留在各自数据位置。
+
+依据：[Chat API](https://docs.ollama.com/api/chat)、[原生请求、消息和 options 类型](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/api/types.go)、[服务端 ChatHandler](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/server/routes.go)。

@@ -1,0 +1,80 @@
+package scoop.llm.client.tests.ollama
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class OllamaRequestToolsTest {
+    @Test
+    fun `Ollama client functions preserve schemas native function fields and declaration order`() {
+        val tools = [ollamaFunction(), ClientFunction(ToolKey("second"), "second", Json.parse("{\"const\":9007199254740993}"),
+            extensions = ollamaExtension("{\"future\":1e400}"))]
+        val body = ollamaEncode(LlmRequest(ollamaInput().input, tools = tools))
+        assertEquals(2L, body["tools"]!!.size)
+        assertEquals("function", body["tools"]!![0L]["type"]!!.asString())
+        assertEquals("lookup", body["tools"]!![0L]["function"]!!["name"]!!.asString())
+        assertEquals("Find a value", body["tools"]!![0L]["function"]!!["description"]!!.asString())
+        val second = body["tools"]!![1L]["function"]!!
+        assertEquals(9007199254740993L, second["parameters"]!!["const"]!!.asLong())
+        assertEquals("1e400", second["future"]!!.asNumberToken())
+        assertFalse(second.containsKey("description"))
+        assertFalse(body.containsKey("tool_choice"))
+    }
+
+    @Test
+    fun `Ollama rejects unsupported tool controls and wire name conflicts without dropping declarations`() {
+        assertOllamaRequestFailure(LlmRequest([], tools = [ollamaFunction(), ollamaFunction("second")]), "/tools/1/name")
+        for (strict in [true, false]) assertOllamaRequestFailure(LlmRequest([], tools = [ollamaFunction(strict = Some(strict))]), "/tools/0/strict")
+        for (choice in [ToolChoice.None, ToolChoice.Required, ToolChoice.Specific(ToolKey("local"))])
+            assertOllamaRequestFailure(LlmRequest([], tools = [ollamaFunction()], options = LlmGenerationOptions(toolChoice = choice)), "/options/toolChoice")
+        val unsupported: Array<ToolDefinition> = [ClientCustom(ToolKey("c"), "custom"),
+            ClientNative(ToolKey("n"), NativeToolDefinition(ollamaDialect, "future")), Server(ToolKey("s"), WebSearch())]
+        for (tool in unsupported) assertOllamaRequestFailure(LlmRequest([], tools = [tool]), "/tools/0")
+        for (field in ["type", "name", "parameters", "description", "strict"])
+            assertOllamaRequestFailure(LlmRequest([], tools = [ClientFunction(ToolKey("k"), "f", Json.parse("{}"),
+                extensions = ollamaExtension("{\"" + field + "\":null}"))]), "/tools/0/extensions/0/value/" + field)
+    }
+
+    @Test
+    fun `Ollama serialized parallel tool results preserve thinking optional IDs names and exact raw arguments`() {
+        val raw = ollamaBody("", messageExtra = ",\"thinking\":\"reason\",\"tool_calls\":" + Json.stringify(JsonValue.fromArray(
+            [ollamaCall("{\"count\":9007199254740993}"), ollamaCall("{}", id = Some("actual"))])))
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(ollamaDecode(raw)))
+        val request = LlmRequest([response.toInput()[0L], ToolResult(response.clientToolCalls[0L].reference, [Text("done")]),
+            ToolResult(response.clientToolCalls[1L].reference, [Image(Bytes("x".toByteArray(), "image/png")), Text("second")])])
+        val body = ollamaEncode(Json.decodeFromString<LlmRequest>(Json.encodeToString(request)))
+        val messages = body["messages"]!!
+        assertEquals(3L, messages.size)
+        assertEquals(Json.stringify(raw["message"]!!), Json.stringify(messages[0L]))
+        assertEquals("tool", messages[1L]["role"]!!.asString())
+        assertEquals("lookup", messages[1L]["tool_name"]!!.asString())
+        assertFalse(messages[1L].containsKey("tool_call_id"))
+        assertEquals("done", messages[1L]["content"]!!.asString())
+        assertEquals("actual", messages[2L]["tool_call_id"]!!.asString())
+        assertEquals("lookup", messages[2L]["tool_name"]!!.asString())
+        assertEquals("eA==", messages[2L]["images"]!![0L].asString())
+        assertEquals("second", messages[2L]["content"]!!.asString())
+        assertFalse(body.containsKey("tools"))
+    }
+
+    @Test
+    fun `Ollama tool result references require a real function name and consistent optional identity`() {
+        val call = ClientToolCallReference(ollamaDialect, ToolKey("local"), None)
+        val message = ollamaEncode(LlmRequest([ToolResult(call, [])], tools = [ollamaFunction()]))["messages"]!![0L]
+        assertEquals("lookup", message["tool_name"]!!.asString())
+        assertEquals("", message["content"]!!.asString())
+        assertFalse(message.containsKey("tool_call_id"))
+        assertOllamaRequestFailure(LlmRequest([ToolResult(call, [])]), "/input/0/call/context")
+        assertOllamaRequestFailure(LlmRequest([ToolResult(call, [], true)]), "/input/0/isError")
+        assertOllamaRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(ollamaDialect, ToolKey("local"), Some("")), [])]), "/input/0/call/id")
+        assertOllamaRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(OpenAiChatDialect().id, ToolKey("local"), None), [])]), "/input/0/call/dialect")
+        assertOllamaRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(ollamaDialect, ToolKey("local"), Some("wrong"), Some(ollamaCall())), [])]), "/input/0/call/id")
+        for ((raw, path) in [("[]", ""), ("{}", "/function"), ("{\"function\":{}}", "/function/name"),
+            ("{\"function\":{\"name\":\"\"}}", "/function/name"), ("{\"function\":{\"name\":\"lookup\"},\"id\":1}", "/id")])
+            assertOllamaRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(ollamaDialect, ToolKey("local"), None, Some(Json.parse(raw))), [])]), "/input/0/call/context" + path)
+        val nullable = ClientToolCallReference(ollamaDialect, ToolKey("local"), None, Some(Json.parse("{\"function\":{\"name\":\"lookup\"},\"id\":null}")))
+        assertEquals("lookup", ollamaEncode(LlmRequest([ToolResult(nullable, [])]))["messages"]!![0L]["tool_name"]!!.asString())
+        assertOllamaRequestFailure(LlmRequest([ToolResult(nullable, [], extensions = ollamaExtension("{\"tool_name\":\"replace\"}"))]), "/input/0/extensions/0/value/tool_name")
+    }
+}

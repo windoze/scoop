@@ -1,0 +1,35 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.replace
+
+internal fun mergeOllamaExtensions(base: JsonValue, extensions: Array<DialectExtension>, dialect: DialectId): JsonValue {
+    var result = base
+    var index = 0L
+    for (extension in extensions) {
+        val path = "/extensions/" + index.toString()
+        requireLlmOwner(extension.dialect, dialect, path + "/dialect")
+        result = mergeOllamaFields(result, extension.value, true, path + "/value")
+        index += 1L
+    }
+    return result
+}
+
+private fun mergeOllamaFields(base: JsonValue, extra: JsonValue, root: Boolean, path: String): JsonValue {
+    if (base.kind != JsonValueKind.Object || extra.kind != JsonValueKind.Object)
+        throw LlmRequestException(path, "Ollama configuration requires an object")
+    val managed = if (root) ["model", "messages", "stream", "tools", "think", "format"]
+        else ["temperature", "top_p", "top_k", "num_predict", "stop"]
+    val result = JsonObjectBuilder()
+    for ((name, value) in base.members()) if (!extra.containsKey(name)) result.add(name, value)
+    for ((name, value) in extra.members()) {
+        val fieldPath = path + "/" + name.replace("~", "~0").replace("/", "~1")
+        for (field in managed) if (name == field) throw LlmRequestException(fieldPath, "extension cannot override a managed Ollama field")
+        if (root && name == "options") result.add(name, mergeOllamaFields(base[name] ?: JsonObjectBuilder().build(), value, false, fieldPath))
+        else {
+            if (base.containsKey(name)) throw LlmRequestException(fieldPath, "extension conflicts with an encoded Ollama field")
+            result.add(name, value)
+        }
+    }
+    return result.build()
+}
