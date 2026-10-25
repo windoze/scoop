@@ -89,3 +89,5 @@ dispatch 的 object 从数组直接进入 receiver，原七组局部槽复制消
 第三阶段三次冷 consumer 编译（含链接）墙钟中位数 ARM64 2.826→2.792 s、GNU 3.415→3.424 s、musl 3.395→3.403 s；CPU 时间变化 +0.22%、−0.06%、+0.20%，峰值 RSS 变化 −1.76%、+0.05%、−0.10%。成本没有明显增长；独立冷构建的小差异不作统计显著性或编译加速结论。原始计时在 `roots-ssa` 和 `baseline-ssa`，ARM64 与 x86_64 均为实机结果。
 
 保留限制：debug 可以继续保留局部存储；真实取址／发布、间接 ABI、native borrow、EH 和保守未知地址路径仍需 canonical storage／重读。调用期间必要的机器根 spill、后续仍活跃引用的恢复、poll 和写屏障继续存在。编译器没有承诺所有引用零落栈；跨 safepoint 的内部裸地址也不能由此次 SSA 变换获得额外有效期。
+
+后续重建 core 发现一个终止块组合回归：RS4GC 为 `call; unreachable` 生成无使用者的 relocation，机器准备阶段删除它，导致预先生成的注册根数与 stackmap 不一致。现在只在最终根计数前删除 `unreachable` 前连续的末尾无用 relocation，不运行额外 CFG 优化，也不改变正常返回、native 或 EH 根。最小回归检查三目标、两 profile 的最终机器 stackmap；本机与 Linux 各 51 项 statepoint 定向测试通过，三目标 core／std／test／json 重建通过。此项为所有 profile 的正确性修复，没有新增优化开关或性能收益声明。

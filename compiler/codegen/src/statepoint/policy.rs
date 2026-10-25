@@ -120,6 +120,10 @@ pub(crate) fn lower(
             PassBuilderOptions::create(),
         )
         .map_err(|error| CodegenError(format!("rewrite-statepoints-for-gc failed: {error}")))?;
+    // Instruction selection also simplifies terminal blocks. Finalize only
+    // after that cleanup, so dead relocates before unreachable do not inflate
+    // registration counts. Returning calls retain their call-duration roots.
+    lowered::discard_terminal_relocations(module);
     Ok(lowered::collect(module))
 }
 

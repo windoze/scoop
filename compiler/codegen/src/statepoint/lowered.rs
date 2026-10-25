@@ -17,6 +17,41 @@ impl LoweredSafepoints {
     }
 }
 
+/// Match instruction selection's removal of unused relocations immediately
+/// before unreachable. Do not simplify other CFG edges after root planning.
+pub(super) fn discard_terminal_relocations(module: &LlvmModule<'_>) {
+    for function in module.get_functions() {
+        for block in function.get_basic_blocks() {
+            let Some(terminal) = block.get_terminator() else {
+                continue;
+            };
+            if terminal.get_opcode() != InstructionOpcode::Unreachable {
+                continue;
+            }
+            let mut previous = terminal.get_previous_instruction();
+            while let Some(instruction) = previous {
+                if instruction.get_opcode() != InstructionOpcode::Call
+                    || instruction.get_first_use().is_some()
+                {
+                    break;
+                }
+                // SAFETY: this instruction is a CallBase in verified RS4GC output.
+                let call = unsafe { CallSiteValue::new(instruction.as_value_ref()) };
+                if call.get_called_fn_value().is_none_or(|callee| {
+                    !callee
+                        .get_name()
+                        .to_bytes()
+                        .starts_with(b"llvm.experimental.gc.relocate")
+                }) {
+                    break;
+                }
+                previous = instruction.get_previous_instruction();
+                instruction.erase_from_basic_block();
+            }
+        }
+    }
+}
+
 pub(super) fn collect(module: &LlvmModule<'_>) -> LoweredSafepoints {
     let mut roots = BTreeMap::new();
     for function in module.get_functions() {

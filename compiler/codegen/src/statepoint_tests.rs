@@ -51,6 +51,8 @@ mod optimized;
 mod ranges;
 #[path = "statepoint_tests/root_storage.rs"]
 mod root_storage;
+#[path = "statepoint_tests/terminal_arguments.rs"]
+mod terminal_arguments;
 #[path = "statepoint_tests/terminal_poll.rs"]
 mod terminal_poll;
 
