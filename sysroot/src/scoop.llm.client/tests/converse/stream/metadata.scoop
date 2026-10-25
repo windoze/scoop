@@ -1,0 +1,48 @@
+package scoop.llm.client.tests.converse
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseStreamMetadataTest {
+    @Test
+    fun `Converse EventStream metadata can follow messageStop and merges cumulative exact cache counts until EOF`() {
+        val decoder = converseStream()
+        converseBegin(decoder)
+        converseEvent(decoder, "metadata", "{\"usage\":{\"inputTokens\":9007199254740993,\"cacheReadInputTokens\":3},\"metrics\":{\"latencyMs\":2}}")
+        assertEquals(None, decoder.usage.tokens.inputTokens)
+        converseEnd(decoder)
+        assertFalse(decoder.isFinished)
+        converseEvent(decoder, "metadata", "{\"usage\":{\"cacheWriteInputTokens\":2,\"outputTokens\":4,\"totalTokens\":9007199254741002},\"trace\":{\"future\":1e400}}")
+        assertEquals(Some(9007199254740998L), decoder.usage.tokens.inputTokens)
+        converseEvent(decoder, "metadata", "{\"usage\":{\"inputTokens\":null,\"cacheReadInputTokens\":0}}")
+        assertEquals(Some(9007199254740995L), decoder.usage.tokens.inputTokens)
+        assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
+        decoder.endInput()
+        val response = decoder.response()
+        assertEquals(UsageCompleteness.Final, response.usage.completeness)
+        assertEquals(Some(9007199254741002L), response.usage.tokens.totalTokens)
+        assertEquals(2L, response.nativeEvents.size)
+        assertEquals("1e400", response.nativeEvents[1L].value["trace"]!!["future"]!!.asNumberToken())
+        assertTrue(when (response.native) { case None -> true; else -> false })
+    }
+
+    @Test
+    fun `Converse EventStream preserves extension header types unknown events and additional model fields`() {
+        val decoder = converseStream()
+        val fields = ByteArrayBuilder().append(converseHeaderBytes([ (":message-type", "event"), (":event-type", "messageStart") ]))
+        fields.append(1.toByte()); fields.append("x".toByteArray()); fields.append(2.toByte()); fields.append((-1).toByte())
+        converseAcceptBytes(decoder, converseFrameBytes(fields.toByteArray(), "{\"role\":\"assistant\",\"extra\":false}".toByteArray()))
+        converseEvent(decoder, "future", "{\"value\":1e400}")
+        converseEvent(decoder, "messageStop", "{\"stopReason\":\"end_turn\",\"additionalModelResponseFields\":{\"reason\":\"raw\"}}")
+        decoder.endInput()
+        val response = decoder.response()
+        assertEquals(4L, response.nativeEvents.size)
+        assertEquals("int8", response.nativeEvents[0L].value["x"]!!["type"]!!.asString())
+        assertEquals(-1L, response.nativeEvents[0L].value["x"]!!["value"]!!.asLong())
+        assertEquals(None, response.usage.tokens.totalTokens)
+        assertEquals("raw", response.nativeEvents[3L].value["additionalModelResponseFields"]!!["reason"]!!.asString())
+    }
+}

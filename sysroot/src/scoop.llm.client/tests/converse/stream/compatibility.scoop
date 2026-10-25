@@ -1,0 +1,30 @@
+package scoop.llm.client.tests.converse
+
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseStreamCompatibilityTest {
+    @Test
+    fun `Converse EventStream preserves unknown fragments inside known blocks while continuing recognized output`() {
+        val decoder = converseStream()
+        converseBegin(decoder)
+        converseDelta(decoder, 0L, "{\"text\":\"a\"}")
+        val opaque = converseDelta(decoder, 0L, "{\"future\":{\"exact\":1e400}}")
+        assertFalse(opaque.hasText)
+        assertEquals("b", converseTextEvents(converseDelta(decoder, 0L, "{\"text\":\"b\"}"))[0L].text)
+        converseStop(decoder, 0L)
+        converseDelta(decoder, 1L, "{\"reasoningContent\":{\"text\":\"c\"}}")
+        converseDelta(decoder, 1L, "{\"reasoningContent\":{\"future\":false}}")
+        converseDelta(decoder, 1L, "{\"reasoningContent\":{\"text\":\"d\"}}")
+        converseStop(decoder, 1L); converseEnd(decoder); decoder.endInput()
+        val result = decoder.response()
+        assertEquals("ab", result.text)
+        assertEquals(2L, result.nativeEvents.size)
+        when (result.candidates[0L].items[1L]) {
+            case Reasoning(parts, _) -> when (parts[0L]) { case Text(text, _) -> assertEquals("cd", text); else -> fail() }
+            else -> fail()
+        }
+        assertFailsWith<LlmOutputException> { result.toInput(); Unit }
+    }
+}

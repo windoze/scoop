@@ -237,7 +237,7 @@ onFinished 在实际收尾后执行一次，成功、输入检查失败、服务
 
 `StreamRetention.EventsOnly` 缺省只保留协议身份、未完成工具输入、当前 usage 及结束状态；普通文本／reasoning 不累计，完成的工具参数在交付事件后释放。`Result` 显式保留完整候选和可恢复历史，不保存已处理的完整事件日志。两种模式使用同一 decoder 和同一套检查。
 
-`LlmSseProtocol` 扩展普通生成合同，增加 `streamUrl(baseUrl, modelId)` 与 `createStreamDecoder(request, retention = EventsOnly)`。streamUrl 缺省调用 generationUrl；普通与流式路径不同的协议显式覆写，传输层不按模型名或服务商猜测路由。普通生成只用 generationUrl，SSE 只用 streamUrl；认证接收选择后的最终 URL 和已编码正文，发送不再次改写地址。
+`LlmStreamProtocol` 扩展普通生成合同，提供缺省调用 generationUrl 的 `streamUrl(baseUrl, modelId)`；SSE 与 AWS EventStream 分别由 LlmSseProtocol、LlmEventStreamProtocol 描述。前者提供 `createStreamDecoder(request, retention = EventsOnly)`，后者提供 `createEventStreamDecoder`。两种 decoder 共享 LlmStreamDecoder 的状态、endInput 与 response 合同，各自接收已经定界的 SSE data 或 AwsEventStreamMessage。普通与流式路径不同的协议显式覆写 streamUrl，传输层不按模型名或服务商猜测路由。普通生成只用 generationUrl；认证接收选择后的最终 URL 和已编码正文，发送不再次改写地址。
 
 `LlmSseDecoder.accept(event, data)` 接收已经由 SSE parser 定界的事件，返回 `LlmStreamUpdate(events, hasOutput, hasText, isKeepAlive = false)`；不执行 I/O。isFinished、responseId、usage 提供当前事实。`endInput(): LlmStreamUpdate` 检查 EOF 并交付只在输入结束时确定的终止／usage 事件；正常返回必须已经 isFinished，否则传输层报告协议错误。要求显式终止事件的协议仍在缺少该事件时失败，已正常结束时返回空更新。response() 仅在 Result 模式、正常终止且未失败时返回完整 LlmResponse。错误后 decoder 不继续接受数据，也不能读取伪造的成功结果。
 
@@ -257,15 +257,15 @@ Native 事件保留无法通用解释的字段／事件及其位置；Result 将
 
 ## 11. 流式网络寿命与读取视图
 
-`client.openStream(model, request, options = LlmCallOptions(), retention = EventsOnly)` 返回 `LlmStream : AsyncCloseable`；`withStream` 使用相同参数加 suspend block，仅组合 openStream 与 useAsync，返回 block 的值。打开前检查 streaming capability；明确 Unsupported 或协议没有 SSE 合同时在认证／发送前失败，Unknown 不被当作不支持。成功响应必须为 text/event-stream；服务拒绝的认证、有限错误读取与重试沿第 9 节，取得成功响应后的任何读取／解析失败均不重试，也不 SSE reconnect。
+`client.openStream(model, request, options = LlmCallOptions(), retention = EventsOnly)` 返回 `LlmStream : AsyncCloseable`；`withStream` 使用相同参数加 suspend block，仅组合 openStream 与 useAsync，返回 block 的值。打开前检查 streaming capability；明确 Unsupported 或协议没有已支持的流式合同时在认证／发送前失败，Unknown 不被当作不支持。SSE 成功响应必须为 text/event-stream，AWS EventStream 必须为 application/vnd.amazon.eventstream。服务拒绝的认证、有限错误读取与重试沿第 9 节，取得成功响应后的任何读取／解析失败均不重试，也不重新连接。
 
-流属于 client 所在 EventLoop，并由 client 跟踪至实际清理和 onFinished 完成。打开过程受打开者取消控制；打开返回后由流的显式寿命接管。`next(): LlmEvent?` 的调用者取消会取消该生成，等待真实清理后保持 CancellationException。流只在消费者请求下一条事件时读取，允许 SSE parser 的有限缓冲和一个已解码事件批次；不后台预读完整输出。maxResponseBytes 约束读取的已解码 HTTP 正文字节（含 SSE framing 与有限 read-ahead），超限沿用 ReadLimitException；SSE 单行和事件数据的上限也使用该值，避免额外隐含的较小限制。
+流属于 client 所在 EventLoop，并由 client 跟踪至实际清理和 onFinished 完成。打开过程受打开者取消控制；打开返回后由流的显式寿命接管。`next(): LlmEvent?` 的调用者取消会取消该生成，等待真实清理后保持 CancellationException。流只在消费者请求下一条事件时读取，允许相应定界 source 的有限缓冲和一个已解码事件批次；不后台预读完整输出。maxResponseBytes 约束读取的已解码 HTTP 正文字节（含 SSE／EventStream framing 与有限 read-ahead），超限沿用 ReadLimitException；SSE 单行和事件数据的上限也使用该值，避免额外隐含的较小限制。
 
 `textDeltas()` 取得唯一的 `LlmTextStream` 读取视图，其 next 返回带位置的 LlmTextDelta。取得视图即选择文本入口；首次原始 next 选择原始入口，此后不能切换、重复取得视图或并发 next。文本入口驱动同一 reducer，过滤非普通文本事件但完整处理工具、usage、结束和错误。None 只表示正常协议终止；提前关闭、取消和失败不冒充 EOF。
 
 metadata 每次返回不可变 LlmCallMetadata 快照。首个成功解释的非保活协议事件、首个有效输出和首个普通文本在实际处理该事件时采样，HTTP 发送／响应头仍取底层观测；无法观察的时间保持 None。正常协议终止记录 completed 与最终 usage，并停止 total 截止，随后消费者到显式关闭之间的等待不触发生成超时。此时 metadata 仍为 Active；实际资源清理后才记录 finished、最终 outcome 并调用一次 onFinished，包括打开失败。回调不能等待本流或所属 client 的 close。
 
-正常 EOF 的 endInput 更新经过同一事件交付、结果保留、usage／completed 采样和截止取消路径；先交付其事件，再返回读取结束。EOF 自身不是 SSE 模型事件，不设置 firstEvent。若 endInput 失败，保留已观察的部分用量和输出，不记录成功 completed，不取得完整结果，也不重试。
+正常 EOF 的 endInput 更新经过同一事件交付、结果保留、usage／completed 采样和截止取消路径；先交付其事件，再返回读取结束。EOF 自身不是模型事件，不设置 firstEvent。若 endInput 失败，保留已观察的部分用量和输出，不记录成功 completed，不取得完整结果，也不重试。
 
 close 不自动消费剩余输出：未达终止时取消并等待收尾（outcome=Cancelled），已经终止时正常清理；重复关闭幂等。client.close 对已经终止的流正常清理，对未完成的流以 LlmClientClosedException 终止，并等待回调。读取失败由 next 交付后，useAsync 的 close 不重复交付同一失败；尚未交付的超时、拥有者关闭或回调失败由 close 交付。操作和回调都失败时以 ResourceUseException 保留两者。主动提前 close 自身不抛用于中止读取的 CancellationException。
 
@@ -520,7 +520,7 @@ usage.inputTokens 为 nonCachedInputTokens；它与 cacheReadInputTokens、cache
 
 ## 25. Bedrock Converse 请求与普通生成
 
-ConverseProtocol 实现 LlmGenerationProtocol；Providers.bedrockConverse() 包装 BedrockConverseDialect，没有隐含 region 或 baseUrl。应用在同一个 LlmEndpoint 中提供明确部署地址及 LlmAuth；接口支持的 Bedrock API key 使用 LlmAuth.bearer，库不读取环境。生成地址在部署路径后追加 model、原始 modelId 所在的单个路径段及 converse，保留查询参数；模型 ID、inference profile 与 ARN 不按名称改写或查询目录。ConverseStream 使用另一种传输，本节普通 encodeRequest 的 stream=true 明确拒绝，不发送虚假的 JSON stream 开关。
+ConverseProtocol 实现 LlmEventStreamProtocol；Providers.bedrockConverse() 包装 BedrockConverseDialect，没有隐含 region 或 baseUrl。应用在同一个 LlmEndpoint 中提供明确部署地址及 LlmAuth；接口支持的 Bedrock API key 使用 LlmAuth.bearer，库不读取环境。生成地址在部署路径后追加 model、原始 modelId 所在的单个路径段及 converse，保留查询参数；模型 ID、inference profile 与 ARN 不按名称改写或查询目录。ConverseStream 地址末段为 converse-stream，encodeRequest 的 stream=true 使用同样的请求正文，不发送 JSON stream 开关；流式接收见第 26 节。
 
 最小正文只有 messages，modelId 只用于 URL。User／Assistant 分别为 user／assistant 消息；System／Developer 消息不能被挪到全局，初始系统内容通过 request.system 表达。连续 ToolResult 组成一条 user 消息中的多个 toolResult block，其他消息保持独立。History 检查 dialect、无隐式 context、assistant role 和 content 数组后原样追加，不重新解释签名或未知 block。generate 复用能力检查、请求寿命、响应限制、实际发送／接收时间戳与完成回调。
 
@@ -534,4 +534,8 @@ ToolResult 使用 reference 的实际非空 id；context 存在时必须是同 I
 
 request.extensions 可以补充 additionalModelRequestFields、guardrailConfig、promptVariables、requestMetadata 等原生字段；inferenceConfig、outputConfig、toolConfig 只合并未管理字段，不覆盖公共选项、messages、system、tools、toolChoice 或路由。扩展不替应用判断 Prompt management 资源的模型约束，也不自动移走与该资源不相容的设置。已解析的 429／503 服务拒绝可按既有调用策略重试，原始错误体保留；解析失败、截断或明确不同错误类型不获得重试资格。
 
-协议依据：[Converse 请求](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html)、[结构化输出](https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html)、[官方 SDK service model](https://github.com/boto/botocore/blob/develop/botocore/data/bedrock-runtime/2023-09-30/service-2.json)。SigV4 与 EventStream 在各自实施时接入，不在本节中伪造其完成状态。
+协议依据：[Converse 请求](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html)、[结构化输出](https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html)、[官方 SDK service model](https://github.com/boto/botocore/blob/develop/botocore/data/bedrock-runtime/2023-09-30/service-2.json)。内置 SigV4 在其独立实施时接入。
+
+## 26. ConverseStream
+
+[ConverseStream 扩展规范](SCOOP-LLM-CONVERSE-STREAM-SPEC.md)规定 AWS EventStream 的业务事件解释、内容聚合、服务端工具与原生历史，复用第 10、11 节的流式入口、计时、保留及生命周期合同。

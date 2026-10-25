@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun appendConverseStreamImage(block: ConverseStreamBlock, raw: JsonValue, batch: LlmStreamBatch) {
+    converseStreamObject(raw, "/delta/image")
+    batch.native("converse.image.delta", raw, Some(block.location), !block.historyAvailable)
+    batch.hasOutput = llmPresent(raw["source"])
+    when (raw["source"]) {
+        case Some(source) -> {
+            val (kind, value) = converseUnion(source, "/delta/image/source")
+            if (kind == "bytes") {
+                val bytes = decodeConverseStreamBytes(value, "/delta/image/source/bytes")
+                block.binarySeen = true
+                if (block.retain) block.bytes.append(bytes)
+            } else {
+                block.historyAvailable = false
+                batch.native("converse.image.source", raw, Some(block.location))
+            }
+        }
+        case None -> {}
+    }
+    val extra = llmStreamUnknown(raw, ["source"])
+    if (extra.size != 0L) {
+        block.historyAvailable = false
+        batch.native("converse.image.fields", extra, Some(block.location))
+    }
+}
+
+internal fun finishConverseStreamImage(block: ConverseStreamBlock, state: ConverseStreamDecoder, batch: LlmStreamBatch) {
+    if (!block.binarySeen) block.historyAvailable = false
+    if (!block.retain) return
+    if (!block.historyAvailable) {
+        val partial = if (block.binarySeen) converseStreamReplace(block.initial, "source",
+            converseStreamUnion("bytes", JsonValue.fromString(Base64.Default.encode(block.bytes.toByteArray())))) else block.initial
+        block.wire = Some(converseStreamUnion("image", partial))
+        block.item = Some(LlmOutputItem.Native(state.dialect.id, block.wire!!))
+        return
+    }
+    val source = converseStreamUnion("bytes", JsonValue.fromString(Base64.Default.encode(block.bytes.toByteArray())))
+    val wire = converseStreamUnion("image", converseStreamReplace(block.initial, "source", source))
+    block.wire = Some(wire)
+    val media = readConverseMedia(state.dialect.id, wire, "image", block.path + "/image")
+    block.item = Some(LlmOutputItem.Message([media]))
+}

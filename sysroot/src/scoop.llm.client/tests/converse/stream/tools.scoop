@@ -1,0 +1,123 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseStreamToolsTest {
+    @Test
+    fun `Converse EventStream parallel client arguments and server results preserve IDs ownership and serialized continuation`() {
+        val request = LlmRequest([], tools = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}")),
+            Server(ToolKey("search"), WebSearch())])
+        val decoder = converseStream(request = request)
+        converseBegin(decoder)
+        converseStart(decoder, 0L, "{\"toolUse\":{\"toolUseId\":\"a\",\"name\":\"lookup\",\"type\":null}}")
+        converseStart(decoder, 1L, "{\"toolUse\":{\"toolUseId\":\"b\",\"name\":\"lookup\"}}")
+        val delta = converseInput(decoder, 0L, "{\"count\":")
+        when (delta.events[0L]) { case ToolInputDelta(value) -> assertEquals(Some("a"), value.reference!!.id); else -> fail() }
+        converseInput(decoder, 1L, "{\"count\":2}")
+        converseInput(decoder, 0L, "9007199254740993}")
+        converseStop(decoder, 1L); converseStop(decoder, 0L)
+        val start = converseStart(decoder, 2L, "{\"toolUse\":{\"toolUseId\":\"s\",\"name\":\"nova_grounding\",\"type\":\"server_tool_use\"}}")
+        when (start.events[0L]) { case ServerToolActivity(_, value) -> { assertEquals(ServerToolStatus.InProgress, value.status); assertTrue(when (value.action) { case None -> true; else -> false }) }; else -> fail() }
+        converseInput(decoder, 2L, "{\"query\":\"weather\"}"); converseStop(decoder, 2L)
+        converseStart(decoder, 3L, "{\"toolResult\":{\"toolUseId\":\"s\",\"status\":\"success\"}}")
+        converseDelta(decoder, 3L, "{\"toolResult\":[{\"text\":\"sun\"}]}")
+        converseDelta(decoder, 3L, "{\"toolResult\":[{\"text\":\"ny\"},{\"json\":{\"exact\":1e400}}]}")
+        val end = converseStop(decoder, 3L)
+        when (end.events[0L]) { case ServerToolActivity(_, value) -> assertEquals(ServerToolStatus.Completed, value.status); else -> fail() }
+        val finished = converseEnd(decoder, "tool_use")
+        var calls = 0L
+        for (event in finished.events) when (event) { case ClientToolCall(_, value) -> { assertTrue(value.isExecutable); calls += 1L }; else -> continue }
+        assertEquals(2L, calls)
+        decoder.endInput()
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+        assertEquals(2L, response.clientToolCalls.size)
+        assertEquals(9007199254740993L, response.clientToolCalls[0L].decodeArguments<ConverseAnswer>().count)
+        assertEquals(Some("b"), response.clientToolCalls[1L].reference.id)
+        assertEquals(2L, response.serverToolActivities.size)
+        val result = response.serverToolActivities[1L]
+        assertEquals(Some(ToolKey("search")), result.toolKey)
+        when (result.result[0L]) { case Text(text, _) -> assertEquals("sunny", text); else -> fail() }
+        val input = ArrayList<LlmInputItem>()
+        for (item in response.toInput()) input.add(item)
+        input.add(ToolResult(response.clientToolCalls[0L].reference, [Text("done")]))
+        val encoded = converseEncode(LlmRequest(input.toArray()))
+        assertEquals("a", encoded["messages"]!![1L]["content"]!![0L]["toolResult"]!!["toolUseId"]!!.asString())
+    }
+
+    @Test
+    fun `Converse EventStream empty standalone server results count as actual output`() {
+        val decoder = converseStream()
+        converseBegin(decoder)
+        converseStart(decoder, 0L, "{\"toolResult\":{\"toolUseId\":\"prior\",\"type\":\"nova_code_interpreter_result\",\"status\":\"success\"}}")
+        val update = converseStop(decoder, 0L)
+        assertTrue(update.hasOutput)
+        when (update.events[0L]) {
+            case ServerToolActivity(_, value) -> {
+                assertEquals(Some("prior"), value.id)
+                assertEquals(ServerToolStatus.Completed, value.status)
+                assertEquals(0L, value.result.size)
+            }
+            else -> fail()
+        }
+        converseEnd(decoder); decoder.endInput()
+        assertEquals(1L, decoder.response().serverToolActivities.size)
+        assertEquals(0L, decoder.response().clientToolCalls.size)
+    }
+
+    @Test
+    fun `Converse EventStream malformed and nonobject tool inputs never become executable calls`() {
+        for (input in ["{", "[1]"]) {
+            val decoder = converseStream()
+            converseBegin(decoder)
+            converseStart(decoder, 0L, "{\"toolUse\":{\"toolUseId\":\"a\",\"name\":\"lookup\"}}")
+            converseInput(decoder, 0L, input); converseStop(decoder, 0L); converseEnd(decoder, "tool_use"); decoder.endInput()
+            val response = decoder.response()
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidates[0L].items[0L]) {
+                case ClientToolCall(call) -> when (call.input) { case Invalid(raw, _) -> assertEquals(input, raw); else -> fail() }
+                else -> fail()
+            }
+            if (input == "{") assertFailsWith<LlmOutputException> { response.toInput(); Unit }
+        }
+    }
+
+    @Test
+    fun `Converse EventStream length limits unknown reasons and answered client calls suppress execution`() {
+        for (reason in ["max_tokens", "future"]) {
+            val decoder = converseStream()
+            converseBegin(decoder)
+            converseStart(decoder, 0L, "{\"toolUse\":{\"toolUseId\":\"a\",\"name\":\"lookup\"}}")
+            converseInput(decoder, 0L, "{}"); converseStop(decoder, 0L); converseEnd(decoder, reason); decoder.endInput()
+            val response = decoder.response()
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidates[0L].items[0L]) { case ClientToolCall(call) -> when (call.input) { case Incomplete(_) -> assertFalse(call.isExecutable); else -> fail() }; else -> fail() }
+            if (reason == "future") assertFailsWith<LlmOutputException> { response.toInput(); Unit }
+        }
+        val decoder = converseStream()
+        converseBegin(decoder)
+        converseStart(decoder, 0L, "{\"toolUse\":{\"toolUseId\":\"a\",\"name\":\"lookup\"}}")
+        converseInput(decoder, 0L, "{}"); converseStop(decoder, 0L)
+        converseStart(decoder, 1L, "{\"toolResult\":{\"toolUseId\":\"a\"}}")
+        converseDelta(decoder, 1L, "{\"toolResult\":[{\"text\":\"done\"}]}")
+        converseStop(decoder, 1L); converseEnd(decoder, "tool_use"); decoder.endInput()
+        assertEquals(0L, decoder.response().clientToolCalls.size)
+        assertEquals(0L, decoder.response().serverToolActivities.size)
+    }
+
+    @Test
+    fun `Converse EventStream default retention still delivers tools and final usage without retaining a result`() {
+        val decoder = ConverseProtocol(BedrockConverseDialect()).createEventStreamDecoder(converseRequest())
+        converseBegin(decoder)
+        converseDelta(decoder, 0L, "{\"text\":\"discard after delivery\"}"); converseStop(decoder, 0L)
+        converseStart(decoder, 1L, "{\"toolUse\":{\"toolUseId\":\"a\",\"name\":\"lookup\"}}")
+        converseInput(decoder, 1L, "{}"); converseStop(decoder, 1L)
+        val update = converseEnd(decoder, "tool_use")
+        when (update.events[0L]) { case ClientToolCall(_, value) -> assertTrue(value.isExecutable); else -> fail() }
+        decoder.endInput()
+        assertEquals(UsageCompleteness.Final, decoder.usage.completeness)
+        assertFailsWith<LlmOutputException> { decoder.response(); Unit }
+    }
+}

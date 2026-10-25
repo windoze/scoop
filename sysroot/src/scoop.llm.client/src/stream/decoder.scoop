@@ -1,26 +1,42 @@
 package scoop.llm.client
 
 import scoop.url.Url
+import scoop.http.AwsEventStreamMessage
 
 public enum StreamRetention {
     EventsOnly, Result
     public companion object : ValueEncoder<StreamRetention>, ValueDecoder<StreamRetention>
 }
 
-/** SSE framing is owned by the transport; a decoder consumes complete data fields without I/O. */
-public interface LlmSseProtocol : LlmGenerationProtocol {
+/** Streaming shares routing and call semantics, with explicit framing contracts below. */
+public interface LlmStreamProtocol : LlmGenerationProtocol {
     public fun streamUrl(baseUrl: Url, modelId: String): Url = generationUrl(baseUrl, modelId)
+}
+
+/** SSE framing is owned by the transport; a decoder consumes complete data fields without I/O. */
+public interface LlmSseProtocol : LlmStreamProtocol {
     public fun createStreamDecoder(request: LlmRequest, retention: StreamRetention = EventsOnly): LlmSseDecoder
 }
 
-/** One call's single-consumer protocol state. A failed decoder cannot produce a successful result. */
-public interface LlmSseDecoder {
+public interface LlmEventStreamProtocol : LlmStreamProtocol {
+    public fun createEventStreamDecoder(request: LlmRequest, retention: StreamRetention = EventsOnly): LlmEventStreamDecoder
+}
+
+/** One call's single-consumer protocol state, independent of its wire framing. */
+public interface LlmStreamDecoder {
     public val isFinished: Boolean
     public val responseId: String?
     public val usage: LlmUsage
-    public fun accept(event: String, data: String): LlmStreamUpdate
     public fun endInput(): LlmStreamUpdate
     public fun response(): LlmResponse
+}
+
+public interface LlmSseDecoder : LlmStreamDecoder {
+    public fun accept(event: String, data: String): LlmStreamUpdate
+}
+
+public interface LlmEventStreamDecoder : LlmStreamDecoder {
+    public fun accept(message: AwsEventStreamMessage): LlmStreamUpdate
 }
 
 /** Framing-level errors can preserve text that is not a JSON value. */

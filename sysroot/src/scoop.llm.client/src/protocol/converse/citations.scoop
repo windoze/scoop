@@ -42,7 +42,7 @@ internal fun readConverseCitedBlock(dialect: DialectId, entry: ConverseEntry, it
     items.add(LlmOutputItem.Message(parts.toArray()))
 }
 
-private fun readConverseCitation(dialect: DialectId, value: JsonValue, path: String): Citation {
+internal fun readConverseCitation(dialect: DialectId, value: JsonValue, path: String): Citation {
     val fields = decodeConverseValue<ConverseCitation>(value, path)
     var location = LlmSourceLocation.Native(dialect, value)
     if (llmPresent(fields.location)) {

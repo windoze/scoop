@@ -1,0 +1,66 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.AwsEventStreamException
+import scoop.llm.client.*
+import scoop.llm.client.tests.converse.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class ConverseStreamNetworkFailureTest {
+    @Test
+    fun `Converse EventStream closing after messageStop leaves the call cancelled until the consumer observes EOF`() {
+        val bytes = ByteArrayBuilder().append(converseFrame("messageStart", "{\"role\":\"assistant\"}"))
+            .append(converseFrame("messageStop", "{\"stopReason\":\"end_turn\"}")).toByteArray()
+        withConverseStreamReply(bytes) suspend { client, model ->
+            val stream = client.openStream(model, sampleRequest, retention = StreamRetention.Result)
+            stream.useAsync suspend { opened ->
+                when (opened.next()!!) { case CandidateFinished(_, _, _) -> assertEquals(None, opened.metadata.attempts[0L].response.completedAt); else -> fail() }
+            }
+            assertEquals(LlmCallOutcome.Cancelled, stream.metadata.outcome)
+            assertEquals(UsageCompleteness.Partial, stream.metadata.attempts[0L].usage.completeness)
+            expectLlmFailure<CancellationException> suspend { stream.result(); Unit }
+        }
+    }
+
+    @Test
+    fun `Converse EventStream CRC truncation and byte limits fail without completing or retrying the accepted response`() {
+        val original = converseFrame("messageStart", "{\"role\":\"assistant\"}")
+        val corrupt = Array<Byte>(original.size) { index -> if (index == original.size - 1L) (original[index].toInt() xor 1).toByte() else original[index] }
+        val truncated = Array<Byte>(original.size - 1L) { index -> original[index] }
+        for ((bytes, limit) in [(corrupt, 8192L), (truncated, 8192L), (original, 5L)]) {
+            withConverseStreamReply(bytes) suspend { client, model ->
+                val options = LlmCallOptions(maxResponseBytes = limit, timeouts = LlmTimeouts(total = Some(Duration.seconds(2L))),
+                    retries = LlmRetryOptions(maxRetries = 1L))
+                val stream = client.openStream(model, sampleRequest, options, StreamRetention.Result)
+                val error = expectLlmFailure<Throwable> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+                assertTrue(if (limit == 5L) error is ReadLimitException else error is AwsEventStreamException)
+                assertEquals(1L, stream.metadata.attempts.size)
+                assertEquals(LlmCallOutcome.Failed, stream.metadata.outcome)
+                assertEquals(None, stream.metadata.attempts[0L].response.completedAt)
+            }
+        }
+    }
+
+    @Test
+    fun `Converse EventStream service errors after messageStop retain partial usage and never enter HTTP retries`() {
+        val bytes = ByteArrayBuilder().append(converseFrame("messageStart", "{\"role\":\"assistant\"}"))
+            .append(converseFrame("messageStop", "{\"stopReason\":\"end_turn\"}"))
+            .append(converseFrame("metadata", "{\"usage\":{\"outputTokens\":3}}"))
+            .append(converseFrameBytes(converseHeaderBytes([ (":message-type", "exception"), (":exception-type", "throttlingException") ]),
+                "{\"message\":\"server failure\"}".toByteArray())).toByteArray()
+        withConverseStreamReply(bytes) suspend { client, model ->
+            val stream = client.openStream(model, sampleRequest, LlmCallOptions(retries = LlmRetryOptions(maxRetries = 1L),
+                timeouts = LlmTimeouts(total = Some(Duration.seconds(2L)))), StreamRetention.Result)
+            expectLlmFailure<LlmStreamProtocolException> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+            val attempt = stream.metadata.attempts[0L]
+            assertEquals(Some(3L), attempt.usage.tokens.outputTokens)
+            assertEquals(UsageCompleteness.Partial, attempt.usage.completeness)
+            assertEquals(None, attempt.response.completedAt)
+            assertEquals(1L, stream.metadata.attempts.size)
+            expectLlmFailure<LlmStreamProtocolException> suspend { stream.result(); Unit }
+        }
+    }
+}

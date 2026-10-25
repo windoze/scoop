@@ -1,0 +1,106 @@
+package scoop.llm.client
+
+import scoop.http.AwsEventStreamMessage
+import scoop.json.*
+
+internal class ConverseStreamDecoder(val dialect: ConverseDialect, val request: LlmRequest,
+    val retention: StreamRetention) : LlmEventStreamDecoder {
+    val blocks = ArrayList<ConverseStreamBlock>()
+    val nativeEvents = ArrayList<LlmNativeEvent>()
+    val calls = ArrayList<ConverseEntry>()
+    var started = false
+    var reason: String? = None
+    var candidate: LlmCandidate? = None
+    var currentUsage = LlmUsage()
+    private var finished = false
+    private var failed = false
+    val retain: Boolean get() = retention == StreamRetention.Result
+
+    public override val isFinished: Boolean get() = finished && !failed
+    public override val responseId: String? get() = None
+    public override val usage: LlmUsage get() = currentUsage
+
+    public override fun accept(message: AwsEventStreamMessage): LlmStreamUpdate {
+        try {
+            if (finished || failed) throw LlmStreamProtocolException(dialect.id, "stream is no longer accepting events")
+            val batch = LlmStreamBatch(dialect.id, retention, nativeEvents)
+            val (event, raw) = readConverseStreamEvent(message, dialect.id, batch)
+            try {
+                val known = dispatch(event, raw, batch)
+                val extra = llmStreamUnknown(raw, known)
+                if (extra.size != 0L) batch.native(event, extra)
+            } catch (error: DecodingException) {
+                throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Converse stream", raw)
+            }
+            return batch.build()
+        } catch (error: Throwable) { failed = true; throw error }
+    }
+
+    private fun dispatch(event: String, raw: JsonValue, batch: LlmStreamBatch): Array<String> = when (event) {
+        case "messageStart" -> {
+            if (started) throw DecodingException("/role", "duplicate messageStart")
+            if (converseStreamString(raw, "role") != "assistant") throw DecodingException("/role", "expected assistant role")
+            started = true
+            ["role"]
+        }
+        case "contentBlockStart" -> { startConverseStreamBlock(this, raw, batch); ["contentBlockIndex", "start"] }
+        case "contentBlockDelta" -> { deltaConverseStreamBlock(this, raw, batch); ["contentBlockIndex", "delta"] }
+        case "contentBlockStop" -> { activeBlock(raw).stop(this, batch); ["contentBlockIndex"] }
+        case "messageStop" -> { stopConverseStreamMessage(this, raw, batch); ["stopReason"] }
+        case "metadata" -> {
+            if (!started) throw DecodingException("", "metadata arrived before messageStart")
+            when (raw["usage"]) {
+                case Some(value) -> {
+                    val combined = mergeLlmStreamUsage(currentUsage.native ?: Json.parse("{}"), value)
+                    currentUsage = LlmUsage(dialect.readUsage(combined), Partial, Some(combined))
+                    batch.events.add(LlmEvent.Usage(currentUsage))
+                }
+                case None -> {}
+            }
+            ["usage"]
+        }
+        case "internalServerException" -> throw DecodingException("", "server reported " + event)
+        case "modelStreamErrorException" -> throw DecodingException("", "server reported " + event)
+        case "validationException" -> throw DecodingException("", "server reported " + event)
+        case "throttlingException" -> throw DecodingException("", "server reported " + event)
+        case "serviceUnavailableException" -> throw DecodingException("", "server reported " + event)
+        else -> []
+    }
+
+    fun requireContent() {
+        if (!started || reason != None) throw DecodingException("/contentBlockIndex", "content outside the active message")
+    }
+
+    fun index(raw: JsonValue): Long {
+        val value = decodeConverseValue<Long>(converseStreamField(raw, "contentBlockIndex"), "/contentBlockIndex")
+        if (value < 0L) throw DecodingException("/contentBlockIndex", "negative content block index")
+        return value
+    }
+
+    fun activeBlock(raw: JsonValue): ConverseStreamBlock {
+        requireContent()
+        val index = index(raw)
+        if (index >= blocks.size) throw DecodingException("/contentBlockIndex", "content block has not started")
+        val block = blocks[index]
+        if (block.stopped) throw DecodingException("/contentBlockIndex", "content block already stopped")
+        return block
+    }
+
+    public override fun endInput(): LlmStreamUpdate {
+        if (failed) throw LlmStreamProtocolException(dialect.id, "stream has failed")
+        if (finished) return LlmStreamUpdate([])
+        if (!started || reason == None) {
+            failed = true
+            throw LlmStreamProtocolException(dialect.id, "Converse stream ended without messageStop")
+        }
+        finished = true
+        currentUsage = LlmUsage(currentUsage.tokens, Final, currentUsage.native)
+        return LlmStreamUpdate([LlmEvent.Usage(currentUsage)])
+    }
+
+    public override fun response(): LlmResponse {
+        if (!isFinished) throw LlmOutputException(Incomplete, "stream has not finished successfully")
+        if (!retain) throw LlmOutputException(ResultNotRetained, "stream result was not retained")
+        return LlmResponse(dialect.id, [candidate!!], usage = currentUsage, nativeEvents = nativeEvents.toArray())
+    }
+}

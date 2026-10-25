@@ -46,6 +46,7 @@
 | Bedrock Converse 完整响应 | 完成：本机 Converse 定向 18/18；Linux 仅搜索／引用／客户端调用组合 1/1；独立消费者通过 |
 | Bedrock Converse 请求与普通生成 | 完成：本机 Converse 定向 34/34；Linux 仅普通生成 mock 1/1；独立消费者通过 |
 | HTTP AWS EventStream 解码与异步 source | 完成：本机 HTTP 9/9、异步 6/6；Linux 仅固定向量与并发关闭各 1/1 |
+| Bedrock ConverseStream 内容、工具与流式网络 | 完成：本机新增 23 项与共享 SSE EOF 回归 3 项通过；Linux 仅网络／工具／兼容性 3/3 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
 | HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
@@ -108,3 +109,5 @@
 - Converse 普通生成新增 16 项 Cone 用例，覆盖显式部署与模型路径、最小请求、推理／schema 参数、媒体和原生扩展、函数／系统工具、实际调用 ID 与签名历史回传、错误重试资格及 HTTP 时间戳。可选 type=null 与缺省在响应和结果回传中保持同一客户端归属。本机 Converse 定向 34/34；nuc12 仅一个生成 mock 1/1；生产库与跨 Cone 缺省入口通过，默认消费者仍为 1 通过、13 个真实 API 用例忽略。本轮没有真实 API 请求、编译器修改或 fixture；清理空闲 target/debug/incremental 约 186 MiB。EventStream 与内置 SigV4 继续实施。
 
 - ConverseStream 所需的 AWS EventStream 底层读取已先行补齐。HTTP 内存 decoder 使用已有 zlib-ng 校验 CRC，保留全部 header 类型及原始 payload，按实际字节增长缓冲并提供单消息背压；异步 source 复用 MessageIo 的借用／接管、取消与关闭合同。本机 HTTP 9/9、异步 6/6；nuc12 仅固定向量与并发关闭各 1/1。生产库及受影响的依赖库已更新，跨 Cone 消费者 2 通过、13 个真实 API 用例默认忽略。初次消费者构建报告旧下游产物的依赖指纹过期，按依赖顺序重建后通过。没有真实 API 请求、编译器修改或 fixture；提交前凭据检查通过，清理空闲 target/debug/incremental 约 186 MiB。ConverseStream 的业务事件聚合继续实施。
+
+- ConverseStream 通过相同 openStream／withStream 接入二进制 source，聚合交错文本、reasoning 签名、图片、引用与工具，并在正常 EOF 后冻结尾部 usage。新增 23 项 Cone 测试覆盖结果保存、实际时间戳、工具归属、未知增量、CRC／服务错误与提前关闭；本机分批通过，另有共享 SSE EOF 回归 3/3。复查补齐未知片段后继续交付已知内容、图片失败保留已接收字节、空服务端结果记录首次输出的边界。nuc12 仅网络、工具接续、未知增量 3/3；生产库与跨 Cone 缺省入口通过，默认消费者 2 通过、13 个真实 API 用例忽略。没有真实 API 请求、编译器修改或 fixture；格式化、lint 与提交前凭据检查通过，清理空闲 target/debug/incremental 约 186 MiB。

@@ -20,7 +20,7 @@ private class ConverseRequestTest {
             provider.protocol.generationUrl(Url.parse("https://example.com/proxy?deployment=x"), "arn:aws:bedrock:x:0:model/id:v1").toString())
         assertFailsWith<IllegalArgumentException> { val endpoint = LlmEndpoint(provider, LlmAuth.none()); Unit }
         assertEquals("/modelId", assertFailsWith<LlmRequestException> { converseEncode(request, ""); Unit }.path)
-        assertEquals("/stream", assertFailsWith<LlmRequestException> { provider.protocol.encodeRequest("m", request, true); Unit }.path)
+        assertEquals(Json.stringify(body), Json.stringify(provider.protocol.encodeRequest("m", request, true)))
     }
 
     @Test

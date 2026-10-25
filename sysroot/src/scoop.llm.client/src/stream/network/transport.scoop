@@ -1,9 +1,6 @@
 package scoop.llm.client
 
 import scoop.asyncio.*
-import scoop.http.HttpMediaType
-import scoop.http.SseLimits
-import scoop.http.asyncio.SseSource
 import scoop.json.Json
 
 internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, request: LlmRequest,
@@ -11,7 +8,9 @@ internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, re
     val protocol = model.endpoint.provider.protocol
     checkModelRequest(model.capabilities, request, protocol.defaultMaxOutputTokens())
     requireModelCapability(model.capabilities.streaming, "/stream")
-    if (!(protocol is LlmSseProtocol)) throw LlmRequestException("/stream", "protocol does not support SSE generation")
+    if (!(protocol is LlmStreamProtocol)) throw LlmRequestException("/stream", "protocol does not support streaming generation")
+    if (!(protocol is LlmSseProtocol) && !(protocol is LlmEventStreamProtocol))
+        throw LlmRequestException("/stream", "protocol has no supported stream framing")
     val url = protocol.streamUrl(model.endpoint.baseUrl, model.id)
     val bytes = Json.stringify(protocol.encodeRequest(model.id, request, true)).toByteArray()
     val call = state.call
@@ -26,16 +25,7 @@ internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, re
             call.client.http.withResponse(prepared) suspend { response ->
                 val rejected = readLlmRejection(response, model.endpoint, options, attempt)
                 if (llmPresent(rejected)) return@withResponse rejected
-                val media = HttpMediaType.parseFields(response.fields)
-                if (!llmPresent(media) || media!!.type != "text" || media!!.subtype != "event-stream")
-                    throw LlmStreamProtocolException(protocol.dialectId, "expected text/event-stream response")
-                val decoder = protocol.createStreamDecoder(request, state.retention)
-                SseSource(LlmLimitedSource(response.body, options.maxResponseBytes),
-                    SseLimits(options.maxResponseBytes, options.maxResponseBytes)).useAsync suspend { source ->
-                    ensureActive()
-                    state.opening.publish(LlmStream(state))
-                    consumeLlmStream(state, source, decoder, protocol.dialectId, attempt, timer)
-                }
+                readLlmStreamResponse(protocol, response, request, state, options, attempt, timer)
                 None
             }
         } finally {

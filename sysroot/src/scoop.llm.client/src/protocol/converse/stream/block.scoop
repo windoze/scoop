@@ -1,0 +1,113 @@
+package scoop.llm.client
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.json.*
+
+internal class ConverseStreamBlock(val index: Long, val kind: String, val location: LlmItemLocation,
+    val partIndex: Long, val retain: Boolean, val citationTarget: ConverseStreamBlock? = None) {
+    val path: String get() = "/content/" + index.toString()
+    var stopped = false
+    var historyAvailable = true
+    var wire: JsonValue? = None
+    var item: LlmOutputItem? = None
+    val text = StringBuilder()
+    val signature = StringBuilder()
+    var signatureSeen = false
+    var reasoningKind = ""
+    val bytes = ByteArrayBuilder()
+    var binarySeen = false
+    val citations = ArrayList<Citation>()
+    val rawCitations = ArrayList<JsonValue>()
+    var citationCount = 0L
+    var initial: JsonValue = Json.parse("{}")
+    var tool: ConverseStreamTool? = None
+    var result: ConverseStreamResult? = None
+
+    fun stop(state: ConverseStreamDecoder, batch: LlmStreamBatch) {
+        if (stopped) throw DecodingException("/contentBlockIndex", "content block already stopped")
+        stopped = true
+        when (tool) { case Some(value) -> { value.stop(this, state, batch); return }; case None -> {} }
+        when (result) { case Some(value) -> { value.stop(this, state, batch); return }; case None -> {} }
+        if (kind == "image") finishConverseStreamImage(this, state, batch)
+        else if (retain) wire = Some(converseStreamContent(this))
+    }
+}
+
+internal fun addConverseStreamBlock(state: ConverseStreamDecoder, raw: JsonValue, kind: String): ConverseStreamBlock {
+    state.requireContent()
+    val index = state.index(raw)
+    if (index != state.blocks.size) throw DecodingException("/contentBlockIndex", "new content indices must increase from zero")
+    var itemIndex = 0L
+    var partIndex = 0L
+    if (index > 0L) {
+        val previous = state.blocks[index - 1L]
+        itemIndex = previous.location.itemIndex + 1L
+        if (kind == "text" && previous.kind == "text") {
+            itemIndex = previous.location.itemIndex
+            partIndex = previous.partIndex + 1L
+        }
+    }
+    var target: ConverseStreamBlock? = None
+    if (kind == "citation" && index > 0L) {
+        val previous = state.blocks[index - 1L]
+        if (previous.kind == "text") target = Some(previous)
+        else if (previous.kind == "citation") target = previous.citationTarget
+    }
+    val block = ConverseStreamBlock(index, kind, LlmItemLocation(0L, itemIndex), partIndex, state.retain, target)
+    state.blocks.add(block)
+    return block
+}
+
+internal fun startConverseStreamBlock(state: ConverseStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    val start = converseStreamField(raw, "start")
+    val (kind, value) = converseUnion(start, "/start")
+    if (kind == "text" || kind == "reasoningContent" || kind == "citation")
+        throw DecodingException("/start", "this content kind starts with a delta event")
+    val block = addConverseStreamBlock(state, raw, kind)
+    block.initial = value
+    when (kind) {
+        case "toolUse" -> startConverseStreamTool(block, state, value, batch)
+        case "toolResult" -> block.result = Some(ConverseStreamResult(value))
+        case "image" -> {
+            converseNonempty(converseStreamString(value, "format", "/start/image"), "/start/image/format")
+            batch.native("converse.image.start", start, Some(block.location), false)
+            val extra = llmStreamUnknown(value, ["format"])
+            if (extra.size != 0L) batch.native("converse.image.fields", extra, Some(block.location))
+        }
+        else -> {
+            block.historyAvailable = false
+            if (block.retain) block.wire = Some(start)
+            batch.native("converse.block.start", start, Some(block.location), false)
+        }
+    }
+}
+
+internal fun deltaConverseStreamBlock(state: ConverseStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    state.requireContent()
+    val delta = converseStreamField(raw, "delta")
+    val (kind, value) = converseUnion(delta, "/delta")
+    val index = state.index(raw)
+    if (index == state.blocks.size && (kind == "toolUse" || kind == "toolResult" || kind == "image"))
+        throw DecodingException("/contentBlockIndex", "this content kind requires a start event")
+    val block = if (index == state.blocks.size) addConverseStreamBlock(state, raw, kind) else state.activeBlock(raw)
+    if (!knownConverseStreamKind(kind) || !knownConverseStreamKind(block.kind)) {
+        block.historyAvailable = false
+        if (block.retain && !llmPresent(block.wire)) block.wire = Some(delta)
+        batch.native("converse.block.delta", delta, Some(block.location))
+        return
+    }
+    if (kind != block.kind && !(kind == "citation" && block.kind == "text"))
+        throw DecodingException("/delta", "content block kind changed")
+    when (kind) {
+        case "text" -> appendConverseStreamText(block, value, batch, true)
+        case "reasoningContent" -> appendConverseStreamReasoning(block, value, batch)
+        case "citation" -> appendConverseStreamCitation(block, state, value, batch)
+        case "toolUse" -> block.tool!!.append(value, block, state, batch)
+        case "toolResult" -> block.result!!.append(value, block, batch)
+        case "image" -> appendConverseStreamImage(block, value, batch)
+        else -> throw IllegalStateException(Some("unhandled known Converse delta kind"))
+    }
+}
+
+private fun knownConverseStreamKind(kind: String): Boolean = kind == "text" || kind == "reasoningContent" ||
+    kind == "citation" || kind == "toolUse" || kind == "toolResult" || kind == "image"

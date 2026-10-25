@@ -1,0 +1,64 @@
+package scoop.llm.client
+
+import scoop.http.*
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun readConverseStreamEvent(message: AwsEventStreamMessage, dialect: DialectId,
+    batch: LlmStreamBatch): (String, JsonValue) {
+    val kind = converseStreamHeader(message, ":message-type", dialect)!!
+    val data = try { String.fromUtf8(message.payload) }
+        catch (_: CharacterCodingException) { throw LlmStreamProtocolException(dialect, "invalid EventStream payload UTF-8") }
+    if (kind == "exception" || kind == "error") {
+        val code = converseStreamHeader(message, if (kind == "exception") ":exception-type" else ":error-code", dialect)!!
+        val detail = converseStreamHeader(message, ":error-message", dialect, false)
+        val suffix = if (detail == None || detail!!.length == 0L) "" else ": " + detail!!
+        throw LlmStreamProtocolException(dialect, "server stream error: " + code + suffix, Some(data))
+    }
+    if (kind != "event") throw LlmStreamProtocolException(dialect, "unknown EventStream message type", Some(data))
+    val event = converseStreamHeader(message, ":event-type", dialect)!!
+    val contentType = converseStreamHeader(message, ":content-type", dialect, false)
+    if (contentType != None && contentType != Some("application/json"))
+        throw LlmStreamProtocolException(dialect, "expected application/json EventStream payload", Some(data))
+    val raw = try { Json.parse(data) }
+        catch (_: DecodingException) { throw LlmStreamProtocolException(dialect, "invalid EventStream payload JSON", Some(data)) }
+    if (raw.kind != JsonValueKind.Object) throw LlmProtocolException(dialect, "", "expected event object", raw)
+    val extra = JsonObjectBuilder()
+    for (header in message.headers) {
+        if (header.name != ":message-type" && header.name != ":event-type" && header.name != ":content-type")
+            extra.add(header.name, converseStreamHeaderValue(header.value))
+    }
+    val headers = extra.build()
+    if (headers.size != 0L) batch.native("converse.headers", headers)
+    return (event, raw)
+}
+
+private fun converseStreamHeader(message: AwsEventStreamMessage, name: String, dialect: DialectId,
+    required: Boolean = true): String? {
+    when (message.header(name)) {
+        case Some(Text(value)) -> {
+            if (value.length == 0L && name != ":error-message") throw LlmStreamProtocolException(dialect, "empty EventStream header: " + name)
+            return Some(value)
+        }
+        case Some(_) -> throw LlmStreamProtocolException(dialect, "non-text EventStream header: " + name)
+        case None -> {
+            if (required) throw LlmStreamProtocolException(dialect, "missing EventStream header: " + name)
+            return None
+        }
+    }
+}
+
+private fun converseStreamHeaderValue(header: AwsEventStreamHeaderValue): JsonValue {
+    val (kind, value) = when (header) {
+        case Bool(value) -> ("bool", JsonValue.fromBoolean(value))
+        case Int8(value) -> ("int8", JsonValue.fromLong(value.toLong()))
+        case Int16(value) -> ("int16", JsonValue.fromLong(value.toLong()))
+        case Int32(value) -> ("int32", JsonValue.fromLong(value.toLong()))
+        case Int64(value) -> ("int64", JsonValue.fromLong(value))
+        case Bytes(value) -> ("bytes", JsonValue.fromString(Base64.Default.encode(value)))
+        case Text(value) -> ("text", JsonValue.fromString(value))
+        case Timestamp(value) -> ("timestamp", JsonValue.fromLong(value.toEpochMilliseconds()))
+        case Uuid(value) -> ("uuid", JsonValue.fromString(value.toString()))
+    }
+    return JsonObjectBuilder().add("type", JsonValue.fromString(kind)).add("value", value).build()
+}

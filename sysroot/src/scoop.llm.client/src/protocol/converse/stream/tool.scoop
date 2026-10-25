@@ -1,0 +1,102 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class ConverseStreamToolStart public constructor(public val toolUseId: String, public val name: String,
+    public val type: String? = None) {
+    public companion object : ValueDecoder<ConverseStreamToolStart>
+}
+
+internal fun startConverseStreamTool(block: ConverseStreamBlock, state: ConverseStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    val value = decodeConverseValue<ConverseStreamToolStart>(raw, "/start/toolUse")
+    converseNonempty(value.toolUseId, "/start/toolUse/toolUseId")
+    converseNonempty(value.name, "/start/toolUse/name")
+    if (raw.containsKey("input")) throw DecodingException("/start/toolUse/input", "tool input belongs to delta events")
+    for (entry in state.calls) if (entry.call?.toolUseId == Some(value.toolUseId))
+        throw DecodingException("/start/toolUse/toolUseId", "duplicate Converse tool call ID")
+    val identity = ConverseToolUse(value.toolUseId, value.name, Json.parse("null"), value.type)
+    val wire = converseStreamUnion("toolUse", raw)
+    val tool = ConverseStreamTool(identity, raw, state.calls.size)
+    state.calls.add(ConverseEntry("toolUse", wire, raw, block.path, Some(identity)))
+    block.tool = Some(tool)
+    if (tool.server) batch.events.add(LlmEvent.ServerToolActivity(block.location, ServerToolActivity(
+        state.dialect.serverToolKind(value.name), InProgress, resolveConverseTool(state.request.tools, state.dialect, value.name, true),
+        Some(value.toolUseId), native = Some(wire))))
+    else if (value.type != None) batch.native("converse.tool.start", wire, Some(block.location), false)
+    batch.hasOutput = value.type == None || tool.server
+    val extra = llmStreamUnknown(raw, ["toolUseId", "name", "type"])
+    if (extra.size != 0L) batch.native("converse.tool.fields", extra, Some(block.location), false)
+}
+
+internal class ConverseStreamTool(val call: ConverseToolUse, val initial: JsonValue, val callIndex: Long) {
+    val input = StringBuilder()
+    var invalid = false
+    val server: Boolean get() = call.type == Some("server_tool_use")
+
+    fun append(raw: JsonValue, block: ConverseStreamBlock, state: ConverseStreamDecoder, batch: LlmStreamBatch) {
+        val fragment = converseStreamString(raw, "input", "/delta/toolUse")
+        input.append(fragment)
+        if (call.type == None) {
+            val key = resolveConverseTool(state.request.tools, state.dialect, call.name, false)
+            val reference = when (key) {
+                case Some(value) -> Some(ClientToolCallReference(state.dialect.id, value, Some(call.toolUseId),
+                    Some(converseStreamUnion("toolUse", initial))))
+                case None -> None
+            }
+            batch.events.add(LlmEvent.ToolInputDelta(LlmToolInputDelta(block.location, fragment, reference)))
+        } else batch.native("converse.tool.input", raw, Some(block.location), false)
+        batch.observe(fragment)
+        val extra = llmStreamUnknown(raw, ["input"])
+        if (extra.size != 0L) {
+            block.historyAvailable = false
+            batch.native("converse.tool.delta_fields", extra, Some(block.location))
+        }
+    }
+
+    fun stop(block: ConverseStreamBlock, state: ConverseStreamDecoder, batch: LlmStreamBatch) {
+        val parsed = try { Some(Json.parse(input.toString())) } catch (_: DecodingException) { None }
+        if (!llmPresent(parsed)) {
+            if (server) throw DecodingException(block.path + "/toolUse/input", "invalid server tool input JSON")
+            invalid = true
+            block.historyAvailable = false
+            block.wire = Some(JsonObjectBuilder().add("start", initial).add("invalid_input", JsonValue.fromString(input.toString())).build())
+            batch.native("converse.tool.invalid_input", block.wire!!, Some(block.location))
+            return
+        }
+        val value = converseStreamReplace(initial, "input", parsed!!)
+        val wire = converseStreamUnion("toolUse", value)
+        block.wire = Some(wire)
+        val entry = ConverseEntry("toolUse", wire, value, block.path,
+            Some(ConverseToolUse(call.toolUseId, call.name, parsed!!, call.type)))
+        state.calls[callIndex] = entry
+        if (server) {
+            val activity = ServerToolActivity(state.dialect.serverToolKind(call.name), InProgress,
+                resolveConverseTool(state.request.tools, state.dialect, call.name, true), Some(call.toolUseId), Some(parsed!!), native = Some(wire))
+            block.item = Some(LlmOutputItem.ServerToolActivity(activity))
+            batch.events.add(LlmEvent.ServerToolActivity(block.location, activity))
+        }
+    }
+
+    fun finish(block: ConverseStreamBlock, state: ConverseStreamDecoder, batch: LlmStreamBatch) {
+        if (server) return
+        val entry = state.calls[callIndex]
+        val value = if (!invalid) readConverseClientCall(state.dialect, entry, state.calls.toArray(), state.request.tools, state.reason!!)
+            else invalidItem(block, state)
+        if (block.retain) block.item = Some(value)
+        when (value) {
+            case ClientToolCall(call) -> batch.events.add(LlmEvent.ClientToolCall(block.location, call))
+            case Native(_, raw) -> batch.native("converse.tool.finished", raw, Some(block.location), false)
+            else -> throw IllegalStateException(Some("unexpected Converse tool item"))
+        }
+    }
+
+    private fun invalidItem(block: ConverseStreamBlock, state: ConverseStreamDecoder): LlmOutputItem {
+        val key = if (call.type == None && !converseHasResult(state.calls.toArray(), call.toolUseId))
+            resolveConverseTool(state.request.tools, state.dialect, call.name, false) else None
+        if (key == None) return LlmOutputItem.Native(state.dialect.id, block.wire!!)
+        val value = if (state.reason == Some("tool_use")) ClientToolInput.Invalid(input.toString(), "tool input is not valid JSON")
+            else ClientToolInput.Incomplete(input.toString())
+        return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(state.dialect.id, key!!, Some(call.toolUseId),
+            Some(converseStreamUnion("toolUse", initial))), value))
+    }
+}

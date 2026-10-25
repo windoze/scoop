@@ -3,16 +3,21 @@ package scoop.llm.client
 import scoop.json.*
 import scoop.url.Url
 
-/** Converse requests and complete responses, bound to an explicit service dialect. */
-public class ConverseProtocol public constructor(public val dialect: ConverseDialect) : LlmGenerationProtocol {
+/** Converse requests, responses and EventStream generation, bound to an explicit service dialect. */
+public class ConverseProtocol public constructor(public val dialect: ConverseDialect) : LlmEventStreamProtocol {
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationUrl(baseUrl: Url, modelId: String): Url {
         if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
         return baseUrl.toBuilder().appendPathSegment("model").appendPathSegment(modelId).appendPathSegment("converse").build()
     }
+    public override fun streamUrl(baseUrl: Url, modelId: String): Url {
+        if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+        return baseUrl.toBuilder().appendPathSegment("model").appendPathSegment(modelId).appendPathSegment("converse-stream").build()
+    }
+    public override fun createEventStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmEventStreamDecoder =
+        ConverseStreamDecoder(dialect, request, retention)
     public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue {
         if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
-        if (stream) throw LlmRequestException("/stream", "Converse streaming requires AWS EventStream transport")
         return encodeConverseRequest(dialect, request)
     }
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =

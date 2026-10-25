@@ -1,8 +1,8 @@
 # scoop.llm.client
 
-LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat、Anthropic Messages、OpenAI Responses、Gemini generateContent 与 Interactions 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
+LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实现，进度见[实施记录](../../../docs/llm-client/PROGRESS.md)。当前支持 OpenAI／DeepSeek Chat、Anthropic Messages、OpenAI Responses、Gemini generateContent、Interactions 与 Bedrock Converse 的普通／流式生成；共用 provider／model 绑定、能力检查、历史保存、结构化解码、token 用量与实际调用计时。其他协议继续实施。
 
-普通 Cone 测试只使用纯 decoder 或回环地址上的 HTTP／SSE mock，回复由测试指定，不连接供应商。仓库外的真实 API 验证用例统一标记 `@Ignore`，默认跳过；独立运行器只有在显式选择一个用例且其所需 key／endpoint 环境变量齐备时才启用 `--ignored`，缺少配置报告 SKIPPED，不发请求。凭据只从环境读取，日志脱敏。
+普通 Cone 测试只使用纯 decoder 或回环地址上的 HTTP／SSE／EventStream mock，回复由测试指定，不连接供应商。仓库外的真实 API 验证用例统一标记 `@Ignore`，默认跳过；独立运行器只有在显式选择一个用例且其所需 key／endpoint 环境变量齐备时才启用 `--ignored`，缺少配置报告 SKIPPED，不发请求。凭据只从环境读取，日志脱敏。
 
 Responses 使用 `Providers.openAiResponses()` 创建同样的 endpoint／model，再调用 `client.generate` 或 `client.openStream`。`ResponsesProtocol(OpenAiResponsesDialect())` 也提供 encodeRequest／decodeResponse，保留有序 item、reasoning、消息 phase、工具 call ID、服务端搜索与引用；`toInput()` 返回可序列化的原始 output items。usage 区分缓存读、写与普通输入，缺失字段保持未知。
 
@@ -22,7 +22,7 @@ Interactions 的独立 step 格式保留 thought.signature、媒体、服务端�
 
 Interactions SSE 沿用 `openStream`／`withStream` 和缺省 EventsOnly，显式 Result 才保留最终结果。stream=true 与 alt=sse 由协议编码；有序 step 绑定文本、媒体、引用、工具和签名。step.stop 不开放客户端工具执行，只有最终 requires_action 决定待执行调用；interaction.completed 冻结 usage。最终资源可以省略服务时间，缺失值不会替换成客户端发送／接收时刻；未知增量保留 Native，无法完整重建时不提供可追加历史。
 
-Bedrock Converse 通过 `Providers.bedrockConverse()` 接入同一个 `generate` 入口。部署地址、模型 ID 和认证显式配置，provider 不猜 region；API key 使用 `LlmAuth.bearer`。最小请求仅有 messages，模型 ID 保持 URL 中的一个路径段；推理参数、结构化输出、函数和系统工具各用协议原生字段。原始历史与连续工具结果可直接保存后接续，媒体 Bytes／S3 引用不触发隐式下载。EventStream 与内置 SigV4 继续实施。纯响应入口 `ConverseProtocol(BedrockConverseDialect()).decodeResponse(json, request)` 同样可用。响应保存有序内容、reasoning 签名、媒体、引用、实际调用 ID 与原始消息历史；系统工具与客户端函数分别读取，不自动执行。源文档位置保持引用元数据，不转换成输出文本范围。usage 的普通输入、缓存读与缓存写全部已知时才计算总输入，服务端 latencyMs 只留在原文，不代替客户端时间戳。
+Bedrock Converse 通过 `Providers.bedrockConverse()` 接入同一个 `generate` 入口。部署地址、模型 ID 和认证显式配置，provider 不猜 region；API key 使用 `LlmAuth.bearer`。最小请求仅有 messages，模型 ID 保持 URL 中的一个路径段；推理参数、结构化输出、函数和系统工具各用协议原生字段。原始历史与连续工具结果可直接保存后接续，媒体 Bytes／S3 引用不触发隐式下载。内置 SigV4 继续实施。纯响应入口 `ConverseProtocol(BedrockConverseDialect()).decodeResponse(json, request)` 同样可用。响应保存有序内容、reasoning 签名、媒体、引用、实际调用 ID 与原始消息历史；系统工具与客户端函数分别读取，不自动执行。源文档位置保持引用元数据，不转换成输出文本范围。usage 的普通输入、缓存读与缓存写全部已知时才计算总输入，服务端 latencyMs 只留在原文，不代替客户端时间戳。
 
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 
@@ -102,9 +102,11 @@ client.withStream(model, request) suspend { stream ->
 
 需要保存完整回答和历史时，使用 `client.openStream(model, request, retention = StreamRetention.Result)`；在 `stream.useAsync` 中读取，在关闭后通过 `stream.result()` 取得 LlmResult。关闭不会自动读完剩余输出；提前关闭只留下已观察的 metadata。原始 next 与 textDeltas 二选一，并发读取或切换入口明确失败。网络、协议、超时和取消都按异常传播；文本视图也处理 usage 尾块。
 
-`stream.metadata` 每次取得不可变快照：HTTP 实际发送／响应头、首个事件／输出／文本和协议完成点分别记录。收到协议终止后停止 total 截止；资源清理后记录 finished 并执行一次 onFinished，此后 result 才可用。maxResponseBytes 同时约束流式 HTTP 正文的已读取字节，包含 SSE framing 和有限读取缓冲；不累计整条事件日志。
+`stream.metadata` 每次取得不可变快照：HTTP 实际发送／响应头、首个事件／输出／文本和协议完成点分别记录。收到协议终止后停止 total 截止；资源清理后记录 finished 并执行一次 onFinished，此后 result 才可用。maxResponseBytes 同时约束流式 HTTP 正文的已读取字节，包含对应的 SSE／EventStream framing 和有限读取缓冲；不累计整条事件日志。
 
-自定义 SSE decoder 的 `endInput()` 返回同样的 `LlmStreamUpdate`，可在 EOF 时交付最后的事件和 usage；成功返回时必须已经 `isFinished`。这些事件交付后才返回读取结束，最终结果、completed 时间和截止取消沿用正常事件的路径。EOF 本身不产生 firstEvent 时间。Chat、Messages、Responses 仍要求各自的显式终止事件，缺失时报告协议错误。
+Converse 使用相同的流式入口与保留设置。协议将请求发送到 converse-stream，HTTP source 验证二进制 EventStream 的 CRC 与帧边界，业务 decoder 聚合文本、reasoning 签名、图片、引用和工具；messageStop 后继续读取 metadata，正常 EOF 才冻结 usage。服务端工具活动不会进入客户端待执行列表，无法归并的未知增量保留 Native 并使 history 不可用。纯入口是 `ConverseProtocol(BedrockConverseDialect()).createEventStreamDecoder(request)`，accept 接收已验证的 AwsEventStreamMessage；见 [ConverseStream 规范](../../../docs/specs/SCOOP-LLM-CONVERSE-STREAM-SPEC.md)。
+
+自定义流式 decoder 的 `endInput()` 返回同样的 `LlmStreamUpdate`，可在 EOF 时交付最后的事件和 usage；成功返回时必须已经 `isFinished`。这些事件交付后才返回读取结束，最终结果、completed 时间和截止取消沿用正常事件的路径。EOF 本身不产生 firstEvent 时间。Chat、Messages、Responses 仍要求各自的显式终止事件，缺失时报告协议错误。
 
 同一个 protocol 的 `encodeRequest(modelId, request, stream = false)` 生成 wire JSON；它本身不执行网络请求。Chat 最小文本只发送 model 和 messages，默认不设置温度、reasoning、token 上限或输出格式；Messages 另有必需的 max_tokens 默认值。各 dialect 处理自身的媒体形式、生成参数、工具和历史，不按 model ID 切换字段。OpenAI Chat 的 Server(WebSearch) 映射请求级 web_search_options，无法表达的选项抛出带输入路径的 LlmRequestException。
 
