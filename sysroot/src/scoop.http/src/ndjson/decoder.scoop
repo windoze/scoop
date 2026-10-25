@@ -1,0 +1,78 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+
+/** Incremental UTF-8 NDJSON record framing; JSON interpretation belongs to the caller. */
+public class NdjsonDecoder public constructor(maxRecordBytes: Long = 1048576L) : Closeable {
+    private val state = NdjsonState(maxRecordBytes)
+    private val busy = AtomicBoolean(false)
+    private var closed = false
+    private var parseFailure: Throwable? = None
+
+    init { if (maxRecordBytes < 0L) throw IllegalArgumentException(Some("negative NDJSON record limit")) }
+
+    public val isClosed: Boolean get() = closed
+    public val isFinished: Boolean get() = state.ended && !state.hasPending
+    public val failure: Throwable? get() = parseFailure
+
+    /** Consumes a prefix, stopping as soon as one record is ready to be removed. */
+    public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long = withUse {
+        requireOpen()
+        if (state.ended) throw IllegalStateException(Some("NDJSON input has ended"))
+        if (count < 0L) throw IllegalArgumentException(Some("negative NDJSON input count"))
+        if (count > buffer.readableBytes) throw IndexOutOfBoundsException()
+        if (count == 0L || state.hasPending) return@withUse 0L
+        @Unsafe {
+            val borrow = buffer.borrowReadable(count)
+            var consumed = 0L
+            try {
+                val pointer = borrow.pointer()!!
+                while (consumed < count && !state.hasPending) {
+                    val byte = pointer.load(consumed)
+                    consumed += 1L
+                    state.accept(byte)
+                }
+                return@withUse consumed
+            } catch (error: Throwable) { fail(error); throw error }
+            finally { borrow.complete(consumed) }
+        }
+    }
+
+    /** Returns an exact record, including an empty string for an empty line. */
+    public fun nextRecord(): String? = withUse {
+        requireOpen()
+        val result = state.pending
+        state.pending = None
+        result
+    }
+
+    /** Delivers a final nonempty line even without a trailing LF; invalid UTF-8 still fails. */
+    public fun endInput() {
+        withUse {
+            requireOpen()
+            try { state.endInput() }
+            catch (error: Throwable) { fail(error); throw error }
+            Unit
+        }
+    }
+
+    public override fun close() {
+        withUse {
+            if (!closed) { closed = true; state.discard() }
+            Unit
+        }
+    }
+
+    private fun fail(error: Throwable) { parseFailure = Some(error); state.discard() }
+
+    private fun requireOpen() {
+        if (closed) throw IllegalStateException(Some("NDJSON decoder is closed"))
+        when (parseFailure) { case Some(_) -> throw IllegalStateException(Some("NDJSON decoder has failed")); case None -> {} }
+    }
+
+    private fun <T> withUse(block: () -> T): T {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("NDJSON decoder is already in use"))
+        try { return block() }
+        finally { busy.store(false) }
+    }
+}

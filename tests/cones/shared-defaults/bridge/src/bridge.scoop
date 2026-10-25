@@ -1,0 +1,7 @@
+package shared.bridge
+
+import shared.defaults.*
+
+public fun bridgeHandler(): Handler = Handler()
+public fun bridgeNested(): suspend (Int) -> Int = nested(20)
+public fun bridgeReference(): (Int) -> Int = reference()

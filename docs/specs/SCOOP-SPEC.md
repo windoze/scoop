@@ -346,7 +346,7 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 规则：
 
 - tuple 类型记作 `(T1, T2, ...)`，tuple 字面量记作 `(e1, e2, ...)`。
-- **0 元 tuple 写作 `()`**；其类型名为 `Unit`，`Unit` 既是类型名也是该值的构造器，`()` 与 `Unit` 等价。
+- **0 元 tuple 写作 `()`**；其类型名为 `Unit`，`Unit` 既是类型名也是该值的构造器，`()` 与 `Unit` 等价。显式 `Unit.Companion` 通过类型名取得普通 companion；其他以 Unit 值为接收者的表达式（如 `Unit.equals(())`）保持值语义，`().Companion` 不是类型限定访问。
 - **1 元 tuple 必须写作 `(e,)`**（尾随逗号），类型记作 `(T,)`；`(e)` 是带括号的表达式 `e` 本身。消歧汇总：`()` = Unit；`(e)` = 括号表达式；`(e,)` = 1 元 tuple；`(e1, e2, ...)` = 多元 tuple。
 - 元素通过解构（见 4.6）或位置访问：`val (a, b) = t1`、`t1._1`、`t1._2`（位置访问从 `_1` 开始）。
 - tuple 是值类型：immutable、无 identity；全部元素可比较时条件派生同类型的 `operator fun equals`，不自动产生接口 conformance。Unit 的同类型比较恒为 true，core 另显式提供 `Equals<Unit>`（见 11.11）。
@@ -2426,7 +2426,7 @@ public annotation class Serialize(
 - 泛型目标如`Box<E>`可包含普通参数E，两个方向分别由显式`ValueEncoder<E>`、`ValueDecoder<E>`依赖提供字段能力，不要求E自身实现接口。companion可使用宿主参数并按9.1.3具体化，但不能等E具体化后再发现其codec。裸T没有可展开目标形状，不能仅凭声明`ValueEncoder<T>`或`ValueDecoder<T>`自动得到body。
 - 合法递归类型先建立合成方法签名，再生成body；值布局和单态化终止性继续遵守3.2。已有接口实现选择在定义处完成，具体化不重新选重载、default或字段codec依赖。
 
-核心Boolean、现有定宽整数、String、Char的companion分别实现具体的`ValueEncoder<Scalar>`与`ValueDecoder<Scalar>`；Unit使用普通object UnitEncoder与UnitDecoder。`Option<T>`、`Array<T>`、`MutableArray<T>`、`ArrayList<T>`的普通companion分别按`T.Companion : ValueEncoder<T>`和`T.Companion : ValueDecoder<T>`实现本容器的两个codec接口。两个方向独立，保留原有显式encoder/decoder工厂、nullable／sequence表示和每次解码独立容器的规则。条件不成立不影响数据类型的普通使用；Array/MutableArray不改变intrinsic表示。字段中的核心容器及tuple仍按11.13.4组合，保留显式元素依赖和递归this。其他库类型只有实际声明条件接口后才提供对应默认能力。标量、Unit、容器和tuple数据值不因此获得编码/解码接口。
+核心Boolean、现有定宽整数、String、Char的companion分别实现具体的`ValueEncoder<Scalar>`与`ValueDecoder<Scalar>`；Unit 的普通 companion 同样实现两个接口，方法复用 UnitEncoder 与 UnitDecoder，保留这两个显式 object 入口和 null 表示。Unit 值仍是零大小数据值，不因 companion 实现接口而成为 codec；显式取得策略使用 `Unit.Companion`，条件泛型可按 `T.Companion` 使用 Unit。`Option<T>`、`Array<T>`、`MutableArray<T>`、`ArrayList<T>`的普通companion分别按`T.Companion : ValueEncoder<T>`和`T.Companion : ValueDecoder<T>`实现本容器的两个codec接口。两个方向独立，保留原有显式encoder/decoder工厂、nullable／sequence表示和每次解码独立容器的规则。条件不成立不影响数据类型的普通使用；Array/MutableArray不改变intrinsic表示。字段中的核心容器及tuple仍按11.13.4组合，保留显式元素依赖和递归this。其他库类型只有实际声明条件接口后才提供对应默认能力。标量、Unit、容器和tuple数据值不因此获得编码/解码接口。
 
 List/MutableList没有唯一默认解码结果。核心库提供普通
 `fun <T> encodeList(values: List<T>, element: ValueEncoder<T>, encoder: Encoder): Unit`：

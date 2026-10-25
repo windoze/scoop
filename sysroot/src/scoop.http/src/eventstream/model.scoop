@@ -1,0 +1,34 @@
+package scoop.http
+
+import scoop.time.Instant
+import scoop.uuid.Uuid as Guid
+
+/** The fixed AWS EventStream wire header types, with exact integer widths. */
+public enum AwsEventStreamHeaderValue {
+    Bool(val value: Boolean),
+    Int8(val value: Byte),
+    Int16(val value: Short),
+    Int32(val value: Int),
+    Int64(val value: Long),
+    Bytes(val value: Array<Byte>),
+    Text(val value: String),
+    Timestamp(val value: Instant),
+    Uuid(val value: Guid)
+}
+
+/** One strictly decoded, case-sensitive header name and its typed value. */
+public class AwsEventStreamHeader internal constructor(public val name: String, public val value: AwsEventStreamHeaderValue)
+
+/** One complete, checksum-verified message; payload interpretation belongs to the caller. */
+public class AwsEventStreamMessage internal constructor(public val headers: Array<AwsEventStreamHeader>, public val payload: Array<Byte>) {
+    public fun header(name: String): AwsEventStreamHeaderValue? {
+        for (header in headers) if (header.name == name) return Some(header.value)
+        return None
+    }
+}
+
+public enum AwsEventStreamErrorKind { Length, PreludeChecksum, MessageChecksum, Header, UnexpectedEof }
+
+/** A wire error located at a byte offset within the current message. */
+public class AwsEventStreamException public constructor(public val kind: AwsEventStreamErrorKind, public val offset: Long, message: String)
+    : Exception(Some(message))

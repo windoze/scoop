@@ -22,6 +22,7 @@ JsonValue仍为内部节点构造器不可公开调用的class，companion仍实
 | `size: Long` | 对象字段数或数组元素数，O(1)；其他种类报DecodingException |
 | `asBoolean()`／`asString()` | 严格匹配种类，无字符串／布尔／数值隐式转换 |
 | `asLong()`／`asULong()`／`asFloat()`／`asDouble()` | 复用typed解码的范围、精度和负零规则，整数拒绝小数和指数token |
+| `asIntegralLong(): Long` | 显式读取数值恰为 Long 整数的 number；允许小数／指数写法，不接受 string 或经过浮点舍入 |
 | `asNumberToken(): String` | 返回原合法数字token，不经浮点转换，支持超出ULong／Double范围的数值 |
 | `get(name: String): JsonValue?`、`containsKey(name)` | 仅接受object。缺少key为None；显式null为Some(JsonValue)，kind为Null。线性查找 |
 | `get(index: Long): JsonValue` | 仅接受array，O(1)；越界抛IndexOutOfBoundsException |
@@ -34,6 +35,8 @@ JsonValue仍为内部节点构造器不可公开调用的class，companion仍实
 companion提供`nullValue()`、`fromBoolean(value)`、`fromString(value)`、`fromLong(value)`、`fromULong(value)`、`fromFloat(value)`、`fromDouble(value)`工厂。浮点仅接受有限值，拒绝时抛EncodingException，保留负零。`fromNumberToken(text)`只接受恰好一个JSON数字token，不接受任何前后空白或其他值；非法输入抛DecodingException，合法输入保留原token。
 
 `fromArray(elements: List<JsonValue>)`和`fromObject(members: List<(String, JsonValue)>)`在调用时复制集合结构并共享子节点。object保持输入顺序，重复name抛EncodingException，path指向该字段并按JSON Pointer转义，不静默覆盖。
+
+asIntegralLong 直接解释已经合法的十进制 number token：`12.0`、`1.2e1`、`9007199254740993.0` 保持精确；非整数、超出 Long 范围或非 number 抛根路径 DecodingException。正负零及带任意合法指数的零均为 0，不把非零小数下溢为零。处理不分配指数规模的缓冲、不按指数逐次乘除；工作量以已有 token 长度为界，最多累积 Long 容纳的十进制位数。原 token 不变，asLong／typed Long 解码仍执行原有不带小数或指数的词法合同。
 
 `JsonArrayBuilder()`提供可链式`add(value: JsonValue)`；`JsonObjectBuilder()`提供可链式`add(name: String, value: JsonValue)`并在重复name时抛EncodingException且不改变已有成员。两者的`build(): JsonValue`每次发布独立的结构快照，之后继续add或再次build不改变旧值；共享不可变子节点，不重复校验已经合法的子树。它们不提供可变DOM、JSONPath或patch协议。
 

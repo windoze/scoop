@@ -1,0 +1,33 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun feedAwsEventStream(decoder: AwsEventStreamDecoder, bytes: List<Byte>, chunkSize: Long = 1L): Array<AwsEventStreamMessage> {
+    val messages = ArrayList<AwsEventStreamMessage>()
+    NativeByteBuffer.allocate(chunkSize).use { buffer ->
+        var offset = 0L
+        while (offset < bytes.size) {
+            buffer.clear()
+            val count = if (bytes.size - offset < chunkSize) bytes.size - offset else chunkSize
+            buffer.writeBytes(bytes, offset, count)
+            offset += count
+            while (buffer.readableBytes > 0L) {
+                val consumed = decoder.receive(buffer)
+                when (decoder.nextMessage()) {
+                    case Some(message) -> messages.add(message)
+                    case None -> assertTrue(consumed > 0L)
+                }
+            }
+        }
+    }
+    return messages.toArray()
+}
+
+internal fun readAwsTestMessage(bytes: Array<Byte>, chunkSize: Long = 1L): AwsEventStreamMessage = AwsEventStreamDecoder().use { decoder ->
+    val messages = feedAwsEventStream(decoder, bytes, chunkSize)
+    assertEquals(1L, messages.size)
+    decoder.endInput()
+    assertTrue(decoder.isFinished)
+    messages[0L]
+}

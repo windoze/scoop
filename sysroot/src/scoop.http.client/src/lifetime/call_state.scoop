@@ -17,7 +17,7 @@ internal class ClientCall(
     var bearerCleanup: ClientBearerCleanup? = None
     val timeouts: HttpTimeoutOptions = sequence.timeouts
     val started: TimeMark? = sequence.started
-    val observation: ClientObservation? = if (clientPresent(client.config.observer)) Some(ClientObservation(sequence)) else None
+    val observation: ClientObservation? = if (sequence.observed) Some(ClientObservation(sequence)) else None
     private val baseDeadlines: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||
         timeouts.resolve != None || timeouts.connect != None || timeouts.tlsHandshake != None
     val usesDeadlines: Boolean get() = baseDeadlines || (timeouts.proxyHandshake != None && clientNeedsProxyHandshake(route))

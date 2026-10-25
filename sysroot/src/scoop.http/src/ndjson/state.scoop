@@ -1,0 +1,39 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+internal class NdjsonState(private val maximum: Long) {
+    private var bytes = ByteArrayBuilder()
+    private var carriageReturn = false
+    var pending: String? = None
+    var ended = false
+    val hasPending: Boolean get() = pending != None
+
+    fun accept(byte: Byte) {
+        if (carriageReturn && byte != 10.toByte())
+            throw NdjsonFramingException(LineEnding, bytes.size, "NDJSON carriage return requires a following line feed")
+        if (byte == 10.toByte()) { finishRecord(); return }
+        if (byte == 13.toByte()) { carriageReturn = true; return }
+        if (bytes.size == maximum) throw NdjsonFramingException(RecordBytes, bytes.size, "NDJSON record exceeds " + maximum.toString() + " bytes")
+        bytes.append(byte)
+    }
+
+    fun endInput() {
+        if (ended) return
+        if (carriageReturn) throw NdjsonFramingException(LineEnding, bytes.size, "NDJSON input ended after a carriage return")
+        if (bytes.size != 0L) finishRecord()
+        ended = true
+    }
+
+    fun discard() {
+        bytes = ByteArrayBuilder()
+        carriageReturn = false
+        pending = None
+    }
+
+    private fun finishRecord() {
+        pending = Some(String.fromUtf8(bytes.toByteArray()))
+        bytes.clear()
+        carriageReturn = false
+    }
+}

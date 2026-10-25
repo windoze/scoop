@@ -7,4 +7,13 @@ public struct Unit : Equals<Unit> {
      * Returns true because all Unit values represent the same zero-sized value.
      */
     public override operator fun equals(other: Unit): Boolean = true
+
+    /** Default codecs for generic companion constraints, separate from the Unit data value. */
+    public companion object : ValueEncoder<Unit>, ValueDecoder<Unit> {
+        /** Encodes the Unit value using the existing explicit null codec. */
+        public override fun encode(value: Unit, encoder: Encoder): Unit = UnitEncoder.encode(value, encoder)
+
+        /** Decodes an explicit null using the existing Unit codec. */
+        public override fun decode(decoder: Decoder): Unit = UnitDecoder.decode(decoder)
+    }
 }

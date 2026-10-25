@@ -28,6 +28,8 @@ public class JsonValue internal constructor(internal val node: JsonNode) {
     public fun asString(): String = JsonDecoder(node, "").readString()
     /** Reads an exact Long; fractions, exponents, and out-of-range integers fail. */
     public fun asLong(): Long = JsonDecoder(node, "").readLong()
+    /** Reads an exactly integral Long, allowing decimal and exponent spellings without rounding. */
+    public fun asIntegralLong(): Long = readJsonIntegralLong(asNumberToken())
     /** Reads an exact ULong; signs, fractions, exponents, and overflow are checked. */
     public fun asULong(): ULong = JsonDecoder(node, "").readULong()
     /** Rounds a JSON number directly to Float, rejecting overflow. */

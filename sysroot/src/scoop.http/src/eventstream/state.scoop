@@ -1,0 +1,92 @@
+package scoop.http
+
+import scoop.bytes.*
+import scoop.platform.memory.NativeByteBuffer
+
+@GCLeaf @Extern(name = "scoop_http_eventstream_crc32")
+internal fun awsEventStreamCrc32(crc: UInt, data: Ptr<Byte>, size: Long): UInt
+
+internal enum AwsEventStreamPhase { Fields, PreludeCrc, Headers, Payload, MessageCrc }
+
+internal class AwsEventStreamState {
+    private var phase: AwsEventStreamPhase = Fields
+    private var current: ByteArrayBuilder = ByteArrayBuilder()
+    private var fields: Array<Byte> = []
+    private var headers: Array<Byte> = []
+    private var payload: Array<Byte> = []
+    private var checksum: UInt = 0U
+    private var preludeChecksum: UInt = 0U
+    private var payloadSize: Long = 0L
+    var needed: Long = 8L
+    var offset: Long = 0L
+    var pending: AwsEventStreamMessage? = None
+    var ended: Boolean = false
+    val hasPending: Boolean get() = when (pending) { case Some(_) -> true; case None -> false }
+
+    fun read(buffer: NativeByteBuffer, count: Long) {
+        @Unsafe {
+            val borrow = buffer.borrowReadable(count)
+            var consumed = 0L
+            try {
+                val pointer = borrow.pointer()!!
+                while (consumed < count) {
+                    val byte = pointer.load(consumed)
+                    consumed += 1L
+                    current.append(byte)
+                }
+                if (phase != AwsEventStreamPhase.MessageCrc) checksum = awsEventStreamCrc32(checksum, pointer, count)
+                offset += count
+                needed -= count
+                while (needed == 0L) advance()
+            } finally { borrow.complete(consumed) }
+        }
+    }
+
+    fun discard() {
+        fields = []; headers = []; payload = []
+        checksum = 0U; preludeChecksum = 0U; payloadSize = 0L; offset = 0L
+        begin(AwsEventStreamPhase.Fields, 8L)
+    }
+
+    private fun begin(next: AwsEventStreamPhase, count: Long) {
+        phase = next
+        needed = count
+        current = ByteArrayBuilder()
+    }
+
+    private fun advance() {
+        when (phase) {
+            case Fields -> {
+                fields = current.toByteArray()
+                preludeChecksum = checksum
+                begin(AwsEventStreamPhase.PreludeCrc, 4L)
+            }
+            case PreludeCrc -> {
+                if (readChecksum() != preludeChecksum) throw AwsEventStreamException(PreludeChecksum, 8L, "invalid EventStream prelude CRC32")
+                val reader = ByteArrayReader(fields)
+                val total = reader.readUInt32(ByteOrder.BigEndian).toLong()
+                val headerSize = reader.readUInt32(ByteOrder.BigEndian).toLong()
+                if (total < 16L) throw AwsEventStreamException(Length, 0L, "EventStream message length must be at least 16")
+                if (headerSize > total - 16L) throw AwsEventStreamException(Length, 4L, "EventStream headers exceed message length")
+                payloadSize = total - 16L - headerSize
+                fields = []
+                begin(AwsEventStreamPhase.Headers, headerSize)
+            }
+            case Headers -> {
+                headers = current.toByteArray()
+                begin(AwsEventStreamPhase.Payload, payloadSize)
+            }
+            case Payload -> {
+                payload = current.toByteArray()
+                begin(AwsEventStreamPhase.MessageCrc, 4L)
+            }
+            case MessageCrc -> {
+                if (readChecksum() != checksum) throw AwsEventStreamException(MessageChecksum, offset - 4L, "invalid EventStream message CRC32")
+                pending = Some(AwsEventStreamMessage(readAwsEventStreamHeaders(headers), payload))
+                discard()
+            }
+        }
+    }
+
+    private fun readChecksum(): UInt = ByteArrayReader(current.toByteArray()).readUInt32(ByteOrder.BigEndian)
+}

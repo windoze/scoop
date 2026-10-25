@@ -9,6 +9,9 @@ fn unit_encoding_uses_ordinary_members_and_keeps_builtin_identity() {
             }
             public fun use(encoder: Encoder) {
                 UnitEncoder.encode(Unit, encoder)
+                Unit.Companion.encode(Unit, encoder)
+                val companionCodec: ValueEncoder<Unit> = Unit.Companion
+                companionCodec.encode(Unit, encoder)
                 UnitEncoder.encode((), encoder)
                 send(Unit, UnitEncoder, encoder)
                 val erased: Any = Unit

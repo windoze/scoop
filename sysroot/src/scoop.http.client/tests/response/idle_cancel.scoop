@@ -1,0 +1,78 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientIdleResponseCancellationTest {
+    @Test
+    fun `withResponse preserves cancellation while its body waits outside a read`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val release = BodyTestGate()
+                    val entered = BodyTestGate()
+                    val server = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            connection.receiveRequest()!!.body.readAllBytes(0L)
+                            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(5L)).useAsync suspend { output ->
+                                output.flush(); release.await()
+                            }
+                        }
+                    }
+                    withHttpClient(clientTestConfig(trust)) suspend { client ->
+                        val failure = ClientTestFailureHolder()
+                        val reading = scope.launch suspend {
+                            try {
+                                client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { _ ->
+                                    entered.signal(); loop.sleep(Duration.seconds(60L))
+                                }
+                            } catch (error: Throwable) { failure.value = Some(error) }
+                        }
+                        entered.await(); reading.cancel(); reading.join()
+                        assertTrue(failure.value!! is CancellationException)
+                    }
+                    release.signal(); server.join()
+                    assertFalse(scope.job.isCancelled)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `another closer still observes cancellation from the original caller`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val release = BodyTestGate()
+                    val entered = BodyTestGate()
+                    val saved = ArrayList<HttpResponse>()
+                    val server = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            connection.receiveRequest()!!.body.readAllBytes(0L)
+                            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(5L)).useAsync suspend { output ->
+                                output.flush(); release.await()
+                            }
+                        }
+                    }
+                    withHttpClient(clientTestConfig(trust)) suspend { client ->
+                        val calling = scope.launch suspend {
+                            saved.add(client.execute(HttpRequest.get(clientTestUrl(listener))))
+                            entered.signal()
+                            loop.sleep(Duration.seconds(60L))
+                        }
+                        entered.await(); calling.cancel(); calling.join()
+                        expectBodyFailure<CancellationException> suspend { saved[0L].close() }
+                        saved[0L].close()
+                    }
+                    release.signal(); server.join()
+                }
+            }
+        }
+    }
+}

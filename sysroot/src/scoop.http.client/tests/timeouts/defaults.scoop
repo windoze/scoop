@@ -1,0 +1,47 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientTimeoutDefaultsTest {
+    @Test
+    fun `borrowers can replace header waiting while later requests retain client defaults`() {
+        val defaults = HttpTimeoutOptions(poolAcquire = Some(Duration.seconds(2L)), responseHeaders = Some(Duration.ZERO),
+            resolve = None, connect = Some(Duration.seconds(3L)), tlsHandshake = None, proxyHandshake = Some(Duration.seconds(5L)))
+        withClientTimeoutTest(defaults) suspend { _, scope, listener, config ->
+            val release = BodyTestGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                    sendClientTestText(connection, 200U, "ok")
+                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                    release.await()
+                }
+            }
+            val client = HttpClient.open(scope, config)
+            try {
+                val base = client.defaultTimeouts
+                val changed = HttpTimeoutOptions(base.total, base.poolAcquire, None, base.resolve, base.connect,
+                    base.tlsHandshake, base.readIdle, base.writeIdle, base.proxyHandshake)
+                assertEquals(None, changed.resolve)
+                assertEquals(Some(Duration.seconds(3L)), changed.connect)
+                assertEquals(None, changed.tlsHandshake)
+                assertEquals(Some(Duration.seconds(5L)), changed.proxyHandshake)
+                client.withResponse(HttpRequest.get(clientTestUrl(listener), options = HttpCallOptions(timeouts = Some(changed)))) suspend { response ->
+                    assertEquals("ok", response.body.text(2L))
+                }
+                val error = expectBodyFailure<HttpTimeoutException> suspend {
+                    client.execute(HttpRequest.get(clientTestUrl(listener))); Unit
+                }
+                assertEquals(HttpTimeoutPhase.ResponseHeaders, error.phase)
+                assertSame(defaults, client.defaultTimeouts)
+            } finally { release.signal(); client.close() }
+            assertSame(defaults, client.defaultTimeouts)
+            serving.join()
+        }
+    }
+}

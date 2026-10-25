@@ -1,0 +1,25 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun feedNdjson(decoder: NdjsonDecoder, bytes: List<Byte>, chunkSize: Long = 1L): Array<String> {
+    val records = ArrayList<String>()
+    NativeByteBuffer.allocate(chunkSize).use { input ->
+        var offset = 0L
+        while (offset < bytes.size) {
+            input.clear()
+            val count = if (bytes.size - offset < chunkSize) bytes.size - offset else chunkSize
+            input.writeBytes(bytes, offset, count)
+            offset += count
+            while (input.readableBytes > 0L) {
+                val consumed = decoder.receive(input)
+                when (decoder.nextRecord()) {
+                    case Some(record) -> records.add(record)
+                    case None -> assertTrue(consumed > 0L)
+                }
+            }
+        }
+    }
+    return records.toArray()
+}

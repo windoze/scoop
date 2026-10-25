@@ -1,0 +1,82 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.test.*
+
+@Test
+private class AwsEventStreamLifetimeTests {
+    @Test
+    fun `AWS EventStream construction wrong loop and precancellation preserve endpoint ownership and readable state`() {
+        val loop: EventLoop = LibuvEventLoop()
+        val other: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val input = MessageTestSource(asyncAwsEmpty)
+            assertFailsWith<IllegalArgumentException> { AwsEventStreamSource.takeOwnership(input, 0L) }
+            val source = AwsEventStreamSource(input)
+            val cancelled = scope.launch suspend {
+                currentJobOrNone()!!.cancel()
+                expectMessageFailure<CancellationException> suspend { AwsEventStreamSource.takeOwnership(input) }
+                expectMessageFailure<CancellationException> suspend { source.next() }
+            }
+            cancelled.join()
+            expectMessageFailure<IllegalStateException> suspend { context(other) { source.next() } }
+            assertEquals(0, input.reads)
+            assertEquals(0, input.closes)
+            assertFalse(present(source.failure))
+            assertEquals(0L, source.next()!!.payload.size)
+            source.close()
+            assertEquals(0, input.closes)
+            input.close()
+        }
+    }
+
+    @Test
+    fun `AWS EventStream concurrent reads fail locally and owning close waits for the actual native borrow`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val pending = PendingMessageSource()
+            val source = AwsEventStreamSource.takeOwnership(pending, bufferSize = 4L)
+            val reader = scope.launch suspend {
+                expectMessageFailure<CancellationException> suspend { source.next() }
+                ensureActive()
+            }
+            try {
+                assertTrue(pending.running)
+                expectMessageFailure<IllegalStateException> suspend { source.next() }
+                assertFalse(present(source.failure))
+                val first = scope.launch suspend { source.close() }
+                val second = scope.launch suspend { source.close() }
+                assertTrue(pending.job!!.isCancelled)
+                assertFalse(reader.isCompleted || first.isCompleted || second.isCompleted)
+                assertEquals(0, pending.closes)
+                assertFailsWith<IllegalStateException> { pending.buffer!!.clear() }
+                gcCollect()
+                pending.complete()
+                reader.join(); first.join(); second.join()
+                assertFalse(reader.isCancelled)
+                assertTrue(pending.buffer!!.isClosed && source.isClosed)
+                assertEquals(1, pending.closes)
+                ensureActive()
+            } finally {
+                if (pending.running) pending.complete()
+                source.close()
+            }
+        }
+    }
+
+    @Test
+    fun `AWS EventStream rejects inconsistent source progress before passing bytes to its decoder`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            for (mode in [1, 2, 3, 4]) {
+                val input = MessageTestSource([])
+                input.badProgress = mode
+                val source = AwsEventStreamSource.takeOwnership(input)
+                expectMessageFailure<IllegalStateException> suspend { source.next() }
+                assertTrue(source.failure!! is IllegalStateException)
+                source.close()
+                assertEquals(1, input.closes)
+            }
+        }
+    }
+}

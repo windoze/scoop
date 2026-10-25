@@ -83,7 +83,7 @@ impl CallableIdentityBuilder<'_> {
                 parent, descriptor, ..
             } => {
                 let inherited = descriptor.owner_type_parameter_count() as usize;
-                let parent = self.imported_parent_materialization(parent, &arguments[..inherited]);
+                let parent = self.imported_shared_parent(parent, &arguments[..inherited]);
                 let owner = match parent.context() {
                     CallableMaterializationContext::NoSubstitution => {
                         CallableInstantiationOwner::NoOwner
@@ -107,7 +107,7 @@ impl CallableIdentityBuilder<'_> {
                 self.source_materialization(template, owner, &arguments[inherited..])
             }
             export::ImportedCallableTemplateOrigin::Closure { parent, body, .. } => {
-                let parent = self.imported_parent_materialization(parent, arguments);
+                let parent = self.imported_shared_parent(parent, arguments);
                 CallableMaterialization::new(
                     CallableTemplateOwner::Generated(body),
                     parent.context(),
@@ -122,10 +122,19 @@ impl CallableIdentityBuilder<'_> {
         arguments: &[concrete::TypeId],
     ) -> CallableMaterialization {
         if arguments.is_empty() {
-            return CallableMaterialization::new(
-                parent,
-                CallableMaterializationContext::NoSubstitution,
-            );
+            // A nested body inherits its materialized lexical parent even
+            // when neither body has type parameters.
+            let materialization =
+                match self.concretizer.function_keys.iter().position(|key| {
+                    key.template_owner() == Some(parent) && key.arguments.is_empty()
+                }) {
+                    Some(index) => self.resolve_function(index),
+                    None => CallableMaterialization::new(
+                        parent,
+                        CallableMaterializationContext::NoSubstitution,
+                    ),
+                };
+            return materialization;
         }
         if let CallableTemplateOwner::VariantConstructor(variant) = parent {
             return self.variant_definition_materialization(variant, arguments);
@@ -156,8 +165,13 @@ impl CallableIdentityBuilder<'_> {
         site: &LexicalSite,
         inherited_arguments: &[concrete::TypeId],
     ) -> CallableMaterializationContext {
-        self.enclosing_materialization(Some(function), site.root, &site.path, inherited_arguments)
-            .context()
+        self.shared_lexical_materialization(
+            Some(function),
+            site.root,
+            &site.path,
+            inherited_arguments,
+        )
+        .context()
     }
 
     pub(super) fn callback_context(
@@ -168,13 +182,10 @@ impl CallableIdentityBuilder<'_> {
         let registration = &self.concretizer.source.foreign_callback_registrations[callback];
         match &registration.definition {
             export::ForeignCallbackDefinition::Source { root, path } => self
-                .enclosing_materialization(None, *root, path, inherited_arguments)
+                .shared_lexical_materialization(None, *root, path, inherited_arguments)
                 .context(),
             export::ForeignCallbackDefinition::Imported { identity, .. } => self
-                .imported_parent_materialization(
-                    identity.key().parent().template(),
-                    inherited_arguments,
-                )
+                .imported_shared_parent(identity.key().parent().template(), inherited_arguments)
                 .context(),
         }
     }

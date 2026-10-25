@@ -1,0 +1,102 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class AwsEventStreamFramingTests {
+    @Test
+    fun `AWS EventStream complete empty frames stop consumption until the pending message is taken`() {
+        NativeByteBuffer.allocate(32L).use { input -> AwsEventStreamDecoder().use { decoder ->
+            input.writeBytes(awsEmptyMessage)
+            input.writeBytes(awsEmptyMessage)
+            assertEquals(16L, decoder.receive(input))
+            assertEquals(0L, decoder.receive(input))
+            assertEquals(16L, input.readPosition)
+            assertEquals(0L, decoder.nextMessage()!!.payload.size)
+            assertEquals(16L, decoder.receive(input))
+            decoder.endInput()
+            assertFalse(decoder.isFinished)
+            assertEquals(0L, decoder.nextMessage()!!.headers.size)
+            assertTrue(decoder.isFinished)
+            decoder.endInput()
+            assertTrue(when (decoder.nextMessage()) { case None -> true; else -> false })
+            assertFailsWith<IllegalStateException> { decoder.receive(input, 0L) }
+            decoder.close(); decoder.close()
+            assertTrue(decoder.isClosed && decoder.isFinished)
+        } }
+    }
+
+    @Test
+    fun `AWS EventStream CRC failures prevent delivery release borrows and terminate further parsing`() {
+        for ((index, kind, offset) in [(0L, AwsEventStreamErrorKind.PreludeChecksum, 8L), (15L, AwsEventStreamErrorKind.MessageChecksum, 12L)]) {
+            val bytes = Array<Byte>(awsEmptyMessage.size) { at -> if (at == index) (awsEmptyMessage[at].toInt() xor 1).toByte() else awsEmptyMessage[at] }
+            NativeByteBuffer.allocate(32L).use { input -> AwsEventStreamDecoder().use { decoder ->
+                input.writeBytes(bytes)
+                input.writeBytes(awsEmptyMessage)
+                val error = assertFailsWith<AwsEventStreamException> { decoder.receive(input) }
+                assertEquals(kind, error.kind)
+                assertEquals(offset, error.offset)
+                assertEquals(if (index == 0L) 12L else 16L, input.readPosition)
+                assertTrue(decoder.failure!! === error)
+                assertFailsWith<IllegalStateException> { decoder.nextMessage() }
+                assertFailsWith<IllegalStateException> { decoder.endInput() }
+                input.clear()
+                input.writeByte(0.toByte())
+            } }
+        }
+        val malformed = Array<Byte>(awsUnknownType.size) { at ->
+            if (at == awsUnknownType.size - 1L) (awsUnknownType[at].toInt() xor 1).toByte() else awsUnknownType[at] }
+        val error = assertFailsWith<AwsEventStreamException> { readAwsTestMessage(malformed) }
+        assertEquals(AwsEventStreamErrorKind.MessageChecksum, error.kind)
+    }
+
+    @Test
+    fun `AWS EventStream validates protected lengths without preallocating a remotely declared message`() {
+        for ((bytes, offset) in [(awsShortLength, 0L), (awsLongHeaders, 4L)]) {
+            val error = assertFailsWith<AwsEventStreamException> { readAwsTestMessage(bytes) }
+            assertEquals(AwsEventStreamErrorKind.Length, error.kind)
+            assertEquals(offset, error.offset)
+        }
+        AwsEventStreamDecoder().use { decoder ->
+            assertEquals(0L, feedAwsEventStream(decoder, awsHugeLength).size)
+            val error = assertFailsWith<AwsEventStreamException> { decoder.endInput() }
+            assertEquals(AwsEventStreamErrorKind.UnexpectedEof, error.kind)
+            assertEquals(12L, error.offset)
+        }
+    }
+
+    @Test
+    fun `AWS EventStream EOF detects every partial boundary and never turns a truncated frame into a message`() {
+        AwsEventStreamDecoder().use { decoder -> decoder.endInput(); decoder.endInput(); assertTrue(decoder.isFinished) }
+        for (length in 1L..<awsAllHeaders.size) {
+            AwsEventStreamDecoder().use { decoder ->
+                val prefix = Array<Byte>(length) { at -> awsAllHeaders[at] }
+                assertEquals(0L, feedAwsEventStream(decoder, prefix, 11L).size)
+                val error = assertFailsWith<AwsEventStreamException> { decoder.endInput() }
+                assertEquals(AwsEventStreamErrorKind.UnexpectedEof, error.kind)
+                assertEquals(length, error.offset)
+                assertFalse(decoder.isFinished)
+            }
+        }
+    }
+
+    @Test
+    fun `AWS EventStream invalid receive arguments preserve pending data and close does not imply EOF`() {
+        AwsEventStreamDecoder().use { decoder -> NativeByteBuffer.allocate(16L).use { input ->
+            input.writeBytes(awsEmptyMessage)
+            assertFailsWith<IllegalArgumentException> { decoder.receive(input, -1L) }
+            assertFailsWith<IndexOutOfBoundsException> { decoder.receive(input, 17L) }
+            assertEquals(0L, decoder.receive(input, 0L))
+            assertEquals(0L, input.readPosition)
+            assertEquals(16L, decoder.receive(input))
+            assertFailsWith<IndexOutOfBoundsException> { decoder.receive(input, 1L) }
+            assertEquals(0L, decoder.nextMessage()!!.payload.size)
+            assertTrue(when (decoder.failure) { case None -> true; else -> false })
+            decoder.close()
+            assertFalse(decoder.isFinished)
+            assertFailsWith<IllegalStateException> { decoder.nextMessage() }
+            assertFailsWith<IllegalStateException> { decoder.endInput() }
+        } }
+    }
+}

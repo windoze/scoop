@@ -1,0 +1,109 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class NdjsonFramingTests {
+    @Test
+    fun `NDJSON split UTF8 CRLF and escaped newlines preserve exact records and empty lines`() {
+        val wire = "{\"text\":\"雪😀\\n\",\"n\":9007199254740993}\r\n\n [true, null] \n\uFEFFfalse\nnot-json\n"
+        for (chunk in [1L, 2L, 3L, 8L, 1024L]) NdjsonDecoder().use { decoder ->
+            val records = feedNdjson(decoder, wire.toByteArray(), chunk)
+            assertEquals(5L, records.size)
+            assertEquals("{\"text\":\"雪😀\\n\",\"n\":9007199254740993}", records[0L])
+            assertEquals("", records[1L])
+            assertEquals(" [true, null] ", records[2L])
+            assertEquals("\uFEFFfalse", records[3L])
+            assertEquals("not-json", records[4L])
+            decoder.endInput()
+            assertTrue(decoder.isFinished)
+            assertEquals(None, decoder.nextRecord())
+        }
+    }
+
+    @Test
+    fun `NDJSON a pending record stops the input exactly at its delimiter`() {
+        NativeByteBuffer.allocate(20L).use { input -> NdjsonDecoder().use { decoder ->
+            input.writeBytes("one\r\ntwo\n".toByteArray())
+            assertEquals(5L, decoder.receive(input))
+            assertEquals(0L, decoder.receive(input))
+            assertEquals(5L, input.readPosition)
+            assertEquals(Some("one"), decoder.nextRecord())
+            assertEquals(4L, decoder.receive(input))
+            decoder.endInput(); decoder.endInput()
+            assertFalse(decoder.isFinished)
+            assertEquals(Some("two"), decoder.nextRecord())
+            assertTrue(decoder.isFinished)
+        } }
+    }
+
+    @Test
+    fun `NDJSON EOF delivers one unterminated record without inventing a final empty record`() {
+        for (wire in ["", "\n", "x\n", "tail"]) NdjsonDecoder().use { decoder ->
+            val records = feedNdjson(decoder, wire.toByteArray())
+            decoder.endInput(); decoder.endInput()
+            if (wire == "tail") {
+                assertEquals(0L, records.size)
+                assertFalse(decoder.isFinished)
+                assertEquals(Some("tail"), decoder.nextRecord())
+            } else assertEquals(None, decoder.nextRecord())
+            assertTrue(decoder.isFinished)
+        }
+    }
+
+    @Test
+    fun `NDJSON byte limits exclude delimiters and argument failures do not poison the decoder`() {
+        assertFailsWith<IllegalArgumentException> { NdjsonDecoder(-1L) }
+        NdjsonDecoder(0L).use { decoder -> assertEquals("", feedNdjson(decoder, "\r\n".toByteArray())[0L]) }
+        NdjsonDecoder(3L).use { decoder -> assertEquals("雪", feedNdjson(decoder, "雪\r\n".toByteArray())[0L]) }
+        NdjsonDecoder(1L).use { decoder -> NativeByteBuffer.allocate(3L).use { input ->
+            input.writeBytes("abc".toByteArray())
+            assertFailsWith<IllegalArgumentException> { decoder.receive(input, -1L) }
+            assertFailsWith<IndexOutOfBoundsException> { decoder.receive(input, 4L) }
+            assertEquals(0L, decoder.receive(input, 0L))
+            assertEquals(0L, input.readPosition)
+            val error = assertFailsWith<NdjsonFramingException> { decoder.receive(input) }
+            assertEquals(NdjsonFramingErrorKind.RecordBytes, error.kind)
+            assertEquals(1L, error.offset)
+            assertTrue(decoder.failure!! === error)
+            assertEquals(2L, input.readPosition)
+            input.clear(); input.writeByte(0.toByte())
+            assertFailsWith<IllegalStateException> { decoder.nextRecord() }
+        } }
+    }
+
+    @Test
+    fun `NDJSON rejects bare CR and malformed UTF8 at record completion or EOF`() {
+        for (wire in ["x\ry", "x\r"]) NdjsonDecoder().use { decoder ->
+            val error = assertFailsWith<NdjsonFramingException> { feedNdjson(decoder, wire.toByteArray()); decoder.endInput() }
+            assertEquals(NdjsonFramingErrorKind.LineEnding, error.kind)
+            assertEquals(1L, error.offset)
+            assertTrue(decoder.failure!! === error)
+            assertFailsWith<IllegalStateException> { decoder.endInput() }
+        }
+        val malformed: Array<Array<Byte>> = [[0xc0.toByte(), 0xaf.toByte(), 10.toByte()], [0xe9.toByte(), 10.toByte()], [0xe9.toByte()]]
+        for (bytes in malformed) NdjsonDecoder().use { decoder ->
+            val error = assertFailsWith<CharacterCodingException> { feedNdjson(decoder, bytes); decoder.endInput() }
+            assertTrue(decoder.failure!! === error)
+            assertFalse(decoder.isFinished)
+        }
+    }
+
+    @Test
+    fun `NDJSON closing discards pending or partial input and prevents further operations`() {
+        for (wire in ["pending\n", "partial"]) {
+            val decoder = NdjsonDecoder()
+            NativeByteBuffer.allocate(20L).use { input ->
+                input.writeBytes(wire.toByteArray())
+                decoder.receive(input)
+                decoder.close(); decoder.close()
+                assertTrue(decoder.isClosed)
+                assertFailsWith<IllegalStateException> { decoder.nextRecord() }
+                assertFailsWith<IllegalStateException> { decoder.receive(input) }
+                assertFailsWith<IllegalStateException> { decoder.endInput() }
+                input.clear()
+            }
+        }
+    }
+}

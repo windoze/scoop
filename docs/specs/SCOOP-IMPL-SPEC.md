@@ -201,6 +201,8 @@ core 的 Add 等普通运算符接口不进入编译器内建 protocol 表。HIR
 
 按 exact owner 生成的派生 callable 没有独立的词法源码正文，其表达式保留触发派生的来源；该来源可以是依赖中的默认值或模板。检查其中的依赖调用时仍验证 definition/evaluation 的文件、位置和上下文引用，但不能要求求值来源属于当前 Cone，或要求这个按类型生成的 helper 出现在导入函数模板表中。生成身份继续只由 exact owner 决定，不因首次触发派生的文件或调用点改变。
 
+构造器的公共初始化片段采用当前终结构造器的求值上下文；在片段具体化期间请求的独立派生比较正文不继承该上下文覆盖。派生正文使用自身已经绑定的完整来源，返回后继续按原构造器上下文处理初始化片段，不能把另一个文件的比较来源与当前构造器的上下文拼接。
+
 依赖携带的 source record 与 source context 用于诊断及实际语义引用。读取其格式、范围和引用即可使用，不再遍历 provider 的副本逐字段比较来证明来源；源码显示内容不构成产物认证信息。
 
 派生比较保留值传递、可见性和 InteriorMutable 的实际类型使用检查。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，适用于显式 `equals` 及其他普通接口方法；具体值的 intrinsic operator 比较保留原 effect。其他签名、访问、ordinary/suspend 与安全性检查遵守普通规则。
@@ -1144,6 +1146,8 @@ Export HIR 保存模板的已解析正文、原 binder、默认值、局部 call
 负向条件随原 binder 和泛型 callable 导出，消费方在正常调用适用性检查中使用；已绑定正文不在具体化时重选普通重载。条件变化进入既有声明接口与更新判断，不增加缓存内容复核。实例身份仍由原声明和完整宿主／函数实参决定，不引入调用点作用域或隐式 dictionary。
 
 普通参数自由定义由原 Cone 提供，即使签名含已闭合 generic application 也仍是该 Strong 定义。泛型和 structural application 的机器实体由实际需要它的 Cone 物化，并保持程序内共享身份。
+
+默认实参在调用方展开，其中的词法 callable 及其 closure／协程辅助实体按原默认值所属 callable application 共享。参数自由默认值也使用原声明、NoOwner、NoCallableArguments 的已有 application key；该上下文只归属实际展开的默认值实体，不把原普通函数或构造器改成 ODR 定义。嵌套 callable 继承实际词法父上下文，本地展开与跨 Cone 展开必须产生相同身份。捕获的参数和默认值局部变量保留其原词法 owner，调用方求值仍有独立 storage。仅建立共享上下文不产生所属 callable 的机器正文。
 
 SpecializationKey 是四分支 CBOR sum：Nominal=1 `{origin generic type, nonempty exact arguments}`、Callable=2 `{application}`、DelegatedProperty=3 `{origin extension property, nonempty receiver arguments}`、StructuralType=4 `{exact type}`。`OdrGroupId = H("scoop-odr-v1", key)`。
 
