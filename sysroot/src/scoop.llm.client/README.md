@@ -65,6 +65,8 @@ LLM 响应头和读取空闲时间缺省 300 秒，写入空闲时间 60 秒，�
 
 `client.countTokens(model, request)` 使用 Gemini GenerateContent 或 Anthropic Messages dialect 的服务端计数接口，返回独立的 `LlmTokenCountResult`。count 保存输入计数、方法、范围、估算性质及原文；metadata 沿用真实收发时间、HTTP 阶段、重试和完成回调。普通生成不自动预先计数，预估值不写入 response.usage。没有该接口或显式不支持的模型在认证前失败；未提供 tokenizer 实现，不增加空的本地模式。Messages 的不支持输入明确报错，Gemini 的 cachedInputTokens 只表示缓存输入规模。
 
+`attempt.cacheObservations` 保存已报告的缓存读写事实及可选寿命规则，缺省不需要额外配置。Messages 解释实际 TTL 写入明细，OpenAI Chat／Responses 解释请求中明确选择的已知缓存设置；其他 dialect 保留已知计数与未知寿命。`estimateCacheLifetime(observationIndex, lifetimeIndex = 0)` 返回基于发送／首次确认时间的边界区间；规则区分到期、最低保留、最低计费覆盖、最长保留与典型保留。缺失、零、无法归属的范围和服务端到期时间不会被推测填充。流式重复 usage 不刷新观察时间，失败、取消和重试保留各自事实；数据及估计均可通过 companion codec 保存。完整用法见[缓存观测示例](../../../docs/llm-client/USAGE.md#6-时间戳token缓存观测和可选费用)。
+
 最小请求的写法直接使用消息和设置的缺省值；添加服务端搜索或结构化输出仍使用同一个请求类型：
 
 ```scoop

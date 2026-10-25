@@ -1,0 +1,85 @@
+package scoop.llm.client.tests.cache
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.*
+
+@Test
+private class OpenAiCacheTest {
+    @Test
+    fun `cache lifetime OpenAI uses explicit settings and distinguishes minimum pricing from expiry`() {
+        for (protocol in [Providers.openAiChat().protocol, Providers.openAiResponses().protocol]) {
+            val reports = openAiCacheReports(protocol, "{\"prompt_cache_options\":{\"mode\":\"implicit\",\"ttl\":\"30m\"}}")
+            assertEquals(Some(true), reports[0L].refreshesLifetime)
+            assertEquals(Duration.minutes(30L), reports[0L].lifetimes[0L].duration)
+            assertEquals(CacheLifetimeKind.MinimumReadPricing, reports[0L].lifetimes[0L].kind)
+            assertEquals(CacheLifetimeAnchor.Read, reports[0L].lifetimes[0L].anchor)
+            assertEquals(CacheLifetimeAnchor.Write, reports[1L].lifetimes[0L].anchor)
+            assertEquals(CacheScope.Unknown, reports[1L].scope)
+            assertEquals(None, reports[1L].reportedExpiresAt)
+        }
+    }
+
+    @Test
+    fun `cache lifetime OpenAI does not turn a twelve hour read into a fresh twelve hour write`() {
+        val reports = openAiCacheReports(Providers.openAiResponses().protocol, "{\"prompt_cache_options\":{\"ttl\":\"12h\"}}")
+        assertEquals(Some(10L), reports[0L].tokens)
+        assertEquals(None, reports[0L].refreshesLifetime)
+        assertEquals(0L, reports[0L].lifetimes.size)
+        assertEquals(Duration.hours(12L), reports[1L].lifetimes[0L].duration)
+        assertEquals(CacheLifetimeKind.MinimumReadPricing, reports[1L].lifetimes[0L].kind)
+    }
+
+    @Test
+    fun `cache lifetime OpenAI does not borrow Responses only TTL or mix legacy and modern policies`() {
+        val chat = Providers.openAiChat().protocol
+        val root = openAiCacheReports(chat, "{\"prompt_cache_options\":{\"ttl\":\"12h\"}}")
+        assertEquals(0L, root[1L].lifetimes.size)
+        val point = [DialectExtension(chat.dialectId, Json.parse("{\"prompt_cache_breakpoint\":{\"mode\":\"explicit\",\"ttl\":\"12h\"}}"))]
+        assertEquals(0L, openAiCacheReports(chat, "{}", [Text("stable", point)])[1L].lifetimes.size)
+        val modern = openAiCacheReports(Providers.openAiResponses().protocol,
+            "{\"prompt_cache_options\":{\"ttl\":\"12h\"},\"prompt_cache_retention\":\"in_memory\"}")
+        assertEquals(0L, modern[0L].lifetimes.size)
+        assertEquals(1L, modern[1L].lifetimes.size)
+        assertEquals(CacheLifetimeKind.MinimumReadPricing, modern[1L].lifetimes[0L].kind)
+    }
+
+    @Test
+    fun `cache lifetime OpenAI leaves unknown settings and model defaults unknown`() {
+        for (settings in ["{}", "{\"prompt_cache_options\":{\"ttl\":\"future\"}}", "{\"prompt_cache_options\":false}",
+            "{\"prompt_cache_options\":{\"mode\":\"explicit\"}}", "{\"prompt_cache_options\":{\"mode\":\"future\"}}",
+            "{\"prompt_cache_retention\":\"future\"}"]) {
+            val reports = openAiCacheReports(Providers.openAiResponses().protocol, settings)
+            assertEquals(2L, reports.size)
+            assertEquals(0L, reports[0L].lifetimes.size)
+            assertEquals(0L, reports[1L].lifetimes.size)
+        }
+    }
+
+    @Test
+    fun `cache lifetime legacy retention separates typical inactivity from undocumented maximum anchors`() {
+        val reports = openAiCacheReports(Providers.openAiResponses().protocol, "{\"prompt_cache_retention\":\"in_memory\"}")
+        val point = LlmTimePoint(Instant.fromEpochSeconds(100L), Duration.seconds(2L))
+        val attempt = LlmAttemptMetadata(1L, LlmRequestTiming(Some(point)), cacheObservations = [CacheObservation(reports[0L], point)])
+        val estimate = attempt.estimateCacheLifetime(0L)!!
+        assertEquals(CacheLifetimeKind.TypicalRetention, estimate.lifetime.kind)
+        val (earliest, latest) = estimate.remainingAtOffset(point.elapsed)
+        assertEquals(Duration.minutes(5L), earliest); assertEquals(Duration.minutes(10L), latest)
+        assertFalse(llmPresent(attempt.estimateCacheLifetime(0L, 1L)))
+        assertEquals(CacheLifetimeKind.MaximumRetention, reports[0L].lifetimes[1L].kind)
+        assertEquals(CacheLifetimeAnchor.Unknown, reports[1L].lifetimes[1L].anchor)
+        val written = LlmAttemptMetadata(1L, LlmRequestTiming(Some(point)), cacheObservations = [CacheObservation(reports[1L], point)])
+        assertFalse(llmPresent(written.estimateCacheLifetime(0L, 1L)))
+        val extended = openAiCacheReports(Providers.openAiResponses().protocol, "{\"prompt_cache_retention\":\"24h\"}")
+        assertEquals(CacheLifetimeAnchor.Unknown, extended[0L].lifetimes[0L].anchor)
+        assertEquals(Duration.hours(24L), extended[0L].lifetimes[1L].duration)
+    }
+}
+
+internal fun openAiCacheReports(protocol: LlmGenerationProtocol, settings: String, content: Array<ContentPart> = [Text("q")],
+    tools: Array<ToolDefinition> = []): Array<CacheReport> {
+    val request = LlmRequest([Message(content)], tools = tools, extensions = [DialectExtension(protocol.dialectId, Json.parse(settings))])
+    return protocol.cacheObserver(protocol.encodeRequest("gpt-6.1-sol", request)).observe(
+        LlmUsage(TokenUsage(cacheReadTokens = Some(10L), cacheWriteTokens = Some(20L))))
+}

@@ -683,3 +683,21 @@ Gemini 使用所选模型资源的 :countTokens，正文为 generateContentReque
 Messages 使用 /messages/count_tokens，相同部署、认证和版本头。正文复用普通请求的 messages、system、工具和原始历史编码，保留 tools／tool_choice／thinking／output_config；不发送 max_tokens、stream、采样或停止参数。已有显式生成选项仍经过模型能力检查，但计数不会注入缺省输出上限来约束 thinking 预算；显式输出上限仍参与预算一致性检查。请求扩展只允许计数端点的 cache_control 和 speed 等已支持输入字段，不静默丢弃其他扩展。当前端点不接受 MCP connector、除 advisor 外的 server tool、图片／文档的 URL 或 file 来源，编码前后在实际协议结构上检查并报错；检查工具结果／文档内容等协议容器，不递归解释工具参数中的任意业务 JSON。base64 媒体和支持的文本内容照常计数，缺失 input_tokens 保持未知。cache_control 不代表此次操作执行了 prompt caching。
 
 依据：[Gemini countTokens](https://ai.google.dev/api/tokens)、[Messages count_tokens](https://platform.claude.com/docs/en/api/messages/count_tokens)、[Claude 计数范围与限制](https://platform.claude.com/docs/en/build-with-claude/token-counting)。普通验收仅使用纯 codec 与 loopback mock；真实 API 用例继续默认 Ignore，只有显式选择且配置对应凭据时才运行。
+
+## 35. 缓存观察与寿命估计
+
+LlmAttemptMetadata 在既有参数之后增加 cacheObservations: Array<CacheObservation> = []。CacheObservation(report: CacheReport, observed: LlmTimePoint) 将 dialect 的纯报告与本次调用实际观察时刻分开；companion codec 保存二者，旧 metadata 缺省恢复空数组。CacheReport 包含非空 key、dialect、operation（Read／Write）、可选非负 tokens、scope（Unknown／Prefix(path)／Resource(name)）、lifetimes、可选 refreshesLifetime 和 reportedExpiresAt。scope 只表达已知的实际范围；请求中出现断点、key 或资源名称本身不证明总计数对应那个范围。reportedExpiresAt 只保存服务端明确报告的时间，不由 TTL 填充。
+
+CacheLifetime(duration, kind, anchor, upperDuration = None) 保存服务规则，duration 非负，可选 upperDuration 不早于 duration。kind 区分 Expiration、MinimumRetention、MinimumReadPricing、MaximumRetention、TypicalRetention；anchor 区分 RequestStart、Read、Write、Unknown。区间可表达典型保留范围；最低计费覆盖不保证实际 KV 复用或延迟，最长保留也不是从每次命中重新起算的有效期。所有数据提供 companion codec。cacheObservations 是缓存事实及其寿命解释，不能再次加到 TokenUsage 的输入总量中；不自动合并不同尝试、流式快照或不同范围。
+
+LlmGenerationProtocol.cacheObserver(encodedRequest) 在编码后、认证前准备一个纯 LlmCacheObserver；observe(usage) 返回 CacheReport 数组。缺省 observer 只投影已经归一化的缓存读写量，未报告量不创建虚构记录，明确零保留，不猜 TTL。Chat／Responses／Messages protocol 将准备委托给 dialect 的同名可选实现；自定义 dialect 缺省仍为上述未知寿命行为。输入是实际提交的 JSON，observer 只保留所需缓存设置，不重编码、不复制完整 prompt、不修改请求。countTokens 不使用此观察路径。
+
+普通生成与所有流式 framing 共用同一记录逻辑。只有 usage 对象更新时才重新解释；同一 key、计数、范围、规则及服务端到期时间的重复报告保留最初 observed，不能把终止标记、尾部 output token 或重复累计报告当成缓存续期。计数或语义变化时保存新观察时刻。每个快照不可变，重试的观察独立；提前关闭和失败保留已经收到的缓存事实。observer 在状态锁之外运行，事实与对应 usage 在同一次状态更新中发布。
+
+attempt.estimateCacheLifetime(observationIndex, lifetimeIndex = 0) 在 tokens 为已知正数、发送及确认时刻存在、起算规则与此次 Read／Write 相符时返回 CacheLifetimeEstimate，否则为 None。Unknown anchor 不估计，Read 不为从 Write 起算的最长保留期制造新的写入时间。估计保存 CacheLifetime 和实际发送／报告观察点；真实服务器起点未知，以这两个客户端观察点表达起点区间。earliestAt／latestAt 是预计边界区间，不是服务端到期承诺；RequestStart 也不直接使用响应完成时间加 TTL。UTC 投影以发送点为基准，加上同源单调偏移差，避免校时使区间倒置。remainingAtOffset(elapsed) 使用同一次调用的单调偏移，remainingAtInstant(now) 是跨进程恢复后的 UTC 估计，二者返回带符号的下／上界 Duration tuple，过期不钳成零。表示范围溢出时不提供估计，不令实际生成失败。没有 isCacheValid、自动续期请求或缓存管理器。
+
+Anthropic Messages 从实际 cache_read_input_tokens／cache_creation_input_tokens 生成观察。完整且与写入总量相符的 cache_creation.ephemeral_5m_input_tokens／ephemeral_1h_input_tokens 分项分别解释为从请求起点计算的 5 分钟／1 小时寿命；不重复保留同一写入总量。缺失或不能完整解释的分项保留聚合事实和至少 5 分钟的规则，原始 usage 继续保存。命中会刷新寿命，但只有总命中量时无法区分 5 分钟与 1 小时的实际缓存条目，使用 MinimumRetention 的 5 分钟界限，scope 保持 Unknown，不把整个请求的所有断点一起续期。可识别的详细写入使用 Expiration；出现未知 TTL 桶时不套用已知最低寿命。
+
+OpenAI Chat／Responses 不根据模型 ID 猜保留策略。只有实际请求明确使用已知 prompt_cache_options 或内容块上的 prompt_cache_breakpoint 时解释新缓存合同；只遍历协议定义的消息内容／工具结果内容，不把函数 arguments 内的业务 JSON 当成断点。30m 适用于两个协议，12h 仅适用于 Responses；不把新缓存设置与旧 prompt_cache_retention 叠加解释。写入按已选择 TTL 的最低值给出 MinimumReadPricing，不能按总写入量分摊多个断点；只有全部所选 TTL 均为 30m 时解释已报告读取的 30 分钟刷新下界，不把 12h 读取变成新的 12 小时写入。旧 prompt_cache_retention 的 in_memory／24h 保留典型与最长规则；最长保留的起算点未明确，保持 Unknown，不能据此推导每次读写后的到期时间。未知设置保持原文和已知计数，不猜规则，也不影响生成。其他内置 dialect 缺省只保留缓存计数事实。
+
+依据：[Claude 缓存起算、刷新与 TTL 明细](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)、[OpenAI 的最低计费覆盖与保留策略](https://developers.openai.com/api/docs/guides/prompt-caching)。测试覆盖长响应占用寿命、时钟回拨、未知与零、混合 TTL、流式重复报告／取消、重试隔离及 codec；普通测试仅用纯数据或 loopback mock。

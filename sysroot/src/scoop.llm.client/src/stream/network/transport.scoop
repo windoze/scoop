@@ -12,13 +12,15 @@ internal suspend fun performLlmStream(state: LlmStreamState, model: LlmModel, re
     if (!(protocol is LlmSseProtocol) && !(protocol is LlmEventStreamProtocol) && !(protocol is LlmNdjsonProtocol))
         throw LlmRequestException("/stream", "protocol has no supported stream framing")
     val url = protocol.streamUrl(model.endpoint.baseUrl, model.id)
-    val bytes = Json.stringify(protocol.encodeRequest(model.id, request, true)).toByteArray()
+    val encoded = protocol.encodeRequest(model.id, request, true)
+    val cacheObserver = protocol.cacheObserver(encoded)
+    val bytes = Json.stringify(encoded).toByteArray()
     val call = state.call
     var retry = 0L
     var backoff = options.retries.initialDelay
     while (true) {
         ensureActive()
-        val attempt = LlmAttemptState(call, retry + 1L)
+        val attempt = LlmAttemptState(call, retry + 1L, Some(cacheObserver))
         state.lock.withLock { state.activeAttempt = Some(attempt) }
         val rejection: LlmServiceException? = try {
             val prepared = prepareLlmHttpRequest(call.client.http, model.endpoint, url, bytes, options, attempt)

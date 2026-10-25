@@ -1,0 +1,29 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+/** Optional cache metadata is interpreted only when its shape is known. */
+internal fun cacheObjectField(root: JsonValue?, name: String): JsonValue? {
+    val value = root ?: return None
+    if (value.kind != JsonValueKind.Object) return None
+    val field = value[name] ?: return None
+    return if (field.kind == JsonValueKind.Object) Some(field) else None
+}
+
+internal fun cacheStringField(root: JsonValue?, name: String): String? {
+    val value = root ?: return None
+    if (value.kind != JsonValueKind.Object) return None
+    val field = value[name] ?: return None
+    return if (field.kind == JsonValueKind.String) Some(field.asString()) else None
+}
+
+internal fun cacheCountField(root: JsonValue?, name: String): Long? {
+    val value = root ?: return None
+    if (value.kind != JsonValueKind.Object) return None
+    val field = value[name] ?: return None
+    if (field.kind != JsonValueKind.Number) return None
+    try {
+        val count = field.asLong()
+        return if (count < 0L) None else Some(count)
+    } catch (_: DecodingException) { return None }
+}

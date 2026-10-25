@@ -1,0 +1,41 @@
+package scoop.llm.client
+
+internal fun responseHasText(response: LlmResponse): Boolean {
+    for (candidate in response.candidates) {
+        for (item in candidate.items) {
+            val content = when (item) { case Message(parts, _) -> parts; else -> continue }
+            for (part in content) {
+                val text = when (part) { case Text(value, _) -> value; else -> continue }
+                if (text.length != 0L) return true
+            }
+        }
+    }
+    return false
+}
+
+internal fun responseHasOutput(response: LlmResponse): Boolean {
+    for (candidate in response.candidates) {
+        for (item in candidate.items) {
+            when (item) {
+                case Message(content, _) -> if (partsHaveOutput(content)) return true
+                case Reasoning(content, _) -> if (partsHaveOutput(content)) return true
+                case ClientToolCall(_) -> return true
+                case ServerToolActivity(_) -> return true
+                case Native(_, _) -> continue
+            }
+        }
+    }
+    return false
+}
+
+private fun partsHaveOutput(parts: Array<OutputPart>): Boolean {
+    for (part in parts) {
+        when (part) {
+            case Text(text, _) -> if (text.length != 0L) return true
+            case Refusal(text) -> if (text.length != 0L) return true
+            case Media(_, _) -> return true
+            case Native(_, _) -> continue
+        }
+    }
+    return false
+}

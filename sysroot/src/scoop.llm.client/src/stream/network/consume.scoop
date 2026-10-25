@@ -30,8 +30,9 @@ internal suspend fun <T> consumeLlmStream(state: LlmStreamState, decoder: LlmStr
         }
         if (llmPresent(event) && !update.isKeepAlive) attempt.event(point)
         val retained = if (decoder.isFinished && state.retention == StreamRetention.Result) Some(decoder.response()) else None
+        val cacheReports = attempt.prepareCache(decoder.usage)
         state.lock.withLock {
-            attempt.update(point, update, decoder)
+            attempt.update(point, update, decoder, cacheReports)
             if (decoder.isFinished) {
                 state.protocolFinished = true
                 state.retained = retained

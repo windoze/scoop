@@ -1,0 +1,68 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class CacheNetworkTest {
+    @Test
+    fun `cache lifetime observations survive retries ordinary generation and repeated SSE usage`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val model = LlmEndpoint(Providers.anthropicMessages(), auth, Some(original.baseUrl)).model("m")
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (number in [1L, 2L, 3L]) {
+                        val request = Json.parse(String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(8192L)))
+                        if (number == 3L) {
+                            assertTrue(request["stream"]!!.asBoolean())
+                            sendLlmReply(connection, 200U, cacheStreamReply(), streamFields)
+                        } else if (number == 1L) sendLlmReply(connection, 429U, "{\"error\":{\"type\":\"rate_limit_error\"}}")
+                        else sendLlmReply(connection, 200U, cacheMessageReply)
+                    }
+                }
+            }
+            withLlmClient suspend { client ->
+                val finished = FinishedCalls()
+                val options = LlmCallOptions(retries = LlmRetryOptions(initialDelay = Duration.ZERO),
+                    onFinished = Some(suspend { value -> finished.record(value) }))
+                val generated = client.generate(model, sampleRequest, options)
+                assertEquals("hello", generated.response.text)
+                val restored = Json.decodeFromString<LlmCallMetadata>(Json.encodeToString(generated.metadata))
+                assertEquals(2L, restored.attempts.size)
+                assertEquals(0L, restored.attempts[0L].cacheObservations.size)
+                val attempt = restored.attempts[1L]
+                assertEquals(3L, attempt.cacheObservations.size)
+                assertEquals(Some(4L), attempt.cacheObservations[1L].report.tokens)
+                assertEquals(Some(6L), attempt.cacheObservations[2L].report.tokens)
+                assertEquals(attempt.request.sent!!.elapsed + Duration.minutes(5L), attempt.estimateCacheLifetime(1L)!!.earliestElapsed)
+                for (observation in attempt.cacheObservations) {
+                    assertEquals(CacheScope.Unknown, observation.report.scope)
+                    assertEquals(None, observation.report.reportedExpiresAt)
+                    assertTrue(observation.observed.elapsed >= attempt.request.sent!!.elapsed)
+                }
+                val stream = client.openStream(model, sampleRequest, options, StreamRetention.Result)
+                val first = firstCachedAttempt(stream)
+                val saved = Json.encodeToString(first.cacheObservations)
+                stream.useAsync suspend { opened -> drainStream(opened) }
+                assertEquals("hello", stream.result().text)
+                val last = stream.metadata.attempts[0L]
+                assertEquals(LlmCallOutcome.Completed, stream.metadata.outcome)
+                assertEquals(Some(4L), last.usage.tokens.outputTokens)
+                assertEquals(UsageCompleteness.Final, last.usage.completeness)
+                assertEquals(saved, Json.encodeToString(last.cacheObservations))
+                assertEquals(saved, Json.encodeToString(first.cacheObservations))
+                assertEquals(Some(1L), first.usage.tokens.outputTokens)
+                assertTrue(last.cacheObservations[0L].observed.elapsed < last.response.completed!!.elapsed)
+                assertEquals(2L, finished.values.size)
+                assertSame(stream.metadata, finished.values[1L])
+                assertEquals(3L, auth.requests.size)
+            }
+            serving.join()
+        }
+    }
+}

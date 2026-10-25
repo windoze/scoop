@@ -1,0 +1,45 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class CacheStreamFailureTest {
+    @Test
+    fun `cache lifetime failed and cancelled streams keep observed facts and update only changed reports`() {
+        for (earlyClose in [true, false]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val model = LlmEndpoint(Providers.anthropicMessages(), LlmAuth.none(), Some(original.baseUrl)).model("m")
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(8192L)
+                        sendLlmReply(connection, 200U, cacheStreamStart + cacheSseEvent(
+                            "{\"type\":\"message_delta\",\"delta\":{},\"usage\":{\"cache_read_input_tokens\":21}}"), streamFields)
+                    }
+                }
+                withLlmClient suspend { client ->
+                    val stream = client.openStream(model, sampleRequest)
+                    val first = firstCachedAttempt(stream)
+                    val saved = Json.encodeToString(first.cacheObservations)
+                    if (earlyClose) stream.close()
+                    else expectLlmFailure<LlmStreamProtocolException> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+                    val last = stream.metadata.attempts[0L]
+                    assertEquals(if (earlyClose) LlmCallOutcome.Cancelled else LlmCallOutcome.Failed, stream.metadata.outcome)
+                    assertEquals(3L, last.cacheObservations.size)
+                    assertEquals(Some(if (earlyClose) 20L else 21L), last.cacheObservations[0L].report.tokens)
+                    assertEquals(Json.encodeToString(first.cacheObservations[1L]), Json.encodeToString(last.cacheObservations[1L]))
+                    if (earlyClose) assertEquals(saved, Json.encodeToString(last.cacheObservations))
+                    else assertTrue(last.cacheObservations[0L].observed.elapsed > first.cacheObservations[0L].observed.elapsed)
+                    assertEquals(saved, Json.encodeToString(first.cacheObservations))
+                    assertEquals(None, last.response.completedAt)
+                    assertTrue(llmPresent(last.estimateCacheLifetime(0L)))
+                    Unit
+                }
+                serving.join()
+            }
+        }
+    }
+}

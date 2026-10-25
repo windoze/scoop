@@ -6,7 +6,7 @@ import scoop.time.Duration
 import scoop.time.Instant
 import scoop.time.TimeMark
 
-internal class LlmAttemptState(val call: LlmCallState, val number: Long) {
+internal class LlmAttemptState(val call: LlmCallState, val number: Long, private val cacheObserver: LlmCacheObserver? = None) {
     private val lock = Mutex()
     private var observed: HttpAttemptMetrics? = None
     private var response: LlmResponse? = None
@@ -17,18 +17,33 @@ internal class LlmAttemptState(val call: LlmCallState, val number: Long) {
     private var streamResponseId: String? = None
     private var streamUsage: LlmUsage = LlmUsage()
     private var requestId: String? = None
+    private var cacheObservations: Array<CacheObservation> = []
     var retryAfter: Duration = Duration.ZERO
 
     fun observe(metrics: HttpAttemptMetrics) { lock.withLock { observed = Some(metrics) } }
     fun identify(id: String?) { lock.withLock { requestId = id } }
-    fun complete(value: LlmResponse) { lock.withLock { response = Some(value); completed = Some(call.point()) } }
+    fun complete(value: LlmResponse) {
+        val point = call.point()
+        val reports = prepareCache(value.usage)
+        lock.withLock {
+            response = Some(value); completed = Some(point)
+            when (reports) { case Some(values) -> cacheObservations = updateCacheObservations(cacheObservations, values, point); case None -> {} }
+        }
+    }
+
+    fun prepareCache(usage: LlmUsage): Array<CacheReport>? {
+        val observer = cacheObserver ?: return None
+        if (lock.withLock { (response?.usage ?: streamUsage) === usage }) return None
+        return Some(observer.observe(usage))
+    }
     fun completeCount() { lock.withLock { completed = Some(call.point()) } }
     fun event(point: LlmTimePoint) { lock.withLock { if (!llmPresent(firstEvent)) firstEvent = Some(point); Unit } }
 
-    fun update(point: LlmTimePoint, update: LlmStreamUpdate, decoder: LlmStreamDecoder) {
+    fun update(point: LlmTimePoint, update: LlmStreamUpdate, decoder: LlmStreamDecoder, reports: Array<CacheReport>?) {
         lock.withLock {
             streamResponseId = decoder.responseId
             streamUsage = decoder.usage
+            when (reports) { case Some(values) -> cacheObservations = updateCacheObservations(cacheObservations, values, point); case None -> {} }
             if (update.hasOutput && !llmPresent(firstOutput)) firstOutput = Some(point)
             if (update.hasText && !llmPresent(firstText)) firstText = Some(point)
             if (decoder.isFinished) completed = Some(call.point())
@@ -54,51 +69,11 @@ internal class LlmAttemptState(val call: LlmCallState, val number: Long) {
                 firstText = if (llmPresent(firstText)) firstText else if (hasText) completed else None, completed = completed),
             when (metrics) { case Some(value) -> value.status; case None -> None }, requestId,
             when (response) { case Some(value) -> value.id; case None -> streamResponseId }, response?.usage ?: streamUsage,
-            http = readLlmHttpTiming(metrics, call.started))
+            http = readLlmHttpTiming(metrics, call.started), cacheObservations = cacheObservations)
     }
 
     private fun observedPoint(mark: TimeMark?, at: Instant?): LlmTimePoint? {
         val elapsed = (mark ?: return None) - call.started
         return Some(LlmTimePoint(at ?: return None, elapsed))
     }
-}
-
-private fun responseHasText(response: LlmResponse): Boolean {
-    for (candidate in response.candidates) {
-        for (item in candidate.items) {
-            val content = when (item) { case Message(parts, _) -> parts; else -> continue }
-            for (part in content) {
-                val text = when (part) { case Text(value, _) -> value; else -> continue }
-                if (text.length != 0L) return true
-            }
-        }
-    }
-    return false
-}
-
-private fun responseHasOutput(response: LlmResponse): Boolean {
-    for (candidate in response.candidates) {
-        for (item in candidate.items) {
-            when (item) {
-                case Message(content, _) -> if (partsHaveOutput(content)) return true
-                case Reasoning(content, _) -> if (partsHaveOutput(content)) return true
-                case ClientToolCall(_) -> return true
-                case ServerToolActivity(_) -> return true
-                case Native(_, _) -> continue
-            }
-        }
-    }
-    return false
-}
-
-private fun partsHaveOutput(parts: Array<OutputPart>): Boolean {
-    for (part in parts) {
-        when (part) {
-            case Text(text, _) -> if (text.length != 0L) return true
-            case Refusal(text) -> if (text.length != 0L) return true
-            case Media(_, _) -> return true
-            case Native(_, _) -> continue
-        }
-    }
-    return false
 }

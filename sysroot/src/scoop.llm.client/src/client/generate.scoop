@@ -7,8 +7,10 @@ internal suspend fun generateLlm(client: LlmClientState, model: LlmModel, reques
         val protocol = model.endpoint.provider.protocol
         checkModelRequest(model.capabilities, request, protocol.defaultMaxOutputTokens())
         val url = protocol.generationUrl(model.endpoint.baseUrl, model.id)
-        val bytes = Json.stringify(protocol.encodeRequest(model.id, request)).toByteArray()
-        performLlmJsonRequest<LlmResponse>(call, model.endpoint, url, bytes, options) { parsed, attempt ->
+        val encoded = protocol.encodeRequest(model.id, request)
+        val cacheObserver = protocol.cacheObserver(encoded)
+        val bytes = Json.stringify(encoded).toByteArray()
+        performLlmJsonRequest<LlmResponse>(call, model.endpoint, url, bytes, options, Some(cacheObserver)) { parsed, attempt ->
             val decoded = protocol.decodeResponse(parsed, request)
             attempt.complete(decoded)
             decoded

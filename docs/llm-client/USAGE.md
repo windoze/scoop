@@ -324,7 +324,34 @@ suspend fun inspectUsage(client: LlmClient, model: LlmModel) {
 
 `attempt.http` 直接保留 HTTP 层观察到的排池、DNS、连接、代理与 TLS 阶段。阶段的 started／finished 是相对调用起点的单调偏移，可以随 metadata 保存；duration 只在阶段结束时可用，失败或取消也可能结束一个阶段。复用连接时不会补造新建连接或 TLS 耗时；底层没有 UTC 的事件不使用当前时钟代替。outputTokensPerSecond 仅在用量为 Final 且响应耗时完整、非零时提供。
 
-后续的 `cacheObservations` 设计保存实际读写、缓存范围、TTL 起算／刷新规则和有依据的寿命估计。应用保存这些信息和时间戳后再判断缓存窗口，不能在拿到 result 时直接执行“当前时间＋TTL”。估计、最短保留期和服务端报告的到期时间仍是不同数据，不提供一个掩盖不确定性的 `isCacheValid` Boolean。
+`attempt.cacheObservations` 默认保存已报告的缓存读写量，缺少寿命资料时仍可读取事实。每个 report 区分实际范围、TTL 起算／刷新规则与服务端报告的到期时间；重复的流式 usage 不推迟首次观察时间，重试各自保存。读取第一条适用规则也使用同一个 API 的缺省参数：
+
+```scoop
+import scoop.time.Instant
+
+fun inspectCache(attempt: LlmAttemptMetadata, now: Instant) {
+    var index = 0L
+    for (observation in attempt.cacheObservations) {
+        println(observation.report.operation)
+        println(observation.report.tokens)
+        println(observation.report.scope)
+        when (attempt.estimateCacheLifetime(index)) {
+            case Some(estimate) -> {
+                println(estimate.lifetime.kind)
+                val (earliest, latest) = estimate.remainingAtInstant(now)
+                println(earliest)
+                println(latest)
+            }
+            case None -> println("没有足够信息估计寿命")
+        }
+        index += 1L
+    }
+}
+```
+
+第二个 lifetimeIndex 参数可选择同一报告的其他规则。估计保存发送与首次确认时刻，earliestAt／latestAt 是边界区间；remainingAtOffset 接收同一次调用中已记录的单调偏移，例如 response.completed 中的 elapsed，用于判断响应完成时的剩余量。上述 now 或跨进程恢复使用带校时不确定性的 remainingAtInstant。负数表示对应边界已经过去。应用判断时仍须读取 kind：MinimumReadPricing 只描述最低计费覆盖，MaximumRetention 也不是每次命中后重启的有效期。
+
+Messages 按服务端实际返回的 5 分钟／1 小时写入明细解释规则；只有聚合命中量时，scope 保持 Unknown，不把所有断点一起续期。OpenAI Chat／Responses 只解释请求中明确选择的已知缓存设置，不按模型名猜默认 TTL；12h 仅用于 Responses，其读取不会重新起算 12 小时。旧策略最长保留的起算规则未明确时保持 Unknown。缺失量不补零，明确零不推导续期，服务端到期时间不由本地估计填充。
 
 调用前计数显式调用所选 dialect 的服务端计数接口；模型入口没有该接口时报告不支持，不静默退化为字符数。直接使用现有 model、request 和调用设置：
 

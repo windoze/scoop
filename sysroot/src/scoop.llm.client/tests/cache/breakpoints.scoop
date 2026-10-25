@@ -1,0 +1,47 @@
+package scoop.llm.client.tests.cache
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class CacheBreakpointsTest {
+    @Test
+    fun `cache lifetime mixed breakpoints retain only a write pricing floor without assigning reads to prefixes`() {
+        val protocol = Providers.openAiResponses().protocol
+        val point = [DialectExtension(protocol.dialectId, Json.parse("{\"prompt_cache_breakpoint\":{\"mode\":\"explicit\",\"ttl\":\"12h\"}}"))]
+        val reports = openAiCacheReports(protocol, "{\"prompt_cache_options\":{\"mode\":\"implicit\"}}", [Text("stable", point)])
+        assertEquals(0L, reports[0L].lifetimes.size)
+        assertEquals(Duration.minutes(30L), reports[1L].lifetimes[0L].duration)
+        assertEquals(CacheScope.Unknown, reports[0L].scope)
+        assertEquals(CacheScope.Unknown, reports[1L].scope)
+    }
+
+    @Test
+    fun `cache lifetime explicit breakpoints inherit the selected TTL and can override it`() {
+        for (protocol in [Providers.openAiChat().protocol, Providers.openAiResponses().protocol]) {
+            val chat = protocol.dialectId.protocol == ApiProtocolId("chat-completions")
+            val rootTtl = if (chat) "30m" else "12h"
+            for ((config, duration) in [("{\"mode\":\"explicit\"}", if (chat) Duration.minutes(30L) else Duration.hours(12L)),
+                ("{\"mode\":\"explicit\",\"ttl\":\"30m\"}", Duration.minutes(30L))]) {
+                val point = JsonObjectBuilder().add("prompt_cache_breakpoint", Json.parse(config)).build()
+                val content: Array<ContentPart> = [Text("stable", [DialectExtension(protocol.dialectId, point)])]
+                val reports = openAiCacheReports(protocol, "{\"prompt_cache_options\":{\"mode\":\"explicit\",\"ttl\":\"" + rootTtl + "\"}}", content)
+                assertEquals(duration, reports[1L].lifetimes[0L].duration)
+            }
+        }
+    }
+
+    @Test
+    fun `cache lifetime scans protocol tool result content but never function arguments or schemas`() {
+        val protocol = Providers.openAiResponses().protocol
+        val schema = Json.parse("{\"type\":\"object\",\"properties\":{\"prompt_cache_breakpoint\":{\"mode\":\"explicit\",\"ttl\":\"12h\"}}}")
+        val reports = openAiCacheReports(protocol, "{}", tools = [ClientFunction(ToolKey("tool"), "lookup", schema)])
+        assertEquals(0L, reports[1L].lifetimes.size)
+        val wire = Json.parse("{\"prompt_cache_options\":{\"mode\":\"explicit\"},\"input\":[{\"type\":\"function_call_output\",\"output\":[{\"type\":\"input_text\",\"text\":\"result\",\"prompt_cache_breakpoint\":{\"mode\":\"explicit\",\"ttl\":\"12h\"}}]},{\"type\":\"function_call\",\"arguments\":{\"content\":[{\"prompt_cache_breakpoint\":{\"mode\":\"explicit\",\"ttl\":\"30m\"}}]}}]}")
+        val observed = protocol.cacheObserver(wire).observe(LlmUsage(TokenUsage(cacheWriteTokens = Some(20L))))
+        assertEquals(1L, observed.size)
+        assertEquals(Duration.hours(12L), observed[0L].lifetimes[0L].duration)
+    }
+}

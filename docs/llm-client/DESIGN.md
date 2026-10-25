@@ -350,7 +350,7 @@ Dialect 明确原生计数是总量还是子项。例如 Claude 的原生 input_
 
 ### 6.4 用时间戳估计 prompt cache 有效期
 
-默认提供 request／response 时间戳与 cache usage 供应用判断。Dialect 可补充 `CacheObservation`：实际读／写事实、对应 request attempt、已知的缓存资源／前缀／断点范围、TTL 及起算／刷新规则，以及服务端明确返回的到期时间。只有总 cacheReadTokens 时，不猜测是哪一段历史命中，也不把整段会话的缓存一起续期。
+默认提供 request／response 时间戳与 cache usage 供应用判断。实际编码后的请求交给 dialect 的纯 `cacheObserver`，它将 usage 解释为 `CacheReport`；公共 client 在对应 attempt 中保存带本地观察点的 `CacheObservation`。报告区分实际读／写事实、已知的缓存资源／前缀范围、TTL 及起算／刷新规则，以及服务端明确返回的到期时间。只有总 cacheReadTokens 时，不猜测是哪一段历史命中，也不把整段会话的缓存一起续期。
 
 缓存时间估计必须保留以下区别：
 
@@ -360,7 +360,9 @@ Dialect 明确原生计数是总量还是子项。例如 Claude 的原生 input_
 - 当前进程内优先以同源单调时间判断经过时长；跨进程恢复只能使用保存的 UTC 时间作估计，保留校时与跨机器时差的不确定性。
 - 时间窗口内不保证一定命中：前缀、模型、部署、缓存配置与服务端路由仍须相容。命中 token、计费覆盖和实际复用 KV／降低延迟也不能自动视为同一事实。
 
-例如，采用“从请求开始计 5 分钟”的规则时，10:00 发起、10:04 完成的请求，其本地估计边界约为 10:05，而不是 10:09；生成耗时已经占用有效期。Claude 当前文档明确这一起算方式。OpenAI 的缓存寿命与刷新规则则依模型和策略不同，最低计费覆盖期也不保证 KV 复用或低延迟；应由各自 dialect 描述。[Claude 缓存寿命](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)、[OpenAI 缓存寿命](https://developers.openai.com/api/docs/guides/prompt-caching)
+例如，采用“从请求开始计 5 分钟”的规则时，10:00 发起、10:04 才收到确认的请求，保守估计的最早边界为 10:05。无法确定服务端实际起点时保留至 10:09 的边界区间，不能据此声称此刻还完整剩余 5 分钟。`attempt.estimateCacheLifetime` 保留规则与起点区间，同进程按单调偏移计算剩余量，UTC 边界从发送点投影；校时不会倒置区间。Claude 当前文档明确以处理该请求的起点计算 TTL。OpenAI 的最低计费覆盖期不保证 KV 复用或低延迟；内置解释只应用实际请求中明确选择的已知设置，不根据模型名猜默认策略。[Claude 缓存寿命](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)、[OpenAI 缓存寿命](https://developers.openai.com/api/docs/guides/prompt-caching)
+
+流式记录以报告的 key、计数和语义辨别更新，单独的 output token 变化、重复 usage 和终止事件不会刷新已有缓存观察时刻。快照不可变；失败和提前关闭仍保留已收到的事实。`countTokens` 的缓存输入规模不进入此路径。
 
 本库提供这些观测值与可选时间估计，不自动发送保活请求、重排历史或建立缓存调度器。Prompt cache 与 HTTP 响应缓存保持独立。
 

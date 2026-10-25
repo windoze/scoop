@@ -4,6 +4,7 @@ import scoop.json.JsonValue
 
 /** Protocol-specific response interpretation; state belongs to each call, not the dialect. */
 public interface ChatDialect {
+    public fun cacheObserver(encodedRequest: JsonValue): LlmCacheObserver = DefaultCacheObserver(id)
     public val id: DialectId
     public val streamedReasoningField: String?
     public fun encodeOptions(request: LlmRequest): JsonValue
@@ -16,6 +17,7 @@ public interface ChatDialect {
 
 public class OpenAiChatDialect public constructor() : ChatDialect {
     public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "openai-chat")
+    public override fun cacheObserver(encodedRequest: JsonValue): LlmCacheObserver = openAiCacheObserver(id, encodedRequest)
     public override val streamedReasoningField: String? = None
     public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
         decodeChatError(id, status, body, truncated, false)

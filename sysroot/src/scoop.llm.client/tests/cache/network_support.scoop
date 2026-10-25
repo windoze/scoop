@@ -1,0 +1,29 @@
+package scoop.llm.client.tests.client
+
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.test.*
+
+internal val cacheUsageReply = "{\"input_tokens\":1,\"output_tokens\":1,\"cache_read_input_tokens\":20,\"cache_creation_input_tokens\":10,\"cache_creation\":{\"ephemeral_5m_input_tokens\":4,\"ephemeral_1h_input_tokens\":6}}"
+internal val cacheMessageReply = "{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}],\"stop_reason\":\"end_turn\",\"usage\":" + cacheUsageReply + "}"
+internal val cacheStreamStart = cacheSseEvent("{\"type\":\"message_start\",\"message\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"stop_reason\":null,\"usage\":" + cacheUsageReply + "}}")
+
+internal fun cacheSseEvent(value: String): String = "event: " + Json.parse(value)["type"]!!.asString() + "\ndata: " + value + "\n\n"
+
+internal fun cacheStreamReply(): String {
+    val body = StringBuilder().append(cacheStreamStart)
+    for (event in [
+        "{\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"hello\"}}",
+        "{\"type\":\"content_block_stop\",\"index\":0}",
+        "{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":4}}",
+        "{\"type\":\"message_stop\"}"]) body.append(cacheSseEvent(event))
+    return body.toString()
+}
+
+internal suspend fun firstCachedAttempt(stream: LlmStream): LlmAttemptMetadata {
+    while (true) {
+        assertTrue(llmPresent(stream.next()))
+        val attempt = stream.metadata.attempts[0L]
+        if (attempt.cacheObservations.size != 0L) return attempt
+    }
+}

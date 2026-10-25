@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.time.Duration
+import scoop.time.Instant
+
+/** Estimated boundary interval based on local observations, not a server expiration timestamp. */
+public class CacheLifetimeEstimate public constructor(
+    public val lifetime: CacheLifetime,
+    public val sent: LlmTimePoint,
+    public val observed: LlmTimePoint
+) {
+    @Serialize(ignore = true) public val earliestElapsed: Duration = sent.elapsed + lifetime.duration
+    @Serialize(ignore = true) public val latestElapsed: Duration = observed.elapsed + (lifetime.upperDuration ?: lifetime.duration)
+    @Serialize(ignore = true) public val earliestAt: Instant = sent.at + lifetime.duration
+    @Serialize(ignore = true) public val latestAt: Instant = sent.at + (latestElapsed - sent.elapsed)
+    init {
+        if (observed.elapsed < sent.elapsed) throw IllegalArgumentException(Some("cache observation precedes the request"))
+    }
+
+    /** The offset must use this call's monotonic origin. Negative remaining durations are kept. */
+    public fun remainingAtOffset(elapsed: Duration): (Duration, Duration) {
+        if (elapsed < Duration.ZERO) throw IllegalArgumentException(Some("call time offset must not be negative"))
+        return (earliestElapsed - elapsed, latestElapsed - elapsed)
+    }
+
+    /** Cross-process wall-clock estimate, subject to clock adjustment and clock skew. */
+    public fun remainingAtInstant(now: Instant): (Duration, Duration) = (earliestAt - now, latestAt - now)
+
+    public companion object : ValueEncoder<CacheLifetimeEstimate>, ValueDecoder<CacheLifetimeEstimate>
+}
+
+internal fun estimateLlmCacheLifetime(observation: CacheObservation, request: LlmRequestTiming, index: Long): CacheLifetimeEstimate? {
+    val report = observation.report
+    val lifetime = report.lifetimes[index]
+    if (report.tokens == None || report.tokens!! == 0L) return None
+    val sent = request.sent ?: return None
+    val applicable = when (lifetime.anchor) {
+        case RequestStart -> true
+        case Read -> report.operation == CacheOperation.Read
+        case Write -> report.operation == CacheOperation.Write
+        case Unknown -> false
+    }
+    if (!applicable || observation.observed.elapsed < sent.elapsed) return None
+    try { return Some(CacheLifetimeEstimate(lifetime, sent, observation.observed)) }
+    catch (_: ArithmeticException) { return None }
+}
