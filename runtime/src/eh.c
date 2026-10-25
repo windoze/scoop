@@ -238,8 +238,7 @@ static _Noreturn void scoop_eh_finish_failed_raise(ScoopExceptionRecord *record,
 }
 
 _Noreturn void scoop_rt_throw(const void *object) {
-    scoop_thread_require_managed();
-    ScoopThreadState *thread = scoop_thread_current_required();
+    ScoopThreadState *thread = scoop_thread_require_managed();
     if (!scoop_gc_is_published_object(object)) {
         scoop_eh_state_error("throw source is not a published Scoop object");
     }
@@ -254,8 +253,7 @@ _Noreturn void scoop_rt_throw(const void *object) {
 }
 
 void *scoop_rt_begin_catch(void *raw_exception) {
-    scoop_thread_require_managed();
-    ScoopThreadState *thread = scoop_thread_current_required();
+    ScoopThreadState *thread = scoop_thread_require_managed();
     ScoopExceptionRecord *record = scoop_eh_record_from_unwind(raw_exception);
     if (record->owner != thread || record->state != SCOOP_EXCEPTION_IN_FLIGHT ||
         record->caught_previous != NULL) {
@@ -275,8 +273,7 @@ void *scoop_rt_begin_catch(void *raw_exception) {
 }
 
 void scoop_rt_end_catch(void) {
-    scoop_thread_require_managed();
-    ScoopThreadState *thread = scoop_thread_current_required();
+    ScoopThreadState *thread = scoop_thread_require_managed();
     ScoopExceptionRecord *record = thread->caught_exception_top;
     if (record == NULL || !scoop_eh_record_is_active(record) || record->owner != thread) {
         scoop_eh_state_error("end-catch has no active catch frame");
@@ -296,8 +293,7 @@ void scoop_rt_end_catch(void) {
 }
 
 _Noreturn void scoop_rt_rethrow(void) {
-    scoop_thread_require_managed();
-    ScoopThreadState *thread = scoop_thread_current_required();
+    ScoopThreadState *thread = scoop_thread_require_managed();
     ScoopExceptionRecord *record = thread->caught_exception_top;
     if (record == NULL || !scoop_eh_record_is_active(record) || record->owner != thread ||
         record->state != SCOOP_EXCEPTION_CAUGHT) {

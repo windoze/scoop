@@ -210,8 +210,7 @@ static void wait_for_unit(ScoopThreadState *thread,
 
 static uint64_t init_enter(const ScoopInitializationUnitDescriptorV1 *unit) {
     scoop_image_require_unit(unit);
-    ScoopThreadState *thread = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *thread = scoop_thread_require_managed();
     scoop_thread_registry_lock();
     for (;;) {
         switch (unit->cell->state) {

@@ -289,10 +289,11 @@ ScoopThreadState *scoop_thread_current_required(void) {
     return state;
 }
 
-void scoop_thread_require_managed(void) {
+ScoopThreadState *scoop_thread_require_managed(void) {
     ScoopThreadState *state = scoop_thread_current_required();
     if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != SCOOP_THREAD_MANAGED ||
         state->managed_depth == 0) {
         scoop_thread_fatal("thread entered managed code from a non-managed state");
     }
+    return state;
 }
