@@ -24,6 +24,8 @@ for name in (
     "constructSnapshotKernel",
     "replaceKernel",
     "literalKernel",
+    "pointerKernel",
+    "loopKernel",
 ):
     function = functions[name]
     if release:
@@ -37,6 +39,11 @@ for name in ("virtualKernel", "interfaceKernel", "defaultKernel"):
 
 report = json.loads(path.with_name("optimizations.json").read_text())
 external = {item["name"]: item["id"] for item in report["external_callables"]}
+length = functions["byteLengthKernel"]
+if release:
+    assert "external" not in length and "@scoop_rt_string_byte_length_leaf" in length
+else:
+    assert "external" in length
 assert re.search(r"^      call .*external\d+ direct", functions["secondaryKernel"], re.M)
 factory = functions["classConstructKernel"]
 assert (f"external{external['makeCell']} direct" in factory) != release

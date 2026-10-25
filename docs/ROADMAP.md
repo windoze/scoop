@@ -758,6 +758,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。PGO 为后续独立专项，在代表负载、成熟消费者和反馈原型净收益成立后排期；测量与全程序优化／ThinLTO 均不以 PGO 为前置。
 - 优化按长期、分批试验和交付推进：成本低且收益比较稳定的方案可直接纳入 release 默认设置；成本过高或收益不稳定的方案通过独立开关或等级决定是否启用、启用哪一级。默认值随实测结果调整，保留默认与调优配置的对照。
 - [已采纳优化与开启条件](program-performance/ENABLED-OPTIMIZATIONS.md)简要列出各项方案的默认 profile、适用条件及实际开关，后续采纳与策略变更时同步维护。
+- [整数十进制格式化与 helper 正文](program-performance/INTEGER-DECIMAL.md)已交付：专用八位分块算法进入普通 core，20 B 栈缓冲区一次写入，C 后备同步替换 printf；补齐跨 Cone 循环／pointer 和普通 helper 正文闭合，沿用调用点评分。三目标转换降低约 20%～70%，分配不变，代表程序体积与编译成本小幅增加；定向语义、GC、IR／机器码和对照完成。所有 profile 使用同一算法，release 默认展开，无新增 ABI 或测量代码。
 - [线程入口复用已校验状态](program-performance/THREAD-STATE-REUSE.md)已交付：同步入口消费 managed 检查返回的线程状态，native 边界 TLS 取址七次降至四次；三目标 NativeSafe 调用降低约 19.6%／3.4%／3.0%，完整文件、对象与线程布局保持，定向 GC／线程／异常验证通过。全部 profile 默认，实际程序回退和构建成本一并记录。
 - [搬迁时更新存活清单](program-performance/LIVE-SET-RELOCATION.md)已交付：复制后直接保留当前对象地址，引用回写减少一次元数据定位和 source forwarding，真实字段／roots 转发及 GC 契约保持。三目标 trees 降低约 14.0%／9.1%／3.0%，strmap 小幅退化一并记录；无新增计划或清单存储，完整程序不增长，构建成本持平。定向 GC、机器码和空间验证通过，所有 profile 默认，无 ABI 或测量代码变化。
 - [String 字符扫描 API](program-performance/STRING-API.md)已统一为 O(n) 的 `charLength`／`getCharAt(idx)` 与 O(1) 的 `byteLength`，移除旧 `length`／`get`／下标；三目标内置库和调用点迁移及定向行为／编译失败／表示 ABI 验证完成，对象结构保持。

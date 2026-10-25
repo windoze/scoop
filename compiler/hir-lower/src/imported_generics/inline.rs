@@ -1,10 +1,11 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn prepare_inline_templates(&mut self) -> Result<(), String> {
+    pub(super) fn prepare_inline_templates(&mut self, first_use: usize) -> Result<(), String> {
         let declarations = self
             .imported_dependency_callables
             .iter()
+            .skip(first_use)
             .filter_map(|(_, use_)| {
                 let declaration = use_.reference().declaration();
                 if !matches!(

@@ -6,7 +6,7 @@ impl Lowerer {
     pub(crate) fn complete_imported_generic_bodies(&mut self) {
         let mut index = 0;
         let mut constructor = 0;
-        let mut prepared_inline = false;
+        let mut prepared_inline = 0;
         loop {
             if index == self.imported_generic_templates.templates.len()
                 && constructor == self.imported_constructor_templates.templates.len()
@@ -26,17 +26,20 @@ impl Lowerer {
                     ));
                     break;
                 }
-                if !prepared_inline {
-                    prepared_inline = true;
-                    if let Err(error) = self.prepare_inline_templates() {
+                let callable_count = self.imported_dependency_callables.len();
+                if prepared_inline < callable_count {
+                    if let Err(error) = self.prepare_inline_templates(prepared_inline) {
                         self.error(hir::Span::new(0, 0), error);
                         break;
                     }
+                    prepared_inline = callable_count;
                 }
                 if index == self.imported_generic_templates.templates.len()
                     && constructor == self.imported_constructor_templates.templates.len()
                 {
-                    if self.types.len() != type_count {
+                    if self.types.len() != type_count
+                        || prepared_inline < self.imported_dependency_callables.len()
+                    {
                         continue;
                     }
                     break;

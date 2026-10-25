@@ -169,7 +169,15 @@ impl<'a> GenericBodyProducer<'a> {
             | HirFunctionIdentity::Initialization { .. }
             | HirFunctionIdentity::DerivedEquality(_) => false,
         };
-        if (lexical || export.functions[function].type_param_count() != 0)
+        let ordinary = matches!(
+            &export.function_identities[function],
+            HirFunctionIdentity::Source(crate::HirSourceFunctionIdentity::Plain(_))
+                | HirFunctionIdentity::PropertyAccessor(_)
+        ) && crate::portable_inline_body(
+            &export.functions[function].signature,
+            &export.functions[function].kind,
+        );
+        if (lexical || export.functions[function].type_param_count() != 0 || ordinary)
             && self.scheduled.insert(function)
         {
             self.pending.push_back(function);

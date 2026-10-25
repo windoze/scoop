@@ -40,6 +40,9 @@ mod runtime_eh_lifecycle_tests;
 #[path = "runtime_eh_personality_tests.rs"]
 mod runtime_eh_personality_tests;
 
+#[path = "runtime_integer_decimal_tests.rs"]
+mod runtime_integer_decimal_tests;
+
 mod allocation;
 mod arrays;
 mod arrays_clone;

@@ -1,0 +1,18 @@
+# 标量转换基准
+
+`decimal.scoop` 测量整数转字符串，包含实际 String 分配，并消费结果的字节长度。模式 0 是六位以内 ULong，1 是完整位宽 ULong，2 是完整位宽 Long，3 是常量 `1234L`。前三种输入由确定的 LCG 生成；正确性由独立 Cone 测试覆盖，不以计时阈值断言。
+
+复用 `interfaces/phases.c` 的阶段计时入口；只在该基准程序中链接，不向普通程序或 runtime 增加测量代码。例如，在仓库根执行：
+
+```sh
+mkdir -p tmp/scalar-bench
+cc -O2 -c tests/benchmarks/interfaces/phases.c -o tmp/scalar-bench/phases.o
+ar rcs tmp/scalar-bench/libscoop_scalar_phases.a tmp/scalar-bench/phases.o
+target/release/scoop build tests/benchmarks/scalars/decimal.scoop --release \
+  --sysroot sysroot --scoopc target/release/scoopc \
+  --library-path tmp/scalar-bench --target-dir tmp/scalar-bench/build \
+  -o tmp/scalar-bench/decimal
+SCOOP_BENCH_KIND=1 SCOOP_BENCH_COUNT=2000000 tmp/scalar-bench/decimal
+```
+
+跨目标时给 C 编译器和 Scoop 同时选择相应目标与 unwind 资源。比较前保存旧程序和 sysroot，固定输入，先预热，再交替运行新旧程序；阶段 JSON 输出到 stderr，校验和输出到 stdout。原始输出和逐次数据保存在仓库外。`SCOOP_GC_STATS=1` 应另行运行，用于比较分配字节和 collection 次数，不混入普通计时。

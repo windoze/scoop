@@ -10,6 +10,8 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [整数专用十进制格式化](INTEGER-DECIMAL.md) | 新 core／runtime 所有 profile 默认；release 按调用点评分展开 | 20 B 栈缓冲区一次格式化，实际长度分配／复制；八位分块与两位表，动态大正文共享，C ABI 后备保留，无 NUL／locale 依赖。 |
+| [普通 helper 正文闭合与循环／pointer 移植](INTEGER-DECIMAL.md) | 各 profile 导出一致，release 默认消费 | 沿 typed 依赖队列递归导出／导入，复用已完成分析；保留独立局部 place、loop target、原 intrinsic 身份和 GC 契约，不改变收益阈值。 |
 | [线程入口复用已校验状态](THREAD-STATE-REUSE.md) | 使用新版 runtime 重新链接，所有 profile 默认，无独立开关 | 18 处同步线程／roots／异常／初始化入口复用 managed 检查返回的状态；native 边界 TLS 取址七次降至四次，检查与原子内存序保持，无新增字段或 ABI。 |
 | [搬迁时更新存活清单](LIVE-SET-RELOCATION.md) | 使用新版 runtime 重新链接，所有 profile 默认，无独立开关 | 复制时将稳定清单条目改为当前副本，引用回写省去 source forwarding 与重复元数据定位；计划项和清单不增大，真实字段／roots 仍正常转发，保留 pin、survivor 与预留失败语义。 |
 | [调用点内联评分](CALL-SITE-INLINING.md) | release 默认；扩大跨 Cone 正文范围需重建 provider；诊断由 `--emit optimizations` 开启 | 缓存函数事实，按调用点静态热度、实参、结果用途和 caller 规模比较可消除开销与净增长；热循环可接受大正文，冷点可保留小正文。沿用递归、增长及 GC 限制，无试内联或新 runtime 代码。 |

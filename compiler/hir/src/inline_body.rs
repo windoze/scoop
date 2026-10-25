@@ -40,6 +40,13 @@ fn statements(body: &[Statement]) -> bool {
                 && statements(then_body)
                 && else_body.as_ref().is_none_or(|body| statements(body))
         }
+        StatementKind::While {
+            condition_setup,
+            cond,
+            body,
+            ..
+        } => statements(condition_setup) && expression(cond) && statements(body),
+        StatementKind::Break { .. } | StatementKind::Continue { .. } => true,
         _ => false,
     })
 }
@@ -58,6 +65,9 @@ fn expression(value: &Expr) -> bool {
         }
         | E::NoneLiteral
         | E::UnitLiteral
+        | E::AddressOf(Place::Local(_))
+        | E::SizeOf(_)
+        | E::AlignOf(_)
         | E::Unreachable => true,
         E::TupleLiteral(values)
         | E::StructInit { args: values, .. }
@@ -78,10 +88,28 @@ fn expression(value: &Expr) -> bool {
         | E::FloatConversion { operand, .. }
         | E::CharCode(operand)
         | E::CharFromCodeUnchecked(operand)
+        | E::PtrCast(operand)
+        | E::PtrToULong(operand)
+        | E::PtrFromNonZeroULong(operand)
         | E::SomeWrap(operand)
         | E::FieldAccess {
             receiver: operand, ..
         } => expression(operand),
+        E::PtrLoad { pointer, offset } => {
+            expression(pointer) && offset.as_ref().is_none_or(|value| expression(value))
+        }
+        E::PtrStore {
+            pointer,
+            offset,
+            value,
+        } => {
+            expression(pointer)
+                && offset.as_ref().is_none_or(|value| expression(value))
+                && expression(value)
+        }
+        E::PtrOffset {
+            pointer, offset, ..
+        } => expression(pointer) && expression(offset),
         E::Call { callee, args, .. } => ordinary_target(*callee) && args.iter().all(expression),
         E::MethodCall {
             receiver,
@@ -104,6 +132,8 @@ fn expression(value: &Expr) -> bool {
 fn ordinary_target(target: CallableTarget) -> bool {
     matches!(
         target,
-        CallableTarget::Local(Callable::Function(_)) | CallableTarget::Dependency(_)
+        CallableTarget::Local(Callable::Function(_))
+            | CallableTarget::Dependency(_)
+            | CallableTarget::Application(_)
     )
 }

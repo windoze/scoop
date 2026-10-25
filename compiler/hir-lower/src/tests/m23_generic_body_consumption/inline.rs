@@ -1,6 +1,58 @@
 use super::*;
 
 #[test]
+fn ordinary_inline_bodies_follow_private_helpers_with_loops_and_stack_places() {
+    with_provider_consumer(
+        r#"
+        package dev.example.upstream
+        @NoGC private fun bytes(input: Int): Int {
+            var storage = input
+            @Unsafe {
+                val pointer = addressOf(storage).cast<Int>()
+                pointer.store(42)
+                return pointer.load()
+            }
+        }
+        @NoGC private fun repeat(input: Int): Int {
+            var index = 0
+            var sum = 0
+            do {
+                index += 1
+                if (index == 2) { continue }
+                sum += bytes(input)
+                if (index == 3) { break }
+            } while (index < 4)
+            return sum
+        }
+        public fun calculate(input: Int): Int = repeat(input)
+        "#,
+        r#"
+        package dev.example.consumer
+        import dev.example.upstream.calculate
+        public fun result(input: Int): Int = calculate(input)
+        "#,
+        |output, _, _, _, _| {
+            let local = output.output().local.module();
+            assert_eq!(local.imported_inline_bodies.len(), 3);
+            let mut stores = 0;
+            let mut places = 0;
+            local
+                .visit_executable_expressions::<()>(|occurrence| {
+                    match occurrence.expression.kind {
+                        hir::concrete::ExprKind::PtrStore { .. } => stores += 1,
+                        hir::concrete::ExprKind::AddressOf(_) => places += 1,
+                        _ => {}
+                    }
+                    Ok(())
+                })
+                .unwrap();
+            assert_eq!((stores, places), (1, 1));
+        },
+    )
+    .unwrap();
+}
+
+#[test]
 fn ordinary_inline_bodies_keep_construction_field_writes_and_strings() {
     with_provider_consumer(
         r#"

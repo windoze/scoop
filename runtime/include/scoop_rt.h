@@ -114,6 +114,8 @@ const ScoopString *scoop_rt_string_slice_bytes(const ScoopString *value, int64_t
                                                int64_t end);
 const ScoopString *scoop_rt_string_from_chars(const ScoopArray *value);
 const ScoopString *scoop_rt_string_from_bytes(const ScoopArray *value);
+/* Stable, readable UTF-8 storage; the caller owns its lifetime through allocation. */
+const ScoopString *scoop_rt_string_from_utf8_unchecked(const unsigned char *bytes, int64_t length);
 const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count);
 bool scoop_rt_bool_equals(bool left, bool right);
 int64_t scoop_rt_long_hash(int64_t v);

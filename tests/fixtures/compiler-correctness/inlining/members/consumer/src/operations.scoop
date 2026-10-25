@@ -11,6 +11,19 @@ public fun classConstructKernel(value: Long): Cell = makeCell(value)
 public fun secondaryKernel(cell: Cell): Packet = Packet(cell)
 public fun literalKernel(): String = providerLiteral()
 
+public fun pointerKernel(value: Long): Long = localByte(value)
+public fun byteLengthKernel(value: String): Long = byteLength(value)
+
+public fun loopKernel(value: ULong, count: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < count) {
+        result += countBits(value + index.toULong())
+        index += 1
+    }
+    return result
+}
+
 public fun callbackSnapshotKernel(value: Recorder, action: () -> Unit): Packet {
     val snapshot = value.snapshot()
     action()
@@ -33,6 +46,9 @@ private fun selectCell(value: Cell): Cell {
 }
 
 fun checkOperations() {
+    check(pointerKernel(255L) == 41L)
+    check(byteLengthKernel("a😀") == 5L)
+    check(loopKernel(7uL, 2) == 4L)
     val first = Cell(10L)
     val recorder = Recorder(first)
     val old = constructSnapshotKernel(recorder)

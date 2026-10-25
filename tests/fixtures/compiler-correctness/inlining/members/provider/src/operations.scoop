@@ -27,3 +27,30 @@ public class Recorder public constructor(private var cell: Cell) {
 public fun makeCell(value: Long): Cell = Cell(value)
 public fun providerLiteral(): String = "shared member literal"
 public fun providerLiteralReference(): () -> String = ::providerLiteral
+public fun byteLength(value: String): Long = value.byteLength
+
+@NoGC
+public fun countBits(input: ULong): Long {
+    return countBitsBody(input)
+}
+
+@NoGC
+private fun countBitsBody(input: ULong): Long {
+    var value = input
+    var count = 0L
+    while (value != 0uL) {
+        count += value.and(1uL).toLong()
+        value = value.shr(1L)
+    }
+    return count
+}
+
+@NoGC
+public fun localByte(input: Long): Long {
+    var storage = input
+    @Unsafe {
+        val bytes = addressOf(storage).cast<Byte>()
+        bytes.store(1L, 42.toByte())
+        return bytes.load(1L).toLong() + bytes.load().toLong()
+    }
+}

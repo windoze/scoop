@@ -149,6 +149,8 @@ String 持有合法 UTF-8，允许 U+0000，无隐含结尾 NUL。byte length �
 
 codegen 对普通 typed byte-length／byte-at 调用直接发射表示读取：从 AS1 对象的 offset 16 读取长度，byte-at 以 unsigned `index < length` 同时排除负索引及上界，再从 offset 24 的字节区读取 i8。有效路径不调用 C、不生成 safepoint，也不在中间 park；跨外围 GC 后必须使用已恢复的对象值。越界路径调用原 byte-at leaf 报告同一 fatal 错误，不产生可捕获异常。首批 invoke 形态及单字符 UTF-8 解码继续使用现有 leaf。原 native 入口与对象布局保持兼容，不给一般 NoGc 调用附加 readonly 等属性。
 
+整数十进制转换使用专用、无 locale 的有界写入算法，一次格式化到最多 20 字节的栈缓冲区，返回实际长度；String 分配与复制不要求 NUL，不以再次格式化测量长度。负数先在无符号域计算幅度，不能在 C 中对 `INT64_MIN` 作有符号取负。`scoop_rt_long_to_string`／`scoop_rt_ulong_to_string` 保留原 ABI 作为共享后备，浮点 Ryu 入口保持。普通 core 格式化正文使用内部 ordinary extern `scoop_rt_string_from_utf8_unchecked(bytes, length)` 完成结果分配和复制：pointer 非 null、length 非负、区间内容为合法 UTF-8，并在整个调用期间可读、地址及内容稳定；栈 scratch 满足该条件，managed 字节区须由既有借用协议固定。该入口只复制实际长度，不验证已保证的 UTF-8，不保留输入地址，也不将输入当作 GC root；结果大小与失败仍按同一 String 分配合同。它不是根据符号名识别的编译器操作，普通 extern 调用协议保持。
+
 严格和 lossy 字节转换都只能发布满足该不变量的 String。lossy 的每个 U+FFFD 占三个 UTF-8 字节（`EF BF BD`），计入结果 byte length；结果长度计算和最终分配遵守上述边界，不能直接沿用输入长度。
 
 Array 与 MutableArray 的 logical size 位于 offset 16，元素区从 `alignUp(24, element_alignment)` 开始。分配大小为 `alignUp(element_offset + size * stride, object_alignment)`。size 在 `0..=INT64_MAX`，所有运算还须满足 `u64`、`size_t` 与实际分配边界。

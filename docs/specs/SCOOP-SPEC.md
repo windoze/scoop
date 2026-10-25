@@ -1936,6 +1936,8 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 
 每种integer提供到八种表示的显式`toByte`/`toShort`/`toInt`/`toLong`与`toUByte`/`toUShort`/`toUInt`/`toULong`。普通转换以 Byte／Short／Int／Long 及无符号类型的常用拼写命名；透明定宽类型 alias 继续用于 FFI 和二进制字段。整数之间的转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。`toFloat`/`toDouble`遵守11.2.2，不改变上述整数转换规则。每个基本类型显式声明同类型的 `operator fun equals`，并以该成员显式实现 `Equals<该类型>`，同时实现 `ToString`；`Boolean`、`Char`和八种integer另显式实现`Hash`，`Float`/`Double`不实现`Hash`（11.11）。这些实现按owner的完整位宽工作，不经过装箱或`Any`分派。
 
+八种整数的 `toString()` 产生无 locale 依赖的十进制 ASCII 文本：零为 `"0"`，仅负数带 `-`，没有前导零或结尾 NUL。Long／ULong 的结果最多 20 字节，包含 Long 最小值的负号。普通 core 正文可以在 GC-free 局部值存储中一次写出文本，再按实际字节数复制为不可变 String；不要求各次相同文本具有不同引用身份（11.4）。其他整数沿其符号族显式扩展到 Long／ULong；浮点格式与解析合同保持。
+
 八个canonical integer struct及`Byte`/`Short`/`Int32`/`Int64`/`UByte`/`UShort`/`UInt32`/`UInt64` alias都在core显式声明`public`，用户可调用成员同样显式`public`。`and`/`or`/`xor`/`shl`/`shr`是普通`infix` member，`inv()`是普通零参数member；signed类型另提供infix `ushr`，unsigned的`shr`已经是逻辑右移且不另设`ushr`。这些bit名称不带`operator` modifier，不增加9.3.1的operator约定。
 
 每个integer kind的representation intrinsic surface固定包括`unaryPlus`/`unaryMinus`/`inc`/`dec`、`plus`/`minus`/`times`/`div`/`rem`/`compareTo`/`equals`、上述bit members及到八个integer kind的转换；另增加11.2.2的`toFloat`/`toDouble`。unsigned同样提供wrapping `unaryMinus`，所以`-1u`有定义。除显式转换的目标类型、`compareTo: Long`、`equals: Boolean`和shift count `Long`外，operand/result均为owner exact type。range members是普通core body，不属于该intrinsic集合。

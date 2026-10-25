@@ -6,6 +6,7 @@
 
 #include "eh_internal.h"
 #include "gc.h"
+#include "integer_decimal.h"
 #include "managed_entries.h"
 #include "scoop_rt.h"
 #include "thread.h"
@@ -27,23 +28,15 @@ void scoop_rt_println(const ScoopString *s) {
 
 // Format a fixed-width Long into a fresh ScoopString (GC-allocated).
 const ScoopString *scoop_rt_long_to_string(int64_t v) {
-    char buf[24]; // -2^63 needs 20 chars + NUL
-    int len = snprintf(buf, sizeof(buf), "%lld", (long long)v);
-    ScoopString *result = scoop_rt_alloc(
-        &scoop_td_String, scoop_shape_allocation_size(&scoop_td_String, (uint64_t)len));
-    result->len = (uint64_t)len;
-    memcpy(result->data, buf, (size_t)len);
-    return result;
+    char buf[20];
+    size_t len = scoop_format_signed_decimal(v, buf);
+    return scoop_rt_string_from_utf8_unchecked((const unsigned char *)buf + 20 - len, (int64_t)len);
 }
 
 const ScoopString *scoop_rt_ulong_to_string(uint64_t v) {
-    char buf[24]; // 2^64 - 1 needs 20 chars + NUL
-    int len = snprintf(buf, sizeof(buf), "%llu", (unsigned long long)v);
-    ScoopString *result = scoop_rt_alloc(
-        &scoop_td_String, scoop_shape_allocation_size(&scoop_td_String, (uint64_t)len));
-    result->len = (uint64_t)len;
-    memcpy(result->data, buf, (size_t)len);
-    return result;
+    char buf[20];
+    size_t len = scoop_format_unsigned_decimal(v, buf);
+    return scoop_rt_string_from_utf8_unchecked((const unsigned char *)buf + 20 - len, (int64_t)len);
 }
 
 // "true" / "false" as a fresh ScoopString, backing core's
