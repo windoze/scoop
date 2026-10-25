@@ -1,37 +1,17 @@
 package scoop.llm.client
 
 import scoop.http.client.HttpWebSocketOptions
-import scoop.platform.concurrent.Mutex
 
 internal suspend fun openResponsesSessionState(client: LlmClientState, endpoint: LlmEndpoint,
     options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions): ResponsesSession {
-    val caller = currentJobOrNone()
-    return suspendCoroutine<ResponsesSession> { continuation ->
-        val opening = ResponsesSessionOpening(continuation)
-        startCoroutine<Unit>(suspend {
-            nonCancellableScope suspend { lifetime ->
-                val call = LlmCallState(client, lifetime.job)
-                val state = ResponsesSessionState(call, endpoint, opening)
-                context(call) {
-                    try { runResponsesSession(state, caller, options, webSocketOptions) }
-                    finally { call.contextActive = false; removeLlmCall(client, state) }
-                }
-            }
-        }, opening)
-    }
+    val prepared = ResponsesSessionProtocol()
+    val opened = openLlmWebSocket(client, endpoint, options, webSocketOptions, ResponsesSessionClosedException(), {
+        val protocol = endpoint.provider.protocol
+        if (!(protocol is ResponsesProtocol)) throw LlmRequestException("/provider", "endpoint does not use the Responses protocol")
+        prepared.value = Some(protocol)
+        protocol.webSocketUrl(endpoint.baseUrl)
+    }, suspend { _, _ -> Unit })
+    return ResponsesSession(opened.connection, prepared.value!!, opened.metadata)
 }
 
-internal class ResponsesSessionOpening(continuation: Continuation<ResponsesSession>) : Continuation<Unit> {
-    private val lock = Mutex()
-    private var waiting: Continuation<ResponsesSession>? = Some(continuation)
-    var listener: Disposable? = None
-    fun publish(value: ResponsesSession) { take()?.resume(value) }
-    fun fail(error: Throwable) { take()?.resumeWithException(error) }
-    private fun take(): Continuation<ResponsesSession>? {
-        val current = lock.withLock { val value = waiting; waiting = None; value }
-        listener?.dispose()
-        return current
-    }
-    public override fun resume(value: Unit) { fail(IllegalStateException(Some("Responses session ended before opening"))) }
-    public override fun resumeWithException(exception: Throwable) { fail(exception) }
-}
+private class ResponsesSessionProtocol { var value: ResponsesProtocol? = None }

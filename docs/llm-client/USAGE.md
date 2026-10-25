@@ -784,13 +784,35 @@ Gemini 上传扩展直接对应 file metadata 的 JSON 成员，displayName 来�
 
 Google 文件真实测试位于库 tests/live/google_files.scoop，默认 @Ignore，显式运行仍要求 GOOGLE_AI_API_KEY。它仅上传少量合成文本，读取后在 finally 中删除；普通文件测试均使用本地 mock。
 
-### 7.13 Gemini Live 的纯协议入口
+### 7.13 Gemini Live 的会话与纯协议入口
 
-Gemini Live 使用独立 provider，与普通生成共用 endpoint／model／认证绑定。当前交付纯编解码；持久连接、setup 确认和消息收发时间戳继续接入。下面的命令是 JSON 数据，不会发请求。最小 setup 自然只含 model，无需另一套简易入口。
+Gemini Live 使用独立 provider，与普通生成共用 endpoint／model／认证绑定。最小 setup 自然只含 model，打开会话会发送 setup 并等待服务端确认；后续内容由应用显式发送和读取。
 
 ```scoop
 val endpoint = LlmEndpoint(Providers.geminiLive(), LlmAuth.header("x-goog-api-key", apiKey))
 val model = endpoint.model(modelId)
+
+withLlmClient suspend { client ->
+    client.withGeminiLiveSession(model) suspend { session ->
+        val sent = session.sendClientContent([Message([Text("你好")])])
+        println(sent.timing.sentAt)
+        while (true) {
+            val received = session.receive() ?: break
+            println(received.received.at)
+            when (received.message.event) {
+                case ServerContent(content) -> { if (content.turnComplete == Some(true)) break }
+                else -> {}
+            }
+        }
+    }
+}
+```
+
+例子选择在收到一次 turnComplete 后退出；连续对话可以继续 send／receive，并按消息内容处理媒体、转写或工具调用。sendRealtimeInput 接受原始音频或单帧图像 bytes，sendToolResponse 接受应用执行后的结果。session.opening 是 HTTP 升级与 setup 确认的调用记录；setupSent、setupComplete 及后续收发记录可保存，消息的 UTC／elapsed 共用 session 起点。openingOptions 的 total 只约束打开过程；会话在作用域退出或 client 关闭时清理。
+
+同一协议的纯编解码也可以独立使用，以下命令只产生 JSON 数据：
+
+```scoop
 val protocol = endpoint.provider.protocol
 if (!(protocol is BidiGenerateContentProtocol)) throw IllegalArgumentException()
 
@@ -816,6 +838,8 @@ val message = protocol.decodeMessage(receivedJson, tools)
 val saved = Json.encodeToString(message)
 val restored = Json.decodeFromString<GeminiLiveMessage>(saved)
 ```
+
+将同一个 configuration 传给 `client.withGeminiLiveSession(model, configuration)` 即使用这些原生设置；无需另建配置或简易 API。真实测试 `tests/live/google_live.scoop` 默认 @Ignore，仅显式选择并配置 GOOGLE_AI_API_KEY 与 GOOGLE_AI_LIVE_MODEL 后运行，一次只发送一句短提示。
 
 message.event 区分内容、函数调用、取消和会话通知。内容同时保留音频、文本、reasoning 与三类转写；turnComplete 和 interactionStatus 分别读取。应用执行完整的客户端调用后，用收到的 reference 构造 `GeminiLiveToolResult(call.reference, responseObject)`，再交给 encodeToolResponse。responseObject 原样包含结果及需要的 scheduling 字段；库不运行工具或恢复连接。每条 usage 独立保存，缺失分量保持未知；native 保存完整服务端消息。
 

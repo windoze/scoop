@@ -3,8 +3,8 @@ package scoop.llm.client
 import scoop.asyncio.currentEventLoop
 import scoop.platform.concurrent.Mutex
 
-internal class ResponsesSessionState(val call: LlmCallState, val endpoint: LlmEndpoint,
-    val opening: ResponsesSessionOpening) : LlmOwnedCall {
+internal class LlmWebSocketState(val call: LlmCallState, val endpoint: LlmEndpoint,
+    val opening: LlmWebSocketOpening, val closedError: Throwable) : LlmOwnedCall {
     public override val lifetime: Job get() = call.lifetime
     val lock = Mutex()
     val earlyClose = CancellationException()
@@ -45,6 +45,6 @@ internal class ResponsesSessionState(val call: LlmCallState, val endpoint: LlmEn
     }
 }
 
-internal fun checkResponsesSessionLoop(state: ResponsesSessionState) {
-    if (currentEventLoop() !== state.call.client.loop) throw IllegalStateException(Some("Responses session belongs to another event loop"))
+internal fun checkLlmWebSocketLoop(state: LlmWebSocketState) {
+    if (currentEventLoop() !== state.call.client.loop) throw IllegalStateException(Some("LLM WebSocket session belongs to another event loop"))
 }

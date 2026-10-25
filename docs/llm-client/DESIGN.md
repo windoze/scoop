@@ -81,7 +81,7 @@ Protocol 实现请求和结果的 wire DTO、完整响应解码、流事件解�
 
 普通完整响应和流式响应共用最终 item 的解释与归一化逻辑。流式状态留在每次调用的 reducer 中，不放在共享 provider 或 dialect 对象里；非流式响应无需先伪装成一串 delta。
 
-LlmProvider 持有共同的 LlmApiProtocol，只要求 dialect 身份、固定请求头、错误解码和可选辅助 API。LlmGenerationProtocol 在其上定义普通生成操作；会话协议无需提供假的单次生成方法。普通 generate／openStream 在认证前检查具体协议能力。Gemini Live 的 BidiGenerateContentProtocol 使用独立 setup／输入／工具响应／消息解码入口，同时复用 endpoint、model、ContentPart 和工具类型。
+LlmProvider 持有共同的 LlmApiProtocol，只要求 dialect 身份、固定请求头、错误解码和可选辅助 API。LlmGenerationProtocol 在其上定义普通生成操作；会话协议无需提供假的单次生成方法。普通 generate／openStream 在认证前检查具体协议能力。Gemini Live 的 BidiGenerateContentProtocol 使用独立 setup／输入／工具响应／消息解码入口，同时复用 endpoint、model、ContentPart 和工具类型。GeminiLiveSession 打开时完成 setup 确认，之后显式收发；它与 ResponsesSession 共用内部 WebSocket 认证、所有权、消息采样和关闭实现，各自保留真实协议的初始化与帧格式。
 
 ### 2.2 Dialect 维护服务差异
 

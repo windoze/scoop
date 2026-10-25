@@ -908,7 +908,7 @@ Gemini Files 没有公布按 file ID 下载已上传文件的操作，downloadFi
 
 `Providers.geminiLive()` 包装 `BidiGenerateContentProtocol(GeminiLiveDialect())`，protocol ID 为 bidi-generate-content，dialect ID 为 gemini-live。缺省地址是完整 RPC 地址 https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent；webSocketUrl 只将 http／https 转为 ws／wss，保留调用方提供的完整路径和 query。其他 API 版本／受限连接地址由应用显式提供。模型名仅按该 API 要求在缺少 models/ 时加此前缀，不根据名称选择版本或能力。凭据仍由 LlmAuth 提供。
 
-本节交付纯协议入口：encodeSetup、encodeClientContent、encodeRealtimeInput、encodeToolResponse 与 decodeMessage；不执行网络 I/O，不产生本地收发时间或虚构会话完成状态。持久连接、setup 确认与消息计时随后接入 client 的会话合同。
+本节定义纯协议入口：encodeSetup、encodeClientContent、encodeRealtimeInput、encodeToolResponse 与 decodeMessage；不执行网络 I/O，不产生本地收发时间或虚构会话完成状态。持久连接、setup 确认与消息计时使用 §51 的 client 会话合同。
 
 `GeminiLiveSetup(system = [], tools = [], options = LlmGenerationOptions(), extensions = [])` 可保存，缺省 setup 只含 model。配置复用现有 Gemini 的 Content、Tool、生成参数及按位置扩展编码；system 仅文本，工具使用已有 ToolDefinition。Live 没有停止序列、结构化输出或根 toolConfig 的映射，因此显式 stop、非 Text 输出与非 Auto toolChoice 报请求错误。responseModalities、speechConfig、realtimeInputConfig、sessionResumption 等 API 原生设置通过所属 dialect 的 extensions 明确提供，不按模型名称推断。扩展仍不能覆盖已管理字段；configuration 只用于 setup，不成为后续内容的隐式缺省。
 
@@ -923,3 +923,21 @@ GeminiLiveContent 保存同一消息内的全部有序文本、reasoning、媒�
 独立 toolCall 消息按实际 id／name／args 生成已有客户端调用或原生未绑定内容；只有完整、已绑定且具有实际非空 ID 的调用进入可执行表示，缺少 ID 的调用和未知函数保留 Native，不自动注册。取消消息只返回实际 ids。goAway 与 resumption payload 原样交付，不自动恢复连接、保存会话或解释其有效期。每条 usageMetadata 独立保存为 Partial LlmUsage：inputTokens 仅在 promptTokenCount 与 toolUsePromptTokenCount 都已报告时合并，outputTokens 仅在 responseTokenCount 与 thoughtsTokenCount 都已报告时合并；缺失分量不假定为零。totalTokens 只取实际 totalTokenCount，不用它反推缺失分量或额外增加 reasoning／tool-use，也不在消息之间自动累加。cache 与 reasoning 分量、已知模态明细沿用现有 TokenUsage 表示，原始计数和其他信息均在 native。
 
 普通测试使用文档形状与本地 mock，覆盖配置／媒体／工具往返、所有消息分支、核心错误、原始附加信息兼容，以及会话 provider 不能误走普通生成。依据：[Live API](https://ai.google.dev/api/live)、[输入输出与完成语义](https://ai.google.dev/gemini-api/docs/live-api/capabilities)、[工具调用与搜索](https://ai.google.dev/gemini-api/docs/live-api/tools)。
+
+## 51. Gemini Live 持久连接与消息计时
+
+LlmClient.openGeminiLiveSession(model, setup = GeminiLiveSetup(), openingOptions = LlmCallOptions(), webSocketOptions = HttpWebSocketOptions()) 返回 GeminiLiveSession；withGeminiLiveSession 在同一参数后接受 suspend block，组合原入口与 useAsync。协议、模型与 setup 固定于本连接，不提供中途改模型或重发 setup 的入口。缺省 setup 只含明确的 model ID。打开先检查 BidiGenerateContentProtocol、realtime capability、setup 的通用参数／system／工具能力，并编码完整配置；这些错误在认证与 I/O 前返回。
+
+成功升级后先发送 setup，读取首个服务端消息并要求 SetupComplete，才交付会话；缺失确认、提前正常关闭、非法 JSON 或错误核心字段均为打开失败，原消息或原文本仍在异常中。客户端发送文本 JSON；Live 服务端的文本帧或二进制帧均按 UTF-8 JSON 解码，非法 UTF-8 作为协议错误。setupComplete 同条消息里的用量、voiceActivity 和其他字段完整保留。初始化不消耗确认之后的消息，不执行模型生成或工具。HTTP 的明确拒绝沿既有 dialect 规则重试，升级后 setup 失败不重连、不重放。
+
+openingOptions 的 total 覆盖认证、HTTP 升级、setup 发送和确认等待，缺省 None；HTTP 等待与错误正文设置仍只作用于升级。onFinished 在本次打开结束时调用一次，失败先关闭已取得的 socket。session.opening 保存该次 LlmCallMetadata：attempt 只记录真实 HTTP 升级，不将 setup 的文本、用量或会话数据放进 HTTP attempt。成功后的消息大小、压缩和关闭设置由 webSocketOptions 管理，不把 opening 的总截止延续到整个会话。
+
+会话公开 model、protocol、opening、setupSent、setupComplete、id、startedAt、url、isClosed 与 failure，并提供 sendClientContent(input, turnComplete = true)、sendRealtimeInput(input)、sendToolResponse(results)、receive() 和 close()。工具关联只使用 setup.tools；后续输入和工具结果媒体继续检查已声明 capability。realtimeInput.video 是单帧图像，使用 videoFrames capability；字节与单条消息数量检查复用既有媒体规则，不累计整段会话的输入规模。原生扩展不生成额外 capability 推断。
+
+GeminiLiveSent(sessionId, command, timing) 和 GeminiLiveReceived(sessionId, message, received) 提供 companion codec；setupSent 与 setupComplete 也是这两类记录。发送点在 JSON 编码及取得 writer 后、首段提交前采样，完成点在 writer.finish 成功后采样；接收点在完整文本取出后、JSON 解码前采样。UTC 与单调 elapsed 使用同一 session 起点，HTTP opening 的时间轴与消息记录分开。时间不代表服务端接受、播放完成或缓存状态。
+
+receive 按需交付一个完整消息，正常连接结束返回 None；turnComplete、generationComplete、interrupted、GoAway 或恢复通知不结束读取，也不自动改变应用工作流。每条 usage 保持 §50 的独立报告，不累加为整个会话用量。应用负责消费、工具执行、取消调用与决定是否新建连接。
+
+Responses 与 Gemini Live 共用内部 WebSocket 所有权、升级认证／拒绝重试、收发采样、单读／单写和关闭实现。允许一读一写并行，同方向重入在改变连接前失败；请求编码和 capability 错误不关闭可用会话。实际消息读写、协议错误或调用方取消则结束会话并等待清理，已交付的失败不在 close 重复抛出。会话随所属 client 关闭，借入 HttpClient 的所有权不变。打开调用者取消只约束交付前，交付后由会话／client 的显式寿命控制；不设后台输出消费、自动重连或媒体设备操作。
+
+普通 scoop.test 用本地 HTTP 升级／WebSocket mock 验证 setup 确认、媒体／转写、工具往返、时间与保存、错误及关闭，并回归共享 Responses 会话。真实 Live 用例 @Ignore，仅在显式选择且 key、model 已配置时运行少量输入。依据：[初始化与消息合同](https://ai.google.dev/api/live#BidiGenerateContentSetup)、[官方 Python 初始化顺序](https://github.com/googleapis/python-genai/blob/main/google/genai/live.py)、[官方 JavaScript 消息帧解码](https://github.com/googleapis/js-genai/blob/main/src/live.ts)、[会话通知](https://ai.google.dev/gemini-api/docs/live-api/session-management)。

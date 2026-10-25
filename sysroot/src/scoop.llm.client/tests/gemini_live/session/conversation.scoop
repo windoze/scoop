@@ -1,0 +1,76 @@
+package scoop.llm.client.tests.geminilive.session
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.llm.client.tests.geminilive.*
+import scoop.platform.time.SystemClock
+import scoop.test.*
+
+@Test
+private class GeminiLiveSessionConversationTest {
+    @Test
+    fun `Gemini Live session exchanges setup media tools and timestamped messages without implicit turns`() {
+        withLivePeer(suspend { socket, command ->
+            assertEquals("models/arbitrary", command["setup"]!!["model"]!!.asString())
+            assertEquals(2L, command["setup"]!!["tools"]!!.size)
+            val text = readLiveCommand(socket)["clientContent"]!!
+            assertFalse(text["turnComplete"]!!.asBoolean())
+            assertEquals("hello", text["turns"]!![0]["parts"]!![0]["text"]!!.asString())
+            val media = readLiveCommand(socket)["realtimeInput"]!!
+            assertEquals("AP8=", media["audio"]!!["data"]!!.asString())
+            assertEquals("AQ==", media["video"]!!["data"]!!.asString())
+            assertTrue(media["audioStreamEnd"]!!.asBoolean())
+            socket.sendText("{\"toolCall\":{\"functionCalls\":[{\"id\":\"call\",\"name\":\"lookup\",\"args\":{}}]}}")
+            val result = readLiveCommand(socket)["toolResponse"]!!["functionResponses"]!![0]
+            assertEquals("call", result["id"]!!.asString())
+            assertEquals("lookup", result["name"]!!.asString())
+            assertEquals("WHEN_IDLE", result["response"]!!["scheduling"]!!.asString())
+            socket.sendBinary("{\"serverContent\":{\"modelTurn\":{\"parts\":[{\"text\":\"answer\"},{\"inlineData\":{\"mimeType\":\"audio/pcm;rate=24000\",\"data\":\"AQ==\"}}]},\"outputTranscription\":{\"text\":\"spoken\"},\"turnComplete\":true,\"interactionStatus\":\"IN_PROGRESS\"}}".toByteArray())
+            socket.sendText("{\"sessionResumptionUpdate\":{\"newHandle\":\"opaque\",\"resumable\":true}}")
+            socket.sendText("{\"serverContent\":{\"turnComplete\":true,\"interactionStatus\":\"IDLE\"},\"usageMetadata\":{\"totalTokenCount\":12}}")
+            socket.shutdownGracefully()
+        }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                val before = SystemClock.now()
+                val finished = FinishedCalls()
+                client.withGeminiLiveSession(endpoint.model("arbitrary"), GeminiLiveSetup(tools = liveTools),
+                    LlmCallOptions(onFinished = Some(suspend { metadata -> finished.record(metadata) }))) suspend { session ->
+                    val after = SystemClock.now()
+                    assertEquals(1L, finished.values.size)
+                    assertSame(session.opening, finished.values[0])
+                    assertEquals(Some(101U), session.opening.attempts[0].status)
+                    assertEquals(None, session.opening.attempts[0].usage.tokens.totalTokens)
+                    assertEquals(None, session.opening.attempts[0].response.firstTextAt)
+                    assertEquals(session.id, session.setupSent.sessionId)
+                    assertTrue(session.setupSent.timing.sentAt!! >= before && session.setupComplete.received.at <= after)
+                    assertTrue(session.setupComplete.received.elapsed >= session.setupSent.timing.bodyCompleted!!.elapsed)
+                    assertTrue(session.setupComplete.message.native.containsKey("future"))
+                    val sent = session.sendClientContent([Message([Text("hello")])], false)
+                    val restored = Json.decodeFromString<GeminiLiveSent>(Json.encodeToString(sent))
+                    assertEquals(sent.timing.sentAt, restored.timing.sentAt)
+                    assertEquals(session.id, restored.sessionId)
+                    session.sendRealtimeInput(GeminiLiveInput(audio = Some(GeminiLiveBlob([0.toByte(), (-1).toByte()], "audio/pcm;rate=16000")),
+                        video = Some(GeminiLiveBlob([1.toByte()], "image/jpeg")), audioStreamEnd = Some(true)))
+                    val received = session.receive()!!
+                    val call = when (received.message.event) { case ToolCall(items, _) -> when (items[0]) { case ClientToolCall(call) -> call; else -> fail() }; else -> fail() }
+                    assertTrue(received.received.elapsed >= sent.timing.sent!!.elapsed)
+                    session.sendToolResponse([GeminiLiveToolResult(call.reference, Json.parse("{\"result\":1,\"scheduling\":\"WHEN_IDLE\"}"))])
+                    val output = session.receive()!!
+                    val saved = Json.decodeFromString<GeminiLiveReceived>(Json.encodeToString(output))
+                    assertEquals(output.received.at, saved.received.at)
+                    assertEquals(output.received.elapsed, saved.received.elapsed)
+                    when (saved.message.event) { case ServerContent(value) -> {
+                        assertEquals(Some("IN_PROGRESS"), value.interactionStatus)
+                        assertEquals(Some(true), value.turnComplete)
+                        assertEquals(Some("spoken"), value.outputTranscription!!.text)
+                    }; else -> fail() }
+                    when (session.receive()!!.message.event) { case SessionResumptionUpdate(_) -> {}; else -> fail() }
+                    assertEquals(Some(12L), session.receive()!!.message.usage.tokens.totalTokens)
+                    assertTrue(when (session.receive()) { case None -> true; case Some(_) -> false })
+                    assertTrue(session.isClosed)
+                }
+            }
+        })
+    }
+}

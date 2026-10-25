@@ -5,18 +5,24 @@ import scoop.http.HttpFieldParseException
 private class LlmMediaCheck(val kind: InputMediaKind, val format: MediaFormat, val bytes: ULong?, val path: String)
 
 internal fun checkModelInput(capabilities: InputCapabilities, request: LlmRequest) {
-    val media = ArrayList<LlmMediaCheck>()
-    collectModelInput(capabilities, request.system, "/system", media)
+    val content = ArrayList<(Array<ContentPart>, String)>()
+    content.add((request.system, "/system"))
     var index = 0L
     for (item in request.input) {
         val path = "/input/" + index.toString() + "/content"
         index += 1L
         when (item) {
-            case Message(content, _, _) -> collectModelInput(capabilities, content, path, media)
-            case ToolResult(_, content, _, _) -> collectModelInput(capabilities, content, path, media)
+            case Message(parts, _, _) -> content.add((parts, path))
+            case ToolResult(_, parts, _, _) -> content.add((parts, path))
             case History(_) -> continue
         }
     }
+    checkModelContentInputs(capabilities, content.toArray())
+}
+
+internal fun checkModelContentInputs(capabilities: InputCapabilities, content: Array<(Array<ContentPart>, String)>) {
+    val media = ArrayList<LlmMediaCheck>()
+    for ((parts, path) in content) collectModelInput(capabilities, parts, path, media)
     val counts = MutableArray<Long>(6L) { 0L }
     for (item in media) { val slot = mediaKindSlot(item.kind); counts[slot] = counts[slot] + 1L }
     for (item in media) {
@@ -80,4 +86,13 @@ private fun mediaKindSlot(kind: InputMediaKind): Long = when (kind) {
     case Video -> 3L
     case VideoFrames -> 4L
     case Document -> 5L
+}
+
+internal fun checkSingleModelMedia(capabilities: InputCapabilities, kind: InputMediaKind, source: MediaSource, path: String) {
+    val item = modelMediaCheck(kind, source, path)
+    when (capabilities.forMedia(item.kind, item.format)) {
+        case Supported(limits) -> checkMediaLimits(item, 1L, limits)
+        case Unsupported(reason) -> throw LlmRequestException(path, reason)
+        case Unknown -> {}
+    }
 }

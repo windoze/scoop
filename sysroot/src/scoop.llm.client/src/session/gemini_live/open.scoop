@@ -1,0 +1,44 @@
+package scoop.llm.client
+
+import scoop.http.client.*
+import scoop.json.*
+
+internal suspend fun openGeminiLiveSessionState(client: LlmClientState, model: LlmModel, setup: GeminiLiveSetup,
+    options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions): GeminiLiveSession {
+    val prepared = GeminiLiveOpening()
+    val opened = openLlmWebSocket(client, model.endpoint, options, webSocketOptions, GeminiLiveSessionClosedException(), {
+        val protocol = model.endpoint.provider.protocol
+        if (!(protocol is BidiGenerateContentProtocol)) throw LlmRequestException("/provider", "endpoint does not use BidiGenerateContent")
+        requireModelCapability(model.capabilities.realtime, "/realtime")
+        checkModelRequest(model.capabilities, LlmRequest([], setup.system, setup.tools, setup.options, setup.extensions))
+        prepared.command = Some(protocol.encodeSetup(model.id, setup))
+        prepared.protocol = Some(protocol)
+        protocol.webSocketUrl(model.endpoint.baseUrl)
+    }, suspend { call, socket ->
+        val protocol = prepared.protocol!!
+        val command = prepared.command!!
+        prepared.sent = Some(GeminiLiveSent(call.id, command, sendLlmWebSocketMessage(call, socket, command)))
+        val (message, received) = receiveLlmWebSocketMessage<GeminiLiveMessage>(call, socket, protocol.dialectId, true,
+            { data -> decodeGeminiLiveSessionMessage(protocol, data, setup.tools) })
+            ?: throw LlmStreamProtocolException(protocol.dialectId, "Live connection ended before setupComplete")
+        when (message.event) {
+            case SetupComplete(_) -> prepared.received = Some(GeminiLiveReceived(call.id, message, received))
+            else -> throw LlmProtocolException(protocol.dialectId, "/setupComplete", "expected initial setupComplete", message.native)
+        }
+    })
+    return GeminiLiveSession(opened.connection, model, setup, prepared.protocol!!, opened.metadata, prepared.sent!!, prepared.received!!)
+}
+
+private class GeminiLiveOpening {
+    var protocol: BidiGenerateContentProtocol? = None
+    var command: JsonValue? = None
+    var sent: GeminiLiveSent? = None
+    var received: GeminiLiveReceived? = None
+}
+
+internal fun decodeGeminiLiveSessionMessage(protocol: BidiGenerateContentProtocol, data: String,
+    tools: Array<ToolDefinition>): GeminiLiveMessage {
+    val raw = try { Json.parse(data) }
+        catch (_: DecodingException) { throw LlmStreamProtocolException(protocol.dialectId, "invalid Live JSON message", Some(data)) }
+    return protocol.decodeMessage(raw, tools)
+}

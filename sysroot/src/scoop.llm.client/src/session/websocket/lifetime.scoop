@@ -1,10 +1,12 @@
 package scoop.llm.client
 
 import scoop.asyncio.useAsync
-import scoop.http.client.HttpWebSocketOptions
+import scoop.http.client.*
+import scoop.url.Url
 
-internal suspend fun runResponsesSession(state: ResponsesSessionState, caller: Job?, options: LlmCallOptions,
-    webSocketOptions: HttpWebSocketOptions) {
+internal suspend fun runLlmWebSocket(state: LlmWebSocketState, caller: Job?, options: LlmCallOptions,
+    webSocketOptions: HttpWebSocketOptions, prepare: () -> Url,
+    initialize: suspend (LlmCallState, HttpWebSocketSession) -> Unit) {
     val call = state.call
     var failure: Throwable? = None
     state.opening.listener = caller?.invokeOnCancellation { error -> state.stop(error) }
@@ -13,20 +15,11 @@ internal suspend fun runResponsesSession(state: ResponsesSessionState, caller: J
         coroutineScope suspend { scope ->
             call.bind(scope.job)
             ensureActive()
-            val protocol = state.endpoint.provider.protocol
-            if (!(protocol is ResponsesProtocol)) throw LlmRequestException("/provider", "endpoint does not use the Responses protocol")
-            val (socket, metadata) = openResponsesHandshake(call.client, state.endpoint, protocol, options, webSocketOptions)
-            socket.useAsync suspend { _ ->
+            val (connection, metadata) = openLlmWebSocketHandshake(state, scope, options, webSocketOptions, prepare, initialize)
+            connection.socket.useAsync suspend { _ ->
                 ensureActive()
-                val monitor = scope.launch suspend {
-                    var error: Throwable? = None
-                    try { socket.awaitClosed(); error = socket.failure }
-                    catch (reason: Throwable) { error = Some(reason) }
-                    state.socketEnd(error)
-                }
-                state.opening.publish(ResponsesSession(state, socket, protocol, metadata))
+                state.opening.publish(LlmWebSocketOpened(connection, metadata))
                 state.awaitSocketEnd()
-                monitor.join()
             }
         }
     } catch (error: Throwable) { failure = Some(error) }

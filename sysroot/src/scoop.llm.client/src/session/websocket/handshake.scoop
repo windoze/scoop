@@ -2,28 +2,42 @@ package scoop.llm.client
 
 import scoop.asyncio.useAsync
 import scoop.http.client.*
+import scoop.url.Url
 
-internal suspend fun openResponsesHandshake(client: LlmClientState, endpoint: LlmEndpoint, protocol: ResponsesProtocol,
-    options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions): (HttpWebSocketSession, LlmCallMetadata) {
-    val opened = ResponsesHandshakeSocket()
+internal suspend fun openLlmWebSocketHandshake(state: LlmWebSocketState, scope: CoroutineScope,
+    options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions, prepare: () -> Url,
+    initialize: suspend (LlmCallState, HttpWebSocketSession) -> Unit): (LlmWebSocketConnection, LlmCallMetadata) {
+    val acquired = LlmWebSocketAcquired()
     try {
-        return executeLlmCall<HttpWebSocketSession>(client, options) suspend { call ->
-            val socket = performResponsesHandshake(call, endpoint, protocol, options, webSocketOptions)
-            opened.value = Some(socket)
-            socket
+        return executeLlmCall<LlmWebSocketConnection>(state.call.client, options) suspend { call ->
+            val url = prepare()
+            val socket = performLlmWebSocketHandshake(call, state.endpoint, url, options, webSocketOptions)
+            acquired.value = Some(socket)
+            scope.launch suspend {
+                var failure: Throwable? = None
+                try { socket.awaitClosed(); failure = socket.failure }
+                catch (error: Throwable) { failure = Some(error) }
+                state.socketEnd(failure)
+            }
+            try { initialize(state.call, socket) }
+            catch (error: Throwable) { acquired.closeAfter(error) }
+            LlmWebSocketConnection(state, socket)
         }
-    } catch (error: Throwable) {
-        try { opened.value?.close() }
+    } catch (error: Throwable) { acquired.closeAfter(error) }
+}
+
+private class LlmWebSocketAcquired {
+    var value: HttpWebSocketSession? = None
+    suspend fun closeAfter(error: Throwable): Nothing {
+        val socket = value; value = None
+        try { socket?.close() }
         catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
         throw error
     }
 }
 
-private class ResponsesHandshakeSocket { var value: HttpWebSocketSession? = None }
-
-private suspend fun performResponsesHandshake(call: LlmCallState, endpoint: LlmEndpoint, protocol: ResponsesProtocol,
+private suspend fun performLlmWebSocketHandshake(call: LlmCallState, endpoint: LlmEndpoint, url: Url,
     options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions): HttpWebSocketSession {
-    val url = protocol.webSocketUrl(endpoint.baseUrl)
     val httpUrl = url.toBuilder().setScheme(Some(if (url.scheme == Some("ws")) "http" else "https")).build()
     var retry = 0L
     var backoff = options.retries.initialDelay

@@ -1,0 +1,91 @@
+package scoop.llm.client.tests.geminilive.session
+
+import scoop.asyncio.*
+import scoop.http.client.HttpClient
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class GeminiLiveSessionLifetimeTest {
+    @Test
+    fun `Gemini Live session client close cancels receive and preserves borrowed HTTP`() {
+        withLivePeer(suspend { _, _ -> Unit }, suspend { _, scope, endpoint ->
+            HttpClient.open(scope).useAsync suspend { http ->
+                val client = LlmClient.open(scope, Some(http))
+                val session = client.openGeminiLiveSession(endpoint.model("m"))
+                val entered = LlmGate()
+                val reading = scope.launch suspend {
+                    entered.signal()
+                    expectLlmFailure<LlmClientClosedException> suspend { session.receive(); Unit }
+                    Unit
+                }
+                entered.await(); currentEventLoop().sleep(Duration.milliseconds(1L))
+                client.close(); reading.join()
+                assertTrue(client.isClosed && session.isClosed)
+                assertFalse(http.isClosed)
+                session.close()
+            }
+        })
+    }
+
+    @Test
+    fun `Gemini Live session rejects a second reader and waits for cancelled input cleanup`() {
+        withLivePeer(suspend { _, _ -> Unit }, suspend { _, scope, endpoint ->
+            withLlmClient suspend { client ->
+                val session = client.openGeminiLiveSession(endpoint.model("m"))
+                val entered = LlmGate()
+                val reading = scope.launch suspend {
+                    entered.signal()
+                    expectLlmFailure<CancellationException> suspend { session.receive(); Unit }
+                    Unit
+                }
+                entered.await(); currentEventLoop().sleep(Duration.milliseconds(1L))
+                expectLlmFailure<IllegalStateException> suspend { session.receive(); Unit }
+                assertFalse(session.isClosed)
+                reading.cancel(); reading.join()
+                assertTrue(session.isClosed)
+                session.close()
+            }
+        })
+    }
+
+    @Test
+    fun `Gemini Live session explicit close releases idle resources and remains idempotent`() {
+        withLivePeer(suspend { _, _ -> Unit }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                val session = client.openGeminiLiveSession(endpoint.model("m"))
+                session.close(); session.close()
+                assertTrue(session.isClosed)
+                assertTrue(when (session.failure) { case None -> true; case Some(_) -> false })
+                assertTrue(when (session.receive()) { case None -> true; case Some(_) -> false })
+                expectLlmFailure<GeminiLiveSessionClosedException> suspend { session.sendClientContent([]); Unit }
+                assertFalse(client.isClosed)
+            }
+        })
+    }
+
+    @Test
+    fun `Gemini Live session malformed messages end the connection and preserve the failure once`() {
+        for (raw in ["{", "{\"serverContent\":{\"turnComplete\":7}}", "binary", "utf8"]) {
+            withLivePeer(suspend { socket, _ ->
+                if (raw == "binary") socket.sendBinary([1.toByte()])
+                else if (raw == "utf8") socket.sendBinary([(-1).toByte()])
+                else socket.sendText(raw)
+            }, suspend { _, _, endpoint ->
+                withLlmClient suspend { client ->
+                    client.withGeminiLiveSession(endpoint.model("m")) suspend { session ->
+                        val error = expectLlmFailure<Throwable> suspend { session.receive(); Unit }
+                        val primary = livePrimaryFailure(error)
+                        if (raw == "{") { if (primary is LlmStreamProtocolException) assertEquals(Some(raw), primary.data) else fail() }
+                        else if (raw == "binary" || raw == "utf8") { assertTrue(primary is LlmStreamProtocolException) }
+                        else { if (primary is LlmProtocolException) assertEquals("/serverContent/turnComplete", primary.path) else fail() }
+                        assertTrue(session.isClosed)
+                        session.close()
+                    }
+                }
+            })
+        }
+    }
+}
