@@ -1,0 +1,62 @@
+package scoop.json.tests.values
+
+import scoop.json.*
+import scoop.test.*
+
+@Test
+private class JsonIntegralLongTest {
+    @Test
+    fun `JSON integral Long reads decimal and exponent spellings without losing precision`() {
+        for ((text, expected) in [("12", 12L), ("12.0", 12L), ("1.2e1", 12L), ("120e-1", 12L),
+            ("0.012e3", 12L), ("0.0012000E+004", 12L), ("12.000e+0", 12L),
+            ("9007199254740993.0", 9007199254740993L), ("9.007199254740993e15", 9007199254740993L),
+            ("-12.000", -12L), ("-120e-1", -12L)]) {
+            val value = Json.parse(text)
+            assertEquals(expected, value.asIntegralLong())
+            assertEquals(text, Json.stringify(value))
+            assertEquals(text, value.asNumberToken())
+        }
+    }
+
+    @Test
+    fun `JSON integral Long handles signed limits and decimal cancellation exactly`() {
+        for ((text, expected) in [("9223372036854775807.000", Long.MAX_VALUE),
+            ("9.223372036854775807e18", Long.MAX_VALUE), ("922337203685477580700e-2", Long.MAX_VALUE),
+            ("-9223372036854775808.000", Long.MIN_VALUE), ("-9.223372036854775808e18", Long.MIN_VALUE),
+            ("100000000000000000000e-20", 1L), ("1000000000000000000.00", 1000000000000000000L)])
+            assertEquals(expected, Json.parse(text).asIntegralLong())
+        val zeros = StringBuilder()
+        for (_ in 0L..<1000L) zeros.append("0")
+        assertEquals(7L, Json.parse("0." + zeros.toString() + "7e1001").asIntegralLong())
+        assertEquals(7L, Json.parse("7" + zeros.toString() + "e-1000").asIntegralLong())
+    }
+
+    @Test
+    fun `JSON integral Long preserves zero with extreme exponents without expanding digits`() {
+        for (text in ["0", "-0", "0.000", "-0.0e-9999999999999999999999999999999999999",
+            "0e9999999999999999999999999999999999999", "0.0e+9223372036854775808"])
+            assertEquals(0L, Json.parse(text).asIntegralLong())
+    }
+
+    @Test
+    fun `JSON integral Long rejects nonintegers overflow and wrong kinds`() {
+        for (text in ["1.01", "1e-1", "0.0001", "120e-2", "1.00000000000000000001",
+            "9223372036854775808", "-9223372036854775809", "9.223372036854775808e18",
+            "-9.223372036854775809e18", "9223372036854775807.1", "1e19", "-1e19",
+            "1e99999999999999999999999999999", "1e-99999999999999999999999999999",
+            "null", "true", "[]", "{}", "\"12.0\""]) {
+            val error = assertFailsWith<DecodingException> { Json.parse(text).asIntegralLong(); Unit }
+            assertEquals("", error.path)
+        }
+    }
+
+    @Test
+    fun `JSON integral Long is explicit and leaves strict typed Long decoding unchanged`() {
+        for (text in ["12.0", "1.2e1", "12e0"]) {
+            assertEquals(12L, Json.parse(text).asIntegralLong())
+            assertFailsWith<DecodingException> { Json.parse(text).asLong(); Unit }
+            assertFailsWith<DecodingException> { Json.decodeFromString<Long>(text); Unit }
+        }
+        assertEquals(12L, Json.decodeFromString<Long>("12"))
+    }
+}
