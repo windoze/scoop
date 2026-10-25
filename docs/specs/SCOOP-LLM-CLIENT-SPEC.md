@@ -695,3 +695,19 @@ LlmAuth.awsSigV4(region, credentials: suspend () -> AwsSigV4Credentials, service
 普通生成、流式和已支持的显式操作共用认证入口，重试重新获取凭据并签名；一次响应的 EventStream 不改变请求签名方式。区域与服务名不从模型或 hostname 猜测；签名发生在排池前，不保证排队后签名仍未过期。调用者的 HTTP 扩展不应在签名后添加签名所需的 AWS 字段。此入口实现带完整 body 摘要的 SigV4 header 认证，不提供 presigned URL、SigV4a 或流式请求体签名；Bedrock API key 仍可用既有 bearer 入口。
 
 依据：[AWS SigV4](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-create-signed-request.html)、[Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html)、[官方 Bedrock Runtime 定义](https://github.com/boto/botocore/blob/fecd1e19cf8e1c04b66480397455e1458867bf6d/botocore/data/bedrock-runtime/2023-09-30/service-2.json)及[官方 SDK 签名实现与测试向量](https://github.com/boto/botocore/tree/fecd1e19cf8e1c04b66480397455e1458867bf6d/tests/unit/auth/aws4_testsuite)。使用固定向量和本地网络 mock 验证签名、路径／query、临时 token、重试、普通及 EventStream 调用；未使用真实 AWS 凭据，真实互通另行验证。
+
+## 36. Responses WebSocket 线协议
+
+ResponsesProtocol.webSocketUrl(baseUrl) 在既有部署路径后追加 responses，将 http／https 转为 ws／wss，保留路径前缀和 query；已有 ws／wss 同样可用。URL 必须具有有效的 HTTP origin 且没有 fragment。协议与 dialect 不因传输变化而更换。
+
+encodeWebSocketCreate(modelId, request, options = ResponsesWebSocketCreateOptions()) 复用普通 Responses 的输入、工具、生成设置、原生扩展和历史编码，只在最终对象加入 type=response.create 及显式 WebSocket 设置。options 的 streamId 和 generate 均缺省 None，分别使用服务端默认 lane 和正常生成；明确 generate=false 支持预热。streamId 仅允许 1～256 个 ASCII 字母、数字、下划线、连字符或点。stream／background 不属于该事件，显式 background（包括 false／null）报输入错误。type、stream_id、generate 不能从请求扩展或 dialect options 覆盖；普通 HTTP 请求同样拒绝这三个 WebSocket 专属字段。previous_response_id 等既有 continuation 字段仍由 request.extensions 显式提供，不根据 lane 或模型名补造。
+
+encodeWebSocketSteer(previousResponseId, input: Array<LlmInputItem>) 只编码 type=response.steer、非空的 previous_response_id 和非空 user message 数组。共用普通输入和内容编码，支持文本、图片与文件；拒绝其他角色、工具结果、History 以及 message 上超出 type／role／content 的字段。编码后的 content 只允许字符串或 input_text／input_image／input_file 数组，检查实际协议容器，不递归解释文件等原生字段的业务内容。该入口不接受 streamId，目标 response 由应用明确指定；模型或当前执行模式是否接受 steering 仍由 capability 与服务器判断，不按模型前缀猜测。
+
+ResponsesWebSocketEvent(dialect, native) 保存完整 JSON，提供 type、可选 streamId 与 kind 读取视图及 companion codec。kind 区分 Response（response.*）、Steering（优先识别 response.steer.*）、Error（error）和 Native（其他事件）；未知事件及所有附加字段保持原值。只解码路由必需的非空 type 和可选字符串 stream_id；null／缺失的 stream_id 保持 None，不校验其他通知或附加信息的内容。ResponsesProtocol.decodeWebSocketEvent(data: String) 对非法 JSON 报保留原文的 LlmStreamProtocolException，对错误路由字段报保留原值与路径的 LlmProtocolException。
+
+ResponsesStreamDecoder 作为公开的单响应聚合器，构造参数为 protocol、request 和缺省 EventsOnly 的 retention；既有 SSE 工厂仍返回同一实现。新增 accept(ResponsesWebSocketEvent)，只接受同 dialect 的 Response 类事件，并在首次消费时绑定实际 streamId。错误的类别、归属或 lane 在改变聚合状态前失败；调用者仍可将正确事件交付给原解码器。已绑定 lane 的事件在移除路由字段 stream_id 后直接进入共用 JSON 聚合路径，不 stringify 后重解析，也不把 lane 当作输出内容或独立 Native 事件。序列、item／part 身份、工具执行资格、终止、usage 和历史恢复沿用 §17；每个 response 使用独立 decoder，不将后继响应或其他 lane 送入已结束的聚合器。
+
+Steering 通知和 error 的作用范围由会话层处理；这组纯协议入口不会仅因收到通知而结束某个响应、自动创建后继、执行工具、重放请求或推断缓存状态。steered 仍是实际 incomplete／Pause 结果，后继 response.created 属于新的响应。纯编解码不伪造网络收发时间；网络会话的资源寿命与按实际消息采样由后续接入承担。
+
+依据：[WebSocket 模式](https://developers.openai.com/api/docs/guides/websocket-mode)、[连接入口](https://developers.openai.com/api/reference/resources/responses/methods/connect)、[steering](https://developers.openai.com/api/docs/guides/steering)与[事件定义](https://developers.openai.com/api/reference/typescript/resources/responses)。验证使用协议 JSON mock 和现有 Responses 聚合器；真实服务互通待凭据可用后补测。

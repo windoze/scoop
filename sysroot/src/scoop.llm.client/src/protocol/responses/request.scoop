@@ -4,9 +4,25 @@ import scoop.json.*
 
 internal fun encodeResponsesRequest(dialect: ResponsesDialect, model: String, request: LlmRequest, stream: Boolean): JsonValue {
     if (model.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+    val input = encodeResponsesInput(dialect, request.input)
+    val body = JsonObjectBuilder().add("model", JsonValue.fromString(model)).add("input", input)
+    if (request.system.size != 0L) body.add("instructions", JsonValue.fromString(responsesPlainText(request.system, "/system")))
+    for ((name, value) in dialect.encodeOptions(request).members()) {
+        if (name == "model" || name == "input" || name == "instructions" || name == "stream" ||
+            name == "type" || name == "stream_id" || name == "generate")
+            throw LlmRequestException("/options/" + name, "dialect options cannot override Responses routing or transport fields")
+        body.add(name, value)
+    }
+    if (stream) body.add("stream", JsonValue.fromBoolean(true))
+    return mergeLlmExtensions(body.build(), request.extensions, dialect.id, ["model", "input", "instructions", "stream", "tools", "tool_choice",
+        "temperature", "top_p", "top_k", "max_output_tokens", "n", "stop", "parallel_tool_calls", "reasoning", "text", "include",
+        "type", "stream_id", "generate"], "")
+}
+
+internal fun encodeResponsesInput(dialect: ResponsesDialect, items: Array<LlmInputItem>): JsonValue {
     val input = ArrayList<JsonValue>()
     var index = 0L
-    for (item in request.input) {
+    for (item in items) {
         val path = "/input/" + index.toString()
         when (item) {
             case Message(content, role, extensions) -> {
@@ -20,16 +36,7 @@ internal fun encodeResponsesRequest(dialect: ResponsesDialect, model: String, re
         }
         index += 1L
     }
-    val body = JsonObjectBuilder().add("model", JsonValue.fromString(model)).add("input", JsonValue.fromArray(input))
-    if (request.system.size != 0L) body.add("instructions", JsonValue.fromString(responsesPlainText(request.system, "/system")))
-    for ((name, value) in dialect.encodeOptions(request).members()) {
-        if (name == "model" || name == "input" || name == "instructions" || name == "stream")
-            throw LlmRequestException("/options", "dialect options cannot override Responses routing or stream mode")
-        body.add(name, value)
-    }
-    if (stream) body.add("stream", JsonValue.fromBoolean(true))
-    return mergeLlmExtensions(body.build(), request.extensions, dialect.id, ["model", "input", "instructions", "stream", "tools", "tool_choice",
-        "temperature", "top_p", "top_k", "max_output_tokens", "n", "stop", "parallel_tool_calls", "reasoning", "text", "include"], "")
+    return JsonValue.fromArray(input)
 }
 
 private fun appendResponsesHistory(input: ArrayList<JsonValue>, history: LlmHistory, dialect: DialectId, path: String) {

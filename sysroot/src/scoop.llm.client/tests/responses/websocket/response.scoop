@@ -1,0 +1,74 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesWebSocketResponseTest {
+    @Test
+    fun `Responses WebSocket interleaved lanes isolate text tools usage and saved continuation`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val text = ResponsesStreamDecoder(protocol, responsesRequest(), StreamRetention.Result)
+        val tool = ResponsesStreamDecoder(protocol, responsesRequest([responsesStreamFunction()]), StreamRetention.Result)
+        assertEquals(0L, text.accept(responsesWsStart(protocol, Some("text"), "a")).events.size)
+        tool.accept(responsesWsStart(protocol, None, "b"))
+        text.accept(responsesWsEvent(protocol, "response.output_item.added", Some("text"), "\"output_index\":0,\"item\":" + responsesEmptyMessage))
+        tool.accept(responsesWsEvent(protocol, "response.output_item.added", None, "\"output_index\":0,\"item\":" + responsesCall("")))
+        text.accept(responsesWsEvent(protocol, "response.content_part.added", Some("text"),
+            "\"output_index\":0,\"item_id\":\"m\",\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"\",\"annotations\":[]}"))
+        val delta = text.accept(responsesWsEvent(protocol, "response.output_text.delta", Some("text"),
+            "\"output_index\":0,\"item_id\":\"m\",\"content_index\":0,\"delta\":\"你好\""))
+        assertEquals("你好", responsesEventText(delta))
+        assertTrue(delta.hasText && delta.hasOutput)
+        val finalCall = responsesCall("{\"count\":2}", status = Some("completed"))
+        val calls = responsesEventCalls(tool.accept(responsesWsEnd(protocol, None, "[" + finalCall + "]")))
+        assertEquals(1L, calls.size)
+        assertTrue(calls[0L].isExecutable)
+        assertFalse(text.isFinished)
+        text.accept(responsesWsEnd(protocol, Some("text"), "[" + responsesMessage("你好") + "]"))
+        text.endInput(); tool.endInput()
+        assertEquals("你好", text.response().text)
+        assertEquals(Some(7L), text.usage.tokens.totalTokens)
+        assertEquals(Some("b"), tool.response().id)
+        assertEquals(0L, text.response().nativeEvents.size)
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(tool.response()))
+        val input: Array<LlmInputItem> = [saved.toInput()[0L], ToolResult(saved.clientToolCalls[0L].reference, [Text("done")])]
+        val next = protocol.encodeWebSocketCreate("m", LlmRequest(input))
+        assertEquals("call", next["input"]!![1L]["call_id"]!!.asString())
+        assertEquals("{\"count\":2}", next["input"]!![0L]["arguments"]!!.asString())
+    }
+
+    @Test
+    fun `Responses WebSocket routing mistakes and steering controls do not consume a response`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val decoder = ResponsesStreamDecoder(protocol, responsesRequest(), StreamRetention.Result)
+        decoder.accept(responsesWsStart(protocol, Some("main"), "r"))
+        for (type in ["response.steer.accepted", "response.steer.pending", "response.steer.failed", "error", "future.notice"]) {
+            val event = responsesWsEvent(protocol, type, Some("main"), "\"service_extra\":{\"changed\":true}")
+            assertFailsWith<IllegalArgumentException> { decoder.accept(event); Unit }
+        }
+        assertFailsWith<IllegalArgumentException> { decoder.accept(responsesWsEnd(protocol, Some("other"), "[]")); Unit }
+        assertFalse(decoder.isFinished)
+        decoder.accept(responsesWsEnd(protocol, Some("main"), "[]", "incomplete", Some("steered")))
+        assertEquals(LlmCompletion.Incomplete, decoder.response().candidate(0L).completion)
+        assertEquals(LlmFinishReason.Pause, decoder.response().candidate(0L).finishReason)
+        val successor = ResponsesStreamDecoder(protocol, responsesRequest())
+        successor.accept(responsesWsStart(protocol, Some("main"), "next"))
+        successor.accept(responsesWsEnd(protocol, Some("main"), "[" + responsesMessage("new") + "]"))
+        assertTrue(successor.isFinished)
+        assertEquals(Some("next"), successor.responseId)
+        assertEquals(LlmOutputFailure.ResultNotRetained, assertFailsWith<LlmOutputException> { successor.response(); Unit }.reason)
+    }
+
+    @Test
+    fun `Responses WebSocket unknown events preserve native data without completing early`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val decoder = ResponsesStreamDecoder(protocol, responsesRequest(), StreamRetention.Result)
+        decoder.accept(responsesWsStart(protocol, None, "r"))
+        val update = decoder.accept(responsesWsEvent(protocol, "response.future", None, "\"service_extra\":[1,\"changed\"]"))
+        assertFalse(update.hasOutput || update.hasText || decoder.isFinished)
+        assertFailsWith<LlmStreamProtocolException> { decoder.endInput(); Unit }
+        assertFailsWith<LlmOutputException> { decoder.response(); Unit }
+    }
+}

@@ -8,6 +8,8 @@ Responses 使用 `Providers.openAiResponses()` 创建同样的 endpoint／model�
 
 Responses 的最小请求只发送 model 和 input，生成参数缺省省略。request.system 编码为文本 instructions；需要缓存断点等内容块扩展时，在 input 中显式使用 System message。工具结果沿用解码所得的 reference，其 context 保留实际调用类型和所需标识；函数、custom、computer、local shell、shell 与 apply_patch 分别编码自己的结果形状，应用负责执行并提交结果。
 
+Responses WebSocket 的纯协议入口提供 webSocketUrl、encodeWebSocketCreate、encodeWebSocketSteer 和 decodeWebSocketEvent。create 复用 LlmRequest，streamId／generate 缺省省略；steer 只接收用户文本、图片和文件。完整事件及附加字段保留在 native，Response、Steering、Error 和未知 Native 分开读取；公开 ResponsesStreamDecoder 接受已路由到该响应的 WebSocket 事件，复用 SSE 的输出、工具、usage 与历史聚合。纯协议入口不产生网络计时；LlmClient 的持久连接与多路分发继续实施。
+
 `ClientToolCallReference.id` 是可选的服务端 ID，缺失时保持 `None`，不使用工具名或生成的字符串代替。应用回传工具结果时直接复用 reference；Chat、Messages 和 Responses 仍要求非空 ID，并在请求编码时检查。已保存的字符串 ID 可直接恢复，原生 context 与 ID 是否存在无关。
 
 Gemini generateContent 使用 `Providers.geminiGenerateContent()` 和相同的 `client.generate`／`client.openStream`。模型 ID 用于 URL，最小正文只有 contents；认证由应用传入 `LlmAuth.header("x-goog-api-key", apiKey)`，库不读取环境。`GenerateContentProtocol(GeminiGenerateContentDialect())` 也提供纯 encodeRequest／decodeResponse／createStreamDecoder。消息保持多候选、文本／thought／媒体顺序及完整签名历史；工具结果复用 reference，连续结果组成一个 user Content，不补造缺失的调用 ID。服务端工具使用 WebSearch 或同 dialect 的 Native 声明。

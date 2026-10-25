@@ -1,0 +1,64 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.text.repeat
+import scoop.url.Url
+
+@Test
+private class ResponsesWebSocketCreateTest {
+    @Test
+    fun `Responses WebSocket create keeps deployment and ordinary request defaults`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        for ((base, expected) in [("https://proxy.test/prefix?key=x", "wss://proxy.test/prefix/responses?key=x"),
+            ("http://localhost:8123/v1/", "ws://localhost:8123/v1/responses"),
+            ("wss://proxy.test/v1", "wss://proxy.test/v1/responses")])
+            assertEquals(expected, protocol.webSocketUrl(Url.parse(base)).toString())
+        for (base in ["ftp://proxy.test/v1", "https://proxy.test/v1#fragment"])
+            assertFailsWith<IllegalArgumentException> { protocol.webSocketUrl(Url.parse(base)); Unit }
+        val request = responsesRequest()
+        val body = protocol.encodeWebSocketCreate("team/model:v", request)
+        assertEquals(3L, body.size)
+        assertEquals("response.create", body["type"]!!.asString())
+        assertEquals("team/model:v", body["model"]!!.asString())
+        assertEquals("question", body["input"]!![0L]["content"]!!.asString())
+        for (field in ["stream", "background", "generate", "stream_id"]) assertFalse(body.containsKey(field))
+    }
+
+    @Test
+    fun `Responses WebSocket warmup and explicit continuation reuse request serialization`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val request = LlmRequest([Message([Text("continue")])], tools = [responsesStreamFunction()],
+            extensions = [DialectExtension(protocol.dialectId, Json.parse("{\"previous_response_id\":\"parent\",\"store\":false}"))])
+        val options = Json.decodeFromString<ResponsesWebSocketCreateOptions>(
+            Json.encodeToString(ResponsesWebSocketCreateOptions(Some("lane_1.v-2"), Some(false))))
+        val body = protocol.encodeWebSocketCreate("m", Json.decodeFromString<LlmRequest>(Json.encodeToString(request)), options)
+        assertEquals("lane_1.v-2", body["stream_id"]!!.asString())
+        assertFalse(body["generate"]!!.asBoolean())
+        assertFalse(body["store"]!!.asBoolean())
+        assertEquals("parent", body["previous_response_id"]!!.asString())
+        assertEquals("count", body["tools"]!![0L]["name"]!!.asString())
+        assertTrue(protocol.encodeWebSocketCreate("m", request,
+            ResponsesWebSocketCreateOptions(generate = Some(true)))["generate"]!!.asBoolean())
+    }
+
+    @Test
+    fun `Responses WebSocket transport fields cannot leak through HTTP or native options`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        for (name in ["type", "stream_id", "generate"]) {
+            val extension = DialectExtension(protocol.dialectId, JsonObjectBuilder().add(name, JsonValue.fromString("x")).build())
+            val request = LlmRequest([], extensions = [extension])
+            assertFailsWith<LlmRequestException> { protocol.encodeRequest("m", request); Unit }
+            assertFailsWith<LlmRequestException> { protocol.encodeWebSocketCreate("m", request); Unit }
+        }
+        for (value in ["true", "false", "null"]) {
+            val request = LlmRequest([], extensions = [DialectExtension(protocol.dialectId, Json.parse("{\"background\":" + value + "}"))])
+            assertTrue(protocol.encodeRequest("m", request).containsKey("background"))
+            assertEquals("/background", assertFailsWith<LlmRequestException> { protocol.encodeWebSocketCreate("m", request); Unit }.path)
+        }
+        for (value in ["", "lane/name", "中文", "a".repeat(257L)])
+            assertFailsWith<IllegalArgumentException> { val invalid = ResponsesWebSocketCreateOptions(Some(value)); Unit }
+        assertEquals(256L, ResponsesWebSocketCreateOptions(Some("a".repeat(256L))).streamId!!.length)
+    }
+}

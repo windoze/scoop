@@ -1,0 +1,44 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class ResponsesWebSocketSteerTest {
+    @Test
+    fun `Responses WebSocket steering encodes user text image and file without a lane`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val input: Array<LlmInputItem> = [Message([Text("change direction")]),
+            Message([Image(MediaSource.Url(Url.parse("https://media.test/a.png"), "image/png")),
+                Document(FileReference(LlmFileReference(protocol.dialectId, JsonValue.fromString("file-1")), "application/pdf"))])]
+        val event = protocol.encodeWebSocketSteer("response-parent", input)
+        assertEquals(3L, event.size)
+        assertEquals("response.steer", event["type"]!!.asString())
+        assertEquals("response-parent", event["previous_response_id"]!!.asString())
+        assertEquals("change direction", event["input"]!![0L]["content"]!!.asString())
+        val content = event["input"]!![1L]["content"]!!
+        assertEquals("input_image", content[0L]["type"]!!.asString())
+        assertEquals("file-1", content[1L]["file_id"]!!.asString())
+        assertFalse(event.containsKey("stream_id"))
+    }
+
+    @Test
+    fun `Responses WebSocket steering rejects nonuser inputs and unsupported protocol fields`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val owner = protocol.dialectId
+        val invalid: Array<LlmInputItem> = [Message([Text("a")], Assistant), History(LlmHistory(owner, [])),
+            Message([Native(owner, Json.parse("{\"type\":\"input_audio\",\"audio\":{}}"))]),
+            Message([Text("a")], extensions = [DialectExtension(owner, Json.parse("{\"phase\":\"commentary\"}"))])]
+        for (item in invalid) assertFailsWith<LlmRequestException> { protocol.encodeWebSocketSteer("r", [item]); Unit }
+        assertEquals("/input", assertFailsWith<LlmRequestException> { protocol.encodeWebSocketSteer("r", []); Unit }.path)
+        assertEquals("/previous_response_id", assertFailsWith<LlmRequestException> {
+            protocol.encodeWebSocketSteer("", [Message([Text("a")])]); Unit
+        }.path)
+        val extension = DialectExtension(owner, Json.parse("{\"detail\":\"low\"}"))
+        assertFailsWith<LlmRequestException> {
+            protocol.encodeWebSocketSteer("r", [Message([Text("a", [extension, extension])])]); Unit
+        }
+    }
+}

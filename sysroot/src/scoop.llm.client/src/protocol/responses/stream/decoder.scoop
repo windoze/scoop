@@ -3,31 +3,51 @@ package scoop.llm.client
 import scoop.json.*
 import scoop.time.Instant
 
-internal class ResponsesStreamDecoder public constructor(
-    public val protocol: ResponsesProtocol, public val request: LlmRequest, public val retention: StreamRetention
+/** One response's reducer, shared by SSE and explicitly routed WebSocket events. */
+public class ResponsesStreamDecoder public constructor(
+    public val protocol: ResponsesProtocol, public val request: LlmRequest, public val retention: StreamRetention = EventsOnly
 ) : LlmSseDecoder {
-    public val dialect: ResponsesDialect get() = protocol.dialect
-    public val items: ArrayList<ResponsesStreamItem> = ArrayList<ResponsesStreamItem>()
-    public val nativeEvents: ArrayList<LlmNativeEvent> = ArrayList<LlmNativeEvent>()
-    public var started: Boolean = false
-    public var id: String? = None
-    public var model: String? = None
-    public var created: Instant? = None
-    public var currentUsage: LlmUsage = LlmUsage()
-    public var result: LlmResponse? = None
-    public var finished: Boolean = false
+    internal val dialect: ResponsesDialect get() = protocol.dialect
+    internal val items: ArrayList<ResponsesStreamItem> = ArrayList<ResponsesStreamItem>()
+    internal val nativeEvents: ArrayList<LlmNativeEvent> = ArrayList<LlmNativeEvent>()
+    internal var started: Boolean = false
+    internal var id: String? = None
+    internal var model: String? = None
+    internal var created: Instant? = None
+    internal var currentUsage: LlmUsage = LlmUsage()
+    internal var result: LlmResponse? = None
+    internal var finished: Boolean = false
     private var failed: Boolean = false
     private var sequence: Long? = None
+    private var socketBound = false
+    private var socketStreamId: String? = None
 
     public override val isFinished: Boolean get() = finished && !failed
     public override val responseId: String? get() = id
     public override val usage: LlmUsage get() = currentUsage
 
     public override fun accept(event: String, data: String): LlmStreamUpdate {
+        val raw = try { Json.parse(data) }
+            catch (_: DecodingException) {
+                failed = true
+                throw LlmStreamProtocolException(dialect.id, "invalid stream JSON", Some(data))
+            }
+        return acceptValue(event, raw, Some(data))
+    }
+
+    public fun accept(event: ResponsesWebSocketEvent): LlmStreamUpdate {
+        requireLlmOwner(event.dialect, dialect.id, "/dialect")
+        if (event.kind != ResponsesWebSocketEventKind.Response)
+            throw IllegalArgumentException(Some("WebSocket control events require session-level handling"))
+        if (socketBound && event.streamId != socketStreamId)
+            throw IllegalArgumentException(Some("WebSocket response event belongs to another stream"))
+        socketBound = true; socketStreamId = event.streamId
+        return acceptValue("", llmStreamUnknown(event.native, ["stream_id"]), None)
+    }
+
+    private fun acceptValue(event: String, raw: JsonValue, data: String?): LlmStreamUpdate {
         try {
-            if (finished || failed) throw LlmStreamProtocolException(dialect.id, "stream is no longer accepting events", Some(data))
-            val raw = try { Json.parse(data) }
-                catch (error: DecodingException) { throw LlmStreamProtocolException(dialect.id, "invalid stream JSON", Some(data)) }
+            if (finished || failed) throw LlmStreamProtocolException(dialect.id, "stream is no longer accepting events", data)
             val batch = LlmStreamBatch(dialect.id, retention, nativeEvents)
             try {
                 val header = decodeResponsesValue<ResponsesStreamHeader>(raw, "")
@@ -59,7 +79,7 @@ internal class ResponsesStreamDecoder public constructor(
         } catch (error: Throwable) { failed = true; throw error }
     }
 
-    public fun item(raw: JsonValue, requireActive: Boolean = true): ResponsesStreamItem {
+    internal fun item(raw: JsonValue, requireActive: Boolean = true): ResponsesStreamItem {
         if (!started) throw DecodingException("/type", "output event before response.created")
         val index = responsesStreamIndex(raw, "output_index")
         if (index >= items.size) throw DecodingException("/output_index", "output item has not started")

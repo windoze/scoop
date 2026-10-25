@@ -485,6 +485,33 @@ suspend fun useBedrock(
 
 AwsSigV4Credentials 保存 accessKeyId、secretAccessKey 和缺省 None 的 sessionToken，不参与序列化。签名使用实际 URL、请求字段和 body，不再调用编码器；重试会重新取凭据和签名。持有 Bedrock API key 时直接使用既有 LlmAuth.bearer。签名在排池前完成，应用提供的 HTTP hook 不应随后添加签名所需的 AWS 字段。该入口按官方文档及本地 mock 验证，真实 AWS 互通尚待凭据就绪后验证。
 
+### 7.4 Responses WebSocket 的纯协议入口
+
+WebSocket 的 create 使用同一个 LlmRequest。省略 options 时使用默认 lane 和正常生成；已有模型 ID、tools、reasoning、原始历史和 previous_response_id 的表达方式与 HTTP 相同：
+
+```scoop
+val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+val request = LlmRequest([Message([Text("你好")])])
+val create = protocol.encodeWebSocketCreate(modelId, request)
+val warmup = protocol.encodeWebSocketCreate(modelId, request,
+    ResponsesWebSocketCreateOptions(streamId = Some("main"), generate = Some(false)))
+val steer = protocol.encodeWebSocketSteer(responseId,
+    [Message([Text("请把重点放在接口兼容性上")])])
+```
+
+已有 WebSocket 传输时，decodeWebSocketEvent 读取完整 JSON 消息并保留原始字段。按 streamId 将 Response 类事件交给对应响应的 ResponsesStreamDecoder；Steering、Error 与 Native 由会话处理。每个 response 使用独立 decoder，SSE 与 WebSocket 共用聚合实现：
+
+```scoop
+val decoder = ResponsesStreamDecoder(protocol, request, StreamRetention.Result)
+val event = protocol.decodeWebSocketEvent(receivedText)
+when (event.kind) {
+    case Response -> { decoder.accept(event); Unit }
+    else -> handleSessionEvent(event)
+}
+```
+
+上例中的 modelId、responseId、receivedText 和 handleSessionEvent 由应用提供；普通 JSON codec 可保存事件和最终 LlmResponse。默认 EventsOnly 只交付增量，完整结果显式选择 Result。这里提供已实现的线协议入口；LlmClient 的持久连接管理、多路分发和实际消息收发计时继续接入，不将纯 JSON mock 通过记为网络会话或真实服务通过。
+
 ## 8. 缺省值与使用检查
 
 | 位置 | 缺省行为 | 显式覆盖 |
