@@ -34,7 +34,7 @@ internal class MultipartFileApi(val dialect: DialectId, val openAi: Boolean) : L
         val id = value["id"]
         if (!llmPresent(id) || id!!.kind != JsonValueKind.String || id!!.asString().length == 0L)
             throw LlmProtocolException(dialect, path + "/id", "expected a nonempty file identifier", native)
-        return LlmFileInfo(dialect, id!!.asString(), LlmFileReference(dialect, id!!), value)
+        return LlmFileInfo(dialect, id!!.asString(), Some(LlmFileReference(dialect, id!!)), value)
     }
     private fun checkObject(value: JsonValue, path: String, native: JsonValue) {
         if (value.kind != JsonValueKind.Object) throw LlmProtocolException(dialect, path, "expected a file response object", native)

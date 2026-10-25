@@ -51,6 +51,9 @@ public class LlmClient private constructor(internal val state: LlmClientState) :
     public suspend fun listFiles(endpoint: LlmEndpoint, query: UrlQuery = UrlQuery(),
         options: LlmCallOptions = LlmCallOptions()): LlmFileListResult = listLlmFiles(state, endpoint, query, options)
 
+    public suspend fun registerFiles(endpoint: LlmEndpoint, uris: Array<String>,
+        options: LlmCallOptions = LlmCallOptions()): LlmFileListResult = registerLlmFiles(state, endpoint, uris, options)
+
     public suspend fun retrieveFile(endpoint: LlmEndpoint, fileId: String,
         options: LlmCallOptions = LlmCallOptions()): LlmFileResult = retrieveLlmFile(state, endpoint, fileId, options)
 

@@ -467,7 +467,7 @@ InteractionsProtocol 实现 LlmGenerationProtocol；Providers.geminiInteractions
 
 最小请求只包含 model 与 input。input 使用有序 step 数组，User／Assistant Message 分别为 user_input／model_output，内容使用 type 标记的 content；不合并独立消息。request.system 只接受文本并按顺序拼接为 system_instruction，省略时不发字段；消息中的 System／Developer 不能被移动到全局，明确报错。History 检查 dialect、无隐式 context、对象与非空 type 后原样追加 steps，签名及未知字段不重建。previous_interaction_id、store、background 通过本次 request.extensions 显式提供；不把 history 自动改成 ID 接续，不替应用保存或继承上一轮的配置。
 
-文本编码为 type=text；图片／文档／音频／视频 Bytes 编码 data 与 mime_type，Url 编码 uri 与 mime_type，不下载、不转码。FileReference 接受同 dialect 的原始媒体 content object，要求 type、uri 和 MIME 与当前内容一致，保留其他字段；不将引用中的 Base64 数据悄悄改为 URI 引用。Native content 要求同 dialect 的对象与非空 type。VideoFrames、单独的文档 filename 没有对应字段，显式请求报路径错误。Message、content、tool 和 ToolResult 的扩展分别作用于对应 wire object，不能覆盖其 type／内容／关联管理字段。
+文本编码为 type=text；图片／文档／音频／视频 Bytes 编码 data 与 mime_type，Url 编码 uri 与 mime_type，不下载、不转码。FileReference 接受同 dialect 的原始媒体 content object 或 URI 引用，uri 必须非空；缺省 type／mime_type 由当前内容种类和显式 MIME 补齐，已提供时要求与当前内容一致，保留其他字段；不将引用中的 Base64 数据悄悄改为 URI 引用。Native content 要求同 dialect 的对象与非空 type。VideoFrames、单独的文档 filename 没有对应字段，显式请求报路径错误。Message、content、tool 和 ToolResult 的扩展分别作用于对应 wire object，不能覆盖其 type／内容／关联管理字段。
 
 当前 v1 generation_config 的公共映射为 max_output_tokens、stop_sequences、thinking_level 和 tool_choice；缺省省略整个配置。temperature、topP、topK、候选数、parallelToolCalls 与 reasoning.budgetTokens 没有对应开关，显式值不能静默忽略。reasoning.effort 接受 minimal／low／medium／high；enabled=true 需要显式 effort，enabled=false 没有精确的关闭表达，不能以 minimal 代替关闭。JsonObject／JsonSchema 映射 response_format 的 type=text、mime_type=application/json 及可选原始 schema；name 的缺省 response 不单独发送，非缺省 name、description、strict 显式提供时报错。
 
@@ -880,8 +880,24 @@ Bedrock 查询使用 /foundation-models、modelSummaries[].modelId，以及 /fou
 
 上传只编码一次完整 multipart 正文；既有 HTTP 调用增加可选 contentType 参数，缺省仍为 application/json。认证回调看到最终 multipart Content-Type（含 boundary）及与实际发送完全相同的 bytes；明确服务拒绝后的重试复用相同 bytes／boundary 并重新认证。文件上传不允许 endpoint 的 Content-Type 覆盖编码器生成的值。读取和删除使用空正文；下载与删除响应按 maxResponseBytes 有界读取为原始 bytes，不要求 JSON 或 UTF-8。所有操作沿用现有超时、重试、取消、client／借入 HTTP 所有权和完成回调。
 
-`LlmFileInfo(dialect, id, reference, native)` 保存服务端实际 id、可直接交给同 dialect MediaSource.FileReference 的引用及完整 JSON；`LlmFilePage(dialect, files, native)` 保存有序 data 列表和完整分页响应。上传／读取返回 `LlmFileResult(file, metadata)`，列表返回 `LlmFileListResult(page, metadata)`。`LlmFileContentResult(dialect, requestedId, bytes, metadata)` 与 `LlmFileDeletionResult(dialect, requestedId, native, metadata)` 分别保存下载正文和删除原始正文。上述持久数据均提供 companion codec；请求 ID 不冒充服务端文件 ID。
+`LlmFileInfo(dialect, id, reference: LlmFileReference?, native)` 保存服务端实际 id、可直接交给同 dialect MediaSource.FileReference 的引用及完整 JSON；OpenAI／Anthropic 的 ID 同时提供文件引用，reference 恒为 Some。没有可用媒体 URI 的其他协议可以返回 None，不能由资源名称伪造 URI。`LlmFilePage(dialect, files, native)` 保存有序 data 列表和完整分页响应。上传／读取返回 `LlmFileResult(file, metadata)`，列表返回 `LlmFileListResult(page, metadata)`。`LlmFileContentResult(dialect, requestedId, bytes, metadata)` 与 `LlmFileDeletionResult(dialect, requestedId, native, metadata)` 分别保存下载正文和删除原始正文。上述持久数据均提供 companion codec；请求 ID 不冒充服务端文件 ID。
 
 只验证必需 id、data 数组和 JSON 对象结构，HTTP 错误沿既有服务拒绝路径报告；filename、MIME、大小、状态、时间、downloadable、分页及供应商附加字段均保持原文，不因缺失或格式变化阻断文件引用与主线操作。下载能否成功由服务端决定，不以 cached metadata 推断。metadata 记录本次实际收发及完成时间，不把 file id 记为生成 responseId，也不合成 token usage。普通 scoop.test 用本地 mock 验证原始 multipart／认证、重试、保存后文件引用、分页、二进制内容、原始删除响应及取消清理；真实用例遵守默认忽略与环境配置要求。
 
 依据：[OpenAI Files](https://developers.openai.com/api/reference/resources/files/methods/create)、[OpenAI 分页](https://developers.openai.com/api/reference/resources/files/methods/list)、[Anthropic Files](https://platform.claude.com/docs/en/build-with-claude/files)、[Anthropic 分页](https://platform.claude.com/docs/en/api/http/files/list)、[Anthropic 下载](https://platform.claude.com/docs/en/api/files/download)。
+
+## 49. Gemini 文件 API
+
+Gemini generateContent 与 Interactions 的 fileApi 接入 §48 的 uploadFile、listFiles、retrieveFile、deleteFile。官方 discovery 在 v1beta 与 v1 均公布这些操作，沿用对应 endpoint 的 API 版本；不改域名或推导云资源地址。GET／DELETE 使用 /files/{id}，id 接受完整 files/{id} 资源名或原始 ID；响应 LlmFileInfo.id 保存服务端实际 name（含 files/）。列表使用 files 数组，缺省、null 或空数组均为空页；geminiFilesQuery(pageSize: ULong? = None, pageToken: String? = None) 仅构造原生 query。
+
+现有 LlmFileUpload 接收完整内存 bytes，因此使用 discovery 公布的单次 multipart 上传：在 baseUrl 的最后一个非空 path segment（API 版本）前插入 upload，追加 files 并设置 uploadType=multipart。保留此前路径前缀、authority 和其他 query；baseUrl 没有版本 segment 时在认证前报错。正文为 multipart/related，先发送 application/json 的 {file: {displayName: filename, ...extensions}}，再发送带实际 MIME 的原始文件 bytes；复用已有 MultipartEncoder。extensions 属于选定 dialect，作用于 file metadata 对象，可以携带 API 原生字段，不能覆盖 displayName；不将响应附加信息转换为本地策略。
+
+LlmFileApi 增加 decodeUpload(value)，缺省调用 decodeFile；Gemini 上传响应从 file 字段读取资源，file.native 保留完整上传响应包装。读取／列表的单个文件保留原始 File 对象。只验证核心 name、列表和可选 uri 的协议类型；uri 缺省、null 或空字符串时 reference=None，不根据 state、error、expirationTime、mimeType 或 downloadUri 判断可用性、等待处理或计算有效期。其他字段无论缺少、增加或形状变化都保持原文。已有 URI 时，generateContent 引用为 {fileUri: uri}，Interactions 引用为 {uri: uri}，不根据 metadata 猜媒体种类。
+
+Interactions 的 MediaSource.FileReference 也接受 URI 引用对象；发送时从实际 ContentPart 和显式 MIME 补齐缺省 type／mime_type。原始引用若已声明这两个字段，继续检查其与请求一致；其他原生内容原样保留，拒绝同时包含 data 的引用。完整输出历史的已有 typed media 引用仍按原文使用。此规则让同一文件 URI 能由调用方明确作为图片、文档、音频或视频使用，不自动推断模型 capability。
+
+LlmClient.registerFiles(endpoint, uris: Array<String>, options = LlmCallOptions()) 显式登记已有 GCS URI，返回 LlmFileListResult。支持这一实际操作的 fileApi 实现 LlmFileRegistration 的 registerUrl／encodeRegistration，使用 POST /files:register 和 {uris: [...]}，复用 decodeList；不支持时在认证前报错。URI 字符串按调用方原值提交，服务端决定授权及可接受的 URI；不创建、复制或管理 GCS 对象。
+
+Gemini Files 没有公布按 file ID 下载已上传文件的操作，downloadFile 在认证前明确报错；服务端实际提供的 downloadUri 保持 native 原值，不从 name 拼造下载 URL，也不自动访问它。所有已接入操作复用现有认证、重试、时间戳、关闭和完成通知。普通测试使用本地 mock；真实验证默认忽略、要求 Google key，并只上传少量合成文本、读取和删除，不触发生成或自动处理状态轮询。
+
+依据：[v1 discovery](https://generativelanguage.googleapis.com/$discovery/rest?version=v1)、[v1beta discovery](https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta)、[Files API](https://ai.google.dev/api/files)、[文件输入](https://ai.google.dev/gemini-api/docs/files)、[Google multipart 上传格式](https://developers.google.com/android-publisher/upload#multipart-upload)。

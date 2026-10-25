@@ -1,0 +1,53 @@
+package scoop.llm.client.tests.live
+
+import scoop.asyncio.*
+import scoop.http.client.*
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.platform.env.environmentVariable
+import scoop.test.*
+import scoop.text.trim
+import scoop.time.Duration
+
+@Test
+private class LiveGoogleFilesTest {
+    @Test
+    @Ignore("Requires GOOGLE_AI_API_KEY and explicit selection; uploads only synthetic text")
+    fun `Google file upload retrieve and delete preserve references and actual timestamps`() {
+        val key = environmentVariable("GOOGLE_AI_API_KEY")?.decodeUtf8()?.trim() ?:
+            throw IllegalStateException(Some("Missing live test setting: GOOGLE_AI_API_KEY"))
+        if (key.length == 0L) throw IllegalStateException(Some("Empty live test setting: GOOGLE_AI_API_KEY"))
+        val auth = LlmAuth.header("x-goog-api-key", key)
+        val uploadEndpoint = LlmEndpoint(Providers.geminiGenerateContent(), auth)
+        val readEndpoint = LlmEndpoint(Providers.geminiInteractions(), auth)
+        val options = LlmCallOptions(timeouts = LlmTimeouts(total = Some(Duration.seconds(90L))), retries = LlmRetryOptions(maxRetries = 0L))
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            HttpClient.open(scope, HttpClientConfig(proxy = HttpProxySelector.fromEnvironment())).useAsync suspend { http ->
+                withLlmClient(Some(http)) suspend { client ->
+                    val uploaded = client.uploadFile(uploadEndpoint, LlmFileUpload("scoop-api-test.txt", "Synthetic Scoop API test.\n".toByteArray(), "text/plain"), options)
+                    try {
+                        val retrieved = client.retrieveFile(readEndpoint, uploaded.file.id, options)
+                        assertEquals(uploaded.file.id, retrieved.file.id)
+                        val restored = Json.decodeFromString<LlmFileResult>(Json.encodeToString(uploaded))
+                        assertEquals(Json.stringify(uploaded.file.native), Json.stringify(restored.file.native))
+                        assertEquals(Json.encodeToString(uploaded.file.reference), Json.encodeToString(restored.file.reference))
+                        assertGoogleFileTiming(restored.metadata)
+                        assertGoogleFileTiming(retrieved.metadata)
+                    } finally {
+                        assertGoogleFileTiming(client.deleteFile(readEndpoint, uploaded.file.id, options).metadata)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun assertGoogleFileTiming(metadata: LlmCallMetadata) {
+    assertEquals(LlmCallOutcome.Completed, metadata.outcome)
+    val attempt = metadata.attempts[0]
+    assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+    assertTrue(attempt.response.completedAt != None)
+    assertEquals(None, attempt.responseId)
+    assertEquals(None, attempt.usage.tokens.totalTokens)
+}

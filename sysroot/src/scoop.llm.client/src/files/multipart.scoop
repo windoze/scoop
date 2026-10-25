@@ -23,6 +23,10 @@ internal fun encodeLlmFileUpload(dialect: DialectId, upload: LlmFileUpload, open
         val bytes = value.asString().toByteArray()
         parts.add((MultipartPartHead.formData(name, bodyLength = Some(bytes.size)), bytes))
     }
+    return encodeLlmFileParts(parts, "form-data")
+}
+
+internal fun encodeLlmFileParts(parts: List<(MultipartPartHead, Array<Byte>)>, subtype: String): LlmFileUploadBody {
     val boundary = MultipartBoundary.generate()
     val output = ByteArrayBuilder()
     MultipartEncoder(boundary).use { encoder ->
@@ -42,5 +46,5 @@ internal fun encodeLlmFileUpload(dialect: DialectId, upload: LlmFileUpload, open
         }
         output.append(encoder.finish())
     }
-    return LlmFileUploadBody(output.toByteArray(), String.fromUtf8(boundary.toMediaType().toByteArray()))
+    return LlmFileUploadBody(output.toByteArray(), String.fromUtf8(boundary.toMediaType(subtype).toByteArray()))
 }

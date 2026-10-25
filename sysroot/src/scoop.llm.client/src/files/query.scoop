@@ -2,6 +2,13 @@ package scoop.llm.client
 
 import scoop.url.UrlQuery
 
+public fun geminiFilesQuery(pageSize: ULong? = None, pageToken: String? = None): UrlQuery {
+    var query = UrlQuery()
+    when (pageSize) { case Some(value) -> query = query.add("pageSize", Some(value.toString())); case None -> {} }
+    when (pageToken) { case Some(value) -> query = query.add("pageToken", Some(value)); case None -> {} }
+    return query
+}
+
 public fun openAiFilesQuery(limit: ULong? = None, after: String? = None, order: String? = None, purpose: String? = None): UrlQuery {
     var query = UrlQuery()
     when (limit) { case Some(value) -> query = query.add("limit", Some(value.toString())); case None -> {} }

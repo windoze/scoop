@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.files.gemini
+
+import scoop.http.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.assertLlmBytes
+import scoop.llm.client.tests.files.readFileForm
+import scoop.test.*
+import scoop.url.*
+
+@Test
+private class GeminiFileRequestTest {
+    @Test
+    fun `Gemini file uploads encode related metadata and unchanged media bytes`() {
+        val bytes = [0.toByte(), 255.toByte(), 65.toByte()]
+        for (provider in [Providers.geminiGenerateContent(), Providers.geminiInteractions()]) {
+            val api = provider.protocol.fileApi()!!
+            val extension = DialectExtension(provider.protocol.dialectId, Json.parse("{\"name\":\"files/chosen\",\"future\":[false,null]}"))
+            val body = api.encodeUpload(LlmFileUpload("报告.txt", bytes, "text/plain", [extension]))
+            assertEquals("related", HttpMediaType.parse(body.contentType).subtype)
+            val parts = readFileForm(body.bytes, body.contentType)
+            assertEquals(2L, parts.size)
+            assertEquals("application/json", String.fromUtf8(parts[0].head.fields.findAll("Content-Type".toByteArray())[0].value))
+            assertEquals("{\"file\":{\"displayName\":\"报告.txt\",\"name\":\"files/chosen\",\"future\":[false,null]}}", String.fromUtf8(parts[0].body.toByteArray()))
+            assertEquals("text/plain", String.fromUtf8(parts[1].head.fields.findAll("Content-Type".toByteArray())[0].value))
+            assertLlmBytes(bytes, parts[1].body.toByteArray())
+            assertEquals(0L, parts[1].head.fields.findAll("Content-Disposition".toByteArray()).size)
+            val empty = api.encodeUpload(LlmFileUpload("empty", []))
+            assertEquals(0L, readFileForm(empty.bytes, empty.contentType)[1].body.toByteArray().size)
+            for ((extensions, path) in [([DialectExtension(provider.protocol.dialectId, Json.parse("{\"displayName\":\"x\"}"))], "/upload/extensions/0/value/displayName"),
+                ([extension, extension], "/upload/extensions/1"),
+                ([DialectExtension(OpenAiChatDialect().id, Json.parse("{}"))], "/upload/extensions/0/dialect")]) {
+                assertEquals(path, assertFailsWith<LlmRequestException> { api.encodeUpload(LlmFileUpload("a", [], extensions = extensions)) }.path)
+            }
+            assertEquals("/upload/mimeType", assertFailsWith<LlmRequestException> { api.encodeUpload(LlmFileUpload("a", [], "invalid")) }.path)
+        }
+    }
+
+    @Test
+    fun `Gemini file routes preserve explicit API versions prefixes resource names and query values`() {
+        for (version in ["v1", "v1beta"]) {
+            val api = Providers.geminiGenerateContent().protocol.fileApi()!!
+            val base = Url.parse("https://example.test/gateway%20prefix/" + version + "/?tenant=one&uploadType=old")
+            assertEquals("/gateway%20prefix/upload/" + version + "/files?tenant=one&uploadType=multipart", api.uploadUrl(base).httpRequestTarget())
+            assertEquals("/gateway%20prefix/" + version + "/files/f%2F%3F%20x?tenant=one&uploadType=old",
+                api.retrieveUrl(base, "files/f/? x").httpRequestTarget())
+            assertEquals(api.retrieveUrl(base, "id").toString(), api.deleteUrl(base, "files/id").toString())
+            assertEquals("/gateway%20prefix/" + version + "/files?tenant=one&uploadType=old&pageSize=0&pageToken=x%2F%3F",
+                api.listUrl(base, geminiFilesQuery(Some(0UL), Some("x/?"))).httpRequestTarget())
+            if (!(api is LlmFileRegistration)) fail()
+            assertEquals("/gateway%20prefix/" + version + "/files:register?tenant=one&uploadType=old", api.registerUrl(base).httpRequestTarget())
+            assertEquals("{\"uris\":[\"gs://bucket/a b\",\"gs://bucket/a b\"]}", Json.stringify(api.encodeRegistration(["gs://bucket/a b", "gs://bucket/a b"])))
+            assertEquals("{\"uris\":[]}", Json.stringify(api.encodeRegistration([])))
+            for (id in ["", "files/"]) assertEquals("/fileId", assertFailsWith<LlmRequestException> { api.retrieveUrl(base, id) }.path)
+            assertEquals("/endpoint/baseUrl", assertFailsWith<LlmRequestException> { api.uploadUrl(Url.parse("https://example.test/")) }.path)
+        }
+        assertEquals("", geminiFilesQuery().toString())
+        assertEquals("pageSize=18446744073709551615&pageToken=", geminiFilesQuery(Some(ULong.MAX_VALUE), Some("")).toString())
+    }
+}

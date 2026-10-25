@@ -1,0 +1,44 @@
+package scoop.llm.client
+
+import scoop.http.*
+import scoop.json.*
+import scoop.text.*
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+internal class GeminiFileApi(val dialect: DialectId, val interactions: Boolean) : LlmFileRegistration {
+    public override fun listUrl(baseUrl: Url, query: UrlQuery): Url =
+        llmModelQueryUrl(baseUrl.toBuilder().appendPathSegment("files").build(), query)
+    public override fun retrieveUrl(baseUrl: Url, fileId: String): Url {
+        val id = if (fileId.startsWith("files/")) fileId.slice(6L, fileId.length) else fileId
+        if (id.length == 0L) throw LlmRequestException("/fileId", "file ID must not be empty")
+        return baseUrl.toBuilder().appendPathSegment("files").appendPathSegment(id).build()
+    }
+    public override fun downloadUrl(baseUrl: Url, fileId: String): Url =
+        throw LlmRequestException("/provider", "Gemini Files does not expose a file-ID download operation")
+    public override fun uploadUrl(baseUrl: Url): Url {
+        val path = baseUrl.encodedPath.trimEnd { char -> char == '/' }
+        if (path.length == 0L) throw LlmRequestException("/endpoint/baseUrl", "file upload requires an API version path")
+        val split = path.lastIndexOf('/')
+        val upload = baseUrl.toBuilder().setEncodedPath(path.slice(0L, split) + "/upload" + path.slice(split, path.length))
+            .appendPathSegment("files").build()
+        return llmModelQueryUrl(upload, UrlQuery().add("uploadType", Some("multipart")))
+    }
+    public override fun encodeUpload(upload: LlmFileUpload): LlmFileUploadBody {
+        checkDialectExtensions(upload.extensions, "/upload/extensions")
+        val file = mergeLlmExtensions(JsonObjectBuilder().add("displayName", JsonValue.fromString(upload.filename)).build(),
+            upload.extensions, dialect, ["displayName"], "/upload")
+        val metadata = Json.stringify(JsonObjectBuilder().add("file", file).build()).toByteArray()
+        val mime = HttpMediaType.parseOrNone(upload.mimeType) ?: throw LlmRequestException("/upload/mimeType", "invalid file media type")
+        return encodeLlmFileParts([
+            (MultipartPartHead([HttpMediaType.parse("application/json").toHttpField()], Some(metadata.size)), metadata),
+            (MultipartPartHead([mime.toHttpField()], Some(upload.bytes.size)), upload.bytes)
+        ], "related")
+    }
+    public override fun registerUrl(baseUrl: Url): Url = baseUrl.toBuilder().appendEncodedPathSegment("files:register").build()
+    public override fun encodeRegistration(uris: Array<String>): JsonValue =
+        JsonObjectBuilder().add("uris", Json.encodeToValue(uris)).build()
+    public override fun decodeUpload(value: JsonValue): LlmFileInfo = decodeGeminiFileUpload(dialect, interactions, value)
+    public override fun decodeFile(value: JsonValue): LlmFileInfo = decodeGeminiFile(dialect, interactions, value, "", value, value)
+    public override fun decodeList(value: JsonValue): LlmFilePage = decodeGeminiFilePage(dialect, interactions, value)
+}

@@ -747,7 +747,7 @@ suspend fun summarizePdf(endpoint: LlmEndpoint, modelId: String, pdf: Array<Byte
     withLlmClient suspend { client ->
         val uploaded = client.uploadFile(endpoint, LlmFileUpload("report.pdf", pdf, "application/pdf"))
         try {
-            val document = Document(MediaSource.FileReference(uploaded.file.reference, "application/pdf"))
+            val document = Document(MediaSource.FileReference(uploaded.file.reference!!, "application/pdf"))
             client.generate(endpoint.model(modelId), LlmRequest([Message([Text("概括这份报告。"), document])]))
         } finally {
             client.deleteFile(endpoint, uploaded.file.id)
@@ -769,6 +769,20 @@ val bytes = content.bytes
 Anthropic 的分页使用 `anthropicFilesQuery(limit = Some(10UL), page = Some(cursor))`，cursor 从 page.native 的 next_page 取得；上传的文件通常不能下载，生成文件可按实际服务合同读取。下载返回原始 bytes，不自动写本地路径或解析 JSON。所有文件调用都保留实际收发时间；服务端文件信息仍在 file.native／page.native，删除响应正文在 result.native。
 
 原生上传选项直接使用 upload.extensions：对象成员是 multipart 字段名，值为字符串。例如 Anthropic 的 `expires_in_seconds`，OpenAI 的 `expires_after[anchor]` 和 `expires_after[seconds]`；需要时明确传入，不由库计算。尚无文件 API 适配的 dialect 会在认证前报告请求错误。
+
+Gemini generateContent／Interactions 也使用 uploadFile、listFiles、retrieveFile 和 deleteFile。上传返回的 id 是 files/... 资源名；reference 使用服务端实际 URI，缺少 URI 时为 None。调用方明确指定媒体种类和 MIME：
+
+```scoop
+val uploaded = client.uploadFile(geminiEndpoint, LlmFileUpload("report.pdf", pdfBytes, "application/pdf"))
+val reference = uploaded.file.reference ?: throw IllegalStateException(Some("The service returned no file URI"))
+val input = Document(MediaSource.FileReference(reference, "application/pdf"))
+val page = client.listFiles(geminiEndpoint, geminiFilesQuery(pageSize = Some(10UL)))
+val registered = client.registerFiles(geminiEndpoint, ["gs://caller-bucket/existing.pdf"])
+```
+
+Gemini 上传扩展直接对应 file metadata 的 JSON 成员，displayName 来自 filename；其他原生字段按原值发送。registerFiles 只登记调用方提供的已有 GCS URI。文件状态和时间继续在 native 中原样保留，库不轮询、判断过期或推导 URI。Gemini Files 未公布按 ID 下载上传文件的端点，因此该 provider 的 downloadFile 在认证前报错；实际 downloadUri 留在 native。
+
+Google 文件真实测试位于库 tests/live/google_files.scoop，默认 @Ignore，显式运行仍要求 GOOGLE_AI_API_KEY。它仅上传少量合成文本，读取后在 finally 中删除；普通文件测试均使用本地 mock。
 
 ## 8. 缺省值与使用检查
 

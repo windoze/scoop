@@ -1,0 +1,80 @@
+package scoop.llm.client.tests.files.gemini
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GeminiFileDataTest {
+    @Test
+    fun `Gemini files retain native envelopes and saved URI references work with explicit media kinds`() {
+        for (provider in [Providers.geminiGenerateContent(), Providers.geminiInteractions()]) {
+            val api = provider.protocol.fileApi()!!
+            val interactions = provider.protocol.dialectId == GeminiInteractionsDialect().id
+            val raw = "{\"name\":\"files/one\",\"uri\":\"https://example.test/media/one\",\"mimeType\":[],\"state\":{},\"expirationTime\":false,\"error\":{}}"
+            val wrapper = "{\"file\":" + raw + ",\"extra\":[null]}"
+            val uploaded = Json.decodeFromString<LlmFileInfo>(Json.encodeToString(api.decodeUpload(Json.parse(wrapper))))
+            assertEquals(wrapper, Json.stringify(uploaded.native))
+            assertEquals("files/one", uploaded.id)
+            assertEquals(raw, Json.stringify(api.decodeFile(Json.parse(raw)).native))
+            val ref = uploaded.reference!!
+            val request = LlmRequest([Message([Image(FileReference(ref, "image/png")), Document(FileReference(ref, "application/pdf")),
+                Audio(FileReference(ref, "audio/wav")), Video(FileReference(ref, "video/mp4"))])])
+            val body = provider.protocol.encodeRequest("chosen-model", request)
+            val parts = if (interactions) body["input"]!![0L]["content"]!! else body["contents"]!![0L]["parts"]!!
+            for ((index, kind, mime) in [(0L, "image", "image/png"), (1L, "document", "application/pdf"),
+                (2L, "audio", "audio/wav"), (3L, "video", "video/mp4")]) {
+                val part = if (interactions) parts[index] else parts[index]["fileData"]!!
+                assertEquals("https://example.test/media/one", part[if (interactions) "uri" else "fileUri"]!!.asString())
+                assertEquals(mime, part[if (interactions) "mime_type" else "mimeType"]!!.asString())
+                if (interactions) assertEquals(kind, part["type"]!!.asString())
+            }
+            assertEquals(1L, ref.value.size)
+            val rawPage = "{\"files\":[" + raw + ", {\"name\":\"files/two\"}],\"nextPageToken\":{\"future\":true}}"
+            val page = Json.decodeFromString<LlmFilePage>(Json.encodeToString(api.decodeList(Json.parse(rawPage))))
+            assertEquals("files/two", page.files[1].id)
+            assertTrue(when (page.files[1].reference) { case None -> true; case Some(_) -> false })
+            assertEquals(raw, Json.stringify(page.files[0].native))
+            assertEquals(Json.stringify(Json.parse(rawPage)), Json.stringify(page.native))
+            for (text in ["{\"name\":\"files/x\"}", "{\"name\":\"files/x\",\"uri\":null}", "{\"name\":\"files/x\",\"uri\":\"\"}"])
+                assertTrue(when (Json.decodeFromString<LlmFileInfo>(Json.encodeToString(api.decodeFile(Json.parse(text)))).reference) { case None -> true; case Some(_) -> false })
+            for (text in ["{}", "{\"files\":null}", "{\"files\":[]}"]) assertEquals(0L, api.decodeList(Json.parse(text)).files.size)
+        }
+    }
+
+    @Test
+    fun `Gemini file decoding rejects malformed core names URIs and envelopes with original response paths`() {
+        val api = Providers.geminiInteractions().protocol.fileApi()!!
+        for ((text, operation, path) in [("[]", 0L, ""), ("{}", 0L, "/file"), ("{\"file\":null}", 0L, "/file"),
+            ("{\"file\":{}}", 0L, "/file/name"), ("{\"name\":false}", 1L, "/name"), ("{\"name\":\"\"}", 1L, "/name"),
+            ("{\"name\":\"files/x\",\"uri\":false}", 1L, "/uri"), ("{\"files\":{}}", 2L, "/files"),
+            ("{\"files\":[{\"name\":\"files/x\"},{}]}", 2L, "/files/1/name")]) {
+            val error = assertFailsWith<LlmProtocolException> {
+                if (operation == 0L) api.decodeUpload(Json.parse(text)) else if (operation == 1L) api.decodeFile(Json.parse(text)) else api.decodeList(Json.parse(text))
+                Unit
+            }
+            assertEquals(path, error.path)
+            assertEquals(text, Json.stringify(error.native))
+        }
+    }
+
+    @Test
+    fun `Gemini Interactions URI references fill only absent kind and MIME fields`() {
+        val protocol = Providers.geminiInteractions().protocol
+        for (raw in ["{\"uri\":\"files/x\",\"future\":[]}", "{\"type\":\"image\",\"uri\":\"files/x\",\"future\":[]}",
+            "{\"uri\":\"files/x\",\"mime_type\":\"IMAGE/PNG\",\"future\":[]}"]) {
+            val reference = LlmFileReference(protocol.dialectId, Json.parse(raw))
+            val body = protocol.encodeRequest("m", LlmRequest([Message([Image(FileReference(reference, "image/png"))])]))
+            val content = body["input"]!![0L]["content"]!![0L]
+            assertEquals("image", content["type"]!!.asString())
+            assertEquals("files/x", content["uri"]!!.asString())
+            assertEquals("[]", Json.stringify(content["future"]!!))
+            assertEquals((reference.value["mime_type"] ?: JsonValue.fromString("image/png")).asString(), content["mime_type"]!!.asString())
+        }
+        for ((raw, path) in [("[]", ""), ("{\"uri\":\"files/x\",\"type\":null}", "/type"),
+            ("{\"uri\":\"files/x\",\"mime_type\":null}", "/mime_type"), ("{\"uri\":\"files/x\",\"data\":null}", "/data")]) {
+            val request = LlmRequest([Message([Image(FileReference(LlmFileReference(protocol.dialectId, Json.parse(raw)), "image/png"))])])
+            assertEquals("/input/0/content/0/source/reference/value" + path, assertFailsWith<LlmRequestException> { protocol.encodeRequest("m", request) }.path)
+        }
+    }
+}

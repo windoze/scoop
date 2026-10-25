@@ -20,14 +20,21 @@ internal fun encodeInteractionsMedia(dialect: DialectId, source: MediaSource, ty
             requireLlmOwner(reference.dialect, dialect, path + "/reference/dialect")
             val raw = reference.value
             val fieldPath = path + "/reference/value"
-            if (requireInteractionsNativeType(raw, fieldPath) != type) throw LlmRequestException(fieldPath + "/type", "file content kind differs from the requested kind")
+            if (raw.kind != JsonValueKind.Object) throw LlmRequestException(fieldPath, "file reference requires an object")
+            if (raw.containsKey("type") && requireInteractionsNativeType(raw, fieldPath) != type)
+                throw LlmRequestException(fieldPath + "/type", "file content kind differs from the requested kind")
             val uri = raw["uri"] ?: throw LlmRequestException(fieldPath + "/uri", "file reference requires a URI")
             if (uri.kind != JsonValueKind.String || uri.asString().length == 0L) throw LlmRequestException(fieldPath + "/uri", "file URI must not be empty")
             if (raw.containsKey("data")) throw LlmRequestException(fieldPath + "/data", "file reference cannot also contain inline data")
-            val original = raw["mime_type"] ?: throw LlmRequestException(fieldPath + "/mime_type", "file reference requires MIME type")
-            if (original.kind != JsonValueKind.String || !format.matches(interactionsMediaFormat(original.asString(), fieldPath + "/mime_type")))
+            val original = raw["mime_type"]
+            val hasMime = raw.containsKey("mime_type")
+            if (hasMime && (original!!.kind != JsonValueKind.String || !format.matches(interactionsMediaFormat(original!!.asString(), fieldPath + "/mime_type"))))
                 throw LlmRequestException(fieldPath + "/mime_type", "file reference MIME type differs from its media source")
-            raw
+            val merged = JsonObjectBuilder()
+            for ((name, item) in raw.members()) merged.add(name, item)
+            if (!raw.containsKey("type")) merged.add("type", JsonValue.fromString(type))
+            if (!hasMime) merged.add("mime_type", JsonValue.fromString(mime))
+            merged.build()
         }
     }
 }

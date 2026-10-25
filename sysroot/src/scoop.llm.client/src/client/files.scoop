@@ -1,6 +1,7 @@
 package scoop.llm.client
 
 import scoop.http.findAll
+import scoop.json.Json
 import scoop.url.UrlQuery
 
 internal suspend fun uploadLlmFile(client: LlmClientState, endpoint: LlmEndpoint, upload: LlmFileUpload,
@@ -12,12 +13,28 @@ internal suspend fun uploadLlmFile(client: LlmClientState, endpoint: LlmEndpoint
         val url = api.uploadUrl(endpoint.baseUrl)
         val body = api.encodeUpload(upload)
         performLlmJsonRequest<LlmFileInfo>(call, endpoint, url, body.bytes, options, contentType = body.contentType) { parsed, attempt ->
-            val decoded = api.decodeFile(parsed)
+            val decoded = api.decodeUpload(parsed)
             attempt.completeOperation()
             decoded
         }
     }
     return LlmFileResult(file, metadata)
+}
+
+internal suspend fun registerLlmFiles(client: LlmClientState, endpoint: LlmEndpoint, uris: Array<String>,
+    options: LlmCallOptions): LlmFileListResult {
+    val (page, metadata) = executeLlmCall<LlmFilePage>(client, options) suspend { call ->
+        val api = requireLlmFileApi(endpoint)
+        if (!(api is LlmFileRegistration)) throw LlmRequestException("/provider", "selected dialect has no file registration operation")
+        val url = api.registerUrl(endpoint.baseUrl)
+        val bytes = Json.stringify(api.encodeRegistration(uris)).toByteArray()
+        performLlmJsonRequest<LlmFilePage>(call, endpoint, url, bytes, options) { parsed, attempt ->
+            val decoded = api.decodeList(parsed)
+            attempt.completeOperation()
+            decoded
+        }
+    }
+    return LlmFileListResult(page, metadata)
 }
 
 internal suspend fun listLlmFiles(client: LlmClientState, endpoint: LlmEndpoint, query: UrlQuery,

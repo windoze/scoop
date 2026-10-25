@@ -6,6 +6,7 @@ import scoop.url.Url
 /** Interactions requests and complete resources, bound to one explicit dialect. */
 public class InteractionsProtocol public constructor(public val dialect: InteractionsDialect) : LlmSseProtocol {
     public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
+    public override fun fileApi(): LlmFileApi? = dialect.fileApi()
     public override val dialectId: DialectId get() = dialect.id
     public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("interactions").build()
     public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue {

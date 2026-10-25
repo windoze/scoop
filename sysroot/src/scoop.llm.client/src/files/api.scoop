@@ -12,8 +12,15 @@ public interface LlmFileApi {
     public fun deleteUrl(baseUrl: Url, fileId: String): Url = retrieveUrl(baseUrl, fileId)
     public fun downloadUrl(baseUrl: Url, fileId: String): Url
     public fun encodeUpload(upload: LlmFileUpload): LlmFileUploadBody
+    public fun decodeUpload(value: JsonValue): LlmFileInfo = decodeFile(value)
     public fun decodeFile(value: JsonValue): LlmFileInfo
     public fun decodeList(value: JsonValue): LlmFilePage
+}
+
+/** Registers caller-provided URIs with a service that exposes this file operation. */
+public interface LlmFileRegistration : LlmFileApi {
+    public fun registerUrl(baseUrl: Url): Url
+    public fun encodeRegistration(uris: Array<String>): JsonValue
 }
 
 /** Already available bytes; reading a local file is the caller's explicit operation. */
@@ -28,7 +35,7 @@ public class LlmFileUpload public constructor(
 public class LlmFileUploadBody public constructor(public val bytes: Array<Byte>, public val contentType: String)
 
 public class LlmFileInfo public constructor(
-    public val dialect: DialectId, public val id: String, public val reference: LlmFileReference, public val native: JsonValue
+    public val dialect: DialectId, public val id: String, public val reference: LlmFileReference?, public val native: JsonValue
 ) {
     public companion object : ValueEncoder<LlmFileInfo>, ValueDecoder<LlmFileInfo>
 }
