@@ -55,8 +55,10 @@
 | Ollama Chat 请求与普通生成 | 完成：本机 Ollama 定向 31/31；Linux 仅普通生成 mock 1/1；独立消费者通过 |
 | HTTP NDJSON 定界与异步 source | 完成：本机内存／异步各 6/6；Linux 仅 UTF-8／CRLF 与并发关闭各 1/1；独立消费者通过 |
 | Ollama Chat NDJSON 与单个 JSON 响应 | 完成：本机 Ollama 49 项分批通过，共享 Chat 文本回归 1/1；Linux 仅 NDJSON 网络 mock 1/1；独立消费者通过 |
+| 派生比较与构造器求值来源隔离 | 完成：本机 HIR 定向 5/5；Linux 仅新增回归 1/1；实际 LLM 生产库构建通过 |
+| HTTP 阶段计时与最终用量速率 | 完成：本机定向 4/4；Linux 仅网络组合 1/1；独立消费者 3 通过、13 个真实 API 用例忽略 |
 | 协议矩阵中的其他协议、部署／认证与显式操作 | 待实施 |
-| HTTP 阶段计时视图、流式 usage／count、缓存时间与 dialect billing | 待实施 |
+| 显式 token count、缓存时间与 dialect billing | 待实施 |
 | 持久会话、跨协议组合与使用示例验收 | 待实施 |
 
 ## 验证与构建纪律
@@ -135,3 +137,5 @@
 - Ollama 流式接入前先补齐 HTTP NDJSON 底层：按 LF／CRLF 定界严格 UTF-8，保留原始记录与空行，单记录背压及有界缓冲，EOF 可交付最后的非空尾行。异步 source 复用 MessageIo 的借用／接管、单消费者、取消与关闭合同。本机内存／异步各 6/6；nuc12 仅 UTF-8／CRLF 与并发关闭各 1/1。本机生产库及受影响下游已更新，跨 Cone 消费者 2 通过、13 个真实 API 用例默认忽略。没有真实 API 请求、编译器修改或 fixture；格式化、lint 与提交前凭据检查通过。JSON 内容和 Ollama 事件语义继续由下一步协议适配承担。
 
 - Ollama 流式新增 18 项 Cone 用例，覆盖文本／thinking 的稳定位置、函数完成资格、原始历史、累计缓存计数、逐记录服务时间和异常终止。NDJSON 与原生 load／unload 的单个 JSON 响应共用 decoder 和流寿命；EventsOnly 不累计普通正文。补齐发送前的 NDJSON 检查后，本机 Ollama 49 项分批通过，共享 Chat 文本回归 1/1；nuc12 仅 NDJSON 网络 mock 1/1。本机生产库与跨 Cone 缺省入口通过，默认消费者 2 通过、13 个真实 API 用例忽略。没有真实 API 请求、编译器修改或 fixture；格式化、lint 与提交前凭据检查通过。
+
+- HTTP 阶段计时直接投影排池、DNS、连接、代理与 TLS 的实际单调时间，保存缺失、进行中、零耗时和结束观察；最终输出速率要求 Final 用量。本机新增 4/4，nuc12 仅连接池超时／流结束／连接复用组合 1/1。生产构建触发派生比较继承外层构造器来源上下文的编译器缺口，已先修复并独立提交；本机 HIR 定向 5/5，Linux 仅最小回归 1/1。两平台生产库与跨 Cone codec 消费通过，默认消费者 3 通过、13 个真实 API 用例忽略。没有真实 API 请求或 CLI fixture；格式化、lint 与提交前凭据检查通过，清理本机闲置 Rust 增量产物约 3.8 GiB。

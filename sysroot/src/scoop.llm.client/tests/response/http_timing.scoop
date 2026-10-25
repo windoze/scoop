@@ -1,0 +1,51 @@
+package scoop.llm.client.tests.response
+
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.*
+
+@Test
+private class ResponseHttpTimingTest {
+    @Test
+    fun `HTTP timing preserves unknown active zero and completed phase offsets across metadata serialization`() {
+        val start = Duration.milliseconds(12L)
+        val finish = Duration.milliseconds(25L)
+        val http = LlmHttpTiming(queue = Some(LlmPhaseTiming(Duration.ZERO, Some(Duration.ZERO))),
+            resolve = Some(LlmPhaseTiming(start)), connect = Some(LlmPhaseTiming(start, Some(finish))),
+            proxyTls = Some(LlmPhaseTiming(finish)), proxyHandshake = Some(LlmPhaseTiming(finish, Some(finish))))
+        val saved = Json.decodeFromString<LlmAttemptMetadata>(Json.encodeToString(LlmAttemptMetadata(2L, http = http)))
+        assertEquals(Some(Duration.ZERO), saved.http.queue!!.duration)
+        assertEquals(None, saved.http.resolve!!.duration)
+        assertEquals(Some(Duration.milliseconds(13L)), saved.http.connect!!.duration)
+        assertEquals(finish, saved.http.proxyTls!!.started)
+        assertEquals(Some(Duration.ZERO), saved.http.proxyHandshake!!.duration)
+        assertFalse(llmPresent(saved.http.originTls))
+        assertEquals(start, saved.http.connect!!.started)
+        assertEquals(Some(finish), saved.http.connect!!.finished)
+        val old = Json.decodeFromString<LlmAttemptMetadata>("{\"number\":1}")
+        assertEquals(Json.encodeToString(LlmHttpTiming()), Json.encodeToString(old.http))
+        assertEquals(None, old.request.sentAt)
+    }
+
+    @Test
+    fun `HTTP timing rejects impossible phase offsets without requiring an unobserved completion`() {
+        assertFailsWith<IllegalArgumentException> { val value = LlmPhaseTiming(Duration.milliseconds(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> {
+            val value = LlmPhaseTiming(Duration.seconds(2L), Some(Duration.seconds(1L))); Unit
+        }
+        assertEquals(None, LlmPhaseTiming(Duration.ZERO).finished)
+        assertEquals(None, LlmPhaseTiming(Duration.ZERO).duration)
+    }
+
+    @Test
+    fun `HTTP timing derives an output rate only from final counts and a completed response`() {
+        val sent = LlmTimePoint(Instant.fromEpochSeconds(10L), Duration.ZERO)
+        val completed = LlmTimePoint(Instant.fromEpochSeconds(9L), Duration.seconds(2L))
+        for (completeness in [UsageCompleteness.Partial, UsageCompleteness.Final]) {
+            val value = LlmAttemptMetadata(1L, LlmRequestTiming(Some(sent)), LlmResponseTiming(completed = Some(completed)),
+                usage = LlmUsage(TokenUsage(outputTokens = Some(10L)), completeness))
+            assertEquals(if (completeness == UsageCompleteness.Final) Some(5.0) else None, value.outputTokensPerSecond)
+        }
+    }
+}

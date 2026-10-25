@@ -305,6 +305,9 @@ suspend fun inspectUsage(client: LlmClient, model: LlmModel) {
         println(attempt.request.sentAt)
         println(attempt.response.receivedAt)
         println(attempt.response.firstOutputAt)
+        println(attempt.http.queue?.duration)
+        println(attempt.http.connect?.duration)
+        println(attempt.http.originTls?.duration)
     }
     val usage = result.response.usage.tokens
     println(usage.inputTokens)
@@ -318,6 +321,8 @@ suspend fun inspectUsage(client: LlmClient, model: LlmModel) {
 ```
 
 `attempt.request`／`attempt.response` 是该次尝试的时间记录；未观察到的时间和计数为 Option，打印 None 表示未知。`result.response.usage` 保存最终响应的归一化用量、原生 usage 与完整性；各次尝试用量单独保留，不自动汇总重试。
+
+`attempt.http` 直接保留 HTTP 层观察到的排池、DNS、连接、代理与 TLS 阶段。阶段的 started／finished 是相对调用起点的单调偏移，可以随 metadata 保存；duration 只在阶段结束时可用，失败或取消也可能结束一个阶段。复用连接时不会补造新建连接或 TLS 耗时；底层没有 UTC 的事件不使用当前时钟代替。outputTokensPerSecond 仅在用量为 Final 且响应耗时完整、非零时提供。
 
 后续的 `cacheObservations` 设计保存实际读写、缓存范围、TTL 起算／刷新规则和有依据的寿命估计。应用保存这些信息和时间戳后再判断缓存窗口，不能在拿到 result 时直接执行“当前时间＋TTL”。估计、最短保留期和服务端报告的到期时间仍是不同数据，不提供一个掩盖不确定性的 `isCacheValid` Boolean。
 

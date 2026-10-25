@@ -52,7 +52,8 @@ internal class LlmAttemptState(val call: LlmCallState, val number: Long) {
                 firstOutput = if (llmPresent(firstOutput)) firstOutput else if (hasOutput) completed else None,
                 firstText = if (llmPresent(firstText)) firstText else if (hasText) completed else None, completed = completed),
             when (metrics) { case Some(value) -> value.status; case None -> None }, requestId,
-            when (response) { case Some(value) -> value.id; case None -> streamResponseId }, response?.usage ?: streamUsage)
+            when (response) { case Some(value) -> value.id; case None -> streamResponseId }, response?.usage ?: streamUsage,
+            http = readLlmHttpTiming(metrics, call.started))
     }
 
     private fun observedPoint(mark: TimeMark?, at: Instant?): LlmTimePoint? {

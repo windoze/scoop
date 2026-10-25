@@ -61,6 +61,8 @@ fun runHello(apiKey: String, modelId: String) {
 
 LLM 响应头和读取空闲时间缺省 300 秒，写入空闲时间 60 秒，总时限缺省关闭；网络／排池超时从 HTTP client 继承。缺省最多重试两次，仅适用于 dialect 明确识别的服务拒绝；每次重新认证并保留独立时间和 usage。普通 HTTP 重试、重定向、Cookie、缓存及 origin 自动认证在该请求上关闭，连接池、TLS、代理与既有 observer 继续复用。
 
+`metadata.attempts` 中的 `http` 保存实际排池、DNS、TCP、代理和 TLS 阶段。LlmPhaseTiming 的 started／finished 是相对逻辑调用起点的单调偏移，duration 在阶段结束时可读；它们可通过现有 companion codec 保存。未经过的阶段保持 None，连接复用不会产生虚构的建连耗时，失败和取消仍保留已有阶段。平均输出速率只在 usage 为 Final 且完整响应耗时为正时提供。
+
 最小请求的写法直接使用消息和设置的缺省值；添加服务端搜索或结构化输出仍使用同一个请求类型：
 
 ```scoop

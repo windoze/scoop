@@ -1,0 +1,74 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class ClientHttpTimingTest {
+    @Test
+    fun `HTTP timing retains actual pool timeout and reused connection observations across streaming and generation`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val observed = ArrayList<HttpAttemptMetrics>()
+            val config = HttpClientConfig(pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L),
+                timeouts = HttpTimeoutOptions(poolAcquire = Some(Duration.milliseconds(20L))),
+                observer = Some(HttpObserver(suspend { event ->
+                    if (event.kind == HttpCallEventKind.Completed) observed.add(event.metrics)
+                })))
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(8192L)
+                    sendLlmReply(connection, 200U, streamReply, streamFields)
+                    connection.receiveRequest()!!.body.readAllBytes(8192L)
+                    sendLlmReply(connection, 200U, sampleReply)
+                }
+            }
+            HttpClient.open(scope, config).useAsync suspend { http ->
+                withLlmClient(Some(http)) suspend { client ->
+                    val model = endpoint.model("m")
+                    val options = LlmCallOptions(timeouts = LlmTimeouts(total = Some(Duration.seconds(2L))))
+                    val stream = client.openStream(model, sampleRequest, options)
+                    val before = stream.metadata
+                    val failed = FinishedCalls()
+                    expectLlmFailure<HttpTimeoutException> suspend {
+                        client.generate(model, sampleRequest, LlmCallOptions(onFinished = Some(suspend { value -> failed.record(value) }))); Unit
+                    }
+                    val waiting = failed.values[0L].attempts[0L]
+                    assertEquals(LlmCallOutcome.Failed, failed.values[0L].outcome)
+                    assertTrue(waiting.http.queue!!.duration!! > Duration.ZERO)
+                    assertEquals(None, waiting.request.sentAt)
+                    assertFalse(llmPresent(waiting.http.connect))
+                    assertLlmHttpPhase(observed[0L].queue, waiting.http.queue, observed[0L], waiting)
+                    stream.useAsync suspend { opened -> drainStream(opened) }
+                    val first = stream.metadata.attempts[0L]
+                    assertEquals(Some(false), observed[1L].connectionReused)
+                    assertTrue(llmPresent(first.http.connect))
+                    assertLlmHttpPhase(observed[1L].connect, first.http.connect, observed[1L], first)
+                    assertEquals(LlmCallOutcome.Active, before.outcome)
+                    assertEquals(None, before.attempts[0L].response.completedAt)
+                    val last = client.generate(model, sampleRequest, options)
+                    assertEquals(Some(true), observed[2L].connectionReused)
+                    val restored = Json.decodeFromString<LlmCallMetadata>(Json.encodeToString(last.metadata))
+                    val reused = restored.attempts[0L]
+                    assertLlmHttpPhase(observed[2L].queue, reused.http.queue, observed[2L], reused)
+                    assertEquals(Json.encodeToString(LlmHttpTiming(queue = reused.http.queue)), Json.encodeToString(reused.http))
+                    assertFalse(http.isClosed)
+                }
+            }
+            serving.join()
+        }
+    }
+}
+
+private fun assertLlmHttpPhase(actual: HttpPhaseTiming?, saved: LlmPhaseTiming?, metrics: HttpAttemptMetrics, attempt: LlmAttemptMetadata) {
+    assertTrue(llmPresent(actual) && llmPresent(saved))
+    assertEquals(Some(actual!!.finishedAt!! - actual!!.startedAt), saved!!.duration)
+    when (attempt.request.sent) {
+        case Some(sent) -> assertEquals(actual!!.startedAt - metrics.requestHeadersAt!!, saved!!.started - sent.elapsed)
+        case None -> {}
+    }
+}

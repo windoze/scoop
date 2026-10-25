@@ -165,7 +165,7 @@ LlmResponse、候选、输出、工具输入、来源和历史提供 companion c
 
 `LlmRequestTiming(sent = None, bodyCompleted = None)` 与 `LlmResponseTiming(received = None, firstResponseByte = None, firstEvent = None, firstOutput = None, firstText = None, completed = None)` 保存观察点，并分别提供 sentAt／bodyCompletedAt 与 receivedAt／firstResponseByteAt／firstEventAt／firstOutputAt／firstTextAt／completedAt 的 Instant? 视图。未观察到或底层没有提供的采样保持 None。
 
-`LlmAttemptMetadata(number, request = ..., response = ..., status = None, requestId = None, responseId = None, usage = LlmUsage())` 的 number 从 1 开始。timeToHeaders、timeToFirstOutput、timeToFirstText、responseLatency 仅使用同一尝试的 sent 与相应响应点的 elapsed 差；缺失任一端点时为 None，相应响应点早于 sent 时构造失败，UTC 先后不作为检查条件。outputTokensPerSecond 仅在响应完成、outputTokens 已知且 responseLatency 为正时返回端到端平均速率，否则 None。
+`LlmAttemptMetadata(number, request = ..., response = ..., status = None, requestId = None, responseId = None, usage = LlmUsage(), http = LlmHttpTiming())` 的 number 从 1 开始。timeToHeaders、timeToFirstOutput、timeToFirstText、responseLatency 仅使用同一尝试的 sent 与相应响应点的 elapsed 差；缺失任一端点时为 None，相应响应点早于 sent 时构造失败，UTC 先后不作为检查条件。outputTokensPerSecond 仅在响应完成、usage 为 Final、outputTokens 已知且 responseLatency 为正时返回端到端平均速率，否则 None。HTTP 阶段视图见 §33。
 
 `LlmCallMetadata(callId, startedAt, attempts = [], finished = None, outcome = Active)` 保存逻辑调用及尝试序列。LlmCallOutcome 为 Active、Completed、Failed、Cancelled；已结束时须有 finished，Active 时不得有 finished。尝试编号递增，不能覆盖或重排已有尝试。finishedAt 与 totalDuration 是 finished 的只读视图。调用前失败可有空 attempts；这里不根据 outcome 伪造响应完成或缺失 usage，也不把重试用量直接相加成最终响应用量。
 
@@ -655,3 +655,13 @@ Result 的历史连接已出现的 content／thinking 字符串，并原样追�
 created_at 可以随每条记录变化，不作为不变身份检查；response.createdAt 使用终止记录实际提供的可选时间。它与 duration 均不改写本地 request.sentAt、response.receivedAt、firstEvent、firstOutput、firstText 或完成时间。输出标记只反映本次记录中新到达的文本／reasoning／调用等内容，累计文本和使用量更新不会重复触发首次输出计时。
 
 依据：[NDJSON 流](https://docs.ollama.com/api/streaming)、[工具调用](https://docs.ollama.com/capabilities/tool-calling)、[按字段连接完整响应与逐帧服务时间](https://github.com/ollama/ollama/blob/d44c2581904a98430e348d89cc2af1529b1808a0/server/routes.go)。
+
+## 33. HTTP 阶段计时
+
+LlmPhaseTiming(started: Duration, finished: Duration? = None) 保存一个实际 HTTP 阶段相对本次逻辑调用起点的单调偏移，started 必须非负，已提供 finished 不得早于 started。duration 仅在 finished 存在时返回二者之差，显式零保留，正在进行的阶段保持 None。数据提供 companion codec，不保存进程内 TimeMark，不从 UTC 推算阶段偏移或用回调执行时间代替原采样。
+
+LlmHttpTiming(queue = None, resolve = None, connect = None, proxyTls = None, proxyHandshake = None, originTls = None) 的各项均为 LlmPhaseTiming?，分别对应 HTTP 层实际观察到的排池、DNS、TCP、代理 TLS、CONNECT／SOCKS 握手和目标 TLS。LlmAttemptMetadata 在既有参数之后增加 http = LlmHttpTiming()，旧数据缺少该字段时恢复空缺省。连接复用或未执行的阶段保持 None，不填成零；不把可能重叠的阶段相加成一个虚构总耗时。
+
+普通生成和流式调用从该尝试最近的不可变 HttpAttemptMetrics 直接投影上述阶段，使用相同的 LlmCallState 起点；重试之间不合并或继承阶段。snapshot 与 onFinished 均保存当时实际可观察的内容，之前取得的快照不随后续进展改变。HTTP 在失败或取消时也会结束已经进入的阶段，因此 finished 表示观察区间已经结束，不保证该阶段成功；调用结果仍由 outcome 和原异常表达。认证前失败等尚未取得 HTTP 观察的路径使用全空阶段，不伪造传输数据。
+
+此投影复用既有请求级 observer，与借入 HttpClient 的原 observer 共存；不改变池、重试、超时或连接级首字节采样设置。底层尚未提供 UTC 的首字节和正文发送完成点继续保持 None。outputTokensPerSecond 还要求 usage.completeness=Final，避免把中途累计计数当作最终平均速率；模型因长度停止但完整返回了最终用量时仍可计算该端到端速率。
