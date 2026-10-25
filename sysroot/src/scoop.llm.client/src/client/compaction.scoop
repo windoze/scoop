@@ -9,7 +9,7 @@ internal suspend fun compactLlmResponse(client: LlmClientState, model: LlmModel,
         val selected = model.endpoint.provider.protocol
         val protocol = if (selected is ResponsesProtocol) selected else
             throw LlmRequestException("/provider", "selected protocol has no Responses compaction operation")
-        val url = protocol.compactUrl(model.baseUrl)
+        val url = protocol.compactUrl(model.endpoint.baseUrl)
         checkModelInput(model.capabilities.input, request)
         val bytes = Json.stringify(protocol.encodeCompactionRequest(model.id, request)).toByteArray()
         performLlmJsonRequest<ResponsesCompaction>(call, model.endpoint, url, bytes, options) { parsed, attempt ->

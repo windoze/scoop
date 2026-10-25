@@ -1,4 +1,4 @@
-package scoop.llm.client.tests.deployment
+package scoop.llm.client.tests.endpoint
 
 import scoop.asyncio.*
 import scoop.http.*
@@ -11,13 +11,13 @@ import scoop.time.Duration
 import scoop.url.Url
 
 @Test
-private class AzureV1NetworkTest {
+private class ExplicitEndpointNetworkTest {
     @Test
-    fun `Azure deployment v1 mock shares Chat and Responses without a dated version and refreshes retry tokens`() {
+    fun `explicit API endpoint keeps Chat Responses and retry authentication on the configured URL`() {
         withLlmServer suspend { _, scope, listener, original ->
             val base = Some(Url.parse(original.baseUrl.toString() + "/openai/v1?route=team"))
-            val tokens = DeploymentTokens()
-            val auth = DeploymentRecordingAuth(LlmAuth.bearer(suspend { tokens.next("token-") }))
+            val tokens = EndpointTestTokens()
+            val auth = EndpointRecordingAuth(LlmAuth.bearer(suspend { tokens.next("token-") }))
             val preview = [HttpField("x-feature-preview".toByteArray(), "enabled".toByteArray())]
             val chat = LlmEndpoint(Providers.openAiChat(), LlmAuth.header("api-key", "mock-only"), base, preview)
             val responses = LlmEndpoint(Providers.openAiResponses(), auth, base, preview)

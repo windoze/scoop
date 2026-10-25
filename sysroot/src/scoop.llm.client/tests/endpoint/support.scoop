@@ -1,14 +1,14 @@
-package scoop.llm.client.tests.deployment
+package scoop.llm.client.tests.endpoint
 
 import scoop.http.HttpField
 import scoop.llm.client.*
 
-internal class DeploymentTokens {
+internal class EndpointTestTokens {
     var count: Long = 0L
     fun next(prefix: String): String { count += 1L; return prefix + count.toString() }
 }
 
-internal class DeploymentRecordingAuth(val wrapped: LlmAuth) : LlmAuth {
+internal class EndpointRecordingAuth(val wrapped: LlmAuth) : LlmAuth {
     val requests = ArrayList<LlmAuthRequest>()
     public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> {
         requests.add(request)

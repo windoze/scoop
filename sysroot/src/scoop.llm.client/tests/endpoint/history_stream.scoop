@@ -1,4 +1,4 @@
-package scoop.llm.client.tests.deployment
+package scoop.llm.client.tests.endpoint
 
 import scoop.asyncio.*
 import scoop.http.*
@@ -11,14 +11,16 @@ import scoop.test.*
 import scoop.url.Url
 
 @Test
-private class AzureLegacyNetworkTest {
+private class ExplicitEndpointStreamTest {
     @Test
-    fun `Azure deployment legacy mock routes each model and continues saved tools through SSE`() {
+    fun `explicit API endpoint preserves paths and queries across saved tool history and SSE`() {
         withLlmServer suspend { _, scope, listener, original ->
-            val keys = DeploymentTokens()
-            val auth = DeploymentRecordingAuth(LlmAuth.header("api-key", suspend { keys.next("key-") }))
-            val endpoint = LlmEndpoint(Providers.openAiChat(), auth, Some(Url.parse(original.baseUrl.toString() + "/gateway?route=a%2Fb&flag")),
-                deployment = AzureOpenAiLegacy("2024-10-21"))
+            val keys = EndpointTestTokens()
+            val auth = EndpointRecordingAuth(LlmAuth.header("api-key", suspend { keys.next("key-") }))
+            val endpoint = LlmEndpoint(Providers.openAiChat(), auth, Some(Url.parse(original.baseUrl.toString() +
+                "/gateway/openai/deployments/primary%2Fdeployment%3Av1?route=a%2Fb&flag&api-version=2024-10-21")))
+            val nextEndpoint = LlmEndpoint(Providers.openAiChat(), auth, Some(Url.parse(original.baseUrl.toString() +
+                "/gateway/openai/deployments/backup.v2?route=a%2Fb&flag&api-version=2024-10-21")))
             val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}"))]
             val bodies = ArrayList<Array<Byte>>()
             val targets = ArrayList<String>()
@@ -57,7 +59,7 @@ private class AzureLegacyNetworkTest {
                 for (item in request.input) input.add(item)
                 for (item in saved.toInput()) input.add(item)
                 input.add(ToolResult(saved.clientToolCalls[0].reference, [Text("found")]))
-                val stream = client.openStream(endpoint.model("backup.v2"), LlmRequest(input.toArray(), tools = tools),
+                val stream = client.openStream(nextEndpoint.model("backup.v2"), LlmRequest(input.toArray(), tools = tools),
                     retention = StreamRetention.Result)
                 val text = StringBuilder()
                 stream.useAsync suspend { opened ->

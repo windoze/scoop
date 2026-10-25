@@ -28,7 +28,7 @@
 | 多模态 | 文本、图像、音频、视频、文档、文件引用及相关元数据；保留原生支持差异 |
 | 实时会话 | 已选协议的连接、发送、接收、结束和取消；不承担音频采集、播放、重采样或 UI |
 | 生成相关资源 | 显式的文件上传／查询／删除、模型查询、服务端 token count、生成任务查询／取消，可作为独立 API 模块 |
-| 其他推理 API | embeddings、rerank、独立图像／语音／转写接口可以使用独立请求与结果类型接入同一传输；不塞入聊天消息模型 |
+| 范围边界 | 只封装既定 LLM API 与生成相关辅助 API；独立推理产品不因可复用 HTTP 而自动加入本任务 |
 
 以下工作由后续 Agent 层承担：模型选择和自动切换、工具调度与执行、循环调用模型、MCP client、文件或终端操作、会话数据库、上下文裁剪与摘要策略、记忆、RAG 检索和索引、权限交互、登录 UI、账号管理、跨供应商价格目录、预算／扣费／账单管理、TUI／GUI。服务商附加信息（包括计费字段）原样保留，由具体 dialect 提供访问，不进入公共模型或生成流程。
 
@@ -36,7 +36,7 @@
 
 API key、OAuth token 和请求签名是外部 API 的正常认证，不引入编译产物授权、来源证明、通用资源计费或新的编译器／runtime 机制。
 
-## 3. 应覆盖的协议与部署
+## 3. 应覆盖的协议与 API 地址
 
 ### 3.1 请求与响应协议
 
@@ -57,11 +57,11 @@ Bedrock `InvokeModel`／`InvokeModelWithResponseStream` 是另一组调用入口
 
 Mistral、DeepSeek、Moonshot、MiniMax、阿里云、智谱、火山方舟、Groq、Together、Fireworks、OpenRouter、各类网关与本地服务应优先复用实际提供的 Chat／Responses／Messages 协议。对于额外字段、工具 ID 约束、thinking 或原生内容，补充有真实请求样本的方言适配；不能把“兼容”理解为所有参数和消息完全相同。例如 OpenRouter 的 `reasoning_details` 需要保留结构，Mistral 的工具 ID 处理也不是通用 Chat JSON 的直接复制。[R1][S5]
 
-### 3.2 部署与协议分别配置
+### 3.2 API 地址与协议分别配置
 
-Protocol＋dialect 由 provider 固定，URL 和认证由 endpoint 配置。比如 `openai-chat` 与 `openai-responses` 是两个 provider；同一模型可通过两个入口建立各自的 Model 绑定。具体 API 支持不按模型新旧推断，定义见[架构设计第 1 节](DESIGN.md#1-核心对象与关系)。
+Protocol＋dialect 由 provider 固定，URL 和认证由 endpoint 配置。以下服务的资源、项目和地区均由应用确定，库只消费已有 API 地址，不建立独立部署对象或管理云资源。比如 `openai-chat` 与 `openai-responses` 是两个 provider；同一模型可通过两个入口建立各自的 Model 绑定。具体 API 支持不按模型新旧推断，定义见[架构设计第 1 节](DESIGN.md#1-核心对象与关系)。
 
-| 部署 | 独立配置内容 |
+| API 服务 | 调用方提供的配置 |
 | --- | --- |
 | 官方云 API | 默认 URL、版本 header、API key header；使用什么模型由每次请求指定 |
 | Azure | 资源 URL、deployment 名称、认证；现代 `/openai/v1/` 与旧版 deployment 路径分别配置。v1 不再要求日期式 `api-version`，不能全局强加旧规则。[Z1] |
@@ -70,7 +70,7 @@ Protocol＋dialect 由 provider 固定，URL 和认证由 endpoint 配置。比�
 | 第三方网关 | 任意 base URL、路径前缀、query、headers、认证和方言；网关自身的 provider routing 参数保留为其扩展。[R2] |
 | 本地推理 | 明确选择协议、任意模型字符串、默认可无认证；不能要求伪造 API key |
 
-不根据模型名称前缀推断协议，不把 `provider/model` 当作必须拆分的全局编码。`organization/model`、包含冒号的本地模型名、deployment 别名和 ARN 都应由所选端点规则解释。显示名称与发送到服务器的模型标识分离。
+不根据模型名称前缀推断协议，不把 `provider/model` 当作必须拆分的全局编码。`organization/model`、包含冒号的本地模型名、deployment 别名和 ARN 都按原字符串交给所选 protocol，由 API 合同决定放入正文还是 URL。显示名称与发送到服务器的模型标识分离。
 
 `listModels` 是可选的显式操作。调用 `generate` 不先联网下载目录，不因模型不在目录中而拒绝。context window、输入／输出模态、工具支持等描述可由调用者、静态说明或服务端查询提供，但不是模型调用的注册条件。
 
@@ -187,19 +187,19 @@ SSE 复用 `scoop.http` 的 `SseDecoder` 与 `scoop.http.asyncio.SseSource`。ND
 | Bearer／其他 scheme | 固定凭据或 suspend token source；scheme 与模型解耦 |
 | 自定义 API-key header | `x-api-key`、`api-key`、`x-goog-api-key` 或任意名称，不枚举品牌 |
 | query 或组合 header | 显式构造参数；正常 URL 编码；避免重复冲突 |
-| OAuth／短期访问 token | 注入异步 token source，支持到期信息与刷新；单个凭据源并发刷新合并 |
+| 短期访问 token | 每次请求尝试调用应用提供的 suspend token source；有效期与刷新由应用处理 |
 | 签名 | 取得实际 method、最终 URL／query、签名相关 headers 和准确 body 字节；支持 SigV4 及第三方签名函数 |
 | mTLS | 复用 HTTP／TLS 的客户端身份；不同身份使用适当配置的 HttpClient |
 
 不把 key 存进模型对象。认证输入以实际目标请求为准，而不是 provider 显示名。API-key 登录 UI、浏览器 OAuth、device flow UI、refresh token 持久化、keychain 或配置文件查找由应用提供；库只执行已配置的凭据获取和请求认证。
 
-现有 HTTP Bearer 已支持匹配挑战的刷新和并发合并，应复用适用的部分。但它要求匹配的 `401 Bearer` challenge，不是“任意 401 JSON 都能刷新”。不带该 header 的服务、签名认证及 API-key 轮换需要 LLM 认证适配，不能假装已被覆盖。
+认证回调只返回本次尝试要发送的字段；库不增加 token 缓存、到期判断、刷新合并或登录流程。请求签名使用已有 LlmAuth 接口，回调异常按普通调用失败处理。
 
 ### 6.2 实际请求顺序
 
 ```text
 调用选项合并与协议映射
-  → 确定部署 URL、query 与最终 body 表示
+  → 确定 API URL、query 与最终 body 表示
   → 获取该目标所需凭据
   → 对实际发送表示生成认证／签名
   → 执行一次 HTTP 请求
@@ -306,9 +306,9 @@ OpenCode 网站仍说明使用 AI SDK 与 Models.dev，并提供自定义 provid
 | --- | --- | --- |
 | 1. 规范与公共合同 | 固定 protocol／dialect／provider、capability、消息／事件／错误、服务端工具与调用 metadata；复用 JSON／HTTP 入口并补窄的时间采样合同 | 可编码请求与解码结果；发送／接收时间可取得，以 Chat 和 DeepSeek dialect 验证具体差异 |
 | 2. 主流生成闭环 | Chat、Responses、Messages、Gemini 两种 API；文本、多模态、客户端工具、服务端 WebSearch、reasoning、完整与流式结果 | 应用提供工具结果的两轮请求；服务端工具活动与引用；保留原生历史并继续生成 |
-| 3. 部署与协议扩展 | Bedrock、Cohere、Ollama、NDJSON／EventStream、Azure／Vertex、网关与常见方言、灵活认证 | 任意 endpoint＋model 可配置；签名／刷新和真实流式错误闭环 |
-| 4. 持久会话与辅助 API | Responses WS、Realtime／Live、文件与 token count 等模型 API；独立推理接口按其类型接入 | 双向会话取消与关闭、媒体事件、显式 continuation／任务操作 |
-| 5. 兼容与文档验收 | 协议／方言矩阵、组合 Cone 测试、必要的外部进程 fixture、三目标消费者、可运行 quickstart 和扩展示例 | 每项已声明能力有实际证据，未验证服务明确标注 |
+| 3. 协议与方言适配 | Bedrock、Cohere、Ollama、NDJSON／EventStream 与既定方言的实际 API 差异；消费显式地址和凭据 | 直接请求已有 API；签名和流式错误闭环，不管理部署或账号 |
+| 4. 持久会话与辅助 API | Responses WS、Realtime／Live、文件、模型查询与 token count 等 API | 双向会话取消与关闭、媒体事件、显式 continuation／任务操作 |
+| 5. 兼容与文档验收 | 协议／方言矩阵、组合 scoop.test、可运行 quickstart 和 API 示例；本机验证后在 nuc12 最小验证 | 每项已声明能力有实际证据，未验证服务明确标注；既定 API 封装完成后停止扩展范围 |
 
 正式实施前先更新相关 spec，再写实现。具体拆分与首个闭环见[架构设计第 8 节](DESIGN.md#8-模块与实施顺序)。HTTP、JSON 或 TLS 的公共合同变化落到所属规范，不用 LLM 专用绕行掩盖底层缺口；通用 HTTP 便利函数不作为生成闭环的前置要求。
 
@@ -328,7 +328,7 @@ OpenCode 网站仍说明使用 AI SDK 与 Models.dev，并提供自定义 provid
 - WebSocket 相互独立的响应／会话、交错事件、错误作用域、断连、结束事件与最终 usage；预录媒体字节即可验证协议，不要求真实设备。
 - 官方服务的 live smoke 与第三方互操作另做明确记录；本地协议测试通过不等于访问过每家商业 API。
 
-普通 API、codec 和协议行为使用所属 Cone 的 scoop.test；fixture 仅承担必须由外部进程、CLI、产物或链接覆盖的行为。实现验收沿用开发 sysroot 和三个支持目标；不移走源码／工具来证明复用，不把普通功能验收变成 GC stress。当前仅完成资料与源码调研及架构设计，没有调用付费模型 API，也没有运行或宣称通过新增 client 的测试。
+普通 API、codec 和协议行为使用所属 Cone 的 scoop.test，本任务不新增 fixture。验收沿用开发 sysroot，先本机后 nuc12 最小测试，不运行完整 fixture 套件；不移走源码／工具来证明复用，不把普通功能验收变成 GC stress。实际已完成项与验证结果以 PROGRESS.md 为准。
 
 ## 11. 来源
 

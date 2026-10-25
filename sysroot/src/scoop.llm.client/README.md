@@ -77,7 +77,7 @@ LLM 响应头和读取空闲时间缺省 300 秒，写入空闲时间 60 秒，�
 
 `client.compactResponse(model, request)` 显式压缩 OpenAI Responses 的上下文，返回可保存的 ResponsesCompactionResult。`toInput()` 保留完整压缩窗口，用于替换旧 input 后继续生成；system、tools 和生成 options 在下一轮显式提供。compaction.usage 与 metadata 保存此次压缩报告的用量和实际收发时间，原生附加信息保持 as-is。压缩请求复用 input、system 与适用的 extensions，tools／options 不发送到压缩端点；见 [使用示例](../../../docs/llm-client/USAGE.md#77-responses-的显式上下文压缩)。
 
-Azure v1 使用同一 provider 与配置好的 `/openai/v1` 地址。旧版 Chat 在 LlmEndpoint 指定 `deployment = LlmDeployment.AzureOpenAiLegacy(apiVersion)`，model ID 直接用作部署名称，普通生成与 SSE 共用路由。认证可使用静态 key，或 `LlmAuth.bearer(suspend { acquireAccessToken() })`／`LlmAuth.header("api-key", suspend { acquireApiKey() })` 按尝试取得凭据；见 [Azure 用法](../../../docs/llm-client/USAGE.md#78-azure-的-v1-与旧版部署)。
+LlmEndpoint 使用调用方配置好的 API 地址、headers 和认证。路径前缀与 query 原样参与协议请求，不管理云部署。认证可使用静态 key，或 `LlmAuth.bearer(suspend { acquireAccessToken() })`／`LlmAuth.header("api-key", suspend { acquireApiKey() })` 按尝试取得凭据；见 [端点用法](../../../docs/llm-client/USAGE.md#78-显式-api-地址与认证回调)。
 
 最小请求的写法直接使用消息和设置的缺省值；添加服务端搜索或结构化输出仍使用同一个请求类型：
 

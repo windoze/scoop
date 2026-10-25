@@ -1,4 +1,4 @@
-package scoop.llm.client.tests.deployment
+package scoop.llm.client.tests.endpoint
 
 import scoop.asyncio.*
 import scoop.llm.client.*
@@ -8,12 +8,12 @@ import scoop.time.Duration
 import scoop.url.Url
 
 @Test
-private class DeploymentAuthenticationTest {
+private class EndpointAuthenticationTest {
     @Test
-    fun `Azure deployment authentication callbacks are lazy and return fresh sensitive fields`() {
+    fun `explicit API endpoint authentication callbacks are lazy and return fresh sensitive fields`() {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { _ ->
-            val fetched = DeploymentTokens()
+            val fetched = EndpointTestTokens()
             val bearer = LlmAuth.bearer(suspend { fetched.next("token-") })
             val header = LlmAuth.header("api-key", suspend { fetched.next("key-") })
             assertEquals(0L, fetched.count)
@@ -34,7 +34,7 @@ private class DeploymentAuthenticationTest {
     }
 
     @Test
-    fun `Azure deployment token source failures and cancellation remain unsent calls`() {
+    fun `explicit API endpoint token source failures and cancellation remain unsent calls`() {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { _ ->
             withLlmClient suspend { client ->

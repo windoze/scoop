@@ -4,6 +4,8 @@
 
 本库负责一次生成或显式会话的请求、响应、流、取消和协议数据回传。模型选择、自动切换、工具执行、Agent 循环和会话存储由应用承担。所有实现使用普通 Scoop Cone、现有序列化和 HTTP 能力，不改变语言、编译 pipeline 或 runtime。
 
+交付范围到既定 LLM API 与相关辅助 API 的封装为止，包括文件、模型查询、token count 和生成任务操作。不得扩展为部署、云资源或账号管理层；供应商与地区的地址由调用方提供，库只处理所选协议必需的请求路径和正文。调研中的独立推理产品不自动成为本任务待办。
+
 [Vercel AI SDK 对照评审](AI-SDK-REVIEW.md)补充了原生客户端工具、按位置的方言扩展、流的读取视图和结构化输出用法；下文已纳入这些调整。
 
 ## 1. 核心对象与关系
@@ -13,13 +15,13 @@
 | API protocol | 请求／响应结构、操作、事件、定界方式与完成语义 | Chat Completions、Responses、Messages、Gemini Interactions、generateContent |
 | API dialect | 在一个 protocol 内，处理服务特有的字段、选项、历史回传、工具及错误差异 | DeepSeek Chat 的 `reasoning_content` 规则 |
 | Provider | 固定包装一组 protocol＋dialect，提供可命名、可复用的 API 适配 | `openai-chat`、`openai-responses`、`deepseek-chat` |
-| Endpoint | 将 provider 部署到实际 URL、路径／query、headers 和认证环境 | 官方服务、Azure 部署、团队网关、本地服务 |
+| Endpoint | 将 provider 绑定到调用方配置的 URL、headers 和认证 | 官方 API、团队网关、本地 API |
 | Model | 在一个 endpoint 上使用某个 model ID 的绑定，并携带该入口下的能力描述 | 同一模型通过两个 provider 使用，形成两个独立绑定 |
 | Capability | 描述该模型绑定能够使用的输入、输出、工具和请求特性 | PDF 输入、音频输出、JSON Schema、服务端 web search |
 
 商业供应商名称只是展示和分组信息，不决定 API protocol。Provider 不等于供应商、域名、账号或模型；API key 不进入模型能力或可保存的消息数据。
 
-关系固定为：`Provider = protocol + dialect`；`Endpoint = provider + deployment + authentication`；`Model = endpoint + model ID + capabilities`。Client 持有 HTTP 等资源，调用时接收 Model 和 LlmRequest，不在 request 内再放一份可能冲突的 provider／model 路由。
+关系固定为：`Provider = protocol + dialect`；`Endpoint = provider + URL + headers + authentication`；`Model = endpoint + model ID + capabilities`。Client 持有 HTTP 等资源，调用时接收 Model 和 LlmRequest，不在 request 内再放一份可能冲突的 provider／model 路由。
 
 ### 1.1 一个 provider 固定一个 protocol
 
@@ -33,13 +35,13 @@
 | `gemini-interactions` | Gemini Interactions | Gemini Interactions |
 | `gemini-generate-content` | generateContent | Gemini generateContent |
 
-这些是命名与组合示例，不表示全部已实现。通用兼容入口也使用一个明确的基础 dialect；只有 URL 不同且语义相同的部署复用 provider，不为每个域名复制适配器。
+这些是命名与组合示例，不表示全部已实现。通用兼容入口也使用一个明确的基础 dialect；只有 URL 不同且语义相同的 API 入口复用 provider，不为每个域名复制适配器。
 
 同一供应商通过不同 protocol 提供模型时，暴露多个 provider。若某模型只支持 Responses，就只在相应入口声明支持；若同时支持 Chat 和 Responses，它可以同时出现在两个 provider 下，各自拥有不同的有效 capability。Provider 内部不得根据 model 名称、年代或失败响应自动改换 protocol。
 
 模型年代不作为 API 可用性的规则：OpenAI 官方迁移文档仍展示同一模型通过两种 API 调用，并说明两者的功能差异。模型与入口的具体兼容性由相应描述和服务器决定。[OpenAI 协议对比](https://developers.openai.com/api/docs/guides/migrate-to-responses)
 
-默认 model catalog 只是便利数据。未知模型 ID、第三方 provider 名称和自定义 endpoint 可直接使用；`listModels` 是显式操作，生成前不强制联网查询目录。模型 ID 按原字符串传给部署规则，不拆解斜杠、冒号或 ARN。
+默认 model catalog 只是便利数据。未知模型 ID、第三方 provider 名称和自定义 endpoint 可直接使用；`listModels` 是显式操作，生成前不强制联网查询目录。模型 ID 按原字符串交给已选 protocol，只在协议规定将其放入 URL 时进行编码，不从斜杠、冒号或 ARN 推导其他配置。
 
 ### 1.2 配置与调用形态
 
@@ -60,13 +62,13 @@ withLlmClient suspend { client ->
 
 普通消息默认 User，request 的 system／tools 为空，生成选项默认省略。简单调用与复杂调用共用 `client.generate(model, request, options = LlmCallOptions())`，不提供 prompt 重载或另一种文本专用 client。`Message`／`Text` 是普通 enum 变体的类型上下文短写。生成参数只在 request 中表达，调用选项管理等待、重试与观察；常用值由应用直接复用，不建立多层隐式生成参数合并。
 
-`endpoint.model(id)` 允许省略能力描述，此时未掌握的能力为 Unknown；显式描述使用 `capabilities = Some(description)`。Endpoint 未传 baseUrl 时采用 provider 的已知部署缺省，覆盖用 `baseUrl = Some(url)`；没有部署缺省的 provider 必须指定 URL。认证与 model ID 必填，不从环境中隐式查找凭据或选择模型。
+`endpoint.model(id)` 允许省略能力描述，此时未掌握的能力为 Unknown；显式描述使用 `capabilities = Some(description)`。Endpoint 未传 baseUrl 时采用 provider 的缺省 API 地址，覆盖用 `baseUrl = Some(url)`；没有缺省地址的 provider 必须指定 URL。认证与 model ID 必填，不从环境中隐式查找凭据或选择模型。
 
-Endpoint 的 deployment 缺省为 `LlmDeployment.Direct`，按已配置 baseUrl 追加协议路径。Azure v1 直接配置 `/openai/v1`；旧版 Chat 显式选择 `AzureOpenAiLegacy(apiVersion)`，由 model ID 确定部署路径。两者共用原有 provider、生成和流式入口。认证的 bearer／header 可接收 suspend 凭据回调，每次实际尝试取得一次值，刷新与登录仍由应用负责；具体合同见[库规范 §43](../specs/SCOOP-LLM-CLIENT-SPEC.md#43-azure-部署与按尝试取得认证字段)。
+Endpoint 按显式 baseUrl 追加协议操作路径，不提供独立的部署对象，也不从 model ID 推导云部署。已有地址包含的路径前缀与 query 照常保留。认证的 bearer／header 可接收 suspend 凭据回调，每次实际尝试取得一次值，刷新与登录仍由应用负责；具体合同见[库规范 §43](../specs/SCOOP-LLM-CLIENT-SPEC.md#43-显式-api-端点与认证字段回调)。
 
 流式请求使用 `client.withStream(model, request) suspend { stream -> ... }`；需要关闭后读取完整结果时使用同参数的 `openStream` 加 `useAsync`，并显式设置 `retention = StreamRetention.Result`。`withLlmClient`／`withStream` 只组合资源寿命，不另设生成语义。切换 provider 必须由应用显式选择另一个 Model，原生历史是否可迁移按第 5 节处理。
 
-命名工厂提供常用组合与部署缺省值，公共构造入口仍允许用户提供自己的适配器。认证与连接池不按 provider 复制；多个 endpoint 可共享一个 HttpClient，借入资源的关闭责任沿用既有合同。
+命名工厂提供常用组合与缺省 API 地址，公共构造入口仍允许用户提供自己的适配器。认证与连接池不按 provider 复制；多个 endpoint 可共享一个 HttpClient，借入资源的关闭责任沿用既有合同。
 
 ## 2. Protocol 与 dialect 的职责
 
@@ -376,7 +378,7 @@ Dialect 明确原生计数是总量还是子项。例如 Claude 的原生 input_
 | 1 | 固定公共数据、capability、工具、错误与调用 metadata；补 HTTP 请求级时间采样合同 | 可编码请求、可解码结果；发送／接收时间可取得，未知能力与明确不支持有不同结果 |
 | 2 | Chat protocol、基础 dialect 和 DeepSeek Chat dialect | 同一基础协议的两种行为；工具两轮回传、计时与 token usage 闭环 |
 | 3 | Responses、Messages 和 Gemini 的各自 provider，先实现 WebSearch | 客户端与服务端工具自然共存；活动、引用、usage 和原生历史保留 |
-| 4 | 按协议矩阵补部署、其他服务端工具、显式 token count、持久会话 | 每项声明能力有对应映射与测试，不以供应商品牌数量验收 |
+| 4 | 按既定协议补实际 API 差异、服务端工具、辅助 API 与持久会话 | 每项声明能力有对应映射与测试；完成 API 封装后停止扩展范围 |
 
 模块边界为当前两个具体 dialect 和多个真实服务端工具形状服务，不先实现通用插件层、规则语言或全部供应商目录。新 protocol 可由普通公共适配接口实现；生成与实时会话使用各自合同，不在无关接口中堆放占位方法。
 
