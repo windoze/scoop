@@ -1385,4 +1385,11 @@ pub struct StringConst {
     /// Canonical, arena-independent identity seed for this immutable object.
     pub identity: ImmortalObjectKey,
     pub value: String,
+    pub source: StringConstSource,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StringConstSource {
+    CurrentCone,
+    Imported(ConeIdentity),
 }

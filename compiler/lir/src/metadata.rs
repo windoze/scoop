@@ -826,7 +826,8 @@ impl Global {
             GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
                 identity.symbol()
             }
-            GlobalInit::ImportedStorage { definition, .. } => definition.symbol(),
+            GlobalInit::ImportedStorage { definition, .. }
+            | GlobalInit::ImportedImmortal { definition } => definition.symbol(),
         }
     }
 
@@ -838,7 +839,9 @@ impl Global {
             GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
                 Some(identity.symbol_request())
             }
-            GlobalInit::CString { .. } | GlobalInit::ImportedStorage { .. } => None,
+            GlobalInit::CString { .. }
+            | GlobalInit::ImportedStorage { .. }
+            | GlobalInit::ImportedImmortal { .. } => None,
         }
     }
 }
@@ -1185,6 +1188,10 @@ pub struct EnumFieldRepr {
 
 #[derive(Debug)]
 pub enum GlobalInit {
+    /// Only an address; the dependency defines and registers the object.
+    ImportedImmortal {
+        definition: Box<crate::ExternalShapeLinkImportV1>,
+    },
     /// Storage defined and registered by an actual dependency provider.
     ImportedStorage {
         definition: Box<crate::ExternalShapeLinkImportV1>,

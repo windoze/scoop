@@ -1,6 +1,66 @@
 use super::*;
 
 #[test]
+fn ordinary_inline_bodies_keep_construction_field_writes_and_strings() {
+    with_provider_consumer(
+        r#"
+        package dev.example.upstream
+        public struct Snapshot(val count: Int, val owner: Counter)
+        public class Counter public constructor(private var count: Int) {
+            public fun snapshot(): Snapshot = Snapshot(count, this)
+            public fun advance() { count += 1 }
+            public fun copy(): Counter = Counter(count)
+            public fun label(): String = "counter"
+        }
+        "#,
+        r#"
+        package dev.example.consumer
+        import dev.example.upstream.Counter
+        import dev.example.upstream.Snapshot
+        public fun sample(counter: Counter): Snapshot {
+            counter.advance()
+            return counter.snapshot()
+        }
+        public fun copy(counter: Counter): Counter = counter.copy()
+        public fun label(counter: Counter): String = counter.label()
+        "#,
+        |output, _, _, _, _| {
+            let local = output.output().local.module();
+            assert_eq!(local.imported_inline_bodies.len(), 4);
+            let mut strings = Vec::new();
+            local
+                .visit_executable_expressions::<()>(|occurrence| {
+                    if let hir::concrete::ExprKind::StringLiteral { value, owner } =
+                        &occurrence.expression.kind
+                    {
+                        strings.push((occurrence.position.root, value.clone(), *owner));
+                    }
+                    Ok(())
+                })
+                .unwrap();
+            assert_eq!(strings.len(), 1);
+            assert_eq!(strings[0].1, "counter");
+            assert_eq!(strings[0].2, hir::StringConstantOwner::CurrentDefinition);
+            assert!(
+                local
+                    .imported_inline_bodies
+                    .values()
+                    .any(|body| body.materialization == strings[0].0)
+            );
+            for body in local.imported_inline_bodies.values() {
+                assert!(
+                    local
+                        .functions
+                        .values()
+                        .all(|function| function.materialization != body.materialization)
+                );
+            }
+        },
+    )
+    .unwrap_or_else(|errors| panic!("{errors:?}"));
+}
+
+#[test]
 fn ordinary_inline_bodies_keep_external_identity_and_integer_semantics() {
     with_provider_consumer(
         r#"

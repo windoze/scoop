@@ -31,6 +31,18 @@ pub(in crate::request::preflight) fn select_lir_dependencies<'a>(
             lir::ExternalStrongShapeSubjectV1::InitializationRegistration(unit),
         )
     }));
+    for &id in input.materialization().strings() {
+        let string = &input.module().strings[id];
+        if let mir::StringConstSource::Imported(provider) = string.source {
+            physical.push((
+                provider,
+                lir::ExternalStrongShapeSubjectV1::ImmortalObject(
+                    scoop_identity::PersistentImmortalObjectId::from_key(&string.identity)
+                        .expect("MIR string identities have canonical records"),
+                ),
+            ));
+        }
+    }
     roots.sort_unstable();
     roots.dedup();
     physical.sort_unstable();

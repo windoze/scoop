@@ -117,6 +117,8 @@ Java 稳态峰值需要充分预热后比较；启动和短命命令行程序则
 
 ArrayList 遍历原先在第三轮将 getter 估为 execution 19、growth 13，caller 只余 3，因累计增长保留调用；[通用增长额度调整](INLINE-GROWTH.md)将初始常数从 96 调为 128，保留 384 总上限与执行成本限制，该点现在正常内联，三目标遍历降低约 16%～24%，底层检查／数组 helper 仍有调用。[普通跨 Cone 方法与 getter 正文](MEMBER-INLINING.md)已按通用结构和完整签名开放，三目标用户成员循环降低约 47%～73%，继续受统一成本选择约束；`Long.hash` 的普通包装可展开，底层 native bridge 保留。下一步处理保留调用的 poll／TLS 固定成本与启动登记，不按具体函数名称设置例外。
 
+[小正文导出与跨 Cone 主值构造器内联](BODY-EXPORT.md)已补齐普通构造、字段写入和 callable-owned 字符串形式；主值构造按既有完整角色与签名进入普通选择，字符串引用 provider 原对象。原始 strmap 的 snapshot／HashLocation 构造及部分 check 调用消失，三目标耗时降低约 3.1%～4.9%；advance 已有正文但仍受执行成本限制。导出有界、原阈值保持，release 默认；跨回调快照、异常、GC、旧库回退及编译／空间成本已定向验证。
+
 [启动阶段测量](STARTUP-STATS.md)已独立交付：通过 `--enable-startup-stats` 编入，默认产物预处理排除新增代码。三目标样本将主要 runtime 启动成本定位到注册汇集、代码／类型校验和 stackmap；后续按真实不可变关系复用验证结果，继续保留格式、引用、ABI 和 GC 必要检查。该能力不改变 `.slib` 或 PGO 排期。
 
 首项[启动 owner 验证合并](STARTUP-OWNER-JOIN.md)已消除 site 收集与 stackmap join 之间重复的完整身份查询，并让重复 ODR record 复用已验证 frame。三目标默认代表程序启动降低约 2.7%～8.1%，完整文件与元数据大小保持；全部 profile 默认启用，不增加 owner 缓存或新测量机制。其余注册汇集、stackmap 解析与调用入口 TLS 继续作为直接优化对象。

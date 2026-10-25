@@ -10,7 +10,7 @@ use scoop_identity::{
 };
 use scoop_wire::{decode_canonical, encode, encode_runtime};
 
-fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
+fn subjects() -> [ExternalStrongShapeSubjectV1; 11] {
     let site = SourceDeclarationSite::new(
         ConeIdentity::SINGLE_FILE,
         PackagePath::root(),
@@ -60,6 +60,16 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
     ))
     .unwrap();
     use ExternalStrongShapeSubjectV1 as Subject;
+    let immortal = scoop_identity::ImmortalObjectKey::string_constant(
+        scoop_identity::ImmortalObjectOwner::Property(PropertyOwner::Property(property)),
+        scoop_identity::StructuralDefinitionPath::from_first(
+            scoop_identity::StructuralPathSegment::new(
+                scoop_identity::StructuralDefinitionSiteRole::StringConstant,
+                0,
+            ),
+            [],
+        ),
+    );
     [
         Subject::Callable(scoop_identity::CallableDefinitionOwner::Strong(
             StrongCallableDefinitionOwner::Function(function),
@@ -75,13 +85,14 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
         Subject::StaticStorageRegistration(storage.identity_record().id()),
         Subject::InitializationCell(unit),
         Subject::InitializationRegistration(unit),
+        Subject::ImmortalObject(PersistentImmortalObjectId::from_key(&immortal).unwrap()),
     ]
 }
 
 #[test]
-fn all_ten_subjects_have_closed_cbor_and_distinct_runtime_tags() {
+fn all_subjects_have_closed_cbor_and_distinct_runtime_tags() {
     for (index, subject) in subjects().iter().enumerate() {
-        let tag = if index == 9 { 11 } else { (index + 1) as u32 };
+        let tag = (index + if index >= 9 { 2 } else { 1 }) as u32;
         let bytes = encode(subject).unwrap();
         assert_eq!(&bytes[..4], &[0xa2, 0, tag as u8, 1]);
         let decoded: DecodedExternalStrongShapeSubjectV1 = decode_canonical(&bytes).unwrap();
@@ -104,7 +115,7 @@ fn all_ten_subjects_have_closed_cbor_and_distinct_runtime_tags() {
             assert!(decode_canonical::<DecodedExternalStrongShapeSubjectV1>(&bad).is_err());
         }
     }
-    for tag in [0, 10, 12, 255] {
+    for tag in [0, 10, 13, 255] {
         let mut bytes = vec![0xa2, 0];
         if tag < 24 {
             bytes.push(tag);

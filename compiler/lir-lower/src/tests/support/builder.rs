@@ -105,6 +105,7 @@ impl Builder {
         self.strings.alloc(mir::StringConst {
             identity,
             value: value.to_string(),
+            source: mir::StringConstSource::CurrentCone,
         })
     }
 

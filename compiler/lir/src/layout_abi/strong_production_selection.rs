@@ -127,7 +127,8 @@ fn semantic_target(
             Some(LayoutAbiSemanticTargetV1::Descriptor(exact))
         }
         Subject::DispatchTable(table) => Some(LayoutAbiSemanticTargetV1::Dispatch(table)),
-        Subject::StaticStorage(_)
+        Subject::ImmortalObject(_)
+        | Subject::StaticStorage(_)
         | Subject::StaticStorageRegistration(_)
         | Subject::InitializationCell(_)
         | Subject::InitializationRegistration(_) => None,

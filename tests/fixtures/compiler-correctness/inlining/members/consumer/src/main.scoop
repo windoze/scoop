@@ -74,5 +74,6 @@ fun main() {
     check(returned === other && accessorKernel(returned) == 62L)
     check(snapshotKernel() == 11L && source.value == 100L)
     check(boxedKernel(amount) == 21L)
+    checkOperations()
     println("member inline preserves receivers, dispatch and roots")
 }

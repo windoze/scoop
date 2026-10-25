@@ -291,9 +291,13 @@ release 默认启用 MIR 优化，debug 保留未优化的完整 MIR；两种模
 
 已知装箱值或 final intrinsic class 的接口调用，也可消费 concrete HIR 中同一 exact owner／typed interface slot 的完整实现选择；这些语义关系随已使用类型保留，不要求在 consumer 重建 provider 的物理 itable。选中外部 primitive intrinsic 时保留其操作身份及完整签名，以原 primitive 下降生成优化正文；装箱 receiver 显式解箱，实参和结果必须匹配已选实现的 exact 类型。该正文与本地 intrinsic 一样强制展开，包含除零异常准备，不受普通内联策略影响；未知实际类型或不匹配的调用继续原动态分派。
 
-自动内联处理本 Cone 已有完整 concrete 正文的非递归 callable，包括本地物化的外部泛型和普通 adapter；也可消费依赖公开的普通非泛型小函数正文。后者复用 shared-source 的可移植 HIR 正文格式，保留提供方声明身份，经 hir-lower 成为独立的完整 concrete 优化正文，经 mir-lower 的原正文下降和 CFG 构造进入同一内联成本模型。优化正文不是当前 Cone 的函数定义，不产生外部 Strong 的副本；没有正文或未选中展开时仍调用原外部入口。首批普通正文选择不含 closure、字符串常量、Context、协程和局部异常处理的标量／值计算、分支及普通调用，不改变语言可用性或公共签名。
+自动内联处理本 Cone 已有完整 concrete 正文的非递归 callable，包括本地物化的外部泛型和普通 adapter；也可消费依赖公开的普通非泛型小函数正文。后者复用 shared-source 的可移植 HIR 正文格式，保留提供方声明身份，经 hir-lower 成为独立的完整 concrete 优化正文，经 mir-lower 的原正文下降和 CFG 构造进入同一内联成本模型。优化正文不是当前 Cone 的函数定义，不产生外部 Strong 的副本；没有正文或未选中展开时仍调用原外部入口。普通正文选择可完整移植的标量／值计算、字符串常量、字段读写、构造表达式、分支及普通调用；closure、Context、协程和局部异常处理仍保留外部调用。字符串保留提供方常量身份，字段与构造器使用原 typed 引用；字段 receiver 和构造实参按原顺序各求值一次，写屏障、异常、初始化与发布语义沿用普通下降。该选择不改变语言可用性或公共签名。
 
 上述普通优化正文同时适用于小型顶层函数、名义类型的普通方法及属性访问器；声明的源码种类不构成顶层限定。只有完整正文的 owner 与 callable 类型实参均为空时才作为非泛型优化正文导入；泛型宿主及泛型成员继续使用已有具体化路径。成员的 receiver 从原可移植正文与名义声明取得，作为完整调用签名的首个实参下降，访问器保留独立的 typed accessor identity；不把实例成员改成无 receiver 的顶层函数。字段、继承/default 选择、调用 effect 和参数／结果表示沿原绑定传递，取得正文不授权去虚拟化未知动态调用或扩大源码可见性。导出选择对各 profile 一致，实际自动内联仍为 release 默认能力；复用已有 shared-source 格式与 provider 物理入口，没有优化正文的相容旧库保持外部调用。
+
+导入普通正文中的 callable-owned 字符串字面量引用提供方已经定义和登记的 immortal object，不在 consumer 复制对象或增加 GC root。MIR 保留常量的实际 provider；LIR 经既有物理依赖选择取得同一对象的 typed definition 与 symbol，仅发射 managed 地址空间的外部常量声明。物理依赖 subject 增加 `ImmortalObject`（wire tag 12），合同使用不透明 immortal 地址（tag 8）；对象内容、布局及登记仍由 provider 负责，不重读或重验完整 payload。新增依赖种类沿现有 Compile／Link 引用闭合传递，既有字符串身份、shared-source 格式和目标 ABI 保持。折叠后属于独立 property 的字符串常量暂不进入普通正文选择，避免将其声明归属误当成当前 callable 的 provider。
+
+已选依赖 callable 的 MIR lowering role 为 `PrimaryValueConstructor` 时，按其完整 exact 签名与 owner 的既有 struct 字段顺序生成直接组装值的独立优化正文，复用本 Cone 主构造器的 MIR 语义。依据是语言规范 4.1.1 的主值构造器合同，不从函数名称、参数形状或空字段推测构造行为；默认实参仍由 caller 求值，secondary constructor 的委托／副作用与 class 初始化保持原调用。这类正文使用同一普通内联选择与增长限制，不作为强制 intrinsic 展开，不增加 Strong 定义或 `.slib` 布局。所有 profile 保留一致的角色、签名和外部入口，debug 保留调用；携带既有角色的相容库不要求新增正文记录。
 
 递归 SCC、无正文的外部 Strong、native／callback／gateway 和无法完整重写的特定 EH／Context／协程控制流保留调用。内联重分配 local、value、block 和临时存储身份，连接 return／异常出口，保留实参各求值一次、独立按值 place、位置、初始化发布和清理。Managed、分配或可能抛异常本身不构成拒绝理由；不复制后端 root/frame plan，站点由后续 LIR 统一形成。导入正文的局部值仅在实际展开时取得 caller 的新身份，候选之间以本地函数或外部 callable 的不同 typed id 区分，防止跨 Cone 调用环反复展开。
 

@@ -63,10 +63,8 @@ pub fn prepare<'a, 'layout>(
     let mut string_global_map: HashMap<mir::StringConstId, lir::GlobalId> = HashMap::new();
     for &id in input.materialization().strings() {
         let string = &module.strings[id];
-        let global = globals.alloc(lir::Global {
-            address_kind: lir::PointerKind::Managed,
-            scan: lir::RefScan::None,
-            init: lir::GlobalInit::StringConst {
+        let init = match string.source {
+            mir::StringConstSource::CurrentCone => lir::GlobalInit::StringConst {
                 identity: lir::ImmortalObjectIdentity::from_key(
                     string.identity.clone(),
                     identity_roots.for_immortal_object(&string.identity),
@@ -74,6 +72,31 @@ pub fn prepare<'a, 'layout>(
                 .expect("validated MIR string identities have canonical CBOR records"),
                 value: string.value.clone(),
             },
+            mir::StringConstSource::Imported(provider) => {
+                let object = scoop_identity::PersistentImmortalObjectId::from_key(&string.identity)
+                    .expect("MIR string identities have canonical records");
+                let definition = selected_layout
+                    .and_then(|selected| {
+                        selected
+                            .physical_imports()
+                            .records()
+                            .iter()
+                            .find(|definition| {
+                                definition.provider() == provider
+                                    && definition.subject()
+                                        == lir::ExternalStrongShapeSubjectV1::ImmortalObject(object)
+                            })
+                    })
+                    .ok_or(LirLoweringError::DependencyImmortalBinding { provider, object })?;
+                lir::GlobalInit::ImportedImmortal {
+                    definition: Box::new(definition.clone()),
+                }
+            }
+        };
+        let global = globals.alloc(lir::Global {
+            address_kind: lir::PointerKind::Managed,
+            scan: lir::RefScan::None,
+            init,
         });
         string_global_map.insert(id, global);
     }

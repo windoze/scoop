@@ -5,16 +5,17 @@ use crate::shape_link::wire::{EncodeResult, field};
 
 impl WireEncode for ShapeLinkContractV1 {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
-        encoder.map(
-            if matches!(self, Self::CallableAbi { .. } | Self::Scan { .. }) {
-                4
-            } else {
-                2
-            },
-        )?;
+        encoder.map(if matches!(self, Self::ImmortalObject) {
+            1
+        } else if matches!(self, Self::CallableAbi { .. } | Self::Scan { .. }) {
+            4
+        } else {
+            2
+        })?;
         encoder.field(0)?;
         encoder.unsigned(u64::from(self.tag()))?;
         match self {
+            Self::ImmortalObject => Ok(()),
             Self::CallableAbi {
                 canonical_signature,
                 calling_convention,

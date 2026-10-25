@@ -313,7 +313,10 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             crate::elf_llvm::apply_visibility(global);
         }
         for (&id, &emitted) in &globals {
-            if matches!(module.globals[id].init, GlobalInit::ImportedStorage { .. }) {
+            if matches!(
+                module.globals[id].init,
+                GlobalInit::ImportedStorage { .. } | GlobalInit::ImportedImmortal { .. }
+            ) {
                 crate::elf_llvm::apply_visibility(emitted);
             }
         }

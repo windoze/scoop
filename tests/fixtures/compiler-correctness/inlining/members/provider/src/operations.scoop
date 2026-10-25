@@ -1,0 +1,29 @@
+package dev.performance.members.provider
+
+private var constructed = 0L
+public fun constructionCount(): Long = constructed
+
+public struct Packet(val count: Long, val cell: Cell) {
+    public constructor(cell: Cell) : this(-1L, cell) {
+        constructed += 1L
+    }
+}
+
+public struct EmptyMarker()
+
+public class Recorder public constructor(private var cell: Cell) {
+    private var count = 0L
+
+    public fun snapshot(): Packet = Packet(count, cell)
+    public fun replace(next: Cell) {
+        cell = next
+        count += 1L
+    }
+    public fun validate(expected: Long) {
+        if (count != expected) throw IllegalStateException(Some("member state mismatch"))
+    }
+}
+
+public fun makeCell(value: Long): Cell = Cell(value)
+public fun providerLiteral(): String = "shared member literal"
+public fun providerLiteralReference(): () -> String = ::providerLiteral

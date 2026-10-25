@@ -75,6 +75,7 @@ fn lowers_hello_world() {
             }
             lir::GlobalInit::Storage { .. }
             | lir::GlobalInit::RawStorage { .. }
+            | lir::GlobalInit::ImportedImmortal { .. }
             | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect();
@@ -93,6 +94,7 @@ fn lowers_hello_world() {
             lir::GlobalInit::CString { .. }
             | lir::GlobalInit::Storage { .. }
             | lir::GlobalInit::RawStorage { .. }
+            | lir::GlobalInit::ImportedImmortal { .. }
             | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect::<Vec<_>>();
@@ -114,6 +116,7 @@ fn lowers_hello_world() {
             | lir::GlobalInit::RawStorage { .. }
             | lir::GlobalInit::StringConst { .. }
             | lir::GlobalInit::CString { .. }
+            | lir::GlobalInit::ImportedImmortal { .. }
             | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect::<Vec<_>>();

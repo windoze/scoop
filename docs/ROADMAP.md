@@ -763,7 +763,8 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - [普通 managed poll 与有界叶函数](program-performance/ACTIVE-POLLS.md)已交付：普通 Full poll 仅一次 acquire 读取 phase，省去 TLS／mode／epoch，既有有界叶函数省入口；Gateway 保留首次激活及[本线程 relaxed 读取](program-performance/POLL-OWNER-READS.md)。三个目标动态调用内核降低约 16.5%／27.5%／39.5%，静态空间缩小，定向 GC／ABI 与编译成本已验证，所有 profile 默认。
 - [minor 局部块遍历与连续清卡跳过](program-performance/MINOR-BLOCKS.md)已交付：年轻块／新目标与可用 region 分别索引，保留原 block 大小和 ABI，连续清卡批量跳过。原始 trees 三目标耗时降低约 7.9%／12.0%／11.8%，仅每个 region 增加 8 B、全局增加 16 B；定向 GC、实际负载、默认产物消费与空间／构建成本已核对，所有 profile 默认。
 - [循环内联优先级与传值调用估价](program-performance/LOOP-INLINING.md)已交付：有限增长优先用于深循环，及时使用展开后的 exact receiver，循环成本考虑参数／返回值快照。原始 dispatch／values 三目标分别降低约 12.8%～29.9%／10.2%～33.9%，代码不膨胀，编译变化 −1.49%～+1.70%；定向语义／ABI／GC 验证通过，release 默认。
-- 下一批补齐实际缺失的内部小成员正文形式，并继续处理 minor 的脏区枚举／清零与 survivor／晋升年龄。callable／stackmap 裁剪随后处理真实可达性与登记保留，避免把优化推进转成测量设施的扩建。
+- [小正文导出与跨 Cone 主值构造器内联](program-performance/BODY-EXPORT.md)已交付：普通构造／字段写入／callable-owned 字符串进入有界导出，主值构造按已有角色选择；strmap 的快照／主值构造及部分检查调用消失，三目标降低约 3.1%～4.9%，静态数据减少，生产库增长小于 1%。定向语义／GC／跨 profile、旧库回退及编译成本已核对，release 默认；成本不合格的调用保留。
+- 下一批继续处理 minor 的脏区枚举／清零与 survivor／晋升年龄。callable／stackmap 裁剪随后处理真实可达性与登记保留，避免把优化推进转成测量设施的扩建。
 - [普通内联增长额度](program-performance/INLINE-GROWTH.md)已统一调整初始常数 96→128，保留总上限与执行阈值；ArrayList.get 调用消失，三目标遍历减少约 16%～24%，代码增加 32～64 B，release 默认。按实际成本保留其他 helper，未采纳增长回收试验。
 - [跨 Cone 普通方法与 getter 内联](program-performance/MEMBER-INLINING.md)已交付：相同的 HIR 结构和 MIR 成本选择，保留完整 receiver、typed accessor identity 与动态分派边界；三目标用户成员循环降低约 47%～73%，正文、代码与编译成本很小，release 默认启用。反向 profile、异常、泛型、装箱、GC roots 和旧库回退通过。
 - [Darwin 的 Scoop 符号镜像内绑定](program-performance/LOCAL-SYMBOLS.md)已交付：所有 profile 的最终链接移除 Scoop 动态导出、weak binding 和直接调用 stub，相容预编译库可直接重链接。代表程序缩小 16.84%，零次循环进程降低 46.60%；跨 Cone／GC、稳态回退与链接成本已验证。成员内联、内联选择、poll／TLS 和 runtime 启动登记继续优先推进。

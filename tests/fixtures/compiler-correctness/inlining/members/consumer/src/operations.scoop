@@ -1,0 +1,75 @@
+package dev.performance.members
+
+import dev.performance.members.provider.*
+
+public fun packetKernel(count: Long, cell: Cell): Packet = Packet(count, cell)
+public fun emptyKernel(): EmptyMarker = EmptyMarker()
+public fun constructSnapshotKernel(value: Recorder): Packet = value.snapshot()
+public fun replaceKernel(value: Recorder, next: Cell) { value.replace(next) }
+public fun validateKernel(value: Recorder, expected: Long) { value.validate(expected) }
+public fun classConstructKernel(value: Long): Cell = makeCell(value)
+public fun secondaryKernel(cell: Cell): Packet = Packet(cell)
+public fun literalKernel(): String = providerLiteral()
+
+public fun callbackSnapshotKernel(value: Recorder, action: () -> Unit): Packet {
+    val snapshot = value.snapshot()
+    action()
+    value.validate(snapshot.count)
+    return snapshot
+}
+
+private var receiverEvaluations = 0L
+private var argumentEvaluations = 0L
+
+private fun selectRecorder(value: Recorder): Recorder {
+    receiverEvaluations += 1L
+    return value
+}
+
+private fun selectCell(value: Cell): Cell {
+    argumentEvaluations += 1L
+    gcCollect()
+    return value
+}
+
+fun checkOperations() {
+    val first = Cell(10L)
+    val recorder = Recorder(first)
+    val old = constructSnapshotKernel(recorder)
+    gcCollect()
+    val next = classConstructKernel(20L)
+    replaceKernel(selectRecorder(recorder), selectCell(next))
+    gcCollect()
+    val current = constructSnapshotKernel(recorder)
+    check(receiverEvaluations == 1L && argumentEvaluations == 1L)
+    check(old.count == 0L && old.cell === first && old.cell.twice == 20L)
+    check(current.count == 1L && current.cell === next && current.cell.twice == 40L)
+    validateKernel(recorder, 1L)
+    var failed = false
+    try {
+        validateKernel(recorder, 0L)
+    } catch (failure: IllegalStateException) {
+        check(failure.message == Some("member state mismatch"))
+        failed = true
+    }
+    check(failed)
+    val callbackSnapshot = callbackSnapshotKernel(recorder) { gcCollect() }
+    check(callbackSnapshot.count == 1L && callbackSnapshot.cell === next)
+    failed = false
+    try {
+        callbackSnapshotKernel(recorder) {
+            replaceKernel(recorder, first)
+            gcCollect()
+        }
+    } catch (failure: IllegalStateException) {
+        failed = true
+    }
+    check(failed && constructSnapshotKernel(recorder).count == 2L)
+    val packet = packetKernel(12L, next)
+    gcCollect()
+    check(packet.count == 12L && packet.cell === next)
+    emptyKernel()
+    val secondary = secondaryKernel(first)
+    check(secondary.count == -1L && secondary.cell === first && constructionCount() == 1L)
+    check(literalKernel() === providerLiteralReference()())
+}

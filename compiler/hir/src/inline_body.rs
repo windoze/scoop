@@ -32,6 +32,10 @@ fn statements(body: &[Statement], remaining: &mut usize) -> bool {
                 target: AssignTarget::Local(_),
                 value,
             } => expression(value, remaining),
+            StatementKind::Assign {
+                target: AssignTarget::Field { receiver, .. },
+                value,
+            } => expression(receiver, remaining) && expression(value, remaining),
             StatementKind::If {
                 cond,
                 then_body,
@@ -59,9 +63,20 @@ fn expression(value: &Expr, remaining: &mut usize) -> bool {
         | E::FloatLiteral(_)
         | E::BoolLiteral(_)
         | E::CharLiteral(_)
+        | E::StringLiteral {
+            owner: StringConstantOwner::CurrentDefinition,
+            ..
+        }
+        | E::NoneLiteral
         | E::UnitLiteral
         | E::Unreachable => true,
-        E::TupleLiteral(values) => values.iter().all(|value| expression(value, remaining)),
+        E::TupleLiteral(values)
+        | E::StructInit { args: values, .. }
+        | E::ClassInit { args: values, .. }
+        | E::VariantConstruct { args: values, .. }
+        | E::StructConstruct { fields: values, .. } => {
+            values.iter().all(|value| expression(value, remaining))
+        }
         E::IntegerOperation(operation) => match operation {
             IntegerExpression::Unary { operand, .. } => expression(operand, remaining),
             IntegerExpression::Binary { lhs, rhs, .. } => {
@@ -80,6 +95,7 @@ fn expression(value: &Expr, remaining: &mut usize) -> bool {
         | E::FloatConversion { operand, .. }
         | E::CharCode(operand)
         | E::CharFromCodeUnchecked(operand)
+        | E::SomeWrap(operand)
         | E::FieldAccess {
             receiver: operand, ..
         } => expression(operand, remaining),
