@@ -6,7 +6,7 @@
 
 ## 1. 共同的数据与调用入口
 
-下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。generate 与 openStream／withStream 已接入 Chat／Messages／Responses／Gemini generateContent／Interactions；Converse 同样使用这组入口，countTokens 仍为后续合同。
+下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。generate 与 openStream／withStream 已接入 Chat／Messages／Responses／Gemini generateContent／Interactions／Converse／Cohere Chat v2；countTokens 仍为后续合同。
 
 ```scoop
 public class LlmRequest public constructor(
@@ -371,7 +371,7 @@ None 的语义按字段固定：`httpClient = None` 创建作用域内拥有的 
 
 ### 7.1 Cohere Chat v2 使用同一生成入口
 
-Cohere 的普通生成只需更换 provider，缺省发送 model 和 messages；SSE 继续实施。图片 detail 属于图片扩展，RAG documents 属于请求扩展，不把某条消息的文档自动挪到全局。
+Cohere 的普通生成只需更换 provider，缺省发送 model 和 messages；流式使用同一模型和请求，自动添加 stream=true。图片 detail 属于图片扩展，RAG documents 属于请求扩展，不把某条消息的文档自动挪到全局。
 
 ```scoop
 suspend fun askCohere(client: LlmClient, apiKey: String, modelId: String): LlmResult {
@@ -388,6 +388,26 @@ fun readCohereReply(body: String, request: LlmRequest): LlmResponse =
 ```
 
 usage 读取实际 tokens，billed_units 另外保留在原生数据中。thinking 和 tool_plan 不混入 text；引用关联原始内容块，未定义单位的范围保留原文。这是纯 JSON 解码，不产生客户端发送／接收时间戳。
+
+需要最终用量、历史和时间戳时显式保留 Result；只消费事件则使用缺省 EventsOnly，不累计普通正文。
+
+```scoop
+suspend fun streamCohere(client: LlmClient, apiKey: String, modelId: String): LlmResult {
+    val model = LlmEndpoint(Providers.cohereChat(), LlmAuth.bearer(apiKey)).model(modelId)
+    val stream = client.openStream(model, LlmRequest([Message([Text("解释值类型。")])]),
+        retention = StreamRetention.Result)
+    stream.useAsync suspend { opened ->
+        val text = opened.textDeltas()
+        while (true) {
+            val delta = text.next() ?: break
+            print(delta.text)
+        }
+    }
+    return stream.result()
+}
+```
+
+工具参数可以交错到达，ClientToolCall 等到 message-end 的停止原因确认后交付；晚到引用不会移动已发出的 item／part 位置。createStreamDecoder(request) 也使用相同缺省 EventsOnly，供已有 SSE source 的调用者使用；它接收已定界的 event／data，不自行创建连接。
 
 ## 8. 缺省值与使用检查
 

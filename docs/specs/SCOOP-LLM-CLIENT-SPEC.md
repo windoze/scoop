@@ -560,7 +560,7 @@ TokenUsage 使用 usage.tokens.input_tokens／output_tokens，cached_tokens 是�
 
 ## 28. Cohere Chat v2 请求与普通生成
 
-CohereChatProtocol 实现 LlmGenerationProtocol，CohereDialect 增加 encodeOptions(request) 与 decodeError。Providers.cohereChat() 包装 CohereChatDialect，缺省地址为 https://api.cohere.com/v2；generationUrl 在部署路径后追加 chat，保留查询。应用显式提供 LlmAuth.bearer 和模型 ID，不查模型目录、不读取环境。普通调用沿用 client.generate 的能力检查、寿命、usage 和实际时间戳；纯 encodeRequest 可以生成 stream=true 正文，SSE 接收另行实现。
+CohereChatProtocol 实现 LlmSseProtocol，CohereDialect 提供 encodeOptions(request) 与 decodeError。Providers.cohereChat() 包装 CohereChatDialect，缺省地址为 https://api.cohere.com/v2；generationUrl 在部署路径后追加 chat，保留查询。应用显式提供 LlmAuth.bearer 和模型 ID，不查模型目录、不读取环境。普通调用沿用 client.generate 的能力检查、寿命、usage 和实际时间戳；流式使用同一地址并添加 stream=true，接收合同见第 29 节。
 
 最小请求只发送 model、messages。request.system 作为首条 system 消息，显式 System／User／Assistant 消息保持原位，Developer 无对应 role 而拒绝。content 使用有序 block 数组，不合并不同消息。History 检查同 dialect、无额外 context、assistant role 后原样追加，包括 thinking、plan、citations 和未知字段。已有 tool_calls 不需要在接续请求重新声明工具。
 
@@ -577,3 +577,23 @@ ToolResult 使用实际非空 call ID，context 存在时必须是同 ID 的 fun
 根部扩展允许 documents、citation_options、seed、penalties、safety_mode 等未管理字段，不能覆盖路由、内容、工具、采样、thinking 或 response_format。已解析且含字符串 message 的 HTTP 429 服务拒绝可由现有策略重试；截断、非 JSON、其他状态保留错误与正文，不获得重试资格。
 
 依据：[Chat v2 参数](https://docs.cohere.com/v2/reference/chat)、[图片输入](https://docs.cohere.com/docs/image-inputs)、[thinking 定义](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/types/thinking.py)、[工具结果定义](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/types/tool_message_v2.py)。借鉴 [Vercel 的协议映射](https://github.com/vercel/ai/blob/39aae5425e9f9a25acce413cc7e6823c2b5a73c5/packages/cohere/src/cohere-chat-language-model.ts)，同时遵守本库对原始历史、声明集合和显式选项的合同。
+
+## 29. Cohere Chat v2 SSE
+
+createStreamDecoder(request, retention=EventsOnly) 接收已经由 HTTP SSE parser 定界的 event／data，网络入口沿用 openStream／withStream、textDeltas、调用时间和关闭合同。SSE event 名为空或默认 message 时按 data.type 分派；其他名字必须与 type 相同。没有后台读取、自动重连或工具执行。
+
+message-start 建立唯一消息；id 可缺失，后续 message-end 提供的 id 可以补充，已知 ID 不得变化，不用生成字符串代替缺失 ID。起始 delta／message 可缺省或为 null，已提供的非 null role 必须为 assistant。起始 message 中可有空 content／tool_calls／citations 数组、null 或缺省，保留这些实际状态；非空数组不是开始元数据而拒绝。tool_plan 的初始字符串与后续增量顺序相加。起始消息的额外字段保留在 history，不混入可见文本。
+
+content-start／delta／end、tool-call-start／delta／end 和 citation-start／end 各有独立的非负 index 序列，从零开始连续新增；已开始的不同索引可以交错。重复开始、未开始就增量／结束、结束后追加及终止时仍有未结束块均报告协议错误。tool-plan-delta 没有 index，作为独立 Reasoning 累积；message-end 结束 plan。已声明的 content type 决定 text 或 thinking 的增量归属，不能把另一种字段接到该 block；缺失／未知 type 保留 Native，不猜成 text。
+
+流式 item 位置按首次内容／plan／工具事件分配，之后不改变；相邻开始的 text 块共享一个 Message，并使用各自 partIndex，仍可拼接解析结构化输出。thinking 与 plan 不进入普通 text 视图。空起始集合不占用输出位置，已提供但没有增量的空 plan 在最终结果中保留。Result 保存内容及原生历史；EventsOnly 不累计普通 text／thinking／plan，只保留定位、待结束调用和引用关联所需状态。
+
+函数 start 的真实 id 必须非空且本消息内唯一，type／name／arguments 的解释与完整响应一致。arguments 初始字符串和后续片段按序拼接，不修改空串、null 字符串、空白或大整数。只有 tool-call-end 结束且 message-end.finish_reason=TOOL_CALL 后才确定完整输入，JSON 只解析一次；无效或非对象 JSON 为 Invalid，其他停止原因为 Incomplete。未知调用类型、未绑定函数或缺失函数字段保持 Native；无法解释的工具增量使该调用不能执行，并使 history 不可用。待执行 reference 使用完整原始调用，分片事件中的 reference 仅用于关联。
+
+citation-start 解码来源和边界一次，citation-end 才完成该引用。明确 content_index 且目标已经存在的引用、已存在 plan 的 PLAN 引用可以立即交付 typed Citation；缺少索引或指向尚未出现内容的引用延迟到 message-end 再判断唯一归属和边界。晚到引用不移动 item；来源、原文、无法关联的引用仍通过 Native 事件读取。范围的 Unicode 单位未明确，range 仍为 None；document／tool 来源不产生 ServerToolActivity。Result 的 history 保存原始 citations 数组，typed 引用复用已解码来源，不重新解析整份响应。
+
+message-end 必须提供非空 finish_reason；COMPLETE、STOP_SEQUENCE、TOOL_CALL、MAX_TOKENS、ERROR、TIMEOUT 与完整响应采用同样的完成语义，未知原因保持 Incomplete。error 字符串保留 Native；非空 error 与非失败停止原因同时出现时报告协议错误。ERROR／TIMEOUT 是可观察的失败模型结果，不冒充成功或可追加历史。usage 使用终止事件的实际 tokens／cached_tokens，billed_units 仍只保留原文；已知停止原因标 Final，未知原因标 Partial。缺失计数保持未知，不能把 citation 或工具事件当作用量快照相加。
+
+只有 message-end 完成整次流，content-end、tool-call-end、裸 [DONE] 或 EOF 都不能替代。EOF 未终止时失败，独立 error 事件失败；失败后不能读取成功结果。未知事件与未知增量保留 Native，debug 只作为元数据；无法解释为完整消息的变化使 history 不可用，已识别文本仍正常交付。已知 start 快照中的未知字段可以原样保存；不把未解释的 delta 合并成虚构的最终字段。结果不保存整条已知事件日志，结束后释放中间状态。
+
+依据：[SSE 接口](https://docs.cohere.com/v2/reference/chat-stream)、[事件说明](https://docs.cohere.com/docs/streaming)、[工具流示例及起始空字段](https://docs.cohere.com/docs/tool-use-streaming)、[官方流响应类型](https://github.com/cohere-ai/cohere-python/blob/e6595a6d8f43f858327ef2dd5ddcccd96db4749b/src/cohere/v2/types/v2chat_stream_response.py)。参考 Vercel 的增量入口，保留本库的索引关联、最终执行资格、精确 usage 与可序列化 history 合同。

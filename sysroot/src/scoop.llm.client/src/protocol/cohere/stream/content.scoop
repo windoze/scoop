@@ -1,0 +1,96 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal enum CohereStreamSlot {
+    Text(val parts: ArrayList<CohereStreamContent>),
+    Content(val block: CohereStreamContent),
+    Tool(val call: CohereStreamTool)
+}
+
+internal class CohereStreamContent public constructor(public val kind: String, public val location: LlmItemLocation,
+    public val partIndex: Long, private val retain: Boolean, raw: JsonValue) {
+    public var wire: JsonValue? = if (retain) Some(raw) else None
+    public var stopped: Boolean = false
+    public var value: String = ""
+    public val citations = ArrayList<Citation>()
+    private val text = StringBuilder()
+
+    public fun append(fragment: String, batch: LlmStreamBatch) {
+        if (retain) text.append(fragment)
+        val delta = LlmTextDelta(location, fragment, partIndex)
+        batch.events.add(if (kind == "text") LlmEvent.TextDelta(delta) else LlmEvent.ReasoningDelta(delta))
+        batch.observe(fragment, kind == "text")
+    }
+
+    public fun stop() {
+        if (stopped) throw DecodingException("/index", "content already stopped")
+        stopped = true
+        if (retain && kind != "") {
+            value = text.toString()
+            val field = if (kind == "plan") "tool_plan" else kind
+            wire = Some(replaceCohereField(wire!!, field, JsonValue.fromString(value)))
+        }
+        text.clear()
+    }
+
+    public fun part(): OutputPart = OutputPart.Text(value, citations.toArray())
+}
+
+internal fun startCohereStreamContent(state: CohereStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    val index = cohereStreamIndex(raw)
+    if (index != state.contents.size) throw DecodingException("/index", "content indices must start at zero and increase by one")
+    val (value, _) = cohereStreamMember(state, raw, "content", batch)
+    val path = "/delta/message/content"
+    cohereStreamObject(value, path)
+    val type = cohereStreamString(value, "type", path)
+    if (type != None) cohereNonempty(type!!, path + "/type") else state.historyAvailable = false
+    val kind = if (type == Some("text")) "text" else if (type == Some("thinking")) "thinking" else ""
+    var parts: ArrayList<CohereStreamContent>? = None
+    if (kind == "text" && state.slots.size != 0L) when (state.slots[state.slots.size - 1L]) {
+        case Text(previous) -> parts = Some(previous)
+        else -> {}
+    }
+    val itemIndex = if (llmPresent(parts)) state.slots.size - 1L else state.slots.size
+    val block = CohereStreamContent(kind, LlmItemLocation(0L, itemIndex), if (llmPresent(parts)) parts!!.size else 0L, state.retain, value)
+    state.contents.add(block)
+    if (kind == "text") {
+        if (!llmPresent(parts)) { parts = Some(ArrayList<CohereStreamContent>()); state.slots.add(CohereStreamSlot.Text(parts!!)) }
+        parts!!.add(block)
+    } else state.slots.add(CohereStreamSlot.Content(block))
+    if (kind == "") { batch.native("cohere.content", value, Some(block.location), false); batch.hasOutput = true; return }
+    val other = if (kind == "text") "thinking" else "text"
+    if (cohereStreamString(value, other, path) != None) throw DecodingException(path + "/" + other, "content field disagrees with its type")
+    when (cohereStreamString(value, kind, path)) { case Some(text) -> block.append(text, batch); case None -> {} }
+    val extra = llmStreamUnknown(value, ["type", kind])
+    if (extra.size != 0L) batch.native("cohere.content.fields", extra, Some(block.location), false)
+}
+
+internal fun cohereStreamContent(state: CohereStreamDecoder, raw: JsonValue): CohereStreamContent {
+    val index = cohereStreamIndex(raw)
+    if (index >= state.contents.size) throw DecodingException("/index", "content has not started")
+    val block = state.contents[index]
+    if (block.stopped) throw DecodingException("/index", "content already stopped")
+    return block
+}
+
+internal fun updateCohereStreamContent(state: CohereStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    val block = cohereStreamContent(state, raw)
+    val (value, _) = cohereStreamMember(state, raw, "content", batch)
+    val path = "/delta/message/content"
+    cohereStreamObject(value, path)
+    if (block.kind == "") { batch.native("cohere.content.delta", value, Some(block.location)); state.historyAvailable = false; return }
+    val other = if (block.kind == "text") "thinking" else "text"
+    if (cohereStreamString(value, other, path) != None) throw DecodingException(path + "/" + other, "content delta disagrees with its type")
+    when (cohereStreamString(value, block.kind, path)) { case Some(text) -> block.append(text, batch); case None -> {} }
+    cohereStreamExtra(state, batch, value, [block.kind], "cohere.content.delta.fields")
+}
+
+internal fun cohereStreamPlan(state: CohereStreamDecoder): CohereStreamContent {
+    if (llmPresent(state.plan)) return state.plan!!
+    val block = CohereStreamContent("plan", LlmItemLocation(0L, state.slots.size), 0L, state.retain, JsonObjectBuilder().build())
+    state.plan = Some(block)
+    state.planPresent = true
+    state.slots.add(CohereStreamSlot.Content(block))
+    return block
+}

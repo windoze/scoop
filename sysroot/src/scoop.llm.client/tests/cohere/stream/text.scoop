@@ -1,0 +1,102 @@
+package scoop.llm.client.tests.cohere.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.cohere.*
+import scoop.test.*
+
+@Test
+private class CohereStreamTextTest {
+    @Test
+    fun `Cohere SSE groups adjacent text parts and keeps thinking plan and exact structured output separate`() {
+        val stream = cohereStream()
+        cohereBegin(stream, "{\"role\":\"assistant\",\"content\":[],\"tool_plan\":\"\",\"tool_calls\":[],\"citations\":[],\"future\":42}")
+        val thought = cohereContent(stream, 0L, "你🙂", "thinking")
+        assertTrue(thought.hasOutput); assertFalse(thought.hasText)
+        cohereContent(stream, 1L, "{\"count\":")
+        val second = cohereContent(stream, 2L, "9007199254740993}")
+        when (second.events[0L]) { case TextDelta(delta) -> {
+            assertEquals(1L, delta.location.itemIndex); assertEquals(1L, delta.partIndex)
+        }; else -> fail() }
+        stream.accept("", cohereEvent("tool-plan-delta", member = Some("tool_plan"), value = Some(JsonValue.fromString("plan"))))
+        cohereEnd(stream)
+        assertEquals(0L, stream.endInput().events.size)
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(stream.response()))
+        assertEquals(9007199254740993L, response.decodeOutput<CohereAnswer>().count)
+        assertEquals(3L, response.candidates[0L].items.size)
+        assertEquals("plan", cohereHistory(response)["tool_plan"]!!.asString())
+        assertEquals(42L, cohereHistory(response)["future"]!!.asLong())
+        assertEquals(0L, cohereHistory(response)["tool_calls"]!!.size)
+        assertEquals(Json.stringify(cohereHistory(response)), Json.stringify(cohereEncode(LlmRequest(response.toInput()))["messages"]!![0L]))
+    }
+
+    @Test
+    fun `Cohere SSE preserves empty null and absent start collections and delayed empty plan`() {
+        for (start in ["{\"type\":\"message-start\"}", "{\"type\":\"message-start\",\"id\":null,\"delta\":null}",
+            "{\"type\":\"message-start\",\"delta\":{\"message\":null}}", "{\"type\":\"message-start\",\"delta\":{\"message\":{\"role\":null}}}"]) {
+            val empty = cohereStream(); empty.accept("", start); cohereEnd(empty)
+            assertEquals(None, empty.responseId)
+            assertEquals("assistant", cohereHistory(empty.response())["role"]!!.asString())
+        }
+        for (fields in ["", ",\"content\":null,\"tool_calls\":null,\"citations\":null", ",\"content\":[],\"tool_calls\":[],\"citations\":[],\"tool_plan\":\"\""]) {
+            val raw = "{\"role\":\"assistant\"" + fields + "}"
+            val stream = cohereStream(); cohereBegin(stream, raw); cohereEnd(stream)
+            val history = cohereHistory(stream.response())
+            for ((name, value) in Json.parse(raw).members()) assertEquals(Json.stringify(value), Json.stringify(history[name]!!))
+            assertEquals(Json.parse(raw).size, history.size)
+            assertEquals(None, stream.responseId)
+            assertEquals(if (history.containsKey("tool_plan")) 1L else 0L, stream.response().candidates[0L].items.size)
+        }
+        val stream = cohereStream(); cohereBegin(stream, "{\"tool_plan\":\"start\"}")
+        stream.accept("", cohereEvent("tool-plan-delta", member = Some("tool_plan"), value = Some(JsonValue.fromString(" end"))))
+        stream.accept("", "{\"type\":\"message-end\",\"id\":\"actual\",\"delta\":{\"finish_reason\":\"COMPLETE\"}}")
+        assertEquals(Some("actual"), stream.responseId)
+        assertEquals("start end", cohereHistory(stream.response())["tool_plan"]!!.asString())
+    }
+
+    @Test
+    fun `Cohere SSE EventsOnly emits deltas without retaining ordinary content or a final transcript`() {
+        val stream = CohereStreamDecoder(CohereChatDialect(), cohereRequest(), StreamRetention.EventsOnly)
+        cohereBegin(stream)
+        cohereContent(stream, 0L, "large text")
+        cohereContent(stream, 1L, "private reasoning", "thinking")
+        assertEquals("", stream.contents[0L].value)
+        assertFalse(llmPresent(stream.contents[0L].wire))
+        cohereEnd(stream)
+        assertEquals(0L, stream.contents.size)
+        assertEquals(0L, stream.slots.size)
+        assertEquals(LlmOutputFailure.ResultNotRetained, assertFailsWith<LlmOutputException> { stream.response(); Unit }.reason)
+    }
+
+    @Test
+    fun `Cohere SSE retains native snapshots and debug metadata but rejects replay after unknown changes`() {
+        for (delta in [false, true]) {
+            val stream = cohereStream(); cohereBegin(stream)
+            val debug = stream.accept("debug", "{\"type\":\"debug\",\"prompt\":\"metadata\"}")
+            assertFalse(debug.hasOutput); assertFalse(debug.hasText)
+            stream.accept("", cohereEvent("content-start", Some(0L), Some("content"), Some(Json.parse("{\"type\":\"text\",\"text\":\"a\",\"future\":42}"))))
+            if (delta) {
+                val update = stream.accept("", cohereEvent("content-delta", Some(0L), Some("content"), Some(Json.parse("{\"text\":\"b\",\"future_delta\":1}"))))
+                assertTrue(update.hasText)
+            }
+            stream.accept("", cohereEvent("content-end", Some(0L))); cohereEnd(stream)
+            assertEquals(if (delta) "ab" else "a", stream.response().text)
+            if (delta) assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { stream.response().toInput(); Unit }.reason)
+            else assertEquals(42L, cohereHistory(stream.response())["content"]!![0L]["future"]!!.asLong())
+        }
+    }
+
+    @Test
+    fun `Cohere SSE unknown content does not become visible text or guessed reasoning`() {
+        for (raw in ["{\"text\":\"not typed\"}", "{\"type\":\"plan\",\"text\":\"native\"}"]) {
+            val stream = cohereStream(); cohereBegin(stream)
+            val update = stream.accept("", cohereEvent("content-start", Some(0L), Some("content"), Some(Json.parse(raw))))
+            assertFalse(update.hasText)
+            stream.accept("", cohereEvent("content-end", Some(0L))); cohereEnd(stream)
+            assertEquals("", stream.response().text)
+            when (stream.response().candidates[0L].items[0L]) { case Native(_, value) -> assertEquals(raw, Json.stringify(value)); else -> fail() }
+            if (!Json.parse(raw).containsKey("type")) assertFailsWith<LlmOutputException> { stream.response().toInput(); Unit }
+            else assertEquals(1L, stream.response().toInput().size)
+        }
+    }
+}

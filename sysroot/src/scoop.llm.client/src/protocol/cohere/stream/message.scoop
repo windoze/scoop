@@ -1,0 +1,66 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun startCohereStream(state: CohereStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    if (state.started) throw DecodingException("/type", "message already started")
+    state.id = cohereStreamString(raw, "id", "")
+    if (state.id != None) cohereNonempty(state.id!!, "/id")
+    val delta = cohereStartObject(raw["delta"], "/delta")
+    val message = cohereStartObject(delta["message"], "/delta/message")
+    val role = cohereStreamString(message, "role", "/delta/message")
+    if (role != None && role != Some("assistant")) throw DecodingException("/delta/message/role", "expected an assistant message")
+    for (name in ["content", "tool_calls", "citations"]) {
+        when (message[name]) {
+            case Some(field) -> {
+                if (field.kind != JsonValueKind.Null && decodeCohereValue<Array<JsonValue>>(field, "/delta/message/" + name).size != 0L)
+                    throw DecodingException("/delta/message/" + name, "stream starts with an empty collection")
+            }
+            case None -> {}
+        }
+    }
+    val plan = cohereStreamString(message, "tool_plan", "/delta/message")
+    state.planPresent = plan != None
+    if (state.retain) state.message = Some(message)
+    state.started = true
+    if (plan != None && plan!!.length != 0L) cohereStreamPlan(state).append(plan!!, batch)
+    cohereStreamExtra(state, batch, delta, ["message"], "cohere.message.start.fields", false)
+    cohereStreamExtra(state, batch, message, ["role", "content", "tool_calls", "citations", "tool_plan"], "cohere.message.fields", false)
+}
+
+internal fun finishCohereStream(state: CohereStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    val id = cohereStreamString(raw, "id", "")
+    if (id != None) cohereNonempty(id!!, "/id")
+    state.id = llmStreamIdentity(state.id, id, "/id")
+    val delta = cohereStreamObject(cohereStreamField(raw, "delta", ""), "/delta")
+    val reason = decodeCohereValue<String>(cohereStreamField(delta, "finish_reason", "/delta"), "/delta/finish_reason")
+    cohereNonempty(reason, "/delta/finish_reason")
+    val error = cohereStreamString(delta, "error", "/delta")
+    if (error != None) {
+        batch.native("cohere.error", delta["error"]!!)
+        if (error!!.length != 0L && reason != "ERROR" && reason != "TIMEOUT")
+            throw DecodingException("/delta/error", "error contradicts the finish reason")
+    }
+    for (block in state.contents) if (!block.stopped) throw DecodingException("/delta/finish_reason", "message ended with open content")
+    for (call in state.calls) if (!call.stopped) throw DecodingException("/delta/finish_reason", "message ended with an open tool call")
+    for (citation in state.citations) if (!citation.stopped) throw DecodingException("/delta/finish_reason", "message ended with an open citation")
+    if (state.planPresent) cohereStreamPlan(state).stop()
+    for (citation in state.citations) attachCohereStreamCitation(state, citation, true, batch)
+    val replayable = cohereReplayable(reason)
+    val completeness: UsageCompleteness = if (replayable || reason == "ERROR" || reason == "TIMEOUT") Final else Partial
+    val usage = delta["usage"]
+    state.currentUsage = if (llmPresent(usage) && usage!!.kind != JsonValueKind.Null)
+        LlmUsage(state.dialect.readUsage(usage!!), completeness, usage) else LlmUsage(completeness = completeness)
+    cohereStreamExtra(state, batch, delta, ["finish_reason", "usage", "error"], "cohere.message.end.fields")
+    val (completion, finish) = cohereCompletion(reason)
+    val items = finishCohereStreamSlots(state, reason, batch)
+    if (state.retain) {
+        val history = if (state.historyAvailable && replayable) Some(cohereStreamHistory(state)) else None
+        state.candidate = Some(LlmCandidate(0L, items, completion, finish, history))
+    }
+    state.contents.clear(); state.calls.clear(); state.citations.clear(); state.slots.clear()
+    state.message = None; state.plan = None
+    state.finished = true
+    batch.events.add(LlmEvent.CandidateFinished(0L, completion, finish))
+    batch.events.add(LlmEvent.Usage(state.currentUsage))
+}

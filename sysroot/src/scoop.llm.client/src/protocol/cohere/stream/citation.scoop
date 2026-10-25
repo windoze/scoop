@@ -1,0 +1,40 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class CohereStreamCitation public constructor(public val index: Long, public var pending: CohereCitation?,
+    public val raw: JsonValue?) {
+    public var stopped: Boolean = false
+    public val path: String get() = "/message/citations/" + index.toString()
+}
+
+internal fun startCohereStreamCitation(state: CohereStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    val index = cohereStreamIndex(raw)
+    if (index != state.citations.size) throw DecodingException("/index", "citation indices must start at zero and increase by one")
+    val (value, _) = cohereStreamMember(state, raw, "citations", batch)
+    val parsed = readCohereCitation(state.dialect.id, value, "/message/citations/" + index.toString())
+    state.citations.add(CohereStreamCitation(index, Some(parsed), if (state.retain) Some(value) else None))
+    batch.native("cohere.citation", value)
+}
+
+internal fun attachCohereStreamCitation(state: CohereStreamDecoder, citation: CohereStreamCitation,
+    final: Boolean, batch: LlmStreamBatch) {
+    val value = citation.pending ?: return
+    if (!final) {
+        if (value.contentIndex != None && value.contentIndex!! >= state.contents.size) return
+        if (value.kind == "plan") { if (!llmPresent(state.plan)) return }
+        else if (value.contentIndex == None) return
+    }
+    val kinds = ArrayList<String>()
+    for (block in state.contents) kinds.add(block.kind)
+    val index = cohereCitationTarget(kinds.toArray(), llmPresent(state.plan), value, citation.path)
+    if (index != None) {
+        val block = if (index!! == state.contents.size) state.plan!! else state.contents[index!!]
+        for (source in value.citations) {
+            if (state.retain) block.citations.add(source)
+            batch.events.add(LlmEvent.Citation(block.location, block.partIndex, source))
+            batch.hasOutput = true
+        }
+    }
+    citation.pending = None
+}

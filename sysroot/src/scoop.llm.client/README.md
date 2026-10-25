@@ -24,9 +24,11 @@ Interactions SSE 沿用 `openStream`／`withStream` 和缺省 EventsOnly，显�
 
 Bedrock Converse 通过 `Providers.bedrockConverse()` 接入同一个 `generate` 入口。部署地址、模型 ID 和认证显式配置，provider 不猜 region；API key 使用 `LlmAuth.bearer`。最小请求仅有 messages，模型 ID 保持 URL 中的一个路径段；推理参数、结构化输出、函数和系统工具各用协议原生字段。原始历史与连续工具结果可直接保存后接续，媒体 Bytes／S3 引用不触发隐式下载。内置 SigV4 继续实施。纯响应入口 `ConverseProtocol(BedrockConverseDialect()).decodeResponse(json, request)` 同样可用。响应保存有序内容、reasoning 签名、媒体、引用、实际调用 ID 与原始消息历史；系统工具与客户端函数分别读取，不自动执行。源文档位置保持引用元数据，不转换成输出文本范围。usage 的普通输入、缓存读与缓存写全部已知时才计算总输入，服务端 latencyMs 只留在原文，不代替客户端时间戳。
 
-Cohere Chat v2 使用 `Providers.cohereChat()` 和同一 endpoint／model／generate 入口，缺省部署为 https://api.cohere.com/v2，最小正文仅有 model 和 messages。文本、图片、thinking 控制、函数声明及原始历史按 v2 形状编码；RAG documents 通过请求扩展显式提供。函数 strict 统一映射全局 strict_tools，冲突值拒绝；Specific 只用于已仅声明目标函数的请求，不删除其他工具。工具结果复用原始 reference，普通错误作为应用提供的结果内容传入。SSE 继续实施。
+Cohere Chat v2 使用 `Providers.cohereChat()` 和同一 endpoint／model／generate／openStream 入口，缺省部署为 https://api.cohere.com/v2，最小正文仅有 model 和 messages，流式自动增加 stream=true。文本、图片、thinking 控制、函数声明及原始历史按 v2 形状编码；RAG documents 通过请求扩展显式提供。函数 strict 统一映射全局 strict_tools，冲突值拒绝；Specific 只用于已仅声明目标函数的请求，不删除其他工具。工具结果复用原始 reference，普通错误作为应用提供的结果内容传入。
 
 纯入口 `CohereChatProtocol(CohereChatDialect())` 同时提供 encodeRequest／decodeResponse。响应中的文本、thinking、tool_plan、引用和并行函数调用保持原有顺序；只有 TOOL_CALL 中完整且能关联声明的函数进入待执行视图。原始 assistant message 可保存后接续，未明确单位的引用位置保留原文，不猜测文本范围。usage.tokens 作为实际 token 统计，精确读取整数值的小数／指数写法；billed_units 留在 usage.native，不能替代实际 token 或金额。纯 decoder 不产生网络时间戳。
+
+Cohere SSE 也可通过 createStreamDecoder(request) 单独消费，缺省 EventsOnly 不累计普通正文，显式 Result 保存最终结果与原始历史。文本、thinking、plan、并行函数和晚到引用使用稳定 item／part 位置；函数参数在 message-end 确认 TOOL_CALL 后才进入执行视图。缺失 ID 保持 None，未知增量保留 Native 并阻止不完整历史回传；debug 仅作元数据，裸 EOF 不能冒充消息完成。网络调用沿用实际发送／接收时间、最终 usage 与关闭合同。
 
 最小生成调用使用同一套完整 API 的缺省参数。凭据和模型 ID 由应用显式传入：
 

@@ -2,12 +2,12 @@ package scoop.llm.client
 
 import scoop.json.*
 
-private class CohereCall public constructor(public val id: String, public val type: String,
+internal class CohereCall public constructor(public val id: String, public val type: String,
     public val function: JsonValue? = None) {
     public companion object : ValueDecoder<CohereCall>
 }
 
-private class CohereFunction public constructor(public val name: String? = None, public val arguments: String? = None) {
+internal class CohereFunction public constructor(public val name: String? = None, public val arguments: String? = None) {
     public companion object : ValueDecoder<CohereFunction>
 }
 
@@ -34,14 +34,18 @@ private fun readCohereToolCall(dialect: DialectId, raw: JsonValue, call: CohereC
     when (function.name) { case Some(name) -> cohereNonempty(name, path + "/function/name"); case None -> {} }
     if (function.name == None || function.arguments == None) return LlmOutputItem.Native(dialect, raw)
     val key = resolveCohereFunction(tools, function.name!!) ?: return LlmOutputItem.Native(dialect, raw)
-    val arguments = function.arguments!!
-    val input = if (reason != "TOOL_CALL") ClientToolInput.Incomplete(arguments)
-        else try { ClientToolInput.JsonArguments(JsonToolArguments(arguments)) }
-        catch (error: DecodingException) { ClientToolInput.Invalid(arguments, error.message ?: "invalid function arguments") }
-    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, Some(call.id), Some(raw)), input))
+    return cohereFunctionItem(dialect, key, call.id, raw, function.arguments!!, reason == "TOOL_CALL")
 }
 
-private fun resolveCohereFunction(tools: Array<ToolDefinition>, name: String): ToolKey? {
+internal fun cohereFunctionItem(dialect: DialectId, key: ToolKey, id: String, raw: JsonValue,
+    arguments: String, complete: Boolean): LlmOutputItem {
+    val input = if (!complete) ClientToolInput.Incomplete(arguments)
+        else try { ClientToolInput.JsonArguments(JsonToolArguments(arguments)) }
+        catch (error: DecodingException) { ClientToolInput.Invalid(arguments, error.message ?: "invalid function arguments") }
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, Some(id), Some(raw)), input))
+}
+
+internal fun resolveCohereFunction(tools: Array<ToolDefinition>, name: String): ToolKey? {
     var found: ToolKey? = None
     for (tool in tools) {
         val matches = when (tool) { case ClientFunction(_, wireName, _, _, _, _) -> wireName == name; else -> false }

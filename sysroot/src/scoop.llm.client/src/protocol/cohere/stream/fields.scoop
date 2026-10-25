@@ -1,0 +1,52 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun cohereStreamField(value: JsonValue, name: String, path: String): JsonValue =
+    value[name] ?: throw DecodingException(path + "/" + name, "missing Cohere stream field")
+
+internal fun cohereStreamObject(value: JsonValue, path: String): JsonValue {
+    if (value.kind != JsonValueKind.Object) throw DecodingException(path, "expected an object")
+    return value
+}
+
+internal fun cohereStartObject(value: JsonValue?, path: String): JsonValue {
+    val raw = value ?: return JsonObjectBuilder().build()
+    return if (raw.kind == JsonValueKind.Null) JsonObjectBuilder().build() else cohereStreamObject(raw, path)
+}
+
+internal fun cohereStreamString(value: JsonValue, name: String, path: String): String? = when (value[name]) {
+    case Some(field) -> if (field.kind == JsonValueKind.Null) None else Some(decodeCohereValue<String>(field, path + "/" + name))
+    case None -> None
+}
+
+internal fun cohereStreamIndex(raw: JsonValue): Long {
+    val index = decodeCohereValue<Long>(cohereStreamField(raw, "index", ""), "/index")
+    if (index < 0L) throw DecodingException("/index", "negative stream index")
+    return index
+}
+
+internal fun replaceCohereField(value: JsonValue, name: String, field: JsonValue): JsonValue {
+    val result = JsonObjectBuilder()
+    for ((key, entry) in value.members()) if (key != name) result.add(key, entry)
+    return result.add(name, field).build()
+}
+
+internal fun cohereStreamExtra(state: CohereStreamDecoder, batch: LlmStreamBatch, raw: JsonValue,
+    known: Array<String>, event: String, changesMessage: Boolean = true): Boolean {
+    val extra = llmStreamUnknown(raw, known)
+    if (extra.size == 0L) return false
+    batch.native(event, extra)
+    if (changesMessage) state.historyAvailable = false
+    return true
+}
+
+/** Returns whether all wrapper fields were understood as part of this message change. */
+internal fun cohereStreamMember(state: CohereStreamDecoder, raw: JsonValue, name: String,
+    batch: LlmStreamBatch): (JsonValue, Boolean) {
+    val delta = cohereStreamObject(cohereStreamField(raw, "delta", ""), "/delta")
+    val message = cohereStreamObject(cohereStreamField(delta, "message", "/delta"), "/delta/message")
+    val extraDelta = cohereStreamExtra(state, batch, delta, ["message"], "cohere.delta")
+    val extraMessage = cohereStreamExtra(state, batch, message, [name], "cohere.message.delta")
+    return (cohereStreamField(message, name, "/delta/message"), !extraDelta && !extraMessage)
+}

@@ -1,0 +1,49 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun finishCohereStreamSlots(state: CohereStreamDecoder, reason: String, batch: LlmStreamBatch): Array<LlmOutputItem> {
+    val items = ArrayList<LlmOutputItem>()
+    for (slot in state.slots) when (slot) {
+        case Text(blocks) -> {
+            if (state.retain) {
+                val parts = ArrayList<OutputPart>()
+                for (block in blocks) parts.add(block.part())
+                items.add(LlmOutputItem.Message(parts.toArray()))
+            }
+        }
+        case Content(block) -> {
+            if (state.retain) items.add(if (block.kind == "") LlmOutputItem.Native(state.dialect.id, block.wire!!)
+                else LlmOutputItem.Reasoning([block.part()]))
+        }
+        case Tool(call) -> {
+            val item = call.finish(reason == "TOOL_CALL", batch)
+            if (state.retain) items.add(item)
+        }
+    }
+    return items.toArray()
+}
+
+internal fun cohereStreamHistory(state: CohereStreamDecoder): LlmHistory {
+    var message = replaceCohereField(state.message!!, "role", JsonValue.fromString("assistant"))
+    if (state.contents.size != 0L) {
+        val content = JsonArrayBuilder()
+        for (block in state.contents) content.add(block.wire!!)
+        message = replaceCohereField(message, "content", content.build())
+    }
+    if (state.calls.size != 0L) {
+        val calls = JsonArrayBuilder()
+        for (call in state.calls) calls.add(call.wire)
+        message = replaceCohereField(message, "tool_calls", calls.build())
+    }
+    if (state.citations.size != 0L) {
+        val citations = JsonArrayBuilder()
+        for (citation in state.citations) citations.add(citation.raw!!)
+        message = replaceCohereField(message, "citations", citations.build())
+    }
+    when (state.plan) {
+        case Some(plan) -> message = replaceCohereField(message, "tool_plan", JsonValue.fromString(plan.value))
+        case None -> {}
+    }
+    return LlmHistory(state.dialect.id, [message])
+}
