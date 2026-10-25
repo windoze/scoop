@@ -234,6 +234,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     safepoint.get()
                 ))
             })?;
+            statepoint::mark_storage_access(self.context, store)?;
         }
         Ok(())
     }

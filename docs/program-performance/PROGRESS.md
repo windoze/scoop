@@ -4,7 +4,7 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
-- 接口数据流已完成 [MIR 末尾复制传播与根恢复精化](INTERFACE-SSA.md)：保持快照／取址／CFG 语义，死 direct 实参保留调用期间根，省去恢复 fake.use／写回。三目标完成分阶段定向正确性和固定源码对照；ARM64 dispatch 快路径栈访存从基线 31 降到 20，第二阶段 GNU／musl dispatch 约快 6%／7%，ARM64 List<Long> 约快 47%，ARM64 dispatch／class／数组回退一并保留。继续接口分量与实际重定位使用的 SSA 阶段，不以复制减少代替 GC 正确性或性能结果。
+- 接口数据流三个阶段已完成 [局部复制传播、根恢复精化与接口 SSA](INTERFACE-SSA.md)：死 direct 实参保留调用期间根，省去恢复 fake.use／写回；局部根槽复用普通标量优化，全部普通优化结束后拆分 aggregate，让 ret／store／后续实参实际消费 relocate。三目标定向 GC／ABI 验证通过，dispatch 快路径栈访存 ARM64 31→2、GNU／musl 24→3；完整对照耗时分别降低 49.80%／9.88%／12.07%，六程序均改善，前两阶段的回退仍保留。text 缩小、编译成本无明显增长；存储提升为 release 默认，晚期分解适用于所有 profile。lambdas／数组的旧汇编区间统计已按真实 CFG 回边纠正，没有用周期假设推算收益。
 
 - 已完成 [String 比较与短 hash](STRING-READS.md)：ordinary core 处理身份／长度与有界 FNV-1a，复用调用点常量事实；真实 typed 短常量比较生成有边界保护的读取。三目标定向语义、两 profile 的 IR／moving 与成本对照通过；ASCII 单独展开因混合 Unicode 回退未采纳。后续优先推进接口复制、根恢复与 SSA 重定位；字符串复制／Char 编码、初始化就绪与 Context 测量仍在 runtime 可见化的后续批次。
 

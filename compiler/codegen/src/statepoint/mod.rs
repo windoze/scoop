@@ -36,14 +36,18 @@ use crate::target::ManagedAddressSpace;
 const GC_STRATEGY: &str = "statepoint-example";
 pub(crate) const STATEPOINT_ROOT_IDENTITY_METADATA: &str = "scoop.statepoint-root-identity";
 
+mod aggregate_values;
 mod builders;
 mod constant_roots;
+mod edges;
 mod finalization;
 mod lowered;
 pub(crate) use lowered::LoweredSafepoints;
 mod manifest;
 mod root_identity;
 pub(crate) use root_identity::mark_root_identity;
+mod storage;
+pub(crate) use storage::mark_access as mark_storage_access;
 mod policy;
 
 pub(crate) use builders::{

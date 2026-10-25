@@ -88,7 +88,7 @@ tagged enum 的 managed 引用槽由各 variant 独占，inactive variant 的引
 
 语言值的冗余局部复制可以在根计划之前消除；同一未变更值不因经过多个局部名称而获得额外保活要求。复制仍具有快照语义，源重赋、取址、控制流合流和异常出口须按真实使用保留所需旧值。物理 roots 根据变换后的值流建立，不能仅删除存储而留下指向已删除副本的根来源。
 
-编译器可以按实现规范 2.5，在无 safepoint 且 canonical storage 不会被别名改写的直线区间内复用刚写入的接口 SSA 快照；快照不成为额外 GC root。跨调用、poll、分配、未知写入或控制流边界后，继续从原 storage 及精确 leaf 回写结果重建 object／itab，不能复用移动前的 aggregate SSA。
+未取址的接口和接口 niche 值可按实现规范 2.5 以独立 object／itab 分量参与 SSA 优化；真实取址、根发布与 ABI 所需存储继续保留。跨 safepoint 的实际使用必须消费 relocate 后的 object，条件路径和循环按当前分量合流，metadata 保持。普通优化结束后的 aggregate 分解保证返回、存储和继续传参不会复用移动前的旧 aggregate；SSA 分解自身不构成额外 GC root，也不能替代精确保活及必要的发布后重读。
 
 扫描程序使用 `u64` word：
 
@@ -507,7 +507,7 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 
 数组元素写入可以从数组对象基址查询所属 mapping，再按实际元素引用槽计算 card。在实现规范 2.19 的常数有界、无 safepoint 内层中，若目标引用不变，且该查询在每轮所有路径上必经，可以把 acquire 页表与 immutable base／cards 加载移至进入内层的边上。进入边位于外层 poll／引用恢复之后；零次循环、未选择的分支和异常回退不执行新增查询。除下述卡标记合并外，保留每次实际写入后的 card store；不得将 metadata 带过下一个 poll，或把有调用、同步、条件执行的查询或变化目标纳入该复用。
 
-同一有界内层没有用户调用、发布、同步或提前退出，且某个引用槽写入每轮必经、地址在同一 mapping 中保持不变或按已知 8／16 字节步长递增时，可把对应 card store 与卡组登记一起合并到完成内层的唯一退出边。保留全部元素写入和 volatile 引用重读，退出边在原 poll／发布之前覆盖本块实际写入触及的全部 cards 和卡组。当前 1～64 次范围每个写入流最多需要三个 relaxed atomic card store；重复端点和卡组登记是幂等的，但不能标记未被本块写入触及的 card。不将 card metadata 或裸引用地址带过 safepoint，不依赖对象是否年轻，不改变 roots 或 heap／接口布局。
+同一有界内层没有用户调用、发布、同步或提前退出，且某个引用槽写入每轮必经、地址在同一 mapping 中保持不变或按已知 8／16 字节步长递增时，可把对应 card store 与卡组登记一起合并到完成内层的唯一退出边。保留全部元素写入和仍必要的 volatile 引用重读，退出边在原 poll／发布之前覆盖本块实际写入触及的全部 cards 和卡组。当前 1～64 次范围每个写入流最多需要三个 relaxed atomic card store；重复端点和卡组登记是幂等的，但不能标记未被本块写入触及的 card。不将 card metadata 或裸引用地址带过 safepoint，不依赖对象是否年轻，不改变 roots 或 heap／接口布局。
 
 用于接口重建的栈槽 volatile 引用重读不触发 GC 或线程同步；按实现规范 2.19 确认其地址仅来自当前函数入口的栈存储后，AArch64 release 可以在保留这些重读的情况下提升独立的 mapping 查询；x86_64 保留原区域选择规则。重读的次数、位置、相互顺序及移动 GC 后的 object／itab 重建保持，查询不能依赖被重读的值；该规则不允许提升 volatile 操作或跨过用户原子、同步、调用与不明地址的 volatile 访存。
 

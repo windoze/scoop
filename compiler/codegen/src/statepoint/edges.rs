@@ -1,4 +1,4 @@
-//! Split a selected loop edge while preserving each successor phi value.
+//! Split a selected normal CFG edge while preserving each successor phi value.
 
 use inkwell::llvm_sys::core::{LLVMGetNumSuccessors, LLVMGetSuccessor, LLVMSetSuccessor};
 use inkwell::values::PhiValue;
@@ -11,12 +11,12 @@ pub(super) fn split<'ctx>(
     name: &str,
 ) -> Result<BasicBlock<'ctx>, CodegenError> {
     let context = predecessor.get_context();
-    let block = context.append_basic_block(predecessor.get_parent().expect("loop function"), name);
+    let block = context.append_basic_block(predecessor.get_parent().expect("CFG function"), name);
     let builder = context.create_builder();
     builder.position_at_end(block);
     builder
         .build_unconditional_branch(successor)
-        .map_err(|error| CodegenError(format!("loop edge branch: {error}")))?;
+        .map_err(|error| CodegenError(format!("CFG edge branch: {error}")))?;
     let branch = predecessor
         .get_terminator()
         .expect("predecessor terminates");
@@ -37,8 +37,8 @@ pub(super) fn split<'ctx>(
         let old = PhiValue::try_from(instruction).expect("successor phi");
         builder.position_before(&instruction);
         let new = builder
-            .build_phi(old.as_basic_value().get_type(), "card.incoming")
-            .map_err(|error| CodegenError(format!("loop edge phi: {error}")))?;
+            .build_phi(old.as_basic_value().get_type(), "edge.incoming")
+            .map_err(|error| CodegenError(format!("CFG edge phi: {error}")))?;
         for (value, incoming) in old.get_incomings() {
             new.add_incoming(&[(
                 &value,

@@ -33,9 +33,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         }
     }
 
-    /// Reuse a fresh interface snapshot, or reconstruct it from canonical
-    /// storage. A volatile object load prevents aggregate forwarding from
-    /// resurrecting a pre-statepoint value; metadata needs no relocation.
+    /// Reuse a fresh snapshot or read interface storage. The GC access marker
+    /// permits promotion of unexposed local slots; late aggregate splitting
+    /// makes actual uses consume relocated objects. Exposed storage is reread.
     pub(super) fn load_stored_value(
         &self,
         ty: &LirType,
@@ -58,11 +58,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     "interface_object",
                 )
                 .map_err(|e| CodegenError(format!("load interface object: {e}")))?;
-            object
+            let access = object
                 .as_instruction_value()
-                .expect("a load is an instruction")
+                .expect("a load is an instruction");
+            access
                 .set_volatile(true)
                 .map_err(|e| CodegenError(format!("volatile interface object: {e}")))?;
+            statepoint::mark_storage_access(self.context, access)?;
             return self.interface_with_object(storage, object);
         }
         let ty = basic_ty(

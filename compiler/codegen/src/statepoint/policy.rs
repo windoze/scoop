@@ -52,6 +52,9 @@ pub(crate) fn optimize(
             .map_err(|error| CodegenError(format!("LLVM function name: {error}")))?;
         let no_gc =
             expected.functions.get(name) == Some(&GcEffect::NoGc) && !site_owners.contains(name);
+        if profile.optimization() == scoop_lir::OptimizationMode::Release {
+            storage::promote(function)?;
+        }
         // Textual InstCombine enables a testing-only fixpoint check by default.
         // Use its normal bounded iteration policy in both release paths.
         let passes = match (profile.optimization(), no_gc) {
@@ -89,6 +92,7 @@ pub(crate) fn optimize(
         }
     }
     crate::gc_card_groups::inline_fast_paths(module, machine)?;
+    aggregate_values::expose(module, profile.managed_address_space_contract())?;
     finalization::finalize(module, expected, profile)
 }
 

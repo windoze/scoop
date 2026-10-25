@@ -367,7 +367,7 @@ DirectParts 明确保存每个 carrier 的类型、来源 offset／extent、alig
 
 Boolean 标量的物理类型为 LLVM `i1`，直接参数与直接结果使用 `zeroext`；caller 在传参时、callee 在返回时按目标寄存器规则零扩展，确保 C runtime 的 `_Bool` 入口接收规范的 0／1。函数定义、声明、直接与间接调用、普通 invoke 和 statepoint 中实际调用的参数／结果遵守同一规则。仅低位有效的中间 `i1` 不能原样作为 C `_Bool` 传入；aggregate carrier 不因内部包含 Boolean 而获得标量扩展属性。此约定纳入现有 target fingerprint：Scoop ABI classifier 编码由 3 更新为 4，旧产物与缓存重建，不增加独立登记或验证通道。
 
-LLVM 22.1 的接口结果跨 safepoint 时，沿精确 leaf 回写协议重新取得 object，再与原 metadata 重建双字值；重读必须阻止普通优化将结果重新合并为 GC 前的 aggregate SSA。首版在实际 relocation 路径使用 volatile object reload，条件 poll 仅在慢路径执行该动作，不为快路径引入无条件 root 临时存储。不能假定 RS4GC 会重写 aggregate 内部的 managed leaf。
+LLVM 22.1 不保证 RS4GC 改写 aggregate 内部的 managed leaf。接口及含接口 niche 的实际返回、存储、后续传参必须使用当前 object，与原 AS0 metadata 重组；仅存在 gc.relocate 或恢复标记不能证明实际使用已更新。按 2.5 在普通优化全部完成后拆分含 managed leaf 的 aggregate 数据流，再交给 RS4GC 改写实际标量使用，防止 InstCombine 将拆分与重组折回 safepoint 前的旧 aggregate。外部双字表示、niche 的 null／metadata 规则和既有 ABI 保持。
 
 GC-free 小值按 exact layout 和 scalar leaves 复用下述目标 aggregate classifier，保留整数／浮点／混合寄存器类别；tagged enum 的固定 tag 和共享 payload 字节区域不随 variant 改变分类。每个 aggregate 作为整体分配寄存器或回退；coercion 不越过 exact storage，padding 确定，浮点按 bits 搬运。callee 按需要建立独立 place，不能把 caller storage 当成按值别名。MaybeUninit 依自身值表示分类，不继承 T 的 nonnull、tag、niche 或专门接口 ABI。
 
@@ -441,7 +441,9 @@ codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM fu
 
 release 在内联与有界循环选择完成后、最终 LIR 根计划之前，复用 MIR 数据流传播未取址局部的当前复制事实。扩展的复制事实只服务该末尾清理，不改变既有调用点内联与循环选择策略。每次局部定义后建立同类型别名；重赋撤销以该源为代表的别名，保留副本自身的值、常量与具体类型事实。合流只保留各已到达路径共同成立的事实，循环按既有固定点计算，不因定义位于循环中就统一排除。调用不能隐式改写未取址局部；有取址的源和目标不作为可替换代表。消除不再读取的纯局部复制时保持可变源的旧快照、异常路径及实际定义／使用关系，不按生成变量名识别，也不令两个可变局部共享槽。
 
-x86_64 release 代码生成可以复用同一实际 LLVM 基本块中刚写入接口 canonical storage 的完整 SSA 快照，包含接口 niche enum；不为同一快照的局部复制链反复生成 object 重读。写入仍更新原 storage，局部重赋只替换该槽的快照，此前复制的值保持独立。调用（包括 NoGc）、poll、分配、取址、原始写入、原子、异常及不明确操作结束复用区间；LIR 块切换和 LLVM 内部分支合流同样不得继承该快照。区间内只保留已知不触发 GC、不能通过别名修改 canonical storage 的值运算、普通局部写入和堆／数组访问。没有可用快照时继续按原协议从 canonical storage 重建接口，特别是 safepoint 后的 volatile object 重读。快照只服务当前无 safepoint 区间，不增加逻辑 live set、物理 root、跨块缓存或 `.slib` 字段。
+release 在普通 LLVM 优化之前，将未逃逸入口栈存储上的编译器 GC 专用 load／restore store 转为普通访存，交给现有 SROA／mem2reg、复制传播与死存储消除。按实际地址使用确认不逃逸：局部 GEP／bitcast、load／store 和 LLVM 内存／生命周期 intrinsic 可保留；取址传给普通调用、发布为 compiler root、存出地址、间接 ABI 或未知使用保留必要存储与 volatile 重读／回写。用户原子、volatile 操作和 TLAB context 的位置约束不参与该消除。接口不因自身类型被强制保留中间槽；按值快照、局部重赋和真实内存别名仍由原数据流表达。debug 可继续保留存储，GC 正确性不依赖优化是否开启。
+
+全部普通 LLVM 优化和 helper 展开完成后、逻辑根定稿和 RS4GC 之前，codegen 对含 AS1 leaf 的 aggregate SSA 作晚期分解。沿真实定义捕获分量；aggregate PHI／select 拆成对应分量合流，循环回边保留各自 incoming，invoke 结果在正常边取得。没有 managed leaf 的子 aggregate 可以整体保留。原标量 extract 复用同一分量，实际 ret／store／call 等消费点才重建 aggregate，使跨 safepoint 的业务使用成为 RS4GC 可重写的标量使用。此后在 RS4GC 前不再运行会合并 split／rebuild 的普通优化；RS4GC 后再发射机器码。条件 poll 的快／慢路径由标量 PHI 选择原 object 或 relocate 结果，itab 不参与搬迁。该变换不增加 root 身份、发布、对象字段或 `.slib` 数据，不对自产 IR 再建一套完整验证体系。
 
 优化后的 AS1 根若通过 phi／select 合并 immortal 常量与动态对象，仍表示对象起点。codegen 在根准备处为不含派生地址的 managed phi／select 保留对象起点事实，并以 LLVM 22.1 的 `is_base_value` 标记传给 RS4GC。逻辑恢复标记在某条路径折叠为常量时，共享后继仍可能使用原合并值，因此该处理不只依赖恢复标记当前指向的 SSA；不能让常量分支被替换为 null base 而产生不符合当前 runtime 的 base／derived pair。纯常量选择仍不参与 relocation；typed 根恢复、base=derived 与实际 stackmap 数据生成保持。
 
@@ -1324,7 +1326,7 @@ release 的短路条件与合流形成的不可达错误分支，在 GC 根和 s
 
 Managed release 在全部标量及受限内层优化之后、最终根计划之前，再执行路径约束化简、SCCP 与不可达块清理，折叠后段 GVN／MemorySSA 优化新暴露的常量条件。单独的 unreachableblockelim 不承担常量终结指令折叠；不能让 RS4GC 首次删除这些路径而留下过时的 site／根描述。此收尾只做常量传播和死路径删除，不开放一般 CFG 复制，也不在根定稿之后补做普通优化。
 
-两条 release 管线在上述 BDCE 与 DSE 之间执行 memcpyopt，消除可转发的按值中间副本并合并初始化；SROA 在前、死存储与死代码清理在后。消除的是可替换的复制，不改变值的独立性：源值在复制与消费之间被写入时仍保留快照。含引用副本保留 AS1 provenance、typed logical root restore、volatile 重读与必要屏障／发布；不能以 NoGc 或 byval 推导整个调用无内存副作用。其普通优化仍先于最终根计划与 RS4GC，不为复制优化移动握手或复制 SafepointId。
+两条 release 管线在上述 BDCE 与 DSE 之间执行 memcpyopt，消除可转发的按值中间副本并合并初始化；SROA 在前、死存储与死代码清理在后。消除的是可替换的复制，不改变值的独立性：源值在复制与消费之间被写入时仍保留快照。含引用副本保留 AS1 provenance、实际需要的 typed logical root restore、2.5 的标量重定位与必要存储／屏障／发布；不能以 NoGc 或 byval 推导整个调用无内存副作用。其普通优化仍先于最终根计划与 RS4GC，不为复制优化移动握手或复制 SafepointId。
 
 上述同时满足 typed NoGc 与实际无 safepoint 条件的 release 函数，在 loop-rotate／LICM 后执行 simple-loop-unswitch（trivial 与受 LLVM 自身代码增长限制的 nontrivial 变换），再执行 indvars、loop-load-elim 与小规模完整 loop-unroll，最后执行既有 loop／SLP vectorization 及清理。unroll 仅考虑最多四次的完整展开，关闭 partial、runtime、upper-bound 展开及普通／profile peeling；不提高 LLVM 原有展开成本阈值。Managed 函数及带 site 的定义不进入这些变换。loop-idiom、jump-threading、aggressive-instcombine、vector-combine 仍关闭；不改变严格浮点、GC 合同或 poll 频率。
 

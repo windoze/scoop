@@ -12,6 +12,7 @@
 | --- | --- | --- |
 | [MIR 末尾局部复制传播](INTERFACE-SSA.md) | release 默认，沿现有 MIR 内联优化配置 | 内联与循环选择后传播未取址局部当前别名；保持重赋快照、合流、循环与 EH，不依赖变量名。ARM64 dispatch／接口复制明显改善，lambdas 等回退如实记录并继续精化根与 SSA。 |
 | [调用期间保活与返回恢复分离](INTERFACE-SSA.md) | 新编译器所有 profile 默认 | 死 direct AS1 实参保留调用期间根，省去人工后继使用及恢复；byval、展开后输入、poll、EH 与 native 协议保持，按实际 RS4GC 结果计根。各平台收益和阶段性回退分别记录。 |
+| [接口分量与重定位结果 SSA](INTERFACE-SSA.md) | 局部根槽提升为 release 默认；晚期 aggregate 分解适用于所有 profile | 复用 SROA／mem2reg，普通优化结束后才拆分聚合、在真实 ret／store／实参使用处重建，确保消费 relocated object。取址／发布／间接 ABI 等存储保持，不增加对象或接口表大小。 |
 | [String 比较与短 hash](STRING-READS.md) | 普通 core 正文全 profile；调用点常量折叠和 ≤8 B 常量比较 release 默认，须重建 core | 同引用／长度／空串判断、八字节以内 FNV-1a 普通正文和真实 typed 常量读取；长文本共享后备，保持内容、身份和位宽，无新增 ABI。ASCII 单独展开经对照未采纳。 |
 | [已知小型 box 生成分配](BOX-ALLOCATION.md) | release 默认 | 真实 typed box、实例 ≤128 B；ZST／GC-free／含引用值复用 TLAB，GC 后重读 payload 并执行值屏障。保持实际分配及身份，大值和 debug 使用共享后备，无新对象字段或 ABI。 |
 | [普通 String 拼接融合与热二元生成](STRING-CONCAT.md) | release 默认 | 同块单用链最多八段、短常量合并；热循环／短常量二元使用同一路径，其他点共享后备。checked 一次分配并在 GC 后重读输入，保留共享结果与副作用边界，无布局或 ABI 变化。 |
@@ -39,7 +40,7 @@
 | [完整父接口表内嵌与目录共享](INTERFACE-PROJECTION.md) | 所有 profile，统一布局／ABI | 单继承完整前缀、多继承固定偏移；目录复用内嵌片段，菱形保留完整父表。 |
 | [父接口直接投影与继承方法直接取槽](INTERFACE-PROJECTION.md) | 所有 profile | 已有 Child 视图且静态知道父关系；泛型按 exact 实例处理。首次 Any 取表等动态路径另行查询。 |
 | [smartcast 视图保留与块内 itab 复用](INTERFACE-PROJECTION.md) | release 默认 | 复用已取得的接口视图；动态表缓存仅保存 metadata，遵守局部值写入、取址与块边界的失效规则。 |
-| [接口 SSA 快照的直线区间复用](INTERFACE-VALUES.md) | x86_64 release 默认 | 复用刚写入 canonical storage 的完整接口值及接口 niche enum；调用、poll、别名操作和控制流边界结束复用。ARM64 保持原重读路径。 |
+| [接口 SSA 快照的直线区间复用](INTERFACE-VALUES.md) | x86_64 release 默认 | 发射阶段复用刚写入的完整接口值及其 niche enum，调用／poll／别名／控制流边界结束复用；后续所有目标的局部槽提升与跨 safepoint 数据流采用上列接口 SSA 能力。 |
 | [接口检查与取表合并](INTERFACE-CHECKS.md) | release 默认 | 有非空接口视图消费者的 `is`／`as`／`as?`；普通控制流上复用成功检查，写入、非共同合流与异常入口使其失效。 |
 | [循环中稳定来源的接口查询复用](INTERFACE-QUERY-REUSE.md) | release 默认 | 未取址、未写入的参数或所有 CFG 环外单次定义的局部引用；首次实际查询后复用 exact interface 的成功／失败 entry，含 Boolean 与空接口，不增加对象副本或 GC roots。 |
 | [普通 class／局部游标字段替换](CLASS-SCALARS.md) | release 默认 | 创建与使用可分析、不逃逸且无 release hook；字段转为 typed locals，保留引用快照与 GC 语义。 |
