@@ -1,0 +1,47 @@
+package scoop.llm.client.tests.count
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class CountMediaTest {
+    @Test
+    fun `token count Messages accepts inline media and rejects URL or file sources`() {
+        val dialect = AnthropicMessagesDialect()
+        val counter = dialect.tokenCounter()!!
+        val inline = LlmRequest([Message([Image(MediaSource.Bytes([1.toByte()], "image/png")),
+            Document(MediaSource.Bytes([1.toByte()], "application/pdf")),
+            Document(MediaSource.Bytes("plain text".toByteArray(), "text/plain"))])])
+        val content = counter.encodeRequest("m", inline)["messages"]!![0L]["content"]!!
+        assertEquals("base64", content[0L]["source"]!!["type"]!!.asString())
+        assertEquals("base64", content[1L]["source"]!!["type"]!!.asString())
+        assertEquals("text", content[2L]["source"]!!["type"]!!.asString())
+        val remote: Array<ContentPart> = [Image(MediaSource.Url(Url.parse("https://example.test/image"), "image/png")),
+            Document(MediaSource.FileReference(LlmFileReference(dialect.id, JsonValue.fromString("file")), "application/pdf"))]
+        for (part in remote) {
+            val error = assertFailsWith<LlmRequestException> { counter.encodeRequest("m", LlmRequest([Message([part])])); Unit }
+            assertEquals("/messages/0/content/0/source/type", error.path)
+        }
+    }
+
+    @Test
+    fun `token count Messages inspects nested protocol media without interpreting function arguments`() {
+        val dialect = AnthropicMessagesDialect()
+        val counter = dialect.tokenCounter()!!
+        val media = "{\"type\":\"image\",\"source\":{\"type\":\"url\",\"url\":\"https://example.test/image\"}}"
+        val argument = Json.parse("{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"tool-1\",\"name\":\"describe\",\"input\":" + media + "}]}")
+        val ordinary = LlmRequest([History(LlmHistory(dialect.id, [argument]))])
+        assertEquals(Json.stringify(argument), Json.stringify(counter.encodeRequest("m", ordinary)["messages"]!![0L]))
+        for ((block, suffix) in [(media, "/source/type"),
+            ("{\"type\":\"tool_result\",\"tool_use_id\":\"tool-1\",\"content\":[" + media + "]}", "/content/0/source/type"),
+            ("{\"type\":\"document\",\"source\":{\"type\":\"content\",\"content\":[" + media + "]}}", "/source/content/0/source/type")]) {
+            val history = Json.parse("{\"role\":\"assistant\",\"content\":[" + block + "]}")
+            val error = assertFailsWith<LlmRequestException> {
+                counter.encodeRequest("m", LlmRequest([History(LlmHistory(dialect.id, [history]))])); Unit
+            }
+            assertEquals("/messages/0/content/0" + suffix, error.path)
+        }
+    }
+}

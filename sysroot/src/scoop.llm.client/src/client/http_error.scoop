@@ -8,7 +8,9 @@ import scoop.time.Duration
 
 internal suspend fun readLlmRejection(response: HttpResponse, endpoint: LlmEndpoint, options: LlmCallOptions,
     attempt: LlmAttemptState): LlmServiceException? {
-    attempt.identify(when (singleLlmField(response.fields, "x-request-id")) {
+    val primaryId = singleLlmField(response.fields, "x-request-id")
+    val reportedId = if (llmPresent(primaryId)) primaryId else singleLlmField(response.fields, "request-id")
+    attempt.identify(when (reportedId) {
         case Some(value) -> String.fromUtf8OrNone(value)
         case None -> None
     })

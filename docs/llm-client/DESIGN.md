@@ -161,7 +161,7 @@ DeepSeek Chat 复用 Chat Completions 的基础结构，但需要自己的 diale
 | `multipleCandidates` | 生成多个候选，保留 candidate 关联 |
 | `continuation` | 显式服务端上下文继续方式，与完整历史输入分开 |
 | `background` | 服务端生成任务的显式提交、查询与取消 |
-| `tokenCounting` | 分别描述服务端计数接口与本地 tokenizer 的适用范围；不与响应 usage 混为一谈 |
+| `serverTokenCount` | 明确该模型入口是否有服务端计数能力；不与响应 usage 混为一谈 |
 
 工具能力的数据合同见[库规范 §2.3](../specs/SCOOP-LLM-CLIENT-SPEC.md#23-原生工具服务端工具与混用)：原生工具按 dialect、种类和明确／缺省版本精确查询，配置字段提供独立的支持状态；WebSearch 的选项与地域字段分别描述。mixedTools 分别表达客户端与服务端共存、多个服务端声明的一般限制，具体工具与生成模式的组合继续由 dialect 检查。缺省描述中的未列项始终为 Unknown。
 
@@ -346,7 +346,7 @@ Dialect 明确原生计数是总量还是子项。例如 Claude 的原生 input_
 
 工具调用次数、搜索次数、音频秒数等保留为带单位的 usage 明细，不强行转换成 token。整条响应级 usage 不按 candidate、item 或工具重复分摊，重复查询同一生成任务也不产生新的模型用量。每个 usage 快照标明 Partial／Final；累计更新替换相应字段，delta 只处理一次，未出现的字段不擦除已有值。完成状态不能把未返回的计数自动变成 Final 的零值。重试的 usage 分别属于各次尝试，最终响应不掩盖之前已知的用量；逻辑调用汇总只汇总明确、互不重复的项，并标记遗漏。
 
-请求前的 `countTokens(model, request, mode)` 是显式操作，与 response usage 分开。mode 明确选择服务端计数接口或适用的本地 tokenizer，不在 generate 前偷偷联网或重复分词；结果保留方法、模型／tokenizer 版本、覆盖范围以及精确或估算的性质。计数针对实际 protocol／dialect 的输入表示，包括可计算的 system、工具 schema 和历史；媒体或隐藏包装无法计算的部分明确缺失。没有适用 tokenizer 时不默认用字符数冒充精确 token，也不承诺服务端预计数等于最终计费用量。预估值不能覆盖服务端报告值。
+请求前的 `countTokens(model, request, options = LlmCallOptions())` 是显式操作，与 response usage 分开。当前通过所选 dialect 提供的服务端计数接口执行；没有实际 tokenizer 实现时不增加本地模式选择器。调用不在 generate 前偷偷联网或重复分词；结果保留方法、请求的模型与已报告版本、输入范围以及精确或估算的性质。计数针对实际 protocol／dialect 的输入表示，包括可计算的 system、工具 schema 和历史；媒体或隐藏包装无法计算的部分明确缺失。没有适用 tokenizer 时不默认用字符数冒充精确 token，也不承诺服务端预计数等于最终计费用量。预估值不能覆盖服务端报告值。
 
 ### 6.4 用时间戳估计 prompt cache 有效期
 

@@ -36,7 +36,7 @@ public class TokenUsage public constructor(
     public companion object : ValueEncoder<TokenUsage>, ValueDecoder<TokenUsage>
 }
 
-private fun requireTokenCount(value: Long?, name: String) {
+internal fun requireTokenCount(value: Long?, name: String) {
     val count = value ?: return
     if (count < 0L) throw IllegalArgumentException(Some(name + " must be nonnegative"))
 }

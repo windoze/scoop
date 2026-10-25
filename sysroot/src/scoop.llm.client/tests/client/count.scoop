@@ -1,0 +1,86 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class TokenCountClientTest {
+    @Test
+    fun `token count uses both server routes with fresh retry auth actual timing and no generation usage`() {
+        for ((provider, path, reply, retry) in [
+            (Providers.anthropicMessages(), "/v1/messages/count_tokens", "{\"input_tokens\":17}", true),
+            (Providers.geminiGenerateContent(), "/v1/models/example:countTokens", "{\"totalTokens\":17,\"cachedContentTokenCount\":4}", false)]) {
+            withLlmServer suspend { _, scope, listener, endpoint ->
+                val auth = RecordingAuth()
+                val sent = ArrayList<Array<Byte>>()
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        var number = 1L
+                        while (true) {
+                            val request = connection.receiveRequest()!!
+                            val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                            assertEquals(path, target)
+                            assertEquals("Bearer attempt-" + number.toString(), String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0L].value))
+                            if (retry) assertEquals("2026-10-21", String.fromUtf8(request.head.fields.findAll("anthropic-version".toByteArray())[0L].value))
+                            sent.add(request.body.readAllBytes(8192L))
+                            if (retry && number == 1L) sendLlmReply(connection, 429U, "{\"error\":{\"type\":\"rate_limit_error\"}}")
+                            else {
+                                sendLlmReply(connection, 200U, reply, [HttpField("request-id".toByteArray(), "count-request".toByteArray())])
+                                break
+                            }
+                            number += 1L
+                        }
+                    }
+                }
+                val observed = ArrayList<HttpAttemptMetrics>()
+                HttpClient.open(scope, HttpClientConfig(observer = Some(HttpObserver(suspend { event ->
+                    if (event.kind == HttpCallEventKind.Completed) observed.add(event.metrics)
+                })))).useAsync suspend { http ->
+                    val finished = FinishedCalls()
+                    withLlmClient(Some(http)) suspend { client ->
+                        val result = client.countTokens(LlmEndpoint(provider, auth, Some(endpoint.baseUrl)).model("example"), sampleRequest,
+                            LlmCallOptions(retries = LlmRetryOptions(initialDelay = Duration.ZERO),
+                                onFinished = Some(suspend { value -> finished.record(value) })))
+                        val restored = Json.decodeFromString<LlmTokenCountResult>(Json.encodeToString(result))
+                        assertEquals(Some(17L), restored.count.inputTokens)
+                        assertEquals(TokenCountPrecision.Estimated, restored.count.precision)
+                        assertEquals(1L, finished.values.size)
+                        assertSame(result.metadata, finished.values[0L])
+                        assertEquals(if (retry) 2L else 1L, result.metadata.attempts.size)
+                        assertEquals(sent.size, auth.requests.size)
+                        var index = 0L
+                        for (attempt in restored.metadata.attempts) {
+                            assertLlmBytes(sent[index], auth.requests[index].body)
+                            assertEquals(observed[index].requestHeadersAtUtc, attempt.request.sentAt)
+                            assertEquals(observed[index].finalResponseHeadersAtUtc, attempt.response.receivedAt)
+                            assertEquals(None, attempt.response.firstEventAt)
+                            assertEquals(None, attempt.response.firstOutputAt)
+                            assertEquals(None, attempt.response.firstTextAt)
+                            assertEquals(None, attempt.responseId)
+                            assertEquals(None, attempt.usage.tokens.inputTokens)
+                            assertEquals(None, attempt.outputTokensPerSecond)
+                            index += 1L
+                        }
+                        val last = restored.metadata.attempts[index - 1L]
+                        assertEquals(LlmCallOutcome.Completed, restored.metadata.outcome)
+                        assertTrue(last.response.completedAt != None)
+                        assertTrue(last.http.queue!!.duration != None)
+                        if (retry) {
+                            assertEquals(Some("count-request"), last.requestId)
+                            assertEquals(None, restored.metadata.attempts[0L].response.completedAt)
+                        }
+                        Unit
+                    }
+                    assertFalse(http.isClosed)
+                }
+                serving.join()
+            }
+        }
+    }
+}

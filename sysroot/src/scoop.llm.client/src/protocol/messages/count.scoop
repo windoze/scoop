@@ -1,0 +1,50 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.startsWith
+import scoop.url.Url
+
+internal class MessagesTokenCounter(val dialect: AnthropicMessagesDialect) : LlmTokenCounter {
+    public override fun countUrl(baseUrl: Url, modelId: String): Url =
+        baseUrl.toBuilder().appendPathSegment("messages").appendPathSegment("count_tokens").build()
+
+    public override fun encodeRequest(modelId: String, request: LlmRequest): JsonValue {
+        var index = 0L
+        for (tool in request.tools) {
+            when (tool) {
+                case Server(_, definition, _) -> {
+                    val advisor = when (definition) {
+                        case Native(native) -> native.kind == "advisor" || native.kind.startsWith("advisor_")
+                        else -> false
+                    }
+                    if (!advisor) throw LlmRequestException("/tools/" + index.toString(), "Messages token count does not support this server tool")
+                }
+                else -> {}
+            }
+            index += 1L
+        }
+        val options = JsonObjectBuilder()
+        appendMessagesInputOptions(options, dialect, request, request.options.maxOutputTokens)
+        val body = encodeMessagesRequest(dialect, modelId, request, false, options.build())
+        checkMessagesCountInput(body)
+        return body
+    }
+
+    public override fun decodeResponse(modelId: String, value: JsonValue): TokenCount {
+        try {
+            val fields = decodeMessagesValue<MessagesCountFields>(value, "")
+            val error = value["error"]
+            if (llmPresent(error) && error!!.kind != JsonValueKind.Null)
+                throw DecodingException("/error", "count_tokens returned an error response")
+            if (fields.inputTokens != None && fields.inputTokens!! < 0L)
+                throw DecodingException("/input_tokens", "token count must not be negative")
+            return TokenCount(dialect.id, modelId, fields.inputTokens, native = Some(value))
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid count_tokens response", value)
+        }
+    }
+}
+
+private class MessagesCountFields public constructor(@Serialize(rename = "input_tokens") public val inputTokens: Long? = None) {
+    public companion object : ValueDecoder<MessagesCountFields>
+}

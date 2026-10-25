@@ -33,6 +33,9 @@ public class LlmClient private constructor(internal val state: LlmClientState) :
     public suspend fun generate(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions()): LlmResult =
         generateLlm(state, model, request, options)
 
+    public suspend fun countTokens(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions()): LlmTokenCountResult =
+        countLlmTokens(state, model, request, options)
+
     public suspend fun openStream(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions(),
         retention: StreamRetention = EventsOnly): LlmStream = openLlmStream(state, model, request, options, retention)
 

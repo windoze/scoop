@@ -1,0 +1,55 @@
+package scoop.llm.client.tests.count
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class TokenCountDataTest {
+    @Test
+    fun `token count codecs retain method scope precision and independent unknown metadata`() {
+        val dialect = GeminiGenerateContentDialect().id
+        val minimum = JsonObjectBuilder().add("dialect", Json.encodeToValue(dialect)).add("model", JsonValue.fromString("m")).build()
+        val restored = Json.decodeFromString<TokenCount>(Json.stringify(minimum))
+        assertEquals(None, restored.inputTokens)
+        assertEquals(None, restored.cachedInputTokens)
+        assertEquals(None, restored.modelVersion)
+        assertEquals(TokenCountMethod.Server, restored.method)
+        assertEquals(TokenCountScope.RequestInput, restored.scope)
+        assertEquals(TokenCountPrecision.Estimated, restored.precision)
+        val known = TokenCount(dialect, "m", Some(0L), precision = Exact, modelVersion = Some("reported"))
+        val decoded = Json.decodeFromString<TokenCount>(Json.encodeToString(known))
+        assertEquals(Some(0L), decoded.inputTokens)
+        assertEquals(TokenCountPrecision.Exact, decoded.precision)
+        assertEquals(Some("reported"), decoded.modelVersion)
+        val capabilities = Json.decodeFromString<ModelCapabilities>("{}")
+        assertTrue(when (capabilities.serverTokenCount) { case Unknown -> true; else -> false })
+    }
+
+    @Test
+    fun `token count constructors reject negative counts and output direction`() {
+        val dialect = GeminiGenerateContentDialect().id
+        assertFailsWith<IllegalArgumentException> { val count = TokenCount(dialect, "m", Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val count = TokenCount(dialect, "m", cachedInputTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> {
+            val count = TokenCount(dialect, "m", modality = [ModalityTokenUsage(Output, Text, 1L)]); Unit
+        }
+    }
+
+    @Test
+    fun `token count custom dialects and other protocols do not inherit a provider counter`() {
+        val custom = GenerateContentProtocol(CountlessGenerateContentDialect())
+        assertFalse(llmPresent(custom.tokenCounter()))
+        assertFalse(llmPresent(Providers.openAiChat().protocol.tokenCounter()))
+        assertFalse(llmPresent(Providers.openAiResponses().protocol.tokenCounter()))
+    }
+}
+
+private class CountlessGenerateContentDialect : GenerateContentDialect {
+    val delegate = GeminiGenerateContentDialect()
+    public override val id: DialectId = DialectId(ApiProtocolId("generate-content"), "private")
+    public override fun encodeOptions(request: LlmRequest): JsonValue = delegate.encodeOptions(request)
+    public override fun readUsage(value: JsonValue): TokenUsage = delegate.readUsage(value)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        delegate.decodeError(status, body, truncated)
+}

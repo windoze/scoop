@@ -42,7 +42,7 @@ private fun checkGenerateContentDetails(values: Array<GenerateContentTokenDetail
     }
 }
 
-private fun generateContentModality(value: String): TokenModality = when (value) {
+internal fun generateContentModality(value: String): TokenModality = when (value) {
     case "TEXT" -> Text
     case "IMAGE" -> Image
     case "AUDIO" -> Audio

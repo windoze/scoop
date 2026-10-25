@@ -1,0 +1,50 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+public enum TokenCountMethod {
+    Server
+    public companion object : ValueEncoder<TokenCountMethod>, ValueDecoder<TokenCountMethod>
+}
+
+/** Submitted protocol input, excluding unreported server additions and future tool output. */
+public enum TokenCountScope {
+    RequestInput
+    public companion object : ValueEncoder<TokenCountScope>, ValueDecoder<TokenCountScope>
+}
+
+public enum TokenCountPrecision {
+    Estimated, Exact
+    public companion object : ValueEncoder<TokenCountPrecision>, ValueDecoder<TokenCountPrecision>
+}
+
+/** Preflight measurement, independent of generation usage or billing. */
+public class TokenCount public constructor(
+    public val dialect: DialectId,
+    public val model: String,
+    public val inputTokens: Long? = None,
+    public val method: TokenCountMethod = Server,
+    public val scope: TokenCountScope = RequestInput,
+    public val precision: TokenCountPrecision = Estimated,
+    public val modelVersion: String? = None,
+    public val cachedInputTokens: Long? = None,
+    public val modality: Array<ModalityTokenUsage> = [],
+    public val native: JsonValue? = None
+) {
+    init {
+        requireTokenCount(inputTokens, "inputTokens")
+        requireTokenCount(cachedInputTokens, "cachedInputTokens")
+        for (detail in modality) if (detail.direction != TokenDirection.Input)
+            throw IllegalArgumentException(Some("input token count cannot contain output modality counts"))
+    }
+    public companion object : ValueEncoder<TokenCount>, ValueDecoder<TokenCount>
+}
+
+/** A completed count with the same local HTTP observations as a generation call. */
+public class LlmTokenCountResult public constructor(public val count: TokenCount, public val metadata: LlmCallMetadata) {
+    init {
+        if (metadata.outcome != LlmCallOutcome.Completed)
+            throw IllegalArgumentException(Some("token count result requires a completed call"))
+    }
+    public companion object : ValueEncoder<LlmTokenCountResult>, ValueDecoder<LlmTokenCountResult>
+}

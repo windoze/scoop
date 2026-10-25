@@ -1,78 +1,18 @@
 package scoop.llm.client
 
 import scoop.json.Json
-import scoop.platform.time.MonotonicTimeSource
-import scoop.time.Duration
 
 internal suspend fun generateLlm(client: LlmClientState, model: LlmModel, request: LlmRequest, options: LlmCallOptions): LlmResult {
-    val caller = currentJobOrNone()
-    return nonCancellableScope suspend { lifetime ->
-        val call = LlmCallState(client, lifetime.job)
-        context(call) {
-            try { return@nonCancellableScope runLlmCall(call, caller, model, request, options) }
-            finally { call.contextActive = false; removeLlmCall(client, call) }
+    val (response, metadata) = executeLlmCall<LlmResponse>(client, options) suspend { call ->
+        val protocol = model.endpoint.provider.protocol
+        checkModelRequest(model.capabilities, request, protocol.defaultMaxOutputTokens())
+        val url = protocol.generationUrl(model.endpoint.baseUrl, model.id)
+        val bytes = Json.stringify(protocol.encodeRequest(model.id, request)).toByteArray()
+        performLlmJsonRequest<LlmResponse>(call, model.endpoint, url, bytes, options) { parsed, attempt ->
+            val decoded = protocol.decodeResponse(parsed, request)
+            attempt.complete(decoded)
+            decoded
         }
     }
-}
-
-private suspend fun runLlmCall(call: LlmCallState, caller: Job?, model: LlmModel, request: LlmRequest, options: LlmCallOptions): LlmResult {
-    var response: LlmResponse? = None
-    var failure: Throwable? = None
-    val listener = caller?.invokeOnCancellation { reason -> call.stop(reason) }
-    try {
-        registerLlmCall(call.client, call)
-        response = Some(coroutineScope suspend { scope ->
-            call.bind(scope.job)
-            ensureActive()
-            val timer = when (options.timeouts.total) {
-                case Some(limit) -> Some(scope.launch suspend {
-                    val remaining = limit - (MonotonicTimeSource.markNow() - call.started)
-                    if (remaining > Duration.ZERO) call.client.loop.sleep(remaining)
-                    call.timeout(limit)
-                })
-                case None -> None
-            }
-            try {
-                ensureActive()
-                return@coroutineScope performLlmGeneration(call, model, request, options)
-            } finally {
-                timer?.cancel()
-                nonCancellableScope suspend { _ -> timer?.join(); Unit }
-            }
-        })
-    } catch (error: Throwable) { failure = Some(error) }
-    finally { listener?.dispose() }
-    val selected = call.finish(failure)
-    val outcome = when (selected) {
-        case None -> LlmCallOutcome.Completed
-        case Some(error) -> if (error is CancellationException) LlmCallOutcome.Cancelled else LlmCallOutcome.Failed
-    }
-    val metadata = LlmCallMetadata(call.id, call.startedAt, call.attempts.toArray(), Some(call.point()), outcome)
-    try { options.onFinished?.invoke(metadata) }
-    catch (callback: Throwable) {
-        when (selected) { case Some(error) -> throw ResourceUseException(error, callback); case None -> throw callback }
-    }
-    when (selected) { case Some(error) -> throw error; case None -> return LlmResult(response!!, metadata) }
-}
-
-private suspend fun performLlmGeneration(call: LlmCallState, model: LlmModel, request: LlmRequest, options: LlmCallOptions): LlmResponse {
-    val protocol = model.endpoint.provider.protocol
-    checkModelRequest(model.capabilities, request, protocol.defaultMaxOutputTokens())
-    val url = protocol.generationUrl(model.endpoint.baseUrl, model.id)
-    val bytes = Json.stringify(protocol.encodeRequest(model.id, request)).toByteArray()
-    var retry = 0L
-    var backoff = options.retries.initialDelay
-    while (true) {
-        ensureActive()
-        val attempt = LlmAttemptState(call, retry + 1L)
-        val result = try { executeLlmAttempt(call.client.http, model.endpoint, url, bytes, request, options, attempt) }
-        finally { call.attempts.add(attempt.snapshot()) }
-        val rejection = when (result) { case Success(response) -> return response; case Rejected(error) -> error }
-        if (!rejection.retryable || retry >= options.retries.maxRetries) throw rejection
-        ensureActive()
-        val delay = if (attempt.retryAfter > backoff) attempt.retryAfter else backoff
-        call.client.loop.sleep(delay)
-        retry += 1L
-        backoff = if (backoff > options.retries.maxDelay - backoff) options.retries.maxDelay else backoff + backoff
-    }
+    return LlmResult(response, metadata)
 }

@@ -1,0 +1,21 @@
+package scoop.llm.client
+
+import scoop.json.Json
+
+internal suspend fun countLlmTokens(client: LlmClientState, model: LlmModel, request: LlmRequest,
+    options: LlmCallOptions): LlmTokenCountResult {
+    val (count, metadata) = executeLlmCall<TokenCount>(client, options) suspend { call ->
+        requireModelCapability(model.capabilities.serverTokenCount, "/capabilities/serverTokenCount")
+        val counter = model.endpoint.provider.protocol.tokenCounter() ?:
+            throw LlmRequestException("/provider", "selected dialect has no server token count operation")
+        checkModelRequest(model.capabilities, request)
+        val url = counter.countUrl(model.endpoint.baseUrl, model.id)
+        val bytes = Json.stringify(counter.encodeRequest(model.id, request)).toByteArray()
+        performLlmJsonRequest<TokenCount>(call, model.endpoint, url, bytes, options) { parsed, attempt ->
+            val decoded = counter.decodeResponse(model.id, parsed)
+            attempt.completeCount()
+            decoded
+        }
+    }
+    return LlmTokenCountResult(count, metadata)
+}

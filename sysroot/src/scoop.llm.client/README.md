@@ -63,6 +63,8 @@ LLM 响应头和读取空闲时间缺省 300 秒，写入空闲时间 60 秒，�
 
 `metadata.attempts` 中的 `http` 保存实际排池、DNS、TCP、代理和 TLS 阶段。LlmPhaseTiming 的 started／finished 是相对逻辑调用起点的单调偏移，duration 在阶段结束时可读；它们可通过现有 companion codec 保存。未经过的阶段保持 None，连接复用不会产生虚构的建连耗时，失败和取消仍保留已有阶段。平均输出速率只在 usage 为 Final 且完整响应耗时为正时提供。
 
+`client.countTokens(model, request)` 使用 Gemini GenerateContent 或 Anthropic Messages dialect 的服务端计数接口，返回独立的 `LlmTokenCountResult`。count 保存输入计数、方法、范围、估算性质及原文；metadata 沿用真实收发时间、HTTP 阶段、重试和完成回调。普通生成不自动预先计数，预估值不写入 response.usage。没有该接口或显式不支持的模型在认证前失败；未提供 tokenizer 实现，不增加空的本地模式。Messages 的不支持输入明确报错，Gemini 的 cachedInputTokens 只表示缓存输入规模。
+
 最小请求的写法直接使用消息和设置的缺省值；添加服务端搜索或结构化输出仍使用同一个请求类型：
 
 ```scoop

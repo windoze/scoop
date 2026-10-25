@@ -1,0 +1,94 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.HttpField
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class TokenCountFailuresTest {
+    @Test
+    fun `token count rejects unsupported capabilities protocols and input before authentication`() {
+        withLlmServer suspend { _, _, _, endpoint ->
+            val auth = RecordingAuth()
+            val gemini = LlmEndpoint(Providers.geminiGenerateContent(), auth, Some(endpoint.baseUrl))
+            val messages = LlmEndpoint(Providers.anthropicMessages(), auth, Some(endpoint.baseUrl))
+            val cases = [(LlmEndpoint(endpoint.provider, auth, Some(endpoint.baseUrl)).model("m"), sampleRequest, "/provider"),
+                (gemini.model("m", Some(ModelCapabilities(serverTokenCount = Unsupported("disabled")))), sampleRequest, "/capabilities/serverTokenCount"),
+                (messages.model("m"), LlmRequest([Message([Image(MediaSource.Url(endpoint.baseUrl, "image/png"))])]), "/messages/0/content/0/source/type")]
+            withLlmClient suspend { client ->
+                for ((model, request, path) in cases) {
+                    val finished = FinishedCalls()
+                    val error = expectLlmFailure<LlmRequestException> suspend {
+                        client.countTokens(model, request, LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                    assertEquals(path, error.path)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0L].outcome)
+                    assertEquals(0L, finished.values[0L].attempts.size)
+                }
+            }
+            assertEquals(0L, auth.requests.size)
+        }
+    }
+
+    @Test
+    fun `token count protocol errors are not retried and preserve callback failures`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val auth = RecordingAuth()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 200U, "{\"input_tokens\":-1}")
+                }
+            }
+            val finished = FinishedCalls()
+            val callback = IllegalStateException(Some("callback failed"))
+            withLlmClient suspend { client ->
+                val error = expectLlmFailure<ResourceUseException> suspend {
+                    client.countTokens(LlmEndpoint(Providers.anthropicMessages(), auth, Some(endpoint.baseUrl)).model("m"), sampleRequest,
+                        LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value); throw callback }))); Unit
+                }
+                assertTrue(error.primaryFailure is LlmProtocolException)
+                assertSame(callback, error.cleanupFailure)
+            }
+            assertEquals(1L, auth.requests.size)
+            assertEquals(1L, finished.values.size)
+            assertEquals(LlmCallOutcome.Failed, finished.values[0L].outcome)
+            assertEquals(Some(200U), finished.values[0L].attempts[0L].status)
+            assertEquals(None, finished.values[0L].attempts[0L].response.completedAt)
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `token count total timeout includes authentication and leaves the request unsent`() {
+        withLlmServer suspend { loop, _, _, endpoint ->
+            val auth = CountWaitingAuth(loop)
+            val finished = FinishedCalls()
+            withLlmClient suspend { client ->
+                expectLlmFailure<LlmTimeoutException> suspend {
+                    client.countTokens(LlmEndpoint(Providers.geminiGenerateContent(), auth, Some(endpoint.baseUrl)).model("m"), sampleRequest,
+                        LlmCallOptions(timeouts = LlmTimeouts(total = Some(Duration.milliseconds(30L))),
+                            onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+            }
+            assertEquals(1L, auth.calls)
+            assertEquals(1L, finished.values.size)
+            assertEquals(1L, finished.values[0L].attempts.size)
+            assertEquals(None, finished.values[0L].attempts[0L].request.sentAt)
+            assertEquals(None, finished.values[0L].attempts[0L].response.receivedAt)
+        }
+    }
+}
+
+private class CountWaitingAuth(val loop: EventLoop) : LlmAuth {
+    var calls = 0L
+    public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> {
+        calls += 1L
+        loop.sleep(Duration.seconds(10L))
+        return []
+    }
+}

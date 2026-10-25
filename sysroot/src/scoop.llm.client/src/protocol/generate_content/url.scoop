@@ -1,0 +1,26 @@
+package scoop.llm.client
+
+import scoop.text.contains
+import scoop.text.split
+import scoop.url.PercentEncoding
+import scoop.url.Url
+
+internal fun generateContentUrl(base: Url, model: String, stream: Boolean = false): Url {
+    return generateContentMethodUrl(base, model, if (stream) "streamGenerateContent" else "generateContent", stream)
+}
+
+internal fun generateContentMethodUrl(base: Url, model: String, method: String, stream: Boolean = false): Url {
+    if (model.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+    val builder = base.toBuilder()
+    if (!model.contains('/')) builder.appendPathSegment("models")
+    val segments = model.split('/')
+    var index = 0L
+    for (segment in segments) {
+        if (segment.length == 0L) throw LlmRequestException("/modelId", "model resource path has an empty segment")
+        if (index == segments.size - 1L) builder.appendEncodedPathSegment(PercentEncoding.encode(segment) + ":" + method)
+        else builder.appendPathSegment(segment)
+        index += 1L
+    }
+    if (stream) builder.setQueryParameters(base.queryParameters().set("alt", Some("sse")))
+    return builder.build()
+}

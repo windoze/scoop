@@ -36,7 +36,8 @@ public class ModelCapabilities public constructor(
     public val limits: ModelLimits = ModelLimits(),
     public val clientNativeTools: Capability<NativeToolCapabilities> = Unknown,
     public val serverTools: ServerToolCapabilities = ServerToolCapabilities(),
-    public val mixedTools: MixedToolCapabilities = MixedToolCapabilities()
+    public val mixedTools: MixedToolCapabilities = MixedToolCapabilities(),
+    public val serverTokenCount: Capability<Unit> = Unknown
 ) {
     public fun forClientNativeTool(dialect: DialectId, kind: String, version: String? = None): Capability<NativeToolConfigurationCapabilities> =
         nativeToolCapability(clientNativeTools, dialect, kind, version)

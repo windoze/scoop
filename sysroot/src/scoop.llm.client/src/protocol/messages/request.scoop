@@ -2,7 +2,8 @@ package scoop.llm.client
 
 import scoop.json.*
 
-internal fun encodeMessagesRequest(dialect: MessagesDialect, model: String, request: LlmRequest, stream: Boolean): JsonValue {
+internal fun encodeMessagesRequest(dialect: MessagesDialect, model: String, request: LlmRequest, stream: Boolean,
+    encodedOptions: JsonValue): JsonValue {
     if (model.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
     val messages = ArrayList<JsonValue>()
     val results = ArrayList<JsonValue>()
@@ -42,7 +43,7 @@ internal fun encodeMessagesRequest(dialect: MessagesDialect, model: String, requ
     if (messages.size == 0L) throw LlmRequestException("/input", "Messages requires at least one input message")
     val body = JsonObjectBuilder().add("model", JsonValue.fromString(model)).add("messages", JsonValue.fromArray(messages))
     if (request.system.size != 0L) body.add("system", dialect.encodeContent(request.system, "system", "/system"))
-    for ((name, value) in dialect.encodeOptions(request).members()) {
+    for ((name, value) in encodedOptions.members()) {
         if (name == "model" || name == "messages" || name == "system" || name == "stream")
             throw LlmRequestException("/options", "dialect options cannot override Messages routing or stream mode")
         body.add(name, value)

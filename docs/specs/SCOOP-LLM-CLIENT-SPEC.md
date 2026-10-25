@@ -665,3 +665,21 @@ LlmHttpTiming(queue = None, resolve = None, connect = None, proxyTls = None, pro
 普通生成和流式调用从该尝试最近的不可变 HttpAttemptMetrics 直接投影上述阶段，使用相同的 LlmCallState 起点；重试之间不合并或继承阶段。snapshot 与 onFinished 均保存当时实际可观察的内容，之前取得的快照不随后续进展改变。HTTP 在失败或取消时也会结束已经进入的阶段，因此 finished 表示观察区间已经结束，不保证该阶段成功；调用结果仍由 outcome 和原异常表达。认证前失败等尚未取得 HTTP 观察的路径使用全空阶段，不伪造传输数据。
 
 此投影复用既有请求级 observer，与借入 HttpClient 的原 observer 共存；不改变池、重试、超时或连接级首字节采样设置。底层尚未提供 UTC 的首字节和正文发送完成点继续保持 None。outputTokensPerSecond 还要求 usage.completeness=Final，避免把中途累计计数当作最终平均速率；模型因长度停止但完整返回了最终用量时仍可计算该端到端速率。
+
+## 34. 显式输入 token 计数
+
+LlmClient.countTokens(model, request, options = LlmCallOptions()) 返回 LlmTokenCountResult(count, metadata)。这是独立的服务器操作，不自动生成、不在 generate／openStream 前执行，也不以估算覆盖 response.usage。当前实际适配 Gemini GenerateContent 和 Anthropic Messages 的计数接口；不提供没有 tokenizer 实现的本地模式或字符数回退。ModelCapabilities.serverTokenCount 缺省 Unknown；显式 Unsupported 在认证前失败，Unknown 允许由已选 adapter 和服务器判断。
+
+LlmGenerationProtocol.tokenCounter() 缺省 None；LlmTokenCounter 定义 countUrl、encodeRequest、decodeResponse 三个纯适配操作。Messages／GenerateContent protocol 将选择委托给 dialect 的同名可选方法。内置 dialect 提供实际 counter，自定义 dialect 缺省不继承另一个服务商的计数语义。没有 counter 在认证前报告 LlmRequestException。
+
+TokenCount 是可序列化的纯数据：dialect、请求的 model、可选 modelVersion、method=Server、scope=RequestInput、precision=Estimated、可选 inputTokens／cachedInputTokens、modality 和 native。TokenCountMethod 当前只有实际可用的 Server；TokenCountScope.RequestInput 表示提交给计数端点的完整输入表示，不保证覆盖服务端隐藏包装或未来工具输出。TokenCountPrecision 可为 Estimated 或 Exact；内置两个计数接口相对于后续生成均标为 Estimated。缺失计数和版本保持 None，明确零保留，非整数、负数和 Long 溢出拒绝。modality 只保存输入方向明细，不重复加到总数；cachedInputTokens 是计数时的缓存输入规模，不是一次生成的 cacheReadTokens／cacheWriteTokens。LlmTokenCountResult 仅接受 Completed metadata，并提供 companion codec。
+
+计数与普通生成共用逻辑调用寿命、认证前模型检查、发送字节、错误分类、重试、取消、总超时、HTTP 观察和 onFinished。每次重试重新取得认证；只有真实服务拒绝具有既有重试资格。结果保存实际发送／收到响应／完成时间和 HTTP 阶段，失败或取消仍通过 onFinished 交付 metadata。计数不产生模型 firstEvent／firstOutput／firstText、responseId、输出速率或生成 usage。onFinished 仍在调用上下文内、完成资源收尾后恰好执行一次。
+
+共享 HTTP 响应观察优先读取单个 x-request-id，没有该值时读取单个 request-id，覆盖 Messages 的实际响应头；重复字段不拼接成虚构 ID。
+
+Gemini 使用所选模型资源的 :countTokens，正文为 generateContentRequest，包含由普通生成编码器产生的完整 contents、systemInstruction、tools、generationConfig、原生扩展及明确 model；不同时提交简化 contents。裸 ID 规范为 models/ID，已有资源路径和部署前缀沿用。totalTokens、cachedContentTokenCount、promptTokensDetails 直接读取；cacheTokensDetails 校验并保留在 native 中，不重复求和。不能从 cachedContentTokenCount 推断缓存被读、被写或续期。
+
+Messages 使用 /messages/count_tokens，相同部署、认证和版本头。正文复用普通请求的 messages、system、工具和原始历史编码，保留 tools／tool_choice／thinking／output_config；不发送 max_tokens、stream、采样或停止参数。已有显式生成选项仍经过模型能力检查，但计数不会注入缺省输出上限来约束 thinking 预算；显式输出上限仍参与预算一致性检查。请求扩展只允许计数端点的 cache_control 和 speed 等已支持输入字段，不静默丢弃其他扩展。当前端点不接受 MCP connector、除 advisor 外的 server tool、图片／文档的 URL 或 file 来源，编码前后在实际协议结构上检查并报错；检查工具结果／文档内容等协议容器，不递归解释工具参数中的任意业务 JSON。base64 媒体和支持的文本内容照常计数，缺失 input_tokens 保持未知。cache_control 不代表此次操作执行了 prompt caching。
+
+依据：[Gemini countTokens](https://ai.google.dev/api/tokens)、[Messages count_tokens](https://platform.claude.com/docs/en/api/messages/count_tokens)、[Claude 计数范围与限制](https://platform.claude.com/docs/en/build-with-claude/token-counting)。普通验收仅使用纯 codec 与 loopback mock；真实 API 用例继续默认 Ignore，只有显式选择且配置对应凭据时才运行。

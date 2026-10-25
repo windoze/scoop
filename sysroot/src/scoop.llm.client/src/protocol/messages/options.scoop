@@ -18,13 +18,19 @@ internal fun encodeMessagesOptions(dialect: AnthropicMessagesDialect, request: L
         if (options.topK != None) result.add("top_k", JsonValue.fromLong(options.topK!!))
     }
     if (llmPresent(options.stop)) result.add("stop_sequences", Json.encodeToValue(options.stop!!))
+    appendMessagesInputOptions(result, dialect, request, Some(maximum))
+    return result.build()
+}
+
+internal fun appendMessagesInputOptions(result: JsonObjectBuilder, dialect: AnthropicMessagesDialect, request: LlmRequest,
+    maximum: Long?) {
+    val options = request.options
     val output = JsonObjectBuilder()
     val manualThinking = encodeMessagesReasoning(result, output, options.reasoning, maximum)
     encodeMessagesOutputFormat(output, options.output)
     val outputValue = output.build()
     if (outputValue.size != 0L) result.add("output_config", outputValue)
     encodeMessagesTools(result, dialect.id, request, manualThinking)
-    return result.build()
 }
 
 private fun addMessagesSampling(result: JsonObjectBuilder, name: String, value: Double?, path: String) {
@@ -33,13 +39,13 @@ private fun addMessagesSampling(result: JsonObjectBuilder, name: String, value: 
     result.add(name, JsonValue.fromDouble(setting))
 }
 
-private fun encodeMessagesReasoning(result: JsonObjectBuilder, output: JsonObjectBuilder, reasoning: ReasoningOptions?, maximum: Long): Boolean {
+private fun encodeMessagesReasoning(result: JsonObjectBuilder, output: JsonObjectBuilder, reasoning: ReasoningOptions?, maximum: Long?): Boolean {
     val options = reasoning ?: return false
     if (options.effort != None) output.add("effort", JsonValue.fromString(options.effort!!))
     if (options.budgetTokens != None) {
         if (options.enabled == Some(false)) throw LlmRequestException("/options/reasoning/budgetTokens", "a thinking budget conflicts with disabled thinking")
         val budget = options.budgetTokens!!
-        if (budget < 1024L || budget >= maximum)
+        if (budget < 1024L || (maximum != None && budget >= maximum!!))
             throw LlmRequestException("/options/reasoning/budgetTokens", "manual thinking budget must be at least 1024 and below max_tokens")
         result.add("thinking", llmTypedObject("enabled").add("budget_tokens", JsonValue.fromLong(budget)).build())
         return true

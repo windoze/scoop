@@ -1,0 +1,11 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.url.Url
+
+/** An explicit server count operation supplied by the selected protocol and dialect. */
+public interface LlmTokenCounter {
+    public fun countUrl(baseUrl: Url, modelId: String): Url
+    public fun encodeRequest(modelId: String, request: LlmRequest): JsonValue
+    public fun decodeResponse(modelId: String, value: JsonValue): TokenCount
+}

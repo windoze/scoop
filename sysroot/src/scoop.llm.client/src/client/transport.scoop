@@ -4,18 +4,16 @@ import scoop.http.client.*
 import scoop.json.JsonValue
 import scoop.url.Url
 
-internal enum LlmAttemptResult { Success(LlmResponse), Rejected(LlmServiceException) }
+internal enum LlmAttemptResult<T> { Success(T), Rejected(LlmServiceException) }
 
-internal suspend fun executeLlmAttempt(http: HttpClient, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
-    request: LlmRequest, options: LlmCallOptions, attempt: LlmAttemptState): LlmAttemptResult {
+internal suspend fun <T> executeLlmAttempt(http: HttpClient, endpoint: LlmEndpoint, url: Url, bytes: Array<Byte>,
+    options: LlmCallOptions, attempt: LlmAttemptState, decode: (JsonValue, LlmAttemptState) -> T): LlmAttemptResult<T> {
     val prepared = prepareLlmHttpRequest(http, endpoint, url, bytes, options, attempt)
     ensureActive()
-    return http.withResponse(prepared) suspend { response ->
+    return http.withResponse<LlmAttemptResult<T>>(prepared) suspend { response ->
         val rejection = readLlmRejection(response, endpoint, options, attempt)
         if (llmPresent(rejection)) return@withResponse LlmAttemptResult.Rejected(rejection!!)
         val parsed = response.body.json<JsonValue>(options.maxResponseBytes)
-        val decoded = endpoint.provider.protocol.decodeResponse(parsed, request)
-        attempt.complete(decoded)
-        LlmAttemptResult.Success(decoded)
+        LlmAttemptResult.Success(decode(parsed, attempt))
     }
 }

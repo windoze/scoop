@@ -1,12 +1,12 @@
 # LLM client 使用示例与缺省参数
 
-日期：2026-10-25。本文结合已实现的 Chat／Messages／Responses／Gemini generateContent／Interactions 普通与流式生成及后续 API 草案检查接口负担；可用入口见[库说明](../../sysroot/src/scoop.llm.client/README.md)，验证范围见[实施记录](PROGRESS.md)。Converse 已接入同一个 generate／openStream 入口，流式使用 AWS EventStream；token 预计数、缓存寿命与费用扩展仍为设计示例，不代表已通过验收。Messages provider 缺省选择 API 版本 2026-10-21 和 4096 输出上限，沿用相同的 model／request／generate／openStream 入口；版本与默认上限均可显式设置。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
+日期：2026-10-25。本文结合已实现的 Chat／Messages／Responses／Gemini generateContent／Interactions 普通与流式生成及后续 API 草案检查接口负担；可用入口见[库说明](../../sysroot/src/scoop.llm.client/README.md)，验证范围见[实施记录](PROGRESS.md)。Converse 已接入同一个 generate／openStream 入口，流式使用 AWS EventStream；Gemini／Messages 的 token 预计数已接入，缓存寿命与费用扩展仍为设计示例，不代表已通过验收。Messages provider 缺省选择 API 版本 2026-10-21 和 4096 输出上限，沿用相同的 model／request／generate／openStream 入口；版本与默认上限均可显式设置。示例使用现有 Scoop 的数组、enum、Option、挂起函数、作用域及 JSON codec 语法，不新增语言机制。文本投影、结构化输出和按位置的扩展已结合 [AI SDK 对照评审](AI-SDK-REVIEW.md)细化。
 
 简单调用和完整调用共用 `generate(model, request, options = LlmCallOptions())`。不再保留先前草稿中的 `generate(model, prompt = ...)` 重载，也不增加 `generateText`、`SimpleClient` 或自动选择模型的入口。简单形态直接来自 request、消息和 options 的缺省字段。
 
 ## 1. 共同的数据与调用入口
 
-下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。generate 与 openStream／withStream 已接入 Chat／Messages／Responses／Gemini generateContent／Interactions／Converse／Cohere Chat v2；countTokens 仍为后续合同。
+下列为已实现的请求构造签名；companion codec、构造检查、媒体、工具与历史数据见[库规范](../specs/SCOOP-LLM-CLIENT-SPEC.md#3-公共请求数据)。generate 与 openStream／withStream 已接入 Chat／Messages／Responses／Gemini generateContent／Interactions／Converse／Cohere Chat v2；countTokens 已接入 Gemini GenerateContent 与 Anthropic Messages。
 
 ```scoop
 public class LlmRequest public constructor(
@@ -34,7 +34,7 @@ client.openStream(model, request, options = LlmCallOptions(),
                   retention = StreamRetention.EventsOnly) -> LlmStream
 client.withStream(model, request, options = LlmCallOptions(),
                   retention = StreamRetention.EventsOnly, block) -> T
-client.countTokens(model, request, mode) -> TokenCount
+client.countTokens(model, request, options = LlmCallOptions()) -> LlmTokenCountResult
 ```
 
 网络操作、client 创建和关闭都是 suspend；`withLlmClient`／`withStream` 的 block 是 suspend 函数。`withLlmClient` 只将 `open` 与既有 `useAsync` 的资源寿命组合起来，`withStream` 同理，不改变请求、缺省参数、错误或结果语义。
@@ -326,16 +326,16 @@ suspend fun inspectUsage(client: LlmClient, model: LlmModel) {
 
 后续的 `cacheObservations` 设计保存实际读写、缓存范围、TTL 起算／刷新规则和有依据的寿命估计。应用保存这些信息和时间戳后再判断缓存窗口，不能在拿到 result 时直接执行“当前时间＋TTL”。估计、最短保留期和服务端报告的到期时间仍是不同数据，不提供一个掩盖不确定性的 `isCacheValid` Boolean。
 
-调用前计数必须显式选择方法。下面的 Server 表示调用所选 adapter 的服务端计数接口；模型入口没有该接口时报告不支持，不静默退化为字符数：
+调用前计数显式调用所选 dialect 的服务端计数接口；模型入口没有该接口时报告不支持，不静默退化为字符数。直接使用现有 model、request 和调用设置：
 
 ```scoop
-suspend fun countInput(client: LlmClient, model: LlmModel): TokenCount {
+suspend fun countInput(client: LlmClient, model: LlmModel): LlmTokenCountResult {
     val request = LlmRequest([Message([Text("需要提前计数的输入。")])])
-    return client.countTokens(model, request, mode = TokenCountMode.Server)
+    return client.countTokens(model, request)
 }
 ```
 
-本地计数显式选择相应 tokenizer 方法；计数结果保留方法、范围和精确／估算性质。`countTokens` 不替应用发起后续 generate，也不覆盖响应报告的 usage。
+返回的 count 保存 inputTokens、Server 方法、RequestInput 范围和 Estimated 性质；未报告的计数或模型版本保持 None。metadata 保存独立的调用时间和各次尝试。Gemini 提交完整 generateContentRequest；Messages 保留 system、工具、thinking、schema 和历史，对当前不接受的服务端工具及 URL／file 媒体在发送前报错。cachedInputTokens 表示计数时的缓存输入规模，不表示实际缓存命中。`countTokens` 不替应用发起后续 generate，也不覆盖响应报告的 usage；尚无实际本地 tokenizer，因此没有空的本地模式入口。
 
 费用扩展在构造 dialect 的普通 provider 工厂中传入，然后沿完全相同的 endpoint、model、generate 路径使用。例如 `Providers.openAiResponses(billing = Some(billingExtension))` 将应用提供的 `BillingExtension` 交给其 Responses dialect；缺省为 None。扩展可持有显式价格快照，结果仍区分 ProviderReported 与 Estimated，不自动联网查询价格。
 
@@ -489,4 +489,4 @@ suspend fun streamLocalModel(client: LlmClient, modelId: String): LlmResult {
 
 `onFinished` 是 `LlmCallOptions` 中可选的完成观察回调，generate 和流式使用相同合同：每次逻辑调用实际收尾后通知一次，成功、打开流失败、消费失败和取消均保留已知 metadata，不重包装 CancellationException。回调不在共享传输驱动中执行，不参与生成请求的序列化。
 
-这组例子收敛了四处设计：取消 prompt 重载；普通消息默认 User；生成参数只在 request 一处表达；流式完整结果在关闭后读取。认证、模型、工具业务函数和预计数方法仍要求明确选择，因为它们不能由缺省参数合理推断。正式实施前将这些签名和生命周期边界写入库规范，再以真实 Cone 消费者验证。
+这组例子收敛了四处设计：取消 prompt 重载；普通消息默认 User；生成参数只在 request 一处表达；流式完整结果在关闭后读取。认证、模型、工具业务函数仍要求明确提供，预计数通过显式调用触发。正式实施前将这些签名和生命周期边界写入库规范，再以真实 Cone 消费者验证。
