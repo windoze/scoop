@@ -4,7 +4,7 @@ LLM client 正在按[架构设计](../../../docs/llm-client/DESIGN.md)分项实�
 
 Gemini Live 通过 `Providers.geminiLive()` 绑定同一 endpoint／model，`openGeminiLiveSession`／`withGeminiLiveSession` 发送 setup 并等待确认后提供显式收发。setup 与后续消息记录实际时间戳，音频、文本、转写、工具取消、用量与原始通知均可保存；`BidiGenerateContentProtocol` 同时提供纯编解码。连续对话与工具执行由应用控制，见[Live 示例](../../../docs/llm-client/USAGE.md#713-gemini-live-的会话与纯协议入口)。
 
-OpenAI Realtime 的 `Providers.openAiRealtime()` 与 `RealtimeProtocol` 提供独立 URL、配置、输入、音频 buffer 和 response 命令编码，并解码文本／音频／转写、函数与 MCP 事件、响应和 token 用量；请求、事件与原文均可保存。当前交付请求与事件线协议，会话连接继续接入，见[Realtime 示例](../../../docs/llm-client/USAGE.md#714-openai-realtime-的请求与事件线协议)。
+OpenAI Realtime 的 `openRealtimeSession`／`withRealtimeSession` 完成初始化确认并显式收发命令与事件，记录消息 UTC／单调时间，复用已有 WebSocket 的取消和关闭合同。`RealtimeProtocol` 仍可独立编码请求、解码文本／音频／转写、函数与 MCP 事件、响应和 token 用量；请求、事件与原文均可保存，见[Realtime 示例](../../../docs/llm-client/USAGE.md#714-openai-realtime-会话与纯协议入口)。
 
 OpenAI Chat／Responses 与 Anthropic Messages 的文件操作使用同一 client：uploadFile、listFiles、retrieveFile、downloadFile 和 deleteFile。Gemini generateContent／Interactions 共用上传、列表、读取与删除入口，并提供 registerFiles 登记已有 GCS URI。上传结果提供可保存的可选文件引用，服务端附加字段保留原文；用法见[文件 API 示例](../../../docs/llm-client/USAGE.md#712-显式上传引用和读取文件)。
 

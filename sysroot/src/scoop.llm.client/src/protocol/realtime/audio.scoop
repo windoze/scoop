@@ -1,0 +1,16 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+
+internal fun checkRealtimeAudioFormat(mimeType: String, path: String): HttpMediaType {
+    val mime = HttpMediaType.parseOrNone(mimeType) ?: throw LlmRequestException(path, "invalid Realtime media type")
+    if (mime.type != "audio" || (mime.subtype != "pcm" && mime.subtype != "pcmu" && mime.subtype != "pcma"))
+        throw LlmRequestException(path, "Realtime audio requires raw PCM, PCMU or PCMA")
+    val rate = mime.parameter("rate")
+    if (llmPresent(rate) && String.fromUtf8(rate!!.value) != (if (mime.subtype == "pcm") "24000" else "8000"))
+        throw LlmRequestException(path, "audio sample rate is not supported by Realtime")
+    val channels = mime.parameter("channels")
+    if (llmPresent(channels) && String.fromUtf8(channels!!.value) != "1")
+        throw LlmRequestException(path, "Realtime audio must be mono")
+    return mime
+}

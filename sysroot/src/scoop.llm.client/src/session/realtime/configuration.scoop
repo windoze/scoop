@@ -1,0 +1,33 @@
+package scoop.llm.client
+
+internal fun checkRealtimeConfiguration(capabilities: ModelCapabilities, configuration: RealtimeConfiguration, tools: Array<ToolDefinition>) {
+    if (configuration.instructions != None) requireModelCapability(capabilities.input.text, "/configuration/instructions")
+    when (configuration.tools) { case Some(values) -> checkModelTools(capabilities, values); case None -> {} }
+    when (configuration.outputModality) {
+        case Some(RealtimeOutputModality.Text) -> requireModelCapability(capabilities.output.text, "/configuration/outputModality")
+        case Some(RealtimeOutputModality.Audio) -> requireModelCapability(capabilities.output.audio, "/configuration/outputModality")
+        case None -> {}
+    }
+    when (configuration.maxOutputTokens) {
+        case Some(Limited(limit)) -> {
+            val maximum = capabilities.limits.maxOutputTokens
+            if (maximum != None && limit > maximum!!) throw LlmRequestException("/configuration/maxOutputTokens", "requested value exceeds the model limit")
+        }
+        else -> {}
+    }
+    if (configuration.parallelToolCalls != None) requireModelCapability(capabilities.parallelToolCalls, "/configuration/parallelToolCalls")
+    if (configuration.reasoningEffort != None) requireModelCapability(capabilities.reasoning.effort, "/configuration/reasoningEffort")
+    when (configuration.toolChoice) {
+        case Some(Auto) -> { if ((configuration.tools ?: tools).size != 0L) requireModelCapability(capabilities.toolChoice.auto, "/configuration/toolChoice") }
+        case Some(ToolChoice.None) -> requireModelCapability(capabilities.toolChoice.none, "/configuration/toolChoice")
+        case Some(Required) -> requireModelCapability(capabilities.toolChoice.required, "/configuration/toolChoice")
+        case Some(Specific(key)) -> {
+            requireModelCapability(capabilities.toolChoice.specific, "/configuration/toolChoice")
+            when (configuration.tools) {
+                case None -> for (tool in tools) { if (tool.key == key) checkModelTools(capabilities, [tool]) }
+                else -> {}
+            }
+        }
+        case None -> {}
+    }
+}

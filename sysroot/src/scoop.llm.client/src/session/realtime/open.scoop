@@ -1,0 +1,54 @@
+package scoop.llm.client
+
+import scoop.http.client.*
+import scoop.json.*
+
+internal suspend fun openRealtimeSessionState(client: LlmClientState, model: LlmModel, configuration: RealtimeConfiguration,
+    options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions): RealtimeSession {
+    val prepared = RealtimeOpening()
+    val tools = configuration.tools ?: []
+    val opened = openLlmWebSocket(client, model.endpoint, options, webSocketOptions, RealtimeSessionClosedException(), {
+        val protocol = model.endpoint.provider.protocol
+        if (!(protocol is RealtimeProtocol)) throw LlmRequestException("/provider", "endpoint does not use Realtime")
+        requireModelCapability(model.capabilities.realtime, "/realtime")
+        checkRealtimeConfiguration(model.capabilities, configuration, tools)
+        prepared.command = Some(protocol.encodeSessionUpdate(configuration))
+        prepared.protocol = Some(protocol)
+        protocol.webSocketUrl(model.endpoint.baseUrl, model.id)
+    }, suspend { call, socket ->
+        val protocol = prepared.protocol!!
+        prepared.created = Some(receiveRealtimeInitialization(call, socket, protocol, tools, "session.created"))
+        val command = prepared.command!!
+        if (command["session"]!!.size > 1L) {
+            prepared.sent = Some(RealtimeSent(call.id, command, sendLlmWebSocketMessage(call, socket, command)))
+            prepared.updated = Some(receiveRealtimeInitialization(call, socket, protocol, tools, "session.updated"))
+        }
+    })
+    return RealtimeSession(opened.connection, model, configuration, prepared.protocol!!, opened.metadata,
+        prepared.created!!, prepared.sent, prepared.updated)
+}
+
+private class RealtimeOpening {
+    var protocol: RealtimeProtocol? = None
+    var command: JsonValue? = None
+    var created: RealtimeReceived? = None
+    var sent: RealtimeSent? = None
+    var updated: RealtimeReceived? = None
+}
+
+private suspend fun receiveRealtimeInitialization(call: LlmCallState, socket: HttpWebSocketSession,
+    protocol: RealtimeProtocol, tools: Array<ToolDefinition>, expected: String): RealtimeReceived {
+    val (message, received) = receiveLlmWebSocketMessage<RealtimeMessage>(call, socket, protocol.dialectId, false,
+        { data -> decodeRealtimeSessionMessage(protocol, data, tools) })
+        ?: throw LlmStreamProtocolException(protocol.dialectId, "Realtime connection ended before " + expected)
+    val result = RealtimeReceived(call.id, message, received)
+    if (message.type == "error") throw RealtimeSessionRejectedException(result)
+    if (message.type != expected) throw LlmProtocolException(protocol.dialectId, "/type", "expected initial " + expected, message.native)
+    return result
+}
+
+internal fun decodeRealtimeSessionMessage(protocol: RealtimeProtocol, data: String, tools: Array<ToolDefinition>): RealtimeMessage {
+    val raw = try { Json.parse(data) }
+        catch (_: DecodingException) { throw LlmStreamProtocolException(protocol.dialectId, "invalid Realtime JSON message", Some(data)) }
+    return protocol.decodeMessage(raw, tools)
+}

@@ -86,6 +86,8 @@ LlmProvider 持有共同的 LlmApiProtocol，只要求 dialect 身份、固定�
 
 RealtimeProtocol 独立编码会话／响应／音频缓冲命令并解码服务端事件。事件保留实际响应与内容位置，response.done 复用 LlmResponse；只有成功终态中的完整函数调用进入可执行视图。音频、转写与文本分开，错误和未知通知原样交付，不以字段 done 推断响应成功或播放完成。
 
+RealtimeSession 等待 session.created，并在显式初始配置需要发送时等待 session.updated。后续收发使用共享 WebSocket 寿命与计时，不自动生成或执行工具；工具关联缺省采用初始声明，应用可为一次发送或接收显式覆盖，不根据发送成功推断服务器当前配置。
+
 ### 2.2 Dialect 维护服务差异
 
 | 差异 | Dialect 的处理位置 |

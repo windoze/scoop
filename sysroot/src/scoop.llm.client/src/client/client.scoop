@@ -125,6 +125,14 @@ public class LlmClient private constructor(internal val state: LlmClientState) :
         openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions(),
         block: suspend (GeminiLiveSession) -> T): T = openGeminiLiveSession(model, setup, openingOptions, webSocketOptions).useAsync(block)
 
+    public suspend fun openRealtimeSession(model: LlmModel, configuration: RealtimeConfiguration = RealtimeConfiguration(),
+        openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions()): RealtimeSession =
+        openRealtimeSessionState(state, model, configuration, openingOptions, webSocketOptions)
+
+    public suspend fun <T> withRealtimeSession(model: LlmModel, configuration: RealtimeConfiguration = RealtimeConfiguration(),
+        openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions(),
+        block: suspend (RealtimeSession) -> T): T = openRealtimeSession(model, configuration, openingOptions, webSocketOptions).useAsync(block)
+
     public override suspend fun close() { closeLlmClient(state) }
 }
 

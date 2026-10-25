@@ -1,0 +1,139 @@
+package scoop.llm.client.tests.realtime.session
+
+import scoop.asyncio.*
+import scoop.http.client.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class RealtimeSessionOpeningTest {
+    @Test
+    fun preflightChecksFinishBeforeAuthentication() {
+        LibuvEventLoop().run suspend { _ ->
+            withLlmClient suspend { client ->
+                for ((provider, capabilities, configuration, path) in [
+                    (Providers.openAiChat(), ModelCapabilities(), RealtimeConfiguration(), "/provider"),
+                    (Providers.openAiRealtime(), ModelCapabilities(realtime = Unsupported("disabled")), RealtimeConfiguration(), "/realtime"),
+                    (Providers.openAiRealtime(), ModelCapabilities(output = OutputCapabilities(audio = Unsupported("disabled"))),
+                        RealtimeConfiguration(outputModality = Some(RealtimeOutputModality.Audio)), "/configuration/outputModality"),
+                    (Providers.openAiRealtime(), ModelCapabilities(reasoning = ReasoningCapabilities(effort = Unsupported("disabled"))),
+                        RealtimeConfiguration(reasoningEffort = Some("low")), "/configuration/reasoningEffort")]) {
+                    val auth = RecordingAuth()
+                    val finished = FinishedCalls()
+                    val model = LlmEndpoint(provider, auth, Some(Url.parse("http://127.0.0.1:1"))).model("m", Some(capabilities))
+                    val error = expectLlmFailure<LlmRequestException> suspend {
+                        client.openRealtimeSession(model, configuration, LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                    assertEquals(path, error.path)
+                    assertEquals(0L, auth.requests.size)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(0L, finished.values[0].attempts.size)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun failedInitializationClosesTheSocketWithoutReplayingCommands() {
+        for (mode in ["json", "type", "binary", "eof", "rejected"]) {
+            val released = LlmGate()
+            withRealtimePeer(suspend { socket ->
+                if (mode == "rejected") {
+                    assertEquals("session.update", readRealtimeCommand(socket)["type"]!!.asString())
+                    socket.sendText("{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"configuration rejected\"}}")
+                } else if (mode == "json") socket.sendText("{")
+                else if (mode == "type") socket.sendText("{\"type\":\"session.updated\",\"session\":{}}")
+                else if (mode == "binary") socket.sendBinary("{\"type\":\"session.created\",\"session\":{}}".toByteArray())
+                else socket.shutdownGracefully()
+                socket.awaitClosed(); released.signal()
+            }, suspend { _, _, endpoint ->
+                withLlmClient suspend { client ->
+                    val finished = FinishedCalls()
+                    val configuration = if (mode == "rejected") RealtimeConfiguration(instructions = Some("")) else RealtimeConfiguration()
+                    val error = expectLlmFailure<Throwable> suspend {
+                        client.openRealtimeSession(endpoint.model("m"), configuration, LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                    released.await()
+                    val primary = realtimePrimaryFailure(error)
+                    if (mode == "rejected") {
+                        if (primary is RealtimeSessionRejectedException) {
+                            assertEquals("configuration rejected", primary.received.message.native["error"]!!["message"]!!.asString())
+                            assertTrue(primary.received.received.elapsed >= Duration.ZERO)
+                        }
+                        else fail()
+                    }
+                    else if (mode == "type") { assertTrue(primary is LlmProtocolException) }
+                    else { assertTrue(primary is LlmStreamProtocolException) }
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                    assertEquals(1L, finished.values[0].attempts.size)
+                    assertEquals(Some(101U), finished.values[0].attempts[0].status)
+                    assertFalse(client.isClosed)
+                }
+            }, created = mode == "rejected")
+        }
+    }
+
+    @Test
+    fun openingDeadlineAndCancellationCoverBothInitializationMessages() {
+        for (created in [false, true]) {
+            for (timeout in [false, true]) {
+                val entered = LlmGate()
+                val released = LlmGate()
+                withRealtimePeer(suspend { socket ->
+                    if (created) readRealtimeCommand(socket)
+                    entered.signal(); socket.awaitClosed(); released.signal()
+                }, suspend { _, scope, endpoint ->
+                    val upgraded = LlmGate()
+                    HttpClient.open(scope, HttpClientConfig(observer = Some(HttpObserver(suspend { event ->
+                        if (event.kind == HttpCallEventKind.ResponseHeaders && event.metrics.status == Some(101U)) upgraded.signal()
+                    })))).useAsync suspend { http ->
+                        withLlmClient(Some(http)) suspend { client ->
+                            val finished = FinishedCalls()
+                            val opening = scope.launch suspend {
+                                val error = expectLlmFailure<Throwable> suspend {
+                                    client.openRealtimeSession(endpoint.model("m"), RealtimeConfiguration(instructions = Some("")),
+                                        LlmCallOptions(timeouts = LlmTimeouts(total = if (timeout) Some(Duration.milliseconds(200L)) else None),
+                                            onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                                }
+                                val primary = realtimePrimaryFailure(error)
+                                if (timeout) { assertTrue(primary is LlmTimeoutException) } else { assertTrue(primary is CancellationException) }
+                                Unit
+                            }
+                            entered.await(); upgraded.await()
+                            if (!timeout) opening.cancel()
+                            opening.join(); released.await()
+                            assertEquals(1L, finished.values.size)
+                            assertEquals(Some(101U), finished.values[0].attempts[0].status)
+                            assertFalse(client.isClosed)
+                        }
+                    }
+                }, created)
+            }
+        }
+    }
+
+    @Test
+    fun openingCallbackFailureReleasesTheInitializedConnection() {
+        val released = LlmGate()
+        withRealtimePeer(suspend { socket -> socket.awaitClosed(); released.signal() }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                val failure = RealtimeOpeningCallbackFailure()
+                val error = expectLlmFailure<RealtimeOpeningCallbackFailure> suspend {
+                    client.openRealtimeSession(endpoint.model("m"), openingOptions = LlmCallOptions(onFinished = Some(suspend { metadata ->
+                        assertEquals(LlmCallOutcome.Completed, metadata.outcome)
+                        throw failure
+                    }))); Unit
+                }
+                assertSame(failure, error)
+                released.await()
+                assertFalse(client.isClosed)
+            }
+        })
+    }
+}
+
+private class RealtimeOpeningCallbackFailure : Exception(Some("test callback failure"))

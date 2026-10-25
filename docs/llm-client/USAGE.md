@@ -843,9 +843,40 @@ val restored = Json.decodeFromString<GeminiLiveMessage>(saved)
 
 message.event 区分内容、函数调用、取消和会话通知。内容同时保留音频、文本、reasoning 与三类转写；turnComplete 和 interactionStatus 分别读取。应用执行完整的客户端调用后，用收到的 reference 构造 `GeminiLiveToolResult(call.reference, responseObject)`，再交给 encodeToolResponse。responseObject 原样包含结果及需要的 scheduling 字段；库不运行工具或恢复连接。每条 usage 独立保存，缺失分量保持未知；native 保存完整服务端消息。
 
-### 7.14 OpenAI Realtime 的请求与事件线协议
+### 7.14 OpenAI Realtime 会话与纯协议入口
 
-Realtime 使用自己的 provider。以下例子产生 JSON 命令并解码收到的事件；持久会话继续接入。模型由连接 URL 指定，命令编码不会隐式连接或触发下一条命令。
+Realtime 使用自己的 provider，模型由连接 URL 指定。打开会话等待 session.created；省略 configuration 时采用服务器默认值，显式配置时再发送 session.update 并等待确认。以下例子明确选择文本输出：
+
+```scoop
+val endpoint = LlmEndpoint(Providers.openAiRealtime(), LlmAuth.bearer(apiKey))
+val model = endpoint.model(modelId)
+withLlmClient suspend { client ->
+    client.withRealtimeSession(model,
+        RealtimeConfiguration(outputModality = Some(RealtimeOutputModality.Text))) suspend { session ->
+        session.sendItemCreate(Message([Text("Hello")]))
+        session.sendResponseCreate()
+        while (true) {
+            val received = session.receive() ?: break
+            when (received.message.event) {
+                case TextDelta(_, text) -> print(text)
+                case ResponseDone(response) -> {
+                    println(Json.encodeToString(response.usage))
+                    break
+                }
+                else -> {}
+            }
+        }
+    }
+}
+```
+
+会话不会在提交音频或回传工具结果后自动生成。音频使用 sendAudioAppend(bytes, mimeType)，MIME 用于能力与格式检查，必须与实际配置一致；随后按需要显式 sendAudioCommit 和 sendResponseCreate。sendItemCreate 可以发送 ToolResult；sendResponseCancel、item 的 retrieve／delete／truncate 与完整原生命令也各有独立入口。
+
+opening 保存打开调用的 HTTP 记录；sessionCreated、configurationSent／configurationUpdated 以及后续 RealtimeSent／RealtimeReceived 保存实际收发时间。缺省没有初始配置时，两个 configuration 记录为 None。receive 的 tools 缺省使用 initialConfiguration.tools；动态修改工具后，传入 Some(对应工具声明)，Some([]) 明确关闭本次工具关联。发送更新不会暗中更改这个上下文，收到 error 也不会自动关闭可用连接。会话与 client 的资源关闭合同与其他 WebSocket 入口相同。
+
+初始化期间收到 error 时，open 抛出 RealtimeSessionRejectedException，received 保留原始消息及实际接收时间，并先清理连接。session.id 和收发记录的 sessionId 是本地调用 ID；服务器分配的 session ID 保留在 sessionCreated.message 的原始配置中。
+
+同一个 protocol 也可独立产生命令并解码事件，纯协议操作不执行网络 I/O：
 
 ```scoop
 val endpoint = LlmEndpoint(Providers.openAiRealtime(), LlmAuth.bearer(apiKey))

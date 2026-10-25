@@ -1,0 +1,115 @@
+package scoop.llm.client.tests.realtime.session
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.llm.client.tests.realtime.*
+import scoop.platform.time.SystemClock
+import scoop.test.*
+
+@Test
+private class RealtimeSessionConversationTest {
+    @Test
+    fun defaultSessionKeepsServerDefaultsAndDeliversRecoverableErrors() {
+        withRealtimePeer(suspend { socket ->
+            val item = readRealtimeCommand(socket)
+            assertEquals("conversation.item.create", item["type"]!!.asString())
+            assertEquals("hello", item["item"]!!["content"]!![0]["text"]!!.asString())
+            assertEquals("response.create", readRealtimeCommand(socket)["type"]!!.asString())
+            socket.sendText("{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"recoverable\"}}")
+            socket.sendText("{\"type\":\"response.done\",\"response\":{\"id\":\"r\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"answer\"}]}]}}")
+            socket.shutdownGracefully()
+        }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                client.withRealtimeSession(endpoint.model("m")) suspend { session ->
+                    when (session.configurationSent) { case None -> {}; else -> fail() }
+                    when (session.configurationUpdated) { case None -> {}; else -> fail() }
+                    assertEquals("session.created", session.sessionCreated.message.type)
+                    session.sendItemCreate(Message([Text("hello")]))
+                    session.sendResponseCreate()
+                    when (session.receive()!!.message.event) { case Error(_) -> {}; else -> fail() }
+                    assertFalse(session.isClosed)
+                    when (session.receive()!!.message.event) { case ResponseDone(response) -> assertEquals("answer", response.text); else -> fail() }
+                    assertTrue(when (session.receive()) { case None -> true; else -> false })
+                    assertTrue(session.isClosed)
+                }
+            }
+        })
+    }
+
+    @Test
+    fun configuredSessionExchangesToolsAndPreservesMessageTimes() {
+        withRealtimePeer(suspend { socket ->
+            val configuration = readRealtimeCommand(socket)
+            assertEquals("session.update", configuration["type"]!!.asString())
+            assertEquals(2L, configuration["session"]!!["tools"]!!.size)
+            socket.sendText("{\"type\":\"session.updated\",\"session\":{\"id\":\"server\",\"type\":\"realtime\"}}")
+            val response = readRealtimeCommand(socket)
+            assertEquals("response.create", response["type"]!!.asString())
+            assertEquals(1L, response.size)
+            socket.sendText(realtimeCallReply)
+            val result = readRealtimeCommand(socket)
+            assertEquals("function_call_output", result["item"]!!["type"]!!.asString())
+            assertEquals("call", result["item"]!!["call_id"]!!.asString())
+            assertEquals("response.create", readRealtimeCommand(socket)["type"]!!.asString())
+            socket.sendText("{\"type\":\"response.done\",\"response\":{\"status\":\"completed\",\"output\":[]}}")
+        }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                val before = SystemClock.now()
+                val finished = FinishedCalls()
+                client.withRealtimeSession(endpoint.model("m"), RealtimeConfiguration(tools = Some([rtFunction, rtMcp])),
+                    LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))) suspend { session ->
+                    val after = SystemClock.now()
+                    assertEquals(1L, finished.values.size)
+                    assertSame(session.opening, finished.values[0])
+                    assertEquals(Some(101U), session.opening.attempts[0].status)
+                    assertEquals(None, session.opening.attempts[0].usage.tokens.totalTokens)
+                    assertTrue(session.sessionCreated.received.at >= before && session.configurationUpdated!!.received.at <= after)
+                    assertTrue(session.configurationSent!!.timing.sent!!.elapsed >= session.sessionCreated.received.elapsed)
+                    assertTrue(session.configurationUpdated!!.received.elapsed >= session.configurationSent!!.timing.bodyCompleted!!.elapsed)
+                    val sent = session.sendResponseCreate()
+                    val savedSent = Json.decodeFromString<RealtimeSent>(Json.encodeToString(sent))
+                    assertEquals(session.id, savedSent.sessionId)
+                    assertEquals(sent.timing.sentAt, savedSent.timing.sentAt)
+                    val received = session.receive()!!
+                    val saved = Json.decodeFromString<RealtimeReceived>(Json.encodeToString(received))
+                    assertEquals(session.id, saved.sessionId)
+                    assertEquals(received.received.at, saved.received.at)
+                    assertEquals(received.received.elapsed, saved.received.elapsed)
+                    assertTrue(received.received.elapsed >= sent.timing.sent!!.elapsed)
+                    val response = when (saved.message.event) { case ResponseDone(value) -> value; else -> fail() }
+                    assertEquals(Some(9L), response.usage.tokens.totalTokens)
+                    assertEquals(1L, response.clientToolCalls.size)
+                    session.sendItemCreate(ToolResult(response.clientToolCalls[0].reference, [Text("done")]))
+                    session.sendResponseCreate()
+                    assertEquals("response.done", session.receive()!!.message.type)
+                }
+            }
+        })
+    }
+
+    @Test
+    fun toolAssociationIsExplicitAfterConfigurationUpdates() {
+        val alternate: ToolDefinition = ClientFunction(ToolKey("alternate"), "lookup", Json.parse("{}"))
+        withRealtimePeer(suspend { socket ->
+            readRealtimeCommand(socket)
+            socket.sendText("{\"type\":\"session.updated\",\"session\":{}}")
+            assertEquals("session.update", readRealtimeCommand(socket)["type"]!!.asString())
+            socket.sendText("{\"type\":\"error\",\"error\":{\"message\":\"update rejected\"}}")
+            for (index in [0L, 1L, 2L]) socket.sendText(realtimeCallReply)
+        }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                client.withRealtimeSession(endpoint.model("m"), RealtimeConfiguration(tools = Some([rtFunction]))) suspend { session ->
+                    session.sendSessionUpdate(RealtimeConfiguration(tools = Some([alternate])))
+                    assertEquals("error", session.receive()!!.message.type)
+                    val original = when (session.receive()!!.message.event) { case ResponseDone(value) -> value; else -> fail() }
+                    assertEquals(ToolKey("local"), original.clientToolCalls[0].toolKey)
+                    val cleared = when (session.receive(Some([]))!!.message.event) { case ResponseDone(value) -> value; else -> fail() }
+                    assertEquals(0L, cleared.clientToolCalls.size)
+                    val explicit = when (session.receive(Some([alternate]))!!.message.event) { case ResponseDone(value) -> value; else -> fail() }
+                    assertEquals(ToolKey("alternate"), explicit.clientToolCalls[0].toolKey)
+                }
+            }
+        })
+    }
+}

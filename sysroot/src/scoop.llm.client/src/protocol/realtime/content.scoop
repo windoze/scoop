@@ -33,19 +33,11 @@ internal fun encodeRealtimePart(dialect: DialectId, part: ContentPart, role: Llm
 private fun realtimeMedia(source: MediaSource, image: Boolean, type: String, path: String): JsonValue {
     val (bytes, mimeType) = when (source) { case Bytes(bytes, mime) -> (bytes, mime)
         else -> throw LlmRequestException(path, "Realtime media requires inline bytes") }
-    val mime = HttpMediaType.parseOrNone(mimeType) ?: throw LlmRequestException(path + "/mimeType", "invalid Realtime media type")
+    val mime = if (image) HttpMediaType.parseOrNone(mimeType) ?: throw LlmRequestException(path + "/mimeType", "invalid Realtime media type")
+        else checkRealtimeAudioFormat(mimeType, path + "/mimeType")
     if (image) {
         if (mime.type != "image" || (mime.subtype != "png" && mime.subtype != "jpeg"))
             throw LlmRequestException(path + "/mimeType", "Realtime images require PNG or JPEG")
-    } else {
-        if (mime.type != "audio" || (mime.subtype != "pcm" && mime.subtype != "pcmu" && mime.subtype != "pcma"))
-            throw LlmRequestException(path + "/mimeType", "Realtime audio requires raw PCM, PCMU or PCMA")
-        val rate = mime.parameter("rate")
-        if (llmPresent(rate) && String.fromUtf8(rate!!.value) != (if (mime.subtype == "pcm") "24000" else "8000"))
-            throw LlmRequestException(path + "/mimeType", "audio sample rate is not supported by Realtime")
-        val channels = mime.parameter("channels")
-        if (llmPresent(channels) && String.fromUtf8(channels!!.value) != "1")
-            throw LlmRequestException(path + "/mimeType", "Realtime audio must be mono")
     }
     val encoded = Base64.Default.encode(bytes)
     return llmTypedObject(type).add(if (image) "image_url" else "audio",

@@ -977,3 +977,17 @@ response.done 的 status=failed 映射 Failed，cancelled／incomplete／in_prog
 usage 的 input_tokens／output_tokens／total_tokens、input_token_details.cached_tokens 与文本／图片／音频模态细项按服务明确报告解释；cached 是 input 子集，普通输入可由两者相减。没有提供的计数保持 None，不从分项猜总数，不累计多个响应。缓存模态细项保持原文。输入转写的 usage 独立于 response；type=tokens 时读取 token，duration 或未知类型仅保存原文，不计算计费或将时长转换为 token。
 
 error 事件保留原始错误对象并正常交付，不能仅因服务端 error 消息就关闭连接或自动重试。本节不聚合响应、不维护播放／缓存／会话恢复状态，网络寿命与收发时间另由会话入口负责。普通 scoop.test 覆盖交错响应位置、文本与音频、取消／截断调用、MCP 与函数隔离、精确用量、保存、未知附加信息容忍及协议错误路径。依据：[服务端事件](https://developers.openai.com/api/reference/resources/realtime/server-events)、[会话与函数调用](https://developers.openai.com/api/docs/guides/realtime-conversations)。
+
+## 54. OpenAI Realtime 持久会话与消息计时
+
+LlmClient.openRealtimeSession(model, configuration = RealtimeConfiguration(), openingOptions = LlmCallOptions(), webSocketOptions = HttpWebSocketOptions()) 返回 RealtimeSession；withRealtimeSession 使用同一入口与 useAsync 资源合同。打开前检查所选协议、realtime capability、显式配置与 model ID，然后按已编码 URL 认证并升级。首条消息必须为 session.created，原始记录保存在 sessionCreated；若 configuration 编码后只有固定 type，直接采用服务端默认值，否则发送 session.update 并等待 session.updated，分别保存 configurationSent 和 configurationUpdated。初始化期间的服务端 error 抛出 RealtimeSessionRejectedException(received)，保留带实际接收时间的 RealtimeReceived，不伪造成 HTTP 错误或格式错误；提前关闭或非预期消息也导致打开失败并完成清理，不自动重发已升级连接上的命令。
+
+openingOptions 的 total 包含升级与初始化确认，onFinished 仅在打开过程结束时调用一次。opening 保存该次 HTTP 调用记录，消息时间与用量不写入 HTTP attempt。RealtimeSent(sessionId, command, timing) 和 RealtimeReceived(sessionId, message, received) 可保存，使用共享 WebSocket 的实际 UTC／单调时间采样；时间轴从 session.startedAt 开始，不代表服务端接受或播放完成。session.id 与记录中的 sessionId 是本地调用标识，服务端 id 保留在 sessionCreated 的消息原文中。
+
+会话公开 model、initialConfiguration、protocol、opening、sessionCreated、configurationSent、configurationUpdated、id、startedAt、url、isClosed 与 failure。sendItemCreate、sendResponseCreate、sendSessionUpdate、sendAudioAppend、sendAudioCommit、sendAudioClear、sendItemRetrieve、sendItemDelete、sendItemTruncate、sendResponseCancel、sendNativeCommand 对应 §52 的同名编码，不隐式附加下一条命令。sendAudioAppend(bytes, mimeType, eventId = None) 的 mimeType 仅用于能力与原始音频格式检查，wire 仍只有 Base64 字节；调用方须与实际 session 音频配置保持一致，库不转码或改写配置。
+
+发送前检查显式输入、工具、输出类型、reasoning effort、并行调用、工具选择与输出 token 上限的已知 capability；未知能力允许协议可表达的请求，原生设置不生成额外推断。RealtimeTokenLimit.Unlimited 不变成虚构数字。请求编码或 capability 错误保留可用连接。sendResponseCreate 与 sendSessionUpdate 的 tools 上下文、receive(tools = None) 的工具关联均缺省采用 initialConfiguration.tools；显式 Some([]) 清除本次关联。该上下文仅用于本次编码或解码，不表示服务端当前配置，不随发送或收到消息暗中更改。应用动态更新工具或发出独立响应时，显式传入对应 tools；库不建立自动确认、事件关联或工具执行状态机。
+
+receive 按需读取一个文本 JSON 消息，正常关闭返回 None。已打开会话中的 error 正常交付；response.done、转写完成或服务端通知都不结束连接。共享 WebSocket 实现维持一读一写可并行、同方向重入失败、调用取消与真实读写／解码失败关闭连接、client 关闭等待所属会话，以及借入 HttpClient 的所有权不变。close 幂等，已交付失败不再次抛出；不增加后台消费、自动重连、自动生成或设备处理。
+
+普通 scoop.test 使用本地升级／WebSocket mock，覆盖缺省与显式初始化、工具回传、实际消息时间与保存、可恢复错误、配置拒绝、超时／取消与关闭。不可用的真实 Realtime 服务不阻塞这些验证，也不使用失效的官方 key。依据：[session.created／updated](https://developers.openai.com/api/reference/resources/realtime/server-events)、[客户端命令](https://developers.openai.com/api/reference/resources/realtime/client-events)。
