@@ -22,7 +22,7 @@ impl Concretizer<'_> {
                 );
                 let function = self.request_function_key(key.clone(), source);
                 self.derived_functions.insert(owner_ty, function);
-                let body = self.lower_body(&application.body, substitution);
+                let body = self.lower_derived_equality_body(&application.body, substitution);
                 self.derived_bodies.insert(key, body);
                 concrete::Callable::Function(function)
             }
@@ -45,7 +45,8 @@ impl Concretizer<'_> {
                 self.function_by_key.insert(key, function);
                 self.derived_functions.insert(owner_ty, function);
 
-                let (body, local_map) = self.lower_body(&application.body, substitution);
+                let (body, local_map) =
+                    self.lower_derived_equality_body(&application.body, substitution);
                 let source_function = &self.source.functions[application.function];
                 let params = source_function
                     .params
@@ -82,6 +83,18 @@ impl Concretizer<'_> {
                 concrete::Callable::Function(function)
             }
         }
+    }
+
+    fn lower_derived_equality_body(
+        &mut self,
+        source: &export::Body,
+        substitution: &[concrete::TypeId],
+    ) -> (concrete::Body, Vec<concrete::LocalId>) {
+        // The helper is a separate body, even when first requested by an initializer.
+        let previous = self.evaluation_context.take();
+        let body = self.lower_body(source, substitution);
+        self.evaluation_context = previous;
+        body
     }
 
     pub(super) fn lower_public_equality(&mut self, owner: export::TypeId) {
