@@ -25,6 +25,6 @@ fun process(id: Long) {
 
 自定义实现只需实现 LogProvider.isEnabled、emit 和 flush。方法可被并发调用，实现负责自身共享状态。emit 接收已通过过滤、已求值的 LogRecord。资源型实现可另外实现 Closeable；setProvider 返回旧对象但不自动刷新、关闭或等待其在途调用结束。
 
-facade 为 fallback 依赖平台库，公开协议不包含平台类型。完整合同见[日志库规范](../../../docs/specs/SCOOP-LOG-SPEC.md)。
+facade 为 fallback 依赖平台库，公开协议不包含平台类型。完整合同见[日志库规范](../../../docs/specs/SCOOP-LOG-SPEC.md)。可运行的自定义 provider 与异常恢复示例见 [examples](examples/README.md)；日常使用见 [console 示例](../scoop.log.console/examples/README.md)。
 
 开发时先准备 sysroot，再运行 `scoop test sysroot/src/scoop.log --release`。普通行为使用 scoop.test，标准流与失败输出由少量外部进程 fixture 验证。

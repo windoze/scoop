@@ -21,7 +21,7 @@
 
 所有普通测试使用 release。覆盖五个级别、急切与惰性求值、只执行一次、原异常身份、业务 catch/finally 控制流、调用处位置及跨 Cone 转发、配置更换、并发发布、固定时钟与自定义格式。输出 fixture 覆盖查询／提交／刷新失败、闭包与 provider 连续失败、部分输出后失败、时钟／格式失败、Unicode／NUL／换行，以及多个 provider 的大记录写入。stderr 关闭或断管时，fallback 失败后仍执行后续业务并返回指定退出码。
 
-Darwin 另完成两个示例的实际运行，以及两库 `scoop doc --no-deps --deny-doc-warnings`；生成站点的本地资源链接均可解析。Rust 格式化和 workspace Clippy、Ruff 格式化和检查通过；fixture runner 公共规则测试 55 / 55 通过。
+Darwin 另完成七个示例的实际运行，以及两库 `scoop doc --no-deps --deny-doc-warnings`；生成站点的本地资源链接均可解析。示例按入门、级别与惰性求值、格式与调用位置、异常、配置替换、自定义 provider、fallback 分组，附中文命令和预期输出；关闭 fallback 示例进程的 stderr 后仍正常输出并以 0 退出。Rust 格式化和 workspace Clippy、Ruff 格式化和检查通过；fixture runner 公共规则测试 55 / 55 通过。
 
 Linux 使用 `nuc12:~/repos/scoop-log-library` 独立目录，不修改原有 `~/repos/scoop`。仅执行上述日志定向测试，不运行 Linux 完整 Rust 或 fixture 套件。musl 按准备脚本已有说明补充 Linux UAPI 头搜索目录，这是宿主构建配置。
 

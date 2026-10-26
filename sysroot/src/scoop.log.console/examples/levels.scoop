@@ -1,0 +1,29 @@
+//! dep: scoop:scoop.log:0.1.0
+//! dep: scoop:scoop.log.console:0.1.0
+
+import scoop.log.*
+import scoop.log.console.*
+
+private fun details(calls: AtomicInt): String {
+    calls.fetchAdd(1)
+    return "request details"
+}
+
+fun main() {
+    Log.setProvider(ConsoleLogProvider(
+        stream = ConsoleStream.Stdout,
+        minLevel = LogLevel.Info,
+        format = { record, _ -> f"${record.level} ${record.target}: ${record.message}" }
+    ))
+    val log = Logger("levels")
+    val calls = AtomicInt(0)
+
+    log.trace("filtered out")
+    log.debug { details(calls) } // Disabled: the function is never called.
+    log.debug(details(calls))   // Arguments are evaluated before entering the logger.
+    log.info { f"message evaluations=${calls.load()}" }
+    log.warn("retrying request")
+    log.error("request failed")
+    log.log(LogLevel.Info, "explicit level")
+    Log.flush()
+}

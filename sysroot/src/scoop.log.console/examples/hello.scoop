@@ -7,12 +7,10 @@ import scoop.log.console.*
 private val log = Logger("example")
 
 fun main() {
+    // The application selects the provider; library code only needs Logger.
     Log.setProvider(ConsoleLogProvider())
-    log.info { "ready" }
-    log.debug { "disabled by the Info threshold" }
-    log.warn { throw Exception(Some("message construction failed")) }
-    Log.setProvider(ConsoleLogProvider(stream = ConsoleStream.Stdout,
-        format = { record, _ -> f"${record.level}: ${record.message}" }))
-    log.info("custom format")
+    log.info("ready")
+    val port = 8080
+    log.info { f"listening on ${port}" }
     Log.flush()
 }

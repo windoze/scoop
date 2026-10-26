@@ -1,0 +1,32 @@
+//! dep: scoop:scoop.log:0.1.0
+//! dep: scoop:scoop.log.console:0.1.0
+
+import scoop.log.*
+import scoop.log.console.*
+import scoop.time.Clock
+import scoop.time.Instant
+
+private object FixedClock : Clock {
+    public override fun now(): Instant = Instant.fromEpochSeconds(0L)
+}
+
+private val log = Logger("requests")
+
+private fun logRequest(id: Long, location: SourceLocation = currentSourceLocation()) {
+    // Forward the caller's location explicitly through a logging wrapper.
+    log.info(location = location) { f"request=${id}" }
+}
+
+fun main() {
+    Log.setProvider(ConsoleLogProvider(
+        stream = ConsoleStream.Stdout,
+        clock = FixedClock,
+        format = { record, timestamp ->
+            f"${timestamp} ${record.level} ${record.target}: ${record.message} " +
+                f"source=${record.location.file}:${record.location.line} function=${record.location.functionName}"
+        }
+    ))
+    log.info("direct call")
+    logRequest(42L)
+    Log.flush()
+}
