@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 第五阶段](GC-EVOLUTION.md)完成清扫的存活 line 复用，所有 profile 默认：普通路径省去逐活对象大小读取与位图重建，保留死亡 release、pin、moving stress 和回滚。ARM64 bintrees／gcpause 墙钟降低约 7%／4%，reclaim 累计 485 → 80 ms／529 → 128 ms，RSS 保持；大 gcpause 单次暂停最大值约 231 → 199 ms，增量配置约 207 → 171 ms。GNU 长 4／8 线程也改善，短负载干扰和 ARM64 8 线程 CPU 回退均保留。继续处理 forwarding／搬迁计划工作区和地址映射。
+
 - [GC 第四阶段](GC-EVOLUTION.md)实现语义完整的 full 分片标记，`SCOOP_GC_INCREMENTAL=1`、默认关闭；两代追踪、脏组重扫、精确 roots、pin 与完整回退复用原 GC，显式 full 不再因加入 minor／未完成片而提前返回。ARM64 长 bintrees 7.461 → 6.755 s、RSS 891 → 726 MiB；大 gcpause 最长单次 GC 约 230 → 207 ms，最长应用间隔约 376 → 212 ms，但正常吞吐略退、随机重扫增加。GNU 树分配改善、随机更新吞吐回退已记录。原地晋升／小片／非移动实验未消除主要差距，下一阶段继续减少 plan／copy／reclaim 与 metadata 成本，不视为主线完成。
 
 - [GC 第三阶段](GC-EVOLUTION.md)完成 TLAB 本地块储备：普通运行一次锁内最多准备四块，GC／managed／callback 边界统一失效，mutator 大小和 ABI 不变。ARM64 长 8 线程墙钟降低 17.1%；16 线程墙钟持平但总 CPU 降低 15.9%、系统 CPU 1.862 → 0.820 s。GNU 1～16 线程降低 1.4%～18.6%；四线程应用间隔 p99 357 → 331 μs，单线程尾部及部分 RSS 回退均已记录。两机各 17 项定向测试、三目标线程与回调／重链接通过。普通 profile 默认启用，继续推进非搬迁 full 与增量标记实验。

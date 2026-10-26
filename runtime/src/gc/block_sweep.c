@@ -1,4 +1,4 @@
-/* Dead-object release, live line reconstruction and reusable evacuation holes. */
+/* Dead-object release, retained line reuse and reusable evacuation holes. */
 #include <stdlib.h>
 #include <string.h>
 
@@ -71,10 +71,21 @@ retire_small_object(ScoopGcBlockMeta *block, size_t word, bool marked, bool stre
     block->discard_pending = true;
 }
 
-static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
+static void retire_dead_small_objects(ScoopGcBlockMeta *block, bool stress) {
+    for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
+        uint64_t dead = block->starts[index] & ~block->marks[index];
+        while (dead != 0) {
+            size_t word = index * 64 + (size_t)__builtin_ctzll(dead);
+            dead &= dead - 1;
+            retire_small_object(block, word, false, stress);
+        }
+    }
+}
+
+#if SCOOP_ENABLE_GC_STRESS
+static bool finish_stress_source(ScoopGcBlockMeta *block) {
     memset(block->line_occupied, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     bool any_live = false;
-    bool any_pinned = false;
     for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
         uint64_t starts = block->starts[index];
         while (starts != 0) {
@@ -82,13 +93,13 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
             starts &= starts - 1;
             bool pinned = bit_test(block->pins, word);
             bool marked = bit_test(block->marks, word);
-            bool moved = block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !pinned;
+            bool moved = !pinned;
             if (moved && marked && block->forwarding[word] == NULL) {
                 heap_fatal("marked source object has no forwarding address");
             }
             bool keep = marked && !moved;
             if (!keep) {
-                retire_small_object(block, word, marked, stress);
+                retire_small_object(block, word, marked, true);
                 continue;
             }
             size_t size = (size_t)block->size_units[word] * sizeof(uint64_t);
@@ -101,18 +112,32 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
                 bit_set(block->line_occupied, line);
             }
             any_live = true;
-            any_pinned |= pinned;
         }
     }
-    memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
-#if SCOOP_GC_TRACK_RELOCATION
-    memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+    return any_live;
+}
 #endif
-    memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
-    free(block->forwarding);
-    block->forwarding = NULL;
-    block->live_bytes = 0;
-    block->movable_live_bytes = 0;
+
+static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
+    bool any_live;
+    bool any_pinned;
+#if SCOOP_ENABLE_GC_STRESS
+    if (stress && block->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
+        any_live = finish_stress_source(block);
+        any_pinned = any_live;
+    } else
+#endif
+    {
+        retire_dead_small_objects(block, stress);
+        /* Ordinary sources are unpinned and completely copied; retained blocks
+         * already have the exact occupied lines from marking and target publication. */
+        any_live = block->state != SCOOP_BLOCK_EVACUATION_SOURCE && block->live_bytes != 0;
+        any_pinned = any_live && scoop_heap_block_has_pins(block);
+        if (any_live) {
+            memcpy(block->line_occupied, block->line_live,
+                   GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
+        }
+    }
     if (!any_live) {
 #if SCOOP_ENABLE_GC_STRESS
         if (stress) {
@@ -124,6 +149,15 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
         }
         return false;
     }
+    memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+#if SCOOP_GC_TRACK_RELOCATION
+    memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+#endif
+    memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
+    free(block->forwarding);
+    block->forwarding = NULL;
+    block->live_bytes = 0;
+    block->movable_live_bytes = 0;
     block->state = any_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
     if (SCOOP_ENABLE_GC_STRESS && stress) {
         return true;
@@ -175,14 +209,7 @@ void scoop_heap_prepare_evacuation_targets(void) {
             (block->generation == SCOOP_GC_YOUNG && block->live_bytes != 0)) {
             continue;
         }
-        for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
-            uint64_t dead = block->starts[index] & ~block->marks[index];
-            while (dead != 0) {
-                size_t word = index * 64 + (size_t)__builtin_ctzll(dead);
-                dead &= dead - 1;
-                retire_small_object(block, word, false, false);
-            }
-        }
+        retire_dead_small_objects(block, false);
         if (block->live_bytes == 0) {
             scoop_heap_release_block(block);
         } else {
