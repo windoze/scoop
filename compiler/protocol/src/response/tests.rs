@@ -1,6 +1,7 @@
 use super::*;
 use crate::{DiagnosticOriginV1, DiagnosticSeverityV1};
 
+mod check;
 mod documentation;
 
 fn diagnostic(severity: DiagnosticSeverityV1, message: String) -> StructuredDiagnosticV1 {

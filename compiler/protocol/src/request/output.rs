@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ScoopcOutputRequestV1 {
+    Check,
     Artifact(HostPathCarrier),
     Documentation(HostPathCarrier),
     ArtifactWithDocumentation {
@@ -22,7 +23,7 @@ impl ScoopcOutputRequestV1 {
             Self::Artifact(path) | Self::ArtifactWithDocumentation { artifact: path, .. } => {
                 Some(path)
             }
-            Self::Documentation(_) => None,
+            Self::Documentation(_) | Self::Check => None,
         }
     }
 
@@ -33,14 +34,18 @@ impl ScoopcOutputRequestV1 {
                 documentation: path,
                 ..
             } => Some(path),
-            Self::Artifact(_) => None,
+            Self::Artifact(_) | Self::Check => None,
         }
     }
 }
 
 impl WireEncode for ScoopcOutputRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        if matches!(self, Self::Check) {
+            return encode_check(encoder);
+        }
         let (tag, first, second) = match self {
+            Self::Check => unreachable!("check has no output paths"),
             Self::Artifact(path) => (1, path, None),
             Self::Documentation(path) => (2, path, None),
             Self::ArtifactWithDocumentation {
@@ -54,6 +59,7 @@ impl WireEncode for ScoopcOutputRequestV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DecodedOutputRequest {
+    Check,
     Artifact(DecodedHostPathCarrier),
     Documentation(DecodedHostPathCarrier),
     Both(DecodedHostPathCarrier, DecodedHostPathCarrier),
@@ -65,6 +71,7 @@ impl DecodedOutputRequest {
             value.validate().map_err(ProtocolValidationError::HostPath)
         };
         Ok(match self {
+            Self::Check => ScoopcOutputRequestV1::Check,
             Self::Artifact(value) => ScoopcOutputRequestV1::Artifact(path(value)?),
             Self::Documentation(value) => ScoopcOutputRequestV1::Documentation(path(value)?),
             Self::Both(artifact, documentation) => {
@@ -79,13 +86,23 @@ impl DecodedOutputRequest {
 
 impl WireEncode for DecodedOutputRequest {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        if matches!(self, Self::Check) {
+            return encode_check(encoder);
+        }
         let (tag, first, second) = match self {
+            Self::Check => unreachable!("check has no output paths"),
             Self::Artifact(path) => (1, path, None),
             Self::Documentation(path) => (2, path, None),
             Self::Both(artifact, documentation) => (3, artifact, Some(documentation)),
         };
         encode(encoder, tag, first, second)
     }
+}
+
+fn encode_check(encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(1)?;
+    encoder.field(0)?;
+    encoder.unsigned(4)
 }
 
 fn encode(
@@ -110,6 +127,10 @@ impl WireDecode for DecodedOutputRequest {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
+        if tag == 4 {
+            crate::framing::expect_sum_length(decoder, fields, 1)?;
+            return Ok(Self::Check);
+        }
         crate::framing::expect_sum_length(decoder, fields, if tag == 3 { 3 } else { 2 })?;
         let first = decoder.field(1, DecodedHostPathCarrier::decode)?;
         match tag {

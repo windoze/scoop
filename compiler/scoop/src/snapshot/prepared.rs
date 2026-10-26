@@ -35,9 +35,7 @@ impl ResolvedBuildGraph {
         Preparer::new(self.into_parts(), false)?.run()
     }
 
-    pub(crate) fn prepare_documentation(
-        self,
-    ) -> Result<PreparedBuildGraph, PrepareBuildGraphError> {
+    pub(crate) fn prepare_frontend(self) -> Result<PreparedBuildGraph, PrepareBuildGraphError> {
         Preparer::new(self.into_parts(), true)?.run()
     }
 }
@@ -84,11 +82,11 @@ struct Preparer {
     parts: ResolvedGraphParts,
     staging: PreparedStaging,
     compiler: ResolvedPairedScoopc,
-    documentation: bool,
+    frontend: bool,
 }
 
 impl Preparer {
-    fn new(parts: ResolvedGraphParts, documentation: bool) -> Result<Self, PrepareBuildGraphError> {
+    fn new(parts: ResolvedGraphParts, frontend: bool) -> Result<Self, PrepareBuildGraphError> {
         let compiler =
             ResolvedPairedScoopc::resolve(&parts.context.compiler, &parts.context.cache_root)
                 .map_err(PrepareBuildGraphError::PairedCompiler)?;
@@ -98,7 +96,7 @@ impl Preparer {
             parts,
             staging,
             compiler,
-            documentation,
+            frontend,
         })
     }
 
@@ -126,7 +124,7 @@ impl Preparer {
                         *manifest,
                         &self.parts.context,
                         purpose,
-                        self.documentation,
+                        self.frontend,
                     )?;
                     let output_path = self
                         .staging
@@ -184,7 +182,7 @@ fn select_manifest_input(
     manifest: LoadedConeManifest,
     context: &BuildContext,
     purpose: scoop_protocol::CompilationPurpose,
-    documentation: bool,
+    frontend: bool,
 ) -> Result<ManifestSourceInput, PrepareBuildGraphError> {
     let discovered = match purpose {
         scoop_protocol::CompilationPurpose::Production => {
@@ -207,8 +205,8 @@ fn select_manifest_input(
     let test_config = (purpose == scoop_protocol::CompilationPurpose::Test)
         .then(|| manifest.parsed().tests().clone());
     let manifest_semantic = manifest.parsed().semantic().clone();
-    let native = if documentation {
-        SourceNativeInput::Documentation
+    let native = if frontend {
+        SourceNativeInput::Frontend
     } else {
         let target = context
             .target

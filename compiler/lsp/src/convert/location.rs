@@ -30,13 +30,7 @@ fn source_location(
     settings: Settings,
     select_declaration_name: bool,
 ) -> Result<Option<Location>, ResponseError> {
-    let Some(file) = project
-        .cones
-        .values()
-        .filter_map(|cone| cone.source())
-        .flat_map(|cone| &cone.sources)
-        .find(|file| file.identity == origin.source)
-    else {
+    let Some(file) = project.source_file(&origin.source) else {
         return Ok(None);
     };
     let Some(source) = snapshot

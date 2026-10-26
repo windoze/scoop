@@ -40,6 +40,7 @@ pub(super) fn lower(
             &world,
         )
         .unwrap();
+    let hir = current_hir::CurrentConeHirArtifacts::from_hir(hir, &world).unwrap();
     let machine_dependencies = request
         .dependencies()
         .read_machine_dependencies(hir.machine_dependency_providers())

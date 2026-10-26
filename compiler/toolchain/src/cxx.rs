@@ -104,6 +104,10 @@ impl ValidatedCxxToolchain {
         self.inputs.iter().map(|input| input.path()).collect()
     }
 
+    pub(crate) fn input_metadata(&self) -> &[crate::NativeInputMetadata] {
+        &self.inputs
+    }
+
     pub fn driver(&self) -> &Path {
         &self.driver
     }

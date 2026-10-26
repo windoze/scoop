@@ -1,0 +1,2 @@
+package test.check
+public fun value(): Int = 42

@@ -28,9 +28,21 @@ pub struct CompletedNode {
     closure: Rc<ValidatedArtifactClosure>,
     artifact_locator: PathBuf,
     warnings: Vec<StructuredDiagnosticV1>,
+    used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
 }
 
 impl CompletedNode {
+    pub(crate) fn with_used_generators(
+        mut self,
+        inputs: Vec<scoop_protocol::GeneratorToolInputV1>,
+    ) -> Self {
+        self.used_generators = inputs;
+        self
+    }
+
+    pub(crate) fn used_generators(&self) -> &[scoop_protocol::GeneratorToolInputV1] {
+        &self.used_generators
+    }
     pub const fn cone(&self) -> ConeIdentity {
         self.cone
     }
@@ -75,6 +87,7 @@ impl CompletedNode {
             closure: Rc::new(closures),
             artifact_locator,
             warnings,
+            used_generators: Vec::new(),
         }
     }
 }
@@ -240,5 +253,6 @@ pub(crate) fn complete_prebuilt_candidates(
         closure: Rc::new(selected.closures),
         artifact_locator: selected.source_locator,
         warnings: Vec::new(),
+        used_generators: Vec::new(),
     })
 }

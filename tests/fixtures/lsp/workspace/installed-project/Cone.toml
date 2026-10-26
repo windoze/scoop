@@ -1,0 +1,10 @@
+schema = 1
+
+[cone]
+group = "test"
+name = "installed-navigation"
+version = "1.0.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.std" = "0.1.0"

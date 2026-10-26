@@ -285,6 +285,14 @@ impl Parser {
     pub(crate) fn parse_explicit_call_type_args(
         &mut self,
     ) -> Result<Vec<scoop_ast::CallTypeArgument>, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::TypeArgumentList, |parser| {
+            parser.parse_explicit_call_type_args_inner()
+        })
+    }
+
+    fn parse_explicit_call_type_args_inner(
+        &mut self,
+    ) -> Result<Vec<scoop_ast::CallTypeArgument>, Diagnostic> {
         if !matches!(self.peek().kind, TokenKind::Less) {
             return Ok(Vec::new());
         }

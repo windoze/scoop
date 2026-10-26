@@ -108,15 +108,19 @@ impl Parser {
                 // `!!` token would break the double negation `!!flag`,
                 // which is valid prefix syntax since M1.
                 TokenKind::Bang if self.at_null_assert() => {
-                    self.bump(); // first `!`
-                    let second = self.bump(); // second `!`
+                    let second =
+                        self.with_node(scoop_syntax::SyntaxKind::PostfixOperator, |parser| {
+                            parser.bump(); // first `!`
+                            parser.bump() // second `!`
+                        });
                     receiver = Expr::NullAssert {
                         span: Span::new(receiver.span().start, second.span.end),
                         operand: Box::new(receiver),
                     };
                 }
                 TokenKind::PlusPlus | TokenKind::MinusMinus => {
-                    let token = self.bump();
+                    let token =
+                        self.with_node(scoop_syntax::SyntaxKind::PostfixOperator, Self::bump);
                     let start = receiver.span().start;
                     let place = Self::expr_into_place(receiver, "update operand")?;
                     receiver = Expr::Update {

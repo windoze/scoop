@@ -1,0 +1,132 @@
+schema = 1
+name = "check-test-purpose"
+inputs = ["cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "check", "cache"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "production"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${production.result.kind}", equals = "check"}, {actual = "${production.result.cache_hit}", equals = false}]
+
+[[steps]]
+name = "tests"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--tests"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${tests.result.kind}", equals = "check"}, {actual = "${tests.result.cache_hit}", equals = false}, {actual = "${tests.result.purpose}", equals = "test"}]
+
+[[steps]]
+name = "tests_warm"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--tests"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${tests_warm.result.kind}", equals = "check"}, {actual = "${tests_warm.result.cache_hit}", equals = true}]
+
+[[steps]]
+name = "production_warm"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${production_warm.result.kind}", equals = "check"}, {actual = "${production_warm.result.cache_hit}", equals = true}]
+
+[[steps]]
+name = "test_change"
+files = [{replace = {path = "${work}/cone/tests/main.scoop", old = "assertEquals(0,", new = "assertEquals(1,"}}]
+
+[[steps]]
+name = "production_after_tests"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${production_after_tests.result.kind}", equals = "check"}, {actual = "${production_after_tests.result.cache_hit}", equals = true}]
+
+[[steps]]
+name = "changed_tests"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--tests"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed_tests.result.kind}", equals = "check"}, {actual = "${changed_tests.result.cache_hit}", equals = false}]
+
+[[steps]]
+name = "direct_tests"
+argv = ["${scoopc}", "check", "${work}/cone", "--test", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${sysroot}/lib/${target}/scoop.test.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "executable_without_production_entry"
+files = [{replace = {path = "${work}/cone/Cone.toml", old = '"library"', new = '"executable"'}}]
+
+[[steps]]
+name = "generated_test_entry"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--tests"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "missing_production_entry"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "missing_main.json"}
+
+[[steps]]
+name = "ignored_body"
+files = [{write = {path = "${work}/cone/tests/main.scoop", data = "package test.check\nimport scoop.test.*\n@Test\nprivate class Cases {\n    @Ignore(\"still checked\")\n    @Test\n    fun failsIfRun() { missingTestValue }\n}\n"}}]
+
+[[steps]]
+name = "ignored_still_checked"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--tests"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "ignored_error.json"}
+
+[[steps]]
+name = "production_imports_test_dependency"
+files = [{write = {path = "${work}/cone/tests/main.scoop", data = "package test.check\nimport scoop.test.*\n@Test\nprivate class Cases {\n    @Test\n    fun failsIfRun() { assertEquals(0, value()) }\n}\n"}}, {write = {path = "${work}/cone/src/main.scoop", data = "package test.check\nimport scoop.test.*\npublic fun value(): Int { assertEquals(1, 1); return 42 }\n"}}]
+
+[[steps]]
+name = "test_dependency_hidden"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--tests"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "test_dependency.json"}

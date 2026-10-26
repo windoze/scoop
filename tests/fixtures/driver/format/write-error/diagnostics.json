@@ -1,0 +1,3 @@
+[
+  {"code":"SCOOP_FMT_IO","message":"cannot create formatted output: permission denied","notes":[],"origin":{"kind":"host","path":"${work}/readonly/source.scoop","start":null,"end":null},"phase":"Request","severity":"error"}
+]

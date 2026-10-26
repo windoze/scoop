@@ -34,7 +34,7 @@ pub(super) fn graph(
         }
     }
     let mut prepared = graph
-        .prepare_documentation()
+        .prepare_frontend()
         .map_err(BuildFailure::preparation)?;
     let mut completed = BTreeMap::<ConeIdentity, CompletedNode>::new();
     let runner = ProductionSingleConeCompilerRunner;

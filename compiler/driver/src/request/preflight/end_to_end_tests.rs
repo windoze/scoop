@@ -7,6 +7,7 @@ use scoop_slib::{ConeKind, ConeSourceForm, DecodedSlibEnvelope};
 use super::*;
 use crate::{ExplicitDependencyInputs, HostArtifactLocator};
 
+mod check;
 mod cross_cone;
 mod default_call_domains;
 mod default_callable_access;

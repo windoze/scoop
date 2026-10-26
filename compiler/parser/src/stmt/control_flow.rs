@@ -17,7 +17,9 @@ impl Parser {
         if matches!(self.peek().kind, TokenKind::LBrace) {
             return self.parse_block();
         }
-        let statement = self.parse_statement()?;
+        let statement = self.with_node(scoop_syntax::SyntaxKind::SingleControlBody, |parser| {
+            parser.parse_statement()
+        })?;
         let span = statement.span;
         Ok(Block {
             statements: vec![statement],

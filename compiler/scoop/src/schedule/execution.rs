@@ -26,10 +26,20 @@ struct Execution {
 }
 
 impl Execution {
-    fn new(graph: &PreparedBuildGraph) -> Self {
-        let order = graph.dependency_first().to_vec();
+    fn new(graph: &PreparedBuildGraph, include_root: bool) -> Self {
+        let order = graph
+            .dependency_first()
+            .iter()
+            .copied()
+            .filter(|id| include_root || *id != graph.root_identity())
+            .collect::<Vec<_>>();
         Self {
-            ready: ReadyNodes::new(&order, graph.dependency_edges()),
+            ready: ReadyNodes::new(
+                &order,
+                graph
+                    .dependency_edges()
+                    .filter(|(dependent, _)| include_root || *dependent != graph.root_identity()),
+            ),
             order,
             completed: BTreeMap::new(),
             observations: BTreeMap::new(),
@@ -151,21 +161,56 @@ impl PreparedBuildGraph {
         self,
         runner: &impl SingleConeCompilerRunner,
     ) -> Result<ExecutedBuildGraph, BuildGraphExecutionFailure> {
-        let mut execution = Execution::new(&self);
+        let execution = self.execute_nodes(runner, true)?;
+        let (order, completed, observations) = execution.into_parts();
+        Ok(ExecutedBuildGraph {
+            root: self.root_identity(),
+            _prepared: self,
+            dependency_first: order,
+            completed,
+            observations,
+        })
+    }
+
+    pub(crate) fn execute_dependencies(
+        &self,
+        runner: &impl SingleConeCompilerRunner,
+    ) -> Result<(Vec<CompletedNode>, BuildObservations), BuildGraphExecutionFailure> {
+        let execution = self.execute_nodes(runner, false)?;
+        let (order, mut completed, observations) = execution.into_parts();
+        Ok((
+            order
+                .into_iter()
+                .map(|id| {
+                    completed
+                        .remove(&id)
+                        .expect("scheduled dependency completed")
+                })
+                .collect(),
+            observations,
+        ))
+    }
+
+    fn execute_nodes(
+        &self,
+        runner: &impl SingleConeCompilerRunner,
+        include_root: bool,
+    ) -> Result<Execution, BuildGraphExecutionFailure> {
+        let mut execution = Execution::new(self, include_root);
         let compiler = self.compiler().clone();
         let jobs = self.jobs().get();
         std::thread::scope(|scope| {
             let (sender, receiver) = std::sync::mpsc::channel();
             loop {
                 while let Ok(response) = receiver.try_recv() {
-                    execution.receive(&self, response);
+                    execution.receive(self, response);
                 }
                 let mut waiting = Vec::new();
                 while execution.failures.is_empty() && execution.pending.len() < jobs {
                     let Some(position) = execution.ready.pop() else {
                         break;
                     };
-                    match execution.prepare(&self, position) {
+                    match execution.prepare(self, position) {
                         Ok(PreparedNode::WaitingForLock(key)) => {
                             execution.waiting_keys.insert(position, key);
                             waiting.push(position);
@@ -219,7 +264,7 @@ impl PreparedBuildGraph {
                 let response = receiver
                     .recv()
                     .expect("an active compiler worker returns a response");
-                execution.receive(&self, response);
+                execution.receive(self, response);
             }
         });
         if let Some((_, cause)) = execution.failures.pop_first() {
@@ -229,20 +274,27 @@ impl PreparedBuildGraph {
             ));
         }
         debug_assert_eq!(execution.completed.len(), execution.order.len());
-        let child_invocations = execution
+        Ok(execution)
+    }
+}
+
+impl Execution {
+    fn into_parts(
+        self,
+    ) -> (
+        Vec<ConeIdentity>,
+        BTreeMap<ConeIdentity, CompletedNode>,
+        BuildObservations,
+    ) {
+        let child_invocations = self
             .child_invocations
             .iter()
-            .map(|&position| execution.order[position])
+            .map(|&position| self.order[position])
             .collect();
-        Ok(ExecutedBuildGraph {
-            root: self.root_identity(),
-            _prepared: self,
-            dependency_first: execution.order,
-            completed: execution.completed,
-            observations: BuildObservations {
-                nodes: execution.observations.into_values().collect(),
-                child_invocations,
-            },
-        })
+        let observations = BuildObservations {
+            nodes: self.observations.into_values().collect(),
+            child_invocations,
+        };
+        (self.order, self.completed, observations)
     }
 }

@@ -119,7 +119,9 @@ impl SingleConeBuildRequest {
         }
         match self.compile(false)? {
             SingleConeCompilation::Published(result) => Ok(*result),
-            SingleConeCompilation::Observed(_) | SingleConeCompilation::Documented(_) => {
+            SingleConeCompilation::Observed(_)
+            | SingleConeCompilation::Documented(_)
+            | SingleConeCompilation::Checked(_) => {
                 unreachable!("production has no observation stop")
             }
         }
@@ -143,14 +145,15 @@ impl SingleConeBuildRequest {
         if stop_after == Some(StageDumpKind::Ast) {
             return self.observe_ast();
         }
-        let temporary_parent = self
+        let temporary = self
             .output
             .primary_path()
-            .parent()
-            .expect("an absolute output path always has a parent");
-        let temporary = tempfile::Builder::new()
-            .prefix(".scoopc-")
-            .tempdir_in(temporary_parent)
+            .map(|path| {
+                tempfile::Builder::new()
+                    .prefix(".scoopc-")
+                    .tempdir_in(path.parent().expect("absolute output has a parent"))
+            })
+            .transpose()
             .map_err(SingleConeProductionError::TemporaryWorkspace)?;
         let loaded = self
             .load_preflight()
@@ -166,7 +169,10 @@ impl SingleConeBuildRequest {
             sources,
         };
         parsed
-            .compile(temporary.path(), stop_after)
+            .compile(
+                temporary.as_ref().map(|directory| directory.path()),
+                stop_after,
+            )
             .map_err(|source| SingleConeProductionError::Production(Box::new(source)))
     }
 

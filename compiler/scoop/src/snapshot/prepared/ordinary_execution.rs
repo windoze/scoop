@@ -280,7 +280,8 @@ impl PreparedBuildGraph {
             closure,
             entry.artifact,
             entry.record.warnings,
-        ))
+        )
+        .with_used_generators(entry.record.used_generators))
     }
 }
 

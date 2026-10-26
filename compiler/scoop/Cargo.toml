@@ -7,6 +7,7 @@ rust-version.workspace = true
 scoop-ast.workspace = true
 scoop-source.workspace = true
 scoop-parser.workspace = true
+scoop-fmt.workspace = true
 scoop-target-data.workspace = true
 scoop-process.workspace = true
 scoop-identity.workspace = true

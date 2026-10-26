@@ -166,5 +166,13 @@ pub fn select_manifest_sources_for_tests(
     collect::select(manifest, selected_roots(manifest, target, true)?)
 }
 
+/// Select the union of all declared production and test paths for formatting.
+/// Conditions are validated while loading the manifest, without selecting a target.
+pub fn select_manifest_format_sources(
+    manifest: &LoadedConeManifest,
+) -> Result<Vec<PathBuf>, SourceDiscoveryError> {
+    collect::formatting(manifest, select::formatting_roots(manifest)?)
+}
+
 #[cfg(test)]
 mod tests;

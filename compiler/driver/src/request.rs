@@ -7,7 +7,8 @@ mod output;
 mod target;
 pub use documentation::{DocumentationOutputDestination, SingleConeOutput};
 pub use normalization::{
-    DirectBuildOptions, normalize_direct_build_request, normalize_protocol_build_request,
+    DirectBuildOptions, DirectCheckOptions, normalize_direct_build_request,
+    normalize_direct_check_request, normalize_protocol_build_request,
 };
 mod preflight;
 mod report;
@@ -16,7 +17,7 @@ pub use output::{OutputAliasRole, OutputIsolationErrorKind, SlibOutputDestinatio
 pub use preflight::*;
 pub use report::{
     CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError, DiagnosticMappingError,
-    EmittedStageDump, PublishedDocumentation, SingleConeCompilation,
+    EmittedStageDump, PublishedDocumentation, SingleConeCheckSuccess, SingleConeCompilation,
     SingleConeDocumentationSuccess, SingleConeProductionSuccess, StageObservation,
 };
 
@@ -213,6 +214,7 @@ pub enum SingleConeBuildRequestError {
     TestRequiresManifest,
     DocumentationRequiresProductionManifest,
     DocumentationMachineDump,
+    CheckRequiresNoMachineInputs,
     InvalidDocumentationOutput {
         path: PathBuf,
     },
@@ -245,6 +247,9 @@ impl fmt::Display for SingleConeBuildRequestError {
             }
             Self::DocumentationRequiresProductionManifest => {
                 formatter.write_str("documentation requires a Production manifest Cone")
+            }
+            Self::CheckRequiresNoMachineInputs => {
+                formatter.write_str("check requests cannot include dumps or native objects")
             }
             Self::DocumentationMachineDump => formatter
                 .write_str("documentation-only output cannot emit MIR, optimizations or LIR"),

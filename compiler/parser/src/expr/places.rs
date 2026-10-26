@@ -5,6 +5,12 @@ impl Parser {
     /// consumed and `{` is current. This list deliberately has its own
     /// grammar so it cannot be mistaken for a lambda or statement block.
     pub(super) fn parse_copy_update(&mut self, base: Expr) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::CopyUpdateFields, |parser| {
+            parser.parse_copy_update_inner(base)
+        })
+    }
+
+    fn parse_copy_update_inner(&mut self, base: Expr) -> Result<Expr, Diagnostic> {
         self.bump();
         if matches!(self.peek().kind, TokenKind::RBrace) {
             return Err(Diagnostic::at(
@@ -80,6 +86,12 @@ impl Parser {
     /// `receiver[index]` — the `[` is the current token. A `:` after the
     /// index expression is a slice, out of the M5 subset.
     pub(super) fn parse_index(&mut self, receiver: Expr) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::IndexArguments, |parser| {
+            parser.parse_index_inner(receiver)
+        })
+    }
+
+    fn parse_index_inner(&mut self, receiver: Expr) -> Result<Expr, Diagnostic> {
         let bracket_span = self.bump().span;
         let first = self.parse_expr()?;
         if matches!(self.peek().kind, TokenKind::Colon) {

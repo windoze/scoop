@@ -1,0 +1,40 @@
+schema = 1
+name = "fmt-empty-selections-and-no-parent-search"
+inputs = ["default", "explicit"]
+tools = ["scoop"]
+tags = ["driver", "format"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/default", to = "${work}/default"}}, {copy = {from = "${fixture}/explicit", to = "${work}/explicit"}}, {mkdir = {path = "${work}/default/src"}}, {write = {path = "${work}/blank.scoop", data = " \r\n\t "}}]
+
+[[steps]]
+name = "empty"
+argv = ["${scoop}", "fmt", "default", "explicit/Cone.toml", "--check", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${empty.result.files}", equals = []}, {actual = "${empty.result.success}", equals = true}]
+
+[[steps]]
+name = "blank"
+argv = ["${scoop}", "fmt", "blank.scoop", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${work}/blank.scoop", equals = ""}, {actual = "${blank.result.counts.formatted}", equals = 1}]
+
+[[steps]]
+name = "no_parent"
+argv = ["${scoop}", "fmt", "--message-format", "json"]
+cwd = "${work}/default/src"
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "no-parent.json"}
+checks = [{actual = "${no_parent.result.files}", equals = []}, {actual = "${no_parent.result.success}", equals = false}]

@@ -39,6 +39,13 @@ impl DiscoveredBuildGraph {
 }
 
 impl ResolvedBuildGraph {
+    pub(crate) fn single_file_source(&self) -> Option<&scoop_manifest::SingleFileLocator> {
+        match self.nodes.get(&self.root) {
+            Some(GraphNode::SingleFile(source)) => Some(source),
+            _ => None,
+        }
+    }
+
     pub(crate) fn source_manifest(
         &self,
         identity: ConeIdentity,

@@ -118,7 +118,12 @@ fn compiler_queries_consume_dependency_references_defaults_and_body_availability
             )?;
             assert_eq!(bodies["bodies"][0]["availability"], "available");
             assert_eq!(bodies["bodies"][0]["body"]["owner"], choose);
-            assert_eq!(bodies["bodies"][1], json!({"availability": "notPublished"}));
+            assert_eq!(bodies["bodies"][1]["availability"], "available");
+            assert_eq!(bodies["bodies"][1]["body"]["owner"], opaque);
+            assert_eq!(
+                bodies["bodies"][1]["body"]["statements"][0]["operation"]["value"]["operation"]["value"],
+                "opaque"
+            );
             assert_eq!(bodies["bodies"][2]["kind"], "constructor");
             assert_eq!(bodies["bodies"][3], json!({"availability": "noBody"}));
             assert_eq!(bodies["bodies"][4]["availability"], "available");

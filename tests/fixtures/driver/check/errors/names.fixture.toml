@@ -1,0 +1,15 @@
+schema = 1
+name = "check-frontend-names-diagnostics"
+root = "../../../language/hello/errors/unknown-function.scoop"
+inputs = ["../../../language/hello/errors/unknown-function.scoop"]
+tools = ["scoop", "scoopc"]
+tags = ["driver", "check", "diagnostics"]
+
+[[steps]]
+name = "check"
+argv = ["${scoop}", "check", "${root}", "--release", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "../../../language/hello/errors/unknown-function.diagnostics.json"}

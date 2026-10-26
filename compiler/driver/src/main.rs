@@ -6,6 +6,7 @@ use std::{io, io::Write};
 
 use clap::{Parser, Subcommand, ValueEnum};
 
+mod check;
 mod child_protocol;
 
 #[derive(Parser)]
@@ -19,6 +20,8 @@ struct Cli {
 enum Command {
     /// Compile one Cone into a validated `.slib` artifact.
     Build(Box<BuildArgs>),
+    /// Check one Cone without producing machine artifacts.
+    Check(check::CheckArgs),
     /// Report the exact machine protocol understood by this compiler.
     #[command(name = "__machine-capability", hide = true)]
     MachineCapability,
@@ -137,6 +140,7 @@ fn main() -> ExitCode {
                 },
             )
         }
+        Command::Check(args) => check::run(args),
         Command::MachineCapability => write_machine_capability(),
         Command::ChildProtocol { version } => child_protocol::run(version),
     };

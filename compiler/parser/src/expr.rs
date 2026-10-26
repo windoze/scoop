@@ -13,6 +13,7 @@ use scoop_ast::{
 
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
+use scoop_syntax::SyntaxKind;
 
 mod arguments;
 mod callables;
@@ -108,7 +109,7 @@ impl Parser {
                 if ELVIS_PRECEDENCE < min_precedence {
                     break;
                 }
-                self.bump();
+                self.with_node(SyntaxKind::BinaryOperator, Self::bump);
                 let rhs = self.parse_binary(ELVIS_PRECEDENCE)?;
                 lhs = Expr::Elvis {
                     span: Span::new(lhs.span().start, rhs.span().end),
@@ -124,10 +125,12 @@ impl Parser {
                         break;
                     }
                     let negated = self.at_bang_is();
-                    self.bump(); // `is` or `!`
-                    if negated {
-                        self.bump(); // `is`
-                    }
+                    self.with_node(SyntaxKind::BinaryOperator, |parser| {
+                        parser.bump(); // `is` or `!`
+                        if negated {
+                            parser.bump(); // `is`
+                        }
+                    });
                     let ty = self.parse_type_ref()?;
                     lhs = Expr::Is {
                         span: Span::new(lhs.span().start, ty.span.end),
@@ -141,13 +144,16 @@ impl Parser {
                     if CAST_PRECEDENCE < min_precedence {
                         break;
                     }
-                    let as_token = self.bump();
-                    // `as?` (safe cast) is `as` directly followed by `?`.
-                    let optional = matches!(self.peek().kind, TokenKind::Question)
-                        && self.peek().span.start == as_token.span.end;
-                    if optional {
-                        self.bump(); // `?`
-                    }
+                    let optional = self.with_node(SyntaxKind::BinaryOperator, |parser| {
+                        let as_token = parser.bump();
+                        // `as?` (safe cast) is `as` directly followed by `?`.
+                        let optional = matches!(parser.peek().kind, TokenKind::Question)
+                            && parser.peek().span.start == as_token.span.end;
+                        if optional {
+                            parser.bump();
+                        }
+                        optional
+                    });
                     let ty = self.parse_type_ref()?;
                     lhs = Expr::Cast {
                         span: Span::new(lhs.span().start, ty.span.end),
@@ -161,7 +167,9 @@ impl Parser {
                     if INFIX_PRECEDENCE < min_precedence || self.peek().newline_before {
                         break;
                     }
-                    let name = self.expect_ident("infix function name")?;
+                    let name = self.with_node(SyntaxKind::BinaryOperator, |parser| {
+                        parser.expect_ident("infix function name")
+                    })?;
                     let mut rhs = self.parse_binary(INFIX_PRECEDENCE + 1)?;
                     labels::name_lambda(&mut rhs, &name);
                     lhs = Expr::InfixCall {
@@ -187,7 +195,7 @@ impl Parser {
             if precedence < min_precedence {
                 break;
             }
-            let operator_span = self.bump().span;
+            let operator_span = self.with_node(SyntaxKind::BinaryOperator, Self::bump).span;
             let rhs = self.parse_binary(precedence + 1)?;
             lhs = Expr::Binary {
                 op,
@@ -229,7 +237,7 @@ impl Parser {
             TokenKind::Minus => UnOp::Neg,
             TokenKind::Bang => UnOp::Not,
             TokenKind::PlusPlus | TokenKind::MinusMinus => {
-                self.pos += 1;
+                self.with_node(SyntaxKind::PrefixOperator, Self::bump);
                 let operand = self.parse_unary()?;
                 let end = operand.span().end;
                 let place = Self::expr_into_place(operand, "update operand")?;
@@ -247,7 +255,7 @@ impl Parser {
             }
             _ => return self.parse_postfix(),
         };
-        self.pos += 1;
+        self.with_node(SyntaxKind::PrefixOperator, Self::bump);
         let operand = self.parse_unary()?;
         Ok(Expr::Unary {
             op,

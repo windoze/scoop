@@ -1,0 +1,14 @@
+schema = 1
+name = "fmt-argument-errors-exit-two"
+inputs = []
+tools = ["scoop"]
+tags = ["driver", "format", "negative"]
+
+[[steps]]
+name = "invalid"
+argv = ["${scoop}", "fmt", "--target", "linux", "--message-format", "json"]
+exit = 2
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}

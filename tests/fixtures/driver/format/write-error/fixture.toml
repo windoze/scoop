@@ -1,0 +1,24 @@
+schema = 1
+name = "fmt-write-failure-keeps-original-and-continues"
+inputs = []
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "format", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [{write = {path = "${work}/readonly/source.scoop", data = "fun first()=1\n"}}, {write = {path = "${work}/other.scoop", data = "fun second()=2\n"}}, {chmod = {path = "${work}/readonly", mode = "0555"}}]
+
+[[steps]]
+name = "write"
+argv = ["${scoop}", "fmt", "readonly/source.scoop", "other.scoop", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+checks = [{actual = "${write.result.counts.failed}", equals = 1}, {actual = "${write.result.counts.formatted}", equals = 1}, {file = "${work}/readonly/source.scoop", equals = "fun first()=1\n"}, {file = "${work}/other.scoop", equals = "fun second() = 2\n"}]
+
+[[steps]]
+name = "restore"
+files = [{chmod = {path = "${work}/readonly", mode = "0755"}}]

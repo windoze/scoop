@@ -1,7 +1,9 @@
 """M60 comments retain their bound source and version in real hover requests."""
 
+from installed_sources import boolean_location
 
-def check(peer, root):
+
+def check(peer, root, sysroot):
     provider = root / "dependency/src/documented.scoop"
     library = (
         "package manuals\n"
@@ -89,7 +91,9 @@ def check(peer, root):
         assert f"**{expected}**" in docs, result
         assert f"[target](<{provider.as_uri()}#L6>)" in docs, result
         assert f"[input](<{provider.as_uri()}#L4>)" in docs, result
-        assert "Boolean is builtin." in docs and "[Boolean]" not in docs, result
+        boolean = boolean_location(sysroot)
+        line = boolean["range"]["start"]["line"] + 1
+        assert f"[Boolean](<{boolean['uri']}#L{line}>) is builtin." in docs, result
         return docs
 
     imported("原始文档")

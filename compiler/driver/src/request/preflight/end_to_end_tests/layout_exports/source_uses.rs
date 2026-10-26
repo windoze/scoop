@@ -12,7 +12,18 @@ fn actual_hir_type_uses_drive_mir_dependency_projection() {
     for (name, expected) in [
         // Deferred has a finite coroutine start and an initializer returning Unit.
         // Ordinary values do not materialize any implicit encoding bodies.
-        ("standalone", vec!["Boolean", "String", "Throwable", "Unit"]),
+        (
+            "standalone",
+            vec![
+                "Boolean",
+                "Long",
+                "LongRange",
+                "String",
+                "Throwable",
+                "ULong",
+                "Unit",
+            ],
+        ),
         ("combined", vec!["Any", "Boolean", "String", "Unit"]),
         ("initialization", vec!["Boolean", "String", "Unit"]),
     ] {

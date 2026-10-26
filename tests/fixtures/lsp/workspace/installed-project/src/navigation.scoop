@@ -1,0 +1,5 @@
+import scoop.time.Duration
+
+fun coreText(value: Boolean): String = value.toString()
+fun durationText(value: Duration): String = value.toString()
+fun durationSeconds(value: Duration): Long = value.floorSeconds
