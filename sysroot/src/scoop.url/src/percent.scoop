@@ -42,8 +42,8 @@ internal fun appendPercent(output: ByteArrayBuilder, value: Byte) {
     val number = value.toInt() and 255
     val digits = "0123456789ABCDEF"
     output.append(37.toByte())
-    output.append(digits[(number shr 4).toLong()].code.toByte())
-    output.append(digits[(number and 15).toLong()].code.toByte())
+    output.append(digits.getCharAt((number shr 4).toLong()).code.toByte())
+    output.append(digits.getCharAt((number and 15).toLong()).code.toByte())
 }
 
 internal fun encodeUrlBytes(bytes: List<Byte>, form: Boolean, allowed: String): String {

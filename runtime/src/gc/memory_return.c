@@ -76,9 +76,10 @@ void scoop_heap_reclaim_regions(bool full) {
     }
     if (full) {
         scoop_gc_heap_state.free_blocks = NULL;
-        scoop_gc_heap_state.allocation_region = NULL;
+        scoop_gc_heap_state.available_regions = NULL;
     }
     ScoopGcRegion *retained = NULL;
+    ScoopGcRegion **available = &scoop_gc_heap_state.available_regions;
     bool removed = false;
     ScoopGcRegion **link = &scoop_gc_heap_state.regions;
     while (*link != NULL) {
@@ -96,6 +97,11 @@ void scoop_heap_reclaim_regions(bool full) {
             if (empty) {
                 retained = region;
             }
+            region->next_available = NULL;
+            if (!empty && region->next_block < GC_REGION_BLOCKS) {
+                *available = region;
+                available = &region->next_available;
+            }
             discard_empty_pages(region, vm, page_size);
             for (size_t index = 0; index < region->next_block; index++) {
                 ScoopGcBlockMeta *block = &region->blocks[index];
@@ -107,8 +113,9 @@ void scoop_heap_reclaim_regions(bool full) {
         }
         link = &region->next;
     }
-    if (full) {
-        scoop_gc_heap_state.allocation_region = retained;
+    if (retained != NULL && retained->next_block < GC_REGION_BLOCKS) {
+        retained->next_available = scoop_gc_heap_state.available_regions;
+        scoop_gc_heap_state.available_regions = retained;
     }
     if (removed) {
         scoop_heap_page_map_prune();

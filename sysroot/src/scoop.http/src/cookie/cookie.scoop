@@ -91,7 +91,7 @@ public class HttpCookie internal constructor(
         if (secure && !secureCookieScheme(origin.scheme)) return false
         if (hostOnly) { if (origin.host != host) return false }
         else if (!HttpCookieRules.domainMatches(origin.host, host)) return false
-        val encodedPath = if (url.encodedPath.length == 0L) "/" else url.encodedPath
+        val encodedPath = if (url.encodedPath.charLength == 0L) "/" else url.encodedPath
         return HttpCookieRules.pathMatches(encodedPath.toByteArray(), path)
     }
     /**

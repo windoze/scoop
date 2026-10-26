@@ -1,0 +1,104 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+
+public interface Reading { public fun read(): Long }
+public class Node(val value: Long) : Reading {
+    public override fun read(): Long = value
+}
+public struct Pair(val node: Node, val view: Reading)
+public struct Empty()
+
+public fun <T> clones(source: MutableArray<T>, results: MutableArray<Array<T>>, iterations: Int) {
+    var index = 0
+    while (index < iterations) {
+        results[index.and(255).toLong()] = source.toArray()
+        index += 1
+    }
+}
+public fun <T> literals(value: T, results: MutableArray<Array<T>>, iterations: Int) {
+    var index = 0
+    while (index < iterations) {
+        results[index.and(255).toLong()] = [value, value, value, value, value, value, value, value]
+        index += 1
+    }
+}
+fun <T> collect(vararg elements: T): Array<T> = elements
+
+public fun <T> assemblies(source: Array<T>, value: T, results: MutableArray<Array<T>>, iterations: Int) {
+    var index = 0
+    while (index < iterations) {
+        results[index.and(255).toLong()] = collect(value, *source, value)
+        index += 1
+    }
+}
+
+fun main() {
+    @Unsafe {
+        val mode = kind()
+        val iterations = count()
+        val last = (iterations - 1).and(255).toLong()
+        val result = when (mode) {
+            case _ if (mode >= 0 && mode <= 2) -> {
+                val source = MutableArray<Node>(8L) { index -> Node(100L + index) }
+                val frozen = source.toArray()
+                val value = Node(42L)
+                val results = MutableArray<Array<Node>>(256L) { _ -> frozen }
+                begin()
+                when (mode) {
+                    case 0 -> literals(value, results, iterations)
+                    case 1 -> clones(source, results, iterations)
+                    else -> assemblies(frozen, value, results, iterations)
+                }
+                end()
+                val copy = results[last]
+                copy.size + copy[0L].value + copy[copy.size - 1L].value
+            }
+            case 3 -> {
+                val source = MutableArray<Reading>(8L) { index -> Node(100L + index) }
+                val frozen = source.toArray()
+                val results = MutableArray<Array<Reading>>(256L) { _ -> frozen }
+                begin()
+                clones(source, results, iterations)
+                end()
+                val copy = results[last]
+                copy.size + copy[0L].read() + copy[copy.size - 1L].read()
+            }
+            case _ if (mode == 4 || mode == 7) -> {
+                val size = if (mode == 4) 8L else 2048L
+                val source = MutableArray<Pair>(size) { index ->
+                    val node = Node(100L + index)
+                    Pair(node, node)
+                }
+                val frozen = source.toArray()
+                val results = MutableArray<Array<Pair>>(256L) { _ -> frozen }
+                begin()
+                clones(source, results, iterations)
+                end()
+                val copy = results[last]
+                copy.size + copy[0L].node.value + copy[copy.size - 1L].view.read()
+            }
+            case 5 -> {
+                val source = MutableArray<Long>(8L) { index -> index + 1L }
+                val frozen = source.toArray()
+                val results = MutableArray<Array<Long>>(256L) { _ -> frozen }
+                begin()
+                clones(source, results, iterations)
+                end()
+                val copy = results[last]
+                copy.size + copy[0L] + copy[copy.size - 1L]
+            }
+            else -> {
+                val source = MutableArray<Empty>(8L) { _ -> Empty() }
+                val frozen = source.toArray()
+                val results = MutableArray<Array<Empty>>(256L) { _ -> frozen }
+                begin()
+                clones(source, results, iterations)
+                end()
+                results[last].size
+            }
+        }
+        println(result)
+    }
+}

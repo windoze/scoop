@@ -1,4 +1,24 @@
+use super::compile::compile_and_run_configuration;
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
+
+#[test]
+fn retained_live_entries_are_current_before_reference_update() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "live_set_relocation_test",
+        "runtime/tests/live_set_relocation_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"live entries hold copied small, large and pointer-free objects before update; pins stay\n"
+    );
+}
 
 #[test]
 fn serial_and_parallel_markers_preserve_shared_graphs_and_repeated_collection() {
@@ -21,21 +41,25 @@ fn serial_and_parallel_markers_preserve_shared_graphs_and_repeated_collection() 
 
 #[test]
 fn parallel_update_preserves_native_root_aliases_and_remembered_slots() {
-    let output = compile_and_run(
-        &workspace_root(),
-        "parallel_update_test",
-        "runtime/tests/parallel_update_test.c",
-        true,
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"parallel update preserves aliased native roots, pinned fields and remembered slots\n"
-    );
+    for (verify, stress) in [(false, false), (true, false), (false, true)] {
+        let output = compile_and_run_configuration(
+            &workspace_root(),
+            "parallel_update_test",
+            "runtime/tests/parallel_update_test.c",
+            verify,
+            stress,
+            &[],
+        );
+        assert!(
+            output.status.success(),
+            "verify={verify}, stress={stress}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"parallel update preserves aliased native roots, pinned fields and remembered slots\n"
+        );
+    }
 }
 
 #[test]

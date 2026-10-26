@@ -53,8 +53,13 @@ fn imported_pointer_intrinsics_use_source_places_and_typed_templates() {
                 let dependencies =
                     scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, Vec::new())
                         .unwrap();
-                scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default())
-                    .unwrap();
+                scoop_mir_lower::lower_current_cone(
+                    &output,
+                    dependencies,
+                    Default::default(),
+                    None,
+                )
+                .unwrap();
             },
         )
         .unwrap_or_else(|errors| panic!("{case}: {errors:?}"));

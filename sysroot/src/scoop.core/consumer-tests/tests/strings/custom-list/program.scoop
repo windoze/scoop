@@ -13,6 +13,20 @@ class Characters : List<Char> {
     }
     public override operator fun iterator(): Iterator<Char> = ['A', '雪', '🚀'].iterator()
 }
+
+class Bytes : List<Byte> {
+    var trace: String = ""
+    var fail: Boolean = false
+    public override val size: Long get() { trace += "S"; return 3L }
+    public override operator fun get(index: Long): Byte {
+        trace += index.toString()
+        if (fail && index == 1L) { throw IllegalStateException() }
+        gcCollect()
+        return when (index) { case 0L -> 65.toByte(); case 1L -> (-61).toByte(); else -> (-87).toByte() }
+    }
+    public override operator fun iterator(): Iterator<Byte> =
+        [65.toByte(), (-61).toByte(), (-87).toByte()].iterator()
+}
 fun <T : Iterable<Char>> scalarSum(value: T): Long {
     var result = 0L
     for (character in value) { result = result + character.code.toLong() }
@@ -35,4 +49,19 @@ private fun exercise() {
 private class ApiTests {
     @Test
     fun behavior() { exercise() }
+
+    @Test
+    fun byteGetterSnapshot() {
+        val source = Bytes()
+        @Unsafe {
+            val text = String.fromUtf8Unchecked(source)
+            if (source.trace != "S012" || text != "Aé") { fail(Some("byte-getters")) }
+            source.trace = ""
+            source.fail = true
+            var failed = false
+            try { String.fromUtf8Unchecked(source) }
+            catch (error: IllegalStateException) { failed = true }
+            if (!failed || source.trace != "S01") { fail(Some("byte-getter-exception")) }
+        }
+    }
 }

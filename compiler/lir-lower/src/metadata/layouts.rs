@@ -8,6 +8,7 @@ mod values;
 pub(crate) use atomics::*;
 pub(crate) use objects::*;
 pub(crate) use shapes::*;
+pub(crate) use task_context::context_object_shape;
 pub(crate) use values::*;
 
 /// Persistent layouts selected by the sealed materialization plan and the

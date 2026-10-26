@@ -91,6 +91,11 @@ pub(super) fn instruction_uses(
         }
         lir::Instruction::MakeAggregate { elements, .. }
         | lir::Instruction::ArrayAlloc { elements, .. } => elements.clone(),
+        lir::Instruction::StringCopy { source, .. } => source.operands().collect(),
+        lir::Instruction::StringConcat { parts, .. } => parts
+            .iter()
+            .filter_map(lir::StringConcatPart::value)
+            .collect(),
         lir::Instruction::ArrayAssembly { parts, .. } => parts
             .iter()
             .map(|part| match part {
@@ -205,6 +210,8 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::ArrayAllocDynamic { out, .. }
         | lir::Instruction::ArrayAlloc { out, .. }
         | lir::Instruction::ArrayAssembly { out, .. }
+        | lir::Instruction::StringConcat { out, .. }
+        | lir::Instruction::StringCopy { out, .. }
         | lir::Instruction::PushPinFrame { out, .. }
         | lir::Instruction::ArrayDataPointer { out, .. }
         | lir::Instruction::StringDataPointer { out, .. }

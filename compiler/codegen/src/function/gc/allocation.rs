@@ -5,12 +5,16 @@ use super::*;
 /// One Immix block minus its reserved first line (runtime spec 3.1).
 const REGULAR_MANAGED_OBJECT_MAX_SIZE: u64 = 32768 - 128;
 
+pub(in crate::function) struct AllocationResult<'ctx> {
+    pub object: PointerValue<'ctx>,
+    /// Only the actual TLAB branch proves nursery membership.
+    pub young: Option<IntValue<'ctx>>,
+}
+
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    /// Managed allocation fast path. Block-sized objects are bumped directly
-    /// from the current thread's public two-pointer allocation context. A
-    /// failed bump calls the collecting slow path; a successful bump calls a
-    /// GC-leaf helper that clears the object, initializes its header, and
-    /// atomically records the object start.
+    /// Bump through the thread's shared TLAB view. Small constant allocations
+    /// with known layouts finish inline in release; other bumps use the GC-leaf
+    /// helper. Failed bumps retain the collecting slow path and its roots.
     pub(in crate::function) fn managed_alloc(
         &mut self,
         out: TempId,
@@ -24,10 +28,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.function.symbol()
             )));
         };
+        let layout = self.known_allocation_layout(*descriptor);
         let descriptor = self.value(*descriptor)?.into_pointer_value();
         let requested_size = self.value(*requested_size)?.into_int_value();
-        let object = self.managed_alloc_value(descriptor, requested_size, safepoint, live)?;
-        self.temps.insert(out, object.into());
+        let allocation = self.managed_alloc_value(
+            descriptor,
+            requested_size,
+            layout,
+            safepoint,
+            live,
+            Some(out),
+        )?;
+        self.remember_young_allocation(out, allocation.young);
+        self.temps.insert(out, allocation.object.into());
         Ok(())
     }
 
@@ -35,36 +48,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &mut self,
         descriptor: PointerValue<'ctx>,
         requested_size: IntValue<'ctx>,
+        layout: Option<AllocationLayout>,
         safepoint: scoop_lir::SafepointId,
         live: MaterializedStatepointLive<'ctx>,
-    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        initialization_result: Option<TempId>,
+    ) -> Result<AllocationResult<'ctx>, CodegenError> {
         let context = self.context;
         let builder = self.builder;
         let ptr = ptr_ty(context);
         let managed_ptr = managed_ptr_ty(context, self.managed_address_space);
         let i64_ty = context.i64_type();
 
-        let metadata = crate::runtime_metadata_v1::RuntimeMetadataV1Types::new(context);
-        let shape = builder
-            .build_struct_gep(
-                metadata.type_descriptor(),
-                descriptor,
-                1,
-                "allocation_shape",
-            )
-            .map_err(|error| CodegenError(format!("allocation descriptor shape: {error}")))?;
-        let alignment_slot = builder
-            .build_struct_gep(
-                metadata.type_instance_shape(),
-                shape,
-                3,
-                "allocation_alignment_ptr",
-            )
-            .map_err(|error| CodegenError(format!("allocation descriptor alignment: {error}")))?;
-        let alignment = builder
-            .build_load(i64_ty, alignment_slot, "allocation_alignment")
-            .map_err(|error| CodegenError(format!("load allocation alignment: {error}")))?
-            .into_int_value();
+        let layout = layout.filter(|_| self.optimize_allocations);
+        let (alignment, nursery_eligible) = self.allocation_parameters(descriptor, layout)?;
         let alignment_mask = builder
             .build_int_sub(
                 alignment,
@@ -94,26 +90,22 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_int_add(requested_size, alignment_mask, "alloc_size_plus_align")
             .and_then(|size| builder.build_and(size, inverse_mask, "alloc_size"))
             .map_err(|error| CodegenError(format!("allocation size alignment: {error}")))?;
-
-        let allocation_context_symbol =
-            scoop_lir::RuntimeAbiSymbolV1::AllocationContext.logical_symbol();
-        let allocation_global = self
-            .llvm
-            .get_global(allocation_context_symbol)
-            .unwrap_or_else(|| {
-                let global = self.llvm.add_global(ptr, None, allocation_context_symbol);
-                global.set_thread_local(true);
-                global
+        if self.reuse_thread_addresses
+            && ([nursery_eligible, size_valid]
+                .into_iter()
+                .any(|condition| condition.get_zero_extended_constant() == Some(0))
+                || aligned_size
+                    .get_zero_extended_constant()
+                    .is_some_and(|size| size > REGULAR_MANAGED_OBJECT_MAX_SIZE))
+        {
+            return Ok(AllocationResult {
+                object: self.slow_allocation(descriptor, requested_size, safepoint, live)?,
+                young: None,
             });
-        let allocation_context = builder
-            .build_load(
-                ptr,
-                allocation_global.as_pointer_value(),
-                "allocation_context",
-            )
-            .map_err(|error| CodegenError(format!("load allocation context: {error}")))?
-            .into_pointer_value();
-        let allocation_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
+        }
+
+        let allocation_context = self.allocation_context()?;
+        let allocation_ty = super::allocation_metadata::allocation_context_type(context);
         let cursor_slot = builder
             .build_struct_gep(allocation_ty, allocation_context, 0, "tlab_cursor_slot")
             .map_err(|error| CodegenError(format!("address TLAB cursor: {error}")))?;
@@ -161,21 +153,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let within_limit = builder
             .build_int_compare(IntPredicate::ULE, next_int, limit_int, "alloc_within_tlab")
             .map_err(|error| CodegenError(format!("check TLAB limit: {error}")))?;
-        let hook_slot = builder
-            .build_struct_gep(
-                metadata.type_descriptor(),
-                descriptor,
-                11,
-                "allocation_hook_ptr",
-            )
-            .map_err(|error| CodegenError(format!("allocation release hook: {error}")))?;
-        let hook = builder
-            .build_load(ptr, hook_slot, "allocation_hook")
-            .map_err(|error| CodegenError(format!("load allocation release hook: {error}")))?
-            .into_pointer_value();
-        let nursery_eligible = builder
-            .build_is_null(hook, "allocation_nursery_eligible")
-            .map_err(|error| CodegenError(format!("allocation generation: {error}")))?;
         let fast = builder
             .build_and(has_tlab, is_regular, "alloc_has_regular_tlab")
             .and_then(|condition| {
@@ -207,41 +184,73 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         builder
             .build_store(cursor_slot, next)
             .map_err(|error| CodegenError(format!("publish TLAB cursor: {error}")))?;
-        let finish = self.runtime_fn(
-            scoop_lir::RuntimeAbiSymbolV1::FinishTlabAllocation.logical_symbol(),
-            context
-                .void_type()
-                .fn_type(&[managed_ptr.into(), ptr.into(), i64_ty.into()], false),
-        );
-        finish.add_attribute(
-            AttributeLoc::Function,
-            context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
-        );
-        finish.add_attribute(
-            AttributeLoc::Function,
-            context.create_string_attribute("gc-leaf-function", ""),
-        );
-        builder
-            .build_call(
-                finish,
-                &[object.into(), descriptor.into(), aligned_size.into()],
-                "",
-            )
-            .map_err(|error| CodegenError(format!("finish TLAB allocation: {error}")))?;
+        if layout.is_some_and(|layout| layout.nursery_eligible)
+            && requested_size
+                .get_zero_extended_constant()
+                .is_some_and(|size| (16..=128).contains(&size))
+        {
+            let clear_size = if let Some(out) = initialization_result {
+                let size = aligned_size
+                    .get_zero_extended_constant()
+                    .expect("the small allocation has constant size and alignment");
+                i64_ty.const_int(self.initialization_clear_size(out, size)?, false)
+            } else {
+                aligned_size
+            };
+            self.finish_inline_allocation(
+                allocation_context,
+                object,
+                descriptor,
+                aligned_size,
+                clear_size,
+                index,
+            )?;
+        } else {
+            self.finish_allocation_call(object, descriptor, aligned_size)?;
+        }
+        let fast_end = builder
+            .get_insert_block()
+            .expect("allocation completion has an active block");
         builder
             .build_unconditional_branch(continue_block)
             .map_err(|error| CodegenError(format!("leave TLAB fast path: {error}")))?;
 
         builder.position_at_end(slow_block);
+        let slow_object = self.slow_allocation(descriptor, requested_size, safepoint, live)?;
+        builder
+            .build_unconditional_branch(continue_block)
+            .map_err(|error| CodegenError(format!("leave allocation slow path: {error}")))?;
+
+        builder.position_at_end(continue_block);
+        let phi = builder
+            .build_phi(managed_ptr, "managed_object")
+            .map_err(|error| CodegenError(format!("merge allocation result: {error}")))?;
+        phi.add_incoming(&[(&object, fast_end), (&slow_object, slow_block)]);
+        Ok(AllocationResult {
+            object: phi.as_basic_value().into_pointer_value(),
+            young: self.optimize_allocations.then_some(fast),
+        })
+    }
+
+    fn slow_allocation(
+        &mut self,
+        descriptor: PointerValue<'ctx>,
+        requested_size: IntValue<'ctx>,
+        safepoint: scoop_lir::SafepointId,
+        live: MaterializedStatepointLive<'ctx>,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        let context = self.context;
         let slow = self.runtime_fn(
             scoop_lir::RuntimeAbiSymbolV1::AllocateSlow.logical_symbol(),
-            managed_ptr.fn_type(&[ptr.into(), i64_ty.into()], false),
+            managed_ptr_ty(context, self.managed_address_space)
+                .fn_type(&[ptr_ty(context).into(), context.i64_type().into()], false),
         );
         slow.add_attribute(
             AttributeLoc::Function,
             context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
         );
-        let slow_call = builder
+        let slow_call = self
+            .builder
             .build_call(
                 slow,
                 &[descriptor.into(), requested_size.into()],
@@ -255,15 +264,42 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .expect("allocation slow path returns an object")
             .into_pointer_value();
         self.restore_statepoint_live(live, safepoint)?;
-        builder
-            .build_unconditional_branch(continue_block)
-            .map_err(|error| CodegenError(format!("leave allocation slow path: {error}")))?;
+        Ok(slow_object)
+    }
 
-        builder.position_at_end(continue_block);
-        let phi = builder
-            .build_phi(managed_ptr, "managed_object")
-            .map_err(|error| CodegenError(format!("merge allocation result: {error}")))?;
-        phi.add_incoming(&[(&object, fast_block), (&slow_object, slow_block)]);
-        Ok(phi.as_basic_value().into_pointer_value())
+    fn finish_allocation_call(
+        &self,
+        object: PointerValue<'ctx>,
+        descriptor: PointerValue<'ctx>,
+        aligned_size: IntValue<'ctx>,
+    ) -> Result<(), CodegenError> {
+        let context = self.context;
+        let finish = self.runtime_fn(
+            scoop_lir::RuntimeAbiSymbolV1::FinishTlabAllocation.logical_symbol(),
+            context.void_type().fn_type(
+                &[
+                    managed_ptr_ty(context, self.managed_address_space).into(),
+                    ptr_ty(context).into(),
+                    context.i64_type().into(),
+                ],
+                false,
+            ),
+        );
+        finish.add_attribute(
+            AttributeLoc::Function,
+            context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+        );
+        finish.add_attribute(
+            AttributeLoc::Function,
+            context.create_string_attribute("gc-leaf-function", ""),
+        );
+        self.builder
+            .build_call(
+                finish,
+                &[object.into(), descriptor.into(), aligned_size.into()],
+                "",
+            )
+            .map_err(|error| CodegenError(format!("finish TLAB allocation: {error}")))?;
+        Ok(())
     }
 }

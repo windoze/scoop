@@ -126,7 +126,11 @@ fn previous_iteration_alias_is_not_replaced_by_the_latest_payload() {
     };
     body.blocks[first].terminator = mir::Terminator::Goto(header);
     body.blocks[later].terminator = mir::Terminator::Goto(header);
-    elide(&mut module);
+    observations::observe(
+        &mut module,
+        id,
+        mir::optimization_report::AllocationOutcome::LoopCarried,
+    );
     assert_eq!(counts(&module.functions[id]).0, 1);
 }
 
@@ -169,6 +173,10 @@ fn unique_static_origin_without_creation_dominance_is_retained() {
         then_block: creation,
         else_block: use_block,
     };
-    elide(&mut module);
+    observations::observe(
+        &mut module,
+        id,
+        mir::optimization_report::AllocationOutcome::NotDominating,
+    );
     assert_eq!(counts(&module.functions[id]).0, 1);
 }

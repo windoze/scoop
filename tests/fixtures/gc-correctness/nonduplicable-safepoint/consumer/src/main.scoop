@@ -16,7 +16,7 @@ private fun select(root: Kept, first: Boolean, number: Long, count: Long): Strin
 private fun exercise(args: Array<String>) {
     val kept = Kept(args[1L] + "-value")
     try {
-        val result = select(kept, args[1L] == "left", args[2L].length, args[3L].length)
+        val result = select(kept, args[1L] == "left", args[2L].charLength, args[3L].charLength)
         verify(result == args[1L] + "-value-" + args[4L], "conditional result mismatch")
     } catch (error: IllegalStateException) {
         verify(args[4L] == "error" && error.message == Some("conditional safepoint check failed"), "unexpected failure")

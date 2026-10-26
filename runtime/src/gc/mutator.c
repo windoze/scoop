@@ -24,6 +24,7 @@ ScoopGcMutator *scoop_gc_mutator_create(void) {
     atomic_init(&mutator->counters.nursery_objects, 0);
     atomic_init(&mutator->counters.bytes, 0);
     atomic_init(&mutator->counters.nursery_bytes, 0);
+    mutator->allocation.counters = &mutator->counters;
     return mutator;
 }
 

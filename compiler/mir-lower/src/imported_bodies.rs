@@ -1,6 +1,7 @@
 //! Complete optimization templates with provider identity, never definitions.
 use super::*;
 
+mod constructors;
 mod dispatch;
 mod intrinsics;
 
@@ -77,6 +78,7 @@ impl Lowerer {
             functions: bodies,
             ..Default::default()
         };
+        self.lower_imported_constructors(module, &mut bodies);
         self.lower_imported_intrinsics(module, &mut bodies);
         bodies
     }

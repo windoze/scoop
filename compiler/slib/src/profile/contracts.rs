@@ -173,7 +173,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
             ),
-            ("org.scoop-lang.lir", "cross-cone-layout-abi", 16) => (
+            ("org.scoop-lang.lir", "cross-cone-layout-abi", 17) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
@@ -199,7 +199,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::RUNTIME_IMAGE),
             ),
-            ("org.scoop-lang.lir", "link-identity-closure", 18) => (
+            ("org.scoop-lang.lir", "link-identity-closure", 19) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::LINK_VALIDATION_ONLY,

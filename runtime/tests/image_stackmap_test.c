@@ -10,20 +10,31 @@
 
 #include "image_stackmap_fixture.h"
 
+static size_t validated_frames;
+
+static bool validate_frame(const ScoopStackMapRecord *record, ScoopPlatformError *error) {
+    validated_frames++;
+    return scoop_darwin_aarch64_managed_frame_ops.validate_record(record, error);
+}
+
 static ScoopImageRegistry *check(ScoopStackmapFixture *fixture) {
     ScoopImageRegistry *registry = scoop_image_collect(
         &fixture->storage.loaded, fixture->storage.data->input, 1,
         &fixture->storage.data->root);
     scoop_image_validate_code_and_types(registry);
-    scoop_image_stackmaps(registry, &scoop_darwin_aarch64_managed_frame_ops);
+    ScoopManagedFrameOps frames = scoop_darwin_aarch64_managed_frame_ops;
+    frames.validate_record = validate_frame;
+    scoop_image_stackmaps(registry, &frames);
     return registry;
 }
 
 static void positive(void) {
     ScoopStackmapFixture fixture = {0};
     scoop_test_stackmap_setup(&fixture);
+    validated_frames = 0;
     ScoopImageRegistry *registry = check(&fixture);
     assert(registry->stackmaps.record_count == 2);
+    assert(validated_frames == 2);
     uintptr_t pc = (uintptr_t)fixture.storage.data->callables[1].entry + 8;
     const ScoopStackMapRecord *record =
         scoop_stackmap_lookup(&registry->stackmaps, pc);
@@ -124,6 +135,15 @@ static const char *corrupt(ScoopStackmapFixture *fixture, unsigned test) {
         scoop_test_stackmap_write(fixture, first.start + 24,
                                   (uint64_t)INT64_MAX & ~UINT64_C(15), 8);
         return "invalid managed frame or root location";
+    case 18:
+        data->sites[1].owner_callable_id.bytes[0] = 200;
+        return "owner callable identity or producer";
+    case 19:
+        data->sites[0].registration.odr_group_id.bytes[0]++;
+        return "owner callable identity or producer";
+    case 20:
+        scoop_test_stackmap_write(fixture, third.locations + 36 + 4, 0, 2);
+        return "ODR raw records differ in PC or canonical payload";
     default:
         abort();
     }
@@ -166,7 +186,7 @@ static void negative(unsigned test) {
 
 int main(void) {
     positive();
-    for (unsigned test = 0; test < 18; test++)
+    for (unsigned test = 0; test < 21; test++)
         negative(test);
     puts("image stackmap join tests passed");
 }

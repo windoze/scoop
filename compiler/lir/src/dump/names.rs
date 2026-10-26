@@ -287,7 +287,12 @@ pub(super) fn live_set_name(live: &StatepointLiveSet) -> String {
                 .map(|leaf| leaf.byte_offset.to_string())
                 .collect::<Vec<_>>()
                 .join("+");
-            format!("{}:{}@{offsets}", value.source.dump(), value.ty.dump())
+            let usage = if value.restore { "" } else { ":call-only" };
+            format!(
+                "{}:{}@{offsets}{usage}",
+                value.source.dump(),
+                value.ty.dump()
+            )
         })
         .collect::<Vec<_>>()
         .join(", ")

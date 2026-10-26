@@ -146,8 +146,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     self.checked_array_allocation_size(&layout, total, *overflow_message)?;
                 let safepoint = self.safepoint_id(*safepoint);
                 let live = self.materialize_statepoint_live(live, safepoint)?;
-                let array =
-                    self.managed_alloc_value(td.as_pointer_value(), total_bytes, safepoint, live)?;
+                let array = self.managed_alloc_value(
+                    td.as_pointer_value(),
+                    total_bytes,
+                    Some(AllocationLayout::array(&layout)),
+                    safepoint,
+                    live,
+                    None,
+                )?;
+                let young = array.young;
+                let array = array.object;
                 let size_ptr = self.byte_gep(array, 16, "assembly_size_ptr")?;
                 builder.build_store(size_ptr, total).map_err(|error| {
                     CodegenError(format!(
@@ -336,7 +344,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         }
                     }
                 }
-                self.heap_array_barrier(array, &layout, total_bytes)?;
+                self.allocated_array_barrier(array, &layout, total_bytes, young)?;
                 self.temps.insert(*out, array.into());
             }
             _ => unreachable!("array instruction dispatch is exhaustive"),

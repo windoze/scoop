@@ -6,9 +6,9 @@ use crate::{PROTOCOL_VERSION, ProtocolValidationError};
 const CAPABILITY_MAGIC: &str = "scoopc-machine-capability";
 const MACHINE_IDENTITY_MAGIC: &str = "scoopc-machine-identity";
 const REQUEST_SCHEMA_V2: &[u8] =
-    b"scoopc-request-envelope-v2:magic,version,request-id,build-request,ordered-file-dumps";
+    b"scoopc-request-envelope-v2:magic,version,request-id,build-request,ordered-file-dumps,mir-optimization-observation";
 const RESPONSE_SCHEMA_V2: &[u8] =
-    b"scoopc-response-envelope-v2:magic,version,request-id,result,diagnostics,ordered-file-dumps";
+    b"scoopc-response-envelope-v2:magic,version,request-id,result,diagnostics,ordered-file-dumps,mir-optimization-observation";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum MachineTransportCapabilityV1 {

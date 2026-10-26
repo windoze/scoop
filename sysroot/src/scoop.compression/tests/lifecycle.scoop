@@ -59,7 +59,7 @@ private class CompressionLifecycleTests {
                 assertFailsWith<IllegalStateException> { decoder.process(input, output) }
                 decoder.close(); decoder.close()
                 gcCollect()
-                assertTrue(failure.detail.length > 0L)
+                assertTrue(failure.detail.charLength > 0L)
                 assertFailsWith<IllegalStateException> { decoder.process(input, output) }
             }
         }

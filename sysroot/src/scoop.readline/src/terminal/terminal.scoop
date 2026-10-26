@@ -55,7 +55,7 @@ private fun terminalLoop(terminal: TerminalSession, prompt: String, session: Edi
                     renderer.erase()
                     for (message in messages) {
                         terminal.writeText(message.replace("\n", "\r\n"))
-                        if (message.byteLength == 0L || message[message.length - 1L] != '\n') terminal.writeText("\r\n")
+                        if (message.byteLength == 0L || message.getCharAt(message.charLength - 1L) != '\n') terminal.writeText("\r\n")
                     }
                     renderer.reset()
                     renderer.draw(renderLine(prompt, session, size.columns, size.rows))

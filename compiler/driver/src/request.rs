@@ -246,9 +246,8 @@ impl fmt::Display for SingleConeBuildRequestError {
             Self::DocumentationRequiresProductionManifest => {
                 formatter.write_str("documentation requires a Production manifest Cone")
             }
-            Self::DocumentationMachineDump => {
-                formatter.write_str("documentation-only output cannot emit MIR or LIR")
-            }
+            Self::DocumentationMachineDump => formatter
+                .write_str("documentation-only output cannot emit MIR, optimizations or LIR"),
             Self::InvalidDocumentationOutput { path } => write!(
                 formatter,
                 "documentation input output must use the exact .json extension: {}",

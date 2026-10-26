@@ -1,0 +1,22 @@
+public abstract class Measured(public val number: Long) { public abstract fun weight(): Long }
+class Light(number: Long) : Measured(number) { public override fun weight(): Long = number }
+class Heavy(number: Long) : Measured(number) { public override fun weight(): Long = number * 3L }
+public fun measure(values: Array<Measured>): Long {
+    var total = 0L
+    var round = 0L
+    while (round < 500000L) {
+        var index = 0L
+        while (index < values.size) {
+            val value = values[index]
+            val weight = value.weight()
+            total += weight + value.number
+            index += 1L
+        }
+        round += 1L
+    }
+    return total
+}
+fun main() {
+    val values = Array<Measured>(64L) { index -> if (index % 2L == 0L) Light(index) else Heavy(index) }
+    println(measure(values))
+}

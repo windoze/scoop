@@ -1,0 +1,43 @@
+public fun fused(left: String, right: String): String = left + " / " + "[" + right + "]"
+public fun shared(left: String, right: String): String {
+    val part = left + right
+    return part + part
+}
+public fun nested(left: String, right: String): String = (left + "/") + (right + "]")
+public fun binaryLoop(left: String, right: String): Long {
+    var result = 0L
+    var index = 0
+    while (index < 3) {
+        result += (left + right).byteLength
+        index += 1
+    }
+    return result
+}
+
+fun main() {
+    var index = 0L
+    while (index < 200L) {
+        val left = index.toString()
+        val right = (-index).toString()
+        val result = fused(left, right)
+        val check = StringBuilder().append(left).append(" / [").append(right).append("]").toString()
+        if (result != check || binaryLoop(left, right) != 3L * (left.byteLength + right.byteLength) ||
+            shared(left, right) != (left + right) + (left + right) ||
+            nested(left, right) != StringBuilder().append(left).append("/").append(right).append("]").toString()) {
+            throw IllegalArgumentException()
+        }
+        index += 1L
+    }
+    var large = "x"
+    var round = 0
+    while (round < 16) {
+        large = large + large
+        round += 1
+    }
+    val largeResult = fused(large, large)
+    if (largeResult.byteLength != 131077L || largeResult.getCharAt(65536L) != ' ' ||
+        largeResult.getCharAt(65540L) != 'x' || largeResult.getCharAt(131076L) != ']') {
+        throw IllegalArgumentException()
+    }
+    println("concat preserves moving inputs")
+}

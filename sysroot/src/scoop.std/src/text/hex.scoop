@@ -12,8 +12,8 @@ public fun List<Byte>.toHexString(uppercase: Boolean = false): String {
     var index = 0L
     while (index < length) {
         val value = this[index].toUByte().toInt()
-        chars[index * 2L] = alphabet[(value / 16).toLong()]
-        chars[index * 2L + 1L] = alphabet[(value % 16).toLong()]
+        chars[index * 2L] = alphabet.getCharAt((value / 16).toLong())
+        chars[index * 2L + 1L] = alphabet.getCharAt((value % 16).toLong())
         index += 1L
     }
     return String.fromChars(chars)

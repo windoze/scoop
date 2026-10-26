@@ -18,7 +18,7 @@ public class EditingSession public constructor(
     public val config: Config = Config(),
     public val history: History = FileHistory(config),
     initial: String = "",
-    cursor: Long = initial.length,
+    cursor: Long = initial.charLength,
     public val completer: Completer = NoCompleter,
     public val hinter: Hinter = NoHinter,
     public val highlighter: Highlighter = PlainHighlighter,
@@ -165,7 +165,7 @@ public class EditingSession public constructor(
         if (recordsUndo && config.editMode == EditMode.Vi && !replaying) {
             recordViChange(command, before, previousMode, result)
         } else if (recordsUndo) {
-            val insertion = when (command) { case Insert(text, count) -> text.length == 1L && count == 1L; else -> false }
+            val insertion = when (command) { case Insert(text, count) -> text.charLength == 1L && count == 1L; else -> false }
             undo.record(before, buffer.state(), insertion)
         }
         if (before.text != line && !replaying && recordsUndo && config.editMode != EditMode.Vi) lastChange = Some(command)

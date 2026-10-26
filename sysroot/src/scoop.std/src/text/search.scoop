@@ -6,10 +6,10 @@ private fun requireTextIndex(index: Long, length: Long) {
 
 /**
  * Returns the first matching Unicode-scalar index at or after startIndex, or -1. The starting
- * index must be in 0..length.
+ * index must be in 0..charLength.
  */
 public fun String.indexOf(value: String, startIndex: Long = 0L): Long {
-    requireTextIndex(startIndex, length)
+    requireTextIndex(startIndex, charLength)
     val pattern = TextPattern(value)
     if (pattern.size == 0L) return startIndex
     var index = 0L
@@ -26,10 +26,10 @@ public fun String.indexOf(value: String, startIndex: Long = 0L): Long {
 
 /**
  * Returns the last matching Unicode-scalar start index no greater than startIndex, or -1. The
- * starting index must be in 0..length.
+ * starting index must be in 0..charLength.
  */
-public fun String.lastIndexOf(value: String, startIndex: Long = this.length): Long {
-    val length = this.length
+public fun String.lastIndexOf(value: String, startIndex: Long = this.charLength): Long {
+    val length = this.charLength
     requireTextIndex(startIndex, length)
     val pattern = TextPattern(value)
     if (pattern.size == 0L) return startIndex
@@ -48,14 +48,14 @@ public fun String.lastIndexOf(value: String, startIndex: Long = this.length): Lo
 
 /**
  * Returns the first matching Unicode-scalar index at or after startIndex, or -1. The starting
- * index must be in 0..length.
+ * index must be in 0..charLength.
  */
 public fun String.indexOf(value: Char, startIndex: Long = 0L): Long = indexOf(value.toString(), startIndex)
 /**
  * Returns the last matching Unicode-scalar start index no greater than startIndex, or -1. The
- * starting index must be in 0..length.
+ * starting index must be in 0..charLength.
  */
-public fun String.lastIndexOf(value: Char, startIndex: Long = this.length): Long = lastIndexOf(value.toString(), startIndex)
+public fun String.lastIndexOf(value: Char, startIndex: Long = this.charLength): Long = lastIndexOf(value.toString(), startIndex)
 /**
  * Tests for an exact literal occurrence, without case folding.
  */
@@ -85,7 +85,7 @@ public fun String.startsWith(prefix: Char): Boolean = startsWith(prefix.toString
  * Tests for an exact literal suffix, without case folding.
  */
 public fun String.endsWith(suffix: String): Boolean {
-    val start = length - suffix.length
+    val start = charLength - suffix.charLength
     return start >= 0L && matchesAt(suffix, start)
 }
 /**

@@ -102,7 +102,7 @@ private class RegexQueryTests {
         assertEquals("雪(", error.pattern)
         assertEquals(2L, error.offset)
         assertTrue(error.nativeCode > 0)
-        assertTrue(error.detail.length > 0L)
+        assertTrue(error.detail.charLength > 0L)
         Regex("(*LIMIT_MATCH=1)(a+)+$").use { regex ->
             val failure = assertFailsWith<RegexMatchException> { regex.containsMatchIn("aaaaaaaaaa!") }
             assertTrue(failure.kind == RegexFailureKind.MatchLimit)

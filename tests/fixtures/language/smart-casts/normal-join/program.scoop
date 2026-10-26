@@ -4,7 +4,7 @@ fun length(value: Any, flag: Boolean): Long {
     } else {
         if (value !is String) return -2L
     }
-    return value.length
+    return value.charLength
 }
 fun main() {
     println(length("abc", true)); println(length("hello", false))

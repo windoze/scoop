@@ -119,7 +119,8 @@ void scoop_gc_mark_pool_prepare(bool minor) {
         initialize();
     }
     size_t count = scoop_gc_marker.configured_workers;
-    if (!scoop_gc_marker.forced && (minor || committed_bytes < ((size_t)4 << 20))) {
+    size_t candidates = minor ? scoop_gc_heap_state.nursery_bytes : committed_bytes;
+    if (!scoop_gc_marker.forced && candidates < ((size_t)4 << 20)) {
         count = 1;
     }
     if (count > 1 && scoop_gc_marker.created_workers == 0) {

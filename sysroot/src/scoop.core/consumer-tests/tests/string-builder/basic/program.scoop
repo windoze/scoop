@@ -3,11 +3,11 @@ package test.core.tests.string_builder.basic
 import scoop.test.*
 private fun exercise() {
     val builder = StringBuilder()
-    if (builder.toString() != "" || builder.toString().length != 0L) { fail(Some("empty")) }
+    if (builder.toString() != "" || builder.toString().charLength != 0L) { fail(Some("empty")) }
     val same = builder.append("A")
     same.append('雪').append('\u0000').append(42)
     val first = builder.toString()
-    if (first != "A雪\u000042" || first.length != 5L || builder.toString() != first) {
+    if (first != "A雪\u000042" || first.charLength != 5L || builder.toString() != first) {
         fail(Some("chain"))
     }
     builder.append("").append<String>("🚀")

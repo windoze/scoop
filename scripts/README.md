@@ -52,7 +52,7 @@ python3 scripts/prepare_sysroot.py \
 
 ## 单一入口构建完整安装包
 
-开发与发行 sysroot 均准备 `runtime/index.cbor` 和 `runtime-stress/index.cbor` 两组目标 runtime。默认构建使用前者，不包含 GC stress 支持；`scoop --enable-gc-stress build/run/test/link` 使用后者，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。普通 fixtures 不传该开关，GC 专测显式选择。旧 schema 4 runtime 索引需要重新准备。
+开发与发行 sysroot 均准备 `runtime`、`runtime-stress`、`runtime-startup-stats`、`runtime-stress-startup-stats` 四组目标 runtime，每组包含 `index.cbor`。默认构建使用 `runtime`，不编入 GC stress 或启动统计支持；`scoop --enable-gc-stress build/run/test/link` 选择 stress 配置，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。`--enable-startup-stats` 独立选择启动统计配置，编入后每次启动直接向 stderr 输出记录；未传时预处理完全排除计时和报告代码。两个开关可以组合，独立 `scoop-link` 同样支持。普通 fixtures 不传这些开关，相关专测显式选择。旧 schema 5 runtime 索引需要重新准备，`.slib` 和 runtime ABI 不变。
 
 `package_toolchain.py` 是完整安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM 与四个 release 宿主命令、准备该宿主支持的全部 native／slib／runtime 资源、为全部内置库生成 API 文档，最后生成工具包与 LLVM 源码包。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
 
@@ -75,7 +75,7 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
   VERSION
   bin/                 scoop、scoopc、scoop-link、scoop-lsp
   commands/            外部子命令 scoop-<command>（可为空）
-  lib/<target-triple>/  *.slib、native 库／头文件、runtime、runtime-stress
+  lib/<target-triple>/  *.slib、native 库／头文件、四种 runtime 配置
   include/             公开 Scoop C 头文件
   src/                 全部内置 Cone 源码
   vendor/              native 上游输入和补丁

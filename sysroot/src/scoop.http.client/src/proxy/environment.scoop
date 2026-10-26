@@ -45,7 +45,7 @@ private fun clientProxyVariable(values: Map<String, String>, name: String, ignor
 
 private fun parseClientEnvironmentProxy(value: String?, tls: HttpClientTlsConfig): HttpProxy? {
     val text = value ?: return None
-    if (text.length == 0L) return None
+    if (text.charLength == 0L) return None
     val url = Url.parse(if (text.contains("://")) text else "http://" + text)
     val authority = url.authority ?: throw IllegalArgumentException(Some("proxy address requires an authority"))
     val clean = url.toBuilder().setEncodedUserInfo(None)
@@ -55,7 +55,7 @@ private fun parseClientEnvironmentProxy(value: String?, tls: HttpClientTlsConfig
     if (clientPresent(userInfo)) {
         val separator = userInfo!!.indexOf(':')
         username = if (separator < 0L) userInfo!! else userInfo!!.slice(0L, separator)
-        password = if (separator < 0L) "" else userInfo!!.slice(separator + 1L, userInfo!!.length)
+        password = if (separator < 0L) "" else userInfo!!.slice(separator + 1L, userInfo!!.charLength)
     }
     if (url.scheme == Some("socks5") || url.scheme == Some("socks5h")) {
         val resolution = if (url.scheme == Some("socks5h")) Socks5Resolution.Proxy else Socks5Resolution.Local

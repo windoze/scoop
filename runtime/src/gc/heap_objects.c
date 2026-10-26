@@ -5,6 +5,7 @@
 
 #include "gc_internal.h"
 #include "heap_internal.h"
+#include "allocation_metadata.h"
 
 static size_t object_word_index(ScoopGcBlockMeta *block, const void *object) {
     uintptr_t offset = (uintptr_t)object - (uintptr_t)block_base(block);
@@ -84,7 +85,7 @@ size_t scoop_gc_object_size_locked(const void *object) {
     return (size_t)units * sizeof(uint64_t);
 }
 
-void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size, bool marked) {
+void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size) {
     if (block->kind != SCOOP_BLOCK_KIND_SMALL || exact_size == 0 || exact_size > GC_REGULAR_MAX ||
         exact_size % sizeof(uint64_t) != 0) {
         heap_fatal("invalid small-object metadata publication");
@@ -98,22 +99,7 @@ void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_siz
          (UINT64_C(1) << (word % 64))) != 0) {
         heap_fatal("small object overlaps invalid storage");
     }
-    block->size_units[word] = (uint16_t)(exact_size / sizeof(uint64_t));
-    size_t last_line = (size_t)((address + exact_size - 1 - base) / GC_LINE_SIZE);
-    for (; line <= last_line; line++) {
-        (void)__atomic_fetch_or(&block->line_occupied[line / 64], UINT64_C(1) << (line % 64),
-                                __ATOMIC_RELAXED);
-        if (marked) {
-            bit_set(block->line_live, line);
-        }
-    }
-    if (marked) {
-        bit_set(block->marks, word);
-        block->live_bytes += exact_size;
-        block->movable_live_bytes += exact_size;
-    }
-    (void)__atomic_fetch_or(&block->starts[word / 64], UINT64_C(1) << (word % 64),
-                            __ATOMIC_RELEASE);
+    scoop_heap_record_small_metadata(block, object, exact_size, false, false);
 }
 
 void publish_large_object(ScoopGcBlockMeta *block, bool marked) {
@@ -185,9 +171,9 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
     evacuation_limit = NULL;
     moved_objects = 0;
     size_t mark_blocks = 0;
-    for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
-         block = scoop_heap_next_block(block)) {
-        if (!active_head(block) || (minor && block->generation == SCOOP_GC_OLD)) {
+    for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
+         block = scoop_heap_next_collection_block(block, minor)) {
+        if (!active_head(block)) {
             continue;
         }
         if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE ||
@@ -199,12 +185,16 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
         block->mark_index = mark_blocks++;
         block->large_forwarding = NULL;
         block->large_marked = false;
+#if SCOOP_GC_TRACK_RELOCATION
         block->large_scanned = false;
+#endif
         free(block->forwarding);
         block->forwarding = NULL;
         if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
             memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+#if SCOOP_GC_TRACK_RELOCATION
             memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+#endif
             memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
         }
     }

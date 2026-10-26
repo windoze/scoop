@@ -1,0 +1,93 @@
+package dev.performance
+
+@Extern(lib = "m34_interfaces", name = "bench_kind") fun benchKind(): Int
+@Extern(lib = "m34_interfaces", name = "bench_count") fun benchCount(): Int
+@Extern(lib = "m34_interfaces", name = "bench_begin") fun benchBegin(): Unit
+@Extern(lib = "m34_interfaces", name = "bench_end") fun benchEnd(): Unit
+
+class PresenceState(var value: Long)
+
+@NoGC fun control(count: Long): Long {
+    var i = 0L
+    var state = 7L
+    while (i < count) {
+        state = state.xor(state.shl(13L)).and(4294967295L)
+        state = state.xor(state.shr(17L))
+        state = state.xor(state.shl(5L)).and(4294967295L)
+        i += 1L
+    }
+    return state
+}
+
+@Unsafe fun exercise(count: Long, mode: Int): Long {
+    val first = Node(7L)
+    val second = Node(11L)
+    val boxed: ChildToken<Long> = Boxed(19L)
+    val child: ChildToken<Long> = first
+    val parent: Token<Long> = first
+    val other: Token<Long> = boxed
+    val nodes = Array<Node>(count) { i -> Node(i) }
+    val nodeTarget = fillNodes(count, first, second)
+    val interfaces = Array<Token<Long>>(count) { i -> if (i.and(1L) == 0L) parent else other }
+    val children = Array<ChildToken<Long>>(count) { i -> if (i.and(1L) == 0L) child else boxed }
+    val interfaceTarget = fillInterfaces(count, parent, other)
+    val text = "reference-" + count.toString()
+    val strings = Array<String>(count) { i -> if (i.and(1L) == 0L) text else "constant" }
+    val stringTarget = MutableArray<String>(count) { _ -> "" }
+    val action: (Long) -> Long = { value -> value + first.value }
+    val alternate: (Long) -> Long = { value -> value + second.value }
+    val functions = Array<(Long) -> Long>(count) { i -> if (i.and(1L) == 0L) action else alternate }
+    val functionTarget = MutableArray<(Long) -> Long>(count) { _ -> action }
+    val randomState = PresenceState(7L)
+    val optional = Array<Node?>(count) { i ->
+        val present = if (mode == 16) false else if (mode == 17) true else if (mode == 18) {
+            randomState.value = (randomState.value * 1664525L + 1013904223L).and(4294967295L)
+            randomState.value.and(2147483648L) == 0L
+        } else i.and(1L) == 0L
+        if (present) Some(first) else None
+    }
+    val optionalTarget = MutableArray<Node?>(count) { _ -> None }
+    val wrapped = MutableArray<MaybeUninit<Node>>(count) { _ -> MaybeUninit<Node>.initialized(first) }
+    val integers = Array<Long>(count) { i -> i }
+    val wanted = nodes[if (mode == 15) 0L else count - 1L]
+    val rounds = if (count < 256L || mode == 15) 100000L else 128L
+    var round = 0L
+    var result = 0L
+    benchBegin()
+    while (round < rounds) {
+        if (mode == 0) result += sumNodes(nodes)
+        else if (mode == 1 || mode == 15) result += findNode(nodes, wanted)
+        else if (mode == 2) copyNodes(nodes, nodeTarget)
+        else if (mode == 3) copyInterfaces(interfaces, interfaceTarget)
+        else if (mode == 4) projectInterfaces(children, interfaceTarget)
+        else if (mode == 5) copyStrings(strings, stringTarget)
+        else if (mode == 6) copyFunctions(functions, functionTarget)
+        else if (mode == 7 || mode == 16 || mode == 17 || mode == 18) result += sumOptional(optional)
+        else if (mode == 8) copyOptional(optional, optionalTarget)
+        else if (mode == 9) clearWrapped(wrapped)
+        else if (mode == 10) {
+            val array = fillNodes(count, first, second)
+            result += array[0L].value + array[count - 1L].value
+        } else if (mode == 11) result += emptyStorage(count).size
+        else if (mode == 13) result += scalarSum(integers)
+        else {
+            val array = fillInterfaces(count, parent, other)
+            result += array[0L].number() + array[count - 1L].number()
+        }
+        round += 1L
+    }
+    benchEnd()
+    val nullable = when (optionalTarget[0L]) { case None -> 0L; case Some(value) -> value.value }
+    return result + nodeTarget[0L].value + interfaceTarget[count - 1L].number() + stringTarget[0L].byteLength + functionTarget[0L](3L) + nullable
+}
+
+@Unsafe fun main() {
+    val count = benchCount().toLong()
+    val mode = benchKind()
+    if (mode == 12) {
+        benchBegin()
+        val result = control(count * 128L)
+        benchEnd()
+        println(result)
+    } else println(exercise(count, mode))
+}

@@ -6,7 +6,7 @@ fun main() {
     val decomposed = "Jose\u{0301}"
     val normalized = normalizeNfc(decomposed)
     println(normalized)
-    println(f"before=${decomposed.length}, after=${normalized.length}")
+    println(f"before=${decomposed.charLength}, after=${normalized.charLength}")
 
     for (cluster in graphemes("A👩‍💻e\u{0301}")) {
         println(cluster)

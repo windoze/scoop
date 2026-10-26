@@ -8,23 +8,41 @@ pub enum StageDumpKindV1 {
     Ast,
     Hir,
     Mir,
+    Optimizations,
     Lir,
+    Symbols,
 }
 
 impl StageDumpKindV1 {
-    pub const ALL: [Self; 4] = [Self::Ast, Self::Hir, Self::Mir, Self::Lir];
+    pub const ALL: [Self; 6] = [
+        Self::Ast,
+        Self::Hir,
+        Self::Mir,
+        Self::Optimizations,
+        Self::Lir,
+        Self::Symbols,
+    ];
 
     pub const fn file_name(self) -> &'static str {
         match self {
             Self::Ast => "ast.txt",
             Self::Hir => "hir.txt",
             Self::Mir => "mir.txt",
+            Self::Optimizations => "optimizations.json",
             Self::Lir => "lir.txt",
+            Self::Symbols => "symbols.json",
         }
     }
 
     fn tag(self) -> u64 {
-        self as u64 + 1
+        match self {
+            Self::Ast => 1,
+            Self::Hir => 2,
+            Self::Mir => 3,
+            Self::Lir => 4,
+            Self::Optimizations => 5,
+            Self::Symbols => 6,
+        }
     }
 
     pub(crate) fn from_tag(tag: u64) -> Result<Self, ProtocolValidationError> {
@@ -33,6 +51,8 @@ impl StageDumpKindV1 {
             2 => Ok(Self::Hir),
             3 => Ok(Self::Mir),
             4 => Ok(Self::Lir),
+            5 => Ok(Self::Optimizations),
+            6 => Ok(Self::Symbols),
             _ => Err(ProtocolValidationError::UnknownEnumTag {
                 kind: "stage dump",
                 tag,
@@ -47,7 +67,7 @@ impl WireEncode for StageDumpKindV1 {
     }
 }
 
-/// A nonempty set of the four actual compiler observation stages.
+/// A nonempty set of the actual compiler observations in pipeline order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StageDumpSet(u8);
 
@@ -68,7 +88,7 @@ impl StageDumpSet {
     }
 
     pub const fn all() -> Self {
-        Self(0b1111)
+        Self((1 << StageDumpKindV1::ALL.len()) - 1)
     }
 
     pub const fn contains(self, stage: StageDumpKindV1) -> bool {

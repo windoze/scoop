@@ -1,12 +1,20 @@
 use super::*;
 
 mod boxing;
+mod call_sites;
+mod classes;
 mod closures;
 mod cold;
 mod copies;
+mod exception_paths;
+mod inline_regions;
+mod interface_views;
 mod intrinsics;
 mod iterations;
+mod observations;
 mod poll_chunks;
+mod priority;
+mod value_calls;
 
 fn optimize(module: &mut mir::Module) {
     let selected = mir::SelectedExternalMirSet::empty(module.cone);

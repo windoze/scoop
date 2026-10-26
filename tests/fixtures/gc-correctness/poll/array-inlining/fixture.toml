@@ -1,0 +1,62 @@
+schema = 1
+name = "array-inline-ranges-roots"
+inputs = ["Cone.toml", "main.scoop", "../../../language/callback/native.c", "../../../compiler-correctness/optimization/lowering/array-inlining/src/kernels.scoop", "../../../compiler-correctness/optimization/lowering/array-inlining/inspect.py"]
+tools = ["scoop", "cc", "ar", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["poll", "array", "inlining", "roots", "gc-correctness"]
+
+[[steps]]
+name = "prepare"
+files = [
+    {copy = {from = "${fixture}/Cone.toml", to = "${work}/cone/Cone.toml"}},
+    {copy = {from = "${fixture}/main.scoop", to = "${work}/cone/src/main.scoop"}},
+    {copy = {from = "${fixture}/../../../compiler-correctness/optimization/lowering/array-inlining/src/kernels.scoop", to = "${work}/cone/src/kernels.scoop"}},
+]
+
+[[steps]]
+name = "threads"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-c", "${fixture}/../../../language/callback/native.c", "-o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libm34_poll_threads.a", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "--enable-gc-stress", "build", {each = "${link_args}"}, "${work}/cone", "--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "inspect"
+argv = ["${python}", "${fixture}/../../../compiler-correctness/optimization/lowering/array-inlining/inspect.py", "${work}/dump/${build.result.root.identity}", "release"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "array inline ranges survive concurrent collection\n"
+stderr = ""
+timeout = 60
+
+[[steps]]
+name = "minor"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "array inline ranges survive concurrent collection\n"
+stderr = ""
+timeout = 60

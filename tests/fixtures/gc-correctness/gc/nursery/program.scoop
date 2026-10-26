@@ -6,6 +6,7 @@ fun releaseValue(value: Long)
 fun releaseCount(): Long
 
 class Node(val value: Long)
+private var allocationPressure: Node? = None
 struct Chunk(val a: Long, val b: Long, val c: Long, val d: Long,
              val e: Long, val f: Long, val g: Long, val h: Long)
 struct Wide(val first: Node, val a: Chunk, val b: Chunk, val c: Chunk,
@@ -47,8 +48,10 @@ fun churn(): Long {
     var result = 0L
     while (index < 80000L) {
         val node = Node(index)
+        allocationPressure = Some(node)
         result = result + node.value
         index = index + 1L
+        allocationPressure = None
     }
     return result
 }

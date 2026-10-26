@@ -357,7 +357,8 @@ pub enum Instruction {
     /// Pointer displacement by `element_offset * element_size`.  The offset
     /// remains either a source pointer index or the compiler-owned
     /// `PointerElementOffset` domain; the layout stride is a dedicated field
-    /// and never becomes a source integer value.
+    /// and never becomes a source integer value. Raw and metadata pointers
+    /// preserve their pointer kind; managed interior pointers are excluded.
     PtrOffset {
         out: TempId,
         pointer: Value,
@@ -444,6 +445,23 @@ pub enum Instruction {
         /// A callable-owned C string for checked allocation-size overflow.
         overflow_message: GlobalId,
         array_type: ArrayTypeId,
+        safepoint: SafepointSiteRef,
+        live: StatepointLiveSet,
+    },
+    /// One fresh String, with its inputs rooted across allocation and copied in order.
+    StringConcat {
+        out: TempId,
+        parts: Vec<StringConcatPart>,
+        overflow_message: GlobalId,
+        descriptor: TypeDescriptorRef,
+        safepoint: SafepointSiteRef,
+        live: StatepointLiveSet,
+    },
+    StringCopy {
+        out: TempId,
+        source: crate::StringCopySource,
+        target: crate::StringCopyTarget,
+        overflow_message: GlobalId,
         safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
     },
@@ -584,6 +602,8 @@ impl Instruction {
             Self::ArrayAllocDynamic { safepoint, .. }
             | Self::ArrayAlloc { safepoint, .. }
             | Self::ArrayAssembly { safepoint, .. }
+            | Self::StringConcat { safepoint, .. }
+            | Self::StringCopy { safepoint, .. }
             | Self::ArrayClone { safepoint, .. }
             | Self::BoxValue { safepoint, .. } => {
                 Some((SafepointSiteRole::ManagedCall, *safepoint))
@@ -597,6 +617,21 @@ impl Instruction {
 pub enum ArrayAssemblyPart {
     Element(Value),
     CopyArray(Value),
+}
+
+#[derive(Debug, Clone)]
+pub enum StringConcatPart {
+    Value(Value),
+    Literal(String),
+}
+
+impl StringConcatPart {
+    pub fn value(&self) -> Option<Value> {
+        match self {
+            Self::Value(value) => Some(*value),
+            Self::Literal(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

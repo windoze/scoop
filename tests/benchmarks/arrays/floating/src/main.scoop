@@ -1,0 +1,70 @@
+package dev.performance
+
+@Extern(lib = "m34_interfaces", name = "bench_kind") fun benchKind(): Int
+@Extern(lib = "m34_interfaces", name = "bench_count") fun benchCount(): Int
+@Extern(lib = "m34_interfaces", name = "bench_begin") fun benchBegin(): Unit
+@Extern(lib = "m34_interfaces", name = "bench_end") fun benchEnd(): Unit
+
+@Unsafe fun runArrays(count: Long, mode: Int): Long {
+    val floats = generatedFloat(count, 0.5f)
+    val doubles = generatedDouble(count, 0.5)
+    val floatTarget = MutableArray<Float>(count) { _ -> -1f }
+    val doubleTarget = MutableArray<Double>(count) { _ -> -1.0 }
+    val rounds = if (count < 256L) 100000L else 128L
+    var round = 0L
+    var floatResult = 0f
+    var doubleResult = 0.0
+    benchBegin()
+    while (round < rounds) {
+        if (mode == 0) transformFloat(floats, floatTarget, 1.0009765625f, round.and(7L).toFloat() * 0.25f)
+        else if (mode == 1) transformDouble(doubles, doubleTarget, 1.0009765625, round.and(7L).toDouble() * 0.25)
+        else if (mode == 2) floatResult += sumFloat(floats)
+        else if (mode == 3) doubleResult += sumDouble(doubles)
+        else if (mode == 4) copyFloat(floats, floatTarget)
+        else if (mode == 5) narrow(doubles, floatTarget)
+        else if (mode == 6) divideFloat(floats, floatTarget, 1.25f)
+        else divideDouble(doubles, doubleTarget, 1.25)
+        round += 1L
+    }
+    benchEnd()
+    return floatResult.toBits().toLong().xor(doubleResult.toBits())
+        .xor(floatTarget[count - 1L].toBits().toLong()).xor(doubleTarget[count - 1L].toBits())
+}
+
+@Unsafe fun initialize(count: Long, wide: Boolean): Long {
+    val rounds = if (count < 256L) 100000L else 128L
+    var round = 0L
+    var result = 0L
+    benchBegin()
+    while (round < rounds) {
+        if (wide) {
+            val values = generatedDouble(count, round.toDouble())
+            result = result.xor(values[count - 1L].toBits())
+        } else {
+            val values = generatedFloat(count, round.toFloat())
+            result = result.xor(values[count - 1L].toBits().toLong())
+        }
+        round += 1L
+    }
+    benchEnd()
+    return result
+}
+
+@NoGC fun control(count: Long): Double {
+    var i = 0L
+    var state = 0.5
+    while (i < count) { state = state * 0.9999999 + 0.25; i += 1L }
+    return state
+}
+
+@Unsafe fun main() {
+    val count = benchCount().toLong()
+    val mode = benchKind()
+    if (mode == 10) {
+        benchBegin()
+        val result = control(count * 128L)
+        benchEnd()
+        println(result.toBits())
+    } else if (mode >= 8) println(initialize(count, mode == 9))
+    else println(runArrays(count, mode))
+}

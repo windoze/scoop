@@ -1,7 +1,13 @@
+use std::cell::OnceCell;
+use std::collections::{HashMap, HashSet};
+
 use la_arena::Arena;
 use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
 };
+
+use super::observation::Observer;
+pub(super) use policy::heats;
 
 use super::{
     flow,
@@ -9,38 +15,56 @@ use super::{
     mir, simplify,
 };
 use crate::local_values::LocalValueRegistry;
+use mir::optimization_report::{InlineOutcome, OptimizationDecision, OptimizationSite};
 
+mod class_fields;
 mod clone;
+mod exception_paths;
 mod policy;
+mod selection;
+mod summary;
 mod suspend;
 pub(super) use suspend::run as inline_synchronous_coroutines;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Target {
     Local(mir::FunctionId),
     Imported(mir::ExternalCallableUseId),
+}
+
+impl Target {
+    fn callee(self) -> mir::Callee {
+        match self {
+            Self::Local(id) => mir::Callee::User(id),
+            Self::Imported(id) => mir::Callee::External(id),
+        }
+    }
 }
 
 struct Choice {
     block: mir::BlockId,
     statement: usize,
     callee: Target,
+    call: mir::Call,
     blocks: Vec<(mir::BlockId, mir::BasicBlock)>,
 }
 
 pub(super) struct Session {
     templates: Arena<mir::Function>,
     protocol: Vec<bool>,
-    supported: Vec<bool>,
-    costs: Vec<policy::Cost>,
+    executable: Vec<bool>,
+    exceptional: HashSet<Target>,
+    summaries: Vec<OnceCell<summary::Summary>>,
+    imported_summaries: HashMap<mir::ExternalCallableUseId, OnceCell<summary::Summary>>,
     callers: Vec<CallerState>,
     required: super::intrinsics::Entries,
     ordinary: bool,
+    allocation_elision: bool,
     imported: crate::imported_bodies::ImportedBodies,
 }
 
 struct CallerState {
-    remaining: usize,
+    growth: policy::Growth,
     ancestry: Vec<Vec<Target>>,
 }
 
@@ -49,6 +73,7 @@ impl Session {
         module: &mir::Module,
         required: super::intrinsics::Entries,
         ordinary: bool,
+        allocation_elision: bool,
         imported: crate::imported_bodies::ImportedBodies,
     ) -> Self {
         // Stable templates avoid counting an already expanded body as one level.
@@ -60,21 +85,41 @@ impl Session {
         let callers = templates
             .iter()
             .map(|(id, function)| CallerState {
-                remaining: (costs[index(id)].size / 2 + 96).min(384),
+                growth: policy::Growth::new(costs[index(id)].size, 128),
                 ancestry: vec![vec![Target::Local(id)]; function.body.blocks.len()],
             })
             .collect();
         Self {
             protocol: policy::protocol_entries(module),
-            supported: templates
+            executable: templates
                 .iter()
-                .map(|(_, function)| policy::supported(function))
+                .map(|(_, function)| policy::executable(function))
+                .collect(),
+            exceptional: templates
+                .iter()
+                .map(|(id, function)| (Target::Local(id), function))
+                .chain(
+                    imported
+                        .functions
+                        .iter()
+                        .map(|(id, function)| (Target::Imported(*id), function)),
+                )
+                .filter_map(|(target, function)| {
+                    (!policy::supported_blocks(function.body.blocks.iter().map(|(_, b)| b)))
+                        .then_some(target)
+                })
+                .collect(),
+            summaries: (0..templates.len()).map(|_| OnceCell::new()).collect(),
+            imported_summaries: imported
+                .functions
+                .keys()
+                .map(|&id| (id, OnceCell::new()))
                 .collect(),
             templates,
-            costs,
             callers,
             required,
             ordinary,
+            allocation_elision,
             imported,
         }
     }
@@ -82,20 +127,60 @@ impl Session {
     pub(super) fn run(
         &mut self,
         module: &mut mir::Module,
+        selected: &mir::SelectedExternalMirSet,
+        dispatch: &crate::imported_bodies::IntrinsicDispatch,
         active: &[bool],
         registry: &mut LocalValueRegistry,
+        observer: Option<&Observer<'_>>,
     ) -> Vec<bool> {
         // Devirtualization can reveal cycles that were absent in earlier rounds.
         let recursive = policy::recursive(module);
-        let eligible = self
-            .supported
+        let exclusions = self
+            .executable
             .iter()
             .enumerate()
-            .map(|(id, supported)| *supported && !recursive[id] && !self.protocol[id])
+            .map(|(id, supported)| {
+                if !supported {
+                    Some(InlineOutcome::UnsupportedBody)
+                } else if recursive[id] {
+                    Some(InlineOutcome::RecursiveCallee)
+                } else if self.protocol[id] {
+                    Some(InlineOutcome::ProtocolCallee)
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>();
         let mut changed = vec![false; module.functions.len()];
         for (id, _) in self.templates.iter() {
-            if !active[index(id)] || (self.ordinary && self.protocol[index(id)]) {
+            if !active[index(id)] {
+                continue;
+            }
+            if self.ordinary && self.protocol[index(id)] {
+                if let Some(observer) = observer {
+                    for (block_id, block) in module.functions[id].body.blocks.iter() {
+                        for (statement, node) in block.statements.iter().enumerate() {
+                            if let mir::StatementKind::Call(effect) = &node.kind {
+                                observer.record(
+                                    OptimizationSite {
+                                        function: id,
+                                        block: block_id,
+                                        statement,
+                                        span: node.span,
+                                        inline_path: self.ancestry(id, block_id),
+                                    },
+                                    OptimizationDecision::Inline {
+                                        target: super::observation::call_target(
+                                            &super::call(effect).target,
+                                        ),
+                                        outcome: InlineOutcome::ProtocolCaller,
+                                        estimate: None,
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
                 continue;
             }
             if !self.ordinary
@@ -117,12 +202,18 @@ impl Session {
             };
             let context = Context {
                 module,
+                selected,
+                dispatch,
                 templates: &self.templates,
-                eligible: &eligible,
-                costs: &self.costs,
+                exceptional: &self.exceptional,
+                exclusions: &exclusions,
+                summaries: &self.summaries,
+                imported_summaries: &self.imported_summaries,
                 required: &self.required,
                 ordinary: self.ordinary,
+                allocation_elision: self.allocation_elision,
                 imported: &self.imported,
+                observer,
             };
             let (body, rewritten) =
                 context.optimize(id, owner, registry, &mut self.callers[index(id)]);
@@ -135,41 +226,62 @@ impl Session {
     pub(super) fn run_required(
         &mut self,
         module: &mut mir::Module,
+        selected: &mir::SelectedExternalMirSet,
+        dispatch: &crate::imported_bodies::IntrinsicDispatch,
         active: &[bool],
         registry: &mut LocalValueRegistry,
     ) -> Vec<bool> {
         let ordinary = std::mem::replace(&mut self.ordinary, false);
-        let changed = self.run(module, active, registry);
+        let changed = self.run(module, selected, dispatch, active, registry, None);
         self.ordinary = ordinary;
         changed
     }
+
+    pub(super) fn ancestry(
+        &self,
+        function: mir::FunctionId,
+        block: mir::BlockId,
+    ) -> Vec<mir::Callee> {
+        self.callers[index(function)].ancestry[index(block)]
+            .iter()
+            .map(|target| target.callee())
+            .collect()
+    }
 }
 
-struct Context<'a> {
+struct Context<'a, 'report> {
     module: &'a mir::Module,
+    selected: &'a mir::SelectedExternalMirSet,
+    dispatch: &'a crate::imported_bodies::IntrinsicDispatch,
     templates: &'a Arena<mir::Function>,
-    eligible: &'a [bool],
-    costs: &'a [policy::Cost],
+    exceptional: &'a HashSet<Target>,
+    exclusions: &'a [Option<InlineOutcome>],
+    summaries: &'a [OnceCell<summary::Summary>],
+    imported_summaries: &'a HashMap<mir::ExternalCallableUseId, OnceCell<summary::Summary>>,
     required: &'a super::intrinsics::Entries,
     ordinary: bool,
+    allocation_elision: bool,
     imported: &'a crate::imported_bodies::ImportedBodies,
+    observer: Option<&'a Observer<'report>>,
 }
 
-impl Context<'_> {
-    fn target(&self, call: &mir::Call) -> Option<Target> {
+impl Context<'_, '_> {
+    fn target(&self, call: &mir::Call) -> Result<Target, InlineOutcome> {
         if let Some(local) = policy::local_target(self.module, call) {
-            return self.eligible[index(local)].then_some(Target::Local(local));
+            return self.exclusions[index(local)].map_or(Ok(Target::Local(local)), Err);
         }
-        if let mir::CallTarget::Direct(mir::Callee::External(id)) = call.target
-            && self
-                .imported
-                .functions
-                .get(&id)
-                .is_some_and(policy::supported)
-        {
-            return Some(Target::Imported(id));
+        if let mir::CallTarget::Direct(mir::Callee::External(id)) = call.target {
+            return match self.imported.functions.get(&id) {
+                Some(function) if policy::executable(function) => Ok(Target::Imported(id)),
+                Some(_) => Err(InlineOutcome::UnsupportedBody),
+                None => Err(InlineOutcome::NoBody),
+            };
         }
-        None
+        Err(if matches!(call.target, mir::CallTarget::Direct(_)) {
+            InlineOutcome::NoBody
+        } else {
+            InlineOutcome::IndirectCall
+        })
     }
 
     fn template(&self, target: Target) -> &mir::Function {
@@ -186,13 +298,12 @@ impl Context<'_> {
         }
     }
 
-    fn cost(&self, target: Target) -> policy::Cost {
-        match target {
-            Target::Local(id) => self.costs[index(id)],
-            Target::Imported(id) => {
-                policy::function_cost(&self.module.structs, &self.imported.functions[&id])
-            }
-        }
+    fn summary(&self, target: Target, effects: &exception_paths::Effects<'_>) -> &summary::Summary {
+        let summary = match target {
+            Target::Local(id) => &self.summaries[index(id)],
+            Target::Imported(id) => &self.imported_summaries[&id],
+        };
+        summary.get_or_init(|| summary::Summary::new(self.module, self.template(target), effects))
     }
 
     fn optimize(
@@ -205,7 +316,7 @@ impl Context<'_> {
         let mut function = self.module.functions[id].clone();
         let mut changed = false;
         loop {
-            let choices = self.choose(&function, &state.ancestry, &mut state.remaining);
+            let choices = self.choose(id, &function, &state.ancestry, &mut state.growth);
             if choices.is_empty() {
                 break;
             }
@@ -230,86 +341,6 @@ impl Context<'_> {
         }
         let (body, simplified) = simplify::body(self.module, &function);
         (body, changed || simplified)
-    }
-
-    fn choose(
-        &self,
-        function: &mir::Function,
-        ancestry: &[Vec<Target>],
-        remaining: &mut usize,
-    ) -> Vec<Choice> {
-        let analysis = flow::Analysis::new(self.module, function);
-        let incoming = analysis.solve();
-        let in_loop = graph::cyclic_nodes(&graph::block_edges(&function.body));
-        let mut choices = Vec::new();
-        for (block_id, block) in function.body.blocks.iter() {
-            if self.ordinary && ancestry[index(block_id)].len() > 6 {
-                continue;
-            }
-            let Some(mut state) = incoming[index(block_id)].clone() else {
-                continue;
-            };
-            for (statement_index, statement) in block.statements.iter().enumerate() {
-                if self.ordinary && *remaining == 0 {
-                    return choices;
-                }
-                // Release publication is adjacent to its outer initializer
-                // and allocation. Keep that call when copying the sequence.
-                let publishes_release =
-                    block
-                        .statements
-                        .get(statement_index + 1)
-                        .is_some_and(|next| {
-                            matches!(next.kind, mir::StatementKind::PublishReleaseReady { .. })
-                        });
-                if let mir::StatementKind::Call(effect) = &statement.kind
-                    && !publishes_release
-                {
-                    let call = super::call(effect);
-                    if let Some(callee) = self.target(call)
-                        && (self.ordinary || self.required(callee))
-                        && !ancestry[index(block_id)].contains(&callee)
-                    {
-                        let arguments = call
-                            .args
-                            .iter()
-                            .map(|argument| analysis.expression(argument, &state))
-                            .collect::<Vec<_>>();
-                        let source = self.template(callee);
-                        let blocks = simplify::blocks(self.module, source, &arguments);
-                        let cost = policy::blocks_cost(
-                            &self.module.structs,
-                            blocks.iter().map(|(id, block)| (*id, block)),
-                        )
-                        .with_parameters(&self.module.structs, source);
-                        let growth = cost.size.saturating_sub(6).max(1);
-                        if self.required(callee)
-                            || (growth <= *remaining
-                                && policy::worthwhile(
-                                    &self.module.structs,
-                                    cost.execution,
-                                    self.cost(callee).execution,
-                                    in_loop[index(block_id)],
-                                    &arguments,
-                                    source,
-                                ))
-                        {
-                            if !self.required(callee) {
-                                *remaining -= growth;
-                            }
-                            choices.push(Choice {
-                                block: block_id,
-                                statement: statement_index,
-                                callee,
-                                blocks,
-                            });
-                        }
-                    }
-                }
-                analysis.statement(statement, &mut state);
-            }
-        }
-        choices
     }
 }
 

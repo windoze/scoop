@@ -1,0 +1,55 @@
+package dev.m34
+
+class ProjectionDerived : ProjectionBase(5) {
+    public override fun amount(): Int = value + 10
+}
+
+fun projectionChecks() {
+    val child: DiamondView = ProjectionDerived()
+    val left = leftView(child)
+    val right = rightView(child)
+    val fromLeft = leftRoot(left)
+    val fromRight = rightRoot(right)
+    gcCollect()
+    check(fromLeft === fromRight && fromRight === child)
+    check(fromLeft.amount() == 15 && fromRight.amount() == 15)
+    check(fromLeft.label() == "left" && fromRight.label() == "left")
+    check(parentArgument(child) == "left")
+    check(rootView(child).label() == "left" && inheritedCalls(child) == 48)
+    check(smartView(child) == 48 && smartView("other") == -1)
+    val empty: Marker = markerView(child)
+    val erased: Any = empty
+    check(erased === child && erased is Marker && erased is DiamondView)
+
+    val boxed = boxedView(9)
+    val boxedRight = rightView(boxed)
+    gcCollect()
+    check(boxedRight.right() == 11 && rightRoot(boxedRight).label() == "left")
+    check(boxed.own() == 200 && inheritedCalls(boxed) == 30)
+    check(markerView(boxed) === boxed)
+
+    val ints = genericView(17)
+    val strings = genericView("text")
+    val intParent = genericParent(ints)
+    val stringParent = genericParent(strings)
+    check(intParent.load() == 17 && intParent.echo(23) == 23)
+    check(genericParent(providerIntView()).load() == 19)
+    check(stringParent.load() == "text" && stringParent.echo("echo") == "echo")
+    check(ints is GenericParent<Int> && !(ints is GenericParent<String>))
+    val wide = Wide(2, 3, 5, "wide")
+    val wideChild = genericView(wide)
+    val wideParent = genericParent(wideChild)
+    gcCollect()
+    val loaded = wideParent.load()
+    val echoed = wideParent.echo(loaded)
+    check(echoed.first + echoed.second + echoed.third == 10L && echoed.text == "wide")
+    check(wideChild.tag() == 7)
+
+    val mixed: BothLabels = MixedLabels()
+    val intLabel = intLabels(mixed)
+    val stringLabel = stringLabels(mixed)
+    gcCollect()
+    check(mixed.label() == 31 && intLabel.label() == 31 && stringLabel.label() == 31)
+    check(intLabel === stringLabel && mixed is ExactLabel<Int> && mixed is ExactLabel<String>)
+    check(!(mixed is ExactLabel<Long>))
+}

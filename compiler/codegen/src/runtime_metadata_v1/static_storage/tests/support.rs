@@ -54,6 +54,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
             GlobalInit::CString { .. }
             | GlobalInit::Storage { .. }
             | GlobalInit::RawStorage { .. }
+            | GlobalInit::ImportedImmortal { .. }
             | GlobalInit::ImportedStorage { .. } => None,
         })
         .unwrap();
@@ -78,6 +79,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
                     | GlobalInit::RawStorage { .. }
+                    | GlobalInit::ImportedImmortal { .. }
                     | GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
@@ -98,6 +100,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
                     | GlobalInit::RawStorage { .. }
+                    | GlobalInit::ImportedImmortal { .. }
                     | GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
@@ -115,6 +118,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
                     | GlobalInit::RawStorage { .. }
+                    | GlobalInit::ImportedImmortal { .. }
                     | GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),

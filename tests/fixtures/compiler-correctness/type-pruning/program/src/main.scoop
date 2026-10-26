@@ -1,0 +1,21 @@
+package dev.typepruning.consumer
+
+import dev.typepruning.*
+
+fun initialize(): Int {
+    println("init")
+    return 0
+}
+
+val unusedEagerValue = initialize()
+var stored: Readable<UsedValue>? = None
+var boxed: Any? = None
+
+fun main(args: Array<String>) {
+    val view = make(args.size == 1L)
+    stored = Some(makeValue())
+    boxed = Some(stored!!.read())
+    gcCollect()
+    println(view.read() + (boxed!! as UsedValue).number)
+    println(view is Marker)
+}

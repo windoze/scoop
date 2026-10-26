@@ -83,11 +83,8 @@ attributes #0 = { "disable-tail-calls"="true" "frame-pointer"="all" }
         crate::statepoint::rewrite(&llvm, &machine, &manifest(None), profile).unwrap();
 
         let ir = llvm.print_to_string().to_string();
-        assert_eq!(
-            ir.contains("ret i64 0"),
-            mode == OptimizationMode::Release,
-            "{ir}"
-        );
+        // Debug also performs EarlyCSE before finalizing roots.
+        assert!(ir.contains("ret i64 0"), "{ir}");
         assert_eq!(
             ir.contains("add i64"),
             mode == OptimizationMode::Debug,

@@ -1,6 +1,6 @@
 class Holder(var value: Any)
 fun length(holder: Holder): Long {
     if (holder.value !is String) return 0L
-    return holder.value.length
+    return holder.value.charLength
 }
 fun main() {}

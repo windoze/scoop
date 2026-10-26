@@ -1,0 +1,147 @@
+package dev.performance.allocation
+
+@Extern(lib = "m34_interfaces", name = "bench_kind") fun benchKind(): Int
+@Extern(lib = "m34_interfaces", name = "bench_count") fun benchCount(): Int
+@Extern(lib = "m34_interfaces", name = "bench_begin") fun benchBegin(): Unit
+@Extern(lib = "m34_interfaces", name = "bench_end") fun benchEnd(): Unit
+
+class Small(val value: Long)
+class Wide(val a: Long, val b: Long, val c: Long, val d: Long)
+class Empty()
+struct Words(val a: Long, val b: Long, val c: Long, val d: Long)
+class Limit(val value: Long, val a: Words, val b: Words, val c: Words, val tail: Long)
+class Beyond(val value: Long, val a: Words, val b: Words, val c: Words, val tail: Long, val extra: Long)
+class Pretenured(val value: Long) {
+    release {}
+}
+
+// Publish every allocation, then clear it before the following allocation.
+var retained: Any? = None
+
+fun small(count: Long): Long {
+    var i = 0L
+    var total = 0L
+    while (i < count) {
+        retained = None
+        val node = Small(i)
+        retained = Some(node)
+        total = total.xor(node.value)
+        i += 1L
+    }
+    retained = None
+    return total
+}
+
+fun wide(count: Long): Long {
+    var i = 0L
+    var total = 0L
+    while (i < count) {
+        retained = None
+        val node = Wide(i, i + 1L, i + 2L, i + 3L)
+        retained = Some(node)
+        total = total.xor(node.a + node.b + node.c + node.d)
+        i += 1L
+    }
+    retained = None
+    return total
+}
+
+fun arrays(count: Long): Long {
+    var i = 0L
+    var total = 0L
+    while (i < count) {
+        retained = None
+        val start = i
+        val node = Array<Long>(64L) { index -> start + index }
+        retained = Some(node)
+        total = total.xor(node[0L] + node[63L])
+        i += 1L
+    }
+    retained = None
+    return total
+}
+
+fun pretenured(count: Long): Long {
+    var i = 0L
+    var total = 0L
+    while (i < count) {
+        retained = None
+        val node = Pretenured(i)
+        retained = Some(node)
+        total = total.xor(node.value)
+        i += 1L
+    }
+    retained = None
+    return total
+}
+
+fun scalar(count: Long): Long {
+    var i = 0L
+    var total = 0L
+    while (i < count) {
+        total = total.xor(i)
+        i += 1L
+    }
+    return total
+}
+
+fun empty(count: Long): Long {
+    var i = 0L
+    var total = 0L
+    while (i < count) {
+        retained = None
+        retained = Some(Empty())
+        total = total.xor(i)
+        i += 1L
+    }
+    retained = None
+    return total
+}
+
+fun limit(count: Long): Long {
+    var i = 0L
+    var total = 0L
+    while (i < count) {
+        retained = None
+        val words = Words(i, i + 1L, i + 2L, i + 3L)
+        val node = Limit(i, words, words, words, i + 4L)
+        retained = Some(node)
+        total = total.xor(node.value)
+        i += 1L
+    }
+    retained = None
+    return total
+}
+
+fun beyond(count: Long): Long {
+    var i = 0L
+    var total = 0L
+    while (i < count) {
+        retained = None
+        val words = Words(i, i + 1L, i + 2L, i + 3L)
+        val node = Beyond(i, words, words, words, i + 4L, i + 5L)
+        retained = Some(node)
+        total = total.xor(node.value)
+        i += 1L
+    }
+    retained = None
+    return total
+}
+
+@Unsafe fun main() {
+    val count = benchCount().toLong()
+    val kind = benchKind()
+    benchBegin()
+    val result = when (kind) {
+        case 0 -> small(count)
+        case 1 -> wide(count)
+        case 2 -> arrays(count)
+        case 3 -> pretenured(count)
+        case 5 -> empty(count)
+        case 6 -> limit(count)
+        case 7 -> beyond(count)
+        else -> scalar(count)
+    }
+    benchEnd()
+    println(result)
+}

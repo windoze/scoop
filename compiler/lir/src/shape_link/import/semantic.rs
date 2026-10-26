@@ -31,7 +31,8 @@ pub(in crate::shape_link) fn semantic_target(
         )),
         Subject::TypeDescriptor(id) | Subject::TypeRegistration(id) => Some(Target::Descriptor(id)),
         Subject::DispatchTable(id) => Some(Target::Dispatch(id)),
-        Subject::StaticStorage(_)
+        Subject::ImmortalObject(_)
+        | Subject::StaticStorage(_)
         | Subject::StaticStorageRegistration(_)
         | Subject::InitializationCell(_)
         | Subject::InitializationRegistration(_) => None,

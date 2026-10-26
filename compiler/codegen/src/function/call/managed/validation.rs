@@ -284,7 +284,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             vec![scoop_lir::MANAGED_PTR, scoop_lir::METADATA_PTR],
                             LirType::I1,
                         ),
-                        scoop_lir::NoGcRuntimeFunction::ITableLookup => (
+                        scoop_lir::NoGcRuntimeFunction::ITableLookup
+                        | scoop_lir::NoGcRuntimeFunction::ITableFind => (
                             vec![scoop_lir::METADATA_PTR, scoop_lir::METADATA_PTR],
                             scoop_lir::METADATA_PTR,
                         ),

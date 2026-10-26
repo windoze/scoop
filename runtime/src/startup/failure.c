@@ -17,7 +17,8 @@ _Noreturn void scoop_startup_report_failure(const ScoopStaticStorageDescriptorV1
     scoop_thread_registry_lock();
     scoop_thread_wait_for_running_world();
     const ScoopObjectHeader *exception = *(const ScoopObjectHeader **)failure->writable_base;
-    if (exception == NULL || (unit != NULL && unit->cell->state != 3)) {
+    if (exception == NULL ||
+        (unit != NULL && __atomic_load_n(&unit->cell->state, __ATOMIC_RELAXED) != 3)) {
         scoop_startup_fatal("gateway failure has no published exception");
     }
     scoop_image_require_type(exception->td);

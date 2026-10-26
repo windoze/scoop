@@ -6,7 +6,8 @@ fn root_failure_publishes_the_original_exception_before_ending_the_catch() {
     let gateway = module.functions.last().unwrap();
     assert!(matches!(
         gateway.blocks[gateway.entry].instructions.first(),
-        Some(lir::Instruction::ManagedPoll { .. })
+        Some(lir::Instruction::ManagedPoll { site })
+            if site.kind == lir::ManagedPollKind::Gateway
     ));
     let failure = gateway
         .blocks

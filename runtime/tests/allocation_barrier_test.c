@@ -137,6 +137,29 @@ int main(void) {
     void *second = allocate(types[3]);
     assert((uintptr_t)second - (uintptr_t)first == 80);
     check_metadata(second, 80);
+    // Generated bumps must preserve earlier starts in the same bitmap word.
+    void *dense[64];
+    ScoopAllocationContext *allocation = scoop_rt_allocation_context;
+    ScoopGcBlockMeta *allocation_block = pointer_block(second);
+    assert(allocation->block_start == block_base(allocation_block));
+    assert(allocation->size_units == allocation_block->size_units);
+    assert(allocation->starts == allocation_block->starts);
+    assert(allocation->line_occupied == allocation_block->line_occupied);
+    assert(allocation->counters != NULL);
+    for (size_t index = 0; index < 64; index++) {
+        dense[index] = scoop_heap_bump(&allocation->cursor, allocation->limit, sizes[0], 8);
+        assert(dense[index] != NULL);
+        scoop_runtime_finish_tlab_alloc(dense[index], types[0], sizes[0]);
+    }
+    for (size_t index = 0; index < 64; index++) {
+        check_metadata(dense[index], sizes[0]);
+        const ScoopObjectHeader *header = dense[index];
+        assert(header->td == types[0] && header->gc_word == 0);
+        const unsigned char *bytes = dense[index];
+        for (size_t offset = sizeof *header; offset < sizes[0]; offset++) {
+            assert(bytes[offset] == 0);
+        }
+    }
     collect();
     assert(scoop_rt_gc_debug_last_moved_count() == 0);
     for (size_t index = 0; index < SIZE_COUNT; index++) {

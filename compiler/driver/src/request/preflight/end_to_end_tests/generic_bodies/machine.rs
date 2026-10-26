@@ -78,7 +78,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
             .unwrap();
         let mir = hir
             .machine_input()
-            .lower_selected_mir(selected, Default::default())
+            .lower_selected_mir(selected, Default::default(), None)
             .unwrap();
         assert!(
             mir.strong
@@ -117,6 +117,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
         let diagnostics =
             scoop_identity::ExactTypeDiagnosticCatalog::try_new(&identities, &coordinates).unwrap();
         let (lir, lir_public) = super::super::super::machine::lower_selected_lir(
+            scoop_lir::OptimizationMode::Debug,
             &mir.strong,
             &mir.public,
             &selected,

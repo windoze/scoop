@@ -81,14 +81,24 @@ Module
           Type Final
           Local $new.1
       call @scoop_rt_gc_collect direct
-      call $call.2: Int = external2 direct
+      val $inline.1.this: Final
         Type Final
         Retype Final
           Type Base
           Local value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.2: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
       return
         Type Int
-        Local $call.2
+        IntegerLiteral Int value=70 bits=0x00000046
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      goto bb1
   fun inherited @fn2() -> Int
     bb0 entry
       val $dependency.argument.0: Int
@@ -111,12 +121,18 @@ Module
           Type Inherited
           Local $new.1
       call @scoop_rt_gc_collect direct
-      call $call.2: Int = external0 direct
-        Type Base
-        Local value
+      goto bb2
+    bb1 inline.cont.1
       return
         Type Int
-        Local $call.2
+        Local $inline.1.result
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local value
+      goto bb1
   fun openParameter @fn3(value: Base) -> Int
     bb0 entry
       call $call.1: Int = external0 virtual[0]
@@ -199,36 +215,17 @@ Module
         Type Unit
         UnitLiteral
     bb8 inline.7.entry
-      branch bb9 bb10
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          Local $argument.0
+      goto bb10
     bb9 inline.7.if.then.1
-      val $inline.7.$default.local.0: String
-        Type String
-        StringConst @str0
-      val $inline.7.$dependency.parameter.message: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v0
-          Type String
-          Local $inline.7.$default.local.0
-      assign $inline.7.$new.1
-        Type IllegalStateException
-        ClassAlloc IllegalStateException
-      call external1 direct
-        Type IllegalStateException
-        Local $inline.7.$new.1
-        Type Option<String>
-        Local $inline.7.$dependency.parameter.message
-      throw
-        Type IllegalStateException
-        Local $inline.7.$new.1
+      unreachable
     bb10 inline.7.if.merge.2
       Type Unit
       UnitLiteral
       goto bb7
     bb11 inline.cont.11
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=70 bits=0x00000046
@@ -237,20 +234,16 @@ Module
         IntegerLiteral Int value=70 bits=0x00000046
       val $argument.0: Boolean
         Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $inline.11.$call.1
-          Type Int
-          IntegerLiteral Int value=70 bits=0x00000046
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $inline.7.value: Boolean
+        Type Boolean
+        BoolLiteral true
       goto bb8
     bb12 inline.11.entry
-      call $inline.11.$call.1: Int = external2 direct
-        Type Final
-        Local $new.2
-      assign $inline.11.result
-        Type Int
-        Local $inline.11.$call.1
-      goto bb11
+      goto bb32
     bb13 inline.cont.13
       val $dependency.argument.0: Int
         Type Int
@@ -347,31 +340,9 @@ Module
       call $argument.0: Base = external5 direct
       goto bb20
     bb22 inline.21.entry
-      branch bb23 bb24
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          Local $argument.0
+      goto bb24
     bb23 inline.21.if.then.1
-      val $inline.21.$default.local.0: String
-        Type String
-        StringConst @str0
-      val $inline.21.$dependency.parameter.message: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v0
-          Type String
-          Local $inline.21.$default.local.0
-      assign $inline.21.$new.1
-        Type IllegalStateException
-        ClassAlloc IllegalStateException
-      call external1 direct
-        Type IllegalStateException
-        Local $inline.21.$new.1
-        Type Option<String>
-        Local $inline.21.$dependency.parameter.message
-      throw
-        Type IllegalStateException
-        Local $inline.21.$new.1
+      unreachable
     bb24 inline.21.if.merge.2
       Type Unit
       UnitLiteral
@@ -385,22 +356,15 @@ Module
         IntegerLiteral Int value=70 bits=0x00000046
       val $argument.0: Boolean
         Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $inline.25.$call.1
-          Type Int
-          IntegerLiteral Int value=70 bits=0x00000046
+        BoolLiteral true
       goto bb22
     bb26 inline.25.entry
-      call $inline.25.$call.1: Int = external2 direct
+      val $inline.33.this: Final
         Type Final
         Retype Final
           Type Base
           Local $argument.0
-      assign $inline.25.result
-        Type Int
-        Local $inline.25.$call.1
-      goto bb25
+      goto bb34
     bb27 inline.cont.27
       val $dependency.argument.0: Int
         Type Int
@@ -452,22 +416,54 @@ Module
       Type Unit
       UnitLiteral
       goto bb27
+    bb31 inline.cont.31
+      val $inline.11.$call.1: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      assign $inline.11.result
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      goto bb11
+    bb32 inline.31.entry
+      assign $inline.31.result
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      goto bb31
+    bb33 inline.cont.33
+      val $inline.25.$call.1: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      assign $inline.25.result
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      goto bb25
+    bb34 inline.33.entry
+      assign $inline.33.result
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      goto bb33
   fun generic @fn6(value: Final) -> Int
     bb0 entry
-      call $call.1: Int = external2 direct
-        Type Final
-        Local value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
       return
         Type Int
-        Local $call.1
+        IntegerLiteral Int value=70 bits=0x00000046
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      goto bb1
   fun println @fn7(value: String) -> Unit
     bb0 entry
-      call $dependency.local.2: String = external8 direct
-        Type String
-        Local value
+      goto bb2
+    bb1 inline.cont.1
       call external9 direct
         Type String
-        Local $dependency.local.2
+        Local value
       val $dependency.local.4: String
         Type String
         StringConst @str2
@@ -477,6 +473,11 @@ Module
       return
         Type Unit
         UnitLiteral
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type String
+        Local value
+      goto bb1
   instance mi0 function=@fn6 <- generic
   instance mi1 function=@fn7 <- println
   str @str0 "illegal state"

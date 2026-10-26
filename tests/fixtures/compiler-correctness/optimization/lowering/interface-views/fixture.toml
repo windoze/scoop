@@ -1,0 +1,17 @@
+schema = 1
+name = "interface-view-reuse"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["optimization", "interfaces", "smart-cast", "compiler-correctness"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "interface views preserve receivers and control flow\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

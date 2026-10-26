@@ -1,0 +1,50 @@
+schema = 1
+name = "exception-path-inlining"
+inputs = ["provider", "consumer", "inspect.py", "../../../../benchmarks/abstractions/resources/src/kernels.scoop"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["inlining", "gc", "compiler-correctness"]
+variants = [
+  {name = "debug", vars = {profile = "debug", provider_profile = "release"}},
+  {name = "release", vars = {profile = "release", provider_profile = "debug"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/provider"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+  {copy = {from = "${fixture}/../../../../benchmarks/abstractions/resources/src/kernels.scoop", to = "${work}/consumer/src/kernels.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/provider", "--profile", "${provider_profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "-o", "${work}/artifacts/dev.performance/exception-provider/0.1.0/cone.slib", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--profile", "${profile}", "--enable-gc-stress", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "inspect"
+argv = ["${python}", "${fixture}/inspect.py", "${work}/dump/${consumer.result.root.identity}/mir.txt", "${profile}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${consumer.result.output}"]
+exit = 0
+stdout = "exception specialization preserves cleanup, failures and roots\n"
+stderr = ""

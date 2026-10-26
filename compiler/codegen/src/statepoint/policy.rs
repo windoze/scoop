@@ -52,10 +52,15 @@ pub(crate) fn optimize(
             .map_err(|error| CodegenError(format!("LLVM function name: {error}")))?;
         let no_gc =
             expected.functions.get(name) == Some(&GcEffect::NoGc) && !site_owners.contains(name);
+        if profile.optimization() == scoop_lir::OptimizationMode::Release {
+            storage::promote(function)?;
+        }
         // Textual InstCombine enables a testing-only fixpoint check by default.
         // Use its normal bounded iteration policy in both release paths.
         let passes = match (profile.optimization(), no_gc) {
-            (scoop_lir::OptimizationMode::Debug, _) => "sroa,mem2reg,sccp,unreachableblockelim",
+            (scoop_lir::OptimizationMode::Debug, _) => {
+                "sroa,mem2reg,sccp,early-cse,unreachableblockelim"
+            }
             (scoop_lir::OptimizationMode::Release, true) => {
                 "sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,reassociate,constraint-elimination,correlated-propagation,sccp,instcombine<no-verify-fixpoint>,gvn<no-pre;no-load-pre;no-split-backedge-load-pre>,bdce,memcpyopt,dse,adce,early-cse<memssa>,unreachableblockelim,simplifycfg,loop-simplify,lcssa,loop-mssa(loop-rotate,licm,simple-loop-unswitch<nontrivial;trivial>),loop(indvars),loop-load-elim,loop-unroll<O2;full-unroll-max=4;no-partial;no-peeling;no-profile-peeling;no-runtime;no-upperbound>,loop-vectorize,slp-vectorizer,instcombine<no-verify-fixpoint>,simplifycfg,dse,adce"
             }
@@ -86,6 +91,8 @@ pub(crate) fn optimize(
             finish_managed_optimization(function, machine)?;
         }
     }
+    crate::gc_card_groups::inline_fast_paths(module, machine)?;
+    aggregate_values::expose(module, profile.managed_address_space_contract())?;
     finalization::finalize(module, expected, profile)
 }
 
@@ -113,6 +120,10 @@ pub(crate) fn lower(
             PassBuilderOptions::create(),
         )
         .map_err(|error| CodegenError(format!("rewrite-statepoints-for-gc failed: {error}")))?;
+    // Instruction selection also simplifies terminal blocks. Finalize only
+    // after that cleanup, so dead relocates before unreachable do not inflate
+    // registration counts. Returning calls retain their call-duration roots.
+    lowered::discard_terminal_relocations(module);
     Ok(lowered::collect(module))
 }
 

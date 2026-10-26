@@ -53,7 +53,7 @@ public struct Uuid(val mostSignificantBits: ULong, val leastSignificantBits: ULo
             else {
                 val offset = if (index < 8L) 0L else if (index < 13L) 1L else if (index < 18L) 2L
                     else if (index < 23L) 3L else 4L
-                hex[index - offset]
+                hex.getCharAt(index - offset)
             }
         })
     }

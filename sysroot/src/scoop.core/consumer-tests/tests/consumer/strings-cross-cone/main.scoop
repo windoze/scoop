@@ -10,7 +10,7 @@ private fun exerciseConsumer() {
     values.add('🚀')
     val text = encode(values)
     gcCollect()
-    if (text != "A雪🚀" || text.length != 3L || text.byteLength != 8L ||
+    if (text != "A雪🚀" || text.charLength != 3L || text.byteLength != 8L ||
         middle(text) != "雪🚀" || walk(text) != 167339L || text.toCharArray()[2L] != '🚀') {
         fail(Some("cross-cone"))
     }

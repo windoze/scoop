@@ -1,0 +1,74 @@
+package dev.m34.bench
+
+public class NoInterfaces public constructor()
+
+public fun numericHash(source: Any, count: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < count) {
+        if (source is Hash) total += source.hash()
+        index += 1
+    }
+    return total
+}
+
+public fun numericAdd(source: Any, count: Int): Int {
+    var total = 0
+    var index = 0
+    while (index < count) {
+        if (source is Add<Int, Int>) total = source.plus(total)
+        index += 1
+    }
+    return total
+}
+
+public fun numericMultiply(source: Any, count: Int): Int {
+    var total = 0
+    var index = 0
+    while (index < count) {
+        if (source is Mul<Int, Int>) total += source.times(index)
+        index += 1
+    }
+    return total
+}
+
+public fun numericMiss(source: Any, count: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < count) {
+        if (source is Add<Long, Long>) total = source.plus(total)
+        index += 1
+    }
+    return total
+}
+
+public fun numericBoolean(source: Any, count: Int): Int {
+    var total = 0
+    var index = 0
+    while (index < count) {
+        if (source is Mul<Int, Int>) total += 1
+        index += 1
+    }
+    return total
+}
+
+public fun collectionSize(source: Any, count: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < count) {
+        if (source is Collection<Int>) total += source.size
+        index += 1
+    }
+    return total
+}
+
+public fun mixedHash(first: Any, second: Any, count: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < count) {
+        val source = if (index % 2 == 0) first else second
+        if (source is Hash) total += source.hash()
+        index += 1
+    }
+    return total
+}

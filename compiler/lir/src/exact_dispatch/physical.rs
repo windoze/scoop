@@ -20,7 +20,13 @@ impl ExactDispatchExportV1 {
                 actual: inputs.len(),
             });
         }
-        let replayed = Self::replay_from_schema(target, physical.identity(), inputs, foundation)?;
+        let replayed = Self::replay_with_layout(
+            target,
+            physical.identity(),
+            inputs,
+            physical.layout.clone(),
+            foundation,
+        )?;
         for (entry, emitted) in replayed.entries().iter().zip(physical.slots()) {
             let position = entry.position().into_u32();
             let actual = resolver
@@ -37,10 +43,11 @@ impl ExactDispatchExportV1 {
 /// Borrowed proof that the dispatch payload comes from an actual LIR table.
 /// Its fields stay private so an identity and an unrelated slot slice cannot
 /// be paired by a caller.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ExactDispatchPhysicalTableV1<'a> {
     identity: &'a CborIdentityRecord<PersistentDispatchTableId, DispatchTableKey>,
     slots: &'a [DispatchEntry],
+    layout: crate::DispatchTableLayout,
 }
 
 impl<'a> From<&'a VtableRecord> for ExactDispatchPhysicalTableV1<'a> {
@@ -48,6 +55,10 @@ impl<'a> From<&'a VtableRecord> for ExactDispatchPhysicalTableV1<'a> {
         Self {
             identity: value.identity_record(),
             slots: value.slots(),
+            layout: crate::DispatchTableLayout::flat(
+                value.identity_record().id(),
+                value.slots().len(),
+            ),
         }
     }
 }
@@ -57,18 +68,19 @@ impl<'a> From<&'a ItableRecord> for ExactDispatchPhysicalTableV1<'a> {
         Self {
             identity: value.identity_record(),
             slots: value.slots(),
+            layout: value.layout().clone(),
         }
     }
 }
 
 impl<'a> ExactDispatchPhysicalTableV1<'a> {
     pub(super) const fn identity(
-        self,
+        &self,
     ) -> &'a CborIdentityRecord<PersistentDispatchTableId, DispatchTableKey> {
         self.identity
     }
 
-    pub(super) const fn slots(self) -> &'a [DispatchEntry] {
+    pub(super) const fn slots(&self) -> &'a [DispatchEntry] {
         self.slots
     }
 }

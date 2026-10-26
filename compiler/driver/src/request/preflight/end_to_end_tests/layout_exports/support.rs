@@ -101,7 +101,7 @@ pub(super) fn with_pair(
         .unwrap();
     let mir = hir
         .machine_input()
-        .lower_selected_mir(selected, Default::default())
+        .lower_selected_mir(selected, Default::default(), None)
         .unwrap();
     let selected = closure
         .project_dependency_callables_to_lir(mir.strong.selected_callables())
@@ -147,6 +147,7 @@ pub(super) fn with_pair(
     };
     let dependency_layouts = physical::select(&mir.strong, layout, provider);
     let lir = crate::lir_pipeline::lower_with_layout_dependencies(
+        scoop_lir::OptimizationMode::Debug,
         &mir.strong,
         &selected,
         target.lir_target(),

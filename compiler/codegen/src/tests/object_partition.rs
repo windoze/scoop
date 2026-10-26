@@ -12,7 +12,7 @@ mod references;
 mod switches;
 
 #[test]
-fn partitions_each_callable_body_away_from_non_callable_definitions() {
+fn partitions_callables_and_type_metadata_away_from_static_storage() {
     let mut module = exceptions_module();
     module.output = scoop_lir::LirOutput::Library;
     let callable_bodies = module
@@ -25,24 +25,42 @@ fn partitions_each_callable_body_away_from_non_callable_definitions() {
     let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(input.foundation()).unwrap();
     let partition = ScoopLirObjectPartitionV1::from_input(&input, &surface).unwrap();
 
-    assert_eq!(partition.objects().len(), callable_bodies.len() + 2);
-    let non_callable = &partition.objects()[0];
-    assert_eq!(non_callable.kind(), ScoopLirObjectKindV1::NonCallable);
-    assert!(!non_callable.definition_plans().is_empty());
-    assert!(non_callable.definition_plans().iter().all(|definition| {
-        surface
-            .plans()
-            .iter()
-            .find(|plan| plan.definition_plan() == *definition)
-            .is_some_and(|plan| {
-                !matches!(
-                    plan.definition_role(),
-                    scoop_lir::StrongDefinitionRole::CallableBody
-                        | scoop_lir::StrongDefinitionRole::CallableRegistration
-                        | scoop_lir::StrongDefinitionRole::SafepointRegistration
-                )
-            })
-    }));
+    for units in partition
+        .objects()
+        .iter()
+        .filter(|units| units.kind() == ScoopLirObjectKindV1::NonCallable)
+    {
+        assert!(!units.definition_plans().is_empty());
+        for definition in units.definition_plans() {
+            use scoop_lir::StrongDefinitionRole::*;
+            let plan = surface.plan(*definition).unwrap();
+            let role = plan.definition_role();
+            assert!(!matches!(
+                role,
+                CallableBody | CallableRegistration | SafepointRegistration
+            ));
+            if matches!(role, TypeDescriptor | TypeRegistration)
+                && plan.primary_symbol().linkage() != scoop_lir::LinkageClass::OdrWeak
+            {
+                let roles = units
+                    .definition_plans()
+                    .iter()
+                    .map(|id| {
+                        let companion = surface.plan(*id).unwrap();
+                        assert_eq!(companion.owner(), plan.owner());
+                        companion.definition_role()
+                    })
+                    .collect::<BTreeSet<_>>();
+                assert_eq!(roles, BTreeSet::from([TypeDescriptor, TypeRegistration]));
+                assert_eq!(units.definition_plans().len(), 2);
+            } else if matches!(
+                role,
+                TypeDescriptor | TypeRegistration | Layout | ScanProgram
+            ) {
+                assert_eq!(units.definition_plans(), &[*definition]);
+            }
+        }
+    }
 
     let actual_bodies = partition
         .objects()
@@ -170,7 +188,7 @@ fn renders_only_the_callable_selected_by_each_physical_member() {
 fn emitted_object_set_owns_temporary_members() {
     let mut module = exceptions_module();
     module.output = scoop_lir::LirOutput::Library;
-    let expected_members = module.functions.len() + 2;
+    let expected_bodies = module.functions.len();
     let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
     let parent = tempfile::tempdir().unwrap();
 
@@ -184,7 +202,17 @@ fn emitted_object_set_owns_temporary_members() {
     )
     .unwrap();
 
-    assert_eq!(emitted.members().len(), expected_members);
+    assert_eq!(
+        emitted
+            .members()
+            .iter()
+            .filter(|member| matches!(
+                member.kind(),
+                EmittedConeObjectMemberKindV1::CallableBody { .. }
+            ))
+            .count(),
+        expected_bodies
+    );
     assert_eq!(emitted.target(), input.module().meta.target_profile);
     assert_eq!(
         emitted.target_selection(),
@@ -197,19 +225,10 @@ fn emitted_object_set_owns_temporary_members() {
     )
     .unwrap();
     assert_eq!(&projected, emitted.partition());
+    assert_eq!(emitted.members().len(), projected.objects().len());
     assert!(emitted.members().iter().all(|member| {
         std::fs::metadata(member.path()).is_ok_and(|metadata| metadata.len() > 0)
     }));
-    let mut non_callable_members = 0;
-    for member in emitted.members() {
-        match member.kind() {
-            EmittedConeObjectMemberKindV1::NonCallable => {
-                non_callable_members += 1;
-            }
-            EmittedConeObjectMemberKindV1::CallableBody { .. } => {}
-        }
-    }
-    assert_eq!(non_callable_members, 2);
     let backing = emitted.temporary_directory().to_path_buf();
     assert!(backing.starts_with(parent.path()));
     drop(emitted);

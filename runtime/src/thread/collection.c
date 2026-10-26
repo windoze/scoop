@@ -39,8 +39,7 @@ void scoop_thread_park_current_locked(ScoopThreadState *state) {
 }
 
 void scoop_thread_poll(void) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (state->managed_anchor == NULL) {
         scoop_thread_fatal("managed poll has no published anchor");
     }
@@ -89,8 +88,7 @@ void scoop_thread_native_borrowed_entry(void) {
 
 void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,
                                       uintptr_t stack_pointer, uintptr_t frame_pointer) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     uintptr_t boundary = (uintptr_t)state->managed_stack_boundary;
     scoop_thread_ensure_stack_range(state, stack_pointer, boundary);
     uintptr_t stack_low = (uintptr_t)state->stack_low;
@@ -133,8 +131,7 @@ void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor, uintptr_t re
 }
 
 void scoop_thread_pop_managed_anchor(ScoopManagedAnchor *anchor) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (anchor == NULL || state->managed_anchor != anchor || anchor->previous != NULL) {
         scoop_thread_fatal("managed entry anchors must be popped in LIFO order");
     }

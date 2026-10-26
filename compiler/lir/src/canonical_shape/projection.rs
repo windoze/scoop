@@ -75,7 +75,7 @@ impl<'a> ShapeContents<'a> {
             for table in &descriptor.itables {
                 values.insert(
                     StrongDefinitionEntity::dispatch_table(table.identity_record().id()),
-                    ShapeContent::Dispatch(table.identity_record().id(), table.slots()),
+                    ShapeContent::Dispatch(table.identity_record().id(), table.physical_slots()),
                 );
             }
         }

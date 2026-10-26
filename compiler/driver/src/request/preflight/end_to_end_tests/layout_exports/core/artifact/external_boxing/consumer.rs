@@ -106,6 +106,7 @@ pub(super) fn roundtrip(
                 StatepointLiveSet::default()
             } else {
                 StatepointLiveSet::new(vec![StatepointLiveValue {
+                    restore: true,
                     source: CallerRootSource::Local(source),
                     ty: value.storage_type().clone(),
                     leaves: ManagedLeafPaths::new(

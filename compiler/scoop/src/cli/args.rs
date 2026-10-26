@@ -29,6 +29,9 @@ pub(super) struct Cli {
     /// Include runtime GC stress support, controlled by environment variables at run time.
     #[arg(long, global = true)]
     pub enable_gc_stress: bool,
+    /// Include startup timing and metadata-count diagnostics in the linked runtime.
+    #[arg(long, global = true)]
+    pub enable_startup_stats: bool,
     #[command(subcommand)]
     pub command: Command,
 }
@@ -117,7 +120,9 @@ pub(super) enum Emit {
     Ast,
     Hir,
     Mir,
+    Optimizations,
     Lir,
+    Symbols,
     All,
 }
 impl Emit {
@@ -127,7 +132,9 @@ impl Emit {
             Self::Ast => Set::one(Stage::Ast),
             Self::Hir => Set::one(Stage::Hir),
             Self::Mir => Set::one(Stage::Mir),
+            Self::Optimizations => Set::one(Stage::Optimizations),
             Self::Lir => Set::one(Stage::Lir),
+            Self::Symbols => Set::one(Stage::Symbols),
             Self::All => Set::all(),
         }
     }

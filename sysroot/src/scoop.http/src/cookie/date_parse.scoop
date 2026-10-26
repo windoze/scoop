@@ -73,7 +73,7 @@ private fun cookieDateMonth(bytes: Array<Byte>, start: Long, end: Long): Int {
     for (index in 0L..<12L) {
         var matches = true
         for (offset in 0L..<3L) {
-            if ((bytes[start + offset].toUByte().toInt() or 32) != (httpDateMonths[index][offset].code or 32)) matches = false
+            if ((bytes[start + offset].toUByte().toInt() or 32) != (httpDateMonths[index].getCharAt(offset).code or 32)) matches = false
         }
         if (matches) return index.toInt() + 1
     }

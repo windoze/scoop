@@ -11,6 +11,7 @@ pub(super) fn check(
 ) {
     let lower = |selection: &lir::StrongProductionDependencySelectionV2<'_>| {
         crate::lir_pipeline::lower_with_layout_dependencies(
+            scoop_lir::OptimizationMode::Debug,
             input,
             callables,
             provider.target.lir_target(),

@@ -23,6 +23,7 @@ impl DecodedObjectSymbolSurfaceV1 {
                     id,
                     crate::ProgramLinkDefinition {
                         owner,
+                        entity: plan.owner.resolve(identities).map_err(link_error)?,
                         role: plan.definition_role,
                     },
                 ))

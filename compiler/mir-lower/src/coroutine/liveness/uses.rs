@@ -114,6 +114,16 @@ fn call_uses(call: &mir::Call, uses: &mut HashSet<mir::LocalId>) {
 
 pub(super) fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
     match &expr.kind {
+        mir::ExprKind::StringCopy(operation) => {
+            for value in operation.operands() {
+                expr_uses(value, uses);
+            }
+        }
+        mir::ExprKind::StringConcat(parts) => {
+            for value in parts.iter().filter_map(mir::StringConcatPart::value) {
+                expr_uses(value, uses);
+            }
+        }
         mir::ExprKind::MaybeUninit { operation, .. } => {
             if let Some(operand) = operation.operand() {
                 expr_uses(operand, uses);

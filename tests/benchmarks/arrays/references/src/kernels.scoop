@@ -1,0 +1,93 @@
+package dev.performance
+
+interface Token<T> { fun number(): T }
+interface Marker { fun marker(): Long }
+interface ChildToken<T> : Marker, Token<T> {}
+interface Empty {}
+
+class Node(val value: Long) : ChildToken<Long>, Empty {
+    override fun number(): Long = value
+    override fun marker(): Long = value + 1L
+}
+
+struct Boxed(val value: Long) : ChildToken<Long>, Empty {
+    override fun number(): Long = value
+    override fun marker(): Long = value + 1L
+}
+
+fun sumNodes(values: Array<Node>): Long {
+    var i = 0L
+    var result = 0L
+    while (i < values.size) { result += values[i].value; i += 1L }
+    return result
+}
+
+fun findNode(values: Array<Node>, wanted: Node): Long {
+    var i = 0L
+    while (i < values.size) {
+        if (values[i] === wanted) return i
+        i += 1L
+    }
+    return -1L
+}
+
+fun copyNodes(source: Array<Node>, target: MutableArray<Node>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun copyInterfaces(source: Array<Token<Long>>, target: MutableArray<Token<Long>>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun projectInterfaces(source: Array<ChildToken<Long>>, target: MutableArray<Token<Long>>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun copyStrings(source: Array<String>, target: MutableArray<String>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun copyFunctions(source: Array<(Long) -> Long>, target: MutableArray<(Long) -> Long>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun sumOptional(values: Array<Node?>): Long {
+    var i = 0L
+    var result = 0L
+    while (i < values.size) {
+        result += when (values[i]) { case None -> 0L; case Some(value) -> value.value }
+        i += 1L
+    }
+    return result
+}
+
+fun copyOptional(source: Array<Node?>, target: MutableArray<Node?>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun clearWrapped(values: MutableArray<MaybeUninit<Node>>) {
+    var i = 0L
+    while (i < values.size) { values[i] = MaybeUninit<Node>.uninit(); i += 1L }
+}
+
+fun fillNodes(count: Long, first: Node, second: Node): MutableArray<Node> =
+    MutableArray<Node>(count) { i -> if (i.and(1L) == 0L) first else second }
+
+fun fillInterfaces(count: Long, first: Token<Long>, second: Token<Long>): MutableArray<Token<Long>> =
+    MutableArray<Token<Long>>(count) { i -> if (i.and(1L) == 0L) first else second }
+
+fun emptyStorage(count: Long): MutableArray<MaybeUninit<Node>> =
+    MutableArray<MaybeUninit<Node>>(count) { _ -> MaybeUninit<Node>.uninit() }
+
+fun scalarSum(values: Array<Long>): Long {
+    var i = 0L
+    var result = 0L
+    while (i < values.size) { result += values[i]; i += 1L }
+    return result
+}

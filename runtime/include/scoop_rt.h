@@ -90,6 +90,9 @@ void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
  * no allocation, lock or handshake. Empty ranges never access destination. */
 void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 
+/* Compiler GC leaf. The mapping and card index come from the published page map. */
+void scoop_runtime_record_dirty_card_group(void *region, size_t card_index);
+
 void scoop_rt_write(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
 void scoop_rt_stdout_write(const uint8_t *bytes, int64_t length);
@@ -111,6 +114,8 @@ const ScoopString *scoop_rt_string_slice_bytes(const ScoopString *value, int64_t
                                                int64_t end);
 const ScoopString *scoop_rt_string_from_chars(const ScoopArray *value);
 const ScoopString *scoop_rt_string_from_bytes(const ScoopArray *value);
+/* Stable, readable UTF-8 storage; the caller owns its lifetime through allocation. */
+const ScoopString *scoop_rt_string_from_utf8_unchecked(const unsigned char *bytes, int64_t length);
 const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count);
 bool scoop_rt_bool_equals(bool left, bool right);
 int64_t scoop_rt_long_hash(int64_t v);
@@ -139,6 +144,11 @@ SCOOP_RT_NORETURN void scoop_rt_allocation_overflow(void);
 /* `is` check: walk the object's parent chain, then scan its itable
  * keys (runtime spec 2.2). */
 bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td);
+
+/* Exact interface query on an actual object's descriptor. Returns immutable
+ * metadata, or NULL on failure. A matching empty interface still has an entry. */
+const ScoopItableEntryV1 *scoop_rt_itable_find(
+    const ScoopTypeDescriptor *obj_td, const ScoopTypeDescriptor *iface_td);
 
 /* Linear scan of `obj_td`'s itable keys; returns the slots array.
  * Aborts when missing (the compiler guarantees the entry exists —

@@ -1,0 +1,14 @@
+package dev.performance.memberbench
+
+public interface Combiner { public fun apply(value: Long): Long }
+
+public struct Mixer(val salt: Long) : Combiner {
+    public override fun apply(value: Long): Long =
+        (value + salt).xor(value.shl(13L)).and(4294967295L)
+}
+
+public class Bias public constructor(private val salt: Long) : Combiner {
+    public override fun apply(value: Long): Long =
+        (value + salt).xor(value.shl(13L)).and(4294967295L)
+    public val amount: Long get() = salt
+}

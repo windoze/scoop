@@ -1,0 +1,38 @@
+@Extern(name = "scoop_rt_char_to_string", abi = "scoop")
+fun nativeChar(value: Char): String
+@Extern(name = "scoop_rt_string_from_bytes", abi = "scoop")
+fun nativeBytes(value: Array<Byte>): String
+@Extern(name = "scoop_rt_string_slice_bytes", abi = "scoop")
+fun nativeSlice(value: String, start: Long, end: Long): String
+
+fun copySnapshot(value: String): Array<Byte> = value.toByteArray()
+fun copySlice(value: String): String = value.slice(1L, 2L)
+
+@Unsafe
+fun main() {
+    val scalars = [0, 127, 128, 2047, 2048, 55295, 57344, 65535, 65536, 1114111]
+    var index = 0L
+    while (index < 80L) {
+        val character = scalars[index % scalars.size].toChar()
+        val text = character.toString()
+        val snapshot = copySnapshot("A" + text + "Z")
+        gcCollect()
+        val rebuilt = String.fromUtf8Unchecked(snapshot)
+        val slice = copySlice(rebuilt)
+        val mutable = rebuilt.toMutableByteArray()
+        mutable[0L] = 66.toByte()
+        gcCollect()
+        if (slice != text || nativeChar(character) != text || nativeBytes(snapshot) != rebuilt ||
+            nativeSlice(rebuilt, 1L, 1L + text.byteLength) != slice ||
+            snapshot[0L] != 65.toByte() || String.fromUtf8Unchecked(mutable) != "B" + text + "Z") {
+            throw IllegalStateException()
+        }
+        index += 1L
+    }
+    val number = (-9223372036854775807L - 1L).toString()
+    gcCollect()
+    if (number != "-9223372036854775808" || "".toByteArray().size != 0L) {
+        throw IllegalStateException()
+    }
+    println("String copies preserve moving roots and native ABI")
+}

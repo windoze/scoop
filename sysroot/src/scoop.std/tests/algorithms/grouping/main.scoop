@@ -29,7 +29,7 @@ private fun exercise() {
     check(associated.keys.toList().joinToString() == "2, 1" && associated[2] == Some("c"), "associate overwrite")
     check(rows.associateBy<Row, Int> { row -> row.key }[1]!!.label == "d", "associateBy")
     check(rows.associateBy<Row, Int, String>({ row -> row.key }) { row -> row.label }[1] == Some("d"), "associateBy transform")
-    val lengths = listOf<String>("aa", "b", "aa").associateWith<String, Long> { value -> value.length }
+    val lengths = listOf<String>("aa", "b", "aa").associateWith<String, Long> { value -> value.charLength }
     check(lengths.size == 2L && lengths["aa"] == Some(2L) && !(lengths is MutableMap<String, Long>), "associateWith")
     check(rows.distinctBy<Row, Int> { row -> row.key }.map<Row, String> { row -> row.label }.joinToString() == "a, b", "distinctBy")
     check(listOf<Int>(3, 1, 3, 2, 1).distinct().joinToString() == "3, 1, 2", "distinct")

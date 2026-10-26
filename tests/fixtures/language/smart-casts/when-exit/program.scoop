@@ -1,10 +1,10 @@
 fun length(value: Any): Long {
     when (value) { !is String -> return 0L; else -> {} }
-    return value.length
+    return value.charLength
 }
 fun conditional(value: Any): Long {
     when { value !is String -> return -1L }
-    return value.length
+    return value.charLength
 }
 fun main() {
     println(length("when")); println(length(42))

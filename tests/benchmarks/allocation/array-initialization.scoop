@@ -1,0 +1,54 @@
+@Extern(lib = "m34_interfaces", name = "bench_kind") fun benchKind(): Int
+@Extern(lib = "m34_interfaces", name = "bench_count") fun benchCount(): Int
+@Extern(lib = "m34_interfaces", name = "bench_begin") fun benchBegin(): Unit
+@Extern(lib = "m34_interfaces", name = "bench_end") fun benchEnd(): Unit
+
+fun longs(count: Long, seed: Long): MutableArray<Long> =
+    MutableArray<Long>(count) { i -> (i * 1664525L).xor(i.shr(3L)).xor(seed) }
+
+fun ints(count: Long, seed: Int): Array<Int> =
+    Array<Int>(count) { i -> i.toInt() * 1664525 + seed }
+
+fun booleans(count: Long, seed: Long): Array<Boolean> =
+    Array<Boolean>(count) { i -> i.and(7L) == seed.and(7L) }
+
+fun initialize(count: Long, mode: Int): Long {
+    var total = 0L
+    var round = 0L
+    val rounds = if (count < 256L) 100000L else 128L
+    while (round < rounds) {
+        if (mode == 0) {
+            val values = longs(count, round)
+            total += values[0L] + values[count - 1L]
+        } else if (mode == 1) {
+            val values = ints(count, round.toInt())
+            total += values[0L].toLong() + values[count - 1L].toLong()
+        } else {
+            val values = booleans(count, round)
+            total += (if (values[0L]) 1L else 0L) + (if (values[count - 1L]) 2L else 0L)
+        }
+        round += 1L
+    }
+    return total
+}
+
+@NoGC fun control(count: Long): Long {
+    var i = 0L
+    var state = 7L
+    while (i < count) {
+        state = state.xor(state.shl(13L)).and(4294967295L)
+        state = state.xor(state.shr(17L))
+        state = state.xor(state.shl(5L)).and(4294967295L)
+        i += 1L
+    }
+    return state
+}
+
+@Unsafe fun main() {
+    val count = benchCount().toLong()
+    val mode = benchKind()
+    benchBegin()
+    val result = if (mode < 3) initialize(count, mode) else control(count * 128L)
+    benchEnd()
+    println(result)
+}

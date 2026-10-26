@@ -23,7 +23,9 @@ fn stores_requested_dumps_and_finds_only_missing_stages() {
         vec![
             StageDumpKindV1::Hir,
             StageDumpKindV1::Mir,
-            StageDumpKindV1::Lir
+            StageDumpKindV1::Optimizations,
+            StageDumpKindV1::Lir,
+            StageDumpKindV1::Symbols
         ]
     );
     assert_eq!(std::fs::read(cache.join("ast.txt")).unwrap(), b"saved AST");

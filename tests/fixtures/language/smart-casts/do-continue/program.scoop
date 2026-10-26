@@ -3,6 +3,6 @@ fun length(value: Any, flag: Boolean): Long {
         if (flag) continue
         if (value !is String) return 0L
     } while (false)
-    return value.length
+    return value.charLength
 }
 fun main() {}

@@ -1,5 +1,7 @@
 use super::*;
 
+mod compare;
+
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn string_byte_length(
         &self,

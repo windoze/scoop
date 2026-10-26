@@ -23,7 +23,9 @@ fun main() {
         references[4000L] = Some(Node(100L + round))
         var index = 0L
         while (index < 20000L) {
-            total += Node(index).value
+            // Keep the allocation observable through a heap reference.
+            references[0L] = Some(Node(index))
+            total += references[0L]!!.value
             index += 1L
         }
         if (references[100L]!!.value != round || references[4000L]!!.value != 100L + round) {

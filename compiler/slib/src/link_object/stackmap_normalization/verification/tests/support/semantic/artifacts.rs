@@ -83,6 +83,7 @@ pub(super) fn static_storage_artifacts(module: &Module) -> StaticStorageArtifact
             GlobalInit::CString { .. }
             | GlobalInit::StringConst { .. }
             | GlobalInit::RawStorage { .. }
+            | GlobalInit::ImportedImmortal { .. }
             | GlobalInit::ImportedStorage { .. } => None,
         })
         .unwrap();

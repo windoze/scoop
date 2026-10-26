@@ -65,9 +65,8 @@ Module
         Type Int
         Local $inline.1.result
     bb2 inline.1.entry
-      call $inline.1.$dependency.local.2: Int = external0 direct
-        Type Item
-        Local value
+      goto bb4
+    bb3 inline.cont.3
       val $inline.1.$dependency.local.3: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
@@ -78,10 +77,17 @@ Module
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $inline.1.$dependency.local.2
+          Local $inline.3.result
           Type Int
           IntegerLiteral Int value=1 bits=0x00000001
       goto bb1
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Int
+        FieldAccess 0
+          Type Item
+          Local value
+      goto bb3
   fun externalBody @fn2(value: Int) -> Int
     bb0 entry
       goto bb2
@@ -230,23 +236,7 @@ Module
         Local $inline.12.result
       goto bb10
     bb13 inline.12.entry
-      call $inline.12.$dependency.local.2: Int = external0 direct
-        Type Item
-        Local $new.1
-      val $inline.12.$dependency.local.3: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $inline.12.$dependency.local.4: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      assign $inline.12.result
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $inline.12.$dependency.local.2
-          Type Int
-          IntegerLiteral Int value=1 bits=0x00000001
-      goto bb12
+      goto bb17
     bb14 inline.cont.14
       val $inline.8.$call.1: Int
         Type Int
@@ -269,11 +259,32 @@ Module
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
       goto bb14
+    bb16 inline.cont.16
+      val $inline.12.$dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.12.$dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.12.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.16.result
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb12
+    bb17 inline.16.entry
+      assign $inline.16.result
+        Type Int
+        FieldAccess 0
+          Type Item
+          Local $new.1
+      goto bb16
   fun generic @fn4(value: Item) -> Int
     bb0 entry
-      call $dependency.local.2: Int = external0 direct
-        Type Item
-        Local value
+      goto bb2
+    bb1 inline.cont.1
       val $dependency.local.3: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
@@ -284,17 +295,23 @@ Module
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.2
+          Local $inline.1.result
           Type Int
           IntegerLiteral Int value=1 bits=0x00000001
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Item
+          Local value
+      goto bb1
   fun println @fn5(value: String) -> Unit
     bb0 entry
-      call $dependency.local.2: String = external6 direct
-        Type String
-        Local value
+      goto bb2
+    bb1 inline.cont.1
       call external7 direct
         Type String
-        Local $dependency.local.2
+        Local value
       val $dependency.local.4: String
         Type String
         StringConst @str2
@@ -304,6 +321,11 @@ Module
       return
         Type Unit
         UnitLiteral
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type String
+        Local value
+      goto bb1
   instance mi0 function=@fn4 <- generic
   instance mi1 function=@fn5 <- println
   str @str0 "illegal state"

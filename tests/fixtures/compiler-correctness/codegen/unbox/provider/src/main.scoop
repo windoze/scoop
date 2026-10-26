@@ -1,0 +1,4 @@
+package dev.performance.boxes
+
+public struct Foreign(val text: String, val pair: (String, Long))
+public fun foreignBox(value: Foreign): Any = value

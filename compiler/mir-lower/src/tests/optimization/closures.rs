@@ -1,5 +1,6 @@
 use super::*;
 
+mod exception_paths;
 mod sample;
 
 fn scope(module: &mir::Module) -> mir::FunctionId {
@@ -44,19 +45,16 @@ fn environment_stays_until_the_callable_use_is_expanded() {
     assert_eq!(counts(&module), (1, 0, 0));
     let mut once = sample::sample(false, 2);
     run(&mut once, MirOptimizationOptions::RELEASE, 1);
-    assert_eq!(counts(&once), (1, 0, 0));
-    let mut twice = sample::sample(false, 2);
-    run(&mut twice, MirOptimizationOptions::RELEASE, 2);
-    assert_eq!(counts(&twice), (0, 0, 0));
+    assert_eq!(counts(&once), (0, 0, 0));
 }
 
 #[test]
 fn removing_the_environment_exposes_the_captured_box_in_the_next_round() {
-    let mut twice = sample::sample(true, 1);
-    run(&mut twice, MirOptimizationOptions::RELEASE, 2);
-    assert_eq!(counts(&twice), (0, 0, 1));
+    let mut once = sample::sample(true, 1);
+    run(&mut once, MirOptimizationOptions::RELEASE, 1);
+    assert_eq!(counts(&once), (0, 0, 1));
     let mut complete = sample::sample(true, 1);
-    run(&mut complete, MirOptimizationOptions::RELEASE, 3);
+    run(&mut complete, MirOptimizationOptions::RELEASE, 2);
     assert_eq!(counts(&complete), (0, 0, 0));
 }
 

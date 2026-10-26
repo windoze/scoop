@@ -18,7 +18,7 @@ private fun exercise(mode: String) {
     val loop: EventLoop = LibuvEventLoop()
     loop.run suspend { scope ->
         val body = if (mode == "length" || mode == "eof") "no" else ""
-        val length = if (mode == "eof") "" else "Content-Length: " + body.length.toString() + "\r\n"
+        val length = if (mode == "eof") "" else "Content-Length: " + body.charLength.toString() + "\r\n"
         val requestClose = mode == "request"
         val connection = if (requestClose) "" else "Connection: close\r\n"
         val transport = EarlyCloseTransport("HTTP/1.1 401 Unauthorized\r\n" + connection + length + "\r\n" + body)

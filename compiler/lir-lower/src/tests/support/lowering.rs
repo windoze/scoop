@@ -5,6 +5,13 @@ use super::*;
 pub(in crate::tests) fn lower_test_input(
     input: &mir::ConeMirInput,
 ) -> Result<lir::ConeLirOutput, LirLoweringError> {
+    lower_test_input_with_optimization(input, lir::OptimizationMode::Debug)
+}
+
+pub(in crate::tests) fn lower_test_input_with_optimization(
+    input: &mir::ConeMirInput,
+    optimization: lir::OptimizationMode,
+) -> Result<lir::ConeLirOutput, LirLoweringError> {
     let (provider_input, provider, _, _) = crate::tests::exact_callable_abi::fixture();
     let target = provider.module().meta.target_profile;
     let foundation = provider.foundation();
@@ -88,7 +95,8 @@ pub(in crate::tests) fn lower_test_input(
         &lir::SelectedExternalLirSet::empty(input.module().cone),
         target,
         Some(&selected),
-    )?;
+    )?
+    .with_optimization(optimization);
     let plans =
         scoop_abi_plan::plan(prepared.abi_input()).map_err(crate::StorageLoweringError::from)?;
     let lowered = crate::lowering::lower_graph(prepared, plans)?;

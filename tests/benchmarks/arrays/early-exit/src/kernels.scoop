@@ -1,0 +1,71 @@
+package dev.performance
+
+fun findIndex(values: Array<Long>, needle: Long): Long {
+    var i = 0L
+    while (i < values.size) {
+        if (values[i] == needle) return i
+        i += 1L
+    }
+    return -1L
+}
+
+fun findValue(values: Array<Long>, threshold: Long): Long {
+    var i = 0L
+    while (i < values.size) {
+        val value = values[i]
+        if (value < threshold) return value
+        i += 1L
+    }
+    return 0L
+}
+
+fun firstMismatch(left: Array<Int>, right: Array<Int>): Long {
+    var i = 0L
+    while (i < left.size) {
+        if (left[i] != right[i]) return i
+        i += 1L
+    }
+    return -1L
+}
+
+fun copyUntil(source: MutableArray<Int>, target: MutableArray<Int>, stop: Int): Long {
+    var i = 0L
+    while (i < source.size) {
+        val value = source[i]
+        if (value == stop) return i
+        target[i] = value * 3 + 1
+        i += 1L
+    }
+    return i
+}
+
+fun prefixDouble(values: Array<Double>, stop: Double): Double {
+    var i = 0L
+    var result = 0.0
+    while (i < values.size) {
+        val value = values[i]
+        if (value == stop) break
+        result += value
+        i += 1L
+    }
+    return result
+}
+
+class Found(val source: Array<Long>, val index: Long, val value: Long)
+
+fun findObject(values: Array<Long>, threshold: Long): Found {
+    var i = 0L
+    while (i < values.size) {
+        val value = values[i]
+        if (value < threshold) return Found(values, i, value)
+        i += 1L
+    }
+    return Found(values, -1L, 0L)
+}
+
+fun straightSum(values: Array<Long>): Long {
+    var i = 0L
+    var result = 0L
+    while (i < values.size) { result += values[i]; i += 1L }
+    return result
+}

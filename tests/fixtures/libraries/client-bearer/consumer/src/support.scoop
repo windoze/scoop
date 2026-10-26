@@ -58,7 +58,7 @@ internal suspend fun bearerRespond(connection: AsyncHttp1Connection, status: UIn
     for (field in extra) fields.add(field)
     connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, Some("actual Bearer response".toByteArray()), fields),
         Http1BodyFraming.Length(text.toByteArray().size)).useAsync suspend { output ->
-        if (text.length != 0L) bearerWrite(output, text)
+        if (text.charLength != 0L) bearerWrite(output, text)
         output.finish()
     }
 }

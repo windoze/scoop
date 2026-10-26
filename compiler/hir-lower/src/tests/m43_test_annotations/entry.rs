@@ -139,7 +139,7 @@ fn an_empty_generated_entry_survives_the_mir_entry_boundary() {
     .unwrap();
     let dependencies =
         scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, vec![callable]).unwrap();
-    let mir =
-        scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default()).unwrap();
+    let mir = scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default(), None)
+        .unwrap();
     assert_eq!(mir.module().cone, output.output().local.module().cone);
 }

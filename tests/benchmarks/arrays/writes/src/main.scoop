@@ -1,0 +1,72 @@
+package dev.performance
+
+@Extern(lib = "m34_interfaces", name = "bench_kind") fun benchKind(): Int
+@Extern(lib = "m34_interfaces", name = "bench_count") fun benchCount(): Int
+@Extern(lib = "m34_interfaces", name = "bench_begin") fun benchBegin(): Unit
+@Extern(lib = "m34_interfaces", name = "bench_end") fun benchEnd(): Unit
+
+interface Key { fun number(): Long }
+class Node(val value: Long) : Key { override fun number(): Long = value }
+struct Pair(val first: Node, val second: Node)
+struct Entry<T>(val tag: Long, val key: T, val value: Long)
+
+fun <T> write(source: Array<T>, target: MutableArray<Entry<T>>, round: Long) {
+    var i = 0L
+    while (i < source.size) {
+        target[i] = Entry(i, source[i], round)
+        i += 1L
+    }
+}
+
+@Unsafe fun <T> exercise(first: Array<T>, second: Array<T>, change: Boolean, read: (T) -> Long): Long {
+    val target = MutableArray<Entry<T>>(first.size) { i -> Entry(i, first[i], 0L) }
+    gcCollect()
+    var round = 0L
+    benchBegin()
+    while (round < 128L) {
+        write(if (change && round.and(1L) != 0L) second else first, target, round)
+        round += 1L
+    }
+    benchEnd()
+    var i = 0L
+    var result = 0L
+    while (i < target.size) {
+        val entry = target[i]
+        result += entry.tag + entry.value + read(entry.key)
+        i += 1L
+    }
+    return result
+}
+
+fun mixed(index: Long): Boolean =
+    (index.xor(index.shr(7L)) * 1664525L + 1013904223L).and(2147483648L) == 0L
+
+@Unsafe fun main() {
+    val count = benchCount().toLong()
+    val mode = benchKind()
+    val first = Node(7L)
+    val second = Node(11L)
+    if (mode < 4) {
+        val left = Array<Node?>(count) { _ -> if (mode == 3) None else Some(first) }
+        val right = Array<Node?>(count) { i -> if (mode == 2 && mixed(i)) Some(first) else Some(second) }
+        println(exercise(left, right, mode == 1 || mode == 2) { key ->
+            when (key) { case None -> 0L; case Some(value) -> value.value }
+        })
+    } else if (mode < 8) {
+        val a: Key = first
+        val b: Key = second
+        val left = Array<Key?>(count) { _ -> if (mode == 7) None else Some(a) }
+        val right = Array<Key?>(count) { i -> if (mode == 6 && mixed(i)) Some(a) else Some(b) }
+        println(exercise(left, right, mode == 5 || mode == 6) { key ->
+            when (key) { case None -> 0L; case Some(value) -> value.number() }
+        })
+    } else if (mode == 8) {
+        val left = Array<Pair>(count) { _ -> Pair(first, second) }
+        val right = Array<Pair>(count) { _ -> Pair(second, first) }
+        println(exercise(left, right, true) { key -> key.first.value + key.second.value })
+    } else {
+        val left = Array<Long>(count) { _ -> 7L }
+        val right = Array<Long>(count) { _ -> 11L }
+        println(exercise(left, right, true) { key -> key })
+    }
+}

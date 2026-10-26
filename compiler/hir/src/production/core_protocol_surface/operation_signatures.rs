@@ -96,6 +96,42 @@ pub(super) fn expected_operation_signature(
                 vec![string, long],
                 SignatureTypeKey::Nominal(fundamental.character),
             ),
+            crate::StringIntrinsic::CopyUtf8Unchecked => (
+                Effect::Ordinary,
+                vec![
+                    SignatureTypeKey::RawPointer(Box::new(signature_integer(
+                        fundamental,
+                        crate::IntegerKind::SIGNED_8,
+                    ))),
+                    long,
+                ],
+                string,
+            ),
+            crate::StringIntrinsic::SliceBytes => (
+                Effect::Ordinary,
+                vec![string.clone(), long.clone(), long],
+                string,
+            ),
+            crate::StringIntrinsic::FromBytes => (
+                Effect::Ordinary,
+                vec![signature_application(
+                    fundamental.array,
+                    signature_integer(fundamental, crate::IntegerKind::SIGNED_8),
+                )],
+                string,
+            ),
+            crate::StringIntrinsic::ToBytes | crate::StringIntrinsic::ToMutableBytes => (
+                Effect::Ordinary,
+                vec![string],
+                signature_application(
+                    if kind == crate::StringIntrinsic::ToBytes {
+                        fundamental.array
+                    } else {
+                        fundamental.mutable_array
+                    },
+                    signature_integer(fundamental, crate::IntegerKind::SIGNED_8),
+                ),
+            ),
         },
         IntrinsicFunctionKind::CoroutineStart => {
             let coroutine = &surface.coroutine_protocol;

@@ -20,6 +20,7 @@ fn missing_runtime_vendor_reports_the_selected_path() {
     let missing = directory.path().join("missing vendor");
     let failure = build_runtime(RuntimeBuildRequest {
         enable_gc_stress: false,
+        enable_startup_stats: false,
         target: &target,
         runtime_root: &runtime_root(),
         vendor_root: &missing,
@@ -33,7 +34,7 @@ fn missing_runtime_vendor_reports_the_selected_path() {
             .to_string()
             .contains(&format!("vendor source root {}:", missing.display()))
     );
-    assert!(!directory.path().join("runtime-v6").exists());
+    assert!(!directory.path().join("runtime-v7").exists());
 }
 
 #[test]
@@ -43,6 +44,7 @@ fn actual_runtime_objects_roundtrip_and_reuse_paths() {
     let build = || {
         build_runtime(RuntimeBuildRequest {
             enable_gc_stress: false,
+            enable_startup_stats: false,
             target: &target,
             runtime_root: &runtime_root(),
             vendor_root: &vendor_root(),
@@ -174,6 +176,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     let build = |optimization| {
         build_runtime(RuntimeBuildRequest {
             enable_gc_stress: false,
+            enable_startup_stats: false,
             target: &target,
             runtime_root: &source,
             vendor_root: &vendor,
@@ -214,7 +217,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     assert!(!build(RuntimeOptimization::None).cache_hit());
     assert!(!build(RuntimeOptimization::Optimized).cache_hit());
     let records = || {
-        std::fs::read_dir(cache.join("runtime-v6"))
+        std::fs::read_dir(cache.join("runtime-v7"))
             .unwrap()
             .map(|e| e.unwrap().path())
             .filter(|p| p.extension().is_some_and(|e| e == "json"))
@@ -225,6 +228,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     std::fs::write(&rt, "invalid C;\n").unwrap();
     let failed = build_runtime(RuntimeBuildRequest {
         enable_gc_stress: false,
+        enable_startup_stats: false,
         target: &target,
         runtime_root: &source,
         vendor_root: &vendor,
@@ -238,6 +242,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     assert!(
         build_runtime(RuntimeBuildRequest {
             enable_gc_stress: false,
+            enable_startup_stats: false,
             target: &target,
             runtime_root: &source,
             vendor_root: &vendor,

@@ -71,9 +71,8 @@ public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash {
     /**
      * Compares the two logical values.
      */
-    public override operator fun equals(other: Boolean): Boolean {
-        @Unsafe { return coreBooleanEquals(this, other) }
-    }
+    public override operator fun equals(other: Boolean): Boolean =
+        if (this) { other } else { !other }
 
 
     /**
@@ -85,14 +84,12 @@ public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash {
     /**
      * Returns `true` or `false`.
      */
-    public override fun toString(): String = coreBooleanToString(this)
+    public override fun toString(): String = if (this) { "true" } else { "false" }
 
     /**
      * Returns a hash consistent with Boolean equality.
      */
-    public override fun hash(): Long {
-        @Unsafe { return coreBooleanHash(this) }
-    }
+    public override fun hash(): Long = if (this) { 1L } else { 0L }
 
     /**
      * Inspection and serialization operations for this value type.
@@ -118,30 +115,14 @@ public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash {
     }
 }
 
-// Representation-level fallbacks used by ordinary source methods. Integer
-// equality and all fixed-width arithmetic stay compiler intrinsics.
-@GCLeaf
-@Extern(name = "scoop_rt_bool_equals", abi = "c")
-internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+// Preserve the existing word hash using fixed-width wrapping arithmetic.
+@NoGC
+internal fun coreLongHash(input: Long): Long = coreULongHash(input.toULong())
 
-
-@Extern(name = "scoop_rt_long_to_string", abi = "scoop")
-internal fun coreLongToString(value: Long): String
-
-@Extern(name = "scoop_rt_ulong_to_string", abi = "scoop")
-internal fun coreULongToString(value: ULong): String
-
-@Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
-internal fun coreBooleanToString(value: Boolean): String
-
-@GCLeaf
-@Extern(name = "scoop_rt_long_hash", abi = "c")
-internal fun coreLongHash(value: Long): Long
-
-@GCLeaf
-@Extern(name = "scoop_rt_ulong_hash", abi = "c")
-internal fun coreULongHash(value: ULong): Long
-
-@GCLeaf
-@Extern(name = "scoop_rt_bool_hash", abi = "c")
-internal fun coreBooleanHash(value: Boolean): Long
+@NoGC
+internal fun coreULongHash(input: ULong): Long {
+    var value = input
+    value = value.xor(value.shr(30L)) * 0xbf58476d1ce4e5b9uL
+    value = value.xor(value.shr(27L)) * 0x94d049bb133111ebuL
+    return value.xor(value.shr(31L)).toLong()
+}

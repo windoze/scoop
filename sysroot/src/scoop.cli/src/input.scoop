@@ -27,8 +27,8 @@ internal fun inputError(path: String, source: Option<CliSource>, message: String
     throw DecodingException(path, detail)
 }
 
-internal fun optionToken(text: String): Boolean = text.length >= 2L && text[0L] == '-' &&
-    (text[1L] == '-' || asciiLetter(text[1L]))
+internal fun optionToken(text: String): Boolean = text.charLength >= 2L && text.getCharAt(0L) == '-' &&
+    (text.getCharAt(1L) == '-' || asciiLetter(text.getCharAt(1L)))
 
 internal fun findAlias(entries: Array<CliEntry>, name: String): Option<CliAlias> {
     for (index in 0L until entries.size) {

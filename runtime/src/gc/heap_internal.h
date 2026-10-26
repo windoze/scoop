@@ -19,7 +19,8 @@
 #define GC_LINE_BITMAP_WORDS (GC_LINES_PER_BLOCK / 64)
 #define GC_REGULAR_MAX (GC_BLOCK_SIZE - GC_LINE_SIZE)
 #define GC_INITIAL_THRESHOLD ((size_t)16 << 20)
-#define GC_NURSERY_CAPACITY ((size_t)1 << 20)
+#define GC_NURSERY_MIN_CAPACITY ((size_t)1 << 20)
+#define GC_NURSERY_DEFAULT_MAX_CAPACITY ((size_t)32 << 20)
 #define GC_REGION_SIZE ((size_t)16 << 20)
 #define GC_REGION_BLOCKS (GC_REGION_SIZE / GC_BLOCK_SIZE)
 #define GC_CHUNK_SHIFT 16
@@ -27,6 +28,8 @@
 #define GC_RADIX_BITS 12
 #define GC_RADIX_ENTRIES ((size_t)1 << GC_RADIX_BITS)
 #define GC_CARD_SHIFT 9
+#define GC_CARD_GROUP_SHIFT 6
+#define GC_CARDS_PER_GROUP ((size_t)1 << GC_CARD_GROUP_SHIFT)
 #define GC_PIN_BIT UINT64_C(2)
 #define GC_RELEASE_READY_BIT UINT64_C(4)
 #define GC_POISON_BYTE ((unsigned char)0xA5)
@@ -54,17 +57,31 @@ typedef enum ScoopGcGeneration {
 
 typedef struct ScoopGcRegion ScoopGcRegion;
 
+typedef struct ScoopGcCardGroup {
+    /* Null until claimed; a self link terminates the published dirty list. */
+    _Atomic(struct ScoopGcCardGroup *) next;
+    ScoopGcRegion *region;
+} ScoopGcCardGroup;
+
 typedef struct ScoopGcBlockMeta {
     ScoopGcRegion *region;
-    struct ScoopGcBlockMeta *next_free;
+    union {
+        struct ScoopGcBlockMeta *next_free;
+        /* Active young blocks and newly reserved targets are never on the free list. */
+        struct ScoopGcBlockMeta *next_collection;
+    };
     uint16_t index;
+    bool survivor;
+    bool retained_young;
     ScoopGcBlockState state;
     ScoopGcBlockKind kind;
     ScoopGcGeneration generation;
     uint64_t *starts;
     uint64_t *marks;
     uint64_t *pins;
+#if SCOOP_GC_TRACK_RELOCATION
     uint64_t *scanned;
+#endif
     uint64_t *line_occupied;
     uint64_t *line_live;
     uint16_t *size_units;
@@ -77,7 +94,9 @@ typedef struct ScoopGcBlockMeta {
     bool large_published;
     bool large_marked;
     bool large_pinned;
+#if SCOOP_GC_TRACK_RELOCATION
     bool large_scanned;
+#endif
     bool discard_pending;
 } ScoopGcBlockMeta;
 
@@ -86,6 +105,7 @@ struct ScoopGcRegion {
     uintptr_t base;
     size_t size;
     unsigned char *cards;
+    ScoopGcCardGroup *card_groups;
     ScoopGcRegion *next;
     ScoopGcBlockMeta *blocks;
     uint16_t next_block;
@@ -94,13 +114,20 @@ struct ScoopGcRegion {
     bool evacuation_source;
     bool evacuation_destination;
     size_t collection_live_bytes;
+    ScoopGcRegion *next_available;
 };
 
 _Static_assert(sizeof(uintptr_t) == 8 && GC_CHUNK_SHIFT + 4 * GC_RADIX_BITS == 64,
                "page map must cover every target address bit");
 _Static_assert(offsetof(ScoopGcRegion, base) == 0 && offsetof(ScoopGcRegion, size) == 8 &&
-                   offsetof(ScoopGcRegion, cards) == 16,
+                   offsetof(ScoopGcRegion, cards) == 16 &&
+                   offsetof(ScoopGcRegion, card_groups) == 24,
                "generated region metadata prefix drifted");
+_Static_assert(sizeof(ScoopGcCardGroup) == 16 && offsetof(ScoopGcCardGroup, next) == 0 &&
+                   offsetof(ScoopGcCardGroup, region) == 8 && _Alignof(ScoopGcCardGroup) == 8,
+               "generated card group layout drifted");
+_Static_assert(GC_CARDS_PER_GROUP << GC_CARD_SHIFT == GC_BLOCK_SIZE,
+               "one dirty card group covers one ordinary block");
 
 typedef struct ScoopGcFreeRun {
     struct ScoopGcFreeRun *next;
@@ -112,7 +139,7 @@ typedef struct ScoopGcFreeRun {
 typedef struct ScoopGcHeapState {
     pthread_mutex_t lock;
     ScoopGcRegion *regions;
-    ScoopGcRegion *allocation_region;
+    ScoopGcRegion *available_regions;
     ScoopGcBlockMeta *free_blocks;
     ScoopGcFreeRun *free_runs;
     size_t committed_bytes;
@@ -128,9 +155,15 @@ typedef struct ScoopGcHeapState {
     bool stress_minor;
 #endif
     bool full_only;
+    bool survivor_enabled;
     bool print_metrics;
     bool collection_active;
     size_t nursery_bytes;
+    size_t nursery_capacity;
+    size_t nursery_limit;
+    size_t nursery_floor;
+    unsigned nursery_low_survival_collections;
+    uint64_t survivor_objects;
     ScoopGcMetrics metrics;
     uint64_t copied_bytes;
     uint64_t minor_pause_ns;
@@ -142,9 +175,21 @@ typedef struct ScoopGcHeapState {
     char *evacuation_cursor;
     char *evacuation_limit;
     uint64_t moved_objects;
+    ScoopGcBlockMeta *young_blocks;
+    ScoopGcBlockMeta *evacuation_targets;
+    _Atomic(ScoopGcCardGroup *) dirty_card_groups;
 } ScoopGcHeapState;
 
 extern ScoopGcHeapState scoop_gc_heap_state;
+
+static inline bool scoop_heap_adaptive_nursery_enabled(void) {
+#if SCOOP_ENABLE_GC_STRESS
+    if (scoop_gc_heap_state.stress_move || scoop_gc_heap_state.stress_minor) {
+        return false;
+    }
+#endif
+    return !scoop_gc_heap_state.full_only;
+}
 
 /* Short aliases are confined to the private heap implementation modules. */
 #define heap_lock (scoop_gc_heap_state.lock)
@@ -186,13 +231,27 @@ extern ScoopGcHeapState scoop_gc_heap_state;
 _Noreturn void scoop_heap_fatal(const char *message);
 void scoop_heap_lock(void);
 void scoop_heap_unlock(void);
-void *scoop_heap_block_base(const ScoopGcBlockMeta *block);
+static inline void *scoop_heap_block_base(const ScoopGcBlockMeta *block) {
+    return (void *)(block->region->base + (size_t)block->index * GC_BLOCK_SIZE);
+}
 size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block);
 bool scoop_heap_active_head(const ScoopGcBlockMeta *block);
 void scoop_heap_require_ready(void);
 void scoop_heap_free_run_nodes(void);
+void scoop_heap_clear_dirty_card_groups(bool retain_survivors);
+static inline ScoopGcCardGroup *scoop_heap_next_dirty_card_group(ScoopGcCardGroup *group) {
+    ScoopGcCardGroup *next = atomic_load_explicit(&group->next, memory_order_relaxed);
+    return next == group ? NULL : next;
+}
 ScoopGcBlockMeta *scoop_heap_first_block(void);
 ScoopGcBlockMeta *scoop_heap_next_block(const ScoopGcBlockMeta *block);
+static inline ScoopGcBlockMeta *scoop_heap_first_collection_block(bool minor) {
+    return minor ? scoop_gc_heap_state.young_blocks : scoop_heap_first_block();
+}
+static inline ScoopGcBlockMeta *scoop_heap_next_collection_block(const ScoopGcBlockMeta *block,
+                                                                 bool minor) {
+    return minor ? block->next_collection : scoop_heap_next_block(block);
+}
 ScoopGcBlockMeta *scoop_heap_pointer_block(const void *pointer);
 bool scoop_heap_bit_test(const uint64_t *bits, size_t index);
 void scoop_heap_bit_set(uint64_t *bits, size_t index);
@@ -202,10 +261,11 @@ ScoopGcBlockMeta *scoop_heap_activate_large_block(size_t exact_size, ScoopGcBloc
 bool scoop_heap_object_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
 /* False only outside the heap; invalid heap references fail in every build. */
 bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
-void *scoop_heap_claim_relocated_object(void *object);
+#if SCOOP_GC_TRACK_RELOCATION
+void scoop_heap_claim_current_object(void *object);
 bool scoop_gc_object_was_scanned_locked(const void *object);
-void scoop_heap_record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size,
-                                    bool marked);
+#endif
+void scoop_heap_record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size);
 void scoop_heap_publish_large_object(ScoopGcBlockMeta *block, bool marked);
 void scoop_heap_release_block(ScoopGcBlockMeta *block);
 void scoop_heap_quarantine_block(ScoopGcBlockMeta *block);
@@ -214,7 +274,9 @@ ScoopGcBlockMeta *scoop_heap_take_free_run(size_t size, char **cursor, char **li
 bool scoop_heap_object_pinned(const ScoopGcBlockMeta *block, size_t word);
 bool scoop_heap_object_marked(const ScoopGcBlockMeta *block, size_t word);
 bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block);
-size_t scoop_heap_select_evacuation_sources(bool minor);
+struct ScoopGcSurvivors;
+size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity,
+                                             struct ScoopGcSurvivors *survivors);
 void scoop_heap_prepare_evacuation_targets(void);
 void scoop_heap_finish_block(ScoopGcBlockMeta *block, bool stress);
 

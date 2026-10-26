@@ -12,6 +12,7 @@ struct SymbolPlan {
     order: usize,
     group: usize,
     linkage: LinkageClass,
+    dispatch: bool,
 }
 
 pub(crate) struct SymbolPlanIndex {
@@ -39,6 +40,8 @@ impl SymbolPlanIndex {
                         order,
                         group,
                         linkage: request.linkage(),
+                        dispatch: plan.definition_role()
+                            == scoop_lir::StrongDefinitionRole::DispatchTable,
                     });
                 order += 1;
             }
@@ -86,9 +89,17 @@ impl SymbolPlanIndex {
             if !local_owner {
                 owner.set_linkage(Linkage::WeakODR);
             }
-            let group = &self.groups[plan.group];
-            if let Some(previous) = owners.insert(owner.as_value_ref() as usize, plan.group)
-                && previous != plan.group
+            let group_index = if plan.dispatch {
+                self.symbols
+                    .get(owner.get_name().to_bytes())
+                    .and_then(|plans| plans.iter().find(|plan| plan.dispatch))
+                    .map_or(plan.group, |plan| plan.group)
+            } else {
+                plan.group
+            };
+            let group = &self.groups[group_index];
+            if let Some(previous) = owners.insert(owner.as_value_ref() as usize, group_index)
+                && previous != group_index
             {
                 return Err(CodegenError(format!(
                     "ELF global belongs to two definition groups: {} and {group}",

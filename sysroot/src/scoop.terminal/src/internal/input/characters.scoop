@@ -27,7 +27,7 @@ internal fun InputParser.continueUtf8(byte: Int, now: Duration) {
     if (pending.size < utf8Width) return
     val text = String.fromUtf8OrNone(pending)
     if (text == None) emit(InputItem.Invalid("invalid UTF-8 scalar"))
-    else emit(withAlt(characterKey(text!![0L])))
+    else emit(withAlt(characterKey(text!!.getCharAt(0L))))
 }
 
 private fun InputParser.withAlt(event: KeyEvent): InputItem =

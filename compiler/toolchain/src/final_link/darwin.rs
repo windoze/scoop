@@ -23,10 +23,10 @@ const OPTIONS: &[&str] = &[
     "-no_fixup_chains",
     "-no_implicit_dylibs",
     "-adhoc_codesign",
+    // Persistent Scoop definitions are resolved within the executable's
+    // static Cone closure, including ODR selection and callback addresses.
     "-unexported_symbol",
-    "_scoop$1$bs$*",
-    "-unexported_symbol",
-    "_scoop$1$be$*",
+    "_scoop$1$*",
     "-rename_section",
     "__LLVM_STACKMAPS",
     "__llvm_stackmaps",

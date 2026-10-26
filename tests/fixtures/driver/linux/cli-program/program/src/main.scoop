@@ -5,7 +5,7 @@ fun message(): String {
     val first = Box("Linux ")
     val second = Box("amd64")
     val joined = first.text + second.text
-    if (first.text.length != 6L || second.text.length != 5L) {
+    if (first.text.charLength != 6L || second.text.charLength != 5L) {
         throw IllegalStateException()
     }
     return joined

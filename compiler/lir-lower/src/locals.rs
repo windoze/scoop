@@ -10,6 +10,16 @@ use scoop_mir as mir;
 pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
     fn collect_expr(value: &mir::Expr, out: &mut HashSet<mir::LocalId>) {
         match &value.kind {
+            mir::ExprKind::StringCopy(operation) => {
+                for value in operation.operands() {
+                    collect_expr(value, out);
+                }
+            }
+            mir::ExprKind::StringConcat(parts) => {
+                for value in parts.iter().filter_map(mir::StringConcatPart::value) {
+                    collect_expr(value, out);
+                }
+            }
             mir::ExprKind::MaybeUninit { operation, .. } => {
                 if let Some(operand) = operation.operand() {
                     collect_expr(operand, out);

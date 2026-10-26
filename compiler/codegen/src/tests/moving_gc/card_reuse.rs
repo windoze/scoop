@@ -30,7 +30,7 @@ fn fixture(instructions: Vec<Instruction>) -> Module {
 fn assert_work(module: &Module, lookups: usize, marks: usize) {
     let ir = ir_of(module);
     assert_eq!(ir.matches("load atomic ptr").count(), lookups * 4, "{ir}");
-    assert_eq!(ir.matches("atomicrmw or ptr ").count(), marks, "{ir}");
+    assert_eq!(ir.matches("store atomic i8 1, ptr ").count(), marks, "{ir}");
 }
 
 #[test]

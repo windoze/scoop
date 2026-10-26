@@ -5,6 +5,8 @@ use scoop_identity::{
     ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrMemberId, StrongDefinitionRole,
 };
 
+mod reachable;
+
 #[derive(Default)]
 pub(crate) struct SelectedMembers {
     members: BTreeSet<(ConeIdentity, SlibMemberId)>,
@@ -12,7 +14,10 @@ pub(crate) struct SelectedMembers {
 }
 
 impl SelectedMembers {
-    pub(super) fn new(closure: &ProgramLinkClosure) -> Result<Self, LinkError> {
+    pub(super) fn new<'a>(
+        closure: &ProgramLinkClosure,
+        native_references: impl Iterator<Item = &'a str>,
+    ) -> Result<Self, LinkError> {
         let mut result = Self::default();
         let mut shared = BTreeSet::<OdrMemberId>::new();
         let mut artifacts: Vec<_> = closure.artifacts().collect();
@@ -54,6 +59,39 @@ impl SelectedMembers {
                     Some(plan) => Some(plan.1.owner),
                     None if plans.len() == 1 => Some(plans[0].1.owner),
                     None => {
+                        if plans.iter().all(|plan| {
+                            plan.1.role == StrongDefinitionRole::DispatchTable
+                                && matches!(plan.1.owner, ObjectDefinitionPlanOwner::Odr { .. })
+                        }) {
+                            // Complete interface arrays and their parent aliases
+                            // share bytes and must be selected as one physical unit.
+                            let members = plans
+                                .iter()
+                                .map(|plan| {
+                                    let ObjectDefinitionPlanOwner::Odr { member } = plan.1.owner
+                                    else {
+                                        unreachable!("ODR dispatch group")
+                                    };
+                                    member
+                                })
+                                .collect::<Vec<_>>();
+                            let present = members
+                                .iter()
+                                .filter(|member| shared.contains(member))
+                                .count();
+                            if present == members.len() {
+                                continue;
+                            }
+                            if present != 0 {
+                                return Err(error(format!(
+                                    "Cone {cone}: shared interface table storage has inconsistent physical grouping"
+                                )));
+                            }
+                            shared.extend(members);
+                            result.members.insert((cone, member.member()));
+                            selected.extend(plans.iter().map(|plan| plan.0));
+                            continue;
+                        }
                         if plans.iter().any(|plan| {
                             matches!(plan.1.owner, ObjectDefinitionPlanOwner::Odr { .. })
                         }) {
@@ -73,6 +111,7 @@ impl SelectedMembers {
                 selected.extend(plans.iter().map(|plan| plan.0));
             }
         }
+        result.retain_reachable(closure, native_references)?;
         Ok(result)
     }
 

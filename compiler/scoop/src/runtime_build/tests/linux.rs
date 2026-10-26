@@ -16,6 +16,7 @@ fn musl_runtime_captures_selected_unwind_headers_without_needing_the_archive() {
     let build = || {
         build_runtime(RuntimeBuildRequest {
             enable_gc_stress: false,
+            enable_startup_stats: false,
             target: &target,
             runtime_root: &runtime_root(),
             vendor_root: &vendor_root(),

@@ -1,6 +1,6 @@
 fun length(value: Any): Long {
     try { if (value !is String) return 0L }
     finally { println("finally") }
-    return value.length
+    return value.charLength
 }
 fun main() { println(length("hello")); println(length(42)) }

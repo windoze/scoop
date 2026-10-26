@@ -69,7 +69,7 @@ struct DecodedDumpDescriptorV1 {
 impl DecodedDumpDescriptorV1 {
     fn validate(self) -> Result<EmittedDumpDescriptorV1, ProtocolValidationError> {
         Ok(EmittedDumpDescriptorV1::new(
-            decode_stage(self.stage)?,
+            StageDumpKindV1::from_tag(self.stage)?,
             self.destination.validate()?,
         ))
     }
@@ -345,18 +345,5 @@ impl WireDecode for DecodedScoopcResponseEnvelopeV1 {
             version,
             response,
         })
-    }
-}
-
-fn decode_stage(tag: u64) -> Result<StageDumpKindV1, ProtocolValidationError> {
-    match tag {
-        1 => Ok(StageDumpKindV1::Ast),
-        2 => Ok(StageDumpKindV1::Hir),
-        3 => Ok(StageDumpKindV1::Mir),
-        4 => Ok(StageDumpKindV1::Lir),
-        _ => Err(ProtocolValidationError::UnknownEnumTag {
-            kind: "stage dump",
-            tag,
-        }),
     }
 }

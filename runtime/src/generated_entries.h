@@ -12,14 +12,45 @@
  * call any entry declared here directly. */
 
 /* Per-thread TLAB ABI used only by generated allocation sequences. */
+typedef struct ScoopGcAllocationCounters {
+    _Atomic(uint64_t) objects;
+    _Atomic(uint64_t) nursery_objects;
+    _Atomic(uint64_t) bytes;
+    _Atomic(uint64_t) nursery_bytes;
+} ScoopGcAllocationCounters;
+
 typedef struct ScoopAllocationContext {
     char *cursor;
     char *limit;
+    char *block_start;
+    uint16_t *size_units;
+    uint64_t *starts;
+    uint64_t *line_occupied;
+    ScoopGcAllocationCounters *counters;
 } ScoopAllocationContext;
+
+_Static_assert(sizeof(ScoopAllocationContext) == 56 && _Alignof(ScoopAllocationContext) == 8,
+               "generated allocation context layout drifted");
+_Static_assert(offsetof(ScoopAllocationContext, cursor) == 0 &&
+                   offsetof(ScoopAllocationContext, limit) == 8 &&
+                   offsetof(ScoopAllocationContext, block_start) == 16 &&
+                   offsetof(ScoopAllocationContext, size_units) == 24 &&
+                   offsetof(ScoopAllocationContext, starts) == 32 &&
+                   offsetof(ScoopAllocationContext, line_occupied) == 40 &&
+                   offsetof(ScoopAllocationContext, counters) == 48,
+               "generated allocation context offsets drifted");
+_Static_assert(sizeof(ScoopGcAllocationCounters) == 32 &&
+                   _Alignof(ScoopGcAllocationCounters) == 8 &&
+                   offsetof(ScoopGcAllocationCounters, objects) == 0 &&
+                   offsetof(ScoopGcAllocationCounters, nursery_objects) == 8 &&
+                   offsetof(ScoopGcAllocationCounters, bytes) == 16 &&
+                   offsetof(ScoopGcAllocationCounters, nursery_bytes) == 24,
+               "generated allocation counters layout drifted");
 
 extern _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
 
-/* One view of the registered thread's actual mode and acknowledged epoch. */
+/* Only the owning thread writes this state. Generated owner reads may be
+ * relaxed; collectors retain acquire/seq_cst reads of other threads. */
 typedef struct ScoopPollState {
     _Atomic(uint32_t) mode;
     _Atomic(uint64_t) observed_gc_epoch;
@@ -32,6 +63,9 @@ _Static_assert(offsetof(ScoopPollState, mode) == 0 &&
                "generated poll state offsets drifted");
 
 extern _Thread_local ScoopPollState *scoop_rt_poll_state;
+/* Native address of the existing thread root, not another managed root. */
+struct ScoopTaskContext;
+extern _Thread_local struct ScoopTaskContext **scoop_rt_context_slot;
 extern _Atomic(uint32_t) scoop_thread_world_phase;
 extern _Atomic(uint64_t) scoop_thread_gc_epoch;
 

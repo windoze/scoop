@@ -44,6 +44,9 @@ impl BoxedValueDescriptor {
             return Err(BoxDescriptorError::PayloadIdentityMismatch);
         }
 
+        let instance_layout =
+            AbiNonZeroLayout::new(shape.minimum_size(), shape.instance_alignment())
+                .map_err(|_| BoxDescriptorError::InvalidValueLayout)?;
         match shape.inline_storage_kind() {
             InlineStorageKindV1::ZeroSized => {
                 let layout = AbiZeroSizedLayout::new(shape.inline_alignment())
@@ -53,6 +56,7 @@ impl BoxedValueDescriptor {
                 Ok(Self::ZeroSized(BoxedZstDescriptor {
                     descriptor,
                     descriptor_exact,
+                    instance_layout,
                     value: LogicalZstValue::new(payload_exact, representation),
                 }))
             }
@@ -64,6 +68,7 @@ impl BoxedValueDescriptor {
                 Ok(Self::NonZero(BoxedNonZeroDescriptor {
                     descriptor,
                     descriptor_exact,
+                    instance_layout,
                     payload_exact,
                     payload_offset: shape.inline_offset(),
                     value,

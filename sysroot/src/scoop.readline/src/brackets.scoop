@@ -29,23 +29,23 @@ public class MatchingBracketValidator public constructor() : Validator {
 public class MatchingBracketHighlighter public constructor() : Highlighter {
     public override fun highlight(line: String, cursor: Long): String {
         if (line.byteLength == 0L) return line
-        var index = if (cursor == line.length) cursor - 1L else cursor
-        if (closingBracket(line[index]) == None && openingBracket(line[index]) == None) {
+        var index = if (cursor == line.charLength) cursor - 1L else cursor
+        if (closingBracket(line.getCharAt(index)) == None && openingBracket(line.getCharAt(index)) == None) {
             if (index == 0L) return line
             index -= 1L
         }
-        val source = line[index]
+        val source = line.getCharAt(index)
         val forward = closingBracket(source) != None
         val target = if (forward) closingBracket(source) else openingBracket(source)
         if (target == None) return line
         var depth = 1L
         index += if (forward) 1L else -1L
-        while (index >= 0L && index < line.length) {
-            if (line[index] == source) depth += 1L
-            else if (line[index] == target!!) depth -= 1L
+        while (index >= 0L && index < line.charLength) {
+            if (line.getCharAt(index) == source) depth += 1L
+            else if (line.getCharAt(index) == target!!) depth -= 1L
             if (depth == 0L) {
-                return line.slice(0L, index) + "\u001b[1;34m" + line[index].toString() +
-                    "\u001b[0m" + line.slice(index + 1L, line.length)
+                return line.slice(0L, index) + "\u001b[1;34m" + line.getCharAt(index).toString() +
+                    "\u001b[0m" + line.slice(index + 1L, line.charLength)
             }
             index += if (forward) 1L else -1L
         }

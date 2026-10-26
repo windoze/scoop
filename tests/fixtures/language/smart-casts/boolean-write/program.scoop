@@ -2,5 +2,5 @@ fun main() {
     var value: Any = "before"
     val matches = value is String
     value = 42
-    if (matches) println(value.length)
+    if (matches) println(value.charLength)
 }

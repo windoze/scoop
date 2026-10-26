@@ -1,0 +1,34 @@
+public interface Parent { public fun value(): Long }
+public interface Child : Parent { public fun extra(): Long }
+class Left(val number: Long) : Child {
+    public override fun value(): Long = number
+    public override fun extra(): Long = number + 1L
+}
+class Right(val number: Long) : Child {
+    public override fun value(): Long = number * 2L
+    public override fun extra(): Long = number + 2L
+}
+public fun copies(input: Array<Child>, output: MutableArray<Parent>): Long {
+    var source = input
+    var total = 0L
+    var round = 0L
+    while (round < 500000L) {
+        if (round % 1000L == 0L) { source = source.toMutableArray().toArray() }
+        var index = 0L
+        while (index < source.size) {
+            val child = source[index]
+            val snapshot = child
+            val parent: Parent = snapshot
+            output[index] = parent
+            total += output[index].value()
+            index += 1L
+        }
+        round += 1L
+    }
+    return total
+}
+fun main() {
+    val source = Array<Child>(64L) { index -> if (index % 2L == 0L) Left(index) else Right(index) }
+    val output = MutableArray<Parent>(64L) { index -> source[index] }
+    println(copies(source, output))
+}

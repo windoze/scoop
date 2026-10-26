@@ -23,7 +23,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${build.result.dependencies.length}", equals = 5}]
+checks = [{actual = "${build.result.dependencies.length}", equals = 6}]
 
 [[steps]]
 name = "run"
@@ -34,7 +34,7 @@ stderr = ""
 
 [[steps]]
 name = "relink"
-argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.4.path}", "--dependency-slib", "${build.result.dependencies.3.path}", "--dependency-slib", "${build.result.dependencies.2.path}", "--dependency-slib", "${build.result.dependencies.1.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/relinked", "--message-format", "json"]
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.5.path}", "--dependency-slib", "${build.result.dependencies.4.path}", "--dependency-slib", "${build.result.dependencies.3.path}", "--dependency-slib", "${build.result.dependencies.2.path}", "--dependency-slib", "${build.result.dependencies.1.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/relinked", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

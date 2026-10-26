@@ -1,0 +1,56 @@
+package dev.performance
+
+fun generatedFloat(count: Long, seed: Float): MutableArray<Float> =
+    MutableArray<Float>(count) { i -> i.and(1023L).toFloat() * 0.25f + seed }
+
+fun generatedDouble(count: Long, seed: Double): MutableArray<Double> =
+    MutableArray<Double>(count) { i -> i.and(1023L).toDouble() * 0.25 + seed }
+
+fun transformFloat(source: MutableArray<Float>, target: MutableArray<Float>, scale: Float, bias: Float) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i] * scale + bias; i += 1L }
+}
+
+fun transformDouble(source: MutableArray<Double>, target: MutableArray<Double>, scale: Double, bias: Double) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i] * scale + bias; i += 1L }
+}
+
+fun divideFloat(source: MutableArray<Float>, target: MutableArray<Float>, divisor: Float) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i] / divisor; i += 1L }
+}
+
+fun divideDouble(source: MutableArray<Double>, target: MutableArray<Double>, divisor: Double) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i] / divisor; i += 1L }
+}
+
+fun sumFloat(values: MutableArray<Float>): Float {
+    var i = 0L
+    var result = 0f
+    while (i < values.size) { result += values[i]; i += 1L }
+    return result
+}
+
+fun sumDouble(values: MutableArray<Double>): Double {
+    var i = 0L
+    var result = 0.0
+    while (i < values.size) { result += values[i]; i += 1L }
+    return result
+}
+
+fun narrow(source: MutableArray<Double>, target: MutableArray<Float>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i].toFloat(); i += 1L }
+}
+
+fun copyFloat(source: MutableArray<Float>, target: MutableArray<Float>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun copyDouble(source: MutableArray<Double>, target: MutableArray<Double>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}

@@ -89,7 +89,6 @@ Module
     local %9 $inline.1.number: f64
     local %10 $inline.1.tag: i64
   block entry
-    poll activation managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = extract param1, 0 : f64
     store t0 -> local3
     t1 = extract param1, 1 : i64
@@ -113,7 +112,6 @@ Module
     ret param0
   fun @scoop$1$cb$870158bbf17a69089498d7cfef79f1aff84cc65ff5164509e3047f72557788f3(parts<struct2 [[3xf32]@0+12/4]>) -> parts<struct2 [[3xf32]@0+12/4]>
   block entry
-    poll activation managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
   fun @scoop$1$cb$10127e4bb27fb9a8081c89368e76c995522a9ee83de3786b08aacc66e27729db(i64, i64, i64, i64, i64, i64, parts<struct0 [[2xi64]@0+16/8]>, f64) -> parts<struct0 [[2xi64]@0+16/8]>
     local %0 $dependency.receiver: i64

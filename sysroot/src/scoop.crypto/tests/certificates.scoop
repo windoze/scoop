@@ -112,7 +112,7 @@ private fun requireFailure(result: Result<Unit, CertificateValidationFailure>, c
         case Result.Failure(error) -> {
             assertEquals(code, error.code)
             assertTrue(error.depth >= 0)
-            assertTrue(error.detail.length > 0L)
+            assertTrue(error.detail.charLength > 0L)
         }
     }
 }

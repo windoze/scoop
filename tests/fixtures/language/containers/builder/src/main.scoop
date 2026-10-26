@@ -27,7 +27,7 @@ fun main() {
     while (index < 257) { builder.append(index); index += 1 }
     gcCollect()
     val text = builder.toString()
-    check(text.length == 673L, 3)
+    check(text.charLength == 673L, 3)
     check(builder.toString() == text && first == "雪🙂", 4)
     val list = ArrayList<Int?>()
     list.add(None)

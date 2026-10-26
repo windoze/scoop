@@ -137,6 +137,7 @@ pub(super) fn check(
         provider,
     );
     let output = crate::lir_pipeline::lower_with_layout_dependencies(
+        scoop_lir::OptimizationMode::Debug,
         input.mir,
         callables,
         provider.target.lir_target(),

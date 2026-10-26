@@ -29,7 +29,7 @@ public struct Char : Compare<Char>, Equals<Char>, ToString, Hash {
     /**
      * Encodes this one scalar as a UTF-8 string.
      */
-    public override fun toString(): String = coreCharToString(this)
+    public override fun toString(): String = coreCharToString(code.toUInt())
     /**
      * Returns the Unicode scalar number as a Long.
      */
@@ -57,10 +57,10 @@ public struct Char : Compare<Char>, Equals<Char>, ToString, Hash {
          */
         public override fun decode(decoder: Decoder): Char {
             val text = decoder.singleValue().readString()
-            if (text.length != 1L) {
+            if (text.charLength != 1L) {
                 throw DecodingException(decoder.path, "expected one Unicode scalar")
             }
-            return text[0L]
+            return text.getCharAt(0L)
         }
     }
 }
@@ -75,6 +75,3 @@ public fun Int.toChar(): Char {
     }
     @Unsafe { return this.characterUnchecked() }
 }
-
-@Extern(name = "scoop_rt_char_to_string", abi = "scoop")
-internal fun coreCharToString(value: Char): String

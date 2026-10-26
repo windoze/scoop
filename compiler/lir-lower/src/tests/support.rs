@@ -4,12 +4,42 @@ mod builder;
 mod lowering;
 
 pub(super) use builder::{Builder, test_exact_type};
-pub(super) use lowering::lower_test_input;
+pub(super) use lowering::{lower_test_input, lower_test_input_with_optimization};
 
 pub(super) const INT: mir::Type = mir::Type::Integer(mir::IntegerKind::SIGNED_32);
 pub(super) const LONG: mir::Type = mir::Type::Integer(mir::IntegerKind::SIGNED_64);
 pub(super) const UINT: mir::Type = mir::Type::Integer(mir::IntegerKind::UNSIGNED_32);
 pub(super) const ULONG: mir::Type = mir::Type::Integer(mir::IntegerKind::UNSIGNED_64);
+
+fn test_interface_slot(owner: &str, method: &str) -> scoop_identity::PersistentDispatchSlotId {
+    let name = format!(
+        "test{}",
+        format!("{owner}:{method}")
+            .bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::function(
+        site,
+        scoop_identity::CanonicalIdentifier::new(&name).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let function =
+        scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    scoop_identity::PersistentDispatchSlotId::from_key(
+        &scoop_identity::DispatchSlotKey::interface_method(function),
+    )
+    .unwrap()
+}
 
 pub(super) fn property_owner(name: &str) -> scoop_identity::PropertyOwner {
     let site = scoop_identity::SourceDeclarationSite::new(

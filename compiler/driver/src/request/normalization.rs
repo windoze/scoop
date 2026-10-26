@@ -288,7 +288,9 @@ mod tests {
             (StageDumpKind::Ast, StageDumpKind::Ast),
             (StageDumpKind::Hir, StageDumpKind::Hir),
             (StageDumpKind::Mir, StageDumpKind::Mir),
+            (StageDumpKind::Optimizations, StageDumpKind::Optimizations),
             (StageDumpKind::Lir, StageDumpKind::Lir),
+            (StageDumpKind::Symbols, StageDumpKind::Symbols),
         ] {
             assert_eq!(
                 map_dump_policy(&StageDumpPolicyV1::Files {

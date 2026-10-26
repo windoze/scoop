@@ -9,9 +9,9 @@ fun equal(actual: String, expected: String, location: SourceLocation = currentSo
     assertEquals(expected, actual, location = location)
 }
 fun contains(text: String, part: String): Boolean {
-    if (part.length > text.length) { return false }
-    for (index in 0L until text.length - part.length + 1L) {
-        if (text.slice(index, index + part.length) == part) { return true }
+    if (part.charLength > text.charLength) { return false }
+    for (index in 0L until text.charLength - part.charLength + 1L) {
+        if (text.slice(index, index + part.charLength) == part) { return true }
     }
     return false
 }

@@ -16,7 +16,7 @@ internal class CliTokens(
             cursor = cursor + 1L
             if (options && text == "--") { options = false; continue }
             if (options && optionToken(text)) {
-                val help = if (text[1L] == '-') { longOption(text, source) } else { shortOptions(text, source) }
+                val help = if (text.getCharAt(1L) == '-') { longOption(text, source) } else { shortOptions(text, source) }
                 if (help) { return CliInputResult.Help }
             } else {
                 if (positional == positions.size) { inputError("", Some(source), "extra positional argument") }
@@ -63,18 +63,18 @@ internal class CliTokens(
     }
 
     private fun longOption(text: String, source: CliSource): Boolean {
-        var split = text.length
-        for (index in 2L until text.length) { if (text[index] == '=') { split = index; break } }
+        var split = text.charLength
+        for (index in 2L until text.charLength) { if (text.getCharAt(index) == '=') { split = index; break } }
         val name = text.slice(0L, split)
-        val attached = if (split == text.length) { None } else { Some(text.slice(split + 1L, text.length)) }
+        val attached = if (split == text.charLength) { None } else { Some(text.slice(split + 1L, text.charLength)) }
         if (name == "--help") {
-            if (split != text.length) { inputError("", Some(source), "help does not accept a value") }
+            if (split != text.charLength) { inputError("", Some(source), "help does not accept a value") }
             return true
         }
         val selected = alias(name, source)
         when (entries[selected.index].role) {
             case CliRole.Flag -> {
-                if (split != text.length) { inputError(childPath("", entries[selected.index].wireKey), Some(source), "flag does not accept a value") }
+                if (split != text.charLength) { inputError(childPath("", entries[selected.index].wireKey), Some(source), "flag does not accept a value") }
                 add(selected.index, CliInput(CliNode.BooleanValue(!selected.negative), Some(source)), source)
             }
             else -> add(selected.index, takeValue(selected.index, attached, source), source)
@@ -84,23 +84,23 @@ internal class CliTokens(
 
     private fun shortOptions(text: String, source: CliSource): Boolean {
         var index = 1L
-        while (index < text.length) {
-            val name = "-" + text[index].toString()
+        while (index < text.charLength) {
+            val name = "-" + text.getCharAt(index).toString()
             index = index + 1L
             if (name == "-h") {
-                if (index < text.length && text[index] == '=') { inputError("", Some(source), "help does not accept a value") }
+                if (index < text.charLength && text.getCharAt(index) == '=') { inputError("", Some(source), "help does not accept a value") }
                 return true
             }
             val selected = alias(name, source)
             when (entries[selected.index].role) {
                 case CliRole.Flag -> {
-                    if (index < text.length && text[index] == '=') { inputError(childPath("", entries[selected.index].wireKey), Some(source), "flag does not accept a value") }
+                    if (index < text.charLength && text.getCharAt(index) == '=') { inputError(childPath("", entries[selected.index].wireKey), Some(source), "flag does not accept a value") }
                     add(selected.index, CliInput(CliNode.BooleanValue(!selected.negative), Some(source)), source)
                 }
                 else -> {
-                    val attached = if (index == text.length) { None } else {
-                        if (text[index] == '=') { index = index + 1L }
-                        Some(text.slice(index, text.length))
+                    val attached = if (index == text.charLength) { None } else {
+                        if (text.getCharAt(index) == '=') { index = index + 1L }
+                        Some(text.slice(index, text.charLength))
                     }
                     add(selected.index, takeValue(selected.index, attached, source), source)
                     return false

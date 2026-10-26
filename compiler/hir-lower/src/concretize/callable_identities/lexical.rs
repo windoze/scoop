@@ -14,6 +14,15 @@ impl CallableIdentityBuilder<'_> {
                 CallableInstantiationOwner::NoOwner,
                 arguments,
             ),
+            export::ImportedCallableTemplateOrigin::InlineAccessor(id) => self
+                .source_materialization(
+                    SourceTemplate::Accessor {
+                        id,
+                        extension: false,
+                    },
+                    CallableInstantiationOwner::NoOwner,
+                    arguments,
+                ),
             export::ImportedCallableTemplateOrigin::Initialization { template, owner } => {
                 let unit = self.concretizer.initialization_map[&InitializationKey {
                     source: initialization::InitializationSource::ImportedDelegate(template),

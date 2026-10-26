@@ -1,0 +1,46 @@
+package dev.m34.bench
+
+public interface Tagged { public fun tag(): Int }
+public interface MultiReader : Tagged, Reader {}
+public interface LeftReader : Reader { public fun left(): Int = 11 }
+public interface RightReader : Reader { public fun right(): Int = 13 }
+public interface DiamondReader : LeftReader, RightReader {}
+
+public class ProjectionCell public constructor(public val salt: UInt) : MultiReader, DiamondReader {
+    public override fun tag(): Int = 1
+    public override fun next(value: UInt): UInt {
+        val first = (value xor salt) xor value.shl(13)
+        val second = first xor first.shr(17)
+        return second xor second.shl(5)
+    }
+}
+
+public fun repeatedSecondary(source: MultiReader, count: Int): UInt {
+    var value = 305419896U
+    var index = 0
+    while (index < count) {
+        value = source.next(value)
+        value = source.next(value)
+        index += 1
+    }
+    return value
+}
+
+public fun repeatedDiamond(source: DiamondReader, count: Int): UInt {
+    var value = 305419896U
+    var index = 0
+    while (index < count) {
+        value = source.next(value)
+        value = source.next(value)
+        index += 1
+    }
+    return value
+}
+
+// Public boundaries retain real two-word interface returns in provider code.
+public fun parentView(source: ChildReader): Reader = source
+public fun secondaryView(source: MultiReader): Reader = source
+public fun diamondLeft(source: DiamondReader): LeftReader = source
+public fun diamondRight(source: DiamondReader): RightReader = source
+
+public fun consumeParent(source: Reader, value: UInt): UInt = source.next(value)

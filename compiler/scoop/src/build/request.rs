@@ -40,6 +40,7 @@ pub struct BuildRequest {
     pub target_dir: Option<PathBuf>,
     pub runtime: RuntimeInput,
     pub enable_gc_stress: bool,
+    pub enable_startup_stats: bool,
     pub final_link: scoop_toolchain::FinalLinkOptions,
     pub library_paths: Vec<PathBuf>,
     pub dumps: Option<BuildDumpRequest>,

@@ -22,7 +22,7 @@ private class RegexReplacementTests {
             assertEquals("b", regex.replaceTemplate("b", "${unknown}"))
             val error = assertFailsWith<RegexReplacementException> { regex.replaceTemplate("a", "${unknown}") }
             assertTrue(error.nativeCode < 0)
-            assertTrue(error.detail.length > 0L)
+            assertTrue(error.detail.charLength > 0L)
             val position = assertFailsWith<RegexReplacementException> { regex.replaceTemplate("a", "雪$") }
             assertEquals(2L, position.offset!!)
             assertEquals("x", regex.replace("a", "x"))

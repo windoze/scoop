@@ -2,6 +2,7 @@ use super::*;
 
 mod control;
 mod dispatch;
+mod observations;
 mod retention;
 
 fn sample() -> (mir::Module, mir::FunctionId) {

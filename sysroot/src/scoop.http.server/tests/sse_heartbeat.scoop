@@ -30,7 +30,7 @@ import scoop.time.Duration
                 assertEquals(200U, stream.receiveResponse().status)
                 assertEquals("d", readNetworkText(stream, 1L))
                 currentEventLoop().sleep(Duration.milliseconds(70))
-                assertEquals(firstBlock.slice(1L, firstBlock.length), readNetworkText(stream, firstBlock.byteLength - 1L))
+                assertEquals(firstBlock.slice(1L, firstBlock.charLength), readNetworkText(stream, firstBlock.byteLength - 1L))
                 firstSent.await()
                 assertEquals(":", readNetworkText(stream, 1L))
                 sendSecond.signal()

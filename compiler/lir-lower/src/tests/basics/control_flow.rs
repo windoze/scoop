@@ -95,7 +95,7 @@ fn if_else_becomes_basic_blocks() {
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
-        poll managed-void-target1 sp<managed-poll:0> live=[]
+        poll gateway managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
@@ -227,7 +227,7 @@ fn while_becomes_basic_blocks() {
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
-        poll managed-void-target1 sp<managed-poll:0> live=[]
+        poll gateway managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
@@ -371,7 +371,7 @@ fn and_short_circuits_through_blocks() {
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
-        poll managed-void-target1 sp<managed-poll:0> live=[]
+        poll gateway managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
@@ -482,7 +482,6 @@ fn or_short_circuits_through_blocks() {
         local %1 y: i1
         local %2 b: i1
       block entry
-        poll activation managed-void-target0 sp<managed-poll:0> live=[]
         store true -> local0
         store false -> local1
         br @logic.short.2
@@ -493,7 +492,7 @@ fn or_short_circuits_through_blocks() {
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
-        poll managed-void-target1 sp<managed-poll:0> live=[]
+        poll gateway managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
@@ -720,10 +719,12 @@ fn loop_header_poll_carries_live_managed_root() {
             _ => None,
         })
         .expect("loop header poll");
+    assert_eq!(site.kind, lir::ManagedPollKind::Full);
     let live = site.live.as_slice();
     assert_eq!(live.len(), 1);
     assert_eq!(live[0].source, lir::CallerRootSource::Param(1));
     assert_eq!(live[0].ty, lir::MANAGED_PTR);
+    assert!(live[0].restore);
     assert_eq!(
         live[0].leaves.as_slice(),
         &[lir::ManagedLeafPath { byte_offset: 0 }]

@@ -11,6 +11,8 @@ struct Arguments {
     #[arg(long)]
     enable_gc_stress: bool,
     #[arg(long)]
+    enable_startup_stats: bool,
+    #[arg(long)]
     target: String,
     #[arg(long)]
     runtime_root: PathBuf,
@@ -40,6 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cache_root: &args.cache_dir,
         optimization: RuntimeOptimization::Optimized,
         enable_gc_stress: args.enable_gc_stress,
+        enable_startup_stats: args.enable_startup_stats,
         unwind_prefix: args.unwind_prefix.as_deref(),
     })?;
     let root = output

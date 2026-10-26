@@ -206,8 +206,8 @@ static const char *corrupt(Fixture *fixture, unsigned test) {
         data->sites[1].safepoint_id = 1;
         return "64-bit safepoint ID collision";
     case 9:
-        data->sites[1].owner_callable_id.bytes[0] = 200;
-        return "owner callable identity or producer";
+        data->sites[1].root_pair_count = (UINT16_MAX - 3) / 2 + 1;
+        return "site ID, role or root count";
     case 10:
         data->sites[0].site_role = 0;
         return "site ID, role";

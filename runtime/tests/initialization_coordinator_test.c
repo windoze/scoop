@@ -151,6 +151,49 @@ static void test_ready_and_failure(void) {
     assert(init_failure(&failed.descriptor) == &failure_object);
 }
 
+typedef struct PublicationReader {
+    TestUnit *unit;
+    _Atomic(uint32_t) *started;
+    uint64_t observed;
+} PublicationReader;
+
+static void *read_published_storage(void *context) {
+    PublicationReader *reader = context;
+    atomic_fetch_add_explicit(reader->started, 1, memory_order_release);
+    while (__atomic_load_n(&reader->unit->cell.state, __ATOMIC_ACQUIRE) !=
+           SCOOP_INIT_INITIALIZED) {
+        sched_yield();
+    }
+    /* No coordinator lock or other writer-to-reader synchronization. */
+    reader->observed = reader->unit->storage;
+    return NULL;
+}
+
+static void test_ready_publishes_storage_without_a_reader_lock(void) {
+    enum { READERS = 4 };
+    TestUnit unit;
+    initialize_test_unit(&unit, 8, "top-level:publication");
+    assert(managed_enter(&unit.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
+    _Atomic(uint32_t) started = 0;
+    PublicationReader readers[READERS];
+    pthread_t threads[READERS];
+    for (size_t index = 0; index < READERS; index++) {
+        readers[index] = (PublicationReader){&unit, &started, 0};
+        assert(pthread_create(&threads[index], NULL, read_published_storage,
+                              &readers[index]) == 0);
+    }
+    while (atomic_load_explicit(&started, memory_order_acquire) != READERS) {
+        sched_yield();
+    }
+    unit.storage = UINT64_C(0xfedcba9876543210);
+    init_succeed(&unit.descriptor);
+    for (size_t index = 0; index < READERS; index++) {
+        assert(pthread_join(threads[index], NULL) == 0);
+        assert(readers[index].observed == UINT64_C(0xfedcba9876543210));
+    }
+    assert(managed_enter(&unit.descriptor) == SCOOP_INIT_READY);
+}
+
 static void test_same_thread_cycle(void) {
     static uint64_t failure_object;
     TestUnit outer;
@@ -223,6 +266,7 @@ int main(void) {
     scoop_thread_attach_main();
     scoop_thread_enter_managed(__builtin_frame_address(0));
     test_ready_and_failure();
+    test_ready_publishes_storage_without_a_reader_lock();
     test_same_thread_cycle();
     test_wait_participates_in_collection();
     test_cross_thread_cycle();

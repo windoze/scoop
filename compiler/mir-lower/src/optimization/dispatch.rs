@@ -2,6 +2,40 @@ use scoop_identity::PersistentExactTypeId;
 
 use super::{flow::ActualType, mir};
 
+pub(super) fn direct_call(
+    module: &mir::Module,
+    selected: &mir::SelectedExternalMirSet,
+    intrinsic: &crate::imported_bodies::IntrinsicDispatch,
+    call: &mir::Call,
+    result: &mir::Type,
+    actual: ActualType,
+) -> Option<mir::Call> {
+    let (target, receiver_ty, unbox) = resolve(module, selected, intrinsic, call, result, actual)?;
+    let receiver = call.target.receiver()?;
+    let receiver = if unbox {
+        mir::Expr::new(
+            receiver_ty,
+            mir::ExprKind::Unbox(Box::new(receiver.clone())),
+        )
+    } else if receiver.ty == receiver_ty {
+        receiver.clone()
+    } else {
+        mir::Expr::new(
+            receiver_ty.clone(),
+            mir::ExprKind::Retype {
+                operand: Box::new(receiver.clone()),
+                ty: Box::new(receiver_ty),
+            },
+        )
+    };
+    Some(mir::Call {
+        target: mir::CallTarget::Direct(target.into()),
+        args: std::iter::once(receiver)
+            .chain(call.args.iter().cloned())
+            .collect(),
+    })
+}
+
 pub(super) fn resolve(
     module: &mir::Module,
     selected: &mir::SelectedExternalMirSet,

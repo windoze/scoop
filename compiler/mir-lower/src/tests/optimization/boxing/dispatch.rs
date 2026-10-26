@@ -68,20 +68,37 @@ fn interface_box() -> mir::Module {
 
 #[test]
 fn dispatch_and_inline_remove_the_unknown_call_before_box_elision() {
-    let mut once = interface_box();
-    let selected = mir::SelectedExternalMirSet::empty(once.cone);
-    crate::optimization::run_to_limit(&mut once, &selected, MirOptimizationOptions::RELEASE, 1);
-    let main = once.executable_entry().unwrap();
-    assert_eq!(counts(&once.functions[main]), (1, 0, 0));
-    assert!(once.functions[main].body.blocks.iter().any(|(_, block)| {
-        block
-            .statements
+    let mut retained = interface_box();
+    let selected = mir::SelectedExternalMirSet::empty(retained.cone);
+    crate::optimization::run_to_limit(
+        &mut retained,
+        &selected,
+        MirOptimizationOptions {
+            inline: false,
+            ..MirOptimizationOptions::RELEASE
+        },
+        3,
+    );
+    assert_mir_foundation_projection(&retained);
+    let main = retained.executable_entry().unwrap();
+    assert_eq!(counts(&retained.functions[main]), (1, 0, 0));
+    assert!(
+        retained.functions[main]
+            .body
+            .blocks
             .iter()
-            .any(|statement| matches!(statement.kind, mir::StatementKind::Call(_)))
-    }));
+            .any(|(_, block)| {
+                block
+                    .statements
+                    .iter()
+                    .any(|statement| matches!(statement.kind, mir::StatementKind::Call(_)))
+            })
+    );
 
     let mut complete = interface_box();
-    optimize(&mut complete);
+    let selected = mir::SelectedExternalMirSet::empty(complete.cone);
+    crate::optimization::run_to_limit(&mut complete, &selected, MirOptimizationOptions::RELEASE, 1);
+    assert_mir_foundation_projection(&complete);
     let main = &complete.functions[complete.executable_entry().unwrap()];
     assert_eq!(counts(main), (0, 0, 0));
     assert!(main.body.blocks.iter().all(|(_, block)| {

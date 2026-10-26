@@ -1,0 +1,86 @@
+package dev.performance
+
+fun generatedConditional(count: Long, seed: Int): MutableArray<Int> =
+    MutableArray<Int>(count) { i -> if (i.and(1L) == 0L) seed else -seed }
+
+fun sumSelected(values: Array<Long>, threshold: Long): Long {
+    var i = 0L
+    var result = 0L
+    while (i < values.size) {
+        val value = values[i]
+        if (value >= threshold) result += value
+        i += 1L
+    }
+    return result
+}
+
+fun transform(source: MutableArray<Int>, target: MutableArray<Int>, threshold: Int) {
+    var i = 0L
+    while (i < source.size) {
+        val value = source[i]
+        target[i] = if (value < threshold) value * 3 + 1 else value - 7
+        i += 1L
+    }
+}
+
+fun retainPositive(source: MutableArray<Int>, target: MutableArray<Int>) {
+    var i = 0L
+    while (i < source.size) {
+        val value = source[i]
+        if (value > 0) target[i] = value
+        i += 1L
+    }
+}
+
+fun partition(source: MutableArray<Int>, positive: MutableArray<Int>, negative: MutableArray<Int>) {
+    var i = 0L
+    while (i < source.size) {
+        val value = source[i]
+        if (value >= 0) positive[i] = value + 1 else negative[i] = value - 1
+        i += 1L
+    }
+}
+
+fun clampFloat(source: MutableArray<Float>, target: MutableArray<Float>, lower: Float, upper: Float) {
+    var i = 0L
+    while (i < source.size) {
+        val value = source[i]
+        target[i] = if (value < lower) lower else if (value > upper) upper else value
+        i += 1L
+    }
+}
+
+fun clampDouble(source: MutableArray<Double>, target: MutableArray<Double>, lower: Double, upper: Double) {
+    var i = 0L
+    while (i < source.size) {
+        val value = source[i]
+        target[i] = if (value < lower) lower else if (value > upper) upper else value
+        i += 1L
+    }
+}
+
+fun sumMasked(values: Array<Double>, mask: Array<Boolean>): Double {
+    var i = 0L
+    var result = 0.0
+    while (i < values.size) {
+        if (mask[i]) result += values[i]
+        i += 1L
+    }
+    return result
+}
+
+fun firstNegative(values: Array<Long>): Long {
+    var i = 0L
+    while (i < values.size) {
+        if (values[i] < 0L) return i
+        i += 1L
+    }
+    return -1L
+}
+
+fun straightSum(values: Array<Long>): Long {
+    var i = 0L
+    var result = 0L
+    while (i < values.size) { result += values[i]; i += 1L }
+    return result
+}

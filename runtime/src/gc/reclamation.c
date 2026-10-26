@@ -1,55 +1,133 @@
 /* Post-verification object retirement, ordinary reuse and stress quarantine. */
 #include <stdatomic.h>
-#include <string.h>
 
 #include "gc_internal.h"
 #include "heap_internal.h"
 
-void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor) {
+static size_t nursery_target(size_t bytes) {
+    if (bytes < GC_NURSERY_MIN_CAPACITY) {
+        return GC_NURSERY_MIN_CAPACITY;
+    }
+    if (bytes >= scoop_gc_heap_state.nursery_limit) {
+        return scoop_gc_heap_state.nursery_limit;
+    }
+    return (bytes + GC_BLOCK_SIZE - 1) & ~(GC_BLOCK_SIZE - 1);
+}
+
+static void adjust_nursery(size_t used, uint64_t live, bool minor) {
+    if (!scoop_heap_adaptive_nursery_enabled()) {
+        return;
+    }
+    ScoopGcHeapState *heap = &scoop_gc_heap_state;
+    if (!minor) {
+        heap->nursery_floor = nursery_target(committed_bytes / 2);
+    }
+    size_t capacity = heap->nursery_capacity;
+    if (capacity < heap->nursery_floor) {
+        capacity = heap->nursery_floor;
+    }
+    if (used >= capacity - capacity / 4 && live >= used / 4) {
+        capacity = capacity > heap->nursery_limit / 2 ? heap->nursery_limit : capacity * 2;
+        heap->nursery_low_survival_collections = 0;
+    } else if (used != 0 || !minor) {
+        if (live < used / 16 || used == 0) {
+            if (++heap->nursery_low_survival_collections == 4) {
+                capacity = nursery_target(capacity / 2);
+                if (capacity < heap->nursery_floor) {
+                    capacity = heap->nursery_floor;
+                }
+                heap->nursery_low_survival_collections = 0;
+            }
+        } else {
+            heap->nursery_low_survival_collections = 0;
+        }
+    }
+    heap->nursery_capacity = capacity;
+}
+
+static void finish_block(ScoopGcBlockMeta *block, bool minor) {
+    if (block->generation == SCOOP_GC_YOUNG) {
+        if (minor && block->kind == SCOOP_BLOCK_KIND_SMALL &&
+            (block->live_bytes == 0 || block->state == SCOOP_BLOCK_EVACUATION_SOURCE)) {
+            /* Minor sources are unpinned and fully updated; activation resets metadata. */
+            scoop_heap_release_block(block);
+            return;
+        }
+    }
+    bool retained = minor && block->generation == SCOOP_GC_YOUNG && block->retained_young;
+    if (!retained) {
+        block->generation = SCOOP_GC_OLD;
+    }
+    block->survivor = retained;
+    block->retained_young = false;
+    scoop_heap_finish_block(block, stress_move);
+}
+
+void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor,
+                                             const ScoopGcSurvivors *survivors) {
     if (!collection_active) {
         heap_fatal("heap collection finished without begin");
     }
     ScoopGcAllocationTotals allocations = scoop_gc_allocation_totals_locked();
+    size_t nursery_used = scoop_gc_heap_state.nursery_bytes;
+    uint64_t young_live = 0;
     if (minor) {
         uint64_t allocated =
             allocations.objects - scoop_gc_heap_state.allocation_objects_at_collection;
         uint64_t young =
             allocations.nursery_objects - scoop_gc_heap_state.nursery_objects_at_collection;
-        object_count += scoop_gc_heap_state.collected_live_objects + allocated - young;
+        object_count += scoop_gc_heap_state.collected_live_objects -
+                        scoop_gc_heap_state.survivor_objects + allocated - young;
     } else {
         free_run_nodes();
     }
-    for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
-         block = scoop_heap_next_block(block)) {
-        if (!active_head(block) || (minor && block->generation == SCOOP_GC_OLD &&
-                                    block->state != SCOOP_BLOCK_EVACUATION_TARGET)) {
-            continue;
-        }
-        if (block->generation == SCOOP_GC_YOUNG) {
-            scoop_gc_heap_state.metrics.promoted_bytes += block->live_bytes;
-            if (minor && !stress_move && block->kind == SCOOP_BLOCK_KIND_SMALL &&
-                (block->live_bytes == 0 || block->state == SCOOP_BLOCK_EVACUATION_SOURCE)) {
-                /* Sources are unpinned and fully updated; activation resets metadata. */
-                scoop_heap_release_block(block);
-                continue;
+    ScoopGcBlockMeta *young_blocks = NULL;
+    for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;) {
+        /* Retirement reuses the link for the free list. */
+        ScoopGcBlockMeta *next = scoop_heap_next_collection_block(block, minor);
+        if (active_head(block)) {
+            if (block->generation == SCOOP_GC_YOUNG) {
+                young_live += block->live_bytes;
+            }
+            finish_block(block, minor);
+            if (minor && block->generation == SCOOP_GC_YOUNG) {
+                block->next_collection = young_blocks;
+                young_blocks = block;
             }
         }
-        block->generation = SCOOP_GC_OLD;
-        scoop_heap_finish_block(block, stress_move);
+        block = next;
     }
+    if (minor) {
+        while (scoop_gc_heap_state.evacuation_targets != NULL) {
+            ScoopGcBlockMeta *block = scoop_gc_heap_state.evacuation_targets;
+            scoop_gc_heap_state.evacuation_targets = block->next_collection;
+            finish_block(block, true);
+            if (block->generation == SCOOP_GC_YOUNG) {
+                block->next_collection = young_blocks;
+                young_blocks = block;
+            }
+        }
+    }
+    scoop_gc_heap_state.young_blocks = young_blocks;
+    scoop_gc_heap_state.evacuation_targets = NULL;
     evacuation_block = NULL;
     evacuation_cursor = NULL;
     evacuation_limit = NULL;
-    uint64_t vm_started = scoop_gc_monotonic_ns();
-    scoop_heap_reclaim_regions(!minor && !stress_move);
-    scoop_gc_heap_state.metrics.vm_return_ns += scoop_gc_monotonic_ns() - vm_started;
-    for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
-         region = region->next) {
-        memset(region->cards, 0, region->size >> GC_CARD_SHIFT);
-        region->evacuation_source = false;
-        region->evacuation_destination = false;
+    scoop_heap_clear_dirty_card_groups(survivors->objects != 0);
+    if (!minor) {
+        uint64_t vm_started = scoop_gc_monotonic_ns();
+        scoop_heap_reclaim_regions(!stress_move);
+        scoop_gc_heap_state.metrics.vm_return_ns += scoop_gc_monotonic_ns() - vm_started;
+        for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
+             region = region->next) {
+            region->evacuation_source = false;
+            region->evacuation_destination = false;
+        }
     }
-    scoop_gc_heap_state.nursery_bytes = 0;
+    scoop_gc_heap_state.metrics.promoted_bytes += young_live - survivors->live_bytes;
+    adjust_nursery(nursery_used, young_live, minor);
+    scoop_gc_heap_state.nursery_bytes = survivors->capacity;
+    scoop_gc_heap_state.survivor_objects = survivors->objects;
     scoop_gc_heap_state.collected_live_objects = object_count;
     scoop_gc_heap_state.allocation_objects_at_collection = allocations.objects;
     scoop_gc_heap_state.nursery_objects_at_collection = allocations.nursery_objects;

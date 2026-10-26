@@ -32,13 +32,15 @@ pub(crate) fn lower_with_diagnostics(
 }
 
 pub(crate) fn lower_with_layout_dependencies(
+    optimization: lir::OptimizationMode,
     input: &mir::ConeMirInput,
     callables: &lir::SelectedExternalLirSet,
     target: lir::LirTargetProfile,
     layouts: &lir::StrongProductionDependencySelectionV2<'_>,
     diagnostics: &impl ExactTypeDiagnosticGraph,
 ) -> Result<lir::ConeLirOutput, CurrentConeLirStageError> {
-    let prepared = prepare(input, &[], callables, target, Some(layouts))?;
+    let prepared =
+        prepare(input, &[], callables, target, Some(layouts))?.with_optimization(optimization);
     let plans = scoop_codegen::plan_abi(prepared.abi_input())?;
     prepared
         .complete_with_diagnostics(plans, diagnostics)

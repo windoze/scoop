@@ -20,7 +20,7 @@ fun main() {
     var rejected = false
     try {
         val unexpected = roundTrip("\u0000")
-        expect(unexpected.length < 0L)
+        expect(unexpected.charLength < 0L)
     } catch (error: IllegalArgumentException) { rejected = true }
     expect(rejected)
     println("cstrings-artifacts-ok")

@@ -4,20 +4,27 @@ mod abi_parts;
 mod call;
 mod gc;
 mod instruction;
+mod interface_values;
 mod local_storage;
 mod memory;
 mod roots;
+mod thread_address;
 
 /// Per-function emission state: everything instruction translation
 /// needs, bundled to keep signatures small.
 struct FnEmitter<'a, 'ctx> {
     context: &'ctx Context,
     managed_address_space: ManagedAddressSpace,
+    optimize_allocations: bool,
+    optimize_reference_writes: bool,
+    allocation_initialization_limit: u64,
+    reuse_thread_addresses: bool,
     llvm: &'a LlvmModule<'ctx>,
     builder: &'a inkwell::builder::Builder<'ctx>,
     function: &'a Function,
     llvm_function: inkwell::values::FunctionValue<'ctx>,
     current_block: scoop_lir::BlockId,
+    current_instruction: usize,
     /// Entry block; enum temporaries are alloca'd here (see
     /// `entry_alloca`).
     entry_block: inkwell::basic_block::BasicBlock<'ctx>,
@@ -41,6 +48,7 @@ struct FnEmitter<'a, 'ctx> {
     /// `ArrayTypeId`.
     arrays: &'a Arena<ArrayType>,
     array_tds: &'a BTreeMap<ArrayTypeId, GlobalValue<'ctx>>,
+    type_descriptors: &'a Arena<scoop_lir::TypeDescriptor>,
     type_tds: &'a BTreeMap<scoop_lir::TypeDescriptorId, GlobalValue<'ctx>>,
     external_type_tds: &'a BTreeMap<scoop_lir::ExternalTypeDescriptorId, GlobalValue<'ctx>>,
     root_scans: Vec<PointerValue<'ctx>>,
@@ -56,6 +64,8 @@ struct FnEmitter<'a, 'ctx> {
     /// across arbitrary CFG joins instead of relying on a block-global SSA
     /// cache entry.
     root_storage: HashMap<scoop_lir::CallerRootSource, RootStorage<'ctx>>,
+    /// Fresh interface snapshots belong only to one straight-line segment.
+    interface_values: interface_values::StoredInterfaces<'ctx>,
     /// Sources used by each unwind successor, transposed from the complete
     /// per-invoke edge flags before LLVM block emission.
     unwind_root_sources: HashMap<scoop_lir::BlockId, Vec<scoop_lir::CallerRootSource>>,
@@ -66,6 +76,14 @@ struct FnEmitter<'a, 'ctx> {
     allocation_index: u32,
     /// The attached thread address stays stable throughout this invocation.
     cached_poll_state: Option<PointerValue<'ctx>>,
+    /// Lazily initialized AS0 context address; its mutable fields are not cached.
+    allocation_context_slot: Option<PointerValue<'ctx>>,
+    /// Native address of the existing Context root; never caches its value.
+    task_context_slot_cache: Option<PointerValue<'ctx>>,
+    /// Collected only when allocation initialization can be optimized.
+    allocation_addressed_locals: Option<HashSet<scoop_lir::LocalId>>,
+    /// Nursery membership along one uninterrupted initialization path.
+    young_allocation: Option<gc::YoungAllocation<'ctx>>,
     /// One ordinary field-write region, never retained across control flow or
     /// operations that can change the reference or publish/collect heap state.
     field_barrier: Option<gc::FieldBarrierCache<'ctx>>,
@@ -104,6 +122,7 @@ struct StatepointLiveLeaf<'ctx> {
     value: PointerValue<'ctx>,
     source: scoop_lir::CallerRootSource,
     byte_offset: u64,
+    restore: bool,
 }
 
 struct MaterializedStatepointLive<'ctx> {
@@ -275,11 +294,16 @@ pub(super) fn emit_function<'ctx>(
     let mut emitter = FnEmitter {
         context,
         managed_address_space: module_ctx.managed_address_space,
+        optimize_allocations: module_ctx.optimize_allocations,
+        optimize_reference_writes: module_ctx.optimize_reference_writes,
+        allocation_initialization_limit: module_ctx.allocation_initialization_limit,
+        reuse_thread_addresses: module_ctx.reuse_thread_addresses,
         llvm,
         builder,
         function,
         llvm_function,
         current_block: function.entry,
+        current_instruction: 0,
         entry_block: blocks[arena_index(function.entry)],
         llvm_blocks: &blocks,
         functions: module_ctx.functions,
@@ -297,6 +321,7 @@ pub(super) fn emit_function<'ctx>(
         initialization_units: module_ctx.initialization_units,
         arrays: module_ctx.arrays,
         array_tds: module_ctx.array_tds,
+        type_descriptors: module_ctx.type_descriptors,
         type_tds: module_ctx.type_tds,
         external_type_tds: module_ctx.external_type_tds,
         root_scans,
@@ -306,11 +331,18 @@ pub(super) fn emit_function<'ctx>(
         allocas: HashMap::with_capacity(function.locals.len()),
         temps: HashMap::new(),
         root_storage: HashMap::new(),
+        interface_values: interface_values::StoredInterfaces::new(
+            module_ctx.reuse_interface_values,
+        ),
         unwind_root_sources,
         compiler_unwind_blocks,
         compiler_invoke_index: 0,
         allocation_index: 0,
         cached_poll_state: None,
+        allocation_context_slot: None,
+        task_context_slot_cache: None,
+        allocation_addressed_locals: None,
+        young_allocation: None,
         field_barrier: None,
         array_size_trap_blocks: HashMap::new(),
     };
@@ -321,9 +353,13 @@ pub(super) fn emit_function<'ctx>(
     builder.position_at_end(blocks[arena_index(function.entry)]);
     emitter.allocate_locals()?;
     emitter.prepare_root_storage()?;
+    let mut initialization_successors = None;
+    let mut young_successors = HashMap::new();
     for (block_id, block) in function.blocks.iter() {
         emitter.current_block = block_id;
         emitter.field_barrier = None;
+        emitter.young_allocation = young_successors.remove(&block_id);
+        emitter.interface_values.clear();
         builder.position_at_end(blocks[arena_index(block_id)]);
         // Invoke is an LLVM terminator even though it
         // are LIR instructions: one must be the last instruction of its
@@ -333,6 +369,7 @@ pub(super) fn emit_function<'ctx>(
         // the first of its block (LLVM requires the landingpad first).
         let mut invoke_terminated = false;
         for (index, instruction) in block.instructions.iter().enumerate() {
+            emitter.current_instruction = index;
             let is_invoke = matches!(instruction, Instruction::Invoke { .. });
             if is_invoke && index + 1 != block.instructions.len() {
                 return Err(CodegenError(format!(
@@ -382,6 +419,14 @@ pub(super) fn emit_function<'ctx>(
                 builder
                     .build_unconditional_branch(blocks[arena_index(*target)])
                     .map_err(|e| CodegenError(format!("br @{}: {e}", block.name)))?;
+                if let Some(young) = emitter.young_allocation.take()
+                    && arena_index(*target) > arena_index(block_id)
+                    && initialization_successors
+                        .get_or_insert_with(|| gc::single_predecessor_blocks(function))
+                        .contains(target)
+                {
+                    young_successors.insert(*target, young);
+                }
             }
             Terminator::CondBr {
                 cond,

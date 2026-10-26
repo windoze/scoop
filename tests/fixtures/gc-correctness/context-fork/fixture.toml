@@ -1,0 +1,37 @@
+schema = 1
+name = "context-coroutines"
+root = "../../language/context/coroutines/program.scoop"
+inputs = ["../../language/context/coroutines/program.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["context", "coroutine", "gc-correctness"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "--enable-gc-stress", "build", "--profile", "${profile}", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}", "moving"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "coroutines-ok\n"
+stderr = ""
+
+[[steps]]
+name = "minor"
+argv = ["${build.result.output}", "minor"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "coroutines-ok\n"
+stderr = ""

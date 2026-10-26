@@ -16,17 +16,22 @@ static const ScoopTypeDescriptor shared_td = {
                        .instance_alignment = 8},
     .object_scan = shared_scan};
 static SharedCard *shared;
+#ifdef SCOOP_TEST_SURVIVOR
+static const uint64_t iterations = 50000;
+#else
+static const uint64_t iterations = 2000;
+#endif
 
 static void *mutator(void *argument) {
     size_t slot = (size_t)(uintptr_t)argument;
     assert(scoop_rt_attach_foreign_thread());
-    uintptr_t boundary = 0;
-    scoop_thread_enter_managed(&boundary);
+    uintptr_t boundary = scoop_rt_thread_debug_stack_high();
+    scoop_thread_enter_managed((void *)boundary);
     NurseryNode *node = NULL;
     void **root = (void **)&node;
     ScoopNativeRootFrame frame;
     scoop_rt_push_native_roots(&frame, &root, 1);
-    for (uint64_t index = 0; index < 2000; index++) {
+    for (uint64_t index = 0; index < iterations; index++) {
         node = nursery_node(slot * 10000 + index);
         shared->slots[slot] = node;
         scoop_rt_gc_write_barrier(&shared->slots[slot], sizeof(void *));
@@ -38,17 +43,23 @@ static void *mutator(void *argument) {
 }
 
 int main(void) {
+#ifdef SCOOP_TEST_SURVIVOR
+    assert(setenv("SCOOP_GC_SURVIVOR", "1", 1) == 0);
+    assert(setenv("SCOOP_GC_NURSERY_MAX_MIB", "1", 1) == 0);
+#else
     assert(setenv("SCOOP_GC_STRESS_MINOR", "1", 1) == 0);
+#endif
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &shared_td};
-    uintptr_t boundary = 0;
     scoop_thread_runtime_init();
     scoop_test_image_init(types, 2, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
-    scoop_thread_enter_managed(&boundary);
+    uintptr_t boundary = scoop_rt_thread_debug_stack_high();
+    scoop_thread_enter_managed((void *)boundary);
     shared = nursery_allocate(&shared_td, sizeof *shared);
     assert(scoop_rt_pin(shared) == shared);
     nursery_collect(true);
     assert(!scoop_gc_is_young_object_locked(shared));
+    uint64_t before_workers = nursery_metrics().minor_collections;
     scoop_thread_leave_managed();
 
     pthread_t threads[2];
@@ -59,11 +70,16 @@ int main(void) {
         assert(pthread_join(threads[index], NULL) == 0);
     }
 
-    scoop_thread_enter_managed(&boundary);
+    scoop_thread_enter_managed((void *)boundary);
+    assert(nursery_metrics().minor_collections > before_workers);
     nursery_collect(true);
-    assert(shared->slots[0]->value == 1999);
-    assert(shared->slots[1]->value == 11999);
-    assert(nursery_metrics().minor_collections > 2);
+    assert(shared->slots[0]->value == iterations - 1);
+    assert(shared->slots[1]->value == 10000 + iterations - 1);
+#ifdef SCOOP_TEST_SURVIVOR
+    nursery_collect(true);
+    assert(shared->slots[0]->value == iterations - 1);
+    assert(shared->slots[1]->value == 10000 + iterations - 1);
+#endif
     assert(scoop_rt_unpin(shared) == shared);
     nursery_collect(false);
     assert(scoop_rt_gc_stats() == 0);

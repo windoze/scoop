@@ -93,12 +93,26 @@ class Task(val gate: Gate) : SuspendTask<Int> {
     public override suspend fun run(): Int = outer(gate)
 }
 
-fun main() {
+fun churnYoungObjects() {
+    val recent = MutableArray<Request>(16L) { Request(0) }
+    var index = 0L
+    while (index < 65536L) {
+        recent[index % 16L] = Request(index.toInt())
+        index += 1L
+    }
+    expect(recent[15L].id == 65535)
+}
+
+fun main(args: Array<String>) {
     context(Request(1)) {
         val gate = Gate(3)
         val done = Completion(1)
         startCoroutine(suspend { outer(gate) }, done)
         expect(done.calls == 0 && current() == 1)
+        if (args[1L] == "minor") {
+            churnYoungObjects()
+            expect(current() == 1)
+        }
         gcCollect()
         context(Request(8)) {
             gate.complete(37)

@@ -4,16 +4,26 @@ impl Concretizer<'_> {
     pub(super) fn lower_inline_bodies(&mut self) -> Arena<concrete::ImportedInlineBody> {
         let mut bodies = Arena::new();
         for (_, template) in self.source.imported_generic_templates.iter() {
-            let export::ImportedCallableTemplateOrigin::Inline(owner) = template.declaration else {
-                continue;
+            let (declaration, owner) = match template.declaration {
+                export::ImportedCallableTemplateOrigin::Inline(owner) => (
+                    scoop_identity::CallableTemplateOrigin::Function(owner),
+                    scoop_identity::CallableTemplateOwner::Function(owner),
+                ),
+                export::ImportedCallableTemplateOrigin::InlineAccessor(owner) => (
+                    scoop_identity::CallableTemplateOrigin::Accessor(owner),
+                    scoop_identity::CallableTemplateOwner::Accessor(owner),
+                ),
+                _ => continue,
             };
-            if !export::small_inline_body(&template.signature.signature, &template.implementation) {
+            if !export::portable_inline_body(
+                &template.signature.signature,
+                &template.implementation,
+            ) {
                 continue;
             }
             let Some((callable, _)) =
                 self.imported_dependency_callables.iter().find(|(_, use_)| {
-                    use_.reference().declaration()
-                        == scoop_identity::CallableTemplateOrigin::Function(owner)
+                    use_.reference().declaration() == declaration
                         && use_.dispatch() == export::ImportedDependencyDispatch::Direct
                 })
             else {
@@ -36,7 +46,7 @@ impl Concretizer<'_> {
             bodies.alloc(concrete::ImportedInlineBody {
                 callable,
                 materialization: scoop_identity::CallableMaterialization::new(
-                    scoop_identity::CallableTemplateOwner::Function(owner),
+                    owner,
                     scoop_identity::CallableMaterializationContext::NoSubstitution,
                 ),
                 params,

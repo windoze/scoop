@@ -1,0 +1,47 @@
+schema = 1
+name = "bounded-array-kernel-roots"
+inputs = ["program.scoop", "../../../language/callback/native.c"]
+tools = ["scoop", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["poll", "array", "roots", "gc-correctness"]
+
+[[steps]]
+name = "threads"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-c", "${fixture}/../../../language/callback/native.c", "-o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libm34_poll_threads.a", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "--enable-gc-stress", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "bounded array initialization survives concurrent collection\n"
+stderr = ""
+timeout = 60
+
+[[steps]]
+name = "minor"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "bounded array initialization survives concurrent collection\n"
+stderr = ""
+timeout = 60

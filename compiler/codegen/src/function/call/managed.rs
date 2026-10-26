@@ -1,8 +1,10 @@
 use super::*;
 
 mod arguments;
+mod initialization;
 mod invoke;
 mod preparation;
+mod task_context;
 mod validation;
 
 use preparation::CallPreparation;
@@ -73,6 +75,31 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             invoke.is_some(),
         )?;
 
+        if self.optimize_allocations
+            && invoke.is_none()
+            && matches!(protocol, CallProtocol::NoGc)
+            && self.emit_context_access(&call, &result)?
+        {
+            return Ok(());
+        }
+
+        if invoke.is_none()
+            && let (
+                scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::Managed(
+                    scoop_lir::ManagedRuntimeFunction::InitializationEnter,
+                )),
+                TypedCallResult::Direct { out, .. },
+                CallProtocol::Managed { safepoint, live },
+            ) = (destination, &result, &protocol)
+        {
+            return self.initialization_enter(
+                *out,
+                call.args()[0].logical_value(),
+                *safepoint,
+                live,
+            );
+        }
+
         if invoke.is_none()
             && let (
                 scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::NoGc(
@@ -92,6 +119,23 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             } else {
                 length
             };
+            self.temps.insert(*out, value.into());
+            return Ok(());
+        }
+
+        if self.optimize_allocations
+            && invoke.is_none()
+            && let (
+                scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::NoGc(
+                    scoop_lir::NoGcRuntimeFunction::StringCompare,
+                )),
+                TypedCallResult::Direct { out, .. },
+            ) = (destination, &result)
+            && let Some(value) = self.short_string_compare(
+                call.args()[0].logical_value(),
+                call.args()[1].logical_value(),
+            )?
+        {
             self.temps.insert(*out, value.into());
             return Ok(());
         }

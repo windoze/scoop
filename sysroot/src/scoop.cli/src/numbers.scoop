@@ -3,10 +3,10 @@ package scoop.cli
 internal fun digit(value: Char): Boolean = value >= '0' && value <= '9'
 
 internal fun magnitude(owner: CliDecoder, text: String, start: Long): ULong {
-    if (start == text.length) { owner.fail("expected a decimal integer") }
+    if (start == text.charLength) { owner.fail("expected a decimal integer") }
     var result = 0uL
-    for (index in start until text.length) {
-        val character = text[index]
+    for (index in start until text.charLength) {
+        val character = text.getCharAt(index)
         if (!digit(character)) { owner.fail("expected a decimal integer") }
         val value = (character.code - 48).toULong()
         if (result > (18446744073709551615uL - value) / 10uL) { owner.fail("integer is out of range") }
@@ -16,9 +16,9 @@ internal fun magnitude(owner: CliDecoder, text: String, start: Long): ULong {
 }
 
 internal fun signedInteger(owner: CliDecoder, text: String): Long {
-    if (text.length == 0L) { owner.fail("expected a decimal integer") }
-    val negative = text[0L] == '-'
-    val start = if (negative || text[0L] == '+') { 1L } else { 0L }
+    if (text.charLength == 0L) { owner.fail("expected a decimal integer") }
+    val negative = text.getCharAt(0L) == '-'
+    val start = if (negative || text.getCharAt(0L) == '+') { 1L } else { 0L }
     val value = magnitude(owner, text, start)
     if (negative) {
         if (value > 9223372036854775808uL) { owner.fail("integer is out of range") }
@@ -29,28 +29,28 @@ internal fun signedInteger(owner: CliDecoder, text: String): Long {
 }
 
 internal fun unsignedInteger(owner: CliDecoder, text: String): ULong {
-    if (text.length == 0L || text[0L] == '-') { owner.fail("expected an unsigned decimal integer") }
-    return magnitude(owner, text, if (text[0L] == '+') { 1L } else { 0L })
+    if (text.charLength == 0L || text.getCharAt(0L) == '-') { owner.fail("expected an unsigned decimal integer") }
+    return magnitude(owner, text, if (text.getCharAt(0L) == '+') { 1L } else { 0L })
 }
 
 internal fun decimalDigits(owner: CliDecoder, text: String, start: Long): Long {
     var index = start
-    while (index < text.length && digit(text[index])) { index = index + 1L }
+    while (index < text.charLength && digit(text.getCharAt(index))) { index = index + 1L }
     if (index == start) { owner.fail("expected a decimal digit") }
     return index
 }
 
 internal fun checkDecimal(owner: CliDecoder, text: String) {
-    if (text.length == 0L) { owner.fail("expected a decimal number") }
-    var index = if (text[0L] == '+' || text[0L] == '-') { 1L } else { 0L }
+    if (text.charLength == 0L) { owner.fail("expected a decimal number") }
+    var index = if (text.getCharAt(0L) == '+' || text.getCharAt(0L) == '-') { 1L } else { 0L }
     index = decimalDigits(owner, text, index)
-    if (index < text.length && text[index] == '.') { index = decimalDigits(owner, text, index + 1L) }
-    if (index < text.length && (text[index] == 'e' || text[index] == 'E')) {
+    if (index < text.charLength && text.getCharAt(index) == '.') { index = decimalDigits(owner, text, index + 1L) }
+    if (index < text.charLength && (text.getCharAt(index) == 'e' || text.getCharAt(index) == 'E')) {
         index = index + 1L
-        if (index < text.length && (text[index] == '+' || text[index] == '-')) { index = index + 1L }
+        if (index < text.charLength && (text.getCharAt(index) == '+' || text.getCharAt(index) == '-')) { index = index + 1L }
         index = decimalDigits(owner, text, index)
     }
-    if (index != text.length) { owner.fail("expected a complete decimal number") }
+    if (index != text.charLength) { owner.fail("expected a complete decimal number") }
 }
 
 @Extern(name = "scoop_rt_json_parse_float", abi = "scoop")

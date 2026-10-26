@@ -16,6 +16,15 @@ private class FailingResource(private val failure: Throwable) : Closeable {
     public override fun close() { throw failure }
 }
 
+private class ValueResource(var value: Int) : Disposable {
+    public override fun dispose() { value += 1 }
+}
+
+private fun evaluated(resource: ValueResource, counter: ValueResource): ValueResource {
+    counter.value += 1
+    return resource
+}
+
 private class Gate(var waiter: Continuation<Int>? = None)
 private class Completion : Continuation<Int> {
     var value: Int = 0
@@ -62,4 +71,26 @@ private fun exerciseConsumer() {
 private class ConsumerTests {
     @Test
     fun behavior() { exerciseConsumer() }
+
+    @Test
+    fun cleanupPreservesResultAndEvaluatesReceiverOnce() {
+        val resource = ValueResource(7)
+        val counter = ValueResource(0)
+        val result = evaluated(resource, counter).use { it.value }
+        check(result == 7 && resource.value == 8 && counter.value == 1)
+    }
+
+    @Test
+    fun singleFailuresPreserveIdentity() {
+        val primary = Exception(Some("body"))
+        val cleanup = Exception(Some("dispose"))
+        val resource = ValueResource(0)
+        var caught = 0
+        try { resource.use { throw primary } }
+        catch (error: Throwable) { check(error === primary); caught += 1 }
+        check(resource.value == 1)
+        try { FailingResource(cleanup).use { 42 } }
+        catch (error: Throwable) { check(error === cleanup); caught += 1 }
+        check(caught == 2)
+    }
 }

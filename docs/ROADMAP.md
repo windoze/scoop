@@ -758,6 +758,65 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
+### 程序运行性能优化主线（调研完成，持续实施中）
+
+- [优化方向与实施路线调研](program-performance/INVESTIGATION.md)以达到或超过 Go／Java／Kotlin/Native 的综合运行性能为目标，对照 M62 代码更新历史暂缓项，覆盖测量与归因、跨过程／全程序优化、部分逃逸、托管数组 SIMD、PGO／ThinLTO、协程与 ABI、GC 晋升／并发、内存表示和库算法。
+- 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。PGO 为后续独立专项，在代表负载、成熟消费者和反馈原型净收益成立后排期；测量与全程序优化／ThinLTO 均不以 PGO 为前置。
+- 优化按长期、分批试验和交付推进：成本低且收益比较稳定的方案可直接纳入 release 默认设置；成本过高或收益不稳定的方案通过独立开关或等级决定是否启用、启用哪一级。默认值随实测结果调整，保留默认与调优配置的对照。
+- [已采纳优化与开启条件](program-performance/ENABLED-OPTIMIZATIONS.md)简要列出各项方案的默认 profile、适用条件及实际开关，后续采纳与策略变更时同步维护。
+- [String 比较与短 hash](program-performance/STRING-READS.md)已交付：普通 core 的身份／长度判断与有界 hash，真实 typed 常量折叠及短常量比较；三目标语义、IR／moving 和性能成本对照通过，长文本与 UTF-8 解码继续共享后备。接口复制与重定位 SSA 为下一优先批次。
+- [已知小型 box 分配](program-performance/BOX-ALLOCATION.md)已交付：≤128 B 实例复用生成的 TLAB／慢路径，保持独立身份、完整 payload 和写屏障，省去 box C 检查与额外 region frame。三目标 IR、跨 Cone／packed／moving 和性能／成本对照通过；release 默认，较大 box 和 debug 保留后备，布局与 ABI 不变。
+- [普通 String 拼接生成路径](program-performance/STRING-CONCAT.md)已交付：MIR 融合单用链并合并短常量，热循环二元复用同一路径；一次分配并在 GC 后重取输入地址，保留共享结果、异常顺序和冷点后备。三目标定向测试、大小对象 moving、IR／机器码与成本对照通过；release 默认，布局及 ABI 不变，StringBuilder 不变。
+- [标量 core 正文与 Boolean 字符串常量](program-performance/SCALAR-BODIES.md)已交付：Boolean equals／hash 和整数 hash 使用普通正文，保持位宽／回绕结果，按调用点展开；Boolean.toString 选择已有 immutable String。三目标定向语义、GC、IR／机器码与成本对照通过，十万次字符串化减少 3.2 MB 分配；短动态内核的测量波动单独保留。全 profile 正文一致，release 默认，无新 ABI 或测量机制。
+- [整数十进制格式化与 helper 正文](program-performance/INTEGER-DECIMAL.md)已交付：专用八位分块算法进入普通 core，20 B 栈缓冲区一次写入，C 后备同步替换 printf；补齐跨 Cone 循环／pointer 和普通 helper 正文闭合，沿用调用点评分。三目标转换降低约 20%～70%，分配不变，代表程序体积与编译成本小幅增加；定向语义、GC、IR／机器码和对照完成。所有 profile 使用同一算法，release 默认展开，无新增 ABI 或测量代码。
+- [线程入口复用已校验状态](program-performance/THREAD-STATE-REUSE.md)已交付：同步入口消费 managed 检查返回的线程状态，native 边界 TLS 取址七次降至四次；三目标 NativeSafe 调用降低约 19.6%／3.4%／3.0%，完整文件、对象与线程布局保持，定向 GC／线程／异常验证通过。全部 profile 默认，实际程序回退和构建成本一并记录。
+- [搬迁时更新存活清单](program-performance/LIVE-SET-RELOCATION.md)已交付：复制后直接保留当前对象地址，引用回写减少一次元数据定位和 source forwarding，真实字段／roots 转发及 GC 契约保持。三目标 trees 降低约 14.0%／9.1%／3.0%，strmap 小幅退化一并记录；无新增计划或清单存储，完整程序不增长，构建成本持平。定向 GC、机器码和空间验证通过，所有 profile 默认，无 ABI 或测量代码变化。
+- [String 字符扫描 API](program-performance/STRING-API.md)已统一为 O(n) 的 `charLength`／`getCharAt(idx)` 与 O(1) 的 `byteLength`，移除旧 `length`／`get`／下标；三目标内置库和调用点迁移及定向行为／编译失败／表示 ABI 验证完成，对象结构保持。
+- [启动阶段测量](program-performance/STARTUP-STATS.md)已通过 `--enable-startup-stats` 提供；默认预处理排除全部新增计时和报告，三目标默认程序的代码段与无测量基线逐字节相同。统计记录七阶段与已有索引数量，开关只改变 runtime／最终链接，作为注册与 stackmap 优化的指导，不提前引入 PGO。
+- [启动 owner 验证合并](program-performance/STARTUP-OWNER-JOIN.md)已按测量结果交付：首次 stackmap 合并时完成一次 owner 解析，重复 ODR 复用结果，全部必要检查仍在 managed 执行前完成。三个目标的代表启动降低约 2.7%～8.1%，完整文件与静态元数据不增长；全部 profile 默认，ABI 和预编译 Cone 保持。
+- [普通 managed poll 与有界叶函数](program-performance/ACTIVE-POLLS.md)已交付：普通 Full poll 仅一次 acquire 读取 phase，省去 TLS／mode／epoch，既有有界叶函数省入口；Gateway 保留首次激活及[本线程 relaxed 读取](program-performance/POLL-OWNER-READS.md)。三个目标动态调用内核降低约 16.5%／27.5%／39.5%，静态空间缩小，定向 GC／ABI 与编译成本已验证，所有 profile 默认。
+- [minor 局部块遍历与连续清卡跳过](program-performance/MINOR-BLOCKS.md)已交付：年轻块／新目标与可用 region 分别索引，保留原 block 大小和 ABI，连续清卡批量跳过。原始 trees 三目标耗时降低约 7.9%／12.0%／11.8%，仅每个 region 增加 8 B、全局增加 16 B；定向 GC、实际负载、默认产物消费与空间／构建成本已核对，所有 profile 默认。
+- [调用点内联评分](program-performance/CALL-SITE-INLINING.md)已交付：复用函数事实，以静态热度放大可消除的调用／适配／化简开销，按净增长、复杂度与 caller 规模计价；移除统一执行上限和跨 Cone 96 节点过滤。相同正文可在热／冷／常量调用点得到不同决策。三目标 dispatch 降低约 44%～59%，七程序代码与文件缩小，编译成本变化较小；无稳定收益及小幅退化一并记录。release 默认，三目标定向语义／GC／产物验证通过，按需报告 schema 2，ABI 与诊断代码生成边界保持。
+- [循环内联优先级与传值调用估价](program-performance/LOOP-INLINING.md)已交付：有限增长优先用于深循环，及时使用展开后的 exact receiver，循环成本考虑参数／返回值快照。原始 dispatch／values 三目标分别降低约 12.8%～29.9%／10.2%～33.9%，代码不膨胀，编译变化 −1.49%～+1.70%；定向语义／ABI／GC 验证通过，release 默认。后续选择规则已由上述调用点评分接续。
+- [小正文导出与跨 Cone 主值构造器内联](program-performance/BODY-EXPORT.md)已交付：普通构造／字段写入／callable-owned 字符串进入有界导出，主值构造按已有角色选择；strmap 的快照／主值构造及部分检查调用消失，三目标降低约 3.1%～4.9%，静态数据减少，生产库增长小于 1%。定向语义／GC／跨 profile、旧库回退及编译成本已核对，release 默认；成本不合格的调用保留。
+- [minor 脏卡组清单](program-performance/DIRTY-CARD-GROUPS.md)已交付：只枚举、清理已登记的 32 KiB 组，side metadata 约 0.049%，统一 runtime ABI 17；三目标稀疏旧堆增长项消除，真实程序与写入固定成本的回退如实保留，定向正确性、编译与空间成本已验证。
+- [nursery 自适应容量与分块搬迁计划](program-performance/ADAPTIVE-NURSERY.md)已交付：普通运行从 1 MiB 按需增长至默认 32 MiB，并能随存活压力和 full 后活跃堆缩小；`SCOOP_GC_NURSERY_MAX_MIB` 可调上限，旧代压力独立。三目标 trees 耗时降低约 57.7%～59.3%，128 MiB 可选上限降低约 73.4%～75.6%；strings／strmap 同样获益，内存及单次暂停代价按目标保留。搬迁计划使用固定分块，消除连续扩容的 native 内存放大；定向 GC、空间与构建成本已验证，ABI 保持。
+- [可选 survivor 与密集块原地保留](program-performance/SURVIVOR.md)已交付：`SCOOP_GC_SURVIVOR=1` 开启、默认关闭，按本轮 nursery 四分之一限制保留容量，下一轮晋升；remembered 边跨轮保留且不重扫旧堆。三目标有限缓存耗时降低约 11.5%／20.0%／36.7%，峰值内存降低约 42%～62%；长寿树与字符串负载的成本支持保留显式选项。block、用户对象及 ABI 保持，heap 增加 8 B；定向正确性、默认关闭成本、产物和冷构建已验证。
+- [不可达 callable 与 stackmap 裁剪](program-performance/CALLABLE-PRUNING.md)已交付：沿保存的完整物理引用选择，函数代码及其登记／GC 记录同选，非 callable 元数据保留。三目标代表启动降低约 30%～46%，完整文件缩小约 33%～36%，编译和链接成本下降；稳态变化及库文件最多 0.103% 的增量已记录。所有 profile 默认，配套 `link-identity-closure/19`，旧输入须重建，runtime／metadata ABI 与对象表示保持。
+- [类型／shape 元数据裁剪](program-performance/TYPE-PRUNING.md)已进一步收紧上述保留起点：Strong TD 与其登记同组，布局／scan／完整接口表独立划分，按实际引用删除无入口类型和方法。三目标代表启动降低约 26%～49%，完整文件缩小约 65%～67%，consumer 构建与链接更快；输入库增长 1.74%～7.62%，库生产编译成本和稳态小幅回退单独记录。所有 profile 默认，旧版 19 粗分组库仍可消费；对象、GC roots、接口布局和 ABI 保持。
+- [普通内联增长额度](program-performance/INLINE-GROWTH.md)已统一调整初始常数 96→128，保留总上限与执行阈值；ArrayList.get 调用消失，三目标遍历减少约 16%～24%，代码增加 32～64 B，release 默认。按实际成本保留其他 helper，未采纳增长回收试验。
+- [跨 Cone 普通方法与 getter 内联](program-performance/MEMBER-INLINING.md)已交付：相同的 HIR 结构和 MIR 成本选择，保留完整 receiver、typed accessor identity 与动态分派边界；三目标用户成员循环降低约 47%～73%，正文、代码与编译成本很小，release 默认启用。反向 profile、异常、泛型、装箱、GC roots 和旧库回退通过。
+- [Darwin 的 Scoop 符号镜像内绑定](program-performance/LOCAL-SYMBOLS.md)已交付：所有 profile 的最终链接移除 Scoop 动态导出、weak binding 和直接调用 stub，相容预编译库可直接重链接。代表程序缩小 16.84%，零次循环进程降低 46.60%；跨 Cone／GC、稳态回退与链接成本已验证。成员内联、内联选择、poll／TLS 和 runtime 启动登记继续优先推进。
+- [函数级 CPU 采样归因](program-performance/CPU-PROFILING.md)已交付：所有 profile 可按需输出 symbols，复用当前及已加载依赖的正文身份；sample／perf 与 LLVM 处理实际符号、同址别名和主镜像 PC。三目标程序产物不变，声明与执行位置的区别、编译／空间成本和采样扰动已记录；指令行表、内联栈与 PGO 继续按实际消费者推进。
+- [实施记录](program-performance/PROGRESS.md)记录各项交付、必要验证和后续工作；已交付预构建程序的可复现 A/B 测量、[完整父接口表投影与视图复用](program-performance/INTERFACE-PROJECTION.md)、[接口检查与取表合并](program-performance/INTERFACE-CHECKS.md)、[普通 class／局部游标字段替换](program-performance/CLASS-SCALARS.md)，以及[字段替换指导内联](program-performance/ITERATOR-INLINING.md)和[按需 MIR 优化决策报告](program-performance/OPTIMIZATION-REPORT.md)。真实 ArrayList 反复遍历的 iterator 分配已消除；Darwin／Linux GNU／musl 的定向正确性、生成代码及性能对照完成，未命中边界、实测对照回退、编译与空间成本一并保留。后续按改动选择必要验证组，继续完善归因并改进已定位的静态优化热点。
+- 已交付[有界整数／Boolean 数组初始化](program-performance/ARRAY-INITIALIZATION.md)及[普通数组边界检查与分块](program-performance/ARRAY-BOUNDS.md)：稳定长度与归纳变量直接证明，动态长度关系用 guard 选择完整块并保留原 checked 路径，覆盖真实内联的读取／变换／复制。三目标正确性、移动 GC、大数组收益、动态短数组回退与编译／空间成本已测量；更广的容器访问、复杂条件与元素类型仍待后续。
+- [循环范围指导内联](program-performance/ARRAY-INLINING.md)已闭合综合求和 getter 的增长额度缺口：复用范围证明，实际去除不可达检查后计价，在不提高阈值的条件下形成无调用内层。三目标运行收益、短任务及布局敏感回退、编译与空间成本已记录；更广容器与跨过程范围仍待后续。
+- [严格浮点数组循环](program-performance/FLOAT-ARRAYS.md)已交付：Float／Double 复用范围证明和有界分块，逐元素运算保留精度与舍入次数，顺序求和保持原累加顺序；显式关闭 LLVM 向量化 hint 的隐含重排许可。三目标定向正确性、移动 GC、长数组收益、单元素回退及编译／空间成本已记录，有限范围沿用 release 默认能力。
+- [含条件分支的数组循环](program-performance/CONDITIONAL-ARRAYS.md)已交付：单入口、单 latch 的无环正文保留实际分支与合流快照，整数条件内核获得 SIMD，浮点限幅与掩码求和保留标量有界内层。x86 最内层入口对齐闭合了实测布局回退；三目标定向正确性、GC、长／短路径及编译／空间成本已记录，未交付收益不稳定的分支填充实验。
+- [数组搜索与提前退出循环](program-performance/EARLY-EXIT-ARRAYS.md)已交付：只复制继续迭代的自然循环区域，原出口共享本轮值及其副作用，保留首次命中、异常前缀与 GC。三目标长内核获得收益，首项／短路径回退、实际内联代码、空间与编译成本已核对；沿用 release 默认能力，搜索 SIMD 和更广循环变换继续独立推进。
+- [引用数组范围证明与有界循环](program-performance/REFERENCE-ARRAYS.md)已交付：读取、复制、可空值、MaybeUninit 和静态父表投影进入已有有界内层，保留原写屏障与精确 roots。三目标读取／搜索获益，Darwin 写入获益，x86 带屏障写入基本持平；旧数组持有年轻对象、并发 moving／minor、短路径及编译／空间成本已定向核对。重复卡标记、bulk barrier 和引用 SIMD 继续独立测量。
+- [卡表幂等原子写入](program-performance/CARD-STORES.md)已交付：利用二值卡状态与 STW 清零，以 relaxed store 1 替代单槽和 runtime 范围屏障的 OR 1。三目标引用写入获益，GNU／musl 长复制与清零降低约 70%～82%；LIR、roots、脏卡计数及 ABI 保持，空间／编译成本与对照回退一并记录，作为所有 profile 与 runtime 的默认实现。
+- [有界引用循环页表查询提升](program-performance/CARD-REGIONS.md)已交付：数组基址定位 mapping，release 将每轮必经、目标稳定的查询移至完整块进入边，保留逐次 card store 和精确 roots。三目标普通引用复制内核降低约 45%～80%；后续[接口栈重取扩展](program-performance/INTERFACE-CARD-REGIONS.md)在 ARM64 release 继续覆盖接口复制／父投影／初始化，前两项再降低约 44%。x86 试验未取得稳定收益，保持原规则；空间、编译成本和对照回退均有记录，无新开关。
+- [接口 SSA 快照复用](program-performance/INTERFACE-VALUES.md)已交付：x86_64 release 在同一无 safepoint 直线区间复用刚写入的完整接口值，消除局部复制链，接口数组复制／父投影也因此满足原有页表查询提升条件。GNU／musl 内核降低约 36%～40%；ARM64 试验回退，最终产物保持基线相同字节。精确 roots、接口布局和 ABI 保持，成本、复测与未采纳试验已记录。
+- [有界引用循环卡标记合并](program-performance/CARD-BATCHES.md)已交付：每轮必经、固定槽步长的完整块在正常退出后统一标记，保留元素写入，先于下一次 poll／发布，每流最多三次卡写入。三目标复制与清零获益，GNU／musl 接口复制／父投影降低约 43%～47%；LIR、精确 roots、脏卡集合与 ABI 保持，text 增加约 0.03%，沿用 release 默认设置。初始化、求和及短路径回退和编译成本已记录，更广屏障合并继续独立测量。
+- [有界引用读取部分展开](program-performance/REFERENCE-UNROLL.md)已交付：依据函数级采样，对小型单块只读内层作四倍展开，三目标 release 默认启用；保持 poll、精确 roots、短尾及严格浮点顺序。较长字段求和阶段降低约 13.5%／3.6%／3.6%，text 增加 40／0／0 字节；拒绝条件、卡标记组合及编译成本已定向验证。
+- 后续[条件引用读取展开](program-performance/CONDITIONAL-REFERENCE-UNROLL.md)已交付：最多四个无环块复用四倍策略，保留空值 guard 和标量合流。交替空值内核降低约 51%／29%／15%，text 增加 64／128／128 字节；全 Some 的 Linux 小幅回退、二倍对照、短路径和编译成本一并记录，沿用 release 默认设置。
+- [调用点异常路径特化](program-performance/EXCEPTION-PATHS.md)已交付：按 exact 类型和已有完整正文证明异常边不可达，保留正常清理并按剩余正文选择内联；不扩大一般 EH 内联或持久摘要格式。三目标 `use` 内核与直接写法接近，长阶段耗时降低约 97.2%／98.9%／98.9%，闭包和资源分配消失；真实抛出、跨 Cone、返回快照、移动 GC、编译与空间成本已核对，沿用 release 默认能力。
+- [异常区域中的局部分配消除](program-performance/EXCEPTION-SCALARS.md)已交付：在分析图中分开块入口与正常完成点，box／closure／class 在异常支配和循环存活证明成立时转为局部值，保留真实 EH、字段快照和异常出口 roots。三目标带 catch 的 use 阶段降低约 92.6%／95.7%／96.2%，静态空间缩小，编译墙钟 −2.17%～+1.47%；有限范围作为 release 默认项纳入开启条件清单。
+- [nursery 独占块的分配登记](program-performance/NURSERY-METADATA.md)已交付：复用已保留范围和单写者关系，以原子 load／OR／store 保留已有位图状态及 starts 的 release 发布，共享旧代继续使用原子读改写。三目标小／宽对象分配区间降低约 28%～53%，GC 计数、IR 与根 `.slib` 保持，text 增加 192～716 B，runtime 冷构建墙钟 −1.20%～+0.46%；所有 profile 默认采用，无新开关。
+- [小型 TLAB 分配完成内联](program-performance/TLAB-COMPLETION.md)已交付：release 复用完整 LIR 布局，合格 16～128 B 常量分配直接完成清零、登记与计数；其他请求保留共享入口，统一 runtime ABI 16。三目标 16／24／48 B 阶段降低约 42%～59%，text 增加约 4.4%～8.0%，完整程序增加约 0.33%～0.41%；GNU 数组回退、musl 编译成本和定向验证均已记录，受限范围纳入 release 默认清单。
+- [分配 context 首次使用复用](program-performance/ALLOCATION-CONTEXT.md)已交付：ARM64 release 复用调用内稳定的 TLAB context 地址，保留 GC／refill 后的状态重读和异常路径。16／24 B 阶段再降低约 16.5%／15.6%，text 缩小约 0.19%；x86 宽对象试验回退，最终 GNU／musl 产物保持基线相同字节。三目标定向验证、零／单次路径和编译成本已记录，ABI 16 与对象／根布局保持，无新公开开关。
+- [确定初始化前尾部清零消除](program-performance/ALLOCATION-ZEROING.md)已交付：在直线初始化路径中缩短单次清零，保留对象头、引用槽、padding、发布与 roots；release 默认接受 ARM64 ≤128 B、x86 ≤64 B。三目标 24／48 B 阶段降低约 3.4%～17.5%，ARM64 128 B 降低约 26.4%；较大 x86 试验未形成稳定收益，保持原指令。text 不增加，编译、对照回退和定向验证已记录，统一 ABI 16 与产物格式保持。
+- [动态接口目录测量](program-performance/INTERFACE-DIRECTORY.md)已补齐：真实装箱／集合／短目录等 9 种负载在三目标验证，O2 边界测试覆盖 0～17 项。四种循环展开存在短目录或 smartcast 回退，本轮未采纳，保留原 runtime 查询和全部父表投影能力；测量入口及取舍已登记。
+- [循环中稳定来源的查询复用](program-performance/INTERFACE-QUERY-REUSE.md)已交付：release 对参数或所有 CFG 环外单次定义的局部引用，首次实际检查后复用 exact interface 的命中／未命中 entry；含 Boolean、空接口和稳定来源的异常继续路径，不增加对象副本、roots 或 ABI。三目标主要目录负载降低约 13%～87%，静态／编译成本和短目录、布局敏感回退均已记录。
+- 延续桌面短暂停与内存目标，按吞吐、应用尾延迟、RSS 和启动分别验收；调研不表示优化已实现或已完成跨语言性能比较。具体实施前先修订实际受影响的规范，不预先占用新的里程碑编号。
+
+### 独立 Math 库（设计完成，待实现）
+
+- 参考 Java Math/java.math 的功能范围，交付显式依赖的 `scoop.math` Cone；公共合同见[规范草案](specs/SCOOP-MATH-SPEC.md)，存储、算法及阶段见[设计](math/DESIGN.md)。
+- BigInteger/BigDecimal 为不可变 final class，小 coefficient 内联于内部值表示；MathContext、RoundingMode 和商余数分别使用 struct、enum、tuple。普通 Scoop 算术及接口复用现有 scalar/value/icall/vcall 优化方向，超越函数使用目标 libm。
+- 按标量函数、大整数、十进制、优化与分发验收四阶段实施；随机源继续复用 std 的独立模块，不增加 math RNG、隐式舍入 context 或专用 runtime 大数 ABI。
+
 ### 可恢复语法与 LSP（公共基础 A～E 已完成，扩展能力待排期）
 
 - 已按[公共基础设计](language-service/DESIGN.md)交付保留全部源码的 CST、缺失／错误语法和完整 AST 适配；错误文件仍可查询，成功编译继续要求完整 HIR。

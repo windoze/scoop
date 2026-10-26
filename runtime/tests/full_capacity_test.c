@@ -23,7 +23,7 @@ static void *old_object(void) {
     memset(object, 0, GC_REGULAR_MAX);
     *(ScoopObjectHeader *)object = (ScoopObjectHeader){&wide_td, GC_RELEASE_READY_BIT};
     ((unsigned char *)object)[GC_REGULAR_MAX - 1] = 73;
-    scoop_heap_record_small_object(block, object, GC_REGULAR_MAX, false);
+    scoop_heap_record_small_object(block, object, GC_REGULAR_MAX);
     return object;
 }
 
@@ -42,11 +42,12 @@ static void collect_insufficient_capacity(void *dead) {
     scoop_gc_mark_begin(false, blocks);
     scoop_gc_mark_roots();
     uint64_t live = scoop_gc_mark_finish(false);
-    assert(!scoop_gc_heap_plan_moving_locked(false));
+    ScoopGcSurvivors survivors;
+    assert(!scoop_gc_heap_plan_moving_locked(false, &survivors));
     assert(moved_objects == 0 && released == 0);
     assert(scoop_gc_is_object_start_locked(dead));
     scoop_gc_mark_dispose();
-    scoop_gc_heap_finish_collection_locked(live, false);
+    scoop_gc_heap_finish_collection_locked(live, false, &survivors);
     scoop_gc_set_pin_frames_locked(false);
     scoop_gc_roots_unlock();
     scoop_gc_heap_unlock();

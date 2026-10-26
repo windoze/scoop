@@ -1,0 +1,17 @@
+schema = 1
+name = "local-class-scalars"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["optimization", "class", "escape", "compiler-correctness"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "local classes preserve field state, constructors and iteration identity\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

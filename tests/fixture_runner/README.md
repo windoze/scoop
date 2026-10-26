@@ -136,6 +136,7 @@ stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键�
 每个变体开始时去掉调用者环境中的 `SCOOP_GC_STRESS_MOVE` 和 `SCOOP_GC_STRESS_MINOR`，
 再应用变体和步骤的显式设置；其他环境变量继续继承。GC 正确性专测显式编入支持并
 设置所需环境变量。普通功能用例不启用 stress，也不保留重复的 moving/minor 运行。
+依赖实际分配量或等待 minor GC 的压力循环必须让对象真实逃逸，例如先写入全局槽；只构造并读取字段可能被标量替换。若目标是制造短命垃圾，在下一次分配前清空压力槽，避免把压力对象的额外存活与晋升混入被测行为。
 字节期望和 stdin 可写文本、`{hex = "..."}` 或 `{file = "expected.stdout"}`。
 stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用 snapshot
 更新规则；正常验收仍比较完整原始字节。仅用于小而受控的结构或工具输出专测；普通功能用例不保存完整符号表。

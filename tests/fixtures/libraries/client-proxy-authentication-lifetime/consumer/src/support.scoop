@@ -63,7 +63,7 @@ internal suspend fun lifeRespond(connection: AsyncHttp1Connection, status: UInt,
     for (field in extra) fields.add(field)
     connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, fields = fields),
         Http1BodyFraming.Length(body.toByteArray().size)).useAsync suspend { output ->
-        if (body.length != 0L) lifeWrite(output, body)
+        if (body.charLength != 0L) lifeWrite(output, body)
         output.finish()
     }
 }

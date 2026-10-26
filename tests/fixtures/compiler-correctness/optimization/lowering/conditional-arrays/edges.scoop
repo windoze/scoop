@@ -1,0 +1,48 @@
+package dev.performance
+
+fun checkEdges() {
+    val bits32 = [-8388608, -2147483648, 0, 1, 0x7f800000, 0x7fc00001, 0x7f800001]
+    val expected32 = [-1082130432, -2147483648, 0, 1, 0x3f800000, 0x3f800000, 0x3f800000]
+    val bits64 = [-4503599627370496L, -9223372036854775808L, 0L, 1L,
+        0x7ff0000000000000L, 0x7ff8000000000001L, 0x7ff0000000000001L]
+    val expected64 = [-4616189618054758400L, -9223372036854775808L, 0L, 1L,
+        0x3ff0000000000000L, 0x3ff0000000000000L, 0x3ff0000000000000L]
+    val floats = MutableArray<Float>(129L) { i -> Float.fromBits(bits32[i % bits32.size]) }
+    val doubles = MutableArray<Double>(129L) { i -> Double.fromBits(bits64[i % bits64.size]) }
+    val target = MutableArray<Double>(129L) { _ -> 0.0 }
+    clampFloat(floats, floats, -1f, 1f)
+    clampDouble(doubles, target, -1.0, 1.0)
+    var i = 0L
+    while (i < 129L) {
+        check(floats[i].toBits() == expected32[i % expected32.size])
+        check(target[i].toBits() == expected64[i % expected64.size])
+        i += 1L
+    }
+    val values = Array<Double>(129L) { j -> if (j % 3L == 0L) 9007199254740992.0 else if (j % 3L == 1L) 1.0 else -9007199254740992.0 }
+    val all = Array<Boolean>(129L) { _ -> true }
+    val none = Array<Boolean>(129L) { _ -> false }
+    check(sumMasked(values, all).toBits() == 0L && sumMasked(values, none).toBits() == 0L)
+}
+
+fun checkPrefixes() {
+    val negative = MutableArray<Int>(129L) { _ -> -1 }
+    val positive = MutableArray<Int>(129L) { i -> i.toInt() + 1 }
+    val empty = MutableArray<Int>(0L) { _ -> 9 }
+    retainPositive(negative, empty)
+    partition(positive, positive, empty)
+    check(positive[0L] == 2 && positive[128L] == 130)
+    val short = MutableArray<Int>(65L) { _ -> -99 }
+    var caught = false
+    try { retainPositive(positive, short) }
+    catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && short[0L] == 2 && short[64L] == 66)
+    caught = false
+    try { transform(negative, short, 0) }
+    catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && short[0L] == -2 && short[64L] == -2)
+    val sparse = MutableArray<Int>(129L) { i -> if (i == 128L) 7 else -1 }
+    caught = false
+    try { retainPositive(sparse, short) }
+    catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && short[0L] == -2 && short[64L] == -2)
+}

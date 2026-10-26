@@ -167,24 +167,32 @@ fn elf_shared_library_link_tracks_real_symbol_version_updates() {
 
 #[cfg(target_os = "macos")]
 #[test]
-fn darwin_final_link_keeps_body_boundaries_local() {
+fn darwin_final_link_keeps_scoop_definitions_local() {
     use object::{Object, ObjectSymbol};
     let fixture = test_support::native_fixture();
     let bytes = std::fs::read(&fixture.output.path).unwrap();
     let file = object::File::parse(bytes.as_slice()).unwrap();
-    let is_boundary =
-        |name: &str| name.starts_with("_scoop$1$bs$") || name.starts_with("_scoop$1$be$");
-    let boundaries = file
+    let is_scoop_definition = |name: &str| name.starts_with("_scoop$1$");
+    let definitions = file
         .symbols()
-        .filter(|symbol| symbol.name().is_ok_and(is_boundary))
+        .filter(|symbol| symbol.name().is_ok_and(is_scoop_definition))
         .collect::<Vec<_>>();
-    assert!(!boundaries.is_empty());
-    assert!(boundaries.iter().all(|symbol| symbol.is_local()));
+    assert!(!definitions.is_empty());
+    assert!(definitions.iter().all(|symbol| symbol.is_local()));
+    for kind in ["cb", "td", "bs", "be"] {
+        let prefix = format!("_scoop$1${kind}$");
+        assert!(
+            definitions
+                .iter()
+                .any(|symbol| symbol.name().unwrap().starts_with(&prefix)),
+            "missing representative {kind} definition"
+        );
+    }
     let exports = file.exports().unwrap();
     assert!(
         exports
             .iter()
-            .all(|symbol| { !is_boundary(std::str::from_utf8(symbol.name()).unwrap()) })
+            .all(|symbol| { !is_scoop_definition(std::str::from_utf8(symbol.name()).unwrap()) })
     );
     assert!(exports.iter().any(|symbol| symbol.name() == b"_main"));
     assert!(exports.iter().any(|symbol| symbol.name() == b"_m23_final"));

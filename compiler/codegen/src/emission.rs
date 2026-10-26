@@ -250,6 +250,20 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         )?;
     }
     let module_ctx = ModuleCtx {
+        // Snapshot forwarding regressed AArch64 reference-copy kernels.
+        reuse_interface_values: profile.optimization() == scoop_lir::OptimizationMode::Release
+            && machine.get_target().get_name() == c"x86-64",
+        optimize_allocations: profile.optimization() == scoop_lir::OptimizationMode::Release,
+        optimize_reference_writes: profile.optimization() == scoop_lir::OptimizationMode::Release,
+        // Larger x86 initialization regions had unstable register-allocation costs.
+        allocation_initialization_limit: if machine.get_target().get_name() == c"aarch64" {
+            128
+        } else {
+            64
+        },
+        // The extra live register and cache check regressed x86 wide allocations.
+        reuse_thread_addresses: profile.optimization() == scoop_lir::OptimizationMode::Release
+            && machine.get_target().get_name() == c"aarch64",
         managed_address_space,
         functions: &module.functions,
         structs: &module.structs,
@@ -266,6 +280,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         initialization_units: &initialization_units,
         arrays: &module.meta.arrays,
         array_tds: &array_tds,
+        type_descriptors: &module.meta.type_descriptors,
         type_tds: &type_tds,
         external_type_tds: &external_type_tds,
         target_data: &target_data,
@@ -299,7 +314,10 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             crate::elf_llvm::apply_visibility(global);
         }
         for (&id, &emitted) in &globals {
-            if matches!(module.globals[id].init, GlobalInit::ImportedStorage { .. }) {
+            if matches!(
+                module.globals[id].init,
+                GlobalInit::ImportedStorage { .. } | GlobalInit::ImportedImmortal { .. }
+            ) {
                 crate::elf_llvm::apply_visibility(emitted);
             }
         }

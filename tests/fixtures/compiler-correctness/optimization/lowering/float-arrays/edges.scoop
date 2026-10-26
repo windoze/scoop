@@ -1,0 +1,61 @@
+package dev.performance
+
+fun checkBits() {
+    val bits32 = [0, -2147483648, 1, 0x007fffff, 0x00800000, 0x7f800000, -8388608, 0x7fc00001, 0x7f800001]
+    val bits64 = [0L, -9223372036854775808L, 1L, 0x000fffffffffffffL, 0x0010000000000000L,
+        0x7ff0000000000000L, -4503599627370496L, 0x7ff8000000000001L, 0x7ff0000000000001L]
+    val floats = MutableArray<Float>(129L) { i -> Float.fromBits(bits32[i % bits32.size]) }
+    val doubles = MutableArray<Double>(129L) { i -> Double.fromBits(bits64[i % bits64.size]) }
+    val floatTarget = MutableArray<Float>(129L) { _ -> 1f }
+    val doubleTarget = MutableArray<Double>(129L) { _ -> 1.0 }
+    copyFloat(floats, floatTarget)
+    copyDouble(doubles, doubleTarget)
+    var i = 0L
+    while (i < 129L) {
+        check(floatTarget[i].toBits() == bits32[i % bits32.size])
+        check(doubleTarget[i].toBits() == bits64[i % bits64.size])
+        i += 1L
+    }
+    transformFloat(floats, floatTarget, 1f, -0f)
+    transformDouble(doubles, doubleTarget, 1.0, -0.0)
+    i = 0L
+    while (i < 129L) {
+        check(if (floats[i].isNaN()) floatTarget[i].isNaN() else floatTarget[i].toBits() == floats[i].toBits())
+        check(if (doubles[i].isNaN()) doubleTarget[i].isNaN() else doubleTarget[i].toBits() == doubles[i].toBits())
+        i += 1L
+    }
+}
+
+fun checkDivision() {
+    val floats = MutableArray<Float>(129L) { _ -> Float.MIN_NORMAL }
+    val doubles = MutableArray<Double>(129L) { _ -> Double.MIN_NORMAL }
+    divideFloat(floats, floats, 2f)
+    divideDouble(doubles, doubles, 2.0)
+    var i = 0L
+    while (i < 129L) {
+        check(floats[i].toBits() == 0x00400000)
+        check(doubles[i].toBits() == 0x0008000000000000L)
+        i += 1L
+    }
+    divideFloat(floats, floats, -0f)
+    divideDouble(doubles, doubles, 0.0)
+    check(floats[128L].toBits() == -8388608)
+    check(doubles[128L].toBits() == 0x7ff0000000000000L)
+    val zeros = MutableArray<Float>(129L) { _ -> 0f }
+    divideFloat(zeros, zeros, 0f)
+    check(zeros[0L].isNaN() && zeros[128L].isNaN())
+}
+
+fun checkPrefix() {
+    val source = generatedDouble(129L, 1.0)
+    val target = MutableArray<Double>(65L) { _ -> -1.0 }
+    var caught = false
+    try { transformDouble(source, target, 2.0, 0.5) }
+    catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && target[0L] == 2.5 && target[64L] == 34.5)
+    val short = MutableArray<Float>(1L) { _ -> -1f }
+    caught = false
+    try { narrow(source, short) }
+    catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && short[0L] == 1f)
+}

@@ -1,0 +1,57 @@
+@Extern(lib = "m34_poll_threads", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+@Extern(name = "usleep") fun pause(microseconds: UInt): Int
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun generate(count: Long, seed: Long): MutableArray<Long> =
+    MutableArray<Long>(count) { index -> index * 1664525L + seed }
+
+fun exercise(worker: Int): Int {
+    var round = 0L
+    while (round < 64L) {
+        val seed = worker.toLong() * 1000L + round
+        val array = generate(2049L, seed)
+        var index = 0L
+        while (index < 2049L) {
+            check(array[index] == index * 1664525L + seed)
+            index += 1L
+        }
+        round += 1L
+    }
+    return worker
+}
+
+@Unsafe fun main() {
+    val ready = AtomicInt(0)
+    val finished = AtomicInt(0)
+    val collections = AtomicInt(0)
+    val start = AtomicBoolean(false)
+    val action: (Int) -> Int = { worker ->
+        if (worker == 0) {
+            while (ready.load(MemoryOrder.Acquire) < 2) {}
+            gcCollect()
+            collections.fetchAdd(1, MemoryOrder.Relaxed)
+            start.store(true, MemoryOrder.Release)
+            while (finished.load(MemoryOrder.Acquire) < 2) {
+                gcCollect()
+                collections.fetchAdd(1, MemoryOrder.Relaxed)
+                // Leave a NativeSafe interval for mutators between requests.
+                @Unsafe { pause(100u) }
+            }
+            0
+        } else {
+            ready.fetchAdd(1, MemoryOrder.Release)
+            while (!start.load(MemoryOrder.Acquire)) {}
+            try { exercise(worker) }
+            finally { finished.fetchAdd(1, MemoryOrder.Release) }
+        }
+    }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try {
+        check(workers(callback.function, callback.context, 0, 3) == 3)
+        check(collections.load(MemoryOrder.Relaxed) > 0)
+        check(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
+    } finally { releaseForeignCallback(callback) }
+    println("bounded array initialization survives concurrent collection")
+}

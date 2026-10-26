@@ -109,7 +109,6 @@ Module
     ret param0
   fun @scoop$1$cb$870158bbf17a69089498d7cfef79f1aff84cc65ff5164509e3047f72557788f3(parts<struct2 [<2xf32>@0+8/4,f32@8+4/4]>) -> parts<struct2 [<2xf32>@0+8/4,f32@8+4/4]>
   block entry
-    poll activation managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
   fun @scoop$1$cb$10127e4bb27fb9a8081c89368e76c995522a9ee83de3786b08aacc66e27729db(i64, i64, i64, i64, i64, i64, indirect<struct0 size=16 align=8 scan=none>, f64) -> parts<struct0 [f64@0+8/8,i64@8+8/8]>
     local %0 $dependency.receiver: i64

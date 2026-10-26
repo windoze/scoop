@@ -59,7 +59,7 @@ internal fun parseColored(text: String): Colored? {
     }
     val separator = text.indexOf(';')
     if (separator < 0L) return None
-    val color = parseAnsiColor(text.slice(separator + 1L, text.length)) ?: return None
+    val color = parseAnsiColor(text.slice(separator + 1L, text.charLength)) ?: return None
     return when (text.slice(0L, separator)) {
         case "38" -> Some(Colored.ForegroundColor(color))
         case "48" -> Some(Colored.BackgroundColor(color))

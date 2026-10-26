@@ -65,6 +65,11 @@ impl Inputs {
             } else {
                 "-DSCOOP_ENABLE_GC_STRESS=0"
             }])
+            .chain([if request.enable_startup_stats {
+                "-DSCOOP_ENABLE_STARTUP_STATS=1"
+            } else {
+                "-DSCOOP_ENABLE_STARTUP_STATS=0"
+            }])
             .chain([
                 "-funwind-tables",
                 "-fasynchronous-unwind-tables",

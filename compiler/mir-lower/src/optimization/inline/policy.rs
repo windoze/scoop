@@ -1,7 +1,4 @@
-use super::super::{
-    flow::{ActualType, ValueFacts},
-    graph, mir,
-};
+use super::super::{graph, mir};
 
 pub(super) fn local_target(module: &mir::Module, call: &mir::Call) -> Option<mir::FunctionId> {
     match call.target {
@@ -63,11 +60,18 @@ pub(super) fn protocol_entries(module: &mir::Module) -> Vec<bool> {
 }
 
 pub(super) fn supported(function: &mir::Function) -> bool {
+    executable(function) && supported_blocks(function.body.blocks.iter().map(|(_, b)| b))
+}
+
+pub(super) fn executable(function: &mir::Function) -> bool {
+    function.body.blocks.iter().any(|(_, block)| {
+        !block.statements.is_empty() || !matches!(block.terminator, mir::Terminator::Unreachable)
+    })
+}
+
+pub(super) fn supported_blocks<'a>(blocks: impl Iterator<Item = &'a mir::BasicBlock>) -> bool {
     let mut supported = true;
-    let mut executable = false;
-    for (_, block) in function.body.blocks.iter() {
-        executable |= !block.statements.is_empty()
-            || !matches!(block.terminator, mir::Terminator::Unreachable);
+    for block in blocks {
         supported &= !matches!(
             block.terminator,
             mir::Terminator::Resume | mir::Terminator::Rethrow { .. }
@@ -80,42 +84,20 @@ pub(super) fn supported(function: &mir::Function) -> bool {
             supported &= !matches!(expression.kind, mir::ExprKind::CaughtException);
         });
     }
-    supported && executable
+    supported
 }
 
 mod cost;
-pub(super) use cost::{Cost, blocks_cost, function_cost};
+mod heat;
+mod score;
+pub(super) use cost::{
+    Cost, adjusted_blocks_cost, assignment_cost, block_cost, blocks_cost, cold_blocks,
+    expression_cost, function_cost, statement_cost, tree_cost,
+};
+pub(in crate::optimization) use heat::heats;
+pub(super) use score::{Growth, Site, assess};
 
-pub(super) fn worthwhile(
-    structs: &la_arena::Arena<mir::StructDef>,
-    cost: usize,
-    original: usize,
-    in_loop: bool,
-    arguments: &[ValueFacts],
-    function: &mir::Function,
-) -> bool {
-    if cost <= 12 {
-        return true;
-    }
-    let folds = cost < original && arguments.iter().any(|argument| argument.constant.is_some());
-    let receiver = arguments.iter().any(|argument| argument.actual != ActualType::Unknown)
-        && function.body.blocks.iter().any(|(_, block)| block.statements.iter().any(|statement| {
-            matches!(&statement.kind, mir::StatementKind::Call(effect) if !matches!(super::super::call(effect).target, mir::CallTarget::Direct(_)))
-        }));
-    let value_copy = function
-        .params
-        .iter()
-        .any(|parameter| copy_cost(structs, &parameter.ty) > 0);
-    let threshold = (20
-        + usize::from(in_loop) * 16
-        + usize::from(folds) * 12
-        + usize::from(receiver) * 8
-        + usize::from(value_copy) * 4)
-        .min(48);
-    cost <= threshold
-}
-
-fn copy_cost(structs: &la_arena::Arena<mir::StructDef>, ty: &mir::Type) -> usize {
+pub(super) fn copy_cost(structs: &la_arena::Arena<mir::StructDef>, ty: &mir::Type) -> usize {
     match ty {
         mir::Type::Struct(id)
             if matches!(

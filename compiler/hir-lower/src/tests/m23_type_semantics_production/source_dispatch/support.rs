@@ -39,7 +39,8 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
         )
         .unwrap();
         let mir =
-            scoop_mir_lower::lower_current_cone(output, dependencies, Default::default()).unwrap();
+            scoop_mir_lower::lower_current_cone(output, dependencies, Default::default(), None)
+                .unwrap();
         run(output, mir.module())
     })
 }

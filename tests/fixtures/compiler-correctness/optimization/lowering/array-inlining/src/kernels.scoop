@@ -1,0 +1,36 @@
+package dev.performance
+
+fun sum(values: Array<Long>): Long {
+    val count = values.size
+    var i = 0L
+    var result = 0L
+    while (i < count) { result += values[i]; i += 1L }
+    return result
+}
+
+fun transform(values: MutableArray<Int>, seed: Int) {
+    var i = 0L
+    while (i < values.size) { values[i] = values[i] * 3 + seed; i += 1L }
+}
+
+fun copy(source: MutableArray<Int>, target: MutableArray<Int>, count: Long) {
+    var i = 0L
+    while (i < count) { target[i] = source[i]; i += 1L }
+}
+
+fun exercise(count: Long, mode: Int): Long {
+    val longs = Array<Long>(count) { i -> i * 1664525L + 7L }
+    val source = MutableArray<Int>(count) { i -> i.toInt() * 1664525 + 7 }
+    val target = MutableArray<Int>(count) { _ -> -1 }
+    val rounds = if (count < 256L) 100000L else 128L
+    var round = 0L
+    var result = 0L
+    while (round < rounds) {
+        if (mode == 0) result += sum(longs)
+        else if (mode == 1) transform(source, round.toInt())
+        else if (mode == 2) copy(source, target, count)
+        else copy(source, source, count)
+        round += 1L
+    }
+    return result + source[0L].toLong() + source[count - 1L].toLong() + target[count - 1L].toLong()
+}

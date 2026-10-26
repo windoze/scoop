@@ -23,6 +23,15 @@ pub(super) fn emit<'ctx>(
     for &id in &references.globals {
         let global = &module.globals[id];
         match &global.init {
+            GlobalInit::ImportedImmortal { definition } => {
+                let llvm_global = llvm.add_global(
+                    i8_ty,
+                    Some(managed_address_space.inkwell()),
+                    definition.symbol(),
+                );
+                llvm_global.set_constant(true);
+                globals.insert(id, llvm_global);
+            }
             GlobalInit::ImportedStorage { definition, ty } => {
                 let scoop_lir::ShapeLinkContractV1::StaticStorage { storage_projection } =
                     definition.contract()

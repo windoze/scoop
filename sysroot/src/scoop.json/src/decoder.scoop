@@ -55,7 +55,7 @@ internal class JsonDecoder(internal val value: JsonNode, public override val pat
 
     public override fun readLong(): Long {
         val text = number("expected an integer")
-        val negative = text[0L] == '-'
+        val negative = text.getCharAt(0L) == '-'
         val magnitude = integerMagnitude(text, negative, path)
         if (negative) {
             if (magnitude > 9223372036854775808UL) {
@@ -71,7 +71,7 @@ internal class JsonDecoder(internal val value: JsonNode, public override val pat
 
     public override fun readULong(): ULong {
         val text = number("expected an integer")
-        if (text[0L] == '-') { throw DecodingException(path, "expected an unsigned integer") }
+        if (text.getCharAt(0L) == '-') { throw DecodingException(path, "expected an unsigned integer") }
         return integerMagnitude(text, false, path)
     }
 

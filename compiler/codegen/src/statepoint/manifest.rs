@@ -162,6 +162,12 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                     | scoop_lir::Instruction::ArrayAlloc {
                         safepoint, live, ..
                     }
+                    | scoop_lir::Instruction::StringConcat {
+                        safepoint, live, ..
+                    }
+                    | scoop_lir::Instruction::StringCopy {
+                        safepoint, live, ..
+                    }
                     | scoop_lir::Instruction::ArrayAssembly {
                         safepoint, live, ..
                     }
@@ -211,6 +217,7 @@ fn relocating_roots(live: &scoop_lir::StatepointLiveSet) -> ExpectedStatepoint {
     ExpectedStatepoint::Relocating(
         live.as_slice()
             .iter()
+            .filter(|value| value.restore)
             .flat_map(|value| {
                 value.leaves.as_slice().iter().map(|leaf| ExpectedRoot {
                     source: value.source,

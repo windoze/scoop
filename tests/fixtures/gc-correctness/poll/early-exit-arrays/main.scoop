@@ -1,0 +1,79 @@
+package dev.performance
+
+@Extern(lib = "m34_poll_threads", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+@Extern(name = "usleep") fun pause(microseconds: UInt): Int
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun findWithCollection(values: Array<Long>): Found {
+    var i = 0L
+    while (i < values.size) {
+        val value = values[i]
+        if (value < 0L) {
+            gcCollect()
+            return Found(values, i, value)
+        }
+        i += 1L
+    }
+    return Found(values, -1L, 0L)
+}
+
+fun exercise(worker: Int): Int {
+    val count = 2049L + worker.toLong()
+    var round = 0L
+    while (round < 32L) {
+        val hit = if (round.and(1L) == 0L) count - 1L else 64L
+        val expected = -round - worker.toLong() - 10L
+        val values = Array<Long>(count) { i -> if (i == hit) expected else i + 1L }
+        val left = Array<Int>(count) { i -> i.toInt() }
+        val right = Array<Int>(count) { i -> if (i == hit) -1 else i.toInt() }
+        val source = MutableArray<Int>(count) { i -> i.toInt() + 10 }
+        val target = MutableArray<Int>(count) { _ -> -1 }
+        val doubles = Array<Double>(count) { i -> if (i == hit) -42.0 else 0.25 }
+        check(findIndex(values, expected) == hit && findValue(values, 0L) == expected)
+        check(firstMismatch(left, right) == hit)
+        check(copyUntil(source, target, hit.toInt() + 10) == hit)
+        check(target[hit] == -1 && target[hit - 1L] == (hit.toInt() + 9) * 3 + 1)
+        check(prefixDouble(doubles, -42.0) == hit.toDouble() * 0.25)
+        val found = findObject(values, 0L)
+        val collected = findWithCollection(values)
+        gcCollect()
+        check(found.source === values && collected.source === values)
+        check(found.index == hit && collected.index == hit)
+        check(found.value == expected && collected.value == expected)
+        check(collected.source[hit] == expected && collected.source[count - 1L] == values[count - 1L])
+        round += 1L
+    }
+    return worker
+}
+
+@Unsafe fun main() {
+    val ready = AtomicInt(0)
+    val finished = AtomicInt(0)
+    val start = AtomicBoolean(false)
+    val action: (Int) -> Int = { worker ->
+        if (worker == 0) {
+            while (ready.load(MemoryOrder.Acquire) < 2) {}
+            gcCollect()
+            start.store(true, MemoryOrder.Release)
+            while (finished.load(MemoryOrder.Acquire) < 2) {
+                gcCollect()
+                // Allow mutators to run between collection requests.
+                @Unsafe { pause(100u) }
+            }
+            0
+        } else {
+            ready.fetchAdd(1, MemoryOrder.Release)
+            while (!start.load(MemoryOrder.Acquire)) {}
+            try { exercise(worker) }
+            finally { finished.fetchAdd(1, MemoryOrder.Release) }
+        }
+    }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try {
+        check(workers(callback.function, callback.context, 0, 3) == 3)
+        check(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
+    } finally { releaseForeignCallback(callback) }
+    println("early-exit arrays survive concurrent collection")
+}

@@ -24,6 +24,19 @@ pub(super) fn collect(
         let mut declarations = BTreeMap::new();
         let mut aliases = Vec::new();
         let primary = plan.primary_symbol().symbol();
+        let primary_name = CString::new(primary.as_str())
+            .map_err(|_| CodegenError("metadata symbol contains NUL".into()))?;
+        let primary_is_view = !unsafe {
+            LLVMGetNamedGlobalAlias(
+                llvm.as_mut_ptr(),
+                primary_name.as_ptr(),
+                primary_name.as_bytes().len(),
+            )
+        }
+        .is_null();
+        if primary_is_view {
+            aliases.push(primary_name);
+        }
         if let Some(global) = llvm.get_global(primary.as_str())
             && global.get_initializer().is_some()
         {
@@ -44,17 +57,23 @@ pub(super) fn collect(
                     )
                 };
                 if !raw.is_null() {
-                    let pointer = unsafe { LLVMAliasGetAliasee(raw) };
-                    let owner = global_owner(llvm, pointer)?;
-                    let owner_name = owner.get_name().to_string_lossy().into_owned();
-                    declarations.entry(owner_name.clone()).or_insert_with(|| {
-                        if owner_name == primary.as_str() {
-                            owner_name
-                        } else {
-                            start.to_string()
-                        }
-                    });
-                    aliases.push(c_name);
+                    // A parent view only owns aliases. Its storage is managed
+                    // by the complete array's definition in the same member.
+                    if !primary_is_view {
+                        let pointer = unsafe { LLVMAliasGetAliasee(raw) };
+                        let owner = global_owner(llvm, pointer)?;
+                        let owner_name = owner.get_name().to_string_lossy().into_owned();
+                        declarations.entry(owner_name.clone()).or_insert_with(|| {
+                            if owner_name == primary.as_str() {
+                                owner_name
+                            } else {
+                                start.to_string()
+                            }
+                        });
+                    }
+                    if !primary_is_view || name != primary {
+                        aliases.push(c_name);
+                    }
                 } else if let Some(global) = llvm.get_global(name.as_str())
                     && global.get_initializer().is_some()
                 {
@@ -64,7 +83,7 @@ pub(super) fn collect(
                 }
             }
         }
-        if !declarations.is_empty() {
+        if !declarations.is_empty() || !aliases.is_empty() {
             let thread_local = llvm
                 .get_global(plan.primary_symbol().symbol().as_str())
                 .is_some_and(|global| global.is_thread_local());

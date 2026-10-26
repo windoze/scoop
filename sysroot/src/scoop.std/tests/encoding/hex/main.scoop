@@ -31,7 +31,7 @@ private fun exercise() {
     val all = MutableArray<Byte>(256L) { index -> index.toByte() }
     val encoded = all.toHexString()
     val decoded = encoded.hexToByteArray()
-    check(encoded.length == 512L && encoded.startsWith("00010203") && encoded.endsWith("fcfdfeff"))
+    check(encoded.charLength == 512L && encoded.startsWith("00010203") && encoded.endsWith("fcfdfeff"))
     var index = 0L
     while (index < 256L) {
         check(decoded[index] == all[index] && encoded.substring(index * 2L, index * 2L + 2L).toInt(16) == index.toInt())

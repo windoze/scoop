@@ -30,7 +30,7 @@ fn option_of_string_uses_the_niche_representation() {
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
-        poll managed-void-target1 sp<managed-poll:0> live=[]
+        poll gateway managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td11)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
@@ -163,7 +163,7 @@ fn option_of_int_uses_the_tagged_representation() {
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
-        poll managed-void-target1 sp<managed-poll:0> live=[]
+        poll gateway managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td11)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success

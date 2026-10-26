@@ -1,4 +1,4 @@
-package dispatch.bench
+package dev.m34.bench
 
 public interface Reader {
     public fun next(value: UInt): UInt

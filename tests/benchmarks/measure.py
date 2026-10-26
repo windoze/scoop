@@ -9,6 +9,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from process_metrics import gc_statistics
+
 
 def run(command, environment=None):
     start = time.perf_counter()
@@ -43,12 +45,7 @@ def measure(binary, runs, gc_stats, compare_full):
             sample["stderr"].append(result.stderr)
             outputs.add(result.stdout)
             if gc_stats:
-                metrics = json.loads(result.stderr)
-                if metrics.get("scoop_gc") != 1:
-                    raise RuntimeError(f"{binary}: missing GC statistics")
-                count = metrics["minor_collections"] + metrics["full_collections"]
-                if sum(metrics["pause_buckets"]) != count:
-                    raise RuntimeError(f"{binary}: inconsistent pause histogram")
+                metrics = gc_statistics(result.stderr, binary)
                 if mode == "full_only" and metrics["minor_collections"]:
                     raise RuntimeError(f"{binary}: full-only control performed minor collection")
                 sample["gc"].append(metrics)

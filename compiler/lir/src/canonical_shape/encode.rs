@@ -248,9 +248,10 @@ impl ShapeProjection<'_> {
         descriptor.vtable.identity_record().id().encode(e)?;
         e.array(descriptor.itables.len() as u64)?;
         for table in &descriptor.itables {
-            e.array(2)?;
+            e.array(3)?;
             self.descriptor_reference(table.interface(), e)?;
             table.identity_record().id().encode(e)?;
+            table.layout().encode(e)?;
         }
         e.field(8)?;
         descriptor.relations.encode_with(e, |reference, e| {

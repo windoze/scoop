@@ -9,6 +9,10 @@ use scoop_lir::{CallerRootSource, GcEffect};
 use super::{ExpectedRoot, ExpectedSafepoints, ExpectedSite, ExpectedStatepoint};
 use crate::ValidatedBackendProfile;
 
+#[path = "statepoint_tests/aggregate_merge_roots.rs"]
+mod aggregate_merge_roots;
+#[path = "statepoint_tests/aggregate_uses.rs"]
+mod aggregate_uses;
 #[path = "statepoint_tests/atomic_refs.rs"]
 mod atomic_refs;
 #[path = "statepoint_tests/bounded_loops.rs"]
@@ -23,6 +27,8 @@ mod constant_roots;
 mod copied_aggregate;
 #[path = "statepoint_tests/copies.rs"]
 mod copies;
+#[path = "statepoint_tests/dead_arguments.rs"]
+mod dead_arguments;
 #[path = "statepoint_tests/guarded_unwrap.rs"]
 mod guarded_unwrap;
 #[path = "statepoint_tests/interface_parts.rs"]
@@ -45,6 +51,10 @@ mod null_paths;
 mod optimized;
 #[path = "statepoint_tests/ranges.rs"]
 mod ranges;
+#[path = "statepoint_tests/root_storage.rs"]
+mod root_storage;
+#[path = "statepoint_tests/terminal_arguments.rs"]
+mod terminal_arguments;
 #[path = "statepoint_tests/terminal_poll.rs"]
 mod terminal_poll;
 

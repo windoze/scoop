@@ -13,6 +13,6 @@ fun main() {
     gcCollect()
     check(parts[0L] == "<n0>" && parts[2L] == "<n2>")
     val text = f"${values[1L]}雪"
-    check(text.length == 3L && text.byteLength == 5L && text[2L] == '雪')
+    check(text.charLength == 3L && text.byteLength == 5L && text.getCharAt(2L) == '雪')
     println(42)
 }

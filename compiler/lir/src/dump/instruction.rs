@@ -7,6 +7,46 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::StringCopy {
+            out,
+            source,
+            target,
+            ..
+        } => {
+            let operands = source
+                .operands()
+                .map(value_name)
+                .collect::<Vec<_>>()
+                .join(", ");
+            let source = match source {
+                StringCopySource::Utf8 { .. } => "utf8",
+                StringCopySource::Slice { .. } => "slice",
+                StringCopySource::Bytes { .. } => "bytes",
+                StringCopySource::String(_) => "string",
+            };
+            let target = match target {
+                StringCopyTarget::String(_) => "string",
+                StringCopyTarget::Bytes(_) => "bytes",
+            };
+            buf.push_str(&format!(
+                "    t{} = string_copy {source} -> {target} {operands}\n",
+                out.into_raw()
+            ));
+        }
+        Instruction::StringConcat { out, parts, .. } => {
+            let parts = parts
+                .iter()
+                .map(|part| match part {
+                    StringConcatPart::Value(value) => value_name(*value),
+                    StringConcatPart::Literal(text) => format!("utf8 {text:?}"),
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            buf.push_str(&format!(
+                "    t{} = string_concat {parts}\n",
+                out.into_raw()
+            ));
+        }
         Instruction::MaybeUninit {
             out,
             wrapper,
@@ -518,7 +558,7 @@ pub(super) fn dump_instruction(
             "    poll{} managed-void-target{} sp{} live=[{}]\n",
             match site.kind {
                 ManagedPollKind::Full => "",
-                ManagedPollKind::EntryActivation => " activation",
+                ManagedPollKind::Gateway => " gateway",
             },
             site.target.into_raw(),
             safepoint_name(function, site.safepoint),

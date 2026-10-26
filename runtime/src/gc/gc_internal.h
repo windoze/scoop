@@ -10,6 +10,13 @@
 #include "stress.h"
 
 typedef void (*ScoopGcHeapObjectVisitor)(void *object, void *context);
+typedef void (*ScoopGcLiveEntryVisitor)(void **entry, void *context);
+
+typedef struct ScoopGcSurvivors {
+    size_t capacity;
+    uint64_t live_bytes;
+    uint64_t objects;
+} ScoopGcSurvivors;
 
 /* Arena-external side metadata and moving-heap operations. Every `_locked`
  * operation requires the heap lock acquired through this API. */
@@ -26,12 +33,15 @@ size_t scoop_gc_object_size_locked(const void *object);
 bool scoop_gc_update_pin_locked(const void *object, bool pinned);
 bool scoop_gc_is_young_object_locked(const void *object);
 size_t scoop_gc_heap_begin_collection_locked(bool minor);
-bool scoop_gc_heap_plan_moving_locked(bool minor);
+bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors);
 #if SCOOP_ENABLE_GC_STRESS
 void scoop_gc_heap_verify_stress_moved_locked(void);
 #endif
+#if SCOOP_GC_TRACK_RELOCATION
 void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, void *context);
-void scoop_gc_heap_finish_collection_locked(uint64_t live_objects, bool minor);
+#endif
+void scoop_gc_heap_finish_collection_locked(uint64_t live_objects, bool minor,
+                                             const ScoopGcSurvivors *survivors);
 
 void scoop_gc_visit_handles_locked(ScoopGcRootVisitor visitor);
 void scoop_gc_set_pin_frames_locked(bool pinned_now);
@@ -46,9 +56,9 @@ void scoop_gc_mark_begin(bool minor, size_t block_count);
 void scoop_gc_mark_roots(void);
 void scoop_gc_mark_remembered(void);
 uint64_t scoop_gc_mark_finish(bool minor);
-void scoop_gc_mark_visit_live(ScoopGcHeapObjectVisitor visitor, void *context);
+void scoop_gc_mark_visit_live(ScoopGcLiveEntryVisitor visitor, void *context);
 void scoop_gc_mark_dispose(void);
-void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcHeapObjectVisitor serial_visitor,
+void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcLiveEntryVisitor serial_visitor,
                           void *context);
 uint64_t scoop_gc_monotonic_ns(void);
 uint64_t scoop_gc_thread_cpu_ns(void);

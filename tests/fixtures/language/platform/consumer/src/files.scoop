@@ -32,6 +32,6 @@ fun verifyFile(path: String, expected: Array<UInt8>) {
         index += 1L
     }
     val text = String.fromUtf8(Array<Byte>(bytes.size) { bytes[it].toByte() })
-    check(text.byteLength == length && text.length == 40L)
+    check(text.byteLength == length && text.charLength == 40L)
     check(text.slice(0L, 5L).equals("A\u0000λ🙂\n"))
 }

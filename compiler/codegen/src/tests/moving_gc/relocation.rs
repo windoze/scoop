@@ -6,6 +6,7 @@ fn managed_live_plan_produces_as1_relocation() {
         scoop_lir::ManagedLeafPaths::new(vec![scoop_lir::ManagedLeafPath { byte_offset: 0 }])
             .unwrap();
     let live = scoop_lir::StatepointLiveSet::new(vec![scoop_lir::StatepointLiveValue {
+        restore: true,
         source: scoop_lir::CallerRootSource::Param(0),
         ty: MANAGED_PTR,
         leaves,

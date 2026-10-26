@@ -53,7 +53,7 @@ private class KeyTests {
         assertFailsWith<CryptoException> { PublicKey.fromPem(rsaPrivatePem()) }
         val error = assertFailsWith<CryptoException> { PrivateKey.fromPem("invalid") }
         assertEquals("import key", error.operation)
-        assertTrue(error.detail.length > 0L)
+        assertTrue(error.detail.charLength > 0L)
         assertFailsWith<CryptoException> { PublicKey.fromPem(rsaPublicPem() + "trailing") }
         val privateKey = PrivateKey.generateEd25519()
         val publicKey = privateKey.publicKey()

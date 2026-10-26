@@ -6,7 +6,7 @@ fun valid(bytes: Array<Byte>, text: String, scalars: Long) {
     val replaced = String.fromUtf8Lossy(bytes)
     gcCollect()
     expect(strict == text && optional == Some(text) && replaced == text)
-    expect(strict.length == scalars && strict.byteLength == bytes.size)
+    expect(strict.charLength == scalars && strict.byteLength == bytes.size)
     expect(replaced.byteLength == bytes.size)
 }
 

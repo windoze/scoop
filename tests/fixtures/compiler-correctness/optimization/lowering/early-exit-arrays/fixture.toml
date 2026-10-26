@@ -1,0 +1,38 @@
+schema = 1
+name = "early-exit-array-kernels"
+inputs = ["Cone.toml", "main.scoop", "inspect.py", "../../../../../benchmarks/arrays/early-exit/src/kernels.scoop"]
+tools = ["scoop", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["optimization", "array", "early-exit", "compiler-correctness"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "prepare"
+files = [
+    {copy = {from = "${fixture}/Cone.toml", to = "${work}/cone/Cone.toml"}},
+    {copy = {from = "${fixture}/main.scoop", to = "${work}/cone/src/main.scoop"}},
+    {copy = {from = "${fixture}/../../../../../benchmarks/arrays/early-exit/src/kernels.scoop", to = "${work}/cone/src/kernels.scoop"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--emit", "mir", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "inspect"
+argv = ["${python}", "${fixture}/inspect.py", "${work}/dump/${build.result.root.identity}/mir.txt", "${profile}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "early exits preserve first hits, live values and prefixes\n"
+stderr = ""

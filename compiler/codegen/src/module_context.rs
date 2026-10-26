@@ -3,6 +3,11 @@ use super::*;
 /// Module-level data function emission needs, bundled to keep
 /// signatures small.
 pub(crate) struct ModuleCtx<'a, 'ctx> {
+    pub(crate) reuse_interface_values: bool,
+    pub(crate) optimize_allocations: bool,
+    pub(crate) optimize_reference_writes: bool,
+    pub(crate) allocation_initialization_limit: u64,
+    pub(crate) reuse_thread_addresses: bool,
     pub(crate) managed_address_space: ManagedAddressSpace,
     pub(crate) functions: &'a [Function],
     pub(crate) structs: &'a StructDefs,
@@ -20,6 +25,7 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
         &'a BTreeMap<scoop_lir::InitializationUnitId, GlobalValue<'ctx>>,
     pub(crate) arrays: &'a Arena<ArrayType>,
     pub(crate) array_tds: &'a BTreeMap<ArrayTypeId, GlobalValue<'ctx>>,
+    pub(crate) type_descriptors: &'a Arena<scoop_lir::TypeDescriptor>,
     pub(crate) type_tds: &'a BTreeMap<scoop_lir::TypeDescriptorId, GlobalValue<'ctx>>,
     pub(crate) external_type_tds:
         &'a BTreeMap<scoop_lir::ExternalTypeDescriptorId, GlobalValue<'ctx>>,
@@ -46,6 +52,8 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
                 | Instruction::ArrayAllocDynamic { live, .. }
                 | Instruction::ArrayAlloc { live, .. }
                 | Instruction::ArrayAssembly { live, .. }
+                | Instruction::StringConcat { live, .. }
+                | Instruction::StringCopy { live, .. }
                 | Instruction::ArrayClone { live, .. } => {
                     sources.extend(live.as_slice().iter().map(|value| value.source));
                 }
@@ -131,6 +139,8 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::ArrayAllocDynamic { out, .. }
         | Instruction::ArrayAlloc { out, .. }
         | Instruction::ArrayAssembly { out, .. }
+        | Instruction::StringConcat { out, .. }
+        | Instruction::StringCopy { out, .. }
         | Instruction::PushPinFrame { out, .. }
         | Instruction::ArrayDataPointer { out, .. }
         | Instruction::StringDataPointer { out, .. }

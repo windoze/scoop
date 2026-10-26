@@ -60,7 +60,7 @@ impl RuntimeAbiSymbolV1 {
                     N::ContextSnapshot | N::ContextCurrent => (&[], P),
                     N::ContextLeave => (&[P], V),
                     N::IsInstance => (&[P, P], Boolean),
-                    N::ITableLookup => (&[P, P], P),
+                    N::ITableLookup | N::ITableFind => (&[P, P], P),
                     N::Pin | N::Unpin => (&[P], P),
                     N::GetHandle => (&[P], I(64)),
                     N::ReleaseHandle => (&[I(64)], P),
@@ -83,12 +83,14 @@ impl RuntimeAbiSymbolV1 {
                 thread_local: false,
                 mutable: false,
             },
-            Self::AllocationContext | Self::PollState => CompilerNativeContractV1::Data {
-                byte_size: 8,
-                alignment: 8,
-                thread_local: true,
-                mutable: true,
-            },
+            Self::AllocationContext | Self::PollState | Self::ContextSlot => {
+                CompilerNativeContractV1::Data {
+                    byte_size: 8,
+                    alignment: 8,
+                    thread_local: true,
+                    mutable: true,
+                }
+            }
             Self::GcEpoch => CompilerNativeContractV1::Data {
                 byte_size: 8,
                 alignment: 8,
@@ -108,7 +110,7 @@ impl RuntimeAbiSymbolV1 {
                 mutable: true,
             },
             Self::AllocateSlow => managed(&[P, I(64)], P),
-            Self::WriteBarrier => leaf(&[P, I(64)], V),
+            Self::WriteBarrier | Self::RecordDirtyCardGroup => leaf(&[P, I(64)], V),
             Self::ArrayClone => managed(&[P, P, P], P),
             Self::PushPinFrame => leaf(&[P, P], V),
             Self::PopPinFrame => leaf(&[P], V),

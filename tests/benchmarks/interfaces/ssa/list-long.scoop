@@ -1,0 +1,15 @@
+public fun sum(values: List<Long>): Long {
+    var total = 0L
+    var round = 0L
+    while (round < 100000L) {
+        for (value in values) { total += value }
+        round += 1L
+    }
+    return total
+}
+fun main() {
+    val values = ArrayList<Long>()
+    var index = 0L
+    while (index < 1000L) { values.add(index); index += 1L }
+    println(sum(values))
+}

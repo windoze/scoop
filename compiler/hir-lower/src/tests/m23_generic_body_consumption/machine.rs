@@ -13,7 +13,8 @@ fn actual_generic_calls_retain_odr_roots_in_the_shared_machine_input() {
         let dependencies =
             mir::SelectedExternalMirSet::try_from_callables(current, Vec::new()).unwrap();
         let lowered =
-            scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default()).unwrap();
+            scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default(), None)
+                .unwrap();
         let production = scoop_mir_lower::lower_production_section(
             current,
             &hir_production,

@@ -61,6 +61,7 @@ pub enum ExactDispatchTableError {
     Target(PersistentDispatchTableId),
     Provider(PersistentDispatchTableId),
     Definition(PersistentDispatchTableId),
+    Layout(PersistentDispatchTableId),
     PhysicalDefinition(crate::StrongShapeDefinitionError),
     Resource(WireError),
 }

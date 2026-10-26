@@ -1,4 +1,6 @@
 package dev.m34
+private var allocationPressure: Cell? = None
+
 fun fill(values: MutableList<Cell>, count: Int) {
     var index = 0
     while (index < count) { values.add(Cell(index)); index += 1 }
@@ -20,7 +22,9 @@ fun minorCollection() {
             var index = 0
             while (index < 256) {
                 val churn = Cell(index)
+                allocationPressure = Some(churn)
                 index = churn.number + 1
+                allocationPressure = None
             }
         }
     }

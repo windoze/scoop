@@ -40,7 +40,8 @@ pub(super) fn replay(
         return Err(ExactDescriptorError::DispatchInventory(source.exact));
     }
     let table = find(DispatchTableKey::vtable(source.exact), dispatch)?;
-    let vtable = StrongTypeVtableSemanticPlanV2::from_artifact(table.table(), slots(table)?);
+    let vtable =
+        StrongTypeVtableSemanticPlanV2::from_artifact(table.table(), slots(table, dispatch)?);
     let mut itables = Vec::new();
     scoop_wire::allocation::try_reserve(&mut itables, source.interfaces.len(), &path)?;
     for &interface in source.interfaces {
@@ -51,7 +52,7 @@ pub(super) fn replay(
         itables.push(StrongTypeItableSemanticPlanV2::from_artifact(
             table.table(),
             interface,
-            slots(table)?,
+            slots(table, dispatch)?,
         ));
     }
     Ok((vtable, itables))
@@ -70,11 +71,21 @@ fn find(
 
 fn slots(
     table: &ExactDispatchExportV1,
+    dispatch: &CanonicalExactDispatchExportsV1,
 ) -> Result<Vec<StrongTypeDispatchCallableRefV2>, ExactDescriptorError> {
     let path = WirePath::root();
 
     let mut slots = Vec::new();
-    scoop_wire::allocation::try_reserve(&mut slots, table.entries().len(), &path)?;
-    slots.extend(table.entries().iter().map(|entry| entry.abi()));
+    scoop_wire::allocation::try_reserve(&mut slots, table.layout().slots().len(), &path)?;
+    for source in table.layout().slots() {
+        let origin = dispatch
+            .get(source.table)
+            .ok_or(ExactDescriptorError::DispatchTable(source.table))?;
+        let entry = origin
+            .entries()
+            .get(source.method as usize)
+            .ok_or(ExactDescriptorError::DispatchTable(source.table))?;
+        slots.push(entry.abi());
+    }
     Ok(slots)
 }

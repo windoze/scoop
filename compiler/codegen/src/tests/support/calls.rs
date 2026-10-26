@@ -133,6 +133,7 @@ pub(in crate::tests) fn statepoint_value(
     offsets: &[u64],
 ) -> scoop_lir::StatepointLiveValue {
     scoop_lir::StatepointLiveValue {
+        restore: true,
         source,
         ty,
         leaves: scoop_lir::ManagedLeafPaths::new(

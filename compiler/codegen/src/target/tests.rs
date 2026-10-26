@@ -1,6 +1,8 @@
 use super::*;
 use std::path::Path;
 
+mod loop_alignment;
+
 #[test]
 fn linked_backend_is_llvm_22_1() {
     let version = validate_linked_llvm().expect("LLVM 22.1");

@@ -21,7 +21,7 @@ public fun String.repeat(count: Long): String {
 
 private fun String.padding(length: Long, paddingChar: Char): String {
     if (length < 0L) throw IllegalArgumentException(Some("negative padding length"))
-    val count = length - this.length
+    val count = length - this.charLength
     if (count <= 0L) return ""
     checkedTextSum(byteLength, checkedTextProduct(charByteLength(paddingChar), count))
     return paddingChar.toString().repeat(count)

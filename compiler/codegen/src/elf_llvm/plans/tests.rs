@@ -21,6 +21,7 @@ fn one_index_preserves_alias_owners_and_declaration_visibility_in_multiple_modul
                     order,
                     group: 0,
                     linkage,
+                    dispatch: false,
                 }],
             )
         })
@@ -75,6 +76,7 @@ fn repeated_symbol_requests_still_reject_conflicting_definition_groups() {
                     order: group,
                     group,
                     linkage: LinkageClass::OdrWeak,
+                    dispatch: false,
                 })
                 .collect(),
         )]),
@@ -83,4 +85,72 @@ fn repeated_symbol_requests_still_reject_conflicting_definition_groups() {
         index.prepare(&llvm).unwrap_err().0,
         "ELF global belongs to two definition groups: first and second"
     );
+}
+
+#[test]
+fn parent_table_and_boundary_aliases_use_the_complete_arrays_comdat() {
+    use inkwell::types::AsTypeRef;
+    use llvm_sys::core::LLVMConstGEP2;
+
+    let context = Context::create();
+    let llvm = context.create_module("parent-view");
+    let value = context.i64_type().const_array(&[
+        context.i64_type().const_zero(),
+        context.i64_type().const_int(1, false),
+    ]);
+    let owner = llvm.add_global(value.get_type(), None, "storage");
+    owner.set_initializer(&value);
+    let mut indices = [context.i64_type().const_int(1, false).as_value_ref()];
+    let parent = unsafe {
+        let pointer = LLVMConstGEP2(
+            context.i64_type().as_type_ref(),
+            owner.as_value_ref(),
+            indices.as_mut_ptr(),
+            1,
+        );
+        LLVMAddAlias2(
+            llvm.as_mut_ptr(),
+            context.i64_type().as_type_ref(),
+            0,
+            pointer,
+            c"parent".as_ptr(),
+        )
+    };
+    unsafe {
+        LLVMAddAlias2(
+            llvm.as_mut_ptr(),
+            context.i64_type().as_type_ref(),
+            0,
+            parent,
+            c"boundary".as_ptr(),
+        );
+    }
+    let index = SymbolPlanIndex {
+        groups: vec![
+            "array_group".into(),
+            "parent_group".into(),
+            "boundary_group".into(),
+        ],
+        symbols: ["storage", "parent", "boundary"]
+            .into_iter()
+            .enumerate()
+            .map(|(group, name)| {
+                (
+                    name.as_bytes().to_vec(),
+                    vec![SymbolPlan {
+                        order: 2 - group,
+                        group,
+                        linkage: LinkageClass::OdrWeak,
+                        dispatch: true,
+                    }],
+                )
+            })
+            .collect(),
+    };
+    index.prepare(&llvm).unwrap();
+    llvm.verify().unwrap();
+    let text = llvm.print_to_string().to_string();
+    assert!(text.contains("comdat($array_group)"), "{text}");
+    assert!(!text.contains("$parent_group = comdat"), "{text}");
+    assert!(!text.contains("$boundary_group = comdat"), "{text}");
 }

@@ -4,20 +4,50 @@ use inkwell::values::{AnyValue, CallSiteValue};
 
 #[test]
 fn gc_leaf_bridge_preserves_side_effects_without_a_gc_boundary() {
-    check_gc_leaf(false, false);
+    check_gc_leaf(
+        false,
+        false,
+        "native_leaf",
+        scoop_lir::OptimizationMode::Debug,
+    );
 }
 
 #[test]
 fn gc_leaf_direct_call_preserves_side_effects_without_a_gc_boundary() {
-    check_gc_leaf(true, false);
+    check_gc_leaf(
+        true,
+        false,
+        "native_leaf",
+        scoop_lir::OptimizationMode::Debug,
+    );
 }
 
 #[test]
 fn gc_leaf_errno_result_does_not_add_a_gc_boundary() {
-    check_gc_leaf(false, true);
+    check_gc_leaf(
+        false,
+        true,
+        "native_leaf",
+        scoop_lir::OptimizationMode::Debug,
+    );
 }
 
-fn check_gc_leaf(direct: bool, capture_errno: bool) {
+#[test]
+fn ordinary_extern_named_like_a_context_entry_keeps_its_c_protocol() {
+    check_gc_leaf(
+        true,
+        false,
+        "scoop_rt_context_current",
+        scoop_lir::OptimizationMode::Release,
+    );
+}
+
+fn check_gc_leaf(
+    direct: bool,
+    capture_errno: bool,
+    external_name: &str,
+    mode: scoop_lir::OptimizationMode,
+) {
     let mut module = Module {
         release_hooks: Default::default(),
         cone: ConeIdentity::SINGLE_FILE,
@@ -55,7 +85,7 @@ fn check_gc_leaf(direct: bool, capture_errno: bool) {
         scoop_lir::CResultAdaptation::Direct
     };
     let native_symbol = if direct {
-        "native_leaf".to_owned()
+        external_name.to_owned()
     } else {
         bridge.symbol().to_owned()
     };
@@ -73,7 +103,7 @@ fn check_gc_leaf(direct: bool, capture_errno: bool) {
     let native = module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "leaf".into(),
-            native_symbol: "native_leaf".into(),
+            native_symbol: external_name.into(),
             library: "fixture".into(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
@@ -147,17 +177,19 @@ fn check_gc_leaf(direct: bool, capture_errno: bool) {
     refresh_module_safepoints(&mut module);
     let machine = host_target_machine().unwrap();
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).unwrap();
+    let profile = host_profile().with_optimization(mode);
+    let llvm = emit_llvm_module(&context, &module, &machine, profile).unwrap();
     statepoint::rewrite(
         &llvm,
         &machine,
         &statepoint::expectations(&module).unwrap(),
-        host_profile(),
+        profile,
     )
     .unwrap();
     llvm.verify().unwrap();
     let function = llvm.get_function(&symbol).unwrap();
     let body = function.print_to_string().to_string();
+    assert!(!body.contains("@scoop_rt_context_slot"), "{body}");
     assert!(
         body.contains(&native_symbol),
         "the observable native call was removed: {body}"

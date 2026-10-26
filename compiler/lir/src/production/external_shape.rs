@@ -6,9 +6,9 @@
 
 use scoop_identity::{
     CallableDefinitionOwner, ConeIdentity, ObjectDefinitionPlanKey, PersistentCallableBodyId,
-    PersistentDispatchTableId, PersistentExactTypeId, PersistentInitializationUnitId,
-    PersistentLayoutId, PersistentScanId, PersistentStaticStorageId, PersistentSymbolKey,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    PersistentDispatchTableId, PersistentExactTypeId, PersistentImmortalObjectId,
+    PersistentInitializationUnitId, PersistentLayoutId, PersistentScanId,
+    PersistentStaticStorageId, PersistentSymbolKey, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::{HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
@@ -30,6 +30,7 @@ pub enum ExternalStrongShapeSubjectV1 {
     StaticStorageRegistration(PersistentStaticStorageId),
     InitializationCell(PersistentInitializationUnitId),
     InitializationRegistration(PersistentInitializationUnitId),
+    ImmortalObject(PersistentImmortalObjectId),
 }
 
 impl ExternalStrongShapeSubjectV1 {
@@ -45,6 +46,7 @@ impl ExternalStrongShapeSubjectV1 {
             Self::StaticStorageRegistration(_) => 8,
             Self::InitializationCell(_) => 9,
             Self::InitializationRegistration(_) => 11,
+            Self::ImmortalObject(_) => 12,
         }
     }
 
@@ -127,6 +129,11 @@ impl ExternalStrongShapeSubjectV1 {
                 Role::InitializationRegistration,
                 Symbol::InitializationRegistration(id),
             ),
+            Self::ImmortalObject(id) => (
+                Entity::immortal_object(id),
+                Role::ImmortalObject,
+                Symbol::ImmortalObject(id),
+            ),
         })
     }
 }
@@ -146,6 +153,7 @@ impl RuntimeEncode for ExternalStrongShapeSubjectV1 {
             Self::InitializationCell(id) | Self::InitializationRegistration(id) => {
                 encoder.fixed(id.as_array())
             }
+            Self::ImmortalObject(id) => encoder.fixed(id.as_array()),
         }
     }
 }

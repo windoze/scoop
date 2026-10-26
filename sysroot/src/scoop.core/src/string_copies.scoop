@@ -1,0 +1,38 @@
+@Unsafe
+@Intrinsic("string_copy_utf8_unchecked")
+internal fun coreStringCopyUtf8Unchecked(bytes: Ptr<Byte>, length: Long): String
+
+@Intrinsic("string_to_bytes")
+internal fun coreStringToBytes(value: String): Array<Byte>
+
+@Intrinsic("string_to_mutable_bytes")
+internal fun coreStringToMutableBytes(value: String): MutableArray<Byte>
+
+// The Char caller supplies one valid scalar. Encode it once into a GC-free
+// local place, then copy exactly the initialized bytes.
+internal fun coreCharToString(code: UInt): String {
+    var storage = 0u
+    @Unsafe {
+        val bytes = addressOf(storage).cast<Byte>()
+        var length = 1L
+        if (code < 128u) {
+            bytes.store(0L, code.toByte())
+        } else if (code < 2048u) {
+            bytes.store(0L, (192u.or(code.shr(6L))).toByte())
+            bytes.store(1L, (128u.or(code.and(63u))).toByte())
+            length = 2L
+        } else if (code < 65536u) {
+            bytes.store(0L, (224u.or(code.shr(12L))).toByte())
+            bytes.store(1L, (128u.or((code.shr(6L)).and(63u))).toByte())
+            bytes.store(2L, (128u.or(code.and(63u))).toByte())
+            length = 3L
+        } else {
+            bytes.store(0L, (240u.or(code.shr(18L))).toByte())
+            bytes.store(1L, (128u.or((code.shr(12L)).and(63u))).toByte())
+            bytes.store(2L, (128u.or((code.shr(6L)).and(63u))).toByte())
+            bytes.store(3L, (128u.or(code.and(63u))).toByte())
+            length = 4L
+        }
+        return coreStringCopyUtf8Unchecked(bytes, length)
+    }
+}
