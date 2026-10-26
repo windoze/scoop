@@ -14,7 +14,7 @@ typedef struct {
 } TestWorkFence;
 
 /**
- * Returns the configured libuv worker count, for the active backend.
+ * Returns the configured native worker count, for the active backend.
  */
 unsigned scoop_test_pool_size(void) { return scoop_io_work_width(); }
 

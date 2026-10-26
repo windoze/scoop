@@ -8,7 +8,8 @@
 #define _DARWIN_USE_64_BIT_INODE 1
 #else
 #define _GNU_SOURCE 1
-#define _POSIX_C_SOURCE 200112
+#define _POSIX_C_SOURCE 200112L
+#include "config-host.h"
 #endif
 
 #endif

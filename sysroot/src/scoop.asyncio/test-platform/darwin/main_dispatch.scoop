@@ -23,14 +23,17 @@ private class MainDispatchHostTest {
         session.post {
             scope ->
             assertEquals(owner, currentThreadId())
+            gcCollect()
             scope.launch suspend {
                 currentEventLoop().sleep(Duration.milliseconds(1L))
                 assertEquals(owner, currentThreadId())
+                gcCollect()
                 result.completed = true
                 session.requestClose()
             }
         }
         assertFalse(result.completed)
+        gcCollect()
         while (!session.isClosed) {
             @Unsafe
             {

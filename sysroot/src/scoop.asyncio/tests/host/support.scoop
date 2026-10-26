@@ -72,7 +72,7 @@ internal class PollHost: EventLoopHost, EventLoopWatch {
 }
 
 @Extern(name = "scoop_test_host_poll")
-private fun nativeTestHostPoll(descriptor: Int, timeout: Int): Int
+internal fun nativeTestHostPoll(descriptor: Int, timeout: Int): Int
 
 @Extern(name = "scoop_test_descriptor_open")
 internal fun nativeTestDescriptorOpen(descriptor: Int): Boolean
@@ -93,3 +93,13 @@ internal fun assertNoHostFailure(error: Throwable?) {
         case None -> {}
     }
 }
+
+internal fun hostClock(cpu: Int = 0): Long {
+    @Unsafe
+    {
+        return nativeTestHostClock(cpu)
+    }
+}
+
+@Extern(name = "scoop_test_host_clock")
+private fun nativeTestHostClock(cpu: Int): Long

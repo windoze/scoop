@@ -1,22 +1,12 @@
 #ifdef __APPLE__
 #include "../../native/darwin/endpoint.h"
 #else
-#include "../../native/tcp.h"
+#include "../../native/linux/endpoint.h"
 #endif
 #include <errno.h>
 #include <poll.h>
 
-static int socket_fd(void *pointer) {
-    int fd;
-#ifdef __APPLE__
-    fd = ((ScoopIoEndpoint *)pointer)->fd;
-#else
-    int status = uv_fileno((uv_handle_t *)&((ScoopIoTcp *)pointer)->handle, &fd);
-    if (status < 0)
-        return status;
-#endif
-    return fd;
-}
+static int socket_fd(void *pointer) { return ((ScoopIoEndpoint *)pointer)->fd; }
 
 int scoop_test_socket_break_output(void *pointer) {
     int fd = socket_fd(pointer);

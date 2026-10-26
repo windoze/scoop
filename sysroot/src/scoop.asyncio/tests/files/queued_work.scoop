@@ -1,37 +1,24 @@
 package scoop.asyncio
 
 import scoop.platform.fs.*
-import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.OsString
 import scoop.test.*
 
 @Test
 private class AsyncFileQueuedWorkTest {
     @Test
-    fun `queued file operations and DNS cancel without using input storage or acquiring a file`() {
+    fun `queued open and DNS cancel without acquiring a file or resolving`() {
         IoTestDirectory().use {
             tree ->
-            val existing = tree.child("existing")
             val missing = tree.child("not-created")
-            existing.writeText("data")
             val backend = PlatformEventLoop()
             val loop: EventLoop = backend
             loop.run suspend {
                 scope ->
-                val file = loop.openFile(existing)
                 val fence = WorkFence(backend)
                 fence.start()
                 fence.waitStarted()
                 try {
-                    NativeByteBuffer.allocate(4L).use suspend {
-                        bytes ->
-                        val reading = scope.launch suspend { file.readInto(bytes, 4L) }
-                        backend.state.post { reading.cancel() }
-                        reading.join()
-                        assertTrue(reading.isCancelled)
-                        assertEquals(0L, bytes.writePosition)
-                        bytes.clear()
-                    }
                     val opening =
                         scope.launch suspend {
                             loop.openFile(missing, OpenOptions(write = true, createNew = true))
@@ -48,12 +35,6 @@ private class AsyncFileQueuedWorkTest {
                 } finally {
                     fence.close()
                 }
-                NativeByteBuffer.allocate(4L).use suspend {
-                    bytes ->
-                    file.readFully(bytes)
-                    assertEquals("data", OsString.fromByteArray(bytes.readBytes(4L)).decodeUtf8())
-                }
-                file.close()
             }
         }
     }

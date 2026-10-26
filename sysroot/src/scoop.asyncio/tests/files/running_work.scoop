@@ -21,7 +21,7 @@ internal fun makeFifo(path: Path) {
 @Test
 private class AsyncFileRunningWorkTest {
     @Test
-    fun `cancelling a running read waits for syscall completion and commits its actual prefix`() {
+    fun `cancelling a read waits for native retirement and preserves transferred or unread bytes`() {
         @Unsafe
         {
             assertTrue(
@@ -43,7 +43,7 @@ private class AsyncFileRunningWorkTest {
                         bytes ->
                         val reading = scope.launch suspend { file.readInto(bytes, 4L) }
                         val fence = WorkFence(backend)
-                        // FIFO work is ahead of these N-1 gates in the real worker queue.
+                        // On worker backends the FIFO read precedes these N-1 gates; ring requests may still be pending.
                         fence.start(1u)
                         fence.waitStarted()
                         var supplied = false
@@ -56,7 +56,9 @@ private class AsyncFileRunningWorkTest {
                             supplied = true
                             reading.join()
                             assertTrue(reading.isCancelled)
-                            assertEquals(1L, bytes.writePosition)
+                            assertTrue(bytes.writePosition == 0L || bytes.writePosition == 1L)
+                            if (bytes.writePosition == 0L)
+                                assertEquals(1L, file.readInto(bytes, 1L))
                             assertEquals(42.toByte(), bytes.readByte())
                             bytes.clear()
                         } finally {

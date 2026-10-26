@@ -1,25 +1,17 @@
 #include "file.h"
 #include <errno.h>
 
-typedef enum {
-    FILE_READ,
-    FILE_WRITE,
-    FILE_SYNC_DATA,
-    FILE_SYNC_ALL,
-    FILE_POSITION,
-    FILE_SEEK,
-    FILE_TRUNCATE
-} FileAction;
+typedef enum { FILE_READ, FILE_WRITE, FILE_SYNC_DATA, FILE_SYNC_ALL } FileAction;
 typedef struct {
     ScoopIoWork work;
     ScoopIoFile *file;
     FileAction action;
     void *bytes;
     int64_t count;
-} ScoopIoFileWork;
+} FileIo;
 
-static void file_execute(ScoopIoWork *native) {
-    ScoopIoFileWork *request = (void *)native;
+static void execute(ScoopIoWork *native) {
+    FileIo *request = (void *)native;
     int fd = request->file->fd;
     int64_t result;
     switch (request->action) {
@@ -33,89 +25,34 @@ static void file_execute(ScoopIoWork *native) {
     case FILE_SYNC_ALL:
         result = scoop_platform_file_sync(fd, request->action == FILE_SYNC_DATA);
         break;
-    case FILE_POSITION:
-    case FILE_SEEK:
-        result = scoop_platform_file_seek(fd, request->count, request->action == FILE_POSITION);
-        break;
-    case FILE_TRUNCATE:
-        result = scoop_platform_file_truncate(fd, request->count);
-        break;
-    default:
-        abort();
     }
     int error = errno;
-    ScoopIoEvent *event = &request->work.completion.event;
     if (result < 0) {
-        event->kind = SCOOP_IO_POSIX_ERROR;
-        event->code = error;
+        native->completion.event.kind = SCOOP_IO_POSIX_ERROR;
+        native->completion.event.code = error;
     } else if (request->action == FILE_READ || request->action == FILE_WRITE) {
-        event->kind = SCOOP_IO_BYTES;
-        event->count = result;
-    } else if (request->action == FILE_POSITION || request->action == FILE_SEEK) {
-        event->kind = SCOOP_IO_POSITION;
-        event->count = result;
+        native->completion.event.kind = SCOOP_IO_BYTES;
+        native->completion.event.count = result;
     }
 }
-
-static void file_finished(ScoopIoWork *native, int status) {
-    ScoopIoFileWork *request = (void *)native;
-    scoop_io_work_finished(&request->work, status);
-}
-
-static int submit_file(ScoopIoFile *file, int64_t id, FileAction action, void *bytes,
-                       int64_t count) {
-    ScoopIoFileWork *request = calloc(1, sizeof(*request));
+static void finish(ScoopIoWork *work, int status) { scoop_io_work_finished(work, status); }
+static int submit(ScoopIoFile *file, int64_t id, FileAction action, void *bytes, int64_t count) {
+    FileIo *request = calloc(1, sizeof(*request));
     if (!request)
         return -ENOMEM;
     request->file = file;
     request->action = action;
     request->bytes = bytes;
     request->count = count;
-    int status = scoop_io_work_submit(&request->work, file->loop, id, file_execute, file_finished);
+    int status = scoop_io_work_submit(&request->work, file->loop, id, execute, finish);
     if (status < 0)
         free(request);
     return status;
 }
-
 int scoop_io_file_transfer(ScoopIoFile *file, int64_t id, void *bytes, int64_t count,
                            bool writing) {
-    return submit_file(file, id, writing ? FILE_WRITE : FILE_READ, bytes, count);
+    return submit(file, id, writing ? FILE_WRITE : FILE_READ, bytes, count);
 }
-
 int scoop_io_file_sync(ScoopIoFile *file, int64_t id, bool data_only) {
-    return submit_file(file, id, data_only ? FILE_SYNC_DATA : FILE_SYNC_ALL, NULL, 0);
-}
-
-int scoop_io_file_seek(ScoopIoFile *file, int64_t id, int64_t offset, bool current) {
-    return submit_file(file, id, current ? FILE_POSITION : FILE_SEEK, NULL, offset);
-}
-
-int scoop_io_file_truncate(ScoopIoFile *file, int64_t id, int64_t size) {
-    return submit_file(file, id, FILE_TRUNCATE, NULL, size);
-}
-
-static void close_execute(ScoopIoWork *native) {
-    ScoopIoFile *file = (void *)native;
-    int result = scoop_platform_fd_close(file->fd);
-    int error = errno;
-    file->fd = -1;
-    if (result < 0) {
-        file->closing.completion.event.kind = SCOOP_IO_POSIX_ERROR;
-        file->closing.completion.event.code = error;
-    }
-}
-
-static void close_finished(ScoopIoWork *native, int status) {
-    ScoopIoFile *file = (void *)native;
-    scoop_io_work_finished(&file->closing, status);
-    /* The completion queue releases the allocation containing close work. */
-}
-
-int scoop_io_file_close(ScoopIoFile *file, int64_t id) {
-    int status =
-        scoop_io_work_submit(&file->closing, file->loop, id, close_execute, close_finished);
-    /* This preallocated work is enqueued without allocating native request storage. */
-    if (status < 0)
-        abort();
-    return 0;
+    return submit(file, id, data_only ? FILE_SYNC_DATA : FILE_SYNC_ALL, NULL, 0);
 }

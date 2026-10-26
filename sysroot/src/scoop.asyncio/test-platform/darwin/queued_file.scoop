@@ -1,0 +1,49 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.OsString
+import scoop.test.*
+
+@Test
+private class DarwinQueuedFileTest {
+    @Test
+    fun `a read cancelled in the occupied work queue preserves storage and file position`() {
+        IoTestDirectory().use {
+            tree ->
+            val path = tree.child("data")
+            path.writeText("data")
+            val backend = PlatformEventLoop()
+            backend.run suspend {
+                scope -> backend.openFile(path).useAsync suspend {
+                    file ->
+                    val fence = WorkFence(backend)
+                    fence.start()
+                    fence.waitStarted()
+                    try {
+                        NativeByteBuffer.allocate(4L).use suspend {
+                            bytes ->
+                            val reading = scope.launch suspend { file.readInto(bytes, 4L) }
+                            backend.state.post { reading.cancel() }
+                            reading.join()
+                            assertTrue(reading.isCancelled)
+                            assertEquals(0L, bytes.writePosition)
+                            bytes.clear()
+                        }
+                    } finally {
+                        fence.close()
+                    }
+                    assertEquals(0L, file.position())
+                    NativeByteBuffer.allocate(4L).use suspend {
+                        bytes ->
+                        file.readFully(bytes)
+                        assertEquals(
+                            "data",
+                            OsString.fromByteArray(bytes.readBytes(4L)).decodeUtf8()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

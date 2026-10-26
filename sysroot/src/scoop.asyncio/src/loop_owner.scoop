@@ -192,24 +192,27 @@ internal class LoopOwner {
 
     fun hasQueuedWork(): Boolean = lock.withLock { commands.size != 0L || ready.size != 0L }
 
+    private fun managedIdle(): Boolean =
+        rootEnded &&
+            commands.size ==
+            0L &&
+            ready.size ==
+            0L &&
+            operations.size ==
+            0L &&
+            resources.size ==
+            0L
+
     fun stopIfDrained(native: Ptr<Unit>): Boolean {
+        if (!lock.withLock { managedIdle() })
+            return false
         @Unsafe
         {
             if (!nativeLoopIdle(native))
                 return false
         }
         return lock.withLock {
-            if (
-                !rootEnded ||
-                    commands.size !=
-                    0L ||
-                    ready.size !=
-                    0L ||
-                    operations.size !=
-                    0L ||
-                    resources.size !=
-                    0L
-            )
+            if (!managedIdle())
                 false
             else {
                 pointer = None;

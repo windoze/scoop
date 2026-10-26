@@ -86,7 +86,8 @@ int scoop_test_tty_end_input(TestTerminal *terminal) {
 }
 
 bool scoop_test_tty_restored(TestTerminal *terminal) {
-    struct termios current;
+    // musl fills the kernel control-character range; initialize unused libc slots too.
+    struct termios current = {0};
     if (tcgetattr(terminal->slave, &current) < 0)
         return false;
     const struct termios *before = &terminal->original;
