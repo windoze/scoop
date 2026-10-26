@@ -11,6 +11,7 @@ use super::{
 use crate::{CurrentConeSources, lower_current_cone};
 
 mod aggregates;
+mod control_values;
 
 struct DependencyConstantFixture {
     core: TrustedCoreFixture,
