@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 已修复[GC 地址整数跨 safepoint 复用](GC-ADDRESS-BITS.md)：地址转换保持实际 AS1 operand 到 RS4GC 后，阻止页表索引使用搬迁前的地址；临时操作不进入最终产物，原有界卡表优化继续使用。两机各 55 项 statepoint 回归、三目标各两组 GC 组合通过，机器码确认恢复后重算。所有 profile 默认，无新 runtime／ABI 或诊断代码；Linux lambdas 约 8.20%／5.83% 的运行代价、text 增量及编译成本已记录。
+
 - 已完成[搬迁复制复用已预留元数据](EVACUATION-PUBLICATION.md)：完整预留后的 STW 单写者直接发布小对象元数据，省去通用登记调用、重复检查和位图原子读改写；删除无调用者的 marked 参数。两机各 7 项定向回归、三目标接口与数组 GC 组合通过；trees 耗时降低 0.92%／7.05%／3.92%，独立统计的 copy 降低约 16%／33%／16%。每程序 text 增加 84／80／128 B，无对象或根增长；GNU strings 等回退、文件对齐及编译成本均保留。全部 profile 默认，无新开关或诊断代码。
 
 - 已完成[自然循环的内联增长分配](HOT-REGION-INLINING.md)：区域独立累计并受整个 caller 总上限约束，复用现有评分／支配分析，跨轮不返还。lambdas 消除三处 Iterator.next 及展开路径的 get／checkIndex 调用，三目标耗时降低 42.45%／43.35%／41.16%，分配减少 3,520,000 B；text 增加 2.10%／3.23%／2.74%，编译增加约 1.9%～2.5%。两机 74 项优化与 4 项同步 suspend 回归、三目标各四组组合验证通过；其余四负载二进制逐字节相同。保留 main 明显展开、GNU dispatch 编译 +4.81% 及剩余 toArray 限制。release 默认，无新 runtime／ABI 或诊断代码。

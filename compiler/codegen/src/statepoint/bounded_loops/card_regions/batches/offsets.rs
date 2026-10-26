@@ -79,6 +79,8 @@ impl<'a, 'ctx> Offsets<'a, 'ctx> {
                 step.checked_mul(1i64.checked_shl(shift).filter(|value| *value > 0)?)
             }
             InstructionOpcode::PtrToInt if wide => self.step(operand(instruction, 0)?),
+            InstructionOpcode::Call if wide => self
+                .step(crate::statepoint::address_bits::source(instruction)?.as_basic_value_enum()),
             InstructionOpcode::GetElementPtr => {
                 let base = self.step(operand(instruction, 0)?)?;
                 if instruction.get_num_operands() == 2 {

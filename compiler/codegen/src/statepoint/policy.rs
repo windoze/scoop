@@ -37,6 +37,7 @@ pub(crate) fn optimize(
     expected: &ExpectedSafepoints,
     profile: ValidatedBackendProfile,
 ) -> Result<(), CodegenError> {
+    address_bits::protect(module, profile.managed_address_space_contract())?;
     let site_owners = expected
         .sites
         .values()
@@ -120,6 +121,7 @@ pub(crate) fn lower(
             PassBuilderOptions::create(),
         )
         .map_err(|error| CodegenError(format!("rewrite-statepoints-for-gc failed: {error}")))?;
+    address_bits::lower(module)?;
     // Instruction selection also simplifies terminal blocks. Finalize only
     // after that cleanup, so dead relocates before unreachable do not inflate
     // registration counts. Returning calls retain their call-duration roots.
