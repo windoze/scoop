@@ -6,6 +6,7 @@ members = [
     "compiler/identity",
     "compiler/source",
     "compiler/syntax",
+    "compiler/fmt",
     "compiler/analysis",
     "compiler/lsp",
     "compiler/manifest",
@@ -64,6 +65,7 @@ unicode-ident = "1.0.26"
 pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
 minijinja = { version = "3.0.1", features = ["serde"] }
 rowan = "0.17.0"
+pretty = "0.12.5"
 lsp-server = "0.10.0"
 lsp-types = "0.97.0"
 url = "2.5.8"
@@ -73,6 +75,7 @@ scoop-process = { path = "compiler/process" }
 scoop-identity = { path = "compiler/identity" }
 scoop-source = { path = "compiler/source" }
 scoop-syntax = { path = "compiler/syntax" }
+scoop-fmt = { path = "compiler/fmt" }
 scoop-analysis = { path = "compiler/analysis" }
 scoop-manifest = { path = "compiler/manifest" }
 scoop-protocol = { path = "compiler/protocol" }

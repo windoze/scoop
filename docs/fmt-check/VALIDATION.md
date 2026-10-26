@@ -12,6 +12,12 @@
 
 未优化的完整 HIR Rust 测试使用 `RUST_MIN_STACK=33554432`；源码行为 fixture 使用 release。源码、配套工具、sysroot 和既有产物始终保留；通过实际调用观察和输入变化检查复用。
 
+## 格式库
+
+- workspace 格式化和 Clippy 通过；6 组定向测试覆盖格式输出、操作符／控制体、注释／字符串／CRLF、Unicode 标量行宽和敏感换行。
+- 7,546 份可成功解析的仓库源码通过非空白 token、完整位置归一化 AST、文档注释目标和幂等性检查；有意损坏的 UTF-8 或语法输入不属于格式库成功输入。
+- `cargo test -p scoop-parser -p scoop-analysis -p scoop-lsp` 全部通过，覆盖新增 CST 角色及其现有消费者。
+
 ## 尚待验收
 
-格式库、格式化 CLI，以及两项功能完成后的 Linux 完整测试与文件 fixture 验收。原始日志和工作目录保存在仓库外，不提交逐次报告。
+格式化 CLI，以及两项命令完成后的 Linux 完整测试与文件 fixture 验收。原始日志和工作目录保存在仓库外，不提交逐次报告。

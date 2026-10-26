@@ -1,6 +1,6 @@
 # `scoop fmt` 与 `scoop check` 设计
 
-状态：`check` 已实现并通过本机定向验证，`fmt` 实施中；完整 Linux 验收待两项功能完成后执行。设计日期：2026-10-26。
+状态：`check` 与格式库已实现并通过本机验证，格式化 CLI 实施中；完整 Linux 验收待两项命令完成后执行。设计日期：2026-10-26。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md) §2.1、§2.2、§2.7、§2.20，以及[语言服务公共基础](../language-service/DESIGN.md)。本设计不改变语言语义、`.slib` 格式或[运行时契约](../specs/SCOOP-RUNTIME-SPEC.md)。本文按命令合同描述目标；当前交付范围以文首状态及验证记录为准。
 
@@ -125,13 +125,13 @@ manifest 的解析与字段、路径、target 谓词合法性使用现有实现�
 
 ### 4.2 解析与模块边界
 
-在 `compiler/fmt` 新增 `scoop-fmt`，作为语法数据到文本的变换库。调用方读取原文，调用现有 `parse_recovering` 一次，确认无语法错误并取得同次 CST 和完整 AST，再交给格式库。
+在 `compiler/fmt` 新增 `scoop-fmt`，作为语法数据到文本的变换库。调用方读取原文，调用现有 `parse_recovering` 一次，确认无语法错误且具有完整 AST 后，将同次解析的 CST 交给格式库。
 
-格式库只依赖 `scoop-source`、`scoop-syntax` 和实际需要的 `scoop-ast` 数据，不依赖 parser 实现、HIR、manifest、LSP 或 LLVM。原文、CST 和 AST 由同一解析结果借用，不建立第二份语言 grammar；输出为完整格式化文本。文件读取、路径、写回、退出码均属于 `scoop` 编排。
+格式库的编译器数据依赖为 `scoop-syntax`，不依赖 parser 实现、HIR、manifest、LSP 或 LLVM。原文 token 由同次解析的 CST 提供，不建立第二份语言 grammar；输出为完整格式化文本。文件读取、路径、写回、退出码均属于 `scoop` 编排。
 
-完整 AST 用于必要的语法角色和分组，CST 提供原 token、注释和空白。若某个边界尚未表达，在原 parser production 的事件记录中补齐；不能从 token 拼写猜测类型／表达式角色，也不能扫描另一遍源码另建解析器。仅为当前排版需要增加视图，不搭建通用语法访问框架。
+排版所需语法角色和分组由同次解析的 CST 提供，完整 AST 的存在确认该文件解析成功。原 parser production 记录一元／二元／postfix 操作符、下标、copy update 和单语句控制体边界；格式库因此只需依赖 `scoop-syntax`。不能从 token 拼写猜测类型／表达式角色，也不能扫描另一遍源码另建解析器。仅为当前排版需要增加视图，不搭建通用语法访问框架。
 
-排版内部需要文本片段、缩进、软／硬换行和成组折行。实施时优先复用合适且仍维护的 Rust 文档组合库；引入前核对维护状态与许可证，不在本设计中冻结尚未评估的依赖或新增插件层。
+排版复用 MIT 许可的 [`pretty` 0.12.5](https://github.com/marwes/pretty.rs) 文档组合库，其近期维护包括深层 append 渲染的栈修复。使用其文本、缩进、软／硬换行和成组折行，显式指定 Unicode 标量宽度；渲染器区分原 token 与布局空白，使换行风格转换不触及字符串和注释内部字节。
 
 ### 4.3 固定格式规则
 
