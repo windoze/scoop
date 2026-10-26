@@ -437,6 +437,8 @@ codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；不在后端�
 
 每个 callable 的 LLVM module 只声明正文实际引用的类型描述符、数组描述符、普通全局量和初始化登记，并完整发射该 body 所属的 C 字符串等关联定义。归属和初始化登记的查询表按 Cone 建立一次；元数据分区仍取得其完整定义。逐函数 module 可复用同一个 LLVM Context，但对象、ODR、registration 与 GC 的物理选择边界保持独立，不以合并函数对象消除准备开销。
 
+ELF callable module 在普通优化、statepoint lowering 与实际 safepoint 登记完成后，先用 LLVM 的全局死引用清理去除无实际使用的声明及其孤立常量使用链，再准备最终 visibility／COMDAT 并发射对象。清理覆盖当前 module 的全部声明，包括不在当前 Cone 定义计划中的外部声明；不能仅凭原始 use-list 非空推断仍有代码或数据引用。真实引用、Strong／ODR 定义、alias owner 和登记数据保持原链接合同；不可达的 TD 不因无重定位的残留 hidden 声明而成为链接根。元数据 module 复用既有分区清理，不增加链接期保留全部声明或 TD 的规则。
+
 元数据对象按已经确定的物理定义集合投影。实现先按对象序列逐层拆分候选模块，再从较小的模块生成最终对象，避免为每个对象重复复制全部 LLVM 元数据。每层只保留所选定义及其实际引用声明，沿用同一别名、TLS 边界与可见性处理；拆分过程不改变最终对象划分、符号、布局、注册内容或 ABI。
 
 codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM function，dispatch 携带对应分派数据；native transition 的准备分支一并取得 safepoint 与 roots，发射入口握手后保留退出所需的 roots、frame 与结果存储，不拆成需要彼此同步的可选参数，也不额外保存已消费且后续不再使用的状态。LLVM builder、对象及目标发射的实际失败继续走后端错误路径。
