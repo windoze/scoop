@@ -28,6 +28,7 @@ impl NativeOptions {
                     .map(|path| absolute(cwd, path))
                     .transpose()?,
                 mode: self.link_mode.map(Into::into),
+                keep_symbols: self.keep_symbols,
             },
         ))
     }

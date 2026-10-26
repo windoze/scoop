@@ -219,6 +219,9 @@ pub(super) struct NativeOptions {
     /// Executable link mode; Linux gnu defaults to dynamic and musl to static.
     #[arg(long, value_enum)]
     pub link_mode: Option<LinkMode>,
+    /// Keep ordinary executable symbols; debug builds already retain them.
+    #[arg(long)]
+    pub keep_symbols: bool,
 }
 
 #[derive(Clone, Copy, ValueEnum)]

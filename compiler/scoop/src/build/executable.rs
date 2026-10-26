@@ -19,15 +19,22 @@ pub(super) struct Request<'a> {
     pub explicit_runtime: bool,
 }
 
+impl Request<'_> {
+    fn keep_symbols(&self) -> bool {
+        self.options.keep_symbols || self.profile == crate::BuildProfile::Debug
+    }
+}
+
 pub(super) struct Executable {
     pub path: PathBuf,
+    pub symbol_map: PathBuf,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub result_key: [u8; 32],
 }
 
 pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
     let key = key::of(&request)?;
-    let namespace = request.cache.join("executables-v1");
+    let namespace = request.cache.join("executables-v2");
     let entry = namespace.join(format!("{key}.json"));
     if let Some(executable) = record::load(&entry)? {
         return Ok(executable);
@@ -57,6 +64,7 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
         &closure,
         request.runtime,
         &profile,
+        request.keep_symbols(),
         request.libraries,
         &directory.path().join("program"),
         request.cache,
@@ -76,6 +84,7 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
             .as_array();
     let executable = Executable {
         path: linked.path,
+        symbol_map: linked.symbol_map,
         fingerprint: linked.fingerprint,
         result_key,
     };

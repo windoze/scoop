@@ -39,6 +39,9 @@ struct Cli {
     unwind_prefix: Option<PathBuf>,
     #[arg(long, value_enum)]
     link_mode: Option<LinkMode>,
+    /// Keep the ordinary symbol table in the final executable.
+    #[arg(long)]
+    keep_symbols: bool,
     /// Search these explicit roots for libraries required by the artifacts.
     #[arg(long = "library-path")]
     library_paths: Vec<PathBuf>,
@@ -82,6 +85,7 @@ fn main() -> ExitCode {
         },
         final_link: scoop_toolchain::FinalLinkOptions {
             sysroot: cli.sysroot,
+            keep_symbols: cli.keep_symbols,
             unwind_prefix: cli.unwind_prefix,
             mode: cli.link_mode.map(|mode| match mode {
                 LinkMode::Static => scoop_toolchain::LinkMode::Static,

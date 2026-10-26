@@ -29,6 +29,7 @@ fn relocated_runtime_index_links_the_copied_objects() {
         &fixture.closure,
         &runtime,
         &fixture.profile,
+        true,
         &fixture.library_paths,
         &directory.join("program"),
         &directory.join("cache"),
@@ -52,6 +53,7 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         &fixture.closure,
         &fixture.runtime,
         &fixture.profile,
+        true,
         std::slice::from_ref(&alias_directory),
         &quoted_directory.join("program"),
         &quoted_directory.join("cache"),
@@ -73,6 +75,7 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         &fixture.closure,
         &fixture.runtime,
         &fixture.profile,
+        true,
         &fixture.library_paths,
         &directory.join("changed"),
         &quoted_directory.join("cache"),
@@ -87,6 +90,7 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         &fixture.closure,
         &fixture.runtime,
         &fixture.profile,
+        true,
         &[alias_directory],
         &output.path,
         &quoted_directory.join("cache"),
@@ -105,6 +109,93 @@ fn run(path: &Path) -> Vec<u8> {
         .unwrap();
     assert!(output.status.success());
     output.stdout
+}
+
+#[test]
+fn final_link_strips_internal_names_and_keeps_address_map_and_runtime_data() {
+    use object::{Object, ObjectSection, ObjectSymbol};
+    use std::collections::BTreeSet;
+
+    let fixture = test_support::native_fixture();
+    let stripped = link_program(
+        &fixture.closure,
+        &fixture.runtime,
+        &fixture.profile,
+        false,
+        &fixture.library_paths,
+        &fixture.directory.path().join("stripped"),
+        &fixture.directory.path().join("cache"),
+    )
+    .unwrap();
+    let kept_bytes = std::fs::read(&fixture.output.path).unwrap();
+    let stripped_bytes = std::fs::read(&stripped.path).unwrap();
+    let kept = object::File::parse(kept_bytes.as_slice()).unwrap();
+    let removed = object::File::parse(stripped_bytes.as_slice()).unwrap();
+    let scoop_symbol = |symbol: &str| symbol.trim_start_matches('_').starts_with("scoop$1$");
+    assert!(
+        kept.symbols()
+            .any(|symbol| symbol.name().is_ok_and(scoop_symbol))
+    );
+    assert!(
+        !removed
+            .symbols()
+            .any(|symbol| symbol.name().is_ok_and(scoop_symbol))
+    );
+    assert!(stripped_bytes.len() < kept_bytes.len());
+    assert_ne!(stripped.fingerprint, fixture.output.fingerprint);
+
+    let imports = |file: &object::File<'_>| {
+        file.imports()
+            .unwrap()
+            .into_iter()
+            .map(|import| (import.library().to_vec(), import.name().to_vec()))
+            .collect::<BTreeSet<_>>()
+    };
+    let exports = |file: &object::File<'_>| {
+        file.exports()
+            .unwrap()
+            .into_iter()
+            .map(|export| (export.name().to_vec(), export.address()))
+            .collect::<BTreeSet<_>>()
+    };
+    assert_eq!(imports(&kept), imports(&removed));
+    assert_eq!(exports(&kept), exports(&removed));
+    for section in kept.sections().filter(|section| {
+        matches!(
+            section.name().unwrap(),
+            ".text"
+                | "__text"
+                | ".llvm_stackmaps"
+                | "__llvm_stackmaps"
+                | ".eh_frame"
+                | "__eh_frame"
+                | "__unwind_info"
+                | ".gcc_except_table"
+                | "__gcc_except_tab"
+        )
+    }) {
+        let name = section.name().unwrap();
+        let other = removed.section_by_name(name).unwrap();
+        assert_eq!(section.address(), other.address(), "{name}");
+        assert_eq!(section.data().unwrap(), other.data().unwrap(), "{name}");
+    }
+    let map = std::fs::read_to_string(&stripped.symbol_map).unwrap();
+    for symbol in kept
+        .symbols()
+        .filter(|symbol| {
+            symbol
+                .name()
+                .is_ok_and(|name| name.trim_start_matches('_').starts_with("scoop$1$cb$"))
+        })
+        .take(3)
+    {
+        assert!(map.contains(symbol.name().unwrap()));
+        assert!(
+            map.to_ascii_lowercase()
+                .contains(&format!("{:x}", symbol.address()))
+        );
+    }
+    assert_eq!(run(&stripped.path), b"42\n");
 }
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
@@ -151,6 +242,7 @@ fn elf_shared_library_link_tracks_real_symbol_version_updates() {
             &fixture.closure,
             &fixture.runtime,
             &fixture.profile,
+            true,
             std::slice::from_ref(&libraries),
             &directory.join("dso-program"),
             &directory.join("cache"),

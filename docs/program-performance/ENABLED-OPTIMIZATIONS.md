@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [最终可执行文件符号清理](EXECUTABLE-SYMBOLS.md) | release 默认；artifact-only link 默认；debug 或 `--keep-symbols` 保留 | Darwin linker `-x -S`、ELF `--strip-all`；仅在最终链接清理普通符号，保留动态符号及 GC／EH 数据。旁置 `.map` 与显式 symbols 观察提供地址归因，参与链接的 `.slib`／`.o` 保持。 |
 | [ArrayList 普通快照正文](ARRAYLIST-SNAPSHOTS.md) | 新版 core 全 profile 提供成员，release 按已有调用点策略优化；core 及静态解析调用的依赖 Cone 需重建 | 捕获逻辑长度和 backing，以普通 initializer 复制已初始化前缀；静态 List／自定义 getter 保留原扩展。结合整字存储，保留按成本共享的调用及跨分配源根，无专用 intrinsic 或新开关。 |
 | [MaybeUninit 整字原始存储](RAW-VALUE-STORAGE.md) | 新编译器所有 profile 同一表示，release 默认复用 SROA／向量化，无开关 | 按已有对齐以至多 64 位整数保存原始 bits，保留 padding、AS1 引用偏移及物理 ABI；重编译相关正文后受益。省去字节 gather／拼装，musl 短负载回退和测量限制见记录。 |
 | [GC 地址整数的重定位时序](GC-ADDRESS-BITS.md) | 新编译器所有 profile 默认，无开关；受影响应用和库须重新编译 | 地址转换保留 AS1 operand 到 RS4GC 后，防止页表／card 使用旧地址位；不声明普通内存写入，有界无 safepoint 区域沿用原提升规则。临时操作不进产物，无新 ABI；Linux lambdas 的运行代价见记录。 |

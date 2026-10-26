@@ -34,6 +34,8 @@ impl std::fmt::Display for ResolvedLinkPlanFingerprint {
 #[derive(Debug)]
 pub struct ProgramLinkOutput {
     pub path: PathBuf,
+    /// Native linker address map for this exact executable.
+    pub symbol_map: PathBuf,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub plan_dump: String,
     /// Actual native files and lookup candidates used by this link.
@@ -44,18 +46,28 @@ pub fn link_program(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
+    keep_symbols: bool,
     library_paths: &[PathBuf],
     output: &Path,
     cache: &Path,
 ) -> Result<ProgramLinkOutput, LinkError> {
     let inputs = ProgramInputs::new(closure, runtime, profile, library_paths)?;
-    link_inputs(closure, runtime, profile, &inputs, output, cache)
+    link_inputs(
+        closure,
+        runtime,
+        profile,
+        keep_symbols,
+        &inputs,
+        output,
+        cache,
+    )
 }
 
 fn link_inputs(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
+    keep_symbols: bool,
     inputs: &ProgramInputs<'_>,
     output: &Path,
     cache: &Path,
@@ -78,29 +90,45 @@ fn link_inputs(
         paths.push(input.path(cache)?);
     }
     let candidate = directory.path().join("program");
+    let candidate_map = directory.path().join("program.map");
     match profile {
-        ValidatedFinalLinkProfile::Darwin(_) => {
-            darwin::link(profile, inputs, directory.path(), &paths, &candidate)?
-        }
-        ValidatedFinalLinkProfile::Linux(linux) => {
-            elf::link(linux, inputs, directory.path(), &paths, &candidate)?
-        }
+        ValidatedFinalLinkProfile::Darwin(_) => darwin::link(
+            profile,
+            inputs,
+            directory.path(),
+            &paths,
+            &candidate,
+            keep_symbols,
+            &candidate_map,
+        )?,
+        ValidatedFinalLinkProfile::Linux(linux) => elf::link(
+            linux,
+            inputs,
+            directory.path(),
+            &paths,
+            &candidate,
+            keep_symbols,
+            &candidate_map,
+        )?,
     }
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
         domain_separated_cbor_hash(
-            "scoop-resolved-link-plan-v3",
+            "scoop-resolved-link-plan-v4",
             &Plan {
                 closure,
                 runtime,
                 inputs,
                 startup: &startup,
                 profile: profile_fingerprint,
+                keep_symbols,
             },
         )
         .map_err(error)?,
     );
-    let plan_dump = dump(closure, runtime, inputs, &startup);
+    let plan_dump = dump(closure, runtime, inputs, &startup, keep_symbols);
+    let symbol_map = symbol_map_path(&output);
+    std::fs::rename(candidate_map, &symbol_map).map_err(error)?;
     std::fs::rename(candidate, &output).map_err(|err| {
         error(format!(
             "cannot publish executable {}: {err}",
@@ -109,6 +137,7 @@ fn link_inputs(
     })?;
     Ok(ProgramLinkOutput {
         path: output,
+        symbol_map,
         fingerprint,
         plan_dump,
         input_paths: inputs
@@ -118,6 +147,13 @@ fn link_inputs(
             .chain(inputs.namespace.input_paths())
             .collect(),
     })
+}
+
+/// Sidecar naming is shared by final linking and cached output publication.
+pub fn symbol_map_path(output: &Path) -> PathBuf {
+    let mut path = output.as_os_str().to_os_string();
+    path.push(".map");
+    PathBuf::from(path)
 }
 
 fn write_new(path: &Path, bytes: &[u8]) -> Result<(), LinkError> {
@@ -135,10 +171,11 @@ struct Plan<'a> {
     inputs: &'a ProgramInputs<'a>,
     startup: &'a StartupObject,
     profile: Digest256,
+    keep_symbols: bool,
 }
 impl WireEncode for Plan<'_> {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(9)?;
+        e.map(10)?;
         e.field(1)?;
         self.closure.root().encode(e)?;
         e.field(2)?;
@@ -171,6 +208,8 @@ impl WireEncode for Plan<'_> {
         self.inputs.native.encode(e)?;
         e.field(9)?;
         self.inputs.namespace.encode(e)?;
+        e.field(10)?;
+        e.unsigned(u64::from(self.keep_symbols))?;
         Ok(())
     }
 }
@@ -180,8 +219,12 @@ fn dump(
     runtime: &RuntimeObjectSet,
     inputs: &ProgramInputs<'_>,
     startup: &StartupObject,
+    keep_symbols: bool,
 ) -> String {
-    let mut text = String::from("program-link v3\n");
+    let mut text = format!(
+        "program-link v3\nsymbols={}\n",
+        if keep_symbols { "keep" } else { "strip" }
+    );
     for (artifact, symbols) in closure.artifacts() {
         text.push_str(&format!(
             "cone {} kind={:?} objects={}\n",
