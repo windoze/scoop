@@ -482,13 +482,10 @@ pub enum DispatchKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ManagedRuntimeFunction {
     ContextPush,
-    ContextFork,
     ContextEnsureRoot,
 
     Safepoint,
     Alloc,
-    BoxZst,
-    BoxValue,
     GcCollect,
     StringConcat,
     InitializationEnter,
@@ -501,11 +498,6 @@ pub enum ManagedRuntimeFunction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NoGcRuntimeFunction {
     ContextTryGet,
-    ContextRestore,
-    ContextSnapshot,
-    ContextCurrent,
-    ContextEnter,
-    ContextLeave,
 
     IsInstance,
     ITableLookup,
@@ -524,8 +516,6 @@ pub enum NoGcRuntimeFunction {
     Rethrow,
     UnboxZst,
     UnboxValue,
-    PushRecursiveRegion,
-    PopRecursiveRegion,
 }
 
 /// Read-only common view used by mechanical dump/codegen logic. Runtime
@@ -541,13 +531,7 @@ impl RuntimeFunction {
     pub const fn requires_dedicated_operation(self) -> bool {
         matches!(
             self,
-            Self::Managed(ManagedRuntimeFunction::BoxZst | ManagedRuntimeFunction::BoxValue)
-                | Self::NoGc(
-                    NoGcRuntimeFunction::UnboxZst
-                        | NoGcRuntimeFunction::UnboxValue
-                        | NoGcRuntimeFunction::PushRecursiveRegion
-                        | NoGcRuntimeFunction::PopRecursiveRegion
-                )
+            Self::NoGc(NoGcRuntimeFunction::UnboxZst | NoGcRuntimeFunction::UnboxValue)
         )
     }
 
@@ -574,10 +558,7 @@ impl RuntimeFunction {
                 ManagedRuntimeFunction::InitializationFail => 9,
                 ManagedRuntimeFunction::InitializationFailure => 10,
                 ManagedRuntimeFunction::InitializationCycleMessage => 11,
-                ManagedRuntimeFunction::BoxZst => 12,
-                ManagedRuntimeFunction::BoxValue => 13,
                 ManagedRuntimeFunction::ContextPush => 14,
-                ManagedRuntimeFunction::ContextFork => 15,
                 ManagedRuntimeFunction::ContextEnsureRoot => 16,
             },
             Self::NoGc(function) => match function {
@@ -595,14 +576,7 @@ impl RuntimeFunction {
                 NoGcRuntimeFunction::Rethrow => 11,
                 NoGcRuntimeFunction::UnboxZst => 12,
                 NoGcRuntimeFunction::UnboxValue => 13,
-                NoGcRuntimeFunction::PushRecursiveRegion => 14,
-                NoGcRuntimeFunction::PopRecursiveRegion => 15,
                 NoGcRuntimeFunction::ContextTryGet => 16,
-                NoGcRuntimeFunction::ContextRestore => 17,
-                NoGcRuntimeFunction::ContextSnapshot => 18,
-                NoGcRuntimeFunction::ContextCurrent => 19,
-                NoGcRuntimeFunction::ContextEnter => 20,
-                NoGcRuntimeFunction::ContextLeave => 21,
                 NoGcRuntimeFunction::StringByteLength => 22,
                 NoGcRuntimeFunction::StringByteAt => 23,
                 NoGcRuntimeFunction::StringCharacterAtByte => 24,
@@ -623,10 +597,7 @@ impl RuntimeFunction {
             (1, 11) => Some(Self::Managed(
                 ManagedRuntimeFunction::InitializationCycleMessage,
             )),
-            (1, 12) => Some(Self::Managed(ManagedRuntimeFunction::BoxZst)),
-            (1, 13) => Some(Self::Managed(ManagedRuntimeFunction::BoxValue)),
             (1, 14) => Some(Self::Managed(ManagedRuntimeFunction::ContextPush)),
-            (1, 15) => Some(Self::Managed(ManagedRuntimeFunction::ContextFork)),
             (1, 16) => Some(Self::Managed(ManagedRuntimeFunction::ContextEnsureRoot)),
 
             (2, 1) => Some(Self::NoGc(NoGcRuntimeFunction::IsInstance)),
@@ -642,14 +613,7 @@ impl RuntimeFunction {
             (2, 11) => Some(Self::NoGc(NoGcRuntimeFunction::Rethrow)),
             (2, 12) => Some(Self::NoGc(NoGcRuntimeFunction::UnboxZst)),
             (2, 13) => Some(Self::NoGc(NoGcRuntimeFunction::UnboxValue)),
-            (2, 14) => Some(Self::NoGc(NoGcRuntimeFunction::PushRecursiveRegion)),
-            (2, 15) => Some(Self::NoGc(NoGcRuntimeFunction::PopRecursiveRegion)),
             (2, 16) => Some(Self::NoGc(NoGcRuntimeFunction::ContextTryGet)),
-            (2, 17) => Some(Self::NoGc(NoGcRuntimeFunction::ContextRestore)),
-            (2, 18) => Some(Self::NoGc(NoGcRuntimeFunction::ContextSnapshot)),
-            (2, 19) => Some(Self::NoGc(NoGcRuntimeFunction::ContextCurrent)),
-            (2, 20) => Some(Self::NoGc(NoGcRuntimeFunction::ContextEnter)),
-            (2, 21) => Some(Self::NoGc(NoGcRuntimeFunction::ContextLeave)),
             (2, 22) => Some(Self::NoGc(NoGcRuntimeFunction::StringByteLength)),
             (2, 23) => Some(Self::NoGc(NoGcRuntimeFunction::StringByteAt)),
             (2, 24) => Some(Self::NoGc(NoGcRuntimeFunction::StringCharacterAtByte)),

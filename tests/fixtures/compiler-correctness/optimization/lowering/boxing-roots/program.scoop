@@ -1,6 +1,10 @@
 class Node(var value: Long)
 struct Payload<T>(val value: T, val nested: (Node, String))
 enum Wrapped { Item(Payload<Node>), Empty }
+struct WidePayload(val first: (Long, Long, Long, Long, Long, Long, Long, Long),
+                   val last: (Long, Long, Long, Long, Long, Long, Long, Long),
+                   val refs: Payload<Node>)
+struct Empty()
 
 fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
 fun <T> roundTrip(value: T): T {
@@ -33,7 +37,25 @@ fun references(index: Long) {
     check(generic.nested._1.value == index + 1L)
 }
 
+fun wideBoxes() {
+    val node = Node(29L)
+    val payload = WidePayload((0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L),
+                              (8L, 9L, 10L, 11L, 12L, 13L, 14L, 15L),
+                              Payload(node, (Node(31L), "wide")))
+    val boxes = MutableArray<Any>(4L) { index -> if (index < 2L) payload else Empty() }
+    gcCollect()
+    check(boxes[0L] !== boxes[1L] && boxes[2L] !== boxes[3L])
+    val copy = Array<Any>(boxes)
+    boxes[0L] = Empty()
+    gcCollect()
+    val result = copy[0L] as WidePayload
+    check(result.first._8 == 7L && result.last._8 == 15L)
+    check(result.refs.value === node && result.refs.nested._1.value == 31L)
+    check(result.refs.nested._2 == "wide")
+}
+
 fun main() {
+    wideBoxes()
     var index = 0L
     while (index < 8L) {
         references(index)

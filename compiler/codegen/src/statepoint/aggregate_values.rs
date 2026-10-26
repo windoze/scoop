@@ -287,9 +287,11 @@ impl<'ctx> Splitter<'ctx> {
             return Ok(value);
         }
         let parts = self.parts(value)?;
-        self.after_definition(value);
         for part in parts {
             if path.starts_with(&part.path) {
+                // A GC-free aggregate part may itself have just been extracted.
+                // Nested projections must follow that definition, not its source.
+                self.after_definition(part.value);
                 return extract(&self.builder, part.value, &path[part.path.len()..]);
             }
         }

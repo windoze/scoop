@@ -18,7 +18,7 @@ impl FunctionLowerer<'_> {
             Op::Push { key, value } => {
                 let lowered = self.lower_expr(value)?;
                 let value = self.reference_object(lowered, &value.ty);
-                let task = self.emit_plain_call(leaf(Leaf::ContextCurrent), vec![])?;
+                let task = self.context_current();
                 let descriptor = self.context_descriptor(mir::ContextStorageRole::Node);
                 let root = self.emit_plain_call(
                     managed(Managed::ContextPush),
@@ -30,9 +30,12 @@ impl FunctionLowerer<'_> {
                 let mark = self.lower_expr(mark)?;
                 let task = self.context_field(mark, 0);
                 let root = self.context_field(mark, 1);
-                self.emit_plain_call(leaf(Leaf::ContextRestore), vec![task, root])
+                let storage = self.context_storage(mir::ContextStorageRole::Task);
+                let (fields, _, _) = context_object_shape(self.context, storage);
+                self.store_at_offset(task, fields[0].offset, root, lir::MANAGED_PTR);
+                Ok(self.unit_value())
             }
-            Op::Current => self.emit_plain_call(leaf(Leaf::ContextCurrent), vec![]),
+            Op::Current => Ok(self.context_current()),
             Op::Snapshot => self.context_snapshot(),
             Op::Fork { root } => {
                 let root = self.lower_expr(root)?;
@@ -52,13 +55,15 @@ impl FunctionLowerer<'_> {
             }
             Op::Enter { task } => {
                 let task = self.lower_expr(task)?;
-                let previous = self.emit_plain_call(leaf(Leaf::ContextEnter), vec![task])?;
+                let previous = self.context_current();
+                self.push(lir::Instruction::TaskContextStore { value: task });
                 Ok(self.make_aggregate(ty, vec![previous]))
             }
             Op::Leave { guard } => {
                 let guard = self.lower_expr(guard)?;
                 let previous = self.context_field(guard, 0);
-                self.emit_plain_call(leaf(Leaf::ContextLeave), vec![previous])
+                self.push(lir::Instruction::TaskContextStore { value: previous });
+                Ok(self.unit_value())
             }
             Op::IsPresent { binding } => {
                 let binding = self.lower_expr(binding)?;
@@ -82,11 +87,14 @@ impl FunctionLowerer<'_> {
         }
     }
 
+    fn context_current(&mut self) -> lir::Value {
+        let out = self.new_temp(lir::MANAGED_PTR);
+        self.push(lir::Instruction::TaskContextLoad { out });
+        lir::Value::Temp(out)
+    }
+
     fn context_snapshot(&mut self) -> StorageResult<lir::Value> {
-        let task = self.emit_plain_call(
-            LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::ContextCurrent),
-            vec![],
-        )?;
+        let task = self.context_current();
         let root = self.new_hidden_local(lir::MANAGED_PTR)?;
         let null = lir::Value::NullPointer(lir::PointerKind::Managed);
         self.push(lir::Instruction::Store {

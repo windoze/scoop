@@ -167,28 +167,20 @@ fn roundtrip_module(ty: LirType, size: u64, offsets: &[u64]) -> Module {
     module
 }
 
-fn codegen_error(module: &Module) -> String {
-    let machine = host_target_machine().unwrap();
-    let context = Context::create();
-    emit_llvm_module(&context, module, &machine, host_profile())
-        .unwrap_err()
-        .0
-}
-
 #[test]
 fn zero_sized_box_unbox_have_no_payload_storage_or_result_pointer() {
     let module = roundtrip_module(LirType::Aggregate(vec![]), 0, &[]);
     let ir = ir_of(&module);
     assert!(
-        ir.contains("call ptr addrspace(1) @scoop_rt_box_zst(ptr @"),
+        ir.contains("@scoop_runtime_alloc_slow") && !ir.contains("@scoop_rt_box_zst"),
         "{ir}"
     );
     assert!(
-        ir.contains("call void @scoop_rt_unbox_zst(ptr addrspace(1) %box.t0, ptr @"),
+        ir.contains("call void @scoop_rt_unbox_zst(ptr addrspace(1) %managed_object, ptr @"),
         "{ir}"
     );
     assert!(
-        !ir.contains("alloca") && !ir.contains("load {}") && !ir.contains("store {}"),
+        !ir.contains("alloca {}") && !ir.contains("load {}") && !ir.contains("store {}"),
         "{ir}"
     );
     assert!(
@@ -208,39 +200,21 @@ fn zero_sized_box_unbox_have_no_payload_storage_or_result_pointer() {
 }
 
 #[test]
-fn reference_payload_roots_the_same_storage_before_the_managed_box() {
+fn reference_payload_restores_canonical_storage_before_generated_copy() {
     let ty = LirType::Aggregate(vec![
         MANAGED_PTR,
         LirType::Aggregate(vec![MANAGED_PTR, LirType::I64]),
     ]);
     let module = roundtrip_module(ty, 24, &[0, 8]);
     let ir = ir_of(&module);
-    let push = ir
-        .find("call void @scoop_rt_push_native_region_roots")
-        .unwrap();
-    let boxed = ir
-        .find("call ptr addrspace(1) @scoop_rt_box_value")
-        .unwrap();
-    let pop = ir
-        .find("call void @scoop_rt_pop_native_region_roots")
-        .unwrap();
-    assert!(push < boxed && boxed < pop, "{ir}");
-    assert!(ir[..push].contains("%box.inline_scan = load ptr"), "{ir}");
-    assert!(ir[..push].contains("store ptr %box.inline_scan"), "{ir}");
     assert!(
-        ir[..push].contains("store ptr %source, ptr %box.region.field"),
+        !ir.contains("native_region_roots") && !ir.contains("@scoop_rt_box_value"),
         "{ir}"
     );
+    assert!(ir.contains("@scoop_runtime_alloc_slow"), "{ir}");
+    assert!(ir.contains("@llvm.memcpy.p1.p0.i64(ptr addrspace(1) align 8 %box.payload, ptr align 8 %source, i64 24"), "{ir}");
     assert!(
-        ir[boxed..]
-            .lines()
-            .next()
-            .unwrap()
-            .contains(", ptr %source)"),
-        "{ir}"
-    );
-    assert!(
-        ir.contains("call void @scoop_rt_unbox_value(ptr addrspace(1) %box.t0, ptr @"),
+        ir.contains("call void @scoop_rt_unbox_value(ptr addrspace(1) %managed_object, ptr @"),
         "{ir}"
     );
     assert!(ir.contains(", ptr %destination)"), "{ir}");
@@ -256,23 +230,19 @@ fn reference_payload_roots_the_same_storage_before_the_managed_box() {
         "{fast}"
     );
     assert!(!fast.contains("@scoop_rt_unbox"), "{fast}");
-    assert!(
-        ir.contains("box.region.frame = alloca { ptr, ptr, i64 }"),
-        "{ir}"
-    );
     let rewritten = rewritten_ir_of(&module);
     assert!(
         rewritten.contains("gc.statepoint") && rewritten.contains("gc.relocate"),
         "{rewritten}"
     );
     assert!(
-        rewritten.contains("call void @scoop_rt_push_native_region_roots"),
+        rewritten
+            .lines()
+            .any(|line| line.contains("store volatile ptr addrspace(1)")
+                && line.contains(".relocated")),
         "{rewritten}"
     );
-    assert!(
-        rewritten.contains("call void @scoop_rt_pop_native_region_roots"),
-        "{rewritten}"
-    );
+    assert!(!rewritten.contains("native_region_roots"), "{rewritten}");
 }
 
 #[test]
@@ -280,52 +250,22 @@ fn gc_free_payload_uses_the_descriptor_without_a_root_frame() {
     let module = roundtrip_module(LirType::I64, 8, &[]);
     let ir = ir_of(&module);
     assert!(
-        ir.contains("@scoop_rt_box_value") && ir.contains("@scoop_rt_unbox_value"),
+        ir.contains("@scoop_runtime_alloc_slow") && ir.contains("@scoop_rt_unbox_value"),
         "{ir}"
     );
     assert!(
-        !ir.contains("native_region_roots") && !ir.contains("getelementptr i8, ptr %box.t0"),
+        !ir.contains("native_region_roots")
+            && !ir.contains("getelementptr i8, ptr %managed_object"),
         "{ir}"
     );
     assert!(
-        ir.contains("getelementptr i8, ptr addrspace(1) %box.t0, i64 16"),
+        ir.contains("getelementptr i8, ptr addrspace(1) %managed_object, i64 16"),
         "{ir}"
     );
     assert!(
         ir.contains("@llvm.memcpy.p0.p1.i64(ptr align 8 %destination, ptr addrspace(1) align 8 %unbox.payload, i64 8"),
         "{ir}"
     );
-}
-
-#[test]
-fn ordinary_runtime_calls_cannot_bypass_the_box_payload_contract() {
-    let mut module = values_module();
-    let mut function = module.functions.remove(0);
-    function.call_targets = CallTargets::default();
-    let out = function.temps.alloc(Temp { ty: MANAGED_PTR });
-    let site = direct_site(
-        &mut function.call_targets,
-        TestCallProtocol::Managed {
-            safepoint: 1,
-            destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::BoxZst),
-        },
-        vec![METADATA_PTR],
-        (MANAGED_PTR, RefScan::References(vec![0])),
-        out,
-        vec![Value::TypeDescriptor(
-            module.meta.well_known_type_descriptors.string,
-        )],
-    );
-    function.blocks = Arena::new();
-    function.entry = function.blocks.alloc(BasicBlock {
-        name: "entry".into(),
-        instructions: vec![Instruction::Call { site }],
-        terminator: Terminator::Return { value: None },
-    });
-    module.functions = vec![function];
-    module.output = scoop_lir::LirOutput::Library;
-    refresh_module_safepoints(&mut module);
-    assert!(codegen_error(&module).contains("descriptor-refined operation"));
 }
 
 #[test]
@@ -411,12 +351,39 @@ fn generated_reference_box_uses_relocation_and_the_value_barrier() {
 }
 
 #[test]
-fn large_release_boxes_keep_the_shared_runtime_path() {
-    let module = roundtrip_module(LirType::Aggregate(vec![LirType::I64; 16]), 128, &[]);
-    let ir = release_ir(&module, false);
-    assert!(
-        ir.contains("call ptr addrspace(1) @scoop_rt_box_value"),
-        "{ir}"
-    );
-    assert!(!ir.contains("%box.payload ="), "{ir}");
+fn large_boxes_copy_the_known_payload_after_the_shared_allocator() {
+    for words in [16, 8192] {
+        let module = roundtrip_module(
+            LirType::Aggregate(vec![LirType::I64; words]),
+            (words * 8) as u64,
+            &[],
+        );
+        for ir in [ir_of(&module), release_ir(&module, false)] {
+            assert!(!ir.contains("@scoop_rt_box_value"), "{ir}");
+            assert!(
+                ir.contains("@scoop_runtime_alloc_slow") && ir.contains("%box.payload ="),
+                "{ir}"
+            );
+            assert!(
+                ir.lines().any(|line| line.contains("@memcpy(")
+                    && line.contains(&format!("i64 {}", words * 8))),
+                "{ir}"
+            );
+        }
+        if words == 16 {
+            let rewritten = release_ir(&module, true);
+            assert!(
+                rewritten
+                    .lines()
+                    .any(|line| line.contains("call ptr @memcpy(")),
+                "{rewritten}"
+            );
+            assert!(
+                !rewritten
+                    .lines()
+                    .any(|line| { line.contains("gc.statepoint") && line.contains("@memcpy") }),
+                "{rewritten}"
+            );
+        }
+    }
 }

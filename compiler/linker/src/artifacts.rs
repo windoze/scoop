@@ -67,6 +67,7 @@ impl ArtifactLinkRequest {
             &closure,
             &runtime,
             &profile,
+            self.final_link.keep_symbols,
             &self.library_paths,
             &self.output,
             &self.cache_dir,

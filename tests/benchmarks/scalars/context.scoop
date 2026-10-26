@@ -1,0 +1,23 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+public class Settings(val value: Long)
+context(settings: Settings)
+fun read(): Long = settings.value
+public fun scopes(iterations: Int, settings: Settings): Long {
+    var index = 0
+    var sum = 0L
+    while (index < iterations) {
+        context(settings) { sum += read() }
+        index += 1
+    }
+    return sum
+}
+@Unsafe fun main() {
+    val iterations = count()
+    val settings = Settings(7L)
+    begin()
+    val result = scopes(iterations, settings)
+    end()
+    println(result)
+}

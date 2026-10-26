@@ -94,11 +94,16 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         &closure,
         &runtime,
         &profile,
+        request.final_link.keep_symbols,
         &request.library_paths,
         &directory.path().join("program"),
         &request.cache_dir,
     )
     .map_err(failure)?;
+    OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
+        .map_err(failure)?
+        .publish(&linked.symbol_map, None)
+        .map_err(failure)?;
     output.publish(&linked.path, None).map_err(failure)?;
     Ok(LinkOutcome {
         output: output.path().to_owned(),

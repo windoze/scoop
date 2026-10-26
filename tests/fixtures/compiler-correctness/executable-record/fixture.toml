@@ -215,3 +215,47 @@ argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py",
 exit = 0
 stdout = ""
 stderr = ""
+
+[[steps]]
+name = "debug_keep_symbols"
+argv = ["${scoop}", "build", "--profile", "debug", "--keep-symbols", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${debug_keep_symbols.result.link_plan_fingerprint}", equals = "${root_changed.result.link_plan_fingerprint}"}, {actual = "${debug_keep_symbols.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "release_keep_symbols"
+argv = ["${scoop}", "build", "--release", "--keep-symbols", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${release_keep_symbols.result.root.path}", equals = "${release.result.root.path}"}, {actual = "${release_keep_symbols.result.link_plan_fingerprint}", not_equals = "${release.result.link_plan_fingerprint}"}, {actual = "${release_keep_symbols.result.observations.child_invocations.length}", equals = 0}, {file = "${release_keep_symbols.result.output}.map", exists = true}]
+
+[[steps]]
+name = "run_keep_symbols"
+argv = ["${release_keep_symbols.result.output}"]
+exit = 44
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "release_strip_again"
+argv = ["${scoop}", "build", "--release", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${release_strip_again.result.link_plan_fingerprint}", equals = "${release.result.link_plan_fingerprint}"}, {actual = "${release_strip_again.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "two_symbol_policies"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "5"]
+exit = 0
+stdout = ""
+stderr = ""

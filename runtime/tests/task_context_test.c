@@ -56,6 +56,13 @@ static uint64_t lookup(uint64_t cell) {
     return payload->value;
 }
 
+/* Model the typed heap write performed by a generated Context restore. */
+static void restore(void *raw_task, void *root) {
+    ScoopTaskContext *task = raw_task;
+    task->root = root;
+    scoop_rt_gc_write_barrier(&task->root, sizeof task->root);
+}
+
 static void collect(void) {
     _Alignas(16) uintptr_t frame[4];
     frame_init(frame);
@@ -98,14 +105,19 @@ static void exercise_context(void) {
         }
     }
     snapshot = scoop_rt_context_snapshot();
-    child = scoop_rt_context_fork_impl(snapshot, &task_td, 0x1010,
-                                      (uintptr_t)frame, (uintptr_t)&frame[2]);
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, 0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
+    child = scoop_gc_alloc_internal(&task_td, sizeof(ScoopTaskContext));
+    ((ScoopTaskContext *)child)->root = snapshot;
+    scoop_rt_gc_write_barrier(&((ScoopTaskContext *)child)->root, sizeof(void *));
+    scoop_thread_pop_managed_anchor(&anchor);
     assert(child != task && ((ScoopTaskContext *)child)->root == snapshot);
-    guard = scoop_rt_context_enter(child);
+    guard = *context_slot;
+    *context_slot = child;
     assert(guard == task);
     assert(*context_slot == child);
     *context_slot = guard;
-    assert(scoop_rt_context_current() == task);
+    assert((*scoop_rt_context_slot) == task);
     guard = *context_slot;
     *context_slot = child;
     mark = push(cells[0], 999);
@@ -113,13 +125,13 @@ static void exercise_context(void) {
     assert(scoop_rt_context_slot == context_slot && *context_slot == child);
     assert(lookup(cells[0]) == 999 && lookup(cells[6]) == 106);
     assert(((ScoopTaskContext *)task)->root == snapshot);
-    scoop_rt_context_leave(guard);
+    *context_slot = guard;
     assert(*context_slot == task);
     assert(lookup(cells[0]) == 100);
-    scoop_rt_context_restore(child, mark);
+    restore(child, mark);
     assert(((ScoopTaskContext *)child)->root == snapshot);
     for (size_t index = 7; index != 0; index--) {
-        scoop_rt_context_restore(task, marks[index - 1]);
+        restore(task, marks[index - 1]);
         collect();
         assert(scoop_rt_context_try_get(&cells[index - 1]) == NULL);
         for (size_t prior = 0; prior + 1 < index; prior++) {
@@ -151,15 +163,15 @@ int main(void) {
     uintptr_t boundary = 0;
     scoop_thread_enter_managed(&boundary);
     exercise_context();
-    uintptr_t previous = (uintptr_t)scoop_rt_context_current();
+    uintptr_t previous = (uintptr_t)(*scoop_rt_context_slot);
     scoop_thread_leave_managed();
     pthread_t collector;
     assert(pthread_create(&collector, NULL, collect_on_foreign_thread, context_slot) == 0);
     assert(pthread_join(collector, NULL) == 0);
     scoop_thread_enter_managed(&boundary);
-    assert((uintptr_t)scoop_rt_context_current() != previous);
+    assert((uintptr_t)(*scoop_rt_context_slot) != previous);
     assert(scoop_rt_context_slot == context_slot);
-    assert(*context_slot == scoop_rt_context_current());
+    assert(*context_slot == (*scoop_rt_context_slot));
     assert(lookup(UINT64_C(1) << 32) == 1234);
     scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();

@@ -11,7 +11,6 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/startup/failure.c",
     "runtime/src/startup/gateway.c",
     "runtime/src/boxing.c",
-    "runtime/src/arrays.c",
     "runtime/src/task_context.c",
     "runtime/src/value_shape.c",
     "runtime/src/eh.c",

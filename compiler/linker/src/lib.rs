@@ -15,7 +15,7 @@ mod startup;
 mod test_support;
 
 pub use artifacts::{ArtifactLinkRequest, read_program_artifacts, resolve_program_link_profile};
-pub use link::{ProgramLinkOutput, ResolvedLinkPlanFingerprint, link_program};
+pub use link::{ProgramLinkOutput, ResolvedLinkPlanFingerprint, link_program, symbol_map_path};
 pub use native_object::{
     NativeObjectInfo, NativeSymbolBinding, NativeSymbolDefinition, NativeSymbolKind,
 };

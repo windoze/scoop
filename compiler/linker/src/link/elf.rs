@@ -26,8 +26,18 @@ pub(super) fn link(
     directory: &Path,
     paths: &[PathBuf],
     candidate: &Path,
+    keep_symbols: bool,
+    symbol_map: &Path,
 ) -> Result<(), LinkError> {
     let mut command = profile.command(directory, candidate).map_err(error)?;
+    if !keep_symbols {
+        command.arg("-Xlinker").arg("--strip-all");
+    }
+    command
+        .arg("-Xlinker")
+        .arg("-Map")
+        .arg("-Xlinker")
+        .arg(symbol_map);
     append_objects(&mut command, directory, paths)?;
     command.arg("-Xlinker").arg(format!(
         "--defsym={}={}",

@@ -56,6 +56,14 @@ pub enum Value {
 
 #[derive(Debug)]
 pub enum Instruction {
+    /// Read the active task context from the current thread's native root slot.
+    TaskContextLoad {
+        out: TempId,
+    },
+    /// Replace that root slot without a safepoint or heap write barrier.
+    TaskContextStore {
+        value: Value,
+    },
     MaybeUninit {
         out: LocalId,
         wrapper: StructDefId,

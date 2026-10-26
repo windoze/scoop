@@ -7,6 +7,7 @@ use std::io::{BufReader, BufWriter, Write};
 struct Record {
     inputs: Vec<NativeInputMetadata>,
     executable: HostPathCarrier,
+    symbol_map: HostPathCarrier,
     fingerprint: [u8; 32],
     result_key: [u8; 32],
 }
@@ -24,11 +25,13 @@ pub(super) fn load(path: &Path) -> BuildResult<Option<Executable>> {
         }
     }
     let path = record.executable.to_path_buf().map_err(failure)?;
-    if !path.try_exists().map_err(failure)? {
+    let symbol_map = record.symbol_map.to_path_buf().map_err(failure)?;
+    if !path.try_exists().map_err(failure)? || !symbol_map.try_exists().map_err(failure)? {
         return Ok(None);
     }
     Ok(Some(Executable {
         path,
+        symbol_map,
         fingerprint: ResolvedLinkPlanFingerprint::from_array(record.fingerprint),
         result_key: record.result_key,
     }))
@@ -42,6 +45,7 @@ pub(super) fn save(
     let record = Record {
         inputs,
         executable: HostPathCarrier::from_path(&executable.path).map_err(failure)?,
+        symbol_map: HostPathCarrier::from_path(&executable.symbol_map).map_err(failure)?,
         fingerprint: *executable.fingerprint.as_array(),
         result_key: executable.result_key,
     };

@@ -4,6 +4,10 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 已完成[编译身份图共享与增量处理](COMPILER-IDENTITIES.md)及[最终程序符号清理](EXECUTABLE-SYMBOLS.md)：消除重复容器复制、导入排序与已验证节点的环遍历；release 最终链接清理内部普通符号，旁置真实地址 map。计入 map 和整合成本后，ARM64 正文重建 hello／nbody 降低 28.4%／40.1%，公开签名修改降低 35.9%；三目标 hello 文件缩小 53.5%～55.7%。身份、链接、符号化、缓存与定向 GC 验证通过，运行时间／RSS 未因符号清理明显下降。后续持续主线转向 GC：先核实线程重复唤醒并建立当前基线，再按测量推进代际、分配器、收集工作及并发／增量和对象布局实验。
+
+- 已完成 [Runtime 生成操作收敛](RUNTIME-RESPONSIBILITIES.md)：所有 profile 的已知 box／Array clone／Context 操作复用 typed 布局和根计划，退役重复 C 入口；大 box 使用共享 NoGC memcpy 控制体积，修复嵌套 aggregate 分解支配错误。三目标十组 ABI／GC／跨 Cone 组合通过，ARM64 大 box／Context scope 降低 43.77%／5.71%，text 和文件缩小，分配／GC 保持。Linux 运行计时受并行任务影响尚未完成；根帧批次暂后置，下一步优先处理编译速度与最终内部符号清理。
+
 - 已完成 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md) 的首批收尾：退役 13 个无生产消费者的标量／打印 C 入口、重复整数 writer 与 Char 构建项，修正旧测试依赖。Darwin 的相关单测、真实 core、双 profile moving GC 和重建 core 产物消费通过；相关 C 对象代码减少 1,484 B，不计运行收益。普通字符串算法、浮点适配及生成根帧继续按批落实。
 
 - 已完成 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md) 的字符串批次：字符扫描、定位、UTF-8 编码／校验和长 hash 迁至普通 core 正文；typed 字节读写与精确分配复用既有 codegen，旧 C 算法和专属 shim 退役。三目标 core／Unicode／GC／页边界与 ABI 回归通过，分配和 GC 次数保持；字符计数降低约 39%～75%，定位／切片降低约 34%～60%，其他分项和 ARM64 fromChars +5.1% 的成本均保留。text 略减，完整文件增加约 8～21 KiB；所有 profile 使用同一语义，release 按既有策略优化，无新开关。

@@ -74,7 +74,7 @@ def append_frames(text, frames, start, end):
     return "".join(lines)
 
 
-def annotate(text, names, binary, tools=None):
+def annotate(text, names, binary, tools=None, link_addresses=None):
     start, end = image_range(text)
     addresses = sorted(
         {address for line in text.splitlines() for address in frame_addresses(line, start, end)}
@@ -87,6 +87,8 @@ def annotate(text, names, binary, tools=None):
         [readobj, "--macho-segment", str(binary)], capture_output=True, text=True, check=True
     )
     slide = start - text_base(headers.stdout)
+    if link_addresses is not None:
+        return append_frames(text, link_addresses.frames(addresses, names, slide), start, end)
     result = subprocess.run(
         [
             symbolizer,

@@ -6,6 +6,8 @@ pub(super) fn link(
     directory: &Path,
     paths: &[PathBuf],
     candidate: &Path,
+    keep_symbols: bool,
+    symbol_map: &Path,
 ) -> Result<(), LinkError> {
     let namespace = inputs.namespace.darwin()?;
     let sdk = directory.join("sdk");
@@ -20,6 +22,12 @@ pub(super) fn link(
         return Err(error("Darwin linking requires its selected target profile"));
     };
     let mut command = darwin.command(&sdk, candidate).map_err(error)?;
+    if !keep_symbols {
+        darwin.linker_argument(&mut command, "-x");
+        darwin.linker_argument(&mut command, "-S");
+    }
+    darwin.linker_argument(&mut command, "-map");
+    darwin.linker_argument(&mut command, symbol_map);
     response::write_objects(directory, paths)?;
     let mut argument = std::ffi::OsString::from("@");
     argument.push(directory.join(response::FILE_NAME));

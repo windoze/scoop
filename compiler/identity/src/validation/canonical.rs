@@ -6,8 +6,9 @@ impl PendingIdentityValidation {
     /// Continues collecting the later IR layers of an existing identity graph.
     pub fn from_graph(graph: ValidatedIdentityGraph) -> Self {
         Self {
-            candidates: graph.candidates,
-            canonical_keys: graph.canonical_keys,
+            candidates: Rc::unwrap_or_clone(graph.candidates),
+            declared: graph.declared.to_vec(),
+            checking: Vec::new(),
             phase: ValidationPhase::Registering,
             resource_error: None,
             resource_path: WirePath::default(),
@@ -59,7 +60,7 @@ impl PendingIdentityValidation {
             && candidate.trusted_id.as_ref().downcast_ref::<I>() == Some(&id)
         {
             candidate.layer = Some(layer);
-            return Ok(());
+            return self.record_declaration(node);
         }
         self.insert_candidate(layer, id)?;
         self.candidates
@@ -90,6 +91,13 @@ impl PendingIdentityValidation {
         self.insert_canonical(layer, record.id(), Arc::new(record.key()))
     }
 
+    fn record_declaration(&mut self, node: IdentityNode) -> Result<(), IdentityValidationError> {
+        scoop_wire::allocation::try_reserve(&mut self.declared, 1, &self.resource_path)
+            .map_err(|error| self.poison(IdentityValidationError::Resource(error)))?;
+        self.declared.push(node);
+        Ok(())
+    }
+
     fn insert_canonical<I, K>(
         &mut self,
         layer: IdentityLayer,
@@ -102,14 +110,11 @@ impl PendingIdentityValidation {
     {
         self.require_registration_phase()?;
         let node = IdentityNode::trusted(id);
-        let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
         if let Some(candidate) = self.candidates.get(&node)
             && candidate.layer.is_none()
             && candidate.resolved
         {
-            let same_key = self.canonical_keys.get(&slot).is_some_and(|existing| {
-                existing.as_any().downcast_ref::<K>() == Some(key.as_ref())
-            });
+            let same_key = candidate.key_ref::<I, K>() == Some(key.as_ref());
             if !same_key {
                 return self.fail(IdentityValidationError::IdentityCollision {
                     kind: node.kind,
@@ -120,15 +125,12 @@ impl PendingIdentityValidation {
                 .get_mut(&node)
                 .expect("existing identity")
                 .layer = Some(layer);
-            return Ok(());
+            return self.record_declaration(node);
         }
-        self.reserve_canonical_key_slot()?;
         self.insert_candidate(layer, id)?;
-        self.canonical_keys.insert(slot, key);
-        self.candidates
-            .get_mut(&node)
-            .expect("inserted identity")
-            .resolved = true;
+        let candidate = self.candidates.get_mut(&node).expect("inserted identity");
+        candidate.canonical_key = Some(key);
+        candidate.resolved = true;
         Ok(())
     }
 }

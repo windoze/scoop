@@ -6,6 +6,34 @@ use inkwell::values::{
 };
 use scoop_lir::OptimizationMode;
 
+#[test]
+fn nested_gc_free_projections_follow_their_split_definitions() {
+    for payload in ["[8 x i64]", "{ i64, i64, i64, i64, i64, i64, i64, i64 }"] {
+        let source = format!(
+            r#"
+%Wide = type {{ {payload}, ptr addrspace(1) }}
+define i64 @f(ptr %source) gc "statepoint-example" {{
+entry:
+  %value = load %Wide, ptr %source
+  %last = extractvalue %Wide %value, 0, 7
+  ret i64 %last
+}}
+"#
+        );
+        let context = Context::create();
+        let llvm = parse(&context, &source);
+        let profile = ValidatedBackendProfile::darwin_aarch64_for_test();
+        crate::statepoint::aggregate_values::expose(
+            &llvm,
+            profile.managed_address_space_contract(),
+        )
+        .unwrap();
+        llvm.verify().unwrap_or_else(|error| {
+            panic!("nested {payload}: {error}\n{}", llvm.print_to_string())
+        });
+    }
+}
+
 pub(super) fn field(mut value: BasicValueEnum<'_>, index: u32) -> BasicValueEnum<'_> {
     loop {
         let instruction = value.as_instruction_value().expect("rebuilt aggregate");

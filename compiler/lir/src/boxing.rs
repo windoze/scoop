@@ -89,30 +89,17 @@ impl BoxedNonZeroDescriptor {
         if locals[local].storage() != &LocalStorage::NonZero(self.value.clone()) {
             return Err(BoxDescriptorError::StorageMismatch);
         }
-        let rooting = match NonEmptyRefScan::new(self.value.scan().clone()) {
-            Some(scan) => BoxPayloadRooting::RecursiveRegion(scan),
-            None => BoxPayloadRooting::GcFree,
-        };
         Ok(BoxValuePlace {
             descriptor: self,
             local,
-            rooting,
         })
     }
-}
-
-/// A root frame covers this exact local, never a detached copy of its leaves.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BoxPayloadRooting {
-    GcFree,
-    RecursiveRegion(NonEmptyRefScan),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BoxValuePlace {
     descriptor: BoxedNonZeroDescriptor,
     local: LocalId,
-    rooting: BoxPayloadRooting,
 }
 
 impl BoxValuePlace {
@@ -122,10 +109,6 @@ impl BoxValuePlace {
 
     pub const fn local(&self) -> LocalId {
         self.local
-    }
-
-    pub const fn rooting(&self) -> &BoxPayloadRooting {
-        &self.rooting
     }
 }
 

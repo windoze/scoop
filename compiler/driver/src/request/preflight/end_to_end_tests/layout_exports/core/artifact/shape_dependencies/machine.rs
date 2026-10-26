@@ -247,10 +247,10 @@ fn emit(
         .map(|member| member.llvm_ir())
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(ir.contains("@scoop_rt_box_value"), "{ir}");
+    assert!(ir.contains("@scoop_runtime_alloc_slow"), "{ir}");
     assert!(ir.contains("@scoop_rt_is_instance"), "{ir}");
     if name == "combined" {
-        assert!(ir.contains("@scoop_rt_box_zst"), "{ir}");
+        assert!(!ir.contains("@scoop_rt_box_zst"), "{ir}");
         assert!(ir.contains("@scoop_rt_unbox_value"), "{ir}");
     }
     for (_, descriptor) in output.module().meta.external_type_descriptors.iter() {

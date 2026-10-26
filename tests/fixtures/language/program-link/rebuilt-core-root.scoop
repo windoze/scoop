@@ -1,12 +1,14 @@
 package dev.programlink
 import dev.programlink.programlink.shadow.String as OrdinaryString
 
-@Extern(name = "scoop_rt_write", abi = "scoop")
-private fun sameWrite(value: String)
+@Extern(name = "abs")
+private fun rootAbsolute(value: Int): Int
 
 fun main() {
-    rebuiltWrite("rebuilt\n")
-    sameWrite("root\n")
+    @Unsafe { if (rebuiltAbsolute(-42) != 42) throw IllegalStateException() }
+    write("rebuilt\n")
+    @Unsafe { if (rootAbsolute(-7) != 7) throw IllegalStateException() }
+    write("root\n")
     println(("te" + "xt").rebuiltAnswer())
     println(OrdinaryString(40).value + 2)
 }

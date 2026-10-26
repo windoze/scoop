@@ -17,12 +17,12 @@ static uint32_t context_slot(const uint64_t *cell) {
     return (uint32_t)(encoded - 1);
 }
 
-void *scoop_rt_context_current(void) {
+static ScoopTaskContext *current_task(void) {
     return scoop_thread_current_required()->current_task_context;
 }
 
 void *scoop_rt_context_snapshot(void) {
-    ScoopTaskContext *task = scoop_rt_context_current();
+    ScoopTaskContext *task = current_task();
     return task == NULL ? NULL : task->root;
 }
 
@@ -46,7 +46,7 @@ void *scoop_rt_context_push_impl(const uint64_t *cell, void *value,
                                  uintptr_t frame_pointer) {
     uint32_t slot = context_slot(cell);
     unsigned height = scoop_image_current()->context_height;
-    ScoopTaskContext *owner = scoop_rt_context_current();
+    ScoopTaskContext *owner = current_task();
     if (owner == NULL || value == NULL) {
         scoop_shape_fatal("Context push without a task or binding");
     }
@@ -92,47 +92,17 @@ void *scoop_rt_context_push_impl(const uint64_t *cell, void *value,
     return previous;
 }
 
-void scoop_rt_context_restore(void *raw_owner, void *previous) {
-    ScoopTaskContext *owner = raw_owner;
-    owner->root = previous;
-    scoop_rt_gc_write_barrier(&owner->root, sizeof owner->root);
-}
-
-void *scoop_rt_context_fork_impl(void *root, const ScoopTypeDescriptor *task_td,
-                                 uintptr_t return_pc, uintptr_t stack_pointer,
-                                 uintptr_t frame_pointer) {
-    ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
-    void **slots[] = {&root};
-    ScoopNativeRootFrame roots;
-    scoop_rt_push_native_roots(&roots, slots, 1);
-    scoop_thread_poll();
-    ScoopTaskContext *task = scoop_gc_alloc_internal(task_td, sizeof *task);
-    task->root = root;
-    scoop_rt_gc_write_barrier(&task->root, sizeof task->root);
-    scoop_rt_pop_native_roots(&roots);
-    scoop_thread_pop_managed_anchor(&anchor);
-    return task;
-}
-
 void *scoop_rt_context_ensure_root_impl(const ScoopTypeDescriptor *task_td,
                                         uintptr_t return_pc, uintptr_t stack_pointer,
                                         uintptr_t frame_pointer) {
     ScoopThreadState *thread = scoop_thread_current_required();
     if (thread->current_task_context == NULL) {
-        thread->current_task_context = scoop_rt_context_fork_impl(
-            NULL, task_td, return_pc, stack_pointer, frame_pointer);
+        ScoopManagedAnchor anchor;
+        scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
+        scoop_thread_poll();
+        /* The allocator clears root; there is no captured binding to copy. */
+        thread->current_task_context = scoop_gc_alloc_internal(task_td, sizeof(ScoopTaskContext));
+        scoop_thread_pop_managed_anchor(&anchor);
     }
     return thread->current_task_context;
-}
-
-void *scoop_rt_context_enter(void *task) {
-    ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopTaskContext *previous = thread->current_task_context;
-    thread->current_task_context = task;
-    return previous;
-}
-
-void scoop_rt_context_leave(void *previous) {
-    scoop_thread_current_required()->current_task_context = previous;
 }

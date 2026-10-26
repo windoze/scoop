@@ -1,3 +1,4 @@
+mod task_context;
 use super::*;
 
 mod addresses;
@@ -90,6 +91,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::RawLoad { .. }
             | Instruction::RawStore { .. }
             | Instruction::PtrOffset { .. } => self.emit_raw_pointer_instruction(instruction),
+            Instruction::TaskContextLoad { .. } | Instruction::TaskContextStore { .. } => {
+                self.emit_task_context(instruction)
+            }
             Instruction::Call { site } => self.emit_call_site(site),
             Instruction::ManagedPoll { site } => self.safepoint_poll(site),
             Instruction::Invoke { site } => self.emit_invoke_site(site),

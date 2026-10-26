@@ -100,6 +100,10 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
             libraries: &request.library_paths,
             explicit_runtime: matches!(&request.runtime, RuntimeInput::ObjectIndex(_)),
         })?;
+        OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
+            .map_err(output_error)?
+            .publish(&linked.symbol_map, Some(&linked.result_key))
+            .map_err(output_error)?;
         output
             .publish(&linked.path, Some(&linked.result_key))
             .map_err(output_error)?;

@@ -1,7 +1,7 @@
 //! Fallible collection growth for lengths read from metadata.
 
 use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
+use std::hash::{BuildHasher, Hash};
 
 use crate::{WireError, WireErrorKind, WirePath};
 
@@ -29,8 +29,8 @@ pub fn try_reserve_count<T>(
     try_reserve(values, additional, path)
 }
 
-pub fn try_reserve_map<K: Eq + Hash, V>(
-    values: &mut HashMap<K, V>,
+pub fn try_reserve_map<K: Eq + Hash, V, S: BuildHasher>(
+    values: &mut HashMap<K, V, S>,
     additional: usize,
     path: &WirePath,
 ) -> Result<(), WireError> {
@@ -39,8 +39,8 @@ pub fn try_reserve_map<K: Eq + Hash, V>(
         .map_err(|_| allocation_error(path))
 }
 
-pub fn try_reserve_set<T: Eq + Hash>(
-    values: &mut HashSet<T>,
+pub fn try_reserve_set<T: Eq + Hash, S: BuildHasher>(
+    values: &mut HashSet<T, S>,
     additional: usize,
     path: &WirePath,
 ) -> Result<(), WireError> {

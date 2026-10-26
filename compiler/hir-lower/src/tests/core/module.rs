@@ -100,7 +100,7 @@ pub(crate) fn core_file() -> SourceFile {
     declarations.extend([
         scoop_extern_fun(
             "write",
-            "scoop_rt_write",
+            "test_core_write",
             vec![("message", ty_named("String"))],
             None,
         ),

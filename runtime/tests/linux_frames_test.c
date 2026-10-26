@@ -50,17 +50,17 @@ static void relocate(uintptr_t pc, uintptr_t sp, uintptr_t fp) {
 void scoop_rt_safepoint_impl(uintptr_t pc, uintptr_t sp, uintptr_t fp) {
     relocate(pc, sp, fp);
 }
-void scoop_rt_box_zst_impl(uint64_t a, uintptr_t pc, uintptr_t sp,
+void scoop_rt_context_ensure_root_impl(uint64_t a, uintptr_t pc, uintptr_t sp,
                            uintptr_t fp) {
     assert(a == 11);
     relocate(pc, sp, fp);
 }
-void scoop_rt_box_value_impl(uint64_t a, uint64_t b, uintptr_t pc, uintptr_t sp,
+void scoop_rt_string_concat_impl(uint64_t a, uint64_t b, uintptr_t pc, uintptr_t sp,
                              uintptr_t fp) {
     assert(a == 11 && b == 22);
     relocate(pc, sp, fp);
 }
-void scoop_rt_array_clone_impl(uint64_t a, uint64_t b, uint64_t c, uintptr_t pc,
+void scoop_rt_context_push_impl(uint64_t a, uint64_t b, uint64_t c, uintptr_t pc,
                                uintptr_t sp, uintptr_t fp) {
     assert(a == 11 && b == 22 && c == 33);
     relocate(pc, sp, fp);

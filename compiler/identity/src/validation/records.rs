@@ -62,9 +62,7 @@ impl ValidatedIdentityGraph {
             .filter(|(node, candidate)| {
                 node.kind == I::KIND
                     && scope.includes(candidate.layer)
-                    && self
-                        .canonical_keys
-                        .contains_key(&CanonicalKeySlot::new::<I, K>(node.bytes))
+                    && candidate.key_ref::<I, K>().is_some()
             })
             .count();
         let record_count = u64::try_from(record_count).map_err(|_| {
@@ -77,20 +75,12 @@ impl ValidatedIdentityGraph {
         let mut records = Vec::new();
         scoop_wire::allocation::try_reserve_count(&mut records, record_count, path)
             .map_err(IdentityValidationError::Resource)?;
-        for (node, candidate) in &self.candidates {
+        for (node, candidate) in self.candidates.iter() {
             if node.kind != I::KIND || !scope.includes(candidate.layer) {
                 continue;
             }
-            let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
-            let Some(key) = self.canonical_keys.get(&slot).cloned() else {
+            let Some(key) = candidate.key::<I, K>() else {
                 continue;
-            };
-            let Ok(key) = key.into_any().downcast::<K>() else {
-                return Err(IdentityValidationError::InvalidRecord {
-                    kind: I::KIND,
-                    id: node.bytes,
-                    reason: "validated identity has the wrong concrete key type".to_owned(),
-                });
             };
             let Some(id) = candidate.trusted_id.downcast_ref::<I>().copied() else {
                 return Err(IdentityValidationError::InvalidRecord {

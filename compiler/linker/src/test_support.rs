@@ -115,6 +115,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         &closure,
         &runtime,
         &profile,
+        true,
         &library_paths,
         &path.join("program"),
         &path.join("cache"),

@@ -8,7 +8,7 @@ fn hello_world() -> mir::Module {
     let bang = b.string("!");
     let write = b.managed_scoop_extern(
         "write",
-        "scoop_rt_write",
+        "test_core_write",
         vec![mir::Type::String],
         mir::Type::Unit,
     );

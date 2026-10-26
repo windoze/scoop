@@ -142,7 +142,7 @@ impl Harness {
         }
         let extern_id = self.extern_functions.alloc(hir::ExternFunction {
             source_name: "write".to_string(),
-            native_symbol: "scoop_rt_write".to_string(),
+            native_symbol: "test_core_write".to_string(),
             library: String::new(),
             abi: hir::ExternAbi::Scoop,
             calling_convention: hir::CallingConvention::Cdecl,

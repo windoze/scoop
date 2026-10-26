@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::{ConeCoordinate, ConeIdentity, ExactTypeKey, GeneratedNominalKey};
 
 #[test]
-fn external_boxed_references_preserve_zst_nonzero_and_recursive_rooting() {
+fn external_boxed_references_preserve_zst_nonzero_and_payload_scan() {
     for (storage, ty) in cases() {
         let (external, proof) = fixture(ConeIdentity::CORE, storage, ty);
         proof.validate_reference(&Arena::new(), &external).unwrap();
@@ -23,7 +23,7 @@ fn external_boxed_references_preserve_zst_nonzero_and_recursive_rooting() {
                 ));
                 let place = value.bind_place(&locals, local).unwrap();
                 assert_eq!(
-                    matches!(place.rooting(), BoxPayloadRooting::RecursiveRegion(_)),
+                    place.descriptor().value().scan().contains_reference(),
                     expected
                 );
                 assert!(matches!(

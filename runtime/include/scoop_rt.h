@@ -93,8 +93,6 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 /* Compiler GC leaf. The mapping and card index come from the published page map. */
 void scoop_runtime_record_dirty_card_group(void *region, size_t card_index);
 
-void scoop_rt_write(const ScoopString *s);
-void scoop_rt_println(const ScoopString *s);
 void scoop_rt_stdout_write(const uint8_t *bytes, int64_t length);
 void scoop_rt_stderr_write(const uint8_t *bytes, int64_t length);
 void scoop_rt_flush_stdout(void);

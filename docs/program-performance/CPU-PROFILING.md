@@ -9,6 +9,7 @@
 - 复用既有观察缓存：缺失 symbols 只补到 LIR，已有机器产物和最终链接保持；再次请求直接复制观察。新增 stage tag 6、machine protocol 16，`.slib`、语言身份、对象、GC 与 ABI 不变。
 - `symbolize.py` 只注释已知符号，保留原名、偏移、权重与调用树。给出 `--binary` 后，用 LLVM nm 关联与唯一已知正文同址的定义起始标记；多个正文同址时不猜测。
 - macOS sample 的 `<deduplicated_symbol>` 通过显式二进制、实际主镜像加载地址、LLVM readobj 与 symbolizer 解析。只附加报告明确列出的 PC 及函数，保留折叠计数和省略号，不重新分配样本。
+- 最终程序的[符号清理](EXECUTABLE-SYMBOLS.md)默认生成外部 linker map；`symbolize.py --link-map` 将其实际地址范围与同次 symbols 观察关联。Darwin sample 自动扣除实际 ASLR slide，`--address` 接受链接地址；Linux PIE 的 load bias 由实际采样映射提供。保留符号的 perf 工作流用 `--keep-symbols`，不自动解析 perf.data 或增加程序插桩。
 
 这是旁置观察，不是最终链接存活清单或调试信息。声明 byte span 不是执行行号；没有 Scoop 指令行表与内联栈，LLVM 克隆、native／runtime 及无法识别的符号保持原始信息。部分 perf 版本给边界别名显示异常偏移，工具保留该值，不将其当作合法 PC 偏移。
 

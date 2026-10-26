@@ -126,6 +126,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::MachineAtomicCompareExchange { out, .. }
         | Instruction::GlobalLoad { out, .. }
         | Instruction::GlobalAddress { out, .. }
+        | Instruction::TaskContextLoad { out }
         | Instruction::NativeGlobalLoad { out, .. }
         | Instruction::NativeGlobalAddress { out, .. }
         | Instruction::FunctionAddress { out, .. }
@@ -162,6 +163,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         Instruction::ForeignCallbackOperation(operation) => operation.out(),
         Instruction::Store { .. }
         | Instruction::MaybeUninit { .. }
+        | Instruction::TaskContextStore { .. }
         | Instruction::GlobalStore { .. }
         | Instruction::PublishReleaseReady { .. }
         | Instruction::NativeGlobalStore { .. }

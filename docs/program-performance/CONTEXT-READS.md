@@ -1,5 +1,7 @@
 # Context 小访问器的生成路径
 
+当前所有 profile 使用 typed 槽读写，restore 也生成字段写入和屏障；旧 current／enter／leave／restore 包装已退役。下面是最初 release 访问器阶段的历史对照，当前合同与消费者见 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md)。
+
 在 `64c80b33b` 的数组初始化优化之后，继续复用已完成的 TaskContext fork／TLAB、接口 SSA 和根恢复能力。一次 ARM64 五秒采样中，排除启动与等待线程后，current／snapshot／enter／leave 合计占主线程 346／3,452 个样本；try-get／restore 未命中。这用于选择本批范围，不作为调用周期或预期收益。
 
 ## 实现与开启条件

@@ -1,11 +1,8 @@
 use super::*;
-use scoop_lir::{BoxPayload, BoxPayloadRooting, NoGcRuntimeFunction, UnboxResult};
+use scoop_lir::{BoxPayload, NoGcRuntimeFunction, UnboxResult};
 
 mod allocation;
 mod unbox;
-
-/// The frame and entry share one lexical lifetime around a single managed box.
-struct BoxRegionFrame<'ctx>(PointerValue<'ctx>);
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn emit_boxing(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
@@ -21,55 +18,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let descriptor = self
                     .value(Value::TypeDescriptor(payload.descriptor()))?
                     .into_pointer_value();
-                if self.optimize_allocations && payload.instance_layout().size().get() <= 128 {
-                    let result = self.allocate_box(payload, descriptor, safepoint, live)?;
-                    self.temps.insert(*out, result.into());
-                    return Ok(());
-                }
-                let (runtime, frame, args) = match payload {
-                    BoxPayload::ZeroSized(_) => (
-                        scoop_lir::ManagedRuntimeFunction::BoxZst,
-                        None,
-                        vec![descriptor.into()],
-                    ),
-                    BoxPayload::NonZero(place) => {
-                        let source = self.local_pointer(place.local())?;
-                        let frame = match place.rooting() {
-                            BoxPayloadRooting::GcFree => None,
-                            BoxPayloadRooting::RecursiveRegion(_) => {
-                                Some(self.push_box_region(source, descriptor)?)
-                            }
-                        };
-                        (
-                            scoop_lir::ManagedRuntimeFunction::BoxValue,
-                            frame,
-                            vec![descriptor.into(), source.into()],
-                        )
-                    }
-                };
-                let pointer = ptr_ty(self.context);
-                let params = vec![pointer.into(); args.len()];
-                let runtime = scoop_lir::RuntimeFunction::Managed(runtime);
-                let callee = self.runtime_fn(
-                    runtime.symbol(),
-                    managed_ptr_ty(self.context, self.managed_address_space)
-                        .fn_type(&params, false),
-                );
-                let call = self
-                    .builder
-                    .build_call(callee, &args, &format!("box.t{}", out.into_raw()))
-                    .map_err(box_error)?;
-                self.apply_safepoint_id(call, safepoint);
-                self.apply_nounwind(call);
-                let result = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or_else(|| CodegenError("managed box produced no object".into()))?;
-                self.restore_statepoint_live(live, safepoint)?;
-                if let Some(BoxRegionFrame(frame)) = frame {
-                    self.box_leaf(NoGcRuntimeFunction::PopRecursiveRegion, &[frame.into()])?;
-                }
-                self.temps.insert(*out, result);
+                let result = self.allocate_box(payload, descriptor, safepoint, live)?;
+                self.temps.insert(*out, result.into());
             }
             Instruction::UnboxValue { object, result } => {
                 self.emit_unbox(*object, result)?;
@@ -77,62 +27,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             _ => unreachable!("boxing instruction dispatch is exhaustive"),
         }
         Ok(())
-    }
-
-    fn push_box_region(
-        &mut self,
-        source: PointerValue<'ctx>,
-        descriptor: PointerValue<'ctx>,
-    ) -> Result<BoxRegionFrame<'ctx>, CodegenError> {
-        let pointer = ptr_ty(self.context);
-        let entry_type = self
-            .context
-            .struct_type(&[pointer.into(), pointer.into()], false);
-        let frame_type = self.context.struct_type(
-            &[
-                pointer.into(),
-                pointer.into(),
-                self.context.i64_type().into(),
-            ],
-            false,
-        );
-        let entry = self.entry_alloca(entry_type.into(), "box.region.entry")?;
-        let frame = self.entry_alloca(frame_type.into(), "box.region.frame")?;
-        let metadata = crate::runtime_metadata_v1::RuntimeMetadataV1Types::new(self.context);
-        let shape = self
-            .builder
-            .build_struct_gep(metadata.type_descriptor(), descriptor, 1, "box.shape")
-            .map_err(box_error)?;
-        let scan_slot = self
-            .builder
-            .build_struct_gep(
-                metadata.type_instance_shape(),
-                shape,
-                8,
-                "box.inline_scan_ptr",
-            )
-            .map_err(box_error)?;
-        let scan = self
-            .builder
-            .build_load(pointer, scan_slot, "box.inline_scan")
-            .map_err(box_error)?
-            .into_pointer_value();
-        for (index, value) in [source, scan].into_iter().enumerate() {
-            let field = self
-                .builder
-                .build_struct_gep(entry_type, entry, index as u32, "box.region.field")
-                .map_err(box_error)?;
-            self.builder.build_store(field, value).map_err(box_error)?;
-        }
-        self.box_leaf(
-            NoGcRuntimeFunction::PushRecursiveRegion,
-            &[
-                frame.into(),
-                entry.into(),
-                self.context.i64_type().const_int(1, false).into(),
-            ],
-        )?;
-        Ok(BoxRegionFrame(frame))
     }
 
     fn box_leaf(

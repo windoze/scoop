@@ -105,7 +105,7 @@ fn native_contract_fixture(with_unrelated_prefix: bool) -> ast::SourceFile {
             "nativeWrite",
             vec![("message", ty_named("String"))],
             None,
-            extern_annotation("", "scoop_rt_write", "scoop"),
+            extern_annotation("", "test_core_write", "scoop"),
         ),
         extern_property("readOnly", false, false, "data", "read_only"),
         extern_property("mutableData", true, false, "data", "mutable_data"),
@@ -264,7 +264,7 @@ fn source_native_contracts_cover_functions_and_globals_without_arena_identity() 
                 gc_effect: scoop_identity::GcEffect::Managed,
             },
             ..
-        } if symbol.as_bytes() == b"scoop_rt_write"
+        } if symbol.as_bytes() == b"test_core_write"
             && signature.parameters().len() == 1
     ));
     assert!(matches!(
@@ -445,7 +445,7 @@ fn extern_functions_have_typed_identity_and_abi_specific_effects() {
         "nativeWrite",
         vec![("message", ty_named("String"))],
         None,
-        extern_annotation("", "scoop_rt_write", "scoop"),
+        extern_annotation("", "test_core_write", "scoop"),
     );
     let module = lower_user(file(vec![c, scoop, fun("main", vec![])]))
         .expect("both extern ABI categories must lower");
@@ -470,7 +470,7 @@ fn extern_functions_have_typed_identity_and_abi_specific_effects() {
     assert_eq!(scoop.gc_effect, hir::GcEffect::Managed);
     let dump = hir::dump(&module);
     assert!(dump.contains("abi=c symbol=native_add lib=numbers>"));
-    assert!(dump.contains("abi=scoop symbol=scoop_rt_write>"));
+    assert!(dump.contains("abi=scoop symbol=test_core_write>"));
 }
 
 #[test]

@@ -4,12 +4,35 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import sample_symbols  # noqa: E402
+from link_map import AddressMap  # noqa: E402
 
 
 class SampleSymbolsTests(unittest.TestCase):
+    def test_stripped_sample_uses_external_ranges_after_aslr_adjustment(self):
+        symbol = "scoop$1$cb$" + "a" * 64
+        text = """Load Address: 0x100600000
+  10 ??? (in program) [0x100600104,0x100600120]
+Binary Images:
+  0x100600000 - 0x10060ffff +program (0)
+"""
+        addresses = AddressMap([(0x100000100, 0x100000120, symbol)])
+        headers = "Segment {\nName: __TEXT\nvmaddr: 0x100000000\n}"
+        with patch(
+            "sample_symbols.subprocess.run", return_value=SimpleNamespace(stdout=headers)
+        ) as run:
+            output = sample_symbols.annotate(
+                text, {symbol: "work"}, Path("program"), None, addresses
+            )
+        run.assert_called_once()
+        self.assertIn("10 ??? (in program) [0x100600104,0x100600120]", output)
+        self.assertIn(f"0x100600104 = work {{{symbol}}}+0x4", output)
+        self.assertNotIn("0x100600120 =", output)
+
     def test_aslr_and_collapsed_addresses_do_not_redistribute_counts(self):
         text = """Load Address: 0x100600000
 Call graph:

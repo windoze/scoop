@@ -77,10 +77,6 @@ void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td
 void *scoop_runtime_alloc_slow(const ScoopTypeDescriptor *td, size_t size);
 void scoop_rt_safepoint(void);
 const ScoopString *scoop_rt_string_concat(const ScoopString *left, const ScoopString *right);
-const void *scoop_rt_array_clone(const void *object, const ScoopTypeDescriptor *source_td,
-                                 const ScoopTypeDescriptor *target_td);
-void *scoop_rt_box_zst(const ScoopTypeDescriptor *td);
-void *scoop_rt_box_value(const ScoopTypeDescriptor *td, const void *source);
 /* NoGC leaves: exact type validation and copying cannot safepoint. */
 void scoop_rt_unbox_zst(const void *object, const ScoopTypeDescriptor *expected_td);
 void scoop_rt_unbox_value(const void *object, const ScoopTypeDescriptor *expected_td,
@@ -98,13 +94,8 @@ const ScoopString *scoop_rt_init_cycle_message(const ScoopInitializationUnitDesc
 
 void *scoop_rt_context_try_get(const uint64_t *cell);
 void *scoop_rt_context_push(const uint64_t *cell, void *value, const ScoopTypeDescriptor *node_td);
-void scoop_rt_context_restore(void *owner, void *previous_root);
 void *scoop_rt_context_snapshot(void);
-void *scoop_rt_context_current(void);
-void *scoop_rt_context_fork(void *root, const ScoopTypeDescriptor *task_td);
 void *scoop_rt_context_ensure_root(const ScoopTypeDescriptor *task_td);
-void *scoop_rt_context_enter(void *task);
-void scoop_rt_context_leave(void *previous_task);
 
 /* Compiler-published roots that remain live across one outbound native call.
  * Each entry scans one addressable value using a generated recursive scan. */

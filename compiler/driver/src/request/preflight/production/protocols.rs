@@ -50,9 +50,17 @@ pub(super) fn type_identities(
     hir.foundation.register_identities(&mut pending)?;
     mir.strong.foundation().register_identities(&mut pending)?;
     let mut coordinates = vec![coordinate.clone()];
-    for (coordinate, identities) in declarations.identity_inputs() {
-        pending.register_external_graph_authorities(identities)?;
+    for (coordinate, _) in declarations.identity_inputs() {
         coordinates.push(coordinate.clone());
+    }
+    let machine_providers = dependencies
+        .layout_dependencies()
+        .map(|provider| provider.identity())
+        .collect::<std::collections::BTreeSet<_>>();
+    for input in declarations.hir_metadata() {
+        if !machine_providers.contains(&input.provider) {
+            pending.register_external_graph_authorities(input.identities)?;
+        }
     }
     for (_, identities) in dependencies.identity_inputs() {
         pending.register_external_graph_authorities(identities)?;

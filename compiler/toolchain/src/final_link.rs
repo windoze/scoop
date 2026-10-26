@@ -26,6 +26,8 @@ pub struct FinalLinkOptions {
     pub sysroot: Option<PathBuf>,
     pub unwind_prefix: Option<PathBuf>,
     pub mode: Option<LinkMode>,
+    /// Retain the ordinary symbol table in the final executable.
+    pub keep_symbols: bool,
 }
 
 impl FinalLinkOptions {

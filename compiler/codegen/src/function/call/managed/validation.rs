@@ -218,23 +218,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             ],
                             scoop_lir::MANAGED_PTR,
                         ),
-                        scoop_lir::ManagedRuntimeFunction::BoxZst
-                        | scoop_lir::ManagedRuntimeFunction::BoxValue => {
-                            return Err(CodegenError(
-                                "boxing runtime calls require a descriptor-refined operation"
-                                    .into(),
-                            ));
-                        }
                         scoop_lir::ManagedRuntimeFunction::ContextPush => (
                             vec![
                                 scoop_lir::RAW_PTR,
                                 scoop_lir::MANAGED_PTR,
                                 scoop_lir::METADATA_PTR,
                             ],
-                            scoop_lir::MANAGED_PTR,
-                        ),
-                        scoop_lir::ManagedRuntimeFunction::ContextFork => (
-                            vec![scoop_lir::MANAGED_PTR, scoop_lir::METADATA_PTR],
                             scoop_lir::MANAGED_PTR,
                         ),
                         scoop_lir::ManagedRuntimeFunction::ContextEnsureRoot => {
@@ -272,9 +261,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 scoop_lir::RuntimeFunction::NoGc(function) => {
                     let shape = match function {
                         scoop_lir::NoGcRuntimeFunction::UnboxZst
-                        | scoop_lir::NoGcRuntimeFunction::UnboxValue
-                        | scoop_lir::NoGcRuntimeFunction::PushRecursiveRegion
-                        | scoop_lir::NoGcRuntimeFunction::PopRecursiveRegion => {
+                        | scoop_lir::NoGcRuntimeFunction::UnboxValue => {
                             return Err(CodegenError(
                                 "boxing runtime calls require a descriptor-refined operation"
                                     .into(),
@@ -299,20 +286,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         }
                         scoop_lir::NoGcRuntimeFunction::ContextTryGet => {
                             (vec![scoop_lir::RAW_PTR], scoop_lir::MANAGED_PTR)
-                        }
-                        scoop_lir::NoGcRuntimeFunction::ContextRestore => (
-                            vec![scoop_lir::MANAGED_PTR, scoop_lir::MANAGED_PTR],
-                            LirType::Void,
-                        ),
-                        scoop_lir::NoGcRuntimeFunction::ContextSnapshot
-                        | scoop_lir::NoGcRuntimeFunction::ContextCurrent => {
-                            (Vec::new(), scoop_lir::MANAGED_PTR)
-                        }
-                        scoop_lir::NoGcRuntimeFunction::ContextEnter => {
-                            (vec![scoop_lir::MANAGED_PTR], scoop_lir::MANAGED_PTR)
-                        }
-                        scoop_lir::NoGcRuntimeFunction::ContextLeave => {
-                            (vec![scoop_lir::MANAGED_PTR], LirType::Void)
                         }
                         scoop_lir::NoGcRuntimeFunction::GcStats => (Vec::new(), LirType::I64),
                         scoop_lir::NoGcRuntimeFunction::StringCompare => (

@@ -58,33 +58,62 @@ def annotate(text, names):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--symbols", type=Path, action="append", required=True)
-    parser.add_argument("--input", type=Path, required=True, help="Native text report")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--input", type=Path, help="Native text report")
+    source.add_argument(
+        "--address",
+        type=lambda value: int(value, 0),
+        action="append",
+        help="Linked address to resolve with --link-map; may be repeated",
+    )
     parser.add_argument("--output", type=Path, help="Annotated text; default stdout")
     parser.add_argument(
         "--binary", type=Path, help="Sampled executable; resolve real symbol aliases"
     )
     parser.add_argument("--llvm-tools", type=Path, help="Directory of paired LLVM utilities")
+    parser.add_argument("--link-map", type=Path, help="Address map from the same final link")
     args = parser.parse_args(argv)
     try:
-        inputs = {
-            args.input.resolve(),
-            *(path.resolve() for path in args.symbols),
-        }
+        inputs = {path.resolve() for path in args.symbols}
+        if args.input:
+            inputs.add(args.input.resolve())
         if args.binary:
             inputs.add(args.binary.resolve())
+        if args.link_map:
+            inputs.add(args.link_map.resolve())
         if args.output and args.output.resolve() in inputs:
             raise ValueError("output must not overwrite the report, map or sampled binary")
         names = labels(args.symbols)
-        if args.binary:
+        addresses = None
+        if args.link_map:
+            import link_map
+
+            addresses = link_map.load(args.link_map)
+        if args.binary and not args.link_map:
             import binary_symbols
 
             names = binary_symbols.load(names, args.binary, args.llvm_tools)
-        raw = args.input.read_text(encoding="utf-8")
-        output = annotate(raw, names)
-        if args.binary and raw.startswith("Analysis of sampling "):
-            import sample_symbols
+        if args.address:
+            if addresses is None:
+                raise ValueError("--address requires --link-map")
+            lines = []
+            for address in args.address:
+                entry = addresses.resolve(address)
+                label = "<unresolved>"
+                if entry:
+                    symbol, offset = entry
+                    label = f"{names.get(symbol, symbol)} {{{symbol}}}+0x{offset:x}"
+                lines.append(f"0x{address:x} = {label}\n")
+            output = "".join(lines)
+        else:
+            raw = args.input.read_text(encoding="utf-8")
+            output = annotate(raw, names)
+            if args.binary and raw.startswith("Analysis of sampling "):
+                import sample_symbols
 
-            output = sample_symbols.annotate(output, names, args.binary, args.llvm_tools)
+                output = sample_symbols.annotate(
+                    output, names, args.binary, args.llvm_tools, addresses
+                )
         if args.output:
             args.output.write_text(output, encoding="utf-8")
         else:
