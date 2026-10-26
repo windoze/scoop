@@ -3,7 +3,7 @@
 先用普通 release 构建取得程序，再请求同一次构建的符号映射：
 
 ```sh
-target/release/scoop build PATH --release --emit symbols \
+target/release/scoop build PATH --release --emit-symbol-map --emit symbols \
   --dump-dir "$PWD/tmp/profile/dumps" -o "$PWD/tmp/profile/program"
 ```
 
@@ -18,10 +18,10 @@ producer、typed implementation、模板／实例、可用的完整 exact signat
 去掉的正文，不是存活函数清单。声明位置是原始 byte span，**不是采样 PC 的执行行号**；
 缺失来源保留 null。本能力不生成指令行表、DWARF 内联栈或 PGO 输入。
 
-release 默认从最终程序移除普通内部符号，链接同时生成 `program.map`，保存实际链接
+release 默认从最终程序移除普通内部符号，显式 `--emit-symbol-map` 生成 `program.map`，保存实际链接
 地址与符号范围。离线归因需保留这份 map、同次 `symbols.json` 及匹配的程序；map 中
 只含最终存活的地址，symbols 观察提供逻辑函数名与声明来源。二者都在程序外部。
-debug 默认保留程序内符号；release 加 `--keep-symbols` 可保留原有 nm／perf 工作流。
+debug 默认保留程序内符号并生成 map；release 加 `--keep-symbols` 可保留原有 nm／perf 工作流，但不会自动生成 map。
 切换保留策略只影响最终链接，既有 `.slib` 和对象可以复用。
 
 ## macOS

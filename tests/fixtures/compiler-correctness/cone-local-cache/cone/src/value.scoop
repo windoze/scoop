@@ -1,0 +1,3 @@
+package test.cache
+
+public fun value(): Int = 42

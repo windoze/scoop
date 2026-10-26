@@ -6,14 +6,14 @@ from pathlib import Path
 
 mode, root, output, saved = sys.argv[1:]
 root = Path(root)
-paths = [Path(output), Path(str(output) + ".map")]
+paths = [Path(output)]
 for pattern in (
     "compile-v3/**/artifact.slib",
     "compile-v3/**/record.cbor",
     "objects-v1/*.o",
-    "executables-v2/*.json",
-    "executables-v2/program-*/program",
-    "executables-v2/program-*/program.map",
+    "executables-v3/*.json",
+    "executables-v3/program-*/program",
+    "executables-v3/program-*/program.map",
 ):
     paths.extend(root.glob(pattern))
 assert any(p.name == "artifact.slib" for p in paths), "compiled output was not observed"

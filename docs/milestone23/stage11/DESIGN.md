@@ -89,7 +89,7 @@ scoop link --root-slib <root.slib> [--dependency-slib <dep.slib> ...]
 | 配套 compiler | 显式 `--scoopc`，否则取实际 `scoop` executable 同目录的 `scoopc`；随后使用现有 machine capability 与 executable digest 检查 |
 | sysroot | `--sysroot` → `SCOOP_SYSROOT` → 当前开发发行的默认 sysroot |
 | runtime source root | `--runtime-root` → 当前开发发行的默认 `runtime/`；显式 `--runtime-objects` 时不读取这些源码 |
-| cache root | `--cache-dir` → `SCOOP_CACHE_DIR` → 当前 Darwin 用户的 `$HOME/Library/Caches/Scoop`；没有可用 HOME 时要求显式路径 |
+| cache root | `--cache-dir` → `SCOOP_CACHE_DIR` → `<target-root>/<canonical-target-triple>/build/<profile>`；用户 Cone 默认缓存与产物一起保存在项目 target 中，当前规则见实现规范 2.7 |
 | 诊断格式 | 默认 human；json 使用第 5 节的逐行结构化记录，均写 stderr |
 
 当前开发发行默认 sysroot/runtime 与仓库已有 driver 约定一致，由 `compiler/toolchain` 集中提供构建时的工作区路径。该选择只是 locator；移动二进制时可显式提供位置。M23 不顺带实现安装目录探测、包下载或发行安装器。默认 compiler 通过 `current_exe` 所在目录取得，不扫描 cwd、项目父目录或 PATH。`scoopc` 的直接命令应使用同一 sysroot/target 解析规则，允许显式 `--target`、`--sysroot`；它仍不拥有 cache、runtime 或 native library search 配置。
@@ -265,7 +265,7 @@ single-file stem 按用户 operand 的 basename 去掉 `.scoop`，保留 ASCII �
 
 默认目的位置在 root、target 和构建 profile 解析后即可确定。在目的文件系统的私有临时位置完成一次链接，取得 `ProgramLinkOutput` 后将同一已检查 binary 原子发布；返回的 fingerprint 用于结果记录，不再决定输出目录。可抽出既有最小原子发布函数供低层链接与 umbrella 使用；不增加预链接、第二次 final verifier 或仅为发布创建的新证明对象。
 
-build 的显式 `-o` 相对调用者 cwd，完整覆盖最终 root 文件路径，不在其后追加 triple/profile。它可与 `--target-dir` 同用，最终 root 文件以 `-o` 为准；内部缓存仍由 `--cache-dir` 决定，显式 `--dump-dir` 也不受 target root 影响。`run` 不接受 `-o`。默认目录和显式输出都用实际目的位置的锁／临时文件与原子 rename 发布。沿用 fs4、tempfile 和现有普通文件工具。最终路径的锁只覆盖物化，不串行整个全图或程序执行。
+build 的显式 `-o` 相对调用者 cwd，完整覆盖最终 root 文件路径，不在其后追加 triple/profile。它可与 `--target-dir` 同用，最终 root 文件以 `-o` 为准；默认内部缓存跟随 target root，显式 `--cache-dir`／`SCOOP_CACHE_DIR` 可覆盖缓存位置，显式 `--dump-dir` 不受 target root 影响。`run` 不接受 `-o`。默认目录和显式输出都用实际目的位置的锁／临时文件与原子 rename 发布。沿用 fs4、tempfile 和现有普通文件工具。最终路径的锁只覆盖物化，不串行整个全图或程序执行。`scoop clean` 删除整个选中的 target root，完整命令合同见实现规范 2.7。
 
 library 从不可变 artifact bytes 复制到目的临时文件并同步后 rename，不通过 hardlink 让用户修改 `.slib` 同时损坏共享 cache。可执行权限由 binary 物化保留。输入源码、manifest、当前实际 artifact/runtime/native 文件及 cache 内文件不能被默认或显式输出覆盖；复用真实路径与已打开文件身份进行 I/O alias 检查，父目录 symlink 与已有 hardlink 也覆盖。目录、无法写入和 rename 失败保留旧结果。
 

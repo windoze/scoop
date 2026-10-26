@@ -2,11 +2,10 @@ use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 
 use scoop::{
-    ArtifactCacheRoot, ArtifactSearchRoot, BuildDumpRequest, BuildFailure, BuildFailurePhase,
-    BuildOutcome, BuildProfile, BuildRequest, BuildResult, BuildRootInput, DiagnosticsPolicy,
-    PairedScoopcLocator, RuntimeInput, TrustedSysrootRoot,
+    ArtifactSearchRoot, BuildDumpRequest, BuildFailure, BuildFailurePhase, BuildOutcome,
+    BuildProfile, BuildRequest, BuildResult, DiagnosticsPolicy, PairedScoopcLocator, RuntimeInput,
+    TrustedSysrootRoot,
 };
-use scoop_manifest::{CurrentConeInput, classify_current_cone_operand};
 
 use super::args::*;
 use super::presentation::Reporter;
@@ -28,6 +27,10 @@ pub(super) fn execute(
             super::external::execute(&args, sysroot).map(CommandOutcome::Child)
         }
         Command::Fmt(args) => super::format::execute(args, reporter).map(CommandOutcome::Complete),
+        Command::Clean(args) => {
+            super::clean::execute(args, reporter)?;
+            Ok(CommandOutcome::Complete(true))
+        }
         Command::New(args) => {
             super::new::execute(args)?;
             Ok(CommandOutcome::Complete(true))
@@ -181,17 +184,22 @@ fn build_request(
     let cwd = std::env::current_dir().map_err(config)?;
     let generators =
         scoop_toolchain::GeneratorPrograms::from_cli(&args.generators, &cwd).map_err(config)?;
-    let input = absolute(
+    let root = super::paths::build_root(&cwd, args.root_input)?;
+    let target_dir = super::paths::target_root(&cwd, &root, args.target_dir)?;
+    let triple = target(args.target)?;
+    let selection = scoop_toolchain::select_target(&triple).map_err(config)?;
+    let profile = args.profile.unwrap_or(if args.release {
+        BuildProfile::Release
+    } else {
+        BuildProfile::Debug
+    });
+    let cache = super::paths::build_cache(
         &cwd,
-        args.root_input
-            .unwrap_or_else(|| PathBuf::from("Cone.toml")),
+        &target_dir,
+        selection.target().contract().canonical_triple(),
+        profile,
+        args.cache_dir,
     )?;
-    let root = match classify_current_cone_operand(input)
-        .map_err(|error| config(&error).at_host(error.path()))?
-    {
-        CurrentConeInput::Manifest { root } => BuildRootInput::manifest(root).map_err(config)?,
-        CurrentConeInput::SingleFile { source } => BuildRootInput::single_file(source),
-    };
     let compiler = match args.scoopc {
         Some(path) => path,
         None => scoop_toolchain::installed_executable()
@@ -200,7 +208,6 @@ fn build_request(
             .ok_or_else(|| config("scoop executable has no parent"))?
             .join("scoopc"),
     };
-    let cache = scoop_toolchain::configured_cache_root(args.cache_dir).map_err(config)?;
     let sysroot = absolute(
         &cwd,
         scoop_toolchain::configured_sysroot_root(sysroot).map_err(config)?,
@@ -213,9 +220,9 @@ fn build_request(
             .map(ArtifactSearchRoot::new)
             .collect::<Result<_, _>>()
             .map_err(config)?,
-        ArtifactCacheRoot::new(absolute(&cwd, cache)?).map_err(config)?,
+        cache,
         TrustedSysrootRoot::new(sysroot).map_err(config)?,
-        super::native::target_request(target(args.target)?, &c_toolchain)?,
+        super::native::target_request(triple, &c_toolchain)?,
         PairedScoopcLocator::new(absolute(&cwd, compiler)?).map_err(config)?,
         DiagnosticsPolicy::Structured,
     )
@@ -236,16 +243,9 @@ fn build_request(
     };
     Ok(BuildRequest {
         graph,
-        profile: args.profile.unwrap_or(if args.release {
-            BuildProfile::Release
-        } else {
-            BuildProfile::Debug
-        }),
+        profile,
         output: output.map(|path| absolute(&cwd, path)).transpose()?,
-        target_dir: args
-            .target_dir
-            .map(|path| absolute(&cwd, path))
-            .transpose()?,
+        target_dir: Some(target_dir),
         runtime,
         enable_gc_stress,
         enable_startup_stats,

@@ -32,6 +32,7 @@ pub(super) fn of(request: &Request<'_>) -> BuildResult<Digest256> {
         encode(&request.target.lir_target().wire_id()).map_err(failure)?,
         request.profile.as_str(),
         request.keep_symbols(),
+        request.emit_symbol_map(),
         mode,
         options.sysroot.as_deref().map(path).transpose()?,
         options.unwind_prefix.as_deref().map(path).transpose()?,

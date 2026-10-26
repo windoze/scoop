@@ -2,10 +2,8 @@ use std::path::PathBuf;
 
 use clap::Args;
 use scoop::{
-    ArtifactCacheRoot, ArtifactSearchRoot, BuildProfile, BuildRootInput, CheckRequest,
-    PairedScoopcLocator, TrustedSysrootRoot,
+    ArtifactSearchRoot, BuildProfile, CheckRequest, PairedScoopcLocator, TrustedSysrootRoot,
 };
-use scoop_manifest::{CurrentConeInput, classify_current_cone_operand};
 
 use super::args::MessageFormat;
 use super::commands::{absolute, config, paths, target};
@@ -51,14 +49,20 @@ pub(super) fn execute(
     reporter: &Reporter,
 ) -> scoop::BuildResult<()> {
     let cwd = std::env::current_dir().map_err(config)?;
-    let input = absolute(&cwd, args.root_input.unwrap_or_else(|| "Cone.toml".into()))?;
-    let root = match classify_current_cone_operand(input)
-        .map_err(|cause| config(&cause).at_host(cause.path()))?
-    {
-        CurrentConeInput::Manifest { root } => BuildRootInput::manifest(root).map_err(config)?,
-        CurrentConeInput::SingleFile { source } => BuildRootInput::single_file(source),
-    };
+    let root = super::paths::build_root(&cwd, args.root_input)?;
     let selection = scoop_toolchain::select_target(&target(args.target)?).map_err(config)?;
+    let profile = args.profile.unwrap_or(if args.release {
+        BuildProfile::Release
+    } else {
+        BuildProfile::Debug
+    });
+    let cache = super::paths::build_cache(
+        &cwd,
+        &super::paths::target_root(&cwd, &root, None)?,
+        selection.target().contract().canonical_triple(),
+        profile,
+        args.cache_dir,
+    )?;
     let target = scoop_toolchain::CToolchainOptions {
         compiler: args
             .cc
@@ -93,11 +97,7 @@ pub(super) fn execute(
             scoop_toolchain::configured_sysroot_root(sysroot).map_err(config)?,
         )?)
         .map_err(config)?,
-        cache: ArtifactCacheRoot::new(absolute(
-            &cwd,
-            scoop_toolchain::configured_cache_root(args.cache_dir).map_err(config)?,
-        )?)
-        .map_err(config)?,
+        cache,
         compiler: PairedScoopcLocator::new(compiler).map_err(config)?,
         search: paths(&cwd, args.cone_path)?
             .into_iter()
@@ -109,11 +109,7 @@ pub(super) fn execute(
         } else {
             scoop_protocol::CompilationPurpose::Production
         },
-        profile: args.profile.unwrap_or(if args.release {
-            BuildProfile::Release
-        } else {
-            BuildProfile::Debug
-        }),
+        profile,
         jobs: args.jobs.unwrap_or_else(|| {
             std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN)
         }),

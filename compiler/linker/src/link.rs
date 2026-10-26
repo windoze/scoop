@@ -31,11 +31,17 @@ impl std::fmt::Display for ResolvedLinkPlanFingerprint {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ProgramLinkOptions {
+    pub keep_symbols: bool,
+    pub emit_symbol_map: bool,
+}
+
 #[derive(Debug)]
 pub struct ProgramLinkOutput {
     pub path: PathBuf,
     /// Native linker address map for this exact executable.
-    pub symbol_map: PathBuf,
+    pub symbol_map: Option<PathBuf>,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub plan_dump: String,
     /// Actual native files and lookup candidates used by this link.
@@ -46,28 +52,20 @@ pub fn link_program(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
-    keep_symbols: bool,
+    options: ProgramLinkOptions,
     library_paths: &[PathBuf],
     output: &Path,
     cache: &Path,
 ) -> Result<ProgramLinkOutput, LinkError> {
     let inputs = ProgramInputs::new(closure, runtime, profile, library_paths)?;
-    link_inputs(
-        closure,
-        runtime,
-        profile,
-        keep_symbols,
-        &inputs,
-        output,
-        cache,
-    )
+    link_inputs(closure, runtime, profile, options, &inputs, output, cache)
 }
 
 fn link_inputs(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
-    keep_symbols: bool,
+    options: ProgramLinkOptions,
     inputs: &ProgramInputs<'_>,
     output: &Path,
     cache: &Path,
@@ -90,7 +88,9 @@ fn link_inputs(
         paths.push(input.path(cache)?);
     }
     let candidate = directory.path().join("program");
-    let candidate_map = directory.path().join("program.map");
+    let candidate_map = options
+        .emit_symbol_map
+        .then(|| directory.path().join("program.map"));
     match profile {
         ValidatedFinalLinkProfile::Darwin(_) => darwin::link(
             profile,
@@ -98,8 +98,8 @@ fn link_inputs(
             directory.path(),
             &paths,
             &candidate,
-            keep_symbols,
-            &candidate_map,
+            options.keep_symbols,
+            candidate_map.as_deref(),
         )?,
         ValidatedFinalLinkProfile::Linux(linux) => elf::link(
             linux,
@@ -107,8 +107,8 @@ fn link_inputs(
             directory.path(),
             &paths,
             &candidate,
-            keep_symbols,
-            &candidate_map,
+            options.keep_symbols,
+            candidate_map.as_deref(),
         )?,
     }
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
@@ -121,14 +121,19 @@ fn link_inputs(
                 inputs,
                 startup: &startup,
                 profile: profile_fingerprint,
-                keep_symbols,
+                keep_symbols: options.keep_symbols,
             },
         )
         .map_err(error)?,
     );
-    let plan_dump = dump(closure, runtime, inputs, &startup, keep_symbols);
-    let symbol_map = symbol_map_path(&output);
-    std::fs::rename(candidate_map, &symbol_map).map_err(error)?;
+    let plan_dump = dump(closure, runtime, inputs, &startup, options.keep_symbols);
+    let symbol_map = candidate_map
+        .map(|candidate| {
+            let symbol_map = symbol_map_path(&output);
+            std::fs::rename(candidate, &symbol_map).map_err(error)?;
+            Ok::<_, LinkError>(symbol_map)
+        })
+        .transpose()?;
     std::fs::rename(candidate, &output).map_err(|err| {
         error(format!(
             "cannot publish executable {}: {err}",
