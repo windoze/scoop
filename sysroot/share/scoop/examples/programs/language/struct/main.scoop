@@ -1,0 +1,10 @@
+struct Point(val x: Int, val y: Int)
+
+fun main() {
+    val original = Point(3, 4)
+    val moved = original.{x: 8}
+    val(x, y) = moved
+    println(f"original=(${original.x}, ${original.y})")
+    println(f"moved=(${x}, ${y})")
+    println(original == Point(3, 4))
+}

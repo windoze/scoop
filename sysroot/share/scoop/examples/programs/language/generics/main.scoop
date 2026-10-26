@@ -1,0 +1,24 @@
+struct Box<T>(val value: T)
+
+interface Named {
+    public fun displayName(): String
+}
+
+struct User(val name: String): Named {
+    public override fun displayName(): String = name
+}
+
+class Project(val title: String): Named {
+    public override fun displayName(): String = title
+}
+
+fun <T: Named> greeting(value: T): String = f"Hello, ${value.displayName()}!"
+
+fun main() {
+    val number = Box<Int>(42)
+    val word = Box("Scoop")
+    println(number.value)
+    println(word.value)
+    println(greeting(User("Ada")))
+    println(greeting(Project("Scoop")))
+}

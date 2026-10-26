@@ -1,0 +1,21 @@
+enum Lookup {
+    Found(String),
+    Missing
+}
+
+fun findName(id: Int): Lookup =
+    if (id == 7)
+        Lookup.Found("Ada")
+    else
+        Lookup.Missing
+
+fun describe(result: Lookup): String =
+    when (result) {
+        case Lookup.Found(name) -> f"Found: ${name}"
+        case Lookup.Missing -> "No matching name"
+    }
+
+fun main() {
+    println(describe(findName(7)))
+    println(describe(findName(8)))
+}

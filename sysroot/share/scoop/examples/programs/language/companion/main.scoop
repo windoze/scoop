@@ -1,0 +1,13 @@
+struct Point(val x: Int, val y: Int) {
+    public companion object {
+        public fun origin(): Point = Point(0, 0)
+        public fun diagonal(value: Int): Point = Point(value, value)
+    }
+}
+
+fun main() {
+    val origin = Point.origin()
+    val diagonal = Point.diagonal(3)
+    println(f"origin=(${origin.x}, ${origin.y})")
+    println(f"diagonal=(${diagonal.x}, ${diagonal.y})")
+}

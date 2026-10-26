@@ -1,0 +1,21 @@
+class Counter(var value: Int)
+
+fun transform(value: Int, operation: (Int) -> Int): Int = operation(value)
+
+fun main() {
+    val factor = 2
+    println(transform(3) { number -> number * factor })
+
+    val calls = Counter(0)
+    val nonNegative: (Int) -> Int =
+        adjust@{
+            number ->
+            if (number < 0)
+                return@adjust 0
+            calls.value = calls.value + 1
+            number
+        }
+    println(nonNegative(-2))
+    println(nonNegative(7))
+    println(f"calls=${calls.value}")
+}

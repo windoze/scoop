@@ -1,0 +1,13 @@
+fun main() {
+    val names = ArrayList<String>()
+    names.add("Ada")
+    names.add("Lin")
+    val snapshot: Array<String> = names.toArray()
+    names[0L] = "Grace"
+    names.add("Sam")
+
+    for (name in snapshot)
+        println(f"snapshot: ${name}")
+    println(f"current first: ${names[0L]}")
+    println(f"sizes=${snapshot.size},${names.size}")
+}

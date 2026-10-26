@@ -1,0 +1,17 @@
+fun greeting(name: String, prefix: String = "Hello", ending: String = "!"): String =
+    f"${prefix}, ${name}${ending}"
+
+fun repeatGreeting(name: String, count: Int): String {
+    val result = StringBuilder()
+    for (index in 1 .. count) {
+        result.append(greeting(name))
+        result.append("\n")
+    }
+    return result.toString()
+}
+
+fun main() {
+    println(greeting("Scoop"))
+    println(greeting(name = "Ada", ending = ".", prefix = "Hi"))
+    print(repeatGreeting("Lin", count = 2))
+}

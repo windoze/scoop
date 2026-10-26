@@ -1,6 +1,8 @@
 /target
 /sysroot/lib
 /sysroot/include
+/sysroot/commands/scoop-example
+/tooling/scoop-example/target
 /sysroot/vendor/llvm-project/*/*.src/
 /sysroot/vendor/llvm-project/*/*.src.tar.xz
 /tmp

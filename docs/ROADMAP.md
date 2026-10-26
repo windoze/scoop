@@ -758,6 +758,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
+### `scoop example` 外部子命令（首批 24 个主题已实现）
+
+- [设计](scoop-example/DESIGN.md)沿用现有 `commands/scoop-example` 分发，不修改编译器；离线列出、搜索并展示配套示例、说明及运行方式。
+- [主题清单](scoop-example/TOPICS.md)规定首批 24 个语言和日常任务主题，并映射现有库 examples 的后续覆盖；[输出样稿](scoop-example/SAMPLES.md)展示 Option、JSON 和本机 HTTP 两进程任务。
+- [独立工具](../tooling/scoop-example/README.md)提供分类、搜索、Markdown/source/JSON、文件选择和错误退出；维护脚本与完整发行包携带命令、正文和源码。
+- 展示与验证引用同一份实际源码；本机独立测试覆盖 24 个主题，不修改编译器、不运行其测试套件、不做 Linux 验证。详见[验证记录](scoop-example/VALIDATION.md)；后续规划条目不进入可查询索引。
+
 ### `scoop fmt` 与 `scoop check`（已实现，三目标定向验证通过）
 
 - [设计](fmt-check/DESIGN.md)明确固定格式规则、manifest 生产／测试及全平台源码并集、显式文件、写回和 `fmt --check`；复用保留原文的 CST，保留有语义作用的换行、相邻关系与注释附着。
