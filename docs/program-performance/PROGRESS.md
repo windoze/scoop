@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 已完成[TaskContext fork 的生成分配](CONTEXT-FORK.md)：采样后优先把真实 typed Fork 降为普通 Alloc／HeapStore，复用 24 B 布局、TLAB、snapshot 恢复和屏障；访问器、绑定树及旧 C 后备继续共享。两机定向单测、三目标四组 GC／callback／异常／释放组合通过，确认实际 moving 与 minor；四种协程负载耗时降低 ARM64 15.54%～30.68%、GNU 15.06%～29.51%、musl 16.57%～25.75%，分配字节和 GC 次数保持。每程序 text 增加 400／384／384 B、完整文件不变，core 库增加约 0.20%～0.25%；ARM64 编译墙钟 +4.89% 等成本保留。release 默认，无新 ABI 或测量代码。
+
 - 已完成[初始化就绪快路径](INIT-READY.md)：真实 typed InitializationEnter 先 acquire 读取 state，Initialized 跳过协调器；原 managed 慢边、根恢复、入口 poll、失败和等待保持。runtime release 发布终态，cell 仍为 16 B，统一 contract 升为 18，旧库与 sysroot 须重建。两机定向单测、三目标两个 GC 变体及本机发布 ThreadSanitizer 通过；相同 runtime 机器码下，就绪读取／递增减少约 90%～96% 耗时。text 增加 1,184／576／576 B、完整文件不变；ARM64 编译墙钟 +6.80%、GNU 普通引用短对照 +4.48% 等成本保留记录。所有 profile 默认，无新诊断代码；Context 继续留在后续测量批次。
 
 - 已完成 [String 字节复制与 Char 编码](STRING-COPIES.md)：真实 typed 复制复用分配／根计划，分配后重取源；普通 Char 编码、方法正文和标量常量事实按原调用点评分展开。三目标目标内核获益，strings 降低 16.10%～34.82%、strmap 降低 16.45%～22.76%，分配／GC 次数保持；动态程序 text 略小，常量探针增加约 0.7～1 KiB，编译墙钟增加 0.56%～1.72%。两机定向单测及三目标 core／moving／旧 extern ABI 验证通过。Linux dispatch 初测回退与固定 CPU 复核均保留，循环／根指令未变，尚不能排除 GNU 布局回退；没有按函数调整代码布局。release 默认，无新测量代码；初始化就绪已由上述批次完成，Context 留待后续测量。

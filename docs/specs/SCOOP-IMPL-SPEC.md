@@ -1234,6 +1234,8 @@ Context scope 在完整 value 求值与成功 push 后才生效。真实离开 s
 
 协程 frame 保存完整 TaskContext 与跨挂起 mark。只有取得实际恢复权的入口切换到 frame context，所有 driver 出口恢复 previous context。普通 closure 只捕获实际词法值，callback 注册另按语言规定捕获 binding snapshot。
 
+MIR 中已选的 Context fork 在 LIR 根计划形成前降低为普通 managed 分配和 root 字段写入。分配、字段位置与 TD／scan 共用实际 generated TaskContext 的对象布局；当前支持目标上为 16 字节对象头加一个 8 字节 managed root。所有 profile 使用同一布局与基本操作，release 复用已有 TLAB 快路径。输入 snapshot 只求值一次，并作为分配后写入所需的活跃引用参与根计划；若分配触发搬迁，字段必须写入恢复后的引用，并执行普通含引用写屏障。即使 snapshot 为空也建立独立的 TaskContext，不合并任务身份。该降低只处理 typed Context 操作，不改变同名普通 extern 的协议；runtime 的 fork 后备、初始 root 创建及共享绑定树操作继续有效，不增加 TLS 字段、隐藏参数或产物 ABI。
+
 语言规范 11.9.1～11.9.2 的 Job、任务树和取消适配是普通 core 源码，使用精确 Job Context binding、已有原子、异常与 continuation。编译器不按这些库名称生成专用身份、调度或取消路径；跨 Cone 按普通泛型模板、可见性与调用规则消费。
 
 每个 body 的 Context key uses 与 slot cells 属于该 body 的物理选择，callable registration 保存完整关联。最终登记在首个 gateway 前填充 cells，同一 exact key 在程序中映射到同一 slot。

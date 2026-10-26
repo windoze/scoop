@@ -16,6 +16,7 @@ mod native_storage;
 mod pointers;
 mod release;
 mod storage_replay;
+mod task_context;
 mod zst_places;
 
 use scoop_identity::{

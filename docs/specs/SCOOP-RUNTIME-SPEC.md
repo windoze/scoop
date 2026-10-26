@@ -821,6 +821,8 @@ Context、binding、mark 与 snapshot 使用实际 managed 类型和 scan。当�
 
 同一任务串行改变绑定。child task 继承创建时的 snapshot，后续重新绑定独立；binding 中原对象的身份仍可共享，不隐含深复制或并发同步。
 
+TaskContext 的实例由对象头和一个可空 managed root 字段组成，root 指向已有的不可变 binding tree；fork 只分配新的实例并保存该 root。编译器可以按同一 TD／scan 布局生成分配及字段写入，复用普通分配失败、TLAB 慢路径和写屏障协议（实现规范 2.16）。snapshot 在可能 GC 的分配期间保活，分配后的写入消费重定位结果；不能跨分配保存内部裸地址。此路径与共享 runtime 后备保持相同的任务身份、绑定快照及恢复语义，不改变当前线程 Context 的根发布规则。
+
 ### 9.3 Context key 登记
 
 ContextKey 直接使用 PersistentExactTypeId，不另算类型身份。每个实际使用 key 的 body 有关联的 writable u64 slot cell，初值为 0；live 值为 `slot + 1`，可覆盖完整 u32 slot 域。

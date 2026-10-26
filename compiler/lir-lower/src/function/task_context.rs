@@ -36,8 +36,19 @@ impl FunctionLowerer<'_> {
             Op::Snapshot => self.emit_plain_call(leaf(Leaf::ContextSnapshot), vec![]),
             Op::Fork { root } => {
                 let root = self.lower_expr(root)?;
-                let descriptor = self.context_descriptor(mir::ContextStorageRole::Task);
-                self.emit_plain_call(managed(Managed::ContextFork), vec![root, descriptor])
+                let storage = self.context_storage(mir::ContextStorageRole::Task);
+                let (fields, size, _) = context_object_shape(self.context, storage);
+                let task = self.emit_plain_call(
+                    managed(Managed::Alloc),
+                    vec![
+                        self.td_ref(&mir::Type::Context(storage)),
+                        lir::Value::MachineScalar(lir::MachineScalarValue::ByteSize(size)),
+                    ],
+                )?;
+                // Keep the snapshot live through allocation so the root plan
+                // restores it before this heap write if allocation moves it.
+                self.store_at_offset(task, fields[0].offset, root, lir::MANAGED_PTR);
+                Ok(task)
             }
             Op::Enter { task } => {
                 let task = self.lower_expr(task)?;
@@ -72,8 +83,11 @@ impl FunctionLowerer<'_> {
     }
 
     fn context_descriptor(&self, role: mir::ContextStorageRole) -> lir::Value {
-        let storage = self
-            .module
+        self.td_ref(&mir::Type::Context(self.context_storage(role)))
+    }
+
+    fn context_storage(&self, role: mir::ContextStorageRole) -> mir::ContextStorageType {
+        self.module
             .meta
             .generated_exact_types
             .iter()
@@ -83,8 +97,7 @@ impl FunctionLowerer<'_> {
                 }
                 _ => None,
             })
-            .expect("the MIR input retains its core context support types");
-        self.td_ref(&mir::Type::Context(storage))
+            .expect("the MIR input retains its core context support types")
     }
 
     fn context_field(&mut self, aggregate: lir::Value, index: u32) -> lir::Value {

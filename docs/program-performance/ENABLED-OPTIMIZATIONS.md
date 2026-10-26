@@ -10,6 +10,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [TaskContext fork 的生成分配](CONTEXT-FORK.md) | 新编译器所有 profile；release 默认复用 TLAB，含 fork 的库正文需重建才能获益 | typed Fork 降为已知 24 B Alloc／HeapStore，snapshot 跨分配恢复后写入；独立任务身份、屏障及 ABI 保持。初始 root、旧 C 后备、访问器与绑定树继续共享 runtime。 |
 | [初始化完成后的就绪快路径](INIT-READY.md) | 新编译器所有 profile 默认，配套 runtime contract 18；旧库／runtime／sysroot 须重建 | 真实 typed 普通 InitializationEnter 先 acquire 读 state，Initialized 跳过 runtime／TLS／锁；其余状态、invoke、普通 extern 和入口 poll 保留。cell 仍为 16 B，根仅在慢边恢复，后续对象地址按原 GC 契约重读。 |
 | [String 字节复制与 Char 编码](STRING-COPIES.md) | 新 core 协议所有 profile 一致；release 默认复用 TLAB、调用点内联及常量传播，须重建配套 core／依赖 | typed 复制按真实布局分配并在 GC 后重取源，String 字节快照消除逐字节 initializer；Char 普通正文按调用点展开。长 memcpy、List getter 快照和旧 C ABI 保留；代码／编译成本与 Linux dispatch 对照回退见记录。 |
 | [MIR 末尾局部复制传播](INTERFACE-SSA.md) | release 默认，沿现有 MIR 内联优化配置 | 内联与循环选择后传播未取址局部当前别名；保持重赋快照、合流、循环与 EH，不依赖变量名。ARM64 dispatch／接口复制明显改善，lambdas 等回退如实记录并继续精化根与 SSA。 |

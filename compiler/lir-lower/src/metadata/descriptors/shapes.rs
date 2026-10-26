@@ -16,25 +16,16 @@ pub(super) fn context_type_descriptor(
     let instance_layout =
         lir::LayoutIdentity::managed_object(exact, context.target_profile(), root.clone())
             .expect("a context type has an instance layout identity");
-    let pointer = context.pointer_layout(lir::PointerKind::Managed);
     let (instance_shape, inline_scan) = match storage.role {
         mir::ContextStorageRole::Task | mir::ContextStorageRole::Node => {
-            let count = if storage.role == mir::ContextStorageRole::Task {
-                1
-            } else {
-                4
-            };
-            let header = context.object_header_layout().size;
-            let scan = lir::RefScan::References(
-                (0..count)
-                    .map(|index| header + index * pointer.size)
-                    .collect(),
-            );
+            let (fields, size, align) =
+                crate::metadata::layouts::context_object_shape(context, storage);
+            let scan = lir::RefScan::References(fields.iter().map(|field| field.offset).collect());
             (
                 lir::TypeInstanceShapeV1::fixed_object(
                     context.target_profile(),
-                    header + count * pointer.size,
-                    pointer.align,
+                    size,
+                    align,
                     scan,
                 )?,
                 lir::TypeDescriptorInlineScanV1::Null,
