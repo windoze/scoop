@@ -1,12 +1,10 @@
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::any::TypeId;
-use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use super::{
-    CanonicalKeySlot, ErasedCanonicalKey, IdentityLayer, IdentityNode, ValidatedIdentityGraph,
-};
+use super::{CanonicalKeySlot, ErasedCanonicalKey, IdentityLayer, ValidatedIdentityGraph};
 use crate::{ConeIdentity, PersistentId};
 
 /// The three semantic fingerprints that identify one Cone's foundation
@@ -71,6 +69,13 @@ enum SemanticInputOrigin {
     Source,
 }
 
+#[derive(Clone)]
+struct ImportedOrigin {
+    input: SemanticInputOrigin,
+    graph: ValidatedIdentityGraph,
+    layers: ImportedIdentityLayers,
+}
+
 /// Session-owned interner for identities imported from validated artifacts.
 ///
 /// An import is checked and allocated completely before either the origin
@@ -78,8 +83,8 @@ enum SemanticInputOrigin {
 /// session byte-for-byte equivalent at the API level.
 #[derive(Default)]
 pub struct SemanticIdentitySession {
-    origins: HashMap<ConeIdentity, SemanticInputOrigin>,
-    entities: HashMap<SemanticIdentitySlot, SessionEntity>,
+    origins: HashMap<ConeIdentity, ImportedOrigin>,
+    entities: Arc<HashMap<SemanticIdentitySlot, SessionEntity>>,
     next_world_index: u64,
 }
 
@@ -184,21 +189,31 @@ impl<I: PersistentId> std::hash::Hash for ImportedIdentityId<I> {
 #[doc(hidden)]
 pub struct ImportedIdentityMap<L: ImportedIdentityLayer> {
     origin: ConeIdentity,
-    by_persistent: HashMap<SemanticIdentitySlot, u32>,
+    by_persistent: Arc<HashMap<SemanticIdentitySlot, u32>>,
     marker: PhantomData<fn() -> L>,
+}
+
+impl<L: ImportedIdentityLayer> Clone for ImportedIdentityMap<L> {
+    fn clone(&self) -> Self {
+        Self {
+            origin: self.origin,
+            by_persistent: Arc::clone(&self.by_persistent),
+            marker: PhantomData,
+        }
+    }
 }
 
 impl<L: ImportedIdentityLayer> ImportedIdentityMap<L> {
     fn new(origin: ConeIdentity) -> Self {
         Self {
             origin,
-            by_persistent: HashMap::new(),
+            by_persistent: Arc::default(),
             marker: PhantomData,
         }
     }
 
     fn reserve(&mut self, count: usize) -> Result<(), SemanticIdentityImportError> {
-        self.by_persistent
+        Arc::make_mut(&mut self.by_persistent)
             .try_reserve(count)
             .map_err(|_| SemanticIdentityImportError::Allocation {
                 requested_slots: count,
@@ -206,7 +221,7 @@ impl<L: ImportedIdentityLayer> ImportedIdentityMap<L> {
     }
 
     fn insert(&mut self, slot: SemanticIdentitySlot, world_index: u32) {
-        self.by_persistent.insert(slot, world_index);
+        Arc::make_mut(&mut self.by_persistent).insert(slot, world_index);
     }
 
     pub const fn origin(&self) -> ConeIdentity {
@@ -266,6 +281,7 @@ impl ImportedIdentityLayer for LirIdentityLayer {
 }
 
 /// One atomic import split into the three stage-specific identity deltas.
+#[derive(Clone)]
 pub struct ImportedIdentityLayers {
     hir: ImportedIdentityMap<HirIdentityLayer>,
     mir: ImportedIdentityMap<MirIdentityLayer>,

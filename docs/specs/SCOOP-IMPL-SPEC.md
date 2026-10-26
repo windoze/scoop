@@ -687,6 +687,10 @@ HIR／MIR／LIR foundation 读取复用 identity 边界已解析的 typed record
 
 persistent identity 只由首次引入的层声明一次，并同时保存 typed ID 与 canonical key；其他层引用它。相同 kind/ID 的冲突 payload 或跨层重复声明拒绝。LIR foundation 的 exact-type 集合引用已有 HIR/MIR exact records，不复制声明。源码文件、binder、字段、variant、body application 和调用位置的引用必须指向真实定义。
 
+一次编译中的已验证 identity graph 共享不可变节点表与已声明节点顺序；继续登记新层时才取得可写表。节点的 typed ID、canonical key 及其具体类型共用一次查找，外部图导入只合并新增节点并核对实际冲突，不为每个依赖重新排序整个图或重建已有 key 集合。已完成图中的引用不可改变；新增记录仍检查 ID／key 一致性、引用存在性和层次方向，环检测只处理本次新增且需要解析的节点及其相互依赖，使用无递归工作队列。成功产物的次序在输出边界确定，冲突和环诊断按 typed ID 选择稳定位置，不要求内部工作队列保持全局拓扑排序。
+
+semantic session 复用同一份不可变图的导入结果与未改变的索引；新增图仍核对 origin、typed key 与已有实体的一致性，失败不提交部分导入。进程内索引可以使用维护中的快速非密码哈希，不能参与 persistent ID、内容指纹或 wire 编码，HashMap 遍历顺序不能决定产物或诊断。这些共享与查找调整不改变 stage 边界、持久 ID、`.slib` 格式或 runtime ABI。
+
 共有 HIR expression 为 `{1=kind, 2=result_type, 3=definition_origin, 4=evaluation_origin}`。Call 的 tag 为 57，payload 保存 callee、arguments、SourceCallReceiver；receiver 为 NoReceiver=1 或 Receiver=2（完整静态类型）。实际 call-site 保留完整逻辑实参与结果、定义／求值位置及原 receiver，Unit/ZST 参数不能按物理省略规则消失。
 
 普通成员的接收者适用性由 HIR 成员绑定与条件求解完成。产物的类型依赖投影消费已检查的成员选择，保留原 receiver 的完整类型引用、所选声明归属和调用形状检查；不再从声明头重做接收者到成员 owner 的语言子类型证明。条件接口不要求额外产生无条件 `exact_supertypes` 边，IR／meta crate 也不另建条件求解器。

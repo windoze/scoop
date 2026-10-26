@@ -15,6 +15,7 @@ use crate::{
     SourceNativeLibraryBinding, SourceNativeSymbol, SourceNominalKind,
 };
 
+mod incremental;
 mod records;
 mod source_import;
 
@@ -384,9 +385,9 @@ fn canonical_record_materialization_shares_the_validated_key() {
 }
 
 #[test]
-fn stable_kahn_uses_no_input_driven_recursion() {
+fn cycle_queue_uses_no_input_driven_recursion() {
     const NODE_COUNT: u64 = 16_384;
-    let mut candidates = HashMap::new();
+    let mut candidates = HashMap::default();
     let mut nodes = Vec::new();
     for index in 0..NODE_COUNT {
         let mut bytes = [0_u8; 32];
@@ -400,6 +401,8 @@ fn stable_kahn_uses_no_input_driven_recursion() {
             node,
             Candidate {
                 trusted_id: Arc::new(bytes),
+                canonical_key: None,
+                checking: true,
                 layer: Some(IdentityLayer::Hir),
                 resolved: true,
                 dependency_count: u64::from(index != 0),
@@ -416,7 +419,7 @@ fn stable_kahn_uses_no_input_driven_recursion() {
     }
 
     assert_eq!(
-        find_cycle(&mut candidates, NODE_COUNT, &WirePath::default()).unwrap(),
+        find_cycle(&mut candidates, &nodes, &WirePath::default()).unwrap(),
         None
     );
 }

@@ -16,8 +16,8 @@ impl SemanticIdentitySession {
     }
 
     pub fn origin_fingerprint(&self, origin: ConeIdentity) -> Option<SemanticOriginFingerprint> {
-        match self.origins.get(&origin) {
-            Some(SemanticInputOrigin::Artifact(fingerprint)) => Some(*fingerprint),
+        match self.origins.get(&origin).map(|entry| entry.input) {
+            Some(SemanticInputOrigin::Artifact(fingerprint)) => Some(fingerprint),
             Some(SemanticInputOrigin::Source) | None => None,
         }
     }
@@ -33,7 +33,7 @@ impl SemanticIdentitySession {
         &mut self,
         imports: &[SemanticIdentityImport<'_>],
     ) -> Result<Vec<ImportedIdentityLayers>, SemanticIdentityImportError> {
-        let mut batch_origins = HashSet::new();
+        let mut batch_origins = HashSet::default();
         batch_origins.try_reserve(imports.len()).map_err(|_| {
             SemanticIdentityImportError::Allocation {
                 requested_slots: imports.len(),
@@ -89,10 +89,13 @@ impl SemanticIdentitySession {
         input: SemanticInputOrigin,
         graph: &ValidatedIdentityGraph,
     ) -> Result<ImportedIdentityLayers, SemanticIdentityImportError> {
-        if let Some(existing) = self.origins.get(&origin)
-            && *existing != input
-        {
-            return Err(SemanticIdentityImportError::OriginConflict { origin });
+        if let Some(existing) = self.origins.get(&origin) {
+            if existing.input != input {
+                return Err(SemanticIdentityImportError::OriginConflict { origin });
+            }
+            if std::rc::Rc::ptr_eq(&existing.graph.candidates, &graph.candidates) {
+                return Ok(existing.layers.clone());
+            }
         }
 
         let declared_count = graph.declared_identity_count();
@@ -102,24 +105,19 @@ impl SemanticIdentitySession {
                 requested_slots: declared_count,
             }
         })?;
-        for (slot, key) in &graph.canonical_keys {
-            if let Some(layer) = {
-                let node = IdentityNode {
-                    kind: slot.kind,
-                    bytes: slot.bytes,
-                };
-                graph
-                    .candidates
-                    .get(&node)
-                    .and_then(|candidate| candidate.layer)
-            } {
-                entries.push((*slot, layer, key));
-            }
-        }
-        entries.sort_unstable_by_key(|(slot, _, _)| (slot.kind, slot.bytes));
-
-        if entries.len() != declared_count {
-            return Err(SemanticIdentityImportError::MissingCanonicalKey);
+        for &node in graph.declared.iter() {
+            let candidate = &graph.candidates[&node];
+            let slot = candidate
+                .key_slot(node)
+                .ok_or(SemanticIdentityImportError::MissingCanonicalKey)?;
+            entries.push((
+                slot,
+                candidate.layer.expect("declared node has a layer"),
+                candidate
+                    .canonical_key
+                    .as_ref()
+                    .expect("key slot has a key"),
+            ));
         }
 
         let mut new_count = 0_usize;
@@ -151,11 +149,13 @@ impl SemanticIdentitySession {
             return Err(SemanticIdentityImportError::WorldIdExhausted);
         }
 
-        self.entities.try_reserve(new_count).map_err(|_| {
-            SemanticIdentityImportError::Allocation {
-                requested_slots: new_count,
-            }
-        })?;
+        if new_count != 0 {
+            Arc::make_mut(&mut self.entities)
+                .try_reserve(new_count)
+                .map_err(|_| SemanticIdentityImportError::Allocation {
+                    requested_slots: new_count,
+                })?;
+        }
         if !self.origins.contains_key(&origin) {
             self.origins
                 .try_reserve(1)
@@ -184,7 +184,7 @@ impl SemanticIdentitySession {
                 let world_index = u32::try_from(next_world_index)
                     .map_err(|_| SemanticIdentityImportError::WorldIdExhausted)?;
                 next_world_index += 1;
-                self.entities.insert(
+                Arc::make_mut(&mut self.entities).insert(
                     slot,
                     SessionEntity {
                         world_index,
@@ -202,14 +202,22 @@ impl SemanticIdentitySession {
         }
 
         self.next_world_index = next_world_index;
-        self.origins.entry(origin).or_insert(input);
-        Ok(ImportedIdentityLayers { hir, mir, lir })
+        let layers = ImportedIdentityLayers { hir, mir, lir };
+        self.origins.insert(
+            origin,
+            ImportedOrigin {
+                input,
+                graph: graph.clone(),
+                layers: layers.clone(),
+            },
+        );
+        Ok(layers)
     }
 
     /// Preserve existing world ids in an independent analysis snapshot, sharing
     /// the immutable canonical keys without re-importing their records.
     pub fn try_clone(&self) -> Result<Self, SemanticIdentityImportError> {
-        let mut origins = HashMap::new();
+        let mut origins = HashMap::default();
         origins.try_reserve(self.origins.len()).map_err(|_| {
             SemanticIdentityImportError::Allocation {
                 requested_slots: self.origins.len(),
@@ -218,24 +226,12 @@ impl SemanticIdentitySession {
         origins.extend(
             self.origins
                 .iter()
-                .map(|(origin, fingerprint)| (*origin, *fingerprint)),
-        );
-
-        let mut entities = HashMap::new();
-        entities.try_reserve(self.entities.len()).map_err(|_| {
-            SemanticIdentityImportError::Allocation {
-                requested_slots: self.entities.len(),
-            }
-        })?;
-        entities.extend(
-            self.entities
-                .iter()
-                .map(|(slot, entity)| (*slot, entity.clone())),
+                .map(|(origin, entry)| (*origin, entry.clone())),
         );
 
         Ok(Self {
             origins,
-            entities,
+            entities: Arc::clone(&self.entities),
             next_world_index: self.next_world_index,
         })
     }

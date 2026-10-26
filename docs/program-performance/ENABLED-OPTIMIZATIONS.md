@@ -31,6 +31,7 @@
 | [String 扫描、UTF-8 编码／校验及长 hash 正文](RUNTIME-RESPONSIBILITIES.md) | 新 core 所有 profile 默认；release 默认使用既有调用点内联与 64 次 poll 分块 | 普通算法共享 Scoop 正文，按真实 typed 操作读写和分配；窄块计数后累加为 Long。旧 C 算法及聚合 shim 退役，不改变公开语义、String 布局、快照和借用；无额外开关。 |
 | [浮点文本适配与解析栈缓冲](RUNTIME-RESPONSIBILITIES.md) | 新 core／runtime 所有 profile 默认 | core 的有界格式正文调用现有 Ryu；typed StringCopy 构造结果。JSON／CLI 小于 256 B 的文本使用栈缓冲补 NUL，长输入保留动态缓冲与原 libc 解析，无新开关。 |
 | [String 比较与短 hash](STRING-READS.md) | 普通 core 正文全 profile；调用点常量折叠和 ≤8 B 常量比较 release 默认，须重建 core | 同引用／长度／空串判断、初版有界 FNV-1a 和真实 typed 常量读取；hash 范围由上项继续扩展，长文本共享后备。保持内容、身份和位宽，无新增 ABI；ASCII 单独展开经对照未采纳。 |
+| [编译依赖身份图复用](COMPILER-IDENTITIES.md) | 编译器所有 profile 默认，无新增选项 | 共享完整图与导入映射，单节点 key 索引、增量环队列、快速进程内哈希；保留引用／冲突检查，持久 ID、产物与 ABI 不变。 |
 | [已知 box 生成分配](BOX-ALLOCATION.md)，含[后备收敛](RUNTIME-RESPONSIBILITIES.md) | 所有 profile 默认，配套 runtime contract 21；release 沿既有 TLAB 条件优化 | ZST／GC-free／含引用及大 payload 均使用已知布局，GC 后复制并保留必要屏障；debug／大对象仍用共享分配器，不进入专用 box C 包装。动态拆箱和真正的 native 根入口保留，无新开关。 |
 | [普通 String 拼接融合与热二元生成](STRING-CONCAT.md) | release 默认 | 同块单用链最多八段、短常量合并；热循环／短常量二元使用同一路径，其他点共享后备。checked 一次分配并在 GC 后重读输入，保留共享结果与副作用边界，无布局或 ABI 变化。 |
 | [标量计算与 Boolean 字符串常量](SCALAR-BODIES.md) | 新 core 所有 profile 默认；release 按调用点展开 | Boolean equals／hash、整数 hash 为普通正文，热／常量点可化简，普通点可共享；Boolean.toString 不再分配结果 String，无消费者的旧 C 后备已退役。 |
