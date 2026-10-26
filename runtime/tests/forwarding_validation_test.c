@@ -27,10 +27,10 @@ static void corrupt_forwarding(unsigned scenario) {
         bit_set(block->marks, word);
     }
     block->state = SCOOP_BLOCK_EVACUATION_SOURCE;
-    block->forwarding = calloc(GC_WORDS_PER_BLOCK, sizeof(void *));
-    assert(block->forwarding != NULL);
     if (scenario == 3) {
-        block->forwarding[word] = object;
+        ((ScoopObjectHeader *)object)->gc_word = (uintptr_t)object | GC_FORWARDED_BIT;
+    } else if (scenario == 4) {
+        ((ScoopObjectHeader *)object)->gc_word = GC_RELEASE_READY_BIT;
     }
     (void)scoop_heap_forward_object(object, block, word);
     _exit(2);
@@ -69,6 +69,7 @@ int main(void) {
     expect_failure(1, "unmarked object reached relocation");
     expect_failure(2, "marked evacuation source has no planned forwarding address");
     expect_failure(3, "evacuation source forwards to its own address");
+    expect_failure(4, "marked evacuation source has no planned forwarding address");
     puts("resolved forwarding retains collection, mark and address validation");
     return 0;
 }

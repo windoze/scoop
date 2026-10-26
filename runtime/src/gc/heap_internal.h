@@ -30,6 +30,7 @@
 #define GC_CARD_SHIFT 9
 #define GC_CARD_GROUP_SHIFT 6
 #define GC_CARDS_PER_GROUP ((size_t)1 << GC_CARD_GROUP_SHIFT)
+#define GC_FORWARDED_BIT UINT64_C(1)
 #define GC_PIN_BIT UINT64_C(2)
 #define GC_RELEASE_READY_BIT UINT64_C(4)
 #define GC_POISON_BYTE ((unsigned char)0xA5)
@@ -85,12 +86,10 @@ typedef struct ScoopGcBlockMeta {
     uint64_t *line_occupied;
     uint64_t *line_live;
     uint16_t *size_units;
-    void **forwarding;
     size_t exact_size;
     size_t live_bytes;
     size_t movable_live_bytes;
     size_t mark_index;
-    void *large_forwarding;
     bool large_published;
     bool large_marked;
     bool large_pinned;
@@ -99,6 +98,13 @@ typedef struct ScoopGcBlockMeta {
 #endif
     bool discard_pending;
 } ScoopGcBlockMeta;
+
+/* A tagged address is valid only in an inaccessible, copied evacuation source. */
+static inline void *scoop_heap_forwarding_address(const void *object) {
+    const ScoopObjectHeader *header = object;
+    uint64_t word = __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED);
+    return (word & GC_FORWARDED_BIT) != 0 ? (void *)(uintptr_t)(word & ~GC_FORWARDED_BIT) : NULL;
+}
 
 struct ScoopGcRegion {
     /* Immutable generated-code prefix, published through the page map. */

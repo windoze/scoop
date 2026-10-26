@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [源对象 GC 字转发](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 完整复制后在不可见旧副本保存带标志的目标地址，删除源块 forwarding 表；计划 48→32 B、普通 block metadata 136→120 B。当前对象头、pin／release、预留失败和 ABI 保持，收益与多线程成本见阶段六。 |
 | [清扫复用存活 line](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 普通保留块只逐个退休死亡对象，复用已完成 mark／复制的 line 位图；完整搬出的无 pin 源直接退休。moving stress 保留 forwarding 检查与 poison，pin／release／空洞／失败回退保持，无额外元数据或 ABI。 |
 | [full 分片标记](GC-EVOLUTION.md) | `SCOOP_GC_INCREMENTAL=1`，默认关闭；新版 runtime 重链接即可 | 旧代压力触发两代追踪，片间保留原图并恢复 mutator；现有卡组维护改写，精确 roots 每片重扫。完整收尾仍为 STW，显式 full／large／失败走完整回退；树分配与最长暂停改善，但随机更新吞吐和部分 RSS 回退，按负载选择。对象及 ABI 不变。 |
 | [TLAB 本地块储备](GC-EVOLUTION.md) | 新版普通 runtime，所有 profile 默认；重链接即可 | 一次 heap lock 最多准备四块，后续切换复用已登记储备；GC／managed 退出／callback 返回统一失效。保持 nursery 上限、部分失败和精确计数；stress／full-only 原策略，状态大小与 ABI 不变。RSS／短负载尾部代价见记录。 |

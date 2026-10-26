@@ -102,7 +102,6 @@ void scoop_heap_region_destroy(ScoopGcRegion *region) {
         free(block->line_occupied);
         free(block->line_live);
         free(block->size_units);
-        free(block->forwarding);
     }
     free(region->blocks);
     free(region->cards);

@@ -11,8 +11,6 @@ typedef struct PlannedMove {
     void **entry;
     void *destination;
     size_t size;
-    size_t word;
-    ScoopGcBlockMeta *source_block;
     ScoopGcBlockMeta *target_block;
 } PlannedMove;
 
@@ -111,8 +109,6 @@ static void rollback_reservations(bool minor) {
         if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
             block->state =
                 scoop_heap_block_has_pins(block) ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
-            free(block->forwarding);
-            block->forwarding = NULL;
         }
     }
     if (!minor) {
@@ -194,8 +190,7 @@ static void append_move(void **entry, void *context) {
         }
         plan->last = chunk;
     }
-    plan->last->moves[plan->last->used++] =
-        (PlannedMove){entry, destination, size, word, block, target};
+    plan->last->moves[plan->last->used++] = (PlannedMove){entry, destination, size, target};
 }
 
 bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
@@ -258,18 +253,20 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
     for (PlannedMoveChunk *chunk = plan.first; chunk != NULL; chunk = chunk->next) {
         for (size_t index = 0; index < chunk->used; index++) {
             PlannedMove *move = &chunk->moves[index];
-            memcpy(move->destination, *move->entry, move->size);
+            ScoopObjectHeader *source = *move->entry;
+            memcpy(move->destination, source, move->size);
             scoop_gc_heap_state.copied_bytes += move->size;
-            ScoopGcBlockMeta *source = move->source_block;
             if (move->size <= GC_REGULAR_MAX) {
                 /* The complete plan owns these ranges; mark/update workers are idle. */
                 scoop_heap_record_small_metadata(move->target_block, move->destination, move->size,
                                                  true, true);
-                source->forwarding[move->word] = move->destination;
             } else {
                 publish_large_object(move->target_block, true);
-                source->large_forwarding = move->destination;
             }
+            /* Preserve the original GC word in the current copy before reusing
+             * the inaccessible source header for forwarding. */
+            __atomic_store_n(&source->gc_word, (uintptr_t)move->destination | GC_FORWARDED_BIT,
+                             __ATOMIC_RELAXED);
             /* Mark tasks have finished; update tasks will only see current copies. */
             *move->entry = move->destination;
             moved_objects++;

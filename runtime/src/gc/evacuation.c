@@ -60,7 +60,8 @@ void scoop_gc_heap_verify_stress_moved_locked(void) {
         if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
             if (block->large_marked && !block->large_pinned) {
                 void *old = (char *)block_base(block) + GC_LINE_SIZE;
-                if (block->large_forwarding == NULL || block->large_forwarding == old) {
+                void *forwarded = scoop_heap_forwarding_address(old);
+                if (forwarded == NULL || forwarded == old) {
                     heap_fatal("stress collection left a live large object in place");
                 }
             }
@@ -72,7 +73,8 @@ void scoop_gc_heap_verify_stress_moved_locked(void) {
                 continue;
             }
             void *old = (char *)block_base(block) + word * sizeof(uint64_t);
-            if (block->forwarding[word] == NULL || block->forwarding[word] == old) {
+            void *forwarded = scoop_heap_forwarding_address(old);
+            if (forwarded == NULL || forwarded == old) {
                 heap_fatal("stress collection left a live small object in place");
             }
         }
@@ -93,7 +95,8 @@ void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, voi
         if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
             if (block->large_marked) {
                 if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !block->large_pinned) {
-                    if (block->large_forwarding == NULL) {
+                    void *object = (char *)block_base(block) + GC_LINE_SIZE;
+                    if (scoop_heap_forwarding_address(object) == NULL) {
                         heap_fatal("live large source object was not forwarded");
                     }
                 } else {
@@ -107,7 +110,8 @@ void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, voi
                 continue;
             }
             if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !bit_test(block->pins, word)) {
-                if (block->forwarding[word] == NULL) {
+                void *object = (char *)block_base(block) + word * sizeof(uint64_t);
+                if (scoop_heap_forwarding_address(object) == NULL) {
                     heap_fatal("live small source object was not forwarded");
                 }
                 continue;

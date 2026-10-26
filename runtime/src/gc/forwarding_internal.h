@@ -16,8 +16,7 @@ static inline
     if (source->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(source, word_index)) {
         return object;
     }
-    void *forwarded = source->kind == SCOOP_BLOCK_KIND_LARGE ? source->large_forwarding
-                                                             : source->forwarding[word_index];
+    void *forwarded = scoop_heap_forwarding_address(object);
     if (forwarded == object) {
         heap_fatal("evacuation source forwards to its own address");
     }

@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 第六阶段](GC-EVOLUTION.md)完成源对象 GC 字转发与计划压缩，所有 profile 默认：删除每源块 32 KiB forwarding 表，保留完整预留、失败回退及当前对象 GC 状态。ARM64 大 gcpause 墙钟 9.931 → 8.843 s、RSS 984 → 703 MiB，普通／增量单次最大暂停约 191 → 178／170 → 152 ms；低分配吞吐持平。两机各 13 项 C 专测、三目标 7 variants／29 次进程调用通过。Linux 背景编译干扰和 16 线程系统 CPU 小幅代价已记录；继续实验按目标块并行复制及降低计划成本。
+
 - [GC 第五阶段](GC-EVOLUTION.md)完成清扫的存活 line 复用，所有 profile 默认：普通路径省去逐活对象大小读取与位图重建，保留死亡 release、pin、moving stress 和回滚。ARM64 bintrees／gcpause 墙钟降低约 7%／4%，reclaim 累计 485 → 80 ms／529 → 128 ms，RSS 保持；大 gcpause 单次暂停最大值约 231 → 199 ms，增量配置约 207 → 171 ms。GNU 长 4／8 线程也改善，短负载干扰和 ARM64 8 线程 CPU 回退均保留。继续处理 forwarding／搬迁计划工作区和地址映射。
 
 - [GC 第四阶段](GC-EVOLUTION.md)实现语义完整的 full 分片标记，`SCOOP_GC_INCREMENTAL=1`、默认关闭；两代追踪、脏组重扫、精确 roots、pin 与完整回退复用原 GC，显式 full 不再因加入 minor／未完成片而提前返回。ARM64 长 bintrees 7.461 → 6.755 s、RSS 891 → 726 MiB；大 gcpause 最长单次 GC 约 230 → 207 ms，最长应用间隔约 376 → 212 ms，但正常吞吐略退、随机重扫增加。GNU 树分配改善、随机更新吞吐回退已记录。原地晋升／小片／非移动实验未消除主要差距，下一阶段继续减少 plan／copy／reclaim 与 metadata 成本，不视为主线完成。

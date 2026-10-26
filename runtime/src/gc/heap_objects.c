@@ -183,13 +183,10 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
         block->live_bytes = 0;
         block->movable_live_bytes = 0;
         block->mark_index = mark_blocks++;
-        block->large_forwarding = NULL;
         block->large_marked = false;
 #if SCOOP_GC_TRACK_RELOCATION
         block->large_scanned = false;
 #endif
-        free(block->forwarding);
-        block->forwarding = NULL;
         if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
             memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
 #if SCOOP_GC_TRACK_RELOCATION

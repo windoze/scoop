@@ -1,6 +1,4 @@
 /* Ordinary full collections compact sparse regions; stress/minor select blocks. */
-#include <stdlib.h>
-
 #include "gc_internal.h"
 #include "heap_internal.h"
 
@@ -14,16 +12,6 @@ bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block) {
         }
     }
     return false;
-}
-
-static void select_block(ScoopGcBlockMeta *source) {
-    source->state = SCOOP_BLOCK_EVACUATION_SOURCE;
-    if (source->kind == SCOOP_BLOCK_KIND_SMALL) {
-        source->forwarding = calloc(GC_WORDS_PER_BLOCK, sizeof(void *));
-        if (source->forwarding == NULL) {
-            heap_fatal("out of memory allocating forwarding metadata");
-        }
-    }
 }
 
 static size_t select_regions(void) {
@@ -93,7 +81,7 @@ size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity
         }
         if (selected) {
             *has_sources = true;
-            select_block(block);
+            block->state = SCOOP_BLOCK_EVACUATION_SOURCE;
         }
     }
     return regions;

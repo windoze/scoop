@@ -187,8 +187,6 @@ static void reset_small_metadata(ScoopGcBlockMeta *block) {
     memset(block->line_occupied, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->size_units, 0, GC_WORDS_PER_BLOCK * sizeof(uint16_t));
-    free(block->forwarding);
-    block->forwarding = NULL;
 }
 
 static ScoopGcBlockMeta *take_small_block(bool allow_growth) {

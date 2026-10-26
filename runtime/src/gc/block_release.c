@@ -1,6 +1,4 @@
 /* Retire block storage only after all roots and outgoing references are updated. */
-#include <stdlib.h>
-
 #include "heap_internal.h"
 #include "../platform/platform.h"
 
@@ -8,8 +6,6 @@ static void retire_metadata(ScoopGcBlockMeta *block, ScoopGcBlockState state) {
     if (!active_head(block)) {
         heap_fatal("attempted to retire an inactive block");
     }
-    free(block->forwarding);
-    block->forwarding = NULL;
     block->state = state;
     block->kind = SCOOP_BLOCK_KIND_NONE;
     block->generation = SCOOP_GC_OLD;
@@ -18,7 +14,6 @@ static void retire_metadata(ScoopGcBlockMeta *block, ScoopGcBlockState state) {
     block->exact_size = 0;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
-    block->large_forwarding = NULL;
     block->large_published = false;
     block->large_marked = false;
     block->large_pinned = false;

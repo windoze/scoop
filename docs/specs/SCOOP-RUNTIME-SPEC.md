@@ -30,6 +30,8 @@ managed reference 是对象起点的直接指针；对象可能移动。对象�
 
 GC 状态字的 pin bit 为 `UINT64_C(2)`（bit 1），release-ready bit 为 `UINT64_C(4)`（bit 2）；操作这些位时必须保留其他位。
 
+bit 0 为 collector 私有的 forwarded 标志，仅在 STW 内、对象已完整复制且旧副本不再供 mutator 使用后设置。此时旧副本 GC 字保存 `destination | 1`，目标按至少 8-byte 对齐；目标副本保留原 GC 字，仍使用正常 pin／release 状态。新分配、未搬迁、pinned、immortal 以及所有 mutator 可见副本的 forwarded 位始终为 0。它不扩充对象头，也不增加生成分配或访问的工作；原副本的 TD 与精确大小在转发期间保持，具体时序见 3.7。
+
 class 的基类对象布局是派生对象的完整前缀，包括基类尾部 padding；派生字段不得复用该 padding。构造最派生对象时只分配一次，整个构造期间对象头都指向最派生 exact type 的 TypeDescriptor，不随基类构造改变。
 
 对象在可被 GC 观察前必须具有有效对象头、精确分配大小与已初始化的 payload。语义上 payload 从全零开始；3.1 允许消除被确定初始化覆盖且覆盖前不可观察的无引用尾部零写入。对象头、引用槽、padding 和未证明覆盖的字节仍按原规则清零。含引用的字段在初始化完成前保持 null 或合法 managed reference。构造期间的 receiver 是普通精确 root；未完成的实例不能发布为可用对象。
@@ -557,9 +559,11 @@ full collection 按回收收益选择低存活、无 pin 的 region 为 source�
 
 搬迁前预留包括对齐损耗的全部目标空间，失败时缩小 source 集合或非移动回收；minor 晋升不足从完整原图转 full。source 不能又作目标。复制、forwarding 和全部精确引用更新完成后，才允许退休旧副本。
 
-收集器的临时搬迁计划按固定 256 项的 native 分块顺序追加，每项保留原 source／destination、精确大小和所属 block；不反复倍增、复制整份连续数组。预留成功后按相同顺序复制，失败和成功出口都释放全部分块。分块仅存活于原 STW 搬迁阶段，不形成持久缓存、managed root 或新的对象布局，也不改变预留完成前不发布 forwarding／更新 roots 的合同。该表示适用于所有 profile 与 minor／full／stress，使扩大 nursery 不再放大连续计划数组的 native 分配峰值。
+收集器的临时搬迁计划按固定 256 项的 native 分块顺序追加，每项保留存活清单 entry、destination、精确大小及目标 block；entry 在复制前仍保存 source，不重复保存 source block 与 word 索引。当前 64-bit 实现每项 32 bytes，不反复倍增、复制整份连续数组。预留成功后按相同顺序复制，失败和成功出口都释放全部分块。分块仅存活于原 STW 搬迁阶段，不形成持久缓存、managed root 或新的对象布局，也不改变预留完成前不发布 forwarding／更新 roots 的合同。该表示适用于所有 profile 与 minor／full／stress。
 
 全部目标预留成功后，小对象复制直接复用计划中的目标 block、精确大小和已保留范围，不再调用通用分配登记入口重复检查块种类、边界或起点。此时 mutator 已停稳、全部 mark worker 已完成、update worker 尚未发布，只有 coordinator 修改目标元数据；新 block、survivor block 和既有旧代空洞均满足这一阶段的独占条件。复制完成后写入精确 size，合并 occupied／live-line 与对象 mark，更新目标 live bytes，再 release 发布 starts，随后才发布 forwarding 和更新存活清单。occupied／starts 复用 3.1 的单写者 atomic load／OR／store，保留同一字的既有位；line_live／marks 在该独占阶段直接 OR。通用小对象登记入口仅发布未标记的新分配，不保留复制专用的参数或分支；共享 mutator 分配和并行标记的原子读改写保持，large 发布沿原入口，目标预留失败不执行任何复制或目标对象登记。不增加搬迁计划字段、对象元数据、roots 或 ABI，所有 profile 遵守同一顺序。
+
+forwarding 复用已复制源对象的 GC 状态字，不为 small source 分配按 block 容量索引的指针表，也不单独保存 large forwarding。必须先把完整原对象（包括原 pin／release GC 字）复制到目标并完成目标登记，再把旧 GC 字写为带 forwarded 标志的目标地址，最后更新存活清单 entry。全部复制结束后才发布引用更新任务；读取 forwarding 前仍按原元数据确认 collection、mark、source 和非 pinned 状态，并拒绝缺失转发或自转发。预留阶段不改任何原对象头，失败无需恢复对象字节；收尾仅对 unmarked 死对象执行 release，不把源副本的转发字当成 pin registry 或 release 状态。moving stress 继续检查转发并 poison 旧存储；生成代码、native、异常及 pin 消费者不会在此 STW 私有阶段使用可搬迁旧副本。块 side metadata 只保留仍有读取者的字段，未改变有效对象、TLAB、region prefix 或产物 ABI。
 
 在规划、预留回退和实际复制全部结束后，以本轮实际完成的搬迁数决定是否更新 roots；零搬迁且没有 survivor 时还跳过 remembered set 与存活对象回写。原地保留 survivor 的 minor 即使没有复制，也须借 remembered set 与年轻存活对象扫描保留下一轮所需的卡；不为此重扫旧堆或新增 roots。非零搬迁仍完整更新相关引用。minor 转 full 使用最终完成轮次的事实，不能复用上轮计数或按计时值判断。各路径都完成必要统计、晋升、release、回收、清卡、nursery／TLAB 重置、临时 pin 解除及线程恢复。
 

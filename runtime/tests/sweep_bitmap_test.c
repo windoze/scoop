@@ -35,6 +35,9 @@ static void check_retained_storage(void *const *objects) {
         if (objects[index] == NULL) {
             continue;
         }
+        const Resource *resource = objects[index];
+        assert((resource->header.gc_word & GC_FORWARDED_BIT) == 0);
+        assert((resource->header.gc_word & GC_RELEASE_READY_BIT) != 0);
         ScoopGcBlockMeta *block = pointer_block(objects[index]);
         uintptr_t begin = (uintptr_t)objects[index] - (uintptr_t)block_base(block);
         uintptr_t end = begin + sizeof(Resource);

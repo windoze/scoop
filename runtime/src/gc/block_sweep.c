@@ -94,7 +94,8 @@ static bool finish_stress_source(ScoopGcBlockMeta *block) {
             bool pinned = bit_test(block->pins, word);
             bool marked = bit_test(block->marks, word);
             bool moved = !pinned;
-            if (moved && marked && block->forwarding[word] == NULL) {
+            void *object = (char *)block_base(block) + word * sizeof(uint64_t);
+            if (moved && marked && scoop_heap_forwarding_address(object) == NULL) {
                 heap_fatal("marked source object has no forwarding address");
             }
             bool keep = marked && !moved;
@@ -154,8 +155,6 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
     memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
 #endif
     memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
-    free(block->forwarding);
-    block->forwarding = NULL;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
     block->state = any_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
@@ -171,7 +170,8 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
 static bool finish_large_block(ScoopGcBlockMeta *block, bool stress) {
     (void)stress;
     bool moved = block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !block->large_pinned;
-    if (moved && block->large_marked && block->large_forwarding == NULL) {
+    if (moved && block->large_marked &&
+        scoop_heap_forwarding_address((char *)block_base(block) + GC_LINE_SIZE) == NULL) {
         heap_fatal("marked large source object has no forwarding address");
     }
     bool keep = block->large_marked && !moved;
@@ -193,7 +193,6 @@ static bool finish_large_block(ScoopGcBlockMeta *block, bool stress) {
     block->state = block->large_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
-    block->large_forwarding = NULL;
     block->large_marked = false;
 #if SCOOP_GC_TRACK_RELOCATION
     block->large_scanned = false;
