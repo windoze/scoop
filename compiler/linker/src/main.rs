@@ -42,6 +42,9 @@ struct Cli {
     /// Keep the ordinary symbol table in the final executable.
     #[arg(long)]
     keep_symbols: bool,
+    /// Emit <output>.map with native symbol addresses.
+    #[arg(long)]
+    emit_symbol_map: bool,
     /// Search these explicit roots for libraries required by the artifacts.
     #[arg(long = "library-path")]
     library_paths: Vec<PathBuf>,
@@ -86,6 +89,7 @@ fn main() -> ExitCode {
         final_link: scoop_toolchain::FinalLinkOptions {
             sysroot: cli.sysroot,
             keep_symbols: cli.keep_symbols,
+            emit_symbol_map: cli.emit_symbol_map,
             unwind_prefix: cli.unwind_prefix,
             mode: cli.link_mode.map(|mode| match mode {
                 LinkMode::Static => scoop_toolchain::LinkMode::Static,

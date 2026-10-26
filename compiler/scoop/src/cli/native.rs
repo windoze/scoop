@@ -29,6 +29,7 @@ impl NativeOptions {
                     .transpose()?,
                 mode: self.link_mode.map(Into::into),
                 keep_symbols: self.keep_symbols,
+                emit_symbol_map: self.emit_symbol_map,
             },
         ))
     }

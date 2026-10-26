@@ -45,6 +45,7 @@ def decode_streams(stdout, stderr, mode):
                 "documentation",
                 "check",
                 "format",
+                "clean",
             }
             if mode == "test-stderr":
                 kinds |= {"test-report", "test-list"}

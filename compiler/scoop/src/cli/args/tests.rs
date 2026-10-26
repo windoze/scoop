@@ -1,6 +1,52 @@
 use super::*;
 
 #[test]
+fn clean_is_builtin_and_accepts_only_cleanup_options() {
+    assert!(matches!(
+        Cli::try_parse_from([
+            "scoop",
+            "clean",
+            "project/Cone.toml",
+            "--target-dir",
+            "out",
+            "--message-format",
+            "json"
+        ])
+        .unwrap()
+        .command,
+        Command::Clean(_)
+    ));
+    for option in [
+        "--release",
+        "--target",
+        "--cache-dir",
+        "--scoopc",
+        "--emit-symbol-map",
+    ] {
+        assert!(Cli::try_parse_from(["scoop", "clean", option]).is_err());
+    }
+}
+
+#[test]
+fn symbol_maps_are_an_explicit_final_link_option() {
+    for command in ["build", "run", "test"] {
+        assert!(Cli::try_parse_from(["scoop", command, "--release", "--emit-symbol-map"]).is_ok());
+    }
+    assert!(
+        Cli::try_parse_from([
+            "scoop",
+            "link",
+            "--root-slib",
+            "root.slib",
+            "-o",
+            "program",
+            "--emit-symbol-map"
+        ])
+        .is_ok()
+    );
+}
+
+#[test]
 fn output_capture_only_applies_to_actual_execution() {
     for flag in ["--list", "--no-run"] {
         assert!(Cli::try_parse_from(["scoop", "test", flag, "--nocapture"]).is_err());

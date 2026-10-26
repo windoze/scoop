@@ -115,7 +115,10 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         &closure,
         &runtime,
         &profile,
-        true,
+        crate::ProgramLinkOptions {
+            keep_symbols: true,
+            emit_symbol_map: true,
+        },
         &library_paths,
         &path.join("program"),
         &path.join("cache"),

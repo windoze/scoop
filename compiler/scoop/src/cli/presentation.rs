@@ -16,6 +16,17 @@ mod test_report;
 pub(super) struct Reporter(pub MessageFormat);
 
 impl Reporter {
+    pub fn cleaned(&self, directory: &Path, removed: bool) -> io::Result<()> {
+        match self.0 {
+            MessageFormat::Human => {
+                writeln!(io::stderr().lock(), "cleaned {}", directory.display())
+            }
+            MessageFormat::Json => write_json(&json!({
+                "schema": 1, "kind": "clean", "target_dir": path_value(directory), "removed": removed,
+            })),
+        }
+    }
+
     pub fn documented(&self, outcome: &scoop::DocumentOutcome) -> io::Result<()> {
         self.diagnostics(&outcome.warnings, &outcome.sources)?;
         match self.0 {

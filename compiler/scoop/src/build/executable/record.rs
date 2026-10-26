@@ -7,7 +7,7 @@ use std::io::{BufReader, BufWriter, Write};
 struct Record {
     inputs: Vec<NativeInputMetadata>,
     executable: HostPathCarrier,
-    symbol_map: HostPathCarrier,
+    symbol_map: Option<HostPathCarrier>,
     fingerprint: [u8; 32],
     result_key: [u8; 32],
 }
@@ -25,8 +25,18 @@ pub(super) fn load(path: &Path) -> BuildResult<Option<Executable>> {
         }
     }
     let path = record.executable.to_path_buf().map_err(failure)?;
-    let symbol_map = record.symbol_map.to_path_buf().map_err(failure)?;
-    if !path.try_exists().map_err(failure)? || !symbol_map.try_exists().map_err(failure)? {
+    let symbol_map = record
+        .symbol_map
+        .as_ref()
+        .map(HostPathCarrier::to_path_buf)
+        .transpose()
+        .map_err(failure)?;
+    if !path.try_exists().map_err(failure)? {
+        return Ok(None);
+    }
+    if let Some(symbol_map) = &symbol_map
+        && !symbol_map.try_exists().map_err(failure)?
+    {
         return Ok(None);
     }
     Ok(Some(Executable {
@@ -45,7 +55,12 @@ pub(super) fn save(
     let record = Record {
         inputs,
         executable: HostPathCarrier::from_path(&executable.path).map_err(failure)?,
-        symbol_map: HostPathCarrier::from_path(&executable.symbol_map).map_err(failure)?,
+        symbol_map: executable
+            .symbol_map
+            .as_deref()
+            .map(HostPathCarrier::from_path)
+            .transpose()
+            .map_err(failure)?,
         fingerprint: *executable.fingerprint.as_array(),
         result_key: executable.result_key,
     };

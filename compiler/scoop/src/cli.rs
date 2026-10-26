@@ -5,12 +5,14 @@ use scoop::{BuildFailure, BuildFailurePhase};
 
 mod args;
 mod check;
+mod clean;
 mod commands;
 mod doc;
 mod external;
 mod format;
 mod native;
 mod new;
+mod paths;
 mod presentation;
 mod run;
 mod test_run;

@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 mode, root, output, argument = sys.argv[1:]
-cache = Path(root) / "executables-v2"
+cache = Path(root) / "executables-v3"
 programs = sorted(cache.glob("program-*/program"))
 if mode == "count":
     assert len(programs) == int(argument), programs

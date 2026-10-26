@@ -1,0 +1,7 @@
+schema = 1
+
+[cone]
+group = "test.cache"
+name = "local-cache"
+version = "0.1.0"
+kind = "library"
