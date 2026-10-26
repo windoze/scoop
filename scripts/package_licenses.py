@@ -56,26 +56,31 @@ def collect(root, repository, source, host, native, targets):
                         license_files(vendor / "licenses" / name),
                     )
 
-    metadata = json.loads(
-        subprocess.check_output(
-            [
-                "cargo",
-                "metadata",
-                "--locked",
-                "--format-version",
-                "1",
-                "--filter-platform",
-                host,
-            ],
-            cwd=repository,
+    packages = {}
+    dependencies = {}
+    for workspace in (repository, repository / "tooling/scoop-example"):
+        metadata = json.loads(
+            subprocess.check_output(
+                [
+                    "cargo",
+                    "metadata",
+                    "--locked",
+                    "--format-version",
+                    "1",
+                    "--filter-platform",
+                    host,
+                ],
+                cwd=workspace,
+            )
         )
-    )
-    packages = {package["id"]: package for package in metadata["packages"]}
-    nodes = {node["id"]: node for node in metadata["resolve"]["nodes"]}
+        packages.update((package["id"], package) for package in metadata["packages"])
+        for node in metadata["resolve"]["nodes"]:
+            # Shared crates may enable different features in the two Cargo projects.
+            dependencies.setdefault(node["id"], []).extend(node["deps"])
     queue = [
         package["id"]
         for package in packages.values()
-        if package["name"] in {"scoop", "scoopc", "scoop-linker", "scoop-lsp"}
+        if package["name"] in {"scoop", "scoopc", "scoop-linker", "scoop-lsp", "scoop-example"}
     ]
     visited = set()
     while queue:
@@ -94,7 +99,7 @@ def collect(root, repository, source, host, native, targets):
             add(f"{package['name']}-{package['version']}", package["license"], paths)
         queue.extend(
             dependency["pkg"]
-            for dependency in nodes[identity]["deps"]
+            for dependency in dependencies[identity]
             if any(kind["kind"] != "dev" for kind in dependency["dep_kinds"])
         )
 

@@ -1,0 +1,14 @@
+fun main() {
+    val name = "Ada"
+    println(f"Hello, ${name}!")
+    println("${name}")
+
+    val text = "A中"
+    println(f"scalars=${text.charLength}, bytes=${text.toByteArray().size}")
+    val builder = StringBuilder()
+    for (character in text) {
+        builder.append(character)
+        builder.append("|")
+    }
+    println(builder.toString())
+}

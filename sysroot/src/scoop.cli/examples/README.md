@@ -14,6 +14,6 @@ scoop run --release repeated_options.scoop -- -Isrc -Iinclude --mode Thorough -o
 scoop run --release repeated_options.scoop
 ```
 
-第一条输出两次 `Hello, Ada!`。重复选项示例只打印解析结果，不访问指定目录或写文件；不传参时输出 `mode=Fast` 和 `output=stdout`。
+问候程序的参数、帮助和错误退出见 `scoop example cli/options`（[正文](../../../share/scoop/examples/topics/cli/options.md)）。
 
-`main(args)` 的第 0 项是程序路径，因此这里使用 `parseCommandLine`。`--` 将后续参数交给示例，使 `--help` 不被 `scoop run` 自己消费。非法参数和非正的问候次数以退出码 2 结束，例如 `scoop run --release greet.scoop -- Ada --count nope`。
+重复选项示例只打印解析结果，不访问指定目录或写文件；不传参时输出 `mode=Fast` 和 `output=stdout`。

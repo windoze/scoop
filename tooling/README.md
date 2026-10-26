@@ -1,4 +1,6 @@
-# Scoop 编辑器工具
+# Scoop 配套工具
+
+[scoop-example](scoop-example/README.md) 是独立的 `scoop example` 阅读器，按主题提供完整程序与说明，使用自己的 Cargo 项目和测试。下文为编辑器工具说明。
 
 本目录提供独立的 Tree-sitter 语法包和 VS Code 扩展。语法以
 [语言规范](../docs/specs/SCOOP-SPEC.md)为准，并使用编译器已有源码和专门的编辑器

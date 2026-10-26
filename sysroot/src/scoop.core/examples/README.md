@@ -12,4 +12,6 @@ scoop run --release values.scoop
 scoop run --release collections.scoop
 ```
 
-第一例依次输出 `point=(3, 4)`、`point missing`、`Ada`、`guest`、`3`。第二例先问候快照中的 Ada 和 Lin，再输出修改后的 Grace，展示快照与可变列表的区别；`Scoop 中文` 有 8 个 Unicode 标量、12 个 UTF-8 字节。
+值类型概览的完整说明见 `scoop example language/overview`（[正文](../../../share/scoop/examples/topics/language/overview.md)）。聚焦用法可查询 `language/option`、`language/struct`、`collections/list` 和 `text/strings`。
+
+collections.scoop 先问候快照中的 Ada 和 Lin，再输出修改后的 Grace；`Scoop 中文` 有 8 个 Unicode 标量、12 个 UTF-8 字节。

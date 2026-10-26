@@ -1,0 +1,9 @@
+package examples.consumer
+
+import examples.greeter.Greeter
+import examples.greeter.Greeting
+
+fun main() {
+    val greeter: Greeting = Greeter("Ada")
+    println(greeter.message())
+}

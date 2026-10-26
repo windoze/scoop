@@ -138,3 +138,5 @@ curl -i http://127.0.0.1:8080/api/v1/missing
 真实文件正常发送，目录首页优先于 SPA 回退。`/assets/{*path}` 单独使用没有 fallback 的 `staticFiles`，保留资源缺失的 404；`/api/{*path}` 显式返回 404，避免未知 API 路径命中根 SPA 通配路由。分组 fallback 只处理未匹配路径，因此这里不能用它覆盖已经匹配的 SPA 路由。
 
 末尾通配不匹配空后缀，示例另外注册了 `/`、`/api`、`/api/`、`/assets` 和 `/assets/`。入口文件路径显式写成 `root.resolve(Path.fromString("index.html"))`；fallback 自身缺失时仍返回 404。
+
+hello 服务与 GET 客户端的完整配对说明见 `scoop example http/get`（[正文](../../../share/scoop/examples/topics/http/get.md)）。

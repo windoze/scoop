@@ -1,0 +1,392 @@
+schema = 1
+recommended = ["start/hello", "language/overview", "language/option", "json/typed", "start/cone"]
+
+[[groups]]
+id = "start"
+title = "入门与项目"
+summary = "从一个文件开始，组织依赖与多个源文件。"
+aliases = ["入门"]
+recommended = ["start/hello", "start/cone"]
+
+[[groups]]
+id = "language"
+title = "语言基础"
+summary = "以完整短程序学习 Scoop 的类型、函数和可见性。"
+aliases = ["语法"]
+recommended = ["language/overview", "language/option"]
+
+[[groups]]
+id = "text"
+title = "文本"
+summary = "构造字符串，区分 Unicode 标量与 UTF-8 字节。"
+aliases = ["字符串"]
+recommended = ["text/strings"]
+
+[[groups]]
+id = "collections"
+title = "集合"
+summary = "累积元素、保存快照和统计词频。"
+aliases = ["集合"]
+recommended = ["collections/list", "collections/map"]
+
+[[groups]]
+id = "io"
+title = "文件与资源"
+summary = "通过明确的作用域关闭句柄、清理临时文件。"
+aliases = ["scoop.platform"]
+recommended = ["io/files", "io/resources"]
+
+[[groups]]
+id = "json"
+title = "JSON"
+summary = "使用类型 codec 在程序值与 JSON 文本之间转换。"
+aliases = ["scoop.json"]
+recommended = ["json/typed"]
+
+[[groups]]
+id = "async"
+title = "异步任务"
+summary = "显式进入事件循环，等待任务和取消清理。"
+aliases = ["scoop.asyncio"]
+recommended = ["async/tasks"]
+
+[[groups]]
+id = "http"
+title = "HTTP"
+summary = "连接本机服务，读取并关闭响应。"
+aliases = ["scoop.http.client"]
+recommended = ["http/get"]
+
+[[groups]]
+id = "cli"
+title = "命令行参数"
+summary = "处理位置参数、选项、帮助与错误退出。"
+aliases = ["scoop.cli"]
+recommended = ["cli/options"]
+
+[[groups]]
+id = "test"
+title = "测试"
+summary = "为 Cone 编写断言与预期异常测试。"
+aliases = ["scoop.test"]
+recommended = ["test/assertions"]
+
+[[topics]]
+id = "start/hello"
+title = "运行第一个程序"
+summary = "用普通 main 打印一行问候。"
+aliases = ["hello", "开始"]
+keywords = ["main", "println", "check", "run", "单文件"]
+document = "topics/start/hello.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/overview", "start/single-file"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/start/hello/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "start/single-file"
+title = "在单文件中声明依赖"
+summary = "使用依赖头和 import 调用 JSON 库。"
+aliases = ["single-file"]
+keywords = ["dep", "import", "单文件", "依赖", "scoop.json"]
+document = "topics/start/single-file.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["start/cone", "json/typed"]
+files = [
+  { path = "typed.scoop", source = "src/scoop.json/examples/typed.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "start/cone"
+title = "组织多文件应用"
+summary = "一个 manifest、两个源文件，遍历名字并调用共享函数。"
+aliases = ["cone", "项目"]
+keywords = ["Cone.toml", "package", "group", "src", "scoop.std", "依赖"]
+document = "topics/start/cone.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/visibility", "test/assertions"]
+files = [
+  { path = "Cone.toml", source = "share/scoop/examples/programs/start/cone/Cone.toml", language = "toml" },
+  { path = "src/main.scoop", source = "share/scoop/examples/programs/start/cone/src/main.scoop", language = "scoop" },
+  { path = "src/greeting.scoop", source = "share/scoop/examples/programs/start/cone/src/greeting.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/overview"
+title = "值类型与匹配概览"
+summary = "结合 Point、enum 和 Option 观察常用语法。"
+aliases = ["overview"]
+keywords = ["scoop.core", "Kotlin", "值类型", "case", "when"]
+document = "topics/language/overview.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/option", "language/struct", "language/enum"]
+files = [
+  { path = "values.scoop", source = "src/scoop.core/examples/values.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/option"
+title = "表示和处理缺失值"
+summary = "匹配 Some/None，使用安全读取与缺失值默认值。"
+aliases = ["option", "nullable", "可选值"]
+keywords = ["scoop.core", "Option", "Some", "None", "null", "Elvis", "when", "安全调用"]
+document = "topics/language/option.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/enum", "json/typed"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/language/option/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/struct"
+title = "构造、解构和更新值"
+summary = "修改 Point 的副本，保留原值并解构坐标。"
+aliases = ["struct"]
+keywords = ["scoop.core", "data class", "值类型", "copy", "解构", "副本", "相等"]
+document = "topics/language/struct.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/interfaces", "language/generics"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/language/struct/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/enum"
+title = "让结果携带不同数据"
+summary = "用 Found/Missing 表示查找结果并穷尽匹配。"
+aliases = ["enum", "枚举"]
+keywords = ["tagged union", "case", "when", "载荷", "解构", "穷尽"]
+document = "topics/language/enum.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/option", "language/struct"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/language/enum/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/functions"
+title = "默认参数与命名调用"
+summary = "通过表达式体和块体函数构造问候。"
+aliases = ["functions", "函数"]
+keywords = ["fun", "默认参数", "命名参数", "return", "vararg"]
+document = "topics/language/functions.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/lambdas"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/language/functions/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/lambdas"
+title = "传递回调和捕获状态"
+summary = "捕获 val，通过引用对象共享状态并局部返回。"
+aliases = ["lambda", "回调"]
+keywords = ["closure", "闭包", "捕获", "return", "函数类型", "尾随 lambda"]
+document = "topics/language/lambdas.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/functions", "async/tasks"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/language/lambdas/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/interfaces"
+title = "声明并实现公共能力"
+summary = "让 class 与 struct 通过同一个 Named 接口调用。"
+aliases = ["interface", "接口"]
+keywords = ["public", "override", "conformance", "装箱", "class", "struct"]
+document = "topics/language/interfaces.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/generics", "language/visibility"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/language/interfaces/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/generics"
+title = "泛型容器与受约束函数"
+summary = "Box 保存不同类型，带上界的函数调用公共能力。"
+aliases = ["generics", "泛型"]
+keywords = ["Box", "bound", "不变性", "单态化", "类型推断"]
+document = "topics/language/generics.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/interfaces", "language/struct"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/language/generics/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/visibility"
+title = "向另一个 Cone 公开 API"
+summary = "两个完整项目展示公开接口、构造器和实现。"
+aliases = ["visibility", "可见性"]
+keywords = ["internal", "public", "constructor", "override", "path", "跨 Cone"]
+document = "topics/language/visibility.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["start/cone", "language/interfaces"]
+files = [
+  { path = "library/Cone.toml", source = "share/scoop/examples/programs/language/visibility/library/Cone.toml", language = "toml" },
+  { path = "library/src/greeter.scoop", source = "share/scoop/examples/programs/language/visibility/library/src/greeter.scoop", language = "scoop" },
+  { path = "app/Cone.toml", source = "share/scoop/examples/programs/language/visibility/app/Cone.toml", language = "toml" },
+  { path = "app/src/main.scoop", source = "share/scoop/examples/programs/language/visibility/app/src/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/companion"
+title = "通过 companion 提供工厂"
+summary = "通过 Point.origin 和 Point.diagonal 构造实例。"
+aliases = ["companion", "工厂"]
+keywords = ["object", "单例", "public", "静态", "factory"]
+document = "topics/language/companion.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/struct", "json/typed"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/language/companion/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "language/errors"
+title = "处理错误并保证收尾"
+summary = "解析计数，捕获非法值并在两条路径执行 finally。"
+aliases = ["errors", "异常"]
+keywords = ["throw", "try", "catch", "finally", "IllegalArgumentException", "Exception.message", "解析"]
+document = "topics/language/errors.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/option", "io/resources"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/language/errors/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "text/strings"
+title = "插值和遍历 Unicode 文本"
+summary = "比较标量数与字节数，用 StringBuilder 累积字符。"
+aliases = ["strings"]
+keywords = ["scoop.core", "String", "Char", "f-string", "StringBuilder", "UTF-8", "字素"]
+document = "topics/text/strings.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["collections/list", "io/files"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/text/strings/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "collections/list"
+title = "累积元素并保存快照"
+summary = "修改 ArrayList 后观察 Array 快照保持原内容。"
+aliases = ["list", "数组"]
+keywords = ["scoop.core", "ArrayList", "Array", "MutableArray", "toArray", "Long", "快照"]
+document = "topics/collections/list.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["collections/map", "language/struct"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/collections/list/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "collections/map"
+title = "用字典统计词频"
+summary = "读取缺失值的默认值，按插入顺序输出计数。"
+aliases = ["map", "字典"]
+keywords = ["scoop.std", "LinkedHashMap", "Hash", "Equals", "词频", "Option"]
+document = "topics/collections/map.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/option", "collections/list"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/collections/map/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "io/resources"
+title = "在成功和异常路径关闭文件"
+summary = "用真实文件句柄展示 use、关闭状态和临时目录清理。"
+aliases = ["resources", "资源释放"]
+keywords = ["scoop.platform", "File", "use", "useAsync", "Closeable", "Disposable", "finally"]
+document = "topics/io/resources.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。", "当前用户可创建临时目录；程序自行清理它创建的文件。"]
+related = ["io/files", "language/errors"]
+files = [
+  { path = "main.scoop", source = "share/scoop/examples/programs/io/resources/main.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "io/files"
+title = "读写文件和遍历目录"
+summary = "创建临时目录、写入并追加文本，读取元数据和条目。"
+aliases = ["files", "读文件"]
+keywords = ["scoop.platform", "Path", "OsString", "readText", "writeText", "entries", "目录"]
+document = "topics/io/files.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。", "当前用户可创建临时目录；程序自行清理它创建的文件。"]
+related = ["io/resources", "text/strings"]
+files = [
+  { path = "files.scoop", source = "src/scoop.platform/examples/files.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "json/typed"
+title = "把 struct 编码为 JSON 并解码回来"
+summary = "使用 companion codec 处理数组、可选字段和默认值。"
+aliases = ["json-codec", "JSON序列化"]
+keywords = ["scoop.json", "JSON", "序列化", "反序列化", "ValueEncoder", "ValueDecoder", "DTO", "companion"]
+document = "topics/json/typed.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/option", "language/companion", "start/single-file"]
+files = [
+  { path = "typed.scoop", source = "src/scoop.json/examples/typed.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "async/tasks"
+title = "启动、等待和取消异步任务"
+summary = "显式运行事件循环，等待两个结果并取消一个任务。"
+aliases = ["tasks", "协程"]
+keywords = ["scoop.asyncio", "EventLoop", "LibuvEventLoop", "async", "await", "launch", "join", "cancel", "suspend"]
+document = "topics/async/tasks.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["language/lambdas", "http/get"]
+files = [
+  { path = "tasks.scoop", source = "src/scoop.asyncio/examples/tasks.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "http/get"
+title = "请求本机 HTTP 服务"
+summary = "完整客户端与服务端配对，读取状态和有上限的正文。"
+aliases = ["http-get", "fetch"]
+keywords = ["scoop.http.client", "scoop.http.server", "GET", "withResponse", "requests", "HTTP请求", "响应"]
+document = "topics/http/get.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。", "需要两个终端和空闲的本机回环端口 8080；不需要外网。"]
+related = ["async/tasks", "json/typed", "io/resources"]
+files = [
+  { path = "client.scoop", source = "src/scoop.http.client/examples/get.scoop", language = "scoop" },
+  { path = "server.scoop", source = "src/scoop.http.server/examples/hello.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "cli/options"
+title = "解析命令行参数"
+summary = "处理姓名、次数、Boolean flag、帮助和错误退出。"
+aliases = ["options", "命令行"]
+keywords = ["scoop.cli", "CliParser", "parseCommandLine", "argv", "--help", "选项", "参数"]
+document = "topics/cli/options.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["start/single-file", "language/errors"]
+files = [
+  { path = "greet.scoop", source = "src/scoop.cli/examples/greet.scoop", language = "scoop" },
+]
+
+[[topics]]
+id = "test/assertions"
+title = "给 Cone 编写测试"
+summary = "一个除法 API，两个包含普通与异常断言的测试。"
+aliases = ["assertions", "单元测试"]
+keywords = ["scoop.test", "Test", "assertEquals", "assertFailsWith", "test-dependencies", "filter"]
+document = "topics/test/assertions.md"
+requirements = ["使用配套工具链及其预编译系统库；以下运行命令使用 release。"]
+related = ["start/cone", "language/errors"]
+files = [
+  { path = "Cone.toml", source = "src/scoop.test/examples/assertions/Cone.toml", language = "toml" },
+  { path = "src/calculator.scoop", source = "src/scoop.test/examples/assertions/src/calculator.scoop", language = "scoop" },
+  { path = "tests/calculator.scoop", source = "src/scoop.test/examples/assertions/tests/calculator.scoop", language = "scoop" },
+]

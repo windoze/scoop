@@ -14,6 +14,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+import build_scoop_example
 import package_documentation
 import package_licenses
 import package_llvm
@@ -204,6 +205,7 @@ def assemble(root, targets, binaries, args, release, extension):
     package_licenses.collect(root, ROOT, args.llvm_source, args.host, native, targets)
     share = root / "share/scoop"
     share.mkdir(parents=True)
+    shutil.copytree(sysroot / "share/scoop/examples", share / "examples")
     for name in ("README.md", "RELEASE-NOTES.md"):
         shutil.copy2(ROOT / "scripts/distribution" / name, share / name)
     manifest = [
@@ -379,6 +381,10 @@ def main():
         check=True,
     )
     binaries = [args.work_dir / "cargo/release" / name for name in TOOLS]
+    example_environment = environment.copy()
+    example_environment.pop("CARGO_ENCODED_RUSTFLAGS", None)
+    example = build_scoop_example.build(args.work_dir / "scoop-example", example_environment)
+    build_scoop_example.install(example, ROOT / "sysroot")
     targets = (
         [args.host] if args.host.endswith("darwin") else [args.host, "x86_64-unknown-linux-musl"]
     )

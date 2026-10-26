@@ -34,6 +34,9 @@ class ToolchainArchiveTests(unittest.TestCase):
                     "sysroot/vendor/ryu/README.scoop.md": "固定 commit：`abc123`",
                     "scripts/distribution/README.md": "installation",
                     "scripts/distribution/RELEASE-NOTES.md": "release notes",
+                    "sysroot/share/scoop/examples/catalog.toml": "schema = 1\n",
+                    "sysroot/share/scoop/examples/topics/start/hello.md": "hello instructions",
+                    "sysroot/share/scoop/examples/programs/start/hello/main.scoop": "fun main() {}",
                 }
                 for relative, content in files.items():
                     path = repository / relative
@@ -67,6 +70,15 @@ class ToolchainArchiveTests(unittest.TestCase):
                 with tarfile.open(destination) as package:
                     package.extractall(installed, filter="data")
                 commands = installed / "commands"
+                for relative in (
+                    "catalog.toml",
+                    "topics/start/hello.md",
+                    "programs/start/hello/main.scoop",
+                ):
+                    self.assertEqual(
+                        (installed / "share/scoop/examples" / relative).read_bytes(),
+                        (sysroot / "share/scoop/examples" / relative).read_bytes(),
+                    )
                 self.assertTrue(commands.is_dir())
                 self.assertFalse((commands / ".gitkeep").exists())
                 if populated:

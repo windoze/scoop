@@ -15,3 +15,5 @@ scoop run --release dates.scoop
 ```
 
 集合示例输出 `6, 8, 9`、`red=2`、`blue=1`。字节示例输出 `U2Nvb3A=`、`Scoop`、`02014f4b`、`123`、`0`。日期示例从 2024-01-31 加一个月得到 2024-02-29，随后一天为 2024-03-01；最后的时长为 150 秒。
+
+按问题阅读可查询 `scoop example collections/map`（[词频正文](../../../share/scoop/examples/topics/collections/map.md)）、`text/strings` 和 `language/errors`；这些聚焦程序与此处混合示例分别维护。
