@@ -2,6 +2,8 @@
 
 版本：M49／M54／M59。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；既有能力三目标验证见 [M49 验收](../milestone49/ACCEPTANCE.md)，第 9 节扩展见 [M54 实施记录](../milestone54/PROGRESS.md)，第 10 节 TTY 见 [M59 实施记录](../milestone59/PROGRESS.md)。
 
+状态说明：平台后端迁移已开始，第 11 节与配套设计是本次实现合同。第 1～10 节的公共语义继续适用，具体 libuv 实现描述随各批迁移同步替换；新 API 与后端的可用状态见 [实施记录](../asyncio-backends/PROGRESS.md)。详细拆分、平台映射与验收见 [EventLoop 后端设计](../asyncio-backends/DESIGN.md)。
+
 ## 1. 分层与目标
 
 源码位于 `sysroot/src/scoop.asyncio/`，显式依赖 core、std、platform，测试依赖 scoop.test；公共声明属于 `scoop.asyncio`。不默认导入，不引入 compiler-known role、runtime 调度入口或新的 ABI。任务树使用语言规范 11.9.1～11.9.2；路径、地址、错误、时间和 buffer 直接复用平台库与标准库。
@@ -270,3 +272,49 @@ libuv signal handler 改变应用原 disposition。
 disableRawMode 和 isRawMode 允许已取消 Job 在所属活动 loop 中进行清理，
 不因此接受其他被取消的 I/O。模式的幂等、快照与恢复沿终端规范第 7 节。
 async raw 作用域使用这两个入口和 useAsync，GC 不承担恢复。
+
+## 11. 平台后端与宿主主循环（迁移合同）
+
+本节规定当前迁移合同。各平台实施完成时，第 1～10 节中的具体 libuv 驱动、撤销、计时精度和原生错误描述应同步替换；其中任务归属、资源方向独占、实际进度、路径／地址、TTY、显式关闭与 buffer 借用合同继续适用。当前版本仍按第 1～10 节运行。
+
+### 11.1 共享层与平台后端
+
+`EventLoop` 保留现有公共方法；默认实现改为 `PlatformEventLoop`，Darwin 绑定系统 libdispatch，Linux 绑定 io_uring／固定 liburing。所有端点、文件、目录和操作只依赖同一共享 owner；Job／CoroutineScope 仍来自 core。native 后端管理原生资源、请求、完成记录，不拥有另一套任务树，也不直接执行 managed I/O continuation。
+
+后端按目标构建选择，不公开后端注册表。迁移完成后移除 `LibuvEventLoop` 与 libuv 依赖，迁移全部实际调用方；不修改语言、runtime ABI、IR 或产物格式。平台能力与依赖版本见[设计第 7～10 节](../asyncio-backends/DESIGN.md#7-macoslibdispatch-后端)。
+
+### 11.2 运行与附着
+
+`PlatformEventLoop.run` 保留同步单次根入口合同。新增 `attach(host, onClosed): EventLoopSession`，接入调用线程所属的宿主主循环；两种入口共用一次启动机会，均拒绝当前 Job／活动 EventLoop binding 中的嵌套启动。接受入口后才取得 native 资源，初始化失败回滚并关闭实例。
+
+session 暴露 `loop: EventLoop`、`isClosed: Boolean`、`post(block: (CoroutineScope) -> Unit): Boolean` 与 `requestClose()`。后三项可跨线程；post 异步排队，关闭后拒绝且不保留闭包。接受的投递在关闭／失败时可以丢弃，内部取消、完成和清理命令不能丢弃。post 执行在仍活动的结构化根作用域中，子任务沿现有 launch／async 合同；根在没有消息时挂起，持续到请求关闭或失败。
+
+内部根在 attach 栈内捕获完整 Context 并挂起，用户投递从后续宿主通知开始；mailbox 通过根 continuation 恢复，不继承外线程 post 时的动态 Context。普通投递抛错作为根失败处理。requestClose 幂等、不阻塞，停止应用投递并把根取消交给 owner；mailbox 的取消恢复也排入 owner。主动关闭的取消不作为最终失败，其他失败沿现有组合规则保留。
+
+两种模式共用非阻塞处理流程；run 在空闲时 NativeSafe 等待，attach 只在宿主通知时处理一轮。通知可合并，真实队列承担完整性。嵌套宿主循环不能递归进入处理流程；处理期间产生的新工作留待后续通知。库不抢占用户回调。
+
+### 11.3 宿主接入合同
+
+`scoop.asyncio.host.EventLoopHost` 提供 `isCurrentThread()` 与 `@Unsafe watchReadable(descriptor, ready): EventLoopWatch`。host 只监听、不读写或关闭 loop 借出的通知 fd；ready 在 owner 线程串行执行，注册时不得内联执行。安装失败不得留下活动监听或回调。
+
+`EventLoopWatch.remove(onRemoved)` 在 owner 上异步注销，按宿主协议不得抛错；必须等待当前 ready 退出并退休排队通知，再通知移除完成，此后不得再进入 ready。loop 在移除完成前保留 fd 和 callback 上下文。
+
+Darwin 提供主 dispatch queue 的 `MainDispatchHost`，Linux GUI 在自己的 fd watch 中监听 eventfd。宿主仍负责窗口、输入、显示刷新和其连接协议。使用主队列的适配器只在宿主服务该队列时取得执行机会，不保证任意自定义 run-loop mode 都运行。具体声明与异常出口见[设计第 3 节](../asyncio-backends/DESIGN.md#3-公共入口与宿主协议)。
+
+本库排队恢复在 owner 线程进入 managed；任意第三方挂起点仍可能在其他线程恢复。接入 GUI 不新增协程拦截器或所有挂起函数的 UI 线程亲和性保证，外部回调通过 session.post 进入根作用域。
+
+### 11.4 取消、借用与最终关闭
+
+结果选择与 native 结束分别记录。取消／close 先选择结果后请求后端撤销；必须等数据操作、相关控制请求及未交付资源清理真实结束，提交已知实际进度并解除借用，再恢复一次 continuation。dispatch cancel 请求或 io_uring 取消 CQE 不能单独证明目标操作结束；成功先选定不被后续取消覆盖。
+
+根及其全部后代完成后继续关闭遗留资源，并排空清理、完成和 ready。全部原生请求、worker 与 I/O callback 退出后，附着模式再注销宿主监听，最后销毁后端、关闭通知 fd 并在 owner 上执行一次 onClosed。宿主必须继续运行到该通知，不能先停止主循环再等待它。当前宿主移除通知的 callback lease 在其返回时释放，不等待自身退出。
+
+onClosed 执行时 isClosed 为真，参数为运行／清理失败或 None。回调自身异常由宿主桥捕获并报告，不重复关闭、不跨 C 栈传播。GC release 不驱动循环、恢复任务或等待原生退出。阻塞 syscall 不能强制撤销时，显式关闭须等其真实返回。
+
+### 11.5 平台能力与错误
+
+Darwin 用 dispatch source 驱动 nonblocking 网络／TTY 与单调 timer，后台 work 处理普通文件、DNS、目录、路径与 NativeWork；source 全部退休后才消费其 fd。Linux 用 ring 完成网络、文件数据 I/O、fsync、timer 与 TTY readiness，其余阻塞工作使用 native worker。两者复用 GC-free 平台 helper 和同一资源语义。
+
+Linux 新后端支持基线为内核 6.1，初始化实际探测所需操作与 feature；ring 不可用或能力不足明确失败，不静默回退其他后端。此要求仅针对 asyncio 新后端。完整操作集、队列满时的处理、取消退休、提交失败与 ring 销毁见[设计第 8 节](../asyncio-backends/DESIGN.md#8-linuxio_uring-后端)。
+
+新后端的 syscall／负 CQE 错误保留 PosixErrno，DNS 保留 AddressResolution；正常 timer 到期不是错误，取消和 IoClosedException 仍由共享层选择。最终移除 Libuv 错误转换须随实际消费者迁移进行。迁移验收覆盖 Darwin、GNU、musl 的同一公共行为，以及宿主监听注销、Context、取消竞争和 native 内存寿命；本次设计不代表已完成这些验证。
