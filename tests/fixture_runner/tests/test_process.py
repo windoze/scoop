@@ -110,6 +110,13 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(result["stderr"], b"")
         self.assertEqual(result["diagnostics"], [])
 
+    def test_format_result_preserves_differences_and_failed_status(self):
+        tool = {"schema": 1, "kind": "format", "success": False, "mode": "check"}
+        result = decode_streams(b"", (json.dumps(tool) + "\n").encode(), "stderr")
+        self.assertEqual(result["result"], tool)
+        self.assertEqual(result["stderr"], b"")
+        self.assertEqual(result["diagnostics"], [])
+
     def test_test_report_preserves_build_result_and_captured_json_bytes(self):
         build = {"schema": 1, "kind": "executable", "output": "program"}
         report = {

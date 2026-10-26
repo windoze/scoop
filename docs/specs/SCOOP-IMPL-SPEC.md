@@ -741,7 +741,7 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop> [--direct-slib direct.slib].
 
 `scoop new` 创建普通 manifest Cone，group 必需，name 默认取目标目录名，kind 默认 executable，version 默认 0.1.0，package 默认 group；名称、版本与 package 使用现有 coordinate 和源码名称规则，显式 package 必须为 group 本身或其子包。生成 package 时按名称段转义连字符或关键字。固定模板包含 Cone.toml、executable 的 src/main.scoop 或 library 的 src/lib.scoop；默认还包含 tests/basic.scoop 及 scoop.test 测试依赖，`--no-tests` 同时省略两者。生产依赖沿用 manifest 的默认 core 规则，library 不生成 main。所有参数先验证，再创建目标目录；目标必须不存在，普通文件、空目录、非空目录均拒绝覆盖。父目录可按实际需要创建，I/O 失败按原路径报告；此命令不构建、不下载模板，也不读取 sysroot 或构建缓存。 `new` 的 CLI 参数校验可对内存中的 package 声明调用现有 parser，以复用转义标识符和关键字规则；它不读取或解析项目源码。构建编排库继续通过 scoopc 执行源码编译，不调用 HIR/MIR/LIR lowering 或 codegen 实现。
 
-**源码格式化与检查（check 已实现，fmt 实施中）。** `scoop fmt`、`scoop check` 及低层 `scoopc check` 的完整命令、格式规则、缓存和验收范围见[设计](../fmt-check/DESIGN.md)。以下规定两项命令的合同；`check` 已落地，格式化入口的实现状态见设计文首。
+**源码格式化与检查。** `scoop fmt`、`scoop check` 及低层 `scoopc check` 的完整命令、格式规则、缓存和验收范围见[设计](../fmt-check/DESIGN.md)。两项命令均已实现，验证状态见设计文首及验证记录。
 
 `scoop fmt [input...]` 接受 Cone 目录、Cone.toml 或显式 `.scoop` 文件，省略时选择 cwd 的 Cone.toml，不搜索父目录。manifest 模式收集生产与测试源码，包括合法 target 条件下的全部声明路径，分别按文件解析和格式化，不将不同平台的源码合并成编译输入；显式文件不要求 manifest、main 或可用依赖。缺省生产目录仍为 src/，缺省 tests/ 不存在时忽略，显式路径缺失按 I/O 错误报告；格式化集合允许为空。文件并集按普通解析后的实际路径去重，保持确定顺序，不改变正常编译对同一 target 内重复源码选择的诊断规则。只处理用户选中的源码，不发现依赖、读取 sysroot、启动 scoopc 或编译 native 输入。
 

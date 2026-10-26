@@ -758,7 +758,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
-### `scoop fmt` 与 `scoop check`（check 已实现，fmt 实施中）
+### `scoop fmt` 与 `scoop check`（已实现，本机验证通过，Linux 完整验收中）
 
 - [设计](fmt-check/DESIGN.md)明确固定格式规则、manifest 生产／测试及全平台源码并集、显式文件、写回和 `fmt --check`；复用保留原文的 CST，保留有语义作用的换行、相邻关系与注释附着。
 - `check` 完成根 Cone 的全部前端检查及 LocalConcrete HIR，复用必要 generator，支持 Production／Test、single-file 与独立成功缓存；源码依赖沿已有完整 `.slib` 构建和复用，根跳过机器生产与链接。

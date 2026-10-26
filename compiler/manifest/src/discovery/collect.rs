@@ -5,6 +5,33 @@ pub(super) fn select(
     manifest: &LoadedConeManifest,
     roots: Vec<SelectedRoot>,
 ) -> Result<SelectedManifestSources, SourceDiscoveryError> {
+    let (candidates, directories) = candidates(manifest, roots)?;
+    finish(manifest, candidates, directories)
+}
+
+pub(super) fn formatting(
+    manifest: &LoadedConeManifest,
+    roots: Vec<SelectedRoot>,
+) -> Result<Vec<PathBuf>, SourceDiscoveryError> {
+    let (mut candidates, _) = candidates(manifest, roots)?;
+    candidates.sort_by(|(_, left), (_, right)| left.logical_path.cmp(&right.logical_path));
+    let mut seen = BTreeSet::new();
+    Ok(candidates
+        .into_iter()
+        .map(|(_, candidate)| candidate.physical_path)
+        .filter(|path| seen.insert(path.clone()))
+        .collect())
+}
+
+type Candidates = (
+    Vec<(SourceRole, SourceCandidate)>,
+    Vec<(ConeRelativePath, SourceRole)>,
+);
+
+fn candidates(
+    manifest: &LoadedConeManifest,
+    roots: Vec<SelectedRoot>,
+) -> Result<Candidates, SourceDiscoveryError> {
     let mut candidates = Vec::new();
     let mut directories = Vec::new();
     for root in roots {
@@ -35,6 +62,14 @@ pub(super) fn select(
         }
         candidates.extend(selected.into_iter().map(|candidate| (root.role, candidate)));
     }
+    Ok((candidates, directories))
+}
+
+fn finish(
+    manifest: &LoadedConeManifest,
+    mut candidates: Vec<(SourceRole, SourceCandidate)>,
+    directories: Vec<(ConeRelativePath, SourceRole)>,
+) -> Result<SelectedManifestSources, SourceDiscoveryError> {
     if !candidates
         .iter()
         .any(|(role, _)| *role == SourceRole::Production)
@@ -46,7 +81,7 @@ pub(super) fn select(
     }
     candidates.sort_by(|(_, left), (_, right)| left.logical_path.cmp(&right.logical_path));
     let mut physical_sources: BTreeMap<&Path, &SourceCandidate> = BTreeMap::new();
-    for (_, candidate) in &candidates {
+    for (_, candidate) in candidates.iter() {
         if let Some(first) = physical_sources.insert(&candidate.physical_path, candidate) {
             return Err(SourceDiscoveryError::new(
                 candidate.display_path.clone(),

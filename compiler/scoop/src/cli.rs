@@ -8,6 +8,7 @@ mod check;
 mod commands;
 mod doc;
 mod external;
+mod format;
 mod native;
 mod new;
 mod presentation;
@@ -63,11 +64,15 @@ pub(super) fn main() -> ExitCode {
         cli.enable_startup_stats,
         &reporter,
     ) {
-        Ok(None) => {
+        Ok(commands::CommandOutcome::Complete(success)) => {
             scoop_process::finish_interruption();
-            ExitCode::SUCCESS
+            if success {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
         }
-        Ok(Some(status)) => scoop_process::exit_with_status(status),
+        Ok(commands::CommandOutcome::Child(status)) => scoop_process::exit_with_status(status),
         Err(error) => {
             scoop_process::finish_interruption();
             let _ = reporter.failure(&error);

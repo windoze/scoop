@@ -1,0 +1,7 @@
+schema = 1
+sources = [{path = "src"}, {path = "missing", when = {os = []}}]
+[cone]
+group = "test.format"
+name = "selection-error"
+version = "1.0.0"
+kind = "library"

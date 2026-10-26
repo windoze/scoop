@@ -833,6 +833,7 @@ dependencies = [
  "rustix",
  "scoop-ast",
  "scoop-doc",
+ "scoop-fmt",
  "scoop-identity",
  "scoop-linker",
  "scoop-lir",

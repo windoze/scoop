@@ -1,0 +1,19 @@
+schema = 1
+name = "fmt-selection-failure-keeps-whole-root-unmodified"
+inputs = ["cone"]
+tools = ["scoop"]
+tags = ["driver", "format", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {write = {path = "${work}/独立.scoop", data = "fun independent()=2\n"}}]
+
+[[steps]]
+name = "write"
+argv = ["${scoop}", "fmt", "cone", "独立.scoop", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+checks = [{actual = "${write.result.success}", equals = false}, {actual = "${write.result.files.length}", equals = 1}, {actual = "${write.result.files.0.path}", equals = "${work}/独立.scoop"}, {actual = "${write.result.counts.formatted}", equals = 1}, {file = "${work}/独立.scoop", equals = "fun independent() = 2\n"}, {file = "${work}/cone/src/source.scoop", same_as = "${fixture}/cone/src/source.scoop"}]

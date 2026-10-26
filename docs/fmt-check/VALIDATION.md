@@ -18,6 +18,12 @@
 - 7,546 份可成功解析的仓库源码通过非空白 token、完整位置归一化 AST、文档注释目标和幂等性检查；有意损坏的 UTF-8 或语法输入不属于格式库成功输入。
 - `cargo test -p scoop-parser -p scoop-analysis -p scoop-lsp` 全部通过，覆盖新增 CST 角色及其现有消费者。
 
+## 格式化 CLI
+
+- workspace 格式化／Clippy、27 项源码选择测试、公共 CLI 参数及文件写回测试通过；覆盖普通可执行权限、符号链接与第二次写回不改 mtime。有效非 UTF-8 文件名的写回用例在 Linux 验证，APFS 不接受该文件名。
+- fixture runner 的 Ruff 和公共规则测试通过；8 项格式化 fixture、15 次进程调用通过，覆盖所有平台的声明并集、重复选择、默认与显式输入、空集合、只检查、语法／UTF-8 错误聚合、整个 root 选择失败、目录循环、实际写入失败及退出码 2。
+- `cli-external-command`、`cli-run-process-contract` 共 21 次进程调用通过，覆盖命令结果分发、运行参数、退出码、信号及中断。
+
 ## 尚待验收
 
-格式化 CLI，以及两项命令完成后的 Linux 完整测试与文件 fixture 验收。原始日志和工作目录保存在仓库外，不提交逐次报告。
+Linux 完整 workspace 测试及 GNU／musl 文件 fixture 验收。原始日志和工作目录保存在仓库外，不提交逐次报告。
