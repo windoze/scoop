@@ -68,6 +68,7 @@ pub(super) fn check(
     for capability in ["RangeTo", "RangeUntil"] {
         expected.insert(format!("{capability}<Int, IntRange>"));
     }
+    expected.insert("Option<String>".to_owned());
     assert_eq!(applications, expected);
     let exact = plan
         .source_nominal_shapes()

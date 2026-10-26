@@ -54,7 +54,7 @@ fn repeated_open_equality_keeps_each_comparison_context() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/regressions/equality/derived-equality-origins/provider/src/main.scoop"
     ));
-    with_hir_source(source, |output, _| {
+    with_hir_source(source, |output, core| {
         let interface = public_interface(output);
         let mut foundation = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
         foundation
@@ -64,6 +64,14 @@ fn repeated_open_equality_keeps_each_comparison_context() {
             )
             .unwrap();
         let cone = output.output().export.cone;
+        let source_foundation = |provider| {
+            if provider == cone {
+                &foundation
+            } else {
+                assert_eq!(provider, scoop_identity::ConeIdentity::CORE);
+                core.source_foundation.as_ref()
+            }
+        };
         let mut sites = 0;
         for reference in interface.external_references().records() {
             let calls = reference
@@ -76,16 +84,18 @@ fn repeated_open_equality_keeps_each_comparison_context() {
                     .map(|site| (site.position(), site.origin()))
             });
             for (position, origin) in calls.chain(types) {
-                foundation
+                let provider = origin.evaluation().source().cone();
+                source_foundation(provider)
                     .validate_executable_evaluation_origin(
-                        cone,
+                        provider,
                         position.root,
                         origin.evaluation(),
                         &foundation,
                     )
                     .unwrap_or_else(|error| panic!("{position:?}: {error}"));
-                foundation
-                    .validate_definition_origin_location(cone, origin.definition())
+                let provider = origin.definition().source().cone();
+                source_foundation(provider)
+                    .validate_definition_origin_location(provider, origin.definition())
                     .unwrap();
                 sites += 1;
             }

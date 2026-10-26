@@ -41,8 +41,8 @@ fn actual_generic_library_emits_shared_odr_objects() {
     for (case, name, expected_bodies) in [
         ("standalone", "generic-machine-standalone", 1),
         ("control-flow", "generic-machine-control-flow", 4),
-        ("combined", "generic-machine-first", 7),
-        ("combined", "generic-machine-second", 7),
+        ("combined", "generic-machine-first", 11),
+        ("combined", "generic-machine-second", 11),
     ] {
         let coordinate = ConeCoordinate::new("dev.example", name, "0.1.0").unwrap();
         let root = sysroot.path().join(name);
@@ -176,8 +176,11 @@ fn actual_generic_library_emits_shared_odr_objects() {
         }
         let bytes = encode(lir.foundation()).unwrap();
         let decoded = decode_canonical::<scoop_lir::DecodedLirFoundation>(&bytes).unwrap();
-        let mut pending = PendingIdentityValidation::from_graph(identities);
+        let mut pending = PendingIdentityValidation::new();
         decoded.register_identities(&mut pending).unwrap();
+        pending
+            .register_external_graph_authorities(&identities)
+            .unwrap();
         decoded.resolve_identities(&mut pending).unwrap();
         let mut identities = pending.finish().unwrap();
         let validated = decoded

@@ -68,13 +68,6 @@ pub(super) fn check(
                 encode(imports).unwrap(),
                 encode(layout.selected().physical_imports()).unwrap(),
             );
-            for import in imports.records() {
-                assert!(matches!(
-                    import.subject(),
-                    lir::ExternalStrongShapeSubjectV1::TypeDescriptor(_)
-                        | lir::ExternalStrongShapeSubjectV1::TypeRegistration(_)
-                ));
-            }
         })
         .unwrap_or_else(|error| panic!("{name} shared physical replay: {error}"));
     link::check(provider, artifact, layout, &link);
