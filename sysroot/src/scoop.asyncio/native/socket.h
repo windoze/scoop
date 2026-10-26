@@ -2,7 +2,7 @@
 #define SCOOP_ASYNCIO_SOCKET_H
 
 #include "../../scoop.platform/native/socket_native.h"
-#include "loop.h"
+#include "uv_loop.h"
 
 typedef struct ScoopIoSocketName {
     struct ScoopSocketAddress address;

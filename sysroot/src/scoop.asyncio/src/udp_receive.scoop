@@ -3,41 +3,86 @@ package scoop.asyncio
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.Datagram
 
-private class ReceiveProgress { var count: Long = 0L }
+private class ReceiveProgress {
+    var count: Long = 0L
+}
 
-internal suspend fun receiveUdp(owner: OwnedEndpoint, buffer: NativeByteBuffer, count: Long): Datagram {
+internal suspend fun receiveUdp(
+    owner: OwnedEndpoint,
+    buffer: NativeByteBuffer,
+    count: Long
+): Datagram {
     val job = owner.loop.requireJob()
     val reservation = owner.reserve(false)
     try {
-        if (count <= 0L) throw IllegalArgumentException(Some("UDP receive requires positive capacity"))
-        @Unsafe { return receiveBorrowed(owner, buffer, count, job) }
-    } finally { reservation.dispose() }
+        if (count <= 0L)
+            throw IllegalArgumentException(Some("UDP receive requires positive capacity"))
+        @Unsafe
+        {
+            return receiveBorrowed(owner, buffer, count, job)
+        }
+    } finally {
+        reservation.dispose()
+    }
 }
 
 @Unsafe
-private suspend fun receiveBorrowed(owner: OwnedEndpoint, buffer: NativeByteBuffer, count: Long, job: Job): Datagram {
+private suspend fun receiveBorrowed(
+    owner: OwnedEndpoint,
+    buffer: NativeByteBuffer,
+    count: Long,
+    job: Job
+): Datagram {
     val borrowed = buffer.borrowWritable(count)
     val progress = ReceiveProgress()
     try {
-        return suspendCoroutine<Datagram> { continuation ->
-            val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
-                { _, id -> @Unsafe {
-                    return@LoopOperation nativeStatus(id, nativeUdpReceive(owner.pointer, id, borrowed.pointer(), borrowed.length))
-                } },
-                { _, id -> @Unsafe { nativeUdpReceiveCancel(owner.pointer, id) } },
-                { event, selected ->
-                    progress.count = resultProgress(event.result)
-                    when (completionFailure("UDP receive", event.result, selected)) {
-                        case Some(error) -> continuation.resumeWithException(error)
-                        case None -> when (event.result) {
-                            case Packet(value) -> continuation.resume(value)
-                            case _ -> continuation.resumeWithException(IllegalStateException(Some("receive returned no datagram")))
+        return suspendCoroutine<Datagram> {
+            continuation ->
+            val operation =
+                LoopOperation(
+                    owner.loop,
+                    owner.loop.nextOperation(),
+                    {
+                        _,
+                        id -> @Unsafe
+                        {
+                            return@LoopOperation nativeStatus(
+                                id,
+                                nativeUdpReceive(
+                                    owner.pointer,
+                                    id,
+                                    borrowed.pointer(),
+                                    borrowed.length
+                                )
+                            )
+                        }
+                    },
+                    {
+                        _,
+                        id -> @Unsafe
+                        {
+                            nativeUdpReceiveCancel(owner.pointer, id)
+                        }
+                    },
+                    {
+                        event, selected ->
+                        progress.count = resultProgress(event.result)
+                        when (completionFailure("UDP receive", event.result, selected)) {
+                            case Some(error) -> continuation.resumeWithException(error)
+                            case None -> when (event.result) {
+                                case Packet(value) -> continuation.resume(value)
+                                case _ -> continuation.resumeWithException(
+                                    IllegalStateException(Some("receive returned no datagram"))
+                                )
+                            }
                         }
                     }
-                })
+                )
             operation.subscribe(job)
             owner.attach(operation, false)
-            owner.loop.state.submit(operation)
+            owner.loop.submit(operation)
         }
-    } finally { borrowed.complete(progress.count) }
+    } finally {
+        borrowed.complete(progress.count)
+    }
 }

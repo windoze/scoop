@@ -10,9 +10,9 @@ import scoop.platform.fs.*
  * A single-use libuv event loop. Run it from outside a Job and outside another event loop; I/O
  * requires an active job in this loop's context.
  */
-public class LibuvEventLoop public constructor() : EventLoop {
+public class LibuvEventLoop public constructor(): EventLoop {
     private val accepted: AtomicBoolean = AtomicBoolean(false)
-    internal val state: LoopState = LoopState()
+    internal val state: LoopOwner = LoopOwner()
 
     /**
      * Runs the root structured scope and drives its operations to completion. The loop is
@@ -23,9 +23,11 @@ public class LibuvEventLoop public constructor() : EventLoop {
             case Some(_) -> throw IllegalStateException(Some("run requires a caller outside a Job"))
             case None -> {}
         }
-        if (hasEventLoop()) throw IllegalStateException(Some("nested event loop run"))
-        if (!accepted.compareAndSet(false, true)) throw IllegalStateException(Some("event loop already used"))
-        val native = state.open()
+        if (hasEventLoop())
+            throw IllegalStateException(Some("nested event loop run"))
+        if (!accepted.compareAndSet(false, true))
+            throw IllegalStateException(Some("event loop already used"))
+        val native = state.open(this)
         val loop: EventLoop = this
         context(loop) {
             startCoroutine<Unit>(suspend { coroutineScope<Unit>(block) }, LoopCompletion(state))
@@ -33,113 +35,116 @@ public class LibuvEventLoop public constructor() : EventLoop {
         state.drive(native)
     }
 
-    internal fun requireJob(cancellable: Boolean = true): Job {
-        if (!hasEventLoop() || currentEventLoop() !== this) throw IllegalStateException(Some("wrong event loop"))
-        val job = currentJobOrNone() ?: throw IllegalStateException(Some("I/O requires a Job"))
-        if (job.isCompleted) throw IllegalStateException(Some("I/O requires an active Job"))
-        if (cancellable) job.ensureActive()
-        return job
-    }
-
     /**
      * Suspends for a nonnegative duration and follows current-job cancellation.
      */
     public override suspend fun sleep(duration: Duration) {
-        val job = requireJob()
-        if (duration.floorSeconds < 0L) throw IllegalArgumentException(Some("negative sleep duration"))
-        if (duration == Duration.ZERO) return
-        suspendCoroutine<Unit> { continuation ->
-            val operation = LoopOperation(state, state.nextOperation(),
-                { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTimerStart(native, id, duration.floorSeconds, duration.nanosecondsOfSecond)) } },
-                { native, id -> @Unsafe { nativeTimerCancel(native, id) } },
-                { event, cancelled ->
-                    when (completionFailure("sleep", event.result, cancelled)) {
-                        case Some(error) -> continuation.resumeWithException(error)
-                        case None -> continuation.resume(Unit)
-                    }
-                })
-            operation.subscribe(job)
-            state.submit(operation)
-        }
+        sleepOnLoop(state, duration)
     }
 
     /**
      * Resolves the host and port, optionally restricted to one address family.
      */
-    public override suspend fun resolve(host: OsString, port: Int, family: AddressFamily?): Array<SocketAddress> =
-        resolveOnLoop(this, host, port, family)
+    public override suspend fun resolve(host: OsString, port: Int, family: AddressFamily?): Array<
+        SocketAddress
+    > = resolveOnLoop(state, host, port, family)
 
     /**
      * Runs a single-use native payload on a worker and waits for completion before releasing its
      * active borrow.
      */
-    @Unsafe public override suspend fun runNativeWork(work: NativeWork) { runNativeWorkOnLoop(this, work) }
+    @Unsafe
+    public override suspend fun runNativeWork(work: NativeWork) {
+        runNativeWorkOnLoop(state, work)
+    }
 
     /**
      * Opens an owned asynchronous file using explicit access, creation, and truncation options.
      */
     public override suspend fun openFile(path: Path, options: OpenOptions): AsyncFile =
-        openFileOnLoop(this, path, options)
+        openFileOnLoop(state, path, options)
     /**
      * Opens an owned asynchronous terminal handle.
      */
-    public override suspend fun openTty(): AsyncTty = openTtyOnLoop(this)
+    public override suspend fun openTty(): AsyncTty = openTtyOnLoop(state)
 
     /**
      * Queries filesystem metadata, optionally following symbolic links.
      */
     public override suspend fun metadata(path: Path, followLinks: Boolean): FileMetadata =
-        metadataOnLoop(this, path, followLinks)
+        metadataOnLoop(state, path, followLinks)
 
     /**
      * Moves a filesystem entry, replacing the destination only when requested.
      */
-    public override suspend fun moveFile(source: Path, destination: Path, replaceExisting: Boolean) {
-        moveFileOnLoop(this, source, destination, replaceExisting)
+    public override suspend fun moveFile(
+        source: Path,
+        destination: Path,
+        replaceExisting: Boolean
+    ) {
+        moveFileOnLoop(state, source, destination, replaceExisting)
     }
     /**
      * Deletes the selected filesystem entry.
      */
-    public override suspend fun deleteFile(path: Path) { deleteFileOnLoop(this, path) }
+    public override suspend fun deleteFile(path: Path) {
+        deleteFileOnLoop(state, path)
+    }
     /**
      * Creates missing parent directories with the requested mode, subject to the process umask.
      */
-    public override suspend fun createDirectories(path: Path, mode: Int) { createDirectoriesOnLoop(this, path, mode) }
+    public override suspend fun createDirectories(path: Path, mode: Int) {
+        createDirectoriesOnLoop(state, path, mode)
+    }
     /**
      * Creates a unique temporary file and returns both its path and open handle.
      */
     public override suspend fun createTempFile(parent: Path?, prefix: String): TemporaryFile =
-        createTemporaryFileOnLoop(this, parent, prefix)
+        createTemporaryFileOnLoop(state, parent, prefix)
     /**
      * Opens an owned directory enumeration cursor.
      */
-    public override suspend fun openDirectory(path: Path): AsyncDirectoryEntries = openDirectoryOnLoop(this, path)
+    public override suspend fun openDirectory(path: Path): AsyncDirectoryEntries =
+        openDirectoryOnLoop(state, path)
 
     /**
      * Connects to an IP endpoint, or resolves and races candidates using the supplied host
      * connection options. The returned stream has independent ownership.
      */
-    public override suspend fun connectTcp(address: SocketAddress): AsyncTcpStream = connectTcpOnLoop(this, address)
+    public override suspend fun connectTcp(address: SocketAddress): AsyncTcpStream =
+        connectTcpOnLoop(state, address)
     /**
      * Connects to an IP endpoint, or resolves and races candidates using the supplied host
      * connection options. The returned stream has independent ownership.
      */
-    public override suspend fun connectTcp(host: OsString, port: Int, options: TcpConnectOptions): AsyncTcpStream =
-        connectTcpHostOnLoop(this, host, port, options)
+    public override suspend fun connectTcp(
+        host: OsString,
+        port: Int,
+        options: TcpConnectOptions
+    ): AsyncTcpStream = connectTcpHostOnLoop(state, host, port, options)
     /**
      * Binds and listens for TCP connections with the requested backlog and address-reuse setting.
      */
-    public override suspend fun listenTcp(address: SocketAddress, backlog: Int, reuseAddress: Boolean): AsyncTcpListener =
-        listenTcpOnLoop(this, address, backlog, reuseAddress)
+    public override suspend fun listenTcp(
+        address: SocketAddress,
+        backlog: Int,
+        reuseAddress: Boolean
+    ): AsyncTcpListener = listenTcpOnLoop(state, address, backlog, reuseAddress)
 
     /**
      * Binds an owned UDP socket, optionally enabling address reuse.
      */
-    public override suspend fun bindUdp(address: SocketAddress, reuseAddress: Boolean): AsyncUdpSocket =
-        bindUdpOnLoop(this, address, reuseAddress)
+    public override suspend fun bindUdp(
+        address: SocketAddress,
+        reuseAddress: Boolean
+    ): AsyncUdpSocket = bindUdpOnLoop(state, address, reuseAddress)
 }
 
-private class LoopCompletion(val state: LoopState) : Continuation<Unit> {
-    public override fun resume(value: Unit) { state.finishRoot(None) }
-    public override fun resumeWithException(exception: Throwable) { state.finishRoot(Some(exception)) }
+private class LoopCompletion(val state: LoopOwner): Continuation<Unit> {
+    public override fun resume(value: Unit) {
+        state.finishRoot(None)
+    }
+    public override fun resumeWithException(exception: Throwable) {
+        state.finishRoot(Some(exception))
+    }
 }

@@ -1,5 +1,5 @@
 /* Test-only gates occupy actual libuv worker slots; production I/O is unchanged. */
-#include "../../native/loop.h"
+#include "../../native/uv_loop.h"
 #include <pthread.h>
 
 typedef struct {

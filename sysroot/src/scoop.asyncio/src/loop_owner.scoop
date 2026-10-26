@@ -1,0 +1,239 @@
+package scoop.asyncio
+
+import scoop.collections.HashMap
+
+internal class LoopOwner {
+    private val lock: IoLock = IoLock()
+    private var binding: EventLoop? = None
+    private var pumping: Boolean = false
+    private var pumpAgain: Boolean = false
+    private var pointer: Ptr<Unit>? = None
+    private var commands: ArrayList<() -> Unit> = ArrayList<() -> Unit>()
+    private var nextId: Long = 1L
+    private var rootEnded: Boolean = false
+    private var failure: Throwable? = None
+    private val operations: HashMap<Long, LoopOperation> = HashMap<Long, LoopOperation>()
+    private val resources: ArrayList<LoopResource> = ArrayList<LoopResource>()
+    private var cleaning: Boolean = false
+    var ready: ArrayList<() -> Unit> = ArrayList<() -> Unit>()
+
+    fun open(loop: EventLoop): Ptr<Unit> {
+        @Unsafe
+        {
+            val created = nativeLoopCreate()
+            if (created.status < 0)
+                throw uvFailure("create event loop", created.status)
+            lock.withLock {
+                binding = Some(loop);
+                pointer = created.pointer
+            }
+            return created.pointer!!
+        }
+    }
+
+    fun requireJob(cancellable: Boolean = true): Job {
+        val expected =
+            lock.withLock { binding } ?:
+                throw IllegalStateException(Some("event loop is not running"))
+        if (!hasEventLoop() || currentEventLoop() !== expected)
+            throw IllegalStateException(Some("wrong event loop"))
+        val job = currentJobOrNone() ?: throw IllegalStateException(Some("I/O requires a Job"))
+        if (job.isCompleted)
+            throw IllegalStateException(Some("I/O requires an active Job"))
+        if (cancellable)
+            job.ensureActive()
+        return job
+    }
+
+    fun post(command: () -> Unit) {
+        lock.withLock {
+            when (pointer) {
+                case Some(native) -> {
+                    commands.add(command)
+                    @Unsafe
+                    {
+                        nativeLoopWake(native)
+                    }
+                }
+                case None -> {}
+            }
+        }
+    }
+
+    fun nextOperation(): Long =
+        lock.withLock {
+            if (pointer == None)
+                throw IllegalStateException(Some("event loop is not running"))
+            if (nextId == Long.MAX_VALUE)
+                throw ArithmeticException()
+            val id = nextId
+            nextId += 1L
+            id
+        }
+
+    fun submit(operation: LoopOperation) {
+        post {
+            operations.put(operation.id, operation)
+            operation.begin(pointer!!)
+        }
+    }
+
+    fun cancel(id: Long) {
+        when (operations[id]) {
+            case Some(operation) -> operation.cancelNative(pointer!!)
+            case None -> {}
+        }
+    }
+
+    fun complete(event: NativeEvent) {
+        val operation = operations.remove(event.id)!!
+        operation.complete(event)
+    }
+
+    fun retain(resource: LoopResource) {
+        resources.add(resource)
+        if (cleaning)
+            resource.closeFromLoop()
+    }
+
+    fun forget(resource: LoopResource) {
+        var index = 0L
+        while (index < resources.size) {
+            if (resources[index] === resource) {
+                resources.removeAt(index);
+                return
+            }
+            index += 1L
+        }
+    }
+
+    fun cleanupFailed(error: Throwable) {
+        failure =
+            Some(
+                when (failure) {
+                    case Some(primary) -> ResourceUseException(primary, error)
+                    case None -> error
+                }
+            )
+    }
+
+    private fun startCleanup() {
+        if (cleaning || !lock.withLock { rootEnded })
+            return
+        cleaning = true
+        val owned = Array<LoopResource>(resources.size) { index -> resources[index] }
+        for (resource in owned)
+            resource.closeFromLoop()
+    }
+
+    fun finishRoot(error: Throwable?) {
+        lock.withLock {
+            failure = error
+            rootEnded = true
+            when (pointer) {
+                case Some(native) -> @Unsafe
+                {
+                    nativeLoopWake(native)
+                };
+                case None -> {}
+            }
+        }
+    }
+
+    private fun takeCommands(): ArrayList<() -> Unit> =
+        lock.withLock {
+            val batch = commands
+            commands = ArrayList<() -> Unit>()
+            batch
+        }
+
+    // A turn processes finite snapshots. Work produced by a resumed continuation
+    // belongs to the next turn, so a host can service its own events in between.
+    fun pump(native: Ptr<Unit>) {
+        if (pumping) {
+            pumpAgain = true;
+            return
+        }
+        pumping = true
+        try {
+            val pending = takeCommands()
+            @Unsafe
+            {
+                nativeLoopPoll(native, false)
+            }
+            var completions = 0L
+            @Unsafe
+            {
+                completions = nativeLoopBatchSize(native)
+            }
+            for (command in pending)
+                command()
+            var index = 0L
+            while (index < completions) {
+                @Unsafe
+                {
+                    complete(decodeEvent(nativeLoopNext(native)))
+                }
+                index += 1L
+            }
+            startCleanup()
+            val batch = ready
+            ready = ArrayList<() -> Unit>()
+            for (resume in batch)
+                resume()
+            startCleanup()
+        } finally {
+            pumping = false
+            if (pumpAgain) {
+                pumpAgain = false
+                @Unsafe
+                {
+                    nativeLoopWake(native)
+                }
+            }
+        }
+    }
+
+    fun drive(native: Ptr<Unit>) {
+        while (true) {
+            pump(native)
+            val stopped =
+                lock.withLock {
+                    if (
+                        !rootEnded ||
+                            commands.size !=
+                            0L ||
+                            ready.size !=
+                            0L ||
+                            operations.size !=
+                            0L ||
+                            resources.size !=
+                            0L
+                    )
+                        false
+                    else {
+                        pointer = None;
+                        true
+                    }
+                }
+            if (stopped)
+                break
+            val wait = lock.withLock { commands.size == 0L && ready.size == 0L }
+            if (wait)
+                @Unsafe
+                {
+                    nativeLoopPoll(native, true)
+                }
+        }
+        @Unsafe
+        {
+            val status = nativeLoopDestroy(native)
+            if (status < 0)
+                cleanupFailed(uvFailure("close event loop", status))
+        }
+        when (failure) {
+            case Some(error) -> throw error;
+            case None -> {}
+        }
+    }
+}

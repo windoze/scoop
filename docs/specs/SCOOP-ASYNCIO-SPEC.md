@@ -38,6 +38,8 @@ public fun currentEventLoop(): EventLoop
 
 每次用户 I/O 要求当前 Job 和所属 loop 的活动 binding；显式调用其他 loop 或已结束资源报状态错误。资源固定归属创建它的 loop。close 允许在已取消 Job 中进行，且关闭后再次 close 是空操作。`currentEventLoop` 缺少 binding 时抛 MissingContextException。
 
+资源与操作由共享 `LoopOwner` 持有，不依赖具体 EventLoop 类。一次非阻塞处理只消费进入该轮时取得的命令和 native 完成快照，再恢复本轮 ready；恢复期间产生的命令和 ready 留到下一轮，嵌套处理不递归进入。同步驱动反复调用同一流程，只有无可执行工作时才等待。过渡 libuv 适配遵守同一边界。
+
 实际 native 操作仅在 run 所属线程执行。外线程提交和取消先进入受锁保护的命令队列，在同一锁内完成 uv_async_send；关闭在同一边界停止接受投递。驱动交替处理命令、NativeSafe uv_run、完成记录与一批 managed 恢复，内部锁外恢复 continuation；有待处理工作时不得阻塞。IO 挂起的恢复由所属 loop 投递；第三方挂起点仍可在其他线程恢复。uv_async 通知可合并，队列承担完整性。
 
 ## 3. 取消、完成与关闭

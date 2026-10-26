@@ -6,7 +6,7 @@ import scoop.platform.net.*
 /**
  * An owned datagram socket preserving message boundaries; each receive describes one datagram.
  */
-public interface AsyncUdpSocket : AsyncCloseable {
+public interface AsyncUdpSocket: AsyncCloseable {
     /**
      * The actual bound UDP endpoint.
      */
@@ -14,7 +14,11 @@ public interface AsyncUdpSocket : AsyncCloseable {
     /**
      * Sends one datagram from count readable buffer bytes to the destination.
      */
-    public suspend fun sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long): Long
+    public suspend fun sendTo(
+        buffer: NativeByteBuffer,
+        destination: SocketAddress,
+        count: Long
+    ): Long
     /**
      * Receives one datagram into at most count writable bytes and reports its source and
      * truncation status.
@@ -22,25 +26,59 @@ public interface AsyncUdpSocket : AsyncCloseable {
     public suspend fun receiveFrom(buffer: NativeByteBuffer, count: Long): Datagram
 }
 
-internal class UdpSocket(private val owner: OwnedEndpoint,
-    public override val localAddress: SocketAddress) : AsyncUdpSocket {
-    public override suspend fun sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long): Long =
-        sendUdp(owner, buffer, destination, count)
+internal class UdpSocket(
+    private val owner: OwnedEndpoint,
+    public override val localAddress: SocketAddress
+): AsyncUdpSocket {
+    public override suspend fun sendTo(
+        buffer: NativeByteBuffer,
+        destination: SocketAddress,
+        count: Long
+    ): Long = sendUdp(owner, buffer, destination, count)
     public override suspend fun receiveFrom(buffer: NativeByteBuffer, count: Long): Datagram =
         receiveUdp(owner, buffer, count)
-    public override suspend fun close() { owner.close() }
+    public override suspend fun close() {
+        owner.close()
+    }
 }
 
-internal suspend fun bindUdpOnLoop(loop: LibuvEventLoop, address: SocketAddress, reuse: Boolean): AsyncUdpSocket {
+internal suspend fun bindUdpOnLoop(
+    loop: LoopOwner,
+    address: SocketAddress,
+    reuse: Boolean
+): AsyncUdpSocket {
     val job = loop.requireJob()
     val target = ioAddress(address)
-    return suspendCoroutine<AsyncUdpSocket> { continuation ->
-        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-            { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeUdpBind(native, id, target, reuse)) } },
-            { _, _ -> },
-            { event, selected -> finishEndpointCreation<AsyncUdpSocket>(loop, EndpointKind.Udp, event.result, selected,
-                continuation, { owner -> UdpSocket(owner, udpAddress(owner.pointer)) }) })
+    return suspendCoroutine<AsyncUdpSocket> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation nativeStatus(
+                            id,
+                            nativeUdpBind(native, id, target, reuse)
+                        )
+                    }
+                },
+                { _, _ -> },
+                {
+                    event,
+                    selected -> finishEndpointCreation<AsyncUdpSocket>(
+                        loop,
+                        EndpointKind.Udp,
+                        event.result,
+                        selected,
+                        continuation,
+                        { owner -> UdpSocket(owner, udpAddress(owner.pointer)) }
+                    )
+                }
+            )
         operation.subscribe(job)
-        loop.state.submit(operation)
+        loop.submit(operation)
     }
 }

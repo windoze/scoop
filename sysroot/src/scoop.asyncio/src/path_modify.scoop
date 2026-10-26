@@ -3,67 +3,139 @@ package scoop.asyncio
 import scoop.platform.fs.*
 import scoop.platform.system.OsString
 
-internal suspend fun moveFileOnLoop(loop: LibuvEventLoop, source: Path, destination: Path, replace: Boolean) {
-    pathModification(loop, "move", destination.toOsString(), { native, id ->
-        @Unsafe {
-            return@pathModification source.withNativePath { from -> @Unsafe {
-                return@withNativePath destination.withNativePath { to -> @Unsafe {
-                    return@withNativePath nativePathMove(native, id, from, to, replace)
-                } }
-            } }
+internal suspend fun moveFileOnLoop(
+    loop: LoopOwner,
+    source: Path,
+    destination: Path,
+    replace: Boolean
+) {
+    pathModification(
+        loop,
+        "move",
+        destination.toOsString(),
+        {
+            native,
+            id -> @Unsafe
+            {
+                return@pathModification source.withNativePath {
+                    from -> @Unsafe
+                    {
+                        return@withNativePath destination.withNativePath {
+                            to -> @Unsafe
+                            {
+                                return@withNativePath nativePathMove(native, id, from, to, replace)
+                            }
+                        }
+                    }
+                }
+            }
         }
-    })
+    )
 }
 
-internal suspend fun deleteFileOnLoop(loop: LibuvEventLoop, path: Path) {
-    pathModification(loop, "delete", path.toOsString(), { native, id ->
-        deletePathNative(path, native, id)
-    })
+internal suspend fun deleteFileOnLoop(loop: LoopOwner, path: Path) {
+    pathModification(
+        loop,
+        "delete",
+        path.toOsString(),
+        { native, id -> deletePathNative(path, native, id) }
+    )
 }
 
-internal fun deleteFileForCleanup(loop: LibuvEventLoop, path: Path, complete: (Throwable?) -> Unit) {
-    val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-        { native, id -> nativeStatus(id, deletePathNative(path, native, id)) },
-        { _, _ -> },
-        { event, selected -> complete(completionFailure("delete", event.result, selected, Some(path.toOsString()))) })
-    loop.state.submit(operation)
+internal fun deleteFileForCleanup(loop: LoopOwner, path: Path, complete: (Throwable?) -> Unit) {
+    val operation =
+        LoopOperation(
+            loop,
+            loop.nextOperation(),
+            { native, id -> nativeStatus(id, deletePathNative(path, native, id)) },
+            { _, _ -> },
+            {
+                event,
+                selected -> complete(
+                    completionFailure("delete", event.result, selected, Some(path.toOsString()))
+                )
+            }
+        )
+    loop.submit(operation)
 }
 
 private fun deletePathNative(path: Path, native: Ptr<Unit>, id: Long): Int {
-    @Unsafe {
-        return path.withNativePath { name -> @Unsafe {
-            return@withNativePath nativePathDelete(native, id, name)
-        } }
+    @Unsafe
+    {
+        return path.withNativePath {
+            name -> @Unsafe
+            {
+                return@withNativePath nativePathDelete(native, id, name)
+            }
+        }
     }
 }
 
-internal suspend fun createDirectoryOnLoop(loop: LibuvEventLoop, path: Path, mode: Int) {
-    pathModification(loop, "create directory", path.toOsString(), { native, id ->
-        @Unsafe {
-            return@pathModification path.withNativePath { name -> @Unsafe {
-                return@withNativePath nativePathMkdir(native, id, name, mode)
-            } }
+internal suspend fun createDirectoryOnLoop(loop: LoopOwner, path: Path, mode: Int) {
+    pathModification(
+        loop,
+        "create directory",
+        path.toOsString(),
+        {
+            native,
+            id -> @Unsafe
+            {
+                return@pathModification path.withNativePath {
+                    name -> @Unsafe
+                    {
+                        return@withNativePath nativePathMkdir(native, id, name, mode)
+                    }
+                }
+            }
         }
-    })
+    )
 }
 
-private suspend fun pathModification(loop: LibuvEventLoop, name: String, context: OsString,
-    start: (Ptr<Unit>, Long) -> Int) {
+private suspend fun pathModification(
+    loop: LoopOwner,
+    name: String,
+    context: OsString,
+    start: (Ptr<Unit>, Long) -> Int
+) {
     val job = loop.requireJob()
-    suspendCoroutine<Unit> { continuation ->
-        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-            { native, id -> nativeStatus(id, start(native, id)) },
-            { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
-            { event, selected -> finishUnit(continuation,
-                completionFailure(name, event.result, selected, Some(context))) })
+    suspendCoroutine<Unit> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                { native, id -> nativeStatus(id, start(native, id)) },
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        nativeWorkCancel(native, id)
+                    }
+                },
+                {
+                    event,
+                    selected -> finishUnit(
+                        continuation,
+                        completionFailure(name, event.result, selected, Some(context))
+                    )
+                }
+            )
         operation.subscribe(job)
-        loop.state.submit(operation)
+        loop.submit(operation)
     }
 }
 
 @Extern(name = "scoop_io_path_move")
-private fun nativePathMove(loop: Ptr<Unit>, id: Long, source: Ptr<Byte>, destination: Ptr<Byte>, replace: Boolean): Int
+private fun nativePathMove(
+    loop: Ptr<Unit>,
+    id: Long,
+    source: Ptr<Byte>,
+    destination: Ptr<Byte>,
+    replace: Boolean
+): Int
+
 @Extern(name = "scoop_io_path_delete")
 private fun nativePathDelete(loop: Ptr<Unit>, id: Long, path: Ptr<Byte>): Int
+
 @Extern(name = "scoop_io_path_mkdir")
 private fun nativePathMkdir(loop: Ptr<Unit>, id: Long, path: Ptr<Byte>, mode: Int): Int

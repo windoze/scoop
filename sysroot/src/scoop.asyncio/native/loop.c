@@ -1,5 +1,5 @@
-#include "loop.h"
 #include "sigpipe.h"
+#include "uv_loop.h"
 
 static void wake_callback(uv_async_t *handle) { (void)handle; }
 
@@ -41,13 +41,17 @@ void scoop_io_complete(ScoopIoLoop *loop, ScoopIoCompletion *completion, int sta
     else
         loop->head = completion;
     loop->tail = completion;
+    loop->completions++;
 }
+
+int64_t scoop_io_loop_batch_size(ScoopIoLoop *loop) { return loop->completions; }
 
 ScoopIoEvent scoop_io_loop_next(ScoopIoLoop *loop) {
     ScoopIoCompletion *entry = loop->head;
     if (!entry)
         return (ScoopIoEvent){0};
     loop->head = entry->next;
+    loop->completions--;
     if (!loop->head)
         loop->tail = NULL;
     ScoopIoEvent event = entry->event;

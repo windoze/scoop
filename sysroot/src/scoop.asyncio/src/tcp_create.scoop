@@ -2,31 +2,98 @@ package scoop.asyncio
 
 import scoop.platform.net.SocketAddress
 
-internal suspend fun connectTcpOnLoop(loop: LibuvEventLoop, address: SocketAddress): AsyncTcpStream {
+internal suspend fun connectTcpOnLoop(loop: LoopOwner, address: SocketAddress): AsyncTcpStream {
     val job = loop.requireJob()
     val target = ioAddress(address)
-    return suspendCoroutine<AsyncTcpStream> { continuation ->
-        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-            { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTcpConnect(native, id, target)) } },
-            { native, id -> @Unsafe { nativeTcpConnectCancel(native, id) } },
-            { event, selected -> finishEndpointCreation<AsyncTcpStream>(loop, EndpointKind.Tcp, event.result, selected, continuation,
-                { owner -> TcpStream(owner, tcpAddress(owner.pointer, false), tcpAddress(owner.pointer, true)) }) })
+    return suspendCoroutine<AsyncTcpStream> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation nativeStatus(id, nativeTcpConnect(native, id, target))
+                    }
+                },
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        nativeTcpConnectCancel(native, id)
+                    }
+                },
+                {
+                    event,
+                    selected -> finishEndpointCreation<AsyncTcpStream>(
+                        loop,
+                        EndpointKind.Tcp,
+                        event.result,
+                        selected,
+                        continuation,
+                        {
+                            owner -> TcpStream(
+                                owner,
+                                tcpAddress(owner.pointer, false),
+                                tcpAddress(owner.pointer, true)
+                            )
+                        }
+                    )
+                }
+            )
         operation.subscribe(job)
-        loop.state.submit(operation)
+        loop.submit(operation)
     }
 }
 
-internal suspend fun listenTcpOnLoop(loop: LibuvEventLoop, address: SocketAddress, backlog: Int, reuse: Boolean): AsyncTcpListener {
+internal suspend fun listenTcpOnLoop(
+    loop: LoopOwner,
+    address: SocketAddress,
+    backlog: Int,
+    reuse: Boolean
+): AsyncTcpListener {
     val job = loop.requireJob()
-    if (backlog <= 0) throw IllegalArgumentException(Some("backlog must be positive"))
+    if (backlog <= 0)
+        throw IllegalArgumentException(Some("backlog must be positive"))
     val target = ioAddress(address)
-    return suspendCoroutine<AsyncTcpListener> { continuation ->
-        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-            { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTcpListen(native, id, target, backlog, reuse)) } },
-            { native, id -> @Unsafe { nativeTcpConnectCancel(native, id) } },
-            { event, selected -> finishEndpointCreation<AsyncTcpListener>(loop, EndpointKind.Tcp, event.result, selected, continuation,
-                { owner -> TcpListener(owner, tcpAddress(owner.pointer, false)) }) })
+    return suspendCoroutine<AsyncTcpListener> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation nativeStatus(
+                            id,
+                            nativeTcpListen(native, id, target, backlog, reuse)
+                        )
+                    }
+                },
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        nativeTcpConnectCancel(native, id)
+                    }
+                },
+                {
+                    event,
+                    selected -> finishEndpointCreation<AsyncTcpListener>(
+                        loop,
+                        EndpointKind.Tcp,
+                        event.result,
+                        selected,
+                        continuation,
+                        { owner -> TcpListener(owner, tcpAddress(owner.pointer, false)) }
+                    )
+                }
+            )
         operation.subscribe(job)
-        loop.state.submit(operation)
+        loop.submit(operation)
     }
 }

@@ -1,4 +1,4 @@
-#include "loop.h"
+#include "uv_loop.h"
 
 struct ScoopIoTimer {
     /* The completion is first so the queue can release the finished allocation.

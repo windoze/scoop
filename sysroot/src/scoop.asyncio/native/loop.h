@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <uv.h>
 
 typedef struct ScoopIoEvent {
     int64_t id;
@@ -39,19 +38,7 @@ typedef struct ScoopIoCompletion {
     struct ScoopIoCompletion *next;
 } ScoopIoCompletion;
 
-typedef struct ScoopIoTimer ScoopIoTimer;
-typedef struct ScoopIoConnect ScoopIoConnect;
-typedef struct ScoopIoWork ScoopIoWork;
-
-typedef struct ScoopIoLoop {
-    uv_loop_t uv;
-    uv_async_t wake;
-    ScoopIoCompletion *head;
-    ScoopIoCompletion *tail;
-    ScoopIoTimer *timers;
-    ScoopIoConnect *connections;
-    ScoopIoWork *work;
-} ScoopIoLoop;
+typedef struct ScoopIoLoop ScoopIoLoop;
 
 typedef struct ScoopIoCreated {
     void *pointer;
@@ -62,6 +49,7 @@ void scoop_io_complete(ScoopIoLoop *loop, ScoopIoCompletion *completion, int sta
 ScoopIoCreated scoop_io_loop_create(void);
 void scoop_io_loop_wake(ScoopIoLoop *loop);
 void scoop_io_loop_poll(ScoopIoLoop *loop, bool wait);
+int64_t scoop_io_loop_batch_size(ScoopIoLoop *loop);
 ScoopIoEvent scoop_io_loop_next(ScoopIoLoop *loop);
 int scoop_io_loop_destroy(ScoopIoLoop *loop);
 int scoop_io_timer_start(ScoopIoLoop *loop, int64_t id, int64_t seconds, int nanos);

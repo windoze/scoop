@@ -1,7 +1,7 @@
 #ifndef SCOOP_ASYNCIO_WORK_H
 #define SCOOP_ASYNCIO_WORK_H
 
-#include "loop.h"
+#include "uv_loop.h"
 
 struct ScoopIoWork {
     ScoopIoCompletion completion;

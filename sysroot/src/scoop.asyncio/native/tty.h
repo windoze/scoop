@@ -2,7 +2,7 @@
 #define SCOOP_ASYNCIO_TTY_H
 
 #include "../../scoop.platform/native/tty/terminal.h"
-#include "loop.h"
+#include "uv_loop.h"
 
 typedef struct ScoopIoTtyRequest {
     ScoopIoCompletion completion;

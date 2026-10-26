@@ -5,7 +5,7 @@ import scoop.platform.net.SocketAddress
 /**
  * An owned TCP listening socket associated with one event loop.
  */
-public interface AsyncTcpListener : AsyncCloseable {
+public interface AsyncTcpListener: AsyncCloseable {
     /**
      * The actual bound address, including a kernel-selected ephemeral port.
      */
@@ -16,23 +16,65 @@ public interface AsyncTcpListener : AsyncCloseable {
     public suspend fun accept(): AsyncTcpStream
 }
 
-internal class TcpListener(private val owner: OwnedEndpoint, public override val localAddress: SocketAddress) : AsyncTcpListener {
+internal class TcpListener(
+    private val owner: OwnedEndpoint,
+    public override val localAddress: SocketAddress
+): AsyncTcpListener {
     public override suspend fun accept(): AsyncTcpStream {
         val job = owner.loop.requireJob()
         val reservation = owner.reserve(false)
         try {
-            return suspendCoroutine<AsyncTcpStream> { continuation ->
-                val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
-                    { _, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTcpAccept(owner.pointer, id)) } },
-                    { _, id -> @Unsafe { nativeTcpAcceptCancel(owner.pointer, id) } },
-                    { event, selected -> finishEndpointCreation<AsyncTcpStream>(owner.loop, EndpointKind.Tcp, event.result, selected, continuation,
-                        { accepted -> TcpStream(accepted, tcpAddress(accepted.pointer, false), tcpAddress(accepted.pointer, true)) }) })
+            return suspendCoroutine<AsyncTcpStream> {
+                continuation ->
+                val operation =
+                    LoopOperation(
+                        owner.loop,
+                        owner.loop.nextOperation(),
+                        {
+                            _,
+                            id -> @Unsafe
+                            {
+                                return@LoopOperation nativeStatus(
+                                    id,
+                                    nativeTcpAccept(owner.pointer, id)
+                                )
+                            }
+                        },
+                        {
+                            _,
+                            id -> @Unsafe
+                            {
+                                nativeTcpAcceptCancel(owner.pointer, id)
+                            }
+                        },
+                        {
+                            event,
+                            selected -> finishEndpointCreation<AsyncTcpStream>(
+                                owner.loop,
+                                EndpointKind.Tcp,
+                                event.result,
+                                selected,
+                                continuation,
+                                {
+                                    accepted -> TcpStream(
+                                        accepted,
+                                        tcpAddress(accepted.pointer, false),
+                                        tcpAddress(accepted.pointer, true)
+                                    )
+                                }
+                            )
+                        }
+                    )
                 operation.subscribe(job)
                 owner.attach(operation, false)
-                owner.loop.state.submit(operation)
+                owner.loop.submit(operation)
             }
-        } finally { reservation.dispose() }
+        } finally {
+            reservation.dispose()
+        }
     }
 
-    public override suspend fun close() { owner.close() }
+    public override suspend fun close() {
+        owner.close()
+    }
 }

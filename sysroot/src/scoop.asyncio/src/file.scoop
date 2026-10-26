@@ -9,7 +9,7 @@ import scoop.platform.system.*
  * An owned asynchronous file with a shared logical position, explicit seek, truncation, and
  * durability operations.
  */
-public interface AsyncFile : AsyncByteSource, AsyncByteSink, AsyncCloseable {
+public interface AsyncFile: AsyncByteSource, AsyncByteSink, AsyncCloseable {
     /**
      * Obtains metadata for the open file.
      */
@@ -40,55 +40,94 @@ public interface AsyncFile : AsyncByteSource, AsyncByteSink, AsyncCloseable {
     public suspend fun syncAll()
 }
 
-internal class WorkerFile(private val owner: OwnedFile) : AsyncFile {
+internal class WorkerFile(private val owner: OwnedFile): AsyncFile {
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
         transferFile(owner, buffer, count, false)
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
         transferFile(owner, buffer, count, true)
-    public override suspend fun close() { owner.close() }
-    public override suspend fun flush() { owner.loop.requireJob(); owner.reserve().dispose() }
+    public override suspend fun close() {
+        owner.close()
+    }
+    public override suspend fun flush() {
+        owner.loop.requireJob();
+        owner.reserve().dispose()
+    }
     public override suspend fun metadata(): FileMetadata = fileMetadata(owner)
     public override suspend fun size(): Long = metadata().size
     public override suspend fun position(): Long = filePosition(owner, 0L, true)
-    public override suspend fun seek(position: Long) { filePosition(owner, position, false) }
-    public override suspend fun truncate(size: Long) { truncateFile(owner, size) }
-    public override suspend fun syncData() { syncFile(owner, true) }
-    public override suspend fun syncAll() { syncFile(owner, false) }
+    public override suspend fun seek(position: Long) {
+        filePosition(owner, position, false)
+    }
+    public override suspend fun truncate(size: Long) {
+        truncateFile(owner, size)
+    }
+    public override suspend fun syncData() {
+        syncFile(owner, true)
+    }
+    public override suspend fun syncAll() {
+        syncFile(owner, false)
+    }
 }
 
-internal suspend fun openFileOnLoop(loop: LibuvEventLoop, path: Path, options: OpenOptions): AsyncFile {
+internal suspend fun openFileOnLoop(loop: LoopOwner, path: Path, options: OpenOptions): AsyncFile {
     val job = loop.requireJob()
     val flags = fileOpenFlags(options)
     val context = path.toOsString()
-    return suspendCoroutine<AsyncFile> { continuation ->
-        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-            { native, id -> @Unsafe {
-                return@LoopOperation path.withNativePath { pointer -> @Unsafe {
-                    return@withNativePath nativeStatus(id, nativeFileOpen(native, id, pointer, flags, options.mode))
-                } }
-            } },
-            { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
-            { event, selected ->
-                when (event.result) {
-                    case Created(pointer) -> {
-                        val owner = OwnedFile(loop, pointer, context)
-                        loop.state.retain(owner)
-                        when (selected) {
-                            case None -> continuation.resume(WorkerFile(owner))
-                            case Some(error) -> owner.closeOnLoop { cleanup ->
-                                continuation.resumeWithException(when (cleanup) {
-                                    case Some(value) -> ResourceUseException(error, value)
-                                    case None -> error
-                                })
+    return suspendCoroutine<AsyncFile> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation path.withNativePath {
+                            pointer -> @Unsafe
+                            {
+                                return@withNativePath nativeStatus(
+                                    id,
+                                    nativeFileOpen(native, id, pointer, flags, options.mode)
+                                )
                             }
                         }
                     }
-                    case _ -> continuation.resumeWithException(completionFailure("file open", event.result, selected, Some(context))
-                        ?: IllegalStateException(Some("open returned no file")))
+                },
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        nativeWorkCancel(native, id)
+                    }
+                },
+                {
+                    event,
+                    selected -> when (event.result) {
+                        case Created(pointer) -> {
+                            val owner = OwnedFile(loop, pointer, context)
+                            loop.retain(owner)
+                            when (selected) {
+                                case None -> continuation.resume(WorkerFile(owner))
+                                case Some(error) -> owner.closeOnLoop {
+                                    cleanup -> continuation.resumeWithException(
+                                        when (cleanup) {
+                                            case Some(value) -> ResourceUseException(error, value)
+                                            case None -> error
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        case _ -> continuation.resumeWithException(
+                            completionFailure("file open", event.result, selected, Some(context)) ?:
+                                IllegalStateException(Some("open returned no file"))
+                        )
+                    }
                 }
-            })
+            )
         operation.subscribe(job)
-        loop.state.submit(operation)
+        loop.submit(operation)
     }
 }
 
