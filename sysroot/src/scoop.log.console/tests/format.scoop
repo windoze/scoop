@@ -1,0 +1,48 @@
+package scoop.log.console
+
+import scoop.log.*
+import scoop.time.Instant
+import scoop.test.*
+
+private val source: SourceLocation = SourceLocation("example.scoop", 7L, 2L, "example", "")
+
+@Test
+private class ConsoleFormatTest {
+    @Test
+    fun `default format preserves text and formats UTC and exception summaries`() {
+        val time = Instant.fromEpochSeconds(0L)
+        val record = LogRecord(LogLevel.Info, "app", "雪😀\u{0}\n", source)
+        assertEquals("1970-01-01T00:00:00Z [INFO] app: 雪😀\u{0}\n", defaultConsoleLogFormat(record, time))
+        assertEquals("1970-01-01T00:00:00Z [ERROR] app: failed | cause: reason",
+            defaultConsoleLogFormat(LogRecord(LogLevel.Error, "app", "failed", source,
+                Some(Exception(Some("reason")))), time))
+        assertEquals("1970-01-01T00:00:00Z [WARN] app:  | cause: Exception (no message)",
+            defaultConsoleLogFormat(LogRecord(LogLevel.Warn, "app", "", source, Some(Exception(None))), time))
+        assertEquals("1970-01-01T00:00:00Z [WARN] app: failed | cause: Throwable",
+            defaultConsoleLogFormat(LogRecord(LogLevel.Warn, "app", "failed", source, Some(Throwable())), time))
+    }
+
+    @Test
+    fun `message failure text is retained without an additional duplicate summary`() {
+        val failure = Exception(Some("message failure"))
+        val record = LogRecord(LogLevel.Debug, "app", "[log message failed] message failure", source,
+            Some(Exception(Some("business failure"))), Some(failure))
+        assertEquals("1970-01-01T00:00:00Z [DEBUG] app: [log message failed] message failure | cause: business failure",
+            defaultConsoleLogFormat(record, Instant.fromEpochSeconds(0L)))
+    }
+
+    @Test
+    fun `minimum severity is inclusive for all five levels and independent of target`() {
+        val levels: Array<LogLevel> = [LogLevel.Trace, LogLevel.Debug, LogLevel.Info, LogLevel.Warn, LogLevel.Error]
+        for (threshold in 0L..<5L) {
+            val provider = ConsoleLogProvider(minLevel = levels[threshold])
+            for (index in 0L..<5L) {
+                assertEquals(index >= threshold, provider.isEnabled(levels[index], "first"))
+                assertEquals(index >= threshold, provider.isEnabled(levels[index], "other"))
+            }
+        }
+        val defaults = ConsoleLogProvider()
+        assertFalse(defaults.isEnabled(LogLevel.Debug, "app"))
+        assertTrue(defaults.isEnabled(LogLevel.Info, "app"))
+    }
+}

@@ -1,0 +1,50 @@
+package scoop.log
+
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+
+private class CountingProvider : LogProvider {
+    val records: AtomicInt = AtomicInt(0)
+    public override fun isEnabled(level: LogLevel, target: String): Boolean = true
+    public override fun emit(record: LogRecord) { records.fetchAdd(1) }
+    public override fun flush(): Unit = Unit
+}
+
+private class ReplacingProvider(private val next: LogProvider) : LogProvider {
+    val records: ArrayList<LogRecord> = ArrayList<LogRecord>()
+    public override fun isEnabled(level: LogLevel, target: String): Boolean { Log.setProvider(next); return true }
+    public override fun emit(record: LogRecord) { records.add(record) }
+    public override fun flush(): Unit = Unit
+}
+
+@Test
+private class ProviderSelectionTest {
+    @Test
+    fun `replacing the provider during filtering preserves the selected instance`() {
+        val next = RecordingProvider()
+        val first = ReplacingProvider(next)
+        withProvider(first) { Logger("filter-switch").info { "original provider" } }
+        assertEquals(1L, first.records.size)
+        assertEquals(0L, next.records.size)
+        assertEquals(0, next.queries)
+    }
+
+    @Test
+    fun `concurrent configuration publishes complete providers without losing events`() {
+        val first = CountingProvider()
+        val second = CountingProvider()
+        val logger = Logger("concurrent")
+        withProvider(first) {
+            val workers = Array<Thread>(4L) { worker ->
+                Thread.start {
+                    for (index in 0..<50) {
+                        if (worker % 2L == 0L) Log.setProvider(first) else Log.setProvider(second)
+                        logger.info { "event" }
+                    }
+                }
+            }
+            for (worker in workers) worker.dispose()
+        }
+        assertEquals(200, first.records.load() + second.records.load())
+    }
+}

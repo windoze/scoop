@@ -1,0 +1,26 @@
+//! dep: scoop:scoop.log:0.1.0
+//! dep: scoop:scoop.log.console:0.1.0
+
+import scoop.log.*
+import scoop.log.console.*
+
+private fun request(): Unit { throw Exception(Some("connection refused")) }
+private fun details(): String { throw Exception(Some("cannot build details")) }
+
+fun main() {
+    Log.setProvider(ConsoleLogProvider())
+    val log = Logger("requests")
+    try { request() }
+    catch (failure: Exception) {
+        log.error("request failed", cause = Some(failure))
+        // Both the application exception and message exception are retained.
+        log.error(cause = Some(failure)) { details() }
+    }
+
+    // An eager argument fails before the logger's recovery boundary.
+    try { log.warn(details()) }
+    catch (failure: Exception) { log.info("caught eager argument failure in application code") }
+
+    log.info("continued after logging failures")
+    Log.flush()
+}

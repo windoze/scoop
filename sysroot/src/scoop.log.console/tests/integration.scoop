@@ -1,0 +1,50 @@
+package scoop.log.console
+
+import scoop.log.*
+import scoop.time.*
+import scoop.test.*
+
+private class FixedClock(private val events: ArrayList<String>) : Clock {
+    public override fun now(): Instant {
+        events.add("clock")
+        return Instant.fromEpochSeconds(0L)
+    }
+}
+
+private class Observation {
+    var record: LogRecord? = None
+    var time: Instant? = None
+}
+
+@Test
+private class ConsoleIntegrationTest {
+    @Test
+    fun `precompiled facade forwards caller location and evaluates before clock and formatter`() {
+        val events = ArrayList<String>()
+        val observed = Observation()
+        val provider = ConsoleLogProvider(clock = FixedClock(events), format = { record, timestamp ->
+            events.add("format")
+            observed.record = Some(record)
+            observed.time = Some(timestamp)
+            "test output"
+        })
+        val previous = Log.setProvider(provider)
+        try {
+            val logger = Logger("consumer")
+            logger.debug { events.add("disabled"); "disabled" }
+            val here = currentSourceLocation()
+            logger.info { events.add("message"); "original text" }
+            assertEquals(3L, events.size)
+            assertEquals("message", events[0L])
+            assertEquals("clock", events[1L])
+            assertEquals("format", events[2L])
+            val record = observed.record!!
+            assertEquals("original text", record.message)
+            assertEquals(here.file, record.location.file)
+            assertEquals(here.line + 1L, record.location.line)
+            assertEquals(here.functionName, record.location.functionName)
+            assertEquals(0L, observed.time!!.epochSeconds)
+            Log.flush()
+        } finally { Log.setProvider(previous) }
+    }
+}

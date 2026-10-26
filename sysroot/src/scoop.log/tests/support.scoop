@@ -1,0 +1,23 @@
+package scoop.log
+
+internal class RecordingProvider(val enabled: Boolean = true) : LogProvider {
+    val records: ArrayList<LogRecord> = ArrayList<LogRecord>()
+    var queries: Int = 0
+    var flushes: Int = 0
+    public override fun isEnabled(level: LogLevel, target: String): Boolean { queries += 1; return enabled }
+    public override fun emit(record: LogRecord) { records.add(record) }
+    public override fun flush() { flushes += 1 }
+}
+
+internal fun withProvider(provider: LogProvider, block: () -> Unit) {
+    val previous = Log.setProvider(provider)
+    try { block() }
+    finally { Log.setProvider(previous) }
+}
+
+internal fun evaluated(count: AtomicInt): String { count.fetchAdd(1); return "eager" }
+internal fun failedMessage(failure: Throwable): String { throw failure }
+
+internal fun forwarded(logger: Logger, location: SourceLocation = currentSourceLocation()) {
+    logger.warn(location = location) { "forwarded" }
+}

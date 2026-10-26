@@ -27,6 +27,10 @@ Scoop 的泛型采用**单态化（monomorphization）**，不进行类型擦除
 
 交互行编辑由普通库提供，见 [Readline 库规范](SCOOP-READLINE-SPEC.md)。
 
+日志 facade 与同步 stdout／stderr provider 由普通库提供，见[日志库规范](SCOOP-LOG-SPEC.md)。消息构造异常转为日志记录，provider 失败执行 best-effort stderr fallback，不改变语言异常或 runtime ABI。
+
+独立数学库的设计见 [math 规范草案](SCOOP-MATH-SPEC.md)，涵盖标量数学、不可变 BigInteger/BigDecimal 及显式舍入配置；目前待实现，不扩展核心数值类型或默认导入。
+
 ### 1.2 并发安全与数据竞争
 
 Scoop 不提供类似 Swift / Rust 的并发安全保障，不通过类型系统保证跨线程共享没有数据竞争，也不保证在编译期诊断此类竞争。需要并发安全时，程序必须显式使用 11.14 的原子操作或同步原语（如以后由库提供的 mutex / lock），并遵守其同步契约。

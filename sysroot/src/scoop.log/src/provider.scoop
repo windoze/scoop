@@ -1,0 +1,43 @@
+package scoop.log
+
+/**
+ * Receives evaluated events. Methods can be called concurrently and must synchronize their own
+ * mutable state. Exceptions from these methods are recovered by Logger and Log.flush.
+ */
+public interface LogProvider {
+    /** Checks whether to evaluate and submit an event, without producing output. */
+    public fun isEnabled(level: LogLevel, target: String): Boolean
+    /** Accepts an event that has passed this provider's filter. */
+    public fun emit(record: LogRecord)
+    /** Submits events accepted before this call without closing the provider. */
+    public fun flush()
+}
+
+/** The initial provider, also usable to explicitly disable all logging. */
+public object NoopLogProvider : LogProvider {
+    /** Always disables message evaluation and submission. */
+    public override fun isEnabled(level: LogLevel, target: String): Boolean = false
+    /** Deliberately discards a directly submitted event. */
+    public override fun emit(record: LogRecord): Unit = Unit
+    /** There is no buffered output to flush. */
+    public override fun flush(): Unit = Unit
+}
+
+/** Application-owned selection of the process-wide default provider. */
+public object Log {
+    private val current: AtomicRef<LogProvider> = AtomicRef<LogProvider>(NoopLogProvider)
+
+    /**
+     * Atomically installs a provider and returns the previous one. Existing calls may still use
+     * the old provider; this operation neither flushes nor closes either provider.
+     */
+    public fun setProvider(provider: LogProvider): LogProvider = current.exchange(provider)
+
+    internal fun provider(): LogProvider = current.load()
+
+    /** Flushes the currently selected provider, reporting failure to stderr on a best-effort basis. */
+    public fun flush() {
+        try { provider().flush() }
+        catch (failure: Throwable) { reportLogFlushFailure(failure) }
+    }
+}

@@ -1,0 +1,67 @@
+package scoop.log
+
+import scoop.platform.io.standardError
+import scoop.platform.io.writeText
+
+internal fun logExceptionSummary(failure: Throwable): String {
+    if (failure is Exception) return failure.message ?: "Exception (no message)"
+    return "Throwable"
+}
+
+private fun fallback(body: () -> String) {
+    try { standardError.writeText("[log fallback] " + body() + "\n") }
+    catch (ignored: Throwable) {
+        // The final recovery attempt deliberately drops its own failure.
+        return
+    }
+}
+
+private fun requestDetails(level: LogLevel, target: String, location: SourceLocation?): String {
+    val text = f"level=${level} target=${target}"
+    return when (location) {
+        case Some(source) -> text + f" source=${source.file}:${source.line}:${source.column}"
+        case None -> text
+    }
+}
+
+private fun exceptionDetails(cause: Throwable?, messageFailure: Throwable?): String {
+    val original = when (cause) {
+        case Some(failure) -> " cause=" + logExceptionSummary(failure)
+        case None -> ""
+    }
+    return original + when (messageFailure) {
+        case Some(failure) -> " messageFailure=" + logExceptionSummary(failure)
+        case None -> ""
+    }
+}
+
+internal fun reportLogQueryFailure(
+    failure: Throwable, level: LogLevel, target: String, location: SourceLocation?
+) {
+    fallback {
+        "phase=isEnabled error=" + logExceptionSummary(failure) + " " +
+            requestDetails(level, target, location)
+    }
+}
+
+internal fun reportLogRecordFailure(failure: Throwable, record: LogRecord) {
+    fallback {
+        "phase=emit error=" + logExceptionSummary(failure) + " " +
+            requestDetails(record.level, record.target, Some(record.location)) +
+            " message=" + record.message + exceptionDetails(record.cause, record.messageFailure)
+    }
+}
+
+internal fun reportLogMessageFailure(
+    failure: Throwable, messageFailure: Throwable, level: LogLevel, target: String,
+    location: SourceLocation, cause: Throwable?
+) {
+    fallback {
+        "phase=message error=" + logExceptionSummary(failure) + " " +
+            requestDetails(level, target, Some(location)) + exceptionDetails(cause, Some(messageFailure))
+    }
+}
+
+internal fun reportLogFlushFailure(failure: Throwable) {
+    fallback { "phase=flush error=" + logExceptionSummary(failure) }
+}
