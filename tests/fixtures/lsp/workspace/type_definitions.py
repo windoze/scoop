@@ -1,7 +1,9 @@
 """Type definition uses checked values and transparent alias applications."""
 
+from installed_sources import boolean_location
 
-def check(peer, root):
+
+def check(peer, root, sysroot):
     provider = root / "dependency/src/typeDefinitions.scoop"
     library = (
         "package typedefs\n"
@@ -80,7 +82,7 @@ def check(peer, root):
     assert query(5, "Same", method="definition") == expected(2, "Same")
     assert query(7, "tuple") is None
     assert query(7, "callback") is None
-    assert query(10, "input") is None
+    assert query(10, "input") == boolean_location(sysroot)
     parameter = query(6, "input", last=True)
     assert parameter["uri"] == path.as_uri(), parameter
     assert parameter["range"] == {

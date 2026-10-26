@@ -1,7 +1,9 @@
 """Callable values navigate to the selected source instead of their adapters."""
 
+from installed_sources import location
 
-def check(peer, root):
+
+def check(peer, root, sysroot):
     path = root / "src/callableValues.scoop"
     text = (
         "fun choose(value: Boolean): Boolean = value\n"
@@ -37,7 +39,9 @@ def check(peer, root):
     params = {"textDocument": {"uri": uri}, "position": position}
     hover = peer.request("textDocument/hover", params)
     assert "toString" in hover["contents"]["value"], hover
-    assert peer.request("textDocument/definition", params) is None
+    assert peer.request("textDocument/definition", params) == location(
+        sysroot, "scoop.core/src/types.scoop", "override fun toString()", "toString"
+    )
     references = peer.request(
         "textDocument/references", {**params, "context": {"includeDeclaration": True}}
     )
