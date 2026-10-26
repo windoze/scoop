@@ -54,5 +54,10 @@ fun main() {
     check(hashAfterCollection(thirtyThree) == 2689684201023061881L)
     check(hashAfterPressure(String.fromUtf8(Array<Byte>(32L) { index -> index.toByte() })) == -4098353606094590973L)
     check(hashAfterPressure(String.fromUtf8(Array<Byte>(33L) { index -> index.toByte() })) == 2689684201023061881L)
+    val longText = String.fromChars(Array<Char>(257L) { index -> if (index % 2L == 0L) '雪' else '🙂' })
+    gcCollect()
+    check(longText.charLength == 257L)
+    check(longText.getCharAt(256L) == '雪')
+    check(longText.slice(64L, 257L).charLength == 193L)
     println("String reads preserve text and identity")
 }

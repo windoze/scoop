@@ -141,6 +141,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::ArrayAssembly { out, .. }
         | Instruction::StringConcat { out, .. }
         | Instruction::StringCopy { out, .. }
+        | Instruction::StringByteLoad { out, .. }
         | Instruction::PushPinFrame { out, .. }
         | Instruction::ArrayDataPointer { out, .. }
         | Instruction::StringDataPointer { out, .. }
@@ -173,7 +174,8 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::PopPinFrame { .. }
         | Instruction::EndCatch
         | Instruction::Throw { .. }
-        | Instruction::ArraySet { .. } => None,
+        | Instruction::ArraySet { .. }
+        | Instruction::StringByteStore { .. } => None,
     };
     let second = match instruction {
         Instruction::LandingPad { raw, .. } | Instruction::CleanupPad { raw, .. } => Some(*raw),

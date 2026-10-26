@@ -205,7 +205,7 @@ target 描述分别决定 native compiler 配置、GNU/musl 环境、默认链�
 
 runtime 不受“编译器改动只在 codegen”这一目录约束。现有 [platform 接口](../../runtime/src/platform/platform.h) 已分出 metadata image、OS/VM 和 managed frame，可继续沿用。
 
-M39 只整理当前真实的平台职责：机器帧、anchor、返回值 shim 和浮点环境控制归 arch；线程栈/VM 归 OS；加载映射和 metadata 归 image。特别是 [floating.c](../../runtime/src/floating.c) 的架构条件应收拢到实际架构实现，不让未来扩展继续向通用浮点转换代码增加分支。构建源文件和 flags 按这些真实组件组合；`-mno-red-zone` 只属于需要它的架构配置。
+M39 只整理当前真实的平台职责：机器帧、anchor、返回值 shim 和浮点环境控制归 arch；线程栈/VM 归 OS；加载映射和 metadata 归 image。原 `floating.c` 中的平台职责已移入架构实现，文本适配随后在 [Runtime 职责收敛](../program-performance/RUNTIME-RESPONSIBILITIES.md) 中迁至 core，该旧文件退役。构建源文件和 flags 按真实组件组合；`-mno-red-zone` 只属于需要它的架构配置。
 
 不改变 collector、线程握手、对象布局、GC root 协议或公共 runtime ABI。OS、image 和 arch 的可复用部分以实际实现为准，不为尚未实现的目标创建空 bundle。
 

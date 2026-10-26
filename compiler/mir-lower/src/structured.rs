@@ -240,6 +240,7 @@ impl Expr {
 #[derive(Debug, Clone)]
 pub(crate) enum ExprKind {
     StringCopy(Box<mir::StringCopyOperation<Expr>>),
+    StringByte(Box<mir::StringByteOperation<Expr>>),
     /// Evaluate the prefix, then an expression without a normal result.
     /// This is eliminated when constructing CFG, before typed MIR is emitted.
     Diverging {

@@ -24,14 +24,14 @@ static void initialize_number_locale(void) {
     }
 }
 
-static char *terminated_number(const ScoopString *text) {
+static char *terminated_number(const ScoopString *text, char *scratch, size_t capacity) {
     if (pthread_once(&locale_once, initialize_number_locale) != 0) {
         scoop_shape_fatal("cannot initialize the C numeric locale");
     }
     if (text->len >= SIZE_MAX) {
         scoop_shape_fatal("numeric text allocation size overflow");
     }
-    char *buffer = malloc((size_t)text->len + 1);
+    char *buffer = text->len < capacity ? scratch : malloc((size_t)text->len + 1);
     if (buffer == NULL) {
         scoop_shape_fatal("numeric text allocation failed");
     }
@@ -42,7 +42,8 @@ static char *terminated_number(const ScoopString *text) {
 
 void scoop_rt_json_parse_float_storage(ScoopFloatResult *result,
                                        const ScoopString *text) {
-    char *buffer = terminated_number(text);
+    char scratch[256];
+    char *buffer = terminated_number(text, scratch, sizeof scratch);
     char *end;
     float value = strtof_l(buffer, &end, number_locale);
     *result = (ScoopFloatResult){.tag = 1};
@@ -51,12 +52,15 @@ void scoop_rt_json_parse_float_storage(ScoopFloatResult *result,
         result->tag = 0;
         result->value = value;
     }
-    free(buffer);
+    if (buffer != scratch) {
+        free(buffer);
+    }
 }
 
 void scoop_rt_json_parse_double_storage(ScoopDoubleResult *result,
                                         const ScoopString *text) {
-    char *buffer = terminated_number(text);
+    char scratch[256];
+    char *buffer = terminated_number(text, scratch, sizeof scratch);
     char *end;
     double value = strtod_l(buffer, &end, number_locale);
     *result = (ScoopDoubleResult){.tag = 1};
@@ -64,5 +68,7 @@ void scoop_rt_json_parse_double_storage(ScoopDoubleResult *result,
         result->tag = 0;
         result->value = value;
     }
-    free(buffer);
+    if (buffer != scratch) {
+        free(buffer);
+    }
 }

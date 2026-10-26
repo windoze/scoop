@@ -16,7 +16,7 @@ variants = [
 name = "run"
 argv = ["${scoop}", "--enable-gc-stress", "run", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
 exit = 0
-stdout = "String iteration, moving GC and native ABI preserved\n"
+stdout = "String iteration and moving GC preserved\n"
 stderr = ""
 json = "stderr"
 diagnostics = []

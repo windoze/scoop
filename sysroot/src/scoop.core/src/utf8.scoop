@@ -1,4 +1,4 @@
-// The runtime decodes once; core chooses the public failure behavior.
+// Public failure behavior shares the ordinary core UTF-8 decoder.
 internal fun requireValidUtf8(result: (String?, Long)): String {
     val value = result._1
     if (value == None) { throw CharacterCodingException(result._2) }
@@ -12,7 +12,6 @@ internal fun decodeUtf8(bytes: List<Byte>): (String?, Long) {
         })
     }
 }
-
 internal fun decodeUtf8Lossy(bytes: List<Byte>): String {
     @Unsafe {
         return bytes.toArray().withDataPointer(fun(pointer: Ptr<Byte>, length: Long): String {
@@ -20,11 +19,3 @@ internal fun decodeUtf8Lossy(bytes: List<Byte>): String {
         })
     }
 }
-
-@Unsafe
-@Extern(name = "scoop_rt_string_decode_utf8", abi = "scoop")
-internal fun coreStringDecodeUtf8(pointer: Ptr<UInt8>, length: Long): (String?, Long)
-
-@Unsafe
-@Extern(name = "scoop_rt_string_decode_utf8_lossy", abi = "scoop")
-internal fun coreStringDecodeUtf8Lossy(pointer: Ptr<UInt8>, length: Long): String

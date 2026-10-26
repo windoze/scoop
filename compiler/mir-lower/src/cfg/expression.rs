@@ -5,6 +5,14 @@ impl<'a> CfgLowerer<'a> {
     /// calls in source evaluation order as explicit effect statements.
     pub(super) fn lower_expr(&mut self, expr: &smir::Expr, span: Span) -> Option<mir::Expr> {
         let kind = match &expr.kind {
+            smir::ExprKind::StringByte(operation) => {
+                let mut values = self.lower_operands(operation.operands(), span)?.into_iter();
+                mir::ExprKind::StringByte(Box::new(operation.map(|_| {
+                    values
+                        .next()
+                        .expect("all byte operands were lowered in order")
+                })))
+            }
             smir::ExprKind::StringCopy(operation) => {
                 let mut values = self.lower_operands(operation.operands(), span)?.into_iter();
                 mir::ExprKind::StringCopy(Box::new(operation.map(|_| {

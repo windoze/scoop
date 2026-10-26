@@ -166,7 +166,7 @@ fn repeated_literals_get_separate_constants_deterministically() {
 }
 
 #[test]
-fn formatting_helpers_are_ordinary_extern_calls() {
+fn ordinary_extern_calls_preserve_declared_symbols() {
     let mut h = Harness::new();
     let long_to_string = h.long_to_string();
     let bool_to_string = h.bool_to_string();
@@ -207,7 +207,7 @@ fn formatting_helpers_are_ordinary_extern_calls() {
         .collect();
     assert_eq!(
         symbols,
-        ["scoop_rt_long_to_string", "scoop_rt_bool_to_string"]
+        ["test_core_long_to_string", "test_core_bool_to_string"]
     );
 }
 

@@ -528,7 +528,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     declarations.extend([
         scoop_extern_fun(
             "coreBooleanEquals",
-            "scoop_rt_bool_equals",
+            "test_core_bool_equals",
             vec![
                 ("left", ty_named("Boolean")),
                 ("right", ty_named("Boolean")),
@@ -537,49 +537,49 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         ),
         scoop_extern_fun(
             "coreStringEquals",
-            "scoop_rt_string_eq",
+            "test_core_string_eq",
             vec![("left", ty_named("String")), ("right", ty_named("String"))],
             Some(ty_named("Boolean")),
         ),
         scoop_extern_fun(
             "coreLongToString",
-            "scoop_rt_long_to_string",
+            "test_core_long_to_string",
             vec![("value", ty_named("Long"))],
             Some(ty_named("String")),
         ),
         scoop_extern_fun(
             "coreULongToString",
-            "scoop_rt_ulong_to_string",
+            "test_core_ulong_to_string",
             vec![("value", ty_named("ULong"))],
             Some(ty_named("String")),
         ),
         scoop_extern_fun(
             "coreBooleanToString",
-            "scoop_rt_bool_to_string",
+            "test_core_bool_to_string",
             vec![("value", ty_named("Boolean"))],
             Some(ty_named("String")),
         ),
         scoop_extern_fun(
             "coreLongHash",
-            "scoop_rt_long_hash",
+            "test_core_long_hash",
             vec![("value", ty_named("Long"))],
             Some(ty_named("Long")),
         ),
         scoop_extern_fun(
             "coreULongHash",
-            "scoop_rt_ulong_hash",
+            "test_core_ulong_hash",
             vec![("value", ty_named("ULong"))],
             Some(ty_named("Long")),
         ),
         scoop_extern_fun(
             "coreBooleanHash",
-            "scoop_rt_bool_hash",
+            "test_core_bool_hash",
             vec![("value", ty_named("Boolean"))],
             Some(ty_named("Long")),
         ),
         scoop_extern_fun(
             "coreStringHash",
-            "scoop_rt_string_hash",
+            "test_core_string_hash",
             vec![("value", ty_named("String"))],
             Some(ty_named("Long")),
         ),

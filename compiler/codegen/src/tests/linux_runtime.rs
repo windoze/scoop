@@ -125,11 +125,7 @@ fn linux_amd64_anchors_relocate_real_llvm_roots_and_preserve_sret() {
                 "runtime/tests/linux_frames_test.c",
                 "runtime/src/platform/arch/x86_64.c",
                 "runtime/src/platform/arch/x86_64_anchor.S",
-                "runtime/src/platform/arch/x86_64_strings.c",
                 "runtime/src/platform/os/linux.c",
-                "runtime/src/strings.c",
-                "runtime/src/string_decode.c",
-                "runtime/src/utf8.c",
                 "runtime/src/gc_binding/stackmap.c",
                 "runtime/src/gc_binding/stackmap/parser.c",
                 "runtime/src/gc_binding/stackmap/records.c",
@@ -140,7 +136,7 @@ fn linux_amd64_anchors_relocate_real_llvm_roots_and_preserve_sret() {
             let output = checked(&mut Command::new(&binary));
             assert_eq!(
                 output.stdout,
-                b"amd64 anchors, relocated roots, String sret and Linux VM passed\n"
+                b"amd64 anchors, relocated roots and Linux VM passed\n"
             );
         }
     }

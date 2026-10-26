@@ -188,12 +188,9 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
             "-fno-optimize-sibling-calls",
         ])
         .arg("-I")
-        .arg(workspace.join("sysroot/vendor/ryu"))
-        .arg("-I")
         .arg(workspace.join("runtime/include"))
         .arg(workspace.join("runtime/src/thread.c"))
         .arg(workspace.join("runtime/src/gc/mutator.c"))
-        .arg(workspace.join("runtime/src/floating.c"))
         .arg(workspace.join(native_float_environment_source()))
         .arg(workspace.join("runtime/src/thread/collection.c"))
         .arg(workspace.join("runtime/src/thread/transitions.c"))
@@ -228,7 +225,6 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
 fn generic_runtime_has_no_target_specific_vm_dependency() {
     let workspace = workspace_root();
     let generic_sources = [
-        "runtime/src/floating.c",
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/mutator.c",
         "runtime/src/gc_binding/threads.c",
@@ -298,13 +294,12 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
 fn descriptor_driven_boxing_and_arrays_preserve_zst_and_moving_gc() {
     let workspace = workspace_root();
     let strings = workspace.join("runtime/src/strings.c");
-    let utf8 = workspace.join("runtime/src/utf8.c");
     let output = compile_and_run_with_flags(
         &workspace,
         "value_representation_test",
         "runtime/tests/value_representation_test.c",
         false,
-        &[strings.to_str().unwrap(), utf8.to_str().unwrap()],
+        &[strings.to_str().unwrap()],
     );
     assert!(
         output.status.success(),

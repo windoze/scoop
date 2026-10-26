@@ -1,10 +1,3 @@
-@Extern(name = "scoop_rt_string_byte_length", abi = "scoop")
-fun nativeByteLength(value: String): Long
-@Extern(name = "scoop_rt_string_byte_at", abi = "scoop")
-fun nativeByteAt(value: String, index: Long): Byte
-@Extern(name = "scoop_rt_string_character_at_byte", abi = "scoop")
-fun nativeCharacterAtByte(value: String, index: Long): Char
-
 @Unsafe
 fun main() {
     val source = "A" + "雪🙂"
@@ -24,9 +17,5 @@ fun main() {
         index += 1L
     }
     if (sum != 167277L || iterator.next() != None) { throw IllegalStateException() }
-    if (nativeByteLength(source) != 8L || nativeByteAt(source, 7L) != (-126).toByte()) {
-        throw IllegalStateException()
-    }
-    if (nativeCharacterAtByte(source, 4L) != '🙂') { throw IllegalStateException() }
-    println("String iteration, moving GC and native ABI preserved")
+    println("String iteration and moving GC preserved")
 }

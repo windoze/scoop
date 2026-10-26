@@ -15,7 +15,15 @@ fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
     check(addressOf(smallDouble).cast<ULong>().load() == 1UL)
     check(parseFloat("bad") == None && parseDouble("") == None)
     check(parseFloat("1e1000") == None && parseDouble("1e1000") == None)
+    for (length in [255L, 256L, 1024L]) {
+        val text = "1." + String.fromChars(Array<Char>(length - 2L) { _ -> '0' })
+        check(parseFloat(text)!! == 1.0f && parseDouble(text)!! == 1.0)
+        check(parseFloat(text + "x") == None && parseDouble(text + "\u0000") == None)
+    }
+    val smallText = smallDouble.toString()
+    val zeroText = negativeFloat.toString()
     gcCollect()
+    check(smallText == "5.0e-324" && zeroText == "-0.0")
     check(parseFloat("-2.5")!! == -2.5f && parseDouble("1.0")!! == 1.0)
     println("core floating ABI")
 }

@@ -167,12 +167,22 @@ public class String : Compare<String>, Add<String, String>, Equals<String>, ToSt
     }
 }
 
-@Extern(name = "scoop_rt_string_hash", abi = "scoop")
-private fun coreStringHashFallback(value: String): Long
+private fun coreStringHashLong(value: String): Long {
+    @Unsafe {
+        val length = coreStringByteLength(value)
+        var hash = 1469598103934665603uL
+        var index = 0L
+        while (index < length) {
+            hash = (hash.xor(coreStringByteAtUnchecked(value, index).toUByte().toULong())) * 1099511628211uL
+            index += 1L
+        }
+        return hash.toLong()
+    }
+}
 
 internal fun coreStringHash(value: String): Long {
     val length = coreStringByteLength(value)
-    if (length > 32L) { return coreStringHashFallback(value) }
+    if (length > 32L) { return coreStringHashLong(value) }
     var hash = 1469598103934665603uL
     if (length <= 0L) { return hash.toLong() }
     hash = hash.xor(coreStringByteAt(value, 0L).toUByte().toULong()) * 1099511628211uL
@@ -244,15 +254,6 @@ internal fun coreStringHash(value: String): Long {
 @Intrinsic("string_byte_length")
 internal fun coreStringByteLength(value: String): Long
 
-@Extern(name = "scoop_rt_string_length", abi = "scoop")
-internal fun coreStringLength(value: String): Long
-
-@Extern(name = "scoop_rt_string_get", abi = "scoop")
-internal fun coreStringGet(value: String, index: Long): Char?
-
-@Extern(name = "scoop_rt_string_slice_bounds", abi = "scoop")
-internal fun coreStringSliceBounds(value: String, start: Long, endExclusive: Long): (Long, Long)?
-
 @Intrinsic("string_character_at_byte")
 internal fun coreStringCharacterAtByte(value: String, index: Long): Char
 
@@ -261,9 +262,6 @@ internal fun coreStringByteAt(value: String, index: Long): Byte
 
 @Intrinsic("string_slice_bytes")
 internal fun coreStringSliceBytes(value: String, start: Long, endExclusive: Long): String
-
-@Extern(name = "scoop_rt_string_from_chars", abi = "scoop")
-internal fun coreStringFromChars(value: Array<Char>): String
 
 @Intrinsic("string_from_bytes")
 internal fun coreStringFromBytes(value: Array<Byte>): String

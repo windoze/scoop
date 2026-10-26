@@ -36,33 +36,4 @@ define ptr addrspace(1) @outer(ptr addrspace(1) %root) #0 gc "statepoint-example
   ret ptr addrspace(1) %r
 }
 
-%BoundsResult = type { i64, i64, i64 }
-declare { i64, i64 } @scoop_rt_string_get(ptr, i64)
-declare void @scoop_rt_string_slice_bounds(ptr sret(%BoundsResult) align 8, ptr, i64, i64)
-
-define i64 @string_results(ptr %string) #0 {
-  %bounds = alloca %BoundsResult, align 8
-  %char = call { i64, i64 } @scoop_rt_string_get(ptr %string, i64 1)
-  call void @scoop_rt_string_slice_bounds(ptr sret(%BoundsResult) align 8 %bounds, ptr %string, i64 1, i64 2)
-  %tag0 = extractvalue { i64, i64 } %char, 0
-  %bits = extractvalue { i64, i64 } %char, 1
-  %value = trunc i64 %bits to i32
-  %tag1 = load i64, ptr %bounds
-  %startp = getelementptr %BoundsResult, ptr %bounds, i32 0, i32 1
-  %endp = getelementptr %BoundsResult, ptr %bounds, i32 0, i32 2
-  %start = load i64, ptr %startp
-  %end = load i64, ptr %endp
-  %ok0 = icmp eq i64 %tag0, 0
-  %ok1 = icmp eq i64 %tag1, 0
-  %ok2 = icmp eq i32 %value, 20013
-  %ok3 = icmp eq i64 %start, 1
-  %ok4 = icmp eq i64 %end, 4
-  %a = and i1 %ok0, %ok1
-  %b = and i1 %ok2, %ok3
-  %c = and i1 %a, %b
-  %d = and i1 %c, %ok4
-  %result = zext i1 %d to i64
-  ret i64 %result
-}
-
 attributes #0 = { noinline noredzone "frame-pointer"="all" "disable-tail-calls"="true" }

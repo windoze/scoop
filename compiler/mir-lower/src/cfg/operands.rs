@@ -88,6 +88,7 @@ fn emits_cfg(expr: &smir::Expr) -> bool {
     use smir::ExprKind;
     match &expr.kind {
         ExprKind::StringCopy(operation) => operation.operands().any(emits_cfg),
+        ExprKind::StringByte(operation) => operation.operands().any(emits_cfg),
         ExprKind::Call(_)
         | ExprKind::CoroutineSuspend { .. }
         | ExprKind::ClassNew { .. }

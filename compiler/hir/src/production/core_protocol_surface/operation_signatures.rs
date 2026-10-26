@@ -86,10 +86,20 @@ pub(super) fn expected_operation_signature(
         IntrinsicFunctionKind::GcStats => (Effect::Ordinary, Vec::new(), ulong.clone()),
         IntrinsicFunctionKind::String(kind) => match kind {
             crate::StringIntrinsic::ByteLength => (Effect::Ordinary, vec![string], long),
-            crate::StringIntrinsic::ByteAt => (
+            crate::StringIntrinsic::ByteAt | crate::StringIntrinsic::ByteAtUnchecked => (
                 Effect::Ordinary,
                 vec![string, long],
                 signature_integer(fundamental, crate::IntegerKind::SIGNED_8),
+            ),
+            crate::StringIntrinsic::AllocateZeroed => (Effect::Ordinary, vec![long], string),
+            crate::StringIntrinsic::SetByteUnchecked => (
+                Effect::Ordinary,
+                vec![
+                    string,
+                    long,
+                    signature_integer(fundamental, crate::IntegerKind::SIGNED_8),
+                ],
+                unit.clone(),
             ),
             crate::StringIntrinsic::CharacterAtByte => (
                 Effect::Ordinary,

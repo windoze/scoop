@@ -1,0 +1,55 @@
+package test.core.tests.storage.maybe_uninit
+
+import scoop.test.*
+
+private struct Padded(val first: Byte, val second: Long)
+private struct FloatPair(val first: Float, val second: Float)
+
+private fun <T> throughCollection(value: MaybeUninit<T>): MaybeUninit<T> {
+    gcCollect()
+    return value
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun rawStorageRetainsExtentAndZeros() {
+        @Unsafe {
+            assertEquals(sizeOf<Padded>(), sizeOf<MaybeUninit<Padded>>())
+            assertEquals(alignOf<Padded>(), alignOf<MaybeUninit<Padded>>())
+            assertEquals(0UL, sizeOf<MaybeUninit<Unit>>())
+            val zero = MaybeUninit<Padded>.uninit()
+            val bytes = addressOf(zero).cast<Byte>()
+            var index = 0L
+            while (index < 16L) {
+                assertEquals(0.toByte(), bytes.load(index))
+                index += 1L
+            }
+        }
+    }
+
+    @Test
+    fun copiesPaddingAndFloatingBitsThroughCalls() {
+        @Unsafe {
+            var source = Padded(7.toByte(), 42L)
+            addressOf(source).cast<Byte>().store(3L, 99.toByte())
+            val copied = throughCollection(MaybeUninit<Padded>.initialized(source))
+            assertEquals(99.toByte(), addressOf(copied).cast<Byte>().load(3L))
+            val initialized = copied.assumeInit()
+            assertEquals(99.toByte(), addressOf(initialized).cast<Byte>().load(3L))
+            assertEquals(7.toByte(), initialized.first)
+            assertEquals(42L, initialized.second)
+            var bits = 0xff800123U
+            val floating = addressOf(bits).cast<Float>().load()
+            val stored = throughCollection(MaybeUninit<Float>.initialized(floating))
+            val extracted = stored.assumeInit()
+            assertEquals(bits, addressOf(extracted).cast<UInt>().load())
+            val pair = throughCollection(
+                MaybeUninit<FloatPair>.initialized(FloatPair(1.5f, -0f))
+            ).assumeInit()
+            assertEquals(1.5f, pair.first)
+            val negativeZero = pair.second
+            assertEquals(0x80000000U, addressOf(negativeZero).cast<UInt>().load())
+        }
+    }
+}

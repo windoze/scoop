@@ -110,6 +110,24 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
         elementCount = 0L
     }
 
+    /** Copies the initialized elements into independent immutable array slots. */
+    public fun toArray(): Array<T> {
+        val count = elementCount
+        val source = storage
+        return Array<T>(count, fun(index: Long): T {
+            @Unsafe { return source[index].assumeInit() }
+        })
+    }
+
+    /** Copies the initialized elements into independent mutable array slots. */
+    public fun toMutableArray(): MutableArray<T> {
+        val count = elementCount
+        val source = storage
+        return MutableArray<T>(count, fun(index: Long): T {
+            @Unsafe { return source[index].assumeInit() }
+        })
+    }
+
     /**
      * Traverses the elements in index order and remains exhausted after reaching the end.
      */

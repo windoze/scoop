@@ -41,4 +41,29 @@ private fun exercise() {
 private class ApiTests {
     @Test
     fun behavior() { exercise() }
+
+    @Test
+    fun unicodeScansAcrossLongInputs() {
+        val lengths = [0L, 1L, 63L, 64L, 65L, 127L, 128L, 257L]
+        for (length in lengths) {
+            val characters = Array<Char>(length) { index -> when (index % 4L) {
+                case 0L -> '\u0000'
+                case 1L -> 'é'
+                case 2L -> '雪'
+                else -> '🙂'
+            } }
+            val text = String.fromChars(characters)
+            gcCollect()
+            assertEquals(length, text.charLength)
+            var index = 0L
+            while (index < length) {
+                assertEquals(characters[index], text.getCharAt(index))
+                index += 1L
+            }
+            val middle = length / 2L
+            assertEquals(length - middle, text.slice(middle, length).charLength)
+            assertEquals("", text.slice(length, length))
+        }
+    }
+
 }

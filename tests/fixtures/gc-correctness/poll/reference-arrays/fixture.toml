@@ -1,6 +1,6 @@
 schema = 1
 name = "reference-array-roots"
-inputs = ["Cone.toml", "main.scoop", "barriers.scoop", "wide.scoop", "../../../language/callback/native.c", "../../gc-writes/native.c", "../../../../benchmarks/arrays/references/src/kernels.scoop", "../../../compiler-correctness/optimization/lowering/reference-arrays/inspect.py"]
+inputs = ["Cone.toml", "main.scoop", "barriers.scoop", "wide.scoop", "snapshots.scoop", "../../../language/callback/native.c", "../../gc-writes/native.c", "../../../../benchmarks/arrays/references/src/kernels.scoop", "../../../compiler-correctness/optimization/lowering/reference-arrays/inspect.py"]
 tools = ["scoop", "cc", "ar", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["poll", "array", "reference", "roots", "barriers", "gc-correctness"]
@@ -12,6 +12,7 @@ files = [
     {copy = {from = "${fixture}/main.scoop", to = "${work}/cone/src/main.scoop"}},
     {copy = {from = "${fixture}/barriers.scoop", to = "${work}/cone/src/barriers.scoop"}},
     {copy = {from = "${fixture}/wide.scoop", to = "${work}/cone/src/wide.scoop"}},
+    {copy = {from = "${fixture}/snapshots.scoop", to = "${work}/cone/src/snapshots.scoop"}},
     {copy = {from = "${fixture}/../../../../benchmarks/arrays/references/src/kernels.scoop", to = "${work}/cone/src/kernels.scoop"}},
 ]
 

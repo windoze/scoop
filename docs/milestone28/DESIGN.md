@@ -105,7 +105,7 @@ runtime:   platform/image/{elf,macho}.c
 
 本机 22.1.2 探针观察到：amd64 `sret` 地址使用 RDI，后续 scalar 参数顺移；一个 `byval({i64,i64})` 参数从 callee 的 `[RBP+16]` 开始读取，实际副本位于栈上传参区。现有调用者、定义、dispatch 和 statepoint 的 `sret`/`byval`/`align` 属性必须一致。Scoop native shim 必须按具体物理签名适配，不能把普通 C struct 按值传参或显式 pointer helper 直接冒充 Scoop ABI。
 
-`scoop_rt_string_get` 和 `scoop_rt_string_slice_bounds` 的 amd64 shim 按 RDI 间接返回地址及后续参数调用现有 storage helper，并按 SysV `sret` 规则保留返回地址结果。不要复用 Darwin 将 x8 搬到 x0 的汇编。C ABI 调用继续通过 generated-C bridge，让目标 C compiler 处理 SysV aggregate 分类、packing 和返回规则。
+本里程碑曾为 String 字符定位提供专用 amd64 shim；Runtime 职责迁移后，这些入口及 shim 已退役，普通 core helper 按当前 Scoop ABI 返回 Option／tuple。当前实现见 [Runtime 职责收敛](../program-performance/RUNTIME-RESPONSIBILITIES.md)。C ABI 调用继续通过 generated-C bridge，让目标 C compiler 处理 SysV aggregate 分类、packing 和返回规则。
 
 ### 4.2 后端配置
 

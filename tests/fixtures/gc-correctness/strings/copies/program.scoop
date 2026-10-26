@@ -1,10 +1,3 @@
-@Extern(name = "scoop_rt_char_to_string", abi = "scoop")
-fun nativeChar(value: Char): String
-@Extern(name = "scoop_rt_string_from_bytes", abi = "scoop")
-fun nativeBytes(value: Array<Byte>): String
-@Extern(name = "scoop_rt_string_slice_bytes", abi = "scoop")
-fun nativeSlice(value: String, start: Long, end: Long): String
-
 fun copySnapshot(value: String): Array<Byte> = value.toByteArray()
 fun copySlice(value: String): String = value.slice(1L, 2L)
 
@@ -22,17 +15,29 @@ fun main() {
         val mutable = rebuilt.toMutableByteArray()
         mutable[0L] = 66.toByte()
         gcCollect()
-        if (slice != text || nativeChar(character) != text || nativeBytes(snapshot) != rebuilt ||
-            nativeSlice(rebuilt, 1L, 1L + text.byteLength) != slice ||
+        if (slice != text || String.fromUtf8Unchecked(snapshot) != rebuilt ||
+            rebuilt.slice(1L, 2L) != slice ||
             snapshot[0L] != 65.toByte() || String.fromUtf8Unchecked(mutable) != "B" + text + "Z") {
             throw IllegalStateException()
         }
         index += 1L
+    }
+    val chars = MutableArray<Char>(257L) { index -> if (index % 2L == 0L) '雪' else '🙂' }
+    val encoded = String.fromChars(chars)
+    val bytes = encoded.toByteArray()
+    chars[0L] = 'x'
+    gcCollect()
+    val strict = String.fromUtf8(bytes)
+    val lossy = String.fromUtf8Lossy(bytes)
+    gcCollect()
+    if (strict != encoded || lossy != encoded || encoded.getCharAt(0L) != '雪' ||
+        encoded.getCharAt(256L) != '雪' || encoded.charLength != 257L) {
+        throw IllegalStateException()
     }
     val number = (-9223372036854775807L - 1L).toString()
     gcCollect()
     if (number != "-9223372036854775808" || "".toByteArray().size != 0L) {
         throw IllegalStateException()
     }
-    println("String copies preserve moving roots and native ABI")
+    println("String copies and encoding preserve moving roots")
 }

@@ -69,6 +69,7 @@ fun exercise(worker: Int): Int {
 }
 
 @Unsafe fun main() {
+    listArraySnapshots()
     oldArrayWrites()
     wideArrayWrites()
     val ready = AtomicInt(0)

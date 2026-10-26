@@ -1,5 +1,7 @@
 # 整数十进制格式化与普通 helper 正文
 
+后续收尾：本文记录首次迁移时的对照。当前格式化使用 typed StringCopy，旧整数 C 格式化入口及其重复 writer／专属测试已退役；实际消费者与验证见 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md)。
+
 ## 选择与边界
 
 基线为 `4eead1c59`。定宽整数继续经 Long／ULong 实现十进制 `toString`，普通 core 正文向 20 字节 GC-free 局部缓冲区反向写入一次，返回实际长度；新的普通 Scoop-ABI extern 只负责按该长度分配 String 并复制。零、负数、Long 最小值、ULong 最大值、无 locale 依赖和无 NUL 的表示保持。负数幅度在 ULong 上按位宽回绕计算，避免最小有符号数取负溢出。

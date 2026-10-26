@@ -74,12 +74,23 @@ pub(super) fn dump_expr(
         }
         ExprKind::StringCopy(operation) => {
             let name = match operation.as_ref() {
+                crate::StringCopyOperation::Zeroed(_) => "zeroed",
                 crate::StringCopyOperation::Utf8 { .. } => "utf8",
                 crate::StringCopyOperation::Slice { .. } => "slice",
                 crate::StringCopyOperation::FromBytes(_) => "from_bytes",
                 crate::StringCopyOperation::ToBytes(_) => "to_bytes",
             };
             out.push_str(&format!("{pad}StringCopy.{name}\n"));
+            for value in operation.operands() {
+                dump_expr(module, locals, value, indent + 1, out);
+            }
+        }
+        ExprKind::StringByte(operation) => {
+            let name = match operation.as_ref() {
+                crate::StringByteOperation::Read { .. } => "read",
+                crate::StringByteOperation::Write { .. } => "write",
+            };
+            out.push_str(&format!("{pad}StringByte.{name}\n"));
             for value in operation.operands() {
                 dump_expr(module, locals, value, indent + 1, out);
             }
