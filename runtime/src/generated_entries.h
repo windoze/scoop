@@ -63,6 +63,9 @@ _Static_assert(offsetof(ScoopPollState, mode) == 0 &&
                "generated poll state offsets drifted");
 
 extern _Thread_local ScoopPollState *scoop_rt_poll_state;
+/* Native address of the existing thread root, not another managed root. */
+struct ScoopTaskContext;
+extern _Thread_local struct ScoopTaskContext **scoop_rt_context_slot;
 extern _Atomic(uint32_t) scoop_thread_world_phase;
 extern _Atomic(uint64_t) scoop_thread_gc_epoch;
 

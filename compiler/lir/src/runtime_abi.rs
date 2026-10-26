@@ -70,7 +70,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 18,
+                1 => 19,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -90,6 +90,7 @@ pub enum RuntimeAbiSymbolV1 {
     CoreStringTypeDescriptor,
     ArrayClone,
     AllocationContext,
+    ContextSlot,
     PollState,
     WorldPhase,
     GcEpoch,
@@ -120,7 +121,8 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 69] = [
+    pub const ALL: [Self; 70] = [
+        Self::ContextSlot,
         Self::PollState,
         Self::WorldPhase,
         Self::GcEpoch,
@@ -330,6 +332,7 @@ impl RuntimeAbiSymbolV1 {
             Self::CoreStringTypeDescriptor => "scoop_td_String",
             Self::ArrayClone => "scoop_rt_array_clone",
             Self::AllocationContext => "scoop_rt_allocation_context",
+            Self::ContextSlot => "scoop_rt_context_slot",
             Self::PollState => "scoop_rt_poll_state",
             Self::WorldPhase => "scoop_thread_world_phase",
             Self::GcEpoch => "scoop_thread_gc_epoch",
@@ -367,6 +370,7 @@ impl RuntimeAbiSymbolV1 {
             Self::CoreStringTypeDescriptor => 3,
             Self::ArrayClone => 4,
             Self::AllocationContext => 5,
+            Self::ContextSlot => 34,
             Self::PageMap => 32,
             Self::FinishTlabAllocation => 7,
             Self::AllocateSlow => 8,
@@ -804,10 +808,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_current_metadata_layout() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3011202010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3011302010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "07ebae307c8c58fb5bd7559315bfacbb1a877af8e12601848f5da6883cf4f8ed"
+            "87d07bd20f85f64915f502588de4acd2a1df4055903d087448d876a8267080d3"
         );
     }
 
@@ -885,6 +889,22 @@ mod tests {
     }
 
     #[test]
+    fn context_slot_is_a_native_tls_address_in_every_profile() {
+        let symbol = RuntimeAbiSymbolV1::ContextSlot;
+        assert_eq!(symbol.logical_symbol(), "scoop_rt_context_slot");
+        assert_eq!(hex(&encode(&symbol).unwrap()), "a1001822");
+        assert_eq!(
+            symbol.machine_contract(),
+            CompilerNativeContractV1::Data {
+                byte_size: 8,
+                alignment: 8,
+                thread_local: true,
+                mutable: true,
+            }
+        );
+    }
+
+    #[test]
     fn runtime_registry_has_one_contract_per_typed_symbol() {
         let target = crate::target_fixtures::DARWIN_AARCH64;
         let registry = RuntimeSymbolContractRegistryV1::current(target).unwrap();
@@ -903,7 +923,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "ac372a4835f74a3c2e2b3328dc2de921040e0f1a3e681c74bf09dc1009f4639a"
+            "4629b99d349a77db675c921b4fdb6b3ebfa580d6b870e16414370578ed1807bf"
         );
         assert!(
             registry
@@ -959,7 +979,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "03ca29906944c352c5ae51aa93555e8945c5bed904879a9679c480da1b0c2a02"
+            "92dc170013773be257879ceec3f7e1e070739064bfc99961fb434e826d87ea85"
         );
     }
 

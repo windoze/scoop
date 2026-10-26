@@ -33,7 +33,7 @@ impl FunctionLowerer<'_> {
                 self.emit_plain_call(leaf(Leaf::ContextRestore), vec![task, root])
             }
             Op::Current => self.emit_plain_call(leaf(Leaf::ContextCurrent), vec![]),
-            Op::Snapshot => self.emit_plain_call(leaf(Leaf::ContextSnapshot), vec![]),
+            Op::Snapshot => self.context_snapshot(),
             Op::Fork { root } => {
                 let root = self.lower_expr(root)?;
                 let storage = self.context_storage(mir::ContextStorageRole::Task);
@@ -80,6 +80,44 @@ impl FunctionLowerer<'_> {
                 self.emit_plain_call(managed(Managed::ContextEnsureRoot), vec![descriptor])
             }
         }
+    }
+
+    fn context_snapshot(&mut self) -> StorageResult<lir::Value> {
+        let task = self.emit_plain_call(
+            LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::ContextCurrent),
+            vec![],
+        )?;
+        let root = self.new_hidden_local(lir::MANAGED_PTR)?;
+        let null = lir::Value::NullPointer(lir::PointerKind::Managed);
+        self.push(lir::Instruction::Store {
+            local: root,
+            value: null,
+        });
+        let non_null = self.new_temp(lir::LirType::I1);
+        self.push(lir::Instruction::BinOp {
+            out: non_null,
+            op: lir::BinOp::Ne,
+            lhs: task,
+            rhs: null,
+        });
+        let present = self.new_block("context_present");
+        let done = self.new_block("context_snapshot");
+        self.seal(lir::Terminator::CondBr {
+            cond: lir::Value::Temp(non_null),
+            then_block: present,
+            else_block: done,
+        });
+        self.enter(present);
+        let storage = self.context_storage(mir::ContextStorageRole::Task);
+        let (fields, _, _) = context_object_shape(self.context, storage);
+        let value = self.load_at_offset(task, fields[0].offset, lir::MANAGED_PTR);
+        self.push(lir::Instruction::Store {
+            local: root,
+            value: lir::Value::Temp(value),
+        });
+        self.seal(lir::Terminator::Br(done));
+        self.enter(done);
+        Ok(lir::Value::Local(root))
     }
 
     fn context_descriptor(&self, role: mir::ContextStorageRole) -> lir::Value {

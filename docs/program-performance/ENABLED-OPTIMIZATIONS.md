@@ -6,12 +6,15 @@
 
 相关 API 调整：[String 的字符扫描名称](STRING-API.md)在全部 profile 生效，无开关；`charLength`／`getCharAt` 保持 O(n)，`byteLength` 保持 O(1)，内部存储与算法保持。
 
+表中 ABI 版本注明各项引入时的合同；当前统一 runtime contract 为 **19**、metadata ABI 为 **9**，配套库／runtime／sysroot 按当前合同重建。
+
 ## 程序优化
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
 | [年轻对象初始化屏障消除](YOUNG-INITIALIZATION.md)，含[数组初始化](ARRAY-INITIALIZATION-BARRIERS.md) | release 默认，沿既有分配优化配置；旧库需重建才能获益 | 实际 TLAB 成功后，未经过 GC／观察／外传的字段、typed box 复制及数组字面量／clone／assembly 初始化跳过屏障；字段跟踪未取址副本及单前驱直线后继，数组事实仅在当前 typed 操作内使用。慢分配、用户 initializer、原子写入、外部数组发布和 C 后备保留原屏障，无新增根、布局或 ABI。 |
-| [TaskContext fork 的生成分配](CONTEXT-FORK.md) | 新编译器所有 profile；release 默认复用 TLAB，含 fork 的库正文需重建才能获益 | typed Fork 降为已知 24 B Alloc／HeapStore，snapshot 跨分配恢复后写入；独立任务身份、屏障及 ABI 保持。初始 root、旧 C 后备、访问器与绑定树继续共享 runtime。 |
+| [TaskContext fork 的生成分配](CONTEXT-FORK.md) | 新编译器所有 profile；release 默认复用 TLAB，含 fork 的库正文需重建才能获益 | typed Fork 降为已知 24 B Alloc／HeapStore，snapshot 跨分配恢复后写入；独立任务身份、屏障及 ABI 保持。初始 root、旧 C 后备与绑定树继续共享 runtime；小访问器由下一项处理。 |
+| [Context 小访问器生成路径](CONTEXT-READS.md) | release 默认生成 current／enter／leave；全部 profile 降低 snapshot 并遵守 runtime contract 19；旧 sysroot／产物须重建 | typed 操作读写原线程根槽，snapshot 判空后读实际 root 字段；ARM64 调用内惰性复用槽的 native 地址，x86_64 直接读取 TLS。每线程增加 8 B 地址，无新增 managed 引用或根；debug／invoke／普通 extern 和绑定树保留 C 后备。 |
 | [初始化完成后的就绪快路径](INIT-READY.md) | 新编译器所有 profile 默认，配套 runtime contract 18；旧库／runtime／sysroot 须重建 | 真实 typed 普通 InitializationEnter 先 acquire 读 state，Initialized 跳过 runtime／TLS／锁；其余状态、invoke、普通 extern 和入口 poll 保留。cell 仍为 16 B，根仅在慢边恢复，后续对象地址按原 GC 契约重读。 |
 | [String 字节复制与 Char 编码](STRING-COPIES.md) | 新 core 协议所有 profile 一致；release 默认复用 TLAB、调用点内联及常量传播，须重建配套 core／依赖 | typed 复制按真实布局分配并在 GC 后重取源，String 字节快照消除逐字节 initializer；Char 普通正文按调用点展开。长 memcpy、List getter 快照和旧 C ABI 保留；代码／编译成本与 Linux dispatch 对照回退见记录。 |
 | [MIR 末尾局部复制传播](INTERFACE-SSA.md) | release 默认，沿现有 MIR 内联优化配置 | 内联与循环选择后传播未取址局部当前别名；保持重赋快照、合流、循环与 EH，不依赖变量名。ARM64 dispatch／接口复制明显改善，lambdas 等回退如实记录并继续精化根与 SSA。 |

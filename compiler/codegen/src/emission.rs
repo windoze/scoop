@@ -261,7 +261,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             64
         },
         // The extra live register and cache check regressed x86 wide allocations.
-        reuse_allocation_context: profile.optimization() == scoop_lir::OptimizationMode::Release
+        reuse_thread_addresses: profile.optimization() == scoop_lir::OptimizationMode::Release
             && machine.get_target().get_name() == c"aarch64",
         managed_address_space,
         functions: &module.functions,

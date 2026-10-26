@@ -90,7 +90,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_int_add(requested_size, alignment_mask, "alloc_size_plus_align")
             .and_then(|size| builder.build_and(size, inverse_mask, "alloc_size"))
             .map_err(|error| CodegenError(format!("allocation size alignment: {error}")))?;
-        if self.reuse_allocation_context
+        if self.reuse_thread_addresses
             && ([nursery_eligible, size_valid]
                 .into_iter()
                 .any(|condition| condition.get_zero_extended_constant() == Some(0))

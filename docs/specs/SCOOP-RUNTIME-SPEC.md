@@ -203,7 +203,7 @@ unit 由 `PersistentInitializationUnitId` 标识；diagnostic path 只用于显�
 
 ### 2.8 多 image 登记与启动 ABI
 
-runtime ABI contract 为 **18**，metadata ABI 为 **9**。contract 18 要求 2.7 的初始化状态原子访问及 release／acquire 发布，不能把新生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 16 的完整 TLAB 元数据视图及 contract 15 的接口查询入口保持。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
+runtime ABI contract 为 **19**，metadata ABI 为 **9**。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 16 的完整 TLAB 元数据视图及 contract 15 的接口查询入口保持。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
 
 | descriptor | magic | size（bytes） |
 | --- | --- | --- |
@@ -820,6 +820,10 @@ try-get 无分配、NoGC、nounwind，返回擦除后的单字 object 或缺失�
 ### 9.2 保活与作用域
 
 Context、binding、mark 与 snapshot 使用实际 managed 类型和 scan。当前 context、previous context、未消费 mark 及 callback/suspend snapshot 都必须保活，含引用写入遵守 3.6；消费后的 mark 不继续保活已退出 scope。
+
+生成代码可通过私有 TLS 符号 `scoop_rt_context_slot` 取得当前线程原有 `current_task_context` 根槽的 native 地址。该符号在全部 profile 中都是 8-byte、8-byte 对齐的可变 TLS 指针；主线程与 foreign thread attach 时绑定，detach 时清空。它只指向原根槽，不保存第二份 managed 引用，也不增加 GC root。collector 继续扫描并更新原槽，C 后备与生成代码读取和写入同一槽。合法 managed invocation 期间线程不能 detach，因此可复用槽地址；不得把槽内 TaskContext 或其 root 字段值缓存跨可能改变绑定或发生 GC 的边界。协程在另一线程恢复时由新的 invocation 取得该线程的槽地址。
+
+current、enter、leave 可按上述槽生成普通 managed-pointer 读取／写入，仍为 NoGC；enter 返回原引用，leave 恢复传入引用，previous 的后续使用遵守通常的精确根和重定位规则。槽本身是 native 根位置，不是堆字段，不需要堆写屏障。snapshot 先取得 current，为空时返回空 root，否则读取实际 TaskContext 布局中的 root 字段；读取不改变绑定。上述操作不新增 safepoint，不缓存对象内部地址，不把内存效果改为 pure。绑定树遍历、push／restore 及其屏障继续使用共享实现。
 
 同一任务串行改变绑定。child task 继承创建时的 snapshot，后续重新绑定独立；binding 中原对象的身份仍可共享，不隐含深复制或并发同步。
 

@@ -8,6 +8,7 @@ mod interface_values;
 mod local_storage;
 mod memory;
 mod roots;
+mod thread_address;
 
 /// Per-function emission state: everything instruction translation
 /// needs, bundled to keep signatures small.
@@ -16,7 +17,7 @@ struct FnEmitter<'a, 'ctx> {
     managed_address_space: ManagedAddressSpace,
     optimize_allocations: bool,
     allocation_initialization_limit: u64,
-    reuse_allocation_context: bool,
+    reuse_thread_addresses: bool,
     llvm: &'a LlvmModule<'ctx>,
     builder: &'a inkwell::builder::Builder<'ctx>,
     function: &'a Function,
@@ -76,6 +77,8 @@ struct FnEmitter<'a, 'ctx> {
     cached_poll_state: Option<PointerValue<'ctx>>,
     /// Lazily initialized AS0 context address; its mutable fields are not cached.
     allocation_context_slot: Option<PointerValue<'ctx>>,
+    /// Native address of the existing Context root; never caches its value.
+    task_context_slot_cache: Option<PointerValue<'ctx>>,
     /// Collected only when allocation initialization can be optimized.
     allocation_addressed_locals: Option<HashSet<scoop_lir::LocalId>>,
     /// Nursery membership along one uninterrupted initialization path.
@@ -292,7 +295,7 @@ pub(super) fn emit_function<'ctx>(
         managed_address_space: module_ctx.managed_address_space,
         optimize_allocations: module_ctx.optimize_allocations,
         allocation_initialization_limit: module_ctx.allocation_initialization_limit,
-        reuse_allocation_context: module_ctx.reuse_allocation_context,
+        reuse_thread_addresses: module_ctx.reuse_thread_addresses,
         llvm,
         builder,
         function,
@@ -335,6 +338,7 @@ pub(super) fn emit_function<'ctx>(
         allocation_index: 0,
         cached_poll_state: None,
         allocation_context_slot: None,
+        task_context_slot_cache: None,
         allocation_addressed_locals: None,
         young_allocation: None,
         field_barrier: None,

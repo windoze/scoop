@@ -83,12 +83,14 @@ impl RuntimeAbiSymbolV1 {
                 thread_local: false,
                 mutable: false,
             },
-            Self::AllocationContext | Self::PollState => CompilerNativeContractV1::Data {
-                byte_size: 8,
-                alignment: 8,
-                thread_local: true,
-                mutable: true,
-            },
+            Self::AllocationContext | Self::PollState | Self::ContextSlot => {
+                CompilerNativeContractV1::Data {
+                    byte_size: 8,
+                    alignment: 8,
+                    thread_local: true,
+                    mutable: true,
+                }
+            }
             Self::GcEpoch => CompilerNativeContractV1::Data {
                 byte_size: 8,
                 alignment: 8,

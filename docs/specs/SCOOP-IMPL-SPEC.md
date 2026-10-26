@@ -457,7 +457,7 @@ release 的 codegen 分配结果可携带实际 TLAB 成功的布尔 SSA 事实�
 
 nursery 容量、full 压力和可选 survivor 阶段归 runtime 私有实现（运行时规范 3.1、3.9），不作为 LIR 常量、构建 profile 或 `.slib` 字段导出；现有生成代码继续只消费稳定的 allocation context 与分配慢入口。调整容量或 survivor 策略不重编依赖或改变精确 roots；generated card store 在 mutator 阶段仍只写 1，collector 私有的保留卡状态不进入生成代码。
 
-该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 18，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
+该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 19，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
 
 ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping，实际 card 地址仍取被写入的元素引用槽；一个对象的全部存储属于同一 mapping。多引用值继续使用原范围屏障，不按元素大小推定相邻槽属于同一卡。release 可以按 2.19 提升有界内层中的不变页表查询；其他 profile 与未命中路径保持原位置的完整操作。
 
@@ -625,7 +625,7 @@ Export HIR 的当前目标测试目录按语言规范 16.4 保留 typed class／
 
 测试用途产物在可选 manifest section `org.scoop-lang.manifest/test-directory/1` 中保存该目录的展示投影：容器限定名、用例方法名与完整显示名、各自的 Cone-relative 源码路径及一基行列、忽略原因。目录按前端顺序嵌套保存容器与用例，不通过解析显示名恢复关系；可执行调用仍使用 HIR 中的 typed 引用。该 section 不参与 Compile／Link 的语义要求，受普通 ArtifactFingerprint 覆盖；生产产物不写入，测试产物即使无容器也写入空目录。manifest summary 在读取边界解码并复用该投影，缓存命中不重新发现测试或加载完整 HIR。
 
-入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 18、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
+入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 19、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布／Context 槽合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equals<T>.equals` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；该 slot 使用源码显式声明的 operator 实现，不按结构比较补齐接口，也不保存 Equals 专用的 core protocol 或条件接口规则。
 
@@ -1179,7 +1179,7 @@ OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("
 
 ### 2.14 Runtime image 与初始化
 
-runtime metadata ABI 9、runtime ABI contract 18 的字段与启动协议由运行时规范 2.7、2.8 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
+runtime metadata ABI 9、runtime ABI contract 19 的字段与启动协议由运行时规范 2.7、2.8、9.2 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
 
 image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
 
@@ -1239,6 +1239,10 @@ Context scope 在完整 value 求值与成功 push 后才生效。真实离开 s
 协程 frame 保存完整 TaskContext 与跨挂起 mark。只有取得实际恢复权的入口切换到 frame context，所有 driver 出口恢复 previous context。普通 closure 只捕获实际词法值，callback 注册另按语言规定捕获 binding snapshot。
 
 MIR 中已选的 Context fork 在 LIR 根计划形成前降低为普通 managed 分配和 root 字段写入。分配、字段位置与 TD／scan 共用实际 generated TaskContext 的对象布局；当前支持目标上为 16 字节对象头加一个 8 字节 managed root。所有 profile 使用同一布局与基本操作，release 复用已有 TLAB 快路径。输入 snapshot 只求值一次，并作为分配后写入所需的活跃引用参与根计划；若分配触发搬迁，字段必须写入恢复后的引用，并执行普通含引用写屏障。即使 snapshot 为空也建立独立的 TaskContext，不合并任务身份。该降低只处理 typed Context 操作，不改变同名普通 extern 的协议；runtime 的 fork 后备、初始 root 创建及共享绑定树操作继续有效，不增加 TLS 字段、隐藏参数或产物 ABI。
+
+MIR Context snapshot 同样在 LIR 根计划前降低为 typed current、判空和普通 HeapLoad，字段偏移复用 generated TaskContext 的同一布局。release codegen 将真实 NoGC runtime 身份的 current／enter／leave 普通调用生成对运行时规范 9.2 原根槽的读写；普通 extern、invoke 和 debug 保留 C 后备。它们的 managed 结果及 previous guard 继续参与后续根计划与 SSA 重定位，不增设独立的引用缓存。槽读取和写入保留实际内存效果，可能 GC 或切换绑定后从当前槽或实际 relocate 结果取得引用。
+
+ARM64 release 复用已有分配 context 的首次使用机制，在一次 invocation 中惰性取得并复用 native 根槽地址；x86_64 直接读取 TLS 指针。缓存只存 AS0 地址，初次 TLS 取址不提前到从未执行该操作的路径；槽内 managed 引用和 TaskContext 字段不作相同缓存。runtime ABI contract 19 为该 TLS data symbol 登记 `RuntimeAbiSymbolV1` tag 34，所有 profile 的符号、大小和 attach／detach 合同一致，旧 sysroot 与产物按原 ABI 边界重建；对象表示、GC roots、metadata ABI 9 和 `.slib` 容器保持。
 
 语言规范 11.9.1～11.9.2 的 Job、任务树和取消适配是普通 core 源码，使用精确 Job Context binding、已有原子、异常与 continuation。编译器不按这些库名称生成专用身份、调度或取消路径；跨 Cone 按普通泛型模板、可见性与调用规则消费。
 

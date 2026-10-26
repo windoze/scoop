@@ -17,6 +17,7 @@ _Atomic(uint64_t) scoop_thread_last_gc_parked_count;
 _Atomic(uint64_t) scoop_thread_last_gc_native_safe_count;
 _Thread_local ScoopThreadState *scoop_thread_tls;
 _Thread_local ScoopPollState *scoop_rt_poll_state;
+_Thread_local struct ScoopTaskContext **scoop_rt_context_slot;
 _Noreturn void scoop_thread_fatal(const char *message) {
     fprintf(stderr, "scoop runtime: %s\n", message);
     abort();
@@ -176,6 +177,7 @@ static void detach_current(ScoopThreadAttachmentKind expected_kind) {
     registry_remove(state);
     scoop_thread_tls = NULL;
     scoop_rt_poll_state = NULL;
+    scoop_rt_context_slot = NULL;
     scoop_thread_registry_unlock();
     free(state->initialization_stack);
     free(state->initialization_cycle_path);
@@ -215,6 +217,7 @@ void scoop_thread_attach_main(void) {
     scoop_thread_tls = state;
     scoop_gc_mutator_bind(state->mutator);
     scoop_rt_poll_state = &state->poll;
+    scoop_rt_context_slot = &state->current_task_context;
     scoop_thread_registry_unlock();
 }
 
@@ -235,6 +238,7 @@ bool scoop_rt_attach_foreign_thread(void) {
     scoop_thread_tls = state;
     scoop_gc_mutator_bind(state->mutator);
     scoop_rt_poll_state = &state->poll;
+    scoop_rt_context_slot = &state->current_task_context;
     scoop_thread_registry_unlock();
     return true;
 }

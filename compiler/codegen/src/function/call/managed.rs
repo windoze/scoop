@@ -4,6 +4,7 @@ mod arguments;
 mod initialization;
 mod invoke;
 mod preparation;
+mod task_context;
 mod validation;
 
 use preparation::CallPreparation;
@@ -73,6 +74,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             &protocol,
             invoke.is_some(),
         )?;
+
+        if self.optimize_allocations
+            && invoke.is_none()
+            && matches!(protocol, CallProtocol::NoGc)
+            && self.emit_context_access(&call, &result)?
+        {
+            return Ok(());
+        }
 
         if invoke.is_none()
             && let (

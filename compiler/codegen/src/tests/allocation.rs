@@ -219,7 +219,7 @@ fn allocation_context_reuse_does_not_load_tls_on_the_no_allocation_path() {
                 "{ir}"
             );
             assert!(ir.contains("allocation_context_value = phi ptr"), "{ir}");
-            assert!(ir.contains("alloc.context.load.0"), "{ir}");
+            assert!(ir.contains("allocation_context.load.0"), "{ir}");
             assert!(
                 ir.contains("allocation_context = load volatile ptr"),
                 "{ir}"

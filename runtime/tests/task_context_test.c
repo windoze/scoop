@@ -62,18 +62,22 @@ static void collect(void) {
     scoop_rt_gc_collect_impl(0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
 }
 
-static void *collect_on_foreign_thread(void *unused) {
-    (void)unused;
+static void *collect_on_foreign_thread(void *parent_slot) {
+    assert(scoop_rt_context_slot == NULL);
     assert(scoop_rt_attach_foreign_thread());
+    assert(scoop_rt_context_slot == &scoop_thread_current_required()->current_task_context);
+    assert((void *)scoop_rt_context_slot != parent_slot && *scoop_rt_context_slot == NULL);
     uintptr_t boundary = 0;
     scoop_thread_enter_managed(&boundary);
     collect();
     scoop_thread_leave_managed();
     scoop_rt_detach_foreign_thread();
+    assert(scoop_rt_context_slot == NULL);
     return NULL;
 }
 
 static void exercise_context(void) {
+    ScoopTaskContext **context_slot = scoop_rt_context_slot;
     _Alignas(16) uintptr_t frame[4];
     frame_init(frame);
     void *task = scoop_rt_context_ensure_root_impl(
@@ -99,11 +103,18 @@ static void exercise_context(void) {
     assert(child != task && ((ScoopTaskContext *)child)->root == snapshot);
     guard = scoop_rt_context_enter(child);
     assert(guard == task);
+    assert(*context_slot == child);
+    *context_slot = guard;
+    assert(scoop_rt_context_current() == task);
+    guard = *context_slot;
+    *context_slot = child;
     mark = push(cells[0], 999);
     collect();
+    assert(scoop_rt_context_slot == context_slot && *context_slot == child);
     assert(lookup(cells[0]) == 999 && lookup(cells[6]) == 106);
     assert(((ScoopTaskContext *)task)->root == snapshot);
     scoop_rt_context_leave(guard);
+    assert(*context_slot == task);
     assert(lookup(cells[0]) == 100);
     scoop_rt_context_restore(child, mark);
     assert(((ScoopTaskContext *)child)->root == snapshot);
@@ -123,6 +134,7 @@ static void exercise_context(void) {
 }
 
 int main(void) {
+    assert(scoop_rt_context_slot == NULL);
     assert(setenv("SCOOP_GC_STRESS_MOVE", "1", 1) == 0);
     const ScoopTypeDescriptor *types[] = {&task_td, &node_td, &payload_td};
     scoop_thread_runtime_init();
@@ -133,20 +145,26 @@ int main(void) {
     registry.context_height = 16;
     scoop_image_publish(&registry);
     scoop_thread_attach_main();
+    ScoopTaskContext **context_slot = scoop_rt_context_slot;
+    assert(context_slot == &scoop_thread_current_required()->current_task_context);
+    assert(*context_slot == NULL);
     uintptr_t boundary = 0;
     scoop_thread_enter_managed(&boundary);
     exercise_context();
     uintptr_t previous = (uintptr_t)scoop_rt_context_current();
     scoop_thread_leave_managed();
     pthread_t collector;
-    assert(pthread_create(&collector, NULL, collect_on_foreign_thread, NULL) == 0);
+    assert(pthread_create(&collector, NULL, collect_on_foreign_thread, context_slot) == 0);
     assert(pthread_join(collector, NULL) == 0);
     scoop_thread_enter_managed(&boundary);
     assert((uintptr_t)scoop_rt_context_current() != previous);
+    assert(scoop_rt_context_slot == context_slot);
+    assert(*context_slot == scoop_rt_context_current());
     assert(lookup(UINT64_C(1) << 32) == 1234);
     scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
+    assert(scoop_rt_context_slot == NULL);
     scoop_thread_runtime_finish_shutdown();
     puts("task context radix, fork, restore and moving roots passed");
     return 0;
