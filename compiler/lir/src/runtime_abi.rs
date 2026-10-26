@@ -24,6 +24,9 @@ const INITIAL_SCHEMA: u64 = 1;
 pub const POLL_WORLD_RUNNING: u64 = 0;
 pub const POLL_THREAD_MANAGED: u64 = 1;
 
+/// Published terminal state in the runtime-private initialization cell.
+pub const INITIALIZATION_CELL_READY: u64 = 2;
+
 mod machine;
 pub use machine::{CompilerNativeContractV1, CompilerNativeValueV1};
 
@@ -67,7 +70,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 17,
+                1 => 18,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -801,10 +804,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_current_metadata_layout() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3011102010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3011202010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "29650bf77c2b4c4ce13ffc076c0739e0a9637f236de24c66b03dcb7e89f5b01a"
+            "07ebae307c8c58fb5bd7559315bfacbb1a877af8e12601848f5da6883cf4f8ed"
         );
     }
 
@@ -900,7 +903,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "d7e159ef389b1b4a48656655b4bf9fbef8717489165006a408be5f3cf7ca6b56"
+            "ac372a4835f74a3c2e2b3328dc2de921040e0f1a3e681c74bf09dc1009f4639a"
         );
         assert!(
             registry
@@ -956,7 +959,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "c7459e678ef2823a3391bad85e0813ca64e85efbf2bff999f756e444f5e81552"
+            "03ca29906944c352c5ae51aa93555e8945c5bed904879a9679c480da1b0c2a02"
         );
     }
 

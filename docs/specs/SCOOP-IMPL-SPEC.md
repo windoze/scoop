@@ -455,7 +455,7 @@ managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 re
 
 nursery 容量、full 压力和可选 survivor 阶段归 runtime 私有实现（运行时规范 3.1、3.9），不作为 LIR 常量、构建 profile 或 `.slib` 字段导出；现有生成代码继续只消费稳定的 allocation context 与分配慢入口。调整容量或 survivor 策略不重编依赖或改变精确 roots；generated card store 在 mutator 阶段仍只写 1，collector 私有的保留卡状态不进入生成代码。
 
-该共享快路径使用统一 runtime ABI contract 17，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物没有卡组登记，必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
+该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 18，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
 
 ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping，实际 card 地址仍取被写入的元素引用槽；一个对象的全部存储属于同一 mapping。多引用值继续使用原范围屏障，不按元素大小推定相邻槽属于同一卡。release 可以按 2.19 提升有界内层中的不变页表查询；其他 profile 与未命中路径保持原位置的完整操作。
 
@@ -623,7 +623,7 @@ Export HIR 的当前目标测试目录按语言规范 16.4 保留 typed class／
 
 测试用途产物在可选 manifest section `org.scoop-lang.manifest/test-directory/1` 中保存该目录的展示投影：容器限定名、用例方法名与完整显示名、各自的 Cone-relative 源码路径及一基行列、忽略原因。目录按前端顺序嵌套保存容器与用例，不通过解析显示名恢复关系；可执行调用仍使用 HIR 中的 typed 引用。该 section 不参与 Compile／Link 的语义要求，受普通 ArtifactFingerprint 覆盖；生产产物不写入，测试产物即使无容器也写入空目录。manifest summary 在读取边界解码并复用该投影，缓存命中不重新发现测试或加载完整 HIR。
 
-入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 17、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card 合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
+入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 18、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equals<T>.equals` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；该 slot 使用源码显式声明的 operator 实现，不按结构比较补齐接口，也不保存 Equals 专用的 core protocol 或条件接口规则。
 
@@ -1175,13 +1175,15 @@ OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("
 
 ### 2.14 Runtime image 与初始化
 
-runtime metadata ABI 9、runtime ABI contract 17 的字段与启动协议由运行时规范 2.7、2.8 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
+runtime metadata ABI 9、runtime ABI contract 18 的字段与启动协议由运行时规范 2.7、2.8 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
 
 image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
 
 全部 image 和 roots 在首个 managed initializer 前登记，原始 argc/argv 在 eager 初始化前保存。每次 eager/root gateway 有独立 native→managed boundary 和入口 poll；全部 eager 成功后 root gateway 才构造其需要的 argv 数组并调用 main，所有异常在回到 C 前处理完成。Unit 成功写退出码 0，Int 成功写完整实际值，两者均返回 status 0；failure root 发布后返回 status 1，runtime 忽略退出码槽并按统一失败路径以 1 终止。构造、static initial state、failure root 与 Context cells 遵守运行时规范，不由最终 linker 补造缺失语义。
 
 初始化顺序遵守语言规范 12.3；普通 lazy ensure 可以因实际访问执行。最终链接保证同一 ODR unit 共享唯一状态，runtime 按实际加载地址和当前状态协调。
+
+codegen 对真实 `ManagedRuntimeFunction::InitializationEnter` 的普通调用生成就绪快读：沿已登记 descriptor 的 cell 指针，对 offset 0 的 8-byte state 作 acquire load，Initialized 时直接产生 typed Ready 结果。其余状态保留原 managed call 及 safepoint，仅在慢边物化／恢复根，再与 Ready 合流；普通 extern 和 invoke 后备不改变协议。全部 profile 使用同一原子发布契约和 cell 布局，不在 MIR 伪造无 GC effect，也不删除 ensure 的入口 poll。后续 storage 读取仍使用原精确 root 及重定位路径；状态快读不缓存 singleton 对象地址，不重新验证 descriptor 或另建跨 Cone 初始化状态。旧 runtime contract 17 的普通 state 写入不兼容，按既有 ABI 指纹检查要求重建。
 
 ### 2.15 集合、Char 与字符串
 

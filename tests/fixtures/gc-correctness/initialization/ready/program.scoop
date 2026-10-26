@@ -1,0 +1,65 @@
+var sharedBuilds = 0L
+var failedBuilds = 0L
+
+fun makeSharedText(): String {
+    sharedBuilds += 1L
+    gcCollect()
+    return "shared-" + sharedBuilds.toString()
+}
+
+object Shared {
+    val text = makeSharedText()
+}
+
+class Failure(val code: Long) : Throwable()
+
+fun failInitialization(): Long {
+    failedBuilds += 1L
+    throw Failure(17L)
+}
+
+object Broken {
+    val value = failInitialization()
+}
+
+fun failed(): Throwable {
+    try { val value = Broken.value }
+    catch (error: Throwable) { return error }
+    throw IllegalStateException()
+}
+
+fun left(): Long = Left.value
+fun right(): Long = Right.value
+object Left { val value = right() }
+object Right { val value = left() }
+
+fun cyclic(): Throwable {
+    try { val value = Left.value }
+    catch (error: IllegalStateException) { return error }
+    throw IllegalStateException()
+}
+
+fun observe(seed: String): String {
+    val live = seed + "-live"
+    val first = Shared
+    gcCollect()
+    val second = Shared
+    if (first !== second) { throw IllegalStateException() }
+    return live + ":" + second.text
+}
+
+fun main() {
+    val firstFailure = failed()
+    val firstCycle = cyclic()
+    var index = 0L
+    while (index < 20L) {
+        gcCollect()
+        if (observe(index.toString()) != index.toString() + "-live:shared-1" ||
+            failed() !== firstFailure || cyclic() !== firstCycle) {
+            throw IllegalStateException()
+        }
+        index += 1L
+    }
+    if (sharedBuilds != 1L || failedBuilds != 1L) { throw IllegalStateException() }
+    println("initialization preserves ready roots, failure identity and cycles")
+}

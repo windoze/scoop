@@ -145,7 +145,9 @@ static bool cross_thread_cycle(ScoopThreadState *thread,
     ScoopThreadState *owner = unit->cell->owner_thread;
     while (owner != NULL && owner != thread) {
         const ScoopInitializationUnitDescriptorV1 *wait = owner->initialization_wait;
-        if (wait == NULL || wait->cell->state != SCOOP_INIT_INITIALIZING) {
+        if (wait == NULL ||
+            __atomic_load_n(&wait->cell->state, __ATOMIC_RELAXED) !=
+                SCOOP_INIT_INITIALIZING) {
             free(path);
             return false;
         }
@@ -197,7 +199,8 @@ static void wait_for_unit(ScoopThreadState *thread,
             atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
         atomic_store_explicit(&thread->poll.observed_gc_epoch, epoch, memory_order_release);
         scoop_thread_world_broadcast();
-        if (unit->cell->state != SCOOP_INIT_INITIALIZING &&
+        if (__atomic_load_n(&unit->cell->state, __ATOMIC_RELAXED) !=
+                SCOOP_INIT_INITIALIZING &&
             atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) ==
                 SCOOP_WORLD_RUNNING) {
             break;
@@ -213,9 +216,10 @@ static uint64_t init_enter(const ScoopInitializationUnitDescriptorV1 *unit) {
     ScoopThreadState *thread = scoop_thread_require_managed();
     scoop_thread_registry_lock();
     for (;;) {
-        switch (unit->cell->state) {
+        switch (__atomic_load_n(&unit->cell->state, __ATOMIC_RELAXED)) {
         case SCOOP_INIT_UNINITIALIZED:
-            unit->cell->state = SCOOP_INIT_INITIALIZING;
+            __atomic_store_n(&unit->cell->state, SCOOP_INIT_INITIALIZING,
+                             __ATOMIC_RELAXED);
             unit->cell->owner_thread = thread;
             push_unit(thread, unit);
             scoop_thread_registry_unlock();
@@ -257,7 +261,8 @@ static void init_succeed(const ScoopInitializationUnitDescriptorV1 *unit) {
     scoop_image_require_unit(unit);
     ScoopThreadState *thread = scoop_thread_current_required();
     scoop_thread_registry_lock();
-    if (unit->cell->state != SCOOP_INIT_INITIALIZING ||
+    if (__atomic_load_n(&unit->cell->state, __ATOMIC_RELAXED) !=
+            SCOOP_INIT_INITIALIZING ||
         unit->cell->owner_thread != thread ||
         *(void **)unit->failure_root->writable_base != NULL) {
         scoop_thread_registry_unlock();
@@ -265,7 +270,7 @@ static void init_succeed(const ScoopInitializationUnitDescriptorV1 *unit) {
     }
     pop_unit(thread, unit);
     unit->cell->owner_thread = NULL;
-    unit->cell->state = SCOOP_INIT_INITIALIZED;
+    __atomic_store_n(&unit->cell->state, SCOOP_INIT_INITIALIZED, __ATOMIC_RELEASE);
     scoop_thread_world_broadcast();
     scoop_thread_registry_unlock();
 }
@@ -278,7 +283,8 @@ static void init_fail(const ScoopInitializationUnitDescriptorV1 *unit,
     }
     ScoopThreadState *thread = scoop_thread_current_required();
     scoop_thread_registry_lock();
-    if (unit->cell->state != SCOOP_INIT_INITIALIZING ||
+    if (__atomic_load_n(&unit->cell->state, __ATOMIC_RELAXED) !=
+            SCOOP_INIT_INITIALIZING ||
         unit->cell->owner_thread != thread ||
         *(void **)unit->failure_root->writable_base != NULL) {
         scoop_thread_registry_unlock();
@@ -287,7 +293,7 @@ static void init_fail(const ScoopInitializationUnitDescriptorV1 *unit,
     *(void **)unit->failure_root->writable_base = exception;
     pop_unit(thread, unit);
     unit->cell->owner_thread = NULL;
-    unit->cell->state = SCOOP_INIT_FAILED;
+    __atomic_store_n(&unit->cell->state, SCOOP_INIT_FAILED, __ATOMIC_RELEASE);
     scoop_thread_world_broadcast();
     scoop_thread_registry_unlock();
 }
@@ -295,7 +301,7 @@ static void init_fail(const ScoopInitializationUnitDescriptorV1 *unit,
 static void *init_failure(const ScoopInitializationUnitDescriptorV1 *unit) {
     scoop_image_require_unit(unit);
     scoop_thread_registry_lock();
-    if (unit->cell->state != SCOOP_INIT_FAILED ||
+    if (__atomic_load_n(&unit->cell->state, __ATOMIC_RELAXED) != SCOOP_INIT_FAILED ||
         *(void **)unit->failure_root->writable_base == NULL) {
         scoop_thread_registry_unlock();
         initialization_fatal("initialization failure read from a non-failed unit");

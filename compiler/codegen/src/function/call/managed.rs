@@ -1,6 +1,7 @@
 use super::*;
 
 mod arguments;
+mod initialization;
 mod invoke;
 mod preparation;
 mod validation;
@@ -72,6 +73,23 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             &protocol,
             invoke.is_some(),
         )?;
+
+        if invoke.is_none()
+            && let (
+                scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::Managed(
+                    scoop_lir::ManagedRuntimeFunction::InitializationEnter,
+                )),
+                TypedCallResult::Direct { out, .. },
+                CallProtocol::Managed { safepoint, live },
+            ) = (destination, &result, &protocol)
+        {
+            return self.initialization_enter(
+                *out,
+                call.args()[0].logical_value(),
+                *safepoint,
+                live,
+            );
+        }
 
         if invoke.is_none()
             && let (

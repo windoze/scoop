@@ -185,13 +185,15 @@ closure 不能直接作为 FunPtr 交给 native。静态 FunPtr 与 4.3 的 mana
 
 ### 2.7 Initialization unit 与 singleton 发布
 
-每个需要运行期求值的顶层属性、singleton 和 delegated extension application 有独立初始化单元。其 GC-free cell 位于 managed heap 外，size 16、alignment 8，保存 `state: u64` 与 `owner_thread: pointer`。状态为 Uninitialized、Initializing、Initialized 或 Failed。
+每个需要运行期求值的顶层属性、singleton 和 delegated extension application 有独立初始化单元。其 GC-free cell 位于 managed heap 外，size 16、alignment 8，保存 `state: u64` 与 `owner_thread: pointer`。状态编码为 Uninitialized=0、Initializing=1、Initialized=2 或 Failed=3。state 在发布后只以原子方式访问；owner_thread、依赖栈和等待图仍由 coordinator 锁保护。C／C++ 共享布局保留 uint64_t 存储，runtime 使用原子内建访问，生成代码使用同宽、同对齐的 LLVM atomic 操作。
 
 同一 singleton 的所有访问使用同一 ensure、published root 与 cell。generic companion 按完整宿主 application 区分状态；同一 application 跨 Cone 只初始化一次，不同 application 不因布局相同而合并。宿主构造、类型查询和 const 读取不隐式初始化 companion。
 
 M55 的 companion bound、投影存在性与成员要求查询同样不触发初始化；正文或默认参数中实际求值的 `T.Companion` 在具体化后使用本节原有的 ensure、root 与 cell，不为不同要求或消费方创建另一份状态。
 
 winner 完成全部初始化后，先发布 property storage 或 singleton root，再以 release 语义发布 Initialized。waiter 以 acquire 观察终态后重新读取 storage。Initializing 期间不能读取临时 singleton；构造中的 receiver 只由正常 managed root 保活。ZST storage 也保留 initializer、ensure、cell 和副作用。
+
+普通 typed InitializationEnter 调用可以先对共享 cell 的 state 做 acquire load；只有 Initialized 可直接产生 Ready，无 runtime 调用、TLS 查询、锁或根发布。其余状态仍进入原 managed coordinator，保留真实慢边 safepoint、正常／异常根和等待协议；invoke 形式可继续使用完整后备。快速读取只发生在已激活的 managed 线程内，不替代 gateway／函数入口和循环 poll；不得在该检查前读取结果 storage，或跨 safepoint 保存其中的对象地址。Initialized 是不可逆终态，GC 仍可更新 published root。失败发布先写 failure root，再 release store Failed；锁内 state 读取和 Initializing 写入可用 relaxed，锁仍串行化所有 winner 选择及状态转换。
 
 失败时不发布 singleton，不把部分 property storage 视为可读；将原 managed Throwable 存入单独登记的 failure root，再发布 Failed 并唤醒 waiter。后续访问重新抛出该失败，不重试、不回滚已发生副作用。
 
@@ -201,7 +203,7 @@ unit 由 `PersistentInitializationUnitId` 标识；diagnostic path 只用于显�
 
 ### 2.8 多 image 登记与启动 ABI
 
-runtime ABI contract 为 **17**，metadata ABI 为 **9**。contract 17 增加 3.6 的脏卡组登记与 region prefix，生成代码和 runtime 共同记录实际写过的卡组；contract 16 的完整 TLAB 元数据视图及 contract 15 的接口查询入口保持。对象、接口值、TD、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
+runtime ABI contract 为 **18**，metadata ABI 为 **9**。contract 18 要求 2.7 的初始化状态原子访问及 release／acquire 发布，不能把新生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 16 的完整 TLAB 元数据视图及 contract 15 的接口查询入口保持。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
 
 | descriptor | magic | size（bytes） |
 | --- | --- | --- |
@@ -659,7 +661,7 @@ errno 捕获遵守语言规范 13.4.2 和实现规范 2.4～2.5：bridge 在实�
 
 ### 4.6 Initialization coordinator
 
-coordinator 只接收已登记的 InitializationUnitDescriptor。`scoop_rt_init_enter(descriptor)` 以 acquire 观察 cell，返回 RunInitializer、Ready、Failed(rooted Throwable) 或 Cycle(stable unit path)。无环等待兼容 GC 握手。
+coordinator 只接收已登记的 InitializationUnitDescriptor。`scoop_rt_init_enter(descriptor)` 在锁的 acquire 同步下观察 cell，返回 RunInitializer、Ready、Failed(rooted Throwable) 或 Cycle(stable unit path)。编译器按 2.7 生成的就绪快读直接使用 state 的 acquire load；普通 extern 不按符号名替换，其 runtime 后备仍执行原入口检查。无环等待兼容 GC 握手。
 
 初始化等待者以 `PARKED` 发布已冻结的根，并按 3.5 在 GC 开始通知后确认当前 epoch。只有初始化已有结果且 world 为 `RUNNING` 时才能退出等待并恢复 managed；GC 通知或虚假唤醒都不能单独作为恢复条件。
 
