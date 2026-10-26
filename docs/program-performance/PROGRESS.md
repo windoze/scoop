@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 空间复用实验](GC-EVOLUTION.md)已完成对照并撤回：minor 复用旧代空洞单独收益不稳定；与非搬迁 full 组合虽将其 M3 RSS 从 2,305 MiB 降到 1,369 MiB，仍约为默认两倍，吞吐仅改善约 10%。两机正确性通过，保留负面结论，不推送实验实现或增加开关；下一项转向冻结图中重复的引用地址解析。
+
 - [GC 第六阶段](GC-EVOLUTION.md)完成源对象 GC 字转发与计划压缩，所有 profile 默认：删除每源块 32 KiB forwarding 表，保留完整预留、失败回退及当前对象 GC 状态。ARM64 大 gcpause 墙钟 9.931 → 8.843 s、RSS 984 → 703 MiB，普通／增量单次最大暂停约 191 → 178／170 → 152 ms；低分配吞吐持平。两机各 13 项 C 专测、三目标 7 variants／29 次进程调用通过。Linux 背景编译干扰和 16 线程系统 CPU 小幅代价已记录；继续实验按目标块并行复制及降低计划成本。
 
 - [GC 第五阶段](GC-EVOLUTION.md)完成清扫的存活 line 复用，所有 profile 默认：普通路径省去逐活对象大小读取与位图重建，保留死亡 release、pin、moving stress 和回滚。ARM64 bintrees／gcpause 墙钟降低约 7%／4%，reclaim 累计 485 → 80 ms／529 → 128 ms，RSS 保持；大 gcpause 单次暂停最大值约 231 → 199 ms，增量配置约 207 → 171 ms。GNU 长 4／8 线程也改善，短负载干扰和 ARM64 8 线程 CPU 回退均保留。继续处理 forwarding／搬迁计划工作区和地址映射。
