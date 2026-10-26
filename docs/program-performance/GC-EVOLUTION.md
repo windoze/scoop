@@ -96,6 +96,8 @@ NUC12 GNU 的小参数五对对照：1／2／4／8／16 线程墙钟降低 8.5%�
 
 两机先 fmt／release clippy，代际定向测试合计各 17 项通过，新增 O0／O2 覆盖容量、储备消费、部分映射失败、移动根、未用储备回收及 managed 退出。原块索引测试现在同时验证未用储备也属于真实年轻清单。三目标各通过线程分配与 native TLS／跨 Cone 回调／产物重链接，共四个 variants、24 次进程调用，含 ordinary／moving 和原 debug／release 组合。回调的旧指纹断言缺少与默认 debug 一致的 `--keep-symbols`，只修正该用例的链接设置后通过；没有扩大清理范围。
 
+后续 region compaction 专测发现，四块储备使原交替分配输入的存活节点只分布在两个 region；其中一个作为目标，另一个被 pin 后已没有可搬迁源。该失败在阶段三固定 runtime 复现，阶段二不复现。测试现在于分配进入新 region 时退休当前 TLAB／储备，明确构造分散的节点，保留原搬迁、pin、释放和缩堆断言；ARM64 与 Linux x86_64 定向复测通过，没有改变生产搬迁策略。
+
 ARM64 threads text 增加 176 B，GNU 代码／只读汇总增加 256 B；ARM64 四个程序文件大小均不变，ABI、系统库和编译器生产代码不变。86 个普通 runtime 对象均无线程测试钩子。本阶段降低了 refill 协调成本，但没有解决数倍的多线程和大存活集差距；下一阶段实际评估非搬迁 full 与旧代增量标记，继续减少单次 STW 的 mark／plan／update／reclaim 工作。
 
 ## 当前跨语言参照
