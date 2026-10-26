@@ -1,0 +1,105 @@
+// Ryu owns shortest digit generation. Core owns the decimal/scientific spelling
+// and constructs exactly one String from an initialized, stable stack buffer.
+internal fun coreFloatToString(value: Float): String {
+    var raw = (0uL, 0uL, 0uL, 0uL)
+    var text = (0uL, 0uL, 0uL, 0uL)
+    @Unsafe {
+        val input = addressOf(raw).cast<Byte>()
+        val output = addressOf(text).cast<Byte>()
+        val length = coreFloatShortest(value, input).toLong()
+        val size = coreFormatShortest(input, length, output)
+        return coreStringCopyUtf8Unchecked(output, size)
+    }
+}
+
+internal fun coreDoubleToString(value: Double): String {
+    var raw = (0uL, 0uL, 0uL, 0uL)
+    var text = (0uL, 0uL, 0uL, 0uL)
+    @Unsafe {
+        val input = addressOf(raw).cast<Byte>()
+        val output = addressOf(text).cast<Byte>()
+        val length = coreDoubleShortest(value, input).toLong()
+        val size = coreFormatShortest(input, length, output)
+        return coreStringCopyUtf8Unchecked(output, size)
+    }
+}
+
+@GCLeaf @Extern(name = "f2s_buffered_n")
+private fun coreFloatShortest(value: Float, bytes: Ptr<Byte>): Int
+
+@GCLeaf @Extern(name = "d2s_buffered_n")
+private fun coreDoubleShortest(value: Double, bytes: Ptr<Byte>): Int
+
+// Input is Ryu's at-most-24-byte output. All loops have a fixed small bound;
+// output has 32 bytes, with no terminator required by String construction.
+@NoGC @Unsafe
+private fun coreFormatShortest(raw: Ptr<Byte>, length: Long, out: Ptr<Byte>): Long {
+    var exponentStart = 0L
+    while (exponentStart < length && raw.load(exponentStart) != 69.toByte()) { exponentStart += 1L }
+    if (exponentStart == length) {
+        var index = 0L
+        while (index < length) { out.store(index, raw.load(index)); index += 1L }
+        return length
+    }
+    var written = 0L
+    var start = 0L
+    if (raw.load() == 45.toByte()) { out.store(45.toByte()); written = 1L; start = 1L }
+    var digitStorage = (0uL, 0uL, 0uL)
+    val digits = addressOf(digitStorage).cast<Byte>()
+    var count = 0L
+    var index = start
+    while (index < exponentStart) {
+        val byte = raw.load(index)
+        if (byte != 46.toByte()) { digits.store(count, byte); count += 1L }
+        index += 1L
+    }
+    index = exponentStart + 1L
+    var negative = false
+    if (raw.load(index) == 45.toByte()) { negative = true; index += 1L }
+    else if (raw.load(index) == 43.toByte()) { index += 1L }
+    var exponent = 0L
+    while (index < length) {
+        exponent = exponent * 10L + raw.load(index).toLong() - 48L
+        index += 1L
+    }
+    if (negative) { exponent = -exponent }
+    if (exponent >= -3L && exponent < 7L) {
+        val point = exponent + 1L
+        if (point <= 0L) {
+            out.store(written, 48.toByte()); out.store(written + 1L, 46.toByte())
+            written += 2L
+            index = point
+            while (index < 0L) { out.store(written, 48.toByte()); written += 1L; index += 1L }
+            index = 0L
+        } else {
+            index = 0L
+            while (index < point) {
+                out.store(written, if (index < count) digits.load(index) else 48.toByte())
+                written += 1L; index += 1L
+            }
+            out.store(written, 46.toByte()); written += 1L
+            if (point >= count) { out.store(written, 48.toByte()); return written + 1L }
+        }
+        while (index < count) { out.store(written, digits.load(index)); written += 1L; index += 1L }
+        return written
+    }
+    out.store(written, digits.load()); out.store(written + 1L, 46.toByte())
+    written += 2L
+    if (count == 1L) { out.store(written, 48.toByte()); written += 1L }
+    else {
+        index = 1L
+        while (index < count) { out.store(written, digits.load(index)); written += 1L; index += 1L }
+    }
+    out.store(written, 101.toByte()); written += 1L
+    if (exponent < 0L) { out.store(written, 45.toByte()); written += 1L; exponent = -exponent }
+    // Binary64's exponent magnitude is at most 324. Bounded subtraction avoids
+    // the throwing integer-division operation in this NoGC formatter.
+    var hundreds = 0L
+    while (exponent >= 100L) { exponent -= 100L; hundreds += 1L }
+    if (hundreds != 0L) { out.store(written, (48L + hundreds).toByte()); written += 1L }
+    var tens = 0L
+    while (exponent >= 10L) { exponent -= 10L; tens += 1L }
+    if (hundreds != 0L || tens != 0L) { out.store(written, (48L + tens).toByte()); written += 1L }
+    out.store(written, (48L + exponent).toByte()); written += 1L
+    return written
+}

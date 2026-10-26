@@ -48,3 +48,13 @@ Darwin ARM64：release Rust Clippy、C 警告检查、Python Ruff 通过；4 项
 lossy 输入约每七个字节包含一个非法字节，其余为 ASCII；结果包含减少逐段 helper／小 memcpy 调用等组合收益，不能外推为完整应用收益。33～128 B hash 分别降低约 24%～42%、21%～50%、30%～57%；4096 B 降低约 2%～3%，8／32 B 原有路径基本保持。ARM64 fromChars 的 5.1% 回退保留；职责迁移不设额外开关。
 
 七项负载各目标的分配字节、minor／full GC 次数均与基线一致。ARM64 机器码出现 16 B 向量读取和字节归约，无扫描 C 调用；短标量解码继续使用真实 leaf。两个程序的 text 分别减少 ARM64 192／916 B、GNU 1,600／2,432 B、musl 2,048／2,880 B；完整文件分别增加 10,704／8,336 B、21,160／14,216 B、21,240／10,200 B。单次应用构建墙钟变化为 −1.0%～+3.6%（约 −0.03～+0.15 s），CPU 成本同量级；未给清理工作新增运行配置或测量代码。
+
+## 第三批：浮点适配
+
+`floating_text.scoop` 以明确的 GCLeaf C 声明调用现有 Ryu buffered_n，普通有界 NoGC helper 处理 Scoop 的小数／科学计数法格式，再由 typed StringCopy 构造一次 String。输入与输出均为 GC-free 栈缓冲，不持有移动对象的内部地址。删除 `scoop_rt_float_to_string`／`scoop_rt_double_to_string`、`floating.c`、声明和构建项；Ryu 的数字核心及来源版本不变。
+
+JSON／CLI 继续通过实际的 Scoop ABI Option 适配调用 libc `strtof_l`／`strtod_l`；保留完整消费、有限值、次正规数、带符号零、舍入和 C locale。小于 256 B 的输入使用 256 B 栈缓冲补 NUL，其他长度使用原动态缓冲，不增加合法输入限制。短输入每次省去适配层的一次 malloc／free，不能据此声称 libc 内部完全不分配。长度接口候选 fast_float v8.3.2 的原生内核约 10～11 ns，现有 libc 的栈缓冲约 18 ns，旧堆缓冲约 32 ns；两个候选 wrapper 的代码与常量约 44 KiB，并需补充 C++／musl 构建路径。本批采用栈缓冲，未引入新依赖或配置。
+
+Darwin ARM64 的 core 文本规则及极值、JSON 的 2,048 组 Float／Double 随机位型往返、CLI 数值解码和 254／255／256／257／1024 B 边界通过；debug／release 的 Scoop ABI、moving／minor GC 组合通过。机器码直接调用 Ryu，旧两个 C 包装符号不在产物中。Linux GNU／musl 使用相同源码的定向验证正在独立快照中执行，结果随本轮收尾补齐。
+
+固定浮点源码、一百万次、预热一次后五对 AB／BA，ARM64 的 Double／Float toString 为 68.51→36.51 ns、62.84→28.82 ns；Double／Float parse 为 50.53→33.61 ns、49.14→33.20 ns。每项的托管分配及 GC 完全一致：两个文本负载分别 35,000,336 B／33 次 minor、34,000,336 B／32 次 minor，两个解析负载仅固定 352／344 B、无 collection。与本轮原始基线比较，完整文件 3,005,000→3,023,848 B，text 321,104→320,604 B；静态变化含前一字符串批次，不能全部归因于浮点迁移。本机候选应用构建墙钟 3.12 s、CPU 4.79 s，原基线未保存可比编译计时。普通职责迁移所有 profile 生效，release 复用既有内联与分配优化。

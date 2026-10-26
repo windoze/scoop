@@ -8,6 +8,8 @@
 
 - 已完成 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md) 的字符串批次：字符扫描、定位、UTF-8 编码／校验和长 hash 迁至普通 core 正文；typed 字节读写与精确分配复用既有 codegen，旧 C 算法和专属 shim 退役。三目标 core／Unicode／GC／页边界与 ABI 回归通过，分配和 GC 次数保持；字符计数降低约 39%～75%，定位／切片降低约 34%～60%，其他分项和 ARM64 fromChars +5.1% 的成本均保留。text 略减，完整文件增加约 8～21 KiB；所有 profile 使用同一语义，release 按既有策略优化，无新开关。
 
+- 浮点适配已迁普通 core，Ryu 核心保持；JSON／CLI 短文本省去逐次 native 堆缓冲。ARM64 的 core、JSON／CLI、双 profile ABI 与 moving GC 通过，四项动态浮点负载降低约 32%～54%，托管分配及 GC 次数一致。Linux 对照随本轮收尾补齐；生成装箱、Context 和根帧收敛继续推进。
+
 - 已完成[叶函数调用成本评估](LEAF-CALL-EVALUATION.md)，本批未采纳新默认能力：分支叶函数省 poll 在 ARM64／GNU 回退；省帧虽使 ARM64 动态调用内核降低 18.24%，接口数组复测仍增加 7.48%，GNU／musl 动态内核也回退。定向 GC／机器码验证通过，空间与编译成本较小；实现只保留在本地实验分支，主线恢复原策略。硬件计数确认此前 musl 回退没有对应的动态指令增长，布局原因尚未完整闭合。
 
 - 已完成[ArrayList 普通快照正文](ARRAYLIST-SNAPSHOTS.md)：捕获长度／backing，只复制已初始化前缀，复用已有调用点内联和数组循环；静态 List 及用户 getter 沿原扩展。三目标列表、std、跨 profile ABI 与 GC 组合通过。相对整字存储，lambdas 再降低 19.81%／28.07%／33.01%、减少 640,000 B 分配，快照降低 45.01%／48.06%／50.11%；体积、编译和根槽成本均保留。新版 core 全 profile 默认提供成员，release 按原成本选择，无新 intrinsic 或 runtime 路径。

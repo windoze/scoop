@@ -1316,6 +1316,8 @@ codec 不因数据继承关系自动传递，不能按 value 的动态类型改�
 
 C storage 使用真实 float/double；fmodf/fmod 的 NoGC 签名分别为 `(F32,F32)->F32`、`(F64,F64)->F64`，其生成由 LLVM 负责，按实际未定义符号进入普通 native 链接。内部常量池与机器局部 label 不获得源码实体身份。
 
+浮点字符串化通过普通 core 正文组合 Ryu 的真实 C ABI 入口、GC-free 栈缓冲和既有 typed StringCopy。文本格式 helper 仅消费 Ryu 的有界字节结果，可按普通 NoGC／Unsafe 规则实现；内联继续按调用点选择，不新增浮点格式 intrinsic 或按符号名改写 extern。Ryu 的最短转换不复制进 codegen。旧 C String 返回包装不再发射或提供；JSON／CLI 的实际解析 Option ABI 适配保留，短输入栈缓冲与动态慢路径见运行时规范 6.1。配套 core 与依赖按正常输入更新重建，外部对象布局和元数据 ABI 保持。
+
 metadata 的相等、去重与 hash 比较 raw bits，包括 signed zero 与 NaN；这不赋予语言 Float/Double Hash conformance。各 wire 域为：
 
 | wire 域 | tag / payload |

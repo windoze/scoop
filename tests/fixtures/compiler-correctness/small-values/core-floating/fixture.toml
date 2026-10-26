@@ -4,7 +4,10 @@ inputs = ["program.scoop"]
 tools = ["scoop"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["intrinsics", "values", "scoop-abi", "compiler-correctness"]
-variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+variants = [
+  {name = "debug", vars = {profile = "debug"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "release", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MOVE = "1", SCOOP_GC_STRESS_MINOR = "1"}},
+]
 
 [[steps]]
 name = "build"

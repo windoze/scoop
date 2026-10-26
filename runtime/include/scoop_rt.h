@@ -99,9 +99,6 @@ void scoop_rt_stdout_write(const uint8_t *bytes, int64_t length);
 void scoop_rt_stderr_write(const uint8_t *bytes, int64_t length);
 void scoop_rt_flush_stdout(void);
 
-/* Fixed-width primitive conversions used by ordinary core methods. */
-const ScoopString *scoop_rt_float_to_string(float value);
-const ScoopString *scoop_rt_double_to_string(double value);
 /* Internal bounded NoGC reads; generated code uses these only where needed. */
 int64_t scoop_rt_string_byte_length_leaf(const ScoopString *value);
 int8_t scoop_rt_string_byte_at_leaf(const ScoopString *value, int64_t index);

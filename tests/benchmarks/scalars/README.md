@@ -25,4 +25,6 @@ SCOOP_BENCH_KIND=1 SCOOP_BENCH_COUNT=2000000 tmp/scalar-bench/decimal
 
 `string_algorithms.scoop` 对照 Runtime 算法迁移，仍使用相同 phase helper。模式 0／1 为 1024 B ASCII／160 B 混合 Unicode 的字符计数，2 为动态字符定位，3 为字符切片，4 为 64 项 Char 输入的 fromChars，5／6 为严格／lossy UTF-8 转换。所有模式交替选择两份动态输入；前四项建议三十万次，其余十五万次。构造输入在计时前完成，输出消费长度或首字符；fromChars／decode 包含原有 List 快照、借用及结果消费，不能把整个差值单独归给编码内循环。
 
+`floating_adapters.scoop` 使用同一 helper，模式 0／1 对照 Double／Float 的动态 toString，2／3 对照 JSON／CLI 实际使用的 Scoop ABI 解析后备。每轮交替八个普通、小数、科学计数法或带符号零输入；建议一百万次，分别消费文本长度或结果 bits。文本构造包含一次 String 分配，解析不分配托管结果；native 适配缓冲的分配要与 GC 统计分开报告。
+
 `boxing.scoop` 使用同一 helper，将实际分配的值放入 256 项循环数组。模式 0／1／2／3 分别为 ZST、Long、含两个引用的值和 128 B 宽值装箱；模式 4 为与模式 2 字段相同的普通 class 初始化。模式 2／4 的对象实例均为 40 B，输入 Node／String 在计时前建立，写入旧数组仍需屏障；模式 3 的 box 实例为 144 B，保留共享后备。建议每轮一千万次，分别记录内核与整程序时间；零引用模式作为对照，不用它们推断引用初始化的收益。

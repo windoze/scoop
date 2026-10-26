@@ -66,8 +66,6 @@ pub(super) fn compile_and_run_configuration(
             "-fno-optimize-sibling-calls",
         ])
         .arg("-I")
-        .arg(workspace.join("sysroot/vendor/ryu"))
-        .arg("-I")
         .arg(workspace.join("runtime/include"));
     for source in [
         "runtime/src/image/lookup.c",
@@ -119,8 +117,6 @@ pub(super) fn compile_and_run_configuration(
         "runtime/src/gc_binding/stackmap/records.c",
         "runtime/src/gc_binding/stack_roots.c",
         "runtime/src/thread.c",
-        // Discard unused formatter entries in this collector-only runtime subset.
-        "runtime/src/floating.c",
         native_float_environment_source(),
         "runtime/src/thread/collection.c",
         "runtime/src/thread/debug.c",

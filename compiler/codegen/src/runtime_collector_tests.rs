@@ -188,12 +188,9 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
             "-fno-optimize-sibling-calls",
         ])
         .arg("-I")
-        .arg(workspace.join("sysroot/vendor/ryu"))
-        .arg("-I")
         .arg(workspace.join("runtime/include"))
         .arg(workspace.join("runtime/src/thread.c"))
         .arg(workspace.join("runtime/src/gc/mutator.c"))
-        .arg(workspace.join("runtime/src/floating.c"))
         .arg(workspace.join(native_float_environment_source()))
         .arg(workspace.join("runtime/src/thread/collection.c"))
         .arg(workspace.join("runtime/src/thread/transitions.c"))
@@ -228,7 +225,6 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
 fn generic_runtime_has_no_target_specific_vm_dependency() {
     let workspace = workspace_root();
     let generic_sources = [
-        "runtime/src/floating.c",
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/mutator.c",
         "runtime/src/gc_binding/threads.c",

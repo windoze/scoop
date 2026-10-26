@@ -749,7 +749,7 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 String 的公开行为、hash、UTF-8 扫描和编码由普通 core helper 实现；已知表示的读取、分配及复制沿 2.4 的 typed 操作生成。C 仅保留实际消费者需要的共享比较、拼接与有界读取 leaf。普通字符定位 helper 返回 Option<Char> 或 Option<(Long, Long)>，core 对 None 抛出 IndexOutOfBoundsException；内容与已验证边界未变化时直接复用，不调用另一套 C 校验。旧字符定位、解码及复制入口和专用聚合 ABI shim 退役。
 
-JSON 浮点转换后备返回的 `Option<Float>`／`Option<Double>` 同样为 16-byte tagged 值，固定 tag 与 payload bits 使用两个整数返回分量。平台适配必须按 bits 传递 payload，不能套用 C 的混合整数／浮点 struct 返回分类。
+JSON／CLI 浮点解析后备返回的 `Option<Float>`／`Option<Double>` 同样为 16-byte tagged 值，固定 tag 与 payload bits 使用两个整数返回分量。平台适配必须按 bits 传递 payload，不能套用 C 的混合整数／浮点 struct 返回分类。这些适配由实际的 scoop.json／scoop.cli extern 声明消费。
 
 普通 core 字节解码 helper 为语言规范 11.4 的 `fromUtf8`、`fromUtf8OrNone` 和 `fromUtf8Lossy` 提供同一套 UTF-8 规则。严格路径的结果明确区分成功 String 与首个非法子序列的零基字节偏移，并通过普通 Scoop ABI 返回；core 分别将失败转换为 CharacterCodingException 或 None，不对相同内容再做一遍独立校验。lossy 路径按 maximal subpart 消费非法输入，每段写入一个 U+FFFD，继续处理失配处的后续字节，不能遗漏合法后缀；空输入、U+0000 与合法 U+FFFD 按原内容保留。两种路径均不依赖 locale。
 
@@ -782,6 +782,10 @@ toBits/fromBits 的整数载体分别为同宽 Int／Long；这些方法通过�
 C FFI 使用目标真实 float/double ABI。数值操作遵守语言规范 11.2.2 的 rounding、NaN、无穷、signed zero 和转换规则，不能启用改变这些语义的 fast-math。线程的浮点环境采用 round-to-nearest ties-to-even、无 trap、保留 subnormal。
 
 文本转换不依赖进程 locale。解析按声明精度正确舍入；非法输入和溢出返回 None，合法下溢仍返回相应浮点值。格式化遵守语言规定的可往返文本、特殊值与 signed zero 形式。
+
+Float／Double 的最短数字继续由 vendored Ryu 的 `f2s_buffered_n`／`d2s_buffered_n` 产生。普通 core 通过明确的 C ABI GCLeaf 声明调用，只传入 GC-free 标量与足够的栈缓冲；这些同步有界入口不分配、不握手、不回调、不保留指针。core 的普通有界格式 helper 处理小数／科学计数法阈值、至少一位小数、指数符号与零、NaN／Infinity 和负零，再用 typed StringCopy 一次分配并复制实际长度。String 不要求 NUL；旧 `scoop_rt_float_to_string`／`scoop_rt_double_to_string`、C 文本适配和分配包装退役。
+
+JSON／CLI 的现有解析适配继续复用所选 libc 的 `strtof_l`／`strtod_l` 与固定 C numeric locale，按目标精度完整消费输入并检查有限值。长度不足 256 B 时在固定栈缓冲中复制并补 NUL；更长输入使用原有动态缓冲慢路径，两者使用同一解析与错误规则。该阈值只选择存储，不限制可接受输入，不改变舍入、subnormal、signed zero 或下溢语义；动态分配失败仍沿原 fatal 路径。caller 保持原 NativeBorrowed 保活协议，不把整个动态扫描标为 GCLeaf，不改变 locale 的一次性协调规则。
 
 ## 7. 程序启动与退出
 

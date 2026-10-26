@@ -29,6 +29,7 @@
 | [接口分量与重定位结果 SSA](INTERFACE-SSA.md) | 局部根槽提升为 release 默认；晚期 aggregate 分解及指针合流归并适用于所有 profile | 复用 SROA／mem2reg，普通优化结束后拆分聚合、归并相同输入的指针 PHI／select，再定稿 roots；真实 ret／store／实参消费 relocated object。取址／发布／间接 ABI 等存储保持，不增加对象或接口表大小。 |
 | [String hash 有界范围与提前返回](STRING-HASH-RANGE.md) | 新 core 所有 profile 默认；release 按原调用点评分展开，需重建 core 及依赖者 | ≤32 B 使用普通标量正文并及时返回，9～32 B 省去 native hash／协调／caller roots；长输入现已迁为共享 core 循环。原结果、表示保持，无新开关或测量代码；极短输入的成本见对照记录。 |
 | [String 扫描、UTF-8 编码／校验及长 hash 正文](RUNTIME-RESPONSIBILITIES.md) | 新 core 所有 profile 默认；release 默认使用既有调用点内联与 64 次 poll 分块 | 普通算法共享 Scoop 正文，按真实 typed 操作读写和分配；窄块计数后累加为 Long。旧 C 算法及聚合 shim 退役，不改变公开语义、String 布局、快照和借用；无额外开关。 |
+| [浮点文本适配与解析栈缓冲](RUNTIME-RESPONSIBILITIES.md) | 新 core／runtime 所有 profile 默认 | core 的有界格式正文调用现有 Ryu；typed StringCopy 构造结果。JSON／CLI 小于 256 B 的文本使用栈缓冲补 NUL，长输入保留动态缓冲与原 libc 解析，无新开关。 |
 | [String 比较与短 hash](STRING-READS.md) | 普通 core 正文全 profile；调用点常量折叠和 ≤8 B 常量比较 release 默认，须重建 core | 同引用／长度／空串判断、初版有界 FNV-1a 和真实 typed 常量读取；hash 范围由上项继续扩展，长文本共享后备。保持内容、身份和位宽，无新增 ABI；ASCII 单独展开经对照未采纳。 |
 | [已知小型 box 生成分配](BOX-ALLOCATION.md) | release 默认 | 真实 typed box、实例 ≤128 B；ZST／GC-free／含引用值复用 TLAB，GC 后重读 payload 并执行值屏障。保持实际分配及身份，大值和 debug 使用共享后备，无新对象字段或 ABI。 |
 | [普通 String 拼接融合与热二元生成](STRING-CONCAT.md) | release 默认 | 同块单用链最多八段、短常量合并；热循环／短常量二元使用同一路径，其他点共享后备。checked 一次分配并在 GC 后重读输入，保留共享结果与副作用边界，无布局或 ABI 变化。 |
