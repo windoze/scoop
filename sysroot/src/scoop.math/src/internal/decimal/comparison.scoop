@@ -1,0 +1,41 @@
+package scoop.math
+
+internal fun decimalCompare(a: DecimalValue, b: DecimalValue): Long {
+    val leftSign = integerSign(a.coefficient)
+    val rightSign = integerSign(b.coefficient)
+    if (leftSign != rightSign) return if (leftSign < rightSign) -1L else 1L
+    if (leftSign == 0) return 0L
+    if (a.scale.compare(b.scale) == 0L) return integerCompare(a.coefficient, b.coefficient)
+    val left = integerString(integerAbs(a.coefficient), 10).toByteArray()
+    val right = integerString(integerAbs(b.coefficient), 10).toByteArray()
+    val order = decimalScale(left.size).minus(a.scale).compare(decimalScale(right.size).minus(b.scale))
+    if (order != 0L) return if (leftSign < 0) -order else order
+    var index = 0L
+    val count = max(left.size, right.size)
+    while (index < count) {
+        val x = if (index < left.size) left[index] else 48.toByte()
+        val y = if (index < right.size) right[index] else 48.toByte()
+        if (x != y) return (if (x < y) -1L else 1L) * leftSign.toLong()
+        index += 1L
+    }
+    return 0L
+}
+
+internal fun decimalStrip(value: DecimalValue, minimum: DecimalScale?): DecimalValue {
+    if (integerSign(value.coefficient) == 0) return DecimalValue(IntegerStorage.Small(0L), decimalScale(0L))
+    var coefficient = value.coefficient
+    var scale = value.scale
+    while (minimum == None || scale.compare(minimum!!) > 0L) {
+        val divided = integerDivide(coefficient, IntegerStorage.Small(10L))
+        if (integerSign(divided._2) != 0) break
+        coefficient = divided._1
+        scale = scale.minus(1L)
+    }
+    return DecimalValue(coefficient, scale)
+}
+
+internal fun decimalHash(value: DecimalValue): Long {
+    if (integerSign(value.coefficient) == 0) return 0L
+    val canonical = decimalStrip(value, None)
+    return (integerHash(canonical.coefficient) * 31L + canonical.scale.low.toLong()) * 31L + canonical.scale.high
+}

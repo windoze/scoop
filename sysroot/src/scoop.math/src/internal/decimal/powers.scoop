@@ -1,0 +1,44 @@
+package scoop.math
+
+internal fun decimalSqrt(value: DecimalValue, context: MathContext): DecimalValue {
+    if (integerSign(value.coefficient) < 0) mathOverflow()
+    val preferred = value.scale.halfCeil()
+    if (integerSign(value.coefficient) == 0) return DecimalValue(IntegerStorage.Small(0L), preferred)
+    if (context.precision == 0L) {
+        val power = preferred.plus(preferred).minus(value.scale)
+        val result = integerSqrt(decimalScaleCoefficient(value.coefficient, power))
+        if (integerSign(result._2) != 0) mathOverflow()
+        return DecimalValue(result._1, preferred)
+    }
+    val adjusted = decimalAdjusted(value).halfFloor()
+    val scale = decimalScale(context.precision - 1L).minus(adjusted)
+    val power = scale.plus(scale).minus(value.scale)
+    val numerator = if (power.high >= 0L) decimalScaleCoefficient(value.coefficient, power) else value.coefficient
+    val denominator = if (power.high < 0L) decimalPowerTen(power.negate()) else IntegerStorage.Small(1L)
+    var root = integerSqrt(integerDivide(numerator, denominator)._1)._1
+    val exact = integerCompare(numerator, integerMultiply(integerMultiply(root, root), denominator)) == 0L
+    val midpoint = integerAdd(integerMultiply(root, IntegerStorage.Small(2L)), IntegerStorage.Small(1L))
+    val half = integerCompare(integerMultiply(numerator, IntegerStorage.Small(4L)), integerMultiply(integerMultiply(midpoint, midpoint), denominator))
+    if (decimalRoundUp(1, (integerLowBits(root) and 1uL) != 0uL, half, !exact, context.roundingMode)) root = integerAdd(root, IntegerStorage.Small(1L))
+    val rounded = if (decimalPrecision(root) > context.precision)
+        DecimalValue(integerDivide(root, IntegerStorage.Small(10L))._1, scale.minus(1L)) else DecimalValue(root, scale)
+    return if (exact) decimalPreferExact(rounded, preferred, context.precision) else rounded
+}
+
+internal fun decimalPow(value: DecimalValue, originalScale: Long, exponent: Long, context: MathContext): DecimalValue {
+    if (exponent == 0L) return DecimalValue(IntegerStorage.Small(1L), decimalScale(0L))
+    if (exponent < 0L && (context.precision == 0L || integerSign(value.coefficient) == 0)) mathOverflow()
+    val count = if (exponent < 0L) 0uL - exponent.toULong() else exponent.toULong()
+    val preferred = decimalScaleProduct(originalScale, exponent)
+    if (context.precision == 0L) return DecimalValue(integerPowUnsigned(value.coefficient, count), preferred)
+    if (integerSign(value.coefficient) == 0) return DecimalValue(IntegerStorage.Small(0L), preferred)
+    val reduced = decimalStrip(value, None)
+    // A normalized scale differs from the original by at most the stored digit count. Its product
+    // is formed from the original product and the exact removed-zero contribution.
+    val removed = value.scale.minus(reduced.scale).checked()
+    val reducedScale = preferred.minus(decimalScaleProduct(removed, exponent))
+    val coefficient = integerPowUnsigned(reduced.coefficient, count)
+    if (exponent < 0L) return decimalDivide(DecimalValue(IntegerStorage.Small(1L), decimalScale(0L)), DecimalValue(coefficient, reducedScale.negate()), context, preferred)
+    val exact = DecimalValue(coefficient, reducedScale)
+    return if (decimalPrecision(coefficient) <= context.precision) decimalPreferExact(exact, preferred, context.precision) else decimalRound(exact, context)
+}

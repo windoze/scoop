@@ -1,0 +1,90 @@
+package scoop.math
+
+import scoop.random.Random
+import scoop.collections.listOf
+
+internal fun requirePrimeCertainty(certainty: Int) {
+    if (certainty <= 0) throw IllegalArgumentException(Some("certainty must be positive"))
+}
+
+private fun randomBelow(bound: IntegerStorage, random: Random): IntegerStorage {
+    val bits = magnitudeBits(integerMagnitude(integerSubtract(bound, IntegerStorage.Small(1L))))
+    val count = bits / 32L + (if (bits % 32L == 0L) 0L else 1L)
+    while (true) {
+        val words = Array<UInt>(count) { index ->
+            if (index == count - 1L && bits % 32L != 0L) random.nextBits((bits % 32L).toInt()).toUInt()
+            else random.nextUInt()
+        }
+        val candidate = integerFromMagnitude(false, magnitudeSnapshot(words))
+        if (integerCompare(candidate, bound) < 0L) return candidate
+    }
+}
+
+private fun millerRabin(value: IntegerStorage, oddPart: IntegerStorage, twos: Long, base: IntegerStorage): Boolean {
+    val reduced = integerMod(base, value)
+    if (integerSign(reduced) == 0) return true
+    val one = IntegerStorage.Small(1L)
+    val last = integerSubtract(value, one)
+    var power = integerModPow(reduced, oddPart, value)
+    if (integerCompare(power, one) == 0L || integerCompare(power, last) == 0L) return true
+    var round = 1L
+    while (round < twos) {
+        power = integerMod(integerMultiply(power, power), value)
+        if (integerCompare(power, last) == 0L) return true
+        if (integerCompare(power, one) == 0L) return false
+        round += 1L
+    }
+    return false
+}
+
+internal fun integerIsPrime(value: IntegerStorage, random: Random, certainty: Int): Boolean {
+    if (integerCompare(value, IntegerStorage.Small(2L)) < 0L) return false
+    val smallPrimes = listOf<Long>(2L, 3L, 5L, 7L, 11L, 13L, 17L, 19L, 23L, 29L, 31L, 37L)
+    for (prime in smallPrimes) {
+        val divisor = IntegerStorage.Small(prime)
+        if (integerCompare(value, divisor) == 0L) return true
+        if (integerSign(integerDivide(value, divisor)._2) == 0) return false
+    }
+    val previous = integerSubtract(value, IntegerStorage.Small(1L))
+    val twos = magnitudeLowestBit(integerMagnitude(previous))
+    val odd = integerShift(previous, twos, false)
+    if (magnitudeBits(integerMagnitude(value)) <= 64L) {
+        // This base set is deterministic for every unsigned 64-bit input.
+        for (base in listOf<Long>(2L, 325L, 9375L, 28178L, 450775L, 9780504L, 1795265022L)) {
+            if (!millerRabin(value, odd, twos, IntegerStorage.Small(base))) return false
+        }
+        return true
+    }
+    val range = integerSubtract(value, IntegerStorage.Small(3L))
+    var round = 0L
+    val rounds = (certainty.toLong() + 1L) / 2L
+    while (round < rounds) {
+        val base = integerAdd(randomBelow(range, random), IntegerStorage.Small(2L))
+        if (!millerRabin(value, odd, twos, base)) return false
+        round += 1L
+    }
+    return true
+}
+
+internal fun integerNextPrime(value: IntegerStorage, random: Random, certainty: Int): IntegerStorage {
+    if (integerCompare(value, IntegerStorage.Small(2L)) < 0L) return IntegerStorage.Small(2L)
+    var next = integerAdd(value, IntegerStorage.Small(1L))
+    if (!integerTestBit(next, 0L)) next = integerAdd(next, IntegerStorage.Small(1L))
+    while (!integerIsPrime(next, random, certainty)) next = integerAdd(next, IntegerStorage.Small(2L))
+    return next
+}
+
+internal fun integerProbablePrime(bits: Long, random: Random, certainty: Int): IntegerStorage {
+    if (bits < 2L) throw IllegalArgumentException(Some("prime bit length must be at least two"))
+    val count = (bits - 1L) / 32L + 1L
+    val highBits = (bits - 1L) % 32L + 1L
+    while (true) {
+        val words = MutableArray<UInt>(count) { index ->
+            if (index == count - 1L) random.nextBits(highBits.toInt()).toUInt() or (1u shl (highBits - 1L))
+            else random.nextUInt()
+        }
+        if (bits > 2L) words[0L] = words[0L] or 1u
+        val candidate = integerFromMagnitude(false, words.toArray())
+        if (integerIsPrime(candidate, random, certainty)) return candidate
+    }
+}

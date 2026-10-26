@@ -1,0 +1,112 @@
+package scoop.math.tests.big_decimal
+
+import scoop.math.*
+import scoop.test.*
+import scoop.collections.*
+import scoop.text.NumberFormatException
+
+internal fun decimal(text: String): BigDecimal = BigDecimal.parse(text)
+internal fun representation(expected: String, actual: BigDecimal) {
+    assertEquals(expected, actual.toString())
+    assertTrue(decimal(expected).sameRepresentation(actual))
+}
+private fun <T : Add<T, T>> sum(a: T, b: T): T = a + b
+
+@Test
+private class BigDecimalRepresentationTests {
+    @Test
+    fun textAndScale() {
+        representation("1.00", decimal("+001.00"))
+        representation("0.00", decimal("-0.00"))
+        representation("1", decimal("1."))
+        representation("0.125", decimal(".125"))
+        representation("1.20e3", decimal("120E+1"))
+        representation("0.000001", decimal("1e-6"))
+        representation("1e-7", decimal("1e-7"))
+        assertEquals("1000", decimal("1e3").toPlainString())
+        assertEquals("12.3e6", decimal("1.23e7").toEngineeringString())
+        assertEquals("10e-9", decimal("1e-8").toEngineeringString())
+        assertEquals(3L, decimal("0.0120").precision())
+        assertEquals(1L, decimal("0.000").precision())
+        assertEquals(19L, BigDecimal(Long.MIN_VALUE).precision())
+        assertEquals(19L, BigDecimal(Long.MAX_VALUE).precision())
+        assertEquals(2L, BigDecimal(10L).precision())
+        assertEquals(4L, decimal("0.0120").scale)
+        assertEquals(BigInteger(120L), decimal("0.0120").unscaledValue())
+        assertEquals(decimal("0.0001"), decimal("0.0120").ulp())
+        for (text in listOf("", "+", ".", "1..0", " 1", "1 ", "1_0", "１２", "NaN", "Infinity", "1e", "1e+", "1e1.0", "1e9223372036854775809", "1e-9223372036854775808")) {
+            assertEquals<BigDecimal?>(None, text.toBigDecimalOrNone())
+            assertFailsWith<NumberFormatException> { text.toBigDecimal() }
+        }
+        for (text in listOf("0", "-0.000", "12345.6700", "1e-100", "-123e100")) {
+            val value = decimal(text)
+            assertTrue(value.sameRepresentation(decimal(value.toString())))
+            assertEquals(value, decimal(value.toPlainString()))
+            assertEquals(value, decimal(value.toEngineeringString()))
+        }
+    }
+
+    @Test
+    fun numericalEqualityAndCollections() {
+        val a = decimal("1.0")
+        val b = decimal("1.00")
+        assertEquals(a, b)
+        assertEquals(a.hash(), b.hash())
+        assertFalse(a.sameRepresentation(b))
+        assertEquals(0L, a.compareTo(b))
+        val view: Equals<BigDecimal> = a
+        assertTrue(view.equals(b))
+        val order: Compare<BigDecimal> = a
+        assertEquals(-1L, order.compareTo(BigDecimal.TWO))
+        val map = HashMap<BigDecimal, Int>()
+        map[a] = 1
+        map[b] = 2
+        assertEquals(1L, map.size)
+        assertEquals(Some(2), map[a])
+        val set = sortedSetOf(decimal("2"), a, b, decimal("0.00"), BigDecimal.ZERO)
+        assertEquals(3L, set.size)
+        assertEquals(Some(BigDecimal.ZERO), set.iterator().next())
+        assertTrue(a.min(b) === a)
+        assertTrue(a.max(b) === a)
+        representation("2.00", sum(a, b))
+        var changed = a
+        changed++
+        representation("2.0", changed)
+        changed--
+        representation("1.0", changed)
+        representation("1.0", a)
+        representation("-1.0", -a)
+        representation("1.0", (-a).abs())
+    }
+
+    @Test
+    fun scalingAndContexts() {
+        representation("1.2300", decimal("1.23").setScale(4L))
+        representation("1.23", decimal("1.2300").stripTrailingZeros())
+        representation("1e3", decimal("1000").stripTrailingZeros())
+        representation("0", decimal("0.000").stripTrailingZeros())
+        representation("123", decimal("1.23").scaleByPowerOfTen(2L))
+        representation("1230", decimal("1.23").movePointRight(3L))
+        representation("0.00123", decimal("1.23").movePointLeft(3L))
+        representation("123", decimal("1.23").movePointLeft(-2L))
+        representation("0.0123", decimal("1.23").movePointRight(-2L))
+        assertFailsWith<ArithmeticException> { decimal("1.23").setScale(1L) }
+        assertEquals(MathContext(7L), MathContext.Decimal32)
+        assertEquals(MathContext(16L), MathContext.Decimal64)
+        assertEquals(MathContext(34L), MathContext.Decimal128)
+        assertEquals(MathContext(0L), MathContext.Unlimited)
+        assertEquals(MathContext(7L).hash(), MathContext.Decimal32.hash())
+        val invalid = MathContext(-1L)
+        val zero = BigDecimal.ZERO
+        assertFailsWith<IllegalArgumentException> { zero.plus(zero, invalid) }
+        assertFailsWith<IllegalArgumentException> { zero.minus(zero, invalid) }
+        assertFailsWith<IllegalArgumentException> { zero.times(zero, invalid) }
+        assertFailsWith<IllegalArgumentException> { zero.div(BigDecimal.ONE, invalid) }
+        assertFailsWith<IllegalArgumentException> { zero.round(invalid) }
+        assertFailsWith<IllegalArgumentException> { zero.divideToIntegralValue(BigDecimal.ONE, invalid) }
+        assertFailsWith<IllegalArgumentException> { zero.divideAndRemainder(BigDecimal.ONE, invalid) }
+        assertFailsWith<IllegalArgumentException> { zero.rem(BigDecimal.ONE, invalid) }
+        assertFailsWith<IllegalArgumentException> { zero.pow(0L, invalid) }
+        assertFailsWith<IllegalArgumentException> { zero.sqrt(invalid) }
+    }
+}

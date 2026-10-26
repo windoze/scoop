@@ -1,0 +1,240 @@
+package scoop.math.tests.scalar
+
+import scoop.math.*
+import scoop.test.*
+
+@Test
+private class IntegerTests {
+    @Test
+    fun byteBoundaries() {
+        val zero: Byte = 0
+        val one: Byte = 1
+        val two: Byte = 2
+        val three: Byte = 3
+        assertEquals(three, addExact(one, two))
+        assertEquals(two, multiplyExact(one, two))
+        assertEquals(one, powExact(zero, 0L))
+        assertEquals(8.toByte(), powExact(two, 3L))
+        assertEquals(one, min(one, two))
+        assertEquals(two, max(one, two))
+        assertEquals(two, clamp(three, one, two))
+        assertFailsWith<ArithmeticException> { addExact(Byte.MAX_VALUE, one) }
+        assertFailsWith<ArithmeticException> { subtractExact(Byte.MIN_VALUE, one) }
+        assertFailsWith<ArithmeticException> { multiplyExact(Byte.MAX_VALUE, two) }
+        assertFailsWith<ArithmeticException> { powExact(two, 64L) }
+        assertFailsWith<ArithmeticException> { powExact(two, -1L) }
+        assertFailsWith<IllegalArgumentException> { clamp(one, two, one) }
+        val minusOne: Byte = -1
+        val minusSeven: Byte = -7
+        assertEquals(Byte.MIN_VALUE, abs(Byte.MIN_VALUE))
+        assertFailsWith<ArithmeticException> { absExact(Byte.MIN_VALUE) }
+        assertFailsWith<ArithmeticException> { multiplyExact(Byte.MIN_VALUE, minusOne) }
+        assertFailsWith<ArithmeticException> { divideExact(Byte.MIN_VALUE, minusOne) }
+        assertEquals(Byte.MIN_VALUE, floorDiv(Byte.MIN_VALUE, minusOne))
+        assertEquals(zero, ceilMod(Byte.MIN_VALUE, minusOne))
+        assertEquals((-3).toByte(), floorDiv(minusSeven, three))
+        assertEquals(two, floorMod(minusSeven, three))
+        assertEquals((-2).toByte(), ceilDiv(minusSeven, three))
+        assertEquals(minusOne, ceilMod(minusSeven, three))
+        assertFailsWith<ArithmeticException> { floorDiv(one, zero) }
+    }
+
+    @Test
+    fun shortBoundaries() {
+        val zero: Short = 0
+        val one: Short = 1
+        val two: Short = 2
+        val three: Short = 3
+        assertEquals(three, addExact(one, two))
+        assertEquals(two, multiplyExact(one, two))
+        assertEquals(one, powExact(zero, 0L))
+        assertEquals(8.toShort(), powExact(two, 3L))
+        assertEquals(one, min(one, two))
+        assertEquals(two, max(one, two))
+        assertEquals(two, clamp(three, one, two))
+        assertFailsWith<ArithmeticException> { addExact(Short.MAX_VALUE, one) }
+        assertFailsWith<ArithmeticException> { subtractExact(Short.MIN_VALUE, one) }
+        assertFailsWith<ArithmeticException> { multiplyExact(Short.MAX_VALUE, two) }
+        assertFailsWith<ArithmeticException> { powExact(two, 64L) }
+        assertFailsWith<ArithmeticException> { powExact(two, -1L) }
+        assertFailsWith<IllegalArgumentException> { clamp(one, two, one) }
+        val minusOne: Short = -1
+        val minusSeven: Short = -7
+        assertEquals(Short.MIN_VALUE, abs(Short.MIN_VALUE))
+        assertFailsWith<ArithmeticException> { absExact(Short.MIN_VALUE) }
+        assertFailsWith<ArithmeticException> { multiplyExact(Short.MIN_VALUE, minusOne) }
+        assertFailsWith<ArithmeticException> { divideExact(Short.MIN_VALUE, minusOne) }
+        assertEquals(Short.MIN_VALUE, floorDiv(Short.MIN_VALUE, minusOne))
+        assertEquals(zero, ceilMod(Short.MIN_VALUE, minusOne))
+        assertEquals((-3).toShort(), floorDiv(minusSeven, three))
+        assertEquals(two, floorMod(minusSeven, three))
+        assertEquals((-2).toShort(), ceilDiv(minusSeven, three))
+        assertEquals(minusOne, ceilMod(minusSeven, three))
+        assertFailsWith<ArithmeticException> { floorDiv(one, zero) }
+    }
+
+    @Test
+    fun intBoundaries() {
+        val zero: Int = 0
+        val one: Int = 1
+        val two: Int = 2
+        val three: Int = 3
+        assertEquals(three, addExact(one, two))
+        assertEquals(two, multiplyExact(one, two))
+        assertEquals(one, powExact(zero, 0L))
+        assertEquals(8.toInt(), powExact(two, 3L))
+        assertEquals(one, min(one, two))
+        assertEquals(two, max(one, two))
+        assertEquals(two, clamp(three, one, two))
+        assertFailsWith<ArithmeticException> { addExact(Int.MAX_VALUE, one) }
+        assertFailsWith<ArithmeticException> { subtractExact(Int.MIN_VALUE, one) }
+        assertFailsWith<ArithmeticException> { multiplyExact(Int.MAX_VALUE, two) }
+        assertFailsWith<ArithmeticException> { powExact(two, 64L) }
+        assertFailsWith<ArithmeticException> { powExact(two, -1L) }
+        assertFailsWith<IllegalArgumentException> { clamp(one, two, one) }
+        val minusOne: Int = -1
+        val minusSeven: Int = -7
+        assertEquals(Int.MIN_VALUE, abs(Int.MIN_VALUE))
+        assertFailsWith<ArithmeticException> { absExact(Int.MIN_VALUE) }
+        assertFailsWith<ArithmeticException> { multiplyExact(Int.MIN_VALUE, minusOne) }
+        assertFailsWith<ArithmeticException> { divideExact(Int.MIN_VALUE, minusOne) }
+        assertEquals(Int.MIN_VALUE, floorDiv(Int.MIN_VALUE, minusOne))
+        assertEquals(zero, ceilMod(Int.MIN_VALUE, minusOne))
+        assertEquals((-3).toInt(), floorDiv(minusSeven, three))
+        assertEquals(two, floorMod(minusSeven, three))
+        assertEquals((-2).toInt(), ceilDiv(minusSeven, three))
+        assertEquals(minusOne, ceilMod(minusSeven, three))
+        assertFailsWith<ArithmeticException> { floorDiv(one, zero) }
+    }
+
+    @Test
+    fun longBoundaries() {
+        val zero: Long = 0
+        val one: Long = 1
+        val two: Long = 2
+        val three: Long = 3
+        assertEquals(three, addExact(one, two))
+        assertEquals(two, multiplyExact(one, two))
+        assertEquals(one, powExact(zero, 0L))
+        assertEquals(8.toLong(), powExact(two, 3L))
+        assertEquals(one, min(one, two))
+        assertEquals(two, max(one, two))
+        assertEquals(two, clamp(three, one, two))
+        assertFailsWith<ArithmeticException> { addExact(Long.MAX_VALUE, one) }
+        assertFailsWith<ArithmeticException> { subtractExact(Long.MIN_VALUE, one) }
+        assertFailsWith<ArithmeticException> { multiplyExact(Long.MAX_VALUE, two) }
+        assertFailsWith<ArithmeticException> { powExact(two, 64L) }
+        assertFailsWith<ArithmeticException> { powExact(two, -1L) }
+        assertFailsWith<IllegalArgumentException> { clamp(one, two, one) }
+        val minusOne: Long = -1
+        val minusSeven: Long = -7
+        assertEquals(Long.MIN_VALUE, abs(Long.MIN_VALUE))
+        assertFailsWith<ArithmeticException> { absExact(Long.MIN_VALUE) }
+        assertFailsWith<ArithmeticException> { multiplyExact(Long.MIN_VALUE, minusOne) }
+        assertFailsWith<ArithmeticException> { divideExact(Long.MIN_VALUE, minusOne) }
+        assertEquals(Long.MIN_VALUE, floorDiv(Long.MIN_VALUE, minusOne))
+        assertEquals(zero, ceilMod(Long.MIN_VALUE, minusOne))
+        assertEquals((-3).toLong(), floorDiv(minusSeven, three))
+        assertEquals(two, floorMod(minusSeven, three))
+        assertEquals((-2).toLong(), ceilDiv(minusSeven, three))
+        assertEquals(minusOne, ceilMod(minusSeven, three))
+        assertFailsWith<ArithmeticException> { floorDiv(one, zero) }
+    }
+
+    @Test
+    fun ubyteBoundaries() {
+        val zero: UByte = 0u
+        val one: UByte = 1u
+        val two: UByte = 2u
+        val three: UByte = 3u
+        assertEquals(three, addExact(one, two))
+        assertEquals(two, multiplyExact(one, two))
+        assertEquals(one, powExact(zero, 0L))
+        assertEquals(8u.toUByte(), powExact(two, 3L))
+        assertEquals(one, min(one, two))
+        assertEquals(two, max(one, two))
+        assertEquals(two, clamp(three, one, two))
+        assertFailsWith<ArithmeticException> { addExact(UByte.MAX_VALUE, one) }
+        assertFailsWith<ArithmeticException> { subtractExact(UByte.MIN_VALUE, one) }
+        assertFailsWith<ArithmeticException> { multiplyExact(UByte.MAX_VALUE, two) }
+        assertFailsWith<ArithmeticException> { powExact(two, 64L) }
+        assertFailsWith<ArithmeticException> { powExact(two, -1L) }
+        assertFailsWith<IllegalArgumentException> { clamp(one, two, one) }
+    }
+
+    @Test
+    fun ushortBoundaries() {
+        val zero: UShort = 0u
+        val one: UShort = 1u
+        val two: UShort = 2u
+        val three: UShort = 3u
+        assertEquals(three, addExact(one, two))
+        assertEquals(two, multiplyExact(one, two))
+        assertEquals(one, powExact(zero, 0L))
+        assertEquals(8u.toUShort(), powExact(two, 3L))
+        assertEquals(one, min(one, two))
+        assertEquals(two, max(one, two))
+        assertEquals(two, clamp(three, one, two))
+        assertFailsWith<ArithmeticException> { addExact(UShort.MAX_VALUE, one) }
+        assertFailsWith<ArithmeticException> { subtractExact(UShort.MIN_VALUE, one) }
+        assertFailsWith<ArithmeticException> { multiplyExact(UShort.MAX_VALUE, two) }
+        assertFailsWith<ArithmeticException> { powExact(two, 64L) }
+        assertFailsWith<ArithmeticException> { powExact(two, -1L) }
+        assertFailsWith<IllegalArgumentException> { clamp(one, two, one) }
+    }
+
+    @Test
+    fun uintBoundaries() {
+        val zero: UInt = 0u
+        val one: UInt = 1u
+        val two: UInt = 2u
+        val three: UInt = 3u
+        assertEquals(three, addExact(one, two))
+        assertEquals(two, multiplyExact(one, two))
+        assertEquals(one, powExact(zero, 0L))
+        assertEquals(8u.toUInt(), powExact(two, 3L))
+        assertEquals(one, min(one, two))
+        assertEquals(two, max(one, two))
+        assertEquals(two, clamp(three, one, two))
+        assertFailsWith<ArithmeticException> { addExact(UInt.MAX_VALUE, one) }
+        assertFailsWith<ArithmeticException> { subtractExact(UInt.MIN_VALUE, one) }
+        assertFailsWith<ArithmeticException> { multiplyExact(UInt.MAX_VALUE, two) }
+        assertFailsWith<ArithmeticException> { powExact(two, 64L) }
+        assertFailsWith<ArithmeticException> { powExact(two, -1L) }
+        assertFailsWith<IllegalArgumentException> { clamp(one, two, one) }
+    }
+
+    @Test
+    fun ulongBoundaries() {
+        val zero: ULong = 0u
+        val one: ULong = 1u
+        val two: ULong = 2u
+        val three: ULong = 3u
+        assertEquals(three, addExact(one, two))
+        assertEquals(two, multiplyExact(one, two))
+        assertEquals(one, powExact(zero, 0L))
+        assertEquals(8u.toULong(), powExact(two, 3L))
+        assertEquals(one, min(one, two))
+        assertEquals(two, max(one, two))
+        assertEquals(two, clamp(three, one, two))
+        assertFailsWith<ArithmeticException> { addExact(ULong.MAX_VALUE, one) }
+        assertFailsWith<ArithmeticException> { subtractExact(ULong.MIN_VALUE, one) }
+        assertFailsWith<ArithmeticException> { multiplyExact(ULong.MAX_VALUE, two) }
+        assertFailsWith<ArithmeticException> { powExact(two, 64L) }
+        assertFailsWith<ArithmeticException> { powExact(two, -1L) }
+        assertFailsWith<IllegalArgumentException> { clamp(one, two, one) }
+    }
+
+    @Test
+    fun wideProducts() {
+        assertEquals(1uL, multiplyHigh(0xffffffffffffffffuL, 2uL))
+        assertEquals(0xfffffffffffffffeuL, multiplyHigh(ULong.MAX_VALUE, ULong.MAX_VALUE))
+        assertEquals(0L, multiplyHigh(-1L, -1L))
+        assertEquals(-1L, multiplyHigh(-1L, 2L))
+        assertEquals(0x4000000000000000L, multiplyHigh(Long.MIN_VALUE, Long.MIN_VALUE))
+        assertEquals(4611686018427387904L, multiplyFull(Int.MIN_VALUE, Int.MIN_VALUE))
+        assertEquals(18446744065119617025uL, multiplyFull(UInt.MAX_VALUE, UInt.MAX_VALUE))
+        assertFailsWith<ArithmeticException> { toIntExact(Long.MAX_VALUE) }
+        assertEquals(Int.MIN_VALUE, toIntExact(-2147483648L))
+    }
+}

@@ -811,11 +811,11 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - [循环中稳定来源的查询复用](program-performance/INTERFACE-QUERY-REUSE.md)已交付：release 对参数或所有 CFG 环外单次定义的局部引用，首次实际检查后复用 exact interface 的命中／未命中 entry；含 Boolean、空接口和稳定来源的异常继续路径，不增加对象副本、roots 或 ABI。三目标主要目录负载降低约 13%～87%，静态／编译成本和短目录、布局敏感回退均已记录。
 - 延续桌面短暂停与内存目标，按吞吐、应用尾延迟、RSS 和启动分别验收；调研不表示优化已实现或已完成跨语言性能比较。具体实施前先修订实际受影响的规范，不预先占用新的里程碑编号。
 
-### 独立 Math 库（设计完成，待实现）
+### 独立 Math 库（已实现）
 
-- 参考 Java Math/java.math 的功能范围，交付显式依赖的 `scoop.math` Cone；公共合同见[规范草案](specs/SCOOP-MATH-SPEC.md)，存储、算法及阶段见[设计](math/DESIGN.md)。
+- 参考 Java Math/java.math 的功能范围，交付显式依赖的 `scoop.math` Cone；公共合同见[规范](specs/SCOOP-MATH-SPEC.md)，存储和算法见[设计](math/DESIGN.md)，测试与性能边界见[实施记录](math/PROGRESS.md)。
 - BigInteger/BigDecimal 为不可变 final class，小 coefficient 内联于内部值表示；MathContext、RoundingMode 和商余数分别使用 struct、enum、tuple。普通 Scoop 算术及接口复用现有 scalar/value/icall/vcall 优化方向，超越函数使用目标 libm。
-- 按标量函数、大整数、十进制、优化与分发验收四阶段实施；随机源继续复用 std 的独立模块，不增加 math RNG、隐式舍入 context 或专用 runtime 大数 ABI。
+- 标量函数、大整数、十进制及三目标预编译消费已完成，附带 scoop.test 测试与[可运行示例](../sysroot/src/scoop.math/examples/README.md)。随机源继续复用 std 的独立模块，不增加 math RNG、隐式舍入 context 或专用 runtime 大数 ABI。
 
 ### 可恢复语法与 LSP（公共基础 A～E 已完成，扩展能力待排期）
 

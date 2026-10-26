@@ -1,0 +1,78 @@
+package scoop.math
+
+import scoop.text.NumberFormatException
+import scoop.getOrElse
+
+internal fun mathRequireRadix(radix: Int) {
+    if (radix < 2 || radix > 36) throw IllegalArgumentException(Some("radix must be in 2..36"))
+}
+
+internal fun mathDigit(character: Char): Int {
+    val code = character.code
+    return if (code >= 48 && code <= 57) code - 48
+        else if (code >= 65 && code <= 90) code - 55
+        else if (code >= 97 && code <= 122) code - 87 else -1
+}
+
+internal fun integerParse(text: String, radix: Int): IntegerStorage? {
+    mathRequireRadix(radix)
+    val width = radixBitWidth(radix)
+    if (width != 0L) return integerParseBinaryRadix(text, radix, width)
+    val source = text.iterator()
+    var next = source.next()
+    var negative = false
+    if (next == Some('-') || next == Some('+')) {
+        negative = next == Some('-')
+        next = source.next()
+    }
+    if (next == None) return None
+    val base = radix.toUInt()
+    var group = 0u
+    var power = 1u
+    var value = IntegerStorage.Small(0L)
+    while (true) {
+        val character = when (next) { case Some(c) -> c; case None -> break }
+        val digit = mathDigit(character)
+        if (digit < 0 || digit >= radix) return None
+        if (power > UInt.MAX_VALUE / base) {
+            value = integerAdd(integerMultiply(value, IntegerStorage.Small(power.toLong())), IntegerStorage.Small(group.toLong()))
+            power = 1u
+            group = 0u
+        }
+        group = group * base + digit.toUInt()
+        power *= base
+        next = source.next()
+    }
+    value = integerAdd(integerMultiply(value, IntegerStorage.Small(power.toLong())), IntegerStorage.Small(group.toLong()))
+    return Some(if (negative) integerNegate(value) else value)
+}
+
+internal fun integerRequireParsed(text: String, radix: Int): IntegerStorage =
+    integerParse(text, radix).getOrElse { throw NumberFormatException("invalid integer") }
+
+internal fun integerString(value: IntegerStorage, radix: Int): String {
+    mathRequireRadix(radix)
+    if (integerSign(value) == 0) return "0"
+    val bitWidth = radixBitWidth(radix)
+    if (bitWidth != 0L) return integerBinaryRadixString(value, radix, bitWidth)
+    val base = radix.toUInt()
+    var power = base
+    var width = 1L
+    while (power <= UInt.MAX_VALUE / base) { power *= base; width += 1L }
+    val chars = ArrayList<Char>()
+    var words = integerMagnitude(value)
+    while (words.size != 0L) {
+        val divided = magnitudeDivideWord(words, power)
+        words = divided._1
+        var remainder = divided._2
+        var count = 0L
+        while (remainder != 0u || (words.size != 0L && count < width)) {
+            val digit = (remainder % base).toInt()
+            chars.add((if (digit < 10) 48 + digit else 87 + digit).toChar())
+            remainder /= base
+            count += 1L
+        }
+    }
+    if (integerSign(value) < 0) chars.add('-')
+    return String.fromChars(Array<Char>(chars.size) { index -> chars[chars.size - 1L - index] })
+}

@@ -20,7 +20,7 @@ impl Lowerer {
                     let value = self.lower_expr(expression, &mut statements, None)?;
                     if !matches!(value.kind, hir::ExprKind::UnitLiteral) {
                         statements.push(hir::Statement {
-                            span: value.span,
+                            span: value.origin.concrete().evaluation.span,
                             kind: hir::StatementKind::Expr(value),
                         });
                     }
@@ -130,7 +130,7 @@ impl Lowerer {
                     Some(value)
                 } else {
                     statements.push(hir::Statement {
-                        span: value.span,
+                        span: value.origin.concrete().evaluation.span,
                         kind: hir::StatementKind::Expr(value),
                     });
                     None
@@ -214,7 +214,7 @@ impl Lowerer {
             if let Some(value) = block.value.take() {
                 let value = self.adapt_to(value, result_ty);
                 block.statements.push(hir::Statement {
-                    span: value.span,
+                    span: value.origin.concrete().evaluation.span,
                     kind: hir::StatementKind::Assign {
                         target: hir::AssignTarget::Local(result),
                         value,

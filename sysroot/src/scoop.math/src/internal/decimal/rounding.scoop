@@ -1,0 +1,54 @@
+package scoop.math
+
+internal fun decimalRoundedQuotient(numerator: IntegerStorage, denominator: IntegerStorage, mode: RoundingMode): IntegerStorage {
+    val divided = integerDivide(numerator, denominator)
+    val sign = integerSign(numerator) * integerSign(denominator)
+    val half = integerCompare(integerMultiply(integerAbs(divided._2), IntegerStorage.Small(2L)), integerAbs(denominator))
+    if (decimalRoundUp(sign, (integerLowBits(divided._1) and 1uL) != 0uL, half, integerSign(divided._2) != 0, mode))
+        return integerAdd(divided._1, IntegerStorage.Small(sign.toLong()))
+    return divided._1
+}
+
+internal fun decimalAtScale(value: DecimalValue, scale: DecimalScale, mode: RoundingMode): DecimalValue {
+    val distance = scale.minus(value.scale)
+    if (distance.high >= 0L) return DecimalValue(decimalScaleCoefficient(value.coefficient, distance), scale)
+    val digits = decimalPrecision(value.coefficient)
+    if (distance.negate().compare(decimalScale(digits)) >= 0L) {
+        val sign = integerSign(value.coefficient)
+        val half = decimalCompare(DecimalValue(integerMultiply(integerAbs(value.coefficient), IntegerStorage.Small(2L)), value.scale), DecimalValue(IntegerStorage.Small(1L), scale))
+        val increment = decimalRoundUp(sign, false, half, sign != 0, mode)
+        return DecimalValue(IntegerStorage.Small(if (increment) sign.toLong() else 0L), scale)
+    }
+    return DecimalValue(decimalRoundedQuotient(value.coefficient, decimalPowerTen(distance.negate()), mode), scale)
+}
+
+// sticky denotes a nonzero magnitude less than one coefficient unit, with the coefficient's sign.
+internal fun decimalRound(value: DecimalValue, context: MathContext, sticky: Boolean = false): DecimalValue {
+    if (context.precision == 0L) return value
+    val digits = decimalPrecision(value.coefficient)
+    if (digits <= context.precision && !sticky) return value
+    val drop = digits - context.precision
+    val divisor = integerPow(IntegerStorage.Small(10L), drop)
+    val divided = integerDivide(value.coefficient, divisor)
+    var half = integerCompare(integerMultiply(integerAbs(divided._2), IntegerStorage.Small(2L)), divisor)
+    if (half == 0L && sticky) half = 1L
+    var coefficient = divided._1
+    val sign = integerSign(value.coefficient)
+    if (decimalRoundUp(sign, (integerLowBits(coefficient) and 1uL) != 0uL, half, sticky || integerSign(divided._2) != 0, context.roundingMode))
+        coefficient = integerAdd(coefficient, IntegerStorage.Small(sign.toLong()))
+    var scale = value.scale.minus(drop)
+    if (decimalPrecision(coefficient) > context.precision) {
+        coefficient = integerDivide(coefficient, IntegerStorage.Small(10L))._1
+        scale = scale.minus(1L)
+    }
+    return DecimalValue(coefficient, scale)
+}
+
+internal fun decimalPreferExact(value: DecimalValue, preferred: DecimalScale, precision: Long): DecimalValue {
+    if (integerSign(value.coefficient) == 0) return DecimalValue(value.coefficient, preferred)
+    if (value.scale.compare(preferred) >= 0L) return decimalStrip(value, Some(preferred))
+    val room = precision - decimalPrecision(value.coefficient)
+    if (room <= 0L) return value
+    val extra = decimalScaleMin(preferred.minus(value.scale), decimalScale(room))
+    return DecimalValue(decimalScaleCoefficient(value.coefficient, extra), value.scale.plus(extra))
+}

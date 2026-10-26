@@ -1,0 +1,72 @@
+package scoop.math.tests.big_decimal
+
+import scoop.math.*
+import scoop.test.*
+
+@Test
+private class BigDecimalExtremeTests {
+    @Test
+    fun wideLogicalScales() {
+        val a = BigDecimal(10L, Long.MIN_VALUE)
+        val b = BigDecimal(100L, Long.MIN_VALUE + 1L)
+        assertEquals(a, b)
+        assertEquals(a.hash(), b.hash())
+        assertTrue(a.sameRepresentation(decimal(a.toString())))
+        representation("1.0e9223372036854775809", a)
+        assertFailsWith<ArithmeticException> { a.stripTrailingZeros() }
+        val lowZero = BigDecimal(0L, Long.MIN_VALUE)
+        val highZero = BigDecimal(0L, Long.MAX_VALUE)
+        representation("0e9223372036854775808", lowZero)
+        representation("0e-9223372036854775807", highZero)
+        assertEquals(lowZero, highZero)
+        assertEquals(lowZero.hash(), highZero.hash())
+        assertEquals(BigDecimal.ZERO, lowZero.stripTrailingZeros())
+        assertEquals("0", lowZero.toPlainString())
+        assertEquals(a, decimal(a.toEngineeringString()))
+    }
+
+    @Test
+    fun distantScalesAndStickyRounding() {
+        val huge = BigDecimal(1L, Long.MIN_VALUE)
+        val tiny = BigDecimal(1L, Long.MAX_VALUE)
+        assertTrue(huge > tiny)
+        assertTrue(-huge < -tiny)
+        val rounded = huge.plus(tiny, MathContext(3L))
+        assertTrue(BigDecimal(100L, Long.MIN_VALUE + 2L).sameRepresentation(rounded))
+        val below = huge.minus(tiny, MathContext(3L, RoundingMode.Down))
+        assertTrue(BigDecimal(999L, Long.MIN_VALUE + 3L).sameRepresentation(below))
+        assertTrue(BigDecimal(0L, Long.MIN_VALUE).sameRepresentation(tiny.setScale(Long.MIN_VALUE, RoundingMode.Down)))
+        assertTrue(huge.sameRepresentation(tiny.setScale(Long.MIN_VALUE, RoundingMode.Up)))
+        representation("1", tiny.div(huge, 0L, RoundingMode.Up))
+        representation("0", tiny.div(huge, 0L, RoundingMode.Down))
+        representation("1.01", decimal("1.005").plus(decimal("1e-100"), MathContext(3L)))
+        representation("1.00", decimal("1.005").minus(decimal("1e-100"), MathContext(3L)))
+        representation("1.02", decimal("1.015").plus(decimal("1e-100"), MathContext(3L)))
+        representation("1.01", decimal("1.015").minus(decimal("1e-100"), MathContext(3L)))
+        representation("-1.01", decimal("-1.005").minus(decimal("1e-100"), MathContext(3L)))
+        representation("-1.00", decimal("-1.005").plus(decimal("1e-100"), MathContext(3L)))
+        representation("1.00", decimal("1.0000001").minus(decimal("0.0000001"), MathContext(3L)))
+        assertFailsWith<ArithmeticException> { huge.plus(tiny, MathContext(3L, RoundingMode.Unnecessary)) }
+    }
+
+    @Test
+    fun finalScaleChecksAndLargeExponents() {
+        val value = BigDecimal(10L, Long.MAX_VALUE)
+        val tenth = BigDecimal(1L, 1L)
+        assertTrue(BigDecimal(1L, Long.MAX_VALUE).sameRepresentation(value.times(tenth, MathContext(1L))))
+        assertFailsWith<ArithmeticException> { value * tenth }
+        assertFailsWith<ArithmeticException> { BigDecimal(0L, Long.MAX_VALUE).times(tenth, MathContext(1L)) }
+        assertEquals(BigDecimal(5L, Long.MIN_VALUE), BigDecimal(1L, Long.MIN_VALUE) / BigDecimal(2L, 1L))
+        assertFailsWith<ArithmeticException> { BigDecimal(0L, Long.MIN_VALUE).scaleByPowerOfTen(1L) }
+        assertFailsWith<ArithmeticException> { BigDecimal(1L, Long.MAX_VALUE).movePointLeft(1L) }
+        representation("0", BigDecimal(0L, Long.MIN_VALUE).movePointRight(Long.MAX_VALUE))
+        representation("1.00", decimal("1.0").pow(Long.MAX_VALUE, MathContext(3L)))
+        representation("1", decimal("-1.0").pow(Long.MIN_VALUE, MathContext(3L)))
+        assertEquals(0uL, BigDecimal(123L, Long.MIN_VALUE).toULong())
+        assertEquals(0L, BigDecimal(-123L, Long.MAX_VALUE).toLong())
+        assertEquals(0x8000000000000000uL.toLong(), BigDecimal(-1L, Long.MAX_VALUE).toDouble().toBits())
+        assertEquals(Double.POSITIVE_INFINITY, BigDecimal(1L, Long.MIN_VALUE).toDouble())
+        assertFailsWith<ArithmeticException> { BigDecimal(1L, Long.MIN_VALUE).toLongExact() }
+        assertFailsWith<ArithmeticException> { BigDecimal(1L, Long.MAX_VALUE).toLongExact() }
+    }
+}

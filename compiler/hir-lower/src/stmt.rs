@@ -44,7 +44,7 @@ impl ValueBlock {
             && !matches!(value.kind, hir::ExprKind::UnitLiteral)
         {
             self.statements.push(hir::Statement {
-                span: value.span,
+                span: value.origin.concrete().evaluation.span,
                 kind: hir::StatementKind::Expr(value),
             });
         }

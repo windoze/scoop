@@ -1,0 +1,60 @@
+package scoop.math
+
+// REDC with an odd modulus. Every operand and result is in [0, modulus).
+private fun montgomeryMultiply(a: Array<UInt>, b: Array<UInt>, modulus: Array<UInt>, inverse: UInt): Array<UInt> {
+    val n = modulus.size
+    val words = MutableArray<UInt>(addExact(multiplyExact(n, 2L), 1L)) { _ -> 0u }
+    var i = 0L
+    while (i < a.size) {
+        var carry = 0uL
+        var j = 0L
+        while (j < b.size) {
+            val product = a[i].toULong() * b[j].toULong() + words[i + j].toULong() + carry
+            words[i + j] = product.toUInt()
+            carry = product shr 32L
+            j += 1L
+        }
+        words[i + b.size] = carry.toUInt()
+        i += 1L
+    }
+    i = 0L
+    while (i < n) {
+        val multiplier = words[i] * inverse
+        var carry = 0uL
+        var j = 0L
+        while (j < n) {
+            val product = multiplier.toULong() * modulus[j].toULong() + words[i + j].toULong() + carry
+            words[i + j] = product.toUInt()
+            carry = product shr 32L
+            j += 1L
+        }
+        var position = i + n
+        while (carry != 0uL) {
+            val sum = words[position].toULong() + carry
+            words[position] = sum.toUInt()
+            carry = sum shr 32L
+            position += 1L
+        }
+        i += 1L
+    }
+    val result = magnitudeSnapshot(Array<UInt>(n + 1L) { index -> words[index + n] })
+    return if (magnitudeCompare(result, modulus) >= 0L) magnitudeSubtract(result, modulus) else result
+}
+
+internal fun integerMontgomeryPow(base: IntegerStorage, exponent: Array<UInt>, modulus: IntegerStorage): IntegerStorage {
+    val divisor = integerMagnitude(modulus)
+    var reciprocal = 1u
+    var iteration = 0
+    while (iteration < 5) { reciprocal *= 2u - divisor[0L] * reciprocal; iteration += 1 }
+    val inverse = 0u - reciprocal
+    val radixBits = multiplyExact(divisor.size, 32L)
+    var result = integerMagnitude(integerMod(integerShift(IntegerStorage.Small(1L), radixBits, true), modulus))
+    val power = integerMagnitude(integerMod(integerShift(base, radixBits, true), modulus))
+    var bit = magnitudeBits(exponent)
+    while (bit > 0L) {
+        bit -= 1L
+        result = montgomeryMultiply(result, result, divisor, inverse)
+        if ((exponent[bit / 32L] and (1u shl (bit % 32L))) != 0u) result = montgomeryMultiply(result, power, divisor, inverse)
+    }
+    return integerFromMagnitude(false, montgomeryMultiply(result, Array<UInt>(1L) { _ -> 1u }, divisor, inverse))
+}

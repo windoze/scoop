@@ -1,0 +1,66 @@
+package scoop.math
+
+internal fun integerGcd(a: IntegerStorage, b: IntegerStorage): IntegerStorage {
+    var left = integerAbs(a)
+    var right = integerAbs(b)
+    while (integerSign(right) != 0) {
+        val remainder = integerDivide(left, right)._2
+        left = right
+        right = remainder
+    }
+    return left
+}
+
+internal fun integerMod(value: IntegerStorage, modulus: IntegerStorage): IntegerStorage {
+    if (integerSign(modulus) <= 0) mathOverflow()
+    val remainder = integerDivide(value, modulus)._2
+    return if (integerSign(remainder) < 0) integerAdd(remainder, modulus) else remainder
+}
+
+internal fun integerModInverse(value: IntegerStorage, modulus: IntegerStorage): IntegerStorage {
+    if (integerSign(modulus) <= 0) mathOverflow()
+    var oldR = modulus
+    var r = integerMod(value, modulus)
+    var oldT = IntegerStorage.Small(0L)
+    var t = IntegerStorage.Small(1L)
+    while (integerSign(r) != 0) {
+        val divided = integerDivide(oldR, r)
+        val next = integerSubtract(oldT, integerMultiply(divided._1, t))
+        oldR = r
+        r = divided._2
+        oldT = t
+        t = next
+    }
+    if (integerCompare(oldR, IntegerStorage.Small(1L)) != 0L) mathOverflow()
+    return integerMod(oldT, modulus)
+}
+
+internal fun integerModPow(value: IntegerStorage, exponent: IntegerStorage, modulus: IntegerStorage): IntegerStorage {
+    if (integerSign(modulus) <= 0) mathOverflow()
+    if (integerCompare(modulus, IntegerStorage.Small(1L)) == 0L) return IntegerStorage.Small(0L)
+    var base = if (integerSign(exponent) < 0) integerModInverse(value, modulus) else integerMod(value, modulus)
+    val words = integerMagnitude(exponent)
+    if (integerTestBit(modulus, 0L)) return integerMontgomeryPow(base, words, modulus)
+    val bits = magnitudeBits(words)
+    var result = IntegerStorage.Small(1L)
+    var bit = 0L
+    while (bit < bits) {
+        if ((words[bit / 32L] and (1u shl (bit % 32L))) != 0u) result = integerMod(integerMultiply(result, base), modulus)
+        bit += 1L
+        if (bit < bits) base = integerMod(integerMultiply(base, base), modulus)
+    }
+    return result
+}
+
+internal fun integerSqrt(value: IntegerStorage): (IntegerStorage, IntegerStorage) {
+    if (integerSign(value) < 0) mathOverflow()
+    if (integerCompare(value, IntegerStorage.Small(1L)) <= 0) return (value, IntegerStorage.Small(0L))
+    val bits = magnitudeBits(integerMagnitude(value))
+    var root = integerShift(IntegerStorage.Small(1L), bits / 2L + bits % 2L, true)
+    while (true) {
+        val next = integerShift(integerAdd(root, integerDivide(value, root)._1), 1L, false)
+        if (integerCompare(next, root) >= 0L) break
+        root = next
+    }
+    return (root, integerSubtract(value, integerMultiply(root, root)))
+}

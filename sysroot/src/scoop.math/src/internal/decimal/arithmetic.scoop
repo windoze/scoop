@@ -1,0 +1,49 @@
+package scoop.math
+
+internal fun decimalAddExact(a: DecimalValue, b: DecimalValue): DecimalValue {
+    val scale = decimalScaleMax(a.scale, b.scale)
+    return DecimalValue(integerAdd(decimalScaleCoefficient(a.coefficient, scale.minus(a.scale)), decimalScaleCoefficient(b.coefficient, scale.minus(b.scale))), scale)
+}
+
+internal fun decimalMultiply(a: DecimalValue, b: DecimalValue): DecimalValue = DecimalValue(integerMultiply(a.coefficient, b.coefficient), a.scale.plus(b.scale))
+
+internal fun decimalAdd(a: DecimalValue, b: DecimalValue, context: MathContext): DecimalValue {
+    if (context.precision == 0L) return decimalAddExact(a, b)
+    val preferred = decimalScaleMax(a.scale, b.scale)
+    if (integerSign(a.coefficient) == 0) return decimalPreferExact(decimalRound(b, context), preferred, context.precision)
+    if (integerSign(b.coefficient) == 0) return decimalPreferExact(decimalRound(a, context), preferred, context.precision)
+    val leftAdjusted = decimalAdjusted(a)
+    val rightAdjusted = decimalAdjusted(b)
+    val distance = leftAdjusted.minus(rightAdjusted)
+    val guard = decimalScale(context.precision).plus(2L)
+    if (distance.compare(guard) > 0L) return decimalAddSeparated(a, b, context)
+    if (distance.negate().compare(guard) > 0L) return decimalAddSeparated(b, a, context)
+    return decimalRound(decimalAddExact(a, b), context)
+}
+
+// The smaller operand lies below the two guard digits. Exact tail comparisons decide carries,
+// cancellation, and ties without materializing a power spanning the operands' scale gap.
+private fun decimalAddSeparated(large: DecimalValue, small: DecimalValue, context: MathContext): DecimalValue {
+    val sign = integerSign(large.coefficient)
+    val magnitude = decimalAbs(large)
+    val tiny = decimalAbs(small)
+    val grid = decimalScale(context.precision).plus(1L).minus(decimalAdjusted(large))
+    val truncated = decimalAtScale(magnitude, grid, RoundingMode.Down)
+    val remainder = decimalAddExact(magnitude, decimalNegate(truncated))
+    var coefficient = truncated.coefficient
+    var sticky = true
+    if (sign == integerSign(small.coefficient)) {
+        val distance = decimalAddExact(DecimalValue(IntegerStorage.Small(1L), grid), decimalNegate(remainder))
+        val order = decimalCompare(tiny, distance)
+        if (order >= 0L) {
+            coefficient = integerAdd(coefficient, IntegerStorage.Small(1L))
+            sticky = order != 0L
+        }
+    } else {
+        val order = decimalCompare(remainder, tiny)
+        if (order < 0L) coefficient = integerSubtract(coefficient, IntegerStorage.Small(1L))
+        sticky = order != 0L
+    }
+    if (sign < 0) coefficient = integerNegate(coefficient)
+    return decimalRound(DecimalValue(coefficient, grid), context, sticky)
+}

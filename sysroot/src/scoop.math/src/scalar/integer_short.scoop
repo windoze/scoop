@@ -1,0 +1,120 @@
+package scoop.math
+
+/** Returns the smaller value. */
+public fun min(a: Short, b: Short): Short = if (a <= b) a else b
+
+/** Returns the larger value. */
+public fun max(a: Short, b: Short): Short = if (a >= b) a else b
+
+/** Clamps to inclusive bounds; reversed bounds throw IllegalArgumentException. */
+public fun clamp(value: Short, min: Short, max: Short): Short {
+    if (min > max) throw IllegalArgumentException(Some("reversed math bounds"))
+    return if (value < min) min else if (value > max) max else value
+}
+
+/** Computes the exact result, throwing ArithmeticException on overflow. */
+public fun addExact(a: Short, b: Short): Short {
+    val result = a + b
+    if (((a xor result) and (b xor result)) < 0) mathOverflow()
+    return result
+}
+
+/** Computes the exact result, throwing ArithmeticException on overflow. */
+public fun subtractExact(a: Short, b: Short): Short {
+    val result = a - b
+    if (((a xor b) and (a xor result)) < 0) mathOverflow()
+    return result
+}
+
+/** Multiplies exactly, throwing ArithmeticException on overflow. */
+public fun multiplyExact(a: Short, b: Short): Short {
+    if (b == 0) return 0
+    if ((a == Short.MIN_VALUE && b == -1) || (b == Short.MIN_VALUE && a == -1)) mathOverflow()
+    val result = a * b
+    if (result / b != a) mathOverflow()
+    return result
+}
+
+/** Adds one with overflow checking. */
+public fun incrementExact(value: Short): Short = addExact(value, 1)
+
+/** Subtracts one with overflow checking. */
+public fun decrementExact(value: Short): Short = subtractExact(value, 1)
+
+/** Raises to a nonnegative power with overflow checking; zero to zero is one. */
+public fun powExact(value: Short, exponent: Long): Short {
+    if (exponent < 0L) throw ArithmeticException()
+    var result: Short = 1
+    var factor = value
+    var remaining = exponent
+    while (remaining != 0L) {
+        if ((remaining and 1L) != 0L) result = multiplyExact(result, factor)
+        remaining = remaining shr 1L
+        if (remaining != 0L) factor = multiplyExact(factor, factor)
+    }
+    return result
+}
+
+/** Returns the absolute value; the minimum value wraps to itself. */
+public fun abs(value: Short): Short = if (value < 0) -value else value
+
+/** Returns the absolute value, throwing for the minimum integer. */
+public fun absExact(value: Short): Short {
+    if (value == Short.MIN_VALUE) mathOverflow()
+    return abs(value)
+}
+
+/** Negates with overflow checking. */
+public fun negateExact(value: Short): Short {
+    if (value == Short.MIN_VALUE) mathOverflow()
+    return -value
+}
+
+/** Returns minus one, zero or one according to the sign. */
+public fun signum(value: Short): Int = if (value < 0) -1 else if (value == 0) 0 else 1
+
+/** Divides toward zero, throwing on zero divisor or overflow. */
+public fun divideExact(a: Short, b: Short): Short {
+    if (a == Short.MIN_VALUE && b == -1) mathOverflow()
+    return a / b
+}
+
+/** Divides toward negative infinity; minimum divided by minus one wraps. */
+public fun floorDiv(a: Short, b: Short): Short {
+    val quotient = a / b
+    val remainder = a % b
+    return if (remainder != 0 && (a < 0) != (b < 0)) quotient - 1 else quotient
+}
+
+/** Divides toward negative infinity; overflow throws. */
+public fun floorDivExact(a: Short, b: Short): Short {
+    val quotient = divideExact(a, b)
+    val remainder = a % b
+    return if (remainder != 0 && (a < 0) != (b < 0)) quotient - 1 else quotient
+}
+
+/** Returns the remainder corresponding to floor division; zero divisor throws. */
+public fun floorMod(a: Short, b: Short): Short {
+    val remainder = a % b
+    return if (remainder != 0 && (a < 0) != (b < 0)) remainder + b else remainder
+}
+
+/** Divides toward positive infinity; minimum divided by minus one wraps. */
+public fun ceilDiv(a: Short, b: Short): Short {
+    val quotient = a / b
+    val remainder = a % b
+    return if (remainder != 0 && (a < 0) == (b < 0)) quotient + 1 else quotient
+}
+
+/** Divides toward positive infinity; overflow throws. */
+public fun ceilDivExact(a: Short, b: Short): Short {
+    val quotient = divideExact(a, b)
+    val remainder = a % b
+    return if (remainder != 0 && (a < 0) == (b < 0)) quotient + 1 else quotient
+}
+
+/** Returns the remainder corresponding to ceil division; zero divisor throws. */
+public fun ceilMod(a: Short, b: Short): Short {
+    val remainder = a % b
+    return if (remainder != 0 && (a < 0) == (b < 0)) remainder - b else remainder
+}

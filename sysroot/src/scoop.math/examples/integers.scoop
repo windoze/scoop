@@ -1,0 +1,22 @@
+//! dep: scoop:scoop.math:0.1.0
+
+import scoop.math.*
+import scoop.bytes.ByteOrder
+
+fun <T : Add<T, T>> twice(value: T): T = value + value
+
+fun main() {
+    val value = "340282366920938463463374607431768211456".toBigInteger()
+    val (quotient, remainder) = value.divideAndRemainder(BigInteger(97L))
+    println(f"quotient: ${quotient}, remainder: ${remainder}")
+    println(f"identity holds: ${quotient * BigInteger(97L) + remainder == value}")
+    println(f"hex: ${value.toString(16)}")
+    println(f"generic addition: ${twice(value)}")
+    println(f"square root: ${value.sqrt()}")
+    println(f"modular inverse: ${BigInteger(17L).modInverse(BigInteger(3120L))}")
+    val bytes = value.toByteArray(ByteOrder.LittleEndian)
+    println(f"byte round trip: ${BigInteger.fromByteArray(bytes, ByteOrder.LittleEndian) == value}")
+    println(f"arithmetic right shift: ${BigInteger(-3L) shr 1L}")
+    val larger = value + BigInteger.ONE
+    println(f"original preserved: ${value.testBit(0L) == false && larger.testBit(0L)}")
+}

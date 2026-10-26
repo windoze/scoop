@@ -1,0 +1,112 @@
+package scoop.math
+
+internal fun magnitudeAdd(a: Array<UInt>, b: Array<UInt>): Array<UInt> {
+    val count = max(a.size, b.size)
+    val result = MutableArray<UInt>(addExact(count, 1L)) { _ -> 0u }
+    var carry = 0uL
+    var index = 0L
+    while (index < count) {
+        val sum = magnitudeWord(a, index).toULong() + magnitudeWord(b, index).toULong() + carry
+        result[index] = sum.toUInt()
+        carry = sum shr 32L
+        index += 1L
+    }
+    result[count] = carry.toUInt()
+    return magnitudeSnapshot(result)
+}
+
+// Requires a >= b. The returned magnitude is normalized.
+internal fun magnitudeSubtract(a: Array<UInt>, b: Array<UInt>): Array<UInt> {
+    val result = MutableArray<UInt>(a.size) { _ -> 0u }
+    var borrow = 0uL
+    var index = 0L
+    while (index < a.size) {
+        val left = a[index].toULong()
+        val right = magnitudeWord(b, index).toULong() + borrow
+        result[index] = (left - right).toUInt()
+        borrow = if (left < right) 1uL else 0uL
+        index += 1L
+    }
+    return magnitudeSnapshot(result)
+}
+
+internal fun integerAdd(a: IntegerStorage, b: IntegerStorage): IntegerStorage {
+    when (a) { case Small(x) -> when (b) {
+        case Small(y) -> {
+            val sum = x + y
+            if (((x xor sum) and (y xor sum)) >= 0L) return IntegerStorage.Small(sum)
+            return integerAddMagnitude(a, b)
+        }
+        case Large(_, _) -> return integerAddMagnitude(a, b)
+    }; case Large(_, _) -> return integerAddMagnitude(a, b) }
+}
+
+private fun integerAddMagnitude(a: IntegerStorage, b: IntegerStorage): IntegerStorage {
+    val signA = integerSign(a)
+    val signB = integerSign(b)
+    if (signA == 0) return b
+    if (signB == 0) return a
+    val left = integerMagnitude(a)
+    val right = integerMagnitude(b)
+    if (signA == signB) return integerFromMagnitude(signA < 0, magnitudeAdd(left, right))
+    val order = magnitudeCompare(left, right)
+    if (order == 0L) return IntegerStorage.Small(0L)
+    return if (order > 0L) integerFromMagnitude(signA < 0, magnitudeSubtract(left, right))
+        else integerFromMagnitude(signB < 0, magnitudeSubtract(right, left))
+}
+
+internal fun integerSubtract(a: IntegerStorage, b: IntegerStorage): IntegerStorage = integerAdd(a, integerNegate(b))
+
+internal fun magnitudeMultiplySchoolbook(a: Array<UInt>, b: Array<UInt>): Array<UInt> {
+    if (a.size == 0L || b.size == 0L) return Array<UInt>(0L) { _ -> 0u }
+    val result = MutableArray<UInt>(addExact(a.size, b.size)) { _ -> 0u }
+    var i = 0L
+    while (i < a.size) {
+        var carry = 0uL
+        var j = 0L
+        while (j < b.size) {
+            val product = a[i].toULong() * b[j].toULong() + result[i + j].toULong() + carry
+            result[i + j] = product.toUInt()
+            carry = product shr 32L
+            j += 1L
+        }
+        result[i + b.size] = carry.toUInt()
+        i += 1L
+    }
+    return magnitudeSnapshot(result)
+}
+
+internal fun integerMultiply(a: IntegerStorage, b: IntegerStorage): IntegerStorage {
+    when (a) { case Small(x) -> when (b) {
+        case Small(y) -> {
+            if (x == 0L || y == 0L) return IntegerStorage.Small(0L)
+            if (!((x == Long.MIN_VALUE && y == -1L) || (y == Long.MIN_VALUE && x == -1L))) {
+                val product = x * y
+                if (product / y == x) return IntegerStorage.Small(product)
+            }
+            return integerMultiplyMagnitude(a, b)
+        }
+        case Large(_, _) -> return integerMultiplyMagnitude(a, b)
+    }; case Large(_, _) -> return integerMultiplyMagnitude(a, b) }
+}
+
+private fun integerMultiplyMagnitude(a: IntegerStorage, b: IntegerStorage): IntegerStorage {
+    return integerFromMagnitude(integerSign(a) != integerSign(b), magnitudeMultiply(integerMagnitude(a), integerMagnitude(b)))
+}
+
+internal fun integerPow(value: IntegerStorage, exponent: Long): IntegerStorage {
+    if (exponent < 0L) mathOverflow()
+    return integerPowUnsigned(value, exponent.toULong())
+}
+
+internal fun integerPowUnsigned(value: IntegerStorage, exponent: ULong): IntegerStorage {
+    var result = IntegerStorage.Small(1L)
+    var base = value
+    var remaining = exponent
+    while (remaining != 0uL) {
+        if ((remaining and 1uL) != 0uL) result = integerMultiply(result, base)
+        remaining = remaining shr 1L
+        if (remaining != 0uL) base = integerMultiply(base, base)
+    }
+    return result
+}

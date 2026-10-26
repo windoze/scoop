@@ -1,0 +1,10 @@
+package scoop.tests.math
+
+import scoop.math.*
+
+// These boundaries exercise ordinary generic arithmetic and interface parameters across slibs.
+public fun <T : Add<T, T>> twice(value: T): T = value + value
+public fun equalThroughView(view: Equals<BigDecimal>, value: BigDecimal): Boolean = view.equals(value)
+public fun compareThroughView(view: Compare<BigInteger>, value: BigInteger): Long = view.compareTo(value)
+public fun roundedRatio(value: BigDecimal, divisor: BigDecimal, context: MathContext): BigDecimal = value.div(divisor, context)
+public class Amounts(public val integer: BigInteger, public val decimal: BigDecimal)

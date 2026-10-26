@@ -1,0 +1,63 @@
+package scoop.math.tests.big_decimal
+
+import scoop.math.*
+import scoop.test.*
+
+@Test
+private class BigDecimalConversionTests {
+    @Test
+    fun integerConversions() {
+        assertEquals(BigDecimal(Long.MIN_VALUE), Long.MIN_VALUE.toBigDecimal())
+        assertEquals(BigDecimal(ULong.MAX_VALUE), ULong.MAX_VALUE.toBigDecimal())
+        assertEquals(BigDecimal(123L), BigInteger(123L).toBigDecimal())
+        assertEquals(BigInteger(-123L), decimal("-123.999").toBigInteger())
+        assertEquals(BigInteger(123L), decimal("123.000").toBigIntegerExact())
+        assertFailsWith<ArithmeticException> { decimal("123.001").toBigIntegerExact() }
+        assertEquals(Long.MIN_VALUE, decimal("-9223372036854775808.0").toLongExact())
+        assertEquals(ULong.MAX_VALUE, decimal("18446744073709551615.00").toULongExact())
+        assertEquals(-1L, decimal("18446744073709551615.99").toLong())
+        assertEquals(255.toUByte(), decimal("-1.9").toUByte())
+        assertEquals(32767.toShort(), decimal("32767.0").toShortExact())
+        assertEquals(65535.toUShort(), decimal("65535").toUShortExact())
+        assertEquals(UInt.MAX_VALUE, decimal("4294967295").toUIntExact())
+        assertEquals(-128.toByte(), decimal("-128").toByteExact())
+        assertEquals(255.toUByte(), decimal("255.000").toUByteExact())
+        assertEquals(Int.MIN_VALUE, decimal("-2147483648").toIntExact())
+        assertEquals(0, decimal("18446744073709551616.99").toInt())
+        assertFailsWith<ArithmeticException> { decimal("128").toByteExact() }
+        assertFailsWith<ArithmeticException> { decimal("-1").toULongExact() }
+        assertFailsWith<ArithmeticException> { decimal("18446744073709551615").toLongExact() }
+        assertFailsWith<ArithmeticException> { decimal("1.01").toIntExact() }
+    }
+
+    @Test
+    fun binaryConstructionAndDirectRounding() {
+        representation("0.1", BigDecimal.fromDouble(0.1))
+        representation("0.1", BigDecimal.fromFloat(0.1f))
+        representation("0.1000000000000000055511151231257827021181583404541015625", BigDecimal.fromDoubleExact(0.1))
+        representation("0.100000001490116119384765625", BigDecimal.fromFloatExact(0.1f))
+        assertFalse(BigDecimal.fromDoubleExact(0.1) == decimal("0.1"))
+        assertEquals(BigDecimal.ZERO, BigDecimal.fromDoubleExact(-0.0))
+        assertEquals(nextUp(1.0f), decimal("1.00000005960464477539062500000000000000000000000000000000001").toFloat())
+        assertEquals(1.0f, decimal("1.000000059604644775390625").toFloat())
+        assertEquals(1.0, decimal("1.00000000000000011102230246251565404236316680908203125").toDouble())
+        assertEquals(nextUp(1.0), decimal("1.000000000000000111022302462515654042363166809082031251").toDouble())
+        assertEquals(Float.POSITIVE_INFINITY, decimal("1e100").toFloat())
+        assertEquals(Double.NEGATIVE_INFINITY, decimal("-1e1000").toDouble())
+        assertEquals(0x80000000u.toInt(), decimal("-1e-1000").toFloat().toBits())
+        assertEquals(0x8000000000000000uL.toLong(), decimal("-1e-1000").toDouble().toBits())
+        assertEquals(Float.fromBits(1), decimal("1.4012984643248170709237295832899161312802619418765e-45").toFloat())
+        for (bits in [1L, 0x0010000000000000L, 0x3ff0000000000001L, 0x7fefffffffffffffL, -1L shl 63L or 1L]) {
+            val value = Double.fromBits(bits)
+            assertEquals(bits, BigDecimal.fromDoubleExact(value).toDouble().toBits())
+        }
+        for (bits in [1, 0x00800000, 0x3f800001, 0x7f7fffff, Int.MIN_VALUE + 1]) {
+            val value = Float.fromBits(bits)
+            assertEquals(bits, BigDecimal.fromFloatExact(value).toFloat().toBits())
+        }
+        assertFailsWith<IllegalArgumentException> { BigDecimal.fromDouble(Double.NaN) }
+        assertFailsWith<IllegalArgumentException> { BigDecimal.fromFloat(Float.POSITIVE_INFINITY) }
+        assertFailsWith<IllegalArgumentException> { BigDecimal.fromDoubleExact(Double.NEGATIVE_INFINITY) }
+        assertFailsWith<IllegalArgumentException> { BigDecimal.fromFloatExact(Float.NaN) }
+    }
+}

@@ -29,7 +29,7 @@ Scoop 的泛型采用**单态化（monomorphization）**，不进行类型擦除
 
 日志 facade 与同步 stdout／stderr provider 由普通库提供，见[日志库规范](SCOOP-LOG-SPEC.md)。消息构造异常转为日志记录，provider 失败执行 best-effort stderr fallback，不改变语言异常或 runtime ABI。
 
-独立数学库的设计见 [math 规范草案](SCOOP-MATH-SPEC.md)，涵盖标量数学、不可变 BigInteger/BigDecimal 及显式舍入配置；目前待实现，不扩展核心数值类型或默认导入。
+独立数学库见 [math 规范](SCOOP-MATH-SPEC.md)，已提供标量数学、不可变 BigInteger/BigDecimal 及显式舍入配置；不扩展核心数值类型或默认导入。
 
 ### 1.2 并发安全与数据竞争
 

@@ -1,0 +1,71 @@
+package scoop.math
+
+private fun decimalFromBinary(significand: ULong, exponent: Long, negative: Boolean): DecimalValue {
+    if (significand == 0uL) return DecimalValue(IntegerStorage.Small(0L), decimalScale(0L))
+    var coefficient = integerUnsigned(significand)
+    var scale = 0L
+    if (exponent >= 0L) coefficient = integerShift(coefficient, exponent, true)
+    else {
+        scale = -exponent
+        coefficient = integerMultiply(coefficient, integerPow(IntegerStorage.Small(5L), scale))
+    }
+    if (negative) coefficient = integerNegate(coefficient)
+    return decimalStrip(DecimalValue(coefficient, decimalScale(scale)), Some(decimalScale(0L)))
+}
+
+internal fun decimalFromDouble(value: Double): DecimalValue {
+    if (!value.isFinite()) throw IllegalArgumentException(Some("nonfinite decimal input"))
+    val bits = value.toBits().toULong()
+    val rawExponent = ((bits shr 52L) and 2047uL).toLong()
+    val fraction = bits and 0x000fffffffffffffuL
+    return decimalFromBinary(if (rawExponent == 0L) fraction else fraction or 0x0010000000000000uL,
+        if (rawExponent == 0L) -1074L else rawExponent - 1075L, value.toBits() < 0L)
+}
+
+internal fun decimalFromFloat(value: Float): DecimalValue {
+    if (!value.isFinite()) throw IllegalArgumentException(Some("nonfinite decimal input"))
+    val bits = value.toBits().toUInt()
+    val rawExponent = ((bits shr 23L) and 255u).toLong()
+    val fraction = bits and 0x007fffffu
+    return decimalFromBinary((if (rawExponent == 0L) fraction else fraction or 0x00800000u).toULong(),
+        if (rawExponent == 0L) -149L else rawExponent - 150L, value.toBits() < 0)
+}
+
+// The caller has already bounded the decimal exponent to the target's finite neighborhood.
+private fun decimalBinaryParts(value: DecimalValue, precision: Long, minimum: Long): (ULong, Int) {
+    var numerator = integerAbs(value.coefficient)
+    var denominator = IntegerStorage.Small(1L)
+    if (value.scale.high < 0L) numerator = decimalScaleCoefficient(numerator, value.scale.negate())
+    else denominator = decimalPowerTen(value.scale)
+    var exponent = magnitudeBits(integerMagnitude(numerator)) - magnitudeBits(integerMagnitude(denominator))
+    val order = if (exponent >= 0L) integerCompare(numerator, integerShift(denominator, exponent, true))
+        else integerCompare(integerShift(numerator, -exponent, true), denominator)
+    if (order < 0L) exponent -= 1L
+    val unit = max(minimum, exponent - (precision - 1L))
+    if (unit < 0L) numerator = integerShift(numerator, -unit, true)
+    else denominator = integerShift(denominator, unit, true)
+    val rounded = decimalRoundedQuotient(numerator, denominator, RoundingMode.HalfEven)
+    return (integerLowBits(rounded), unit.toInt())
+}
+
+internal fun decimalDouble(value: DecimalValue): Double {
+    val sign = integerSign(value.coefficient)
+    if (sign == 0) return 0.0
+    val adjusted = decimalAdjusted(value)
+    if (adjusted.compare(decimalScale(309L)) > 0L) return if (sign < 0) Double.NEGATIVE_INFINITY else Double.POSITIVE_INFINITY
+    if (adjusted.compare(decimalScale(-325L)) < 0L) return if (sign < 0) -0.0 else 0.0
+    val parts = decimalBinaryParts(value, 53L, -1074L)
+    val result = scalb(parts._1.toDouble(), parts._2)
+    return if (sign < 0) -result else result
+}
+
+internal fun decimalFloat(value: DecimalValue): Float {
+    val sign = integerSign(value.coefficient)
+    if (sign == 0) return 0f
+    val adjusted = decimalAdjusted(value)
+    if (adjusted.compare(decimalScale(39L)) > 0L) return if (sign < 0) Float.NEGATIVE_INFINITY else Float.POSITIVE_INFINITY
+    if (adjusted.compare(decimalScale(-46L)) < 0L) return if (sign < 0) -0f else 0f
+    val parts = decimalBinaryParts(value, 24L, -149L)
+    val result = scalb(parts._1.toFloat(), parts._2)
+    return if (sign < 0) -result else result
+}
