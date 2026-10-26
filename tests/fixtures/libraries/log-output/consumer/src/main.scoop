@@ -1,0 +1,130 @@
+package scoop.tests
+
+import scoop.log.*
+import scoop.log.console.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.io.*
+import scoop.text.repeat
+import scoop.time.*
+
+private object FixedClock : Clock {
+    public override fun now(): Instant = Instant.fromEpochSeconds(0L)
+}
+
+private object FailedClock : Clock {
+    public override fun now(): Instant { throw Exception(Some("clock failure")) }
+}
+
+private val source: SourceLocation = SourceLocation("fixture.scoop", 17L, 9L, "main", "")
+
+private fun check(value: Boolean) { if (!value) throw Exception(Some("log fixture assertion failed")) }
+
+private class FailedProvider(private val phase: String) : LogProvider {
+    var queries: Int = 0
+    var writes: Int = 0
+    var flushes: Int = 0
+    public override fun isEnabled(level: LogLevel, target: String): Boolean {
+        queries += 1
+        if (phase == "query") throw Exception(Some("query failure"))
+        return true
+    }
+    public override fun emit(record: LogRecord) {
+        writes += 1
+        if (phase == "partial") standardOutput.writeText("partial\n")
+        throw Exception(Some("write failure"))
+    }
+    public override fun flush() { flushes += 1; throw Exception(Some("flush failure")) }
+}
+
+private fun output() {
+    val logger = Logger("app")
+    Log.setProvider(ConsoleLogProvider(ConsoleStream.Stdout, clock = FixedClock))
+    logger.info("stdout 雪😀\u{0}", location = source)
+    logger.debug { throw Exception(Some("disabled")) }
+    Log.setProvider(ConsoleLogProvider(clock = FixedClock))
+    logger.warn("first\nsecond", Some(Exception(Some("original"))), source)
+    logger.error(location = source) { throw Exception(Some("message failure")) }
+    Log.setProvider(ConsoleLogProvider(ConsoleStream.Stdout, clock = FixedClock, format = { record, _ -> record.message }))
+    logger.info("", location = source)
+    logger.info("trailing\n", location = source)
+    Log.flush()
+    standardOutput.writeText("continued\n")
+}
+
+private fun failures() {
+    val logger = Logger("app")
+    val messages = AtomicInt(0)
+    val query = FailedProvider("query")
+    Log.setProvider(query)
+    logger.info(location = source) { messages.fetchAdd(1); "not evaluated" }
+    check(!logger.isEnabled(LogLevel.Warn))
+    check(messages.load() == 0 && query.queries == 2 && query.writes == 0)
+
+    val writer = FailedProvider("write")
+    Log.setProvider(writer)
+    logger.error("original text", Some(Exception(Some("original cause"))), source)
+    logger.warn(Some(Exception(Some("business cause"))), source) {
+        messages.fetchAdd(1)
+        throw Exception(Some("message failure"))
+    }
+    Log.flush()
+    check(writer.queries == 2 && writer.writes == 2 && writer.flushes == 1 && messages.load() == 1)
+
+    val partial = FailedProvider("partial")
+    Log.setProvider(partial)
+    logger.info("partly written", location = source)
+    check(partial.writes == 1)
+
+    val formats = AtomicInt(0)
+    Log.setProvider(ConsoleLogProvider(clock = FixedClock, format = { _, _ ->
+        formats.fetchAdd(1)
+        throw Exception(Some("format failure"))
+    }))
+    logger.info("format input", location = source)
+    check(formats.load() == 1)
+
+    Log.setProvider(ConsoleLogProvider(clock = FailedClock, format = { _, _ ->
+        formats.fetchAdd(100)
+        "unreachable formatter"
+    }))
+    logger.info("clock input", location = source)
+    check(formats.load() == 1)
+    standardOutput.writeText("continued\n")
+}
+
+private fun unwritable(stream: ConsoleStream) {
+    Log.setProvider(ConsoleLogProvider(stream, clock = FixedClock))
+    Logger("app").info("pipe input", location = source)
+    if (stream == ConsoleStream.Stderr) standardOutput.writeText("continued\n")
+}
+
+private fun concurrentOutput() {
+    val providers: Array<ConsoleLogProvider> = [
+        ConsoleLogProvider(ConsoleStream.Stdout, clock = FixedClock, format = { record, _ -> record.message }),
+        ConsoleLogProvider(ConsoleStream.Stdout, clock = FixedClock, format = { record, _ -> record.message })
+    ]
+    val payload = "x".repeat(12000L)
+    val workers = Array<Thread>(4L) { worker ->
+        Thread.start {
+            val provider = providers[worker % 2L]
+            for (index in 0..<20) {
+                if (provider.isEnabled(LogLevel.Info, "concurrent")) {
+                    provider.emit(LogRecord(LogLevel.Info, "concurrent", f"${worker}:${index}:${payload}", source))
+                }
+            }
+        }
+    }
+    for (worker in workers) worker.dispose()
+}
+
+fun main(args: Array<String>): Int {
+    when (args[1L]) {
+        case "output" -> output()
+        case "failures" -> failures()
+        case "stdout-failure" -> { unwritable(ConsoleStream.Stdout); return 17 }
+        case "stderr-failure" -> { unwritable(ConsoleStream.Stderr); return 17 }
+        case "concurrent" -> concurrentOutput()
+        else -> throw IllegalArgumentException()
+    }
+    return 0
+}

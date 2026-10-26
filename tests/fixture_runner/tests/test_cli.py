@@ -112,8 +112,9 @@ class EnvironmentTests(unittest.TestCase):
             )
 
     def prepare(self, directory):
-        repo = Path(directory) / "repo"
-        work = Path(directory) / "work"
+        directory = Path(directory).resolve()
+        repo = directory / "repo"
+        work = directory / "work"
         (repo / "sysroot").mkdir(parents=True)
         (repo / "scripts").mkdir()
         (repo / "scripts/release.toml").write_text(

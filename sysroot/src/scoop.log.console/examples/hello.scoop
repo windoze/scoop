@@ -1,0 +1,16 @@
+//! dep: scoop:scoop.log:0.1.0
+//! dep: scoop:scoop.log.console:0.1.0
+
+import scoop.log.*
+import scoop.log.console.*
+
+private val log = Logger("example")
+
+fun main() {
+    // The application selects the provider; library code only needs Logger.
+    Log.setProvider(ConsoleLogProvider())
+    log.info("ready")
+    val port = 8080
+    log.info { f"listening on ${port}" }
+    Log.flush()
+}

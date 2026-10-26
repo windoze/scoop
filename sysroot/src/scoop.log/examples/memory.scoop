@@ -1,0 +1,25 @@
+//! dep: scoop:scoop.log:0.1.0
+
+import scoop.log.*
+
+private class MemoryProvider : LogProvider {
+    val output: AtomicRef<String> = AtomicRef<String>("")
+    public override fun isEnabled(level: LogLevel, target: String): Boolean = level != LogLevel.Trace
+    public override fun emit(record: LogRecord) {
+        val line = f"${record.level} ${record.target}: ${record.message}\n"
+        // The atomic update may retry, so its callback only constructs a value.
+        output.getAndUpdate { previous -> previous + line }
+    }
+    public override fun flush(): Unit = Unit
+}
+
+fun main() {
+    val provider = MemoryProvider()
+    Log.setProvider(provider)
+    val log = Logger("memory")
+    log.trace("discarded by this provider's filter")
+    log.info("ready")
+    log.error { throw Exception(Some("failed to construct message")) }
+    Log.flush()
+    write(provider.output.load())
+}

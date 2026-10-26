@@ -1,0 +1,29 @@
+//! dep: scoop:scoop.log:0.1.0
+//! dep: scoop:scoop.log.console:0.1.0
+
+import scoop.log.*
+import scoop.log.console.*
+
+private val log = Logger("configuration")
+
+fun main() {
+    log.info("discarded by the initial noop provider")
+    Log.setProvider(ConsoleLogProvider(stream = ConsoleStream.Stdout,
+        format = { record, _ -> "primary: " + record.message }))
+    log.info("ready")
+    Log.flush()
+
+    // This changes the process-wide provider, including existing Logger instances.
+    val previous = Log.setProvider(ConsoleLogProvider(stream = ConsoleStream.Stdout,
+        format = { record, _ -> "temporary: " + record.message }))
+    try {
+        log.info("using another provider")
+        Log.flush()
+    } finally { Log.setProvider(previous) }
+
+    log.info("original provider restored")
+    Log.flush()
+    Log.setProvider(NoopLogProvider)
+    log.error { throw Exception(Some("this closure is never evaluated")) }
+    println("logging disabled")
+}

@@ -1,0 +1,21 @@
+//! dep: scoop:scoop.log:0.1.0
+
+import scoop.log.*
+
+// A deliberately failing implementation makes the facade's recovery visible.
+private object FailingProvider : LogProvider {
+    public override fun isEnabled(level: LogLevel, target: String): Boolean = true
+    public override fun emit(record: LogRecord) { throw Exception(Some("provider write failed")) }
+    public override fun flush() { throw Exception(Some("provider flush failed")) }
+}
+
+fun main() {
+    Log.setProvider(FailingProvider)
+    val log = Logger("fallback")
+    log.info("original message")
+    log.error(cause = Some(Exception(Some("operation failed")))) {
+        throw Exception(Some("message construction failed"))
+    }
+    Log.flush()
+    println("continued normally")
+}

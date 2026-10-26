@@ -748,6 +748,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 提供可复用模式、编号／命名捕获、惰性迭代、字面／模板／回调替换、分割与转义；公开位置使用 Long Unicode 标量索引，结果为独立快照，支持 close/use 和构造阶段可选 JIT。
 - Darwin／GNU／musl 各 19 项库测试、3 项预编译库消费者测试及 API 文档检查通过；Darwin 发行组装与组装目录中的消费者验证通过。仅验证 Scoop 适配与公开行为，不新增 fixture、底层缺口或上游 Unicode 符合性测试。
 
+### 日志 facade 与 console provider（已完成，[设计](log/DESIGN.md)、[规范](specs/SCOOP-LOG-SPEC.md)、[实施记录](log/PROGRESS.md)）
+
+- 普通 `scoop.log` 与 `scoop.log.console` Cone 分离调用 API 和同步 stdout／stderr 输出；保留 provider 协议供后续实现扩展。
+- 消息闭包失败转为保留原异常的同级别事件；provider 失败执行固定格式 stderr fallback，fallback 再失败则放弃，不向业务传播。
+- Darwin／GNU／musl 各 14 项库内 `scoop.test` 和 1 项标准流 fixture 通过；示例、API 文档与静态检查通过，Linux 只做日志定向验证。
+
 ## 4. 待补齐清单（backlog）
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
@@ -804,6 +810,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - [动态接口目录测量](program-performance/INTERFACE-DIRECTORY.md)已补齐：真实装箱／集合／短目录等 9 种负载在三目标验证，O2 边界测试覆盖 0～17 项。四种循环展开存在短目录或 smartcast 回退，本轮未采纳，保留原 runtime 查询和全部父表投影能力；测量入口及取舍已登记。
 - [循环中稳定来源的查询复用](program-performance/INTERFACE-QUERY-REUSE.md)已交付：release 对参数或所有 CFG 环外单次定义的局部引用，首次实际检查后复用 exact interface 的命中／未命中 entry；含 Boolean、空接口和稳定来源的异常继续路径，不增加对象副本、roots 或 ABI。三目标主要目录负载降低约 13%～87%，静态／编译成本和短目录、布局敏感回退均已记录。
 - 延续桌面短暂停与内存目标，按吞吐、应用尾延迟、RSS 和启动分别验收；调研不表示优化已实现或已完成跨语言性能比较。具体实施前先修订实际受影响的规范，不预先占用新的里程碑编号。
+
+### 独立 Math 库（设计完成，待实现）
+
+- 参考 Java Math/java.math 的功能范围，交付显式依赖的 `scoop.math` Cone；公共合同见[规范草案](specs/SCOOP-MATH-SPEC.md)，存储、算法及阶段见[设计](math/DESIGN.md)。
+- BigInteger/BigDecimal 为不可变 final class，小 coefficient 内联于内部值表示；MathContext、RoundingMode 和商余数分别使用 struct、enum、tuple。普通 Scoop 算术及接口复用现有 scalar/value/icall/vcall 优化方向，超越函数使用目标 libm。
+- 按标量函数、大整数、十进制、优化与分发验收四阶段实施；随机源继续复用 std 的独立模块，不增加 math RNG、隐式舍入 context 或专用 runtime 大数 ABI。
 
 ### 可恢复语法与 LSP（公共基础 A～E 已完成，扩展能力待排期）
 

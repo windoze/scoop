@@ -31,6 +31,8 @@ scoop run --release typed.scoop
 | [scoop.cli](src/scoop.cli/examples/README.md) | 位置参数、选项、帮助、枚举和重复选项 | 按说明传参 |
 | [scoop.test](src/scoop.test/examples/README.md) | 断言、异常、测试前后置钩子 | `scoop test` |
 | [scoop.platform](src/scoop.platform/examples/README.md) | 临时文件、目录、线程与原子计数 | 临时文件自动清理 |
+| [scoop.log](src/scoop.log/examples/README.md) | 自定义 provider、写出失败与 best-effort fallback | 独立运行，可关闭子进程 stderr |
+| [scoop.log.console](src/scoop.log.console/examples/README.md) | 入门、级别与惰性求值、格式与位置、异常、配置替换 | stdout／stderr 输出 |
 | [scoop.asyncio](src/scoop.asyncio/examples/README.md) | 并发任务、取消、本机 TCP echo | 使用系统分配的回环端口 |
 | [scoop.charset](src/scoop.charset/examples/README.md) | 严格/有损转码、NFC、字素簇 | 独立运行 |
 | [scoop.idna](src/scoop.idna/examples/README.md) | 国际化域名、原始 Punycode | 独立运行 |

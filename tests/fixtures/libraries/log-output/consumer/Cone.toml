@@ -1,0 +1,14 @@
+schema = 1
+
+[cone]
+group = "scoop.tests"
+name = "log-output"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.log" = "0.1.0"
+"scoop:scoop.log.console" = "0.1.0"
