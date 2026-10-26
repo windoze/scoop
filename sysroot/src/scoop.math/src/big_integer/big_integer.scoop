@@ -1,0 +1,210 @@
+package scoop.math
+
+import scoop.map
+
+import scoop.bytes.ByteOrder
+import scoop.random.Random
+
+/** An immutable arbitrary-precision signed integer with infinite two's-complement bit semantics. */
+public class BigInteger internal constructor(private val storage: IntegerStorage) :
+    Equals<BigInteger>, Compare<BigInteger>, Hash, ToString,
+    Add<BigInteger, BigInteger>, Sub<BigInteger, BigInteger>, Mul<BigInteger, BigInteger>,
+    Div<BigInteger, BigInteger>, Rem<BigInteger, BigInteger>, UnaryPlus<BigInteger>,
+    UnaryMinus<BigInteger>, Increment<BigInteger>, Decrement<BigInteger> {
+    /** Constructs the exact signed integer. */
+    public constructor(value: Long) : this(IntegerStorage.Small(value)) {}
+    /** Constructs the exact unsigned integer, including values above Long.MAX_VALUE. */
+    public constructor(value: ULong) : this(integerUnsigned(value)) {}
+
+    internal fun integerStorage(): IntegerStorage = storage
+
+    /** The numeric sign: -1, 0, or 1. */
+    public val signum: Int get() = integerSign(storage)
+    /** Compares mathematical values. */
+    public override operator fun equals(other: BigInteger): Boolean = integerCompare(storage, other.storage) == 0L
+    /** Returns -1, 0, or 1 in numerical order. */
+    public override operator fun compareTo(other: BigInteger): Long = integerCompare(storage, other.storage)
+    /** Hashes the mathematical integer. */
+    public override fun hash(): Long = integerHash(storage)
+    /** Formats in decimal without redundant leading zeros. */
+    public override fun toString(): String = integerString(storage, 10)
+    /** Formats in radix 2..36 with lowercase digits; an invalid radix throws. */
+    public fun toString(radix: Int): String = integerString(storage, radix)
+
+    /** Returns the exact sum. */
+    public override operator fun plus(other: BigInteger): BigInteger = BigInteger(integerAdd(storage, other.storage))
+    /** Returns the exact difference. */
+    public override operator fun minus(other: BigInteger): BigInteger = BigInteger(integerSubtract(storage, other.storage))
+    /** Returns the exact product. */
+    public override operator fun times(other: BigInteger): BigInteger = BigInteger(integerMultiply(storage, other.storage))
+    /** Divides toward zero; a zero divisor throws ArithmeticException. */
+    public override operator fun div(other: BigInteger): BigInteger = BigInteger(integerDivide(storage, other.storage)._1)
+    /** Returns the remainder with this value's sign; a zero divisor throws. */
+    public override operator fun rem(other: BigInteger): BigInteger = BigInteger(integerDivide(storage, other.storage)._2)
+    /** Returns this immutable value. */
+    public override operator fun unaryPlus(): BigInteger = this
+    /** Returns the exact negation. */
+    public override operator fun unaryMinus(): BigInteger = BigInteger(integerNegate(storage))
+    /** Returns this value plus one. */
+    public override operator fun inc(): BigInteger = this + BigInteger.ONE
+    /** Returns this value minus one. */
+    public override operator fun dec(): BigInteger = this - BigInteger.ONE
+    /** Returns the nonnegative magnitude. */
+    public fun abs(): BigInteger = if (signum < 0) -this else this
+    /** Returns the smaller value, retaining this instance on equality. */
+    public fun min(other: BigInteger): BigInteger = if (this <= other) this else other
+    /** Returns the larger value, retaining this instance on equality. */
+    public fun max(other: BigInteger): BigInteger = if (this >= other) this else other
+    /** Computes quotient and remainder together; the quotient truncates toward zero. */
+    public fun divideAndRemainder(other: BigInteger): (BigInteger, BigInteger) {
+        val result = integerDivide(storage, other.storage)
+        return (BigInteger(result._1), BigInteger(result._2))
+    }
+    /** Raises to a nonnegative exponent; a negative exponent throws, and 0^0 is one. */
+    public fun pow(exponent: Long): BigInteger = BigInteger(integerPow(storage, exponent))
+    /** Returns floor(sqrt(this)); negative values throw ArithmeticException. */
+    public fun sqrt(): BigInteger = BigInteger(integerSqrt(storage)._1)
+    /** Returns floor(sqrt(this)) and the exact nonnegative remainder. */
+    public fun sqrtAndRemainder(): (BigInteger, BigInteger) {
+        val result = integerSqrt(storage)
+        return (BigInteger(result._1), BigInteger(result._2))
+    }
+    /** Returns the nonnegative greatest common divisor, including gcd(0,0)=0. */
+    public fun gcd(other: BigInteger): BigInteger = BigInteger(integerGcd(storage, other.storage))
+    /** Reduces into [0, modulus); a nonpositive modulus throws ArithmeticException. */
+    public fun mod(modulus: BigInteger): BigInteger = BigInteger(integerMod(storage, modulus.storage))
+    /** Computes a modular power; negative exponents require a modular inverse. */
+    public fun modPow(exponent: BigInteger, modulus: BigInteger): BigInteger = BigInteger(integerModPow(storage, exponent.storage, modulus.storage))
+    /** Returns the modular inverse, or throws for a nonpositive modulus or missing inverse. */
+    public fun modInverse(modulus: BigInteger): BigInteger = BigInteger(integerModInverse(storage, modulus.storage))
+
+    /** Counts bits after removing redundant sign extension; zero and -1 have length zero. */
+    public fun bitLength(): Long = integerBitLength(storage)
+    /** Counts bits differing from the infinitely extended sign bit. */
+    public fun bitCount(): Long = integerBitCount(storage)
+    /** Returns the lowest set bit, or -1 for zero. */
+    public fun lowestSetBit(): Long = magnitudeLowestBit(integerMagnitude(storage))
+    /** Tests a nonnegative bit position; a negative index throws IllegalArgumentException. */
+    public fun testBit(index: Long): Boolean = integerTestBit(storage, index)
+    /** Sets a nonnegative bit position in the infinite two's-complement representation. */
+    public fun setBit(index: Long): BigInteger = BigInteger(integerChangeBit(storage, index, 0))
+    /** Clears a nonnegative bit position in the infinite two's-complement representation. */
+    public fun clearBit(index: Long): BigInteger = BigInteger(integerChangeBit(storage, index, 1))
+    /** Flips a nonnegative bit position in the infinite two's-complement representation. */
+    public fun flipBit(index: Long): BigInteger = BigInteger(integerChangeBit(storage, index, 2))
+    /** Inverts every bit, including the infinitely extended sign. */
+    public fun inv(): BigInteger = BigInteger(integerSubtract(integerNegate(storage), IntegerStorage.Small(1L)))
+    /** Shifts left without masking the distance; negative distances shift right. */
+    public infix fun shl(distance: Long): BigInteger = BigInteger(integerShift(storage, distance, true))
+    /** Shifts arithmetically right; negative distances shift left. */
+    public infix fun shr(distance: Long): BigInteger = BigInteger(integerShift(storage, distance, false))
+    /** Applies infinite two's-complement AND to both values. */
+    public infix fun and(other: BigInteger): BigInteger = BigInteger(integerBitwise(storage, other.storage, 0))
+    /** Applies infinite two's-complement OR to both values. */
+    public infix fun or(other: BigInteger): BigInteger = BigInteger(integerBitwise(storage, other.storage, 1))
+    /** Applies infinite two's-complement XOR to both values. */
+    public infix fun xor(other: BigInteger): BigInteger = BigInteger(integerBitwise(storage, other.storage, 2))
+    /** Applies infinite two's-complement ANDNOT to both values. */
+    public infix fun andNot(other: BigInteger): BigInteger = BigInteger(integerBitwise(storage, other.storage, 3))
+
+    /** Returns an independent shortest signed two's-complement byte array; zero is one zero byte. */
+    public fun toByteArray(order: ByteOrder = ByteOrder.BigEndian): Array<Byte> = integerBytes(storage, order, true)
+    /** Returns an independent shortest unsigned magnitude byte array; zero is one zero byte. */
+    public fun toMagnitudeByteArray(order: ByteOrder = ByteOrder.BigEndian): Array<Byte> = integerBytes(storage, order, false)
+    /** Rounds directly to binary32 with nearest-even rounding, allowing infinity. */
+    public fun toFloat(): Float = integerFloat(storage)
+    /** Rounds directly to binary64 with nearest-even rounding, allowing infinity. */
+    public fun toDouble(): Double = integerDouble(storage)
+    /** Takes the low 8 bits and interprets them as Byte. */
+    public fun toByte(): Byte = integerLowBits(storage).toByte()
+    /** Converts exactly; an out-of-range value throws ArithmeticException. */
+    public fun toByteExact(): Byte {
+        if (integerCompare(storage, IntegerStorage.Small(Byte.MIN_VALUE.toLong())) < 0L || integerCompare(storage, IntegerStorage.Small(Byte.MAX_VALUE.toLong())) > 0L) mathOverflow()
+        return toByte()
+    }
+    /** Takes the low 16 bits and interprets them as Short. */
+    public fun toShort(): Short = integerLowBits(storage).toShort()
+    /** Converts exactly; an out-of-range value throws ArithmeticException. */
+    public fun toShortExact(): Short {
+        if (integerCompare(storage, IntegerStorage.Small(Short.MIN_VALUE.toLong())) < 0L || integerCompare(storage, IntegerStorage.Small(Short.MAX_VALUE.toLong())) > 0L) mathOverflow()
+        return toShort()
+    }
+    /** Takes the low 32 bits and interprets them as Int. */
+    public fun toInt(): Int = integerLowBits(storage).toInt()
+    /** Converts exactly; an out-of-range value throws ArithmeticException. */
+    public fun toIntExact(): Int {
+        if (integerCompare(storage, IntegerStorage.Small(Int.MIN_VALUE.toLong())) < 0L || integerCompare(storage, IntegerStorage.Small(Int.MAX_VALUE.toLong())) > 0L) mathOverflow()
+        return toInt()
+    }
+    /** Takes the low 64 bits and interprets them as Long. */
+    public fun toLong(): Long = integerLowBits(storage).toLong()
+    /** Converts exactly; an out-of-range value throws ArithmeticException. */
+    public fun toLongExact(): Long {
+        if (integerCompare(storage, IntegerStorage.Small(Long.MIN_VALUE.toLong())) < 0L || integerCompare(storage, IntegerStorage.Small(Long.MAX_VALUE.toLong())) > 0L) mathOverflow()
+        return toLong()
+    }
+    /** Takes the low 8 bits and interprets them as UByte. */
+    public fun toUByte(): UByte = integerLowBits(storage).toUByte()
+    /** Converts exactly; an out-of-range value throws ArithmeticException. */
+    public fun toUByteExact(): UByte {
+        if (integerCompare(storage, IntegerStorage.Small(0L)) < 0L || integerCompare(storage, IntegerStorage.Small(UByte.MAX_VALUE.toLong())) > 0L) mathOverflow()
+        return toUByte()
+    }
+    /** Takes the low 16 bits and interprets them as UShort. */
+    public fun toUShort(): UShort = integerLowBits(storage).toUShort()
+    /** Converts exactly; an out-of-range value throws ArithmeticException. */
+    public fun toUShortExact(): UShort {
+        if (integerCompare(storage, IntegerStorage.Small(0L)) < 0L || integerCompare(storage, IntegerStorage.Small(UShort.MAX_VALUE.toLong())) > 0L) mathOverflow()
+        return toUShort()
+    }
+    /** Takes the low 32 bits and interprets them as UInt. */
+    public fun toUInt(): UInt = integerLowBits(storage).toUInt()
+    /** Converts exactly; an out-of-range value throws ArithmeticException. */
+    public fun toUIntExact(): UInt {
+        if (integerCompare(storage, IntegerStorage.Small(0L)) < 0L || integerCompare(storage, IntegerStorage.Small(UInt.MAX_VALUE.toLong())) > 0L) mathOverflow()
+        return toUInt()
+    }
+    /** Takes the low 64 bits and interprets them as ULong. */
+    public fun toULong(): ULong = integerLowBits(storage).toULong()
+    /** Converts exactly; an out-of-range value throws ArithmeticException. */
+    public fun toULongExact(): ULong {
+        if (integerCompare(storage, IntegerStorage.Small(0L)) < 0L || integerCompare(storage, integerUnsigned(ULong.MAX_VALUE)) > 0L) mathOverflow()
+        return toULong()
+    }
+
+    /** Tests primality; certainty must be positive, and the random source must supply independent uniform bits. */
+    public fun isProbablePrime(random: Random, certainty: Int = 100): Boolean {
+        requirePrimeCertainty(certainty)
+        return integerIsPrime(storage, random, certainty)
+    }
+    /** Finds the next larger positive probable prime using the explicit random source. */
+    public fun nextProbablePrime(random: Random, certainty: Int = 100): BigInteger {
+        requirePrimeCertainty(certainty)
+        return BigInteger(integerNextPrime(storage, random, certainty))
+    }
+
+    /** Constants and exact construction factories. */
+    public companion object {
+        /** The integer zero. */
+        public val ZERO: BigInteger = BigInteger(0L)
+        /** The integer one. */
+        public val ONE: BigInteger = BigInteger(1L)
+        /** The integer two. */
+        public val TWO: BigInteger = BigInteger(2L)
+        /** The integer ten. */
+        public val TEN: BigInteger = BigInteger(10L)
+        /** Parses signed ASCII digits in radix 2..36; malformed text throws NumberFormatException. */
+        public fun parse(text: String, radix: Int = 10): BigInteger = BigInteger(integerRequireParsed(text, radix))
+        /** Returns None only for malformed text; an invalid radix still throws. */
+        public fun parseOrNone(text: String, radix: Int = 10): BigInteger? = integerParse(text, radix).map { value -> BigInteger(value) }
+        /** Copies nonempty signed two's-complement bytes; redundant sign extension is accepted. */
+        public fun fromByteArray(bytes: List<Byte>, order: ByteOrder = ByteOrder.BigEndian): BigInteger = BigInteger(integerFromBytes(bytes, order, true, 0))
+        /** Copies magnitude bytes with sign -1, 0, or 1; zero sign requires zero magnitude. */
+        public fun fromMagnitude(signum: Int, bytes: List<Byte>, order: ByteOrder = ByteOrder.BigEndian): BigInteger = BigInteger(integerFromBytes(bytes, order, false, signum))
+        /** Generates a probable prime of exactly bitLength bits, at least two, using the supplied random source. */
+        public fun probablePrime(bitLength: Long, random: Random, certainty: Int = 100): BigInteger {
+            requirePrimeCertainty(certainty)
+            return BigInteger(integerProbablePrime(bitLength, random, certainty))
+        }
+    }
+}

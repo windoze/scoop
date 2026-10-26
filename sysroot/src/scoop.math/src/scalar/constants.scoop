@@ -1,0 +1,8 @@
+package scoop.math
+
+/** The base of the natural logarithm, rounded to binary64. */
+public const val E: Double = 2.7182818284590452353602874713527
+/** The circumference to diameter ratio, rounded to binary64. */
+public const val PI: Double = 3.1415926535897932384626433832795
+/** The circumference to radius ratio, rounded to binary64. */
+public const val TAU: Double = 6.2831853071795864769252867665590

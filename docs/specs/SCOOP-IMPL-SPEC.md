@@ -203,6 +203,8 @@ core 的 Add 等普通运算符接口不进入编译器内建 protocol 表。HIR
 
 构造器的公共初始化片段采用当前终结构造器的求值上下文；在片段具体化期间请求的独立派生比较正文不继承该上下文覆盖。派生正文使用自身已经绑定的完整来源，返回后继续按原构造器上下文处理初始化片段，不能把另一个文件的比较来源与当前构造器的上下文拼接。
 
+控制表达式的分支结果物化为临时赋值或丢弃结果语句时，语句 span 使用该表达式在当前正文的 evaluation span。导入常量的字面量继续保留 provider definition origin，不能把 provider 的字节偏移与 consumer 的文件或正文上下文拼接；普通正文、缺省值和导出内联模板遵守同一规则。
+
 依赖携带的 source record 与 source context 用于诊断及实际语义引用。读取其格式、范围和引用即可使用，不再遍历 provider 的副本逐字段比较来证明来源；源码显示内容不构成产物认证信息。
 
 派生比较保留值传递、可见性和 InteriorMutable 的实际类型使用检查。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，适用于显式 `equals` 及其他普通接口方法；具体值的 intrinsic operator 比较保留原 effect。其他签名、访问、ordinary/suspend 与安全性检查遵守普通规则。

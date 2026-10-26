@@ -1,0 +1,31 @@
+//! dep: scoop:scoop.math:0.1.0
+
+import scoop.math.*
+import scoop.collections.HashMap
+
+fun main() {
+    val amount = "19.95".toBigDecimal()
+    val total = amount * BigDecimal(3L)
+    val tax = total.times("0.075".toBigDecimal(), MathContext.Decimal128)
+    println(f"total: ${total}, tax: ${tax.setScale(2L, RoundingMode.HalfEven)}")
+    val third = BigDecimal.ONE.div(BigDecimal(3L), MathContext(16L))
+    println(f"one third: ${third}")
+    println(f"sqrt(2): ${BigDecimal.TWO.sqrt(MathContext.Decimal64)}")
+    println(f"single rounded power: ${"1.05".toBigDecimal().pow(3L, MathContext(3L))}")
+
+    val a = "1.0".toBigDecimal()
+    val b = "1.00".toBigDecimal()
+    println(f"numeric equality: ${a == b}, same representation: ${a.sameRepresentation(b)}")
+    val prices = HashMap<BigDecimal, String>()
+    prices[a] = "first"
+    prices[b] = "same numerical key"
+    println(f"distinct numeric keys: ${prices.size}")
+    println(f"shortest binary input: ${BigDecimal.fromDouble(0.1)}")
+    println(f"exact binary input: ${BigDecimal.fromDoubleExact(0.1)}")
+    println(f"scientific: ${"1.20e5".toBigDecimal()}, plain: ${"1.20e5".toBigDecimal().toPlainString()}")
+    try {
+        BigDecimal.ONE / BigDecimal(3L)
+    } catch (error: ArithmeticException) {
+        println("exact division rejects a repeating decimal")
+    }
+}

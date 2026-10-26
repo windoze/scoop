@@ -1,0 +1,45 @@
+// Algorithms adapted from num-bigint 0.5.1 (MIT); see sysroot/vendor/num-bigint.
+package scoop.math
+
+// Schoolbook below the crossover, Karatsuba above it; unbalanced operands split only the longer side.
+internal fun magnitudeMultiply(a: Array<UInt>, b: Array<UInt>): Array<UInt> {
+    val shorter = if (a.size <= b.size) a else b
+    val longer = if (a.size <= b.size) b else a
+    if (shorter.size <= 64L) return magnitudeMultiplySchoolbook(shorter, longer)
+    val result = MutableArray<UInt>(addExact(a.size, b.size)) { _ -> 0u }
+    if (longer.size / 2L >= shorter.size) {
+        val split = longer.size / 2L
+        magnitudeAccumulate(result, magnitudeMultiply(shorter, magnitudeSlice(longer, 0L, split)), 0L)
+        magnitudeAccumulate(result, magnitudeMultiply(shorter, magnitudeSlice(longer, split, longer.size)), split)
+    } else {
+        val split = shorter.size / 2L
+        val a0 = magnitudeSlice(shorter, 0L, split)
+        val a1 = magnitudeSlice(shorter, split, shorter.size)
+        val b0 = magnitudeSlice(longer, 0L, split)
+        val b1 = magnitudeSlice(longer, split, longer.size)
+        val low = magnitudeMultiply(a0, b0)
+        val high = magnitudeMultiply(a1, b1)
+        val middle = magnitudeSubtract(magnitudeSubtract(magnitudeMultiply(magnitudeAdd(a0, a1), magnitudeAdd(b0, b1)), low), high)
+        magnitudeAccumulate(result, low, 0L)
+        magnitudeAccumulate(result, middle, split)
+        magnitudeAccumulate(result, high, split * 2L)
+    }
+    return magnitudeSnapshot(result)
+}
+
+private fun magnitudeSlice(words: Array<UInt>, start: Long, end: Long): Array<UInt> {
+    var count = end - start
+    while (count > 0L && words[start + count - 1L] == 0u) count -= 1L
+    return Array<UInt>(count) { index -> words[start + index] }
+}
+
+private fun magnitudeAccumulate(destination: MutableArray<UInt>, value: Array<UInt>, offset: Long) {
+    var carry = 0uL
+    var index = 0L
+    while (index < value.size || carry != 0uL) {
+        val sum = destination[offset + index].toULong() + magnitudeWord(value, index).toULong() + carry
+        destination[offset + index] = sum.toUInt()
+        carry = sum shr 32L
+        index += 1L
+    }
+}

@@ -1,0 +1,76 @@
+package dev.performance.math
+
+import scoop.math.*
+
+@Extern(name = "bench_kind") fun benchKind(): Int
+@Extern(name = "bench_count") fun benchCount(): Int
+@Extern(name = "bench_begin") fun benchBegin(): Unit
+@Extern(name = "bench_end") fun benchEnd(): Unit
+
+fun <T : Add<T, T>> sum(a: T, b: T): T = a + b
+
+fun smallIntegers(count: Long): Long {
+    var value = BigInteger.ZERO
+    var index = 0L
+    while (index < count) {
+        value = sum(value, BigInteger(index))
+        index += 1L
+    }
+    return value.toLong()
+}
+
+fun amounts(count: Long): Long {
+    var value = BigDecimal.ZERO
+    val cent = BigDecimal(1L, 2L)
+    var index = 0L
+    while (index < count) {
+        value = value.plus(cent, MathContext.Decimal64)
+        index += 1L
+    }
+    return value.unscaledValue().toLong()
+}
+
+fun integers(count: Long, bits: Long, divide: Boolean): Long {
+    val a = (BigInteger.ONE shl bits) - BigInteger(12345L)
+    val b = (BigInteger.ONE shl (bits - 1L)) + BigInteger(654321L)
+    val dividend = a * b
+    var index = 0L
+    var checksum = 0L
+    while (index < count) {
+        val offset = BigInteger(index and 7L)
+        val result = if (divide) (dividend + offset).divideAndRemainder(a)._1 else (a + offset) * b
+        checksum = checksum xor result.toLong()
+        index += 1L
+    }
+    return checksum
+}
+
+fun decimals(count: Long, precision: Long): Long {
+    val a = BigDecimal.parse("123456789.0123456789")
+    val b = BigDecimal(97L)
+    var index = 0L
+    var checksum = 0L
+    while (index < count) {
+        val result = (a + BigDecimal(index)).div(b, MathContext(precision))
+        checksum += result.toString().byteLength
+        index += 1L
+    }
+    return checksum
+}
+
+@Unsafe fun main() {
+    val count = benchCount().toLong()
+    val kind = benchKind()
+    val sizes = [256L, 1024L, 2048L, 3072L, 4096L, 8192L, 16384L, 32768L]
+    val precisions = [7L, 16L, 34L, 100L, 1000L]
+    benchBegin()
+    val result = if (kind == 0) smallIntegers(count)
+        else if (kind == 1) amounts(count)
+        else if (kind >= 10 && kind <= 17) integers(count, sizes[(kind - 10).toLong()], false)
+        else if (kind >= 20 && kind <= 27) integers(count, sizes[(kind - 20).toLong()], true)
+        else if (kind >= 30 && kind <= 34) decimals(count, precisions[(kind - 30).toLong()])
+        else if (kind >= 101) integers(count, (kind - 100).toLong() * 32L, false)
+        else throw IllegalArgumentException(Some("unknown benchmark kind"))
+    benchEnd()
+    println(result)
+}

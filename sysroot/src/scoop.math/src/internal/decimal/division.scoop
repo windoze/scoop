@@ -1,0 +1,76 @@
+package scoop.math
+
+internal fun decimalDivideExact(a: DecimalValue, b: DecimalValue): DecimalValue {
+    if (integerSign(b.coefficient) == 0) mathOverflow()
+    val preferred = a.scale.minus(b.scale)
+    if (integerSign(a.coefficient) == 0) return DecimalValue(IntegerStorage.Small(0L), preferred)
+    val common = integerGcd(a.coefficient, b.coefficient)
+    var numerator = integerDivide(a.coefficient, common)._1
+    var denominator = integerAbs(integerDivide(b.coefficient, common)._1)
+    if (integerSign(b.coefficient) < 0) numerator = integerNegate(numerator)
+    val twos = magnitudeLowestBit(integerMagnitude(denominator))
+    denominator = integerShift(denominator, twos, false)
+    var fives = 0L
+    while (true) {
+        val divided = integerDivide(denominator, IntegerStorage.Small(5L))
+        if (integerSign(divided._2) != 0) break
+        denominator = divided._1
+        fives = addExact(fives, 1L)
+    }
+    if (integerCompare(denominator, IntegerStorage.Small(1L)) != 0L) mathOverflow()
+    val places = max(twos, fives)
+    numerator = integerShift(numerator, places - twos, true)
+    numerator = integerMultiply(numerator, integerPow(IntegerStorage.Small(5L), places - fives))
+    return DecimalValue(numerator, preferred.plus(places))
+}
+
+// Returns the requested scale plus whether no mathematical value was discarded.
+internal fun decimalDivideAtScale(a: DecimalValue, b: DecimalValue, scale: DecimalScale, mode: RoundingMode): (DecimalValue, Boolean) {
+    val sign = integerSign(a.coefficient) * integerSign(b.coefficient)
+    if (integerSign(b.coefficient) == 0) mathOverflow()
+    if (sign == 0) return (DecimalValue(IntegerStorage.Small(0L), scale), true)
+    val preferred = a.scale.minus(b.scale)
+    val left = DecimalValue(integerAbs(a.coefficient), preferred.minus(scale))
+    val right = DecimalValue(integerAbs(b.coefficient), decimalScale(0L))
+    if (decimalCompare(left, right) < 0L) {
+        val half = decimalCompare(DecimalValue(integerMultiply(left.coefficient, IntegerStorage.Small(2L)), left.scale), right)
+        val increment = decimalRoundUp(sign, false, half, true, mode)
+        return (DecimalValue(IntegerStorage.Small(if (increment) sign.toLong() else 0L), scale), false)
+    }
+    val power = scale.minus(preferred)
+    val numerator = if (power.high >= 0L) decimalScaleCoefficient(a.coefficient, power) else a.coefficient
+    val denominator = if (power.high < 0L) decimalScaleCoefficient(b.coefficient, power.negate()) else b.coefficient
+    val divided = integerDivide(numerator, denominator)
+    val exact = integerSign(divided._2) == 0
+    val half = integerCompare(integerMultiply(integerAbs(divided._2), IntegerStorage.Small(2L)), integerAbs(denominator))
+    val quotient = if (decimalRoundUp(sign, (integerLowBits(divided._1) and 1uL) != 0uL, half, !exact, mode))
+        integerAdd(divided._1, IntegerStorage.Small(sign.toLong())) else divided._1
+    return (DecimalValue(quotient, scale), exact)
+}
+
+internal fun decimalDivide(a: DecimalValue, b: DecimalValue, context: MathContext, preferred: DecimalScale): DecimalValue {
+    if (context.precision == 0L) return decimalDivideExact(a, b)
+    if (integerSign(b.coefficient) == 0) mathOverflow()
+    if (integerSign(a.coefficient) == 0) return DecimalValue(IntegerStorage.Small(0L), preferred)
+    var digits = decimalPrecision(a.coefficient) - decimalPrecision(b.coefficient)
+    if (decimalCompare(DecimalValue(integerAbs(a.coefficient), decimalScale(0L)), DecimalValue(integerAbs(b.coefficient), decimalScale(digits).negate())) < 0L) digits -= 1L
+    val adjusted = decimalScale(digits).minus(a.scale.minus(b.scale))
+    val scale = decimalScale(context.precision - 1L).minus(adjusted)
+    val result = decimalDivideAtScale(a, b, scale, context.roundingMode)
+    var rounded = result._1
+    if (decimalPrecision(rounded.coefficient) > context.precision)
+        rounded = DecimalValue(integerDivide(rounded.coefficient, IntegerStorage.Small(10L))._1, rounded.scale.minus(1L))
+    return if (result._2) decimalPreferExact(rounded, preferred, context.precision) else rounded
+}
+
+internal fun decimalIntegral(a: DecimalValue, b: DecimalValue, context: MathContext): DecimalValue {
+    val preferred = a.scale.minus(b.scale)
+    val quotient = decimalDivideAtScale(a, b, decimalScale(0L), RoundingMode.Down)._1
+    if (integerSign(quotient.coefficient) == 0) return DecimalValue(quotient.coefficient, preferred)
+    val canonical = decimalStrip(quotient, None)
+    val digits = decimalPrecision(canonical.coefficient)
+    if (context.precision != 0L && digits > context.precision) mathOverflow()
+    val maximum = if (context.precision == 0L) preferred else canonical.scale.plus(context.precision - digits)
+    val scale = decimalScaleMax(canonical.scale, decimalScaleMin(preferred, maximum))
+    return DecimalValue(decimalScaleCoefficient(canonical.coefficient, scale.minus(canonical.scale)), scale)
+}

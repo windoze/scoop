@@ -1,0 +1,75 @@
+package scoop.math
+
+import scoop.bytes.ByteOrder
+
+internal fun integerFromBytes(bytes: List<Byte>, order: ByteOrder, signed: Boolean, sign: Int): IntegerStorage {
+    if (signed && bytes.size == 0L) throw IllegalArgumentException(Some("empty two's-complement input"))
+    if (!signed && (sign < -1 || sign > 1)) throw IllegalArgumentException(Some("invalid signum"))
+    val little = when (order) { case LittleEndian -> true; case BigEndian -> false }
+    val count = bytes.size / 4L + (if (bytes.size % 4L == 0L) 0L else 1L)
+    val words = MutableArray<UInt>(count) { _ -> 0u }
+    var negative = false
+    var index = 0L
+    while (index < bytes.size) {
+        val byte = bytes[if (little) index else bytes.size - 1L - index]
+        words[index / 4L] = words[index / 4L] or (byte.toUByte().toUInt() shl ((index % 4L) * 8L))
+        if (index == bytes.size - 1L) negative = byte < 0
+        index += 1L
+    }
+    if (signed) {
+        if (negative && bytes.size % 4L != 0L) words[count - 1L] = words[count - 1L] or (UInt.MAX_VALUE shl ((bytes.size % 4L) * 8L))
+        return integerFromTwosComplement(words.toArray())
+    }
+    val magnitude = magnitudeSnapshot(words)
+    if (sign == 0 && magnitude.size != 0L) throw IllegalArgumentException(Some("zero sign with nonzero magnitude"))
+    return integerFromMagnitude(sign < 0, magnitude)
+}
+
+internal fun integerBytes(value: IntegerStorage, order: ByteOrder, signed: Boolean): Array<Byte> {
+    val words = integerMagnitude(value)
+    val negative = signed && integerSign(value) < 0
+    val bits = if (signed) integerBitLength(value) else magnitudeBits(words)
+    val count = if (signed) addExact(bits / 8L, 1L) else max(1L, bits / 8L + (if (bits % 8L == 0L) 0L else 1L))
+    val result = MutableArray<Byte>(count) { _ -> 0.toByte() }
+    val little = when (order) { case LittleEndian -> true; case BigEndian -> false }
+    var carry = 1u
+    var index = 0L
+    while (index < count) {
+        val raw = (magnitudeWord(words, index / 4L) shr ((index % 4L) * 8L)) and 255u
+        val byte = if (negative) (raw xor 255u) + carry else raw
+        carry = byte shr 8L
+        result[if (little) index else count - 1L - index] = byte.toByte()
+        index += 1L
+    }
+    return result.toArray()
+}
+
+// Rounds a positive magnitude to an integer significand, directly at the target precision.
+internal fun integerFloatParts(value: IntegerStorage, precision: Long): (ULong, Long) {
+    val words = integerMagnitude(value)
+    val bits = magnitudeBits(words)
+    if (bits <= precision) return (integerLowBits(integerAbs(value)), 0L)
+    val shift = bits - precision
+    val top = magnitudeShiftRight(words, shift)
+    var significand = magnitudeWord(top, 0L).toULong() or (magnitudeWord(top, 1L).toULong() shl 32L)
+    val guard = (magnitudeWord(words, (shift - 1L) / 32L) and (1u shl ((shift - 1L) % 32L))) != 0u
+    val sticky = magnitudeLowestBit(words) < shift - 1L
+    if (guard && (sticky || (significand and 1uL) != 0uL)) significand += 1uL
+    return (significand, shift)
+}
+
+internal fun integerDouble(value: IntegerStorage): Double {
+    val negative = integerSign(value) < 0
+    if (magnitudeBits(integerMagnitude(value)) > 1024L) return if (negative) Double.NEGATIVE_INFINITY else Double.POSITIVE_INFINITY
+    val parts = integerFloatParts(value, 53L)
+    val result = scalb(parts._1.toDouble(), parts._2.toInt())
+    return if (negative) -result else result
+}
+
+internal fun integerFloat(value: IntegerStorage): Float {
+    val negative = integerSign(value) < 0
+    if (magnitudeBits(integerMagnitude(value)) > 128L) return if (negative) Float.NEGATIVE_INFINITY else Float.POSITIVE_INFINITY
+    val parts = integerFloatParts(value, 24L)
+    val result = scalb(parts._1.toFloat(), parts._2.toInt())
+    return if (negative) -result else result
+}

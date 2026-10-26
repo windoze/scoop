@@ -1,0 +1,142 @@
+package scoop.math
+
+internal fun magnitudeBits(words: Array<UInt>): Long = if (words.size == 0L) 0L
+    else addExact(multiplyExact(words.size - 1L, 32L), 32L - wordLeadingZeros(words[words.size - 1L]))
+
+internal fun magnitudeLowestBit(words: Array<UInt>): Long {
+    var index = 0L
+    while (index < words.size) {
+        var word = words[index]
+        if (word != 0u) {
+            var bit = 0L
+            while ((word and 1u) == 0u) { word = word shr 1L; bit += 1L }
+            return addExact(multiplyExact(index, 32L), bit)
+        }
+        index += 1L
+    }
+    return -1L
+}
+
+internal fun integerBitMagnitude(value: IntegerStorage): Array<UInt> {
+    val words = integerMagnitude(value)
+    return if (integerSign(value) < 0) magnitudeSubtract(words, Array<UInt>(1L) { _ -> 1u }) else words
+}
+
+internal fun integerBitLength(value: IntegerStorage): Long = magnitudeBits(integerBitMagnitude(value))
+
+internal fun integerBitCount(value: IntegerStorage): Long {
+    val words = integerBitMagnitude(value)
+    var count = 0L
+    for (word in words) {
+        var rest = word
+        while (rest != 0u) { rest = rest and (rest - 1u); count = addExact(count, 1L) }
+    }
+    return count
+}
+
+internal fun integerTestBit(value: IntegerStorage, index: Long): Boolean {
+    if (index < 0L) throw IllegalArgumentException(Some("negative bit index"))
+    val negative = integerSign(value) < 0
+    val words = integerBitMagnitude(value)
+    val set = (magnitudeWord(words, index / 32L) and (1u shl (index % 32L))) != 0u
+    return set != negative
+}
+
+internal fun magnitudeShiftLeft(words: Array<UInt>, distance: Long): Array<UInt> {
+    if (words.size == 0L || distance == 0L) return words
+    val bits = addExact(magnitudeBits(words), distance)
+    val count = addExact((bits - 1L) / 32L, 1L)
+    val result = MutableArray<UInt>(count) { _ -> 0u }
+    val offset = distance / 32L
+    val shift = distance % 32L
+    var carry = 0uL
+    var index = 0L
+    while (index < words.size) {
+        val value = (words[index].toULong() shl shift) or carry
+        result[index + offset] = value.toUInt()
+        carry = value shr 32L
+        index += 1L
+    }
+    if (carry != 0uL) result[index + offset] = carry.toUInt()
+    return result.toArray()
+}
+
+internal fun magnitudeShiftRight(words: Array<UInt>, distance: Long): Array<UInt> {
+    if (distance == 0L) return words
+    if (distance >= magnitudeBits(words)) return Array<UInt>(0L) { _ -> 0u }
+    val offset = distance / 32L
+    val shift = distance % 32L
+    val result = Array<UInt>(words.size - offset) { index ->
+        if (shift == 0L) words[index + offset]
+        else (words[index + offset] shr shift) or (magnitudeWord(words, index + offset + 1L) shl (32L - shift))
+    }
+    return if (result[result.size - 1L] == 0u) magnitudeSnapshot(result) else result
+}
+
+internal fun integerShift(value: IntegerStorage, distance: Long, left: Boolean): IntegerStorage {
+    val sign = integerSign(value)
+    if (sign == 0 || distance == 0L) return value
+    val amount = if (distance < 0L) 0uL - distance.toULong() else distance.toULong()
+    val shiftLeft = left != (distance < 0L)
+    val words = integerMagnitude(value)
+    if (shiftLeft) {
+        if (amount > Long.MAX_VALUE.toULong()) mathOverflow()
+        return integerFromMagnitude(sign < 0, magnitudeShiftLeft(words, amount.toLong()))
+    }
+    if (amount >= magnitudeBits(words).toULong()) return IntegerStorage.Small(if (sign < 0) -1L else 0L)
+    val result = integerFromMagnitude(false, magnitudeShiftRight(words, amount.toLong()))
+    if (sign > 0) return result
+    val rounded = if (magnitudeLowestBit(words) < amount.toLong()) integerAdd(result, IntegerStorage.Small(1L)) else result
+    return integerNegate(rounded)
+}
+
+private fun twosComplementWords(value: IntegerStorage, count: Long): Array<UInt> {
+    val words = integerMagnitude(value)
+    if (integerSign(value) >= 0) return Array<UInt>(count) { index -> magnitudeWord(words, index) }
+    val result = MutableArray<UInt>(count) { _ -> 0u }
+    var carry = 1uL
+    var index = 0L
+    while (index < count) {
+        val word = magnitudeWord(words, index).inv().toULong() + carry
+        result[index] = word.toUInt()
+        carry = word shr 32L
+        index += 1L
+    }
+    return result.toArray()
+}
+
+internal fun integerFromTwosComplement(words: Array<UInt>): IntegerStorage {
+    if ((words[words.size - 1L] and 0x80000000u) == 0u) return integerFromMagnitude(false, magnitudeSnapshot(words))
+    val result = MutableArray<UInt>(words.size) { _ -> 0u }
+    var carry = 1uL
+    var index = 0L
+    while (index < words.size) {
+        val word = words[index].inv().toULong() + carry
+        result[index] = word.toUInt()
+        carry = word shr 32L
+        index += 1L
+    }
+    return integerFromMagnitude(true, magnitudeSnapshot(result))
+}
+
+// Operation selects AND, OR, XOR, or AND-NOT; all callers pass a constant.
+internal fun integerBitwise(a: IntegerStorage, b: IntegerStorage, operation: Int): IntegerStorage {
+    val count = addExact(max(integerMagnitude(a).size, integerMagnitude(b).size), 1L)
+    val left = twosComplementWords(a, count)
+    val right = twosComplementWords(b, count)
+    val words = Array<UInt>(count) { index ->
+        if (operation == 0) left[index] and right[index]
+        else if (operation == 1) left[index] or right[index]
+        else if (operation == 2) left[index] xor right[index]
+        else left[index] and right[index].inv()
+    }
+    return integerFromTwosComplement(words)
+}
+
+internal fun integerChangeBit(value: IntegerStorage, index: Long, operation: Int): IntegerStorage {
+    if (index < 0L) throw IllegalArgumentException(Some("negative bit index"))
+    val set = integerTestBit(value, index)
+    if ((operation == 0 && set) || (operation == 1 && !set)) return value
+    val mask = integerShift(IntegerStorage.Small(1L), index, true)
+    return if (set) integerSubtract(value, mask) else integerAdd(value, mask)
+}

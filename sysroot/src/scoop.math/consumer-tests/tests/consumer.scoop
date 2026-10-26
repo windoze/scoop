@@ -1,0 +1,56 @@
+package scoop.tests.math
+
+import scoop.math.*
+import scoop.test.*
+import scoop.random.Random
+import scoop.collections.HashMap
+
+@Test
+private class PrecompiledMathTests {
+    @Test
+    fun platformSmoke() {
+        assertEquals(5.0, hypot(3.0, 4.0))
+        assertEquals(2f, sqrt(4f))
+        assertEquals(-3L, floorDiv(-7L, 3L))
+        assertFailsWith<ArithmeticException> { addExact(Long.MAX_VALUE, 1L) }
+        val large = BigInteger.ONE shl 160L
+        val divided = (large + BigInteger(37L)).divideAndRemainder(BigInteger(97L))
+        assertEquals(large + BigInteger(37L), divided._1 * BigInteger(97L) + divided._2)
+        assertEquals(large + large, twice(large))
+        assertEquals(1L, compareThroughView(large, BigInteger.TEN))
+        assertTrue(equalThroughView(BigDecimal.parse("1.0"), BigDecimal.parse("1.00")))
+        assertEquals("6.65", roundedRatio(BigDecimal.parse("19.95"), BigDecimal(3L), MathContext.Decimal64).toString())
+        assertEquals("1.414213562", BigDecimal.TWO.sqrt(MathContext(10L)).toString())
+        assertEquals("1.00e3", BigDecimal.parse("999.9").round(MathContext(3L)).toString())
+        assertEquals(nextUp(1f), BigDecimal.parse("1.0000000596046447753906250000001").toFloat())
+        assertTrue(BigInteger.parse("170141183460469231731687303715884105727").isProbablePrime(Random.seeded(41L), 16))
+    }
+
+    @Test
+    fun retainedStorageAfterCollection() {
+        val integer = (BigInteger.ONE shl 512L) - BigInteger.ONE
+        val decimal = BigDecimal(integer, 20L)
+        val snapshot = integer.toByteArray()
+        val retained = Array<Amounts>(16L) { index -> Amounts(integer + BigInteger(index), decimal.setScale(index + 20L)) }
+        val map = HashMap<BigDecimal, BigInteger>()
+        map[decimal] = integer
+        gcCollect()
+        var index = 0L
+        while (index < retained.size) {
+            val entry = retained[index]
+            assertEquals(integer, entry.integer - BigInteger(index))
+            assertEquals(decimal, entry.decimal)
+            assertEquals(Some(integer), map[entry.decimal])
+            val product = entry.integer * entry.integer
+            assertEquals(entry.integer, product.sqrt())
+            val result = product.divideAndRemainder(entry.integer)
+            assertEquals(entry.integer, result._1)
+            assertEquals(BigInteger.ZERO, result._2)
+            index += 1L
+        }
+        assertEquals(integer, BigInteger.fromByteArray(snapshot))
+        assertEquals(integer, decimal.unscaledValue())
+        assertFailsWith<ArithmeticException> { decimal / BigDecimal.ZERO }
+        assertEquals(decimal, retained[0L].decimal)
+    }
+}

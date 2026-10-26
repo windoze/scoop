@@ -1,0 +1,178 @@
+package scoop.math.tests.big_integer
+
+import scoop.math.*
+import scoop.test.*
+import scoop.bytes.ByteOrder
+import scoop.collections.listOf
+import scoop.random.Random
+import scoop.text.NumberFormatException
+
+private fun number(text: String): BigInteger = BigInteger.parse(text)
+private fun <T : Add<T, T>> genericSum(a: T, b: T): T = a + b
+
+@Test
+private class BigIntegerTests {
+    @Test
+    fun smallLargeBoundaries() {
+        val smallest = BigInteger(Long.MIN_VALUE)
+        val above = BigInteger(Long.MAX_VALUE) + BigInteger.ONE
+        assertEquals("9223372036854775808", above.toString())
+        assertEquals(smallest, -above)
+        assertEquals(above, smallest / BigInteger(-1L))
+        assertEquals(BigInteger(Long.MAX_VALUE), above - BigInteger.ONE)
+        assertEquals("18446744073709551615", BigInteger(ULong.MAX_VALUE).toString())
+        assertEquals("340282366920938463426481119284349108225", BigInteger(ULong.MAX_VALUE).pow(2L).toString())
+        assertEquals(BigInteger.TEN, genericSum(BigInteger(4L), BigInteger(6L)))
+        val view: Equals<BigInteger> = above
+        assertTrue(view.equals(-smallest))
+        assertEquals(above.hash(), (-smallest).hash())
+        assertEquals(BigInteger.ONE, BigInteger.ZERO.pow(0L))
+        assertFailsWith<ArithmeticException> { above / BigInteger.ZERO }
+        assertFailsWith<ArithmeticException> { above.pow(-1L) }
+        var counter = BigInteger(Long.MAX_VALUE)
+        counter++
+        assertEquals(above, counter)
+        counter--
+        assertEquals(BigInteger(Long.MAX_VALUE), counter)
+    }
+
+    @Test
+    fun radixAndInvalidText() {
+        val value = number("-1234567890123456789012345678901234567890")
+        var radix = 2
+        while (radix <= 36) {
+            assertEquals(value, BigInteger.parse(value.toString(radix), radix))
+            radix += 1
+        }
+        assertEquals(BigInteger(255L), "+00fF".toBigInteger(16))
+        for (text in listOf<String>("", "+", "-", " 1", "1 ", "1_0", "0x10", "1e2", "１２")) {
+            assertEquals<BigInteger?>(None, text.toBigIntegerOrNone())
+            assertFailsWith<NumberFormatException> { text.toBigInteger() }
+        }
+        assertFailsWith<IllegalArgumentException> { BigInteger.parseOrNone("1", 1) }
+        assertFailsWith<IllegalArgumentException> { value.toString(37) }
+    }
+
+    @Test
+    fun bytesAreSnapshots() {
+        for (text in listOf<String>("0", "127", "128", "-128", "-129", "255", "-256", "4294967295", "-4294967296", "18446744073709551615")) {
+            val value = number(text)
+            for (order in listOf<ByteOrder>(ByteOrder.BigEndian, ByteOrder.LittleEndian)) {
+                assertEquals(value, BigInteger.fromByteArray(value.toByteArray(order), order))
+                assertEquals(value, BigInteger.fromMagnitude(value.signum, value.toMagnitudeByteArray(order), order))
+            }
+        }
+        assertEquals(2L, BigInteger(128L).toByteArray().size)
+        assertEquals(1L, BigInteger(-128L).toByteArray().size)
+        val input = MutableArray<Byte>(2L) { index -> (if (index == 0L) 1 else 2).toByte() }
+        val original = BigInteger.fromByteArray(input)
+        input[0L] = 0.toByte()
+        assertEquals(BigInteger(258L), original)
+        assertEquals(BigInteger(-1L), BigInteger.fromByteArray(listOf<Byte>(-1, -1, -1)))
+        assertEquals(BigInteger.ZERO, BigInteger.fromMagnitude(0, listOf<Byte>()))
+        assertFailsWith<IllegalArgumentException> { BigInteger.fromByteArray(listOf<Byte>()) }
+        assertFailsWith<IllegalArgumentException> { BigInteger.fromMagnitude(0, listOf<Byte>(1)) }
+        assertFailsWith<IllegalArgumentException> { BigInteger.fromMagnitude(2, listOf<Byte>()) }
+    }
+
+    @Test
+    fun infiniteBitsAndShifts() {
+        val minusOne = BigInteger(-1L)
+        assertEquals(0L, minusOne.bitLength())
+        assertEquals(0L, minusOne.bitCount())
+        assertEquals(-1L, BigInteger.ZERO.lowestSetBit())
+        assertEquals(100L, (BigInteger.ONE shl 100L).lowestSetBit())
+        assertEquals(BigInteger(-2L), BigInteger(-3L) shr 1L)
+        assertEquals(minusOne, BigInteger(-3L) shr Long.MAX_VALUE)
+        assertEquals(minusOne, BigInteger(-3L) shl Long.MIN_VALUE)
+        assertEquals(BigInteger.ZERO, BigInteger.ONE shl Long.MIN_VALUE)
+        assertEquals(BigInteger.ZERO, BigInteger.ZERO shr Long.MIN_VALUE)
+        assertFailsWith<ArithmeticException> { BigInteger.ONE shr Long.MIN_VALUE }
+        assertTrue(minusOne.testBit(Long.MAX_VALUE))
+        assertEquals(minusOne, minusOne.setBit(Long.MAX_VALUE))
+        assertEquals(BigInteger.ZERO, BigInteger.ZERO.clearBit(Long.MAX_VALUE))
+        val value = number("123456789012345678901234567890")
+        assertEquals(value, value.inv().inv())
+        assertEquals(value, value and minusOne)
+        assertEquals(minusOne, value or minusOne)
+        assertEquals(value.inv(), value xor minusOne)
+        assertEquals(BigInteger.ZERO, value andNot minusOne)
+        assertEquals(value, value.flipBit(180L).flipBit(180L))
+        assertEquals(value, (value shl 97L) shr 97L)
+        assertEquals(value shl 97L, value shr -97L)
+        assertFailsWith<IllegalArgumentException> { value.testBit(-1L) }
+        assertFailsWith<IllegalArgumentException> { value.setBit(-1L) }
+        var n = -100L
+        while (n < 100L) {
+            val integer = BigInteger(n)
+            assertEquals(BigInteger(n shr 3L), integer shr 3L)
+            assertEquals(BigInteger(n.inv()), integer.inv())
+            assertEquals(BigInteger(n and 37L), integer and BigInteger(37L))
+            assertEquals(BigInteger(n or -37L), integer or BigInteger(-37L))
+            n += 1L
+        }
+    }
+
+    @Test
+    fun primitiveConversions() {
+        assertEquals(Long.MIN_VALUE, BigInteger(Long.MIN_VALUE).toLongExact())
+        assertEquals(ULong.MAX_VALUE, BigInteger(ULong.MAX_VALUE).toULongExact())
+        assertEquals(-1L, BigInteger(ULong.MAX_VALUE).toLong())
+        assertEquals(0, (BigInteger.ONE shl 96L).toInt())
+        assertEquals(255.toUByte(), BigInteger(-1L).toUByte())
+        assertEquals(32767.toShort(), BigInteger(32767L).toShortExact())
+        assertEquals(65535.toUShort(), BigInteger(65535L).toUShortExact())
+        assertEquals(UInt.MAX_VALUE, BigInteger(UInt.MAX_VALUE.toULong()).toUIntExact())
+        assertEquals(-128.toByte(), BigInteger(-128L).toByteExact())
+        assertEquals(255.toUByte(), BigInteger(255L).toUByteExact())
+        assertEquals(Int.MIN_VALUE, BigInteger(Int.MIN_VALUE.toLong()).toIntExact())
+        assertFailsWith<ArithmeticException> { BigInteger(128L).toByteExact() }
+        assertFailsWith<ArithmeticException> { BigInteger(-1L).toULongExact() }
+        assertFailsWith<ArithmeticException> { BigInteger(ULong.MAX_VALUE).toLongExact() }
+        assertEquals(16777216f, BigInteger(16777217L).toFloat())
+        assertEquals(16777220f, BigInteger(16777219L).toFloat())
+        assertEquals(9007199254740992.0, BigInteger(9007199254740993L).toDouble())
+        assertEquals(9007199254740996.0, BigInteger(9007199254740995L).toDouble())
+        assertEquals(Float.POSITIVE_INFINITY, (BigInteger.ONE shl 128L).toFloat())
+        assertEquals(Double.NEGATIVE_INFINITY, -(BigInteger.ONE shl 1024L).toDouble())
+    }
+
+    @Test
+    fun rootsAndModularArithmetic() {
+        val value = number("1234567890123456789012345678901234567890")
+        val result = value.sqrtAndRemainder()
+        assertEquals(value, result._1 * result._1 + result._2)
+        assertTrue(result._2 >= BigInteger.ZERO && result._2 < result._1 * BigInteger.TWO + BigInteger.ONE)
+        assertEquals(result._1, value.sqrt())
+        assertEquals(value, (value * value).sqrt())
+        assertEquals(BigInteger(6L), BigInteger(-48L).gcd(BigInteger(18L)))
+        assertEquals(BigInteger.ZERO, BigInteger.ZERO.gcd(BigInteger.ZERO))
+        assertEquals(BigInteger(2L), BigInteger(-7L).mod(BigInteger(3L)))
+        assertEquals(BigInteger(2753L), BigInteger(17L).modInverse(BigInteger(3120L)))
+        assertEquals(BigInteger(4L), BigInteger(3L).modPow(BigInteger(-1L), BigInteger(11L)))
+        assertEquals(BigInteger(445L), BigInteger(4L).modPow(BigInteger(13L), BigInteger(497L)))
+        assertEquals(BigInteger.ZERO, BigInteger.ZERO.modInverse(BigInteger.ONE))
+        assertEquals(BigInteger.ZERO, BigInteger.ZERO.modPow(BigInteger(-1L), BigInteger.ONE))
+        assertFailsWith<ArithmeticException> { BigInteger(-1L).sqrt() }
+        assertFailsWith<ArithmeticException> { BigInteger.TWO.modInverse(BigInteger(4L)) }
+        assertFailsWith<ArithmeticException> { BigInteger.TWO.mod(BigInteger.ZERO) }
+    }
+
+    @Test
+    fun primalityAndExplicitRandomSource() {
+        val random = Random.seeded(42L)
+        for (n in listOf<String>("2", "3", "97", "2147483647", "18446744073709551557", "170141183460469231731687303715884105727")) {
+            assertTrue(number(n).isProbablePrime(random, 32))
+        }
+        for (n in listOf<String>("-7", "0", "1", "4", "561", "3215031751", "3825123056546413051", "18446744073709551615")) {
+            assertFalse(number(n).isProbablePrime(random, 32))
+        }
+        assertEquals(BigInteger.TWO, BigInteger(-7L).nextProbablePrime(random))
+        assertEquals(BigInteger(101L), BigInteger(97L).nextProbablePrime(random))
+        val prime = BigInteger.probablePrime(80L, random, 32)
+        assertEquals(80L, prime.bitLength())
+        assertTrue(prime.isProbablePrime(Random.seeded(73L), 32))
+        assertFailsWith<IllegalArgumentException> { BigInteger.TWO.isProbablePrime(random, 0) }
+        assertFailsWith<IllegalArgumentException> { BigInteger.probablePrime(1L, random) }
+    }
+}

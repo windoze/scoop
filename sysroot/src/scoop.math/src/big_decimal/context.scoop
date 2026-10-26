@@ -1,0 +1,80 @@
+package scoop.math
+
+/** Selects how an inexact decimal result is rounded. */
+public enum RoundingMode : Equals<RoundingMode>, Hash, ToString {
+    /** Rounds away from zero. */
+    Up,
+    /** Rounds toward zero. */
+    Down,
+    /** Rounds toward positive infinity. */
+    Ceiling,
+    /** Rounds toward negative infinity. */
+    Floor,
+    /** Rounds to nearest, breaking ties away from zero. */
+    HalfUp,
+    /** Rounds to nearest, breaking ties toward zero. */
+    HalfDown,
+    /** Rounds to nearest, breaking ties toward an even retained digit. */
+    HalfEven,
+    /** Requires an exact result; discarding nonzero digits throws ArithmeticException. */
+    Unnecessary
+
+    internal fun code(): Long = when (this) {
+        case Up -> 0L; case Down -> 1L; case Ceiling -> 2L; case Floor -> 3L
+        case HalfUp -> 4L; case HalfDown -> 5L; case HalfEven -> 6L; case Unnecessary -> 7L
+    }
+    /** Compares rounding modes. */
+    public override operator fun equals(other: RoundingMode): Boolean = code() == other.code()
+    /** Hashes the rounding mode. */
+    public override fun hash(): Long = code()
+    /** Returns the declared mode name. */
+    public override fun toString(): String = when (this) {
+        case Up -> "Up"; case Down -> "Down"; case Ceiling -> "Ceiling"; case Floor -> "Floor"
+        case HalfUp -> "HalfUp"; case HalfDown -> "HalfDown"; case HalfEven -> "HalfEven"; case Unnecessary -> "Unnecessary"
+    }
+}
+
+/** Decimal significant-digit precision and explicit rounding; zero precision requires exact results. */
+public struct MathContext(
+    /** The significant-digit limit; operations reject negative precision at their public boundary. */
+    val precision: Long = 0L,
+    /** The rounding policy for an inexact result. */
+    val roundingMode: RoundingMode = RoundingMode.HalfEven
+) : Equals<MathContext>, Hash, ToString {
+    /** Compares both configuration fields. */
+    public override operator fun equals(other: MathContext): Boolean = precision == other.precision && roundingMode == other.roundingMode
+    /** Hashes both configuration fields. */
+    public override fun hash(): Long = precision.hash() * 31L + roundingMode.hash()
+    /** Returns a readable explicit configuration. */
+    public override fun toString(): String = "MathContext(precision=" + precision.toString() + ", roundingMode=" + roundingMode.toString() + ")"
+
+    /** Named precision configurations; these do not impose IEEE decimal exponent limits. */
+    public companion object {
+        /** Unlimited exact precision, with HalfEven retained as the configured mode. */
+        public val Unlimited: MathContext = MathContext()
+        /** Seven significant digits, rounded to nearest even. */
+        public val Decimal32: MathContext = MathContext(7L)
+        /** Sixteen significant digits, rounded to nearest even. */
+        public val Decimal64: MathContext = MathContext(16L)
+        /** Thirty-four significant digits, rounded to nearest even. */
+        public val Decimal128: MathContext = MathContext(34L)
+    }
+}
+
+internal fun requireMathContext(context: MathContext) {
+    if (context.precision < 0L) throw IllegalArgumentException(Some("negative decimal precision"))
+}
+
+internal fun decimalRoundUp(sign: Int, odd: Boolean, half: Long, nonzero: Boolean, mode: RoundingMode): Boolean {
+    if (!nonzero) return false
+    return when (mode) {
+        case Up -> true
+        case Down -> false
+        case Ceiling -> sign > 0
+        case Floor -> sign < 0
+        case HalfUp -> half >= 0L
+        case HalfDown -> half > 0L
+        case HalfEven -> half > 0L || (half == 0L && odd)
+        case Unnecessary -> mathOverflow()
+    }
+}

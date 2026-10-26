@@ -1,0 +1,57 @@
+package scoop.math
+
+// Signed two-word intermediates keep scale formulas mathematical until the final representation.
+internal struct DecimalScale(val high: Long, val low: ULong) {
+    internal fun compare(other: DecimalScale): Long = if (high != other.high) (if (high < other.high) -1L else 1L)
+        else if (low < other.low) -1L else if (low > other.low) 1L else 0L
+
+    internal fun plus(other: DecimalScale): DecimalScale {
+        val sum = low + other.low
+        return DecimalScale(high + other.high + (if (sum < low) 1L else 0L), sum)
+    }
+    internal fun negate(): DecimalScale = DecimalScale(high.inv() + (if (low == 0uL) 1L else 0L), 0uL - low)
+    internal fun minus(other: DecimalScale): DecimalScale = plus(other.negate())
+    internal fun plus(value: Long): DecimalScale = plus(decimalScale(value))
+    internal fun minus(value: Long): DecimalScale = minus(decimalScale(value))
+    internal fun halfFloor(): DecimalScale = DecimalScale(high shr 1L, (low shr 1L) or (high.toULong() shl 63L))
+    internal fun halfCeil(): DecimalScale = halfFloor().plus((low and 1uL).toLong())
+    internal fun fitsLong(): Boolean = (high == 0L && low <= Long.MAX_VALUE.toULong()) || (high == -1L && low >= 0x8000000000000000uL)
+    internal fun checked(): Long {
+        if (!fitsLong()) mathOverflow()
+        return low.toLong()
+    }
+    internal fun integer(): IntegerStorage = integerAdd(integerShift(IntegerStorage.Small(high), 64L, true), integerUnsigned(low))
+    internal fun text(): String = if (fitsLong()) low.toLong().toString() else integerString(integer(), 10)
+}
+
+internal fun decimalScale(value: Long): DecimalScale = DecimalScale(if (value < 0L) -1L else 0L, value.toULong())
+internal fun decimalScaleProduct(a: Long, b: Long): DecimalScale = DecimalScale(multiplyHigh(a, b), a.toULong() * b.toULong())
+internal fun decimalScaleMax(a: DecimalScale, b: DecimalScale): DecimalScale = if (a.compare(b) >= 0L) a else b
+internal fun decimalScaleMin(a: DecimalScale, b: DecimalScale): DecimalScale = if (a.compare(b) <= 0L) a else b
+
+internal struct DecimalValue(val coefficient: IntegerStorage, val scale: DecimalScale)
+
+internal fun decimalPrecision(value: IntegerStorage): Long = when (value) {
+    case Small(number) -> {
+        // Small coefficients stay scalar; counting digits does not allocate a magnitude or text.
+        var rest = if (number < 0L) 0uL - number.toULong() else number.toULong()
+        var digits = 1L
+        while (rest >= 10uL) { rest /= 10uL; digits += 1L }
+        digits
+    }
+    case Large(_, _) -> integerString(integerAbs(value), 10).byteLength
+}
+internal fun decimalAdjusted(value: DecimalValue): DecimalScale = decimalScale(decimalPrecision(value.coefficient) - 1L).minus(value.scale)
+internal fun decimalNegate(value: DecimalValue): DecimalValue = DecimalValue(integerNegate(value.coefficient), value.scale)
+internal fun decimalAbs(value: DecimalValue): DecimalValue = DecimalValue(integerAbs(value.coefficient), value.scale)
+
+internal fun decimalPowerTen(exponent: DecimalScale): IntegerStorage {
+    val count = exponent.checked()
+    if (count < 0L) mathOverflow()
+    return integerPow(IntegerStorage.Small(10L), count)
+}
+
+internal fun decimalScaleCoefficient(value: IntegerStorage, distance: DecimalScale): IntegerStorage {
+    if (integerSign(value) == 0) return value
+    return integerMultiply(value, decimalPowerTen(distance))
+}

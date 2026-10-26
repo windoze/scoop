@@ -28,6 +28,7 @@ scoop run --release typed.scoop
 | --- | --- | --- |
 | [scoop.core](src/scoop.core/examples/README.md) | 值类型、模式匹配、Option、数组与字符串 | 独立运行 |
 | [scoop.std](src/scoop.std/examples/README.md) | 集合、文本与字节、日期与时长 | 独立运行 |
+| [scoop.math](src/scoop.math/examples/README.md) | 标量算术、大整数、十进制舍入、显式随机源素数 API | 独立运行 |
 | [scoop.cli](src/scoop.cli/examples/README.md) | 位置参数、选项、帮助、枚举和重复选项 | 按说明传参 |
 | [scoop.test](src/scoop.test/examples/README.md) | 断言、异常、测试前后置钩子 | `scoop test` |
 | [scoop.platform](src/scoop.platform/examples/README.md) | 临时文件、目录、线程与原子计数 | 临时文件自动清理 |

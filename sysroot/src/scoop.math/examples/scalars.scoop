@@ -1,0 +1,18 @@
+//! dep: scoop:scoop.math:0.1.0
+
+import scoop.math.*
+
+fun main() {
+    println(f"checked sum: ${addExact(40L, 2L)}")
+    println(f"floor division: ${floorDiv(-7L, 3L)}, remainder: ${floorMod(-7L, 3L)}")
+    println(f"ceil division: ${ceilDiv(-7L, 3L)}, remainder: ${ceilMod(-7L, 3L)}")
+    println(f"clamped: ${clamp(120, 0, 100)}")
+    println(f"hypotenuse: ${hypot(3.0, 4.0)}")
+    println(f"nearest even: ${rint(2.5)}, integer rounding: ${round(2.5)}")
+    println(f"next Float after one: ${nextUp(1f)}")
+    try {
+        addExact(Long.MAX_VALUE, 1L)
+    } catch (error: ArithmeticException) {
+        println("overflow detected")
+    }
+}

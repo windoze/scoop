@@ -1,0 +1,22 @@
+package scoop.math
+
+/** Parses signed ASCII digits in radix 2..36; malformed text throws NumberFormatException. */
+public fun String.toBigInteger(radix: Int = 10): BigInteger = BigInteger.parse(this, radix)
+/** Returns None for malformed digits; an invalid radix still throws IllegalArgumentException. */
+public fun String.toBigIntegerOrNone(radix: Int = 10): BigInteger? = BigInteger.parseOrNone(this, radix)
+/** Converts the mathematical integer exactly. */
+public fun Byte.toBigInteger(): BigInteger = BigInteger(toLong())
+/** Converts the mathematical integer exactly. */
+public fun Short.toBigInteger(): BigInteger = BigInteger(toLong())
+/** Converts the mathematical integer exactly. */
+public fun Int.toBigInteger(): BigInteger = BigInteger(toLong())
+/** Converts the mathematical integer exactly. */
+public fun Long.toBigInteger(): BigInteger = BigInteger(toLong())
+/** Converts the mathematical integer exactly. */
+public fun UByte.toBigInteger(): BigInteger = BigInteger(toULong())
+/** Converts the mathematical integer exactly. */
+public fun UShort.toBigInteger(): BigInteger = BigInteger(toULong())
+/** Converts the mathematical integer exactly. */
+public fun UInt.toBigInteger(): BigInteger = BigInteger(toULong())
+/** Converts the mathematical integer exactly. */
+public fun ULong.toBigInteger(): BigInteger = BigInteger(toULong())

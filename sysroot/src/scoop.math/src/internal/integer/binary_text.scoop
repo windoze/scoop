@@ -1,0 +1,60 @@
+package scoop.math
+
+internal fun radixBitWidth(radix: Int): Long = when (radix) {
+    case 2 -> 1L
+    case 4 -> 2L
+    case 8 -> 3L
+    case 16 -> 4L
+    case 32 -> 5L
+    case _ -> 0L
+}
+
+// Power-of-two radices pack digits directly, including groups that cross a limb boundary.
+internal fun integerParseBinaryRadix(text: String, radix: Int, width: Long): IntegerStorage? {
+    val chars = text.toCharArray()
+    if (chars.size == 0L) return None
+    val negative = chars[0L] == '-'
+    val start = if (negative || chars[0L] == '+') 1L else 0L
+    if (start == chars.size) return None
+    var first = chars.size
+    var index = start
+    while (index < chars.size) {
+        val digit = mathDigit(chars[index])
+        if (digit < 0 || digit >= radix) return None
+        if (digit != 0 && first == chars.size) first = index
+        index += 1L
+    }
+    if (first == chars.size) return Some(IntegerStorage.Small(0L))
+    val topBits = 32L - wordLeadingZeros(mathDigit(chars[first]).toUInt())
+    val bits = addExact(multiplyExact(chars.size - first - 1L, width), topBits)
+    val words = MutableArray<UInt>(bits / 32L + (if (bits % 32L == 0L) 0L else 1L)) { _ -> 0u }
+    index = chars.size
+    var bit = 0L
+    while (index > first) {
+        index -= 1L
+        val digit = mathDigit(chars[index]).toUInt()
+        val offset = bit % 32L
+        words[bit / 32L] = words[bit / 32L] or (digit shl offset)
+        if (offset + width > 32L && bit / 32L + 1L < words.size)
+            words[bit / 32L + 1L] = words[bit / 32L + 1L] or (digit shr (32L - offset))
+        if (index > first) bit += width
+    }
+    return Some(integerFromMagnitude(negative, words.toArray()))
+}
+
+internal fun integerBinaryRadixString(value: IntegerStorage, radix: Int, width: Long): String {
+    val words = integerMagnitude(value)
+    val bits = magnitudeBits(words)
+    val digits = bits / width + (if (bits % width == 0L) 0L else 1L)
+    val sign = if (integerSign(value) < 0) 1L else 0L
+    return String.fromChars(Array<Char>(addExact(digits, sign)) { position ->
+        if (position < sign) '-'
+        else {
+            val bit = (digits - 1L - (position - sign)) * width
+            val offset = bit % 32L
+            val high = if (offset + width > 32L) magnitudeWord(words, bit / 32L + 1L) shl (32L - offset) else 0u
+            val digit = ((magnitudeWord(words, bit / 32L) shr offset) or high) and (radix - 1).toUInt()
+            (if (digit < 10u) digit.toInt() + 48 else digit.toInt() + 87).toChar()
+        }
+    })
+}
