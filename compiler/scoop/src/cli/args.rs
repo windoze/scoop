@@ -42,6 +42,8 @@ pub(super) enum Command {
     New(super::new::NewArgs),
     /// Build a library or executable from a Cone or one source file.
     Build(BuildArgs),
+    /// Remove the entire target directory, including all profiles and build caches.
+    Clean(super::clean::CleanArgs),
     /// Check a Cone or source file without producing a root artifact.
     Check(super::check::CheckArgs),
     /// Format source files, or check their formatting without writing.
@@ -222,6 +224,9 @@ pub(super) struct NativeOptions {
     /// Keep ordinary executable symbols; debug builds already retain them.
     #[arg(long)]
     pub keep_symbols: bool,
+    /// Emit <output>.map with native symbol addresses; debug builds already emit it.
+    #[arg(long)]
+    pub emit_symbol_map: bool,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -249,6 +254,7 @@ impl Command {
             Self::Link(args) => args.message_format,
             Self::Doc(args) => args.message_format,
             Self::Check(args) => args.message_format,
+            Self::Clean(args) => args.message_format,
             Self::Fmt(args) => args.message_format,
         }
     }

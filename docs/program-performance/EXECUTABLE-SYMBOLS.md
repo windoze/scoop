@@ -4,7 +4,7 @@
 
 普通 release 和 artifact-only link 默认清理普通内部符号；debug 或 `--keep-symbols` 保留。Darwin 在已有符号本地化之后使用 linker `-x -S`，GNU／musl 使用 `--strip-all`。参与链接的 `.slib`／`.o`、持久 ID、可达性选择、GC／EH 数据和必要动态符号保持。清理在最终链接和签名流程中完成，无运行时开关或诊断代码。
 
-每次最终链接旁置 `<output>.map`，保存真实链接地址与范围；与显式 `--emit symbols` 的逻辑函数观察配合做离线归因。map 与 executable 一起缓存和发布，`executables-v2` 更新键包含符号保留策略，命中不读取文件内容。普通符号名移到外部文件，不代表整个发布包的磁盘用量等比例减少。
+debug 默认旁置 `<output>.map`，release 和 artifact-only link 通过 `--emit-symbol-map` 显式开启，保存真实链接地址与范围；与 `--emit symbols` 的逻辑函数观察配合做离线归因。请求的 map 与 executable 一起缓存和发布，`executables-v3` 更新键包含符号保留策略及 map 开关，命中不读取文件内容。map 开关独立于 `--keep-symbols`，默认 release 不产生这份额外文件。下文既有体积和性能测量使用带 map 的配置。
 
 ## 文件体积
 

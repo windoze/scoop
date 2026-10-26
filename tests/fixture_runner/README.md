@@ -144,6 +144,7 @@ stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用
 `scoop doc` 返回 `documentation` 结果，包含站点入口、各 Cone 入口、渲染更新状态和实际编译调用。
 `scoop check` 返回无产物的 `check` 结果，包含根身份、target、用途、缓存命中和实际 child 调用；调用区分根检查与源码依赖的 artifact 编译。
 `scoop fmt` 返回 `format` 结果，包含写回／检查模式、成功状态、有序文件状态与计数；格式差异或部分文件失败时仍返回完整结果，进程退出 1。
+`scoop clean` 返回 `clean` 结果，包含选中的 `target_dir` 和是否实际删除目录的 `removed`；目录不存在时同样成功。
 这种模式必须声明完整 `diagnostics` 数组或 JSON 期望文件；仅剥离 display，不改变
 canonical source、span、code、message 或 notes。stdout/stderr 仍严格比较剩余原始字节。
 `json = "stdout"` 用于普通工具的逐行 JSON，保留原 stdout。步骤结果还包含

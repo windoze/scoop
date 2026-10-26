@@ -29,7 +29,10 @@ fn relocated_runtime_index_links_the_copied_objects() {
         &fixture.closure,
         &runtime,
         &fixture.profile,
-        true,
+        crate::ProgramLinkOptions {
+            keep_symbols: true,
+            emit_symbol_map: true,
+        },
         &fixture.library_paths,
         &directory.join("program"),
         &directory.join("cache"),
@@ -53,7 +56,10 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         &fixture.closure,
         &fixture.runtime,
         &fixture.profile,
-        true,
+        crate::ProgramLinkOptions {
+            keep_symbols: true,
+            emit_symbol_map: true,
+        },
         std::slice::from_ref(&alias_directory),
         &quoted_directory.join("program"),
         &quoted_directory.join("cache"),
@@ -75,7 +81,10 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         &fixture.closure,
         &fixture.runtime,
         &fixture.profile,
-        true,
+        crate::ProgramLinkOptions {
+            keep_symbols: true,
+            emit_symbol_map: true,
+        },
         &fixture.library_paths,
         &directory.join("changed"),
         &quoted_directory.join("cache"),
@@ -90,7 +99,10 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         &fixture.closure,
         &fixture.runtime,
         &fixture.profile,
-        true,
+        crate::ProgramLinkOptions {
+            keep_symbols: true,
+            emit_symbol_map: true,
+        },
         &[alias_directory],
         &output.path,
         &quoted_directory.join("cache"),
@@ -121,7 +133,10 @@ fn final_link_strips_internal_names_and_keeps_address_map_and_runtime_data() {
         &fixture.closure,
         &fixture.runtime,
         &fixture.profile,
-        false,
+        crate::ProgramLinkOptions {
+            keep_symbols: false,
+            emit_symbol_map: true,
+        },
         &fixture.library_paths,
         &fixture.directory.path().join("stripped"),
         &fixture.directory.path().join("cache"),
@@ -179,7 +194,7 @@ fn final_link_strips_internal_names_and_keeps_address_map_and_runtime_data() {
         assert_eq!(section.address(), other.address(), "{name}");
         assert_eq!(section.data().unwrap(), other.data().unwrap(), "{name}");
     }
-    let map = std::fs::read_to_string(&stripped.symbol_map).unwrap();
+    let map = std::fs::read_to_string(stripped.symbol_map.as_ref().unwrap()).unwrap();
     for symbol in kept
         .symbols()
         .filter(|symbol| {
@@ -196,6 +211,21 @@ fn final_link_strips_internal_names_and_keeps_address_map_and_runtime_data() {
         );
     }
     assert_eq!(run(&stripped.path), b"42\n");
+
+    let without_map = link_program(
+        &fixture.closure,
+        &fixture.runtime,
+        &fixture.profile,
+        crate::ProgramLinkOptions::default(),
+        &fixture.library_paths,
+        &fixture.directory.path().join("without-map"),
+        &fixture.directory.path().join("cache"),
+    )
+    .unwrap();
+    assert!(without_map.symbol_map.is_none());
+    assert!(!symbol_map_path(&without_map.path).exists());
+    assert_eq!(without_map.fingerprint, stripped.fingerprint);
+    assert_eq!(run(&without_map.path), b"42\n");
 }
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
@@ -242,7 +272,10 @@ fn elf_shared_library_link_tracks_real_symbol_version_updates() {
             &fixture.closure,
             &fixture.runtime,
             &fixture.profile,
-            true,
+            crate::ProgramLinkOptions {
+                keep_symbols: true,
+                emit_symbol_map: true,
+            },
             std::slice::from_ref(&libraries),
             &directory.join("dso-program"),
             &directory.join("cache"),

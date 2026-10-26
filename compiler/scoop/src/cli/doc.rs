@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 use scoop::{
-    ArtifactCacheRoot, ArtifactSearchRoot, BuildRootInput, DocumentRequest, PairedScoopcLocator,
+    ArtifactSearchRoot, BuildProfile, BuildRootInput, DocumentRequest, PairedScoopcLocator,
     TrustedSysrootRoot,
 };
 use scoop_manifest::{CurrentConeInput, classify_current_cone_operand};
@@ -91,6 +91,13 @@ pub(super) fn execute(
             .ok_or_else(|| config("scoop executable has no parent"))?
             .join("scoopc"),
     };
+    let cache = super::paths::build_cache(
+        &cwd,
+        &super::paths::target_root(&cwd, &roots[0], args.target_dir.clone())?,
+        selection.target().contract().canonical_triple(),
+        BuildProfile::Debug,
+        args.cache_dir,
+    )?;
     let target_dir = absolute(
         &cwd,
         args.target_dir.unwrap_or_else(|| PathBuf::from("target")),
@@ -112,11 +119,7 @@ pub(super) fn execute(
             scoop_toolchain::configured_sysroot_root(sysroot).map_err(config)?,
         )?)
         .map_err(config)?,
-        cache: ArtifactCacheRoot::new(absolute(
-            &cwd,
-            scoop_toolchain::configured_cache_root(args.cache_dir).map_err(config)?,
-        )?)
-        .map_err(config)?,
+        cache,
         compiler: PairedScoopcLocator::new(compiler).map_err(config)?,
         search: paths(&cwd, args.cone_path)?
             .into_iter()

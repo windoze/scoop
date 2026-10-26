@@ -1,7 +1,7 @@
 schema = 1
 name = "executable-record"
 inputs = ["../../driver/executable-record/program", "../../driver/executable-record/provider", "../../driver/executable-record/state.py"]
-tools = ["scoop", "scoopc", "python"]
+tools = ["scoop", "scoopc", "scoop-link", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["executable", "cache", "multi-cone", "compiler-correctness"]
 [vars]
@@ -19,7 +19,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 2}]
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 2}, {file = "${cold.result.output}.map", exists = true}]
 
 [[steps]]
 name = "run_cold"
@@ -184,6 +184,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
+checks = [{file = "${release.result.output}.map", exists = false}]
 
 [[steps]]
 name = "run_release"
@@ -234,7 +235,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${release_keep_symbols.result.root.path}", equals = "${release.result.root.path}"}, {actual = "${release_keep_symbols.result.link_plan_fingerprint}", not_equals = "${release.result.link_plan_fingerprint}"}, {actual = "${release_keep_symbols.result.observations.child_invocations.length}", equals = 0}, {file = "${release_keep_symbols.result.output}.map", exists = true}]
+checks = [{actual = "${release_keep_symbols.result.root.path}", equals = "${release.result.root.path}"}, {actual = "${release_keep_symbols.result.link_plan_fingerprint}", not_equals = "${release.result.link_plan_fingerprint}"}, {actual = "${release_keep_symbols.result.observations.child_invocations.length}", equals = 0}, {file = "${release_keep_symbols.result.output}.map", exists = false}]
 
 [[steps]]
 name = "run_keep_symbols"
@@ -259,3 +260,95 @@ argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py",
 exit = 0
 stdout = ""
 stderr = ""
+
+[[steps]]
+name = "release_map"
+argv = ["${scoop}", "build", "--release", "--emit-symbol-map", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${release_map.result.root.path}", equals = "${release.result.root.path}"},
+  {actual = "${release_map.result.link_plan_fingerprint}", equals = "${release.result.link_plan_fingerprint}"},
+  {actual = "${release_map.result.observations.child_invocations.length}", equals = 0},
+  {file = "${release_map.result.output}.map", exists = true},
+]
+
+[[steps]]
+name = "map_adds_only_link_result"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "6"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "release_map_warm"
+argv = ["${scoop}", "run", "--release", "--emit-symbol-map", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 44
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${release_map_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "map_reuses_link_result"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "6"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "release_without_map_new_output"
+argv = ["${scoop}", "build", "--release", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/without-map"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${work}/without-map.map", exists = false}, {actual = "${release_without_map_new_output.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "no_map_reuses_original_result"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "6"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "link_without_map"
+argv = ["${scoop}", "link", "--root-slib", "${release.result.root.path}", {each = "${release.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${release.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/link-without-map", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${link_without_map.result.output}.map", exists = false}]
+
+[[steps]]
+name = "link_with_map"
+argv = ["${scoop}", "link", "--emit-symbol-map", "--root-slib", "${release.result.root.path}", {each = "${release.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${release.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/link-with-map", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${link_with_map.result.output}.map", exists = true}, {actual = "${link_with_map.result.link_plan_fingerprint}", equals = "${link_without_map.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "standalone_without_map"
+argv = ["${scoop-link}", "--root-slib", "${release.result.root.path}", {each = "${release.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${release.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/standalone-without-map"]
+exit = 0
+stdout = "link-plan ${link_without_map.result.link_plan_fingerprint}\n"
+stderr = ""
+checks = [{file = "${work}/standalone-without-map.map", exists = false}]
+
+[[steps]]
+name = "standalone_with_map"
+argv = ["${scoop-link}", "--emit-symbol-map", "--root-slib", "${release.result.root.path}", {each = "${release.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${release.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/standalone-with-map"]
+exit = 0
+stdout = "link-plan ${link_with_map.result.link_plan_fingerprint}\n"
+stderr = ""
+checks = [{file = "${work}/standalone-with-map.map", exists = true}]

@@ -1,0 +1,212 @@
+schema = 1
+name = "cone-local-cache-and-clean"
+inputs = ["cone", "main.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["cli", "cache", "clean", "compiler-correctness"]
+
+[vars]
+local_scoop = ["/usr/bin/env", "-u", "SCOOP_CACHE_DIR", "${scoop}"]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {copy = {from = "${fixture}/main.scoop", to = "${work}/source/main.scoop"}}]
+
+[[steps]]
+name = "debug"
+argv = [{each = "${local_scoop}"}, "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${debug.result.root.path}", contains = "${work}/cone/target/${target}/build/debug/compile-v3/"},
+  {actual = "${debug.result.output}", equals = "${work}/cone/target/${target}/debug/local-cache.slib"},
+  {actual = "${debug.result.observations.child_invocations.length}", equals = 1},
+  {file = "${work}/target", exists = false},
+]
+
+[[steps]]
+name = "release"
+argv = [{each = "${local_scoop}"}, "build", "${work}/cone/Cone.toml", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${release.result.root.path}", contains = "${work}/cone/target/${target}/build/release/compile-v3/"},
+  {actual = "${release.result.observations.child_invocations.length}", equals = 1},
+  {file = "${debug.result.output}", exists = true},
+]
+
+[[steps]]
+name = "warm"
+cwd = "${work}/cone"
+argv = [{each = "${local_scoop}"}, "build", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.root.path}", equals = "${release.result.root.path}"}, {actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "check"
+argv = [{each = "${local_scoop}"}, "check", "${work}/cone", "--release", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${work}/cone/target/${target}/build/release/checks-v1", type = "directory"}]
+
+[[steps]]
+name = "doc"
+argv = [{each = "${local_scoop}"}, "doc", "${work}/cone", "--no-deps", "--output-dir", "${work}/site", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${work}/cone/target/${target}/build/debug/documentation-v1", type = "directory"}]
+
+[[steps]]
+name = "relocated"
+argv = [{each = "${local_scoop}"}, "build", "${work}/cone", "--release", "--target-dir", "out", "-o", "${work}/published.slib", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${relocated.result.root.path}", contains = "${work}/out/${target}/build/release/compile-v3/"}, {file = "${work}/published.slib", exists = true}]
+
+[[steps]]
+name = "env_cache"
+env = {SCOOP_CACHE_DIR = "${work}/explicit-cache"}
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${env_cache.result.root.path}", contains = "${work}/explicit-cache/compile-v3/"}]
+
+[[steps]]
+name = "explicit_cache_wins"
+env = {SCOOP_CACHE_DIR = "${work}/ignored-cache"}
+argv = ["${scoop}", "build", "${work}/cone", "--release", "--cache-dir", "explicit-cache", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${explicit_cache_wins.result.root.path}", equals = "${env_cache.result.root.path}"}, {actual = "${explicit_cache_wins.result.observations.child_invocations.length}", equals = 0}, {file = "${work}/ignored-cache", exists = false}]
+
+[[steps]]
+name = "other_target"
+files = [{write = {path = "${work}/cone/target/another-target/build/release/generated", data = "other generated output"}}]
+
+[[steps]]
+name = "clean"
+cwd = "${work}/cone"
+argv = ["${scoop}", "clean", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${clean.result.target_dir}", equals = "${work}/cone/target"},
+  {actual = "${clean.result.removed}", equals = true},
+  {file = "${work}/cone/target", exists = false},
+  {file = "${work}/cone/Cone.toml", exists = true},
+  {file = "${work}/cone/src/value.scoop", exists = true},
+  {file = "${env_cache.result.root.path}", exists = true},
+  {file = "${relocated.result.root.path}", exists = true},
+  {file = "${work}/published.slib", exists = true},
+  {file = "${work}/site/index.html", exists = true},
+]
+
+[[steps]]
+name = "clean_again"
+argv = ["${scoop}", "clean", "${work}/cone/Cone.toml", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${clean_again.result.removed}", equals = false}]
+
+[[steps]]
+name = "clean_relocated"
+argv = ["${scoop}", "clean", "${work}/cone", "--target-dir", "out"]
+exit = 0
+stdout = ""
+stderr = "cleaned ${work}/out\n"
+checks = [{file = "${work}/out", exists = false}, {file = "${work}/published.slib", exists = true}]
+
+[[steps]]
+name = "single_file"
+argv = [{each = "${local_scoop}"}, "run", "${work}/source/main.scoop", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 42
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${single_file.result.root.path}", contains = "${work}/target/${target}/build/release/compile-v3/"},
+  {file = "${single_file.result.output}.map", exists = false},
+  {glob = "${work}/target/${target}/build/release/executables-v3/program-*/program.map", equals = []},
+  {file = "${work}/source/target", exists = false},
+]
+
+[[steps]]
+name = "clean_single_file"
+argv = ["${scoop}", "clean", "${work}/source/main.scoop", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${work}/target", exists = false}, {file = "${work}/source/main.scoop", exists = true}]
+
+[[steps]]
+name = "prepare_clean_errors"
+files = [
+  {write = {path = "${work}/not-a-directory", data = "keep"}},
+  {write = {path = "${work}/cone/nested/target/keep", data = "keep"}},
+]
+
+[[steps]]
+name = "clean_io_error"
+argv = ["${scoop}", "clean", "${work}/cone", "--target-dir", "${work}/not-a-directory"]
+exit = 1
+stdout = ""
+stderr = "${work}/not-a-directory: error[SCOOP_CLEAN_IO]: Not a directory (os error 20)\n"
+checks = [{file = "${work}/not-a-directory", equals = "keep"}]
+
+[[steps]]
+name = "clean_no_parent_search"
+cwd = "${work}/cone/nested"
+argv = ["${scoop}", "clean"]
+exit = 1
+stdout = ""
+stderr = "${work}/cone/nested/Cone.toml: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/cone/nested/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+checks = [{file = "${work}/cone/nested/target/keep", equals = "keep"}]
+
+[[steps]]
+name = "invalid_manifest"
+files = [{write = {path = "${work}/cone/Cone.toml", data = "invalid manifest"}}, {write = {path = "${work}/cone/target/generated", data = "output"}}]
+
+[[steps]]
+name = "clean_invalid_manifest"
+argv = ["${scoop}", "clean", "${work}/cone", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${work}/cone/target", exists = false}, {file = "${work}/cone/Cone.toml", equals = "invalid manifest"}, {file = "${work}/cone/nested/target/keep", equals = "keep"}]
