@@ -37,7 +37,7 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 16;
+pub const PROTOCOL_VERSION: u32 = 17;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = StageDumpKindV1::ALL.len();
 
@@ -56,6 +56,7 @@ pub enum ProtocolValidationError {
     TestRequiresManifest,
     DocumentationRequiresProductionManifest,
     DocumentationObservation,
+    InvalidCheckRequest,
     DocumentationMachineDump,
     InvalidTargetTriple,
     InvalidGeneratorRegistration,
@@ -99,6 +100,8 @@ impl std::fmt::Display for ProtocolValidationError {
             Self::DocumentationRequiresProductionManifest => {
                 formatter.write_str("documentation requires a Production manifest Cone")
             }
+            Self::InvalidCheckRequest => formatter
+                .write_str("check requests cannot include dumps, observations, or native objects"),
             Self::DocumentationObservation => {
                 formatter.write_str("documentation cannot be combined with observation-only")
             }

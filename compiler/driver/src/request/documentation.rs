@@ -25,6 +25,7 @@ impl DocumentationOutputDestination {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SingleConeOutput {
+    Check,
     Artifact(SlibOutputDestination),
     Documentation(DocumentationOutputDestination),
     ArtifactWithDocumentation {
@@ -45,7 +46,7 @@ impl SingleConeOutput {
             Self::Artifact(path) | Self::ArtifactWithDocumentation { artifact: path, .. } => {
                 Some(path)
             }
-            Self::Documentation(_) => None,
+            Self::Documentation(_) | Self::Check => None,
         }
     }
 
@@ -56,16 +57,17 @@ impl SingleConeOutput {
                 documentation: path,
                 ..
             } => Some(path),
-            Self::Artifact(_) => None,
+            Self::Artifact(_) | Self::Check => None,
         }
     }
 
-    pub(super) fn primary_path(&self) -> &Path {
+    pub(super) fn primary_path(&self) -> Option<&Path> {
         match self {
             Self::Artifact(path) | Self::ArtifactWithDocumentation { artifact: path, .. } => {
-                path.as_path()
+                Some(path.as_path())
             }
-            Self::Documentation(path) => path.as_path(),
+            Self::Documentation(path) => Some(path.as_path()),
+            Self::Check => None,
         }
     }
 
@@ -75,6 +77,9 @@ impl SingleConeOutput {
         purpose: CompilationPurpose,
         emit: StageDumpPolicy,
     ) -> Result<(), SingleConeBuildRequestError> {
+        if matches!(self, Self::Check) && !matches!(emit, StageDumpPolicy::None) {
+            return Err(SingleConeBuildRequestError::CheckRequiresNoMachineInputs);
+        }
         if self.documentation().is_some()
             && (matches!(current, CurrentConeInput::SingleFile { .. })
                 || purpose != CompilationPurpose::Production)

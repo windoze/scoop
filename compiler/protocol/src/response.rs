@@ -145,9 +145,13 @@ impl ScoopcSuccessV1 {
         warnings: Vec<StructuredDiagnosticV1>,
         emitted_dump_descriptors: Vec<EmittedDumpDescriptorV1>,
     ) -> Result<Self, ProtocolValidationError> {
+        let product = product.into();
+        if matches!(product, ScoopcProductV1::Check) && !emitted_dump_descriptors.is_empty() {
+            return Err(ProtocolValidationError::InvalidDumpDescriptors);
+        }
         validate_success_fields(&warnings, &emitted_dump_descriptors)?;
         Ok(Self {
-            product: product.into(),
+            product,
             warnings,
             emitted_dump_descriptors,
             used_generators: Vec::new(),

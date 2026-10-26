@@ -4,6 +4,7 @@ use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
+mod check;
 mod documentation;
 
 fn path(value: &str) -> HostPathCarrier {

@@ -68,6 +68,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
         let hir = parsed
             .lower_hir(RequestedConeKind::Library, request.protocols(), &world)
             .unwrap();
+        let hir = current_hir::CurrentConeHirArtifacts::from_hir(hir, &world).unwrap();
         let machine_dependencies = request
             .dependencies()
             .read_machine_dependencies(hir.machine_dependency_providers())

@@ -3,99 +3,11 @@ use scoop_protocol::{
     CurrentConeRequestV1, ScoopcBuildRequestV1, StageDumpPolicyV1, TrustedCoreRequestV1,
 };
 
-#[derive(Debug, Default)]
-pub struct DirectBuildOptions {
-    pub optimization: scoop_lir::OptimizationMode,
-    pub purpose: CompilationPurpose,
-    pub target: Option<String>,
-    pub sysroot: Option<PathBuf>,
-    pub c_toolchain: scoop_toolchain::CToolchainOptions,
-    pub generators: Vec<std::ffi::OsString>,
-}
-
-pub fn normalize_direct_build_request(
-    operand: impl Into<PathBuf>,
-    direct: Vec<PathBuf>,
-    support: Vec<PathBuf>,
-    output: impl Into<PathBuf>,
-    diagnostics: DiagnosticOutputPolicy,
-    emit: StageDumpPolicy,
-    options: DirectBuildOptions,
-) -> Result<SingleConeBuildRequest, BuildRequestNormalizationError> {
-    let generators = if options.generators.is_empty() {
-        scoop_toolchain::GeneratorPrograms::default()
-    } else {
-        let cwd = std::env::current_dir().map_err(|error| {
-            BuildRequestNormalizationError::Generators(ToolchainError(format!(
-                "cannot resolve generator paths against the current directory: {error}"
-            )))
-        })?;
-        scoop_toolchain::GeneratorPrograms::from_cli(&options.generators, &cwd)
-            .map_err(BuildRequestNormalizationError::Generators)?
-    };
-    let current = classify_current_cone_operand(operand)
-        .map_err(BuildRequestNormalizationError::CurrentOperand)?;
-    if options.purpose == CompilationPurpose::Test
-        && matches!(current, CurrentConeInput::SingleFile { .. })
-    {
-        return Err(BuildRequestNormalizationError::Request(
-            SingleConeBuildRequestError::TestRequiresManifest,
-        ));
-    }
-    let dependencies = explicit_dependencies(direct, support)?;
-    let output =
-        SlibOutputDestination::new(output).map_err(BuildRequestNormalizationError::Request)?;
-    let triple = match options.target.as_deref() {
-        Some(triple) => triple,
-        None => {
-            scoop_toolchain::host_target_triple().map_err(BuildRequestNormalizationError::Target)?
-        }
-    };
-    let target = ResolvedTargetProfile::resolve_with(triple, &options.c_toolchain)
-        .map_err(BuildRequestNormalizationError::Target)?;
-    scoop_codegen::ValidatedBackendProfile::from_selection(
-        target.lir_target_selection(),
-        target.c_bridge_toolchain().profile().contract(),
-    )
-    .map_err(BuildRequestNormalizationError::Backend)?;
-    let is_core = match &current {
-        CurrentConeInput::Manifest { root } => {
-            scoop_toolchain::load_cone_manifest(root)
-                .map_err(BuildRequestNormalizationError::ManifestRoot)?
-                .parsed()
-                .semantic()
-                .coordinate()
-                == &scoop_identity::ConeCoordinate::reserved_core()
-        }
-        CurrentConeInput::SingleFile { .. } => false,
-    };
-    let sysroot = scoop_toolchain::configured_sysroot_root(options.sysroot)
-        .map_err(BuildRequestNormalizationError::Target)?;
-    let trusted_core = if is_core {
-        TrustedCoreInput::BootstrapSelf
-    } else {
-        TrustedCoreInput::DependenciesOrDefault {
-            sysroot: sysroot.clone(),
-        }
-    };
-    SingleConeBuildRequest::new(
-        current,
-        dependencies,
-        trusted_core,
-        target,
-        output,
-        diagnostics,
-        emit,
-    )
-    .and_then(|request| {
-        request
-            .with_native_sysroot(sysroot)
-            .with_generators(generators)
-            .with_optimization(options.optimization)
-            .with_purpose(options.purpose)
-    })
-    .map_err(BuildRequestNormalizationError::Request)
-}
+mod direct;
+pub use direct::{
+    DirectBuildOptions, DirectCheckOptions, normalize_direct_build_request,
+    normalize_direct_check_request,
+};
 
 pub fn normalize_protocol_build_request(
     build: &ScoopcBuildRequestV1,
@@ -119,6 +31,11 @@ pub fn normalize_protocol_build_request(
         protocol_paths(build.support_slibs())?,
     )?;
     let output = protocol_output(build.output())?;
+    if matches!(output, SingleConeOutput::Check) && !build.native_inputs().is_empty() {
+        return Err(BuildRequestNormalizationError::Request(
+            SingleConeBuildRequestError::CheckRequiresNoMachineInputs,
+        ));
+    }
     let target = if output.artifact().is_none() {
         target::SelectedTarget::Frontend(
             scoop_toolchain::select_target(build.target().canonical_triple())
@@ -217,6 +134,7 @@ fn protocol_output(
         .map_err(BuildRequestNormalizationError::Request)
     };
     Ok(match output {
+        O::Check => SingleConeOutput::Check,
         O::Artifact(path) => SingleConeOutput::Artifact(artifact(path)?),
         O::Documentation(path) => SingleConeOutput::Documentation(documentation(path)?),
         O::ArtifactWithDocumentation {
