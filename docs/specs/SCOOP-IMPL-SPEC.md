@@ -1055,6 +1055,8 @@ HIR 在普通调用解析和 unsafe 检查后把三个操作归一化为有类�
 
 LIR 的 MaybeUninit 操作写入完整类型的独立 local place；零大小结果仍保留逻辑 place。包装与取值在该 place 中完成全部字节的复制，普通 aggregate local 间的复制也保留 padding，不能经只含源码字段的 SSA 聚合丢失存储字节。临时 place 由既有局部存储及 roots 规则管理，LLVM 可在不改变这些可观察结果时消除它。
 
+LLVM 的 wrapper 存储以不超过 64 位、满足现有对齐的整数单元承载连续非引用字节，余数保留为字节；这样数组读取与 assumeInit 后的标量读取可合并为整字访问，避免字节聚合在向量化时变成逐字节扩宽与重组。完整 size、alignment、padding 和各 managed leaf 的 offset 不变，引用槽仍为 AS1 pointer。整数单元只表达原始 bits，不继承 payload 的 Boolean、浮点、nonnull、tag 或 niche 不变量；所有 profile 采用同一内部表示，跨 Cone 的已有物理 ABI、scan 与 `.slib` 布局编码保持。
+
 该类型的源码 intrinsic 名为 `core_maybe_uninit`；三个操作分别为 `maybe_uninit_zero`、`maybe_uninit_initialized`、`maybe_uninit_assume_init`。前两者属于该泛型类型的 companion，后者是实例方法，均没有独立的 callable 类型参数。它们的源码 GC effect 为 NoGc，assumeInit 另为 Unsafe；普通 NoGC 使用点仍检查实际 wrapper／payload 是否 GC-free。源码名只在 HIR 声明边界解析，后续使用实际 nominal/application 和操作种类。nominal intrinsic wire sum 增加 tag 14，callable intrinsic sum 增加 tag 25（操作 tag 1／2／3 依次对应上述三个操作）；MIR application 与 LIR exact value layout 都保存 payload 的完整 exact identity，wrapper 的 layout constituent 没有 null niche 或 C storage 资格。
 
 上述扩展对应 HIR interface 69／type semantics 27、MIR type bridge 19、LIR layout ABI 15／layout link closure 8。MIR representation 的 tag 13 保存 payload exact type；LIR value representation 的 tag 9 保存 payload value layout 引用，由该 layout 得到 exact type、size、alignment 和 scan，不伪造源码字段。未改变编码的 section 保留原版本，旧 section 产物重建。

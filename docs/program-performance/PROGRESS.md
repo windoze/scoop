@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 已完成[MaybeUninit 整字原始存储](RAW-VALUE-STORAGE.md)：以现有对齐的整数单元保存非引用 bits，保留 padding、AS1 槽和物理 ABI；复用 SROA／向量化。两机各两项 codegen 回归及三目标位级、跨 profile ABI、GC 专测通过。lambdas 降低 12.78%／34.29%／30.41%，text 与编译成本降低；musl 短负载回退、同字节对照与复核限制如实保留。所有 profile 统一默认，无新 runtime 或诊断代码。
+
 - 已修复[GC 地址整数跨 safepoint 复用](GC-ADDRESS-BITS.md)：地址转换保持实际 AS1 operand 到 RS4GC 后，阻止页表索引使用搬迁前的地址；临时操作不进入最终产物，原有界卡表优化继续使用。两机各 55 项 statepoint 回归、三目标各两组 GC 组合通过，机器码确认恢复后重算。所有 profile 默认，无新 runtime／ABI 或诊断代码；Linux lambdas 约 8.20%／5.83% 的运行代价、text 增量及编译成本已记录。
 
 - 已完成[搬迁复制复用已预留元数据](EVACUATION-PUBLICATION.md)：完整预留后的 STW 单写者直接发布小对象元数据，省去通用登记调用、重复检查和位图原子读改写；删除无调用者的 marked 参数。两机各 7 项定向回归、三目标接口与数组 GC 组合通过；trees 耗时降低 0.92%／7.05%／3.92%，独立统计的 copy 降低约 16%／33%／16%。每程序 text 增加 84／80／128 B，无对象或根增长；GNU strings 等回退、文件对齐及编译成本均保留。全部 profile 默认，无新开关或诊断代码。
