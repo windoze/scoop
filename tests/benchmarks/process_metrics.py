@@ -50,7 +50,7 @@ def gc_statistics(stderr, name):
     metrics = records[0]
     try:
         count = metrics["minor_collections"] + metrics["full_collections"]
-        consistent = sum(metrics["pause_buckets"]) == count
+        consistent = sum(metrics["pause_buckets"]) >= count
     except (KeyError, TypeError) as error:
         raise RuntimeError(f"{name}: malformed GC statistics") from error
     if not consistent:

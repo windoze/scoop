@@ -1,6 +1,31 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn incremental_marking_preserves_changed_edges_and_complete_fallbacks() {
+    for flags in [
+        vec!["-O0"],
+        vec!["-O2", "-DSCOOP_TEST_INCREMENTAL_PARALLEL"],
+    ] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "incremental_mark_test",
+            "runtime/tests/incremental_mark_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"incremental marking preserves changed edges, pins, roots and complete fallbacks\n"
+        );
+    }
+}
+
+#[test]
 fn tlab_reserves_preserve_capacity_failures_and_retirement() {
     for optimization in ["-O0", "-O2"] {
         let output = compile_and_run_with_flags(

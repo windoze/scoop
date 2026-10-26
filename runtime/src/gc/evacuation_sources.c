@@ -71,7 +71,10 @@ size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity
     size_t regions = !minor && !stress_move ? select_regions() : 0;
     for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
          block = scoop_heap_next_collection_block(block, minor)) {
-        if (!active_head(block) || block->movable_live_bytes == 0) {
+        /* Ordinary full selects whole regions using their current pin state.
+         * Pins may have changed since an incremental mark first saw the object. */
+        size_t eligible = minor || stress_move ? block->movable_live_bytes : block->live_bytes;
+        if (!active_head(block) || eligible == 0) {
             continue;
         }
         bool selected = minor ? !scoop_heap_block_has_pins(block)

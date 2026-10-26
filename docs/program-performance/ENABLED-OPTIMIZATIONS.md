@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [full 分片标记](GC-EVOLUTION.md) | `SCOOP_GC_INCREMENTAL=1`，默认关闭；新版 runtime 重链接即可 | 旧代压力触发两代追踪，片间保留原图并恢复 mutator；现有卡组维护改写，精确 roots 每片重扫。完整收尾仍为 STW，显式 full／large／失败走完整回退；树分配与最长暂停改善，但随机更新吞吐和部分 RSS 回退，按负载选择。对象及 ABI 不变。 |
 | [TLAB 本地块储备](GC-EVOLUTION.md) | 新版普通 runtime，所有 profile 默认；重链接即可 | 一次 heap lock 最多准备四块，后续切换复用已登记储备；GC／managed 退出／callback 返回统一失效。保持 nursery 上限、部分失败和精确计数；stress／full-only 原策略，状态大小与 ABI 不变。RSS／短负载尾部代价见记录。 |
 | [密集年轻块原地晋升](GC-EVOLUTION.md) | `SCOOP_GC_PROMOTE_IN_PLACE=1`，默认关闭；无源计划跳过所有 profile 默认 | 复用 block 存活统计省去密集块复制、forwarding 和计划；稀疏搬迁、pin、survivor、失败回退保持。吞吐与复制量改善，但大存活集 full 尾暂停／RSS 回退，须按负载选择；不增对象或 ABI。 |
 | [GC epoch 确认与通知分流](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认，无新开关；重新链接即可 | 同一 epoch 不重复 park 确认，停稳只通知 collector，mutator 只在真实状态变化时唤醒；保留连续收集、初始化与 NativeSafe 超时复查，不增对象／线程字段或 ABI。多线程收益、低线程数波动及暂停观测边界见记录。 |

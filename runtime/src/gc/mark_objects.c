@@ -83,7 +83,7 @@ static void enqueue_array(ScoopGcMarkWorker *worker, void *object, const uint64_
         uint64_t stride = scoop_gc_array_stride(scan);
         scoop_gc_mark_queue_push(worker,
                                  (ScoopGcMarkTask){
-                                     .array = true,
+                                     .kind = SCOOP_MARK_ARRAY_TASK,
                                      .data.range = {object, scan, array.elements + first * stride,
                                                     array.elements + (first + length) * stride},
                                  });
@@ -145,7 +145,11 @@ void scoop_gc_mark_slot(void **slot, void *context) {
 void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     ScoopGcMarkVisit visit = {worker, SCOOP_MARK_OBJECT};
     worker->tasks++;
-    if (task.array) {
+    if (task.kind == SCOOP_MARK_DIRTY_TASK) {
+        scoop_gc_mark_run_dirty(worker, task.data.dirty_group);
+        return;
+    }
+    if (task.kind == SCOOP_MARK_ARRAY_TASK) {
         worker->array_tasks++;
         scoop_gc_scan_descriptor(task.data.range.object, task.data.range.scan, scoop_gc_mark_slot,
                                  &visit, task.data.range.begin, task.data.range.end);

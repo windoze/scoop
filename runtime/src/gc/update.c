@@ -12,7 +12,7 @@ static void enqueue_update_array(ScoopGcMarkWorker *owner, void *object, const u
         }
         scoop_gc_mark_queue_push(owner,
                                  (ScoopGcMarkTask){
-                                     .array = true,
+                                     .kind = SCOOP_MARK_ARRAY_TASK,
                                      .data.range = {object, scan, array.elements + first * stride,
                                                     array.elements + (first + length) * stride},
                                  });
@@ -63,7 +63,7 @@ void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcLiveEntryVisitor se
             }
         }
     }
-    scoop_gc_mark_pool_run();
+    scoop_gc_mark_pool_run(0);
     scoop_gc_marker.updating = false;
     scoop_gc_marker.update_visitor = NULL;
     scoop_gc_marker.update_context = NULL;
@@ -72,7 +72,7 @@ void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcLiveEntryVisitor se
 void scoop_gc_update_run_task(ScoopGcMarkTask task) {
     ScoopGcSlotVisitor visitor = scoop_gc_marker.update_visitor;
     void *context = scoop_gc_marker.update_context;
-    if (task.array) {
+    if (task.kind == SCOOP_MARK_ARRAY_TASK) {
         scoop_gc_scan_descriptor(task.data.range.object, task.data.range.scan, visitor, context,
                                  task.data.range.begin, task.data.range.end);
         return;

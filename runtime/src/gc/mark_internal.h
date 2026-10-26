@@ -15,8 +15,14 @@ typedef struct ScoopGcLiveChunk {
     void *objects[GC_MARK_CHUNK];
 } ScoopGcLiveChunk;
 
+typedef enum ScoopGcMarkTaskKind {
+    SCOOP_MARK_BATCH_TASK,
+    SCOOP_MARK_ARRAY_TASK,
+    SCOOP_MARK_DIRTY_TASK,
+} ScoopGcMarkTaskKind;
+
 typedef struct ScoopGcMarkTask {
-    bool array;
+    ScoopGcMarkTaskKind kind;
     union {
         struct {
             void *const *objects;
@@ -28,6 +34,7 @@ typedef struct ScoopGcMarkTask {
             uintptr_t begin;
             uintptr_t end;
         } range;
+        ScoopGcCardGroup *dirty_group;
     } data;
 } ScoopGcMarkTask;
 
@@ -61,6 +68,7 @@ typedef struct ScoopGcMarkWorker {
     uint64_t traced;
     uint64_t root_slots;
     uint64_t old_slots;
+    uint64_t dirty_cards;
     uint64_t reference_slots;
     uint64_t tasks;
     uint64_t array_tasks;
@@ -78,7 +86,9 @@ typedef struct ScoopGcMarker {
     size_t active_workers;
     size_t created_workers;
     size_t finished_workers;
+    size_t task_limit;
     uint64_t phase;
+    uint64_t marked;
     bool initialized;
     bool forced;
     bool stopping;
@@ -102,7 +112,7 @@ typedef struct ScoopGcMarkVisit {
 extern ScoopGcMarker scoop_gc_marker;
 
 void scoop_gc_mark_pool_prepare(bool minor);
-void scoop_gc_mark_pool_run(void);
+void scoop_gc_mark_pool_run(size_t task_limit);
 void scoop_gc_mark_notify_work(void);
 void scoop_gc_mark_queue_push(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
 bool scoop_gc_mark_queue_take(ScoopGcMarkWorker *worker, ScoopGcMarkTask *task);
@@ -110,6 +120,7 @@ void scoop_gc_mark_task_done(void);
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker);
 void scoop_gc_mark_slot(void **slot, void *context);
 void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
+void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group);
 
 void scoop_gc_update_run_task(ScoopGcMarkTask task);
 

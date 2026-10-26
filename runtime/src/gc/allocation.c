@@ -51,6 +51,7 @@ typedef enum RefillResult {
     REFILL_READY,
     REFILL_MINOR,
     REFILL_FULL,
+    REFILL_INCREMENT,
 } RefillResult;
 
 static bool exceeds_old_threshold(size_t bytes) {
@@ -79,7 +80,7 @@ static void publish_tlab(ScoopGcMutator *mutator, ScoopGcBlockMeta *block) {
     allocation->cursor = allocation->block_start + GC_LINE_SIZE;
 }
 
-static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
+static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full, bool after_step) {
     if (mutator->reserved_count != 0) {
         publish_tlab(mutator, mutator->reserved_blocks[--mutator->reserved_count]);
         return REFILL_READY;
@@ -92,13 +93,21 @@ static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
     }
 #endif
     size_t old_request = scoop_heap_adaptive_nursery_enabled() ? 0 : GC_BLOCK_SIZE;
-    if (!after_full && exceeds_old_threshold(old_request)) {
+    if (!scoop_gc_heap_state.incremental_active && !after_full &&
+        exceeds_old_threshold(old_request)) {
+        bool incremental = scoop_gc_heap_state.incremental_enabled &&
+                           scoop_heap_adaptive_nursery_enabled() &&
+                           scoop_gc_heap_state.nursery_bytes < capacity;
         unlock_heap();
-        return REFILL_FULL;
+        return incremental ? REFILL_INCREMENT : REFILL_FULL;
     }
     if (scoop_gc_heap_state.nursery_bytes >= capacity) {
         unlock_heap();
         return REFILL_MINOR;
+    }
+    if (scoop_gc_heap_state.incremental_active && !after_step) {
+        unlock_heap();
+        return REFILL_INCREMENT;
     }
     ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
     if (block == NULL) {
@@ -124,6 +133,7 @@ static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
 
 static void *allocate_small(ScoopGcMutator *mutator, size_t size, size_t alignment) {
     bool full_attempted = false;
+    bool step_attempted = false;
     for (;;) {
         void *object = scoop_heap_bump(&mutator->allocation.cursor, mutator->allocation.limit, size,
                                        alignment);
@@ -131,11 +141,14 @@ static void *allocate_small(ScoopGcMutator *mutator, size_t size, size_t alignme
             return object;
         }
         scoop_gc_reset_current_allocation(mutator);
-        RefillResult refill = refill_nursery(mutator, full_attempted);
+        RefillResult refill = refill_nursery(mutator, full_attempted, step_attempted);
         if (refill == REFILL_READY) {
             continue;
         }
-        if (refill == REFILL_MINOR) {
+        if (refill == REFILL_INCREMENT) {
+            scoop_gc_collect_incremental_internal();
+            step_attempted = true;
+        } else if (refill == REFILL_MINOR) {
             /* Another mutator can claim the newly emptied nursery before
              * this mutator resumes. Capacity contention is not heap OOM. */
             scoop_gc_collect_minor_internal();
@@ -153,6 +166,11 @@ static void *allocate_old(size_t size, size_t alignment) {
     bool collected = false;
     for (;;) {
         lock_heap();
+        if (scoop_gc_heap_state.incremental_active) {
+            unlock_heap();
+            collected = scoop_gc_collect_internal();
+            continue;
+        }
         char **cursor = &scoop_gc_heap_state.old_cursor;
         char **limit = &scoop_gc_heap_state.old_limit;
         void *object = scoop_heap_bump(cursor, *limit, size, alignment);
@@ -201,6 +219,11 @@ static void *allocate_large(size_t size, ScoopGcBlockMeta **allocated_block) {
     bool collected = false;
     for (;;) {
         lock_heap();
+        if (scoop_gc_heap_state.incremental_active) {
+            unlock_heap();
+            collected = scoop_gc_collect_internal();
+            continue;
+        }
         size_t span = scoop_heap_large_mapping_size(size);
         bool threshold_exceeded = !collected && exceeds_old_threshold(span);
         ScoopGcBlockMeta *block =

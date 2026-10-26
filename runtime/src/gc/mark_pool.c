@@ -21,9 +21,10 @@ void scoop_gc_mark_notify_work(void) {
     pthread_mutex_unlock(&scoop_gc_marker.lock);
 }
 
-static void run_worker(ScoopGcMarkWorker *worker) {
+static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
     uint64_t started = scoop_gc_thread_cpu_ns();
-    for (;;) {
+    size_t completed = 0;
+    while (task_limit == 0 || completed < task_limit) {
         ScoopGcMarkTask task;
         bool found = scoop_gc_mark_queue_take(worker, &task);
         if (!found) {
@@ -45,6 +46,13 @@ static void run_worker(ScoopGcMarkWorker *worker) {
             scoop_gc_mark_flush(worker);
         }
         scoop_gc_mark_task_done();
+        if (task_limit != 0) {
+            completed += task.kind == SCOOP_MARK_DIRTY_TASK ? 4 : 1;
+        }
+    }
+    /* A bounded publisher may leave its lone successor for a waiting peer. */
+    if (task_limit != 0 && completed >= task_limit) {
+        scoop_gc_mark_notify_work();
     }
     worker->cpu_ns += scoop_gc_thread_cpu_ns() - started;
 }
@@ -65,7 +73,7 @@ static void *worker_main(void *context) {
             continue;
         }
         pthread_mutex_unlock(&scoop_gc_marker.lock);
-        run_worker(worker);
+        run_worker(worker, scoop_gc_marker.task_limit);
         pthread_mutex_lock(&scoop_gc_marker.lock);
         scoop_gc_marker.finished_workers++;
         pthread_cond_signal(&scoop_gc_marker.finished);
@@ -141,13 +149,14 @@ void scoop_gc_mark_pool_prepare(bool minor) {
     pthread_mutex_unlock(&scoop_gc_marker.lock);
 }
 
-void scoop_gc_mark_pool_run(void) {
+void scoop_gc_mark_pool_run(size_t task_limit) {
     pthread_mutex_lock(&scoop_gc_marker.lock);
+    scoop_gc_marker.task_limit = task_limit;
     scoop_gc_marker.finished_workers = 0;
     scoop_gc_marker.phase++;
     pthread_cond_broadcast(&scoop_gc_marker.phase_changed);
     pthread_mutex_unlock(&scoop_gc_marker.lock);
-    run_worker(&scoop_gc_marker.workers[0]);
+    run_worker(&scoop_gc_marker.workers[0], task_limit);
     pthread_mutex_lock(&scoop_gc_marker.lock);
     while (scoop_gc_marker.finished_workers + 1 != scoop_gc_marker.active_workers) {
         pthread_cond_wait(&scoop_gc_marker.finished, &scoop_gc_marker.lock);

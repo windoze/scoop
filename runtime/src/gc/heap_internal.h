@@ -157,8 +157,12 @@ typedef struct ScoopGcHeapState {
     bool full_only;
     bool survivor_enabled;
     bool promote_in_place;
+    bool incremental_enabled;
+    bool incremental_active;
     bool print_metrics;
     bool collection_active;
+    size_t incremental_blocks;
+    ScoopGcBlockMeta *incremental_young_head;
     size_t nursery_bytes;
     size_t nursery_capacity;
     size_t nursery_limit;
@@ -240,6 +244,7 @@ bool scoop_heap_active_head(const ScoopGcBlockMeta *block);
 void scoop_heap_require_ready(void);
 void scoop_heap_free_run_nodes(void);
 void scoop_heap_clear_dirty_card_groups(bool retain_survivors);
+void scoop_heap_clear_dirty_card_group(ScoopGcCardGroup *group);
 static inline ScoopGcCardGroup *scoop_heap_next_dirty_card_group(ScoopGcCardGroup *group) {
     ScoopGcCardGroup *next = atomic_load_explicit(&group->next, memory_order_relaxed);
     return next == group ? NULL : next;

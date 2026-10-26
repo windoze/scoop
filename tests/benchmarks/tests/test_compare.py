@@ -139,6 +139,15 @@ class ComparisonTests(unittest.TestCase):
                 "sample",
             )
 
+    def test_gc_histogram_counts_incremental_pauses(self):
+        metrics = {
+            "scoop_gc": 1,
+            "minor_collections": 1,
+            "full_collections": 1,
+            "pause_buckets": [2, 3],
+        }
+        self.assertEqual(gc_statistics(json.dumps(metrics), "sample"), metrics)
+
     def test_full_only_rejects_minor_collection(self):
         metrics = {
             "scoop_gc": 1,

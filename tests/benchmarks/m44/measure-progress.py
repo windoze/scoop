@@ -101,7 +101,7 @@ def sample(binary, mode, threads, iterations, workers):
     gc = json.loads(result.stderr)
     if (
         gc.get("scoop_gc") != 1
-        or sum(gc["pause_buckets"]) != gc["minor_collections"] + gc["full_collections"]
+        or sum(gc["pause_buckets"]) < gc["minor_collections"] + gc["full_collections"]
     ):
         raise RuntimeError("invalid runtime GC statistics")
     return {

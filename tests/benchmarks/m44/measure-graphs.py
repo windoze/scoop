@@ -81,7 +81,7 @@ def measure(binary, graph, workers, nodes, rounds):
         ):
             raise RuntimeError(f"{binary}: minor graph missed promotion or remembered slots")
     gc = stats[0]
-    if sum(gc["pause_buckets"]) != gc["minor_collections"] + gc["full_collections"]:
+    if sum(gc["pause_buckets"]) < gc["minor_collections"] + gc["full_collections"]:
         raise RuntimeError(f"{binary}: inconsistent GC histogram")
     return {
         "seconds": elapsed,
