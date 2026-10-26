@@ -443,7 +443,7 @@ release 在内联与有界循环选择完成后、最终 LIR 根计划之前，�
 
 release 在普通 LLVM 优化之前，将未逃逸入口栈存储上的编译器 GC 专用 load／restore store 转为普通访存，交给现有 SROA／mem2reg、复制传播与死存储消除。按实际地址使用确认不逃逸：局部 GEP／bitcast、load／store 和 LLVM 内存／生命周期 intrinsic 可保留；取址传给普通调用、发布为 compiler root、存出地址、间接 ABI 或未知使用保留必要存储与 volatile 重读／回写。用户原子、volatile 操作和 TLAB context 的位置约束不参与该消除。接口不因自身类型被强制保留中间槽；按值快照、局部重赋和真实内存别名仍由原数据流表达。debug 可继续保留存储，GC 正确性不依赖优化是否开启。
 
-全部普通 LLVM 优化和 helper 展开完成后、逻辑根定稿和 RS4GC 之前，codegen 对含 AS1 leaf 的 aggregate SSA 作晚期分解。沿真实定义捕获分量；aggregate PHI／select 拆成对应分量合流，循环回边保留各自 incoming，invoke 结果在正常边取得。没有 managed leaf 的子 aggregate 可以整体保留。原标量 extract 复用同一分量，实际 ret／store／call 等消费点才重建 aggregate，使跨 safepoint 的业务使用成为 RS4GC 可重写的标量使用。此后在 RS4GC 前不再运行会合并 split／rebuild 的普通优化；RS4GC 后再发射机器码。条件 poll 的快／慢路径由标量 PHI 选择原 object 或 relocate 结果，itab 不参与搬迁。该变换不增加 root 身份、发布、对象字段或 `.slib` 数据，不对自产 IR 再建一套完整验证体系。
+全部普通 LLVM 优化和 helper 展开完成后、逻辑根定稿和 RS4GC 之前，codegen 对含 AS1 leaf 的 aggregate SSA 作晚期分解。沿真实定义捕获分量；aggregate PHI／select 拆成对应分量合流，循环回边保留各自 incoming，invoke 结果在正常边取得。没有 managed leaf 的子 aggregate 可以整体保留。原标量 extract 复用同一分量，实际 ret／store／call 等消费点才重建 aggregate，使跨 safepoint 的业务使用成为 RS4GC 可重写的标量使用。分解暴露的等价指针合流按 2.19 在根定稿前归并；此后在 RS4GC 前不再运行会合并 split／rebuild 的普通优化，RS4GC 后再发射机器码。条件 poll 的快／慢路径由标量 PHI 选择原 object 或 relocate 结果，itab 不参与搬迁。该变换不增加 root 身份、发布、对象字段或 `.slib` 数据，不对自产 IR 再建一套完整验证体系。
 
 优化后的 AS1 根若通过 phi／select 合并 immortal 常量与动态对象，仍表示对象起点。codegen 在根准备处为不含派生地址的 managed phi／select 保留对象起点事实，并以 LLVM 22.1 的 `is_base_value` 标记传给 RS4GC。逻辑恢复标记在某条路径折叠为常量时，共享后继仍可能使用原合并值，因此该处理不只依赖恢复标记当前指向的 SSA；不能让常量分支被替换为 null base 而产生不符合当前 runtime 的 base／derived pair。纯常量选择仍不参与 relocation；typed 根恢复、base=derived 与实际 stackmap 数据生成保持。
 
@@ -1454,6 +1454,8 @@ release 对 typed ArraySet 的 stride 大于 16 bytes、恰有一个 managed lea
 最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。普通优化后保留逻辑根身份，标明包含可移动对象的 base phi/select；RS4GC 完成真实下降后，先清理 unreachable 前末尾无使用者的 gc.relocate，再按实际保留的 gc.relocate 引用的不同 derived SSA 值数量生成注册元数据，随后执行机器发射和原 stackmap 格式／根合同检查。此清理只处理终止块中连续的末尾无用 relocation，不重写控制流、不运行 InstCombine、PRE 或代码复制；它使无返回后继的调用后无用 relocation 与机器准备阶段一致。调用实参仍按 ABI 传入，被调用帧负责它实际继续使用的引用；正常返回调用的仅调用期间根和显式 native／EH roots 保持。多个逻辑 leaf 可以对应同一 SSA 值；已知 null／不可移动常量通常不产生 relocation pair，但不能仅按已折叠的逻辑恢复标记提前推算物理根数：共享后继或循环仍可能使原动态 SSA 值跨站点存活。该计数消费实际下降结果，不添加独立的指针活跃性分析或 RS4GC 策略复核器。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。
 
 release 在 roots 定稿前以 MemorySSA 消除跨无写入分支的重复加载，防止同一根槽的两个 SSA 加载直到机器发射时才合并，造成注册计数与 stackmap 不一致。任一路径可能修改该位置时保留独立引用；每个逻辑 leaf 的调用后恢复继续保留，并使用对应的重定位结果。
+
+全部 profile 在晚期聚合分解后、根身份定稿和 RS4GC 之前，合并同一基本块内等价的指针 PHI／select。PHI 按实际前驱与 incoming value 对应关系比较，select 按条件及两支的值比较，类型与地址空间必须一致；只含同一非自身输入的 PHI 和两支相同的 select 可以直接使用该输入。替换暴露的后续等价合流继续处理，不能把不同路径的对象或复制快照合并。此清理只替换标量值，不改变控制流、site 或逻辑恢复标记，不运行可能将分量重建折回旧聚合的 InstCombine。这样，聚合视图与已有 object 分量共享已证明相同的 SSA 根，不把合并推迟到机器准备阶段；返回、存储和实参仍在使用处从 RS4GC 更新后的分量重建。
 
 GC 转换后每个 post-site managed use 必须来自正确更新的引用；invoke 的 normal/unwind 与 native transition 继续使用各自显式 root frames。不能在 root plan 定稿后增加未经描述的 safepoint、重复 site、外来 owner 或异常边。backend contract field 28 为 1，表示此最终根与发射合同。
 

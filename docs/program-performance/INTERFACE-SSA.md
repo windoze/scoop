@@ -91,3 +91,9 @@ dispatch 的 object 从数组直接进入 receiver，原七组局部槽复制消
 保留限制：debug 可以继续保留局部存储；真实取址／发布、间接 ABI、native borrow、EH 和保守未知地址路径仍需 canonical storage／重读。调用期间必要的机器根 spill、后续仍活跃引用的恢复、poll 和写屏障继续存在。编译器没有承诺所有引用零落栈；跨 safepoint 的内部裸地址也不能由此次 SSA 变换获得额外有效期。
 
 后续重建 core 发现一个终止块组合回归：RS4GC 为 `call; unreachable` 生成无使用者的 relocation，机器准备阶段删除它，导致预先生成的注册根数与 stackmap 不一致。现在只在最终根计数前删除 `unreachable` 前连续的末尾无用 relocation，不运行额外 CFG 优化，也不改变正常返回、native 或 EH 根。最小回归检查三目标、两 profile 的最终机器 stackmap；本机与 Linux 各 51 项 statepoint 定向测试通过，三目标 core／std／test／json 重建通过。此项为所有 profile 的正确性修复，没有新增优化开关或性能收益声明。
+
+在 `fbb5b0c06` 定向重建 readline 复现 `SafepointId=3562891963711134166` 的 `LocationCountMismatch { expected: 11, actual: 9 }`。晚期聚合分解新建了与已有 object PHI 输入完全相同的 PHI，RS4GC 将二者计为独立根；机器准备阶段才合并它们，造成注册预计四对根、实际只有三对。修复在分解之后、根定稿之前归并同块同类型、实际输入与前驱相同的指针 PHI／select，并处理替换暴露的后续等价合流。普通 EarlyCSE／InstSimplify 不消除该重复 PHI；新增清理只替换指针标量，不运行会重组旧 aggregate 的 InstCombine，不改变 CFG、逻辑恢复标记或精确 stackmap 检查。
+
+修复后 ARM64 的原报错站点登记与机器结果均为三对根、九个位置，readline release 库成功生成。Darwin ARM64（LLVM 22.1.8）与 Linux x86_64（LLVM 22.1.2）各 53 项 statepoint 专测通过，新增回归覆盖等价／不等价 PHI 与 select、循环交换接口值、条件 poll、实际返回的 relocated object 及最终机器根数量。GNU／musl 的 readline 和必要的 platform／terminal／charset 依赖重建通过；三个目标均通过两种 profile 的接口 SSA moving/minor 回归、HelperTest 的五项普通行为测试及 FuzzyTest 的两项 moving/minor 测试。格式化与 release workspace Clippy 通过，未执行完整验收。
+
+该正确性修复在全部 profile 默认生效，不增加运行时存储、诊断代码或公开选项，不改变接口表示、runtime ABI 和产物格式。本次不声明运行性能收益。原始失败、IR、stackmap 和定向验证记录保存在两机仓库外 `scoop-performance-results/2026-10-26/readline-stackmaps`。

@@ -6,7 +6,7 @@ use inkwell::values::{
 };
 use scoop_lir::OptimizationMode;
 
-fn field(mut value: BasicValueEnum<'_>, index: u32) -> BasicValueEnum<'_> {
+pub(super) fn field(mut value: BasicValueEnum<'_>, index: u32) -> BasicValueEnum<'_> {
     loop {
         let instruction = value.as_instruction_value().expect("rebuilt aggregate");
         if instruction.get_opcode() == InstructionOpcode::ExtractValue {
@@ -176,7 +176,10 @@ fn aggregate_control_flow_rebuilds_actual_uses_from_current_scalar_components() 
     }
 }
 
-fn has_relocation(value: BasicValueEnum<'_>, seen: &mut std::collections::HashSet<usize>) -> bool {
+pub(super) fn has_relocation(
+    value: BasicValueEnum<'_>,
+    seen: &mut std::collections::HashSet<usize>,
+) -> bool {
     if !seen.insert(value.as_value_ref() as usize) {
         return false;
     }

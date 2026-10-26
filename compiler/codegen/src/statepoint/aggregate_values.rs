@@ -16,6 +16,7 @@ use super::*;
 
 mod components;
 use components::{contains_managed, extract, insert, shape};
+mod scalar_merges;
 
 #[derive(Clone)]
 struct Part<'ctx> {
@@ -48,6 +49,7 @@ pub(super) fn expose(
             values: HashMap::new(),
         };
         splitter.run()?;
+        scalar_merges::simplify(function);
     }
     Ok(())
 }

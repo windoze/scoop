@@ -9,6 +9,8 @@ use scoop_lir::{CallerRootSource, GcEffect};
 use super::{ExpectedRoot, ExpectedSafepoints, ExpectedSite, ExpectedStatepoint};
 use crate::ValidatedBackendProfile;
 
+#[path = "statepoint_tests/aggregate_merge_roots.rs"]
+mod aggregate_merge_roots;
 #[path = "statepoint_tests/aggregate_uses.rs"]
 mod aggregate_uses;
 #[path = "statepoint_tests/atomic_refs.rs"]
