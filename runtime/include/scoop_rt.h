@@ -100,10 +100,6 @@ void scoop_rt_stderr_write(const uint8_t *bytes, int64_t length);
 void scoop_rt_flush_stdout(void);
 
 /* Fixed-width primitive conversions used by ordinary core methods. */
-const ScoopString *scoop_rt_long_to_string(int64_t v);
-const ScoopString *scoop_rt_ulong_to_string(uint64_t v);
-const ScoopString *scoop_rt_bool_to_string(bool v);
-const ScoopString *scoop_rt_char_to_string(uint32_t value);
 const ScoopString *scoop_rt_float_to_string(float value);
 const ScoopString *scoop_rt_double_to_string(double value);
 int64_t scoop_rt_string_byte_length(const ScoopString *value);
@@ -117,19 +113,10 @@ const ScoopString *scoop_rt_string_from_bytes(const ScoopArray *value);
 /* Stable, readable UTF-8 storage; the caller owns its lifetime through allocation. */
 const ScoopString *scoop_rt_string_from_utf8_unchecked(const unsigned char *bytes, int64_t length);
 const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count);
-bool scoop_rt_bool_equals(bool left, bool right);
-int64_t scoop_rt_long_hash(int64_t v);
-int64_t scoop_rt_ulong_hash(uint64_t v);
-int64_t scoop_rt_bool_hash(bool v);
 int64_t scoop_rt_string_hash(const ScoopString *s);
 
 /* String and primitive operations used by ordinary scoop.core declarations. */
-bool scoop_rt_string_eq(const ScoopString *a, const ScoopString *b);
 int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b);
-void scoop_rt_print_long(int64_t value);
-void scoop_rt_println_long(int64_t value);
-void scoop_rt_print_boolean(bool value);
-void scoop_rt_println_boolean(bool value);
 
 /* Language termination flushes stdio in NativeSafe before ending the process.
  * Nothing retains its reference carrier; this function never returns it. */

@@ -3062,18 +3062,11 @@ public struct Int : Equals<Int>, ToString, Hash {
 
     public override fun toString(): String = coreLongToString(this.toLong())
 
-    public override fun hash(): Long {
-        @Unsafe { return coreLongHash(this.toLong()) }
-    }
+    public override fun hash(): Long = coreLongHash(this.toLong())
 }
-
-@Extern(name = "scoop_rt_long_to_string", abi = "scoop")
-internal fun coreLongToString(value: Long): String
-
-@GCLeaf
-@Extern(name = "scoop_rt_long_hash", abi = "c")
-internal fun coreLongHash(value: Long): Long
 ```
+
+这里的 `coreLongToString` 与 `coreLongHash` 是普通 core helper 正文；整数格式化、hash 不要求额外 C ABI 入口。表示相关的分配／复制由已登记的 typed intrinsic 完成。
 
 - intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、字段访问、解构、copy update或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；用户可调用constructor或转换来自显式声明或 registry 封闭规定的入口：10.4 的数组转换、10.6 的数组按长度初始化与 13.10 的 `Ptr<T>(raw: ULong)` unsafe construction entry；
 - intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；11.1 的两个无成员根类型遵守该节的封闭声明形状。单个成员也可像上例一样另用function intrinsic提供实现。intrinsic type覆盖八种canonical integer representation、Boolean、Char、Float/Double、String、`Any`/`Nothing`、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。`core_int`/`int_*`表示32位canonical `Int`，64位signed表示使用独立的`core_long`/`long_*`；unsigned同理区分`UInt`与`ULong`。登记表可按同一契约增加其他compiler-represented value/reference type；

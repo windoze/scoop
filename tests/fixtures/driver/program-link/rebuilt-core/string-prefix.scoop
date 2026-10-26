@@ -21,8 +21,6 @@ import IndexOutOfBoundsException
 import Option.None
 import Option.Some
 import toArray
-import coreStringEquals
-import coreStringHash
 import coreStringByteLength
 import coreStringLength
 import coreStringGet
@@ -31,6 +29,8 @@ import coreStringSliceBytes
 import coreStringByteAt
 import coreStringFromChars
 import coreStringFromBytes
+import coreStringToBytes
+import coreStringToMutableBytes
 import ValueEncoder
 import Encoder
 import Unit

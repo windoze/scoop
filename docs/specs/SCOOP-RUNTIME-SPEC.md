@@ -159,7 +159,9 @@ String 持有合法 UTF-8，允许 U+0000，无隐含结尾 NUL。byte length �
 
 codegen 对普通 typed byte-length／byte-at 调用直接发射表示读取：从 AS1 对象的 offset 16 读取长度，byte-at 以 unsigned `index < length` 同时排除负索引及上界，再从 offset 24 的字节区读取 i8。有效路径不调用 C、不生成 safepoint，也不在中间 park；跨外围 GC 后必须使用已恢复的对象值。越界路径调用原 byte-at leaf 报告同一 fatal 错误，不产生可捕获异常。首批 invoke 形态及单字符 UTF-8 解码继续使用现有 leaf。原 native 入口与对象布局保持兼容，不给一般 NoGc 调用附加 readonly 等属性。
 
-整数十进制转换使用专用、无 locale 的有界写入算法，一次格式化到最多 20 字节的栈缓冲区，返回实际长度；String 分配与复制不要求 NUL，不以再次格式化测量长度。负数先在无符号域计算幅度，不能在 C 中对 `INT64_MIN` 作有符号取负。`scoop_rt_long_to_string`／`scoop_rt_ulong_to_string` 保留原 ABI 作为共享后备，浮点 Ryu 入口保持。普通 core 格式化正文使用内部 ordinary extern `scoop_rt_string_from_utf8_unchecked(bytes, length)` 完成结果分配和复制：pointer 非 null、length 非负、区间内容为合法 UTF-8，并在整个调用期间可读、地址及内容稳定；栈 scratch 满足该条件，managed 字节区须由既有借用协议固定。该入口只复制实际长度，不验证已保证的 UTF-8，不保留输入地址，也不将输入当作 GC root；结果大小与失败仍按同一 String 分配合同。它不是根据符号名识别的编译器操作，普通 extern 调用协议保持。
+整数十进制转换由普通 core 正文使用专用、无 locale 的有界写入算法，一次格式化到最多 20 字节的栈缓冲区，返回实际长度；String 分配与复制通过 typed StringCopy 完成，不要求 NUL，不以再次格式化测量长度。负数先在无符号域计算幅度，最小有符号值同样遵守回绕语义。Char 编码及 Boolean／整数 equals、hash、toString 使用已有普通正文或标量 intrinsic；Boolean 文本选择不可变字符串常量。没有生产消费者的旧 `scoop_rt_bool_equals`、`scoop_rt_bool_hash`、`scoop_rt_long_hash`、`scoop_rt_ulong_hash`、Boolean／整数／Char 的 `scoop_rt_*_to_string`、`scoop_rt_string_eq` 及 long／boolean 专用 print／println 入口退役，不保留重复算法或仅供旧测试使用的适配层。String.equals 使用普通 core 正文和实际比较操作，输出经普通 ToString 与 write 实现；浮点 Ryu 核心保留。
+
+稳定原生 UTF-8 区间的复制要求 pointer 非 null、length 非负、区间内容为合法 UTF-8，并在整个调用期间可读、地址及内容稳定；栈 scratch 满足该条件，managed 字节区须由既有借用协议固定。只复制实际长度，不验证已保证的 UTF-8，不保留输入地址，也不将输入当作 GC root；结果大小与失败仍按同一 String 分配合同。普通 extern 按其声明调用，不能凭与内建操作相同的符号拼写取得 intrinsic 语义。
 
 严格和 lossy 字节转换都只能发布满足该不变量的 String。lossy 的每个 U+FFFD 占三个 UTF-8 字节（`EF BF BD`），计入结果 byte length；结果长度计算和最终分配遵守上述边界，不能直接沿用输入长度。
 
@@ -763,7 +765,7 @@ Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset
 
 编译器可以将普通 String 拼接链降低为一次 String 分配及按序复制，条件见实现规范 2.15。长度求和、24-byte 前缀及最终对齐必须保持 checked allocation 规则，不能 wrapping。结果复用既有 TLAB／collecting slow path；源 String 引用在 safepoint 中保活并接受移动回写，复制地址在分配后重取。结果为无引用 UTF-8 payload，不增加写屏障或对象字段；分配消除不承诺保留中间临时 String 的身份、GC 次数或内存耗尽时点。原二元 `scoop_rt_string_concat` 与 builder 的 join_parts 后备及 ABI 保留。
 
-实现规范 2.15 的 typed StringCopy 对稳定原生 UTF-8 区间、已定位的 String 字节范围和 exact Byte 数组生成分配、长度写入及 memcpy，也用于 String 到独立 Byte 数组的快照。复用实际 String TD 和数组布局，保留非负长度、范围及分配溢出规则；只复制给定字节数，不要求或添加 NUL。托管源在分配期间保活，源内部地址只从分配后的重定位引用取得；原生源的稳定性由 Unsafe 调用契约保证。结果初始化完成前不向用户发布，中间没有新的 safepoint。既有 `scoop_rt_string_from_utf8_unchecked`、`scoop_rt_string_slice_bytes`、`scoop_rt_string_from_bytes`、`scoop_rt_char_to_string` 的普通 extern ABI 保留，不能按符号拼写把普通 extern 调用改成该操作。
+实现规范 2.15 的 typed StringCopy 对稳定原生 UTF-8 区间、已定位的 String 字节范围和 exact Byte 数组生成分配、长度写入及 memcpy，也用于 String 到独立 Byte 数组的快照。复用实际 String TD 和数组布局，保留非负长度、范围及分配溢出规则；只复制给定字节数，不要求或添加 NUL。托管源在分配期间保活，源内部地址只从分配后的重定位引用取得；原生源的稳定性由 Unsafe 调用契约保证。结果初始化完成前不向用户发布，中间没有新的 safepoint。保留的原生适配按实际消费者提供；不能按符号拼写把普通 extern 调用改成该操作，也不因旧公开头文件或测试声明而保留无消费者的重复实现。
 
 integer Hash 与 compareTo 返回 Long。`==` / `!=` 执行编译器已选定的 operator equals；库相等经普通 `Equals<T>.equals` 调用同一 operator 契约，字符串化／哈希按实际 ToString／Hash 声明执行，不提供按 Any 或地址兜底。Equals 不增加 runtime 比较入口；浮点相等遵守语言规范 11.2.2，结构 operator 使用 compiler 生成的逐字段／variant 正文。Iterator、Range、List、ArrayList 和 StringBuilder 的公开行为由普通 core 接口规定，不增加容器专用 runtime ABI。
 

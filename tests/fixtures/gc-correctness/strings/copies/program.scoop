@@ -1,5 +1,3 @@
-@Extern(name = "scoop_rt_char_to_string", abi = "scoop")
-fun nativeChar(value: Char): String
 @Extern(name = "scoop_rt_string_from_bytes", abi = "scoop")
 fun nativeBytes(value: Array<Byte>): String
 @Extern(name = "scoop_rt_string_slice_bytes", abi = "scoop")
@@ -22,7 +20,7 @@ fun main() {
         val mutable = rebuilt.toMutableByteArray()
         mutable[0L] = 66.toByte()
         gcCollect()
-        if (slice != text || nativeChar(character) != text || nativeBytes(snapshot) != rebuilt ||
+        if (slice != text || nativeBytes(snapshot) != rebuilt ||
             nativeSlice(rebuilt, 1L, 1L + text.byteLength) != slice ||
             snapshot[0L] != 65.toByte() || String.fromUtf8Unchecked(mutable) != "B" + text + "Z") {
             throw IllegalStateException()

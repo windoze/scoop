@@ -1,12 +1,10 @@
 /* Scoop runtime (DESIGN section 3). C11. */
-#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "eh_internal.h"
 #include "gc.h"
-#include "integer_decimal.h"
 #include "managed_entries.h"
 #include "scoop_rt.h"
 #include "thread.h"
@@ -25,52 +23,6 @@ void scoop_rt_println(const ScoopString *s) {
     scoop_rt_write(s);
     fputc('\n', stdout);
 }
-
-// Format a fixed-width Long into a fresh ScoopString (GC-allocated).
-const ScoopString *scoop_rt_long_to_string(int64_t v) {
-    char buf[20];
-    size_t len = scoop_format_signed_decimal(v, buf);
-    return scoop_rt_string_from_utf8_unchecked((const unsigned char *)buf + 20 - len, (int64_t)len);
-}
-
-const ScoopString *scoop_rt_ulong_to_string(uint64_t v) {
-    char buf[20];
-    size_t len = scoop_format_unsigned_decimal(v, buf);
-    return scoop_rt_string_from_utf8_unchecked((const unsigned char *)buf + 20 - len, (int64_t)len);
-}
-
-// "true" / "false" as a fresh ScoopString, backing core's
-// `boolToString` (M7).
-const ScoopString *scoop_rt_bool_to_string(bool v) {
-    static const char TRUE_STR[] = "true";
-    static const char FALSE_STR[] = "false";
-    const char *text = v ? TRUE_STR : FALSE_STR;
-    size_t len = v ? sizeof(TRUE_STR) - 1 : sizeof(FALSE_STR) - 1;
-    ScoopString *result = scoop_rt_alloc(
-        &scoop_td_String, scoop_shape_allocation_size(&scoop_td_String, (uint64_t)len));
-    result->len = (uint64_t)len;
-    memcpy(result->data, text, len);
-    return result;
-}
-
-bool scoop_rt_bool_equals(bool left, bool right) { return left == right; }
-
-static uint64_t scoop_rt_mix_word(uint64_t value) {
-    value ^= value >> 30;
-    value *= UINT64_C(0xbf58476d1ce4e5b9);
-    value ^= value >> 27;
-    value *= UINT64_C(0x94d049bb133111eb);
-    value ^= value >> 31;
-    return value;
-}
-
-int64_t scoop_rt_long_hash(int64_t v) {
-    return (int64_t)scoop_rt_mix_word((uint64_t)v);
-}
-
-int64_t scoop_rt_ulong_hash(uint64_t v) { return (int64_t)scoop_rt_mix_word(v); }
-
-int64_t scoop_rt_bool_hash(bool v) { return v ? 1 : 0; }
 
 int64_t scoop_rt_string_hash(const ScoopString *s) {
     uint64_t hash = UINT64_C(1469598103934665603);
@@ -104,10 +56,6 @@ const ScoopString *scoop_rt_string_concat_impl(const ScoopString *a,
     return result;
 }
 
-bool scoop_rt_string_eq(const ScoopString *a, const ScoopString *b) {
-    return a->len == b->len && memcmp(a->data, b->data, a->len) == 0;
-}
-
 int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b) {
     const uint64_t common = a->len < b->len ? a->len : b->len;
     const int order = memcmp(a->data, b->data, (size_t)common);
@@ -118,17 +66,6 @@ int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b) {
         return 1;
     }
     return (a->len > b->len) - (a->len < b->len);
-}
-
-void scoop_rt_print_long(int64_t value) { printf("%" PRId64, value); }
-
-void scoop_rt_println_long(int64_t value) { printf("%" PRId64 "\n", value); }
-
-void scoop_rt_print_boolean(bool value) { fputs(value ? "true" : "false", stdout); }
-
-void scoop_rt_println_boolean(bool value) {
-    scoop_rt_print_boolean(value);
-    fputc('\n', stdout);
 }
 
 static const ScoopItableEntryV1 *find_itable_entry(
