@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 已完成[固定引用布局的数组扫描](ARRAY-SCANS.md)：按真实 References child 直接枚举槽，省去逐元素递归解释，保留范围、顺序与标记／搬迁 visitor。两机各 4 项定向单测、三目标接口与数组 GC 组合通过；八个程序的 IR、分配及 GC 工作量保持。strmap 降低 5.21%／3.29%／2.68%，text 增加 112／192／256 B、完整文件不增；GNU 接口数组初测回退、一次固定 CPU 定位及编译成本均保留。所有 profile 默认，重建 runtime 并重新链接即可，ABI、系统库及诊断代码生成边界保持。
+
 - 已完成 [String hash 有界范围与提前返回](STRING-HASH-RANGE.md)：采样后将普通 core 正文扩到 32 B，及时返回并直接表达标量运算，9～32 B 省去 native hash、线程转换和 caller roots 操作。三目标定向 Cone／IR／moving／minor 验证通过，实际分配与 GC 计数保持；strmap 降低 16.97%／12.81%／10.17%，text 增加 384～512 B，完整文件不增，四库增量不超过 0.077%。ARM64 的 8 B 约多 0.49 ns、GNU 极短输入初测回退及固定核复核、未改动对照的时差均保留。普通正文全 profile 默认，release 沿用调用点评分，长输入仍共享原后备；无新 ABI 或测量代码。
 
 - 已完成 [Context 小访问器生成路径](CONTEXT-READS.md)：采样后把 snapshot 降为判空／字段读取，release 的 typed current／enter／leave 直接访问原线程根槽。ARM64 复用槽地址，x86_64 直接读 TLS；每线程增加 8 B native 地址，managed 对象和根不增加。两机各 32 项定向单测、三目标四组 GC／callback／异常／释放组合通过；同一 runtime 下四种协程负载耗时降低 1.92%～7.33%，分配字节及 GC／根扫描次数保持。text 增加 164～512 B、完整文件不变，地址的寄存器与 ABI 成本已记录。release 默认，统一 runtime contract 19，旧 sysroot／产物重建，无新测量代码。

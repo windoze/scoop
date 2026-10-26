@@ -1,6 +1,16 @@
-/* Exact descriptor scans, optionally restricted to one dirty card. */
+/* Exact descriptor scans, optionally restricted to a half-open address range. */
 #include "../gc_binding.h"
 #include "scoop_rt.h"
+
+static inline void scan_references(char *base, const uint64_t *table, ScoopGcSlotVisitor visitor,
+                                   void *context, uintptr_t begin, uintptr_t end) {
+    for (uint64_t index = 0; index < table[0]; index++) {
+        void **slot = (void **)(base + table[1 + index]);
+        if ((uintptr_t)slot >= begin && (uintptr_t)slot < end) {
+            visitor(slot, context);
+        }
+    }
+}
 
 void scoop_gc_scan_descriptor(void *base, const uint64_t *table, ScoopGcSlotVisitor visitor,
                               void *context, uintptr_t begin, uintptr_t end) {
@@ -24,6 +34,13 @@ void scoop_gc_scan_descriptor(void *base, const uint64_t *table, ScoopGcSlotVisi
         if (last > count) {
             last = count;
         }
+        if (element_scan[0] < SCOOP_REFS_SEQUENCE) {
+            for (uint64_t index = first; index < last; index++) {
+                scan_references(elements + index * stride, element_scan, visitor, context, begin,
+                                end);
+            }
+            return;
+        }
         for (uint64_t index = first; index < last; index++) {
             scoop_gc_scan_descriptor(elements + index * stride, element_scan, visitor, context,
                                      begin, end);
@@ -37,10 +54,5 @@ void scoop_gc_scan_descriptor(void *base, const uint64_t *table, ScoopGcSlotVisi
         }
         return;
     }
-    for (uint64_t index = 0; index < table[0]; index++) {
-        void **slot = (void **)((char *)base + table[1 + index]);
-        if ((uintptr_t)slot >= begin && (uintptr_t)slot < end) {
-            visitor(slot, context);
-        }
-    }
+    scan_references(base, table, visitor, context, begin, end);
 }
