@@ -2,6 +2,7 @@ use super::*;
 
 mod conditional;
 mod exits;
+mod strings;
 
 fn sample(kind: hir::IntegerKind, snapshot: bool) -> (mir::Module, mir::FunctionId) {
     let mut h = Harness::new();

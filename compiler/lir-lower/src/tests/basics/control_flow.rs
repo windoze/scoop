@@ -278,7 +278,7 @@ fn and_short_circuits_through_blocks() {
     let s3 = b.string("d");
     let string_eq = b.managed_scoop_extern(
         "coreStringEquals",
-        "scoop_rt_string_eq",
+        "test_core_string_eq",
         vec![mir::Type::String, mir::Type::String],
         mir::Type::Boolean,
     );
@@ -349,7 +349,7 @@ fn and_short_circuits_through_blocks() {
       global @scoop$1$io$c65f5ca6a0fa7e88edfdc899205b08b99869e7e0201f6abfc7beb0a4272e7367 = "c"
       global @scoop$1$io$9b97af2e165f9e07e3561b053a25d214a03b3373b11117b29503110b70fb23ea = "d"
       global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
-      extern ef0 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
+      extern ef0 coreStringEquals @test_core_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
       fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
         local %0 $call.1: i1
         local %1 $call.2: i1

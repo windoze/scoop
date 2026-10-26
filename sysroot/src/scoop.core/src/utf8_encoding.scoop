@@ -1,0 +1,52 @@
+@NoGC
+internal fun coreUtf8Width(code: UInt): Long =
+    if (code < 128u) 1L else if (code < 2048u) 2L else if (code < 65536u) 3L else 4L
+
+// Pack a scalar's UTF-8 bytes least-significant first. Both supported ABIs
+// use little-endian storage; callers write only coreUtf8Width(code) bytes.
+@NoGC
+internal fun coreUtf8Word(code: UInt): UInt {
+    if (code < 128u) { return code }
+    if (code < 2048u) {
+        return (192u.or(code.shr(6L))).or((128u.or(code.and(63u))).shl(8L))
+    }
+    if (code < 65536u) {
+        return (224u.or(code.shr(12L))).or((128u.or(code.shr(6L).and(63u))).shl(8L))
+            .or((128u.or(code.and(63u))).shl(16L))
+    }
+    return (240u.or(code.shr(18L))).or((128u.or(code.shr(12L).and(63u))).shl(8L))
+        .or((128u.or(code.shr(6L).and(63u))).shl(16L))
+        .or((128u.or(code.and(63u))).shl(24L))
+}
+
+internal fun coreStringAddLength(length: Long, extra: Long): Long {
+    if (length > 9223372036854775776L - extra) { coreAllocationOverflow() }
+    return length + extra
+}
+
+internal fun coreStringFromChars(value: Array<Char>): String {
+    val count = value.size
+    var length = 0L
+    var index = 0L
+    while (index < count) {
+        length = coreStringAddLength(length, coreUtf8Width(value[index].code.toUInt()))
+        index += 1L
+    }
+    val result = coreStringAllocateZeroed(length)
+    index = 0L
+    var cursor = 0L
+    while (index < count) {
+        val code = value[index].code.toUInt()
+        val word = coreUtf8Word(code)
+        val width = coreUtf8Width(code)
+        @Unsafe {
+            coreStringSetByteUnchecked(result, cursor, word.toByte())
+            if (width > 1L) { coreStringSetByteUnchecked(result, cursor + 1L, word.shr(8L).toByte()) }
+            if (width > 2L) { coreStringSetByteUnchecked(result, cursor + 2L, word.shr(16L).toByte()) }
+            if (width > 3L) { coreStringSetByteUnchecked(result, cursor + 3L, word.shr(24L).toByte()) }
+        }
+        cursor += width
+        index += 1L
+    }
+    return result
+}

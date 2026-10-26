@@ -7,6 +7,7 @@ impl Lowerer {
             return;
         };
         let string = self.intern_type(hir::Type::String);
+        let unit = self.intern_type(hir::Type::Unit);
         let long = self.integer_type(hir::IntegerKind::SIGNED_64);
         let byte = self.integer_type(hir::IntegerKind::SIGNED_8);
         let pointer = self.intern_type(hir::Type::Ptr(byte));
@@ -20,7 +21,11 @@ impl Lowerer {
             };
             let (parameters, result) = match kind {
                 hir::StringIntrinsic::ByteLength => (vec![string], long),
-                hir::StringIntrinsic::ByteAt => (vec![string, long], byte),
+                hir::StringIntrinsic::ByteAt | hir::StringIntrinsic::ByteAtUnchecked => {
+                    (vec![string, long], byte)
+                }
+                hir::StringIntrinsic::AllocateZeroed => (vec![long], string),
+                hir::StringIntrinsic::SetByteUnchecked => (vec![string, long, byte], unit),
                 hir::StringIntrinsic::CharacterAtByte => (vec![string, long], character),
                 hir::StringIntrinsic::CopyUtf8Unchecked => (vec![pointer, long], string),
                 hir::StringIntrinsic::SliceBytes => (vec![string, long, long], string),

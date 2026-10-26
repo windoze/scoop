@@ -43,6 +43,11 @@ private fun exercise() {
     check(inputs.value("1e-45").singleValue().readFloat().toBits() == 1)
     check(inputs.value("5e-324").singleValue().readDouble().toBits() == 1L)
     check(inputs.value("-1e-9999").singleValue().readFloat().toBits() == -2147483648)
+    for (length in [255L, 256L, 1024L]) {
+        val text = "1." + String.fromChars(Array<Char>(length - 2L) { _ -> '0' })
+        check(inputs.value(text).singleValue().readFloat() == 1.0f)
+        check(inputs.value(text).singleValue().readDouble() == 1.0)
+    }
     for (text in ["", " ", "1 ", "NaN", "Infinity", "nan", "0x1p0", ".5", "1.", "1e", "1e+", "1_0", "1\u{0}", "1e9999"]) {
         val value = inputs.value(text)
         fails("/value", { value.singleValue().readFloat() })

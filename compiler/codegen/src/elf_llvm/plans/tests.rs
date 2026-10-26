@@ -3,6 +3,8 @@ use llvm_sys::core::LLVMAddAlias2;
 
 use super::*;
 
+mod declarations;
+
 #[test]
 fn one_index_preserves_alias_owners_and_declaration_visibility_in_multiple_modules() {
     let index = SymbolPlanIndex {

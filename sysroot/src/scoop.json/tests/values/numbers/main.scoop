@@ -40,4 +40,33 @@ private fun exercise() {
 private class ApiTests {
     @Test
     fun behavior() { exercise() }
+
+    @Test
+    fun floatingRoundTrips() {
+        var bits = 17uL
+        var index = 0
+        while (index < 2048) {
+            bits = bits * 6364136223846793005uL + 1442695040888963407uL
+            val double = Double.fromBits(bits.toLong())
+            if (double.isFinite()) {
+                val text = Json.encodeToString(double, Double.Companion)
+                assertEquals(double.toBits(), Json.decodeFromString(text, Double.Companion).toBits())
+            }
+            val float = Float.fromBits(bits.shr(32L).toInt())
+            if (float.isFinite()) {
+                val text = Json.encodeToString(float, Float.Companion)
+                assertEquals(float.toBits(), Json.decodeFromString(text, Float.Companion).toBits())
+            }
+            index += 1
+        }
+    }
+
+    @Test
+    fun parserBufferBoundaries() {
+        for (length in [254L, 255L, 256L, 257L, 1024L]) {
+            val text = "1." + String.fromChars(Array<Char>(length - 2L) { _ -> '0' })
+            assertEquals(1.0, Json.decodeFromString(text, Double.Companion))
+            assertEquals(1.0f, Json.decodeFromString(text, Float.Companion))
+        }
+    }
 }

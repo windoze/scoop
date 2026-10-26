@@ -173,16 +173,14 @@ impl Harness {
         id
     }
 
-    /// scoop.core's representation-level integer formatter. This is an
-    /// ordinary Scoop-ABI extern declaration, never an intrinsic/runtime
-    /// function kind.
+    /// Synthetic ordinary extern for testing declared call identity.
     pub(super) fn long_to_string(&mut self) -> hir::FunctionId {
         if let Some(id) = self.long_to_string {
             return id;
         }
         let extern_id = self.extern_functions.alloc(hir::ExternFunction {
             source_name: "coreLongToString".to_string(),
-            native_symbol: "scoop_rt_long_to_string".to_string(),
+            native_symbol: "test_core_long_to_string".to_string(),
             library: String::new(),
             abi: hir::ExternAbi::Scoop,
             calling_convention: hir::CallingConvention::Cdecl,
@@ -213,15 +211,14 @@ impl Harness {
         id
     }
 
-    /// scoop.core's representation-level Boolean formatter. Like the integer
-    /// formatter, this is an ordinary Scoop-ABI extern declaration.
+    /// Second synthetic ordinary extern with a different scalar argument.
     pub(super) fn bool_to_string(&mut self) -> hir::FunctionId {
         if let Some(id) = self.bool_to_string {
             return id;
         }
         let extern_id = self.extern_functions.alloc(hir::ExternFunction {
             source_name: "coreBooleanToString".to_string(),
-            native_symbol: "scoop_rt_bool_to_string".to_string(),
+            native_symbol: "test_core_bool_to_string".to_string(),
             library: String::new(),
             abi: hir::ExternAbi::Scoop,
             calling_convention: hir::CallingConvention::Cdecl,

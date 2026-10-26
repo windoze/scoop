@@ -296,7 +296,8 @@ fn expression_requirement(
         | mir::ExprKind::EnumField { .. }
         | mir::ExprKind::VariantTest { .. }
         | mir::ExprKind::VariantPayloadProject { .. }
-        | mir::ExprKind::Atomic(_) => None,
+        | mir::ExprKind::Atomic(_)
+        | mir::ExprKind::StringByte(_) => None,
     }
 }
 

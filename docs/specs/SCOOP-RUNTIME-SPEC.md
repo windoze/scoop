@@ -149,17 +149,23 @@ release 的 typed BoxValue 可以直接消费已选 box 的完整实例布局，
 
 ### 2.4 String 与数组
 
-String 持有合法 UTF-8，允许 U+0000，无隐含结尾 NUL。byte length 位于 offset 16，bytes 从 offset 24 开始；字节数不超过 `INT64_MAX`。分配大小为 `alignUp(24 + byte_length, 8)`。语言规范 11.4 的 charLength／getCharAt API 沿用现有字符扫描与定位实现，不新增字段或缓存；byteLength 仍直接读取既有字节数。
+String 持有合法 UTF-8，允许 U+0000，无隐含结尾 NUL。byte length 位于 offset 16，bytes 从 offset 24 开始；字节数不超过 `INT64_MAX`。分配大小为 `alignUp(24 + byte_length, 8)`。语言规范 11.4 的 charLength、getCharAt 及字符切片边界由普通 core 正文扫描 UTF-8 前导字节确定，仍为 O(n)，不新增字段或缓存；byteLength 仍直接读取既有字节数。定位前缀不解码不需要的字符；getCharAt 仅在命中位置调用既有有界标量解码。负索引、倒置／越界范围、末尾空切片与原异常保持。旧 length／get／slice_bounds C 入口及其专用聚合结果 shim 退役。
 
-语言规范 11.4 的三个有界表示 intrinsic 可在活动 Managed 状态直接读取，或调用内部 NoGC runtime leaf：`scoop_rt_string_byte_length_leaf(String*) -> i64`、`scoop_rt_string_byte_at_leaf(String*, i64) -> i8`、`scoop_rt_string_character_at_byte_leaf(String*, i64) -> u32`。leaf 不分配、park、转入 native、回调或保留传入地址，返回前最多读取一个 UTF-8 标量；调用期间对象不会移动。byte-at 和 cursor 解码保留索引检查；有效 String／标量起点是内部解码前置条件。内部 leaf 使用独立符号并复用旧入口的同一表示实现，避免把原 Managed extern 符号的合同改成 NoGC。旧 native 符号与实现保留，普通显式 extern 声明仍遵守自身调用模式；不得按符号拼写把它改成 intrinsic。完整 length、hash、比较或查找不因这些有界入口而改变线程协调合同。
+String 的长度在构造时写入，发布后不变。普通 core 扫描可在已建立的范围内使用内部 unsafe 字节读写操作；该操作直接消费 String 引用与字节索引，不保留内部地址。读要求有效字节范围，写另外要求对象由当前构造过程独占、未向用户发布；写入不能改变长度和对象头，发布前必须完成合法 UTF-8。跨 safepoint 的实际字节操作使用重定位后的对象。原受检 byte-at 保留越界 fatal 路径，不把普通 extern 改为内建读取。
 
-短常量比较只在长度保护下读取完整有效范围，保持 UTF-8 无符号字节字典序。普通 core 的有界 hash 与 C 后备使用相同 FNV-1a 初值、逐字节异或和 64-bit 回绕乘法；不得改变既有 hash 结果。上述操作不分配 String 或保留内部地址。
+fromChars 的长度累计、UTF-8 编码以及严格／lossy 校验使用普通 core 正文。List 输入仍先按语言规范取得一次元素快照；严格校验成功后复制一次，失败返回首个非法子序列的起始偏移。lossy 按 maximal subpart 规则两遍确定精确结果长度并写入，fromChars 同样先计算长度、再编码一次，不分配临时托管输出数组。内部 typed String 零字节分配复用现有分配路径，构造期间的 String 字节 payload 不含引用，GC 只依赖已完成的对象头和长度；跨分配／poll 保活输入与结果，写入本身不需要引用屏障。编码和扫描不在 codegen 重复实现。
 
-有界 hash 的长度分支必须先于字节读取；普通 core 分支只访问该字符串的有效字节，超出范围直接进入原 native 后备。该选择不在 String 中缓存 hash，不新增字段、根或固定对象；GC 后的调用继续使用已恢复的 String 引用。扩大普通正文的长度范围不把任意长度扫描或同名 extern 改为 NoGC／GCLeaf，原后备仍承担原来的线程转换责任。
+语言规范 11.4 的三个有界表示 intrinsic 可在活动 Managed 状态直接读取，或调用内部 NoGC runtime leaf：`scoop_rt_string_byte_length_leaf(String*) -> i64`、`scoop_rt_string_byte_at_leaf(String*, i64) -> i8`、`scoop_rt_string_character_at_byte_leaf(String*, i64) -> u32`。leaf 不分配、park、转入 native、回调或保留传入地址，返回前最多读取一个 UTF-8 标量；调用期间对象不会移动。byte-at 和 cursor 解码保留索引检查；有效 String／标量起点是内部解码前置条件。内部 leaf 直接实现必要的有界读取和错误出口；无生产消费者的旧 native 字节读入口退役。普通显式 extern 声明仍遵守自身调用模式，不得按符号拼写把它改成 intrinsic。完整扫描不因这些有界入口而改变线程协调合同。
 
-codegen 对普通 typed byte-length／byte-at 调用直接发射表示读取：从 AS1 对象的 offset 16 读取长度，byte-at 以 unsigned `index < length` 同时排除负索引及上界，再从 offset 24 的字节区读取 i8。有效路径不调用 C、不生成 safepoint，也不在中间 park；跨外围 GC 后必须使用已恢复的对象值。越界路径调用原 byte-at leaf 报告同一 fatal 错误，不产生可捕获异常。首批 invoke 形态及单字符 UTF-8 解码继续使用现有 leaf。原 native 入口与对象布局保持兼容，不给一般 NoGc 调用附加 readonly 等属性。
+短常量比较只在长度保护下读取完整有效范围，保持 UTF-8 无符号字节字典序。String hash 全部使用普通 core 正文：既有短输入分支与共享长输入循环使用相同 FNV-1a 初值、逐字节异或和 64-bit 回绕乘法；不得改变既有 hash 结果。旧 C hash 入口退役。上述操作不分配 String 或保留内部地址。
 
-整数十进制转换使用专用、无 locale 的有界写入算法，一次格式化到最多 20 字节的栈缓冲区，返回实际长度；String 分配与复制不要求 NUL，不以再次格式化测量长度。负数先在无符号域计算幅度，不能在 C 中对 `INT64_MIN` 作有符号取负。`scoop_rt_long_to_string`／`scoop_rt_ulong_to_string` 保留原 ABI 作为共享后备，浮点 Ryu 入口保持。普通 core 格式化正文使用内部 ordinary extern `scoop_rt_string_from_utf8_unchecked(bytes, length)` 完成结果分配和复制：pointer 非 null、length 非负、区间内容为合法 UTF-8，并在整个调用期间可读、地址及内容稳定；栈 scratch 满足该条件，managed 字节区须由既有借用协议固定。该入口只复制实际长度，不验证已保证的 UTF-8，不保留输入地址，也不将输入当作 GC root；结果大小与失败仍按同一 String 分配合同。它不是根据符号名识别的编译器操作，普通 extern 调用协议保持。
+短 hash 的长度分支必须先于字节读取；超出短路径范围进入普通共享 Scoop 循环，只读取有效字节。该选择不在 String 中缓存 hash，不新增字段、根或固定对象；GC 后继续使用已恢复的 String 引用。扫描和长 hash 保持 Managed 合同，循环 poll 由现有管线生成；release 可按实现规范 2.19 将有界表示读取纳入既有 64 次分块，不将任意长度扫描或同名 extern 改为 NoGC／GCLeaf。
+
+codegen 对普通 typed byte-length／byte-at 调用直接发射表示读取：从 AS1 对象的 offset 16 读取长度，byte-at 以 unsigned `index < length` 同时排除负索引及上界，再从 offset 24 的字节区读取 i8。有效路径不调用 C、不生成 safepoint，也不在中间 park；跨外围 GC 后必须使用已恢复的对象值。越界路径调用原 byte-at leaf 报告同一 fatal 错误，不产生可捕获异常。首批 invoke 形态及单字符 UTF-8 解码继续使用现有 leaf。对象布局保持，不给一般 NoGc 调用附加 readonly 等属性。
+
+整数十进制转换由普通 core 正文使用专用、无 locale 的有界写入算法，一次格式化到最多 20 字节的栈缓冲区，返回实际长度；String 分配与复制通过 typed StringCopy 完成，不要求 NUL，不以再次格式化测量长度。负数先在无符号域计算幅度，最小有符号值同样遵守回绕语义。Char 编码及 Boolean／整数 equals、hash、toString 使用已有普通正文或标量 intrinsic；Boolean 文本选择不可变字符串常量。没有生产消费者的旧 `scoop_rt_bool_equals`、`scoop_rt_bool_hash`、`scoop_rt_long_hash`、`scoop_rt_ulong_hash`、Boolean／整数／Char 的 `scoop_rt_*_to_string`、`scoop_rt_string_eq` 及 long／boolean 专用 print／println 入口退役，不保留重复算法或仅供旧测试使用的适配层。String.equals 使用普通 core 正文和实际比较操作，输出经普通 ToString 与 write 实现；浮点 Ryu 核心保留。
+
+稳定原生 UTF-8 区间的复制要求 pointer 非 null、length 非负、区间内容为合法 UTF-8，并在整个调用期间可读、地址及内容稳定；栈 scratch 满足该条件，managed 字节区须由既有借用协议固定。只复制实际长度，不验证已保证的 UTF-8，不保留输入地址，也不将输入当作 GC root；结果大小与失败仍按同一 String 分配合同。普通 extern 按其声明调用，不能凭与内建操作相同的符号拼写取得 intrinsic 语义。
 
 严格和 lossy 字节转换都只能发布满足该不变量的 String。lossy 的每个 U+FFFD 占三个 UTF-8 字节（`EF BF BD`），计入结果 byte length；结果长度计算和最终分配遵守上述边界，不能直接沿用输入长度。
 
@@ -741,19 +747,17 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 标准输出后备为普通 C ABI `scoop_rt_stdout_write(const uint8_t *bytes, int64_t length)`、`scoop_rt_stderr_write(const uint8_t *bytes, int64_t length)` 和 `scoop_rt_flush_stdout(void)`，均返回 void。调用方提供非负长度和本次调用期间有效、稳定的字节区间；core 的 String 包装使用作用域借用。实际操作使用 stdout/stderr 的 stdio 缓冲；caller 按普通 C FFI 进入 NativeSafe，后备不访问可移动的 managed 引用，也不回调 Scoop。语言接口及缓冲、并发和错误结果规则见语言规范 14.4。
 
-String 后备提供创建、拼接、内容比较/hash、UTF-8 长度、标量定位与切片等表示操作。定位 leaf 不抛源码异常：get 返回 Option<Char>，slice 定位返回 Option<(Long, Long)>，core 对 None 抛出 IndexOutOfBoundsException。内容与已验证边界未变化时可复用。
+String 的公开行为、hash、UTF-8 扫描和编码由普通 core helper 实现；已知表示的读取、分配及复制沿 2.4 的 typed 操作生成。C 仅保留实际消费者需要的共享比较、拼接与有界读取 leaf。普通字符定位 helper 返回 Option<Char> 或 Option<(Long, Long)>，core 对 None 抛出 IndexOutOfBoundsException；内容与已验证边界未变化时直接复用，不调用另一套 C 校验。旧字符定位、解码及复制入口和专用聚合 ABI shim 退役。
 
-`scoop_rt_string_get` 的 `Option<Char>` 为 16-byte GC-free 值，按 M34 Scoop 小值 ABI 直接返回两个整数分量；不能继续使用旧的 sret 入口。slice 定位的 24-byte 结果及 UTF-8 decode 的含引用结果仍使用目标的间接返回适配。
+JSON／CLI 浮点解析后备返回的 `Option<Float>`／`Option<Double>` 同样为 16-byte tagged 值，固定 tag 与 payload bits 使用两个整数返回分量。平台适配必须按 bits 传递 payload，不能套用 C 的混合整数／浮点 struct 返回分类。这些适配由实际的 scoop.json／scoop.cli extern 声明消费。
 
-JSON 浮点转换后备返回的 `Option<Float>`／`Option<Double>` 同样为 16-byte tagged 值，固定 tag 与 payload bits 使用两个整数返回分量。平台适配必须按 bits 传递 payload，不能套用 C 的混合整数／浮点 struct 返回分类。
+普通 core 字节解码 helper 为语言规范 11.4 的 `fromUtf8`、`fromUtf8OrNone` 和 `fromUtf8Lossy` 提供同一套 UTF-8 规则。严格路径的结果明确区分成功 String 与首个非法子序列的零基字节偏移，并通过普通 Scoop ABI 返回；core 分别将失败转换为 CharacterCodingException 或 None，不对相同内容再做一遍独立校验。lossy 路径按 maximal subpart 消费非法输入，每段写入一个 U+FFFD，继续处理失配处的后续字节，不能遗漏合法后缀；空输入、U+0000 与合法 U+FFFD 按原内容保留。两种路径均不依赖 locale。
 
-字节解码后备为语言规范 11.4 的 `fromUtf8`、`fromUtf8OrNone` 和 `fromUtf8Lossy` 提供同一套 UTF-8 规则。严格路径的结果明确区分成功 String 与首个非法子序列的零基字节偏移，并通过普通 Scoop ABI 返回；core 分别将失败转换为 CharacterCodingException 或 None，不对相同内容再做一遍独立校验。lossy 路径按 maximal subpart 消费非法输入，每段写入一个 U+FFFD，继续处理失配处的后续字节，不能遗漏合法后缀；空输入、U+0000 与合法 U+FFFD 按原内容保留。两种路径均不依赖 locale。
+解码和复制只读取给定长度，输入属于 managed 对象时遵守 root/pin/relocation 契约；原生指针的可读性、稳定性和生命周期由 unsafe 调用者保证。结果复制到 String 自有存储，发布前完成全部初始化。实际输出长度、临时存储与分配的溢出按既有分配失败处理，不伪装为 UTF-8 错误或 None。实现复用同一单步校验正文及已验证的不变内容。
 
-解码和复制只读取给定长度，输入属于 managed 对象时遵守 root/pin/relocation 契约；原生指针的可读性、稳定性和生命周期由 unsafe 调用者保证。结果复制到 String 自有存储，发布前完成全部初始化。实际输出长度、临时存储与分配的溢出按既有分配失败处理，不伪装为 UTF-8 错误或 None。实现复用现有 UTF-8 后备及已验证的不变内容。
+严格解码 helper 接受非零字节指针和非负 Long 长度，返回普通 `(String?, Long)`：成功为 `(Some(string), -1L)`，失败为 `(None, byteOffset)`。该 tuple 的 storage 为 16 bytes、alignment 8，Option<String> 使用 nullable managed pointer niche，字段 offsets 为 0/8；按完整 Scoop ABI 传递。core 的安全 Array 重载通过 3.4 的作用域借用调用同一 helper，pointer 重载在进入 helper 前检查负长度；不为这些函数增加编译器异常角色。lossy 复用有边界的单步校验器，先计算实际输出长度，再分配和转换，整个过程保持输入稳定。
 
-严格解码后备接受非零字节指针和非负 Long 长度，返回普通 `(String?, Long)`：成功为 `(Some(string), -1L)`，失败为 `(None, byteOffset)`。该 tuple 的 storage 为 16 bytes、alignment 8，Option<String> 使用 nullable managed pointer niche，字段 offsets 为 0/8；按目标的 Scoop 间接返回 ABI 传递。core 的安全 Array 重载通过 3.4 的作用域借用调用同一后备，pointer 重载在进入后备前检查负长度；不为这些函数增加编译器异常角色。lossy 后备复用有边界的单步解码器，先计算实际输出长度，再分配和转换，整个过程保持输入稳定。
-
-Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset 8；Option<(Long, Long)> 为 24 bytes、alignment 8，tag offset 0、Long offsets 8/16。实际 core 的 Some/None tag 为 0/1。前者按 GC-free 小值分类使用 DirectParts，后者仍间接返回：Darwin/AArch64 经 x8；Linux/amd64 经 RDI，并在 RAX 返回同一地址。native shim 依据完整 carrier 签名实现，不能假定同形 C struct 与 Scoop ABI 相同。
+Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset 8；Option<(Long, Long)> 为 24 bytes、alignment 8，tag offset 0、Long offsets 8/16。实际 core 的 Some/None tag 为 0/1。前者按 GC-free 小值分类使用 DirectParts，后者仍间接返回：Darwin/AArch64 经 x8；Linux/amd64 经 RDI，并在 RAX 返回同一地址。这些 helper 使用普通 Scoop 调用发射，无专用 native shim。
 
 数组后备使用显式目标 TD 分配和浅复制，保持新对象头、logical size 和 canonical padding。ZST 不复制 payload；不能从来源名称或布局猜测目标 exact type。源码 bounds check 与异常构造由 managed 代码承担，受检 helper 收到越界 index 属于内部 invariant error。
 
@@ -763,7 +767,7 @@ Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset
 
 编译器可以将普通 String 拼接链降低为一次 String 分配及按序复制，条件见实现规范 2.15。长度求和、24-byte 前缀及最终对齐必须保持 checked allocation 规则，不能 wrapping。结果复用既有 TLAB／collecting slow path；源 String 引用在 safepoint 中保活并接受移动回写，复制地址在分配后重取。结果为无引用 UTF-8 payload，不增加写屏障或对象字段；分配消除不承诺保留中间临时 String 的身份、GC 次数或内存耗尽时点。原二元 `scoop_rt_string_concat` 与 builder 的 join_parts 后备及 ABI 保留。
 
-实现规范 2.15 的 typed StringCopy 对稳定原生 UTF-8 区间、已定位的 String 字节范围和 exact Byte 数组生成分配、长度写入及 memcpy，也用于 String 到独立 Byte 数组的快照。复用实际 String TD 和数组布局，保留非负长度、范围及分配溢出规则；只复制给定字节数，不要求或添加 NUL。托管源在分配期间保活，源内部地址只从分配后的重定位引用取得；原生源的稳定性由 Unsafe 调用契约保证。结果初始化完成前不向用户发布，中间没有新的 safepoint。既有 `scoop_rt_string_from_utf8_unchecked`、`scoop_rt_string_slice_bytes`、`scoop_rt_string_from_bytes`、`scoop_rt_char_to_string` 的普通 extern ABI 保留，不能按符号拼写把普通 extern 调用改成该操作。
+实现规范 2.15 的 typed StringCopy 对稳定原生 UTF-8 区间、已定位的 String 字节范围和 exact Byte 数组生成分配、长度写入及 memcpy，也用于 String 到独立 Byte 数组的快照。复用实际 String TD 和数组布局，保留非负长度、范围及分配溢出规则；只复制给定字节数，不要求或添加 NUL。托管源在分配期间保活，源内部地址只从分配后的重定位引用取得；原生源的稳定性由 Unsafe 调用契约保证。结果初始化完成前不向用户发布，中间没有新的 safepoint。保留的原生适配按实际消费者提供；不能按符号拼写把普通 extern 调用改成该操作，也不因旧公开头文件或测试声明而保留无消费者的重复实现。
 
 integer Hash 与 compareTo 返回 Long。`==` / `!=` 执行编译器已选定的 operator equals；库相等经普通 `Equals<T>.equals` 调用同一 operator 契约，字符串化／哈希按实际 ToString／Hash 声明执行，不提供按 Any 或地址兜底。Equals 不增加 runtime 比较入口；浮点相等遵守语言规范 11.2.2，结构 operator 使用 compiler 生成的逐字段／variant 正文。Iterator、Range、List、ArrayList 和 StringBuilder 的公开行为由普通 core 接口规定，不增加容器专用 runtime ABI。
 
@@ -778,6 +782,10 @@ toBits/fromBits 的整数载体分别为同宽 Int／Long；这些方法通过�
 C FFI 使用目标真实 float/double ABI。数值操作遵守语言规范 11.2.2 的 rounding、NaN、无穷、signed zero 和转换规则，不能启用改变这些语义的 fast-math。线程的浮点环境采用 round-to-nearest ties-to-even、无 trap、保留 subnormal。
 
 文本转换不依赖进程 locale。解析按声明精度正确舍入；非法输入和溢出返回 None，合法下溢仍返回相应浮点值。格式化遵守语言规定的可往返文本、特殊值与 signed zero 形式。
+
+Float／Double 的最短数字继续由 vendored Ryu 的 `f2s_buffered_n`／`d2s_buffered_n` 产生。普通 core 通过明确的 C ABI GCLeaf 声明调用，只传入 GC-free 标量与足够的栈缓冲；这些同步有界入口不分配、不握手、不回调、不保留指针。core 的普通有界格式 helper 处理小数／科学计数法阈值、至少一位小数、指数符号与零、NaN／Infinity 和负零，再用 typed StringCopy 一次分配并复制实际长度。String 不要求 NUL；旧 `scoop_rt_float_to_string`／`scoop_rt_double_to_string`、C 文本适配和分配包装退役。
+
+JSON／CLI 的现有解析适配继续复用所选 libc 的 `strtof_l`／`strtod_l` 与固定 C numeric locale，按目标精度完整消费输入并检查有限值。长度不足 256 B 时在固定栈缓冲中复制并补 NUL；更长输入使用原有动态缓冲慢路径，两者使用同一解析与错误规则。该阈值只选择存储，不限制可接受输入，不改变舍入、subnormal、signed zero 或下溢语义；动态分配失败仍沿原 fatal 路径。caller 保持原 NativeBorrowed 保活协议，不把整个动态扫描标为 GCLeaf，不改变 locale 的一次性协调规则。
 
 ## 7. 程序启动与退出
 

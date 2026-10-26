@@ -70,7 +70,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 19,
+                1 => 20,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;

@@ -19,7 +19,7 @@ pub(super) fn string_intrinsic_declarations() -> Vec<Decl> {
         args: Vec::new(),
         span: sp(),
     });
-    vec![
+    let mut declarations = vec![
         intrinsic_fun(
             "coreStringByteLength",
             "string_byte_length",
@@ -67,7 +67,43 @@ pub(super) fn string_intrinsic_declarations() -> Vec<Decl> {
             vec![("value", ty_named("String"))],
             Some(ty_generic("MutableArray", vec![ty_named("Int8")])),
         ),
-    ]
+        intrinsic_fun(
+            "coreStringAllocateZeroed",
+            "string_allocate_zeroed",
+            vec![("length", ty_named("Long"))],
+            Some(ty_named("String")),
+        ),
+        intrinsic_fun(
+            "coreStringByteAtUnchecked",
+            "string_byte_at_unchecked",
+            vec![("value", ty_named("String")), ("index", ty_named("Long"))],
+            Some(ty_named("Int8")),
+        ),
+        intrinsic_fun(
+            "coreStringSetByteUnchecked",
+            "string_set_byte_unchecked",
+            vec![
+                ("value", ty_named("String")),
+                ("index", ty_named("Long")),
+                ("byte", ty_named("Int8")),
+            ],
+            None,
+        ),
+    ];
+    for declaration in &mut declarations {
+        if let Decl::Function(function) = declaration
+            && ["coreStringByteAtUnchecked", "coreStringSetByteUnchecked"]
+                .contains(&function.name.text.as_str())
+        {
+            function.annotations.push(ast::Annotation {
+                use_site: None,
+                name: ident("Unsafe").into(),
+                args: Vec::new(),
+                span: sp(),
+            });
+        }
+    }
+    declarations
 }
 
 #[test]

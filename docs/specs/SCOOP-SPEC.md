@@ -2044,6 +2044,8 @@ byteLength 为 O(1)；charLength 与 getCharAt 的最坏时间为 O(byteLength)�
 
 core 内部的 `string_byte_length(String): Long`、`string_byte_at(String, Long): Byte`、`string_character_at_byte(String, Long): Char` 是 13.1 的三个 top-level intrinsic 登记项，用于上述表示操作。字节访问要求有效索引，字符解码要求位于有效 UTF-8 标量起点；core 保证这些内部前置条件，索引越界仍按 runtime 内部错误终止。它们不增加公开 API，不标注 `@NoGC`：源码函数含 managed 引用，仍遵守 13.2；编译器内部可将有界表示读取实现为无 safepoint 的 load 或 runtime leaf。
 
+core 的字符串构造还可使用内部零字节分配及 unsafe 字节读写 intrinsic（实现规范 2.19、runtime 2.4）。这些操作不增加公开 API 或改变不可变 String 的语义：写入只允许用于构造过程独占且尚未发布的结果；发布前必须完成合法 UTF-8，不能修改已发布的 String。普通扫描与编码正文负责范围和编码规则，编译器只处理已知表示、分配和单字节访问。
+
 从 List 构造时按 11.10.3 取得完整元素快照，用户 getter 的异常照常传播。字符和字节数组转换均复制存储，后续修改数组不会修改 String。`fromUtf8Unchecked` 要求本次读取的完整序列为严格合法 UTF-8；违反此前置条件属于 unsafe 契约违例，不承诺可捕获异常。`toByteArray` 不要求 unsafe。
 
 受检转换不要求调用者预先保证 UTF-8 合法。严格解码拒绝非法起始字节、孤立的 continuation 字节、截断序列、过长编码、代理项码点和超出 U+10FFFF 的码点；`CharacterCodingException.byteOffset: Long` 是首个非法子序列起始字节的零基偏移。`fromUtf8OrNone` 只把编码错误转为 `None`，不吞掉其他异常或分配失败。三种转换均保留 U+0000 和输入中原有的 U+FFFD，不执行 Unicode normalization；空输入返回空串。
@@ -2333,9 +2335,11 @@ public interface MutableList<T> : List<T> {
 
 索引读写为 O(1)，追加摊还 O(1)，插入、删除及 clear 为 O(size)。逻辑 size 不超过 `INT64_MAX`，容量与实际分配遵守 10.6 的溢出和失败规则，不设其他固定元素数上限。操作不回滚用户实参的副作用，也不提供并发同步。
 
+公开成员 `toArray(): Array<T>` 与 `toMutableArray(): MutableArray<T>` 在 O(size) 时间内取得独立数组快照，结果长度为调用时的逻辑 size，元素按值或引用浅复制。普通 core 正文读取一次 size 与 backing，仅复制列表保证已初始化的前缀，不读取剩余容量；零大小元素仍保留正确的结果长度。结果容器与列表的后续修改互不影响。分配、GC 后源引用恢复及数组初始化沿既有规则，不增加 ArrayList 专用 intrinsic、运行时表示或接口槽位。
+
 #### 11.10.3 快照与迭代
 
-core 提供普通 generic extension `fun <T> List<T>.toArray(): Array<T>` 和 `fun <T> List<T>.toMutableArray(): MutableArray<T>`。调用时读取一次 size，按 `0L` 到 `size - 1L` 依次读取元素并创建独立数组；原列表和结果容器的后续修改互不影响，元素本身按值或引用浅复制。10.4 既有数组转换成员仍优先于 extension，保留其复制语义。自定义 List 的 getter 副作用、异常沿普通调用传播，不承诺并发快照。
+core 提供普通 generic extension `fun <T> List<T>.toArray(): Array<T>` 和 `fun <T> List<T>.toMutableArray(): MutableArray<T>`。调用时读取一次 size，按 `0L` 到 `size - 1L` 依次读取元素并创建独立数组；原列表和结果容器的后续修改互不影响，元素本身按值或引用浅复制。10.4 既有数组转换成员与 11.10.2 的 ArrayList 快照成员按普通解析规则优先于 extension，保留其复制语义。静态 List 视图仍使用扩展；自定义 List 的 getter 副作用、异常沿普通调用传播，不承诺并发快照。
 
 Array、MutableArray 和 ArrayList 的 iterator 按索引逐次读取，每次 next 使用当时的 size，成功后进入下一索引；首次返回 None 后永久耗尽。多个 iterator 的进度独立。串行修改时，set 可被后续读取观察到；首次 None 前追加的元素可被遍历；插入和删除可能导致元素重复或跳过；clear 后下一次读取耗尽。iterator 不提供 fail-fast 异常或并发同步。
 
@@ -3060,18 +3064,11 @@ public struct Int : Equals<Int>, ToString, Hash {
 
     public override fun toString(): String = coreLongToString(this.toLong())
 
-    public override fun hash(): Long {
-        @Unsafe { return coreLongHash(this.toLong()) }
-    }
+    public override fun hash(): Long = coreLongHash(this.toLong())
 }
-
-@Extern(name = "scoop_rt_long_to_string", abi = "scoop")
-internal fun coreLongToString(value: Long): String
-
-@GCLeaf
-@Extern(name = "scoop_rt_long_hash", abi = "c")
-internal fun coreLongHash(value: Long): Long
 ```
+
+这里的 `coreLongToString` 与 `coreLongHash` 是普通 core helper 正文；整数格式化、hash 不要求额外 C ABI 入口。表示相关的分配／复制由已登记的 typed intrinsic 完成。
 
 - intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、字段访问、解构、copy update或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；用户可调用constructor或转换来自显式声明或 registry 封闭规定的入口：10.4 的数组转换、10.6 的数组按长度初始化与 13.10 的 `Ptr<T>(raw: ULong)` unsafe construction entry；
 - intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；11.1 的两个无成员根类型遵守该节的封闭声明形状。单个成员也可像上例一样另用function intrinsic提供实现。intrinsic type覆盖八种canonical integer representation、Boolean、Char、Float/Double、String、`Any`/`Nothing`、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。`core_int`/`int_*`表示32位canonical `Int`，64位signed表示使用独立的`core_long`/`long_*`；unsigned同理区分`UInt`与`ULong`。登记表可按同一契约增加其他compiler-represented value/reference type；

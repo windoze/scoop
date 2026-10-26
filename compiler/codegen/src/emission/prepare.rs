@@ -101,7 +101,7 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     let safepoints = statepoint::lower(&llvm, machine)?;
     runtime_metadata_v1::emit_callable_safepoints(context, &llvm, production, body, &safepoints)?;
     if profile.lir_target_profile().native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
-        elf_symbols.prepare(&llvm)?;
+        elf_symbols.prepare_callable(&llvm, machine)?;
     }
     crate::metadata_sections::place_immutable_metadata(&llvm, profile);
     Ok(PreparedCallableModule {

@@ -1,0 +1,63 @@
+// Valid UTF-8 has exactly one non-continuation byte per scalar.
+internal fun coreStringLength(value: String): Long {
+    val length = coreStringByteLength(value)
+    var cursor = 0L
+    var count = 0L
+    while (cursor < length) {
+        val size = if (length - cursor >= 64L) 64L else length - cursor
+        count += coreStringCountBlock(value, cursor, size)
+        cursor += size
+    }
+    return count
+}
+
+// The sole caller limits size to 64, so the byte counter cannot overflow.
+// Ordinary poll chunking bounds uninterrupted work; widen after the reduction.
+private fun coreStringCountBlock(value: String, start: Long, size: Long): Long {
+    @Unsafe {
+        var index = 0L
+        var count = 0.toUByte()
+        while (index < size) {
+            if (coreStringByteAtUnchecked(value, start + index).toUByte().and(192u) != 128u) { count += 1u }
+            index += 1L
+        }
+        return count.toLong()
+    }
+}
+
+internal fun coreStringGet(value: String, index: Long): Char? {
+    @Unsafe {
+        if (index < 0L) { return None }
+        val length = coreStringByteLength(value)
+        var cursor = 0L
+        var scalar = 0L
+        while (cursor < length) {
+            if (coreStringByteAtUnchecked(value, cursor).toUByte().and(192u) != 128u) {
+                if (scalar == index) { return Some(coreStringCharacterAtByte(value, cursor)) }
+                scalar += 1L
+            }
+            cursor += 1L
+        }
+        return None
+    }
+}
+
+internal fun coreStringSliceBounds(value: String, start: Long, endExclusive: Long): (Long, Long)? {
+    @Unsafe {
+        if (start < 0L || endExclusive < start) { return None }
+        val length = coreStringByteLength(value)
+        var cursor = 0L
+        var scalar = 0L
+        var startByte = 0L
+        while (cursor < length) {
+            if (coreStringByteAtUnchecked(value, cursor).toUByte().and(192u) != 128u) {
+                if (scalar == start) { startByte = cursor }
+                if (scalar == endExclusive) { return Some((startByte, cursor)) }
+                scalar += 1L
+            }
+            cursor += 1L
+        }
+        if (scalar != endExclusive) { return None }
+        return Some((if (start == endExclusive) length else startByte, length))
+    }
+}

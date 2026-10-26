@@ -118,6 +118,12 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
             elements.clone()
         }
         Instruction::StringCopy { source, .. } => source.operands().collect(),
+        Instruction::StringByteLoad { string, index, .. } => vec![*string, *index],
+        Instruction::StringByteStore {
+            string,
+            index,
+            value,
+        } => vec![*string, *index, *value],
         Instruction::StringConcat { parts, .. } => parts
             .iter()
             .filter_map(scoop_lir::StringConcatPart::value)
@@ -238,6 +244,7 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::ArrayAssembly { out, .. }
         | Instruction::StringConcat { out, .. }
         | Instruction::StringCopy { out, .. }
+        | Instruction::StringByteLoad { out, .. }
         | Instruction::PushPinFrame { out, .. }
         | Instruction::ArrayDataPointer { out, .. }
         | Instruction::StringDataPointer { out, .. }
@@ -271,7 +278,8 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::ManagedPoll { .. }
         | Instruction::PopPinFrame { .. }
         | Instruction::EndCatch
-        | Instruction::Throw { .. } => None,
+        | Instruction::Throw { .. }
+        | Instruction::StringByteStore { .. } => None,
     };
     out.map_or_else(Vec::new, |out| vec![LiveValue::Temp(out)])
 }

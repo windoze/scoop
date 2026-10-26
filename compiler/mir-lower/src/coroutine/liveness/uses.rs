@@ -114,6 +114,11 @@ fn call_uses(call: &mir::Call, uses: &mut HashSet<mir::LocalId>) {
 
 pub(super) fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
     match &expr.kind {
+        mir::ExprKind::StringByte(operation) => {
+            for value in operation.operands() {
+                expr_uses(value, uses);
+            }
+        }
         mir::ExprKind::StringCopy(operation) => {
             for value in operation.operands() {
                 expr_uses(value, uses);

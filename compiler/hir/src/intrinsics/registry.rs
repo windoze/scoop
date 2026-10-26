@@ -327,6 +327,27 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
+        name: "string_allocate_zeroed",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::String(StringIntrinsic::AllocateZeroed),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
+        name: "string_byte_at_unchecked",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::String(StringIntrinsic::ByteAtUnchecked),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "string_set_byte_unchecked",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::String(StringIntrinsic::SetByteUnchecked),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
         name: "coroutine_start",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicFunctionKind::CoroutineStart,

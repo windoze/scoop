@@ -5,7 +5,7 @@ from pathlib import Path
 
 directory, prefix = map(Path, sys.argv[1:])
 source = (directory / "strings.scoop").read_text()
-boundary = '@Extern(name = "scoop_rt_string_eq", abi = "scoop")'
+boundary = '@Intrinsic("string_byte_length")'
 assert source.count(boundary) == 1
 definition, helpers = source.split(boundary)
 body = definition.index("{", definition.index("public class String ")) + 1

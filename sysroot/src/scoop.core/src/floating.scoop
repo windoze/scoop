@@ -510,9 +510,3 @@ public typealias Float32 = Float
  * A transparent alias for [Double] with the same representation and operations.
  */
 public typealias Float64 = Double
-
-@Extern(name = "scoop_rt_float_to_string", abi = "scoop")
-internal fun coreFloatToString(value: Float): String
-
-@Extern(name = "scoop_rt_double_to_string", abi = "scoop")
-internal fun coreDoubleToString(value: Double): String

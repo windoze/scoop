@@ -1,0 +1,95 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+
+public fun lengths(iterations: Int, left: String, right: String): Long {
+    var sum = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = if (index.and(1) == 0) left else right
+        sum += text.charLength
+        index += 1
+    }
+    return sum
+}
+public fun positions(iterations: Int, left: String, right: String): Long {
+    var sum = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = if (index.and(1) == 0) left else right
+        sum += text.getCharAt(index.toLong() % 64L).code.toLong()
+        index += 1
+    }
+    return sum
+}
+public fun slices(iterations: Int, left: String, right: String): Long {
+    var sum = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = if (index.and(1) == 0) left else right
+        val start = index.toLong() % 48L
+        sum += text.slice(start, start + 8L).byteLength
+        index += 1
+    }
+    return sum
+}
+public fun characters(iterations: Int, left: Array<Char>, right: Array<Char>): Long {
+    var sum = 0L
+    var index = 0
+    while (index < iterations) {
+        val chars = if (index.and(1) == 0) left else right
+        val text = String.fromChars(chars)
+        sum += text.byteLength + text.getCharAt(0L).code.toLong()
+        index += 1
+    }
+    return sum
+}
+public fun decode(iterations: Int, left: Array<Byte>, right: Array<Byte>, lossy: Boolean): Long {
+    var sum = 0L
+    var index = 0
+    while (index < iterations) {
+        val bytes = if (index.and(1) == 0) left else right
+        val text = if (lossy) String.fromUtf8Lossy(bytes) else String.fromUtf8(bytes)
+        sum += text.byteLength + text.getCharAt(0L).code.toLong()
+        index += 1
+    }
+    return sum
+}
+@Unsafe
+fun main() {
+    val mode = kind()
+    val iterations = count()
+    val leftChars = Array<Char>(64L) { index -> when (index % 4L) {
+        case 0L -> 'a'
+        case 1L -> 'é'
+        case 2L -> '雪'
+        else -> '🙂'
+    } }
+    val rightChars = Array<Char>(64L) { index -> when (index % 4L) {
+        case 0L -> 'b'
+        case 1L -> 'è'
+        case 2L -> '雨'
+        else -> '🙃'
+    } }
+    val left = String.fromChars(leftChars)
+    val right = String.fromChars(rightChars)
+    val asciiLeft = String.fromChars(Array<Char>(1024L) { _ -> 'a' })
+    val asciiRight = String.fromChars(Array<Char>(1024L) { _ -> 'b' })
+    val leftBytes = left.toByteArray()
+    val rightBytes = right.toByteArray()
+    val invalidLeft = Array<Byte>(160L) { index -> if (index % 7L == 0L) 255.toByte() else 97.toByte() }
+    val invalidRight = Array<Byte>(160L) { index -> if (index % 7L == 0L) 128.toByte() else 98.toByte() }
+    begin()
+    val sum = when (mode) {
+        case 0 -> lengths(iterations, asciiLeft, asciiRight)
+        case 1 -> lengths(iterations, left, right)
+        case 2 -> positions(iterations, left, right)
+        case 3 -> slices(iterations, left, right)
+        case 4 -> characters(iterations, leftChars, rightChars)
+        case 5 -> decode(iterations, leftBytes, rightBytes, false)
+        else -> decode(iterations, invalidLeft, invalidRight, true)
+    }
+    end()
+    println(sum)
+}

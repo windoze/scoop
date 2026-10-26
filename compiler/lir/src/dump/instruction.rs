@@ -7,6 +7,22 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::StringByteLoad { out, string, index } => buf.push_str(&format!(
+            "    t{} = string_byte_load {}, {}\n",
+            out.into_raw(),
+            value_name(*string),
+            value_name(*index)
+        )),
+        Instruction::StringByteStore {
+            string,
+            index,
+            value,
+        } => buf.push_str(&format!(
+            "    string_byte_store {}, {}, {}\n",
+            value_name(*string),
+            value_name(*index),
+            value_name(*value)
+        )),
         Instruction::StringCopy {
             out,
             source,
@@ -19,6 +35,7 @@ pub(super) fn dump_instruction(
                 .collect::<Vec<_>>()
                 .join(", ");
             let source = match source {
+                StringCopySource::Zeroed(_) => "zeroed",
                 StringCopySource::Utf8 { .. } => "utf8",
                 StringCopySource::Slice { .. } => "slice",
                 StringCopySource::Bytes { .. } => "bytes",

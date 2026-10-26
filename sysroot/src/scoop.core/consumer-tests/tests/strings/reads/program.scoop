@@ -81,6 +81,7 @@ private class ReadTests {
         checkByteHash(64L, -3498673563981234557L)
         checkByteHash(65L, 6364177471900067161L)
         checkByteHash(128L, -8139581360370597558L)
+        checkByteHash(4096L, 3509541588903783075L)
         assertEquals(-8900035388218590101L, genericHash("🙂🙂🙂🙂" + ""))
         assertEquals(1518467307101369953L, genericHash("🙂🙂🙂🙂🙂" + ""))
         assertEquals(-404753460161457847L, genericHash("A\u0000é雪🙂abcdefghi" + ""))

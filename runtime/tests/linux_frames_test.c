@@ -5,7 +5,6 @@
 #include <sys/mman.h>
 
 #include "../src/platform/platform.h"
-#include "../src/string_abi.h"
 
 extern const ScoopManagedFrameOps scoop_amd64_managed_frame_ops;
 extern const ScoopThreadVmOps scoop_linux_thread_vm_ops;
@@ -13,7 +12,6 @@ extern const uint8_t test_stackmaps_start[], test_stackmaps_end[];
 extern char __executable_start[], etext[];
 extern void *probe0(void *), *probe1(void *), *probe2(void *), *probe3(void *);
 extern void *outer(void *);
-extern uint64_t string_results(const ScoopString *);
 
 static ScoopStackMapIndex stackmaps;
 static uintptr_t boundary;
@@ -133,11 +131,6 @@ int main(void) {
     assert(outer(&old_value) == &new_value);
     assert(visits == 5);
     reject_bad_roots();
-    const struct {
-        ScoopString header;
-        char bytes[5];
-    } string = {{.len = 5}, {'a', '\xe4', '\xb8', '\xad', 'b'}};
-    assert(string_results(&string.header) == 1);
     thread_bounds(NULL);
     pthread_t thread;
     assert(pthread_create(&thread, NULL, thread_bounds, NULL) == 0);
@@ -153,5 +146,5 @@ int main(void) {
     assert(scoop_linux_thread_vm_ops.protect_none(mapping, page, &error));
     assert(munmap(mapping, page) == 0);
     scoop_stackmap_dispose_index(&stackmaps);
-    puts("amd64 anchors, relocated roots, String sret and Linux VM passed");
+    puts("amd64 anchors, relocated roots and Linux VM passed");
 }

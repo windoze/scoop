@@ -1,0 +1,41 @@
+package dev.performance
+
+fun listArraySnapshots() {
+    val source = ArrayList<WideEntry<Token<Long>?>>(4096L)
+    var index = 0L
+    while (index < 65L) {
+        var view: Token<Long> = Node(index)
+        if (index.and(1L) != 0L) { view = Boxed(index) }
+        val optional: Token<Long>? = if (index % 3L == 0L) None else Some(view)
+        source.add(WideEntry(index, optional, index + 100L))
+        index += 1L
+    }
+    val immutable = source.toArray()
+    val mutable = source.toMutableArray()
+    source.clear()
+    gcCollect()
+    check(immutable.size == 65L && mutable.size == 65L && source.size == 0L)
+    index = 0L
+    while (index < immutable.size) {
+        val first = immutable[index]
+        val second = mutable[index]
+        check(first.tag == index && first.value == index + 100L)
+        check(second.tag == first.tag && second.value == first.value)
+        when (first.key) {
+            case None -> check(when (second.key) {
+                case None -> index % 3L == 0L
+                case Some(_) -> false
+            })
+            case Some(value) -> {
+                check(value.number() == index && second.key!!.number() == index)
+                check(value === second.key!!)
+            }
+        }
+        index += 1L
+    }
+    mutable[1L] = WideEntry<Token<Long>?>(-1L, None, 0L)
+    @Unsafe { collectYoung() }
+    check(immutable[1L].tag == 1L && immutable[1L].key!!.number() == 1L)
+    check(mutable[1L].tag == -1L)
+    check(when (mutable[1L].key) { case None -> true; case Some(_) -> false })
+}

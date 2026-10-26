@@ -1,0 +1,44 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+@Extern(name = "scoop_rt_json_parse_double", abi = "scoop") fun parseDouble(text: String): Double?
+@Extern(name = "scoop_rt_json_parse_float", abi = "scoop") fun parseFloat(text: String): Float?
+public fun doubleText(iterations: Int, values: Array<Double>): Long {
+    var index = 0
+    var sum = 0L
+    while (index < iterations) { sum += values[index.toLong() % values.size].toString().byteLength; index += 1 }
+    return sum
+}
+public fun floatText(iterations: Int, values: Array<Float>): Long {
+    var index = 0
+    var sum = 0L
+    while (index < iterations) { sum += values[index.toLong() % values.size].toString().byteLength; index += 1 }
+    return sum
+}
+public fun numberParse(iterations: Int, values: Array<String>, single: Boolean): Long {
+    var index = 0
+    var sum = 0L
+    while (index < iterations) {
+        val text = values[index.toLong() % values.size]
+        sum += if (single) parseFloat(text)!!.toBits().toLong() else parseDouble(text)!!.toBits()
+        index += 1
+    }
+    return sum
+}
+@Unsafe
+fun main() {
+    val doubles = [0.0, -0.0, 1.2345678901234567, 1.0e-300, 1.0e200, 0.0001234, 123456.7, -987654321.0]
+    val floats = [0f, -0f, 1.2345678f, 1.0e-30f, 1.0e30f, 0.0001234f, 123456.7f, -987654321f]
+    val text = ["0.0", "-0.0", "1.2345678901234567", "1.0e-30", "1.0e30", "0.0001234", "123456.7", "-987654321"]
+    val mode = kind()
+    val iterations = count()
+    begin()
+    val sum = when (mode) {
+        case 0 -> doubleText(iterations, doubles)
+        case 1 -> floatText(iterations, floats)
+        else -> numberParse(iterations, text, mode == 3)
+    }
+    end()
+    println(sum)
+}

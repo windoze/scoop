@@ -2,6 +2,8 @@
 
 use std::collections::{BTreeMap, HashMap};
 
+use inkwell::passes::PassBuilderOptions;
+use inkwell::targets::TargetMachine;
 use llvm_sys::core::{LLVMGetFirstGlobalAlias, LLVMGetNextGlobalAlias};
 use scoop_lir::LinkageClass;
 
@@ -47,6 +49,20 @@ impl SymbolPlanIndex {
             }
         }
         Self { groups, symbols }
+    }
+
+    pub(crate) fn prepare_callable(
+        &self,
+        llvm: &Module<'_>,
+        machine: &TargetMachine,
+    ) -> Result<(), CodegenError> {
+        // Function passes can leave dead constant users of declarations. GlobalDCE
+        // removes those users and unused declarations, including external symbols
+        // absent from this Cone's definition plans. Metadata partitions already
+        // perform this cleanup when projecting their definitions.
+        llvm.run_passes("globaldce", machine, PassBuilderOptions::create())
+            .map_err(|error| CodegenError(format!("ELF declaration cleanup failed: {error}")))?;
+        self.prepare(llvm)
     }
 
     pub(crate) fn prepare<'ctx>(&self, llvm: &Module<'ctx>) -> Result<(), CodegenError> {

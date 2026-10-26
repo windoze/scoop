@@ -1,3 +1,7 @@
+package test.core.tests.strings.utf8
+
+import scoop.test.*
+
 fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun valid(bytes: Array<Byte>, text: String, scalars: Long) {
@@ -26,7 +30,7 @@ fun invalid(bytes: Array<Byte>, offset: Long, text: String) {
     expect(replaced == text && replaced.byteLength == text.byteLength)
 }
 
-fun main() {
+private fun exercise() {
     valid([], "", 0L)
     valid([65.toByte(), 0.toByte(), 66.toByte()], "A\u0000B", 3L)
     valid([194.toByte(), 128.toByte(), 223.toByte(), 191.toByte()], "\u0080\u07FF", 2L)
@@ -50,5 +54,27 @@ fun main() {
     invalid([225.toByte(), 128.toByte(), 65.toByte()], 0L, "�A")
     invalid([241.toByte(), 128.toByte(), 128.toByte(), 65.toByte()], 0L, "�A")
     invalid([194.toByte(), 162.toByte(), 0.toByte(), 225.toByte(), 128.toByte(), 65.toByte(), 239.toByte(), 191.toByte(), 189.toByte()], 3L, "¢\u0000�A�")
-    println("utf8-values-ok")
+}
+
+@Test
+private class Utf8Tests {
+    @Test fun boundariesAndMaximalSubparts() { exercise() }
+
+    @Test fun allUnicodeScalars() {
+        val scalars = Array<Char>(1112064L) { index ->
+            (if (index < 55296L) index else index + 2048L).toInt().toChar()
+        }
+        val text = String.fromChars(scalars)
+        val bytes = text.toByteArray()
+        assertEquals(1112064L, text.charLength)
+        assertEquals(text, String.fromUtf8(bytes))
+        assertEquals(text, String.fromUtf8Lossy(bytes))
+        val decoded = text.toCharArray()
+        assertEquals(scalars.size, decoded.size)
+        var index = 0L
+        while (index < scalars.size) {
+            assertEquals(scalars[index], decoded[index])
+            index += 1L
+        }
+    }
 }

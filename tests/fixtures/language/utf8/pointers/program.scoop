@@ -1,3 +1,8 @@
+@Extern(lib = "fixture_native", name = "native_guarded_bytes")
+fun guardedBytes(kind: Int): Ptr<UInt8>
+@GCLeaf @Extern(lib = "fixture_native", name = "native_guarded_length")
+fun guardedLength(kind: Int): Long
+
 @GCLeaf @Extern(lib = "fixture_native", name = "native_bytes")
 fun nativeBytes(kind: Int): Ptr<UInt8>
 
@@ -5,6 +10,22 @@ fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun main() {
     @Unsafe {
+        var kind = 0
+        while (kind < 23) {
+            val pointer = guardedBytes(kind)
+            val length = guardedLength(kind)
+            if (kind < 10) {
+                val text = String.fromUtf8(pointer, length)
+                gcCollect()
+                expect(text.byteLength == length && text.charLength == 1L)
+            } else {
+                var caught = false
+                try { String.fromUtf8(pointer, length) }
+                catch (error: CharacterCodingException) { caught = error.byteOffset == 0L }
+                expect(caught)
+            }
+            kind += 1
+        }
         val source = nativeBytes(0)
         val text = String.fromUtf8(source, 6L)
         gcCollect()
