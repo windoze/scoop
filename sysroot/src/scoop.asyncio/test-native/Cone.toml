@@ -41,3 +41,6 @@ when = { os = "darwin" }
 name = "CoreFoundation"
 kind = "framework"
 when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/tty_owner.c"

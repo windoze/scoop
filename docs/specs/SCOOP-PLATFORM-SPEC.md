@@ -129,7 +129,8 @@ standardInput、standardOutput、standardError 是使用调用时 fd 0/1/2 的�
 
 M59 的同步 terminal 与 asyncio TTY 共用 platform 中的 native TTY 实现，
 包括独立打开、每进程独占、实际 termios 快照、尺寸、非阻塞字节 I/O、resize
-通知和关闭。此处只提供两个库实际使用的 C helper，不增加公开 Scoop fd 接管
+通知和关闭。打开自有 TTY 句柄不取得或改变进程的控制终端，包括没有控制终端
+的会话首进程。此处只提供两个库实际使用的 C helper，不增加公开 Scoop fd 接管
 或通用 signal API。原生实现及同步公开合同见 [终端规范](SCOOP-TERMINAL-SPEC.md)第 7 节。
 
 TTY 与通知 fd 属于同一个 opaque owner；同步 poll 和 libuv poll 分别借用，
