@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [搬迁复制复用已预留元数据](EVACUATION-PUBLICATION.md) | 使用新版 runtime 重新链接，所有 profile 默认，无独立开关 | 完整预留后的 STW 复制复用目标 block／大小／范围及 coordinator 单写者关系，省去通用登记调用、重复检查和位图原子读改写；共享分配、并行标记、large 和预留失败语义保持。删除无调用者的 marked 参数，无对象、roots 或 ABI 增长。 |
 | [普通 GC 省去搬迁覆盖登记](RELOCATION-COVERAGE.md) | 新版普通 runtime，所有 profile 默认；重链接即可，系统库可复用 | 直接消费唯一且已更新为当前副本的存活清单，省去逐对象 claim、覆盖位图及其生命周期操作。现有 GC stress 构建或显式 heap 验证保留这些诊断；真实字段／roots 转发、pin、survivor 与 ABI 保持。 |
 | [宽数组元素的重复引用屏障消除](REFERENCE-WRITES.md) | release 默认；重新生成实际 ArraySet 正文，现有四个系统库与 runtime 可复用 | stride >16 B、恰有一个 managed leaf 时，完整写入后仅为不同的非 null 引用标卡。单／双字批量路径、多引用范围屏障、字段、原子、native 和初始化保持原策略；不增加根或跨 GC 保存旧引用。 |
 | [固定引用布局的数组扫描](ARRAY-SCANS.md) | 使用新版 runtime 重新链接，所有 profile 默认；无需重建 core | 根据实际 References child 直接枚举元素槽，省去逐元素递归解释；保留精确范围、访问顺序及原标记／搬迁 visitor。复杂 child 保留递归，scan／对象／根及 ABI 不变；各平台收益、短对照回退和 native 栈帧成本见记录。 |

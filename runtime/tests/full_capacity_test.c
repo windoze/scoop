@@ -23,7 +23,7 @@ static void *old_object(void) {
     memset(object, 0, GC_REGULAR_MAX);
     *(ScoopObjectHeader *)object = (ScoopObjectHeader){&wide_td, GC_RELEASE_READY_BIT};
     ((unsigned char *)object)[GC_REGULAR_MAX - 1] = 73;
-    scoop_heap_record_small_object(block, object, GC_REGULAR_MAX, false);
+    scoop_heap_record_small_object(block, object, GC_REGULAR_MAX);
     return object;
 }
 

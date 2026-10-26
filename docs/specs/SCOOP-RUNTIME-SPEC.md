@@ -361,7 +361,7 @@ release 复用 LIR 中已有的完整本地 TD 或 typed array layout，将确�
 
 生成代码成功 bump 后的完成入口接收已经按 TD 对齐的普通对象大小，复用当前 mutator 的 nursery block；此前已确认有效 TLAB、大小不溢出且在 limit 内，以及 TD 无 release hook，moving stress 不提供可用 TLAB。完成入口不重复规格化大小、判断分配资格、查找 block 或重查已保留范围的对象起点；它仍清零全部对象字节、设置对象头、登记精确大小，并按原 relaxed line bitmap／release starts 次序发布，更新线程原子计数。此入口不经过 safepoint；动态 runtime 分配入口仍执行其输入与布局检查。
 
-普通 nursery 分配块在 mutator 运行期间只有其所属线程写入对象起点与 occupied-line 位图；moving stress 的独立年轻块也由本次分配线程独占初始化。成功保留范围后不经过 safepoint 即可完成登记；年轻块的元数据发布复用已确认的大小、对齐、空闲与块种类，不在登记函数内再次核对。位图更新复用这项单写者关系：用 relaxed atomic load 取得旧字，再按 OR 后的完整字执行 occupied-line 的 relaxed atomic store 和 starts 的 release atomic store。已发布的其他位必须保留；其他线程的对象查询继续使用 acquire starts 读取。晋升、退役、重新分配和清零均在原 STW／分配区失效协议下完成。共享旧代分配块仍使用原子读改写，collector 的标记与复制沿原路径；不能把 nursery 的单写者性质扩展到共享块或任何新增的并发写入者。该选择不改变 TLAB、对象、metadata 布局或统计 ABI，所有 profile 遵守相同合同。
+普通 nursery 分配块在 mutator 运行期间只有其所属线程写入对象起点与 occupied-line 位图；moving stress 的独立年轻块也由本次分配线程独占初始化。成功保留范围后不经过 safepoint 即可完成登记；年轻块的元数据发布复用已确认的大小、对齐、空闲与块种类，不在登记函数内再次核对。位图更新复用这项单写者关系：用 relaxed atomic load 取得旧字，再按 OR 后的完整字执行 occupied-line 的 relaxed atomic store 和 starts 的 release atomic store。已发布的其他位必须保留；其他线程的对象查询继续使用 acquire starts 读取。晋升、退役、重新分配和清零均在原 STW／分配区失效协议下完成。共享旧代分配块仍使用原子读改写，collector 的并行标记保持原子首次置位，串行复制按 3.7 复用 STW 独占关系；不能把 nursery 的单写者性质扩展到共享分配块或任何新增的并发写入者。该选择不改变 TLAB、对象、metadata 布局或统计 ABI，所有 profile 遵守相同合同。
 
 每个已 attach 的线程持有一个 GC 管理的 mutator 状态，包含 TLAB、block 所有权及独立对齐的分配计数；线程业务只保存该状态的引用，通过具体生命周期操作创建、绑定、失效和 detach。generated code 仍使用原 TLAB TLS 指针，GC 分配沿该指针取得同一 mutator，不增加另一份 TLS 或线程目录。统计在既有 world／registry 保护下汇总现存 mutator 与已退出总账，detach 在从目录移除前完成归并，collection 在稳定目录下使所有分配范围失效。
 
@@ -544,6 +544,8 @@ full collection 按回收收益选择低存活、无 pin 的 region 为 source�
 搬迁前预留包括对齐损耗的全部目标空间，失败时缩小 source 集合或非移动回收；minor 晋升不足从完整原图转 full。source 不能又作目标。复制、forwarding 和全部精确引用更新完成后，才允许退休旧副本。
 
 收集器的临时搬迁计划按固定 256 项的 native 分块顺序追加，每项保留原 source／destination、精确大小和所属 block；不反复倍增、复制整份连续数组。预留成功后按相同顺序复制，失败和成功出口都释放全部分块。分块仅存活于原 STW 搬迁阶段，不形成持久缓存、managed root 或新的对象布局，也不改变预留完成前不发布 forwarding／更新 roots 的合同。该表示适用于所有 profile 与 minor／full／stress，使扩大 nursery 不再放大连续计划数组的 native 分配峰值。
+
+全部目标预留成功后，小对象复制直接复用计划中的目标 block、精确大小和已保留范围，不再调用通用分配登记入口重复检查块种类、边界或起点。此时 mutator 已停稳、全部 mark worker 已完成、update worker 尚未发布，只有 coordinator 修改目标元数据；新 block、survivor block 和既有旧代空洞均满足这一阶段的独占条件。复制完成后写入精确 size，合并 occupied／live-line 与对象 mark，更新目标 live bytes，再 release 发布 starts，随后才发布 forwarding 和更新存活清单。occupied／starts 复用 3.1 的单写者 atomic load／OR／store，保留同一字的既有位；line_live／marks 在该独占阶段直接 OR。通用小对象登记入口仅发布未标记的新分配，不保留复制专用的参数或分支；共享 mutator 分配和并行标记的原子读改写保持，large 发布沿原入口，目标预留失败不执行任何复制或目标对象登记。不增加搬迁计划字段、对象元数据、roots 或 ABI，所有 profile 遵守同一顺序。
 
 在规划、预留回退和实际复制全部结束后，以本轮实际完成的搬迁数决定是否更新 roots；零搬迁且没有 survivor 时还跳过 remembered set 与存活对象回写。原地保留 survivor 的 minor 即使没有复制，也须借 remembered set 与年轻存活对象扫描保留下一轮所需的卡；不为此重扫旧堆或新增 roots。非零搬迁仍完整更新相关引用。minor 转 full 使用最终完成轮次的事实，不能复用上轮计数或按计时值判断。各路径都完成必要统计、晋升、release、回收、清卡、nursery／TLAB 重置、临时 pin 解除及线程恢复。
 

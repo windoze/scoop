@@ -237,7 +237,7 @@ static void initialize_small_allocation(ScoopGcMutator *mutator, ScoopGcBlockMet
     if (nursery) {
         scoop_heap_record_small_metadata(block, object, size, false, true);
     } else {
-        record_small_object(block, object, size, false);
+        record_small_object(block, object, size);
     }
     record_allocation(mutator, size, nursery);
 }

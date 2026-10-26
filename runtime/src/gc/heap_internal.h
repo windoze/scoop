@@ -265,8 +265,7 @@ bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **block, siz
 void scoop_heap_claim_current_object(void *object);
 bool scoop_gc_object_was_scanned_locked(const void *object);
 #endif
-void scoop_heap_record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size,
-                                    bool marked);
+void scoop_heap_record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size);
 void scoop_heap_publish_large_object(ScoopGcBlockMeta *block, bool marked);
 void scoop_heap_release_block(ScoopGcBlockMeta *block);
 void scoop_heap_quarantine_block(ScoopGcBlockMeta *block);

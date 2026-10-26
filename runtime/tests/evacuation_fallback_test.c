@@ -25,7 +25,7 @@ static void *old_object(void) {
     memset(object, 0, 30000);
     *(ScoopObjectHeader *)object = (ScoopObjectHeader){&wide_td, GC_RELEASE_READY_BIT};
     ((unsigned char *)object)[29999] = 73;
-    scoop_heap_record_small_object(block, object, 30000, false);
+    scoop_heap_record_small_object(block, object, 30000);
     return object;
 }
 

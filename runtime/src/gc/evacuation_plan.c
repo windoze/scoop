@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "../gc_binding/object.h"
+#include "allocation_metadata.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 
@@ -260,7 +261,9 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
             scoop_gc_heap_state.copied_bytes += move->size;
             ScoopGcBlockMeta *source = move->source_block;
             if (move->size <= GC_REGULAR_MAX) {
-                record_small_object(move->target_block, move->destination, move->size, true);
+                /* The complete plan owns these ranges; mark/update workers are idle. */
+                scoop_heap_record_small_metadata(move->target_block, move->destination, move->size,
+                                                 true, true);
                 source->forwarding[move->word] = move->destination;
             } else {
                 publish_large_object(move->target_block, true);

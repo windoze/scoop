@@ -13,8 +13,8 @@ static inline void scoop_heap_publish_allocation_bits(uint64_t *word, uint64_t m
     }
 }
 
-/* The caller has reserved a valid, aligned small-object range. Only a fresh
- * nursery allocation has a single mutator writer until the next collection. */
+/* The caller has reserved a valid, aligned small-object range. Nursery allocation
+ * and the coordinator's STW copy phase have one writer; shared allocation does not. */
 static inline void scoop_heap_record_small_metadata(ScoopGcBlockMeta *block, void *object,
                                                     size_t size, bool marked, bool owned) {
     size_t offset = (uintptr_t)object - (uintptr_t)scoop_heap_block_base(block);
@@ -23,14 +23,15 @@ static inline void scoop_heap_record_small_metadata(ScoopGcBlockMeta *block, voi
     size_t last = (offset + size - 1) / GC_LINE_SIZE;
     block->size_units[word] = (uint16_t)(size / sizeof(uint64_t));
     for (size_t line = first; line <= last; line++) {
-        scoop_heap_publish_allocation_bits(&block->line_occupied[line / 64],
-                                           UINT64_C(1) << (line % 64), __ATOMIC_RELAXED, owned);
+        uint64_t mask = UINT64_C(1) << (line % 64);
+        scoop_heap_publish_allocation_bits(&block->line_occupied[line / 64], mask, __ATOMIC_RELAXED,
+                                           owned);
         if (marked) {
-            scoop_heap_bit_set(block->line_live, line);
+            block->line_live[line / 64] |= mask;
         }
     }
     if (marked) {
-        scoop_heap_bit_set(block->marks, word);
+        block->marks[word / 64] |= UINT64_C(1) << (word % 64);
         block->live_bytes += size;
         block->movable_live_bytes += size;
     }

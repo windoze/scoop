@@ -85,7 +85,7 @@ size_t scoop_gc_object_size_locked(const void *object) {
     return (size_t)units * sizeof(uint64_t);
 }
 
-void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size, bool marked) {
+void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size) {
     if (block->kind != SCOOP_BLOCK_KIND_SMALL || exact_size == 0 || exact_size > GC_REGULAR_MAX ||
         exact_size % sizeof(uint64_t) != 0) {
         heap_fatal("invalid small-object metadata publication");
@@ -99,7 +99,7 @@ void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_siz
          (UINT64_C(1) << (word % 64))) != 0) {
         heap_fatal("small object overlaps invalid storage");
     }
-    scoop_heap_record_small_metadata(block, object, exact_size, marked, false);
+    scoop_heap_record_small_metadata(block, object, exact_size, false, false);
 }
 
 void publish_large_object(ScoopGcBlockMeta *block, bool marked) {
