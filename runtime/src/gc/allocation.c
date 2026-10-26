@@ -68,7 +68,22 @@ static void record_nursery_block(ScoopGcBlockMeta *block) {
     scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;
 }
 
+static void publish_tlab(ScoopGcMutator *mutator, ScoopGcBlockMeta *block) {
+    mutator->allocation_block = block;
+    ScoopAllocationContext *allocation = &mutator->allocation;
+    allocation->block_start = block_base(block);
+    allocation->size_units = block->size_units;
+    allocation->starts = block->starts;
+    allocation->line_occupied = block->line_occupied;
+    allocation->limit = allocation->block_start + GC_BLOCK_SIZE;
+    allocation->cursor = allocation->block_start + GC_LINE_SIZE;
+}
+
 static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
+    if (mutator->reserved_count != 0) {
+        publish_tlab(mutator, mutator->reserved_blocks[--mutator->reserved_count]);
+        return REFILL_READY;
+    }
     lock_heap();
     size_t capacity = scoop_gc_heap_state.nursery_capacity;
 #if SCOOP_ENABLE_GC_STRESS
@@ -91,15 +106,19 @@ static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
         return REFILL_FULL;
     }
     record_nursery_block(block);
-    mutator->allocation_block = block;
-    ScoopAllocationContext *allocation = &mutator->allocation;
-    allocation->block_start = block_base(block);
-    allocation->size_units = block->size_units;
-    allocation->starts = block->starts;
-    allocation->line_occupied = block->line_occupied;
-    allocation->limit = allocation->block_start + GC_BLOCK_SIZE;
-    allocation->cursor = allocation->block_start + GC_LINE_SIZE;
+    if (scoop_heap_adaptive_nursery_enabled()) {
+        while (mutator->reserved_count < 3 &&
+               scoop_gc_heap_state.nursery_bytes < capacity) {
+            ScoopGcBlockMeta *reserve = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
+            if (reserve == NULL) {
+                break;
+            }
+            record_nursery_block(reserve);
+            mutator->reserved_blocks[mutator->reserved_count++] = reserve;
+        }
+    }
     unlock_heap();
+    publish_tlab(mutator, block);
     return REFILL_READY;
 }
 
@@ -111,7 +130,7 @@ static void *allocate_small(ScoopGcMutator *mutator, size_t size, size_t alignme
         if (object != NULL) {
             return object;
         }
-        scoop_gc_reset_allocation(mutator);
+        scoop_gc_reset_current_allocation(mutator);
         RefillResult refill = refill_nursery(mutator, full_attempted);
         if (refill == REFILL_READY) {
             continue;

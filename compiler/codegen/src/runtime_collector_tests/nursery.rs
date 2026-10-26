@@ -1,6 +1,28 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn tlab_reserves_preserve_capacity_failures_and_retirement() {
+    for optimization in ["-O0", "-O2"] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "tlab_reserve_test",
+            "runtime/tests/tlab_reserve_test.c",
+            true,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"TLAB reserves preserve capacity, partial failures, moving roots and retirement\n"
+        );
+    }
+}
+
+#[test]
 fn dense_promotion_preserves_sparse_relocation_reuse_and_old_writes() {
     for flags in [vec!["-O0"], vec!["-O2", "-DSCOOP_TEST_PROMOTION_PARALLEL"]] {
         let output = compile_and_run_with_flags(

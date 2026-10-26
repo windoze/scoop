@@ -36,7 +36,7 @@ void scoop_gc_mutator_invalidate(ScoopGcMutator *mutator) { scoop_gc_reset_alloc
 
 bool scoop_gc_mutator_is_retired(const ScoopGcMutator *mutator) {
     return mutator->allocation.cursor == NULL && mutator->allocation.limit == NULL &&
-           mutator->allocation_block == NULL;
+           mutator->allocation_block == NULL && mutator->reserved_count == 0;
 }
 
 void scoop_gc_add_mutator_totals(const ScoopGcMutator *mutator, ScoopGcAllocationTotals *total) {
