@@ -77,8 +77,8 @@ fn emitted_registration_and_stackmap_use_final_ssa_root_count() {
                 .safepoints()
                 .registrations();
             assert_eq!(registrations.len(), 1);
-            // Conditional polls preserve separate root leaves, including null slots.
-            let expected = 2;
+            // Equal leaves share one relocated SSA value; null needs no relocation.
+            let expected = u32::from(!null);
             assert_eq!(registrations[0].root_pair_count(), expected);
             let normalization = input
                 .module()
@@ -167,7 +167,7 @@ fn dead_invokes_module() -> Module {
 }
 
 #[test]
-fn deleted_invokes_leave_no_site_registration_image_entry_or_backend_atom() {
+fn deleted_invokes_leave_no_site_registration_image_entry_or_stackmap() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::DARWIN_AARCH64_ID,
@@ -186,11 +186,7 @@ fn deleted_invokes_leave_no_site_registration_image_entry_or_backend_atom() {
                 profile(target, mode),
             )
             .unwrap_or_else(|error| panic!("{target:?}/{mode:?}: {error}"));
-            let expected_sites = if mode == OptimizationMode::Release {
-                0
-            } else {
-                3
-            };
+            // Both profiles fold the equal expressions before root finalization.
             assert_eq!(
                 emitted
                     .production()
@@ -198,7 +194,7 @@ fn deleted_invokes_leave_no_site_registration_image_entry_or_backend_atom() {
                     .safepoints()
                     .registrations()
                     .len(),
-                expected_sites
+                0
             );
             assert_eq!(
                 emitted
@@ -207,7 +203,7 @@ fn deleted_invokes_leave_no_site_registration_image_entry_or_backend_atom() {
                     .tables()
                     .safepoints()
                     .len(),
-                expected_sites
+                0
             );
             let projected = ScoopLirObjectPartitionV1::from_foundation(
                 &input,
@@ -235,25 +231,19 @@ fn deleted_invokes_leave_no_site_registration_image_entry_or_backend_atom() {
                 .iter()
                 .map(|atom| atom.atom_role())
                 .collect::<BTreeSet<_>>();
-            assert_eq!(
-                roles.contains(&DefinitionAtomRole::Stackmap),
-                expected_sites != 0
-            );
-            assert_eq!(
-                roles.contains(&DefinitionAtomRole::Lsda),
-                expected_sites != 0
-            );
-            if expected_sites == 0 {
-                assert_eq!(
-                    member.units().definition_plans().len(),
-                    2,
-                    "body and callable registration survive"
-                );
-                assert_eq!(
-                    emitted.foundation().definition_plan_count() + 3,
-                    input.foundation().definition_plan_count()
-                );
+            assert!(!roles.contains(&DefinitionAtomRole::Stackmap));
+            if mode == OptimizationMode::Release {
+                assert!(!roles.contains(&DefinitionAtomRole::Lsda));
             }
+            assert_eq!(
+                member.units().definition_plans().len(),
+                2,
+                "body and callable registration survive"
+            );
+            assert_eq!(
+                emitted.foundation().definition_plan_count() + 3,
+                input.foundation().definition_plan_count()
+            );
         }
     }
 }

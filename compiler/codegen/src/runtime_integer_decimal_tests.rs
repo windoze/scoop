@@ -8,7 +8,7 @@ fn decimal_writer_covers_boundaries_and_writes_only_the_actual_bytes() {
         .unwrap()
         .parent()
         .unwrap();
-    let directory = tempfile::tempdir_in(root.join("tmp")).unwrap();
+    let directory = tempfile::tempdir().unwrap();
     let executable = directory.path().join("integer-decimal");
     let compile = Command::new("cc")
         .args(["-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-I"])
