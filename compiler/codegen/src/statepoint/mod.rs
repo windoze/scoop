@@ -36,6 +36,7 @@ use crate::target::ManagedAddressSpace;
 const GC_STRATEGY: &str = "statepoint-example";
 pub(crate) const STATEPOINT_ROOT_IDENTITY_METADATA: &str = "scoop.statepoint-root-identity";
 
+mod address_bits;
 mod aggregate_values;
 mod builders;
 mod constant_roots;

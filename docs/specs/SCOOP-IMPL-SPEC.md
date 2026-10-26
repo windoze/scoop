@@ -447,6 +447,8 @@ release 在普通 LLVM 优化之前，将未逃逸入口栈存储上的编译器
 
 优化后的 AS1 根若通过 phi／select 合并 immortal 常量与动态对象，仍表示对象起点。codegen 在根准备处为不含派生地址的 managed phi／select 保留对象起点事实，并以 LLVM 22.1 的 `is_base_value` 标记传给 RS4GC。逻辑恢复标记在某条路径折叠为常量时，共享后继仍可能使用原合并值，因此该处理不只依赖恢复标记当前指向的 SSA；不能让常量分支被替换为 null base 而产生不符合当前 runtime 的 base／derived pair。纯常量选择仍不参与 relocation；typed 根恢复、base=derived 与实际 stackmap 数据生成保持。
 
+可能收集的函数中，AS1 地址转整数在普通 LLVM 优化前保留为 codegen 自有的 NoGC 操作，不能当作跨 safepoint 不变的纯整数表达式进行 CSE 或提升。临时操作以 LLVM inaccessible memory 的读写维持顺序，不读写普通对象或栈内存，允许无关字段和局部存储继续优化。该操作仍持有实际 AS1 operand，根定稿和 RS4GC 按其真正使用位置更新引用；RS4GC 完成后才原位降低为 ptrtoint 并删除临时操作声明，不在最终产物留下调用、符号或诊断代码。识别依代码生成器创建的操作身份，不按普通 extern 名称匹配。已证明无 safepoint 的有界卡表区域可以按原依赖与必经路径规则移动该操作；普通 NoGc 函数不需要此保护。页表索引、卡偏移等派生数值不得复用搬迁前的地址位，不增加备用 roots 或 runtime ABI。
+
 LLVM 优化、RS4GC 与对象发射使用前一步的成功结果，生产路径不在变换前后完整验证自产 module，也不另写 RS4GC 后的策略、指针活跃性和 root restoration 复核器。普通优化后保留必要的逻辑根身份与 base 合并信息，再执行 RS4GC；注册元数据的物理根数消费其实际 relocation 结果，不重新分析指针活跃性。GC 与 ABI 回归通过实际 IR、机器输出和运行测试验证，不为内部转换添加证明专用的指针边界标记。
 
 managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
