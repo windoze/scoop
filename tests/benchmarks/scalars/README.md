@@ -27,4 +27,6 @@ SCOOP_BENCH_KIND=1 SCOOP_BENCH_COUNT=2000000 tmp/scalar-bench/decimal
 
 `floating_adapters.scoop` 使用同一 helper，模式 0／1 对照 Double／Float 的动态 toString，2／3 对照 JSON／CLI 实际使用的 Scoop ABI 解析后备。每轮交替八个普通、小数、科学计数法或带符号零输入；建议一百万次，分别消费文本长度或结果 bits。文本构造包含一次 String 分配，解析不分配托管结果；native 适配缓冲的分配要与 GC 统计分开报告。
 
-`boxing.scoop` 使用同一 helper，将实际分配的值放入 256 项循环数组。模式 0／1／2／3 分别为 ZST、Long、含两个引用的值和 128 B 宽值装箱；模式 4 为与模式 2 字段相同的普通 class 初始化。模式 2／4 的对象实例均为 40 B，输入 Node／String 在计时前建立，写入旧数组仍需屏障；模式 3 的 box 实例为 144 B，保留共享后备。建议每轮一千万次，分别记录内核与整程序时间；零引用模式作为对照，不用它们推断引用初始化的收益。
+`boxing.scoop` 使用同一 helper，将实际分配的值放入 256 项循环数组。模式 0／1／2／3 分别为 ZST、Long、含两个引用的值和 128 B 宽值装箱；模式 4 为与模式 2 字段相同的普通 class 初始化。模式 2／4 的对象实例均为 40 B，输入 Node／String 在计时前建立，写入旧数组仍需屏障；模式 3 的 box 实例为 144 B，使用共享分配完成路径与生成的 payload 复制。建议每轮一千万次，分别记录内核与整程序时间；零引用模式作为对照，不用它们推断引用初始化的收益。
+
+`context.scoop` 测量普通动态绑定 scope 的进入、读取及恢复，使用同一 phase helper。每次 scope 读取同一 Settings 的字段并累加，绑定树 push 及实际分配仍发生；建议一百万次，输出应为迭代次数的七倍。它用于对照生成的 Context 访问与 restore，不把整段时间全部归因于单条槽写入。

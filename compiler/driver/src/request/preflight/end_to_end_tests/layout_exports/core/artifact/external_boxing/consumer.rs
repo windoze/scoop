@@ -189,11 +189,11 @@ pub(super) fn check_ir(
         assert!(declaration.contains("external"), "{declaration}");
         if index == 0 {
             assert!(
-                ir.contains("@scoop_rt_box_zst") && ir.contains("@scoop_rt_unbox_zst"),
+                ir.contains("@scoop_runtime_alloc_slow") && ir.contains("@scoop_rt_unbox_zst"),
                 "{ir}"
             );
             assert!(
-                !ir.contains("alloca") && !ir.contains("store {}") && !ir.contains("load {}"),
+                !ir.contains("alloca {}") && !ir.contains("store {}") && !ir.contains("load {}"),
                 "{ir}"
             );
             assert!(
@@ -202,22 +202,18 @@ pub(super) fn check_ir(
             );
         } else {
             assert!(
-                ir.contains("@scoop_rt_box_value") && ir.contains("@scoop_rt_unbox_value"),
+                ir.contains("@scoop_runtime_alloc_slow") && ir.contains("@scoop_rt_unbox_value"),
                 "{ir}"
             );
-            assert_eq!(
-                ir.contains("native_region_roots"),
-                !offsets.is_empty(),
-                "{ir}"
-            );
+            assert!(!ir.contains("native_region_roots"), "{ir}");
             if !offsets.is_empty() {
                 assert!(
                     ir.contains("gc.statepoint") && ir.contains("gc.relocate"),
                     "{ir}"
                 );
                 assert!(
-                    ir.contains("scoop_rt_push_native_region_roots")
-                        && ir.contains("scoop_rt_pop_native_region_roots"),
+                    !ir.contains("scoop_rt_push_native_region_roots")
+                        && !ir.contains("scoop_rt_pop_native_region_roots"),
                     "{ir}"
                 );
             }

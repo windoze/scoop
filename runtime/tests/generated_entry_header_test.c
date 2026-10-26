@@ -21,9 +21,6 @@ void generated_entry_header_probe(void) {
     (void)scoop_runtime_alloc_slow;
     (void)scoop_rt_safepoint;
     (void)scoop_rt_string_concat;
-    (void)scoop_rt_array_clone;
-    (void)scoop_rt_box_zst;
-    (void)scoop_rt_box_value;
     (void)scoop_rt_unbox_zst;
     (void)scoop_rt_unbox_value;
     (void)scoop_rt_gc_collect;

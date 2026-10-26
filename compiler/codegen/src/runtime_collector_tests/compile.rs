@@ -76,7 +76,6 @@ pub(super) fn compile_and_run_configuration(
         "runtime/src/process.c",
         "runtime/src/startup/gateway.c",
         "runtime/src/boxing.c",
-        "runtime/src/arrays.c",
         "runtime/src/task_context.c",
         "runtime/src/value_shape.c",
         "runtime/src/gc/allocation.c",

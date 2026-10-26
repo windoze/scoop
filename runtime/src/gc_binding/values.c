@@ -3,16 +3,6 @@
 #include "../gc/gc_internal.h"
 #include "../value_shape.h"
 
-void scoop_gc_check_array_clone_source(const void *object, const ScoopTypeDescriptor *expected) {
-    scoop_gc_heap_lock();
-    size_t size = scoop_gc_object_size_locked(object);
-    if (((const ScoopObjectHeader *)object)->td != expected) {
-        scoop_shape_fatal("array clone exact source TypeDescriptor mismatch");
-    }
-    scoop_shape_validate_object(object, size);
-    scoop_gc_heap_unlock();
-}
-
 void scoop_gc_check_unbox(const void *object, const ScoopTypeDescriptor *expected,
                           uint32_t storage_kind) {
     scoop_gc_heap_lock();

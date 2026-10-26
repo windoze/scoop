@@ -21,7 +21,7 @@ fn if_else_becomes_basic_blocks() {
     let ng = b.string("ng");
     let write = b.managed_scoop_extern(
         "write",
-        "scoop_rt_write",
+        "test_core_write",
         vec![mir::Type::String],
         mir::Type::Unit,
     );
@@ -82,7 +82,7 @@ fn if_else_becomes_basic_blocks() {
       global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "ok"
       global @scoop$1$io$6389e5e8389d22f0e2baac5ee54d46413239a4323769000ee665c277f1d369ec = "ng"
       global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
-      extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
+      extern ef0 write @test_core_write(ptr<managed>) -> void <scoop managed nounwind>
       fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
       block entry
         poll managed-void-target0 sp<managed-poll:0> live=[]

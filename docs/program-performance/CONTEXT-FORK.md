@@ -1,5 +1,7 @@
 # TaskContext fork 的生成分配
 
+旧 fork C 入口现已退役，首次 root 建立仍由 runtime 负责。下面保留最初生成分配阶段的数据，当前全部 profile 与后备职责见 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md)。
+
 基线为 `379a99939`，复用已有 TLAB、接口 SSA 和根恢复。预热后的 Darwin `sample` 中，主线程 1,130 个样本有 196 个位于 fork 及其分配、根登记，current／snapshot 合计 39 个，enter／leave 合计 58 个；三个主要等待中的后台线程未计入这些比例。此次先处理 fork，小访问器、绑定树和切换继续使用共享 runtime。采样是选择实现顺序的依据，不是每次操作的周期模型。
 
 真实 MIR `ContextOperation::Fork` 在根计划之前降低为普通 managed Alloc 和 HeapStore。分配与 TD／scan 共用 generated TaskContext 的布局：24 B、对齐 8，root 在 offset 16。snapshot 只求值一次，作为分配后写入的实际输入保活并恢复；HeapStore 消费搬迁后的引用并执行既有屏障。空 snapshot 也分配独立 TaskContext，绑定树及其中对象的身份按原语义共享。这个输入不会被“返回后已死实参”规则误删，因为降低后的字段写入仍真实使用它。

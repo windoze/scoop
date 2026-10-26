@@ -10,7 +10,6 @@
  * heap metadata escapes this API. */
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size);
 bool scoop_gc_is_published_object(const void *object);
-void scoop_gc_check_array_clone_source(const void *object, const ScoopTypeDescriptor *expected);
 void scoop_gc_check_unbox(const void *object, const ScoopTypeDescriptor *expected,
                           uint32_t storage_kind);
 void scoop_gc_shutdown(void);

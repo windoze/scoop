@@ -1,6 +1,6 @@
 use super::*;
 use inkwell::values::AnyValue;
-use scoop_lir::{NoGcRuntimeFunction as Leaf, OptimizationMode};
+use scoop_lir::OptimizationMode;
 
 fn switched_context_module() -> Module {
     let mut module = values_module();
@@ -9,16 +9,6 @@ fn switched_context_module() -> Module {
     let previous = temps.alloc(Temp { ty: MANAGED_PTR });
     let current = temps.alloc(Temp { ty: MANAGED_PTR });
     let mut targets = CallTargets::default();
-    let enter = direct_site(
-        &mut targets,
-        TestCallProtocol::NoGc {
-            destination: no_gc_runtime(Leaf::ContextEnter),
-        },
-        vec![MANAGED_PTR],
-        (MANAGED_PTR, RefScan::References(vec![0])),
-        previous,
-        vec![Value::Param(0)],
-    );
     let mut collect = void_site(
         &mut targets,
         TestCallProtocol::Managed {
@@ -36,32 +26,19 @@ fn switched_context_module() -> Module {
         MANAGED_PTR,
         &[0],
     )]);
-    let read = direct_site(
-        &mut targets,
-        TestCallProtocol::NoGc {
-            destination: no_gc_runtime(Leaf::ContextCurrent),
-        },
-        vec![],
-        (MANAGED_PTR, RefScan::References(vec![0])),
-        current,
-        vec![],
-    );
-    let leave = void_site(
-        &mut targets,
-        TestCallProtocol::NoGc {
-            destination: no_gc_runtime(Leaf::ContextLeave),
-        },
-        vec![MANAGED_PTR],
-        vec![Value::Temp(previous)],
-    );
     let mut blocks = Arena::default();
     let active = blocks.alloc(BasicBlock {
         name: "active".into(),
         instructions: vec![
-            Instruction::Call { site: enter },
+            Instruction::TaskContextLoad { out: previous },
+            Instruction::TaskContextStore {
+                value: Value::Param(0),
+            },
             Instruction::Call { site: collect },
-            Instruction::Call { site: read },
-            Instruction::Call { site: leave },
+            Instruction::TaskContextLoad { out: current },
+            Instruction::TaskContextStore {
+                value: Value::Temp(previous),
+            },
         ],
         terminator: Terminator::Return {
             value: Some(Value::Temp(current)),
@@ -115,15 +92,11 @@ fn context_access_reads_and_writes_the_original_root_only_when_used() {
         let function = llvm.get_function(symbol).unwrap();
         let ir = function.print_to_string().to_string();
         for name in ["current", "enter", "leave"] {
-            assert_eq!(
-                ir.contains(&format!("@scoop_rt_context_{name}(")),
-                mode == OptimizationMode::Debug,
-                "{ir}"
-            );
+            assert!(!ir.contains(&format!("@scoop_rt_context_{name}(")), "{ir}");
         }
         if mode == OptimizationMode::Release {
             assert!(
-                ir.contains("task_context_previous = load ptr addrspace(1)"),
+                ir.contains("task_context_current = load ptr addrspace(1)"),
                 "{ir}"
             );
             assert!(ir.contains("@scoop_rt_context_slot"), "{ir}");

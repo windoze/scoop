@@ -33,16 +33,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             scoop_lir::CallDestination::Runtime(
                 scoop_lir::RuntimeFunction::Managed(
                     scoop_lir::ManagedRuntimeFunction::ContextPush
-                        | scoop_lir::ManagedRuntimeFunction::ContextFork
                         | scoop_lir::ManagedRuntimeFunction::ContextEnsureRoot
-                ) | scoop_lir::RuntimeFunction::NoGc(
-                    scoop_lir::NoGcRuntimeFunction::ContextTryGet
-                        | scoop_lir::NoGcRuntimeFunction::ContextRestore
-                        | scoop_lir::NoGcRuntimeFunction::ContextSnapshot
-                        | scoop_lir::NoGcRuntimeFunction::ContextCurrent
-                        | scoop_lir::NoGcRuntimeFunction::ContextEnter
-                        | scoop_lir::NoGcRuntimeFunction::ContextLeave
-                )
+                ) | scoop_lir::RuntimeFunction::NoGc(scoop_lir::NoGcRuntimeFunction::ContextTryGet)
             )
         ) {
             self.apply_nounwind(call);

@@ -35,14 +35,11 @@ impl RuntimeAbiSymbolV1 {
             Self::LirCall(RuntimeFunction::Managed(function)) => {
                 let (parameters, result): (&'static [_], _) = match function {
                     M::ContextPush => (&[P, P, P], P),
-                    M::ContextFork => (&[P, P], P),
                     M::ContextEnsureRoot => (&[P], P),
                     M::Safepoint | M::GcCollect => (&[], V),
                     M::Alloc => (&[P, I(64)], P),
-                    M::BoxZst | M::InitializationFailure | M::InitializationCycleMessage => {
-                        (&[P], P)
-                    }
-                    M::BoxValue | M::StringConcat => (&[P, P], P),
+                    M::InitializationFailure | M::InitializationCycleMessage => (&[P], P),
+                    M::StringConcat => (&[P, P], P),
                     M::InitializationEnter => (&[P], I(64)),
                     M::InitializationSucceed => (&[P], V),
                     M::InitializationFail => (&[P, P], V),
@@ -55,10 +52,7 @@ impl RuntimeAbiSymbolV1 {
             }
             Self::LirCall(RuntimeFunction::NoGc(function)) => {
                 let (parameters, result): (&'static [_], _) = match function {
-                    N::ContextTryGet | N::ContextEnter => (&[P], P),
-                    N::ContextRestore => (&[P, P], V),
-                    N::ContextSnapshot | N::ContextCurrent => (&[], P),
-                    N::ContextLeave => (&[P], V),
+                    N::ContextTryGet => (&[P], P),
                     N::IsInstance => (&[P, P], Boolean),
                     N::ITableLookup | N::ITableFind => (&[P, P], P),
                     N::Pin | N::Unpin => (&[P], P),
@@ -69,11 +63,10 @@ impl RuntimeAbiSymbolV1 {
                     N::StringByteLength => (&[P], I(64)),
                     N::StringByteAt => (&[P, I(64)], I(8)),
                     N::StringCharacterAtByte => (&[P, I(64)], I(32)),
-                    N::Trap | N::Throw | N::PopRecursiveRegion => (&[P], V),
+                    N::Trap | N::Throw => (&[P], V),
                     N::Rethrow => (&[], V),
                     N::UnboxZst => (&[P, P], V),
                     N::UnboxValue => (&[P, P, P], V),
-                    N::PushRecursiveRegion => (&[P, P, I(64)], V),
                 };
                 leaf(parameters, result)
             }
@@ -111,7 +104,6 @@ impl RuntimeAbiSymbolV1 {
             },
             Self::AllocateSlow => managed(&[P, I(64)], P),
             Self::WriteBarrier | Self::RecordDirtyCardGroup => leaf(&[P, I(64)], V),
-            Self::ArrayClone => managed(&[P, P, P], P),
             Self::PushPinFrame => leaf(&[P, P], V),
             Self::PopPinFrame => leaf(&[P], V),
             Self::FinishTlabAllocation | Self::PushCallerRoots | Self::PushCompilerRoots => {

@@ -198,7 +198,7 @@ fn lowers_hello_world() {
       global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "hello, world"
       global @scoop$1$io$6389e5e8389d22f0e2baac5ee54d46413239a4323769000ee665c277f1d369ec = "!"
       global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
-      extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
+      extern ef0 write @test_core_write(ptr<managed>) -> void <scoop managed nounwind>
       fun @scoop$1$cb$6cb4a66fa9aacac49c232a58b41d5c6876ef37a3aeb59531418a4b8f28cce6e2() -> void
       block entry
         poll managed-void-target0 sp<managed-poll:0> live=[]

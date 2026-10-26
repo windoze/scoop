@@ -1,5 +1,7 @@
 # 已知小型 box 的实际分配
 
+当前已扩展到所有 profile 和所有已知 box 布局，旧 box C 入口已退役。下面保留最初的小型 box 阶段数据；后续实现、回归和独立成本见 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md)。
+
 基线为 `7d2452435`。release 的 typed BoxValue 直接消费已选 shape 的完整实例 size／alignment；实例不超过 128 bytes 时复用普通 TLAB、清零和 collecting slow path，再按实际 offset／alignment 复制完整 payload。ZST 每次仍分配独立对象，不构造零尺寸 payload。较大 box、debug 及原 C ABI 后备保持。
 
 含引用源 place 使用已有 statepoint live set，分配后从移动回写的存储重新复制；生成路径不进入 box C 入口，因此省去其额外 native region frame、动态 shape／place 检查、managed anchor 和入口 poll。循环与函数既有 poll 保持。复制后复用值写屏障，不假定慢路径一定返回年轻对象；packed、padding、enum 父整数解箱及对象身份保持。新增实例布局只是既有 shape 的 LIR 内存投影，未增加 `.slib` 字段、runtime ABI、对象字段或诊断代码。

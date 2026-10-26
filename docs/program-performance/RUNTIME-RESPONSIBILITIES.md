@@ -8,8 +8,8 @@
 | --- | --- | --- |
 | bool equals/hash/toString、long/ulong hash/toString、Char toString、String eq、long/boolean print/println | 13 个旧入口均无生产消费者；仅 stage 测试替身、旧文档和 Char GC fixture 显式引用。生产正文已经迁移。 | 删除 C 实现、声明、Char 构建项、重复整数 writer 及其专属测试。stage 测试使用明确的 synthetic extern；GC 用例继续验证真实 Char 正文。 |
 | String 长度／定位／UTF-8 转换／长 hash | 原 core extern 是实际消费者；单字节读取与复制已有生成路径。 | 已迁普通 core 扫描、编码、strict／lossy 校验及共享长 hash；退役旧 C 算法、聚合结果 shim 与测试依赖。 |
-| String 有界 leaf、复制／concat、Array clone、box/unbox | typed IR 和生成路径已存在；需区分失败、未展开调用与仅余旧声明。 | 按真实生成覆盖收敛，保留实际慢路径。 |
-| Context 操作 | generated 操作与 runtime callback／线程入口共用部分逻辑。 | 按消费者拆分生成路径与必要 native 协调。 |
+| String 有界 leaf、复制／concat、Array clone、box/unbox | 字符串长比较／解码及动态 concat 仍有真实共享调用；clone 和已知 box 已有完整布局。 | clone／box 统一使用生成路径并退役旧入口；动态拆箱检查及实际共享字符串后备保留。 |
+| Context 操作 | runtime callback、try_get 和初始线程任务仍有 native 消费者。 | fork／current／enter／leave／restore 使用 typed 生成操作；保留 ensure_root、snapshot、try_get、push 的实际 C 职责。 |
 | Float／Double | Ryu 核心有实际消费者，C 还承担文本适配；解析有逐次 malloc。 | 保留成熟数字算法，迁移格式规则并消除不必要的解析堆缓冲。 |
 | compiler／caller root frame | 编译器已提供完整 entries，C 仍重放 entries 与链表检查。 | 本批收敛生成发布／撤销；native 根边界仍承担自身检查。 |
 
@@ -55,6 +55,23 @@ lossy 输入约每七个字节包含一个非法字节，其余为 ASCII；结�
 
 JSON／CLI 继续通过实际的 Scoop ABI Option 适配调用 libc `strtof_l`／`strtod_l`；保留完整消费、有限值、次正规数、带符号零、舍入和 C locale。小于 256 B 的输入使用 256 B 栈缓冲补 NUL，其他长度使用原动态缓冲，不增加合法输入限制。短输入每次省去适配层的一次 malloc／free，不能据此声称 libc 内部完全不分配。长度接口候选 fast_float v8.3.2 的原生内核约 10～11 ns，现有 libc 的栈缓冲约 18 ns，旧堆缓冲约 32 ns；两个候选 wrapper 的代码与常量约 44 KiB，并需补充 C++／musl 构建路径。本批采用栈缓冲，未引入新依赖或配置。
 
-Darwin ARM64 的 core 文本规则及极值、JSON 的 2,048 组 Float／Double 随机位型往返、CLI 数值解码和 254／255／256／257／1024 B 边界通过；debug／release 的 Scoop ABI、moving／minor GC 组合通过。机器码直接调用 Ryu，旧两个 C 包装符号不在产物中。Linux GNU／musl 使用相同源码的定向验证正在独立快照中执行，结果随本轮收尾补齐。
+ARM64 Darwin、x86_64 GNU／musl 的 core 文本规则及极值、JSON 的 2,048 组 Float／Double 随机位型往返、CLI 数值解码和 254／255／256／257／1024 B 边界通过；debug／release 的 Scoop ABI、moving／minor GC 组合通过。机器码直接调用 Ryu，旧两个 C 包装符号不在产物中。
 
 固定浮点源码、一百万次、预热一次后五对 AB／BA，ARM64 的 Double／Float toString 为 68.51→36.51 ns、62.84→28.82 ns；Double／Float parse 为 50.53→33.61 ns、49.14→33.20 ns。每项的托管分配及 GC 完全一致：两个文本负载分别 35,000,336 B／33 次 minor、34,000,336 B／32 次 minor，两个解析负载仅固定 352／344 B、无 collection。与本轮原始基线比较，完整文件 3,005,000→3,023,848 B，text 321,104→320,604 B；静态变化含前一字符串批次，不能全部归因于浮点迁移。本机候选应用构建墙钟 3.12 s、CPU 4.79 s，原基线未保存可比编译计时。普通职责迁移所有 profile 生效，release 复用既有内联与分配优化。
+
+Linux 空闲时固定 CPU 4，以相同源码及预编译二进制补齐五对 AB／BA。GNU 的 Double／Float toString 为 68.01→37.42 ns、60.95→28.71 ns，Double／Float parse 为 62.97→58.53 ns、59.10→56.58 ns；musl 分别为 194.14→143.24 ns、179.55→126.37 ns、210.66→160.80 ns、234.76→180.55 ns。四项分配字节及 minor／full 次数与上述 ARM64 数值相同，前后保持。GNU／musl 的 text 分别减少 2,304／2,816 B，完整文件增加 10,472／6,456 B，同样包含字符串批次的累计影响；Linux 候选构建单次墙钟 7.78／7.74 s，受到并行编译环境影响，不据此宣称编译加速。
+
+
+## 第四批：生成操作与实际后备
+
+所有 profile 的 BoxValue 直接消费既有实例布局，复用 managed allocation；分配后从已更新的源根复制 payload，随后执行必要屏障。实例不超过 128 B 时使用 LLVM memcpy，较大实例调用共享 NoGC memcpy，避免冷装箱适配器反复展开宽复制。debug、大对象、ZST、引用和 padding 使用同一合同；动态拆箱检查保留。退役 box_zst／box_value、Array clone、Context fork／restore／current／enter／leave 和旧 write／println C 包装及编译器符号目录，原生 snapshot、ensure_root、try_get、push 保留给实际 callback／线程／绑定树消费者。runtime contract 21，metadata 9。
+
+Context current／enter／leave 使用 TaskContextLoad／TaskContextStore，snapshot 和 restore 复用普通字段读取／写入与屏障。无新增对象字段、managed 根或访问器 safepoint。宽引用装箱回归还固定了晚期 aggregate 分解中已有的支配错误：嵌套 GC-free projection 必须插在选中分量的定义之后；旧实现会产生先使用后定义的 LLVM SSA，ARM64 debug 的宽 payload 读到错误值。最小 IR 在修改前 verifier 失败，修复后与真实 moving／minor GC 一起通过。
+
+ARM64 Darwin、x86_64 GNU／musl 均通过装箱、接口 SSA、跨 profile 小值、native ABI、Context moving／minor、协程出口、callback、普通 native 链接及重建 core 十组定向组合。最终共享复制另跑两 profile 的宽引用装箱；两机格式化、release Clippy、相关 IR／native 测试通过。真实普通 extern 仍按其声明调用，生成的 memcpy 不产生 native transition 或额外 statepoint。没有全量验收。
+
+相对 `0921d90a2`，固定源码和各自配套 runtime，ARM64 一次预热、五对 AB／BA：144 B 实例装箱 23.54→13.24 ns（−43.77%），Context scope 47.68→44.96 ns（−5.71%）；ZST、Long、引用值和 class 对照分别为 +1.46%、+3.23%、−0.06%、+0.01%，未将这些小差异当作稳定收益。全部三目标五种装箱和 Context 的分配字节、minor／full 次数逐项相同。全展开候选虽然大 box 为 12.29 ns，却增加约 51 KiB text；最终采用共享复制，无新配置。
+
+最终两个程序的 text 分别减少 ARM64 1,120／1,012 B、GNU 2,304／2,112 B、musl 2,368／2,240 B；文件分别减少 880／896 B、8,928／4,832 B、4,832／736 B。ARM64 构建单次墙钟为 2.78／2.28 s，基线 2.77／2.23 s；Linux 候选构建 3.91～4.58 s，受到其他编译任务影响，运行计时延后，不从 ARM64 外推 Linux 收益。删除失效 C 入口只计职责与静态收敛，不能把它单独算作运行收益。
+
+compiler／caller 根帧生成发布仍待下一批；当前先按新增任务推进编译速度与最终符号体积。StringBuilder／join_parts 和原定 EH 生命周期等事项继续后置。

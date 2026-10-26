@@ -33,7 +33,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${fixture}/../../language/extern-scoop/extern-scoop.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json"]
+argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${fixture}/../../language/extern-scoop/extern-scoop.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

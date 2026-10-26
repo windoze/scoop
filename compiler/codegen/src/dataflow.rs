@@ -136,6 +136,7 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
             })
             .collect(),
         Instruction::Store { value, .. }
+        | Instruction::TaskContextStore { value }
         | Instruction::GlobalStore { value, .. }
         | Instruction::NativeGlobalStore { value, .. } => vec![*value],
         Instruction::Call { site } => {
@@ -170,6 +171,7 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
         Instruction::EnumWrap { fields, .. } => fields.clone(),
         Instruction::ReleaseFieldLoad { .. }
         | Instruction::MakeZstValue { .. }
+        | Instruction::TaskContextLoad { .. }
         | Instruction::GlobalLoad { .. }
         | Instruction::GlobalAddress { .. }
         | Instruction::NativeGlobalLoad { .. }
@@ -230,6 +232,7 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::MachineAtomicCompareExchange { out, .. }
         | Instruction::GlobalLoad { out, .. }
         | Instruction::GlobalAddress { out, .. }
+        | Instruction::TaskContextLoad { out }
         | Instruction::NativeGlobalLoad { out, .. }
         | Instruction::NativeGlobalAddress { out, .. }
         | Instruction::FunctionAddress { out, .. }
@@ -266,7 +269,8 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         Instruction::LandingPad { record, raw } | Instruction::CleanupPad { record, raw } => {
             return vec![LiveValue::Temp(*record), LiveValue::Temp(*raw)];
         }
-        Instruction::GlobalStore { .. }
+        Instruction::TaskContextStore { .. }
+        | Instruction::GlobalStore { .. }
         | Instruction::PublishReleaseReady { .. }
         | Instruction::NativeGlobalStore { .. }
         | Instruction::HeapStore { .. }

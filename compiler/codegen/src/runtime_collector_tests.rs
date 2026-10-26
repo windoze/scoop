@@ -291,7 +291,7 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
 }
 
 #[test]
-fn descriptor_driven_boxing_and_arrays_preserve_zst_and_moving_gc() {
+fn dynamic_unboxing_and_native_allocation_preserve_representation() {
     let workspace = workspace_root();
     let strings = workspace.join("runtime/src/strings.c");
     let output = compile_and_run_with_flags(

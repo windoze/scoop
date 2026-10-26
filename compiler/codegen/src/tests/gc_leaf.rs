@@ -33,11 +33,11 @@ fn gc_leaf_errno_result_does_not_add_a_gc_boundary() {
 }
 
 #[test]
-fn ordinary_extern_named_like_a_context_entry_keeps_its_c_protocol() {
+fn ordinary_extern_named_like_a_runtime_entry_keeps_its_c_protocol() {
     check_gc_leaf(
         true,
         false,
-        "scoop_rt_context_current",
+        "scoop_rt_context_snapshot",
         scoop_lir::OptimizationMode::Release,
     );
 }

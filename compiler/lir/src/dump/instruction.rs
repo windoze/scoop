@@ -7,6 +7,12 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::TaskContextLoad { out } => {
+            buf.push_str(&format!("    t{} = task_context_load\n", out.into_raw()))
+        }
+        Instruction::TaskContextStore { value } => {
+            buf.push_str(&format!("    task_context_store {}\n", value_name(*value)))
+        }
         Instruction::StringByteLoad { out, string, index } => buf.push_str(&format!(
             "    t{} = string_byte_load {}, {}\n",
             out.into_raw(),

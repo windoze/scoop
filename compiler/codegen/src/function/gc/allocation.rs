@@ -59,8 +59,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let managed_ptr = managed_ptr_ty(context, self.managed_address_space);
         let i64_ty = context.i64_type();
 
-        let layout = layout.filter(|_| self.optimize_allocations);
         let (alignment, nursery_eligible) = self.allocation_parameters(descriptor, layout)?;
+        let layout = layout.filter(|_| self.optimize_allocations);
         let alignment_mask = builder
             .build_int_sub(
                 alignment,

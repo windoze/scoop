@@ -12,15 +12,12 @@ pub(crate) fn runtime_signature(
     match function {
         F::Managed(function) => match function {
             Managed::ContextPush => (vec![R, P, M], P),
-            Managed::ContextFork => (vec![P, M], P),
             Managed::ContextEnsureRoot => (vec![M], P),
             Managed::Safepoint | Managed::GcCollect => (vec![], T::Void),
             Managed::Alloc => (
                 vec![M, T::MachineScalar(lir::MachineScalarKind::ByteSize)],
                 P,
             ),
-            Managed::BoxZst => (vec![M], P),
-            Managed::BoxValue => (vec![M, R], P),
             Managed::StringConcat => (vec![P, P], P),
             Managed::InitializationEnter => (
                 vec![M],
@@ -32,10 +29,6 @@ pub(crate) fn runtime_signature(
         },
         F::NoGc(function) => match function {
             Leaf::ContextTryGet => (vec![R], P),
-            Leaf::ContextRestore => (vec![P, P], T::Void),
-            Leaf::ContextSnapshot | Leaf::ContextCurrent => (vec![], P),
-            Leaf::ContextEnter => (vec![P], P),
-            Leaf::ContextLeave => (vec![P], T::Void),
             Leaf::IsInstance => (vec![P, M], T::I1),
             Leaf::ITableLookup | Leaf::ITableFind => (vec![M, M], M),
             Leaf::Pin | Leaf::GetHandle => (vec![P], T::I64),
@@ -50,8 +43,6 @@ pub(crate) fn runtime_signature(
             Leaf::Rethrow => (vec![], T::Void),
             Leaf::UnboxZst => (vec![P, M], T::Void),
             Leaf::UnboxValue => (vec![P, M, R], T::Void),
-            Leaf::PushRecursiveRegion => (vec![R, R, T::I64], T::Void),
-            Leaf::PopRecursiveRegion => (vec![R], T::Void),
         },
     }
 }

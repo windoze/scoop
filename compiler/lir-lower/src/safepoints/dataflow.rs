@@ -110,6 +110,7 @@ pub(super) fn instruction_uses(
             })
             .collect(),
         lir::Instruction::Store { value, .. }
+        | lir::Instruction::TaskContextStore { value }
         | lir::Instruction::GlobalStore { value, .. }
         | lir::Instruction::NativeGlobalStore { value, .. } => vec![*value],
         lir::Instruction::Call { site } => {
@@ -144,6 +145,7 @@ pub(super) fn instruction_uses(
         lir::Instruction::EnumWrap { fields, .. } => fields.clone(),
         lir::Instruction::ReleaseFieldLoad { .. }
         | lir::Instruction::MakeZstValue { .. }
+        | lir::Instruction::TaskContextLoad { .. }
         | lir::Instruction::GlobalLoad { .. }
         | lir::Instruction::GlobalAddress { .. }
         | lir::Instruction::NativeGlobalLoad { .. }
@@ -204,6 +206,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::MachineAtomicCompareExchange { out, .. }
         | lir::Instruction::GlobalLoad { out, .. }
         | lir::Instruction::GlobalAddress { out, .. }
+        | lir::Instruction::TaskContextLoad { out }
         | lir::Instruction::NativeGlobalLoad { out, .. }
         | lir::Instruction::NativeGlobalAddress { out, .. }
         | lir::Instruction::FunctionAddress { out, .. }
@@ -241,7 +244,8 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::CleanupPad { record, raw } => {
             return vec![LiveValue::Temp(*record), LiveValue::Temp(*raw)];
         }
-        lir::Instruction::GlobalStore { .. }
+        lir::Instruction::TaskContextStore { .. }
+        | lir::Instruction::GlobalStore { .. }
         | lir::Instruction::PublishReleaseReady { .. }
         | lir::Instruction::NativeGlobalStore { .. }
         | lir::Instruction::HeapStore { .. }

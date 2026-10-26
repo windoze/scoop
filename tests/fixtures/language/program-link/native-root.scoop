@@ -1,10 +1,11 @@
 package dev.programlink
 import dev.programlink.programlink.nativeapi.*
 
-@Extern(name = "scoop_rt_write", abi = "scoop")
-private fun rootWrite(value: String)
+@Extern(name = "abs")
+private fun rootAbsolute(value: Int): Int
 
 fun main() {
     report()
-    rootWrite("root\n")
+    @Unsafe { if (rootAbsolute(-7) != 7) throw IllegalStateException() }
+    write("root\n")
 }

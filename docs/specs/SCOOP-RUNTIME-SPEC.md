@@ -129,7 +129,7 @@ scan fingerprint 为 `SHA-256(ByteSpan("scoop-scan-v1") || canonical_scan_bytes)
 
 struct、enum、tuple、数值、Ptr、FunPtr 依其静态类型按值存储。提升到 Any 或 interface 时，值存入带原 exact TypeDescriptor 的 managed box；值类型 receiver 使用独立的方法局部副本，不能取得调用方 place 或 box payload 的别名。
 
-runtime 后备入口的拆箱及数组克隆对源对象的检查在同一 heap lock 区间内只定位一次：exact size 查询同时确认对象起点，随后复用所得尺寸检查实际 TD 和动态 shape。读取对象头前必须完成对象边界检查；定位结果不得跨 safepoint 保留，类型匹配、整数枚举父类型关系及动态 length／实际分配尺寸检查不变。
+runtime 动态拆箱后备对源对象的检查在同一 heap lock 区间内只定位一次：exact size 查询同时确认对象起点，随后复用所得尺寸检查实际 TD 和动态 shape。读取对象头前必须完成对象边界检查；定位结果不得跨 safepoint 保留，类型匹配、整数枚举父类型关系及动态 length／实际分配尺寸检查不变。
 
 整型枚举（语言规范 4.2.1）的 inline size、alignment 和位表示等于底层整数，无额外 tag。直接装箱保留 enum exact identity，其 boxed TD 以对应整数的 boxed TD 为父类型；继承的接口使用整数成员的原签名。按父整数解箱允许这一已声明父子关系，使用同一 scalar payload 表示；反向解箱仍要求实际 enum 身份，不能检查数值后伪造 enum。先上转再装箱的值只有整数身份。未使用整数值不增加 Option niche。
 
@@ -139,11 +139,11 @@ runtime 后备入口的拆箱及数组克隆对源对象的检查在同一 heap 
 
 语言规范 11.11 的显式 `Equals<T>.equals` 实现使用普通 interface TD、itable 与 callable。表项只来自实际声明或继承的 conformance；结构 operator equals 不增加接口。NoGc 值方法实现 Managed interface slot 时，itable 使用符合 slot ABI 的 Managed value/interface adapter，具体值的直接 operator 比较仍调用原实现；runtime 不按类型名、对象地址或内存字节另行判断相等。
 
-`Unit` 和其他 ZST 的 payload size 可以为 0，类型身份与 box 对象身份仍存在。`scoop_rt_box_zst(td)` 每次产生新的 box；`scoop_rt_unbox_zst(object, expected_td)` 检查 exact type。
+`Unit` 和其他 ZST 的 payload size 可以为 0，类型身份与 box 对象身份仍存在，每次实际装箱产生新对象。所有 profile 的 typed BoxValue 消费已选 box 的完整实例布局，通过既有分配路径分配，并复制 payload（包含 padding）；大小不再决定是否进入专用 box C 后备。release 按原 TLAB 尺寸与布局条件完成快路径，debug 和大对象遵守分配器既有的 TLAB 完成／慢路径策略；不在 runtime 重推已知 payload shape。较大 payload 可复用共享 NoGC 字节复制，避免为每个调用点展开完整复制；调用仅消费分配后有效的源和目的地址，不增加 native transition 或 safepoint。
 
-`scoop_rt_box_value(td, source_place)` 要求 source place 可读、地址稳定、满足该 TD 的 inline size/alignment。含引用的 source place 必须在入口握手前以同一 TD 的 nonempty inline scan 登记为链顶 RecursiveRegion root。分配或 GC 后从更新后的 place 复制，返回后按 LIFO 撤销 root。`scoop_rt_unbox_value(object, expected_td, destination)` 在 exact type 或上述整型枚举到父整数的合法解箱检查成功后，按值写入满足大小与对齐的 destination。
+含引用的源 place 由既有 LIR statepoint live set 保活并移动回写，分配后重新取得源数据；不建立仅供旧 box C 入口检查的 RecursiveRegion frame。复制后按完整值扫描布局执行必要写屏障；只有实际 TLAB 成功且复制前没有 safepoint 时可按 3.6 省略，慢路径结果不能假定年轻。对象头、对齐、清零、失败、TD 和 interface 语义保持，ZST 不构造 payload 存储。`scoop_rt_box_zst`／`scoop_rt_box_value` 及其 anchor／实现退役。拆箱生成 exact TD 比较和复制，真实动态父整数关系与错误路径仍使用 `scoop_rt_unbox_zst`／`scoop_rt_unbox_value`，后者要求目的地满足完整 payload 的大小与对齐。
 
-release 的 typed BoxValue 可以直接消费已选 box 的完整实例布局，通过既有 TLAB／collecting slow path 分配，并在结果中复制原 payload（包含 padding）。首版只展开实例不超过 128 bytes 的 box，覆盖 ZST、GC-free 值及含引用小值；其他 box 和 debug 使用原后备。每次实际装箱仍产生独立身份，ZST 不构造 payload 存储。生成路径的源 place 由既有 LIR statepoint live set 保活并移动回写，分配后重读；它不进入 box C 入口，因而不建立仅为该入口检查所需的额外 RecursiveRegion frame。复制后按完整值扫描布局执行必要写屏障；只有实际 TLAB 成功且复制前没有 safepoint 时可按 3.6 省略，不能假定慢路径结果必定年轻。对象头、对齐、清零、失败、TD 和 interface 语义保持，C 后备自己的 source-root 合同不变。
+Array clone 在所有 profile 使用实际源／目标布局生成计数读取、分配、搬迁后源重读、完整 stride 复制及必要屏障，保留 ZST 的计数和独立对象身份。无生产消费者的 `scoop_rt_array_clone`、专属动态 shape 检查及 anchor 退役；普通 extern 不因符号同名被替换。
 
 生成代码的 typed unbox 可以直接读取有效、非 null managed 对象的 TD；与预期 boxed TD 相等时，按已确定的 payload offset／大小／对齐将完整字节（包含 padding）复制到独立 typed local，ZST 只完成类型检查而不读取 payload。该路径不分配或停顿，含引用值仍由后续普通根计划保活和恢复，不查询 heap size 或重放已确定的布局校验。TD 不相等时继续调用原 unbox leaf，保留整型 enum 到父整数的兼容解箱及原错误行为。C 入口仍履行自身合同；不能将原本需要的源码 null／cast 检查替换为无条件 payload load。
 
@@ -173,7 +173,7 @@ Array 与 MutableArray 的 logical size 位于 offset 16，元素区从 `alignUp
 
 ZST 数组不保存元素 payload，但保留 logical size、完整类型与独立对象身份；clone 和互转产生新对象。按长度初始化仍逐索引执行 initializer，保留副作用与异常。初始化期间数组和已写元素必须可被精确扫描，不得向用户暴露未初始化元素。
 
-typed 数组 clone 的源／目标 element exact type 与 layout 已一致时，生成代码可按源对象的有效、不可变 count 计算相同布局的分配大小，复用普通 TLAB／分配慢路径，并以目标 nominal TD 构造独立对象。源数组属于该分配点的 live roots；分配后必须从恢复的根重新读取源对象，才形成 AS1 payload 地址。复制完整 stride 字节（包含 padding），含引用元素在发布前执行必要的范围写屏障；实际 TLAB 成功且复制区间无 safepoint 时按 3.6 省略，慢分配保留。ZST 只复制 logical count。原 C 入口及其动态对象检查保持，普通源码循环的 poll 不因 clone 展开而删除。
+typed 数组 clone 的源／目标 element exact type 与 layout 已一致时，所有 profile 的生成代码按源对象的有效、不可变 count 计算相同布局的分配大小，复用普通 TLAB／分配慢路径，并以目标 nominal TD 构造独立对象。源数组属于该分配点的 live roots；分配后必须从恢复的根重新读取源对象，才形成 AS1 payload 地址。复制完整 stride 字节（包含 padding），含引用元素在发布前执行必要的范围写屏障；实际 TLAB 成功且复制区间无 safepoint 时按 3.6 省略，慢分配保留。ZST 只复制 logical count。普通源码循环的 poll 不因 clone 展开而删除。
 
 ArrayList、StringBuilder 等普通库类型使用其声明的 class/value 表示，其公开行为由语言规范第 11 章规定。
 
@@ -213,7 +213,7 @@ unit 由 `PersistentInitializationUnitId` 标识；diagnostic path 只用于显�
 
 ### 2.8 多 image 登记与启动 ABI
 
-runtime ABI contract 为 **19**，metadata ABI 为 **9**。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 16 的完整 TLAB 元数据视图及 contract 15 的接口查询入口保持。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
+runtime ABI contract 为 **21**，metadata ABI 为 **9**。contract 20／21 退役无生产消费者的标量、打印、专用装箱、Array clone 与 Context 生成操作 C 入口；所有 profile 复用相同 typed 布局与根计划。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 16 的完整 TLAB 元数据视图及 contract 15 的接口查询入口保持。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
 
 | descriptor | magic | size（bytes） |
 | --- | --- | --- |
@@ -643,7 +643,7 @@ Scoop ABI 的 Boolean 参数／结果遵守实现规范 2.4 的 `i1 zeroext` 约
 
 native root frame 为封闭的 DirectSlots 或 RecursiveRegion。前者通过 `push_native_roots(slots, count)` / `pop_native_roots()` 等价能力登记一组 direct-ref slots；后者通过 `push_native_region_root(base, byte_extent, scan)` / `pop_native_region_root()` 等价能力登记 non-null 稳定 base、非零 extent 与 canonical nonempty scan。两者共享严格 LIFO 链，不能以 count=0 或 null scan 伪装另一种 frame。
 
-push/pop 本身不得分配、GC、park 或回调。frame 在可能握手前完整发布，collector 在可扫描状态后观察；pop 只在入口返回且更新后的值已重读之后发生。region 的 scan、alignment 与 extent 必须匹配实际存储；用于 boxing 时，链顶 region 与 source place、TD inline layout 逐项相符。
+push/pop 本身不得分配、GC、park 或回调。frame 在可能握手前完整发布，collector 在可扫描状态后观察；pop 只在入口返回且更新后的值已重读之后发生。region 的 scan、alignment 与 extent 必须匹配实际 native 存储。typed boxing 的源 place 由既有 statepoint live set 保活，不重复登记 native region。
 
 generated managed caller 使用 NoGC、nounwind、有限时间的私有 leaf root 操作，不建立额外 native transition；所有非 fatal 出口必须平衡撤销。native 代码跨 safepoint 不得缓存 managed leaf 的旧副本。
 
@@ -845,11 +845,11 @@ Context、binding、mark 与 snapshot 使用实际 managed 类型和 scan。当�
 
 生成代码可通过私有 TLS 符号 `scoop_rt_context_slot` 取得当前线程原有 `current_task_context` 根槽的 native 地址。该符号在全部 profile 中都是 8-byte、8-byte 对齐的可变 TLS 指针；主线程与 foreign thread attach 时绑定，detach 时清空。它只指向原根槽，不保存第二份 managed 引用，也不增加 GC root。collector 继续扫描并更新原槽，C 后备与生成代码读取和写入同一槽。合法 managed invocation 期间线程不能 detach，因此可复用槽地址；不得把槽内 TaskContext 或其 root 字段值缓存跨可能改变绑定或发生 GC 的边界。协程在另一线程恢复时由新的 invocation 取得该线程的槽地址。
 
-current、enter、leave 可按上述槽生成普通 managed-pointer 读取／写入，仍为 NoGC；enter 返回原引用，leave 恢复传入引用，previous 的后续使用遵守通常的精确根和重定位规则。槽本身是 native 根位置，不是堆字段，不需要堆写屏障。snapshot 先取得 current，为空时返回空 root，否则读取实际 TaskContext 布局中的 root 字段；读取不改变绑定。上述操作不新增 safepoint，不缓存对象内部地址，不把内存效果改为 pure。绑定树遍历、push／restore 及其屏障继续使用共享实现。
+current、enter、leave 在所有 profile 按上述槽生成普通 managed-pointer 读取／写入，仍为 NoGC；enter 返回原引用，leave 恢复传入引用，previous 的后续使用遵守通常的精确根和重定位规则。槽本身是 native 根位置，不是堆字段，不需要堆写屏障。snapshot 先取得 current，为空时返回空 root，否则读取实际 TaskContext 布局中的 root 字段；读取不改变绑定。上述操作不新增 safepoint，不缓存对象内部地址，不把内存效果改为 pure。绑定树遍历和 push 的动态路径继续使用共享实现；restore 的已知 TaskContext 根字段写入及屏障由生成代码完成。 fork 的源码操作已使用 typed 分配和字段写入，旧 managed fork anchor 退役；首次任务建立由 ensure-root 保留私有分配实现。snapshot 的 C helper 是 callback 注册与动态绑定查找的真实消费者，current 成为该 C 文件的私有 helper；只供生成代码调用的 enter／leave／restore C 包装退役。
 
 同一任务串行改变绑定。child task 继承创建时的 snapshot，后续重新绑定独立；binding 中原对象的身份仍可共享，不隐含深复制或并发同步。
 
-TaskContext 的实例由对象头和一个可空 managed root 字段组成，root 指向已有的不可变 binding tree；fork 只分配新的实例并保存该 root。编译器可以按同一 TD／scan 布局生成分配及字段写入，复用普通分配失败、TLAB 慢路径和写屏障协议（实现规范 2.16）。snapshot 在可能 GC 的分配期间保活，分配后的写入消费重定位结果；不能跨分配保存内部裸地址。此路径与共享 runtime 后备保持相同的任务身份、绑定快照及恢复语义，不改变当前线程 Context 的根发布规则。
+TaskContext 的实例由对象头和一个可空 managed root 字段组成，root 指向已有的不可变 binding tree；fork 只分配新的实例并保存该 root。编译器按同一 TD／scan 布局生成分配及字段写入，复用普通分配失败、TLAB 慢路径和写屏障协议（实现规范 2.16）。snapshot 在可能 GC 的分配期间保活，分配后的写入消费重定位结果；不能跨分配保存内部裸地址。生成路径保持任务身份、绑定快照及恢复语义，不改变当前线程 Context 的根发布规则。
 
 ### 9.3 Context key 登记
 

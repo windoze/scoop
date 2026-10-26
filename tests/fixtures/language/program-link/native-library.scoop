@@ -3,10 +3,7 @@ package dev.programlink.programlink.nativeapi
 @Extern(name = "abs")
 public fun absolute(value: Int): Int
 
-@Extern(name = "scoop_rt_write", abi = "scoop")
-public fun sameWrite(value: String)
-
 public fun report() {
     @Unsafe { println(absolute(-42)) }
-    sameWrite("library\n")
+    write("library\n")
 }

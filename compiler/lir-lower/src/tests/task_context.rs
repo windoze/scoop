@@ -98,24 +98,10 @@ fn snapshot_checks_current_before_reading_the_shared_root_layout() {
         let output = lower_test_input_with_optimization(&seal_strong_input(module), mode).unwrap();
         let function = &output.module().functions[0];
         let instructions = instructions_without_polls(&function.blocks[function.entry]);
-        let lir::Instruction::Call {
-            site: lir::CallSite::NoGc(site),
-        } = instructions[0]
-        else {
+        let lir::Instruction::TaskContextLoad { out } = instructions[0] else {
             panic!("snapshot reads the current Context once");
         };
-        let call = function.call_targets.typed_call_view(
-            &site.call,
-            &function.call_targets.no_gc_targets,
-            lir::NoGcCallDestination::view,
-        );
-        assert_eq!(
-            call.destination(),
-            lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
-                lir::NoGcRuntimeFunction::ContextCurrent
-            ))
-        );
-        let current = lir::Value::Temp(call.direct_out().unwrap());
+        let current = lir::Value::Temp(*out);
         let lir::Instruction::Store {
             local: root,
             value: lir::Value::NullPointer(lir::PointerKind::Managed),
