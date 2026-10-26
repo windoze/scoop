@@ -50,7 +50,10 @@ pub(super) fn body(
         });
         for statement in &mut block.statements {
             if let mir::StatementKind::ValDecl { local, .. }
-            | mir::StatementKind::Assign { local, .. } = &mut statement.kind
+            | mir::StatementKind::Assign { local, .. }
+            | mir::StatementKind::Call(mir::CallEffect::Value {
+                destination: local, ..
+            }) = &mut statement.kind
             {
                 *local = locals.get(local).copied().unwrap_or(*local);
             }

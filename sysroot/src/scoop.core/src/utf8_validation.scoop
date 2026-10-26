@@ -1,0 +1,74 @@
+// Positive means a valid scalar's byte width; negative means the byte count
+// in one malformed maximal subpart. At most four bytes are inspected.
+@NoGC @Unsafe
+internal fun coreUtf8Step(bytes: Ptr<UInt8>, remaining: Long): Long {
+    val first = bytes.load().toInt()
+    if (first <= 127) { return 1L }
+    var width = 0L
+    var minimum = 128
+    var maximum = 191
+    if (first >= 194 && first <= 223) {
+        width = 2L
+    } else if (first >= 224 && first <= 239) {
+        width = 3L
+        if (first == 224) { minimum = 160 }
+        if (first == 237) { maximum = 159 }
+    } else if (first >= 240 && first <= 244) {
+        width = 4L
+        if (first == 240) { minimum = 144 }
+        if (first == 244) { maximum = 143 }
+    } else { return -1L }
+    var index = 1L
+    while (index < width) {
+        if (index >= remaining) { return -index }
+        val byte = bytes.load(index).toInt()
+        if (byte < minimum || byte > maximum) { return -index }
+        minimum = 128
+        maximum = 191
+        index += 1L
+    }
+    return width
+}
+
+@Unsafe
+internal fun coreStringDecodeUtf8(pointer: Ptr<UInt8>, length: Long): (String?, Long) {
+    var cursor = 0L
+    while (cursor < length) {
+        val step = coreUtf8Step(pointer + cursor, length - cursor)
+        if (step < 0L) { return (None, cursor) }
+        cursor += step
+    }
+    return (Some(coreStringCopyUtf8Unchecked(pointer.cast<Byte>(), length)), -1L)
+}
+
+@Unsafe
+internal fun coreStringDecodeUtf8Lossy(pointer: Ptr<UInt8>, length: Long): String {
+    var cursor = 0L
+    var size = 0L
+    while (cursor < length) {
+        val step = coreUtf8Step(pointer + cursor, length - cursor)
+        size = coreStringAddLength(size, if (step > 0L) step else 3L)
+        cursor += if (step > 0L) step else -step
+    }
+    val result = coreStringAllocateZeroed(size)
+    cursor = 0L
+    var output = 0L
+    while (cursor < length) {
+        val step = coreUtf8Step(pointer + cursor, length - cursor)
+        if (step > 0L) {
+            coreStringSetByteUnchecked(result, output, pointer.load(cursor).toByte())
+            if (step > 1L) { coreStringSetByteUnchecked(result, output + 1L, pointer.load(cursor + 1L).toByte()) }
+            if (step > 2L) { coreStringSetByteUnchecked(result, output + 2L, pointer.load(cursor + 2L).toByte()) }
+            if (step > 3L) { coreStringSetByteUnchecked(result, output + 3L, pointer.load(cursor + 3L).toByte()) }
+            output += step
+            cursor += step
+        } else {
+            coreStringSetByteUnchecked(result, output, 239.toByte())
+            coreStringSetByteUnchecked(result, output + 1L, 191.toByte())
+            coreStringSetByteUnchecked(result, output + 2L, 189.toByte())
+            output += 3L
+            cursor -= step
+        }
+    }
+    return result
+}

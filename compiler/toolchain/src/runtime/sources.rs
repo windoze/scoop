@@ -7,9 +7,7 @@ pub(super) const COMMON: &[&str] = &[
     "vendor/ryu/ryu/f2s.c",
     "vendor/ryu/ryu/d2s.c",
     "runtime/src/strings.c",
-    "runtime/src/string_decode.c",
     "runtime/src/string_parts.c",
-    "runtime/src/utf8.c",
     "runtime/src/startup.c",
     "runtime/src/startup/failure.c",
     "runtime/src/startup/gateway.c",
@@ -91,14 +89,12 @@ pub(super) const ELF_IMAGE: &[&str] = &["runtime/src/platform/image/elf.c"];
 pub(super) const AARCH64: &[&str] = &[
     "runtime/src/platform/arch/aarch64.c",
     "runtime/src/platform/arch/aarch64_anchor.S",
-    "runtime/src/platform/arch/aarch64_strings.S",
     "runtime/src/platform/arch/aarch64_floating.S",
     "runtime/src/platform/arch/aarch64_float_environment.c",
 ];
 pub(super) const X86_64: &[&str] = &[
     "runtime/src/platform/arch/x86_64.c",
     "runtime/src/platform/arch/x86_64_anchor.S",
-    "runtime/src/platform/arch/x86_64_strings.c",
     "runtime/src/platform/arch/x86_64_floating.c",
     "runtime/src/platform/arch/x86_64_float_environment.c",
 ];

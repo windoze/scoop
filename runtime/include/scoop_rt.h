@@ -102,18 +102,11 @@ void scoop_rt_flush_stdout(void);
 /* Fixed-width primitive conversions used by ordinary core methods. */
 const ScoopString *scoop_rt_float_to_string(float value);
 const ScoopString *scoop_rt_double_to_string(double value);
-int64_t scoop_rt_string_byte_length(const ScoopString *value);
-int64_t scoop_rt_string_length(const ScoopString *value);
-uint32_t scoop_rt_string_character_at_byte(const ScoopString *value, int64_t index);
-int8_t scoop_rt_string_byte_at(const ScoopString *value, int64_t index);
-const ScoopString *scoop_rt_string_slice_bytes(const ScoopString *value, int64_t start,
-                                               int64_t end);
-const ScoopString *scoop_rt_string_from_chars(const ScoopArray *value);
-const ScoopString *scoop_rt_string_from_bytes(const ScoopArray *value);
-/* Stable, readable UTF-8 storage; the caller owns its lifetime through allocation. */
-const ScoopString *scoop_rt_string_from_utf8_unchecked(const unsigned char *bytes, int64_t length);
+/* Internal bounded NoGC reads; generated code uses these only where needed. */
+int64_t scoop_rt_string_byte_length_leaf(const ScoopString *value);
+int8_t scoop_rt_string_byte_at_leaf(const ScoopString *value, int64_t index);
+uint32_t scoop_rt_string_character_at_byte_leaf(const ScoopString *value, int64_t index);
 const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count);
-int64_t scoop_rt_string_hash(const ScoopString *s);
 
 /* String and primitive operations used by ordinary scoop.core declarations. */
 int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b);

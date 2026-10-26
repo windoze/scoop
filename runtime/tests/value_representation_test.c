@@ -9,7 +9,6 @@
 
 #include "../src/gc/gc_internal.h"
 #include "../src/managed_entries.h"
-#include "../src/string_abi.h"
 #include "../src/thread.h"
 #include "../src/value_shape.h"
 #include "platform/image_fixture.h"

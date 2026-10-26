@@ -1205,11 +1205,11 @@ ArrayGenerate 保存完整目标 application、元素类型、Long count 与 ord
 
 Char 为独立 nominal identity，常量和各层表示保存合法 Unicode scalar，物理布局为 GC-free u32。它不与 UInt 合并，Option、数组、装箱与 ABI 使用实际 Char 类型；不因表示相同增加整数算术或 CharRange。
 
-String 的普通 getCharAt(idx) 方法和 charLength 属性按 Unicode scalar，byteLength 使用物理 UTF-8 byte count；String 不提供 get／下标运算或 length 别名。公开 API 从 core 真实声明导出并跨 Cone 消费，内部 UTF-8 表示、定位后备的 Option 结果、runtime 符号及调用 ABI 保持，异常边界见运行时规范第 6 章；List getter 仍为可抛出的普通 managed 调用。
+String 的普通 getCharAt(idx) 方法和 charLength 属性按 Unicode scalar，byteLength 使用物理 UTF-8 byte count；String 不提供 get／下标运算或 length 别名。公开 API 从 core 真实声明导出并跨 Cone 消费，内部 UTF-8 表示与普通 helper 的 Option 结果保持；定位算法由 core 正文实现，异常边界见运行时规范第 6 章。List getter 仍为可抛出的普通 managed 调用。
 
-String 相等的同引用、长度不等及空串判断使用普通 core 正文；剩余比较沿真实 string_compare_to intrinsic。短 hash 可使用有界普通正文，较长文本继续共享原 FNV-1a 后备，位宽、字节顺序与回绕结果保持。调用点常量事实保存实际 StringConstId，复用普通内联与控制流简化；只有真实 typed String 字节长度、合法定点字节读取和比较可按已知内容折叠，普通 extern 不参与。常量身份与 provider 归属保持，不能因文本相等推导对象身份相同，也不能因常量 id 不同推导身份不同。
+String 相等的同引用、长度不等及空串判断使用普通 core 正文；剩余比较沿真实 string_compare_to intrinsic。短 hash 使用有界普通正文，较长文本共享普通 core FNV-1a 循环，位宽、字节顺序与回绕结果保持。调用点常量事实保存实际 StringConstId，复用普通内联与控制流简化；只有真实 typed String 字节长度、合法定点字节读取和比较可按已知内容折叠，普通 extern 不参与。常量身份与 provider 归属保持，不能因文本相等推导对象身份相同，也不能因常量 id 不同推导身份不同。
 
-有界 hash 按实际 byte length 选择普通 core 正文，当前至多展开 32 字节，并在有效字节处理完毕时直接返回，避免短输入经过剩余的空判断。长度界限是库算法的代码体积取舍，不是新的 intrinsic、调用协议或内联特判。同一正文适用于直接调用、接口分派和跨 Cone 消费，常量点仍由既有调用点评分决定是否展开。扩大范围时须同时比较界限两侧的动态输入、长输入和调用者代码增长；超出范围时沿原 native 后备完整计算一次，不先扫描前缀再重新计算。各 profile 保持相同 hash 算法与结果，原 extern 的线程协调和保活合同不变。
+有界 hash 按实际 byte length 选择普通 core 正文，当前至多展开 32 字节，并在有效字节处理完毕时直接返回，避免短输入经过剩余的空判断。长度界限是库算法的代码体积取舍，不是新的 intrinsic、调用协议或内联特判。同一正文适用于直接调用、接口分派和跨 Cone 消费，常量点仍由既有调用点评分决定是否展开。扩大范围时须同时比较界限两侧的动态输入、长输入和调用者代码增长；超出范围时沿共享循环完整计算一次，不先扫描前缀再重新计算。各 profile 保持相同 hash 算法与结果，managed 循环遵守普通 poll 和输入重定位合同。
 
 release 可对已知不超过八字节的常量比较生成有长度保护的定宽读取；只读取实际存在的字节，并按无符号 UTF-8 字节的字典序产生原比较结果。其他输入保留共享比较。StringCharacterAtByte 继续使用已有 NoGC leaf；单独 ASCII 展开须按代表性 ASCII／Unicode 调用点的实际收益选择，不能省略边界检查或改变原诊断。以上读取不增加 safepoint、roots 或跨 safepoint 内部指针；没有新增 intrinsic 身份、runtime 符号或产物格式。展开后的普通正文仍由已有调用点评分选择，不按 core 函数名强制内联。
 
@@ -1221,13 +1221,15 @@ release 在普通 MIR 内联与局部分配优化之后识别真实 `RuntimeFn::
 
 MIR 的 StringCopy 保存完整操作与按序求值的输入，LIR 携带实际目标 TD／数组布局、源表示和分配根计划。一次分配后设置长度，再复制精确字节数；无引用 payload 不需要写屏障。受托管的输入即使源码调用后已死，也必须保留至展开后的复制完成，并在可能 GC 的分配后使用重定位结果计算源地址。原生指针不充当 managed root。byte array 结果始终具有独立存储，不能返回 String 的内部视图；普通 List 输入仍先执行原有逐项快照，保留 getter 的次数、顺序与异常，不对任意 initializer 或 List 绕过调用。
 
-Char 的单标量 UTF-8 编码使用普通 core 正文与四字节 GC-free 局部缓冲，复用上述复制；零字节不是终止符。整数十进制编码复用同一稳定缓冲复制。调用点内联与常量传播决定编码正文是否展开，LLVM 按已知长度降低 memcpy；动态长复制保留共享 memcpy，不复制扫描算法。debug 使用普通分配后备，release 复用已有 TLAB／慢路径；复杂 from_chars、严格／lossy UTF-8 解码与标量索引定位继续共享原后备。
+普通 UTF-8 构造还使用内部 `string_allocate_zeroed(Long): String`、unsafe `string_byte_at_unchecked(String, Long): Byte` 与 unsafe `string_set_byte_unchecked(String, Long, Byte): Unit`（String intrinsic tags 9～11）。零字节分配作为 StringCopy 的零初始化源复用现有大小检查、TD、TLAB／慢分配，不增加第二次清零；MIR 的 typed 字节操作及 LIR 的字节 load／store 只表达既有表示与前置条件，不增加扫描算法或 C 后备。字节范围由普通 core 正文保证，写只用于私有构造中的对象，见 runtime 2.4；普通受检读取仍可用于其他内部调用。所有 profile、跨 Cone 正文导出及产物消费遵守同一操作合同，配套 core／依赖产物按现有输入更新重建。
+
+Char 的单标量 UTF-8 编码使用普通 core 正文与四字节 GC-free 局部缓冲，复用上述复制；零字节不是终止符。整数十进制编码复用同一稳定缓冲复制。调用点内联与常量传播决定编码正文是否展开，LLVM 按已知长度降低 memcpy；动态长复制保留共享 memcpy，不复制扫描算法。debug 使用普通分配后备，release 复用已有 TLAB／慢路径。fromChars、严格／lossy UTF-8 解码与字符索引定位共享普通 core helper，不再调用旧 C 算法。
 
 普通正文对已解析的普通方法 application 与直接函数引用使用同一可移植调用合同；不能因为属性 getter 或方法以本地 method application 表示，就丢弃包含该调用的完整正文。沿既有引用记录保留 exact owner、receiver、参数和访问器身份，泛型替换仍由原具体化流程处理；正文可用性不代替 consumer 的调用点评分。
 
 Char 字面量、已知 Char 的 code 和合法常量的 unchecked 标量构造参与已有 MIR 常量事实及调用点评估。只折叠已知合法 Unicode 标量，不把非法 unchecked 输入变成另一标量；动态检查、分配与复制仍保留原有副作用。
 
-严格、可空和 lossy UTF-8 转换按语言规范 11.4 的实际 core 声明调用 runtime 后备。CharacterCodingException 是普通 core 异常，成功/失败结果通过完整 typed Scoop ABI 传递；不按方法短名增加编译器特判或新的异常角色。lossy 的 maximal subpart 与严格路径的 byteOffset 使用同一解码规则，生成代码不得用截断、locale 转码或忽略非法字节替代。字节借用、结果 String 与跨分配保存的 managed 输入遵守普通 roots、pin 与 relocation 合同。
+严格、可空和 lossy UTF-8 转换按语言规范 11.4 的实际 core 声明组合普通扫描、校验和构造正文。CharacterCodingException 是普通 core 异常，成功/失败结果通过完整 typed Scoop ABI 传递；不按方法短名增加编译器特判或新的异常角色。lossy 的 maximal subpart 与严格路径的 byteOffset 使用同一个至多读取四字节的 NoGC helper，生成代码不得用截断、locale 转码或忽略非法字节替代。完整扫描保持 managed poll；字节借用、结果 String 与跨分配保存的 managed 输入遵守普通 roots、pin 与 relocation 合同。
 
 C 字符串接口由普通 core 代码组合：withCString 检查 NUL，复制到带终止符的 MutableArray<UInt8>，再通过语言规范 13.11 借用；fromCString 通过普通 C ABI 的 strlen 取得长度，复用严格 pointer 解码。strlen 按 GCLeaf 合同调用；没有独立的编译器 C 字符串类型、隐式编码转换或栈缓冲优化。
 
@@ -1419,6 +1421,8 @@ catch／finally／resume 本身不排除整函数的局部分配消除。支配�
 LIR 准备阶段依据最终 MIR 的实际引用选择普通 closure 的私有物理支持。只将环境关联的生成 invoke／bridge 作为可省略 callable，普通源码定义、初始化、入口、dispatch、callback 和协程协议入口仍是发射根。由这些根的正文沿本地调用、ClosureAlloc／ClosureCapture 与环境支持关系传播；直接引用某个 helper 或同 class 的其他实例均保留对应支持。没有外部根的 helper 相互引用不使自身存活。未选环境不发射其 TD、对象／值 layout、scan 和私有 callable；仍被实际类型检查或其他环境使用的函数签名 TD 保留。首版保留 suspend closure 支持，不扩大为任意定义的全程序 DCE。选择仅为 lir-lower 的本次私有状态，MIR 身份、签名和完整语义目录保持，不增加产物字段、重建语义校验或改变对外导出合同。
 
 release 在普通 MIR 优化迭代结束后、LIR poll／roots 生成前，可以对 Managed 的计数循环分块。接受独立前驱中初始化的非负 Int／Long 归纳变量、稳定上界、严格小于条件及每轮唯一的加一更新。上界可为整数常量、不被写入或取址的参数、进入循环前已经保存且不再改变的整数值，或来自同样稳定数组引用的 ArrayLen。已保存的值须为单次定义，该定义严格支配 header，且不位于从正文到下一次 header／退出前可能执行的区域内；因此允许外层遍历中的内联场景，不限于紧邻 header 的直线路径。header 可以由只有唯一前驱的无条件跳转块组成；body 可以是直线或含条件分支的无环区域，只有一个入口与一个返回 header 的 latch，所有继续迭代的路径均到达该 latch，归纳变量的唯一加一更新必须支配 latch。区域由唯一 latch 沿前驱反向取得，止于 header；离开区域的 return、break 或检查失败路径沿原出口执行，不要求这些路径经过更新。只在退出路径执行的调用、分配、抛出及清理代码不属于被复制的内层；首次命中后立即离开，不执行后续元素的访问或副作用。选择成功后合并可直接连接的直线块，保留分支条件、语句次序、源码范围和原 header 的 poll；不提前执行另一分支的计算或元素访问。header 只含条件的纯局部临时值及稳定数组长度；body 可含整数／Boolean／Float／Double 的局部运算，以及下述固定表示值的 MIR ArrayGet／ArraySet、普通字段读取、身份比较和 ArrayLen。浮点按实际 intrinsic struct 身份识别，不将普通 GC-free struct 当作标量；算术、比较和转换沿用 2.18 的 typed 操作及语义。归纳变量更新只沿正文中单次定义的私有临时值解释别名，不用重赋后的值改写先前表达式的快照含义。继续迭代的区域内含调用、分配、其他非局部访问、取地址、不在下述范围内的聚合操作、EH、多回边或内部循环时保留原形。已知不超过 64 次的短循环不分块。
+
+String 的字符扫描、字符边界定位及共享长 hash 由普通 core 正文完成，不在 codegen 重写算法。既有分块操作集合接受真实 typed StringByteLength／StringByteAt 和已建立范围的 StringByte load／store：每次只进行有界访问且不分配、停顿或抛出可捕获异常，保留受检读取失败 leaf 的原位置与行为。普通 extern 不具备该资格，StringCompare 等完整扫描也不因此取得有界资格。继续使用原 64 次上限、外层 poll、短尾、提前退出与精确根恢复；这些访问可参与已有无 safepoint 内层优化，不添加函数名规则或新的循环框架。字符计数由普通 core 在每个至多 64 字节的小块内使用窄计数器，再累加为 Long；该上限保证计数不溢出，release 沿既有分块优化形成有界内层，完整扫描仍定期 poll，源码 NoGC 的 GC-free 类型限制不变。
 
 上述数组值范围还包括单字引用 class／Any／String／数组／函数引用、双字 interface，以及复用这些或标量 payload 表示的 MaybeUninit。恰有两个 variant、一支为空、另一支仅含一个引用字段的可选值也可参与复制、构造和已有 typed variant 测试／投影；使用实际 enum 身份和字段，不按 Option 名称猜测表示，不把一般 struct／enum 加入有界内层。普通 class 字段读取可返回这些值，引用身份比较只观察 object 分量。引用转换仅在表示转换不需要目录查询时参与：单字引用重定型、取 interface object、空接口视图、final class 的静态接口表和已知子接口的父表投影；关系从当前 exact 类型及父接口记录取得，不重建布局。动态类型检查、装箱、未知分派及其他实际调用仍保留原循环。
 

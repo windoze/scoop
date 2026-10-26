@@ -579,7 +579,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         ),
         scoop_extern_fun(
             "coreStringHash",
-            "scoop_rt_string_hash",
+            "test_core_string_hash",
             vec![("value", ty_named("String"))],
             Some(ty_named("Long")),
         ),

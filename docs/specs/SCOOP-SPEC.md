@@ -2044,6 +2044,8 @@ byteLength 为 O(1)；charLength 与 getCharAt 的最坏时间为 O(byteLength)�
 
 core 内部的 `string_byte_length(String): Long`、`string_byte_at(String, Long): Byte`、`string_character_at_byte(String, Long): Char` 是 13.1 的三个 top-level intrinsic 登记项，用于上述表示操作。字节访问要求有效索引，字符解码要求位于有效 UTF-8 标量起点；core 保证这些内部前置条件，索引越界仍按 runtime 内部错误终止。它们不增加公开 API，不标注 `@NoGC`：源码函数含 managed 引用，仍遵守 13.2；编译器内部可将有界表示读取实现为无 safepoint 的 load 或 runtime leaf。
 
+core 的字符串构造还可使用内部零字节分配及 unsafe 字节读写 intrinsic（实现规范 2.19、runtime 2.4）。这些操作不增加公开 API 或改变不可变 String 的语义：写入只允许用于构造过程独占且尚未发布的结果；发布前必须完成合法 UTF-8，不能修改已发布的 String。普通扫描与编码正文负责范围和编码规则，编译器只处理已知表示、分配和单字节访问。
+
 从 List 构造时按 11.10.3 取得完整元素快照，用户 getter 的异常照常传播。字符和字节数组转换均复制存储，后续修改数组不会修改 String。`fromUtf8Unchecked` 要求本次读取的完整序列为严格合法 UTF-8；违反此前置条件属于 unsafe 契约违例，不承诺可捕获异常。`toByteArray` 不要求 unsafe。
 
 受检转换不要求调用者预先保证 UTF-8 合法。严格解码拒绝非法起始字节、孤立的 continuation 字节、截断序列、过长编码、代理项码点和超出 U+10FFFF 的码点；`CharacterCodingException.byteOffset: Long` 是首个非法子序列起始字节的零基偏移。`fromUtf8OrNone` 只把编码错误转为 `None`，不吞掉其他异常或分配失败。三种转换均保留 U+0000 和输入中原有的 U+FFFD，不执行 Unicode normalization；空输入返回空串。

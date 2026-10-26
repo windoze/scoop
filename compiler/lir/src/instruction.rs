@@ -297,6 +297,18 @@ pub enum Instruction {
         offset: u64,
         value: Value,
     },
+    /// Load a byte in an established String range, using its current object.
+    StringByteLoad {
+        out: TempId,
+        string: Value,
+        index: Value,
+    },
+    /// Write one byte into private, unpublished String construction storage.
+    StringByteStore {
+        string: Value,
+        index: Value,
+        value: Value,
+    },
     /// Non-atomic initialization store of one compiler-owned state word into
     /// managed storage. Later concurrent accesses use the atomic variants.
     MachineHeapStore {

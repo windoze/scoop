@@ -92,6 +92,12 @@ pub(super) fn instruction_uses(
         lir::Instruction::MakeAggregate { elements, .. }
         | lir::Instruction::ArrayAlloc { elements, .. } => elements.clone(),
         lir::Instruction::StringCopy { source, .. } => source.operands().collect(),
+        lir::Instruction::StringByteLoad { string, index, .. } => vec![*string, *index],
+        lir::Instruction::StringByteStore {
+            string,
+            index,
+            value,
+        } => vec![*string, *index, *value],
         lir::Instruction::StringConcat { parts, .. } => parts
             .iter()
             .filter_map(lir::StringConcatPart::value)
@@ -212,6 +218,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::ArrayAssembly { out, .. }
         | lir::Instruction::StringConcat { out, .. }
         | lir::Instruction::StringCopy { out, .. }
+        | lir::Instruction::StringByteLoad { out, .. }
         | lir::Instruction::PushPinFrame { out, .. }
         | lir::Instruction::ArrayDataPointer { out, .. }
         | lir::Instruction::StringDataPointer { out, .. }
@@ -246,7 +253,8 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::ManagedPoll { .. }
         | lir::Instruction::PopPinFrame { .. }
         | lir::Instruction::EndCatch
-        | lir::Instruction::Throw { .. } => None,
+        | lir::Instruction::Throw { .. }
+        | lir::Instruction::StringByteStore { .. } => None,
     };
     out.map_or_else(Vec::new, |out| vec![LiveValue::Temp(out)])
 }

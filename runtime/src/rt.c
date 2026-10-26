@@ -24,15 +24,6 @@ void scoop_rt_println(const ScoopString *s) {
     fputc('\n', stdout);
 }
 
-int64_t scoop_rt_string_hash(const ScoopString *s) {
-    uint64_t hash = UINT64_C(1469598103934665603);
-    for (uint64_t index = 0; index < s->len; index++) {
-        hash ^= (uint8_t)s->data[index];
-        hash *= UINT64_C(1099511628211);
-    }
-    return (int64_t)hash;
-}
-
 const ScoopString *scoop_rt_string_concat_impl(const ScoopString *a,
                                                const ScoopString *b,
                                                uintptr_t return_pc,

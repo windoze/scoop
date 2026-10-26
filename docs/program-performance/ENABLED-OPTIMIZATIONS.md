@@ -4,7 +4,7 @@
 
 “release 默认”指编译该 Cone 时使用 `scoop build --release` 或 `scoop build --profile release`，并满足表中的适用条件；独立编译器使用 `scoopc build --profile release`。CLI 默认 profile 为 debug。除表中明确列出的运行时参数外，下列优化没有各自独立的公开开关或用户可设等级，编译器内部选项不等于 CLI 参数。
 
-相关 API 调整：[String 的字符扫描名称](STRING-API.md)在全部 profile 生效，无开关；`charLength`／`getCharAt` 保持 O(n)，`byteLength` 保持 O(1)，内部存储与算法保持。
+相关 API 调整：[String 的字符扫描名称](STRING-API.md)在全部 profile 生效，无开关；`charLength`／`getCharAt` 保持 O(n)，`byteLength` 保持 O(1)，内部存储保持。扫描、编码与后备职责迁移见 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md)。
 
 表中 ABI 版本注明各项引入时的合同；当前统一 runtime contract 为 **19**、metadata ABI 为 **9**，配套库／runtime／sysroot 按当前合同重建。
 
@@ -23,16 +23,17 @@
 | [TaskContext fork 的生成分配](CONTEXT-FORK.md) | 新编译器所有 profile；release 默认复用 TLAB，含 fork 的库正文需重建才能获益 | typed Fork 降为已知 24 B Alloc／HeapStore，snapshot 跨分配恢复后写入；独立任务身份、屏障及 ABI 保持。初始 root、旧 C 后备与绑定树继续共享 runtime；小访问器由下一项处理。 |
 | [Context 小访问器生成路径](CONTEXT-READS.md) | release 默认生成 current／enter／leave；全部 profile 降低 snapshot 并遵守 runtime contract 19；旧 sysroot／产物须重建 | typed 操作读写原线程根槽，snapshot 判空后读实际 root 字段；ARM64 调用内惰性复用槽的 native 地址，x86_64 直接读取 TLS。每线程增加 8 B 地址，无新增 managed 引用或根；debug／invoke／普通 extern 和绑定树保留 C 后备。 |
 | [初始化完成后的就绪快路径](INIT-READY.md) | 新编译器所有 profile 默认，配套 runtime contract 18；旧库／runtime／sysroot 须重建 | 真实 typed 普通 InitializationEnter 先 acquire 读 state，Initialized 跳过 runtime／TLS／锁；其余状态、invoke、普通 extern 和入口 poll 保留。cell 仍为 16 B，根仅在慢边恢复，后续对象地址按原 GC 契约重读。 |
-| [String 字节复制与 Char 编码](STRING-COPIES.md) | 新 core 协议所有 profile 一致；release 默认复用 TLAB、调用点内联及常量传播，须重建配套 core／依赖 | typed 复制按真实布局分配并在 GC 后重取源，String 字节快照消除逐字节 initializer；Char 普通正文按调用点展开。长 memcpy、List getter 快照和旧 C ABI 保留；代码／编译成本与 Linux dispatch 对照回退见记录。 |
+| [String 字节复制与 Char 编码](STRING-COPIES.md) | 新 core 协议所有 profile 一致；release 默认复用 TLAB、调用点内联及常量传播，须重建配套 core／依赖 | typed 复制按真实布局分配并在 GC 后重取源，String 字节快照消除逐字节 initializer；Char 普通正文按调用点展开。长 memcpy 和 List getter 快照保留；无消费者的旧 C 复制／Char 入口已由职责收敛批次退役。 |
 | [MIR 末尾局部复制传播](INTERFACE-SSA.md) | release 默认，沿现有 MIR 内联优化配置 | 内联与循环选择后传播未取址局部当前别名；保持重赋快照、合流、循环与 EH，不依赖变量名。ARM64 dispatch／接口复制明显改善，lambdas 等回退如实记录并继续精化根与 SSA。 |
 | [调用期间保活与返回恢复分离](INTERFACE-SSA.md) | 新编译器所有 profile 默认 | 死 direct AS1 实参保留调用期间根，省去人工后继使用及恢复；byval、展开后输入、poll、EH 与 native 协议保持，按实际 RS4GC 结果计根。各平台收益和阶段性回退分别记录。 |
 | [接口分量与重定位结果 SSA](INTERFACE-SSA.md) | 局部根槽提升为 release 默认；晚期 aggregate 分解及指针合流归并适用于所有 profile | 复用 SROA／mem2reg，普通优化结束后拆分聚合、归并相同输入的指针 PHI／select，再定稿 roots；真实 ret／store／实参消费 relocated object。取址／发布／间接 ABI 等存储保持，不增加对象或接口表大小。 |
-| [String hash 有界范围与提前返回](STRING-HASH-RANGE.md) | 新 core 所有 profile 默认；release 按原调用点评分展开，需重建 core 及依赖者 | ≤32 B 使用普通标量正文并及时返回，9～32 B 省去 native hash／协调／caller roots；长输入保留原后备。原结果、表示和 ABI 保持，无新开关或测量代码；极短输入的成本见对照记录。 |
+| [String hash 有界范围与提前返回](STRING-HASH-RANGE.md) | 新 core 所有 profile 默认；release 按原调用点评分展开，需重建 core 及依赖者 | ≤32 B 使用普通标量正文并及时返回，9～32 B 省去 native hash／协调／caller roots；长输入现已迁为共享 core 循环。原结果、表示保持，无新开关或测量代码；极短输入的成本见对照记录。 |
+| [String 扫描、UTF-8 编码／校验及长 hash 正文](RUNTIME-RESPONSIBILITIES.md) | 新 core 所有 profile 默认；release 默认使用既有调用点内联与 64 次 poll 分块 | 普通算法共享 Scoop 正文，按真实 typed 操作读写和分配；窄块计数后累加为 Long。旧 C 算法及聚合 shim 退役，不改变公开语义、String 布局、快照和借用；无额外开关。 |
 | [String 比较与短 hash](STRING-READS.md) | 普通 core 正文全 profile；调用点常量折叠和 ≤8 B 常量比较 release 默认，须重建 core | 同引用／长度／空串判断、初版有界 FNV-1a 和真实 typed 常量读取；hash 范围由上项继续扩展，长文本共享后备。保持内容、身份和位宽，无新增 ABI；ASCII 单独展开经对照未采纳。 |
 | [已知小型 box 生成分配](BOX-ALLOCATION.md) | release 默认 | 真实 typed box、实例 ≤128 B；ZST／GC-free／含引用值复用 TLAB，GC 后重读 payload 并执行值屏障。保持实际分配及身份，大值和 debug 使用共享后备，无新对象字段或 ABI。 |
 | [普通 String 拼接融合与热二元生成](STRING-CONCAT.md) | release 默认 | 同块单用链最多八段、短常量合并；热循环／短常量二元使用同一路径，其他点共享后备。checked 一次分配并在 GC 后重读输入，保留共享结果与副作用边界，无布局或 ABI 变化。 |
-| [标量计算与 Boolean 字符串常量](SCALAR-BODIES.md) | 新 core 所有 profile 默认；release 按调用点展开 | Boolean equals／hash、整数 hash 为普通正文，热／常量点可化简，普通点可共享；Boolean.toString 不再分配结果 String，旧 C ABI 后备保留。 |
-| [整数专用十进制格式化](INTEGER-DECIMAL.md) | 新 core／runtime 所有 profile 默认；release 按调用点评分展开 | 20 B 栈缓冲区一次格式化，实际长度分配／复制；八位分块与两位表，动态大正文共享，C ABI 后备保留，无 NUL／locale 依赖。 |
+| [标量计算与 Boolean 字符串常量](SCALAR-BODIES.md) | 新 core 所有 profile 默认；release 按调用点展开 | Boolean equals／hash、整数 hash 为普通正文，热／常量点可化简，普通点可共享；Boolean.toString 不再分配结果 String，无消费者的旧 C 后备已退役。 |
+| [整数专用十进制格式化](INTEGER-DECIMAL.md) | 新 core／runtime 所有 profile 默认；release 按调用点评分展开 | 20 B 栈缓冲区一次格式化，实际长度分配／复制；八位分块与两位表，动态大正文共享，无消费者的旧 C writer／ABI 已退役，无 NUL／locale 依赖。 |
 | [普通 helper 正文闭合与循环／pointer 移植](INTEGER-DECIMAL.md) | 各 profile 导出一致，release 默认消费 | 沿 typed 依赖队列递归导出／导入，复用已完成分析；保留独立局部 place、loop target、原 intrinsic 身份和 GC 契约，不改变收益阈值。 |
 | [线程入口复用已校验状态](THREAD-STATE-REUSE.md) | 使用新版 runtime 重新链接，所有 profile 默认，无独立开关 | 18 处同步线程／roots／异常／初始化入口复用 managed 检查返回的状态；native 边界 TLS 取址七次降至四次，检查与原子内存序保持，无新增字段或 ABI。 |
 | [搬迁时更新存活清单](LIVE-SET-RELOCATION.md) | 使用新版 runtime 重新链接，所有 profile 默认，无独立开关 | 复制时将稳定清单条目改为当前副本，引用回写省去 source forwarding 与重复元数据定位；计划项和清单不增大，真实字段／roots 仍正常转发，保留 pin、survivor 与预留失败语义。 |

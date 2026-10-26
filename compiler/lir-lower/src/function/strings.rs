@@ -9,6 +9,7 @@ impl FunctionLowerer<'_> {
         use lir::StringCopySource as Source;
         use mir::StringCopyOperation as Copy;
         let source = match operation {
+            Copy::Zeroed(length) => Source::Zeroed(self.lower_expr(length)?),
             Copy::Utf8 { pointer, length } => Source::Utf8 {
                 pointer: self.lower_expr(pointer)?,
                 length: self.lower_expr(length)?,
@@ -48,6 +49,36 @@ impl FunctionLowerer<'_> {
             live: lir::StatepointLiveSet::default(),
         });
         Ok(lir::Value::Temp(out))
+    }
+
+    pub(super) fn lower_string_byte(
+        &mut self,
+        operation: &mir::StringByteOperation<mir::Expr>,
+    ) -> StorageResult<lir::Value> {
+        Ok(match operation {
+            mir::StringByteOperation::Read { string, index } => {
+                let string = self.lower_expr(string)?;
+                let index = self.lower_expr(index)?;
+                let out = self.new_temp(lir::LirType::I8);
+                self.push(lir::Instruction::StringByteLoad { out, string, index });
+                lir::Value::Temp(out)
+            }
+            mir::StringByteOperation::Write {
+                string,
+                index,
+                value,
+            } => {
+                let string = self.lower_expr(string)?;
+                let index = self.lower_expr(index)?;
+                let value = self.lower_expr(value)?;
+                self.push(lir::Instruction::StringByteStore {
+                    string,
+                    index,
+                    value,
+                });
+                self.unit_value()
+            }
+        })
     }
 
     pub(super) fn lower_string_concat(

@@ -15,25 +15,38 @@ fn string_copy_reloads_its_only_input_after_allocation() {
     let overflow_message = module.globals.iter().next().unwrap().0;
     let mut temps = Arena::default();
     let copy = temps.alloc(Temp { ty: MANAGED_PTR });
+    let byte = temps.alloc(Temp { ty: LirType::I8 });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         name: "entry".into(),
-        instructions: vec![Instruction::StringCopy {
-            out: copy,
-            source: StringCopySource::Slice {
-                string: Value::Param(0),
-                start: signed64(1),
-                end: signed64(5),
+        instructions: vec![
+            Instruction::StringCopy {
+                out: copy,
+                source: StringCopySource::Slice {
+                    string: Value::Param(0),
+                    start: signed64(1),
+                    end: signed64(5),
+                },
+                target: StringCopyTarget::String(TypeDescriptorRef::Local(descriptor)),
+                overflow_message,
+                safepoint: test_safepoint(1),
+                live: statepoint_live(vec![statepoint_value(
+                    scoop_lir::CallerRootSource::Param(0),
+                    MANAGED_PTR,
+                    &[0],
+                )]),
             },
-            target: StringCopyTarget::String(TypeDescriptorRef::Local(descriptor)),
-            overflow_message,
-            safepoint: test_safepoint(1),
-            live: statepoint_live(vec![statepoint_value(
-                scoop_lir::CallerRootSource::Param(0),
-                MANAGED_PTR,
-                &[0],
-            )]),
-        }],
+            Instruction::StringByteLoad {
+                out: byte,
+                string: Value::Param(0),
+                index: signed64(0),
+            },
+            Instruction::StringByteStore {
+                string: Value::Temp(copy),
+                index: signed64(0),
+                value: Value::Temp(byte),
+            },
+        ],
         terminator: Terminator::Return {
             value: Some(Value::Temp(copy)),
         },
@@ -59,6 +72,14 @@ fn string_copy_reloads_its_only_input_after_allocation() {
         .unwrap();
     let memcpy = after.find("@llvm.memcpy.p1.p1.i64").unwrap();
     assert!(root < address && address < memcpy, "{ir}");
+    assert!(
+        after.contains("load i8, ptr addrspace(1) %string.byte_ptr"),
+        "{ir}"
+    );
+    assert!(
+        after.contains("store i8 %string.byte, ptr addrspace(1) %string.byte_ptr"),
+        "{ir}"
+    );
     assert!(!ir.contains("@scoop_rt_string_slice_bytes"), "{ir}");
     assert!(!ir.contains("@scoop_rt_push_native_roots"), "{ir}");
     assert!(!ir.contains("@scoop_rt_gc_write_barrier"), "{ir}");

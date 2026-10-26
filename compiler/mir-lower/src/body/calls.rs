@@ -199,7 +199,11 @@ impl BodyLowerer<'_> {
                 hir::StringIntrinsic::ByteLength => mir::RuntimeFn::StringByteLength,
                 hir::StringIntrinsic::ByteAt => mir::RuntimeFn::StringByteAt,
                 hir::StringIntrinsic::CharacterAtByte => mir::RuntimeFn::StringCharacterAtByte,
+                hir::StringIntrinsic::ByteAtUnchecked | hir::StringIntrinsic::SetByteUnchecked => {
+                    return self.lower_string_byte(kind, args, result_ty);
+                }
                 hir::StringIntrinsic::CopyUtf8Unchecked
+                | hir::StringIntrinsic::AllocateZeroed
                 | hir::StringIntrinsic::SliceBytes
                 | hir::StringIntrinsic::FromBytes
                 | hir::StringIntrinsic::ToBytes

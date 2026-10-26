@@ -503,7 +503,7 @@ public fun String.Companion.fromUtf8Lossy(bytes: Array<UInt8>): String
 - **lossy**：fromUtf8Lossy 将所有非法 UTF-8 子序列替换为 U+FFFD。替换粒度采用语言规范 11.4 的 Unicode maximal subpart：截断的合法前缀整体替换，独立非法字节分别替换，后续合法字符继续处理。例如 `E1 80 41` 得到 `"�A"`，`F0 90 80` 得到一个 U+FFFD，`80 80`、`C0 AF` 各得到两个，`ED A0 80` 得到三个。不丢弃非法字节或将任意连续错误合成一个替换字符。
 - **共同规则**：合法 UTF-8 原样保留，包括 U+0000 与原有 U+FFFD；空输入得到空串，不做 normalization。结果拥有独立存储，实际输出长度按替换后的 UTF-8 字节计算；lossy 不改变既有溢出、分配失败和数据竞争规则。argv 仍使用严格解码，不能因提供 lossy API 而静默替换启动参数。
 - **pointer 重载**：fromUtf8(pointer, length) 使用相同严格规则。负长度抛 IllegalArgumentException；非空区间在整个调用期间须可读、稳定且有效，managed 区间按借用/pin 规则固定。零长度不读内存，Ptr 自身仍非零。内容受检不免除 unsafe 地址和生命周期契约。
-- **后备实现**：扩充 runtime 现有 [utf8.c](../../runtime/src/utf8.c)，共用严格/lossy 的解码逻辑和错误分段；按输入和结果长度线性处理，不引入外部库。严格结果经普通 Scoop ABI 明确返回成功 String 或失败 offset，由 core 转成异常/None；复用已验证且不变的内容，不在 core 和 runtime 重复校验。分配、输入保活和结果发布见运行时规范 2.4、第 6 章。
+- **实现归属**：最初的 C UTF-8 后备在 Runtime 职责迁移中已退役，扫描、严格/lossy 校验、错误分段与编码共享普通 core 正文；分配及复制沿 typed IR／codegen。严格结果经普通 Scoop ABI 明确返回成功 String 或失败 offset，由 core 转成异常/None；复用已验证且不变的内容。当前实现见 [Runtime 职责收敛](../program-performance/RUNTIME-RESPONSIBILITIES.md)，输入保活和结果发布见运行时规范 2.4、第 6 章。
 
 ### 6.4 String 与 C 字符串
 

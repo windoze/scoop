@@ -12,6 +12,12 @@ pub(super) fn supported(module: &mir::Module, block: &mir::BasicBlock, arrays: b
             mir::StatementKind::ValDecl { .. }
             | mir::StatementKind::Assign { .. }
             | mir::StatementKind::Expr(_) => false,
+            mir::StatementKind::Call(mir::CallEffect::Value { call, .. }) => !matches!(
+                call.target,
+                mir::CallTarget::Direct(mir::Callee::Runtime(
+                    mir::RuntimeFn::StringByteLength | mir::RuntimeFn::StringByteAt
+                ))
+            ),
             mir::StatementKind::ArraySet { value, .. } => !arrays || !value_type(module, &value.ty),
             _ => true,
         })
@@ -21,6 +27,7 @@ pub(super) fn supported(module: &mir::Module, block: &mir::BasicBlock, arrays: b
     let mut supported = true;
     mir::visit_block_exprs(block, &mut |expr| {
         let operation = match &expr.kind {
+            mir::ExprKind::StringByte(_) => true,
             mir::ExprKind::ArrayGet { .. }
             | mir::ExprKind::FieldAccess { .. }
             | mir::ExprKind::ClosureCapture { .. }

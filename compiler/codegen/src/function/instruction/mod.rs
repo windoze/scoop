@@ -26,6 +26,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         match instruction {
             Instruction::StringConcat { .. } => self.emit_string_concat(instruction),
             Instruction::StringCopy { .. } => self.emit_string_copy(instruction),
+            Instruction::StringByteLoad { .. } | Instruction::StringByteStore { .. } => {
+                self.emit_string_byte(instruction)
+            }
             Instruction::MaybeUninit {
                 out,
                 wrapper,

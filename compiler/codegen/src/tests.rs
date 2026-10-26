@@ -76,7 +76,6 @@ mod string_copy;
 mod string_leaves;
 mod strong_shapes;
 mod task_context;
-mod utf8;
 mod zst_places;
 
 use enums::enum_module;

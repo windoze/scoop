@@ -5,6 +5,44 @@ use crate::function::gc::AllocationLayout;
 use scoop_lir::{StringCopySource as Source, StringCopyTarget as Target};
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
+    pub(super) fn emit_string_byte(
+        &mut self,
+        instruction: &Instruction,
+    ) -> Result<(), CodegenError> {
+        let (string, index) = match instruction {
+            Instruction::StringByteLoad { string, index, .. }
+            | Instruction::StringByteStore { string, index, .. } => (*string, *index),
+            _ => unreachable!("String byte instruction dispatch is exhaustive"),
+        };
+        let string = self.value(string)?.into_pointer_value();
+        let index = self.value(index)?.into_int_value();
+        let bytes = self.byte_gep(string, 24, "string.bytes")?;
+        // SAFETY: core established the byte range and keeps this managed
+        // operand live. No safepoint separates the address from its use.
+        let address = unsafe {
+            self.builder
+                .build_gep(self.context.i8_type(), bytes, &[index], "string.byte_ptr")
+        }
+        .map_err(copy_error)?;
+        match instruction {
+            Instruction::StringByteLoad { out, .. } => {
+                let byte = self
+                    .builder
+                    .build_load(self.context.i8_type(), address, "string.byte")
+                    .map_err(copy_error)?;
+                self.temps.insert(*out, byte);
+            }
+            Instruction::StringByteStore { value, .. } => {
+                let value = self.value(*value)?;
+                self.builder
+                    .build_store(address, value)
+                    .map_err(copy_error)?;
+            }
+            _ => unreachable!("String byte instruction dispatch is exhaustive"),
+        }
+        Ok(())
+    }
+
     pub(super) fn emit_string_copy(
         &mut self,
         instruction: &Instruction,
@@ -24,6 +62,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let builder = self.builder;
         let word = context.i64_type();
         let (length, offset) = match *source {
+            Source::Zeroed(length) => (self.value(length)?.into_int_value(), word.const_zero()),
             Source::Utf8 { length, .. } => {
                 (self.value(length)?.into_int_value(), word.const_zero())
             }
@@ -96,8 +135,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let count = self.byte_gep(result, 16, "copy.result_count")?;
         builder.build_store(count, length).map_err(copy_error)?;
 
+        if matches!(source, Source::Zeroed(_)) {
+            // The shared allocation path already clears the complete object.
+            self.temps.insert(*out, result.into());
+            return Ok(());
+        }
+
         // Materialize managed source addresses only after the collecting allocation.
         let source = match *source {
+            Source::Zeroed(_) => unreachable!("zero initialization completed above"),
             Source::Utf8 { pointer, .. } => self.value(pointer)?,
             Source::Slice { string, .. } | Source::String(string) => self.value(string)?,
             Source::Bytes { array, .. } => self.value(array)?,

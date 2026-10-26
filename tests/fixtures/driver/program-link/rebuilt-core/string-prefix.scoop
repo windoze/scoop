@@ -27,6 +27,7 @@ import coreStringGet
 import coreStringSliceBounds
 import coreStringSliceBytes
 import coreStringByteAt
+import coreStringByteAtUnchecked
 import coreStringFromChars
 import coreStringFromBytes
 import coreStringToBytes

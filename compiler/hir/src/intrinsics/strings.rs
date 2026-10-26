@@ -9,10 +9,13 @@ pub enum StringIntrinsic {
     FromBytes,
     ToBytes,
     ToMutableBytes,
+    AllocateZeroed,
+    ByteAtUnchecked,
+    SetByteUnchecked,
 }
 
 impl StringIntrinsic {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 11] = [
         Self::ByteLength,
         Self::ByteAt,
         Self::CharacterAtByte,
@@ -21,6 +24,9 @@ impl StringIntrinsic {
         Self::FromBytes,
         Self::ToBytes,
         Self::ToMutableBytes,
+        Self::AllocateZeroed,
+        Self::ByteAtUnchecked,
+        Self::SetByteUnchecked,
     ];
 
     pub const fn name(self) -> &'static str {
@@ -33,6 +39,9 @@ impl StringIntrinsic {
             Self::FromBytes => "string_from_bytes",
             Self::ToBytes => "string_to_bytes",
             Self::ToMutableBytes => "string_to_mutable_bytes",
+            Self::AllocateZeroed => "string_allocate_zeroed",
+            Self::ByteAtUnchecked => "string_byte_at_unchecked",
+            Self::SetByteUnchecked => "string_set_byte_unchecked",
         }
     }
 
@@ -46,6 +55,9 @@ impl StringIntrinsic {
             Self::FromBytes => 6,
             Self::ToBytes => 7,
             Self::ToMutableBytes => 8,
+            Self::AllocateZeroed => 9,
+            Self::ByteAtUnchecked => 10,
+            Self::SetByteUnchecked => 11,
         }
     }
 }
