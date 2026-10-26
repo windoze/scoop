@@ -48,6 +48,7 @@ cargo clippy --manifest-path tooling/scoop-example/Cargo.toml --all-targets -- -
 cargo test --manifest-path tooling/scoop-example/Cargo.toml --locked
 uv tool run --from ruff==0.16.10 ruff check tooling/scoop-example/tests/run_examples.py scripts/build_scoop_example.py
 python3 -m unittest discover -s scripts/tests -p test_package_toolchain.py
+python3 -m unittest discover -s scripts/tests -p test_package_licenses.py
 ```
 
 使用已经准备好的本机工具链验证发布示例。下面的脚本从真实 `scoop example --format json` 还原显示文件，编译并运行首批 24 个主题，检查固定输出、两个测试用例、命令行帮助/错误、临时资源清理以及本机 HTTP 会话：
