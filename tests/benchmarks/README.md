@@ -36,6 +36,8 @@ TMPDIR="$PWD/tmp" python3 -m unittest discover -s tests/benchmarks/tests
 
 [实际装箱](scalars/boxing.scoop)用相同 helper 和选项，模式 0～3 分别为 ZST、Long、含引用小值和较大值；结果写入外部数组并在计时后读取，避免被非逃逸优化消除。GC 统计与正常运行分开，范围和结果见[装箱记录](../../docs/program-performance/BOX-ALLOCATION.md)。
 
+[数组复制与初始化](arrays/copies.scoop)复用 [scalars 的 phases helper](scalars/README.md)，将每次产生的新数组存入 256 项循环数组，输入在计时前建立。模式 0～7 分别为八项引用字面量、八项引用 clone、两端追加元素的 vararg spread、接口 clone、含两引用的聚合 clone、Long clone、ZST clone，以及 2,048 项聚合 clone；对应输出为 `92 / 215 / 94 / 215 / 215 / 17 / 8 / 4295`。设置正数 `SCOOP_BENCH_COUNT`，普通模式建议一千万次，大数组模式两万次；GC 统计另行运行。小数组用于测量初始化屏障，大数组保留慢分配路径，无引用模式作为对照。
+
 ## M31 性能用例
 
 M33 的真实 C FFI 调用与 collector 等待基准见 [ffi/README.md](ffi/README.md)。

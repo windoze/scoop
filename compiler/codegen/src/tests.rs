@@ -46,6 +46,7 @@ mod runtime_integer_decimal_tests;
 mod allocation;
 mod arrays;
 mod arrays_clone;
+mod arrays_initialization;
 mod arrays_zst;
 mod atomics;
 mod boxing;

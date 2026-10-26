@@ -57,6 +57,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     live,
                     None,
                 )?;
+                let young = copy.young;
                 let copy = copy.object;
                 let count_ptr = self.byte_gep(copy, 16, "clone.count_ptr")?;
                 builder.build_store(count_ptr, count).map_err(clone_error)?;
@@ -80,7 +81,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     builder
                         .build_memcpy(destination, alignment, source, alignment, payload_bytes)
                         .map_err(clone_error)?;
-                    self.heap_array_barrier(copy, &layout, bytes)?;
+                    self.allocated_array_barrier(copy, &layout, bytes, young)?;
                 }
                 self.temps.insert(*out, copy.into());
             }

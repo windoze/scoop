@@ -17,6 +17,12 @@ class Constructed {
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 fun pair(value: Long): Pair = Pair(Node(value), Node(value + 1L))
 fun assemble(vararg elements: Pair): Array<Pair> = elements
+fun largeCopies(): (Array<Pair>, Array<Pair>) {
+    val value = pair(70L)
+    val source = MutableArray<Pair>(2048L) { _ -> value }
+    val cloned = source.toArray()
+    return (cloned, assemble(value, *cloned, value))
+}
 fun populate(holder: Holder, values: MutableArray<Pair>, cell: AtomicRef<Reading>) {
     holder.pair = pair(10L)
     values[0L] = pair(20L)
@@ -62,5 +68,11 @@ fun main() {
     check(cloned[1L].view === holder.pair.view && cloned[2L].node === values[0L].node)
     check(cloned[3L].view.read() == 31L)
     check((boxed as Pair).node === holder.pair.node)
+    val (largeClone, largeAssembly) = largeCopies()
+    @Unsafe { collectYoung() }
+    check(largeClone.size == 2048L && largeAssembly.size == 2050L)
+    check(largeClone[0L].node.value == 70L && largeClone[2047L].view.read() == 71L)
+    check(largeAssembly[0L].view === largeClone[1024L].view)
+    check(largeAssembly[2049L].node === largeClone[2047L].node)
     println("managed writes and copies preserved")
 }

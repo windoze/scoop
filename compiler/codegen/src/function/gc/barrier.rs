@@ -28,26 +28,33 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         self.heap_range_barrier(address, self.context.i64_type().const_int(bytes, false))
     }
 
-    pub(super) fn heap_array_barrier(
-        &self,
+    /// The typed array operation initializes all elements without a safepoint.
+    pub(super) fn allocated_array_barrier(
+        &mut self,
         array: PointerValue<'ctx>,
         layout: &scoop_lir::ArrayLayoutV1,
         total_bytes: IntValue<'ctx>,
+        young: Option<IntValue<'ctx>>,
     ) -> Result<(), CodegenError> {
-        if !layout.instance().inline_scan().contains_reference() {
+        let offset = layout.instance().inline_offset();
+        if !layout.instance().inline_scan().contains_reference()
+            || total_bytes.get_zero_extended_constant() == Some(offset)
+        {
             return Ok(());
         }
-        let offset = layout.instance().inline_offset();
-        let first = self.byte_gep(array, offset, "barrier_elements")?;
-        let bytes = self
-            .builder
-            .build_int_sub(
-                total_bytes,
-                self.context.i64_type().const_int(offset, false),
-                "barrier_bytes",
-            )
-            .map_err(|error| CodegenError(format!("array barrier extent: {error}")))?;
-        self.heap_range_barrier(first, bytes)
+        let young = young.filter(|condition| condition.get_zero_extended_constant() != Some(0));
+        self.initialization_barrier(young, |emitter| {
+            let first = emitter.byte_gep(array, offset, "barrier_elements")?;
+            let bytes = emitter
+                .builder
+                .build_int_sub(
+                    total_bytes,
+                    emitter.context.i64_type().const_int(offset, false),
+                    "barrier_bytes",
+                )
+                .map_err(|error| CodegenError(format!("array barrier extent: {error}")))?;
+            emitter.heap_range_barrier(first, bytes)
+        })
     }
 
     fn heap_range_barrier(

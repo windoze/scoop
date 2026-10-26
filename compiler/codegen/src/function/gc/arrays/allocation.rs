@@ -67,6 +67,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     live,
                     None,
                 )?;
+                let young = array.young;
                 let array = array.object;
                 let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
                 builder
@@ -99,10 +100,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             ))
                         })?;
                 }
-                self.heap_array_barrier(
+                self.allocated_array_barrier(
                     array,
                     &layout,
                     context.i64_type().const_int(total, false),
+                    young,
                 )?;
                 self.temps.insert(*out, array.into());
             }

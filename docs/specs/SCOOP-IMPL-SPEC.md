@@ -451,7 +451,7 @@ LLVM 优化、RS4GC 与对象发射使用前一步的成功结果，生产路径
 
 managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
 
-release 的 codegen 分配结果可携带实际 TLAB 成功的布尔 SSA 事实，普通 HeapStore 与 typed box 的紧接 payload 复制据此跳过年轻目标的初始化屏障；慢分配仍执行原单槽或完整值屏障。普通字段跟踪未取址副本，复用尾部清零的初始化别名规则；无条件边仅向单前驱且尚未发射的后继传递事实，不回填已经发射的块。重赋保留各副本快照，调用、poll、取址、对象读取、外传、条件分支、合流及未分析操作撤销该事实。该布尔值不成为 GC root，不以对象刚分配、类型名字或长期缓存代替实际快分支证明；分配后所用的 payload／字段引用仍消费原根计划恢复的值。证明与 guarded barrier 留在 codegen GC 层，不向 MIR／LIR／`.slib` 增加 nursery 策略或新 ABI；debug 保留原屏障。
+release 的 codegen 分配结果可携带实际 TLAB 成功的布尔 SSA 事实，普通 HeapStore、typed box 的紧接 payload 复制及 typed 数组的初始元素写入据此跳过年轻目标的初始化屏障；慢分配仍执行原单槽、完整值或数组范围屏障。普通字段跟踪未取址副本，复用尾部清零的初始化别名规则；无条件边仅向单前驱且尚未发射的后继传递事实，不回填已经发射的块。重赋保留各副本快照，调用、poll、取址、对象读取、外传、条件分支、合流及未分析操作撤销该事实。该布尔值不成为 GC root，不以对象刚分配、类型名字或长期缓存代替实际快分支证明；分配后所用的 payload／字段引用仍消费原根计划恢复的值。证明与 guarded barrier 留在 codegen GC 层，不向 MIR／LIR／`.slib` 增加 nursery 策略或新 ABI；debug 保留原屏障。
 
 单槽和 runtime 范围屏障对实际覆盖的每个 card 字节使用 relaxed atomic store 1，并按运行时规范 3.6 登记其 64-card 组。新增 NoGc runtime 入口 `RecordDirtyCardGroup`（tag 33），完整 C 签名为 `(region metadata pointer, UInt64 card index) -> void`；只操作组链接和 heap 私有链，不读写 managed storage、不分配、不取 TLS 或 park。生成代码先表达完整登记调用，release 的既有有界循环变换将与每个 card store 对应的登记一起移到正常出口；只有这项 compiler-owned 屏障调用可通过该变换，不推广到一般 NoGc／native 调用。完成普通优化后，使用临时内部 LLVM helper 与标准 always-inliner 展开登记状态的 relaxed 读取，已登记时跳过真实 runtime 调用；临时 helper 不成为 Scoop callable 或最终机器入口。所有 profile 都生成完整卡组登记与快速检查，原精确 roots、poll 和用户内存序保持。
 
@@ -1030,6 +1030,8 @@ LIR 的非零 boxed descriptor 同时保留选定 shape 的 payload offset，供
 boxed descriptor 同时保存已选 shape 的实例 size／alignment，供 release 小型实际装箱复用普通 managed allocation 生成路径；不从名称或表示相似性识别 native 调用，不在 codegen 重建 shape。首版实例上限 128 bytes；含引用源 place 继续由 BoxValue 的既有 safepoint root plan 管理，复制前从搬迁后的规范存储重读，复制后按实际 TLAB 成功事实及完整扫描布局执行必要的值写屏障。全 profile 使用相同物理 box 布局、ABI 与 `.slib` 记录，新增事实仅为已有 shape 的内存中投影。未展开的 C 后备及局部非逃逸 box 消除保持，详见运行时规范 2.3。
 
 typed ArrayClone 复用 LIR 已有的源 live root 与完整数组布局。源／目标 element exact type 和 layout 一致时，codegen 从有效源对象读取 count，使用同一 sizing 计算及普通分配路径；唯一原 site 附着于实际分配慢调用，分配后重新加载源根，按 AS1 完整复制元素字节，再执行必要的范围屏障。目标对象使用目标 nominal TD，Array／MutableArray 互转不复用源身份；ZST 不访问 payload。该展开在最终 roots／RS4GC 之前完成，不删除入口／源码循环 poll，不新增 ABI 或跨过程分析。
+
+ArrayAlloc、ArrayClone 与 ArrayAssembly 的生成初始化区间只消费已求值的实参，分配后不调用用户代码或经过 safepoint。release 在这段区间内保留分配的实际 TLAB 成功条件，成功时跳过最终数组范围屏障，其他路径仍按完整元素区间标记。clone 的 memcpy、assembly 内部的逐元素复制及字面量写入保持原求值、顺序、padding、溢出与独立身份语义；输入 object 和 interface object 分量均在分配后消费恢复的引用。无引用、ZST 及已知零字节 payload 不生成年龄判断；普通 ArraySet、带用户 initializer 的数组构造和共享 C 后备不因此省略屏障。该事实只覆盖当前 typed 操作内部，不沿其复制循环向其他 LIR 操作传播。
 
 原子类型使用真实 core 声明、封闭 intrinsic kind 与目标布局，值字段不作为源码可访问的普通字段。构造沿普通 nominal constructor 参数推导形成 `AtomicNew`，保存实际 application 和初值，不伪造源码函数身份。AtomicRef 的 HIR／MIR 表示及跨 Cone 元数据保留实际引用参数 T；四种对象的目标布局由 object header 和自然对齐的单个隐藏值槽组成，初始化在分配后、发布前以 Relaxed store 写入。HIR 检查内存序是编译期常量且组合合法；MIR 保存已确定的操作和内存序，LIR 使用 AtomicLoad/AtomicStore/AtomicRmw/AtomicCmpXchg，携带对象 base、值字段偏移与实际值类型。codegen 降低为对应 LLVM 原子指令，Boolean 使用 i8，整数 fetchAdd/fetchSub 不添加溢出假设；CAS 使用 strong，AtomicRef 按对象身份比较。五种内存序、CAS 的成功/失败区别及其语义进入普通 IR/metadata 和指纹，跨 Cone 与优化不能退化为普通内存访问。
 

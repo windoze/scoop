@@ -163,7 +163,7 @@ Array 与 MutableArray 的 logical size 位于 offset 16，元素区从 `alignUp
 
 ZST 数组不保存元素 payload，但保留 logical size、完整类型与独立对象身份；clone 和互转产生新对象。按长度初始化仍逐索引执行 initializer，保留副作用与异常。初始化期间数组和已写元素必须可被精确扫描，不得向用户暴露未初始化元素。
 
-typed 数组 clone 的源／目标 element exact type 与 layout 已一致时，生成代码可按源对象的有效、不可变 count 计算相同布局的分配大小，复用普通 TLAB／分配慢路径，并以目标 nominal TD 构造独立对象。源数组属于该分配点的 live roots；分配后必须从恢复的根重新读取源对象，才形成 AS1 payload 地址。复制完整 stride 字节（包含 padding），含引用元素在发布前执行范围写屏障；ZST 只复制 logical count。原 C 入口及其动态对象检查保持，普通源码循环的 poll 不因 clone 展开而删除。
+typed 数组 clone 的源／目标 element exact type 与 layout 已一致时，生成代码可按源对象的有效、不可变 count 计算相同布局的分配大小，复用普通 TLAB／分配慢路径，并以目标 nominal TD 构造独立对象。源数组属于该分配点的 live roots；分配后必须从恢复的根重新读取源对象，才形成 AS1 payload 地址。复制完整 stride 字节（包含 padding），含引用元素在发布前执行必要的范围写屏障；实际 TLAB 成功且复制区间无 safepoint 时按 3.6 省略，慢分配保留。ZST 只复制 logical count。原 C 入口及其动态对象检查保持，普通源码循环的 poll 不因 clone 展开而删除。
 
 ArrayList、StringBuilder 等普通库类型使用其声明的 class/value 表示，其公开行为由语言规范第 11 章规定。
 
@@ -499,7 +499,7 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 
 屏障覆盖本次写入的完整范围及其相交的 512-byte cards；零字节为 no-op。屏障有限时间、NoGC、无分配、无 park，并发标记不能丢失已记录的脏状态。
 
-release 可省去已证明年轻对象的初始化屏障：生成分配的实际 TLAB 成功分支保证结果来自当前 nursery，且完成登记不经过 safepoint；在此之后、下一次可能收集或外传前，对该对象的引用初始化不产生 old→young 边。生成代码保留本次 fast／slow 选择，只在成功分支略过卡表查询与标记；collecting slow path、带 release hook、large allocation 及其他未知来源保留完整屏障。字段初始化复用清零分析的未取址局部副本与重赋规则，可沿无条件跳转进入仅有当前前驱的后继；调用、poll、取址、读取对象、外传、条件分支、合流、回边和未知操作结束证明。typed box 分配后紧接的完整 payload 复制可使用同一成功事实。未经过 safepoint 的 young→young／young→old 引用随年轻对象扫描处理；晋升及可选 survivor 仍由 collector 按实际边建立 remembered set。此省略不删除字段写入、对象／源引用的根、慢路径恢复或清零，不跨 GC 保存年轻事实，不改变 ABI、原子字段或一般 runtime 后备。
+release 可省去已证明年轻对象的初始化屏障：生成分配的实际 TLAB 成功分支保证结果来自当前 nursery，且完成登记不经过 safepoint；在此之后、下一次可能收集或外传前，对该对象的引用初始化不产生 old→young 边。生成代码保留本次 fast／slow 选择，只在成功分支略过卡表查询与标记；collecting slow path、带 release hook、large allocation 及其他未知来源保留完整屏障。字段初始化复用清零分析的未取址局部副本与重赋规则，可沿无条件跳转进入仅有当前前驱的后继；调用、poll、取址、读取对象、外传、条件分支、合流、回边和未知操作结束证明。typed box 分配后紧接的完整 payload 复制，以及数组字面量、clone 和 assembly 在分配后、不调用用户代码且无 safepoint 的内部初始化区间，可使用同一成功事实；数组仍按完整 scan/layout 处理引用与 padding，不能把该事实推广到可调用 initializer 的普通构造循环。未经过 safepoint 的 young→young／young→old 引用随年轻对象扫描处理；晋升及可选 survivor 仍由 collector 按实际边建立 remembered set。此省略不删除字段／元素写入、对象／源引用的根、慢路径恢复或清零，不跨 GC 保存年轻事实，不改变 ABI、原子字段或一般 runtime 后备。
 
 每个 region／large mapping 有自己的 card storage。按地址 chunk 索引的稀疏 radix page map 覆盖目标 uintptr_t 范围，把地址映射到所属 metadata；不得在 mark／store 热路径线性遍历 region，也不保留单 arena 的预偏置 card-table 合同。新映射先完成 metadata／cards，再 release 发布索引；generated code 用 acquire 读取，内联完成普通单槽寻址和原子置脏，范围屏障逐段覆盖相交索引单元。不得跨 safepoint 缓存可回收 metadata 地址。
 
