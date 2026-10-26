@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [GC epoch 确认与通知分流](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认，无新开关；重新链接即可 | 同一 epoch 不重复 park 确认，停稳只通知 collector，mutator 只在真实状态变化时唤醒；保留连续收集、初始化与 NativeSafe 超时复查，不增对象／线程字段或 ABI。多线程收益、低线程数波动及暂停观测边界见记录。 |
 | [最终可执行文件符号清理](EXECUTABLE-SYMBOLS.md) | release 默认；artifact-only link 默认；debug 或 `--keep-symbols` 保留 | Darwin linker `-x -S`、ELF `--strip-all`；仅在最终链接清理普通符号，保留动态符号及 GC／EH 数据。旁置 `.map` 与显式 symbols 观察提供地址归因，参与链接的 `.slib`／`.o` 保持。 |
 | [ArrayList 普通快照正文](ARRAYLIST-SNAPSHOTS.md) | 新版 core 全 profile 提供成员，release 按已有调用点策略优化；core 及静态解析调用的依赖 Cone 需重建 | 捕获逻辑长度和 backing，以普通 initializer 复制已初始化前缀；静态 List／自定义 getter 保留原扩展。结合整字存储，保留按成本共享的调用及跨分配源根，无专用 intrinsic 或新开关。 |
 | [MaybeUninit 整字原始存储](RAW-VALUE-STORAGE.md) | 新编译器所有 profile 同一表示，release 默认复用 SROA／向量化，无开关 | 按已有对齐以至多 64 位整数保存原始 bits，保留 padding、AS1 引用偏移及物理 ABI；重编译相关正文后受益。省去字节 gather／拼装，musl 短负载回退和测量限制见记录。 |

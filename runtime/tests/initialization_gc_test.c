@@ -1,4 +1,6 @@
 #include <assert.h>
+#include <sched.h>
+#include <unistd.h>
 
 #include "../src/initialization.c"
 #include "../src/gc_binding/internal.h"
@@ -103,7 +105,6 @@ static void *waiter_run(void *context) {
     scoop_thread_enter_managed(__builtin_frame_address(0));
     scoop_thread_registry_lock();
     waiter->state = scoop_thread_current_required();
-    scoop_thread_world_broadcast();
     scoop_thread_registry_unlock();
     waiter->result = enter(waiter->unit);
     assert(waiter->result != SCOOP_INIT_RUN_INITIALIZER);
@@ -117,8 +118,8 @@ static void *waiter_run(void *context) {
 }
 
 static void wait_until_parked(Waiter waiters[WAITER_COUNT]) {
-    scoop_thread_registry_lock();
     for (;;) {
+        scoop_thread_registry_lock();
         size_t count = 0;
         for (size_t index = 0; index < WAITER_COUNT; index++) {
             ScoopThreadState *state = waiters[index].state;
@@ -129,12 +130,12 @@ static void wait_until_parked(Waiter waiters[WAITER_COUNT]) {
                 count++;
             }
         }
+        scoop_thread_registry_unlock();
         if (count == WAITER_COUNT) {
-            break;
+            return;
         }
-        scoop_thread_world_wait();
+        sched_yield();
     }
-    scoop_thread_registry_unlock();
 }
 
 static void test_waiters(TestUnit *unit, bool fail) {
@@ -155,10 +156,13 @@ static void test_waiters(TestUnit *unit, bool fail) {
         assert(pthread_create(&threads[index], NULL, waiter_run, &waiters[index]) == 0);
     }
     wait_until_parked(waiters);
-    collect();
-    assert((uintptr_t)unit->storage != before && unit->storage->value == 42);
-    assert(atomic_load_explicit(&scoop_thread_last_gc_parked_count,
-                                memory_order_acquire) == WAITER_COUNT);
+    for (unsigned round = 0; round < 3; round++) {
+        collect();
+        assert((uintptr_t)unit->storage != before && unit->storage->value == 42);
+        before = (uintptr_t)unit->storage;
+        assert(atomic_load_explicit(&scoop_thread_last_gc_parked_count,
+                                    memory_order_acquire) == WAITER_COUNT);
+    }
     if (fail) {
         init_fail(&unit->descriptor, unit->storage);
         unit->storage = NULL;
@@ -183,6 +187,7 @@ static void test_waiters(TestUnit *unit, bool fail) {
 }
 
 int main(void) {
+    alarm(30);
     assert(setenv("SCOOP_GC_STRESS_MOVE", "1", 1) == 0);
     scoop_thread_runtime_init();
     publish_fixture();

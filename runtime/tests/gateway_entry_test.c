@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <sched.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -153,11 +154,18 @@ static void proceed(Rendezvous *sync) {
 }
 
 static void wait_world(ScoopWorldPhase expected) {
-    scoop_thread_registry_lock();
-    while (atomic_load(&scoop_thread_world_phase) < expected)
-        scoop_thread_world_wait();
-    assert(atomic_load(&scoop_thread_world_phase) == expected);
-    scoop_thread_registry_unlock();
+    /* COLLECTING does not wake mutators. Observe the predicate while tracing
+     * remains held at the heap lock below, independent of notifications. */
+    for (;;) {
+        scoop_thread_registry_lock();
+        ScoopWorldPhase phase = atomic_load(&scoop_thread_world_phase);
+        scoop_thread_registry_unlock();
+        if (phase >= expected) {
+            assert(phase == expected);
+            return;
+        }
+        sched_yield();
+    }
 }
 
 static void run_scenario(Scenario scenario) {
@@ -177,12 +185,17 @@ static void run_scenario(Scenario scenario) {
     proceed(&sync);
     wait_stage(&sync, 2);
     if (scenario == PENDING_POLL) {
-        scoop_thread_registry_lock();
-        while (atomic_load(&sync.target->poll.mode) != SCOOP_THREAD_PARKED)
-            scoop_thread_world_wait();
-        assert(sync.target->parked_from == SCOOP_THREAD_MANAGED_PENDING);
-        assert(sync.target->managed_anchor == NULL);
-        scoop_thread_registry_unlock();
+        for (;;) {
+            scoop_thread_registry_lock();
+            if (atomic_load(&sync.target->poll.mode) == SCOOP_THREAD_PARKED) {
+                assert(sync.target->parked_from == SCOOP_THREAD_MANAGED_PENDING);
+                assert(sync.target->managed_anchor == NULL);
+                scoop_thread_registry_unlock();
+                break;
+            }
+            scoop_thread_registry_unlock();
+            sched_yield();
+        }
     } else if (active) {
         wait_world(SCOOP_WORLD_COLLECTING);
         scoop_thread_registry_lock();
