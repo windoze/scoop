@@ -9,6 +9,7 @@ mod inputs;
 pub struct PreparedNativeObjects {
     key: Digest256,
     objects: Vec<PathBuf>,
+    inputs: Vec<crate::NativeInputMetadata>,
 }
 
 impl PreparedNativeObjects {
@@ -17,6 +18,9 @@ impl PreparedNativeObjects {
     }
     pub fn objects(&self) -> &[PathBuf] {
         &self.objects
+    }
+    pub fn input_metadata(&self) -> &[crate::NativeInputMetadata] {
+        &self.inputs
     }
 }
 
@@ -35,6 +39,7 @@ pub fn prepare_native_objects(
 ) -> Result<PreparedNativeObjects, ToolchainError> {
     let compiler = NativeToolchain::resolve_cached(target, manifest, cache)?;
     let key = inputs::configuration(manifest, target, &compiler, optimization, public_include)?;
+    let mut inputs = compiler.input_metadata();
     if !manifest
         .parsed()
         .semantic()
@@ -46,6 +51,7 @@ pub fn prepare_native_objects(
         return Ok(PreparedNativeObjects {
             key,
             objects: Vec::new(),
+            inputs,
         });
     }
     let directory = cache.join("native-objects-v1");
@@ -95,6 +101,7 @@ pub fn prepare_native_objects(
             })
         },
     )?;
+    inputs.extend(record.inputs.iter().cloned());
     Ok(PreparedNativeObjects {
         key: fingerprint(&(key.as_array(), &record.inputs))?,
         objects: record
@@ -103,5 +110,6 @@ pub fn prepare_native_objects(
             .into_iter()
             .map(|p| p.to_path_buf().map_err(error))
             .collect::<Result<_, _>>()?,
+        inputs,
     })
 }

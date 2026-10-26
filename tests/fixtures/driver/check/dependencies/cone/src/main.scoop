@@ -1,0 +1,3 @@
+package test.check.consumer
+import test.check.provider.value
+public fun answer(): Int = value()

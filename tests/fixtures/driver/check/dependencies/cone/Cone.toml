@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test.check"
+name = "consumer"
+version = "1.0.0"
+kind = "library"
+[dependencies]
+"test.check:provider" = {version = "1.0.0", path = "../provider"}

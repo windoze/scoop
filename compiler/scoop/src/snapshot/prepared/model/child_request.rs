@@ -1,23 +1,24 @@
 use std::collections::BTreeMap;
-use std::fmt;
 use std::path::{Path, PathBuf};
 
 use scoop_identity::ConeIdentity;
 use scoop_protocol::{
-    CurrentConeRequestV1, DiagnosticOutputPolicyV1, HostPathCarrier, HostPathError,
-    ProtocolValidationError, RequestCorrelationId, ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1,
-    StageDumpPolicyV1, TrustedCoreRequestV1,
+    CurrentConeRequestV1, DiagnosticOutputPolicyV1, HostPathCarrier, RequestCorrelationId,
+    ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1, StageDumpPolicyV1, TrustedCoreRequestV1,
 };
 
 use super::{PreparedBuildGraph, PreparedGraphNode};
 use crate::{ChildIoPlan, CompletedNode};
+
+mod error;
+pub use error::ChildRequestPlanError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ChildInvocationPlanV1 {
     #[cfg(test)]
     identity: ConeIdentity,
     request: ScoopcRequestEnvelopeV1,
-    output_path: PathBuf,
+    output_path: Option<PathBuf>,
     io: ChildIoPlan,
 }
 
@@ -43,12 +44,20 @@ impl ChildInvocationPlanV1 {
     }
 
     pub(crate) fn output_path(&self) -> &Path {
-        &self.output_path
+        self.output_path
+            .as_deref()
+            .expect("artifact invocation has an output path")
     }
 
     pub(crate) const fn io(&self) -> &ChildIoPlan {
         &self.io
     }
+}
+
+enum NodeOutput<'a> {
+    Artifact,
+    Documentation(&'a Path, bool),
+    Check,
 }
 
 impl PreparedBuildGraph {
@@ -61,7 +70,7 @@ impl PreparedBuildGraph {
         request_id: RequestCorrelationId,
         completed: &[&CompletedNode],
     ) -> Result<ChildInvocationPlanV1, ChildRequestPlanError> {
-        self.child_output_plan(identity, request_id, completed, None)
+        self.child_output_plan(identity, request_id, completed, NodeOutput::Artifact)
     }
 
     pub(crate) fn child_documentation_plan(
@@ -72,7 +81,20 @@ impl PreparedBuildGraph {
         path: &Path,
         artifact: bool,
     ) -> Result<ChildInvocationPlanV1, ChildRequestPlanError> {
-        self.child_output_plan(identity, request_id, completed, Some((path, artifact)))
+        self.child_output_plan(
+            identity,
+            request_id,
+            completed,
+            NodeOutput::Documentation(path, artifact),
+        )
+    }
+
+    pub(crate) fn child_check_plan(
+        &self,
+        request_id: RequestCorrelationId,
+        completed: &[&CompletedNode],
+    ) -> Result<ChildInvocationPlanV1, ChildRequestPlanError> {
+        self.child_output_plan(self.root, request_id, completed, NodeOutput::Check)
     }
 
     fn child_output_plan(
@@ -80,10 +102,13 @@ impl PreparedBuildGraph {
         identity: ConeIdentity,
         request_id: RequestCorrelationId,
         completed: &[&CompletedNode],
-        documentation: Option<(&Path, bool)>,
+        output_kind: NodeOutput<'_>,
     ) -> Result<ChildInvocationPlanV1, ChildRequestPlanError> {
         let completed = completed_map(identity, completed)?;
-        let production = if documentation.is_some_and(|(_, artifact)| !artifact) {
+        let production = if matches!(
+            output_kind,
+            NodeOutput::Check | NodeOutput::Documentation(_, false)
+        ) {
             None
         } else {
             Some(
@@ -161,18 +186,22 @@ impl PreparedBuildGraph {
         if let Some(target) = production {
             io = io.with_toolchain(target.c_bridge_toolchain());
         }
-        let output = match documentation {
-            Some((path, true)) => {
+        let output = match output_kind {
+            NodeOutput::Check => scoop_protocol::ScoopcOutputRequestV1::Check,
+            NodeOutput::Documentation(path, true) => {
                 scoop_protocol::ScoopcOutputRequestV1::ArtifactWithDocumentation {
                     artifact: path_carrier(&output_path)?,
                     documentation: path_carrier(path)?,
                 }
             }
-            Some((path, false)) => {
+            NodeOutput::Documentation(path, false) => {
                 scoop_protocol::ScoopcOutputRequestV1::Documentation(path_carrier(path)?)
             }
-            None => scoop_protocol::ScoopcOutputRequestV1::Artifact(path_carrier(&output_path)?),
+            NodeOutput::Artifact => {
+                scoop_protocol::ScoopcOutputRequestV1::Artifact(path_carrier(&output_path)?)
+            }
         };
+        let output_path = output.artifact().map(|_| output_path);
         let build = ScoopcBuildRequestV1::new(
             current,
             direct,
@@ -284,88 +313,4 @@ fn path_carrier(path: &Path) -> Result<HostPathCarrier, ChildRequestPlanError> {
         path: path.to_path_buf(),
         source,
     })
-}
-
-#[derive(Debug)]
-pub enum ChildRequestPlanError {
-    NativeNotPrepared,
-    UnknownNode(ConeIdentity),
-    PrebuiltNode(ConeIdentity),
-    MissingSourceProjection(ConeIdentity),
-    CurrentAlreadyCompleted(ConeIdentity),
-    DuplicateCompletedNode(ConeIdentity),
-    MissingTrustedCore,
-    MissingDependency {
-        current: ConeIdentity,
-        dependency: ConeIdentity,
-        role: &'static str,
-    },
-    HostPath {
-        path: PathBuf,
-        source: HostPathError,
-    },
-    Protocol(ProtocolValidationError),
-    Toolchain(scoop_toolchain::ToolchainError),
-}
-
-impl fmt::Display for ChildRequestPlanError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NativeNotPrepared => {
-                formatter.write_str("documentation-only source has no native production inputs")
-            }
-            Self::UnknownNode(identity) => write!(formatter, "unknown prepared Cone {identity}"),
-            Self::PrebuiltNode(identity) => {
-                write!(
-                    formatter,
-                    "prebuilt Cone {identity} must not launch a compiler child"
-                )
-            }
-            Self::MissingSourceProjection(identity) => {
-                write!(
-                    formatter,
-                    "prepared source Cone {identity} has no dependency projection"
-                )
-            }
-            Self::CurrentAlreadyCompleted(identity) => {
-                write!(formatter, "child Cone {identity} is already completed")
-            }
-            Self::DuplicateCompletedNode(identity) => {
-                write!(formatter, "completed input repeats Cone {identity}")
-            }
-            Self::MissingTrustedCore => {
-                formatter.write_str("ordinary compiler child requires completed trusted core")
-            }
-            Self::MissingDependency {
-                current,
-                dependency,
-                role,
-            } => write!(
-                formatter,
-                "child Cone {current} is missing completed {role} dependency {dependency}"
-            ),
-            Self::HostPath { path, source } => {
-                write!(
-                    formatter,
-                    "cannot transport child path {}: {source}",
-                    path.display()
-                )
-            }
-            Self::Protocol(source) => write!(formatter, "invalid child request plan: {source}"),
-            Self::Toolchain(source) => {
-                write!(formatter, "cannot transport compiler selection: {source}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for ChildRequestPlanError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::HostPath { source, .. } => Some(source),
-            Self::Protocol(source) => Some(source),
-            Self::Toolchain(source) => Some(source),
-            _ => None,
-        }
-    }
 }

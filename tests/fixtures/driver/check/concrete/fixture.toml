@@ -1,0 +1,55 @@
+schema = 1
+name = "check-concrete-condition-and-repair"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoopc"]
+tags = ["driver", "check", "diagnostics", "cache"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/program.scoop", to = "${work}/program.scoop"}}]
+
+[[steps]]
+name = "check"
+argv = ["${scoop}", "check", "${work}/program.scoop", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+checks = [{glob = "${work}/cache/checks-v1/*/record.json", equals = []}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/program.scoop", {each = "${compile_args}"}, {each = "${options}"}, "-o", "${work}/failed"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+
+[[steps]]
+name = "repair"
+files = [{replace = {path = "${work}/program.scoop", old = 'wrap("managed")', new = 'wrap(42)'}}]
+
+[[steps]]
+name = "fixed"
+argv = ["${scoop}", "check", "${work}/program.scoop", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${fixed.result.cache_hit}", equals = false}]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "check", "${work}/program.scoop", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.cache_hit}", equals = true}]

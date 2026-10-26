@@ -1,0 +1,6 @@
+@NoGC struct Scalar<T>(val value: T)
+fun <T> wrap(value: T): Int {
+    val scalar = Scalar(value)
+    return 42
+}
+fun main(): Int = wrap("managed")

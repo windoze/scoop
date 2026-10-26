@@ -1,8 +1,8 @@
 # `scoop fmt` 与 `scoop check` 设计
 
-状态：设计完成，待实现。设计日期：2026-10-26。
+状态：`check` 已实现并通过本机定向验证，`fmt` 实施中；完整 Linux 验收待两项功能完成后执行。设计日期：2026-10-26。
 
-依据：[语言规范](../specs/SCOOP-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md) §2.1、§2.2、§2.7、§2.20，以及[语言服务公共基础](../language-service/DESIGN.md)。本设计不改变语言语义、`.slib` 格式或[运行时契约](../specs/SCOOP-RUNTIME-SPEC.md)。本文中的新增命令、类型和记录均为实施目标，不表示代码已经交付。
+依据：[语言规范](../specs/SCOOP-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md) §2.1、§2.2、§2.7、§2.20，以及[语言服务公共基础](../language-service/DESIGN.md)。本设计不改变语言语义、`.slib` 格式或[运行时契约](../specs/SCOOP-RUNTIME-SPEC.md)。本文按命令合同描述目标；当前交付范围以文首状态及验证记录为准。
 
 ## 1. 目标与首版决定
 

@@ -35,11 +35,17 @@ pub struct ManifestSourceInput {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum SourceNativeInput {
-    Documentation,
+    Frontend,
     Artifact(scoop_toolchain::PreparedNativeObjects),
 }
 
 impl ManifestSourceInput {
+    pub(crate) fn native_input_metadata(&self) -> &[scoop_toolchain::NativeInputMetadata] {
+        match &self.native {
+            SourceNativeInput::Artifact(native) => native.input_metadata(),
+            SourceNativeInput::Frontend => &[],
+        }
+    }
     pub const fn identity(&self) -> ConeIdentity {
         self.identity
     }

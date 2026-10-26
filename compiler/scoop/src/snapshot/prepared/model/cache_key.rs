@@ -262,7 +262,7 @@ impl fmt::Display for CompileCacheKeyError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NativeNotPrepared => {
-                formatter.write_str("documentation-only source has no native production inputs")
+                formatter.write_str("frontend-only source has no native production inputs")
             }
             Self::Toolchain(error) => error.fmt(formatter),
             Self::UnknownNode(identity) => write!(formatter, "unknown build node {identity}"),

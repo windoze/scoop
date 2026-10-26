@@ -1,0 +1,1 @@
+#define CHECK_VALUE 42

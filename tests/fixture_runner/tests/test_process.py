@@ -103,6 +103,13 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(result["stderr"], b"")
         self.assertEqual(result["diagnostics"], [])
 
+    def test_check_result_has_no_artifact_and_ends_the_structured_prefix(self):
+        tool = {"schema": 1, "kind": "check", "cache_hit": True}
+        result = decode_streams(b"", (json.dumps(tool) + "\n").encode(), "stderr")
+        self.assertEqual(result["result"], tool)
+        self.assertEqual(result["stderr"], b"")
+        self.assertEqual(result["diagnostics"], [])
+
     def test_test_report_preserves_build_result_and_captured_json_bytes(self):
         build = {"schema": 1, "kind": "executable", "output": "program"}
         report = {

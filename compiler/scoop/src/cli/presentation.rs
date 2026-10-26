@@ -7,6 +7,7 @@ use serde_json::{Value, json};
 
 use super::args::MessageFormat;
 
+mod check;
 mod diagnostics;
 mod test_list;
 mod test_report;

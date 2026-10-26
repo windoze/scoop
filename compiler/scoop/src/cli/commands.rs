@@ -28,6 +28,10 @@ pub(super) fn execute(
             super::doc::execute(args, sysroot, reporter)?;
             Ok(None)
         }
+        Command::Check(args) => {
+            super::check::execute(args, sysroot, reporter)?;
+            Ok(None)
+        }
         Command::Build(args) => {
             let mut request = build_request(
                 args.options,

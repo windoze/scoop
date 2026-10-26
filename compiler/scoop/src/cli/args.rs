@@ -42,6 +42,8 @@ pub(super) enum Command {
     New(super::new::NewArgs),
     /// Build a library or executable from a Cone or one source file.
     Build(BuildArgs),
+    /// Check a Cone or source file without producing a root artifact.
+    Check(super::check::CheckArgs),
     /// Build an executable and run it with the caller's environment and stdio.
     #[command(
         after_help = "For a .scoop file, the first program positional argument starts forwarding. Use -- before a first program option, such as --help. All later arguments are forwarded unchanged."
@@ -241,6 +243,7 @@ impl Command {
             Self::Test(args) => args.options.message_format,
             Self::Link(args) => args.message_format,
             Self::Doc(args) => args.message_format,
+            Self::Check(args) => args.message_format,
         }
     }
 }

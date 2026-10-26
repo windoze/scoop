@@ -37,7 +37,7 @@ impl Plan {
                 artifact_search_roots: request.search.clone(),
                 cache_root: request.cache.clone(),
                 sysroot: request.sysroot.clone(),
-                target: GraphTarget::Documentation {
+                target: GraphTarget::Frontend {
                     selection,
                     request: request.target.clone(),
                 },

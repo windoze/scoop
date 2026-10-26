@@ -4,6 +4,7 @@ use clap::Parser;
 use scoop::{BuildFailure, BuildFailurePhase};
 
 mod args;
+mod check;
 mod commands;
 mod doc;
 mod external;
