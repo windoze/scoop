@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 已完成[自然循环的内联增长分配](HOT-REGION-INLINING.md)：区域独立累计并受整个 caller 总上限约束，复用现有评分／支配分析，跨轮不返还。lambdas 消除三处 Iterator.next 及展开路径的 get／checkIndex 调用，三目标耗时降低 42.45%／43.35%／41.16%，分配减少 3,520,000 B；text 增加 2.10%／3.23%／2.74%，编译增加约 1.9%～2.5%。两机 74 项优化与 4 项同步 suspend 回归、三目标各四组组合验证通过；其余四负载二进制逐字节相同。保留 main 明显展开、GNU dispatch 编译 +4.81% 及剩余 toArray 限制。release 默认，无新 runtime／ABI 或诊断代码。
+
 - 已修复[readline 的接口 SSA 根计数回归](INTERFACE-SSA.md)：HEAD 可复现的 `expected: 11, actual: 9` 来自晚期分解新建等价指针 PHI、机器准备时才合并；现于 RS4GC 前归并同块指针合流，保留实际重定位使用及精确根检查。三目标 release 库构建、两机各 53 项 statepoint 专测、定向接口 moving GC 和每目标 7 项行编辑行为测试通过。全部 profile 默认，无新 ABI、诊断代码或开关。
 
 - 已完成[普通 GC 的搬迁覆盖登记消除](RELOCATION-COVERAGE.md)：复用首次标记唯一性与已更新的当前地址，普通构建不生成 claim、覆盖位图及其生命周期操作；原 stress／heap 验证保留。两机各 7 项定向测试、三目标接口与数组 GC 组合通过，并检查未优化对象和四种 runtime 的代码生成边界。trees 降低 8.87%／6.12%／8.81%，update 降低约 48%～55%；GNU strmap 回退 1.79% 等差异均保留。每小块少 512 B 位图，私有 block 元数据 144→136 B，text 缩小 996／1,088／1,024 B；编译成本与适用限制见记录。普通 runtime 所有 profile 默认，系统库／ABI 与既有接口 SSA 保持。

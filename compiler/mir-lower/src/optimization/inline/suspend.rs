@@ -217,7 +217,7 @@ fn choose(
         if cost.growth <= state.growth.remaining(context.heat)
             && cost.weighted_benefit >= cost.penalty
         {
-            state.growth.charge(cost.growth);
+            state.growth.charge(cost.growth, context.heat);
             return Some((order, callee));
         }
     }

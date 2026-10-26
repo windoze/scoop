@@ -24,6 +24,27 @@ else:
         and event["outcome"] == "inlined"
         for event in report["events"]
     )
+
+    transformed = re.search(r"(?ms)^  fun transformed .*?(?=^  fun |\Z)", mir).group()
+    assert not re.search(r"call .*interface Iterator<Long>\[", transformed)
+    caller = next(f["id"] for f in functions if f["name"] == "transformed")
+    events = [
+        event
+        for event in report["events"]
+        if event["pass"] == "inline"
+        and event["site"]["function"] == caller
+        and event["outcome"] == "inlined"
+    ]
+    assert len({event["estimate"]["heat"]["loop_header"] for event in events}) >= 3
+    for event in events:
+        estimate = event["estimate"]
+        assert estimate["remaining_growth"] == min(
+            estimate["region_remaining_growth"], estimate["caller_remaining_growth"]
+        )
+    for function in functions:
+        if function["name"] not in ("get", "checkIndex", "iterator", "next"):
+            continue
+        assert not re.search(rf"call .*@fn{function['id']}\b", transformed)
     assert not re.search(rf"call .*@fn{getter}\b", body)
     assert "MaybeUninit.AssumeInit" in body
 

@@ -1,3 +1,5 @@
+import scoop.collections.*
+
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 fun step(value: Int): Int {
     val first = value + 1
@@ -123,6 +125,21 @@ fun rotations(initial: Vector, step: Vector, count: Long): Vector {
     while (index < count) { result = result.rotate(step); index += 1L }
     return result
 }
+fun transformed(rounds: Long): Long {
+    val base = ArrayList<Long>()
+    var index = 0L
+    while (index < 32L) { base.add(index); index += 1L }
+    var total = 0L
+    var round = 0L
+    while (round < rounds) {
+        val offset = round
+        val mapped = base.map<Long, Long> { value -> value * 3L + offset }
+        val kept = mapped.filter<Long> { value -> value % 2L == 0L }
+        for (value in kept) total += value
+        round += 1L
+    }
+    return total
+}
 fun main() {
     check(expanded(10) == 394)
     check(traverse(0L) == 7L)
@@ -130,5 +147,6 @@ fun main() {
     check(dispatch(0L) == 0L && dispatch(100L) == 72000L)
     val rotated = rotations(Vector(1.0, 0.0), Vector(0.0, 1.0), 5L)
     check(rotated.x == 0.0 && rotated.y == 1.0)
+    check(transformed(0L) == 0L && transformed(8L) == 6400L)
     println("inlined growth")
 }

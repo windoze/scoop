@@ -32,6 +32,8 @@ pub(super) fn estimate(estimate: &InlineEstimate) -> Value {
             InlineProjection::Estimated(estimate) => json!({"status": "estimated", "cost": cost(estimate)}),
         },
         "remaining_growth": estimate.remaining_growth, "in_loop": estimate.in_loop,
+        "region_remaining_growth": estimate.region_remaining_growth,
+        "caller_remaining_growth": estimate.caller_remaining_growth,
         "heat": {
             "source": match estimate.heat.source {
                 InlineHeatSource::Ordinary => "ordinary",
@@ -39,6 +41,7 @@ pub(super) fn estimate(estimate: &InlineEstimate) -> Value {
                 InlineHeatSource::ColdExit => "cold-exit",
             },
             "loop_depth": estimate.heat.loop_depth,
+            "loop_header": estimate.heat.loop_header.map(|id| id.into_raw().into_u32()),
             "numerator": estimate.heat.numerator, "denominator": estimate.heat.denominator,
         },
         "caller_size": estimate.caller_size, "result_used": estimate.result_used,

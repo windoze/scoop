@@ -70,6 +70,8 @@ pub struct InlineEstimate {
     pub ordinary: InlineCost,
     pub projection: InlineProjection,
     pub remaining_growth: usize,
+    pub region_remaining_growth: usize,
+    pub caller_remaining_growth: usize,
     pub in_loop: bool,
     pub heat: InlineHeat,
     pub caller_size: usize,
@@ -82,6 +84,7 @@ pub struct InlineEstimate {
 pub struct InlineHeat {
     pub source: InlineHeatSource,
     pub loop_depth: usize,
+    pub loop_header: Option<BlockId>,
     pub numerator: usize,
     pub denominator: usize,
 }

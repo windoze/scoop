@@ -1,4 +1,4 @@
-//! Spend cumulative caller growth on deeper loops before colder call sites.
+//! Spend bounded region growth on deeper loops before colder call sites.
 
 use std::cell::OnceCell;
 use std::cmp::Reverse;
@@ -120,9 +120,7 @@ impl Context<'_, '_> {
                             .is_some_and(|next| {
                                 matches!(next.kind, mir::StatementKind::PublishReleaseReady { .. })
                             });
-                    let target = if self.ordinary && remaining == 0 {
-                        Err(InlineOutcome::GrowthExhausted)
-                    } else if publishes_release {
+                    let target = if publishes_release {
                         Err(InlineOutcome::ReleasePublication)
                     } else {
                         self.target(call).and_then(|callee| {
@@ -134,6 +132,11 @@ impl Context<'_, '_> {
                         })
                     };
                     if let Ok(callee) = target {
+                        if self.ordinary && remaining == 0 && !self.required(callee) {
+                            record(InlineOutcome::GrowthExhausted, None);
+                            analysis.statement(statement, &mut state);
+                            continue;
+                        }
                         if self.ordinary || self.required(callee) {
                             let arguments = call
                                 .args
@@ -263,6 +266,8 @@ impl Context<'_, '_> {
                                         ordinary,
                                         projection,
                                         remaining_growth: remaining,
+                                        region_remaining_growth: growth.region_remaining(site.heat),
+                                        caller_remaining_growth: growth.caller_remaining(),
                                         in_loop: site.heat.loop_depth != 0,
                                         heat: site.heat,
                                         caller_size: site.caller_size,
@@ -280,7 +285,7 @@ impl Context<'_, '_> {
                             }
                             if let Some(cost) = selected {
                                 if !self.required(callee) {
-                                    growth.charge(cost.growth);
+                                    growth.charge(cost.growth, site.heat);
                                     caller_size += cost.net_growth;
                                 }
                                 choices.push(Choice {

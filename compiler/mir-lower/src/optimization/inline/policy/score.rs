@@ -2,11 +2,14 @@
 
 use super::Cost;
 use crate::optimization::inline::summary::Summary;
+use scoop_mir::BlockId;
 use scoop_mir::optimization_report::{InlineBenefit, InlineCost, InlineHeat};
+use std::collections::HashMap;
 
 pub(in crate::optimization::inline) struct Growth {
     base: usize,
     spent: usize,
+    regions: HashMap<Option<BlockId>, usize>,
 }
 
 impl Growth {
@@ -14,10 +17,19 @@ impl Growth {
         Self {
             base: (size / 2 + base).min(384),
             spent: 0,
+            regions: HashMap::new(),
         }
     }
 
     pub(in crate::optimization::inline) fn remaining(&self, heat: InlineHeat) -> usize {
+        self.region_remaining(heat).min(self.caller_remaining())
+    }
+
+    pub(in crate::optimization::inline) fn caller_remaining(&self) -> usize {
+        (self.base * 8).saturating_sub(self.spent)
+    }
+
+    pub(in crate::optimization::inline) fn region_remaining(&self, heat: InlineHeat) -> usize {
         let factor = if heat.numerator >= 16 * heat.denominator {
             4
         } else if heat.numerator >= 4 * heat.denominator {
@@ -25,11 +37,12 @@ impl Growth {
         } else {
             1
         };
-        (self.base * factor).saturating_sub(self.spent)
+        (self.base * factor).saturating_sub(*self.regions.get(&heat.loop_header).unwrap_or(&0))
     }
 
-    pub(in crate::optimization::inline) fn charge(&mut self, growth: usize) {
+    pub(in crate::optimization::inline) fn charge(&mut self, growth: usize, heat: InlineHeat) {
         self.spent += growth;
+        *self.regions.entry(heat.loop_header).or_default() += growth;
     }
 }
 

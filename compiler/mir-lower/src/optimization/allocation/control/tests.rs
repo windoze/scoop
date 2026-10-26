@@ -32,5 +32,16 @@ fn natural_loop_depth_merges_latches_and_accounts_for_unwind_nodes() {
         locals: Arena::new(),
         loop_header_polls: Vec::new(),
     };
-    assert_eq!(ControlFlow::new(&body).loop_depths(), [0, 1, 2, 2, 2, 1, 0]);
+    let nesting = ControlFlow::new(&body).loop_nesting();
+    assert_eq!(
+        nesting.iter().map(|n| n.depth).collect::<Vec<_>>(),
+        [0, 1, 2, 2, 2, 1, 0]
+    );
+    assert_eq!(
+        nesting
+            .iter()
+            .map(|n| n.header.map(index))
+            .collect::<Vec<_>>(),
+        [None, Some(1), Some(2), Some(2), Some(2), Some(1), None]
+    );
 }

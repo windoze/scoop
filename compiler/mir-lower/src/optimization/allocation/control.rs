@@ -19,6 +19,12 @@ pub(in crate::optimization) struct ControlFlow {
     completed: Vec<usize>,
 }
 
+#[derive(Clone, Copy, Default)]
+pub(in crate::optimization) struct LoopNesting {
+    pub depth: usize,
+    pub header: Option<mir::BlockId>,
+}
+
 impl ControlFlow {
     pub fn new(body: &mir::Body) -> Self {
         let mut edges = graph::block_edges(body);
@@ -88,7 +94,7 @@ impl ControlFlow {
         self.node_dominates(creation, block)
     }
 
-    pub fn loop_depths(&self) -> Vec<usize> {
+    pub fn loop_nesting(&self) -> Vec<LoopNesting> {
         let mut natural = self
             .back_edges
             .iter()
@@ -96,14 +102,25 @@ impl ControlFlow {
             .filter(|&(latch, header)| self.node_dominates(header, latch))
             .collect::<Vec<_>>();
         natural.sort_unstable_by_key(|&(_, header)| header);
-        let mut depths = vec![0; self.edges.len()];
+        let mut nesting = vec![LoopNesting::default(); self.edges.len()];
         let mut seen = vec![usize::MAX; self.edges.len()];
         let mut pending = Vec::new();
         for (latch, header) in natural {
+            let header_id = mir::BlockId::from_raw(la_arena::RawIdx::from_u32(header as u32));
+            let mut visit = |block: usize| {
+                let current = &mut nesting[block];
+                current.depth += 1;
+                if current
+                    .header
+                    .is_none_or(|outer| self.node_dominates(index(outer), header))
+                {
+                    current.header = Some(header_id);
+                }
+            };
             // Merge latches with the same header, including self loops.
             if seen[header] != header {
                 seen[header] = header;
-                depths[header] += 1;
+                visit(header);
             }
             pending.push(latch);
             while let Some(block) = pending.pop() {
@@ -111,13 +128,13 @@ impl ControlFlow {
                     continue;
                 }
                 seen[block] = header;
-                depths[block] += 1;
+                visit(block);
                 pending.extend(self.predecessors[block].iter().copied());
             }
         }
         // Completed EH nodes belong to the analysis, not the original body.
-        depths.truncate(self.completed.len());
-        depths
+        nesting.truncate(self.completed.len());
+        nesting
     }
 
     pub(super) fn dominates(&self, creation: Site, usage: Site) -> bool {

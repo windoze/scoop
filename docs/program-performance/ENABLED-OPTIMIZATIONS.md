@@ -33,6 +33,7 @@
 | [线程入口复用已校验状态](THREAD-STATE-REUSE.md) | 使用新版 runtime 重新链接，所有 profile 默认，无独立开关 | 18 处同步线程／roots／异常／初始化入口复用 managed 检查返回的状态；native 边界 TLS 取址七次降至四次，检查与原子内存序保持，无新增字段或 ABI。 |
 | [搬迁时更新存活清单](LIVE-SET-RELOCATION.md) | 使用新版 runtime 重新链接，所有 profile 默认，无独立开关 | 复制时将稳定清单条目改为当前副本，引用回写省去 source forwarding 与重复元数据定位；计划项和清单不增大，真实字段／roots 仍正常转发，保留 pin、survivor 与预留失败语义。 |
 | [调用点内联评分](CALL-SITE-INLINING.md) | release 默认；扩大跨 Cone 正文范围需重建 provider；诊断由 `--emit optimizations` 开启 | 缓存函数事实，按调用点静态热度、实参、结果用途和 caller 规模比较可消除开销与净增长；热循环可接受大正文，冷点可保留小正文。沿用递归、增长及 GC 限制，无试内联或新 runtime 代码。 |
+| [自然循环的内联增长分配](HOT-REGION-INLINING.md) | release 默认，无独立开关；可复用既有系统库 | 每个最内层自然循环分别累计，原基数按热度使用一／二／四倍上限，整个 caller 最多八倍；跨轮不返还。复用支配分析与原评分，诊断补充区域／总剩余；lambdas 三目标降低约 41%～43%，代码与编译成本、剩余 toArray 路径见记录。 |
 | [不可达 callable 与 stackmap 裁剪](CALLABLE-PRUNING.md) | 最终链接所有 profile 默认；配套 `link-identity-closure/19`，旧输入须重建 | 沿完整物理符号引用选择，函数代码、EH、stackmap、登记与私有数据同选；元数据保留起点由下一项进一步收紧，native archive 候选引用保守保留目标。无需新增 runtime／诊断代码或对象字段。 |
 | [类型／shape 元数据裁剪](TYPE-PRUNING.md) | 元数据生产与最终链接所有 profile 默认；沿用版本 19，旧粗分组库可直接重链接 | Strong TD 与同一 exact type 的登记合组，布局／scan／完整派发表独立划分；沿实际引用删除无入口类型及方法。静态存储、初始化、immortal 和必要登记保留；库体积与生产成本增加，consumer 构建、链接和启动受益。 |
 | [一个 survivor 阶段与密集块原地保留](SURVIVOR.md) | 普通 debug／release 默认关闭；`SCOOP_GC_SURVIVOR=1` 开启 | 最多占 nursery 四分之一；首次存活的密集块原地保留，稀疏对象按配额复制，下一轮晋升。减少中等寿命对象的提前晋升；长寿图的扫描成本须按负载衡量，stress／full-only 保持原策略。 |
@@ -45,7 +46,7 @@
 | [普通 poll 单次 phase 读取与有界叶函数省入口](ACTIVE-POLLS.md) | 新编译器生成的所有 profile 默认 | 普通 Managed poll 不读取 TLS／mode／epoch；既有有界叶函数省去入口 poll，效果仍为 Managed。root／初始化 gateway 保留首次激活，循环与慢边精确 roots 保持。 |
 | [启动 site 的 owner 验证合并](STARTUP-OWNER-JOIN.md) | 新版 runtime，所有 profile 默认 | 每个 site 在首次 stackmap 合并时只解析一次 owner；重复 ODR 记录复用验证结果，仍比较完整地址与 payload，全部对应关系在 managed 执行前完成。 |
 | [poll 的本线程 relaxed 读取](POLL-OWNER-READS.md) | Gateway 完整检查中，所有 profile 默认 | 全局 epoch／phase 保持 acquire，所属线程的 mode／observed epoch 使用 relaxed；普通 Full poll 已由上项进一步简化。runtime 跨线程发布与停稳协议保持。 |
-| [普通内联增长额度调整](INLINE-GROWTH.md) | release 默认 | 基础额度为 `min(size / 2 + 128, 384)`，统一适用于本地、泛型及跨 Cone 正文；调用点评分按热度使用一／二／四倍上限，六层深度和跨轮累计保持，同步 suspend 基础常数仍为 96。 |
+| [普通内联增长额度调整](INLINE-GROWTH.md) | release 默认 | 基础额度为 `min(size / 2 + 128, 384)`，统一适用于本地、泛型及跨 Cone 正文；后续按上述自然循环区域分配，六层深度和跨轮累计保持，同步 suspend 基础常数仍为 96。 |
 | [跨 Cone 普通方法与 getter 内联](MEMBER-INLINING.md) | release 默认；提供方需导出合格可移植正文 | 按完整签名与通用 HIR／MIR 成本选择，保留 receiver 与 typed accessor identity；泛型沿既有具体化路径，未知动态调用及缺少正文的旧库保留入口。 |
 | [Scoop 符号在镜像内绑定](LOCAL-SYMBOLS.md) | Darwin 最终链接默认，所有 profile | 从动态导出移除 Scoop 持久符号，直接绑定 callable 与 metadata；已有相容 `.slib` 可重链接，普通 native C 导出保留。 |
 | [完整父接口表内嵌与目录共享](INTERFACE-PROJECTION.md) | 所有 profile，统一布局／ABI | 单继承完整前缀、多继承固定偏移；目录复用内嵌片段，菱形保留完整父表。 |
