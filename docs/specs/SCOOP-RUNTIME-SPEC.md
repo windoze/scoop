@@ -589,6 +589,10 @@ minor collection 处理年轻代，依据完整精确根与旧代脏区追踪年
 
 年轻 block 在 refill／stress 分配取得块时加入 heap 私有清单；普通对象的 bump／登记不维护额外清单。minor 的标记准备、worker 计数汇总和搬迁 source 选择只枚举这份清单，收尾另处理本轮新建的 evacuation target。晋升或退役其余年轻块后，把本轮原地保留或复制得到的 survivor 留在年轻清单中，并结束 target 成员关系；full 仍按全堆枚举，收尾晋升全部年轻存活对象并清空两份清单。目标预留失败时只撤销本轮新建目标和选定 source，minor 转 full 前保持完整原图。活动年轻块／目标块与空闲块按互斥状态复用 side metadata 的链接；退役前取得后继，不能从已经交还空闲链的字段继续清单遍历。block 元数据大小及原热字段偏移保持，不增加对象头、roots、TLAB 或 generated-code prefix，也不改变产物 ABI。
 
+普通 minor 可以依据本轮已完成的 block 存活统计，让高存活的 small block 原地晋升。`SCOOP_GC_PROMOTE_IN_PLACE=1` 开启，默认 0；其他值在初始化时报错。开启时，存活字节不少于 block 可用容量一半的普通小对象块即使 survivor 关闭或配额不足，也不复制到旧代新块。原地保留的块不建立 forwarding 或逐对象搬迁计划；generation 到收尾才改为旧代，仍清理本块死对象并按存活 line 建立可复用空间。稀疏块继续集中复制，full 的稀疏 region 整理、pin 地址稳定、预晋升及预留失败转 full 保持。该选项减少复制但可能增加旧代碎片、RSS 和 full 尾暂停，因此不作为普通默认策略；不影响既有 survivor 的原地保留／晋升选择。moving／minor stress 和 full-only 不使用该策略。
+
+source 选择同步返回是否存在实际搬迁源；本轮没有源且没有保留的年轻 survivor 时，规划直接结束，沿已有零搬迁路径省去引用更新。不能因此省略标记、根与引用验证、死对象处理或晋升统计；只要有搬迁，所有需要重定位的 roots／存活对象／remembered 槽仍完整更新。有原地 survivor 时，复用年轻存活清单取得 survivor 对象数，并建立下一轮实际 old→young 边。
+
 普通运行提供一个可选 survivor 阶段：`SCOOP_GC_SURVIVOR=1` 开启，默认 0；其他值在初始化时报错。首次 minor 存活的普通无 pin 小对象可保留为一个阶段的 survivor，下一次 minor 晋升。每轮选择时，survivor 总 block 容量以本轮 nursery 容量的四分之一为上限；其容量计入下一轮 nursery 占用，收尾后的 nursery 容量仍按 3.1 调整。优先在原 source 选择遍历中保留存活字节不少于 block 可用容量一半的首次存活块，其他首次存活对象可复制到剩余配额内的同龄 survivor block，配额用完后直接晋升。代龄及本轮保留状态只占 block 私有 padding，survivor block 不混入新分配或旧代 free run，不增加对象头、逐对象年龄或分配快路径操作。已有 survivor block 达到同一密度时原地晋升，否则沿既有搬迁路径集中到旧代；含 pin 的 block 原地晋升，large／release-hook 对象仍预晋升。full、moving／minor stress 和 full-only 不保留 survivor。
 
 原年轻块的 generation 在 mark 与 relocation 期间保持，以私有保留标志区分下一轮年轻／旧代；source 的全部活对象完成预留后才发布任何复制或 forwarding，survivor 空间不足可改用旧代目标，整体预留失败撤销本轮保留标志并从原图转 full。借原 remembered 和存活对象回写补记旧对象及本轮晋升对象到 survivor 的卡，不重扫完整旧堆；原地保留的对象数复用本来就要访问的本轮年轻存活清单累计，不增加对象遍历。对象计数须从上轮已计年轻存活中扣除旧 survivor 数，再加入本轮实际年轻存活，避免重复计数；晋升量只包含进入旧代的字节。

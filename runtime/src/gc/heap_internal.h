@@ -156,6 +156,7 @@ typedef struct ScoopGcHeapState {
 #endif
     bool full_only;
     bool survivor_enabled;
+    bool promote_in_place;
     bool print_metrics;
     bool collection_active;
     size_t nursery_bytes;
@@ -276,7 +277,7 @@ bool scoop_heap_object_marked(const ScoopGcBlockMeta *block, size_t word);
 bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block);
 struct ScoopGcSurvivors;
 size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity,
-                                             struct ScoopGcSurvivors *survivors);
+                                             struct ScoopGcSurvivors *survivors, bool *has_sources);
 void scoop_heap_prepare_evacuation_targets(void);
 void scoop_heap_finish_block(ScoopGcBlockMeta *block, bool stress);
 

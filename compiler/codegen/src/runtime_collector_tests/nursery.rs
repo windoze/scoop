@@ -1,6 +1,28 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn dense_promotion_preserves_sparse_relocation_reuse_and_old_writes() {
+    for flags in [vec!["-O0"], vec!["-O2", "-DSCOOP_TEST_PROMOTION_PARALLEL"]] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "dense_promotion_test",
+            "runtime/tests/dense_promotion_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"dense promotion preserves aliases, sparse relocation, reuse and old writes\n"
+        );
+    }
+}
+
+#[test]
 fn array_scans_preserve_exact_ranges_order_and_metadata() {
     for optimization in ["-O0", "-O2"] {
         let output = compile_and_run_with_flags(

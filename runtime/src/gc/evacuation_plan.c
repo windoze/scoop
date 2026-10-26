@@ -208,14 +208,15 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
     if (minor && scoop_gc_heap_state.survivor_enabled && scoop_heap_adaptive_nursery_enabled()) {
         plan.survivor_capacity_limit = scoop_gc_heap_state.nursery_capacity / 4;
     }
-    size_t source_regions =
-        scoop_heap_select_evacuation_sources(minor, plan.survivor_capacity_limit, &plan.survivors);
+    bool has_sources;
+    size_t source_regions = scoop_heap_select_evacuation_sources(
+        minor, plan.survivor_capacity_limit, &plan.survivors, &has_sources);
     plan.allow_growth = !ordinary_full || source_regions > 1;
     if (ordinary_full) {
         scoop_gc_heap_state.metrics.last_full_source_regions = 0;
         scoop_gc_heap_state.metrics.last_full_target_regions = 0;
     }
-    if (ordinary_full && source_regions == 0) {
+    if (!has_sources && plan.survivors.capacity == 0) {
         return true;
     }
     if (ordinary_full && source_regions == 1 && !single_source_may_fit()) {

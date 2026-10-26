@@ -66,6 +66,13 @@ void scoop_gc_heap_init(void) {
         }
         scoop_gc_heap_state.survivor_enabled = strcmp(survivor, "1") == 0;
     }
+    const char *promotion = getenv("SCOOP_GC_PROMOTE_IN_PLACE");
+    if (promotion != NULL) {
+        if (strcmp(promotion, "0") != 0 && strcmp(promotion, "1") != 0) {
+            heap_fatal("SCOOP_GC_PROMOTE_IN_PLACE must be 0 or 1");
+        }
+        scoop_gc_heap_state.promote_in_place = strcmp(promotion, "1") == 0;
+    }
     const char *nursery = getenv("SCOOP_GC_NURSERY_MAX_MIB");
     if (nursery != NULL) {
         char *end;
