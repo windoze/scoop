@@ -1,5 +1,7 @@
 # String 比较与有界 hash
 
+后续的 [String hash 范围扩展](STRING-HASH-RANGE.md) 已将普通正文从 8 B 扩到 32 B 并采用提前返回；本文保留首次交付时的实现与对照。
+
 基线为 `20050b507`；两边分别用对应编译器构建同一版本 core，候选只改变本项正文，runtime 完全相同。String.equals 的同引用、长度不等及空串判断是普通 core 正文，剩余比较使用原 typed compare；hash 对至多八字节展开原 FNV-1a，较长输入共享 C 后备。正文由现有调用点评分选择，未增加函数名特判或内联门槛。
 
 MIR 常量事实新增真实 StringConstId，复用数据流及调用点简化；真实 typed byteLength、合法 byteAt 和 compare 可计算为常量。实际 provider 身份保持，文本相等不推导对象同一。release codegen 对本地已知 ≤8 B 常量比较生成长度保护与无符号字节序比较；空串只需检查长度，其他长度及未知内容继续调用共享 compare。只读实际范围，保持 NUL、Unicode、hash 回绕和原 ABI。单侧 imported immortal 若 LIR 只有地址则不假设其内容；双侧已知内容可在 MIR 折叠。

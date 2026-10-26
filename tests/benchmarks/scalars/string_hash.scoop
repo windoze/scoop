@@ -1,0 +1,68 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+
+public fun hashText(iterations: Int, left: String, right: String): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = if (index.and(1) == 0) left else right
+        result += text.hash()
+        index += 1
+    }
+    return result
+}
+
+public fun constant16(iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        result += "0123456789abcdef".hash()
+        index += 1
+    }
+    return result
+}
+
+public fun constant32(iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        result += "0123456789abcdefghijklmnopqrstuv".hash()
+        index += 1
+    }
+    return result
+}
+
+fun main() {
+    @Unsafe {
+        val mode = kind()
+        val iterations = count()
+        val length = when (mode) {
+            case 0 -> 0L
+            case 1 -> 1L
+            case 2 -> 7L
+            case 3 -> 8L
+            case 4 -> 9L
+            case 5 -> 15L
+            case 6 -> 16L
+            case 7 -> 17L
+            case 8 -> 31L
+            case 9 -> 32L
+            case 10 -> 33L
+            case 11 -> 64L
+            case 12 -> 128L
+            else -> 4096L
+        }
+        val left = String.fromUtf8(Array<Byte>(length) { index -> (index % 127L).toByte() })
+        val right = String.fromUtf8(Array<Byte>(length) { index -> ((index + 1L) % 127L).toByte() })
+        begin()
+        val result = when (mode) {
+            case 14 -> constant16(iterations)
+            case 15 -> constant32(iterations)
+            else -> hashText(iterations, left, right)
+        }
+        end()
+        println(result)
+    }
+}

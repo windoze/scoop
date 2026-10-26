@@ -5,6 +5,15 @@ import scoop.test.*
 private fun genericHash(value: Hash): Long = value.hash()
 private fun dynamicCompare(left: String, right: String): Long = left.compareTo(right)
 
+private fun checkByteHash(length: Long, expected: Long) {
+    val text = String.fromUtf8(Array<Byte>(length) { index -> (index % 127L).toByte() })
+    val hash = text::hash
+    assertEquals(expected, genericHash(text))
+    gcCollect()
+    assertEquals(expected, text.hash())
+    assertEquals(expected, hash())
+}
+
 @Test
 private class ReadTests {
     @Test
@@ -55,5 +64,25 @@ private class ReadTests {
         assertEquals(-1L, dynamicCompare("a\u0000", "a\u0001"))
         assertEquals(1L, dynamicCompare("é", "z"))
         assertEquals(-1L, dynamicCompare("雪", "🙂"))
+    }
+
+    @Test
+    fun dynamicHashLengthBoundaries() {
+        checkByteHash(0L, 1469598103934665603L)
+        checkByteHash(7L, 5247242255190488182L)
+        checkByteHash(8L, -3948417661554533373L)
+        checkByteHash(9L, 1001814023825581745L)
+        checkByteHash(15L, 8637538703190335550L)
+        checkByteHash(16L, 615731795747517251L)
+        checkByteHash(17L, -664846548891093495L)
+        checkByteHash(31L, -6540265022281374610L)
+        checkByteHash(32L, -4098353606094590973L)
+        checkByteHash(33L, 2689684201023061881L)
+        checkByteHash(64L, -3498673563981234557L)
+        checkByteHash(65L, 6364177471900067161L)
+        checkByteHash(128L, -8139581360370597558L)
+        assertEquals(-8900035388218590101L, genericHash("🙂🙂🙂🙂" + ""))
+        assertEquals(1518467307101369953L, genericHash("🙂🙂🙂🙂🙂" + ""))
+        assertEquals(-404753460161457847L, genericHash("A\u0000é雪🙂abcdefghi" + ""))
     }
 }

@@ -20,7 +20,8 @@
 | [MIR 末尾局部复制传播](INTERFACE-SSA.md) | release 默认，沿现有 MIR 内联优化配置 | 内联与循环选择后传播未取址局部当前别名；保持重赋快照、合流、循环与 EH，不依赖变量名。ARM64 dispatch／接口复制明显改善，lambdas 等回退如实记录并继续精化根与 SSA。 |
 | [调用期间保活与返回恢复分离](INTERFACE-SSA.md) | 新编译器所有 profile 默认 | 死 direct AS1 实参保留调用期间根，省去人工后继使用及恢复；byval、展开后输入、poll、EH 与 native 协议保持，按实际 RS4GC 结果计根。各平台收益和阶段性回退分别记录。 |
 | [接口分量与重定位结果 SSA](INTERFACE-SSA.md) | 局部根槽提升为 release 默认；晚期 aggregate 分解适用于所有 profile | 复用 SROA／mem2reg，普通优化结束后才拆分聚合、在真实 ret／store／实参使用处重建，确保消费 relocated object。取址／发布／间接 ABI 等存储保持，不增加对象或接口表大小。 |
-| [String 比较与短 hash](STRING-READS.md) | 普通 core 正文全 profile；调用点常量折叠和 ≤8 B 常量比较 release 默认，须重建 core | 同引用／长度／空串判断、八字节以内 FNV-1a 普通正文和真实 typed 常量读取；长文本共享后备，保持内容、身份和位宽，无新增 ABI。ASCII 单独展开经对照未采纳。 |
+| [String hash 有界范围与提前返回](STRING-HASH-RANGE.md) | 新 core 所有 profile 默认；release 按原调用点评分展开，需重建 core 及依赖者 | ≤32 B 使用普通标量正文并及时返回，9～32 B 省去 native hash／协调／caller roots；长输入保留原后备。原结果、表示和 ABI 保持，无新开关或测量代码；极短输入的成本见对照记录。 |
+| [String 比较与短 hash](STRING-READS.md) | 普通 core 正文全 profile；调用点常量折叠和 ≤8 B 常量比较 release 默认，须重建 core | 同引用／长度／空串判断、初版有界 FNV-1a 和真实 typed 常量读取；hash 范围由上项继续扩展，长文本共享后备。保持内容、身份和位宽，无新增 ABI；ASCII 单独展开经对照未采纳。 |
 | [已知小型 box 生成分配](BOX-ALLOCATION.md) | release 默认 | 真实 typed box、实例 ≤128 B；ZST／GC-free／含引用值复用 TLAB，GC 后重读 payload 并执行值屏障。保持实际分配及身份，大值和 debug 使用共享后备，无新对象字段或 ABI。 |
 | [普通 String 拼接融合与热二元生成](STRING-CONCAT.md) | release 默认 | 同块单用链最多八段、短常量合并；热循环／短常量二元使用同一路径，其他点共享后备。checked 一次分配并在 GC 后重读输入，保留共享结果与副作用边界，无布局或 ABI 变化。 |
 | [标量计算与 Boolean 字符串常量](SCALAR-BODIES.md) | 新 core 所有 profile 默认；release 按调用点展开 | Boolean equals／hash、整数 hash 为普通正文，热／常量点可化简，普通点可共享；Boolean.toString 不再分配结果 String，旧 C ABI 后备保留。 |

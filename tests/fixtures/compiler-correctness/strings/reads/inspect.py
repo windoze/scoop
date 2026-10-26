@@ -15,3 +15,6 @@ if sys.argv[2] == "release":
         "constantReads"
     ]
     assert not re.search(r"^\s+call ", functions["constantHash"], re.M), functions["constantHash"]
+    assert not re.search(r"^\s+call ", functions["constantHashLoop"], re.M), functions[
+        "constantHashLoop"
+    ]

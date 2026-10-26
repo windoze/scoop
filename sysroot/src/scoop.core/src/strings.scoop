@@ -170,22 +170,74 @@ public class String : Compare<String>, Add<String, String>, Equals<String>, ToSt
 @Extern(name = "scoop_rt_string_hash", abi = "scoop")
 private fun coreStringHashFallback(value: String): Long
 
-@NoGC
-private fun coreStringHashByte(hash: ULong, byte: Byte): ULong =
-    hash.xor(byte.toUByte().toULong()) * 1099511628211uL
-
 internal fun coreStringHash(value: String): Long {
     val length = coreStringByteLength(value)
-    if (length > 8L) { return coreStringHashFallback(value) }
+    if (length > 32L) { return coreStringHashFallback(value) }
     var hash = 1469598103934665603uL
-    if (length > 0L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 0L)) }
-    if (length > 1L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 1L)) }
-    if (length > 2L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 2L)) }
-    if (length > 3L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 3L)) }
-    if (length > 4L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 4L)) }
-    if (length > 5L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 5L)) }
-    if (length > 6L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 6L)) }
-    if (length > 7L) { hash = coreStringHashByte(hash, coreStringByteAt(value, 7L)) }
+    if (length <= 0L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 0L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 1L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 1L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 2L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 2L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 3L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 3L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 4L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 4L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 5L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 5L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 6L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 6L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 7L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 7L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 8L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 8L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 9L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 9L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 10L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 10L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 11L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 11L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 12L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 12L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 13L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 13L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 14L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 14L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 15L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 15L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 16L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 16L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 17L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 17L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 18L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 18L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 19L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 19L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 20L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 20L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 21L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 21L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 22L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 22L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 23L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 23L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 24L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 24L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 25L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 25L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 26L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 26L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 27L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 27L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 28L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 28L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 29L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 29L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 30L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 30L).toUByte().toULong()) * 1099511628211uL
+    if (length <= 31L) { return hash.toLong() }
+    hash = hash.xor(coreStringByteAt(value, 31L).toUByte().toULong()) * 1099511628211uL
     return hash.toLong()
 }
 
