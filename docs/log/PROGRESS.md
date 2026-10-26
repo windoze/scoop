@@ -25,7 +25,9 @@ Darwin 另完成七个示例的实际运行，以及两库 `scoop doc --no-deps 
 
 Linux 使用 `nuc12:~/repos/scoop-log-library` 独立目录，不修改原有 `~/repos/scoop`。仅执行上述日志定向测试，不运行 Linux 完整 Rust 或 fixture 套件。musl 按准备脚本已有说明补充 Linux UAPI 头搜索目录，这是宿主构建配置。
 
-本轮不做完整发行归档、无关全量回归或 GC stress。原始日志、构建缓存和测试工作目录均保存在仓库外：Darwin 为仓库旁的 `scoop-work/log-library`，Linux 为 `~/repos/scoop-log-work` 及同级日志文件。
+合入本地 main `a69dc3376` 后，按新版 runtime ABI 更新 Darwin sysroot，并重建配套工具；14 项库测试、标准流 fixture、7 个示例及关闭 stderr 的 fallback 重验通过。API 文档、Rust 格式检查／Clippy、Ruff 和 55 项 fixture runner 公共规则测试也通过；本次合并后未重跑 Linux 测试。
+
+本轮不做完整发行归档、无关全量回归或 GC stress。原始日志、日志测试与示例工作目录保存在仓库外：Darwin 为仓库旁的 `scoop-work/log-library`，Linux 为 `~/repos/scoop-log-work` 及同级日志文件。
 
 ## 问题闭合
 
