@@ -1,0 +1,26 @@
+//! dep: scoop:scoop.platform:0.1.0
+
+import scoop.platform.fs.*
+import scoop.platform.io.*
+
+fun main() {
+    val directory = createTempDirectory(prefix = "scoop-resources-")
+    try {
+        val path = directory.resolve(Path.fromString("notes.txt"))
+        val writer = File.open(path, OpenOptions(read = false, write = true, create = true))
+        try {
+            writer.use {
+                file ->
+                file.writeText("saved before failure\n")
+                throw IllegalArgumentException(Some("stop writing"))
+            }
+        } catch (error: IllegalArgumentException) {
+            println(error.message ?: "write interrupted")
+        }
+        println(f"closed=${writer.isClosed}")
+        File.open(path).use { file -> print(file.readText()) }
+    } finally {
+        directory.deleteRecursively()
+    }
+    println("temporary directory removed")
+}

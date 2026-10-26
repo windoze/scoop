@@ -2,6 +2,17 @@
 
 每个正式库 Cone 的 `examples/` 都包含可运行示例和中文说明。示例使用公开 API；单文件头部的 `//! dep:` 声明额外依赖，core 和 std 由单文件入口默认提供。父库默认只编译 `src/`，这些示例不会进入库的生产源码。
 
+按问题阅读首批 24 个主题，可直接使用已安装的外部命令：
+
+```sh
+scoop example
+scoop example --search "JSON 序列化"
+scoop example language/option
+scoop example http/get
+```
+
+完整内容由[主题索引](share/scoop/examples/catalog.toml)组织，命令同时提供程序、运行方式、结果、说明和相关主题。`--format source` 输出原文，多文件时用 `--file` 选择；`--format json` 便于 AI 或其他工具读取。先把显示文件保存到可写目录，再按正文运行。开发仓库执行 `python3 scripts/build_scoop_example.py` 安装阅读器；它独立于编译器构建。
+
 ## 运行准备
 
 使用已安装的 Scoop 时，直接使用配套的 `scoop` 和 sysroot。在本仓库中，先按[准备脚本说明](../scripts/README.md)构建配套工具并准备开发 sysroot，再从仓库根目录执行：

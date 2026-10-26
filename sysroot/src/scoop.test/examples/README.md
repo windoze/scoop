@@ -14,4 +14,6 @@ scoop test --release assertions --list
 scoop test --release assertions --filter CalculatorTests
 ```
 
-两个 Cone 各有 2 个通过的测试。`assertions` 的除零用例捕获并检查异常，不是故意失败的测试；`lifecycle` 的两个方法各自取得由 setup 填入一个元素的 Cart，cleanup 随后清空它。
+assertions 的完整文件、运行步骤与预期结果见 `scoop example test/assertions`（[正文](../../../share/scoop/examples/topics/test/assertions.md)）。
+
+lifecycle 有两个通过的测试，每个方法取得由 setup 填入一个元素的 Cart，cleanup 随后清空它。

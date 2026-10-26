@@ -18,7 +18,19 @@ Darwin/AArch64 包要求声明版本的 macOS、Xcode 或 Command Line Tools、A
 
 内置库以 release 预编译，debug 和 release 应用都直接使用 `~/.scoop/lib/<target-triple>/*.slib`；当前应用需要的泛型实例仍正常生成。空缓存也不触发系统库重编。普通 build、run、test 和 link 不重新编译内置 Cone 或 runtime。应用构建缓存和输出写到各自正常位置，安装目录无需可写。显式 `--sysroot` 或环境变量 `SCOOP_SYSROOT` 会覆盖默认安装根；使用安装包时不需要设置这两项。
 
-安装根的 `commands/` 用于外部子命令，当前可为空。放入任意宿主可执行程序 `commands/scoop-somecommand` 后，运行 `scoop somecommand <args>` 即可调用它。内置子命令优先；外部子命令之后的所有参数（包括 `--help` 和 `--`）原样传递，Scoop 自身的选项应放在子命令之前，例如 `scoop --sysroot /path/to/scoop somecommand --help`。程序继承当前目录、环境和标准输入输出，退出码及终止信号保持。
+安装根的 `commands/` 用于外部子命令，包中提供 `scoop-example`。放入其他宿主可执行程序 `commands/scoop-somecommand` 后，运行 `scoop somecommand <args>` 即可调用它。内置子命令优先；外部子命令之后的所有参数（包括 `--help` 和 `--`）原样传递，Scoop 自身的选项应放在子命令之前，例如 `scoop --sysroot /path/to/scoop somecommand --help`。程序继承当前目录、环境和标准输入输出，退出码及终止信号保持。
+
+`scoop example` 离线提供 24 个入门、语言、集合、文件、JSON、异步 HTTP、命令行和测试主题：
+
+```sh
+scoop example --list
+scoop example --search "JSON 序列化"
+scoop example language/option
+scoop example http/get --format source --file client.scoop
+scoop example json/typed --format json
+```
+
+默认输出完整程序、运行条件、操作步骤、预期结果和关键规则。把显示文件保存到可写目录后按说明运行；example 本身只读取材料。新示例和正文位于 `share/scoop/examples`，复用的库示例仍在 `src/`。指定其他安装根查询时，后续运行也使用同一 `--sysroot`。
 
 VS Code 扩展位于 `tooling/scoop-language-support-<extension-version>.vsix`，内含语法高亮、折叠和缩进所需代码及 WASM。在 VS Code 中选择“从 VSIX 安装”，或运行：
 

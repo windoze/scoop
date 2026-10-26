@@ -12,4 +12,6 @@ scoop run --release files.scoop
 scoop run --release threads.scoop
 ```
 
-文件示例输出两行文本、`bytes=26` 和 `notes.txt`；临时目录在 `finally` 中删除。目录名通过 `OsString.display()` 显式转换为显示文本。线程示例中主线程与工作线程各增加计数 1000 次，等待工作完成后输出 `2000`。
+文件示例的完整说明见 `scoop example io/files`（[正文](../../../share/scoop/examples/topics/io/files.md)），文件句柄的正常和异常清理见 `scoop example io/resources`。
+
+线程示例中主线程与工作线程各增加计数 1000 次，等待工作完成后输出 `2000`。

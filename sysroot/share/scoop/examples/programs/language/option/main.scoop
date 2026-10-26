@@ -1,0 +1,13 @@
+fun greeting(name: String?): String =
+    when (name) {
+        case Some(value) -> f"Hello, ${value}!"
+        case None -> "Hello, guest!"
+    }
+
+fun main() {
+    val name: String? = Some("Ada")
+    val missing: String? = None
+    println(greeting(name))
+    println(greeting(missing))
+    println(name?.charLength ?: 0L)
+}

@@ -1,0 +1,21 @@
+public interface Named {
+    public fun displayName(): String
+}
+
+class Person(val name: String): Named {
+    public override fun displayName(): String = name
+}
+
+struct Label(val text: String): Named {
+    public override fun displayName(): String = text
+}
+
+fun printName(value: Named) {
+    println(value.displayName())
+}
+
+fun main() {
+    val person: Named = Person("Ada")
+    printName(person)
+    printName(Label("Scoop"))
+}

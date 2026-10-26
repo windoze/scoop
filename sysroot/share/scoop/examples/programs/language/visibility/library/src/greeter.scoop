@@ -1,0 +1,9 @@
+package examples.greeter
+
+public interface Greeting {
+    public fun message(): String
+}
+
+public class Greeter public constructor(private val name: String): Greeting {
+    public override fun message(): String = f"Hello, ${name}!"
+}

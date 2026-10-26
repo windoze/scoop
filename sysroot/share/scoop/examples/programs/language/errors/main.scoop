@@ -1,0 +1,23 @@
+import scoop.text.*
+
+fun parseCount(text: String): Int {
+    val count = text.toInt()
+    if (count < 1)
+        throw IllegalArgumentException(Some("count must be positive"))
+    return count
+}
+
+fun showCount(text: String) {
+    try {
+        println(f"count=${parseCount(text)}")
+    } catch (error: IllegalArgumentException) {
+        println(error.message ?: "invalid count")
+    } finally {
+        println("finished")
+    }
+}
+
+fun main() {
+    showCount("3")
+    showCount("0")
+}

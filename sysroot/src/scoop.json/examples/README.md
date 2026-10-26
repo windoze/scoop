@@ -12,6 +12,6 @@ scoop run --release typed.scoop
 scoop run --release value_tree.scoop
 ```
 
-类型示例输出 `{"name":"Ada","scores":[7,9]}`、`Ada: 9`、`no note`。值树示例先输出 `Scoop`、`3` 和两个 `true`，再输出包含原对象与 `[null]` 的新对象；缺失字段为 None，显式 JSON null 则是包含 Null 值的 Some。
+类型示例的完整说明见 `scoop example json/typed`（[正文](../../../share/scoop/examples/topics/json/typed.md)）；单文件依赖组织见 `scoop example start/single-file`。
 
-省略显式 codec 的泛型重载要求类型具有 `public companion object`，因此 User 明确公开其 companion。
+值树示例先输出 `Scoop`、`3` 和两个 `true`，再输出包含原对象与 `[null]` 的新对象；缺失字段为 None，显式 JSON null 则是包含 Null 值的 Some。

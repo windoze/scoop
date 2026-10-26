@@ -1,0 +1,9 @@
+package examples.greeting
+
+import scoop.collections.*
+
+fun main() {
+    for (name in listOf<String>("Ada", "Lin")) {
+        println(greeting(name))
+    }
+}
