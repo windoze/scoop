@@ -32,10 +32,18 @@ code --install-extension "$HOME"/.scoop/tooling/scoop-language-support-*.vsix
 scoop run hello.scoop
 scoop build my-cone --release
 scoop test my-cone
+scoop fmt my-cone
+scoop fmt my-cone --check
+scoop check my-cone
+scoop check my-cone --tests
 scoop build my-cone --target x86_64-unknown-linux-musl
 ```
 
 最后一条命令用于 GNU 宿主包，并要求 musl 开发环境。非 core 库仍须在 `Cone.toml` 声明普通依赖；包中存在某个库不会自动导入它。`src` 保留库源码，`vendor` 保留相关 native 输入。显式 source／artifact 依赖和 `--sysroot` 可选用另一组兼容资源；`--runtime-root` 明确请求从另行提供的 runtime 源码构建。
+
+`scoop fmt` 默认格式化当前 Cone 的生产、测试及各平台声明的源码，也接受多个 Cone 或显式 `.scoop` 文件。默认写回变化文件；`--check` 只检查格式，有差异时退出 1，可用于 CI。语法错误文件保留原文，其他已选文件继续处理。
+
+`scoop check` 默认检查当前 Cone 的生产源码，也接受一个 Cone 或 single-file 输入。检查完成完整前端语义及必要的 generator，不生成根 Cone 的机器产物或执行程序；源码依赖需要更新时仍正常构建。`--tests` 选择测试用途，包含生产与测试源码，但不验证生产 main；CI 可分别运行默认检查与 `--tests`。两命令均支持 `--message-format json`，完整选项可用各自的 `--help` 查看。
 
 用浏览器打开安装根的 `docs/index.html`，选择应用所用目标，即可浏览所有内置库的 API、说明和源码。页面之间使用相对链接，搜索及资源随包提供，无需联网或启动服务器。Darwin 包提供 Darwin 文档，Linux 包分别提供 GNU 与 musl 文档；源码直接嵌入 HTML，移动完整安装目录后仍可阅读。
 

@@ -238,7 +238,7 @@ fun add(a: Int, b: Int): Int {
 - 请求归一化使用 `SelectedTarget::Frontend`。移除“任何成功请求必有 primary_path／产物临时目录”的假设；只有实际需要文件输出的路径才创建其工作目录。
 - 父进程核对实际响应种类后取得检查结果；不把文档或 observation 成功当作检查成功。
 
-设计时 machine protocol 为 16。实施时递增到下一个可用版本，追加新分支编码，不复用已分配 tag；同步 capability、codec、请求形状检查和版本用例。此处不修改 `.slib` profile、HIR wire 或 runtime ABI。
+machine protocol 已由 16 递增为 17，Check 请求与结果各追加 tag 4，不复用已分配 tag；capability、codec、请求形状检查和版本用例同步更新。此处不修改 `.slib` profile、HIR wire 或 runtime ABI。
 
 ## 6. 检查缓存与更新
 
