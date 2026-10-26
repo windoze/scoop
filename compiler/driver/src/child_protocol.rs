@@ -174,6 +174,13 @@ fn success_response(
             .with_used_generators(success.used_generators().to_vec());
             Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
         }
+        scoopc::SingleConeCompilation::Checked(success) => {
+            let result =
+                ScoopcSuccessV1::new(scoop_protocol::ScoopcProductV1::Check, warnings, dumps)
+                    .map_err(ChildProtocolError::ConstructResponse)?
+                    .with_used_generators(success.used_generators().to_vec());
+            Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
+        }
         scoopc::SingleConeCompilation::Observed(_) => Ok(ScoopcResponseEnvelopeV1::Observed {
             request_id,
             result: scoop_protocol::ScoopcObservationV1::new(warnings, dumps)

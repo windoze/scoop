@@ -6,7 +6,7 @@ fun main() {
     val mutable = MutableArray<String>(2L) { index -> "old" }
     val list = ArrayList<Int>()
     list.add(40)
-    check(read(immutable, 1L) == 11 && read("a中b", 1L) == '中')
+    check(read(immutable, 1L) == 11 && read("a中b".toCharArray(), 1L) == '中')
     write(mutable, 1L, "new")
     write(list, 0L, 42)
     check(read(mutable, 1L) == "new" && read(list, 0L) == 42)

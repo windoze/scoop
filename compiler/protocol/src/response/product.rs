@@ -40,6 +40,7 @@ impl WireEncode for ScoopcDocumentationOutputV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ScoopcProductV1 {
+    Check,
     Artifact(Box<scoop_slib::ArtifactManifestSummaryV1>),
     Documentation(ScoopcDocumentationOutputV1),
     ArtifactWithDocumentation {
@@ -61,7 +62,7 @@ impl ScoopcProductV1 {
             | Self::ArtifactWithDocumentation {
                 artifact: summary, ..
             } => Some(summary),
-            Self::Documentation(_) => None,
+            Self::Documentation(_) | Self::Check => None,
         }
     }
 
@@ -72,7 +73,7 @@ impl ScoopcProductV1 {
                 documentation: output,
                 ..
             } => Some(output),
-            Self::Artifact(_) => None,
+            Self::Artifact(_) | Self::Check => None,
         }
     }
 }
@@ -80,15 +81,24 @@ impl ScoopcProductV1 {
 impl WireEncode for ScoopcProductV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let tag = match self {
+            Self::Check => 4,
             Self::Artifact(_) => 1,
             Self::Documentation(_) => 2,
             Self::ArtifactWithDocumentation { .. } => 3,
         };
-        encoder.map(if tag == 3 { 3 } else { 2 })?;
+        encoder.map(match tag {
+            3 => 3,
+            4 => 1,
+            _ => 2,
+        })?;
         encoder.field(0)?;
         encoder.unsigned(tag)?;
+        if tag == 4 {
+            return Ok(());
+        }
         encoder.field(1)?;
         match self {
+            Self::Check => unreachable!("check has no product payload"),
             Self::Artifact(summary) => summary.encode(encoder)?,
             Self::Documentation(output) => output.encode(encoder)?,
             Self::ArtifactWithDocumentation {

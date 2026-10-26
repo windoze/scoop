@@ -113,7 +113,7 @@ impl BuildFailure {
         }
     }
 
-    pub(super) fn execution(
+    pub(crate) fn execution(
         error: BuildGraphExecutionFailure,
         sources: &[SelectedSource],
     ) -> Box<Self> {

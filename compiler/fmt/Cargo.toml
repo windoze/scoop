@@ -1,0 +1,13 @@
+[package]
+name = "scoop-fmt"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+pretty.workspace = true
+scoop-syntax.workspace = true
+
+[dev-dependencies]
+scoop-parser.workspace = true
+scoop-ast.workspace = true

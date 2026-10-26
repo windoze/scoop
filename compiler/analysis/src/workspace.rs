@@ -9,6 +9,7 @@ use scoop_protocol::CompilationPurpose;
 use scoop_source::{SourceId, Span};
 
 mod artifacts;
+mod attached_sources;
 mod files;
 mod graph;
 mod loader;
@@ -101,12 +102,22 @@ pub struct ProjectInput {
     pub configuration: ProjectConfiguration,
     pub root: ConeIdentity,
     pub cones: BTreeMap<ConeIdentity, ConeInput>,
+    pub artifact_sources: BTreeMap<SourceIdentity, ProjectSource>,
     pub dependencies: BTreeMap<ConeIdentity, Vec<ConeIdentity>>,
     pub dependency_order: Vec<ConeIdentity>,
     pub complete: bool,
 }
 
 impl ProjectInput {
+    /// Navigation attachments do not become source dependency inputs.
+    pub fn source_file(&self, identity: &SourceIdentity) -> Option<&ProjectSource> {
+        self.cones
+            .get(&identity.cone())
+            .and_then(ConeInput::source)
+            .and_then(|cone| cone.sources.iter().find(|file| &file.identity == identity))
+            .or_else(|| self.artifact_sources.get(identity))
+    }
+
     pub fn source_cone(&self, source: SourceId) -> Option<(ConeIdentity, &SourceConeInput)> {
         self.cones.iter().find_map(|(identity, cone)| {
             let input = cone.source()?;

@@ -16,6 +16,29 @@ impl Reporter {
         sources: &[SelectedSource],
     ) -> io::Result<()> {
         let mut contents = SourceContents::new();
+        self.diagnostics_with_contents(diagnostics, sources, &mut contents)
+    }
+
+    pub(in crate::cli) fn host_diagnostics(
+        &self,
+        diagnostics: &[StructuredDiagnosticV1],
+        path: &Path,
+        source: &str,
+    ) -> io::Result<()> {
+        if diagnostics.is_empty() {
+            return Ok(());
+        }
+        let mut contents =
+            SourceContents::from([(path.to_owned(), Some(SourceText::new(source.to_owned())))]);
+        self.diagnostics_with_contents(diagnostics, &[], &mut contents)
+    }
+
+    fn diagnostics_with_contents(
+        &self,
+        diagnostics: &[StructuredDiagnosticV1],
+        sources: &[SelectedSource],
+        contents: &mut SourceContents,
+    ) -> io::Result<()> {
         for diagnostic in diagnostics {
             let severity = match diagnostic.severity() {
                 DiagnosticSeverityV1::Error => "error",
@@ -24,12 +47,12 @@ impl Reporter {
             match self.0 {
                 MessageFormat::Json => {
                     let notes = diagnostic.notes().iter().map(|note| json!({
-                        "message": note.message(), "origin": origin(note.origin()), "display": display(note.origin(), sources, &mut contents),
+                        "message": note.message(), "origin": origin(note.origin()), "display": display(note.origin(), sources, contents),
                     })).collect::<Vec<_>>();
                     write_json(&json!({
                         "schema": 1, "kind": "diagnostic", "severity": severity, "code": diagnostic.code(),
                         "message": diagnostic.message(), "origin": origin(diagnostic.origin()), "notes": notes,
-                        "display": display(diagnostic.origin(), sources, &mut contents),
+                        "display": display(diagnostic.origin(), sources, contents),
                     }))?;
                 }
                 MessageFormat::Human => {
@@ -37,7 +60,7 @@ impl Reporter {
                     writeln!(
                         stderr,
                         "{}{}[{}]: {}",
-                        location(diagnostic.origin(), sources, &mut contents),
+                        location(diagnostic.origin(), sources, contents),
                         severity,
                         diagnostic.code(),
                         diagnostic.message()
@@ -46,7 +69,7 @@ impl Reporter {
                         writeln!(
                             stderr,
                             "{}note: {}",
-                            location(note.origin(), sources, &mut contents),
+                            location(note.origin(), sources, contents),
                             note.message()
                         )?;
                     }
@@ -134,7 +157,12 @@ fn display(
             json!({"path": path.to_path_buf().ok().map(|path| path_value(&path))})
         }
         DiagnosticOriginV1::HostPathSpan { path, span } => {
-            json!({"path": path.to_path_buf().ok().map(|path| path_value(&path)), "start": span.start(), "end": span.end()})
+            let path = path.to_path_buf().ok();
+            let mut value = json!({"path": path.as_ref().map(|path| path_value(path)), "start": span.start(), "end": span.end()});
+            if let Some(Some(text)) = path.as_ref().and_then(|path| contents.get(path)) {
+                add_position(&mut value, text, span.start());
+            }
+            value
         }
         DiagnosticOriginV1::ArtifactPath {
             path,

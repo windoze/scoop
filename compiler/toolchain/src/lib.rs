@@ -73,3 +73,5 @@ impl fmt::Display for ToolchainError {
 impl std::error::Error for ToolchainError {}
 pub use compiler::paired_compiler_machine_capability;
 pub use native_record::inputs::{Input as NativeInputMetadata, native_include_search_paths};
+
+pub use native_record::{cached_native_tool_inputs, native_tool_configuration};

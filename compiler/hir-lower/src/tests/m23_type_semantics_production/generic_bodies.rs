@@ -195,20 +195,33 @@ fn generic_body_support_types_enter_shape_demands_before_concretization() {
     with_hir_source(source, |output, core| {
         let section = public_projection::public_interface_with_core(output, core);
         let roots = output.output().local.materialization().roots();
-        assert_eq!(roots.len(), 1);
-        assert!(matches!(
-            roots[0].declaration().name(),
-            scoop_identity::DeclarationName::Named(name) if name.as_str() == "HiddenValue"
-        ));
+        let hidden = roots
+            .iter()
+            .find(|root| {
+                matches!(
+                    root.declaration().name(),
+                    scoop_identity::DeclarationName::Named(name) if name.as_str() == "HiddenValue"
+                )
+            })
+            .expect("generic body support materializes HiddenValue");
         assert_eq!(section.public_bindings().records().len(), 1);
         assert!(section.nominal_interfaces().records().is_empty());
         assert_eq!(section.nominal_interfaces().support_records().len(), 1);
-        assert_eq!(section.generic_callable_bodies().records().len(), 1);
+        assert_eq!(section.generic_callable_bodies().records().len(), 2);
+        for name in ["withHiddenValue", "seed"] {
+            assert!(
+                section
+                    .generic_callable_bodies()
+                    .get(owner(output.output().export.module(), name))
+                    .is_some()
+            );
+        }
         let required =
             hir::CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export).unwrap();
-        assert_eq!(
-            required.values(),
-            &[hir::SourceNominalId::Concrete(roots[0].source())]
+        assert!(
+            required
+                .values()
+                .contains(&hir::SourceNominalId::Concrete(hidden.source()))
         );
         let source = produce_cross_cone_type_semantics(output, &section).unwrap();
         assert_eq!(source.representation_support().records().len(), 1);

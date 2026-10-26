@@ -26,6 +26,7 @@ from for_recovery import check as check_for_recovery
 from import_failures import check as check_import_failures
 from import_references import check as check_import_references
 from incomplete_signatures import check as check_incomplete_signatures
+from installed_sources import location
 from late_declarations import check as check_late_declarations
 from local_function_recovery import check as check_local_function_recovery
 from member_implementations import check as check_member_implementations
@@ -299,7 +300,9 @@ def main():
         assert destination["range"]["start"] == {"line": 0, "character": 4}
         builtin = "fun builtin(value: Boolean): String = value.toString()"
         assert hover(2, builtin.rindex("value"))["contents"]["value"] == "value: Boolean"
-        assert definition(2, builtin.index("toString")) is None
+        assert definition(2, builtin.index("toString")) == location(
+            sysroot, "scoop.core/src/types.scoop", "override fun toString()", "toString"
+        )
         imported_hover = hover(2, builtin.index("toString"))["contents"]["value"]
         assert "toString" in imported_hover and imported_hover.endswith(": String"), imported_hover
         typed = "fun typed(value: String) { value.toS }"
@@ -360,12 +363,12 @@ def main():
         check_cancellation(peer, root)
         check_signatures(peer, root)
         check_incomplete_signatures(peer, root)
-        check_callable_values(peer, root)
+        check_callable_values(peer, root, sysroot)
         check_property_references(peer, root)
         check_references(peer, root)
         check_import_references(peer, root)
         check_source_dependencies(peer, root)
-        check_documentation(peer, root)
+        check_documentation(peer, root, sysroot)
         check_constructor_references(peer, root)
         check_constructor_hovers(peer, root)
         check_constructor_names(peer, root)
@@ -378,8 +381,8 @@ def main():
         check_construction_bodies(peer, root)
         check_operator_references(peer, root)
         check_subscript_references(peer, root)
-        check_type_references(peer, root)
-        check_type_definitions(peer, root)
+        check_type_references(peer, root, sysroot)
+        check_type_definitions(peer, root, sysroot)
         check_type_hovers(peer, root)
         check_type_implementations(peer, root)
         check_member_implementations(peer, root)

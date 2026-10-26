@@ -13,16 +13,25 @@ pub(super) fn selected_roots(
     include_tests: bool,
 ) -> Result<Vec<SelectedRoot>, SourceDiscoveryError> {
     let mut roots = Vec::new();
-    append_roots(manifest, target, SourceRole::Production, &mut roots)?;
+    append_roots(manifest, Some(target), SourceRole::Production, &mut roots)?;
     if include_tests {
-        append_roots(manifest, target, SourceRole::Test, &mut roots)?;
+        append_roots(manifest, Some(target), SourceRole::Test, &mut roots)?;
     }
+    Ok(roots)
+}
+
+pub(super) fn formatting_roots(
+    manifest: &LoadedConeManifest,
+) -> Result<Vec<SelectedRoot>, SourceDiscoveryError> {
+    let mut roots = Vec::new();
+    append_roots(manifest, None, SourceRole::Production, &mut roots)?;
+    append_roots(manifest, None, SourceRole::Test, &mut roots)?;
     Ok(roots)
 }
 
 fn append_roots(
     manifest: &LoadedConeManifest,
-    target: TargetProfileId,
+    target: Option<TargetProfileId>,
     role: SourceRole,
     roots: &mut Vec<SelectedRoot>,
 ) -> Result<(), SourceDiscoveryError> {
@@ -38,7 +47,7 @@ fn append_roots(
         SourceSelection::Explicit(paths) => paths
             .iter()
             .enumerate()
-            .filter(|(_, path)| path.predicate().matches(target))
+            .filter(|(_, path)| target.is_none_or(|target| path.predicate().matches(target)))
             .map(|(index, path)| {
                 (
                     path.path().clone(),
@@ -80,7 +89,7 @@ fn append_roots(
             resolved,
             role,
         };
-        for prior in roots.iter() {
+        for prior in roots.iter().filter(|_| target.is_some()) {
             if overlaps(
                 prior.path.as_path(),
                 &prior.resolved.metadata,

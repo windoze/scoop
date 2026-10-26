@@ -11,22 +11,34 @@ use scoop_manifest::{CurrentConeInput, classify_current_cone_operand};
 use super::args::*;
 use super::presentation::Reporter;
 
+pub(super) enum CommandOutcome {
+    Complete(bool),
+    Child(ExitStatus),
+}
+
 pub(super) fn execute(
     command: Command,
     sysroot: Option<PathBuf>,
     enable_gc_stress: bool,
     enable_startup_stats: bool,
     reporter: &Reporter,
-) -> BuildResult<Option<ExitStatus>> {
+) -> BuildResult<CommandOutcome> {
     match command {
-        Command::External(args) => super::external::execute(&args, sysroot).map(Some),
+        Command::External(args) => {
+            super::external::execute(&args, sysroot).map(CommandOutcome::Child)
+        }
+        Command::Fmt(args) => super::format::execute(args, reporter).map(CommandOutcome::Complete),
         Command::New(args) => {
             super::new::execute(args)?;
-            Ok(None)
+            Ok(CommandOutcome::Complete(true))
         }
         Command::Doc(args) => {
             super::doc::execute(args, sysroot, reporter)?;
-            Ok(None)
+            Ok(CommandOutcome::Complete(true))
+        }
+        Command::Check(args) => {
+            super::check::execute(args, sysroot, reporter)?;
+            Ok(CommandOutcome::Complete(true))
         }
         Command::Build(args) => {
             let mut request = build_request(
@@ -48,7 +60,7 @@ pub(super) fn execute(
                 });
             }
             reporter.built(&scoop::build(request)?).map_err(config)?;
-            Ok(None)
+            Ok(CommandOutcome::Complete(true))
         }
         Command::Run(args) => {
             let request = build_request(
@@ -66,7 +78,7 @@ pub(super) fn execute(
                 BuildOutcome::Executable {
                     build, executable, ..
                 } => super::run::program(&executable, &build.output, &args.program_args, &cwd)
-                    .map(Some),
+                    .map(CommandOutcome::Child),
                 _ => Err(config("run did not produce an executable")),
             }
         }
@@ -87,7 +99,7 @@ pub(super) fn execute(
             let result = scoop::build(request)?;
             reporter.built(&result).map_err(config)?;
             if args.no_run {
-                return Ok(None);
+                return Ok(CommandOutcome::Complete(true));
             }
             let summary = result.artifacts().graph.root().artifact().summary();
             let directory = summary
@@ -103,7 +115,7 @@ pub(super) fn execute(
                         selected.empty_reason,
                     )
                     .map_err(config)?;
-                return Ok(None);
+                return Ok(CommandOutcome::Complete(true));
             }
             let target = summary.cone().coordinate().name().to_owned();
             match result {
@@ -117,7 +129,8 @@ pub(super) fn execute(
                     &cwd,
                     reporter,
                     &target,
-                ),
+                )
+                .map(|status| status.map_or(CommandOutcome::Complete(true), CommandOutcome::Child)),
                 _ => Err(config("test did not produce an executable")),
             }
         }
@@ -152,7 +165,7 @@ pub(super) fn execute(
             reporter
                 .linked(&scoop::link_artifacts(request)?, args.dump_plan)
                 .map_err(config)?;
-            Ok(None)
+            Ok(CommandOutcome::Complete(true))
         }
     }
 }

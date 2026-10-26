@@ -168,6 +168,9 @@ impl ScoopcBuildRequestV1 {
         {
             return Err(ProtocolValidationError::TestRequiresManifest);
         }
+        if matches!(self.output, ScoopcOutputRequestV1::Check) && !self.native_inputs.is_empty() {
+            return Err(ProtocolValidationError::InvalidCheckRequest);
+        }
         self.purpose = purpose;
         validate_documentation(&self.current, purpose, &self.output, &self.emit)?;
         Ok(self)
@@ -293,6 +296,9 @@ impl ScoopcRequestEnvelopeV1 {
     }
 
     pub fn observe(mut self, stages: crate::StageDumpSet) -> Result<Self, ProtocolValidationError> {
+        if matches!(self.build.output, ScoopcOutputRequestV1::Check) {
+            return Err(ProtocolValidationError::InvalidCheckRequest);
+        }
         if self.build.output.documentation().is_some() {
             return Err(ProtocolValidationError::DocumentationObservation);
         }

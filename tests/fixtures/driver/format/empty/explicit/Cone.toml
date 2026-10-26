@@ -1,0 +1,7 @@
+schema = 1
+sources = []
+[cone]
+group = "test.format"
+name = "empty-explicit"
+version = "1.0.0"
+kind = "library"

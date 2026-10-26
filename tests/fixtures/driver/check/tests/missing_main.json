@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "missing executable entry: declare exactly one ordinary `fun main(): Unit`, `fun main(): Int`, `fun main(args: Array<String>): Unit`, or `fun main(args: Array<String>): Int`",
+    "notes": [],
+    "origin": {
+      "cone": "178398b4bec551f316c811eacd38be4ca78fe51260d96a1d1ea8c700413cf39b",
+      "end": 0,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 0
+    },
+    "severity": "error"
+  }
+]

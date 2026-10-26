@@ -1,0 +1,147 @@
+schema = 1
+name = "check-basic-and-update"
+inputs = ["cone", "program.scoop", "../../packages/explicit.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "check", "cache"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.kind}", equals = "check"}, {actual = "${cold.result.cache_hit}", equals = false}, {actual = "${cold.result.observations.child_invocations.0.operation}", equals = "check"}, {file = "${work}/cone/target", exists = false}, {glob = "${work}/cache/native-tools-v1/*", equals = []}, {glob = "${work}/cache/native-objects-v1/*", equals = []}]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.kind}", equals = "check"}, {actual = "${warm.result.cache_hit}", equals = true}, {actual = "${warm.result.observations.child_invocations}", equals = []}]
+
+[[steps]]
+name = "test_config"
+files = [{replace = {path = "${work}/cone/Cone.toml", old = "checks", new = "other-checks"}}]
+
+[[steps]]
+name = "production_unchanged"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${production_unchanged.result.kind}", equals = "check"}, {actual = "${production_unchanged.result.cache_hit}", equals = true}]
+
+[[steps]]
+name = "native_content"
+files = [{replace = {path = "${work}/cone/unused.c", old = "invalid C", new = "changed invalid C"}}]
+
+[[steps]]
+name = "native_ignored"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${native_ignored.result.kind}", equals = "check"}, {actual = "${native_ignored.result.cache_hit}", equals = true}]
+
+[[steps]]
+name = "source_change"
+files = [{replace = {path = "${work}/cone/src/main.scoop", old = "42", new = "420"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed.result.kind}", equals = "check"}, {actual = "${changed.result.cache_hit}", equals = false}]
+
+[[steps]]
+name = "new_source"
+files = [{write = {path = "${work}/cone/src/extra.scoop", data = "package test.check\nfun extra(): Int = 1\n"}}]
+
+[[steps]]
+name = "selection_changed"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${selection_changed.result.kind}", equals = "check"}, {actual = "${selection_changed.result.cache_hit}", equals = false}]
+
+[[steps]]
+name = "single"
+argv = ["${scoop}", "check", "${fixture}/program.scoop", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${single.result.kind}", equals = "check"}, {actual = "${single.result.cache_hit}", equals = false}]
+
+[[steps]]
+name = "single_warm"
+argv = ["${scoop}", "check", "${fixture}/program.scoop", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${single_warm.result.kind}", equals = "check"}, {actual = "${single_warm.result.cache_hit}", equals = true}]
+
+[[steps]]
+name = "direct"
+argv = ["${scoopc}", "check", "${work}/cone", "--target", "${target}", "--sysroot", "${sysroot}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "default"
+argv = ["${scoop}", "check", {each = "${compile_args}"}, {each = "${options}"}]
+cwd = "${work}/cone"
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${default.result.cache_hit}", equals = true}]
+
+[[steps]]
+name = "warning"
+argv = ["${scoop}", "check", "${fixture}/../../packages/explicit.scoop", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "../../packages/warning.json"}
+checks = [{actual = "${warning.result.cache_hit}", equals = false}]
+
+[[steps]]
+name = "warning_cached"
+argv = ["${scoop}", "check", "${fixture}/../../packages/explicit.scoop", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "../../packages/warning.json"}
+checks = [{actual = "${warning_cached.result.cache_hit}", equals = true}]

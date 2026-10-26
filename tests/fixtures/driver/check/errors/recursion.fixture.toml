@@ -1,0 +1,15 @@
+schema = 1
+name = "check-frontend-recursion-diagnostics"
+root = "../../../language/requirements/errors/polymorphic-call-chain.scoop"
+inputs = ["../../../language/requirements/errors/polymorphic-call-chain.scoop"]
+tools = ["scoop", "scoopc"]
+tags = ["driver", "check", "diagnostics"]
+
+[[steps]]
+name = "check"
+argv = ["${scoop}", "check", "${root}", "--release", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "../../../language/requirements/errors/polymorphic-call-chain.diagnostics.json"}

@@ -743,6 +743,20 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop> [--direct-slib direct.slib].
 
 `scoop new` 创建普通 manifest Cone，group 必需，name 默认取目标目录名，kind 默认 executable，version 默认 0.1.0，package 默认 group；名称、版本与 package 使用现有 coordinate 和源码名称规则，显式 package 必须为 group 本身或其子包。生成 package 时按名称段转义连字符或关键字。固定模板包含 Cone.toml、executable 的 src/main.scoop 或 library 的 src/lib.scoop；默认还包含 tests/basic.scoop 及 scoop.test 测试依赖，`--no-tests` 同时省略两者。生产依赖沿用 manifest 的默认 core 规则，library 不生成 main。所有参数先验证，再创建目标目录；目标必须不存在，普通文件、空目录、非空目录均拒绝覆盖。父目录可按实际需要创建，I/O 失败按原路径报告；此命令不构建、不下载模板，也不读取 sysroot 或构建缓存。 `new` 的 CLI 参数校验可对内存中的 package 声明调用现有 parser，以复用转义标识符和关键字规则；它不读取或解析项目源码。构建编排库继续通过 scoopc 执行源码编译，不调用 HIR/MIR/LIR lowering 或 codegen 实现。
 
+**源码格式化与检查。** `scoop fmt`、`scoop check` 及低层 `scoopc check` 的完整命令、格式规则、缓存和验收范围见[设计](../fmt-check/DESIGN.md)。两项命令均已实现，验证状态见设计文首及验证记录。
+
+`scoop fmt [input...]` 接受 Cone 目录、Cone.toml 或显式 `.scoop` 文件，省略时选择 cwd 的 Cone.toml，不搜索父目录。manifest 模式收集生产与测试源码，包括合法 target 条件下的全部声明路径，分别按文件解析和格式化，不将不同平台的源码合并成编译输入；显式文件不要求 manifest、main 或可用依赖。缺省生产目录仍为 src/，缺省 tests/ 不存在时忽略，显式路径缺失按 I/O 错误报告；格式化集合允许为空。文件并集按普通解析后的实际路径去重，保持确定顺序，不改变正常编译对同一 target 内重复源码选择的诊断规则。只处理用户选中的源码，不发现依赖、读取 sysroot、启动 scoopc 或编译 native 输入。
+
+格式化采用四空格缩进和 100 列软行宽，只改语法允许改变的空白；保留全部非空白 token、注释原文及顺序、字符串内容、shebang、显式标点、声明与 import 顺序。语法上下文决定换行和相邻关系，不能改变 return 值、调用、下标、尾随 lambda 或文档附着；行宽不能优先于语义。布局规则与换行选择详见设计第 4 节。语法错误文件报告原始诊断并保持原文，其他已选文件可继续处理；每个成功文件只在文本变化时写回，保留普通文件权限和可执行位。批量格式化不提供跨文件事务。
+
+`scoop fmt --check` 使用同一选择与排版，只报告需要修改的文件，不写源码。格式检查存在差异或任何文件处理失败时退出 1，全部符合时退出 0；写回模式全部成功时退出 0。参数用法错误沿用退出 2。human／JSON 诊断和格式结果写 stderr，stdout 保持为空；格式差异是独立结果，不伪装成语言错误。
+
+`scoop check [root-input]` 沿用 build 的 manifest／single-file 输入、目标及依赖选择，默认检查 Production；`--tests` 将根切换为现有 Test 用途，只接受 manifest，依赖仍为 Production。Test 检查使用生成的测试入口，不额外要求生产 main；验证 executable 的生产入口需使用默认检查。检查完成普通 parser、package 检查、全部正文、必要 generator、effect 及 ExportHir／LocalConcreteHir，保留具体化中的类型条件与递归错误，然后返回诊断及无产物的成功结果；不进入根 Cone 的 MIR／LIR、native 编译、机器码或最终链接。检查不替代后端、native 源码或链接验收。
+
+首版检查继续通过 direct／support `.slib` 消费依赖。预编译依赖与成功的源码依赖缓存直接复用，需要更新的源码依赖按现有构建图正常产生完整库产物；因此“根不生成机器码”不表示整个命令永不运行后端。根本身不发布 `.slib`、对象或 executable，也不准备 runtime；仅当实际源码依赖需要机器生产时发现相应 native 工具。低层 `scoopc check` 只消费调用者提供的依赖与既有默认 core，不跟随上游 locator；`--test` 选择 Test 用途。
+
+检查成功保存普通本机更新记录及 warning。键按实际前端输入区分根、用途、源码选择与 metadata、目标、编译器／协议、依赖选择及使用的 generator；Production 不纳入仅测试配置。先判断更新，再读取源码、探测工具或准备依赖机器生产；命中不读产物内容复核、不重放 HIR。生成失败、检查失败或中断不发布成功记录，也不返回旧成功。首版复用依赖机器缓存和独立检查记录，不通过读取 build 产物补造检查记录；全图纯语义依赖传输另行设计，不新增残缺 `.slib` profile。
+
 显式单文件 run 支持省略程序参数分隔符：root 后首个普通位置参数开始原样转发，其后的所有元素（包括 `--`、已知 runner 选项和空字符串）均属于程序。转发开始前，已知 runner 选项仍由 Scoop 解析，未知连字符选项仍报参数错误；显式 `--` 开始转发并只消费这一次分隔符。因此 `run file.scoop Alice --release` 转发 Alice 和 --release，而 `run file.scoop --release -- Alice` 以 release 构建并转发 Alice。首个程序参数与 runner 选项冲突时必须使用 `--`，例如 `run file.scoop -- --help`。普通 manifest run 仍要求显式分隔符；选项的值不被误认成 root。
 
 输入为两种封闭形式：
@@ -762,7 +776,7 @@ SingleFile 的 coordinate 为保留值 `scoop:single-file:0.0.0`，kind 为 Exec
 
 single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Production；直接调用 `scoopc build --test` 选择 Test，且输入必须是 manifest Cone。测试用途在解析源码前将 manifest 的生产依赖与测试依赖并为所需 direct artifact 集合，support 仍恰为其余传递闭包；scoopc 不定位或补建缺失的测试依赖。解析时使用同一 manifest 的生产／测试源码选择规则，将仅用于测试的依赖身份交给前端，并以原 ConeIdentity 产生具有 TestEntry 的 executable `.slib`，不要求改写源码 manifest kind。该字段自 machine protocol 6 加入；当前协议版本见下文，旧版本拒绝协商；普通生产请求的用途必须显式编码，不能靠源码目录或输出名推断。
 
-文档是独立的输出意图，源码用途固定为 Production，且只接受 manifest Cone。single-Cone 输出为 `.slib`、文档渲染输入、或两者同时生产的闭合选择；仅文档请求不携带虚假的 `.slib` 输出路径。driver 在 parser 后整理文档，再完成正常 HIR 及 §2.2 的文档投影；仅文档随后发布本地 JSON 渲染输入并返回，不进入 MIR／LIR、native 编译或机器对象生产。该路径只用共享 target registry 选择目标，不探测无关的 C／C++ 工具或准备 runtime。生产附带文档从同一次 HIR 提取，在实际机器生产成功后发布文档输入；输出与普通 `.slib` 分别保存。
+文档是独立的输出意图，源码用途固定为 Production，且只接受 manifest Cone。机器／文档请求的 single-Cone 输出为 `.slib`、文档渲染输入、或两者同时生产的闭合选择；仅文档请求不携带虚假的 `.slib` 输出路径。检查意图按上文设计另加无产物的闭合分支。driver 在 parser 后整理文档，再完成正常 HIR 及 §2.2 的文档投影；仅文档随后发布本地 JSON 渲染输入并返回，不进入 MIR／LIR、native 编译或机器对象生产。该路径只用共享 target registry 选择目标，不探测无关的 C／C++ 工具或准备 runtime。生产附带文档从同一次 HIR 提取，在实际机器生产成功后发布文档输入；输出与普通 `.slib` 分别保存。
 
 文档成功响应携带渲染输入位置及独立的文档 warning，普通编译 warning 仍保留原分类；渲染输入包含页面目录组装所需的声明、typed 路由和诊断。仅文档成功没有 artifact summary。文档请求不与 observation-only 混用；仅文档可输出 AST／HIR dump，不能请求尚未执行的 MIR／optimizations／LIR 观察。普通编译不整理或报告文档问题；语言正文、默认值或可见性错误仍阻止文档输出，失败不覆盖之前的结果。工具本地 JSON 随编译器版本更新，不是 `.slib` section 或独立分发合同。
 
@@ -860,7 +874,7 @@ native 与 runtime 的真实编译保存源码、depfile 中实际使用的头�
 
 输入缺失是普通源码构建错误，输出缺失只生成该输出。manifest 仅测试配置变化不使生产节点失效；未选中源码、程序 argv、测试过滤及显示方式不使编译失效。工具变化可以直接失效，不为恢复内容可能相同的命中强制读取整个程序。尚未使用的 generator 配置不影响构建；实际使用的工具按同一规则记录。
 
-machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 16（增加按需机器符号归因观察；已有生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 17（增加无产物的 Check 请求与成功结果；已有观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
 
 成功响应直接携带生产时得到的产物摘要：Cone、直接依赖、target、产物 profile、各语义指纹、artifact fingerprint 及测试目录，并携带 warning 和 dump 描述。parent 将该摘要与产物实际位置保存为普通构建记录，不重新打开 child 产物、重读摘要或逐字段核对响应与归档。摘要是后续编译、链接及测试列举需要的数据，不是验证资格；不得包含无人消费的归档长度或成员数来支持复核。protocol 8 用此摘要替换原独立的七个指纹字段。
 
@@ -1505,6 +1519,8 @@ digest kinds 4、8、9，digest owner tags 4、11、9，保留不用；全部 ru
 
 `scoop-syntax` 使用 rowan 的不可变树保存语法数据。lexer 在识别实际 token 的同一次扫描中保留 trivia；grammar 在原有 production 中记录节点事件，并同步构造由这些相同语法决定得到的紧凑 AST 投影，不再解析一遍 CST。可恢复入口返回语法树、诊断、显式预期项和仅在无错误时可取的完整 AST；严格入口消费这一结果。试探检查点同时保存 token 位置、事件、诊断、文档附着及局部 callable 编号，回退不能留下试探结果。
 
+`scoop-fmt` 消费同次成功解析的完整 CST，其中保留原文 token 和排版所需语法角色，只产生格式化文本，不进行 I/O、语义分析或调用 parser 实现；CLI 编排原 parser 与格式库。排版所需的语法角色若尚未记录，在原 grammar 中补充，不通过另写 parser 或名称推断获得。首版只格式化语法完整文件，错误恢复及局部已知事实不构成允许写回的成功输入。非空白 token 保留、解析结构与文档附着一致、幂等性通过专门测试验证，不在每次格式化时再跑完整语义或多轮解析。格式库及 CLI 的交付不自动启用 LSP formatting capability，编辑器协议接入单独安排；详见[格式化与检查设计](../fmt-check/DESIGN.md)。
+
 声明的语法视图保留本次解析内的父子关系、节点种类、范围和实际声明名称位置；名称在原 grammar 确认后记录，包括扩展声明消歧得到的名称。正文或签名后部出错不删除已经取得的名称，名称缺失仍显式为空。这些索引只属于当前语法版本，不是语言实体 ID；结构查询不从同名标识符或最近的范围猜测声明名称。
 
 函数签名与正文在 AST 输入数据中具有独立边界。原函数 grammar 在消费完整参数表、结果类型及 where 子句后记录签名；该范围内发生词法／语法错误时不发布完整签名。记录直接关联所属声明的本次解析索引，并保留实际的块正文、表达式正文或省略正文形式。正文出错不撤销已经取得的完整签名，试探回退则同时撤销该记录。编辑态读取这一声明数据，不能将错误正文替换成空正文或把省略的类型项补成默认类型。完整编译 AST 仍必须通过整个入口的无错误条件；声明数据不是另一种成功编译输出。
@@ -1636,6 +1652,8 @@ import 的目标名或 alias 名称导航读取已解析绑定的原声明来源
 声明分析在输入声明、名义参数、函数／成员签名及重复签名遍历的自然边界检查宿主取消信号。源码依赖的完整 Export HIR 分析也沿同一入口取消，在声明、正文及完成阶段之间检查信号；语句和表达式复用现有正文检查入口，试探和嵌套 callable 共享已经发生的取消。取消结果独立于源码诊断，未完成的私有分析不继续生成或产物封装。普通编译通过不会取消的入口复用同一阶段实现，不增加时间或工作量配额；新的文本版本可重新计算，不能将已取消阶段放入成功缓存。
 
 具名调用的来源关联在普通重载选择成功后记录，目标是当前或导入的原 callable 声明。callee token 由实际 AST 调用保留；函数值调用的局部绑定与内部 invoke 目标保持区分，不把脱糖产生的名字当作用户书写的成员引用。源码函数保留真实名称位置；派生方法没有对应名称 token 时不伪造它。跨文件 hover 的默认表达式取自声明文件，跨产物导航仅在宿主实际提供了对应源码时换算位置。
+
+编辑器输入宿主为当前 sysroot 的已选预编译库关联随包源码：`lib/<target>/<name>.slib` 对应 `src/<name>/Cone.toml`，按相同 Cone 坐标及当前目标的生产源码选择建立 SourceIdentity 到本地文件的映射。默认查找和显式指向同一 sysroot 产物的依赖遵守同一规则；其他位置的同名产物不借用这份源码。关联文本复用普通文件输入缓存和快照，只供导航及位置转换，依赖语义仍消费原 `.slib`，不将关联源码加入源码编译、项目符号索引或重命名范围。源码包未提供时保留产物语义并省略导航；实际读取错误照常报告，不使已可用的产物语义失效。安装根和配置变化后重新选择关联，不保存生产机器的绝对路径，也不扩展 `.slib` 格式。
 
 具名 callable reference（`::function`、绑定／未绑定成员与扩展）及 native `FunPtr` 地址的源码关联同样由普通重载选择成功后记录。目标保留原声明和实际名称 token，adapter、闭包或具体化实例不成为导航目标。失败候选不发布关联；查询复用实际绑定，不再次按名称选择候选。
 

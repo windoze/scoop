@@ -128,7 +128,7 @@ fn class_allocation_and_initializer_store_fields() {
         poll managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(32)))
         store t0 -> local0
-        call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, i32, ptr<managed>) local-fn0(local0, integer<Int>(0x00000001), global0)
+        call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0:call-only] sig=void0 (ptr<managed>, i32, ptr<managed>) local-fn0(local0, integer<Int>(0x00000001), global0)
         t1 = aggregate () : {}
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32

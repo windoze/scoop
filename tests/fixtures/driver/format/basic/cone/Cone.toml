@@ -1,0 +1,9 @@
+schema = 1
+sources = [{path = "src", when = {os = "darwin"}}, {path = "src/one.scoop"}, {path = "linux", when = {os = "linux"}}]
+[cone]
+group = "test.format"
+name = "basic"
+version = "1.0.0"
+kind = "library"
+[test]
+sources = [{path = "checks"}]

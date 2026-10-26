@@ -1,0 +1,3 @@
+[
+  {"code":"SCOOP_CLI_ARGS","message":"error: unexpected argument '--target' found\n\n  tip: to pass '--target' as a value, use '-- --target'\n\nUsage: scoop fmt [OPTIONS] [INPUTS]...\n\nFor more information, try '--help'.\n","notes":[],"origin":{"kind":"none"},"phase":"Request","severity":"error"}
+]

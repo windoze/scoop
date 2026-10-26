@@ -27,27 +27,27 @@ fn source_atomic_instructions_preserve_orders_widths_and_pointer_values() {
             let llvm = emit_llvm_module(&context, &module, &machine, profile).unwrap();
             llvm.verify().unwrap();
             let original = llvm.print_to_string().to_string();
-            // Reference writes also load the page-map metadata atomically.
+            // Reference barriers also access page-map and card metadata atomically.
             let source_loads = original
                 .lines()
                 .filter(|line| line.contains("%atomic_load") && line.contains("load atomic"))
                 .collect::<Vec<_>>();
+            let source_stores = original
+                .lines()
+                .filter(|line| line.contains("store atomic") && line.contains(", ptr addrspace(1)"))
+                .collect::<Vec<_>>();
             assert_eq!(source_loads.len(), 12);
-            assert_eq!(original.matches("store atomic").count(), 12);
+            assert_eq!(source_stores.len(), 12);
             assert_eq!(original.matches("cmpxchg ").count(), 72);
-            for (opcode, orders) in [
-                ("load atomic", &["monotonic", "acquire", "seq_cst"][..]),
-                ("store atomic", &["monotonic", "release", "seq_cst"][..]),
+            for (instructions, orders) in [
+                (&source_loads, &["monotonic", "acquire", "seq_cst"][..]),
+                (&source_stores, &["monotonic", "release", "seq_cst"][..]),
             ] {
                 for order in orders {
                     assert_eq!(
-                        original
-                            .lines()
-                            .filter(|line| {
-                                line.contains(opcode)
-                                    && (opcode != "load atomic" || source_loads.contains(line))
-                                    && line.contains(&format!(" {order}, align"))
-                            })
+                        instructions
+                            .iter()
+                            .filter(|line| line.contains(&format!(" {order}, align")))
                             .count(),
                         4
                     );

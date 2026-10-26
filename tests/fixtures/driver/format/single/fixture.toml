@@ -1,0 +1,33 @@
+schema = 1
+name = "fmt-explicit-file-and-human-output"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+tags = ["driver", "format"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${root}", to = "${work}/single input.scoop"}}]
+
+[[steps]]
+name = "check"
+argv = ["${scoop}", "fmt", "single input.scoop", "--check"]
+exit = 1
+stdout = ""
+stderr = "needs-format ${work}/single input.scoop\nformat check: 0 unchanged, 0 formatted, 1 need formatting, 0 failed\n"
+checks = [{file = "${work}/single input.scoop", same_as = "${root}"}]
+
+[[steps]]
+name = "write"
+argv = ["${scoop}", "fmt", "single input.scoop", "--sysroot", "${sysroot}", "--enable-gc-stress", "--enable-startup-stats"]
+exit = 0
+stdout = ""
+stderr = "formatted ${work}/single input.scoop\nformat write: 0 unchanged, 1 formatted, 0 need formatting, 0 failed\n"
+checks = [{file = "${work}/single input.scoop", equals = "#!/usr/bin/env scoop\nimport unavailable.Type\n\nfun example(): Int = unknown(1, 2)\n"}]
+
+[[steps]]
+name = "stable"
+argv = ["${scoop}", "fmt", "single input.scoop", "--check"]
+exit = 0
+stdout = ""
+stderr = "format check: 1 unchanged, 0 formatted, 0 need formatting, 0 failed\n"

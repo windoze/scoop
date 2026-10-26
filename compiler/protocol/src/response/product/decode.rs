@@ -4,6 +4,7 @@ use crate::diagnostic::DecodedStructuredDiagnosticV1;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(in crate::response) enum DecodedProduct {
+    Check,
     Artifact(Box<scoop_slib::ArtifactManifestSummaryV1>),
     Documentation(DecodedDocumentation),
     Both(
@@ -61,6 +62,7 @@ impl WireDecode for DecodedDocumentation {
 impl DecodedProduct {
     pub(in crate::response) fn validate(self) -> Result<ScoopcProductV1, ProtocolValidationError> {
         Ok(match self {
+            Self::Check => ScoopcProductV1::Check,
             Self::Artifact(summary) => ScoopcProductV1::Artifact(summary),
             Self::Documentation(output) => ScoopcProductV1::Documentation(output.validate()?),
             Self::Both(artifact, documentation) => ScoopcProductV1::ArtifactWithDocumentation {
@@ -75,8 +77,17 @@ impl WireDecode for DecodedProduct {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
-        crate::framing::expect_sum_length(decoder, fields, if tag == 3 { 3 } else { 2 })?;
+        crate::framing::expect_sum_length(
+            decoder,
+            fields,
+            match tag {
+                3 => 3,
+                4 => 1,
+                _ => 2,
+            },
+        )?;
         match tag {
+            4 => Ok(Self::Check),
             1 => Ok(Self::Artifact(Box::new(
                 decoder.field(1, scoop_slib::ArtifactManifestSummaryV1::decode)?,
             ))),
@@ -95,15 +106,24 @@ impl WireDecode for DecodedProduct {
 impl WireEncode for DecodedProduct {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let tag = match self {
+            Self::Check => 4,
             Self::Artifact(_) => 1,
             Self::Documentation(_) => 2,
             Self::Both(..) => 3,
         };
-        encoder.map(if tag == 3 { 3 } else { 2 })?;
+        encoder.map(match tag {
+            3 => 3,
+            4 => 1,
+            _ => 2,
+        })?;
         encoder.field(0)?;
         encoder.unsigned(tag)?;
+        if tag == 4 {
+            return Ok(());
+        }
         encoder.field(1)?;
         match self {
+            Self::Check => unreachable!("check has no product payload"),
             Self::Artifact(summary) => summary.encode(encoder)?,
             Self::Documentation(output) => output.encode(encoder)?,
             Self::Both(artifact, documentation) => {

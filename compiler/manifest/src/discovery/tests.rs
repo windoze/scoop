@@ -6,6 +6,7 @@ use crate::ManifestRootLocator;
 use super::walk::validated_entry_name;
 use super::*;
 
+mod formatting;
 mod selection;
 mod testing;
 

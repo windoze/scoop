@@ -1,0 +1,3 @@
+#!/usr/bin/env scoop
+import unavailable.Type
+fun example():Int=unknown(1,2)

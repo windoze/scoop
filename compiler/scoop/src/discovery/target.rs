@@ -10,7 +10,7 @@ use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
 #[derive(Clone, Debug)]
 pub enum GraphTarget {
     Artifact(Box<ResolvedTargetProfile>),
-    Documentation {
+    Frontend {
         selection: ValidatedLirTargetSelection,
         request: TargetSelectionRequestV1,
     },
@@ -20,7 +20,7 @@ impl GraphTarget {
     pub const fn lir_target_selection(&self) -> ValidatedLirTargetSelection {
         match self {
             Self::Artifact(target) => target.lir_target_selection(),
-            Self::Documentation { selection, .. } => *selection,
+            Self::Frontend { selection, .. } => *selection,
         }
     }
 
@@ -41,7 +41,7 @@ impl GraphTarget {
     ) -> Result<Cow<'_, ResolvedTargetProfile>, ToolchainError> {
         match self {
             Self::Artifact(target) => Ok(Cow::Borrowed(target)),
-            Self::Documentation { request, .. } => {
+            Self::Frontend { request, .. } => {
                 ResolvedTargetProfile::resolve_request_cached(request, cache).map(Cow::Owned)
             }
         }

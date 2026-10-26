@@ -6,6 +6,9 @@ pub(super) fn validate_documentation(
     output: &ScoopcOutputRequestV1,
     emit: &StageDumpPolicyV1,
 ) -> Result<(), ProtocolValidationError> {
+    if matches!(output, ScoopcOutputRequestV1::Check) && !matches!(emit, StageDumpPolicyV1::None) {
+        return Err(ProtocolValidationError::InvalidCheckRequest);
+    }
     if output.documentation().is_none() {
         return Ok(());
     }

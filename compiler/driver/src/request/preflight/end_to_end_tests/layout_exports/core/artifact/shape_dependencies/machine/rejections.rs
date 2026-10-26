@@ -92,9 +92,16 @@ pub(super) fn check(
 
     let descriptor_only = Source {
         roots: source
-            .physical
+            .roots
             .iter()
-            .filter_map(|(owner, subject)| {
+            .copied()
+            .filter(|dependency| {
+                !matches!(
+                    dependency.target(),
+                    lir::LayoutAbiSemanticTargetV1::ShapeSupport(_)
+                )
+            })
+            .chain(source.physical.iter().filter_map(|(owner, subject)| {
                 let lir::ExternalStrongShapeSubjectV1::TypeDescriptor(exact) = subject else {
                     return None;
                 };
@@ -102,7 +109,9 @@ pub(super) fn check(
                     *owner,
                     lir::LayoutAbiSemanticTargetV1::Descriptor(*exact),
                 ))
-            })
+            }))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
             .collect(),
         physical: source.physical.clone(),
     };

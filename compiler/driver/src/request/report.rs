@@ -248,6 +248,19 @@ pub enum SingleConeCompilation {
     Published(Box<SingleConeProductionSuccess>),
     Observed(StageObservation),
     Documented(SingleConeDocumentationSuccess),
+    Checked(SingleConeCheckSuccess),
+}
+
+#[derive(Debug)]
+pub struct SingleConeCheckSuccess {
+    pub(in crate::request) warnings: CurrentConeDiagnosticSet,
+    pub(in crate::request) used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
+}
+
+impl SingleConeCheckSuccess {
+    pub fn used_generators(&self) -> &[scoop_protocol::GeneratorToolInputV1] {
+        &self.used_generators
+    }
 }
 
 #[derive(Debug)]
@@ -262,6 +275,7 @@ impl SingleConeCompilation {
             Self::Published(result) => result.warnings(),
             Self::Observed(result) => &result.warnings,
             Self::Documented(result) => &result.warnings,
+            Self::Checked(result) => &result.warnings,
         }
     }
 
@@ -270,6 +284,7 @@ impl SingleConeCompilation {
             Self::Published(result) => result.emitted_dumps(),
             Self::Observed(result) => &result.dumps,
             Self::Documented(result) => &result.dumps,
+            Self::Checked(_) => &[],
         }
     }
 }

@@ -1,0 +1,61 @@
+schema = 1
+name = "check-source-dependencies"
+inputs = ["cone", "provider"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "check", "cache"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {copy = {from = "${fixture}/provider", to = "${work}/provider"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.kind}", equals = "check"}, {actual = "${cold.result.cache_hit}", equals = false}, {actual = "${cold.result.observations.child_invocations.length}", equals = 2}, {actual = "${cold.result.observations.child_invocations.0.operation}", equals = "artifact"}, {actual = "${cold.result.observations.child_invocations.1.operation}", equals = "check"}]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.kind}", equals = "check"}, {actual = "${warm.result.cache_hit}", equals = true}]
+
+[[steps]]
+name = "native_header"
+files = [{replace = {path = "${work}/provider/value.h", old = "42", new = "420"}}]
+
+[[steps]]
+name = "changed_native"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed_native.result.kind}", equals = "check"}, {actual = "${changed_native.result.cache_hit}", equals = false}, {actual = "${changed_native.result.observations.child_invocations.length}", equals = 2}]
+
+[[steps]]
+name = "root_change"
+files = [{replace = {path = "${work}/cone/src/main.scoop", old = "value()", new = "value() + 1"}}]
+
+[[steps]]
+name = "root_only"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${root_only.result.kind}", equals = "check"}, {actual = "${root_only.result.cache_hit}", equals = false}, {actual = "${root_only.result.observations.child_invocations.length}", equals = 1}, {actual = "${root_only.result.observations.child_invocations.0.operation}", equals = "check"}]

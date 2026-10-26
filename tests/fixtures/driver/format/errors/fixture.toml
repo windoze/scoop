@@ -1,0 +1,29 @@
+schema = 1
+name = "fmt-file-errors-continue-and-preserve-input"
+inputs = ["bad.scoop", "good.scoop"]
+tools = ["scoop"]
+tags = ["driver", "format", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/bad.scoop", to = "${work}/bad.scoop"}}, {copy = {from = "${fixture}/good.scoop", to = "${work}/good.scoop"}}, {write = {path = "${work}/bad-utf8.scoop", data = {hex = "ff"}}}]
+
+[[steps]]
+name = "write"
+argv = ["${scoop}", "fmt", "bad.scoop", "bad-utf8.scoop", "good.scoop", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+checks = [{actual = "${write.result.success}", equals = false}, {actual = "${write.result.files.length}", equals = 3}, {actual = "${write.result.counts.failed}", equals = 2}, {actual = "${write.result.counts.formatted}", equals = 1}, {actual = "${write.records.0.display.line}", equals = 1}, {actual = "${write.records.0.display.column}", equals = 16}, {file = "${work}/bad.scoop", same_as = "${fixture}/bad.scoop"}, {file = "${work}/bad-utf8.scoop", equals = {hex = "ff"}}, {file = "${work}/good.scoop", equals = "fun good() = 1\n"}, {glob = "${work}/.scoop-fmt-*", equals = []}]
+
+[[steps]]
+name = "check"
+argv = ["${scoop}", "fmt", "bad.scoop", "bad-utf8.scoop", "good.scoop", "--check", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+checks = [{actual = "${check.result.mode}", equals = "check"}, {actual = "${check.result.counts.unchanged}", equals = 1}, {actual = "${check.result.counts.failed}", equals = 2}, {file = "${work}/bad.scoop", same_as = "${fixture}/bad.scoop"}]

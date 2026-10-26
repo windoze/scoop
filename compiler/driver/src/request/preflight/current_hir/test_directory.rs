@@ -2,7 +2,7 @@ use scoop_ast::CurrentConeParsedSources;
 use scoop_hir::{DefinitionOrigin, TestContainer};
 use scoop_slib::{TestCaseListing, TestContainerListing, TestDirectory, TestSourceLocation};
 
-pub(super) fn project(
+pub(in crate::request::preflight) fn project(
     containers: &[TestContainer],
     sources: &CurrentConeParsedSources,
 ) -> TestDirectory {

@@ -69,7 +69,7 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
         let reference = interface.declaration();
         let declaration = selection.callable_declaration(reference).unwrap();
         match declaration.name() {
-            "identity" | "small" => {
+            "identity" | "small" | "opaque" => {
                 let Some(Availability::Available(hir::SemanticBody::Imported(body))) =
                     queries.body(body_reference(reference))
                 else {
@@ -101,21 +101,19 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
                         json["result"],
                         serde_json::json!({"kind": "binder", "depth": 0, "index": 0})
                     );
-                } else {
+                } else if declaration.name() == "small" {
                     assert_eq!(json["typeParameters"], serde_json::json!([]));
                     assert_eq!(json["statements"][0]["operation"]["kind"], "return");
                     assert_eq!(
                         json["statements"][0]["operation"]["value"]["operation"]["value"]["value"],
                         "7"
                     );
+                } else {
+                    assert_eq!(
+                        json["statements"][0]["operation"]["value"]["operation"]["value"],
+                        "opaque"
+                    );
                 }
-                checked += 1;
-            }
-            "opaque" => {
-                assert!(matches!(
-                    queries.body(body_reference(reference)),
-                    Some(Availability::NotPublished)
-                ));
                 checked += 1;
             }
             "read" => {

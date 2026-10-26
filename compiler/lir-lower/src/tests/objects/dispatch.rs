@@ -52,7 +52,7 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
         poll managed-void-target0 sp<managed-poll:0> live=[local0:ptr<managed>@0]
         t0 = heap_load local0 +0 : ptr<metadata>
         t1 = heap_load t0 +88 : ptr<metadata>
-        call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Virtual:0] t1(local0)
+        call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0:call-only] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Virtual:0] t1(local0)
         store t2 -> local1
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
@@ -145,7 +145,7 @@ fn interface_calls_read_the_carried_itable() {
         poll managed-void-target0 sp<managed-poll:0> live=[local0:interface{object,itab}@0]
         t0 = extract local0, 1 : ptr<metadata>
         t1 = extract local0, 0 : ptr<managed>
-        call managed-direct-target0 sp<managed-call:0> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Interface:1] t0(t1)
+        call managed-direct-target0 sp<managed-call:0> live=[t1:ptr<managed>@0:call-only] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Interface:1] t0(t1)
         store t2 -> local1
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32

@@ -1,0 +1,40 @@
+schema = 1
+name = "fmt-cone-union-and-deduplication"
+inputs = ["cone"]
+tools = ["scoop"]
+tags = ["driver", "format"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {symlink = {from = "${work}/cone/src/one.scoop", to = "${work}/cone/src/alias.scoop"}}]
+
+[[steps]]
+name = "check"
+argv = ["${scoop}", "fmt", "${work}/cone/src/one.scoop", "${work}/cone", "${work}/cone/Cone.toml", "--check", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${check.result.kind}", equals = "format"}, {actual = "${check.result.success}", equals = false}, {actual = "${check.result.files.length}", equals = 3}, {actual = "${check.result.counts.needs-format}", equals = 3}, {actual = "${check.result.files.0.path}", equals = "${work}/cone/src/one.scoop"}, {actual = "${check.result.files.1.path}", equals = "${work}/cone/checks/case.scoop"}, {actual = "${check.result.files.2.path}", equals = "${work}/cone/linux/platform.scoop"}, {file = "${work}/cone/src/one.scoop", same_as = "${fixture}/cone/src/one.scoop"}]
+
+[[steps]]
+name = "write"
+argv = ["${scoop}", "fmt", "--message-format", "json"]
+cwd = "${work}/cone"
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${write.result.mode}", equals = "write"}, {actual = "${write.result.success}", equals = true}, {actual = "${write.result.counts.formatted}", equals = 3}, {file = "${work}/cone/src/one.scoop", equals = "fun one(a: Int, b: Int): Int {\n    return a + b\n}\n"}, {file = "${work}/cone/linux/platform.scoop", equals = "fun platform() = unknown(1, 2)\n"}, {file = "${work}/cone/checks/case.scoop", equals = "@Test\nfun case() {\n    assertTrue(true)\n}\n"}, {file = "${work}/cone/unselected.scoop", same_as = "${fixture}/cone/unselected.scoop"}, {file = "${work}/cone/src/alias.scoop", type = "symlink"}, {file = "${work}/cone/target", exists = false}, {glob = "${work}/cone/src/.scoop-fmt-*", equals = []}]
+
+[[steps]]
+name = "stable"
+argv = ["${scoop}", "fmt", "${work}/cone", "--check", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${stable.result.counts.unchanged}", equals = 3}, {actual = "${stable.result.success}", equals = true}]

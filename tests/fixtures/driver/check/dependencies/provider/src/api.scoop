@@ -1,0 +1,4 @@
+package test.check.provider
+@Extern(name = "check_native_value")
+fun nativeValue(): Int
+public fun value(): Int { @Unsafe { return nativeValue() } }

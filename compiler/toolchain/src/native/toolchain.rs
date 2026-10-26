@@ -66,6 +66,12 @@ impl NativeToolchain {
         self.cxx.as_ref().map(ValidatedCxxToolchain::fingerprint)
     }
 
+    pub(super) fn input_metadata(&self) -> Vec<crate::NativeInputMetadata> {
+        self.cxx
+            .as_ref()
+            .map_or_else(Vec::new, |cxx| cxx.input_metadata().to_vec())
+    }
+
     pub(super) fn c(&self) -> &ValidatedCBridgeToolchainInvocation {
         &self.c
     }

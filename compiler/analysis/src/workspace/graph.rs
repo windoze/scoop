@@ -52,6 +52,7 @@ impl<'a> ProjectBuilder<'a> {
                 configuration,
                 root,
                 cones: BTreeMap::new(),
+                artifact_sources: BTreeMap::new(),
                 dependencies: BTreeMap::new(),
                 dependency_order: Vec::new(),
                 complete: false,
@@ -69,6 +70,11 @@ impl<'a> ProjectBuilder<'a> {
             builder.errors.push(error);
         }
         builder.project.complete = builder.errors.is_empty();
+        builder.errors.extend(builder.loader.attach_sources(
+            builder.host,
+            builder.overlays,
+            &mut builder.project,
+        ));
         Ok((builder.project, builder.errors))
     }
 

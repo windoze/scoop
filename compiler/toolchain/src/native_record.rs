@@ -90,25 +90,7 @@ pub(crate) fn resolve_cached(
     let triple = request.canonical_triple();
     crate::registry::select_target(triple)?;
     let options = CToolchainOptions::from_request(request)?;
-    let environment = if triple.contains("linux") {
-        vec![
-            std::env::var_os("PATH"),
-            triple
-                .ends_with("musl")
-                .then(|| std::env::var_os("REALGCC"))
-                .flatten(),
-        ]
-    } else {
-        vec![Some(crate::c_bridge::deployment_version()?.into())]
-    };
-    let environment: Vec<_> = environment
-        .iter()
-        .map(|v| v.as_ref().map(|v| v.as_encoded_bytes()))
-        .collect();
-    let key = sha256(
-        &serde_json::to_vec(&(scoop_wire::encode(request).map_err(error)?, environment))
-            .map_err(error)?,
-    );
+    let key = native_tool_configuration(request)?;
     let directory = cache.join("native-tools-v1");
     let record_path = directory.join(format!("{key}.json"));
     if let Some(result) = lookup(&record_path)? {
@@ -131,6 +113,44 @@ pub(crate) fn resolve_cached(
     serde_json::to_writer(&mut output, &record).map_err(error)?;
     output.persist(record_path).map_err(|e| error(e.error))?;
     record.result.into_target(triple)
+}
+
+/// Configuration identity without probing tools or reading source contents.
+pub fn native_tool_configuration(
+    request: &TargetSelectionRequestV1,
+) -> Result<Digest256, ToolchainError> {
+    let triple = request.canonical_triple();
+    let environment = if triple.contains("linux") {
+        vec![
+            std::env::var_os("PATH"),
+            triple
+                .ends_with("musl")
+                .then(|| std::env::var_os("REALGCC"))
+                .flatten(),
+        ]
+    } else {
+        vec![Some(crate::c_bridge::deployment_version()?.into())]
+    };
+    let environment: Vec<_> = environment
+        .iter()
+        .map(|v| v.as_ref().map(|v| v.as_encoded_bytes()))
+        .collect();
+    Ok(sha256(
+        &serde_json::to_vec(&(scoop_wire::encode(request).map_err(error)?, environment))
+            .map_err(error)?,
+    ))
+}
+
+/// Reuse the inputs of a tool selection already completed by this build.
+pub fn cached_native_tool_inputs(
+    request: &TargetSelectionRequestV1,
+    cache: &Path,
+) -> Result<Vec<Input>, ToolchainError> {
+    let key = native_tool_configuration(request)?;
+    let file =
+        File::open(cache.join("native-tools-v1").join(format!("{key}.json"))).map_err(error)?;
+    let record: Record = serde_json::from_reader(BufReader::new(file)).map_err(error)?;
+    Ok(record.inputs)
 }
 
 fn lookup(path: &Path) -> Result<Option<ResolvedRecord>, ToolchainError> {

@@ -1,0 +1,83 @@
+schema = 1
+name = "check-generator-and-concurrency"
+inputs = ["../../generators/build-cache/provider", "../../generators/peer.py"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "check", "cache"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json", "--generator", "test.peer=generator"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/../../generators/build-cache/provider", to = "${work}/cone"}}, {concat = {path = "${work}/generator", parts = ["#!${python}\n", {file = "../../generators/peer.py"}]}}, {replace = {path = "${work}/generator", old = "MODE = \"normal\"", new = "MODE = \"cache\""}}, {chmod = {path = "${work}/generator", mode = "755"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.kind}", equals = "check"}, {actual = "${cold.result.cache_hit}", equals = false}, {file = "${work}/generator.calls", equals = "called\n"}]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.kind}", equals = "check"}, {actual = "${warm.result.cache_hit}", equals = true}, {file = "${work}/generator.calls", equals = "called\n"}]
+
+[[steps]]
+name = "generator_change"
+files = [{replace = {path = "${work}/generator", old = "return \"{ return 42 }\"", new = "return \"{ return 43 }\""}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed.result.kind}", equals = "check"}, {actual = "${changed.result.cache_hit}", equals = false}, {file = "${work}/generator.calls", equals = "called\ncalled\n"}]
+
+[[steps]]
+name = "concurrent_input"
+files = [{replace = {path = "${work}/generator", old = "return \"{ return 43 }\"", new = "return \"{ return 44 }\""}}]
+
+[[steps]]
+name = "first"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+background = true
+
+[[steps]]
+name = "second"
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+background = true
+
+[[steps]]
+name = "wait_first"
+wait = "first"
+
+[[steps]]
+name = "wait_second"
+wait = "second"
+
+[[steps]]
+name = "one_generation"
+checks = [{file = "${work}/generator.calls", equals = "called\ncalled\ncalled\n"}]

@@ -25,9 +25,11 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 CurrentConeProductionFailure::ArtifactOutputRequired,
             ));
         }
-        match self.compile(temporary_parent, None)? {
+        match self.compile(Some(temporary_parent), None)? {
             SingleConeCompilation::Published(result) => Ok(*result),
-            SingleConeCompilation::Observed(_) | SingleConeCompilation::Documented(_) => {
+            SingleConeCompilation::Observed(_)
+            | SingleConeCompilation::Documented(_)
+            | SingleConeCompilation::Checked(_) => {
                 unreachable!("production has no observation stop")
             }
         }
@@ -35,7 +37,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
 
     pub(super) fn compile(
         self,
-        temporary_parent: &Path,
+        temporary_parent: Option<&Path>,
         stop_after: Option<StageDumpKind>,
     ) -> Result<SingleConeCompilation, CurrentConeProductionError> {
         let protocols = self.request.protocols();
@@ -87,6 +89,29 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
         .map_err(|e| {
             CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Warnings(e))
         })?;
+        if matches!(self.request.output(), crate::SingleConeOutput::Check) {
+            return Ok(SingleConeCompilation::Checked(
+                crate::SingleConeCheckSuccess {
+                    warnings,
+                    used_generators,
+                },
+            ));
+        }
+        let mut hir = match current_hir::CurrentConeHirArtifacts::from_hir(hir, &world) {
+            Ok(hir) => hir,
+            Err(error) => {
+                return Err(CurrentConeProductionError::after_hir(
+                    CurrentConeProductionFailure::Hir(error),
+                    warnings,
+                ));
+            }
+        };
+        if self.request.purpose() == scoop_protocol::CompilationPurpose::Test {
+            hir.test_directory = Some(current_hir::test_directory::project(
+                &hir.hir.output().export.test_containers,
+                &self.sources,
+            ));
+        }
         dump.extend(capture_stage_dump(emit, StageDumpKind::Hir, || {
             format!(
                 "== Export ==\n{}== Static Shapes ==\n{}== LocalConcrete ==\n{}== CrossCone ==\n{}",
@@ -143,7 +168,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 hir,
                 self.request,
                 cone,
-                temporary_parent,
+                temporary_parent.expect("artifact output has a temporary workspace"),
                 &mut dump,
                 stop_after,
             )?
@@ -200,7 +225,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
         requested: scoop_identity::RequestedConeKind,
         protocols: &ValidatedCompilerProtocols,
         world: &scoop_hir::ImportedSemanticWorld<'_>,
-    ) -> Result<current_hir::CurrentConeHirArtifacts, CurrentConeHirStageError> {
+    ) -> Result<current_hir::CurrentConeHir, CurrentConeHirStageError> {
         let mut source_names = self
             .request
             .dependencies()
@@ -239,7 +264,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                         .expect("dependency validation resolved this exact coordinate")
                 })
                 .collect();
-            return current_hir::CurrentConeHirArtifacts::lower_tests(
+            return current_hir::CurrentConeHir::lower_tests(
                 &self.sources,
                 protocols.hir_input(),
                 world,
@@ -248,7 +273,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 self.request.generators(),
             );
         }
-        current_hir::CurrentConeHirArtifacts::lower_with_documentation(
+        current_hir::CurrentConeHir::lower_with_documentation(
             requested,
             &self.sources,
             protocols.hir_input(),

@@ -1,7 +1,9 @@
 """Type names retain declaration identities across aliases, binders and updates."""
 
+from installed_sources import boolean_location
 
-def check(peer, root):
+
+def check(peer, root, sysroot):
     provider = root / "dependency/src/navigationTypes.scoop"
     library = (
         "package typednav\n"
@@ -66,7 +68,7 @@ def check(peer, root):
     generic = request("definition", path, source, 5, "本地", last=True)
     assert generic["uri"] == path.as_uri(), generic
     assert generic["range"]["start"] == {"line": 5, "character": 5}, generic
-    assert request("definition", path, source, 3, "Boolean") is None
+    assert request("definition", path, source, 3, "Boolean") == boolean_location(sysroot)
 
     def nominal_references():
         return request("references", provider, library, 2, "原值")

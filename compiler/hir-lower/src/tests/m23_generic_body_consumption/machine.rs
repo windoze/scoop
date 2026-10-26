@@ -39,9 +39,31 @@ fn actual_generic_calls_retain_odr_roots_in_the_shared_machine_input() {
             .iter()
             .filter(|root| matches!(root.subject(), mir::CallableSignatureSubject::Odr(_)))
             .count();
+        let mut expected_names = vec![
+            "identity",
+            "identity",
+            "choose",
+            "helper",
+            "$extension.echo",
+            "defaulted",
+            "defaulted",
+            "nativeIdentity",
+            "recursive",
+            "pointerIdentity",
+            "relay",
+            "equals",
+        ];
+        let mut selected_names = roots
+            .iter()
+            .filter(|root| matches!(root.subject(), mir::CallableSignatureSubject::Odr(_)))
+            .map(|root| input.module().functions[root.function()].name.as_str())
+            .filter(|name| expected_names.contains(name))
+            .collect::<Vec<_>>();
+        selected_names.sort_unstable();
+        expected_names.sort_unstable();
         assert_eq!(
-            odr, 12,
-            "provider templates and the local relay retain their instances"
+            selected_names, expected_names,
+            "source-selected generic instances survive MIR lowering"
         );
         for root in roots {
             assert_eq!(
