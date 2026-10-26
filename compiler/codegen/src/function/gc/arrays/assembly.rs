@@ -154,6 +154,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     live,
                     None,
                 )?;
+                let array = array.object;
                 let size_ptr = self.byte_gep(array, 16, "assembly_size_ptr")?;
                 builder.build_store(size_ptr, total).map_err(|error| {
                     CodegenError(format!(

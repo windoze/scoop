@@ -76,8 +76,10 @@ struct FnEmitter<'a, 'ctx> {
     cached_poll_state: Option<PointerValue<'ctx>>,
     /// Lazily initialized AS0 context address; its mutable fields are not cached.
     allocation_context_slot: Option<PointerValue<'ctx>>,
-    /// Collected only when a small allocation has an initialization candidate.
+    /// Collected only when allocation initialization can be optimized.
     allocation_addressed_locals: Option<HashSet<scoop_lir::LocalId>>,
+    /// Nursery membership along one uninterrupted initialization path.
+    young_allocation: Option<gc::YoungAllocation<'ctx>>,
     /// One ordinary field-write region, never retained across control flow or
     /// operations that can change the reference or publish/collect heap state.
     field_barrier: Option<gc::FieldBarrierCache<'ctx>>,
@@ -334,6 +336,7 @@ pub(super) fn emit_function<'ctx>(
         cached_poll_state: None,
         allocation_context_slot: None,
         allocation_addressed_locals: None,
+        young_allocation: None,
         field_barrier: None,
         array_size_trap_blocks: HashMap::new(),
     };
@@ -344,9 +347,12 @@ pub(super) fn emit_function<'ctx>(
     builder.position_at_end(blocks[arena_index(function.entry)]);
     emitter.allocate_locals()?;
     emitter.prepare_root_storage()?;
+    let mut initialization_successors = None;
+    let mut young_successors = HashMap::new();
     for (block_id, block) in function.blocks.iter() {
         emitter.current_block = block_id;
         emitter.field_barrier = None;
+        emitter.young_allocation = young_successors.remove(&block_id);
         emitter.interface_values.clear();
         builder.position_at_end(blocks[arena_index(block_id)]);
         // Invoke is an LLVM terminator even though it
@@ -407,6 +413,14 @@ pub(super) fn emit_function<'ctx>(
                 builder
                     .build_unconditional_branch(blocks[arena_index(*target)])
                     .map_err(|e| CodegenError(format!("br @{}: {e}", block.name)))?;
+                if let Some(young) = emitter.young_allocation.take()
+                    && arena_index(*target) > arena_index(block_id)
+                    && initialization_successors
+                        .get_or_insert_with(|| gc::single_predecessor_blocks(function))
+                        .contains(target)
+                {
+                    young_successors.insert(*target, young);
+                }
             }
             Terminator::CondBr {
                 cond,

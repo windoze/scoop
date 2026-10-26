@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 已完成[年轻对象初始化屏障消除](YOUNG-INITIALIZATION.md)：实际 TLAB 成功事实沿未取址副本和单前驱直线后继传播，普通字段／typed box 跳过年轻目标的卡表查询与标记；GC、外传和合流边界停止，慢分配保留完整屏障及引用恢复。两机各 25 项定向单测与三目标三组 GC／ABI 组合通过；引用 box 内核降低 25.32%～34.90%，普通引用对象降低 10.28%～26.94%，协程及短对照的改善／回退均保留。实际分配与 GC 次数保持，text 增加 524～1,408 B，编译 CPU 增加 0.16%～1.33%；release 默认，ABI 和诊断代码生成边界保持。
+
 - 已完成[TaskContext fork 的生成分配](CONTEXT-FORK.md)：采样后优先把真实 typed Fork 降为普通 Alloc／HeapStore，复用 24 B 布局、TLAB、snapshot 恢复和屏障；访问器、绑定树及旧 C 后备继续共享。两机定向单测、三目标四组 GC／callback／异常／释放组合通过，确认实际 moving 与 minor；四种协程负载耗时降低 ARM64 15.54%～30.68%、GNU 15.06%～29.51%、musl 16.57%～25.75%，分配字节和 GC 次数保持。每程序 text 增加 400／384／384 B、完整文件不变，core 库增加约 0.20%～0.25%；ARM64 编译墙钟 +4.89% 等成本保留。release 默认，无新 ABI 或测量代码。
 
 - 已完成[初始化就绪快路径](INIT-READY.md)：真实 typed InitializationEnter 先 acquire 读取 state，Initialized 跳过协调器；原 managed 慢边、根恢复、入口 poll、失败和等待保持。runtime release 发布终态，cell 仍为 16 B，统一 contract 升为 18，旧库与 sysroot 须重建。两机定向单测、三目标两个 GC 变体及本机发布 ThreadSanitizer 通过；相同 runtime 机器码下，就绪读取／递增减少约 90%～96% 耗时。text 增加 1,184／576／576 B、完整文件不变；ARM64 编译墙钟 +6.80%、GNU 普通引用短对照 +4.48% 等成本保留记录。所有 profile 默认，无新诊断代码；Context 继续留在后续测量批次。

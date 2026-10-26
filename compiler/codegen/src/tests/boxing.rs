@@ -378,6 +378,7 @@ fn small_release_boxes_reuse_allocation_without_dynamic_box_calls() {
         );
         assert!(!ir.contains("native_region_roots"), "{ir}");
         assert_eq!(ir.contains("%box.payload ="), size != 0, "{ir}");
+        assert!(!ir.contains("init.barrier:"), "{ir}");
     }
 }
 
@@ -397,6 +398,11 @@ fn generated_reference_box_uses_relocation_and_the_value_barrier() {
         ir.contains("@llvm.memcpy.p1.p0.i64") && ir.contains("barrier"),
         "{ir}"
     );
+    let function = ir.split_once("define ").unwrap().1;
+    let (before, barrier) = function.split_once("init.barrier:").unwrap();
+    assert!(before.contains("@llvm.memcpy.p1.p0.i64"), "{ir}");
+    assert!(!before.contains("@scoop_gc_page_map"), "{ir}");
+    assert!(barrier.contains("@scoop_gc_page_map"), "{ir}");
     let rewritten = release_ir(&module, true);
     assert!(
         rewritten.contains("gc.statepoint") && rewritten.contains("gc.relocate"),

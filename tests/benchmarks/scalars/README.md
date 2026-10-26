@@ -20,3 +20,5 @@ SCOOP_BENCH_KIND=1 SCOOP_BENCH_COUNT=2000000 tmp/scalar-bench/decimal
 `operations.scoop` 使用相同的 phases helper。模式 0 测动态 Long hash，1 测常量 ULong hash，2 测 Boolean equals 与 hash，3 测 Boolean 字符串化和结果长度。构建时将上例源码和输出名替换为 `operations`；计时建议五百万次以上，极短的无分配内核需要较长批次，Linux 可固定 CPU 后单独复核。
 
 `strings.scoop` 使用同一 helper，模式 0 为动态 String 相等，1 为与八字节常量比较，2／3 为八／六十四字节 hash，4 为常量 hash，5／6 为 ASCII／混合 Unicode 遍历。输入在计时前构建；建议每轮三百万次，短路径与共享长路径分别报告。遍历包含真实 iterator／接口分派，不能将整段收益归给单步解码。
+
+`boxing.scoop` 使用同一 helper，将实际分配的值放入 256 项循环数组。模式 0／1／2／3 分别为 ZST、Long、含两个引用的值和 128 B 宽值装箱；模式 4 为与模式 2 字段相同的普通 class 初始化。模式 2／4 的对象实例均为 40 B，输入 Node／String 在计时前建立，写入旧数组仍需屏障；模式 3 的 box 实例为 144 B，保留共享后备。建议每轮一千万次，分别记录内核与整程序时间；零引用模式作为对照，不用它们推断引用初始化的收益。

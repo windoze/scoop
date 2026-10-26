@@ -5,6 +5,12 @@ use super::*;
 /// One Immix block minus its reserved first line (runtime spec 3.1).
 const REGULAR_MANAGED_OBJECT_MAX_SIZE: u64 = 32768 - 128;
 
+pub(in crate::function) struct AllocationResult<'ctx> {
+    pub object: PointerValue<'ctx>,
+    /// Only the actual TLAB branch proves nursery membership.
+    pub young: Option<IntValue<'ctx>>,
+}
+
 impl<'ctx> FnEmitter<'_, 'ctx> {
     /// Bump through the thread's shared TLAB view. Small constant allocations
     /// with known layouts finish inline in release; other bumps use the GC-leaf
@@ -25,7 +31,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let layout = self.known_allocation_layout(*descriptor);
         let descriptor = self.value(*descriptor)?.into_pointer_value();
         let requested_size = self.value(*requested_size)?.into_int_value();
-        let object = self.managed_alloc_value(
+        let allocation = self.managed_alloc_value(
             descriptor,
             requested_size,
             layout,
@@ -33,7 +39,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             live,
             Some(out),
         )?;
-        self.temps.insert(out, object.into());
+        self.remember_young_allocation(out, allocation.young);
+        self.temps.insert(out, allocation.object.into());
         Ok(())
     }
 
@@ -45,7 +52,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         safepoint: scoop_lir::SafepointId,
         live: MaterializedStatepointLive<'ctx>,
         initialization_result: Option<TempId>,
-    ) -> Result<PointerValue<'ctx>, CodegenError> {
+    ) -> Result<AllocationResult<'ctx>, CodegenError> {
         let context = self.context;
         let builder = self.builder;
         let ptr = ptr_ty(context);
@@ -91,7 +98,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .get_zero_extended_constant()
                     .is_some_and(|size| size > REGULAR_MANAGED_OBJECT_MAX_SIZE))
         {
-            return self.slow_allocation(descriptor, requested_size, safepoint, live);
+            return Ok(AllocationResult {
+                object: self.slow_allocation(descriptor, requested_size, safepoint, live)?,
+                young: None,
+            });
         }
 
         let allocation_context = self.allocation_context()?;
@@ -216,7 +226,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_phi(managed_ptr, "managed_object")
             .map_err(|error| CodegenError(format!("merge allocation result: {error}")))?;
         phi.add_incoming(&[(&object, fast_end), (&slow_object, slow_block)]);
-        Ok(phi.as_basic_value().into_pointer_value())
+        Ok(AllocationResult {
+            object: phi.as_basic_value().into_pointer_value(),
+            young: self.optimize_allocations.then_some(fast),
+        })
     }
 
     fn slow_allocation(

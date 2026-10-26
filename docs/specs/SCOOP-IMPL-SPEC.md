@@ -451,6 +451,8 @@ LLVM 优化、RS4GC 与对象发射使用前一步的成功结果，生产路径
 
 managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
 
+release 的 codegen 分配结果可携带实际 TLAB 成功的布尔 SSA 事实，普通 HeapStore 与 typed box 的紧接 payload 复制据此跳过年轻目标的初始化屏障；慢分配仍执行原单槽或完整值屏障。普通字段跟踪未取址副本，复用尾部清零的初始化别名规则；无条件边仅向单前驱且尚未发射的后继传递事实，不回填已经发射的块。重赋保留各副本快照，调用、poll、取址、对象读取、外传、条件分支、合流及未分析操作撤销该事实。该布尔值不成为 GC root，不以对象刚分配、类型名字或长期缓存代替实际快分支证明；分配后所用的 payload／字段引用仍消费原根计划恢复的值。证明与 guarded barrier 留在 codegen GC 层，不向 MIR／LIR／`.slib` 增加 nursery 策略或新 ABI；debug 保留原屏障。
+
 单槽和 runtime 范围屏障对实际覆盖的每个 card 字节使用 relaxed atomic store 1，并按运行时规范 3.6 登记其 64-card 组。新增 NoGc runtime 入口 `RecordDirtyCardGroup`（tag 33），完整 C 签名为 `(region metadata pointer, UInt64 card index) -> void`；只操作组链接和 heap 私有链，不读写 managed storage、不分配、不取 TLS 或 park。生成代码先表达完整登记调用，release 的既有有界循环变换将与每个 card store 对应的登记一起移到正常出口；只有这项 compiler-owned 屏障调用可通过该变换，不推广到一般 NoGc／native 调用。完成普通优化后，使用临时内部 LLVM helper 与标准 always-inliner 展开登记状态的 relaxed 读取，已登记时跳过真实 runtime 调用；临时 helper 不成为 Scoop callable 或最终机器入口。所有 profile 都生成完整卡组登记与快速检查，原精确 roots、poll 和用户内存序保持。
 
 nursery 容量、full 压力和可选 survivor 阶段归 runtime 私有实现（运行时规范 3.1、3.9），不作为 LIR 常量、构建 profile 或 `.slib` 字段导出；现有生成代码继续只消费稳定的 allocation context 与分配慢入口。调整容量或 survivor 策略不重编依赖或改变精确 roots；generated card store 在 mutator 阶段仍只写 1，collector 私有的保留卡状态不进入生成代码。
@@ -1025,7 +1027,7 @@ codegen 在现有 typed call 合同检查后展开普通 byte-length／byte-at�
 
 LIR 的非零 boxed descriptor 同时保留选定 shape 的 payload offset，供 codegen 消费既有布局结果；不重新推导目标布局，也不增加持久 wire 字段。typed UnboxValue 生成 TD 相等的快速路径与原 leaf 慢路径：快速路径从 AS1 对象地址向已有 typed local 复制完整 payload 字节（包含 padding），ZST 不产生虚假存储。非 exact 的 enum 父整数解箱继续由慢路径处理。普通优化、最终根计划和 RS4GC 顺序保持；不把含引用的 payload 指针转成 raw pointer 后跨 GC 使用。
 
-boxed descriptor 同时保存已选 shape 的实例 size／alignment，供 release 小型实际装箱复用普通 managed allocation 生成路径；不从名称或表示相似性识别 native 调用，不在 codegen 重建 shape。首版实例上限 128 bytes；含引用源 place 继续由 BoxValue 的既有 safepoint root plan 管理，复制前从搬迁后的规范存储重读，复制后执行既有值写屏障。全 profile 使用相同物理 box 布局、ABI 与 `.slib` 记录，新增事实仅为已有 shape 的内存中投影。未展开的 C 后备及局部非逃逸 box 消除保持，详见运行时规范 2.3。
+boxed descriptor 同时保存已选 shape 的实例 size／alignment，供 release 小型实际装箱复用普通 managed allocation 生成路径；不从名称或表示相似性识别 native 调用，不在 codegen 重建 shape。首版实例上限 128 bytes；含引用源 place 继续由 BoxValue 的既有 safepoint root plan 管理，复制前从搬迁后的规范存储重读，复制后按实际 TLAB 成功事实及完整扫描布局执行必要的值写屏障。全 profile 使用相同物理 box 布局、ABI 与 `.slib` 记录，新增事实仅为已有 shape 的内存中投影。未展开的 C 后备及局部非逃逸 box 消除保持，详见运行时规范 2.3。
 
 typed ArrayClone 复用 LIR 已有的源 live root 与完整数组布局。源／目标 element exact type 和 layout 一致时，codegen 从有效源对象读取 count，使用同一 sizing 计算及普通分配路径；唯一原 site 附着于实际分配慢调用，分配后重新加载源根，按 AS1 完整复制元素字节，再执行必要的范围屏障。目标对象使用目标 nominal TD，Array／MutableArray 互转不复用源身份；ZST 不访问 payload。该展开在最终 roots／RS4GC 之前完成，不删除入口／源码循环 poll，不新增 ABI 或跨过程分析。
 

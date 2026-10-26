@@ -5,6 +5,7 @@
 
 struct Empty()
 public class Node(val value: Long)
+class ReferenceObject(val node: Node, val text: String, val value: Long)
 struct References(val node: Node, val text: String, val value: Long)
 struct Wide(val first: (Long, Long, Long, Long, Long, Long, Long, Long),
             val last: (Long, Long, Long, Long, Long, Long, Long, Long))
@@ -30,6 +31,13 @@ public fun referenceBoxes(values: MutableArray<Any>, node: Node, text: String, i
         index += 1
     }
 }
+public fun referenceObjects(values: MutableArray<Any>, node: Node, text: String, iterations: Int) {
+    var index = 0
+    while (index < iterations) {
+        values[index.and(255).toLong()] = ReferenceObject(node, text, index.toLong())
+        index += 1
+    }
+}
 public fun wideBoxes(values: MutableArray<Any>, iterations: Int) {
     var index = 0
     while (index < iterations) {
@@ -52,6 +60,7 @@ fun main() {
             case 0 -> emptyBoxes(values, iterations)
             case 1 -> wordBoxes(values, iterations)
             case 2 -> referenceBoxes(values, node, text, iterations)
+            case 4 -> referenceObjects(values, node, text, iterations)
             else -> wideBoxes(values, iterations)
         }
         end()
@@ -60,6 +69,7 @@ fun main() {
             case 0 -> if (last is Empty) { 1L } else { 0L }
             case 1 -> last as Long
             case 2 -> (last as References).value + (last as References).node.value + (last as References).text.byteLength
+            case 4 -> (last as ReferenceObject).value + (last as ReferenceObject).node.value + (last as ReferenceObject).text.byteLength
             else -> (last as Wide).last._1
         }
         println(result)

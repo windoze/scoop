@@ -2,7 +2,62 @@
 
 use super::*;
 
+pub(super) struct InitializationAliases {
+    values: HashSet<Value>,
+}
+
+impl InitializationAliases {
+    pub(super) fn new(out: TempId) -> Self {
+        Self {
+            values: HashSet::from([Value::Temp(out)]),
+        }
+    }
+
+    pub(super) fn contains(&self, value: Value) -> bool {
+        self.values.contains(&value)
+    }
+
+    /// Stop before anything that could expose, collect or observe the object.
+    pub(super) fn advance(
+        &mut self,
+        instruction: &Instruction,
+        addressed: &HashSet<scoop_lir::LocalId>,
+    ) -> bool {
+        match instruction {
+            Instruction::Store { local, value } if !addressed.contains(local) => {
+                if self.contains(*value) {
+                    self.values.insert(Value::Local(*local));
+                } else {
+                    self.values.remove(&Value::Local(*local));
+                }
+                true
+            }
+            Instruction::HeapStore { object, .. } => self.contains(*object),
+            Instruction::MakeZstValue { .. } => true,
+            Instruction::MakeAggregate { elements, .. } => {
+                elements.iter().all(|value| !self.contains(*value))
+            }
+            Instruction::ExtractValue { aggregate, .. } => !self.contains(*aggregate),
+            _ => false,
+        }
+    }
+}
+
 impl FnEmitter<'_, '_> {
+    pub(super) fn prepare_initialization_aliases(&mut self) {
+        self.allocation_addressed_locals.get_or_insert_with(|| {
+            self.function
+                .blocks
+                .iter()
+                .flat_map(|(_, block)| &block.instructions)
+                .filter_map(|instruction| match instruction {
+                    Instruction::LocalAddress { local, .. } => Some(*local),
+                    _ => None,
+                })
+                .collect()
+        });
+    }
+
     pub(super) fn initialization_clear_size(
         &mut self,
         out: TempId,
@@ -11,63 +66,35 @@ impl FnEmitter<'_, '_> {
         if size == 16 || size > self.allocation_initialization_limit {
             return Ok(size);
         }
-        if self.allocation_addressed_locals.is_none() {
-            self.allocation_addressed_locals = Some(
-                self.function
-                    .blocks
-                    .iter()
-                    .flat_map(|(_, block)| &block.instructions)
-                    .filter_map(|instruction| match instruction {
-                        Instruction::LocalAddress { local, .. } => Some(*local),
-                        _ => None,
-                    })
-                    .collect(),
-            );
-        }
+        self.prepare_initialization_aliases();
         let addressed = self
             .allocation_addressed_locals
             .as_ref()
             .expect("addressed locals were collected for this function");
-        let mut aliases = HashSet::from([Value::Temp(out)]);
+        let mut aliases = InitializationAliases::new(out);
         let mut covered = vec![false; size as usize];
         let mut block = self.current_block;
         let mut start = self.current_instruction + 1;
         let mut visited = HashSet::from([block]);
         'path: loop {
             for instruction in &self.function.blocks[block].instructions[start..] {
-                match instruction {
-                    Instruction::Store { local, value } if !addressed.contains(local) => {
-                        if aliases.contains(value) {
-                            aliases.insert(Value::Local(*local));
-                        } else {
-                            aliases.remove(&Value::Local(*local));
-                        }
+                if !aliases.advance(instruction, addressed) {
+                    break 'path;
+                }
+                if let Instruction::HeapStore { offset, value, .. } = instruction {
+                    let ty = self.function.value_ty(self.globals_arena, *value);
+                    let Some(bytes) = self.dense_store_size(&ty)? else {
+                        // The store is still into this unpublished object.
+                        // Its reference slots and padding remain zeroed.
+                        continue;
+                    };
+                    let Some(end) = offset.checked_add(bytes).filter(|end| *end <= size) else {
+                        break 'path;
+                    };
+                    if *offset < 16 {
+                        break 'path;
                     }
-                    Instruction::HeapStore {
-                        object,
-                        offset,
-                        value,
-                    } if aliases.contains(object) => {
-                        let ty = self.function.value_ty(self.globals_arena, *value);
-                        let Some(bytes) = self.dense_store_size(&ty)? else {
-                            // The store is still into this unpublished object.
-                            // Its reference slots and padding remain zeroed.
-                            continue;
-                        };
-                        let Some(end) = offset.checked_add(bytes).filter(|end| *end <= size) else {
-                            break 'path;
-                        };
-                        if *offset < 16 {
-                            break 'path;
-                        }
-                        covered[*offset as usize..end as usize].fill(true);
-                    }
-                    Instruction::MakeZstValue { .. } => {}
-                    Instruction::MakeAggregate { elements, .. }
-                        if elements.iter().all(|value| !aliases.contains(value)) => {}
-                    Instruction::ExtractValue { aggregate, .. } if !aliases.contains(aggregate) => {
-                    }
-                    _ => break 'path,
+                    covered[*offset as usize..end as usize].fill(true);
                 }
             }
             let Terminator::Br(next) = self.function.blocks[block].terminator else {

@@ -15,6 +15,8 @@ mod card;
 mod fields;
 mod poll;
 mod writes;
+mod young_initialization;
 
 pub(super) use allocation_layout::AllocationLayout;
 pub(in crate::function) use fields::FieldBarrierCache;
+pub(in crate::function) use young_initialization::{YoungAllocation, single_predecessor_blocks};

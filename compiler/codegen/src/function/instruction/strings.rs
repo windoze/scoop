@@ -69,6 +69,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             live,
             None,
         )?;
+        let result = result.object;
         let length_ptr = self.byte_gep(result, 16, "concat.result_length")?;
         builder
             .build_store(length_ptr, total)

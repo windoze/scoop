@@ -57,6 +57,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     live,
                     None,
                 )?;
+                let copy = copy.object;
                 let count_ptr = self.byte_gep(copy, 16, "clone.count_ptr")?;
                 builder.build_store(count_ptr, count).map_err(clone_error)?;
                 if let scoop_lir::ArrayElementStorageKindV1::Inline { stride, .. } =

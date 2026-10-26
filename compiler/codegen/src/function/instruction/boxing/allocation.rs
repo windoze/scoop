@@ -12,7 +12,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         live: MaterializedStatepointLive<'ctx>,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
         let layout = payload.instance_layout();
-        let object = self.managed_alloc_value(
+        let allocation = self.managed_alloc_value(
             descriptor,
             self.context
                 .i64_type()
@@ -22,6 +22,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             live,
             None,
         )?;
+        let object = allocation.object;
         if let BoxPayload::NonZero(place) = payload {
             let payload = place.descriptor();
             let layout = payload.value().layout();
@@ -40,7 +41,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .const_int(layout.size().get(), false),
                 )
                 .map_err(box_error)?;
-            self.heap_value_barrier(destination, payload.value().storage_type())?;
+            self.allocated_value_barrier(
+                destination,
+                payload.value().storage_type(),
+                allocation.young,
+            )?;
         }
         Ok(object)
     }

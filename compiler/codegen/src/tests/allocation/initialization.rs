@@ -1,6 +1,6 @@
 use super::*;
 
-fn fixture(size: u64, scan: RefScan) -> (Module, TempId) {
+pub(super) fn fixture(size: u64, scan: RefScan) -> (Module, TempId) {
     let mut module = heap_module();
     let descriptor = module
         .meta

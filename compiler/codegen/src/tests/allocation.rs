@@ -2,6 +2,7 @@ use super::*;
 use inkwell::values::AnyValue;
 
 mod initialization;
+mod young_initialization;
 
 fn allocation_ir(
     size: u64,
@@ -10,6 +11,10 @@ fn allocation_ir(
     mode: scoop_lir::OptimizationMode,
 ) -> String {
     let mut module = heap_module();
+    // Keep only the allocation and its two field writes. The shared heap
+    // fixture also boxes a value, which has its own independent TLAB path.
+    let function = &mut module.functions[1];
+    function.blocks[function.entry].instructions.truncate(3);
     let descriptor = module
         .meta
         .type_descriptors

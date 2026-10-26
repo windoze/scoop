@@ -41,6 +41,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             live,
             None,
         )?;
+        let array = array.object;
         let size = self.byte_gep(array, 16, "array_size")?;
         self.builder
             .build_store(size, count)

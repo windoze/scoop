@@ -21,6 +21,7 @@ mod values;
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
         self.retain_field_barrier(instruction);
+        self.retain_young_allocation(instruction);
         self.interface_values.retain(instruction);
         match instruction {
             Instruction::StringConcat { .. } => self.emit_string_concat(instruction),

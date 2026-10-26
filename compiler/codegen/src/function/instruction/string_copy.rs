@@ -92,6 +92,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let live = self.materialize_statepoint_live(live, safepoint)?;
         let result =
             self.managed_alloc_value(descriptor, bytes, Some(layout), safepoint, live, None)?;
+        let result = result.object;
         let count = self.byte_gep(result, 16, "copy.result_count")?;
         builder.build_store(count, length).map_err(copy_error)?;
 
