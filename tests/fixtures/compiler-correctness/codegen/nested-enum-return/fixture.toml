@@ -1,0 +1,20 @@
+schema = 1
+name = "nested-enum-return"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["enum", "codegen", "abi", "compiler-correctness"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

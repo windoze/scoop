@@ -1,0 +1,11 @@
+enum Payload { Empty, Flag(Boolean), Text(String) }
+
+fun unwrap(value: Payload?): Payload = value!!
+
+fun main() {
+    when (unwrap(Some(Payload.Text("42")))) {
+        case Payload.Empty -> println("empty")
+        case Payload.Flag(flag) -> println(flag)
+        case Payload.Text(text) -> println(text)
+    }
+}
