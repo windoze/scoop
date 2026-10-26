@@ -2333,9 +2333,11 @@ public interface MutableList<T> : List<T> {
 
 索引读写为 O(1)，追加摊还 O(1)，插入、删除及 clear 为 O(size)。逻辑 size 不超过 `INT64_MAX`，容量与实际分配遵守 10.6 的溢出和失败规则，不设其他固定元素数上限。操作不回滚用户实参的副作用，也不提供并发同步。
 
+公开成员 `toArray(): Array<T>` 与 `toMutableArray(): MutableArray<T>` 在 O(size) 时间内取得独立数组快照，结果长度为调用时的逻辑 size，元素按值或引用浅复制。普通 core 正文读取一次 size 与 backing，仅复制列表保证已初始化的前缀，不读取剩余容量；零大小元素仍保留正确的结果长度。结果容器与列表的后续修改互不影响。分配、GC 后源引用恢复及数组初始化沿既有规则，不增加 ArrayList 专用 intrinsic、运行时表示或接口槽位。
+
 #### 11.10.3 快照与迭代
 
-core 提供普通 generic extension `fun <T> List<T>.toArray(): Array<T>` 和 `fun <T> List<T>.toMutableArray(): MutableArray<T>`。调用时读取一次 size，按 `0L` 到 `size - 1L` 依次读取元素并创建独立数组；原列表和结果容器的后续修改互不影响，元素本身按值或引用浅复制。10.4 既有数组转换成员仍优先于 extension，保留其复制语义。自定义 List 的 getter 副作用、异常沿普通调用传播，不承诺并发快照。
+core 提供普通 generic extension `fun <T> List<T>.toArray(): Array<T>` 和 `fun <T> List<T>.toMutableArray(): MutableArray<T>`。调用时读取一次 size，按 `0L` 到 `size - 1L` 依次读取元素并创建独立数组；原列表和结果容器的后续修改互不影响，元素本身按值或引用浅复制。10.4 既有数组转换成员与 11.10.2 的 ArrayList 快照成员按普通解析规则优先于 extension，保留其复制语义。静态 List 视图仍使用扩展；自定义 List 的 getter 副作用、异常沿普通调用传播，不承诺并发快照。
 
 Array、MutableArray 和 ArrayList 的 iterator 按索引逐次读取，每次 next 使用当时的 size，成功后进入下一索引；首次返回 None 后永久耗尽。多个 iterator 的进度独立。串行修改时，set 可被后续读取观察到；首次 None 前追加的元素可被遍历；插入和删除可能导致元素重复或跳过；clear 后下一次读取耗尽。iterator 不提供 fail-fast 异常或并发同步。
 

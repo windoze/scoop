@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [ArrayList 普通快照正文](ARRAYLIST-SNAPSHOTS.md) | 新版 core 全 profile 提供成员，release 按已有调用点策略优化；core 及静态解析调用的依赖 Cone 需重建 | 捕获逻辑长度和 backing，以普通 initializer 复制已初始化前缀；静态 List／自定义 getter 保留原扩展。结合整字存储，保留按成本共享的调用及跨分配源根，无专用 intrinsic 或新开关。 |
 | [MaybeUninit 整字原始存储](RAW-VALUE-STORAGE.md) | 新编译器所有 profile 同一表示，release 默认复用 SROA／向量化，无开关 | 按已有对齐以至多 64 位整数保存原始 bits，保留 padding、AS1 引用偏移及物理 ABI；重编译相关正文后受益。省去字节 gather／拼装，musl 短负载回退和测量限制见记录。 |
 | [GC 地址整数的重定位时序](GC-ADDRESS-BITS.md) | 新编译器所有 profile 默认，无开关；受影响应用和库须重新编译 | 地址转换保留 AS1 operand 到 RS4GC 后，防止页表／card 使用旧地址位；不声明普通内存写入，有界无 safepoint 区域沿用原提升规则。临时操作不进产物，无新 ABI；Linux lambdas 的运行代价见记录。 |
 | [搬迁复制复用已预留元数据](EVACUATION-PUBLICATION.md) | 使用新版 runtime 重新链接，所有 profile 默认，无独立开关 | 完整预留后的 STW 复制复用目标 block／大小／范围及 coordinator 单写者关系，省去通用登记调用、重复检查和位图原子读改写；共享分配、并行标记、large 和预留失败语义保持。删除无调用者的 marked 参数，无对象、roots 或 ABI 增长。 |

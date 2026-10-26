@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- 已完成[ArrayList 普通快照正文](ARRAYLIST-SNAPSHOTS.md)：捕获长度／backing，只复制已初始化前缀，复用已有调用点内联和数组循环；静态 List 及用户 getter 沿原扩展。三目标列表、std、跨 profile ABI 与 GC 组合通过。相对整字存储，lambdas 再降低 19.81%／28.07%／33.01%、减少 640,000 B 分配，快照降低 45.01%／48.06%／50.11%；体积、编译和根槽成本均保留。新版 core 全 profile 默认提供成员，release 按原成本选择，无新 intrinsic 或 runtime 路径。
+
 - 已完成[MaybeUninit 整字原始存储](RAW-VALUE-STORAGE.md)：以现有对齐的整数单元保存非引用 bits，保留 padding、AS1 槽和物理 ABI；复用 SROA／向量化。两机各两项 codegen 回归及三目标位级、跨 profile ABI、GC 专测通过。lambdas 降低 12.78%／34.29%／30.41%，text 与编译成本降低；musl 短负载回退、同字节对照与复核限制如实保留。所有 profile 统一默认，无新 runtime 或诊断代码。
 
 - 已修复[GC 地址整数跨 safepoint 复用](GC-ADDRESS-BITS.md)：地址转换保持实际 AS1 operand 到 RS4GC 后，阻止页表索引使用搬迁前的地址；临时操作不进入最终产物，原有界卡表优化继续使用。两机各 55 项 statepoint 回归、三目标各两组 GC 组合通过，机器码确认恢复后重算。所有 profile 默认，无新 runtime／ABI 或诊断代码；Linux lambdas 约 8.20%／5.83% 的运行代价、text 增量及编译成本已记录。

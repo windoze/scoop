@@ -1,0 +1,18 @@
+fun main() {
+    val source = ArrayList<Long>(4096L)
+    var index = 0L
+    while (index < 1025L) {
+        source.add(index * 3L)
+        index += 1L
+    }
+    var total = 0L
+    var round = 0L
+    while (round < 100000L) {
+        val immutable = source.toArray()
+        val mutable = source.toMutableArray()
+        mutable[0L] = round
+        total += immutable[1024L] + mutable[0L]
+        round += 1L
+    }
+    println(total)
+}

@@ -1,0 +1,74 @@
+package test.core.tests.lists.snapshots
+
+import scoop.test.*
+
+private class Cell(var value: Long)
+private struct Entry(val tag: Long, val cell: Cell?)
+
+@Test
+private class ApiTests {
+    @Test
+    fun logicalPrefixAndIndependentSlots() {
+        val source = ArrayList<Long>(4096L)
+        assertEquals(0L, source.toArray().size)
+        assertEquals(0L, source.toMutableArray().size)
+        source.add(3L)
+        source.add(5L)
+        source.add(7L)
+        source.removeAt(1L)
+        val immutable = source.toArray()
+        val mutable = source.toMutableArray()
+        assertEquals(2L, immutable.size)
+        assertEquals(2L, mutable.size)
+        source[0L] = 19L
+        source.clear()
+        source.add(23L)
+        mutable[1L] = 29L
+        assertEquals(3L, immutable[0L])
+        assertEquals(7L, immutable[1L])
+        assertEquals(3L, mutable[0L])
+        assertEquals(29L, mutable[1L])
+        assertEquals(23L, source[0L])
+    }
+
+    @Test
+    fun copiesValuesAndSharesElementReferences() {
+        val cell = Cell(41L)
+        val source = ArrayList<Entry>(64L)
+        source.add(Entry(1L, Some(cell)))
+        source.add(Entry(2L, None))
+        val immutable = source.toArray()
+        val mutable = source.toMutableArray()
+        source[0L] = Entry(3L, None)
+        source.clear()
+        cell.value = 43L
+        assertEquals(1L, immutable[0L].tag)
+        assertTrue(immutable[0L].cell!! === cell)
+        assertTrue(mutable[0L].cell!! === cell)
+        assertEquals(43L, immutable[0L].cell!!.value)
+        assertTrue(when (immutable[1L].cell) { case None -> true; case Some(_) -> false })
+        mutable[0L] = Entry(5L, None)
+        assertEquals(1L, immutable[0L].tag)
+        assertEquals(2L, immutable[1L].tag)
+    }
+
+    @Test
+    fun preservesZeroSizedAndNestedOptionalElements() {
+        val units = ArrayList<Unit>(32L)
+        units.add(Unit)
+        units.add(Unit)
+        assertEquals(2L, units.toArray().size)
+        assertEquals(2L, units.toMutableArray().size)
+        val options = ArrayList<Long??>(32L)
+        options.add(None)
+        options.add(Some(None))
+        options.add(Some(Some(47L)))
+        val immutable = options.toArray()
+        val mutable = options.toMutableArray()
+        options.clear()
+        assertEquals(3L, immutable.size)
+        assertTrue(immutable[0L] == None)
+        assertTrue(immutable[1L] == Some(None))
+        assertTrue(mutable[2L] == Some(Some(47L)))
+    }
+}
