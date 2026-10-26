@@ -1,0 +1,123 @@
+// Algorithms adapted from num-bigint 0.5.1 (MIT); see sysroot/vendor/num-bigint.
+package scoop.math
+
+internal fun magnitudeDivideWord(a: Array<UInt>, b: UInt): (Array<UInt>, UInt) {
+    val result = MutableArray<UInt>(a.size) { _ -> 0u }
+    var remainder = 0uL
+    var index = a.size
+    while (index > 0L) {
+        index -= 1L
+        val wide = (remainder shl 32L) or a[index].toULong()
+        result[index] = (wide / b.toULong()).toUInt()
+        remainder = wide % b.toULong()
+    }
+    return (magnitudeSnapshot(result), remainder.toUInt())
+}
+
+internal fun wordLeadingZeros(word: UInt): Long {
+    var value = word
+    var count = 0L
+    while (count < 32L && (value and 0x80000000u) == 0u) { value = value shl 1L; count += 1L }
+    return count
+}
+
+// Knuth Algorithm D in radix 2^32. ULong holds the exact two-word intermediates.
+internal fun magnitudeDivide(a: Array<UInt>, b: Array<UInt>): (Array<UInt>, Array<UInt>) {
+    val order = magnitudeCompare(a, b)
+    if (order < 0L) return (Array<UInt>(0L) { _ -> 0u }, a)
+    if (b.size == 1L) {
+        val result = magnitudeDivideWord(a, b[0L])
+        return (result._1, Array<UInt>(if (result._2 == 0u) 0L else 1L) { _ -> result._2 })
+    }
+    val shift = wordLeadingZeros(b[b.size - 1L])
+    val divisor = MutableArray<UInt>(b.size) { _ -> 0u }
+    val dividend = MutableArray<UInt>(addExact(a.size, 1L)) { _ -> 0u }
+    var carry = 0uL
+    var index = 0L
+    while (index < b.size) {
+        val value = (b[index].toULong() shl shift) or carry
+        divisor[index] = value.toUInt()
+        carry = value shr 32L
+        index += 1L
+    }
+    carry = 0uL
+    index = 0L
+    while (index < a.size) {
+        val value = (a[index].toULong() shl shift) or carry
+        dividend[index] = value.toUInt()
+        carry = value shr 32L
+        index += 1L
+    }
+    dividend[a.size] = carry.toUInt()
+    val n = b.size
+    val top = divisor[n - 1L].toULong()
+    val second = divisor[n - 2L].toULong()
+    val base = 0x100000000uL
+    val quotient = MutableArray<UInt>(a.size - n + 1L) { _ -> 0u }
+    var j = quotient.size
+    while (j > 0L) {
+        j -= 1L
+        val high = dividend[j + n].toULong()
+        val low = dividend[j + n - 1L].toULong()
+        var estimate = base - 1uL
+        var remainder = low + top
+        if (high < top) {
+            val pair = (high shl 32L) or low
+            estimate = pair / top
+            remainder = pair % top
+        }
+        while (remainder < base && estimate * second > (remainder shl 32L) + dividend[j + n - 2L].toULong()) {
+            estimate -= 1uL
+            remainder += top
+        }
+        var borrow = 0uL
+        index = 0L
+        while (index < n) {
+            val product = estimate * divisor[index].toULong() + borrow
+            val bottom = product.toUInt()
+            val old = dividend[j + index]
+            dividend[j + index] = old - bottom
+            borrow = (product shr 32L) + (if (old < bottom) 1uL else 0uL)
+            index += 1L
+        }
+        val oldTop = dividend[j + n].toULong()
+        dividend[j + n] = (oldTop - borrow).toUInt()
+        if (oldTop < borrow) {
+            estimate -= 1uL
+            carry = 0uL
+            index = 0L
+            while (index < n) {
+                val sum = dividend[j + index].toULong() + divisor[index].toULong() + carry
+                dividend[j + index] = sum.toUInt()
+                carry = sum shr 32L
+                index += 1L
+            }
+            dividend[j + n] = dividend[j + n] + carry.toUInt()
+        }
+        quotient[j] = estimate.toUInt()
+    }
+    val remainderWords = MutableArray<UInt>(n) { _ -> 0u }
+    index = 0L
+    while (index < n) {
+        remainderWords[index] = if (shift == 0L) dividend[index]
+            else (dividend[index] shr shift) or (dividend[index + 1L] shl (32L - shift))
+        index += 1L
+    }
+    return (magnitudeSnapshot(quotient), magnitudeSnapshot(remainderWords))
+}
+
+internal fun integerDivide(a: IntegerStorage, b: IntegerStorage): (IntegerStorage, IntegerStorage) {
+    if (integerSign(b) == 0) mathOverflow()
+    when (a) { case Small(x) -> when (b) {
+        case Small(y) -> {
+            if (x == Long.MIN_VALUE && y == -1L) return (integerUnsigned(0x8000000000000000uL), IntegerStorage.Small(0L))
+            return (IntegerStorage.Small(x / y), IntegerStorage.Small(x % y))
+        }
+        case Large(_, _) -> return integerDivideMagnitude(a, b)
+    }; case Large(_, _) -> return integerDivideMagnitude(a, b) }
+}
+
+private fun integerDivideMagnitude(a: IntegerStorage, b: IntegerStorage): (IntegerStorage, IntegerStorage) {
+    val result = magnitudeDivide(integerMagnitude(a), integerMagnitude(b))
+    return (integerFromMagnitude(integerSign(a) != integerSign(b), result._1), integerFromMagnitude(integerSign(a) < 0, result._2))
+}

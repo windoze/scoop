@@ -1,0 +1,24 @@
+package scoop.math
+
+/** Parses ASCII decimal text with optional e/E exponent, preserving trailing zeros. */
+public fun String.toBigDecimal(): BigDecimal = BigDecimal.parse(this)
+/** Returns None for malformed decimal text or an unrepresentable scale. */
+public fun String.toBigDecimalOrNone(): BigDecimal? = BigDecimal.parseOrNone(this)
+/** Shares this immutable integer as a decimal coefficient at scale zero. */
+public fun BigInteger.toBigDecimal(): BigDecimal = BigDecimal(this)
+/** Converts the mathematical integer exactly at scale zero. */
+public fun Byte.toBigDecimal(): BigDecimal = BigDecimal(toLong())
+/** Converts the mathematical integer exactly at scale zero. */
+public fun Short.toBigDecimal(): BigDecimal = BigDecimal(toLong())
+/** Converts the mathematical integer exactly at scale zero. */
+public fun Int.toBigDecimal(): BigDecimal = BigDecimal(toLong())
+/** Converts the mathematical integer exactly at scale zero. */
+public fun Long.toBigDecimal(): BigDecimal = BigDecimal(toLong())
+/** Converts the mathematical integer exactly at scale zero. */
+public fun UByte.toBigDecimal(): BigDecimal = BigDecimal(toULong())
+/** Converts the mathematical integer exactly at scale zero. */
+public fun UShort.toBigDecimal(): BigDecimal = BigDecimal(toULong())
+/** Converts the mathematical integer exactly at scale zero. */
+public fun UInt.toBigDecimal(): BigDecimal = BigDecimal(toULong())
+/** Converts the mathematical integer exactly at scale zero. */
+public fun ULong.toBigDecimal(): BigDecimal = BigDecimal(toULong())

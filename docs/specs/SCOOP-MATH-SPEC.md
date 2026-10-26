@@ -1,8 +1,8 @@
-# Scoop 数学库规范草案
+# Scoop 数学库规范
 
-状态：设计完成，待实现。日期：2026-10-26。
+状态：首版已实现。日期：2026-10-26。验收范围与限制见 [实施记录](../math/PROGRESS.md)。
 
-本文件定义普通库 `scoop.math` 的目标公共合同，不表示相关 API 已交付。实现路线、上游算法取舍和验收阶段见 [math 设计](../math/DESIGN.md)。语言、对象和产物分别遵守 [语言规范](SCOOP-SPEC.md)、[运行时规范](SCOOP-RUNTIME-SPEC.md)、[实现规范](SCOOP-IMPL-SPEC.md)；命名遵守 [库 API 风格](SCOOP-API-STYLE.md)。
+本文件定义普通库 `scoop.math` 的公共合同。存储与算法取舍见 [math 设计](../math/DESIGN.md)，使用方法见[可运行示例](../../sysroot/src/scoop.math/examples/README.md)。语言、对象和产物分别遵守 [语言规范](SCOOP-SPEC.md)、[运行时规范](SCOOP-RUNTIME-SPEC.md)、[实现规范](SCOOP-IMPL-SPEC.md)；命名遵守 [库 API 风格](SCOOP-API-STYLE.md)。
 
 ## 1. 范围与依赖
 

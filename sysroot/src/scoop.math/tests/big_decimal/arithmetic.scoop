@@ -1,0 +1,85 @@
+package scoop.math.tests.big_decimal
+
+import scoop.math.*
+import scoop.test.*
+
+@Test
+private class BigDecimalArithmeticTests {
+    @Test
+    fun exactArithmeticAndPreferredScales() {
+        representation("3.230", decimal("1.23") + decimal("2.000"))
+        representation("-0.770", decimal("1.23") - decimal("2.000"))
+        representation("2.46000", decimal("1.23") * decimal("2.000"))
+        representation("0.125", BigDecimal.ONE / BigDecimal(8L))
+        representation("0.50", decimal("1.00") / BigDecimal.TWO)
+        representation("1e2", decimal("1e3") / BigDecimal.TEN)
+        representation("0.00", decimal("0.00") / BigDecimal.TEN)
+        assertFailsWith<ArithmeticException> { BigDecimal.ONE / BigDecimal(3L) }
+        assertFailsWith<ArithmeticException> { BigDecimal.ONE / BigDecimal.ZERO }
+        representation("1.00e3", decimal("999.9").round(MathContext(3L, RoundingMode.HalfUp)))
+        representation("0.5", BigDecimal.ONE.div(BigDecimal.TWO, MathContext(10L)))
+        representation("0.33333", BigDecimal.ONE.div(BigDecimal(3L), MathContext(5L)))
+        representation("-0.67", BigDecimal(-2L).div(BigDecimal(3L), 2L, RoundingMode.HalfEven))
+        representation("1.23", decimal("1.2300").round(MathContext(3L, RoundingMode.Unnecessary)))
+        assertFailsWith<ArithmeticException> { decimal("1.234").round(MathContext(3L, RoundingMode.Unnecessary)) }
+    }
+
+    @Test
+    fun allRoundingModes() {
+        val modes = [RoundingMode.Up, RoundingMode.Down, RoundingMode.Ceiling, RoundingMode.Floor, RoundingMode.HalfUp, RoundingMode.HalfDown, RoundingMode.HalfEven]
+        val positiveTie = [3L, 2L, 3L, 2L, 3L, 2L, 2L]
+        val negativeTie = [-3L, -2L, -2L, -3L, -3L, -2L, -2L]
+        val aboveTie = [3L, 2L, 3L, 2L, 3L, 3L, 3L]
+        var index = 0L
+        while (index < modes.size) {
+            assertEquals(BigDecimal(positiveTie[index]), decimal("2.5").setScale(0L, modes[index]))
+            assertEquals(BigDecimal(negativeTie[index]), decimal("-2.5").setScale(0L, modes[index]))
+            assertEquals(BigDecimal(aboveTie[index]), decimal("2.5001").setScale(0L, modes[index]))
+            assertEquals(BigDecimal(positiveTie[index]), BigDecimal(5L).div(BigDecimal.TWO, 0L, modes[index]))
+            assertEquals(BigDecimal(negativeTie[index]), BigDecimal(-5L).div(BigDecimal.TWO, 0L, modes[index]))
+            index += 1L
+        }
+        representation("4", decimal("3.5").setScale(0L, RoundingMode.HalfEven))
+        representation("-4", decimal("-3.5").setScale(0L, RoundingMode.HalfEven))
+        representation("2", decimal("2.000").setScale(0L, RoundingMode.Unnecessary))
+        representation("0", decimal("0.0001").setScale(0L, RoundingMode.HalfEven))
+        representation("1", decimal("0.0001").setScale(0L, RoundingMode.Up))
+        assertFailsWith<ArithmeticException> { decimal("2.5").setScale(0L, RoundingMode.Unnecessary) }
+    }
+
+    @Test
+    fun integralDivisionAndRemainder() {
+        val result = decimal("-123.45").divideAndRemainder(decimal("2.0"), MathContext(2L))
+        representation("-61", result._1)
+        representation("-1.45", result._2)
+        assertEquals(decimal("-123.45"), result._1 * decimal("2.0") + result._2)
+        representation("-1.45", decimal("-123.45").rem(decimal("2.0"), MathContext(2L)))
+        representation("-1.45", decimal("-123.45") % decimal("2.0"))
+        representation("6e2", BigDecimal(1200L).divideToIntegralValue(BigDecimal.TWO, MathContext(1L)))
+        representation("61.0", decimal("123.45").divideToIntegralValue(decimal("2.0")))
+        assertFailsWith<ArithmeticException> { decimal("123.45").divideToIntegralValue(BigDecimal.ONE, MathContext(2L)) }
+        assertFailsWith<ArithmeticException> { BigDecimal.ONE.divideAndRemainder(BigDecimal.ZERO) }
+    }
+
+    @Test
+    fun powersAndRootsRoundOnce() {
+        representation("1", BigDecimal.ZERO.pow(0L))
+        representation("1.4400", decimal("1.20").pow(2L))
+        representation("1.16", decimal("1.05").pow(3L, MathContext(3L)))
+        representation("0.125", BigDecimal.TWO.pow(-3L, MathContext(3L)))
+        representation("0.3333333333", BigDecimal(3L).pow(-1L, MathContext(10L)))
+        representation("1.0", decimal("1.00").sqrt())
+        representation("1.0", decimal("1.0").sqrt())
+        representation("1.414213562", BigDecimal.TWO.sqrt(MathContext(10L)))
+        representation("2", decimal("6.25").sqrt(MathContext(1L, RoundingMode.HalfEven)))
+        representation("3", decimal("6.25").sqrt(MathContext(1L, RoundingMode.HalfUp)))
+        representation("0.2", decimal("0.0625").sqrt(MathContext(1L, RoundingMode.HalfEven)))
+        representation("0.3", decimal("0.0625").sqrt(MathContext(1L, RoundingMode.HalfUp)))
+        representation("2", BigDecimal(4L).sqrt(MathContext(1L, RoundingMode.Unnecessary)))
+        assertFailsWith<ArithmeticException> { BigDecimal.TWO.sqrt() }
+        assertFailsWith<ArithmeticException> { BigDecimal(-1L).sqrt() }
+        assertFailsWith<ArithmeticException> { BigDecimal.TWO.sqrt(MathContext(5L, RoundingMode.Unnecessary)) }
+        assertFailsWith<ArithmeticException> { BigDecimal.TWO.pow(-1L) }
+        assertFailsWith<ArithmeticException> { BigDecimal.ZERO.pow(-1L, MathContext(5L)) }
+    }
+}

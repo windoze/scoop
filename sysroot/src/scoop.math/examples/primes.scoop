@@ -1,0 +1,14 @@
+//! dep: scoop:scoop.math:0.1.0
+
+import scoop.math.*
+import scoop.random.Random
+
+fun main() {
+    val random = Random.seeded(20261026L)
+    val prime = BigInteger.probablePrime(128L, random, 64)
+    println(f"generated bit length: ${prime.bitLength()}")
+    println(f"prime check: ${prime.isProbablePrime(random, 64)}")
+    println(f"next prime after 100: ${BigInteger(100L).nextProbablePrime(random)}")
+    println(f"561 is prime: ${BigInteger(561L).isProbablePrime(random)}")
+    println(f"modular power: ${BigInteger(4L).modPow(BigInteger(13L), BigInteger(497L))}")
+}

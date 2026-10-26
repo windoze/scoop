@@ -1,0 +1,33 @@
+package scoop.math
+
+internal fun mathOverflow(): Nothing = throw ArithmeticException()
+
+/** Narrows a Long exactly, throwing ArithmeticException outside Int range. */
+public fun toIntExact(value: Long): Int {
+    if (value < Int.MIN_VALUE.toLong() || value > Int.MAX_VALUE.toLong()) mathOverflow()
+    return value.toInt()
+}
+
+/** Returns the complete signed product. */
+public fun multiplyFull(a: Int, b: Int): Long = a.toLong() * b.toLong()
+
+/** Returns the complete unsigned product. */
+public fun multiplyFull(a: UInt, b: UInt): ULong = a.toULong() * b.toULong()
+
+/** Returns the high word of the unsigned 128-bit product. */
+public fun multiplyHigh(a: ULong, b: ULong): ULong {
+    val a0 = a and 0xffffffffuL
+    val a1 = a shr 32L
+    val b0 = b and 0xffffffffuL
+    val b1 = b shr 32L
+    val low = a0 * b0
+    val middle = a1 * b0 + (low shr 32L)
+    val carry = (middle and 0xffffffffuL) + a0 * b1
+    return a1 * b1 + (middle shr 32L) + (carry shr 32L)
+}
+
+/** Returns the signed high word of the signed 128-bit product. */
+public fun multiplyHigh(a: Long, b: Long): Long {
+    val high = multiplyHigh(a.toULong(), b.toULong()).toLong()
+    return high - (if (a < 0L) b else 0L) - (if (b < 0L) a else 0L)
+}

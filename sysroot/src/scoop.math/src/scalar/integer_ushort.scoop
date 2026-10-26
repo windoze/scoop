@@ -1,0 +1,55 @@
+package scoop.math
+
+/** Returns the smaller value. */
+public fun min(a: UShort, b: UShort): UShort = if (a <= b) a else b
+
+/** Returns the larger value. */
+public fun max(a: UShort, b: UShort): UShort = if (a >= b) a else b
+
+/** Clamps to inclusive bounds; reversed bounds throw IllegalArgumentException. */
+public fun clamp(value: UShort, min: UShort, max: UShort): UShort {
+    if (min > max) throw IllegalArgumentException(Some("reversed math bounds"))
+    return if (value < min) min else if (value > max) max else value
+}
+
+/** Computes the exact result, throwing ArithmeticException on overflow. */
+public fun addExact(a: UShort, b: UShort): UShort {
+    val result = a + b
+    if (result < a) mathOverflow()
+    return result
+}
+
+/** Computes the exact result, throwing ArithmeticException on overflow. */
+public fun subtractExact(a: UShort, b: UShort): UShort {
+    val result = a - b
+    if (a < b) mathOverflow()
+    return result
+}
+
+/** Multiplies exactly, throwing ArithmeticException on overflow. */
+public fun multiplyExact(a: UShort, b: UShort): UShort {
+    if (b == 0u) return 0u
+    if (a > UShort.MAX_VALUE / b) mathOverflow()
+    val result = a * b
+    return result
+}
+
+/** Adds one with overflow checking. */
+public fun incrementExact(value: UShort): UShort = addExact(value, 1u)
+
+/** Subtracts one with overflow checking. */
+public fun decrementExact(value: UShort): UShort = subtractExact(value, 1u)
+
+/** Raises to a nonnegative power with overflow checking; zero to zero is one. */
+public fun powExact(value: UShort, exponent: Long): UShort {
+    if (exponent < 0L) throw ArithmeticException()
+    var result: UShort = 1u
+    var factor = value
+    var remaining = exponent
+    while (remaining != 0L) {
+        if ((remaining and 1L) != 0L) result = multiplyExact(result, factor)
+        remaining = remaining shr 1L
+        if (remaining != 0L) factor = multiplyExact(factor, factor)
+    }
+    return result
+}

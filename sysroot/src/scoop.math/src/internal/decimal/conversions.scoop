@@ -1,0 +1,21 @@
+package scoop.math
+
+internal fun decimalInteger(value: DecimalValue, exact: Boolean): IntegerStorage = decimalAtScale(value, decimalScale(0L), if (exact) RoundingMode.Unnecessary else RoundingMode.Down).coefficient
+
+internal fun decimalLowBits(value: DecimalValue): ULong {
+    if (integerSign(value.coefficient) == 0) return 0uL
+    if (value.scale.high < 0L) {
+        val exponent = value.scale.negate()
+        if (exponent.compare(decimalScale(64L)) >= 0L) return 0uL
+        var power = 1uL
+        var count = exponent.checked()
+        while (count > 0L) { power *= 10uL; count -= 1L }
+        return integerLowBits(value.coefficient) * power
+    }
+    return integerLowBits(decimalInteger(value, false))
+}
+
+internal fun decimalIntegerExactInRange(value: DecimalValue, minimum: IntegerStorage, maximum: IntegerStorage): IntegerStorage {
+    if (decimalCompare(value, DecimalValue(minimum, decimalScale(0L))) < 0L || decimalCompare(value, DecimalValue(maximum, decimalScale(0L))) > 0L) mathOverflow()
+    return decimalInteger(value, true)
+}

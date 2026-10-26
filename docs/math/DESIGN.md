@@ -1,8 +1,8 @@
 # Scoop math 库设计
 
-日期：2026-10-26。状态：设计完成，待实现。
+日期：2026-10-26。状态：首版已实现，验证与测量见 [实施记录](PROGRESS.md)。
 
-公共 API 与边界行为见 [math 规范草案](../specs/SCOOP-MATH-SPEC.md)。本设计以 Java 数学库的功能范围为参照，使用 Scoop 自己的值类型、运算符接口、原生编译及 GC 模型。优化管线在另一分支推进；本文按其 scalar、value type、icall/vcall 优化方向组织库代码，不将该分支尚未在本 checkout 验证的收益写成已实现事实。
+公共 API 与边界行为见 [math 规范](../specs/SCOOP-MATH-SPEC.md)。本设计以 Java 数学库的功能范围为参照，使用 Scoop 自己的值类型、运算符接口、原生编译及 GC 模型。实现按 scalar、value type、icall/vcall 优化方向组织普通源码；交付前已合并远端 main，测量以实际工具 revision 为准，不推定未验证分支的性能收益。
 
 ## 1. 核心决定
 
@@ -38,7 +38,7 @@
 
 Java 是 API 范围和对照数据来源，不是 Scoop 上游实现源码的默认移植来源。接口名相同也不能自动套用 Java 的相等、装箱、泛型擦除、数组结果或异常模型。
 
-调用形状如下；这些是待实现 API 的使用示意：
+调用形状如下；完整可运行程序见 [examples](../../sysroot/src/scoop.math/examples/README.md)：
 
 ```scoop
 import scoop.math.*
@@ -188,7 +188,7 @@ abs、min/max、符号、指数、相邻值、round 和可直接表达的受检/
 
 ## 8. 实现结构与交付阶段
 
-预期源码按实际职责拆分，不把全部大数算法放进一个 class 文件：
+源码按实际职责拆分，不把全部大数算法放进一个 class 文件：
 
 ```text
 sysroot/src/scoop.math/
@@ -197,19 +197,20 @@ sysroot/src/scoop.math/
   src/big_integer/            # Public type, arithmetic, bits, conversions and primes
   src/big_decimal/            # Public type, arithmetic, scale, rounding and text
   src/internal/integer/       # Storage, limbs, multiplication and division
+  src/internal/decimal/       # Wide scales, rounding, arithmetic and conversion
   tests/                     # Public behavior and internal algorithm tests
   consumer-tests/            # Ordinary precompiled consumer test Cone
   examples/
 ```
 
-目录是实现规划，不创建空 Cone、空方法或“尚未支持”分支。
+这些目录均已包含实现或实际用例，没有空 Cone、空方法或“尚未支持”分支。
 
 | 阶段 | 可用交付 | 完成条件 |
 | --- | --- | --- |
 | A：标量 math | 全部定宽及 Float/Double API、native 依赖和示例 | 三目标预编译库能消费、链接、运行；特殊值和受检边界通过 |
 | B：BigInteger | 不可变表示、完整算术/位运算/转换、sqrt、模运算和素数 API | 独立规则、组合行为和真实下游 Cone 通过；随机源来自 std |
 | C：BigDecimal | MathContext/RoundingMode、精确及限精度运算、scale、相等/hash 和格式 | 全模式舍入、精确除法、pow/sqrt、边界和集合组合通过 |
-| D：优化与分发验收 | 针对实际规模调节内核，接入优化分支测量，完整 sysroot 与文档 | 少量代表 IR/机器码检查和同机基准完成；所有公开入口已实现 |
+| D：优化与分发验收 | 针对实际规模调节内核，使用已合并优化测量，普通 sysroot 发布及文档 | 少量代表 IR/机器码检查和同机基准完成；所有公开入口已实现 |
 
 每一阶段先对照本规范完成该组 API，再发布其生产实现。阶段 A 的数值接口不依赖后续大数阶段才能运行。B/C 不以新优化 pass 是否消除所有分配为功能阻塞条件。公共合同变动仍先修改本规范；本设计不修改另一分支的 pipeline 或 runtime 契约。
 
@@ -231,7 +232,7 @@ sysroot/src/scoop.math/
 | 十进制高阶 | sqrt/pow 的精确值、中点、相消、负指数及单次舍入，Float/Double 的双重舍入反例 |
 | 组合 | `Add<T,T>` 泛型、Equals/Compare 视图、class 包含大数、数组、异常后输入未改变 |
 
-Java BigInteger/BigDecimal 用于生成可审阅的对照向量；相等、Long scale、负数素性、文本指数拼写和 pow 舍入等已声明差异不强求 Java 一致。浮点精确合同用高精度/精确算术生成预期，超越函数记录目标 libm 的参考值与误差，不把任一 JDK 的最后一位当作所有平台的唯一答案。生成工具与版本记录随测试说明保存，运行库测试不依赖本机安装 Java 或联网。
+首版使用 Python 整数与 decimal/libmpdec 生成可审阅的对照向量；相等、Long scale、负数素性、文本指数拼写和 pow 舍入等已声明差异不强求 Java 一致。浮点精确合同用高精度/精确算术生成预期，超越函数的样本测试采用明确容差，不把任一 JDK 的最后一位当作所有平台的唯一答案。生成工具与版本记录随测试说明保存，运行库测试不依赖本机安装 Python、Java 或联网。
 
 概率测试使用固定输入和显式 seeded Random 以复现路径；用已知合数/素数及底数范围验证实现，不把“随机跑很多次没失败”当作概率界的证明。误差样本也不能升级为超越函数的全域正确舍入证明。
 
@@ -253,11 +254,11 @@ Java BigInteger/BigDecimal 用于生成可审阅的对照向量；相等、Long 
 
 不预设“零分配”或某个加速倍数。先固定工具链、目标、输入及优化分支 revision，再报告优化前后数据；原始日志放在仓库外，文档只保留范围、结果、未闭合问题和限制。
 
-## 10. 本次文档变更边界
+## 10. 实现与验收边界
 
-本次新增公共规范和实施设计，并在语言规范、std 范围和路线图中挂接设计入口。没有改动 Rust/C/Scoop 实现，也没有把库标记为已实现；因此本次仅执行文档链接与空白检查，不声称完成数值、GC、链接或性能验收。
+标量、BigInteger、BigDecimal 全部公共入口已实现；算法只使用普通 Scoop 与标量 libm FFI。适用的 num-bigint 0.5.1 MIT 许可及固定 revision 已保存到 vendor，进入既有发行许可收集流程。
 
-后续实现遵守仓库的先格式化/lint、再定向验证流程。最终交付需包含三个现有目标的实际预编译库消费及测试，不将研究过某个上游或写好 API 清单等同于完成库。
+实现中发现导入常量的控制结果语句使用 provider 字节偏移的底层缺口，已先修 HIR 来源选择并加入独立回归，库沿正常源码与产物路径编译。三目标实际预编译消费、数值与 GC 检查、四组示例和性能样本见 [实施记录](PROGRESS.md)。Linux 依用户要求只运行最小定向测试，不把这些结果描述为 Linux 全套验收。
 
 ## 11. 依据
 

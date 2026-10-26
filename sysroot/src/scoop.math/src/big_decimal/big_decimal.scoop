@@ -1,0 +1,223 @@
+package scoop.math
+
+/**
+ * An immutable arbitrary-precision decimal, coefficient * 10^(-scale). Equality and hashing
+ * compare numerical values, ignoring scale; sameRepresentation compares stored representations.
+ */
+public class BigDecimal internal constructor(
+    private val coefficient: IntegerStorage,
+    /** The decimal scale; negative scales represent integer powers of ten. */
+    public val scale: Long
+) : Equals<BigDecimal>, Compare<BigDecimal>, Hash, ToString,
+    Add<BigDecimal, BigDecimal>, Sub<BigDecimal, BigDecimal>, Mul<BigDecimal, BigDecimal>,
+    Div<BigDecimal, BigDecimal>, Rem<BigDecimal, BigDecimal>, UnaryPlus<BigDecimal>,
+    UnaryMinus<BigDecimal>, Increment<BigDecimal>, Decrement<BigDecimal> {
+    /** Constructs an exact signed integer with scale zero. */
+    public constructor(value: Long) : this(IntegerStorage.Small(value), 0L) {}
+    /** Constructs an exact unsigned integer with scale zero. */
+    public constructor(value: ULong) : this(integerUnsigned(value), 0L) {}
+    /** Shares the immutable integer coefficient at the requested scale. */
+    public constructor(unscaledValue: BigInteger, scale: Long = 0L) : this(unscaledValue.integerStorage(), scale) {}
+    /** Constructs a signed coefficient at the requested scale. */
+    public constructor(unscaledValue: Long, scale: Long) : this(IntegerStorage.Small(unscaledValue), scale) {}
+
+    internal fun decimalValue(): DecimalValue = DecimalValue(coefficient, decimalScale(scale))
+    /** The mathematical sign: -1, 0, or 1. */
+    public val signum: Int get() = integerSign(coefficient)
+    /** Returns the immutable signed coefficient, without applying the scale. */
+    public fun unscaledValue(): BigInteger = BigInteger(coefficient)
+    /** Returns the coefficient's decimal digit count, with precision one for zero. */
+    public fun precision(): Long = decimalPrecision(coefficient)
+    /** Returns one unit in the last stored place, at this scale. */
+    public fun ulp(): BigDecimal = BigDecimal(1L, scale)
+    /** Compares mathematical values; scale and redundant trailing zeros do not affect equality. */
+    public override operator fun equals(other: BigDecimal): Boolean = compareTo(other) == 0L
+    /** Orders mathematical values, returning -1, 0, or 1 without expanding large scale gaps. */
+    public override operator fun compareTo(other: BigDecimal): Long = decimalCompare(decimalValue(), other.decimalValue())
+    /** Hashes the mathematical value, consistently across all equivalent representations. */
+    public override fun hash(): Long = decimalHash(decimalValue())
+    /** Compares both the coefficient and scale. */
+    public fun sameRepresentation(other: BigDecimal): Boolean = scale == other.scale && integerCompare(coefficient, other.coefficient) == 0L
+    /** Returns the canonical decimal text, preserving the coefficient and scale on parsing. */
+    public override fun toString(): String = decimalString(decimalValue(), false)
+    /** Formats without an exponent; parsing preserves the numeric value. */
+    public fun toPlainString(): String = decimalPlain(decimalValue())
+    /** Uses an exponent divisible by three when scientific notation is needed. */
+    public fun toEngineeringString(): String = decimalString(decimalValue(), true)
+
+    /** Returns the exact sum at the larger operand scale. */
+    public override operator fun plus(other: BigDecimal): BigDecimal = decimalResult(decimalAddExact(decimalValue(), other.decimalValue()))
+    /** Returns the exact difference at the larger operand scale. */
+    public override operator fun minus(other: BigDecimal): BigDecimal = decimalResult(decimalAddExact(decimalValue(), decimalNegate(other.decimalValue())))
+    /** Returns the exact product at the sum of operand scales. */
+    public override operator fun times(other: BigDecimal): BigDecimal = decimalResult(decimalMultiply(decimalValue(), other.decimalValue()))
+    /** Returns the exact finite decimal quotient; zero division or a nonterminating result throws. */
+    public override operator fun div(other: BigDecimal): BigDecimal = decimalResult(decimalDivideExact(decimalValue(), other.decimalValue()))
+    /** Returns the exact remainder after division toward zero; a zero divisor throws. */
+    public override operator fun rem(other: BigDecimal): BigDecimal = divideAndRemainder(other)._2
+    /** Retains this immutable representation. */
+    public override operator fun unaryPlus(): BigDecimal = this
+    /** Negates the coefficient, preserving scale. */
+    public override operator fun unaryMinus(): BigDecimal = BigDecimal(integerNegate(coefficient), scale)
+    /** Returns this value plus the scale-zero constant one. */
+    public override operator fun inc(): BigDecimal = this + BigDecimal.ONE
+    /** Returns this value minus the scale-zero constant one. */
+    public override operator fun dec(): BigDecimal = this - BigDecimal.ONE
+    /** Returns the absolute value, preserving scale. */
+    public fun abs(): BigDecimal = if (signum < 0) -this else this
+    /** Returns the smaller value, retaining this instance on numeric equality. */
+    public fun min(other: BigDecimal): BigDecimal = if (this <= other) this else other
+    /** Returns the larger value, retaining this instance on numeric equality. */
+    public fun max(other: BigDecimal): BigDecimal = if (this >= other) this else other
+
+    /** Rounds the mathematical sum once to the explicit significant-digit context. */
+    public fun plus(other: BigDecimal, context: MathContext): BigDecimal {
+        requireMathContext(context)
+        return decimalResult(decimalAdd(decimalValue(), other.decimalValue(), context))
+    }
+    /** Rounds the mathematical difference once to the explicit context. */
+    public fun minus(other: BigDecimal, context: MathContext): BigDecimal {
+        requireMathContext(context)
+        return decimalResult(decimalAdd(decimalValue(), decimalNegate(other.decimalValue()), context))
+    }
+    /** Rounds the mathematical product once to the explicit context. */
+    public fun times(other: BigDecimal, context: MathContext): BigDecimal {
+        requireMathContext(context)
+        return decimalResult(decimalRound(decimalMultiply(decimalValue(), other.decimalValue()), context))
+    }
+    /** Divides using explicit significant digits; unlimited precision requires a finite exact result. */
+    public fun div(other: BigDecimal, context: MathContext): BigDecimal {
+        requireMathContext(context)
+        return decimalResult(decimalDivide(decimalValue(), other.decimalValue(), context, decimalScale(scale).minus(other.scale)))
+    }
+    /** Divides at the requested fixed scale, using the explicit rounding mode. */
+    public fun div(other: BigDecimal, scale: Long, roundingMode: RoundingMode): BigDecimal = decimalResult(decimalDivideAtScale(decimalValue(), other.decimalValue(), decimalScale(scale), roundingMode)._1)
+    /** Rounds once to the requested significant digits; negative precision is invalid. */
+    public fun round(context: MathContext): BigDecimal {
+        requireMathContext(context)
+        return decimalResult(decimalRound(decimalValue(), context))
+    }
+    /** Returns the integral quotient toward zero; finite precision must represent it exactly. */
+    public fun divideToIntegralValue(other: BigDecimal, context: MathContext = MathContext.Unlimited): BigDecimal {
+        requireMathContext(context)
+        return decimalResult(decimalIntegral(decimalValue(), other.decimalValue(), context))
+    }
+    /** Returns the integral quotient and exact remainder; the context limits only the quotient. */
+    public fun divideAndRemainder(other: BigDecimal, context: MathContext = MathContext.Unlimited): (BigDecimal, BigDecimal) {
+        requireMathContext(context)
+        val quotient = decimalResult(decimalIntegral(decimalValue(), other.decimalValue(), context))
+        val remainder = decimalResult(decimalAddExact(decimalValue(), decimalNegate(decimalMultiply(quotient.decimalValue(), other.decimalValue()))))
+        return (quotient, remainder)
+    }
+    /** Returns the exact remainder; the context limits only the integral quotient. */
+    public fun rem(other: BigDecimal, context: MathContext): BigDecimal {
+        requireMathContext(context)
+        val quotient = decimalIntegral(decimalValue(), other.decimalValue(), context)
+        quotient.scale.checked()
+        return decimalResult(decimalAddExact(decimalValue(), decimalNegate(decimalMultiply(quotient, other.decimalValue()))))
+    }
+    /** Returns an exact nonnegative integer power; 0^0 is one and negative exponents throw. */
+    public fun pow(exponent: Long): BigDecimal = decimalResult(decimalPow(decimalValue(), scale, exponent, MathContext.Unlimited))
+    /** Rounds the exact power once; finite precision also permits negative exponents. */
+    public fun pow(exponent: Long, context: MathContext): BigDecimal {
+        requireMathContext(context)
+        return decimalResult(decimalPow(decimalValue(), scale, exponent, context))
+    }
+    /** Rounds the mathematical square root once; unlimited precision requires a finite exact root. */
+    public fun sqrt(context: MathContext = MathContext.Unlimited): BigDecimal {
+        requireMathContext(context)
+        return decimalResult(decimalSqrt(decimalValue(), context))
+    }
+
+    /** Rescales exactly or rounds explicitly; the default rejects a nonzero discarded fraction. */
+    public fun setScale(scale: Long, roundingMode: RoundingMode = RoundingMode.Unnecessary): BigDecimal = decimalResult(decimalAtScale(decimalValue(), decimalScale(scale), roundingMode))
+    /** Multiplies exactly by a power of ten without changing the coefficient. */
+    public fun scaleByPowerOfTen(exponent: Long): BigDecimal = decimalResult(DecimalValue(coefficient, decimalScale(scale).minus(exponent)))
+    /** Moves the point left and clamps the resulting scale to at least zero. */
+    public fun movePointLeft(distance: Long): BigDecimal {
+        val moved = decimalScale(scale).plus(distance)
+        return decimalResult(decimalAtScale(DecimalValue(coefficient, moved), decimalScaleMax(moved, decimalScale(0L)), RoundingMode.Unnecessary))
+    }
+    /** Moves the point right and clamps the resulting scale to at least zero. */
+    public fun movePointRight(distance: Long): BigDecimal {
+        val moved = decimalScale(scale).minus(distance)
+        return decimalResult(decimalAtScale(DecimalValue(coefficient, moved), decimalScaleMax(moved, decimalScale(0L)), RoundingMode.Unnecessary))
+    }
+    /** Removes decimal coefficient zeros; zero becomes ZERO, and an unrepresentable nonzero scale throws. */
+    public fun stripTrailingZeros(): BigDecimal = decimalResult(decimalStrip(decimalValue(), None))
+    /** Truncates toward zero and returns an immutable integer. */
+    public fun toBigInteger(): BigInteger = BigInteger(decimalInteger(decimalValue(), false))
+    /** Converts only if there is no fractional part; otherwise throws ArithmeticException. */
+    public fun toBigIntegerExact(): BigInteger = BigInteger(decimalInteger(decimalValue(), true))
+    /** Rounds directly to binary32, allowing infinity and signed underflow zero. */
+    public fun toFloat(): Float = decimalFloat(decimalValue())
+    /** Rounds directly to binary64, allowing infinity and signed underflow zero. */
+    public fun toDouble(): Double = decimalDouble(decimalValue())
+    /** Truncates toward zero and retains the target integer's low bits. */
+    public fun toByte(): Byte = decimalLowBits(decimalValue()).toByte()
+    /** Requires both an integral value and a representable Byte; otherwise throws ArithmeticException. */
+    public fun toByteExact(): Byte = integerLowBits(decimalIntegerExactInRange(decimalValue(), IntegerStorage.Small(Byte.MIN_VALUE.toLong()), IntegerStorage.Small(Byte.MAX_VALUE.toLong()))).toByte()
+    /** Truncates toward zero and retains the target integer's low bits. */
+    public fun toShort(): Short = decimalLowBits(decimalValue()).toShort()
+    /** Requires both an integral value and a representable Short; otherwise throws ArithmeticException. */
+    public fun toShortExact(): Short = integerLowBits(decimalIntegerExactInRange(decimalValue(), IntegerStorage.Small(Short.MIN_VALUE.toLong()), IntegerStorage.Small(Short.MAX_VALUE.toLong()))).toShort()
+    /** Truncates toward zero and retains the target integer's low bits. */
+    public fun toInt(): Int = decimalLowBits(decimalValue()).toInt()
+    /** Requires both an integral value and a representable Int; otherwise throws ArithmeticException. */
+    public fun toIntExact(): Int = integerLowBits(decimalIntegerExactInRange(decimalValue(), IntegerStorage.Small(Int.MIN_VALUE.toLong()), IntegerStorage.Small(Int.MAX_VALUE.toLong()))).toInt()
+    /** Truncates toward zero and retains the target integer's low bits. */
+    public fun toLong(): Long = decimalLowBits(decimalValue()).toLong()
+    /** Requires both an integral value and a representable Long; otherwise throws ArithmeticException. */
+    public fun toLongExact(): Long = integerLowBits(decimalIntegerExactInRange(decimalValue(), IntegerStorage.Small(Long.MIN_VALUE.toLong()), IntegerStorage.Small(Long.MAX_VALUE.toLong()))).toLong()
+    /** Truncates toward zero and retains the target integer's low bits. */
+    public fun toUByte(): UByte = decimalLowBits(decimalValue()).toUByte()
+    /** Requires both an integral value and a representable UByte; otherwise throws ArithmeticException. */
+    public fun toUByteExact(): UByte = integerLowBits(decimalIntegerExactInRange(decimalValue(), IntegerStorage.Small(0L), IntegerStorage.Small(UByte.MAX_VALUE.toLong()))).toUByte()
+    /** Truncates toward zero and retains the target integer's low bits. */
+    public fun toUShort(): UShort = decimalLowBits(decimalValue()).toUShort()
+    /** Requires both an integral value and a representable UShort; otherwise throws ArithmeticException. */
+    public fun toUShortExact(): UShort = integerLowBits(decimalIntegerExactInRange(decimalValue(), IntegerStorage.Small(0L), IntegerStorage.Small(UShort.MAX_VALUE.toLong()))).toUShort()
+    /** Truncates toward zero and retains the target integer's low bits. */
+    public fun toUInt(): UInt = decimalLowBits(decimalValue()).toUInt()
+    /** Requires both an integral value and a representable UInt; otherwise throws ArithmeticException. */
+    public fun toUIntExact(): UInt = integerLowBits(decimalIntegerExactInRange(decimalValue(), IntegerStorage.Small(0L), IntegerStorage.Small(UInt.MAX_VALUE.toLong()))).toUInt()
+    /** Truncates toward zero and retains the target integer's low bits. */
+    public fun toULong(): ULong = decimalLowBits(decimalValue()).toULong()
+    /** Requires both an integral value and a representable ULong; otherwise throws ArithmeticException. */
+    public fun toULongExact(): ULong = integerLowBits(decimalIntegerExactInRange(decimalValue(), IntegerStorage.Small(0L), integerUnsigned(ULong.MAX_VALUE))).toULong()
+
+    /** Constants and explicit decimal construction. */
+    public companion object {
+        /** Zero at scale zero. */
+        public val ZERO: BigDecimal = BigDecimal(0L)
+        /** One at scale zero. */
+        public val ONE: BigDecimal = BigDecimal(1L)
+        /** Two at scale zero. */
+        public val TWO: BigDecimal = BigDecimal(2L)
+        /** Ten at scale zero. */
+        public val TEN: BigDecimal = BigDecimal(10L)
+        /** Parses ASCII decimal text with an optional exponent, preserving trailing zeros. */
+        public fun parse(text: String): BigDecimal = decimalResult(decimalRequireParsed(text))
+        /** Returns None for malformed text or an unrepresentable parsed scale. */
+        public fun parseOrNone(text: String): BigDecimal? = when (decimalParse(text)) {
+            case Some(value) -> Some(decimalResult(value))
+            case None -> None
+        }
+        /** Parses the finite binary32 value's shortest round-trip decimal text. */
+        public fun fromFloat(value: Float): BigDecimal {
+            if (!value.isFinite()) throw IllegalArgumentException(Some("nonfinite decimal input"))
+            return parse(value.toString())
+        }
+        /** Parses the finite binary64 value's shortest round-trip decimal text. */
+        public fun fromDouble(value: Double): BigDecimal {
+            if (!value.isFinite()) throw IllegalArgumentException(Some("nonfinite decimal input"))
+            return parse(value.toString())
+        }
+        /** Expands the exact finite binary32 value, removing unnecessary fractional zeros. */
+        public fun fromFloatExact(value: Float): BigDecimal = decimalResult(decimalFromFloat(value))
+        /** Expands the exact finite binary64 value, removing unnecessary fractional zeros. */
+        public fun fromDoubleExact(value: Double): BigDecimal = decimalResult(decimalFromDouble(value))
+    }
+}
+
+internal fun decimalResult(value: DecimalValue): BigDecimal = BigDecimal(value.coefficient, value.scale.checked())

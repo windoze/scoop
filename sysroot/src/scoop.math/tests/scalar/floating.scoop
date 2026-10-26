@@ -1,0 +1,79 @@
+package scoop.math.tests.scalar
+
+import scoop.math.*
+import scoop.test.*
+
+@Test
+private class FloatingTests {
+    @Test
+    fun signsAndNeighbors() {
+        assertEquals(Long.MIN_VALUE, min(-0.0, 0.0).toBits())
+        assertEquals(0L, max(-0.0, 0.0).toBits())
+        assertTrue(min(Double.NaN, 1.0).isNaN())
+        assertTrue(max(1.0, Double.NaN).isNaN())
+        assertEquals(Double.MIN_VALUE, nextUp(-0.0))
+        assertEquals(-Double.MIN_VALUE, nextDown(0.0))
+        assertEquals(Long.MIN_VALUE, nextAfter(0.0, -0.0).toBits())
+        assertEquals(Double.MAX_VALUE, nextDown(Double.POSITIVE_INFINITY))
+        assertEquals(-Double.MAX_VALUE, nextUp(Double.NEGATIVE_INFINITY))
+        assertEquals(Int.MIN_VALUE, signum(-0f).toBits())
+        val nan = Double.fromBits(0xfff8000000000042uL.toLong())
+        assertEquals(0x7ff8000000000042L, abs(nan).toBits())
+        assertEquals(nan.toBits(), copySign(abs(nan), -1.0).toBits())
+        assertFailsWith<IllegalArgumentException> { clamp(0.0, 0.0, -0.0) }
+        assertFailsWith<IllegalArgumentException> { clamp(0f, Float.NaN, 1f) }
+    }
+
+    @Test
+    fun roundingAndScaling() {
+        assertEquals(2.0, rint(2.5))
+        assertEquals(4f, rint(3.5f))
+        assertEquals(-2L, round(-2.5))
+        assertEquals(3, round(2.5f))
+        assertEquals(0L, round(nextDown(0.5)))
+        assertEquals(0, round(nextDown(0.5f)))
+        assertEquals(Long.MAX_VALUE, round(Double.POSITIVE_INFINITY))
+        assertEquals(0, round(Float.NaN))
+        assertEquals(Double.MIN_VALUE, ulp(0.0))
+        assertEquals(Float.MIN_VALUE, ulp(Float.MIN_NORMAL))
+        assertEquals(0.00000011920928955078125f, ulp(1f))
+        assertEquals(-1023, getExponent(0.0))
+        assertEquals(128, getExponent(Float.NaN))
+        assertEquals(Double.MIN_VALUE, scalb(1.0, -1074))
+        assertEquals(Float.MIN_VALUE, scalb(1f, -149))
+        assertEquals(Long.MIN_VALUE, sqrt(-0.0).toBits())
+        assertEquals(-1.0, ieeeRemainder(7.0, 2.0))
+        val above = nextUp(1.0)
+        val below = 1.0 - 0.0000000000000002220446049250313
+        assertEquals(0.0, above * below - 1.0)
+        assertTrue(fma(above, below, -1.0) < 0.0)
+    }
+
+    @Test
+    fun elementaryFunctions() {
+        assertEquals(0.0, sin(0.0))
+        assertEquals(1f, cos(0f))
+        assertEquals(0.0, tan(0.0))
+        assertEquals(0f, asin(0f))
+        assertEquals(0.0, acos(1.0))
+        assertEquals(0f, atan(0f))
+        assertEquals(0.0, atan2(0.0, 1.0))
+        assertEquals(0.0, sinh(0.0))
+        assertEquals(1f, cosh(0f))
+        assertEquals(0.0, tanh(0.0))
+        assertEquals(1.0, exp(0.0))
+        assertEquals(0f, expm1(0f))
+        assertEquals(0.0, log(1.0))
+        assertEquals(2f, log10(100f))
+        assertEquals(0.0, log1p(0.0))
+        assertEquals(-2.0, cbrt(-8.0))
+        assertEquals(5f, hypot(3f, 4f))
+        assertEquals(8.0, pow(2.0, 3.0))
+        assertEquals(1f, pow(Float.NaN, 0f))
+        assertTrue(pow(1.0, Double.NaN).isNaN())
+        assertTrue(pow(-1.0, Double.POSITIVE_INFINITY).isNaN())
+        assertTrue(sqrt(-1f).isNaN())
+        assertEquals(Double.POSITIVE_INFINITY, hypot(Double.NaN, Double.POSITIVE_INFINITY))
+        assertTrue(abs(toDegrees(toRadians(90.0)) - 90.0) < 0.000000001)
+    }
+}

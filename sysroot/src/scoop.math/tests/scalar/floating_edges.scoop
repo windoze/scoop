@@ -1,0 +1,97 @@
+package scoop.math.tests.scalar
+
+import scoop.math.*
+import scoop.test.*
+
+private fun near(expected: Double, actual: Double) {
+    assertTrue(abs(expected - actual) <= 0.000000000000004 * abs(expected))
+}
+private fun near(expected: Float, actual: Float) {
+    assertTrue(abs(expected - actual) <= 0.000002f * abs(expected))
+}
+
+@Test
+private class FloatingEdgeTests {
+    @Test
+    fun nontrivialDoubleValues() {
+        near(0.8414709848078965, sin(1.0))
+        near(0.5403023058681397, cos(1.0))
+        near(1.5574077246549023, tan(1.0))
+        near(0.5235987755982989, asin(0.5))
+        near(1.0471975511965979, acos(0.5))
+        near(0.7853981633974483, atan(1.0))
+        near(2.356194490192345, atan2(1.0, -1.0))
+        near(1.1752011936438014, sinh(1.0))
+        near(1.5430806348152437, cosh(1.0))
+        near(0.7615941559557649, tanh(1.0))
+        near(E, exp(1.0))
+        near(1.0000000000000005e-15, expm1(1e-15))
+        near(0.6931471805599453, log(2.0))
+        near(0.3010299956639812, log10(2.0))
+        near(9.999999999999995e-16, log1p(1e-15))
+        near(1.2599210498948732, cbrt(2.0))
+        near(PI, toRadians(180.0))
+        near(360.0, toDegrees(TAU))
+        assertEquals(Double.MAX_VALUE, fma(Double.MAX_VALUE, 2.0, -Double.MAX_VALUE))
+        assertEquals(Double.MIN_VALUE, scalb(Double.MIN_NORMAL, -52))
+        assertEquals(Long.MIN_VALUE, ceil(-0.1).toBits())
+        assertEquals(Long.MIN_VALUE, rint(-0.1).toBits())
+        assertEquals(-1.0, floor(-0.1))
+        assertEquals(9007199254740992L, round(9007199254740992.0))
+    }
+
+    @Test
+    fun nontrivialFloatValues() {
+        near(0.8414709848078965f, sin(1f))
+        near(0.5403023058681397f, cos(1f))
+        near(1.5574077246549023f, tan(1f))
+        near(0.5235987755982989f, asin(0.5f))
+        near(1.0471975511965979f, acos(0.5f))
+        near(0.7853981633974483f, atan(1f))
+        near(2.356194490192345f, atan2(1f, -1f))
+        near(1.1752011936438014f, sinh(1f))
+        near(1.5430806348152437f, cosh(1f))
+        near(0.7615941559557649f, tanh(1f))
+        near(E.toFloat(), exp(1f))
+        near(1.00000005e-7f, expm1(1e-7f))
+        near(0.6931471805599453f, log(2f))
+        near(0.3010299956639812f, log10(2f))
+        near(9.9999995e-8f, log1p(1e-7f))
+        near(1.2599210498948732f, cbrt(2f))
+        near(PI.toFloat(), toRadians(180f))
+        near(360f, toDegrees(TAU.toFloat()))
+        assertEquals(Float.MAX_VALUE, fma(Float.MAX_VALUE, 2f, -Float.MAX_VALUE))
+        assertEquals(Float.MIN_VALUE, scalb(Float.MIN_NORMAL, -23))
+        assertEquals(Int.MIN_VALUE, ceil(-0.1f).toBits())
+        assertEquals(Int.MIN_VALUE, rint(-0.1f).toBits())
+        assertEquals(-1f, floor(-0.1f))
+        assertEquals(16777216, round(16777216f))
+    }
+
+    @Test
+    fun ieeeSpecialValues() {
+        assertEquals(Double.NEGATIVE_INFINITY, log(-0.0))
+        assertEquals(Float.NEGATIVE_INFINITY, log1p(-1f))
+        assertTrue(log(-1.0).isNaN())
+        assertTrue(sin(Double.POSITIVE_INFINITY).isNaN())
+        assertTrue(acos(2f).isNaN())
+        assertTrue(ieeeRemainder(1f, 0f).isNaN())
+        assertTrue(ieeeRemainder(Double.POSITIVE_INFINITY, 2.0).isNaN())
+        assertEquals(2f, ieeeRemainder(2f, Float.POSITIVE_INFINITY))
+        assertEquals(Long.MIN_VALUE, ieeeRemainder(-4.0, 2.0).toBits())
+        assertEquals(Long.MIN_VALUE, pow(-0.0, 3.0).toBits())
+        assertEquals(Float.NEGATIVE_INFINITY, pow(-0f, -3f))
+        assertEquals(0.0, pow(Double.NEGATIVE_INFINITY, -2.0))
+        assertTrue(pow(-2f, 0.5f).isNaN())
+        assertTrue(pow(1f, Float.POSITIVE_INFINITY).isNaN())
+        assertEquals(1.0, pow(Double.NaN, -0.0))
+        assertEquals(Double.MAX_VALUE, nextAfter(Double.POSITIVE_INFINITY, 0.0))
+        assertEquals(-Float.MAX_VALUE, nextAfter(Float.NEGATIVE_INFINITY, 0f))
+        assertEquals(Float.POSITIVE_INFINITY, ulp(Float.NEGATIVE_INFINITY))
+        assertTrue(ulp(Double.NaN).isNaN())
+        assertEquals(1024, getExponent(Double.POSITIVE_INFINITY))
+        assertEquals(-127, getExponent(Float.MIN_VALUE))
+        assertEquals(0L, min(0.0, 0.0).toBits())
+        assertEquals(Int.MIN_VALUE, max(-0f, -0f).toBits())
+    }
+}

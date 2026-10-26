@@ -1,0 +1,55 @@
+package scoop.math
+
+/** Returns the smaller value. */
+public fun min(a: UByte, b: UByte): UByte = if (a <= b) a else b
+
+/** Returns the larger value. */
+public fun max(a: UByte, b: UByte): UByte = if (a >= b) a else b
+
+/** Clamps to inclusive bounds; reversed bounds throw IllegalArgumentException. */
+public fun clamp(value: UByte, min: UByte, max: UByte): UByte {
+    if (min > max) throw IllegalArgumentException(Some("reversed math bounds"))
+    return if (value < min) min else if (value > max) max else value
+}
+
+/** Computes the exact result, throwing ArithmeticException on overflow. */
+public fun addExact(a: UByte, b: UByte): UByte {
+    val result = a + b
+    if (result < a) mathOverflow()
+    return result
+}
+
+/** Computes the exact result, throwing ArithmeticException on overflow. */
+public fun subtractExact(a: UByte, b: UByte): UByte {
+    val result = a - b
+    if (a < b) mathOverflow()
+    return result
+}
+
+/** Multiplies exactly, throwing ArithmeticException on overflow. */
+public fun multiplyExact(a: UByte, b: UByte): UByte {
+    if (b == 0u) return 0u
+    if (a > UByte.MAX_VALUE / b) mathOverflow()
+    val result = a * b
+    return result
+}
+
+/** Adds one with overflow checking. */
+public fun incrementExact(value: UByte): UByte = addExact(value, 1u)
+
+/** Subtracts one with overflow checking. */
+public fun decrementExact(value: UByte): UByte = subtractExact(value, 1u)
+
+/** Raises to a nonnegative power with overflow checking; zero to zero is one. */
+public fun powExact(value: UByte, exponent: Long): UByte {
+    if (exponent < 0L) throw ArithmeticException()
+    var result: UByte = 1u
+    var factor = value
+    var remaining = exponent
+    while (remaining != 0L) {
+        if ((remaining and 1L) != 0L) result = multiplyExact(result, factor)
+        remaining = remaining shr 1L
+        if (remaining != 0L) factor = multiplyExact(factor, factor)
+    }
+    return result
+}

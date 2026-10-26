@@ -1,0 +1,15 @@
+schema = 1
+
+[cone]
+group = "scoop.tests"
+name = "math-consumer"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.math" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

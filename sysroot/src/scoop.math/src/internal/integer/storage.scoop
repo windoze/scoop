@@ -1,0 +1,107 @@
+package scoop.math
+
+internal enum IntegerStorage {
+    Small(val value: Long),
+    Large(val negative: Boolean, val magnitude: Array<UInt>)
+}
+
+internal fun integerSign(value: IntegerStorage): Int = when (value) {
+    case Small(number) -> signum(number)
+    case Large(negative, _) -> if (negative) -1 else 1
+}
+
+internal fun integerMagnitude(value: IntegerStorage): Array<UInt> = when (value) {
+    case Small(number) -> {
+        val bits = (if (number < 0L) -number else number).toULong()
+        val count = if (bits == 0uL) 0L else if (bits <= UInt.MAX_VALUE.toULong()) 1L else 2L
+        Array<UInt>(count) { index -> (bits shr (index * 32L)).toUInt() }
+    }
+    case Large(_, magnitude) -> magnitude
+}
+
+internal fun magnitudeLength(words: List<UInt>): Long {
+    var length = words.size
+    while (length > 0L && words[length - 1L] == 0u) length -= 1L
+    return length
+}
+
+internal fun magnitudeSnapshot(words: List<UInt>): Array<UInt> {
+    val count = magnitudeLength(words)
+    return Array<UInt>(count) { index -> words[index] }
+}
+
+internal fun integerFromMagnitude(negative: Boolean, words: Array<UInt>): IntegerStorage {
+    if (words.size == 0L) return IntegerStorage.Small(0L)
+    if (words.size <= 2L) {
+        val low = words[0L].toULong()
+        val bits = if (words.size == 1L) low else low or (words[1L].toULong() shl 32L)
+        val limit = if (negative) 0x8000000000000000uL else Long.MAX_VALUE.toULong()
+        if (bits <= limit) return IntegerStorage.Small(if (negative) -bits.toLong() else bits.toLong())
+    }
+    return IntegerStorage.Large(negative, words)
+}
+
+internal fun integerUnsigned(value: ULong): IntegerStorage {
+    if (value <= Long.MAX_VALUE.toULong()) return IntegerStorage.Small(value.toLong())
+    return IntegerStorage.Large(false, Array<UInt>(2L) { index -> (value shr (index * 32L)).toUInt() })
+}
+
+internal fun integerNegate(value: IntegerStorage): IntegerStorage = when (value) {
+    case Small(number) -> if (number == Long.MIN_VALUE) integerUnsigned(0x8000000000000000uL) else IntegerStorage.Small(-number)
+    case Large(negative, magnitude) -> integerFromMagnitude(!negative, magnitude)
+}
+
+internal fun integerAbs(value: IntegerStorage): IntegerStorage = if (integerSign(value) < 0) integerNegate(value) else value
+
+internal fun magnitudeCompare(a: Array<UInt>, b: Array<UInt>): Long {
+    if (a.size != b.size) return if (a.size < b.size) -1L else 1L
+    var index = a.size
+    while (index > 0L) {
+        index -= 1L
+        if (a[index] != b[index]) return if (a[index] < b[index]) -1L else 1L
+    }
+    return 0L
+}
+
+internal fun integerCompare(a: IntegerStorage, b: IntegerStorage): Long {
+    return when (a) {
+        case Small(x) -> when (b) {
+            case Small(y) -> if (x < y) -1L else if (x > y) 1L else 0L
+            case Large(_, _) -> integerCompareMagnitude(a, b)
+        }
+        case Large(_, _) -> integerCompareMagnitude(a, b)
+    }
+}
+
+private fun integerCompareMagnitude(a: IntegerStorage, b: IntegerStorage): Long {
+    val leftSign = integerSign(a)
+    val rightSign = integerSign(b)
+    if (leftSign != rightSign) return if (leftSign < rightSign) -1L else 1L
+    val order = magnitudeCompare(integerMagnitude(a), integerMagnitude(b))
+    return if (leftSign < 0) -order else order
+}
+
+internal fun magnitudeWord(words: Array<UInt>, index: Long): UInt = if (index >= 0L && index < words.size) words[index] else 0u
+
+internal fun integerLowBits(value: IntegerStorage): ULong = when (value) {
+    case Small(number) -> number.toULong()
+    case Large(negative, words) -> {
+        val bits = words[0L].toULong() or (magnitudeWord(words, 1L).toULong() shl 32L)
+        if (negative) 0uL - bits else bits
+    }
+}
+
+internal fun integerHash(value: IntegerStorage): Long {
+    return when (value) {
+        case Small(number) -> number
+        case Large(_, _) -> integerMagnitudeHash(value)
+    }
+}
+
+private fun integerMagnitudeHash(value: IntegerStorage): Long {
+    val words = integerMagnitude(value)
+    var hash = integerSign(value).toLong()
+    var index = words.size
+    while (index > 0L) { index -= 1L; hash = hash * 31L + words[index].toLong() }
+    return hash
+}

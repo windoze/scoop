@@ -1,0 +1,43 @@
+package scoop.math.tests.big_integer
+
+import scoop.math.*
+import scoop.test.*
+import scoop.random.Random
+
+@Test
+private class BigIntegerAlgorithmTests {
+    @Test
+    fun karatsubaAndUnbalancedProducts() {
+        val random = Random.seeded(1937L)
+        for (count in [63L, 64L, 65L, 100L, 129L]) {
+            val left = Array<UInt>(count) { _ -> random.nextUInt() or 1u }
+            for (extra in [0L, 1L, count, count * 2L]) {
+                val right = Array<UInt>(count + extra) { _ -> random.nextUInt() or 1u }
+                val expected = BigInteger(integerFromMagnitude(false, magnitudeMultiplySchoolbook(left, right)))
+                val actual = BigInteger(integerFromMagnitude(false, magnitudeMultiply(left, right)))
+                assertEquals(expected, actual)
+                val factor = BigInteger(integerFromMagnitude(false, left))
+                assertEquals(BigInteger(integerFromMagnitude(false, right)), actual / factor)
+            }
+        }
+    }
+
+    @Test
+    fun montgomeryCarriesAndEvenModulus() {
+        val base = "340282366920938463463374607431768211455".toBigInteger()
+        val exponent = "12345678901234567890".toBigInteger()
+        val odd = "170141183460469231731687303715884105727".toBigInteger()
+        val even = odd + BigInteger.ONE
+        assertEquals("1", base.modPow(exponent, odd).toString())
+        assertEquals("1", base.modPow(exponent, even).toString())
+        val random = Random.seeded(79L)
+        var iteration = 0L
+        while (iteration < 20L) {
+            val modulus = BigInteger(random.nextULong()).setBit(63L).setBit(0L)
+            val value = BigInteger(random.nextULong())
+            val e = iteration + 1L
+            assertEquals(value.pow(e).mod(modulus), value.modPow(BigInteger(e), modulus))
+            iteration += 1L
+        }
+    }
+}

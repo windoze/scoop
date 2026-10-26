@@ -1,0 +1,99 @@
+package scoop.math
+
+import scoop.text.NumberFormatException
+
+internal fun decimalParse(text: String): DecimalValue? {
+    val chars = text.toCharArray()
+    if (chars.size == 0L) return None
+    var index = 0L
+    var negative = false
+    if (chars[index] == '+' || chars[index] == '-') {
+        negative = chars[index] == '-'
+        index += 1L
+    }
+    val digits = ArrayList<Char>()
+    var point = false
+    var fraction = 0L
+    while (index < chars.size && chars[index] != 'e' && chars[index] != 'E') {
+        val c = chars[index]
+        if (c == '.' && !point) point = true
+        else if (c >= '0' && c <= '9') {
+            digits.add(c)
+            if (point) fraction += 1L
+        } else return None
+        index += 1L
+    }
+    if (digits.size == 0L) return None
+    var exponent = decimalScale(0L)
+    if (index < chars.size) {
+        index += 1L
+        var exponentNegative = false
+        if (index < chars.size && (chars[index] == '+' || chars[index] == '-')) {
+            exponentNegative = chars[index] == '-'
+            index += 1L
+        }
+        if (index == chars.size) return None
+        var magnitude = 0uL
+        while (index < chars.size) {
+            val c = chars[index]
+            if (c < '0' || c > '9') return None
+            val digit = (c.code - 48).toULong()
+            if (magnitude > (ULong.MAX_VALUE - digit) / 10uL) return None
+            magnitude = magnitude * 10uL + digit
+            index += 1L
+        }
+        exponent = DecimalScale(0L, magnitude)
+        if (exponentNegative) exponent = exponent.negate()
+    }
+    val scale = decimalScale(fraction).minus(exponent)
+    if (!scale.fitsLong()) return None
+    val magnitude = integerRequireParsed(String.fromChars(Array<Char>(digits.size) { position -> digits[position] }), 10)
+    return Some(DecimalValue(if (negative) integerNegate(magnitude) else magnitude, scale))
+}
+
+internal fun decimalRequireParsed(text: String): DecimalValue = when (decimalParse(text)) {
+    case Some(value) -> value
+    case None -> throw NumberFormatException("invalid decimal")
+}
+
+private fun decimalPlainParts(digits: Array<Char>, negative: Boolean, scale: Long): String {
+    val sign = if (negative) 1L else 0L
+    val count = if (scale <= 0L) addExact(subtractExact(digits.size, scale), sign)
+        else if (scale >= digits.size) addExact(addExact(scale, 2L), sign) else addExact(addExact(digits.size, 1L), sign)
+    return String.fromChars(Array<Char>(count) { position ->
+        val index = position - sign
+        if (index < 0L) '-'
+        else if (scale <= 0L) (if (index < digits.size) digits[index] else '0')
+        else if (scale >= digits.size) {
+            if (index == 0L) '0'
+            else if (index == 1L) '.'
+            else if (index - 2L < scale - digits.size) '0'
+            else digits[index - 2L - (scale - digits.size)]
+        } else {
+            val point = digits.size - scale
+            if (index == point) '.' else digits[if (index < point) index else index - 1L]
+        }
+    })
+}
+
+internal fun decimalPlain(value: DecimalValue): String {
+    if (integerSign(value.coefficient) == 0 && value.scale.high < 0L) return "0"
+    return decimalPlainParts(integerString(integerAbs(value.coefficient), 10).toCharArray(), integerSign(value.coefficient) < 0, value.scale.checked())
+}
+
+internal fun decimalString(value: DecimalValue, engineering: Boolean): String {
+    val digits = integerString(integerAbs(value.coefficient), 10).toCharArray()
+    val adjusted = decimalScale(digits.size - 1L).minus(value.scale)
+    if (value.scale.high >= 0L && adjusted.compare(decimalScale(-6L)) >= 0L) return decimalPlain(value)
+    val shift = if (engineering) integerLowBits(integerMod(adjusted.integer(), IntegerStorage.Small(3L))).toLong() else 0L
+    val leading = 1L + shift
+    val count = max(digits.size, leading)
+    val significand = String.fromChars(Array<Char>(addExact(count, (if (digits.size > leading) 1L else 0L))) { index ->
+        if (index == leading && digits.size > leading) '.'
+        else {
+            val position = if (index > leading && digits.size > leading) index - 1L else index
+            if (position < digits.size) digits[position] else '0'
+        }
+    })
+    return (if (integerSign(value.coefficient) < 0) "-" else "") + significand + "e" + adjusted.minus(shift).text()
+}

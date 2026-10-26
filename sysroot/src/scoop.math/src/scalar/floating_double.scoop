@@ -1,0 +1,313 @@
+package scoop.math
+
+import scoop.math.min as numericMin
+import scoop.math.max as numericMax
+
+/** Clears the sign bit, retaining every other bit including NaN payloads. */
+public fun abs(x: Double): Double = Double.fromBits(x.toBits() and Long.MAX_VALUE)
+
+/** Copies only the sign bit from sign into magnitude. */
+public fun copySign(magnitude: Double, sign: Double): Double = Double.fromBits((magnitude.toBits() and Long.MAX_VALUE) or (sign.toBits() and Long.MIN_VALUE))
+
+/** Returns signed one, preserving signed zero and propagating NaN. */
+public fun signum(x: Double): Double = if (x.isNaN() || x == 0.0) x else copySign(1.0, x)
+
+/** Returns the smaller value, propagating NaN and ordering negative zero first. */
+public fun min(a: Double, b: Double): Double {
+    if (a.isNaN()) return a
+    if (b.isNaN()) return b
+    if (a == 0.0 && b == 0.0) return Double.fromBits(a.toBits() or b.toBits())
+    return if (a <= b) a else b
+}
+
+/** Returns the larger value, propagating NaN and ordering negative zero first. */
+public fun max(a: Double, b: Double): Double {
+    if (a.isNaN()) return a
+    if (b.isNaN()) return b
+    if (a == 0.0 && b == 0.0) return Double.fromBits(a.toBits() and b.toBits())
+    return if (a >= b) a else b
+}
+
+/** Clamps to inclusive numeric bounds; NaN or reversed bounds throw. */
+public fun clamp(value: Double, min: Double, max: Double): Double {
+    if (min.isNaN() || max.isNaN() || min > max ||
+        (min == 0.0 && max == 0.0 && min.toBits() == 0L && max.toBits() < 0L))
+        throw IllegalArgumentException(Some("invalid floating bounds"))
+    return numericMin(numericMax(value, min), max)
+}
+
+/** Returns the adjacent representable value toward positive infinity. */
+public fun nextUp(x: Double): Double {
+    if (x.isNaN() || x == Double.POSITIVE_INFINITY) return x
+    if (x == 0.0) return Double.MIN_VALUE
+    return Double.fromBits(x.toBits() + (if (x < 0.0) -1L else 1L))
+}
+
+/** Returns the adjacent representable value toward negative infinity. */
+public fun nextDown(x: Double): Double {
+    if (x.isNaN() || x == Double.NEGATIVE_INFINITY) return x
+    if (x == 0.0) return -Double.MIN_VALUE
+    return Double.fromBits(x.toBits() + (if (x < 0.0) 1L else -1L))
+}
+
+/** Returns the neighbor toward direction; equal inputs return direction including its zero sign. */
+public fun nextAfter(x: Double, direction: Double): Double {
+    if (x.isNaN()) return x
+    if (direction.isNaN()) return direction
+    if (x == direction) return direction
+    return if (x < direction) nextUp(x) else nextDown(x)
+}
+
+/** Returns the unbiased exponent; zero/subnormal and nonfinite values use boundary sentinels. */
+public fun getExponent(x: Double): Int = ((x.toBits() ushr 52L) and 0x7ffL).toInt() - 1023
+
+/** Returns the spacing at the magnitude of x, with IEEE zero and nonfinite handling. */
+public fun ulp(x: Double): Double {
+    if (x.isNaN() || x.isInfinite()) return abs(x)
+    val exponent = getExponent(x)
+    if (exponent < -1022) return Double.MIN_VALUE
+    val power = exponent - 52
+    return if (power >= -1022) Double.fromBits((power + 1023).toLong() shl 52L)
+        else Double.fromBits(1L shl (power - (-1074)).toLong())
+}
+
+/** Rounds to the nearest integer with ties toward positive infinity; overflow saturates and NaN becomes zero. */
+public fun round(x: Double): Long {
+    if (!x.isFinite()) return x.toLong()
+    val lower = floor(x)
+    return (if (x - lower >= 0.5) lower + 1.0 else lower).toLong()
+}
+
+/** Converts angle units using a coefficient rounded directly to the operand precision. */
+public fun toRadians(x: Double): Double = x * 0.017453292519943295769236907684886127134428718885417254560971914401710091146034494
+
+/** Converts angle units using a coefficient rounded directly to the operand precision. */
+public fun toDegrees(x: Double): Double = x * 57.295779513082320876798154814105170332405472466564321549160243861202847148321553
+
+/** Evaluates sin at the operand precision using the target math library. */
+public fun sin(x: Double): Double {
+    @Unsafe { return nativeSin(x) }
+}
+
+/** Evaluates cos at the operand precision using the target math library. */
+public fun cos(x: Double): Double {
+    @Unsafe { return nativeCos(x) }
+}
+
+/** Evaluates tan at the operand precision using the target math library. */
+public fun tan(x: Double): Double {
+    @Unsafe { return nativeTan(x) }
+}
+
+/** Evaluates asin at the operand precision using the target math library. */
+public fun asin(x: Double): Double {
+    @Unsafe { return nativeAsin(x) }
+}
+
+/** Evaluates acos at the operand precision using the target math library. */
+public fun acos(x: Double): Double {
+    @Unsafe { return nativeAcos(x) }
+}
+
+/** Evaluates atan at the operand precision using the target math library. */
+public fun atan(x: Double): Double {
+    @Unsafe { return nativeAtan(x) }
+}
+
+/** Evaluates sinh at the operand precision using the target math library. */
+public fun sinh(x: Double): Double {
+    @Unsafe { return nativeSinh(x) }
+}
+
+/** Evaluates cosh at the operand precision using the target math library. */
+public fun cosh(x: Double): Double {
+    @Unsafe { return nativeCosh(x) }
+}
+
+/** Evaluates tanh at the operand precision using the target math library. */
+public fun tanh(x: Double): Double {
+    @Unsafe { return nativeTanh(x) }
+}
+
+/** Evaluates exp at the operand precision using the target math library. */
+public fun exp(x: Double): Double {
+    @Unsafe { return nativeExp(x) }
+}
+
+/** Evaluates expm1 at the operand precision using the target math library. */
+public fun expm1(x: Double): Double {
+    @Unsafe { return nativeExpm1(x) }
+}
+
+/** Evaluates log at the operand precision using the target math library. */
+public fun log(x: Double): Double {
+    @Unsafe { return nativeLog(x) }
+}
+
+/** Evaluates log10 at the operand precision using the target math library. */
+public fun log10(x: Double): Double {
+    @Unsafe { return nativeLog10(x) }
+}
+
+/** Evaluates log1p at the operand precision using the target math library. */
+public fun log1p(x: Double): Double {
+    @Unsafe { return nativeLog1p(x) }
+}
+
+/** Returns the correctly rounded square root, preserving negative zero. */
+public fun sqrt(x: Double): Double {
+    @Unsafe { return nativeSqrt(x) }
+}
+
+/** Evaluates cbrt at the operand precision using the target math library. */
+public fun cbrt(x: Double): Double {
+    @Unsafe { return nativeCbrt(x) }
+}
+
+/** Evaluates floor at the operand precision using the target math library. */
+public fun floor(x: Double): Double {
+    @Unsafe { return nativeFloor(x) }
+}
+
+/** Evaluates ceil at the operand precision using the target math library. */
+public fun ceil(x: Double): Double {
+    @Unsafe { return nativeCeil(x) }
+}
+
+/** Rounds to an integral floating value with ties to even. */
+public fun rint(x: Double): Double {
+    @Unsafe { return nativeRint(x) }
+}
+
+/** Evaluates atan2 at the operand precision using the target math library. */
+public fun atan2(y: Double, x: Double): Double {
+    @Unsafe { return nativeAtan2(y, x) }
+}
+
+/** Evaluates hypot at the operand precision using the target math library. */
+public fun hypot(x: Double, y: Double): Double {
+    if (x.isInfinite() || y.isInfinite()) return Double.POSITIVE_INFINITY
+    @Unsafe { return nativeHypot(x, y) }
+}
+
+/** Computes a*b+c with one final rounding. */
+public fun fma(a: Double, b: Double, c: Double): Double {
+    @Unsafe { return nativeFma(a, b, c) }
+}
+
+/** Returns the IEEE remainder with a nearest-even integer quotient. */
+public fun ieeeRemainder(x: Double, y: Double): Double {
+    @Unsafe { return nativeIeeeRemainder(x, y) }
+}
+
+/** Scales by an exact power of two with one final rounding. */
+public fun scalb(x: Double, scaleFactor: Int): Double {
+    @Unsafe { return nativeScalb(x, scaleFactor) }
+}
+
+/** Raises x to y using Java-compatible exceptional-value rules. */
+public fun pow(x: Double, y: Double): Double {
+    if (y == 0.0) return 1.0
+    if (x.isNaN() || y.isNaN() || (abs(x) == 1.0 && y.isInfinite())) return Double.NaN
+    @Unsafe { return nativePow(x, y) }
+}
+
+@GCLeaf
+@Extern(name = "sin")
+private fun nativeSin(x: Double): Double
+
+@GCLeaf
+@Extern(name = "cos")
+private fun nativeCos(x: Double): Double
+
+@GCLeaf
+@Extern(name = "tan")
+private fun nativeTan(x: Double): Double
+
+@GCLeaf
+@Extern(name = "asin")
+private fun nativeAsin(x: Double): Double
+
+@GCLeaf
+@Extern(name = "acos")
+private fun nativeAcos(x: Double): Double
+
+@GCLeaf
+@Extern(name = "atan")
+private fun nativeAtan(x: Double): Double
+
+@GCLeaf
+@Extern(name = "sinh")
+private fun nativeSinh(x: Double): Double
+
+@GCLeaf
+@Extern(name = "cosh")
+private fun nativeCosh(x: Double): Double
+
+@GCLeaf
+@Extern(name = "tanh")
+private fun nativeTanh(x: Double): Double
+
+@GCLeaf
+@Extern(name = "exp")
+private fun nativeExp(x: Double): Double
+
+@GCLeaf
+@Extern(name = "expm1")
+private fun nativeExpm1(x: Double): Double
+
+@GCLeaf
+@Extern(name = "log")
+private fun nativeLog(x: Double): Double
+
+@GCLeaf
+@Extern(name = "log10")
+private fun nativeLog10(x: Double): Double
+
+@GCLeaf
+@Extern(name = "log1p")
+private fun nativeLog1p(x: Double): Double
+
+@GCLeaf
+@Extern(name = "sqrt")
+private fun nativeSqrt(x: Double): Double
+
+@GCLeaf
+@Extern(name = "cbrt")
+private fun nativeCbrt(x: Double): Double
+
+@GCLeaf
+@Extern(name = "floor")
+private fun nativeFloor(x: Double): Double
+
+@GCLeaf
+@Extern(name = "ceil")
+private fun nativeCeil(x: Double): Double
+
+@GCLeaf
+@Extern(name = "rint")
+private fun nativeRint(x: Double): Double
+
+@GCLeaf
+@Extern(name = "atan2")
+private fun nativeAtan2(y: Double, x: Double): Double
+
+@GCLeaf
+@Extern(name = "hypot")
+private fun nativeHypot(x: Double, y: Double): Double
+
+@GCLeaf
+@Extern(name = "fma")
+private fun nativeFma(a: Double, b: Double, c: Double): Double
+
+@GCLeaf
+@Extern(name = "remainder")
+private fun nativeIeeeRemainder(x: Double, y: Double): Double
+
+@GCLeaf
+@Extern(name = "scalbn")
+private fun nativeScalb(x: Double, scaleFactor: Int): Double
+
+@GCLeaf
+@Extern(name = "pow")
+private fun nativePow(x: Double, y: Double): Double
