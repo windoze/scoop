@@ -1,0 +1,43 @@
+package scoop.log
+
+/** Log severity, ordered from Trace through Error. */
+public enum LogLevel : ToString {
+    /** Detailed execution tracing. */
+    Trace,
+    /** Diagnostic information normally disabled in production. */
+    Debug,
+    /** Normal application events. */
+    Info,
+    /** A condition requiring attention. */
+    Warn,
+    /** An operation failed. */
+    Error
+
+    /** Returns the stable uppercase label used in text logs. */
+    public override fun toString(): String = when (this) {
+        case Trace -> "TRACE"
+        case Debug -> "DEBUG"
+        case Info -> "INFO"
+        case Warn -> "WARN"
+        case Error -> "ERROR"
+    }
+}
+
+/**
+ * An evaluated log event. Exception fields retain their original objects; they are not deep
+ * snapshots of mutable exception state.
+ */
+public struct LogRecord(
+    /** The requested event severity, including when message evaluation fails. */
+    val level: LogLevel,
+    /** The caller-selected category. */
+    val target: String,
+    /** The evaluated message or a message-evaluation failure description. */
+    val message: String,
+    /** The original logging call's source location. */
+    val location: SourceLocation,
+    /** An optional application exception supplied by the caller. */
+    val cause: Throwable? = None,
+    /** The original exception thrown by the message function, if any. */
+    val messageFailure: Throwable? = None
+)

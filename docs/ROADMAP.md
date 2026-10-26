@@ -748,6 +748,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 提供可复用模式、编号／命名捕获、惰性迭代、字面／模板／回调替换、分割与转义；公开位置使用 Long Unicode 标量索引，结果为独立快照，支持 close/use 和构造阶段可选 JIT。
 - Darwin／GNU／musl 各 19 项库测试、3 项预编译库消费者测试及 API 文档检查通过；Darwin 发行组装与组装目录中的消费者验证通过。仅验证 Scoop 适配与公开行为，不新增 fixture、底层缺口或上游 Unicode 符合性测试。
 
+### 日志 facade 与 console provider（已完成，[设计](log/DESIGN.md)、[规范](specs/SCOOP-LOG-SPEC.md)、[实施记录](log/PROGRESS.md)）
+
+- 普通 `scoop.log` 与 `scoop.log.console` Cone 分离调用 API 和同步 stdout／stderr 输出；保留 provider 协议供后续实现扩展。
+- 消息闭包失败转为保留原异常的同级别事件；provider 失败执行固定格式 stderr fallback，fallback 再失败则放弃，不向业务传播。
+- Darwin／GNU／musl 各 14 项库内 `scoop.test` 和 1 项标准流 fixture 通过；示例、API 文档与静态检查通过，Linux 只做日志定向验证。
+
 ## 4. 待补齐清单（backlog）
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。

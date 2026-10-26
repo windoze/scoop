@@ -1,0 +1,67 @@
+package scoop.log.console
+
+import scoop.log.*
+import scoop.platform.concurrent.Mutex
+import scoop.platform.io.*
+import scoop.platform.time.SystemClock
+import scoop.time.Clock
+import scoop.time.Instant
+
+/** A borrowed process standard stream. Providers never close these descriptors. */
+public enum ConsoleStream {
+    /** The process standard output stream. */
+    Stdout,
+    /** The process standard error stream. */
+    Stderr
+}
+
+private object ConsoleOutput {
+    private val stdoutMutex: Mutex = Mutex()
+    private val stderrMutex: Mutex = Mutex()
+
+    fun write(stream: ConsoleStream, text: String) {
+        when (stream) {
+            case ConsoleStream.Stdout -> stdoutMutex.withLock { standardOutput.writeText(text) }
+            case ConsoleStream.Stderr -> stderrMutex.withLock { standardError.writeText(text) }
+        }
+    }
+
+    fun flush(stream: ConsoleStream) {
+        when (stream) {
+            case ConsoleStream.Stdout -> stdoutMutex.withLock { standardOutput.flush() }
+            case ConsoleStream.Stderr -> stderrMutex.withLock { standardError.flush() }
+        }
+    }
+}
+
+private fun severity(level: LogLevel): Int = when (level) {
+    case LogLevel.Trace -> 0
+    case LogLevel.Debug -> 1
+    case LogLevel.Info -> 2
+    case LogLevel.Warn -> 3
+    case LogLevel.Error -> 4
+}
+
+/**
+ * Synchronously writes complete UTF-8 records to a borrowed standard stream. Instances writing
+ * the same stream share a lock. The clock and formatter run outside the lock and may run concurrently.
+ */
+public class ConsoleLogProvider public constructor(
+    private val stream: ConsoleStream = ConsoleStream.Stderr,
+    private val minLevel: LogLevel = LogLevel.Info,
+    private val clock: Clock = SystemClock,
+    private val format: (LogRecord, Instant) -> String = ::defaultConsoleLogFormat
+) : LogProvider {
+    /** Enables all targets at or above the configured minimum severity. */
+    public override fun isEnabled(level: LogLevel, target: String): Boolean = severity(level) >= severity(minLevel)
+
+    /** Formats an already enabled event, appends one LF, and completes the write before returning. */
+    public override fun emit(record: LogRecord) {
+        val timestamp = clock.now()
+        val text = format(record, timestamp) + "\n"
+        ConsoleOutput.write(stream, text)
+    }
+
+    /** Flushes the borrowed stream under the same lock as writes; standard streams are unbuffered. */
+    public override fun flush() { ConsoleOutput.flush(stream) }
+}

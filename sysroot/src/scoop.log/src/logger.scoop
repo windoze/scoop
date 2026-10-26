@@ -1,0 +1,103 @@
+package scoop.log
+
+/**
+ * A category handle that selects the current provider for each call. Lazy message functions run
+ * once after filtering; their exceptions become failure events instead of escaping to the caller.
+ */
+public class Logger public constructor(
+    /** The caller-selected category included in every event. */
+    public val target: String
+) {
+    /** Queries the current filter; a failed query falls back to stderr and returns false. */
+    public fun isEnabled(level: LogLevel): Boolean {
+        try { return Log.provider().isEnabled(level, target) }
+        catch (failure: Throwable) {
+            reportLogQueryFailure(failure, level, target, None)
+            return false
+        }
+    }
+
+    private fun selectProvider(level: LogLevel, location: SourceLocation): LogProvider? {
+        try {
+            val provider = Log.provider()
+            return if (provider.isEnabled(level, target)) Some(provider) else None
+        } catch (failure: Throwable) {
+            reportLogQueryFailure(failure, level, target, Some(location))
+            return None
+        }
+    }
+
+    private fun submit(provider: LogProvider, record: LogRecord) {
+        try { provider.emit(record) }
+        catch (failure: Throwable) { reportLogRecordFailure(failure, record) }
+    }
+
+    /** Submits an already evaluated message after checking the current filter. */
+    public fun log(
+        level: LogLevel, message: String, cause: Throwable? = None,
+        location: SourceLocation = currentSourceLocation()
+    ) {
+        val provider = selectProvider(level, location) ?: return
+        submit(provider, LogRecord(level, target, message, location, cause))
+    }
+
+    /** Evaluates the message once if enabled, retaining a thrown exception in a failure event. */
+    public fun log(
+        level: LogLevel, cause: Throwable? = None,
+        location: SourceLocation = currentSourceLocation(), message: () -> String
+    ) {
+        val provider = selectProvider(level, location) ?: return
+        val record = try {
+            LogRecord(level, target, message(), location, cause)
+        } catch (failure: Throwable) {
+            try {
+                LogRecord(level, target, "[log message failed] " + logExceptionSummary(failure),
+                    location, cause, Some(failure))
+            } catch (recoveryFailure: Throwable) {
+                reportLogMessageFailure(recoveryFailure, failure, level, target, location, cause)
+                return
+            }
+        }
+        submit(provider, record)
+    }
+
+    /** Records an already evaluated trace message. */
+    public fun trace(message: String, cause: Throwable? = None, location: SourceLocation = currentSourceLocation()) =
+        log(LogLevel.Trace, message, cause, location)
+
+    /** Evaluates a trace message only if enabled. */
+    public fun trace(cause: Throwable? = None, location: SourceLocation = currentSourceLocation(), message: () -> String) =
+        log(LogLevel.Trace, cause, location, message)
+
+    /** Records an already evaluated debug message. */
+    public fun debug(message: String, cause: Throwable? = None, location: SourceLocation = currentSourceLocation()) =
+        log(LogLevel.Debug, message, cause, location)
+
+    /** Evaluates a debug message only if enabled. */
+    public fun debug(cause: Throwable? = None, location: SourceLocation = currentSourceLocation(), message: () -> String) =
+        log(LogLevel.Debug, cause, location, message)
+
+    /** Records an already evaluated informational message. */
+    public fun info(message: String, cause: Throwable? = None, location: SourceLocation = currentSourceLocation()) =
+        log(LogLevel.Info, message, cause, location)
+
+    /** Evaluates an informational message only if enabled. */
+    public fun info(cause: Throwable? = None, location: SourceLocation = currentSourceLocation(), message: () -> String) =
+        log(LogLevel.Info, cause, location, message)
+
+    /** Records an already evaluated warning. */
+    public fun warn(message: String, cause: Throwable? = None, location: SourceLocation = currentSourceLocation()) =
+        log(LogLevel.Warn, message, cause, location)
+
+    /** Evaluates a warning only if enabled. */
+    public fun warn(cause: Throwable? = None, location: SourceLocation = currentSourceLocation(), message: () -> String) =
+        log(LogLevel.Warn, cause, location, message)
+
+    /** Records an already evaluated error message. */
+    public fun error(message: String, cause: Throwable? = None, location: SourceLocation = currentSourceLocation()) =
+        log(LogLevel.Error, message, cause, location)
+
+    /** Evaluates an error message only if enabled. */
+    public fun error(cause: Throwable? = None, location: SourceLocation = currentSourceLocation(), message: () -> String) =
+        log(LogLevel.Error, cause, location, message)
+}

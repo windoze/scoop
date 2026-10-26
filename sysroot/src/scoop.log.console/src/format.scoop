@@ -1,0 +1,19 @@
+package scoop.log.console
+
+import scoop.log.LogRecord
+import scoop.time.Instant
+
+/**
+ * Formats UTC time, severity, target and message, with an optional application exception summary.
+ * The returned text has no added line terminator; embedded characters are preserved.
+ */
+public fun defaultConsoleLogFormat(record: LogRecord, timestamp: Instant): String {
+    val text = f"${timestamp} [${record.level}] ${record.target}: ${record.message}"
+    return when (record.cause) {
+        case Some(failure) -> {
+            val summary = if (failure is Exception) failure.message ?: "Exception (no message)" else "Throwable"
+            text + " | cause: " + summary
+        }
+        case None -> text
+    }
+}

@@ -1,0 +1,187 @@
+package scoop.log
+
+import scoop.test.*
+
+@Test
+private class FacadeTest {
+    @Test
+    fun `level labels and default noop are stable`() {
+        assertEquals("TRACE", LogLevel.Trace.toString())
+        assertEquals("DEBUG", LogLevel.Debug.toString())
+        assertEquals("INFO", LogLevel.Info.toString())
+        assertEquals("WARN", LogLevel.Warn.toString())
+        assertEquals("ERROR", LogLevel.Error.toString())
+        val logger = Logger("before-configuration")
+        assertFalse(logger.isEnabled(LogLevel.Error))
+        val calls = AtomicInt(0)
+        logger.error { calls.fetchAdd(1); throw Exception(Some("disabled")) }
+        assertEquals(0, calls.load())
+        Log.flush()
+    }
+
+    @Test
+    fun `all convenience levels preserve eager and lazy messages`() {
+        val provider = RecordingProvider()
+        val logger = Logger("category")
+        withProvider(provider) {
+            logger.trace("trace"); logger.trace { "trace lazy" }
+            logger.debug("debug"); logger.debug { "debug lazy" }
+            logger.info("info"); logger.info { "info lazy" }
+            logger.warn("warn"); logger.warn { "warn lazy" }
+            logger.error("error"); logger.error { "error lazy" }
+            logger.log(LogLevel.Info, "direct")
+            logger.log(LogLevel.Warn) { "direct lazy" }
+            Log.flush()
+        }
+        val levels: Array<LogLevel> = [LogLevel.Trace, LogLevel.Debug, LogLevel.Info, LogLevel.Warn, LogLevel.Error]
+        val names: Array<String> = ["trace", "debug", "info", "warn", "error"]
+        assertEquals(12L, provider.records.size)
+        assertEquals(12, provider.queries)
+        assertEquals(1, provider.flushes)
+        for (index in 0L..<5L) {
+            val eager = provider.records[index * 2L]
+            val lazy = provider.records[index * 2L + 1L]
+            assertTrue(eager.level == levels[index])
+            assertTrue(lazy.level == levels[index])
+            assertEquals(names[index], eager.message)
+            assertEquals(names[index] + " lazy", lazy.message)
+            assertEquals("category", eager.target)
+            assertTrue(when (lazy.cause) { case None -> true; case Some(_) -> false })
+            assertTrue(when (lazy.messageFailure) { case None -> true; case Some(_) -> false })
+        }
+        assertEquals("direct", provider.records[10L].message)
+        assertEquals("direct lazy", provider.records[11L].message)
+    }
+
+    @Test
+    fun `filtering skips lazy work while eager arguments retain ordinary evaluation`() {
+        val provider = RecordingProvider(false)
+        val calls = AtomicInt(0)
+        val failure = Exception(Some("eager argument"))
+        withProvider(provider) {
+            val logger = Logger("disabled")
+            logger.debug { calls.fetchAdd(100); throw failure }
+            logger.info(evaluated(calls))
+            assertSame(failure, assertFailsWith<Exception> { logger.error(failedMessage(failure)) })
+            assertFalse(logger.isEnabled(LogLevel.Error))
+        }
+        assertEquals(1, calls.load())
+        assertEquals(3, provider.queries)
+        assertEquals(0L, provider.records.size)
+    }
+
+    @Test
+    fun `logger selects at call time and keeps its selected provider during message evaluation`() {
+        val logger = Logger("switch")
+        val first = RecordingProvider()
+        val second = RecordingProvider()
+        val calls = AtomicInt(0)
+        withProvider(first) {
+            logger.info {
+                calls.fetchAdd(1)
+                Log.setProvider(second)
+                "first event"
+            }
+            logger.info("second event")
+            Log.flush()
+        }
+        assertEquals(1, calls.load())
+        assertEquals(1, first.queries)
+        assertEquals(1, second.queries)
+        assertEquals("first event", first.records[0L].message)
+        assertEquals("second event", second.records[0L].message)
+        assertEquals(0, first.flushes)
+        assertEquals(1, second.flushes)
+    }
+
+    @Test
+    fun `message failures preserve severity source and both exception identities`() {
+        val provider = RecordingProvider()
+        val cause = Exception(Some("original operation"))
+        val failure = Exception(Some("message exploded"))
+        val calls = AtomicInt(0)
+        val location = SourceLocation("sample.scoop", 21L, 4L, "sample", "Owner")
+        withProvider(provider) {
+            Logger("failed-message").debug(Some(cause), location) {
+                calls.fetchAdd(1)
+                throw failure
+            }
+        }
+        assertEquals(1, calls.load())
+        assertEquals(1, provider.queries)
+        assertEquals(1L, provider.records.size)
+        val record = provider.records[0L]
+        assertTrue(record.level == LogLevel.Debug)
+        assertEquals("failed-message", record.target)
+        assertTrue(record.location == location)
+        assertEquals("[log message failed] message exploded", record.message)
+        assertSame(failure, record.messageFailure!!)
+        assertSame(cause, record.cause!!)
+    }
+
+    @Test
+    fun `exceptions without messages and plain throwable remain usable events`() {
+        val provider = RecordingProvider()
+        val empty = Exception(None)
+        val plain = Throwable()
+        withProvider(provider) {
+            val logger = Logger("summaries")
+            logger.warn { throw empty }
+            logger.warn { throw plain }
+            logger.info("")
+            logger.info("雪😀\u{0}\nsecond line")
+        }
+        assertEquals("[log message failed] Exception (no message)", provider.records[0L].message)
+        assertEquals("[log message failed] Throwable", provider.records[1L].message)
+        assertSame(empty, provider.records[0L].messageFailure!!)
+        assertSame(plain, provider.records[1L].messageFailure!!)
+        assertEquals("", provider.records[2L].message)
+        assertEquals("雪😀\u{0}\nsecond line", provider.records[3L].message)
+    }
+
+    @Test
+    fun `logging from catch and finally preserves the original control flow`() {
+        val provider = RecordingProvider()
+        val primary = Exception(Some("primary"))
+        val secondary = Throwable()
+        withProvider(provider) {
+            val logger = Logger("cleanup")
+            assertSame(primary, assertFailsWith<Exception> {
+                try { throw primary }
+                finally { logger.error(cause = Some(primary)) { throw secondary } }
+            })
+            val result = try { throw primary }
+            catch (caught: Exception) {
+                logger.error(cause = Some(caught)) { throw secondary }
+                42
+            }
+            assertEquals(42, result)
+        }
+        assertEquals(2L, provider.records.size)
+        for (record in provider.records) {
+            assertSame(primary, record.cause!!)
+            assertSame(secondary, record.messageFailure!!)
+        }
+    }
+
+    @Test
+    fun `source defaults identify the caller through convenience and user forwarding`() {
+        val provider = RecordingProvider()
+        withProvider(provider) {
+            val logger = Logger("source")
+            val direct = currentSourceLocation()
+            logger.info("direct")
+            val forwardedCall = currentSourceLocation()
+            forwarded(logger)
+            val first = provider.records[0L].location
+            val second = provider.records[1L].location
+            assertEquals(direct.file, first.file)
+            assertEquals(direct.line + 1L, first.line)
+            assertEquals(direct.functionName, first.functionName)
+            assertEquals(direct.typeName, first.typeName)
+            assertTrue(first.column > 0L)
+            assertEquals(forwardedCall.line + 1L, second.line)
+            assertEquals(forwardedCall.functionName, second.functionName)
+        }
+    }
+}

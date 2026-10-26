@@ -1,0 +1,18 @@
+//! dep: scoop:scoop.log:0.1.0
+//! dep: scoop:scoop.log.console:0.1.0
+
+import scoop.log.*
+import scoop.log.console.*
+
+private val log = Logger("example")
+
+fun main() {
+    Log.setProvider(ConsoleLogProvider())
+    log.info { "ready" }
+    log.debug { "disabled by the Info threshold" }
+    log.warn { throw Exception(Some("message construction failed")) }
+    Log.setProvider(ConsoleLogProvider(stream = ConsoleStream.Stdout,
+        format = { record, _ -> f"${record.level}: ${record.message}" }))
+    log.info("custom format")
+    Log.flush()
+}
