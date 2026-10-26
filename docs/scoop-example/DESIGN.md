@@ -141,16 +141,18 @@ catalog 中的 `source` 相对所选安装根；`document` 相对 catalog 所在
 
 普通单文件不改写依赖版本，不注入隐藏前导代码。多文件项目的显示路径必须保留 manifest、import 之外实际文件访问和资源引用所需的相对关系。
 
-一个简化但完整的主题记录如下；关联目标应随对应内容一起发布：
+索引记录节选如下；关联目标也必须作为主题随同发布：
 
 ```toml
 schema = 1
+recommended = ["json/typed"]
 
 [[groups]]
 id = "json"
 title = "JSON"
 summary = "结构化数据与 JSON 文本、值树之间的转换"
 aliases = ["scoop.json"]
+recommended = ["json/typed"]
 
 [[topics]]
 id = "json/typed"
